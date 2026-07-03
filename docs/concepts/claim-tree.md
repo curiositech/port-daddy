@@ -587,7 +587,7 @@ The GC half-life calculation:
    contest=3 → effective_idle_threshold = 30d * exp(-0.3 * 3) ≈ 12d
    
 But there's no heartbeat from session-A. The session itself dies after
-the standard sortie timeout (or stays alive if operator session).
+the standard spawned-run timeout (or stays alive if operator session).
 
 Top-of-context to session-A:
    "Your claim on signToken is being contested by 3 other sessions.

@@ -164,7 +164,6 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   up: 'approval',           // brings up multi-service stacks; effects on shared ports
   u: 'approval',
   spawn: 'approval',        // refined: `spawn kill` is destructive
-  sortie: 'approval',
   agent: 'approval',        // refined: `agent unregister`, `agent inbox clear` are destructive
   mcp: 'approval',
   harbor: 'approval',       // refined: `harbor destroy` is destructive

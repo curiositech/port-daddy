@@ -19,7 +19,7 @@ Port Daddy's core primitive families are:
 | Messaging | How do agents and tools notify each other without scraping prose? | [channels](/docs/cli/pub), [inboxes](/agents/communication-protocols), [tuples](/docs/features/tuples) |
 | Recovery | What survives when a process dies or a context window disappears? | [session notes](/docs/cli/note), [activity](/docs/features/timeline), [salvage](/docs/features/salvage), [resurrection](/agents/resurrection) |
 | Verification | What checks the runtime story against actual behavior? | [Arbiter invariants](/docs/features/arbiter), [guard checks](/agents/coordination-guard), [telemetry gates](/agents/smart-resources), [budget gates](/agents/smart-resources) |
-| Human Control | Where does a person inspect and approve the state? | [FleetBar](/mac-preview), [Fleet Control Center](/mac-preview), [Shipwright](/agents/yaml-and-shipwright), [Resources](/agents/smart-resources), [Sorties](/docs/tutorials/launch-and-inspect-a-sortie) |
+| Human Control | Where does a person inspect and approve the state? | [FleetBar](/mac-preview), [Fleet Control Center](/mac-preview), [Shipwright](/agents/yaml-and-shipwright), [Resources](/agents/smart-resources), [Spawned Runs](/docs/tutorials/launch-and-inspect-a-spawn) |
 
 The important design principle is that no primitive should pretend to do every job. A lock is not a note. A note is not a queue. A channel is not a handoff. A budget gate is not a review.
 

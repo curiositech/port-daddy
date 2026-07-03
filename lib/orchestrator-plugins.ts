@@ -105,7 +105,7 @@ export interface SystemSnapshot {
 
 /** Actions the orchestrator can take during onTick */
 export interface OrchestratorAction {
-  type: 'reorder' | 'park' | 'notify' | 'spawn_agent';
+  type: 'reorder' | 'park' | 'notify' | 'spawn';
   target?: number | string;
   payload?: Record<string, unknown>;
 }

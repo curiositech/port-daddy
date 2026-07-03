@@ -14,7 +14,7 @@ const FLAG_DESCRIPTIONS: Record<string, string> = {
   '--all-worktrees': 'Include active sessions from every known worktree.',
   '--allowedTools': 'Restrict the spawned backend to the allowed tool list.',
   '--as': 'Write the tuple or signal as a specific agent identity.',
-  '--backend': 'Choose the launch backend for agent, spawn, or sortie work.',
+  '--backend': 'Choose the launch backend for spawned work.',
   '--branch': 'Bind scan or orchestration behavior to a branch name.',
   '--budget': 'Require an explicit budget ceiling before launching agent work.',
   '--channels': 'Include channel discovery and subscription context in advisory output.',

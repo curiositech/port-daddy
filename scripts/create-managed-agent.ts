@@ -65,7 +65,7 @@ interface Manifest {
  * references agents that don't exist. Until the sub-agents (implementer,
  * port-daddy-redteam) are created as their own managed agents, the cloud Pilot
  * ships as a solo agent and the fan-out happens locally via Port Daddy's
- * spawn_agent / run_sortie. See docs/agents/port-daddy-pilot-multiagent.md.
+ * spawn primitive. See docs/agents/port-daddy-pilot-multiagent.md.
  */
 export function buildCreatePayload(
   config: any,

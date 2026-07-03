@@ -91,8 +91,8 @@ export const ALL_CATEGORIES: McpCategory[] = [
     darkColor: 'var(--p-teal-300)',
     bg: 'var(--badge-teal-bg)',
     border: 'var(--badge-teal-border)',
-    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn_agent', 'run_sortie'],
-    description: 'High-level composed tools for fleet setup, swarm awareness, situation reports, agent spawning, sortie missions, file heat maps, and agent messaging.',
+    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn'],
+    description: 'High-level composed tools for fleet setup, swarm awareness, situation reports, spawning, file heat maps, and agent messaging.',
   },
   {
     id: 'session-lifecycle',
@@ -283,16 +283,6 @@ export const ALL_CATEGORIES: McpCategory[] = [
     border: 'var(--badge-teal-border)',
     tools: ['activity_log', 'activity_summary', 'activity_stats', 'activity_range'],
     description: 'Full audit trail of all port claims, sessions, notes, and coordination events.',
-  },
-  {
-    id: 'sorties',
-    label: 'Sorties',
-    color: 'var(--p-amber-700)',
-    darkColor: 'var(--p-amber-300)',
-    bg: 'var(--badge-amber-bg)',
-    border: 'var(--badge-amber-border)',
-    tools: ['run_sortie', 'list_sorties', 'get_sortie', 'get_sortie_logs'],
-    description: 'Tracked mission records over spawned runs: launch, inspect status, and fetch sortie event logs.',
   },
   {
     id: 'system',

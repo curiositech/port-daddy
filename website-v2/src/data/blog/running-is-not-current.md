@@ -139,7 +139,7 @@ A stale UI can be tolerated while reading. It should not be tolerated while laun
 
 <!-- terminal -->
 ```bash
-$ pd agent "Run the release helper" --backend codex --model-tier mid
+$ pd spawn --backend codex --tier mid --budget 0.50 -- "Run the release helper"
 blocked: runtime provenance mismatch
 
 daemon:

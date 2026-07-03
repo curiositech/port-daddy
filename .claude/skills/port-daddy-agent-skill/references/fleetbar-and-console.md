@@ -2,7 +2,7 @@
 
 FleetBar is the native Mac entry point. Fleet Control Center is the full browser
 console served by the daemon. When agent work touches launch, readiness,
-Shipwright, resources, sorties, YAML, or recent activity, source inspection is
+Shipwright, resources, spawned runs, YAML, or recent activity, source inspection is
 not enough. The operator has to be able to see the state in the product.
 
 ## Screenshot Pointers

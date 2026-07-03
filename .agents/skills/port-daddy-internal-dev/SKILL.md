@@ -90,7 +90,7 @@ repo-specific mechanics:
   research. The intended home is a **seamanship** match-cascade/graft selector
   (proposed, not yet built — modelled on windags `windags_skill_induct` /
   `windags_skill_graft`); until it lands, match by hand against `skills/`.
-- **Launch agents through PD** (`pd agent` / `pd sortie` / `pd dispatch` / conductor),
+- **Launch work through PD spawn** (`pd spawn`, SDK `spawn()`, or MCP `spawn`),
   never a raw side-channel — so the work is registered, sandboxed, budgeted, salvageable.
 - **Keep `README.md` current** in the same PR when a slice changes a documented surface.
 

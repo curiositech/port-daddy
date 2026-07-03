@@ -214,7 +214,7 @@
       }
     },
     "agent_cockpit": {
-      "description": "Watch + Grab the Wheel (Phase 0) — additive console surface for one agent/sortie. GET /agents/:id/stream is a single SSE feed merging that agent's lifecycle status, its steering-channel tube/control messages, and its ship-run transcript events into typed envelopes ({v,kind,agentId,body,ts}). POST /agents/:id/interrupt delivers a SOFT cancel/steer signal (a control.interrupt message on the agent's `agent:<id>` steering channel) that a cooperating agent loop can observe — pause/redirect, NOT the hard process kill of DELETE /spawn/:id.",
+      "description": "Watch + Grab the Wheel (Phase 0) — additive console surface for one agent or spawned run. GET /agents/:id/stream is a single SSE feed merging that agent's lifecycle status, its steering-channel tube/control messages, and its ship-run transcript events into typed envelopes ({v,kind,agentId,body,ts}). POST /agents/:id/interrupt delivers a SOFT cancel/steer signal (a control.interrupt message on the agent's `agent:<id>` steering channel) that a cooperating agent loop can observe — pause/redirect, NOT the hard process kill of DELETE /spawn/:id.",
       "cli": [],
       "sdk": [],
       "routes": [
@@ -1055,7 +1055,7 @@
       }
     },
     "spawn": {
-      "description": "Launch AI agents (Ollama, Claude, Gemini, Aider) with Port Daddy coordination",
+      "description": "Spawn AI runs (Ollama, Claude, Gemini, Aider) with Port Daddy coordination",
       "cli": [
         "spawn",
         "spawned"
@@ -1070,6 +1070,9 @@
         "POST /spawn",
         "DELETE /spawn/:param",
         "GET /spawn"
+      ],
+      "mcp": [
+        "spawn"
       ],
       "completions": [
         "spawn",
@@ -1158,28 +1161,19 @@
       }
     },
     "sorties": {
-      "description": "Tracked mission records over spawned runs with durable ids, harbors, and event logs",
-      "cli": [
-        "sortie"
-      ],
-      "sdk": [
-        "runSortie",
-        "listSorties",
-        "getSortie",
-        "getSortieLogs"
-      ],
+      "description": "Legacy HTTP record compatibility for historical spawned runs",
+      "cli": [],
+      "sdk": [],
       "routes": [
         "POST /sorties",
         "GET /sorties",
         "GET /sorties/:param",
         "GET /sorties/:param/logs"
       ],
-      "completions": [
-        "sortie"
-      ],
+      "completions": [],
       "docs": {
-        "readme": true,
-        "sdk": true
+        "readme": false,
+        "sdk": false
       }
     },
     "watch": {
@@ -1574,7 +1568,7 @@
       }
     },
     "memory": {
-      "description": "Episodic memory entries and aggregate memory stats promoted from sessions and sorties",
+      "description": "Episodic memory entries and aggregate memory stats promoted from sessions and spawned runs",
       "cli": [
         "memory"
       ],

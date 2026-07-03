@@ -39,7 +39,7 @@ export function ColdStartSection() {
             <SurfacePanel tone="blue" padding="compact" className="grid gap-[var(--space-3)]">
               <PanelEyebrow tone="primary">Design rule</PanelEyebrow>
               <PanelBody tone="primary" size="compact" className="max-w-none">
-                API keys, budget caps, model readiness, and project onboarding must be visible before an agent launch, not discovered after a failed sortie.
+                API keys, budget caps, model readiness, and project onboarding must be visible before a spawn, not discovered after a failed launch.
               </PanelBody>
             </SurfacePanel>
             <picture className="mt-[var(--space-4)] block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
