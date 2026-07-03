@@ -1,0 +1,29 @@
+{
+  "candidatePaths": [
+    {
+      "path": "/Users/agent/.port-daddy/registry.db",
+      "canonical": true,
+      "kind": "user-data"
+    }
+  ],
+  "envPin": {
+    "varName": "PORT_DADDY_DB"
+  },
+  "journalMode": "wal",
+  "busyTimeoutMs": 5000,
+  "migrations": [
+    {
+      "id": "001_init",
+      "postVerify": {
+        "table": "sessions",
+        "probeSql": "SELECT 1 FROM sessions LIMIT 1"
+      }
+    }
+  ],
+  "writerTopology": {
+    "strategy": "single-writer",
+    "writers": [
+      "daemon"
+    ]
+  }
+}

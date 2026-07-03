@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Launchd Job Plan",
+  "description": "A plan describing an intended launchd job, checked before writing/loading the real .plist.",
+  "type": "object",
+  "required": ["label", "programArgs", "agentVsDaemon"],
+  "properties": {
+    "label": {
+      "type": "string",
+      "description": "Reverse-DNS style unique job label, e.g. com.example.myapp.",
+      "minLength": 1
+    },
+    "programArgs": {
+      "type": "array",
+      "description": "ProgramArguments argv. Element 0 should be an absolute path unless env.PATH is pinned.",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "runAtLoad": {
+      "type": "boolean",
+      "description": "Whether the job starts immediately on bootstrap/login/boot, not just on-demand."
+    },
+    "keepAlive": {
+      "description": "Bare boolean, or an object with SuccessfulExit/Crashed semantics.",
+      "oneOf": [
+        { "type": "boolean" },
+        {
+          "type": "object",
+          "properties": {
+            "successfulExit": { "type": "boolean" },
+            "crashed": { "type": "boolean" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "throttleInterval": {
+      "type": "number",
+      "description": "Minimum seconds launchd waits between respawns. 0/absent risks restart thrash.",
+      "minimum": 0
+    },
+    "stdoutPath": {
+      "type": "string",
+      "description": "StandardOutPath. Must not resolve under /tmp or /private/tmp."
+    },
+    "stderrPath": {
+      "type": "string",
+      "description": "StandardErrorPath. Must not resolve under /tmp or /private/tmp."
+    },
+    "env": {
+      "type": "object",
+      "description": "EnvironmentVariables map. PATH matters most for absolute-path avoidance.",
+      "properties": {
+        "PATH": { "type": "string" }
+      },
+      "additionalProperties": { "type": "string" }
+    },
+    "agentVsDaemon": {
+      "type": "string",
+      "enum": ["agent", "daemon"],
+      "description": "agent = ~/Library/LaunchAgents (per-user, GUI session). daemon = /Library/LaunchDaemons (system-wide, no GUI)."
+    },
+    "requiresGuiSession": {
+      "type": "boolean",
+      "description": "True if the program touches Aqua/notifications/keychain UI/menu bar — impossible for a LaunchDaemon."
+    },
+    "runsAtSystemBoot": {
+      "type": "boolean",
+      "description": "True if the job must run before any user logs in — impossible for a LaunchAgent."
+    },
+    "hasExternalIntegrityCheck": {
+      "type": "boolean",
+      "description": "True if a process/cron/doctor command separately verifies the supervisor label is still loaded (independent of KeepAlive)."
+    }
+  },
+  "additionalProperties": true
+}
