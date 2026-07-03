@@ -285,6 +285,55 @@ export async function handleEnv(id: string | undefined, options: CLIOptions): Pr
 }
 
 /**
+ * `pd env exec -- <cmd> [args…]` — run a command with `pd-secret://KEY` refs in
+ * its environment resolved to their corralled values (ADR-0088 Phase B access
+ * path). The resolution happens IN THE CHILD ENV ONLY — the value is never
+ * written to disk. This is the frictionless side of `pd safe corral`: a `.env`
+ * line rewritten to `FOO=pd-secret://FOO` is transparently re-injected here for
+ * the duration of the one command, with no plaintext at rest.
+ *
+ * The current env is the base. Any var whose value is `pd-secret://KEY` is
+ * resolved from the vault; a ref that fails to resolve is LEFT AS-IS (the child
+ * sees the literal `pd-secret://…` and fails loudly rather than silently running
+ * without a required secret).
+ */
+export async function handleEnvExec(argv: string[], options: CLIOptions): Promise<void> {
+  const { resolveSecretRefsInEnv } = await import('../../lib/secret-env.js');
+  const { spawnSync } = await import('node:child_process');
+
+  if (argv.length === 0) {
+    process.stderr.write(
+      'Usage: pd env exec -- <command> [args…]\n' +
+        'Runs <command> with pd-secret:// env refs resolved into its environment only.\n',
+    );
+    process.exit(2);
+    return;
+  }
+
+  const { env, resolved, unresolved } = resolveSecretRefsInEnv(process.env);
+
+  if (!options.quiet && !options.q) {
+    if (resolved.length > 0) {
+      process.stderr.write(`pd env exec: resolved ${resolved.length} pd-secret:// ref(s): ${resolved.join(', ')}\n`);
+    }
+    if (unresolved.length > 0) {
+      process.stderr.write(
+        `pd env exec: WARNING ${unresolved.length} pd-secret:// ref(s) did NOT resolve and are passed literally: ${unresolved.join(', ')}\n`,
+      );
+    }
+  }
+
+  const [cmd, ...rest] = argv;
+  const child = spawnSync(cmd, rest, { stdio: 'inherit', env });
+  if (child.error) {
+    process.stderr.write(`pd env exec: failed to run ${cmd}: ${child.error.message}\n`);
+    process.exit(127);
+    return;
+  }
+  process.exit(child.status ?? 0);
+}
+
+/**
  * Handle `pd ports [subcommand]` command
  */
 export async function handlePorts(subcommand: string | undefined, options: CLIOptions): Promise<void> {

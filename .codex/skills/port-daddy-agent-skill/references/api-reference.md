@@ -1752,3 +1752,24 @@ SSE stream of real-time dashboard updates. Falls back to 15s polling.
 
 ### GET /config
 Get current daemon configuration. Optional query param: `dir`.
+
+---
+
+## Host Safety (ADR-0088)
+
+### GET /safe/scan
+Read-only host-safety posture audit. Runs the same scan as `pd safe scan` and the `safe_scan` MCP tool: secrets-at-rest, crown-jewel file permissions, binary trust, egress snapshot, and MCP supply-chain inventory. Optional query param `allow` is a comma-separated host allowlist for the egress check.
+
+Always returns `200` — the report carries its own verdict (callers gate on `report.state`, not HTTP status, exactly like `GET /attest`).
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "report": {
+    "state": "ok",
+    "score": 100,
+    "findings": []
+  }
+}
+```

@@ -365,6 +365,10 @@ describe('Test Group 3: API -> CLI Parity', () => {
     // shipped-dead (never registered), which is why this category did not
     // appear here before. `pd relay <url|status|exchange>` is its CLI surface.
     relay: ['relay'],
+    // safe: host-safety posture audit (ADR-0088). routes/safe.ts (safePlugin)
+    // exposes the read-only GET /safe/scan; `pd safe <scan|baseline|fix|corral|guard>`
+    // is its CLI surface.
+    safe: ['safe'],
   };
 
   // API-only routes that have no CLI equivalent (accessed via curl or SDK).

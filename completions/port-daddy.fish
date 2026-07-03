@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'takeover' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' 'send' 'sent' \
-    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
+    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
     'say' 'look' 'sitrep' 'whois' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
@@ -194,6 +194,13 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a transcript -d 'Alias for transcripts — view a single ship-run record'
     complete -c $prog -n __pd_needs_command -a relay -d 'Cloud relay management — configure, exchange, status (ADR-0049)'
     complete -c $prog -n "__pd_using_command relay" -x -a 'url status exchange' -d 'Relay subcommand'
+    complete -c $prog -n "__pd_using_command safe" -x -a 'scan baseline fix corral guard' -d 'Safe subcommand (ADR-0088)'
+    complete -c $prog -n "__pd_using_command safe; and __fish_seen_subcommand_from scan" -l json -d 'Structured posture report'
+    complete -c $prog -n "__pd_using_command safe; and __fish_seen_subcommand_from baseline" -x -a 'accept' -d 'Triage a finding into the baseline'
+    complete -c $prog -n "__pd_using_command safe; and __fish_seen_subcommand_from fix" -l auto -d 'Apply the opt-in reversible chmod'
+    complete -c $prog -n "__pd_using_command safe; and __fish_seen_subcommand_from corral" -l all -d 'Corral every detected secret'
+    complete -c $prog -n "__pd_using_command safe; and __fish_seen_subcommand_from corral" -l apply -d 'Write the corral (default is dry-run)'
+    complete -c $prog -n "__pd_using_command safe; and __fish_seen_subcommand_from guard" -l staged -d 'Scan the staged diff for secrets'
     complete -c $prog -n "__pd_needs_command" -a 'relay url' -d 'Show the configured relay worker URL'
     complete -c $prog -n "__pd_needs_command" -a 'relay status' -d 'Check relay connectivity and latency'
     complete -c $prog -n "__pd_needs_command" -a 'relay exchange' -d 'Publish/subscribe events via the relay worker'
@@ -307,6 +314,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a backup -d 'Durable snapshots of port-registry.db (ADR-0037)'
     complete -c $prog -n __pd_needs_command -a restore -d 'Restore a port-registry.db snapshot (ADR-0037)'
     complete -c $prog -n __pd_needs_command -a attest -d 'Honest self-report — loud-fail invariants (ADR-0045)'
+    complete -c $prog -n __pd_needs_command -a safe -d 'Host-safety posture audit — scan|baseline|fix (ADR-0088)'
     complete -c $prog -n __pd_needs_command -a shipwright -d 'Survey + propose + apply for fleet authoring'
     complete -c $prog -n __pd_needs_command -a pheromone -d 'Stigmergic coordination (spray, files, show, ls)'
     complete -c $prog -n __pd_needs_command -a ph -d 'Alias for pheromone'
@@ -561,6 +569,7 @@ for prog in port-daddy pd
 
     # env
     complete -c $prog -n "__pd_using_command env" -l file -d 'Write env vars to file' -r
+    complete -c $prog -n "__pd_using_command env" -x -a 'exec' -d 'Run a command with pd-secret:// refs resolved into its env'
     complete -c $prog -n "__pd_using_command env" -x -a '(__pd_service_ids)'
 
     # pub / publish / broadcast
