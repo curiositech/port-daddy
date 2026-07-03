@@ -81,6 +81,7 @@ function coerceBlocking(value: unknown): boolean {
 
 function coerceTemperature(value: unknown): number | null {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  if (value < 0 || value > 2) return null;
   return value;
 }
 

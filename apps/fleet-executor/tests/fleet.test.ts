@@ -161,6 +161,35 @@ describe('parseFleetShips — model derivation + blocking coercion', () => {
     expect(byName.qa).toBeNull();
   });
 
+  it('rejects invalid creative temperature values', () => {
+    const ships = parseFleetShips(
+      yaml(
+        [
+          '    cold:',
+          '      trigger: pull_request:opened',
+          '      temperature: -0.1',
+          '      prompt: |',
+          '        cold.',
+          '    hot:',
+          '      trigger: pull_request:opened',
+          '      temperature: 2.1',
+          '      prompt: |',
+          '        hot.',
+          '    ok:',
+          '      trigger: pull_request:opened',
+          '      temperature: 2',
+          '      prompt: |',
+          '        ok.',
+        ].join('\n'),
+      ),
+      'pull_request:opened',
+    );
+    const byName = Object.fromEntries(ships!.map(s => [s.name, s.temperature]));
+    expect(byName.cold).toBeNull();
+    expect(byName.hot).toBeNull();
+    expect(byName.ok).toBe(2);
+  });
+
   it('returns null for unparseable or empty docs (caller falls back to defaults)', () => {
     expect(parseFleetShips(':::not yaml:::\n  - [', 'pull_request:opened')).toBeNull();
     expect(parseFleetShips('fleet:\n', 'pull_request:opened')).toBeNull();

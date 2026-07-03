@@ -393,6 +393,12 @@ fleet:
         - Kickoff: `/pd assign spark <assignmentTitle>`
         - CLI fallback: `pd dispatch propose --from-pr <PR> --ship spark --title "<assignmentTitle>"`
 
+        Output contract: do not wrap the build packet in triple-backtick
+        fences, and especially do not use a ```json fence for it. The
+        executor parses the first fenced ```json block as the findings
+        array. The only fenced ```json block you may emit is the final
+        findings array, usually `[]`.
+
         Spark ideas are advisory opportunities, not merge objections. Unless
         you found a true product-safety blocker, include an empty findings
         JSON block and end with FLEET-VERDICT: PASS.
@@ -471,6 +477,12 @@ fleet:
           validationRequired, expectedProof, budgetUsd }
         - Kickoff: `/pd assign spider <assignmentTitle>`
         - CLI fallback: `pd dispatch propose --from-pr <PR> --ship spider --title "<assignmentTitle>"`
+
+        Output contract: do not wrap the build packet in triple-backtick
+        fences, and especially do not use a ```json fence for it. The
+        executor parses the first fenced ```json block as the findings
+        array. The only fenced ```json block you may emit is the final
+        findings array, usually `[]`.
 
         Spider comments are advisory product synthesis, not merge
         objections. Unless you found a true product-safety blocker, include
