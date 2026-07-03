@@ -23,6 +23,7 @@ struct FleetControlNightshiftSection: View {
     @State private var recentExpanded = false
     @State private var rejectingId: String?
     @State private var rejectionReason: String = ""
+    @State private var transcriptSheet: TranscriptSheet?
 
     var body: some View {
         ScrollView {
@@ -40,6 +41,11 @@ struct FleetControlNightshiftSection: View {
             .padding(Fleet.Space.xl)
         }
         .background(Fleet.Chrome.popoverBackground)
+        .sheet(item: $transcriptSheet) { sheet in
+            TranscriptWebSheet(url: sheet.url) {
+                transcriptSheet = nil
+            }
+        }
     }
 
     // MARK: - Status banner
@@ -543,17 +549,18 @@ struct FleetControlNightshiftSection: View {
     }
 
     private func openTranscript(for dispatch: DispatchSnapshot) {
-        // Until a native transcript detail view is wired, route to the web
-        // dashboard equivalent at `/fleet-ui/?surface=transcripts&id=<id>`.
+        // Until a native transcript detail view is wired, show the fleet-ui
+        // transcript surface in an in-app sheet — never in an external browser.
         guard let transcriptId = dispatch.transcriptId else { return }
         let base = DaemonLocation.resolveBaseURL()
         guard var components = URLComponents(string: "\(base)/fleet-ui/") else { return }
         components.queryItems = [
             URLQueryItem(name: "surface", value: "transcripts"),
             URLQueryItem(name: "id", value: transcriptId),
+            URLQueryItem(name: "embed", value: "fleetbar"),
         ]
         if let url = components.url {
-            openURL(url)
+            transcriptSheet = TranscriptSheet(url: url)
         }
     }
 
@@ -791,6 +798,70 @@ struct FleetControlNightshiftSection: View {
         }
         let d = Int(elapsed / 86_400)
         return "\(d)d ago"
+    }
+}
+
+// MARK: - Transcript sheet
+
+private struct TranscriptSheet: Identifiable {
+    let url: URL
+    var id: String { url.absoluteString }
+}
+
+private struct TranscriptWebSheet: View {
+    let url: URL
+    let dismiss: () -> Void
+
+    @State private var reloadToken = UUID()
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: Fleet.Space.s) {
+                Image(systemName: "text.bubble")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Text("Transcript")
+                    .font(.system(size: 15, weight: .semibold))
+                Spacer()
+                if isLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+                Button("Done", action: dismiss)
+                    .keyboardShortcut(.cancelAction)
+            }
+            .padding(Fleet.Space.m)
+
+            Divider()
+
+            if let errorMessage {
+                Spacer()
+                VStack(spacing: Fleet.Space.s) {
+                    Image(systemName: "wifi.exclamationmark")
+                        .font(.system(size: 24, weight: .medium))
+                        .foregroundStyle(Fleet.Color.warning)
+                    Text(errorMessage)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                    Button("Retry") {
+                        self.errorMessage = nil
+                        reloadToken = UUID()
+                    }
+                }
+                Spacer()
+            } else {
+                FleetControlPlaneWebView(
+                    url: url,
+                    reloadToken: reloadToken,
+                    isLoading: $isLoading,
+                    errorMessage: $errorMessage
+                )
+            }
+        }
+        .frame(minWidth: 820, minHeight: 600)
+        .background(Fleet.Chrome.popoverBackground)
     }
 }
 
