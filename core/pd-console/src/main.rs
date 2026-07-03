@@ -70,7 +70,7 @@ use lane_pane::LanePane;
 use ledger_pane::LedgerPane;
 use lineage_pane::LineagePane;
 use notes_pane::NotesPane;
-use pane::{CoastGuardPane, Pane, SurfaceAction};
+use pane::{CoastGuardPane, OperatorTurn, Pane, SurfaceAction};
 use parley_pane::ParleyPane;
 use peek_pane::PeekPane;
 use planner_pane::PlannerPane;
@@ -459,6 +459,22 @@ fn main() {
                             app::ControlMsg::Cartographer { text } => {
                                 if let Err(e) = client.tube_send("cartographer", &text, "operator").await {
                                     let _ = alert_tx.send(pane::Alert::error("cartographer send failed", e.to_string()));
+                                }
+                            }
+                            app::ControlMsg::MessageLane { text } => {
+                                if let Err(e) = lane
+                                    .mutate(
+                                        &client,
+                                        SurfaceAction::OperatorTurn {
+                                            turn: OperatorTurn::parse(text),
+                                        },
+                                    )
+                                    .await
+                                {
+                                    let _ = alert_tx.send(pane::Alert::error(
+                                        "agent message failed",
+                                        e.to_string(),
+                                    ));
                                 }
                             }
                             // Operator chat — the REAL tube round-trip. The first turn

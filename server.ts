@@ -116,6 +116,7 @@ import { createSemanticResolver, defaultTransformersCacheDir } from './lib/seman
 import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
+import { createDaemonCorsOptions } from './lib/daemon-cors.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -1023,10 +1024,7 @@ if (process.env.DEBUG_TESTS) {
 }
 
 // --- CORS (replaces cors middleware) ---
-await app.register(fastifyCors, {
-  origin: /^https?:\/\/(localhost|127\.0\.0\.1|dashboard\.pd\.local)(:\d+)?$/,
-  credentials: true
-});
+await app.register(fastifyCors, createDaemonCorsOptions());
 
 // --- Rate Limiting (replaces express-rate-limit) ---
 await app.register(fastifyRateLimit, {

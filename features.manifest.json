@@ -2271,6 +2271,23 @@
       },
       "_note": "Relay Worker in apps/relay/. Daemon routes in routes/relay.ts. CLI in cli/commands/relay.ts. lib/relay-client.ts manages outbound SSE. Subcommands: relay url <url>|--clear, relay status, relay exchange."
     },
+    "visual_tasks": {
+      "description": "Visual issue intake from FleetBar and the Port Daddy Scout Chrome extension. Persists screenshots, captures DOM hints, routes to local/cloud fleet targets, and opens reviewable work items without exposing dispatch internals.",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /visual-tasks"
+      ],
+      "mcp": [
+        "submit_visual_task"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      },
+      "_note": "API-only operator surface for browser/FleetBar visual issue capture. Extension lives in apps/pd-scout-extension/."
+    },
     "whois": {
       "description": "Semantic agent-directory / skill-router — ranks agents and humans by capability match × heartbeat freshness",
       "cli": [

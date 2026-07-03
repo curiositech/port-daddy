@@ -77,6 +77,7 @@ import { testHooksPlugin } from './test-hooks.js';
 import { cockpitPlugin } from './cockpit.js';
 import { popperPlugin } from './popper.js';
 import { dispatchesPlugin } from './dispatches.js';
+import { visualTasksPlugin } from './visual-tasks.js';
 import { setupPlugin } from './setup.js';
 import { secretsPlugin } from './secrets.js';
 import { contextRoutes as contextPlugin } from './context.js';
@@ -322,6 +323,10 @@ export async function registerAllRoutes(
   if ((deps as { dispatchQueue?: unknown }).dispatchQueue) {
     await fastify.register(dispatchesPlugin, { deps } as any);
   }
+
+  // Visual task issue intake — browser/FleetBar POST /visual-tasks. This is
+  // product vocabulary over channels, blobs, inboxes, and dispatch queue writes.
+  await fastify.register(visualTasksPlugin, { deps } as any);
 
   // Context health overview — mounts when contextTracker dep is present.
   if ((deps as { contextTracker?: unknown }).contextTracker) {
