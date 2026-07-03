@@ -184,9 +184,14 @@ function parseDataUrl(dataUrl: string): { mimeType: string; buffer: Buffer } {
   if (!match) throw new VisualTaskInputError('image.dataUrl must be a data URL');
   const mimeType = match[1] || 'application/octet-stream';
   const raw = match[3] ?? '';
-  const buffer = match[2]
-    ? Buffer.from(raw, 'base64')
-    : Buffer.from(decodeURIComponent(raw), 'utf8');
+  let buffer: Buffer;
+  try {
+    buffer = match[2]
+      ? Buffer.from(raw, 'base64')
+      : Buffer.from(decodeURIComponent(raw), 'utf8');
+  } catch {
+    throw new VisualTaskInputError('image.dataUrl contains malformed URL encoding');
+  }
   return { mimeType, buffer };
 }
 
@@ -232,7 +237,7 @@ function normalizeTask(input: VisualTaskSubmission, now: number): VisualTaskSubm
 
 function validateTask(task: VisualTaskSubmission): void {
   const hasDescription = typeof task.description === 'string' && task.description.trim().length > 0;
-  const hasImage = !!task.image?.dataUrl || !!task.image?.blobId;
+  const hasImage = !!task.image?.dataUrl || !!task.image?.blobId || !!task.image?.blobUrl;
   const hasDom = Array.isArray(task.domContext?.elementsInRegion) && task.domContext.elementsInRegion.length > 0;
   if (!hasDescription && !hasImage && !hasDom) {
     throw new VisualTaskInputError('visual task requires a brief, screenshot, or DOM context');

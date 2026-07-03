@@ -256,6 +256,30 @@ describe('visual task routes', () => {
     await app.close();
   });
 
+  test('POST /visual-tasks accepts blobUrl-only screenshot evidence', async () => {
+    const { app } = await buildApp();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/visual-tasks',
+      payload: {
+        source: 'api',
+        image: {
+          mimeType: 'image/png',
+          blobUrl: '/blob/abc123',
+        },
+      },
+    });
+
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.success).toBe(true);
+    expect(body.task.image.blobUrl).toBe('/blob/abc123');
+    expect(body.screenshot).toBeUndefined();
+
+    await app.close();
+  });
+
   test('POST /visual-tasks fails closed when screenshot storage is unavailable', async () => {
     const { app } = await buildApp({ blobs: undefined });
 
@@ -271,6 +295,24 @@ describe('visual task routes', () => {
 
     expect(res.statusCode).toBe(500);
     expect(res.json().error).toMatch(/screenshot storage unavailable/i);
+
+    await app.close();
+  });
+
+  test('POST /visual-tasks treats malformed non-base64 data URLs as input errors', async () => {
+    const { app } = await buildApp();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/visual-tasks',
+      payload: {
+        source: 'chrome-extension',
+        image: { mimeType: 'text/plain', dataUrl: 'data:text/plain,%E0%A4%A' },
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(/malformed URL encoding/i);
 
     await app.close();
   });
