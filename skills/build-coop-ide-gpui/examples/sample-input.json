@@ -1,0 +1,13 @@
+{
+  "surface": "editor",
+  "actorsArePeers": true,
+  "claimsGateEdits": true,
+  "salvageImplemented": true,
+  "daemonIsCollabServer": true,
+  "topologyBehindTransportTrait": true,
+  "buildOrder": {
+    "bufferBeforeTransport": true
+  },
+  "surfaceComposesSiblings": true,
+  "visualArtifactsInTestPlan": true
+}

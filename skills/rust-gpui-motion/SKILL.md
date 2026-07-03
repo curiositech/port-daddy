@@ -1,6 +1,6 @@
 ---
 name: rust-gpui-motion
-description: 'Design motion, transitions, and bespoke graphics for native Rust gpui apps — the framework behind Zed and the pd-console operator console. Use for with_animation, easing curves, BoxShadow/glow, breathing dots, pane expand/zoom/slide transitions, and custom paint/Vello/wgpu surfaces. Trigger on: gpui animation, with_animation, gpui transition, gpui easing, BoxShadow, gpui shadow, pd-console motion, gpui paint/canvas, Vello, wgpu, "lift/slide/zoom/spring in gpui", reduced-motion in a native Rust UI, "animation re-renders forever", repeat() never stops. NOT for: web/React motion (→ animation-system-architect), CLI/TUI output (→ beautiful-cli-design), general non-motion GUI layout/color/typography (→ beautiful-gui-design).'
+description: 'Design motion, transitions, and bespoke graphics for native Rust gpui apps — the framework behind Zed and the pd-console operator console. Use for with_animation, easing curves, BoxShadow/glow, breathing dots, pane expand/zoom/slide transitions, and custom paint/Vello/wgpu surfaces. Trigger on: gpui animation, with_animation, gpui transition, gpui easing, BoxShadow, gpui shadow, pd-console motion, gpui paint/canvas, Vello, wgpu, "lift/slide/zoom/spring in gpui", reduced-motion in a native Rust UI, "animation re-renders forever", repeat() never stops. NOT for: web/React motion (a different, CSS-transform-based domain), CLI/TUI output (→ beautiful-cli-design), general non-motion GUI layout/color/typography (→ beautiful-gui-design).'
 license: Apache-2.0
 allowed-tools: Read,Write,Edit,Bash(cargo *)
 metadata:
@@ -15,11 +15,31 @@ metadata:
   - vello
   - wgpu
   - pd-console
+  provenance:
+    kind: first-party
+    owners:
+    - port-daddy
   pairs-with:
   - skill: beautiful-gui-design
     reason: Motion serves a design system — establish hierarchy, color, and typography before animating them.
-  - skill: animation-system-architect
-    reason: Same motion-architecture discipline (one owner, reduced-motion-first, compositor-friendly) ported from web to native gpui.
+  - skill: gpui-shaders
+    reason: When motion needs a per-pixel effect below the widget layer (shimmer, dither, scanlines, particles), the escape hatch is a wgpu/WGSL shader surface, not a with_animation.
+  - skill: gpui-rust-console
+    reason: pd-console is the concrete app whose Block/Pane contract, Taffy layout, and views this skill's motion decisions render inside.
+  - skill: build-coop-ide-gpui
+    reason: The capstone Harbor cooperative IDE composes this skill's transition/motion discipline for its co-editing gpui surfaces.
+  io-contract:
+    kind: deliverable
+    consumes:
+    - kind: motion-design-brief
+      format: markdown
+    - kind: motion-plan
+      format: json
+    produces:
+    - kind: motion-implementation-spec
+      format: markdown
+    - kind: motion-audit-report
+      format: json
   runtime:
     argument-hint: '[pd-console-root] [surface: micro|transition|bespoke]'
     mcp-tools: []
@@ -37,7 +57,7 @@ Motion in gpui is not CSS with a different syntax. gpui **0.2.x has no fluent tr
 
 **Activate on:** `with_animation`, `Animation::new`, gpui easing (`ease_in_out`, `bounce`, `pulsating_between`, `linear`), `BoxShadow`/glow, breathing/pulsing dots, pane expand / list reflow / tab-slide / fullscreen-zoom transitions, "lift/slide/zoom/spring in gpui", custom `paint`/`canvas()`, `PathBuilder`, Vello/wgpu surfaces, "animation never stops re-rendering", reduced-motion in a native Rust app, two owners fighting one element.
 
-**NOT for:** web/React/Framer/GSAP/View-Transitions motion → `animation-system-architect` | terminal/CLI/TUI output → `beautiful-cli-design` | general GUI layout, color, theming, typography (the non-motion design system) → `beautiful-gui-design`.
+**NOT for:** web/React/Framer/GSAP/View-Transitions motion (a different, CSS-transform-based domain) | terminal/CLI/TUI output → `beautiful-cli-design` | general GUI layout, color, theming, typography (the non-motion design system) → `beautiful-gui-design`.
 
 ## Quick Start
 
@@ -162,6 +182,16 @@ struct TransitionState {
 - [ ] `paint`/`canvas`/Vello/wgpu used only for work the element tree genuinely can't express; nothing reimplements `div().shadow()`.
 - [ ] Built and **run**, not just read: confirmed no runaway re-render on idle, no label overlap, motion ends the instant its job is done.
 
+## Deterministic Audit
+
+Once a motion plan exists as data — one entry per animated surface, per `schemas/motion-plan.schema.json` — run it through `scripts/motion_audit.mjs` to check it against the Quality Gates above before writing or reviewing any Rust:
+
+```bash
+node skills/rust-gpui-motion/scripts/motion_audit.mjs --input skills/rust-gpui-motion/examples/sample-input.json
+```
+
+`auditMotionPlan(plan)` returns `{ pass, score, findings, recommendations }`, flagging `usesTransform: true`, layout animation in a hot render, more than one motion owner on a surface, missing/orientation-losing reduced-motion, an unscoped or never-pausing `.repeat()`, an unconfirmed easing name, and a non-interruptible `kind: transition` surface. It audits the *plan*, not the rendered frame — the last Quality Gate (build and run) still has to happen by hand.
+
 ## Fork Guidance
 
 - **Fork to a subagent** when the task is a repo-wide motion audit of a gpui app: inventory every `with_animation`/`repeat()`, flag layout-in-hot-render and multi-owner elements, and check reduced-motion coverage across views.
@@ -179,11 +209,20 @@ The six grounding docs in `references/` — all keyed to real `pd-console/src` c
 - `references/05-bespoke-graphics-vello-wgpu.md` — the three escape hatches below the widget layer: gpui `paint`/`canvas`, `PathBuilder`, and Vello/wgpu surfaces (ADR-0086).
 - `references/06-motion-aesthetics-and-vocabulary.md` — the "splendid, retro-futuristic, buttery" vocabulary: `swoosh`, `glow`, `hard_offset`, breathing dots, control flash, and curves that decelerate like a heavy door settling.
 
+Machine-checkable governance layer, for turning a motion design brief into an auditable plan:
+
+- `schemas/motion-plan.schema.json` — the JSON shape of a motion plan (one entry per animated surface).
+- `scripts/motion_audit.mjs` — `auditMotionPlan(plan)`, a deterministic check of a motion plan against the Quality Gates above.
+- `examples/sample-input.json` — a complete, passing motion plan covering all three surface kinds (micro, transition, bespoke).
+
 <!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
 
 ## Skill Bundle Index
 
 *Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+
+**`examples/`**
+- [`examples/sample-input.json`](examples/sample-input.json) — sample input (data/schema)
 
 **`references/`**
 - [`references/01-gpui-animation-primitives.md`](references/01-gpui-animation-primitives.md) — gpui Animation Primitives — > **Scope.** This is the field manual for motion in `pd-console` — a native gpui > **0.2.2** app (`core/pd-console/Cargo.toml:32`: `gpui = {
@@ -192,5 +231,11 @@ The six grounding docs in `references/` — all keyed to real `pd-console/src` c
 - [`references/04-frame-budget-and-reduced-motion.md`](references/04-frame-budget-and-reduced-motion.md) — Frame Budget & Reduced Motion in gpui — > Target file: `references/04-frame-budget-and-reduced-motion.md`.
 - [`references/05-bespoke-graphics-vello-wgpu.md`](references/05-bespoke-graphics-vello-wgpu.md) — Bespoke Graphics in gpui — Custom Painting, Vello/wgpu Surfaces, and the Cassette-Futurism Layer — > **Scope.** When the element tree (`div().bg().shadow().child()`) genuinely cannot express what you need — ordered dithering, a shimmer swe
 - [`references/06-motion-aesthetics-and-vocabulary.md`](references/06-motion-aesthetics-and-vocabulary.md) — Motion Aesthetics & Vocabulary — > *"Splendid, retro-futuristic, buttery."* Buttery is not a feeling you bolt on at the end — it is honest 60fps, motion that ends the instan
+
+**`schemas/`**
+- [`schemas/motion-plan.schema.json`](schemas/motion-plan.schema.json) — motion plan.schema (data/schema)
+
+**`scripts/`**
+- [`scripts/motion_audit.mjs`](scripts/motion_audit.mjs)
 
 <!-- END BUNDLE INDEX -->
