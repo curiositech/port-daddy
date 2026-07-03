@@ -199,7 +199,8 @@ run_read "coast-guard status" coast-guard -- coast-guard status
 # so it returns a report regardless of whether THIS scratch binary has the route.
 # Assert the JSON report parses (score + state + verbatim HONEST_LIMITS footer)
 # and never carries a raw secret value field.
-__safe_out="$(cli safe scan --json 2>/dev/null || true)"
+__safe_err="$SCRATCH/safe-scan.stderr"
+__safe_out="$(cli safe scan --json 2>"$__safe_err" || true)"
 if printf '%s' "$__safe_out" | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
@@ -215,7 +216,9 @@ sys.exit(0)
 ' 2>/dev/null; then
   pass "safe scan --json (parses; score+state+honestLimits; no raw-secret field)"
 else
-  fail "safe scan --json" "not a valid posture report: $(printf '%s' "$__safe_out" | head -c 200)"
+  # Include the CLI's stderr — an empty stdout here is almost always an
+  # uncaught exception, and the stack trace is the diagnosis.
+  fail "safe scan --json" "not a valid posture report: $(printf '%s' "$__safe_out" | head -c 200); stderr: $(head -c 800 "$__safe_err" 2>/dev/null || true)"
 fi
 # ADR-0088 Phase B: `pd safe corral --all` with NO --apply is a DRY RUN — it
 # prints the plan and writes nothing (no vault write, no source rewrite). Assert
