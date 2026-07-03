@@ -317,6 +317,41 @@ work; never reset or clobber the main checkout.
 - **Secrets go through `pd secret set`** (hidden stdin prompt) — never as an
   argv argument.
 
+### Test + session gotchas (dev-loop shibboleths)
+
+The friction below costs every fresh session real time. Internalize it.
+
+- **Tests are Jest, not vitest.** `tests/unit/*.test.js` import from
+  `@jest/globals`; run them with `npm test` (which is `node
+  --experimental-vm-modules node_modules/jest/bin/jest.js`). Invoking `vitest`
+  fails at import with *"Do not import `@jest/globals` outside of the Jest test
+  environment"* — that's a wrong-runner error, not a broken test.
+- **A fresh linked worktree has no `node_modules`.** `git worktree add` copies
+  tracked files only, so `npm test` / `jest` / `tsc` all fail with
+  `MODULE_NOT_FOUND` until you install. Either `npm ci` in the worktree, or run
+  the parent checkout's binary directly against the worktree:
+  `node --experimental-vm-modules
+  /Users/erichowens/coding/port-daddy/node_modules/jest/bin/jest.js --rootDir .
+  <path/to/test>`. A bare `node_modules` symlink to the parent does **not**
+  work — Node resolves the symlink target and looks for `node_modules` beside
+  *it*, not inside it.
+- **Headless `pd begin` needs an explicit lifecycle and closed stdin.** With no
+  TTY, `pd begin` blocks waiting for interactive input, and even with a purpose
+  it errors without `--lifecycle`. Use `pd begin "<purpose>" --lifecycle
+  durable < /dev/null` (or `--lifecycle ephemeral` for heartbeat-bound process
+  sessions). Sessions launched via the Bash background-job wrapper never
+  register — run `pd begin` in the foreground.
+- **Coordination-Guard claims are per-file, not per-directory.** `pd session
+  files add skills/foo/` does not cover `skills/foo/SKILL.md`; the guard rejects
+  the commit file-by-file. Claim exactly what you staged:
+  `pd session files add $(git diff --cached --name-only)` right before `pd guard
+  check --staged`.
+- **A `git add -A` / `reset --hard` / `rebase` refused with "coordination
+  guard … could not be verified"** (not the routine advisory refusal) means the
+  daemon-side guard couldn't confirm your session. Re-run `pd begin`, then
+  retry; only fall back to `PD_SHIM_OFF=1` for a genuinely session-less isolated
+  worktree that holds nothing but your own commit.
+
 ## Distribution Mirror Sync
 
 The skill bundle is mirrored to several locations. Inside this repo the

@@ -1,0 +1,183 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/work-receipt.schema.json",
+  "title": "Agent Work Receipt",
+  "description": "Normalized, machine-readable record of what an AI coding agent changed, why, by whom, and with what proof. Backend-agnostic: the same shape must be derivable from Claude Code, Codex, Cursor, Aider, CI, or a homegrown agent's raw logs.",
+  "type": "object",
+  "required": [
+    "identity",
+    "intent",
+    "contextUsed",
+    "actions",
+    "validation",
+    "spend",
+    "risks",
+    "rollback",
+    "provenance"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "identity": {
+      "type": "object",
+      "required": ["agent", "backend", "sessionId"],
+      "properties": {
+        "agent": { "type": "string", "description": "Human-readable agent/role name, e.g. 'implementer', 'claude-code-main'." },
+        "model": { "type": "string", "description": "Model identifier if known, e.g. 'claude-sonnet-5', 'gpt-5-codex'." },
+        "backend": {
+          "type": "string",
+          "enum": ["claude-code", "codex", "cursor", "aider", "windsurf", "copilot", "homegrown", "ci", "other"]
+        },
+        "sessionId": { "type": "string", "description": "Durable session/thread id in the originating tool." },
+        "operator": { "type": "string", "description": "Human who invoked or supervised this task, if any." },
+        "worktree": { "type": "string" }
+      }
+    },
+    "intent": {
+      "type": "object",
+      "required": ["goal", "scope", "stopCondition"],
+      "properties": {
+        "goal": { "type": "string", "minLength": 1 },
+        "scope": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Files, directories, or symbols the agent was authorized to touch."
+        },
+        "stopCondition": { "type": "string", "description": "What 'done' means: a test passing, a build green, a specific behavior observed." },
+        "nonGoals": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "contextUsed": {
+      "type": "object",
+      "required": ["filesRead"],
+      "properties": {
+        "filesRead": { "type": "array", "items": { "type": "string" } },
+        "rulesApplied": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Governing docs consulted, e.g. CLAUDE.md, AGENTS.md, lint config, ADRs."
+        },
+        "attachments": { "type": "array", "items": { "type": "string" } },
+        "priorReceipts": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "IDs/paths of earlier receipts this task builds on (chained work)."
+        }
+      }
+    },
+    "actions": {
+      "type": "object",
+      "required": ["commands", "filesChanged"],
+      "properties": {
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["cmd", "exitCode"],
+            "properties": {
+              "cmd": { "type": "string" },
+              "exitCode": { "type": "integer" },
+              "durationMs": { "type": "number", "minimum": 0 },
+              "cwd": { "type": "string" }
+            }
+          }
+        },
+        "toolCalls": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["tool", "count"],
+            "properties": {
+              "tool": { "type": "string" },
+              "count": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "filesChanged": {
+          "type": "object",
+          "required": ["added", "modified", "deleted", "diffSummary"],
+          "properties": {
+            "added": { "type": "array", "items": { "type": "string" } },
+            "modified": { "type": "array", "items": { "type": "string" } },
+            "deleted": { "type": "array", "items": { "type": "string" } },
+            "diffSummary": { "type": "string", "description": "e.g. '+142 -38 across 5 files', or a unified-diff stat line." }
+          }
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "required": ["artifactBacked", "tests"],
+      "properties": {
+        "artifactBacked": {
+          "type": "boolean",
+          "description": "True only if every passed=true test below is backed by an exitCode or artifactPath, never a bare agent claim."
+        },
+        "tests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "passed"],
+            "properties": {
+              "name": { "type": "string" },
+              "command": { "type": "string" },
+              "exitCode": { "type": "integer" },
+              "artifactPath": { "type": "string", "description": "Path to captured stdout/stderr/coverage/screenshot proving the result." },
+              "passed": { "type": "boolean" },
+              "durationMs": { "type": "number", "minimum": 0 }
+            }
+          }
+        },
+        "manualVerification": {
+          "type": "string",
+          "description": "What a human should still check by hand, if anything, and why automation could not."
+        }
+      }
+    },
+    "spend": {
+      "type": "object",
+      "properties": {
+        "tokensIn": { "type": "integer", "minimum": 0 },
+        "tokensOut": { "type": "integer", "minimum": 0 },
+        "costUsd": { "type": "number", "minimum": 0 },
+        "wallClockMs": { "type": "number", "minimum": 0 },
+        "budgetUsd": { "type": "number", "minimum": 0 },
+        "turns": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "description": "Unresolved risks, ranked most-severe-first. Empty only when genuinely none remain.",
+      "items": {
+        "type": "object",
+        "required": ["description", "severity"],
+        "properties": {
+          "description": { "type": "string" },
+          "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+          "mitigated": { "type": "boolean" },
+          "checkFirst": { "type": "boolean", "description": "Flag the single risk a reviewer should look at before anything else." }
+        }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "required": ["checkpoint", "method"],
+      "properties": {
+        "checkpoint": { "type": "string", "description": "git sha, stash ref, branch name, snapshot id, or migration-down script." },
+        "method": { "type": "string", "enum": ["git-revert", "git-reset", "stash-pop", "snapshot-restore", "migration-down", "feature-flag-off", "manual", "none"] },
+        "verified": { "type": "boolean", "description": "Whether rollback was actually test-driven, not just asserted." }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["contentHash"],
+      "properties": {
+        "contentHash": { "type": "string", "description": "Hash of the receipt body (excluding this field) for tamper evidence." },
+        "signedBy": { "type": "string", "description": "Key id or identity that signed the receipt, if signing is in use." },
+        "signatureAlg": { "type": "string" },
+        "signature": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "replayCommand": { "type": "string", "description": "Command that reconstructs or re-runs this receipt's validation from the checkpoint." }
+      }
+    }
+  }
+}
