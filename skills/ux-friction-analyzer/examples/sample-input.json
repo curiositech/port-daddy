@@ -1,0 +1,37 @@
+{
+  "steps": [
+    {
+      "label": "Add items to cart",
+      "cognitiveState": "focused",
+      "timeSeconds": 10,
+      "chunks": 1,
+      "autoSaves": true,
+      "showsProgress": true,
+      "contextPreserved": true
+    },
+    {
+      "label": "Shipping & payment",
+      "cognitiveState": "time-pressured",
+      "timeSeconds": 30,
+      "chunks": 3,
+      "autoSaves": true,
+      "showsProgress": true,
+      "contextPreserved": true
+    },
+    {
+      "label": "Confirm order",
+      "cognitiveState": "focused",
+      "timeSeconds": 3,
+      "chunks": 1,
+      "autoSaves": true,
+      "showsProgress": true,
+      "contextPreserved": true
+    }
+  ],
+  "primaryActionObviousWithin3s": true,
+  "touchTargetsMinPx": 48,
+  "worksAt320pxNoHscroll": true,
+  "feedbackWithin100ms": true,
+  "simultaneousAttentionElements": 3,
+  "hasPowerUserPath": true
+}
