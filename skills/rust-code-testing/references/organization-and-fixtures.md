@@ -22,7 +22,7 @@ flowchart TD
 | `/// ```` doc examples | public API | doc-test crate | examples that must stay correct |
 | `benches/*.rs` | public API | criterion harness | performance (NOT in the test gate) |
 
-A `tests/common/mod.rs` (note: `mod.rs`, not `common.rs`) holds shared
+A `tests/common/mod.rs` (note: `mod.rs`, not `common.rs`) holds shared <!-- cite-exempt: illustrative Rust convention, not a port-daddy repo path -->
 integration helpers without itself being run as a test file.
 
 ## The three states rule
