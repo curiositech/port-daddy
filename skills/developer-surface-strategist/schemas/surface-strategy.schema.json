@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://port-daddy.dev/schemas/developer-surface-strategist/surface-strategy.schema.json",
+  "title": "Developer Surface Strategy Manifest",
+  "type": "object",
+  "required": ["name", "workflows"],
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "targetLanguages": { "type": "array", "items": { "type": "string" } },
+    "surfaces": { "type": "array", "items": { "type": "string" } },
+    "workflows": { "type": "array", "items": { "type": "object" }, "minItems": 1 },
+    "tubeWorkflow": { "type": "object" },
+    "sdkPlan": { "type": "object" }
+  }
+}
