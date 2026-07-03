@@ -194,7 +194,16 @@ export function runSafeScan(opts: RunScanOptions = {}): ScanRunResult {
   const procs = enumerateRunningProcesses(run);
   const binaries: BinaryTrust[] = [];
   for (const proc of procs) {
-    const trust = assessBinary(proc.path, { run, home, pid: proc.pid, isRunningProcess: true });
+    // Only forward an INJECTED runner. The orchestrator's default (realRunner)
+    // drops stderr — where `codesign -dv` writes its display text — so passing
+    // it here would blank displayText and misclassify binaries as unknown.
+    // Un-injected, assessBinary uses its own realTrustRunner (stderr-capturing).
+    const trust = assessBinary(
+      proc.path,
+      opts.run
+        ? { run: opts.run, home, pid: proc.pid, isRunningProcess: true }
+        : { home, pid: proc.pid, isRunningProcess: true },
+    );
     binaries.push(trust);
     // A5: record into the durable ledger when a daemon handle is present. The
     // ledger itself caches by (path, cdhash) so a re-scan of an unchanged binary

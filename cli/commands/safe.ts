@@ -74,7 +74,10 @@ async function handleScan(options: CLIOptions): Promise<void> {
   let viaDaemon = true;
   if (!report) {
     viaDaemon = false;
-    report = runSafeScan(allow ? { allowlistedHosts: allow.split(',').map((h) => h.trim()) } : {}).report;
+    // Trim + drop empties (mirrors the route-side parsing): `--allow "host,"`
+    // must not smuggle an empty string into the allowlist.
+    const allowHosts = allow?.split(',').map((h) => h.trim()).filter((h) => h.length > 0);
+    report = runSafeScan(allowHosts?.length ? { allowlistedHosts: allowHosts } : {}).report;
   }
 
   if (options.json) {

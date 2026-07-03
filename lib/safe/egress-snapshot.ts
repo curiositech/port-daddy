@@ -289,7 +289,10 @@ export function captureEgressSnapshot(opts: {
 
   return {
     flows: joinFlows(nettopRows, lsofRows, lookup),
-    nettopAvailable: nettopRows.length > 0,
-    lsofAvailable: lsofRows.length > 0,
+    // Availability = "the tool ran" (non-null runner output), NOT "rows parsed":
+    // a quiet machine with zero flows is available-with-nothing-to-report,
+    // distinct from the tool being missing (e.g. nettop on Linux).
+    nettopAvailable: nettopOut != null,
+    lsofAvailable: lsofOut != null,
   };
 }

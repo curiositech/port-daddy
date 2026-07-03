@@ -136,8 +136,9 @@ function isPathSpec(spec: string): boolean {
 export function hasNpmVersionPin(spec: string): boolean {
   // Strip a leading scope `@scope/` so its `@` isn't mistaken for a version.
   const afterScope = spec.startsWith('@') ? spec.replace(/^@[^/]+\//, '') : spec;
-  // Read the `@version` token (everything after the last `@`), if any.
-  const at = afterScope.indexOf('@');
+  // Read the `@version` token (everything after the LAST `@`) — lastIndexOf,
+  // not indexOf, so alias syntax like `pkg@npm:other@1.2.3` reads `1.2.3`.
+  const at = afterScope.lastIndexOf('@');
   if (at < 0) return false; // no `@version` at all → unpinned
   const version = afterScope.slice(at + 1);
   return isConcreteNpmVersion(version);
