@@ -9,9 +9,12 @@ import {
   Crosshair,
   GitPullRequest,
   MonitorCheck,
+  PackageCheck,
   Route,
   ShieldCheck,
+  Store,
   Terminal,
+  UploadCloud,
   XCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -28,12 +31,14 @@ import {
   SwissGridItem,
 } from '@/components/site/primitives'
 
-const installCommand = `git clone https://github.com/curiositech/port-daddy.git
+const previewCommand = `git clone https://github.com/curiositech/port-daddy.git
 cd port-daddy
 pd setup
 pd status`
 
 const extensionPath = `apps/pd-scout-extension`
+const packageCommand = `cd apps/pd-scout-extension
+zip -r ../../dist/pd-scout-preview.zip . -x '*.DS_Store'`
 
 const brandAssets = [
   'Chrome toolbar icons: 16, 32, 48, and 128 px.',
@@ -63,26 +68,26 @@ const routingModes = [
   'Open a Port Daddy visual issue in the local daemon.',
   'Attach the screenshot through the daemon blob store.',
   'Publish the envelope on the visual-feedback channel.',
-  'Optionally ask Port Daddy to spawn a worker for the task.',
+  'Optionally ask Port Daddy to spawn work for the task.',
 ]
 
-const installSteps = [
+const previewSteps = [
   {
-    label: 'Step 1',
+    label: 'Preview 1',
     title: 'Install Port Daddy and start the local daemon',
     body:
-      'Scout talks to the daemon on your machine. The page capture is useful only when the local control plane is running.',
-    code: installCommand,
+      'Scout talks to the daemon on your machine. If the local control plane is not running, capture still looks nice but cannot open a Port Daddy issue.',
+    code: previewCommand,
   },
   {
-    label: 'Step 2',
-    title: 'Load the Chrome extension from this checkout',
+    label: 'Preview 2',
+    title: 'Load the checkout as a Chrome preview',
     body:
-      'Chrome Web Store packaging is not shipped yet. For now this is an unpacked developer-mode extension.',
+      'This is Chrome Developer Mode, not the product distribution path. Load the folder directly while Scout is still in preview.',
     code: extensionPath,
   },
   {
-    label: 'Step 3',
+    label: 'Preview 3',
     title: 'Capture any normal web page',
     body:
       'Open a page, click Port Daddy Scout, capture the page or draw a region, write the brief, and open the issue.',
@@ -90,17 +95,43 @@ const installSteps = [
   },
 ]
 
+const releaseSteps = [
+  {
+    title: 'Package the extension',
+    description:
+      'Create a ZIP from the extension directory after the manifest, icons, popup, background service worker, and content script are all versioned.',
+    code: packageCommand,
+    icon: PackageCheck,
+  },
+  {
+    title: 'Upload it to Chrome',
+    description:
+      'Use the Chrome Web Store Developer Dashboard to upload the ZIP, then complete Store Listing, Privacy, Distribution, and Test instructions.',
+    code: 'Developer Dashboard -> Add new item -> Choose file -> Upload',
+    icon: UploadCloud,
+  },
+  {
+    title: 'Submit, then update by version',
+    description:
+      'Submit for review. For each update, bump manifest.version, upload a fresh ZIP with all extension files, and submit that version for review.',
+    code: 'manifest.version: 0.1.1 -> upload new ZIP -> submit for review',
+    icon: Store,
+  },
+]
+
 const worksNow = [
   'Unpacked Manifest V3 Chrome extension.',
   'Visible-tab screenshots through chrome.tabs.captureVisibleTab.',
   'Shadow-DOM region picker on ordinary web pages.',
+  'Composer reopens after region selection with a captured badge and rectangle preview.',
+  'Project picker populated from the local daemon.',
   'DOM selector, XPath, text, bounds, viewport, and URL capture.',
-  'POST /visual-tasks in the local daemon.',
-  'Blob-backed image storage, visual-feedback publish, and reviewable work item creation.',
+  'Blob-first screenshot upload plus POST /visual-tasks in the local daemon.',
+  'Playwright repro for rectangle capture, DOM context, and visual-task payload shape.',
 ]
 
 const notYet = [
-  'No Chrome Web Store package yet.',
+  'No Chrome Web Store listing submitted yet.',
   'Browser-restricted pages such as chrome:// cannot be captured.',
   'Third-party sites provide DOM hints, not source-code ownership.',
   'Cloud fleet routing depends on the configured Port Daddy backend; the local path is what works in this branch.',
@@ -119,13 +150,21 @@ function ScoutFlowGraphic() {
         <Chrome className="h-[var(--space-6)] w-[var(--space-6)] text-[var(--brand-primary)]" aria-hidden="true" />
       </div>
 
-      <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
+      <picture className="relative block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
         <img
-          src="/img/generated/scout-extension-popup.png"
+          src="/img/generated/scout-extension-preview.png"
           alt="Port Daddy Scout showing a Chrome extension popup beside a selected web page region"
-          className="aspect-[4/3] w-full object-cover"
+          className="aspect-[16/10] w-full object-cover"
           loading="eager"
         />
+        <span className="absolute right-[var(--space-3)] top-[var(--space-3)] flex h-20 w-20 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-2">
+          <img
+            src="/logos/portdaddy-animated-lightmode.svg"
+            alt="Animated Port Daddy radar mark"
+            className="h-full w-full"
+            loading="eager"
+          />
+        </span>
       </picture>
 
       <div className="grid grid-cols-2 border-2 border-[var(--border-strong)] md:grid-cols-4">
@@ -165,8 +204,8 @@ export function ScoutPage() {
                   </PanelBody>
                   <div className="flex flex-wrap gap-[var(--space-3)]">
                     <Button asChild variant="primary" size="lg">
-                      <a href="#install">
-                        Install the extension
+                      <a href="#preview">
+                        Load the preview
                         <ArrowRight size={16} aria-hidden="true" />
                       </a>
                     </Button>
@@ -198,7 +237,7 @@ export function ScoutPage() {
                   </PanelTitle>
                   <PanelBody>
                     A picture is enough for a human to remember the complaint.
-                    Scout adds the machine-readable context a spawned worker can
+                    Scout adds the machine-readable context a spawned run can
                     actually use.
                   </PanelBody>
                 </div>
@@ -265,21 +304,23 @@ export function ScoutPage() {
           </PageContainer>
         </section>
 
-        <section id="install" className="scroll-mt-[calc(var(--space-10)+var(--space-6))] border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
+        <section id="preview" className="scroll-mt-[calc(var(--space-10)+var(--space-6))] border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
           <PageContainer width="wide">
             <div className="mb-[var(--space-6)] space-y-[var(--section-intro-gap)]">
-              <BracketLabel>Install</BracketLabel>
+              <BracketLabel>Preview</BracketLabel>
               <PanelTitle as="h2" size="display" className="max-w-[13ch]">
-                Load it today as an unpacked Chrome extension.
+                Load it today. Do not pretend this is the final install.
               </PanelTitle>
               <PanelBody>
-                This is real local plumbing, but it is not a Web Store release.
-                Until packaging lands, install Scout from the repository checkout.
+                The preview is real local plumbing: Chrome loads Scout from this
+                checkout, Scout talks to your daemon, and the daemon opens the
+                visual task. The real customer install is a Chrome Web Store
+                release, described below.
               </PanelBody>
             </div>
 
             <div className="grid gap-[var(--grid-gap)] lg:grid-cols-3">
-              {installSteps.map((step) => (
+              {previewSteps.map((step) => (
                 <SurfacePanel key={step.label} elevation="quiet" className="space-y-[var(--space-4)]">
                   <BracketLabel>{step.label}</BracketLabel>
                   <div className="space-y-[var(--space-2)]">
@@ -297,9 +338,9 @@ export function ScoutPage() {
 
             <SurfacePanel className="mt-[var(--space-6)] grid gap-[var(--space-4)] lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)]">
               <div className="space-y-[var(--space-3)]">
-                <PanelEyebrow>Chrome steps</PanelEyebrow>
+                <PanelEyebrow>Preview steps</PanelEyebrow>
                 <PanelTitle as="h3" size="card">
-                  Where the folder goes.
+                  Where the folder goes, for now.
                 </PanelTitle>
                 <PanelBody className="max-w-none">
                   Open <code className="font-mono">chrome://extensions</code>,
@@ -323,6 +364,70 @@ export function ScoutPage() {
                 ))}
               </div>
             </SurfacePanel>
+          </PageContainer>
+        </section>
+
+        <section id="release" className="scroll-mt-[calc(var(--space-10)+var(--space-6))] border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
+          <PageContainer width="wide">
+            <SwissGrid>
+              <SwissGridItem span="narrow">
+                <div className="space-y-[var(--section-intro-gap)]">
+                  <BracketLabel>Real release</BracketLabel>
+                  <PanelTitle as="h2" size="display" className="max-w-[12ch]">
+                    The grown-up install is the Chrome Web Store.
+                  </PanelTitle>
+                  <PanelBody>
+                    Chrome already has the distribution machinery we need:
+                    signed delivery, review, listing assets, privacy fields, and
+                    automatic updates. Scout should graduate through that path,
+                    not a README full of ritual.
+                  </PanelBody>
+                </div>
+              </SwissGridItem>
+
+              <SwissGridItem span="body">
+                <div className="grid gap-[var(--grid-gap)] lg:grid-cols-3">
+                  {releaseSteps.map(({ title, description, code, icon: Icon }) => (
+                    <SurfacePanel key={title} elevation="quiet" className="space-y-[var(--space-4)]">
+                      <Icon className="h-[var(--space-6)] w-[var(--space-6)] text-[var(--brand-primary)]" aria-hidden="true" />
+                      <div className="space-y-[var(--space-2)]">
+                        <PanelTitle as="h3" size="nav">
+                          {title}
+                        </PanelTitle>
+                        <PanelBody size="compact" className="max-w-none">
+                          {description}
+                        </PanelBody>
+                      </div>
+                      <DocsCodeBlock code={code} language="text" label={title} />
+                    </SurfacePanel>
+                  ))}
+                </div>
+
+                <SurfacePanel tone="blue" className="mt-[var(--space-6)] grid gap-[var(--space-4)] lg:grid-cols-[minmax(0,0.66fr)_minmax(0,1fr)]">
+                  <div className="space-y-[var(--space-3)]">
+                    <PanelEyebrow>Store readiness</PanelEyebrow>
+                    <PanelTitle as="h3" size="card" tone="primary">
+                      What still has to be true before public install.
+                    </PanelTitle>
+                  </div>
+                  <div className="space-y-[var(--space-3)]">
+                    {[
+                      'A ZIP build step in CI, with only extension files included.',
+                      'Final store copy, at least one real 1280 x 800 screenshot, and the promo tiles already in assets/store.',
+                      'Privacy fields that say exactly what Scout captures: screenshot, URL, optional rectangle, and DOM hints.',
+                      'A small trusted-tester rollout before the public listing goes live.',
+                    ].map((item) => (
+                      <div key={item} className="flex gap-[var(--space-3)]">
+                        <CheckCircle2 className="mt-[0.15rem] h-[var(--space-4)] w-[var(--space-4)] shrink-0 text-[var(--brand-primary-foreground)]" aria-hidden="true" />
+                        <PanelBody size="compact" tone="primary" className="max-w-none">
+                          {item}
+                        </PanelBody>
+                      </div>
+                    ))}
+                  </div>
+                </SurfacePanel>
+              </SwissGridItem>
+            </SwissGrid>
           </PageContainer>
         </section>
 
@@ -427,6 +532,25 @@ export function ScoutPage() {
                     </div>
                   </SurfacePanel>
                 </div>
+
+                <SurfacePanel className="mt-[var(--space-6)] grid gap-[var(--space-4)] lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)]">
+                  <div className="space-y-[var(--space-3)]">
+                    <PanelEyebrow>Regression proof</PanelEyebrow>
+                    <PanelTitle as="h3" size="card">
+                      The rectangle flow is scriptable.
+                    </PanelTitle>
+                    <PanelBody className="max-w-none">
+                      The repro loads Scout in Playwright Chromium, serves a
+                      fixture page, draws a rectangle, checks the page highlight
+                      and reopened composer, then submits to a mock daemon.
+                    </PanelBody>
+                  </div>
+                  <DocsCodeBlock
+                    code="node apps/pd-scout-extension/tests/scout-region-repro.mjs"
+                    language="cli"
+                    label="Scout repro"
+                  />
+                </SurfacePanel>
               </SwissGridItem>
             </SwissGrid>
           </PageContainer>
@@ -445,7 +569,7 @@ export function ScoutPage() {
                     Use Scout for UI bugs, copy nits, layout regressions, and
                     “this thing right here” feedback on any ordinary web app.
                     Project pages get better DOM evidence; outside sites still
-                    get a pretty picture and a durable issue.
+                    get screenshot evidence and a durable issue.
                   </PanelBody>
                 </div>
               </SwissGridItem>
@@ -468,8 +592,8 @@ export function ScoutPage() {
                 </div>
                 <div className="mt-[var(--space-5)] flex flex-wrap gap-[var(--space-3)]">
                   <Button asChild variant="primary" size="lg">
-                    <a href="#install">
-                      Load Scout
+                    <a href="#preview">
+                      Load preview
                       <ArrowRight size={16} aria-hidden="true" />
                     </a>
                   </Button>

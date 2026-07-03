@@ -282,12 +282,29 @@ function laneVisualTaskPayload(
   };
 }
 
+function describeDomElement(element: VisualTaskDomElement): string {
+  const parts = [
+    element.selector || element.xpath || element.tagName || 'element',
+    element.tagName ? `<${element.tagName}>` : null,
+    element.role ? `role=${element.role}` : null,
+    element.bounds ? `bounds=${element.bounds.x},${element.bounds.y} ${element.bounds.width}x${element.bounds.height}` : null,
+    element.source?.fileName
+      ? `source=${element.source.fileName}:${element.source.lineNumber ?? 1}:${element.source.columnNumber ?? 1}`
+      : null,
+    element.text ? `text="${element.text.replace(/\s+/g, ' ').slice(0, 96)}"` : null,
+  ];
+  return parts.filter(Boolean).join(' | ');
+}
+
 function workItemGoal(task: VisualTaskSubmission, channel: string, messageId?: number, screenshotUrl?: string): string {
   const sourceElements = task.domContext?.elementsInRegion
     ?.map((element) => element.source)
     .filter((source): source is NonNullable<VisualTaskDomElement['source']> => !!source?.fileName)
     .slice(0, 6)
     .map((source) => `${source.fileName}:${source.lineNumber ?? 1}:${source.columnNumber ?? 1}`);
+  const domDecomposition = task.domContext?.elementsInRegion
+    ?.slice(0, 8)
+    .map((element) => `- ${describeDomElement(element)}`);
 
   return [
     `Visual issue from ${task.source}: ${task.kind} - ${task.title}`,
@@ -301,6 +318,7 @@ function workItemGoal(task: VisualTaskSubmission, channel: string, messageId?: n
     screenshotUrl ? `Screenshot: ${screenshotUrl}` : null,
     task.region ? `Selected region: ${task.region.coordinateSpace} ${task.region.x},${task.region.y} ${task.region.width}x${task.region.height}` : null,
     task.domContext?.selectors?.length ? `DOM selectors: ${task.domContext.selectors.slice(0, 6).join(' | ')}` : null,
+    domDecomposition?.length ? `DOM decomposition:\n${domDecomposition.join('\n')}` : null,
     sourceElements?.length ? `Likely source: ${sourceElements.join(' | ')}` : null,
     '',
     'Use the visual payload for reproduction context. If this is a project web app, inspect the DOM/source hints and add or update a focused regression test.',
@@ -409,7 +427,7 @@ export function createVisualTaskIntake(deps: VisualTaskIntakeDeps) {
       });
       if (task.routing?.startAgent === true) {
         if (!deps.dispatchWorker) {
-          agentStart = { requested: true, error: 'agent start unavailable: no daemon worker is wired' };
+          agentStart = { requested: true, error: 'spawn unavailable: no daemon spawn runner is wired' };
         } else {
           try {
             agentStart = { requested: true, launchedThisTick: await deps.dispatchWorker.poll() };
@@ -448,7 +466,7 @@ export function createVisualTaskIntake(deps: VisualTaskIntakeDeps) {
           expires: null,
         },
       );
-      if (lane.success === false) throw new Error(lane.error || 'could not publish visual task to agent lane');
+      if (lane.success === false) throw new Error(lane.error || 'could not publish visual task to target lane');
     }
 
     return {

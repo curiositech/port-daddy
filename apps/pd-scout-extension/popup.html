@@ -19,13 +19,27 @@
 
     <section class="capture">
       <div class="capture__text">
-        <strong id="captureTitle">No capture yet</strong>
+        <div>
+          <strong id="captureTitle">No capture yet</strong>
+          <span id="captureBadge" class="capture__badge" hidden>Captured</span>
+        </div>
         <span id="captureMeta">Capture the active tab or draw a region.</span>
       </div>
       <div class="capture__actions">
         <button id="capturePage" type="button">Capture page</button>
         <button id="selectRegion" type="button">Select region</button>
       </div>
+      <figure class="capture__preview" id="capturePreview" hidden>
+        <img id="capturePreviewImage" alt="Captured page preview">
+        <span id="captureRegionBox" class="capture__region" hidden></span>
+      </figure>
+      <section class="dom-card" id="domCard" hidden>
+        <div class="dom-card__header">
+          <strong>DOM context</strong>
+          <span id="domCount">0 elements</span>
+        </div>
+        <ul id="domSummary"></ul>
+      </section>
     </section>
 
     <label>
@@ -45,11 +59,11 @@
         </select>
       </label>
       <label>
-        <span>Route to</span>
+        <span>File under</span>
         <select id="assignee">
-          <option value="local-agent">Local spawn</option>
-          <option value="cloud-fleet">Cloud fleet</option>
-          <option value="review-queue">Review queue</option>
+          <option value="review-queue">Review queue only</option>
+          <option value="local-agent">Local spawn target</option>
+          <option value="cloud-fleet">Cloud fleet queue</option>
         </select>
       </label>
     </div>
@@ -59,8 +73,16 @@
       <input id="targetAgent" type="text" placeholder="cartographer, qa, spark">
     </label>
 
-    <label>
-      <span>Project root</span>
+    <label id="projectChoiceRow">
+      <span>Project</span>
+      <select id="projectChoice">
+        <option value="">Loading Port Daddy projects...</option>
+      </select>
+      <small id="projectHint">Projects come from the local daemon.</small>
+    </label>
+
+    <label id="projectManualRow" hidden>
+      <span>Manual project root</span>
       <input id="projectDir" type="text" placeholder="/Users/me/coding/my-app">
     </label>
 
@@ -71,7 +93,10 @@
 
     <label class="check">
       <input id="startAgent" type="checkbox">
-      <span>Ask Port Daddy to spawn work now</span>
+      <span>
+        <strong>Spawn work now</strong>
+        <small>Off opens the issue without starting work.</small>
+      </span>
     </label>
 
     <button class="submit" id="submitIssue" type="button">Open issue</button>
