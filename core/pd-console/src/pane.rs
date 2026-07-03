@@ -52,6 +52,15 @@ pub enum Block {
     /// tabular or clickable chrome; renderers should paint it as readable log
     /// typography with a small semantic marker.
     TranscriptLine { text: String, tone: Tone },
+    /// A file or generated artifact referenced by a transcript. The path should
+    /// be display-ready for the current developer environment, preferably
+    /// relative to the active worktree so it can be found in the file tree.
+    ArtifactRef {
+        label: String,
+        path: String,
+        preview: Option<String>,
+        tone: Tone,
+    },
     Chip { label: String, tone: Tone },
     /// A maritime ICS signal flag: a colored square bearing the single letter,
     /// followed by a label (e.g. the agent identity + state). The console paints

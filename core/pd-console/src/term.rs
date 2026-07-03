@@ -377,6 +377,32 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                 ));
                 i += 1;
             }
+            Block::ArtifactRef {
+                label,
+                path,
+                preview,
+                tone,
+            } => {
+                let sem = tone.sem();
+                let label = if label.trim().is_empty() {
+                    "artifact".to_string()
+                } else {
+                    format!("artifact {label}")
+                };
+                let hint = preview
+                    .as_deref()
+                    .filter(|p| !p.trim().is_empty())
+                    .map(|p| format!(" — {p}"))
+                    .unwrap_or_default();
+                out.push_str(&format!(
+                    "  {} {} {}{}\n",
+                    style.paint("▣", sem),
+                    style.paint(&label, sem),
+                    style.paint(path, Sem::Ink),
+                    style.paint(&hint, Sem::Muted),
+                ));
+                i += 1;
+            }
             Block::Chip { label, tone } => {
                 let sem = tone.sem();
                 out.push_str(&format!(
@@ -447,6 +473,21 @@ mod tests {
         assert!(!out.contains('\x1b'), "plain mode leaked ANSI: {out:?}");
         assert!(out.contains("Fleet"));
         assert!(out.contains("✓ ok"));
+    }
+
+    #[test]
+    fn artifact_refs_render_as_file_artifacts() {
+        let s = plain();
+        let blocks = vec![Block::ArtifactRef {
+            label: "screenshot".into(),
+            path: "core/pd-console/docs/artifacts/lane.png".into(),
+            preview: Some("open / preview in current worktree".into()),
+            tone: Tone::Accent,
+        }];
+        let out = render_blocks(&blocks, &s);
+        assert!(out.contains("▣ artifact screenshot"));
+        assert!(out.contains("core/pd-console/docs/artifacts/lane.png"));
+        assert!(out.contains("open / preview in current worktree"));
     }
 
     #[test]

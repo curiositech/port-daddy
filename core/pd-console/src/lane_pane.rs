@@ -58,7 +58,18 @@ impl ToolState {
 #[derive(Debug, Clone)]
 enum LaneLine {
     Transcript(String),
+    Artifact {
+        label: String,
+        path: String,
+        preview: Option<String>,
+    },
     Tube(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ParsedArtifactRef {
+    raw: String,
+    path: String,
 }
 
 /// The live agent LANE surface.
@@ -145,8 +156,10 @@ impl LanePane {
 
         // Flat text delta fallback: {text} | {delta} | {content} | "text".
         if let Some(text) = flat_text(body) {
-            self.push_line(LaneLine::Transcript(text));
-            rendered = true;
+            rendered |= self.push_unique_transcript_line(
+                format!("flat:{}", digest_text(&text)),
+                text,
+            );
         }
 
         if !rendered && !has_entry {
@@ -270,6 +283,21 @@ impl LanePane {
         if summary.is_empty() {
             return false;
         }
+
+        if let Some(reference) = artifact_ref_from_output(output, summary) {
+            let label = artifact_label(output_type, summary, &reference.raw);
+            return self.push_unique_artifact_ref(
+                format!(
+                    "{tx_id}:output:{output_type}:artifact:{}:{}",
+                    reference.path,
+                    digest_text(summary)
+                ),
+                label,
+                reference.path,
+                Some("open / preview in current worktree".into()),
+            );
+        }
+
         let mut line = format!("artifact {output_type}: {summary}");
         if let Some(url) = field_str(output, &["url"]) {
             if !url.is_empty() {
@@ -286,7 +314,36 @@ impl LanePane {
         if !self.seen_transcript_items.insert(key) {
             return false;
         }
+        let artifact_refs = extract_artifact_refs(&text);
         self.push_line(LaneLine::Transcript(text));
+        for (idx, reference) in artifact_refs.into_iter().enumerate() {
+            let artifact_key = format!("artifact-from-line:{idx}:{}", reference.path);
+            let label = artifact_label("reference", "", &reference.raw);
+            self.push_unique_artifact_ref(
+                artifact_key,
+                label,
+                reference.path,
+                Some("open / preview in current worktree".into()),
+            );
+        }
+        true
+    }
+
+    fn push_unique_artifact_ref(
+        &mut self,
+        key: String,
+        label: String,
+        path: String,
+        preview: Option<String>,
+    ) -> bool {
+        if !self.seen_transcript_items.insert(key) {
+            return false;
+        }
+        self.push_line(LaneLine::Artifact {
+            label,
+            path,
+            preview,
+        });
         true
     }
 
@@ -369,6 +426,159 @@ fn non_empty(text: &str) -> Option<String> {
     }
 }
 
+fn artifact_ref_from_output(
+    output: &serde_json::Value,
+    summary: &str,
+) -> Option<ParsedArtifactRef> {
+    field_str(
+        output,
+        &[
+            "path",
+            "file",
+            "filePath",
+            "file_path",
+            "filename",
+            "artifactPath",
+            "artifact_path",
+        ],
+    )
+    .and_then(parsed_artifact_ref)
+    .or_else(|| extract_artifact_refs(summary).into_iter().next())
+}
+
+fn artifact_label(output_type: &str, summary: &str, raw_path: &str) -> String {
+    let trimmed = summary.replace(raw_path, "");
+    let trimmed = trimmed
+        .trim_matches(|c: char| c.is_whitespace() || matches!(c, ':' | '-' | '–' | '—'))
+        .trim();
+    if trimmed.is_empty() {
+        output_type.to_string()
+    } else {
+        format!("{output_type}: {trimmed}")
+    }
+}
+
+fn extract_artifact_refs(text: &str) -> Vec<ParsedArtifactRef> {
+    let mut refs = Vec::new();
+    let mut seen = BTreeSet::new();
+
+    for token in text.split_whitespace() {
+        if let Some(reference) = parsed_artifact_ref(token) {
+            if seen.insert(reference.path.clone()) {
+                refs.push(reference);
+            }
+        }
+        if refs.len() >= 3 {
+            break;
+        }
+    }
+
+    refs
+}
+
+fn parsed_artifact_ref(raw: &str) -> Option<ParsedArtifactRef> {
+    let cleaned = clean_path_token(raw);
+    let pathish = cleaned.strip_prefix("file://").unwrap_or(&cleaned);
+    if !looks_like_file_reference(pathish) {
+        return None;
+    }
+    let stripped = strip_line_suffix(pathish);
+    let path = display_artifact_path(stripped)?;
+    Some(ParsedArtifactRef {
+        raw: cleaned,
+        path,
+    })
+}
+
+fn clean_path_token(raw: &str) -> String {
+    raw.trim()
+        .trim_matches(|c: char| {
+            c.is_whitespace()
+                || matches!(
+                    c,
+                    '"' | '\'' | '`' | '<' | '>' | '(' | ')' | '[' | ']' | '{' | '}'
+                )
+        })
+        .trim_end_matches(|c: char| matches!(c, ',' | ';' | '.'))
+        .to_string()
+}
+
+fn strip_line_suffix(token: &str) -> &str {
+    let Some((path, suffix)) = token.rsplit_once(':') else {
+        return token;
+    };
+    if !suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_digit()) {
+        path
+    } else {
+        token
+    }
+}
+
+fn display_artifact_path(raw: &str) -> Option<String> {
+    let raw = raw.strip_prefix("file://").unwrap_or(raw);
+    if raw.is_empty() || raw.contains("://") {
+        return None;
+    }
+
+    let path = std::path::Path::new(raw);
+    if path.is_absolute() {
+        if let Ok(cwd) = std::env::current_dir() {
+            if let Ok(relative) = path.strip_prefix(cwd) {
+                return Some(path_to_display(relative));
+            }
+        }
+    }
+
+    Some(raw.trim_start_matches("./").replace('\\', "/"))
+}
+
+fn path_to_display(path: &std::path::Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
+fn looks_like_file_reference(raw: &str) -> bool {
+    if raw.is_empty() || raw.contains("://") {
+        return false;
+    }
+    let raw = strip_line_suffix(raw);
+    let file_name = raw.rsplit('/').next().unwrap_or(raw);
+    let Some((_, ext)) = file_name.rsplit_once('.') else {
+        return raw.starts_with("./")
+            || raw.starts_with('/')
+            || raw.split('/').any(|segment| segment.contains('.'));
+    };
+    matches!(
+        ext.to_ascii_lowercase().as_str(),
+        "css"
+            | "diff"
+            | "gif"
+            | "html"
+            | "jpeg"
+            | "jpg"
+            | "js"
+            | "json"
+            | "lock"
+            | "log"
+            | "md"
+            | "mjs"
+            | "mov"
+            | "mp4"
+            | "patch"
+            | "png"
+            | "rs"
+            | "sh"
+            | "sql"
+            | "svg"
+            | "toml"
+            | "ts"
+            | "tsx"
+            | "txt"
+            | "webm"
+            | "yaml"
+            | "yml"
+    )
+}
+
 fn digest_text(text: &str) -> u64 {
     use std::hash::{Hash, Hasher};
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
@@ -449,6 +659,16 @@ impl Pane for LanePane {
                     LaneLine::Transcript(t) => out.push(Block::TranscriptLine {
                         text: util::trunc(t, 120),
                         tone: Tone::Default,
+                    }),
+                    LaneLine::Artifact {
+                        label,
+                        path,
+                        preview,
+                    } => out.push(Block::ArtifactRef {
+                        label: util::trunc(label, 64),
+                        path: util::trunc(path, 96),
+                        preview: preview.clone(),
+                        tone: Tone::Accent,
                     }),
                     LaneLine::Tube(t) => out.push(Block::TranscriptLine {
                         text: format!("steer {}", util::trunc(t, 112)),
@@ -580,7 +800,18 @@ mod tests {
             .iter()
             .filter_map(|line| match line {
                 LaneLine::Transcript(text) => Some(text.clone()),
+                LaneLine::Artifact { .. } => None,
                 LaneLine::Tube(_) => None,
+            })
+            .collect()
+    }
+
+    fn artifact_paths(lane: &LanePane) -> Vec<String> {
+        lane.lines
+            .iter()
+            .filter_map(|line| match line {
+                LaneLine::Artifact { path, .. } => Some(path.clone()),
+                LaneLine::Transcript(_) | LaneLine::Tube(_) => None,
             })
             .collect()
     }
@@ -711,6 +942,66 @@ mod tests {
         assert_eq!(lane.tools.len(), 1);
         assert_eq!(lane.tools[0].name, "rg");
         assert_eq!(lane.tools[0].state, ToolState::Ok);
+    }
+
+    #[test]
+    fn output_filename_renders_as_artifact_ref_block() {
+        let mut lane = LanePane::new();
+        lane.on_stream(&env("agent.transcript", json!({
+            "type": "update",
+            "entry": {
+                "id": "tx-artifact",
+                "outputs": [
+                    {
+                        "type": "artifact",
+                        "summary": "manual-pane-lane.png refreshed"
+                    }
+                ]
+            }
+        })));
+
+        assert_eq!(artifact_paths(&lane), vec!["manual-pane-lane.png"]);
+        assert!(
+            !transcript_lines(&lane)
+                .iter()
+                .any(|line| line.contains("artifact artifact")),
+            "artifact filenames should render as artifact refs, not transcript prose"
+        );
+
+        let blocks = lane.view();
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::ArtifactRef { label, path, preview, tone: Tone::Accent }
+                if label == "artifact: refreshed"
+                    && path == "manual-pane-lane.png"
+                    && preview.as_deref() == Some("open / preview in current worktree")
+        )));
+    }
+
+    #[test]
+    fn transcript_file_references_emit_artifact_refs() {
+        let mut lane = LanePane::new();
+        lane.on_stream(&env("agent.transcript", json!({
+            "type": "update",
+            "entry": {
+                "id": "tx-file-ref",
+                "messages": [
+                    {
+                        "role": "assistant",
+                        "content": "Updated core/pd-console/src/lane_pane.rs:264 for artifact rows.",
+                        "timestamp": 12
+                    }
+                ]
+            }
+        })));
+
+        assert!(transcript_lines(&lane)
+            .iter()
+            .any(|line| line.contains("Updated core/pd-console/src/lane_pane.rs:264")));
+        assert_eq!(
+            artifact_paths(&lane),
+            vec!["core/pd-console/src/lane_pane.rs"]
+        );
     }
 
     #[test]
