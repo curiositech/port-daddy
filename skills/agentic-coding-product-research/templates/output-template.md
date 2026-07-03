@@ -8,7 +8,7 @@
 
 | Source | Kind | Current As Of | Claim Used |
 | --- | --- | --- | --- |
-| [title](url) | official-doc / press / academic / social / repo | YYYY-MM-DD | [short claim] |
+| [title](https://example.com/source) | official-doc / press / academic / social / repo | YYYY-MM-DD | [short claim] |
 
 ## Audiences
 
