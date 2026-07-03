@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/skills/episodic-memory-algorithms/memory-plan.schema.json",
+  "title": "Memory Architecture Plan",
+  "description": "A memory-architecture plan for an AI agent, auditable by scripts/memory_readiness.mjs against the episodic-memory-algorithms skill's Quality Gates and documented failure modes.",
+  "type": "object",
+  "required": [
+    "memoryTypes",
+    "vectorIndex",
+    "retrievalWeights",
+    "forgetting",
+    "biTemporal",
+    "contradictionDetection",
+    "tokenBudgetFraction",
+    "similarityThreshold",
+    "coldStartLoadsIdentity",
+    "degradesToKeywordFallback"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "memoryTypes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": ["core", "short", "long", "episodic", "procedural"]
+      },
+      "description": "Which memory tiers this design implements."
+    },
+    "vectorIndex": {
+      "type": "object",
+      "required": ["algo", "entryCount"],
+      "additionalProperties": false,
+      "properties": {
+        "algo": {
+          "type": "string",
+          "enum": ["flat", "hnsw", "ivf-pq", "diskann"],
+          "description": "Vector search algorithm. See SKILL.md #2 for scale ceilings."
+        },
+        "entryCount": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Expected number of memory entries the index must hold."
+        }
+      }
+    },
+    "retrievalWeights": {
+      "type": "object",
+      "description": "Retrieval scoring weights keyed by query-context name (e.g. specific-recall, context-selection, conversation-flow, cold-start).",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["relevance", "recency", "importance"],
+        "additionalProperties": false,
+        "properties": {
+          "relevance": { "type": "number", "minimum": 0, "maximum": 1 },
+          "recency": { "type": "number", "minimum": 0, "maximum": 1 },
+          "importance": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "forgetting": {
+      "type": "object",
+      "required": ["coreNeverForget"],
+      "additionalProperties": false,
+      "properties": {
+        "coreNeverForget": {
+          "type": "boolean",
+          "description": "Must be true: importance 9-10 core identity facts are never forgotten."
+        },
+        "policiesByImportance": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["minImportance", "maxImportance", "policy"],
+            "additionalProperties": false,
+            "properties": {
+              "minImportance": { "type": "number", "minimum": 1, "maximum": 10 },
+              "maxImportance": { "type": "number", "minimum": 1, "maximum": 10 },
+              "policy": {
+                "type": "string",
+                "description": "e.g. never_forget, decay_720h, decay_168h, decay_24h, session_scoped"
+              }
+            }
+          }
+        }
+      }
+    },
+    "biTemporal": {
+      "type": "boolean",
+      "description": "Whether facts carry (validFrom, ingestedAt) timestamps so superseded facts can be identified."
+    },
+    "contradictionDetection": {
+      "type": "boolean",
+      "description": "Whether storing a new fact marks a contradicting prior fact as superseded."
+    },
+    "tokenBudgetFraction": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Fraction of the context window reserved for retrieved memories. Should not exceed 0.30."
+    },
+    "similarityThreshold": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Hard cosine-similarity floor below which retrieved memories may not back factual claims. Should be >= 0.75."
+    },
+    "coldStartLoadsIdentity": {
+      "type": "boolean",
+      "description": "Whether a fresh session retrieves core identity facts within the first few queries."
+    },
+    "degradesToKeywordFallback": {
+      "type": "boolean",
+      "description": "Whether the system falls back to keyword search when the vector index is empty or unavailable."
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/cooperative-vibe-coding/session-plan.schema.json",
+  "title": "CooperativeSessionPlan",
+  "description": "A cooperative-coding session plan, as consumed by scripts/session_readiness.mjs's auditCoopSession().",
+  "type": "object",
+  "required": [
+    "teamSize",
+    "timezoneOverlapHours",
+    "mode",
+    "voiceChannelTested",
+    "workScopeSentence",
+    "fileOwnershipMapped",
+    "syncCadenceMinutes",
+    "agentBoundariesSet",
+    "conflictResolutionOwner",
+    "commitCadenceMinutes",
+    "integrationTestedBeforeHandoff"
+  ],
+  "properties": {
+    "teamSize": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of humans participating in the session."
+    },
+    "timezoneOverlapHours": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Hours of working-day overlap shared by all participants."
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["sync", "async", "hybrid"],
+      "description": "Collaboration mode for the session."
+    },
+    "voiceChannelTested": {
+      "type": "boolean",
+      "description": "Whether the voice channel has been established and tested before the session (Quality Gate, sync/hybrid only)."
+    },
+    "workScopeSentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The 1-sentence work scope, e.g. \"We are implementing X feature with Y constraints.\""
+    },
+    "fileOwnershipMapped": {
+      "type": "boolean",
+      "description": "Whether file/directory ownership per person or agent has been mapped."
+    },
+    "syncCadenceMinutes": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Minutes between synchronization points (0 or omitted logically for pure async)."
+    },
+    "agentBoundariesSet": {
+      "type": "boolean",
+      "description": "Whether it is defined which AI agent works where, and who reviews its output."
+    },
+    "conflictResolutionOwner": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Name/role of whoever breaks ties on technical decisions."
+    },
+    "commitCadenceMinutes": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Maximum minutes between commits during the session."
+    },
+    "integrationTestedBeforeHandoff": {
+      "type": "boolean",
+      "description": "Whether the code was verified to build/run before an async/hybrid handoff."
+    }
+  },
+  "additionalProperties": true
+}
