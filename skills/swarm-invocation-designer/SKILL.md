@@ -4,7 +4,8 @@ description: >-
   Design multi-agent invocation, swarm coordination, and lightning-fast inter-agent communication for developer tools and
   Port Daddy. Use when deciding how users summon multiple agents, how agents talk, how work is sharded, how claims and
   worktrees prevent collisions, or whether ICP/IPC/message-bus communication should be hot path or durable path. NOT for
-  generic chat, single-agent prompting, or CRDT editor internals without agent orchestration.
+  generic chat, single-agent prompting, CRDT editor internals without agent orchestration, or operating live concurrent
+  agents in a shared repo (use multi-agent-coordination for that).
 license: Apache-2.0
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
@@ -26,6 +27,8 @@ metadata:
       reason: Supplies latency, batching, presence, and conflict-resolution patterns.
     - skill: port-daddy-agent-skill
       reason: Supplies Port Daddy claims, notes, locks, tubes, salvage, and handoff mechanics.
+    - skill: multi-agent-coordination
+      reason: Covers operating live concurrent agents; this skill designs the invocation and protocol layer they run on.
   io-contract:
     kind: deliverable
     consumes:
@@ -51,7 +54,7 @@ Design the control surface and protocol layer for summoning, steering, and obser
 - Turning "ask several agents" into a typed invocation with roles, budgets, files, worktrees, stop conditions, and receipts.
 - Designing hot-path agent communication: local IPC, Unix sockets, WebSocket, gRPC, NATS, Redis Streams, shared memory, or in-process queues.
 - Designing durable coordination: append logs, Port Daddy notes, tuple space, tubes, actor inboxes, transcripts, and PR receipts.
-- Answering whether "ICP communicating agents" can speak lightning fast.
+- Disambiguating ICP (Internet Computer) from IPC and deciding which coordination layer can feel instantaneous.
 
 ## Do Not Use This For
 
@@ -82,7 +85,7 @@ Use two channels:
 - Hot path: tiny, typed, ephemeral messages for steering, presence, cancellation, and heartbeat. Optimize for p95 latency and low serialization overhead.
 - Durable path: append-only transcript, claims, commands, decisions, artifacts, and review receipts. Optimize for auditability and replay.
 
-## ICP / IPC Answer
+## ICP vs IPC: Which Layer Is Fast
 
 If the user means **IPC** (inter-process communication), yes: agents can speak very quickly through Unix domain sockets, loopback WebSockets, gRPC, shared-memory rings, NATS, Redis Streams, or an in-process event bus. For LLM agents, model latency usually dwarfs transport latency; optimize message size, batching, and tool-call scheduling before obsessing over microseconds.
 

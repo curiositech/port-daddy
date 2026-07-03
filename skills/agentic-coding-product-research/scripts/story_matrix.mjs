@@ -141,7 +141,12 @@ function parseArgs(argv) {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  const { input } = parseArgs(process.argv.slice(2));
-  const manifest = JSON.parse(readFileSync(input, 'utf8'));
-  process.stdout.write(`${JSON.stringify(buildStoryMatrix(manifest), null, 2)}\n`);
+  try {
+    const { input } = parseArgs(process.argv.slice(2));
+    const manifest = JSON.parse(readFileSync(input, 'utf8'));
+    process.stdout.write(`${JSON.stringify(buildStoryMatrix(manifest), null, 2)}\n`);
+  } catch (error) {
+    process.stderr.write(`story_matrix: ${error.message}\n`);
+    process.exit(1);
+  }
 }
