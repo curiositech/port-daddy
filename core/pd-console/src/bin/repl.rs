@@ -10,6 +10,7 @@
 //!   :dispatch                 show the dispatch queue (sorties awaiting review)
 //!   :lane                     show the watched agent's live work chat
 //!   :lane-message <text>      send an operator turn to the watched agent
+//!                             supports @file/@photo/@skill/@tool markers
 //!   <text>                    send a turn to the active agent (over tube)
 //!   :quit
 //!
@@ -73,7 +74,7 @@ use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
 use lane_pane::LanePane;
 use lineage_pane::LineagePane;
-use pane::{PaneRegistry, Subscription, SurfaceAction};
+use pane::{OperatorTurn, PaneRegistry, Subscription, SurfaceAction};
 use substrate_pane::SubstratePane;
 use parley_pane::ParleyPane;
 use std::io::{self, Write};
@@ -204,7 +205,12 @@ async fn main() -> Result<()> {
                 .filter(|text| !text.is_empty())
             {
                 match reg
-                    .mutate_active(mgr.daemon(), SurfaceAction::Message { text: text.into() })
+                    .mutate_active(
+                        mgr.daemon(),
+                        SurfaceAction::OperatorTurn {
+                            turn: OperatorTurn::parse(text),
+                        },
+                    )
                     .await
                 {
                     Ok(()) => ok(&style, "message sent — watch the lane for the echoed operator turn"),

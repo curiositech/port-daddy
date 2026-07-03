@@ -134,6 +134,202 @@ impl Alert {
     }
 }
 
+/// Local artifact kind attached to an operator turn. The daemon tube still
+/// carries text today; this keeps the console-side intent structured so the
+/// Lane can render file/photo references as artifacts instead of prose.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OperatorAttachmentKind {
+    File,
+    Photo,
+}
+
+impl OperatorAttachmentKind {
+    pub fn label(self) -> &'static str {
+        match self {
+            OperatorAttachmentKind::File => "file",
+            OperatorAttachmentKind::Photo => "photo",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OperatorAttachment {
+    pub kind: OperatorAttachmentKind,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct OperatorTurn {
+    pub text: String,
+    pub attachments: Vec<OperatorAttachment>,
+    pub skills: Vec<String>,
+    pub tools: Vec<String>,
+}
+
+impl OperatorTurn {
+    /// Parse the compact Lane composer grammar:
+    ///
+    /// - `@file path` / `@photo path` on their own line for paths with spaces.
+    /// - Inline `@file:path`, `@photo:path`, `@./path`, `skill:id`, `tool:name`.
+    ///
+    /// Everything else remains the natural-language operator message.
+    pub fn parse(input: impl AsRef<str>) -> Self {
+        let mut turn = Self::default();
+        let mut text_lines = Vec::new();
+
+        for raw_line in input.as_ref().lines() {
+            let line = raw_line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            if let Some(path) = line_directive(line, &["@file ", "file "]) {
+                push_attachment(&mut turn, OperatorAttachmentKind::File, path);
+            } else if let Some(path) = line_directive(line, &["@photo ", "photo ", "@image ", "image "]) {
+                push_attachment(&mut turn, OperatorAttachmentKind::Photo, path);
+            } else if let Some(skill) = line_directive(line, &["@skill ", "skill ", "#skill "]) {
+                push_unique(&mut turn.skills, skill);
+            } else if let Some(tool) = line_directive(line, &["@tool ", "tool ", "/tool "]) {
+                push_unique(&mut turn.tools, tool);
+            } else {
+                let remaining = turn.extract_inline_markers(line);
+                if !remaining.trim().is_empty() {
+                    text_lines.push(remaining);
+                }
+            }
+        }
+
+        turn.text = text_lines.join("\n").trim().to_string();
+        turn
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.text.trim().is_empty()
+            && self.attachments.is_empty()
+            && self.skills.is_empty()
+            && self.tools.is_empty()
+    }
+
+    /// Text envelope sent over the existing daemon tube. It is deliberately
+    /// readable by any agent backend, while preserving the structured intent in
+    /// stable section labels for transcript/rendering follow-up.
+    pub fn tube_text(&self) -> String {
+        let mut sections = Vec::new();
+        if !self.text.trim().is_empty() {
+            sections.push(self.text.trim().to_string());
+        }
+        if !self.attachments.is_empty() {
+            let mut lines = vec!["Attachments:".to_string()];
+            for attachment in &self.attachments {
+                lines.push(format!("- {}: {}", attachment.kind.label(), attachment.path));
+            }
+            sections.push(lines.join("\n"));
+        }
+        if !self.skills.is_empty() {
+            let mut lines = vec!["Invoke skills:".to_string()];
+            for skill in &self.skills {
+                lines.push(format!("- {skill}"));
+            }
+            sections.push(lines.join("\n"));
+        }
+        if !self.tools.is_empty() {
+            let mut lines = vec!["Requested tools:".to_string()];
+            for tool in &self.tools {
+                lines.push(format!("- {tool}"));
+            }
+            sections.push(lines.join("\n"));
+        }
+        sections.join("\n\n")
+    }
+
+    pub fn context_summary(&self) -> String {
+        let mut parts = Vec::new();
+        if !self.attachments.is_empty() {
+            parts.push(format!("{} attachment(s)", self.attachments.len()));
+        }
+        if !self.skills.is_empty() {
+            parts.push(format!("{} skill(s)", self.skills.len()));
+        }
+        if !self.tools.is_empty() {
+            parts.push(format!("{} tool request(s)", self.tools.len()));
+        }
+        parts.join(", ")
+    }
+
+    fn extract_inline_markers(&mut self, line: &str) -> String {
+        let mut words = Vec::new();
+        for word in line.split_whitespace() {
+            let (head, tail) = split_trailing_punctuation(word);
+            if let Some(path) = marker_value(head, &["@file:", "@file="]) {
+                push_attachment(self, OperatorAttachmentKind::File, path);
+            } else if let Some(path) = marker_value(head, &["@photo:", "@photo=", "@image:", "@image="]) {
+                push_attachment(self, OperatorAttachmentKind::Photo, path);
+            } else if let Some(path) = head.strip_prefix('@').filter(|p| looks_pathish(p)) {
+                push_attachment(self, OperatorAttachmentKind::File, path);
+            } else if let Some(skill) = marker_value(head, &["skill:", "skill=", "#skill:", "#skill=", "@skill:", "@skill="]) {
+                push_unique(&mut self.skills, skill);
+            } else if let Some(tool) = marker_value(head, &["tool:", "tool=", "/tool:", "/tool=", "@tool:", "@tool="]) {
+                push_unique(&mut self.tools, tool);
+            } else {
+                words.push(format!("{head}{tail}"));
+            }
+        }
+        words.join(" ")
+    }
+}
+
+fn line_directive<'a>(line: &'a str, prefixes: &[&str]) -> Option<&'a str> {
+    prefixes
+        .iter()
+        .find_map(|prefix| line.strip_prefix(prefix))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
+fn marker_value<'a>(word: &'a str, prefixes: &[&str]) -> Option<&'a str> {
+    prefixes
+        .iter()
+        .find_map(|prefix| word.strip_prefix(prefix))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
+fn split_trailing_punctuation(word: &str) -> (&str, &str) {
+    let trimmed = word.trim_end_matches(|c: char| matches!(c, ',' | ';' | '.'));
+    word.split_at(trimmed.len())
+}
+
+fn looks_pathish(value: &str) -> bool {
+    value.starts_with('/')
+        || value.starts_with("./")
+        || value.starts_with("../")
+        || value.contains('/')
+        || value.rsplit_once('.').is_some()
+}
+
+fn push_attachment(turn: &mut OperatorTurn, kind: OperatorAttachmentKind, path: &str) {
+    let path = path.trim();
+    if path.is_empty() {
+        return;
+    }
+    let duplicate = turn
+        .attachments
+        .iter()
+        .any(|attachment| attachment.kind == kind && attachment.path == path);
+    if !duplicate {
+        turn.attachments.push(OperatorAttachment {
+            kind,
+            path: path.to_string(),
+        });
+    }
+}
+
+fn push_unique(values: &mut Vec<String>, value: &str) {
+    let value = value.trim();
+    if !value.is_empty() && !values.iter().any(|existing| existing == value) {
+        values.push(value.to_string());
+    }
+}
+
 /// A mutation an operator can ask a surface to perform against the daemon. This
 /// is the cockpit's "grab the wheel" axis — surfaces are no longer read-only.
 /// An action-enum (rather than a generic `mutate<T>`) keeps the trait
@@ -144,10 +340,11 @@ pub enum SurfaceAction {
     /// operator reason. Closes the loop: the daemon echoes the control message
     /// back on the stream (`agent.tube`).
     Interrupt { reason: Option<String> },
-    /// Send an operator turn to the running agent this surface is watching.
-    /// For the Lane this publishes to the deterministic steering channel
-    /// `agent:<id>`; the merged stream then echoes it back as `agent.tube`.
-    Message { text: String },
+    /// Send a structured operator turn: natural language plus file/photo
+    /// attachments and requested skill/tool context. For the Lane this publishes
+    /// to the deterministic steering channel `agent:<id>`; the merged stream
+    /// then echoes it back as `agent.tube`.
+    OperatorTurn { turn: OperatorTurn },
 }
 
 /// What a surface wants to watch live, instead of (or alongside) 2s polling.
@@ -242,6 +439,55 @@ impl PaneRegistry {
             p.mutate(daemon, action).await?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod operator_turn_tests {
+    use super::{OperatorAttachmentKind, OperatorTurn};
+
+    #[test]
+    fn parses_operator_turn_context_markers() {
+        let turn = OperatorTurn::parse(
+            "Review this @core/pd-console/src/lane_pane.rs skill:cse-design-process tool:apply_patch",
+        );
+
+        assert_eq!(turn.text, "Review this");
+        assert_eq!(turn.attachments.len(), 1);
+        assert_eq!(turn.attachments[0].kind, OperatorAttachmentKind::File);
+        assert_eq!(
+            turn.attachments[0].path,
+            "core/pd-console/src/lane_pane.rs"
+        );
+        assert_eq!(turn.skills, vec!["cse-design-process"]);
+        assert_eq!(turn.tools, vec!["apply_patch"]);
+    }
+
+    #[test]
+    fn line_directives_keep_paths_with_spaces() {
+        let turn = OperatorTurn::parse(
+            "Please inspect this.\n@photo /tmp/proof capture.png\n@file docs/HARBOR CONSOLE.md",
+        );
+
+        assert_eq!(turn.text, "Please inspect this.");
+        assert_eq!(turn.attachments.len(), 2);
+        assert_eq!(turn.attachments[0].kind, OperatorAttachmentKind::Photo);
+        assert_eq!(turn.attachments[0].path, "/tmp/proof capture.png");
+        assert_eq!(turn.attachments[1].kind, OperatorAttachmentKind::File);
+        assert_eq!(turn.attachments[1].path, "docs/HARBOR CONSOLE.md");
+    }
+
+    #[test]
+    fn tube_text_preserves_structured_context_for_agents() {
+        let turn = OperatorTurn::parse(
+            "Steer this\n@file core/pd-console/src/main.rs\n@skill native-app-designer\n@tool cargo test",
+        );
+        let text = turn.tube_text();
+
+        assert!(text.contains("Steer this"));
+        assert!(text.contains("Attachments:\n- file: core/pd-console/src/main.rs"));
+        assert!(text.contains("Invoke skills:\n- native-app-designer"));
+        assert!(text.contains("Requested tools:\n- cargo test"));
     }
 }
 

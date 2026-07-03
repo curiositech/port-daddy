@@ -70,7 +70,7 @@ use lane_pane::LanePane;
 use ledger_pane::LedgerPane;
 use lineage_pane::LineagePane;
 use notes_pane::NotesPane;
-use pane::{CoastGuardPane, Pane, SurfaceAction};
+use pane::{CoastGuardPane, OperatorTurn, Pane, SurfaceAction};
 use parley_pane::ParleyPane;
 use peek_pane::PeekPane;
 use planner_pane::PlannerPane;
@@ -463,7 +463,12 @@ fn main() {
                             }
                             app::ControlMsg::MessageLane { text } => {
                                 if let Err(e) = lane
-                                    .mutate(&client, SurfaceAction::Message { text })
+                                    .mutate(
+                                        &client,
+                                        SurfaceAction::OperatorTurn {
+                                            turn: OperatorTurn::parse(text),
+                                        },
+                                    )
                                     .await
                                 {
                                     let _ = alert_tx.send(pane::Alert::error(
