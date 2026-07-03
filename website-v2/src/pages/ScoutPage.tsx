@@ -35,6 +35,12 @@ pd status`
 
 const extensionPath = `apps/pd-scout-extension`
 
+const brandAssets = [
+  'Chrome toolbar icons: 16, 32, 48, and 128 px.',
+  'Source Scout mark: Port Daddy glyph plus region-selection brackets.',
+  'Chrome Web Store starter assets: 128 px store icon, 440 x 280 promo tile, 1400 x 560 marquee tile, and 1280 x 800 screenshot.',
+]
+
 const captureModes = [
   {
     title: 'Visible tab',
@@ -317,6 +323,56 @@ export function ScoutPage() {
                 ))}
               </div>
             </SurfacePanel>
+          </PageContainer>
+        </section>
+
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
+          <PageContainer width="wide">
+            <SwissGrid className="items-start">
+              <SwissGridItem span="narrow">
+                <div className="space-y-[var(--section-intro-gap)]">
+                  <BracketLabel>Chrome identity</BracketLabel>
+                  <PanelTitle as="h2" size="display" className="max-w-[12ch]">
+                    A browser extension needs a face.
+                  </PanelTitle>
+                  <PanelBody>
+                    Scout is branded as a Port Daddy intake surface, not a loose
+                    utility. The extension includes the manifest icons Chrome
+                    uses in the toolbar and the starter graphic assets needed for
+                    a future Web Store listing.
+                  </PanelBody>
+                </div>
+              </SwissGridItem>
+
+              <SwissGridItem span="body">
+                <SurfacePanel elevation="quiet" className="grid gap-[var(--space-5)] md:grid-cols-[minmax(0,0.72fr)_minmax(0,1fr)]">
+                  <div className="flex items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-muted)] p-[var(--space-6)]">
+                    <img
+                      src="/img/generated/scout-extension-icon.png"
+                      alt="Port Daddy Scout extension icon"
+                      className="h-32 w-32"
+                      loading="eager"
+                    />
+                  </div>
+                  <div className="space-y-[var(--space-4)]">
+                    <PanelEyebrow>Included assets</PanelEyebrow>
+                    <PanelTitle as="h3" size="card">
+                      Manifest-ready now, store-ready starter kit next.
+                    </PanelTitle>
+                    <div className="space-y-[var(--space-3)]">
+                      {brandAssets.map((item) => (
+                        <div key={item} className="flex gap-[var(--space-3)]">
+                          <CheckCircle2 className="mt-[0.15rem] h-[var(--space-4)] w-[var(--space-4)] shrink-0 text-[var(--brand-primary)]" aria-hidden="true" />
+                          <PanelBody size="compact" className="max-w-none">
+                            {item}
+                          </PanelBody>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </SurfacePanel>
+              </SwissGridItem>
+            </SwissGrid>
           </PageContainer>
         </section>
 

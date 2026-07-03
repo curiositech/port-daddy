@@ -15,6 +15,19 @@ The default daemon URL is:
 http://127.0.0.1:9876
 ```
 
+## Branding assets
+
+Scout ships with its own Chrome extension identity, built from the Port Daddy
+mark plus region-selection brackets:
+
+- `assets/icons/scout-icon.svg` source mark.
+- `assets/icons/scout-icon-16.png`, `scout-icon-32.png`,
+  `scout-icon-48.png`, and `scout-icon-128.png` for the manifest and toolbar.
+- `assets/store/scout-store-icon-128.png` for the Chrome Web Store icon.
+- `assets/store/scout-small-promo-440x280.png` and
+  `assets/store/scout-marquee-promo-1400x560.png` for promotional tiles.
+- `assets/store/scout-screenshot-1280x800.png` for the first store screenshot.
+
 ## Install
 
 1. Open `chrome://extensions`.

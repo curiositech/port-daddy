@@ -184,7 +184,7 @@ async function submitIssue() {
       task,
     });
     const name = result.issue?.workItemSlug || result.issue?.id || 'visual issue';
-    const start = result.agentStart?.error ? ` Agent start: ${result.agentStart.error}` : '';
+    const start = result.agentStart?.error ? ` Spawn start: ${result.agentStart.error}` : '';
     setMessage(`Opened ${name}.${start}`, 'success');
     els.brief.value = '';
   } catch (err) {

@@ -47,9 +47,22 @@ textarea {
 
 .header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 10px;
+}
+
+.brand-mark {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border-radius: 14px;
+  box-shadow: 0 9px 22px rgba(18, 28, 44, 0.18);
+}
+
+.header > div:nth-child(2) {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .eyebrow {

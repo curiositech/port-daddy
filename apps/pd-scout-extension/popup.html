@@ -9,6 +9,7 @@
 <body>
   <main class="panel">
     <header class="header">
+      <img class="brand-mark" src="assets/icons/scout-icon.svg" alt="" width="44" height="44">
       <div>
         <div class="eyebrow">Port Daddy Scout</div>
         <h1>Send visual issue</h1>
@@ -29,7 +30,7 @@
 
     <label>
       <span>Brief</span>
-      <textarea id="brief" rows="4" placeholder="What should the agent fix or investigate?"></textarea>
+      <textarea id="brief" rows="4" placeholder="What should Port Daddy fix or investigate?"></textarea>
     </label>
 
     <div class="grid">
@@ -46,7 +47,7 @@
       <label>
         <span>Route to</span>
         <select id="assignee">
-          <option value="local-agent">Local agent</option>
+          <option value="local-agent">Local spawn</option>
           <option value="cloud-fleet">Cloud fleet</option>
           <option value="review-queue">Review queue</option>
         </select>
@@ -54,7 +55,7 @@
     </div>
 
     <label id="agentRow">
-      <span>Agent</span>
+      <span>Spawn target</span>
       <input id="targetAgent" type="text" placeholder="cartographer, qa, spark">
     </label>
 
@@ -70,7 +71,7 @@
 
     <label class="check">
       <input id="startAgent" type="checkbox">
-      <span>Ask an agent to start now</span>
+      <span>Ask Port Daddy to spawn work now</span>
     </label>
 
     <button class="submit" id="submitIssue" type="button">Open issue</button>
