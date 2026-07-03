@@ -7,10 +7,11 @@
 | Configure provider tokens | Human operator | GUI | CLI | Routine setup must be discoverable; CLI remains useful for agents and CI. |
 | Trigger review agent from app | Application code | SDK | API | The app needs typed calls, retries, and receipts. |
 | Let a model inspect fleet status | Model client | MCP | API | Model needs schema-governed tool access. |
-| Send tube event to worker | Service or script | SDK | CLI | Listener/sender helpers prevent every language from reimplementing envelope rules. |
+| Send tube event to worker (`transport: "pd-tube"`) | Service or script | SDK | CLI | Listener/sender helpers prevent every language from reimplementing envelope rules. |
 
 ## Tube Workflow Codegen Brief
 
+- Required because: one workflow has `transport: "pd-tube"` or `requiresTube: true`.
 - Channel: `project.review.request`
 - Message schema: `tube-message.v1`
 - Target languages: TypeScript, Python

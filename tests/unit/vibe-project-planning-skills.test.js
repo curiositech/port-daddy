@@ -126,12 +126,26 @@ describe('vibe project planning helper scripts', () => {
     expect(matrix.pass).toBe(false);
   });
 
+  test('buildSurfaceMatrix blocks tube-signaled workflows with no tube contract', () => {
+    const matrix = buildSurfaceMatrix({
+      name: 'tube-triggered workflow',
+      workflows: [
+        { name: 'send tube event', actor: 'service', transport: 'pd-tube' },
+        { name: 'listen for tube event', actor: 'developer', requiresTube: true },
+      ],
+    });
+
+    expect(matrix.pass).toBe(false);
+    expect(matrix.tubeGaps).toContain('tubeWorkflow');
+    expect(matrix.workflows.every((workflow) => workflow.requiresTube)).toBe(true);
+  });
+
   test('buildSurfaceMatrix passes a codegen-ready tube and SDK plan', () => {
     const matrix = buildSurfaceMatrix({
       name: 'tube codegen',
       targetLanguages: ['Python', 'TypeScript'],
       surfaces: ['sdk', 'cli', 'mcp'],
-      workflows: [{ name: 'send tube event', actor: 'developer', embedded: true }],
+      workflows: [{ name: 'send tube event', actor: 'developer', embedded: true, transport: 'pd-tube' }],
       tubeWorkflow: {
         channel: 'project.review.request',
         messageSchema: 'tube-message.v1',

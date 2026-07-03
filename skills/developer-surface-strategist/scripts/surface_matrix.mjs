@@ -60,8 +60,12 @@ function rationale(primary) {
   }[primary] || 'Surface selected from workflow actor and frequency.';
 }
 
-function tubeGaps(tubeWorkflow) {
-  if (!tubeWorkflow) return [];
+function workflowRequiresTube(workflow) {
+  return workflow.requiresTube === true || String(workflow.transport || '').toLowerCase() === 'pd-tube';
+}
+
+function tubeGaps(tubeWorkflow, requiresTube) {
+  if (!tubeWorkflow) return requiresTube ? ['tubeWorkflow'] : [];
   const required = ['channel', 'messageSchema', 'sender', 'listener', 'receipt', 'idempotency', 'auth', 'targetLanguages'];
   return required.filter((field) => !hasValue(tubeWorkflow[field])).map((field) => `tubeWorkflow.${field}`);
 }
@@ -100,6 +104,8 @@ export function buildSurfaceMatrix(manifest) {
     return {
       name: workflow.name,
       actor: workflow.actor || 'developer',
+      transport: workflow.transport || null,
+      requiresTube: workflowRequiresTube(workflow),
       primarySurface,
       secondarySurface: workflow.secondarySurface || secondarySurface(primarySurface),
       rationale: workflow.rationale || rationale(primarySurface),
@@ -111,7 +117,10 @@ export function buildSurfaceMatrix(manifest) {
     };
   });
 
-  const gaps = [...tubeGaps(manifest.tubeWorkflow), ...sdkGaps(manifest)];
+  const requiresTube = workflows.some((workflow) => workflow.requiresTube);
+  const tubeContractGaps = tubeGaps(manifest.tubeWorkflow, requiresTube);
+  const sdkContractGaps = sdkGaps(manifest);
+  const gaps = [...tubeContractGaps, ...sdkContractGaps];
   const recommendedSurfaces = [...new Set(workflows.flatMap((workflow) => [workflow.primarySurface, workflow.secondarySurface]))];
 
   return {
@@ -120,8 +129,8 @@ export function buildSurfaceMatrix(manifest) {
     recommendedSurfaces,
     workflows,
     tubeWorkflow: manifest.tubeWorkflow || null,
-    sdkGaps: sdkGaps(manifest),
-    tubeGaps: tubeGaps(manifest.tubeWorkflow),
+    sdkGaps: sdkContractGaps,
+    tubeGaps: tubeContractGaps,
     gaps,
   };
 }

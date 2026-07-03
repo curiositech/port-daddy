@@ -4,6 +4,9 @@ Use this when making a `pd tube`-style workflow easy to implement in any languag
 
 ## Minimum Contract
 
+Mark a workflow with `transport: "pd-tube"` or `requiresTube: true` when it depends on a tube-style listener/sender pair.
+That signal makes a missing `tubeWorkflow` contract a blocker instead of an optional enhancement.
+
 A listener/sender workflow needs:
 
 1. Channel naming convention.
