@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/coop-ide-plan.schema.json",
+  "title": "Coop-IDE (Harbor) Architecture Plan",
+  "description": "A structured plan for a slice of the M-Agent + N-Human cooperative IDE (the Harbor), so this skill's phased Quality Gates and four anti-patterns can be checked deterministically by scripts/coop_ide_audit.mjs.",
+  "type": "object",
+  "required": [
+    "actorsArePeers",
+    "claimsGateEdits",
+    "salvageImplemented",
+    "daemonIsCollabServer",
+    "topologyBehindTransportTrait",
+    "buildOrder",
+    "surfaceComposesSiblings",
+    "visualArtifactsInTestPlan"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "surface": {
+      "type": "string",
+      "description": "Name of the collaborative surface or slice this plan covers, e.g. 'editor', 'quay', 'transcript-diff'."
+    },
+    "actorsArePeers": {
+      "type": "boolean",
+      "description": "True if every actor (human or agent) is a Loro replica with a PeerID minted from its PD identity, rendered identically with provenance -- agents are peers, not tools."
+    },
+    "claimsGateEdits": {
+      "type": "boolean",
+      "description": "True if claims and POST /conflicts/predict gate edits above the CRDT, surfacing a Conflicted/Gated band before any byte is written, instead of trusting Loro's auto-merge for correctness."
+    },
+    "salvageImplemented": {
+      "type": "boolean",
+      "description": "True if salvage is implemented: a dead replica's op-log and claim persist and can be replayed so a successor inherits and finishes -- not deferred away."
+    },
+    "daemonIsCollabServer": {
+      "type": "boolean",
+      "description": "True if the existing daemon is the collab server (Loro Protocol over the existing tube; snapshots to /blob; op-log to immutable notes) with no new sync backend stood up."
+    },
+    "topologyBehindTransportTrait": {
+      "type": "boolean",
+      "description": "True if Shared (daemon HTTP+SSE) / LAN (iroh) / Remote (relay+E2E) topology is abstracted behind a single SyncTransport trait so the editor never branches on which transport it runs over."
+    },
+    "buildOrder": {
+      "type": "object",
+      "required": ["bufferBeforeTransport"],
+      "additionalProperties": true,
+      "properties": {
+        "bufferBeforeTransport": {
+          "type": "boolean",
+          "description": "True if the buffer and coordination (P1-P3: skeleton, buffer, agents+claims, salvage) were built and proven before transport polish (P4 shared, P5 remote) -- guards against the 'transport-first' anti-pattern."
+        }
+      }
+    },
+    "surfaceComposesSiblings": {
+      "type": "boolean",
+      "description": "True if this surface composes the load-bearing sibling skills (rust-gpui-motion, gpui-shaders, vello-parley-rendering, metal-text-pipeline, gpui-rust-console) for its layer instead of reinventing their concerns inline."
+    },
+    "visualArtifactsInTestPlan": {
+      "type": "boolean",
+      "description": "True if the PR test plan for this UI merge includes a screenshot and a motion clip (e.g. board->steer->diff), per the standing 'no UI merges without visual artifacts' rule."
+    }
+  }
+}

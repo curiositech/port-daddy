@@ -23,15 +23,31 @@ metadata:
     - episodic-memory
     - agents
     - data-structures
+  provenance:
+    kind: first-party
+    owners:
+      - port-daddy
   pairs-with:
     - skill: always-on-agent-architecture
       reason: Always-on agents require persistent memory across sessions
     - skill: always-on-agent-inputs
       reason: Input streams feed into memory; memory informs input processing
-    - skill: ai-engineer
-      reason: AI engineers implement these algorithms in production agents
     - skill: agent-interchange-formats
       reason: Memory retrieval results must be serialized for agent consumption
+    - skill: agentic-infrastructure-2026
+      reason: Once the memory algorithm is chosen here, that skill picks the vendor/framework to run it on
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: agent-memory-requirements-brief
+        format: markdown
+      - kind: memory-architecture-plan
+        format: json
+    produces:
+      - kind: memory-system-design
+        format: markdown
+      - kind: memory-readiness-audit
+        format: json
 category: AI & Machine Learning
 tags:
   - episodic-memory
@@ -351,3 +367,20 @@ Memory system is production-ready when:
 - "Which vector database should I deploy?" → `agentic-infrastructure-2026`  
 - "How do agents exchange memory between each other?" → `agent-conversation-protocols`
 - "How do I build a RAG system?" → `ai-engineer`
+
+<!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
+
+## Skill Bundle Index
+
+*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+
+**`examples/`**
+- [`examples/sample-input.json`](examples/sample-input.json) — sample input (data/schema)
+
+**`schemas/`**
+- [`schemas/memory-plan.schema.json`](schemas/memory-plan.schema.json) — memory plan.schema (data/schema)
+
+**`scripts/`**
+- [`scripts/memory_readiness.mjs`](scripts/memory_readiness.mjs)
+
+<!-- END BUNDLE INDEX -->

@@ -31,8 +31,10 @@ metadata:
   pairs-with:
     - skill: metal-text-pipeline
       reason: The bare-metal counterpart — what Vello hides, and when pure Metal is worth it.
-    - skill: metal-shader-expert
-      reason: For when you drop below Vello into MSL compute/fragment shaders.
+    - skill: gpui-shaders
+      reason: For custom GPU shader work inside gpui, when you're below Vello's abstraction on a different UI stack.
+    - skill: rust-gpui-motion
+      reason: Widget-tree animation timing/easing patterns, for the gpui side of a decision between retained widgets and a bespoke Vello canvas.
     - skill: rust-app-distribution
       reason: Shipping the signed/notarized desktop binary that hosts the renderer.
   provenance:
@@ -40,6 +42,18 @@ metadata:
     owners: [port-daddy]
   authorship:
     maintainers: [port-daddy]
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: bespoke-2d-canvas-requirement
+        format: markdown
+      - kind: vello-render-dependency-plan
+        format: json
+    produces:
+      - kind: render-loop-implementation-guide
+        format: markdown
+      - kind: render-plan-audit-report
+        format: json
 ---
 
 # Vello + Parley GPU Vector Rendering (Rust)
@@ -311,8 +325,18 @@ Apple M4 Max (Metal backend) at sub-millisecond per-frame GPU cost.
 
 *Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
 
+**`examples/`**
+- [`examples/sample-input-bad.json`](examples/sample-input-bad.json) — sample input bad (data/schema)
+- [`examples/sample-input.json`](examples/sample-input.json) — sample input (data/schema)
+
 **`references/`**
 - [`references/parley-glyph-runs.md`](references/parley-glyph-runs.md) — Feeding Parley glyph runs into a Vello Scene — The single function everyone gets stuck writing.
 - [`references/version-matrix.md`](references/version-matrix.md) — Vello / wgpu / Parley version matrix — Pre-1.0 Linebender crates move in lockstep clusters.
+
+**`schemas/`**
+- [`schemas/render-plan.schema.json`](schemas/render-plan.schema.json) — render plan.schema (data/schema)
+
+**`scripts/`**
+- [`scripts/render_plan_audit.mjs`](scripts/render_plan_audit.mjs)
 
 <!-- END BUNDLE INDEX -->

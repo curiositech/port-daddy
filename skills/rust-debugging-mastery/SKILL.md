@@ -42,11 +42,31 @@ metadata:
       reason: GPUI/pd-console rendering, layout, and the two-executor (reqwest/smol) pipeline live there; this skill covers the generic debugging underneath
     - skill: git-best-practices
       reason: Bisecting a heisenbug across commits needs disciplined git workflow
+    - skill: rust-with-claude-code
+      reason: Shares the toolchain/testing workflow this skill's diagnosis techniques plug into when pairing with an agent
+    - skill: rust-app-distribution
+      reason: A dyld/codesign failure diagnosed here often traces back to a notarization or install_name_tool step in the distribution pipeline
   provenance:
     kind: first-party
     owners: [port-daddy]
   authorship:
     maintainers: [port-daddy]
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: bug-report
+        format: markdown
+        description: A symptom description -- panic message, hang, slow path, wrong result, dyld/link failure, UB suspicion, or heisenbug -- as reported by a human or another agent.
+      - kind: debug-session-plan
+        format: json
+        description: A structured plan naming the chosen tool(s), async-ness of the code path, and the specific knobs/flags intended for the session.
+    produces:
+      - kind: diagnosis
+        format: markdown
+        description: The root-cause diagnosis and tool-selection rationale, following the Decision Points flowchart and matched to the bug's shape.
+      - kind: debug-readiness-audit
+        format: json
+        description: A deterministic pass/fail audit of the debug-session-plan against this skill's Quality Gates, as produced by scripts/debug_plan_audit.mjs.
 category: Debugging & Diagnostics
 ---
 
@@ -185,6 +205,25 @@ heisenbug tell. Reproduce deterministically with Miri + ThreadSanitizer and
 □ Backtrace claims verified with RUST_BACKTRACE=full on a debug or debug=true build
 ```
 
+## Deterministic Debug-Plan Audit
+
+Before committing to a debugging session (or reviewing another agent's), run
+`scripts/debug_plan_audit.mjs` against a `debug-session-plan` matching
+`schemas/debug-plan.schema.json`. It encodes this skill's thesis — match the tool to the
+bug's *shape* — and its Quality Gates as a deterministic check, catching the exact
+mismatches called out above (lldb for an async hang, `RUST_MIN_STACK` for a compile-time
+recursion limit, tokio-console with no unstable flags, an unguarded `dlopen`, a heisenbug
+"fixed" by a print instead of reproduced under Miri).
+
+```bash
+node scripts/debug_plan_audit.mjs --input examples/sample-input.json
+```
+
+`examples/sample-input.json` is a `hang`+async plan correctly routed to tokio-console
+(`pass: true`). `examples/sample-input-lldb-for-async-hang.json` is the same bug routed to
+`rust-lldb` instead — the flagship anti-pattern — and audits `pass: false` with a `critical`
+`debugger-attached-to-async-hang` finding.
+
 ## Worked Example (index)
 
 The flagship worked example is **`examples/dyld-segfault-onnxruntime.md`** — a real-shaped session
@@ -213,3 +252,36 @@ Load only the one that matches the bug in front of you. See `references/INDEX.md
 |---------|---------------|
 | `examples/dyld-segfault-onnxruntime.md` | A native addon segfaulting a daemon for a missing `libonnxruntime.dylib`, diagnosed and fixed four ways |
 | `examples/async-stall-tokio-console.md` | A blocking loop starving the Tokio executor, found via tokio-console's `never-yielded` warning |
+
+<!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
+
+## Skill Bundle Index
+
+*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+
+**root**
+- [`CHANGELOG.md`](CHANGELOG.md) — Changelog — rust-debugging-mastery — - `SKILL.md` index: thesis (match the tool to the bug's shape), a symptom→tool decision-point Mermaid flowchart, a Core Capabilities table, 
+- [`README.md`](README.md) — rust-debugging-mastery — Expert-level Rust debugging beyond `println!` and `dbg!`.
+
+**`examples/`**
+- [`examples/INDEX.md`](examples/INDEX.md) — Examples — Real-shaped debug-session transcripts.
+- [`examples/async-stall-tokio-console.md`](examples/async-stall-tokio-console.md) — Worked example: a daemon that "hangs" with one core pinned — **Symptom.** A Tokio-based daemon stops responding to its HTTP health check after a few minutes under load.
+- [`examples/dyld-segfault-onnxruntime.md`](examples/dyld-segfault-onnxruntime.md) — Worked example: a native addon segfaults the daemon on startup — **Symptom.** A Rust/Node daemon that uses an onnxruntime embedding model dies immediately on launch on a colleague's Apple Silicon Mac — no 
+- [`examples/sample-input-lldb-for-async-hang.json`](examples/sample-input-lldb-for-async-hang.json) — sample input lldb for async hang (data/schema)
+- [`examples/sample-input.json`](examples/sample-input.json) — sample input (data/schema)
+
+**`references/`**
+- [`references/01-tracing-and-async.md`](references/01-tracing-and-async.md) — Tracing, structured logging, and async debugging — > Crate versions current as of June 2026: `tracing` 0.1.44, `tracing-subscriber` 0.3.22, > `console-subscriber` 0.5.0.
+- [`references/02-native-ffi-and-dyld.md`](references/02-native-ffi-and-dyld.md) — Native FFI & macOS dyld debugging — > The highest-value section: a missing or mis-pathed `.dylib` does not throw — on a hard load > failure **dyld aborts the entire host proces
+- [`references/03-profiling-and-memory.md`](references/03-profiling-and-memory.md) — Profiling hot paths & finding UB with Miri — Two questions: *"where is the time going?"* → flamegraph/samply/Instruments.
+- [`references/04-panics-and-heisenbugs.md`](references/04-panics-and-heisenbugs.md) — Panics, backtraces, and heisenbugs — --- Default panic output (verbatim, from The Book): `full` adds the frames `=1` trims for readability.
+- [`references/05-lldb-and-build-link.md`](references/05-lldb-and-build-link.md) — rust-lldb / rust-gdb and build/link debugging — The stepping-debugger question (*"what is the state at this line?"*) plus the compile/link layer (*"why won't this build or link?"*).
+- [`references/INDEX.md`](references/INDEX.md) — References — Load only the file that matches the bug in front of you.
+
+**`schemas/`**
+- [`schemas/debug-plan.schema.json`](schemas/debug-plan.schema.json) — debug plan.schema (data/schema)
+
+**`scripts/`**
+- [`scripts/debug_plan_audit.mjs`](scripts/debug_plan_audit.mjs)
+
+<!-- END BUNDLE INDEX -->
