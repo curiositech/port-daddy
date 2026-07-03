@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent RL Sandbox Trajectory Suite",
+  "type": "object",
+  "required": ["agent", "tasks", "trajectories"],
+  "properties": {
+    "agent": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "baseModel": { "type": "string" },
+        "adapter": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "rewardSpec": {
+      "type": "object",
+      "properties": {
+        "actionOrderRequired": { "type": "boolean" },
+        "defaultPassReward": { "type": "number", "minimum": 0, "maximum": 1 },
+        "requireValidatedUnhooksForDeployment": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "instruction"],
+        "properties": {
+          "id": { "type": "string" },
+          "instruction": { "type": "string" },
+          "expectedActions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["tool"],
+              "properties": {
+                "tool": { "type": "string" },
+                "argsContains": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "expectedEvidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": { "type": "string" },
+                "contains": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "exitCode": { "type": "number" },
+                "status": { "type": "string" }
+              },
+              "additionalProperties": true
+            }
+          },
+          "expectedFinalContains": {
+            "type": "string",
+            "description": "Backward-compatible shorthand for expectedEvidence; still requires an artifact match, not finalState self-report."
+          },
+          "expectedFinalKind": { "type": "string" },
+          "passReward": { "type": "number", "minimum": 0, "maximum": 1 },
+          "failureModes": {
+            "type": "array",
+            "items": { "type": "object" }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "trajectories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["taskId"],
+        "properties": {
+          "taskId": { "type": "string" },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["tool"],
+              "properties": {
+                "tool": { "type": "string" },
+                "args": { "type": "object" }
+              },
+              "additionalProperties": true
+            }
+          },
+          "finalState": {
+            "type": "string",
+            "description": "Human-readable summary only; never rewarded unless corroborated by artifacts."
+          },
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": { "type": "string" },
+                "name": { "type": "string" },
+                "path": { "type": "string" },
+                "content": { "type": "string" },
+                "stdout": { "type": "string" },
+                "stderr": { "type": "string" },
+                "exitCode": { "type": "number" },
+                "status": { "type": "string" }
+              },
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "unhooks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "validated"],
+        "properties": {
+          "name": { "type": "string" },
+          "command": { "type": "string" },
+          "procedure": { "type": "string" },
+          "validated": { "type": "boolean" }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}
