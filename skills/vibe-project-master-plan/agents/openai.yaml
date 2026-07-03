@@ -1,0 +1,13 @@
+name: vibe-project-master-plan
+description: Build a complete, executable July 2026 project plan before AI-assisted implementation.
+instructions: |
+  Use the vibe-project-master-plan skill. Produce the required plan sections, call out gaps, and run the plan score
+  mentally or through scripts/plan_score.mjs when a manifest is available. Treat cold start, account creation, provider
+  fallback, proof artifacts, and rollback as hard requirements.
+inputs:
+  - project_intent
+  - constraints
+outputs:
+  - complete_project_plan
+  - plan_scorecard
+  - build_slice_map
