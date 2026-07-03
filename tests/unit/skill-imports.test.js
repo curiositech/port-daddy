@@ -1,7 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, '..', '..');
@@ -26,7 +26,7 @@ function sample(skillId) {
 
 describe('imported skill auditors pass their sample and reject malformed input', () => {
   test.each(audited)('%s/%s.mjs', async (skillId, scriptFile, fnName) => {
-    const mod = await import(join(repo, 'skills', skillId, 'scripts', `${scriptFile}.mjs`));
+    const mod = await import(pathToFileURL(join(repo, 'skills', skillId, 'scripts', `${scriptFile}.mjs`)).href);
     const fn = mod[fnName];
     expect(typeof fn).toBe('function');
 

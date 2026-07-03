@@ -20,6 +20,10 @@ metadata:
       reason: Supplies interaction-pattern and comeback-loop design once the visual system and layout direction are set.
     - skill: ideal-web-app-builder
       reason: Carries the visual direction this skill produces into a hardened, production design-system contract.
+    - skill: color-theory-palette-harmony-expert
+      reason: Deep perceptual color / palette selection once this skill has set the brand direction and contrast targets.
+    - skill: ux-friction-analyzer
+      reason: Audits the flow's cognitive load and friction after this skill sets the visual layout.
   io-contract:
     kind: deliverable
     consumes:

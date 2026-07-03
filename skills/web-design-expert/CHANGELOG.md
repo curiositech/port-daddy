@@ -20,11 +20,11 @@ All notable changes to the web-design-expert skill will be documented in this fi
 
 ### Changed
 - `pairs-with` moved from top-level prose into `metadata.pairs-with`
-  structured entries; `typography-expert` and `color-theory-palette-harmony-expert`
-  dropped from `pairs-with` because neither exists as a skill directory in
-  this repo (they remain named in the NOT-FOR boundaries prose, which is
-  unaffected). Replaced with `agentic-coding-ux-designer` and
-  `ideal-web-app-builder`, both verified to exist.
+  structured entries. `typography-expert` was dropped (no skill directory in
+  this repo; it remains named in the NOT-FOR boundaries prose). Added
+  `agentic-coding-ux-designer`, `ideal-web-app-builder`,
+  `color-theory-palette-harmony-expert`, and `ux-friction-analyzer` — the last
+  two imported in the same batch and verified present in-repo.
 - `category` moved under `metadata.category` and set to `Frontend & UI` to
   match this repo's category taxonomy.
 

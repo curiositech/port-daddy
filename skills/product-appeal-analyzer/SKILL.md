@@ -20,6 +20,10 @@ metadata:
       reason: Supplies persona/audience research (user stories, unmet needs) this skill's per-persona desirability scoring depends on when the product is an agentic coding tool.
     - skill: agentic-coding-ux-designer
       reason: Turns this skill's appeal recommendations into concrete flows (prompt-to-diff, onboarding, checkpoint rollback) for agentic coding product surfaces.
+    - skill: ux-friction-analyzer
+      reason: The complement — appeal answers "do they want it", friction answers "can they use it"; run both on the same surface.
+    - skill: web-design-expert
+      reason: Executes the visual identity and layout the desirability triangle's identity-fit vertex calls for.
   io-contract:
     kind: deliverable
     consumes:

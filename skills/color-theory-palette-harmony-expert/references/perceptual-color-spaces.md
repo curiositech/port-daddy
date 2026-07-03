@@ -39,7 +39,7 @@ RGB → sRGB (gamma correction) → XYZ (D65 illuminant) → LAB → LCH
 
 ## CIEDE2000: The Superior Perceptual Metric
 
-The original ΔE*ab formula has perceptual non-uniformities. **CIEDE2000 (published 2001, refined 2025)** addresses:
+The original ΔE*ab formula has perceptual non-uniformities. **CIEDE2000 (published 2001)** addresses:
 - Lightness weighting (darker colors appear more different)
 - Chroma weighting (high-chroma colors more sensitive)
 - Hue rotation (blue region compressed)

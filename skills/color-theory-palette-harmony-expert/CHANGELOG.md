@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **MCP Integrations** section (Firecrawl, Stability AI)
 - Created `/references/perceptual-color-spaces.md`:
   - CIELAB (LAB) and CIE LCH color space explanations
-  - CIEDE2000 metric (2001, refined 2025)
+  - CIEDE2000 metric (published 2001)
   - Conversion chain and implementation notes
   - Edge case handling (grayscale, single-color, extreme lightness)
   - Python library recommendations

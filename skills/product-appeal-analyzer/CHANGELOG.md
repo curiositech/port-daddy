@@ -27,9 +27,9 @@ All notable changes to this skill will be documented here.
 - Dropped `ux-friction-analyzer`, `competitive-cartographer`, and
   `web-design-expert` from `metadata.pairs-with` (no `skills/<name>/`
   directory present in this worktree at upgrade time — re-add
-  `ux-friction-analyzer`/`web-design-expert` once their sibling import lands);
-  added `agentic-coding-product-research` and `agentic-coding-ux-designer`
-  (both verified present). The `description` field's NOT-clause and the
+  `ux-friction-analyzer` and `web-design-expert` — both imported in the same
+  batch and now present in-repo — plus `agentic-coding-product-research` and
+  `agentic-coding-ux-designer`, all verified. The `description` field's NOT-clause and the
   "Integration with ux-friction-analyzer" prose section are unchanged per
   the upgrade spec (name/description preserved as-is).
 - `allowed-tools` gained `Bash` to run the new script.
