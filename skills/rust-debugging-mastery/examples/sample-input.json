@@ -1,0 +1,11 @@
+{
+  "symptom": "hang",
+  "isAsync": true,
+  "chosenTool": "tokio-console",
+  "tracingSpanGuardAcrossAwait": false,
+  "tokioConsoleFlagsSet": true,
+  "releaseDebugSymbols": false,
+  "genericBreakpointRegex": false,
+  "dlopenGuarded": false,
+  "reproducedUnderMiriOrSanitizer": false
+}

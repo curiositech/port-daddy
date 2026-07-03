@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/shader-effect-plan.schema.json",
+  "title": "gpui Shader Effect Plan",
+  "description": "A plan for one or more WGSL fragment-shader effects proposed for a gpui surface, shaped so it can be checked against this skill's 'earn the GPU pass' thesis and documented failure modes before any WGSL is written.",
+  "type": "object",
+  "required": ["effects", "keptOutOfLinuxCI"],
+  "additionalProperties": true,
+  "properties": {
+    "effects": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/effect" }
+    },
+    "keptOutOfLinuxCI": {
+      "type": "boolean",
+      "description": "True if the wgpu-dependent crate is isolated (companion crate, like pd-timeline-proto) so the rust-console Linux CI gate never compiles it."
+    }
+  },
+  "definitions": {
+    "effect": {
+      "type": "object",
+      "required": [
+        "name",
+        "needsPerPixelWork",
+        "path",
+        "colorFromAccentUniform",
+        "hardcodedHex",
+        "reducedMotionFreezesTime",
+        "pausesWhenOffscreen",
+        "ditherTarget",
+        "pixelateFirst"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short identifier for the effect, e.g. 'living-harbor-water', 'sonar-sweep'."
+        },
+        "needsPerPixelWork": {
+          "type": "boolean",
+          "description": "True only if the effect is genuine per-pixel work (noise/fbm, SDF field, water, raymarch, full-res dither). False means it's shapes/quads/text that a gpui primitive or Vello should draw instead."
+        },
+        "path": {
+          "type": "string",
+          "enum": ["companion", "render-to-texture"],
+          "description": "Companion window (own winit+wgpu, ADR-0086 path 3, ship-now) vs render-to-texture embed sampled back as a gpui image (ADR-0086 path 2, ambient/in-pane)."
+        },
+        "colorFromAccentUniform": {
+          "type": "boolean",
+          "description": "True if color derives from the u.accent theme uniform + a cosine palette(), not a literal."
+        },
+        "hardcodedHex": {
+          "type": "boolean",
+          "description": "True if the WGSL contains a literal brand hex color instead of deriving from u.accent."
+        },
+        "reducedMotionFreezesTime": {
+          "type": "boolean",
+          "description": "True if reduced-motion freezes u.time to a hand-picked still, non-blank frame."
+        },
+        "pausesWhenOffscreen": {
+          "type": "boolean",
+          "description": "True if rendering stops/caps when the pane is offscreen, occluded, or the window is unfocused."
+        },
+        "fbmOctaves": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of fbm octaves used by the effect, if it uses fbm noise at all."
+        },
+        "ditherTarget": {
+          "type": "string",
+          "enum": ["luminance", "palette-t", "per-rgb"],
+          "description": "What the Bayer dither threshold is applied to. 'per-rgb' produces colored speckle and is an anti-pattern."
+        },
+        "pixelateFirst": {
+          "type": "boolean",
+          "description": "True if UV is snapped to a coarse grid (pixelation) before the heavy noise/dither pass, reducing effective fragment count."
+        }
+      }
+    }
+  }
+}

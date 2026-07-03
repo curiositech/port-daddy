@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/structure-plan.schema.json",
+  "title": "Rust Structure-Choice Plan",
+  "description": "A structured plan naming the shape of each relationship in a data-modeling problem and the structural choices made for it, so this skill's thesis (choose the structure that makes ownership trivial; arena+indices over Rc<RefCell>) and its Quality Gates can be checked deterministically by scripts/structure_choice_audit.mjs.",
+  "type": "object",
+  "required": ["relationships"],
+  "additionalProperties": true,
+  "properties": {
+    "relationships": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/relationship" }
+    }
+  },
+  "definitions": {
+    "relationship": {
+      "type": "object",
+      "required": ["shape"],
+      "additionalProperties": true,
+      "properties": {
+        "shape": {
+          "type": "string",
+          "enum": ["graph", "tree", "pool", "sequence", "map", "shared"],
+          "description": "The shape of this relationship per this skill's Decision Points flowchart."
+        },
+        "usesRcRefCellOnNode": {
+          "type": "boolean",
+          "description": "True if the node type in this relationship is wrapped in Rc<RefCell<...>>."
+        },
+        "usesArcMutexOnNode": {
+          "type": "boolean",
+          "description": "True if the node type in this relationship is wrapped in Arc<Mutex<...>> (the threaded version of the Rc<RefCell> trap)."
+        },
+        "deletableGraphUsesStableGraph": {
+          "type": "boolean",
+          "description": "For shape=graph: true if a deletable/mutable graph uses petgraph::StableGraph (rather than plain Graph with stored NodeIndex)."
+        },
+        "generationalIndex": {
+          "type": "boolean",
+          "description": "For shape=pool: true if reused slots are tracked with a generational index (slotmap/generational-arena) rather than a bare usize/handle."
+        },
+        "smallvecJustifiedByBench": {
+          "type": "boolean",
+          "description": "True if an inline vector (smallvec/tinyvec/arrayvec) in this relationship is backed by a benchmark and a 'usually < N' claim, not reflex."
+        },
+        "concurrentMap": {
+          "type": "string",
+          "enum": ["dashmap", "rwlock", "arc-swap", "global-mutex"],
+          "description": "The concurrent map/access strategy chosen when this relationship is shared and mutated across threads."
+        },
+        "handRolledLockFree": {
+          "type": "object",
+          "description": "Describes any hand-rolled (non-crossbeam) lock-free code used for this relationship.",
+          "required": ["present"],
+          "additionalProperties": true,
+          "properties": {
+            "present": {
+              "type": "boolean",
+              "description": "True if this relationship includes hand-rolled lock-free code (raw atomics + CAS) rather than crossbeam-epoch/-queue."
+            },
+            "hasEpochOrHazard": {
+              "type": "boolean",
+              "description": "True if the hand-rolled lock-free code uses epoch-based reclamation or hazard pointers instead of freeing immediately."
+            },
+            "hasLoom": {
+              "type": "boolean",
+              "description": "True if the hand-rolled lock-free code has a Loom model test covering its interleavings."
+            }
+          }
+        },
+        "cheapCloneUsesPersistent": {
+          "type": "boolean",
+          "description": "For shape=shared: true if cheap-clone snapshots use Cow/im/rpds (structural sharing) rather than a deep clone() of the whole collection."
+        },
+        "hasherDeliberate": {
+          "type": "boolean",
+          "description": "True if the hasher for this relationship's map is a deliberate choice: SipHash default kept only if keys are untrusted, otherwise fxhash/ahash with a note."
+        }
+      }
+    }
+  }
+}

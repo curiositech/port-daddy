@@ -1,0 +1,29 @@
+{
+  "effects": [
+    {
+      "name": "living-harbor-water",
+      "needsPerPixelWork": true,
+      "path": "render-to-texture",
+      "colorFromAccentUniform": true,
+      "hardcodedHex": false,
+      "reducedMotionFreezesTime": true,
+      "pausesWhenOffscreen": true,
+      "fbmOctaves": 4,
+      "ditherTarget": "luminance",
+      "pixelateFirst": true
+    },
+    {
+      "name": "sonar-sweep",
+      "needsPerPixelWork": true,
+      "path": "companion",
+      "colorFromAccentUniform": true,
+      "hardcodedHex": false,
+      "reducedMotionFreezesTime": true,
+      "pausesWhenOffscreen": true,
+      "fbmOctaves": 0,
+      "ditherTarget": "palette-t",
+      "pixelateFirst": true
+    }
+  ],
+  "keptOutOfLinuxCI": true
+}

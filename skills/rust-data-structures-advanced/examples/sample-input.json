@@ -1,0 +1,30 @@
+{
+  "relationships": [
+    {
+      "shape": "graph",
+      "usesRcRefCellOnNode": false,
+      "usesArcMutexOnNode": false,
+      "deletableGraphUsesStableGraph": true
+    },
+    {
+      "shape": "pool",
+      "usesRcRefCellOnNode": false,
+      "usesArcMutexOnNode": false,
+      "generationalIndex": true
+    },
+    {
+      "shape": "sequence",
+      "smallvecJustifiedByBench": true
+    },
+    {
+      "shape": "map",
+      "concurrentMap": "dashmap",
+      "hasherDeliberate": true,
+      "handRolledLockFree": { "present": false }
+    },
+    {
+      "shape": "shared",
+      "cheapCloneUsesPersistent": true
+    }
+  ]
+}
