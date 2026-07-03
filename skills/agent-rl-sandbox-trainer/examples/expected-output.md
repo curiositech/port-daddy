@@ -20,7 +20,9 @@ Train or tune a reviewer-fix agent to respond to PR review comments with code ch
     "passed": 1,
     "failed": 1,
     "averageReward": 0.667,
-    "deployable": true,
+    "evalGatePassed": false,
+    "unhooksReady": true,
+    "deployable": false,
     "validatedUnhookCount": 2
   },
   "trainingRows": [
@@ -46,6 +48,9 @@ Train or tune a reviewer-fix agent to respond to PR review comments with code ch
       "procedure": "unset adapter and fall back to base model",
       "validated": true
     }
+  ],
+  "warnings": [
+    "eval gate failed; do not deploy an adapted agent from this report"
   ]
 }
 ```

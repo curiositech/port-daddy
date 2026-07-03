@@ -56,7 +56,7 @@ Bad reward sources:
 - exact transcript imitation without state checks
 - `finalState` prose without matching artifacts
 
-`scripts/trajectory_eval_harness.mjs` deliberately treats `finalState` as a human-readable summary only. A task earns reward from expected tool actions plus `expectedEvidence` matched against captured trajectory artifacts. A suite without validated unhooks can still produce useful training rows, but it is not deployable.
+`scripts/trajectory_eval_harness.mjs` deliberately treats `finalState` as a human-readable summary only. A task earns reward from expected tool actions plus `expectedEvidence` matched against captured trajectory artifacts. A suite without validated unhooks can still produce useful training rows, but it is not deployable. A suite with any failed eval row is also not deployable, even when unhooks are present.
 
 ## QLoRA Notes
 

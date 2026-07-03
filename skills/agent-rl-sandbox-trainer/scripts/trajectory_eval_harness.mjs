@@ -83,7 +83,7 @@ export function evaluateTrajectorySuite(suite) {
   };
   const trajectoryByTask = new Map(trajectories.map((trajectory) => [trajectory.taskId, trajectory]));
   const realUnhooks = validatedUnhooks(suite.unhooks);
-  const deployable = rewardSpec.requireValidatedUnhooksForDeployment ? realUnhooks.length > 0 : true;
+  const unhooksReady = rewardSpec.requireValidatedUnhooksForDeployment ? realUnhooks.length > 0 : true;
   const rows = tasks.map((task) => {
     const trajectory = trajectoryByTask.get(task.id) || {};
     const actions = asArray(trajectory.actions);
@@ -120,6 +120,9 @@ export function evaluateTrajectorySuite(suite) {
   });
 
   const passed = rows.filter((row) => row.pass).length;
+  const failed = tasks.length - passed;
+  const evalGatePassed = failed === 0;
+  const deployable = evalGatePassed && unhooksReady;
   const trainingRows = rows.map((row) => ({
     taskId: row.taskId,
     reward: row.reward,
@@ -136,8 +139,10 @@ export function evaluateTrajectorySuite(suite) {
     summary: {
       taskCount: tasks.length,
       passed,
-      failed: tasks.length - passed,
+      failed,
       averageReward: Number((rows.reduce((sum, row) => sum + row.reward, 0) / rows.length).toFixed(3)),
+      evalGatePassed,
+      unhooksReady,
       deployable,
       validatedUnhookCount: realUnhooks.length,
     },
@@ -150,7 +155,10 @@ export function evaluateTrajectorySuite(suite) {
       'disable adapter and fall back to base model',
       'drop generated trajectories that cannot be replayed deterministically',
     ],
-    warnings: deployable ? [] : ['no validated unhooks supplied; do not deploy an adapted agent from this report'],
+    warnings: [
+      ...(evalGatePassed ? [] : ['eval gate failed; do not deploy an adapted agent from this report']),
+      ...(unhooksReady ? [] : ['no validated unhooks supplied; do not deploy an adapted agent from this report']),
+    ],
   };
 }
 

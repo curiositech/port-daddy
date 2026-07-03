@@ -152,7 +152,10 @@ describe('agentic coding skill helpers', () => {
     });
 
     expect(report.summary.passed).toBe(1);
-    expect(report.summary.deployable).toBe(true);
+    expect(report.summary.evalGatePassed).toBe(false);
+    expect(report.summary.unhooksReady).toBe(true);
+    expect(report.summary.deployable).toBe(false);
+    expect(report.warnings[0]).toContain('eval gate failed');
     expect(report.rewardSpec.actionOrderRequired).toBe(true);
     expect(report.trainingRows.find((row) => row.taskId === 'missed-test').preference).toBe('rejected');
     expect(report.rows.find((row) => row.taskId === 'missed-test').selfReportOnly).toBe(true);
@@ -180,6 +183,8 @@ describe('agentic coding skill helpers', () => {
     });
 
     expect(report.summary.passed).toBe(1);
+    expect(report.summary.evalGatePassed).toBe(true);
+    expect(report.summary.unhooksReady).toBe(false);
     expect(report.summary.deployable).toBe(false);
     expect(report.validatedUnhooks).toHaveLength(0);
     expect(report.suggestedUnhooks).toContain('disable adapter and fall back to base model');
@@ -218,6 +223,40 @@ describe('agentic coding skill helpers', () => {
     expect(report.rows[0].actionResults[0].matched).toBe(true);
     expect(report.rows[0].actionResults[1].matched).toBe(false);
     expect(report.trainingRows[0].preference).toBe('rejected');
+  });
+
+  test('evaluateTrajectorySuite is deployable only when evals and unhooks both pass', () => {
+    const report = evaluateTrajectorySuite({
+      agent: { name: 'safe-adapter' },
+      rewardSpec: { actionOrderRequired: true, requireValidatedUnhooksForDeployment: true },
+      unhooks: [{ name: 'reset fixture', command: 'npm run fixture:reset', validated: true }],
+      tasks: [
+        {
+          id: 'claim-before-edit',
+          instruction: 'Claim before editing.',
+          expectedActions: [
+            { tool: 'claim_files', argsContains: ['src/app.js'] },
+            { tool: 'edit_file', argsContains: ['src/app.js'] },
+          ],
+          expectedEvidence: [{ kind: 'claim-row', contains: ['src/app.js'] }],
+        },
+      ],
+      trajectories: [
+        {
+          taskId: 'claim-before-edit',
+          actions: [
+            { tool: 'claim_files', args: { path: 'src/app.js' } },
+            { tool: 'edit_file', args: { path: 'src/app.js' } },
+          ],
+          artifacts: [{ kind: 'claim-row', content: 'src/app.js claimed' }],
+        },
+      ],
+    });
+
+    expect(report.summary.evalGatePassed).toBe(true);
+    expect(report.summary.unhooksReady).toBe(true);
+    expect(report.summary.deployable).toBe(true);
+    expect(report.warnings).toEqual([]);
   });
 });
 
