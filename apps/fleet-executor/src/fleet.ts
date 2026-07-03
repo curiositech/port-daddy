@@ -20,6 +20,7 @@ export interface ShipConfig {
   trigger: string | string[];
   prompt: string;
   cfModel: string;
+  temperature: number | null;
   role: string;
   telos: string;
   /**
@@ -65,6 +66,7 @@ interface RawAgent {
   allowedTools?: string;
   telos?: string;
   role?: string;
+  temperature?: unknown;
   blocking?: unknown;
 }
 
@@ -75,6 +77,11 @@ interface RawAgent {
  */
 function coerceBlocking(value: unknown): boolean {
   return value === true || value === 'true';
+}
+
+function coerceTemperature(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  return value;
 }
 
 /**
@@ -145,6 +152,7 @@ export function parseFleetShips(fleetYaml: string, trigger: string): ShipConfig[
       trigger: agent.trigger as string | string[],
       prompt,
       cfModel: deriveCfModel(agent, name),
+      temperature: coerceTemperature(agent.temperature),
       role,
       telos,
       blocking: coerceBlocking(agent.blocking),
@@ -185,6 +193,7 @@ Output format:
 
 Be direct. Cite specific lines. Flag ADR violations if you see them.`,
       cfModel: CODER_CF_MODEL,
+      temperature: null,
       role: 'Catch the bugs the diff would otherwise ship.',
       telos: 'Catch the bugs the diff would otherwise ship; cite ADRs.',
       blocking: true,
@@ -207,6 +216,7 @@ Output:
 - Specific test scenarios that should exist but don't
 - Silence if the PR is well-tested`,
       cfModel: DEFAULT_CF_MODEL,
+      temperature: null,
       role: 'Find the test gaps and edge cases the author missed.',
       telos: 'Find the edge cases.',
       blocking: false,
@@ -229,6 +239,7 @@ If gated in, probe for:
 
 For each finding: write the falsifiable attack construction and its impact. Be adversarial, not polite.`,
       cfModel: DEFAULT_CF_MODEL,
+      temperature: null,
       role: 'Probe for security vulnerabilities in auth and capability surfaces.',
       telos: 'Find the attack before an adversary does.',
       blocking: true,
@@ -279,6 +290,7 @@ Rules:
 - Preserve the author's real voice: em-dash asides, colloquial tone, self-deprecation are features, not bugs
 - Do not invent findings; if you see nothing wrong, output CLEAN`,
       cfModel: DEFAULT_CF_MODEL,
+      temperature: null,
       role: 'Catch AI-isms in user-facing copy before they ship.',
       telos: 'Read every user-facing string as a new user. Strip the machine accent without flattening the voice.',
       blocking: false,
