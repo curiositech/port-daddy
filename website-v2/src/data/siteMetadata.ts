@@ -30,6 +30,7 @@ export const OG_SOURCE_IMAGES = {
   virtualActors: '/img/generated/virtual-actor-fleet.jpg',
   coordinationGuard: '/img/generated/coordination-guard.jpg',
   fleetbarInstall: '/img/generated/fleetbar-install.jpg',
+  scout: '/img/generated/scout-extension-popup.png',
   salvageLedger: '/img/generated/salvage-ledger.jpg',
   shipwrightProposal: '/img/generated/shipwright-proposal.jpg',
   exampleArchetypes: '/img/generated/example-agent-archetypes.jpg',
@@ -153,6 +154,7 @@ function sourceImageForRoute(path: string, section: SiteMetadataSection) {
   if (path === '/library') return OG_SOURCE_IMAGES.library
   if (path === '/landscape') return OG_SOURCE_IMAGES.landscape
   if (path === '/mac-preview') return OG_SOURCE_IMAGES.fleetbarInstall
+  if (path === '/scout') return OG_SOURCE_IMAGES.scout
   if (path === '/mcp' || path.startsWith('/docs/mcp')) return OG_SOURCE_IMAGES.agentRuntime
   if (path.startsWith('/agents') || path.includes('fleet') || path.includes('spawn')) return OG_SOURCE_IMAGES.virtualActors
   if (path.startsWith('/templates')) return OG_SOURCE_IMAGES.shipwrightProposal
@@ -251,6 +253,12 @@ const productRoutes: SiteMetadata[] = [
     'Mac Preview',
     'See what the FleetBar Mac preview downloads, how to verify it, how to open it, and how it exposes Fleet Control Center, Shipwright, resources, spawned runs, backend readiness, and agent communication.',
     { ogSourceImage: OG_SOURCE_IMAGES.fleetbarInstall, ogSectionLabel: 'FleetBar' },
+  ),
+  metadata(
+    '/scout',
+    'Port Daddy Scout',
+    'Capture any ordinary Chrome page as a Port Daddy visual task: screenshot, selected region, DOM clues for project apps, local issue creation, and optional spawn-backed follow-up work.',
+    { ogSourceImage: OG_SOURCE_IMAGES.scout, ogSectionLabel: 'Scout' },
   ),
   metadata(
     '/pd-tube',

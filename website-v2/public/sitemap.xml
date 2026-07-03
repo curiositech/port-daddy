@@ -112,16 +112,10 @@
     <loc>https://portdaddy.dev/docs/cli/advise</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/docs/cli/agent</loc>
-  </url>
-  <url>
     <loc>https://portdaddy.dev/docs/cli/agent-heartbeat-unregister-inbox</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/agent-register</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/docs/cli/agent-run</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/agents</loc>
@@ -389,12 +383,6 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/snapshots</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/docs/cli/sortie</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/docs/cli/sortie-list-status-logs</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/spawn</loc>
@@ -800,6 +788,9 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/pd-tube</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/scout</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/security</loc>

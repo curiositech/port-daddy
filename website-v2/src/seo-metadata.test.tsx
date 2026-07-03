@@ -97,6 +97,14 @@ describe('website SEO metadata', () => {
   test('Tube, Relay PKI, and roadmap proof routes are indexable with generated route cards', () => {
     const routes = [
       {
+        path: '/scout',
+        image: '/img/og/scout.jpg',
+        title: 'Port Daddy Scout',
+        section: 'product',
+        sourceImage: OG_SOURCE_IMAGES.scout,
+        label: 'Scout',
+      },
+      {
         path: '/tutorials/pd-tube',
         image: '/img/og/tutorials-pd-tube.jpg',
         title: 'Pipe Agent Conversations',
