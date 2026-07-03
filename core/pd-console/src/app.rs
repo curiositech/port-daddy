@@ -1267,6 +1267,75 @@ fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
                 )
                 .into_any_element()
         }
+        Block::ArtifactRef {
+            label,
+            path,
+            preview,
+            tone,
+        } => {
+            let color_u32 = tone_rgb(&tone);
+            let preview = preview.unwrap_or_else(|| "open / preview in current worktree".into());
+            div()
+                .mx(px(tokens::SPACE_3))
+                .my(px(2.0))
+                .px(px(tokens::SPACE_2))
+                .py(px(tokens::SPACE_2))
+                .border_l_2()
+                .border_color(rgb(color_u32))
+                .bg(tone_wash(color_u32, 0x12))
+                .flex()
+                .items_start()
+                .gap(px(tokens::SPACE_2))
+                .child(
+                    div()
+                        .mt(px(1.0))
+                        .text_color(rgb(color_u32))
+                        .text_size(px(tokens::TEXT_BODY))
+                        .font_weight(FontWeight::BOLD)
+                        .child("▣"),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .flex_1()
+                        .min_w(px(0.0))
+                        .flex_wrap()
+                        .items_center()
+                        .gap(px(tokens::SPACE_2))
+                        .child(
+                            div()
+                                .rounded(px(tokens::RADIUS_SM))
+                                .border_1()
+                                .border_color(rgb(color_u32))
+                                .px(px(tokens::SPACE_1))
+                                .py(px(1.0))
+                                .text_color(rgb(color_u32))
+                                .text_size(px(tokens::TEXT_CAPTION))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child("ARTIFACT"),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(t.ink))
+                                .text_size(px(tokens::TEXT_BODY))
+                                .font_family("IBM Plex Mono")
+                                .child(path),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(t.ink2))
+                                .text_size(px(tokens::TEXT_CAPTION))
+                                .child(label),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(t.muted))
+                                .text_size(px(tokens::TEXT_CAPTION))
+                                .child(preview),
+                        ),
+                )
+                .into_any_element()
+        }
         Block::Chip { label, tone } => {
             let color_u32 = tone_rgb(&tone);
             let color = rgb(color_u32);
