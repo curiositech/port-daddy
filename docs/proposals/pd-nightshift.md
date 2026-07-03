@@ -126,13 +126,13 @@ Approve: gh pr ready <num>     Discard: gh pr close <num> && git push origin --d
 **Wired (works end-to-end):**
 
 - `nightshift_intents` SQL table on the existing `port-registry.db`
-- `lib/nightshift/queue.ts` — full CRUD with status transitions, slug derivation, dedupe of identical intent text
+- `lib/nightshift/queue.ts` — full CRUD with status transitions, slug derivation, dedupe of identical intent text <!-- cite-exempt -->
 - `pd nightshift propose / queue / show / cancel` — fully functional
 - Tests: queue CRUD, slug derivation, `next()` picker semantics
 
 **Wired but only against the local DB (no daemon route yet):**
 
-- `lib/nightshift/runner.ts` — picks intent, **prints the worktree-creation + spawn command it would run, but does not invoke `claude` or `codex` in this PR.** This is the deliberate "don't actually run autonomous agents during a Claude Code session" guard. Operator-flipped flag `--really-run` is wired and documented but not exercised by tests.
+- `lib/nightshift/runner.ts` — picks intent, **prints the worktree-creation + spawn command it would run, but does not invoke `claude` or `codex` in this PR.** This is the deliberate "don't actually run autonomous agents during a Claude Code session" guard. Operator-flipped flag `--really-run` is wired and documented but not exercised by tests. <!-- cite-exempt -->
 
 **Stubbed (deliberately):**
 
@@ -166,10 +166,10 @@ Approve: gh pr ready <num>     Discard: gh pr close <num> && git push origin --d
 
 ## File index
 
-- `lib/nightshift/queue.ts` — SQLite-backed intent queue
-- `lib/nightshift/runner.ts` — Picks intent, prepares worktree, prints (or runs) spawn command
+- `lib/nightshift/queue.ts` — SQLite-backed intent queue <!-- cite-exempt -->
+- `lib/nightshift/runner.ts` — Picks intent, prepares worktree, prints (or runs) spawn command <!-- cite-exempt -->
 - `cli/commands/nightshift.ts` — `pd nightshift propose/queue/show/run/review/cancel`
 - `cli/commands/morning.ts` — `pd morning` summary
-- `tests/unit/nightshift-queue.test.js` — queue CRUD
-- `tests/unit/nightshift-slug.test.js` — slug + next-picker
+- `tests/unit/nightshift-queue.test.js` — queue CRUD <!-- cite-exempt -->
+- `tests/unit/nightshift-slug.test.js` — slug + next-picker <!-- cite-exempt -->
 - `pd-fleet.yml` — commented `nightshift-runner` ship entry

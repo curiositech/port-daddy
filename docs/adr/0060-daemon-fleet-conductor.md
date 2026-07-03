@@ -22,7 +22,8 @@ each is missing a different safety property.
 
 ### The four spawn surfaces today
 
-1. **`dispatch`** — `lib/dispatch/{queue,runner,spawn-adapter,state-machine}.ts`,
+1. **`dispatch`** — `lib/dispatch/queue.ts`, `lib/dispatch/runner.ts`,
+   `lib/dispatch/spawn-adapter.ts`, `lib/dispatch/state-machine.ts`,
    `routes/dispatches.ts`, `cli/commands/dispatch.ts`.
    - Best-in-class **state machine** (`queue.ts:11-35`, `state-machine.ts:87`):
      `proposed → claimed → in_progress → produced → review_pending →
@@ -425,7 +426,7 @@ the safe way to introduce a chokepoint.
 - **Concrete first PR title:** `feat(fleet): introduce Conductor launch chokepoint with lineage stamping (observe-only) — ADR-0060 Phase 1`.
 
 ### Phase 2 — *The cost ledger + global/lineage breaker, enforcing*
-- `lib/fleet/cost-ledger.ts` (per-launch · per-lineage · global) reserving bonds
+- `lib/fleet/cost-ledger.ts` (designed-not-built; per-launch · per-lineage · global) reserving bonds
   against `lineageCeilingUsd` in one SQLite transaction at admission.
 - `lib/fleet/circuit-breaker.ts` consuming cost + exit events; trips on budget
   (→ pause+grace) and error-rate (→ pause only, min-sample guard).
@@ -469,7 +470,8 @@ the safe way to introduce a chokepoint.
   via `cli/commands/nightshift.ts`) · ADR-0046 Operator Console · ADR-0047
   Conversation Protocol (FIPA performatives) · ADR-0050 Coast Guard (bonds, rent,
   slash, sandbox) · ADR-0056 The Steward.
-- Code: `lib/dispatch/{queue,runner,spawn-adapter,state-machine}.ts`,
+- Code: `lib/dispatch/queue.ts`, `lib/dispatch/runner.ts`,
+  `lib/dispatch/spawn-adapter.ts`, `lib/dispatch/state-machine.ts`,
   `lib/sorties.ts`, `routes/sorties.ts`, `lib/spawner.ts`,
   `lib/spawner/backends/cli-tube.ts`, `lib/orchestrator.ts`, `lib/fleet-engine.ts`,
   `lib/budget-pause.ts`, `lib/bonds.ts`, `lib/coast-guard/`, `lib/harbors.ts`,

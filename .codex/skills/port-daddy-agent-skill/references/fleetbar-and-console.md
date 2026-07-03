@@ -10,14 +10,14 @@ not enough. The operator has to be able to see the state in the product.
 These paths are packaged with the public website and are safe to point users at
 from docs or pages:
 
-- `website-v2/public/img/app-screens/fleetbar-native-shell-light.png`
-- `website-v2/public/img/app-screens/fleetbar-native-shell-dark.png`
-- `website-v2/public/img/app-screens/fleet-flow-light.png`
-- `website-v2/public/img/app-screens/fleet-flow-dark.png`
-- `website-v2/public/img/app-screens/resources-light.png`
-- `website-v2/public/img/app-screens/resources-dark.png`
-- `website-v2/public/img/app-screens/sorties-light.png`
-- `website-v2/public/img/app-screens/shipwright-control-light.png`
+- `website-v2/public/img/app-screens/fleetbar-native-shell-light.webp`
+- `website-v2/public/img/app-screens/fleetbar-native-shell-dark.webp`
+- `website-v2/public/img/app-screens/fleet-flow-light.webp`
+- `website-v2/public/img/app-screens/fleet-flow-dark.webp`
+- `website-v2/public/img/app-screens/resources-light.webp`
+- `website-v2/public/img/app-screens/resources-dark.webp`
+- `website-v2/public/img/app-screens/sorties-light.webp`
+- `website-v2/public/img/app-screens/shipwright-control-light.webp`
 
 ## What To Verify
 

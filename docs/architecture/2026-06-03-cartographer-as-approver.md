@@ -197,12 +197,12 @@ The detectors all run. The question's `priority` lane gates which surfaces it re
 
 ## 5. Cartographer vs release-engineer — drawing the line
 
-A parallel architect doc (`docs/architecture/2026-05-31-agent-abstraction-strategy.md`, not yet merged to `main` as of this writing) proposes `release-engineer` as the first canonical persona for the soul/body/sessions model. The split described here is consistent with that framing whether or not the companion doc lands first. There is a real risk of role confusion. Drawn cleanly:
+A parallel architect doc (`docs/architecture/2026-05-31-agent-abstraction-strategy.md`, not yet merged to `main` as of this writing) proposes `release-engineer` as the first canonical persona for the soul/body/sessions model. The split described here is consistent with that framing whether or not the companion doc lands first. There is a real risk of role confusion. Drawn cleanly: <!-- cite-exempt -->
 
 | Role | Verb | Surface it owns | Reads | Writes |
 |---|---|---|---|---|
 | **Cartographer** | *Surfaces* | `cartographer_questions`, `.cartographer/status.md`, roadmap markdown renders | activity stream, sortie rows, session notes, feedback queue, ADR/proposal files, git log | questions, status snapshots, roadmap render output |
-| **Release-engineer** | *Ships* | PRs, branches, CI status, promotion to stable | a PR's diff, CI output, `redteam-review` output, operator's hard-rules | `git push`, `gh pr merge`, `scripts/promote-stable.sh` |
+| **Release-engineer** | *Ships* | PRs, branches, CI status, promotion to stable | a PR's diff, CI output, `redteam-review` output, operator's hard-rules | `git push`, `gh pr merge`, `scripts/promote-stable.sh` | <!-- cite-exempt -->
 
 Two crisp rules to maintain the separation:
 
@@ -219,7 +219,7 @@ Each PR is reversible, no PR introduces operator-facing breakage, every PR ships
 
 ### PR-1 — `cartographer_questions` table, no detectors, no surfaces
 
-**Surface area:** schema migration `migrations/NNN_cartographer_questions.sql`, `lib/cartographer-questions.ts` (CRUD module factory), unit tests, ADR-00NN documenting the contract.
+**Surface area:** schema migration `migrations/NNN_cartographer_questions.sql`, `lib/cartographer-questions.ts` (CRUD module factory), unit tests, ADR-00NN documenting the contract. <!-- cite-exempt -->
 
 **What ships:** the table, a `Questions` interface, no HTTP routes, no detectors. Existing cartographer cron unchanged.
 
@@ -239,7 +239,7 @@ Each PR is reversible, no PR introduces operator-facing breakage, every PR ships
 
 ### PR-3 — Detectors Δ3 + Δ4 (the cheap, time-based ones)
 
-**Surface area:** `lib/cartographer-detectors/stale-slug.ts` and `lib/cartographer-detectors/draft-rot.ts`. Each is a pure function `(state) => Question[]`. Wire them into the existing 30-min cartographer cron prompt as a follow-up step.
+**Surface area:** `lib/cartographer-detectors/stale-slug.ts` and `lib/cartographer-detectors/draft-rot.ts`. Each is a pure function `(state) => Question[]`. Wire them into the existing 30-min cartographer cron prompt as a follow-up step. <!-- cite-exempt -->
 
 **What ships:** the two aging-based detectors. The operator starts seeing `stale-slug` and `draft-rot` questions accumulate in the cockpit panel and inbox.
 
@@ -249,7 +249,7 @@ Each PR is reversible, no PR introduces operator-facing breakage, every PR ships
 
 ### PR-4 — Event subscription + Δ1, Δ2 detectors + FleetBar badge + digest
 
-**Surface area:** `lib/cartographer-subscriber.ts` (attaches to attention stream), detectors `cartographer-detectors/unresolved-ambiguity.ts` and `conflicting-symbol-edits.ts`. FleetBar reads `/cartographer/questions?severity=blocking`. New `pd cartographer digest` CLI verb. Daily/weekly digest job in `pd-fleet.yml` watchers.
+**Surface area:** `lib/cartographer-subscriber.ts` (attaches to attention stream), detectors `cartographer-detectors/unresolved-ambiguity.ts` and `conflicting-symbol-edits.ts`. FleetBar reads `/cartographer/questions?severity=blocking`. New `pd cartographer digest` CLI verb. Daily/weekly digest job in `pd-fleet.yml` watchers. <!-- cite-exempt -->
 
 **What ships:** the full vision delta. Event-driven detectors, severity routing, three surfaces backed by one table.
 
@@ -312,7 +312,7 @@ This is the operationalization of memory `project_single_approver_agent` lines 1
 - `lib/feedback.ts` + `routes/feedback.ts` — closest existing "surface upward" primitive; cartographer-questions is its strategic-layer cousin.
 - `lib/symbol-index.ts` — tree-sitter symbol map; Δ2 conflict detector reads from here.
 - `docs/adr/0023-cartographer-roadmap-actor.md`, `docs/adr/0033-roadmap-pop-atomic-claim.md`, `docs/adr/0034-roadmap-claim-session-link.md` — current ADRs for cartographer.
-- `docs/architecture/2026-05-31-agent-abstraction-strategy.md` (pending merge to `main`) — soul/body/sessions framing.
+- `docs/architecture/2026-05-31-agent-abstraction-strategy.md` (pending merge to `main`) — soul/body/sessions framing. <!-- cite-exempt -->
 - Memory: `project_single_approver_agent.md`, `project_pd_talent_phonebook.md`, `feedback_pd_coordination_continuous.md`, `feedback_dogfood_via_pd_sortie.md`, `feedback_never_tsx_daemon.md`, `feedback_operator_uses_fleetbar_and_cli_not_dashboard.md`.
 
 ---

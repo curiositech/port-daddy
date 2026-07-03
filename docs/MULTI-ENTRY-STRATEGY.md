@@ -133,7 +133,7 @@ pd spawn --backend claude-cli --identity myapp:agent --budget 1 -- "Fix the auth
 - A thin wrapper around `pd spawn` that auto-wraps with `pd begin`/`pd done`
 - The spawned agent's prompt includes Port Daddy coordination instructions
 - On death, the salvage system preserves context automatically
-- ~50 lines in `cli/commands/agent.ts`
+- ~50 lines in `cli/commands/spawn.ts`
 
 ### 6. `pd init` — The Project Onboarding (ENHANCE EXISTING)
 
