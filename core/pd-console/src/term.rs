@@ -368,6 +368,21 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                     out.push_str(&format!("  {}\n", line.join(&format!(" {sep} "))));
                 }
             }
+            Block::ChatTurn { speaker, text, tone } => {
+                let sem = tone.sem();
+                let label = if speaker.trim().is_empty() {
+                    "agent".to_string()
+                } else {
+                    speaker.to_string()
+                };
+                out.push_str(&format!(
+                    "  {} {} {}\n",
+                    style.paint(tone.symbol(), sem),
+                    style.bold_paint(&format!("{label}:"), sem),
+                    style.paint(&text, Sem::Ink),
+                ));
+                i += 1;
+            }
             Block::TranscriptLine { text, tone } => {
                 let sem = tone.sem();
                 out.push_str(&format!(

@@ -11,9 +11,10 @@
 //!   • `agent.tube`       → steering-channel traffic, including the operator's own
 //!                          `control.interrupt` reappearing — the closed loop
 //!
-//! And it can steer: `SurfaceAction::Interrupt` POSTs `/agents/:id/interrupt`.
-//! The control message then comes BACK on the stream as an `agent.tube` frame, so
-//! the operator sees their signal land.
+//! And it can steer: `SurfaceAction::Interrupt` POSTs `/agents/:id/interrupt`;
+//! `SurfaceAction::Message` publishes a normal operator turn to `agent:<id>`.
+//! Both come BACK on the stream as `agent.tube` frames, so the operator sees
+//! their signal land in the same work chat they are reading.
 //!
 //! Which agent? `refresh()` (the 2s poll) picks the watch target: `PD_LANE_AGENT`
 //! if set (deterministic for screenshot capture), else the most-recently-active
@@ -57,13 +58,16 @@ impl ToolState {
 /// A line in the live scrollback, tagged by origin so the renderer can tone it.
 #[derive(Debug, Clone)]
 enum LaneLine {
-    Transcript(String),
+    Chat {
+        speaker: String,
+        text: String,
+        tone: Tone,
+    },
     Artifact {
         label: String,
         path: String,
         preview: Option<String>,
     },
-    Tube(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -156,17 +160,21 @@ impl LanePane {
 
         // Flat text delta fallback: {text} | {delta} | {content} | "text".
         if let Some(text) = flat_text(body) {
-            rendered |= self.push_unique_transcript_line(
+            rendered |= self.push_unique_chat_turn(
                 format!("flat:{}", digest_text(&text)),
+                "agent".into(),
                 text,
+                Tone::Default,
             );
         }
 
         if !rendered && !has_entry {
             if let Some(kind) = body.get("type").and_then(|t| t.as_str()) {
-                self.push_unique_transcript_line(
+                self.push_unique_chat_turn(
                     format!("event:{kind}:{}", body.to_string().len()),
+                    "stream".into(),
                     format!("transcript {kind}"),
+                    Tone::Resting,
                 );
             }
         }
@@ -185,9 +193,11 @@ impl LanePane {
             let backend = field_str(entry, &["backend"]).unwrap_or("backend");
             let model = field_str(entry, &["model"]).unwrap_or("model");
             let status = field_str(entry, &["status"]).unwrap_or("running");
-            rendered |= self.push_unique_transcript_line(
+            rendered |= self.push_unique_chat_turn(
                 format!("{tx_id}:meta:{status}:{}", event_type.unwrap_or("event")),
+                "run".into(),
                 format!("run {status}: {ship} via {backend}/{model}"),
+                Tone::Resting,
             );
         }
 
@@ -225,7 +235,17 @@ impl LanePane {
                     line.push_str(&format!(" error: {err}"));
                 }
             }
-            rendered |= self.push_unique_transcript_line(format!("{tx_id}:end:{status}"), line);
+            let tone = if matches!(status, "failed" | "error" | "blocked") {
+                Tone::Gated
+            } else {
+                Tone::Landed
+            };
+            rendered |= self.push_unique_chat_turn(
+                format!("{tx_id}:end:{status}"),
+                "run".into(),
+                line,
+                tone,
+            );
         }
 
         rendered
@@ -261,16 +281,12 @@ impl LanePane {
         }
 
         let role = field_str(msg, &["role"]).unwrap_or("assistant");
-        let line = match role {
-            "assistant" => content.to_string(),
-            "thinking" => format!("thinking: {content}"),
-            "tool" => format!("tool: {content}"),
-            "user" => format!("user: {content}"),
-            other => format!("{other}: {content}"),
-        };
-        self.push_unique_transcript_line(
+        let (speaker, tone) = chat_speaker_for_role(role);
+        self.push_unique_chat_turn(
             format!("{tx_id}:msg:{timestamp}:{role}:{}", digest_text(content)),
-            line,
+            speaker,
+            content.to_string(),
+            tone,
         ) || rendered
     }
 
@@ -304,18 +320,30 @@ impl LanePane {
                 line.push_str(&format!(" {url}"));
             }
         }
-        self.push_unique_transcript_line(
+        self.push_unique_chat_turn(
             format!("{tx_id}:output:{output_type}:{}", digest_text(summary)),
+            "artifact".into(),
             line,
+            Tone::Accent,
         )
     }
 
-    fn push_unique_transcript_line(&mut self, key: String, text: String) -> bool {
+    fn push_unique_chat_turn(
+        &mut self,
+        key: String,
+        speaker: String,
+        text: String,
+        tone: Tone,
+    ) -> bool {
         if !self.seen_transcript_items.insert(key) {
             return false;
         }
         let artifact_refs = extract_artifact_refs(&text);
-        self.push_line(LaneLine::Transcript(text));
+        self.push_line(LaneLine::Chat {
+            speaker,
+            text,
+            tone,
+        });
         for (idx, reference) in artifact_refs.into_iter().enumerate() {
             let artifact_key = format!("artifact-from-line:{idx}:{}", reference.path);
             let label = artifact_label("reference", "", &reference.raw);
@@ -396,6 +424,16 @@ fn tool_state(status: &str) -> ToolState {
         "ok" | "success" | "done" | "complete" | "completed" => ToolState::Ok,
         "error" | "failed" | "failure" => ToolState::Failed,
         _ => ToolState::Running,
+    }
+}
+
+fn chat_speaker_for_role(role: &str) -> (String, Tone) {
+    match role {
+        "assistant" => ("agent".into(), Tone::Default),
+        "thinking" => ("thinking".into(), Tone::Resting),
+        "tool" => ("tool".into(), Tone::Engaged),
+        "user" | "operator" => ("you".into(), Tone::Accent),
+        other => (other.to_string(), Tone::Default),
     }
 }
 
@@ -484,10 +522,7 @@ fn parsed_artifact_ref(raw: &str) -> Option<ParsedArtifactRef> {
     }
     let stripped = strip_line_suffix(pathish);
     let path = display_artifact_path(stripped)?;
-    Some(ParsedArtifactRef {
-        raw: cleaned,
-        path,
-    })
+    Some(ParsedArtifactRef { raw: cleaned, path })
 }
 
 fn clean_path_token(raw: &str) -> String {
@@ -598,11 +633,11 @@ impl Pane for LanePane {
     }
 
     fn title(&self) -> String {
-        "Lane".into()
+        "Agent Chat".into()
     }
 
     fn view(&self) -> Vec<Block> {
-        let mut out = vec![Block::Header("Live Lane".into())];
+        let mut out = vec![Block::Header("Agent Work Chat".into())];
 
         match &self.agent_id {
             Some(id) => out.push(Block::KeyVal("watching".into(), util::trunc(id, 48))),
@@ -643,12 +678,12 @@ impl Pane for LanePane {
             },
         });
 
-        // Live transcript / tube tail. This is the Lane's primary evidence; keep
-        // it above secondary tool chips so small panes still show the agent.
-        out.push(Block::Header("stream".into()));
+        // Live conversation / tube tail. This is the Lane's primary evidence;
+        // keep it above secondary tool chips so small panes still show the agent.
+        out.push(Block::Header("conversation".into()));
         if self.lines.is_empty() {
             out.push(Block::KeyVal(
-                "—".into(),
+                "waiting".into(),
                 "connected; waiting for transcript/tool/tube frames".into(),
             ));
         } else {
@@ -656,9 +691,14 @@ impl Pane for LanePane {
             let start = self.lines.len().saturating_sub(24);
             for line in &self.lines[start..] {
                 match line {
-                    LaneLine::Transcript(t) => out.push(Block::TranscriptLine {
-                        text: util::trunc(t, 120),
-                        tone: Tone::Default,
+                    LaneLine::Chat {
+                        speaker,
+                        text,
+                        tone,
+                    } => out.push(Block::ChatTurn {
+                        speaker: util::trunc(speaker, 32),
+                        text: util::trunc(text, 160),
+                        tone: *tone,
                     }),
                     LaneLine::Artifact {
                         label,
@@ -669,10 +709,6 @@ impl Pane for LanePane {
                         path: util::trunc(path, 96),
                         preview: preview.clone(),
                         tone: Tone::Accent,
-                    }),
-                    LaneLine::Tube(t) => out.push(Block::TranscriptLine {
-                        text: format!("steer {}", util::trunc(t, 112)),
-                        tone: Tone::Engaged,
                     }),
                 }
             }
@@ -744,6 +780,18 @@ impl Pane for LanePane {
                     daemon.interrupt(&id, reason.as_deref()).await?;
                     Ok(())
                 }
+                SurfaceAction::Message { text } => {
+                    let text = text.trim();
+                    if text.is_empty() {
+                        return Ok(());
+                    }
+                    let Some(id) = self.agent_id.clone() else {
+                        return Err(anyhow::anyhow!("no agent to message"));
+                    };
+                    let channel = format!("agent:{id}");
+                    daemon.tube_send(&channel, text, "operator").await?;
+                    Ok(())
+                }
             }
         })
     }
@@ -775,7 +823,12 @@ impl Pane for LanePane {
             StreamKind::Tube => {
                 let text = crate::agent::body_text(&env.body);
                 if !text.is_empty() {
-                    self.push_line(LaneLine::Tube(text));
+                    self.push_unique_chat_turn(
+                        format!("tube:{}", digest_text(&text)),
+                        "steer".into(),
+                        text,
+                        Tone::Engaged,
+                    );
                 }
             }
             StreamKind::Other(_) => { /* preserve forward-compat: ignore unknown kinds */ }
@@ -799,9 +852,22 @@ mod tests {
         lane.lines
             .iter()
             .filter_map(|line| match line {
-                LaneLine::Transcript(text) => Some(text.clone()),
+                LaneLine::Chat { text, .. } => Some(text.clone()),
                 LaneLine::Artifact { .. } => None,
-                LaneLine::Tube(_) => None,
+            })
+            .collect()
+    }
+
+    fn chat_turns(lane: &LanePane) -> Vec<(String, String, Tone)> {
+        lane.lines
+            .iter()
+            .filter_map(|line| match line {
+                LaneLine::Chat {
+                    speaker,
+                    text,
+                    tone,
+                } => Some((speaker.clone(), text.clone(), *tone)),
+                LaneLine::Artifact { .. } => None,
             })
             .collect()
     }
@@ -811,7 +877,7 @@ mod tests {
             .iter()
             .filter_map(|line| match line {
                 LaneLine::Artifact { path, .. } => Some(path.clone()),
-                LaneLine::Transcript(_) | LaneLine::Tube(_) => None,
+                LaneLine::Chat { .. } => None,
             })
             .collect()
     }
@@ -851,10 +917,10 @@ mod tests {
         assert!(!blocks.is_empty());
         assert!(blocks
             .iter()
-            .any(|b| matches!(b, Block::TranscriptLine { text, .. } if text == "hello world")));
+            .any(|b| matches!(b, Block::ChatTurn { speaker, text, .. } if speaker == "agent" && text == "hello world")));
         assert!(blocks.iter().any(|b| matches!(
             b,
-            Block::TranscriptLine { text, tone: Tone::Engaged } if text.contains("control.interrupt")
+            Block::ChatTurn { speaker, text, tone: Tone::Engaged } if speaker == "steer" && text.contains("control.interrupt")
         )));
         assert!(
             !blocks.iter().any(|b| matches!(b, Block::Row(_))),
@@ -929,13 +995,17 @@ mod tests {
             }
         })));
 
+        let turns = chat_turns(&lane);
+        assert!(turns
+            .iter()
+            .any(|(speaker, text, tone)| speaker == "thinking"
+                && text.contains("checking the stream contract")
+                && *tone == Tone::Resting));
+        assert!(turns
+            .iter()
+            .any(|(speaker, text, _)| speaker == "agent"
+                && text.contains("I found the cockpit route.")));
         let lines = transcript_lines(&lane);
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("thinking: checking the stream contract")));
-        assert!(lines
-            .iter()
-            .any(|line| line.contains("I found the cockpit route.")));
         assert!(lines
             .iter()
             .any(|line| line.contains("artifact draft-pr: opened draft PR #123")));
@@ -947,18 +1017,21 @@ mod tests {
     #[test]
     fn output_filename_renders_as_artifact_ref_block() {
         let mut lane = LanePane::new();
-        lane.on_stream(&env("agent.transcript", json!({
-            "type": "update",
-            "entry": {
-                "id": "tx-artifact",
-                "outputs": [
-                    {
-                        "type": "artifact",
-                        "summary": "manual-pane-lane.png refreshed"
-                    }
-                ]
-            }
-        })));
+        lane.on_stream(&env(
+            "agent.transcript",
+            json!({
+                "type": "update",
+                "entry": {
+                    "id": "tx-artifact",
+                    "outputs": [
+                        {
+                            "type": "artifact",
+                            "summary": "manual-pane-lane.png refreshed"
+                        }
+                    ]
+                }
+            }),
+        ));
 
         assert_eq!(artifact_paths(&lane), vec!["manual-pane-lane.png"]);
         assert!(

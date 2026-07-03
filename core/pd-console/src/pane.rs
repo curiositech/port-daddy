@@ -48,6 +48,10 @@ pub enum Block {
     Header(String),
     KeyVal(String, String),
     Row(Vec<String>),
+    /// A conversation turn from a live agent work session. This is the primary
+    /// shape for Lane transcript content: who spoke, what they said, and the
+    /// semantic tone. Renderers should treat it as chat, not table/control UI.
+    ChatTurn { speaker: String, text: String, tone: Tone },
     /// A conversational/event-stream line. Unlike [`Block::Row`], this is not
     /// tabular or clickable chrome; renderers should paint it as readable log
     /// typography with a small semantic marker.
@@ -140,6 +144,10 @@ pub enum SurfaceAction {
     /// operator reason. Closes the loop: the daemon echoes the control message
     /// back on the stream (`agent.tube`).
     Interrupt { reason: Option<String> },
+    /// Send an operator turn to the running agent this surface is watching.
+    /// For the Lane this publishes to the deterministic steering channel
+    /// `agent:<id>`; the merged stream then echoes it back as `agent.tube`.
+    Message { text: String },
 }
 
 /// What a surface wants to watch live, instead of (or alongside) 2s polling.
