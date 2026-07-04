@@ -86,9 +86,11 @@ body {
 h1, h2, h3 { text-wrap: balance; }
 p { text-wrap: pretty; }
 
-/* per-scale tracking (typography-expert FM-7) */
+/* per-scale tracking (typography-expert FM-7) + display scale */
 :root {
-  --tracking-display: -0.03em;
+  --fs-hero: clamp(44px, 5.6vw, 78px);
+  --fs-h2: clamp(28px, 3vw, 40px);
+  --tracking-display: -0.035em;
   --tracking-h2: -0.02em;
   --tracking-h3: -0.012em;
   --tracking-body: 0;
@@ -180,7 +182,7 @@ p { text-wrap: pretty; }
   background-image: linear-gradient(to right, transparent 0 32%, var(--hair-strong) 32% 68%, transparent 68% 100%);
 }
 .sect-head .eyebrow { margin-bottom: 8px; }
-.sect-head h2 { font-size: 30px; font-weight: 700; letter-spacing: var(--tracking-h2); }
+.sect-head h2 { font-size: var(--fs-h2); font-weight: 700; letter-spacing: var(--tracking-h2); line-height: 1.06; }
 .sect-head .sect-desc { font-size: 15.5px; line-height: 1.65; color: var(--text-secondary); max-width: 66ch; margin-top: 10px; }
 
 /* primary panel — keeps the hard 2px border (discipline rule) */
@@ -258,3 +260,8 @@ table.data td:first-child { font-weight: 600; }
   .site-header { flex-wrap: wrap; padding: 12px 20px; }
   .page { padding: 0 20px; }
 }
+
+/* theme-aware artwork swap */
+.themed-img .dark-only { display: none; }
+[data-theme="dark"] .themed-img .light-only { display: none; }
+[data-theme="dark"] .themed-img .dark-only { display: block; }

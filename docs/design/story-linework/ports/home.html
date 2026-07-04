@@ -10,7 +10,7 @@
 <style>
   /* page-specific */
   .hero { display: grid; grid-template-columns: 1.2fr 1fr; gap: 48px; padding: 64px 0 56px; align-items: start; }
-  .hero h1 { font-size: clamp(38px, 4.6vw, 58px); font-weight: 700; line-height: 1.02; letter-spacing: var(--tracking-display); max-width: 16ch; }
+  .hero h1 { font-size: var(--fs-hero); font-weight: 700; line-height: 1.02; letter-spacing: var(--tracking-display); max-width: 16ch; }
   .hero h1 .accent { color: var(--cobalt); }
   .hero .eyebrow { margin-bottom: 14px; }
   .is-panel { margin-top: 26px; max-width: 46rem; }
@@ -232,7 +232,9 @@ listening on ui:clicks · cursor @0
             <li><span class="mono">notebook:exception</span> — Jupyter cell hook</li>
           </ul>
         </div>
-        <div class="stripe-card" style="--stripe: var(--indigo)"><div class="sc-label" style="color: var(--indigo-on-tint)">pd tube · fan-out</div><div class="sc-title" style="font-size:15px;">One channel. Many listeners. Every message.</div><p>Point several agents at one channel — alice, bob, carol. Every listener gets every message with its own bookmark, instead of one listener grabbing each message. Send once; three listeners all wake up.</p></div>
+        <div class="stripe-card" style="--stripe: var(--indigo)"><div class="sc-label" style="color: var(--indigo-on-tint)">pd tube · fan-out</div><div class="sc-title" style="font-size:15px;">One channel. Many listeners. Every message.</div><p>Point several agents at one channel — alice, bob, carol. Every listener gets every message with its own bookmark. Send once; three listeners all wake up.</p>
+          <figure style="margin-top:12px; border: 2px solid var(--border-strong);"><img src="../../../../website-v2/public/demos/pd-tube/pd-tube-multiplex.gif" alt="Animated terminal recording: one pd tube send fanning out to three listeners." style="display:block; width:100%; height:auto;"></figure>
+        </div>
       </div>
     </div>
   </section>
@@ -283,7 +285,13 @@ listening on ui:clicks · cursor @0
         <h2>Install it, then run your fleet from FleetBar.</h2>
         <p>Port Daddy is open source and free. You run it from the Mac app: pick a project, start a Shipwright to plan a fleet of agents, launch one-off spawned work, set spending limits, and hand work between agents. Agents stay in the terminal. You should not have to read command output to know what is going on.</p>
       </div>
-      <div class="zb-code">brew install curiositech/tap/port-daddy<br>pd setup<br><span style="opacity:0.7"># run pd doctor when something stops lining up</span></div>
+      <div>
+        <div class="zb-code">brew install curiositech/tap/port-daddy<br>pd setup</div>
+        <figure class="themed-img" style="margin-top:14px; border: 2px solid rgba(0,0,0,0.35);">
+          <img class="light-only" src="../../../../website-v2/public/img/app-screens/fleetbar-native-shell-light.webp" alt="FleetBar native shell — daemon health, agents, and project readiness in the macOS menu bar." style="display:block; width:100%; height:auto;">
+          <img class="dark-only" src="../../../../website-v2/public/img/app-screens/fleetbar-native-shell-dark.webp" alt="FleetBar native shell, dark." style="display:block; width:100%; height:auto;">
+        </figure>
+      </div>
     </div>
   </section>
 

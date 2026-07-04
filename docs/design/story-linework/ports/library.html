@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="port.css">
 <style>
   .lib-hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 48px; padding: 64px 0 48px; align-items: start; }
-  .lib-hero h1 { font-size: clamp(34px, 4.2vw, 52px); font-weight: 700; line-height: 1.04; letter-spacing: var(--tracking-display); max-width: 18ch; }
+  .lib-hero h1 { font-size: clamp(38px, 5vw, 66px); font-weight: 700; line-height: 1.04; letter-spacing: var(--tracking-display); max-width: 18ch; }
   .lib-hero .eyebrow { margin-bottom: 14px; color: var(--teal); }
   .lib-hero .lede { font-size: 16px; line-height: 1.7; color: var(--text-secondary); max-width: 58ch; margin-top: 18px; }
   .lib-hero .lede em { font-style: italic; }
@@ -22,7 +22,7 @@
   .spine > i:nth-of-type(1) { top: 12px; left: 12px; border-top-width: var(--lw-weight); border-left-width: var(--lw-weight); }
   .spine > i:nth-of-type(2) { bottom: 12px; right: 12px; border-bottom-width: var(--lw-weight); border-right-width: var(--lw-weight); }
   .spine .sp-eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; opacity: 0.6; margin-bottom: 14px; }
-  .spine blockquote { font-size: clamp(20px, 2.4vw, 29px); line-height: 1.4; letter-spacing: -0.012em; font-weight: 500; max-width: 42ch; }
+  .spine blockquote { font-size: clamp(24px, 3vw, 38px); line-height: 1.4; letter-spacing: -0.012em; font-weight: 500; max-width: 42ch; }
   .chap { position: relative; display: grid; grid-template-columns: 90px 1fr 200px; gap: 22px; padding: 22px 22px 22px 26px; background: var(--surface-card); border: 1px solid var(--hair); border-left: none; margin-bottom: 6px; }
   .chap::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: var(--lw-stripe); background: var(--ch); }
   .chap .c-num { font-family: "IBM Plex Mono", monospace; font-size: 24px; font-weight: 700; color: var(--ch); line-height: 1; }
@@ -98,6 +98,10 @@
       <p class="sect-desc">Each chapter is striped with the layer it lives on — cobalt for the kernel, sage for the protocol, teal for legibility, violet for identity, gold for the economy, indigo for the proofs that federate them. The stack is legible before a single label is read.</p>
     </div>
 
+    <figure class="art" style="margin-bottom:26px;">
+      <img src="../../../../website-v2/public/img/generated/manifesto/trilogy-arc.webp" alt="One hut, one house with its own crane, then a harbor with many berths — the three stages the papers climb.">
+      <figcaption>One process → one machine → many machines. The same arc the three papers climb, drawn once.</figcaption>
+    </figure>
     <div class="group-label lw-midline" style="padding-top:12px;"><h3>The four that explain</h3><p>Chapters I–IV · self-contained and pedagogic, climbing one ladder. Stop after the first and you still have a useful mental model.</p></div>
 
     <article class="chap" style="--ch: var(--teal)">
