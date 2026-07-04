@@ -435,7 +435,10 @@ export function createFleetProposalStore(deps: FleetProposalStoreDeps) {
     }
     const prNumber = optionalNumber(input.prNumber);
     const at = now();
-    const id = cleanString(input.id, randomUUID(), 160).replace(/[^a-zA-Z0-9:_./-]/g, '-');
+    // No '/' in ids: the id is a REST path segment (/fleet-proposals/:id/approve)
+    // and FleetBar interpolates it into a URL — a slash would make the proposal
+    // impossible to approve or reject while still counting against the queue cap.
+    const id = cleanString(input.id, randomUUID(), 160).replace(/[^a-zA-Z0-9:_.-]/g, '-');
     if (selectByIdStmt.get(id)) {
       throw new FleetProposalDuplicateError(`proposal ${id} already exists`);
     }

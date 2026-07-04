@@ -230,6 +230,29 @@ describe('fleet HITL proposals', () => {
     db.close();
   });
 
+  test('caller-supplied id with a slash is sanitized so the decide routes stay reachable', async () => {
+    const { app, db } = await buildApp();
+    const create = await app.inject({
+      method: 'POST',
+      url: '/fleet-proposals',
+      payload: sampleProposal({ id: 'spark/ideas/1' }),
+    });
+    expect(create.statusCode).toBe(201);
+    const id = create.json().proposal.id;
+    expect(id).toBe('spark-ideas-1');
+
+    const approve = await app.inject({
+      method: 'POST',
+      url: `/fleet-proposals/${id}/approve`,
+      payload: { dispatch: false },
+    });
+    expect(approve.statusCode).toBe(200);
+    expect(approve.json().proposal.status).toBe('approved');
+
+    await app.close();
+    db.close();
+  });
+
   test('rejecting an already-rejected proposal is idempotent; approving it is a 409', async () => {
     const { app, db } = await buildApp();
     const create = await app.inject({ method: 'POST', url: '/fleet-proposals', payload: sampleProposal() });
