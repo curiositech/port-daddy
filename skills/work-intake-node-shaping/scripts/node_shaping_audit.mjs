@@ -43,6 +43,13 @@ const REQUIRED_SIGNALS = [
 
 const SEVERITY_WEIGHT = { critical: 30, high: 15, medium: 10, low: 5 };
 
+function severityWeight(severity) {
+  if (!Object.prototype.hasOwnProperty.call(SEVERITY_WEIGHT, severity)) {
+    throw new Error(`unknown finding severity "${severity}" (expected one of ${Object.keys(SEVERITY_WEIGHT).join(', ')})`);
+  }
+  return SEVERITY_WEIGHT[severity];
+}
+
 function assertShape(spec) {
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) {
     throw new Error('auditNodeShaping: input must be a JSON object');
@@ -163,7 +170,7 @@ export function auditNodeShaping(spec) {
     }
   }
 
-  const totalWeight = findings.reduce((sum, f) => sum + (SEVERITY_WEIGHT[f.severity] ?? 0), 0);
+  const totalWeight = findings.reduce((sum, f) => sum + (severityWeight(f.severity)), 0);
   const score = Math.max(0, 100 - totalWeight);
   const hasCritical = findings.some((f) => f.severity === 'critical');
   const pass = !hasCritical && score >= 75;
