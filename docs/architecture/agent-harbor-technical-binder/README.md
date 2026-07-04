@@ -104,6 +104,18 @@ Anode:
   Existing launch paths should dissolve into one Work Intent and Agent Node
   creation service, with anode adapters handling provider-specific bodies.
 
+Navigation:
+  The act of turning a Work Intent into a plan: sensemaking, decomposition
+  into a DAG or hypertree of nodes, per-node skill selection, premortem, and
+  synthesis. The WorkPlanner is the navigator; the WinDAGs next-move meta-DAG
+  is its current engine, and engine names are not operator vocabulary.
+
+Seamanship:
+  The skill system: indexed catalog, search cascade, and the visible graft
+  that attaches chosen skills to an Agent Node before launch. The WinDAGs
+  skill tools are the current engine behind it. Every navigated node names
+  its grafted seamanship on the team proposal and the Work Receipt.
+
 Work Receipt:
   A signed, shareable proof of an agent run. It includes transcript hash chain,
   diff hash, files touched, provider/body/model tier, cost, approvals, guard
@@ -169,6 +181,10 @@ Work Receipt:
 - [18 Build Prescription And Agent Launch Board](./18-build-prescription-agent-launch-board.md):
   the operator-ready build prescription: current source-of-truth hierarchy,
   iteration loop, first work orders, agent fanout, and proof gates.
+- [19 Operator Surface Triad](./19-operator-surface-triad.md):
+  Scout, FleetBar, and pd-console as the three operator surfaces: division of
+  labor, the hot/durable bus with latency budgets, the enforced-MCP broker
+  collapse to five tools, and proof gates IT-015..IT-018.
 
 ## Architecture in one diagram
 

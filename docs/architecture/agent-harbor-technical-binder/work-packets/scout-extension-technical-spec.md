@@ -41,6 +41,12 @@ viewport, and pixels in one envelope.
   message, reviewable work item creation. Operator vocabulary only (issue,
   local agent, cloud fleet, review queue) — no dispatch/worker words in the UI.
 
+Landing in tandem: PR #638 hardens this intake now — structured error codes
+on the daemon route (400/500/503 with blob-write/publish/dispatch causes), a
+default `~/.port-daddy/blobs` store when none is configured, and an honest
+Online/Offline daemon chip in the popup. That is slice S1 below, in flight;
+this packet's S1 gate is its acceptance bar.
+
 Not shipped: the ask-agent panel, Work Intent routing, device pairing, any
 auth beyond loopback, redaction, retention wiring, category taxonomy.
 
@@ -100,15 +106,19 @@ The second popup face. Contract:
   An agent without a fresh heartbeat renders as stale; the panel never shows
   a synthetic "active" state (chapter 10 LIVE rule).
 - A question is a cool-bus inbox message to one `agentNodeId`, tagged with the
-  page URL as context. The reply streams over SSE scoped to that exchange.
+  page URL as context. The reply streams over the hot bus, scoped to that
+  exchange (chapter 19's single-transport decision; the daemon's existing
+  per-channel SSE endpoints are bridges on the deprecation path).
 - Ask history is durable (it is inbox traffic), so closing the popup loses
   nothing.
 - The panel is a scoped conversation, not a console: no transcript history
   beyond the exchange, no steering controls, no file views. "Open in
   pd-console" deep-links the session for anything deeper (chapter 19 boundary
   rule).
-- Send is disabled with an honest reason when the target agent's compliance
-  level lacks suggestibility (below C3): "This agent cannot receive messages
+- Send is disabled with an honest reason when the target agent lacks the
+  Suggestible predicate (mid-run injection with visible provenance; the UI
+  names the predicate, not a numeric C label, until the F0 ladder freeze per
+  `official-agent-control-plane-synthesis.md`): "This agent cannot receive messages
   mid-run; it will see your note at its next turn start" — or the message is
   queued for turn-start delivery via the suggestibility envelope (chapter 03),
   which is the normal path.
@@ -167,7 +177,7 @@ Gate: secret-bearing fixture page produces a redacted blob and a receipt;
   unredacted bytes are absent from disk (negative probe).
 
 Slice S4 — ask-agent panel:
-  roster query, inbox exchange, SSE reply stream, compliance-gated send,
+  roster query, inbox exchange, hot-bus reply stream, compliance-gated send,
   pd-console deep link.
 Gate: reply renders only with stream evidence; a below-C3 target shows the
   queued-for-turn-start path; killing the daemon mid-stream degrades honestly.
@@ -179,7 +189,7 @@ Gate: unauthenticated submission rejected once pairing is on; local-only mode
 
 ## Skill backing
 
-Graft per slice (WinDAGs graft as default preparation):
+Graft per slice (a Seamanship act; chapter 19):
 
 - Surface and product shape: `developer-surface-strategist`,
   `agentic-coding-ux-designer`, `web-design-expert` (PR #650),

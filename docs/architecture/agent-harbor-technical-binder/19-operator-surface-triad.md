@@ -147,17 +147,26 @@ What this chapter adds is the boundary against the other two surfaces:
 Promoted from `work-packets/swarm-invocation-and-node-shaping.md` to chapter
 truth. Two planes, never one transport doing both jobs:
 
-| Plane | Carries | Transports | Persistence |
+| Plane | Carries | Transport | Persistence |
 | --- | --- | --- | --- |
-| Hot bus | presence, current step, stream cursors, steering, pause/cancel intents, small status deltas, high-frequency swarm chatter | in-process bus, Unix socket, loopback WebSocket/SSE | ephemeral, replaceable, summarized at checkpoints |
-| Cool bus | Work Intents, plans, claims, transcript events, control commands, gate decisions, costs, receipts, inbox messages | append-only event ledger, notes, actor inboxes, tubes | append-only, replayable, attributable (chapter 09 schema) |
+| Hot bus | presence, current step, stream cursors, steering, pause/cancel intents, small status deltas, high-frequency swarm chatter | ONE choice: a multiplexed loopback WebSocket per surface connection (in-process bus inside the daemon) | ephemeral, replaceable, summarized at checkpoints |
+| Cool bus | Work Intents, plans, claims, transcript events, control commands, gate decisions, costs, receipts, inbox messages | append-only event ledger, notes, actor inboxes | append-only, replayable, attributable (chapter 09 schema) |
+
+Transport decision, stated once so it stops being a menu: the hot bus is **one
+multiplexed WebSocket** per connected surface. WebSocket because steering is
+bidirectional — pause/cancel/steer intents ride the same channel as state
+deltas, which server-push-only transports cannot do. The daemon's existing
+per-channel SSE endpoints are bridges on the same deprecation path as the old
+launch verbs: intake metadata, then aliases, then gone. No new surface may add
+a second push transport; a surface that needs a new stream subscribes to a new
+topic on the same socket.
 
 The checkpoint rule, verbatim: *hot messages may move the UI quickly; durable
 events decide history.*
 
 Latency budgets (from the swarm-invocation packet, binding for the triad):
 live board p95 < 250 ms; steering p95 < 100 ms; local IPC hop < 10 ms;
-loopback WS/SSE hop < 25 ms; durable append < 500 ms per checkpoint. Cancel
+loopback WebSocket hop < 25 ms; durable append < 500 ms per checkpoint. Cancel
 and pause never block on durable append but must emit a durable follow-up once
 acknowledged.
 
@@ -165,7 +174,7 @@ How each surface subscribes:
 
 | Surface | Hot bus | Cool bus |
 | --- | --- | --- |
-| Scout | SSE on the `visual-feedback` reply channel for its own submissions only | submits Work Intents; reads its intents' status and receipts |
+| Scout | hot-bus topics scoped to its own submissions only | submits Work Intents; reads its intents' status and receipts |
 | FleetBar | one multiplexed digest stream: roster states, current steps, pending gates, cost ticks | approval decisions, intent submissions, resume queries |
 | pd-console | full per-session stream frames, presence, claims awareness | everything: ledger queries, transcript replay, receipts, search |
 
@@ -181,6 +190,70 @@ a hot-bus intent plus a durable `ControlCommand`. The hot path makes it fast;
 the cool path makes it undeniable. A body that only honors the durable command
 is slow but compliant; a body that honors neither is downgraded (chapter 03
 compliance ladder) and its interrupt buttons disable everywhere at once.
+
+## Navigation and Seamanship
+
+Two capabilities that today live outside the product as WinDAGs tooling become
+first-class Port Daddy concepts, named for the harbor. This is a
+centralization move, not an addition: the external tools are engines behind
+existing binder concepts, and their old names stop being product vocabulary.
+
+**Navigation** is the act of turning a Work Intent into a plan: sensemaking,
+decomposition into a DAG or hypertree of nodes, skill selection per node,
+premortem, synthesis. Chapter 14's `WorkPlanner` *is* the navigator — this
+term names what it does, and the WinDAGs next-move meta-DAG (sensemaker →
+decomposer → skill-selector ∥ premortem → synthesizer) is its current engine.
+The engine moves into the daemon as the WorkPlanner implementation; it does
+not remain a separate external surface the operator has to know about. The
+operator-visible artifact of Navigation is the team proposal: which nodes,
+which dependencies, which skills, what risks, what cost.
+
+**Seamanship** is the skill system: the indexed catalog, the search cascade
+(BM25 → embeddings → rank fusion → cross-encoder → outcome attribution), and
+the graft — attaching chosen skills to an Agent Node before launch, visibly.
+The WinDAGs `skill_search`/`skill_graft` tools are the current engine; they
+become the daemon's skill index and graft service (chapter 04, milestone M7).
+The PRD already commits to "skill grafting as visible preparation" — this
+names the whole capability, and every navigated node lists its grafted
+seamanship on the proposal and the Work Receipt.
+
+Rules:
+
+- Navigation without Seamanship is planning theater. A plan whose nodes name
+  no skills is a placeholder, not a plan (chapter 14 placeholder rules apply).
+- Vocabulary collapse applies here exactly as it does to launch verbs:
+  "WinDAGs", "next-move", "skill-selector", "graft batch" survive as engine
+  and implementation names, never as operator-facing concepts. The operator
+  sees Navigation (the chart) and Seamanship (the crew's skills).
+- Under the enforced MCP below, Navigation requests ride `work` and
+  seamanship lookup rides `recall`; graft delivery is part of node
+  materialization, not a verb an agent remembers to call.
+
+Gate: a Work Intent submitted from any triad surface produces a team proposal
+whose every node names its skills; the same skills appear on the sealed
+receipt; and no operator-facing surface, doc, or command mentions the engine
+names.
+
+## Tandem truth (2026-07-03)
+
+Work landing in parallel with this chapter, which it must not contradict:
+
+- PR #652 consolidates sanctioned desktop surfaces to **FleetBar, Fleet
+  Control Center, and pd-console**, retires the daemon's web dashboard, and
+  removes browser-tab escapes. This chapter's triad is consistent with that:
+  the Control Center is FleetBar's deep window face (its embedded content is
+  the `/fleet-ui/` app), not a fourth surface; Scout is the sanctioned
+  *browser-side intake*, which #652 explicitly leaves intact.
+- PR #648 ships the first real "Waiting on you": a daemon-persisted HITL
+  proposal queue with native Yes/No approval in FleetBar and pending-proposal
+  awareness in pd-console. The FleetBar packet treats it as the shipped v1 of
+  the human-gate section.
+- PR #638 hardens Scout's daemon intake (typed error codes, default blob
+  store, an honest Online/Offline daemon chip in the popup) — the Scout
+  packet's slice S1, already in flight.
+- PR #455 lands the brand color system with an enforced `check-brand-colors`
+  gate. All triad token contracts defer to it; mockup palettes are
+  placeholders until mapped.
 
 ## The MCP once coordination is enforced
 
@@ -257,10 +330,11 @@ Gate for this section:
 
 ## Skill backing for the triad build
 
-The repo's recent skill corpus (June 15 – July 3, including the upgrades and
-imports landing in PR #649 and PR #650) maps onto the chapter 18 work orders as
-follows. Chains should graft these explicitly (WinDAGs graft is the default
-preparation step, per operator directive):
+The repo's recent skill corpus — the agentic-coding family (PRs #639, #643,
+#644), `agentic-app-architecture` (#646), the workflow-discipline set (#647),
+and the standard-upgrade batches (#649, #650, merged) — maps onto the
+chapter 18 work orders as follows. Chains graft their row through Seamanship
+before starting; the integration reviewer treats a missing graft as a finding:
 
 | Build area | Backing skills |
 | --- | --- |
@@ -276,9 +350,12 @@ preparation step, per operator directive):
 | Product gating and review | `product-roadmap-focus`, `product-reality-reviewer`, `port-daddy-user-surrogate-pm-review`, `agentic-coding-product-research`, `product-appeal-analyzer` (PR #650) |
 | Evaluation and training | `agent-rl-sandbox-trainer`, `llm-evaluation-harness`, `webapp-testing` |
 | Planning the whole arc | `vibe-project-master-plan`, `agentic-patterns` |
+| Workflow discipline (track → ship → steward → hold the bar) | `agent-issue-tracker-workflow` (PR #647), `agent-pr-authoring` (PR #647), `legible-roadmap-with-sidequests` (PR #647), `multi-agent-authoring-product-bar` (PR #647) |
 
 Rule: a chain that starts without grafting its row is under-prepared; the
 integration reviewer (work order I0) should treat missing grafts as a finding.
+Grafting is a Seamanship act; the engine behind it today is WinDAGs, per the
+Navigation and Seamanship section above.
 
 ## Proof gates
 

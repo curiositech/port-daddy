@@ -47,11 +47,26 @@ agents *are*. Read/write/suggest, precisely:
 - `SingleInstanceGuard.swift`, `BackendPicker.swift`, `BerthDirectory.swift`,
   `OperatorTUILauncher.swift`, theme and preferences.
 
+Landing in tandem (open PRs this packet aligns with, not duplicates):
+
+- PR #652: sanctioned desktop surfaces become FleetBar + Fleet Control Center
+  + pd-console; the Browser toolbar pill and browser-tab escapes are removed;
+  nightshift transcripts render in an in-app sheet. The Control Center is
+  FleetBar's deep window face, not a separate product.
+- PR #648: the HITL proposal queue — daemon-persisted proposal packets,
+  native Yes/No approval in the popover, pd-console pending awareness,
+  approval feeds the build queue. This is the shipped v1 of "Waiting on you."
+- PR #645: app-lane auto-refresh with FleetBar lanes.
+
 Gap between shipped and this contract: the shipped popover is roster-and-
-sections-first; approvals are not architecturally privileged; there is no
-command bar; state display predates the six-state grammar; the webview shell
-imports the web surface's vocabulary instead of the popover owning intent.
-This packet is the inversion order.
+sections-first; approvals beyond the #648 proposal class are not yet
+architecturally privileged; there is no command bar; state display predates
+the six-state grammar; the webview shell imports the web surface's vocabulary
+instead of the popover owning intent. Several shipped identifiers
+(`DispatchStore`, the fleet-ui "sortie" workspace tab) carry old launch-verb
+vocabulary — they are implementation names on the chapter 14 collapse path
+and must not leak into new operator-facing copy. This packet is the inversion
+order.
 
 ## Popover information architecture
 
@@ -67,7 +82,8 @@ Home, top to bottom (matches `interactive-mockup.html`):
    age; Enter re-enters (open worktree, restore console context, or reopen
    the artifact).
 4. **Quick actions** — show me what you built; catch me up; talk to the
-   fleet (Coxswain conversation); show the fleet (drawer).
+   fleet (one conversational entry point, no named persona — mockup persona
+   names do not survive into the product); show the fleet (drawer).
 5. **Footer** — daemon status, version, today's spend as one number.
 
 Secondary faces, each a push within the popover (never a modal, never a new
@@ -85,6 +101,13 @@ Interaction contract:
   (research report, Stream 01).
 
 ## Human gates are the privileged object
+
+PR #648's proposal queue is the first shipped gate class: a staff agent
+submits a proposal packet, FleetBar renders native Yes/No, approval assigns
+the packet to the build queue. This packet generalizes that shape rather than
+inventing a parallel one — C5 pre-action gates, budget escalations, and
+parley requests become further packet classes in the same queue, same card
+anatomy, same durable decision path.
 
 FleetBar renders chapter 18's C5 shapes directly:
 
@@ -109,7 +132,7 @@ Per the chapter 19 bus contract:
 
 | Need | Plane | Mechanism |
 | --- | --- | --- |
-| roster states, current steps, cost ticks, pending-gate count | hot | one multiplexed SSE/WebSocket digest stream; the popover renders from an in-memory projection of digest frames |
+| roster states, current steps, cost ticks, pending-gate count | hot | the hot-bus WebSocket (chapter 19's single transport decision); the popover renders from an in-memory projection of digest frames |
 | approvals, denials, intent submissions | cool | command envelopes; optimistic UI is forbidden — the card resolves when the durable ack returns |
 | resume list, artifacts, receipts, catch-me-up | cool | daemon queries on open; cached per popover session with staleness label |
 
@@ -120,14 +143,14 @@ Rules:
 - Reconnect renders the disconnected state honestly (gray states, controls
   disabled) within one frame; no phantom LIVE (chapter 10).
 - Updates repaint on state *change*, not on poll tick — no micro-blinking
-  (research report, Geist contract).
+  (research report, state-dot contract).
 - Steering (interrupt from an expanded row) follows the dual-path rule: hot
   intent for speed, durable ControlCommand for history.
 
 ## State grammar
 
-Six states, ported from the Geist StatusDot contract (research report §05),
-mapped to daemon truth:
+Six states — the research report's state-dot contract (§05), adopted as Port
+Daddy's own and mapped to daemon truth:
 
 | State | Daemon condition | Color | Animation |
 | --- | --- | --- | --- |
@@ -149,14 +172,41 @@ projection.
 From the research report, adopted as the FleetBar token set (Swiss-modern,
 sparse color blocks, fractional borders):
 
-- **Palette**: paper `#F4F0E8` / raised `#ECE6D9` / deep `#E2DAC8`; ink
-  `#1A1815` / soft `#3A3631` / mute `#6A655C`; single system accent cobalt
-  `#003FB8`; status colors as stripes only (table above). Maximum one accent
-  plus status stripes; three competing accents on one panel is a defect.
-- **Type**: Inter Variable (display 36/40 w800, subhead 22/28 w700, body
-  15/24 w500) and Geist Mono 13 for paths/metrics. Floor: body text never
-  below 14 px/0.875 rem; the only 12 px surface is the eyebrow (uppercase,
-  w≥600, tracking ≥0.10 em). This is a hard accessibility line, not taste.
+- **Palette**: authority is the brand color system landing in PR #455
+  (`website-v2` color rollout, enforced by `check-brand-colors`). The mockup
+  values (paper/ink/cobalt and the five status hues) are placeholders until
+  mapped onto brand tokens. The *structural* rules are binding regardless of
+  final hues: one system accent, status colors as stripes only, maximum one
+  accent plus status stripes — three competing accents on one panel is a
+  defect. Contrast is verified at APCA thresholds with a WCAG 2 fallback
+  check.
+- **Type**: the mockups' literal faces are explicitly *not* adopted — they
+  are the 2026 defaults that make every dev tool look the same. What carries
+  forward is the scale and the rules; the faces are chosen per the
+  `typography-expert` decision procedure:
+  - UI chrome (rows, labels, controls): the platform family — SF Pro via
+    system text styles, so Dynamic Type and the GRAD-axis dark-mode
+    compensation come free. A menu-bar app that fights the platform font
+    reads as a web page in a costume.
+  - Brand/display moments (masthead, empty states, consent-gate headline):
+    one distinctive variable family owned by the brand, selected with the
+    brand system landing in PR #455 — candidates per the skill's
+    decision tree for a warm-technical voice: Switzer, General Sans, or
+    PP Mori; explicitly excluded: high-contrast humanist faces with rounded
+    terminals, and the default-everywhere geometric sans set.
+  - Numerics and paths (durations, costs, file paths): one mono family with
+    `slashed-zero tabular-nums` as the default, not an opt-in; ligatures off
+    for UI surfaces. Candidates: IBM Plex Mono or Berkeley Mono; decided
+    with the brand pass.
+  - Scale: display 36/40, subhead 22/28, body 15/24, mono 13 — with
+    per-scale tracking (display tight-negative, body near-zero, caption
+    slightly positive), never one uniform letter-spacing.
+  - Floor: body text never below 14 px/0.875 rem; the only 12 px surface is
+    the eyebrow (uppercase, w≥600, tracking ≥0.10 em). This is a hard
+    accessibility line, not taste.
+  - Dark mode: compensate apparent weight with the GRAD axis (or the SF
+    equivalent), never by bumping weight — weight changes glyph widths and
+    breaks line ends.
 - **Fractional borders**, exactly four patterns and no others: panel-scope
   corner brackets (12 px L-ticks, 1.5 px stroke) · left-edge accent stripes
   (3 px, the load-bearing state carrier) · midline rules (64 px, 32 %
@@ -218,10 +268,12 @@ inversion is visible value on day one.
 
 ## Skill backing
 
-Graft per slice (WinDAGs graft as default preparation):
+Graft per slice (a Seamanship act; chapter 19):
 
 - Design system and tokens: `beautiful-gui-design`, `design-system-bootstrap`,
-  `color-theory-palette-harmony-expert` (PR #650), `typography-expert`,
+  `color-theory-palette-harmony-expert` (PR #650), `typography-expert` (owns
+  the type decision procedure above — face selection, per-scale tracking,
+  GRAD dark-mode compensation, APCA verification),
   `swiss-modern-website-design` (the lineage source for the border taxonomy).
 - Interaction and flow: `agentic-coding-ux-designer`, `ux-friction-analyzer`
   (PR #650), `human-centered-design-fundamentals`, `mobile-ux-optimizer` for
@@ -246,6 +298,6 @@ Graft per slice (WinDAGs graft as default preparation):
   transitional surface and shrinks as native faces land; it must not acquire
   new exclusive capabilities.
 - No Windows/Linux tray port until the macOS surface passes IT-016/IT-017.
-- The mockup's Coxswain conversation ("talk to the fleet") ships only after
-  the ask-agent plumbing (Scout packet S4) proves the inbox/SSE exchange —
-  same substrate, second client.
+- "Talk to the fleet" ships only after the ask-agent plumbing (Scout packet
+  S4) proves the inbox exchange over the hot bus — same substrate, second
+  client.
