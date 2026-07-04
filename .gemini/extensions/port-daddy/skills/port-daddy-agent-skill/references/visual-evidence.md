@@ -47,7 +47,7 @@ for w in wl:
     o = w.get('kCGWindowOwnerName','')
     if 'FleetBar' in o or 'pd-console' in o:
         print(w.get('kCGWindowNumber'), o, w.get('kCGWindowBounds'))"
-screencapture -x -l<ID> out.png    # -x = no sound, no UI
+screencapture -x -l<ID> out.png    # -l <id> targets the window (no raise/focus); -x just mutes the shutter sound
 ```
 
 **TCC gotcha:** `could not create image from window` means your shell's host
