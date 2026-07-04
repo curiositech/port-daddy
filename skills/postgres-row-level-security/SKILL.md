@@ -1,9 +1,35 @@
 ---
+license: Apache-2.0
 name: postgres-row-level-security
-description: Designing Postgres Row-Level Security (RLS) policies for multi-tenant authorization, especially in Supabase / PostgREST stacks — `CREATE POLICY` syntax, USING vs WITH CHECK, PERMISSIVE/RESTRICTIVE merge semantics, the `(SELECT auth.uid())` performance pattern that turns 171ms scans into <1ms, indexes still required, role-based bypass via BYPASSRLS, security-definer escape hatches. Grounded in postgresql.org, Supabase docs, and Gary Austin's RLS-Performance benchmarks.
-category: Backend & Databases
-tags: [postgres, rls, row-level-security, supabase, postgrest, multi-tenant, authorization]
+description: "Designing Postgres Row-Level Security (RLS) policies for multi-tenant authorization, especially in Supabase / PostgREST stacks — `CREATE POLICY` syntax, USING vs WITH CHECK, PERMISSIVE/RESTRICTIVE merge semantics, the `(SELECT auth.uid())` performance pattern that turns 171ms scans into <1ms, indexes still required, role-based bypass via BYPASSRLS, security-definer escape hatches. Grounded in postgresql.org, Supabase docs, and Gary Austin's RLS-Performance benchmarks. NOT for: general authorization design, OAuth/OIDC token issuance, application-layer authorization frameworks (Casbin/Oso), or non-RLS Postgres performance tuning."
 allowed-tools: Read, Grep, Glob, Edit, Write, Bash(psql:*, grep:*, rg:*)
+metadata:
+  category: Backend & Databases
+  tags: [postgres, rls, row-level-security, supabase, postgrest, multi-tenant, authorization]
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: postgres-explain-analyzer
+      reason: EXPLAIN ANALYZE is how the (SELECT auth.uid()) initPlan and the tenant-column index are actually verified; RLS predicates are just WHERE clauses to the planner.
+    - skill: local-first-tenancy-boundary
+      reason: Audits the product-level tenancy/scope model that these database-level RLS policies enforce.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: tenancy-requirement
+        format: markdown
+        description: The multi-tenant authorization requirement -- which roles see/write which rows, bypass needs, and the PostgREST/Supabase wiring in play.
+      - kind: rls-policy-plan
+        format: json
+        description: A structured RLS configuration (enable/force flags, per-command policies, index and bypass hygiene) matching schemas/postgres-row-level-security-plan.schema.json.
+    produces:
+      - kind: rls-policy-set
+        format: markdown
+        description: The CREATE POLICY statements with USING/WITH CHECK predicates, role targeting, subselect wrapping, and index DDL.
+      - kind: rls-policy-audit
+        format: json
+        description: Deterministic pass/fail audit of an rls-policy-plan against this skill's Quality Gates, produced by scripts/postgres_row_level_security_audit.mjs.
 ---
 
 # Postgres Row-Level Security
@@ -361,6 +387,29 @@ An RLS configuration ships when:
 - [ ] **Test:** Multi-tenant isolation tested end-to-end — user A cannot see user B's rows even via crafted queries.
 - [ ] **Test:** `service_role` key is not present in any client-side bundle. Bundle scan in CI.
 - [ ] **Manual:** Views in the data layer use `WITH (security_invoker = true)` (PG15+) or are explicitly designed for RLS bypass.
+
+---
+
+## Deterministic Audit
+
+Before shipping an RLS configuration (or reviewing another agent's), write it as a JSON
+`rls-policy-plan` matching `schemas/postgres-row-level-security-plan.schema.json` and run it
+through the deterministic auditor:
+
+```bash
+node scripts/postgres_row_level_security_audit.mjs --input examples/sample-input.json
+```
+
+`auditPostgresRowLevelSecurity(plan)` (in `scripts/postgres_row_level_security_audit.mjs`)
+turns this skill's Quality Gates and Anti-patterns into machine-checkable rules over
+structured fields — no keyword matching: RLS not enabled, restrictive-only policy sets
+that deny everything, policies without `TO <role>`, auth functions not wrapped in the
+`(SELECT …)` subselect, UPDATE policies missing WITH CHECK (the reassignment hole), an
+unindexed tenant column, a table owner who connects without FORCE, `SECURITY DEFINER`
+functions exposed in the API schema, and a `service_role` key reachable from the client.
+It returns `{ pass, score, findings, recommendations }`; `examples/sample-input.json` is
+a correctly hardened own-rows configuration that audits `pass: true`. Version history:
+`CHANGELOG.md`.
 
 ---
 

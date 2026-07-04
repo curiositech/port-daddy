@@ -1,0 +1,20 @@
+{
+  "siteKind": "docs",
+  "islands": [
+    { "name": "Search", "directive": "load", "aboveTheFold": true },
+    { "name": "Newsletter", "directive": "visible", "aboveTheFold": false },
+    { "name": "ChatWidget", "directive": "idle", "aboveTheFold": false },
+    {
+      "name": "InteractivePlayground",
+      "directive": "only",
+      "aboveTheFold": false,
+      "needsBrowserApisAtMount": true,
+      "hasSizedFallback": true
+    }
+  ],
+  "contentCollectionsTyped": true,
+  "dataFetchLocation": "frontmatter",
+  "imagesUnderSrcAssets": true,
+  "jsBudgetCIEnforced": true,
+  "outputMode": "hybrid"
+}

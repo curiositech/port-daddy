@@ -1,16 +1,44 @@
 ---
+license: Apache-2.0
 name: background-job-queue-design
 description: 'Use when designing a background-job system, choosing between BullMQ / Sidekiq / RQ / Temporal / SQS, deciding queue-vs-workflow, sizing concurrency vs rate limits, building dead-letter queues, or making handlers idempotent. Triggers: jobs running twice on retry, lost jobs after worker crash, DLQ filling up, Redis OOM from job backlog, exactly-once requested, "do we need Temporal?", visibility timeout / lockDuration confusion, exponential backoff vs jitter, fan-out fan-in workflows. NOT for outbound webhook publishing (different concerns), receiver-side webhook handling (different concerns), event-streaming/Kafka topology, or in-process async (event loop only).'
-category: Backend & Infrastructure
 allowed-tools: Read,Grep,Glob,Edit,Write,Bash
-tags:
-  - queues
-  - jobs
-  - bullmq
-  - sidekiq
-  - temporal
-  - idempotency
-  - dlq
+metadata:
+  category: Backend & Infrastructure
+  tags:
+    - queues
+    - jobs
+    - bullmq
+    - sidekiq
+    - temporal
+    - idempotency
+    - dlq
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: circuit-breakers-and-retries
+      reason: Handler-side calls to downstream dependencies need breaker + jittered-retry discipline so a queue backlog does not become a retry storm.
+    - skill: background-job-orchestrator
+      reason: Covers orchestrating the agent-facing job lanes on top of the broker primitives this skill selects and hardens.
+    - skill: error-handling-patterns
+      reason: The permanent-vs-transient error taxonomy that drives DLQ routing lives there.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: job-system-requirement
+        format: markdown
+        description: A description of the background work — shape, durations, side effects, delivery expectations, and infrastructure constraints.
+      - kind: job-queue-design-plan
+        format: json
+        description: A structured plan naming the broker, idempotency/lock/retry/DLQ/Redis choices, matching schemas/background-job-queue-plan.schema.json.
+    produces:
+      - kind: broker-recommendation
+        format: markdown
+        description: The queue-vs-workflow decision, broker choice, and hardening checklist (locks, DLQ, backoff, Redis policy) for the system.
+      - kind: job-queue-plan-audit
+        format: json
+        description: A deterministic pass/fail audit of the job-queue-design-plan against this skill's Quality Gates, as produced by scripts/job_queue_design_audit.mjs.
 ---
 
 # Background Job Queue Design
@@ -255,6 +283,26 @@ flowchart TD
 - [ ] Graceful shutdown on SIGTERM / SIGINT with `worker.close()` before exit.
 - [ ] OTel spans around handler with `queue.name`, `job.id`, `job.attempts`, `job.outcome` (see `opentelemetry-instrumentation`).
 - [ ] Concurrency × worker-count × downstream-rate-limit math reviewed; queue-level limiter in place where needed.
+
+## Deterministic Audit
+
+Before committing to a job-system design (or reviewing another agent's), write the plan
+as a JSON object matching `schemas/background-job-queue-plan.schema.json` and run it
+through `scripts/job_queue_design_audit.mjs`:
+
+```bash
+node scripts/job_queue_design_audit.mjs --input examples/sample-input.json
+```
+
+`auditJobQueueDesign(plan)` encodes this skill's three failure modes (lost jobs,
+duplicate execution, runaway retries) and its Quality Gates as deterministic rules over
+structured fields — no keyword matching: an exactly-once expectation, non-idempotent
+handlers, Redis-only dedup with no DB constraint, a lock/visibility timeout under 3×
+handler p99, no-jitter backoff, permanent errors that retry, a DLQ with no replay tool,
+`maxmemory-policy` other than `noeviction`, and hours-long multi-step work forced onto a
+plain queue instead of a workflow engine. It returns
+`{ pass, score, findings, recommendations }`. `examples/sample-input.json` is a hardened
+BullMQ single-side-effect design (`pass: true`) Version history lives in `CHANGELOG.md`.
 
 ## NOT for
 

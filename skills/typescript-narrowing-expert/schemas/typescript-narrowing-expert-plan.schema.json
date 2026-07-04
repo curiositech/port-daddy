@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/typescript-narrowing-expert-plan.schema.json",
+  "title": "TypeScript Narrowing Design Plan",
+  "description": "A structured plan for a TypeScript narrowing/type design -- goal, discriminant/guard/brand decisions, CI type-checks -- so this skill's Quality Gates can be checked deterministically by scripts/typescript_narrowing_expert_audit.mjs.",
+  "type": "object",
+  "required": ["goal"],
+  "additionalProperties": true,
+  "properties": {
+    "goal": {
+      "type": "string",
+      "enum": ["sum-type-modeling", "id-disambiguation", "type-guard", "conditional-type", "narrowing-repair"],
+      "description": "What this design is for: modeling a sum type, disambiguating IDs via brands, writing a user-defined type guard, composing conditional types, or repairing lost narrowing."
+    },
+    "usesDiscriminatedUnion": {
+      "type": "boolean",
+      "description": "True if the design models variants as a discriminated union."
+    },
+    "discriminantIsLiteral": {
+      "type": "boolean",
+      "description": "True if the discriminant is a literal type ('a' | 'b') in every variant, not string/number/enum."
+    },
+    "hasExhaustivenessCheck": {
+      "type": "boolean",
+      "description": "True if switches over the union have a default branch assigning to never."
+    },
+    "typeGuardReturnsPredicate": {
+      "type": "boolean",
+      "description": "True if user-defined guards are declared as `x is Foo`, not `boolean`."
+    },
+    "bareAsCastCount": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Count of `as` coercions outside brand factories in the touched code."
+    },
+    "asCastsDocumented": {
+      "type": "boolean",
+      "description": "True if every remaining `as` carries a same-line reason comment enforced by CI."
+    },
+    "brandedTypesHaveFactory": {
+      "type": "boolean",
+      "description": "True if each branded type has a validating factory and `as Brand` is banned outside it."
+    },
+    "brandNegativeTypeTests": {
+      "type": "boolean",
+      "description": "True if negative type-tests (expect-type/tsd) assert different brands are not assignable to each other."
+    },
+    "narrowingCrossesCallback": {
+      "type": "boolean",
+      "description": "True if a narrowed value is used inside a closure/callback created after the narrowing check."
+    },
+    "narrowedValueCapturedAsConst": {
+      "type": "boolean",
+      "description": "True if the narrowed value is captured into a const before the callback (or re-narrowed inside)."
+    },
+    "conditionalTypeAliasMaxLines": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Length in lines of the largest conditional type alias in the design."
+    },
+    "tscNoEmitInCI": {
+      "type": "boolean",
+      "description": "True if tsc --noEmit runs in CI on every PR."
+    },
+    "noImplicitAnyClean": {
+      "type": "boolean",
+      "description": "True if domain code passes tsc --noImplicitAny with no `any` outside vendor/boundary files."
+    },
+    "satisfiesPreferredOverAnnotation": {
+      "type": "boolean",
+      "description": "True if `satisfies` is the default over widening annotations where narrow inference matters."
+    }
+  }
+}

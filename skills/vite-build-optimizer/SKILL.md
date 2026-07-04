@@ -1,15 +1,40 @@
 ---
+license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 name: vite-build-optimizer
 description: 'Use when Vite dev startup is slow, HMR is not invalidating, the build emits chunks larger than expected, or you are authoring a Vite plugin. Triggers: "[plugin:..] failed", "Failed to resolve import", externalize warnings, dependency pre-bundling errors, lib mode + code splitting, ssr externals confusion, "Cannot find package" only in build, manualChunks tuning, optimizeDeps include/exclude tuning, rollup-plugin-visualizer review, --profile flag, configResolved/handleHotUpdate hook authoring. NOT for Webpack tuning, Turbopack-specific, Astro internals, or Bun bundler — those have their own conventions.'
-category: Frontend & UI
-tags:
-  - vite
-  - bundler
-  - hmr
-  - esbuild
-  - rollup
-  - build-tools
-  - frontend
+metadata:
+  category: Frontend & UI
+  tags:
+    - vite
+    - bundler
+    - hmr
+    - esbuild
+    - rollup
+    - build-tools
+    - frontend
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: ideal-web-app-builder
+      reason: The production web-app harness (React/Next/Vite apps with performance and release-engineering bars) whose Vite dev servers and builds this skill tunes.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: build-symptom-report
+        format: markdown
+        description: The observed Vite problem -- slow dev startup, broken HMR, oversized chunks, SSR-only failures, or a plugin-authoring need -- with relevant config excerpts.
+      - kind: vite-build-plan
+        format: json
+        description: A structured plan naming the concern, chunking/dedupe/SSR/sourcemap decisions, and measured numbers, matching schemas/vite-build-optimizer-plan.schema.json.
+    produces:
+      - kind: build-optimization-guidance
+        format: markdown
+        description: The recommended config changes (optimizeDeps, manualChunks, dedupe, ssr externals, plugin hooks) with dev-vs-prod behavior kept straight.
+      - kind: build-plan-audit-report
+        format: json
+        description: A deterministic pass/fail audit of the vite-build-plan against this skill's Quality Gates, as produced by scripts/vite_build_optimizer_audit.mjs.
 ---
 
 # Vite Build Optimizer
@@ -179,6 +204,27 @@ plugins: [visualizer({ filename: 'stats.html', gzipSize: true, brotliSize: true 
 - [ ] SSR build fails CI if a Node-only API leaks into client code (use vite-plugin-checker or a custom plugin).
 - [ ] Source maps generated and uploaded to error tracker (`sourcemap: 'hidden'`).
 - [ ] HMR roundtrip on a representative file under 200ms (measure: edit, ts to repaint).
+
+## Deterministic Audit
+
+Before committing to a build-config change (or reviewing another agent's), write it as a
+JSON plan matching `schemas/vite-build-optimizer-plan.schema.json` and run the
+deterministic auditor:
+
+```bash
+node scripts/vite_build_optimizer_audit.mjs --input examples/sample-input.json
+```
+
+`auditViteBuildOptimizer(plan)` (in `scripts/vite_build_optimizer_audit.mjs`) turns this
+skill's anti-patterns and Quality Gates into machine-checkable rules over structured
+fields: a duplicate framework copy with no `resolve.dedupe`, pre-bundling thrash left
+uncovered by `optimizeDeps.include`, HMR broken by anonymous default exports,
+`manualChunks` rules matching app code by substring instead of absolute path, an
+edge-target SSR build without `noExternal`, mutating config inside `configResolved`,
+sourcemaps off (or shipped publicly) in production, oversized chunks, and unreviewed
+visualizer output. It returns `{ pass, score, findings, recommendations }`.
+`examples/sample-input.json` is a bundle-size plan that clears every gate (`pass: true`).
+Changes are tracked in `CHANGELOG.md`.
 
 ## NOT for
 

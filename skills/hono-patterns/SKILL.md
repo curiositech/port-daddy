@@ -1,14 +1,43 @@
 ---
+license: Apache-2.0
 name: hono-patterns
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 description: 'Use when building APIs on Hono (Cloudflare Workers, Bun, Deno, Node), debugging route ordering, wiring middleware, validating with @hono/zod-validator, returning streaming responses, configuring CORS with credentials, handling errors via app.onError, or composing typed RPC clients. Triggers: c.env binding types, c.header + c.redirect interaction, missing await next() bugs, Set-Cookie not attaching to redirect, route-precedence surprises, JWT middleware setup, hono/client typed RPC end-to-end. NOT for Express/Fastify/Koa idioms, tRPC/GraphQL paradigms, or Next.js Route Handlers.'
-category: Backend & Infrastructure
-tags:
-  - hono
-  - cloudflare-workers
-  - bun
-  - edge
-  - middleware
-  - typescript
+metadata:
+  category: Backend & Infrastructure
+  tags:
+    - hono
+    - cloudflare-workers
+    - bun
+    - edge
+    - middleware
+    - typescript
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: htmx-progressive-enhancement
+      reason: Hono is a natural server for htmx -- routes return HTML fragments and the HX-Request header decides fragment vs full page
+    - skill: websocket-realtime-expert
+      reason: Long-lived WebSocket/SSE connections behind Hono routes need the realtime design (backpressure, reconnect) this skill does not cover
+    - skill: error-handling-patterns
+      reason: app.onError is the framework hook; what a sanitized, typed error taxonomy looks like is the paired skill's domain
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: api-requirement
+        format: markdown
+        description: The API surface to build -- routes, auth/cookie flow, streaming needs, CORS constraints -- from a human or another agent.
+      - kind: hono-app-plan
+        format: json
+        description: A structured plan of route ordering, middleware chain, generics, CORS, and streaming settings, matching schemas/hono-patterns-plan.schema.json.
+    produces:
+      - kind: api-implementation
+        format: markdown
+        description: The Hono app design -- typed generics, ordered routes, validators, onError, cookie/CORS wiring -- following this skill's patterns.
+      - kind: hono-audit-report
+        format: json
+        description: A deterministic pass/fail audit of the hono-app-plan against this skill's Quality Gates, as produced by scripts/hono_patterns_audit.mjs.
 ---
 
 # Hono Patterns
@@ -279,6 +308,26 @@ The client mirrors the server type tree exactly. Refactor a route → the client
 - [ ] CORS with `credentials: true` echoes a typed allowlist of origins, never `*`.
 - [ ] Streaming endpoints check `stream.aborted` in any long loop.
 - [ ] Cookie helpers used over raw Set-Cookie unless a specific reason.
+
+## Deterministic Audit
+
+Before shipping (or reviewing) a Hono app, write its shape as a JSON plan matching
+`schemas/hono-patterns-plan.schema.json` and run it through the deterministic auditor:
+
+```bash
+node scripts/hono_patterns_audit.mjs --input examples/sample-input.json
+```
+
+`auditHonoPatterns(plan)` (in `scripts/hono_patterns_audit.mjs`) turns this skill's
+anti-patterns and Quality Gates into machine-checkable rules over structured fields — no
+keyword matching: a middleware that never `await next()`s (the hanging-request bug), a
+catch-all registered before specific routes, unvalidated route inputs, an `onError` that
+leaks internals, `credentials: true` CORS with a wildcard or blind-echo origin, streaming
+loops that never check `stream.aborted`, `SameSite=Strict` on a redirect-driven login, and
+undeclared `Bindings`/`Variables` generics. It returns
+`{ pass, score, findings, recommendations }` and exits 1 on failure.
+`examples/sample-input.json` is a correctly wired app plan (`pass: true`, zero findings).
+See `CHANGELOG.md` for the bundle's history.
 
 ## NOT for
 

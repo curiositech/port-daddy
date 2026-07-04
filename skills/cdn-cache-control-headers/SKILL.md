@@ -1,9 +1,51 @@
 ---
+license: Apache-2.0
 name: cdn-cache-control-headers
-description: Designing HTTP cache headers that work correctly across browsers, CDNs, and shared proxies — `Cache-Control` directives per RFC 9111, `stale-while-revalidate` and `stale-if-error` per RFC 5861, the Vary header for varying responses, and surrogate keys for tag-based purging. Grounded in IETF RFCs and Cloudflare/Fastly docs.
-category: Performance & Caching
-tags: [http, caching, cache-control, cdn, cloudflare, fastly, performance, swr]
+description: |
+  Designing HTTP cache headers that work correctly across browsers, CDNs, and shared
+  proxies — `Cache-Control` directives per RFC 9111, `stale-while-revalidate` and
+  `stale-if-error` per RFC 5861, the Vary header for varying responses, and surrogate
+  keys for tag-based purging. Grounded in IETF RFCs and Cloudflare/Fastly docs.
+  NOT for service-worker or browser-only caching, Redis/memcached application caching,
+  or edge-function compute.
 allowed-tools: Read, Grep, Glob, Edit, Write, Bash(curl:*, grep:*, rg:*)
+metadata:
+  category: Performance & Caching
+  tags:
+    - http
+    - caching
+    - cache-control
+    - cdn
+    - cloudflare
+    - fastly
+    - performance
+    - swr
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: cloudflare-workers-debugging
+      reason: When the edge layer setting or honoring these headers is a Cloudflare Worker, its deploy/route/observability failures are diagnosed there.
+    - skill: astro-islands-architect
+      reason: Static-first Astro output is the canonical producer of the hashed-asset and anonymous-HTML recipes in this skill.
+    - skill: observability-apm-expert
+      reason: The cache-hit-rate dashboard and alarm the Quality Gates require live in the APM stack.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: caching-requirement
+        format: markdown
+        description: A description of the endpoint or asset — personalization, mutability, freshness needs, and invalidation events.
+      - kind: cache-header-plan
+        format: json
+        description: A structured plan naming the response kind, directives, Vary set, and purge strategy, matching schemas/cdn-cache-headers-plan.schema.json.
+    produces:
+      - kind: cache-header-recipe
+        format: markdown
+        description: The Cache-Control / Vary / Surrogate-Key header set per response class, following the decision diagram and canonical recipes.
+      - kind: cache-header-audit
+        format: json
+        description: A deterministic pass/fail audit of the cache-header-plan against this skill's Quality Gates, as produced by scripts/cdn_cache_headers_audit.mjs.
 ---
 
 # CDN & Cache-Control Headers
@@ -249,6 +291,29 @@ A caching change ships when:
 - [ ] **Test:** Surrogate-key purges actually invalidate; integration test that edits content, purges, and verifies a fresh response within 5 seconds.
 - [ ] **Test:** Cache hit rate dashboard exists (`cf-cache-status` distribution, x-cache header histogram); alarm on hit rate below threshold.
 - [ ] **Manual:** Login pages and authenticated dashboards carry `no-store` (verify by curl on production).
+
+---
+
+## Deterministic Audit
+
+Before shipping a cache-header change (or reviewing another agent's), write the plan as
+a JSON object matching `schemas/cdn-cache-headers-plan.schema.json` and run it through
+`scripts/cdn_cache_headers_audit.mjs`:
+
+```bash
+node scripts/cdn_cache_headers_audit.mjs --input examples/sample-input.json
+```
+
+`auditCdnCacheHeaders(plan)` encodes this skill's recipes, anti-patterns, and Quality
+Gates as deterministic rules over structured fields — no keyword matching: a
+personalized/authenticated response marked `public` (the leak-across-users failure), a
+login form without `no-store`, `private` combined with `s-maxage`, `Vary: User-Agent` or
+`Vary: Cookie` on shared caches, `Set-Cookie` on cacheable responses, hashed assets
+without `immutable` + year-long `max-age`, a naked `s-maxage` with no SWR/SIE resilience,
+long-TTL mutable content without purge-on-edit, and surrogate-key counts over the CDN
+limit. It returns `{ pass, score, findings, recommendations }`.
+`examples/sample-input.json` is the anonymous-HTML recipe with surrogate-key purging
+(`pass: true`) Version history lives in `CHANGELOG.md`.
 
 ---
 

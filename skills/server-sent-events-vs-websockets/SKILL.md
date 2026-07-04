@@ -1,9 +1,37 @@
 ---
+license: Apache-2.0
 name: server-sent-events-vs-websockets
-description: Choosing between Server-Sent Events and WebSockets for real-time client connections, and implementing whichever you pick correctly — SSE wire format per WHATWG, WebSocket frame format per RFC 6455, automatic reconnection with `Last-Event-ID`, ping/pong heartbeats, the HTTP/1.1 6-connection-per-origin limit, and the proxy-buffering trap that silently breaks SSE. Grounded in WHATWG, RFC 6455, MDN.
-category: Real-Time & Streaming
-tags: [sse, websocket, real-time, streaming, http, server-sent-events, eventsource, rfc-6455]
+description: Choosing between Server-Sent Events and WebSockets for real-time client connections, and implementing whichever you pick correctly — SSE wire format per WHATWG, WebSocket frame format per RFC 6455, automatic reconnection with `Last-Event-ID`, ping/pong heartbeats, the HTTP/1.1 6-connection-per-origin limit, and the proxy-buffering trap that silently breaks SSE. Grounded in WHATWG, RFC 6455, MDN. NOT for WebRTC, gRPC streaming, MQTT/IoT brokers, or third-party realtime services (Pusher, Ably).
 allowed-tools: Read, Grep, Glob, Edit, Write, Bash(curl:*, grep:*, rg:*)
+metadata:
+  category: Real-Time & Streaming
+  tags: [sse, websocket, real-time, streaming, http, server-sent-events, eventsource, rfc-6455]
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: websocket-realtime-expert
+      reason: Once this skill's decision lands on WebSocket, that skill owns the server-side implementation depth (rooms, presence, scaling out).
+    - skill: websocket-streaming
+      reason: Covers the streaming-payload patterns (chunking, framing, fan-out) layered on top of whichever transport this skill picks.
+    - skill: real-time-collaboration-engine
+      reason: Collaborative editing is the canonical bidirectional case that forces the WebSocket branch of this skill's decision diagram.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: realtime-channel-requirement
+        format: markdown
+        description: A description of the real-time need -- direction of traffic, latency budget, message rate, proxy/CDN topology, replay requirements.
+      - kind: sse-ws-channel-plan
+        format: json
+        description: A structured plan naming direction, chosen transport, proxy posture, heartbeat cadence, and reconnect/replay strategy, matching schemas/sse-ws-channel-plan.schema.json.
+    produces:
+      - kind: transport-recommendation
+        format: markdown
+        description: The SSE-vs-WebSocket decision with rationale from the decision diagram, plus the implementation checklist (headers, heartbeats, reconnect, backpressure).
+      - kind: channel-audit
+        format: json
+        description: A deterministic pass/fail audit of the sse-ws-channel-plan against this skill's Quality Gates, as produced by scripts/sse_ws_channel_audit.mjs.
 ---
 
 # Server-Sent Events vs WebSockets
@@ -316,6 +344,28 @@ A real-time channel ships when:
 - [ ] **Test:** Browser uses HTTP/2 for the SSE origin. Verified by `curl -I --http2`.
 - [ ] **Test:** Per-connection backpressure exists — server drops/batches when client buffer exceeds threshold. Load test confirms memory stays bounded.
 - [ ] **Manual:** Production proxy chain doesn't add buffering. Test via curl through the actual prod LB/CDN.
+
+---
+
+## Deterministic Audit
+
+Before committing to a transport (or reviewing another agent's channel design), write it
+as a JSON plan matching `schemas/sse-ws-channel-plan.schema.json` and run the
+deterministic auditor:
+
+```bash
+node scripts/sse_ws_channel_audit.mjs --input examples/sample-input.json
+```
+
+`auditSseWsChannel(plan)` (in `scripts/sse_ws_channel_audit.mjs`) turns this skill's
+decision diagram, anti-patterns, and Quality Gates into machine-checkable rules over
+structured fields — no keyword matching: SSE picked for a bidirectional channel, SSE
+behind a buffering proxy without `X-Accel-Buffering: no`, SSE on HTTP/1.1 (the
+6-per-origin limit), a heartbeat slower than 30s, WebSocket reconnect without jittered
+backoff, `Last-Event-ID` honored with no server-side replay buffer, and missing
+backpressure handling. It returns `{ pass, score, findings, recommendations }`.
+`examples/sample-input.json` is a correctly-configured SSE plan behind nginx on HTTP/2
+(`pass: true`). Version history lives in `CHANGELOG.md`.
 
 ---
 

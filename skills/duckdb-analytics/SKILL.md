@@ -1,14 +1,41 @@
 ---
+license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 name: duckdb-analytics
 description: 'Use when running analytical SQL over Parquet/CSV/JSON without a warehouse, replacing pandas for data wrangling, joining S3 data in-place, building local data marts, or embedding OLAP into an app. Triggers: read_parquet/read_csv setup, partitioned dataset queries, hive partitioning, glob patterns for S3, COPY TO export, attach Postgres/MySQL, UDFs in Python/R, MotherDuck cloud sync, columnar performance vs row stores. NOT for OLTP workloads (concurrent writes), distributed analytics at petabyte scale (use Spark/Trino), or vector search (use pgvector/Lance).'
-category: Data & Analytics
-tags:
-  - duckdb
-  - analytics
-  - parquet
-  - olap
-  - sql
-  - data-engineering
+metadata:
+  category: Data & Analytics
+  tags:
+    - duckdb
+    - analytics
+    - parquet
+    - olap
+    - sql
+    - data-engineering
+  pairs-with:
+    - skill: sqlite-durable-agent-state
+      reason: The OLTP counterpart — transactional agent state lives in SQLite; DuckDB reads it (ATTACH) for analytics without write contention.
+    - skill: log-aggregation-architect
+      reason: Aggregated log/event archives in Parquet are exactly the datasets DuckDB queries in place.
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: analytics-requirement
+        format: markdown
+        description: The dataset shapes (Parquet/CSV/JSON, local or S3), sizes, query patterns, and whether the pipeline is exploratory or scheduled production.
+      - kind: duckdb-pipeline-plan
+        format: json
+        description: A structured plan naming workload type, type-inference posture, projection, compression, and writer topology, matching schemas/duckdb-pipeline-plan.schema.json.
+    produces:
+      - kind: pipeline-design
+        format: markdown
+        description: The DuckDB SQL/Python pipeline with explicit types, projections, partitioning, and export settings.
+      - kind: duckdb-pipeline-audit
+        format: json
+        description: A deterministic pass/fail audit of the duckdb-pipeline-plan against this skill's Quality Gates, as produced by scripts/duckdb_pipeline_audit.mjs.
 ---
 
 # DuckDB Analytics
@@ -219,6 +246,27 @@ MotherDuck is hosted DuckDB with cloud storage. Useful for sharing a dataset wit
 - [ ] `EXPLAIN` reviewed for any query >5s on representative data.
 - [ ] DuckDB version pinned; aggregations tested on upgrade (rare semantic shifts).
 - [ ] No long-running concurrent writers — single producer per database file.
+
+## Deterministic Audit
+
+Before scheduling (or reviewing) a DuckDB pipeline, write it as a JSON plan
+matching `schemas/duckdb-pipeline-plan.schema.json` and run the auditor:
+
+```bash
+node scripts/duckdb_pipeline_audit.mjs --input examples/sample-input.json
+```
+
+`auditDuckdbPipeline(plan)` (in `scripts/duckdb_pipeline_audit.mjs`) turns this
+skill's Quality Gates and Anti-patterns into machine-checkable rules over
+structured fields — no keyword matching: an OLTP/streaming/vector-search
+workload pointed at DuckDB (critical — wrong tool), multiple concurrent writers
+on one file (critical), `read_csv_auto` in production, `SELECT *` projection,
+filtering in pandas after a full materialization, non-ZSTD production Parquet,
+high-cardinality partition columns, `INSTALL` without `LOAD` for httpfs,
+committed S3 credentials (critical), and an unpinned DuckDB version. It returns
+`{ pass, score, findings, recommendations }`. `examples/sample-input.json` is a
+production OLAP pipeline with explicit types and pushdown (`pass: true`, zero
+findings).
 
 ## NOT for
 

@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/hono-patterns-plan.schema.json",
+  "title": "Hono App Plan",
+  "description": "A structured plan of a Hono app's route ordering, middleware discipline, generics, CORS, cookies, and streaming settings, so this skill's Quality Gates can be checked deterministically by scripts/hono_patterns_audit.mjs.",
+  "type": "object",
+  "required": ["middlewareAwaitsNext", "catchAllRegisteredLast", "routesValidated", "onErrorSanitized"],
+  "additionalProperties": true,
+  "properties": {
+    "middlewareAwaitsNext": {
+      "type": "boolean",
+      "description": "True if every middleware that intends to continue awaits next() (short-circuits like auth failures excepted)."
+    },
+    "catchAllRegisteredLast": {
+      "type": "boolean",
+      "description": "True if wildcard/catch-all routes are registered after all specific routes (or replaced by app.notFound)."
+    },
+    "routesValidated": {
+      "type": "boolean",
+      "description": "True if every route that reads json/form/query/param/header/cookie input has a validator (e.g. zValidator) or explicit typed parsing."
+    },
+    "onErrorSanitized": {
+      "type": "boolean",
+      "description": "True if app.onError returns sanitized responses -- no error messages or stacks leaked to clients."
+    },
+    "bindingsGenericDeclared": {
+      "type": "boolean",
+      "description": "True if the root app declares the Bindings generic so c.env is typed."
+    },
+    "variablesGenericDeclared": {
+      "type": "boolean",
+      "description": "True if the root app declares the Variables generic so c.set/c.get are typed."
+    },
+    "corsCredentials": {
+      "type": "boolean",
+      "description": "True if CORS is configured with credentials: true (cookies ride cross-origin)."
+    },
+    "corsOriginPolicy": {
+      "type": "string",
+      "enum": ["allowlist", "wildcard", "echo-any"],
+      "description": "How the CORS origin is decided: a typed allowlist function, a literal *, or blindly echoing whatever Origin arrives."
+    },
+    "hasStreamingEndpoints": {
+      "type": "boolean",
+      "description": "True if the app serves SSE/NDJSON/raw streaming responses."
+    },
+    "streamChecksAborted": {
+      "type": "boolean",
+      "description": "True if every long streaming loop checks stream.aborted so client disconnects end the work."
+    },
+    "loginUsesRedirect": {
+      "type": "boolean",
+      "description": "True if the login flow sets a session cookie and redirects (Set-Cookie on a 302)."
+    },
+    "sessionCookieSameSite": {
+      "type": "string",
+      "enum": ["strict", "lax", "none"],
+      "description": "The SameSite attribute on the session cookie."
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "provider": "stripe",
+  "verifiesSignature": true,
+  "signatureOverRawBody": true,
+  "timingSafeCompare": true,
+  "replayWindowSeconds": 300,
+  "idempotencyPrimitive": "db-unique-constraint",
+  "processingModel": "async-queue",
+  "ackLatencyBudgetMs": 100,
+  "deadLetterAfterRetries": 5,
+  "replayToolingExists": true,
+  "stateSource": "provider-api",
+  "perEnvironmentSecrets": true,
+  "replayTestInCI": true
+}

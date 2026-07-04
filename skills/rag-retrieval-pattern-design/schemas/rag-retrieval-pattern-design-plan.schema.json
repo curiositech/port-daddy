@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/rag-retrieval-pattern-design-plan.schema.json",
+  "title": "RAG Retrieval Pipeline Plan",
+  "description": "A structured retrieval-side RAG design (chunking, hybrid mode, rerank, eval, freshness), so this skill's fixed order of work and Quality Gates can be checked deterministically by scripts/rag_retrieval_pattern_design_audit.mjs.",
+  "type": "object",
+  "required": ["chunkStrategy", "chunkSizeTokens", "retrievalMode", "rerankerPresent"],
+  "additionalProperties": true,
+  "properties": {
+    "chunkStrategy": {
+      "type": "string",
+      "enum": ["fixed", "recursive", "semantic", "structure-aware"],
+      "description": "The chunking strategy. Recursive at ~512 tokens is the documented baseline."
+    },
+    "chunkSizeTokens": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Target chunk size in tokens. ~512 is the baseline; > 2048 dilutes, < 128 loses context."
+    },
+    "chunkOverlapPct": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Chunk overlap as a percentage of chunk size. 10-20% is the documented band."
+    },
+    "semanticProvenBetter": {
+      "type": "boolean",
+      "description": "True if semantic chunking has been shown to beat recursive on this corpus's own eval set (required when chunkStrategy is semantic)."
+    },
+    "retrievalMode": {
+      "type": "string",
+      "enum": ["dense-only", "sparse-only", "hybrid-rrf", "hybrid-other"],
+      "description": "The retrieval architecture. hybrid-rrf (BM25 + dense fused with RRF) is the standard."
+    },
+    "rrfK": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "The RRF constant when retrievalMode is hybrid-rrf. Conventional value: 60."
+    },
+    "preRerankTopK": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Candidates retrieved before reranking. Documented sweet spot: 20."
+    },
+    "rerankerPresent": {
+      "type": "boolean",
+      "description": "True if a cross-encoder reranker sits between retrieval and the LLM."
+    },
+    "postRerankTopK": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Chunks passed to the LLM after reranking. Standard: 5. Must not exceed preRerankTopK."
+    },
+    "evalSetSize": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Number of hand-curated eval questions with ground truth. Quality gate: 100+."
+    },
+    "ragasInCi": {
+      "type": "boolean",
+      "description": "True if RAGAS runs in CI and gates merges on faithfulness / context-precision regressions."
+    },
+    "embeddingChosenByDomainEval": {
+      "type": "boolean",
+      "description": "True if the embedding model was selected by MTEB-on-your-domain evaluation rather than the global leaderboard."
+    },
+    "reindexCadence": {
+      "type": "string",
+      "enum": ["hourly", "daily", "weekly", "on-change", "never"],
+      "description": "How often the index is refreshed. never fails the freshness gate."
+    },
+    "zeroResultRateMonitored": {
+      "type": "boolean",
+      "description": "True if the zero-result rate is measured and alerted (warn > 5%, critical > 15%)."
+    },
+    "perQueryLoggingStructured": {
+      "type": "boolean",
+      "description": "True if every query logs candidates+scores per retriever, rerank scores, final top-5, and latency."
+    }
+  }
+}

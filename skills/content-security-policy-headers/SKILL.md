@@ -1,14 +1,42 @@
 ---
+license: Apache-2.0
 name: content-security-policy-headers
 description: 'Use when designing or fixing a Content Security Policy on a real site, choosing between nonce-based and hash-based CSP, adding strict-dynamic, debugging "Refused to execute inline script" errors, deploying CSP in report-only mode first, configuring report-to / report-uri, or auditing an existing policy for unsafe-inline / unsafe-eval / wildcards. Triggers: "CSP blocks legitimate inline script", strict-dynamic, nonce-{RANDOM}, sha256-{HASH}, object-src none, base-uri none, frame-ancestors, Trusted Types, X-Content-Security-Policy obsolete, report-only vs enforced. NOT for general HTTP security headers (HSTS, COOP/COEP), Trusted Types deep dive, CORS configuration, or building a WAF.'
-category: Backend & Infrastructure
 allowed-tools: Read,Grep,Glob,Edit,Write,Bash
-tags:
-  - csp
-  - security
-  - xss
-  - http-headers
-  - browser-security
+metadata:
+  category: Backend & Infrastructure
+  tags:
+    - csp
+    - security
+    - xss
+    - http-headers
+    - browser-security
+  pairs-with:
+    - skill: agentic-zero-trust-security
+      reason: CSP is the browser-side layer of the zero-trust posture that skill designs on the server and agent side.
+    - skill: whitehat-defense
+      reason: An unsafe-inline / wildcard CSP finding is a standard defensive-audit deliverable; this skill supplies the strict-CSP fix.
+    - skill: ideal-web-app-builder
+      reason: New web apps should bake the nonce + strict-dynamic baseline in from the first deploy instead of retrofitting it.
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: policy-requirement
+        format: markdown
+        description: A description of the site (server-rendered or static), its third-party scripts, and the audit findings or console errors driving the CSP work.
+      - kind: csp-policy-plan
+        format: json
+        description: A structured plan naming the script-src strategy, nonce handling, rollout mode, and reporting directives, matching schemas/csp-policy-plan.schema.json.
+    produces:
+      - kind: csp-policy
+        format: markdown
+        description: The recommended Content-Security-Policy header set with rollout steps and directive-by-directive rationale.
+      - kind: csp-policy-audit
+        format: json
+        description: A deterministic pass/fail audit of the csp-policy-plan against this skill's Quality Gates, as produced by scripts/csp_policy_audit.mjs.
 ---
 
 # Content Security Policy Headers
@@ -248,6 +276,26 @@ For sinks that can lead to XSS (`innerHTML`, `eval`, `Function`), browsers suppo
 - [ ] Two-phase rollout: ≥ 7 days in `Content-Security-Policy-Report-Only` before flipping to enforcement.
 - [ ] Legacy `X-Content-Security-Policy` and `X-WebKit-CSP` headers removed.
 - [ ] Violation-rate alert: page if violations spike > Nx baseline (defends against attempted XSS or regression).
+
+## Deterministic Audit
+
+Before shipping (or reviewing) a CSP change, write the policy decisions as a
+JSON plan matching `schemas/csp-policy-plan.schema.json` and run the auditor:
+
+```bash
+node scripts/csp_policy_audit.mjs --input examples/sample-input.json
+```
+
+`auditCspPolicy(plan)` (in `scripts/csp_policy_audit.mjs`) turns this skill's
+Quality Gates and Anti-patterns into machine-checkable rules over structured
+fields — no keyword matching: `unsafe-inline`/`unsafe-eval`/wildcard script-src
+(critical), the CDN-allowlist pattern, a missing `strict-dynamic`, a nonce
+reused across responses or injected by an HTML-rewriting middleware, a nonce
+strategy on static HTML, enforcing without a >= 7-day report-only soak, missing
+violation reporting, `frame-ancestors` trapped in a `<meta>` tag, and lingering
+legacy `X-Content-Security-Policy` headers. It returns
+`{ pass, score, findings, recommendations }`. `examples/sample-input.json` is a
+well-formed strict-CSP plan (`pass: true`, zero findings).
 
 ## NOT for
 

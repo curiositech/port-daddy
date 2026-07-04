@@ -1,14 +1,41 @@
 ---
+license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 name: pnpm-workspace-monorepo
 description: 'Use when configuring a pnpm-workspaces monorepo, debugging hoisting/peer-dep resolution, adopting the catalog protocol, integrating with Turborepo or Nx, fixing "cannot find module" issues that only happen in CI, or migrating from npm/yarn workspaces. Triggers: pnpm-workspace.yaml setup, packageExtensions for broken peer deps, .npmrc tuning (public-hoist-pattern, shamefully-hoist), workspace protocol (workspace:*), filtering with --filter, version mismatches across packages, "Cannot find module \"foo\"" only after lockfile update, ESM/CJS interop in workspace packages. NOT for npm/yarn-specific workspace bugs, monorepos using Bazel/Lerna/Rush, or single-package projects.'
-category: DevOps & Infrastructure
-tags:
-  - pnpm
-  - monorepo
-  - workspaces
-  - turbo
-  - dependencies
-  - typescript
+metadata:
+  category: DevOps & Infrastructure
+  tags:
+    - pnpm
+    - monorepo
+    - workspaces
+    - turbo
+    - dependencies
+    - typescript
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: ideal-web-app-builder
+      reason: New TS web apps scaffolded there typically live in a pnpm workspace; this skill owns the workspace/catalog/turbo layer around them
+    - skill: git-best-practices
+      reason: Affected-only CI (--filter "...[origin/main]") and turbo cache keys depend on the disciplined branch/merge hygiene that skill owns
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: monorepo-requirement
+        format: markdown
+        description: What the workspace must hold -- packages/apps split, shared deps, TS or not, task runner, publish targets, CI provider.
+      - kind: pnpm-workspace-plan
+        format: json
+        description: A structured plan naming dependency protocols, hoisting policy, lockfile discipline, and task-runner wiring, matching schemas/pnpm-workspace-monorepo-plan.schema.json.
+    produces:
+      - kind: workspace-design
+        format: markdown
+        description: Workspace layout, catalog adoption, .npmrc knobs, turbo wiring, and CI install pattern with the rationale for each choice.
+      - kind: pnpm-workspace-audit
+        format: json
+        description: A deterministic pass/fail audit of the pnpm-workspace-plan against this skill's Quality Gates, as produced by scripts/pnpm_workspace_monorepo_audit.mjs.
 ---
 
 # pnpm Workspace Monorepo
@@ -268,6 +295,29 @@ turbo build --filter "...[origin/main]"
 - [ ] TypeScript project references mirror workspace dependency graph.
 - [ ] Every package has `engines.node` matching the repo Node version.
 - [ ] `pnpm.onlyBuiltDependencies` allowlist for postinstall scripts.
+
+## Deterministic Audit
+
+Before adopting (or reviewing) a workspace configuration, write it as a JSON plan matching
+`schemas/pnpm-workspace-monorepo-plan.schema.json` and run it through the deterministic
+auditor:
+
+```bash
+node scripts/pnpm_workspace_monorepo_audit.mjs --input examples/sample-input.json
+```
+
+`auditPnpmWorkspaceMonorepo(plan)` (in `scripts/pnpm_workspace_monorepo_audit.mjs`) turns this
+skill's Anti-patterns and Quality Gates into machine-checkable rules over structured fields —
+no keyword matching: `shamefully-hoist` in any form (including as a "fix" for a missing peer),
+raw `npm publish` in a pnpm workspace (the `workspace:*` leak), a missing or non-frozen
+lockfile in CI, internal deps not on the `workspace:` protocol, shared versions drifting
+per-package instead of living in the catalog, turbo tasks without declared `inputs` (the
+cache-busts-every-commit failure), unfiltered CI builds, TS project references that do not
+mirror the dependency graph, and an open postinstall surface with no
+`onlyBuiltDependencies` allowlist. It returns `{ pass, score, findings, recommendations }` so
+a reviewer or CI gate can reject a drift-prone setup without re-deriving the reasoning.
+`examples/sample-input.json` is a catalog + turbo + frozen-lockfile plan that audits
+`pass: true`. Version history lives in `CHANGELOG.md`.
 
 ## NOT for
 

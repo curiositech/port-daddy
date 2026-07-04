@@ -1,15 +1,43 @@
 ---
+license: Apache-2.0
 name: structured-logging-design
 description: 'Use when designing log schemas, choosing JSON vs text logs, setting up correlation IDs across services, redacting PII, controlling log volume costs, or wiring logs into OpenTelemetry. Triggers: "logs are unsearchable", trace_id missing from logs, PII leak in production logs, log volume bill spike, log levels misused, structured fields vs string interpolation, parent_span_id propagation, sampled vs always-log decisions, log routing (vendor + cold storage). NOT for log aggregation tooling specifically (vendor skills), full APM, or print-debugging local development.'
-category: DevOps & Infrastructure
 allowed-tools: Read,Grep,Glob,Edit,Write,Bash
-tags:
-  - logging
-  - observability
-  - structured-logs
-  - json
-  - correlation
-  - pii
+metadata:
+  category: DevOps & Infrastructure
+  tags:
+    - logging
+    - observability
+    - structured-logs
+    - json
+    - correlation
+    - pii
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: logging-observability
+      reason: The broader observability wiring (collectors, pipelines, alerting) that this skill's log schema feeds into.
+    - skill: log-aggregation-architect
+      reason: Owns the aggregation/routing layer (Vector, Fluent Bit, hot vendor + cold storage fan-out) sketched in this skill's Routing section.
+    - skill: observability-apm-expert
+      reason: Trace/span correlation designed here joins logs to APM traces; that skill owns the tracing side of the join.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: logging-requirement
+        format: markdown
+        description: A description of the service's logging needs -- search use cases, compliance/PII constraints, QPS, budget, existing vendor.
+      - kind: logging-plan
+        format: json
+        description: A structured plan naming format, schema conventions, redaction, correlation, and cost controls, matching schemas/logging-plan.schema.json.
+    produces:
+      - kind: log-schema-design
+        format: markdown
+        description: The log schema (minimum fields, level policy, redaction list, routing tiers) with per-language logger configuration.
+      - kind: logging-audit
+        format: json
+        description: A deterministic pass/fail audit of the logging-plan against this skill's Quality Gates, as produced by scripts/structured_logging_audit.mjs.
 ---
 
 # Structured Logging Design
@@ -322,6 +350,25 @@ Set up the agent or sidecar (Vector, Fluent Bit) to fan out. Hot vendor for sear
 - [ ] Cold storage retention is separate from hot search retention; documented in runbook.
 - [ ] `trace_id` matches the OTel exporter's trace ID (W3C traceparent) — verified by joining a log line and a span in the vendor UI on a recent request.
 - [ ] Async logger configured (Pino/slog/structlog defaults); verified handler latency ≤ same with logger disabled.
+
+## Deterministic Audit
+
+Before committing to a logging design (or reviewing another agent's), write it as a
+JSON plan matching `schemas/logging-plan.schema.json` and run the deterministic auditor:
+
+```bash
+node scripts/structured_logging_audit.mjs --input examples/sample-input.json
+```
+
+`auditStructuredLogging(plan)` (in `scripts/structured_logging_audit.mjs`) turns this
+skill's anti-patterns and Quality Gates into machine-checkable rules over structured
+fields — no keyword matching: text logs in production, data interpolated into message
+strings, no logger-level PII redactor, missing `trace_id` binding, mixed field-name
+conventions, high-cardinality fields left indexed, errors logged at every layer, a
+synchronous log path, and uncapped long fields. It returns
+`{ pass, score, findings, recommendations }`. `examples/sample-input.json` is a
+JSON-logs plan with redaction, correlation, and tiered routing (`pass: true`). Version
+history lives in `CHANGELOG.md`.
 
 ## NOT for
 

@@ -1,16 +1,42 @@
 ---
+license: Apache-2.0
 name: oauth2-and-oidc-from-scratch
 description: 'Use when implementing or reviewing OAuth 2.0 / OAuth 2.1 / OpenID Connect from scratch in a real codebase, choosing a flow (authorization code + PKCE, client credentials, BFF), validating ID tokens, storing tokens safely in browsers, sizing refresh-token rotation, or migrating off implicit / ROPC. Triggers: "should I use a JWT or session cookie", PKCE code_challenge/code_verifier, exact redirect_uri match, state vs nonce confusion, ID-token replay, refresh-token rotation, BFF (backend-for-frontend) pattern, token in localStorage warning. NOT for SAML / WS-Federation, building an authorization server (use a battle-tested IdP), passwordless-only flows (passkeys/WebAuthn), or session-cookie auth without a third-party IdP.'
-category: Backend & Infrastructure
 allowed-tools: Read,Grep,Glob,Edit,Write,Bash
-tags:
-  - oauth
-  - oauth2
-  - oidc
-  - openid-connect
-  - pkce
-  - authentication
-  - authorization
+metadata:
+  category: Backend & Infrastructure
+  tags:
+    - oauth
+    - oauth2
+    - oidc
+    - openid-connect
+    - pkce
+    - authentication
+    - authorization
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: opentelemetry-instrumentation
+      reason: This skill's quality gates require an OTel span around the token exchange (oauth.flow, oauth.outcome); that skill owns the tracing setup
+    - skill: agentic-zero-trust-security
+      reason: Client-credentials grants, token audiences, and mTLS-bound client assertions designed here feed the zero-trust identity boundary for agent systems
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: auth-integration-requirement
+        format: markdown
+        description: What the app needs from the IdP -- client type (SPA/native/service), user-facing or service-to-service, browser constraints, IdP in use.
+      - kind: oauth-oidc-plan
+        format: json
+        description: A structured plan naming the grant, browser architecture, token storage, validation, and refresh-token policy, matching schemas/oauth2-and-oidc-from-scratch-plan.schema.json.
+    produces:
+      - kind: auth-integration-review
+        format: markdown
+        description: Flow selection, storage architecture, and validation checklist rationale grounded in OAuth 2.1 and the browser-based-apps BCP.
+      - kind: oauth-oidc-audit
+        format: json
+        description: A deterministic pass/fail audit of the oauth-oidc-plan against this skill's Quality Gates, as produced by scripts/oauth2_and_oidc_from_scratch_audit.mjs.
 ---
 
 # OAuth 2.0 / OIDC From Scratch
@@ -282,6 +308,27 @@ Prefer `client_assertion` (signed JWT) or mTLS over `client_secret` for producti
 - **Per-request signature schemes** (HTTP message signatures, RFC 9421) — different layer.
 - **Rate limiting the auth endpoints** — → `rate-limiting-strategy`.
 - **CSRF beyond the OAuth redirect** — → `content-security-policy-headers` and a dedicated CSRF skill (none yet).
+
+## Deterministic Audit
+
+Before shipping (or reviewing) an OAuth/OIDC integration, write the design as a JSON plan
+matching `schemas/oauth2-and-oidc-from-scratch-plan.schema.json` and run it through the
+deterministic auditor:
+
+```bash
+node scripts/oauth2_and_oidc_from_scratch_audit.mjs --input examples/sample-input.json
+```
+
+`auditOauth2AndOidcFromScratch(plan)` (in `scripts/oauth2_and_oidc_from_scratch_audit.mjs`)
+turns this skill's Anti-patterns and Quality Gates into machine-checkable rules over
+structured fields — no keyword matching: a removed grant (implicit / ROPC), an authorization-code
+flow without PKCE, XSS-readable token storage (`localStorage` / `sessionStorage` / IndexedDB),
+non-exact `redirect_uri` matching, missing `state` or `nonce`, hand-rolled JWT verification,
+an unpinned `alg`, refresh tokens in the browser or without rotation, and a hardcoded IdP key
+instead of the JWKS endpoint. It returns `{ pass, score, findings, recommendations }` so a
+reviewer or CI gate can reject an unsafe integration without re-deriving the BCP by hand.
+`examples/sample-input.json` is a BFF + authcode + PKCE plan that audits `pass: true`.
+Version history lives in `CHANGELOG.md`.
 
 ## Sources
 

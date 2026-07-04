@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/redis-patterns-plan.schema.json",
+  "title": "Redis Pattern Plan",
+  "description": "A structured plan for a Redis caching/locking/queueing design, so this skill's anti-patterns and Quality Gates can be checked deterministically by scripts/redis_patterns_audit.mjs.",
+  "type": "object",
+  "required": ["useCase"],
+  "additionalProperties": true,
+  "properties": {
+    "useCase": {
+      "type": "string",
+      "enum": ["cache", "distributed-lock", "rate-limit", "leaderboard", "durable-queue", "notification"],
+      "description": "The primary Redis pattern this plan implements, per the When-to-use list in SKILL.md."
+    },
+    "messagingPrimitive": {
+      "type": "string",
+      "enum": ["streams", "pubsub", "none"],
+      "description": "For durable-queue/notification use cases: the delivery primitive. Streams = at-least-once durable; pub/sub = at-most-once ephemeral."
+    },
+    "ttlSet": {
+      "type": "boolean",
+      "description": "True if every cache key is written with a TTL."
+    },
+    "ttlJitter": {
+      "type": "boolean",
+      "description": "True if cache TTLs include 5-15% randomization to prevent synchronized expiry dogpiles."
+    },
+    "atomicSetWithExpiry": {
+      "type": "boolean",
+      "description": "True if TTLs are set atomically (SET key val EX seconds), never SET followed by EXPIRE."
+    },
+    "lockOwnershipToken": {
+      "type": "boolean",
+      "description": "True if the distributed lock stores a per-acquisition random token so only the owner can release it."
+    },
+    "lockReleaseViaLua": {
+      "type": "boolean",
+      "description": "True if lock release is a compare-and-delete Lua script (atomic), not separate GET + DEL."
+    },
+    "pendingReclaimHandled": {
+      "type": "boolean",
+      "description": "True if Streams consumers reclaim idle PEL entries from crashed peers (XPENDING + XCLAIM / XAUTOCLAIM) with a dead-letter threshold."
+    },
+    "streamMaxlenCapped": {
+      "type": "boolean",
+      "description": "True if stream growth is capped with XADD ... MAXLEN ~ N."
+    },
+    "usesKeysCommand": {
+      "type": "boolean",
+      "description": "True if any production code path issues the KEYS command (a blocking full scan)."
+    },
+    "largeDeleteMethod": {
+      "type": "string",
+      "enum": ["DEL", "UNLINK", "batched-scan"],
+      "description": "How structures with thousands+ of items are deleted."
+    },
+    "evictionPolicy": {
+      "type": "string",
+      "enum": ["noeviction", "allkeys-lru", "allkeys-lfu", "volatile-lru", "volatile-ttl"],
+      "description": "The configured maxmemory-policy."
+    },
+    "maxmemorySet": {
+      "type": "boolean",
+      "description": "True if maxmemory and maxmemory-policy are set explicitly for the target environment."
+    }
+  }
+}

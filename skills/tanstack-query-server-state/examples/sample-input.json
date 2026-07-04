@@ -1,0 +1,13 @@
+{
+  "stateKind": "server-state",
+  "queryKeySource": "typed-factory",
+  "staleTimeExplicit": true,
+  "hasMutations": true,
+  "invalidationScope": "prefix",
+  "optimisticUpdates": true,
+  "cancelsInFlightQueriesFirst": true,
+  "snapshotsForRollback": true,
+  "settledInvalidation": true,
+  "ssr": true,
+  "queryClientPerRequest": true
+}

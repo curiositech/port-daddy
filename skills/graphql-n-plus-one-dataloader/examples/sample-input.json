@@ -1,0 +1,12 @@
+{
+  "loaderScope": "request",
+  "batchFnReordersByKey": true,
+  "batchFnReturnsKeyLengthArray": true,
+  "roundTripsForListQuery": 2,
+  "usedAsApplicationCache": false,
+  "depthLimitEnabled": true,
+  "costAnalysisEnabled": true,
+  "introspectionExempt": true,
+  "clientsExternal": true,
+  "apqEnabled": true
+}

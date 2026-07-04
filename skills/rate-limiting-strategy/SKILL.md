@@ -1,15 +1,43 @@
 ---
+license: Apache-2.0
 name: rate-limiting-strategy
 description: 'Use when designing rate limiting for an API, choosing between token bucket / sliding window / leaky bucket / fixed window, implementing it in Redis, deciding edge (Cloudflare/Upstash) vs origin enforcement, sizing per-user vs per-IP vs per-endpoint quotas, returning the right 429 response with Retry-After, or fixing the boundary-burst bug in fixed-window limiters. Triggers: 429 too many requests, INCR + EXPIRE, ZADD + ZREMRANGEBYSCORE + ZCARD, X-RateLimit-Remaining header, Cloudflare WAF rate limiting rules, Upstash @upstash/ratelimit, leaky bucket shaping vs policing, distributed rate limiter consistency. NOT for DDoS mitigation specifically (different scale), CAPTCHA / bot management, full WAF design, or per-user quota billing.'
-category: Backend & Infrastructure
 allowed-tools: Read,Grep,Glob,Edit,Write,Bash
-tags:
-  - rate-limiting
-  - redis
-  - api-design
-  - cloudflare
-  - throttling
-  - infrastructure
+metadata:
+  category: Backend & Infrastructure
+  tags:
+    - rate-limiting
+    - redis
+    - api-design
+    - cloudflare
+    - throttling
+    - infrastructure
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: reverse-proxy-for-agents
+      reason: Owns the Nginx/Caddy/Cloudflare gateway layer where the edge half of the edge-plus-origin limiter architecture is enforced.
+    - skill: error-handling-patterns
+      reason: The client-side retry/backoff and circuit-breaker discipline that consumes the 429 + Retry-After contract designed here.
+    - skill: logging-observability
+      reason: The fail-open metrics, denied-rate alerting, and OTel span attributes this skill's quality gates require.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: api-protection-requirement
+        format: markdown
+        description: The traffic shape, abuse scenario, endpoint risk tiers, and infrastructure (Redis, CDN, replica count) the limiter must protect.
+      - kind: rate-limit-plan
+        format: json
+        description: A structured limiter design (algorithm, enforcement points, key tier, failure mode, response contract) matching schemas/rate-limiting-strategy-plan.schema.json.
+    produces:
+      - kind: rate-limit-design
+        format: markdown
+        description: The algorithm/placement/key decisions with the Lua implementation, 429 response contract, and documented Redis failure mode.
+      - kind: rate-limit-plan-audit
+        format: json
+        description: Deterministic pass/fail audit of a rate-limit-plan against this skill's Quality Gates, produced by scripts/rate_limiting_strategy_audit.mjs.
 ---
 
 # Rate Limiting Strategy
@@ -335,6 +363,28 @@ OTel span attributes per request: `ratelimit.key`, `ratelimit.allowed`, `ratelim
 - [ ] Edge-layer rate limiting in place for unauthenticated traffic (Cloudflare WAF, Upstash, AWS WAF).
 - [ ] Limiter metrics exported: requests, allowed, denied, fail-open count. Alert on denied-rate spikes (`grafana-dashboard-builder`).
 - [ ] OTel span attributes recorded per request (`ratelimit.key`, `ratelimit.allowed`, `ratelimit.remaining`) — see `opentelemetry-instrumentation`.
+
+## Deterministic Audit
+
+Before shipping a limiter design (or reviewing another agent's), write the three decisions —
+algorithm, placement, key — as a JSON `rate-limit-plan` matching
+`schemas/rate-limiting-strategy-plan.schema.json` and run it through the deterministic
+auditor:
+
+```bash
+node scripts/rate_limiting_strategy_audit.mjs --input examples/sample-input.json
+```
+
+`auditRateLimitingStrategy(plan)` (in `scripts/rate_limiting_strategy_audit.mjs`) turns this
+skill's decision tables and Quality Gates into machine-checkable rules over structured
+fields — no keyword matching: fixed window on a customer-facing API (the boundary burst),
+an in-process limiter multiplied by replica count, Redis read-modify-write without Lua,
+Cluster keys without hash tags, a missing `Retry-After`, an undecided Redis failure mode,
+fail-open with no telemetry, uncovered auth endpoints or an incomplete login-tuple set,
+and IP-only keying for customer traffic. It returns
+`{ pass, score, findings, recommendations }`; `examples/sample-input.json` is a
+sliding-window-counter, edge+origin, user-keyed design that audits `pass: true`. Version
+history: `CHANGELOG.md`.
 
 ## NOT for
 
