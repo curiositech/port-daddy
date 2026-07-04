@@ -58,8 +58,8 @@ you). Never `git add -A` here (coordination guard blocks it anyway).
 
 ## Registry sync (the CI drift check)
 
-`scripts/check-whitepaper-metadata.ts` compares each registry entry to the
-on-disk PDF:
+`website-v2/scripts/check-whitepaper-metadata.ts` compares each registry entry
+to the on-disk PDF:
 
 - `pages`: **exact match required.** Adding a section that spills a page
   means bumping the registry.
