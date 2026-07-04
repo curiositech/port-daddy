@@ -269,7 +269,7 @@ The architecture is not complete until these user-visible tests pass:
 This binder collates these existing Port Daddy materials:
 
 - `docs/proposals/articles-of-agreement-harness-roadmap.md`
-- `docs/proposals/official-port-daddy-agent-compliance-plan.md`
+- `docs/proposals/official-port-daddy-agent-compliance-plan.md` — authored on `codex/gpui-harness-mux`; will land with that branch (not yet shipped on main)
 - `docs/strategy/harbor-editor-battle-plan.md`
 - `docs/architecture/2026-06-03-cartographer-as-approver.md`
 - `docs/shipwright/AGENT-MODEL.md`

@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1783090056278,
+  "generatedAt": 1783138698335,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 111,
+  "count": 112,
   "items": [
     {
       "slug": "active-agent-roster",
@@ -558,6 +558,11 @@
       "slug": "visual-task-agent-intake",
       "status": "now",
       "summaryMd": "FleetBar/Fleet Control Center visual task intake should let operators send annotated screenshots or page context to agents without exposing dispatch/worker internals."
+    },
+    {
+      "slug": "operator-surface-triad-binder",
+      "status": "backlog",
+      "summaryMd": "binder: ch19 operator surface triad (Scout/FleetBar/pd-console), technical specs, Hypatia's audit"
     }
   ]
 }

@@ -16,7 +16,7 @@ Inputs read:
 - `docs/architecture/agent-harbor-technical-binder/09-data-model-and-api.md`
 - `docs/architecture/agent-harbor-technical-binder/10-operator-control-panel.md`
 - `docs/architecture/agent-harbor-technical-binder/18-build-prescription-agent-launch-board.md`
-- `docs/proposals/official-port-daddy-agent-compliance-plan.md`
+- `docs/proposals/official-port-daddy-agent-compliance-plan.md` — authored on `codex/gpui-harness-mux`; will land with that branch (not yet shipped on main)
 - `docs/proposals/articles-of-agreement-harness-roadmap.md`
 - `docs/architecture/agent-harbor-technical-binder/work-packets/operator-control-panel-ux-flow.md`
 

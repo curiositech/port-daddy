@@ -40,7 +40,7 @@ Read these first:
 - `docs/architecture/agent-harbor-technical-binder/14-work-intake-and-node-shaping.md`
 - `docs/architecture/agent-harbor-technical-binder/15-recursive-critical-synthesis.md`
 - `docs/architecture/agent-harbor-technical-binder/16-binder-architect-of-record.md`
-- `docs/proposals/official-port-daddy-agent-compliance-plan.md`
+- `docs/proposals/official-port-daddy-agent-compliance-plan.md` — authored on `codex/gpui-harness-mux`; will land with that branch (not yet shipped on main)
 
 Then read the ambition corpus:
 

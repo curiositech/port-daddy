@@ -14,7 +14,7 @@ implementation agents.
 - `swarm-invocation-and-node-shaping.md`
 - `durable-state-sandbox-supervision-review.md`
 - `redteam-agent-harbor-control-plane.md`
-- `docs/proposals/official-port-daddy-agent-compliance-plan.md`
+- `docs/proposals/official-port-daddy-agent-compliance-plan.md` — authored on `codex/gpui-harness-mux`; will land with that branch (not yet shipped on main)
 - `docs/proposals/articles-of-agreement-harness-roadmap.md`
 - New skill lenses: `agentic-app-architecture`, `agentic-coding-ux-designer`, `agent-work-receipt-designer`,
   `developer-surface-strategist`, `swarm-invocation-designer`, `sqlite-durable-agent-state`,

@@ -14,7 +14,7 @@ Source anchors:
 - `06-security-privacy-billing-and-accounts.md`
 - `09-data-model-and-api.md`
 - `docs/operations/daemon-and-supervision.md`
-- `docs/proposals/official-port-daddy-agent-compliance-plan.md`
+- `docs/proposals/official-port-daddy-agent-compliance-plan.md` — authored on `codex/gpui-harness-mux`; will land with that branch (not yet shipped on main)
 - `lib/db.ts`
 - `lib/sqlite-runtime.ts`
 - `scripts/db-consolidate.ts`

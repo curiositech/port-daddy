@@ -16,10 +16,10 @@ and must label missing truth honestly.
 ## Source Inputs
 
 - `docs/architecture/agent-harbor-technical-binder/10-operator-control-panel.md`
-- `docs/architecture/agent-harbor-technical-binder/frame0/README.md`
-- `docs/architecture/agent-harbor-technical-binder/frame0/user-story-and-figma-brief.md`
+- `docs/architecture/agent-harbor-technical-binder/frame0/README.md` — claimed by the active swarm-parent session; will land with `codex/gpui-harness-mux` (not yet shipped on main)
+- `docs/architecture/agent-harbor-technical-binder/frame0/user-story-and-figma-brief.md` — claimed by the active swarm-parent session; will land with `codex/gpui-harness-mux` (not yet shipped on main)
 - `docs/architecture/agent-harbor-technical-binder/18-build-prescription-agent-launch-board.md`
-- `core/pd-console/docs/artifacts/gpui/gpui-harness-mux/MANIFEST.md`
+- `core/pd-console/docs/artifacts/gpui/gpui-harness-mux/MANIFEST.md` — console artifact on `codex/gpui-harness-mux`; will land with that branch (not yet shipped on main)
 - `core/pd-console/docs/artifacts/gpui/proof-live-agent-transcript/MANIFEST.md`
 - `core/pd-console/docs/artifacts/gpui/proof-visual-task-lane/MANIFEST.md`
 
