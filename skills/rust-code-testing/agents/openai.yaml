@@ -1,0 +1,20 @@
+name: rust-code-testing
+description: Designs and audits Rust test plans (unit/integration/doc/async/FFI-parity), and runs the fmt/clippy/test/doc/coverage gate matrix against real code.
+model: gpt-5-codex
+instructions: |
+  Use the rust-code-testing skill. Before writing tests for a nontrivial or
+  risky module, describe the planned suite as JSON matching
+  schemas/test-plan.schema.json and run
+  `node scripts/test_plan_audit.mjs --input <plan>.json`. Fix every
+  critical/high finding (coverage theater, #[test] on an async fn, mock echo,
+  sleep-faked determinism, an unasserted parity kernel-load, /tmp writes,
+  test-only crates outside [dev-dependencies]) before writing the tests. Once
+  written, run `scripts/run_test_matrix.sh` (fmt -> clippy -> test -> doc
+  tests -> optional coverage) against the real crate and report the gate
+  results, not just "tests pass".
+inputs:
+  - code_under_test_description
+  - test_plan_json
+outputs:
+  - test_suite_design_markdown
+  - test_plan_audit_json

@@ -28,6 +28,8 @@ const ROOT = join(import.meta.dirname, '..', '..');
 const TOOL_FEATURE_MAP = {
   // Trust / introspection
   'attest': 'attest',
+  // Host-safety posture audit (ADR-0088 Phase A) — read-only
+  'safe_scan': 'safe',
   'relay_status': 'relay',
 
   // Harbors (permission namespaces) — #199 cop-out conversion
@@ -769,7 +771,7 @@ describe('MCP tiered tool loading', () => {
   ];
 
   const CATEGORY_NAMES = [
-    'magic', 'session-lifecycle', 'trust', 'advisor', 'ports', 'sessions', 'notes', 'locks',
+    'magic', 'session-lifecycle', 'trust', 'safety', 'advisor', 'ports', 'sessions', 'notes', 'locks',
     'messaging', 'agents', 'actors', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
     'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties',
     'fleet-control', 'semantic', 'feedback', 'cockpit',

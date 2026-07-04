@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/debug-plan.schema.json",
+  "title": "Rust Debug-Session Plan",
+  "description": "A structured plan naming the chosen debugging tool and knobs for a Rust bug, so the tool-to-bug-shape match and this skill's Quality Gates can be checked deterministically by scripts/debug_plan_audit.mjs.",
+  "type": "object",
+  "required": ["symptom", "isAsync", "chosenTool"],
+  "additionalProperties": true,
+  "properties": {
+    "symptom": {
+      "type": "string",
+      "enum": ["panic", "hang", "slow", "wrong-result", "dyld-load", "link-fail", "ub", "heisenbug"],
+      "description": "The observed bug shape, per this skill's Decision Points flowchart."
+    },
+    "isAsync": {
+      "type": "boolean",
+      "description": "Whether the code path in question runs on an async executor (tokio/smol/async-std)."
+    },
+    "chosenTool": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The tool selected for this debug session, e.g. 'tokio-console', 'rust-lldb', 'miri', 'flamegraph', 'otool'."
+    },
+    "tracingSpanGuardAcrossAwait": {
+      "type": "boolean",
+      "description": "True if a tracing span.enter()/entered() guard is held across an .await point in the async code under investigation."
+    },
+    "tokioConsoleFlagsSet": {
+      "type": "boolean",
+      "description": "True if RUSTFLAGS=\"--cfg tokio_unstable\" and tokio's \"tracing\" feature are both set for this session."
+    },
+    "releaseDebugSymbols": {
+      "type": "boolean",
+      "description": "True if [profile.release] debug = true is set so a release-build profile resolves real symbol names."
+    },
+    "genericBreakpointRegex": {
+      "type": "boolean",
+      "description": "True if lldb/gdb breakpoints on generic functions use a regex (breakpoint set -r / rbreak) rather than a bare symbol."
+    },
+    "stackOverflowKnob": {
+      "type": "string",
+      "enum": ["RUST_MIN_STACK", "recursion_limit"],
+      "description": "Which stack-overflow knob this plan intends to use: RUST_MIN_STACK (runtime thread stack size) or recursion_limit (compile-time recursion cap)."
+    },
+    "dlopenGuarded": {
+      "type": "boolean",
+      "description": "True if every dlopen/Library::new on a process-critical path is probed (e.g. RTLD_NOLOAD) and degrades the feature on failure, rather than aborting the process."
+    },
+    "reproducedUnderMiriOrSanitizer": {
+      "type": "boolean",
+      "description": "True if a heisenbug or suspected UB has been reproduced deterministically under Miri or a sanitizer, rather than 'fixed' by adding a print/log."
+    }
+  }
+}

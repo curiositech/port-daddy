@@ -1,0 +1,11 @@
+{
+  "chosenRung": 1,
+  "surfaceKind": "2d-vector-text",
+  "namedConstraintForLowerRung": null,
+  "measuredRung1Miss": false,
+  "promotionFrameRateRequested": false,
+  "redrawEveryFrame": true,
+  "glyphSource": "parley",
+  "tripleBuffered": false,
+  "keptOutOfLinuxCI": true
+}

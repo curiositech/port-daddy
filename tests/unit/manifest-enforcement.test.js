@@ -511,6 +511,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
     // Mapping from MCP tool name -> expected feature
     const toolFeatureMap = {
       'attest': 'attest',
+      'safe_scan': 'safe',
       'relay_status': 'relay',
       // #199 cop-out conversion → real MCP tools
       'list_harbors': 'harbors',

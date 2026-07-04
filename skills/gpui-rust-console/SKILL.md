@@ -10,13 +10,38 @@ description: >
   visual polish, or debugging GPUI rendering/layout/focus in core/pd-console. NOT for the
   TypeScript daemon, generic Rust toolchain/borrow-checker help (use rust-with-claude-code),
   or non-pd GPUI apps with a different theme/architecture.
+allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 author: port-daddy
 license: Apache-2.0
 tags: [gpui, rust, ui, native, macos, console, oklch, maritime, port-daddy]
 metadata:
   category: Native UI & Rendering
   argument-hint: '[task: add-pane|layout|scroll|theme|maritime|text-input|verify]'
-  pairs-with: [rust-with-claude-code, daemon-development, git-best-practices]
+  provenance:
+    kind: first-party
+    owners:
+      - port-daddy
+  pairs-with:
+    - skill: rust-with-claude-code
+      reason: Generic Rust toolchain/borrow-checker/async help once you're past pd-console's own render-agnostic contracts.
+    - skill: rust-gpui-motion
+      reason: with_animation/easing/pane transitions for a pane this skill already renders — motion is out of scope here.
+    - skill: gpui-shaders
+      reason: Custom Metal/wgpu fragment passes behind/around a pane (e.g. a living-harbor background) beyond Block/Tone painting.
+    - skill: rust-app-distribution
+      reason: Code-signing, notarization, and auto-update packaging once the pd-console binary builds clean.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: pane-surface-requirement
+        format: markdown
+      - kind: pane-spec
+        format: json
+    produces:
+      - kind: pane-implementation
+        format: rust
+      - kind: console-contract-audit
+        format: json
 ---
 
 # gpui-rust-console
@@ -177,10 +202,11 @@ pattern (state on the view, not the busy stream pane) or build an `Element` (~30
 
 ## Skill Bundle Index
 
-*Every file in this skill, and when to open it. Auto-generated; run `./scripts/index_references.py --fix`.*
+*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
 
 **root**
 - [`.gitignore`](.gitignore)
+- [`CHANGELOG.md`](CHANGELOG.md) — UgpuiUrustUconsole — Changelog — - Brought to the agentic-family standard: added `io-contract`/`provenance`/`pairs-with` frontmatter - Added a deterministic audit helper (ma
 
 **`examples/`**
 - [`examples/add-a-pane.md`](examples/add-a-pane.md) — Example: Add a new pane to pd-console end to end — Goal: add a "Voyages" pane that lists active voyages from `GET /voyages`, slotted after Lane, fully unit-tested, no gpui needed for the test
@@ -196,14 +222,15 @@ pattern (state on the view, not the busy stream pane) or build an `Element` (~30
 **`schemas/`**
 - [`schemas/script-io.schema.json`](schemas/script-io.schema.json) — script io.schema (data/schema)
 
-**`./scripts/`**
-- [`./scripts/_envelope.py`](scripts/_envelope.py) — Shared script-io envelope helpers for the gpui-rust-console skill.
-- [`./scripts/flag_resolve.py`](scripts/flag_resolve.py) — Resolve a canonical agent-state string to its ICS maritime flag, meanings, and
-- [`./scripts/oklch_to_srgb.py`](scripts/oklch_to_srgb.py) — Convert OKLCH theme tokens to packed 0xRRGGBB sRGB — a faithful Python port of
-- [`./scripts/validate_skill.py`](scripts/validate_skill.py) — Self-check the gpui-rust-console skill: frontmatter, required references,
-- [`./scripts/verify_console.py`](scripts/verify_console.py) — Run the real pd-console CI gate locally and report it as a script-io envelope.
+**`scripts/`**
+- [`scripts/_envelope.py`](scripts/_envelope.py) — Shared script-io envelope helpers for the gpui-rust-console skill.
+- [`scripts/flag_resolve.py`](scripts/flag_resolve.py) — Resolve a canonical agent-state string to its ICS maritime flag, meanings, and
+- [`scripts/oklch_to_srgb.py`](scripts/oklch_to_srgb.py) — Convert OKLCH theme tokens to packed 0xRRGGBB sRGB — a faithful Python port of
+- [`scripts/validate_skill.py`](scripts/validate_skill.py) — Self-check the gpui-rust-console skill: frontmatter, required references,
+- [`scripts/verify_console.py`](scripts/verify_console.py) — Run the real pd-console CI gate locally and report it as a script-io envelope.
 
 **`templates/`**
+- [`templates/INDEX.md`](templates/INDEX.md) — Templates Index — Copy-paste scaffolds for adding a new pane to the gpui/ratatui console.
 - [`templates/new_pane.rs.tmpl`](templates/new_pane.rs.tmpl)
 - [`templates/pane_tests.rs.tmpl`](templates/pane_tests.rs.tmpl)
 

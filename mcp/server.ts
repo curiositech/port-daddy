@@ -140,6 +140,9 @@ const ESSENTIAL_TOOL_NAMES = new Set([
   // Central agentic-feedback primitive — agents drop feedback while
   // they work; cartographer harvests it into the roadmap.
   'drop_feedback',
+  // Host-safety posture audit (ADR-0088 Phase A) — read-only; the agent is a
+  // first-class consumer of its own safety posture.
+  'safe_scan',
 ]);
 
 const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> = {
@@ -154,6 +157,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   'trust': {
     description: 'Honest self-report (ADR-0045): verify the daemon actually enforces what it claims before relying on it',
     tools: ['attest'],
+  },
+  'safety': {
+    description: 'Host-safety posture audit (ADR-0088): a read-only scan of what an agent running as the operator could reach right now (secrets at rest, world-readable crown jewels, unsigned binaries, unpinned MCP fetches, egress flows)',
+    tools: ['safe_scan'],
   },
   'advisor': {
     description: 'Deterministic coordination preflight: context integrity, claims, symbols, salvage, channels, tuples, and locks',
@@ -394,6 +401,30 @@ const TOOLS = [
     inputSchema: {
       type: 'object' as const,
       properties: {},
+    },
+  },
+  {
+    name: 'safe_scan',
+    description:
+      '[Safety] READ-ONLY host-safety posture audit (ADR-0088 Phase A). Returns a ' +
+      '0-100 score, a Safe Room state (green/amber/red), and a blast-radius list: ' +
+      'what an agent running as the operator could reach RIGHT NOW (plaintext ' +
+      'secrets at rest, world-readable crown jewels, unsigned running binaries, ' +
+      'unpinned MCP fetches, live egress flows). green = "cooperative-case sensors ' +
+      'clear", NOT a sandbox — the report footer carries the verbatim HONEST_LIMITS. ' +
+      'NEVER returns a raw secret: findings carry only path/line/ruleId/last4. ' +
+      'Optional `allow`: comma-separated allowlisted egress hosts. Usage: safe_scan()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        allow: {
+          type: 'string',
+          description:
+            'Comma-separated allowlisted egress hosts. A live flow to a host not on ' +
+            'this list is a deduction; empty means egress flows are reported as ' +
+            'evidence but never deducted.',
+        },
+      },
     },
   },
   {
@@ -3306,6 +3337,17 @@ async function handleTool(
 
     case 'attest': {
       res = await GET('/attest');
+      break;
+    }
+
+    case 'safe_scan': {
+      // READ-ONLY host-safety posture audit (ADR-0088 Phase A, A10). The daemon
+      // runs the sensors + records the A5 ledger; the report it returns carries
+      // findings with last4 only — NEVER a raw secret value.
+      const allow = typeof args.allow === 'string' && args.allow.length > 0
+        ? `?allow=${encodeURIComponent(args.allow as string)}`
+        : '';
+      res = await GET(`/safe/scan${allow}`);
       break;
     }
 

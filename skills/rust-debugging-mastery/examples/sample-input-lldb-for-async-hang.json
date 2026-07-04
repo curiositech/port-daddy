@@ -1,0 +1,11 @@
+{
+  "symptom": "hang",
+  "isAsync": true,
+  "chosenTool": "rust-lldb",
+  "tracingSpanGuardAcrossAwait": false,
+  "tokioConsoleFlagsSet": false,
+  "releaseDebugSymbols": false,
+  "genericBreakpointRegex": false,
+  "dlopenGuarded": false,
+  "reproducedUnderMiriOrSanitizer": false
+}
