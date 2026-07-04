@@ -1,0 +1,13 @@
+{
+  "promptId": "refund-policy-assistant-v3",
+  "targetModel": "claude-sonnet-5",
+  "hasClearRole": true,
+  "hasExplicitOutputContract": true,
+  "outputFormatSpecified": true,
+  "fewShotExamples": 3,
+  "guardrailsPresent": true,
+  "hasEvalCriteria": true,
+  "delimitsUntrustedInput": true,
+  "avoidsKitchenSink": true,
+  "specifiesRefusalBehavior": true
+}

@@ -1,0 +1,45 @@
+{
+  "systemType": "rag",
+  "factualClaimsMade": true,
+  "interactive": true,
+  "acceptsUntrustedInput": true,
+  "evalHarness": {
+    "exists": true,
+    "coverage": ["unit", "retrieval", "end-to-end", "adversarial"]
+  },
+  "retrieval": {
+    "used": true,
+    "recallMeasured": true,
+    "precisionMeasured": true,
+    "evalSetSize": 200
+  },
+  "grounding": {
+    "citationsRequired": true,
+    "sourceAttributionEnforced": true
+  },
+  "hallucinationGuardrails": {
+    "exists": true,
+    "mechanisms": ["citation-check", "confidence-scoring"]
+  },
+  "lowConfidenceFallback": {
+    "exists": true,
+    "threshold": 0.6,
+    "action": "escalate-to-human-support"
+  },
+  "streamingUx": {
+    "enabled": true,
+    "cancellable": true
+  },
+  "promptInjectionDefense": {
+    "exists": true,
+    "mechanisms": ["input-sanitization", "system-prompt-isolation", "tool-output-untrusted-tagging"]
+  },
+  "costCeiling": {
+    "perRequestUsd": 0.5,
+    "enforced": true
+  },
+  "toolUse": {
+    "used": true,
+    "validationLayer": true
+  }
+}

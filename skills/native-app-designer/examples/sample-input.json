@@ -1,0 +1,12 @@
+{
+  "component": "ProductDetailScreen",
+  "platform": "ios",
+  "usesSfSymbolsNotEmojiIcons": true,
+  "honorsDynamicType": true,
+  "minTapTargetPt": 44,
+  "minBodyFontPt": 15,
+  "respectsSafeAreas": true,
+  "lightAndDark": true,
+  "contrastMinRatio": 7.2,
+  "usesSystemMaterials": true
+}
