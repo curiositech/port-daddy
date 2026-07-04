@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Story Linework — the three app surfaces, in tandem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ports/port.css">
+<style>
+  .page { max-width: 1280px; }
+  .doc-head { padding: 56px 0 24px; border-bottom: 1px solid var(--hair-strong); margin-bottom: 40px; }
+  .doc-head h1 { font-size: clamp(34px, 4.4vw, 58px); font-weight: 700; line-height: 1.0; letter-spacing: var(--tracking-display); max-width: 20ch; }
+  .doc-head .lede { font-size: 15.5px; line-height: 1.65; color: var(--text-secondary); max-width: 72ch; margin-top: 14px; }
+
+  .mock-mat { background: #0d0f13; padding: 44px; margin-bottom: 26px; }
+  .mock-cap { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: baseline; margin: 56px 0 16px; }
+  .mock-cap .n { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 700; color: var(--cobalt); }
+  .mock-cap h2 { font-size: var(--fs-h2); font-weight: 700; letter-spacing: var(--tracking-h2); }
+  .mock-notes { font-size: 14.5px; line-height: 1.62; color: var(--text-secondary); max-width: 76ch; margin-top: 8px; }
+  .mock-notes b { color: var(--text-primary); }
+
+  /* ── shared micro-flag chip (12×9, state grammar companion) ── */
+  .mfl { display: inline-block; width: 13px; height: 9.5px; border: 0.5px solid rgba(0,0,0,0.25); flex: none; --fw:#fbf7ef; --ink:#17191d; --c:var(--cobalt-slab); --r:var(--rust-slab); --y:var(--lime); --f1:var(--cobalt-slab); --f2:var(--lime); }
+
+  /* ══ FLEETBAR ══ */
+  .menubar { width: 380px; margin: 0 auto; }
+  .mb-strip { background: #1a1d23; color: #d7dbe4; display: flex; justify-content: flex-end; gap: 14px; align-items: center; padding: 5px 12px; font-size: 12px; font-family: "IBM Plex Mono", monospace; }
+  .mb-strip .pd-mini { width: 15px; height: 15px; animation: pdw-spin 10s linear infinite; }
+  .fb { background: var(--surface-base); color: var(--text-primary); border: 1px solid rgba(0,0,0,0.35); position: relative; padding-bottom: 6px; }
+  .fb-head { display: flex; justify-content: space-between; align-items: center; padding: 13px 16px 10px; }
+  .fb-brand { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .fb-guard { font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.09em; padding: 2px 7px; background: var(--health-slab); color: #fbf7ef; }
+  .fb-rule { height: 1px; margin: 0 16px 10px; background: linear-gradient(to right, var(--hair-strong) 0 64px, transparent 64px); }
+  .fb-zone { margin: 0 10px 8px; padding: 11px 13px; background: var(--cobalt-slab); color: #fbf7ef; }
+  .fb-zone .z-eye { font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.8; display: flex; align-items: center; gap: 8px; }
+  .fb-zone .z-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; position: relative; }
+  .fb-zone .z-dot::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 1.5px solid currentColor; opacity: 0.55; animation: lw-pulse 1.8s ease-out infinite; }
+  .fb-zone .z-t { font-size: 13.5px; font-weight: 700; margin-top: 3px; }
+  .fb-zone .z-d { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; opacity: 0.9; margin-top: 4px; }
+  .fb-row { position: relative; display: grid; grid-template-columns: auto auto 1fr auto; gap: 9px; align-items: center; padding: 8px 16px 8px 19px; }
+  .fb-row + .fb-row { box-shadow: inset 0 1px 0 var(--hair); }
+  .fb-row::before { content: ""; position: absolute; left: 0; top: 5px; bottom: 5px; width: 3px; background: var(--st); }
+  .fb-row .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--st); }
+  .fb-row.running .dot { position: relative; }
+  .fb-row.running .dot::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 1.5px solid var(--st); opacity: 0.6; animation: lw-pulse 1.8s ease-out infinite; }
+  .fb-name { font-size: 13px; font-weight: 650; line-height: 1.25; }
+  .fb-stat { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+  .fb-time { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+  .fb-foot { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px 6px; font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+  .fb-cmd { background: var(--border-strong); color: var(--surface-base); padding: 2px 7px; font-weight: 700; }
+
+  /* ══ PD-CONSOLE (GPUI, always dark) ══ */
+  .console { width: 1080px; margin: 0 auto; background: #0b0d11; color: #d3cec2; border: 1px solid #2a2f3a; font-family: "IBM Plex Mono", monospace; }
+  .co-title { display: flex; align-items: center; gap: 10px; padding: 9px 14px; background: #101216; border-bottom: 1px solid #2a2f3a; }
+  .tl { display: flex; gap: 7px; } .tl i { width: 11px; height: 11px; border-radius: 50%; background: #3a4150; }
+  .co-title .t { font-size: 12.5px; font-weight: 600; color: #a59f93; }
+  .co-title .kilo { width: 22px; height: 15px; margin-left: auto; }
+  .co-tabs { display: flex; gap: 0; padding: 0 14px; background: #101216; border-bottom: 1px solid #2a2f3a; overflow: hidden; }
+  .co-tab { font-size: 12px; font-weight: 600; padding: 8px 13px; color: #6f6a5f; }
+  .co-tab.on { background: var(--cobalt-slab); color: #fbf7ef; }
+  .co-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 14px; padding: 16px; }
+  .co-panel { background: #101216; border: 1px solid #2a2f3a; position: relative; }
+  .co-panel.live { border: none; }
+  .co-panel.live > i.lw { position: absolute; width: 12px; height: 12px; border: 0 solid #f5f3ed; }
+  .co-panel.live > i.lw:nth-of-type(1) { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+  .co-panel.live > i.lw:nth-of-type(2) { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+  .co-panel.live > i.lw:nth-of-type(3) { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+  .co-panel.live > i.lw:nth-of-type(4) { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+  .co-ph { display: flex; justify-content: space-between; align-items: center; padding: 9px 13px; border-bottom: 1px solid #232833; }
+  .co-ph .pt { font-size: 11.5px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: #a59f93; }
+  .co-ph .pt.knock { background: var(--cobalt-slab); color: #fbf7ef; padding: 3px 8px; margin: -3px 0; }
+  .co-row { position: relative; display: grid; grid-template-columns: auto auto 1fr auto; gap: 9px; align-items: center; padding: 7px 13px 7px 16px; font-size: 12.5px; }
+  .co-row + .co-row { box-shadow: inset 0 1px 0 rgba(245,243,237,0.07); }
+  .co-row::before { content: ""; position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px; background: var(--st); }
+  .co-row .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--st); }
+  .co-row .nm { color: #f5f3ed; font-weight: 600; }
+  .co-row .ds { color: #a59f93; }
+  .co-row .tm { color: #6f6a5f; font-size: 11.5px; }
+  .co-chat { padding: 10px 13px; font-size: 12.5px; line-height: 1.75; }
+  .co-chat .who { color: #7db4ff; font-weight: 700; }
+  .co-chat .who.v { color: #e0a5ed; }
+  .co-chat .msg { color: #d3cec2; }
+  .co-claims td { padding: 6px 13px; font-size: 12px; color: #a59f93; border-top: 1px solid #1c212b; }
+  .co-claims td:first-child { color: #f5f3ed; font-weight: 600; }
+  .co-status { display: flex; gap: 18px; align-items: center; padding: 8px 16px; background: #101216; border-top: 1px solid #2a2f3a; font-size: 11.5px; color: #a59f93; }
+  .co-status b { color: #5fce97; }
+
+  /* ══ FLEET CONTROL CENTER (Swift chrome + React content) ══ */
+  .cc { width: 1120px; margin: 0 auto; background: var(--surface-base); color: var(--text-primary); border: 1px solid rgba(0,0,0,0.35); }
+  .cc-toolbar { display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-bottom: 2px solid var(--border-strong); }
+  .cc-proj { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 700; padding: 4px 10px; border: 1px solid var(--hair-strong); }
+  .cc-daemon { display: flex; align-items: center; gap: 7px; font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--text-muted); margin-left: auto; }
+  .cc-daemon .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--health); }
+  .cc-body { display: grid; grid-template-columns: 200px 1fr 250px; min-height: 520px; }
+  .cc-nav { border-right: 1px solid var(--hair); padding: 14px 0; }
+  .cc-nav a { display: block; font-size: 13.5px; font-weight: 600; color: var(--text-muted); padding: 7px 18px; position: relative; }
+  .cc-nav a.on { color: var(--text-primary); background: var(--surface-card); }
+  .cc-nav a.on::before { content: ""; position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px; background: var(--cobalt); }
+  .cc-main { padding: 20px 22px; }
+  .cc-main .eyebrow { display: inline-block; background: var(--border-strong); color: var(--surface-base); padding: 3px 9px; }
+  .cc-main h3 { font-size: 22px; font-weight: 700; letter-spacing: var(--tracking-h3); margin: 10px 0 14px; }
+  .cc-zone { padding: 13px 16px; background: var(--cobalt-slab); color: #fbf7ef; margin-bottom: 14px; display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; }
+  .cc-zone .z-t { font-size: 14.5px; font-weight: 700; }
+  .cc-zone .z-d { font-family: "IBM Plex Mono", monospace; font-size: 12px; opacity: 0.9; margin-top: 3px; }
+  .cc-zone .z-act { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700; padding: 6px 11px; background: rgba(0,0,0,0.3); }
+  .cc-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .cc-card { background: var(--surface-card); border: 1px solid var(--hair); border-left: none; box-shadow: inset 3px 0 0 var(--st); padding: 12px 14px; }
+  .cc-card .h { display: flex; align-items: center; gap: 8px; }
+  .cc-card .nm { font-size: 14px; font-weight: 700; }
+  .cc-card .ds { font-size: 12.5px; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+  .cc-card .meta { display: flex; justify-content: space-between; font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--text-muted); margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--hair); }
+  .cc-rail { border-left: 1px solid var(--hair); padding: 14px 0; }
+  .cc-rail .rl { font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: var(--text-muted); padding: 0 16px 8px; }
+  .cc-ev { display: grid; grid-template-columns: auto 1fr; gap: 8px; padding: 7px 16px; font-size: 12.5px; color: var(--text-secondary); align-items: start; }
+  .cc-ev + .cc-ev { box-shadow: inset 0 1px 0 var(--hair); }
+  .cc-ev .mfl { margin-top: 3px; }
+  .cc-ship { margin: 14px 16px 0; padding: 11px 13px; background: var(--gold-wash); border: 1px solid var(--hair); font-size: 12.5px; }
+  .cc-ship b { color: var(--gold-on-tint); }
+
+  /* token mapping strip */
+  .map-table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 10px; }
+  .map-table th, .map-table td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--hair); }
+  .map-table th { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; color: var(--text-muted); border-bottom: 1px solid var(--border-strong); }
+  .map-table td { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--text-secondary); }
+  @media (max-width: 1180px) { .console, .cc { width: 100%; } .cc-body { grid-template-columns: 170px 1fr; } .cc-rail { display: none; } }
+</style>
+</head>
+<body>
+<div style="position:fixed; top:20px; right:26px; z-index:60;"><button class="theme-toggle" id="themeToggle">Dark</button></div>
+<main class="page">
+
+  <header class="doc-head">
+    <div class="eyebrow">Story linework · the three app surfaces · 2026-07-04</div>
+    <h1 style="margin-top:12px;">One system, three runtimes.</h1>
+    <p class="lede">The sanctioned operator surfaces — FleetBar, the Fleet Control Center, and pd-console — wearing the same system as the site: palette v2 with its slab and wash cuts, the six-state grammar (stripe + dot + micro-flag + label + time), brackets on live panels only, one zone per view, and the signal vocabulary the token file has always named. Every color below exists in all three runtimes; the mapping table is at the end.</p>
+  </header>
+
+  <!-- ═══════════ M·A FLEETBAR ═══════════ -->
+  <div class="mock-cap"><span class="n">M·A</span><div><h2>FleetBar — the 380pt popover</h2>
+    <p class="mock-notes">This is the research report's own popover, finished: <b>one cobalt zone</b> for the agent running right now (pulse ring, direct-labeled progress), state stripes with <b>micro-flags as the second signal</b> — Quebec solid for healthy, Uniform quarters on the warning, November checker on the failure, Lima on the operator-blocked row. Guard state is a filled chip, berth staleness lives in the footer, and the mini-hoist flies Papa·Delta (PD) beside the wordmark.</p></div></div>
+  <div class="mock-mat">
+    <div class="menubar">
+      <div class="mb-strip"><span>◐</span><span>⚙</span><img class="pd-mini" src="../../../website-v2/public/logos/portdaddy-mark-radar-darkmode.svg" alt=""><span>Fri 21:42</span></div>
+      <div class="fb">
+        <div class="fb-head">
+          <span class="fb-brand"><span class="hoist" style="gap:3px;"><i class="fl fl-papa" style="width:16px;height:12px;"></i><i class="fl fl-delta" style="width:16px;height:12px;"></i></span> port-daddy</span>
+          <span class="fb-guard">GUARD · ENFORCE</span>
+        </div>
+        <div class="fb-rule"></div>
+        <div class="fb-zone">
+          <div class="z-eye"><span class="z-dot"></span> Now running</div>
+          <div class="z-t">Spider · security scan</div>
+          <div class="z-d">queries/user.ts · pass 4 of 7 · 18s · $0.00</div>
+        </div>
+        <div class="fb-row running" style="--st: var(--cobalt-slab)"><span class="dot"></span><span class="mfl" style="background: var(--cobalt-slab);"></span><div><div class="fb-name">Cartographer</div><div class="fb-stat">Indexing src/ — 412 / 1,840 files</div></div><span class="fb-time">2m 14s</span></div>
+        <div class="fb-row" style="--st: var(--health-slab)"><span class="dot"></span><span class="mfl flag-quebec" title="Quebec — vessel healthy"></span><div><div class="fb-name">QA</div><div class="fb-stat">14 of 14 passed · last run 8s ago</div></div><span class="fb-time">8s</span></div>
+        <div class="fb-row" style="--st: var(--amber)"><span class="dot"></span><span class="mfl flag-uniform" style="--f1: var(--rust-slab); --f2: #fbf7ef;" title="Uniform — running into danger"></span><div><div class="fb-name">Gardener</div><div class="fb-stat">3 lint warnings, 1 unused export</div></div><span class="fb-time">1m</span></div>
+        <div class="fb-row" style="--st: var(--error)"><span class="dot"></span><span class="mfl fl-november" title="November — negative"></span><div><div class="fb-name">Spark</div><div class="fb-stat">workers-ai 401 — auth token expired</div></div><span class="fb-time">23s</span></div>
+        <div class="fb-row" style="--st: var(--violet-slab)"><span class="dot"></span><span class="mfl fl-lima" title="Lima — stop instantly"></span><div><div class="fb-name">Approver</div><div class="fb-stat">Waiting on operator · PR #91</div></div><span class="fb-time">4m</span></div>
+        <div class="fb-foot"><span>berth fresh · 2 harbors</span><span class="fb-cmd">⌘K dispatch</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ M·B PD-CONSOLE ═══════════ -->
+  <div class="mock-cap"><span class="n">M·B</span><div><h2>pd-console — the GPUI deck</h2>
+    <p class="mock-notes">Always dark: the console lives on <b>sunken #0b0d11</b> with the slab cuts as its only saturation — the same deep cobalt/teal/violet the site uses, drawn as GPUI quads. The pane rail uses the real pane names (fleet, parley, cockpit, claims, roadmap, daemon, ledger, sortie); the active tab is a filled block, the <b>live panel wears the brackets</b> (the one place they're allowed), the pane title knocks out of a cobalt block, and Kilo flies in the titlebar. State rows are the same grammar as FleetBar at terminal density.</p></div></div>
+  <div class="mock-mat">
+    <div class="console">
+      <div class="co-title"><span class="tl"><i></i><i></i><i></i></span><span class="t">pd-console — port-daddy · daemon 3.23.0</span><span class="kilo fl fl-kilo"></span></div>
+      <div class="co-tabs">
+        <span class="co-tab on">fleet</span><span class="co-tab">parley</span><span class="co-tab">cockpit</span><span class="co-tab">claims</span><span class="co-tab">roadmap</span><span class="co-tab">daemon</span><span class="co-tab">ledger</span><span class="co-tab">sortie</span><span class="co-tab">…</span>
+      </div>
+      <div class="co-grid">
+        <div class="co-panel live"><i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
+          <div class="co-ph"><span class="pt knock">ACTIVE AGENTS</span><span style="font-size:11px;color:#6f6a5f;">6 · live</span></div>
+          <div class="co-row" style="--st: var(--cobalt-slab)"><span class="dot"></span><span class="mfl" style="background: var(--cobalt-slab);"></span><span><span class="nm">spider</span> <span class="ds">security scan · pass 4/7</span></span><span class="tm">18s</span></div>
+          <div class="co-row" style="--st: var(--cobalt-slab)"><span class="dot"></span><span class="mfl" style="background: var(--cobalt-slab);"></span><span><span class="nm">cartographer</span> <span class="ds">indexing src/ 412/1840</span></span><span class="tm">2m14s</span></div>
+          <div class="co-row" style="--st: var(--health-slab)"><span class="dot"></span><span class="mfl flag-quebec"></span><span><span class="nm">qa</span> <span class="ds">14/14 passed</span></span><span class="tm">8s</span></div>
+          <div class="co-row" style="--st: var(--amber)"><span class="dot"></span><span class="mfl flag-uniform" style="--f1: var(--rust-slab); --f2:#fbf7ef;"></span><span><span class="nm">gardener</span> <span class="ds">3 warnings, 1 unused export</span></span><span class="tm">1m</span></div>
+          <div class="co-row" style="--st: var(--error)"><span class="dot"></span><span class="mfl fl-november"></span><span><span class="nm">spark</span> <span class="ds">workers-ai 401 — auth expired</span></span><span class="tm">23s</span></div>
+          <div class="co-row" style="--st: var(--violet-slab)"><span class="dot"></span><span class="mfl fl-lima"></span><span><span class="nm">approver</span> <span class="ds">waiting on operator · PR #91</span></span><span class="tm">4m</span></div>
+        </div>
+        <div style="display:grid; gap:14px;">
+          <div class="co-panel">
+            <div class="co-ph"><span class="pt">PARLEY · agents:standup</span><span style="font-size:11px;color:#6f6a5f;">cursor @214</span></div>
+            <div class="co-chat">
+              <div><span class="who">spider</span> <span class="msg">claiming routes/feedback.ts — SQL injection candidate line 47</span></div>
+              <div><span class="who v">approver</span> <span class="msg">hold merge until QA re-runs the auth suite</span></div>
+              <div><span class="who">qa</span> <span class="msg">auth suite green · 14/14 · releasing claim</span></div>
+            </div>
+          </div>
+          <div class="co-panel">
+            <div class="co-ph"><span class="pt">CLAIMS</span><span style="font-size:11px;color:#6f6a5f;">7 active</span></div>
+            <table class="co-claims" style="width:100%; border-collapse:collapse;">
+              <tr><td>routes/feedback.ts</td><td>spider</td><td>4m</td></tr>
+              <tr><td>src/lib/salvage.ts</td><td>cartographer</td><td>12m</td></tr>
+              <tr><td>tests/auth.test.ts</td><td>qa</td><td>1m</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="co-status"><span>daemon <b>healthy</b></span><span class="mfl flag-quebec"></span><span>:9876</span><span>24.1k tok</span><span>$0.00 today</span><span style="margin-left:auto;">⌃A space — launcher</span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ M·C FLEET CONTROL CENTER ═══════════ -->
+  <div class="mock-cap"><span class="n">M·C</span><div><h2>Fleet Control Center — Swift chrome, React content</h2>
+    <p class="mock-notes">The native window supplies the toolbar (project picker, guard chip, daemon dot); the webview content is fleet-ui wearing the same tokens as the site — it ships the CSS variables directly. Console nav down the left with the active stripe, <b>one cobalt zone</b> in Flow for the running mission, agent cards on the card well with state stripes, the activity rail using micro-flags as event glyphs, and Shipwright's cold-start callout sitting in a <b>gold wash</b> — the economy story's quiet room.</p></div></div>
+  <div class="mock-mat">
+    <div class="cc">
+      <div class="cc-toolbar">
+        <span class="tl"><i style="background:#e0443e;"></i><i style="background:#dea123;"></i><i style="background:#28a745;"></i></span>
+        <span class="cc-proj">port-daddy ▾</span>
+        <span class="fb-guard">GUARD · ENFORCE</span>
+        <span class="cc-daemon"><span class="dot"></span> daemon 3.23.0 · :9876</span>
+      </div>
+      <div class="cc-body">
+        <nav class="cc-nav">
+          <a class="on">Flow</a><a>Shipwright</a><a>Agents</a><a>Cockpit</a><a>Coast Guard</a><a>Dispatch</a><a>Activity</a><a>Channels</a><a>Inbox</a><a>Memory</a><a>YAML</a>
+        </nav>
+        <div class="cc-main">
+          <span class="eyebrow">Flow</span>
+          <h3>What runs, what's ready, what needs you.</h3>
+          <div class="cc-zone">
+            <div><div class="z-t">Spider · security scan — pass 4 of 7</div><div class="z-d">queries/user.ts · 18s elapsed · $0.00 on your seat</div></div>
+            <span class="z-act">⏸ pause</span>
+          </div>
+          <div class="cc-cards">
+            <div class="cc-card" style="--st: var(--health)"><div class="h"><span class="mfl flag-quebec"></span><span class="nm">QA</span></div><div class="ds">14 of 14 passed · last run 8s ago</div><div class="meta"><span>ready</span><span>8s</span></div></div>
+            <div class="cc-card" style="--st: var(--amber)"><div class="h"><span class="mfl flag-uniform" style="--f1: var(--rust-slab); --f2:#fbf7ef;"></span><span class="nm">Gardener</span></div><div class="ds">3 lint warnings, 1 unused export</div><div class="meta"><span>warn</span><span>1m</span></div></div>
+            <div class="cc-card" style="--st: var(--error)"><div class="h"><span class="mfl fl-november"></span><span class="nm">Spark</span></div><div class="ds">workers-ai 401 — auth token expired · readiness will block relaunch</div><div class="meta"><span>error</span><span>23s</span></div></div>
+            <div class="cc-card" style="--st: var(--violet)"><div class="h"><span class="mfl fl-lima"></span><span class="nm">Approver</span></div><div class="ds">Waiting on operator · PR #91 review</div><div class="meta"><span>blocked</span><span>4m</span></div></div>
+          </div>
+        </div>
+        <aside class="cc-rail">
+          <div class="rl">Activity</div>
+          <div class="cc-ev"><span class="mfl flag-quebec"></span><span>qa released claim on tests/auth.test.ts</span></div>
+          <div class="cc-ev"><span class="mfl" style="background: var(--cobalt-slab);"></span><span>spider claimed routes/feedback.ts</span></div>
+          <div class="cc-ev"><span class="mfl fl-november"></span><span>spark spawn failed — 401</span></div>
+          <div class="cc-ev"><span class="mfl fl-oscar"></span><span>salvage: 1 abandoned session claimable</span></div>
+          <div class="cc-ship">⚓ <b>Shipwright:</b> cold-start survey ready — proposed fleet of 4, simulated spend $0.00/day on claude-cli.</div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TOKEN MAPPING ═══════════ -->
+  <div class="mock-cap"><span class="n">M·D</span><div><h2>The mapping — one palette, three runtimes</h2>
+    <p class="mock-notes">The web ships CSS custom properties; FleetBar and the Control Center chrome consume the same values as Swift asset-catalog colors; pd-console holds them as GPUI constants. The state grammar and flag geometry are shared contracts — a row means the same thing at 13px in the menubar and at full width on the site.</p></div></div>
+  <table class="map-table">
+    <thead><tr><th>Token</th><th>website-v2 / fleet-ui (CSS)</th><th>FleetBar (Swift)</th><th>pd-console (GPUI Rust)</th></tr></thead>
+    <tbody>
+      <tr><td>cobalt slab</td><td>var(--cobalt-slab) #003fb8</td><td>Color("StoryCobaltSlab")</td><td>rgb(0x003fb8)</td></tr>
+      <tr><td>state stripe</td><td>3px inset box-shadow</td><td>3pt Rectangle overlay</td><td>quad 3px × row height</td></tr>
+      <tr><td>micro-flag</td><td>.mfl + .flag-* gradients</td><td>FlagGlyph(signal:) shape</td><td>flag_quad(letter) paint fn</td></tr>
+      <tr><td>pulse ring</td><td>lw-pulse 1.8s (running only)</td><td>Circle().scaleEffect anim</td><td>frame-timed ring, 1.8s</td></tr>
+      <tr><td>zone rule</td><td>one per view</td><td>one per popover</td><td>one per pane</td></tr>
+      <tr><td>brackets</td><td>live panels only</td><td>—(popover is one live panel)</td><td>live panes only</td></tr>
+      <tr><td>gold wash</td><td>color-mix 10% over base</td><td>Color opacity 0.10 overlay</td><td>blend 0.10 over sunken</td></tr>
+    </tbody>
+  </table>
+
+</main>
+<script>
+  const btn=document.getElementById('themeToggle'),root=document.documentElement;
+  let t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  const apply=()=>{root.setAttribute('data-theme',t);btn.textContent=t==='light'?'Dark':'Light'};apply();
+  btn.addEventListener('click',()=>{t=t==='light'?'dark':'light';apply()});
+</script>
+</body>
+</html>
