@@ -471,7 +471,9 @@ Cambridge University Press, 1990.
 - **`lib/bonds.ts`** — BUILT: bond escrow, slashing, commons pool, conservation invariant
 - `tests/unit/bonds-conservation-property.test.js` — BUILT: 10k-trace conservation property test
 - `lib/cost-ledger.ts`, `lib/commitments.ts`, `lib/agent-telos.ts` — BUILT primitives
-- Existing whitepapers: `website-v2/public/whitepaper/{anchor-protocol,agent-transactions,federated-harbor}-whitepaper.tex`
+- Existing whitepapers: `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex`,
+  `website-v2/public/whitepaper/agent-transactions-whitepaper.tex`,
+  `website-v2/public/whitepaper/federated-harbor-whitepaper.tex`
 
 ### Skill built en route
 

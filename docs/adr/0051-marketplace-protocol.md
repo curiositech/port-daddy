@@ -34,7 +34,7 @@ the protocol below.
 | **Harbor envelope** | `assessEnvelope(envelope, action) → verdict` — fail-closed capability boundary per action kind; `boundary` label surfaced at the crossing point | `lib/harbor-envelope.ts`; ADR-0047 |
 | **Harbor cards / tokens** | Ed25519-signed JWTs (`hv: 2`), one-hour TTL, JTI audit rows, JTI revocation; capability grammar (`chan:pub:<prefix>`, `spawn:agent`, `backend:<id>`, …) | `lib/harbor-tokens.ts`; ADR-0025/0027 |
 | **Capability attenuation monitor** | TS runtime verifier: a delegated capability set must be a strict subset of the parent's; proven in ProVerif (`harbor_card_v7_multihop_fixed.pv`) | `lib/cap-attenuation-monitor.ts`; Arbiter `CAP_ESCALATION` rule |
-| **Bonds / wallet / conservation** | `escrow → running → refund/slash`; conserving ledger: `wallet + escrow + commons = supply`, enforced by a runtime conservation check (TLA⁺ sketch in `docs/shipwright/FLEETCONTROL-HARDENING.md`) | `lib/bonds.ts`, `cli/commands/{bond,wallet}.ts` |
+| **Bonds / wallet / conservation** | `escrow → running → refund/slash`; conserving ledger: `wallet + escrow + commons = supply`, enforced by a runtime conservation check (TLA⁺ sketch in `docs/shipwright/FLEETCONTROL-HARDENING.md`) | `lib/bonds.ts`, `cli/commands/bond.ts`, `cli/commands/wallet.ts` |
 | **Attest** | Honest self-report over registered invariants: PASS / FAIL / SKIPPED / UNKNOWN; green is conjunctive — absent attestation is not a pass | `lib/attest.ts`, `lib/attest-invariants.ts`; ADR-0045 |
 | **Tube → spawner router** | Routes work/messages between fleets; loop detection; fail-closed | `lib/tube-spawner-router.ts`, `lib/tube.ts`; ADR-0045 |
 | **Blob store** | Content-addressed local storage; hash-addressed payloads keep relay payloads small | `lib/blob.ts` |
