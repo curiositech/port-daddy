@@ -31,6 +31,14 @@ jest.unstable_mockModule('node:fs', () => ({
   chmodSync: jest.fn(),
   statSync: jest.fn(() => ({ mtimeMs: 0 })),
   appendFileSync: jest.fn(),
+  // squid/matrix.ts (Ink Cloud steering alerts) — atomic write + lock file.
+  renameSync: jest.fn(),
+  openSync: jest.fn(() => 3),
+  closeSync: jest.fn(),
+  rmSync: jest.fn(),
+  rmdirSync: jest.fn(),
+  readdirSync: jest.fn(() => []),
+  utimesSync: jest.fn(),
 }));
 
 // Mock fleet-engine to avoid real process spawning

@@ -33,6 +33,7 @@ import {
 import { getSharedWebhookReceiver } from './fleet/webhook-receiver.js';
 import { getSharedApprovalStream } from './fleet/approval-stream.js';
 import { getSharedPushNotifier, setSharedPushNotifier, FleetPushNotifier } from './fleet/push-notifications.js';
+import { setKey as setMatrixKey, deleteKey as deleteMatrixKey } from './squid/matrix.js';
 import { MacOSNotificationSink } from './fleet/outputs/notify-macos.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { loadEnvFiles } from './env-loader.js';
@@ -1358,6 +1359,36 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     },
   }));
   getSharedPushNotifier().bindApprovalStream(getSharedApprovalStream());
+
+  // Unmissable HITL: mirror the pending-approvals count into the Ink Cloud
+  // matrix as a steering ALERT. The UserPromptSubmit hook (bin/pd-hook-
+  // prompt) prepends alerts to EVERY compliant agent turn, so a held spawn
+  // is in front of the operator/agent at the start of each turn until
+  // decided. Cleared the moment the queue empties.
+  const syncApprovalAlert = (): void => {
+    try {
+      const pending = getSharedApprovalStream().list();
+      if (pending.length === 0) {
+        deleteMatrixKey('PD_ALERT_FLEET_APPROVALS');
+        return;
+      }
+      const head = pending
+        .slice(0, 3)
+        .map((p) => `${p.agent} ← ${p.trigger}`)
+        .join('; ');
+      const more = pending.length > 3 ? ` (+${pending.length - 3} more)` : '';
+      setMatrixKey(
+        'PD_ALERT_FLEET_APPROVALS',
+        `HITL: ${pending.length} spawn approval(s) waiting — ${head}${more}. Decide: pd fleet approvals | pd fleet approve <id> | pd fleet reject <id>`,
+      );
+    } catch (err) {
+      // Advisory surface: a matrix write failure degrades steering, never
+      // the daemon.
+      logger.warn('fleet_approval_alert_sync_failed', { error: (err as Error).message });
+    }
+  };
+  getSharedApprovalStream().subscribe(() => syncApprovalAlert());
+  syncApprovalAlert();
 
   return {
     start,
