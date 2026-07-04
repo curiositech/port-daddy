@@ -494,9 +494,12 @@ export default function LibraryPage() {
                     className="grid gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-5)]"
                   >
                     <div className="flex flex-wrap items-baseline justify-between gap-[var(--space-2)]">
-                      <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                      <time
+                        dateTime={entry.dateIso}
+                        className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]"
+                      >
                         {entry.date}
-                      </span>
+                      </time>
                       <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
                         {entry.chapters.join(' · ')}
                       </span>

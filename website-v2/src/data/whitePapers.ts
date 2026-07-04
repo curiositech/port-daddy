@@ -1089,6 +1089,9 @@ export const READING_PATHS = [
  * adversarial review rounds lives at /whitepaper/rounds.
  */
 export interface LibraryChangelogEntry {
+  /** Machine-sortable ISO date (YYYY-MM-DD) — the wave's landing day. */
+  dateIso: string
+  /** Human display label; may be coarser than dateIso (e.g. a month). */
   date: string
   title: string
   summary: string
@@ -1098,6 +1101,7 @@ export interface LibraryChangelogEntry {
 
 export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
   {
+    dateIso: '2026-07-04',
     date: 'July 4, 2026',
     title: 'The agentic-commerce stack arrives — every paper places itself against it',
     summary:
@@ -1105,6 +1109,7 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
     chapters: ['III', 'IV', 'V', 'VI', 'VII'],
   },
   {
+    dateIso: '2026-06-11',
     date: 'June 11, 2026',
     title: 'Paper VII lands; the PDFs start building themselves',
     summary:
@@ -1112,6 +1117,7 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
     chapters: ['VII'],
   },
   {
+    dateIso: '2026-06-10',
     date: 'June 10, 2026',
     title: 'The Harbor Volume: seven papers become one cross-linked book',
     summary:
@@ -1119,6 +1125,7 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
     chapters: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'],
   },
   {
+    dateIso: '2026-06-05',
     date: 'June 5, 2026',
     title: 'The attenuation proof stops being vacuous',
     summary:
@@ -1126,6 +1133,7 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
     chapters: ['V'],
   },
   {
+    dateIso: '2026-05-19',
     date: 'May 2026',
     title: 'Five adversarial review rounds forge Bonded Commons v2.5',
     summary:
