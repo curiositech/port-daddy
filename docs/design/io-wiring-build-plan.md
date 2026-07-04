@@ -7,7 +7,21 @@ Status (2026-07-04, branch `worktree-io-wiring-finish`):
 SHIPPED (worker/SendGrid/Postmark transports; raw SMTP honestly refused).
 Email IN SHIPPED via Cloudflare Email Routing → apps/email-ingress Worker
 (push-based, no IMAP creds; the IMAP poll path remains STUB). SMS (Twilio)
-intentionally skipped. Phase 5 (iMessage/calendar) remains ROADMAP.**
+intentionally skipped. CALENDAR SHIPPED, both directions and both
+backends: macOS EventKit via the compiled `pd-calendar-helper`
+(tools/pd-calendar-helper.swift; one-time `pd fleet calendar grant` TCC
+consent required before it arms — WIRED until granted) and Google Calendar
+(OAuth refresh flow, `singleEvents=true`, creds-gated). Phase 5's iMessage
+half remains ROADMAP.**
+
+Calendar trust + privacy posture (per the agentic-calendar-coordination
+skill and ADR-0093): calendar is an EXTERNAL trigger kind — spam invites
+are attacker-controlled content, so the OS read grant never sets
+consent_verified; the emitted payload is minimized (title/time/location/
+conference URL — never notes or attendee lists; the organizer address
+rides only in metadata.sender for allowlist matching); all timestamps are
+UTC-internal; recurring events are expanded to per-occurrence instances
+before dedup.
 
 The honesty rule is load-bearing: a channel is only "shipped"
 when it has real creds-or-no-creds dispatch AND a green end-to-end test. Anything

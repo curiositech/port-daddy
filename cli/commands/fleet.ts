@@ -1280,6 +1280,43 @@ async function fleetSources(options: CLIOptions): Promise<void> {
   console.log('');
 }
 
+// ─── Calendar access (EventKit, io-wiring Phase 5) ──────────────────────────
+
+/**
+ * `pd fleet calendar grant|status` — compile the EventKit helper if needed
+ * and run (or report) the one-time macOS calendar consent. The trigger and
+ * sink refuse to arm until this grant exists (fail-closed).
+ */
+async function fleetCalendar(options: CLIOptions, action?: string): Promise<void> {
+  const { getSharedEventKitClient } = await import('../../lib/fleet/calendar-eventkit.js');
+  const client = getSharedEventKitClient();
+  const verb = action ?? 'status';
+
+  if (verb === 'grant') {
+    ui.info('Requesting macOS calendar access (watch for the system prompt)…');
+    const result = await client.requestAccess();
+    if (isJson(options)) { console.log(JSON.stringify(result)); return; }
+    if (result.authorized) {
+      ui.success('Calendar access granted. calendar: triggers/outputs are now armable.');
+    } else {
+      ui.error(`Calendar access NOT granted: ${result.reason ?? 'unknown'}`);
+      ui.info('System Settings → Privacy & Security → Calendars, or re-run: pd fleet calendar grant');
+    }
+    return;
+  }
+
+  const status = await client.status();
+  if (isJson(options)) { console.log(JSON.stringify(status)); return; }
+  if (!status.available) {
+    ui.warn(`EventKit helper unavailable: ${status.reason ?? 'unknown'}`);
+  } else if (!status.authorized) {
+    ui.warn(`Helper ready, access not granted: ${status.reason ?? ''}`);
+    ui.info('Run: pd fleet calendar grant');
+  } else {
+    ui.success('EventKit ready: helper compiled and calendar access granted.');
+  }
+}
+
 // ─── Entry Point ────────────────────────────────────────────────────────────
 
 export async function handleFleet(positional: string[], _options: Record<string, unknown>): Promise<void> {
@@ -1343,6 +1380,10 @@ export async function handleFleet(positional: string[], _options: Record<string,
       await fleetSources(_options as CLIOptions);
       break;
 
+    case 'calendar':
+      await fleetCalendar(_options as CLIOptions, positional[1]);
+      break;
+
     case 'help':
     case '--help':
     case '-h': {
@@ -1360,6 +1401,7 @@ export async function handleFleet(positional: string[], _options: Record<string,
       console.log('  validate        Parse pd-fleet.yml, resolve templates, and check topology');
       console.log('  models          Show backend model ladders and readiness');
       console.log('  sources         I/O channel health board (triggers/outputs: ready vs stub)');
+      console.log('  calendar grant  Run the one-time macOS calendar consent prompt (EventKit)');
       console.log('');
       console.log('Conductor control (ADR-0060 — operate the live fleet):');
       console.log('  halt [rootId]   Total stop: SIGKILL the scope, refund bonds (--root <id> or global)');
