@@ -181,12 +181,28 @@ export function auditPullRequest(pr) {
 
   // --- Landing mechanics -----------------------------------------------------
   if (pr.usedAdminBypass === true) {
-    pushFinding(
-      findings, 'critical', 'admin-bypass-used',
-      'PR was (or would be) merged with an admin override that bypasses branch protection.',
-      'Never use --admin on an agent PR to skip a real required gate; fix the gate or escalate to a human.',
-      recommendations,
+    // Distinguish the two very different uses of `--admin`: skipping a *failing
+    // required repo gate* (never OK) vs skipping only the BEHIND gate or an
+    // external non-blocking check like a Cloudflare Pages preview — which some
+    // repos (e.g. port-daddy, see port-daddy-internal-dev) document as correct.
+    const skipsRealGate = pr.checks.some(
+      (check) => check.required && !check.external && check.status === 'failure',
     );
+    if (skipsRealGate) {
+      pushFinding(
+        findings, 'critical', 'admin-bypass-skips-required-gate',
+        'PR used an admin override while a required, repo-owned check was still failing.',
+        'Never use --admin to merge past a failing required gate; fix the gate or escalate to a human.',
+        recommendations,
+      );
+    } else {
+      pushFinding(
+        findings, 'medium', 'admin-bypass-used',
+        'PR used an admin override with no failing required gate — acceptable only to skip the BEHIND gate or an external non-blocking check (e.g. Cloudflare Pages), per the repo landing procedure.',
+        'Prefer enqueuing and letting the merge queue handle a BEHIND branch; reserve --admin for external/non-blocking checks the repo documents as skippable, never a failing required gate.',
+        recommendations,
+      );
+    }
   }
   if (pr.forcePushed === true) {
     pushFinding(

@@ -28,4 +28,4 @@ Roadmap-Item: <slug>            <!-- or: Roadmap-Item: none — <one-line reason
 - [ ] Every external check's status is noted, with proof it's pre-existing if it's red — never treated as a blocker.
 - [ ] `Roadmap-Item:` trailer present, or an explicit `none — <reason>` opt-out.
 - [ ] Test Plan entries are all reproducible from the PR body alone (real commands, real output).
-- [ ] No `--admin` bypass, no force-push, branch rebased onto the latest base.
+- [ ] No `--admin` bypass of a *failing required* gate (using it only to skip the BEHIND gate or an external non-blocking check like Cloudflare Pages is per repo procedure), no force-push, branch rebased onto the latest base.

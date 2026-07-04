@@ -121,7 +121,7 @@ Use `scripts/pr_readiness.mjs` to audit a PR JSON description and return `{ pass
 
 **Novice**: Blocks a merge waiting for an external preview build (e.g. Cloudflare Pages) to go green, OR runs `gh pr merge --admin` to skip a failing lint/test/roadmap-link check.
 **Expert**: Classify every check as required-and-repo-owned or external-and-advisory before reacting to red. Never bypass a real required gate with an admin override or force-push; never wait on, or treat as a blocker, a check that isn't repo CI.
-**Detection**: `pr_readiness.mjs` flags `required-check-failing` (critical) for a red real gate, `external-check-marked-required` / `external-gate-treated-as-blocker` for gate-confused configuration, and `admin-bypass-used` / `force-pushed` (both critical) for bypass attempts.
+**Detection**: `pr_readiness.mjs` flags `required-check-failing` (critical) for a red real gate, `external-check-marked-required` / `external-gate-treated-as-blocker` for gate-confused configuration, `admin-bypass-skips-required-gate` (critical) when `--admin` skips a *failing required* check, `admin-bypass-used` (medium) when it only skips the BEHIND gate or an external non-blocking check, and `force-pushed` (critical) for a force-push.
 
 ## References
 
