@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Corralling reduces blast radius (no plaintext at rest, scoped + logged Keychain access), but it is **not** confidentiality against a malicious same-UID agent whose binary satisfies the Keychain ACL — that needs the separate-UID broker (ADR-0087 phase 5). Every corral report path echoes that honest limit verbatim.
 
+### Removed
+- **Web dashboard retired; operator surfaces consolidated to THREE (#652).** `public/index.html` is no longer a 2,600-line dashboard — it is a minimal landing page that health-checks the daemon and points at the sanctioned surfaces: **FleetBar** (menu bar), **Control Center** (FleetBar's window, whose content IS `public/fleet-ui/`), and **pd-console** (GPU operator console). Deleted the orphaned `public/fleet-live.html`, `public/app-surgery.html`, and `public/fleet-config.html` (their live counterparts are Control Center surfaces), and removed the Control Center's redundant "Browser" pill (`FleetControlCenter.swift`) — the browser control plane it opened is the same `fleet-ui` the window already shows. References to the retired pages in old release notes below are historical record and intentionally unchanged. <!-- cite-exempt: the cited paths are the files this PR deletes -->
+
 ## [3.23.0] - 2026-06-26
 
 ### Added
@@ -438,7 +441,7 @@ The entries below shipped to `main` between 3.8.4 and 3.14.0 but were never assi
 - **Fleet Harbor**: `fleet.harbor` field in `pd-fleet.yml` — creates a named harbor on `pd fleet up`, auto-enrolls all agents. Shared semantic origin for trie lookups and scoped messaging.
 - **Topology Validation**: `validateTopology()` in fleet-engine.ts — static DAG check on the trigger graph. Detects cycles, warns about orphan channels. 7 unit tests including real `pd-fleet.yml` validation.
 - **CSP Protocol Specification**: `docs/FLEET-CSP-PROTOCOL.md` — formal process definitions for all fleet agents in CSP notation, channel topology properties, gather policies, TLA+ spec, Arbiter integration plan.
-- **Fleet Live Dashboard** (`public/fleet-live.html`): 1322-line real-time dashboard for fleet monitoring. Fetches from 6 daemon endpoints, unified feed with time-period grouping, agent ribbon with clickable filters, expandable notes, SSE live updates.
+- **Fleet Live Dashboard** (`public/fleet-live.html`): 1322-line real-time dashboard for fleet monitoring. Fetches from 6 daemon endpoints, unified feed with time-period grouping, agent ribbon with clickable filters, expandable notes, SSE live updates. <!-- cite-exempt: surface retired by #652; historical entry -->
 - **Fleet Live macOS App** (`fleet-live-app/`): SwiftUI menu-bar app wrapping WKWebView. SF Symbol in menu bar, 400x600 popover, daemon health check, no dock icon. Builds with `./build.sh`.
 - **Git Post-Commit Hook** (`hooks/post-commit`): Publishes commit SHA, message, author, branch, and changed files to `git:committed` channel after every commit. Fire-and-forget (curl in background). Fleet agents trigger automatically.
 - **Fleet Tutorial** (`website-v2/src/pages/tutorials/Fleet.tsx`): "Fleet: Agents That Run While You Sleep" — 7 sections covering YAML config, git hooks, triggers vs schedules, Spark-Spider dialogue, harbors, monitoring, and safety guardrails.

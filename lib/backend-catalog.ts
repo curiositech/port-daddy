@@ -157,7 +157,8 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     models: [
       '@cf/zai-org/glm-4.7-flash',
       '@cf/openai/gpt-oss-120b',
-      '@cf/moonshotai/kimi-k2.6',
+      // Real Workers AI slug — the phantom kimi-k2.6 id hung ai.run (2026-07-03 fleet outage).
+      '@cf/moonshotai/kimi-k2-instruct',
       '@cf/qwen/qwen3-30b-a3b-fp8',
       '@cf/nvidia/nemotron-3-120b-a12b',
       '@cf/meta/llama-4-scout-17b-16e-instruct',

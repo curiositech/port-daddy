@@ -1,0 +1,39 @@
+{
+  "documents": [
+    {
+      "name": "01-product-and-surfaces.md",
+      "claimedCapabilities": [
+        {
+          "name": "Work Intent is the sole launch primitive",
+          "owner": "Harbor Architect of Record",
+          "gate": "acceptance test: work-intent-conformance-suite",
+          "evidenceLink": "https://github.com/port-daddy/port-daddy/pull/632"
+        }
+      ]
+    },
+    {
+      "name": "13-platform-plays-and-runtime-surface-review.md",
+      "claimedCapabilities": [
+        {
+          "name": "pd-console is the sanctioned desktop operator surface",
+          "owner": "Harbor Architect of Record",
+          "gate": "surface-consolidation acceptance checklist",
+          "evidenceLink": "https://github.com/port-daddy/port-daddy/pull/652"
+        }
+      ]
+    }
+  ],
+  "contradictions": [
+    { "kind": "authority", "resolved": true },
+    { "kind": "term", "resolved": true }
+  ],
+  "ambitionCorpus": [
+    { "name": "Harbor Economy / Trust-as-a-Service", "classification": "deferred" },
+    { "name": "Publisher SDKs", "classification": "absorbed" }
+  ],
+  "coverageMatrix": {
+    "customerAxisComplete": true,
+    "contingencyAxisComplete": true,
+    "architectureAxisComplete": true
+  }
+}

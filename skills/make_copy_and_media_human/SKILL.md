@@ -19,12 +19,26 @@ metadata:
     - design-review
     - voice
   pairs-with:
-    - skill: vibe-matcher
-      reason: vibe-matcher finds the target voice; this skill removes the machine accent from it
-    - skill: design-critic
-      reason: design-critic judges quality; this skill specifically hunts generated-look tells
-    - skill: seo-content-blogging
-      reason: run this skill after content generation, before publish
+    - skill: port-daddy-marketing-copy
+      reason: that skill drafts portdaddy.dev copy in the house voice; this skill audits the draft for machine tells before publish
+    - skill: port-daddy-expository-writer
+      reason: that skill drafts long-form concept/tutorial prose; this skill catches the cadence and structure tells that voice guide alone won't
+    - skill: web-design-expert
+      reason: that skill produces the visual design; this skill hunts the v0/Lovable generated-look tells (defaults, glassmorphism, indigo) in the result
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: draft-copy-or-media
+        format: markdown
+      - kind: humanization-judge-findings
+        format: json
+    produces:
+      - kind: humanized-copy-or-media
+        format: markdown
+      - kind: humanization-audit-findings
+        format: json
+      - kind: humanization-fix-plan-report
+        format: html
 ---
 
 # Make Copy and Media Human
@@ -76,7 +90,7 @@ python3 scripts/humanize_review.py FILE [FILE...] --out report.html --json struc
 Detects (measurable signals only): em-dash density >1.2/100w, staccato fragment share, uniform sentence length, zero contractions, broetry line-break runs, heading spam, bullet colonization, bold-label-colon grids, unattributed blockquotes, arrow chains, emoji-as-structure, AI-default hex accents (#6366F1 family), AI-default typefaces (Inter/Geist/Sora/Manrope/Space Grotesk), glassmorphism/rounded-2xl/gradient token repetition, emoji inside UI chrome.
 
 ### 3. Run the judge pass (you, the model)
-Read `references/catalog.json`. For each item with `detection_type: llm-judge`, ask its rubric question of the text. Read the text **as a hostile, taste-having human editor**, not as a checklist executor. Write findings to JSON matching the schema in the script docstring — file, line, excerpt, ism, dialect, severity, explanation, rewrite. The rewrite field is mandatory for high-severity findings: a finding without a fix is a complaint.
+Read `references/catalog.json`. For each item with `detection_type: llm-judge`, ask its rubric question of the text. Read the text **as a hostile, taste-having human editor**, not as a checklist executor. Write findings to JSON matching the schema in the script docstring and in `templates/output-template.md` — file, line, excerpt, ism, dialect, severity, explanation, rewrite. The rewrite field is mandatory for high-severity findings: a finding without a fix is a complaint.
 
 ### 4. Merge and render
 
@@ -103,6 +117,8 @@ Apply rewrites if asked, working through `templates/rewrite-checklist.md` — it
 | `references/visual-design-tells.md` | Any web UI, landing page, slide visuals, or generated imagery |
 | `references/structure-and-deck-tells.md` | Long docs, slide decks, marketing pages, LinkedIn posts, email |
 | `references/sources.md` | When you need citations — published catalogs and stylometry research |
+| `templates/output-template.md` | When drafting a judge-pass finding or the delivery summary for a completed review |
+| `agents/openai.yaml` | When delegating a humanization review to a subagent |
 
 ## Shibboleths
 
@@ -153,3 +169,40 @@ Apply rewrites if asked, working through `templates/rewrite-checklist.md` — it
 `examples/before-after-prose.md` — a launch announcement, machine accent vs. edited.
 `examples/before-after-landing-page.md` — the v0 look vs. a designed page, token by token.
 `examples/sample-report.html` — what a finished fix plan looks like.
+
+<!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
+
+## Skill Bundle Index
+
+*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+
+**root**
+- [`CHANGELOG.md`](CHANGELOG.md) — Changelog — Upgraded to the port-daddy agentic-family bundle standard.
+- [`README.md`](README.md) — Make Copy and Media Human — Strip the machine accent from copy, web UI, slides, READMEs, marketing pages, and generated imagery before anything outward-facing ships.
+
+**`agents/`**
+- [`agents/openai.yaml`](agents/openai.yaml) — openai (data/schema)
+
+**`examples/`**
+- [`examples/before-after-landing-page.md`](examples/before-after-landing-page.md) — Before / After — Landing Page (the v0 look, token by token) — | Token | Ism | Severity | |---|---|---| | `Inter` (Google Fonts) | ai-default-typeface | high | | `#6366f1`, `from-indigo-500 to-violet-500
+- [`examples/before-after-prose.md`](examples/before-after-prose.md) — Before / After — Launch Announcement — The same announcement, machine accent vs.
+- [`examples/sample-report.html`](examples/sample-report.html)
+
+**`references/`**
+- [`references/catalog.json`](references/catalog.json) — catalog (data/schema)
+- [`references/claudeisms.md`](references/claudeisms.md) — Claudeisms — and the generic prose tells Claude amplifies — Tells most associated with Claude-family output, plus the cross-model prose tells that show up strongest in Claude registers.
+- [`references/gptisms-codexisms.md`](references/gptisms-codexisms.md) — GPT-isms and Codexisms — ChatGPT's service voice and README register, and the code-comment tells of Codex/Copilot-shaped generation.
+- [`references/other-model-dialects.md`](references/other-model-dialects.md) — Other model dialects — Gemini, Kimi, DeepSeek, Qwen, Llama, Grok — and cross-model translationese — Distinctive tics per model family, plus the affect-flatness tells that mark any machine register.
+- [`references/sources.md`](references/sources.md) — Sources — Published catalogs, stylometry research, and essays the catalog draws on.
+- [`references/structure-and-deck-tells.md`](references/structure-and-deck-tells.md) — Structure, deck, and marketing-copy tells — Document-shape tells: how generated long-form docs, slides, posts, and emails are assembled, independent of any sentence.
+- [`references/visual-design-tells.md`](references/visual-design-tells.md) — Visual design tells — the v0/Lovable look and AI imagery — What makes a UI, slide, or image read as generated: the defaults nobody chose, clustering together.
+
+**`scripts/`**
+- [`scripts/humanize_review.py`](scripts/humanize_review.py) — humanize_review.py — flag AI-isms in copy/media and emit a static HTML fix plan.
+- [`scripts/regenerate_references.py`](scripts/regenerate_references.py) — Regenerate references/*.md from references/catalog.json. Stdlib only.
+
+**`templates/`**
+- [`templates/output-template.md`](templates/output-template.md) — Judge-Pass Finding + Delivery Template — Fill this in during step 3 (judge pass) and step 4 (delivery) of the process in `SKILL.md`.
+- [`templates/rewrite-checklist.md`](templates/rewrite-checklist.md) — Rewrite Checklist — run after every humanizing pass — Work the report top-down (high severity first), then verify: - [ ] Every fix touched only the flagged span; surrounding text is byte-identic
+
+<!-- END BUNDLE INDEX -->

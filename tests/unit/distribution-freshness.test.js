@@ -421,53 +421,36 @@ describe('README freshness', () => {
 });
 
 // ============================================================================
-// 10. Dashboard — must not use stale API patterns or miss key features
+// 10. Root landing page — the web dashboard is retired; the root page must
+//     stay a minimal pointer to the native surfaces, not grow back into an
+//     operator UI. (Surface consolidation, 2026-07: FleetBar Control Center,
+//     pd-console, and the CLI/TUI are the operator surfaces.)
 // ============================================================================
 
-describe('Dashboard freshness', () => {
-  it('dashboard file exists', () => {
+describe('Root landing page (dashboard retired)', () => {
+  it('landing page file exists', () => {
     expect(dashboardContent).not.toBeNull();
   });
 
-  it('dashboard does NOT use old /claim/:id URL pattern', () => {
-    // v3.4 changed to POST /claim with id in body
-    // Old pattern: fetch(API + '/claim/' + id, { method: 'POST' })
-    // New pattern: fetch(API + '/claim', { body: JSON.stringify({ id }) })
-    // Negative lookbehind excludes /resurrection/claim/ and /salvage/claim/ which are valid routes
-    const oldClaimPattern = /(?<!resurrection|salvage)\/claim\/['"` ]*\+|(?<!resurrection|salvage)\/claim\/['"]\s*\+/;
-    expect(dashboardContent).not.toMatch(oldClaimPattern);
+  it('landing page declares the web dashboard retired', () => {
+    expect(dashboardContent).toMatch(/retired/i);
   });
 
-  it('dashboard does NOT use old /release/:id URL pattern', () => {
-    // v3.4 changed to DELETE /release with id in body
-    const oldReleasePattern = /\/release\/['"` ]*\+|\/release\/['"]\s*\+|fetch\([^)]*\/release\/(?!['"])/;
-    expect(dashboardContent).not.toMatch(oldReleasePattern);
+  it('landing page points to the sanctioned native surfaces', () => {
+    expect(dashboardContent).toMatch(/Control Center/);
+    expect(dashboardContent).toMatch(/pd-console|Operator Console/);
+    expect(dashboardContent).toMatch(/pd dashboard/);
   });
 
-  it('dashboard fetches from key API endpoints', () => {
-    // Core endpoints every dashboard must hit
-    expect(dashboardContent).toMatch(/\/health/);
-    expect(dashboardContent).toMatch(/\/services/);
-    expect(dashboardContent).toMatch(/\/agents/);
-    expect(dashboardContent).toMatch(/\/sessions/);
-    expect(dashboardContent).toMatch(/\/locks/);
+  it('landing page only calls /health — no operator API fetches', () => {
+    const fetched = [...dashboardContent.matchAll(/fetch\(['"`]([^'"`]+)/g)].map(m => m[1]);
+    expect(fetched).toEqual(['/health']);
   });
 
-  it('dashboard has sections for core features', () => {
-    // Check for presence of key feature sections (by ID, class, or text)
-    expect(dashboardContent).toMatch(/services|Services/);
-    expect(dashboardContent).toMatch(/agents|Agents/);
-    expect(dashboardContent).toMatch(/sessions|Sessions/);
-    expect(dashboardContent).toMatch(/salvage|Salvage|resurrection/i);
-    expect(dashboardContent).toMatch(/locks|Locks/);
-  });
-
-  it('dashboard has sections for v3.4+ features', () => {
-    expect(dashboardContent).toMatch(/activity|Activity/i);
-  });
-
-  it('dashboard uses auto-refresh / polling', () => {
-    // Dashboard should poll for live data
-    expect(dashboardContent).toMatch(/setInterval|setTimeout|requestAnimationFrame/);
+  it('landing page stays minimal (no panels, no embedded terminal)', () => {
+    expect(dashboardContent).not.toMatch(/id="panel-/);
+    expect(dashboardContent).not.toMatch(/var COMMANDS/);
+    const sizeKB = Buffer.byteLength(dashboardContent, 'utf8') / 1024;
+    expect(sizeKB).toBeLessThanOrEqual(20);
   });
 });

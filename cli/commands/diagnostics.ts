@@ -224,17 +224,15 @@ export async function handleHealth(id: string | undefined, options: CLIOptions):
 /**
  * Handle `pd dashboard` command
  *
- * Default: launches the Ink terminal UI dashboard
- * --web: opens the browser-based dashboard instead
+ * Default: launches the Ink terminal UI dashboard.
+ * --web is retired: the browser dashboard was consolidated into the native
+ * surfaces (FleetBar Control Center, pd-console).
  */
 export async function handleDashboard(opts: { web?: boolean } = {}): Promise<void> {
-  const daemonUrl = getDaemonUrl();
-  const dashUrl = daemonUrl;
-
   if (opts.web) {
-    console.log(`Opening dashboard: ${dashUrl}`);
-    const openCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
-    spawn(openCmd, [dashUrl], { detached: true, stdio: 'ignore' }).unref();
+    console.log('The web dashboard has been retired.');
+    console.log('Use FleetBar → Control Center, FleetBar → Open Operator Console (pd-console),');
+    console.log('or run `pd dashboard` for the terminal UI.');
     return;
   }
 
