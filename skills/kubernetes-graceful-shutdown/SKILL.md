@@ -1,9 +1,43 @@
 ---
+license: Apache-2.0
 name: kubernetes-graceful-shutdown
-description: Shutting down HTTP services in Kubernetes without dropping traffic — the SIGTERM/preStop dance, the EndpointSlice removal race, the `preStop sleep` pattern, terminationGracePeriodSeconds budgeting, and the Node.js + Go server skeletons. Grounded in kubernetes.io and language runtime docs.
-category: Cloud & Infrastructure
-tags: [kubernetes, k8s, graceful-shutdown, sigterm, prestop, deployments, pods, lifecycle]
+description: Shutting down HTTP services in Kubernetes without dropping traffic — the SIGTERM/preStop dance, the EndpointSlice removal race, the `preStop sleep` pattern, terminationGracePeriodSeconds budgeting, and the Node.js + Go server skeletons. Grounded in kubernetes.io and language runtime docs. NOT for rollout strategies, PodDisruptionBudgets/node draining, or service-mesh sidecar lifecycle.
 allowed-tools: Read, Grep, Glob, Edit, Write, Bash(kubectl:*, grep:*, rg:*)
+metadata:
+  category: Cloud & Infrastructure
+  tags:
+    - kubernetes
+    - k8s
+    - graceful-shutdown
+    - sigterm
+    - prestop
+    - deployments
+    - pods
+    - lifecycle
+  pairs-with:
+    - skill: kubernetes-debugging-runbook
+      reason: Rolling-deploy 5xx blips and pods stuck Terminating surface in that runbook's triage; this skill is the lifecycle fix it hands off to
+    - skill: daemon-development
+      reason: The signal-handling and drain discipline here is the containerized twin of that skill's long-running-daemon lifecycle patterns
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: service-shutdown-requirement
+        format: markdown
+        description: A description of the HTTP service, its traffic path (kube-proxy, external LB, mesh), and its drain constraints during deploys/scale-in.
+      - kind: shutdown-plan
+        format: json
+        description: A structured plan naming the preStop sleep, grace-period budget, signal handling, and readiness behavior, per schemas/graceful-shutdown-plan.schema.json.
+    produces:
+      - kind: shutdown-design
+        format: markdown
+        description: The preStop/SIGTERM/drain design (manifest + server skeleton) following the termination-sequence timing rules in this skill.
+      - kind: shutdown-plan-audit
+        format: json
+        description: A deterministic pass/fail audit of the shutdown-plan against this skill's Quality Gates, as produced by scripts/kubernetes_graceful_shutdown_audit.mjs.
 ---
 
 # Kubernetes Graceful Shutdown
@@ -271,6 +305,27 @@ A graceful-shutdown change ships when:
 - [ ] **Test:** Readiness probe flips to non-ready during shutdown drain (curl `/readyz` after triggering SIGTERM, expect 503).
 - [ ] **Test:** Drain has a hard ceiling — even if requests are stuck, the process exits before `terminationGracePeriodSeconds` expires (shorter setTimeout / context.WithTimeout).
 - [ ] **Manual:** Background workers (queue consumers, cron) also respond to the shutdown signal — not just the HTTP server.
+
+---
+
+## Deterministic Audit
+
+Before shipping a shutdown design (or reviewing one), write it as a JSON plan matching
+`schemas/graceful-shutdown-plan.schema.json` and run the deterministic auditor:
+
+```bash
+node scripts/kubernetes_graceful_shutdown_audit.mjs --input examples/sample-input.json
+```
+
+`auditKubernetesGracefulShutdown(plan)` (in `scripts/kubernetes_graceful_shutdown_audit.mjs`)
+encodes this skill's timing math and anti-patterns as machine-checkable rules over
+structured fields only: no preStop sleep (the endpoint-removal race), preStop + drain
+overcommitting the shared grace budget, a preStop that outlives the grace period, a missing
+or exit-immediately SIGTERM handler, a shell as PID 1 swallowing the signal, no in-app drain
+ceiling, a readiness flip substituted for the sleep, and background workers that ignore
+shutdown. It returns `{ pass, score, findings, recommendations }` and exits 1 on failure.
+`examples/sample-input.json` is the sleep-15 / grace-60 / drain-25 budget from this skill's
+own recipe and audits `pass: true`. Version history lives in `CHANGELOG.md`.
 
 ---
 

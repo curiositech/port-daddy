@@ -1,15 +1,41 @@
 ---
+license: Apache-2.0
 name: playwright-e2e-design
 description: 'Use when designing or fixing a Playwright end-to-end test suite, debugging flaky tests, choosing locator strategies (getByRole vs CSS vs test-id), structuring fixtures and auth-state reuse, configuring parallelism and sharding, mocking third-party APIs via route(), or wiring trace-on-first-retry into CI. Triggers: "tests are flaky", page.waitForTimeout, page.locator with brittle CSS, login runs in every test, third-party API takes test offline, "should I use sleep here", parallel mode, sharding across CI machines, soft vs hard assertions, trace.zip not available on CI failure. NOT for unit testing (Vitest/Jest), Cypress migration playbooks, mobile native testing (Detox/XCUITest), or visual regression testing as a primary concern.'
-category: Code Quality & Testing
 allowed-tools: Read,Grep,Glob,Edit,Write,Bash
-tags:
-  - playwright
-  - e2e
-  - testing
-  - automation
-  - flaky-tests
-  - browser-testing
+metadata:
+  category: Code Quality & Testing
+  tags:
+    - playwright
+    - e2e
+    - testing
+    - automation
+    - flaky-tests
+    - browser-testing
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: ideal-web-app-builder
+      reason: The web app that skill scaffolds is what this suite exercises; testable markup (roles, labels, test-ids) is designed there
+    - skill: ux-friction-analyzer
+      reason: Both drive real user journeys in the browser; friction findings become the high-value flows the E2E suite must cover
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: e2e-suite-requirement
+        format: markdown
+        description: What the suite must cover -- critical user journeys, auth roles, third-party integrations, CI time budget, current flake rate.
+      - kind: e2e-suite-plan
+        format: json
+        description: A structured plan naming locator strategy, assertion style, auth reuse, mocking, tracing, and parallelism choices, matching schemas/playwright-e2e-design-plan.schema.json.
+    produces:
+      - kind: e2e-suite-design
+        format: markdown
+        description: Suite structure, fixture/auth architecture, mocking boundaries, and CI wiring with the rationale for each choice.
+      - kind: e2e-suite-audit
+        format: json
+        description: A deterministic pass/fail audit of the e2e-suite-plan against this skill's Quality Gates, as produced by scripts/playwright_e2e_design_audit.mjs.
 ---
 
 # Playwright E2E Design
@@ -331,6 +357,27 @@ Snapshots live in `__screenshots__/` per platform. Maintenance cost is real — 
 - **Load testing** — k6, Gatling, Artillery. Different goal.
 - **Security testing** — ZAP, Burp. Different threat model.
 - **CI matrix design** for the suite — → `github-actions-matrix-patterns`.
+
+## Deterministic Audit
+
+Before adopting (or reviewing) a suite design, write it as a JSON plan matching
+`schemas/playwright-e2e-design-plan.schema.json` and run it through the deterministic auditor:
+
+```bash
+node scripts/playwright_e2e_design_audit.mjs --input examples/sample-input.json
+```
+
+`auditPlaywrightE2eDesign(plan)` (in `scripts/playwright_e2e_design_audit.mjs`) turns this
+skill's compressed rule — `getByRole/getByTestId + web-first expect() + fresh state per test`
+— and its Quality Gates into machine-checkable rules over structured fields, no keyword
+matching: snapshot-read assertions (the guaranteed race), remaining `waitForTimeout` calls,
+CSS/XPath as the primary locator strategy, login-per-test instead of `storageState` reuse,
+live third-party calls, missing test isolation, `trace: off` (or no artifact upload), inverted
+retry policy (retries locally, none on CI), a serial-only suite, and tests blowing the 30s p95
+budget. It returns `{ pass, score, findings, recommendations }` so a reviewer or CI gate can
+reject a flake-prone design without re-deriving the playbook. `examples/sample-input.json` is
+a sharded, mocked, storage-state suite plan that audits `pass: true`. Version history lives in
+`CHANGELOG.md`.
 
 ## Sources
 

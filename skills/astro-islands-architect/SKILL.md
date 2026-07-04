@@ -1,14 +1,41 @@
 ---
+license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 name: astro-islands-architect
 description: 'Use when building content-heavy sites with Astro, deciding between SSG/SSR/hybrid, choosing client directives (idle/visible/load/media), structuring content collections with type-safe schemas, integrating React/Vue/Solid/Svelte components in the same project, or migrating from Next.js for marketing/docs. Triggers: client:idle vs client:load tradeoffs, content collections schema with zod, image optimization via @astrojs/image, view transitions, server islands, MDX layouts. NOT for SPA-style apps that need full interactivity (use Next/Remix), Astro internals/plugin authoring, or non-content sites where islands provide no benefit.'
-category: Frontend & UI
-tags:
-  - astro
-  - islands
-  - ssg
-  - mdx
-  - content
-  - frontend
+metadata:
+  category: Frontend & UI
+  tags:
+    - astro
+    - islands
+    - ssg
+    - mdx
+    - content
+    - frontend
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: cdn-cache-control-headers
+      reason: A static-first Astro site lives or dies by its CDN cache headers; the hashed-asset and HTML recipes there complete this skill's output.
+    - skill: web-design-expert
+      reason: The design layer of the marketing/docs site whose hydration architecture this skill decides.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: site-requirement
+        format: markdown
+        description: A description of the site — content types, interactive surfaces, personalization needs, and framework constraints.
+      - kind: islands-architecture-plan
+        format: json
+        description: A structured plan naming the site kind, each island's directive and fold position, and the content/image/data-fetch choices, matching schemas/astro-islands-plan.schema.json.
+    produces:
+      - kind: hydration-architecture
+        format: markdown
+        description: The static-vs-island split, directive assignments, content collection schemas, and output-mode recommendation.
+      - kind: islands-plan-audit
+        format: json
+        description: A deterministic pass/fail audit of the islands-architecture-plan against this skill's Quality Gates, as produced by scripts/astro_islands_audit.mjs.
 ---
 
 # Astro Islands Architect
@@ -254,6 +281,25 @@ export async function GET({ request }) {
 - [ ] First-load JS budget set per page; CI fails on regressions.
 - [ ] MDX uses Astro components for static parts; islands only where interactive.
 - [ ] View transitions tested across the major navigation paths.
+
+## Deterministic Audit
+
+Before committing to a hydration architecture (or reviewing another agent's), write the
+plan as a JSON object matching `schemas/astro-islands-plan.schema.json` and run it through
+`scripts/astro_islands_audit.mjs`:
+
+```bash
+node scripts/astro_islands_audit.mjs --input examples/sample-input.json
+```
+
+`auditAstroIslands(plan)` encodes this skill's anti-patterns and Quality Gates as
+deterministic rules over structured fields — no keyword matching: Astro forced into a
+SPA/dashboard role, `client:load` on below-the-fold islands (or on most islands),
+`client:only` without a browser-API need or a sized fallback, untyped content
+collections, data fetching moved into client components, and images outside
+`src/assets/`. It returns `{ pass, score, findings, recommendations }`.
+`examples/sample-input.json` is a docs site with correctly-tiered directives
+(`pass: true`) Version history lives in `CHANGELOG.md`.
 
 ## NOT for
 

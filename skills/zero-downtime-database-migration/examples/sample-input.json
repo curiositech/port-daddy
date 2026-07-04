@@ -1,0 +1,17 @@
+{
+  "engine": "postgres",
+  "changeType": "rename-column",
+  "deployPhases": 3,
+  "lockTimeoutSeconds": 2,
+  "backfillRequired": true,
+  "backfillBatchSize": 5000,
+  "backfillUsesSkipLocked": true,
+  "backfillSleepBetweenBatches": true,
+  "replicaLagMonitored": true,
+  "dualWritesPlanned": true,
+  "dualWriteFeatureFlagged": true,
+  "verificationBeforeContract": true,
+  "rollbackPlanDocumented": true,
+  "rehearsedOnSnapshot": true,
+  "tableRowCount": 48000000
+}

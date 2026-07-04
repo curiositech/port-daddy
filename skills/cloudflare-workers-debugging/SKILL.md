@@ -1,15 +1,42 @@
 ---
+license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 name: cloudflare-workers-debugging
 description: 'Use when wrangler deploys silently fail or produce wrong artifacts, secrets upload as empty strings, custom domain DNS is not resolving, route assignment broke after rename, observability/tail logs are needed, D1/KV/R2 bindings are missing, OAuth scope errors block a command, cookies on a redirect are not attaching, or the worker exceeds CPU time. Triggers: "Tenant or user not found", "Authentication error" on wrangler d1 push, secret length is 0 after upload, route returns origin not worker, "compatibility_date too old", 1101 errors, custom_domain assignment lost on script rename. NOT for AWS Lambda / Vercel Edge / Deno Deploy (different runtimes), Cloudflare Zero Trust, or R2-specific tuning.'
-category: DevOps & Infrastructure
-tags:
-  - cloudflare
-  - workers
-  - wrangler
-  - pages
-  - d1
-  - deployment
-  - debugging
+metadata:
+  category: DevOps & Infrastructure
+  tags:
+    - cloudflare
+    - workers
+    - wrangler
+    - pages
+    - d1
+    - deployment
+    - debugging
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: cdn-cache-control-headers
+      reason: A Worker that "isn't updating" is often a cache-header problem at the edge, not a deploy problem — rule that out with this pairing.
+    - skill: websocket-realtime-expert
+      reason: Durable Object / WebSocket surfaces on Workers add realtime failure modes beyond the deploy/auth catalog here.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: incident-report
+        format: markdown
+        description: The symptom — a wrangler command that "succeeded" with no live change, an auth error, an empty secret, a 522/1101/1102, or a cookie that vanished on redirect.
+      - kind: workers-deploy-plan
+        format: json
+        description: A structured plan naming the deploy target, auth method, secret handling, D1/domain/bindings/observability choices, matching schemas/cloudflare-workers-debug-plan.schema.json.
+    produces:
+      - kind: diagnosis
+        format: markdown
+        description: The root cause matched against this skill's failure catalog (auth scopes, alias-eaten secrets, stale domain assignments, compat dates) with the fix.
+      - kind: deploy-readiness-audit
+        format: json
+        description: A deterministic pass/fail audit of the workers-deploy-plan against this skill's Quality Gates, as produced by scripts/workers_debugging_audit.mjs.
 ---
 
 # Cloudflare Workers Debugging
@@ -207,6 +234,25 @@ Error 1101 = uncaught error during execution; 1102 = exceeded CPU. JSON.parse on
 - [ ] Bindings enumerated at startup; missing bindings are loud, not silent.
 - [ ] No `--no-verify` or `-c commit.gpgsign=false` in deploy scripts unless explicitly authorized.
 - [ ] Error budget for CPU time monitored; 1102s tracked over time.
+
+## Deterministic Audit
+
+Before a Workers/Pages deploy (or when reviewing another agent's deploy plan), write it
+as a JSON object matching `schemas/cloudflare-workers-debug-plan.schema.json` and run it
+through `scripts/workers_debugging_audit.mjs`:
+
+```bash
+node scripts/workers_debugging_audit.mjs --input examples/sample-input.json
+```
+
+`auditWorkersDebugging(plan)` encodes this skill's failure catalog and Quality Gates as
+deterministic rules over structured fields — no keyword matching: OAuth used from CI,
+the legacy global API key, secrets piped through an aliasable `cat` or never
+length-verified, D1 commands without `--remote`, a renamed worker with a stale custom
+domain assignment, `[observability]` off, a `compatibility_date` older than 90 days,
+bindings never enumerated at startup, and a `SameSite=Strict` session cookie set on a
+redirect. It returns `{ pass, score, findings, recommendations }`.
+`examples/sample-input.json` is a hardened CI deploy plan (`pass: true`) Version history lives in `CHANGELOG.md`.
 
 ## NOT for
 

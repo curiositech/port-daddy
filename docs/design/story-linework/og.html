@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OG cards — story linework</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ports/port.css">
+<style>
+  body { padding: 40px; display: grid; gap: 40px; justify-items: start; }
+  .og {
+    width: 1200px; height: 630px; position: relative; overflow: hidden;
+    display: grid; grid-template-columns: 560px 1fr;
+    font-family: "IBM Plex Sans", sans-serif;
+    border: 1px solid rgba(0,0,0,0.2);
+  }
+  .og .txt { padding: 52px 8px 44px 52px; display: flex; flex-direction: column; position: relative; z-index: 1; }
+  .og .hoist { gap: 7px; }
+  .og .hoist i { width: 30px; height: 21px; }
+  .og h1 { font-size: 62px; font-weight: 700; line-height: 1.02; letter-spacing: -0.03em; margin-top: 26px; max-width: 9ch; }
+  .og .sub { font-family: "IBM Plex Mono", monospace; font-size: 19px; font-weight: 600; margin-top: 20px; }
+  .og .brand { margin-top: auto; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 24px; }
+  .og .brand img { width: 40px; height: 40px; }
+  .og .brand .url { font-family: "IBM Plex Mono", monospace; font-size: 16px; font-weight: 600; opacity: 0.65; margin-left: auto; padding-right: 40px; }
+  .og .art { position: relative; }
+  .og .art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  /* kilo spine between text and art */
+  .og .art::before { content: ""; position: absolute; left: -14px; top: 0; bottom: 0; width: 14px; z-index: 2;
+    background: linear-gradient(to bottom, var(--k1) 0 50%, var(--k2) 50%); }
+  .og-light { background: #f2eee6; color: #121212; --k1: #003fb8; --k2: #cad900; }
+  .og-dark  { background: #101216; color: #f5f3ed; --k1: #003fb8; --k2: #cad900; }
+  .og-light h1 .em, .og-dark h1 .em { color: #003fb8; }
+  .og-dark h1 .em { color: #7db4ff; }
+  .cap { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #47423a; }
+
+  /* ── mark + favicon recolor strip ── */
+  .marks { display: flex; gap: 34px; align-items: center; background: #f7f3eb; border: 1px solid rgba(0,0,0,0.15); padding: 26px 30px; }
+  .mk { text-align: center; font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: #47423a; }
+  .mk svg { display: block; margin: 0 auto 8px; }
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+  .mk .rot { animation: spin 10s linear infinite; transform-origin: center; }
+</style>
+</head>
+<body>
+
+<div class="cap">OG card · default / manifesto — light (1200×630)</div>
+<div class="og og-light">
+  <div class="txt">
+    <div class="hoist slug-hoist" style="padding:0;">
+      <i class="fl fl-hotel"></i><i class="fl fl-oscar"></i><i class="fl fl-mike"></i><i class="fl fl-echo"></i>
+    </div>
+    <h1>A harbor-master for your <span class="em">agents.</span></h1>
+    <div class="sub" style="color:#006b5f;">coordination · claims · salvage · one daemon of truth</div>
+    <div class="brand">
+      <img src="art/pd-mark-v2-lightmode.svg" alt="">
+      Port Daddy
+      <span class="url">portdaddy.dev</span>
+    </div>
+  </div>
+  <div class="art"><img src="art/manifesto-light.jpg" alt=""></div>
+</div>
+
+<div class="cap">OG card · blog post — dark (1200×630, rust spine = the track record)</div>
+<div class="og og-dark" style="--k1:#7a4514; --k2:#cad900;">
+  <div class="txt">
+    <div class="hoist slug-hoist" style="padding:0;">
+      <i class="fl fl-bravo"></i><i class="fl fl-lima"></i><i class="fl fl-oscar"></i><i class="fl fl-golf"></i>
+    </div>
+    <h1>The PR that reviews <span class="em">itself.</span></h1>
+    <div class="sub" style="color:#8fd0a7;">six paid critics on the push you already made</div>
+    <div class="brand">
+      <img src="art/pd-mark-v2-darkmode.svg" alt="">
+      Port Daddy
+      <span class="url">portdaddy.dev/blog</span>
+    </div>
+  </div>
+  <div class="art"><img src="art/pr-fleet-dark.jpg" alt=""></div>
+</div>
+
+<div class="cap">Mark · wordmark · favicon — palette v2 recolor proposal</div>
+<div class="marks">
+  <div class="mk">
+    <div style="display:flex; gap:16px; align-items:center; justify-content:center; margin-bottom:8px;">
+      <img src="../../../website-v2/public/logos/portdaddy-mark-radar-lightmode.svg" width="64" height="64" alt="">
+      <span style="font-size:15px; color:#98928a;">→</span>
+      <img src="art/pd-mark-v2-lightmode.svg" width="64" height="64" alt="" class="rot" style="animation-duration:10s;">
+    </div>
+    the real mark, recolored · light<br>blue→cobalt · green→teal · amber→lime<br>pd letterform + inherited font untouched
+  </div>
+  <div class="mk" style="background:#101216; color:#a59f93; padding: 14px 18px; margin: -14px 0;">
+    <div style="display:flex; gap:16px; align-items:center; justify-content:center; margin-bottom:8px;">
+      <img src="../../../website-v2/public/logos/portdaddy-mark-radar-darkmode.svg" width="64" height="64" alt="">
+      <span style="font-size:15px; color:#5c574e;">→</span>
+      <img src="art/pd-mark-v2-darkmode.svg" width="64" height="64" alt="" class="rot" style="animation-duration:10s;">
+    </div>
+    the real mark, recolored · dark<br>blue→luminous cobalt · green→sage · amber→lime<br>SpinningWordmark c1/c2/c3 already read tokens — zero code change
+  </div>
+  <div class="mk">
+    <div style="display:flex; gap:10px; margin-bottom:8px; justify-content:center;">
+      <span style="width:32px; height:32px; display:inline-block; background: linear-gradient(to right, #003fb8 0 50%, #cad900 50%); border:1.5px solid #121212;"></span>
+      <span style="width:32px; height:32px; display:inline-block; border:1.5px solid #121212; position:relative; background:#f2eee6;"><span style="position:absolute; inset:6px; background:#003fb8;"></span></span>
+      <span style="width:32px; height:32px; display:inline-block; background: conic-gradient(#cad900 0 25%, #003fb8 25% 50%, #cad900 50% 75%, #003fb8 75%); border:1.5px solid #121212;"></span>
+    </div>
+    favicon candidates @32px<br>Kilo halves · Papa square · Uniform quarters
+  </div>
+  <div class="mk" style="font-size:16px; font-weight:700; font-family:'IBM Plex Sans',sans-serif; color:#121212;">
+    <span style="display:flex; align-items:center; gap:9px;">
+      <span style="width:6px; height:26px; background: linear-gradient(to bottom, #003fb8 0 50%, #cad900 50%);"></span>
+      Port Daddy
+    </span>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:600; color:#47423a; margin-top:8px;">wordmark + kilo tick<br>(replaces the ⌗ era)</div>
+  </div>
+</div>
+
+</body>
+</html>

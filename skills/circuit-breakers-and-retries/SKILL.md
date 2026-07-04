@@ -1,9 +1,51 @@
 ---
+license: Apache-2.0
 name: circuit-breakers-and-retries
-description: Building resilient distributed systems with circuit breakers, retries with full-jitter exponential backoff, retry budgets (per-request 3-attempt + per-client 10% ratio per Google SRE), deadline propagation, and the cascading-failure math (4 layers × 3 retries = 64x amplification). Grounded in Resilience4j, Microsoft Cloud Patterns, AWS Architecture Blog (Marc Brooker), and Google SRE Book.
-category: Resilience & Distributed Systems
-tags: [circuit-breaker, retries, backoff, jitter, sre, resilience4j, polly, cascading-failure]
+description: |
+  Building resilient distributed systems with circuit breakers, retries with full-jitter
+  exponential backoff, retry budgets (per-request 3-attempt + per-client 10% ratio per
+  Google SRE), deadline propagation, and the cascading-failure math (4 layers × 3 retries
+  = 64x amplification). Grounded in Resilience4j, Microsoft Cloud Patterns, AWS
+  Architecture Blog (Marc Brooker), and Google SRE Book. NOT for server-side rate
+  limiting, bulkhead isolation, backpressure protocols, or database-specific retry.
 allowed-tools: Read, Grep, Glob, Edit, Write, Bash(grep:*, rg:*)
+metadata:
+  category: Resilience & Distributed Systems
+  tags:
+    - circuit-breaker
+    - retries
+    - backoff
+    - jitter
+    - sre
+    - resilience4j
+    - polly
+    - cascading-failure
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: background-job-queue-design
+      reason: Queue retry policies (backoff, jitter, DLQ) are the async twin of the synchronous retry budgets this skill designs.
+    - skill: error-handling-patterns
+      reason: The retriable-vs-permanent error taxonomy that gates every retry decision lives there.
+    - skill: observability-apm-expert
+      reason: Breaker state transitions, retry-ratio metrics, and the recovery curve after a game day need an APM home.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: resilience-requirement
+        format: markdown
+        description: A description of the outbound dependency call — layers involved, idempotency, latency budget, and failure history.
+      - kind: resilience-plan
+        format: json
+        description: A structured plan naming the retry, backoff, budget, breaker, and deadline choices, matching schemas/circuit-breaker-retry-plan.schema.json.
+    produces:
+      - kind: resilience-recommendation
+        format: markdown
+        description: The retry + breaker + deadline configuration with the amplification math for the call chain, following this skill's decision diagram.
+      - kind: resilience-plan-audit
+        format: json
+        description: A deterministic pass/fail audit of the resilience-plan against this skill's Quality Gates, as produced by scripts/circuit_breaker_retry_audit.mjs.
 ---
 
 # Circuit Breakers and Retries
@@ -285,6 +327,28 @@ A resilience change ships when:
 - [ ] **Test:** Circuit breaker `slowCallRateThreshold` is configured (Resilience4j default disabled); verify in config.
 - [ ] **Test:** `Retry-After` header (when present) is parsed and honored.
 - [ ] **Manual:** Game day or chaos test exercises the breaker with a fault-injected dependency; observe the recovery curve.
+
+---
+
+## Deterministic Audit
+
+Before shipping a resilience change (or reviewing another agent's), write the plan as a
+JSON object matching `schemas/circuit-breaker-retry-plan.schema.json` and run it through
+`scripts/circuit_breaker_retry_audit.mjs`:
+
+```bash
+node scripts/circuit_breaker_retry_audit.mjs --input examples/sample-input.json
+```
+
+`auditCircuitBreakerRetry(plan)` encodes this skill's amplification math and Quality
+Gates as deterministic rules over structured fields — no keyword matching: retries with
+no circuit breaker, retries at more than one layer (the 64× product), no-jitter or
+equal-jitter backoff, a missing or over-10% per-client retry budget, retry loops that
+tunnel through `CallNotPermittedException`, retrying 4xx, fresh timeouts per hop instead
+of propagated deadlines, non-idempotent retries without an idempotency key, and Hystrix
+in 2026. It returns `{ pass, score, findings, recommendations }`.
+`examples/sample-input.json` is a single-layer Resilience4j plan with full-jitter
+backoff and both SRE budgets (`pass: true`) Version history lives in `CHANGELOG.md`.
 
 ---
 

@@ -1,13 +1,42 @@
 ---
+license: Apache-2.0
 name: htmx-progressive-enhancement
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 description: 'Use when building server-driven UIs with htmx, designing hx-* attribute compositions, choosing swap strategies (innerHTML/outerHTML/morph), wiring out-of-band updates, integrating with form validation, or migrating from a SPA back to server-rendered HTML. Triggers: hx-get/hx-post setup, hx-target + hx-swap interplay, hx-trigger debouncing, OOB swaps for parts of the page outside the request target, response headers like HX-Trigger and HX-Push-Url, integration with Hyperscript or Alpine.js, accessibility considerations on partial updates. NOT for full SPAs (use React/Vue), framework-specific server libraries (use those skills directly), or non-HTML responses.'
-category: Frontend & UI
-tags:
-  - htmx
-  - hypermedia
-  - progressive-enhancement
-  - server-rendering
-  - hateoas
+metadata:
+  category: Frontend & UI
+  tags:
+    - htmx
+    - hypermedia
+    - progressive-enhancement
+    - server-rendering
+    - hateoas
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: hono-patterns
+      reason: A lightweight Hono backend returning HTML fragments (branching on the HX-Request header) is the natural server half of an htmx UI
+    - skill: web-design-expert
+      reason: htmx swaps in whatever the server renders; the layout, typography, and interaction design of those fragments live there
+    - skill: websocket-streaming
+      reason: The hx-ext ws/sse extensions ride on server push; connection lifecycle and streaming design come from the paired skill
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: ui-requirement
+        format: markdown
+        description: The interaction to build -- partial updates, form flows, live regions, SPA-migration scope -- from a human or another agent.
+      - kind: htmx-ui-plan
+        format: json
+        description: A structured plan of response format, CSRF handling, no-JS fallback, a11y, and swap strategy, matching schemas/htmx-progressive-enhancement-plan.schema.json.
+    produces:
+      - kind: enhancement-design
+        format: markdown
+        description: The hx-* attribute composition, server fragment contract, and accessibility wiring, following this skill's patterns.
+      - kind: htmx-audit-report
+        format: json
+        description: A deterministic pass/fail audit of the htmx-ui-plan against this skill's Quality Gates, as produced by scripts/htmx_progressive_enhancement_audit.mjs.
 ---
 
 # htmx Progressive Enhancement
@@ -231,6 +260,26 @@ The form sends JSON on submit; server echoes HTML back, swapping into the page.
 - [ ] Loading indicators on every request that takes >300ms.
 - [ ] OOB swaps used for cross-region updates instead of multiple requests.
 - [ ] Trigger debouncing (`delay:`) on every type-as-you-search input.
+
+## Deterministic Audit
+
+Before shipping (or reviewing) an htmx UI, write its shape as a JSON plan matching
+`schemas/htmx-progressive-enhancement-plan.schema.json` and run it through the
+deterministic auditor:
+
+```bash
+node scripts/htmx_progressive_enhancement_audit.mjs --input examples/sample-input.json
+```
+
+`auditHtmxProgressiveEnhancement(plan)` (in `scripts/htmx_progressive_enhancement_audit.mjs`)
+turns this skill's anti-patterns and Quality Gates into machine-checkable rules over
+structured fields — no keyword matching: JSON returned to an htmx swap (the
+nothing-happens bug), state-changing requests without a CSRF token, a UI that dies with JS
+disabled, dynamic regions with no `aria-live`, unmanaged focus after swaps, client-side
+state stores shadowing the server, undebounced type-ahead search, and multiple requests
+where one OOB swap would do. It returns `{ pass, score, findings, recommendations }` and
+exits 1 on failure. `examples/sample-input.json` is a correctly enhanced, accessible plan
+(`pass: true`, zero findings). See `CHANGELOG.md` for the bundle's history.
 
 ## NOT for
 

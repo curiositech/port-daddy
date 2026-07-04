@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/rate-limiting-strategy-plan.schema.json",
+  "title": "Rate-Limit Plan",
+  "description": "A structured rate-limiter design capturing the three decisions (algorithm, placement, key) plus failure-mode and response-contract hygiene, so this skill's Quality Gates can be checked deterministically by scripts/rate_limiting_strategy_audit.mjs.",
+  "type": "object",
+  "required": ["algorithm", "customerFacing", "enforcementPoints", "keyTier"],
+  "additionalProperties": true,
+  "properties": {
+    "algorithm": {
+      "type": "string",
+      "enum": ["fixed-window", "sliding-window-log", "sliding-window-counter", "token-bucket", "leaky-bucket-policing", "leaky-bucket-shaping"],
+      "description": "The limiting algorithm. sliding-window-counter is the general-purpose default."
+    },
+    "customerFacing": {
+      "type": "boolean",
+      "description": "True if the limited surface serves external customers (boundary-burst and NAT-collision rules apply)."
+    },
+    "burstsRequired": {
+      "type": "boolean",
+      "description": "True if legitimate clients need controlled bursts above the steady rate (CI runs, batch imports)."
+    },
+    "enforcementPoints": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": ["edge", "gateway", "origin-redis", "in-process"]
+      },
+      "description": "Where the limiter runs. The usual correct answer is edge + origin-redis in series."
+    },
+    "replicaCount": {
+      "type": "number",
+      "minimum": 1,
+      "description": "Number of app replicas/pods. An in-process limiter multiplies the effective limit by this."
+    },
+    "keyTier": {
+      "type": "string",
+      "enum": ["user-id", "api-key", "ip-ua-path", "ip-only", "global"],
+      "description": "The primary key the limit is bucketed by (tier 1 = user-id is best for product limits)."
+    },
+    "authEndpointsCovered": {
+      "type": "boolean",
+      "description": "True if /login, /register, /forgot-password have their own tight limits distinct from read endpoints."
+    },
+    "loginKeyTuples": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["ip-username", "ip", "username"]
+      },
+      "description": "Which tuples the login limiter counts simultaneously. All three are required to block both rotation and spraying."
+    },
+    "atomicLua": {
+      "type": "boolean",
+      "description": "True if all Redis limiter logic runs in a single EVAL/EVALSHA Lua script (atomic read-modify-write)."
+    },
+    "redisCluster": {
+      "type": "boolean",
+      "description": "True if the backing Redis is a Cluster deployment."
+    },
+    "clusterHashTags": {
+      "type": "boolean",
+      "description": "True if multi-key limiter keys use {tag} hash tags so one principal's keys share a slot."
+    },
+    "retryAfterHeader": {
+      "type": "boolean",
+      "description": "True if every 429 carries Retry-After."
+    },
+    "rateLimitHeaders": {
+      "type": "boolean",
+      "description": "True if RateLimit-Limit/Remaining/Reset (IETF draft) headers are emitted."
+    },
+    "redisFailureMode": {
+      "type": "string",
+      "enum": ["fail-open", "fail-closed", "local-fallback", "undecided"],
+      "description": "The documented behavior when Redis is unreachable. undecided fails the audit."
+    },
+    "failOpenTelemetry": {
+      "type": "boolean",
+      "description": "True if every fail-open allow emits a metric with alerting. Required when redisFailureMode is fail-open."
+    },
+    "perEndpointLimits": {
+      "type": "boolean",
+      "description": "True if limits are differentiated by endpoint cost/risk rather than one global policy."
+    },
+    "unauthenticatedTraffic": {
+      "type": "boolean",
+      "description": "True if the API serves unauthenticated traffic (which should be dropped at the edge)."
+    }
+  }
+}

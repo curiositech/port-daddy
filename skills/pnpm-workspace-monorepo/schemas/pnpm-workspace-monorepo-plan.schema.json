@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/pnpm-workspace-monorepo-plan.schema.json",
+  "title": "pnpm Workspace Monorepo Plan",
+  "description": "A structured plan for a pnpm-workspaces monorepo so scripts/pnpm_workspace_monorepo_audit.mjs can check it deterministically against this skill's Quality Gates.",
+  "type": "object",
+  "required": ["internalDepProtocol", "sharedVersionSource", "lockfileCommitted", "ciFrozenLockfile"],
+  "additionalProperties": true,
+  "properties": {
+    "internalDepProtocol": {
+      "type": "string",
+      "enum": ["workspace", "semver-range", "file"],
+      "description": "How sibling packages reference each other. Must be the workspace: protocol."
+    },
+    "sharedVersionSource": {
+      "type": "string",
+      "enum": ["catalog", "per-package", "overrides"],
+      "description": "Where shared dependency versions are pinned. per-package drifts and fails."
+    },
+    "lockfileCommitted": {
+      "type": "boolean",
+      "description": "True if pnpm-lock.yaml is committed to the repo."
+    },
+    "ciFrozenLockfile": {
+      "type": "boolean",
+      "description": "True if CI installs with --frozen-lockfile so lockfile changes fail the build."
+    },
+    "shamefullyHoist": {
+      "type": "boolean",
+      "description": "True if .npmrc sets shamefully-hoist=true (always fails)."
+    },
+    "missingPeerFix": {
+      "type": "string",
+      "enum": ["declared-peer", "package-extensions", "auto-install-peers", "shamefully-hoist", "none"],
+      "description": "How missing/broken peer deps are handled."
+    },
+    "publishCommand": {
+      "type": "string",
+      "enum": ["pnpm-publish", "npm-publish", "none"],
+      "description": "How packages are published. npm-publish leaks workspace:* ranges and fails."
+    },
+    "taskRunner": {
+      "type": "string",
+      "enum": ["turbo", "nx", "plain-pnpm", "none"],
+      "description": "The task orchestrator in use."
+    },
+    "turboInputsDeclared": {
+      "type": "boolean",
+      "description": "True if turbo.json tasks declare inputs so the cache reflects real dependencies."
+    },
+    "ciAffectedOnlyFilter": {
+      "type": "boolean",
+      "description": "True if CI uses --filter \"...[origin/main]\" to build/test only affected packages."
+    },
+    "usesTypescript": {
+      "type": "boolean",
+      "description": "True if the workspace is TypeScript (enables the project-references check)."
+    },
+    "tsProjectReferencesMirrorGraph": {
+      "type": "boolean",
+      "description": "True if tsconfig references mirror the workspace dependency graph for tsc -b."
+    },
+    "postinstallAllowlist": {
+      "type": "boolean",
+      "description": "True if pnpm.onlyBuiltDependencies allowlists which deps may run lifecycle scripts."
+    },
+    "enginesNodeSet": {
+      "type": "boolean",
+      "description": "True if every package declares engines.node matching the repo Node version."
+    }
+  }
+}

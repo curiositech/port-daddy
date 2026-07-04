@@ -1,15 +1,41 @@
 ---
+license: Apache-2.0
 name: zero-downtime-database-migration
 description: 'Use when changing schema on a live production database without dropping traffic, doing expand/contract migrations, backfilling new columns on million-plus-row tables, dual-writing across schemas, renaming a hot column, splitting a table, or adding a foreign key to a big table. Triggers: ALTER TABLE locks the world, "must be removed in a separate deploy", expand-contract-cleanup phases, NOT NULL on populated column, foreign-key add on big table, dropping a column still read by old replicas, lock_timeout choice, gh-ost vs pt-online-schema-change. NOT for greenfield schema design, ORM-managed migration mechanics (Prisma/Drizzle), D1/Supabase CLI quirks, or NoSQL document migrations.'
-category: Backend & Infrastructure
 allowed-tools: Read,Grep,Glob,Edit,Write,Bash
-tags:
-  - database
-  - migration
-  - postgres
-  - mysql
-  - zero-downtime
-  - expand-contract
+metadata:
+  category: Backend & Infrastructure
+  tags:
+    - database
+    - migration
+    - postgres
+    - mysql
+    - zero-downtime
+    - expand-contract
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: background-job-orchestrator
+      reason: Batched backfills run as supervised background jobs with retries and throttling — exactly the queue/worker machinery that skill owns.
+    - skill: event-driven-architecture-expert
+      reason: Dual-write and outbox sequencing during a service split lean on the messaging and delivery-guarantee patterns that skill covers.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: schema-change-requirement
+        format: markdown
+        description: The desired schema change -- rename, split, type change, index, FK, NOT NULL -- with table size, traffic profile, engine, and replication topology.
+      - kind: migration-plan
+        format: json
+        description: A structured plan naming engine, change type, deploy phases, lock/backfill/tool decisions, matching schemas/zero-downtime-database-migration-plan.schema.json.
+    produces:
+      - kind: migration-runbook
+        format: markdown
+        description: The phased expand/backfill/contract sequence with exact DDL, lock_timeout settings, batch parameters, verification queries, and rollback plan per phase.
+      - kind: migration-audit-report
+        format: json
+        description: A deterministic pass/fail audit of the migration-plan against this skill's Quality Gates, as produced by scripts/zero_downtime_database_migration_audit.mjs.
 ---
 
 # Zero-Downtime Database Migration
@@ -279,6 +305,28 @@ If any of these fails, rollback is simply "stop reading from new, keep dual-writ
 - [ ] MySQL only: tool selected (gh-ost vs pt-online-schema-change) based on FK + binlog-format reality, not habit.
 - [ ] Rollback plan documented before deploy: how to revert each phase without data loss.
 - [ ] Optional: Scientist-style shadow comparison wired into production reads for the soak window. ([Stripe][stripe-online-migrations])
+
+## Deterministic Audit
+
+Before running (or reviewing) a production migration, write it as a JSON plan matching
+`schemas/zero-downtime-database-migration-plan.schema.json` and run the deterministic
+auditor:
+
+```bash
+node scripts/zero_downtime_database_migration_audit.mjs --input examples/sample-input.json
+```
+
+`auditZeroDowntimeDatabaseMigration(plan)` (in
+`scripts/zero_downtime_database_migration_audit.mjs`) turns this skill's core sequence —
+expand → migrate → contract, three deploys minimum — and its Quality Gates into
+machine-checkable rules over structured fields: a breaking change squeezed into fewer
+than three deploys, a migration session with no `lock_timeout`, `CREATE INDEX` without
+`CONCURRENTLY` on a hot table, an FK add skipping `NOT VALID` → `VALIDATE CONSTRAINT`,
+a single-statement or unthrottled backfill, dual writes with no feature flag, a contract
+step with no verification or rollback plan, and gh-ost pointed at a table with foreign
+keys or non-ROW binlogs. It returns `{ pass, score, findings, recommendations }`.
+`examples/sample-input.json` is a three-deploy Postgres column rename that clears every
+gate (`pass: true`). Changes are tracked in `CHANGELOG.md`.
 
 ## NOT for
 

@@ -2,22 +2,41 @@
 name: graphql-n-plus-one-dataloader
 description: Diagnose and eliminate the GraphQL N+1 resolver explosion using Facebook DataLoader's per-request batching, plus the second-order defenses (persisted queries, depth limits, cost analysis). Use when a GraphQL query that returns N items in a list triggers N+1 database round trips, when designing nested resolvers that load associations, when a list query times out under load, or when you need to budget query cost before resolvers run. NOT for REST-style endpoint design (use api-versioning-strategy), generic database query optimization (use database-query-optimizer), or schema design (use graphql-server-architect).
 allowed-tools: Read,Write,Edit,Grep,Glob,Bash(node:*,npm:*,npx:*)
-category: Backend & Databases
-tags:
-  - graphql
-  - dataloader
-  - n-plus-one
-  - performance
-  - batching
-  - persisted-queries
-  - cost-analysis
+license: Apache-2.0
 metadata:
   category: Backend & Databases
+  tags:
+    - graphql
+    - dataloader
+    - n-plus-one
+    - performance
+    - batching
+    - persisted-queries
+    - cost-analysis
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
   pairs-with:
-    - skill: graphql-server-architect
-      reason: Schema design decisions create or eliminate N+1 patterns at design time
-    - skill: postgres-connection-pooling
-      reason: DataLoader collapses 1+N → 2 round trips; pooling collapses connection setup cost
+    - skill: observability-apm-expert
+      reason: N+1 explosions surface first as span fan-out in APM traces; that instrumentation is how you find the resolver to batch
+    - skill: error-handling-patterns
+      reason: The batch contract requires per-key Error instances in the returned array; propagating those cleanly through resolvers is an error-design problem
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: resolver-performance-report
+        format: markdown
+        description: The observed pathology -- a list query firing N+1 datastore round trips, timeouts under load, or an abuse-vector concern -- from a human or another agent.
+      - kind: dataloader-plan
+        format: json
+        description: A structured plan of loader scoping, batch-contract handling, and query-abuse defenses, matching schemas/graphql-n-plus-one-dataloader-plan.schema.json.
+    produces:
+      - kind: batching-fix
+        format: markdown
+        description: The DataLoader wiring (per-request context, reordering batch fn) plus layered depth/cost/APQ defenses, following this skill's worked example.
+      - kind: dataloader-audit-report
+        format: json
+        description: A deterministic pass/fail audit of the dataloader-plan against this skill's Quality Gates, as produced by scripts/graphql_n_plus_one_dataloader_audit.mjs.
 ---
 
 # GraphQL N+1 / DataLoader Pattern
@@ -286,6 +305,27 @@ Why cost > depth: depth-1 is not safety. `users(first: 10000)` is depth 1.
 - [ ] APQ enabled if clients are external/mobile and bandwidth matters
 - [ ] Introspection queries (`__schema`, `__type`) are exempted from depth limits
 - [ ] Production query log monitored for queries that took >2 round trips per list field — flags missing DataLoader
+
+## Deterministic Audit
+
+Before shipping (or reviewing) a DataLoader integration, write the plan as JSON matching
+`schemas/graphql-n-plus-one-dataloader-plan.schema.json` and run it through the
+deterministic auditor:
+
+```bash
+node scripts/graphql_n_plus_one_dataloader_audit.mjs --input examples/sample-input.json
+```
+
+`auditGraphqlNPlusOneDataloader(plan)` (in `scripts/graphql_n_plus_one_dataloader_audit.mjs`)
+turns this skill's Failure Modes and Quality Gates into machine-checkable rules over
+structured fields — no keyword matching: a module-singleton loader (cross-request cache
+poisoning), a batch fn that does not reorder by key or return a keys-length array (the
+index-matching contract), more than 2 round trips for a list query (an unbatched resolver),
+DataLoader treated as an application cache, depth-limit-only defense (breadth bombs),
+no introspection exemption, and missing APQ for external clients. It returns
+`{ pass, score, findings, recommendations }` and exits 1 on failure.
+`examples/sample-input.json` is a fully-defended per-request plan (`pass: true`, zero
+findings). See `CHANGELOG.md` for the bundle's history.
 
 ## NOT-FOR Boundaries
 

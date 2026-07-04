@@ -1,15 +1,42 @@
 ---
+license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 name: d1-and-supabase-migrations
 description: 'Use when applying Cloudflare D1 migrations, fighting Supabase migration history vs SQL execution, choosing direct psql over CLI, designing idempotent migrations, debugging schema drift between local and remote, or recovering after a half-applied migration. Triggers: supabase migration repair instructions appearing, table missing after "applied" status, "Tenant or user not found" when running psql, --remote vs --local D1 confusion, NOT NULL on a populated column, foreign key constraint failures, drift between staging and prod schemas. NOT for Mongo/document migrations, ORM-managed migrations specifically (Prisma/Drizzle have their own conventions), or pure data backfills.'
-category: Backend & Infrastructure
-tags:
-  - database
-  - migrations
-  - sqlite
-  - postgres
-  - supabase
-  - d1
-  - schema
+metadata:
+  category: Backend & Infrastructure
+  tags:
+    - database
+    - migrations
+    - sqlite
+    - postgres
+    - supabase
+    - d1
+    - schema
+  pairs-with:
+    - skill: sqlite-durable-agent-state
+      reason: D1 is SQLite; that skill owns the durable-state schema patterns whose evolution this skill migrates safely.
+    - skill: ideal-web-app-builder
+      reason: Supabase/D1-backed apps built there need this skill's repair-vs-execute and --remote discipline the first time the schema changes.
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: migration-requirement
+        format: markdown
+        description: The schema change being requested — platform (Supabase or D1), target environment, table shape, and any half-applied history to recover from.
+      - kind: migration-plan
+        format: json
+        description: A structured plan naming the platform, connection, repair/verification intent, and NOT NULL/backfill handling, matching schemas/migration-plan.schema.json.
+    produces:
+      - kind: migration-runbook
+        format: markdown
+        description: The ordered SQL + CLI steps (execute, verify, then repair) with the verification queries that assert the schema, not the history.
+      - kind: migration-plan-audit
+        format: json
+        description: A deterministic pass/fail audit of the migration-plan against this skill's Quality Gates, as produced by scripts/migration_plan_audit.mjs.
 ---
 
 # D1 and Supabase Migrations Done Right
@@ -224,6 +251,27 @@ Don't trust history rows. Trust the schema.
 - [ ] No NOT NULL without default on tables with existing rows.
 - [ ] Long migrations on hot tables batched (chunks of 10k or fewer).
 - [ ] Migration files immutable once applied anywhere; new changes get new files.
+
+## Deterministic Audit
+
+Before applying (or reviewing) a migration, write the plan as JSON matching
+`schemas/migration-plan.schema.json` and run the auditor:
+
+```bash
+node scripts/migration_plan_audit.mjs --input examples/sample-input.json
+```
+
+`auditMigrationPlan(plan)` (in `scripts/migration_plan_audit.mjs`) turns this
+skill's core rule — history rows lie, only the schema tells the truth — and its
+Quality Gates into machine-checkable rules over structured fields: `repair`
+planned before the SQL has executed (critical), no schema-asserting
+verification query, a Supabase migration routed through the pgbouncer pooler
+(critical), a production D1 apply targeting `--local` (critical), NOT NULL on a
+populated table without default/backfill (critical), an applied migration file
+being edited, an unbatched hot-table rewrite, and an untested down-script. It
+returns `{ pass, score, findings, recommendations }`.
+`examples/sample-input.json` is a correctly-ordered execute-verify-repair plan
+(`pass: true`, zero findings).
 
 ## NOT for
 

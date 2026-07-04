@@ -1,14 +1,43 @@
 ---
 name: kubernetes-debugging-runbook
 description: 'Use when triaging CrashLoopBackOff, OOMKilled, ImagePullBackOff, Pending pods, networking failures, ingress 502/504, PVC stuck, HPA not scaling, init-container loops, sidecar startup ordering, or "kubectl describe says nothing useful". Triggers: pod restart counts climbing, "no nodes available to schedule", "back-off restarting failed container", DNS resolution failures inside the cluster, NetworkPolicy denials, livenessProbe killing healthy pods. NOT for cluster setup (kubeadm, kops), cloud-provider-specific managed K8s admin (EKS/GKE/AKS), helm chart authoring, or service mesh internals.'
-category: DevOps & Infrastructure
-tags:
-  - kubernetes
-  - debugging
-  - runbook
-  - operations
-  - networking
-  - observability
+license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
+metadata:
+  category: DevOps & Infrastructure
+  tags:
+    - kubernetes
+    - debugging
+    - runbook
+    - operations
+    - networking
+    - observability
+  pairs-with:
+    - skill: kubernetes-graceful-shutdown
+      reason: Restart-loop and rolling-deploy 5xx symptoms triaged here often root-cause to the SIGTERM/preStop lifecycle that skill owns
+    - skill: node-memory-leak-hunting
+      reason: An OOMKilled Node.js pod diagnosed here hands off to that skill for the heap-snapshot-diff root cause
+    - skill: observability-apm-expert
+      reason: The restart/OOM/lag alerting this runbook's Quality Gates require is that skill's monitoring surface
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: incident-report
+        format: markdown
+        description: A symptom description — pod status, restart counts, events output, error messages — as reported by a human, alert, or another agent.
+      - kind: triage-plan
+        format: json
+        description: A structured plan naming the observed symptom, the first diagnostic action, and the intended fix approach, per schemas/k8s-triage-plan.schema.json.
+    produces:
+      - kind: diagnosis
+        format: markdown
+        description: The root-cause diagnosis and kubectl playbook followed, matched to the pod-status decoding table and playbooks in this runbook.
+      - kind: triage-plan-audit
+        format: json
+        description: A deterministic pass/fail audit of the triage-plan against this skill's Quality Gates, as produced by scripts/kubernetes_debugging_runbook_audit.mjs.
 ---
 
 # Kubernetes Debugging Runbook
@@ -248,6 +277,26 @@ Common roots: unbounded log files (set up logrotate or use a log driver), emptyD
 - [ ] HPA targets configured only on metrics with `requests` defined.
 - [ ] Pod logs go to a centralized destination, not just node disk.
 - [ ] Runbook links from each alert pointing to the relevant kubectl invocation.
+
+## Deterministic Audit
+
+Before executing a triage (or reviewing another agent's), write it as a JSON plan
+matching `schemas/k8s-triage-plan.schema.json` and run the deterministic auditor:
+
+```bash
+node scripts/kubernetes_debugging_runbook_audit.mjs --input examples/sample-input.json
+```
+
+`auditKubernetesDebuggingRunbook(plan)` (in `scripts/kubernetes_debugging_runbook_audit.mjs`)
+turns this runbook's anti-patterns into machine-checkable rules over structured fields only:
+reading current logs on a CrashLoopBackOff instead of `--previous`, mutating (restart /
+raise-limits) before any diagnostic read, a `kubectl exec` hotfix instead of a manifest
+change, OOMKilled without both requests and limits, liveness conflated with readiness, an
+HPA target with no `resources.requests`, an unaudited NetworkPolicy on blocked traffic, a
+floating `latest` tag, and missing restart alerting. It returns
+`{ pass, score, findings, recommendations }` and exits 1 on failure.
+`examples/sample-input.json` is a correctly-sequenced CrashLoopBackOff triage that audits
+`pass: true`. Version history lives in `CHANGELOG.md`.
 
 ## NOT for
 

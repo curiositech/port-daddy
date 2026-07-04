@@ -1,15 +1,43 @@
 ---
 name: node-memory-leak-hunting
 description: 'Use when a Node.js process is growing memory unbounded in production, hits OOM, restarts on schedule, or shows monotonic RSS in Grafana. Triggers: heap snapshot diff (Comparison mode in Chrome DevTools), v8.writeHeapSnapshot, --heapsnapshot-signal=SIGUSR2, clinic doctor / clinic heap, Allocation sampling vs Allocation instrumentation timeline, --max-old-space-size, retainers / dominators, EventEmitter listener leak, closures over big objects, Buffer.allocUnsafe, intern caches that never evict. NOT for CPU profiling (use clinic doctor for the smoke signal then a CPU-specific skill), Go pprof, browser-side memory leaks, or worker_threads-only debugging.'
-category: Backend & Infrastructure
+license: Apache-2.0
 allowed-tools: Read,Grep,Glob,Edit,Write,Bash
-tags:
-  - nodejs
-  - memory
-  - heap
-  - performance
-  - debugging
-  - v8
+metadata:
+  category: Backend & Infrastructure
+  tags:
+    - nodejs
+    - memory
+    - heap
+    - performance
+    - debugging
+    - v8
+  pairs-with:
+    - skill: kubernetes-debugging-runbook
+      reason: OOMKilled pods (exit 137) are triaged there first; this skill takes the handoff for the heap-snapshot-diff root cause inside the Node process
+    - skill: observability-apm-expert
+      reason: The heap_used/heap_total/rss/external metrics, panels, and alerts this skill's Quality Gates require are that skill's monitoring surface
+    - skill: daemon-development
+      reason: Long-lived daemons are where unbounded caches and per-request listeners accumulate; that skill owns the process-lifecycle side of keeping them healthy
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: leak-report
+        format: markdown
+        description: A symptom description — RSS curve shape, OOM kills, restart schedule, metrics screenshots — as reported by a human, alert, or another agent.
+      - kind: leak-hunt-plan
+        format: json
+        description: A structured plan naming the RSS pattern, chosen technique, snapshot target, and metrics coverage, per schemas/leak-hunt-plan.schema.json.
+    produces:
+      - kind: leak-diagnosis
+        format: markdown
+        description: The retained-constructor diagnosis and fix, following the two-snapshot-diff playbook and the common Node.js leak shapes.
+      - kind: leak-hunt-audit
+        format: json
+        description: A deterministic pass/fail audit of the leak-hunt-plan against this skill's Quality Gates, as produced by scripts/node_memory_leak_hunting_audit.mjs.
 ---
 
 # Node.js Memory Leak Hunting
@@ -275,6 +303,25 @@ Useful when you legitimately need more headroom (large in-memory cache, big JSON
 - [ ] Long-running event subscribers (`emitter.on`) audited; per-request subscription patterns replaced with `once` or removed.
 - [ ] Buffer / ArrayBuffer hot paths reviewed; `external` memory tracked.
 - [ ] OTel span around requests with `node.heap_used_after_ms` recorded for drift detection (see `opentelemetry-instrumentation`).
+
+## Deterministic Audit
+
+Before starting a hunt (or reviewing another agent's), write it as a JSON plan matching
+`schemas/leak-hunt-plan.schema.json` and run the deterministic auditor:
+
+```bash
+node scripts/node_memory_leak_hunting_audit.mjs --input examples/sample-input.json
+```
+
+`auditNodeMemoryLeakHunting(plan)` (in `scripts/node_memory_leak_hunting_audit.mjs`)
+encodes this skill's playbook as machine-checkable rules over structured fields only:
+a scheduled restart planned as the "fix", raising `--max-old-space-size` against monotonic
+growth, a plateau misread as a confirmed leak, a two-snapshot diff with no load driven
+between the snapshots, snapshotting the busy primary, incomplete
+`process.memoryUsage()` metric coverage, and missing source maps. It returns
+`{ pass, score, findings, recommendations }` and exits 1 on failure.
+`examples/sample-input.json` is a correctly-shaped monotonic-growth hunt (canary snapshot,
+load-driven diff, all five metrics) that audits `pass: true`. Version history lives in `CHANGELOG.md`.
 
 ## NOT for
 

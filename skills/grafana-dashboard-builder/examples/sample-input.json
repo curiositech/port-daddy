@@ -1,0 +1,17 @@
+{
+  "panelCount": 14,
+  "metricType": "histogram",
+  "rangeFunction": "rate",
+  "usesHistogramQuantile": true,
+  "aggregatesByLe": true,
+  "hasAlerts": true,
+  "alertKind": "slo",
+  "alertForSeconds": 600,
+  "alertUsesIrate": false,
+  "alertHasRunbookUrl": true,
+  "panelsSharingExpensiveQuery": 4,
+  "usesRecordingRules": true,
+  "dashboardsInVersionControl": true,
+  "variableIncludeAllEnabled": false,
+  "variableCardinality": 40
+}

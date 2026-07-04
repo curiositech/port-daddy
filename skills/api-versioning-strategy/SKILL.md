@@ -1,9 +1,47 @@
 ---
+license: Apache-2.0
 name: api-versioning-strategy
-description: Choosing and operating an HTTP API versioning strategy that doesn't break clients — Stripe's date-based pinned versions, the Deprecation/Sunset header pair (RFC 9745 + RFC 8594), URI vs header vs media-type approaches, and the version-transformer pattern. Grounded in Stripe's published architecture and IETF RFCs.
-category: API Design
-tags: [api, versioning, http, rest, deprecation, backward-compatibility, breaking-changes]
+description: |
+  Choosing and operating an HTTP API versioning strategy that doesn't break clients —
+  Stripe's date-based pinned versions, the Deprecation/Sunset header pair (RFC 9745 +
+  RFC 8594), URI vs header vs media-type approaches, and the version-transformer pattern.
+  Grounded in Stripe's published architecture and IETF RFCs. NOT for GraphQL schema
+  evolution, gRPC/Protobuf wire compatibility, database schema migrations, or library/SDK semver.
 allowed-tools: Read, Grep, Glob, Edit, Write, Bash(grep:*, rg:*, find:*, curl:*)
+metadata:
+  category: API Design
+  tags:
+    - api
+    - versioning
+    - http
+    - rest
+    - deprecation
+    - backward-compatibility
+    - breaking-changes
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: event-driven-architecture-expert
+      reason: Event schema evolution faces the same additive-vs-breaking calculus this skill applies to HTTP APIs.
+    - skill: observability-apm-expert
+      reason: Per-version usage telemetry — the gate for deleting a deprecated version — lives in the APM stack.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: versioning-requirement
+        format: markdown
+        description: A description of the API change under consideration — what breaks, who consumes it, and how the API is exposed (public vs internal).
+      - kind: versioning-plan
+        format: json
+        description: A structured plan naming the chosen strategy, deprecation/sunset signals, and lifecycle tooling, matching schemas/api-versioning-plan.schema.json.
+    produces:
+      - kind: versioning-strategy-recommendation
+        format: markdown
+        description: The recommended strategy with the deprecation timeline and transformer/lifecycle plan, following the decision diagram in this skill.
+      - kind: versioning-plan-audit
+        format: json
+        description: A deterministic pass/fail audit of the versioning-plan against this skill's Quality Gates, as produced by scripts/api_versioning_strategy_audit.mjs.
 ---
 
 # API Versioning Strategy
@@ -235,6 +273,26 @@ A versioning change ships when:
 - [ ] **Test:** Usage telemetry per version exists — you can answer "how many requests on the v2 path yesterday?" before you delete v2.
 - [ ] **Test (date-pinned only):** New API keys default to the latest version; existing keys hold their pin across deploys.
 - [ ] **Manual:** Sunset enforcement plan: a calendar reminder, a CI check, or an automated 410 Gone — *something* fires when the date arrives.
+
+---
+
+## Deterministic Audit
+
+Before shipping a versioning change (or reviewing another agent's), write the plan as a
+JSON object matching `schemas/api-versioning-plan.schema.json` and run it through
+`scripts/api_versioning_strategy_audit.mjs`:
+
+```bash
+node scripts/api_versioning_strategy_audit.mjs --input examples/sample-input.json
+```
+
+`auditApiVersioningStrategy(plan)` encodes this skill's decision diagram and Quality Gates
+as deterministic rules over structured fields — no keyword matching: a breaking removal
+with no `Deprecation` header, a `Sunset` earlier than `Deprecation` (the RFC 9745 MUST),
+date-pinned versions with no transformer framework, semver on a REST API, heavy public
+ceremony on an internal API, and deletion without per-version usage telemetry. It returns
+`{ pass, score, findings, recommendations }`. `examples/sample-input.json` is a
+well-formed public date-pinned plan (`pass: true`) Version history lives in `CHANGELOG.md`.
 
 ---
 

@@ -1,0 +1,16 @@
+{
+  "pythonMinor": 12,
+  "fanOutPrimitive": "taskgroup",
+  "siblingCancellationRequired": true,
+  "blockingCallsPresent": true,
+  "blockingOffload": "to-thread",
+  "externalCallsHaveTimeouts": true,
+  "timeoutPrimitive": "asyncio-timeout",
+  "cancelledErrorReRaised": true,
+  "usesQueue": true,
+  "queueBounded": true,
+  "usesSyncQueue": false,
+  "connectionPoolsAtStartup": true,
+  "requestScopedState": "contextvars",
+  "debugModeInDev": true
+}

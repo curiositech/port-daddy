@@ -1,0 +1,17 @@
+{
+  "transport": "stdio",
+  "startupStrategy": "lazy",
+  "startupBudgetMs": 60,
+  "logsToStdout": false,
+  "exposesFileTools": true,
+  "pathTraversalGuard": true,
+  "errorsReturnIsError": true,
+  "errorsSanitized": true,
+  "requiresSecrets": false,
+  "requiredEnvValidatedAtStartup": true,
+  "telemetryBlocking": false,
+  "maxOptionalArgsPerTool": 3,
+  "descriptionsIncludeWhenNotToUse": true,
+  "inputsValidatedWithConstraints": true,
+  "handshakeTestInCi": true
+}

@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/htmx-progressive-enhancement-plan.schema.json",
+  "title": "htmx UI Plan",
+  "description": "A structured plan of an htmx UI's response format, CSRF handling, no-JS fallback, accessibility, and swap strategy, so this skill's Quality Gates can be checked deterministically by scripts/htmx_progressive_enhancement_audit.mjs.",
+  "type": "object",
+  "required": ["endpointResponseFormat", "hasStateChangingRequests", "worksWithoutJs", "dynamicRegionsAriaLive"],
+  "additionalProperties": true,
+  "properties": {
+    "endpointResponseFormat": {
+      "type": "string",
+      "enum": ["html-fragment", "json"],
+      "description": "What htmx-facing endpoints return. htmx swaps bodies as HTML; JSON is the classic nothing-happens bug."
+    },
+    "hasStateChangingRequests": {
+      "type": "boolean",
+      "description": "True if the UI issues POST/PUT/PATCH/DELETE requests via hx-* attributes."
+    },
+    "csrfTokenIncluded": {
+      "type": "boolean",
+      "description": "True if every state-changing htmx request carries the CSRF token (hx-headers, hx-vals, or htmx-aware middleware)."
+    },
+    "worksWithoutJs": {
+      "type": "boolean",
+      "description": "True if forms and links function as plain HTML when JS is disabled (action= paired with hx-post, hx-boost upgrades)."
+    },
+    "dynamicRegionsAriaLive": {
+      "type": "boolean",
+      "description": "True if regions updated by swaps are marked aria-live so screen readers announce changes."
+    },
+    "focusManagedAfterSwap": {
+      "type": "boolean",
+      "description": "True if focus is managed (hx-on::after-swap) when a swap replaces or removes the focused element."
+    },
+    "clientSideStateStore": {
+      "type": "boolean",
+      "description": "True if application state is being tracked in client-side JS variables alongside htmx (the anti-pattern; the server should be the source of truth)."
+    },
+    "hasTypeAheadSearch": {
+      "type": "boolean",
+      "description": "True if the UI has type-as-you-search inputs firing requests on keyup."
+    },
+    "searchDebounced": {
+      "type": "boolean",
+      "description": "True if those inputs use hx-trigger with changed + delay: debouncing."
+    },
+    "crossRegionUpdateStrategy": {
+      "type": "string",
+      "enum": ["oob-swap", "multiple-requests", "none"],
+      "description": "How updates outside the request target are delivered: out-of-band swaps in the same response, extra requests, or not needed."
+    }
+  }
+}

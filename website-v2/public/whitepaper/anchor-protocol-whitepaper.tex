@@ -130,7 +130,7 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{May 2026\\Version 1.2 (Port Daddy v3.13.0)}
+\date{July 2026\\Version 1.3 (Port Daddy v3.23.0)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
 \begin{document}
@@ -312,6 +312,26 @@ Capability-based security dates back to Dennis and Van Horn's seminal 1966 paper
 \subsection{JWT Security}
 
 JSON Web Tokens have been the subject of extensive security analysis. Algorithm confusion attacks were first systematically studied by McLean~\cite{mclean2015critical}, with subsequent vulnerabilities documented in CVE-2015-9235~\cite{cve20159235} (HS256/RS256 confusion), CVE-2018-1000531~\cite{cve20181000531} (``none'' algorithm), and CVE-2023-48238~\cite{cve202348238} (generic algorithm confusion). Our protocol implements the defense recommended by the IETF JWT Best Current Practices~\cite{ietf2024jwtbcp}: strict algorithm whitelisting and key separation.
+
+\subsection{Credential Formats in Agentic Commerce}
+
+Since this protocol was first specified, the agentic-payments industry has
+converged on a concrete credential dialect: the Agent Payments
+Protocol~\cite{ap2mandates2026}, adopted by the Universal Commerce
+Protocol~\cite{ucp2026} (Google/Shopify, 2026), carries its authorization
+mandates as W3C Verifiable Credentials in SD-JWT form --- SD-JWT+kb for
+principal proof, JWS detached-content signatures (RFC~7515 Appendix~F) over
+JCS-canonicalized payloads (RFC~8785) for counterparty authorization, with
+ES256 as the recommended algorithm and keys published as JWK sets in a
+\texttt{/.well-known} profile. The reference implementation migrates the
+Harbor Card envelope to this profile (\texttt{hv:~3}, ADR-0094) so that
+external verifiers need no bespoke SDK. The migration is deliberately
+envelope-only: the delegation-chain semantics, the attenuation invariant of
+Theorem~\ref{thm:injective}, and the ProVerif obligations are independent of
+the serialization, though the key-binding construction of SD-JWT+kb adds a
+binding obligation the model must re-discharge. The JWT hardening above
+(strict algorithm whitelisting, key separation) transfers unchanged --- SD-JWT
+is a JWT profile, not a departure from one.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Formal Verification Strategy}
@@ -815,6 +835,16 @@ Bin Fan, David~G. Andersen, Michael Kaminsky, and Michael~D. Mitzenmacher.
 Alan Demers, Dan Greene, Carl Hauser, Wes Irish, John Larson, Scott Shenker, Howard Sturgis, Dan Swinehart, and Doug Terry.
 \newblock Epidemic Algorithms for Replicated Database Maintenance.
 \newblock In \textit{ACM Symposium on Principles of Distributed Computing (PODC)}, 1987.
+
+\bibitem{ucp2026}
+Universal Commerce Protocol.
+\newblock Specification and reference implementation (Apache-2.0), Google, Shopify, et al., 2026.
+\newblock \texttt{https://ucp.dev}.
+
+\bibitem{ap2mandates2026}
+Agent Payments Protocol (AP2): Mandates.
+\newblock Verifiable-credential authorization chain: SD-JWT+kb, JWS detached content, JCS canonicalization, 2026.
+\newblock \texttt{https://ap2-protocol.org}.
 
 \end{thebibliography}
 
