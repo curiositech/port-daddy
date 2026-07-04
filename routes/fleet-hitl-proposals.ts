@@ -156,6 +156,21 @@ export const fleetHitlProposalsPlugin: FastifyPluginAsync<FleetHitlProposalRoute
       }
       let dispatch = null;
       const shouldDispatch = (request.body ?? {}).dispatch !== false;
+      // Idempotency guard (fleet review HIGH): store.approve() returns an
+      // already-dispatched proposal untouched, so without this check a retry /
+      // double-click / concurrent approve would call dispatchQueue.propose()
+      // AGAIN and enqueue a duplicate budgeted specialist build —
+      // markDispatched's own guard only fires AFTER the money is spent.
+      if (proposal.status === 'dispatched' && proposal.dispatchId) {
+        return reply.send({
+          success: true,
+          proposal,
+          dispatch: null,
+          alreadyDispatched: true,
+          dispatchId: proposal.dispatchId,
+          pendingCount: store.pendingCount(),
+        });
+      }
       if (shouldDispatch) {
         if (!deps.dispatchQueue) {
           return reply.code(503).send({

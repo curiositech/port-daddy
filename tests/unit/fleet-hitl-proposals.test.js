@@ -162,6 +162,45 @@ describe('fleet HITL proposals', () => {
     db.close();
   });
 
+  test('re-approving a dispatched proposal never enqueues a second build', async () => {
+    // Fleet review HIGH: store.approve() returns dispatched rows untouched, so
+    // without the route's idempotency guard a retry / double-click would call
+    // dispatchQueue.propose() again — a duplicate BUDGETED specialist build.
+    const { app, db, dispatchQueue } = await buildApp();
+    const create = await app.inject({
+      method: 'POST',
+      url: '/fleet-proposals',
+      payload: sampleProposal({ targetSpecialist: 'skill-grafted-bot' }),
+    });
+    const id = create.json().proposal.id;
+
+    const first = await app.inject({
+      method: 'POST',
+      url: `/fleet-proposals/${id}/approve`,
+      payload: { decidedBy: 'fleetbar' },
+    });
+    expect(first.statusCode).toBe(200);
+    const firstDispatchId = first.json().proposal.dispatchId;
+
+    const second = await app.inject({
+      method: 'POST',
+      url: `/fleet-proposals/${id}/approve`,
+      payload: { decidedBy: 'fleetbar' },
+    });
+    expect(second.statusCode).toBe(200);
+    const body = second.json();
+    expect(body.success).toBe(true);
+    expect(body.alreadyDispatched).toBe(true);
+    expect(body.dispatch).toBeNull();
+    expect(body.proposal.dispatchId).toBe(firstDispatchId);
+
+    // The money assertion: exactly ONE dispatch ever reached the queue.
+    expect(dispatchQueue.list({ state: 'all' })).toHaveLength(1);
+
+    await app.close();
+    db.close();
+  });
+
   test('reject requires a reason and never dispatches', async () => {
     const { app, db, dispatchQueue } = await buildApp();
     const create = await app.inject({ method: 'POST', url: '/fleet-proposals', payload: sampleProposal() });
