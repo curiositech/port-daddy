@@ -55,11 +55,15 @@ export function sendWithBackpressure(
   maxBuffered = MAX_BUFFERED_BYTES,
 ): 'sent' | 'closed' | 'skipped' {
   if (socket.readyState !== socket.OPEN) return 'skipped';
-  if (socket.bufferedAmount > maxBuffered) {
+  // Serialize once and count the OUTGOING payload against the budget — a
+  // socket just under the limit must not be pushed far past it by a large
+  // snapshot.
+  const payload = JSON.stringify(event);
+  if (socket.bufferedAmount + payload.length > maxBuffered) {
     socket.close(1013, 'backpressure: consumer too slow');
     return 'closed';
   }
-  socket.send(JSON.stringify(event));
+  socket.send(payload);
   return 'sent';
 }
 

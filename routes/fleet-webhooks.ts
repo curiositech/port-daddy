@@ -27,7 +27,10 @@ import {
 } from '../lib/fleet/webhook-receiver.js';
 
 interface RawBodyRequest extends FastifyRequest {
-  rawBody?: string;
+  /** The EXACT bytes received — HMAC must verify over these, so this stays
+   *  a Buffer end-to-end (a UTF-8 string round-trip is lossy for non-UTF8
+   *  bodies and would break signatures). */
+  rawBody?: Buffer;
 }
 
 export interface FleetWebhooksRouteDeps {
@@ -43,11 +46,12 @@ export const fleetWebhooksPlugin: FastifyPluginAsync<{ deps: FleetWebhooksRouteD
   // Capture raw bytes (encapsulated to this plugin) so per-channel HMAC
   // verification hashes exactly what the sender signed, while handlers still
   // see parsed JSON. Non-JSON content types arrive as the raw string.
-  fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (req: RawBodyRequest, body, done) => {
-    req.rawBody = typeof body === 'string' ? body : String(body);
-    if (!req.rawBody) return done(null, {});
+  fastify.addContentTypeParser('application/json', { parseAs: 'buffer' }, (req: RawBodyRequest, body, done) => {
+    const buf = Buffer.isBuffer(body) ? body : Buffer.from(String(body));
+    req.rawBody = buf;
+    if (buf.length === 0) return done(null, {});
     try {
-      done(null, JSON.parse(req.rawBody));
+      done(null, JSON.parse(buf.toString('utf8')));
     } catch (err) {
       (err as Error & { statusCode?: number }).statusCode = 400;
       done(err as Error, undefined);
@@ -55,14 +59,16 @@ export const fleetWebhooksPlugin: FastifyPluginAsync<{ deps: FleetWebhooksRouteD
   });
   fastify.addContentTypeParser('*', { parseAs: 'buffer' }, (req: RawBodyRequest, body, done) => {
     const buf = Buffer.isBuffer(body) ? body : Buffer.from(String(body));
-    req.rawBody = buf.toString('utf8');
-    done(null, req.rawBody);
+    req.rawBody = buf;
+    // Handlers see a string VIEW as the parsed body; the signature source
+    // of truth stays the untouched Buffer above.
+    done(null, buf.toString('utf8'));
   });
 
   // POST /webhooks/fleet/:channel — inbound event for a fleet webhook trigger
   fastify.post('/webhooks/fleet/:channel', async (request: FastifyRequest, reply: FastifyReply) => {
     const { channel } = request.params as { channel: string };
-    const raw = (request as RawBodyRequest).rawBody ?? '';
+    const raw = (request as RawBodyRequest).rawBody ?? Buffer.alloc(0);
 
     const headers: Record<string, string> = {};
     for (const [name, value] of Object.entries(request.headers)) {
@@ -73,7 +79,7 @@ export const fleetWebhooksPlugin: FastifyPluginAsync<{ deps: FleetWebhooksRouteD
     const received: ReceivedWebhookRequest = {
       headers,
       body: request.body,
-      rawBody: Buffer.from(raw, 'utf8'),
+      rawBody: raw, // the exact bytes — never re-encoded
       ip: request.ip,
     };
 

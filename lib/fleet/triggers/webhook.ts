@@ -98,6 +98,11 @@ export class WebhookTriggerSource implements TriggerSource {
     // inbound event never becomes two agent runs or two approval proposals.
     const delivered = new Map<string, number>();
     const DELIVERY_RETENTION_MS = 24 * 60 * 60 * 1000;
+    /** Hard cap so hostile unique delivery ids cannot grow daemon memory
+     *  without bound; oldest entries evict first (Map preserves insertion
+     *  order). Shrinking the window under attack only weakens dedup for
+     *  the attacker's own floods — legitimate senders retry in seconds. */
+    const DELIVERY_CAP = 5000;
 
     const deregister = this.deps.registerHandler(channel, async (req) => {
       // If the spec asked for HMAC verification, enforce it.
@@ -117,10 +122,19 @@ export class WebhookTriggerSource implements TriggerSource {
         return { status: 200, body: { received: true, deduped: true } };
       }
       delivered.set(deliveryKey, now);
-      // Prune by age, never wholesale (a wholesale clear would re-open the
-      // dedup window for recent deliveries).
-      for (const [key, at] of delivered) {
-        if (now - at > DELIVERY_RETENTION_MS) delivered.delete(key);
+      // Size cap first: evict oldest insertions until under the cap.
+      while (delivered.size > DELIVERY_CAP) {
+        const oldest = delivered.keys().next().value as string | undefined;
+        if (oldest === undefined) break;
+        delivered.delete(oldest);
+      }
+      // Age prune, amortized: a full scan per request is wasted work at
+      // small sizes. Never wholesale (that would re-open the dedup window
+      // for recent deliveries).
+      if (delivered.size > 512) {
+        for (const [key, at] of delivered) {
+          if (now - at > DELIVERY_RETENTION_MS) delivered.delete(key);
+        }
       }
 
       const payload: WebhookPayload = {

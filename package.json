@@ -95,6 +95,7 @@
     "lib/",
     "routes/",
     "shared/",
+    "tools/",
     "public/",
     "scripts/build-core.sh",
     "scripts/build-daemon-binary.mjs",
