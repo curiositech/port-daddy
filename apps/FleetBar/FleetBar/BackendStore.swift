@@ -114,6 +114,56 @@ struct BackendCostWindow {
     static let empty = BackendCostWindow(rows: [], totalUsd: 0, totalSpawns: 0)
 }
 
+// MARK: - Spawn forecast (mirrors GET /fleet/forecast)
+//
+// "How many LLM calls per hour, on which models, is this machine armed to
+// make?" — deterministic cron-scheduled rates (as the engine really runs
+// them) plus observed spawn.started counters.
+
+struct SpawnForecastResponse: Decodable {
+    let success: Bool?
+    let forcedCliBackend: String?
+    let totals: ForecastTotals?
+    let projects: [ForecastProject]?
+    let observed: ForecastObserved?
+}
+
+struct ForecastTotals: Decodable {
+    let scheduledPerHour: Double
+    let byModel: [ForecastModelRate]
+}
+
+struct ForecastModelRate: Decodable, Identifiable {
+    let backend: String
+    let model: String
+    let perHour: Double
+    var id: String { "\(backend)::\(model)" }
+}
+
+struct ForecastProject: Decodable, Identifiable {
+    let project: String
+    let running: Bool
+    let scheduledPerHour: Double
+    let scheduledPerHourRaw: Double?
+    let maxSpawnsPerHour: Double?
+    let eventAgentCount: Int?
+    var id: String { project }
+}
+
+struct ForecastObserved: Decodable {
+    let lastHour: Double
+    let last24h: Double?
+    let last24hPerHour: Double
+    let byModelLastHour: [ForecastDimCount]?
+    let byModelLast24h: [ForecastDimCount]?
+}
+
+struct ForecastDimCount: Decodable, Identifiable {
+    let value: String
+    let count: Double
+    var id: String { value }
+}
+
 /// Shared persistence for the `~/.port-daddy-cli-backend` file. Both the
 /// menubar BackendPicker and the Fleet Control Center Backend section
 /// call into this helper so the write path stays in one place — the
@@ -149,6 +199,7 @@ class BackendStore: ObservableObject {
     @Published var forcedCliBackend: String?
     @Published var pdUseCliBackendEnv: String?
     @Published var costByBackend: [BackendCostRow] = []
+    @Published var forecast: SpawnForecastResponse?
     @Published var loadedOnce: Bool = false
     @Published var lastError: String?
 
@@ -254,8 +305,9 @@ class BackendStore: ObservableObject {
     func refresh() async {
         async let modelsResult = fetchBackends()
         async let costResult = fetchCostByBackend()
+        async let forecastResult = fetchForecast()
 
-        let (models, cost) = await (modelsResult, costResult)
+        let (models, cost, fc) = await (modelsResult, costResult, forecastResult)
         if let models {
             backends = models.backends
             forcedCliBackend = models.forcedCliBackend
@@ -263,7 +315,26 @@ class BackendStore: ObservableObject {
             lastError = nil
         }
         costByBackend = cost
+        if let fc { forecast = fc }
         loadedOnce = true
+    }
+
+    /// One-line armed-rate summary for the menubar row, e.g.
+    /// "≈ 9.5/hr armed · 4 last hr". Nil until the forecast loads.
+    var forecastSummaryLine: String? {
+        guard let fc = forecast, let totals = fc.totals else { return nil }
+        var parts: [String] = []
+        parts.append(String(format: "≈ %.1f calls/hr armed", totals.scheduledPerHour))
+        if let observed = fc.observed {
+            parts.append(String(format: "%.0f last hr", observed.lastHour))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// The dominant forecast model line, e.g. "mostly gpt-5.4-mini".
+    var forecastTopModelLine: String? {
+        guard let top = forecast?.totals?.byModel.first, top.perHour > 0 else { return nil }
+        return "mostly \(top.model)"
     }
 
     // MARK: - Fetchers
@@ -279,6 +350,18 @@ class BackendStore: ObservableObject {
             return try JSONDecoder().decode(BackendCatalogResponse.self, from: data)
         } catch {
             lastError = error.localizedDescription
+            return nil
+        }
+    }
+
+    private func fetchForecast() async -> SpawnForecastResponse? {
+        guard let url = URL(string: "\(baseURL)/fleet/forecast") else { return nil }
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
+            return try JSONDecoder().decode(SpawnForecastResponse.self, from: data)
+        } catch {
+            // Older daemons don't serve /fleet/forecast — degrade silently.
             return nil
         }
     }

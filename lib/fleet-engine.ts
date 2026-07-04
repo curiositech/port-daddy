@@ -2150,7 +2150,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
 // ─── Cron Helpers ───────────────────────────────────────────────────────────
 
-function parseCronInterval(cron: string): number {
+export function parseCronInterval(cron: string): number {
   const MIN_INTERVAL = 60000;  // 1 minute minimum — prevents runaway agents
   const DEFAULT_INTERVAL = 600000;  // 10 minutes
 
