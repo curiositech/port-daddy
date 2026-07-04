@@ -16,7 +16,7 @@
  * the dry-run path validates the spec.
  */
 
-import { timingSafeEqual, createHmac } from 'node:crypto';
+import { verifyWebhookHmac } from '../webhook-hmac.js';
 import type {
   FleetTriggerEvent,
   TriggerAvailability,
@@ -95,7 +95,7 @@ export class WebhookTriggerSource implements TriggerSource {
       // If the spec asked for HMAC verification, enforce it.
       if (expectedSecret) {
         const signature = req.headers['x-pd-webhook-signature'] ?? '';
-        if (!verifyHmac(req.rawBody, expectedSecret, signature)) {
+        if (!verifyWebhookHmac(req.rawBody, expectedSecret, signature)) {
           return { status: 401, body: { error: 'invalid signature' } };
         }
       }
@@ -138,15 +138,3 @@ export class WebhookTriggerSource implements TriggerSource {
   }
 }
 
-function verifyHmac(rawBody: Buffer, secret: string, signatureHeader: string): boolean {
-  if (!signatureHeader) return false;
-  // Header format: "sha256=<hex>"
-  const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
-  const provided = signatureHeader.startsWith('sha256=') ? signatureHeader.slice(7) : signatureHeader;
-  if (expected.length !== provided.length) return false;
-  try {
-    return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(provided, 'hex'));
-  } catch {
-    return false;
-  }
-}
