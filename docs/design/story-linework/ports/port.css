@@ -353,3 +353,52 @@ main section { position: relative; }
 .hoist { display: flex; gap: 6px; align-items: center; }
 .hoist i { display: block; width: 24px; height: 17px; border: 1px solid var(--hair-strong); }
 .hoist .gap { width: 10px; border: none; }
+
+/* ── LW-7b: the signal alphabet, Swiss-abstracted ──
+   Exact divisions, palette-mapped, no soft edges. Letter geometry is
+   ICS-correct; colors map red→rust, yellow→lime, blue→cobalt,
+   black→ink, white→flag-white. Substitutes are stylized pennants
+   (band count = 1st/2nd/3rd); a repeat whose original sits past the
+   third position repeats the letter flag itself, as at sea. */
+.fl { display: inline-block; width: 26px; height: 19px; border: 1px solid var(--hair-strong);
+      --fw: #fbf7ef; --ink: #17191d; --c: var(--cobalt-slab); --r: var(--rust-slab); --y: var(--lime); }
+.fl-alfa    { background: linear-gradient(to right, var(--fw) 0 50%, var(--c) 50%); }
+.fl-bravo   { background: var(--r); }
+.fl-charlie { background: linear-gradient(to bottom, var(--c) 0 20%, var(--fw) 20% 40%, var(--r) 40% 60%, var(--fw) 60% 80%, var(--c) 80%); }
+.fl-delta   { background: linear-gradient(to bottom, var(--y) 0 25%, var(--c) 25% 75%, var(--y) 75%); }
+.fl-echo    { background: linear-gradient(to bottom, var(--c) 0 50%, var(--r) 50%); }
+.fl-golf    { background: repeating-linear-gradient(to right, var(--y) 0 16.667%, var(--c) 16.667% 33.333%); }
+.fl-hotel   { background: linear-gradient(to right, var(--fw) 0 50%, var(--r) 50%); }
+.fl-india   { background: radial-gradient(circle at 50% 50%, var(--ink) 0 30%, transparent calc(30% + 0.5px)), var(--y); }
+.fl-kilo    { background: linear-gradient(to right, var(--y) 0 50%, var(--c) 50%); }
+.fl-lima    { background: conic-gradient(var(--ink) 0 25%, var(--y) 25% 50%, var(--ink) 50% 75%, var(--y) 75%); }
+.fl-mike    { background:
+  linear-gradient(45deg,  transparent 0 calc(50% - 9%), var(--fw) calc(50% - 9%) calc(50% + 9%), transparent calc(50% + 9%)),
+  linear-gradient(-45deg, transparent 0 calc(50% - 9%), var(--fw) calc(50% - 9%) calc(50% + 9%), transparent calc(50% + 9%)), var(--c); }
+.fl-november{ background: repeating-conic-gradient(var(--c) 0 25%, var(--fw) 25% 50%) top left / 50% 50%; }
+.fl-oscar   { background: linear-gradient(to top right, var(--r) 0 50%, var(--y) 50%); }
+.fl-papa    { background: linear-gradient(var(--fw), var(--fw)) center / 42% 42% no-repeat, var(--c); }
+.fl-romeo   { background:
+  linear-gradient(var(--y), var(--y)) center / 100% 26% no-repeat,
+  linear-gradient(var(--y), var(--y)) center / 26% 100% no-repeat, var(--r); }
+.fl-sierra  { background: linear-gradient(var(--c), var(--c)) center / 42% 42% no-repeat, var(--fw); }
+.fl-tango   { background: linear-gradient(to right, var(--r) 0 33.4%, var(--fw) 33.4% 66.7%, var(--c) 66.7%); }
+.fl-xray    { background:
+  linear-gradient(var(--c), var(--c)) center / 100% 26% no-repeat,
+  linear-gradient(var(--c), var(--c)) center / 26% 100% no-repeat, var(--fw); }
+.fl-yankee  { background: repeating-linear-gradient(45deg, var(--y) 0 6px, var(--r) 6px 12px); }
+.fl-sub     { clip-path: polygon(0 0, 100% 50%, 0 100%); border: none; }
+.fl-sub1    { background: linear-gradient(to bottom, var(--fw) 0 38%, var(--c) 38% 62%, var(--fw) 62%); }
+.fl-sub2    { background: repeating-linear-gradient(to bottom, var(--fw) 0 22%, var(--c) 22% 40%); }
+.fl-sub3    { background: repeating-linear-gradient(to bottom, var(--fw) 0 16%, var(--c) 16% 28%); }
+
+/* slug hoist — the route spelled in flags at the top of each page */
+.slug-hoist { display: flex; gap: 7px; align-items: center; padding: 22px 0 0; }
+.slug-hoist .route { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 700;
+  letter-spacing: 0.08em; color: var(--text-muted); margin-right: 8px; }
+
+/* giant flag band — one flag as THE color block, viewport-scale */
+.flag-band { position: relative; left: calc(50% - 50vw); width: 100vw; height: 44vh; min-height: 280px; }
+.flag-band .fb-cap { position: absolute; left: max(40px, calc(50vw - 620px)); bottom: 20px;
+  font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; background: var(--border-strong); color: var(--surface-base); padding: 4px 10px; }
