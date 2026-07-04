@@ -29,7 +29,7 @@ export interface PendingApproval {
 type ServerEvent =
   | { type: 'snapshot'; proposals: PendingApproval[] }
   | { type: 'human_gate_waiting'; proposal: PendingApproval }
-  | { type: 'human_gate_resolved'; id: string; decision: 'approve' | 'reject'; resolvedBy: string; detail?: string }
+  | { type: 'human_gate_resolved'; id: string; decision: 'approve' | 'reject' | 'expired'; resolvedBy: string; detail?: string }
   | { type: 'error'; id?: string; message: string };
 
 export interface ApprovalStreamState {

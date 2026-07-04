@@ -257,6 +257,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   let isRunning = false;
   let startedAt: number | null = null;
   let leaseRenewTimer: ReturnType<typeof setInterval> | null = null;
+  let approvalSweepTimer: ReturnType<typeof setInterval> | null = null;
 
   const daemonOwner = [
     'fleetd',
@@ -874,6 +875,19 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   function start(): void {
     if (isRunning) return;
 
+    // Fail-closed TTL sweep: a gate unanswered for PD_APPROVAL_TTL_HOURS
+    // (default 24h) expires rather than accumulating as stale context an
+    // operator might approve days later. Swept every 10 minutes; lifecycle-
+    // bound (cleared in stop()).
+    const approvalTtlMs = Math.max(1, Number(process.env.PD_APPROVAL_TTL_HOURS ?? 24)) * 3_600_000;
+    approvalSweepTimer = setInterval(() => {
+      const expired = getSharedApprovalStream().expireOlderThan(approvalTtlMs);
+      if (expired > 0) {
+        logger.info('fleet_approvals_expired', { expired, ttlHours: approvalTtlMs / 3_600_000 });
+      }
+    }, 10 * 60_000);
+    approvalSweepTimer.unref?.();
+
     const discovered = discoverFleets();
     logger.info('fleet_daemon_starting', {
       projects: discovered.map(d => d.name),
@@ -912,6 +926,10 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     if (leaseRenewTimer) {
       clearInterval(leaseRenewTimer);
       leaseRenewTimer = null;
+    }
+    if (approvalSweepTimer) {
+      clearInterval(approvalSweepTimer);
+      approvalSweepTimer = null;
     }
     for (const dir of [...fleets.keys()]) {
       stopManagedFleet(dir, { releaseLease: true });

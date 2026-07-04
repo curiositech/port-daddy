@@ -205,26 +205,73 @@ export class FleetPushNotifier {
     return { sent, pruned: dead.length, failed };
   }
 
-  /** Wire approval gates → notifications. Waiting gates push (grouped);
-   *  resolutions do not (a resolution is closure, not a demand). */
-  bindApprovalStream(stream: FleetApprovalStream): () => void {
-    return stream.subscribe((event) => {
-      if (event.type !== 'human_gate_waiting') return;
-      const p: PendingApproval = event.proposal;
-      const title = 'Fleet approval needed';
-      const body = `${p.agent} ← ${p.trigger} (${p.tier}, ${p.project})`;
+  /**
+   * Wire approval gates → notifications. Waiting gates push; resolutions do
+   * not (a resolution is closure, not a demand).
+   *
+   * Anti-spam coalescing (vibe-coding-background-agent: banner blindness
+   * kills a notification channel): the FIRST gate in a quiet period pushes
+   * immediately with full detail — approval latency matters. Gates arriving
+   * inside the cooldown window are coalesced into ONE trailing summary
+   * ("N spawns waiting") when the window closes. A webhook burst becomes
+   * two notifications, never twenty.
+   */
+  bindApprovalStream(stream: FleetApprovalStream, coalesceWindowMs = 60_000): () => void {
+    let lastPushAt = 0;
+    let coalesced = 0;
+    let trailing: NodeJS.Timeout | null = null;
+
+    const deliver = (title: string, body: string, data?: Record<string, unknown>): void => {
       void this.sendToAll({
         title,
         body,
         tag: 'fleet-approvals',
         deepLink: '/fleet-ui/#approvals',
-        data: { id: p.id, project: p.project },
+        data,
       }).catch((err: Error) => console.error('[fleet.push] approval push failed:', err.message));
       if (this.localNotify) {
         // Best-effort local banner; consent-gate denial is quiet by design.
         void this.localNotify(title, body).catch(() => {});
       }
+    };
+
+    const unsubscribe = stream.subscribe((event) => {
+      if (event.type !== 'human_gate_waiting') return;
+      const now = Date.now();
+      const p: PendingApproval = event.proposal;
+
+      if (now - lastPushAt >= coalesceWindowMs) {
+        lastPushAt = now;
+        deliver(
+          'Fleet approval needed',
+          `${p.agent} ← ${p.trigger} (${p.tier}, ${p.project})`,
+          { id: p.id, project: p.project },
+        );
+        return;
+      }
+
+      coalesced += 1;
+      if (!trailing) {
+        const delay = Math.max(0, lastPushAt + coalesceWindowMs - now);
+        trailing = setTimeout(() => {
+          trailing = null;
+          const count = coalesced;
+          coalesced = 0;
+          lastPushAt = Date.now();
+          const pending = stream.list().length;
+          deliver(
+            'Fleet approvals waiting',
+            `${count} more spawn${count === 1 ? '' : 's'} held since the last alert (${pending} pending total)`,
+          );
+        }, delay);
+        trailing.unref?.();
+      }
     });
+
+    return () => {
+      if (trailing) clearTimeout(trailing);
+      unsubscribe();
+    };
   }
 }
 

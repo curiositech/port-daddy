@@ -163,6 +163,30 @@ describe('FleetApprovalStream', () => {
   });
 });
 
+describe('TTL expiry (stale-context guard)', () => {
+  test('gates older than maxAge expire fail-closed: removed, durable claimed, resolution broadcast', () => {
+    const s = new FleetApprovalStream();
+    const claimed = [];
+    s.configure({
+      hail: async () => { throw new Error('expiry must never hail'); },
+      claimDurable: (p) => { claimed.push(p.id); return true; },
+      restoreDurable: () => {},
+    });
+    const NOW = 1_000_000_000;
+    s.enqueue(proposal({ id: 'old', timestamp: NOW - 25 * 3_600_000, context: { source: 'trigger', messageContent: 'old-content' } }));
+    s.enqueue(proposal({ id: 'fresh', timestamp: NOW - 3_600_000, context: { source: 'trigger', messageContent: 'fresh-content' } }));
+    const events = [];
+    s.subscribe((e) => events.push(e));
+
+    const expired = s.expireOlderThan(24 * 3_600_000, NOW);
+    expect(expired).toBe(1);
+    expect(s.list().map((p) => p.id)).toEqual(['fresh']);
+    expect(claimed).toEqual(['old']);
+    const resolution = events.find((e) => e.type === 'human_gate_resolved');
+    expect(resolution).toEqual(expect.objectContaining({ id: 'old', decision: 'expired', resolvedBy: 'ttl' }));
+  });
+});
+
 // ─── WebSocket route (real socket round-trip) ────────────────────────────────
 
 describe('GET /fleet/approvals/stream (WebSocket)', () => {

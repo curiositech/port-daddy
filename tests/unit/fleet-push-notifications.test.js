@@ -150,6 +150,62 @@ describe('FleetPushNotifier', () => {
   });
 });
 
+describe('approval push coalescing (banner-blindness guard)', () => {
+  let dir;
+  beforeEach(() => { dir = makeScratch(); });
+  afterEach(() => { rmSync(dir, { recursive: true, force: true }); });
+
+  function gate(stream, id) {
+    stream.enqueue({
+      id,
+      project: 'test-fleet',
+      agent: 'hook-agent',
+      trigger: 'webhook:hooks',
+      tier: 'ANONYMOUS_EXTERNAL',
+      reason: 'requires approval',
+      safeTools: ['read'],
+      context: { source: 'trigger', messageContent: `content-${id}` },
+      timestamp: 1,
+    });
+  }
+
+  test('a burst becomes two notifications: immediate detail + one trailing summary', async () => {
+    const wp = fakeWebpush();
+    const n = notifier(dir, wp);
+    n.addSubscription(sub('https://push.example/phone'));
+    const stream = new FleetApprovalStream();
+    stream.configure({ hail: async () => ({ success: true }), claimDurable: () => true, restoreDurable: () => {} });
+    const unbind = n.bindApprovalStream(stream, 120); // 120ms window for the test
+
+    for (let i = 0; i < 8; i += 1) gate(stream, `burst-${i}`);
+    await new Promise((r) => setTimeout(r, 40));
+    expect(wp.sent).toHaveLength(1); // leading edge: first gate, full detail
+    expect(wp.sent[0].payload.body).toContain('hook-agent');
+
+    await new Promise((r) => setTimeout(r, 200)); // window closes
+    expect(wp.sent).toHaveLength(2); // trailing summary, not 7 more pushes
+    expect(wp.sent[1].payload.body).toMatch(/7 more spawns/);
+    expect(wp.sent[1].payload.body).toMatch(/8 pending total/);
+    unbind();
+  });
+
+  test('gates in separate quiet periods each push immediately', async () => {
+    const wp = fakeWebpush();
+    const n = notifier(dir, wp);
+    n.addSubscription(sub('https://push.example/phone'));
+    const stream = new FleetApprovalStream();
+    stream.configure({ hail: async () => ({ success: true }), claimDurable: () => true, restoreDurable: () => {} });
+    const unbind = n.bindApprovalStream(stream, 50);
+
+    gate(stream, 'quiet-1');
+    await new Promise((r) => setTimeout(r, 80)); // past the window
+    gate(stream, 'quiet-2');
+    await new Promise((r) => setTimeout(r, 40));
+    expect(wp.sent).toHaveLength(2); // both immediate, no summaries
+    unbind();
+  });
+});
+
 describe('fleet push routes', () => {
   let app;
   let dir;

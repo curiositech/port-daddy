@@ -45,7 +45,7 @@ export type ApprovalServerEvent =
   | {
       type: 'human_gate_resolved';
       id: string;
-      decision: 'approve' | 'reject';
+      decision: 'approve' | 'reject' | 'expired';
       resolvedBy: string;
       detail?: string;
     }
@@ -193,6 +193,35 @@ export class FleetApprovalStream {
     };
     this.broadcast(resolved);
     return resolved;
+  }
+
+  /**
+   * Fail-closed TTL sweep (stale-context poisoning guard): a gate that sat
+   * unanswered for `maxAgeMs` expires — approving days-old trigger context
+   * fires an agent on ancient data. Expiry claims the durable record so the
+   * gate cannot rehydrate, and broadcasts a resolution so every surface
+   * drops it. The trigger can always fire again.
+   */
+  expireOlderThan(maxAgeMs: number, now: number = Date.now()): number {
+    let expired = 0;
+    for (const proposal of [...this.pending.values()]) {
+      if (now - proposal.timestamp < maxAgeMs) continue;
+      this.pending.delete(proposal.id);
+      try {
+        this.actions?.claimDurable(proposal);
+      } catch {
+        // Durable cleanup is best-effort; the tuple TTLs out regardless.
+      }
+      expired += 1;
+      this.broadcast({
+        type: 'human_gate_resolved',
+        id: proposal.id,
+        decision: 'expired',
+        resolvedBy: 'ttl',
+        detail: `unanswered for ${Math.round(maxAgeMs / 3_600_000)}h — expired fail-closed; the trigger can fire again`,
+      });
+    }
+    return expired;
   }
 
   subscribe(listener: Listener): () => void {
