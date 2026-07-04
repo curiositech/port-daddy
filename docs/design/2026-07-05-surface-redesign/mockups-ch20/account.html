@@ -378,7 +378,7 @@ section.sect::before {
       <a href="#">Security</a>
     </nav>
     <div class="rail-foot">
-      <span class="who">erich@curiositech.dev</span>
+      <span class="who">operator@example.com</span>
       <button type="button">Sign out</button>
     </div>
   </aside>
@@ -411,7 +411,7 @@ section.sect::before {
         <div class="oidc-row">
           <span class="provider">GitHub OIDC</span>
           <span class="chip chip-oidc mono">verified</span>
-          <span class="detail">github.com/erichowens · last asserted 3d ago</span>
+          <span class="detail">github.com/operator-example · last asserted 3d ago</span>
         </div>
         <p class="caption">The website never holds this key. It lives in your keychain; the server only ever sees signatures.</p>
       </div>
@@ -610,13 +610,17 @@ section.sect::before {
 <div class="port-note">ch20 · account · story linework</div>
 
 <script>
-  // prefers-color-scheme is primary; the toggle pins an explicit override.
+  // prefers-color-scheme is primary; data-theme is set ONLY on explicit toggle,
+  // so the page keeps tracking system theme changes until the user overrides
+  // (same behavior as login.html).
   const btn = document.getElementById('themeToggle');
   const root = document.documentElement;
-  let t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  const apply = () => { root.setAttribute('data-theme', t); btn.textContent = t === 'light' ? 'Dark' : 'Light'; };
-  apply();
-  btn.addEventListener('click', () => { t = t === 'light' ? 'dark' : 'light'; apply(); });
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  const current = () => root.getAttribute('data-theme') || (mq.matches ? 'dark' : 'light');
+  const label = () => { btn.textContent = current() === 'light' ? 'Dark' : 'Light'; };
+  label();
+  mq.addEventListener('change', label);
+  btn.addEventListener('click', () => { root.setAttribute('data-theme', current() === 'light' ? 'dark' : 'light'); label(); });
 </script>
 </body>
 </html>
