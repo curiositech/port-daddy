@@ -87,6 +87,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   roadmap: 'silent',
   ideas: 'silent',
   graph: 'silent',
+  embed: 'notify', // worst case: `embed prefetch` downloads ~27 MB into the shared cache; reads/embeds are silent
   memory: 'silent',
   'who-owns': 'silent',
   harbors: 'silent',
@@ -209,6 +210,14 @@ export const TIER_REGISTRY: Record<string, Tier> = {
  * by best-effort prefix.
  */
 export const SUBCOMMAND_TIERS: Record<string, Tier> = {
+  // embed: local reads/embeddings are silent; prefetch performs a one-time
+  // ~27 MB network download into the shared cache
+  'embed': 'silent',                // default subcommand = status
+  'embed status': 'silent',
+  'embed text': 'silent',
+  'embed stdin': 'silent',
+  'embed prefetch': 'notify',
+
   // salvage: list is read-only, mutations are destructive
   'salvage': 'silent',              // default subcommand = listing
   'salvage triage': 'silent',

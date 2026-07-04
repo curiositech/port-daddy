@@ -106,6 +106,8 @@ import {
   handleTuple,
   // Semantic graph + episodic memory
   handleGraph, handleIdeas,
+  // Shared local embedder (ADR-0061)
+  handleEmbed,
   handleRoadmap,
   // Durable commitments (ADR-0041)
   handleCommit, handleObligations,
@@ -1341,7 +1343,7 @@ const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'transcripts', 'transcript', 'relay',
-  'harbor', 'harbors', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
+  'harbor', 'harbors', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'memory', 'ideas',
   'quorum', 'parley',
   'feedback',
   'commit', 'obligations',
@@ -3146,6 +3148,12 @@ export async function main(): Promise<void> {
 
       case 'graph':
         await handleGraph(positional, options);
+        break;
+
+      // The one shared local embedding surface (ADR-0061): skills and
+      // matching code shell out here instead of standing up their own model.
+      case 'embed':
+        await handleEmbed(positional, options);
         break;
 
       case 'memory':
