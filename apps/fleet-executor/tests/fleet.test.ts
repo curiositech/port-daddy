@@ -21,6 +21,8 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(names.has('red-team')).toBe(true);
     expect(names.has('tautology-sniffer')).toBe(true);
     expect(names.has('test-author')).toBe(true);
+    expect(names.has('spark')).toBe(true);
+    expect(names.has('spider')).toBe(true);
   });
 
   it('every parsed ship has a non-empty prompt', () => {
@@ -49,6 +51,23 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     const ta = ships!.find(s => s.name === 'test-author');
     expect(ta).toBeDefined();
     expect(ta!.needsExecution).toBe(true);
+  });
+
+  it('spark and spider are advisory PR commenters with explicit creative temperatures', () => {
+    const spark = ships!.find(s => s.name === 'spark');
+    const spider = ships!.find(s => s.name === 'spider');
+
+    expect(spark).toBeDefined();
+    expect(spark!.blocking).toBe(false);
+    expect(spark!.needsExecution).toBe(false);
+    expect(spark!.temperature).toBe(1.25);
+    expect(spark!.prompt).toContain('high-temperature product imagination');
+
+    expect(spider).toBeDefined();
+    expect(spider!.blocking).toBe(false);
+    expect(spider!.needsExecution).toBe(false);
+    expect(spider!.temperature).toBe(0.95);
+    expect(spider!.prompt).toContain('syllogism engine');
   });
 
   it('derives cfModel from the first @cf/ fallback entry', () => {
@@ -118,6 +137,57 @@ describe('parseFleetShips — model derivation + blocking coercion', () => {
     expect(byName.a).toBe(true);
     expect(byName.b).toBe(false); // YAML `yes` is not an opt-in (fail-safe)
     expect(byName.c).toBe(false); // absent → false
+  });
+
+  it('parses optional creative temperature without inventing a default', () => {
+    const ships = parseFleetShips(
+      yaml(
+        [
+          '    spark:',
+          '      trigger: pull_request:opened',
+          '      temperature: 1.25',
+          '      prompt: |',
+          '        spark.',
+          '    qa:',
+          '      trigger: pull_request:opened',
+          '      prompt: |',
+          '        qa.',
+        ].join('\n'),
+      ),
+      'pull_request:opened',
+    );
+    const byName = Object.fromEntries(ships!.map(s => [s.name, s.temperature]));
+    expect(byName.spark).toBe(1.25);
+    expect(byName.qa).toBeNull();
+  });
+
+  it('rejects invalid creative temperature values', () => {
+    const ships = parseFleetShips(
+      yaml(
+        [
+          '    cold:',
+          '      trigger: pull_request:opened',
+          '      temperature: -0.1',
+          '      prompt: |',
+          '        cold.',
+          '    hot:',
+          '      trigger: pull_request:opened',
+          '      temperature: 2.1',
+          '      prompt: |',
+          '        hot.',
+          '    ok:',
+          '      trigger: pull_request:opened',
+          '      temperature: 2',
+          '      prompt: |',
+          '        ok.',
+        ].join('\n'),
+      ),
+      'pull_request:opened',
+    );
+    const byName = Object.fromEntries(ships!.map(s => [s.name, s.temperature]));
+    expect(byName.cold).toBeNull();
+    expect(byName.hot).toBeNull();
+    expect(byName.ok).toBe(2);
   });
 
   it('returns null for unparseable or empty docs (caller falls back to defaults)', () => {
