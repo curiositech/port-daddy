@@ -15,6 +15,8 @@ metadata:
   pairs-with:
     - skill: idempotency-key-patterns
       reason: At-least-once delivery requires idempotent processing; the two skills compose
+    - skill: outbox-pattern-implementation
+      reason: The producer-side complement — transactional outbox feeds Kafka; this skill designs the consumer group that drains it
     - skill: observability-apm-expert
       reason: Per-partition consumer-group lag and rebalance-storm detection are monitoring problems; that skill owns the metrics/alerting surface this skill's Quality Gates require
   provenance:

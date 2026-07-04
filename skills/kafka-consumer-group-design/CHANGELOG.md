@@ -5,8 +5,9 @@
 Brought to the agentic-family standard: added io-contract/provenance/pairs-with frontmatter;
 added deterministic audit helper (`scripts/kafka_consumer_group_design_audit.mjs`), draft-07
 schema (`schemas/kafka-consumer-group-plan.schema.json`), verified sample input
-(`examples/sample-input.json`); added Quality Gates. Dropped a pairs-with reference to a
-skill that does not exist in this repo (outbox-pattern-implementation).
+(`examples/sample-input.json`); added Quality Gates. pairs-with covers
+`idempotency-key-patterns`, `outbox-pattern-implementation` (shipped in this same
+batch), and `observability-apm-expert`.
 
 ## [0.1.0]
 
