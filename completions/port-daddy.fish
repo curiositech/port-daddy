@@ -95,13 +95,13 @@ set -l __pd_commands \
     'claim' 'c' 'release' 'r' 'find' 'f' 'list' 'l' 'ps' 'services' 'url' 'env' 'tunnel' \
     'pub' 'publish' 'broadcast' 'sub' 'subscribe' 'listen' 'tube' 'wait' 'lock' 'unlock' 'locks' \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
-    'session' 'sessions' 'note' 'notes' \
-    'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' 'send' \
-    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
-    'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
+    'session' 'sessions' 'takeover' 'note' 'notes' \
+    'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' 'send' 'sent' \
+    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
+    'say' 'look' 'sitrep' 'whois' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
-    'bench' 'benchmark' 'demo' 'fleet' 'backend' 'relay' \
+    'bench' 'benchmark' 'demo' 'fleet' 'backend' 'squid' 'relay' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
     'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'self-update' 'upgrade' 'mcp' \
@@ -151,6 +151,7 @@ for prog in port-daddy pd
     # Sessions & Notes
     complete -c $prog -n __pd_needs_command -a session -d 'Manage a session'
     complete -c $prog -n __pd_needs_command -a sessions -d 'List sessions'
+    complete -c $prog -n __pd_needs_command -a takeover -d 'Create successor session; preserve notes'
     complete -c $prog -n __pd_needs_command -a note -d 'Add a quick note'
     complete -c $prog -n __pd_needs_command -a notes -d 'List recent notes'
 
@@ -183,6 +184,7 @@ for prog in port-daddy pd
     # Agent Inbox
     complete -c $prog -n __pd_needs_command -a inbox -d 'Agent-to-agent direct messaging inbox'
     complete -c $prog -n __pd_needs_command -a send -d 'Send a durable direct message to one agent'
+    complete -c $prog -n __pd_needs_command -a sent -d 'Read receipts for messages you sent'
 
     # AI Agent Spawner + Watch
     complete -c $prog -n __pd_needs_command -a spawn -d 'Launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
@@ -192,10 +194,18 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a transcript -d 'Alias for transcripts — view a single ship-run record'
     complete -c $prog -n __pd_needs_command -a relay -d 'Cloud relay management — configure, exchange, status (ADR-0049)'
     complete -c $prog -n "__pd_using_command relay" -x -a 'url status exchange' -d 'Relay subcommand'
+    complete -c $prog -n "__pd_using_command safe" -x -a 'scan baseline fix corral guard' -d 'Safe subcommand (ADR-0088)'
+    complete -c $prog -n "__pd_using_command safe; and __fish_seen_subcommand_from scan" -l json -d 'Structured posture report'
+    complete -c $prog -n "__pd_using_command safe; and __fish_seen_subcommand_from baseline" -x -a 'accept' -d 'Triage a finding into the baseline'
+    complete -c $prog -n "__pd_using_command safe; and __fish_seen_subcommand_from fix" -l auto -d 'Apply the opt-in reversible chmod'
+    complete -c $prog -n "__pd_using_command safe; and __fish_seen_subcommand_from corral" -l all -d 'Corral every detected secret'
+    complete -c $prog -n "__pd_using_command safe; and __fish_seen_subcommand_from corral" -l apply -d 'Write the corral (default is dry-run)'
+    complete -c $prog -n "__pd_using_command safe; and __fish_seen_subcommand_from guard" -l staged -d 'Scan the staged diff for secrets'
     complete -c $prog -n "__pd_needs_command" -a 'relay url' -d 'Show the configured relay worker URL'
     complete -c $prog -n "__pd_needs_command" -a 'relay status' -d 'Check relay connectivity and latency'
     complete -c $prog -n "__pd_needs_command" -a 'relay exchange' -d 'Publish/subscribe events via the relay worker'
     complete -c $prog -n __pd_needs_command -a dispatch -d 'Queue and run autonomous feature dev (ADR-0035; renames nightshift)'
+    complete -c $prog -n __pd_needs_command -a whois -d 'Semantic skill-router — rank agents by capability x freshness'
     complete -c $prog -n "__pd_using_command dispatch" -x -a 'propose queue list show run review cancel help' -d 'Dispatch subcommand'
     complete -c $prog -n "__pd_using_command dispatch; and __fish_seen_subcommand_from run" -l really-run -d 'Actually spawn the autonomous agent (default is dry-run)'
     complete -c $prog -n "__pd_using_command dispatch; and __fish_seen_subcommand_from run" -l next -d 'Pop and run the next proposed dispatch'
@@ -210,6 +220,20 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command dispatch" -l state -x -a 'proposed claimed in_progress produced review_pending accepted rejected settled failed salvage open terminal awaiting_review all' -d 'State filter'
     complete -c $prog -n __pd_needs_command -a nightshift -d '(deprecated alias) Use pd dispatch'
     complete -c $prog -n "__pd_using_command nightshift" -x -a 'propose queue list show run review cancel help' -d 'Nightshift subcommand (alias for dispatch)'
+    complete -c $prog -n __pd_needs_command -a squid -d 'Run an unofficial Anthropic-compatible bridge backed by Codex CLI'
+    complete -c $prog -n "__pd_using_command squid" -x -a 'bridge serve' -d 'Squid subcommand'
+    complete -c $prog -n "__pd_using_command squid" -l port -x -d 'Local bridge port'
+    complete -c $prog -n "__pd_using_command squid" -l host -x -d 'Local bind host'
+    complete -c $prog -n "__pd_using_command squid" -l cwd -x -d 'Working directory for Codex and launched client'
+    complete -c $prog -n "__pd_using_command squid" -l max-request-bytes -x -d 'Maximum JSON request body size'
+    complete -c $prog -n "__pd_using_command squid" -l token -x -d 'Local bridge token'
+    complete -c $prog -n "__pd_using_command squid" -l codex-model -x -d 'Actual Codex CLI model'
+    complete -c $prog -n "__pd_using_command squid" -l codex-model-alias -x -d 'Client-to-backend model alias'
+    complete -c $prog -n "__pd_using_command squid" -l codex-effort -x -a 'minimal low medium high' -d 'Codex reasoning effort'
+    complete -c $prog -n "__pd_using_command squid" -l codex-config -x -d 'Extra Codex -c override'
+    complete -c $prog -n "__pd_using_command squid" -l client -x -d 'Client binary to launch'
+    complete -c $prog -n "__pd_using_command squid" -l client-arg -x -d 'Client argument'
+    complete -c $prog -n "__pd_using_command squid" -l serve-only -d 'Start bridge without launching a client'
     complete -c $prog -n __pd_needs_command -a review -d 'pd review <id> --accept|--reject: operator review contract'
     complete -c $prog -n "__pd_using_command review" -l accept -d 'Accept the produced work'
     complete -c $prog -n "__pd_using_command review" -l reject -x -d 'Reject with reason'
@@ -290,6 +314,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a backup -d 'Durable snapshots of port-registry.db (ADR-0037)'
     complete -c $prog -n __pd_needs_command -a restore -d 'Restore a port-registry.db snapshot (ADR-0037)'
     complete -c $prog -n __pd_needs_command -a attest -d 'Honest self-report — loud-fail invariants (ADR-0045)'
+    complete -c $prog -n __pd_needs_command -a safe -d 'Host-safety posture audit — scan|baseline|fix (ADR-0088)'
     complete -c $prog -n __pd_needs_command -a shipwright -d 'Survey + propose + apply for fleet authoring'
     complete -c $prog -n __pd_needs_command -a pheromone -d 'Stigmergic coordination (spray, files, show, ls)'
     complete -c $prog -n __pd_needs_command -a ph -d 'Alias for pheromone'
@@ -544,6 +569,7 @@ for prog in port-daddy pd
 
     # env
     complete -c $prog -n "__pd_using_command env" -l file -d 'Write env vars to file' -r
+    complete -c $prog -n "__pd_using_command env" -x -a 'exec' -d 'Run a command with pd-secret:// refs resolved into its env'
     complete -c $prog -n "__pd_using_command env" -x -a '(__pd_service_ids)'
 
     # pub / publish / broadcast
@@ -634,12 +660,24 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command session" -x -a 'end' -d 'End a session (completed)'
     complete -c $prog -n "__pd_using_command session" -x -a 'done' -d 'End a session (alias for end)'
     complete -c $prog -n "__pd_using_command session" -x -a 'abandon' -d 'Abandon a session'
-    complete -c $prog -n "__pd_using_command session" -x -a 'rm' -d 'Delete a session and cascade notes/files'
+    complete -c $prog -n "__pd_using_command session" -x -a 'takeover' -d 'Create successor session; preserve notes'
+    complete -c $prog -n "__pd_using_command session" -x -a 'rm' -d 'Archive a session; preserve notes'
     complete -c $prog -n "__pd_using_command session" -x -a 'files' -d 'Manage file claims for a session'
     complete -c $prog -n "__pd_using_command session" -x -a 'phase' -d 'Set session phase'
     complete -c $prog -n "__pd_using_command session" -s P -l purpose -d 'Session purpose' -x
     complete -c $prog -n "__pd_using_command session" -s n -l note -d 'Handoff note' -x
     complete -c $prog -n "__pd_using_command session" -s a -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'
+    complete -c $prog -n "__pd_using_command session" -l lifecycle -d 'Session lifecycle' -x -a 'durable ephemeral'
+    complete -c $prog -n "__pd_using_command session" -l no-files -d 'Do not transfer takeover file claims'
+    complete -c $prog -n "__pd_using_command session" -l no-claims -d 'Alias for --no-files'
+
+    # takeover alias
+    complete -c $prog -n "__pd_using_command takeover" -s P -l purpose -d 'Successor session purpose' -x
+    complete -c $prog -n "__pd_using_command takeover" -s n -l note -d 'Takeover reason' -x
+    complete -c $prog -n "__pd_using_command takeover" -s a -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'
+    complete -c $prog -n "__pd_using_command takeover" -l lifecycle -d 'Session lifecycle' -x -a 'durable ephemeral'
+    complete -c $prog -n "__pd_using_command takeover" -l no-files -d 'Do not transfer predecessor file claims'
+    complete -c $prog -n "__pd_using_command takeover" -l no-claims -d 'Alias for --no-files'
 
     # sessions
     complete -c $prog -n "__pd_using_command sessions" -l all -d 'Show all sessions, not just active'
@@ -873,7 +911,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command secret secrets" -l json -d 'Output JSON'
 
     # roadmap
-    complete -c $prog -n "__pd_using_command roadmap; and not __fish_seen_subcommand_from ack harvest promote upsert add touch render pop release claims" -a "ack harvest promote upsert add touch render pop release claims" -d 'roadmap subcommand'
+    complete -c $prog -n "__pd_using_command roadmap; and not __fish_seen_subcommand_from ack harvest promote upsert add touch render pop release claims delete rm" -a "ack harvest promote upsert add touch render pop release claims delete rm" -d 'roadmap subcommand'
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from render" -l write -d 'Write docs/ROADMAP.md to disk'
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from render" -l rootDir -x -d 'Project directory whose docs/ROADMAP.md to update'
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from render" -l status -x -a 'now backlog parked merge done all' -d 'Status filter'

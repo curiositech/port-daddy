@@ -14,7 +14,7 @@
  * berths are recorded in `~/.port-daddy/dev-daemons.json`.
  */
 
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
 import { join, resolve, isAbsolute, basename } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { PD_HOME } from '../../shared/paths.js';
@@ -22,18 +22,25 @@ import { DEFAULT_DAEMON_PORT } from '../../shared/daemon-discovery.js';
 import {
   BERTH_COLORS,
   BERTH_ENV,
+  BERTH_IDLE_TTL_MS,
   DEV_LATEST_PORT,
+  classifyBerth,
+  describeVerdict,
   resolveBerthTargetUrl,
+  shouldReap,
   type BerthTier,
+  type BerthVerdict,
   type DevDaemonRecord,
 } from '../../shared/daemon-berths.js';
 import {
   buildDaemonProfileEnv,
   ensureDaemonProfileDir,
+  getDaemonProfilesRoot,
   isProcessRunning,
   resolveDaemonProfile,
   writeDaemonProfileState,
 } from '../../lib/daemon-profiles.js';
+import { seedBerthDbFromProd, describeSeedResult } from '../../lib/seed-berth-db.js';
 import * as ui from '../utils/ui.js';
 import { posixShellQuote } from '../../lib/shell-quote.js';
 import { readDevDaemonRegistry } from '../utils/berth-registry.js';
@@ -60,16 +67,181 @@ function pruneRegistry(): DevDaemonRecord[] {
   return live;
 }
 
-function repoRoot(): string {
-  // Walk up from this module to the dir containing scripts/build-daemon-binary.mjs.
-  let dir = __dirname;
+// ---------------------------------------------------------------------------
+// Garbage collection — reap dead / orphaned / idle berths and free their state
+// ---------------------------------------------------------------------------
+
+/** A berth's profile dir is keyed by the sanitized label (mirrors devUp). */
+function profileNameFor(label: string): string {
+  return label.replace(/[^A-Za-z0-9._-]/g, '-');
+}
+
+/** Remove a berth's isolated runtime dir (~/.port-daddy/instances/<label>/). */
+function removeProfileDir(label: string): void {
+  try {
+    const profile = resolveDaemonProfile(profileNameFor(label));
+    rmSync(profile.runtimeDir, { recursive: true, force: true });
+  } catch {
+    /* best-effort cleanup */
+  }
+}
+
+/** Release a codebase berth's claimed port back to the stable daemon's manager. */
+async function releaseCodebasePort(label: string): Promise<void> {
+  try {
+    await fetch(`http://127.0.0.1:${DEFAULT_DAEMON_PORT}/ports/release`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project: `pd-dev-${label}` }),
+    });
+  } catch {
+    /* stable daemon down — best effort */
+  }
+}
+
+/** The daemon's most recent activity timestamp (epoch ms), or null. Cheap probe. */
+async function probeLastActivity(port: number): Promise<number | null> {
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/status`, { signal: AbortSignal.timeout(2000) });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { history?: { lastActivityAt?: number | null } };
+    return body.history?.lastActivityAt ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Fully tear down one berth: SIGTERM, release its port, delete its profile dir. */
+async function reapBerth(rec: DevDaemonRecord): Promise<void> {
+  if (rec.port === DEFAULT_DAEMON_PORT) return; // never the stable lane
+  try { process.kill(rec.pid, 'SIGTERM'); } catch { /* already gone */ }
+  if (rec.tier === 'codebase') await releaseCodebasePort(rec.label);
+  removeProfileDir(rec.label);
+}
+
+export interface BerthReapResult { label: string; tier: BerthTier; port: number; verdict: BerthVerdict }
+
+/**
+ * Sweep the registry: classify every berth, reap the non-live ones (process gone,
+ * worktree deleted, or a codebase berth idle past the TTL), and persist the
+ * survivors. Returns what was reaped. Pure-ish: the decision is {@link classifyBerth}
+ * (unit-tested); this only gathers signals + performs the teardown.
+ */
+async function gcBerths(opts: { now?: number; ttlMs?: number; sweepOrphanDirs?: boolean } = {}): Promise<BerthReapResult[]> {
+  const now = opts.now ?? Date.now();
+  const ttlMs = opts.ttlMs ?? BERTH_IDLE_TTL_MS;
+  const records = readRegistry();
+  const reaped: BerthReapResult[] = [];
+  const survivors: DevDaemonRecord[] = [];
+
+  for (const rec of records) {
+    const pidAlive = isProcessRunning(rec.pid);
+    const worktreeExists = existsSync(rec.sourceDir);
+    // Only probe activity when it could matter (a live-pid codebase berth).
+    const lastActivityMs =
+      pidAlive && worktreeExists && rec.tier === 'codebase' ? await probeLastActivity(rec.port) : null;
+    const verdict = classifyBerth(rec, { pidAlive, worktreeExists, lastActivityMs }, now, ttlMs);
+    if (shouldReap(verdict)) {
+      await reapBerth(rec);
+      reaped.push({ label: rec.label, tier: rec.tier, port: rec.port, verdict });
+    } else {
+      survivors.push(rec);
+    }
+  }
+  writeRegistry(survivors);
+
+  // Explicit `pd dev gc` also reaps profile dirs left in ~/.port-daddy/instances/
+  // with no surviving registry entry — the graveyard a pre-GC `dev down`
+  // accumulated (it killed the process but never deleted the dir). Gated off the
+  // auto-sweep path to avoid racing a concurrent launch whose dir exists before
+  // its registry entry is written.
+  if (opts.sweepOrphanDirs) {
+    const keep = new Set(survivors.map((r) => profileNameFor(r.label)));
+    reaped.push(...sweepOrphanProfileDirs(keep));
+  }
+  return reaped;
+}
+
+/** Remove instances/<dir> whose name matches no surviving berth. Returns reaps. */
+function sweepOrphanProfileDirs(keepNames: Set<string>): BerthReapResult[] {
+  const reaped: BerthReapResult[] = [];
+  let dirs: string[] = [];
+  try {
+    const root = getDaemonProfilesRoot();
+    dirs = readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+    for (const name of dirs) {
+      if (keepNames.has(name)) continue;
+      rmSync(join(root, name), { recursive: true, force: true });
+      reaped.push({ label: name, tier: 'codebase', port: 0, verdict: 'reap-orphan-dir' });
+    }
+  } catch {
+    /* no instances dir yet — nothing to sweep */
+  }
+  return reaped;
+}
+
+/** Auto-sweep used by `dev up`/`dev list`: GC quietly, then surface what was reaped. */
+async function autoSweep(): Promise<void> {
+  const reaped = await gcBerths();
+  for (const r of reaped) {
+    ui.info(`  ⤬ reaped berth "${r.label}" (:${r.port}) — ${describeVerdict(r.verdict)}`);
+  }
+}
+
+/** `pd dev gc` — explicit sweep with a summary; also clears the profile-dir graveyard. */
+async function devGc(): Promise<void> {
+  const reaped = await gcBerths({ sweepOrphanDirs: true });
+  if (reaped.length === 0) {
+    ui.success('No stale berths — every dev berth is live.');
+    return;
+  }
+  ui.info(`Reaped ${reaped.length} stale berth(s):`);
+  for (const r of reaped) {
+    ui.info(`  ⤬ "${r.label}" (${r.tier}, :${r.port}) — ${describeVerdict(r.verdict)}`);
+  }
+  ui.success('Stale berths torn down; ports + profile dirs freed.');
+}
+
+/**
+ * Resolve the Port Daddy source-tree root (the dir containing
+ * scripts/build-daemon-binary.mjs). Robust across two runtimes:
+ *   - tsx/dev: `moduleDir` is inside the real tree, so the upward walk finds it.
+ *   - bun-compiled binary: `moduleDir` points inside the bundle's virtual FS
+ *     (e.g. "/"), so the walk fails. Previously this fell through to
+ *     resolve(moduleDir,'..','..') → "/", yielding a bogus
+ *     "/scripts/build-daemon-binary.mjs" and breaking `pd dev up` entirely.
+ *     The operator runs `pd dev up` from inside their checkout, so we resolve
+ *     from the cwd's git toplevel, then by walking up from cwd.
+ * Exported for unit testing the compiled-binary fallback (pass a bogus moduleDir).
+ */
+export function resolveRepoRoot(moduleDir: string, cwd: string): string {
+  // 1) Walk up from the module dir (works when running from the source tree).
+  let dir = moduleDir;
   for (let i = 0; i < 6; i++) {
     if (existsSync(join(dir, 'scripts', 'build-daemon-binary.mjs'))) return dir;
     const parent = resolve(dir, '..');
     if (parent === dir) break;
     dir = parent;
   }
-  return resolve(__dirname, '..', '..');
+  // 2) Compiled binary: resolve from the cwd's git checkout.
+  try {
+    const r = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd, encoding: 'utf-8', timeout: 2000 });
+    const top = r.status === 0 ? r.stdout.trim() : '';
+    if (top && existsSync(join(top, 'scripts', 'build-daemon-binary.mjs'))) return top;
+  } catch { /* not a git checkout */ }
+  // 3) Last resort: walk up from cwd looking for the build script.
+  let here = cwd;
+  for (let i = 0; i < 8; i++) {
+    if (existsSync(join(here, 'scripts', 'build-daemon-binary.mjs'))) return here;
+    const parent = resolve(here, '..');
+    if (parent === here) break;
+    here = parent;
+  }
+  return cwd;
+}
+
+function repoRoot(): string {
+  return resolveRepoRoot(__dirname, process.cwd());
 }
 
 function gitRevOf(dir: string): string | null {
@@ -80,6 +252,26 @@ function gitRevOf(dir: string): string | null {
     /* not a checkout */
   }
   return null;
+}
+
+function gitBranchOf(dir: string): string | null {
+  try {
+    const r = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: dir, encoding: 'utf-8', timeout: 2000 });
+    if (r.status === 0) return r.stdout.trim() || null;
+  } catch {
+    /* not a checkout */
+  }
+  return null;
+}
+
+/** PURE: pick the effective `--from` when the operator passed none. On `main`/
+ *  `master` (or a detached/unknown branch) keep the shared dev-latest default;
+ *  on any feature branch, default to a codebase berth for THIS worktree (the
+ *  common case — and the fix for the `--label`-without-`--from` footgun). */
+export function defaultFrom(explicitFrom: string | undefined, branch: string | null, root: string): string {
+  if (explicitFrom !== undefined) return explicitFrom;
+  if (branch && branch !== 'main' && branch !== 'master' && branch !== 'HEAD') return root;
+  return 'main';
 }
 
 /**
@@ -177,8 +369,16 @@ async function smokeHealth(port: number, deadlineMs = 15000): Promise<Record<str
 // ---------------------------------------------------------------------------
 
 async function devUp(options: CLIOptions): Promise<void> {
+  // Reap stale berths first, so a relaunch can reuse a label/port a dead or
+  // worktree-orphaned berth was holding.
+  await autoSweep();
   const root = repoRoot();
-  const from = options.from as string | undefined;
+  // No --from on a feature branch → a codebase berth for this worktree (not the
+  // shared dev-latest). Explicit --from always wins.
+  const from = defaultFrom(options.from as string | undefined, gitBranchOf(root), root);
+  if (options.from === undefined && from === root) {
+    ui.info(`No --from on branch "${gitBranchOf(root)}" → codebase berth for this worktree.`);
+  }
   const { sourceDir, tier, defaultLabel } = resolveSource(from, root);
   const label = ((options.label as string | undefined) || defaultLabel).trim();
   const color = BERTH_COLORS[tier];
@@ -214,6 +414,21 @@ async function devUp(options: CLIOptions): Promise<void> {
   // profile machinery (~/.port-daddy/instances/<label>/), plus its berth env.
   const profile = resolveDaemonProfile(label.replace(/[^A-Za-z0-9._-]/g, '-'));
   ensureDaemonProfileDir(profile);
+
+  // Seed the berth's (empty) DB from a point-in-time copy of the prod registry
+  // so it has real board data to test against — the surfacing bug ADR-0090 §1
+  // names ("a board route lived on a dev daemon; data lived on the brew
+  // daemon"). One-time bootstrap via VACUUM INTO; LOCAL-ONLY tables (port
+  // claims/locks) are scrubbed so the berth owns a clean port slate. Never
+  // clobbers an existing berth DB. Best-effort: a fresh machine with no prod
+  // registry just starts empty.
+  try {
+    const seed = seedBerthDbFromProd({ targetDbPath: profile.dbPath });
+    ui.info(`  DB: ${describeSeedResult(seed)}`);
+  } catch (err) {
+    ui.warn(`  DB seed skipped (${(err as Error).message}); berth starts empty.`);
+  }
+
   const env = buildDaemonProfileEnv(profile, { port, nodeEnv: 'development' });
   env[BERTH_ENV.tier] = tier;
   env[BERTH_ENV.label] = label;
@@ -296,18 +511,10 @@ async function devDown(positional: string[], options: CLIOptions): Promise<void>
     } catch {
       ui.warn(`Berth "${rec.label}" was not running (cleaning registry).`);
     }
-    // Release the claimed codebase port from the stable daemon's manager.
-    if (rec.tier === 'codebase') {
-      try {
-        await fetch(`http://127.0.0.1:${DEFAULT_DAEMON_PORT}/ports/release`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ project: `pd-dev-${rec.label}` }),
-        });
-      } catch {
-        /* stable daemon down — best effort */
-      }
-    }
+    // Release the claimed codebase port + delete the isolated profile dir so a
+    // stopped berth leaves nothing behind (the instances/<label>/ graveyard).
+    if (rec.tier === 'codebase') await releaseCodebasePort(rec.label);
+    removeProfileDir(rec.label);
   }
 
   const remaining = records.filter((r) => !targets.some((t) => t.label === r.label));
@@ -331,6 +538,13 @@ async function probeStable(): Promise<{ up: boolean; version?: string; gitRev?: 
 }
 
 async function devList(options: CLIOptions): Promise<void> {
+  // Sweep before listing so the table never shows berths that are dead, orphaned,
+  // or idle past the TTL. (Quiet for --json so the output stays pure JSON.)
+  if (options.json === true || options.j === true) {
+    await gcBerths();
+  } else {
+    await autoSweep();
+  }
   const records = pruneRegistry();
   const stable = await probeStable();
 
@@ -360,6 +574,40 @@ function pad(s: string, n: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// pd dev ensure — idempotently guarantee the standing fleet (prod + dev-latest)
+// ---------------------------------------------------------------------------
+
+/**
+ * Make sure the two always-on daemons exist:
+ *   - stable/prod (DEFAULT_DAEMON_PORT) — brew/launchd-supervised; we only report it (never
+ *     auto-manage the brew daemon), and tell the operator how to start it.
+ *   - dev-latest (:9886) — a berth built from main; brought up if it is not
+ *     already running (reusing `devUp` so it gets a prod-seeded DB).
+ *
+ * Named dev-feature berths stay opt-in (`pd dev up --from <worktree>`); this
+ * only guarantees the standing pair the cut/orchestrator and FleetBar expect.
+ * Idempotent: a no-op when both are already healthy.
+ */
+async function devEnsure(options: CLIOptions): Promise<void> {
+  const stable = await probeStable();
+  if (stable.up) {
+    ui.success(`stable (:${DEFAULT_DAEMON_PORT}) up — v${stable.version ?? '?'}`);
+  } else {
+    ui.warn(`stable (:${DEFAULT_DAEMON_PORT}) is down — start it with: brew services start port-daddy  (or: pd daemon start)`);
+  }
+
+  const devLatest = pruneRegistry().find((r) => r.tier === 'dev-latest');
+  if (devLatest && isProcessRunning(devLatest.pid)) {
+    ui.success(`dev-latest (:${devLatest.port}) already up — pid ${devLatest.pid}.`);
+    return;
+  }
+
+  ui.info('dev-latest berth not running — bringing it up from main…');
+  // Force the shared dev-latest lane regardless of which branch we're on.
+  await devUp({ ...options, from: 'main', label: undefined } as CLIOptions);
+}
+
+// ---------------------------------------------------------------------------
 // pd dev (dispatcher)
 // ---------------------------------------------------------------------------
 
@@ -379,14 +627,24 @@ export async function handleDevBerth(positional: string[], options: CLIOptions):
     case 'status': // back-compat alias for the legacy `pd dev status`
       await devList(options);
       break;
+    case 'gc':
+    case 'prune': // alias
+      await devGc();
+      break;
+    case 'ensure': // idempotently guarantee the standing fleet (prod + dev-latest)
+      await devEnsure(options);
+      break;
     default:
       ui.info('Daemon Berths (ADR-0084) — tiered, colour-coded, side-by-side daemons.');
       ui.info('');
       ui.info('  pd dev up [--from main|<branch>|<worktree-path>] [--label <name>] [--port <n>]');
       ui.info('      Build the daemon binary from the source and launch a berth.');
+      ui.info('      (no --from on a feature branch → codebase berth for THIS worktree)');
       ui.info('      --from main      → dev-latest berth on :' + DEV_LATEST_PORT + ' (blue)');
       ui.info('      --from <branch>  → codebase berth on a claimed port (purple)');
       ui.info('  pd dev down <label> | --all   Stop a berth (never the stable daemon).');
+      ui.info('  pd dev ensure                 Guarantee the standing fleet (prod + dev-latest) is up.');
+      ui.info('  pd dev gc                     Reap dead/orphaned/idle berths + free their state.');
       ui.info('  pd dev list                   Show the stable berth + every dev berth.');
       ui.info('');
       ui.info('  Target a shell:   eval "$(pd use <tier|label>)"');

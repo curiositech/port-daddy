@@ -130,6 +130,7 @@ const ESSENTIAL_TOOL_NAMES = new Set([
   'list_services',
   // Magic tools — high-level composed operations for vibe coders
   'fleet_init',
+  'active_agent_roster',
   'swarm_awareness',
   'coordination_preflight',
   'sitrep',
@@ -139,12 +140,15 @@ const ESSENTIAL_TOOL_NAMES = new Set([
   // Central agentic-feedback primitive — agents drop feedback while
   // they work; cartographer harvests it into the roadmap.
   'drop_feedback',
+  // Host-safety posture audit (ADR-0088 Phase A) — read-only; the agent is a
+  // first-class consumer of its own safety posture.
+  'safe_scan',
 ]);
 
 const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> = {
   'magic': {
     description: 'High-level composed tools: fleet setup, swarm awareness, situation reports, agent spawning, sortie missions, file heat maps, agent messaging',
-    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn_agent', 'run_sortie'],
+    tools: ['fleet_init', 'fleet_status', 'active_agent_roster', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn_agent', 'run_sortie'],
   },
   'session-lifecycle': {
     description: 'Start/end sessions, manage agent registration (sugar commands)',
@@ -153,6 +157,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   'trust': {
     description: 'Honest self-report (ADR-0045): verify the daemon actually enforces what it claims before relying on it',
     tools: ['attest'],
+  },
+  'safety': {
+    description: 'Host-safety posture audit (ADR-0088): a read-only scan of what an agent running as the operator could reach right now (secrets at rest, world-readable crown jewels, unsigned binaries, unpinned MCP fetches, egress flows)',
+    tools: ['safe_scan'],
   },
   'advisor': {
     description: 'Deterministic coordination preflight: context integrity, claims, symbols, salvage, channels, tuples, and locks',
@@ -253,11 +261,11 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'feedback': {
     description: 'Agentic feedback primitive — drop structured findings about the project (or about Port Daddy itself); cartographer harvests them into the roadmap',
-    tools: ['drop_feedback', 'list_feedback', 'feedback_summary'],
+    tools: ['drop_feedback', 'submit_visual_task', 'list_feedback', 'feedback_summary'],
   },
   'harbors': {
     description: 'Named permission namespaces — list harbors, inspect membership/envelope, and dry-run a capability decision before you act',
-    tools: ['list_harbors', 'get_harbor', 'check_harbor_envelope'],
+    tools: ['list_harbors', 'get_harbor', 'check_harbor_envelope', 'whois'],
   },
   'signals': {
     description: 'Pheromone trail — leave and read stigmergic signals on entities/files so the swarm coordinates without direct messaging',
@@ -396,6 +404,30 @@ const TOOLS = [
     },
   },
   {
+    name: 'safe_scan',
+    description:
+      '[Safety] READ-ONLY host-safety posture audit (ADR-0088 Phase A). Returns a ' +
+      '0-100 score, a Safe Room state (green/amber/red), and a blast-radius list: ' +
+      'what an agent running as the operator could reach RIGHT NOW (plaintext ' +
+      'secrets at rest, world-readable crown jewels, unsigned running binaries, ' +
+      'unpinned MCP fetches, live egress flows). green = "cooperative-case sensors ' +
+      'clear", NOT a sandbox — the report footer carries the verbatim HONEST_LIMITS. ' +
+      'NEVER returns a raw secret: findings carry only path/line/ruleId/last4. ' +
+      'Optional `allow`: comma-separated allowlisted egress hosts. Usage: safe_scan()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        allow: {
+          type: 'string',
+          description:
+            'Comma-separated allowlisted egress hosts. A live flow to a host not on ' +
+            'this list is a deduction; empty means egress flows are reported as ' +
+            'evidence but never deducted.',
+        },
+      },
+    },
+  },
+  {
     name: 'relay_status',
     description:
       '[System] Relay federation status (ADR-0049). Returns whether this daemon is ' +
@@ -444,6 +476,22 @@ const TOOLS = [
         },
       },
       required: ['name', 'agent_id', 'action'],
+    },
+  },
+  {
+    name: 'whois',
+    description:
+      'Skill-routing phonebook: given a capability query, returns ranked agents by semantic match × heartbeat freshness. ' +
+      'Usage: whois({ "query": "react server components", "kind": "agent", "limit": 5 })',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        query: { type: 'string', description: 'Capability query phrase to route on' },
+        kind: { type: 'string', enum: ['agent', 'human', 'any'], description: 'Entity kind filter (default agent)' },
+        fresh_min: { type: 'number', description: 'Minimum freshness in seconds; excludes agents whose last heartbeat is older' },
+        limit: { type: 'number', description: 'Max ranked hits to return (default 10)' },
+      },
+      required: ['query'],
     },
   },
 
@@ -2651,10 +2699,22 @@ const TOOLS = [
     },
   },
   {
+    name: 'active_agent_roster',
+    description:
+      '[Magic] Live harness roster for this repo. Lists active agents by harness lane, worktree, task, touched files, ' +
+      'and control affordances for stream, interrupt, takeover, and steering.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project: { type: 'string', description: 'Filter to a specific project (e.g. "port-daddy"). Omit for all.' },
+      },
+    },
+  },
+  {
     name: 'swarm_awareness',
     description:
       '[Magic] Who else is working here? Returns all active agents with their identities, purposes, ' +
-      'file claims, session notes, and heartbeat freshness. One call to understand the whole swarm.',
+      'file claims, session notes, heartbeat freshness, harness lane, and session-control affordances. One call to understand the whole swarm.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -2986,6 +3046,35 @@ const TOOLS = [
     },
   },
   {
+    name: 'submit_visual_task',
+    description:
+      '[Standard] Submit visual evidence as a Port Daddy work item from any MCP client. ' +
+      'Use this when an agent has a screenshot, selected rectangle, DOM hint, or browser ' +
+      'context that should become a reviewable issue for a local agent, cloud fleet, or ' +
+      'review queue. Mirrors the Chrome extension and FleetBar visual intake route without ' +
+      'exposing dispatch/worker internals to the caller.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        title: { type: 'string', description: 'Short issue title. Defaults to description.' },
+        description: { type: 'string', description: 'What is wrong or what the agent should do.' },
+        kind: { type: 'string', enum: ['fix', 'bug', 'nit', 'feedback', 'question'], description: 'Task flavor. Default: fix.' },
+        project: { type: 'string', description: 'Logical project slug.' },
+        project_dir: { type: 'string', description: 'Absolute project directory for repo-aware routing.' },
+        page_url: { type: 'string', description: 'URL of the page or app where the issue was captured.' },
+        target_agent: { type: 'string', description: 'Specific local agent id to receive the task.' },
+        assignee: { type: 'string', enum: ['local-agent', 'cloud-fleet', 'review-queue'], description: 'Where to route the work. Default: review-queue unless a target_agent is supplied.' },
+        open_issue: { type: 'boolean', description: 'Open a reviewable Port Daddy work item. Default: true.' },
+        start_agent: { type: 'boolean', description: 'Ask the daemon to wake/run the assigned agent after routing. Default: false.' },
+        image: { type: 'object', description: 'Screenshot evidence, usually {mimeType, dataUrl} or an existing blobId.' },
+        region: { type: 'object', description: 'Selected rectangle in image or viewport coordinates.' },
+        dom_context: { type: 'object', description: 'DOM decomposition: selectors, XPath, bounds, source hints, and page title.' },
+        viewport: { type: 'object', description: 'Viewport metadata such as width, height, and devicePixelRatio.' },
+      },
+      required: ['description'],
+    },
+  },
+  {
     name: 'list_feedback',
     description:
       '[Standard] List feedback entries. Filter by severity, surface, ' +
@@ -3251,6 +3340,17 @@ async function handleTool(
       break;
     }
 
+    case 'safe_scan': {
+      // READ-ONLY host-safety posture audit (ADR-0088 Phase A, A10). The daemon
+      // runs the sensors + records the A5 ledger; the report it returns carries
+      // findings with last4 only — NEVER a raw secret value.
+      const allow = typeof args.allow === 'string' && args.allow.length > 0
+        ? `?allow=${encodeURIComponent(args.allow as string)}`
+        : '';
+      res = await GET(`/safe/scan${allow}`);
+      break;
+    }
+
     case 'relay_status': {
       res = await GET('/relay/status');
       break;
@@ -3272,6 +3372,16 @@ async function handleTool(
         agentId: args.agent_id,
         action: args.action,
       });
+      break;
+    }
+
+    case 'whois': {
+      const params = new URLSearchParams();
+      params.set('q', String(args.query));
+      if (args.kind) params.set('kind', String(args.kind));
+      if (args.fresh_min !== undefined) params.set('fresh_min', String(args.fresh_min));
+      if (args.limit !== undefined) params.set('limit', String(args.limit));
+      res = await GET(`/whois?${params.toString()}`);
       break;
     }
 
@@ -4351,8 +4461,16 @@ async function handleTool(
       return JSON.stringify({ agents, channels: msgs, recent_notes: recentNotes }, null, 2);
     }
 
+    case 'active_agent_roster':
     case 'swarm_awareness': {
       const project = args.project as string | undefined;
+      const rosterQs = new URLSearchParams({ limit: '50' });
+      if (project) rosterQs.set('project', project);
+      const rosterRes = await GET(`/agent-roster?${rosterQs}`);
+      if (rosterRes.status >= 200 && rosterRes.status < 300 && rosterRes.data && rosterRes.data.success !== false) {
+        return JSON.stringify(rosterRes.data, null, 2);
+      }
+
       const qs = project ? `?identityPrefix=${encodeURIComponent(project)}` : '';
       const sessionQs = new URLSearchParams({ limit: '20' });
       if (project) sessionQs.set('project', project);
@@ -4641,6 +4759,36 @@ async function handleTool(
       break;
     }
 
+    case 'submit_visual_task': {
+      const targetAgent = (args.target_agent as string | undefined) || (args.targetAgent as string | undefined);
+      const assignee = (args.assignee as string | undefined) || (targetAgent ? 'local-agent' : 'review-queue');
+      const body: Record<string, unknown> = {
+        schemaVersion: 1,
+        type: 'visual-task',
+        source: 'api',
+        title: (args.title as string | undefined) || (args.description as string | undefined) || 'Visual task',
+        description: (args.description as string | undefined) || (args.title as string | undefined) || '',
+        kind: (args.kind as string | undefined) || 'fix',
+        createdAt: new Date().toISOString(),
+        routing: {
+          assignee,
+          targetAgent,
+          openIssue: args.open_issue !== false && args.openIssue !== false,
+          startAgent: args.start_agent === true || args.startAgent === true,
+        },
+      };
+      if (args.project) body.project = args.project;
+      if (args.project_dir || args.projectDir) body.projectDir = args.project_dir || args.projectDir;
+      if (targetAgent) body.targetAgent = targetAgent;
+      if (args.page_url || args.pageUrl) body.pageUrl = args.page_url || args.pageUrl;
+      if (args.image) body.image = args.image;
+      if (args.region) body.region = args.region;
+      if (args.dom_context || args.domContext) body.domContext = args.dom_context || args.domContext;
+      if (args.viewport) body.viewport = args.viewport;
+      res = await POST('/visual-tasks', body);
+      break;
+    }
+
     case 'list_feedback': {
       const qs = new URLSearchParams();
       if (args.severity) qs.set('severity', args.severity as string);
@@ -4774,7 +4922,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.21.0',
+    version: '3.23.0',
   },
   {
     capabilities: {

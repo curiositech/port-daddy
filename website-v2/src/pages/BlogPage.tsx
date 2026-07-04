@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { blogPosts, deprecatedBlogPosts, type BlogPost } from '@/data/blogData'
 import { Activity, ArrowUpRight, Calendar, CheckCircle2, Cpu, GitBranch, NotebookText, ShieldCheck, Terminal } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
+import { ThemedImage } from '@/components/site/ThemedImage'
 
 const metaClass =
   'font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)]'
@@ -49,7 +50,7 @@ function Tag({ children }: { children: string }) {
 function ArticleImage({ post, eager = false }: { post: BlogPost; eager?: boolean }) {
   return (
     <div className="relative aspect-[16/9] w-full overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-      <img
+      <ThemedImage
         src={post.heroImage}
         alt={post.heroAlt}
         className="h-full w-full object-cover"
@@ -145,7 +146,7 @@ export function BlogPage() {
           </div>
 
           <div className="lg:col-span-6">
-            <img
+            <ThemedImage
               src="/img/blog/harbor-blog-hero.webp"
               alt="A blueprint-style drawing of an open harbor-master's logbook on a desk with a fountain pen and a brass lantern, a porthole behind showing tugboats at their berths."
               loading="eager"

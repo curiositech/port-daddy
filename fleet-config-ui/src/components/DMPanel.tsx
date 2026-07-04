@@ -15,6 +15,28 @@ interface Props {
 
 type DeliveryMode = 'channel' | 'agent';
 
+function formatInboxContent(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (!content || typeof content !== 'object') return String(content ?? '');
+
+  const candidate = content as Record<string, unknown>;
+  if (candidate.type === 'visual-task' && typeof candidate.title === 'string') {
+    const kind = typeof candidate.kind === 'string' ? candidate.kind : 'visual';
+    return `[${kind}] ${candidate.title}`;
+  }
+  for (const key of ['summary', 'title', 'message', 'content', 'text', 'details']) {
+    const value = candidate[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  try {
+    return JSON.stringify(content, null, 2);
+  } catch {
+    return String(content);
+  }
+}
+
 /**
  * Operator messaging surface for direct inbox delivery and channel publication.
  * Direct inbox delivery now targets durable actors first; the daemon stores the
@@ -339,7 +361,7 @@ export default function DMPanel({
                       </span>
                     </div>
                     <div className="mt-2 text-[12px] leading-relaxed" style={{ color: 'var(--pd-text)' }}>
-                      {entry.content}
+                      {formatInboxContent(entry.content)}
                     </div>
                   </div>
                 ))

@@ -118,4 +118,81 @@ d('LIVE: full-depth transcript capture through the real spawner', () => {
     // 2.5 thinking model on a reasoning prompt. Logged + asserted.
     expect(roles).toContain('thinking');
   }, 70000);
+
+  // Cloudflare resolves creds via getSecret → keychain/env in the daemon. The
+  // bare jest process can't reach the keychain, so require both creds in the
+  // env. The default model (@cf/zai-org/glm-4.7-flash) is OpenAI-compat and
+  // returns reasoning + content, so a thinking turn is expected.
+  const cfIt = (process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID) ? it : it.skip;
+  cfIt('records cloudflare thinking + assistant turns from a real Workers AI run', async () => {
+    const spawner = createSpawner({
+      transcripts,
+      enforceTelemetryPolicy: false,
+      enforceTranscriptPolicy: true,
+      telemetryBypassApproval: { humanConfirmed: true, confirmedBy: 'live-test', reason: 'PD_LIVE cloudflare e2e' },
+    });
+
+    const result = await spawner.spawn({
+      backend: 'cloudflare',
+      model: '@cf/zai-org/glm-4.7-flash',
+      task: 'Think step by step about why 13 is prime, then give a one-sentence answer.',
+      timeout: 60000,
+    });
+    // eslint-disable-next-line no-console
+    console.log('LIVE cloudflare spawn status:', result.status, '| error:', result.error);
+
+    const rows = transcripts.listTranscripts({ ship: 'spawn:cloudflare' });
+    expect(rows.length).toBeGreaterThan(0);
+    const full = transcripts.getTranscript(rows[0].id);
+    const roles = full.messages.map((m) => m.role);
+    // eslint-disable-next-line no-console
+    console.log('LIVE cloudflare transcript roles:', JSON.stringify(roles));
+
+    expect(result.status).toBe('completed');
+    expect(roles).toContain('user');
+    expect(roles).toContain('assistant');
+    expect(roles).toContain('thinking');
+  }, 70000);
+
+  // cli:claude-code drives the local `claude` CLI over its own OAuth (no API
+  // key). It runs by default under PD_LIVE. Critically this spawns with the
+  // SENTINEL model "claude-cli" — the exact value DEFAULT_MODELS hands out and
+  // the value that previously leaked into `claude --model claude-cli` and
+  // killed the run ("model may not exist"). With the placeholder fix the
+  // sentinel maps to a real default and the run records thinking + assistant
+  // via stream-json.
+  it('records cli:claude-code thinking + assistant from a real run launched with the "claude-cli" sentinel model', async () => {
+    const spawner = createSpawner({
+      transcripts,
+      enforceTelemetryPolicy: false,
+      enforceTranscriptPolicy: true,
+      telemetryBypassApproval: { humanConfirmed: true, confirmedBy: 'live-test', reason: 'PD_LIVE cli:claude-code e2e' },
+    });
+
+    const result = await spawner.spawn({
+      backend: 'cli:claude-code',
+      model: 'claude-cli', // the sentinel that used to break the spawn
+      task: 'What is 6 times 7? Think briefly, then answer.',
+      timeout: 90000,
+    });
+    // eslint-disable-next-line no-console
+    console.log('LIVE cli:claude-code spawn status:', result.status, '| error:', result.error);
+
+    const rows = transcripts.listTranscripts({ ship: 'spawn:cli:claude-code' });
+    expect(rows.length).toBeGreaterThan(0);
+    const full = transcripts.getTranscript(rows[0].id);
+    const roles = full.messages.map((m) => m.role);
+    // eslint-disable-next-line no-console
+    console.log('LIVE cli:claude-code transcript roles:', JSON.stringify(roles));
+
+    // The point of THIS test: the sentinel model no longer breaks the run
+    // (was status=failed "model may not exist"). It now completes and records
+    // the conversation. Whether a `thinking` turn appears is model/prompt
+    // dependent (a trivial prompt may not trigger extended thinking) — the
+    // stream-json thinking capture is asserted against a real reasoning block
+    // in cli-claude-code-transcript.test.js.
+    expect(result.status).toBe('completed');
+    expect(roles).toContain('user');
+    expect(roles).toContain('assistant');
+  }, 100000);
 });

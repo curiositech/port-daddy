@@ -60,7 +60,7 @@ export const blogPostMetas: BlogPostMeta[] = [
     excerpt: 'You push at eleven at night. The CI gear-wheel is the only critic in the room. What if every PR you opened arrived with the adversarial review you would have asked for — six paid critics on the same git push you were already doing? The GitHub fleet, the bug it caught (14 green tests against a count that was structurally always 0), and what stays in your hands.',
     tags: ['GitHub Fleet', 'Code Review', 'Adversarial Review', 'Dogfooding'],
     heroImage: '/img/generated/pr-reviews-itself/hero.webp',
-    heroAlt: 'A hooded contributor opens a laptop and finds a kitchen brigade of six chefs already at work on their pull request, each labeled with the name of a Port Daddy review ship',
+    heroAlt: 'A pull request opened on a developer workstation fans out to six focused Port Daddy review agents, each returning one evidence-backed finding stream.',
   },
   {
     id: 'ai-subscription-fleet',
@@ -81,8 +81,8 @@ export const blogPostMetas: BlogPostMeta[] = [
     author: 'Erich Owens',
     excerpt: 'Two AI fleets argue about my whitepaper every month, and they are not allowed to talk to each other. One tries to break the paper; one tries to defend it. Here is the crypto that keeps them in their lanes, the three gates each round has to clear, and what shows up on the operator screen when somebody cheats.',
     tags: ['Whitepaper', 'Adversarial Review', 'ProVerif', 'Security'],
-    heroImage: '/img/generated/blog-map-truth.jpg',
-    heroAlt: 'Swiss-modern diagram of red and white fleets separated by sec-eng-lead at three signed gates per round',
+    heroImage: '/img/generated/virtual-actor-fleet.webp',
+    heroAlt: 'Two adversarial fleets working in separate lanes while a signed coordination surface keeps them from crossing capability boundaries.',
   },
   {
     id: 'coordination-guard',
@@ -92,8 +92,8 @@ export const blogPostMetas: BlogPostMeta[] = [
     author: 'Erich Owens',
     excerpt: "Coordination Guard was not born from a clean theory of Git as policy. It was born because four agents - politely, professionally, with great commit messages - kept staging, resetting, and cherry-picking through each other's claims, and the Saturday I lost untangling that mess was the Saturday I stopped trusting honor systems.",
     tags: ['Coordination Guard', 'Runtime Primitives', 'Git Safety', 'Dogfooding'],
-    heroImage: '/img/generated/blog-coordination-guard-policy.jpg',
-    heroAlt: 'Swiss-modern commit gate with file claims, session identity, staged paths, and policy checks',
+    heroImage: '/img/generated/coordination-guard.webp',
+    heroAlt: 'A guarded commit lane where file claims, session identity, and staged paths are checked before a branch can move.',
   },
   {
     id: 'bond-pricing-market',
@@ -103,8 +103,8 @@ export const blogPostMetas: BlogPostMeta[] = [
     author: 'Erich Owens, with Thomas Youle (Indiana University)',
     excerpt: "Daily budgets are training wheels. They keep an agent from setting itself on fire, but they do not price what the fire would cost. The v2 paper points at the destination: cleanup as a lower bound, scope as a multiplier, reputation as a discount, and Thomas Youle's insurer-bidding market on top.",
     tags: ['Whitepaper', 'Pricing', 'Bonded Advisor', 'Mechanism Design'],
-    heroImage: '/img/generated/blog-control-plane-product.jpg',
-    heroAlt: 'Swiss-modern diagram of bond pricing with cleanup cost, scope multiplier, reputation discount, and insurer bidding lanes',
+    heroImage: '/img/generated/bond-pricing/bond-pricing-hero.webp',
+    heroAlt: 'A Port Daddy bond market board where cleanup cost, scope, reputation, and insurer bids set the stake for a risky agent job.',
   },
   {
     id: 'evidence-cross-machine',
@@ -114,8 +114,8 @@ export const blogPostMetas: BlogPostMeta[] = [
     author: 'Erich Owens',
     excerpt: 'A note only your laptop can verify is half a record - and "trust me, it was on the other machine" is the worst sentence in incident response. The v2 Merkle forest, the KMS witness, and the mutable-signal ledger let a teammate or a CI runner verify the same evidence in 700 bytes, without your laptop in the room.',
     tags: ['Whitepaper', 'Merkle Forest', 'KMS Witness', 'Evidence'],
-    heroImage: '/img/generated/blog-map-truth.jpg',
-    heroAlt: 'Swiss-modern diagram of cross-daemon Merkle forest with session roots, harbor roots, and a witnessed signed tree head',
+    heroImage: '/img/generated/agent-runtime-map.webp',
+    heroAlt: 'Multiple machines and agent runtimes connected by a verified evidence map that survives beyond one laptop.',
   },
   {
     id: 'passkey-identity',
@@ -125,8 +125,8 @@ export const blogPostMetas: BlogPostMeta[] = [
     author: 'Erich Owens',
     excerpt: 'Single-node was the right answer for one laptop and exactly one human. Then the laptops multiplied, the phone showed up, and the recovery story collapsed into prayer. The Federated Sovereign is what replaces it: passkeys at the front, an abstract KMS in the middle, mobile-as-viewer at the edge, and a recovery flow you can actually run on a Tuesday.',
     tags: ['Whitepaper', 'Identity', 'Passkeys', 'KMS'],
-    heroImage: '/img/generated/blog-daemon-provenance.jpg',
-    heroAlt: 'Swiss-modern diagram of federated identity with passkey-bound devices, KMS witness, mobile viewer channel, and recovery flow',
+    heroImage: '/img/generated/harbors-signed-access.webp',
+    heroAlt: 'Signed access cards moving between harbors, devices, and recovery channels without exposing the underlying identity secret.',
   },
   {
     id: 'control-plane-product',
@@ -136,8 +136,8 @@ export const blogPostMetas: BlogPostMeta[] = [
     author: 'Erich Owens',
     excerpt: "The agents do beautiful work and then quietly clobber each other's files, spend money on the wrong API key, and answer to a daemon that has been serving stale code for three days. The fix is not more agents; it is one inspectable surface where identity, ownership, runtime, backend, cost, and recovery all agree before anyone presses go.",
     tags: ['Control Plane', 'FleetBar', 'Operator UX', 'Product Truth'],
-    heroImage: '/img/generated/blog-control-plane-product.jpg',
-    heroAlt: 'Swiss-modern diagram of a local control plane with project lanes, readiness gates, and agent activity blocks',
+    heroImage: '/img/generated/control-plane-hero.webp',
+    heroAlt: 'A control-plane dashboard where identity, ownership, runtime, backend, cost, and recovery all agree before launch.',
   },
   {
     id: 'fleet-designer-cold-start',
@@ -158,8 +158,8 @@ export const blogPostMetas: BlogPostMeta[] = [
     author: 'Erich Owens',
     excerpt: 'PD Tube is a phone line. The browser button, the failing test, the editor lightbulb, the inbound webhook - they all dial the same number, and the agent already sitting in your repo picks up. No SDK, no MCP server, no hosted callback. Just a local socket and a threaded reply.',
     tags: ['PD Tube', 'Examples', 'Event Loop', 'Dev Tools'],
-    heroImage: '/img/generated/blog-pd-tube-event-reply.jpg',
-    heroAlt: 'Swiss-modern sequence diagram of a browser action, local event channel, agent terminal, and threaded reply',
+    heroImage: '/img/generated/example-pd-tube-button-to-agent.webp',
+    heroAlt: 'A realistic product button sending a local PD Tube message to an agent in the developer workspace.',
   },
   {
     id: 'telemetry-launch-gate',
@@ -180,8 +180,8 @@ export const blogPostMetas: BlogPostMeta[] = [
     author: 'Erich Owens',
     excerpt: 'The roadmap says one thing, the recovery doc says another, the session notes say a third, and the live daemon is somehow doing a fourth. The fix is not more documents. It is one surface that reconciles all four into a map an operator can read in twenty seconds.',
     tags: ['Recovery', 'Roadmap', 'Status Map', 'Evidence'],
-    heroImage: '/img/generated/blog-map-truth.jpg',
-    heroAlt: 'Swiss-modern map of recovery notes, commit history, roadmap lanes, and operator status converging into one projection',
+    heroImage: '/img/generated/salvage-ledger.webp',
+    heroAlt: 'A salvage ledger collecting recovery notes, branch state, roadmap lanes, and runtime truth into one readable operator map.',
   },
   {
     id: 'daemon-provenance',
@@ -191,7 +191,7 @@ export const blogPostMetas: BlogPostMeta[] = [
     author: 'Erich Owens',
     excerpt: 'A daemon can be alive, reachable, answering on the right port, and still serving the version of itself you wrote three weeks ago. "Running" is a heartbeat. "Current" is a different question. Runtime provenance is what makes the second one answerable before you trust anything the UI or the CLI says.',
     tags: ['Daemon', 'Runtime Truth', 'Supervisor', 'Debugging'],
-    heroImage: '/img/generated/blog-daemon-provenance.jpg',
+    heroImage: '/img/generated/blog-daemon-provenance.webp',
     heroAlt: 'Swiss-modern provenance diagram comparing source checkout, installed runtime, socket path, TCP route, and supervisor state',
   },
   {
@@ -202,7 +202,7 @@ export const blogPostMetas: BlogPostMeta[] = [
     author: 'Erich Owens',
     excerpt: '"Ready" is not one bit; it is five, and they all have to line up. The credential exists. The package is installed. The CLI is logged in. The model is on the catalog. Telemetry will write a real number when the run finishes. Miss one, and the launch becomes a story you tell about why the bill arrived.',
     tags: ['Backends', 'Models', 'Readiness', 'Control Plane'],
-    heroImage: '/img/generated/blog-backend-readiness.jpg',
+    heroImage: '/img/generated/blog-backend-readiness.webp',
     heroAlt: 'Swiss-modern readiness matrix with model tiers, dependency checks, credentials, and blocked launch states',
   },
   {
@@ -213,8 +213,8 @@ export const blogPostMetas: BlogPostMeta[] = [
     author: 'Erich Owens',
     excerpt: 'I edited an .env.local file today. Wrong one. Three directories away from the one the daemon actually reads. The fleet sat there 401\'ing for an hour while I edited the wrong file and felt productive. That is a product failure, not a user error. The operator does not run `pd` commands; the operator gets buttons. Here is the rule, the two feedback drops that came out of the incident, and what stays in the CLI.',
     tags: ['Operator UX', 'FleetBar', 'Doctrine', 'Dogfooding'],
-    heroImage: '/img/generated/blog-control-plane.jpg',
-    heroAlt: 'Swiss-modern split panel showing FleetBar credentials UI on the left and a terminal hidden behind a curtain on the right',
+    heroImage: '/img/generated/fleetbar-install.webp',
+    heroAlt: 'A FleetBar installation and operator-control surface replacing terminal credential work with visible product controls.',
   },
 ];
 

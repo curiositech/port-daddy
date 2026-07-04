@@ -234,7 +234,7 @@ async function publishFailedTest(result: FailedTestResult) {
 }
 ```
 
-In a production integration the URL should come from daemon discovery rather than a literal. The important product point is that the reporter remains tiny. It publishes the failure and lets the local control plane decide how agents, budgets, claims, and replies should work.
+In a production integration the URL should come from daemon discovery rather than a literal. The important product point is that the reporter remains tiny. It publishes the failure and lets the [local control plane](/blog/control-plane-is-the-product) decide how agents, budgets, claims, and replies should work.
 
 ## What The UI Should Render
 
@@ -252,7 +252,7 @@ That is the payoff of keeping replies structured. The browser does not have to g
 
 ## The Product Bet
 
-The next wave of useful agent features will not only be giant autonomous runs. It will be dozens of small local loops:
+The next wave of useful agent features will not only be giant autonomous runs. It will be [dozens of small local loops](/blog/your-ai-subscription-powers-the-fleet):
 
 - explain this UI state;
 - inspect this failing test;

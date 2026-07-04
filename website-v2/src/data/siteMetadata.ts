@@ -33,6 +33,12 @@ export const OG_SOURCE_IMAGES = {
   salvageLedger: '/img/generated/salvage-ledger.jpg',
   shipwrightProposal: '/img/generated/shipwright-proposal.jpg',
   exampleArchetypes: '/img/generated/example-agent-archetypes.jpg',
+  home: '/img/generated/home-og.jpg',
+  manifesto: '/img/generated/manifesto-og.jpg',
+  pdTube: '/img/generated/pd-tube-og.jpg',
+  blog: '/img/generated/blog-og.jpg',
+  library: '/img/generated/library-og.jpg',
+  landscape: '/img/generated/landscape-og.jpg',
 } as const
 
 export type SiteMetadataSection =
@@ -137,6 +143,15 @@ const sectionLabels: Record<SiteMetadataSection, string> = {
 }
 
 function sourceImageForRoute(path: string, section: SiteMetadataSection) {
+  // Bespoke route-level OG art for the top-level pages that previously shared
+  // the generic control-plane fallback. Exact matches so individual sub-routes
+  // (e.g. a /blog/<slug> that mentions "guard") keep their topical image below.
+  if (path === '/') return OG_SOURCE_IMAGES.home
+  if (path === '/manifesto') return OG_SOURCE_IMAGES.manifesto
+  if (path === '/pd-tube') return OG_SOURCE_IMAGES.pdTube
+  if (path === '/blog') return OG_SOURCE_IMAGES.blog
+  if (path === '/library') return OG_SOURCE_IMAGES.library
+  if (path === '/landscape') return OG_SOURCE_IMAGES.landscape
   if (path === '/mac-preview') return OG_SOURCE_IMAGES.fleetbarInstall
   if (path === '/mcp' || path.startsWith('/docs/mcp')) return OG_SOURCE_IMAGES.agentRuntime
   if (path.startsWith('/agents') || path.includes('fleet') || path.includes('spawn')) return OG_SOURCE_IMAGES.virtualActors
@@ -301,6 +316,24 @@ const productRoutes: SiteMetadata[] = [
     'Manifesto',
     'Software learned to hire its own help. Why a fleet of agents needs a harbor-master before anything else, how legibility becomes the product, and the seven papers that work it out.',
     { section: 'whitepaper' },
+  ),
+  metadata(
+    '/security',
+    'Cryptography',
+    'What stops an agent you never authorized from touching your code — and the proofs behind it. Capability attenuation, signed envelopes, collateralized work, and Ostrom-style commons governance, with the Anchor Protocol verified in ProVerif.',
+    { section: 'whitepaper' },
+  ),
+  metadata(
+    '/harness',
+    'The Harness',
+    'What an AI coding agent gains when it runs inside the Port Daddy Harness: it hears the fleet, is subscribed by default, sees the swarm before it edits, gets CI verdicts back, is invited to parley, pays rent, is steered to fresh worktrees, and has destructive commands vetoed with the safe alternative named. Claude is fully wired; Gemini and Codex hook surfaces are mapped.',
+    { section: 'product' },
+  ),
+  metadata(
+    '/squid-codex',
+    'Squid Codex Bridge',
+    'Run Claude Code with Codex and your ChatGPT Pro subscription through the Giant Squid local bridge, with Port Daddy hooks, agent skill, MCP tools, budgets, claims, and recovery wrapped around the run.',
+    { section: 'product', ogSourceImage: OG_SOURCE_IMAGES.agentRuntime, ogSectionLabel: 'Giant Squid' },
   ),
   metadata(
     '/library',

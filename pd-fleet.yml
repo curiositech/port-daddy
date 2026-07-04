@@ -89,7 +89,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/openai/gpt-oss-120b'
       singleton: true
       prompt: |
         You are Gardener. After every commit, audit the worktree's
@@ -131,7 +131,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/openai/gpt-oss-120b'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -178,7 +178,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          model: '@cf/moonshotai/kimi-k2.7-code'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -215,7 +215,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          model: '@cf/moonshotai/kimi-k2.7-code'
       singleton: true
       cooldown_ms: 900000
       dedupe_window_ms: 43200000
@@ -263,7 +263,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          model: '@cf/moonshotai/kimi-k2.7-code'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -290,7 +290,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/openai/gpt-oss-120b'
       timeout: 900000
       singleton: true
       allowedTools: "Read,Grep,Glob,Write,Bash(pd feedback*),Bash(pd roadmap*),Bash(pd ideas*),Bash(git*)"
@@ -402,7 +402,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/openai/gpt-oss-120b'
       singleton: true
       allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
       prompt: |
@@ -449,7 +449,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          model: '@cf/moonshotai/kimi-k2.7-code'
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false
@@ -495,7 +495,7 @@ fleet:
         - backend: openai
           model: gpt-5
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/openai/gpt-oss-120b'
       cooldown_ms: 600000
       dedupe_window_ms: 1800000
       singleton: false
@@ -535,7 +535,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          model: '@cf/moonshotai/kimi-k2.7-code'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: false
@@ -580,7 +580,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          model: '@cf/moonshotai/kimi-k2.7-code'
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false
@@ -633,7 +633,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/openai/gpt-oss-120b'
       cooldown_ms: 3600000
       dedupe_window_ms: 21600000
       singleton: true
@@ -686,7 +686,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/openai/gpt-oss-120b'
       cooldown_ms: 3600000
       dedupe_window_ms: 10800000
       singleton: true
@@ -878,7 +878,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/openai/gpt-oss-120b'
       singleton: true
       prompt: |
         You are the Developer-Onboarding Sentinel. Your mission:

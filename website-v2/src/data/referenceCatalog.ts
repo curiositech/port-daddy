@@ -15,7 +15,7 @@ export interface ReferenceGroup {
   items: ReferenceItem[]
 }
 
-export const PORT_DADDY_VERSION = '3.21.0'
+export const PORT_DADDY_VERSION = '3.23.0'
 
 export function referenceAnchor(name: string): string {
   return name
@@ -93,7 +93,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd setup', description: 'Install daemon, MCP, FleetBar, shell hook, and project init in one operator path.', flags: ['--project', '--no-daemon', '--no-mcp', '--no-fleetbar', '--no-init', '--no-hook'] },
       { name: 'pd init', href: '/docs/cli/init', description: 'Initialize Port Daddy project config, fleet config, MCP files, and managed git hook pieces.' },
       { name: 'pd mcp', description: 'Start the stdio MCP server for model clients. Use `pd mcp install` to configure supported tools.' },
-      { name: 'pd mcp install', href: '/docs/cli/mcp-install', description: 'Auto-detect and configure Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Continue, and Cline.' },
+      { name: 'pd mcp install', href: '/docs/cli/mcp-install', description: 'Auto-detect supported tools, configure MCP, install the agent skill, and write Port Daddy Pilot definitions.' },
       { name: 'pd help <topic>', description: 'Print detailed topic help for setup, sessions, locks, agents, actors, ports, messaging, DNS, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, daemon, and tutorial.' },
       { name: 'pd learn', description: 'Open the interactive tutorial.', aliases: ['pd tutorial'] },
       { name: 'pd status', href: '/docs/cli/status', description: 'Show daemon version, PID, uptime, fleet readiness, active ports, and Bosun state.' },

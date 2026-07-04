@@ -135,6 +135,19 @@ The hook story is simple enough to write out. Pseudo-code by harness:
 
 If you're an agent-coding-tool author reading this and your tool doesn't have a session-start hook, file an issue against yourself. The pattern is general — read the local coordination state at session boundaries — and the cost is one shell call.
 
+For a plain shell harness, the whole integration is small enough to audit:
+
+```bash
+attention_json="$(pd attention --json 2>/dev/null || true)"
+if [ -n "$attention_json" ]; then
+  printf '%s\n' "$attention_json" > .portdaddy/session-attention.json
+fi
+```
+
+The important bit is not where the file lands. The important bit is that the
+mail check happens before the first prompt is assembled, not after the model
+remembers to ask.
+
 ---
 
 ## What's still missing
@@ -151,7 +164,7 @@ And of course, the harness ecosystem only has one hook wired today. If you adopt
 
 If you read this post backwards from the practical install instructions, it sounds like a small thing. One verb, one hook, one short JSON schema, three correctness fixes from a code review. Many days of bigger-feature work landed alongside it.
 
-But the thing I want to remember is the post office scene. We had built a coordination substrate sophisticated enough to track structured tuples, run distributed locks, replay correlation engines, and serve fleet-health metrics — and the agents the substrate was *for* could not see their own mail. The fix wasn't more substrate. The fix was a hallway with a peephole, declared as doctrine, and an automatic call to look through it.
+But the thing I want to remember is the post office scene. We had built a [coordination substrate](/blog/control-plane-is-the-product) sophisticated enough to track structured tuples, run distributed locks, replay correlation engines, and serve fleet-health metrics — and the agents the substrate was *for* could not see their own mail. The fix wasn't more substrate. The fix was a hallway with a peephole, declared as doctrine, and an automatic call to look through it.
 
 Run `pd attention` when you start. Or don't, and find out which message you wish you had read.
 

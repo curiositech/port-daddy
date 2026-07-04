@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
 /**
  * Backend Catalog — single source of truth for the fleet's available LLM backends.
  *
@@ -225,6 +229,9 @@ export function getBackendCatalogEntry(id: string): BackendCatalogEntry | undefi
  */
 export const KNOWN_BACKEND_IDS: ReadonlySet<string> = new Set(BACKEND_CATALOG.map((b) => b.id));
 
+export const CLI_BACKEND_SELECTION_PATH = join(homedir(), '.port-daddy-cli-backend');
+const MAX_PERSISTED_BACKEND_SELECTION_BYTES = 128;
+
 /**
  * "Free via subscription / local" backends, ranked first in pickers.
  * Order matches BACKEND_CATALOG declaration order so we get a stable
@@ -236,21 +243,65 @@ export function recommendedBackendIds(): string[] {
     .map((b) => b.id);
 }
 
-/**
- * Detect which CLI backend (if any) the operator has forced via
- * PD_USE_CLI_BACKEND. Returns the catalog id (`cli:claude-code` / `cli:codex`)
- * or null if no override is set.
- *
- * The env var is shipped per PR #109 (spawner CLI-tube backends).
- */
-export function detectForcedCliBackend(env: NodeJS.ProcessEnv = process.env): string | null {
-  const raw = env.PD_USE_CLI_BACKEND;
+function normalizeForcedCliBackend(raw: string | undefined | null): {
+  id: string;
+  value: NonNullable<BackendCatalogEntry['pdUseCliBackendValue']>;
+} | null {
   if (!raw) return null;
   const normalized = raw.trim().toLowerCase();
-  if (normalized === 'claude-code' || normalized === 'claude') return 'cli:claude-code';
-  if (normalized === 'codex') return 'cli:codex';
-  if (normalized === 'gemini') return 'cli:gemini';
-  if (normalized === 'groq') return 'cli:groq';
-  if (normalized === 'grok') return 'cli:grok';
+  if (normalized === 'claude-code' || normalized === 'claude') {
+    return { id: 'cli:claude-code', value: 'claude-code' };
+  }
+  if (normalized === 'codex') return { id: 'cli:codex', value: 'codex' };
+  if (normalized === 'gemini') return { id: 'cli:gemini', value: 'gemini' };
+  if (normalized === 'groq') return { id: 'cli:groq', value: 'groq' };
+  if (normalized === 'grok') return { id: 'cli:grok', value: 'grok' };
   return null;
+}
+
+export function readPersistedCliBackendSelection(
+  path: string = CLI_BACKEND_SELECTION_PATH,
+): string | null {
+  try {
+    const raw = readFileSync(path, 'utf-8');
+    if (raw.length > MAX_PERSISTED_BACKEND_SELECTION_BYTES) return null;
+    return raw.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function detectForcedCliBackendMatch(
+  env: NodeJS.ProcessEnv = process.env,
+  options: { persistedPath?: string | null } = {},
+): { id: string; value: NonNullable<BackendCatalogEntry['pdUseCliBackendValue']> } | null {
+  const envMatch = normalizeForcedCliBackend(env.PD_USE_CLI_BACKEND);
+  if (envMatch) return envMatch;
+
+  const hasExplicitPersistedPath = typeof options.persistedPath === 'string';
+  const shouldReadDefaultPersistedPath = options.persistedPath === undefined && env === process.env;
+  if (!hasExplicitPersistedPath && !shouldReadDefaultPersistedPath) return null;
+  const persistedPath = hasExplicitPersistedPath ? options.persistedPath as string : CLI_BACKEND_SELECTION_PATH;
+
+  return normalizeForcedCliBackend(
+    readPersistedCliBackendSelection(persistedPath),
+  );
+}
+
+/**
+ * Detect which CLI backend (if any) the operator has forced. The process env
+ * wins; otherwise the FleetBar/CLI persisted choice is honored.
+ */
+export function detectForcedCliBackend(
+  env: NodeJS.ProcessEnv = process.env,
+  options: { persistedPath?: string | null } = {},
+): string | null {
+  return detectForcedCliBackendMatch(env, options)?.id ?? null;
+}
+
+export function detectForcedCliBackendValue(
+  env: NodeJS.ProcessEnv = process.env,
+  options: { persistedPath?: string | null } = {},
+): string | null {
+  return detectForcedCliBackendMatch(env, options)?.value ?? null;
 }

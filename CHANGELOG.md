@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`pd safe corral` — pack secrets off disk into the vault (ADR-0088 Phase B).** Takes the read-only scanner's findings and, for each detected plaintext secret, saves the value into the Keychain/broker vault (`lib/secret-env.ts`) and rewrites the source line to a `pd-secret://KEY` reference, so there is no plaintext secret at rest. `pd safe corral <KEY>` targets one finding, `--all` does every one; **dry-run by default** (prints the plan, writes nothing), `--apply` to write. The safety order is an invariant: re-verify the value at the line → save to vault → **verify the resolver round-trips the exact value** → write a `.bak` under `~/.port-daddy/recovered` → only then rewrite the source. A failure at any step aborts that item with the source untouched (no plaintext lost). No raw secret is ever printed, logged, or stored — plan/result objects carry path/line/ruleId/last4 + the env-var key only.
+- **`pd env exec -- <cmd>` — frictionless corralled-secret access.** Runs a command with any `pd-secret://KEY` env refs resolved into the child process environment only (never to disk). This is the read side of corralling: a `.env` rewritten to `FOO=pd-secret://FOO` is transparently re-injected for the duration of the one command. An unresolved ref is passed through literally so a missing secret fails loudly rather than silently running empty.
+- **`pd safe guard --staged` — a secret guard on the staged diff (ADR-0053 surface).** Reuses the structured-format + entropy scanner against `git diff --staged` and exits non-zero when a NEW secret is staged, stopping leaks at the commit/push boundary. Wired into the `hooks/pre-commit` guard (fail-open when `pd` is absent, fail-closed when it finds a staged secret). Findings show path/line/rule-id/last-4 only.
+
+### Security
+- Corralling reduces blast radius (no plaintext at rest, scoped + logged Keychain access), but it is **not** confidentiality against a malicious same-UID agent whose binary satisfies the Keychain ACL — that needs the separate-UID broker (ADR-0087 phase 5). Every corral report path echoes that honest limit verbatim.
+
+## [3.23.0] - 2026-06-26
+
+### Added
+- **pd-console Parley pane (RCP-2a, #528).** Turns a disagreement into a decision: the lineage route (`GET /msg/:channel/lineage`) now returns a `parley` field — `shouldConvene(digest, costs)`, the cost-aware Signal-Detection call `P(fail)·waste·|unresolved| > parleyCost` over the unresolved contradictions (ADR-0086). The pane renders the CONVENE/hold decision, the SDT economics (expected waste vs cost + margin), and the contradiction edges a parley would reconcile. Tunable via `?parleyCost` / `?wastePerContradiction`.
+- **pd-console build LANES — prod / latest / dev (#534).** `package-console.sh` builds the console in one of three distinct bundles, each a separate `CFBundleIdentifier` with a distinct icon colour + label: `--prod` → `pd-console-prod.app` (blue, version badge), `--latest` (default) → `pd-console-latest.app` (green), `--devbuild <name>` → `pd-console-dev-apps/pd-console_dev-<name>.app` (amber). Agents working in Rust each get an isolated, testable build instead of clobbering one shared app; a `post-merge` hook keeps `-latest.app` current when `main` advances. The Homebrew cask installs the signed/notarized artifact as `pd-console-prod.app`. The release packager prod-brands the shipped icon (blue + `vX.Y.Z`).
+- **`rust-data-structures-advanced` skill** — expert guidance for choosing the advanced Rust data structure that makes ownership trivial instead of fighting the borrow checker: arenas & generational indices (slotmap / generational-arena / id-arena / typed-arena) as the idiomatic alternative to `Rc<RefCell>` for graphs/trees, petgraph (`StableGraph`), inline/cache-friendly vectors (smallvec/tinyvec/arrayvec), lock-free & concurrent containers (crossbeam channels/epoch/queue, flume, dashmap, the ABA problem), copy-on-write & persistent structures (`Cow`, im/rpds), struct-of-arrays/ECS, interning, roaring bitsets, and map/hasher selection (HashMap/BTreeMap/hashbrown/fxhash/ahash/IndexMap). Ships four references, two compilable examples (`cargo build`-green: a slotmap graph and a crossbeam pipeline), an `agents/openai.yaml`, and a `validate_skill.py` self-check.
+
+### Fixed
+- **pd-console "Jump to a pane" launcher was dead (#562).** The launcher card lacked `.occlude()`, so a tile press fell through to the scrim's `on_mouse_down`, which closed the launcher before the tile's `on_click` (the mouse-up) could fire — the pane never switched. The card now occludes the scrim.
+- **pd-console Parley pane was unreachable (#528).** `ParleyPane` and `ConductorPane` both pushed their view at nav index 20 in `main.rs`; conductor (added later) overwrote parley, so `--pane parley` rendered Conductor's idle "Fleet Lineage". Conductor moved to its correct slot 21.
+- **Release: a prerelease no longer rolls the brew tap (#564).** `release.yml`'s `update-homebrew` job fired for any release event — including prereleases — contradicting the documented RC-first discipline (an RC would have shipped to every `brew upgrade` user). Guarded to a real, non-prerelease published release only.
+
+## [3.22.0] - 2026-06-23
+
+The **dev-daemon** release: feature-branch daemons become first-class and
+self-cleaning, and the auto-upgrade path that quietly stopped working is fixed.
+
+### Added
+- **Feature-branch dev daemons + smart GC (ADR-0084).** `pd dev up` on a feature branch (no `--from`) now launches a `codebase` berth for *that worktree* — its own claimed port, isolated DB/socket — instead of the shared `dev-latest` lane (the `--label`-without-`--from` footgun). Many coexist, each named. New **`pd dev gc`** (auto-swept on `dev up`/`dev list`) reaps berths that are dead, worktree-orphaned, or idle past a 24h TTL (codebase only — `stable`/`dev-latest` are standing lanes), and clears the orphaned profile-dir graveyard.
+- **`pd whois` — semantic agent directory / skill router** (#453): find the right agent or skill by capability, not exact name.
+- **Inbox read receipts** (#525): `read_at` + `pd sent` so a sender can see whether a message was read.
+- **pd-console animated pane launcher** + clearer Substrate pane (#516).
+- **Bespoke OG art** for six top-level marketing routes (#536), plus examples friction/appeal surfacing on cards (#521).
+
+### Fixed
+- **Auto-freshness now actually auto-upgrades (#535).** The hourly `pd self-update --tick` logged "daemon already current" for hours while a newer release sat in the tap: `brew outdated` prints the *tap-qualified* `curiositech/tap/port-daddy` for a tapped formula in the unattended pipe, but the matcher only accepted the bare name. It now matches both forms, and logs the actual version transition (`daemon upgraded 3.21.0 → 3.22.0 + restarted`) whenever the daemon is updated.
+- **`pd dev up` works from the compiled binary (#532):** resolves the source tree from the git checkout instead of the bundle's virtual FS (which yielded a bogus `/scripts/...`).
+- **Dispatch worker observability** restored + a SIGKILL publish-timeout post-fold-in (#538).
+- **Dead-agent timeout** ladders reconciled to a single source of truth (#459).
+
 ## [3.21.0] - 2026-06-21
 
 This release makes **cutting a release** a first-class, tested command and teaches the

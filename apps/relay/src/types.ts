@@ -12,9 +12,25 @@ export interface Env {
   HARBOR_CHANNEL: DurableObjectNamespace;
   // Workers KV — JWKS cache + pinned relay key cache
   KV: KVNamespace;
+  // Queue producer — one FleetRunJob per GitHub delivery handed to the
+  // fleet-executor Worker. Optional so the relay still deploys before the
+  // 'fleet-runs' queue is provisioned; ingress guards on its presence.
+  FLEET_RUNS?: Queue<FleetRunJob>;
+  // Workers AI — fleet control-plane smoke-test + optimize-prompt endpoints.
+  // Optional so the relay still type-checks/deploys before the [ai] binding is
+  // provisioned; the handlers fail closed with AI_ERROR when it is absent.
+  AI?: Ai;
   // Secrets
   RELAY_OPERATOR_TOKEN: string;
   RELAY_ED25519_PRIVATE_KEY_HEX: string;  // relay's own signing key for ServerHello
+  GITHUB_WEBHOOK_SECRET: string;          // HMAC-SHA256 secret for GitHub webhook ingress
+  // GitHub App credentials — fleet control-plane config read + save (PR) path.
+  // GITHUB_APP_PRIVATE_KEY is a secret (PEM); the rest may be vars.
+  GITHUB_APP_ID?: string;
+  GITHUB_APP_PRIVATE_KEY?: string;        // PEM-encoded GitHub App private key
+  GITHUB_OWNER?: string;                  // repo owner (e.g. 'port-daddy-dev')
+  GITHUB_REPO?: string;                   // repo name (e.g. 'port-daddy')
+  DEFAULT_BRANCH?: string;                // trusted ref the executor reads from
   // Vars from wrangler.toml
   RELAY_VERSION: string;
   EVENT_RETENTION_DAYS: string;
@@ -23,6 +39,26 @@ export interface Env {
   JWKS_FAIL_SOFT_SECONDS: string;
   REVOCATION_BROADCAST_TIMEOUT_MS: string;
   RATE_LIMIT_WINDOW_MS: string;
+}
+
+/**
+ * Job handed to the fleet-executor Worker — exactly one per GitHub delivery.
+ * `deliveryId` is the idempotency key (a queue retry re-runs the same job).
+ * Shape MUST match apps/fleet-executor/src/env.ts FleetRunJob.
+ */
+export interface FleetRunJob {
+  deliveryId: string;
+  eventType: string;
+  action: string | null;
+  repoFullName: string | null;
+  installationId: number | null;
+  prNumber: number | null;
+  payloadMinimal: {
+    sender?: Record<string, unknown>;
+    repository?: Record<string, unknown>;
+    pull_request?: Record<string, unknown>;
+    push?: Record<string, unknown>;
+  };
 }
 
 // ── Harbor Card (Phase 2, per ADR-0014 + lib/harbor-tokens.ts) ──────────────

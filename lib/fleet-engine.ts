@@ -25,13 +25,32 @@ import type { Tuple, TupleSpace } from './tuples.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { buildPortDaddyShellCommand, resolvePortDaddyInvocation } from './port-daddy-command.js';
 import { resolveRawBackendName } from './llm-backend-resolver.js';
+import { IoDispatch, type DispatchOutputResult } from './fleet/io-dispatch.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface FleetAgent {
   name: string;
   schedule?: string;       // cron syntax
-  trigger?: string;        // channel name
+  runOnStart?: boolean;    // scheduled agents opt in to firing during fleet boot
+  trigger?: string;        // channel name (singular sugar; also folded into `triggers`)
+  /**
+   * Plural trigger list (additive). Each entry is a trigger-spec string in
+   * the `kind:type(filters)` grammar (e.g. `file:changed(~/notes/)`) OR a
+   * legacy coordination channel name. Registry-kind specs (file/webhook/
+   * email/sms/calendar) are dispatched through the pluggable trigger
+   * registry; legacy/coordination kinds (pd/git/github/schedule) stay on
+   * the engine's existing channel/cron path. A singular `trigger:` is
+   * folded in as the first element so both shapes coexist.
+   */
+  triggers?: string[];
+  /**
+   * Output target list (additive). Each entry is an output-target string in
+   * the `kind:type(arg)` grammar (e.g. `file:append(~/notes/digest.md)`,
+   * `notify:os`). Dispatched through the pluggable output registry on agent
+   * completion. Consent gating happens inside each sink.
+   */
+  outputs?: string[];
   triggerTuple?: unknown[]; // tuple pattern in harbor-scoped tuple space
   backend: string;         // ollama, claude, claude-cli, codex, custom
   model?: string;
@@ -138,6 +157,7 @@ interface AgentActivationState {
 interface FleetYamlAgent {
   name?: string;
   schedule?: string;
+  run_on_start?: boolean;
   trigger?: string;
   trigger_tuple?: unknown[];
   backend?: string;
@@ -654,6 +674,15 @@ export interface FleetRunnerOptions {
 
 export function createFleetRunner(config: FleetConfig, projectDir: string, options?: FleetRunnerOptions) {
   const running = new Map<string, RunningAgent>();
+  // Lifecycle guard for async I/O-registry trigger starts. `startAgent` kicks
+  // off `ioDispatch.startTrigger(...)` which resolves asynchronously; without
+  // tracking, a resolution that lands after the runner is stopped would (a)
+  // leak an open watcher and (b) log via console.error after the surrounding
+  // context (e.g. a jest test) has torn down. We track every in-flight start
+  // promise so the runner can await them, and flip `stopped` so late
+  // resolutions self-suppress.
+  let stopped = false;
+  const pendingTriggerStarts = new Set<Promise<void>>();
   const emit = options?.onEvent ?? (() => {});
   const project = config.name;
   const agentIndex = new Map(config.agents.map(agent => [agent.name, agent]));
@@ -663,6 +692,26 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
   function resolveChannel(channel: string): string {
     return resolveFleetChannel(channel, projectDir, project);
+  }
+
+  // ─── I/O dispatch bridge (pluggable trigger/output registry) ─────────────
+  // Wires lib/fleet/triggers/* and lib/fleet/outputs/* into the engine.
+  // Phase 1 owns `file` (real, no creds) end-to-end; `webhook` is registered
+  // but inert until a receiver registerHandler dep is injected (Phase 2);
+  // `email`/`sms`/`calendar` resolve through the registry and are honestly
+  // refused at available() until their connectors ship (ROADMAP).
+  const ioDispatch = new IoDispatch({
+    channelSubscribe: options?.messaging?.subscribe,
+    resolveChannel,
+    // schedule registry kind stays on the legacy cron path (see startAgent);
+    // a no-op scheduleCron keeps the CronTriggerSource registerable for the
+    // future designer/health-board surfaces without double-firing.
+    scheduleCron: () => () => {},
+  });
+
+  /** True if the agent has any event trigger (singular, plural, or tuple). */
+  function agentIsTriggered(agent: FleetAgent): boolean {
+    return Boolean(agent.trigger || (agent.triggers && agent.triggers.length > 0) || agent.triggerTuple);
   }
 
   function queueDepthFor(agentName: string): number {
@@ -894,24 +943,80 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
     const record: RunningAgent = {
       name: agent.name,
-      type: agent.schedule ? 'scheduled' : (agent.trigger || agent.triggerTuple) ? 'triggered' : 'manual',
+      type: agent.schedule ? 'scheduled' : agentIsTriggered(agent) ? 'triggered' : 'manual',
       startedAt: Date.now(),
     };
     const cleanupHandles: Array<() => void> = [];
 
     if (agent.schedule) {
-      // Scheduled agent: run immediately, then on interval
+      // Scheduled agent: arm the interval. Fleet daemon boot must stay cheap;
+      // agents that truly need a boot-time pass can opt in with run_on_start.
       // Convert cron to ms (simplified: support */N * * * * format)
       const intervalMs = parseCronInterval(agent.schedule);
-      void requestAgentRun(agent, { source: 'schedule' });
+      if (agent.runOnStart) {
+        void requestAgentRun(agent, { source: 'schedule' });
+      }
       record.interval = setInterval(() => { void requestAgentRun(agent, { source: 'schedule' }); }, intervalMs);
     }
 
-    if (agent.trigger) {
-      const physicalTriggerChannel = resolveChannel(agent.trigger);
+    // Resolve the agent's trigger list. `triggers:` is the canonical plural
+    // form (already folded with any singular `trigger:` in astToConfig); fall
+    // back to the bare singular field for configs built without the AST.
+    const triggerList = agent.triggers ?? (agent.trigger ? [agent.trigger] : []);
+    const registryTriggers: string[] = [];
+    const legacyTriggers: string[] = [];
+    for (const raw of triggerList) {
+      const classification = ioDispatch.classifyTrigger(raw);
+      (classification.kind === 'registry' ? registryTriggers : legacyTriggers).push(raw);
+    }
+
+    // ── Registry-backed triggers (file/webhook/email/sms/calendar) ─────────
+    // Started through the pluggable trigger registry. Honest about
+    // availability: a not-ready source (e.g. email/sms/calendar stub) is
+    // refused with a clear log line, never silently dropped.
+    for (const raw of registryTriggers) {
+      const startPromise = ioDispatch
+        .startTrigger(raw, (event) => {
+          // Late-firing watchers must not wake a stopped runner.
+          if (stopped || !running.has(agent.name)) return;
+          void requestAgentRun(agent, contextFromTriggerEvent(event));
+        })
+        .then((result) => {
+          // The runner (or this agent) may have been torn down while the
+          // async start was in flight. If so, dispose any handle we got and
+          // stay silent — logging here would land after the surrounding
+          // context (e.g. a test) has finished ("Cannot log after tests are
+          // done") and a live handle would leak.
+          const aborted = stopped || !running.has(agent.name);
+          if (result.started) {
+            const stopHandle = result.handle;
+            if (aborted) {
+              void stopHandle.stop();
+            } else {
+              cleanupHandles.push(() => { void stopHandle.stop(); });
+            }
+          } else if (!aborted) {
+            const requires = result.requires?.length ? ` (requires: ${result.requires.join(', ')})` : '';
+            console.error(
+              `[Fleet] Trigger "${raw}" for agent "${agent.name}" not started: ${result.reason}${requires}`,
+            );
+          }
+        })
+        .catch((err: Error) => {
+          if (stopped || !running.has(agent.name)) return;
+          console.error(`[Fleet] Trigger "${raw}" for agent "${agent.name}" failed to start:`, err.message);
+        });
+      // Track so stopAll()/whenTriggersReady() can await settlement.
+      pendingTriggerStarts.add(startPromise);
+      void startPromise.finally(() => { pendingTriggerStarts.delete(startPromise); });
+    }
+
+    // ── Legacy coordination-channel triggers (pd/git/github + bare names) ──
+    for (const legacyTrigger of legacyTriggers) {
+      const physicalTriggerChannel = resolveChannel(legacyTrigger);
       // Prefer in-process subscriptions so trigger payload survives into the spawned task.
       const unsubscribe = options?.messaging?.subscribe(physicalTriggerChannel, (message: unknown) => {
-        void requestAgentRun(agent, contextFromMessage(agent.trigger!, message));
+        void requestAgentRun(agent, contextFromMessage(legacyTrigger, message));
       });
 
       if (unsubscribe) {
@@ -981,7 +1086,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       };
     }
 
-    if (!agent.schedule && !agent.trigger && !agent.triggerTuple) {
+    if (!agent.schedule && !agentIsTriggered(agent)) {
       void requestAgentRun(agent, { source: 'manual' });
     }
 
@@ -1258,6 +1363,54 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     }
   }
 
+  /**
+   * Dispatch an agent's declared `outputs:` through the pluggable output
+   * registry on successful completion. Fire-and-forget and never throws —
+   * each sink result/error is logged independently so one broken output
+   * does not affect the agent run or the other outputs.
+   *
+   * Phase-1 honesty: the spawn returns `status: 'spawned'` (the agent runs
+   * asynchronously), so the dispatched body reports the run that fired the
+   * output rather than the agent's final text. Sinks that need the full
+   * agent transcript will be fed it in a later phase once the engine
+   * collects completion output.
+   */
+  function dispatchAgentOutputs(
+    agent: FleetAgent,
+    runMeta: { status?: string; agentId?: string; backend?: string | null },
+  ): void {
+    const targets = agent.outputs;
+    if (!targets || targets.length === 0) return;
+    const status = runMeta.status ?? 'completed';
+    const body = [
+      `Fleet agent "${agent.name}" ${status}.`,
+      runMeta.agentId ? `agentId: ${runMeta.agentId}` : null,
+      runMeta.backend ? `backend: ${runMeta.backend}` : null,
+    ].filter(Boolean).join('\n');
+    void ioDispatch
+      .dispatchOutputs(targets, {
+        title: `${agent.name} ${status}`,
+        body,
+        // Default-deny posture: agent-run summaries are operator-local
+        // metadata, not third-party PII. Real PII-bearing outputs are a
+        // later phase and will set pii explicitly.
+        pii: 'low',
+      })
+      .then((results: DispatchOutputResult[]) => {
+        for (const r of results) {
+          if (!r.ok) {
+            const requires = r.requires?.length ? ` (requires: ${r.requires.join(', ')})` : '';
+            console.error(
+              `[Fleet] Output "${r.target}" for agent "${agent.name}" not dispatched: ${r.reason}${requires}`,
+            );
+          }
+        }
+      })
+      .catch((err: Error) => {
+        console.error(`[Fleet] Output dispatch failed for agent "${agent.name}":`, err.message);
+      });
+  }
+
   function trimMessage(message: string, maxChars = 4000): string {
     if (message.length <= maxChars) return message;
     return `${message.slice(0, maxChars)}\n\n[truncated ${message.length - maxChars} chars]`;
@@ -1271,6 +1424,27 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     } catch {
       return String(message);
     }
+  }
+
+  /**
+   * Convert a registry FleetTriggerEvent (file/webhook/email/...) into the
+   * engine's FleetRunContext so the spawned agent sees the trigger payload.
+   */
+  function contextFromTriggerEvent(event: {
+    source: string;
+    type: string;
+    timestamp: number;
+    payload: unknown;
+    metadata?: { correlation_id?: string; sender?: string; subject?: string; [k: string]: unknown };
+  }): FleetRunContext {
+    const messageContent = trimMessage(serializeMessage(event.payload));
+    return {
+      source: 'trigger',
+      channel: `${event.source}:${event.type}`,
+      from: event.metadata?.sender ?? null,
+      message: event.payload,
+      messageContent,
+    };
   }
 
   function contextFromMessage(channel: string, message: unknown): FleetRunContext {
@@ -1557,6 +1731,13 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
           if (agent.onSuccess) {
             fireHook(agent.onSuccess, `${agent.name} spawned`);
           }
+          // Dispatch declared registry outputs (file/notify/webhook/...).
+          // Fire-and-forget: a failing sink must not fail the agent run.
+          dispatchAgentOutputs(agent, {
+            status: outcome.data.status,
+            agentId: outcome.data.agentId,
+            backend: runtime.backend,
+          });
           agentState.consecutiveFailures = 0;
           agentState.backoffUntil = undefined;
           return { success: true };
@@ -1809,19 +1990,50 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   }
 
   function stopAll(): void {
+    stopped = true;
     respawnWatcherStopped = true;
     for (const name of [...running.keys()]) {
       stopRunningRecord(name);
     }
     emit({ type: 'fleet_stopped', project, timestamp: Date.now() });
+    // Settle any in-flight async trigger starts so a late resolution does not
+    // leak a watcher or log after teardown. Fire-and-forget: the per-promise
+    // handlers already self-suppress because `stopped` is now true; this just
+    // disposes any handle that resolves after this point.
+    void whenTriggersReady();
   }
 
-  function getStatus(): Array<{ name: string; type: string; status: string; running: boolean; paused: boolean; uptime: number; queueDepth: number }> {
+  /**
+   * Resolve once every in-flight I/O-registry trigger start has settled. The
+   * daemon does not need this, but it makes the async trigger wiring
+   * deterministically testable: `startAgent` returns synchronously while the
+   * registry start runs in the background; tests await this to observe the
+   * outcome (or to guarantee no log/handle escapes the test).
+   */
+  async function whenTriggersReady(): Promise<void> {
+    while (pendingTriggerStarts.size > 0) {
+      await Promise.allSettled([...pendingTriggerStarts]);
+    }
+  }
+
+  function getStatus(): Array<{
+    name: string; type: string; status: string; running: boolean; paused: boolean;
+    uptime: number; queueDepth: number;
+    // Lifecycle enrichment (P1) — powers the pd-console fleet pane. Additive: every
+    // field below is new; existing consumers that read name/status/etc. are unaffected.
+    trigger?: string; schedule?: string; backend: string; modelTier?: string;
+    maxRespawns: number; consecutiveFailures: number; backoffUntil?: number; lifecycle: string;
+  }> {
+    const now = Date.now();
     return config.agents.map((agent) => {
       const record = running.get(agent.name);
       const activeRun = activeAgentRuns.has(agent.name);
       const paused = pausedAgents.has(agent.name);
       const queueDepth = queueDepthFor(agent.name);
+      const act = activationState.get(agent.name);
+      const consecutiveFailures = act?.consecutiveFailures ?? 0;
+      const backoffUntil = act?.backoffUntil;
+      const maxRespawns = agent.maxRespawns ?? 3;
       let status = 'idle';
       if (activeRun) {
         status = 'running';
@@ -1830,16 +2042,44 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       } else if (paused) {
         status = 'paused';
       } else if (record) {
-        status = agent.schedule ? 'scheduled' : (agent.trigger || agent.triggerTuple) ? 'armed' : 'idle';
+        status = agent.schedule ? 'scheduled' : agentIsTriggered(agent) ? 'armed' : 'idle';
+      }
+      // Derived lifecycle for the operator console (resolved to an ICS maritime flag
+      // in pd-console). Precedence is deliberate — a ship that is actively running
+      // reads as "sailing" even if it has failed before:
+      //   sailing  — a run is active right now
+      //   dry-dock — retries exhausted (consecutiveFailures ≥ maxRespawns); needs the operator
+      //   cooldown — backing off after a failure, not yet exhausted
+      //   paused   — operator-paused
+      //   else     — mirrors `status` (queued | armed | scheduled | idle)
+      let lifecycle: string;
+      if (activeRun) {
+        lifecycle = 'sailing';
+      } else if (maxRespawns > 0 && consecutiveFailures >= maxRespawns) {
+        lifecycle = 'dry-dock';
+      } else if (backoffUntil && backoffUntil > now) {
+        lifecycle = 'cooldown';
+      } else if (paused) {
+        lifecycle = 'paused';
+      } else {
+        lifecycle = status;
       }
       return {
         name: agent.name,
-        type: agent.schedule ? 'scheduled' : (agent.trigger || agent.triggerTuple) ? 'triggered' : 'manual',
+        type: agent.schedule ? 'scheduled' : agentIsTriggered(agent) ? 'triggered' : 'manual',
         status,
         running: activeRun,
         paused,
         uptime: record ? Date.now() - record.startedAt : 0,
         queueDepth,
+        trigger: agent.trigger,
+        schedule: agent.schedule,
+        backend: agent.backend,
+        modelTier: agent.modelTier,
+        maxRespawns,
+        consecutiveFailures,
+        backoffUntil,
+        lifecycle,
       };
     });
   }
@@ -1905,7 +2145,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     return { success: true };
   }
 
-  return { startAll, stopAll, startAgent, getStatus, hailAgent, pauseAgent, resumeAgent, setEnabledAgents, config };
+  return { startAll, stopAll, startAgent, getStatus, hailAgent, pauseAgent, resumeAgent, setEnabledAgents, whenTriggersReady, config };
 }
 
 // ─── Cron Helpers ───────────────────────────────────────────────────────────

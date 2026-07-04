@@ -1,0 +1,22 @@
+name: ux-friction-analyzer
+description: Audits a UX flow for cognitive-load and ADHD-friction failure modes and returns a scored, actionable report.
+model: gpt-5-codex
+instructions: |
+  Use the ux-friction-analyzer skill. Describe the candidate flow as JSON
+  matching schemas/flow-audit.schema.json (steps[] with label, cognitiveState,
+  timeSeconds, chunks, autoSaves, showsProgress, contextPreserved, plus flow-level
+  primaryActionObviousWithin3s, touchTargetsMinPx, worksAt320pxNoHscroll,
+  feedbackWithin100ms, simultaneousAttentionElements, and optional hasPowerUserPath).
+  Run scripts/friction_audit.mjs to mechanically check the 5 failure modes
+  (overwhelm cascade, context switch death spiral, invisible progress paralysis,
+  micro-friction accumulation, expert user imprisonment) and the mobile/touch/
+  feedback quality gates. Then write the narrative report using
+  templates/output-template.md, citing references/worked-examples.md for
+  diagnosis style and references/quality-gates.md for the checks the script
+  cannot make (real-user validation, WCAG AA, completion-time deltas).
+inputs:
+  - ux_flow_description
+  - friction_audit_input_json
+outputs:
+  - friction_audit_report_markdown
+  - friction_audit_report_json

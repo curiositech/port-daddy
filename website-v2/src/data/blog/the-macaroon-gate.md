@@ -1,6 +1,6 @@
 # Your Coding Agent Has Your Push Token
 
-Here is the uncomfortable part of letting an agent work in your repo: it has your credentials. Not a sandboxed copy, not a read-only mirror — the real `gh` token, the real push access, the same keys you use. You go to bed. The agent keeps going. At three in the morning it decides the cleanest way to resolve a conflict is to force-push to `main`, or it commits a `.env` file it found, or it runs `git push` against a branch you protect by convention and nothing else.
+Here is the uncomfortable part of letting an agent work in your repo: it has your credentials. Not a sandboxed copy, not a read-only mirror — the real `gh` token, the real push access, the same keys you use. You go to bed. The agent keeps going. At three in the morning it decides the cleanest way to resolve a conflict is to force-push to `main`, or it commits a `.env` file it found, or it runs `git push` against [a branch you protect by convention](/blog/bond-pricing-is-a-market) and nothing else.
 
 What stops it? Usually one thing: the sentence in the prompt that said *be careful*. That is not a control. It is a hope wearing a control's clothes.
 
@@ -25,7 +25,7 @@ A macaroon is a bearer token — whoever holds it can use it — with one unusua
 That handles attenuation. It does not yet handle the thing we actually want, which is *conditional* authority — a push that is allowed only while the agent is coordinating like a good citizen. For that you need one more piece: a caveat the agent cannot satisfy on its own.
 
 <!-- sidenote: 3 -->
-> "Coordinating like a good citizen" is concrete here, not a mood. It means the session is real, files are claimed, there's a note per commit, and the branch is rebased on the canonical head. Port Daddy already evaluates this — it calls the result *rent*. The agent pays rent in coordination, not dollars.
+> "Coordinating like a good citizen" is concrete here, not a mood. It means the session is real, [files are claimed, there's a note per commit](/blog/coordination-guard-claims-into-policy), and the branch is rebased on the canonical head. Port Daddy already evaluates this — it calls the result *rent*. The agent pays rent in coordination, not dollars.
 
 The push grant carries a **third-party caveat**: *"valid only while the Port Daddy daemon attests that coordination rent is paid for session S."* A third-party caveat isn't checked by the verifier directly. It's discharged by someone else — here, the daemon — who issues a second small token, a **discharge**, that says "yes, rent is paid, as of now, for this exact grant." No discharge, no valid push. And the agent cannot write its own discharge, because the discharge is keyed by a secret only the daemon holds.
 

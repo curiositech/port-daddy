@@ -94,7 +94,7 @@ _port_daddy() {
     # Activity
     log activity
     # Sessions & Notes
-    session sessions note notes
+    session sessions takeover note notes
     # Agent Resurrection & Changelog
     salvage resurrection changelog
     # DNS
@@ -107,8 +107,10 @@ _port_daddy() {
     briefing history
     # Consolidated read/write (3.8.4)
     say look sitrep pheromone ph advise preflight compass guard snapshots snapshot backup restore attest shipwright
+    # Host-safety posture audit (ADR-0088)
+    safe
     # Agent Inbox
-    inbox send
+    inbox send sent
     # AI Agent Spawner + Watch
     spawn spawned sortie watch
     # Fleet ship-run transcripts
@@ -132,7 +134,7 @@ _port_daddy() {
     # Harbormaster — canonical merge-owning actor body (ADR-0037)
     harbormaster hm
     # Harbors (named permission namespaces)
-    harbor harbors
+    harbor harbors whois
     # Tuple space
     tuple
     # Semantic graph + episodic memory
@@ -152,7 +154,7 @@ _port_daddy() {
     # Orchestration
     up down
     # Benchmarking, Demos & Fleet
-    bench benchmark demo fleet backend relay
+    bench benchmark demo fleet backend squid relay
     # Project (+ alias)
     scan s projects p doctor diagnose hints
     # Project onboarding
@@ -342,6 +344,11 @@ _port_daddy() {
           # Complete file paths
           # shellcheck disable=SC2207
           COMPREPLY=( $(compgen -f -- "$cur") )
+          ;;
+        env)
+          # `pd env <here>` — offer the `exec` subcommand alongside services.
+          COMPREPLY=( $(compgen -W "exec" -- "$cur") )
+          _pd_complete_service '--file'
           ;;
         *)
           _pd_complete_service '--file'
@@ -740,7 +747,7 @@ _port_daddy() {
     # session  <subcommand> [args]
     # -----------------------------------------------------------------------
     session)
-      local session_subcommands='start end done abandon rm files phase'
+      local session_subcommands='start end done abandon takeover rm files phase'
       # Find which subcommand (if any) has been typed after "session".
       local subcmd=""
       for (( i = 1; i < cword; i++ )); do
@@ -774,6 +781,9 @@ _port_daddy() {
           ;;
         abandon|rm)
           _pd_opts ''
+          ;;
+        takeover)
+          _pd_opts '--purpose -P --note -n --lifecycle --no-files --no-claims'
           ;;
         files)
           # files has sub-subcommands: add, rm
@@ -809,6 +819,21 @@ _port_daddy() {
           ;;
         *)
           _pd_opts ''
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # takeover <session-id> [note]  (alias for session takeover)
+    # -----------------------------------------------------------------------
+    takeover)
+      case "$prev" in
+        --lifecycle)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "durable ephemeral" -- "$cur") )
+          ;;
+        *)
+          _pd_opts '--purpose -P --note -n --agent -a --lifecycle --no-files --no-claims'
           ;;
       esac
       ;;
@@ -1759,6 +1784,37 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
+    # safe  scan|baseline accept <id>|fix [--auto]  (ADR-0088 host-safety)
+    # -----------------------------------------------------------------------
+    safe)
+      local safe_subcommands='scan baseline fix corral guard'
+      local subcmd=""
+      for (( i = 1; i < cword; i++ )); do
+        local w="${words[$i]}"
+        if [[ "$w" == "safe" ]]; then
+          if (( i + 1 < cword )); then
+            subcmd="${words[$((i+1))]}"
+          fi
+          break
+        fi
+      done
+
+      if [[ -z "$subcmd" ]]; then
+        COMPREPLY=( $(compgen -W "$safe_subcommands" -- "$cur") )
+      elif [[ "$subcmd" == "baseline" ]]; then
+        COMPREPLY=( $(compgen -W "accept" -- "$cur") )
+      elif [[ "$subcmd" == "scan" ]]; then
+        _pd_opts '--json --allow --quiet'
+      elif [[ "$subcmd" == "fix" ]]; then
+        _pd_opts '--auto --json'
+      elif [[ "$subcmd" == "corral" ]]; then
+        _pd_opts '--all --apply --json'
+      elif [[ "$subcmd" == "guard" ]]; then
+        _pd_opts '--staged --json --quiet'
+      fi
+      ;;
+
+    # -----------------------------------------------------------------------
     # pheromone  spray|file|files|show|ls  [args]  [options]
     # -----------------------------------------------------------------------
     pheromone|ph)
@@ -1893,7 +1949,7 @@ _port_daddy() {
           if [[ "$cur" == -* ]]; then
             _pd_opts '--dir --root --projectDir --limit --feedback-status --feedback-harbor --feedback-limit --no-excerpts --json --quiet'
           else
-            COMPREPLY=( $(compgen -W "ack harvest promote upsert add touch render pop release claims help" -- "$cur") )
+            COMPREPLY=( $(compgen -W "ack harvest promote upsert add touch render pop release claims delete rm help" -- "$cur") )
           fi
           ;;
       esac

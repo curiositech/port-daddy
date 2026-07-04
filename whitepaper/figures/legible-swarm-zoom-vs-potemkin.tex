@@ -10,6 +10,7 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{maydayred}{HTML}{8B0000}
 
 \begin{figure}[H]
 \centering
@@ -21,7 +22,7 @@
   art/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,
               minimum width=26mm,align=center,inner sep=4pt,font=\footnotesize},
   zoom/.style={-{Latex[length=2mm]},hhteal,thick},
-  dead/.style={-{Latex[length=2mm]},hhcobalt,thick,dashed},
+  dead/.style={-{Latex[length=2mm]},maydayred,thick,dashed},
 ]
 
 % ─── LEFT: legibility-with-zoom (good) ───────────────────────────────────
@@ -42,9 +43,9 @@
   \node[font=\bfseries,text=hhink] at (2.4,3.7) {Potemkin digest (Normalbaum)};
   \node[tile,fill=hhsand!30] (psum) at (2.4,2.5)
     {\textbf{all green}\\``everything is fine''};
-  \node[draw=hhcobalt,thick,dashed,rounded corners=2pt,fill=none,
+  \node[draw=maydayred,thick,dashed,rounded corners=2pt,fill=maydayred!8,
         minimum width=40mm,align=center,inner sep=4pt,
-        font=\footnotesize,text=hhink] (void) at (2.4,0.5)
+        font=\footnotesize,text=maydayred] (void) at (2.4,0.5)
     {(paraphrased away:\\diff, test, reasoning)};
   \draw[dead] (psum.south) -- (void.north);
 \end{scope}

@@ -53,6 +53,7 @@ fleet:
 
     gardener:
       schedule: "*/10 * * * *"      # cron syntax — every 10 min
+      run_on_start: false           # opt in only if daemon boot should fire it
       backend: claude
       prompt: |
         Check for uncommitted changes in {project_dir}.
@@ -116,6 +117,7 @@ fleet:
 
     spark:
       schedule: "*/30 * * * *"      # every 30 min
+      run_on_start: false
       backend: claude
       prompt: |
         You are Spark, the idea engine. Observe the codebase,
@@ -187,6 +189,7 @@ The YAML supports template variables that are resolved at runtime:
 | `schedule` | string | * | Cron expression (mutually exclusive with `trigger`) |
 | `backend` | string | yes | `claude`, `ollama`, `gemini`, `aider`, `custom` |
 | `prompt` | string | yes | The task for the AI agent (supports template vars) |
+| `run_on_start` | bool | no | For scheduled agents only: fire once when the fleet starts (default: false) |
 | `worktree` | bool | no | Run in an isolated git worktree (default: false) |
 | `singleton` | bool | no | Only one instance allowed at a time (default: false) |
 | `identity` | string | no | PD identity (default: `{project}:fleet:{name}`) |
@@ -213,7 +216,7 @@ pd fleet ideas                 # Spark's idea notebook
 
 1. Read `pd-fleet.yml` from project root (or `--config <path>`)
 2. Validate schema, resolve template variables
-3. For each `schedule` agent: register a cron-like loop via `pd spawn`
+3. For each `schedule` agent: register a cron-like loop via `pd spawn`; fire immediately only when `run_on_start: true`
 4. For each `trigger` agent: register a `pd watch` subscriber
 5. For each `watcher`: register a lightweight `pd watch --exec`
 6. Register the Dock Master as a meta-agent that monitors all the above
@@ -223,14 +226,14 @@ pd fleet ideas                 # Spark's idea notebook
 
 | Before (1,384 lines of shell) | After (YAML + engine) |
 |------|------|
-| `fleet/git-gardener.sh` (95 lines) | 8 lines of YAML |
-| `fleet/qa-adversary.sh` (90 lines) | 10 lines of YAML |
-| `fleet/spark.sh` (223 lines) | 10 lines of YAML |
-| `fleet/common.sh` (201 lines) | Built into `pd fleet` engine |
-| `fleet/dock-master.sh` (119 lines) | Built into `pd fleet` engine |
-| `fleet/pd-fleet.sh` (220 lines) | Built into `pd fleet` CLI |
+| `fleet/git-gardener.sh` (95 lines, historical removed script) <!-- cite-exempt --> | 8 lines of YAML |
+| `fleet/qa-adversary.sh` (90 lines, historical removed script) <!-- cite-exempt --> | 10 lines of YAML |
+| `fleet/spark.sh` (223 lines, historical removed script) <!-- cite-exempt --> | 10 lines of YAML |
+| `fleet/common.sh` (201 lines, historical removed script) <!-- cite-exempt --> | Built into `pd fleet` engine |
+| `fleet/dock-master.sh` (119 lines, historical removed script) <!-- cite-exempt --> | Built into `pd fleet` engine |
+| `fleet/pd-fleet.sh` (220 lines, historical removed script) <!-- cite-exempt --> | Built into `pd fleet` CLI |
 
-Total: **1,384 lines of shell → ~80 lines of YAML + a proper engine in `lib/fleet.ts`**
+Total: **1,384 lines of shell → ~80 lines of YAML + a proper engine in `lib/fleet-engine.ts`**
 
 ## What doesn't change
 
@@ -250,7 +253,7 @@ A team might share `.portdaddyrc` but have different fleet configs per developer
 
 ## Migration path
 
-1. Build the YAML parser and `lib/fleet.ts` engine
+1. Build the YAML parser and `lib/fleet-engine.ts` engine
 2. Keep existing shell scripts as fallback
 3. Add `pd fleet init` to generate a starter `pd-fleet.yml` from existing fleet scripts
 4. Deprecate individual shell scripts once the engine is stable

@@ -2,7 +2,7 @@
 
 I edited an `.env.local` file today. Wrong one. Three directories away from the one the daemon actually reads. The fleet sat there 401'ing against Cloudflare for an hour while I edited the wrong file and felt productive.
 
-That is a product failure, not a user error. Port Daddy ships agents that work concurrently, claim files, coordinate through tuples, restart themselves, and write notes to durable storage. It also ships, apparently, the expectation that I will know — by archaeology, by `grep -rn "loadDotenv"`, by reading the spawner's source — which of four candidate `.env` paths the running daemon prefers and why.
+That is a product failure, not a user error. Port Daddy ships agents that work concurrently, claim files, coordinate through tuples, restart themselves, and write notes to durable storage. It also ships, apparently, the expectation that I will know — by archaeology, by `grep -rn "loadDotenv"`, by reading the spawner's source — which of four candidate `.env` paths [the running daemon prefers](/blog/running-is-not-current) and why.
 
 No.
 
@@ -13,7 +13,7 @@ The CLI is for the robots. The operator gets buttons.
 There is a clean line, and Port Daddy needs to stay on the right side of it:
 
 - **Agents** read `AGENTS.md`. They run `pd whoami`, `pd begin`, `pd note`, `pd guard check`. They tail logs. They kickstart launchd jobs. They live in a terminal because they *are* a terminal-shaped thing.
-- **The operator** opens FleetBar in the menu bar. They click. They paste an API token into a panel that already knows which provider scope it needs and deep-links the right page. They see a green dot or a red dot. They press "restart daemon" if something looks angry. They never type `launchctl kickstart -k gui/$(id -u)/com.portdaddy.daemon` because that string is *not a thing a human should ever produce by hand* — it is a string you copy-paste with mild horror.
+- **The operator** opens FleetBar in the menu bar. They click. They paste an API token into a panel that already knows which provider scope it needs and deep-links the right page. They see a [green dot or a red dot](/blog/backend-readiness-is-dependency-truth). They press "restart daemon" if something looks angry. They never type `launchctl kickstart -k gui/$(id -u)/com.portdaddy.daemon` because that string is *not a thing a human should ever produce by hand* — it is a string you copy-paste with mild horror.
 
 If a routine operator action — configure a credential, restart the daemon, see what the fleet is failing on, harvest a roadmap entry, accept a salvage item, ack a coordination conflict — does not have a button in FleetBar or a panel in the dashboard at `localhost:9876`, that is a *roadmap item*, not a "well, just run this command for now."
 
@@ -58,9 +58,82 @@ Plenty. The CLI is the **agent's** native surface and it should stay rich:
 
 These do not move. They are not what this post is about. This post is about the soft middle — the routine operator action that should be a button and currently is a man-page.
 
+## The action matrix
+
+![FleetBar and daemon install artwork showing a local menu-bar control surface connected to project folders and a daemon spine.](/img/generated/fleetbar-install.webp)
+
+The rule is easier to enforce when the product owns a table instead of a
+lecture. Every routine operation should be classed before it ships:
+
+```text
+operator wants to...        surface                 agent fallback
+configure Cloudflare        FleetBar Credentials    pd feedback drop if missing
+restart daemon              FleetBar Health         agent runs supervisor command
+inspect failing backend     Dashboard Readiness     pd status / pd briefing
+claim crash recovery        Dashboard Salvage       pd salvage claim
+ack coordination conflict   Dashboard Attention     pd attention / pd note
+```
+
+That table is intentionally asymmetric. The human path is the product path. The
+agent path is the maintenance path. If only the right column exists, the feature
+is not done; it is exposed through an emergency hatch.
+
+The feedback object should carry the same distinction so Cartographer can sort
+product bugs from ordinary enhancement requests:
+
+```json
+{
+  "surface": "FleetBar",
+  "severity": "high",
+  "operatorAction": "configure provider credentials",
+  "missingControl": "Credentials panel with provider deep links",
+  "temporaryAgentFallback": "agent imports existing env values and writes Keychain item"
+}
+```
+
+That is not process decoration. It changes how review works. A PR that adds a
+new backend can pass all CLI tests and still fail the operator contract if the
+backend has no visible credential state, no provider-specific link, and no
+explanation of why a launch is blocked.
+
+## The readiness surface
+
+![Swiss-modern backend-readiness matrix showing credentials, package, CLI login, model catalog, and telemetry gates before launch.](/img/generated/blog-backend-readiness.webp)
+
+The simplest version of the panel is not complicated. It is a read model over
+facts agents already know how to collect:
+
+```ts
+type BackendReadiness = {
+  provider: 'cloudflare' | 'anthropic' | 'openai' | 'ollama'
+  credential: 'missing' | 'present' | 'expired' | 'wrong-scope'
+  packageInstalled: boolean
+  cliLoggedIn: boolean
+  modelCatalogReachable: boolean
+  launchAllowed: boolean
+}
+```
+
+The operator should see that as a row, not as a transcript. If `credential` is
+`wrong-scope`, the row needs a button to open the exact provider page and a short
+sentence that names the scope. If `modelCatalogReachable` is false, the row
+needs to say whether the daemon is offline, the provider is down, or the local
+network is blocking the call. The agent can still run the diagnosis through the
+CLI. The operator should not have to.
+
+The tuple shape is equally small:
+
+```bash
+pd tuple set backend:cloudflare readiness \
+  '{"credential":"wrong-scope","launchAllowed":false,"checkedAt":"2026-05-17T21:10:00Z"}'
+```
+
+The GUI reads that tuple. The agent writes it. The operator gets a button. That
+is the architecture this post is trying to force into muscle memory.
+
 ## Coda
 
-Port Daddy started as a port manager. It became a coordination substrate. It is becoming a control plane. Each of those transitions is a step away from "the operator has a terminal" and a step toward "the operator has a thing they look at, and a few buttons they press, and the agents do the rest."
+Port Daddy started as a port manager. It became a coordination substrate. It is [becoming a control plane](/blog/control-plane-is-the-product). Each of those transitions is a step away from "the operator has a terminal" and a step toward "the operator has a thing they look at, and a few buttons they press, and the agents do the rest."
 
 Today the operator edited the wrong `.env.local`. Tomorrow they shouldn't have to know `.env.local` exists.
 

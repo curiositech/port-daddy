@@ -103,11 +103,11 @@ describe('Durable Sessions', () => {
   });
 
   // ===========================================================================
-  // cleanup() — abandoned-durable sessions survive TTL deletion
+  // cleanup() — old sessions are reported but preserved as append-only evidence
   // ===========================================================================
 
   describe('cleanup', () => {
-    it('keeps abandoned durable sessions, deletes abandoned ordinary and completed durable ones', () => {
+    it('preserves abandoned ordinary and completed durable sessions as evidence', () => {
       const abandonedDurable = sessions.start('Durable suspended', { durable: true });
       const abandonedOrdinary = sessions.start('Ordinary abandoned');
       const completedDurable = sessions.start('Durable finished', { durable: true });
@@ -119,10 +119,12 @@ describe('Durable Sessions', () => {
 
       const result = sessions.cleanup({ olderThan: 7 * 24 * 60 * 60 * 1000 });
 
-      expect(result.cleaned).toBe(2);
+      expect(result.cleaned).toBe(0);
+      expect(result.preserved).toBe(3);
+      expect(result.notesPreserved).toBe(true);
       expect(sessions.get(abandonedDurable.id).success).toBe(true);
-      expect(sessions.get(abandonedOrdinary.id).success).toBe(false);
-      expect(sessions.get(completedDurable.id).success).toBe(false);
+      expect(sessions.get(abandonedOrdinary.id).success).toBe(true);
+      expect(sessions.get(completedDurable.id).success).toBe(true);
     });
 
     it('status-filtered cleanup also spares abandoned durable sessions', () => {
@@ -134,6 +136,8 @@ describe('Durable Sessions', () => {
       const result = sessions.cleanup({ olderThan: 7 * 24 * 60 * 60 * 1000, status: 'abandoned' });
 
       expect(result.cleaned).toBe(0);
+      expect(result.preserved).toBe(1);
+      expect(result.notesPreserved).toBe(true);
       expect(sessions.get(abandonedDurable.id).success).toBe(true);
     });
   });

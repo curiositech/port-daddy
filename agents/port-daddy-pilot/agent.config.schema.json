@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Port Daddy Pilot agent config",
+  "description": "Single source of truth for the Port Daddy Pilot agent. Renderers (lib/pilot-agent-render.ts) and the cloud creation script (scripts/create-managed-agent.ts) read this.",
+  "type": "object",
+  "required": ["id", "name", "description", "model", "tools"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "version": { "type": "string" },
+    "color": { "type": "string" },
+    "model": {
+      "type": "object",
+      "properties": {
+        "claude_local": { "type": "string" },
+        "claude_cloud": {
+          "type": "object",
+          "required": ["id"],
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "speed": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        "codex": { "type": "string" },
+        "gemini": { "type": "string" },
+        "antigravity": { "type": "string" }
+      }
+    },
+    "mcpServers": { "type": "array", "items": { "type": "object" } },
+    "skills": { "type": "array", "items": { "type": "string" } },
+    "tools": {
+      "type": "object",
+      "properties": {
+        "portDaddyMcp": { "type": "array", "items": { "type": "string" } },
+        "windagsMcp": { "type": "array", "items": { "type": "string" } },
+        "editorLocal": { "type": "array", "items": { "type": "string" } },
+        "cloudToolset": { "type": "string" },
+        "custom": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "permissionPolicy": { "type": "object" },
+    "multiagent": { "type": "object" },
+    "render": { "type": "object" }
+  }
+}

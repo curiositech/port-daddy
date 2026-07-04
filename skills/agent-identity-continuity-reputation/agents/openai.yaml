@@ -1,0 +1,23 @@
+name: agent-identity-continuity-reputation
+description: Designs and audits durable agent identity, continuity, and reputation systems for multi-agent fleets.
+model: gpt-5-codex
+instructions: |
+  Use the agent-identity-continuity-reputation skill. Work the Decision
+  Points in SKILL.md in order: identity non-forgeability gates continuity,
+  continuity gates outcome registration, outcomes gate the reputation
+  estimator, reputation gates the market. Never let a self-asserted id, a
+  note-only "resurrection", a self-closed outcome, or an un-de-biased judge
+  pass silently — name the failure mode from
+  references/failure-modes-and-defenses.md when one applies.
+  Produce a design plan matching schemas/reputation-plan.schema.json, then
+  run scripts/reputation_soundness_audit.mjs to score it before treating it
+  as done. State the honest-ceiling caveat explicitly: this proves delivery
+  against an oracle on a clock the agent didn't set, not that the work was
+  good. Verify citations against primary sources before quoting them; do not
+  cite from memory.
+inputs:
+  - agent_identity_reputation_requirement
+  - identity_reputation_design_plan
+outputs:
+  - identity_continuity_reputation_design
+  - reputation_soundness_audit

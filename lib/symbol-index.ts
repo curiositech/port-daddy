@@ -14,8 +14,8 @@
 
 import type Database from 'better-sqlite3';
 import { createHash } from 'crypto';
-import { readFileSync, readdirSync, statSync } from 'fs';
-import { join, extname, resolve } from 'path';
+import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
+import { join, extname, resolve, dirname, sep, isAbsolute } from 'path';
 import { createRequire } from 'module';
 import type { GraphEdges, GraphEdgeInput } from './graph-edges.js';
 import { locateProjectDir } from './project-locator.js';
@@ -736,25 +736,239 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
   // Dependency extraction
   // ───────────────────────────────────────────────────────────────────────────
 
-  function extractDependencies(rootNode: TSNode, language: SupportedLanguage): ExtractedDep[] {
+  function extractDependencies(
+    rootNode: TSNode,
+    language: SupportedLanguage,
+    absPath: string,
+    symbols: ExtractedSymbol[],
+    projectDir: string | null,
+  ): ExtractedDep[] {
     const deps: ExtractedDep[] = [];
 
     if (language === 'python') {
       extractPythonDeps(rootNode, deps);
     } else {
-      extractTSDeps(rootNode, deps);
+      extractTSDeps(rootNode, deps, absPath, projectDir);
     }
+
+    // Import map for CROSS-FILE call resolution (ast-a1-3): a local binding name
+    // → the resolved in-project file + symbol it imports. Built from the `imports`
+    // edges extractTSDeps just produced, keeping only those resolved to a real
+    // absolute path (ast-a1-1) — raw/external specifiers are not coordination
+    // surface. Lets extractCallEdges emit a `calls` edge when a call targets an
+    // imported symbol defined in ANOTHER file. (Aliased imports `as x` bind a
+    // different local name than the import edge records — a tracked follow-up.)
+    const importMap = new Map<string, { file: string; symbol: string }>();
+    for (const d of deps) {
+      if (d.type === 'imports' && d.targetSymbol && isAbsolute(d.targetFile)) {
+        importMap.set(d.targetSymbol, { file: d.targetFile, symbol: d.targetSymbol });
+      }
+    }
+
+    // `calls` edges — the reverse-dependency closure that powers blast-radius
+    // needs these (see extractCallEdges). Intra-file resolution closed issue #468;
+    // cross-file resolution (via importMap) is ast-a1-3.
+    deps.push(...extractCallEdges(rootNode, absPath, symbols, importMap));
 
     return deps;
   }
 
-  function extractTSDeps(node: TSNode, deps: ExtractedDep[]): void {
+  /**
+   * `calls` edges — the dependency kind that powers blast-radius.
+   *
+   * `extractTSDeps`/`extractPythonDeps` capture imports + class heritage, but the
+   * reverse-dependency closure (`computeBlastRadius`) also needs `calls`: if
+   * `registerRoutes` calls `createRoutes`, changing `createRoutes` can break
+   * `registerRoutes`, so `createRoutes` must report `registerRoutes` as a
+   * dependent. Tree-sitter gives us call_expression (TS/JS) / call (Python) nodes;
+   * for each we resolve:
+   *   - the CALLEE: first to a function/method DEFINED IN THIS FILE; failing that,
+   *     to a symbol IMPORTED from another in-project file via `importMap`
+   *     (ast-a1-3 cross-file calls). External/unresolved callees are skipped; an
+   *     ambiguously-defined local name is skipped rather than guessed cross-file.
+   *   - the enclosing SOURCE symbol by line-containment against the already-
+   *     extracted symbols (innermost function/method whose line span contains the
+   *     call), which is language-agnostic and handles nested/method scopes.
+   * Emits one `{sourceSymbol, targetFile, targetSymbol, type:'calls'}` per resolved
+   * call — `targetFile` is this file for an intra-file callee, the imported file
+   * for a cross-file one. Deduped by caller+file+target, self-recursion skipped.
+   */
+  function extractCallEdges(
+    rootNode: TSNode,
+    absPath: string,
+    symbols: ExtractedSymbol[],
+    importMap: Map<string, { file: string; symbol: string }>,
+  ): ExtractedDep[] {
+    // Callable targets defined in this file, by simple name → path. A name seen
+    // twice maps to null (ambiguous, un-resolvable without scope analysis).
+    const callableByName = new Map<string, string | null>();
+    const fnRanges: Array<{ path: string; start: number; end: number }> = [];
+    for (const s of symbols) {
+      if (s.type !== 'function' && s.type !== 'method') continue;
+      callableByName.set(s.name, callableByName.has(s.name) ? null : s.path);
+      fnRanges.push({ path: s.path, start: s.startLine, end: s.endLine });
+    }
+    if (callableByName.size === 0) return [];
+
+    // Innermost function/method symbol whose line span contains `line`.
+    const enclosingOf = (line: number): string | null => {
+      let best: { path: string; span: number } | null = null;
+      for (const r of fnRanges) {
+        if (line < r.start || line > r.end) continue;
+        const span = r.end - r.start;
+        if (!best || span < best.span) best = { path: r.path, span };
+      }
+      return best ? best.path : null;
+    };
+
+    // Callee simple-name from a call node: bare `foo()` → identifier; `obj.foo()`
+    // / `self.foo()` → the member/attribute property name.
+    const calleeName = (callNode: TSNode): string | null => {
+      const fn = callNode.childForFieldName('function');
+      if (!fn) return null;
+      if (fn.type === 'identifier') return fn.text;
+      const prop = fn.childForFieldName('property') ?? fn.childForFieldName('attribute');
+      return prop?.text ?? null;
+    };
+
+    const out: ExtractedDep[] = [];
+    const seen = new Set<string>();
+    const emit = (caller: string, file: string, target: string): void => {
+      // Self-recursion only when it's the same symbol in the same file.
+      if (caller === target && file === absPath) return;
+      const key = `${caller}\t${file}\t${target}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push({ sourceSymbol: caller, targetFile: file, targetSymbol: target, type: 'calls' });
+    };
+    const walk = (node: TSNode): void => {
+      if (node.type === 'call_expression' || node.type === 'call') {
+        const name = calleeName(node);
+        if (name != null) {
+          const caller = enclosingOf(node.startPosition.row + 1);
+          if (caller) {
+            const localPath = callableByName.get(name);
+            if (localPath) {
+              // Intra-file callee (issue #468).
+              emit(caller, absPath, localPath);
+            } else if (localPath === undefined) {
+              // Not a local symbol → maybe imported from another file (ast-a1-3).
+              // `null` (ambiguous local) deliberately does NOT fall through here.
+              const imp = importMap.get(name);
+              if (imp) emit(caller, imp.file, imp.symbol);
+            }
+          }
+        }
+      }
+      for (const child of node.namedChildren) walk(child);
+    };
+    walk(rootNode);
+    return out;
+  }
+
+  // Extension/index candidates for resolving a TS/JS import to a real file.
+  const TS_RESOLVE_EXTS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.d.ts'];
+
+  // NodeNext/ESM: a relative import carries the EMITTED `.js`-family extension
+  // even when the real source is TypeScript (`import x from './b.js'` → `b.ts`).
+  // tsconfig here is `moduleResolution: NodeNext`, so this is the *dominant*
+  // import idiom in the repo — resolving it is the whole point of ast-a1-1.
+  const JS_TO_TS_SOURCE: Record<string, string[]> = {
+    '.js': ['.ts', '.tsx'],
+    '.jsx': ['.tsx'],
+    '.mjs': ['.mts'],
+    '.cjs': ['.cts'],
+  };
+
+  /** existsSync+statSync but never throws (a dangling symlink must not abort a parse). */
+  function isFileSafe(p: string): boolean {
+    try {
+      return existsSync(p) && statSync(p).isFile();
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Resolve a RELATIVE import specifier to an absolute IN-PROJECT file path, or
+   * null if it can't be resolved to a real file. Filesystem-verified — only ever
+   * returns a path that exists on disk, so we never fabricate a cross-file edge
+   * (ast-a1-1). Handles:
+   *   - relative `./` / `../` specifiers with extension inference + `index.*`;
+   *   - the NodeNext `.js`→`.ts` (and `.mjs`→`.mts`, `.cjs`→`.cts`, `.jsx`→`.tsx`)
+   *     source-vs-emitted-extension mapping;
+   *   - a project-boundary clamp so a `..` import escaping the importer's project
+   *     is NOT attributed as in-project coordination surface.
+   * Bare / `node_modules` / `tsconfig paths` specifiers stay unresolved (raw
+   * specifier kept) — baseUrl/`paths` resolution is a deliberate follow-up
+   * (ast-a1-1 hardening note). We deliberately dropped the earlier baseUrl probe:
+   * it mapped bare builtins/packages (`fs`, `react`) onto coincidental project
+   * files, *fabricating* bogus cross-file edges — worse than leaving them raw.
+   */
+  function resolveImportSpecifier(
+    specifier: string,
+    importerAbsPath: string,
+    projectDir: string | null,
+  ): string | null {
+    if (!specifier) return null;
+    // Strip a bundler `?query` / `#hash` suffix (e.g. `./mod.ts?raw`).
+    const clean = specifier.replace(/[?#].*$/, '');
+    // Relative-only: bare/package/baseUrl specifiers stay external (raw).
+    if (!clean.startsWith('.')) return null;
+
+    const base = resolve(dirname(importerAbsPath), clean);
+    const resolved = tryResolveFile(base);
+    if (!resolved) return null;
+
+    // Boundary clamp: never attribute a file outside the importer's project as
+    // in-project surface (the contract is an *in-project* path). A null project
+    // root (a loose file) can't be clamped, so we trust the relative resolution.
+    if (projectDir && resolved !== projectDir && !resolved.startsWith(projectDir + sep)) {
+      return null;
+    }
+    return resolved;
+  }
+
+  /** Probe a resolved base path for a real source file (exact → ext-infer → js→ts → index). */
+  function tryResolveFile(base: string): string | null {
+    // Exact, when the specifier already carries a real source extension.
+    if (extname(base) && isFileSafe(base)) return resolve(base);
+    // Bare base → infer a source extension.
+    for (const ext of TS_RESOLVE_EXTS) {
+      if (isFileSafe(base + ext)) return resolve(base + ext);
+    }
+    // NodeNext: a `.js`-family extension on the specifier → its `.ts` source.
+    const ext = extname(base);
+    const tsExts = ext ? JS_TO_TS_SOURCE[ext] : undefined;
+    if (tsExts) {
+      const noExt = base.slice(0, -ext.length);
+      for (const tsExt of tsExts) {
+        if (isFileSafe(noExt + tsExt)) return resolve(noExt + tsExt);
+      }
+    }
+    // Directory import → index.*.
+    for (const ext2 of TS_RESOLVE_EXTS) {
+      if (isFileSafe(join(base, `index${ext2}`))) return resolve(join(base, `index${ext2}`));
+    }
+    return null;
+  }
+
+  function extractTSDeps(
+    node: TSNode,
+    deps: ExtractedDep[],
+    importerAbsPath: string,
+    projectDir: string | null,
+  ): void {
     for (const child of node.namedChildren) {
       if (child.type === 'import_statement' || child.type === 'import_declaration') {
         const source = child.childForFieldName('source');
         if (!source) continue;
 
-        const targetFile = source.text.replace(/['"]/g, '');
+        // Resolve the specifier to a real in-project file when we can, so
+        // dependency edges are cross-file-true; keep the raw specifier for
+        // externals/unresolved (degrades to the prior file-level behaviour).
+        const rawSpecifier = source.text.replace(/['"]/g, '');
+        const targetFile = resolveImportSpecifier(rawSpecifier, importerAbsPath, projectDir) ?? rawSpecifier;
 
         // Named imports: import { foo, bar } from './mod'
         for (const clause of child.namedChildren) {
@@ -975,7 +1189,7 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
       ? extractPythonSymbols(rootNode, fileContent)
       : extractTSSymbols(rootNode, fileContent);
 
-    const extractedDeps = extractDependencies(rootNode, language);
+    const extractedDeps = extractDependencies(rootNode, language, absPath, extractedSymbols, projectDir);
     const graphScope = `symbols:file:${absPath}`;
 
     // Store in SQLite (transactionally)

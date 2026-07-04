@@ -382,6 +382,8 @@ describe('CLI --> Manifest (no undocumented CLI commands)', () => {
     // independent manifest entries.
     const metaCommands = new Set([
       'help', 'version', '--help', '-h', '--version', '-V', '--json', '-j', '--quiet', '-q',
+      // Repeatable bridge option names extracted from REPEATABLE_FLAGS, not commands
+      'client-arg', 'codex-config',
       // Short flag characters (from shortFlags map, not commands)
       'p', 'e', 'P', 'n', 'c', 'm', 'd', 't', 'i', 'a', 's', 'o', 'f',
       // Session subcommands: handled inside `case 'session':` dispatch
@@ -509,11 +511,13 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
     // Mapping from MCP tool name -> expected feature
     const toolFeatureMap = {
       'attest': 'attest',
+      'safe_scan': 'safe',
       'relay_status': 'relay',
       // #199 cop-out conversion → real MCP tools
       'list_harbors': 'harbors',
       'get_harbor': 'harbors',
       'check_harbor_envelope': 'harbors',
+      'whois': 'whois',
       'spray_pheromone': 'pheromone',
       'resolve_pheromone': 'pheromone',
       'pheromone_coverage': 'pheromone',
@@ -561,6 +565,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'register_agent': 'agents',
       'agent_heartbeat': 'agents',
       'list_agents': 'agents',
+      'active_agent_roster': 'agents',
       'check_salvage': 'salvage',
       'claim_salvage': 'salvage',
       'start_tunnel': 'tunnel',
@@ -724,6 +729,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'memory_episodes': 'memory',
       'memory_stats': 'memory',
       'drop_feedback': 'feedback',
+      'submit_visual_task': 'visual_tasks',
       'list_feedback': 'feedback',
       'feedback_summary': 'feedback',
 

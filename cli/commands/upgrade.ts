@@ -46,18 +46,17 @@ import {
   parseLatestManifest,
   decideUpgrade,
   artifactFor,
+  DEFAULT_LATEST_FEED_URL,
   type LatestManifest,
   type UpgradeDecision,
 } from '../../lib/latest-manifest.js';
 
 /**
- * Default location of the published feed. ADR-0057 §5 ships `latest.json`
- * alongside each GitHub Release; the `latest` release alias gives a stable URL
- * that always points at the newest published release's assets. Overridable with
- * `--feed <url>` (testing, or a private mirror) or `PORT_DADDY_LATEST_FEED`.
+ * Default location of the published feed (ADR-0057 §5). Re-exported from
+ * lib/latest-manifest.ts — the single source of truth, shared with the passive
+ * staleness nudge. Overridable with `--feed <url>` or `PORT_DADDY_LATEST_FEED`.
  */
-export const DEFAULT_FEED_URL =
-  'https://github.com/curiositech/port-daddy/releases/latest/download/latest.json';
+export const DEFAULT_FEED_URL = DEFAULT_LATEST_FEED_URL;
 
 const FORMULA = 'port-daddy';
 

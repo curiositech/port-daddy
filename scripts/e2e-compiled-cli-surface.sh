@@ -182,6 +182,7 @@ run_read "activity"          activity    -- activity
 run_read "log"               log         -- log
 run_read "projects"          projects    -- projects
 run_read "find"              find        -- find 'no-such:service:ever'
+run_read "whois"             whois       -- whois 'no-such-capability'
 run_read "services/list"     services    -- services
 run_read "dns list"          dns         -- dns list
 run_read "roadmap"           roadmap     -- roadmap
@@ -192,6 +193,49 @@ run_read "sitrep"            sitrep      -- sitrep
 run_read "look"              look        -- look
 run_read "periscope"         periscope   -- periscope
 run_read "coast-guard status" coast-guard -- coast-guard status
+# ADR-0088 host-safety: `pd safe scan --json` is 100% read-only — it scans the
+# operator's own UID's files + shells unprivileged trust/net CLIs, never mutating
+# host state. It prefers the daemon route and falls back to an in-process scan,
+# so it returns a report regardless of whether THIS scratch binary has the route.
+# Assert the JSON report parses (score + state + verbatim HONEST_LIMITS footer)
+# and never carries a raw secret value field.
+__safe_err="$SCRATCH/safe-scan.stderr"
+__safe_out="$(cli safe scan --json 2>"$__safe_err" || true)"
+if printf '%s' "$__safe_out" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+r = d.get("report", d)
+assert isinstance(r.get("score"), (int, float)), "score"
+assert r.get("state") in ("green", "amber", "red"), "state"
+assert "honestLimits" in r and r["honestLimits"], "honestLimits"
+# No raw secret leaks: a finding/blast-radius line must never carry a "value"/"secret"/"raw" key.
+blob = json.dumps(r)
+for forbidden in ("\"value\":", "\"secret\":", "\"rawValue\":"):
+    assert forbidden not in blob, forbidden
+sys.exit(0)
+' 2>/dev/null; then
+  pass "safe scan --json (parses; score+state+honestLimits; no raw-secret field)"
+else
+  # Include the CLI's stderr — an empty stdout here is almost always an
+  # uncaught exception, and the stack trace is the diagnosis.
+  fail "safe scan --json" "not a valid posture report: $(printf '%s' "$__safe_out" | head -c 200); stderr: $(head -c 800 "$__safe_err" 2>/dev/null || true)"
+fi
+# ADR-0088 Phase B: `pd safe corral --all` with NO --apply is a DRY RUN — it
+# prints the plan and writes nothing (no vault write, no source rewrite). Assert
+# it runs, declares itself a dry run, and echoes the corral honest-limit. The
+# `safe guard --staged` read-only scan of the staged diff is exercised too; with
+# no staged changes it must exit clean (0) without dying.
+__corral_out="$(cli safe corral --all 2>/dev/null || true)"
+if printf '%s' "$__corral_out" | grep -qi "DRY RUN" \
+   && printf '%s' "$__corral_out" | grep -qi "reduces blast radius"; then
+  pass "safe corral --all (dry-run default; honest-limit echoed; nothing written)"
+else
+  fail "safe corral --all" "no dry-run plan / honest-limit: $(printf '%s' "$__corral_out" | head -c 160)"
+fi
+# guard --staged: read-only scan of the staged diff. In the scratch repo with no
+# staged secrets it must NOT be the guarded failure mode (exit 1 + empty output).
+run_read "safe guard --staged" safe -- safe guard --staged
+covered safe
 run_read "relay status"      relay       -- relay status
 run_read "health"            health      -- health
 run_read "doctor"            doctor      -- doctor
@@ -201,6 +245,7 @@ run_read "attention"         attention   -- attention --agent surface:smoke:ci
 run_read "nudge"             nudge       -- nudge --agent surface:smoke:ci
 run_read "inbox"             inbox       -- inbox
 run_read "send (usage)"      send        -- send
+run_read "sent"              sent        -- sent
 run_read "hints"             hints       -- hints
 # ADR-0084 Daemon Berths: `pd use <tier>` emits a shell snippet (read-only, no
 # daemon mutation); `pd dev list` probes berths read-only. Both exit 0 + print.
@@ -261,6 +306,7 @@ run_read "say (no session)"  say          -- say "e2e cli-surface say probe"
 # treats non-zero-with-output as a PASS because it proves the module loaded.
 run_read "attest"            attest       -- attest
 run_read "backend list"      backend      -- backend list
+run_read "squid (usage)"     squid        -- squid
 run_read "backup list"       backup       -- backup list
 run_read "restore (usage)"   restore      -- restore
 run_read "popper status"     popper       -- popper status
@@ -300,6 +346,7 @@ run_ok  "unlock $LOCK"       unlock   -- unlock "$LOCK"
 run_ok  "begin"              begin    -- begin e2e:surface:ci --lifecycle durable --allow-main-worktree
 run_ok  "note"               note     -- note "e2e cli-surface round-trip note"
 run_read "session (usage)"   session  -- session
+run_read "takeover (usage)"  takeover -- takeover
 # `pd done` now runs two ADR-0045 preconditions (lib/git-origin-check.ts):
 #   1. an honest result-note sentinel (PR URL / no-pr-yet: / not-applicable:)
 #   2. a git origin-push check on the cwd's repo.

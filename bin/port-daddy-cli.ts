@@ -42,7 +42,7 @@ import PKG from '../package.json' with { type: 'json' };
 // Command modules (extracted from this file)
 import {
   // Services
-  handleClaim, handleRelease, handleFind, handleUrl, handleEnv, autoIdentityFromPackageJson,
+  handleClaim, handleRelease, handleFind, handleUrl, handleEnv, handleEnvExec, autoIdentityFromPackageJson,
   // Locks
   handleLock, handleUnlock, handleLocks,
   // Messaging
@@ -56,6 +56,7 @@ import {
   handleChangelog,
   // Inbox
   handleInbox,
+  handleSent,
   // Tunnel
   handleTunnel,
   // Activity
@@ -131,6 +132,8 @@ import {
   handleRestore,
   // Honest attestation / loud-fail invariants (ADR-0045)
   handleAttest,
+  // Host-safety posture audit — `pd safe scan|baseline|fix` (ADR-0088 Phase A)
+  handleSafe,
   // Shipwright — survey/propose/apply for fleet authoring
   handleShipwright,
   // App-Native Development Cockpit
@@ -149,6 +152,7 @@ import {
 // over the older semantic.ts export. See docs/adr/0035-three-tier-memory-vocabulary.md
 import { handleMemory } from '../cli/commands/memory.js';
 import { handleRelay } from '../cli/commands/relay.js';
+import { handleWhois } from '../cli/commands/whois.js';
 // Daemon Berths (ADR-0084): `pd dev up/down/list` + `pd use` per-shell targeting.
 import { handleDevBerth, handleUse } from '../cli/commands/berths.js';
 import { handleSelfUpdate } from '../cli/commands/self-update.js';
@@ -159,6 +163,7 @@ import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget, DEFAULT_DAEMON
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
 import { shouldAutoRestartDaemonForFreshness, shouldCheckDaemonFreshness } from '../cli/utils/freshness.js';
+import { maybeNudgeStaleness } from '../cli/utils/staleness-nudge.js';
 import { readCurrentContext } from '../cli/utils/current-context.js';
 import {
   attachCliSessionWorktreePolicy,
@@ -188,7 +193,7 @@ const TIER_1_COMMANDS: Set<string> = new Set([
   'lock', 'unlock', 'locks',
   'status', 'version',
   'ports',               // 'ports cleanup' is Tier 1
-  'session', 'sessions',
+  'session', 'sessions', 'takeover',
   'note', 'notes',
 ]);
 
@@ -346,6 +351,9 @@ function printLaunchHints(hints: {
  * Resolve connection target: Unix socket or TCP.
  */
 function resolveTarget(): ConnectionTarget {
+  if (process.env.PORT_DADDY_FORCE_TCP === '1') {
+    return { host: 'localhost', port: readDaemonPort(_DEFAULT_PORT_FILE) };
+  }
   // Explicit TCP URL overrides socket
   if (process.env.PORT_DADDY_URL) {
     return resolveDaemonTcpTarget(process.env.PORT_DADDY_URL);
@@ -624,7 +632,7 @@ function readCurrentSession(): { sessionId: string; agentId?: string; purpose?: 
 // the help-topic-aliases unit test.
 export const HELP_TOPIC_ALIASES: Record<string, string> = {
   // messaging family: durable directed (inbox/send) + ephemeral pub/sub
-  inbox: 'messaging', send: 'messaging', tube: 'messaging',
+  inbox: 'messaging', send: 'messaging', sent: 'messaging', tube: 'messaging',
   pub: 'messaging', publish: 'messaging', broadcast: 'messaging',
   sub: 'messaging', subscribe: 'messaging', listen: 'messaging',
   channels: 'messaging', wait: 'messaging',
@@ -656,7 +664,7 @@ function buildHelp(): string {
 
   lines.push(
     `${A}Get started:${Z}`,
-    `  ${G}pd setup${Z}                  ${tag('notify')} Install daemon, MCP, FleetBar, init project`,
+    `  ${G}pd setup${Z}                  ${tag('notify')} Install daemon, MCP, FleetBar, hooks, Guard`,
     `  ${G}pd begin${Z} "purpose" --lifecycle durable  ${tag('notify')} I'll set up your agent + session`,
     `  ${G}pd done${Z} "summary"        ${tag('notify')} Finish up — I'll clean everything`,
     `  ${G}pd whoami${Z}                ${tag('silent')} See your current context`,
@@ -669,16 +677,20 @@ function buildHelp(): string {
     '',
     `${A}Sessions & notes:${Z}`,
     `  ${G}pd session start${Z} "why"   ${tag('notify')} Manual session start`,
+    `  ${G}pd session takeover${Z} <id> ${tag('notify')} Continue stale work, preserve notes`,
+    `  ${G}pd takeover${Z} <id>         ${tag('notify')} Alias for session takeover`,
     `  ${G}pd session abandon${Z}        ${tag('destructive')} End session as abandoned, release claims`,
     `  ${G}pd note${Z} "message"        ${tag('notify')} Leave a note`,
     `  ${G}pd notes${Z}                 ${tag('silent')} Review recent notes`,
     `  ${G}pd feedback${Z} "message"    ${tag('notify')} Drop structured feedback (auto-slug, agent from context)`,
     `  ${G}pd send${Z} <agent> "msg"    ${tag('notify')} Send a durable direct message to one agent`,
     `  ${G}pd inbox${Z}                 ${tag('silent')} Read direct messages sent to you`,
+    `  ${G}pd sent${Z}                  ${tag('silent')} Read receipts: messages you sent + if/when read`,
     '',
     `${A}Coordination:${Z}`,
     `  ${G}pd lock${Z} <name>           ${tag('notify')} Grab a distributed lock`,
     `  ${G}pd agent${Z} "task"          ${tag('approval')} One-shot autopilot delegation`,
+    `  ${G}pd agents --live${Z}         ${tag('silent')} Active harness roster + session controls`,
     `  ${G}pd agent register${Z}        ${tag('notify')} Register as an agent`,
     `  ${G}pd salvage${Z}               ${tag('silent')} List a dead agent's work  ${D}(claim/dismiss are destructive)${Z}`,
     `  ${G}pd actors${Z}                ${tag('silent')} Inspect durable actor roster`,
@@ -710,12 +722,16 @@ const TOPIC_HELP: Record<string, string> = {
   setup: `Setup — Install the full local Port Daddy environment
 
 Commands:
-  setup                     Install daemon, MCP, FleetBar, and init project
+  setup                     Install daemon, MCP, FleetBar, Pilot, project hooks, and Guard
     --project <path>        Initialize a specific project directory
     --no-daemon             Skip daemon installation/start
     --no-mcp                Skip MCP + shell hook installation
     --no-fleetbar           Skip FleetBar install (macOS)
     --no-skill              Skip Port Daddy agent skill symlink
+    --no-agents             Skip Port Daddy Pilot agent definitions
+    --no-harness            Skip Squid hooks and Coordination Guard
+    --no-squid-hooks        Skip agent hook installation only
+    --no-guard              Skip Coordination Guard hook installation only
     --status                Show cross-tool skill sync status only
     --skill-status          Alias for --status
     --dry-run               Preview cross-tool skill sync without writing links
@@ -729,7 +745,8 @@ Examples:
   pd setup --project ~/coding/workgroup-ai
   pd setup --no-fleetbar
   pd setup --no-skill
-  pd setup --no-init`,
+  pd setup --no-init
+  pd setup --no-harness`,
 
   sessions: `Sessions & Notes \u2014 Structured multi-agent coordination
 
@@ -744,7 +761,9 @@ Commands:
   session end [note]         End the active session (completed)
   session done [note]        Alias for "session end"
   session abandon [note]     End active session (abandoned)
-  session rm <id>            Delete a session and its notes
+  session takeover <id> [note]  Create successor; preserve predecessor notes
+  takeover <id> [note]       Alias for "session takeover"
+  session rm <id>            Archive a session; preserve notes
   session files add <paths>  Claim files in active session
   session files rm <paths>   Release files from active session
     compat aliases           claim -> add, release -> rm
@@ -833,6 +852,9 @@ Commands:
 
   agents                   List all registered agents
     --active               Show only active agents
+    --live, --roster       Show active harness lanes, worktrees, files, and control commands
+    --project <name>       Filter the live roster by project
+    --limit <n>            Cap live roster rows
     -j, --json             Output as JSON
 
   salvage                  Check resurrection queue for dead agents
@@ -853,6 +875,7 @@ Examples:
   pd agent register --agent build-42 --identity myapp:api --purpose "Building auth"
   pd agent heartbeat --agent build-42
   pd agents --active --json
+  pd agents --live --project port-daddy
   pd salvage --project myapp
   pd salvage triage --project myapp
   pd salvage next --project myapp --json
@@ -951,6 +974,7 @@ Examples:
 Direct durable messages (RELIABLE \u2014 survives the recipient being offline):
   pd send <agent> <message>       Send a durable direct message to one agent
   pd inbox [list|stats|read-all]  Read messages others sent you (default: list)
+  pd sent [--unread]              Read receipts: messages YOU sent + if/when read
 
 Reliability:
   The pub/sub below is an EPHEMERAL SSE stream \u2014 it times out and is only
@@ -1212,6 +1236,10 @@ Commands:
     --status <s>            now|backlog|parked|merge|done
     --as <agentId>          Actor recorded on the receipt
     --note <text>           Receipt note attached to the item
+    --harbor <h>            Target harbor (default: repo/project name, then $PD_HARBOR)
+
+  roadmap delete <slug>     Remove a roadmap item (and its status-event audit rows)
+    --harbor <h>            Harbor to delete from (default: repo/project name)
 
   roadmap touch <slug>      Append a roadmap receipt note to an existing item
     --as <agentId>          Actor recorded on the receipt
@@ -1300,9 +1328,9 @@ const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'tube', 'wait', 'lock', 'unlock', 'locks',
   'up', 'down', 'setup', 'init', 'cut', 'scan', 's', 'projects', 'p',
-  'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'send', 'log', 'activity',
+  'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'send', 'sent', 'log', 'activity',
   'wallet', 'bond',
-  'session', 'sessions', 'note', 'notes', 'say',
+  'session', 'sessions', 'takeover', 'note', 'notes', 'say',
   'begin', 'done', 'whoami', 'attention', 'nudge', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
@@ -1313,7 +1341,7 @@ const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'transcripts', 'transcript', 'relay',
-  'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
+  'harbor', 'harbors', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum', 'parley',
   'feedback',
   'commit', 'obligations',
@@ -1325,6 +1353,7 @@ const ALL_COMMANDS: string[] = [
   'backend',
   'periscope', 'sight', 'scope',
   'coast-guard', 'cg',
+  'safe',
   'relay',
 ];
 
@@ -1405,6 +1434,11 @@ async function executeDirectMode(
   positional: string[],
   options: CLIOptions
 ): Promise<boolean> {
+  if (command === 'takeover') {
+    command = 'session';
+    positional = ['takeover', ...positional];
+  }
+
   // Only Tier 1 commands are supported
   if (!TIER_1_COMMANDS.has(command)) {
     return false;
@@ -1778,7 +1812,7 @@ async function executeDirectMode(
       const sess = getDirectSessions();
 
       if (!subcommand) {
-        console.error('Usage: port-daddy session <start|end|done|abandon|rm> [args]');
+        console.error('Usage: port-daddy session <start|end|done|abandon|takeover|rm> [args]');
         process.exit(1);
       }
 
@@ -1904,6 +1938,60 @@ async function executeDirectMode(
           break;
         }
 
+        case 'takeover': {
+          const sessionId = rest[0];
+          if (!sessionId) {
+            console.error('Usage: port-daddy session takeover <id> [note]');
+            process.exit(1);
+          }
+
+          const current = readCurrentSession();
+          const agentId = typeof options.agent === 'string'
+            ? options.agent
+            : current?.agentId || `cli-${process.pid}`;
+          const takeoverOpts: Record<string, unknown> = {
+            agentId,
+            note: rest.slice(1).join(' ') || undefined,
+            purpose: typeof options.purpose === 'string' ? options.purpose : undefined,
+            claimFiles: !(options['no-files'] || options['no-claims']),
+          };
+
+          const lifecycle = typeof options.lifecycle === 'string' ? options.lifecycle.trim().toLowerCase() : '';
+          if (lifecycle) {
+            if (lifecycle !== 'durable' && lifecycle !== 'ephemeral') {
+              console.error('Usage: port-daddy session takeover <id> [note] --lifecycle durable|ephemeral');
+              process.exit(1);
+            }
+            takeoverOpts.durable = lifecycle === 'durable';
+          }
+
+          const worktreePolicy = resolveCliSessionWorktreePolicy(options);
+          if (!worktreePolicy.success) {
+            ui.error(worktreePolicy.error || 'Session worktree policy failed');
+            if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
+            process.exit(1);
+          }
+          attachCliSessionWorktreePolicy(takeoverOpts, worktreePolicy);
+          if (worktreePolicy.worktree) takeoverOpts.worktreeId = worktreePolicy.worktree.id;
+
+          const result = sess.takeover(sessionId, takeoverOpts as Parameters<typeof sess.takeover>[1]);
+          if (!result.success) {
+            ui.error(typeof result.error === 'string' ? result.error : 'Failed to take over session');
+            process.exit(1);
+          }
+
+          if (options.json) {
+            console.log(JSON.stringify(result, null, 2));
+          } else if (options.quiet) {
+            console.log(result.successorId);
+          } else {
+            ui.success(`Took over session: ${sessionId}`);
+            console.log(`  Successor: ${result.successorId}`);
+            console.log('  Notes preserved: yes');
+          }
+          break;
+        }
+
         case 'rm': {
           const sessionId = rest[0];
           if (!sessionId) {
@@ -1913,14 +2001,15 @@ async function executeDirectMode(
 
           const result = sess.remove(sessionId);
           if (!result.success) {
-            console.error(result.error || 'Failed to delete session');
+            console.error(result.error || 'Failed to archive session');
             process.exit(1);
           }
 
           if (options.json) {
-            console.log(JSON.stringify({ success: true, id: sessionId, deleted: true }, null, 2));
+            console.log(JSON.stringify(result, null, 2));
           } else if (!options.quiet) {
-            console.log(`Deleted session: ${sessionId}`);
+            console.log(`Archived session: ${sessionId}`);
+            console.log('  Notes preserved: yes');
           }
           break;
         }
@@ -2256,6 +2345,12 @@ export async function main(): Promise<void> {
     await checkDaemonFreshness(true, isQuiet);
   }
 
+  // Cross-platform staleness nudge (ADR-0054 Phase 2): at most once/day, print a
+  // one-line "you're behind the latest release" hint to stderr. Complements the
+  // macOS-only auto-upgrade `pd self-update` (ADR-0062) for npm/Linux installs.
+  // Throttled, TTY-gated, opt-out via PORT_DADDY_NO_UPDATE_CHECK, fail-soft.
+  await maybeNudgeStaleness({ command: command as string, currentVersion: PKG.version, isQuiet });
+
   // Parse options
   const options: CLIOptions = {};
   const positional: string[] = [];
@@ -2272,7 +2367,7 @@ export async function main(): Promise<void> {
   // Flags whose repeated occurrences should accumulate into an array
   // instead of last-write-wins. Add a key here when a consumer is array-aware
   // (e.g. `--files A --files B`).
-  const REPEATABLE_FLAGS: Set<string> = new Set(['files']);
+  const REPEATABLE_FLAGS: Set<string> = new Set(['files', 'client-arg', 'codex-config']);
 
   const assignOption = (key: string, value: string | true): void => {
     if (REPEATABLE_FLAGS.has(key) && key in options) {
@@ -2429,7 +2524,14 @@ export async function main(): Promise<void> {
         break;
 
       case 'env':
-        await handleEnv(positional[0], options);
+        if (positional[0] === 'exec') {
+          // `pd env exec -- <cmd>` resolves pd-secret:// refs into the child env
+          // only (ADR-0088 Phase B access path). `--` flattens the command into
+          // positional, so everything after `exec` is the command + its args.
+          await handleEnvExec(positional.slice(1), options);
+        } else {
+          await handleEnv(positional[0], options);
+        }
         break;
 
       // Agent coordination
@@ -2546,6 +2648,11 @@ export async function main(): Promise<void> {
         await handleInbox('send', positional, options);
         break;
 
+      // `pd sent` — read receipts: messages YOU sent + whether/when each was read.
+      case 'sent':
+        await handleSent(options);
+        break;
+
       // Tunnel
       case 'tunnel':
         await handleTunnel(positional[0], positional.slice(1), options);
@@ -2558,6 +2665,10 @@ export async function main(): Promise<void> {
         break;
 
       // Sessions & Notes
+      case 'takeover':
+        await handleSession('takeover', positional, options);
+        break;
+
       case 'session':
         await handleSession(positional[0], positional.slice(1), options);
         break;
@@ -2649,7 +2760,11 @@ export async function main(): Promise<void> {
 
       case 'doctor':
       case 'diagnose':
-        await handleDoctor();
+        await handleDoctor({
+          json: !!(options.json ?? options.j),
+          ci: !!options.ci,
+          exitCode: !!(options['exit-code'] ?? options.exitCode),
+        });
         break;
 
       case 'bench':
@@ -2792,6 +2907,13 @@ export async function main(): Promise<void> {
 
       case 'attest':
         await handleAttest(positional, options, PKG.version);
+        break;
+
+      // Host-safety layer — the read-only posture audit + opt-in reversible
+      // perm-fix (ADR-0088 Phase A). `pd safe scan` defaults; `pd safe baseline
+      // accept <id>` triages a finding; `pd safe fix --auto` tightens perms.
+      case 'safe':
+        await handleSafe(positional, options);
         break;
 
       case 'restore':
@@ -2968,6 +3090,11 @@ export async function main(): Promise<void> {
         await handleHarbors(positional, options);
         break;
 
+      // Semantic phonebook / skill router
+      case 'whois':
+        await handleWhois(positional, options);
+        break;
+
       // Tutorial
       case 'learn':
       case 'tutorial':
@@ -2990,6 +3117,12 @@ export async function main(): Promise<void> {
       case 'backend': {
         const { handleBackend } = await import('../cli/commands/backend.js');
         await handleBackend(positional, options);
+        break;
+      }
+
+      case 'squid': {
+        const { handleSquid } = await import('../cli/commands/squid.js');
+        await handleSquid(positional, options);
         break;
       }
 

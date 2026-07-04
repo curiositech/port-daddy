@@ -29,10 +29,17 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
+      # write so the adversary can post its findings + verdict as PR comments.
+      # Still non-blocking — advisory comments, the job does not gate merge.
+      pull-requests: write
+      issues: write
       actions: read # read CI results so the adversary can call out red-but-claimed-green
       id-token: write
+
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      REPO: ${{ github.repository }}
 
     steps:
       - name: Merge-queue pass-through
@@ -95,3 +102,21 @@ jobs:
             No filler, no restating the diff. End with EXACTLY one line:
             `VERDICT: SHIP` or `VERDICT: SHIP-AFTER-FIX` or `VERDICT: DO-NOT-SHIP`,
             followed by one sentence of justification.
+
+            Do NOT try to post a comment yourself — your final message IS the
+            review. A follow-up step posts it to the PR verbatim and enforces the
+            verdict (DO-NOT-SHIP fails the check).
+
+      # The action runs Claude but its own tool sandbox denies Claude's attempts
+      # to post (permission_denials_count > 0). Instead of fighting that, read the
+      # action's saved execution log, post the review as a sticky comment via the
+      # job's GITHUB_TOKEN, and FAIL on DO-NOT-SHIP so the verdict has teeth.
+      - name: Unit-test the verdict parser
+        if: github.event_name == 'pull_request'
+        run: node --test scripts/enforce-adversarial-verdict.test.mjs
+      - name: Post review + enforce verdict
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLAUDE_EXEC: ${{ runner.temp }}/claude-execution-output.json
+        run: node scripts/enforce-adversarial-verdict.mjs

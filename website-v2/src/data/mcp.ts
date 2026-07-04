@@ -15,7 +15,7 @@ export interface McpCategory {
   description: string
 }
 
-export const MCP_TOOL_TOTAL = 135
+export const MCP_TOOL_TOTAL = 136
 export const MCP_DEFAULT_TOOL_TOTAL = 17
 
 export const ESSENTIAL_TOOLS: McpTool[] = [
@@ -341,8 +341,8 @@ export const ALL_CATEGORIES: McpCategory[] = [
     darkColor: 'var(--p-green-400)',
     bg: 'var(--badge-green-bg)',
     border: 'var(--badge-green-border)',
-    tools: ['drop_feedback', 'list_feedback', 'feedback_summary'],
-    description: 'Agentic feedback primitives for structured findings that Cartographer can harvest into the roadmap.',
+    tools: ['drop_feedback', 'submit_visual_task', 'list_feedback', 'feedback_summary'],
+    description: 'Agentic feedback and visual task primitives for structured findings that Cartographer or the fleet can harvest into work.',
   },
 ]
 
@@ -350,7 +350,7 @@ export const CONFIG_EXAMPLES = [
   {
     label: 'Gemini CLI',
     file: '.gemini/extensions/port-daddy/GEMINI.md',
-    code: `npm install -g port-daddy\n\nOr create a native extension with:\n- MCP Server: "npx port-daddy mcp"\n- Skill: "port-daddy"`,
+    code: `brew install curiositech/tap/port-daddy\npd setup\n\nIf you are wiring Gemini by hand:\n- MCP Server: "pd mcp"\n- Skill: "port-daddy"`,
   },
   {
     label: 'Claude Code',
@@ -358,8 +358,8 @@ export const CONFIG_EXAMPLES = [
     code: `{
   "mcpServers": {
     "port-daddy": {
-      "command": "npx",
-      "args": ["port-daddy", "mcp"]
+      "command": "pd",
+      "args": ["mcp"]
     }
   }
 }`,

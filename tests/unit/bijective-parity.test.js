@@ -296,6 +296,9 @@ describe('Test Group 3: API -> CLI Parity', () => {
     messaging: ['pub', 'sub', 'channels'],
     locks: ['lock', 'unlock', 'locks'],
     agents: ['agent', 'agents'],
+    // agentroster: live aggregate over agents/sessions/claims.
+    // CLI surface is `pd agents --live` / `pd agents --roster`.
+    agentroster: ['agents'],
     actors: ['actor', 'actors'],
     // agentcockpit: "Watch + Grab the Wheel" SSE stream + soft interrupt
     // (routes/agent-cockpit.ts, agentCockpitPlugin). CLI surface is
@@ -324,6 +327,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     spawn: ['spawn', 'spawned'],
     fleet: ['fleet'],
     harbors: ['harbor', 'harbors'],
+    whois: ['whois'],
     orchestrator: ['up', 'down'],
     tuples: ['tuple'],
     sorties: ['sortie'],
@@ -361,6 +365,10 @@ describe('Test Group 3: API -> CLI Parity', () => {
     // shipped-dead (never registered), which is why this category did not
     // appear here before. `pd relay <url|status|exchange>` is its CLI surface.
     relay: ['relay'],
+    // safe: host-safety posture audit (ADR-0088). routes/safe.ts (safePlugin)
+    // exposes the read-only GET /safe/scan; `pd safe <scan|baseline|fix|corral|guard>`
+    // is its CLI surface.
+    safe: ['safe'],
   };
 
   // API-only routes that have no CLI equivalent (accessed via curl or SDK).
@@ -370,8 +378,10 @@ describe('Test Group 3: API -> CLI Parity', () => {
   // context: agent context-window health + task ledger (ADR-0048 P1/P3) — MCP+HTTP only, no pd CLI command.
   // harvest: session note→episode promotion (ADR-0048 P2/P3) — MCP+HTTP only.
   // custodian: knowledge custodian status + approval resolution (ADR-0048 P3) — MCP+HTTP only.
+  // cloudapptelemetry: inbound GitHub App / Cloudflare Worker telemetry ingestion + read API;
+  // surfaced through fleet/agents/observability reporting, not a dedicated `pd` command.
   // (relay is NOT API-only: it has the `pd relay` CLI, mapped in ROUTE_TO_CLI_MAP above.)
-  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian']);
+  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian', 'cloudapptelemetry', 'visualtasks']);
 
   test('all route modules have at least one corresponding CLI command', () => {
     const missingCoverage = [];

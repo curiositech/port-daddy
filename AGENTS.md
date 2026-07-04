@@ -11,7 +11,7 @@ These landed on `main` in the last few weeks. The installed Homebrew `pd` binary
 - **Coast Guard — OS-sandbox confinement + compulsion rent** (`docs/adr/0050-coast-guard.md`; `lib/coast-guard.ts`, `lib/coast-guard/compulsion.ts`). Every spawned subprocess is confined (Seatbelt on macOS, bubblewrap/Landlock on Linux), managed secrets scrubbed from the child env, hard egress cap (`402 Spend Cap Exceeded`); wired into `lib/spawner.ts` as the default. The compulsion: an un-noted commit blocks the next commit (`requireNotePerCommit`); a silent, drifted sandbox becomes reclaim-eligible but reclaim never touches the live main checkout. Read path: `pd coast-guard status` (alias `pd cg`).
 - **Attest — honest self-report** (ADR-0045; `cli/commands/attest.ts`, `lib/attest.ts`). `pd attest` exits NON-ZERO when any CRITICAL invariant fails (safe for boot/CI gates); `pd attest --json` for the merged report. No subcommands.
 - **Tube — conversational pipe over channels** (`cli/commands/tube.ts`). Multi-subscriber, relay-independent. `pd tube <channel>` listens; `--send`, `--reply`, `--once`. Prefer a persistent tube channel over point-to-point inboxes for agent↔agent back-and-forth — see `## Architecture truths` below.
-- **Rust surfaces** (in `core/`): `core/pd-tui` (ratatui), `core/pd-bosun`, `core/harbor-card-rs` are separate crates on `main` — there is **no single landed "rust kernel"**. `core/pd-console` (the GPUI conversation-multiplexer) is **unlanded** (PRs #306/#318). Reconcile against `## Architecture truths` before scaffolding any new Rust shell.
+- **Rust surfaces** (in `core/`): `core/pd-tui` (ratatui), `core/pd-bosun`, `core/harbor-card-rs`, and `core/pd-console` (GPUI operator console) are separate crates on `main` — there is **no single landed "rust kernel"**. `pd-console` is landed, but it is not the sibling kernel-rs runtime; reconcile against `## Architecture truths` and the pd-console lane rules before scaffolding any new Rust shell.
 - **Design-stage / in-flight (do NOT document as shipped):** marketplace (ADR-0051), trajectory export + RL loop (ADR-0052), out-of-band enforcement / "DOM DADDY" (ADR-0053, in-flight PR #366), and a release-cadence + Rust-surface-alignment ADR (ADR-0054, being written in parallel — the canonical answer to "is this in my installed `pd`?" once it lands). These are not on every branch; reference by number, do not invent their verbs.
 
 The PR review gate is **backend-agnostic**: any Port Daddy fleet agent — any backend, not specifically Claude — acting adversarial, skeptical, and PM-minded. Respond to every Copilot / bot review comment; create tests where you can. See `## Pull Request Operating Procedure`.
@@ -210,6 +210,21 @@ is a real red you cannot fix unilaterally (missing secrets, infra outage).
 Operator, 2026-06-11: "Why are you waiting on me? Why do I have to tell
 every Claude this?" — don't be the Claude that has to be told.
 
+**Two PR-body checks are REQUIRED and fail closed — fill them in or the PR is
+bounced (it cannot enter the merge queue):**
+
+1. **`pr-requirements-guard`** — the body needs a real `## Summary` (≥10 words of
+   prose) and `## Test Plan` (≥12 words: commands + their output), plus a
+   screenshot + a GIF/recording for any visual-surface change. Self-check before
+   pushing: `npm run check:pr-requirements -- --body-file <draft.md>`.
+2. **`roadmap-link`** — the body needs exactly one `Roadmap-Item: <slug>` trailer
+   (or `Roadmap-Item: none — <reason>` for a chore/docs/hotfix). No slug yet?
+   `npx tsx scripts/roadmap-link.ts <pr-number>` creates the item and stamps it.
+
+The PR template (`.github/PULL_REQUEST_TEMPLATE.md`) pre-stubs both — keep the
+headings and the trailer line, fill in the prose. Both report on `merge_group`
+as pass-throughs, so a PR that is green at PR time never hangs the queue.
+
 Every PR opened in this repo MUST go through skeptical adversarial review
 before merging. The author cannot self-approve by typing "looks good." The
 flow is:
@@ -235,11 +250,17 @@ flow is:
 4. **Comment on the PR** with what changed, the validation evidence
    (test counts, `tsc --noEmit` exit, focused jest output), and an explicit
    line for each reviewer finding marked done / deferred / contested-because.
-5. **Treat bot comments as real review findings.** Copilot, Claude review,
-   Cloudflare Pages, CodeQL, release, or other automation comments are not
-   background noise. Reply to every actionable bot thread with fixed /
+5. **Treat bot comments as real review findings — fleetbot included.** The
+   `port-daddy-fleet` bot (a.k.a. fleetbot) posts `[pd-code-reviewer]` and
+   `[pd-qa]` threads on every PR; these are first-class review findings, NOT
+   background noise — the same goes for Copilot, Claude review, Cloudflare
+   Pages, CodeQL, release, and the `roadmap-link-gate` GitHub Action. Read
+   every bot comment, and reply to every actionable thread with fixed /
    deferred / contested-because, and push a fixup commit for every valid
-   high-confidence finding before asking a human to look.
+   high-confidence finding before asking a human to look. Do not declare a PR
+   done while a `port-daddy-fleet` or other actionable bot thread sits
+   unanswered. Operator, 2026-06-23: "Why did you ignore fleetbot?" — the
+   answer must never be "I didn't read its comments."
 6. **Get the full CI/CD surface clean.** "CI is green" means the GitHub
    matrix, review checks, deploy previews, release/package jobs, and external
    statuses attached to the PR are green. If a red status is truly external,
@@ -261,6 +282,36 @@ you don't brief it on.
 For multi-PR ship campaigns, track the state in `TaskCreate` so the merge
 sequence is explicit. The user can interrupt at any boundary; the task
 list is the recovery surface.
+
+### Respond to every review comment — no silent ignores
+
+A review comment is a question you owe an answer, not a notification you may
+swipe away. **Before a PR merges, every review comment — inline diff thread or
+top-level, human or bot (Copilot, the Claude code-review / adversarial reviewer,
+FleetBot `[pd-*]`, CodeQL, Cloudflare) — must get a substantive response.** That
+means one of:
+
+- **Fixed** — you changed the code; say what you changed (and ideally link the
+  fixup commit), then resolve the thread.
+- **Deferred** — not now, with a reason and where it's tracked (issue / roadmap
+  item / follow-up PR). "Later" without a destination is ignoring it.
+- **Contested** — you disagree; say *why*, specifically, citing the code or the
+  invariant. A reviewer can be wrong — but you have to make the argument, not
+  stay silent.
+
+What does **not** count: resolving a thread with no reply, a one-word "done" with
+no evidence, closing the PR to dodge the comment, or letting a bot finding scroll
+off the page. "Seriously" is load-bearing — engage the substance.
+
+`[M]` Machine-flagged, advisory. `scripts/check-pr-comments-answered.mjs` (the
+`pr-comments-guard` check / its own `pr-comments.yml` workflow) inspects the PR's
+review threads and, when a reviewer spoke last on an open, non-outdated thread,
+marks the PR red and applies the `needs-comment-replies` label. It re-runs every
+time a comment, review, or reply lands, so the label clears the moment you
+respond. It is **advisory — it does not block the merge** (a genuinely
+bot-only/no-op PR can opt out with `<!-- pr-comments-exempt: <reason> -->`). The
+teeth that judge whether your reply is *real* vs. dismissive are the adversarial
+reviewer and the operator — the script only checks that you engaged at all.
 
 ### Visual artifacts for UI diffs (hard requirement — forever)
 
@@ -352,13 +403,27 @@ Console work lives on `feat/console-tmux-multiplexer`; the v12 feel-pass design 
 The numbered flow above is the *review contract*. This subsection is the
 *mechanical contract* — the exact command sequence each phase resolves to.
 
-- **Create.** Branch in a linked Git worktree off `origin/main` under
-  `~/coding/tmp/wt-<slug>` (never the main checkout — the main checkout
-  carries the operator's WIP). Then `pd begin "<purpose>" --identity
-  port-daddy:<type>:<slug>` → a scope `pd note` → `pd session files add
-  <files>` *before* editing → edit → `pd guard check --staged` → commit
-  (no Claude co-author trailer) → `git push -u origin <branch>` → `gh pr
-  create` → `pd done`.
+- **Create.** Branch in a linked Git worktree under `~/coding/tmp/wt-<slug>`
+  (never the main checkout — the main checkout carries the operator's WIP).
+  **Pick the base by dependency, not reflex:**
+  - *Independent change* → branch off `origin/main`.
+  - **Stacked / dependent change** (it needs code from an open PR that has not
+    landed) → **branch off that PR's branch, not `origin/main`**, and open with
+    `gh pr create --base <prior-pr-branch>`. Each PR in a stack bases on the one
+    before it, so reviewers see a minimal diff and the dependency is explicit.
+    When the base PR squash-merges, retarget the dependent (`gh pr edit <n>
+    --base main`) and rebase onto the post-merge `main` — mergeability flips the
+    instant the base lands (see **Land**). Do NOT rebuild a feature on
+    `origin/main` when it actually depends on an unmerged PR; that strands the
+    work on the wrong base (the v0.2.0-console-vs-v0.3.0-mux trap, 2026-06-20:
+    a console pane was built on stale `main` while the mux it needed sat in an
+    open PR, forcing a full rebuild).
+
+  Then `pd begin "<purpose>" --identity port-daddy:<type>:<slug>` → a scope
+  `pd note` → `pd session files add <files>` *before* editing → edit →
+  `pd guard check --staged` → commit (no Claude co-author trailer) →
+  `git push -u origin <branch>` → `gh pr create [--base <prior-pr-branch>]` →
+  `pd done`.
 - **Update** (review + CI). Pull bot review comments with `gh api
   repos/curiositech/port-daddy/pulls/<n>/comments` and fix the real ones.
   Address every HIGH adversarial-review finding as a named fixup commit.
@@ -377,6 +442,46 @@ The numbered flow above is the *review contract*. This subsection is the
   <wt> status --porcelain` is clean. Never delete a worktree that still has
   uncommitted work. Never `git reset` or otherwise clobber the main
   checkout — it carries WIP that is not yours.
+
+### Roadmap link gate (every PR declares its roadmap item)
+
+Every PR must say which roadmap item it advances, so a merge writes back to
+tracked work instead of vanishing. The mechanism:
+
+- **Declare it.** Put one trailer line in the PR description:
+  `Roadmap-Item: <slug>` — or, for a chore/docs/hotfix, the explicit opt-out
+  `Roadmap-Item: none — <reason>`. The PR template carries the prompt.
+- **No item yet? Create + stamp in one step** (runs locally — the roadmap
+  lives in the daemon's SQLite, which CI can't reach):
+  `npx tsx scripts/roadmap-link.ts <pr-number>`. It POSTs a real
+  `roadmap_items` row (`POST /roadmap/items`) and edits the trailer into the
+  PR body. Then `npx tsx scripts/export-roadmap-snapshot.ts` and commit so CI
+  sees it.
+- **The check is REQUIRED and fails closed.** `.github/workflows/roadmap-link.yml`
+  reads the committed mirror `docs/roadmap/roadmap.snapshot.json` (via the pure,
+  unit-tested `lib/roadmap-link-core.ts`) and is a **required status check** in
+  branch protection (operator, 2026-06). A PR with no valid `Roadmap-Item:`
+  trailer **cannot merge** — it is bounced back until you add the link or the
+  explicit opt-out. It reports on `merge_group` heads as a pass-through, so the
+  merge queue never hangs on it.
+- **Belt and suspenders: the label too.** A PR with no valid link also gets
+  `needs-roadmap-link`, and the land/auto-merge flow treats that label as *hold
+  for a human*. With the check now required, the merge is also blocked
+  mechanically — so an unlinked PR is stopped two ways.
+- **Keep the snapshot fresh — it fails closed.** If `roadmap.snapshot.json` is
+  missing, empty, or >21d stale, the gate shouts (🔴 comment + step summary) AND,
+  because it is required + fail-closed, **blocks every PR** — even correctly
+  linked ones — until someone regenerates and commits it:
+  `npx tsx scripts/export-roadmap-snapshot.ts`. A stale mirror must never read as
+  "all clear". (This is the operator's deliberate trade-off: a stale roadmap
+  halts the line rather than letting unverified links through.)
+- **Planning docs must spawn downstream work.** A PR that adds/edits an ADR, a
+  `PLAN`/`ROADMAP` file, or a `docs/` proposal must also enumerate the roadmap
+  items it creates: `Roadmap-Spawns: <slug-a>, <slug-b>` (or
+  `Roadmap-Spawns: none — <reason>` when it only supersedes/clarifies). A plan
+  exists to generate work; without the spawn line the PR gets
+  `needs-roadmap-spawn` and waits for a human. Detection is by file path, so it
+  fires on the actual document, not on prose.
 
 ### Shell gotchas (real and recurring)
 
@@ -567,10 +672,10 @@ This rule has bitten us repeatedly when the daemon ran on a non-default port (CI
   the durable bus / suggestibility signal), **pd-runtime** (queue/scheduler = voyages),
   **pd-core** (deterministic kernel transitions), **pd-tui/pd-rs** (the console).
   **Do NOT scaffold yet-another Rust UI/daemon without reconciling here first** — the
-  TS repo's `core/pd-tui` (ratatui, landed), the unlanded `core/pd-console` (the
-  on-bus, backend-agnostic, OKLCH conversation-multiplexer engine — PRs #306/#318),
-  and kernel-rs's `pd-tui` are converging and must not fork into 3–4 rival shells.
-  On `main` today `core/` holds only `pd-tui`, `pd-bosun`, and `harbor-card-rs` —
+  TS repo's `core/pd-tui` (ratatui, landed), `core/pd-console` (the landed GPUI
+  on-bus, backend-agnostic, OKLCH conversation-multiplexer), and kernel-rs's
+  `pd-tui` are converging and must not fork into 3–4 rival shells.
+  On `main` today `core/` holds `pd-tui`, `pd-bosun`, `harbor-card-rs`, and `pd-console` —
   there is no single landed "rust kernel," only separate crates.
 - **Coordinate over DURABLE ids/channels, never `cli-<pid>`.** `cli-<pid>` is ephemeral
   (new per CLI invocation) — two agents using it can never reach each other and there
@@ -590,3 +695,39 @@ This rule has bitten us repeatedly when the daemon ran on a non-default port (CI
 - **Delete rule (operator-updated):** never-delete is demote-by-default, BUT you may
   **delete** a thing once its value is merged into its near twin — consolidation is the
   licensed exception. Coordinate the delete on the bus first; never solo-delete live-fleet code.
+
+## pd-console — build LANES (prod / latest / dev). Read before building the console.
+
+There is **no longer one `~/Applications/pd-console.app`** that every agent clobbers.
+That single bundle is why you could hit `Ctrl-A Space` on a month-old build and see
+nothing. The console now ships in three lanes, each a distinct bundle with a distinct
+icon colour + label so you can tell them apart in the Dock at a glance:
+
+| Lane | Bundle | Built from | Icon | PATH shim |
+|------|--------|-----------|------|-----------|
+| **prod** | `~/Applications/pd-console-prod.app` | the Homebrew cut | **blue**, `vX.Y.Z` badge | yes |
+| **latest** | `~/Applications/pd-console-latest.app` | `main` | **green**, `latest` badge | yes |
+| **dev** | `~/Applications/pd-console-dev-apps/pd-console_dev-<name>.app` | your worktree | **amber**, `dev·<name>` badge | no |
+
+The one tool is `core/pd-console/scripts/package-console.sh`:
+
+```bash
+bash scripts/package-console.sh                       # latest (default)
+bash scripts/package-console.sh --prod                # version-stamped prod (Homebrew cut)
+bash scripts/package-console.sh --devbuild parley-pane # YOUR isolated build — never touches prod/latest
+```
+
+**Rules for everyone:**
+- **Working on the console in Rust? Build your own dev lane** (`--devbuild <feature>`) and
+  test against *that* window. Never rebuild `-latest`/`-prod` to try a half-finished change —
+  that is the shared-bundle trap this replaced. Each lane is a separate `CFBundleIdentifier`,
+  so dev builds never overwrite prod/latest icon caches or Dock entries.
+- **When a pd-console change lands on `main`, rebuild the latest lane** (`bash scripts/package-console.sh`)
+  so `-latest.app` actually reflects main. A stale `-latest` is the bug, not a cosmetic.
+  **Automate it once:** `bash core/pd-console/scripts/install-console-hooks.sh` installs a
+  `post-merge` git hook that rebuilds the latest lane (detached, no window-steal) whenever a
+  pull into `main` touches `core/pd-console/`. Idempotent; chains onto any existing hook.
+- **Prod is owned by the Homebrew cut.** `release.yml` builds, signs (Developer ID, reusing
+  `scripts/sign-and-notarize.mjs`), and ships `pd-console-prod.app` alongside `pd`/`port-daddy`.
+  Set `PD_CONSOLE_SIGN_IDENTITY` for a real-signed local prod build; default is ad-hoc.
+- Dev lane never touches the `~/.port-daddy/bin/pd-console` PATH shim — only prod/latest do.

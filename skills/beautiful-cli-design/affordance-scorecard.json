@@ -1,0 +1,43 @@
+{
+  "skill": "beautiful-cli-design",
+  "updatedAt": "2026-04-18T22:39:13",
+  "provenance": {
+    "kind": "internal-worktree-recovered",
+    "sourceRepo": "workgroup-ai",
+    "recoveredAt": "2026-04-17T02:52:14-07:00",
+    "recoveredFrom": "/Users/erichowens/coding/workgroup-ai/.claude/worktrees/agent-aa6fba4b/skills/beautiful-cli-design",
+    "worktree": "agent-aa6fba4b",
+    "ctaOverlay": "/Users/erichowens/coding/workgroup-ai/.windags/cta-upgrades/beautiful-cli-design/after.md",
+    "owners": [
+      "some-claude-skills"
+    ]
+  },
+  "authorship": {
+    "maintainers": [
+      "some-claude-skills"
+    ]
+  },
+  "lineCount": 285,
+  "structuralComplete": true,
+  "structure": {
+    "decisionPoints": true,
+    "failureModes": true,
+    "workedExamples": true,
+    "qualityGates": true,
+    "notFor": true,
+    "inlineMermaid": 1
+  },
+  "affordances": {
+    "scripts": false,
+    "templates": false,
+    "examples": false,
+    "references": true,
+    "assets": false,
+    "diagrams": true,
+    "referenceFiles": 11,
+    "referenceIndex": true,
+    "diagramCompanions": 2,
+    "visualPreviewCapability": false
+  },
+  "validatorPassed": true
+}

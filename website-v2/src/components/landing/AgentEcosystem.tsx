@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
+import { ProductLogoMark, type ProductLogoKey } from '@/components/site/ProductLogos'
 import { Surface } from '@/components/ui/Surface'
 import {
   Code, Cpu, Layers,
@@ -12,12 +13,13 @@ interface AgentTool {
   how: string
   icon: typeof Code
   color: string
+  product?: ProductLogoKey
 }
 
 const TOOLS: AgentTool[] = [
-  { name: 'Claude Code', tagline: 'MCP Native', how: 'pd mcp install gives every Claude Code session full Port Daddy tools — ports, sessions, notes, pub/sub', icon: Cpu, color: 'var(--brand-primary)' },
+  { name: 'Claude Code', tagline: 'MCP Native', how: 'pd mcp install gives every Claude Code session full Port Daddy tools — ports, sessions, notes, pub/sub', icon: Cpu, color: 'var(--brand-primary)', product: 'claude' },
   { name: 'Aider', tagline: 'pd spawn', how: 'pd spawn --backend aider launches Aider with Port Daddy coordination wired in automatically', icon: Code, color: 'var(--brand-accent)' },
-  { name: 'Ollama', tagline: 'Local LLM', how: 'pd spawn --backend ollama runs any local model with full session tracking and pub/sub', icon: Layers, color: 'var(--brand-primary)' },
+  { name: 'Ollama', tagline: 'Local LLM', how: 'pd spawn --backend ollama runs any local model with full session tracking and pub/sub', icon: Layers, color: 'var(--brand-primary)', product: 'ollama' },
   { name: 'Any CLI Tool', tagline: 'Universal', how: 'pd spawn --backend custom wraps any command-line tool with Port Daddy coordination', icon: Terminal, color: 'var(--brand-accent)' },
 ]
 
@@ -63,7 +65,11 @@ export function AgentEcosystem() {
               >
                 {/* Icon in inset circle */}
                 <Surface depth="inset" radius="3xl" padding="none" className="w-20 h-20 flex items-center justify-center transition-all group-hover:scale-110">
-                  <tool.icon size={40} style={{ color: 'var(--brand-accent)' }} />
+                  {tool.product ? (
+                    <ProductLogoMark product={tool.product} className="h-11 w-11" />
+                  ) : (
+                    <tool.icon size={40} style={{ color: 'var(--brand-accent)' }} />
+                  )}
                 </Surface>
 
                 <div className="space-y-4 flex-1 flex flex-col items-center">

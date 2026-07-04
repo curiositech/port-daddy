@@ -1,4 +1,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const pdFetch = jest.fn();
 const exit = jest.spyOn(process, 'exit').mockImplementation((code) => {
@@ -12,7 +15,7 @@ jest.unstable_mockModule('../../cli/utils/fetch.js', () => ({
   pdFetch,
 }));
 
-const { handleRoadmap } = await import('../../cli/commands/roadmap.js');
+const { handleRoadmap, resolveRoadmapHarbor } = await import('../../cli/commands/roadmap.js');
 
 const fixture = {
   generatedAt: 1,
@@ -196,6 +199,28 @@ describe('pd roadmap', () => {
       promotedByAgentId: 'agent-1',
     });
     expect(body.notes[0]).toMatchObject({ by: 'agent-1', text: 'phase 0 implementation' });
+  });
+
+  test('harbor resolution falls back to cwd basename outside a git repository', () => {
+    const previousCwd = process.cwd();
+    const previousHarbor = process.env.PD_HARBOR;
+    const root = mkdtempSync(join(tmpdir(), 'pd-roadmap-harbor-'));
+    const projectDir = join(root, 'standalone-project');
+    mkdirSync(projectDir);
+    delete process.env.PD_HARBOR;
+
+    try {
+      process.chdir(projectDir);
+      expect(resolveRoadmapHarbor({})).toBe('standalone-project');
+    } finally {
+      process.chdir(previousCwd);
+      if (previousHarbor === undefined) {
+        delete process.env.PD_HARBOR;
+      } else {
+        process.env.PD_HARBOR = previousHarbor;
+      }
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   test('touch preserves the existing summary and appends a roadmap receipt note', async () => {

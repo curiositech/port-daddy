@@ -1,0 +1,82 @@
+{
+  "framework": {
+    "selected": "LangGraph",
+    "decisionCriteria": [
+      "Workflow has conditional branching (security scan only if diff touches auth/secrets)",
+      "Need explicit state persistence across a multi-step review pipeline",
+      "Team already runs LangSmith for observability"
+    ]
+  },
+  "mcp": {
+    "used": true,
+    "contextOverheadPct": 32,
+    "lazyLoading": true
+  },
+  "observability": {
+    "wired": true,
+    "platform": "LangSmith",
+    "instrumentedLevels": ["request", "trace", "quality", "drift"]
+  },
+  "evaluation": {
+    "suiteExists": true,
+    "coverage": ["unit", "trajectory", "end-to-end"]
+  },
+  "costControls": {
+    "perTaskCapUsd": 5,
+    "dailyQuotaUsd": 200,
+    "killSwitch": true
+  },
+  "memoryArchitecture": {
+    "documented": true,
+    "layers": ["working", "short-term"]
+  },
+  "pilot": {
+    "scope": "single-team",
+    "teams": ["platform-eng"],
+    "workflow": "pre-review-code-check"
+  },
+  "roiFramework": {
+    "defined": true,
+    "baselineMetrics": ["avg-review-time-min", "avg-review-cost-usd"]
+  },
+  "stakeholderComms": {
+    "audiences": ["engineering", "security", "executive"]
+  },
+  "hitl": {
+    "approvalGatesDocumented": true,
+    "gates": ["Human reviewer must approve before merge; agent suggestions are advisory only."]
+  },
+  "successCriteria": {
+    "defined": true,
+    "binaryPassFail": [
+      "Agent suggestion acceptance rate >= 70%",
+      "Review cycle time reduced by >= 40%"
+    ]
+  },
+  "adoptionPlan": {
+    "documented": true,
+    "pathway": ["single-repo pilot", "team-wide rollout", "org-wide self-service via AI Studio"]
+  },
+  "security": {
+    "reviewCompleted": true,
+    "piiFiltering": true,
+    "auditTrails": true,
+    "accessControls": true
+  },
+  "errorHandling": {
+    "documented": true,
+    "retryLogic": true,
+    "circuitBreakers": true,
+    "escalationPath": true
+  },
+  "performance": {
+    "benchmarksEstablished": true,
+    "latencySlaMs": 8000,
+    "throughputTarget": "50 reviews/hour"
+  },
+  "incidentResponse": {
+    "documented": true,
+    "pagerAssigned": true,
+    "rollbackPlan": true
+  }
+}

@@ -3,6 +3,10 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { ArrowDownRight, ArrowRight, ArrowUpRight, BadgeCheck, Compass, FileText } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
+import { NestingDiagram } from '@/components/library/NestingDiagram'
+import { ReadingDag } from '@/components/library/ReadingDag'
+import { SpineChain } from '@/components/library/SpineChain'
+import { ThreeSidedMarket } from '@/components/library/ThreeSidedMarket'
 import {
   BracketLabel,
   PageContainer,
@@ -20,6 +24,7 @@ import {
   type WhitePaper,
 } from '@/data/whitePapers'
 import { harborEvolutionFigure } from '@/data/manifestoContent'
+import { ThemedImage } from '@/components/site/ThemedImage'
 
 /**
  * The cross-reference relationships, in the order they read on a chapter card.
@@ -224,7 +229,7 @@ export default function LibraryPage() {
               </div>
 
               <figure className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] shadow-[var(--shadow-brutal)]">
-                <img
+                <ThemedImage
                   src="/img/manifesto/seven-papers.webp"
                   alt="A drafting wall pinned with seven blueprint plates: a back row of three stamped with wax seals labelled “three prove,” and a front row of four tugboat schematics labelled “four explain,” with a small robot studying them."
                   className="block aspect-[16/9] w-full object-cover"
@@ -292,7 +297,7 @@ export default function LibraryPage() {
                   → many machines. The three stages are re-stated in words so the
                   figure does not have to be decoded from the numerals alone. */}
               <figure className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] shadow-[var(--shadow-brutal)]">
-                <img
+                <ThemedImage
                   src={harborEvolutionFigure.src}
                   alt={harborEvolutionFigure.alt}
                   className="block w-full border-b-2 border-[var(--border-strong)] object-cover"
@@ -342,6 +347,33 @@ export default function LibraryPage() {
                   ))}
                 </div>
               </div>
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* ── ADR-0048 figures — the architecture, drawn ── */}
+        <section
+          id="the-architecture-drawn"
+          className="scroll-mt-[var(--space-8)] border-t-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]"
+        >
+          <PageContainer width="wide">
+            <div className="space-y-[var(--space-3)]">
+              <PanelEyebrow>The architecture, drawn</PanelEyebrow>
+              <PanelTitle as="h2" size="section" className="max-w-[18ch]">
+                Four layers, seven chapters, one bond ledger.
+              </PanelTitle>
+              <PanelBody className="max-w-[52ch] text-[length:var(--type-panel-body-size)]">
+                The same shape from four angles &mdash; the nested layers
+                (L0&ndash;L3), the spine that threads the seven chapters, the
+                reading order as a dependency graph, and Chapter IV&rsquo;s
+                three-sided market settling onto one conserving bond ledger.
+              </PanelBody>
+            </div>
+            <div className="mt-[var(--space-5)] grid gap-[var(--space-6)]">
+              <NestingDiagram />
+              <SpineChain />
+              <ReadingDag />
+              <ThreeSidedMarket />
             </div>
           </PageContainer>
         </section>

@@ -29,6 +29,7 @@ const ALLOWED_HEX = new Set([
   '003FB8', // cobalt   — brand-primary           (accent / primary)   8.18:1 AAA
   '00564C', // teal     — brand-accent deepened   (accent / secondary) 8.07:1 AAA
   '6B4500', // amber    — the fourth               (accent / caution)   7.94:1 AAA
+  '8B0000', // mayday   — failure/blocked/revoked  (accent / negative)  9.37:1 AAA
   '1B1712', // ink      — body text                                    16.7:1 AAA
   '121212', // ebony    — brand text-primary                          17.5:1 AAA
   'FBF7EF', // paper    — brand paper ground

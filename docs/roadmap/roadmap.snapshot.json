@@ -1,0 +1,563 @@
+{
+  "generatedAt": 1783090056278,
+  "harbor": "port-daddy",
+  "source": "http://127.0.0.1:9876",
+  "count": 111,
+  "items": [
+    {
+      "slug": "active-agent-roster",
+      "status": "backlog",
+      "summaryMd": "Add live active agent roster surfaces"
+    },
+    {
+      "slug": "adr-0019-declarative-fleet-yaml",
+      "status": "done",
+      "summaryMd": "ADR-0019 SHIPPED despite PROPOSED header: fleet YAML parser in lib/fleet-engine.ts (#533,#16)."
+    },
+    {
+      "slug": "adr-0022-durable-actor-souls-body-leases",
+      "status": "now",
+      "summaryMd": "ADR-0022 'Accepted' but body_leases/actors tables NOT shipped (queue.ts:209 confirms). Build tables + lease lifecycle."
+    },
+    {
+      "slug": "adr-0026-fleet-ast-diagnostics",
+      "status": "done",
+      "summaryMd": "ADR-0026 SHIPPED despite PROPOSED header: lib/fleet-ast.ts positional AST + diagnostics (#170,#50)."
+    },
+    {
+      "slug": "adr-0029-v0-account-login-and-local-forest",
+      "status": "backlog",
+      "summaryMd": "pd account login (OIDC) + account Ed25519 key + local pairing receipts + Merkle audit (ADR-0029 v0)"
+    },
+    {
+      "slug": "adr-0029-v3-cross-device-quotas-and-rbac",
+      "status": "backlog",
+      "summaryMd": "owner/member/viewer sync card scoping + cross-device fleet quota pool (ADR-0029 v3)"
+    },
+    {
+      "slug": "adr-0037-git-access-control-pd-feature-verbs",
+      "status": "backlog",
+      "summaryMd": "ADR-0037 Proposed, ZERO impl: no pd feature verbs / git-ACL module (doc PR #112 only)."
+    },
+    {
+      "slug": "adr-0038-claim-tree-multi-granularity",
+      "status": "backlog",
+      "summaryMd": "ADR-0038 Proposed, ZERO impl: no claimTree code (doc PR #119 + website explainers only)."
+    },
+    {
+      "slug": "adr-0041-durable-commitments-obligation-monitor",
+      "status": "done",
+      "summaryMd": "ADR-0041 SHIPPED despite Proposed header: lib/commitments.ts + lib/obligation-monitor.ts (#422,#334)."
+    },
+    {
+      "slug": "adr-0042-team-secret-sharing",
+      "status": "backlog",
+      "summaryMd": "ADR-0042 Proposed, not started: lib/secret-env.ts is single-user; no team sharing/shamir/threshold."
+    },
+    {
+      "slug": "adr-0043-phase-0-spec-and-parser",
+      "status": "now",
+      "summaryMd": "ADR-0043 + matrix format + lib/adr-matrix.ts parser/transform + unit tests"
+    },
+    {
+      "slug": "adr-0043-phase-1-adr-sync-wiring",
+      "status": "now",
+      "summaryMd": "ADR-0043 partial: lib/adr-matrix.ts parser shipped (Phase 0); Phase 1 missing \u2014 no cli/commands/adr.ts, no POST /adr/sync."
+    },
+    {
+      "slug": "adr-0043-phase-1-daemon-route-and-cli",
+      "status": "now",
+      "summaryMd": "POST /adr/sync + GET /adr/:n/matrix routes; pd adr sync/matrix CLI"
+    },
+    {
+      "slug": "adr-0043-phase-2-cartographer-commitment",
+      "status": "now",
+      "summaryMd": "Register Cartographer commitment (ADR-0041) owning matrix<->roadmap sync; pd adr audit is its monitor"
+    },
+    {
+      "slug": "adr-0043-phase-3-drift-audit-cron",
+      "status": "now",
+      "summaryMd": "Scheduled Cartographer drift audit: ADR phase claims vs roadmap status vs code; emit coordination:inconsistency on breach"
+    },
+    {
+      "slug": "adr-0043-phase-4-dashboard-panel",
+      "status": "now",
+      "summaryMd": "Dashboard panel: every ADR with live implementation-status bar from roadmap_items"
+    },
+    {
+      "slug": "adr-0043-phase-5-retrofit-existing-adrs",
+      "status": "now",
+      "summaryMd": "Backfill matrices into ADRs 0001-0042 (priority: proposed 0039-0042)"
+    },
+    {
+      "slug": "adr-0044-phase-0-dark-launch-resolver",
+      "status": "now",
+      "summaryMd": "resolveDbPathV2() runs alongside v1 observe-only; structured boot log; PD_DB_RESOLVER flag (default v1). Zero risk"
+    },
+    {
+      "slug": "adr-0044-phase-1-boot-divergence-report",
+      "status": "now",
+      "summaryMd": "Persist per-boot resolver comparison; pd db resolver-report shows identical-streak"
+    },
+    {
+      "slug": "adr-0044-phase-2-shadow-replica-and-comparator",
+      "status": "now",
+      "summaryMd": "Seed shadow via VACUUM INTO; best-effort mirror writes (never block primary); comparator diff"
+    },
+    {
+      "slug": "adr-0044-phase-3-divergence-gated-promotion",
+      "status": "now",
+      "summaryMd": "Promote default to v2 only after K clean boots + N clean comparator days; one-env-var rollback"
+    },
+    {
+      "slug": "adr-0045-phase-0-attest-core-and-report",
+      "status": "now",
+      "summaryMd": "Invariant registry + report contract (PASS/FAIL/SKIPPED/UNKNOWN, severity, honest-green scoping); pd attest CLI; exit non-zero on CRITICAL; tests"
+    },
+    {
+      "slug": "adr-0045-phase-1-checks-liveness-integrity",
+      "status": "now",
+      "summaryMd": "Liveness+integrity invariants: daemon/version/path/integrity_check/schema/test-prod-DB/backup-freshness"
+    },
+    {
+      "slug": "adr-0045-phase-2-checks-security-provenance",
+      "status": "now",
+      "summaryMd": "Crypto sign-verify self-test, keychain, actor-id enabled, DB perms; brew-hash mismatch, codesign/notarization, version==tag"
+    },
+    {
+      "slug": "adr-0045-phase-3-checks-coordination-cost",
+      "status": "now",
+      "summaryMd": "Cartographer/committed-actor up, Guard enforcing, Arbiter up, stale-claim pileup, budget runaway, backend reachable"
+    },
+    {
+      "slug": "adr-0045-phase-4-boot-regimentation",
+      "status": "now",
+      "summaryMd": "Daemon runs CRITICAL set at boot; refuse-to-serve / screaming /health; coordination alert on failure"
+    },
+    {
+      "slug": "adr-0045-phase-5-cli-preflight-loud-refusal",
+      "status": "now",
+      "summaryMd": "Integrity/crypto-dependent commands run a fast pre-flight, refuse loudly with the specific invariant + fix"
+    },
+    {
+      "slug": "adr-0045-phase-6-watchdog-and-signed-attestation",
+      "status": "now",
+      "summaryMd": "Continuous watchdog (PASS->FAIL -> pheromone+notify+FleetBar red); sign clean reports with actor identity (ADR-0040) \u2014 non-repudiable green"
+    },
+    {
+      "slug": "adr-0046-phase-0-conversation-multiplex-shell",
+      "status": "now",
+      "summaryMd": "ratatui shell: avatar pane + split/tab/move into role-labeled agent-chat panes; live /spawn+transcripts+tube; 60fps; restores terminal on panic"
+    },
+    {
+      "slug": "adr-0046-phase-1-avatar-dispatch-loop",
+      "status": "now",
+      "summaryMd": "Talk to avatar; it dispatches via tube->spawner router (#225); replies stream into panes"
+    },
+    {
+      "slug": "adr-0046-phase-2-pheromone-spray-action",
+      "status": "now",
+      "summaryMd": "Key-bound spray from any pane -> pheromones.spray/feedback.drop/tuple; git_sha_at_annotation; revoke; lineage hover"
+    },
+    {
+      "slug": "adr-0046-phase-3-hitl-roadmap-fleet-strips",
+      "status": "now",
+      "summaryMd": "HiTL bar (mayday-red reserved) + roadmap now + my-agents (GET /attention) + fleet strips"
+    },
+    {
+      "slug": "adr-0046-phase-4-canonical-token-mirror",
+      "status": "now",
+      "summaryMd": "Reconcile/delete design/tokens/primitives.json; generate Rust token mirror from tokens.semantic.css; CI fails on divergence; contrast >=AA"
+    },
+    {
+      "slug": "adr-0046-phase-5-code-heat-context-inline",
+      "status": "now",
+      "summaryMd": "On-demand inline code + per-line pheromone heat in an agent pane (single-hue ramp, truecolor->256->16, light+dark). NOT a repo browser"
+    },
+    {
+      "slug": "adr-0046-phase-6-avatar-autonomy-loop",
+      "status": "now",
+      "summaryMd": "Avatar runs a roadmap item end-to-end (worktree->PR->adversarial test->review->CI->merge->prune->done), pd attest-gated + HiTL-surfaced, validated on live daemon"
+    },
+    {
+      "slug": "adr-0046-phase-7-feel-and-blindtest",
+      "status": "now",
+      "summaryMd": "Feel pass (swoosh <=400ms, opt-in sound, reduced-motion), Commit Mono/IBM Plex/Departure Mono, 15-persona blind-test"
+    },
+    {
+      "slug": "adr-0047-phase-0-performative-envelope",
+      "status": "now",
+      "summaryMd": "Typed performative + versioned tube envelope; FIPA-narrowed vocabulary mapped to Attention-Queue lanes. Done when a tube message carries performative+conversationId+delegationChain and round-trips."
+    },
+    {
+      "slug": "adr-0047-phase-1-protocol-registry",
+      "status": "now",
+      "summaryMd": "Protocol-pattern registry (contract-net/supervisor-worker/critique-refine/debate+judge/blackboard/fan-out-fan-in/request-response) each with stop conditions, bound to spawn/sortie/review/pheromone. Done when a dispatch runs as a real Contract-Net cfp->bid->award."
+    },
+    {
+      "slug": "adr-0047-phase-2-delegation-chain",
+      "status": "now",
+      "summaryMd": "delegationChain on actor/session (ADR-0040) + loop detection (terminate on repeated task-shape; block upward delegation). Done when a ping-pong delegation is detected+terminated in a test."
+    },
+    {
+      "slug": "adr-0047-phase-3-commitment-gpgp",
+      "status": "now",
+      "summaryMd": "Enrich ADR-0041 commitments with task-relationship type+power factor+negotiability+renegotiation triggers+lifecycle; protocol selection from relationship type. Done when a commitment carries negotiability + renegotiates on a trigger."
+    },
+    {
+      "slug": "adr-0047-phase-4-deontic-termination",
+      "status": "now",
+      "summaryMd": "Bind obligation->commitment, prohibition->Arbiter, permission->capability; per-dialogue termination (quiescence/TTL/Arbiter/HiTL). Done when a dialogue terminates on quiescence and a prohibition is Arbiter-unreachable, on the live daemon."
+    },
+    {
+      "slug": "adr-0047-phase-5-render-typed-comms",
+      "status": "now",
+      "summaryMd": "Wire typed performatives into the Attention Queue + living-harbor viz so each visual (firefly/laser/leaf/distress) IS its performative. Done when the harbor renders a real cfp/award/escalate/inform stream."
+    },
+    {
+      "slug": "adr-0048-phase-0-ratify-stack",
+      "status": "now",
+      "summaryMd": "Ratify the North Star; re-anchor the implementation roadmap + ADRs 0046/0047 to the L0->L3 stack; mark L0 built. Done when the roadmap waves map 1:1 to L0->L3."
+    },
+    {
+      "slug": "adr-0048-phase-1-L1-coordination-protocol",
+      "status": "now",
+      "summaryMd": "L1: ship ADR-0047 (typed conversation/commitments/delegation) + the Arbiter jail (custom-shell corral). Done when agents coordinate via typed performatives + a tool-allowlist jail holds."
+    },
+    {
+      "slug": "adr-0048-phase-2-L2-readsurfaces",
+      "status": "now",
+      "summaryMd": "L2 SPINE: the read-surfaces \u2014 suggestibility briefings (agent read), Attention Queue (operator read), resurrection-with-memory (successor read), discovery/pd whois index. Done when tuples/pheromones/memories are READ in >=3 surfaces."
+    },
+    {
+      "slug": "adr-0048-phase-3-L2-legibility-digest",
+      "status": "now",
+      "summaryMd": "L2: the digest/legibility-with-zoom + tokens/compaction as the digest engine; the pure-ratatui operator console (ADR-0046). Done when a swarm is legible as a zoomable digest, not a PR pile."
+    },
+    {
+      "slug": "adr-0048-phase-4-L2-wedge-ship",
+      "status": "now",
+      "summaryMd": "THE WEDGE: single-player safety+assistance+accountability as the shippable product (footgun-guards, adversarial review, maintained roadmap, thoughtful landing, HiTL). Done when a solo dev would pay for it."
+    },
+    {
+      "slug": "adr-0048-phase-5-L3-identity-continuity",
+      "status": "now",
+      "summaryMd": "L3 bridge: durable identity = role + continuity (memory/checkpoint/outcome history) -> persons with registered outcomes. Done when an agent has a continuous, checkpointed identity with an outcome ledger."
+    },
+    {
+      "slug": "adr-0048-phase-6-L3-reputation",
+      "status": "now",
+      "summaryMd": "L3: reputation/Elo for agents + backends, learned-outcome routing, agentic reviews. Done when backend/agent selection uses a learned reputation score."
+    },
+    {
+      "slug": "adr-0048-phase-7-L3-federation-market",
+      "status": "now",
+      "summaryMd": "L3 platform: harbor federation (Alice's fleet) -> the work-for-hire + skill/agent marketplace on the bond ledger (anchor protocol). Done when two operators' fleets safely co-work + trade with reputation + escrow."
+    },
+    {
+      "slug": "adr-0048-phase-8-whitepapers",
+      "status": "now",
+      "summaryMd": "Deep-research whitepapers backing the North Star (legibility/Leviathan, economy/anchor, identity->reputation, tokens/compaction, discovery/guilds), building deep skills en route. Done when each layer has a cited paper."
+    },
+    {
+      "slug": "adr-0049-relay-v0",
+      "status": "done",
+      "summaryMd": "ADR-0049 Relay v0 SHIPPED: apps/relay Worker+DO, lib/relay-client.ts, pd relay (#305,#336,#355). Was untracked."
+    },
+    {
+      "slug": "adr-0050-coast-guard",
+      "status": "done",
+      "summaryMd": "ADR-0050 Coast Guard SHIPPED: pd-cutter sandbox + egress cap + compulsion (#259,#281,#282,#297). Was untracked."
+    },
+    {
+      "slug": "adr-0050-phase-0-pd-cutter-wrapper",
+      "status": "now",
+      "summaryMd": "Harden the pd-cutter wrapper: Seatbelt + Landlock/seccomp + egress request/byte cap + receipt + honest-limits disclosure. Done when pd-cutter confines secrets + hard-caps egress on macOS+Linux."
+    },
+    {
+      "slug": "adr-0050-phase-1-secret-broker",
+      "status": "now",
+      "summaryMd": "Secret broker: agent env holds no raw key; broker injects into the outbound call. Done when reading .env.local yields nothing useful."
+    },
+    {
+      "slug": "adr-0050-phase-2-dollar-metering",
+      "status": "now",
+      "summaryMd": "Dollar-accurate metering: local CA + MITM parsing provider usage fields; fixes budget-guard self-report. Done when the cap is real USD."
+    },
+    {
+      "slug": "adr-0050-phase-3-signed-outcome-format",
+      "status": "now",
+      "summaryMd": "The portable operator-signed outcome-record FORMAT (OCI play) + Enclave/TPM signing + transparency log. Done when any party verifies a receipt without trusting Port Daddy."
+    },
+    {
+      "slug": "adr-0050-phase-4-real-isolation",
+      "status": "backlog",
+      "summaryMd": "Real isolation vs the malicious case: separate UID / Virtualization.framework + pf forced egress. Done when an agent that unset HTTPS_PROXY still cannot egress/read secrets (live-tree tradeoff documented)."
+    },
+    {
+      "slug": "adr-0050-phase-5-littlesnitch-policy",
+      "status": "backlog",
+      "summaryMd": "Per-agent network policy (LittleSnitch-style allow/deny by host) + operator prompt surface. Done when each agent's egress is scoped to named hosts."
+    },
+    {
+      "slug": "adr-0050-phase-6-team-rollup",
+      "status": "backlog",
+      "summaryMd": "Paid Trust tier: roll receipts up to a team policy-and-audit plane. Done when an eng lead sees every agent's signed record across the team."
+    },
+    {
+      "slug": "adr-0050-phase-7-compulsion",
+      "status": "backlog",
+      "summaryMd": "feat(coast-guard): rent\u2192slash advisory-only \u2014 pure policy + breach ledger (ADR-0050 ph7)"
+    },
+    {
+      "slug": "adr-0090-database-distribution",
+      "status": "now",
+      "summaryMd": "ADR-0090 DB distribution plan"
+    },
+    {
+      "slug": "adr-0090-phase-4-shared-board-db-across-profiles",
+      "status": "now",
+      "summaryMd": "Split runtime-local tables (ports/locks) from shared board tables so brew+dev daemons read ONE board DB"
+    },
+    {
+      "slug": "adr-0090-phase-5-change-event-journal",
+      "status": "backlog",
+      "summaryMd": "Per-row HLC-stamped, class-tagged change-events into a local outbox (no transport yet)"
+    },
+    {
+      "slug": "adr-0090-phase-6-roadmap-snapshot-and-ci-seed",
+      "status": "backlog",
+      "summaryMd": "pd roadmap snapshot -> committed JSON; seed CI smoke + roadmap-link gate from it"
+    },
+    {
+      "slug": "adr-0090-phase-7-r2-snapshot-backend",
+      "status": "backlog",
+      "summaryMd": "lib/backup-backends/r2.ts: encrypted VACUUM-INTO snapshot up/download keyed by account"
+    },
+    {
+      "slug": "adr-0090-phase-8-sync-channels-over-relay",
+      "status": "backlog",
+      "summaryMd": "Publish change-event envelopes to _sync:<class>; subscribe with from_seq; fold G-Set/LWW per card scope"
+    },
+    {
+      "slug": "adr-0090-phase-9-multi-machine-replica-and-bootstrap",
+      "status": "backlog",
+      "summaryMd": "Second device: pair, R2 snapshot pull, replay since HLC, revocation <=5s"
+    },
+    {
+      "slug": "adr-0092-l2-local-edit-gate",
+      "status": "now",
+      "summaryMd": "ADR-0092 first local L2 slice: PreToolUse edit-moment suggestibility dial enforces coordinate-before-you-cut before cloud federation."
+    },
+    {
+      "slug": "agent-harness-installer-roster",
+      "status": "backlog",
+      "summaryMd": "Expose Giant Squid hook installation and spawn hook injection as the enforceable Port Daddy agent harness layer. PR #624 now documents runtime setup, project hook arming, Squid bridge launch, MCP/Pilot install, and FleetBar as separate install surfaces, with tests for Claude/Codex/Gemini/Antigravity hook config writes."
+    },
+    {
+      "slug": "ast-a0-intra-file-call-edges",
+      "status": "done",
+      "summaryMd": "SHIPPED (#468/#544): parseFile extracts intra-file calls edges so blast-radius + signature conflicts fire within a file. Cross-file is ast-a1-1."
+    },
+    {
+      "slug": "ast-a1-1-cross-file-resolution",
+      "status": "merge",
+      "summaryMd": "A1.1 cross-file import resolution \u2014 KEYSTONE. PR #576: resolveImportSpecifier (filesystem-verified relative+baseUrl; externals stay raw). Unblocks ast-a1-3/a2-1/a3-1. Follow-ups: tsconfig paths globs, Python module resolution."
+    },
+    {
+      "slug": "ast-a1-2-references-edges",
+      "status": "backlog",
+      "summaryMd": "A1.2 Produce the declared-but-empty 'references' edge (type/identifier uses that name a symbol without calling it). Done when a type-only reference yields a references dep + unit test."
+    },
+    {
+      "slug": "ast-a1-3-cross-file-call-resolution",
+      "status": "backlog",
+      "summaryMd": "A1.3 Extend extractCallEdges to resolve callees imported from other files via ast-a1-1's resolver. Done when blast-radius includes callers in other files + integration test."
+    },
+    {
+      "slug": "ast-a1-4-incremental-index-refresh",
+      "status": "backlog",
+      "summaryMd": "A1.4 Keep the symbol index current as files change (re-parse dirty files only). Done when editing one file updates only its rows and stale edges are gone."
+    },
+    {
+      "slug": "ast-a1-5-graph-integrity-auditor",
+      "status": "backlog",
+      "summaryMd": "A1.5 Check symbol_dependencies for dangling targets/orphans after deletes; counts reconcile. Done when a pd-doctor-style check flags a corrupted row."
+    },
+    {
+      "slug": "ast-a2-1-symbol-claim-isolation-validator",
+      "status": "backlog",
+      "summaryMd": "A2.1 Pre-flight: run predictConflicts vs live claims before a symbol claim; refuse/warn on blocking overlaps. Done when a 2nd modify-claim on a contended symbol is blocked/warned on the live daemon."
+    },
+    {
+      "slug": "ast-a2-2-symbol-graph-visualization",
+      "status": "backlog",
+      "summaryMd": "A2.2 Render graph_edges as a navigable symbol/dependency graph (pd-console pane + GET /symbols/graph). Done when an operator sees a symbol, its blast radius, and contended claims; visual artifact on PR."
+    },
+    {
+      "slug": "ast-a2-3-predict-conflicts-session-preflight",
+      "status": "backlog",
+      "summaryMd": "A2.3 Wire POST /conflicts/predict into the session claim flow + advisor (category:symbol) so conflicts surface in pd briefing/attention. Done when claiming overlapping symbols emits a symbol-category advice."
+    },
+    {
+      "slug": "ast-a3-1-surface-map",
+      "status": "backlog",
+      "summaryMd": "A3.1 Build lib/surface-map.ts: map a session's git diff hunks onto AST symbols, emitting the TouchedRegion[] surface-overlap.ts already consumes. Done when a real diff yields per-symbol touched regions + unit test."
+    },
+    {
+      "slug": "ast-a3-2-surface-overlap-broker",
+      "status": "backlog",
+      "summaryMd": "A3.2 Periodically run detectSymbolOverlaps across active sessions' surface maps and raise advisories. Done when two sessions editing the same function WITHOUT symbol claims get a heads-up."
+    },
+    {
+      "slug": "ast-a3-3-surface-scan-multiworktree",
+      "status": "backlog",
+      "summaryMd": "A3.3 Finish surface-scan diff-path resolution (landed in #463) for the multi-worktree case. Done when surface scan is correct across worktrees + regression test."
+    },
+    {
+      "slug": "ast-a4-1-go-rust-grammars",
+      "status": "parked",
+      "summaryMd": "A4.1 (optional) Wire tree-sitter-go / tree-sitter-rust + extraction (symbols, imports, intra-file calls). Done when a Go and Rust file parse with symbols + call edges."
+    },
+    {
+      "slug": "cloudflare-agent-telemetry-unified-reporting",
+      "status": "now",
+      "summaryMd": "Cloudflare/GitHub App remote agent telemetry appears in the same fleet, agent, and spend reports as local agents."
+    },
+    {
+      "slug": "codex-homepage-hero-followup",
+      "status": "backlog",
+      "summaryMd": "Harden marketing visuals and asset integrity"
+    },
+    {
+      "slug": "codex-session-takeover-legibility",
+      "status": "backlog",
+      "summaryMd": "fix(sessions): make takeover successor the active context"
+    },
+    {
+      "slug": "feat-pd-console-operator-chat",
+      "status": "backlog",
+      "summaryMd": "feat(pd-console): operator chat surface (real tube transport + GPUI text input)"
+    },
+    {
+      "slug": "fleet-hitl-proposal-queue",
+      "status": "backlog",
+      "summaryMd": "Add fleet HITL proposal queue"
+    },
+    {
+      "slug": "fleetbar-visual-task-intake",
+      "status": "backlog",
+      "summaryMd": "feat(fleetbar): add visual task intake"
+    },
+    {
+      "slug": "gpui-agent-observatory",
+      "status": "backlog",
+      "summaryMd": "Build a Rust GPUI agent observatory after daemon endpoints exist: list daemon-launched harnessed sessions, distinguish fleet infrastructure agents from merchant task agents, stream persisted transcripts, show Port Daddy hook activity and operator-only fleet overlays, and allow jumping into a live harnessed agent REPL without losing auditability."
+    },
+    {
+      "slug": "harbor-editor",
+      "status": "now",
+      "summaryMd": "Harbor Editor \u2014 cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
+    },
+    {
+      "slug": "io-wiring",
+      "status": "now",
+      "summaryMd": "Wire the pluggable trigger/output registry into the fleet engine so fleet agents can fire on and emit to file, webhook, notify, email, SMS, iMessage and calendar \u2014 not just singular trigger:/schedule:. Phased: io-wiring-phase-1..5."
+    },
+    {
+      "slug": "io-wiring-phase-1-registry-engine",
+      "status": "merge",
+      "summaryMd": "PHASE 1 (PR #539): registry->engine seam (lib/fleet/io-dispatch.ts); plural triggers:/outputs: parsing; proven end-to-end on the file channel; 37 io-wiring + 5 engine tests."
+    },
+    {
+      "slug": "io-wiring-phase-2-webhook-notify-health-board",
+      "status": "backlog",
+      "summaryMd": "PHASE 2: webhook IN receiver + macOS notify OUT end-to-end; pd fleet sources health board. No external creds."
+    },
+    {
+      "slug": "io-wiring-phase-3-email-out-smtp",
+      "status": "backlog",
+      "summaryMd": "PHASE 3: Email OUT over SMTP. Needs SMTP creds + consent gating."
+    },
+    {
+      "slug": "io-wiring-phase-4-email-in-sms",
+      "status": "backlog",
+      "summaryMd": "PHASE 4: Email IN (IMAP) + SMS (Twilio). Needs IMAP + Twilio creds."
+    },
+    {
+      "slug": "io-wiring-phase-5-imessage-calendar",
+      "status": "backlog",
+      "summaryMd": "PHASE 5: iMessage (macOS FDA) + Calendar (CalDAV / OAuth / EventKit). Platform-gated."
+    },
+    {
+      "slug": "pd-safe-scan",
+      "status": "backlog",
+      "summaryMd": "feat(safe): pd safe \u2014 the AI sniffer (Phase A read-only posture scan + Phase B secret corral, ADR-0088)"
+    },
+    {
+      "slug": "pd-session-coordination-hardening",
+      "status": "now",
+      "summaryMd": "Fix pd session coordination: begin-hang, resolver divergence (PPID/TTY slot), MCP lifecycle parity (#556)"
+    },
+    {
+      "slug": "roadmap-delete-verb-and-harbor-fix",
+      "status": "backlog",
+      "summaryMd": "Shepherd PR #558: roadmap delete verb, DELETE route, and project-harbor default; takeover rebase after stale session release."
+    },
+    {
+      "slug": "roadmap-link-gate",
+      "status": "now",
+      "summaryMd": "Non-blocking CI gate: every PR declares its roadmap item (committed snapshot + label\u2192human-approval fallback + loud-on-broken). Daemon is the only writer; CI reads the mirror."
+    },
+    {
+      "slug": "seeded-daemon-fleet-console-lanes",
+      "status": "backlog",
+      "summaryMd": "feat: seeded daemon fleet + FleetBar console links/chrome + cut-and-rebuild orchestrator"
+    },
+    {
+      "slug": "session-takeover-legibility",
+      "status": "backlog",
+      "summaryMd": "Make non-destructive session takeover legible and operational: successor sessions preserve agent identity and become the CLI current context, so subsequent whoami, note, file-claim, and done commands target the successor rather than stale predecessor state."
+    },
+    {
+      "slug": "squid-contract-harness-daemon-boot-fix",
+      "status": "backlog",
+      "summaryMd": "feat(squid): harden bridge and document agent harness"
+    },
+    {
+      "slug": "suggest-b1-1-suggestions-table",
+      "status": "backlog",
+      "summaryMd": "B1.1 Migration for suggestions(agent_id,kind,payload,confidence,status,created_at,acted_on_at,muted_until) per ADR-0039 + CRUD. Done when schema migrates clean + unit test."
+    },
+    {
+      "slug": "suggest-b1-2-topical-classifier",
+      "status": "backlog",
+      "summaryMd": "B1.2 lib/agent-context-classifier.ts (ADR-0039 P1): periodic Haiku call over purpose+notes+claims+diff -> topic+embedding(MiniLM)+surface claims on agent:context tuple. Done when active session gets topic+embedding each tick; cost-bounded; unit test."
+    },
+    {
+      "slug": "suggest-b2-1-suggestion-broker",
+      "status": "backlog",
+      "summaryMd": "B2.1 lib/suggestion-broker.ts (ADR-0039 P2): scan classifier outputs; confidence floor, per-(agent,kind) cooldown, mute list. Done when candidates generated, deduped, respect cooldown/mute; deterministic unit test."
+    },
+    {
+      "slug": "suggest-b2-2-candidate-generators",
+      "status": "backlog",
+      "summaryMd": "B2.2 The 4 kinds: group-chat-proposal, prior-art-doc, claim-overlap-headsup, salvage-candidate. Done when each generator fires on a crafted fixture."
+    },
+    {
+      "slug": "suggest-b3-1-pd-suggestion-cli-attention",
+      "status": "backlog",
+      "summaryMd": "B3.1 Deliver via pd attention; pd suggestion {accept,decline,mute}. Done when a generated suggestion appears in attention and can be acted on end-to-end. NOTE: new CLI verb trips the 6 parity gates."
+    },
+    {
+      "slug": "suggest-b3-2-fleet-yml-optin",
+      "status": "backlog",
+      "summaryMd": "B3.2 pd-fleet.yml suggestions:{enabled:true} gate; broker opt-in per project, default off. Done when broker only runs when enabled."
+    },
+    {
+      "slug": "visual-task-agent-intake",
+      "status": "now",
+      "summaryMd": "FleetBar/Fleet Control Center visual task intake should let operators send annotated screenshots or page context to agents without exposing dispatch/worker internals."
+    }
+  ]
+}

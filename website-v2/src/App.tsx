@@ -1,6 +1,6 @@
 import './App.css'
 import { Hero } from '@/components/landing/Hero'
-import { FeaturedMarquee } from '@/components/landing/FeaturedMarquee'
+import { ScopeLadderSection } from '@/components/landing/ScopeLadderSection'
 import { CliBackendValueProp } from '@/components/landing/CliBackendValueProp'
 import { TubeShowcase } from '@/components/landing/TubeShowcase'
 import { TubeMultiplexSection } from '@/components/landing/TubeMultiplexSection'
@@ -36,7 +36,7 @@ export default function App() {
             7. Features        — catalog after the reader has context
         */}
         <Hero />
-        <FeaturedMarquee />
+        <ScopeLadderSection />
         <CliBackendValueProp />
         <TerminalDemos />
         <CoordinationEnforcementSection />

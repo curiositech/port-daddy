@@ -6,6 +6,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
     case roadmap
     case nightshift
     case agents
+    case visual
     case resources
     case activity
     case channels
@@ -24,6 +25,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         case .roadmap: return "Roadmap"
         case .nightshift: return "Nightshift"
         case .agents: return "Agents"
+        case .visual: return "Visual Task"
         case .resources: return "Resources"
         case .activity: return "Activity"
         case .channels: return "Channels"
@@ -42,6 +44,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         case .roadmap: return "map"
         case .nightshift: return "moon.stars.fill"
         case .agents: return "person.3"
+        case .visual: return "viewfinder"
         case .resources: return "gauge"
         case .activity: return "waveform.path.ecg"
         case .channels: return "dot.radiowaves.left.and.right"

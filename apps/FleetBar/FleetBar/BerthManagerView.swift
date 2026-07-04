@@ -41,7 +41,11 @@ struct BerthManagerView: View {
         }
         .padding(.horizontal, Fleet.Space.l)
         .padding(.vertical, Fleet.Space.m)
-        .task { await berthStore.refresh() }
+        .task {
+            await berthStore.refresh()
+            // Keep the list live while the popover is open; cancels on close.
+            await berthStore.autoRefreshLoop()
+        }
     }
 
     private var header: some View {

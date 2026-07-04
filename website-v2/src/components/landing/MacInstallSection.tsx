@@ -1,77 +1,85 @@
 import { Link } from 'react-router-dom'
-import { Boxes, Cpu, PlugZap, Sparkles, Terminal, Wrench } from 'lucide-react'
+import { Check, Copy, Cpu, PlugZap, ShieldCheck, Terminal, Wrench } from 'lucide-react'
 import {
   CopyableCommandBlock,
-  DocsCodeBlock,
   PageContainer,
   PanelBody,
   PanelEyebrow,
   PanelTitle,
   SurfacePanel,
 } from '@/components/site/primitives'
+import { ProductLogoLockup, type ProductLogoKey } from '@/components/site/ProductLogos'
+import { ThemedImage } from '@/components/site/ThemedImage'
 import { MCP_TOOL_TOTAL } from '@/data/mcp'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
 /**
- * MacInstallSection — the single install story for Port Daddy on a Mac, folded
- * onto the Mac-app page (this replaces the retired standalone "Skills + MCP"
- * page). One `brew install … && pd setup` brings the daemon, the CLI, the MCP
- * server, the Port Daddy skill, and FleetBar; `pd mcp install` wires the MCP
- * into whichever agent you run.
- *
- * Every command here is quoted verbatim from the product's own README
- * (/Users/erichowens/coding/port-daddy/README.md) and is covered by the Mac
- * install contract test, so the page cannot drift from what actually installs.
- * Components that are NOT yet on Homebrew (the Rust core build, the Shipwright
- * GUI) are stated honestly rather than implied.
+ * MacInstallSection is the single public install story: run setup, let doctor
+ * repair problems, and use Squid only when you intentionally want a compatibility
+ * bridge. FleetBar is installed by setup, so this page does not ask humans to
+ * perform manual app-install work.
  */
 
-interface Piece {
+type InstallLane = {
   icon: typeof Cpu
-  name: string
-  what: ReactNode
-  how: string
+  badge: string
+  title: string
+  body: ReactNode
+  command: string
 }
 
-const BREW_ONE_LINER = 'brew install curiositech/tap/port-daddy && pd setup'
+const SETUP_COMMAND = 'pd setup'
+const DOCTOR_COMMAND = 'pd doctor'
+const SQUID_BRIDGE_COMMAND = 'pd squid codex --tier strong'
+const MCP_AGENT_LOGOS: ProductLogoKey[] = ['claude', 'codex', 'cursor', 'windsurf']
 
-const PIECES: Piece[] = [
+const INSTALL_LANES: InstallLane[] = [
   {
     icon: Cpu,
-    name: 'The daemon',
-    what: 'The local coordination kernel — claims, sessions, ports, pub/sub. Runs from a signed binary, not a source server.',
-    how: 'pd setup installs it',
+    badge: 'Default',
+    title: 'Install and connect everything',
+    body: (
+      <>
+        Starts the local daemon, installs the <Mono>pd</Mono> CLI, connects MCP, refreshes the Port Daddy Pilot skill,
+        installs FleetBar, and adds Squid hooks plus Coordination Guard to the current project.
+      </>
+    ),
+    command: SETUP_COMMAND,
   },
   {
-    icon: Terminal,
-    name: 'The CLI (pd)',
-    what: 'Everything you type: pd claim, pd session, pd tube, pd salvage. Also carries the MCP stdio server in-process.',
-    how: 'brew or npm install -g port-daddy',
+    icon: Wrench,
+    badge: 'Repair',
+    title: 'Let doctor fix it',
+    body: (
+      <>
+        Checks whether hooks, skills, MCP wiring, FleetBar, and the daemon still match the project. When something is
+        missing or user-edited, doctor explains the concern and shows the fix.
+      </>
+    ),
+    command: DOCTOR_COMMAND,
   },
   {
     icon: PlugZap,
-    name: 'The MCP server',
-    what: (
+    badge: 'Optional',
+    title: 'Bridge a Claude-shaped client',
+    body: (
       <>
-        {MCP_TOOL_TOTAL}+ tools your agent calls directly. <Mono>pd mcp install</Mono> auto-configures Claude Code,
-        Claude Desktop, Cursor, Windsurf, VS Code, Continue, and Cline.
+        Starts a local Anthropic-compatible bridge, launches the default Claude-shaped client, and routes the work
+        through Codex CLI at the requested capability tier. This is a compatibility layer, not Claude auth.
       </>
     ),
-    how: 'pd mcp install',
-  },
-  {
-    icon: Sparkles,
-    name: 'The Port Daddy skill',
-    what: 'The SKILL.md + references that teach an agent the coordination protocol. pd setup refreshes the symlinks for you.',
-    how: 'pd setup links it',
-  },
-  {
-    icon: Boxes,
-    name: 'FleetBar (the Mac app)',
-    what: 'The menu-bar window above. Installed by pd setup, or download the signed build directly and verify its checksum.',
-    how: 'pd setup, or signed .zip',
+    command: SQUID_BRIDGE_COMMAND,
   },
 ]
+
+const INCLUDED = [
+  { name: 'Daemon', detail: 'Local coordination kernel for sessions, ports, claims, notes, tubes, and salvage.' },
+  { name: 'CLI', detail: 'The operator and agent command surface, including the MCP stdio server.' },
+  { name: 'MCP', detail: `${MCP_TOOL_TOTAL}+ tools for Claude Code, Codex CLI, Gemini CLI, Cursor, Windsurf, VS Code, Continue, and Cline.` },
+  { name: 'Pilot', detail: 'Shared Port Daddy agent skill and Pilot definitions that teach agents the contract.' },
+  { name: 'FleetBar', detail: 'The Mac menu-bar app, installed by setup as part of the default path.' },
+  { name: 'Hooks', detail: 'Local pre-turn briefing, pre-tool safety gate, and post-tool coordination trace.' },
+] as const
 
 export function MacInstallSection() {
   return (
@@ -81,99 +89,121 @@ export function MacInstallSection() {
       className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]"
     >
       <PageContainer width="wide">
-        <div className="max-w-[52rem] space-y-[var(--space-4)]">
-          <PanelEyebrow>Install — skills, MCP, and the app</PanelEyebrow>
-          <PanelTitle as="h2" size="display" className="max-w-[20ch]">
-            Everything from one <span className="text-[var(--brand-primary)]">brew install</span>.
+        <div className="max-w-[54rem] space-y-[var(--space-4)]">
+          <PanelEyebrow>Install — runtime, hooks, Squid, MCP, and the app</PanelEyebrow>
+          <PanelTitle as="h2" id="install-heading" size="display" className="max-w-[19ch]">
+            One setup command. One health command.
           </PanelTitle>
-          <PanelBody className="max-w-[46rem] text-[length:var(--text-lg)]">
-            One command sets up the daemon, the <Mono>pd</Mono> CLI, the MCP server, the Port Daddy skill, and the
-            FleetBar menu-bar app. Then one more wires the MCP into whatever agent you run. No accounts, no cloud —
-            it all runs on your machine.
+          <PanelBody className="max-w-[48rem] text-[length:var(--text-lg)]">
+            Run <Mono>pd setup</Mono> once. It installs the local runtime, FleetBar, MCP, skills, hooks, and project checks
+            for the current project. Run <Mono>pd doctor</Mono> when any of those pieces stop lining up. Squid is
+            optional, for people who intentionally want Claude-shaped traffic backed by another runner.
           </PanelBody>
         </div>
 
-        {/* The one-liner. */}
-        <div className="mt-[var(--space-6)] max-w-[52rem]">
-          <CopyableCommandBlock label="Install everything (macOS)" command={BREW_ONE_LINER} />
+        <div className="mt-[var(--space-6)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:items-stretch">
+          <SurfacePanel className="flex flex-col justify-between gap-[var(--space-4)]">
+            <div className="space-y-[var(--space-3)]">
+              <PanelEyebrow>Default path</PanelEyebrow>
+              <PanelTitle as="h3" size="card" className="max-w-[19ch]">
+                Bring the project online.
+              </PanelTitle>
+              <PanelBody size="compact" className="max-w-none">
+                Setup starts the daemon, CLI, MCP, Pilot, FleetBar, and project hooks. It names
+                what it installs and keeps the privacy boundary local: hooks do not log or retain user transcripts.
+              </PanelBody>
+            </div>
+            <CopyableCommandBlock label="Install this project" command={SETUP_COMMAND} />
+          </SurfacePanel>
+
+          <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+            <ThemedImage
+              src="/img/generated/install-one-command.webp"
+              alt="A Port Daddy ship-control-room illustration: sailors pull one setup lever, the daemon and app modules light up, and cables route them into agent stations."
+              className="aspect-[16/9] w-full object-cover"
+              loading="eager"
+            />
+            <figcaption className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--type-meta-size)] font-semibold leading-snug text-[var(--text-secondary)]">
+              Setup brings the runtime aboard and connects the project. Doctor checks it when tools, hooks, or skills stop lining up.
+            </figcaption>
+          </figure>
         </div>
 
-        {/* What that one line brings. */}
-        <div className="mt-[var(--space-6)] grid gap-[var(--space-4)] md:grid-cols-2 lg:grid-cols-3">
-          {PIECES.map((piece) => (
-            <SurfacePanel key={piece.name} className="flex flex-col gap-[var(--space-3)]">
-              <div className="flex items-center gap-[var(--space-3)]">
-                <span className="inline-flex h-[32px] w-[32px] shrink-0 items-center justify-center border-2 border-[var(--brand-primary)] text-[var(--brand-primary)]">
-                  <piece.icon size={18} aria-hidden="true" />
+        <div className="mt-[var(--space-6)] grid gap-[var(--space-4)] md:grid-cols-3">
+          {INSTALL_LANES.map((lane) => (
+            <SurfacePanel key={lane.title} className="flex flex-col gap-[var(--space-3)]">
+              <div className="flex items-start justify-between gap-[var(--space-3)]">
+                <span className="inline-flex h-[34px] w-[34px] shrink-0 items-center justify-center border-2 border-[var(--brand-primary)] text-[var(--brand-primary)]">
+                  <lane.icon size={18} aria-hidden="true" />
                 </span>
-                <PanelTitle as="h3" size="card" className="normal-case">
-                  {piece.name}
-                </PanelTitle>
+                <PanelEyebrow className="text-right text-[var(--brand-primary)]">{lane.badge}</PanelEyebrow>
               </div>
+              <PanelTitle as="h3" size="card" className="normal-case">
+                {lane.title}
+              </PanelTitle>
               <PanelBody size="compact" className="max-w-none">
-                {piece.what}
+                {lane.body}
               </PanelBody>
-              <code className="mt-auto block border border-[var(--border-default)] bg-[var(--surface-sunken)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] font-semibold text-[var(--brand-primary)]">
-                {piece.how}
-              </code>
+              <div className="mt-auto">
+                <CopyableInlineCommand command={lane.command} />
+              </div>
             </SurfacePanel>
           ))}
         </div>
 
-        {/* Wire it into your agent + verify. */}
-        <div className="mt-[var(--space-6)] grid gap-[var(--space-5)] lg:grid-cols-2">
-          <div className="space-y-[var(--space-3)]">
+        <div className="mt-[var(--space-6)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,1fr)_minmax(0,0.84fr)]">
+          <SurfacePanel className="space-y-[var(--space-4)]">
             <div className="flex items-center gap-[var(--space-2)]">
-              <PlugZap size={18} className="text-[var(--brand-primary)]" aria-hidden="true" />
-              <PanelEyebrow className="text-[var(--brand-primary)]">Wire the MCP into your agent</PanelEyebrow>
+              <ShieldCheck size={18} className="text-[var(--brand-primary)]" aria-hidden="true" />
+              <PanelEyebrow className="text-[var(--brand-primary)]">Included in setup</PanelEyebrow>
             </div>
-            <CopyableCommandBlock label="Configure every agent tool" command="pd mcp install" />
-            <PanelBody size="compact" className="max-w-[60ch]">
-              Detects and configures Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Continue, and Cline.
-              The full <Mono>{MCP_TOOL_TOTAL}</Mono>-tool reference lives in{' '}
+            <div className="grid gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] sm:grid-cols-2">
+              {INCLUDED.map((item) => (
+                <div key={item.name} className="bg-[var(--surface-base)] p-[var(--space-3)]">
+                  <PanelTitle as="h4" size="nav" className="max-w-none">
+                    {item.name}
+                  </PanelTitle>
+                  <PanelBody size="compact" className="mt-[var(--space-1)] max-w-none">
+                    {item.detail}
+                  </PanelBody>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {MCP_AGENT_LOGOS.map((product) => (
+                <ProductLogoLockup key={product} product={product} size="compact" />
+              ))}
+            </div>
+          </SurfacePanel>
+
+          <SurfacePanel className="space-y-[var(--space-4)]">
+            <div className="flex items-center gap-[var(--space-2)]">
+              <Terminal size={18} className="text-[var(--brand-primary)]" aria-hidden="true" />
+              <PanelEyebrow className="text-[var(--brand-primary)]">What doctor watches</PanelEyebrow>
+            </div>
+            <PanelTitle as="h3" size="card">
+              Misconfiguration should announce itself.
+            </PanelTitle>
+            <PanelBody size="compact" className="max-w-none">
+              If an agent disables hooks, edits the shared skill, loses MCP tools, or cannot reach FleetBar or the daemon,
+              doctor tells the operator which part of the setup stopped matching the project and how Port Daddy
+              can repair it.
+            </PanelBody>
+            <CopyableCommandBlock label="Check and repair drift" command={DOCTOR_COMMAND} />
+            <PanelBody size="compact" className="max-w-none">
+              Need the API shape? The full tool reference lives in{' '}
               <Link to="/docs/mcp" className="font-semibold text-[var(--brand-primary)] underline">
                 the MCP docs
               </Link>
               .
             </PanelBody>
-          </div>
-          <div className="space-y-[var(--space-3)]">
-            <div className="flex items-center gap-[var(--space-2)]">
-              <Wrench size={18} className="text-[var(--brand-primary)]" aria-hidden="true" />
-              <PanelEyebrow className="text-[var(--brand-primary)]">Verify it&rsquo;s healthy</PanelEyebrow>
-            </div>
-            <DocsCodeBlock
-              language="cli"
-              label="Verify"
-              code={'pd doctor   # check the environment\npd status   # the daemon, authoritatively'}
-            />
-            <PanelBody size="compact" className="max-w-[60ch]">
-              Prefer npm? <Mono>npm install -g port-daddy</Mono>. Want the signed app on its own? Download and
-              checksum-verify it below.
-            </PanelBody>
-          </div>
+          </SurfacePanel>
         </div>
 
-        {/* The signed direct download (verbatim from README). */}
-        <div className="mt-[var(--space-6)] max-w-[52rem] space-y-[var(--space-3)]">
-          <PanelEyebrow>Or: the signed FleetBar build, on its own</PanelEyebrow>
-          <DocsCodeBlock
-            language="cli"
-            label="Signed Mac app + checksum"
-            code={[
-              'curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64.zip',
-              'curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64.zip.sha256',
-              'shasum -a 256 -c PortDaddy-FleetBar-macOS-arm64.zip.sha256',
-              'unzip PortDaddy-FleetBar-macOS-arm64.zip',
-            ].join('\n')}
-          />
-        </div>
-
-        {/* Honest scope note — what is NOT a brew formula yet. */}
-        <p className="mt-[var(--space-5)] max-w-[60ch] text-[length:var(--type-panel-body-compact-size)] leading-relaxed text-[var(--text-muted)]">
-          Honest scope: the Rust core can be built from source (<Mono>npm run build:core</Mono>) but is not yet its
-          own Homebrew formula, and the Shipwright desktop GUI is still in development, not released. Everything
-          above ships today.
+        <p className="mt-[var(--space-5)] max-w-[62ch] text-[length:var(--type-panel-body-compact-size)] leading-relaxed text-[var(--text-muted)]">
+          Privacy boundary: local hooks are named plainly when installed. They do not log or retain user transcripts.
+          Any future transcript sync, such as phone control of the daemon, belongs behind explicit product consent,
+          encryption, and a privacy agreement.
         </p>
       </PageContainer>
     </section>
@@ -182,4 +212,33 @@ export function MacInstallSection() {
 
 function Mono({ children }: { children: ReactNode }) {
   return <code className="font-mono text-[var(--brand-primary)]">{children}</code>
+}
+
+function CopyableInlineCommand({ command }: { command: string }) {
+  const [copied, setCopied] = useState(false)
+
+  async function copyCommand() {
+    try {
+      await navigator.clipboard.writeText(command)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1400)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copyCommand}
+      className="group flex min-h-[2.75rem] w-full items-center justify-between gap-[var(--space-2)] border border-[var(--border-default)] bg-[var(--surface-sunken)] px-[var(--space-3)] py-[var(--space-2)] text-left font-mono text-[length:var(--type-meta-size)] font-semibold text-[var(--brand-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+      aria-label={`Copy command: ${command}`}
+      title={copied ? 'Copied' : `Copy ${command}`}
+    >
+      <code className="min-w-0 break-words">{command}</code>
+      <span className="inline-flex h-[1.65rem] w-[1.65rem] shrink-0 items-center justify-center border border-current bg-[var(--surface-base)]">
+        {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
+      </span>
+    </button>
+  )
 }

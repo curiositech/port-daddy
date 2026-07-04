@@ -20,6 +20,7 @@ import {
 } from '../shared/connection-tracking.js';
 import { decodeMessage, type RawDaemonMessage } from '../lib/tube.js';
 import { buildLineage, summarizeThread, renderLineageTree } from '../lib/discourse-lineage.js';
+import { shouldConvene } from '../lib/parley-trigger.js';
 
 interface MessagingRouteDeps {
   logger: {
@@ -206,16 +207,22 @@ export const messagingPlugin: FastifyPluginAsync<{ deps: MessagingRouteDeps }> =
         return { error: channelValidation.error };
       }
 
-      const { limit, conversationId } = request.query as any;
+      const { limit, conversationId, parleyCost, wastePerContradiction } = request.query as any;
       const MAX_MESSAGE_LIMIT = 2000;
       const requestedLimit = limit ? parseInt(limit as string, 10) : MAX_MESSAGE_LIMIT;
       const safeLimit = Math.min(Math.max(1, requestedLimit), MAX_MESSAGE_LIMIT);
+      // Parley costs (RCP-2a). Tunable via query; unit-scaled defaults.
+      const costs = {
+        parleyCost: Number.isFinite(parseFloat(parleyCost)) ? parseFloat(parleyCost) : 1,
+        wastePerUnresolved: Number.isFinite(parseFloat(wastePerContradiction)) ? parseFloat(wastePerContradiction) : 2,
+      };
 
       const result = messaging.getMessages((request.params as any).channel, { limit: safeLimit, after: null }) as
         { success?: boolean; messages?: Array<{ id: number; payload: unknown; contentType?: string; sender: string | null; createdAt: number }> };
 
       if (!result || result.success === false || !Array.isArray(result.messages)) {
-        return { ok: true, channel: (request.params as any).channel, digest: summarizeThread(buildLineage([])), tree: '' };
+        const emptyDigest = summarizeThread(buildLineage([]));
+        return { ok: true, channel: (request.params as any).channel, digest: emptyDigest, parley: shouldConvene(emptyDigest, costs), tree: '' };
       }
 
       let decoded = result.messages.map((m) => decodeMessage(m as RawDaemonMessage));
@@ -224,11 +231,15 @@ export const messagingPlugin: FastifyPluginAsync<{ deps: MessagingRouteDeps }> =
       }
 
       const graph = buildLineage(decoded);
+      const digest = summarizeThread(graph);
       return {
         ok: true,
         channel: (request.params as any).channel,
         ...(graph.conversationId ? { conversationId: graph.conversationId } : {}),
-        digest: summarizeThread(graph),
+        digest,
+        // RCP-2a: should the swarm convene a parley over the unresolved
+        // contradictions? P(fail)·waste·|unresolved| > parleyCost.
+        parley: shouldConvene(digest, costs),
         tree: renderLineageTree(graph),
       };
     } catch (error) {

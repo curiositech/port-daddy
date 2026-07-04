@@ -24,12 +24,13 @@ function sectionAnchor(text: string) {
 
 function exampleMetaLines(example: {
   lastReviewed: string
+  level: string
   time: string
   files: string[]
   commands: { title: string }[]
 }) {
   return [
-    `Last checked ${example.lastReviewed}. Plan on about ${example.time} the first time, reading the source included.`,
+    `${example.level} · last checked ${example.lastReviewed}. Plan on about ${example.time} the first time, reading the source included.`,
     `${example.files.length} source file${example.files.length === 1 ? '' : 's'}, ${example.commands.length} command${example.commands.length === 1 ? '' : 's'} to run. The program that sends the task stays short. The actual work happens in the agent terminal you already have open.`,
   ]
 }

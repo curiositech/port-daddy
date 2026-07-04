@@ -311,7 +311,40 @@ _pd_cmd_env() {
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]' \
-    '1:service identity:_pd_complete_services'
+    '1:env subcommand or service identity:_pd_complete_env_first'
+}
+
+# First positional of `pd env`: the `exec` subcommand PLUS the existing
+# service identities — `pd env <service>` predates `exec` and must keep
+# completing.
+_pd_complete_env_first() {
+  local -a subs
+  subs=('exec:run a command with pd-secret:// refs resolved into its env')
+  _describe 'env subcommand' subs
+  _pd_complete_services
+}
+
+# pd safe scan|baseline|fix|corral|guard  (ADR-0088 host-safety)
+_pd_cmd_safe() {
+  local -a safe_subs
+  safe_subs=(
+    'scan:read-only posture audit (0-100 score + blast radius)'
+    'baseline:triage a finding into .pd-secrets-baseline.json'
+    'fix:opt-in reversible chmod of world/group-readable crown jewels'
+    'corral:pack a detected secret into the vault + rewrite source to pd-secret://'
+    'guard:scan the staged diff for NEW secrets (--staged)'
+  )
+  if (( CURRENT == 2 )); then
+    _describe 'safe subcommand' safe_subs
+    return
+  fi
+  case "${words[2]}" in
+    scan)   _arguments '--json[structured report]' '--allow[allowlisted hosts]:hosts:' ;;
+    fix)    _arguments '--auto[apply the reversible chmod]' '--json[structured output]' ;;
+    corral) _arguments '--all[corral every detected secret]' '--apply[write (default is dry-run)]' '--json[structured output]' ;;
+    guard)  _arguments '--staged[scan the staged diff]' '--json[structured output]' '(-q --quiet)'{-q,--quiet}'[suppress output]' ;;
+    baseline) _arguments '1:action:(accept)' ;;
+  esac
 }
 
 _pd_cmd_pub() {
@@ -883,7 +916,8 @@ _pd_cmd_session() {
     'end:end a session (completed)'
     'done:end a session (alias for end)'
     'abandon:abandon a session'
-    'rm:delete a session and cascade notes/files'
+    'takeover:create successor session; preserve notes'
+    'rm:archive a session; preserve notes'
     'files:manage file claims for a session'
     'phase:set session phase (planning/in_progress/testing/etc)'
   )
@@ -925,6 +959,17 @@ _pd_cmd_session() {
             '(-q --quiet)'{-q,--quiet}'[suppress output]' \
             '1:session ID:'
           ;;
+        takeover)
+          _arguments \
+            '(-P --purpose)'{-P,--purpose}'[successor purpose]:purpose:' \
+            '(-n --note)'{-n,--note}'[takeover reason]:note:' \
+            '--lifecycle[session lifecycle]:lifecycle:(durable ephemeral)' \
+            '--no-files[do not transfer file claims]' \
+            '--no-claims[alias for --no-files]' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:predecessor session ID:'
+          ;;
         files)
           local -a files_subcmds
           files_subcmds=(
@@ -962,6 +1007,21 @@ _pd_cmd_sessions() {
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]'
+}
+
+_pd_cmd_takeover() {
+  _arguments \
+    '(-P --purpose)'{-P,--purpose}'[successor session purpose]:purpose:' \
+    '(-n --note)'{-n,--note}'[takeover reason]:note:' \
+    '(-a --agent)'{-a,--agent}'[agent ID]:agent:' \
+    '--lifecycle[session lifecycle]:lifecycle:(durable ephemeral)' \
+    '--no-files[do not transfer predecessor file claims]' \
+    '--no-claims[alias for --no-files]' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[only print successor ID]' \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:predecessor session ID:' \
+    '*:takeover note:'
 }
 
 _pd_cmd_note() {
@@ -1869,7 +1929,7 @@ _pd_cmd_secret() {
 
 _pd_cmd_roadmap() {
   _arguments \
-    '1:subcommand:(ack harvest promote upsert add touch render pop release claims)' \
+    '1:subcommand:(ack harvest promote upsert add touch render pop release claims delete rm)' \
     '2:feedback id:' \
     '--dir[project directory]:path:_files -/' \
     '--root[project root]:path:_files -/' \
@@ -2027,8 +2087,9 @@ _port_daddy() {
     'log:tail the activity log'
     'activity:show activity summary or stats'
     # Sessions & Notes
-    'session:manage a session (start/end/abandon/rm/files)'
+    'session:manage a session (start/end/abandon/takeover/rm/files)'
     'sessions:list sessions'
+    'takeover:create successor session; preserve predecessor notes'
     'note:add a quick note'
     'notes:list recent notes'
     # Agent Resurrection
@@ -2073,12 +2134,14 @@ _port_daddy() {
     'backup:durable snapshots of port-registry.db (ADR-0037)'
     'restore:restore a port-registry.db snapshot (ADR-0037)'
     'attest:honest self-report — loud-fail invariants (ADR-0045)'
+    'safe:host-safety posture audit — scan|baseline|fix (ADR-0088)'
     'shipwright:survey + propose + apply for fleet authoring'
     'pheromone:stigmergic coordination (spray, files, show, ls)'
     'ph:alias for pheromone'
     # Agent Inbox
     'inbox:agent-to-agent direct messaging inbox'
     'send:send a durable direct message to one agent'
+    'sent:read receipts for messages you sent (read + when)'
     # AI Agent Spawner + Watch
     'spawn:launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
     'spawned:list active spawned agents'
@@ -2101,6 +2164,8 @@ _port_daddy() {
     # Fleet ship-run transcripts
     'transcripts:browse fleet ship-run transcripts (list/show/cost/delete)'
     'transcript:alias for transcripts — view a single ship-run record'
+    # Squid bridge
+    'squid:run an unofficial Anthropic-compatible bridge backed by Codex CLI'
     # Cloud relay — zero-trust event fabric (ADR-0049)
     'relay:cloud relay management — configure, exchange, status (ADR-0049)'
     # Harbormaster — canonical merge-owning actor body (ADR-0037)
@@ -2108,6 +2173,7 @@ _port_daddy() {
     'hm:alias for harbormaster'
     # Harbors (named permission namespaces)
     'harbor:create, enter, leave, show, or destroy a harbor'
+    'whois:semantic skill-router — rank agents by capability × freshness'
     'harbors:list all active harbors'
     # Tuple space
     'tuple:Linda-style tuple space (out, rd, in, scan, count)'
@@ -2206,6 +2272,7 @@ _port_daddy() {
         l|list|ps|services)  _pd_cmd_list ;;
         url)                _pd_cmd_url ;;
         env)                _pd_cmd_env ;;
+        safe)               _pd_cmd_safe ;;
         tunnel)             _pd_cmd_tunnel ;;
         dns)                _pd_cmd_dns ;;
         pub|publish|broadcast) _pd_cmd_pub ;;
@@ -2222,6 +2289,7 @@ _port_daddy() {
         activity)           _pd_cmd_activity ;;
         session)            _pd_cmd_session ;;
         sessions)           _pd_cmd_sessions ;;
+        takeover)           _pd_cmd_takeover ;;
         note)               _pd_cmd_note ;;
         notes)              _pd_cmd_notes ;;
         salvage|resurrection) _pd_cmd_salvage ;;

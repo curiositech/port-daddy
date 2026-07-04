@@ -50,14 +50,19 @@ const LAUNCH_AGENTS: string = join(homedir(), 'Library', 'LaunchAgents');
 const PLIST_PATH: string = join(LAUNCH_AGENTS, `${PLIST_LABEL}.plist`);
 const BOSUN_PLIST_PATH: string = join(LAUNCH_AGENTS, `${BOSUN_PLIST_LABEL}.plist`);
 
-// macOS auto-freshness self-heal (ADR-0062). An hourly LaunchAgent runs
-// `pd self-update --tick`: it brew-upgrades + restarts the daemon onto the
-// current release and relaunches the FleetBar GUI, hands-off. This is the
-// actor that finally consumes the daemon's long-standing `binary_drift_detected`
-// warning instead of merely logging it.
+// macOS auto-freshness self-heal (ADR-0062). A LaunchAgent runs
+// `pd self-update --tick` every 15 min: it brew-upgrades + restarts the daemon
+// onto the current release and relaunches the FleetBar GUI, hands-off. This is
+// the actor that finally consumes the daemon's long-standing
+// `binary_drift_detected` warning instead of merely logging it.
 const FRESHNESS_PLIST_LABEL: string = 'com.portdaddy.freshness';
 const FRESHNESS_PLIST_PATH: string = join(LAUNCH_AGENTS, `${FRESHNESS_PLIST_LABEL}.plist`);
-const FRESHNESS_INTERVAL_SECONDS = 3600; // hourly — operator-chosen cadence (2026-06-18)
+// 15 min, tightened from hourly (2026-06-23): a published brew release must land
+// on the running machine promptly — auto-upgrade should be a *necessary*
+// consequence of pushing a new version, not an eventual one. Lower latency
+// without hammering brew; a tick is a ~6s no-op when already current and only
+// does real work when a newer release actually exists.
+export const FRESHNESS_INTERVAL_SECONDS = 900;
 const FRESHNESS_LOG_PATH: string = join(homedir(), '.port-daddy', 'logs', 'freshness.log');
 
 // Linux paths
@@ -199,6 +204,8 @@ ${programArguments}
         <string>${servicePath(...daemon.pathDirs, dirname(NODE_PATH))}</string>
         <key>PORT_DADDY_RESOURCE_DIR</key>
         <string>${__dirname}</string>
+        <key>PORT_DADDY_DB</key>
+        <string>${join(homedir(), '.port-daddy', 'port-registry.db')}</string>
     </dict>
 </dict>
 </plist>`;
@@ -240,6 +247,8 @@ function generateBosunPlist(): string {
     <dict>
         <key>PATH</key>
         <string>${servicePath(dirname(BOSUN_BINARY_PATH), dirname(NODE_PATH))}</string>
+        <key>PORT_DADDY_DB</key>
+        <string>${join(homedir(), '.port-daddy', 'port-registry.db')}</string>
     </dict>
 </dict>
 </plist>`;
@@ -261,7 +270,7 @@ function resolvePdLauncherPath(): string | null {
   return null;
 }
 
-function generateFreshnessPlist(pdPath: string): string {
+export function generateFreshnessPlist(pdPath: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -292,13 +301,15 @@ function generateFreshnessPlist(pdPath: string): string {
     <dict>
         <key>PATH</key>
         <string>${servicePath(dirname(pdPath))}</string>
+        <key>PORT_DADDY_DB</key>
+        <string>${join(homedir(), '.port-daddy', 'port-registry.db')}</string>
     </dict>
 </dict>
 </plist>`;
 }
 
 /**
- * Install the hourly auto-freshness LaunchAgent (ADR-0062). macOS-only; the
+ * Install the auto-freshness LaunchAgent (ADR-0062; 15-min cadence). macOS-only; the
  * `pd self-update` it runs is itself a no-op off macOS. Best-effort: a missing
  * `pd` launcher (e.g. a source checkout that hasn't `brew install`ed) skips
  * cleanly rather than failing the whole install.
@@ -319,7 +330,7 @@ function installFreshnessMacOS(): boolean {
   }
 
   writeFileSync(FRESHNESS_PLIST_PATH, generateFreshnessPlist(pdPath));
-  console.log(`  Wrote ${FRESHNESS_PLIST_PATH} (hourly self-update via ${pdPath})`);
+  console.log(`  Wrote ${FRESHNESS_PLIST_PATH} (self-update every ${FRESHNESS_INTERVAL_SECONDS}s via ${pdPath})`);
   return loadLaunchAgent(FRESHNESS_PLIST_LABEL, FRESHNESS_PLIST_PATH);
 }
 

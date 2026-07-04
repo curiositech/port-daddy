@@ -2,11 +2,15 @@
 //! pd-console — the operator console. Engine milestone: a headless conversation
 //! multiplexer, on the PD bus, backend-agnostic. The GPUI shell renders this next.
 //!
-//!   :new <backend> <prompt>   create a top-level agent (ollama|claude|claude-cli|
-//!                             gemini|cloudflare|codex|aider|custom)
+//!   :new <backend> <prompt>   create a plain top-level agent
+//!   :harness <backend> <prompt>
+//!                             create a Squid-harnessed tube-bound agent
 //!   :agents                   list hosted agents
 //!   :switch <n>               make agent n active
 //!   :dispatch                 show the dispatch queue (sorties awaiting review)
+//!   :lane                     show the watched agent's live work chat
+//!   :lane-message <text>      send an operator turn to the watched agent
+//!                             supports @file/@photo/@skill/@tool markers
 //!   <text>                    send a turn to the active agent (over tube)
 //!   :quit
 //!
@@ -14,13 +18,35 @@
 //! iterm2" — at the engine layer, runnable today.
 
 #[path = "../activity_pane.rs"]  mod activity_pane;
+#[path = "../active_agents_pane.rs"] mod active_agents_pane;
 #[path = "../adrs_pane.rs"]      mod adrs_pane;
 #[path = "../agent.rs"]          mod agent;
+// Audio is GUI-only at runtime, but its synth/mute logic is pure and unit-tested
+// here (the headless repl is the test gate; the GPUI bin can't be `--test`-built).
+#[allow(dead_code)]
+#[path = "../audio.rs"]          mod audio;
+#[path = "../berths.rs"]         mod berths; // named daemon picker data (ADR-0084)
+#[allow(dead_code)]
+#[path = "../buffer.rs"]         mod buffer;
+// The operator-chat MODEL is gpui-free (ChatMsg/ChatLog/ChatState) so the three
+// render states are unit-tested here, in the headless test gate.
+#[allow(dead_code)]
+#[path = "../chat.rs"]           mod chat;
+#[path = "../daemon_pane.rs"]    mod daemon_pane; // daemon picker surface (tests)
 #[path = "../claims_pane.rs"]    mod claims_pane;
+// cloud_fleet_pane is GPUI-free (no maritime/gpui), so it compiles in this bin.
+#[path = "../cloud_fleet_pane.rs"] mod cloud_fleet_pane;
 #[path = "../cockpit_pane.rs"]   mod cockpit_pane;
+#[allow(dead_code)]
+#[path = "../conjure.rs"]        mod conjure;
 #[path = "../dispatch_pane.rs"]  mod dispatch_pane;
-// fleet_pane and maritime are excluded — they pull in GPUI derive macros
-// (#[derive(IntoElement)]) which overflow the rustc stack in this non-GPUI binary.
+#[allow(dead_code)]
+#[path = "../editor_pane.rs"]    mod editor_pane;
+// maritime's gpui FlagBadge is now #[cfg(feature = "gpui")]-gated, so the pure
+// Flag/flag_for_state compile here and the fleet pane renders in the REPL too.
+#[path = "../fleet_pane.rs"]     mod fleet_pane;
+#[path = "../grid.rs"]           mod grid; // launcher-grid data + 1:1 invariant tests
+#[path = "../maritime.rs"]       mod maritime;
 #[path = "../health_pane.rs"]    mod health_pane;
 #[path = "../inbox_pane.rs"]     mod inbox_pane;
 #[path = "../lane_pane.rs"]      mod lane_pane;
@@ -30,22 +56,27 @@
 #[path = "../notes_pane.rs"]     mod notes_pane;
 #[path = "../pane.rs"]           mod pane;
 #[path = "../peek_pane.rs"]      mod peek_pane;
+#[path = "../planner_pane.rs"]   mod planner_pane;
 #[path = "../prs_pane.rs"]       mod prs_pane;
 #[path = "../roadmap_pane.rs"]   mod roadmap_pane;
 #[path = "../sessions_pane.rs"]  mod sessions_pane;
 #[path = "../substrate_pane.rs"] mod substrate_pane;
+#[path = "../parley_pane.rs"]    mod parley_pane;
 #[path = "../suggest_pane.rs"]   mod suggest_pane;
 #[path = "../term.rs"]           mod term;
 #[path = "../theme.rs"]          mod theme;
 #[path = "../util.rs"]           mod util;
 
 use agent::{AgentManager, Backend};
+use active_agents_pane::ActiveAgentsPane;
 use anyhow::Result;
 use dispatch_pane::DispatchQueuePane;
+use fleet_pane::FleetPane;
 use lane_pane::LanePane;
 use lineage_pane::LineagePane;
-use pane::PaneRegistry;
+use pane::{OperatorTurn, PaneRegistry, Subscription, SurfaceAction};
 use substrate_pane::SubstratePane;
+use parley_pane::ParleyPane;
 use std::io::{self, Write};
 use std::time::Duration;
 use term::{ColorMode, Sem, TermStyle};
@@ -70,11 +101,35 @@ fn banner(style: &TermStyle, daemon_url: &str) {
         "{}  {}",
         rail("└"),
         style.paint(
-            ":new <backend> <prompt> · :agents · :switch <n> · :dispatch · :lineage · :substrate · <text> · :quit",
+            ":harness <backend> <prompt> · :new <backend> <prompt> · :agents · :switch <n> · :lane · :lane-message <text> · :quit",
             Sem::Muted
         )
     );
     println!();
+}
+
+async fn drain_active_subscription(reg: &mut PaneRegistry, mgr: &AgentManager, window: Duration) {
+    let Some(Subscription::Agent { agent_id }) = reg.active().and_then(|p| p.subscription()) else {
+        return;
+    };
+
+    let active = reg.active;
+    let mut rx = mgr.daemon().subscribe_agent(&agent_id);
+    let deadline = tokio::time::Instant::now() + window;
+    loop {
+        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+        if remaining.is_zero() {
+            break;
+        }
+        match tokio::time::timeout(remaining, rx.recv()).await {
+            Ok(Some(env)) => {
+                if let Some(p) = reg.panes.get_mut(active) {
+                    p.on_stream(&env);
+                }
+            }
+            Ok(None) | Err(_) => break,
+        }
+    }
 }
 
 #[tokio::main]
@@ -92,9 +147,12 @@ async fn main() -> Result<()> {
     // Build the pane registry — register all panes once at startup.
     let mut reg = PaneRegistry::default();
     reg.register(Box::new(DispatchQueuePane::new()));
+    reg.register(Box::new(FleetPane::new()));
     reg.register(Box::new(LanePane::new()));
     reg.register(Box::new(LineagePane::new()));
     reg.register(Box::new(SubstratePane::new()));
+    reg.register(Box::new(ParleyPane::new()));
+    reg.register(Box::new(ActiveAgentsPane::new()));
 
     let ok = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✓", Sem::Landed));
     let err = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✗", Sem::Gated));
@@ -123,16 +181,16 @@ async fn main() -> Result<()> {
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
-        } else if line == ":lane" || line == ":interrupt" {
+        } else if line == ":lane" || line == ":interrupt" || line.starts_with(":lane-message ") || line.starts_with(":steer ") {
             // The live Lane surface (headless rendering of one tick). `:lane`
             // refreshes + renders; `:interrupt` additionally grabs the wheel —
             // POST /agents/:id/interrupt on the watched agent (the closed loop).
+            // `:lane-message` sends a normal operator turn up agent:<id>.
             reg.active = reg.panes.iter().position(|p| p.id() == "lane").unwrap_or(0);
             if let Err(e) = reg.refresh_active(mgr.daemon()).await {
                 err(&style, &format!("refresh failed: {e}"));
             }
             if line == ":interrupt" {
-                use pane::SurfaceAction;
                 match reg
                     .mutate_active(mgr.daemon(), SurfaceAction::Interrupt { reason: Some("operator stop".into()) })
                     .await
@@ -140,7 +198,26 @@ async fn main() -> Result<()> {
                     Ok(()) => ok(&style, "interrupt sent — watch the stream for control.interrupt"),
                     Err(e) => err(&style, &format!("interrupt failed: {e}")),
                 }
+            } else if let Some(text) = line
+                .strip_prefix(":lane-message ")
+                .or_else(|| line.strip_prefix(":steer "))
+                .map(str::trim)
+                .filter(|text| !text.is_empty())
+            {
+                match reg
+                    .mutate_active(
+                        mgr.daemon(),
+                        SurfaceAction::OperatorTurn {
+                            turn: OperatorTurn::parse(text),
+                        },
+                    )
+                    .await
+                {
+                    Ok(()) => ok(&style, "message sent — watch the lane for the echoed operator turn"),
+                    Err(e) => err(&style, &format!("message failed: {e}")),
+                }
             }
+            drain_active_subscription(&mut reg, &mgr, Duration::from_millis(1_200)).await;
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
@@ -164,9 +241,36 @@ async fn main() -> Result<()> {
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
+        } else if line == ":parley" {
+            // RCP-2a convene decision over the channel's unresolved contradictions.
+            reg.active = reg.panes.iter().position(|p| p.id() == "parley").unwrap_or(0);
+            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
+        } else if line == ":roster" || line == ":live-agents" {
+            reg.active = reg.panes.iter().position(|p| p.id() == "active-agents").unwrap_or(0);
+            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
+        } else if line == ":fleet" {
+            // Declarative ships from pd-fleet.yml with live lifecycle (GET /fleet):
+            // sailing / cooldown / dry-dock / paused / armed, each an ICS flag.
+            reg.active = reg.panes.iter().position(|p| p.id() == "fleet").unwrap_or(0);
+            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
         } else if line == ":agents" {
             if mgr.agents.is_empty() {
-                println!("  {}", style.paint("(no agents — :new <backend> <prompt>)", Sem::Muted));
+                println!("  {}", style.paint("(no agents — :harness <backend> <prompt>)", Sem::Muted));
             }
             for (n, a) in &mgr.agents {
                 let mark = if mgr.active == Some(*n) {
@@ -221,6 +325,37 @@ async fn main() -> Result<()> {
                         }
                     }
                     Err(e) => err(&style, &format!("spawn failed: {e}")),
+                },
+            }
+        } else if let Some(rest) = line.strip_prefix(":harness ") {
+            let mut it = rest.splitn(2, ' ');
+            let bk = it.next().unwrap_or("");
+            let prompt = it.next().unwrap_or("").trim();
+            match Backend::parse(bk) {
+                None => err(
+                    &style,
+                    &format!(
+                        "unknown backend '{bk}'. one of: {}",
+                        Backend::ALL.iter().map(|b| b.as_str()).collect::<Vec<_>>().join(" ")
+                    ),
+                ),
+                Some(backend) => match mgr.create_harnessed_agent(backend, prompt).await {
+                    Ok((n, out)) => {
+                        if let Some(reason) = out.error.filter(|_| out.status == "failed" || out.status == "blocked") {
+                            err(&style, &format!("harnessed agent {n} {} — {reason}", out.status));
+                        } else {
+                            ok(&style, &format!("harnessed agent {n} on {} ({})", backend.as_str(), out.status));
+                            println!("  {}", style.paint("squid hooks requested · use :agents then talk normally", Sem::Muted));
+                            if let Some(text) = out.output.filter(|t| !t.trim().is_empty()) {
+                                println!(
+                                    "  {} {}",
+                                    style.paint(&format!("{}:", backend.as_str()), Sem::Engaged),
+                                    text,
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => err(&style, &format!("harness spawn failed: {e}")),
                 },
             }
         } else {

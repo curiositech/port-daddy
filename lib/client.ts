@@ -911,6 +911,22 @@ interface SessionResponse {
   code?: string;
 }
 
+interface SessionTakeoverResponse {
+  success: boolean;
+  predecessorId?: string;
+  successorId?: string;
+  session?: Record<string, unknown>;
+  predecessorStatus?: string;
+  notesPreserved?: boolean;
+  claimsTransferred?: boolean;
+  releasedFiles?: string[];
+  claimedFiles?: string[];
+  conflicts?: Array<{ filePath: string; sessionId: string; purpose: string; claimedAt: number }>;
+  warnings?: string[];
+  error?: string;
+  code?: string;
+}
+
 /** Matches the actual GET /sessions/:id response */
 interface SessionDetailResponse {
   success: boolean;
@@ -1335,6 +1351,10 @@ class PortDaddy {
 
   /** @private - Resolve connection target: prefer socket, fallback to TCP */
   _resolveTarget(): ConnectionTarget {
+    if (process.env.PORT_DADDY_FORCE_TCP === '1') {
+      const url = new URL(this.url);
+      return { host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT };
+    }
     // Explicit TCP URL overrides socket
     if (process.env.PORT_DADDY_URL) {
       const url = new URL(this.url);
@@ -2356,6 +2376,47 @@ class PortDaddy {
       return ipcResult;
     }
     return this._request('DELETE', `/sessions/${sessionId}`) as Promise<{ success: boolean }>;
+  }
+
+  /**
+   * Start a successor session from an existing one without deleting its notes.
+   */
+  async takeoverSession(sessionId: string, options?: {
+    agentId?: string;
+    purpose?: string;
+    note?: string;
+    project?: string;
+    worktreeId?: string;
+    metadata?: Record<string, unknown>;
+    worktree?: Record<string, unknown>;
+    requireLinkedWorktree?: boolean;
+    allowMainWorktree?: boolean;
+    lifecycle?: 'durable' | 'ephemeral';
+    claimFiles?: boolean;
+  }): Promise<SessionTakeoverResponse> {
+    const body: Record<string, unknown> = {
+      ...(options || {}),
+      agentId: options?.agentId || this.agentId,
+    };
+    if (options?.lifecycle) {
+      body.durable = options.lifecycle === 'durable';
+      delete body.lifecycle;
+    }
+
+    const ipcResult = await this._requestViaIpc<SessionTakeoverResponse>(
+      IpcAction.SESSION_TAKEOVER,
+      {
+        sessionId,
+        ...body,
+      },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult, 'Failed to take over session', ipcResult.code === 'VALIDATION_ERROR' ? 400 : 404);
+      }
+      return ipcResult;
+    }
+    return this._request('POST', `/sessions/${sessionId}/takeover`, body) as Promise<SessionTakeoverResponse>;
   }
 
   /**

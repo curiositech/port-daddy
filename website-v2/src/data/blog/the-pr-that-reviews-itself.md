@@ -1,6 +1,6 @@
 # The PR That Reviews Itself
 
-![A hooded contributor opens a laptop and finds a kitchen brigade of six chefs already at work on their pull request, each labeled with the name of a Port Daddy review ship](/img/generated/pr-reviews-itself/hero.webp)
+![A pull request opened on a developer workstation fans out to six focused Port Daddy review agents, each returning one evidence-backed finding stream](/img/generated/pr-reviews-itself/hero.webp)
 
 It is eleven at night. You have rebased twice. You have written the commit message that you wish you had written first. You squint at the diff, run the tests one more time because the universe owes you a green, and you push.
 
@@ -65,14 +65,14 @@ The fan-out is the whole shape of it. One push, six critics, one operator at the
 
 ## Six ships, each opinionated, all on the same PR
 
-The fleet is six members because six is the number of axes that empirically matter when somebody opens a non-trivial pull request. Fewer than six and you miss a class. More than six and reviewers stop reading. The names are deliberately *human*: a ship is not a bot, it is a role in a kitchen, a role in a courtroom, a role in a chorus. Each ship has a job, a fire-condition, and a voice.
+The fleet is six members because six is the number of axes that empirically matter when somebody opens a non-trivial pull request. Fewer than six and you miss a class. More than six and reviewers stop reading. The names are deliberately *human*: a ship is not a bot, it is a role with a job, a fire-condition, and a voice.
 
 <!-- sidenote: 2 -->
-> Every ship runs on the same fleet primitive that runs the personal agents elsewhere in Port Daddy. The substrate is identical. The *opinions* are the differentiator. See [the personal fleet post](#) for the morning-briefing variant of the same pattern.
+> Every ship runs on the same fleet primitive that runs the personal agents elsewhere in Port Daddy. The substrate is identical. The *opinions* are the differentiator. See [the personal fleet post](/blog/your-ai-subscription-powers-the-fleet) for the morning-briefing variant of the same pattern.
 
 ### code-reviewer — the opinionated senior who actually read your code
 
-![A chef with a magnifying glass examining a recipe, labeled 'code-reviewer'](/img/generated/pr-reviews-itself/code-reviewer.webp)
+![A focused code-review lane compares a pull request diff against ADRs, project conventions, and severity-ranked findings](/img/generated/pr-reviews-itself/code-reviewer.webp)
 
 The `code-reviewer` ship is the one that posts the single, severity-ranked PR comment. It is loaded with **operator-priors** — your `AGENTS.md`, your project ADRs, your house style for that repo — and it reviews the diff the way a senior engineer reviews it: as someone who already has opinions and is unafraid to use them.
 
@@ -99,9 +99,9 @@ NIT (0)
 
 That is the format. The voice is the senior who actually read the diff. The blocking comment cites an ADR by number, which is how the ship signals it is not making things up.
 
-### red-team — the chef who tastes the dish for poison
+### red-team — the critic who tries the exploit first
 
-![A chef in dark apron holding a small mallet and a clipboard with a red mark, labeled 'red-team'](/img/generated/pr-reviews-itself/red-team.webp)
+![A red-team review lane traces a trust-boundary change into a scratch exploit attempt and a blocking evidence card](/img/generated/pr-reviews-itself/red-team.webp)
 
 `red-team` is sampled — not on every PR, but on every PR that touches an adversarial surface. Auth code, file-claim mutations, token issuance, anything that crosses a trust boundary. The ship's job is not to *think* about attacks. It is to **construct them**.
 
@@ -112,9 +112,9 @@ The output is an attack story. The ship writes the smallest plausible attack aga
 
 The line between this ship and the `code-reviewer` is the line between *opinion* and *evidence*. `code-reviewer` says "I think this is wrong." `red-team` says "Here is the curl command that proves it."
 
-### test-author — the chef who notices the missing dish
+### test-author — the critic who drafts the missing tests
 
-![A chef with a notepad and small pencil, labeled 'test-author', sketching plate diagrams](/img/generated/pr-reviews-itself/test-author.webp)
+![A test-author lane opens a sibling test branch from uncovered code paths added by the current pull request](/img/generated/pr-reviews-itself/test-author.webp)
 
 The `test-author` ship is downstream of `test-hunter` (which lives in the local fleet and runs continuously against `main`). When test-hunter flags an uncovered code path that the current PR has *added* code to, `test-author` opens a draft *sibling* PR with proposed tests for the path.
 
@@ -125,9 +125,9 @@ The draft sibling lands with a comment on the parent PR: *"I drafted three tests
 
 The reason this is a separate ship and not part of `code-reviewer` is that *writing* tests and *judging* tests are different skills. The `code-reviewer` is loaded with priors and is fast. The `test-author` is loaded with the codebase under test and is slow. Different prompts, different models, different cost tiers. Splitting them lets each one do the work it's actually good at.
 
-### tautology-sniffer — the chef who notices the dish tastes like the cookbook
+### tautology-sniffer — the critic who catches self-pinning tests
 
-![A chef with a measuring scale, holding a small mirror up to a plate, labeled 'tautology-sniffer'](/img/generated/pr-reviews-itself/tautology-sniffer.webp)
+![A tautology-sniffer lane compares changed tests against production reality and flags assertions that mirror the implementation](/img/generated/pr-reviews-itself/tautology-sniffer.webp)
 
 This is the most interesting ship and the one most likely to save you from yourself. `tautology-sniffer` scores every *changed test* in the PR on a single axis:
 
@@ -139,9 +139,9 @@ The ship reads each changed test, traces the assertions back to their roots, and
 
 This is the ship that catches the bug below.
 
-### tenderfoot — the chef who reads the recipe from page one
+### tenderfoot — the critic who starts from page one
 
-![A chef with no apron yet, clipboard and clean hat, labeled 'tenderfoot', reading the README binder](/img/generated/pr-reviews-itself/tenderfoot.webp)
+![A tenderfoot review lane follows onboarding instructions in a fresh worktree and records the first missing setup step](/img/generated/pr-reviews-itself/tenderfoot.webp)
 
 `tenderfoot` is the new-developer auditor. On any PR that touches the README, the install path, the docs, or any onboarding surface, this ship spins up a *fresh* worktree — no shell history, no cached credentials, no operator memory — and tries to follow the docs from scratch. End to end. Until something breaks or it gets all the way to a working setup.
 
@@ -152,9 +152,9 @@ If `tenderfoot` gets stuck — a missing step, a wrong path, a command that the 
 
 The single most valuable property of `tenderfoot` is that it *cannot* lie to you about whether the docs work. It has no incentive to. It has no ego. If the docs say `brew install foo` and the command is actually `brew install bar/tap/foo`, `tenderfoot` will say so, calmly, every time.
 
-### augur — the chef who reads the receipts
+### augur — the critic who reads the receipts
 
-![A chef with a compass and an open ledger, labeled 'augur', staring at conflicting receipts](/img/generated/pr-reviews-itself/augur.webp)
+![An augur review lane cross-checks the pull request against roadmap docs, issues, ADRs, and recent history for contradictions](/img/generated/pr-reviews-itself/augur.webp)
 
 `augur` (the name is sibling-pending; it may end up as `unspider` instead) is the contradiction-finder. Its input is not just the PR diff — it's the PR diff *plus* the roadmap docs, the recent commit history, the open issues, and the ADRs. Its job is to spot **contradictions between what the PR claims and what other documents in the repo claim is true**.
 
@@ -261,7 +261,7 @@ Three properties the operator has to be able to rely on:
 
 1. **Dismiss with reason.** Every finding has a "dismiss" button. The dismiss requires a one-line reason. The reason is stored, and the ship reads it the next time it runs on this repo. False positives get rarer, on the schedule of the operator's own annotations, not on a vendor's release cycle.
 2. **Daily cost cap.** The fleet has a single hard daily spend cap, set at install. If the fleet would cost more than the cap, it falls back to running only `code-reviewer` and `tautology-sniffer` — the two cheapest ships — and posts a small note explaining why the others didn't run. The cap is a *floor on safety*, not a budget for optimism.
-3. **The chat transcripts are visible.** Every ship's reasoning trail lands in the Port Daddy dashboard, attached to the PR. If you want to know *why* `red-team` thought your auth change was attackable, you click into the transcript. The ship can be wrong; it cannot be opaque.
+3. **The chat transcripts are visible.** Every ship's reasoning trail lands in [the Port Daddy dashboard](/blog/control-plane-is-the-product), attached to the PR. If you want to know *why* `red-team` thought your auth change was attackable, you click into the transcript. The ship can be wrong; it cannot be opaque.
 
 The civility property is also load-bearing. The ships are opinionated — that's the whole point — but they are *not* cruel. The system prompt for `code-reviewer` includes the instruction to write the comment a senior engineer would write to a colleague they respected: blunt, citing evidence, calling the change wrong when it's wrong, and *not* sneering. A paid critic is allowed to disagree. A paid critic is not allowed to be a dick.
 
@@ -275,7 +275,7 @@ Everything in this post runs on the same fleet primitive that runs the personal 
 <!-- sidenote: 12 -->
 > The unified fleet is the bet. Personal agents and dev-repo agents look like different products, but they are the same animal eating different food. Sharing the substrate means the cost model, the cap, the dashboard, and the dismiss-with-reason loop are all one system instead of six.
 
-If you want the morning-briefing version, see the [personal-fleet post](#) (sibling, in flight). If you want the CLI-backed view of how the GitHub fleet is wired into push events, see [The CLI Is For The Robots](/blog/the-cli-is-for-the-robots) and the [`/cli-backend` reference](/cli-backend).
+If you want the morning-briefing version, see the [personal-fleet post](/blog/your-ai-subscription-powers-the-fleet) (sibling, in flight). If you want the CLI-backed view of how the GitHub fleet is wired into push events, see [The CLI Is For The Robots](/blog/the-cli-is-for-the-robots) and the [`/cli-backend` reference](/cli-backend).
 
 ## Try it
 

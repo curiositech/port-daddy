@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Port Daddy Scout</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="panel">
+    <header class="header">
+      <div>
+        <div class="eyebrow">Port Daddy Scout</div>
+        <h1>Send visual issue</h1>
+      </div>
+      <div class="status" id="daemonStatus">Local</div>
+    </header>
+
+    <section class="capture">
+      <div class="capture__text">
+        <strong id="captureTitle">No capture yet</strong>
+        <span id="captureMeta">Capture the active tab or draw a region.</span>
+      </div>
+      <div class="capture__actions">
+        <button id="capturePage" type="button">Capture page</button>
+        <button id="selectRegion" type="button">Select region</button>
+      </div>
+    </section>
+
+    <label>
+      <span>Brief</span>
+      <textarea id="brief" rows="4" placeholder="What should the agent fix or investigate?"></textarea>
+    </label>
+
+    <div class="grid">
+      <label>
+        <span>Kind</span>
+        <select id="kind">
+          <option value="fix">Fix</option>
+          <option value="bug">Bug</option>
+          <option value="nit">Nit</option>
+          <option value="feedback">Feedback</option>
+          <option value="question">Question</option>
+        </select>
+      </label>
+      <label>
+        <span>Route to</span>
+        <select id="assignee">
+          <option value="local-agent">Local agent</option>
+          <option value="cloud-fleet">Cloud fleet</option>
+          <option value="review-queue">Review queue</option>
+        </select>
+      </label>
+    </div>
+
+    <label id="agentRow">
+      <span>Agent</span>
+      <input id="targetAgent" type="text" placeholder="cartographer, qa, spark">
+    </label>
+
+    <label>
+      <span>Project root</span>
+      <input id="projectDir" type="text" placeholder="/Users/me/coding/my-app">
+    </label>
+
+    <label>
+      <span>Daemon</span>
+      <input id="daemonUrl" type="text" value="http://127.0.0.1:9876">
+    </label>
+
+    <label class="check">
+      <input id="startAgent" type="checkbox">
+      <span>Ask an agent to start now</span>
+    </label>
+
+    <button class="submit" id="submitIssue" type="button">Open issue</button>
+    <p class="message" id="message"></p>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

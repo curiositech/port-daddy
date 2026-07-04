@@ -18,6 +18,7 @@ import { messagingPlugin } from './messaging.js';
 import { locksPlugin } from './locks.js';
 import { agentsPlugin } from './agents.js';
 import { agentCockpitPlugin } from './agent-cockpit.js';
+import { agentRosterPlugin } from './agent-roster.js';
 import { activityPlugin } from './activity.js';
 import { webhooksPlugin } from './webhooks.js';
 import { githubWebhookPlugin } from './github-webhook.js';
@@ -35,8 +36,10 @@ import { suggestionsPlugin } from './suggestions.js';
 import { launchPlugin } from './launch.js';
 import { spawnPlugin } from './spawn.js';
 import { attestPlugin } from './attest.js';
+import { safePlugin } from './safe.js';
 import { transcriptsPlugin } from './transcripts.js';
 import { harborsPlugin } from './harbors.js';
+import { whoisPlugin } from './whois.js';
 import { sortiesPlugin } from './sorties.js';
 import { orchestratorPlugin } from './orchestrator.js';
 import { briefingPlugin } from './briefing.js';
@@ -70,10 +73,12 @@ import { roadmapPlugin } from './roadmap.js';
 import { commitmentsPlugin } from './commitments.js';
 import { shipwrightPlugin } from './shipwright.js';
 import { usagePlugin } from './usage.js';
+import { cloudAppTelemetryPlugin } from './cloud-app-telemetry.js';
 import { testHooksPlugin } from './test-hooks.js';
 import { cockpitPlugin } from './cockpit.js';
 import { popperPlugin } from './popper.js';
 import { dispatchesPlugin } from './dispatches.js';
+import { visualTasksPlugin } from './visual-tasks.js';
 import { setupPlugin } from './setup.js';
 import { secretsPlugin } from './secrets.js';
 import { contextRoutes as contextPlugin } from './context.js';
@@ -107,6 +112,7 @@ export async function registerAllRoutes(
   await fastify.register(messagingPlugin, { deps } as any);
   await fastify.register(locksPlugin, { deps } as any);
   await fastify.register(agentsPlugin, { deps } as any);
+  await fastify.register(agentRosterPlugin, { deps } as any);
 
   // Agent Cockpit — "Watch + Grab the Wheel" Phase 0. Additive: GET
   // /agents/:id/stream (merged SSE) + POST /agents/:id/interrupt (soft steer).
@@ -156,9 +162,16 @@ export async function registerAllRoutes(
   await fastify.register(launchPlugin, { deps } as any);
   await fastify.register(spawnPlugin, { deps } as any);
   await fastify.register(attestPlugin, { deps } as any);
+  // ADR-0088 Phase A: GET /safe/scan — the read-only host-safety posture audit.
+  // The A5 trust ledger it records into is daemon-resident (bun:sqlite), so the
+  // scan lives behind the daemon and the CLI/MCP both hit this one route.
+  await fastify.register(safePlugin, { deps } as any);
   await fastify.register(transcriptsPlugin, { deps } as any);
   await fastify.register(sortiesPlugin, { deps } as any);
   await fastify.register(harborsPlugin, { deps } as any);
+  if ((deps as any).whois) {
+    await fastify.register(whoisPlugin, { deps } as any);
+  }
   await fastify.register(orchestratorPlugin, { deps } as any);
   await fastify.register(briefingPlugin, { deps } as any);
   await fastify.register(sitrepPlugin, { deps } as any);
@@ -197,6 +210,10 @@ export async function registerAllRoutes(
   if ((deps as any).counters && (deps as any).costTracker) {
     await fastify.register(observabilityPlugin, { deps } as any);
   }
+
+  // Cloud App telemetry — remote GitHub App / Cloudflare Worker events that
+  // never passed through the local spawner.
+  await fastify.register(cloudAppTelemetryPlugin, { deps } as any);
 
   // Prometheus metrics + JSON snapshots (powers /metrics dashboard page)
   if ((deps as any).metricsRegistry && (deps as any).db) {
@@ -311,6 +328,10 @@ export async function registerAllRoutes(
   if ((deps as { dispatchQueue?: unknown }).dispatchQueue) {
     await fastify.register(dispatchesPlugin, { deps } as any);
   }
+
+  // Visual task issue intake — browser/FleetBar POST /visual-tasks. This is
+  // product vocabulary over channels, blobs, inboxes, and dispatch queue writes.
+  await fastify.register(visualTasksPlugin, { deps } as any);
 
   // Context health overview — mounts when contextTracker dep is present.
   if ((deps as { contextTracker?: unknown }).contextTracker) {

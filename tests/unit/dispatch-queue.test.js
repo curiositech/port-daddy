@@ -79,6 +79,28 @@ describe('propose', () => {
     expect(d.reviewerActorId).toBe('erich');
   });
 
+  test('stores a Fleet UI visual-task proposal with a derived slug', () => {
+    const goal = [
+      'Visual task from FleetBar: fix - Button is clipped',
+      '',
+      'Payload channel: port-daddy:visual-task',
+      'Task id: visual-task-test',
+    ].join('\n');
+
+    const d = queue.propose({
+      goal,
+      requestedBy: 'fleet-ui-visual',
+      targetActorId: 'cartographer',
+      mergePolicy: 'review',
+    });
+
+    expect(d.slug).toBe('visual-task-from-fleetbar-fix-button-is-clipped-payload-chan');
+    expect(d.goal).toBe(goal);
+    expect(d.requestedBy).toBe('fleet-ui-visual');
+    expect(d.targetActorId).toBe('cartographer');
+    expect(d.mergePolicy).toBe('review');
+  });
+
   test('autoClaim lands dispatch in claimed state with claimedAt', () => {
     const d = queue.propose({
       goal: 'Prototype landing-page Bostock visualization',

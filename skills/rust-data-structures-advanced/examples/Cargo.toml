@@ -1,0 +1,25 @@
+# Runnable examples for the rust-data-structures-advanced skill.
+#   cargo run --bin slotmap_graph
+#   cargo run --bin crossbeam_pipeline
+#   cargo build            # builds both; what scripts/validate_skill.py expects to pass
+[package]
+name = "rust-data-structures-advanced-examples"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+slotmap = "1.0"
+crossbeam-channel = "0.5"
+
+[[bin]]
+name = "slotmap_graph"
+path = "slotmap_graph.rs"
+
+[[bin]]
+name = "crossbeam_pipeline"
+path = "crossbeam_pipeline.rs"
+
+[profile.dev]
+# keep example builds quick
+opt-level = 0

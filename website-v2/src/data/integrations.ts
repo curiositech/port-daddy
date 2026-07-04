@@ -22,7 +22,7 @@ export const INTEGRATIONS: Integration[] = [
       'Progressive disclosure: Claude only sees essential tools until pd_discover() is called.',
       'Session management: begin_session, end_session_full, whoami, and add_note tools built in.'
     ],
-    setupCode: `pd mcp install\n# Claude Code now has Port Daddy tools available.`
+    setupCode: `pd mcp install\n# Claude Code now has Port Daddy tools and the Pilot persona available.`
   },
   {
     id: 'cursor',
