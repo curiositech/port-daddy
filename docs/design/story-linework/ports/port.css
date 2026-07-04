@@ -322,3 +322,34 @@ main section { position: relative; }
 .rule-div { position: relative; }
 .rule-div::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
   background-image: linear-gradient(to right, transparent 0 32%, var(--hair-strong) 32% 68%, transparent 68% 100%); }
+
+/* ── signal blocks (LW-7) — ICS flag geometry, palette-mapped ──
+   The token file already names these (--signal-charlie/november/kilo/
+   uniform/victor/lima); this finally draws them. Geometry carries the
+   flag's meaning; color stays inside the story palette. Decorative
+   fields only — never under body text.
+     Kilo "I wish to communicate with you" — the coordination hero
+     Papa "all aboard, about to sail"      — install / launch moments
+     Oscar "man overboard"                 — salvage / recovery
+     Quebec "vessel healthy"               — ready / fleet health
+     Uniform "running into danger"         — warning contexts
+     November (checker) "negative"         — failure contexts        */
+.flag { --f1: var(--cobalt-slab); --f2: var(--lime); }
+.flag-kilo    { background: linear-gradient(to right, var(--f1) 0 50%, var(--f2) 50% 100%); }
+.flag-papa    { background: linear-gradient(var(--surface-base), var(--surface-base)) center / 38% 38% no-repeat, var(--f1); }
+.flag-oscar   { background: linear-gradient(to top right, var(--f1) 0 49.8%, var(--f2) 50.2% 100%); }
+.flag-quebec  { background: var(--lime); }
+.flag-uniform { background: conic-gradient(var(--f2) 0 25%, var(--f1) 25% 50%, var(--f2) 50% 75%, var(--f1) 75%); }
+.flag-november{ background: repeating-conic-gradient(var(--f1) 0 25%, var(--f2) 25% 50%) top left / 50% 50%; }
+.flag-delta   { background: linear-gradient(to bottom, var(--f2) 0 30%, var(--f1) 30% 70%, var(--f2) 70%); }
+.flag-tango   { background: linear-gradient(to right, var(--f1) 0 33%, var(--surface-base) 33% 67%, var(--f2) 67%); }
+.flag-alfa    { background: linear-gradient(to right, var(--surface-base) 0 50%, var(--f1) 50% 100%); }
+.flag-romeo   { background:
+  linear-gradient(var(--f2), var(--f2)) center / 100% 22% no-repeat,
+  linear-gradient(var(--f2), var(--f2)) center / 22% 100% no-repeat, var(--f1); }
+.flag-yankee  { background: repeating-linear-gradient(45deg, var(--f2) 0 5px, var(--f1) 5px 10px); }
+
+/* signal hoist — the wordmark spelled in flags (footer flourish) */
+.hoist { display: flex; gap: 6px; align-items: center; }
+.hoist i { display: block; width: 24px; height: 17px; border: 1px solid var(--hair-strong); }
+.hoist .gap { width: 10px; border: none; }
