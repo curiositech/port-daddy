@@ -450,6 +450,11 @@
       "summaryMd": "Add fleet HITL proposal queue"
     },
     {
+      "slug": "fleetbar-developer-id-signing",
+      "status": "backlog",
+      "summaryMd": "fix(release): Developer ID sign + notarize FleetBar.app (stop shipping a Gatekeeper-quarantined app)"
+    },
+    {
       "slug": "fleetbar-visual-task-intake",
       "status": "backlog",
       "summaryMd": "feat(fleetbar): add visual task intake"
