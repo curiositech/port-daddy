@@ -1,9 +1,37 @@
 ---
+license: Apache-2.0
 name: distributed-tracing-w3c-context
-description: Implementing distributed tracing with W3C Trace Context — the byte-precise `traceparent` and `tracestate` header formats, OpenTelemetry's W3CTraceContextPropagator as the modern default (replacing X-B3-* and X-Datadog-*), head vs tail sampling, and HTTP→SQL trace propagation via sqlcommenter. Grounded in the W3C REC and OpenTelemetry specs.
-category: Observability
-tags: [observability, tracing, opentelemetry, w3c-trace-context, traceparent, sampling, sqlcommenter]
+description: Implementing distributed tracing with W3C Trace Context — the byte-precise `traceparent` and `tracestate` header formats, OpenTelemetry's W3CTraceContextPropagator as the modern default (replacing X-B3-* and X-Datadog-*), head vs tail sampling, and HTTP→SQL trace propagation via sqlcommenter. Grounded in the W3C REC and OpenTelemetry specs. NOT for OTel metrics/logs pipelines, vendor backend setup (Datadog/Honeycomb/Jaeger/Tempo), or browser RUM tracing.
 allowed-tools: Read, Grep, Glob, Edit, Write, Bash(grep:*, rg:*, curl:*)
+metadata:
+  category: Observability
+  tags: [observability, tracing, opentelemetry, w3c-trace-context, traceparent, sampling, sqlcommenter]
+  pairs-with:
+    - skill: logging-observability
+      reason: Trace IDs propagated here become the correlation keys stamped into structured logs so a slow span links to its log lines.
+    - skill: observability-apm-expert
+      reason: Owns the APM backend and dashboards that consume the sampled traces this skill's propagation and sampling design produces.
+    - skill: monitoring-stack-deployer
+      reason: Deploys the OTel Collector where tail-sampling and probabilistic-sampler processors from this skill's recipes actually run.
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: tracing-requirement
+        format: markdown
+        description: The service topology, existing propagation headers (B3/X-Ray/vendor), trace volume, and the debugging questions traces must answer.
+      - kind: trace-propagation-plan
+        format: json
+        description: A structured plan naming the propagator, sampling strategy, sqlcommenter posture, and tracestate hygiene, matching schemas/trace-propagation-plan.schema.json.
+    produces:
+      - kind: propagation-design
+        format: markdown
+        description: The propagator + sampling architecture with migration steps (composite propagator window) and boundary test assertions.
+      - kind: trace-propagation-audit
+        format: json
+        description: A deterministic pass/fail audit of the trace-propagation-plan against this skill's Quality Gates, as produced by scripts/trace_propagation_audit.mjs.
 ---
 
 # Distributed Tracing with W3C Trace Context
@@ -278,6 +306,31 @@ A tracing change ships when:
 - [ ] **Test (sqlcommenter, if enabled):** A slow query log line includes the `traceparent` comment, and the trace_id matches the HTTP span that triggered it.
 - [ ] **Test:** Composite propagator (during migration) correctly extracts from both W3C and legacy headers — fixture for each shape.
 - [ ] **Manual:** Trace storage cost projection sized for current sampling rate × request volume.
+
+---
+
+## Deterministic Audit
+
+Before wiring (or reviewing) a propagation + sampling design, write it as a
+JSON plan matching `schemas/trace-propagation-plan.schema.json` and run the
+auditor:
+
+```bash
+node scripts/trace_propagation_audit.mjs --input examples/sample-input.json
+```
+
+`auditTracePropagation(plan)` (in `scripts/trace_propagation_audit.mjs`) turns
+this skill's Quality Gates and Anti-patterns into machine-checkable rules over
+structured fields — no keyword matching: a reused parent-id across services
+(critical — collapses the trace tree), unvalidated traceparent format (uppercase
+hex → MUST-ignore), legacy upstreams without a composite propagator, a
+vendor-proprietary propagator, head sampling when error traces must always be
+kept, tail sampling with no head-sampling safety net, 100% production sampling,
+default-on sqlcommenter and its MySQL/Oracle/SQL Server plan-cache impact, and
+PII in `tracestate` (critical). It returns
+`{ pass, score, findings, recommendations }`. `examples/sample-input.json` is a
+mid-migration composite-propagator plan with head+tail sampling (`pass: true`,
+zero findings).
 
 ---
 

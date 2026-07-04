@@ -1,0 +1,18 @@
+{
+  "poolMode": "transaction",
+  "pooler": "pgbouncer",
+  "usesListen": false,
+  "usesSessionAdvisoryLocks": false,
+  "usesWithHoldCursors": false,
+  "usesSessionSet": false,
+  "usesSqlPrepare": false,
+  "usesTempTables": false,
+  "usesMultiStatementTransactions": true,
+  "usesProtocolPreparedStatements": true,
+  "poolerTracksPreparedStatements": true,
+  "maxPreparedStatements": 200,
+  "idleInTransactionTimeoutSeconds": 60,
+  "idleSessionTimeoutEnabled": false,
+  "migrationPlanFlush": "discard-all",
+  "expectedConcurrentClients": 500
+}

@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/opentelemetry-instrumentation-plan.schema.json",
+  "title": "OpenTelemetry Instrumentation Plan",
+  "description": "A structured plan for an OTel rollout so scripts/opentelemetry_instrumentation_audit.mjs can check it deterministically against this skill's Quality Gates.",
+  "type": "object",
+  "required": ["serviceNameSet", "sdkLoadOrder", "sampler", "exporterProtocol", "spanProcessor", "environment"],
+  "additionalProperties": true,
+  "properties": {
+    "serviceNameSet": {
+      "type": "boolean",
+      "description": "True if service.name is set in the resource attributes."
+    },
+    "serviceVersionSet": {
+      "type": "boolean",
+      "description": "True if service.version is set (deploy markers)."
+    },
+    "deploymentEnvironmentSet": {
+      "type": "boolean",
+      "description": "True if deployment.environment is set (env filtering)."
+    },
+    "sdkLoadOrder": {
+      "type": "string",
+      "enum": ["preload-flag", "entrypoint-import", "after-app-imports"],
+      "description": "How the SDK is loaded: a loader preload flag (-r / --import), an import at the top of the entrypoint, or after other app imports."
+    },
+    "moduleSystem": {
+      "type": "string",
+      "enum": ["cjs", "esm"],
+      "description": "The app's module system (informational; the preload flag differs between them)."
+    },
+    "multiService": {
+      "type": "boolean",
+      "description": "True if traces cross more than one service (sampling decisions must be inherited)."
+    },
+    "sampler": {
+      "type": "string",
+      "enum": ["parent-based-ratio", "ratio-only", "always-on", "always-off"],
+      "description": "Head-sampling strategy configured on this service."
+    },
+    "samplingRatio": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Root-span sampling ratio, if a ratio sampler is used."
+    },
+    "exporterProtocol": {
+      "type": "string",
+      "enum": ["otlp-grpc", "otlp-http-protobuf", "otlp-http-json", "console"],
+      "description": "Trace exporter in use. otlp-http-json and console are debugging-only."
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["production", "staging", "development", "test"],
+      "description": "The environment this plan targets."
+    },
+    "spanProcessor": {
+      "type": "string",
+      "enum": ["batch", "simple"],
+      "description": "Span processor wrapping the exporter. simple is only acceptable in tests."
+    },
+    "maxQueueSizeSet": {
+      "type": "boolean",
+      "description": "True if BatchSpanProcessor maxQueueSize is set to a finite value."
+    },
+    "errorPathsRecordException": {
+      "type": "boolean",
+      "description": "True if error paths call span.recordException and set SpanStatusCode.ERROR."
+    },
+    "latencyInstrument": {
+      "type": "string",
+      "enum": ["histogram", "counter", "gauge", "none"],
+      "description": "The metric instrument used for latency/value distributions."
+    },
+    "crossAsyncBoundaries": {
+      "type": "boolean",
+      "description": "True if work crosses worker_threads, queues, or detached promises."
+    },
+    "contextPropagatedAcrossBoundaries": {
+      "type": "boolean",
+      "description": "True if W3C trace context is serialized and re-established across those boundaries."
+    },
+    "browserFetchInstrumentation": {
+      "type": "boolean",
+      "description": "True if the browser side uses FetchInstrumentation."
+    },
+    "corsPropagationAllowlistSet": {
+      "type": "boolean",
+      "description": "True if propagateTraceHeaderCorsUrls is configured for the API origins."
+    }
+  }
+}

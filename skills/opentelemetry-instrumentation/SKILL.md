@@ -1,14 +1,43 @@
 ---
+license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 name: opentelemetry-instrumentation
 description: 'Use when adding distributed tracing, debugging missing spans, fixing W3C traceparent propagation, configuring OTLP exporters (gRPC vs HTTP), choosing sampling strategies, setting resource attributes, or wiring auto-instrumentation libraries. Triggers: spans missing in Datadog/Honeycomb/Jaeger, "service.name = unknown_service", trace assembly broken across services, async work losing context, OTLP collector unreachable, sampling rate decisions, ESM vs CJS auto-instrumentation loader bugs. NOT for vendor-specific SDKs (Datadog APM, New Relic), structured-logging-only setups, or pre-OTel tracers (Jaeger client, Zipkin Brave).'
-category: DevOps & Infrastructure
-tags:
-  - opentelemetry
-  - observability
-  - tracing
-  - metrics
-  - otel
-  - instrumentation
+metadata:
+  category: DevOps & Infrastructure
+  tags:
+    - opentelemetry
+    - observability
+    - tracing
+    - metrics
+    - otel
+    - instrumentation
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: logging-observability
+      reason: Logs join traces only through the OTLP log pipeline; that skill owns the structured-logging side of the correlation
+    - skill: observability-apm-expert
+      reason: Owns the backend/APM side (dashboards, SLOs, alerting) that consumes the spans and metrics this skill emits
+    - skill: monitoring-stack-deployer
+      reason: Deploys the OTel Collector, storage, and Grafana stack that the OTLP exporters configured here point at
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: instrumentation-requirement
+        format: markdown
+        description: What needs tracing -- services involved, runtimes (Node CJS/ESM, browser), async boundaries, vendor backend, cost constraints.
+      - kind: otel-instrumentation-plan
+        format: json
+        description: A structured plan naming SDK load order, sampler, exporter, processor, and propagation choices, matching schemas/opentelemetry-instrumentation-plan.schema.json.
+    produces:
+      - kind: instrumentation-design
+        format: markdown
+        description: SDK setup, resource attributes, sampling, exporter, and context-propagation design with the rationale for each choice.
+      - kind: otel-instrumentation-audit
+        format: json
+        description: A deterministic pass/fail audit of the otel-instrumentation-plan against this skill's Quality Gates, as produced by scripts/opentelemetry_instrumentation_audit.mjs.
 ---
 
 # OpenTelemetry Instrumentation
@@ -261,6 +290,28 @@ Histograms beat averages — averages hide tail latency. Counters are monotonic;
 - [ ] Histograms used for latency/value; counters never used for current-state metrics.
 - [ ] Browser fetch instrumentation has a `propagateTraceHeaderCorsUrls` allowlist.
 - [ ] Trace context propagated across async boundaries (worker_threads, message queues).
+
+## Deterministic Audit
+
+Before rolling out (or reviewing) an instrumentation setup, write it as a JSON plan matching
+`schemas/opentelemetry-instrumentation-plan.schema.json` and run it through the deterministic
+auditor:
+
+```bash
+node scripts/opentelemetry_instrumentation_audit.mjs --input examples/sample-input.json
+```
+
+`auditOpentelemetryInstrumentation(plan)` (in `scripts/opentelemetry_instrumentation_audit.mjs`)
+turns this skill's Anti-patterns and Quality Gates into machine-checkable rules over structured
+fields — no keyword matching: a missing `service.name` (the unknown_service collapse), the SDK
+loaded after target modules (spanless http/express), a non-`ParentBasedSampler` in a
+multi-service deployment (sampling drift), the JSON or Console exporter in production, a
+`SimpleSpanProcessor` outside tests, an uncapped batch queue (OOM when the collector is down),
+counters used for latency, dropped context across worker_threads/queues, and browser fetch
+instrumentation without a CORS propagation allowlist. It returns
+`{ pass, score, findings, recommendations }` so a reviewer or CI gate can reject a
+misconfiguration without re-deriving the reasoning. `examples/sample-input.json` is a
+production Node service plan that audits `pass: true`. Version history lives in `CHANGELOG.md`.
 
 ## NOT for
 

@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/go-pprof-profiling-plan.schema.json",
+  "title": "Go Profiling Plan",
+  "description": "A structured plan naming the symptom, chosen pprof profile type, load conditions, and exposure settings for a Go profiling session, so this skill's Quality Gates can be checked deterministically by scripts/go_pprof_profiling_audit.mjs.",
+  "type": "object",
+  "required": ["symptom", "profileType", "underRepresentativeLoad", "pprofBindAddress"],
+  "additionalProperties": true,
+  "properties": {
+    "symptom": {
+      "type": "string",
+      "enum": ["high-cpu", "memory-leak", "allocation-churn", "goroutine-leak", "latency-spikes", "lock-contention"],
+      "description": "The observed performance pathology driving this session."
+    },
+    "profileType": {
+      "type": "string",
+      "enum": ["cpu", "heap-inuse", "heap-alloc", "goroutine", "block", "mutex", "trace"],
+      "description": "The pprof profile (or runtime/trace) chosen to diagnose the symptom."
+    },
+    "underRepresentativeLoad": {
+      "type": "boolean",
+      "description": "True if the capture happens during realistic traffic (peak hour or a load test spanning the capture window), not startup or idle."
+    },
+    "pprofBindAddress": {
+      "type": "string",
+      "enum": ["localhost", "private-interface", "public"],
+      "description": "Where the net/http/pprof endpoints are bound."
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["dev", "staging", "production"],
+      "description": "Which environment the profiling session runs in."
+    },
+    "blockMutexSampleRate": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The SetBlockProfileRate / SetMutexProfileFraction value; 1 samples every event, 100 samples 1-in-100."
+    },
+    "runsInContainer": {
+      "type": "boolean",
+      "description": "True if the process runs under a cgroup memory limit (Kubernetes, Docker)."
+    },
+    "gomemlimitSet": {
+      "type": "boolean",
+      "description": "True if GOMEMLIMIT (or debug.SetMemoryLimit) is configured for the deployment."
+    },
+    "usedCumulativeView": {
+      "type": "boolean",
+      "description": "True if CPU-profile reading uses top -cum or the flamegraph view rather than leaf self-time top."
+    },
+    "contextCancellationPropagated": {
+      "type": "boolean",
+      "description": "True if spawned goroutines receive a context.Context and select on ctx.Done() so cancellation propagates."
+    }
+  }
+}

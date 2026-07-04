@@ -1,9 +1,35 @@
 ---
+license: Apache-2.0
 name: tanstack-query-server-state
-description: Designing TanStack Query (React Query) v5 for server-state management — query key factories, staleTime vs gcTime, partial-match invalidation, optimistic updates with rollback, prefetching, and Next.js App Router hydration. Grounded in tanstack.com v5 docs.
-category: Frontend Frameworks
-tags: [react, tanstack-query, react-query, server-state, caching, optimistic-updates, nextjs]
+description: Designing TanStack Query (React Query) v5 for server-state management — query key factories, staleTime vs gcTime, partial-match invalidation, optimistic updates with rollback, prefetching, and Next.js App Router hydration. Grounded in tanstack.com v5 docs. NOT for pure client state (useState/Zustand), form state, GraphQL cache design, or true real-time push (WebSockets/SSE).
 allowed-tools: Read, Grep, Glob, Edit, Write, Bash(grep:*, rg:*, find:*)
+metadata:
+  category: Frontend Frameworks
+  tags: [react, tanstack-query, react-query, server-state, caching, optimistic-updates, nextjs]
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: ideal-web-app-builder
+      reason: The app-scaffolding skill whose Next.js App Router data layer this skill's HydrationBoundary/per-request-QueryClient pattern slots into.
+    - skill: websocket-realtime-expert
+      reason: When the anti-pattern table says "stop polling with refetchInterval," true real-time push moves to that skill's territory.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: data-fetching-requirement
+        format: markdown
+        description: A description of the app's server-state needs -- query families, change frequency, mutation flows, SSR/Next.js posture.
+      - kind: query-layer-plan
+        format: json
+        description: A structured plan naming key source, staleTime policy, invalidation scope, and the optimistic-update/SSR posture, matching schemas/query-layer-plan.schema.json.
+    produces:
+      - kind: server-state-design
+        format: markdown
+        description: The query-layer design -- typed key factory, per-family staleTime, invalidation strategy, mutation flows, hydration setup.
+      - kind: query-layer-audit
+        format: json
+        description: A deterministic pass/fail audit of the query-layer-plan against this skill's Quality Gates, as produced by scripts/tanstack_query_audit.mjs.
 ---
 
 # TanStack Query Server State
@@ -302,6 +328,28 @@ Server-state changes ship when:
 - [ ] **Test:** Devtools open during a typical navigation flow shows no repeated fetches of the same query within the configured `staleTime` window.
 - [ ] **Test (SSR):** `QueryClient` is created per request on the server (no module-level singleton); a multi-user load test shows zero cross-user data appearing.
 - [ ] **Manual:** Optimistic update flicker test — disable network, perform a mutation, watch for the value bouncing. It should not.
+
+---
+
+## Deterministic Audit
+
+Before committing to a query-layer design (or reviewing another agent's), write it as a
+JSON plan matching `schemas/query-layer-plan.schema.json` and run the deterministic
+auditor:
+
+```bash
+node scripts/tanstack_query_audit.mjs --input examples/sample-input.json
+```
+
+`auditTanstackQuery(plan)` (in `scripts/tanstack_query_audit.mjs`) turns this skill's
+anti-patterns and Quality Gates into machine-checkable rules over structured fields —
+no keyword matching: TanStack Query wrapped around pure client state, inline string
+keys instead of a typed factory, the `staleTime: 0` default left in place, exact-match
+invalidation after mutations, an optimistic update that skips cancel or snapshot, a
+shared `QueryClient` across SSR requests, and sub-5s polling standing in for real-time
+push. It returns `{ pass, score, findings, recommendations }`.
+`examples/sample-input.json` is a factory-keyed, per-request-client SSR plan
+(`pass: true`). Version history lives in `CHANGELOG.md`.
 
 ---
 

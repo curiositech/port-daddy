@@ -1,0 +1,16 @@
+{
+  "goal": "id-disambiguation",
+  "usesDiscriminatedUnion": true,
+  "discriminantIsLiteral": true,
+  "hasExhaustivenessCheck": true,
+  "typeGuardReturnsPredicate": true,
+  "bareAsCastCount": 0,
+  "brandedTypesHaveFactory": true,
+  "brandNegativeTypeTests": true,
+  "narrowingCrossesCallback": true,
+  "narrowedValueCapturedAsConst": true,
+  "conditionalTypeAliasMaxLines": 12,
+  "tscNoEmitInCI": true,
+  "noImplicitAnyClean": true,
+  "satisfiesPreferredOverAnnotation": true
+}

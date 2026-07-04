@@ -1,0 +1,14 @@
+{
+  "moduleSourcePin": "tag",
+  "dynamicResourceIterator": "for_each",
+  "resourcesHaveIdentity": true,
+  "ignoreChangesScope": "targeted",
+  "stateBackend": "remote-locked-encrypted",
+  "stateSplitByBlastRadius": true,
+  "secretsInTfvars": false,
+  "variablesValidated": true,
+  "planFileBoundApply": true,
+  "driftCheckScheduled": true,
+  "providerVersionsPinned": true,
+  "ciAuthMethod": "oidc"
+}

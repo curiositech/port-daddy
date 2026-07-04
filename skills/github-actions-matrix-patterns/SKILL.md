@@ -1,14 +1,41 @@
 ---
+license: Apache-2.0
 name: github-actions-matrix-patterns
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 description: 'Use when designing matrix builds (OS x version x dimension), composing reusable workflows, gating jobs on conditions, doing OIDC to AWS/GCP/Cloudflare without long-lived secrets, sharding tests across runners, or fixing cache invalidation. Triggers: workflow_call between repos, fail-fast: false tradeoffs, exclude/include matrix surgery, environment protection rules, OIDC trust policy setup, concurrency cancellation on duplicate pushes, artifact reuse across jobs, conditional job matrices computed at runtime. NOT for GitLab CI / CircleCI / Jenkins (different yaml dialects), self-hosted runner administration, or local act dev.'
-category: DevOps & Infrastructure
-tags:
-  - github-actions
-  - ci-cd
-  - matrix
-  - oidc
-  - reusable-workflows
-  - automation
+metadata:
+  category: DevOps & Infrastructure
+  tags:
+    - github-actions
+    - ci-cd
+    - matrix
+    - oidc
+    - reusable-workflows
+    - automation
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: git-best-practices
+      reason: Pinned workflow refs, tag discipline, and branch protection that release CI depends on live in the git workflow itself
+    - skill: agent-pr-authoring
+      reason: The PR checks these matrix workflows gate are the same checks an agent-authored PR must be written to pass
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: ci-requirement
+        format: markdown
+        description: A description of what the pipeline must build/test/deploy -- target OSes, runtimes, cloud provider, and gating rules -- from a human or another agent.
+      - kind: workflow-plan
+        format: json
+        description: A structured plan of the workflow's matrix shape, pinning policy, permissions, auth mode, and cache/concurrency settings, matching schemas/github-actions-matrix-patterns-plan.schema.json.
+    produces:
+      - kind: workflow-design
+        format: markdown
+        description: The workflow YAML plus the rationale for matrix shape, OIDC trust policy, and cache keys, following this skill's patterns.
+      - kind: workflow-audit-report
+        format: json
+        description: A deterministic pass/fail audit of the workflow-plan against this skill's Quality Gates, as produced by scripts/github_actions_matrix_patterns_audit.mjs.
 ---
 
 # GitHub Actions Matrix Patterns
@@ -261,6 +288,27 @@ jobs:
 - [ ] `fail-fast: false` on release CI matrices.
 - [ ] Test sharding seed rotated weekly so slow files don't pin a shard.
 - [ ] No `secrets: inherit` to forks.
+
+## Deterministic Audit
+
+Before shipping (or reviewing) a workflow, write its shape as a JSON plan matching
+`schemas/github-actions-matrix-patterns-plan.schema.json` and run it through the
+deterministic auditor:
+
+```bash
+node scripts/github_actions_matrix_patterns_audit.mjs --input examples/sample-input.json
+```
+
+`auditGithubActionsMatrixPatterns(plan)` (in `scripts/github_actions_matrix_patterns_audit.mjs`)
+turns this skill's Quality Gates into machine-checkable rules over structured fields — no
+keyword matching: floating action refs, `write-all` (or inherited) permissions, long-lived
+cloud secrets where OIDC works, a repo-wildcard OIDC `sub` claim (the fork-PR deploy hole),
+`fail-fast` on release CI, inverted exclude polarity, cache keys with no lockfile hash,
+missing PR concurrency cancellation, deploys outside an `environment:`, and secrets inherited
+by fork PRs. It returns `{ pass, score, findings, recommendations }` and exits 1 on failure,
+so a CI gate can reject a workflow plan without re-deriving the reasoning.
+`examples/sample-input.json` is a correctly hardened OIDC deploy plan (`pass: true`, zero
+findings). See `CHANGELOG.md` for the bundle's history.
 
 ## NOT for
 

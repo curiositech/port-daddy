@@ -1,0 +1,16 @@
+{
+  "platform": "supabase",
+  "environment": "production",
+  "connection": "direct-5432",
+  "repairPlanned": true,
+  "sqlExecutedBeforeRepair": true,
+  "verificationQueryPlanned": true,
+  "addsNotNullColumn": true,
+  "tableHasRows": true,
+  "hasDefaultOrBackfill": true,
+  "migrationFileEditedAfterApply": false,
+  "hotTableLongMigration": false,
+  "batchedApproach": false,
+  "forwardOnly": true,
+  "downScriptTested": false
+}

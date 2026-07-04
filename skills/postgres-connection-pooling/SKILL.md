@@ -1,9 +1,35 @@
 ---
+license: Apache-2.0
 name: postgres-connection-pooling
-description: Choosing a Postgres connection pool mode that matches your workload — pgBouncer session/transaction/statement modes, the prepared-statement story (pgBouncer 1.21+), Supabase Supavisor's port-per-mode pattern (5432 vs 6543), AWS RDS Proxy pinning triggers, and `pg_stat_activity` diagnostics. Grounded in pgbouncer.org, supabase.com, AWS docs, and PostgreSQL docs.
-category: Backend & Databases
-tags: [postgres, pgbouncer, supabase, supavisor, rds-proxy, connection-pooling, prepared-statements]
+description: Choosing a Postgres connection pool mode that matches your workload — pgBouncer session/transaction/statement modes, the prepared-statement story (pgBouncer 1.21+), Supabase Supavisor's port-per-mode pattern (5432 vs 6543), AWS RDS Proxy pinning triggers, and `pg_stat_activity` diagnostics. Grounded in pgbouncer.org, supabase.com, AWS docs, and PostgreSQL docs. NOT for ORM-specific connection config, Postgres replication/read-replica design, non-Postgres poolers (PgPool for MySQL, ProxySQL), or general query tuning.
 allowed-tools: Read, Grep, Glob, Edit, Write, Bash(psql:*, grep:*, rg:*)
+metadata:
+  category: Backend & Databases
+  tags: [postgres, pgbouncer, supabase, supavisor, rds-proxy, connection-pooling, prepared-statements]
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: outbox-pattern-implementation
+      reason: The polling relay's FOR UPDATE SKIP LOCKED loop and idle-in-transaction behavior live directly on the pooled connections this skill sizes
+    - skill: background-job-orchestrator
+      reason: Job workers are the classic source of pinned sessions (advisory locks, LISTEN/NOTIFY) that dictate session vs transaction pool mode
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: pooling-requirement
+        format: markdown
+        description: The workload shape -- concurrency, serverless vs persistent, session-state features in use (LISTEN, SET, advisory locks), platform (self-hosted, Supabase, RDS).
+      - kind: pool-plan
+        format: json
+        description: A structured plan naming pool mode, pooler, session-state usage, prepared-statement policy, and timeouts, matching schemas/postgres-connection-pooling-plan.schema.json.
+    produces:
+      - kind: pool-recommendation
+        format: markdown
+        description: Pool mode/pooler selection with feature-compatibility rationale, connection-string cheatsheet entries, and migration-safety notes.
+      - kind: pool-audit
+        format: json
+        description: A deterministic pass/fail audit of the pool-plan against this skill's Quality Gates, as produced by scripts/postgres_connection_pooling_audit.mjs.
 ---
 
 # Postgres Connection Pooling
@@ -261,6 +287,33 @@ A pool change ships when:
 - [ ] **Test (RDS Proxy):** CloudWatch alarm on `DatabaseConnectionsCurrentlySessionPinned > N`.
 - [ ] **Test (transaction mode):** Integration test that runs the app's full smoke suite against a pgBouncer in transaction mode — catches `LISTEN`, session advisory lock, etc. usage that'd silently break in prod.
 - [ ] **Manual:** Migration runbook includes either rolling restart or `DISCARD ALL` to flush cached plans across pooled backends.
+
+---
+
+## Deterministic Audit
+
+Before shipping (or reviewing) a pool configuration, write it as a JSON plan matching
+`schemas/postgres-connection-pooling-plan.schema.json` and run it through the deterministic
+auditor:
+
+```bash
+node scripts/postgres_connection_pooling_audit.mjs --input examples/sample-input.json
+```
+
+`auditPostgresConnectionPooling(plan)` (in `scripts/postgres_connection_pooling_audit.mjs`)
+turns this skill's decision rule — pick the pool mode by session-state usage, not raw
+concurrency — and its Quality Gates into machine-checkable rules over structured fields, no
+keyword matching: transaction mode combined with any "Never" feature (`LISTEN`, session
+advisory locks, `WITH HOLD` cursors, session-scoped `SET`, SQL-level `PREPARE`), statement
+mode with multi-statement transactions, protocol-level prepared statements against a pooler
+that cannot track them (pre-1.21 pgBouncer, `max_prepared_statements = 0`, RDS Proxy),
+`idle_in_transaction_session_timeout` left at 0, `idle_session_timeout` behind a pooler, RDS
+Proxy pinning triggers without InitQuery/alarm mitigations, a serverless Supabase workload on
+port 5432, and no cached-plan flush step in the migration runbook. It returns
+`{ pass, score, findings, recommendations }` so a reviewer or CI gate can reject a
+pinned-by-default config without re-deriving the feature matrix.
+`examples/sample-input.json` is a transaction-mode pgBouncer 1.22 plan that audits
+`pass: true`. Version history lives in `CHANGELOG.md`.
 
 ---
 

@@ -1,14 +1,41 @@
 ---
+license: Apache-2.0
 name: go-pprof-profiling
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 description: 'Use when CPU usage is high, memory grows unboundedly, goroutines leak, mutex contention shows in traces, or escape analysis suggests excess heap allocation. Triggers: net/http/pprof endpoint exposure, go tool pprof analysis, flamegraph generation, allocs vs inuse_space heap profiles, runtime/trace event timeline, mutex profiling, block profiling, goroutine dumps, GC pressure measurement. NOT for non-Go languages, distributed tracing (use OpenTelemetry skill), or production telemetry pipelines.'
-category: AI & Machine Learning
-tags:
-  - golang
-  - performance
-  - profiling
-  - pprof
-  - flamegraph
-  - debugging
+metadata:
+  category: AI & Machine Learning
+  tags:
+    - golang
+    - performance
+    - profiling
+    - pprof
+    - flamegraph
+    - debugging
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: observability-apm-expert
+      reason: APM traces tell you which service and endpoint is slow; pprof takes over inside the Go process to find the exact function
+    - skill: daemon-development
+      reason: Long-running daemons are where pprof endpoints get wired in and where goroutine leaks and GC pressure accumulate
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: performance-report
+        format: markdown
+        description: The observed symptom -- CPU pegged, memory growing, goroutine count climbing, latency spikes, or lock contention -- as reported by a human, dashboard, or another agent.
+      - kind: profiling-plan
+        format: json
+        description: A structured plan naming the symptom, chosen profile type, load conditions, and endpoint exposure, matching schemas/go-pprof-profiling-plan.schema.json.
+    produces:
+      - kind: profiling-diagnosis
+        format: markdown
+        description: The bottleneck diagnosis with the pprof/trace evidence and the fix (escape-analysis change, sync.Pool, GC knob, cancellation), following this skill's profile-to-symptom mapping.
+      - kind: profiling-audit-report
+        format: json
+        description: A deterministic pass/fail audit of the profiling-plan against this skill's Quality Gates, as produced by scripts/go_pprof_profiling_audit.mjs.
 ---
 
 # Go pprof Profiling
@@ -235,6 +262,26 @@ debug.SetMemoryLimit(2 << 30)        // 2 GiB
 - [ ] Mutex/block profiles enabled in staging at rate 100; reviewed before deploy of mutex-heavy changes.
 - [ ] `sync.Pool` used for objects allocated >1000 times/sec on the hot path.
 - [ ] Escape analysis run on hot-path functions; allocations justified or eliminated.
+
+## Deterministic Audit
+
+Before committing to a profiling session (or reviewing another agent's), write the plan as
+JSON matching `schemas/go-pprof-profiling-plan.schema.json` and run it through the
+deterministic auditor:
+
+```bash
+node scripts/go_pprof_profiling_audit.mjs --input examples/sample-input.json
+```
+
+`auditGoPprofProfiling(plan)` (in `scripts/go_pprof_profiling_audit.mjs`) encodes this
+skill's core rules as machine-checkable checks over structured fields — no keyword matching:
+the profile type must answer the symptom (leak→inuse_space, churn→alloc_space, stuck
+goroutines→goroutine dump, latency mystery→trace, contention→mutex/block), the capture must
+happen under representative load, pprof must never bind publicly, block/mutex rate 1 stays
+out of production, containers get GOMEMLIMIT, and CPU profiles are read cumulatively. It
+returns `{ pass, score, findings, recommendations }` and exits 1 on failure.
+`examples/sample-input.json` is a correctly-shaped goroutine-leak plan (`pass: true`, zero
+findings). See `CHANGELOG.md` for the bundle's history.
 
 ## NOT for
 
