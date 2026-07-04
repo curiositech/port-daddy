@@ -8,7 +8,7 @@ Expert skill on the International Code of Signals (Pub. 102, 1969 edition, revis
 |---|---|
 | `SKILL.md` | Core workflow, non-negotiables, anti-patterns, reference index |
 | `data/signals.json` | Machine-readable corpus parsed from Pub. 102: 26 single-letter + 645 two-letter + 445 medical signals, complements, procedure signals, Morse, phonetics, tables |
-| `scripts/icos_lookup.py` | CLI: exact code lookup, BM25 meaning search, phonetic/Morse spelling, hoist rendering with substitute logic, complements tables |
+| `scripts/icos_lookup.py` | CLI: exact code lookup, hybrid meaning search (BM25 + `pd embed` semantic cosine, RRF-fused; loud lexical-only fallback), phonetic/Morse spelling, hoist rendering with substitute logic, complements tables |
 | `scripts/rebuild_corpus.py` | Regenerates the corpus from `pdftotext -layout` output of the Pub. 102 PDF |
 | `references/` | Chapter distillations (transmission, single letters, general code, medical code, distress) + the two adaptation references |
 | `examples/worked-examples.md` | Encode/decode walkthroughs across methods and both transfer layers |
@@ -17,7 +17,7 @@ Expert skill on the International Code of Signals (Pub. 102, 1969 edition, revis
 
 ```bash
 python3 scripts/icos_lookup.py code NC        # I am in distress and require immediate assistance.
-python3 scripts/icos_lookup.py search pilot   # ranked matches across all 1100+ signals
+python3 scripts/icos_lookup.py search pilot   # hybrid (BM25 + shared embedder) across all 1800+ entries
 python3 scripts/icos_lookup.py hoist 1100     # substitutes computed per Ch.1 §5 ¶6
 ```
 

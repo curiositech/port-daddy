@@ -5,22 +5,34 @@ Stdlib-only. Data: ../data/signals.json (parsed from the 1969/2003 US edition).
 
 Usage:
   icos_lookup.py code <GROUP> [GROUP...]     Exact signal lookup (e.g. NC, AE 2, MAA, W)
-  icos_lookup.py search <free text query>    BM25 ranked search over all signal meanings
+  icos_lookup.py search <free text query>    HYBRID ranked search over all signal meanings
+                                             (BM25 + `pd embed` semantic cosine, RRF-fused;
+                                             degrades to BM25-only with a warning when the
+                                             shared embedding model is unavailable)
   icos_lookup.py spell <TEXT>                Phonetic spelling (Alfa Bravo ...) + Morse
   icos_lookup.py hoist <GROUP>               Flag-hoist rendering notes incl. substitutes
   icos_lookup.py table <1|2|3>               Complements tables (means/assistance/direction)
 
+Semantic search uses Port Daddy's ONE shared local embedding model via
+`pd embed` (ADR-0061; AGENTS.md "Search & Matching Policy"). Corpus vectors
+are computed once and cached under ~/.port-daddy/cache/. If `pd` is absent or
+the model is not downloaded (`pd doctor` repairs that), search stays lexical.
+
 Exit codes: 0 found, 1 not found / bad usage.
 """
 
+import hashlib
 import json
 import math
+import os
 import re
+import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
 
 DATA = Path(__file__).resolve().parent.parent / "data" / "signals.json"
+EMBED_CACHE_DIR = Path(os.environ.get("PD_HOME", Path.home() / ".port-daddy")) / "cache"
 
 
 def load():
@@ -80,9 +92,8 @@ def _tokens(text):
     return _word.findall(text.lower())
 
 
-def cmd_search(c, terms, k=12):
-    """BM25 over meanings. No keyword lists — plain ranked retrieval."""
-    rows = all_entries(c)
+def _bm25_ranks(rows, terms):
+    """BM25 over meanings → list of (score, index), best first."""
     docs = [_tokens(r["meaning"] + " " + (r.get("topic") or "")) for r in rows]
     n = len(docs)
     avgdl = sum(len(d) for d in docs) / n
@@ -103,12 +114,108 @@ def cmd_search(c, terms, k=12):
         if s > 0:
             scores.append((s, i))
     scores.sort(reverse=True)
-    if not scores:
+    return scores
+
+
+def _pd_embed(texts):
+    """Embed texts via `pd embed stdin --offline` (the shared local model).
+
+    Returns list-of-vectors aligned with texts, or None when the surface is
+    unavailable (no pd on PATH, model not downloaded, any failure). Texts must
+    be non-empty single lines — `pd embed stdin` drops empty lines.
+    """
+    payload = "\n".join(t.replace("\n", " ").strip() or "-" for t in texts)
+    try:
+        proc = subprocess.run(
+            ["pd", "embed", "stdin", "--offline"],
+            input=payload.encode("utf-8"),
+            capture_output=True,
+            timeout=600,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if proc.returncode != 0:
+        return None
+    try:
+        out = json.loads(proc.stdout.decode("utf-8"))
+        vectors = out["vectors"]
+        return vectors if len(vectors) == len(texts) else None
+    except (ValueError, KeyError):
+        return None
+
+
+def _corpus_vectors(rows):
+    """Corpus embeddings via the shared model, cached one-time under PD_HOME."""
+    meanings = [r["meaning"] for r in rows]
+    digest = hashlib.sha256("\n".join(meanings).encode("utf-8")).hexdigest()[:16]
+    cache_file = EMBED_CACHE_DIR / f"icos-signals-embeddings-{digest}.json"
+    if cache_file.exists():
+        try:
+            return json.loads(cache_file.read_text(encoding="utf-8"))
+        except ValueError:
+            pass
+    print(
+        f"embedding {len(meanings)} signal meanings via `pd embed` (one-time, cached)...",
+        file=sys.stderr,
+    )
+    vectors = _pd_embed(meanings)
+    if vectors is None:
+        return None
+    EMBED_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cache_file.write_text(json.dumps(vectors), encoding="utf-8")
+    return vectors
+
+
+def _semantic_ranks(rows, terms):
+    """Cosine ranks via the shared embedder, or None if it is unavailable."""
+    corpus = _corpus_vectors(rows)
+    if corpus is None:
+        return None
+    query = _pd_embed([" ".join(terms)])
+    if query is None:
+        return None
+    qv = query[0]
+    scored = []
+    for i, v in enumerate(corpus):
+        sim = sum(a * b for a, b in zip(qv, v))  # vectors are L2-normalized
+        scored.append((sim, i))
+    scored.sort(reverse=True)
+    return scored
+
+
+def cmd_search(c, terms, k=12):
+    """Hybrid search: BM25 + shared-embedder cosine, fused with RRF.
+
+    Policy (AGENTS.md "Search & Matching Policy"): never lexical-only unless
+    the embedding surface is unavailable — and then degrade LOUDLY.
+    """
+    rows = all_entries(c)
+    bm25 = _bm25_ranks(rows, terms)
+    semantic = _semantic_ranks(rows, terms)
+    if semantic is None:
+        print(
+            "warning: shared embedding model unavailable — lexical-only results. "
+            "Repair: pd doctor  (or: pd embed prefetch)",
+            file=sys.stderr,
+        )
+        fused = bm25
+    else:
+        # Weighted RRF over symmetric top-50 lists. Semantic gets the heavier
+        # weight: exact-token queries are already served by `code`, and the
+        # probe suite (paraphrase / towing / sick-crew) ranks best at 0.7/1.3.
+        trunc = max(50, k * 4)
+        rrf = Counter()
+        for rank, (_, i) in enumerate(bm25[:trunc]):
+            rrf[i] += 0.7 / (60 + rank)
+        for rank, (_, i) in enumerate(semantic[:trunc]):
+            rrf[i] += 1.3 / (60 + rank)
+        fused = sorted(((s, i) for i, s in rrf.items()), reverse=True)
+    if not fused:
         print("no matches", file=sys.stderr)
         return 1
-    for s, i in scores[:k]:
+    for s, i in fused[:k]:
         r = rows[i]
-        print(f"{s:6.2f}  {r['code']:<10} {r['meaning'][:110]}  [{r['origin']}]")
+        print(f"{s:6.4f}  {r['code']:<10} {r['meaning'][:110]}  [{r['origin']}]")
     return 0
 
 

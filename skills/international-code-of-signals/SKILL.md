@@ -121,11 +121,13 @@ flowchart TD
 
 ```bash
 python3 scripts/icos_lookup.py code NC          # exact lookup (also: "AE 2", MAA, W)
-python3 scripts/icos_lookup.py search towing    # BM25-ranked search over all meanings
+python3 scripts/icos_lookup.py search towing    # HYBRID search: BM25 + `pd embed` cosine, RRF-fused
 python3 scripts/icos_lookup.py spell MAYDAY     # phonetic + Morse spelling
 python3 scripts/icos_lookup.py hoist 1100       # flag hoist incl. substitute logic
 python3 scripts/icos_lookup.py table 2          # complements tables 1/2/3
 ```
+
+Search follows the repo's hybrid policy (AGENTS.md "Search & Matching Policy"): semantic similarity comes from Port Daddy's one shared local embedding model via `pd embed`, with corpus vectors cached one-time under `~/.port-daddy/cache/`. If the model is unavailable it degrades to lexical-only **loudly** and points at `pd doctor`.
 
 `scripts/rebuild_corpus.py <pdftotext-output> <out.json>` regenerates the corpus from a `pdftotext -layout` extraction of the Pub. 102 PDF (only needed if the source book changes).
 
