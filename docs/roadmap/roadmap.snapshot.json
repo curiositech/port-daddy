@@ -1,5 +1,5 @@
 {
-  "generatedAt": 1783141316773,
+  "generatedAt": 1783138698335,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
   "count": 112,
@@ -568,6 +568,11 @@
       "slug": "suggest-b3-2-fleet-yml-optin",
       "status": "backlog",
       "summaryMd": "B3.2 pd-fleet.yml suggestions:{enabled:true} gate; broker opt-in per project, default off. Done when broker only runs when enabled."
+    },
+    {
+      "slug": "visual-evidence-doctrine",
+      "status": "backlog",
+      "summaryMd": "docs(skill): visual-evidence doctrine — non-interruptive screenshot capture for every agent"
     },
     {
       "slug": "visual-task-agent-intake",
