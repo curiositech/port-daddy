@@ -5,6 +5,13 @@
    Fonts load from Google for these mocks only — production self-hosts.
    ══════════════════════════════════════════════════════════════════ */
 
+@font-face {
+  font-family: "Recursive";
+  src: url("../../../../website-v2/public/fonts/recursive/recursive-latin-full-normal.woff2") format("woff2");
+  font-weight: 300 1000;
+  font-display: swap;
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root, [data-theme="light"] {
@@ -265,3 +272,12 @@ table.data td:first-child { font-weight: 600; }
 .themed-img .dark-only { display: none; }
 [data-theme="dark"] .themed-img .light-only { display: none; }
 [data-theme="dark"] .themed-img .dark-only { display: block; }
+
+/* spinning radar mark — ports of BrandMark + pdw-spin */
+.pd-mark { display:inline-flex; width: 30px; height: 30px; flex: none; }
+.pd-mark img { width: 100%; height: 100%; animation: pdw-spin 10s linear infinite; }
+@keyframes pdw-spin { 100% { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .pd-mark img { animation: none; } }
+
+/* the play voice — Recursive casual axis marks display em-phrases */
+.rec { font-family: "Recursive", "IBM Plex Sans", sans-serif; font-variation-settings: "MONO" 0, "CASL" 1, "slnt" -8; font-weight: 660; }
