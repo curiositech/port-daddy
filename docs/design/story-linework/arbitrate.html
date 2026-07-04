@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arbitration — three forks between #657 and #671/#658</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@600;700&family=Big+Shoulders+Display:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ports/port.css">
+<style>
+  .page { max-width: 1180px; }
+  .doc-head { padding: 48px 0 22px; border-bottom: 1px solid var(--hair-strong); margin-bottom: 40px; }
+  .doc-head h1 { font-size: clamp(32px, 4vw, 52px); font-weight: 700; letter-spacing: var(--tracking-display); line-height: 1.02; }
+  .doc-head .lede { font-size: 15px; line-height: 1.65; color: var(--text-secondary); max-width: 70ch; margin-top: 12px; }
+  .item { margin-bottom: 64px; }
+  .item-head { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: baseline; margin-bottom: 6px; }
+  .item-head .n { font-family: "IBM Plex Mono", monospace; font-size: 14px; font-weight: 700; color: var(--cobalt); }
+  .item-head h2 { font-size: 27px; font-weight: 700; letter-spacing: var(--tracking-h2); }
+  .stakes { font-size: 14px; color: var(--text-muted); margin-bottom: 18px; max-width: 76ch; line-height: 1.6; }
+  .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: stretch; }
+  .opt { border: 1px solid var(--hair-strong); }
+  .opt .opt-label { display: flex; justify-content: space-between; align-items: center; padding: 9px 14px; border-bottom: 1px solid var(--hair);
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
+  .opt .src { font-size: 11px; letter-spacing: 0.06em; }
+  .opt-body { padding: 0; }
+  .rec { margin-top: 14px; padding: 13px 16px; background: var(--surface-card); border: 1px solid var(--hair); border-left: none; box-shadow: inset 3px 0 0 var(--teal); font-size: 14.5px; line-height: 1.6; }
+  .rec b { color: var(--teal); }
+  .decide { margin-top: 10px; font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 700; color: var(--violet-on-tint); }
+
+  /* item 1: substrate demo panels */
+  .sub-demo { padding: 22px 24px; min-height: 210px; }
+  .sub-demo .zt { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+  .sub-demo .zb { font-size: 14px; line-height: 1.65; margin-top: 8px; max-width: 44ch; }
+  .sub-demo .row { position: relative; display: flex; gap: 9px; align-items: center; padding: 8px 12px 8px 15px; margin-top: 12px; font-size: 13px; }
+  .sub-demo .row::before { content:""; position:absolute; left:0; top:4px; bottom:4px; width:3px; background:#5fce97; }
+  .sub-demo .hex { font-family: "IBM Plex Mono", monospace; font-size: 12px; opacity: 0.75; margin-top: 14px; }
+
+  /* item 2: type specimens */
+  .type-demo { padding: 20px 24px; background: var(--surface-base); }
+  .type-demo .big { line-height: 1.0; font-size: 42px; letter-spacing: -0.02em; }
+  .type-demo .body { font-family: "IBM Plex Sans", sans-serif; font-size: 15px; line-height: 1.6; color: var(--text-secondary); margin-top: 12px; max-width: 46ch; }
+  .type-demo .meta { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--text-muted); margin-top: 12px; }
+
+  /* item 3: flag maps */
+  .map { padding: 8px 0; }
+  .map .mrow { display: grid; grid-template-columns: 44px 130px 1fr; gap: 12px; align-items: center; padding: 8px 16px; font-size: 13.5px; }
+  .map .mrow + .mrow { box-shadow: inset 0 1px 0 var(--hair); }
+  .map .fl { width: 30px; height: 21px; }
+  .map .st { font-weight: 700; }
+  .map .why { color: var(--text-muted); font-size: 12.5px; }
+  @media (max-width: 900px) { .vs { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div style="position:fixed; top:20px; right:26px; z-index:60;"><button class="theme-toggle" id="themeToggle">Dark</button></div>
+<main class="page">
+
+  <header class="doc-head">
+    <div class="eyebrow">Parley arbitration · #657 vs #671/#658 · one call each</div>
+    <h1 style="margin-top:10px;">Three forks. Your tiller.</h1>
+    <p class="lede">Everything else between the three design PRs converged or has a settled owner. These three need the convener. Each item shows both options rendered honestly, the evidence, my recommendation, and what your call changes downstream.</p>
+  </header>
+
+  <!-- ═══ 1. DARK SUBSTRATE ═══ -->
+  <section class="item">
+    <div class="item-head"><span class="n">A·1</span><h2>Dark substrate — warm ebony vs near-black</h2></div>
+    <p class="stakes">Sets the dark theme's ground for every surface (site, fleet-ui, FleetBar, pd-console). #671 argues "never pure black" warmth; palette v2 chose a cool near-black and carries the shipped 76-pair WCAG study + all blessed dark-mode art on that ground.</p>
+    <div class="vs">
+      <div class="opt">
+        <div class="opt-label"><span>Option A — warm ebony</span><span class="src">#671</span></div>
+        <div class="opt-body sub-demo" style="background:#1e1b18; color:#f5f3ed;">
+          <div class="zt">Run a tight ship.</div>
+          <div class="zb" style="color:#c9c4bb;">Warm brown-black ground. Cozy, bookish; browns harmonize with rust. Slightly lower contrast headroom, and every dark art asset + the WCAG table would need re-verification against the new ground.</div>
+          <div class="row" style="background:#262220;"><span style="width:8px;height:8px;border-radius:50%;background:#5fce97;"></span> qa · 14 of 14 passed</div>
+          <div class="hex">base #1e1b18 · raised #262220 · text #f5f3ed</div>
+        </div>
+      </div>
+      <div class="opt">
+        <div class="opt-label"><span>Option B — near-black (palette v2, shipped)</span><span class="src">#657 · merged</span></div>
+        <div class="opt-body sub-demo" style="background:#101216; color:#f5f3ed;">
+          <div class="zt">Run a tight ship.</div>
+          <div class="zb" style="color:#d3cec2;">Cool near-black ground. Maximum luminance headroom for the luminous hues; the entire dark WCAG study (76 pairs), the slab cuts, and all six blessed dark art pieces were built and verified on this value.</div>
+          <div class="row" style="background:#181c22;"><span style="width:8px;height:8px;border-radius:50%;background:#5fce97;"></span> qa · 14 of 14 passed</div>
+          <div class="hex">base #101216 · raised #181c22 · text #f5f3ed</div>
+        </div>
+      </div>
+    </div>
+    <div class="rec"><b>Recommend B.</b> The warmth #671 wants already lives in the light theme's cream; dark carrying the cool counterpoint gives the palette its day/night axis. And B is paid for: study, art, and slab cuts all verified on it. Choosing A re-opens ~90 verified pairs and six art pieces for one degree of warmth.</div>
+    <div class="decide">DECIDE: A (ebony) / B (near-black)</div>
+  </section>
+
+  <!-- ═══ 2. DISPLAY FACE ═══ -->
+  <section class="item">
+    <div class="item-head"><span class="n">A·2</span><h2>Display face — Big Shoulders vs the settled Plex</h2></div>
+    <p class="stakes">#671 proposes Big Shoulders Display for headlines (condensed poster grotesque). The Plex-default decision was made on #657 after four options were compared; Big Shoulders was never in that lineup, so it gets its honest hearing here.</p>
+    <div class="vs">
+      <div class="opt">
+        <div class="opt-label"><span>Option A — Big Shoulders Display 800 + Plex body</span><span class="src">#671</span></div>
+        <div class="opt-body type-demo">
+          <div class="big" style="font-family:'Big Shoulders Display'; font-weight:800; text-transform:uppercase; letter-spacing:0.01em;">Run a tight ship. Agents sail safer together.</div>
+          <p class="body">Loud, industrial, unmistakable — genuine poster energy. But it only works uppercase (lowercase gets spindly), which collides with the settled no-caps display voice, and it adds a third family to load.</p>
+          <div class="meta">condensed · caps-dependent · new font payload</div>
+        </div>
+      </div>
+      <div class="opt">
+        <div class="opt-label"><span>Option B — IBM Plex 700 + Recursive play voice (settled)</span><span class="src">#657 · merged</span></div>
+        <div class="opt-body type-demo">
+          <div class="big" style="font-family:'IBM Plex Sans'; font-weight:700; letter-spacing:-0.03em;">Run a tight ship. <span style="font-family:'Recursive',sans-serif; font-variation-settings:'CASL' 1,'slnt' -8; font-weight:640; color:var(--cobalt);">Agents sail safer together.</span></div>
+          <p class="body">One superfamily voice across display, body, and mono, with Recursive's casual axis as the personality move. Mixed-case display per your standing call; already implemented across all five ports and the app mocks.</p>
+          <div class="meta">superfamily · mixed-case · zero new payload</div>
+        </div>
+      </div>
+    </div>
+    <div class="rec"><b>Recommend B</b>, with a consolation worth taking: if you want Big Shoulders' energy somewhere, grant it one narrow license — pd-console pane titles or poster/OG moments only, as a ch20 amendment — rather than the site display role. Caps-only display faces fight your no-caps rule everywhere else.</div>
+    <div class="decide">DECIDE: A (Big Shoulders display) / B (Plex, settled) / B+ (B, plus a narrow Big Shoulders license)</div>
+  </section>
+
+  <!-- ═══ 3. FLAG → STATE MAP ═══ -->
+  <section class="item">
+    <div class="item-head"><span class="n">A·3</span><h2>The flag→state map — one vocabulary must win</h2></div>
+    <p class="stakes">Both PRs speak ICS, differently. This map lands in FleetBar chips, pd-console rows, activity rails, and the CLI — repo-wide, so a split vocabulary is worse than either choice. ICOS literal meanings (PR #663) noted per row.</p>
+    <div class="vs">
+      <div class="opt">
+        <div class="opt-label"><span>Option A — #671's map</span><span class="src">#671 tokens.aaa</span></div>
+        <div class="opt-body map">
+          <div class="mrow"><i class="fl fl-hotel"></i><span class="st">claim-active</span><span class="why">Hotel = "pilot on board" — a hand is on the file. Poetic fit: strong.</span></div>
+          <div class="mrow"><i class="fl" style="background: linear-gradient(to right, #fbf7ef 0 50%, var(--error) 50%);" title="Foxtrot approx"></i><span class="st">awaiting-human</span><span class="why">Foxtrot = "disabled, communicate with me" — decent fit for a gate.</span></div>
+          <div class="mrow"><i class="fl fl-bravo"></i><span class="st">burning-cash</span><span class="why">Bravo = "dangerous goods" — witty for spend, but hijacks the alarm register for a normal state.</span></div>
+          <div class="mrow"><i class="fl fl-delta"></i><span class="st">blocked</span><span class="why">Delta = "keep clear, maneuvering with difficulty" — good fit.</span></div>
+          <div class="mrow"><i class="fl fl-yankee"></i><span class="st">claim-stale</span><span class="why">Yankee = "dragging anchor" — the single best assignment in either map.</span></div>
+          <div class="mrow"><i class="fl fl-mike"></i><span class="st">idle</span><span class="why">Mike = "my vessel is stopped" — literal and right.</span></div>
+        </div>
+      </div>
+      <div class="opt">
+        <div class="opt-label"><span>Option B — ch20's map</span><span class="src">#657 · merged</span></div>
+        <div class="opt-body map">
+          <div class="mrow"><i class="fl flag-quebec" style="background:var(--lime);"></i><span class="st">healthy / ready</span><span class="why">Quebec = "vessel healthy, request pratique" — literal.</span></div>
+          <div class="mrow"><i class="fl fl-kilo"></i><span class="st">coordination hero</span><span class="why">Kilo = "I wish to communicate with you" — the brand's own hail.</span></div>
+          <div class="mrow"><i class="fl" style="background: conic-gradient(#fbf7ef 0 25%, var(--rust-slab) 25% 50%, #fbf7ef 50% 75%, var(--rust-slab) 75%);"></i><span class="st">warn</span><span class="why">Uniform = "running into danger" — literal.</span></div>
+          <div class="mrow"><i class="fl fl-november"></i><span class="st">failed</span><span class="why">November = "negative" — literal.</span></div>
+          <div class="mrow"><i class="fl fl-lima"></i><span class="st">operator-blocked</span><span class="why">Lima = "stop your vessel instantly" — reads as the gate's demand.</span></div>
+          <div class="mrow"><i class="fl fl-xray"></i><span class="st">release gate</span><span class="why">X-ray = "stop carrying out your intentions" — exactly what a gate is.</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="rec"><b>Recommend a merge, base B:</b> keep ch20's alarm-clean core (Quebec/Uniform/November/Lima/X-ray/Kilo — states and alarms stay literal), and adopt #671's two best coordination flags on top: <b>Hotel = claim-active</b> and <b>Yankee = claim-stale</b> (both semantically perfect, no collisions). Drop Bravo-as-spend (alarm register belongs to real alarms; cost is gold's job, not a flag's). Result: one map, twelve flags, every assignment literal.</div>
+    <div class="decide">DECIDE: A (#671 map) / B (ch20 map) / B+HY (recommended merge)</div>
+  </section>
+
+  <footer class="doc-footer" style="margin-top: 20px;">
+    <span><strong>Arbitration</strong> · parley: reconcile product mocks</span>
+    <span>evidence · /design-preview/proposal · /design-preview/apps · PR #671 mockups</span>
+    <span>reply in the parley or on #671</span>
+  </footer>
+</main>
+<script>
+  const btn=document.getElementById('themeToggle'),root=document.documentElement;
+  let t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  const apply=()=>{root.setAttribute('data-theme',t);btn.textContent=t==='light'?'Dark':'Light'};apply();
+  btn.addEventListener('click',()=>{t=t==='light'?'dark':'light';apply()});
+</script>
+</body>
+</html>
