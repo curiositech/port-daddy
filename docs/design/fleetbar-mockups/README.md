@@ -17,9 +17,12 @@ the files here:
 - `triad-scout-panel.html` — **current**: the corpus has no other Scout mock;
   conformed to ch20 (palette v2, IBM Plex + Recursive, rule-8 micro-flags,
   rule-5 hairline cards).
-- `triad-fleetbar-popover.html`, `triad-console-detail.html` — **superseded**
-  by `apps.html` for styling; retained as ch19 structural/gate-fixture
-  references (IT-016/IT-017 anatomy). Banners inside say so.
+- `triad-fleetbar-popover.html`, `triad-console-detail.html` — **converged
+  base renders** (parley convergence §8): ch20 is the skin/law they evolve
+  under (palette v2 expansion, micro-flags, Plex/Recursive, cut-paper slots =
+  punch-list item 1); PR #671's overlapping FleetBar/console/Scout renders
+  retire in their favor. Also still the ch19 gate-fixture references
+  (IT-016/IT-017 anatomy).
 - Older `v*`/`operator-tui-*` files predate the ch19/ch20 decisions; idea
   sources only.
 
