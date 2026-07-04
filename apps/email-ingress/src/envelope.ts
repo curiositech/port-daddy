@@ -81,6 +81,38 @@ export async function signBody(body: string, secret: string): Promise<string> {
   return `sha256=${hex}`;
 }
 
+/**
+ * POST with bounded exponential backoff. At-least-once delivery toward the
+ * daemon: a briefly-unreachable tunnel must not silently eat a fleet
+ * trigger (the daemon-side webhook trigger dedupes retried deliveries by
+ * delivery id, so retrying here is safe). Retries on network errors and
+ * 5xx; 4xx is a terminal verdict (bad signature/config) — retrying cannot
+ * fix it. Delays default to 2s/8s — inside a Worker's waitUntil budget.
+ */
+export async function postWithRetry(
+  fetchImpl: typeof fetch,
+  url: string,
+  init: RequestInit,
+  delaysMs: number[] = [2000, 8000],
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+): Promise<{ ok: boolean; status?: number; attempts: number; error?: string }> {
+  let lastError = '';
+  for (let attempt = 0; attempt <= delaysMs.length; attempt += 1) {
+    if (attempt > 0) await sleep(delaysMs[attempt - 1]);
+    try {
+      const res = await fetchImpl(url, init);
+      if (res.ok) return { ok: true, status: res.status, attempts: attempt + 1 };
+      if (res.status >= 400 && res.status < 500) {
+        return { ok: false, status: res.status, attempts: attempt + 1, error: `terminal ${res.status}` };
+      }
+      lastError = `HTTP ${res.status}`;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+    }
+  }
+  return { ok: false, attempts: delaysMs.length + 1, error: lastError };
+}
+
 /** Constant-time-ish verify for /send requests (daemon → worker). */
 export async function verifySignature(body: string, secret: string, header: string | null): Promise<boolean> {
   if (!header) return false;

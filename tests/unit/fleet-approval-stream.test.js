@@ -41,9 +41,9 @@ function proposal(overrides = {}) {
 describe('FleetApprovalStream', () => {
   test('enqueue is replay-safe and list() is timestamp-ordered', () => {
     const s = new FleetApprovalStream();
-    s.enqueue(proposal({ id: 'b', timestamp: 2000 }));
-    s.enqueue(proposal({ id: 'a', timestamp: 1000 }));
-    s.enqueue(proposal({ id: 'b', timestamp: 2000 })); // replay
+    s.enqueue(proposal({ id: 'b', timestamp: 2000, context: { source: 'trigger', messageContent: 'b-content' } }));
+    s.enqueue(proposal({ id: 'a', timestamp: 1000, context: { source: 'trigger', messageContent: 'a-content' } }));
+    s.enqueue(proposal({ id: 'b', timestamp: 2000, context: { source: 'trigger', messageContent: 'b-content' } })); // replay
     expect(s.list().map((p) => p.id)).toEqual(['a', 'b']);
   });
 
@@ -143,6 +143,16 @@ describe('FleetApprovalStream', () => {
     expect(outcome.message).toMatch(/unknown/);
   });
 
+  test('content fingerprint dedup: a retried delivery with a fresh uuid does not stack a second gate', () => {
+    const s = new FleetApprovalStream();
+    s.enqueue(proposal({ id: 'uuid-1' }));
+    s.enqueue(proposal({ id: 'uuid-2' })); // same substance, different uuid
+    expect(s.list()).toHaveLength(1);
+    // Different content is a different gate.
+    s.enqueue(proposal({ id: 'uuid-3', context: { source: 'trigger', channel: 'webhook:hooks', messageContent: '{"ping":false}' } }));
+    expect(s.list()).toHaveLength(2);
+  });
+
   test('a throwing subscriber does not starve the others', () => {
     const s = new FleetApprovalStream();
     const seen = [];
@@ -209,7 +219,7 @@ describe('GET /fleet/approvals/stream (WebSocket)', () => {
       claimDurable: () => true,
       restoreDurable: () => {},
     });
-    stream.enqueue(proposal({ id: 'pre-existing', timestamp: 1 }));
+    stream.enqueue(proposal({ id: 'pre-existing', timestamp: 1, context: { source: 'trigger', messageContent: 'pre-existing-content' } }));
 
     const client = connectAndCollect();
     await client.open;
@@ -219,7 +229,7 @@ describe('GET /fleet/approvals/stream (WebSocket)', () => {
     expect(snapshot.proposals.map((p) => p.id)).toEqual(['pre-existing']);
 
     // Live delta for a new proposal.
-    stream.enqueue(proposal({ id: 'live-1', timestamp: 2 }));
+    stream.enqueue(proposal({ id: 'live-1', timestamp: 2, context: { source: 'trigger', channel: 'webhook:hooks', messageContent: '{"live":1}' } }));
     const waiting = await client.next((e) => e.type === 'human_gate_waiting');
     expect(waiting.proposal.id).toBe('live-1');
 
@@ -350,7 +360,7 @@ describe('GET /fleet/approvals/events (SSE fallback)', () => {
     const stream = new FleetApprovalStream();
     setSharedApprovalStream(stream);
     stream.configure({ hail: async () => ({ success: true }), claimDurable: () => true, restoreDurable: () => {} });
-    stream.enqueue(proposal({ id: 'sse-pre', timestamp: 1 }));
+    stream.enqueue(proposal({ id: 'sse-pre', timestamp: 1, context: { source: 'trigger', messageContent: 'sse-pre-content' } }));
 
     const app = Fastify();
     await app.register(fleetApprovalsPlugin, { deps: { logger: { info: () => {} } } });
@@ -374,7 +384,7 @@ describe('GET /fleet/approvals/events (SSE fallback)', () => {
     };
 
     await readUntil((b) => b.includes('"type":"snapshot"') && b.includes('sse-pre'));
-    stream.enqueue(proposal({ id: 'sse-live', timestamp: 2 }));
+    stream.enqueue(proposal({ id: 'sse-live', timestamp: 2, context: { source: 'trigger', messageContent: 'sse-live-content' } }));
     await readUntil((b) => b.includes('"type":"human_gate_waiting"') && b.includes('sse-live'));
 
     await reader.cancel();

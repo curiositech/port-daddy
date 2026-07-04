@@ -22,7 +22,7 @@
 import PostalMime from 'postal-mime';
 import { createMimeMessage } from 'mimetext';
 import { EmailMessage } from 'cloudflare:email';
-import { buildInboundEnvelope, signBody, verifySignature } from './envelope.js';
+import { buildInboundEnvelope, postWithRetry, signBody, verifySignature } from './envelope.js';
 
 export interface EmailIngressEnv {
   /** Daemon (or tunnel) base URL for inbound envelope delivery. */
@@ -86,20 +86,22 @@ export default {
     const signature = await signBody(body, env.PD_EMAIL_INBOUND_SECRET);
     const url = new URL(`/webhooks/fleet/${channel}`, env.PD_FORWARD_URL).toString();
 
+    // At-least-once toward the daemon (bounded retries; the daemon-side
+    // trigger dedupes by x-pd-delivery-id so retries never double-fire).
     ctx.waitUntil(
-      fetch(url, {
+      postWithRetry(fetch, url, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
           'x-pd-webhook-signature': signature,
+          'x-pd-delivery-id': envelope.messageId ?? `email:${envelope.from}:${envelope.date}`,
         },
         body,
-      }).then(
-        (res) => {
-          if (!res.ok) console.error(`daemon envelope delivery returned ${res.status}`);
-        },
-        (err) => console.error('daemon envelope delivery failed:', err instanceof Error ? err.message : String(err)),
-      ),
+      }).then((result) => {
+        if (!result.ok) {
+          console.error(`daemon envelope delivery failed after ${result.attempts} attempt(s): ${result.error}`);
+        }
+      }),
     );
   },
 

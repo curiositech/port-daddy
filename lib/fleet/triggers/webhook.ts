@@ -16,6 +16,7 @@
  * the dry-run path validates the spec.
  */
 
+import { createHash } from 'node:crypto';
 import { verifyWebhookHmac } from '../webhook-hmac.js';
 import type {
   FleetTriggerEvent,
@@ -91,6 +92,13 @@ export class WebhookTriggerSource implements TriggerSource {
       );
     }
 
+    // Delivery idempotency (at-least-once senders retry on timeout): dedupe
+    // by the sender's delivery id when provided, else by a hash of the exact
+    // raw bytes. A retried delivery acks 200 without re-emitting — one
+    // inbound event never becomes two agent runs or two approval proposals.
+    const delivered = new Map<string, number>();
+    const DELIVERY_RETENTION_MS = 24 * 60 * 60 * 1000;
+
     const deregister = this.deps.registerHandler(channel, async (req) => {
       // If the spec asked for HMAC verification, enforce it.
       if (expectedSecret) {
@@ -98,6 +106,21 @@ export class WebhookTriggerSource implements TriggerSource {
         if (!verifyWebhookHmac(req.rawBody, expectedSecret, signature)) {
           return { status: 401, body: { error: 'invalid signature' } };
         }
+      }
+
+      const deliveryKey =
+        req.headers['x-pd-delivery-id'] ??
+        req.headers['x-pd-correlation-id'] ??
+        `sha256:${createHash('sha256').update(req.rawBody).digest('hex')}`;
+      const now = Date.now();
+      if (delivered.has(deliveryKey)) {
+        return { status: 200, body: { received: true, deduped: true } };
+      }
+      delivered.set(deliveryKey, now);
+      // Prune by age, never wholesale (a wholesale clear would re-open the
+      // dedup window for recent deliveries).
+      for (const [key, at] of delivered) {
+        if (now - at > DELIVERY_RETENTION_MS) delivered.delete(key);
       }
 
       const payload: WebhookPayload = {

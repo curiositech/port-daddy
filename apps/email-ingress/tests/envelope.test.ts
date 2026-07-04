@@ -75,3 +75,41 @@ describe('signBody / verifySignature', () => {
     expect(await verifySignature('{"a":1}', 'secret-key', null)).toBe(false);
   });
 });
+
+describe('postWithRetry', () => {
+  const noSleep = async () => {};
+
+  test('retries network errors and 5xx, succeeds when the daemon comes back', async () => {
+    const { postWithRetry } = await import('../src/envelope.js');
+    let calls = 0;
+    const flaky = (async () => {
+      calls += 1;
+      if (calls === 1) throw new Error('connect ECONNREFUSED');
+      if (calls === 2) return new Response('oops', { status: 503 });
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+    const result = await postWithRetry(flaky, 'https://d/x', {}, [1, 1], noSleep);
+    expect(result).toEqual(expect.objectContaining({ ok: true, attempts: 3 }));
+  });
+
+  test('4xx is terminal — retrying cannot fix a bad signature', async () => {
+    const { postWithRetry } = await import('../src/envelope.js');
+    let calls = 0;
+    const rejecting = (async () => {
+      calls += 1;
+      return new Response('bad sig', { status: 401 });
+    }) as unknown as typeof fetch;
+    const result = await postWithRetry(rejecting, 'https://d/x', {}, [1, 1], noSleep);
+    expect(result.ok).toBe(false);
+    expect(calls).toBe(1);
+    expect(result.error).toMatch(/terminal 401/);
+  });
+
+  test('exhausted retries report the last error', async () => {
+    const { postWithRetry } = await import('../src/envelope.js');
+    const down = (async () => { throw new Error('tunnel down'); }) as unknown as typeof fetch;
+    const result = await postWithRetry(down, 'https://d/x', {}, [1, 1], noSleep);
+    expect(result).toEqual(expect.objectContaining({ ok: false, attempts: 3 }));
+    expect(result.error).toMatch(/tunnel down/);
+  });
+});

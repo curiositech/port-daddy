@@ -680,6 +680,21 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       //      and that decisions resolve through.
       // The fleet HITL proposal queue (PR #648) can consume the same seam.
       enqueueForApproval: (proposal: FleetApprovalProposal) => {
+        // Stream first: enqueue() is the dedup authority (id + content
+        // fingerprint). Writing the tuple only for ACCEPTED proposals keeps
+        // duplicates out of the durable record — an orphan tuple for a
+        // collapsed duplicate would resurrect as a ghost gate on the next
+        // restart, after its twin was already decided.
+        const accepted = getSharedApprovalStream().enqueue(proposal);
+        if (!accepted) {
+          logger.info('fleet_approval_deduped', {
+            id: proposal.id,
+            project: proposal.project,
+            agent: proposal.agent,
+            trigger: proposal.trigger,
+          });
+          return;
+        }
         tuples?.out([
           'fleet:approval',
           proposal.id,
@@ -696,9 +711,8 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
         ], {
           harbor: config.harbor || `${config.name}:fleet`,
           writtenBy: 'fleetd:trust-gate',
-          ttlMs: 7 * 24 * 60 * 60 * 1000,
+          ttlMs: APPROVAL_TUPLE_TTL_MS,
         });
-        getSharedApprovalStream().enqueue(proposal);
         logger.info('fleet_approval_requested', {
           id: proposal.id,
           project: proposal.project,

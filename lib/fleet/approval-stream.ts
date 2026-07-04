@@ -32,6 +32,7 @@
  * broadcast into.
  */
 
+import { createHash } from 'node:crypto';
 import type { FleetApprovalProposal, FleetRunContext } from '../fleet-engine.js';
 
 export interface PendingApproval extends FleetApprovalProposal {
@@ -89,11 +90,25 @@ export class FleetApprovalStream {
     this.actions = actions;
   }
 
-  /** New proposal from the trust gate (or a boot-time tuple replay). */
-  enqueue(proposal: PendingApproval): void {
-    if (this.pending.has(proposal.id)) return; // replay-safe
+  /**
+   * New proposal from the trust gate (or a boot-time tuple replay).
+   * Returns false when deduped — callers writing a durable record MUST
+   * skip the write then, or the orphan record resurrects as a ghost gate
+   * on the next restart after its twin was decided.
+   */
+  enqueue(proposal: PendingApproval): boolean {
+    if (this.pending.has(proposal.id)) return false; // replay-safe by id
+    // Content-level idempotency: a retried delivery that slipped past the
+    // trigger-layer dedup (daemon restart cleared it, different transport)
+    // arrives with a FRESH uuid but identical substance. One inbound event
+    // must never stack two human gates.
+    const fingerprint = proposalFingerprint(proposal);
+    for (const existing of this.pending.values()) {
+      if (proposalFingerprint(existing) === fingerprint) return false;
+    }
     this.pending.set(proposal.id, proposal);
     this.broadcast({ type: 'human_gate_waiting', proposal });
+    return true;
   }
 
   list(): PendingApproval[] {
@@ -194,6 +209,15 @@ export class FleetApprovalStream {
       }
     }
   }
+}
+
+/** Substance identity of a proposal: same project/agent/trigger and the same
+ *  trigger content = the same gate, whatever uuid it arrived under. */
+function proposalFingerprint(p: PendingApproval): string {
+  const content = createHash('sha1')
+    .update(p.context.messageContent ?? JSON.stringify(p.context.message ?? ''))
+    .digest('hex');
+  return `${p.project}/${p.agent}/${p.trigger}/${content}`;
 }
 
 let shared: FleetApprovalStream | null = null;

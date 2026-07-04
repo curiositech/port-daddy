@@ -248,6 +248,23 @@ describe('end-to-end: POST → WebhookTriggerSource → trust gate (Phase 2 proo
     // No direct spawn by any path.
     expect(mockSpawn).not.toHaveBeenCalled();
 
+    // Delivery idempotency: an at-least-once sender retrying the SAME
+    // delivery id acks 200 without re-emitting. (This harness wires
+    // enqueueForApproval directly, so the trigger-layer dedup is what's
+    // under test here; the approval stream's content-fingerprint dedup is
+    // covered in fleet-approval-stream.test.js.)
+    const retryHeaders = {
+      'content-type': 'application/json',
+      'x-pd-webhook-signature': signature,
+      'x-pd-delivery-id': 'delivery-42',
+    };
+    const first = await app.inject({ method: 'POST', url: '/webhooks/fleet/sensor', headers: retryHeaders, payload });
+    expect(first.statusCode).toBe(200);
+    expect(proposals).toHaveLength(2); // a NEW delivery id is a new event
+    const retried = await app.inject({ method: 'POST', url: '/webhooks/fleet/sensor', headers: retryHeaders, payload });
+    expect(retried.json().deduped).toBe(true);
+    expect(proposals).toHaveLength(2); // the RETRY is not
+
     runner.stopAll();
     await runner.whenTriggersReady();
     await app.close();
