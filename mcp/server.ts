@@ -3221,7 +3221,10 @@ async function handleTool(
     // ── Sugar (Compound Operations) ────────────────────────────────────
     case 'begin_session': {
       const body: Record<string, unknown> = { purpose: args.purpose };
-      if (args.lifecycle) body.lifecycle = args.lifecycle;
+      // Forward unconditionally: an empty/malformed value must reach the daemon
+      // so its SESSION_LIFECYCLE_REQUIRED error names the real problem instead
+      // of being dropped here and failing identically but opaquely.
+      body.lifecycle = args.lifecycle;
       if (args.identity) body.identity = args.identity;
       if (args.agent_id) body.agentId = args.agent_id;
       if (args.type) body.type = args.type;
