@@ -194,6 +194,27 @@ enum OperatorConsoleLauncher {
     }
 }
 
+// MARK: - Console routing policy
+
+/// Where FleetBar's general "Control Center" action opens.
+enum OperatorConsoleTarget: Equatable {
+    /// pd-console — the GPU-native Rust cockpit (preferred when installed).
+    case native
+    /// The embedded web control plane (fallback for machines without pd-console).
+    case web
+}
+
+enum OperatorConsoleRouter {
+    /// pd-console is the operator console when it's installed; the embedded web
+    /// control plane is the fallback. This governs only the *general* "open the
+    /// console" action — surface deep-links (yaml editing, a specific agent's
+    /// activity) keep using the web view, which supports them and pd-console does
+    /// not yet. Pure so the policy is unit-tested without launching anything.
+    static func target(nativeInstalled: Bool) -> OperatorConsoleTarget {
+        nativeInstalled ? .native : .web
+    }
+}
+
 // MARK: - SwiftUI integration
 
 /// A Button that launches the best available pd-console against the default daemon.
