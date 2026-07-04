@@ -423,12 +423,17 @@ async function runShip(
     const partials: string[] = [];
     for (let i = 0; i < chunks.length; i++) {
       const userMessage = buildUserMessage(prCtx, chunks[i], i, chunks.length);
-      const res = (await env.AI.run(ship.cfModel as Parameters<typeof env.AI.run>[0], {
+      const request = {
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage },
         ],
-      })) as { response?: string };
+        ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
+      };
+      const res = (await env.AI.run(
+        ship.cfModel as Parameters<typeof env.AI.run>[0],
+        request,
+      )) as { response?: string };
       partials.push((res.response ?? '').trim());
 
       // Transcript: one row per MAP chunk (best-effort).
@@ -577,12 +582,17 @@ async function reduceFindings(
     .map((p, i) => `## Partial review ${i + 1} of ${partials.length}\n\n${p || '(empty)'}`)
     .join('\n\n');
 
-  const res = (await env.AI.run(ship.cfModel as Parameters<typeof env.AI.run>[0], {
+  const request = {
     messages: [
       { role: 'system', content: managerSystem },
       { role: 'user', content: userMessage },
     ],
-  })) as { response?: string };
+    ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
+  };
+  const res = (await env.AI.run(
+    ship.cfModel as Parameters<typeof env.AI.run>[0],
+    request,
+  )) as { response?: string };
 
   return (res.response ?? '').trim();
 }

@@ -345,28 +345,67 @@ fleet:
       telos: "Keep the roadmap, recovery queue, and live work map aligned."
 
     spark:
-      # PAUSED. Output: writes proposals to .spark/ideas/ markdown
-      # files. Spark is the only ship that does NOT write to GitHub
-      # — its consumers are spider and cartographer, both internal.
-      trigger: git:committed
+      # High-temperature product imagination. Spark comments buildable
+      # ideas on PRs and emits action-shaped packets a follow-up command
+      # handler can turn into tested PR builds.
+      trigger:
+        - pull_request:opened
+        - git:committed
       cooldown_ms: 7200000
       dedupe_window_ms: 7200000
       backend: cli:claude-code
+      temperature: 1.25
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
           model: '@cf/moonshotai/kimi-k2.6'
       singleton: true
-      allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
+      allowedTools: "Read,Grep,Glob"
+      side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
+      output_receipts: [comment_url, assignment_packet, command_token, dispatch_command]
       prompt: |
-        PAUSED. Unpause when ideation throughput is the bottleneck.
-        Current bottleneck is execution, not idea generation.
+        You are Spark, Port Daddy's high-temperature product imagination
+        engine. Your job is not to review the PR for correctness. Your job
+        is to notice what this diff makes newly possible for the product,
+        in the vein of Port Daddy's actual mission: legible agent work,
+        operator control, durable transcripts, repo-scoped fleets, safe
+        autonomy, beautiful control surfaces, and agents that put up
+        tested PRs instead of dumping chores on the roadmap.
 
-        When active: see prior prompt (Spark idea engine with novelty
-        gate, dedupe against IDEAS-TROVE, output to .spark/ideas/).
-      on_success: publish spark:idea
+        Think hotter than the reviewer ships. Let yourself make surprising
+        leaps, but every idea must still be grounded in evidence from the
+        PR, roadmap, fleet config, product direction, or existing code.
+
+        Output 0-3 buildable ideas. Do not write "add to roadmap." Do not
+        ask the operator to manually implement your idea. Each idea must
+        be shaped so a bot can be assigned to build it.
+
+        For each idea, use this form:
+        ## Spark Idea: <short name>
+        - Why now: <what this PR/code/product moment unlocked>
+        - User/customer value: <the operator or PD developer pain it solves>
+        - Evidence: <files, concepts, or PR hunks that caused the idea>
+        - Assign to: <skill-grafter | qa-test-builder | red-team-fixer |
+          documentarian | skillwright | ui-forge>
+        - Build packet: { sourceShip: "spark", targetSpecialist,
+          assignmentTitle, problem, proposedBuild, filesLikelyTouched,
+          validationRequired, expectedProof, budgetUsd }
+        - Kickoff: `/pd assign spark <assignmentTitle>`
+        - CLI fallback: `pd dispatch propose --from-pr <PR> --ship spark --title "<assignmentTitle>"`
+
+        Output contract: do not wrap the build packet in triple-backtick
+        fences, and especially do not use a ```json fence for it. The
+        executor parses the first fenced ```json block as the findings
+        array. The only fenced ```json block you may emit is the final
+        findings array, usually `[]`.
+
+        Spark ideas are advisory opportunities, not merge objections. Unless
+        you found a true product-safety blocker, include an empty findings
+        JSON block and end with FLEET-VERDICT: PASS.
+      on_success:
+        - publish spark:idea
       identity: "{project}:fleet:spark"
-      telos: "Propose one novel, buildable improvement with traceable lineage."
+      telos: "Comment buildable product opportunities that can be assigned to PR-producing bots."
 
     # ─── Dispatch runner (DISABLED by default; see docs/proposals/pd-nightshift.md) ──
     # Renamed from `nightshift-runner` per ADR-0035 -- the verb generalized. This
@@ -393,35 +432,67 @@ fleet:
     #   telos: "Drain the operator's dispatch queue without supervision, bounded by cost and time."
 
     spider:
-      # Stays scheduled every 2 hours. Output: writes syllogisms to
-      # .spider/connections/. Internal consumer (cartographer)
-      # harvests on its own schedule. No GitHub output.
-      trigger: spark:idea
+      # Syllogism engine. Spider combines two existing facts/capabilities
+      # and proposes the new product or workflow that follows from them.
+      trigger:
+        - spark:idea
+        - pull_request:opened
       schedule: "0 */2 * * *"
       backend: cli:claude-code
+      temperature: 0.95
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
           model: '@cf/openai/gpt-oss-120b'
       singleton: true
-      allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
+      allowedTools: "Read,Grep,Glob"
+      side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
+      output_receipts: [comment_url, assignment_packet, command_token, dispatch_command]
       prompt: |
-        You are Spider, the connection engine for Port Daddy. Your job
-        is to find combinatorial possibilities between features that
-        no one has noticed yet.
+        You are Spider, Port Daddy's syllogism engine. You do not invent
+        wild ideas from nothing. You take two existing things that are
+        already true in the repo/product, connect them, and name the new
+        product or workflow that is now possible.
 
-        Process unchanged from prior version: read manifest +
-        roadmap + recovery + lib/ headers + git log + spark ideas,
-        emit 1-3 syllogisms per run to .spider/connections/,
-        dedupe against IDEAS-TROVE and prior syllogisms.
+        Your basic move:
+        Premise A: <existing capability, feature, actor, route, doc, PR
+        change, or user pain>
+        Premise B: <another existing capability, feature, actor, route,
+        doc, PR change, or user pain>
+        Therefore: <new product/workflow/agent behavior that can now be
+        built>
 
-        Output stays at .spider/connections/ (no GitHub output —
-        spider is research input, not operator-visible).
+        Output 0-3 syllogisms. Each accepted syllogism must become a
+        bounded specialist assignment. No passive roadmap suggestions.
+
+        For each syllogism, use this form:
+        ## Spider Syllogism: <new product/workflow name>
+        - A: <first existing thing, with evidence>
+        - B: <second existing thing, with evidence>
+        - Therefore: <the new product/workflow now possible>
+        - Assign to: <skill-grafter | qa-test-builder | red-team-fixer |
+          documentarian | skillwright | ui-forge>
+        - Build packet: { sourceShip: "spider", targetSpecialist,
+          assignmentTitle, premises, proposedBuild, filesLikelyTouched,
+          validationRequired, expectedProof, budgetUsd }
+        - Kickoff: `/pd assign spider <assignmentTitle>`
+        - CLI fallback: `pd dispatch propose --from-pr <PR> --ship spider --title "<assignmentTitle>"`
+
+        Output contract: do not wrap the build packet in triple-backtick
+        fences, and especially do not use a ```json fence for it. The
+        executor parses the first fenced ```json block as the findings
+        array. The only fenced ```json block you may emit is the final
+        findings array, usually `[]`.
+
+        Spider comments are advisory product synthesis, not merge
+        objections. Unless you found a true product-safety blocker, include
+        an empty findings JSON block and end with FLEET-VERDICT: PASS.
 
         coordination:inconsistency posture preserved.
-      on_success: publish spider:connections
+      on_success:
+        - publish spider:connections
       identity: "{project}:fleet:spider"
-      telos: "Find surprising feature connections without inventing novelty."
+      telos: "Comment new products implied by connections between existing capabilities."
 
     # ─── New ships (added 2026-05-20) ────────────────────────────────
     #
@@ -964,12 +1035,16 @@ fleet:
       consumers: [ documentarian ]
 
     spark:idea:
-      description: "Spark proposed a new feature idea"
+      description: "Spark proposed a high-temperature buildable product
+        idea on a PR or commit. Payload includes an assignment packet,
+        command token, `/pd assign ...` kickoff text, and CLI fallback."
       consumers: [ spider ]
 
     spider:connections:
-      description: "Spider found new combinatorial possibilities
-        (cartographer harvests on its 30-min schedule)"
+      description: "Spider connected two existing capabilities into a
+        new product/workflow syllogism. Payload includes premises,
+        assignment packet, command token, `/pd assign ...` kickoff text,
+        and CLI fallback."
 
     coordination:inconsistency:
       description: "INTER-agent coordination channel — overlapping
