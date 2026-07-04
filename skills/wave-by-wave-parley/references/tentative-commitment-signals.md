@@ -12,7 +12,7 @@
 
 ## Decomposer Schema Integration
 
-The authoritative JSON Schema for `DecomposerOutput.Subtask` lives at `packages/core/src/context/meta-dag-predict.ts` (inline schema object, lines 130–160) and is mirrored in `skills/windags-decomposer/schemas/decomposer-output.schema.json`. Both require `commitment_level` as a non-optional enum field: `['COMMITTED', 'TENTATIVE', 'EXPLORATORY']`. The synthesizer in `meta-dag-predict.ts` applies a default of `'TENTATIVE'` (line 579) when the decomposer omits the field — meaning the safe default is always to trigger parley, never to skip it.
+The authoritative JSON Schema for `DecomposerOutput.Subtask` lives in the WinDAGs repo at `packages/core/src/context/meta-dag-predict.ts` (inline schema object, lines 130–160) and is mirrored in the WinDAGs catalog's `windags-decomposer` skill (`schemas/decomposer-output.schema.json` there) <!-- cite-exempt: WinDAGs-repo paths, not port-daddy paths -->. Both require `commitment_level` as a non-optional enum field: `['COMMITTED', 'TENTATIVE', 'EXPLORATORY']`. The synthesizer in `meta-dag-predict.ts` applies a default of `'TENTATIVE'` (line 579) when the decomposer omits the field — meaning the safe default is always to trigger parley, never to skip it.
 
 The `waves` array in `DecomposerOutput` (`{ wave_number: number; subtask_ids: string[] }`) does not carry commitment levels directly. The executor must join `subtask_ids` against the `subtasks` array to retrieve `commitment_level` for each node before calling `shouldParley`. There is no denormalized "wave-level commitment" — commitment is always per-subtask.
 
