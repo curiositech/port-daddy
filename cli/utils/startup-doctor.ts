@@ -10,6 +10,7 @@ import { existsSync, unlinkSync, statSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
+import { isStdinInteractive, isStdoutInteractive } from './tty.js';
 
 import { DEFAULT_SOCK } from '../../shared/paths.js';
 import { readDaemonPort } from '../../shared/daemon-discovery.js';
@@ -30,10 +31,11 @@ export interface StartupDoctorOptions {
  * Prompt the user with Y/n. Returns true if they accept (or press Enter for default Y).
  */
 export async function confirmFix(prompt: string): Promise<boolean> {
-  // Non-TTY (CI, pipes, smoke harnesses): nobody can answer — blocking on
-  // stdin here hangs the process until an external timeout kills it. Decline
-  // the fix instead of hanging.
-  if (!process.stdin.isTTY || !process.stdout.isTTY) return false;
+  // Non-interactive (CI, pipes, smoke harnesses): nobody can answer — blocking
+  // on stdin here hangs the process until an external timeout kills it.
+  // Decline the fix instead of hanging. Kernel-level helpers per the
+  // no-raw-stdin-istty regiment (stream flags lie under the compiled binary).
+  if (!isStdinInteractive() || !isStdoutInteractive()) return false;
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   return new Promise((resolve) => {
     rl.question(`  ${prompt} [Y/n] `, (answer) => {

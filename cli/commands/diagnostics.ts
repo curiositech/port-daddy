@@ -45,6 +45,7 @@ import {
 } from '../../lib/squid/adapter.js';
 import { isEmbeddingModelCached, prefetchEmbeddingModel } from './embed.js';
 import { DEFAULT_SEMANTIC_MODEL_ID, defaultTransformersCacheDir } from '../../lib/semantic-resolver.js';
+import { isStdinInteractive, isStdoutInteractive } from '../utils/tty.js';
 import { createPlatforms } from './mcp-install.js';
 import * as ui from '../utils/ui.js';
 
@@ -1538,9 +1539,10 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
 
   // Repair path for a cancelled/failed setup download of the shared embedding
   // model (ADR-0061): offer the one-time fetch right here instead of leaving
-  // hybrid search silently degraded to lexical-only. TTY-gated: a piped
-  // `pd doctor` (CI smoke, scripts) must never block on a prompt.
-  if (!nonInteractive && !embeddingModelCached && process.stdin.isTTY && process.stdout.isTTY) {
+  // hybrid search silently degraded to lexical-only. Interactivity-gated via
+  // the canonical tty helpers: a piped `pd doctor` (CI smoke, scripts) must
+  // never block on a prompt.
+  if (!nonInteractive && !embeddingModelCached && isStdinInteractive() && isStdoutInteractive()) {
     console.log('');
     const download = await confirmFix(
       `Download the local embedding model now? (${DEFAULT_SEMANTIC_MODEL_ID}, ~27 MB, one-time)`,
