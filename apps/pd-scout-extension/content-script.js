@@ -1,4 +1,5 @@
 const HOST_ID = 'pd-scout-region-host';
+const CONFIRMATION_HOST_ID = 'pd-scout-capture-confirmation-host';
 
 function canUseDom() {
   return typeof document !== 'undefined' && typeof window !== 'undefined';
@@ -179,6 +180,52 @@ function removeHost() {
   document.getElementById(HOST_ID)?.remove();
 }
 
+function showCapturedRegion(region) {
+  document.getElementById(CONFIRMATION_HOST_ID)?.remove();
+
+  const host = document.createElement('div');
+  host.id = CONFIRMATION_HOST_ID;
+  host.style.position = 'fixed';
+  host.style.inset = '0';
+  host.style.zIndex = '2147483646';
+  host.style.pointerEvents = 'none';
+
+  const shadow = host.attachShadow({ mode: 'open' });
+  shadow.innerHTML = `
+    <style>
+      :host { all: initial; }
+      .box {
+        position: fixed;
+        left: ${region.x}px;
+        top: ${region.y}px;
+        width: ${Math.max(1, region.width)}px;
+        height: ${Math.max(1, region.height)}px;
+        border: 2px solid #2f7df6;
+        background: rgba(47, 125, 246, 0.10);
+        box-shadow: 0 0 0 9999px rgba(15, 18, 25, 0.14);
+        border-radius: 8px;
+      }
+      .label {
+        position: fixed;
+        left: min(calc(${region.x}px + 8px), calc(100vw - 220px));
+        top: max(12px, calc(${region.y}px - 44px));
+        background: rgba(255,255,255,0.96);
+        color: #202022;
+        border: 1px solid rgba(0,0,0,0.14);
+        border-radius: 14px;
+        box-shadow: 0 18px 48px rgba(0,0,0,0.22);
+        padding: 9px 12px;
+        font: 700 13px/1.35 Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+      }
+    </style>
+    <div class="box"></div>
+    <div class="label">Scout captured this region.</div>
+  `;
+
+  document.documentElement.appendChild(host);
+  window.setTimeout(() => host.remove(), 4500);
+}
+
 function startSelection() {
   removeHost();
 
@@ -223,7 +270,7 @@ function startSelection() {
       }
     </style>
     <div class="veil">
-      <div class="hint">Drag a rectangle. Press Esc to cancel.</div>
+      <div class="hint">Drag a rectangle. Scout reopens when it is captured. Press Esc to cancel.</div>
       <div class="box"></div>
     </div>
   `;
@@ -282,6 +329,7 @@ function startSelection() {
       devicePixelRatio: window.devicePixelRatio || 1,
     };
     cleanup();
+    showCapturedRegion(region);
     chrome.runtime.sendMessage({
       type: 'pd-scout-selection-complete',
       selection: { region, domContext, viewport },

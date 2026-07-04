@@ -170,7 +170,7 @@ A named risk (`:99`): "Zed's loudest complaint is AI/collab surfaces bloating th
 
 ### Agents reach all of this through agent-neutral MCP tools
 
-The plan (`:75`): agents act "through agent-neutral MCP tools (`claim_region`, `release_region`, `coordination_preflight`, `salvage`) — first-class, **never Claude-specific**." This matches the standing PD rule that coordination primitives must serve *every* backend, not just Claude Code. The `port-daddy` MCP server already exposes `begin_session`, `claim_port`, `coordination_preflight`, `add_note`, `spawn_agent`, `run_sortie` — the editor tools extend that same surface.
+The plan (`:75`): agents act "through agent-neutral MCP tools (`claim_region`, `release_region`, `coordination_preflight`, `salvage`) — first-class, **never Claude-specific**." This matches the standing PD rule that coordination primitives must serve *every* backend, not just Claude Code. The `port-daddy` MCP server already exposes `begin_session`, `claim_port`, `coordination_preflight`, `add_note`, and `spawn` — the editor tools extend that same surface.
 
 #### Anti-Pattern — building a parallel WebSocket sync server
 - **Symptom:** A new `collab-server.ts` with its own room management, its own auth, its own persistence.

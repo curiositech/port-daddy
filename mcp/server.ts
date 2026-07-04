@@ -135,8 +135,7 @@ const ESSENTIAL_TOOL_NAMES = new Set([
   'coordination_preflight',
   'sitrep',
   'catch_me_up',  // DEPRECATED 3.8.4 — alias for sitrep. Kept for back-compat.
-  'spawn_agent',
-  'run_sortie',
+  'spawn',
   // Central agentic-feedback primitive — agents drop feedback while
   // they work; cartographer harvests it into the roadmap.
   'drop_feedback',
@@ -147,8 +146,8 @@ const ESSENTIAL_TOOL_NAMES = new Set([
 
 const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> = {
   'magic': {
-    description: 'High-level composed tools: fleet setup, swarm awareness, situation reports, agent spawning, sortie missions, file heat maps, agent messaging',
-    tools: ['fleet_init', 'fleet_status', 'active_agent_roster', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn_agent', 'run_sortie'],
+    description: 'High-level composed tools: fleet setup, swarm awareness, situation reports, spawning, file heat maps, agent messaging',
+    tools: ['fleet_init', 'fleet_status', 'active_agent_roster', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn'],
   },
   'session-lifecycle': {
     description: 'Start/end sessions, manage agent registration (sugar commands)',
@@ -230,10 +229,6 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     description: 'Activity log queries and statistics',
     tools: ['activity_log', 'activity_summary', 'activity_stats', 'activity_range'],
   },
-  'sorties': {
-    description: 'Tracked mission records over spawned runs — launch, inspect status, and fetch sortie event logs',
-    tools: ['run_sortie', 'list_sorties', 'get_sortie', 'get_sortie_logs'],
-  },
   'cockpit': {
     description: 'App-Native Development Cockpit — read roadmap markdown into typed mission cards',
     tools: ['cockpit_missions_list'],
@@ -292,7 +287,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
   },
   'context': {
-    description: 'Context economics — per-agent token budget health, swarm COGS overview, and per-sortie task ledger',
+    description: 'Context economics — per-agent token budget health, swarm COGS overview, and per-spawn task ledger',
     tools: ['get_context_budget', 'get_context_overview', 'get_task_ledger'],
   },
   'harvest': {
@@ -2781,10 +2776,10 @@ const TOOLS = [
     },
   },
   {
-    name: 'spawn_agent',
+    name: 'spawn',
     description:
-      '[Magic] Launch a background AI agent with a task. The agent gets its own session, ' +
-      'heartbeat, and coordination — all automatic. Returns the agent ID for tracking.',
+      '[Magic] Spawn a background AI run with a task. The run gets its own session, ' +
+      'heartbeat, and coordination — all automatic. Returns the spawned run metadata.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -2802,71 +2797,6 @@ const TOOLS = [
         max_tokens: { type: 'number', description: 'Optional token ceiling for claude or claude-cli launches' },
       },
       required: ['task', 'identity', 'budget_usd'],
-    },
-  },
-  {
-    name: 'run_sortie',
-    description:
-      '[Magic] Launch a tracked sortie mission. Use this when you want a durable mission id, ' +
-      'ephemeral harbor, event log, and inspectable outcome instead of a raw one-shot spawn.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        goal: { type: 'string', description: 'Required mission goal or brief.' },
-        project_dir: { type: 'string', description: 'Optional project directory override. Defaults to the current working directory on the daemon side.' },
-        budget_usd: { type: 'number', description: 'Required spend ceiling for the sortie in USD.' },
-        backend: { type: 'string', description: 'Required setup-ready backend: cloudflare, claude, claude-cli, gemini, codex, aider, custom, or another configured backend.' },
-        model: { type: 'string', description: 'Optional explicit model override.' },
-        model_tier: { type: 'string', description: 'Optional tier hint: low, mid, or high.' },
-        recipe: { type: 'string', description: 'Optional mission recipe such as investigate, fix, review, creative, or custom.' },
-        expected_output: { type: 'string', description: 'Optional expected deliverable summary.' },
-        context: { type: 'string', description: 'Optional extra context or constraints.' },
-        approval_mode: { type: 'string', description: 'Optional human gate mode: none, before-build, before-apply, or before-close.' },
-        roster: { type: 'array', description: 'Optional roster preview or requested roles.', items: { type: 'string' } },
-        identity: { type: 'string', description: 'Optional explicit coordinator identity. Defaults to project:sortie:<id>:coordinator.' },
-        purpose: { type: 'string', description: 'Optional short human-readable label for the coordinating run.' },
-        allowed_tools: { type: 'string', description: 'Optional tool permission string for claude-cli-backed coordinators.' },
-        timeout: { type: 'number', description: 'Optional timeout in milliseconds.' },
-        max_tokens: { type: 'number', description: 'Optional token ceiling for claude or claude-cli launches.' },
-      },
-      required: ['goal', 'backend', 'budget_usd'],
-    },
-  },
-  {
-    name: 'list_sorties',
-    description:
-      '[Mission] List recent sortie missions. Filter to the current project by default, or pass a project directory to inspect another checkout.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        project_dir: { type: 'string', description: 'Optional project directory filter.' },
-        limit: { type: 'number', description: 'Optional maximum number of sorties to return (default: 25).' },
-      },
-    },
-  },
-  {
-    name: 'get_sortie',
-    description:
-      '[Mission] Fetch one sortie mission by id, including status, harbor, backend, output, and failure details when present.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        sortie_id: { type: 'string', description: 'Sortie mission id.' },
-      },
-      required: ['sortie_id'],
-    },
-  },
-  {
-    name: 'get_sortie_logs',
-    description:
-      '[Mission] Fetch the human-readable event log for a sortie mission.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        sortie_id: { type: 'string', description: 'Sortie mission id.' },
-        limit: { type: 'number', description: 'Optional maximum number of log events to return.' },
-      },
-      required: ['sortie_id'],
     },
   },
   // ── App-Native Development Cockpit ────────────────────────────────────
@@ -2990,7 +2920,7 @@ const TOOLS = [
   {
     name: 'memory_episodes',
     description:
-      '[Semantic] List episodic memory entries promoted from sessions and sorties.',
+      '[Semantic] List episodic memory entries promoted from sessions and spawned runs.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -3158,9 +3088,9 @@ const TOOLS = [
   {
     name: 'get_task_ledger',
     description:
-      '[Context] Get per-sortie COGS ledger rows for cost attribution. ' +
-      'Returns token counts, cost, and landed work (pr/commit/episode) per sortie. ' +
-      'Use for debugging cost overruns or verifying that sorties landed durable work.',
+      '[Context] Get per-spawn COGS ledger rows for cost attribution. ' +
+      'Returns token counts, cost, and landed work (pr/commit/episode) per spawned run. ' +
+      'Use for debugging cost overruns or verifying that spawned work landed durable artifacts.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -4563,7 +4493,7 @@ async function handleTool(
       return JSON.stringify({ success: true, delivered_via: 'channel', channel: agent, message });
     }
 
-    case 'spawn_agent': {
+    case 'spawn': {
       const task = args.task as string;
       const identity = args.identity as string | undefined;
       const budgetUsd = args.budget_usd as number | undefined;
@@ -4579,13 +4509,13 @@ async function handleTool(
       // the daemon cwd. Reject here too (defense-in-depth with routes/spawn.ts).
       if (workdir !== undefined && workdir !== null) {
         if (typeof workdir !== 'string' || !workdir.trim()) {
-          throw new Error('spawn_agent: workdir must be a non-empty string');
+          throw new Error('spawn: workdir must be a non-empty string');
         }
         if (/["\\\n\r\0]/.test(workdir)) {
-          throw new Error('spawn_agent: workdir contains an illegal character (quote, backslash, newline, or NUL). Provide a plain absolute path.');
+          throw new Error('spawn: workdir contains an illegal character (quote, backslash, newline, or NUL). Provide a plain absolute path.');
         }
         if (!workdir.startsWith('/')) {
-          throw new Error('spawn_agent: workdir must be an absolute path (start with "/").');
+          throw new Error('spawn: workdir must be an absolute path (start with "/").');
         }
       }
       const timeout = args.timeout as number | undefined;
@@ -4602,46 +4532,6 @@ async function handleTool(
       if (allowedTools) body.allowedTools = allowedTools;
       if (typeof args.max_tokens === 'number') body.maxTokens = args.max_tokens;
       res = await POST('/spawn', body);
-      break;
-    }
-    case 'run_sortie': {
-      const body: Record<string, unknown> = {
-        goal: args.goal,
-        backend: args.backend,
-        budgetUsd: args.budget_usd,
-      };
-      if (args.project_dir) body.projectDir = args.project_dir;
-      if (args.model) body.model = args.model;
-      if (args.model_tier) body.modelTier = args.model_tier;
-      if (args.recipe) body.recipe = args.recipe;
-      if (args.expected_output) body.expectedOutput = args.expected_output;
-      if (args.context) body.context = args.context;
-      if (args.approval_mode) body.approvalMode = args.approval_mode;
-      if (Array.isArray(args.roster)) body.roster = args.roster;
-      if (args.identity) body.identity = args.identity;
-      if (args.purpose) body.purpose = args.purpose;
-      if (args.allowed_tools) body.allowedTools = args.allowed_tools;
-      if (typeof args.timeout === 'number') body.timeout = args.timeout;
-      if (typeof args.max_tokens === 'number') body.maxTokens = args.max_tokens;
-      res = await POST('/sorties', body);
-      break;
-    }
-    case 'list_sorties': {
-      const qs = new URLSearchParams();
-      if (args.project_dir) qs.set('projectDir', args.project_dir as string);
-      if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
-      res = await GET(qs.toString() ? `/sorties?${qs.toString()}` : '/sorties');
-      break;
-    }
-    case 'get_sortie': {
-      res = await GET(`/sorties/${encodeURIComponent(args.sortie_id as string)}`);
-      break;
-    }
-    case 'get_sortie_logs': {
-      const qs = new URLSearchParams();
-      if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
-      const suffix = qs.toString() ? `?${qs.toString()}` : '';
-      res = await GET(`/sorties/${encodeURIComponent(args.sortie_id as string)}/logs${suffix}`);
       break;
     }
 

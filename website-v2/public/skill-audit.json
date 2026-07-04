@@ -1,8 +1,8 @@
 {
   "auditor_version": "0.2.0",
   "summary": {
-    "total": 136,
-    "passing": 136,
+    "total": 149,
+    "passing": 149,
     "failing": 0
   },
   "skills": [
@@ -35,6 +35,70 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "agent-labor-pricing-function",
+      "root": "skills/agent-labor-pricing-function",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "agent-rl-sandbox-trainer",
+      "root": "skills/agent-rl-sandbox-trainer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references",
+        "schemas",
+        "scripts"
+      ]
+    },
+    {
+      "name": "agent-work-receipt-designer",
+      "root": "skills/agent-work-receipt-designer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "agentic-coding-product-research",
+      "root": "skills/agentic-coding-product-research",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "agentic-coding-ux-designer",
+      "root": "skills/agentic-coding-ux-designer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
     },
     {
       "name": "agentic-infrastructure-2026",
@@ -493,6 +557,18 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "developer-surface-strategist",
+      "root": "skills/developer-surface-strategist",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
       "name": "distributed-algorithms",
       "root": "skills/distributed-algorithms",
       "ok": true,
@@ -617,6 +693,16 @@
     {
       "name": "fipa-00086-ontology-service",
       "root": "skills/fipa-00086-ontology-service",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "fleet-event-spawn-trust",
+      "root": "skills/fleet-event-spawn-trust",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -789,6 +875,19 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "macos-launchd-supervision",
+      "root": "skills/macos-launchd-supervision",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
     },
     {
       "name": "make_copy_and_media_human",
@@ -987,6 +1086,18 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "product-reality-reviewer",
+      "root": "skills/product-reality-reviewer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
       "name": "proverif-tamarin-protocol-modeling",
       "root": "skills/proverif-tamarin-protocol-modeling",
       "ok": true,
@@ -1134,6 +1245,19 @@
       ]
     },
     {
+      "name": "sandboxed-adversarial-test-harness",
+      "root": "skills/sandboxed-adversarial-test-harness",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
       "name": "semantic-conflict-prediction",
       "root": "skills/semantic-conflict-prediction",
       "ok": true,
@@ -1210,6 +1334,31 @@
       ]
     },
     {
+      "name": "sqlite-durable-agent-state",
+      "root": "skills/sqlite-durable-agent-state",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "swarm-invocation-designer",
+      "root": "skills/swarm-invocation-designer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
       "name": "task-decomposer",
       "root": "skills/task-decomposer",
       "ok": true,
@@ -1270,6 +1419,18 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "vibe-project-master-plan",
+      "root": "skills/vibe-project-master-plan",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
     },
     {
       "name": "wang-et-al-2025-tdag",

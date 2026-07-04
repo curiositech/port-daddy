@@ -3,7 +3,7 @@
 How the Port Daddy Pilot scales from one agent to a coordinated fleet, and why
 the tools are split the way they are.
 
-> Status: the **local** fan-out (Port Daddy `spawn_agent` / `run_sortie` /
+> Status: the **local** fan-out (Port Daddy `spawn` /
 > `swarm_awareness`) is shipped and is the default. The **cloud** coordinator
 > (Claude managed-agents `multiagent` block) is designed here and gated behind
 > creating the sub-agents as their own managed agents — see *Cloud coordinator*
@@ -97,7 +97,7 @@ agent that does no edits and exists only to keep the shared state true:
 The same persona (`agents/port-daddy-pilot/AGENT.md`) runs in two places:
 
 - **Local runtimes** (Claude Code, Codex, Gemini, Antigravity) talk to the Port
-  Daddy MCP server on `localhost`. Fan-out uses `spawn_agent` / `run_sortie`;
+  Daddy MCP server on `localhost`. Fan-out uses `spawn`;
   isolation uses git worktrees. This is shipped and is the default.
 - **Cloud managed agent** can't reach localhost MCP, so it is given the pre-built
   agent toolset **plus** the `custom` tools (`pd_preflight`, `pd_note`,
@@ -129,7 +129,7 @@ The Pilot's toolset (`agent.config.json → tools`) is chosen so the *discipline
 reachable without leaving the agent loop*:
 
 - **Port Daddy MCP** first: every coordination verb (session, claim, lock, note,
-  port, swarm, sortie, discover) is a tool call, so "coordinate before you cut"
+  port, swarm, spawn, discover) is a tool call, so "coordinate before you cut"
   costs one tool, not a context switch.
 - **WinDAGs MCP** for capability: `skill_search` before hand-rolling,
   `next_move` when the next action is ambiguous, `validate_dag` before executing

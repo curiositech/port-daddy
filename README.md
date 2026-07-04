@@ -340,11 +340,13 @@ pd spawn \
   --identity myapp:docs \
   -- "Explain what this function does"
 
-# `pd agent` and `pd sortie` run spawn preflight internally before launch
-pd agent "Explain what changed in the auth flow" \
+# Spawn runs use preflight internally before launch
+pd spawn \
   --backend claude \
   --model claude-haiku-4-5-20251001 \
-  --budget 0.35
+  --budget 0.35 \
+  --identity myapp:explain \
+  -- "Explain what changed in the auth flow"
 
 # List running/completed agents
 pd spawned
@@ -412,9 +414,7 @@ local result=$(pd spawn --backend claude --model claude-haiku-4-5-20251001 --bud
 
 Use the right surface for the job:
 
-- `pd spawn` — the low-level primitive. Explicit backend, identity, budget, and task.
-- `pd agent` — the preferred single-agent sugar. One bounded task with Port Daddy coordination wrapped around it.
-- `pd sortie` — a tracked mission record with a durable id, event log, harbor, and inspectable outcome.
+- `pd spawn` — the delegation primitive. Explicit backend, identity, budget, and task.
 - `pd fleet` — always-on project automation from `pd-fleet.yml`.
 
 Canonical operator explanation: [docs/DELEGATION-MODES.md](docs/DELEGATION-MODES.md)
@@ -424,25 +424,16 @@ For Port Daddy itself, the release boundary is the signed-binary cut. Tagging `v
 Each Release also publishes a `latest.json` update feed (version + per-artifact download URL + SHA-256 + signed flag; schema in [ADR-0057](docs/adr/0057-unified-distribution.md) phase 7). Run `pd upgrade` to check the feed against your installed version and see the verified daemon asset; `pd upgrade --apply` runs `brew upgrade port-daddy` for a Homebrew install (privileged self-replace is deferred to brew by design). This is the interactive sibling of the unattended hourly `pd self-update` freshness LaunchAgent ([ADR-0062](docs/adr/0062-auto-freshness-self-heal.md)).
 
 ```bash
-# Preferred single-agent delegation
-pd agent "Review the last commit for regressions" \
+# Preferred delegation
+pd spawn \
   --backend claude \
   --model claude-haiku-4-5-20251001 \
-  --budget 0.35
-
-# Tracked mission record with status + logs
-pd sortie "Investigate flaky auth tests and summarize the root cause" \
-  --backend claude \
-  --model claude-haiku-4-5-20251001 \
-  --budget 0.75
-
-# Inspect mission outcomes later
-pd sortie list
-pd sortie status sortie-abc123
-pd sortie logs sortie-abc123
+  --budget 0.35 \
+  --identity myapp:review \
+  -- "Review the last commit for regressions"
 ```
 
-Current truthful limitation: `pd sortie` is now a first-class mission object and CLI/API/MCP surface, but the underlying execution is still a single coordinating spawned agent. Richer multi-agent approvals, artifact/result pages, and human-in-the-loop controls are the next layer.
+Current truthful limitation: delegation uses the spawn primitive. Richer approvals, artifact/result pages, and human-in-the-loop controls should layer on top of spawn rather than introducing another launch verb.
 
 ### OpenAPI Specification
 Full API spec at `docs/openapi.yaml` (OpenAPI 3.1, 96 paths, 125 operations):
@@ -537,7 +528,7 @@ Pattern matching: exact values, `*` wildcard, `>N`/`<N` numeric comparisons, `my
 Port Daddy now exposes two operator inspection surfaces over the newer coordination substrate:
 
 - `pd graph` for durable relationship edges emitted by symbol indexing and merge orchestration
-- `pd memory` for promoted handoffs, findings, blockers, and sortie outcomes
+- `pd memory` for promoted handoffs, findings, blockers, and spawn outcomes
 
 ```bash
 # Inspect graph relationships for one indexed file
@@ -692,7 +683,7 @@ The daemon-served control plane now has an explicit `Agents` surface alongside t
 
 Port Daddy escrows virtual USD before each agent spawn and can SIGTERM live spawns that breach their daily budget. Spend is observable (cost-tracker); enforcement is separate (bonds). You top up a project wallet; every spawn debits a small bond; clean exits refund it; misbehavior slashes it. `pd fleet panic` arms a two-step global kill-switch that **refunds** (not slashes) every running bond — operator action is not agent misbehavior.
 
-**Fleet Conductor cost gates (ADR-0060).** The daemon routes every sortie and reactive-orchestrator spawn through one `conductor.launch` chokepoint that reserves against a global ceiling and a per-subtree lineage ceiling *before* admission. These are armed at daemon startup and env-overridable:
+**Fleet Conductor cost gates (ADR-0060).** The daemon routes every spawn and reactive-orchestrator launch through one `conductor.launch` chokepoint that reserves against a global ceiling and a per-subtree lineage ceiling *before* admission. These are armed at daemon startup and env-overridable:
 
 | Env var | Default | Effect |
 |---|---|---|
@@ -716,7 +707,7 @@ pd squid serve --port 8765  # bridge only; prints the generated token for curl/d
 
 There are two model layers. `--codex-model`, `--codex-effort`, and repeated `--codex-config key=value` control the actual Codex CLI backend. `--codex-model-alias <client=codex>` (or comma-separated `PD_SQUID_MODEL_ALIASES`) lets a Claude client keep asking for `claude-sonnet-4-5` while the bridge runs `codex exec --model gpt-5.1-codex`. If no explicit backend model is set, a request model prefixed with `codex:` is also passed through after stripping the prefix.
 
-The harness lanes are broader than Codex. `pd agent harness codex "inspect the queue" --budget 0.50 --tier strong --channel harness:demo` is the one-command launch shape: preflight, budget ceiling, model-tier sugar, stable tube, and Squid hook injection request together. `pd spawn --backend ollama` keeps work local when an Ollama model is already running; `pd spawn --backend cloudflare --model @cf/qwen/qwen3-30b-a3b-fp8` uses Workers AI when you want cheap remote inference; `pd squid codex` is the Claude-shaped compatibility lane for ChatGPT Pro/Codex CLI. The same notes, claims, budgets, hooks, MCP tools, shared skill, and Port Daddy Pilot definitions wrap each lane. The local Squid PreToolUse hook also honors the ADR-0092 `suggestibility` dial (`advisory | warn | enforce`) before file-mutating tools cut into a foreign-locked path.
+The harness lanes are broader than Codex. `pd spawn --backend codex --budget 0.50 --tier strong -- "inspect the queue"` is the launch shape: preflight, budget ceiling, and model-tier sugar together. `pd spawn --backend ollama` keeps work local when an Ollama model is already running; `pd spawn --backend cloudflare --model @cf/qwen/qwen3-30b-a3b-fp8` uses Workers AI when you want cheap remote inference; `pd squid codex` is the Claude-shaped compatibility lane for ChatGPT Pro/Codex CLI. The same notes, claims, budgets, hooks, MCP tools, shared skill, and Port Daddy Pilot definitions wrap each lane. The local Squid PreToolUse hook also honors the ADR-0092 `suggestibility` dial (`advisory | warn | enforce`) before file-mutating tools cut into a foreign-locked path.
 
 Thinking and tools are translated honestly. Anthropic `thinking.budget_tokens` maps to Codex `model_reasoning_effort` (`low`, `medium`, or `high`) unless `--codex-effort` or `--codex-config model_reasoning_effort=...` overrides it. Claude `thinking` and `redacted_thinking` transcript blocks are omitted before prompting Codex so a resumed Claude session does not replay private reasoning into a different backend. Codex JSONL `function_call`/tool-call items become Anthropic `tool_use` blocks so Claude-style tool loops can continue; completed Codex `command_execution` records stay internal provenance and are not replayed as user tools.
 

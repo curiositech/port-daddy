@@ -13,7 +13,7 @@ this very session. But the shim's coverage is patchy and the operator-facing
 verb surface for "do work in a repo" is still raw git, with all the
 collision hazards that brings.
 
-On 2026-05-19 three sortie agents were dispatched in parallel into the same
+On 2026-05-19 three spawned agents were dispatched in parallel into the same
 working directory. Each one ran `pd begin` and claimed files, but they all
 ended up editing the *same* working tree. The agents collided in exactly the
 way claims are supposed to prevent — one agent's edits were reverted by
@@ -151,7 +151,7 @@ Implementation:
 5. Print a one-line suggestion if the operator forgot to set
    `--symlink-deps` and dependencies are large
 
-This is the verb every sortie should run *first*. It eliminates the entire
+This is the verb every spawned run should use *first*. It eliminates the entire
 "three agents in one cwd" failure class by construction.
 
 #### `pd add <files...>` — claim + stage
@@ -222,7 +222,7 @@ Per-worktree state at `<worktree>/.git/port-daddy/active-session.json`:
   "session_id": "session-...",
   "agent_id": "agent-...",
   "identity": "port-daddy:whois-impl",
-  "session_kind": "operator" | "sortie",
+  "session_kind": "operator" | "spawned",
   "claimed_at": 1779000000000,
   "heartbeat_at": 1779000180000
 }
@@ -232,10 +232,10 @@ Per-worktree state at `<worktree>/.git/port-daddy/active-session.json`:
 
 | Session kind | Created by | Heartbeat-gated release? | Auto-release after |
 |---|---|---|---|
-| **operator** | `pd begin` directly (identity NOT prefixed `sortie:`) | **No** | Never on heartbeat alone; only on explicit `pd done`, `pd unlock --force`, or `pd prune` finding the worktree itself abandoned (default 14 days, gated by file-mtime not heartbeat). |
-| **sortie** | `pd sortie run`, `pd spawn`, or identity prefixed `sortie:` | **Yes** | 10 min of no heartbeat. Sortie sessions are ephemeral by design; if the agent died, salvage should claim the work. |
+| **operator** | `pd begin` directly (identity NOT prefixed `spawn:`) | **No** | Never on heartbeat alone; only on explicit `pd done`, `pd unlock --force`, or `pd prune` finding the worktree itself abandoned (default 14 days, gated by file-mtime not heartbeat). |
+| **spawned** | `pd spawn` or identity prefixed `spawn:` | **Yes** | 10 min of no heartbeat. Spawned sessions are ephemeral by design; if the agent died, salvage should claim the work. |
 
-This asymmetry exists because the failure modes differ. A sortie that
+This asymmetry exists because the failure modes differ. A spawned run that
 heartbeat-fails is almost certainly dead and its lock should release so
 salvage can take over. An operator who walked away for 10 hours is almost
 certainly coming back to the same worktree and expects it untouched.
@@ -248,7 +248,7 @@ gets the lock. The stash carries a metadata blob describing who held the
 lock, when it was released, and why. Recoverable via `pd salvage` and
 `git stash list`. **No takeover, ever, without first preserving the prior
 session's WIP.** This is the safety valve that makes the heartbeat-gated
-path for sortie sessions acceptable.
+path for spawned sessions acceptable.
 
 #### Other rules
 
@@ -257,7 +257,7 @@ path for sortie sessions acceptable.
 - The shim refuses local-mutation and destructive git verbs if
   `active-session.json` exists, its `session_id` differs from the caller's
   current session, and either (a) it's an operator session OR (b) the
-  heartbeat is fresh (< 10 min old) for a sortie session
+  heartbeat is fresh (< 10 min old) for a spawned session
 - `pd done` releases the lock immediately and removes
   `active-session.json`
 - `pd unlock --force --reason "<why>"` releases any lock; writes a
@@ -270,26 +270,25 @@ path for sortie sessions acceptable.
 The worktree is the unit of mutual exclusion; isolation is achieved by
 creating more worktrees (cheap, via `pd feature`).
 
-### Sortie auto-create-worktree
+### Spawn auto-create-worktree
 
-`pd sortie run` and `pd spawn` create the worktree before the child agent
-starts:
+`pd spawn` creates the worktree before the child agent starts:
 
 ```
-pd sortie run "<goal>" --backend ... --budget ...
-  + implicit: pd feature sortie/<slug> --identity sortie:<id> --purpose <goal>
+pd spawn --backend ... --identity <project:stack:context> --budget ... -- "<goal>"
+  + implicit: pd feature spawn/<slug> --identity spawn:<id> --purpose <goal>
   + child agent's cwd is the new worktree path (passed via env or arg)
   + on completion: pd done + (optional) auto-push
 ```
 
 This eliminates the failure mode the operator triggered on 2026-05-19. A
-sortie *cannot* land in the parent's cwd by accident.
+spawned run *cannot* land in the parent's cwd by accident.
 
 ### Layer 4 — Process sandbox via macOS Seatbelt (defense in depth)
 
 Worktree isolation limits where an agent writes *logically*. A sandbox
 profile limits where it can write *physically* — belt-and-suspenders. This
-matters because a buggy or compromised sortie agent might `rm -rf
+matters because a buggy or compromised spawned agent might `rm -rf
 ~/.ssh`, scan `/etc`, exfiltrate from `~/Library/Keychains/`, or escape
 the worktree via symlink. The shim and the claim system don't catch that.
 
@@ -303,7 +302,7 @@ implies upstream sandboxing). Free, no extra dependencies.
 agent with `sandbox-exec -f <profile> -- <command>`:
 
 ```sb
-;; ~/.port-daddy/sandbox/pd-sortie-<session-id>.sb
+;; ~/.port-daddy/sandbox/pd-spawn-<session-id>.sb
 (version 1)
 (deny default)
 
@@ -334,12 +333,12 @@ agent with `sandbox-exec -f <profile> -- <command>`:
 | Session kind | Sandbox default |
 |---|---|
 | **operator** | off (operator owns their machine; the cost of broken expected behavior outweighs the marginal safety) |
-| **sortie / spawned** | **on** (these are lower-trust by definition; the constraint is justified) |
+| **spawned** | **on** (these are lower-trust by definition; the constraint is justified) |
 | **research / read-only sub-agent** | on with `(allow network*)` removed when feasible |
 
 `pd feature --sandbox` and `--no-sandbox` override the defaults
-explicitly. `pd config set sandbox.sortie-default off` lets an operator
-disable sortie sandboxing entirely if it's too restrictive.
+explicitly. `pd config set sandbox.spawn-default off` lets an operator
+disable spawned-run sandboxing entirely if it's too restrictive.
 
 #### Known footguns the profile must handle
 
@@ -397,7 +396,7 @@ iterate on the profile.
 
 **Phase 2 (within 2 weeks):**
 - Ship `pd add`, `pd commit`, `pd push`
-- Add worktree-auto-create to `pd sortie run` and `pd spawn`
+- Add worktree-auto-create to `pd spawn`
 - Bump enforce mode for destructive verbs (reset --hard, clean -f, etc.)
 
 **Phase 3 (within a month):**
@@ -439,7 +438,7 @@ implementation:
   worktree if `package-lock.json` md5 matches; fall back to `npm install`
   on hash mismatch. Confirmed by operator.
 - **Heartbeat-gated lock release safety:** operator sessions are *not*
-  heartbeat-released; only sortie sessions are. Mandatory auto-stash to
+  heartbeat-released; only spawned sessions are. Mandatory auto-stash to
   `port-daddy/<session-id>` ref before any takeover. Confirmed by
   operator after raising the "leave for 10 hours" scenario.
 - **Claims as broadcast, not veto:** hard refusal is reserved for
@@ -447,7 +446,7 @@ implementation:
   lock, and true single-resource locks. File and region claim overlaps
   inject context warnings via the ambient broker and proceed. Overlap risk
   is scored LOW / MEDIUM / HIGH from claim-tree data.
-- **macOS Seatbelt sandbox layer:** sortie sessions are wrapped in
+- **macOS Seatbelt sandbox layer:** spawned sessions are wrapped in
   `sandbox-exec` with a per-session profile by default; operator sessions
   opt in. The sandbox is defense in depth on top of worktree isolation,
   not a replacement for it.

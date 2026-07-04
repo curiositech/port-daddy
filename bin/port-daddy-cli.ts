@@ -91,7 +91,7 @@ import {
   // Briefing history
   handleHistory,
   // Spawn + Watch
-  handleSpawn, handleSpawned, handleWatch, handleSortie,
+  handleSpawn, handleSpawned, handleWatch,
   // Transcripts
   handleTranscripts,
   // Dispatch (renamed from nightshift per ADR-0035) + morning summary +
@@ -204,7 +204,7 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
   'advise', 'preflight', 'compass', 'guard',
   'metrics', 'health', 'dashboard',
-  'bench', 'benchmark', 'demo', 'tuple', 'sortie', 'roadmap',
+  'bench', 'benchmark', 'demo', 'tuple', 'roadmap',
   'secret', 'secrets'
 ]);
 
@@ -435,7 +435,7 @@ function traceCategoryForCommand(command: string): string {
   if (['pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'channels', 'tube'].includes(command)) return 'channels';
   if (['agent', 'agents', 'spawn', 'spawned'].includes(command)) return 'agents';
   if (['session', 'begin', 'done', 'whoami', 'note', 'notes', 'files', 'who-owns', 'advise'].includes(command)) return 'sessions';
-  if (['fleet', 'watch', 'sortie', 'transcripts'].includes(command)) return 'fleet';
+  if (['fleet', 'watch', 'transcripts'].includes(command)) return 'fleet';
   if (['lock', 'unlock', 'locks', 'with-lock'].includes(command)) return 'locks';
   if (['claim', 'c', 'release', 'r', 'find', 'list', 'ps', 'services', 'url', 'env', 'ports'].includes(command)) return 'ports';
   if (['salvage'].includes(command)) return 'salvage';
@@ -1341,7 +1341,7 @@ const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'transcripts', 'transcript', 'relay',
-  'harbor', 'harbors', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
+  'harbor', 'harbors', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'graph', 'memory', 'ideas',
   'quorum', 'parley',
   'feedback',
   'commit', 'obligations',
@@ -2985,10 +2985,6 @@ export async function main(): Promise<void> {
 
       case 'spawned':
         await handleSpawned(positional, options);
-        break;
-
-      case 'sortie':
-        await handleSortie(positional, options);
         break;
 
       // Dispatch -- autonomous feature dev queue (renamed from nightshift per

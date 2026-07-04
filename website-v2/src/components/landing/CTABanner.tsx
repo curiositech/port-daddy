@@ -47,7 +47,7 @@ export function CTABanner() {
               <PanelBody className="max-w-[46rem]">
                 Port Daddy is open source and free. You run it from the Mac app: pick a project,
                 start a <RoleTerm role="shipwright">Shipwright</RoleTerm> to plan a fleet of agents,
-                launch a one-off <RoleTerm role="sortie">sortie</RoleTerm>, set spending limits, and
+                launch one-off <RoleTerm role="spawn">spawned work</RoleTerm>, set spending limits, and
                 hand work between agents. Agents stay in the terminal. You should not have to read
                 command output to know what is going on.
               </PanelBody>

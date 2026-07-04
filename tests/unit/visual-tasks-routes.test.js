@@ -12,6 +12,7 @@ import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 import { createDaemonCorsOptions } from '../../lib/daemon-cors.js';
 
 const { visualTasksPlugin } = await import('../../routes/visual-tasks.js');
+const { createVisualTaskIntake, VisualTaskDependencyError } = await import('../../lib/visual-task-intake.js');
 
 const tempDirs = [];
 
@@ -19,7 +20,7 @@ function pngDataUrl(label = 'png') {
   return `data:image/png;base64,${Buffer.from(label).toString('base64')}`;
 }
 
-async function buildApp(overrides = {}) {
+async function buildApp(overrides = {}, pluginOpts = {}) {
   const app = Fastify();
   await app.register(fastifyCors, createDaemonCorsOptions());
   app.get('/fleet', async () => ({ ok: true }));
@@ -49,6 +50,7 @@ async function buildApp(overrides = {}) {
       now: () => 1_700_000_000_000,
       ...overrides,
     },
+    ...pluginOpts,
   });
   await app.ready();
   return { app, messaging, agentInbox, dispatchQueue, blobs, dispatchWorker, fleetDaemon };
@@ -252,6 +254,7 @@ describe('visual task routes', () => {
 
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toMatch(/requires a brief/i);
+    expect(res.json().code).toBe('VALIDATION_ERROR');
 
     await app.close();
   });
@@ -280,8 +283,10 @@ describe('visual task routes', () => {
     await app.close();
   });
 
-  test('POST /visual-tasks fails closed when screenshot storage is unavailable', async () => {
-    const { app } = await buildApp({ blobs: undefined });
+  test('POST /visual-tasks wires a default blob store when deps.blobs is absent — evidence is never dropped', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-visual-task-default-blobs-'));
+    tempDirs.push(dir);
+    const { app } = await buildApp({ blobs: undefined }, { blobStoreOptions: { dir } });
 
     const res = await app.inject({
       method: 'POST',
@@ -289,12 +294,111 @@ describe('visual task routes', () => {
       payload: {
         source: 'chrome-extension',
         description: 'Screenshot evidence must not disappear.',
-        image: { mimeType: 'image/png', dataUrl: pngDataUrl('lost') },
+        image: { mimeType: 'image/png', dataUrl: pngDataUrl('kept') },
+      },
+    });
+
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.screenshot.blob.id).toMatch(/^[0-9a-f]{64}$/);
+    expect(body.task.image.dataUrl).toBeUndefined();
+    expect(body.task.image.blobUrl).toBe(`/blob/${body.screenshot.blob.id}`);
+    expect(createBlobStore({ dir }).has(body.screenshot.blob.id)).toBe(true);
+
+    await app.close();
+  });
+
+  test('intake library fails closed (503 BLOB_STORE_UNCONFIGURED) when a dataUrl arrives without a blob store', async () => {
+    const intake = createVisualTaskIntake({});
+
+    await expect(intake.submit({
+      source: 'chrome-extension',
+      description: 'Screenshot evidence must not disappear.',
+      image: { mimeType: 'image/png', dataUrl: pngDataUrl('lost') },
+    })).rejects.toThrow(VisualTaskDependencyError);
+
+    const err = await intake.submit({
+      source: 'chrome-extension',
+      description: 'Screenshot evidence must not disappear.',
+      image: { mimeType: 'image/png', dataUrl: pngDataUrl('lost') },
+    }).catch((e) => e);
+    expect(err.statusCode).toBe(503);
+    expect(err.code).toBe('BLOB_STORE_UNCONFIGURED');
+    expect(err.message).toMatch(/screenshot storage unavailable/i);
+  });
+
+  test('POST /visual-tasks maps blob write failures to 500 BLOB_WRITE_FAILED', async () => {
+    const failingBlobs = {
+      put: () => { throw new Error('disk full'); },
+      has: () => false,
+    };
+    const { app } = await buildApp({ blobs: failingBlobs });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/visual-tasks',
+      payload: {
+        source: 'chrome-extension',
+        description: 'Blob write should surface as a server error.',
+        image: { mimeType: 'image/png', dataUrl: pngDataUrl('doomed') },
       },
     });
 
     expect(res.statusCode).toBe(500);
-    expect(res.json().error).toMatch(/screenshot storage unavailable/i);
+    const body = res.json();
+    expect(body.success).toBe(false);
+    expect(body.code).toBe('BLOB_WRITE_FAILED');
+    expect(body.error).toMatch(/disk full/);
+
+    await app.close();
+  });
+
+  test('POST /visual-tasks maps messaging publish failures to 500 MESSAGING_PUBLISH_FAILED', async () => {
+    const failingMessaging = {
+      publish: () => ({ success: false, error: 'wal locked' }),
+    };
+    const { app } = await buildApp({ messaging: failingMessaging });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/visual-tasks',
+      payload: {
+        source: 'chrome-extension',
+        description: 'Publish failure should surface as a server error.',
+      },
+    });
+
+    expect(res.statusCode).toBe(500);
+    const body = res.json();
+    expect(body.success).toBe(false);
+    expect(body.code).toBe('MESSAGING_PUBLISH_FAILED');
+    expect(body.error).toMatch(/wal locked/);
+
+    await app.close();
+  });
+
+  test('POST /visual-tasks maps dispatch queue failures to 500 DISPATCH_QUEUE_FAILED', async () => {
+    const failingQueue = {
+      propose: () => { throw new Error('dispatch table missing'); },
+      list: () => [],
+    };
+    const { app } = await buildApp({ dispatchQueue: failingQueue });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/visual-tasks',
+      payload: {
+        source: 'chrome-extension',
+        description: 'Dispatch failure should surface as a server error.',
+        routing: { openIssue: true, assignee: 'review-queue' },
+      },
+    });
+
+    expect(res.statusCode).toBe(500);
+    const body = res.json();
+    expect(body.success).toBe(false);
+    expect(body.code).toBe('DISPATCH_QUEUE_FAILED');
+    expect(body.error).toMatch(/dispatch table missing/);
 
     await app.close();
   });

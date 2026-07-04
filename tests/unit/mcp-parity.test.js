@@ -258,12 +258,8 @@ const TOOL_FEATURE_MAP = {
   'catch_me_up': 'activity',
   'file_heat': 'pheromone',
   'talk_to_agent': 'inbox',
-  'spawn_agent': 'spawn',
-  'run_sortie': 'sorties',
-  'list_sorties': 'sorties',
+  'spawn': 'spawn',
   'cockpit_missions_list': 'cockpit',
-  'get_sortie': 'sorties',
-  'get_sortie_logs': 'sorties',
 
   // Tuple Space
   'tuple_out': 'tuples',
@@ -306,13 +302,13 @@ const MCP_EXEMPT_FEATURES = new Set([
   'daemon',         // CLI-only (start/stop/restart)
   'diagnostics',    // CLI-only (doctor/diagnose/ci-gate)
   'endpoints',      // Sub-feature of services, managed via claim
-  'spawn',          // CLI/SDK-only; agents use the SDK directly, not MCP
   'arbiter',        // Internal invariant enforcement; admin-only API, not user-facing MCP
   'merge_queue',    // API-only merge queue; no CLI or MCP tools yet
   'observability',  // Internal metrics/golden signals; admin API, not user-facing MCP
   'metricsprom',    // Prometheus scrape + browser dashboard endpoints; consumed by Grafana/scrapers and the /metrics.html page, not by MCP-driving agents
   'cloud_app_telemetry', // Worker-facing GitHub App / Cloudflare telemetry ingest + read API. Agents consume the merged fleet/agents/observability surfaces instead of posting remote telemetry through MCP.
   'resource_governance', // Operator UI read model; MCP wrapper deferred until enforcement controls exist
+  'sorties',        // Legacy HTTP record surface; MCP and CLI delegation are spawn-only.
   // CONVERTED to real MCP tools (#199): harbors, pheromone, symbols, semantic, cartographer, roadmap, commitments.
   'secrets',        // PR #197 managed provider credential store. CLI-only (`pd secret set/list/reveal/rm`); write + reveal routes are loopback-only (makeLoopbackGuard). Intentionally NO SDK/MCP surface — an agent must not be able to set or read managed provider API keys (e.g. poison ANTHROPIC_API_KEY to exfiltrate prompts). Follows the `setup` CLI-only precedent.
   'quorum',         // New propose/vote primitive; agents drive consensus via SDK calls in v1, MCP wrapper deferred to v4
@@ -767,13 +763,13 @@ describe('MCP tiered tool loading', () => {
     'begin_session', 'end_session_full', 'whoami',
     'claim_port', 'release_port', 'add_note',
     'acquire_lock', 'list_services',
-    'fleet_init', 'swarm_awareness', 'coordination_preflight', 'catch_me_up', 'spawn_agent',
+    'fleet_init', 'swarm_awareness', 'coordination_preflight', 'catch_me_up', 'spawn',
   ];
 
   const CATEGORY_NAMES = [
     'magic', 'session-lifecycle', 'trust', 'safety', 'advisor', 'ports', 'sessions', 'notes', 'locks',
     'messaging', 'agents', 'actors', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
-    'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties',
+    'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples',
     'fleet-control', 'semantic', 'feedback', 'cockpit',
     'harbors', 'signals', 'roadmap', 'commitments', 'suggestions', 'parley', 'knowledge',
     'context', 'harvest', 'custodian',

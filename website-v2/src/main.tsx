@@ -36,6 +36,7 @@ const BlogPage = lazyNamed(() => import('@/pages/BlogPage'), 'BlogPage')
 const BlogPostPage = lazyNamed(() => import('@/pages/BlogPostPage'), 'BlogPostPage')
 const ManifestoPage = lazyNamed(() => import('@/pages/ManifestoPage'), 'ManifestoPage')
 const MacPreviewPage = lazyNamed(() => import('@/pages/MacPreviewPage'), 'MacPreviewPage')
+const ScoutPage = lazyNamed(() => import('@/pages/ScoutPage'), 'ScoutPage')
 const PdTubePlayground = lazyNamed(() => import('@/pages/pd-tube/Playground'), 'Playground')
 const SkillAuditPage = lazyNamed(() => import('@/pages/SkillAuditPage'), 'SkillAuditPage')
 const AgentsPage = lazyNamed(() => import('@/pages/AgentsPage'), 'AgentsPage')
@@ -199,6 +200,7 @@ createRoot(document.getElementById('root')!).render(
             <Route element={<MainLayout />}>
               <Route path="/" element={<App />} />
               <Route path="/mac-preview" element={<MacPreviewPage />} />
+              <Route path="/scout" element={<ScoutPage />} />
               {/* The playground IS the pd-tube page now; the old marketing page
                   is retired and the /playground URL redirects in. */}
               <Route path="/pd-tube" element={<PdTubePlayground />} />

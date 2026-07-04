@@ -1,10 +1,22 @@
 {
   "manifest_version": 3,
   "name": "Port Daddy Scout",
+  "short_name": "Scout",
   "version": "0.1.0",
-  "description": "Capture any web app as a visual issue and route it to a Port Daddy fleet.",
+  "version_name": "0.1.0 developer preview",
+  "description": "Capture any web app as a visual issue and route it to Port Daddy with screenshot and DOM context.",
+  "icons": {
+    "16": "assets/icons/scout-icon-16.png",
+    "32": "assets/icons/scout-icon-32.png",
+    "48": "assets/icons/scout-icon-48.png",
+    "128": "assets/icons/scout-icon-128.png"
+  },
   "action": {
-    "default_title": "Send visual issue to Port Daddy",
+    "default_title": "Open Port Daddy Scout",
+    "default_icon": {
+      "16": "assets/icons/scout-icon-16.png",
+      "32": "assets/icons/scout-icon-32.png"
+    },
     "default_popup": "popup.html"
   },
   "background": {

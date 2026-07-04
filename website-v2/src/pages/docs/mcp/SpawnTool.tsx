@@ -3,10 +3,10 @@ import { CommandPage } from '@/components/docs/CommandPage'
 export default function SpawnTool() {
   return (
     <CommandPage
-      command="spawn_agent"
-      description="Launch a one-shot Port Daddy-managed agent from MCP. The tool requires an explicit semantic identity and a positive budget ceiling, then routes the request through daemon preflight before execution."
+      command="spawn"
+      description="Spawn a Port Daddy-managed AI run from MCP. The tool requires an explicit semantic identity and a positive budget ceiling, then routes the request through daemon preflight before execution."
       version="3.13.0"
-      syntax="spawn_agent({ task, identity, budget_usd, ...optionalFields })"
+      syntax="spawn({ task, identity, budget_usd, ...optionalFields })"
       flags={[
         { flag: 'task', description: 'Required task or prompt text.' },
         { flag: 'identity', description: 'Required semantic identity in project:stack:context form.' },
@@ -22,13 +22,13 @@ export default function SpawnTool() {
         { flag: 'max_tokens', description: 'Optional token ceiling for claude or claude-cli launches.' },
       ]}
       usagePatterns={[
-        'spawn_agent({ task: "Review the last commit", identity: "myapp:qa:review", budget_usd: 0.5 })',
-        'spawn_agent({ backend: "codex", model_tier: "low", identity: "myapp:docs:sync", budget_usd: 0.75, task: "Rewrite the docs" })',
+        'spawn({ task: "Review the last commit", identity: "myapp:qa:review", budget_usd: 0.5 })',
+        'spawn({ backend: "codex", model_tier: "low", identity: "myapp:docs:sync", budget_usd: 0.75, task: "Rewrite the docs" })',
       ]}
       examples={[
         {
           description: 'Launch a budgeted Codex task',
-          code: `spawn_agent({
+          code: `spawn({
   backend: "codex",
   model_tier: "low",
   identity: "port-daddy:docs:spawn-sync",
@@ -48,7 +48,7 @@ export default function SpawnTool() {
         },
         {
           description: 'Ask aider to work against a focused file set',
-          code: `spawn_agent({
+          code: `spawn({
   backend: "aider",
   identity: "port-daddy:ui:fleetbar",
   budget_usd: 1.25,

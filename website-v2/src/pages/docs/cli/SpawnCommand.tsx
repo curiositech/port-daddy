@@ -62,7 +62,7 @@ Updated website spawn docs to require identity + budget and reflect current back
       seeAlso={[
         { name: 'pd spawned', href: '/docs/cli/spawned' },
         { name: 'SDK: spawn()', href: '/docs/sdk/spawn' },
-        { name: 'MCP: spawn_agent', href: '/docs/mcp/spawn' },
+        { name: 'MCP: spawn', href: '/docs/mcp/spawn' },
         { name: 'Fleet agents', href: '/docs/features/fleet' },
       ]}
     />
