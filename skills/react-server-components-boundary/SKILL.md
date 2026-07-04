@@ -218,7 +218,7 @@ The Next.js docs note for **library authors**: ship `'use client'` at the entry 
 
 ## 5. Environment poisoning: `server-only` / `client-only`
 
-A shared utility module is the silent foot-gun. Imagine `lib/data.ts` reads `process.env.API_KEY` and is imported by both a Server page and a Client form. From Next.js docs:
+A shared utility module is the silent foot-gun. Imagine `lib/data.ts` reads `process.env.API_KEY` and is imported by both a Server page and a Client form. <!-- cite-exempt: hypothetical example path in the reader's Next.js app, not this repo --> From Next.js docs:
 
 > Only environment variables prefixed with `NEXT_PUBLIC_` are included in the client bundle. If variables are not prefixed, Next.js replaces them with an empty string.
 
