@@ -41,6 +41,24 @@ em-phrases. Illustration is the cut-paper harbor style. The token file's
 9. Pulse rings animate only while work is in flight; `prefers-reduced-motion` freezes to a still.
 10. Generated imagery is wordless (labels as blank paper strips) and palette-locked.
 
+Content honesty laws, absorbed from the triad package's spec set
+(`docs/design/2026-07-05-surface-redesign/`, parley punch item 6) — these govern
+copy and state rendering, not skin, and bind every surface equally:
+
+11. Cost appears at the consent moment and nowhere else: every gate card carries
+    its estimated cost line ("est. $0.14 to run the merge sortie"); no ambient
+    per-agent cost anxiety in rosters.
+12. Empty states teach: every empty region names what is missing and offers the
+    next action ("No mission cards parsed — add (UNCOMMITTED)/(BLOCKED) tags to
+    UNIFIED-ROADMAP.md, or import from the Cartographer"), never a bare zero.
+13. Truth chips are honest: LIVE renders only with stream evidence or a recent
+    heartbeat and says so ("live — events arriving"); remote panes past their
+    freshness window carry a stale chip ("showing cached truth — last sync 47s");
+    a disconnected daemon chip states the remediation on its face.
+14. Unknowns become remediation prompts, never debug rows: "no purpose recorded —
+    nudge the agent to declare scope" with a Nudge control, never
+    `worktree: unknown` as an operator-facing line.
+
 ## The cut-paper art style (blessed 2026-07-04)
 
 Handcrafted cut-paper diorama, macro, shallow depth of field; layered matte
