@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom'
 import {
-  ArrowRight,
   Bug,
   Camera,
   CheckCircle2,
   Chrome,
   Code2,
   Crosshair,
+  Download,
   GitPullRequest,
   MonitorCheck,
   PackageCheck,
@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Footer } from '@/components/layout/Footer'
+import scoutManifest from '../../../apps/pd-scout-extension/manifest.json'
 import {
   BracketLabel,
   DocsCodeBlock,
@@ -36,9 +37,11 @@ cd port-daddy
 pd setup
 pd status`
 
+const scoutVersion = scoutManifest.version
+const scoutDownloadPath = `/downloads/pd-scout-chrome-${scoutVersion}.zip`
+const scoutChecksumPath = `${scoutDownloadPath}.sha256`
 const extensionPath = `apps/pd-scout-extension`
-const packageCommand = `cd apps/pd-scout-extension
-zip -r ../../dist/pd-scout-preview.zip . -x '*.DS_Store'`
+const packageCommand = `npm run package:scout-extension`
 
 const brandAssets = [
   'Chrome toolbar icons: 16, 32, 48, and 128 px.',
@@ -81,10 +84,12 @@ const previewSteps = [
   },
   {
     label: 'Preview 2',
-    title: 'Load the checkout as a Chrome preview',
+    title: 'Load the extension preview',
     body:
-      'This is Chrome Developer Mode, not the product distribution path. Load the folder directly while Scout is still in preview.',
-    code: extensionPath,
+      'Download the preview ZIP or build it from the checkout. Chrome Developer Mode loads an unpacked folder; the ZIP is the Store upload shape.',
+    code: `Download: ${scoutDownloadPath}
+Or build: npm run package:scout-extension
+Load unpacked: ${extensionPath}`,
   },
   {
     label: 'Preview 3',
@@ -99,7 +104,7 @@ const releaseSteps = [
   {
     title: 'Package the extension',
     description:
-      'Create a ZIP from the extension directory after the manifest, icons, popup, background service worker, and content script are all versioned.',
+      'Create the Chrome Web Store upload ZIP from only the runtime files: manifest, icons, popup, background service worker, and content script.',
     code: packageCommand,
     icon: PackageCheck,
   },
@@ -121,6 +126,7 @@ const releaseSteps = [
 
 const worksNow = [
   'Unpacked Manifest V3 Chrome extension.',
+  'Chrome Web Store-shaped preview ZIP with checksum and download manifest.',
   'Visible-tab screenshots through chrome.tabs.captureVisibleTab.',
   'Shadow-DOM region picker on ordinary web pages.',
   'Composer reopens after region selection with a captured badge and rectangle preview.',
@@ -132,6 +138,7 @@ const worksNow = [
 
 const notYet = [
   'No Chrome Web Store listing submitted yet.',
+  'No signed, auto-updating public install until Store review is complete.',
   'Browser-restricted pages such as chrome:// cannot be captured.',
   'Third-party sites provide DOM hints, not source-code ownership.',
   'Cloud fleet routing depends on the configured Port Daddy backend; the local path is what works in this branch.',
@@ -204,9 +211,9 @@ export function ScoutPage() {
                   </PanelBody>
                   <div className="flex flex-wrap gap-[var(--space-3)]">
                     <Button asChild variant="primary" size="lg">
-                      <a href="#preview">
-                        Load the preview
-                        <ArrowRight size={16} aria-hidden="true" />
+                      <a href={scoutDownloadPath} download>
+                        Download preview ZIP
+                        <Download size={16} aria-hidden="true" />
                       </a>
                     </Button>
                     <Button asChild variant="secondary" size="lg">
@@ -382,6 +389,20 @@ export function ScoutPage() {
                     automatic updates. Scout should graduate through that path,
                     not a README full of ritual.
                   </PanelBody>
+                  <div className="flex flex-wrap gap-[var(--space-3)]">
+                    <Button asChild variant="primary" size="lg">
+                      <a href={scoutDownloadPath} download>
+                        Download preview ZIP
+                        <Download size={16} aria-hidden="true" />
+                      </a>
+                    </Button>
+                    <Button asChild variant="secondary" size="lg">
+                      <a href={scoutChecksumPath}>
+                        Checksum
+                        <ShieldCheck size={16} aria-hidden="true" />
+                      </a>
+                    </Button>
+                  </div>
                 </div>
               </SwissGridItem>
 
@@ -413,6 +434,7 @@ export function ScoutPage() {
                   <div className="space-y-[var(--space-3)]">
                     {[
                       'A ZIP build step in CI, with only extension files included.',
+                      `Preview artifact: ${scoutDownloadPath}.`,
                       'Final store copy, at least one real 1280 x 800 screenshot, and the promo tiles already in assets/store.',
                       'Privacy fields that say exactly what Scout captures: screenshot, URL, optional rectangle, and DOM hints.',
                       'A small trusted-tester rollout before the public listing goes live.',
@@ -492,8 +514,10 @@ export function ScoutPage() {
                   </PanelTitle>
                   <PanelBody>
                     Scout works as a local developer-mode Chrome extension in
-                    this branch. The honest caveat is distribution: signed,
-                    auto-updating Chrome packaging is future work.
+                    this branch, and the preview ZIP is packaged like a Store
+                    upload. The honest caveat is distribution: signed,
+                    auto-updating public install still waits on Chrome Web Store
+                    submission and review.
                   </PanelBody>
                 </div>
               </SwissGridItem>
@@ -592,9 +616,9 @@ export function ScoutPage() {
                 </div>
                 <div className="mt-[var(--space-5)] flex flex-wrap gap-[var(--space-3)]">
                   <Button asChild variant="primary" size="lg">
-                    <a href="#preview">
-                      Load preview
-                      <ArrowRight size={16} aria-hidden="true" />
+                    <a href={scoutDownloadPath} download>
+                      Download preview ZIP
+                      <Download size={16} aria-hidden="true" />
                     </a>
                   </Button>
                   <Button asChild variant="secondary" size="lg">
