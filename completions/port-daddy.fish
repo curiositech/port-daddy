@@ -412,7 +412,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command pheromone ph; and __fish_seen_subcommand_from files" -l limit -x -d 'Max rows'
 
     # System & Monitoring
-    complete -c $prog -n __pd_needs_command -a dashboard -d 'Open web dashboard'
+    complete -c $prog -n __pd_needs_command -a dashboard -d 'Open the terminal UI dashboard'
     complete -c $prog -n __pd_needs_command -a channels -d 'List pub/sub channels'
     complete -c $prog -n __pd_needs_command -a webhook -d 'Manage webhooks'
     complete -c $prog -n __pd_needs_command -a webhooks -d 'Manage webhooks (alias)'

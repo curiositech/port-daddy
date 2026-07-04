@@ -2193,7 +2193,7 @@ _port_daddy() {
     'commit:create a durable commitment (or close one against an oracle)'
     'obligations:list commitments, or sweep for overdue ones with --overdue'
     # System & Monitoring
-    'dashboard:open web dashboard in browser'
+    'dashboard:open the terminal UI dashboard'
     'channels:list pub/sub channels'
     'webhook:manage webhooks'
     'webhooks:manage webhooks (alias for webhook)'
