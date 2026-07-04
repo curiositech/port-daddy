@@ -4,12 +4,13 @@
  * hook that fans skills/ out to the agent runtimes via scripts/sync-skills.ts,
  * and that script must actually resolve the repo catalog end-to-end.
  */
-const { execFileSync } = require('node:child_process');
-const { readFileSync, mkdtempSync, rmSync } = require('node:fs');
-const { join } = require('node:path');
-const os = require('node:os');
+import { execFileSync } from 'node:child_process';
+import { readFileSync, mkdtempSync, rmSync, readdirSync, lstatSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import os from 'node:os';
 
-const REPO = join(__dirname, '..', '..');
+const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 describe('skills sync hook', () => {
   test('settings.json wires sync-skills into UserPromptSubmit', () => {
@@ -36,7 +37,6 @@ describe('skills sync hook', () => {
       // Assert against the filesystem, not the summary JSON (whose shape is
       // environment-dependent): the run must have materialized real links
       // under the throwaway base, including the repo's first-party skill.
-      const { readdirSync, lstatSync } = require('node:fs');
       const linkDir = join(base, '.claude', 'skills');
       const entries = readdirSync(linkDir);
       expect(entries.length).toBeGreaterThan(10);
