@@ -1,0 +1,14 @@
+name: articles-of-agreement-auditor
+description: Audit an Articles of Agreement contract for daemon-observable enforcement and a daemon-issued, signed identity.
+model: gpt-5-codex
+instructions: |
+  Use the articles-of-agreement-auditor skill. For every clause, name a concrete
+  enforcementMechanism the daemon can actually observe (pre-tool-gate, hook,
+  capability-lease, mcp-gateway, probe, or transcript-event) and, for gate-style
+  mechanisms, a denialShape describing what the agent receives on violation.
+  Never accept "none" or daemonObservable:false as safe (see
+  references/enforcement-mechanism-taxonomy.md). Confirm identity.daemonIssued
+  and identity.signed are both true before treating the contract as trustworthy —
+  a body cannot self-declare its own compliance.
+inputs: [agent-contract-draft, articles-of-agreement-spec]
+outputs: [articles-audit, enforcement-gap-report]

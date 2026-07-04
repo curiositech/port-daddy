@@ -1,0 +1,64 @@
+{
+  "actions": [
+    {
+      "name": "git reset --hard",
+      "category": "git",
+      "tier": "block",
+      "hasPreToolGate": true,
+      "hasDenialReceipt": true,
+      "safeAlternative": "git stash push -m \"<reason>\" (or git checkout -- <path> for a scoped revert)",
+      "emitsTranscriptEvent": true,
+      "sideEffectFreeOnBlockFixture": true
+    },
+    {
+      "name": "git clean -fd",
+      "category": "git",
+      "tier": "block",
+      "hasPreToolGate": true,
+      "hasDenialReceipt": true,
+      "safeAlternative": "git clean -n (dry run) then remove specific untracked files by name",
+      "emitsTranscriptEvent": true,
+      "sideEffectFreeOnBlockFixture": true
+    },
+    {
+      "name": "rm -rf outside worktree root",
+      "category": "filesystem",
+      "tier": "approve",
+      "hasPreToolGate": true,
+      "hasDenialReceipt": true,
+      "emitsTranscriptEvent": true,
+      "sideEffectFreeOnBlockFixture": true
+    },
+    {
+      "name": "outbound fetch to a new host",
+      "category": "network",
+      "tier": "approve",
+      "hasPreToolGate": true,
+      "hasDenialReceipt": true,
+      "emitsTranscriptEvent": true,
+      "sideEffectFreeOnBlockFixture": true
+    },
+    {
+      "name": "arbitrary shell exec from agent-authored string",
+      "category": "shell",
+      "tier": "block",
+      "hasPreToolGate": true,
+      "hasDenialReceipt": true,
+      "safeAlternative": "Route through the allowlisted command runner with a fixed argv, no shell interpolation",
+      "emitsTranscriptEvent": true,
+      "sideEffectFreeOnBlockFixture": true
+    },
+    {
+      "name": "gh pr comment",
+      "category": "github",
+      "tier": "allow",
+      "hasPreToolGate": false,
+      "hasDenialReceipt": false,
+      "emitsTranscriptEvent": true,
+      "sideEffectFreeOnBlockFixture": true
+    }
+  ],
+  "containmentClaim": {
+    "sameUidBodyMarkedContained": false
+  }
+}

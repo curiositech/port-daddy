@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MCP Admission Request",
+  "description": "Input to scripts/mcp_admission_audit.mjs. Describes a third-party MCP server's install/admission state, whether quarantine exit is being requested, team policy, and whether its write tools route through daemon policy.",
+  "type": "object",
+  "required": ["server", "quarantine", "teamPolicy", "writeToolsRouteThroughDaemonPolicy"],
+  "properties": {
+    "server": {
+      "type": "object",
+      "required": [
+        "name",
+        "manifestPresent",
+        "provenance",
+        "signatureVerified",
+        "permissionScope",
+        "sandboxSmokeTest",
+        "healthCheck",
+        "hasDisableRepairUninstall",
+        "usageTrace"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Human-readable name of the MCP server under review, e.g. 'github-mcp' or 'acme-widgets-mcp'."
+        },
+        "manifestPresent": {
+          "type": "boolean",
+          "description": "Whether the server publishes a manifest describing itself, its tools, and their side effects."
+        },
+        "provenance": {
+          "type": "string",
+          "enum": ["signed", "unsigned", "unknown"],
+          "description": "Whether the server's package/binary is cryptographically signed, known-unsigned, or of unknown origin."
+        },
+        "signatureVerified": {
+          "type": "boolean",
+          "description": "Whether the signature (if provenance is 'signed') has actually been checked against a trusted key, not merely claimed."
+        },
+        "permissionScope": {
+          "type": "string",
+          "enum": ["least-privilege", "broad", "undeclared"],
+          "description": "The declared capability/permission scope this server requests."
+        },
+        "sandboxSmokeTest": {
+          "type": "string",
+          "enum": ["passed", "failed", "not-run"],
+          "description": "Result of running the server inside a sandbox smoke test before granting live capability."
+        },
+        "healthCheck": {
+          "type": "boolean",
+          "description": "Whether a runtime health check (e.g. 'pd doctor') is wired up for this server."
+        },
+        "hasDisableRepairUninstall": {
+          "type": "boolean",
+          "description": "Whether disable, repair, and uninstall affordances all exist for this server."
+        },
+        "usageTrace": {
+          "type": "boolean",
+          "description": "Whether the server's tool invocations are captured in a usage/failure trace."
+        }
+      },
+      "additionalProperties": true
+    },
+    "quarantine": {
+      "type": "object",
+      "required": ["exitRequested"],
+      "properties": {
+        "exitRequested": {
+          "type": "boolean",
+          "description": "Whether admission is requesting this server exit quarantine and run for real, as opposed to remaining under review."
+        }
+      },
+      "additionalProperties": true
+    },
+    "teamPolicy": {
+      "type": "string",
+      "enum": ["allow", "approve", "block", "none"],
+      "description": "The team's admission policy for this server: auto-allow, require approval, hard block, or no policy set at all."
+    },
+    "writeToolsRouteThroughDaemonPolicy": {
+      "type": "boolean",
+      "description": "Whether every write-capable tool this server exposes is routed through daemon policy rather than executing directly."
+    }
+  },
+  "additionalProperties": true
+}
