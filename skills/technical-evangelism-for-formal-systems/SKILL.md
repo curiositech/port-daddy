@@ -8,6 +8,7 @@ description: >-
   adoption goals. NOT for academic paper writing, non-technical marketing,
   social media management, or PR.
 license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Grep,Glob,WebSearch,WebFetch
 metadata:
   category: Productivity & Meta
   tags:
@@ -69,7 +70,7 @@ Use for:
 
 ## NOT for Boundaries
 
-- Academic paper writing (use `research-craft`)
+- Academic paper writing (out of scope for this repo's skill set; the papers themselves are their own craft)
 - Marketing copy for non-technical audiences
 - Social media management or content calendars
 - PR, press releases, or investor decks

@@ -1,6 +1,6 @@
 {
   "skill": "technical-evangelism-for-formal-systems",
-  "updatedAt": "2026-04-18T22:42:50",
+  "updatedAt": "2026-07-04T12:30:00",
   "provenance": {
     "kind": "first-party",
     "owners": [
@@ -26,11 +26,11 @@
     "scripts": false,
     "templates": false,
     "examples": false,
-    "references": false,
+    "references": true,
     "assets": false,
     "diagrams": true,
-    "referenceFiles": 0,
-    "referenceIndex": false,
+    "referenceFiles": 2,
+    "referenceIndex": true,
     "diagramCompanions": 2,
     "visualPreviewCapability": false
   },
