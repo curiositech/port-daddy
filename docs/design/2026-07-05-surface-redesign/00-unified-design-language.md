@@ -14,7 +14,7 @@ The repo's real identity, already gated in CI:
 - **Structure:** flat, `2px` hard ink borders do the figure-ground; **no shadows, no rounded corners** (system primitives excepted). Separation = borders + alternating surfaces + spacing on an 8pt grid.
 - **Type:** Big Shoulders Display (display), Recursive (sans), Recursive Mono (code/labels/proofs). Hierarchy from weight/scale/case/tracking, never from more families. Body ≥ 14px, AAA where the operator lives.
 - **Color as meaning:** the story palette — every hue is a *layer or state*, never decoration. Cobalt `#003fb8` = L0 truth; teal `#006b5f` = L2 legibility; sage = health; violet = identity; rust = reputation; amber = economy/warning; crimson = mayday.
-- **Signal grammar:** the six-state ICS flag system (`tokens.aaa.css`): Hotel=claim-active, Foxtrot=awaiting-human, Bravo=burning-cash, Victor=conflict, Delta=blocked, Yankee=claim-stale, Mike=idle, Quebec+`[NEW]`=pratique/newcomer. Status is always **word + flag + color**, never color alone.
+- **Signal grammar:** the ICS flag state system (`tokens.aaa.css` — six core work states plus Mike/idle and Quebec/newcomer): Hotel=claim-active, Foxtrot=awaiting-human, Bravo=burning-cash, Victor=conflict, Delta=blocked, Yankee=claim-stale, Mike=idle, Quebec+`[NEW]`=pratique/newcomer. Status is always **word + flag + color**, never color alone.
 
 ## One house, two rooms (resolving the cobalt/mustard fork)
 
@@ -30,7 +30,7 @@ Shared across both rooms: substrate, borders, type, story palette, ICS signal gr
 ## The laws (apply to every surface, from the binder)
 
 1. **"Scout captures intent. FleetBar grants consent. pd-console shows the truth."** A control that doesn't serve the surface's verb belongs on another surface (deep-link, don't grow panes).
-2. **Status = word + flag + color.** "LIVE" only when stream evidence/heartbeat is recent. Six-state glance grammar everywhere an agent appears.
+2. **Status = word + flag + color.** "LIVE" only when stream evidence/heartbeat is recent. The ICS glance grammar everywhere an agent appears.
 3. **Click-first.** No happy path types an agent id, session id, or worktree path. "If the answer is 'type an ID into a command line,' the surface has failed."
 4. **No unenforceable controls.** Observed agents show state, never buttons.
 5. **Empty states teach.** Every empty region says what's missing and offers the next action ("No mission cards parsed — add (UNCOMMITTED)/(BLOCKED) tags to your roadmap" beats "All 0").
@@ -42,9 +42,9 @@ Shared across both rooms: substrate, borders, type, story palette, ICS signal gr
 
 ## Per-surface theses (specs live beside the mockups)
 
-- **FleetBar** (`mockups/fleetbar-popover.html`): *the front door is intent.* Four verbs top-to-bottom: intent composer → human gates (the ONLY attention-demanding items) → resume cards → quick actions. The fleet roster and dev-berth list are demoted to a collapsed drawer. Six-state glance strip replaces "16 idle."
+- **FleetBar** (`mockups/fleetbar-popover.html`): *the front door is intent.* Four verbs top-to-bottom: intent composer → human gates (the ONLY attention-demanding items) → resume cards → quick actions. The fleet roster and dev-berth list are demoted to a collapsed drawer. A flag-count glance strip replaces "16 idle."
 - **Control Center** (`mockups/control-center.html`): FleetBar's *deep window face*, not a fourth product. One header row (not three), gates + roster + flow as conjoined panes, budget as a consent object, empty states that teach.
-- **pd-console** (`mockups/pd-console.html`): the command room — left rail (saved views), center roster grouped by the six states, right detail with the **live transcript first-class** above the fold; files/claims visible without scrolling past metrics; no `worktree: unknown` debug rows — unknowns render as remediation prompts.
+- **pd-console** (`mockups/pd-console.html`): the command room — left rail (saved views), center roster grouped by flag state, right detail with the **live transcript first-class** above the fold; files/claims visible without scrolling past metrics; no `worktree: unknown` debug rows — unknowns render as remediation prompts.
 - **Scout** (`mockups/scout-popup.html`): the intake wedge on-token: paper substrate, 2px borders, mustard accent, honest Online/Offline daemon chip, evidence-first layout (screenshot is the hero), deep-link to console for anything beyond intake.
 - **Login** (`mockups/login.html`): storefront room. Local-first honesty above the fold ("Port Daddy works without an account"), GitHub OIDC primary, account-key story explicit ("the website never holds your keys"), device pairing with the 4-digit code as a first-class ritual.
 - **Account** (`mockups/account.html`): devices (pair/revoke), receipts (`/r/<id>` — the Strava-map of code work), plan/billing with cost caps, harbors (personal→team→guest cards), provider keys, export/delete.

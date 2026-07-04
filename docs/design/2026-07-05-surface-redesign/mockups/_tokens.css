@@ -40,7 +40,7 @@
   --mayday: #C41E30;         /* breach / distress */
   --mayday-dark: #F26475;
 
-  /* ICS six-state signal grammar (word + flag + color, never color alone)
+  /* ICS signal-state grammar — six core work states + idle + newcomer (word + flag + color, never color alone)
      H hotel=claim-active  F foxtrot=awaiting-human  B bravo=burning-cash
      V victor=conflict     D delta=blocked           Y yankee=claim-stale
      M mike=idle           Q quebec=newcomer/pratique */

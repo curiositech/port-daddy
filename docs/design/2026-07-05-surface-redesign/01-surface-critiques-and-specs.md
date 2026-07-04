@@ -11,10 +11,10 @@ Screenshots referenced were taken 2026-07-04 from the shipped builds.
 - It is a *launcher*, not a front door. Sixteen visually identical `pd-console · Dev · <branch>` rows dominate the popover — the dev-berth list, an internal contributor concern, is the primary content. The binder demotes the roster to a drawer; the build promotes the build-lane list above everything.
 - No intent composer exists. The binder's verb #1 is absent entirely.
 - No human gates section. The one thing FleetBar is *for* has no home.
-- "Fleet — 16 idle" renders the most important operator fact in the smallest, grayest type on the surface. There is no six-state glance grammar, no ICS signal language, despite both being specified and tokenized.
+- "Fleet — 16 idle" renders the most important operator fact in the smallest, grayest type on the surface. There is no ICS glance grammar, no signal-flag language, despite both being specified and tokenized.
 - The visual identity is stock iOS: white sheet, rounded cards, systemy blues and a lone orange pill. Nothing connects it to pd-console or the website. No warm paper, no hard borders, no house type.
 
-**Redesign** (`mockups/fleetbar-popover.html`): intent composer on top → crimson-edged gate cards (Foxtrot) → resume cards → quick actions → collapsed fleet drawer with a six-state flag strip (H/F/V/Y/M counts) → daemon micro-footer. Dev-berth switching moves into the drawer, one level down. Cost appears on gate cards — at the moment of consent — and nowhere else.
+**Redesign** (`mockups/fleetbar-popover.html`): intent composer on top → crimson-edged gate cards (Foxtrot) → resume cards → quick actions → collapsed fleet drawer with a flag-count glance strip (H/F/V/Y/M counts) → daemon micro-footer. Dev-berth switching moves into the drawer, one level down. Cost appears on gate cards — at the moment of consent — and nowhere else.
 
 ## Fleet Control Center
 
@@ -27,7 +27,7 @@ Screenshots referenced were taken 2026-07-04 from the shipped builds.
 - Budget is presented as a settings form, not as the consent object the binder makes it ("The launch flow must show budget and max cost before running").
 - Dark theme is closest of the three to the house identity but uses soft grays and rounded chips instead of warm ebony + 2px bone borders; the mustard/crimson operator accents are absent.
 
-**Redesign** (`mockups/control-center.html`): one header band (title, project, four stat plates); three conjoined panes — Gates & Attention (crimson cards + crew grouped by six-state), Flow (an honest SVG topology with named nodes and a legend), Budget-as-consent + Guard; bottom Roadmap Intake as a teaching empty state with an import action.
+**Redesign** (`mockups/control-center.html`): one header band (title, project, four stat plates); three conjoined panes — Gates & Attention (crimson cards + crew grouped by flag state), Flow (an honest SVG topology with named nodes and a legend), Budget-as-consent + Guard; bottom Roadmap Intake as a teaching empty state with an import action.
 
 ## pd-console
 
@@ -37,10 +37,10 @@ Screenshots referenced were taken 2026-07-04 from the shipped builds.
 - The left nav is ~20 flat, ungrouped, same-weight text items (Fleet, Cockpit, Sorties, Claims, Peek, Planner, ADRs, Activity…). No watch/work/truth grouping, no counts, no attention routing.
 - The agent roster renders raw key-value debug rows: `worktree — unknown`, `doing — no purpose recorded`, `stream — pd agent stream spawned-c4bfd95aeb7a`. This is exactly ch. 10's failure mode: clipped identifiers as information scent, and a command line quoted where a button should exist ("steer — pd agent interrupt spawned-…").
 - No transcript anywhere on screen. The surface whose one unique power is "renders transcripts in full" shows none.
-- No six-state grouping, no gates, no cost, no flags. "alive" is absent: nothing indicates stream freshness; "spawned-… - alive" is a label, not evidence.
+- No state grouping, no gates, no cost, no flags. "alive" is absent: nothing indicates stream freshness; "spawned-… - alive" is a label, not evidence.
 - The Conjure pane is the exception and the proof: wave-grouped DAG cards with model/cost/duration chips have real design authority. The rest of the app should be built to its standard.
 
-**Redesign** (`mockups/pd-console.html`): three-part workspace — grouped rail (WATCH/WORK/TRUTH), roster grouped by six-state grammar with plain-word steps and remediation rows, detail pane with live transcript above the fold, files-touched + claims below, Interrupt/Pause/Fork as real buttons with disabled-state explanations, LIVE defined by stream evidence and labeled so.
+**Redesign** (`mockups/pd-console.html`): three-part workspace — grouped rail (WATCH/WORK/TRUTH), roster grouped by the ICS state grammar with plain-word steps and remediation rows, detail pane with live transcript above the fold, files-touched + claims below, Interrupt/Pause/Fork as real buttons with disabled-state explanations, LIVE defined by stream evidence and labeled so.
 
 ## Scout (Chrome extension)
 
@@ -56,7 +56,7 @@ Screenshots referenced were taken 2026-07-04 from the shipped builds.
 
 ## Cross-cutting acceptance checklist (all four)
 
-- [ ] Six-state ICS grammar wherever an agent appears (flag + word + color)
+- [ ] The ICS state grammar wherever an agent appears (flag + word + color)
 - [ ] One header band max; panes, not tab crowds
 - [ ] No identical-row walls; group by status; size = importance
 - [ ] Live claims require stream evidence; stale data carries a stale chip
