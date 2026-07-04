@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="port.css">
 <style>
   /* page-specific */
-  .hero { display: grid; grid-template-columns: 1.2fr 1fr; gap: 48px; padding: 64px 0 56px; align-items: start; }
+  .hero { display: grid; grid-template-columns: 1.2fr 1fr; gap: 48px; padding: 150px 0 56px; align-items: start; }
   .hero h1 { font-size: var(--fs-hero); font-weight: 700; line-height: 1.02; letter-spacing: var(--tracking-display); max-width: 16ch; }
   .hero h1 .accent { color: var(--cobalt); }
   .hero .eyebrow { margin-bottom: 14px; }
@@ -65,6 +65,83 @@
   .demo-tab.on { background: var(--cobalt); color: var(--inverse) !important; box-shadow: none !important; }
   [data-theme="dark"] .demo-tab.on { color: #121212 !important; }
 </style>
+<style>
+  /* ═══ LEVEL 3 — blocks as page architecture (v0-agentsd reference) ═══ */
+  html, body { overflow-x: clip; }
+  :root { --lime: #cad900; } /* chart-yellow — slab/fill cut; ink text only, never small text */
+  section { position: relative; }
+
+  /* exposed column grid behind the hero */
+  .hero::before {
+    content: ""; position: absolute; inset: -64px -40px 0;
+    background-image: repeating-linear-gradient(to right, transparent 0 calc(50% - 1px), var(--hair) calc(50% - 1px) 50%);
+    pointer-events: none;
+  }
+  .hero > * { position: relative; }
+
+  /* edge-bleeding slabs */
+  .slab { position: absolute; pointer-events: none; }
+  .slab .slab-label {
+    position: absolute; left: 16px; bottom: 12px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--inverse);
+  }
+  [data-theme="dark"] .slab .slab-label { color: #121212; }
+
+  /* poster display */
+  .hero h1 { font-size: var(--fs-hero); line-height: 1.0; max-width: 15ch; }
+  
+
+  /* eyebrow: outlined chip (color spent on slabs instead) */
+  
+  .sect-head { padding-top: 60px; }
+  .sect-mark { display: inline-block; width: 40px; height: 40px; vertical-align: middle; margin-right: 14px; border: 2px solid var(--border-strong); }
+
+  /* stat strip — joined color-bar cells */
+  .stat-row { gap: 0 !important; border: 2px solid var(--border-strong); }
+  .stat + .stat { border-left: 2px solid var(--border-strong); }
+  .stat { padding: 20px 22px !important; }
+  .stat .n { font-size: 44px !important; }
+
+  /* one-filled-cell grids: outlined cells, number chips */
+  .l3-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border: 2px solid var(--border-strong); }
+  .l3-cell { padding: 18px 20px 20px; border-right: 2px solid var(--border-strong); }
+  .l3-cell:last-child { border-right: none; }
+  .l3-cell .n { font-family: "IBM Plex Mono", monospace; font-size: 14px; font-weight: 700; margin-bottom: 10px; display: inline-block; }
+  .l3-cell .t { font-size: 15.5px; font-weight: 700; letter-spacing: var(--tracking-h3); }
+  .l3-cell p { font-size: 14px; line-height: 1.58; color: var(--text-secondary); margin-top: 8px; }
+  .l3-cell.fill-cobalt { background: var(--teal); }
+  .l3-cell.fill-gold { background: var(--violet); color: var(--inverse) !important; }
+  [data-theme="dark"] .l3-cell.fill-gold { color: #121212 !important; }
+  .l3-cell.fill-cobalt { color: var(--inverse); }
+  .l3-cell.fill-cobalt p, .l3-cell.fill-gold p { color: inherit; opacity: 0.92; }
+  [data-theme="dark"] .l3-cell.fill-cobalt { color: #121212; }
+
+  /* ladder as legend-semantic diagram: L0 solid cobalt, L3 solid gold */
+  .ladder { border: 2px solid var(--border-strong); }
+  .rung { border: none !important; margin-bottom: 0 !important; background: var(--surface-base) !important; }
+  .rung + .rung { border-top: 2px solid var(--border-strong) !important; }
+  .rung::before { display: none; }
+  .rung.fill-cobalt { background: var(--cobalt) !important; color: var(--inverse); }
+  .rung.fill-health { background: var(--health) !important; color: var(--inverse); }
+  .rung.fill-teal   { background: var(--teal) !important; color: var(--inverse); }
+  .rung.fill-gold { background: var(--lime) !important; color: #121212 !important; }
+  [data-theme="dark"] .rung.fill-cobalt, [data-theme="dark"] .rung.fill-health, [data-theme="dark"] .rung.fill-teal { color: #121212; }
+  .rung.fill-health .l-id, .rung.fill-teal .l-id, .rung.fill-health .l-tag, .rung.fill-teal .l-tag { color: inherit !important; opacity: 0.9; }
+  .rung.fill-health .l-body, .rung.fill-teal .l-body { color: inherit !important; opacity: 0.92; }
+  .rung.fill-cobalt .l-id, .rung.fill-gold .l-id, .rung.fill-cobalt .l-tag, .rung.fill-gold .l-tag { color: inherit !important; opacity: 0.9; }
+  .rung.fill-cobalt .l-body, .rung.fill-gold .l-body { color: inherit !important; opacity: 0.92; }
+
+  /* black band */
+  .ink-band { background: var(--cobalt); color: var(--inverse); padding: 48px 44px; margin-top: 96px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; align-items: center; }
+  .ink-band h2 { font-size: clamp(28px, 3vw, 38px); font-weight: 700; letter-spacing: var(--tracking-h2); line-height: 1.05; }
+  .ink-band p { font-size: 15px; line-height: 1.65; opacity: 0.85; margin-top: 12px; max-width: 52ch; }
+  .ink-band .zb-eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; opacity: 0.75; margin-bottom: 10px; }
+  [data-theme="dark"] .ink-band { color: #121212; }
+  [data-theme="dark"] .ink-band .zb-code { color: #10131a; background: rgba(0,0,0,0.16) !important; }
+  .btn-gold { font-family: "IBM Plex Mono", monospace; font-size: 13.5px; font-weight: 700; letter-spacing: 0.04em; padding: 11px 20px; background: var(--lime); color: #121212; cursor: default; display: inline-block; }
+  @media (max-width: 1080px) { .l3-grid { grid-template-columns: 1fr 1fr; } .l3-cell:nth-child(2) { border-right: none; } .ink-band { grid-template-columns: 1fr; } .slab { display: none; } }
+</style>
 </head>
 <body>
 <header class="site-header">
@@ -80,6 +157,8 @@
 
   <!-- HERO -->
   <section class="hero">
+    <div class="slab" style="top:-64px; left:calc(50% - 50vw); width: calc(50vw - 720px + 340px); min-width: 220px; height: 128px; background: var(--cobalt);"><span class="slab-label">Port Daddy</span></div>
+    <div class="slab" style="top:-16px; right:calc(50% - 50vw); width: calc(50vw - 720px + 190px); min-width: 110px; height: 260px; background: var(--teal);"></div>
     <div>
       <div class="eyebrow">Fleet coordination for coding agents</div>
       <h1>Run a tight ship. <span class="accent">Agents sail safer when they coordinate.</span></h1>
@@ -93,11 +172,11 @@
         <span class="r-item">cursor</span><span class="r-item">windsurf</span><span class="r-item">+ more</span>
       </div>
       <div style="display:flex; gap:12px; margin-top:26px;">
-        <a class="cta" href="#install">brew install port-daddy</a>
+        <a class="cta" href="#install" style="background: var(--border-strong); color: var(--surface-base);">brew install port-daddy</a>
         <a class="cta ghost" href="#"><i></i><i></i>The Big Idea</a>
       </div>
     </div>
-    <div class="harbor-panel lw-brackets"><i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
+    <div class="harbor-panel lw-brackets" style="margin-top: 110px;"><i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
       <div class="hp-head">
         <span class="eyebrow" style="color: var(--text-muted)">From the harbor — what people open first</span>
       </div>
@@ -111,15 +190,15 @@
   <!-- SCOPE LADDER -->
   <section>
     <div class="sect-head">
-      <div class="eyebrow">One tool, a widening scope</div>
-      <h2>A harbor-master for your agents.</h2>
+      <span class="sect-mark" style="background: var(--cobalt); border:none;"></span><span class="eyebrow">One tool, a widening scope</span>
+      <h2 style="margin-top:14px;">A harbor-master for your agents.</h2>
       <p class="sect-desc">It starts the moment two agents reach for the same file in one repo, and it grows from there — to the whole machine, across the network to fleets you don't own, and toward a market for agent labor. The small idea and the big idea are the same idea, at four scales.</p>
     </div>
     <div class="ladder">
-      <div class="rung" style="--layer: var(--cobalt)"><span class="l-id">L0 — for the daemon</span><div><div class="l-name">Your machine</div><div class="l-body">A local daemon decides what is true — one writer, one durable file, no consensus.</div></div><span class="l-tag">Shipped</span></div>
-      <div class="rung" style="--layer: var(--health)"><span class="l-id">L1 — for the agents</span><div><div class="l-name">Your swarm</div><div class="l-body">Agents claim before they touch, so the second one to reach a file waits instead of clobbering it.</div></div><span class="l-tag">Shipped</span></div>
-      <div class="rung" style="--layer: var(--teal)"><span class="l-id">L2 — for the operator</span><div><div class="l-name">Your cockpit</div><div class="l-body">The whole swarm as one picture you zoom into — down to the real diff, never a wall of them.</div></div><span class="l-tag">In progress · 2026</span></div>
-      <div class="rung" style="--layer: var(--gold)"><span class="l-id">L3 — the market</span><div><div class="l-name">For operators who never met</div><div class="l-body">Rent a trustworthy agent across machines, settled on one ledger that cannot lose your money.</div></div><span class="l-tag">Specified · 2027</span></div>
+      <div class="rung fill-cobalt" style="--layer: var(--cobalt)"><span class="l-id">L0 — for the daemon</span><div><div class="l-name">Your machine</div><div class="l-body">A local daemon decides what is true — one writer, one durable file, no consensus.</div></div><span class="l-tag">Shipped</span></div>
+      <div class="rung fill-health" style="--layer: var(--health)"><span class="l-id">L1 — for the agents</span><div><div class="l-name">Your swarm</div><div class="l-body">Agents claim before they touch, so the second one to reach a file waits instead of clobbering it.</div></div><span class="l-tag">Shipped</span></div>
+      <div class="rung fill-teal" style="--layer: var(--teal)"><span class="l-id">L2 — for the operator</span><div><div class="l-name">Your cockpit</div><div class="l-body">The whole swarm as one picture you zoom into — down to the real diff, never a wall of them.</div></div><span class="l-tag">In progress · 2026</span></div>
+      <div class="rung fill-gold" style="--layer: var(--gold)"><span class="l-id">L3 — the market</span><div><div class="l-name">For operators who never met</div><div class="l-body">Rent a trustworthy agent across machines, settled on one ledger that cannot lose your money.</div></div><span class="l-tag">Specified · 2027</span></div>
     </div>
     <p style="font-size:13.5px; color: var(--text-muted); margin-top:12px; max-width:76ch;">Four layers, one widening scope. The daemon and the swarm coordination run today. The operator's cockpit is the work of 2026. The cross-machine market is specified in the papers and targeted for 2027 — dated, not promised.</p>
     <a class="cta ghost" style="margin-top:18px;" href="library.html"><i></i><i></i>See the whole argument — the Harbor Library</a>
@@ -128,12 +207,12 @@
   <!-- CLI BACKEND VALUE PROP -->
   <section>
     <div class="sect-head">
-      <div class="eyebrow" style="color: var(--gold-on-tint)">Economics</div>
+      <span class="sect-mark" style="background: var(--lime); border:none;"></span><span class="eyebrow" style="background: var(--border-strong); color: var(--surface-base);">Economics</span>
       <h2>Your AI subscription already pays for the fleet.</h2>
       <p class="sect-desc">Bring your Claude Max or ChatGPT Pro login. <strong>Every agent in the fleet runs on that one seat — no metered API bill.</strong> Same login, same model. More hours of work per day. Switching a backend on is one environment variable.</p>
     </div>
     <div class="stat-row">
-      <div class="stat" style="background: var(--gold)"><div class="n">$0.00</div><div class="l">Marginal cost — per spawn, on the seat you already pay for</div></div>
+      <div class="stat" style="background: var(--lime); color:#121212;"><div class="n">$0.00</div><div class="l">Marginal cost — per spawn, on the seat you already pay for</div></div>
       <div class="stat" style="background: var(--cobalt)"><div class="n">2 min</div><div class="l">Setup time — brew install, one env var, fleet up</div></div>
       <div class="stat" style="background: var(--border-strong)"><div class="n" style="font-size:22px; padding-top:9px;">claude-cli · codex</div><div class="l">Backends — first-class; Cloudflare and direct API are fallbacks</div></div>
     </div>
@@ -200,11 +279,11 @@ claimed · visible to every other agent in this repo
       <h2>Coordination is shared memory agents can read.</h2>
       <p class="sect-desc">A scheduler decides what runs next. Port Daddy is the shared memory the running agents read from and write to: notes they leave each other, who is editing which file, warnings they send directly, a small store of facts they can look up, and the records left behind by a crashed agent.</p>
     </div>
-    <div class="cards-4">
-      <div class="stripe-card" style="--stripe: var(--teal)"><div class="sc-title" style="font-size:15.5px;">Notes the next agent can read</div><p>When an agent stops, it writes down what it was doing, what it proved, and what is left. The note stays after the agent and its chat history are gone.</p></div>
-      <div class="stripe-card" style="--stripe: var(--health)"><div class="sc-title" style="font-size:15.5px;">Who is editing what, in the open</div><p>Before an agent edits a file, it claims the file so others can see it. When two agents reach for the same file, the second one backs off instead of overwriting.</p></div>
-      <div class="stripe-card" style="--stripe: var(--amber)"><div class="sc-title" style="font-size:15.5px;">Agents warn each other directly</div><p>A test broke, two of us want the same file, this is not ready yet. The warnings go to the other agents, not to you.</p></div>
-      <div class="stripe-card" style="--stripe: var(--violet)"><div class="sc-title" style="font-size:15.5px;">Named roles that keep an inbox</div><p>Coxswain owns files. Lookout keeps docs honest. Navigator holds roadmap &amp; recovery. Quartermaster watches budget. The inbox survives when no agent is attached.</p></div>
+    <div class="l3-grid">
+      <div class="l3-cell fill-cobalt"><span class="n">01</span><div class="t">Notes the next agent can read</div><p>When an agent stops, it writes down what it was doing, what it proved, and what is left. The note stays after the agent and its chat history are gone.</p></div>
+      <div class="l3-cell"><span class="n" style="color: var(--health)">02</span><div class="t">Who is editing what, in the open</div><p>Before an agent edits a file, it claims the file so others can see it. When two agents reach for the same file, the second one backs off instead of overwriting.</p></div>
+      <div class="l3-cell"><span class="n" style="color: var(--amber-on-tint)">03</span><div class="t">Agents warn each other directly</div><p>A test broke, two of us want the same file, this is not ready yet. The warnings go to the other agents, not to you.</p></div>
+      <div class="l3-cell fill-gold"><span class="n">04</span><div class="t">Named roles that keep an inbox</div><p>Coxswain owns files. Lookout keeps docs honest. Navigator holds roadmap &amp; recovery. Quartermaster watches budget. The inbox survives when no agent is attached.</p></div>
     </div>
   </section>
 
@@ -256,7 +335,7 @@ listening on ui:clicks · cursor @0
   <!-- FEATURES INDEX -->
   <section>
     <div class="sect-head">
-      <div class="eyebrow">Product surface</div>
+      <span class="sect-mark" style="background: var(--teal); border:none;"></span><span class="eyebrow">Product surface</span>
       <h2>One layer, many ways to inspect work.</h2>
       <p class="sect-desc">Port Daddy is built as infrastructure first, with a real operator surface on top. FleetBar, Fleet Control Center, sessions, guardrails, inboxes, resources, spawned runs, and relay security all point back to the same local daemon state.</p>
     </div>
@@ -277,16 +356,20 @@ listening on ui:clicks · cursor @0
     </div>
   </section>
 
-  <!-- INSTALL ZONE — the page's one color zone -->
+  <!-- INSTALL — black band (Level 3) -->
   <section id="install">
-    <div class="zone-banner">
+    <div class="ink-band">
       <div>
         <div class="zb-eyebrow">Install Port Daddy</div>
         <h2>Install it, then run your fleet from FleetBar.</h2>
         <p>Port Daddy is open source and free. You run it from the Mac app: pick a project, start a Shipwright to plan a fleet of agents, launch one-off spawned work, set spending limits, and hand work between agents. Agents stay in the terminal. You should not have to read command output to know what is going on.</p>
+        <div style="display:flex; gap:12px; margin-top:20px;">
+          <span class="cta" style="background: var(--border-strong); color: var(--surface-base);">Get the Mac app</span>
+          <span class="btn-gold">Read the papers</span>
+        </div>
       </div>
       <div>
-        <div class="zb-code">brew install curiositech/tap/port-daddy<br>pd setup</div>
+        <div class="zb-code" style="background: rgba(255,255,255,0.06);">brew install curiositech/tap/port-daddy<br>pd setup</div>
         <figure class="themed-img" style="margin-top:14px; border: 2px solid rgba(0,0,0,0.35);">
           <img class="light-only" src="../../../../website-v2/public/img/app-screens/fleetbar-native-shell-light.webp" alt="FleetBar native shell — daemon health, agents, and project readiness in the macOS menu bar." style="display:block; width:100%; height:auto;">
           <img class="dark-only" src="../../../../website-v2/public/img/app-screens/fleetbar-native-shell-dark.webp" alt="FleetBar native shell, dark." style="display:block; width:100%; height:auto;">
@@ -294,6 +377,8 @@ listening on ui:clicks · cursor @0
       </div>
     </div>
   </section>
+
+  <div style="position:relative; height:0;"><div class="slab" style="top:-40px; left:calc(50% - 50vw); width: calc(50vw - 720px + 240px); min-width: 160px; height: 240px; background: var(--violet);"></div></div>
 
 </main>
 
