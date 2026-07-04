@@ -3,1041 +3,351 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Story Linework — Fractional Borders × the Story Palette</title>
+<title>Story Linework v2 — Palette, Type Options, WCAG Study, and Five Ports</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Schibsted+Grotesk:wght@500;700;900&family=Archivo:wght@500;700;900&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ports/port.css">
 <style>
-  /* Recursive — the site's own shipped variable file (one file, all voices).
-     Loaded relative to this file; falls back to Helvetica if opened elsewhere. */
-  @font-face {
-    font-family: "Recursive";
-    src: url("../../../website-v2/public/fonts/recursive/recursive-latin-full-normal.woff2") format("woff2");
-    font-weight: 300 1000;
-    font-display: swap;
-  }
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root, [data-theme="light"] {
-    /* Neutral matrix — the site's real surface tokens */
-    --surface-base:   #f2eee6;
-    --surface-raised: #f7f3eb;
-    --surface-strong: #e9e2d5;
-    --surface-sunken: #e0d9cb;
-    --ink:            #121212;
-    --ink-soft:       #403b34;
-    --ink-mute:       #47423a;
-    --ink-ghost:      #98928a;
-    --inverse:        #fbf7ef;
-
-    /* Story palette — from tokens.semantic.css, PR #455 */
-    --cobalt:   #003fb8;   /* L0 kernel / truth — the system accent  */
-    --teal:     #006b5f;   /* L2 legibility                          */
-    --health:   #1f7a4d;   /* L1 ready / coordinated                 */
-    --indigo:   #4b3f9e;   /* protocol / federation                  */
-    --violet:   #6f48b5;   /* L3 identity / continuity — the person  */
-    --rust:     #9a4a1e;   /* L3 reputation / Elo earned             */
-    --amber:    #a66f00;   /* L3 economy / value                     */
-    --danger:   #bf2f2f;   /* Leviathan — breach / mayday            */
-
-    /* Hairlines */
-    --hair:        rgba(18, 18, 18, 0.14);
-    --hair-strong: rgba(18, 18, 18, 0.34);
-
-    /* Linework primitives — the proposed tokens */
-    --lw-weight:  1.5px;
-    --lw-bracket: 14px;
-    --lw-stripe:  3px;
-  }
-
-  [data-theme="dark"] {
-    --surface-base:   #101216;
-    --surface-raised: #181c22;
-    --surface-strong: #222833;
-    --surface-sunken: #0b0d11;
-    --ink:            #f5f3ed;
-    --ink-soft:       #d3cec2;
-    --ink-mute:       #a59f93;
-    --ink-ghost:      #5c574e;
-    --inverse:        #121212;
-
-    --cobalt:   #7db4ff;
-    --teal:     #8fd0a7;
-    --health:   #5fce97;
-    --indigo:   #9d92e8;
-    --violet:   #b69bec;
-    --rust:     #e09464;
-    --amber:    #f2be51;
-    --danger:   #ff7d7d;
-
-    --hair:        rgba(245, 243, 237, 0.14);
-    --hair-strong: rgba(245, 243, 237, 0.34);
-  }
-
-  html { scroll-behavior: smooth; }
-  body {
-    background: var(--surface-base);
-    color: var(--ink);
-    font-family: "Recursive", "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-variation-settings: "MONO" 0, "CASL" 0.12;
-    font-size: 16px;
-    line-height: 1.55;
-    -webkit-font-smoothing: antialiased;
-    transition: background 0.25s ease, color 0.25s ease;
-  }
-
-  .mono {
-    font-variation-settings: "MONO" 1, "CASL" 0;
-    letter-spacing: 0.02em;
-  }
-  .casual {
-    font-variation-settings: "MONO" 0, "CASL" 1, "slnt" -8;
-  }
-
-  /* ── Page frame — corner brackets on the document itself (Pattern 2.1) ── */
-  .page-frame { position: fixed; inset: 14px; pointer-events: none; z-index: 40; }
-  .page-frame i {
-    position: absolute; width: 18px; height: 18px;
-    border: 0 solid var(--ink);
-  }
-  .page-frame i:nth-child(1) { top: 0; left: 0; border-top-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-  .page-frame i:nth-child(2) { top: 0; right: 0; border-top-width: var(--lw-weight); border-right-width: var(--lw-weight); }
-  .page-frame i:nth-child(3) { bottom: 0; left: 0; border-bottom-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-  .page-frame i:nth-child(4) { bottom: 0; right: 0; border-bottom-width: var(--lw-weight); border-right-width: var(--lw-weight); }
-
-  .theme-toggle {
-    position: fixed; top: 26px; right: 30px; z-index: 50;
-    font-family: inherit;
-    font-variation-settings: "MONO" 1;
-    font-size: 12px; font-weight: 650;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    background: var(--ink); color: var(--surface-base);
-    border: none; padding: 6px 12px; cursor: pointer;
-  }
-
-  .container { max-width: 1220px; margin: 0 auto; padding: 64px 48px 96px; }
-
-  /* ── Masthead ── */
-  .masthead {
-    display: grid; grid-template-columns: 1fr auto; align-items: end;
-    gap: 24px; padding-bottom: 28px; margin-bottom: 56px;
-    border-bottom: 1px solid var(--hair-strong);
-  }
-  .eyebrow {
-    font-variation-settings: "MONO" 1;
-    font-size: 12px; font-weight: 650; text-transform: uppercase;
-    letter-spacing: 0.14em; color: var(--cobalt); margin-bottom: 16px;
-  }
-  .masthead h1 {
-    font-size: clamp(38px, 5.4vw, 74px);
-    font-weight: 900; line-height: 0.98; letter-spacing: -0.03em;
-    max-width: 17ch;
-  }
-  .masthead h1 em {
-    font-style: normal; color: var(--cobalt);
-    font-variation-settings: "MONO" 0, "CASL" 1, "slnt" -10;
-    font-weight: 620;
-  }
-  .masthead-meta {
-    font-variation-settings: "MONO" 1;
-    font-size: 13px; line-height: 1.7; color: var(--ink-mute);
-    text-align: right; min-width: 230px;
-  }
-  .masthead-meta strong { color: var(--ink); font-weight: 700; }
-
-  /* ── Intro ── */
-  .intro { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-bottom: 88px; align-items: start; }
-  .intro-lede {
-    font-size: 23px; font-weight: 560; line-height: 1.42; letter-spacing: -0.012em; max-width: 30ch;
-  }
-  .intro-lede em { font-style: normal; font-variation-settings: "CASL" 1, "slnt" -8; color: var(--violet); }
-  .intro-body { font-size: 15px; line-height: 1.7; color: var(--ink-soft); max-width: 54ch; }
-  .intro-body p + p { margin-top: 14px; }
-  .intro-body strong { color: var(--ink); font-weight: 700; }
-
-  /* ── Section scaffolding — midline rule (Pattern 2.3) ── */
-  section.block { margin-bottom: 96px; scroll-margin-top: 48px; }
-  .section-header {
-    display: grid; grid-template-columns: 64px 1fr auto; align-items: baseline;
-    gap: 16px; padding-bottom: 14px; margin-bottom: 36px; position: relative;
-  }
-  .section-header::after {
-    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
-    background-image: linear-gradient(to right, transparent 0 32%, var(--hair-strong) 32% 68%, transparent 68% 100%);
-  }
-  .section-num { font-variation-settings: "MONO" 1; font-size: 13px; font-weight: 650; color: var(--cobalt); }
-  .section-title { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
-  .section-kicker {
-    font-variation-settings: "MONO" 1;
-    font-size: 12px; font-weight: 650; text-transform: uppercase;
-    letter-spacing: 0.14em; color: var(--ink-mute);
-  }
-
-  .lede-note { font-size: 15px; line-height: 1.65; color: var(--ink-soft); max-width: 72ch; margin-bottom: 36px; }
-  .lede-note strong { color: var(--ink); }
-
-  /* ── §02 primitive cells ── */
-  .prim-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-  .prim-cell { background: var(--surface-raised); padding: 18px; position: relative; }
-  .prim-vis { aspect-ratio: 1.9 / 1; background: var(--surface-strong); position: relative; margin-bottom: 14px; }
-  .prim-vis .stage {
-    position: absolute; inset: 16px; background: var(--surface-base);
-    display: flex; align-items: center; justify-content: center;
-    font-variation-settings: "MONO" 1;
-    font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-mute);
-  }
-  .prim-name { font-size: 16px; font-weight: 750; letter-spacing: -0.01em; margin-bottom: 4px; }
-  .prim-id { font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 620; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 8px; }
-  .prim-use { font-size: 14px; line-height: 1.55; color: var(--ink-soft); }
-  .prim-token {
-    margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--hair);
-    font-variation-settings: "MONO" 1;
-    font-size: 12.5px; font-weight: 550; color: var(--teal); line-height: 1.6;
-  }
-
-  /* live primitives inside the cells */
-  .demo-brackets i { position: absolute; width: var(--lw-bracket); height: var(--lw-bracket); border: 0 solid var(--ink); }
-  .demo-brackets i:nth-child(1) { top: 0; left: 0; border-top-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-  .demo-brackets i:nth-child(2) { top: 0; right: 0; border-top-width: var(--lw-weight); border-right-width: var(--lw-weight); }
-  .demo-brackets i:nth-child(3) { bottom: 0; left: 0; border-bottom-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-  .demo-brackets i:nth-child(4) { bottom: 0; right: 0; border-bottom-width: var(--lw-weight); border-right-width: var(--lw-weight); }
-
-  .demo-stripe { box-shadow: inset var(--lw-stripe) 0 0 var(--health); }
-  .demo-midline {
-    background:
-      linear-gradient(to right, transparent 0 30%, var(--ink) 30% 70%, transparent 70% 100%) top left / 100% var(--lw-weight) no-repeat,
-      linear-gradient(to right, transparent 0 30%, var(--ink) 30% 70%, transparent 70% 100%) bottom left / 100% var(--lw-weight) no-repeat,
-      var(--surface-base);
-  }
-  .demo-zone { background: var(--cobalt) !important; color: var(--inverse) !important; }
-
-  .demo-pulse-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--cobalt); position: relative; margin-right: 10px; flex: none; }
-  .demo-pulse-dot::after {
-    content: ""; position: absolute; inset: -5px; border-radius: 50%;
-    border: var(--lw-weight) solid var(--cobalt); opacity: 0.6;
-    animation: pulse 1.8s ease-out infinite;
-  }
-  @keyframes pulse { 0% { transform: scale(0.7); opacity: 0.8; } 100% { transform: scale(1.9); opacity: 0; } }
-
-  .spark { display: block; }
-
-  /* ── §03 state grammar table ── */
-  .grammar-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  .grammar-table th, .grammar-table td { text-align: left; padding: 13px 14px; border-bottom: 1px solid var(--hair); vertical-align: middle; }
-  .grammar-table th {
-    font-variation-settings: "MONO" 1;
-    font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 650;
-    color: var(--ink-mute); border-bottom: 1px solid var(--ink); padding-bottom: 9px;
-  }
-  .grammar-table td:first-child { font-weight: 700; white-space: nowrap; }
-  .grammar-table .hex { font-variation-settings: "MONO" 1; font-size: 13px; }
-  .state-chip { display: inline-flex; align-items: center; gap: 9px; }
-  .state-chip .bar { width: var(--lw-stripe); height: 22px; flex: none; }
-  .state-chip .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-  .grammar-table .label-ex { font-variation-settings: "MONO" 1; font-size: 13px; color: var(--ink-mute); }
-
-  .zone-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 28px; }
-  .zone-card { padding: 16px 16px 14px; color: var(--inverse); position: relative; min-height: 108px; display: flex; flex-direction: column; justify-content: space-between; }
-  .zone-card .z-eyebrow { font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.13em; opacity: 0.75; }
-  .zone-card .z-title { font-size: 16px; font-weight: 750; letter-spacing: -0.01em; margin-top: 4px; }
-  .zone-card .z-note { font-variation-settings: "MONO" 1; font-size: 12.5px; opacity: 0.85; margin-top: 10px; }
-  [data-theme="dark"] .zone-card { color: #121212; }
-
-  /* ── §04 type specimens ── */
-  .type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
-  .specimen { border-top: 1px solid var(--hair-strong); padding: 18px 0 26px; }
-  .specimen + .specimen { border-top: 1px solid var(--hair); }
-  .spec-label { font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.13em; color: var(--ink-mute); margin-bottom: 12px; }
-  .spec-display { font-size: 44px; font-weight: 900; line-height: 1.02; letter-spacing: -0.028em; }
-  .spec-display em { font-style: normal; font-variation-settings: "CASL" 1, "slnt" -10; font-weight: 640; color: var(--cobalt); }
-  .spec-body { font-size: 16px; line-height: 1.62; color: var(--ink-soft); max-width: 46ch; }
-  .spec-mono { font-variation-settings: "MONO" 1; font-size: 14px; line-height: 1.8; color: var(--ink-soft); }
-  .spec-mono b { color: var(--teal); font-weight: 650; }
-  .type-note { font-size: 15px; line-height: 1.68; color: var(--ink-soft); max-width: 54ch; }
-  .type-note p + p { margin-top: 14px; }
-  .type-note strong { color: var(--ink); }
-
-  /* ── §05 mock frames ── */
-  .mock-wrap { margin-bottom: 72px; }
-  .mock-caption { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: baseline; margin-bottom: 18px; }
-  .mock-caption .m-num { font-variation-settings: "MONO" 1; font-size: 13px; font-weight: 650; color: var(--cobalt); }
-  .mock-caption h3 { font-size: 21px; font-weight: 800; letter-spacing: -0.015em; }
-  .mock-notes { font-size: 14px; line-height: 1.6; color: var(--ink-soft); max-width: 70ch; margin-top: 10px; }
-  .mock-notes b { color: var(--ink); }
-
-  .mock-frame { background: var(--ink); padding: 40px; position: relative; }
-  .mock-frame > i { position: absolute; width: 16px; height: 16px; border: 0 solid var(--surface-sunken); }
-  .mock-frame > i:nth-of-type(1) { top: 12px; left: 12px; border-top-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-  .mock-frame > i:nth-of-type(2) { top: 12px; right: 12px; border-top-width: var(--lw-weight); border-right-width: var(--lw-weight); }
-  .mock-frame > i:nth-of-type(3) { bottom: 12px; left: 12px; border-bottom-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-  .mock-frame > i:nth-of-type(4) { bottom: 12px; right: 12px; border-bottom-width: var(--lw-weight); border-right-width: var(--lw-weight); }
-
-  .page-mock { background: var(--surface-base); color: var(--ink); padding: 0; }
-
-  /* mock: shared nav */
-  .pm-nav {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 18px 36px; border-bottom: 1px solid var(--hair-strong);
-  }
-  .pm-logo { font-weight: 900; font-size: 17px; letter-spacing: -0.02em; }
-  .pm-logo .mark { color: var(--cobalt); font-variation-settings: "MONO" 1; margin-right: 6px; }
-  .pm-links { display: flex; gap: 26px; font-variation-settings: "MONO" 1; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; color: var(--ink-mute); }
-  .pm-links .active { color: var(--ink); box-shadow: inset 0 calc(-1 * var(--lw-weight)) 0 var(--cobalt); padding-bottom: 3px; }
-
-  /* mock 1: hero */
-  .pm-hero { display: grid; grid-template-columns: 1.25fr 1fr; gap: 44px; padding: 52px 36px 40px; align-items: start; }
-  .pm-hero-eyebrow { font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.14em; color: var(--cobalt); margin-bottom: 14px; }
-  .pm-hero h2 { font-size: 47px; font-weight: 900; line-height: 1.0; letter-spacing: -0.028em; max-width: 15ch; }
-  .pm-hero h2 em { font-style: normal; font-variation-settings: "CASL" 1, "slnt" -9; font-weight: 640; color: var(--cobalt); }
-  .pm-is-panel {
-    margin-top: 26px; padding: 14px 18px 16px;
-    background: var(--surface-raised);
-    box-shadow: inset var(--lw-stripe) 0 0 var(--cobalt);
-    max-width: 46rem;
-  }
-  .pm-is-label { font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.13em; color: var(--cobalt); }
-  .pm-is-body { margin-top: 8px; font-size: 15px; line-height: 1.6; color: var(--ink-soft); max-width: 40ch; }
-  .pm-runs { display: flex; gap: 18px; align-items: baseline; margin-top: 22px; padding-top: 14px; position: relative; flex-wrap: wrap; }
-  .pm-runs::before {
-    content: ""; position: absolute; top: 0; left: 0; width: 64px; height: 1px; background: var(--hair-strong);
-  }
-  .pm-runs .r-label { font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); }
-  .pm-runs .r-item { font-variation-settings: "MONO" 1; font-size: 13px; font-weight: 600; color: var(--ink-soft); }
-
-  .pm-cta-row { display: flex; gap: 12px; margin-top: 26px; }
-  .pm-cta {
-    font-variation-settings: "MONO" 1;
-    font-size: 13.5px; font-weight: 700; letter-spacing: 0.04em;
-    padding: 11px 20px; background: var(--cobalt); color: var(--inverse); cursor: default;
-  }
-  [data-theme="dark"] .pm-cta { color: #121212; }
-  .pm-cta.ghost { background: transparent; color: var(--ink); position: relative; }
-  .pm-cta.ghost i { position: absolute; width: 10px; height: 10px; border: 0 solid var(--ink); }
-  .pm-cta.ghost i:nth-child(1) { top: 0; left: 0; border-top-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-  .pm-cta.ghost i:nth-child(2) { bottom: 0; right: 0; border-bottom-width: var(--lw-weight); border-right-width: var(--lw-weight); }
-
-  /* hero right: live fleet card */
-  .pm-fleet { position: relative; padding: 18px 0 8px; background: var(--surface-raised); }
-  .pm-fleet > i { position: absolute; width: var(--lw-bracket); height: var(--lw-bracket); border: 0 solid var(--ink); }
-  .pm-fleet > i:nth-of-type(1) { top: 0; left: 0; border-top-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-  .pm-fleet > i:nth-of-type(2) { top: 0; right: 0; border-top-width: var(--lw-weight); border-right-width: var(--lw-weight); }
-  .pm-fleet > i:nth-of-type(3) { bottom: 0; left: 0; border-bottom-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-  .pm-fleet > i:nth-of-type(4) { bottom: 0; right: 0; border-bottom-width: var(--lw-weight); border-right-width: var(--lw-weight); }
-  .pm-fleet-head { display: flex; justify-content: space-between; align-items: baseline; padding: 0 18px 10px; }
-  .pm-fleet-title { font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-mute); }
-  .pm-fleet-count { font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 650; color: var(--cobalt); }
-  .pm-zone {
-    margin: 0 12px 10px; padding: 12px 14px; background: var(--cobalt); color: var(--inverse);
-  }
-  [data-theme="dark"] .pm-zone { color: #121212; }
-  .pm-zone .z-eyebrow { font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.13em; opacity: 0.78; display: flex; align-items: center; }
-  .pm-zone .z-title { font-size: 15px; font-weight: 750; margin-top: 3px; }
-  .pm-zone .z-detail { font-variation-settings: "MONO" 1; font-size: 12.5px; opacity: 0.9; margin-top: 6px; }
-  .zone-pulse { width: 8px; height: 8px; border-radius: 50%; background: currentColor; position: relative; margin-right: 9px; flex: none; }
-  .zone-pulse::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: var(--lw-weight) solid currentColor; opacity: 0.55; animation: pulse 1.8s ease-out infinite; }
-
-  .pm-agent-row {
-    position: relative; display: grid; grid-template-columns: auto 1fr auto; gap: 11px; align-items: center;
-    padding: 9px 18px 9px 21px;
-  }
-  .pm-agent-row + .pm-agent-row { box-shadow: inset 0 1px 0 var(--hair); }
-  .pm-agent-row::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: var(--lw-stripe); }
-  .pm-agent-row[data-state="running"]::before { background: var(--cobalt); }
-  .pm-agent-row[data-state="ok"]::before      { background: var(--health); }
-  .pm-agent-row[data-state="warn"]::before    { background: var(--amber); }
-  .pm-agent-row[data-state="error"]::before   { background: var(--danger); }
-  .pm-agent-row[data-state="blocked"]::before { background: var(--violet); }
-  .pm-agent-row[data-state="idle"]::before    { background: var(--ink-ghost); }
-  .pm-agent-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-ghost); }
-  .pm-agent-row[data-state="running"] .pm-agent-dot { background: var(--cobalt); position: relative; }
-  .pm-agent-row[data-state="running"] .pm-agent-dot::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: var(--lw-weight) solid var(--cobalt); opacity: 0.6; animation: pulse 1.8s ease-out infinite; }
-  .pm-agent-row[data-state="ok"] .pm-agent-dot { background: var(--health); }
-  .pm-agent-row[data-state="warn"] .pm-agent-dot { background: var(--amber); }
-  .pm-agent-row[data-state="error"] .pm-agent-dot { background: var(--danger); }
-  .pm-agent-row[data-state="blocked"] .pm-agent-dot { background: var(--violet); }
-  .pm-agent-name { font-size: 14px; font-weight: 650; line-height: 1.25; }
-  .pm-agent-status { font-size: 13px; color: var(--ink-mute); margin-top: 1px; }
-  .pm-agent-time { font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 550; color: var(--ink-mute); white-space: nowrap; }
-
-  /* mock 2: docs stack page */
-  .pm-docs { display: grid; grid-template-columns: 220px 1fr; gap: 0; }
-  .pm-toc { padding: 30px 24px; border-right: 1px solid var(--hair); }
-  .pm-toc-label { font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.13em; color: var(--ink-mute); margin-bottom: 14px; }
-  .pm-toc a { display: block; font-size: 14px; font-weight: 550; color: var(--ink-soft); padding: 6px 0 6px 12px; text-decoration: none; position: relative; }
-  .pm-toc a.on { color: var(--ink); font-weight: 700; }
-  .pm-toc a.on::before { content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: var(--lw-stripe); background: var(--teal); }
-  .pm-doc-body { padding: 34px 40px 40px; }
-  .pm-doc-eyebrow { font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.14em; color: var(--teal); margin-bottom: 10px; }
-  .pm-doc-body h2 { font-size: 32px; font-weight: 850; letter-spacing: -0.024em; margin-bottom: 12px; }
-  .pm-doc-lede { font-size: 15px; line-height: 1.65; color: var(--ink-soft); max-width: 60ch; margin-bottom: 28px; }
-
-  .pm-stack { margin-bottom: 26px; }
-  .pm-layer {
-    position: relative; display: grid; grid-template-columns: 92px 1fr auto; gap: 16px; align-items: center;
-    padding: 13px 18px 13px 21px; background: var(--surface-raised); margin-bottom: 4px;
-  }
-  .pm-layer::before { content: ""; position: absolute; left: 0; top: 5px; bottom: 5px; width: var(--lw-stripe); }
-  .pm-layer[data-layer="l0"]::before { background: var(--cobalt); }
-  .pm-layer[data-layer="l1"]::before { background: var(--health); }
-  .pm-layer[data-layer="l2"]::before { background: var(--teal); }
-  .pm-layer[data-layer="l3"]::before { background: var(--amber); }
-  .pm-layer-id { font-variation-settings: "MONO" 1; font-size: 13px; font-weight: 750; letter-spacing: 0.06em; }
-  .pm-layer[data-layer="l0"] .pm-layer-id { color: var(--cobalt); }
-  .pm-layer[data-layer="l1"] .pm-layer-id { color: var(--health); }
-  .pm-layer[data-layer="l2"] .pm-layer-id { color: var(--teal); }
-  .pm-layer[data-layer="l3"] .pm-layer-id { color: var(--amber); }
-  .pm-layer-name { font-size: 15px; font-weight: 700; }
-  .pm-layer-desc { font-size: 13.5px; color: var(--ink-mute); margin-top: 1px; }
-  .pm-layer-badge { font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-mute); }
-
-  .pm-concepts { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 30px; }
-  .pm-chip { font-variation-settings: "MONO" 1; font-size: 12.5px; font-weight: 650; letter-spacing: 0.05em; padding: 5px 11px 5px 9px; background: var(--surface-raised); color: var(--ink-soft); position: relative; box-shadow: inset var(--lw-stripe) 0 0 currentColor; }
-  .pm-chip.c-indigo { color: var(--indigo); }
-  .pm-chip.c-rust { color: var(--rust); }
-  .pm-chip.c-violet { color: var(--violet); }
-  .pm-chip span { color: var(--ink-soft); margin-left: 7px; }
-
-  .pm-code { position: relative; background: var(--surface-sunken); padding: 18px 20px; }
-  .pm-code > i { position: absolute; width: 12px; height: 12px; border: 0 solid var(--ink); }
-  .pm-code > i:nth-of-type(1) { top: 0; left: 0; border-top-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-  .pm-code > i:nth-of-type(2) { top: 0; right: 0; border-top-width: var(--lw-weight); border-right-width: var(--lw-weight); }
-  .pm-code > i:nth-of-type(3) { bottom: 0; left: 0; border-bottom-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-  .pm-code > i:nth-of-type(4) { bottom: 0; right: 0; border-bottom-width: var(--lw-weight); border-right-width: var(--lw-weight); }
-  .pm-code pre { font-variation-settings: "MONO" 1; font-size: 13.5px; line-height: 1.75; color: var(--ink-soft); overflow-x: auto; }
-  .pm-code .cm { color: var(--ink-mute); }
-  .pm-code .kw { color: var(--cobalt); font-weight: 650; }
-  .pm-code .ok { color: var(--health); }
-
-  /* mock 3: fleet page */
-  .pm-fleetpage { padding: 34px 40px 40px; }
-  .pm-fp-head { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 20px; margin-bottom: 26px; }
-  .pm-fp-head h2 { font-size: 30px; font-weight: 850; letter-spacing: -0.022em; }
-  .pm-fp-sub { font-size: 14.5px; color: var(--ink-mute); margin-top: 4px; }
-  .pm-fp-stats { display: flex; gap: 30px; text-align: right; }
-  .pm-stat .n { font-variation-settings: "MONO" 1; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
-  .pm-stat .l { font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-mute); margin-top: 5px; }
-
-  .pm-fed-zone {
-    display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center;
-    padding: 14px 18px; margin-bottom: 22px; background: var(--indigo); color: var(--inverse);
-  }
-  [data-theme="dark"] .pm-fed-zone { color: #121212; }
-  .pm-fed-zone .z-eyebrow { font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.13em; opacity: 0.78; }
-  .pm-fed-zone .z-title { font-size: 15.5px; font-weight: 750; margin-top: 3px; }
-  .pm-fed-zone .z-cta { font-variation-settings: "MONO" 1; font-size: 12.5px; font-weight: 700; letter-spacing: 0.06em; padding: 7px 13px; background: color-mix(in srgb, currentColor 14%, transparent); }
-
-  .pm-fp-cols { display: grid; grid-template-columns: 1.5fr 1fr; gap: 26px; align-items: start; }
-  .pm-fp-list { background: var(--surface-raised); padding: 12px 0 6px; position: relative; }
-  .pm-fp-list > i { position: absolute; width: var(--lw-bracket); height: var(--lw-bracket); border: 0 solid var(--ink); }
-  .pm-fp-list > i:nth-of-type(1) { top: 0; left: 0; border-top-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-  .pm-fp-list > i:nth-of-type(2) { top: 0; right: 0; border-top-width: var(--lw-weight); border-right-width: var(--lw-weight); }
-  .pm-fp-list > i:nth-of-type(3) { bottom: 0; left: 0; border-bottom-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-  .pm-fp-list > i:nth-of-type(4) { bottom: 0; right: 0; border-bottom-width: var(--lw-weight); border-right-width: var(--lw-weight); }
-  .pm-fp-list .list-label { padding: 4px 18px 10px; font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-mute); display: flex; justify-content: space-between; }
-  .pm-fp-list .list-label .count { color: var(--cobalt); }
-
-  .pm-side-card { background: var(--surface-raised); padding: 16px 18px; margin-bottom: 16px; }
-  .pm-side-card.rep { box-shadow: inset var(--lw-stripe) 0 0 var(--rust); }
-  .pm-side-card.idn { box-shadow: inset var(--lw-stripe) 0 0 var(--violet); }
-  .pm-side-eyebrow { font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 8px; }
-  .pm-side-card.rep .pm-side-eyebrow { color: var(--rust); }
-  .pm-side-card.idn .pm-side-eyebrow { color: var(--violet); }
-  .pm-elo-row { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--hair); font-size: 14px; }
-  .pm-elo-row:last-child { border-bottom: none; }
-  .pm-elo-row .who { font-weight: 650; }
-  .pm-elo-row .elo { font-variation-settings: "MONO" 1; font-size: 13.5px; font-weight: 700; color: var(--rust); }
-  .pm-idn-body { font-size: 14px; line-height: 1.6; color: var(--ink-soft); }
-  .pm-idn-body b { color: var(--violet); font-weight: 700; }
-
-  /* ── §06 adoption ── */
-  .adopt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 8px; }
-  .adopt-card { background: var(--surface-raised); padding: 20px 22px; }
-  .adopt-card.do { box-shadow: inset var(--lw-stripe) 0 0 var(--health); }
-  .adopt-card.dont { box-shadow: inset var(--lw-stripe) 0 0 var(--danger); }
-  .adopt-title { font-variation-settings: "MONO" 1; font-size: 13px; font-weight: 750; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 12px; }
-  .adopt-card.do .adopt-title { color: var(--health); }
-  .adopt-card.dont .adopt-title { color: var(--danger); }
-  .adopt-card ul { list-style: none; }
-  .adopt-card li { font-size: 14px; line-height: 1.55; color: var(--ink-soft); padding: 7px 0 7px 20px; position: relative; }
-  .adopt-card li::before { content: ""; position: absolute; left: 0; top: 15px; width: 10px; height: var(--lw-weight); }
-  .adopt-card.do li::before { background: var(--health); }
-  .adopt-card.dont li::before { background: var(--danger); }
-  .adopt-card li b { color: var(--ink); font-weight: 700; }
-
-  .token-sheet { margin-top: 34px; position: relative; background: var(--surface-sunken); padding: 22px 26px; }
-  .token-sheet > i { position: absolute; width: 12px; height: 12px; border: 0 solid var(--ink); }
-  .token-sheet > i:nth-of-type(1) { top: 0; left: 0; border-top-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-  .token-sheet > i:nth-of-type(2) { top: 0; right: 0; border-top-width: var(--lw-weight); border-right-width: var(--lw-weight); }
-  .token-sheet > i:nth-of-type(3) { bottom: 0; left: 0; border-bottom-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-  .token-sheet > i:nth-of-type(4) { bottom: 0; right: 0; border-bottom-width: var(--lw-weight); border-right-width: var(--lw-weight); }
-  .token-sheet pre { font-variation-settings: "MONO" 1; font-size: 13px; line-height: 1.8; color: var(--ink-soft); overflow-x: auto; }
-  .token-sheet .cm { color: var(--ink-mute); }
-  .token-sheet .kw { color: var(--cobalt); font-weight: 600; }
-
-  .rollout-map { margin-top: 34px; }
-  .rollout-map .r-row { display: grid; grid-template-columns: 54px 1fr 1fr; gap: 18px; padding: 13px 0; border-bottom: 1px solid var(--hair); font-size: 14px; align-items: baseline; }
-  .rollout-map .r-num { font-variation-settings: "MONO" 1; font-weight: 700; color: var(--cobalt); font-size: 13px; }
-  .rollout-map .r-task { font-weight: 650; }
-  .rollout-map .r-add { color: var(--ink-soft); line-height: 1.5; }
-
-  /* ── synthesis callout ── */
-  .synth {
-    margin-top: 76px; padding: 44px 48px; background: var(--ink); color: var(--surface-base); position: relative;
-  }
-  .synth > i { position: absolute; width: 20px; height: 20px; border: 0 solid var(--surface-base); }
-  .synth > i:nth-of-type(1) { top: 12px; left: 12px; border-top-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-  .synth > i:nth-of-type(2) { bottom: 12px; right: 12px; border-bottom-width: var(--lw-weight); border-right-width: var(--lw-weight); }
-  .synth-eyebrow { font-variation-settings: "MONO" 1; font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.17em; opacity: 0.6; margin-bottom: 16px; }
-  .synth-quote { font-size: clamp(21px, 2.5vw, 31px); line-height: 1.35; letter-spacing: -0.012em; font-weight: 560; max-width: 38ch; }
-  .synth-quote em { font-style: normal; font-variation-settings: "CASL" 1, "slnt" -9; color: var(--amber); }
-
-  footer.doc-footer {
-    margin-top: 84px; padding-top: 26px; border-top: 1px solid var(--hair-strong);
-    display: flex; justify-content: space-between; align-items: center;
-    font-variation-settings: "MONO" 1;
-    font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute);
-  }
-  footer.doc-footer strong { color: var(--ink); }
-
-  @media (max-width: 1080px) {
-    .prim-grid { grid-template-columns: 1fr 1fr; }
-    .zone-row { grid-template-columns: 1fr 1fr; }
-    .intro, .type-grid, .adopt-grid, .pm-fp-cols { grid-template-columns: 1fr; }
-    .pm-hero { grid-template-columns: 1fr; }
-    .pm-docs { grid-template-columns: 1fr; }
-    .pm-toc { border-right: none; border-bottom: 1px solid var(--hair); }
-    .container { padding: 48px 24px 72px; }
-  }
-  @media (max-width: 680px) {
-    .prim-grid, .zone-row { grid-template-columns: 1fr; }
-    .masthead { grid-template-columns: 1fr; }
-    .masthead-meta { text-align: left; }
-    .rollout-map .r-row { grid-template-columns: 40px 1fr; }
-    .rollout-map .r-add { grid-column: 2; }
-  }
+  .doc-masthead { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 24px; padding: 56px 0 26px; border-bottom: 1px solid var(--hair-strong); margin-bottom: 48px; }
+  .doc-masthead h1 { font-size: clamp(36px, 5vw, 64px); font-weight: 700; line-height: 1.0; letter-spacing: var(--tracking-display); max-width: 18ch; }
+  .doc-masthead h1 .accent { color: var(--cobalt); }
+  .doc-meta { font-family: "IBM Plex Mono", monospace; font-size: 13px; line-height: 1.7; color: var(--text-muted); text-align: right; }
+  .doc-meta strong { color: var(--text-primary); }
+  .fix-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 56px; }
+  .swatch-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .swatch-table th, .swatch-table td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--hair); vertical-align: middle; }
+  .swatch-table th { font-family: "IBM Plex Mono", monospace; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; color: var(--text-muted); border-bottom: 1px solid var(--border-strong); }
+  .sw { display: inline-block; width: 40px; height: 22px; vertical-align: middle; border: 1px solid var(--hair-strong); }
+  .de-good { color: var(--health); font-weight: 700; }
+  .de-bad { color: var(--error); font-weight: 700; }
+  .mono-sm { font-family: "IBM Plex Mono", monospace; font-size: 13px; }
+  .zone-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 20px; }
+  .zc { padding: 14px 16px; color: var(--inverse); min-height: 92px; display: flex; flex-direction: column; justify-content: space-between; }
+  [data-theme="dark"] .zc { color: #121212; }
+  .zc .e { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.78; }
+  .zc .t { font-size: 15px; font-weight: 700; margin-top: 3px; }
+  .zc .n { font-family: "IBM Plex Mono", monospace; font-size: 12px; opacity: 0.85; margin-top: 8px; }
+  .study-note { font-size: 14.5px; line-height: 1.65; color: var(--text-secondary); max-width: 74ch; margin: 14px 0 22px; }
+  .study-note b { color: var(--text-primary); }
+  details.study { border: 1px solid var(--hair-strong); margin-top: 14px; }
+  details.study summary { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; padding: 12px 16px; cursor: pointer; color: var(--text-secondary); }
+  details.study .study-body { padding: 4px 16px 16px; }
+  .type-option { border-top: 2px solid var(--border-strong); padding: 26px 0 34px; display: grid; grid-template-columns: 240px 1fr; gap: 32px; }
+  .type-option .to-meta .to-name { font-size: 18px; font-weight: 700; letter-spacing: var(--tracking-h3); }
+  .type-option .to-meta .to-recipe { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; line-height: 1.8; color: var(--text-muted); margin-top: 8px; }
+  .type-option .to-meta .to-why { font-size: 13.5px; line-height: 1.6; color: var(--text-secondary); margin-top: 12px; }
+  .type-option .to-spec .big { font-size: 40px; line-height: 1.05; letter-spacing: -0.025em; }
+  .type-option .to-spec .body { font-size: 15.5px; line-height: 1.65; color: var(--text-secondary); margin-top: 12px; max-width: 58ch; }
+  .type-option .to-spec .metrics { font-size: 13.5px; margin-top: 12px; color: var(--text-secondary); }
+  .port-links { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+  .port-link { display: block; text-decoration: none; color: var(--text-primary); background: var(--surface-card); border: 1px solid var(--hair); border-left: none; padding: 16px 16px 14px; box-shadow: inset var(--lw-stripe) 0 0 var(--pl); }
+  .port-link .pl-route { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; font-weight: 700; color: var(--pl-tint, var(--pl)); }
+  .port-link .pl-name { font-size: 16px; font-weight: 700; margin-top: 4px; }
+  .port-link .pl-note { font-size: 13px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
+  @media (max-width: 1080px) { .fix-list, .zone-strip { grid-template-columns: 1fr 1fr; } .type-option { grid-template-columns: 1fr; } .port-links { grid-template-columns: 1fr 1fr; } }
 </style>
 </head>
 <body>
+<div style="position:fixed; top:20px; right:26px; z-index:60;"><button class="theme-toggle" id="themeToggle">Dark</button></div>
 
-<div class="page-frame"><i></i><i></i><i></i><i></i></div>
-<button class="theme-toggle" id="themeToggle">Dark</button>
+<main class="page">
 
-<div class="container">
-
-  <!-- ═══════════ MASTHEAD ═══════════ -->
-  <header class="masthead">
+  <header class="doc-masthead">
     <div>
-      <div class="eyebrow">Design proposal · Port Daddy website-v2 · 2026-07-03</div>
-      <h1>Story linework — the palette gets <em>edges.</em></h1>
+      <div class="eyebrow">Design proposal v2 · Port Daddy website-v2 · 2026-07-04</div>
+      <h1>Story linework, <span class="accent">corrected.</span></h1>
     </div>
-    <div class="masthead-meta">
-      <strong>Proposal 01</strong><br>
-      FleetBar research report ×<br>
-      story palette (PR #455)<br>
-      4 patterns · 6 states · 4 zones<br>
-      One variable font file
+    <div class="doc-meta">
+      <strong>Proposal 02</strong><br>
+      palette v2 · CIEDE2000-gated<br>
+      WCAG 2.2 study · 76 pairs<br>
+      4 type options · Plex default<br>
+      5 straight ports of live pages
     </div>
   </header>
 
-  <!-- ═══════════ INTRO ═══════════ -->
-  <section class="intro">
-    <div class="intro-lede">
-      The FleetBar research found the grammar. The story palette supplies the <em>meaning.</em> This proposal marries them into one system for the website.
+  <!-- WHAT CHANGED -->
+  <section class="fix-list">
+    <div class="stripe-card" style="--stripe: var(--error)">
+      <div class="sc-label" style="color: var(--error)">The complaints, measured</div>
+      <div class="sc-title">v1 failed perceptually, not just aesthetically</div>
+      <ul>
+        <li>Dark indigo vs violet: <b class="mono-sm">ΔE00 5.5</b> — functionally the same color.</li>
+        <li>Light indigo vs violet: <b class="mono-sm">ΔE00 7.4</b>.</li>
+        <li>Rust vs error: <b class="mono-sm">13.8–18.0</b> — reads as a second red.</li>
+        <li>Economy reused <span class="mono-sm">--status-warning</span> verbatim: <b class="mono-sm">ΔE00 0.0</b>.</li>
+        <li>Dark chips &amp; sunken code: near-invisible surface edges, low-contrast small text.</li>
+      </ul>
     </div>
-    <div class="intro-body">
-      <p>The research report resolved fractional borders into four load-bearing patterns: <strong>corner brackets</strong> for panel scope, <strong>left-edge stripes</strong> for state, <strong>midline rules</strong> for division, and a single <strong>color zone</strong> for the primary thing. Its discipline rules — max two patterns per surface, one zone per view, color never the sole signal — are adopted wholesale.</p>
-      <p>What the report lacked was semantic color. Its stripes used ad-hoc status hues. The story palette (PR #455) replaces them: every stripe, zone, and chip now pulls from tokens where <strong>hue = a layer of the ADR-0048 stack</strong>. A violet stripe isn't decoration — it says <em>waiting on a person</em>. The current site's heavy <code class="mono">border-2</code> boxes stay on primary panels; everything secondary sheds its chrome for linework. The page you are reading is set entirely in Recursive — the variable file already shipped in <span class="mono">public/fonts/</span> — and built from the system it proposes.</p>
-    </div>
-  </section>
-
-  <!-- ═══════════ §01 PRIMITIVES ═══════════ -->
-  <section class="block" id="primitives">
-    <div class="section-header">
-      <div class="section-num">§ 01</div>
-      <div class="section-title">The six primitives</div>
-      <div class="section-kicker">four from the report · two carried with them</div>
-    </div>
-    <p class="lede-note">Each primitive is rendered live below, with the CSS token recipe it would ship as. The rule from the research holds: <strong>if you removed the linework, hierarchy must still survive</strong> on color, spacing, and type. Linework is refinement, never scaffolding.</p>
-
-    <div class="prim-grid">
-      <div class="prim-cell">
-        <div class="prim-vis"><div class="stage demo-brackets"><i></i><i></i><i></i><i></i>panel scope</div></div>
-        <div class="prim-id">LW-1 · from pattern 2.1</div>
-        <div class="prim-name">Corner brackets</div>
-        <div class="prim-use">Four L-ticks declare "this area is framed" without enclosure. Reserved for panels that hold live or primary content: fleet cards, code blocks, spec sheets.</div>
-        <div class="prim-token">--lw-bracket: 14px;<br>--lw-weight: 1.5px; <span style="color:var(--ink-mute)">/* ink, always */</span></div>
-      </div>
-
-      <div class="prim-cell">
-        <div class="prim-vis"><div class="stage demo-stripe">state carrier</div></div>
-        <div class="prim-id">LW-2 · from pattern 2.4</div>
-        <div class="prim-name">Left-edge stripe</div>
-        <div class="prim-use">The feature pattern. A 3px inset stripe is the border, the status, and the row divider at once. The only place status color is allowed to touch chrome.</div>
-        <div class="prim-token">box-shadow: inset 3px 0 0 var(--story-*);<br><span style="color:var(--ink-mute)">/* hue = state or stack layer */</span></div>
-      </div>
-
-      <div class="prim-cell">
-        <div class="prim-vis"><div class="stage demo-midline">divided · continuous</div></div>
-        <div class="prim-id">LW-3 · from pattern 2.3</div>
-        <div class="prim-name">Midline rule</div>
-        <div class="prim-use">A hairline spanning only the middle third — or 64px anchored left — where a full border would sit. Divides sections while the column stays continuous.</div>
-        <div class="prim-token">background: linear-gradient(to right,<br>&nbsp;&nbsp;transparent 0 32%, var(--hair) 32% 68%,<br>&nbsp;&nbsp;transparent 68%) bottom / 100% 1px;</div>
-      </div>
-
-      <div class="prim-cell">
-        <div class="prim-vis"><div class="stage demo-zone">primary state</div></div>
-        <div class="prim-id">LW-4 · from pattern 2.8</div>
-        <div class="prim-name">Color zone</div>
-        <div class="prim-use">No border at all: a saturated panel bounds itself by contrast with the cream matrix. The Vignelli move. <b>Exactly one zone per view</b> — the thing happening right now.</div>
-        <div class="prim-token">background: var(--brand-primary);<br>color: var(--brand-primary-foreground);</div>
-      </div>
-
-      <div class="prim-cell">
-        <div class="prim-vis"><div class="stage"><span class="demo-pulse-dot"></span>running · 18s</div></div>
-        <div class="prim-id">LW-5 · state grammar</div>
-        <div class="prim-name">Pulse ring</div>
-        <div class="prim-use">An 8px dot with a 1.8s expanding ring. Animates <b>only while work is in flight</b> — never on idle, done, or failed. One animation per surface; no spinners beside it.</div>
-        <div class="prim-token">animation: lw-pulse 1.8s ease-out infinite;<br><span style="color:var(--ink-mute)">/* running state only */</span></div>
-      </div>
-
-      <div class="prim-cell">
-        <div class="prim-vis"><div class="stage" style="flex-direction:column;gap:8px;">
-          <svg class="spark" width="150" height="30" viewBox="0 0 150 30" aria-hidden="true">
-            <polyline points="0,24 18,20 36,22 54,14 72,17 90,9 108,12 126,6 142,8" fill="none" stroke="var(--cobalt)" stroke-width="1.5"/>
-            <circle cx="142" cy="8" r="3" fill="var(--amber)"/>
-          </svg>
-          <span>24 merges · 7d</span>
-        </div></div>
-        <div class="prim-id">LW-6 · instrumentation</div>
-        <div class="prim-name">Sparkline</div>
-        <div class="prim-use">Tufte-plain: no axis, no legend, direct label. Line takes the zone's hue; the end-of-line dot goes amber when the last reading is the actionable one.</div>
-        <div class="prim-token">stroke: var(--brand-primary);<br>end dot: var(--status-warning)</div>
-      </div>
+    <div class="stripe-card" style="--stripe: var(--health)">
+      <div class="sc-label" style="color: var(--health)">The gates v2 clears</div>
+      <div class="sc-title">Every pair re-derived in OKLCH, gated by CIEDE2000</div>
+      <ul>
+        <li>indigo ↔ violet: <b class="mono-sm">19.1 light · 19.3 dark</b> (3.5× the v1 dark gap).</li>
+        <li>rust ↔ error: <b class="mono-sm">21.0 · 21.3</b> — rust is now earth, not signal.</li>
+        <li>economy is a new token, <span class="mono-sm">--story-gold</span>: <b class="mono-sm">20.1 · 16.8</b> from amber.</li>
+        <li>WCAG 2.2 AA on both surfaces per theme, ink-on-fill AA on every zone.</li>
+        <li>Code panels use the site's own theme-independent tokens: <b class="mono-sm">12.9:1</b>.</li>
+      </ul>
     </div>
   </section>
 
-  <!-- ═══════════ §02 STATE + STORY GRAMMAR ═══════════ -->
-  <section class="block" id="grammar">
-    <div class="section-header">
-      <div class="section-num">§ 02</div>
-      <div class="section-title">State grammar, spoken in story hues</div>
-      <div class="section-kicker">six states · stripe + dot · label + time</div>
+  <!-- §01 PALETTE V2 -->
+  <section class="block">
+    <div class="sect-head">
+      <div class="eyebrow">§ 01 · Palette v2</div>
+      <h2>Four hues re-derived, one minted</h2>
+      <p class="sect-desc">Anchors stay untouched (cobalt, teal, health, amber, error). Indigo goes deep slate-blue-violet; violet goes clear purple — separated on lightness, chroma, <em>and</em> hue. Rust drops chroma and moves to true earth. Economy gets its own metal: <strong>gold</strong> — literally the money color, and (dark) ΔE 3.0 from the chart-lime family the brand already owns.</p>
     </div>
-    <p class="lede-note">The report ported Geist's StatusDot contract; we re-voice it with palette tokens so state color and story color are the same system. The poetic upgrade: <strong>blocked is violet</strong> — in the story palette violet is <em>the person</em>, and blocked always means waiting on one. Color is never the sole signal: every row pairs stripe + dot + label + relative time.</p>
-
-    <table class="grammar-table">
-      <thead><tr><th>State</th><th>Token</th><th>Hue</th><th>Stripe + dot</th><th>Animation</th><th>Label form</th></tr></thead>
-      <tbody>
-        <tr>
-          <td>Running</td><td class="hex">--brand-primary</td><td class="hex">#003fb8</td>
-          <td><span class="state-chip"><span class="bar" style="background:var(--cobalt)"></span><span class="demo-pulse-dot" style="margin:0"></span></span></td>
-          <td>Pulse ring, 1.8s</td><td class="label-ex">"Indexing src/ — 412/1840"</td>
-        </tr>
-        <tr>
-          <td>Ready</td><td class="hex">--story-health</td><td class="hex">#1f7a4d</td>
-          <td><span class="state-chip"><span class="bar" style="background:var(--health)"></span><span class="dot" style="background:var(--health)"></span></span></td>
-          <td>Static</td><td class="label-ex">"14 of 14 passed · 8s ago"</td>
-        </tr>
-        <tr>
-          <td>Warn</td><td class="hex">--status-warning</td><td class="hex">#a66f00</td>
-          <td><span class="state-chip"><span class="bar" style="background:var(--amber)"></span><span class="dot" style="background:var(--amber)"></span></span></td>
-          <td>Static</td><td class="label-ex">"3 lint warnings, 1 unused export"</td>
-        </tr>
-        <tr>
-          <td>Error</td><td class="hex">--status-error</td><td class="hex">#bf2f2f</td>
-          <td><span class="state-chip"><span class="bar" style="background:var(--danger)"></span><span class="dot" style="background:var(--danger)"></span></span></td>
-          <td>Static</td><td class="label-ex">"workers-ai 401 — auth expired"</td>
-        </tr>
-        <tr>
-          <td>Blocked</td><td class="hex">--story-violet</td><td class="hex">#6f48b5</td>
-          <td><span class="state-chip"><span class="bar" style="background:var(--violet)"></span><span class="dot" style="background:var(--violet)"></span></span></td>
-          <td>Static</td><td class="label-ex">"Waiting on operator · PR #91"</td>
-        </tr>
-        <tr>
-          <td>Idle</td><td class="hex">--text-muted</td><td class="hex">ash</td>
-          <td><span class="state-chip"><span class="bar" style="background:var(--ink-ghost)"></span><span class="dot" style="background:var(--ink-ghost)"></span></span></td>
-          <td>Static or omit</td><td class="label-ex">"Idle · last run 28m ago"</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <p class="lede-note" style="margin-top:36px;margin-bottom:16px;"><strong>Beyond state: the four concept zones.</strong> Where the report allowed only cobalt zones, the story palette earns four more — each reserved for the feature it names. A zone still means "the primary thing on this view"; the hue says which story it belongs to.</p>
-
-    <div class="zone-row">
-      <div class="zone-card" style="background:var(--indigo)">
-        <div><div class="z-eyebrow">Federation</div><div class="z-title">Alice's fleet, visiting</div></div>
-        <div class="z-note mono">--story-indigo · protocol</div>
-      </div>
-      <div class="zone-card" style="background:var(--rust)">
-        <div><div class="z-eyebrow">Reputation</div><div class="z-title">Elo · trust earned</div></div>
-        <div class="z-note mono">--story-rust · L3</div>
-      </div>
-      <div class="zone-card" style="background:var(--violet)">
-        <div><div class="z-eyebrow">Identity</div><div class="z-title">Memory → a person</div></div>
-        <div class="z-note mono">--story-violet · L3</div>
-      </div>
-      <div class="zone-card" style="background:var(--amber)">
-        <div><div class="z-eyebrow">Economy</div><div class="z-title">Value · the market</div></div>
-        <div class="z-note mono">--status-warning · L3</div>
-      </div>
+    <table class="swatch-table"><thead><tr><th>Token</th><th>Story</th><th>Light v1</th><th>Light v2</th><th>Dark v1</th><th>Dark v2</th></tr></thead><tbody>
+<tr><td class="mono-sm">--story-indigo</td><td>protocol / federation</td><td><span class="sw" style="background:#4b3f9e"></span> <span class="mono-sm">#4b3f9e</span></td><td><span class="sw" style="background:#353a85"></span> <span class="mono-sm">#353a85</span></td><td><span class="sw" style="background:#9d92e8"></span> <span class="mono-sm">#9d92e8</span></td><td><span class="sw" style="background:#8a8af8"></span> <span class="mono-sm">#8a8af8</span></td></tr>
+<tr><td class="mono-sm">--story-violet</td><td>identity / continuity</td><td><span class="sw" style="background:#6f48b5"></span> <span class="mono-sm">#6f48b5</span></td><td><span class="sw" style="background:#933fa5"></span> <span class="mono-sm">#933fa5</span></td><td><span class="sw" style="background:#b69bec"></span> <span class="mono-sm">#b69bec</span></td><td><span class="sw" style="background:#e0a5ed"></span> <span class="mono-sm">#e0a5ed</span></td></tr>
+<tr><td class="mono-sm">--story-rust</td><td>reputation / Elo</td><td><span class="sw" style="background:#9a4a1e"></span> <span class="mono-sm">#9a4a1e</span></td><td><span class="sw" style="background:#7a4514"></span> <span class="mono-sm">#7a4514</span></td><td><span class="sw" style="background:#e09464"></span> <span class="mono-sm">#e09464</span></td><td><span class="sw" style="background:#b98e6b"></span> <span class="mono-sm">#b98e6b</span></td></tr>
+<tr><td class="mono-sm">--story-gold</td><td>economy / value (new)</td><td><span class="mono-sm" style="color:var(--text-muted)">(= warning #a66f00)</span></td><td><span class="sw" style="background:#666a00"></span> <span class="mono-sm">#666a00</span></td><td><span class="mono-sm" style="color:var(--text-muted)">(= warning #f2be51)</span></td><td><span class="sw" style="background:#d8dd3c"></span> <span class="mono-sm">#d8dd3c</span></td></tr>
+</tbody></table>
+    <p class="study-note"><b>Pairwise separation, before → after (CIEDE2000; higher is more distinct).</b> Calibration: the closest pair that has never drawn a complaint (dark health ↔ teal) sits at 6.1 — the flagged pairs were at or barely above that. v2 puts every semantic pair at 2.5–3.5× the complaint threshold.</p>
+    <table class="swatch-table"><thead><tr><th>Pair</th><th>v1 ΔE00</th><th>v2 ΔE00</th><th>Verdict</th></tr></thead><tbody>
+<tr><td>indigo ↔ violet (light)</td><td class="mono-sm de-bad">7.4</td><td class="mono-sm de-good">19.1</td><td>distinct</td></tr>
+<tr><td>indigo ↔ violet (dark)</td><td class="mono-sm de-bad">5.5</td><td class="mono-sm de-good">19.3</td><td>distinct</td></tr>
+<tr><td>rust ↔ error (light)</td><td class="mono-sm ">13.8</td><td class="mono-sm de-good">21.0</td><td>distinct</td></tr>
+<tr><td>rust ↔ error (dark)</td><td class="mono-sm ">18.0</td><td class="mono-sm de-good">21.3</td><td>distinct</td></tr>
+<tr><td>rust ↔ amber (dark)</td><td class="mono-sm ">18.6</td><td class="mono-sm de-good">19.7</td><td>distinct</td></tr>
+<tr><td>economy ↔ warning (light)</td><td class="mono-sm de-bad">0.0</td><td class="mono-sm de-good">20.1</td><td>distinct</td></tr>
+<tr><td>economy ↔ warning (dark)</td><td class="mono-sm de-bad">0.0</td><td class="mono-sm de-good">16.8</td><td>distinct</td></tr>
+<tr><td>indigo ↔ cobalt (dark)</td><td class="mono-sm ">16.0</td><td class="mono-sm ">14.6</td><td>status quo kept</td></tr>
+</tbody></table>
+    <div class="zone-strip">
+      <div class="zc" style="background: var(--indigo)"><div><div class="e">Federation</div><div class="t">Alice's fleet, visiting</div></div><div class="n">--story-indigo · protocol</div></div>
+      <div class="zc" style="background: var(--rust)"><div><div class="e">Reputation</div><div class="t">Elo · trust earned</div></div><div class="n">--story-rust · L3</div></div>
+      <div class="zc" style="background: var(--violet)"><div><div class="e">Identity</div><div class="t">Memory → a person</div></div><div class="n">--story-violet · L3</div></div>
+      <div class="zc" style="background: var(--gold)"><div><div class="e">Economy</div><div class="t">Value · the market</div></div><div class="n">--story-gold · L3 · new token</div></div>
     </div>
+    <p class="study-note" style="margin-top:18px;">The four concept zones, re-cut. Toggle the theme (top right): in dark mode indigo is a blue-violet and violet is a pink-purple — different families at a glance, not siblings. Rust is leather, not salmon. Gold is coin, not caution.</p>
   </section>
 
-  <!-- ═══════════ §03 TYPE ═══════════ -->
-  <section class="block" id="type">
-    <div class="section-header">
-      <div class="section-num">§ 03</div>
-      <div class="section-title">One font file, every voice</div>
-      <div class="section-kicker">recursive variable · already shipped</div>
+  <!-- §02 WCAG STUDY -->
+  <section class="block">
+    <div class="sect-head">
+      <div class="eyebrow">§ 02 · Contrast study</div>
+      <h2>WCAG 2.2, every pair, both themes</h2>
+      <p class="sect-desc">76 foreground/background pairs computed with the WCAG relative-luminance formula: the three text tiers on all three surfaces, every hue as small-text foreground on base and raised, and ink/cream text on every zone fill. Thresholds: AA text ≥ 4.5, AA large/UI ≥ 3.0, AAA ≥ 7.0.</p>
+    </div>
+    <div class="fix-list" style="margin-bottom:20px;">
+      <div class="stripe-card" style="--stripe: var(--amber)">
+        <div class="sc-label" style="color: var(--amber-on-tint)">Finding 1 — amber was never a text color</div>
+        <p>Light-theme <span class="mono-sm">--status-warning #a66f00</span> scores <b>3.71</b> on cream — it fails AA for small text and always did. It passes as a stripe/dot (UI ≥ 3.0) and at large sizes. Rule shipped with v2: <b>amber text uses <span class="mono-sm">--status-warning-on-tint</span> (8.5:1); raw amber is reserved for stripes, dots, and ≥24px display</b>. Economy zones no longer inherit this trap — gold clears 5.0 as text and 5.4 under cream fills.</p>
+      </div>
+      <div class="stripe-card" style="--stripe: var(--cobalt)">
+        <div class="sc-label" style="color: var(--cobalt)">Finding 2 — the dark "black on gray" failure</div>
+        <p>The v1 doc put near-black code wells (<span class="mono-sm">#0b0d11</span>) on the near-black page (<span class="mono-sm">#101216</span>) — a 1.06:1 surface edge, invisible, with small colored text on top. v2 rule: <b>code panels use the site's own theme-independent tokens</b> (<span class="mono-sm">#edf1f9</span> on <span class="mono-sm">#12161f</span>, 12.9:1), dark raised surfaces always carry a hairline or bracket edge, and colored text on dark surfaces uses the lighter <span class="mono-sm">*-on-tint</span> cut.</p>
+      </div>
     </div>
 
-    <div class="type-grid">
-      <div>
-        <div class="specimen">
-          <div class="spec-label">Display · weight 900 · CASL on the em-word</div>
-          <div class="spec-display">Local control plane for <em>coding agents.</em></div>
-        </div>
-        <div class="specimen">
-          <div class="spec-label">Body · weight 400–560 · CASL 0.12</div>
-          <p class="spec-body">Port Daddy is the daemon your fleet reports to: deterministic ports, file claims, coordination notes, and a kernel of truth that outlives every session. Body text never drops below 14px.</p>
-        </div>
-        <div class="specimen">
-          <div class="spec-label">Metrics &amp; code · MONO axis pinned to 1</div>
-          <div class="spec-mono">$ <b>pd begin</b> --identity myapp:api:main<br>claimed <b>:9876</b> · session anchored · 2m 14s<br>queries/user.ts:47 · <b>412/1840</b> files</div>
-        </div>
-      </div>
-      <div class="type-note">
-        <p><strong>Inter and Geist read as everyone's dashboard.</strong> The site already ships something better: Recursive, a single variable woff2 with weight, slant, <span class="mono">MONO</span>, and <span class="mono">CASL</span> axes. This proposal promotes it from type-switcher option to the system voice.</p>
-        <p>The move that makes it ours: <strong>the casual axis is the italic.</strong> Where the research report reached for a serif (Fraunces) to mark the em-word, we flip <span class="mono">CASL 0 → 1</span> instead — the letterforms soften into brush-informal while staying the same family. One file covers display, body, metrics, and code: <em>one kernel, many surfaces</em> — the type system repeats the product's architecture.</p>
-        <p>The mono voice (<span class="mono">MONO 1</span>) owns everything instrumental: eyebrows, timestamps, counts, code, state labels. The sans voice owns everything human. That split — instrument vs. prose — is the same line the linework draws between chrome and content. IBM Plex stays available as the body fallback in the switcher; Radnika retires to the archive.</p>
-      </div>
+    <div class="stripe-card" style="--stripe: var(--violet); margin-bottom: 20px;">
+      <div class="sc-label" style="color: var(--violet-on-tint)">Finding 3 — the audit itself was too narrow (self-caught late)</div>
+      <p>The first pass graded only <b>text-on-surface</b> pairs — so it certified pages whose <b>surface-on-surface</b> edges were invisible. Light-theme cards sat raised-on-base at <b class="mono-sm">1.046:1</b>: the "white on near beige." The matrix below now grades every surface adjacency in both themes. Fixes shipped: cards use the <span class="mono-sm">strong</span> well in light (1.113:1 — the same tint depth the FleetBar research report's own cards use), and every unbordered card carries a hairline edge in both themes. Nothing relies on background delta alone.</p>
+      <table class="swatch-table"><thead><tr><th>Surfaces</th><th>Light ratio</th><th>Dark ratio</th><th>Edge rule</th></tr></thead><tbody>
+<tr><td>base ↔ raised</td><td class="de-bad"><span class="mono-sm">1.046</span></td><td class="de-bad"><span class="mono-sm">1.096</span></td><td style="font-size:13px;color:var(--text-muted)">raised is bordered-panels only (2px border always present)</td></tr>
+<tr><td>base ↔ strong</td><td><span class="mono-sm">1.113</span></td><td><span class="mono-sm">1.267</span></td><td style="font-size:13px;color:var(--text-muted)">the card well — hairline + stripe mandatory</td></tr>
+<tr><td>base ↔ sunken</td><td><span class="mono-sm">1.213</span></td><td class="de-bad"><span class="mono-sm">1.037</span></td><td style="font-size:13px;color:var(--text-muted)">dark sunken retired for wells; light needs a bracket edge</td></tr>
+<tr><td>raised ↔ strong</td><td><span class="mono-sm">1.164</span></td><td><span class="mono-sm">1.156</span></td><td style="font-size:13px;color:var(--text-muted)">never adjacent without a rule</td></tr>
+<tr><td>raised ↔ sunken</td><td><span class="mono-sm">1.269</span></td><td><span class="mono-sm">1.137</span></td><td style="font-size:13px;color:var(--text-muted)">—</td></tr>
+<tr><td>strong ↔ sunken</td><td class="de-bad"><span class="mono-sm">1.090</span></td><td><span class="mono-sm">1.314</span></td><td style="font-size:13px;color:var(--text-muted)">never adjacent</td></tr>
+</tbody></table>
     </div>
+    <details class="study" open>
+      <summary>Full study — 76 pairs, computed (click to fold)</summary>
+      <div class="study-body">
+      <table class="swatch-table"><thead><tr><th>Pair</th><th>FG</th><th>BG</th><th>Ratio</th><th>Grade</th></tr></thead><tbody>
+<tr><td colspan="5" style="font-weight:700; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; text-transform:uppercase; padding-top:20px;">Light theme</td></tr>
+<tr><td>text-primary on base</td><td class="mono-sm">#121212</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">16.19</td><td class="de-good">AAA</td></tr>
+<tr><td>text-primary on raised</td><td class="mono-sm">#121212</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">16.93</td><td class="de-good">AAA</td></tr>
+<tr><td>text-primary on strong</td><td class="mono-sm">#121212</td><td class="mono-sm">#e9e2d5</td><td class="mono-sm">14.54</td><td class="de-good">AAA</td></tr>
+<tr><td>text-secondary on base</td><td class="mono-sm">#403b34</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">9.59</td><td class="de-good">AAA</td></tr>
+<tr><td>text-secondary on raised</td><td class="mono-sm">#403b34</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">10.02</td><td class="de-good">AAA</td></tr>
+<tr><td>text-secondary on strong</td><td class="mono-sm">#403b34</td><td class="mono-sm">#e9e2d5</td><td class="mono-sm">8.61</td><td class="de-good">AAA</td></tr>
+<tr><td>text-muted on base</td><td class="mono-sm">#47423a</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">8.61</td><td class="de-good">AAA</td></tr>
+<tr><td>text-muted on raised</td><td class="mono-sm">#47423a</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">9.00</td><td class="de-good">AAA</td></tr>
+<tr><td>text-muted on strong</td><td class="mono-sm">#47423a</td><td class="mono-sm">#e9e2d5</td><td class="mono-sm">7.73</td><td class="de-good">AAA</td></tr>
+<tr><td>cobalt text on base</td><td class="mono-sm">#003fb8</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">7.55</td><td class="de-good">AAA</td></tr>
+<tr><td>cobalt text on raised</td><td class="mono-sm">#003fb8</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">7.90</td><td class="de-good">AAA</td></tr>
+<tr><td>cream text on cobalt fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#003fb8</td><td class="mono-sm">8.18</td><td class="de-good">AAA</td></tr>
+<tr><td>teal text on base</td><td class="mono-sm">#006b5f</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">5.55</td><td class="de-good">AA</td></tr>
+<tr><td>teal text on raised</td><td class="mono-sm">#006b5f</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">5.81</td><td class="de-good">AA</td></tr>
+<tr><td>cream text on teal fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#006b5f</td><td class="mono-sm">6.01</td><td class="de-good">AA</td></tr>
+<tr><td>health text on base</td><td class="mono-sm">#1f7a4d</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">4.60</td><td class="de-good">AA</td></tr>
+<tr><td>health text on raised</td><td class="mono-sm">#1f7a4d</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">4.80</td><td class="de-good">AA</td></tr>
+<tr><td>cream text on health fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#1f7a4d</td><td class="mono-sm">4.98</td><td class="de-good">AA</td></tr>
+<tr><td>indigo text on base</td><td class="mono-sm">#353a85</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">8.66</td><td class="de-good">AAA</td></tr>
+<tr><td>indigo text on raised</td><td class="mono-sm">#353a85</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">9.06</td><td class="de-good">AAA</td></tr>
+<tr><td>cream text on indigo fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#353a85</td><td class="mono-sm">9.38</td><td class="de-good">AAA</td></tr>
+<tr><td>violet text on base</td><td class="mono-sm">#933fa5</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">5.19</td><td class="de-good">AA</td></tr>
+<tr><td>violet text on raised</td><td class="mono-sm">#933fa5</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">5.43</td><td class="de-good">AA</td></tr>
+<tr><td>cream text on violet fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#933fa5</td><td class="mono-sm">5.62</td><td class="de-good">AA</td></tr>
+<tr><td>rust text on base</td><td class="mono-sm">#7a4514</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">6.75</td><td class="de-good">AA</td></tr>
+<tr><td>rust text on raised</td><td class="mono-sm">#7a4514</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">7.06</td><td class="de-good">AAA</td></tr>
+<tr><td>cream text on rust fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#7a4514</td><td class="mono-sm">7.31</td><td class="de-good">AAA</td></tr>
+<tr><td>gold text on base</td><td class="mono-sm">#666a00</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">5.00</td><td class="de-good">AA</td></tr>
+<tr><td>gold text on raised</td><td class="mono-sm">#666a00</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">5.23</td><td class="de-good">AA</td></tr>
+<tr><td>cream text on gold fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#666a00</td><td class="mono-sm">5.42</td><td class="de-good">AA</td></tr>
+<tr><td>amber text on base</td><td class="mono-sm">#a66f00</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">3.71</td><td class="de-bad">UI-only</td></tr>
+<tr><td>amber text on raised</td><td class="mono-sm">#a66f00</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">3.88</td><td class="de-bad">UI-only</td></tr>
+<tr><td>cream text on amber fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#a66f00</td><td class="mono-sm">4.01</td><td class="de-bad">UI-only</td></tr>
+<tr><td>error text on base</td><td class="mono-sm">#bf2f2f</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">4.95</td><td class="de-good">AA</td></tr>
+<tr><td>error text on raised</td><td class="mono-sm">#bf2f2f</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">5.18</td><td class="de-good">AA</td></tr>
+<tr><td>cream text on error fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#bf2f2f</td><td class="mono-sm">5.36</td><td class="de-good">AA</td></tr>
+<tr><td>code text on code panel</td><td class="mono-sm">#edf1f9</td><td class="mono-sm">#12161f</td><td class="mono-sm">15.99</td><td class="de-good">AAA</td></tr>
+<tr><td colspan="5" style="font-weight:700; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; text-transform:uppercase; padding-top:20px;">Dark theme</td></tr>
+<tr><td>text-primary on base</td><td class="mono-sm">#f5f3ed</td><td class="mono-sm">#101216</td><td class="mono-sm">16.90</td><td class="de-good">AAA</td></tr>
+<tr><td>text-primary on raised</td><td class="mono-sm">#f5f3ed</td><td class="mono-sm">#181c22</td><td class="mono-sm">15.41</td><td class="de-good">AAA</td></tr>
+<tr><td>text-primary on strong</td><td class="mono-sm">#f5f3ed</td><td class="mono-sm">#222833</td><td class="mono-sm">13.33</td><td class="de-good">AAA</td></tr>
+<tr><td>text-secondary on base</td><td class="mono-sm">#d3cec2</td><td class="mono-sm">#101216</td><td class="mono-sm">11.94</td><td class="de-good">AAA</td></tr>
+<tr><td>text-secondary on raised</td><td class="mono-sm">#d3cec2</td><td class="mono-sm">#181c22</td><td class="mono-sm">10.89</td><td class="de-good">AAA</td></tr>
+<tr><td>text-secondary on strong</td><td class="mono-sm">#d3cec2</td><td class="mono-sm">#222833</td><td class="mono-sm">9.43</td><td class="de-good">AAA</td></tr>
+<tr><td>text-muted on base</td><td class="mono-sm">#a59f93</td><td class="mono-sm">#101216</td><td class="mono-sm">7.12</td><td class="de-good">AAA</td></tr>
+<tr><td>text-muted on raised</td><td class="mono-sm">#a59f93</td><td class="mono-sm">#181c22</td><td class="mono-sm">6.50</td><td class="de-good">AA</td></tr>
+<tr><td>text-muted on strong</td><td class="mono-sm">#a59f93</td><td class="mono-sm">#222833</td><td class="mono-sm">5.62</td><td class="de-good">AA</td></tr>
+<tr><td>cobalt text on base</td><td class="mono-sm">#7db4ff</td><td class="mono-sm">#101216</td><td class="mono-sm">8.79</td><td class="de-good">AAA</td></tr>
+<tr><td>cobalt text on raised</td><td class="mono-sm">#7db4ff</td><td class="mono-sm">#181c22</td><td class="mono-sm">8.02</td><td class="de-good">AAA</td></tr>
+<tr><td>ink text on cobalt fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#7db4ff</td><td class="mono-sm">8.78</td><td class="de-good">AAA</td></tr>
+<tr><td>teal text on base</td><td class="mono-sm">#8fd0a7</td><td class="mono-sm">#101216</td><td class="mono-sm">10.49</td><td class="de-good">AAA</td></tr>
+<tr><td>teal text on raised</td><td class="mono-sm">#8fd0a7</td><td class="mono-sm">#181c22</td><td class="mono-sm">9.57</td><td class="de-good">AAA</td></tr>
+<tr><td>ink text on teal fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#8fd0a7</td><td class="mono-sm">10.48</td><td class="de-good">AAA</td></tr>
+<tr><td>health text on base</td><td class="mono-sm">#5fce97</td><td class="mono-sm">#101216</td><td class="mono-sm">9.61</td><td class="de-good">AAA</td></tr>
+<tr><td>health text on raised</td><td class="mono-sm">#5fce97</td><td class="mono-sm">#181c22</td><td class="mono-sm">8.76</td><td class="de-good">AAA</td></tr>
+<tr><td>ink text on health fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#5fce97</td><td class="mono-sm">9.60</td><td class="de-good">AAA</td></tr>
+<tr><td>indigo text on base</td><td class="mono-sm">#8a8af8</td><td class="mono-sm">#101216</td><td class="mono-sm">6.31</td><td class="de-good">AA</td></tr>
+<tr><td>indigo text on raised</td><td class="mono-sm">#8a8af8</td><td class="mono-sm">#181c22</td><td class="mono-sm">5.76</td><td class="de-good">AA</td></tr>
+<tr><td>ink text on indigo fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#8a8af8</td><td class="mono-sm">6.31</td><td class="de-good">AA</td></tr>
+<tr><td>violet text on base</td><td class="mono-sm">#e0a5ed</td><td class="mono-sm">#101216</td><td class="mono-sm">9.62</td><td class="de-good">AAA</td></tr>
+<tr><td>violet text on raised</td><td class="mono-sm">#e0a5ed</td><td class="mono-sm">#181c22</td><td class="mono-sm">8.77</td><td class="de-good">AAA</td></tr>
+<tr><td>ink text on violet fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#e0a5ed</td><td class="mono-sm">9.61</td><td class="de-good">AAA</td></tr>
+<tr><td>rust text on base</td><td class="mono-sm">#b98e6b</td><td class="mono-sm">#101216</td><td class="mono-sm">6.38</td><td class="de-good">AA</td></tr>
+<tr><td>rust text on raised</td><td class="mono-sm">#b98e6b</td><td class="mono-sm">#181c22</td><td class="mono-sm">5.82</td><td class="de-good">AA</td></tr>
+<tr><td>ink text on rust fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#b98e6b</td><td class="mono-sm">6.37</td><td class="de-good">AA</td></tr>
+<tr><td>gold text on base</td><td class="mono-sm">#d8dd3c</td><td class="mono-sm">#101216</td><td class="mono-sm">12.79</td><td class="de-good">AAA</td></tr>
+<tr><td>gold text on raised</td><td class="mono-sm">#d8dd3c</td><td class="mono-sm">#181c22</td><td class="mono-sm">11.67</td><td class="de-good">AAA</td></tr>
+<tr><td>ink text on gold fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#d8dd3c</td><td class="mono-sm">12.78</td><td class="de-good">AAA</td></tr>
+<tr><td>amber text on base</td><td class="mono-sm">#f2be51</td><td class="mono-sm">#101216</td><td class="mono-sm">10.95</td><td class="de-good">AAA</td></tr>
+<tr><td>amber text on raised</td><td class="mono-sm">#f2be51</td><td class="mono-sm">#181c22</td><td class="mono-sm">9.98</td><td class="de-good">AAA</td></tr>
+<tr><td>ink text on amber fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#f2be51</td><td class="mono-sm">10.94</td><td class="de-good">AAA</td></tr>
+<tr><td>error text on base</td><td class="mono-sm">#ff7d7d</td><td class="mono-sm">#101216</td><td class="mono-sm">7.57</td><td class="de-good">AAA</td></tr>
+<tr><td>error text on raised</td><td class="mono-sm">#ff7d7d</td><td class="mono-sm">#181c22</td><td class="mono-sm">6.91</td><td class="de-good">AA</td></tr>
+<tr><td>ink text on error fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#ff7d7d</td><td class="mono-sm">7.57</td><td class="de-good">AAA</td></tr>
+<tr><td>code text on code panel</td><td class="mono-sm">#edf1f9</td><td class="mono-sm">#12161f</td><td class="mono-sm">15.99</td><td class="de-good">AAA</td></tr>
+</tbody></table>
+      </div>
+    </details>
   </section>
 
-  <!-- ═══════════ §04 PAGE MOCKS ═══════════ -->
-  <section class="block" id="mocks">
-    <div class="section-header">
-      <div class="section-num">§ 04</div>
-      <div class="section-title">Three pages, re-drawn</div>
-      <div class="section-kicker">home · docs stack · fleet</div>
+  <!-- §03 TYPE OPTIONS -->
+  <section class="block">
+    <div class="sect-head">
+      <div class="eyebrow">§ 03 · Type</div>
+      <h2>Four systems, same page — you pick</h2>
+      <p class="sect-desc">IBM Plex is your chosen default and stays Option A — the question is only what, if anything, earns a place beside it. All four options use faces already on the site's rostered switcher, all self-hostable. Loading matches the design system’s own mechanism: IBM Plex arrives via the identical Google Fonts stylesheet the site ships in <span class="mono-sm">index.html</span> (same families, same weights), and alternates load on demand exactly as <span class="mono-sm">TypeThemeSwitcher</span> does. Each renders the same hero line and body so the voices compare directly. Per the typography audit: <strong>Bricolage Grotesque is excluded</strong> (high-contrast humanist terminals read "bubbly" against a Swiss-technical brief — the canonical mismatch), Hanken sits too close to the Inter voice you called boring, Recursive stays available in the switcher but is no longer pushed, and Radnika remains the archive reference.</p>
     </div>
-    <p class="lede-note">Faithful to the real pages' content and IA — only the visual system changes. Toggle the theme (top right) to check both modes; every hue below is the palette's own light/dark variant. Note what's <strong>absent</strong>: no box-shadows, no border-radius, no full-enclosure cards except primary panels.</p>
 
-    <!-- MOCK 1: HOME -->
-    <div class="mock-wrap">
-      <div class="mock-caption">
-        <div class="m-num">M·1</div>
-        <div>
-          <h3>Home — the hero earns one zone</h3>
-          <p class="mock-notes">The "Port Daddy is" definition panel trades its <b>border-2 box</b> for a cobalt left stripe. The "runs on" strip sits under a 64px midline. The live-fleet card is bracket-scoped with per-agent state stripes — and the single cobalt zone belongs to the agent running right now. The hero headline flips CASL on the em-word instead of italicizing.</p>
-        </div>
+    <div class="type-option">
+      <div class="to-meta">
+        <div class="to-name">A · Plex, disciplined <span class="chip" style="margin-left:6px;">default</span></div>
+        <div class="to-recipe">display — Plex Sans 700, −3% track<br>body — Plex Sans 400/16<br>mono — Plex Mono, tnum + zero</div>
+        <p class="to-why">Your call, kept. What changes is usage, not face: per-scale tracking, tabular figures on every metric, and the mono voice doing all eyebrows/timestamps. The five ports below are set in exactly this.</p>
       </div>
-      <div class="mock-frame"><i></i><i></i><i></i><i></i>
-        <div class="page-mock">
-          <nav class="pm-nav">
-            <div class="pm-logo"><span class="mark">⌗</span>Port Daddy</div>
-            <div class="pm-links"><span class="active">Product</span><span>Docs</span><span>Fleet</span><span>Manifesto</span><span>Blog</span></div>
-          </nav>
-          <div class="pm-hero">
-            <div>
-              <div class="pm-hero-eyebrow">Fleet coordination for coding agents</div>
-              <h2>The local control plane your agents <em>report to.</em></h2>
-              <div class="pm-is-panel">
-                <div class="pm-is-label">Port Daddy is</div>
-                <p class="pm-is-body">a port manager, a coordination daemon, a fleet supervisor, a claims ledger, and a kernel of truth for multi-agent work.</p>
-              </div>
-              <div class="pm-runs">
-                <span class="r-label">Runs on</span>
-                <span class="r-item">Claude Code</span><span class="r-item">Codex</span><span class="r-item">Gemini</span><span class="r-item">Aider</span><span class="r-item">+ more</span>
-              </div>
-              <div class="pm-cta-row">
-                <span class="pm-cta">brew install port-daddy</span>
-                <span class="pm-cta ghost"><i></i><i></i>Read the manifesto</span>
-              </div>
-            </div>
-            <div class="pm-fleet"><i></i><i></i><i></i><i></i>
-              <div class="pm-fleet-head">
-                <span class="pm-fleet-title">Live fleet</span>
-                <span class="pm-fleet-count">06 active</span>
-              </div>
-              <div class="pm-zone">
-                <div class="z-eyebrow"><span class="zone-pulse"></span>Now running</div>
-                <div class="z-title">Spider · security scan</div>
-                <div class="z-detail">queries/user.ts · pass 4 of 7 · 18s</div>
-              </div>
-              <div class="pm-agent-row" data-state="running">
-                <span class="pm-agent-dot"></span>
-                <div><div class="pm-agent-name">Cartographer</div><div class="pm-agent-status">Indexing src/ — 412 / 1,840 files</div></div>
-                <span class="pm-agent-time">2m 14s</span>
-              </div>
-              <div class="pm-agent-row" data-state="ok">
-                <span class="pm-agent-dot"></span>
-                <div><div class="pm-agent-name">QA</div><div class="pm-agent-status">14 of 14 passed · last run 8s ago</div></div>
-                <span class="pm-agent-time">8s</span>
-              </div>
-              <div class="pm-agent-row" data-state="warn">
-                <span class="pm-agent-dot"></span>
-                <div><div class="pm-agent-name">Gardener</div><div class="pm-agent-status">3 lint warnings, 1 unused export</div></div>
-                <span class="pm-agent-time">1m</span>
-              </div>
-              <div class="pm-agent-row" data-state="blocked">
-                <span class="pm-agent-dot"></span>
-                <div><div class="pm-agent-name">Approver</div><div class="pm-agent-status">Waiting on operator · PR #91</div></div>
-                <span class="pm-agent-time">4m</span>
-              </div>
-              <div class="pm-agent-row" data-state="idle">
-                <span class="pm-agent-dot"></span>
-                <div><div class="pm-agent-name">Documentarian</div><div class="pm-agent-status">Idle · last run 28m ago</div></div>
-                <span class="pm-agent-time">—</span>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div class="to-spec">
+        <div class="big" style="font-family:'IBM Plex Sans'; font-weight:700;">Run a tight ship. <span style="color:var(--cobalt)">Agents sail safer when they coordinate.</span></div>
+        <p class="body" style="font-family:'IBM Plex Sans';">Port Daddy is shared memory for AI coding agents — the notes they leave each other, the files each one has claimed, and the work you can recover when one crashes.</p>
+        <p class="metrics mono">pd begin --identity myapp:api:main · claimed :9876 · 412/1,840 files · $0.00</p>
       </div>
     </div>
 
-    <!-- MOCK 2: DOCS -->
-    <div class="mock-wrap">
-      <div class="mock-caption">
-        <div class="m-num">M·2</div>
-        <div>
-          <h3>Docs — the ADR-0048 stack, read by color</h3>
-          <p class="mock-notes">This is rollout task 2 drawn to spec. Each layer row carries its <b>--layer-*</b> stripe — cobalt, sage, teal, amber down the column — so the stack is legible before a single label is read. L3's concepts keep their own hues as stripe-chips. The TOC marks the active entry with a teal stripe (legibility's own color, on the legibility surface). Code blocks trade their heavy frame for corner brackets.</p>
-        </div>
+    <div class="type-option">
+      <div class="to-meta">
+        <div class="to-name">B · Schibsted display</div>
+        <div class="to-recipe">display — Schibsted Grotesk 900<br>body — Plex Sans 400/16<br>mono — Plex Mono</div>
+        <p class="to-why">Scandinavian grotesque with grit for headlines only; Plex keeps the body and instruments. The display face has real personality — angular joins, tight apertures — without going humanist. The lowest-risk upgrade.</p>
       </div>
-      <div class="mock-frame"><i></i><i></i><i></i><i></i>
-        <div class="page-mock">
-          <nav class="pm-nav">
-            <div class="pm-logo"><span class="mark">⌗</span>Port Daddy</div>
-            <div class="pm-links"><span>Product</span><span class="active">Docs</span><span>Fleet</span><span>Manifesto</span><span>Blog</span></div>
-          </nav>
-          <div class="pm-docs">
-            <aside class="pm-toc">
-              <div class="pm-toc-label">Concepts</div>
-              <a>Why a daemon</a>
-              <a class="on">The L0→L3 stack</a>
-              <a>Sessions &amp; claims</a>
-              <a>Coordination guard</a>
-              <a>Salvage &amp; recovery</a>
-              <a>Federation</a>
-            </aside>
-            <div class="pm-doc-body">
-              <div class="pm-doc-eyebrow">ADR-0048 · What Port Daddy is</div>
-              <h2>The stack, four layers deep</h2>
-              <p class="pm-doc-lede">Every capability sits on exactly one layer. The palette paints them: cobalt is the kernel's truth, sage is coordination readiness, teal is the legibility product itself, amber is the economy the stack builds toward.</p>
-              <div class="pm-stack">
-                <div class="pm-layer" data-layer="l0">
-                  <span class="pm-layer-id">L0</span>
-                  <div><div class="pm-layer-name">Kernel of truth</div><div class="pm-layer-desc">The daemon · SQLite source of truth · deterministic ports</div></div>
-                  <span class="pm-layer-badge">cobalt</span>
-                </div>
-                <div class="pm-layer" data-layer="l1">
-                  <span class="pm-layer-id">L1</span>
-                  <div><div class="pm-layer-name">Protocol</div><div class="pm-layer-desc">Sessions, claims, notes · the rules of the road</div></div>
-                  <span class="pm-layer-badge">sage</span>
-                </div>
-                <div class="pm-layer" data-layer="l2">
-                  <span class="pm-layer-id">L2</span>
-                  <div><div class="pm-layer-name">Legibility</div><div class="pm-layer-desc">The digest-with-zoom · briefings, sitreps, the console</div></div>
-                  <span class="pm-layer-badge">teal</span>
-                </div>
-                <div class="pm-layer" data-layer="l3">
-                  <span class="pm-layer-id">L3</span>
-                  <div><div class="pm-layer-name">Economy</div><div class="pm-layer-desc">A market of trusted persons · reputation, value, identity</div></div>
-                  <span class="pm-layer-badge">amber</span>
-                </div>
-              </div>
-              <div class="pm-concepts">
-                <span class="pm-chip c-indigo">federation<span>indigo</span></span>
-                <span class="pm-chip c-rust">reputation<span>rust</span></span>
-                <span class="pm-chip c-violet">identity<span>violet</span></span>
-              </div>
-              <div class="pm-code"><i></i><i></i><i></i><i></i>
-                <pre>$ <span class="kw">pd begin</span> --identity myapp:api:main --lifecycle durable
-<span class="ok">◆</span> session anchored · worktree myapp:api
-<span class="cm"># the kernel remembers — same identity, same port, forever</span>
-$ <span class="kw">pd claim</span> myapp:api:main
-<span class="ok">:9876</span></pre>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div class="to-spec">
+        <div class="big" style="font-family:'Schibsted Grotesk'; font-weight:900;">Run a tight ship. <span style="color:var(--cobalt)">Agents sail safer when they coordinate.</span></div>
+        <p class="body" style="font-family:'IBM Plex Sans';">Port Daddy is shared memory for AI coding agents — the notes they leave each other, the files each one has claimed, and the work you can recover when one crashes.</p>
+        <p class="metrics mono">pd begin --identity myapp:api:main · claimed :9876 · 412/1,840 files · $0.00</p>
       </div>
     </div>
 
-    <!-- MOCK 3: FLEET -->
-    <div class="mock-wrap">
-      <div class="mock-caption">
-        <div class="m-num">M·3</div>
-        <div>
-          <h3>Fleet — the story hues do their literal jobs</h3>
-          <p class="mock-notes">Rollout tasks 3 and 4, together. The six-state grammar runs the roster; the one running agent pulses. The <b>federation zone is indigo</b> (a visiting fleet is the primary event on this view), the <b>reputation card is rust-striped</b> with Elo figures, the <b>identity card is violet-striped</b>. Stats read as bare mono numerals — instrument voice, no tiles.</p>
-        </div>
+    <div class="type-option">
+      <div class="to-meta">
+        <div class="to-name">C · Archivo poster</div>
+        <div class="to-recipe">display — Archivo 900, tight<br>body — Plex Sans 400/16<br>mono — Plex Mono</div>
+        <p class="to-why">The loudest option: a poster grotesque built for headlines at scale, closest to the Swiss-poster lineage in the FleetBar research (Vignelli/Unimark). Pairs cleanly with Plex because both are neo-grotesque, different mood.</p>
       </div>
-      <div class="mock-frame"><i></i><i></i><i></i><i></i>
-        <div class="page-mock">
-          <nav class="pm-nav">
-            <div class="pm-logo"><span class="mark">⌗</span>Port Daddy</div>
-            <div class="pm-links"><span>Product</span><span>Docs</span><span class="active">Fleet</span><span>Manifesto</span><span>Blog</span></div>
-          </nav>
-          <div class="pm-fleetpage">
-            <div class="pm-fp-head">
-              <div>
-                <h2>Fleet</h2>
-                <p class="pm-fp-sub">port-daddy · 6 agents · 2 harbors · last event 8s ago</p>
-              </div>
-              <div class="pm-fp-stats">
-                <div class="pm-stat"><div class="n">06</div><div class="l">Active</div></div>
-                <div class="pm-stat"><div class="n">142</div><div class="l">Merges · 30d</div></div>
-                <div class="pm-stat"><div class="n" style="color:var(--rust)">1687</div><div class="l">Fleet Elo</div></div>
-              </div>
-            </div>
+      <div class="to-spec">
+        <div class="big" style="font-family:'Archivo'; font-weight:900; letter-spacing:-0.035em;">Run a tight ship. <span style="color:var(--cobalt)">Agents sail safer when they coordinate.</span></div>
+        <p class="body" style="font-family:'IBM Plex Sans';">Port Daddy is shared memory for AI coding agents — the notes they leave each other, the files each one has claimed, and the work you can recover when one crashes.</p>
+        <p class="metrics mono">pd begin --identity myapp:api:main · claimed :9876 · 412/1,840 files · $0.00</p>
+      </div>
+    </div>
 
-            <div class="pm-fed-zone">
-              <div>
-                <div class="z-eyebrow">Federation · incoming</div>
-                <div class="z-title">Alice's fleet requests harbor access — 2 agents, read-only claims</div>
-              </div>
-              <span class="z-cta">Review grant</span>
-            </div>
-
-            <div class="pm-fp-cols">
-              <div class="pm-fp-list"><i></i><i></i><i></i><i></i>
-                <div class="list-label"><span>Roster</span><span class="count">6 agents</span></div>
-                <div class="pm-agent-row" data-state="running">
-                  <span class="pm-agent-dot"></span>
-                  <div><div class="pm-agent-name">Spider</div><div class="pm-agent-status">Security scan · queries/user.ts · pass 4 of 7</div></div>
-                  <span class="pm-agent-time">18s</span>
-                </div>
-                <div class="pm-agent-row" data-state="ok">
-                  <span class="pm-agent-dot"></span>
-                  <div><div class="pm-agent-name">QA</div><div class="pm-agent-status">14 of 14 passed · last run 8s ago</div></div>
-                  <span class="pm-agent-time">8s</span>
-                </div>
-                <div class="pm-agent-row" data-state="warn">
-                  <span class="pm-agent-dot"></span>
-                  <div><div class="pm-agent-name">Gardener</div><div class="pm-agent-status">3 lint warnings, 1 unused export</div></div>
-                  <span class="pm-agent-time">1m</span>
-                </div>
-                <div class="pm-agent-row" data-state="error">
-                  <span class="pm-agent-dot"></span>
-                  <div><div class="pm-agent-name">Spark</div><div class="pm-agent-status">workers-ai 401 — auth token expired</div></div>
-                  <span class="pm-agent-time">23s</span>
-                </div>
-                <div class="pm-agent-row" data-state="blocked">
-                  <span class="pm-agent-dot"></span>
-                  <div><div class="pm-agent-name">Approver</div><div class="pm-agent-status">Waiting on operator · PR #91 review</div></div>
-                  <span class="pm-agent-time">4m</span>
-                </div>
-                <div class="pm-agent-row" data-state="idle">
-                  <span class="pm-agent-dot"></span>
-                  <div><div class="pm-agent-name">Documentarian</div><div class="pm-agent-status">Idle · last run 28m ago</div></div>
-                  <span class="pm-agent-time">—</span>
-                </div>
-              </div>
-              <div>
-                <div class="pm-side-card rep">
-                  <div class="pm-side-eyebrow">Reputation · Elo earned</div>
-                  <div class="pm-elo-row"><span class="who">Spider</span><span class="elo">1842 ▲12</span></div>
-                  <div class="pm-elo-row"><span class="who">Cartographer</span><span class="elo">1760 ▲4</span></div>
-                  <div class="pm-elo-row"><span class="who">Gardener</span><span class="elo">1631 ▼8</span></div>
-                  <svg class="spark" width="100%" height="26" viewBox="0 0 220 26" preserveAspectRatio="none" aria-hidden="true" style="margin-top:10px;">
-                    <polyline points="0,20 24,18 48,19 72,13 96,15 120,10 144,12 168,7 192,9 212,5" fill="none" stroke="var(--rust)" stroke-width="1.5"/>
-                    <circle cx="212" cy="5" r="3" fill="var(--amber)"/>
-                  </svg>
-                </div>
-                <div class="pm-side-card idn">
-                  <div class="pm-side-eyebrow">Identity · continuity</div>
-                  <p class="pm-idn-body">Spider's memory spans <b>214 sessions</b> across 3 resurrections. Last checkpoint 41m ago — the agent is a <b>person</b>, not a process.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div class="type-option">
+      <div class="to-meta">
+        <div class="to-name">D · Newsreader counterpoint</div>
+        <div class="to-recipe">display — Plex Sans 700<br>editorial em — Newsreader italic, opsz 72<br>body — Plex Sans · mono — Plex Mono</div>
+        <p class="to-why">The editorial move: Plex keeps the structure, and Newsreader's optical-size italic marks only the em-phrase — the manifesto voice, the pull quote, the spine sentence. Highest sophistication, easiest to overuse; ship with a "display-only, one phrase per view" rule.</p>
+      </div>
+      <div class="to-spec">
+        <div class="big" style="font-family:'IBM Plex Sans'; font-weight:700;">Run a tight ship. <span style="color:var(--cobalt); font-family:'Newsreader'; font-style:italic; font-weight:400; font-optical-sizing:auto;">Agents sail safer when they coordinate.</span></div>
+        <p class="body" style="font-family:'IBM Plex Sans';">Port Daddy is shared memory for AI coding agents — the notes they leave each other, the files each one has claimed, and the work you can recover when one crashes.</p>
+        <p class="metrics mono">pd begin --identity myapp:api:main · claimed :9876 · 412/1,840 files · $0.00</p>
       </div>
     </div>
   </section>
 
-  <!-- ═══════════ §05 ADOPTION ═══════════ -->
-  <section class="block" id="adoption">
-    <div class="section-header">
-      <div class="section-num">§ 05</div>
-      <div class="section-title">Adoption — tokens, rules, rollout</div>
-      <div class="section-kicker">ships as css custom properties + utilities</div>
+  <!-- §04 THE PORTS -->
+  <section class="block">
+    <div class="sect-head">
+      <div class="eyebrow">§ 04 · The assignment</div>
+      <h2>Five straight ports of the live pages</h2>
+      <p class="sect-desc">Faithful to the real routes — actual headlines, actual copy, actual data (18 blog posts, 13 examples, 7 papers, 13 product features), actual generated art from <span class="mono-sm">public/img</span> — re-drawn in linework + palette v2, set in Plex (Option A). Blocking is a dial, not a constant. The FleetBar rule ("one zone per view") was written for a 380pt popover; full pages earn more. <b>Level 1</b> — hairline + stripe only (library, examples, blog, cli-backend). <b>Level 2</b> — Vignelli blocking: filled ink label-blocks, filled stat tiles, a solid definition block, one zone per section (home runs at this level — compare it against the others and pick the site-wide dial). Everywhere: stripes carry state or layer, brackets frame live panels, hard borders stay on primary surfaces. Toggle dark mode on each.</p>
     </div>
-
-    <div class="adopt-grid">
-      <div class="adopt-card do">
-        <div class="adopt-title">The discipline</div>
-        <ul>
-          <li><b>Max two linework patterns per surface.</b> Brackets + stripes on a fleet card. Midlines + one zone on a page. Never three.</li>
-          <li><b>One zone per view.</b> The zone is "the primary thing right now." A second concurrent thing stays in the list with a pulsing stripe.</li>
-          <li><b>Stripes carry state or layer; ink carries structure.</b> Brackets and midlines are always ink — story hues never touch them.</li>
-          <li><b>Color, label, and relative time — always together.</b> Never color alone; the stripe re-states the dot for color-blindness.</li>
-          <li><b>Primary panels keep the 2px hard border.</b> Linework replaces chrome on secondary surfaces only — the hierarchy gains a rung, it doesn't lose its anchor.</li>
-          <li><b>Everything lands on the 4px grid</b> — brackets 12–18px, stripes 3px, midlines 64px or middle-third.</li>
-        </ul>
-      </div>
-      <div class="adopt-card dont">
-        <div class="adopt-title">Refuse on sight</div>
-        <ul>
-          <li>Brackets under 10px — reads as a render glitch, not a frame.</li>
-          <li>Story hues on brackets, borders, or backgrounds of prose surfaces — accents, never chrome.</li>
-          <li>Box-shadows stacked under fractional borders — collapses the entire idea.</li>
-          <li>Dashed/segmented strokes as persistent UI — permanent "draft mode."</li>
-          <li>A pulse ring on anything that is not actively working.</li>
-          <li>Decorative brackets on every card — if everything is framed, nothing is.</li>
-        </ul>
-      </div>
+    <div class="port-links">
+      <a class="port-link" href="ports/home.html" style="--pl: var(--cobalt)"><span class="pl-route">/</span><span class="pl-name">Home</span><span class="pl-note">Hero, scope ladder (layer stripes), guard panel, 13-feature index, install zone.</span></a>
+      <a class="port-link" href="ports/library.html" style="--pl: var(--teal)"><span class="pl-route">/library</span><span class="pl-name">Library</span><span class="pl-note">Seven chapters striped by layer; the spine as an ink block; reading paths.</span></a>
+      <a class="port-link" href="ports/examples.html" style="--pl: var(--health)"><span class="pl-route">/examples</span><span class="pl-name">Examples</span><span class="pl-note">13 real examples in three hue-coded groups; PD Tube as the one zone.</span></a>
+      <a class="port-link" href="ports/cli-backend.html" style="--pl: var(--gold); --pl-tint: var(--gold-on-tint)"><span class="pl-route">/cli-backend</span><span class="pl-name">CLI Backend</span><span class="pl-note">The economy page — gold does its literal job; real blueprint art; the math table.</span></a>
+      <a class="port-link" href="ports/blog.html" style="--pl: var(--violet); --pl-tint: var(--violet-on-tint)"><span class="pl-route">/blog</span><span class="pl-name">Blog</span><span class="pl-note">All 18 posts, featured macaroon-gate with real hero art, retired threads.</span></a>
     </div>
+  </section>
 
-    <div class="token-sheet"><i></i><i></i><i></i><i></i>
-      <pre><span class="cm">/* tokens.semantic.css — proposed additions (both themes) */</span>
-<span class="kw">--lw-weight</span>: 1.5px;        <span class="cm">/* all fractional linework */</span>
-<span class="kw">--lw-bracket-sm</span>: 12px;  <span class="kw">--lw-bracket</span>: 14px;  <span class="kw">--lw-bracket-lg</span>: 18px;
-<span class="kw">--lw-stripe</span>: 3px;          <span class="cm">/* state + layer edge stripes  */</span>
-<span class="kw">--lw-midline</span>: 64px;        <span class="cm">/* anchored-left rule length   */</span>
-
-<span class="cm">/* utility classes (styles/linework.css, ~90 lines total) */</span>
-.lw-brackets        <span class="cm">/* 4 corner L-ticks, ink            */</span>
-.lw-stripe-[state]  <span class="cm">/* running|ready|warn|error|blocked */</span>
-.lw-stripe-[layer]  <span class="cm">/* l0|l1|l2|l3 via --layer-*        */</span>
-.lw-midline         <span class="cm">/* section rule, middle third       */</span>
-.lw-zone-[story]    <span class="cm">/* primary|federation|reputation|identity|economy */</span>
-.lw-pulse           <span class="cm">/* running dot, honors prefers-reduced-motion */</span></pre>
+  <!-- §05 TOKEN DIFF -->
+  <section class="block">
+    <div class="sect-head">
+      <div class="eyebrow">§ 05 · To ship</div>
+      <h2>The exact token diff</h2>
+      <p class="sect-desc">Palette v2 is a change to <span class="mono-sm">tokens.semantic.css</span> + <span class="mono-sm">BRAND.md</span> (the lockstep test keeps them honest). Since nothing on main consumes the four re-derived tokens yet, the blast radius is zero — this is the moment to correct them.</p>
     </div>
-
-    <div class="rollout-map">
-      <div class="r-row"><span class="r-num">R·0</span><span class="r-task">Ship <span class="mono">linework.css</span> + tokens</span><span class="r-add">New. The ~90-line utility layer above; Storybook StateMatrix story gates AA in both themes (rollout task 6).</span></div>
-      <div class="r-row"><span class="r-num">R·1</span><span class="r-task">Hero + landing sections</span><span class="r-add">Definition panel → cobalt stripe; live-fleet card → brackets + state grammar; one zone. (Mock M·1)</span></div>
-      <div class="r-row"><span class="r-num">R·2</span><span class="r-task">Docs stack table + chart slots</span><span class="r-add">Layer stripes on the L0→L3 table; chartTokens.ts gains health/indigo/violet/rust slots (rollout tasks 1–2, Mock M·2).</span></div>
-      <div class="r-row"><span class="r-num">R·3</span><span class="r-task">Fleet / ecosystem viz</span><span class="r-add">Six-state grammar in LibraryMap, AgentEcosystem, AgentNodeMark; concept zones for federation/reputation/identity (tasks 3–4, Mock M·3).</span></div>
-      <div class="r-row"><span class="r-num">R·4</span><span class="r-task">Type promotion</span><span class="r-add">Recursive becomes the default type theme; CASL em-words in display; MONO voice for all instrument text. Plex stays as switcher fallback.</span></div>
-    </div>
-
-    <div class="synth"><i></i><i></i>
-      <div class="synth-eyebrow">The brief, resolved</div>
-      <div class="synth-quote">The palette gave every hue a meaning. The linework gives every meaning an edge — and the chrome is so confident it can <em>disappear.</em></div>
-    </div>
+    <div class="codeblock"><div class="codeblock-title" style="margin:-16px -18px 12px;">tokens.semantic.css — v2 diff (light · dark)</div><pre><span class="c-comment">/* re-derived */</span>
+--story-indigo:  <span class="c-flag">#4b3f9e → #353a85</span>   ·   <span class="c-flag">#9d92e8 → #8a8af8</span>
+--story-violet:  <span class="c-flag">#6f48b5 → #933fa5</span>   ·   <span class="c-flag">#b69bec → #e0a5ed</span>
+--story-rust:    <span class="c-flag">#9a4a1e → #7a4514</span>   ·   <span class="c-flag">#e09464 → #b98e6b</span>
+<span class="c-comment">/* minted — economy stops borrowing the warning token */</span>
+--story-gold:    <span class="c-flag">#666a00</span> (on-tint #4d5000)   ·   <span class="c-flag">#d8dd3c</span> (on-tint #f5fa78)
+--layer-l3-economy: var(--status-warning) → <span class="c-flag">var(--story-gold)</span>
+<span class="c-comment">/* rule change */</span>
+amber text ⇒ --status-warning-on-tint; raw amber = stripes/dots/display only</pre></div>
   </section>
 
   <footer class="doc-footer">
-    <span><strong>Story Linework</strong> · Proposal 01</span>
-    <span>sources · fleetbar research-report.html + BRAND.md + PR #455</span>
-    <span>swiss-modern-website-design · web-layout-spacing</span>
+    <span><strong>Story Linework</strong> · Proposal 02</span>
+    <span>skills · color-theory-palette-harmony-expert · typography-expert · swiss-modern-website-design</span>
+    <span>sources · fleetbar research-report + PR #455</span>
   </footer>
 
-</div>
+</main>
 
 <script>
-  const btn = document.getElementById('themeToggle');
-  const root = document.documentElement;
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  let theme = prefersDark ? 'dark' : 'light';
-  apply();
-  btn.addEventListener('click', () => { theme = theme === 'light' ? 'dark' : 'light'; apply(); });
-  function apply() {
-    root.setAttribute('data-theme', theme);
-    btn.textContent = theme === 'light' ? 'Dark' : 'Light';
-  }
+  const btn=document.getElementById('themeToggle'),root=document.documentElement;
+  let t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  const apply=()=>{root.setAttribute('data-theme',t);btn.textContent=t==='light'?'Dark':'Light'};apply();
+  btn.addEventListener('click',()=>{t=t==='light'?'dark':'light';apply()});
 </script>
 </body>
 </html>
