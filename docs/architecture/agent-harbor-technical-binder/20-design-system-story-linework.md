@@ -96,7 +96,9 @@ voice-procedure chips; `NO_COLOR`/`!isTTY`/`--json` strip to plain.
 
 ## Amendment 1 — parley arbitration (operator, 2026-07-04)
 
-Three forks between this chapter and PR #671/#658 were arbitrated:
+Three forks between this chapter and PR #671/#658 were arbitrated; the
+side-by-side renders, evidence, and rationale live in
+`docs/design/story-linework/arbitrate.html` (stamped DECIDED per item):
 
 - **A·1 dark substrate: near-black `#101216` confirmed** (palette v2 as shipped). #671's warm-ebony proposal declined; warmth lives in the light theme's cream.
 - **A·2 display face: Plex confirmed, plus a narrow Big Shoulders Display license** — pd-console pane titles and poster/OG display moments ONLY, never site display or body. Caps-only faces stay out of the mixed-case display voice.

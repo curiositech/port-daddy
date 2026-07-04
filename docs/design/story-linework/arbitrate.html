@@ -20,7 +20,7 @@
   .opt { border: 1px solid var(--hair-strong); }
   .opt .opt-label { display: flex; justify-content: space-between; align-items: center; padding: 9px 14px; border-bottom: 1px solid var(--hair);
     font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
-  .opt .src { font-size: 11px; letter-spacing: 0.06em; }
+  .opt .src { font-size: 12px; letter-spacing: 0.06em; }
   .opt-body { padding: 0; }
   .rec { margin-top: 14px; padding: 13px 16px; background: var(--surface-card); border: 1px solid var(--hair); border-left: none; box-shadow: inset 3px 0 0 var(--teal); font-size: 14.5px; line-height: 1.6; }
   .rec b { color: var(--teal); }
@@ -31,6 +31,10 @@
   .sub-demo .zt { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
   .sub-demo .zb { font-size: 14px; line-height: 1.65; margin-top: 8px; max-width: 44ch; }
   .sub-demo .row { position: relative; display: flex; gap: 9px; align-items: center; padding: 8px 12px 8px 15px; margin-top: 12px; font-size: 13px; }
+  /* The two substrate panels are FIXED dark grounds by design (each exhibit
+     shows its own candidate ground regardless of page theme), so their state
+     dots deliberately use the dark-theme health constant — var(--health)
+     would flip to the light cut on toggle and misrender both exhibits. */
   .sub-demo .row::before { content:""; position:absolute; left:0; top:4px; bottom:4px; width:3px; background:#5fce97; }
   .sub-demo .hex { font-family: "IBM Plex Mono", monospace; font-size: 12px; opacity: 0.75; margin-top: 14px; }
 
