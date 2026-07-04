@@ -86,7 +86,7 @@ Route: **gpui primitive → Vello vector → wgpu fragment pass**, in that order
 **Detection**: frame counter keeps climbing with the window hidden; fans spin on an idle app.
 **Fix**: gate rendering on visibility/focus; cap ambient shaders to 30fps; stop the loop when occluded.
 
-### Anti-Pattern: "Hardcoded #FFDB33 in WGSL"
+### Anti-Pattern: "Hardcoded accent hex in WGSL"
 **Symptom**: the shader looks right in dark mode, wrong (or off-brand) in light; theme changes don't reach it.
 **Detection**: literal colors in the `.wgsl`; no `accent` uniform.
 **Fix**: push the theme token as `u.accent`; derive everything via `palette()`/`mix` from it.
