@@ -415,6 +415,7 @@ export function createParley(deps: ParleyDeps) {
           performative: turn.performative,
           content: turn.content,
           proposalId: turn.proposalId,
+          evidenceRefs: turn.evidenceRefs,
           at: turn.at,
         }, {
           from: party,
@@ -441,14 +442,22 @@ export function createParley(deps: ParleyDeps) {
     }
     const throughAt = input.throughAt ?? now();
     if (!Number.isFinite(throughAt)) throw new Error('parley.markSeen: throughAt must be a timestamp');
-    tuples.out(['parley:seen', parleyId, party, { throughAt, at: now() }], {
-      harbor: parley.harbor,
-      writtenBy: party,
-    });
+    // Only write when the watermark actually advances: repeated `show` polling
+    // must not grow the tuple space, and a bounded row count keeps every
+    // receipt inside getSeenMap's scan window. Retention matches outcomes.
+    const current = getSeenMap(parleyId, parley.harbor).get(party);
+    if (current === undefined || throughAt > current) {
+      tuples.out(['parley:seen', parleyId, party, { throughAt, at: now() }], {
+        harbor: parley.harbor,
+        writtenBy: party,
+        ttlMs: OUTCOME_TTL_MS,
+      });
+    }
+    const effective = current !== undefined && current > throughAt ? current : throughAt;
     const unseenTurns = getTurns(parleyId, parley.harbor).filter((turn) => (
-      turn.party !== party && turn.at > throughAt
+      turn.party !== party && turn.at > effective
     )).length;
-    return { party, lastSeenAt: throughAt, unseenTurns };
+    return { party, lastSeenAt: effective, unseenTurns };
   }
 
   function resolve(input: ResolveParleyInput): ParleyOutcome {

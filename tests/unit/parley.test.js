@@ -272,6 +272,7 @@ describe('turn fan-out', () => {
       party: 'agent-a',
       performative: 'propose',
       content: 'ship A',
+      evidenceRefs: ['docs/adr/0084.md'],
     });
 
     expect(result.turn.performative).toBe('propose');
@@ -287,6 +288,7 @@ describe('turn fan-out', () => {
       party: 'agent-a',
       performative: 'propose',
       content: 'ship A',
+      evidenceRefs: ['docs/adr/0084.md'],
     });
   });
 
@@ -356,6 +358,20 @@ describe('seen receipts', () => {
     parley.markSeen({ parleyId: p.parleyId, party: 'agent-b' });
     receipt = parley.get(p.parleyId).receipts.find((r) => r.party === 'agent-b');
     expect(receipt.unseenTurns).toBe(0);
+  });
+
+  test('repeated markSeen without new turns does not grow the tuple space', () => {
+    const p = openParley();
+    parley.markSeen({ parleyId: p.parleyId, party: 'agent-a' });
+    advance(1000);
+    parley.markSeen({ parleyId: p.parleyId, party: 'agent-a' });
+    advance(1000);
+    const receipt = parley.markSeen({ parleyId: p.parleyId, party: 'agent-a', throughAt: clock - 5000 });
+
+    // Stale watermark never regresses the receipt.
+    expect(receipt.lastSeenAt).toBe(clock - 1000);
+    const rows = tuples.rd(['parley:seen', p.parleyId, 'agent-a', '*'], { harbor: 'port-daddy' });
+    expect(rows.length).toBe(2);
   });
 
   test('markSeen rejects participants that were not summoned', () => {
