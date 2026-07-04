@@ -94,6 +94,14 @@ voice-procedure chips; `NO_COLOR`/`!isTTY`/`--json` strip to plain.
 - **W5 — app assets**: pd-console launcher art, FleetBar berth icons, Control Center empty states from the same prompts at asset sizes.
 - Each phase gates on: brand-color guard, wordless check (visual), palette-lock spot check, both themes shipped together.
 
+## Amendment 1 — parley arbitration (operator, 2026-07-04)
+
+Three forks between this chapter and PR #671/#658 were arbitrated:
+
+- **A·1 dark substrate: near-black `#101216` confirmed** (palette v2 as shipped). #671's warm-ebony proposal declined; warmth lives in the light theme's cream.
+- **A·2 display face: Plex confirmed, plus a narrow Big Shoulders Display license** — pd-console pane titles and poster/OG display moments ONLY, never site display or body. Caps-only faces stay out of the mixed-case display voice.
+- **A·3 flag→state map: `lib/maritime-signals.ts` is the referee and its canonical map WINS** over this chapter's draft chips. Binding: H=claim-active, Y=claim-stale, F=awaiting-human (this covers release gates), B=burning-cash, V=conflict, D=blocked, M=idle, A=spawning, P=fleet-healthy, J=mayday, R=inform, K=request, N=refuse/negative, C=affirmative. This chapter's earlier chips are corrected: Quebec-as-healthy → **Papa=fleet-healthy**; Lima-as-blocked → **Delta=blocked**; X-ray-as-gate → **Foxtrot=awaiting-human**. Extensions where the lib is silent remain from this chapter: **Uniform=warn** ("you are running into danger") and the per-route giant/masthead flags (Kilo home, Oscar blog, Papa examples, India library, Golf cli-backend — a page-identity namespace, not state chips). Every surface renders state flags through `lib/maritime-signals.ts`; no surface hand-picks letters.
+
 ## Relationship to earlier chapters
 
 Ch01/ch19's authority rule gets its visual corollary here: surfaces differ in
