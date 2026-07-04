@@ -22,6 +22,7 @@ function fleetYaml(
     model?: string;
     allowedTools?: string;
     trigger?: string;
+    temperature?: number;
   }>,
 ): string {
   const body = ships
@@ -31,6 +32,7 @@ function fleetYaml(
         `      trigger: ${s.trigger ?? 'pull_request:opened'}`,
       ];
       if (s.blocking) lines.push('      blocking: true');
+      if (s.temperature !== undefined) lines.push(`      temperature: ${s.temperature}`);
       if (s.allowedTools) lines.push(`      allowedTools: "${s.allowedTools}"`);
       lines.push('      fallbacks:');
       lines.push('        - backend: cloudflare');
@@ -204,6 +206,52 @@ describe('deterministic ship resolution', () => {
     expect(shipsRun.has('code-reviewer')).toBe(true);
     expect(shipsRun.has('qa')).toBe(true); // cloud-static, runs in the cloud
     expect(shipsRun.has('test-author')).toBe(false); // needsExecution → GHA, skipped here
+  });
+
+  it('runs Spark as a PR comment ship and passes its creative temperature', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      fleetYaml([
+        {
+          name: 'spark',
+          blocking: false,
+          allowedTools: 'Read,Grep,Glob',
+          temperature: 1.25,
+        },
+      ]),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: {
+        spark: [
+          '## Spark Idea: PR-actionable fleet ideas',
+          '',
+          '- Kickoff: `/pd assign spark pr-actionable-fleet-ideas`',
+          '',
+          '```json',
+          '[]',
+          '```',
+          '',
+          'FLEET-VERDICT: PASS',
+        ].join('\n'),
+      },
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
+
+    expect(ai.calls).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        ship: 'spark',
+        phase: 'map',
+        temperature: 1.25,
+      }),
+    ]));
+    const commentBodies = state.records
+      .filter(r => r.method === 'POST' && /\/issues\/\d+\/comments$/.test(r.url))
+      .map(r => (r.body as { body?: string }).body ?? '');
+    expect(commentBodies.some(body => body.includes('pd-ship:spark'))).toBe(true);
+    expect(commentBodies.some(body => body.includes('/pd assign spark'))).toBe(true);
   });
 });
 
