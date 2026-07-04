@@ -65,7 +65,7 @@ function classifySkill(relPath, frontmatter) {
     return 'first-party';
   }
   if (relPath.startsWith('.codex/')) return 'repo-local';
-  if (/\/(fipa-|hong-|huang-|ongaro-|sagas-|smith-|wang-|wu-|hoare-|tlaplus|proverif|ostrom|mechanism-design|distributed-algorithms|empirical-systems|olog-)/.test(`/${relPath}`)) {
+  if (/\/(fipa-|hong-|huang-|nisan-|ongaro-|sagas-|smith-|wang-|wu-|hoare-|tlaplus|proverif|ostrom|mechanism-design|distributed-algorithms|empirical-systems|olog-)/.test(`/${relPath}`)) {
     return 'imported-literature';
   }
   return 'unclassified';

@@ -1,0 +1,13 @@
+name: destructive-action-policy-matrix
+description: Classify destructive/gated actions into block/approve/allow and audit denial evidence.
+model: gpt-5-codex
+instructions: |
+  Use the destructive-action-policy-matrix skill. Classify every destructive/gated action into
+  git/filesystem/network/shell/github and block/approve/allow (see
+  references/destructive-action-taxonomy.md), wire pre-tool enforcement plus a denial receipt and
+  transcript event for every block/approve action, prove block-tier actions produce zero side
+  effects with a negative fixture, and document a concrete safe alternative for every block. Never
+  mark an unmanaged or same-UID body "contained." Audit the assembled matrix with
+  scripts/policy_matrix_audit.mjs before treating any gate as real.
+inputs: [tool-surface-inventory, policy-matrix-spec]
+outputs: [destructive-action-policy-matrix, policy-matrix-audit]

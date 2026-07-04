@@ -1,0 +1,108 @@
+/* Port Daddy unified tokens — mockup-local copy (canonical: website-v2 tokens.semantic.css + docs/design/tokens.aaa.css)
+   One house, two rooms: .room-storefront (cobalt) and .room-operator (mustard).
+   Laws: flat (no shadows), 2px ink borders, no rounded corners (system primitives excepted),
+   8pt grid, body >= 14px (.875rem floor is BANNED for prose — 1rem body), status = word+flag+color. */
+
+:root {
+  /* Substrate — shared */
+  --paper: #f2eee6;          /* warm paper, never flat white */
+  --paper-raised: #f7f3eb;
+  --paper-well: #e9e2d5;
+  --ink: #121212;
+  --ink-soft: #3a3733;
+  --ebony: #1e1b18;          /* warm ebony, never pure black */
+  --ebony-raised: #262220;
+  --ebony-well: #171412;
+  --bone: #f5f3ed;           /* light text on ebony */
+  --bone-soft: #c9c4bb;
+
+  /* Storefront accents (cobalt room) */
+  --cobalt: #003fb8;         /* L0 truth / verification */
+  --cobalt-dark: #7db4ff;    /* cobalt on ebony */
+  --teal: #006b5f;           /* L2 legibility */
+  --teal-dark: #8fd0a7;
+
+  /* Operator accents (mustard room) */
+  --mustard: #FFDB33;        /* attention/consent FILL — dots, focus, selection */
+  --mustard-ink: #8A5A00;    /* AAA text-on-paper stand-in for mustard */
+
+  /* Story palette — hue = meaning, both rooms */
+  --story-health: #1f7a4d;   /* L1 ready/coordinated */
+  --story-health-dark: #6fbf8e;
+  --story-indigo: #4b3f9e;   /* protocol/federation */
+  --story-indigo-dark: #a89ae8;
+  --story-violet: #6f48b5;   /* L3 identity/continuity */
+  --story-violet-dark: #b79aee;
+  --story-rust: #9a4a1e;     /* L3 reputation earned */
+  --story-rust-dark: #d98a5f;
+  --amber: #a66f00;          /* economy / warning */
+  --amber-dark: #e3b341;
+  --mayday: #C41E30;         /* breach / distress */
+  --mayday-dark: #F26475;
+
+  /* ICS signal-state grammar — six core work states + idle + newcomer (word + flag + color, never color alone)
+     H hotel=claim-active  F foxtrot=awaiting-human  B bravo=burning-cash
+     V victor=conflict     D delta=blocked           Y yankee=claim-stale
+     M mike=idle           Q quebec=newcomer/pratique */
+  --sig-active: var(--story-health);
+  --sig-human: var(--mayday);
+  --sig-cash: var(--amber);
+  --sig-conflict: #b3401f;
+  --sig-blocked: var(--amber);
+  --sig-stale: #8a6d00;
+  --sig-idle: #6b6459;
+  --sig-new: #8a6d00;        /* Quebec yellow, inked for AAA */
+
+  /* Type */
+  --font-display: "Big Shoulders Display", "Archivo Black", "Arial Narrow", sans-serif;
+  --font-sans: "Recursive", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Recursive Mono", "Recursive", ui-monospace, "SF Mono", monospace;
+
+  /* Scale (modular, 8pt rhythm) */
+  --text-sm: 0.875rem;   /* 14px floor — captions/labels only */
+  --text-base: 1rem;     /* body */
+  --text-md: 1.125rem;
+  --text-lg: 1.375rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.5rem;
+  --text-3xl: 3.5rem;
+
+  --border: 2px solid var(--ink);
+  --border-soft: 2px solid rgba(18,18,18,.18);
+  --space-1: 4px; --space-2: 8px; --space-3: 16px; --space-4: 24px; --space-5: 32px; --space-6: 48px; --space-7: 64px;
+}
+
+/* Room: storefront (public web) — light default, dark via media/data-theme */
+.room-storefront { background: var(--paper); color: var(--ink); --accent: var(--cobalt); --accent-2: var(--teal); }
+.room-storefront .surface { background: var(--paper-raised); border: var(--border); }
+.room-storefront .well { background: var(--paper-well); }
+
+/* Room: operator deck (triad + Scout) */
+.room-operator { --accent: var(--mustard); --accent-text: var(--mustard-ink); }
+.room-operator.light { background: var(--paper); color: var(--ink); }
+.room-operator.dark { background: var(--ebony); color: var(--bone); }
+.room-operator.dark .surface { background: var(--ebony-raised); border: 2px solid var(--bone); }
+.room-operator.light .surface { background: var(--paper-raised); border: var(--border); }
+
+/* Signal chip: flag glyph + word + color. Never color alone. */
+.sig { display: inline-flex; align-items: center; gap: 6px; font: 600 var(--text-sm)/1.2 var(--font-mono);
+       text-transform: uppercase; letter-spacing: .08em; padding: 3px 8px; border: 2px solid currentColor; }
+.sig .flag { width: 14px; height: 10px; display: inline-block; border: 1px solid currentColor; }
+
+/* Buttons: full state machine, hard edges, visible focus */
+.btn { font: 700 var(--text-base)/1 var(--font-sans); padding: 10px 18px; border: var(--border);
+       background: transparent; color: inherit; cursor: pointer; min-height: 44px; }
+.btn:hover { background: rgba(18,18,18,.06); }
+.btn:focus-visible { outline: 3px solid var(--accent, var(--cobalt)); outline-offset: 2px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary { background: var(--accent, var(--cobalt)); color: var(--paper); border-color: var(--ink); }
+.room-operator .btn-primary { background: var(--mustard); color: var(--ink); }
+
+/* Eyebrow labels — the 12px exception: >=600 weight, uppercase, tracked */
+.eyebrow { font: 700 12px/1.2 var(--font-mono); text-transform: uppercase; letter-spacing: .14em; }
+
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.05; margin: 0; }
+body { font-family: var(--font-sans); font-size: var(--text-base); line-height: 1.55; margin: 0; }
+code, .mono { font-family: var(--font-mono); }
+* { border-radius: 0; box-shadow: none; }
+input, select, textarea { border-radius: 0; }

@@ -91,9 +91,25 @@ describe('IoDispatch.startTrigger', () => {
 
   it('refuses a path that does not exist for file trigger (start() throws -> typed failure)', async () => {
     const bridge = new IoDispatch();
-    const res = await bridge.startTrigger('file:changed(/definitely/not/a/real/path/xyz123)', () => {});
+    // Inside an allowed root (home) so the containment guard passes and the
+    // existence check is what refuses it.
+    const res = await bridge.startTrigger('file:changed(~/definitely-not-a-real-path-xyz123)', () => {});
     expect(res.started).toBe(false);
     expect(res.reason).toMatch(/does not exist/);
+  });
+
+  it('refuses a watch path outside the allowed roots (ADR-0093 §5.3 containment)', async () => {
+    const bridge = new IoDispatch();
+    const res = await bridge.startTrigger('file:changed(/etc/cron.d)', () => {});
+    expect(res.started).toBe(false);
+    expect(res.reason).toMatch(/escapes the allowed root/i);
+  });
+
+  it('refuses to watch sensitive subpaths inside home (~/.ssh)', async () => {
+    const bridge = new IoDispatch();
+    const res = await bridge.startTrigger('file:changed(~/.ssh)', () => {});
+    expect(res.started).toBe(false);
+    expect(res.reason).toMatch(/sensitive|refus/i);
   });
 
   it('starts a REAL file watcher and emits an event when a watched directory changes', async () => {
@@ -208,11 +224,34 @@ describe('IoDispatch.dispatchOutput', () => {
     const dir = makeScratch();
     const bridge = new IoDispatch();
     try {
-      const res = await bridge.dispatchOutput(`file:write(${join(dir, 'x.md')})`, {});
+      // pii declared low: the bridge's high-PII consent check stays out of
+      // the way so this pins the SINK's own validation error.
+      const res = await bridge.dispatchOutput(`file:write(${join(dir, 'x.md')})`, { pii: 'low' });
       expect(res.ok).toBe(false);
       expect(res.sinkKind).toBe('file');
       expect(res.reason).toMatch(/body/);
     } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('default-denies a payload with no pii flag (treated as high; consent required at the bridge)', async () => {
+    const dir = makeScratch();
+    const bridge = new IoDispatch();
+    // Isolate from the operator's real consent config: a gate whose config
+    // path holds no grants, so the machine running the test cannot flip the
+    // verdict.
+    const { ConsentGate, setSharedConsentGate } = await import('../../lib/fleet/consent-gate.js');
+    setSharedConsentGate(new ConsentGate({
+      configPath: join(dir, 'no-consents.json'),
+      auditLogPath: join(dir, 'consent-audit.log'),
+    }));
+    try {
+      const res = await bridge.dispatchOutput(`file:write(${join(dir, 'x.md')})`, { body: 'secretish' });
+      expect(res.ok).toBe(false);
+      expect(res.reason).toMatch(/consent/i);
+    } finally {
+      setSharedConsentGate(null);
       rmSync(dir, { recursive: true, force: true });
     }
   });

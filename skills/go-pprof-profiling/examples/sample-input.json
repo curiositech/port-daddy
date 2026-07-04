@@ -1,0 +1,12 @@
+{
+  "symptom": "goroutine-leak",
+  "profileType": "goroutine",
+  "underRepresentativeLoad": true,
+  "pprofBindAddress": "localhost",
+  "environment": "staging",
+  "blockMutexSampleRate": 1,
+  "runsInContainer": true,
+  "gomemlimitSet": true,
+  "usedCumulativeView": true,
+  "contextCancellationPropagated": true
+}

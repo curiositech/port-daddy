@@ -30,6 +30,7 @@ export * from './tutorial.js';
 export * from './inbox.js';
 export * from './spawn.js';
 export * from './transcripts.js';
+export * from './sortie.js';
 export * from './harbors.js';
 export * from './bench.js';
 export * from './benchmark.js';
@@ -72,3 +73,4 @@ export * from './morning.js';
 export * from './backend.js';
 
 export * from './cut.js';
+export * from './embed.js';

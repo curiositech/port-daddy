@@ -111,7 +111,7 @@ b.curve_to(ctrl, end);                    // quadratic bezier control + end
 b.line_to(point(px(40.), px(8.)));
 b.close();
 let path = b.build().unwrap();
-window.paint_path(path, gpui::rgb(0xFFDB33)); // mustard brand
+window.paint_path(path, gpui::rgb(0xD8DD3C)); // palette v2 gold
 ```
 
 **Decision Point — `canvas` vs a full custom `Element`.** Use `canvas(prepaint, paint)` for *"short-term custom drawing inside a view"* (the docs' words). Implement a full `impl Element` (with `request_layout` / `prepaint` / `paint`) only when the thing needs its own layout participation, hit-testing, or to be reused as a first-class element across panes. For a dither overlay or a sparkline, `canvas` is correct and far less code.
@@ -176,7 +176,7 @@ fn paint_dither(
 }
 ```
 
-**Honor the brand.** `lo`/`hi` must come from `palette.rs` roles (`bg: 0xf5f5f0`, `accent: 0xffdb33`, `gated: 0xc41e30`), never hardcoded — `scripts/check-brand-colors.mjs` fails CI on cinnabar red / brass / patina (`palette.rs:8`). Theme flip (`Ctrl-A g`) must re-skin the dither on the next `cx.notify()`.
+**Honor the brand.** `lo`/`hi` must come from the theme's role table (`core/pd-console/src/theme.rs` — bg/accent/gated roles), never hardcoded — `scripts/check-brand-colors.mjs` fails CI on cinnabar red / brass / patina (`palette.rs:8`). Theme flip (`Ctrl-A g`) must re-skin the dither on the next `cx.notify()`.
 
 **Decision Point — cell size = your budget knob.** `cell = 2.0` on a 600×400 region is ~60k quads/frame — fine for a static panel background, a problem at 60fps. `cell = 6.0`–`8.0` is "cassette chunky," ~4k quads, and reads *more* retro. Pick the largest cell that still looks like dithering; it's also your perf ceiling.
 
@@ -233,7 +233,7 @@ fn paint_shimmer(window: &mut gpui::Window, b: gpui::Bounds<gpui::Pixels>,
     }
 }
 ```
-This is the "scanning / loading" cue for a sortie that's mid-flight — the T2 cousin of the T1 breathing beacon. Tint = `accent 0xffdb33`.
+This is the "scanning / loading" cue for a sortie that's mid-flight — the T2 cousin of the T1 breathing beacon. Tint = the `accent` role from the runtime theme (palette v2 gold).
 
 ### Sparkle micro-particles
 A handful (≤ ~40) of tiny quads (or `PathBuilder::fill` diamonds) at deterministic positions, each twinkling on its own phase offset so they don't blink in lockstep:
@@ -245,7 +245,7 @@ fn paint_sparkles(window: &mut gpui::Window, b: gpui::Bounds<gpui::Pixels>,
                   sparks: &[Spark], clock: f32) {
     for s in sparks {
         let tw = ((clock + s.phase) * std::f32::consts::TAU).sin() * 0.5 + 0.5; // 0..1
-        let mut c: gpui::Hsla = gpui::rgb(0xffdb33).into();
+        let mut c: gpui::Hsla = gpui::rgb(0xd8dd3c).into();
         c.a = tw * 0.9;
         let sz = gpui::px(2.0 + tw * 2.0);          // size twinkles WITH alpha
         window.paint_quad(gpui::quad(

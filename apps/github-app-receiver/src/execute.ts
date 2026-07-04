@@ -28,6 +28,10 @@ import {
 } from './github.js';
 import { parseFleetShips, defaultPRShips, type ShipConfig } from './fleet.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
+import { withDeadline } from './deadline.js';
+
+// Exported so tests can pin the ship-review deadline behavior.
+export const AI_RUN_TIMEOUT_MS = 90_000;
 
 // ---------------------------------------------------------------------------
 
@@ -205,12 +209,24 @@ async function runShip(
     const systemPrompt = buildSystemPrompt(ship, contract);
     const userMessage = buildUserMessage(prCtx);
 
-    const res = (await ai.run(ship.cfModel as Parameters<typeof ai.run>[0], {
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage },
-      ],
-    })) as { response?: string; usage?: Record<string, unknown> };
+    // Hard deadline on the model call. A bad/unknown model id (or a stuck
+    // Workers AI queue) does not error — it hangs, which previously consumed
+    // the whole waitUntil budget and left the check run in_progress FOREVER
+    // (the 2026-07-03 outage). A timed-out ship degrades to status 'error';
+    // executeFleet still resolves the check run as neutral. withDeadline
+    // clears its timer on every exit path — no orphaned timers per ship.
+    const res = (await withDeadline(
+      Promise.resolve(
+        ai.run(ship.cfModel as Parameters<typeof ai.run>[0], {
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage },
+          ],
+        }),
+      ),
+      AI_RUN_TIMEOUT_MS,
+      `ai.run(${ship.cfModel})`,
+    )) as { response?: string; usage?: Record<string, unknown> };
     const usage = extractWorkersAiUsage(res);
 
     const raw = (res.response ?? '').trim();

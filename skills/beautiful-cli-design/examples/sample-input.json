@@ -1,0 +1,13 @@
+{
+  "tool": "wg build",
+  "respectsNoColorEnv": true,
+  "colorHasNonColorFallback": true,
+  "alignsColumns": true,
+  "respectsTerminalWidth": true,
+  "prefixesLinesForGrep": true,
+  "quietByDefault": true,
+  "hasProgressForLongOps": true,
+  "errorsToStderr": true,
+  "exitCodesMeaningful": true,
+  "honorsPipeNotATty": true
+}

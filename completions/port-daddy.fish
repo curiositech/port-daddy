@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'takeover' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' 'send' 'sent' \
-    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
+    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'embed' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
     'say' 'look' 'sitrep' 'whois' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
@@ -172,6 +172,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a briefing -d 'Generate .portdaddy/ project briefing'
     complete -c $prog -n __pd_needs_command -a history -d 'View recent project activity'
     complete -c $prog -n __pd_needs_command -a graph -d 'Inspect semantic graph edges and stats'
+    complete -c $prog -n __pd_needs_command -a embed -d 'Shared local embedding model: status, prefetch, embed text'
     complete -c $prog -n __pd_needs_command -a memory -d 'Inspect episodic memory entries and stats'
     complete -c $prog -n __pd_needs_command -a ideas -d 'Search ideas, notes, tuples, and repo markdown'
     complete -c $prog -n __pd_needs_command -a roadmap -d 'Show and write the roadmap_items DB-of-record'
@@ -412,7 +413,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command pheromone ph; and __fish_seen_subcommand_from files" -l limit -x -d 'Max rows'
 
     # System & Monitoring
-    complete -c $prog -n __pd_needs_command -a dashboard -d 'Open web dashboard'
+    complete -c $prog -n __pd_needs_command -a dashboard -d 'Open the terminal UI dashboard'
     complete -c $prog -n __pd_needs_command -a channels -d 'List pub/sub channels'
     complete -c $prog -n __pd_needs_command -a webhook -d 'Manage webhooks'
     complete -c $prog -n __pd_needs_command -a webhooks -d 'Manage webhooks (alias)'
@@ -866,6 +867,12 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command tuple" -l limit -d 'Max results (rd/in only)' -x
     complete -c $prog -n "__pd_using_command tuple" -s j -l json -d 'JSON output'
     complete -c $prog -n "__pd_using_command tuple" -s q -l quiet -d 'Suppress output'
+
+    # embed
+    complete -c $prog -n "__pd_using_command embed" -x -a 'status prefetch text stdin'
+    complete -c $prog -n "__pd_using_command embed" -l cache-dir -r -d 'Override the shared transformers cache'
+    complete -c $prog -n "__pd_using_command embed; and __fish_seen_subcommand_from status" -s j -l json -d 'Output JSON'
+    complete -c $prog -n "__pd_using_command embed; and __fish_seen_subcommand_from text stdin" -l offline -d 'Exit 3 instead of downloading when model not cached'
 
     # graph
     complete -c $prog -n "__pd_using_command graph" -x -a 'edges stats help'

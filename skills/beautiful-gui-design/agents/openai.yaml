@@ -1,0 +1,13 @@
+name: beautiful-gui-design
+description: Design or review a GUI's visual system and audit it against measurable contrast, type, token, spacing, and accessibility gates.
+model: gpt-5-codex
+instructions: |
+  Use the beautiful-gui-design skill. Build the three-tier token model (primitive -> semantic
+  -> component) before touching screens; put spacing on a single 8pt (or 4pt) grid; keep body
+  text >=14px on a modular rem scale; design light AND dark for real, not an inversion; define
+  every interactive element's full state machine (default/hover/active/focus-visible/disabled);
+  size touch targets >=44px; and use native platform idioms when the target is not the web.
+  Validate the result against the actual Quality Gates with scripts/gui_design_audit.mjs before
+  calling the work done — treat a failing audit as a real defect, not a style nitpick.
+inputs: [gui-design-brief, gui-spec]
+outputs: [visual-design-system, gui-design-audit]

@@ -1,0 +1,14 @@
+{
+  "concern": "bundle-size",
+  "duplicateFrameworkDetected": true,
+  "dedupeConfigured": true,
+  "prebundleThrashObserved": false,
+  "optimizeDepsIncludeCoversWarnings": true,
+  "defaultExportsAreNamedFunctions": true,
+  "manualChunksConfigured": true,
+  "manualChunksUsesAbsolutePaths": true,
+  "sourcemapMode": "hidden",
+  "largestChunkKB": 320,
+  "visualizerReviewed": true,
+  "buildTimeSeconds": 42
+}

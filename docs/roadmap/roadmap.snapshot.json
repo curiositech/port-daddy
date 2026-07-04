@@ -355,6 +355,11 @@
       "summaryMd": "Expose Giant Squid hook installation and spawn hook injection as the enforceable Port Daddy agent harness layer. PR #624 now documents runtime setup, project hook arming, Squid bridge launch, MCP/Pilot install, and FleetBar as separate install surfaces, with tests for Claude/Codex/Gemini/Antigravity hook config writes."
     },
     {
+      "slug": "app-lane-auto-refresh",
+      "status": "backlog",
+      "summaryMd": "feat(dist): app-lane auto-refresh \u2014 main/tap watcher, FleetBar lanes, date-sorted dev bundles"
+    },
+    {
       "slug": "ast-a0-intra-file-call-edges",
       "status": "done",
       "summaryMd": "SHIPPED (#468/#544): parseFile extracts intra-file calls edges so blast-radius + signature conflicts fire within a file. Cross-file is ast-a1-1."
@@ -490,6 +495,16 @@
       "summaryMd": "PHASE 5: iMessage (macOS FDA) + Calendar (CalDAV / OAuth / EventKit). Platform-gated."
     },
     {
+      "slug": "operator-surface-consolidation",
+      "status": "backlog",
+      "summaryMd": "feat(surfaces): consolidate operator surfaces to FleetBar, Control Center, pd-console"
+    },
+    {
+      "slug": "operator-surface-triad-binder",
+      "status": "backlog",
+      "summaryMd": "binder: ch19 operator surface triad (Scout/FleetBar/pd-console), technical specs, Hypatia's audit"
+    },
+    {
       "slug": "pd-safe-scan",
       "status": "backlog",
       "summaryMd": "feat(safe): pd safe \u2014 the AI sniffer (Phase A read-only posture scan + Phase B secret corral, ADR-0088)"
@@ -498,6 +513,11 @@
       "slug": "pd-session-coordination-hardening",
       "status": "now",
       "summaryMd": "Fix pd session coordination: begin-hang, resolver divergence (PPID/TTY slot), MCP lifecycle parity (#556)"
+    },
+    {
+      "slug": "pd-sortie-cli",
+      "status": "backlog",
+      "summaryMd": "Land the pd sortie CLI surface (one-shot multi-agent mission: run/list/status/logs) recovered from the April 2026 parked work; thin client over the existing daemon /sorties endpoints, aligned with ADR-0060 conductor consolidation."
     },
     {
       "slug": "roadmap-delete-verb-and-harbor-fix",
@@ -560,9 +580,19 @@
       "summaryMd": "FleetBar/Fleet Control Center visual task intake should let operators send annotated screenshots or page context to agents without exposing dispatch/worker internals."
     },
     {
-      "slug": "operator-surface-triad-binder",
+      "slug": "fleetbar-developer-id-signing",
       "status": "backlog",
-      "summaryMd": "binder: ch19 operator surface triad (Scout/FleetBar/pd-console), technical specs, Hypatia's audit"
+      "summaryMd": "fix(release): Developer ID sign + notarize FleetBar.app (stop shipping a Gatekeeper-quarantined app)"
+    },
+    {
+      "slug": "surface-triad-redesign",
+      "status": "backlog",
+      "summaryMd": "design: surface-triad redesign + portdaddy.dev accounts/login + remote harbor co-op"
+    },
+    {
+      "slug": "visual-evidence-doctrine",
+      "status": "backlog",
+      "summaryMd": "docs(skill): visual-evidence doctrine \u2014 non-interruptive screenshot capture for every agent"
     }
   ]
 }

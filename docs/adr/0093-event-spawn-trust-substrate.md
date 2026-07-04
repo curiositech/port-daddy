@@ -1,6 +1,12 @@
 # ADR-0093 — Event→Spawn Trust Substrate: the secure middle between triggers and agents
 
-- **Status:** Proposed (Phase-1 hardening implemented + tested; middle-layer wiring proposed)
+- **Status:** Accepted — implemented. Phase-1 hardening merged in PR #632.
+  L1 trust gate WIRED into `lib/fleet-engine.ts` (§4.3 insertion point,
+  2026-07-04): refuse on tool-set violation; fail-closed refusal when
+  approval is required and no queue is wired; injectable
+  `enqueueForApproval` seam (the daemon writes durable `fleet:approval`
+  tuples; the HITL proposal queue of PR #648 can consume the same seam).
+  §5.3 follow-ups all closed. §6 macaroon caveats still gated on ProVerif.
 - **Date:** 2026-06-27
 - **Deciders:** Erich (operator), fleet/security working session
 - **Supersedes/extends:** `docs/design/io-wiring-build-plan.md` (PR #539). Builds on

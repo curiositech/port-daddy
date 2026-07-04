@@ -5,7 +5,6 @@ struct FleetControlCenter: View {
     @ObservedObject var costStore: CostStore
     @ObservedObject var dispatchStore: DispatchStore
     @ObservedObject var backendStore: BackendStore
-    @Environment(\.openURL) private var openURL
 
     @AppStorage(FleetControlRoute.surfaceKey) private var selectedSurfaceRaw = FleetControlSurface.flow.rawValue
     @AppStorage(FleetControlRoute.projectKey) private var selectedProjectStorage = ""
@@ -157,26 +156,6 @@ struct FleetControlCenter: View {
             URLQueryItem(name: "daemon", value: store.daemonURL),
             URLQueryItem(name: "surface", value: selectedSurface.rawValue),
             URLQueryItem(name: "embed", value: "fleetbar"),
-            URLQueryItem(name: "theme", value: selectedTheme),
-        ]
-        if let selectedProjectId, !selectedProjectId.isEmpty {
-            queryItems.append(URLQueryItem(name: "project", value: selectedProjectId))
-        }
-        if let selectedAgent, !selectedAgent.isEmpty {
-            queryItems.append(URLQueryItem(name: "agent", value: selectedAgent))
-        }
-        components.queryItems = queryItems
-        return components.url
-    }
-
-    private var browserControlPlaneURL: URL? {
-        guard var components = URLComponents(string: "\(store.daemonURL)/fleet-ui/") else {
-            return nil
-        }
-
-        var queryItems = [
-            URLQueryItem(name: "daemon", value: store.daemonURL),
-            URLQueryItem(name: "surface", value: selectedSurface.rawValue),
             URLQueryItem(name: "theme", value: selectedTheme),
         ]
         if let selectedProjectId, !selectedProjectId.isEmpty {
@@ -355,13 +334,6 @@ struct FleetControlCenter: View {
                 selectedSurface = .visual
                 reloadToken = UUID()
             }
-
-            ActionPill(
-                title: "Browser",
-                systemImage: "safari",
-                color: Fleet.Color.warning,
-                action: openInBrowser
-            )
         }
         .fixedSize(horizontal: true, vertical: false)
     }
@@ -869,10 +841,6 @@ struct FleetControlCenter: View {
         syncProjectSelection()
     }
 
-    private func openInBrowser() {
-        guard let browserControlPlaneURL else { return }
-        openURL(browserControlPlaneURL)
-    }
 }
 
 private struct ActionPill: View {

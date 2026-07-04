@@ -29,7 +29,7 @@ stays out of the Linux `rust-console` CI job.
 - **Gate marker** — a danger-red dot + ring + "gate" label when
   `ask_user_before_proceeding` (the HITL pause).
 - **Maritime palette** — bg ebony `#1e1b18`, panel `#2b2724`, accent canary
-  `#ffdb33`, success `#6dd3a8`, danger `#f26475`, cobalt `#7fc4ff`, ink `#f5f5f0`.
+  `#d8dd3c` (palette v2 gold), success `#6dd3a8`, danger `#f26475`, cobalt `#7fc4ff`, ink `#f5f5f0`.
 
 ## Run (offscreen, headless)
 

@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Contrast Spec",
+  "description": "Input shape for scripts/contrast_audit.mjs — a set of foreground/background color pairs and any semantic signals conveyed by color, to be checked against WCAG 2.x contrast minimums.",
+  "type": "object",
+  "required": ["pairs"],
+  "additionalProperties": true,
+  "properties": {
+    "pairs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "foreground", "background", "usage"],
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Human-readable label for this color pair, e.g. \"hero-tagline\" or \"primary-button-border\"."
+          },
+          "foreground": {
+            "type": "string",
+            "pattern": "^#?[0-9a-fA-F]{3}$|^#?[0-9a-fA-F]{6}$",
+            "description": "Text/foreground color as #RGB or #RRGGBB hex."
+          },
+          "background": {
+            "type": "string",
+            "pattern": "^#?[0-9a-fA-F]{3}$|^#?[0-9a-fA-F]{6}$",
+            "description": "Background color as #RGB or #RRGGBB hex."
+          },
+          "usage": {
+            "type": "string",
+            "enum": ["body-text", "large-text", "ui-component", "decorative"],
+            "description": "body-text requires 4.5:1; large-text and ui-component require 3:1; decorative is exempt."
+          }
+        }
+      }
+    },
+    "semanticSignals": {
+      "type": "array",
+      "description": "Optional: pieces of meaning (error/success/required/etc.) and whether they rely on color alone.",
+      "items": {
+        "type": "object",
+        "required": ["name", "conveyedByColorOnly"],
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Human-readable label for the signal, e.g. \"form-error-state\"."
+          },
+          "conveyedByColorOnly": {
+            "type": "boolean",
+            "description": "True if this signal has no icon/text/pattern backup and relies solely on color to be understood (WCAG 1.4.1)."
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/vite-build-optimizer-plan.schema.json",
+  "title": "Vite Build Optimization Plan",
+  "description": "A structured plan for a Vite dev/build/config change -- concern, chunking/dedupe/SSR/sourcemap decisions, measured numbers -- so this skill's Quality Gates can be checked deterministically by scripts/vite_build_optimizer_audit.mjs.",
+  "type": "object",
+  "required": ["concern"],
+  "additionalProperties": true,
+  "properties": {
+    "concern": {
+      "type": "string",
+      "enum": ["dev-startup", "hmr", "bundle-size", "ssr", "plugin-authoring"],
+      "description": "The primary problem being addressed."
+    },
+    "duplicateFrameworkDetected": {
+      "type": "boolean",
+      "description": "True if a framework (React, etc.) appears more than once in node_modules or the bundle."
+    },
+    "dedupeConfigured": {
+      "type": "boolean",
+      "description": "True if resolve.dedupe lists every duplicated framework."
+    },
+    "prebundleThrashObserved": {
+      "type": "boolean",
+      "description": "True if dev logs show 'new dependencies optimized' repeatedly (pre-bundling thrash from dynamic CJS imports)."
+    },
+    "optimizeDepsIncludeCoversWarnings": {
+      "type": "boolean",
+      "description": "True if optimizeDeps.include (or exclude) covers every dep flagged in dev logs."
+    },
+    "defaultExportsAreNamedFunctions": {
+      "type": "boolean",
+      "description": "True if default-exported components are named functions (required for granular React Fast Refresh)."
+    },
+    "manualChunksConfigured": {
+      "type": "boolean",
+      "description": "True if build.rollupOptions.output.manualChunks is in use."
+    },
+    "manualChunksUsesAbsolutePaths": {
+      "type": "boolean",
+      "description": "True if manualChunks rules test absolute paths / path.relative(root, id), not bare substrings."
+    },
+    "ssrTarget": {
+      "type": "string",
+      "enum": ["node", "edge"],
+      "description": "Runtime target of the SSR build, if any."
+    },
+    "ssrNoExternalConfigured": {
+      "type": "boolean",
+      "description": "True if ssr.noExternal is configured appropriately for the target (near-total for edge)."
+    },
+    "pluginHook": {
+      "type": "string",
+      "enum": ["config", "configResolved", "transform", "handleHotUpdate", "generateBundle"],
+      "description": "The plugin hook being authored, when concern is plugin-authoring."
+    },
+    "hookMutatesConfig": {
+      "type": "boolean",
+      "description": "True if the hook mutates the resolved config object."
+    },
+    "sourcemapMode": {
+      "type": "string",
+      "enum": ["off", "public", "hidden", "inline"],
+      "description": "Production sourcemap policy: off (build.sourcemap: false), public (true), hidden, or inline."
+    },
+    "largestChunkKB": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Size of the largest emitted JS chunk in KB, unminified."
+    },
+    "chunkSizeIntentional": {
+      "type": "boolean",
+      "description": "True if a >500KB chunk is a deliberate, documented decision."
+    },
+    "visualizerReviewed": {
+      "type": "boolean",
+      "description": "True if rollup-plugin-visualizer output was reviewed for this change."
+    },
+    "buildTimeSeconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Measured production build wall time in seconds."
+    }
+  }
+}

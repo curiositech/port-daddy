@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Binder Coverage Spec",
+  "description": "Input shape for scripts/binder_coverage_audit.mjs — a normalized snapshot of a multi-document product-architecture binder: claimed capabilities per document, cross-chapter contradictions, ambition-archaeology classifications, and the three coverage-matrix axes.",
+  "type": "object",
+  "required": ["documents", "contradictions", "ambitionCorpus", "coverageMatrix"],
+  "additionalProperties": true,
+  "properties": {
+    "documents": {
+      "type": "array",
+      "description": "Every binder document in scope (README + numbered chapters). May be empty, but an empty corpus cannot be complete.",
+      "items": {
+        "type": "object",
+        "required": ["name", "claimedCapabilities"],
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Document identifier, e.g. \"16-binder-architect-of-record.md\"."
+          },
+          "claimedCapabilities": {
+            "type": "array",
+            "description": "Every capability this document claims the product has or will have.",
+            "items": {
+              "type": "object",
+              "required": ["name"],
+              "additionalProperties": true,
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "owner": {
+                  "type": "string",
+                  "description": "Accountable owner for this capability's truth (a role, ship, or named agent)."
+                },
+                "gate": {
+                  "type": "string",
+                  "description": "The testable acceptance gate that proves this capability, e.g. a named test suite or conformance check."
+                },
+                "evidenceLink": {
+                  "type": "string",
+                  "description": "Link to durable evidence: PR, commit, transcript, screenshot, or test run — not a claim without proof."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "contradictions": {
+      "type": "array",
+      "description": "Cross-chapter disagreements found during a reconcile pass. May be empty.",
+      "items": {
+        "type": "object",
+        "required": ["kind", "resolved"],
+        "additionalProperties": true,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["term", "authority", "schema", "shipped-vs-target"],
+            "description": "Which consistency axis the contradiction breaks: canonical terminology, decision authority, data/event/API schema, or shipped-versus-target status."
+          },
+          "resolved": {
+            "type": "boolean",
+            "description": "True only once a source-linked fix has landed; an unresolved contradiction blocks implementation claims."
+          }
+        }
+      }
+    },
+    "ambitionCorpus": {
+      "type": "array",
+      "description": "Older public/internal product promises (website, V4 plans, examples, ADRs, ideas troves) being reconciled against the binder. May be empty, but an unswept corpus is itself a finding.",
+      "items": {
+        "type": "object",
+        "required": ["name", "classification"],
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The ambition family, e.g. \"Harbor Economy / Trust-as-a-Service\"."
+          },
+          "classification": {
+            "type": ["string", "null"],
+            "enum": ["absorbed", "superseded", "deferred", "contradicted", "orphaned", "rejected", null],
+            "description": "null means unclassified — accidental amnesia, never a valid resting state."
+          }
+        }
+      }
+    },
+    "coverageMatrix": {
+      "type": "object",
+      "required": ["customerAxisComplete", "contingencyAxisComplete", "architectureAxisComplete"],
+      "additionalProperties": true,
+      "properties": {
+        "customerAxisComplete": {
+          "type": "boolean",
+          "description": "True only if every customer/deployment type (solo local, solo BYOK, pro sync, team harbor, enterprise/self-hosted, OSS/custom-agent, privacy-sensitive, mobile, remote/cloud, marketplace) has an owner, status, gate, failure mode, recovery path, and source."
+        },
+        "contingencyAxisComplete": {
+          "type": "boolean",
+          "description": "True only if every named technical contingency (daemon down, stale projection, transcript missing, hook disabled, MCP unavailable, secret leak, context full, agent disappears, cloud partition, billing cap, PR conflict, malicious adapter, data deletion) has the same six answers."
+        },
+        "architectureAxisComplete": {
+          "type": "boolean",
+          "description": "True only if every architecture consistency axis (terms, authority, event truth, consistency, security, privacy, UX, APIs, skills, evaluation) has the same six answers."
+        }
+      }
+    }
+  }
+}

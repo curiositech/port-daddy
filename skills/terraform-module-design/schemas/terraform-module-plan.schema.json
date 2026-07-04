@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/terraform-module-plan.schema.json",
+  "title": "Terraform Module Design Plan",
+  "description": "A structured plan for a Terraform module/state design, so this skill's anti-patterns and Quality Gates can be checked deterministically by scripts/terraform_module_audit.mjs.",
+  "type": "object",
+  "required": ["moduleSourcePin", "stateBackend"],
+  "additionalProperties": true,
+  "properties": {
+    "moduleSourcePin": {
+      "type": "string",
+      "enum": ["tag", "sha", "branch", "local"],
+      "description": "How callers reference the module source. Branch (e.g. main) is the floating-reference anti-pattern."
+    },
+    "dynamicResourceIterator": {
+      "type": "string",
+      "enum": ["for_each", "count", "none"],
+      "description": "The iterator used for dynamic resource sets."
+    },
+    "resourcesHaveIdentity": {
+      "type": "boolean",
+      "description": "True if the iterated resources have stable identity (users, named buckets) rather than being N interchangeable copies."
+    },
+    "ignoreChangesScope": {
+      "type": "string",
+      "enum": ["targeted", "all", "none"],
+      "description": "The lifecycle ignore_changes posture: specific attribute paths, blanket all (a defect), or none."
+    },
+    "stateBackend": {
+      "type": "string",
+      "enum": ["remote-locked-encrypted", "remote", "local"],
+      "description": "Where state lives: remote with locking + encryption (required), plain remote, or local disk."
+    },
+    "stateSplitByBlastRadius": {
+      "type": "boolean",
+      "description": "True if state is split per (environment x stack) rather than one monolithic file."
+    },
+    "secretsInTfvars": {
+      "type": "boolean",
+      "description": "True if any secret value lives in a committed tfvars file."
+    },
+    "variablesValidated": {
+      "type": "boolean",
+      "description": "True if every constrained variable carries a description and a validation block."
+    },
+    "planFileBoundApply": {
+      "type": "boolean",
+      "description": "True if CI runs terraform plan -out=plan.tfplan and applies that exact file, binding the apply to a reviewed state version."
+    },
+    "driftCheckScheduled": {
+      "type": "boolean",
+      "description": "True if a scheduled read-only plan (-detailed-exitcode) runs at least daily and non-zero exits are investigated."
+    },
+    "providerVersionsPinned": {
+      "type": "boolean",
+      "description": "True if required_version and every provider are pinned (pessimistic ~> constraints) in versions.tf."
+    },
+    "ciAuthMethod": {
+      "type": "string",
+      "enum": ["oidc", "long-lived-keys", "none"],
+      "description": "How CI authenticates to the cloud provider."
+    }
+  }
+}

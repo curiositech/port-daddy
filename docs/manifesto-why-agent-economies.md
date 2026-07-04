@@ -38,9 +38,12 @@ machinery a market needs to not be a knife fight.** No identity you can trust. N
 post collateral. No settlement. No way to tell a one-shot grifter from a counterparty
 with a reputation to protect.
 
-The rails are, suddenly, real. Google shipped an Agent Payments Protocol; Coinbase
-shipped x402 so an agent can satisfy an HTTP 402 with a stablecoin; Anthropic's MCP is
-becoming the substrate agents talk *over*.[^rails] Two serious economists, Gillian
+The rails are, suddenly, real. Google shipped an Agent Payments Protocol, then teamed
+with Shopify on the Universal Commerce Protocol — Walmart, Target, Visa, and Mastercard
+endorsing — so an agent can discover, cart, and check out at any merchant serving a
+`/.well-known/ucp` profile; Coinbase shipped x402 so an agent can satisfy an HTTP 402
+with a stablecoin; Anthropic's MCP is becoming the substrate agents talk
+*over*.[^rails] Two serious economists, Gillian
 Hadfield and Andrew Koh, wrote a paper this year literally titled *An Economy of AI
 Agents* and meant it.[^hadfield] The plumbing is being laid. The question is whether we
 lay any **institutions** under it, or whether we let the agent economy relive the
@@ -231,10 +234,15 @@ The Leviathan is not tyranny. It is the reason the market can exist at all.
 [^hobbes]: Thomas Hobbes, *Leviathan* (1651). The war of all against all is the
     canonical argument for why self-interested actors with no shared sovereign
     coordinate badly — the multi-agent file collision, four centuries early.
-[^rails]: Google, *Agent Payments Protocol (AP2)*, 2025; Coinbase, *x402* (HTTP 402
-    settlement for agents), 2025; Anthropic, *Model Context Protocol (MCP)*, 2024. The
-    payment and coordination rails for autonomous agents now exist; the institutions
-    under them mostly do not.
+[^rails]: Google, *Agent Payments Protocol (AP2)*, 2025; Google & Shopify, *Universal
+    Commerce Protocol (UCP)*, 2026 (ucp.dev — discovery, cart, checkout for
+    agent-mediated retail; authorization proof delegated to AP2's verifiable-credential
+    mandates, whose SD-JWT/JWS formats Port Daddy adopts at the harbor boundary in
+    ADR-0094); Coinbase, *x402* (HTTP 402 settlement for agents), 2025; Anthropic,
+    *Model Context Protocol (MCP)*, 2024. The payment and coordination rails for
+    autonomous agents now exist; the institutions under them mostly do not — UCP's own
+    security critics (DataDome, 2026) say plainly that it standardizes *how* agents
+    transact while leaving *which agents to trust* unsolved.
 [^hadfield]: Gillian K. Hadfield & Andrew Koh, *An Economy of AI Agents*, NBER Working
     Paper, 2025 — the serious-economics treatment of agents as economic actors.
 [^olog]: David I. Spivak & Robert E. Kent, "Ologs: A Categorical Framework for Knowledge
