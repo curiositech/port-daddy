@@ -106,6 +106,12 @@ h1 {
   color: var(--amber);
 }
 
+.status[data-tone="offline"] {
+  border-color: #e5a79e;
+  background: var(--red-soft);
+  color: var(--red);
+}
+
 .capture,
 label,
 .check {

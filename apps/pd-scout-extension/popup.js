@@ -150,18 +150,56 @@ function renderDomSummary(domContext) {
   }
 }
 
-function updateDaemonStatus() {
+let daemonProbeSeq = 0;
+let daemonProbeTimer = null;
+
+function setDaemonStatus(text, tone) {
+  els.daemonStatus.textContent = text;
+  if (tone) els.daemonStatus.dataset.tone = tone;
+  else delete els.daemonStatus.dataset.tone;
+}
+
+function daemonScope() {
   const value = els.daemonUrl.value.trim() || DEFAULT_DAEMON_URL;
   try {
     const url = new URL(value);
     const host = url.hostname.toLowerCase();
     const local = host === 'localhost' || host === '127.0.0.1' || host === '::1';
-    els.daemonStatus.textContent = local ? 'Local' : 'Remote';
-    els.daemonStatus.dataset.tone = local ? 'local' : 'remote';
+    return local ? 'Local' : 'Remote';
   } catch {
-    els.daemonStatus.textContent = 'Unknown';
-    els.daemonStatus.dataset.tone = 'unknown';
+    return null;
   }
+}
+
+async function probeDaemon(scope) {
+  const seq = ++daemonProbeSeq;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 1500);
+  let online = false;
+  try {
+    const res = await fetch(`${daemonBaseUrl()}/health`, { signal: controller.signal });
+    online = res.ok;
+  } catch {
+    online = false;
+  } finally {
+    clearTimeout(timer);
+  }
+  if (seq !== daemonProbeSeq) return;
+  if (online) setDaemonStatus(`${scope} · Online`, scope === 'Local' ? '' : 'remote');
+  else setDaemonStatus(`${scope} · Offline`, 'offline');
+}
+
+function updateDaemonStatus() {
+  const scope = daemonScope();
+  if (!scope) {
+    daemonProbeSeq += 1;
+    if (daemonProbeTimer) clearTimeout(daemonProbeTimer);
+    setDaemonStatus('Unknown', 'unknown');
+    return;
+  }
+  setDaemonStatus(`${scope} · ...`, scope === 'Local' ? '' : 'remote');
+  if (daemonProbeTimer) clearTimeout(daemonProbeTimer);
+  daemonProbeTimer = setTimeout(() => void probeDaemon(scope), 300);
 }
 
 function isExtensionPage(tab) {
