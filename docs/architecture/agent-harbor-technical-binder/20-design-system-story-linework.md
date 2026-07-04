@@ -64,8 +64,9 @@ The existing radar-mark SVGs and the SpinningWordmark component are kept as
 drawn; only colors change. Static SVGs: blue→cobalt, green→teal/sage,
 amber→lime, grays→warm surface tokens (`art/pd-mark-v2-*.svg`). The
 color-shifting "pd" already reads `--c1/--c2/--c3` from brand tokens, so it
-inherits palette v2 with zero code change. Favicon candidates: Kilo halves,
-Papa square, Uniform quarters at 32px (operator to pick one).
+inherits palette v2 with zero code change. Operator decisions (2026-07-04):
+OG system approved; **wordmark unchanged; favicon unchanged** (the flag
+favicon candidates in `og.html` are archived, not adopted).
 
 ## Surface application (normative mocks in apps.html)
 
@@ -81,7 +82,12 @@ voice-procedure chips; `NO_COLOR`/`!isTTY`/`--json` strip to plain.
 - **W0 — tokens + linework.css into website-v2** (palette v2/v2.1 diff from proposal §05, brand-doc lockstep test updated; rollout tasks R·0–R·4 from the proposal).
 - **W1 — identity**: recolored mark SVGs shipped, SpinningWordmark verified against new tokens, favicon cut, OG template wired into the og-card generator (color-rollout task 7 superseded by `og.html`).
 - **W2 — hero art**: regenerate the ~12 route-level heroes (manifesto, library, pr-fleet done; cli-backend trio, blog masthead, pd-tube, scout, security, mac-preview) in the cut-paper style, light+dark pairs, wordless.
-- **W3 — blog covers**: ~18 post heroes regenerated in style; retired-post art left as-is.
+- **W3 — blog art, full port** (measured: 18 posts, ~50 inline figures, 20 Mermaid blocks):
+  - every hero AND inline figure regenerated in the cut-paper style, shipped as light/dark pairs (`ThemedImage` already swaps on theme);
+  - every raster figure also generated in a portrait variant; served via `<picture media="(orientation: portrait)">` so phones get the vertical cut;
+  - Mermaid gains true light/dark theme pairs — the theme-independent "diagram paper" tokens are retired in favor of `--diagram-*` values defined per theme, AA-checked like every other pair;
+  - a shared `FigureFrame` component wraps all figures (raster + Mermaid): hairline-edged, caption slot, click-to-lightbox with scroll/pinch zoom and drag pan, orientation-aware source selection, `prefers-reduced-motion` honored on the zoom transition;
+  - retired-post art left as-is.
 - **W4 — example artwork**: already the style's origin; regenerate only the off-palette ones (audit against palette lock).
 - **W5 — app assets**: pd-console launcher art, FleetBar berth icons, Control Center empty states from the same prompts at asset sizes.
 - Each phase gates on: brand-color guard, wordless check (visual), palette-lock spot check, both themes shipped together.
