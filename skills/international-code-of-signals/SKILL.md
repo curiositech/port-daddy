@@ -66,6 +66,21 @@ Fluent command of Pub. 102 — the 1969 International Code of Signals — as a w
 - Radio spectrum/licensing questions, GMDSS equipment carriage rules.
 - Palette or branding work with no signal semantics (`color-theory-palette-harmony-expert`).
 
+## Bundle Contents
+
+Everything shipped with this skill (only this file auto-loads — the rest is here so you know to reach for it):
+
+| Path | What it is |
+|---|---|
+| `data/signals.json` | THE ground-truth corpus, parsed from Pub. 102: 26 single-letter signals (+12 numeral-complement forms), 645 two-letter General Code signals + 723 complements, 445 Medical Code signals, procedure signals, Morse, phonetic tables, Complements Tables 1–3, icebreaker session table. Coverage verified against the raw extraction (645/645, 445/445) |
+| `scripts/icos_lookup.py` | Query CLI over the corpus — exact lookup, hybrid search, spelling, hoists, tables (usage below) |
+| `scripts/rebuild_corpus.py` | Regenerates `data/signals.json` from a `pdftotext -layout` extraction of the Pub. 102 PDF; only needed if the source book changes |
+| `references/*.md` | Seven deep dives — five chapter distillations + two adaptation layers (index at the bottom of this file) |
+| `examples/worked-examples.md` | Encode/decode walkthroughs across methods and both transfer layers |
+| `agents/openai.yaml` | Codex/OpenAI agent binding (same corpus-first discipline) |
+
+Provenance: *Pub. 102, International Code of Signals*, US Edition 1969 (Revised 2003), NIMA — a US Government publication, no copyright claimed under 17 U.S.C.
+
 ## The Code at a Glance
 
 ```mermaid
@@ -102,7 +117,7 @@ mindmap
 ```mermaid
 flowchart TD
   Q[Request] --> T{Kind?}
-  T -->|"What does X mean" / "signal for Y"| L[scripts/icos_lookup.py: code / search]
+  T -->|What does X mean / find signal for Y| L[scripts/icos_lookup.py code or search]
   T -->|Compose a message| C[Base group + complements + typed data fields<br/>see general-signal-code.md composition pattern]
   T -->|Procedure question| P[references/signaling-instructions.md<br/>+ single-letter-and-procedure.md]
   T -->|Emergency semantics| D[references/distress-and-lifesaving.md]

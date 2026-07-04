@@ -162,7 +162,7 @@ flowchart TD
     GEN -->|Yes| DUP{Duplicate of existing skill?}
     DUP -->|Yes| MERGE[Merge evidence into existing skill]
     DUP -->|No| DRAFT[Draft new skill]
-    DRAFT --> INIT[Initialize Thompson: alpha=sum(scores), beta=sum(1-scores)]
+    DRAFT --> INIT["Initialize Thompson: alpha=sum(scores), beta=sum(1-scores)"]
     INIT --> CANDIDATE[Add to crystallization_candidates]
 ```
 
