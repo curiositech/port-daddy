@@ -1,9 +1,33 @@
 ---
+license: Apache-2.0
 name: webauthn-passkey-implementation
-description: Implementing the relying-party (server) side of WebAuthn / passkeys to replace passwords — the registration ceremony, the authentication ceremony, the verification steps the server MUST perform on each (challenge match, origin match, RP ID hash, signature, counter monotonicity), conditional UI for autofill, and the synced-vs-device-bound distinction. Grounded in W3C WebAuthn-3, FIDO Alliance, passkeys.dev, and SimpleWebAuthn.
-category: Authentication & Security
-tags: [webauthn, passkeys, fido2, authentication, passwordless, conditional-ui, ctap]
+description: 'Implementing the relying-party (server) side of WebAuthn / passkeys to replace passwords — the registration ceremony, the authentication ceremony, the verification steps the server MUST perform on each (challenge match, origin match, RP ID hash, signature, counter monotonicity), conditional UI for autofill, and the synced-vs-device-bound distinction. Grounded in W3C WebAuthn-3, FIDO Alliance, passkeys.dev, and SimpleWebAuthn. NOT for: CTAP authenticator internals, OAuth/OIDC layering, TOTP/SMS MFA, or account-recovery flow design.'
 allowed-tools: Read, Grep, Glob, Edit, Write, Bash(grep:*, rg:*)
+metadata:
+  category: Authentication & Security
+  tags: [webauthn, passkeys, fido2, authentication, passwordless, conditional-ui, ctap]
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: webhook-receiver-design
+      reason: Shares the same server-side verification discipline — signatures over the exact bytes received, replay windows, and timing-safe comparison — applied to a different inbound surface.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: auth-flow-requirement
+        format: markdown
+        description: The passkey need -- new registration flow, sign-in ceremony, conditional UI, or migration off passwords -- with the RP's domain, user model, and compliance context.
+      - kind: passkey-implementation-plan
+        format: json
+        description: A structured plan naming ceremony, library, verification steps, and option choices, matching schemas/webauthn-passkey-implementation-plan.schema.json.
+    produces:
+      - kind: ceremony-implementation
+        format: markdown
+        description: The relying-party design -- options generation, server verification steps, credential storage shape, conditional UI wiring -- per W3C WebAuthn-3 sections 7.1/7.2.
+      - kind: passkey-audit-report
+        format: json
+        description: A deterministic pass/fail audit of the passkey-implementation-plan against this skill's Quality Gates, as produced by scripts/webauthn_passkey_implementation_audit.mjs.
 ---
 
 # WebAuthn / Passkey Implementation
@@ -293,6 +317,28 @@ A passkey implementation ships when:
 - [ ] **Manual:** SimpleWebAuthn (or equivalent) version is recent — track the GitHub releases for spec changes.
 
 ---
+
+## Deterministic Audit
+
+Before shipping (or reviewing) a relying-party implementation, write the decisions as a
+JSON plan matching `schemas/webauthn-passkey-implementation-plan.schema.json` and run the
+deterministic auditor:
+
+```bash
+node scripts/webauthn_passkey_implementation_audit.mjs --input examples/sample-input.json
+```
+
+`auditWebauthnPasskeyImplementation(plan)` (in
+`scripts/webauthn_passkey_implementation_audit.mjs`) turns the W3C §7.1/§7.2 verification
+steps and this skill's Quality Gates into machine-checkable rules over structured fields:
+hand-rolled CBOR/COSE parsing, a client-supplied or reusable challenge, any skipped
+verification (origin, rpIdHash, challenge match, signature), a missing counter check,
+email or DB-sequence `user.id`, attestation required without a compliance need,
+conditional UI without an empty `allowCredentials`, an unpopulated `excludeCredentials`,
+and non-discoverable credentials in a passkey deployment. It returns
+`{ pass, score, findings, recommendations }`. `examples/sample-input.json` is a
+SimpleWebAuthn-based both-ceremonies plan that clears every gate (`pass: true`). Changes
+are tracked in `CHANGELOG.md`.
 
 ## NOT for this skill
 

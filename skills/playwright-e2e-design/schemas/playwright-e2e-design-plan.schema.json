@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/playwright-e2e-design-plan.schema.json",
+  "title": "Playwright E2E Suite Plan",
+  "description": "A structured plan for a Playwright E2E suite so scripts/playwright_e2e_design_audit.mjs can check it deterministically against this skill's Quality Gates.",
+  "type": "object",
+  "required": ["locatorStrategy", "assertionStyle", "authStrategy", "thirdPartyCalls", "traceMode"],
+  "additionalProperties": true,
+  "properties": {
+    "locatorStrategy": {
+      "type": "string",
+      "enum": ["user-facing", "test-id", "css", "xpath"],
+      "description": "The suite's primary locator tier. user-facing = getByRole/getByLabel/getByText; test-id = getByTestId; css/xpath fail as a primary strategy."
+    },
+    "waitForTimeoutCount": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Number of page.waitForTimeout calls remaining in the suite. Must be 0."
+    },
+    "assertionStyle": {
+      "type": "string",
+      "enum": ["web-first", "snapshot-read"],
+      "description": "web-first = await expect(locator).toX() auto-retrying assertions; snapshot-read = expect(await locator.isVisible()) one-shot reads (always fails)."
+    },
+    "authStrategy": {
+      "type": "string",
+      "enum": ["storage-state-setup", "login-per-test", "none"],
+      "description": "How tests get authenticated: a setup project saving storageState, a full login in every test, or no auth needed."
+    },
+    "testIsolation": {
+      "type": "boolean",
+      "description": "True if each test creates its own uniquely-named data and resets state via API -- no order dependence."
+    },
+    "thirdPartyCalls": {
+      "type": "string",
+      "enum": ["mocked", "test-mode-endpoints", "live", "none"],
+      "description": "How third-party services are handled: page.route() mocks, provider test-mode endpoints, live calls (fails), or none used."
+    },
+    "traceMode": {
+      "type": "string",
+      "enum": ["on-first-retry", "retain-on-failure", "on", "off"],
+      "description": "Playwright trace setting. on-first-retry is the recommended value."
+    },
+    "artifactsUploadedOnCi": {
+      "type": "boolean",
+      "description": "True if test-results/ (traces, screenshots, videos) is uploaded as a CI artifact on failure."
+    },
+    "ciRetries": {
+      "type": "number",
+      "minimum": 0,
+      "description": "retries value on CI. Should be >= 1 so on-first-retry tracing can fire (2 is typical)."
+    },
+    "localRetries": {
+      "type": "number",
+      "minimum": 0,
+      "description": "retries value locally. Should be 0 so authors see flake."
+    },
+    "parallelEnabled": {
+      "type": "boolean",
+      "description": "True if tests run in parallel (mode: 'parallel' within files and/or multiple workers)."
+    },
+    "shardCount": {
+      "type": "number",
+      "minimum": 1,
+      "description": "Number of CI shards the suite is split across (--shard=N/M)."
+    },
+    "p95TestSeconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "The p95 duration of an individual test in seconds. Budget is 30."
+    }
+  }
+}

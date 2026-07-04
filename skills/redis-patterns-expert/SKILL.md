@@ -1,14 +1,43 @@
 ---
+license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 name: redis-patterns-expert
 description: 'Use when designing caching strategies (cache-aside, write-through, write-behind), implementing distributed locks, building rate limiters, leaderboards, real-time streams (XADD/consumer groups), pub/sub, or tuning eviction policies. Triggers: thundering-herd on cache miss, dogpile on key expiry, Redlock vs SET-NX-PX choice, sliding-window rate limiter, hot-key on a single cluster slot, big-key blowup, MULTI/EXEC across slots, KEYS in production. NOT for Redis Cluster operations/admin (different domain), embedded KV (SQLite, leveldb), in-process LRU caches, or Memcached.'
-category: Backend & Infrastructure
-tags:
-  - redis
-  - caching
-  - rate-limiting
-  - distributed-locks
-  - streams
-  - sorted-sets
+metadata:
+  category: Backend & Infrastructure
+  tags:
+    - redis
+    - caching
+    - rate-limiting
+    - distributed-locks
+    - streams
+    - sorted-sets
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: background-job-orchestrator
+      reason: Redis Streams + consumer groups are the durable-queue substrate this skill designs; job orchestration semantics (retries, dead-letter, scheduling) live there.
+    - skill: event-driven-architecture-expert
+      reason: Choosing pub/sub vs Streams here is one leg of the broader event-delivery-guarantee design that skill owns.
+    - skill: websocket-streaming
+      reason: Redis pub/sub is the standard fan-out layer behind multi-node WebSocket/SSE broadcast.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: caching-requirement
+        format: markdown
+        description: A description of the data-access or coordination problem -- what is cached/locked/queued, expected QPS, staleness tolerance, delivery guarantees.
+      - kind: redis-patterns-plan
+        format: json
+        description: A structured plan naming the use case, chosen primitive, and the TTL/lock/stream/ops knobs, matching schemas/redis-patterns-plan.schema.json.
+    produces:
+      - kind: redis-pattern-design
+        format: markdown
+        description: The recommended pattern (cache-aside, single-flight, SET-NX-PX lock, Streams consumer group, ...) with key layout, TTLs, and Lua scripts.
+      - kind: redis-pattern-audit
+        format: json
+        description: A deterministic pass/fail audit of the redis-patterns-plan against this skill's Quality Gates, as produced by scripts/redis_patterns_audit.mjs.
 ---
 
 # Redis Patterns Expert
@@ -265,6 +294,26 @@ maxmemory-policy         allkeys-lru
 - [ ] Big collections sharded by some key prefix; no unbounded growth.
 - [ ] Pub/sub used only for ephemeral notifications, never durable jobs.
 - [ ] `UNLINK` over `DEL` for any structure with thousands of items.
+
+## Deterministic Audit
+
+Before committing to a Redis design (or reviewing another agent's), write it as a JSON
+plan matching `schemas/redis-patterns-plan.schema.json` and run the deterministic auditor:
+
+```bash
+node scripts/redis_patterns_audit.mjs --input examples/sample-input.json
+```
+
+`auditRedisPatterns(plan)` (in `scripts/redis_patterns_audit.mjs`) turns this skill's
+anti-patterns and Quality Gates into machine-checkable rules over structured fields —
+no keyword matching: pub/sub chosen for a durable queue, a cache key with no TTL or no
+jitter, `SET` then `EXPIRE` instead of one atomic command, a lock without an ownership
+token or with a non-Lua release, a Streams consumer with no PEL reclaim, `KEYS` in
+production, blocking `DEL` on a big key, and `noeviction` backing a pure cache. It
+returns `{ pass, score, findings, recommendations }` so a reviewer or CI gate can reject
+a plan without re-deriving the reasoning. `examples/sample-input.json` is a
+correctly-jittered cache-aside plan (`pass: true`). Version history lives in
+`CHANGELOG.md`.
 
 ## NOT for
 

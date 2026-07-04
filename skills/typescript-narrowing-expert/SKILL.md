@@ -1,15 +1,41 @@
 ---
+license: Apache-2.0
 name: typescript-narrowing-expert
 description: 'Use when designing discriminated unions, debugging control-flow analysis, choosing satisfies vs as, building branded types, writing user-defined type guards, or composing conditional types and template literal types. Triggers: "Type X is not assignable to type Y" after a type guard, exhaustiveness checks via never, satisfies vs explicit annotation, infer in conditional types, mapped types with key remapping, distributive conditional types, type-narrowing inside callbacks losing the narrowed type. NOT for runtime validation only (zod/yup), tsc compiler internals, or design-time-only types not used at runtime.'
-category: Frontend & UI
 allowed-tools: Read,Grep,Glob,Edit,Write,Bash
-tags:
-  - typescript
-  - type-system
-  - generics
-  - narrowing
-  - discriminated-unions
-  - branded-types
+metadata:
+  category: Frontend & UI
+  tags:
+    - typescript
+    - type-system
+    - generics
+    - narrowing
+    - discriminated-unions
+    - branded-types
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: error-handling-patterns
+      reason: Result/Either error channels are discriminated unions; that skill picks the error strategy, this one makes the narrowing and exhaustiveness airtight.
+    - skill: output-contract-enforcer
+      reason: Runtime JSON-schema validation at trust boundaries is the runtime companion to the compile-time narrowing this skill designs.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: type-design-requirement
+        format: markdown
+        description: A description of the typing problem -- sum-type modeling, ID disambiguation, a narrowing failure, or a conditional-type need -- with the relevant code excerpts.
+      - kind: narrowing-design-plan
+        format: json
+        description: A structured plan naming the goal, discriminant/guard/brand decisions, and CI type-checks, matching schemas/typescript-narrowing-expert-plan.schema.json.
+    produces:
+      - kind: narrowing-design
+        format: markdown
+        description: The recommended union/guard/brand/conditional-type design with the anti-patterns above ruled out and exhaustiveness enforced.
+      - kind: narrowing-audit-report
+        format: json
+        description: A deterministic pass/fail audit of the narrowing-design-plan against this skill's Quality Gates, as produced by scripts/typescript_narrowing_expert_audit.mjs.
 ---
 
 # TypeScript Narrowing Expert
@@ -279,6 +305,27 @@ Template literal types (`Capitalize`, `Uppercase`, `${...}`) compose with mapped
 - [ ] No `any` in domain code; only in `vendor/` or framework-boundary files. CI: `tsc --noImplicitAny` clean.
 - [ ] Conditional types stay ≤ 50 lines; complex ones broken into named type aliases. ESLint rule on type-alias body length.
 - [ ] `tsc --noEmit` runs in CI on every PR; build fails on type errors.
+
+## Deterministic Audit
+
+Before committing to a type design (or reviewing another agent's), write it as a JSON plan
+matching `schemas/typescript-narrowing-expert-plan.schema.json` and run the deterministic
+auditor:
+
+```bash
+node scripts/typescript_narrowing_expert_audit.mjs --input examples/sample-input.json
+```
+
+`auditTypescriptNarrowingExpert(plan)` (in `scripts/typescript_narrowing_expert_audit.mjs`)
+turns this skill's anti-patterns and Quality Gates into machine-checkable rules over
+structured fields: a discriminant that isn't a literal (switch won't narrow), a union with
+no `never` exhaustiveness check, a "type guard" that returns `boolean` instead of `x is Foo`,
+bare `as` casts without documented reasons, branded IDs with no validating factory or
+negative type-tests, narrowing that crosses a closure boundary without a `const` capture,
+over-deep conditional types, and missing `tsc --noEmit` CI. It returns
+`{ pass, score, findings, recommendations }`. `examples/sample-input.json` is a
+branded-ID + discriminated-union plan that clears every gate (`pass: true`). Changes are
+tracked in `CHANGELOG.md`.
 
 ## NOT for
 

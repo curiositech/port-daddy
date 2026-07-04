@@ -1,14 +1,43 @@
 ---
+license: Apache-2.0
 name: grafana-dashboard-builder
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 description: 'Use when building Grafana dashboards backed by Prometheus, Loki, or Tempo, designing PromQL/LogQL queries, wiring template variables, setting alert rules, building SLO dashboards, or maintaining dashboards as code. Triggers: rate() vs increase() confusion, irate vs rate, label_replace, recording rules, alerting rule expressions, multi-dimensional template variables, ad-hoc filters, dashboard JSON model, provisioning via Terraform/grafonnet, p99 / histogram_quantile usage. NOT for Datadog/New Relic dashboards (vendor-specific), Grafana plugin development, or Loki ingestion pipeline tuning.'
-category: DevOps & Infrastructure
-tags:
-  - grafana
-  - prometheus
-  - promql
-  - dashboards
-  - slo
-  - observability
+metadata:
+  category: DevOps & Infrastructure
+  tags:
+    - grafana
+    - prometheus
+    - promql
+    - dashboards
+    - slo
+    - observability
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: monitoring-stack-deployer
+      reason: Deploys the Prometheus/Loki/Grafana stack these dashboards run on; this skill designs what renders inside it
+    - skill: logging-observability
+      reason: The producer-side log schema and levels that LogQL panels and error-rate queries depend on
+    - skill: observability-apm-expert
+      reason: Chooses the metrics, SLIs, and instrumentation that dashboards and alert rules visualize
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: observability-requirement
+        format: markdown
+        description: The service, its SLOs, and the questions the dashboard must answer, from a human or another agent.
+      - kind: dashboard-plan
+        format: json
+        description: A structured plan of panel counts, query functions, alert dwell/runbook settings, and provisioning mode, matching schemas/grafana-dashboard-builder-plan.schema.json.
+    produces:
+      - kind: dashboard-design
+        format: markdown
+        description: The dashboard layout, PromQL/LogQL queries, recording rules, and alert rules, following this skill's structure and anti-patterns.
+      - kind: dashboard-audit-report
+        format: json
+        description: A deterministic pass/fail audit of the dashboard-plan against this skill's Quality Gates, as produced by scripts/grafana_dashboard_builder_audit.mjs.
 ---
 
 # Grafana Dashboard Builder
@@ -256,6 +285,27 @@ Or use Grafana's annotation API to push events from CI.
 - [ ] SLO dashboard has burn-rate and error-budget panels.
 - [ ] Annotations for deploys + incidents enabled.
 - [ ] Top row of every dashboard answers "is the system healthy" at a glance.
+
+## Deterministic Audit
+
+Before shipping (or reviewing) a dashboard and its alerts, write the plan as JSON matching
+`schemas/grafana-dashboard-builder-plan.schema.json` and run it through the deterministic
+auditor:
+
+```bash
+node scripts/grafana_dashboard_builder_audit.mjs --input examples/sample-input.json
+```
+
+`auditGrafanaDashboardBuilder(plan)` (in `scripts/grafana_dashboard_builder_audit.mjs`)
+turns this skill's recurring traps into machine-checkable rules over structured fields — no
+keyword matching: `rate`/`irate`/`increase` on a gauge (negative-rate garbage),
+`histogram_quantile` without `by (le)` (the NaN panel), `irate` inside alert expressions,
+SLO alerts with a dwell under 5 minutes, alerts with no runbook URL, expensive queries
+shared by >2 panels without a recording rule, panel sprawl past 30, live-edited dashboards
+outside version control, and Include-All on a high-cardinality variable. It returns
+`{ pass, score, findings, recommendations }` and exits 1 on failure.
+`examples/sample-input.json` is a well-formed SLO-dashboard plan (`pass: true`, zero
+findings). See `CHANGELOG.md` for the bundle's history.
 
 ## NOT for
 

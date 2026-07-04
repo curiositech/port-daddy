@@ -1,15 +1,43 @@
 ---
+license: Apache-2.0
 name: outbox-pattern-implementation
 description: 'Use when you need to publish a message to Kafka / RabbitMQ / SNS atomically with a database commit, when fixing the dual-write hazard between DB and broker, deciding between polling-publisher and CDC (Debezium) relay, designing the outbox schema, handling at-least-once / idempotency on the consumer, or pruning a high-volume outbox table. Triggers: dual write, "we updated the DB but the event never published", outbox/inbox pattern, Debezium connector, EventRouter SMT, aggregate_type / aggregate_id, at-least-once with idempotent consumer, outbox table partitioning. NOT for receiver-side webhook handling, sagas/Temporal as orchestration, log-based event sourcing as the source of truth, or Kafka producer tuning generally.'
-category: Backend & Infrastructure
 allowed-tools: Read,Grep,Glob,Edit,Write,Bash
-tags:
-  - outbox
-  - cdc
-  - debezium
-  - kafka
-  - postgres
-  - distributed-systems
+metadata:
+  category: Backend & Infrastructure
+  tags:
+    - outbox
+    - cdc
+    - debezium
+    - kafka
+    - postgres
+    - distributed-systems
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: event-driven-architecture-expert
+      reason: The outbox is the reliable-publish building block inside the larger event-driven topology (topics, consumers, schemas) that skill designs
+    - skill: postgres-connection-pooling
+      reason: The polling relay holds Postgres connections and uses FOR UPDATE SKIP LOCKED; pool mode and idle-in-transaction timeouts directly affect it
+    - skill: opentelemetry-instrumentation
+      reason: This skill's trace_id column and consumer follower-span pattern depend on the OTel context propagation that skill owns
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: messaging-requirement
+        format: markdown
+        description: What must be published atomically with which DB writes -- broker, volume, latency tolerance, existing Debezium/Kafka Connect footprint.
+      - kind: outbox-plan
+        format: json
+        description: A structured plan naming the architecture, relay type, schema shape, idempotency, and pruning choices, matching schemas/outbox-pattern-implementation-plan.schema.json.
+    produces:
+      - kind: outbox-design
+        format: markdown
+        description: Outbox schema, relay selection (polling vs CDC), consumer idempotency, and pruning strategy with the rationale for each choice.
+      - kind: outbox-audit
+        format: json
+        description: A deterministic pass/fail audit of the outbox-plan against this skill's Quality Gates, as produced by scripts/outbox_pattern_implementation_audit.mjs.
 ---
 
 # Outbox Pattern Implementation
@@ -346,6 +374,29 @@ Consumer extracts and creates a follower span. See `opentelemetry-instrumentatio
 - **Kafka producer tuning generally** (acks=all, idempotent producer, EOS) — adjacent topic, different scope.
 - **Inbox pattern** is covered briefly here but warrants a dedicated treatment for high-volume consumers.
 - **DB migrations / schema evolution of the outbox table itself** — → `zero-downtime-database-migration`.
+
+## Deterministic Audit
+
+Before shipping (or reviewing) an outbox implementation, write the design as a JSON plan
+matching `schemas/outbox-pattern-implementation-plan.schema.json` and run it through the
+deterministic auditor:
+
+```bash
+node scripts/outbox_pattern_implementation_audit.mjs --input examples/sample-input.json
+```
+
+`auditOutboxPatternImplementation(plan)` (in `scripts/outbox_pattern_implementation_audit.mjs`)
+turns this skill's Anti-patterns and Quality Gates into machine-checkable rules over structured
+fields — no keyword matching: a dual-write or publish-first architecture (the bug the pattern
+exists to kill), an outbox insert outside the business transaction, a polling relay without
+`FOR UPDATE SKIP LOCKED` or the partial unpublished index, a CDC relay with no replication-slot
+lag monitoring (the WAL-fills-the-disk failure), a non-idempotent consumer, Redis or in-memory
+dedup instead of the DB unique constraint, a missing prune strategy, and drift from the
+canonical `aggregate_type`/`aggregate_id`/`event_type`/`payload` schema. It returns
+`{ pass, score, findings, recommendations }` so a reviewer or CI gate can reject an unsafe
+design without re-deriving the reasoning. `examples/sample-input.json` is a
+polling-relay-with-partitioned-prune plan that audits `pass: true`. Version history lives in
+`CHANGELOG.md`.
 
 ## Sources
 

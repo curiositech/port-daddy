@@ -1,15 +1,41 @@
 ---
+license: Apache-2.0
 name: postgres-explain-analyzer
 description: 'Use when a Postgres query is slow, p99 latency regressed after deploy, EXPLAIN ANALYZE output needs interpretation, the planner is choosing the wrong index, dead tuples are blowing up, autovacuum is falling behind, pg_stat_statements review is needed, or query plans regressed between releases. Triggers: "Seq Scan on big_table", "Rows Removed by Filter: 3M", "could not extend file", parameter-sniffing surprises, missing indexes, prepared-statement plan-cache regressions. NOT for schema design from scratch, replication setup, MySQL/Aurora-specific tuning, or pgvector index tuning — different skill domains.'
-category: Backend & Infrastructure
 allowed-tools: Read,Grep,Glob,Edit,Write,Bash
-tags:
-  - postgres
-  - sql
-  - performance
-  - query-plan
-  - indexing
-  - database
+metadata:
+  category: Backend & Infrastructure
+  tags:
+    - postgres
+    - sql
+    - performance
+    - query-plan
+    - indexing
+    - database
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: postgres-row-level-security
+      reason: RLS predicates land in the query plan; the (SELECT auth.uid()) initPlan fix and its index requirements are verified with the EXPLAIN ANALYZE workflow here.
+    - skill: observability-apm-expert
+      reason: The p99 dashboards and alerting that detect the plan regressions this skill then diagnoses.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: slow-query-report
+        format: markdown
+        description: A symptom description -- slow query, p99 regression after deploy, planner ignoring an index, dead-tuple bloat, disk-spilling sorts -- with the query and any captured plans.
+      - kind: query-tuning-plan
+        format: json
+        description: A structured tuning plan (symptom, captured EXPLAIN evidence, estimate accuracy, planned fixes) matching schemas/postgres-explain-analyzer-plan.schema.json.
+    produces:
+      - kind: tuning-diagnosis
+        format: markdown
+        description: Root-cause diagnosis of the plan (node by node) with the ordered fix list and a verification EXPLAIN after the fix.
+      - kind: tuning-plan-audit
+        format: json
+        description: Deterministic pass/fail audit of a query-tuning-plan against this skill's Quality Gates, produced by scripts/postgres_explain_analyzer_audit.mjs.
 ---
 
 # Postgres EXPLAIN Analyzer
@@ -209,6 +235,26 @@ Track regressions by `queryid` (stable across parameters). After a deploy, snaps
 - [ ] `work_mem` sized so the worst common Sort/Hash node doesn't spill to disk. Verified: grep EXPLAIN output for `Disk:` — should be absent in p99 query plans.
 - [ ] Critical queries pinned with `pg_hint_plan` or rewritten to be selectivity-stable. Documented in runbook.
 - [ ] Plan-regression test in CI: replay top 10 queries against a staging snapshot post-migration; fail if any plan loses an index scan.
+
+## Deterministic Audit
+
+Before executing a tuning session (or reviewing another agent's), write it as a JSON
+`query-tuning-plan` matching `schemas/postgres-explain-analyzer-plan.schema.json` and run it
+through the deterministic auditor:
+
+```bash
+node scripts/postgres_explain_analyzer_audit.mjs --input examples/sample-input.json
+```
+
+`auditPostgresExplainAnalyzer(plan)` (in `scripts/postgres_explain_analyzer_audit.mjs`) turns
+this skill's Quality Gates into machine-checkable rules over structured fields — no keyword
+matching: diagnosing without a captured `EXPLAIN (ANALYZE, BUFFERS)`, fixing anything else
+before refreshing 10x-off statistics, dropping an index without justification and EXPLAIN
+evidence, building an index non-CONCURRENTLY on a production table, ignoring a disk-spilling
+sort or a dead-tuple blowup, and closing an incident without a verification EXPLAIN. It
+returns `{ pass, score, findings, recommendations }`; `examples/sample-input.json` is a
+well-formed post-deploy-regression plan that audits `pass: true`. Version history:
+`CHANGELOG.md`.
 
 ## NOT for
 

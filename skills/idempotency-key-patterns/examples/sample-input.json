@@ -1,0 +1,14 @@
+{
+  "keyGenerator": "client",
+  "keySource": "random-uuid",
+  "fingerprintCheck": true,
+  "inProgressLock": true,
+  "lockTtlSeconds": 90,
+  "recoveryPointStateMachine": true,
+  "maxSideEffectsPerPhase": 1,
+  "statusCodeFlavor": "stripe",
+  "retentionHours": 24,
+  "durableStore": "postgres",
+  "uniquenessScope": "per-tenant",
+  "appliesToSafeMethods": false
+}

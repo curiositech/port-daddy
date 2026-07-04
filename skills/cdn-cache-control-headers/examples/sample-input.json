@@ -1,0 +1,16 @@
+{
+  "responseKind": "anonymous-html",
+  "cacheability": "public",
+  "maxAge": 60,
+  "sMaxage": 300,
+  "immutable": false,
+  "staleWhileRevalidate": 86400,
+  "staleIfError": 86400,
+  "varyHeaders": ["accept-encoding"],
+  "setCookiePresent": false,
+  "mutableContent": true,
+  "purgeOnEdit": true,
+  "surrogateKeysUsed": true,
+  "surrogateKeyCount": 4,
+  "expiresHeaderAlsoSet": false
+}

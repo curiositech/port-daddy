@@ -1,14 +1,41 @@
 ---
+license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 name: terraform-module-design
 description: 'Use when designing Terraform modules for reuse, structuring root vs child modules, choosing variable shapes (object vs flat list), wiring versioning + module registries, managing remote state, detecting and remediating drift, or refactoring monolithic configs. Triggers: module composition, var validation blocks, output contracts, count vs for_each, lifecycle ignore_changes, terraform import, state mv between resources, workspaces vs separate state files, OIDC to provider, drift detection runs. NOT for Pulumi/CDK (different paradigms), CloudFormation, ad-hoc one-off deployments, or Terraform Cloud-specific UX.'
-category: DevOps & Infrastructure
-tags:
-  - terraform
-  - iac
-  - modules
-  - state
-  - hashicorp
-  - cloud
+metadata:
+  category: DevOps & Infrastructure
+  tags:
+    - terraform
+    - iac
+    - modules
+    - state
+    - hashicorp
+    - cloud
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: monitoring-stack-deployer
+      reason: Once modules provision the infrastructure, that skill wires the observability stack watching it -- often as a caller of the modules designed here.
+    - skill: agentic-infrastructure-2026
+      reason: The broader infra-architecture context (what to provision and why) that this skill's module boundaries and state-splitting decisions serve.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: infrastructure-requirement
+        format: markdown
+        description: A description of the infrastructure to modularize -- environments, teams sharing modules, blast-radius concerns, CI posture, existing monolith if refactoring.
+      - kind: terraform-module-plan
+        format: json
+        description: A structured plan naming source pinning, iterator choice, state backend, secrets handling, and CI apply discipline, matching schemas/terraform-module-plan.schema.json.
+    produces:
+      - kind: module-design
+        format: markdown
+        description: The module layout (structure, variable shapes with validation, output contract, versioning scheme, state split, moved/import blocks for refactors).
+      - kind: module-design-audit
+        format: json
+        description: A deterministic pass/fail audit of the terraform-module-plan against this skill's Quality Gates, as produced by scripts/terraform_module_audit.mjs.
 ---
 
 # Terraform Module Design
@@ -298,6 +325,26 @@ Pin major + minor. Patch range is fine. `>= 1.7` keeps you within tested territo
 - [ ] `ignore_changes` is targeted, never `all`.
 - [ ] `terraform plan -out` then `apply plan.tfplan` in CI.
 - [ ] Provider + Terraform versions pinned.
+
+## Deterministic Audit
+
+Before committing to a module design (or reviewing another agent's), write it as a JSON
+plan matching `schemas/terraform-module-plan.schema.json` and run the deterministic
+auditor:
+
+```bash
+node scripts/terraform_module_audit.mjs --input examples/sample-input.json
+```
+
+`auditTerraformModule(plan)` (in `scripts/terraform_module_audit.mjs`) turns this
+skill's anti-patterns and Quality Gates into machine-checkable rules over structured
+fields — no keyword matching: a module sourced from a floating branch, `count` on
+resources with identity, blanket `ignore_changes = all`, a local or unlocked state
+backend, secrets in tfvars, plan-apply-pray (apply not bound to a saved plan file),
+missing drift checks, unpinned providers, and long-lived CI credentials instead of
+OIDC. It returns `{ pass, score, findings, recommendations }`.
+`examples/sample-input.json` is a tag-pinned, remote-locked-state plan (`pass: true`).
+Version history lives in `CHANGELOG.md`.
 
 ## NOT for
 

@@ -134,7 +134,7 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{May 2026\\Version 0.9 (pre-print)}
+\date{July 2026\\Version 0.9.1 (pre-print)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
 \begin{document}
@@ -738,6 +738,24 @@ The Federated Harbor sits at the intersection of four bodies of work. We are con
 
 \paragraph{Cross-domain settlement.} Herlihy's atomic cross-chain swap~\cite{herlihy2018atomic} is the protocol template; the cross-harbor settlement protocol of \S\ref{sec:fh-settlement} mirrors the structure but specializes for non-fungible reputation-priced bonds. We are explicit that our settlement is not trustless in Herlihy's sense; it admits a trusted-but-bounded escrow. Whether trustless is achievable in our setting is open (\S\ref{sec:fh-limitations}). The IBC protocol~\cite{goes2020ibc} is the most production-deployed cross-domain communication protocol that is not on Ethereum, and its connection/channel abstraction influenced our handshake; we differ in not requiring consensus underneath.
 
+\paragraph{Agentic-commerce discovery and mandates.} The Universal Commerce
+Protocol~\cite{ucp2026} (Google/Shopify, 2026) solved cross-administrative
+discovery for agent-mediated retail with a pattern the Federated Harbor
+adopts (ADR-0051 Phase~1b): a \texttt{/.well-known} JSON profile that does
+double duty as capability declaration and JWK key publication, with
+server-selects version negotiation --- the party that must execute a request
+computes the compatibility intersection. Where UCP assumes merchants hold
+stable HTTPS origins, our daemons often do not (the same constraint that
+ruled out OpenID Federation's entity-statement fetching above); the profile
+therefore also travels as a relay-published mirror. UCP delegates
+authorization proof to the Agent Payments Protocol's verifiable-credential
+mandates~\cite{ap2mandates2026}, whose SD-JWT/JWS/JCS formats the harbor
+boundary now speaks (ADR-0094). The division of labor is instructive: those
+protocols standardize discovery and the transaction envelope and are
+explicit that counterparty trustworthiness, collateral, and settlement
+enforcement are out of scope --- which is the half of the problem this paper
+and its predecessors supply.
+
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Limitations and Open Questions}\label{sec:fh-limitations}
 % ═════════════════════════════════════════════════════════════════════════════
@@ -925,6 +943,16 @@ Juan Brackeva et al.
 Bruno Blanchet.
 \newblock Modeling and Verifying Security Protocols with the Applied Pi Calculus and ProVerif.
 \newblock \textit{Foundations and Trends in Privacy and Security}, 1(1-2):1--135, 2016.
+
+\bibitem{ucp2026}
+Universal Commerce Protocol.
+\newblock Specification and reference implementation (Apache-2.0), Google, Shopify, et al., 2026.
+\newblock \texttt{https://ucp.dev}.
+
+\bibitem{ap2mandates2026}
+Agent Payments Protocol (AP2): Mandates.
+\newblock Verifiable-credential authorization chain: SD-JWT+kb, JWS detached content, JCS canonicalization, 2026.
+\newblock \texttt{https://ap2-protocol.org}.
 
 \end{thebibliography}
 

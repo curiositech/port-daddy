@@ -1,9 +1,42 @@
 ---
+license: Apache-2.0
 name: idempotency-key-patterns
-description: Implementing the `Idempotency-Key` HTTP header pattern (Stripe-pioneered, IETF-standardizing) so retries don't double-charge or duplicate side effects — full Postgres schema with recovery-point state machine, fingerprint check, in-progress lock with 409 response, and 24h retention. Grounded in Stripe blog/docs, the IETF httpapi WG draft, and Brandur Leach's canonical implementation.
-category: API Design
-tags: [api, idempotency, retries, http, stripe, distributed-systems, exactly-once]
+description: Implementing the `Idempotency-Key` HTTP header pattern (Stripe-pioneered, IETF-standardizing) so retries don't double-charge or duplicate side effects — full Postgres schema with recovery-point state machine, fingerprint check, in-progress lock with 409 response, and 24h retention. Grounded in Stripe blog/docs, the IETF httpapi WG draft, and Brandur Leach's canonical implementation. NOT for distributed sagas/transactions, event-stream exactly-once delivery, webhook dedup, or general retry/backoff strategy.
 allowed-tools: Read, Grep, Glob, Edit, Write, Bash(grep:*, rg:*, psql:*, curl:*)
+metadata:
+  category: API Design
+  tags:
+    - api
+    - idempotency
+    - retries
+    - http
+    - stripe
+    - distributed-systems
+    - exactly-once
+  pairs-with:
+    - skill: kafka-consumer-group-design
+      reason: At-least-once Kafka consumption requires an idempotent sink; this skill supplies the sink-side pattern the consumer skill assumes
+    - skill: error-handling-patterns
+      reason: The retry/backoff policies that generate duplicate requests live there; idempotency keys are what make those retries safe
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: endpoint-requirement
+        format: markdown
+        description: A description of the unsafe (POST-like) endpoint that must survive client retries without duplicating side effects.
+      - kind: idempotency-plan
+        format: json
+        description: A structured plan naming key generation, fingerprint check, lock, recovery-point, retention, and storage choices, per schemas/idempotency-plan.schema.json.
+    produces:
+      - kind: implementation-review
+        format: markdown
+        description: The schema, upsert, and state-machine design (or review of one) following the canonical Stripe/Brandur pattern.
+      - kind: idempotency-plan-audit
+        format: json
+        description: A deterministic pass/fail audit of the idempotency-plan against this skill's Quality Gates, as produced by scripts/idempotency_key_patterns_audit.mjs.
 ---
 
 # Idempotency Key Patterns
@@ -278,6 +311,28 @@ An idempotency implementation ships when:
 - [ ] **Test:** Reaper job actually runs and respects retention window.
 - [ ] **Test:** Naturally idempotent methods (GET, PUT, DELETE) do **not** require the header — verified by hitting them without one.
 - [ ] **Manual:** API docs document the chosen status codes (Stripe 400 or IETF 422) and the retention window.
+
+---
+
+## Deterministic Audit
+
+Before shipping (or reviewing) an idempotency implementation, write the design as a
+JSON plan matching `schemas/idempotency-plan.schema.json` and run it through the
+deterministic auditor:
+
+```bash
+node scripts/idempotency_key_patterns_audit.mjs --input examples/sample-input.json
+```
+
+`auditIdempotencyKeyPatterns(plan)` (in `scripts/idempotency_key_patterns_audit.mjs`)
+encodes this skill's core trio — fingerprint check + in-progress lock + recovery-point
+state machine — and the anti-patterns table as machine-checkable rules over structured
+fields only: a server-generated key, a missing fingerprint check, a lock without a TTL,
+more than one side effect per atomic phase, Redis-only storage, a globally-scoped key,
+PII-derived keys, and sub-24h retention. It returns
+`{ pass, score, findings, recommendations }` and exits 1 on failure, so CI can reject a
+"cache that pretends to be idempotency" without re-deriving the reasoning.
+`examples/sample-input.json` is a fully-armed plan that audits `pass: true`. Version history lives in `CHANGELOG.md`.
 
 ---
 
