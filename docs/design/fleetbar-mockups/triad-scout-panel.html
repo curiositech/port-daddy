@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scout — Visual Intake + Ask Agent (spec mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600;700&family=Recursive:CASL,wght@1,600..800&display=swap">
 <style>
 /* ============================================================
    Scout spec mockup — renders work-packets/scout-extension-technical-spec.md
@@ -18,29 +21,39 @@
   --paper: #F2EEE6; --paper-raised: #E9E2D5; --paper-deep: #E0D9CB;
   --ink: #121212; --ink-soft: #403B34; --ink-mute: #47423A;
   --accent: #003FB8;
-  --ok: #2D7A43; --warn: #A66F00; --err: #BF2F2F; --blocked: #6F48B5; --idle: #8F8879;
-  --hairline: rgba(18,18,18,.28); --bracket: rgba(18,18,18,.85);
+  --ok: #1F7A4D; --warn: #A66F00; --err: #BF2F2F; --blocked: #933FA5; --idle: #8F8879;
+  --hairline: rgba(18,18,18,.14); --hairline-strong: rgba(18,18,18,.34); --bracket: #121212; --lime: #CAD900;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --paper: #181C22; --paper-raised: #222833; --paper-deep: #101216;
     --ink: #F5F3ED; --ink-soft: #D3CEC2; --ink-mute: #A59F93;
-    --accent: #7DB4FF; --ok: #66D28A; --warn: #F2BE51; --err: #FF7D7D;
-    --blocked: #B69BEC; --idle: #736D60;
-    --hairline: rgba(245,243,237,.24); --bracket: rgba(245,243,237,.8);
+    --accent: #7DB4FF; --ok: #5FCE97; --warn: #F2BE51; --err: #FF7D7D;
+    --blocked: #E0A5ED; --idle: #736D60;
+    --hairline: rgba(245,243,237,.14); --hairline-strong: rgba(245,243,237,.34); --bracket: #F5F3ED; --lime: #D8DD3C;
   }
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-family: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
   background: var(--paper-deep); color: var(--ink);
   font-size: .9375rem; line-height: 1.6; -webkit-font-smoothing: antialiased;
   padding-bottom: 4rem;
 }
-.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace;
+.mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   font-variant-numeric: tabular-nums slashed-zero; font-size: .8125rem; }
 .eyebrow { font-size: .75rem; font-weight: 650; text-transform: uppercase;
   letter-spacing: .12em; color: var(--ink-mute); }
+.casual { font-family: "Recursive", "IBM Plex Sans", sans-serif;
+  font-variation-settings: "CASL" 1; }
+/* ch20 rule 8 micro-flags: state = stripe + dot + micro-flag + label + time */
+.mfl { display: inline-block; width: 13px; height: 9.5px; flex: none;
+  border: .5px solid rgba(0,0,0,.25);
+  --fw: #FBF7EF; --fink: #17191D; --c: var(--accent); --y: var(--lime); }
+.fl-quebec { background: var(--y); } /* vessel healthy */
+.fl-kilo { background: linear-gradient(to right, var(--y) 0 50%, var(--c) 50%); } /* I wish to communicate */
+.fl-lima { background: conic-gradient(var(--fink) 0 25%, var(--y) 25% 50%, var(--fink) 50% 75%, var(--y) 75%); } /* stop instantly */
+.fl-november { background: repeating-conic-gradient(var(--c) 0 25%, var(--fw) 25% 50%) top left / 50% 50%; } /* negative */
 .pagehead { max-width: 1080px; margin: 2.2rem auto .4rem; padding: 0 2rem; }
 .pagehead h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -.02em; }
 .pagehead p { color: var(--ink-soft); max-width: 66ch; margin-top: .35rem; }
@@ -89,7 +102,7 @@ body {
 
 .chipstates { display: flex; flex-direction: column; gap: 6px; margin-top: .5rem; }
 .chip-daemon { display: flex; align-items: center; gap: .55rem; padding: .45rem .7rem;
-  background: var(--paper-raised); font-size: .875rem; }
+  background: var(--paper-raised); border: 1px solid var(--hairline); font-size: .875rem; }
 .chip-daemon .d { width: 8px; height: 8px; flex: none; }
 .chip-daemon.on .d { background: var(--ok); }
 .chip-daemon.off .d { background: var(--err); }
@@ -114,11 +127,11 @@ textarea, .fauxtext { width: 100%; font: inherit; font-size: .9rem; color: var(-
 .dompath { margin-top: .5rem; color: var(--ink-mute); word-break: break-all; }
 .acts { display: flex; gap: .5rem; margin-top: .8rem; }
 .btn { font: inherit; font-size: .875rem; font-weight: 600; padding: .3rem .8rem;
-  border: 1.5px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer; }
+  border: 2px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer; }
 .btn.primary { background: var(--ink); color: var(--paper); }
 .btn.quiet { border-color: var(--hairline); color: var(--ink-mute); }
 
-.routed { border-left: 3px solid var(--accent); background: var(--paper-raised);
+.routed { border: 1px solid var(--hairline); border-left: 3px solid var(--accent); background: var(--paper-raised);
   padding: .6rem .8rem; margin-top: .8rem; font-size: .875rem; }
 .routed .t { font-weight: 650; color: var(--accent); }
 .routed .mono { display: block; margin-top: .2rem; color: var(--ink-soft); }
@@ -131,7 +144,7 @@ textarea, .fauxtext { width: 100%; font: inherit; font-size: .9rem; color: var(-
 .ragent .lvl { display: block; font-size: .75rem; font-weight: 650; letter-spacing: .08em;
   text-transform: uppercase; }
 .ragent.sel .lvl { color: var(--accent); }
-.reply { border-left: 3px solid var(--accent); background: var(--paper-raised);
+.reply { border: 1px solid var(--hairline); border-left: 3px solid var(--accent); background: var(--paper-raised);
   padding: .7rem .85rem; margin-top: .6rem; }
 .reply .who { display: flex; gap: .6rem; align-items: baseline; }
 .reply .who b { font-weight: 700; }
@@ -140,19 +153,19 @@ textarea, .fauxtext { width: 100%; font: inherit; font-size: .9rem; color: var(-
 .reply .stream { color: var(--accent); font-size: .8125rem; margin-top: .4rem; }
 .deep { margin-top: .55rem; font-size: .875rem; }
 .deep a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--hairline); }
-.honest { border-left: 3px solid var(--idle); background: var(--paper-raised);
+.honest { border: 1px solid var(--hairline); border-left: 3px solid var(--idle); background: var(--paper-raised);
   color: var(--ink-mute); padding: .55rem .8rem; margin-top: .6rem; font-size: .875rem; }
 </style>
 </head>
 <body>
 
 <div class="pagehead">
-  <h1>Scout — capture where your eyes already are</h1>
+  <h1>Scout — capture where your <span class="casual">eyes</span> already are</h1>
   <p>Left: the operator drags a region on their running product; the annotation panel
      carries the evidence (pixels, DOM path, viewport) and a closed category taxonomy.
      Send routes a Work Intent — the confirmation shows the shape the planner chose.
      Right: the ask-agent face with compliance-honest states, and the three daemon chips.</p>
-  <p class="refs mono">contract: agent-harbor-technical-binder/work-packets/scout-extension-technical-spec.md · envelope: pd.scout.visual-task.v1 · palette: ADR-0048 story palette (#455, merged)</p>
+  <p class="refs mono">contract: agent-harbor-technical-binder/work-packets/scout-extension-technical-spec.md · envelope: pd.scout.visual-task.v1 · palette v2 (binder ch20 story-linework) · type: IBM Plex + Recursive casual · state: ch20 rule 8</p>
 </div>
 
 <div class="stage">
@@ -230,9 +243,9 @@ textarea, .fauxtext { width: 100%; font: inherit; font-size: .9rem; color: var(-
       <hr class="rule">
 
       <div class="roster">
-        <div class="ragent sel">QA<span class="lvl">controllable</span></div>
-        <div class="ragent">Gardener<span class="lvl">suggestible</span></div>
-        <div class="ragent">Spark<span class="lvl" style="color:var(--idle)">observed</span></div>
+        <div class="ragent sel"><span class="mfl" style="background:var(--accent)"></span> QA<span class="lvl">controllable</span></div>
+        <div class="ragent"><span class="mfl fl-quebec"></span> Gardener<span class="lvl">suggestible</span></div>
+        <div class="ragent"><span class="mfl fl-lima"></span> Spark<span class="lvl" style="color:var(--idle)">observed</span></div>
       </div>
 
       <div class="reply">
@@ -251,11 +264,11 @@ textarea, .fauxtext { width: 100%; font: inherit; font-size: .9rem; color: var(-
       <hr class="rule">
       <div class="eyebrow">Daemon chip · the three honest states</div>
       <div class="chipstates">
-        <div class="chip-daemon on"><span class="d"></span>Fleet daemon online
+        <div class="chip-daemon on"><span class="d"></span><span class="mfl fl-quebec"></span>Fleet daemon online
           <span class="detail mono">:9876 · 3 agents ready</span></div>
-        <div class="chip-daemon unpaired"><span class="d"></span>Daemon found — unpaired
+        <div class="chip-daemon unpaired"><span class="d"></span><span class="mfl fl-kilo"></span>Daemon found — unpaired
           <span class="detail mono">pair this device →</span></div>
-        <div class="chip-daemon off"><span class="d"></span>Daemon unreachable
+        <div class="chip-daemon off"><span class="d"></span><span class="mfl fl-november"></span>Daemon unreachable
           <span class="detail mono">tried 127.0.0.1:9876 · pd doctor</span></div>
       </div>
     </div>

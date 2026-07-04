@@ -7,20 +7,21 @@ These files are review artifacts, not shipped app surfaces. Keep them here while
 the FleetBar/TUI design direction is being reconciled with the native Swift app,
 the shared token work in `design/`, and the `core/pd-tui` prototype.
 
-## Spec-aligned mockups (current generation)
+## Design authority (parley settled 2026-07-05)
 
-Static renders of what the binder ch19 specs actually commit to — system SF
-type, tabular mono, fractional borders, placeholder palette pending PR #455:
+Binder ch20 (story linework, PR #657) is the design constitution; its
+normative app mocks live in `docs/design/story-linework/apps.html`
+(FleetBar, pd-console, Fleet Control Center, CLI, Harbor co-edit). Status of
+the files here:
 
-- `triad-fleetbar-popover.html` — intent-first home + fleet drawer, six-state
-  grammar, gate card, inline expansion
-- `triad-scout-panel.html` — region selection, annotation panel with closed
-  category taxonomy and routed-shape confirmation, ask-agent face, daemon chips
-- `triad-console-detail.html` — pd-console roster/detail, transcript with a
-  governance denial, compliance-gated controls
-
-Older `v*`/`operator-tui-*` files predate the ch19 vocabulary and type/palette
-decisions; treat them as idea sources only.
+- `triad-scout-panel.html` — **current**: the corpus has no other Scout mock;
+  conformed to ch20 (palette v2, IBM Plex + Recursive, rule-8 micro-flags,
+  rule-5 hairline cards).
+- `triad-fleetbar-popover.html`, `triad-console-detail.html` — **superseded**
+  by `apps.html` for styling; retained as ch19 structural/gate-fixture
+  references (IT-016/IT-017 anatomy). Banners inside say so.
+- Older `v*`/`operator-tui-*` files predate the ch19/ch20 decisions; idea
+  sources only.
 
 ## Technical contracts
 
