@@ -32,6 +32,8 @@ import {
 } from './fleet-engine.js';
 import { getSharedWebhookReceiver } from './fleet/webhook-receiver.js';
 import { getSharedApprovalStream } from './fleet/approval-stream.js';
+import { getSharedPushNotifier, setSharedPushNotifier, FleetPushNotifier } from './fleet/push-notifications.js';
+import { MacOSNotificationSink } from './fleet/outputs/notify-macos.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { loadEnvFiles } from './env-loader.js';
 import { createProjectSemaphoreRegistry, type ProjectSemaphoreRegistry } from './concurrency-semaphore.js';
@@ -1241,6 +1243,19 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       tuples?.take(['fleet:approval', proposal.id], { harbor });
     },
   });
+
+  // Approval gates → the operator's devices. Web Push to every registered
+  // fleet-ui subscription, plus a best-effort local macOS banner (pii:low —
+  // the push body is agent/trigger/tier only, never event content).
+  const macNotify = new MacOSNotificationSink();
+  setSharedPushNotifier(new FleetPushNotifier({
+    localNotify: async (title, body) => {
+      if ((await macNotify.available()).ready) {
+        await macNotify.dispatch({ sink: 'notify', type: 'os', title, body, pii: 'low' });
+      }
+    },
+  }));
+  getSharedPushNotifier().bindApprovalStream(getSharedApprovalStream());
 
   return {
     start,

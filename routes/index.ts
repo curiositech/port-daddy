@@ -24,6 +24,7 @@ import { webhooksPlugin } from './webhooks.js';
 import { githubWebhookPlugin } from './github-webhook.js';
 import { fleetWebhooksPlugin } from './fleet-webhooks.js';
 import { fleetApprovalsPlugin } from './fleet-approvals.js';
+import { fleetPushPlugin } from './fleet-push.js';
 import { relayPlugin } from './relay.js';
 import { configPlugin } from './config.js';
 import { projectsPlugin } from './projects.js';
@@ -130,6 +131,8 @@ export async function registerAllRoutes(
   await fastify.register(fleetWebhooksPlugin, { deps } as any);
   // Trust-gate approval loop: WebSocket stream + REST decisions (ADR-0093 L2).
   await fastify.register(fleetApprovalsPlugin, { deps } as any);
+  // Web Push (VAPID) so approval gates reach the operator's devices.
+  await fastify.register(fleetPushPlugin, { deps } as any);
 
   // Relay — daemon-side federation management (ADR-0049). Was SHIPPED-DEAD:
   // routes/relay.ts defined GET/POST /relay/config, /relay/status and
