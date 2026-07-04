@@ -1,0 +1,18 @@
+{
+  "retryEnabled": true,
+  "circuitBreakerEnabled": true,
+  "maxAttemptsPerRequest": 3,
+  "backoffStrategy": "exponential-full-jitter",
+  "backoffCapMs": 30000,
+  "perClientRetryBudgetRatio": 0.1,
+  "retryShortCircuitsOnOpenBreaker": true,
+  "slowCallRateThresholdConfigured": true,
+  "halfOpenProbeLimited": true,
+  "retriesOnClientErrors": false,
+  "honorsRetryAfter": true,
+  "deadlinePropagation": "propagated",
+  "layersThatRetry": 1,
+  "retriesNonIdempotentCalls": true,
+  "nonIdempotentRetriesHaveIdempotencyKey": true,
+  "library": "resilience4j"
+}

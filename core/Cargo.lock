@@ -4740,7 +4740,7 @@ dependencies = [
 
 [[package]]
 name = "pd-console"
-version = "3.23.0"
+version = "3.24.1"
 dependencies = [
  "anyhow",
  "dirs 5.0.1",

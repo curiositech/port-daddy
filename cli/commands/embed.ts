@@ -20,8 +20,9 @@
  *
  * Vectors are mean-pooled and L2-normalized, so cosine similarity is a plain
  * dot product. Exit codes: 0 ok; 1 usage or embedding failure; 3 model not
- * cached in --offline mode (callers fall back to lexical-only and point the
- * operator at `pd doctor`).
+ * cached — from `status` (scriptable presence check) and from `text`/`stdin`
+ * under --offline (callers fall back to lexical-only and point the operator
+ * at `pd doctor`).
  */
 
 import { existsSync, readdirSync } from 'node:fs';

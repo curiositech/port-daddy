@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/k8s-triage-plan.schema.json",
+  "title": "Kubernetes Triage Plan",
+  "description": "A structured plan for triaging a misbehaving Kubernetes workload — symptom, first diagnostic action, fix approach, and hygiene facts — so this runbook's Quality Gates can be checked deterministically by scripts/kubernetes_debugging_runbook_audit.mjs.",
+  "type": "object",
+  "required": ["symptom", "firstAction"],
+  "additionalProperties": true,
+  "properties": {
+    "symptom": {
+      "type": "string",
+      "enum": [
+        "crashloopbackoff",
+        "oomkilled",
+        "imagepullbackoff",
+        "pending",
+        "init-error",
+        "no-endpoints",
+        "dns-failure",
+        "network-blocked",
+        "hpa-not-scaling",
+        "evictions"
+      ],
+      "description": "The observed failure shape, per the pod-status decoding table."
+    },
+    "firstAction": {
+      "type": "string",
+      "enum": [
+        "describe-pod",
+        "logs-previous",
+        "logs-current",
+        "get-events",
+        "check-endpoints",
+        "run-debug-pod",
+        "exec-into-pod",
+        "restart-pod",
+        "raise-limits"
+      ],
+      "description": "The first step of the triage. Diagnostic reads should come before any mutation."
+    },
+    "usedPreviousLogs": {
+      "type": "boolean",
+      "description": "True if the plan reads kubectl logs --previous. Mandatory for CrashLoopBackOff — the current instance hasn't crashed yet."
+    },
+    "fixApproach": {
+      "type": "string",
+      "enum": ["manifest-change", "config-change", "kubectl-exec-hotfix", "restart-only"],
+      "description": "How the fix will be applied. kubectl-exec-hotfix creates an undocumented snowflake and fails the audit."
+    },
+    "memoryRequestsSet": {
+      "type": "boolean",
+      "description": "True if the affected containers set resources.requests.memory."
+    },
+    "memoryLimitsSet": {
+      "type": "boolean",
+      "description": "True if the affected containers set resources.limits.memory."
+    },
+    "livenessSameAsReadiness": {
+      "type": "boolean",
+      "description": "True if the liveness probe hits the same dependency-checking endpoint as readiness — the healthy-pod-killer anti-pattern."
+    },
+    "hpaTargetsHaveRequests": {
+      "type": "boolean",
+      "description": "True if every container targeted by the HPA declares resources.requests (required for percentage-utilization math)."
+    },
+    "networkPolicyAudited": {
+      "type": "boolean",
+      "description": "True if kubectl get netpol was reviewed for deny-by-default policies affecting the namespace."
+    },
+    "imageTag": {
+      "type": "string",
+      "enum": ["pinned", "latest"],
+      "description": "Whether the deployment pins an immutable image tag/digest or floats on latest."
+    },
+    "restartAlertingConfigured": {
+      "type": "boolean",
+      "description": "True if an alert exists on kube_pod_container_status_restarts_total (with OOMKilled split out)."
+    }
+  }
+}

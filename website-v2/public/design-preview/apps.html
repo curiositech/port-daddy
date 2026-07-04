@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Story Linework — the three app surfaces, in tandem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ports/port.css">
+<style>
+  .page { max-width: 1280px; }
+  .doc-head { padding: 56px 0 24px; border-bottom: 1px solid var(--hair-strong); margin-bottom: 40px; }
+  .doc-head h1 { font-size: clamp(34px, 4.4vw, 58px); font-weight: 700; line-height: 1.0; letter-spacing: var(--tracking-display); max-width: 20ch; }
+  .doc-head .lede { font-size: 15.5px; line-height: 1.65; color: var(--text-secondary); max-width: 72ch; margin-top: 14px; }
+
+  .mock-mat { background: #0d0f13; padding: 44px; margin-bottom: 26px; }
+  .mock-cap { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: baseline; margin: 56px 0 16px; }
+  .mock-cap .n { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 700; color: var(--cobalt); }
+  .mock-cap h2 { font-size: var(--fs-h2); font-weight: 700; letter-spacing: var(--tracking-h2); }
+  .mock-notes { font-size: 14.5px; line-height: 1.62; color: var(--text-secondary); max-width: 76ch; margin-top: 8px; }
+  .mock-notes b { color: var(--text-primary); }
+
+  /* ── shared micro-flag chip (12×9, state grammar companion) ── */
+  .mfl { display: inline-block; width: 13px; height: 9.5px; border: 0.5px solid rgba(0,0,0,0.25); flex: none; --fw:#fbf7ef; --ink:#17191d; --c:var(--cobalt-slab); --r:var(--rust-slab); --y:var(--lime); --f1:var(--cobalt-slab); --f2:var(--lime); }
+
+  /* ══ FLEETBAR ══ */
+  .menubar { width: 380px; margin: 0 auto; }
+  .mb-strip { background: #1a1d23; color: #d7dbe4; display: flex; justify-content: flex-end; gap: 14px; align-items: center; padding: 5px 12px; font-size: 12px; font-family: "IBM Plex Mono", monospace; }
+  .mb-strip .pd-mini { width: 15px; height: 15px; animation: pdw-spin 10s linear infinite; }
+  .fb { background: var(--surface-base); color: var(--text-primary); border: 1px solid rgba(0,0,0,0.35); position: relative; padding-bottom: 6px; }
+  .fb-head { display: flex; justify-content: space-between; align-items: center; padding: 13px 16px 10px; }
+  .fb-brand { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .fb-guard { font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.09em; padding: 2px 7px; background: var(--health-slab); color: #fbf7ef; }
+  .fb-rule { height: 1px; margin: 0 16px 10px; background: linear-gradient(to right, var(--hair-strong) 0 64px, transparent 64px); }
+  .fb-zone { margin: 0 10px 8px; padding: 11px 13px; background: var(--cobalt-slab); color: #fbf7ef; }
+  .fb-zone .z-eye { font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.8; display: flex; align-items: center; gap: 8px; }
+  .fb-zone .z-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; position: relative; }
+  .fb-zone .z-dot::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 1.5px solid currentColor; opacity: 0.55; animation: lw-pulse 1.8s ease-out infinite; }
+  .fb-zone .z-t { font-size: 13.5px; font-weight: 700; margin-top: 3px; }
+  .fb-zone .z-d { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; opacity: 0.9; margin-top: 4px; }
+  .fb-row { position: relative; display: grid; grid-template-columns: auto auto 1fr auto; gap: 9px; align-items: center; padding: 8px 16px 8px 19px; }
+  .fb-row + .fb-row { box-shadow: inset 0 1px 0 var(--hair); }
+  .fb-row::before { content: ""; position: absolute; left: 0; top: 5px; bottom: 5px; width: 3px; background: var(--st); }
+  .fb-row .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--st); }
+  .fb-row.running .dot { position: relative; }
+  .fb-row.running .dot::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 1.5px solid var(--st); opacity: 0.6; animation: lw-pulse 1.8s ease-out infinite; }
+  .fb-name { font-size: 13px; font-weight: 650; line-height: 1.25; }
+  .fb-stat { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+  .fb-time { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+  .fb-foot { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px 6px; font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+  .fb-cmd { background: var(--border-strong); color: var(--surface-base); padding: 2px 7px; font-weight: 700; }
+
+  /* ══ PD-CONSOLE (GPUI, always dark) ══ */
+  .console { width: 1080px; margin: 0 auto; background: #0b0d11; color: #d3cec2; border: 1px solid #2a2f3a; font-family: "IBM Plex Mono", monospace; }
+  .co-title { display: flex; align-items: center; gap: 10px; padding: 9px 14px; background: #101216; border-bottom: 1px solid #2a2f3a; }
+  .tl { display: flex; gap: 7px; } .tl i { width: 11px; height: 11px; border-radius: 50%; background: #3a4150; }
+  .co-title .t { font-size: 12.5px; font-weight: 600; color: #a59f93; }
+  .co-title .kilo { width: 22px; height: 15px; margin-left: auto; }
+  .co-tabs { display: flex; gap: 0; padding: 0 14px; background: #101216; border-bottom: 1px solid #2a2f3a; overflow: hidden; }
+  .co-tab { font-size: 12px; font-weight: 600; padding: 8px 13px; color: #6f6a5f; }
+  .co-tab.on { background: var(--cobalt-slab); color: #fbf7ef; }
+  .co-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 14px; padding: 16px; }
+  .co-panel { background: #101216; border: 1px solid #2a2f3a; position: relative; }
+  .co-panel.live { border: none; }
+  .co-panel.live > i.lw { position: absolute; width: 12px; height: 12px; border: 0 solid #f5f3ed; }
+  .co-panel.live > i.lw:nth-of-type(1) { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+  .co-panel.live > i.lw:nth-of-type(2) { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+  .co-panel.live > i.lw:nth-of-type(3) { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+  .co-panel.live > i.lw:nth-of-type(4) { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+  .co-ph { display: flex; justify-content: space-between; align-items: center; padding: 9px 13px; border-bottom: 1px solid #232833; }
+  .co-ph .pt { font-size: 11.5px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: #a59f93; }
+  .co-ph .pt.knock { background: var(--cobalt-slab); color: #fbf7ef; padding: 3px 8px; margin: -3px 0; }
+  .co-row { position: relative; display: grid; grid-template-columns: auto auto 1fr auto; gap: 9px; align-items: center; padding: 7px 13px 7px 16px; font-size: 12.5px; }
+  .co-row + .co-row { box-shadow: inset 0 1px 0 rgba(245,243,237,0.07); }
+  .co-row::before { content: ""; position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px; background: var(--st); }
+  .co-row .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--st); }
+  .co-row .nm { color: #f5f3ed; font-weight: 600; }
+  .co-row .ds { color: #a59f93; }
+  .co-row .tm { color: #6f6a5f; font-size: 11.5px; }
+  .co-chat { padding: 10px 13px; font-size: 12.5px; line-height: 1.75; }
+  .co-chat .who { color: #7db4ff; font-weight: 700; }
+  .co-chat .who.v { color: #e0a5ed; }
+  .co-chat .msg { color: #d3cec2; }
+  .co-claims td { padding: 6px 13px; font-size: 12px; color: #a59f93; border-top: 1px solid #1c212b; }
+  .co-claims td:first-child { color: #f5f3ed; font-weight: 600; }
+  .co-status { display: flex; gap: 18px; align-items: center; padding: 8px 16px; background: #101216; border-top: 1px solid #2a2f3a; font-size: 11.5px; color: #a59f93; }
+  .co-status b { color: #5fce97; }
+
+  /* ══ FLEET CONTROL CENTER (Swift chrome + React content) ══ */
+  .cc { width: 1120px; margin: 0 auto; background: var(--surface-base); color: var(--text-primary); border: 1px solid rgba(0,0,0,0.35); }
+  .cc-toolbar { display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-bottom: 2px solid var(--border-strong); }
+  .cc-proj { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 700; padding: 4px 10px; border: 1px solid var(--hair-strong); }
+  .cc-daemon { display: flex; align-items: center; gap: 7px; font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--text-muted); margin-left: auto; }
+  .cc-daemon .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--health); }
+  .cc-body { display: grid; grid-template-columns: 200px 1fr 250px; min-height: 520px; }
+  .cc-nav { border-right: 1px solid var(--hair); padding: 14px 0; }
+  .cc-nav a { display: block; font-size: 13.5px; font-weight: 600; color: var(--text-muted); padding: 7px 18px; position: relative; }
+  .cc-nav a.on { color: var(--text-primary); background: var(--surface-card); }
+  .cc-nav a.on::before { content: ""; position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px; background: var(--cobalt); }
+  .cc-main { padding: 20px 22px; }
+  .cc-main .eyebrow { display: inline-block; background: var(--border-strong); color: var(--surface-base); padding: 3px 9px; }
+  .cc-main h3 { font-size: 22px; font-weight: 700; letter-spacing: var(--tracking-h3); margin: 10px 0 14px; }
+  .cc-zone { padding: 13px 16px; background: var(--cobalt-slab); color: #fbf7ef; margin-bottom: 14px; display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; }
+  .cc-zone .z-t { font-size: 14.5px; font-weight: 700; }
+  .cc-zone .z-d { font-family: "IBM Plex Mono", monospace; font-size: 12px; opacity: 0.9; margin-top: 3px; }
+  .cc-zone .z-act { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700; padding: 6px 11px; background: rgba(0,0,0,0.3); }
+  .cc-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .cc-card { background: var(--surface-card); border: 1px solid var(--hair); border-left: none; box-shadow: inset 3px 0 0 var(--st); padding: 12px 14px; }
+  .cc-card .h { display: flex; align-items: center; gap: 8px; }
+  .cc-card .nm { font-size: 14px; font-weight: 700; }
+  .cc-card .ds { font-size: 12.5px; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+  .cc-card .meta { display: flex; justify-content: space-between; font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--text-muted); margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--hair); }
+  .cc-rail { border-left: 1px solid var(--hair); padding: 14px 0; }
+  .cc-rail .rl { font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: var(--text-muted); padding: 0 16px 8px; }
+  .cc-ev { display: grid; grid-template-columns: auto 1fr; gap: 8px; padding: 7px 16px; font-size: 12.5px; color: var(--text-secondary); align-items: start; }
+  .cc-ev + .cc-ev { box-shadow: inset 0 1px 0 var(--hair); }
+  .cc-ev .mfl { margin-top: 3px; }
+  .cc-ship { margin: 14px 16px 0; padding: 11px 13px; background: var(--gold-wash); border: 1px solid var(--hair); font-size: 12.5px; }
+  .cc-ship b { color: var(--gold-on-tint); }
+
+  /* token mapping strip */
+  .map-table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 10px; }
+  .map-table th, .map-table td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--hair); }
+  .map-table th { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; color: var(--text-muted); border-bottom: 1px solid var(--border-strong); }
+  .map-table td { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--text-secondary); }
+  @media (max-width: 1180px) { .console, .cc { width: 100%; } .cc-body { grid-template-columns: 170px 1fr; } .cc-rail { display: none; } }
+</style>
+</head>
+<body>
+<div style="position:fixed; top:20px; right:26px; z-index:60;"><button class="theme-toggle" id="themeToggle">Dark</button></div>
+<main class="page">
+
+  <header class="doc-head">
+    <div class="eyebrow">Story linework · the three app surfaces · 2026-07-04</div>
+    <h1 style="margin-top:12px;">One system, three runtimes.</h1>
+    <p class="lede"><b>Scout captures intent. FleetBar grants consent. pd-console shows the truth.</b> (binder ch19 — surfaces differ in affordance, never in authority.) The sanctioned operator surfaces wearing the same system as the site: palette v2 with its slab and wash cuts, the six-state grammar (stripe + dot + micro-flag + label + time), brackets on live panels only, one zone per view, and the signal vocabulary the token file has always named. Every color below exists in all three runtimes; the mapping table is at the end.</p>
+  </header>
+
+  <!-- ═══════════ M·A FLEETBAR ═══════════ -->
+  <div class="mock-cap"><span class="n">M·A</span><div><h2>FleetBar — the 380pt popover</h2>
+    <p class="mock-notes">Designed to the binder's contract: FleetBar is <b>the only surface allowed to demand attention, and only for human gates</b> — so the gate queue sits above everything, violet, with approve/open verbs inline. Below it the one cobalt zone (running now), the state grammar rows, and the fix for the real screenshot's wall of 16 amber dev builds: <b>berth lanes</b> — Prod/Latest pinned, Dev collapsed to a disclosure with a count. Micro-flags are the second signal on every row.</p></div></div>
+  <div class="mock-mat">
+    <div class="menubar">
+      <div class="mb-strip"><span>◐</span><span>⚙</span><img class="pd-mini" src="/logos/portdaddy-mark-radar-darkmode.svg" alt=""><span>Fri 21:42</span></div>
+      <div class="fb">
+        <div class="fb-head">
+          <span class="fb-brand"><span class="hoist" style="gap:3px;"><i class="fl fl-papa" style="width:16px;height:12px;"></i><i class="fl fl-delta" style="width:16px;height:12px;"></i></span> port-daddy</span>
+          <span class="fb-guard">GUARD · ENFORCE</span>
+        </div>
+        <div class="fb-rule"></div>
+        <div style="margin: 0 10px 8px; padding: 10px 13px; background: var(--violet-slab); color: #fbf7ef;">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; opacity:0.8; display:flex; align-items:center; gap:8px;"><span class="mfl fl-lima" style="border-color:rgba(251,247,239,0.4);"></span> Needs you · 1 gate</div>
+          <div style="font-size:13.5px; font-weight:700; margin-top:3px;">Approver: merge PR #91?</div>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <span style="font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; padding:4px 10px; background:#fbf7ef; color:#17191d;">Approve</span>
+            <span style="font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; padding:4px 10px; background:rgba(0,0,0,0.3);">Open in console</span>
+          </div>
+        </div>
+        <div class="fb-zone">
+          <div class="z-eye"><span class="z-dot"></span> Now running</div>
+          <div class="z-t">Spider · security scan</div>
+          <div class="z-d">queries/user.ts · pass 4 of 7 · 18s · $0.00</div>
+        </div>
+        <div class="fb-row running" style="--st: var(--cobalt-slab)"><span class="dot"></span><span class="mfl" style="background: var(--cobalt-slab);"></span><div><div class="fb-name">Cartographer</div><div class="fb-stat">Indexing src/ — 412 / 1,840 files</div></div><span class="fb-time">2m 14s</span></div>
+        <div class="fb-row" style="--st: var(--health-slab)"><span class="dot"></span><span class="mfl flag-quebec" title="Quebec — vessel healthy"></span><div><div class="fb-name">QA</div><div class="fb-stat">14 of 14 passed · last run 8s ago</div></div><span class="fb-time">8s</span></div>
+        <div class="fb-row" style="--st: var(--amber)"><span class="dot"></span><span class="mfl flag-uniform" style="--f1: var(--rust-slab); --f2: #fbf7ef;" title="Uniform — running into danger"></span><div><div class="fb-name">Gardener</div><div class="fb-stat">3 lint warnings, 1 unused export</div></div><span class="fb-time">1m</span></div>
+        <div class="fb-row" style="--st: var(--error)"><span class="dot"></span><span class="mfl fl-november" title="November — negative"></span><div><div class="fb-name">Spark</div><div class="fb-stat">workers-ai 401 — auth token expired</div></div><span class="fb-time">23s</span></div>
+        <div class="fb-row" style="--st: var(--violet-slab)"><span class="dot"></span><span class="mfl fl-lima" title="Lima — stop instantly"></span><div><div class="fb-name">Approver</div><div class="fb-stat">Waiting on operator · PR #91</div></div><span class="fb-time">4m</span></div>
+        <div style="padding: 8px 16px 4px; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color: var(--text-muted);">Berths</div>
+        <div class="fb-row" style="--st: var(--cobalt-slab)"><span class="dot"></span><span class="mfl fl-papa"></span><div><div class="fb-name">pd-console · Prod</div><div class="fb-stat">v3.23.0 · brew release</div></div><span class="fb-time">Use</span></div>
+        <div class="fb-row" style="--st: var(--health-slab)"><span class="dot"></span><span class="mfl flag-quebec"></span><div><div class="fb-name">pd-console · Latest</div><div class="fb-stat">built 8h ago · dev-latest :9886</div></div><span class="fb-time">Use</span></div>
+        <div class="fb-row" style="--st: var(--text-ghost)"><span class="dot"></span><span class="mfl fl-delta"></span><div><div class="fb-name">Dev berths</div><div class="fb-stat">16 feature builds · conjure, harbor, parley…</div></div><span class="fb-time">▸ 16</span></div>
+        <div class="fb-foot"><span>berth fresh · 2 harbors</span><span class="fb-cmd">⌘K dispatch</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ M·B PD-CONSOLE ═══════════ -->
+  <div class="mock-cap"><span class="n">M·B</span><div><h2>pd-console — the GPUI deck</h2>
+    <p class="mock-notes">The proof surface, designed to the real screenshot's needs. The 20-item NAVIGATE wall groups by <b>stack layer</b> — L0 daemon hues cobalt, L1 coordination sage, L2 legibility teal, L3 economy gold — so the rail reads by color before you read a word. The Conjure pane (the screenshot's hero) keeps its predicted-DAG cards but the wave headers knock out of cobalt, model chips carry cost hues (haiku sage · sonnet cobalt · opus violet), and the release gate flies <b>X-ray: "stop carrying out your intentions"</b> — which is exactly what a gate is. Live panel wears the brackets; Kilo in the titlebar; hot-bus latency in the status bar (steering p95 &lt; 100ms, the binder's budget).</p></div></div>
+  <div class="mock-mat">
+    <div class="console">
+      <div class="co-title"><span class="tl"><i></i><i></i><i></i></span><span class="t">pd-console — port-daddy · daemon 3.23.0</span><span class="kilo fl fl-kilo"></span></div>
+      <div class="co-tabs">
+        <span style="font-size:10.5px; color:#4a4f5c; padding:8px 6px 8px 0; letter-spacing:0.1em;">L0</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #003fb8;">daemon</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #003fb8;">health</span>
+        <span style="font-size:10.5px; color:#4a4f5c; padding:8px 6px; letter-spacing:0.1em;">L1</span><span class="co-tab on">fleet</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #1f7a4d;">claims</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #1f7a4d;">parley</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #1f7a4d;">sessions</span>
+        <span style="font-size:10.5px; color:#4a4f5c; padding:8px 6px; letter-spacing:0.1em;">L2</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #006b5f;">cockpit</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #006b5f;">conjure</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #006b5f;">roadmap</span>
+        <span style="font-size:10.5px; color:#4a4f5c; padding:8px 6px; letter-spacing:0.1em;">L3</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #666a00;">ledger</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #666a00;">cost</span><span class="co-tab">…</span>
+      </div>
+      <div class="co-grid">
+        <div class="co-panel live"><i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
+          <div class="co-ph"><span class="pt knock">ACTIVE AGENTS</span><span style="font-size:11px;color:#6f6a5f;">6 · live</span></div>
+          <div class="co-row" style="--st: var(--cobalt-slab)"><span class="dot"></span><span class="mfl" style="background: var(--cobalt-slab);"></span><span><span class="nm">spider</span> <span class="ds">security scan · pass 4/7</span></span><span class="tm">18s</span></div>
+          <div class="co-row" style="--st: var(--cobalt-slab)"><span class="dot"></span><span class="mfl" style="background: var(--cobalt-slab);"></span><span><span class="nm">cartographer</span> <span class="ds">indexing src/ 412/1840</span></span><span class="tm">2m14s</span></div>
+          <div class="co-row" style="--st: var(--health-slab)"><span class="dot"></span><span class="mfl flag-quebec"></span><span><span class="nm">qa</span> <span class="ds">14/14 passed</span></span><span class="tm">8s</span></div>
+          <div class="co-row" style="--st: var(--amber)"><span class="dot"></span><span class="mfl flag-uniform" style="--f1: var(--rust-slab); --f2:#fbf7ef;"></span><span><span class="nm">gardener</span> <span class="ds">3 warnings, 1 unused export</span></span><span class="tm">1m</span></div>
+          <div class="co-row" style="--st: var(--error)"><span class="dot"></span><span class="mfl fl-november"></span><span><span class="nm">spark</span> <span class="ds">workers-ai 401 — auth expired</span></span><span class="tm">23s</span></div>
+          <div class="co-row" style="--st: var(--violet-slab)"><span class="dot"></span><span class="mfl fl-lima"></span><span><span class="nm">approver</span> <span class="ds">waiting on operator · PR #91</span></span><span class="tm">4m</span></div>
+        </div>
+        <div style="display:grid; gap:14px;">
+          <div class="co-panel">
+            <div class="co-ph"><span class="pt">PARLEY · agents:standup</span><span style="font-size:11px;color:#6f6a5f;">cursor @214</span></div>
+            <div class="co-chat">
+              <div><span class="who">spider</span> <span class="msg">claiming routes/feedback.ts — SQL injection candidate line 47</span></div>
+              <div><span class="who v">approver</span> <span class="msg">hold merge until QA re-runs the auth suite</span></div>
+              <div><span class="who">qa</span> <span class="msg">auth suite green · 14/14 · releasing claim</span></div>
+            </div>
+          </div>
+          <div class="co-panel">
+            <div class="co-ph"><span class="pt">CLAIMS</span><span style="font-size:11px;color:#6f6a5f;">7 active</span></div>
+            <table class="co-claims" style="width:100%; border-collapse:collapse;">
+              <tr><td>routes/feedback.ts</td><td>spider</td><td>4m</td></tr>
+              <tr><td>src/lib/salvage.ts</td><td>cartographer</td><td>12m</td></tr>
+              <tr><td>tests/auth.test.ts</td><td>qa</td><td>1m</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div style="padding: 0 16px 16px;">
+        <div class="co-panel">
+          <div class="co-ph"><span class="pt knock" style="background: var(--teal-slab);">CONJURE · PREDICTED DAG</span><span style="font-size:11px;color:#6f6a5f;">3 waves · 4 nodes · ~40min · $0.42 · 86% conf</span></div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; padding: 14px;">
+            <div style="border: 1px solid #f2be51; padding: 10px 12px;">
+              <div style="font-size:10.5px; letter-spacing:0.12em; color:#f2be51; margin-bottom:6px;">WAVE 1 · SERIAL</div>
+              <div style="color:#f5f3ed; font-weight:600; font-size:12.5px;">api-architect</div>
+              <div style="color:#a59f93; font-size:11.5px; margin-top:2px;">Survey settings + provider contracts</div>
+              <div style="margin-top:8px; display:flex; gap:8px; font-size:10.5px;"><span style="background:#003fb8; color:#fbf7ef; padding:2px 6px; font-weight:700;">sonnet</span><span style="color:#6f6a5f;">$0.07 · 8m</span></div>
+            </div>
+            <div style="border: 1px dashed #7db4ff; padding: 10px 12px;">
+              <div style="font-size:10.5px; letter-spacing:0.12em; color:#7db4ff; margin-bottom:6px;">WAVE 2 · PARALLEL ×2</div>
+              <div style="color:#f5f3ed; font-weight:600; font-size:12.5px;">beautiful-gui-design</div>
+              <div style="color:#a59f93; font-size:11.5px; margin-top:2px;">Build the provider-settings panel</div>
+              <div style="margin-top:8px; display:flex; gap:8px; font-size:10.5px;"><span style="background:#933fa5; color:#fbf7ef; padding:2px 6px; font-weight:700;">opus</span><span style="color:#6f6a5f;">$0.22 · 16m</span></div>
+              <div style="margin-top:8px; padding-top:8px; border-top:1px solid #232833;">
+                <div style="color:#f5f3ed; font-weight:600; font-size:12.5px;">test-automation-expert</div>
+                <div style="margin-top:4px; display:flex; gap:8px; font-size:10.5px;"><span style="background:#1f7a4d; color:#fbf7ef; padding:2px 6px; font-weight:700;">haiku</span><span style="color:#6f6a5f;">$0.05 · 10m</span></div>
+              </div>
+            </div>
+            <div style="border: 1px dashed #ff7d7d; padding: 10px 12px; position:relative;">
+              <div style="font-size:10.5px; letter-spacing:0.12em; color:#ff7d7d; margin-bottom:6px; display:flex; align-items:center; gap:6px;"><span class="mfl fl-xray" style="--c:#003fb8; --fw:#fbf7ef;"></span> WAVE 3 · GATED</div>
+              <div style="color:#f5f3ed; font-weight:600; font-size:12.5px;">rust-app-distribution</div>
+              <div style="color:#a59f93; font-size:11.5px; margin-top:2px;">Cut the release once the gate is green</div>
+              <div style="margin-top:8px; display:flex; gap:8px; font-size:10.5px;"><span style="background:#003fb8; color:#fbf7ef; padding:2px 6px; font-weight:700;">sonnet</span><span style="color:#6f6a5f;">$0.08 · 6m</span><span style="color:#ff7d7d; font-weight:700;">X-ray: human gate</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="co-status"><span>daemon <b>healthy</b></span><span class="mfl flag-quebec"></span><span>:9876</span><span>24.1k tok</span><span>$0.00 today</span><span style="margin-left:auto;">hot bus 41ms · steer p95 87ms · ⌃A space</span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ M·C FLEET CONTROL CENTER ═══════════ -->
+  <div class="mock-cap"><span class="n">M·C</span><div><h2>Fleet Control Center — Swift chrome, React content</h2>
+    <p class="mock-notes">The real screenshot's problem is that everything glows equally — 30 chips, no "what needs me." The redesign keeps its anatomy (cockpit, budget, flow map, roadmap intake) but gives it the site's hierarchy: <b>one cobalt zone</b> for the running mission, the <b>budget as a solid gold block</b> ($8.50/day is an economy fact — it wears the economy's color), guard as one filled chip, and the empty roadmap intake flies <b>Papa — "all aboard"</b> instead of a dashed void. Hot-bus presence keeps the flow map alive; durable events fill the rail (the binder's two-bus rule: hot messages move the UI, durable events decide history).</p></div></div>
+  <div class="mock-mat">
+    <div class="cc">
+      <div class="cc-toolbar">
+        <span class="tl"><i style="background:#e0443e;"></i><i style="background:#dea123;"></i><i style="background:#28a745;"></i></span>
+        <span class="cc-proj">port-daddy ▾</span>
+        <span class="fb-guard">GUARD · ENFORCE</span>
+        <span class="cc-daemon"><span class="dot"></span> daemon 3.23.0 · :9876</span>
+      </div>
+      <div class="cc-body">
+        <nav class="cc-nav">
+          <a class="on">Flow</a><a>Shipwright</a><a>Agents</a><a>Cockpit</a><a>Coast Guard</a><a>Dispatch</a><a>Activity</a><a>Channels</a><a>Inbox</a><a>Memory</a><a>YAML</a>
+        </nav>
+        <div class="cc-main">
+          <span class="eyebrow">Flow</span>
+          <h3>What runs, what's ready, what needs you.</h3>
+          <div class="cc-zone">
+            <div><div class="z-t">Spider · security scan — pass 4 of 7</div><div class="z-d">queries/user.ts · 18s elapsed · $0.00 on your seat</div></div>
+            <span class="z-act">⏸ pause</span>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr auto; gap: 12px; margin-bottom: 12px;">
+            <div style="background: var(--gold); color: #fbf7ef; padding: 12px 16px;">
+              <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; opacity:0.85;">Budget · daily cap</div>
+              <div style="font-family:'IBM Plex Mono',monospace; font-size:26px; font-weight:700; margin-top:2px;">$0.00 <span style="font-size:14px; opacity:0.8;">/ $8.50</span></div>
+            </div>
+            <div style="background: var(--surface-card); border: 1px solid var(--hair); padding: 12px 16px;">
+              <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color: var(--text-muted);">Signal value</div>
+              <div style="font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:700; margin-top:6px;">16/16 live · 240 signals</div>
+            </div>
+          </div>
+          <div class="cc-cards">
+            <div class="cc-card" style="--st: var(--health)"><div class="h"><span class="mfl flag-quebec"></span><span class="nm">QA</span></div><div class="ds">14 of 14 passed · last run 8s ago</div><div class="meta"><span>ready</span><span>8s</span></div></div>
+            <div class="cc-card" style="--st: var(--amber)"><div class="h"><span class="mfl flag-uniform" style="--f1: var(--rust-slab); --f2:#fbf7ef;"></span><span class="nm">Gardener</span></div><div class="ds">3 lint warnings, 1 unused export</div><div class="meta"><span>warn</span><span>1m</span></div></div>
+            <div class="cc-card" style="--st: var(--error)"><div class="h"><span class="mfl fl-november"></span><span class="nm">Spark</span></div><div class="ds">workers-ai 401 — auth token expired · readiness will block relaunch</div><div class="meta"><span>error</span><span>23s</span></div></div>
+            <div class="cc-card" style="--st: var(--violet)"><div class="h"><span class="mfl fl-lima"></span><span class="nm">Approver</span></div><div class="ds">Waiting on operator · PR #91 review</div><div class="meta"><span>blocked</span><span>4m</span></div></div>
+          </div>
+        </div>
+        <aside class="cc-rail">
+          <div class="rl">Activity</div>
+          <div class="cc-ev"><span class="mfl flag-quebec"></span><span>qa released claim on tests/auth.test.ts</span></div>
+          <div class="cc-ev"><span class="mfl" style="background: var(--cobalt-slab);"></span><span>spider claimed routes/feedback.ts</span></div>
+          <div class="cc-ev"><span class="mfl fl-november"></span><span>spark spawn failed — 401</span></div>
+          <div class="cc-ev"><span class="mfl fl-oscar"></span><span>salvage: 1 abandoned session claimable</span></div>
+          <div class="cc-ship">⚓ <b>Shipwright:</b> cold-start survey ready — proposed fleet of 4, simulated spend $0.00/day on claude-cli.</div>
+          <div style="margin: 12px 16px 0; padding: 14px; border: 1px solid var(--hair); display:flex; gap:12px; align-items:center;">
+            <span class="mfl fl-papa" style="width:26px; height:19px;"></span>
+            <div style="font-size:12.5px; color: var(--text-secondary); line-height:1.5;"><b style="color:var(--text-primary);">Roadmap intake — flying Papa.</b> No mission cards yet. Tag your roadmap with (UNCOMMITTED) / (BLOCKED) and they board here.</div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ M·E THE CLI ═══════════ -->
+  <div class="mock-cap"><span class="n">M·E</span><div><h2>The pd CLI — fractional edges in a terminal</h2>
+    <p class="mock-notes">The agent/emergency surface gets the same linework, drawn in box glyphs: <b>corner ticks are literal ┌ ┐ ╵ glyph pairs</b> (never full boxes), left stripes are <span class="mono" style="font-size:13px;">▌</span> half-blocks in state color, the one zone per command is a reverse-video block, and Kilo is two half-block cells. Micro-flags become two-character block pairs. Rules from the CLI skill: NO_COLOR / !isTTY / <span class="mono" style="font-size:13px;">--json</span> strip everything to plain text; semantic colors only; unicode-width-safe alignment.</p></div></div>
+  <div class="mock-mat">
+    <div style="max-width: 780px; margin: 0 auto; background: #12161f; border: 1px solid #2a2f3a; padding: 18px 22px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.7; color: #edf1f9;">
+<pre style="margin:0; color:#edf1f9;"><span style="color:#8fd0a7;">$</span> pd status
+<span style="color:#7db4ff;">┌</span><span style="background:#003fb8; color:#fbf7ef; font-weight:700;"> PORT DADDY </span><span style="background:#cad900; color:#17191d; font-weight:700;"> 3.23.0 </span>  <span style="color:#c7d0e5;">daemon · :9876 · up 11h 42m</span>                <span style="color:#7db4ff;">┐</span>
+<span style="color:#5fce97;">▌</span> <span style="color:#5fce97;">▀▄</span> healthy    heartbeat now · supervisor active · 65 ports
+<span style="color:#7db4ff;">▌</span> <span style="color:#7db4ff;">██</span> running    spider · security scan · pass 4/7 · <span style="font-weight:700;">18s</span>
+<span style="color:#f2be51;">▌</span> <span style="color:#f2be51;">▚▚</span> warn       gardener · 3 lint warnings, 1 unused export
+<span style="color:#e0a5ed;">▌</span> <span style="color:#e0a5ed;">▂▂</span> blocked    approver · waiting on operator · PR #91
+<span style="color:#7db4ff;">╵</span> guard <span style="font-weight:700; color:#5fce97;">enforce</span> · budget <span style="color:#d8dd3c; font-weight:700;">$0.00/$8.50</span> · 7 claims          <span style="color:#7db4ff;">╵</span>
+
+<span style="color:#8fd0a7;">$</span> pd begin "hero polish" --lifecycle durable
+<span style="background:#1f7a4d; color:#fbf7ef; font-weight:700;"> ◆ SESSION ANCHORED </span> website:hero-polish · worktree isolated
+<span style="color:#5fce97;">▌</span> claim files next: <span style="color:#8dc4ff;">pd session files add &lt;path&gt;</span>
+
+<span style="color:#8fd0a7;">$</span> pd parley --channel agents:standup --limit 2
+<span style="color:#c7d0e5;">┌ agents:standup ─── cursor @214</span>
+<span style="color:#7db4ff;">▌</span> <span style="color:#7db4ff; font-weight:700;">spider</span>   claiming routes/feedback.ts — SQLi candidate L47
+<span style="color:#e0a5ed;">▌</span> <span style="color:#e0a5ed; font-weight:700;">approver</span> <span style="background:#003fb8; color:#fbf7ef;"> SÉCURITÉ </span> hold merge until QA re-runs auth
+<span style="color:#c7d0e5;">╵ 2 of 214 · --json for machines</span></pre>
+    </div>
+  </div>
+
+  <!-- ═══════════ M·F HARBOR CO-EDIT ═══════════ -->
+  <div class="mock-cap"><span class="n">M·F</span><div><h2>Co-op vibe coding — the Harbor co-edit dream</h2>
+    <p class="mock-notes">Binder ch05's fifth mode, imagined at full sail: <b>humans and agents as co-equal peers in one governed buffer</b>. Every participant flies a letter flag; their claims render as left-edge stripes on the exact line ranges they hold, so ownership is visible <b>in the text itself</b>. The Longshoreman's semantic-conflict forecast draws a hatched warning band where two claims will collide before they do. The parley strip speaks radio voice procedure — the token file's own <span class="mono" style="font-size:13px;">--voice-securite</span> / <span class="mono" style="font-size:13px;">--voice-pan-pan</span> finally drawn. A salvage tide-line holds the ghost of a crashed agent's work, claimable with one keystroke. Below the waterline: the living-harbor shader strip (dithered, reduced-motion-safe, frozen here as a still).</p></div></div>
+  <div class="mock-mat">
+    <div style="max-width: 1080px; margin: 0 auto; background: #0b0d11; border: 1px solid #2a2f3a; font-family: 'IBM Plex Mono', monospace;">
+      <div style="display:flex; align-items:center; gap:12px; padding: 9px 14px; background:#101216; border-bottom: 1px solid #2a2f3a;">
+        <span class="tl"><i></i><i></i><i></i></span>
+        <span style="font-size:12.5px; color:#a59f93;">harbor — routes/feedback.ts · 3 aboard</span>
+        <span style="margin-left:auto; display:flex; gap:10px; align-items:center;">
+          <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:#f5f3ed;"><span class="mfl fl-echo"></span> erich</span>
+          <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:#7db4ff;"><span class="mfl fl-sierra"></span> spider</span>
+          <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:#5fce97;"><span class="mfl fl-quebec" style="background:#cad900;"></span> qa</span>
+        </span>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 260px;">
+        <div style="padding: 14px 0; font-size: 12.5px; line-height: 1.9;">
+          <div style="display:grid; grid-template-columns: 40px 8px 1fr; color:#6f6a5f;"><span style="text-align:right; padding-right:8px;">44</span><span></span><span style="color:#d3cec2;">export async function submitFeedback(req: Request) {</span></div>
+          <div style="display:grid; grid-template-columns: 40px 8px 1fr; color:#6f6a5f;"><span style="text-align:right; padding-right:8px;">45</span><span style="background:#f5f3ed;"></span><span style="color:#d3cec2;">&nbsp;&nbsp;const user = await auth(req)&nbsp;<span style="background:#f5f3ed; color:#17191d; padding:0 4px; font-size:10.5px; font-weight:700;">erich ▍</span></span></div>
+          <div style="display:grid; grid-template-columns: 40px 8px 1fr; color:#6f6a5f;"><span style="text-align:right; padding-right:8px;">46</span><span style="background:#7db4ff;"></span><span style="color:#d3cec2;">&nbsp;&nbsp;<span style="background:rgba(125,180,255,0.14);">const q = sql`SELECT * FROM feedback WHERE uid = &#36;{user.id}`</span>&nbsp;<span style="background:#7db4ff; color:#0b0d11; padding:0 4px; font-size:10.5px; font-weight:700;">spider ▍ claim 46–52</span></span></div>
+          <div style="display:grid; grid-template-columns: 40px 8px 1fr; color:#6f6a5f;"><span style="text-align:right; padding-right:8px;">47</span><span style="background:#7db4ff;"></span><span style="color:#d3cec2;">&nbsp;&nbsp;<span style="background:rgba(125,180,255,0.14);">// spider: parameterizing — injection candidate</span></span></div>
+          <div style="display:grid; grid-template-columns: 40px 8px 1fr; color:#6f6a5f;"><span style="text-align:right; padding-right:8px;">48</span><span style="background: repeating-linear-gradient(45deg, #f2be51 0 3px, transparent 3px 6px);"></span><span style="color:#d3cec2;">&nbsp;&nbsp;return render(q)&nbsp;&nbsp;<span style="color:#f2be51; font-size:10.5px;">⚠ forecast: qa's test claim lands here in ~4m — parley suggested</span></span></div>
+          <div style="display:grid; grid-template-columns: 40px 8px 1fr; color:#6f6a5f;"><span style="text-align:right; padding-right:8px;">49</span><span></span><span style="color:#d3cec2;">}</span></div>
+          <div style="margin: 12px 14px 0; padding: 8px 12px; border: 1px dashed #4a4f5c; display:flex; gap:10px; align-items:center;">
+            <span class="mfl fl-oscar"></span>
+            <span style="font-size:11.5px; color:#a59f93;">salvage tide-line: <b style="color:#e09464;">cartographer</b> died holding lines 61–74 (14m ago) — <span style="color:#8dc4ff;">⌥S to claim the ghost</span></span>
+          </div>
+        </div>
+        <div style="border-left: 1px solid #232833; padding: 12px;">
+          <div style="font-size:10.5px; font-weight:700; letter-spacing:0.13em; text-transform:uppercase; color:#a59f93; margin-bottom:8px;">Parley · this buffer</div>
+          <div style="font-size:11.5px; line-height:1.7; color:#d3cec2;">
+            <div><span style="background:#003fb8; color:#fbf7ef; padding:0 5px; font-weight:700; font-size:10px;">SÉCURITÉ</span> <span style="color:#7db4ff; font-weight:700;">spider</span> touching your query on 46 — param fix, 2 min</div>
+            <div style="margin-top:6px;"><span style="color:#f5f3ed; font-weight:700;">erich</span> roger — I'll stay above 45</div>
+            <div style="margin-top:6px;"><span style="background:#a66f00; color:#fbf7ef; padding:0 5px; font-weight:700; font-size:10px;">PAN-PAN</span> <span style="color:#5fce97; font-weight:700;">qa</span> auth suite needs line 48 frozen for the fixture</div>
+            <div style="margin-top:8px; padding:6px 8px; border:1px solid #4a4f5c; font-size:10.5px; color:#a59f93;">Longshoreman proposes: spider finishes 46–47 → qa claims 48 → erich reviews. <span style="color:#8dc4ff;">accept?</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="height: 44px; background:
+        radial-gradient(circle at 82% 30%, rgba(202,217,0,0.5) 0 2px, transparent 3px),
+        repeating-linear-gradient(90deg, #101a2e 0 4px, #0d1526 4px 8px, #101a2e 8px 14px, #0b1220 14px 18px);
+        border-top: 1px solid #232833; position: relative;">
+        <span style="position:absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 10px; letter-spacing: 0.12em; color: #4a5a7a;">THE LIVING HARBOR · shader still (reduced-motion)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TOKEN MAPPING ═══════════ -->
+  <div class="mock-cap"><span class="n">M·D</span><div><h2>The mapping — one palette, three runtimes</h2>
+    <p class="mock-notes">The web ships CSS custom properties; FleetBar and the Control Center chrome consume the same values as Swift asset-catalog colors; pd-console holds them as GPUI constants. The state grammar and flag geometry are shared contracts — a row means the same thing at 13px in the menubar and at full width on the site.</p></div></div>
+  <table class="map-table">
+    <thead><tr><th>Token</th><th>website-v2 / fleet-ui (CSS)</th><th>FleetBar (Swift)</th><th>pd-console (GPUI Rust)</th></tr></thead>
+    <tbody>
+      <tr><td>cobalt slab</td><td>var(--cobalt-slab) #003fb8</td><td>Color("StoryCobaltSlab")</td><td>rgb(0x003fb8)</td></tr>
+      <tr><td>state stripe</td><td>3px inset box-shadow</td><td>3pt Rectangle overlay</td><td>quad 3px × row height</td></tr>
+      <tr><td>micro-flag</td><td>.mfl + .flag-* gradients</td><td>FlagGlyph(signal:) shape</td><td>flag_quad(letter) paint fn</td></tr>
+      <tr><td>pulse ring</td><td>lw-pulse 1.8s (running only)</td><td>Circle().scaleEffect anim</td><td>frame-timed ring, 1.8s</td></tr>
+      <tr><td>zone rule</td><td>one per view</td><td>one per popover</td><td>one per pane</td></tr>
+      <tr><td>brackets</td><td>live panels only</td><td>—(popover is one live panel)</td><td>live panes only</td></tr>
+      <tr><td>gold wash</td><td>color-mix 10% over base</td><td>Color opacity 0.10 overlay</td><td>blend 0.10 over sunken</td></tr>
+    </tbody>
+  </table>
+
+</main>
+<script>
+  const btn=document.getElementById('themeToggle'),root=document.documentElement;
+  let t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  const apply=()=>{root.setAttribute('data-theme',t);btn.textContent=t==='light'?'Dark':'Light'};apply();
+  btn.addEventListener('click',()=>{t=t==='light'?'dark':'light';apply()});
+</script>
+</body>
+</html>

@@ -10,7 +10,7 @@ import { existsSync, unlinkSync, statSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { isStdinInteractive, isStdoutInteractive } from './tty.js';
+import { isStdinInteractive, isStdoutInteractive, openControllingTerminalInput } from './tty.js';
 
 import { DEFAULT_SOCK } from '../../shared/paths.js';
 import { readDaemonPort } from '../../shared/daemon-discovery.js';
@@ -36,13 +36,20 @@ export async function confirmFix(prompt: string): Promise<boolean> {
   // Decline the fix instead of hanging. Kernel-level helpers per the
   // no-raw-stdin-istty regiment (stream flags lie under the compiled binary).
   if (!isStdinInteractive() || !isStdoutInteractive()) return false;
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  // Under the bun-compiled binary, process.stdin can look interactive yet feed
+  // readline an immediate EOF — an empty answer would auto-accept the fix
+  // without real consent. Read from the controlling terminal when available.
+  const tty = openControllingTerminalInput();
+  const input = tty ? tty.stream : process.stdin;
+  const rl = createInterface({ input, output: process.stdout });
   return new Promise((resolve) => {
     rl.question(`  ${prompt} [Y/n] `, (answer) => {
       rl.close();
+      tty?.close();
       const a = answer.trim().toLowerCase();
       resolve(a === '' || a === 'y' || a === 'yes');
     });
+    rl.on('close', () => { tty?.close(); });
   });
 }
 

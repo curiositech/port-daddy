@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/astro-islands-plan.schema.json",
+  "title": "Astro Islands Architecture Plan",
+  "description": "A structured plan for an Astro site's static-vs-island split, so astro-islands-architect's Quality Gates can be checked deterministically by scripts/astro_islands_audit.mjs.",
+  "type": "object",
+  "required": ["siteKind", "islands"],
+  "additionalProperties": true,
+  "properties": {
+    "siteKind": {
+      "type": "string",
+      "enum": ["marketing", "docs", "blog", "content", "spa", "dashboard"],
+      "description": "What kind of site this is. spa/dashboard are anti-fits for Astro islands."
+    },
+    "islands": {
+      "type": "array",
+      "description": "Every component that ships JS (has a client:* directive). Empty for a fully static site.",
+      "items": {
+        "type": "object",
+        "required": ["name", "directive"],
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Component name, e.g. 'Newsletter', 'Search'."
+          },
+          "directive": {
+            "type": "string",
+            "enum": ["load", "idle", "visible", "media", "only"],
+            "description": "The client:* directive assigned to this island."
+          },
+          "aboveTheFold": {
+            "type": "boolean",
+            "description": "True if the island renders above the fold on its page. Required to justify client:load."
+          },
+          "needsBrowserApisAtMount": {
+            "type": "boolean",
+            "description": "True if the component genuinely cannot render server-side (browser APIs at mount). Required to justify client:only."
+          },
+          "hasSizedFallback": {
+            "type": "boolean",
+            "description": "True if a client:only island has a placeholder approximating its final size (CLS defense)."
+          }
+        }
+      }
+    },
+    "contentCollectionsTyped": {
+      "type": "boolean",
+      "description": "True if every content collection has a defineCollection + zod schema so frontmatter mistakes fail the build."
+    },
+    "dataFetchLocation": {
+      "type": "string",
+      "enum": ["frontmatter", "client-component", "mixed"],
+      "description": "Where data fetching happens: Astro frontmatter (build/SSR), client components, or a mix."
+    },
+    "imagesUnderSrcAssets": {
+      "type": "boolean",
+      "description": "True if content images live under src/assets/ and use <Image>; public/ only for OG images and favicons."
+    },
+    "jsBudgetCIEnforced": {
+      "type": "boolean",
+      "description": "True if a per-page first-load JS budget is enforced in CI."
+    },
+    "outputMode": {
+      "type": "string",
+      "enum": ["static", "server", "hybrid"],
+      "description": "Astro output mode; hybrid keeps the site static with per-route prerender = false opt-outs."
+    }
+  }
+}

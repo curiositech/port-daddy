@@ -176,7 +176,7 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{June 2026\\Harbor Volume, Paper 4 of 4 (L3 --- the market)}
+\date{July 2026\\Version 1.1 --- Harbor Volume, Paper 4 of 4 (L3 --- the market)}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \begin{document}
@@ -1339,6 +1339,28 @@ Spivak~\cite{fong2019}; the commons-governance reading draws on
 Ostrom~\cite{ostrom1990}, and the auction machinery on standard algorithmic game
 theory~\cite{nrtv2007}.
 
+\paragraph{Agentic-commerce protocols.} While this design was being written, the
+industry shipped the transaction layer of an agent economy. The Universal Commerce
+Protocol~\cite{ucp2026} (Google/Shopify, 2026) standardizes agent-mediated retail
+--- discovery via a \texttt{/.well-known} capability profile, a checkout state
+machine, server-selects version negotiation --- and its rival, the Agentic Commerce
+Protocol~\cite{acp2025} (OpenAI/Stripe), the platform-mediated equivalent. Both are
+deliberate about what they exclude: neither settles payments (delegated to payment
+service providers) and neither decides which agents deserve trust. Authorization
+proof is delegated to the Agent Payments Protocol~\cite{ap2mandates2026}, whose
+mandates --- W3C Verifiable Credentials in SD-JWT form, chained
+principal~$\to$~platform~$\to$~merchant --- are the deployed sibling of this
+paper's float-plan countersign, and whose credential formats the reference
+implementation now adopts at the harbor boundary (ADR-0094) so that the keystone
+identity artifacts of \S\ref{sec:keystone} verify with off-the-shelf tooling. The
+gap those protocols leave open is this paper's subject: published security analyses
+of UCP~\cite{datadome2026} note that it regulates \emph{how} agents transact while
+offering nothing about \emph{which} agents to trust --- no collateral, no
+settlement oracle, no reputation, no priced deterrent. The harbor economy is a
+mechanism for exactly that layer; the retail protocols are evidence the layer below
+it is arriving on schedule, and hosted trust (\S\ref{sec:hosted-trust}) is what
+they will need bolted on.
+
 \begin{table}[H]
 \centering
 \small
@@ -1359,6 +1381,10 @@ Reputation revocation & Sagas compensation~\cite{sagas1987} &
   Tombstone propagation --- no conserved quantity to compensate \\
 Grading / IC signal & Folk theorems~\cite{aps1990} &
   Strategy-proof machine-checkable oracle \emph{or} bonded-and-slashed judges \\
+Agent transaction rails & UCP~\cite{ucp2026}; ACP~\cite{acp2025};
+  AP2 mandates~\cite{ap2mandates2026} &
+  They standardize the transaction and name trust out of scope; the harbor prices
+  and enforces the trust layer they delegate away \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1576,6 +1602,23 @@ Press, 1990.
 
 \bibitem{nrtv2007} N. Nisan, T. Roughgarden, É. Tardos \& V. Vazirani (eds.).
 \emph{Algorithmic Game Theory.} Cambridge University Press, 2007.
+
+\bibitem{ucp2026} Universal Commerce Protocol. Google, Shopify, et al.
+Specification and reference implementation, Apache-2.0, 2026.
+\texttt{https://ucp.dev}; \texttt{github.com/Universal-Commerce-Protocol/ucp}.
+
+\bibitem{ap2mandates2026} Agent Payments Protocol (AP2): Mandates.
+Verifiable-credential authorization chain (SD-JWT+kb checkout mandate, JWS
+detached-content merchant authorization, JCS canonicalization), 2026.
+\texttt{https://ap2-protocol.org}; UCP extension at
+\texttt{ucp.dev/documentation/ucp-and-ap2/}.
+
+\bibitem{acp2025} Agentic Commerce Protocol. OpenAI \& Stripe, 2025.
+\texttt{https://agenticcommerce.dev}.
+
+\bibitem{datadome2026} DataDome. ``Agent Trust Management and the Universal
+Commerce Protocol,'' 2026.
+\texttt{datadome.co/agent-trust-management/universal-commerce-protocol/}.
 
 \end{thebibliography}
 

@@ -5,12 +5,12 @@
 // skills/NLP — lexical + this embedder, fused). These tests cover the cache
 // detection that setup/doctor/embed all key off, WITHOUT downloading a model.
 
-import { describe, test, expect, afterEach } from '@jest/globals';
+import { describe, test, expect, afterEach, jest } from '@jest/globals';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const { isEmbeddingModelCached } = await import('../../cli/commands/embed.js');
+const { isEmbeddingModelCached, handleEmbed } = await import('../../cli/commands/embed.js');
 const { DEFAULT_SEMANTIC_MODEL_ID } = await import('../../lib/semantic-resolver.js');
 
 describe('isEmbeddingModelCached', () => {
@@ -53,5 +53,37 @@ describe('isEmbeddingModelCached', () => {
     mkdirSync(modelDir, { recursive: true });
     writeFileSync(join(modelDir, 'config.json'), '{}');
     expect(isEmbeddingModelCached(cache)).toBe(false);
+  });
+
+  // The CLI exit-code contract, exercised without any model download:
+  // `text --offline` and `status` must exit 3 on an empty cache so callers
+  // (skills doing hybrid search) can fall back to lexical-only explicitly.
+  describe('handleEmbed offline contract', () => {
+    const prevExit = process.exitCode;
+    afterEach(() => { process.exitCode = prevExit; });
+
+    test('text --offline exits 3 when the model is not cached', async () => {
+      const errs = [];
+      const spy = jest.spyOn(console, 'error').mockImplementation((m) => errs.push(String(m)));
+      try {
+        await handleEmbed(['text', 'hello'], { 'cache-dir': tempCache(), offline: true });
+      } finally {
+        spy.mockRestore();
+      }
+      expect(process.exitCode).toBe(3);
+      expect(errs.join('\n')).toMatch(/pd embed prefetch|pd doctor/);
+    });
+
+    test('status exits 3 (not cached) on an empty cache and reports JSON', async () => {
+      const out = [];
+      const spy = jest.spyOn(console, 'log').mockImplementation((m) => out.push(String(m)));
+      try {
+        await handleEmbed(['status'], { 'cache-dir': tempCache(), json: true });
+      } finally {
+        spy.mockRestore();
+      }
+      expect(process.exitCode).toBe(3);
+      expect(JSON.parse(out.join(''))).toMatchObject({ cached: false });
+    });
   });
 });
