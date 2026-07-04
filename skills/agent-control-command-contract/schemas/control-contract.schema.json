@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Agent Control Command Contract",
+  "description": "Input shape for scripts/control_contract_audit.mjs — a normalized description of the operator control verbs (steer/interrupt/pause/kill/checkpoint/fork), which backends support them, and where command authorization reads its truth from.",
+  "type": "object",
+  "required": ["verbs", "backends", "authorizationSource", "matrix"],
+  "additionalProperties": true,
+  "properties": {
+    "verbs": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Every operator control verb modeled as a distinct claim. interrupt, pause, kill, and steer must each appear as their own entry — see the collapsed-verbs finding.",
+      "items": {
+        "type": "object",
+        "required": ["name", "terminalStates"],
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "e.g. steer, interrupt, pause, kill, checkpoint, fork."
+          },
+          "terminalStates": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Which delivery-lifecycle states this verb's commands can settle into. Must be a subset of the six allowed states; delivered/acknowledged/failed/expired are required for every verb.",
+            "items": {
+              "type": "string",
+              "enum": ["queued", "delivered", "acknowledged", "failed", "expired", "unsupported"]
+            }
+          }
+        }
+      }
+    },
+    "backends": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Every agent-body backend a command might target (local same-UID process, remote Cloudflare body, hook-only session, observed import, ...).",
+      "items": {
+        "type": "object",
+        "required": ["name", "supportedVerbs"],
+        "additionalProperties": true,
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "supportedVerbs": {
+            "type": "array",
+            "description": "Verb names this backend can actually execute. A verb absent here means the backend cannot perform it and must expose an honest 'unsupported' terminal instead.",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "authorizationSource": {
+      "type": "string",
+      "enum": ["authoritative-lease", "authoritative-event", "cached-projection", "ui-state"],
+      "description": "Where a control command's authorization check reads its truth from at the moment of authorization. authoritative-lease/authoritative-event read live daemon state; cached-projection/ui-state can be stale by construction and must never authorize a command."
+    },
+    "matrix": {
+      "type": "array",
+      "description": "Cross product of verb x backend proving (or disproving) a real, distinct delivery lifecycle for that combination. Every combination a backend claims to support, and every combination it does not, needs a cell here — an absent cell is treated as an unproven gap, not a pass.",
+      "items": {
+        "type": "object",
+        "required": ["verb", "backend", "hasDistinctTerminalStates"],
+        "additionalProperties": true,
+        "properties": {
+          "verb": { "type": "string", "minLength": 1 },
+          "backend": { "type": "string", "minLength": 1 },
+          "hasDistinctTerminalStates": {
+            "type": "boolean",
+            "description": "True only if this verb/backend pair has its own tracked terminal-state sequence, not one collapsed with another verb's outcome."
+          }
+        }
+      }
+    }
+  }
+}

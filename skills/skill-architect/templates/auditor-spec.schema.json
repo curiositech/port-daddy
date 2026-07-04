@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "auditor-spec.schema.json",
+  "title": "Deterministic-auditor input spec (template)",
+  "description": "Copy to skills/<your-skill>/schemas/<thing>.schema.json and replace the properties with the fields your scorer reads. Every field the scorer branches on must be a structured type (enum/boolean/number/array) — no free-prose fields the scorer would keyword-match.",
+  "type": "object",
+  "required": ["name"],
+  "additionalProperties": true,
+  "properties": {
+    "name": { "type": "string", "minLength": 1, "description": "What this spec describes." },
+    "clauses": {
+      "type": "array",
+      "description": "Example structured field — replace with your own.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "enforcementMechanism": {
+            "type": "string",
+            "enum": ["probe", "hook", "gate", "lease", "none"],
+            "description": "How the daemon actually enforces this clause; 'none' means it degrades to hope."
+          }
+        }
+      }
+    }
+  }
+}
