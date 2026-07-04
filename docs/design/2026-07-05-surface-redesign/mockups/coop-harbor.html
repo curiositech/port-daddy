@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Port Daddy — Harbor Co-op · curiositech/checkout-rework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800&family=Recursive:MONO,wght@0,400..800;1,400..800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f2eee6; --well:#e9e2d5; --ink:#121212;
+    --cobalt:#003fb8; --teal:#006b5f;
+    --health:#1f7a4d; --indigo:#4b3f9e; --violet:#6f48b5;
+    --rust:#9a4a1e; --amber:#a66f00; --mayday:#C41E30;
+    --mono:"Recursive",monospace; --disp:"Big Shoulders Display",sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;border-radius:0!important;box-shadow:none!important}
+  html{font-size:16px}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"Recursive",system-ui,sans-serif;
+    font-variation-settings:"MONO" 0;
+    font-size:1rem; line-height:1.45;
+    min-width:1280px;
+  }
+  .mono{font-family:var(--mono);font-variation-settings:"MONO" 1}
+  button{font:inherit;color:inherit;background:none;border:2px solid var(--ink);cursor:pointer}
+  :focus-visible{outline:3px solid var(--cobalt);outline-offset:2px}
+
+  /* ---------- shared atoms ---------- */
+  .eyebrow{
+    font-family:var(--disp);font-weight:700;font-size:0.875rem;
+    letter-spacing:0.14em;text-transform:uppercase;
+  }
+  .cap{font-size:0.875rem;color:#3d3a33}
+  .flag{display:inline-block;vertical-align:-1px;flex:none}
+  .word{
+    font-family:var(--disp);font-weight:800;font-size:0.875rem;
+    letter-spacing:0.12em;text-transform:uppercase;
+  }
+  .chip{
+    display:inline-flex;align-items:center;gap:8px;
+    border:2px solid var(--ink);padding:6px 12px;background:var(--paper);
+  }
+
+  /* ---------- header band ---------- */
+  header.mast{
+    border-bottom:3px solid var(--ink);
+    padding:20px 28px 16px;background:var(--paper);
+    display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-start;
+  }
+  .mast-title h1{
+    font-family:var(--disp);font-weight:800;font-size:2.4rem;
+    letter-spacing:0.03em;text-transform:uppercase;line-height:1.05;
+  }
+  .mast-title h1 .repo{color:var(--cobalt)}
+  .mast-kicker{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .mast-kicker .brand{color:var(--rust)}
+  .binder{
+    max-width:46rem;margin-top:8px;font-size:1rem;font-style:italic;
+    border-left:4px solid var(--indigo);padding-left:12px;color:#33302a;
+  }
+  .binder b{font-style:normal;color:var(--indigo)}
+  .mast-tools{margin-left:auto;display:flex;flex-direction:column;gap:10px;align-items:flex-end}
+  .mast-tools-row{display:flex;gap:12px;align-items:stretch}
+  .truth{border-color:var(--teal);color:var(--teal);font-weight:600}
+  .truth .dot{width:10px;height:10px;background:var(--teal);flex:none}
+  .budget{border:2px solid var(--ink);padding:6px 14px;background:var(--well);display:flex;flex-direction:column}
+  .budget .amt{font-family:var(--disp);font-weight:800;font-size:1.35rem;line-height:1.1}
+  .budget .amt em{font-style:normal;color:var(--amber)}
+  .btn-invite{
+    background:var(--cobalt);color:#fff;border:2px solid var(--ink);
+    padding:10px 20px;font-family:var(--disp);font-weight:800;
+    font-size:1.05rem;letter-spacing:0.08em;text-transform:uppercase;
+  }
+  .btn-invite:hover{background:var(--ink)}
+
+  /* ---------- app grid ---------- */
+  main.deck{
+    display:grid;grid-template-columns:300px 1fr 380px;
+    min-height:640px;align-items:stretch;
+  }
+  .panel-h{
+    border-bottom:2px solid var(--ink);padding:10px 16px;
+    display:flex;align-items:baseline;gap:10px;background:var(--well);
+  }
+  .panel-h .eyebrow{font-size:1rem}
+  .panel-h .cap{margin-left:auto;text-align:right}
+
+  /* ---------- crew rail ---------- */
+  .crew{border-right:3px solid var(--ink);background:var(--paper);display:flex;flex-direction:column}
+  .crew-group{padding:12px 16px 4px}
+  .crew-group>.eyebrow{color:var(--rust);display:block;border-bottom:2px solid var(--ink);padding-bottom:6px;margin-bottom:10px}
+  .mate{border:2px solid var(--ink);background:var(--paper);padding:10px 12px;margin-bottom:12px}
+  .mate .who{display:flex;align-items:center;gap:10px}
+  .avatar{
+    width:30px;height:30px;flex:none;border:2px solid var(--ink);
+    background:var(--well);display:grid;place-items:center;
+    font-family:var(--disp);font-weight:800;font-size:0.95rem;
+  }
+  .avatar.identity{border:3px double var(--violet);color:var(--violet)}
+  .mate .name{font-weight:700}
+  .mate .role{font-size:0.875rem;color:#3d3a33}
+  .mate .state{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .mate .step{font-size:0.875rem;margin-top:6px;color:#33302a}
+  .mate .elapsed{font-size:0.875rem;color:#3d3a33}
+  .w-working{color:var(--health)} .w-idle{color:var(--cobalt)}
+  .w-new{color:var(--amber)} .w-conflict{color:var(--mayday)}
+  .capcard{
+    margin-top:8px;border:2px solid var(--teal);padding:8px 10px;
+    font-size:0.875rem;background:#eef0e8;
+  }
+  .capcard b{color:var(--teal)} .capcard .no{color:var(--mayday);font-weight:600}
+  .mate.new-agent{border-color:var(--amber);background:#f4ecd8}
+
+  /* ---------- claims map ---------- */
+  .claims{background:var(--paper);display:flex;flex-direction:column;border-right:3px solid var(--ink)}
+  .claims-body{padding:16px 20px;flex:1}
+  .tree-label{margin-bottom:10px;display:flex;align-items:baseline;gap:10px}
+  .tree-label code{font-family:var(--mono);font-variation-settings:"MONO" 1;font-weight:700;font-size:1.05rem}
+  .claim{
+    display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;
+    border:2px solid var(--ink);border-left-width:8px;
+    padding:10px 14px;margin-bottom:10px;background:var(--paper);align-items:center;
+  }
+  .claim .target{font-family:var(--mono);font-variation-settings:"MONO" 1;font-weight:700;font-size:1rem}
+  .claim .meta{font-size:0.875rem;color:#33302a}
+  .claim .meta b{color:var(--ink)}
+  .claim .holder{display:flex;align-items:center;gap:8px;justify-self:end;white-space:nowrap}
+  .claim .holder .hname{font-weight:700}
+  .claim .holder .age{font-size:0.875rem;color:#3d3a33}
+  .claim.edge-health{border-left-color:var(--health)}
+  .claim.edge-teal{border-left-color:var(--teal)}
+  .claim.edge-indigo{border-left-color:var(--indigo)}
+  .claim.edge-amber{border-left-color:var(--amber)}
+  .claim.nested{margin-left:26px}
+  .filehead{
+    font-family:var(--mono);font-variation-settings:"MONO" 1;
+    font-size:0.95rem;color:#3d3a33;margin:14px 0 8px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .filehead::before{content:"";width:14px;height:2px;background:var(--ink)}
+  .conflict{
+    border:3px solid var(--mayday);border-left-width:10px;background:#f2dcd6;
+    padding:12px 14px;margin:14px 0 10px;
+    display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px;align-items:center;
+  }
+  .conflict .target{color:var(--mayday)}
+  .conflict .vs{font-size:0.95rem}
+  .conflict .vs b{color:var(--mayday)}
+  .btn-parley{
+    background:var(--mayday);color:#fff;font-family:var(--disp);font-weight:800;
+    letter-spacing:0.1em;text-transform:uppercase;font-size:1rem;
+    padding:10px 22px;justify-self:end;grid-row:span 2;
+  }
+  .btn-parley:hover{background:var(--ink)}
+  .claims-foot{border-top:2px solid var(--ink);background:var(--well);padding:10px 20px}
+  .claims-foot .cap b{color:var(--mayday)}
+
+  /* ---------- parley + gates ---------- */
+  .starboard{background:var(--paper);display:flex;flex-direction:column;position:relative}
+  .parley-card{margin:16px;border:3px solid var(--indigo)}
+  .parley-card>.topic{
+    background:var(--indigo);color:#fff;padding:10px 14px;
+    display:flex;align-items:baseline;gap:10px;
+  }
+  .parley-card>.topic .t{font-family:var(--disp);font-weight:800;font-size:1.15rem;letter-spacing:0.05em;text-transform:uppercase}
+  .parley-card>.topic .seq{margin-left:auto;font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:0.875rem}
+  .position{border-top:2px solid var(--indigo);padding:10px 14px}
+  .position:first-of-type{border-top:none}
+  .position .p-who{display:flex;align-items:center;gap:8px;font-weight:700}
+  .position .p-who .kind{font-size:0.875rem;font-weight:400;color:#3d3a33}
+  .position .p-say{font-size:0.95rem;margin-top:4px}
+  .position .p-say code{font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:0.9rem}
+  .position.evidence{background:var(--well)}
+  .resolve{border-top:3px solid var(--indigo);padding:12px 14px;display:flex;flex-wrap:wrap;gap:10px}
+  .resolve .eyebrow{width:100%;color:var(--indigo)}
+  .btn-res{padding:8px 14px;font-weight:700;font-size:0.95rem;background:var(--paper)}
+  .btn-res:hover{background:var(--ink);color:#fff}
+  .btn-res.freeze{border-color:var(--mayday);color:var(--mayday)}
+  .btn-res.freeze:hover{background:var(--mayday);color:#fff}
+  .gates{margin:4px 16px 16px}
+  .gates>.eyebrow{color:var(--mayday);display:block;border-bottom:2px solid var(--ink);padding-bottom:6px;margin-bottom:10px}
+  .gates .gate{border:3px solid var(--mayday);background:#f2dcd6;padding:10px 14px}
+  .gate .g-title{font-family:var(--mono);font-variation-settings:"MONO" 1;font-weight:700}
+  .gate .g-req{font-size:0.875rem;margin-top:4px}
+  .gate .g-req b{color:var(--mayday)}
+  .gate .g-cost{font-size:0.875rem;color:#3d3a33;margin-top:2px}
+
+  /* ---------- flag key ---------- */
+  .flagkey{border:2px solid var(--ink);background:var(--well);margin-top:22px;padding:12px 16px}
+  .flagkey>.eyebrow{color:var(--rust);display:block;margin-bottom:10px}
+  .flagkey ul{list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:8px 20px}
+  .flagkey li{display:flex;align-items:baseline;gap:10px;font-size:0.95rem}
+  .flagkey .word{font-size:0.8rem}
+  .flagkey .cap{font-size:0.875rem}
+  .stale{
+    position:absolute;right:0;bottom:0;
+    border:2px solid var(--amber);border-right:none;border-bottom:none;
+    background:#f4ecd8;color:var(--rust);
+    font-size:0.875rem;font-weight:600;padding:6px 12px;max-width:340px;
+  }
+  .stale b{color:var(--amber)}
+
+  /* ---------- transcript band ---------- */
+  footer.ledger{border-top:3px solid var(--ink);background:var(--ink);color:var(--paper)}
+  .ledger-h{
+    display:flex;align-items:baseline;gap:12px;
+    padding:10px 28px 0;color:var(--paper);
+  }
+  .ledger-h .eyebrow{color:var(--amber)}
+  .ledger-h .cap{color:#b8b2a4;margin-left:auto}
+  .ledger-h .cap b{color:var(--paper)}
+  .ledger ol{
+    list-style:none;padding:10px 28px 16px;
+    font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:0.95rem;
+  }
+  .ledger li{display:flex;gap:14px;padding:3px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ledger .seq{color:var(--amber);flex:none;width:3.2em}
+  .ledger .ev{flex:none;width:9.5em;font-weight:700}
+  .ev.grant{color:#7fc79f} .ev.parl{color:#a99df0} .ev.gate{color:#f0a1a8} .ev.tick{color:#e0b96a}
+  .ledger .body{color:#d9d4c7}
+</style>
+</head>
+<body>
+
+<!-- ============ HEADER BAND ============ -->
+<header class="mast">
+  <div class="mast-title">
+    <div class="mast-kicker">
+      <span class="eyebrow brand">Port Daddy · Remote Harbor Co-op</span>
+    </div>
+    <h1>Harbor — <span class="repo">curiositech/checkout-rework</span></h1>
+    <p class="binder">&ldquo;Cooperative vibe coding is not &lsquo;many agents all touching the repo.&rsquo;
+      It is a <b>governed collaboration pattern</b> where humans and agents have visible intentions,
+      bounded permissions, durable transcripts, and ways to reconcile conflicts.&rdquo;
+      <span class="cap">— the binder</span></p>
+  </div>
+
+  <div class="mast-tools">
+    <div class="mast-tools-row">
+      <span class="chip truth"><span class="dot"></span>relay: connected · outbound-only · last ack 3s</span>
+      <div class="budget">
+        <span class="eyebrow" style="font-size:0.75rem;font-weight:800">Session budget</span>
+        <span class="amt"><em>$3.20</em> / $10 today</span>
+      </div>
+      <button class="btn-invite" type="button">Invite crew</button>
+    </div>
+    <span class="cap">QR or magic link · plain-language capability card — guests see what they can and cannot do before they join.</span>
+  </div>
+</header>
+
+<main class="deck">
+
+  <!-- ============ CREW RAIL ============ -->
+  <aside class="crew" aria-label="Crew presence">
+    <div class="panel-h">
+      <span class="eyebrow">Crew</span>
+      <span class="cap">2 humans · 4 agents</span>
+    </div>
+
+    <div class="crew-group">
+      <span class="eyebrow">Humans</span>
+
+      <div class="mate">
+        <div class="who">
+          <span class="avatar identity" title="identity verified">E</span>
+          <div><span class="name">erich</span>
+            <div class="role">operator · the conn</div></div>
+        </div>
+        <div class="step">reviewing the claims map; holds <code class="mono">retry.ts</code> modify</div>
+        <div class="elapsed">in harbor 2h 10m · identity ring: verified</div>
+      </div>
+
+      <div class="mate">
+        <div class="who">
+          <span class="avatar" style="border-color:var(--teal);color:var(--teal)">M</span>
+          <div><span class="name">mira</span>
+            <div class="role">collaborator · guest card</div></div>
+        </div>
+        <div class="capcard">
+          <b>can:</b> edit <span class="mono">src/checkout</span>, open PRs<br>
+          <span class="no">cannot:</span> spend, delete
+        </div>
+        <div class="step">styling the payment sheet, <code class="mono">checkout.css</code></div>
+        <div class="elapsed">in harbor 38m · joined by magic link</div>
+      </div>
+    </div>
+
+    <div class="crew-group">
+      <span class="eyebrow">Agents</span>
+
+      <div class="mate">
+        <div class="who">
+          <span class="avatar">V1</span>
+          <div><span class="name">voyager-1</span>
+            <div class="role">builder sortie</div></div>
+        </div>
+        <div class="state">
+          <svg class="flag" width="14" height="10" aria-label="Hotel flag: working">
+            <rect width="7" height="10" fill="#fff"/><rect x="7" width="7" height="10" fill="#C41E30"/>
+            <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="#121212"/></svg>
+          <span class="word w-working">Working</span>
+        </div>
+        <div class="step">wiring Stripe webhook retries</div>
+        <div class="elapsed">this step 12m · $0.88 spent</div>
+      </div>
+
+      <div class="mate">
+        <div class="who">
+          <span class="avatar">V2</span>
+          <div><span class="name">voyager-2</span>
+            <div class="role">builder sortie</div></div>
+        </div>
+        <div class="state">
+          <svg class="flag" width="14" height="10" aria-label="Hotel flag: working">
+            <rect width="7" height="10" fill="#fff"/><rect x="7" width="7" height="10" fill="#C41E30"/>
+            <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="#121212"/></svg>
+          <span class="word w-working">Working</span>
+        </div>
+        <div class="step">drafting <code class="mono">retry.ts</code> backoff change — blocked on parley</div>
+        <div class="elapsed">this step 4m · $0.41 spent</div>
+      </div>
+
+      <div class="mate">
+        <div class="who">
+          <span class="avatar">L</span>
+          <div><span class="name">longshoreman-memory</span>
+            <div class="role">evidence &amp; recall</div></div>
+        </div>
+        <div class="state">
+          <svg class="flag" width="14" height="10" aria-label="Mike flag: idle">
+            <rect width="14" height="10" fill="#fff"/>
+            <path d="M0 0 L14 10 M14 0 L0 10" stroke="#003fb8" stroke-width="2.6"/>
+            <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="#121212"/></svg>
+          <span class="word w-idle">Idle</span>
+        </div>
+        <div class="step">on call for evidence pulls; last served incident 2026-06-12</div>
+        <div class="elapsed">idle 26m · $0.00 this hour</div>
+      </div>
+
+      <div class="mate new-agent">
+        <div class="who">
+          <span class="avatar" style="border-color:var(--amber);color:var(--amber)">T</span>
+          <div><span class="name">tenderfoot</span>
+            <div class="role">probationary sortie</div></div>
+        </div>
+        <div class="state">
+          <svg class="flag" width="14" height="10" aria-label="Quebec flag: new, quarantined trust">
+            <rect width="14" height="10" fill="#f2c200"/>
+            <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="#121212"/></svg>
+          <span class="word w-new">New</span>
+        </div>
+        <div class="step">reduced ceiling until first clean exit — read-only claims, $0.50 cap</div>
+        <div class="elapsed">first sortie · 8m</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ CLAIMS MAP ============ -->
+  <section class="claims" aria-label="Claims map">
+    <div class="panel-h">
+      <span class="eyebrow">Claims map</span>
+      <span class="cap">the shared surface — who intends what, where, and for how long</span>
+    </div>
+
+    <div class="claims-body">
+      <div class="tree-label">
+        <code>src/checkout/</code>
+        <span class="cap">6 live claims · 1 conflict</span>
+      </div>
+
+      <div class="filehead">payment-intent.ts</div>
+      <div class="claim edge-health nested">
+        <span class="target">PaymentIntent.confirm</span>
+        <span class="holder">
+          <svg class="flag" width="14" height="10" aria-label="Hotel: working">
+            <rect width="7" height="10" fill="#fff"/><rect x="7" width="7" height="10" fill="#C41E30"/>
+            <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="#121212"/></svg>
+          <span class="hname">voyager-1</span><span class="age">12m</span>
+        </span>
+        <span class="meta"><b>SYMBOL</b> · modify — retry semantics only; signature frozen</span>
+      </div>
+      <div class="claim edge-amber nested">
+        <span class="target">PaymentIntent.capture</span>
+        <span class="holder">
+          <svg class="flag" width="14" height="10" aria-label="Quebec: new agent">
+            <rect width="14" height="10" fill="#f2c200"/>
+            <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="#121212"/></svg>
+          <span class="hname">tenderfoot</span><span class="age">3m</span>
+        </span>
+        <span class="meta"><b>SYMBOL</b> · read — probationary; cannot escalate to modify</span>
+      </div>
+
+      <div class="filehead">checkout.css</div>
+      <div class="claim edge-teal nested">
+        <span class="target">checkout.css:120&ndash;210</span>
+        <span class="holder">
+          <span class="avatar" style="width:22px;height:22px;border-color:var(--teal);color:var(--teal);font-size:0.8rem">M</span>
+          <span class="hname">mira</span><span class="age">31m</span>
+        </span>
+        <span class="meta"><b>REGION</b> · add — human hands; payment-sheet styles only</span>
+      </div>
+
+      <div class="filehead">webhook/handlers.ts</div>
+      <div class="claim edge-indigo nested">
+        <span class="target">webhook/handlers.ts</span>
+        <span class="holder">
+          <svg class="flag" width="14" height="10" aria-label="Hotel: working">
+            <rect width="7" height="10" fill="#fff"/><rect x="7" width="7" height="10" fill="#C41E30"/>
+            <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="#121212"/></svg>
+          <span class="hname">voyager-1</span><span class="age">9m</span>
+        </span>
+        <span class="meta"><b>FILE</b> · modify — protocol claim; retry callers move together</span>
+      </div>
+
+      <div class="filehead">retry.ts</div>
+      <div class="conflict">
+        <span class="target mono" style="font-weight:700">retry.ts</span>
+        <button class="btn-parley" type="button">Parley</button>
+        <span class="vs">
+          <svg class="flag" width="14" height="10" aria-label="Victor flag: conflict, require assistance">
+            <rect width="14" height="10" fill="#fff"/>
+            <path d="M0 0 L14 10 M14 0 L0 10" stroke="#C41E30" stroke-width="2.6"/>
+            <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="#121212"/></svg>
+          <span class="word w-conflict">Conflict</span> —
+          <b>voyager-2</b> wants modify <b>×</b> <b>erich</b> holds modify.
+          Both edits type-check alone; together they change backoff behavior under load.
+        </span>
+      </div>
+
+      <div class="flagkey">
+        <span class="eyebrow">Signal flags — every state is flag + word + color, never color alone</span>
+        <ul>
+          <li>
+            <svg class="flag" width="14" height="10" aria-hidden="true">
+              <rect width="7" height="10" fill="#fff"/><rect x="7" width="7" height="10" fill="#C41E30"/>
+              <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="#121212"/></svg>
+            <span class="word w-working">Hotel</span><span class="cap">working — pilot on board</span>
+          </li>
+          <li>
+            <svg class="flag" width="14" height="10" aria-hidden="true">
+              <rect width="14" height="10" fill="#fff"/>
+              <path d="M7 1 L12.5 5 L7 9 L1.5 5 Z" fill="#C41E30"/>
+              <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="#121212"/></svg>
+            <span class="word" style="color:var(--rust)">Foxtrot</span><span class="cap">disabled — needs review</span>
+          </li>
+          <li>
+            <svg class="flag" width="14" height="10" aria-hidden="true">
+              <rect width="14" height="10" fill="#fff"/>
+              <path d="M0 0 L14 10 M14 0 L0 10" stroke="#C41E30" stroke-width="2.6"/>
+              <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="#121212"/></svg>
+            <span class="word w-conflict">Victor</span><span class="cap">conflict — assistance required</span>
+          </li>
+          <li>
+            <svg class="flag" width="14" height="10" aria-hidden="true">
+              <rect width="14" height="10" fill="#f2c200"/>
+              <path d="M-2 3 L5 -2 M0 9 L13 -1 M5 12 L18 2 M11 12 L18 7" stroke="#C41E30" stroke-width="2"/>
+              <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="#121212"/></svg>
+            <span class="word" style="color:var(--amber)">Yankee</span><span class="cap">holding — awaiting a gate</span>
+          </li>
+          <li>
+            <svg class="flag" width="14" height="10" aria-hidden="true">
+              <rect width="14" height="10" fill="#fff"/>
+              <path d="M0 0 L14 10 M14 0 L0 10" stroke="#003fb8" stroke-width="2.6"/>
+              <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="#121212"/></svg>
+            <span class="word w-idle">Mike</span><span class="cap">idle — stopped, on call</span>
+          </li>
+          <li>
+            <svg class="flag" width="14" height="10" aria-hidden="true">
+              <rect width="14" height="10" fill="#f2c200"/>
+              <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="#121212"/></svg>
+            <span class="word w-new">Quebec</span><span class="cap">new — quarantined trust</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="claims-foot">
+      <span class="cap"><b>A clean Git merge is not proof of semantic safety.</b>
+        Claims declare intent before edits exist, so contention surfaces here — not in production.</span>
+    </div>
+  </section>
+
+  <!-- ============ PARLEY + GATES ============ -->
+  <aside class="starboard" aria-label="Parley and gates">
+    <div class="panel-h">
+      <span class="eyebrow">Parley</span>
+      <span class="cap">structured reconciliation — positions and evidence, not chat</span>
+    </div>
+
+    <div class="parley-card">
+      <div class="topic">
+        <span class="t">retry.ts backoff strategy</span>
+        <span class="seq">#413</span>
+      </div>
+
+      <div class="position">
+        <div class="p-who">
+          <svg class="flag" width="14" height="10" aria-label="Hotel: working">
+            <rect width="7" height="10" fill="#fff"/><rect x="7" width="7" height="10" fill="#C41E30"/>
+            <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="#121212"/></svg>
+          voyager-2 <span class="kind">· proposer</span>
+        </div>
+        <div class="p-say">Exponential backoff with jitter. Linear retry loses the failing case at
+          <code>test/retry.spec.ts:88</code> — burst of 50 webhooks, all retries collide on the same tick.</div>
+      </div>
+
+      <div class="position">
+        <div class="p-who">
+          <span class="avatar identity" style="width:22px;height:22px;font-size:0.8rem">E</span>
+          erich <span class="kind">· holder of the claim</span>
+        </div>
+        <div class="p-say">Keep linear. The SLA doc caps the total retry window at 30s; unbounded exponential
+          blows past it. If jitter wins, the cap has to survive.</div>
+      </div>
+
+      <div class="position evidence">
+        <div class="p-who">
+          <svg class="flag" width="14" height="10" aria-label="Mike: idle, serving evidence">
+            <rect width="14" height="10" fill="#fff"/>
+            <path d="M0 0 L14 10 M14 0 L0 10" stroke="#003fb8" stroke-width="2.6"/>
+            <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="#121212"/></svg>
+          longshoreman-memory <span class="kind">· evidence</span>
+        </div>
+        <div class="p-say">Incident 2026-06-12: exponential backoff without a ceiling starved the webhook
+          queue for 11 minutes. Prior art says: exponential, jittered, hard-capped at 30s.</div>
+      </div>
+
+      <div class="resolve">
+        <span class="eyebrow">Resolution — operator decides, ledger records</span>
+        <button class="btn-res" type="button">Adopt voyager-2</button>
+        <button class="btn-res" type="button">Adopt erich</button>
+        <button class="btn-res freeze" type="button">Freeze contested region</button>
+      </div>
+    </div>
+
+    <div class="gates">
+      <span class="eyebrow">Gates</span>
+      <div class="gate">
+        <div class="g-title">merge checkout-rework &rarr; main</div>
+        <div class="g-req">requires: <b>green CI</b> + <b>operator consent</b></div>
+        <div class="g-cost">est. $0.00 — held until the retry.ts parley resolves</div>
+      </div>
+    </div>
+
+    <div class="stale">
+      <b>mira&rsquo;s device:</b> last sync 47s — showing cached truth
+    </div>
+  </aside>
+</main>
+
+<!-- ============ DURABLE TRANSCRIPT ============ -->
+<footer class="ledger">
+  <div class="ledger-h">
+    <span class="eyebrow">Durable transcript</span>
+    <span class="cap"><b>hot messages move the UI; durable events decide history.</b>
+      Every grant, parley, and gate lands here with a sequence number — replayable after any disconnect.</span>
+  </div>
+  <ol>
+    <li><span class="seq">#412</span><span class="ev grant">claim granted</span>
+      <span class="body">voyager-1 &rarr; PaymentIntent.confirm — SYMBOL · modify · lease 30m</span></li>
+    <li><span class="seq">#413</span><span class="ev parl">parley opened</span>
+      <span class="body">retry.ts backoff strategy — voyager-2 (proposer) × erich (holder) · 3 positions filed</span></li>
+    <li><span class="seq">#414</span><span class="ev gate">gate armed</span>
+      <span class="body">merge checkout-rework &rarr; main — requires green CI + operator consent · est. $0.00</span></li>
+    <li><span class="seq">#415</span><span class="ev tick">budget tick</span>
+      <span class="body">session spend $3.20 of $10.00 — voyager-2 +$0.41 this step · ceiling holds</span></li>
+  </ol>
+</footer>
+
+</body>
+</html>
