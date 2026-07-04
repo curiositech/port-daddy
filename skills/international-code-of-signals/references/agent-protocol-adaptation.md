@@ -70,6 +70,23 @@ An ICOS-shaped signal as an A2A-style envelope (pd flavor):
 
 The `code` is the registered complete meaning; `gloss` is display-only (never parsed); `refs` are the typed data fields (`L`/`G`-style complements); priority is envelope-level. A receiver that can't validate `pd.signal.v1` answers with a `retryable: false` error naming the schema — `ZL`, not `RPT`.
 
+## Conversation-Protocol Grounding (turn-taking, repair, termination)
+
+Beyond message shape, ICOS encodes conversation *dynamics* — the concerns modern multi-agent conversation design names turn-taking, floor control, repair, and termination:
+
+| ICOS mechanic | Conversation-design concept | Rule worth stealing |
+|---|---|---|
+| One hoist at a time, kept flying until answered | Strict alternation turn-taking | A sender may not advance to its next message until the receiver acks the current one — backpressure is built into the turn order, not bolted on |
+| Flashing-light anatomy: call → identity → text → ending | Conversation lifecycle with explicit open/close | Sessions begin with mutual identification (both sides repeat back identities) and end with a handshake (`AR` answered by `R`) — never by silence or timeout alone |
+| `CQ` / `AA AA AA` general call vs identity-addressed hoist | Broadcast vs star topology selection *per message* | The addressing mode is chosen per signal, not fixed per system; an unaddressed hoist means "all stations in visual range" and every receiver knows it must answer |
+| `RPT` + `AA`/`AB`/`BN`/`WA`/`WB` scopes, `EEEEEE` erase | Repair sub-dialogues | Repair is a *scoped* side-conversation over a span of the failed transmission, then the main dialogue resumes from the last good point — not a restart of the whole exchange |
+| Icebreaker table: same letter, paired role-specific meanings (`G` = "follow me" / "I am following you") | Role-asymmetric semantics in supervisor-worker protocols | A command vocabulary can double as its own ack vocabulary when meanings are role-indexed; the ack confirms *semantic uptake*, not just receipt — but only inside an explicitly opened session (`WM`...`WO`) |
+| Medical consultation: fixed case-description order, `MQC` questions, `MQB` NAK, progress reports | Structured interview / critique-refine pattern | The information-holder front-loads a schema-complete report; the expert's turns are scoped questions; malformed turns get a format-NAK; progress reports keep the long-running exchange alive (heartbeats) |
+| `SEELONCE MAYDAY` + controlling station | Floor control with preemption and a designated moderator | When a distress conversation opens, one station takes explicit control of the channel and *silences non-participants*; control is released explicitly. Interrupt-class traffic needs a floor-holder, not just a priority number |
+| Answering pennant at the dip held while undecodable, then `ZL`/`ZQ` | Stall-state signaling | "I see your message and cannot yet process it" is a first-class conversational state, distinct from both silence and NAK — the equivalent of A2A's `input-required`/`working` distinction |
+
+Termination discipline: every ICOS exchange has an explicit end (`AR`→`R` by light, answering pennant hoisted singly by flags, `AR` by radio). The transferable rule: **a conversation without an agreed termination handshake is not over, it is abandoned** — and abandoned conversations are where multi-agent systems leak claims, locks, and half-done work (pd's `pd done` + salvage queue is this exact distinction).
+
 ## Designing a Fleet Signal Registry (procedure)
 
 ```mermaid
