@@ -30,6 +30,37 @@ import { canOpenConnection, trackConnection, untrackConnection } from '../shared
 
 export interface FleetApprovalsRouteDeps {
   logger: { info: (msg: string, meta?: Record<string, unknown>) => void };
+  /** Heartbeat cadence override (tests). Default 25s — under the typical
+   *  60s proxy/webview idle kill. */
+  heartbeatMs?: number;
+}
+
+/** Slow-consumer guard: a socket buffering more than this is closed rather
+ *  than allowed to grow without bound; the client reconnects and the
+ *  snapshot resyncs it (cheaper and safer than queueing). */
+export const MAX_BUFFERED_BYTES = 1_000_000;
+
+interface SendableSocket {
+  readyState: number;
+  OPEN: number;
+  bufferedAmount: number;
+  send(data: string): void;
+  close(code?: number, reason?: string): void;
+}
+
+/** Backpressure-aware send. Exported for direct unit testing. */
+export function sendWithBackpressure(
+  socket: SendableSocket,
+  event: ApprovalServerEvent,
+  maxBuffered = MAX_BUFFERED_BYTES,
+): 'sent' | 'closed' | 'skipped' {
+  if (socket.readyState !== socket.OPEN) return 'skipped';
+  if (socket.bufferedAmount > maxBuffered) {
+    socket.close(1013, 'backpressure: consumer too slow');
+    return 'closed';
+  }
+  socket.send(JSON.stringify(event));
+  return 'sent';
 }
 
 function parseClientEvent(raw: unknown): ApprovalClientEvent | null {
@@ -74,8 +105,28 @@ export const fleetApprovalsPlugin: FastifyPluginAsync<{ deps: FleetApprovalsRout
 
     const stream = getSharedApprovalStream();
     const send = (event: ApprovalServerEvent): void => {
-      if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(event));
+      sendWithBackpressure(socket as unknown as SendableSocket, event);
     };
+
+    // Heartbeat (ping/pong): proxies and webviews kill idle connections
+    // (typically at 60s), and a dead peer otherwise lingers as a zombie
+    // subscriber. Browsers auto-pong; a peer that misses one full interval
+    // is terminated and the client's reconnect+snapshot resyncs it.
+    let alive = true;
+    socket.on('pong', () => { alive = true; });
+    const heartbeat = setInterval(() => {
+      if (!alive) {
+        socket.terminate();
+        return;
+      }
+      alive = false;
+      try {
+        socket.ping();
+      } catch {
+        // Socket is mid-close; the close handler cleans up.
+      }
+    }, opts.deps?.heartbeatMs ?? 25_000);
+    heartbeat.unref?.();
 
     // Resync contract: full snapshot on every (re)connect, deltas after.
     send({ type: 'snapshot', proposals: stream.list() });
@@ -106,10 +157,60 @@ export const fleetApprovalsPlugin: FastifyPluginAsync<{ deps: FleetApprovalsRout
     });
 
     socket.on('close', () => {
+      clearInterval(heartbeat);
       unsubscribe();
       // Balance trackConnection or this IP hits maxPerIP after 5 sockets
       // and is refused forever.
       untrackConnection(ip, 'sse', socket as never);
+    });
+  });
+
+  // ── SSE fallback: same feed, EventSource transport ─────────────────────────
+  // Graceful degradation for contexts where WebSocket upgrades are blocked
+  // (some WKWebView configurations). Server→client only; decisions go
+  // through POST /fleet/approvals/:id/decision. Frames are data-only JSON
+  // with the same typed events; a comment line every heartbeat keeps
+  // intermediaries from killing the stream.
+  fastify.get('/fleet/approvals/events', (request: FastifyRequest, reply: FastifyReply) => {
+    const ip = request.ip || 'unknown';
+    if (!canOpenConnection(ip, 'sse')) {
+      reply.code(429).header('Retry-After', '10');
+      return reply.send({ error: 'too many concurrent connections' });
+    }
+    reply.hijack();
+    const raw = reply.raw;
+    trackConnection(ip, 'sse', raw as never);
+    raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+
+    const stream = getSharedApprovalStream();
+    const write = (event: ApprovalServerEvent): void => {
+      try {
+        raw.write(`data: ${JSON.stringify(event)}\n\n`);
+      } catch {
+        // Peer is gone; the close handler cleans up.
+      }
+    };
+    write({ type: 'snapshot', proposals: stream.list() });
+    const unsubscribe = stream.subscribe(write);
+
+    const keepalive = setInterval(() => {
+      try {
+        raw.write(':hb\n\n');
+      } catch {
+        // ignore — close handler cleans up
+      }
+    }, opts.deps?.heartbeatMs ?? 25_000);
+    keepalive.unref?.();
+
+    request.raw.on('close', () => {
+      clearInterval(keepalive);
+      unsubscribe();
+      untrackConnection(ip, 'sse', raw as never);
     });
   });
 

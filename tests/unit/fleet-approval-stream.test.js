@@ -236,3 +236,116 @@ describe('GET /fleet/approvals/stream (WebSocket)', () => {
     expect(gone.statusCode).toBe(404);
   });
 });
+
+// ─── Realtime hardening (websocket-realtime-expert gates) ────────────────────
+
+describe('sendWithBackpressure', () => {
+  test('sends when open and drained; closes slow consumers; skips closed sockets', async () => {
+    const { sendWithBackpressure } = await import('../../routes/fleet-approvals.js');
+    const mk = (readyState, bufferedAmount) => {
+      const calls = { sent: [], closed: [] };
+      return {
+        socket: {
+          readyState, OPEN: 1, bufferedAmount,
+          send: (d) => calls.sent.push(d),
+          close: (code, reason) => calls.closed.push({ code, reason }),
+        },
+        calls,
+      };
+    };
+
+    const open = mk(1, 0);
+    expect(sendWithBackpressure(open.socket, { type: 'error', message: 'x' })).toBe('sent');
+    expect(open.calls.sent).toHaveLength(1);
+
+    const slow = mk(1, 2_000_000);
+    expect(sendWithBackpressure(slow.socket, { type: 'error', message: 'x' })).toBe('closed');
+    expect(slow.calls.closed[0].code).toBe(1013);
+    expect(slow.calls.sent).toHaveLength(0);
+
+    const gone = mk(3, 0);
+    expect(sendWithBackpressure(gone.socket, { type: 'error', message: 'x' })).toBe('skipped');
+    expect(gone.calls.sent).toHaveLength(0);
+    expect(gone.calls.closed).toHaveLength(0);
+  });
+});
+
+describe('heartbeat (ping/pong liveness)', () => {
+  test('a peer that never pongs is terminated within two intervals', async () => {
+    setSharedApprovalStream(new FleetApprovalStream());
+    const app = Fastify();
+    // 60ms heartbeat so the test resolves fast.
+    await app.register(fleetApprovalsPlugin, { deps: { logger: { info: () => {} }, heartbeatMs: 60 } });
+    await app.listen({ port: 0, host: '127.0.0.1' });
+    const port = app.server.address().port;
+
+    // autoPong:false simulates a dead/zombie peer that stops answering.
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/fleet/approvals/stream`, { autoPong: false });
+    const closed = new Promise((resolve) => ws.on('close', resolve));
+    await new Promise((resolve) => ws.on('open', resolve));
+    const start = Date.now();
+    await closed;
+    // Terminated by the server's liveness sweep — well under a second.
+    expect(Date.now() - start).toBeLessThan(1000);
+
+    await app.close();
+    setSharedApprovalStream(null);
+  });
+
+  test('a live peer (auto-pong) survives many intervals', async () => {
+    setSharedApprovalStream(new FleetApprovalStream());
+    const app = Fastify();
+    await app.register(fleetApprovalsPlugin, { deps: { logger: { info: () => {} }, heartbeatMs: 40 } });
+    await app.listen({ port: 0, host: '127.0.0.1' });
+    const port = app.server.address().port;
+
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/fleet/approvals/stream`); // default autoPong:true
+    await new Promise((resolve) => ws.on('open', resolve));
+    let closedEarly = false;
+    ws.on('close', () => { closedEarly = true; });
+    await new Promise((r) => setTimeout(r, 250)); // ~6 heartbeat intervals
+    expect(closedEarly).toBe(false);
+
+    ws.terminate();
+    await app.close();
+    setSharedApprovalStream(null);
+  });
+});
+
+describe('GET /fleet/approvals/events (SSE fallback)', () => {
+  test('streams the snapshot then live deltas as data-only JSON frames', async () => {
+    const stream = new FleetApprovalStream();
+    setSharedApprovalStream(stream);
+    stream.configure({ hail: async () => ({ success: true }), removeDurable: () => {} });
+    stream.enqueue(proposal({ id: 'sse-pre', timestamp: 1 }));
+
+    const app = Fastify();
+    await app.register(fleetApprovalsPlugin, { deps: { logger: { info: () => {} } } });
+    await app.listen({ port: 0, host: '127.0.0.1' });
+    const port = app.server.address().port;
+
+    const res = await fetch(`http://127.0.0.1:${port}/fleet/approvals/events`);
+    expect(res.headers.get('content-type')).toContain('text/event-stream');
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    const readUntil = async (predicate) => {
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline) {
+        if (predicate(buffer)) return;
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+      }
+      throw new Error(`SSE frame not observed; got: ${buffer.slice(0, 300)}`);
+    };
+
+    await readUntil((b) => b.includes('"type":"snapshot"') && b.includes('sse-pre'));
+    stream.enqueue(proposal({ id: 'sse-live', timestamp: 2 }));
+    await readUntil((b) => b.includes('"type":"human_gate_waiting"') && b.includes('sse-live'));
+
+    await reader.cancel();
+    await app.close();
+    setSharedApprovalStream(null);
+  });
+});
