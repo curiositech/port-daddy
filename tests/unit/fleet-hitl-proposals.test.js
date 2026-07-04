@@ -3,6 +3,8 @@ import { createTestDb } from '../setup-unit.js';
 import {
   buildFleetProposalDispatchGoal,
   createFleetProposalStore,
+  FleetProposalStateError,
+  MAX_PENDING_FLEET_PROPOSALS,
 } from '../../lib/fleet-hitl-proposals.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 
@@ -183,6 +185,163 @@ describe('fleet HITL proposals', () => {
     expect(dispatchQueue.list({ state: 'all' })).toHaveLength(0);
 
     await app.close();
+    db.close();
+  });
+
+  test('unknown proposal id is a 404, not a 400', async () => {
+    const { app, db } = await buildApp();
+
+    const approve = await app.inject({
+      method: 'POST',
+      url: '/fleet-proposals/nope/approve',
+      payload: {},
+    });
+    expect(approve.statusCode).toBe(404);
+
+    const reject = await app.inject({
+      method: 'POST',
+      url: '/fleet-proposals/nope/reject',
+      payload: { reason: 'does not exist' },
+    });
+    expect(reject.statusCode).toBe(404);
+
+    await app.close();
+    db.close();
+  });
+
+  test('duplicate caller-supplied id is a 409 conflict', async () => {
+    const { app, db } = await buildApp();
+    const first = await app.inject({
+      method: 'POST',
+      url: '/fleet-proposals',
+      payload: sampleProposal({ id: 'spark:idea-1' }),
+    });
+    expect(first.statusCode).toBe(201);
+
+    const dup = await app.inject({
+      method: 'POST',
+      url: '/fleet-proposals',
+      payload: sampleProposal({ id: 'spark:idea-1' }),
+    });
+    expect(dup.statusCode).toBe(409);
+    expect(dup.json().error).toContain('already exists');
+
+    await app.close();
+    db.close();
+  });
+
+  test('rejecting an already-rejected proposal is idempotent; approving it is a 409', async () => {
+    const { app, db } = await buildApp();
+    const create = await app.inject({ method: 'POST', url: '/fleet-proposals', payload: sampleProposal() });
+    const id = create.json().proposal.id;
+
+    const rejected = await app.inject({
+      method: 'POST',
+      url: `/fleet-proposals/${id}/reject`,
+      payload: { reason: 'off mission' },
+    });
+    expect(rejected.statusCode).toBe(200);
+
+    const again = await app.inject({
+      method: 'POST',
+      url: `/fleet-proposals/${id}/reject`,
+      payload: { reason: 'still off mission' },
+    });
+    expect(again.statusCode).toBe(200);
+    expect(again.json().proposal.status).toBe('rejected');
+
+    const approve = await app.inject({
+      method: 'POST',
+      url: `/fleet-proposals/${id}/approve`,
+      payload: {},
+    });
+    expect(approve.statusCode).toBe(409);
+
+    await app.close();
+    db.close();
+  });
+
+  test('invalid status filter is a 400, not a silent empty list', async () => {
+    const { app, db } = await buildApp();
+    await app.inject({ method: 'POST', url: '/fleet-proposals', payload: sampleProposal() });
+
+    const res = await app.inject({ method: 'GET', url: '/fleet-proposals?status=bogus' });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toContain("invalid status 'bogus'");
+
+    await app.close();
+    db.close();
+  });
+
+  test('oversized context payload is rejected with 400', async () => {
+    const { app, db } = await buildApp();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/fleet-proposals',
+      payload: sampleProposal({ context: { blob: 'x'.repeat(20_000) } }),
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toContain('context too large');
+
+    await app.close();
+    db.close();
+  });
+
+  test('pending queue is capped at MAX_PENDING_FLEET_PROPOSALS with 429', async () => {
+    const { app, db } = await buildApp();
+    const store = createFleetProposalStore({ db, now: () => 5 });
+    for (let i = 0; i < MAX_PENDING_FLEET_PROPOSALS; i += 1) {
+      store.create({ title: `idea ${i}`, sourceShip: 'spark', id: `spark:flood-${i}` });
+    }
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/fleet-proposals',
+      payload: sampleProposal(),
+    });
+    expect(res.statusCode).toBe(429);
+    expect(res.json().error).toContain('queue is full');
+
+    await app.close();
+    db.close();
+  });
+
+  test('store approve never reports a concurrently-rejected proposal as approved', () => {
+    const db = createTestDb();
+    const store = createFleetProposalStore({ db, now: () => 9 });
+    const proposal = store.create(sampleProposal());
+
+    // Simulate a second writer flipping the row between approve()'s read and
+    // its guarded UPDATE: the UPDATE matches zero rows, and approve() must
+    // surface the conflict instead of returning the rejected row as a success.
+    db.prepare(`UPDATE fleet_hitl_proposals SET status = 'rejected' WHERE id = ?`).run(proposal.id);
+    const guarded = db.prepare(`
+      UPDATE fleet_hitl_proposals SET status = 'approved' WHERE id = ? AND status = 'pending'
+    `).run(proposal.id);
+    expect(guarded.changes).toBe(0);
+    expect(() => store.approve({ id: proposal.id })).toThrow(FleetProposalStateError);
+    db.close();
+  });
+
+  test('list pushes filters and limit into SQL without over-returning', () => {
+    const db = createTestDb();
+    let tick = 0;
+    const store = createFleetProposalStore({ db, now: () => ++tick });
+    for (let i = 0; i < 5; i += 1) {
+      store.create({ title: `spark ${i}`, sourceShip: 'spark', repoFullName: 'curiositech/port-daddy', prNumber: 100 + i });
+      store.create({ title: `spider ${i}`, sourceShip: 'spider' });
+    }
+
+    const page = store.list({ sourceShip: 'spark', limit: 3 });
+    expect(page).toHaveLength(3);
+    expect(page.every((p) => p.sourceShip === 'spark')).toBe(true);
+    // Newest first
+    expect(page[0].title).toBe('spark 4');
+
+    const byPr = store.list({ repoFullName: 'curiositech/port-daddy', prNumber: 102 });
+    expect(byPr).toHaveLength(1);
+    expect(byPr[0].title).toBe('spark 2');
     db.close();
   });
 

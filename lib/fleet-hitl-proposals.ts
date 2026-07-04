@@ -11,6 +11,29 @@ import type Database from 'better-sqlite3';
 
 export type FleetProposalStatus = 'pending' | 'approved' | 'rejected' | 'dispatched';
 
+export const FLEET_PROPOSAL_STATUSES: readonly FleetProposalStatus[] = [
+  'pending',
+  'approved',
+  'rejected',
+  'dispatched',
+];
+
+/** Hard cap on undecided proposals — a misbehaving ship must not grow the queue without bound. */
+export const MAX_PENDING_FLEET_PROPOSALS = 200;
+/** Hard cap on the serialized `context` payload persisted per proposal. */
+export const MAX_CONTEXT_JSON_BYTES = 16_384;
+
+/** Input failed validation — HTTP 400. */
+export class FleetProposalValidationError extends Error {}
+/** No proposal with that id — HTTP 404. */
+export class FleetProposalNotFoundError extends Error {}
+/** Proposal exists but is in a state that forbids the transition — HTTP 409. */
+export class FleetProposalStateError extends Error {}
+/** Caller-supplied id collides with an existing proposal — HTTP 409. */
+export class FleetProposalDuplicateError extends Error {}
+/** Pending queue is at capacity — HTTP 429. */
+export class FleetProposalQueueFullError extends Error {}
+
 export interface FleetProposalLink {
   label: string;
   url: string;
@@ -358,12 +381,6 @@ export function createFleetProposalStore(deps: FleetProposalStoreDeps) {
   const selectByIdStmt = db.prepare<[string], FleetProposalRow>(
     `SELECT * FROM fleet_hitl_proposals WHERE id = ?`,
   );
-  const selectAllStmt = db.prepare<[], FleetProposalRow>(
-    `SELECT * FROM fleet_hitl_proposals ORDER BY created_at DESC`,
-  );
-  const selectByStatusStmt = db.prepare<[string], FleetProposalRow>(
-    `SELECT * FROM fleet_hitl_proposals WHERE status = ? ORDER BY created_at DESC`,
-  );
   const pendingCountStmt = db.prepare<[], { count: number }>(
     `SELECT COUNT(*) AS count FROM fleet_hitl_proposals WHERE status = 'pending'`,
   );
@@ -396,18 +413,32 @@ export function createFleetProposalStore(deps: FleetProposalStoreDeps) {
 
   function create(input: CreateFleetProposalInput): FleetProposal {
     const title = cleanString(input.title, '', 180);
-    if (!title) throw new Error('proposal title is required');
+    if (!title) throw new FleetProposalValidationError('proposal title is required');
     const sourceShip = cleanString(input.sourceShip, '', 80);
-    if (!sourceShip) throw new Error('sourceShip is required');
+    if (!sourceShip) throw new FleetProposalValidationError('sourceShip is required');
     const summary = cleanString(input.summary, title, 1000);
     const proposalMarkdown = cleanString(input.proposalMarkdown, summary, 12_000);
     const budgetUsd = optionalNumber(input.budgetUsd ?? input.suggestedBudgetUsd);
     if (budgetUsd !== null && budgetUsd <= 0) {
-      throw new Error('budgetUsd must be a positive number when provided');
+      throw new FleetProposalValidationError('budgetUsd must be a positive number when provided');
+    }
+    const contextJson = JSON.stringify(normalizeContext(input.context));
+    if (contextJson.length > MAX_CONTEXT_JSON_BYTES) {
+      throw new FleetProposalValidationError(
+        `context too large (${contextJson.length} bytes serialized, max ${MAX_CONTEXT_JSON_BYTES})`,
+      );
+    }
+    if (pendingCount() >= MAX_PENDING_FLEET_PROPOSALS) {
+      throw new FleetProposalQueueFullError(
+        `pending proposal queue is full (${MAX_PENDING_FLEET_PROPOSALS}); decide existing proposals before submitting more`,
+      );
     }
     const prNumber = optionalNumber(input.prNumber);
     const at = now();
     const id = cleanString(input.id, randomUUID(), 160).replace(/[^a-zA-Z0-9:_./-]/g, '-');
+    if (selectByIdStmt.get(id)) {
+      throw new FleetProposalDuplicateError(`proposal ${id} already exists`);
+    }
     insertStmt.run(
       id,
       title,
@@ -427,7 +458,7 @@ export function createFleetProposalStore(deps: FleetProposalStoreDeps) {
       optionalString(input.validationPlan ?? input.validationCommand, 2000),
       JSON.stringify(normalizeExpectedArtifacts(input.expectedArtifacts)),
       JSON.stringify(normalizeProposalLinks(input)),
-      JSON.stringify(normalizeContext(input.context)),
+      contextJson,
       at,
       at,
     );
@@ -443,76 +474,112 @@ export function createFleetProposalStore(deps: FleetProposalStoreDeps) {
 
   function list(options: ListFleetProposalsOptions = {}): FleetProposal[] {
     const limit = options.limit && options.limit > 0 ? Math.min(options.limit, 500) : 100;
-    const rows = !options.status || options.status === 'all'
-      ? selectAllStmt.all()
-      : selectByStatusStmt.all(options.status);
-    return rows
-      .map(rowToProposal)
-      .filter((p: FleetProposal) => !options.sourceShip || p.sourceShip === options.sourceShip)
-      .filter((p: FleetProposal) => !options.repoFullName || p.repoFullName === options.repoFullName)
-      .filter((p: FleetProposal) => options.prNumber === undefined || p.prNumber === options.prNumber)
-      .slice(0, limit);
+    // Filters and LIMIT are pushed into SQL so a large table never gets
+    // materialized in memory just to serve a bounded page.
+    const clauses: string[] = [];
+    const params: (string | number)[] = [];
+    if (options.status && options.status !== 'all') {
+      clauses.push('status = ?');
+      params.push(options.status);
+    }
+    if (options.sourceShip) {
+      clauses.push('source_ship = ?');
+      params.push(options.sourceShip);
+    }
+    if (options.repoFullName) {
+      clauses.push('repo_full_name = ?');
+      params.push(options.repoFullName);
+    }
+    if (options.prNumber !== undefined) {
+      clauses.push('pr_number = ?');
+      params.push(options.prNumber);
+    }
+    const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
+    const rows = db
+      .prepare<(string | number)[], FleetProposalRow>(
+        `SELECT * FROM fleet_hitl_proposals${where} ORDER BY created_at DESC LIMIT ?`,
+      )
+      .all(...params, limit);
+    return rows.map(rowToProposal);
   }
 
   function pendingCount(): number {
     return pendingCountStmt.get()?.count ?? 0;
   }
 
+  function requireRow(id: string): FleetProposalRow {
+    const row = selectByIdStmt.get(id);
+    if (!row) throw new FleetProposalNotFoundError(`proposal ${id} not found`);
+    return row;
+  }
+
   function approve(input: DecideFleetProposalInput): FleetProposal {
-    const existing = selectByIdStmt.get(input.id);
-    if (!existing) throw new Error(`proposal ${input.id} not found`);
+    const existing = requireRow(input.id);
     if (existing.status === 'approved' || existing.status === 'dispatched') {
       return rowToProposal(existing);
     }
     if (existing.status !== 'pending') {
-      throw new Error(`cannot approve proposal in state ${existing.status}`);
+      throw new FleetProposalStateError(`cannot approve proposal in state ${existing.status}`);
     }
     const at = now();
-    approveStmt.run(
+    const result = approveStmt.run(
       optionalString(input.note, 2000),
       cleanString(input.decidedBy, 'operator', 120),
       at,
       at,
       input.id,
     );
-    const updated = selectByIdStmt.get(input.id);
-    if (!updated) throw new Error(`proposal ${input.id} vanished after approve`);
+    const updated = requireRow(input.id);
+    if (result.changes === 0) {
+      // Another writer changed the row between our read and the guarded UPDATE
+      // (WHERE status = 'pending'). Never report a non-approved row as approved.
+      if (updated.status === 'approved' || updated.status === 'dispatched') {
+        return rowToProposal(updated);
+      }
+      throw new FleetProposalStateError(`cannot approve proposal in state ${updated.status}`);
+    }
     return rowToProposal(updated);
   }
 
   function reject(input: DecideFleetProposalInput): FleetProposal {
     const reason = cleanString(input.note, '', 2000);
-    if (reason.length < 3) throw new Error('reject requires a reason (>=3 chars)');
-    const existing = selectByIdStmt.get(input.id);
-    if (!existing) throw new Error(`proposal ${input.id} not found`);
+    if (reason.length < 3) {
+      throw new FleetProposalValidationError('reject requires a reason (>=3 chars)');
+    }
+    const existing = requireRow(input.id);
     if (existing.status === 'rejected') return rowToProposal(existing);
     if (existing.status === 'dispatched') {
-      throw new Error('cannot reject a proposal after it has been dispatched');
+      throw new FleetProposalStateError('cannot reject a proposal after it has been dispatched');
     }
     const at = now();
-    rejectStmt.run(
+    const result = rejectStmt.run(
       reason,
       cleanString(input.decidedBy, 'operator', 120),
       at,
       at,
       input.id,
     );
-    const updated = selectByIdStmt.get(input.id);
-    if (!updated) throw new Error(`proposal ${input.id} vanished after reject`);
+    const updated = requireRow(input.id);
+    if (result.changes === 0) {
+      if (updated.status === 'rejected') return rowToProposal(updated);
+      throw new FleetProposalStateError(`cannot reject proposal in state ${updated.status}`);
+    }
     return rowToProposal(updated);
   }
 
   function markDispatched(input: MarkFleetProposalDispatchedInput): FleetProposal {
-    const existing = selectByIdStmt.get(input.id);
-    if (!existing) throw new Error(`proposal ${input.id} not found`);
+    const existing = requireRow(input.id);
     if (existing.status === 'dispatched') return rowToProposal(existing);
     if (existing.status !== 'approved') {
-      throw new Error(`cannot dispatch proposal in state ${existing.status}`);
+      throw new FleetProposalStateError(`cannot dispatch proposal in state ${existing.status}`);
     }
     const at = now();
-    dispatchedStmt.run(input.dispatchId, at, at, input.id);
-    const updated = selectByIdStmt.get(input.id);
-    if (!updated) throw new Error(`proposal ${input.id} vanished after dispatch`);
+    const result = dispatchedStmt.run(input.dispatchId, at, at, input.id);
+    const updated = requireRow(input.id);
+    if (result.changes === 0) {
+      if (updated.status === 'dispatched') return rowToProposal(updated);
+      throw new FleetProposalStateError(`cannot dispatch proposal in state ${updated.status}`);
+    }
     return rowToProposal(updated);
   }
 
