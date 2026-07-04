@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FleetBar — Intent-First Popover (spec mockup)</title>
+<style>
+/* ============================================================
+   FleetBar spec mockup — renders work-packets/fleetbar-technical-spec.md
+   Type: SF via system stack for ALL chrome (spec: platform family).
+         Brand display family deferred to the PR #455 pass; masthead
+         uses the system stack at display weight as a stand-in.
+   Palette: placeholder values pending PR #455 brand tokens.
+   Rules that ARE binding: fractional borders (2.1/2.3/2.4/2.8 only),
+   no border-radius, no box-shadow, one accent, stripes carry state,
+   14px body floor, 12px eyebrows only at w600+/0.10em+.
+   ============================================================ */
+:root {
+  --paper: #F4F0E8; --paper-raised: #ECE6D9; --paper-deep: #E2DAC8;
+  --ink: #1A1815; --ink-soft: #3A3631; --ink-mute: #6A655C;
+  --accent: #003FB8;
+  --ok: #2E7D5B; --warn: #B8801F; --err: #B5392E; --blocked: #6B3F8A; --idle: #98928A;
+  --hairline: rgba(26,24,21,.28);
+  --bracket: rgba(26,24,21,.85);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #171512; --paper-raised: #201D19; --paper-deep: #2A2620;
+    --ink: #EDE8DD; --ink-soft: #CFC8BA; --ink-mute: #948D80;
+    --accent: #5B8CFF;
+    --ok: #4BA57F; --warn: #D19A3D; --err: #D4655A; --blocked: #9B6FC0; --idle: #6E695F;
+    --hairline: rgba(237,232,221,.24);
+    --bracket: rgba(237,232,221,.8);
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  background: var(--paper-deep); color: var(--ink);
+  font-size: .9375rem; line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  padding: 0 0 4rem;
+}
+.mono {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: .8125rem; /* 13px mono floor per spec */
+}
+.eyebrow {
+  font-size: .75rem; font-weight: 650; text-transform: uppercase;
+  letter-spacing: .12em; color: var(--ink-mute);
+}
+
+/* fake macOS menu bar */
+.menubar {
+  height: 28px; background: var(--paper-raised);
+  border-bottom: 1px solid var(--hairline);
+  display: flex; align-items: center; gap: 1.25rem; padding: 0 1rem;
+  font-size: .875rem; color: var(--ink-soft);
+}
+.menubar .pd-icon { font-weight: 700; color: var(--ink); }
+.menubar .spacer { flex: 1; }
+
+.stage {
+  display: flex; gap: 3rem; justify-content: center; align-items: flex-start;
+  flex-wrap: wrap; padding: 2.5rem 2rem 0;
+}
+.face-label { text-align: center; margin: .9rem 0 0; }
+
+/* ---- the popover: 380pt, panel-scope corner brackets (pattern 2.1) ---- */
+.popover {
+  width: 380px; background: var(--paper); position: relative;
+  padding: 18px 16px 14px;
+}
+.popover::before, .popover::after,
+.popover .bk::before, .popover .bk::after {
+  content: ""; position: absolute; width: 12px; height: 12px;
+  border: 0 solid var(--bracket);
+}
+.popover::before { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+.popover::after  { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+.popover .bk::before { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.popover .bk::after  { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+
+/* midline rule (pattern 2.3): 64px, anchored left */
+.rule { border: 0; border-top: 1px solid var(--hairline); width: 64px; margin: 14px 0 12px; }
+
+.pop-head { display: flex; align-items: baseline; gap: .6rem; }
+.pop-head .title { font-weight: 750; font-size: 1rem; letter-spacing: -.01em; }
+.pop-head .spend { margin-left: auto; color: var(--ink-mute); }
+
+/* ---- rows: left-edge stripe (pattern 2.4) + dot, one carrier ---- */
+.row {
+  display: flex; align-items: center; gap: .65rem;
+  padding: .55rem .7rem .55rem .85rem; position: relative;
+  cursor: default;
+}
+.row + .row { margin-top: 2px; }
+.row:hover { background: var(--paper-raised); }
+.row .stripe {
+  position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px;
+}
+.row .dot { width: 8px; height: 8px; flex: none; position: relative; }
+.row .dot i { position: absolute; inset: 0; background: currentColor; }
+.row.running { color: var(--ink); }
+.row .body { min-width: 0; flex: 1; }
+.row .name { font-weight: 600; font-size: .9375rem; }
+.row .meta { color: var(--ink-mute); font-size: .875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .age { color: var(--ink-mute); margin-left: auto; flex: none; }
+
+.s-running { color: var(--accent); } .s-running .stripe { background: var(--accent); }
+.s-ok { color: var(--ok); } .s-ok .stripe { background: var(--ok); }
+.s-warn { color: var(--warn); } .s-warn .stripe { background: var(--warn); }
+.s-err { color: var(--err); } .s-err .stripe { background: var(--err); }
+.s-blocked { color: var(--blocked); } .s-blocked .stripe { background: var(--blocked); }
+.s-idle { color: var(--idle); } .s-idle .stripe { background: var(--idle); }
+
+/* pulse ring — the ONLY animation, running rows only */
+@keyframes pulse { 0% { outline-offset: 0; outline-color: currentColor; } 100% { outline-offset: 7px; outline-color: transparent; } }
+.row.live .dot i { outline: 1.5px solid currentColor; animation: pulse 1.8s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .row.live .dot i { animation: none; } }
+
+/* ---- gate card: the privileged object ---- */
+.gate {
+  border-left: 3px solid var(--blocked);
+  background: var(--paper-raised);
+  padding: .8rem .9rem .75rem; margin-top: .6rem;
+}
+.gate .who { font-weight: 650; }
+.gate .why { color: var(--ink-soft); font-size: .9rem; margin-top: .15rem; }
+.gate .facts {
+  display: flex; flex-wrap: wrap; gap: .35rem 1.1rem; margin-top: .55rem;
+  color: var(--ink-mute); font-size: .875rem;
+}
+.gate .facts b { color: var(--ink-soft); font-weight: 600; }
+.gate .acts { display: flex; gap: .5rem; margin-top: .7rem; }
+.btn {
+  font: inherit; font-size: .875rem; font-weight: 600;
+  padding: .3rem .8rem; border: 1.5px solid var(--ink); background: transparent;
+  color: var(--ink); cursor: pointer;
+}
+.btn.primary { background: var(--ink); color: var(--paper); }
+.btn.quiet { border-color: var(--hairline); color: var(--ink-mute); }
+.kbd {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .75rem;
+  border: 1px solid var(--hairline); padding: 0 .3rem; color: var(--ink-mute);
+  margin-left: .35rem;
+}
+
+/* ---- command bar ---- */
+.cmdbar {
+  display: flex; align-items: center; gap: .6rem;
+  border: 1.5px solid var(--ink); padding: .55rem .75rem; margin-top: .6rem;
+  color: var(--ink-mute); background: var(--paper);
+}
+.cmdbar .caret { width: 8px; height: 17px; background: var(--accent); }
+.cmdbar .hint { margin-left: auto; }
+
+/* quick actions */
+.qa { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-top: .1rem; }
+.qa .row { padding-left: .7rem; }
+.qa .glyph { color: var(--ink-mute); font-size: .9rem; width: 1.1rem; flex: none; }
+
+.foot {
+  display: flex; gap: 1rem; align-items: center; margin-top: 14px; padding-top: 10px;
+  border-top: 1px solid var(--hairline); color: var(--ink-mute); font-size: .875rem;
+}
+.foot .okdot { width: 7px; height: 7px; background: var(--ok); display: inline-block; margin-right: .4rem; }
+.foot .right { margin-left: auto; }
+
+/* ---- expanded row (drawer face) ---- */
+.expand {
+  margin: 4px 0 6px 1.5rem; border-left: 1px solid var(--hairline);
+  padding: .6rem .8rem .7rem; position: relative; background: var(--paper);
+}
+.expand .step { color: var(--ink-soft); font-size: .9rem; }
+.expand .stats { margin-top: .4rem; color: var(--ink-mute); }
+.chips { display: flex; gap: .4rem; margin-top: .55rem; flex-wrap: wrap; }
+.chip {
+  font-size: .8125rem; padding: .1rem .45rem; color: var(--ink-mute);
+  border-bottom: 1px solid var(--hairline);
+}
+.chip.active { color: var(--accent); border-left: 3px solid var(--accent); border-bottom: 0; padding-left: .4rem; font-weight: 600; }
+.expand .acts { display: flex; gap: .9rem; margin-top: .6rem; color: var(--ink-mute); font-size: .875rem; }
+
+/* section head */
+.sect { display: flex; align-items: baseline; gap: .5rem; margin-top: 2px; }
+.sect .count { color: var(--ink-mute); font-size: .875rem; }
+.badge {
+  background: var(--blocked); color: var(--paper); font-size: .75rem;
+  font-weight: 700; padding: 0 .4rem; letter-spacing: .06em;
+}
+
+/* page header */
+.pagehead { max-width: 860px; margin: 2.2rem auto .4rem; padding: 0 2rem; }
+.pagehead h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -.02em; }
+.pagehead p { color: var(--ink-soft); max-width: 60ch; margin-top: .35rem; }
+.pagehead .refs { margin-top: .4rem; color: var(--ink-mute); font-size: .875rem; }
+</style>
+</head>
+<body>
+
+<div class="menubar">
+  <span class="pd-icon">⌗</span><span>File</span><span>Edit</span><span>View</span><span>Window</span>
+  <span class="spacer"></span>
+  <span class="mono">Fri 21:48</span>
+</div>
+
+<div class="pagehead">
+  <h1>FleetBar — the intent-first popover</h1>
+  <p>The fleet is plumbing; the front door is intent. Gates demand you, the command bar
+     takes a Work Intent, resume re-enters work, and the fleet lives in a drawer.
+     Left: home face. Right: the fleet drawer with the six-state grammar and one inline expansion.</p>
+  <p class="refs mono">contract: agent-harbor-technical-binder/work-packets/fleetbar-technical-spec.md · type: system SF (chrome) · palette: placeholder pending PR #455</p>
+</div>
+
+<div class="stage">
+
+  <!-- ================= HOME FACE ================= -->
+  <div>
+    <div class="popover"><span class="bk"></span>
+
+      <div class="pop-head">
+        <span class="eyebrow">Port Daddy</span>
+        <span class="title">port-daddy</span>
+        <span class="spend mono">$1.84 today</span>
+      </div>
+
+      <hr class="rule">
+
+      <div class="sect">
+        <span class="eyebrow">Waiting on you</span>
+        <span class="badge">1</span>
+      </div>
+
+      <div class="gate">
+        <div class="who">Authorize team · 3 agents</div>
+        <div class="why">Security audit pass on the feedback-loop route. Proposal from harbor staff via the proposal queue.</div>
+        <div class="facts">
+          <span>est cost <b class="mono">$0.42</b></span>
+          <span>est time <b>4–6 min</b></span>
+          <span>network <b>read-only</b></span>
+          <span>touches <b class="mono">routes/feedback.ts +3 tests</b></span>
+          <span>skills <b>security-auditor · webapp-testing</b></span>
+        </div>
+        <div class="acts">
+          <button class="btn primary">Approve<span class="kbd">↵</span></button>
+          <button class="btn">Modify</button>
+          <button class="btn quiet">Deny<span class="kbd">⎋</span></button>
+        </div>
+      </div>
+
+      <div class="cmdbar">
+        <span class="caret"></span>
+        <span>What do you want to do?</span>
+        <span class="hint kbd">⌘K</span>
+      </div>
+
+      <hr class="rule">
+      <div class="sect"><span class="eyebrow">Resume</span><span class="count">3 recent</span></div>
+
+      <div class="row s-running live">
+        <span class="stripe"></span><span class="dot"><i></i></span>
+        <div class="body"><div class="name">port-daddy</div>
+        <div class="meta">main · 6 fleet active · last edit 12m ago</div></div>
+        <span class="age mono">→</span>
+      </div>
+      <div class="row s-warn">
+        <span class="stripe"></span><span class="dot"><i></i></span>
+        <div class="body"><div class="name">website-v2</div>
+        <div class="meta">fix/hero-cleanup · 2 warnings · 1h ago</div></div>
+        <span class="age mono">→</span>
+      </div>
+      <div class="row s-idle">
+        <span class="stripe"></span><span class="dot"><i></i></span>
+        <div class="body"><div class="name">bond-pricing post</div>
+        <div class="meta">draft · 2,853 words · yesterday</div></div>
+        <span class="age mono">→</span>
+      </div>
+
+      <hr class="rule">
+      <div class="sect"><span class="eyebrow">Quick actions</span></div>
+      <div class="qa">
+        <div class="row"><span class="glyph">◇</span><div class="body"><div class="name">Show what you built</div></div><span class="age kbd">⌘B</span></div>
+        <div class="row"><span class="glyph">◈</span><div class="body"><div class="name">Catch me up</div></div><span class="age kbd">⌘U</span></div>
+        <div class="row"><span class="glyph">◉</span><div class="body"><div class="name">Talk to the fleet</div></div><span class="age kbd">⌘/</span></div>
+        <div class="row"><span class="glyph">⌗</span><div class="body"><div class="name">Show the fleet</div></div><span class="age kbd">⌘F</span></div>
+      </div>
+
+      <div class="foot">
+        <span><span class="okdot"></span>daemon ok · <span class="mono">:9876 · v3.23</span></span>
+        <span class="right mono">esc close</span>
+      </div>
+    </div>
+    <div class="face-label eyebrow">Home · intent-first</div>
+  </div>
+
+  <!-- ================= FLEET DRAWER FACE ================= -->
+  <div>
+    <div class="popover"><span class="bk"></span>
+
+      <div class="pop-head">
+        <span class="eyebrow">← Fleet</span>
+        <span class="title">6 active · 1 blocked</span>
+        <span class="spend mono">$1.84</span>
+      </div>
+
+      <hr class="rule">
+
+      <div class="row s-running live">
+        <span class="stripe"></span><span class="dot"><i></i></span>
+        <div class="body"><div class="name">Cartographer</div>
+        <div class="meta">Indexing src/ — 412 / 1,840 files</div></div>
+        <span class="age mono">2m 14s</span>
+      </div>
+
+      <!-- inline expansion: brackets 1px thinner, tool chips, one animation -->
+      <div class="expand">
+        <div class="eyebrow" style="font-size:.75rem">Current step</div>
+        <div class="step">Reading <span class="mono">src/routes/feedback.ts</span> and resolving the import graph for <span class="mono">@/lib/feedback-loop</span>.</div>
+        <div class="stats mono">files 412/1840 · tokens 24.1k · cost $0.04</div>
+        <div class="chips">
+          <span class="chip active">read_file</span>
+          <span class="chip">grep</span>
+          <span class="chip">git_log</span>
+          <span class="chip">resolve_import</span>
+          <span class="chip">save_note</span>
+        </div>
+        <div class="acts"><span>⌘P pause</span><span>⌘. interrupt</span><span>open in pd-console →</span></div>
+      </div>
+
+      <div class="row s-ok">
+        <span class="stripe"></span><span class="dot"><i></i></span>
+        <div class="body"><div class="name">QA</div>
+        <div class="meta">14 of 14 passed · 8s ago</div></div>
+        <span class="age mono">8s</span>
+      </div>
+      <div class="row s-warn">
+        <span class="stripe"></span><span class="dot"><i></i></span>
+        <div class="body"><div class="name">Gardener</div>
+        <div class="meta">3 lint warnings, 1 unused export</div></div>
+        <span class="age mono">1m</span>
+      </div>
+      <div class="row s-err">
+        <span class="stripe"></span><span class="dot"><i></i></span>
+        <div class="body"><div class="name">Spark</div>
+        <div class="meta">workers-ai 401 — auth token expired</div></div>
+        <span class="age mono">23s</span>
+      </div>
+      <div class="row s-blocked">
+        <span class="stripe"></span><span class="dot"><i></i></span>
+        <div class="body"><div class="name">Approver</div>
+        <div class="meta">Waiting on operator · PR #91 review</div></div>
+        <span class="age mono">4m</span>
+      </div>
+      <div class="row s-idle">
+        <span class="stripe"></span><span class="dot"><i></i></span>
+        <div class="body"><div class="name">Documentarian</div>
+        <div class="meta">Idle · last run 28m ago</div></div>
+        <span class="age mono">—</span>
+      </div>
+
+      <div class="foot">
+        <span class="mono">⌘[ back</span>
+        <span class="right mono">⌘N new intent</span>
+      </div>
+    </div>
+    <div class="face-label eyebrow">Fleet drawer · secondary face</div>
+  </div>
+
+</div>
+
+</body>
+</html>

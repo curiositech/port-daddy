@@ -7,6 +7,21 @@ These files are review artifacts, not shipped app surfaces. Keep them here while
 the FleetBar/TUI design direction is being reconciled with the native Swift app,
 the shared token work in `design/`, and the `core/pd-tui` prototype.
 
+## Spec-aligned mockups (current generation)
+
+Static renders of what the binder ch19 specs actually commit to — system SF
+type, tabular mono, fractional borders, placeholder palette pending PR #455:
+
+- `triad-fleetbar-popover.html` — intent-first home + fleet drawer, six-state
+  grammar, gate card, inline expansion
+- `triad-scout-panel.html` — region selection, annotation panel with closed
+  category taxonomy and routed-shape confirmation, ask-agent face, daemon chips
+- `triad-console-detail.html` — pd-console roster/detail, transcript with a
+  governance denial, compliance-gated controls
+
+Older `v*`/`operator-tui-*` files predate the ch19 vocabulary and type/palette
+decisions; treat them as idea sources only.
+
 ## Technical contracts
 
 The buildable truth for these mockups now lives in the Agent Harbor binder;

@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pd-console — Roster + Transcript Truth (spec mockup)</title>
+<style>
+/* ============================================================
+   pd-console spec mockup — renders ch19 boundary + ch10 contract:
+   conjoined roster/detail, live transcript with tool calls and a
+   gate denial, files touched, compliance-gated controls, and an
+   observed agent whose controls are honestly disabled.
+   Dark-native (the console is the seated deep surface).
+   Type: system SF for chrome, mono tabular for events. 14px floor.
+   ============================================================ */
+:root {
+  --bg: #14120F; --bg-raised: #1C1915; --bg-deep: #0E0C0A;
+  --ink: #EDE8DD; --ink-soft: #C8C1B2; --ink-mute: #8F887B;
+  --accent: #5B8CFF;
+  --ok: #4BA57F; --warn: #D19A3D; --err: #D4655A; --blocked: #9B6FC0; --idle: #6E695F;
+  --hairline: rgba(237,232,221,.16); --bracket: rgba(237,232,221,.7);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  background: var(--bg-deep); color: var(--ink);
+  font-size: .9375rem; line-height: 1.55; -webkit-font-smoothing: antialiased;
+  padding-bottom: 4rem;
+}
+.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-variant-numeric: tabular-nums slashed-zero; font-size: .8125rem; }
+.eyebrow { font-size: .75rem; font-weight: 650; text-transform: uppercase;
+  letter-spacing: .12em; color: var(--ink-mute); }
+.pagehead { max-width: 1160px; margin: 2.2rem auto .6rem; padding: 0 2rem; }
+.pagehead h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -.02em; }
+.pagehead p { color: var(--ink-soft); max-width: 66ch; margin-top: .35rem; }
+.pagehead .refs { margin-top: .4rem; color: var(--ink-mute); font-size: .875rem; }
+
+.app { max-width: 1160px; margin: 1.2rem auto 0; background: var(--bg);
+  border: 1px solid var(--hairline); display: grid;
+  grid-template-columns: 168px 328px 1fr; min-height: 640px; }
+
+/* ---- left rail ---- */
+.rail { border-right: 1px solid var(--hairline); padding: .9rem .8rem; }
+.rail .item { padding: .35rem .55rem; color: var(--ink-mute); font-size: .875rem; }
+.rail .item.on { color: var(--ink); background: var(--bg-raised);
+  border-left: 3px solid var(--accent); padding-left: .4rem; font-weight: 600; }
+.rail .sect { margin-top: 1rem; }
+
+/* ---- roster ---- */
+.roster { border-right: 1px solid var(--hairline); padding: .9rem 0; overflow: hidden; }
+.roster .head { display: flex; align-items: baseline; gap: .5rem; padding: 0 1rem .6rem; }
+.roster .head .t { font-weight: 750; }
+.roster .head .n { color: var(--ink-mute); margin-left: auto; }
+.row { display: flex; gap: .6rem; align-items: center; padding: .55rem 1rem .55rem .95rem;
+  position: relative; }
+.row .stripe { position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; }
+.row.sel { background: var(--bg-raised); }
+.row .dot { width: 8px; height: 8px; flex: none; background: currentColor; position: relative; }
+.row .body { min-width: 0; flex: 1; }
+.row .name { font-weight: 600; display: flex; gap: .5rem; align-items: baseline; }
+.row .meta { color: var(--ink-mute); font-size: .875rem; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.row .age { margin-left: auto; color: var(--ink-mute); flex: none; }
+.lvl { font-size: .75rem; font-weight: 650; letter-spacing: .08em; text-transform: uppercase;
+  padding: 0 .35rem; border: 1px solid var(--hairline); color: var(--ink-mute); }
+.lvl.c4 { color: var(--accent); border-color: var(--accent); }
+.lvl.obs { color: var(--idle); }
+.s-running { color: var(--accent); } .s-running .stripe { background: var(--accent); }
+.s-ok { color: var(--ok); } .s-ok .stripe { background: var(--ok); }
+.s-err { color: var(--err); } .s-err .stripe { background: var(--err); }
+.s-blocked { color: var(--blocked); } .s-blocked .stripe { background: var(--blocked); }
+.s-idle { color: var(--idle); } .s-idle .stripe { background: var(--idle); }
+@keyframes pulse { 0% { outline-offset: 0; outline-color: currentColor; } 100% { outline-offset: 7px; outline-color: transparent; } }
+.row.live .dot { outline: 1.5px solid currentColor; animation: pulse 1.8s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .row.live .dot { animation: none; } }
+
+/* ---- detail ---- */
+.detail { display: flex; flex-direction: column; min-width: 0; }
+.dhead { padding: .9rem 1.2rem .7rem; border-bottom: 1px solid var(--hairline); }
+.dhead .top { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
+.dhead .name { font-weight: 750; font-size: 1.05rem; }
+.dhead .facts { display: flex; gap: 1.1rem; flex-wrap: wrap; margin-top: .3rem;
+  color: var(--ink-mute); font-size: .875rem; }
+.dhead .facts b { color: var(--ink-soft); font-weight: 600; }
+.tabs { display: flex; gap: 1.2rem; margin-top: .7rem; font-size: .875rem; }
+.tab { color: var(--ink-mute); padding-bottom: .3rem; }
+.tab.on { color: var(--ink); font-weight: 600; border-bottom: 2px solid var(--accent); }
+
+.stream { flex: 1; padding: 1rem 1.2rem; overflow: hidden; }
+.ev { display: flex; gap: .9rem; padding: .45rem 0; }
+.ev .ts { color: var(--ink-mute); flex: none; width: 4.6rem; }
+.ev .kind { flex: none; width: 5.6rem; font-size: .75rem; font-weight: 650;
+  letter-spacing: .08em; text-transform: uppercase; padding-top: .15rem; }
+.ev .body { min-width: 0; flex: 1; color: var(--ink-soft); }
+.ev.op .kind { color: var(--ink); }
+.ev.asst .kind { color: var(--accent); }
+.ev.tool .kind { color: var(--warn); }
+.ev.file .kind { color: var(--ok); }
+.ev.deny .kind { color: var(--err); }
+.ev .body .mono { color: var(--ink); }
+.ev.deny .body { border-left: 3px solid var(--err); padding-left: .7rem; }
+.ev.deny .alt { color: var(--ink-mute); font-size: .875rem; margin-top: .15rem; }
+.cursor { display: inline-block; width: 8px; height: 15px; background: var(--accent);
+  vertical-align: text-bottom; }
+
+/* files + controls */
+.dfoot { border-top: 1px solid var(--hairline); padding: .7rem 1.2rem .9rem; }
+.files { display: flex; gap: 1rem; flex-wrap: wrap; color: var(--ink-mute); font-size: .875rem; }
+.files .f { border-bottom: 1px solid var(--hairline); }
+.files .f.mod { color: var(--warn); }
+.files .f.add { color: var(--ok); }
+.controls { display: flex; gap: .5rem; margin-top: .75rem; align-items: center; }
+.btn { font: inherit; font-size: .875rem; font-weight: 600; padding: .28rem .75rem;
+  border: 1.5px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer; }
+.btn.primary { background: var(--ink); color: var(--bg); }
+.btn[disabled] { border-color: var(--hairline); color: var(--ink-mute); cursor: not-allowed; }
+.why-disabled { color: var(--ink-mute); font-size: .875rem; margin-left: .4rem; }
+</style>
+</head>
+<body>
+
+<div class="pagehead">
+  <h1>pd-console — the deep surface</h1>
+  <p>Conjoined roster and detail from daemon truth: live transcript with tool calls,
+     a governance denial rendered as evidence, files touched, and controls enabled
+     only where compliance supports them. The observed agent shows state, never buttons.</p>
+  <p class="refs mono">contract: binder ch10 + ch19 boundary rules · dark-native · type: system SF + tabular mono</p>
+</div>
+
+<div class="app">
+
+  <!-- rail -->
+  <div class="rail">
+    <div class="eyebrow">Harbor</div>
+    <div class="item on">port-daddy</div>
+    <div class="item">website-v2</div>
+    <div class="item">acme-web</div>
+    <div class="sect eyebrow">Views</div>
+    <div class="item">Agents</div>
+    <div class="item">Receipts</div>
+    <div class="item">Memory</div>
+    <div class="item">Claims</div>
+  </div>
+
+  <!-- roster -->
+  <div class="roster">
+    <div class="head"><span class="t">Agent Nodes</span><span class="n mono">5 · $1.84</span></div>
+
+    <div class="row s-running live sel">
+      <span class="stripe"></span><span class="dot"></span>
+      <div class="body">
+        <div class="name">Cartographer <span class="lvl c4">controllable</span></div>
+        <div class="meta">Indexing src/ — 412/1,840 · claude · mid</div>
+      </div>
+      <span class="age mono">2m14s</span>
+    </div>
+
+    <div class="row s-ok">
+      <span class="stripe"></span><span class="dot"></span>
+      <div class="body">
+        <div class="name">QA <span class="lvl c4">controllable</span></div>
+        <div class="meta">14/14 passed · codex · fast</div>
+      </div>
+      <span class="age mono">8s</span>
+    </div>
+
+    <div class="row s-blocked">
+      <span class="stripe"></span><span class="dot"></span>
+      <div class="body">
+        <div class="name">Approver <span class="lvl">suggestible</span></div>
+        <div class="meta">Waiting on operator · PR #91</div>
+      </div>
+      <span class="age mono">4m</span>
+    </div>
+
+    <div class="row s-err">
+      <span class="stripe"></span><span class="dot"></span>
+      <div class="body">
+        <div class="name">Spark <span class="lvl obs">observed</span></div>
+        <div class="meta">workers-ai 401 — auth expired</div>
+      </div>
+      <span class="age mono">23s</span>
+    </div>
+
+    <div class="row s-idle">
+      <span class="stripe"></span><span class="dot"></span>
+      <div class="body">
+        <div class="name">Documentarian <span class="lvl">registered</span></div>
+        <div class="meta">Idle · last run 28m ago</div>
+      </div>
+      <span class="age mono">—</span>
+    </div>
+  </div>
+
+  <!-- detail -->
+  <div class="detail">
+    <div class="dhead">
+      <div class="top">
+        <span class="name">Cartographer</span>
+        <span class="lvl c4">controllable</span>
+        <span class="eyebrow" style="color:var(--accent)">● live — events arriving</span>
+      </div>
+      <div class="facts">
+        <span>body <b>Claude Code</b></span>
+        <span>tier <b>mid</b></span>
+        <span>worktree <b class="mono">…/worktrees/symbol-index</b></span>
+        <span>context <b class="mono">61%</b></span>
+        <span>cost <b class="mono">$0.04</b></span>
+        <span>skills <b>rust-data-structures-advanced · gpui-rust-console</b></span>
+      </div>
+      <div class="tabs">
+        <span class="tab on">Transcript</span><span class="tab">Files</span>
+        <span class="tab">Claims</span><span class="tab">PRs</span>
+        <span class="tab">Memory</span><span class="tab">Receipt</span>
+      </div>
+    </div>
+
+    <div class="stream mono">
+      <div class="ev op"><span class="ts">21:46:02</span><span class="kind">operator</span>
+        <div class="body">Index the src tree and build the import graph for the symbol index.</div></div>
+      <div class="ev asst"><span class="ts">21:46:04</span><span class="kind">agent</span>
+        <div class="body">Plan: walk <span class="mono">src/</span>, parse imports, write graph nodes to the symbol index. Starting with routes.</div></div>
+      <div class="ev tool"><span class="ts">21:46:05</span><span class="kind">tool</span>
+        <div class="body">read_file <span class="mono">src/routes/feedback.ts</span> → 284 lines · added to index</div></div>
+      <div class="ev tool"><span class="ts">21:46:09</span><span class="kind">tool</span>
+        <div class="body">grep <span class="mono">"POST /feedback"</span> → 5 matches · 3 files</div></div>
+      <div class="ev deny"><span class="ts">21:47:31</span><span class="kind">denied</span>
+        <div class="body">shell <span class="mono">git checkout -- src/</span> — blocked before side effects: dirty worktree, destructive restore.
+          <div class="alt">offered: git stash push -m "cartographer-wip" · denial recorded → receipt</div></div></div>
+      <div class="ev file"><span class="ts">21:48:00</span><span class="kind">file</span>
+        <div class="body">write <span class="mono">lib/symbol-index.ts</span> (+118 −6)</div></div>
+      <div class="ev asst"><span class="ts">21:48:12</span><span class="kind">agent</span>
+        <div class="body">412 of 1,840 files indexed. Hot spot: <span class="mono">lib/db.ts</span> imported by 19 modules — flagging for claim protection. <span class="cursor"></span></div></div>
+    </div>
+
+    <div class="dfoot">
+      <div class="files">
+        <span class="eyebrow" style="margin-right:.4rem">Files</span>
+        <span class="f mod mono">lib/symbol-index.ts</span>
+        <span class="f add mono">lib/import-graph.ts</span>
+        <span class="f mono">src/routes/feedback.ts (read)</span>
+      </div>
+      <div class="controls">
+        <button class="btn primary">Steer</button>
+        <button class="btn">Pause</button>
+        <button class="btn">Interrupt</button>
+        <button class="btn">Checkpoint</button>
+        <button class="btn" disabled>Retire</button>
+        <span class="why-disabled">retire requires a sealed checkpoint first</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

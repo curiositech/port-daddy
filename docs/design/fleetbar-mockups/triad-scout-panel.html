@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scout — Visual Intake + Ask Agent (spec mockup)</title>
+<style>
+/* ============================================================
+   Scout spec mockup — renders work-packets/scout-extension-technical-spec.md
+   Left: region annotation over a live page (envelope v1, closed
+   category taxonomy, routed-shape confirmation).
+   Right: ask-agent panel (compliance-honest roster, hot-bus reply,
+   pd-console deep link) + the three daemon chip states.
+   Type: system SF; mono with tabular-nums slashed-zero. 14px floor.
+   Palette: placeholder pending PR #455 brand tokens.
+   ============================================================ */
+:root {
+  --paper: #F4F0E8; --paper-raised: #ECE6D9; --paper-deep: #E2DAC8;
+  --ink: #1A1815; --ink-soft: #3A3631; --ink-mute: #6A655C;
+  --accent: #003FB8;
+  --ok: #2E7D5B; --warn: #B8801F; --err: #B5392E; --blocked: #6B3F8A; --idle: #98928A;
+  --hairline: rgba(26,24,21,.28); --bracket: rgba(26,24,21,.85);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #171512; --paper-raised: #201D19; --paper-deep: #2A2620;
+    --ink: #EDE8DD; --ink-soft: #CFC8BA; --ink-mute: #948D80;
+    --accent: #5B8CFF; --ok: #4BA57F; --warn: #D19A3D; --err: #D4655A;
+    --blocked: #9B6FC0; --idle: #6E695F;
+    --hairline: rgba(237,232,221,.24); --bracket: rgba(237,232,221,.8);
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  background: var(--paper-deep); color: var(--ink);
+  font-size: .9375rem; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  padding-bottom: 4rem;
+}
+.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-variant-numeric: tabular-nums slashed-zero; font-size: .8125rem; }
+.eyebrow { font-size: .75rem; font-weight: 650; text-transform: uppercase;
+  letter-spacing: .12em; color: var(--ink-mute); }
+.pagehead { max-width: 1080px; margin: 2.2rem auto .4rem; padding: 0 2rem; }
+.pagehead h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -.02em; }
+.pagehead p { color: var(--ink-soft); max-width: 66ch; margin-top: .35rem; }
+.pagehead .refs { margin-top: .4rem; color: var(--ink-mute); font-size: .875rem; }
+.stage { display: flex; gap: 2.5rem; justify-content: center; align-items: flex-start;
+  flex-wrap: wrap; padding: 2rem 2rem 0; }
+.face-label { text-align: center; margin: .9rem 0 0; }
+
+/* ---------- the browser + page under annotation ---------- */
+.browser { width: 560px; background: var(--paper); border: 1px solid var(--hairline); }
+.urlbar { display: flex; gap: .6rem; align-items: center; padding: .45rem .8rem;
+  border-bottom: 1px solid var(--hairline); color: var(--ink-mute); }
+.urlbar .dots i { display: inline-block; width: 9px; height: 9px; background: var(--hairline); margin-right: 4px; }
+.page { padding: 1.4rem 1.6rem 1.8rem; position: relative; }
+.page h2 { font-size: 1.35rem; font-weight: 750; letter-spacing: -.015em; }
+.page .sub { color: var(--ink-mute); margin-top: .1rem; }
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8rem; margin-top: 1.1rem; }
+.card { border: 1px solid var(--hairline); padding: .8rem .9rem 1rem; background: var(--paper); }
+.card .tier { font-weight: 650; }
+.card .price { font-size: 1.3rem; font-weight: 750; margin-top: .2rem; }
+.card .per { color: var(--ink-mute); font-size: .875rem; }
+.card.popular { background: var(--paper-raised); }
+.clipped { max-width: 64px; overflow: hidden; white-space: nowrap; }
+
+/* selection overlay: four curtains + marquee + handles */
+.curtain { position: absolute; background: rgba(26,24,21,.45); z-index: 2; }
+@media (prefers-color-scheme: dark) { .curtain { background: rgba(0,0,0,.55); } }
+.marquee { position: absolute; z-index: 3; outline: 1.5px solid var(--warn); }
+.handle { position: absolute; width: 8px; height: 8px; background: var(--warn);
+  border: 2px solid var(--ink); z-index: 4; }
+.dim-readout { position: absolute; z-index: 4; background: var(--ink); color: var(--paper);
+  padding: .05rem .45rem; font-size: .8125rem; }
+
+/* ---------- annotation panel ---------- */
+.panel { width: 380px; background: var(--paper); position: relative; padding: 16px; }
+.panel::before, .panel::after, .panel .bk::before, .panel .bk::after {
+  content: ""; position: absolute; width: 12px; height: 12px; border: 0 solid var(--bracket); }
+.panel::before { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+.panel::after { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+.panel .bk::before { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.panel .bk::after { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+.rule { border: 0; border-top: 1px solid var(--hairline); width: 64px; margin: 12px 0 10px; }
+.panel-head { display: flex; align-items: baseline; gap: .5rem; }
+.panel-head .t { font-weight: 750; }
+.panel-head .x { margin-left: auto; color: var(--ink-mute); }
+
+.chipstates { display: flex; flex-direction: column; gap: 6px; margin-top: .5rem; }
+.chip-daemon { display: flex; align-items: center; gap: .55rem; padding: .45rem .7rem;
+  background: var(--paper-raised); font-size: .875rem; }
+.chip-daemon .d { width: 8px; height: 8px; flex: none; }
+.chip-daemon.on .d { background: var(--ok); }
+.chip-daemon.off .d { background: var(--err); }
+.chip-daemon.unpaired .d { background: var(--warn); }
+.chip-daemon .detail { color: var(--ink-mute); margin-left: auto; }
+
+.capture { border: 1px solid var(--hairline); background: var(--paper-raised);
+  padding: .6rem .7rem; margin-top: .5rem; }
+.capture .strip { display: flex; gap: .5rem; }
+.capture .mini { flex: 1; border: 1px solid var(--hairline); padding: .35rem .5rem; background: var(--paper); }
+.capture .mini .p { font-weight: 700; }
+.capture .mini .clip { color: var(--err); }
+
+.cats { display: flex; gap: .4rem; margin-top: .6rem; }
+.cat { font-size: .8125rem; font-weight: 600; padding: .12rem .55rem;
+  border: 1px solid var(--hairline); color: var(--ink-mute); }
+.cat.sel { border-color: var(--err); color: var(--err); border-left-width: 3px; }
+.cat[data-c="nit"].sel { border-color: var(--warn); color: var(--warn); }
+textarea, .fauxtext { width: 100%; font: inherit; font-size: .9rem; color: var(--ink);
+  background: var(--paper-raised); border: 1px solid var(--hairline);
+  padding: .5rem .6rem; margin-top: .5rem; resize: none; }
+.dompath { margin-top: .5rem; color: var(--ink-mute); word-break: break-all; }
+.acts { display: flex; gap: .5rem; margin-top: .8rem; }
+.btn { font: inherit; font-size: .875rem; font-weight: 600; padding: .3rem .8rem;
+  border: 1.5px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer; }
+.btn.primary { background: var(--ink); color: var(--paper); }
+.btn.quiet { border-color: var(--hairline); color: var(--ink-mute); }
+
+.routed { border-left: 3px solid var(--accent); background: var(--paper-raised);
+  padding: .6rem .8rem; margin-top: .8rem; font-size: .875rem; }
+.routed .t { font-weight: 650; color: var(--accent); }
+.routed .mono { display: block; margin-top: .2rem; color: var(--ink-soft); }
+
+/* ---------- ask-agent face ---------- */
+.roster { display: flex; gap: 2px; margin-top: .5rem; }
+.ragent { flex: 1; text-align: center; padding: .4rem .2rem; background: var(--paper-raised);
+  font-size: .875rem; font-weight: 600; color: var(--ink-mute); position: relative; }
+.ragent.sel { color: var(--ink); border-top: 3px solid var(--accent); }
+.ragent .lvl { display: block; font-size: .75rem; font-weight: 650; letter-spacing: .08em;
+  text-transform: uppercase; }
+.ragent.sel .lvl { color: var(--accent); }
+.reply { border-left: 3px solid var(--accent); background: var(--paper-raised);
+  padding: .7rem .85rem; margin-top: .6rem; }
+.reply .who { display: flex; gap: .6rem; align-items: baseline; }
+.reply .who b { font-weight: 700; }
+.reply .who .mono { color: var(--ink-mute); }
+.reply p { font-size: .9rem; color: var(--ink-soft); margin-top: .35rem; }
+.reply .stream { color: var(--accent); font-size: .8125rem; margin-top: .4rem; }
+.deep { margin-top: .55rem; font-size: .875rem; }
+.deep a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--hairline); }
+.honest { border-left: 3px solid var(--idle); background: var(--paper-raised);
+  color: var(--ink-mute); padding: .55rem .8rem; margin-top: .6rem; font-size: .875rem; }
+</style>
+</head>
+<body>
+
+<div class="pagehead">
+  <h1>Scout — capture where your eyes already are</h1>
+  <p>Left: the operator drags a region on their running product; the annotation panel
+     carries the evidence (pixels, DOM path, viewport) and a closed category taxonomy.
+     Send routes a Work Intent — the confirmation shows the shape the planner chose.
+     Right: the ask-agent face with compliance-honest states, and the three daemon chips.</p>
+  <p class="refs mono">contract: agent-harbor-technical-binder/work-packets/scout-extension-technical-spec.md · envelope: pd.scout.visual-task.v1 · palette: placeholder pending PR #455</p>
+</div>
+
+<div class="stage">
+
+  <!-- ============ annotation flow ============ -->
+  <div>
+    <div class="browser">
+      <div class="urlbar"><span class="dots"><i></i><i></i><i></i></span>
+        <span class="mono">localhost:3000/pricing</span></div>
+      <div class="page">
+        <h2>Simple, transparent pricing</h2>
+        <div class="sub">No contracts. No hidden fees. Cancel anytime.</div>
+        <div class="cards">
+          <div class="card"><div class="tier">Starter</div><div class="price">$29</div><div class="per">/mo · 5 users</div></div>
+          <div class="card popular"><div class="tier">Growth</div><div class="price clipped">$199/m</div><div class="per">/mo · 25 users</div></div>
+          <div class="card"><div class="tier">Enterprise</div><div class="price">$499</div><div class="per">/mo · unlimited</div></div>
+        </div>
+        <!-- selection overlay: curtains around the card row -->
+        <div class="curtain" style="left:0; top:0; right:0; height:96px"></div>
+        <div class="curtain" style="left:0; top:96px; width:24px; height:112px"></div>
+        <div class="curtain" style="right:0; top:96px; width:24px; height:112px"></div>
+        <div class="curtain" style="left:0; top:208px; right:0; bottom:0"></div>
+        <div class="marquee" style="left:24px; top:96px; right:24px; height:112px"></div>
+        <div class="handle" style="left:19px; top:91px"></div>
+        <div class="handle" style="right:19px; top:91px"></div>
+        <div class="handle" style="left:19px; top:203px"></div>
+        <div class="handle" style="right:19px; top:203px"></div>
+        <div class="dim-readout mono" style="right:24px; top:70px">512 × 112 px</div>
+      </div>
+    </div>
+    <div class="face-label eyebrow">Region selection · ⇧⌘F or Alt+Shift+P</div>
+  </div>
+
+  <!-- ============ annotation panel ============ -->
+  <div>
+    <div class="panel"><span class="bk"></span>
+      <div class="panel-head"><span class="eyebrow">Scout</span><span class="t">Annotate selection</span><span class="x">×</span></div>
+      <hr class="rule">
+
+      <div class="eyebrow">Captured region · 512 × 112 px</div>
+      <div class="capture">
+        <div class="strip">
+          <div class="mini"><div>Starter</div><div class="p">$29</div></div>
+          <div class="mini"><div>Growth</div><div class="p clip">$199/m</div></div>
+          <div class="mini"><div>Enterprise</div><div class="p">$499</div></div>
+        </div>
+      </div>
+
+      <div class="cats">
+        <span class="cat sel">bug</span><span class="cat">nit</span><span class="cat">feedback</span>
+        <span class="cat">tangent</span><span class="cat">q?</span>
+      </div>
+
+      <div class="fauxtext">Growth card price clips to "$199/m" — max-width is too tight. Needs ~80px min or drop the constraint.</div>
+
+      <div class="dompath mono">.pricing__cards &gt; .card:nth-child(2) .card-price</div>
+
+      <div class="acts">
+        <button class="btn primary">Send to fleet</button>
+        <button class="btn quiet">Cancel</button>
+      </div>
+
+      <div class="routed">
+        <span class="t">Routed · one agent</span>
+        <span class="mono">intent wi_01JQ8… · worktree acme-web · est $0.12 · QA test follows fix</span>
+      </div>
+    </div>
+    <div class="face-label eyebrow">Annotation · fires pd.scout.visual-task.v1</div>
+  </div>
+
+  <!-- ============ ask-agent face + chip states ============ -->
+  <div>
+    <div class="panel"><span class="bk"></span>
+      <div class="panel-head"><span class="eyebrow">Scout</span><span class="t">Ask an agent</span><span class="x">×</span></div>
+      <hr class="rule">
+
+      <div class="roster">
+        <div class="ragent sel">QA<span class="lvl">controllable</span></div>
+        <div class="ragent">Gardener<span class="lvl">suggestible</span></div>
+        <div class="ragent">Spark<span class="lvl" style="color:var(--idle)">observed</span></div>
+      </div>
+
+      <div class="reply">
+        <div class="who"><b>QA</b><span class="mono">run a3f2 · 0.4s · heartbeat 8s ago</span></div>
+        <p>The clipped price is <span class="mono">max-width: 64px</span> at
+        <span class="mono">pricing.css:47</span>. Fix staged with a Playwright
+        assertion on the rendered width of all three cards.</p>
+        <div class="stream">● streaming over the hot bus</div>
+      </div>
+
+      <div class="deep">Need history, files, or steering? <a href="#">Open in pd-console →</a></div>
+
+      <div class="honest">Spark is <b>observed</b> — it cannot receive messages mid-run.
+      Your note will be queued for its next turn start.</div>
+
+      <hr class="rule">
+      <div class="eyebrow">Daemon chip · the three honest states</div>
+      <div class="chipstates">
+        <div class="chip-daemon on"><span class="d"></span>Fleet daemon online
+          <span class="detail mono">:9876 · 3 agents ready</span></div>
+        <div class="chip-daemon unpaired"><span class="d"></span>Daemon found — unpaired
+          <span class="detail mono">pair this device →</span></div>
+        <div class="chip-daemon off"><span class="d"></span>Daemon unreachable
+          <span class="detail mono">tried 127.0.0.1:9876 · pd doctor</span></div>
+      </div>
+    </div>
+    <div class="face-label eyebrow">Ask agent · compliance-honest</div>
+  </div>
+
+</div>
+
+</body>
+</html>
