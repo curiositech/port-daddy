@@ -44,7 +44,7 @@
   <section class="cb-hero">
     <div>
       <div class="eyebrow">Run agents on your subscription</div>
-      <h1>Your AI subscription already pays for the fleet.</h1>
+      <h1 class="ko" style="--ko-c: var(--pd-lime, #cad900); --ko-t: #121212; --ko-r: 520px; --ko-b: 42px;"><span>Your AI subscription <span class="rec" style="color: var(--gold-on-tint)">already pays for the fleet.</span></span><span class="ko-over" aria-hidden="true">Your AI subscription <span class="rec" style="color: inherit">already pays for the fleet.</span></span></h1>
       <p class="summary">You already pay $20 a month for ChatGPT Pro, or $200 for Claude Max. Port Daddy runs your background agents on that same login. Every agent that reviews pull requests, lints commits, and drafts release notes uses the seat you already bought. No extra API bill arrives at the end of the month.</p>
       <p class="body">Most agent tools charge you twice. Once for the seat you type into as a person. Again for the API tokens your agents spend overnight. The seat is already paid for. The model is already running. The <code>claude</code> command is already on your <code>PATH</code>. Port Daddy hands the fleet that same command and lets it work in the quiet hours between your own turns.</p>
       <p class="body">Setup takes about two minutes: install the daemon, confirm <code>claude</code> or <code>codex</code> is logged in, set one environment variable, start the fleet. The math is in the middle of this page. The honest limits are at the bottom. Read them in any order.</p>
@@ -93,6 +93,7 @@
 
   <!-- THE MATH -->
   <section>
+    <div class="slab" style="top:20px; left:calc(50% - 50vw); width: calc(50vw - 720px + 170px); min-width: 110px; height: 280px; background: var(--pd-lime, #cad900);"></div>
     <div class="sect-head">
       <div class="eyebrow" style="color: var(--gold-on-tint)">The math</div>
       <h2>Same work, three bills.</h2>

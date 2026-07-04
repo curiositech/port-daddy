@@ -162,6 +162,8 @@
   [data-theme="dark"] .ink-band { color: #121212; }
   [data-theme="dark"] .ink-band .zb-code { color: #10131a; background: rgba(0,0,0,0.16) !important; }
   .btn-gold { font-family: "IBM Plex Mono", monospace; font-size: 13.5px; font-weight: 700; letter-spacing: 0.04em; padding: 11px 20px; background: var(--lime); color: #121212; cursor: default; display: inline-block; }
+  .pd-spin-hero { width: 176px; height: 176px; animation: pdw-spin 10s linear infinite; }
+  @media (prefers-reduced-motion: reduce) { .pd-spin-hero { animation: none; } }
   @media (max-width: 1080px) { .l3-grid { grid-template-columns: 1fr 1fr; } .l3-cell:nth-child(2) { border-right: none; } .ink-band { grid-template-columns: 1fr; } .slab { display: none; } }
 </style>
 </head>
@@ -200,7 +202,12 @@
         <a class="cta ghost" href="#"><i></i><i></i>The Big Idea</a>
       </div>
     </div>
-    <div class="harbor-panel lw-brackets" style="margin-top: 110px;"><i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
+    <div>
+      <div class="themed-img" style="display:flex; justify-content:center; padding: 26px 0 10px;">
+        <img class="light-only pd-spin-hero" src="../../../../website-v2/public/logos/portdaddy-mark-radar-lightmode.svg" alt="" aria-hidden="true">
+        <img class="dark-only pd-spin-hero" src="../../../../website-v2/public/logos/portdaddy-mark-radar-darkmode.svg" alt="" aria-hidden="true">
+      </div>
+    <div class="harbor-panel lw-brackets" style="margin-top: 24px;"><i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
       <div class="hp-head">
         <span class="eyebrow" style="color: var(--text-muted)">From the harbor — what people open first</span>
       </div>

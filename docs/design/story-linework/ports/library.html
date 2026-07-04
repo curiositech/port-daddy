@@ -49,6 +49,7 @@
   .refs .rn { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; font-weight: 700; color: var(--teal); margin-right: 8px; }
   @media (max-width: 1080px) { .lib-hero { grid-template-columns: 1fr; } .chap { grid-template-columns: 64px 1fr; } .chap .c-meta { grid-column: 2; text-align: left; } .paths, .arch-row { grid-template-columns: 1fr; } .refs { columns: 1; } }
 </style>
+<style>:root { --lime: #cad900; }</style>
 </head>
 <body>
 <header class="site-header">
@@ -66,12 +67,12 @@
   <section class="lib-hero">
     <div>
       <div class="eyebrow">The Harbor Library — read it as one book</div>
-      <h1>Seven papers. Four explain the system. Three prove it.</h1>
+      <h1 class="ko" style="--ko-c: var(--teal); --ko-r: 430px; --ko-b: 46px;"><span>Seven papers. Four explain the system. Three prove it.</span><span class="ko-over" aria-hidden="true">Seven papers. Four explain the system. Three prove it.</span></h1>
       <p class="lede">One coding agent is useful; ten, on a real codebase, make you less sure, not more — two edit the same file and the second erases the first; one "fixes" the tests by deleting them. That is not a bug in any one agent. It is a <em>coordination</em> failure, and it lives in the space between agents, where no one keeps the record. These seven chapters build the institution that does — and then follow it all the way to its surprising conclusion: an economy.</p>
       <div class="stat-strip">
         <div class="s"><div class="n">04</div><div class="l">chapters explain</div></div>
-        <div class="s"><div class="n">03</div><div class="l">chapters prove</div></div>
-        <div class="s"><div class="n">243</div><div class="l">pages, free PDFs</div></div>
+        <div class="s" style="background: var(--cobalt); color: var(--inverse); padding: 10px 14px; border: none;"><div class="n">03</div><div class="l" style="color: inherit; opacity: 0.85;">chapters prove</div></div>
+        <div class="s" style="background: var(--lime); color: #121212; padding: 10px 14px; border: none;"><div class="n">243</div><div class="l" style="color: inherit; opacity: 0.8;">pages, free PDFs</div></div>
       </div>
       <div style="display:flex; gap:12px; margin-top:26px;">
         <a class="cta" href="#the-climb">Climb the stack</a>
@@ -87,7 +88,7 @@
   <!-- SPINE -->
   <section class="spine"><i></i><i></i>
     <div class="sp-eyebrow">The spine</div>
-    <blockquote>"Memory makes continuity; continuity makes a person, not a spawn; a person accrues a record; a record is reputation; reputation is a tradeable asset; and tradeable assets make a market."</blockquote>
+    <blockquote class="rec">"Memory makes continuity; continuity makes a person, not a spawn; a person accrues a record; a record is reputation; reputation is a tradeable asset; and tradeable assets make a market."</blockquote>
   </section>
 
   <!-- THE CLIMB -->
@@ -179,6 +180,7 @@
 
   <!-- ARCHITECTURE DRAWN -->
   <section id="the-architecture-drawn">
+    <div class="slab" style="top:-10px; right:calc(50% - 50vw); width: calc(50vw - 720px + 130px); min-width: 90px; height: 260px; background: var(--indigo);"></div>
     <div class="sect-head">
       <div class="eyebrow" style="color: var(--teal)">The architecture, drawn</div>
       <h2>Four layers, seven chapters, one bond ledger.</h2>

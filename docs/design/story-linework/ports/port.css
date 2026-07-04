@@ -281,3 +281,20 @@ table.data td:first-child { font-weight: 600; }
 
 /* the play voice — Recursive casual axis marks display em-phrases */
 .rec { font-family: "Recursive", "IBM Plex Sans", sans-serif; font-variation-settings: "MONO" 0, "CASL" 1, "slnt" -8; font-weight: 660; }
+
+/* ── knockout + slabs (shared; see proposal §primitives) ── */
+html, body { overflow-x: clip; }
+main section { position: relative; }
+.slab { position: absolute; pointer-events: none; }
+.ko { position: relative; z-index: 0; }
+.ko::before {
+  content: ""; position: absolute; z-index: -1;
+  left: -100vw; right: calc(100% - var(--ko-r));
+  top: calc(-1 * var(--ko-up, 500px)); bottom: calc(100% - var(--ko-b));
+  background: var(--ko-c, var(--cobalt));
+}
+.ko .ko-over {
+  position: absolute; inset: 0; color: var(--ko-t, var(--inverse)); pointer-events: none;
+  clip-path: inset(calc(-1 * var(--ko-up, 500px)) calc(100% - var(--ko-r)) calc(100% - var(--ko-b)) -100vw);
+}
+@media (max-width: 1080px) { .ko { --ko-r: 78% !important; } .slab { display: none; } }
