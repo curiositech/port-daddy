@@ -944,7 +944,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command roadmap" -s q -l quiet -d 'Agent-readable section:slug output'
 
     # parley
-    complete -c $prog -n "__pd_using_command parley; and not __fish_seen_subcommand_from call respond resolve list show fit" -a "call respond resolve list show fit" -d 'parley subcommand'
+    complete -c $prog -n "__pd_using_command parley; and not __fish_seen_subcommand_from call propose critique revise agree refuse say respond resolve list show fit" -a "call propose critique revise agree refuse say respond resolve list show fit" -d 'parley subcommand'
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from call" -l surface -x -d 'Contested path, symbol, or surface'
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from call" -l with -x -d 'Comma-separated parties'
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from call" -l parties -x -d 'Comma-separated parties'
@@ -960,8 +960,8 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from resolve" -l decision -x -d 'Outcome decision'
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from resolve" -l reason -x -d 'Outcome reason'
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from resolve" -l dissenters -x -d 'Comma-separated dissenters'
-    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from respond resolve show" -l id -x -d 'Parley id'
-    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from respond resolve show" -l parley -x -d 'Parley id'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from respond propose critique revise agree refuse say resolve show" -l id -x -d 'Parley id'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from respond propose critique revise agree refuse say resolve show" -l parley -x -d 'Parley id'
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from list" -l status -x -a 'SUMMONED CONVENED COLLAPSED ESCALATED VOIDED' -d 'Status filter'
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from list" -l limit -x -d 'Max rows'
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from fit" -l shape -x -a 'breadth_first depth_first mixed' -d 'Reasoning shape'

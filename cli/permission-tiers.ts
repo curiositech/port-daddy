@@ -289,6 +289,13 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'parley call': 'approval',
   'parley respond': 'approval',
   'parley resolve': 'approval',
+  // turn verbs are respond sugar — same tier
+  'parley propose': 'approval',
+  'parley critique': 'approval',
+  'parley revise': 'approval',
+  'parley agree': 'approval',
+  'parley refuse': 'approval',
+  'parley say': 'approval',
 
   // roadmap: default/list/show are reads; upsert/touch/promote mutate the roadmap DB-of-record
   'roadmap upsert': 'notify',

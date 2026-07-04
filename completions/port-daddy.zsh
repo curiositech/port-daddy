@@ -1958,7 +1958,7 @@ _pd_cmd_roadmap() {
 
 _pd_cmd_parley() {
   _arguments \
-    '1:subcommand:(call respond resolve list show fit)' \
+    '1:subcommand:(call propose critique revise agree refuse say respond resolve list show fit)' \
     '2:parley id or surface:' \
     '--surface[contested path, symbol, or surface]:surface:' \
     '--with[comma-separated parties]:parties:' \

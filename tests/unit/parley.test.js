@@ -239,3 +239,127 @@ describe('resolve', () => {
     })).toThrow(/decision/);
   });
 });
+
+describe('turn fan-out', () => {
+  function inboxParley(sendImpl) {
+    const sent = [];
+    const instance = createParley({
+      tuples,
+      now: () => clock,
+      agentInbox: {
+        send(agentId, content, options) {
+          sent.push({ agentId, content, options });
+          return sendImpl ? sendImpl(agentId, content, options) : { success: true };
+        },
+      },
+    });
+    return { instance, sent };
+  }
+
+  test('respond delivers a parley_turn to every other participant, including the caller', () => {
+    const { instance, sent } = inboxParley();
+    const p = instance.call({
+      surface: 'lib/dispatch.ts',
+      reason: 'two agents are changing dispatch semantics',
+      parties: ['agent-a', 'agent-b'],
+      calledBy: 'operator',
+      harbor: 'port-daddy',
+    });
+    sent.length = 0;
+
+    const result = instance.respond({
+      parleyId: p.parleyId,
+      party: 'agent-a',
+      performative: 'propose',
+      content: 'ship A',
+    });
+
+    expect(result.turn.performative).toBe('propose');
+    expect(result.notified).toEqual(['agent-b', 'operator']);
+    expect(result.notifyFailures).toEqual([]);
+    expect(sent.map((m) => m.agentId)).toEqual(['agent-b', 'operator']);
+    expect(sent[0].options).toMatchObject({ from: 'agent-a', type: 'parley_turn', contentType: 'json' });
+    expect(sent[0].content).toMatchObject({
+      kind: 'parley_turn',
+      parleyId: p.parleyId,
+      surface: 'lib/dispatch.ts',
+      channel: `parley:${p.parleyId}`,
+      party: 'agent-a',
+      performative: 'propose',
+      content: 'ship A',
+    });
+  });
+
+  test('turn delivery failure is non-fatal: the turn persists and the failure is reported', () => {
+    const { instance } = inboxParley((agentId, _content, options) => (
+      options?.type === 'parley_turn' && agentId === 'agent-b'
+        ? { success: false, error: 'inbox full' }
+        : { success: true }
+    ));
+    const p = instance.call({
+      surface: 'lib/dispatch.ts',
+      reason: 'overlap',
+      parties: ['agent-a', 'agent-b'],
+      calledBy: 'operator',
+      harbor: 'port-daddy',
+    });
+
+    const result = instance.respond({
+      parleyId: p.parleyId,
+      party: 'agent-a',
+      performative: 'propose',
+      content: 'ship A',
+    });
+
+    expect(result.notified).toEqual(['operator']);
+    expect(result.notifyFailures).toEqual(['agent-b: inbox full']);
+    expect(instance.get(p.parleyId).turns).toHaveLength(1);
+  });
+});
+
+describe('seen receipts', () => {
+  test('markSeen records a receipt and the summary reports unseen turns per participant', () => {
+    const p = openParley();
+    parley.respond({ parleyId: p.parleyId, party: 'agent-a', performative: 'propose', content: 'ship A' });
+    advance(1000);
+    parley.respond({ parleyId: p.parleyId, party: 'agent-b', performative: 'critique', content: 'A breaks dispatch' });
+
+    let summary = parley.get(p.parleyId);
+    expect(summary.receipts).toEqual([
+      { party: 'agent-a', lastSeenAt: null, unseenTurns: 1 },
+      { party: 'agent-b', lastSeenAt: null, unseenTurns: 1 },
+      { party: 'operator', lastSeenAt: null, unseenTurns: 2 },
+    ]);
+
+    const receipt = parley.markSeen({ parleyId: p.parleyId, party: 'agent-a' });
+    expect(receipt.lastSeenAt).toBe(clock);
+
+    summary = parley.get(p.parleyId);
+    expect(summary.receipts.find((r) => r.party === 'agent-a')).toEqual({
+      party: 'agent-a',
+      lastSeenAt: clock,
+      unseenTurns: 0,
+    });
+    expect(summary.receipts.find((r) => r.party === 'operator').unseenTurns).toBe(2);
+  });
+
+  test('later turns show as unseen until the receipt watermark advances', () => {
+    const p = openParley();
+    parley.respond({ parleyId: p.parleyId, party: 'agent-a', performative: 'propose', content: 'ship A' });
+    parley.markSeen({ parleyId: p.parleyId, party: 'agent-b' });
+    advance(1000);
+    parley.respond({ parleyId: p.parleyId, party: 'agent-a', performative: 'revise', content: 'ship A2' });
+
+    let receipt = parley.get(p.parleyId).receipts.find((r) => r.party === 'agent-b');
+    expect(receipt.unseenTurns).toBe(1);
+
+    parley.markSeen({ parleyId: p.parleyId, party: 'agent-b' });
+    receipt = parley.get(p.parleyId).receipts.find((r) => r.party === 'agent-b');
+    expect(receipt.unseenTurns).toBe(0);
+  });
+
+  test('markSeen rejects participants that were not summoned', () => {
+    const p = openParley();
+    expect(() => parley.markSeen({ parleyId: p.parleyId, party: 'stranger' })).toThrow(/not part of/);
+  });
+});
