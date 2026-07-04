@@ -2,7 +2,7 @@
 
 > **Scope.** This is the showpiece. A gallery of *complete*, on-brand WGSL fragment shaders for **T3 surfaces** (Vello/wgpu on Metal) in pd-console — the moment you've earned a fragment shader per `05-bespoke-graphics-vello-wgpu.md` (per-pixel dither at full res + 60fps, a real water sim, a CRT post pass). Every example below is the *escape-hatch ceiling*: a `wgpu::RenderPipeline` on the same `Surface` Vello renders into, or a Vello post-pass. None of this belongs in the gpui element tree, and none of it is a substitute for a T1 `with_animation` glow.
 >
-> **Brand law.** Harbor / maritime / **mustard + navy**, pixelated retro-futurism. Every color below traces a `palette.rs` role — `MUSTARD 0xffdb33`, `NAVY 0x141b2e`, `BG 0xf5f5f0`, `SEA 0x1c3a5e`, `FOAM 0xcfe3f0`. **Never** cinnabar red, brass, or patina (`scripts/check-brand-colors.mjs` fails CI on them). When the operator flips theme (`Ctrl-A g`), you re-push a uniform buffer, not a new pipeline.
+> **Brand law.** Harbor / maritime / **palette v2 gold + cobalt**, pixelated retro-futurism. Every color below traces a `palette.rs` role — `GOLD 0xd8dd3c`, `NAVY 0x141b2e`, `BG 0xf5f5f0`, `SEA 0x1c3a5e`, `FOAM 0xcfe3f0`. **Never** cinnabar red, brass, or patina (`scripts/check-brand-colors.mjs` fails CI on them). When the operator flips theme (`Ctrl-A g`), you re-push a uniform buffer, not a new pipeline.
 >
 > **House WGSL conventions used throughout** (so you can paste any one shader and it compiles against the same scaffold):
 > - Full-screen triangle vertex shader (§0), one shared `Uniforms` block, fragment entry `fs_main`.
@@ -26,7 +26,7 @@ struct Uniforms {
 @group(0) @binding(0) var<uniform> U : Uniforms;
 
 // ── Brand palette as f32 vec3 roles. These are the ONLY literals allowed. ─────
-const MUSTARD : vec3f = vec3f(1.000, 0.859, 0.200);  // 0xffdb33 — accent / sun / flags
+const GOLD    : vec3f = vec3f(0.847, 0.867, 0.235);  // 0xd8dd3c — accent / sun / flags
 const NAVY    : vec3f = vec3f(0.078, 0.106, 0.180);  // 0x141b2e — chrome / night sky
 const SEA     : vec3f = vec3f(0.110, 0.227, 0.369);  // 0x1c3a5e — deep water
 const FOAM    : vec3f = vec3f(0.812, 0.890, 0.941);  // 0xcfe3f0 — crests / haze

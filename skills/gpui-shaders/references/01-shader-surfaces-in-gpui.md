@@ -476,7 +476,7 @@ struct Uniforms {
 | `time` | An `Instant` on the view (or the companion's `last_frame` clock, proto `main.rs:87`) | `start.elapsed().as_secs_f32()` each redraw |
 | `resolution` | Surface config (companion) or the pane `bounds` × HiDPI scale (embed) | physical px; multiply logical bounds by `window.scale_factor()` |
 | `mouse` | gpui `MouseMoveEvent`/`MouseDownEvent` on the hosting element, or winit `CursorMoved` (proto `main.rs:228`) | store last cursor + last click in view state; map into surface-local px |
-| `accent` / `bg` | `palette.rs` roles (`accent: 0xffdb33`, `bg: 0xf5f5f0`) | convert `Hsla`/`rgb` → **linear** `[f32;4]`; re-push on theme flip (`Ctrl-A g`) |
+| `accent` / `bg` | `palette.rs` roles (`accent: 0xd8dd3c` (palette v2 gold), `bg: 0xf5f5f0`) | convert `Hsla`/`rgb` → **linear** `[f32;4]`; re-push on theme flip (`Ctrl-A g`) |
 
 **Theme color conversion — don't ship sRGB into a linear shader.** gpui palette roles are sRGB hex. If you push the raw `[r/255, g/255, b/255, a]`, the shader (sampling/mixing in linear space, writing to an sRGB target) will look washed out. Convert: `c_lin = ((c_srgb + 0.055)/1.055)^2.4` for `c > 0.04045`, else `c_srgb/12.92`. Do it once per palette change, not per pixel.
 
