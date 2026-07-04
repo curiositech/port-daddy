@@ -5,6 +5,7 @@
 - **A — FleetBar lineage** (`docs/design/fleetbar-mockups/`: interactive-mockup, research-report, fleetbar-technical-spec): paper/ink/cobalt, fractional borders, stripe+dot six-state, 380pt popover contract.
 - **B — Triad package** (PR #671, `docs/design/2026-07-05-surface-redesign/` + console v12/feelpass): hard-2px flat neobrutalism, cobalt/mustard two rooms, full ICS flag grammar, Big Shoulders + Recursive, seven surface mockups incl. login/account/coop-harbor.
 - **C — Story Linework** (PR #657, binder ch. 20, `docs/design/story-linework/`): palette v2 hue-as-layer, fractional linework primitives, stripe+dot+micro-flag+label+time grammar, IBM Plex + Recursive casual axis, cut-paper art, normative mocks for FleetBar/console/Control Center/CLI/Harbor co-edit.
+- **D — Triad spec pixels** (PR #658, `docs/design/fleetbar-mockups/triad-*.html`): the merged ch. 19 specs (#651) rendered as static HTML — FleetBar popover, Scout panel, console detail — on canonical paper/ink hexes with cobalt accent, a violet-blocked six-state set, and hairline/bracket fractional tokens.
 
 **Settled by the operator (not argued):** the cut-paper generated-image style (ch. 20 "blessed 2026-07-04"), fractional edge work, palette v2. Chapter 20 is approved binder truth; it is the constitution. What follows argues everything the constitution leaves open, steelmanning each party.
 
@@ -12,7 +13,8 @@
 
 - **Steelman A/B (intent-first):** ch. 19's own words — *"the fleet is plumbing; the front door is intent."* Gates are rare; a gates-first popover greets the operator with an empty section 90% of the time, which trains them that the top of the surface is dead space. The composer is the daily verb; muscle memory deserves it at a fixed position.
 - **Steelman C (gates-first, violet):** ch. 19 equally says FleetBar is *the* consent surface and gates are the only items permitted to demand attention. A gate below the fold is a gate that waits, and waiting gates are exactly the operator-latency the daemon can't fix. The buildable contract (fleetbar-technical-spec) lists gates first.
-- **Verdict — state-dependent stacking (new, takes both):** the gate queue section *does not render at all* when empty. When a gate exists, it renders **above** the composer, violet-zoned, and the menu-bar icon already warned you before you opened the popover. Resting state = composer on top (A/B's daily feel); armed state = consent on top (C's contract). Both binder sentences satisfied; no dead space ever.
+- **Steelman D (#658, gate-privileged static order):** the spec pixels already render header → "Waiting on you" gate card → command bar → resume → quick actions. The gate card is styled as "the privileged object" — the spec's own answer.
+- **Verdict — state-dependent stacking (D's order, made conditional):** the gate queue section *does not render at all* when empty. When a gate exists, the popover renders exactly D's order (gate above composer, zone-colored), and the menu-bar icon already warned you before you opened it. Resting state = composer on top (A/B's daily feel); armed state = D's order (C's and the spec's contract). Both binder sentences satisfied; no dead space ever.
 
 ## 2. Functionality — the state grammar
 
@@ -52,12 +54,16 @@ B's skin loses on every contested dimension above — argued honestly. What B bu
 C's Harbor co-edit dream is in-buffer governance: participant letter flags, claims as left-edge stripes on the exact held line ranges, hatched semantic-conflict forecast bands, radio-voice parley strip, salvage tide-line. B's coop-harbor is the *remote web session view*: crew rail with capability cards, claims map, structured parley panel, gates, ledger tail.
 - **Verdict — both, C's language:** the co-edit buffer is the editor surface (pd-console / Harbor editor, M9); B's page becomes the **portdaddy.dev remote view** of the same harbor, reskinned to C (claims render as line-range stripes wherever code is shown; parley strip adopts `--voice-securite`/`--voice-pan-pan`; participants fly letter flags). They are one design at two distances from the buffer.
 
+## 8. Party D's standing contributions (PR #658)
+
+D is the nearest existing render to the converged skin: canonical paper `#F2EEE6` / ink `#121212`, cobalt accent, **violet for blocked** (palette-v2-consistent), hairline + bracket fractional tokens, both themes. Beyond the gate-privileged order (verdict 1), D contributes: Scout's **three honest daemon-chip states** and the **routed-shape confirmation showing the Work Intent id** (the ch. 19 intent-trace made visible), the closed annotation-category taxonomy, and the console's *"live — events arriving"* eyebrow (LIVE-means-stream-evidence as literal copy). These are adopted verbatim. D still needs from C: palette v2's full expansion, micro-flag chips, Plex/Recursive type, cut-paper art; and from B: the storefront surfaces and the consent-cost/teaching-empty-state copy.
+
 ## The converged design
 
-**Story Linework (ch. 20) is the skin and law for every surface. The Triad package (PR #671) supplies the missing surfaces and the honesty-content doctrine. The FleetBar lineage's dot/motion contract is adopted as motion law. One addition: state-dependent gate stacking in FleetBar.**
+**Story Linework (ch. 20) is the skin and law for every surface. The triad spec pixels (PR #658) are the base renders to evolve — they already sit on canonical hexes and fractional tokens. The Triad package (PR #671) supplies the missing surfaces and the honesty-content doctrine. The FleetBar lineage's dot/motion contract is adopted as motion law. One addition: state-dependent gate stacking in FleetBar (D's order, rendered only when armed).**
 
 ### Migration punch list (each item one PR)
-1. Re-skin all seven #671 mockups: palette v2, fractional linework (rule 6 weights), IBM Plex + Recursive casual, micro-flag chips, gold for all budget/economy elements. Drop Big Shoulders, hard-2px-everywhere, mustard-as-brand, the two-rooms hue split.
+1. Evolve D's three triad mockups (#658) to full ch. 20: palette v2 expansion, micro-flag chips in the rule-8 grammar, IBM Plex + Recursive casual, cut-paper art slots. Re-skin the four #671-only surfaces (login, account, coop-harbor, control-center) to the same standard; retire the #671 renders of FleetBar/console/Scout in favor of D-evolved ones, porting B's content patterns into them. Drop Big Shoulders, hard-2px-everywhere, mustard-as-brand, the two-rooms hue split.
 2. FleetBar mockup: implement state-dependent stacking (gate section above composer only when non-empty).
 3. `scripts/check-brand-colors.mjs`: migrate console gate from mustard `#FFDB33` to palette v2 set; add the never-list from ch. 20.
 4. Mark `operator-console-v12-synthesis.html` superseded-by-ch20 in `fleetbar-mockups/README.md` (radius/shadow explicitly retired).
