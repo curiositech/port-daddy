@@ -10,6 +10,13 @@ const TEAM_POLICY_VALUES = ['allow', 'approve', 'block', 'none'];
 
 const SEVERITY_WEIGHT = { critical: 30, high: 15, medium: 7, low: 3 };
 
+function severityWeight(severity) {
+  if (!Object.prototype.hasOwnProperty.call(SEVERITY_WEIGHT, severity)) {
+    throw new Error(`unknown finding severity "${severity}" (expected one of ${Object.keys(SEVERITY_WEIGHT).join(', ')})`);
+  }
+  return SEVERITY_WEIGHT[severity];
+}
+
 function requireObject(value, name) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`${name} must be an object`);
@@ -251,7 +258,7 @@ export function auditMcpAdmission(spec) {
   }
 
   const hasCritical = findings.some((f) => f.severity === 'critical');
-  const penalty = findings.reduce((sum, f) => sum + ((SEVERITY_WEIGHT[f.severity] ?? (() => { throw new Error(`unknown finding severity: ${f.severity}`); })())), 0);
+  const penalty = findings.reduce((sum, f) => sum + (severityWeight(f.severity)), 0);
   const score = Math.max(0, 100 - penalty);
   const pass = !hasCritical && score >= 75;
 

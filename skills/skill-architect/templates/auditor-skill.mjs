@@ -8,6 +8,13 @@ import { fileURLToPath } from 'node:url';
 
 const SEVERITY_WEIGHT = { critical: 100, high: 25, medium: 10, low: 3 };
 
+function severityWeight(severity) {
+  if (!Object.prototype.hasOwnProperty.call(SEVERITY_WEIGHT, severity)) {
+    throw new Error(`unknown finding severity "${severity}" (expected one of ${Object.keys(SEVERITY_WEIGHT).join(', ')})`);
+  }
+  return SEVERITY_WEIGHT[severity];
+}
+
 function pushFinding(findings, severity, id, message, recommendation, recommendations) {
   findings.push({ severity, id, message });
   if (recommendation) recommendations.push(recommendation);
@@ -35,7 +42,7 @@ export function auditThing(spec) {
   //   }
   // }
 
-  const totalWeight = findings.reduce((sum, f) => sum + ((SEVERITY_WEIGHT[f.severity] ?? (() => { throw new Error(`unknown finding severity: ${f.severity}`); })())), 0);
+  const totalWeight = findings.reduce((sum, f) => sum + (severityWeight(f.severity)), 0);
   const score = Math.max(0, 100 - totalWeight);
   const pass = !findings.some((f) => f.severity === 'critical') && score >= 75;
   if (pass) recommendations.push('Spec meets the bar on every gate. Proceed.');
