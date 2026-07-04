@@ -284,10 +284,7 @@ This ADR and the Agent Harbor technical binder
 and, until this amendment, did not reference each other. They describe
 overlapping systems. This amendment registers the dependency in both
 directions and folds the binder's requirements into the phases. The
-corresponding binder-side stubs (ch. 04 transcript-substrate pointer, ch. 05
-Simulation sandbox → Coordination-Bench, ch. 12 C7 → bench scoring
-substrate) are deferred behind an active session claim on the binder files
-and should be added when that claim releases.
+corresponding pointers live in binder chapters 04, 05, and 12.
 
 **1. One synthetic harbor, not two.** Coordination-Bench (Phase 3) is *the
 implementation vehicle* for the binder's "Simulation sandbox"
