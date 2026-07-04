@@ -133,12 +133,12 @@
   <header class="doc-head">
     <div class="eyebrow">Story linework · the three app surfaces · 2026-07-04</div>
     <h1 style="margin-top:12px;">One system, three runtimes.</h1>
-    <p class="lede">The sanctioned operator surfaces — FleetBar, the Fleet Control Center, and pd-console — wearing the same system as the site: palette v2 with its slab and wash cuts, the six-state grammar (stripe + dot + micro-flag + label + time), brackets on live panels only, one zone per view, and the signal vocabulary the token file has always named. Every color below exists in all three runtimes; the mapping table is at the end.</p>
+    <p class="lede"><b>Scout captures intent. FleetBar grants consent. pd-console shows the truth.</b> (binder ch19 — surfaces differ in affordance, never in authority.) The sanctioned operator surfaces wearing the same system as the site: palette v2 with its slab and wash cuts, the six-state grammar (stripe + dot + micro-flag + label + time), brackets on live panels only, one zone per view, and the signal vocabulary the token file has always named. Every color below exists in all three runtimes; the mapping table is at the end.</p>
   </header>
 
   <!-- ═══════════ M·A FLEETBAR ═══════════ -->
   <div class="mock-cap"><span class="n">M·A</span><div><h2>FleetBar — the 380pt popover</h2>
-    <p class="mock-notes">This is the research report's own popover, finished: <b>one cobalt zone</b> for the agent running right now (pulse ring, direct-labeled progress), state stripes with <b>micro-flags as the second signal</b> — Quebec solid for healthy, Uniform quarters on the warning, November checker on the failure, Lima on the operator-blocked row. Guard state is a filled chip, berth staleness lives in the footer, and the mini-hoist flies Papa·Delta (PD) beside the wordmark.</p></div></div>
+    <p class="mock-notes">Designed to the binder's contract: FleetBar is <b>the only surface allowed to demand attention, and only for human gates</b> — so the gate queue sits above everything, violet, with approve/open verbs inline. Below it the one cobalt zone (running now), the state grammar rows, and the fix for the real screenshot's wall of 16 amber dev builds: <b>berth lanes</b> — Prod/Latest pinned, Dev collapsed to a disclosure with a count. Micro-flags are the second signal on every row.</p></div></div>
   <div class="mock-mat">
     <div class="menubar">
       <div class="mb-strip"><span>◐</span><span>⚙</span><img class="pd-mini" src="../../../website-v2/public/logos/portdaddy-mark-radar-darkmode.svg" alt=""><span>Fri 21:42</span></div>
@@ -148,6 +148,14 @@
           <span class="fb-guard">GUARD · ENFORCE</span>
         </div>
         <div class="fb-rule"></div>
+        <div style="margin: 0 10px 8px; padding: 10px 13px; background: var(--violet-slab); color: #fbf7ef;">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; opacity:0.8; display:flex; align-items:center; gap:8px;"><span class="mfl fl-lima" style="border-color:rgba(251,247,239,0.4);"></span> Needs you · 1 gate</div>
+          <div style="font-size:13.5px; font-weight:700; margin-top:3px;">Approver: merge PR #91?</div>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <span style="font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; padding:4px 10px; background:#fbf7ef; color:#17191d;">Approve</span>
+            <span style="font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; padding:4px 10px; background:rgba(0,0,0,0.3);">Open in console</span>
+          </div>
+        </div>
         <div class="fb-zone">
           <div class="z-eye"><span class="z-dot"></span> Now running</div>
           <div class="z-t">Spider · security scan</div>
@@ -158,6 +166,10 @@
         <div class="fb-row" style="--st: var(--amber)"><span class="dot"></span><span class="mfl flag-uniform" style="--f1: var(--rust-slab); --f2: #fbf7ef;" title="Uniform — running into danger"></span><div><div class="fb-name">Gardener</div><div class="fb-stat">3 lint warnings, 1 unused export</div></div><span class="fb-time">1m</span></div>
         <div class="fb-row" style="--st: var(--error)"><span class="dot"></span><span class="mfl fl-november" title="November — negative"></span><div><div class="fb-name">Spark</div><div class="fb-stat">workers-ai 401 — auth token expired</div></div><span class="fb-time">23s</span></div>
         <div class="fb-row" style="--st: var(--violet-slab)"><span class="dot"></span><span class="mfl fl-lima" title="Lima — stop instantly"></span><div><div class="fb-name">Approver</div><div class="fb-stat">Waiting on operator · PR #91</div></div><span class="fb-time">4m</span></div>
+        <div style="padding: 8px 16px 4px; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color: var(--text-muted);">Berths</div>
+        <div class="fb-row" style="--st: var(--cobalt-slab)"><span class="dot"></span><span class="mfl fl-papa"></span><div><div class="fb-name">pd-console · Prod</div><div class="fb-stat">v3.23.0 · brew release</div></div><span class="fb-time">Use</span></div>
+        <div class="fb-row" style="--st: var(--health-slab)"><span class="dot"></span><span class="mfl flag-quebec"></span><div><div class="fb-name">pd-console · Latest</div><div class="fb-stat">built 8h ago · dev-latest :9886</div></div><span class="fb-time">Use</span></div>
+        <div class="fb-row" style="--st: var(--text-ghost)"><span class="dot"></span><span class="mfl fl-delta"></span><div><div class="fb-name">Dev berths</div><div class="fb-stat">16 feature builds · conjure, harbor, parley…</div></div><span class="fb-time">▸ 16</span></div>
         <div class="fb-foot"><span>berth fresh · 2 harbors</span><span class="fb-cmd">⌘K dispatch</span></div>
       </div>
     </div>
@@ -165,12 +177,15 @@
 
   <!-- ═══════════ M·B PD-CONSOLE ═══════════ -->
   <div class="mock-cap"><span class="n">M·B</span><div><h2>pd-console — the GPUI deck</h2>
-    <p class="mock-notes">Always dark: the console lives on <b>sunken #0b0d11</b> with the slab cuts as its only saturation — the same deep cobalt/teal/violet the site uses, drawn as GPUI quads. The pane rail uses the real pane names (fleet, parley, cockpit, claims, roadmap, daemon, ledger, sortie); the active tab is a filled block, the <b>live panel wears the brackets</b> (the one place they're allowed), the pane title knocks out of a cobalt block, and Kilo flies in the titlebar. State rows are the same grammar as FleetBar at terminal density.</p></div></div>
+    <p class="mock-notes">The proof surface, designed to the real screenshot's needs. The 20-item NAVIGATE wall groups by <b>stack layer</b> — L0 daemon hues cobalt, L1 coordination sage, L2 legibility teal, L3 economy gold — so the rail reads by color before you read a word. The Conjure pane (the screenshot's hero) keeps its predicted-DAG cards but the wave headers knock out of cobalt, model chips carry cost hues (haiku sage · sonnet cobalt · opus violet), and the release gate flies <b>X-ray: "stop carrying out your intentions"</b> — which is exactly what a gate is. Live panel wears the brackets; Kilo in the titlebar; hot-bus latency in the status bar (steering p95 &lt; 100ms, the binder's budget).</p></div></div>
   <div class="mock-mat">
     <div class="console">
       <div class="co-title"><span class="tl"><i></i><i></i><i></i></span><span class="t">pd-console — port-daddy · daemon 3.23.0</span><span class="kilo fl fl-kilo"></span></div>
       <div class="co-tabs">
-        <span class="co-tab on">fleet</span><span class="co-tab">parley</span><span class="co-tab">cockpit</span><span class="co-tab">claims</span><span class="co-tab">roadmap</span><span class="co-tab">daemon</span><span class="co-tab">ledger</span><span class="co-tab">sortie</span><span class="co-tab">…</span>
+        <span style="font-size:10.5px; color:#4a4f5c; padding:8px 6px 8px 0; letter-spacing:0.1em;">L0</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #003fb8;">daemon</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #003fb8;">health</span>
+        <span style="font-size:10.5px; color:#4a4f5c; padding:8px 6px; letter-spacing:0.1em;">L1</span><span class="co-tab on">fleet</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #1f7a4d;">claims</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #1f7a4d;">parley</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #1f7a4d;">sessions</span>
+        <span style="font-size:10.5px; color:#4a4f5c; padding:8px 6px; letter-spacing:0.1em;">L2</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #006b5f;">cockpit</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #006b5f;">conjure</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #006b5f;">roadmap</span>
+        <span style="font-size:10.5px; color:#4a4f5c; padding:8px 6px; letter-spacing:0.1em;">L3</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #666a00;">ledger</span><span class="co-tab" style="box-shadow: inset 0 2px 0 #666a00;">cost</span><span class="co-tab">…</span>
       </div>
       <div class="co-grid">
         <div class="co-panel live"><i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
@@ -201,13 +216,42 @@
           </div>
         </div>
       </div>
-      <div class="co-status"><span>daemon <b>healthy</b></span><span class="mfl flag-quebec"></span><span>:9876</span><span>24.1k tok</span><span>$0.00 today</span><span style="margin-left:auto;">⌃A space — launcher</span></div>
+      <div style="padding: 0 16px 16px;">
+        <div class="co-panel">
+          <div class="co-ph"><span class="pt knock" style="background: var(--teal-slab);">CONJURE · PREDICTED DAG</span><span style="font-size:11px;color:#6f6a5f;">3 waves · 4 nodes · ~40min · $0.42 · 86% conf</span></div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; padding: 14px;">
+            <div style="border: 1px solid #f2be51; padding: 10px 12px;">
+              <div style="font-size:10.5px; letter-spacing:0.12em; color:#f2be51; margin-bottom:6px;">WAVE 1 · SERIAL</div>
+              <div style="color:#f5f3ed; font-weight:600; font-size:12.5px;">api-architect</div>
+              <div style="color:#a59f93; font-size:11.5px; margin-top:2px;">Survey settings + provider contracts</div>
+              <div style="margin-top:8px; display:flex; gap:8px; font-size:10.5px;"><span style="background:#003fb8; color:#fbf7ef; padding:2px 6px; font-weight:700;">sonnet</span><span style="color:#6f6a5f;">$0.07 · 8m</span></div>
+            </div>
+            <div style="border: 1px dashed #7db4ff; padding: 10px 12px;">
+              <div style="font-size:10.5px; letter-spacing:0.12em; color:#7db4ff; margin-bottom:6px;">WAVE 2 · PARALLEL ×2</div>
+              <div style="color:#f5f3ed; font-weight:600; font-size:12.5px;">beautiful-gui-design</div>
+              <div style="color:#a59f93; font-size:11.5px; margin-top:2px;">Build the provider-settings panel</div>
+              <div style="margin-top:8px; display:flex; gap:8px; font-size:10.5px;"><span style="background:#933fa5; color:#fbf7ef; padding:2px 6px; font-weight:700;">opus</span><span style="color:#6f6a5f;">$0.22 · 16m</span></div>
+              <div style="margin-top:8px; padding-top:8px; border-top:1px solid #232833;">
+                <div style="color:#f5f3ed; font-weight:600; font-size:12.5px;">test-automation-expert</div>
+                <div style="margin-top:4px; display:flex; gap:8px; font-size:10.5px;"><span style="background:#1f7a4d; color:#fbf7ef; padding:2px 6px; font-weight:700;">haiku</span><span style="color:#6f6a5f;">$0.05 · 10m</span></div>
+              </div>
+            </div>
+            <div style="border: 1px dashed #ff7d7d; padding: 10px 12px; position:relative;">
+              <div style="font-size:10.5px; letter-spacing:0.12em; color:#ff7d7d; margin-bottom:6px; display:flex; align-items:center; gap:6px;"><span class="mfl fl-xray" style="--c:#003fb8; --fw:#fbf7ef;"></span> WAVE 3 · GATED</div>
+              <div style="color:#f5f3ed; font-weight:600; font-size:12.5px;">rust-app-distribution</div>
+              <div style="color:#a59f93; font-size:11.5px; margin-top:2px;">Cut the release once the gate is green</div>
+              <div style="margin-top:8px; display:flex; gap:8px; font-size:10.5px;"><span style="background:#003fb8; color:#fbf7ef; padding:2px 6px; font-weight:700;">sonnet</span><span style="color:#6f6a5f;">$0.08 · 6m</span><span style="color:#ff7d7d; font-weight:700;">X-ray: human gate</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="co-status"><span>daemon <b>healthy</b></span><span class="mfl flag-quebec"></span><span>:9876</span><span>24.1k tok</span><span>$0.00 today</span><span style="margin-left:auto;">hot bus 41ms · steer p95 87ms · ⌃A space</span></div>
     </div>
   </div>
 
   <!-- ═══════════ M·C FLEET CONTROL CENTER ═══════════ -->
   <div class="mock-cap"><span class="n">M·C</span><div><h2>Fleet Control Center — Swift chrome, React content</h2>
-    <p class="mock-notes">The native window supplies the toolbar (project picker, guard chip, daemon dot); the webview content is fleet-ui wearing the same tokens as the site — it ships the CSS variables directly. Console nav down the left with the active stripe, <b>one cobalt zone</b> in Flow for the running mission, agent cards on the card well with state stripes, the activity rail using micro-flags as event glyphs, and Shipwright's cold-start callout sitting in a <b>gold wash</b> — the economy story's quiet room.</p></div></div>
+    <p class="mock-notes">The real screenshot's problem is that everything glows equally — 30 chips, no "what needs me." The redesign keeps its anatomy (cockpit, budget, flow map, roadmap intake) but gives it the site's hierarchy: <b>one cobalt zone</b> for the running mission, the <b>budget as a solid gold block</b> ($8.50/day is an economy fact — it wears the economy's color), guard as one filled chip, and the empty roadmap intake flies <b>Papa — "all aboard"</b> instead of a dashed void. Hot-bus presence keeps the flow map alive; durable events fill the rail (the binder's two-bus rule: hot messages move the UI, durable events decide history).</p></div></div>
   <div class="mock-mat">
     <div class="cc">
       <div class="cc-toolbar">
@@ -227,6 +271,16 @@
             <div><div class="z-t">Spider · security scan — pass 4 of 7</div><div class="z-d">queries/user.ts · 18s elapsed · $0.00 on your seat</div></div>
             <span class="z-act">⏸ pause</span>
           </div>
+          <div style="display:grid; grid-template-columns: 1fr auto; gap: 12px; margin-bottom: 12px;">
+            <div style="background: var(--gold); color: #fbf7ef; padding: 12px 16px;">
+              <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; opacity:0.85;">Budget · daily cap</div>
+              <div style="font-family:'IBM Plex Mono',monospace; font-size:26px; font-weight:700; margin-top:2px;">$0.00 <span style="font-size:14px; opacity:0.8;">/ $8.50</span></div>
+            </div>
+            <div style="background: var(--surface-card); border: 1px solid var(--hair); padding: 12px 16px;">
+              <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color: var(--text-muted);">Signal value</div>
+              <div style="font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:700; margin-top:6px;">16/16 live · 240 signals</div>
+            </div>
+          </div>
           <div class="cc-cards">
             <div class="cc-card" style="--st: var(--health)"><div class="h"><span class="mfl flag-quebec"></span><span class="nm">QA</span></div><div class="ds">14 of 14 passed · last run 8s ago</div><div class="meta"><span>ready</span><span>8s</span></div></div>
             <div class="cc-card" style="--st: var(--amber)"><div class="h"><span class="mfl flag-uniform" style="--f1: var(--rust-slab); --f2:#fbf7ef;"></span><span class="nm">Gardener</span></div><div class="ds">3 lint warnings, 1 unused export</div><div class="meta"><span>warn</span><span>1m</span></div></div>
@@ -241,7 +295,82 @@
           <div class="cc-ev"><span class="mfl fl-november"></span><span>spark spawn failed — 401</span></div>
           <div class="cc-ev"><span class="mfl fl-oscar"></span><span>salvage: 1 abandoned session claimable</span></div>
           <div class="cc-ship">⚓ <b>Shipwright:</b> cold-start survey ready — proposed fleet of 4, simulated spend $0.00/day on claude-cli.</div>
+          <div style="margin: 12px 16px 0; padding: 14px; border: 1px solid var(--hair); display:flex; gap:12px; align-items:center;">
+            <span class="mfl fl-papa" style="width:26px; height:19px;"></span>
+            <div style="font-size:12.5px; color: var(--text-secondary); line-height:1.5;"><b style="color:var(--text-primary);">Roadmap intake — flying Papa.</b> No mission cards yet. Tag your roadmap with (UNCOMMITTED) / (BLOCKED) and they board here.</div>
+          </div>
         </aside>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ M·E THE CLI ═══════════ -->
+  <div class="mock-cap"><span class="n">M·E</span><div><h2>The pd CLI — fractional edges in a terminal</h2>
+    <p class="mock-notes">The agent/emergency surface gets the same linework, drawn in box glyphs: <b>corner ticks are literal ┌ ┐ ╵ glyph pairs</b> (never full boxes), left stripes are <span class="mono" style="font-size:13px;">▌</span> half-blocks in state color, the one zone per command is a reverse-video block, and Kilo is two half-block cells. Micro-flags become two-character block pairs. Rules from the CLI skill: NO_COLOR / !isTTY / <span class="mono" style="font-size:13px;">--json</span> strip everything to plain text; semantic colors only; unicode-width-safe alignment.</p></div></div>
+  <div class="mock-mat">
+    <div style="max-width: 780px; margin: 0 auto; background: #12161f; border: 1px solid #2a2f3a; padding: 18px 22px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.7; color: #edf1f9;">
+<pre style="margin:0; color:#edf1f9;"><span style="color:#8fd0a7;">$</span> pd status
+<span style="color:#7db4ff;">┌</span><span style="background:#003fb8; color:#fbf7ef; font-weight:700;"> PORT DADDY </span><span style="background:#cad900; color:#17191d; font-weight:700;"> 3.23.0 </span>  <span style="color:#c7d0e5;">daemon · :9876 · up 11h 42m</span>                <span style="color:#7db4ff;">┐</span>
+<span style="color:#5fce97;">▌</span> <span style="color:#5fce97;">▀▄</span> healthy    heartbeat now · supervisor active · 65 ports
+<span style="color:#7db4ff;">▌</span> <span style="color:#7db4ff;">██</span> running    spider · security scan · pass 4/7 · <span style="font-weight:700;">18s</span>
+<span style="color:#f2be51;">▌</span> <span style="color:#f2be51;">▚▚</span> warn       gardener · 3 lint warnings, 1 unused export
+<span style="color:#e0a5ed;">▌</span> <span style="color:#e0a5ed;">▂▂</span> blocked    approver · waiting on operator · PR #91
+<span style="color:#7db4ff;">╵</span> guard <span style="font-weight:700; color:#5fce97;">enforce</span> · budget <span style="color:#d8dd3c; font-weight:700;">$0.00/$8.50</span> · 7 claims          <span style="color:#7db4ff;">╵</span>
+
+<span style="color:#8fd0a7;">$</span> pd begin "hero polish" --lifecycle durable
+<span style="background:#1f7a4d; color:#fbf7ef; font-weight:700;"> ◆ SESSION ANCHORED </span> website:hero-polish · worktree isolated
+<span style="color:#5fce97;">▌</span> claim files next: <span style="color:#8dc4ff;">pd session files add &lt;path&gt;</span>
+
+<span style="color:#8fd0a7;">$</span> pd parley --channel agents:standup --limit 2
+<span style="color:#c7d0e5;">┌ agents:standup ─── cursor @214</span>
+<span style="color:#7db4ff;">▌</span> <span style="color:#7db4ff; font-weight:700;">spider</span>   claiming routes/feedback.ts — SQLi candidate L47
+<span style="color:#e0a5ed;">▌</span> <span style="color:#e0a5ed; font-weight:700;">approver</span> <span style="background:#003fb8; color:#fbf7ef;"> SÉCURITÉ </span> hold merge until QA re-runs auth
+<span style="color:#c7d0e5;">╵ 2 of 214 · --json for machines</span></pre>
+    </div>
+  </div>
+
+  <!-- ═══════════ M·F HARBOR CO-EDIT ═══════════ -->
+  <div class="mock-cap"><span class="n">M·F</span><div><h2>Co-op vibe coding — the Harbor co-edit dream</h2>
+    <p class="mock-notes">Binder ch05's fifth mode, imagined at full sail: <b>humans and agents as co-equal peers in one governed buffer</b>. Every participant flies a letter flag; their claims render as left-edge stripes on the exact line ranges they hold, so ownership is visible <b>in the text itself</b>. The Longshoreman's semantic-conflict forecast draws a hatched warning band where two claims will collide before they do. The parley strip speaks radio voice procedure — the token file's own <span class="mono" style="font-size:13px;">--voice-securite</span> / <span class="mono" style="font-size:13px;">--voice-pan-pan</span> finally drawn. A salvage tide-line holds the ghost of a crashed agent's work, claimable with one keystroke. Below the waterline: the living-harbor shader strip (dithered, reduced-motion-safe, frozen here as a still).</p></div></div>
+  <div class="mock-mat">
+    <div style="max-width: 1080px; margin: 0 auto; background: #0b0d11; border: 1px solid #2a2f3a; font-family: 'IBM Plex Mono', monospace;">
+      <div style="display:flex; align-items:center; gap:12px; padding: 9px 14px; background:#101216; border-bottom: 1px solid #2a2f3a;">
+        <span class="tl"><i></i><i></i><i></i></span>
+        <span style="font-size:12.5px; color:#a59f93;">harbor — routes/feedback.ts · 3 aboard</span>
+        <span style="margin-left:auto; display:flex; gap:10px; align-items:center;">
+          <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:#f5f3ed;"><span class="mfl fl-echo"></span> erich</span>
+          <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:#7db4ff;"><span class="mfl fl-sierra"></span> spider</span>
+          <span style="display:flex; align-items:center; gap:5px; font-size:11px; color:#5fce97;"><span class="mfl fl-quebec" style="background:#cad900;"></span> qa</span>
+        </span>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 260px;">
+        <div style="padding: 14px 0; font-size: 12.5px; line-height: 1.9;">
+          <div style="display:grid; grid-template-columns: 40px 8px 1fr; color:#6f6a5f;"><span style="text-align:right; padding-right:8px;">44</span><span></span><span style="color:#d3cec2;">export async function submitFeedback(req: Request) {</span></div>
+          <div style="display:grid; grid-template-columns: 40px 8px 1fr; color:#6f6a5f;"><span style="text-align:right; padding-right:8px;">45</span><span style="background:#f5f3ed;"></span><span style="color:#d3cec2;">&nbsp;&nbsp;const user = await auth(req)&nbsp;<span style="background:#f5f3ed; color:#17191d; padding:0 4px; font-size:10.5px; font-weight:700;">erich ▍</span></span></div>
+          <div style="display:grid; grid-template-columns: 40px 8px 1fr; color:#6f6a5f;"><span style="text-align:right; padding-right:8px;">46</span><span style="background:#7db4ff;"></span><span style="color:#d3cec2;">&nbsp;&nbsp;<span style="background:rgba(125,180,255,0.14);">const q = sql`SELECT * FROM feedback WHERE uid = &#36;{user.id}`</span>&nbsp;<span style="background:#7db4ff; color:#0b0d11; padding:0 4px; font-size:10.5px; font-weight:700;">spider ▍ claim 46–52</span></span></div>
+          <div style="display:grid; grid-template-columns: 40px 8px 1fr; color:#6f6a5f;"><span style="text-align:right; padding-right:8px;">47</span><span style="background:#7db4ff;"></span><span style="color:#d3cec2;">&nbsp;&nbsp;<span style="background:rgba(125,180,255,0.14);">// spider: parameterizing — injection candidate</span></span></div>
+          <div style="display:grid; grid-template-columns: 40px 8px 1fr; color:#6f6a5f;"><span style="text-align:right; padding-right:8px;">48</span><span style="background: repeating-linear-gradient(45deg, #f2be51 0 3px, transparent 3px 6px);"></span><span style="color:#d3cec2;">&nbsp;&nbsp;return render(q)&nbsp;&nbsp;<span style="color:#f2be51; font-size:10.5px;">⚠ forecast: qa's test claim lands here in ~4m — parley suggested</span></span></div>
+          <div style="display:grid; grid-template-columns: 40px 8px 1fr; color:#6f6a5f;"><span style="text-align:right; padding-right:8px;">49</span><span></span><span style="color:#d3cec2;">}</span></div>
+          <div style="margin: 12px 14px 0; padding: 8px 12px; border: 1px dashed #4a4f5c; display:flex; gap:10px; align-items:center;">
+            <span class="mfl fl-oscar"></span>
+            <span style="font-size:11.5px; color:#a59f93;">salvage tide-line: <b style="color:#e09464;">cartographer</b> died holding lines 61–74 (14m ago) — <span style="color:#8dc4ff;">⌥S to claim the ghost</span></span>
+          </div>
+        </div>
+        <div style="border-left: 1px solid #232833; padding: 12px;">
+          <div style="font-size:10.5px; font-weight:700; letter-spacing:0.13em; text-transform:uppercase; color:#a59f93; margin-bottom:8px;">Parley · this buffer</div>
+          <div style="font-size:11.5px; line-height:1.7; color:#d3cec2;">
+            <div><span style="background:#003fb8; color:#fbf7ef; padding:0 5px; font-weight:700; font-size:10px;">SÉCURITÉ</span> <span style="color:#7db4ff; font-weight:700;">spider</span> touching your query on 46 — param fix, 2 min</div>
+            <div style="margin-top:6px;"><span style="color:#f5f3ed; font-weight:700;">erich</span> roger — I'll stay above 45</div>
+            <div style="margin-top:6px;"><span style="background:#a66f00; color:#fbf7ef; padding:0 5px; font-weight:700; font-size:10px;">PAN-PAN</span> <span style="color:#5fce97; font-weight:700;">qa</span> auth suite needs line 48 frozen for the fixture</div>
+            <div style="margin-top:8px; padding:6px 8px; border:1px solid #4a4f5c; font-size:10.5px; color:#a59f93;">Longshoreman proposes: spider finishes 46–47 → qa claims 48 → erich reviews. <span style="color:#8dc4ff;">accept?</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="height: 44px; background:
+        radial-gradient(circle at 82% 30%, rgba(202,217,0,0.5) 0 2px, transparent 3px),
+        repeating-linear-gradient(90deg, #101a2e 0 4px, #0d1526 4px 8px, #101a2e 8px 14px, #0b1220 14px 18px);
+        border-top: 1px solid #232833; position: relative;">
+        <span style="position:absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 10px; letter-spacing: 0.12em; color: #4a5a7a;">THE LIVING HARBOR · shader still (reduced-motion)</span>
       </div>
     </div>
   </div>
