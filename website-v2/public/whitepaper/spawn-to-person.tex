@@ -1003,6 +1003,27 @@ cross-operator attestation and must declare it \VISION{} rather than borrow the
 single-operator threat model. This is the clean boundary the volume's cross-layer
 review demanded.}
 
+\paragraph{The second stone's envelope has been standardized --- the stone has
+not.} While this volume was being written, the agentic-payments industry shipped
+the credential dialect the second stone will be carved in: the Agent Payments
+Protocol~\cite{ap2mandates2026}, adopted by the Universal Commerce
+Protocol~\cite{ucp2026} (Google/Shopify, 2026), expresses principal authorization
+as W3C Verifiable Credentials in SD-JWT form --- SD-JWT+kb with hardware-bindable
+ES256 keys for the principal, JWS detached-content signatures over
+JCS-canonicalized payloads for the counterparty, keys published as JWK sets under
+a \texttt{/.well-known} profile. The reference implementation adopts this
+envelope at the harbor boundary (ADR-0094), and the honesty rider matters here
+more than anywhere: \emph{a standard format shrinks the problem; it does not
+solve it}. What the profile buys is that a principal mandate verifies with
+off-the-shelf tooling, that principal keys can live in secure enclaves, and that
+key \emph{distribution} reduces to fetching a cacheable HTTPS document. What it
+does not buy is the binding of Definition~\ref{def:0040b}: a JWK set
+authenticates keys to an \emph{origin}, not to a principal, and origin-binding
+across mutually-distrusting operators is exactly the unsolved attestation
+problem --- exercise~(3)'s ``shared root of trust'' in its 2026 industrial form.
+Cross-operator attestation remains \VISION{}; it is now \VISION{} with a
+standardized serialization, which is progress of the unglamorous kind.
+
 \begin{exercises}
 \textit{Check.} (1) In one sentence each, state what a local non-forgeable identity
 provides and what cross-operator attestation would have to add. \\
@@ -1837,6 +1858,16 @@ Elinor Ostrom.
 Thomas Hobbes.
 \newblock \textit{Leviathan}.
 \newblock 1651.
+
+\bibitem{ucp2026}
+Universal Commerce Protocol.
+\newblock Specification and reference implementation (Apache-2.0), Google, Shopify, et al., 2026.
+\newblock \texttt{https://ucp.dev}.
+
+\bibitem{ap2mandates2026}
+Agent Payments Protocol (AP2): Mandates.
+\newblock Verifiable-credential authorization chain: SD-JWT+kb, JWS detached content, JCS canonicalization, 2026.
+\newblock \texttt{https://ap2-protocol.org}.
 
 \end{thebibliography}
 
