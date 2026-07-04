@@ -30,6 +30,10 @@ import type {
   OutputSink,
 } from '../types.js';
 
+/** Bound every outbound call; a hung provider fails the dispatch fast
+ *  instead of wedging it forever (explicit timeouts, no infinite waits). */
+const OUTBOUND_FETCH_TIMEOUT_MS = 15_000;
+
 type EmailTransport =
   | { kind: 'worker'; url: string; secret: string }
   | { kind: 'sendgrid'; key: string; from: string }
@@ -117,6 +121,7 @@ export class EmailOutputSink implements OutputSink {
             'x-pd-webhook-signature': signature,
           },
           body: requestBody,
+          signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
         });
         if (!res.ok) {
           const text = await res.text().catch(() => '');
@@ -133,6 +138,7 @@ export class EmailOutputSink implements OutputSink {
       case 'sendgrid': {
         const res = await this.fetchImpl('https://api.sendgrid.com/v3/mail/send', {
           method: 'POST',
+          signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
           headers: {
             'content-type': 'application/json',
             authorization: `Bearer ${transport.key}`,
@@ -158,6 +164,7 @@ export class EmailOutputSink implements OutputSink {
       case 'postmark': {
         const res = await this.fetchImpl('https://api.postmarkapp.com/email', {
           method: 'POST',
+          signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
           headers: {
             'content-type': 'application/json',
             accept: 'application/json',

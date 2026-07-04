@@ -95,12 +95,15 @@ export async function postWithRetry(
   init: RequestInit,
   delaysMs: number[] = [2000, 8000],
   sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+  perAttemptTimeoutMs = 10_000,
 ): Promise<{ ok: boolean; status?: number; attempts: number; error?: string }> {
   let lastError = '';
   for (let attempt = 0; attempt <= delaysMs.length; attempt += 1) {
     if (attempt > 0) await sleep(delaysMs[attempt - 1]);
     try {
-      const res = await fetchImpl(url, init);
+      // Per-attempt timeout: a black-holed tunnel counts as a retryable
+      // failure, never an indefinite hang (explicit timeouts everywhere).
+      const res = await fetchImpl(url, { ...init, signal: AbortSignal.timeout(perAttemptTimeoutMs) });
       if (res.ok) return { ok: true, status: res.status, attempts: attempt + 1 };
       if (res.status >= 400 && res.status < 500) {
         return { ok: false, status: res.status, attempts: attempt + 1, error: `terminal ${res.status}` };

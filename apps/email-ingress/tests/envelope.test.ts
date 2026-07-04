@@ -113,3 +113,17 @@ describe('postWithRetry', () => {
     expect(result.error).toMatch(/tunnel down/);
   });
 });
+
+describe('postWithRetry timeouts', () => {
+  test('a per-attempt timeout (AbortError) is retryable, not fatal', async () => {
+    const { postWithRetry } = await import('../src/envelope.js');
+    let calls = 0;
+    const hangsOnce = (async () => {
+      calls += 1;
+      if (calls === 1) throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+    const result = await postWithRetry(hangsOnce, 'https://d/x', {}, [1], async () => {}, 50);
+    expect(result).toEqual(expect.objectContaining({ ok: true, attempts: 2 }));
+  });
+});

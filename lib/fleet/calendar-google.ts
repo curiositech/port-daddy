@@ -14,6 +14,9 @@
  *     lists before anything reaches agent task text.
  */
 
+/** Bound every outbound call (explicit timeouts, no infinite waits). */
+const OUTBOUND_FETCH_TIMEOUT_MS = 15_000;
+
 export interface GoogleCalendarCreds {
   clientId: string;
   clientSecret: string;
@@ -63,6 +66,7 @@ export class GoogleCalendarClient {
     }
     const res = await this.fetchImpl('https://oauth2.googleapis.com/token', {
       method: 'POST',
+      signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         client_id: this.creds.clientId,
@@ -91,7 +95,7 @@ export class GoogleCalendarClient {
     });
     const res = await this.fetchImpl(
       `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(this.creds.calendarId)}/events?${params}`,
-      { headers: { authorization: `Bearer ${token}` } },
+      { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS) },
     );
     if (!res.ok) {
       throw new Error(`Google events.list failed: ${res.status} ${(await res.text().catch(() => '')).slice(0, 200)}`);
@@ -145,6 +149,7 @@ export class GoogleCalendarClient {
       {
         method: 'POST',
         headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
         body: JSON.stringify({
           summary: input.title,
           location: input.location,
