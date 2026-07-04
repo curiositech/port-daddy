@@ -19,8 +19,9 @@
   .setup-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
   .fit-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .limits { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-  .final-zone { background: var(--gold); color: var(--inverse); padding: 40px 44px; margin-top: 72px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 36px; align-items: center; }
-  [data-theme="dark"] .final-zone { color: #121212; }
+  .final-zone { background: repeating-linear-gradient(to right, var(--lime) 0 8.333%, var(--cobalt-slab) 8.333% 16.667%); padding: 56px 44px; margin-top: 72px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 36px; align-items: center; }
+  .final-zone > div:first-child { background: var(--cobalt-slab); color: #fbf7ef; padding: 30px 32px; }
+  
   .final-zone h2 { font-size: 28px; font-weight: 700; letter-spacing: var(--tracking-h2); }
   .final-zone p { font-size: 15px; line-height: 1.65; opacity: 0.92; margin-top: 10px; max-width: 50ch; }
   .final-zone .fz-eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; opacity: 0.72; margin-bottom: 10px; }
@@ -197,14 +198,10 @@
     </div>
   </section>
 
-  <div class="flag-band" style="background: repeating-linear-gradient(to right, var(--lime) 0 8.333%, var(--cobalt-slab) 8.333% 16.667%); height: 36vh;">
-    <span class="fb-cap">Golf — "I require a pilot" · bring your own CLI</span>
-  </div>
-
   <!-- FINAL CTA — the page's one zone, gold: this is the economy page -->
   <section class="final-zone">
     <div>
-      <div class="fz-eyebrow">Try the fleet</div>
+      <div class="fz-eyebrow">Try the fleet — flying Golf: I require a pilot</div>
       <h2>Three commands. Your subscription does the rest.</h2>
       <p>If you already pay for Claude Max or ChatGPT Pro, this is the smallest change you can make: same model, same login, more hours of work in a day.</p>
       <div style="display:flex; gap:12px; margin-top:18px;">
