@@ -31,6 +31,7 @@ import {
   type FleetApprovalProposal,
 } from './fleet-engine.js';
 import { getSharedWebhookReceiver } from './fleet/webhook-receiver.js';
+import { getSharedApprovalStream } from './fleet/approval-stream.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { loadEnvFiles } from './env-loader.js';
 import { createProjectSemaphoreRegistry, type ProjectSemaphoreRegistry } from './concurrency-semaphore.js';
@@ -669,19 +670,22 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       // daemon's inbound receiver (routes/fleet-webhooks.ts posts into it).
       registerWebhookHandler: (channel, handler) =>
         getSharedWebhookReceiver().registerHandler(channel, handler),
-      // ADR-0093 L2 approval seam. Durable + operator-visible: the proposal
-      // (including the ready-to-run context) lands in tuple space, so
-      // pd-console/FleetBar can list it and an operator approves by hailing
-      // the agent with the stored context (POST /fleet/agent/run). The
-      // fleet HITL proposal queue (PR #648) can consume this same seam.
+      // ADR-0093 L2 approval seam. Two surfaces per proposal:
+      //   1. a durable fleet:approval tuple (7d TTL, keyed by proposal id)
+      //      — the record of truth that survives daemon restarts;
+      //   2. the live approval stream (lib/fleet/approval-stream.ts) that
+      //      the /fleet/approvals WebSocket + REST surfaces broadcast from
+      //      and that decisions resolve through.
+      // The fleet HITL proposal queue (PR #648) can consume the same seam.
       enqueueForApproval: (proposal: FleetApprovalProposal) => {
         tuples?.out([
           'fleet:approval',
+          proposal.id,
           proposal.agent,
           proposal.trigger,
-          proposal.tier,
           {
             project: proposal.project,
+            tier: proposal.tier,
             reason: proposal.reason,
             safeTools: proposal.safeTools,
             context: proposal.context,
@@ -692,7 +696,9 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
           writtenBy: 'fleetd:trust-gate',
           ttlMs: 7 * 24 * 60 * 60 * 1000,
         });
+        getSharedApprovalStream().enqueue(proposal);
         logger.info('fleet_approval_requested', {
+          id: proposal.id,
           project: proposal.project,
           agent: proposal.agent,
           trigger: proposal.trigger,
@@ -1220,6 +1226,21 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   function resizeProjectConcurrency(project: string, newCapacity: number): void {
     concurrency.resize(project, newCapacity);
   }
+
+  // Wire the approval stream's decision actions to THIS daemon's spawn
+  // path. Approve = hail the agent with the proposal's stored context;
+  // both decisions drop the durable tuple. Until configure() runs the
+  // stream refuses decisions (fail-closed), so a half-booted daemon can
+  // never approve a spawn it cannot execute.
+  getSharedApprovalStream().configure({
+    hail: (proposal) =>
+      hailAgent(proposal.agent, { ...proposal.context, project: proposal.project }),
+    removeDurable: (proposal) => {
+      const managed = [...fleets.values()].find((f) => f.projectName === proposal.project);
+      const harbor = managed?.config.harbor || `${proposal.project}:fleet`;
+      tuples?.take(['fleet:approval', proposal.id], { harbor });
+    },
+  });
 
   return {
     start,

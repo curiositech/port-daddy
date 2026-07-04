@@ -7,7 +7,7 @@
  * Design: ADR-0019 (Declarative Fleet Configuration)
  */
 
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { DEFAULT_OPERATOR_CLAUDE_MODEL, DEFAULT_OPERATOR_CODEX_MODEL } from './backend-telemetry-policy.js';
@@ -672,6 +672,8 @@ export interface FleetEvent {
  * silently auto-run.
  */
 export interface FleetApprovalProposal {
+  /** Unique proposal id — the handle approve/reject decisions reference. */
+  id: string;
   project: string;
   agent: string;
   /** The raw trigger spec string that fired (e.g. `webhook:deploy-hook`). */
@@ -1076,6 +1078,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
           }
           if (gate.requiresApproval) {
             const proposal: FleetApprovalProposal = {
+              id: randomUUID(),
               project,
               agent: agent.name,
               trigger: raw,
