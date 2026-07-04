@@ -12,22 +12,22 @@
    Right: ask-agent panel (compliance-honest roster, hot-bus reply,
    pd-console deep link) + the three daemon chip states.
    Type: system SF; mono with tabular-nums slashed-zero. 14px floor.
-   Palette: placeholder pending PR #455 brand tokens.
+   Palette: ADR-0048 story palette (BRAND.md).
    ============================================================ */
 :root {
-  --paper: #F4F0E8; --paper-raised: #ECE6D9; --paper-deep: #E2DAC8;
-  --ink: #1A1815; --ink-soft: #3A3631; --ink-mute: #6A655C;
+  --paper: #F2EEE6; --paper-raised: #E9E2D5; --paper-deep: #E0D9CB;
+  --ink: #121212; --ink-soft: #403B34; --ink-mute: #47423A;
   --accent: #003FB8;
-  --ok: #2E7D5B; --warn: #B8801F; --err: #B5392E; --blocked: #6B3F8A; --idle: #98928A;
-  --hairline: rgba(26,24,21,.28); --bracket: rgba(26,24,21,.85);
+  --ok: #2D7A43; --warn: #A66F00; --err: #BF2F2F; --blocked: #6F48B5; --idle: #8F8879;
+  --hairline: rgba(18,18,18,.28); --bracket: rgba(18,18,18,.85);
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #171512; --paper-raised: #201D19; --paper-deep: #2A2620;
-    --ink: #EDE8DD; --ink-soft: #CFC8BA; --ink-mute: #948D80;
-    --accent: #5B8CFF; --ok: #4BA57F; --warn: #D19A3D; --err: #D4655A;
-    --blocked: #9B6FC0; --idle: #6E695F;
-    --hairline: rgba(237,232,221,.24); --bracket: rgba(237,232,221,.8);
+    --paper: #181C22; --paper-raised: #222833; --paper-deep: #101216;
+    --ink: #F5F3ED; --ink-soft: #D3CEC2; --ink-mute: #A59F93;
+    --accent: #7DB4FF; --ok: #66D28A; --warn: #F2BE51; --err: #FF7D7D;
+    --blocked: #B69BEC; --idle: #736D60;
+    --hairline: rgba(245,243,237,.24); --bracket: rgba(245,243,237,.8);
   }
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -66,7 +66,7 @@ body {
 .clipped { max-width: 64px; overflow: hidden; white-space: nowrap; }
 
 /* selection overlay: four curtains + marquee + handles */
-.curtain { position: absolute; background: rgba(26,24,21,.45); z-index: 2; }
+.curtain { position: absolute; background: rgba(18,18,18,.45); z-index: 2; }
 @media (prefers-color-scheme: dark) { .curtain { background: rgba(0,0,0,.55); } }
 .marquee { position: absolute; z-index: 3; outline: 1.5px solid var(--warn); }
 .handle { position: absolute; width: 8px; height: 8px; background: var(--warn);
@@ -152,7 +152,7 @@ textarea, .fauxtext { width: 100%; font: inherit; font-size: .9rem; color: var(-
      carries the evidence (pixels, DOM path, viewport) and a closed category taxonomy.
      Send routes a Work Intent — the confirmation shows the shape the planner chose.
      Right: the ask-agent face with compliance-honest states, and the three daemon chips.</p>
-  <p class="refs mono">contract: agent-harbor-technical-binder/work-packets/scout-extension-technical-spec.md · envelope: pd.scout.visual-task.v1 · palette: placeholder pending PR #455</p>
+  <p class="refs mono">contract: agent-harbor-technical-binder/work-packets/scout-extension-technical-spec.md · envelope: pd.scout.visual-task.v1 · palette: ADR-0048 story palette (#455, merged)</p>
 </div>
 
 <div class="stage">

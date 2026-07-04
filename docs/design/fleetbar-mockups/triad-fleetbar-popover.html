@@ -10,27 +10,27 @@
    Type: SF via system stack for ALL chrome (spec: platform family).
          Brand display family deferred to the PR #455 pass; masthead
          uses the system stack at display weight as a stand-in.
-   Palette: placeholder values pending PR #455 brand tokens.
+   Palette: ADR-0048 story palette (website-v2/docs/design/BRAND.md).
    Rules that ARE binding: fractional borders (2.1/2.3/2.4/2.8 only),
    no border-radius, no box-shadow, one accent, stripes carry state,
    14px body floor, 12px eyebrows only at w600+/0.10em+.
    ============================================================ */
 :root {
-  --paper: #F4F0E8; --paper-raised: #ECE6D9; --paper-deep: #E2DAC8;
-  --ink: #1A1815; --ink-soft: #3A3631; --ink-mute: #6A655C;
+  --paper: #F2EEE6; --paper-raised: #E9E2D5; --paper-deep: #E0D9CB;
+  --ink: #121212; --ink-soft: #403B34; --ink-mute: #47423A;
   --accent: #003FB8;
-  --ok: #2E7D5B; --warn: #B8801F; --err: #B5392E; --blocked: #6B3F8A; --idle: #98928A;
-  --hairline: rgba(26,24,21,.28);
-  --bracket: rgba(26,24,21,.85);
+  --ok: #2D7A43; --warn: #A66F00; --err: #BF2F2F; --blocked: #6F48B5; --idle: #8F8879;
+  --hairline: rgba(18,18,18,.28);
+  --bracket: rgba(18,18,18,.85);
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #171512; --paper-raised: #201D19; --paper-deep: #2A2620;
-    --ink: #EDE8DD; --ink-soft: #CFC8BA; --ink-mute: #948D80;
-    --accent: #5B8CFF;
-    --ok: #4BA57F; --warn: #D19A3D; --err: #D4655A; --blocked: #9B6FC0; --idle: #6E695F;
-    --hairline: rgba(237,232,221,.24);
-    --bracket: rgba(237,232,221,.8);
+    --paper: #181C22; --paper-raised: #222833; --paper-deep: #101216;
+    --ink: #F5F3ED; --ink-soft: #D3CEC2; --ink-mute: #A59F93;
+    --accent: #7DB4FF;
+    --ok: #66D28A; --warn: #F2BE51; --err: #FF7D7D; --blocked: #B69BEC; --idle: #736D60;
+    --hairline: rgba(245,243,237,.24);
+    --bracket: rgba(245,243,237,.8);
   }
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -212,7 +212,7 @@ body {
   <p>The fleet is plumbing; the front door is intent. Gates demand you, the command bar
      takes a Work Intent, resume re-enters work, and the fleet lives in a drawer.
      Left: home face. Right: the fleet drawer with the six-state grammar and one inline expansion.</p>
-  <p class="refs mono">contract: agent-harbor-technical-binder/work-packets/fleetbar-technical-spec.md · type: system SF (chrome) · palette: placeholder pending PR #455</p>
+  <p class="refs mono">contract: agent-harbor-technical-binder/work-packets/fleetbar-technical-spec.md · type: system SF (chrome) · palette: ADR-0048 story palette (#455, merged)</p>
 </div>
 
 <div class="stage">
