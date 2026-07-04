@@ -459,9 +459,18 @@ describe('Test Group 4: Root Landing Page (dashboard retired)', () => {
   });
 
   test('landing page body text respects the 14px minimum font floor', () => {
-    // No prose below 0.875rem (14px). Matches e.g. font-size: 0.7rem / 0.8rem.
-    expect(DASHBOARD_HTML).not.toMatch(/font-size:\s*0\.[0-7]/);
-    expect(DASHBOARD_HTML).not.toMatch(/font-size:\s*0\.8[0-6]/);
+    // Parse every declared font-size and enforce the floor NUMERICALLY:
+    // px >= 14, rem/em >= 0.875 (1rem = 16px). The old regex denylist only
+    // banned a couple of `0.x`rem prefixes and let `13px` and `0.87rem`
+    // (13.9px) straight through — parse values, don't pattern-match them.
+    const decls = [...DASHBOARD_HTML.matchAll(/font-size:\s*([\d.]+)(px|rem|em)\b/g)]
+      .map(m => ({ raw: m[0], value: Number(m[1]), unit: m[2] }));
+    expect(decls.length).toBeGreaterThan(0); // the page does declare sizes
+    const violations = decls
+      .map(d => ({ ...d, px: d.unit === 'px' ? d.value : d.value * 16 }))
+      .filter(d => d.px < 14)
+      .map(d => `${d.raw} (= ${d.px.toFixed(1)}px)`);
+    expect(violations).toEqual([]);
   });
 });
 
