@@ -50,7 +50,7 @@
       <p class="body">Setup takes about two minutes: install the daemon, confirm <code>claude</code> or <code>codex</code> is logged in, set one environment variable, start the fleet. The math is in the middle of this page. The honest limits are at the bottom. Read them in any order.</p>
     </div>
     <div>
-      <div class="codeblock lw-brackets" style="--border-strong:#edf1f9"><i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
+      <div class="codeblock">
         <div class="codeblock-title" style="margin:-16px -18px 12px;">Set up the fleet — two-minute setup</div>
         <pre><span class="c-comment"># 1. Install the daemon and CLI</span>
 <span class="c-cmd">brew install</span> curiositech/tap/port-daddy
@@ -107,7 +107,7 @@
         <tr><td>Anthropic API direct — Sonnet via SDK, a fallback</td><td>$0</td><td class="mono">about $0.04 / spawn</td><td>about $120 / mo</td></tr>
       </tbody>
     </table>
-    <div class="worked stripe-card" style="--stripe: var(--gold); max-width: 720px;">
+    <div class="worked stripe-card" style="--stripe: var(--gold); max-width: 720px; background: var(--gold-wash);">
       <div class="sc-label" style="color: var(--gold-on-tint)">A worked example</div>
       <div class="sc-title">100 reviews in a month</div>
       <p>A mid-sized open-source repo gets about 100 pull requests a month. Each review is one spawn of the qa agent: three to five minutes, a modest number of tokens.</p>

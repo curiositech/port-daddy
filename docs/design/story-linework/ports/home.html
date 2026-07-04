@@ -76,7 +76,7 @@
   /* exposed column grid behind the hero */
   .hero::before {
     content: ""; position: absolute; inset: -64px -40px 0;
-    background-image: repeating-linear-gradient(to right, transparent 0 calc(50% - 1px), var(--hair) calc(50% - 1px) 50%);
+    background-image: repeating-linear-gradient(to right, transparent 0 calc(25% - 1px), var(--hair) calc(25% - 1px) 25%);
     pointer-events: none;
   }
   .hero > * { position: relative; }
@@ -97,7 +97,6 @@
   }
   @media (max-width: 1080px) { .ko { --ko-r: 78% !important; } }
   .ko .ko-over .accent { color: var(--inverse) !important; }
-  [data-theme="dark"] .ko .ko-over { color: #121212; }
 
   /* edge-bleeding slabs */
   .slab { position: absolute; pointer-events: none; }
@@ -142,13 +141,10 @@
   .rung { border: none !important; margin-bottom: 0 !important; background: var(--surface-base) !important; }
   .rung + .rung { border-top: 2px solid var(--border-strong) !important; }
   .rung::before { display: none; }
-  .rung.fill-cobalt { background: var(--cobalt) !important; color: var(--inverse); }
-  .rung.fill-health { background: var(--health) !important; color: var(--inverse); }
-  .rung.fill-teal   { background: var(--teal) !important; color: var(--inverse); }
+  .rung.fill-cobalt { background: var(--cobalt-slab) !important; color: #fbf7ef; }
+  .rung.fill-health { background: var(--health-slab) !important; color: #fbf7ef; }
+  .rung.fill-teal   { background: var(--teal-slab) !important; color: #fbf7ef; }
   .rung.fill-gold { background: var(--lime) !important; color: #121212 !important; }
-  [data-theme="dark"] .rung.fill-cobalt { background: #003fb8 !important; color: #fbf7ef; }
-  [data-theme="dark"] .rung.fill-health { background: #1f7a4d !important; color: #fbf7ef; }
-  [data-theme="dark"] .rung.fill-teal   { background: #006b5f !important; color: #fbf7ef; }
   .rung.fill-health .l-id, .rung.fill-teal .l-id, .rung.fill-health .l-tag, .rung.fill-teal .l-tag { color: inherit !important; opacity: 0.9; }
   .rung.fill-health .l-body, .rung.fill-teal .l-body { color: inherit !important; opacity: 0.92; }
   .rung.fill-cobalt .l-id, .rung.fill-gold .l-id, .rung.fill-cobalt .l-tag, .rung.fill-gold .l-tag { color: inherit !important; opacity: 0.9; }
@@ -181,9 +177,9 @@
 
   <!-- HERO -->
   <section class="hero">
-    <div class="slab" style="top:-16px; right:calc(50% - 50vw); width: calc(50vw - 720px + 190px); min-width: 110px; height: 260px; background: var(--teal);"></div>
+    <div class="slab" style="top:-16px; right:calc(50% - 50vw); width: calc(50vw - 720px + 190px); min-width: 110px; height: 260px; background: var(--teal-slab);"></div>
     <div>
-      <div class="eyebrow" style="position:relative; z-index:1; color: var(--inverse);">Fleet coordination for coding agents</div>
+      <div class="eyebrow" style="position:relative; z-index:1; color: #fbf7ef;">Fleet coordination for coding agents</div>
       <h1 class="ko" style="--ko-r: 560px; --ko-b: 56px;">
         <span>Run a tight ship. <span class="accent rec">Agents sail safer when they coordinate.</span></span>
         <span class="ko-over" aria-hidden="true">Run a tight ship. <span class="accent rec">Agents sail safer when they coordinate.</span></span>
@@ -222,7 +218,7 @@
   <section>
     <div class="sect-head">
       <span class="sect-mark" style="background: var(--cobalt); border:none;"></span><span class="eyebrow">One tool, a widening scope</span>
-      <h2 class="ko" style="margin-top:14px; --ko-c: var(--teal); --ko-r: 380px; --ko-b: 26px; --ko-up: 120px;"><span>A harbor-master for your agents.</span><span class="ko-over" aria-hidden="true">A harbor-master for your agents.</span></h2>
+      <h2 class="ko" style="margin-top:14px; --ko-c: var(--teal-slab); --ko-r: 380px; --ko-b: 26px; --ko-up: 120px;"><span>A harbor-master for your agents.</span><span class="ko-over" aria-hidden="true">A harbor-master for your agents.</span></h2>
       <p class="sect-desc">It starts the moment two agents reach for the same file in one repo, and it grows from there — to the whole machine, across the network to fleets you don't own, and toward a market for agent labor. The small idea and the big idea are the same idea, at four scales.</p>
     </div>
     <div class="ladder">
@@ -260,7 +256,7 @@
     <div class="demo-tabs">
       <span class="demo-tab on">Quick Start</span><span class="demo-tab">Multi-Agent</span><span class="demo-tab">AI Spawn</span><span class="demo-tab">Salvage</span><span class="demo-tab">Relay PKI</span>
     </div>
-    <div class="codeblock lw-brackets" style="--border-strong:#edf1f9"><i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i><pre><span class="c-prompt">$</span> <span class="c-cmd">pd begin</span> <span class="c-flag">--identity</span> website:landing-polish <span class="c-flag">--lifecycle</span> durable
+    <div class="codeblock"><pre><span class="c-prompt">$</span> <span class="c-cmd">pd begin</span> <span class="c-flag">--identity</span> website:landing-polish <span class="c-flag">--lifecycle</span> durable
 ◆ session anchored · worktree website:landing
 <span class="c-prompt">$</span> <span class="c-cmd">pd claim</span> src/components/landing/Hero.tsx
 claimed · visible to every other agent in this repo
@@ -351,7 +347,7 @@ listening on ui:clicks · cursor @0
 
   <!-- SOCIAL PROOF -->
   <section>
-    <div class="slab" style="top:-20px; right:calc(50% - 50vw); width: calc(50vw - 720px + 150px); min-width: 100px; height: 300px; background: var(--violet);"></div>
+    <div class="slab" style="top:-20px; right:calc(50% - 50vw); width: calc(50vw - 720px + 150px); min-width: 100px; height: 300px; background: var(--violet-slab);"></div>
     <div class="sect-head">
       <div class="eyebrow">What our own agents said</div>
       <h2>Here's what our own agents said it changed.</h2>

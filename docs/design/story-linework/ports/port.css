@@ -50,6 +50,26 @@
   --lw-stripe: 3px;
 }
 
+/* ── palette v2.1 cuts (theme-independent) ──
+   SLAB: deep saturated cut for large fields and knockout blocks; cream
+   text always. WASH: 10% quiet-room tint over the page surface.
+   Line-weight law: 1px = texture (hairlines), 1.5px = linework marks
+   (brackets, pulse rings), 2px = enclosure. Never adjacent-mix 1.5 and 2.
+   Midline dialects: left-anchored 64px = "continues from above";
+   centered third = "division". */
+:root {
+  --cobalt-slab: #003fb8; --teal-slab: #006b5f; --health-slab: #1f7a4d;
+  --indigo-slab: #353a85; --violet-slab: #933fa5; --rust-slab: #7a4514;
+  --lime: #cad900;
+  --cobalt-wash: color-mix(in oklab, var(--cobalt) 10%, var(--surface-base));
+  --teal-wash:   color-mix(in oklab, var(--teal) 10%, var(--surface-base));
+  --health-wash: color-mix(in oklab, var(--health) 10%, var(--surface-base));
+  --indigo-wash: color-mix(in oklab, var(--indigo) 10%, var(--surface-base));
+  --violet-wash: color-mix(in oklab, var(--violet) 10%, var(--surface-base));
+  --rust-wash:   color-mix(in oklab, var(--rust) 10%, var(--surface-base));
+  --gold-wash:   color-mix(in oklab, var(--gold) 10%, var(--surface-base));
+}
+
 [data-theme="dark"] {
   --surface-base:   #101216;
   --surface-raised: #181c22;
@@ -257,10 +277,9 @@ table.data td:first-child { font-weight: 600; }
   padding: 11px 20px; background: var(--cobalt); color: var(--inverse); cursor: pointer; border: none;
 }
 [data-theme="dark"] .cta { color: #121212; }
-.cta.ghost { background: transparent; color: var(--text-primary); position: relative; }
+.cta.ghost { background: transparent; color: var(--text-primary); position: relative; border: 1px solid var(--hair-strong); }
 .cta.ghost i { position: absolute; width: 10px; height: 10px; border: 0 solid var(--border-strong); }
-.cta.ghost i:nth-child(1) { top: 0; left: 0; border-top-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-.cta.ghost i:nth-child(2) { bottom: 0; right: 0; border-bottom-width: var(--lw-weight); border-right-width: var(--lw-weight); }
+.cta.ghost i { display: none; } /* two-corner ticks retired: glitch-adjacent at button scale */
 
 @media (max-width: 1080px) {
   .sf-grid { grid-template-columns: 1fr 1fr; }
@@ -291,10 +310,15 @@ main section { position: relative; }
   content: ""; position: absolute; z-index: -1;
   left: -100vw; right: calc(100% - var(--ko-r));
   top: calc(-1 * var(--ko-up, 500px)); bottom: calc(100% - var(--ko-b));
-  background: var(--ko-c, var(--cobalt));
+  background: var(--ko-c, var(--cobalt-slab));
 }
 .ko .ko-over {
-  position: absolute; inset: 0; color: var(--ko-t, var(--inverse)); pointer-events: none;
+  position: absolute; inset: 0; color: var(--ko-t, #fbf7ef); pointer-events: none;
   clip-path: inset(calc(-1 * var(--ko-up, 500px)) calc(100% - var(--ko-r)) calc(100% - var(--ko-b)) -100vw);
 }
 @media (max-width: 1080px) { .ko { --ko-r: 78% !important; } .slab { display: none; } }
+
+/* division rule — centered third (see midline dialects above) */
+.rule-div { position: relative; }
+.rule-div::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background-image: linear-gradient(to right, transparent 0 32%, var(--hair-strong) 32% 68%, transparent 68% 100%); }
