@@ -30,8 +30,23 @@ export interface TcpProbeOptions {
 }
 
 /**
- * True when `http://127.0.0.1:{port}/health` answers `"status":"ok"` within
- * the attempt budget. Retries exist so a healthy-but-slow daemon (post-boot
+ * A /health body counts as ok when it PARSES as JSON with `status: "ok"`;
+ * the exact-substring check is only a fallback for a truncated body.
+ * Misreading a healthy daemon as a zombie gets it killed, so this check is
+ * deliberately format-tolerant (whitespace/key-order changes stay healthy).
+ */
+export function healthBodyIsOk(body: string): boolean {
+  try {
+    const parsed = JSON.parse(body) as { status?: unknown };
+    return parsed?.status === 'ok';
+  } catch {
+    return body.includes('"status":"ok"');
+  }
+}
+
+/**
+ * True when `http://127.0.0.1:{port}/health` answers status ok within the
+ * attempt budget. Retries exist so a healthy-but-slow daemon (post-boot
  * catch-up regularly serves /health in 2–3s) is never misread as a zombie.
  */
 export async function probeTcpHealth(port: number, opts: TcpProbeOptions = {}): Promise<boolean> {
@@ -47,7 +62,7 @@ export async function probeTcpHealth(port: number, opts: TcpProbeOptions = {}): 
       try {
         const res = await fetchImpl(`http://127.0.0.1:${port}/health`, { signal: controller.signal });
         const body = await res.text();
-        if (res.ok && body.includes('"status":"ok"')) return true;
+        if (res.ok && healthBodyIsOk(body)) return true;
       } finally {
         clearTimeout(timer);
       }

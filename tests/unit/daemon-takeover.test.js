@@ -4,7 +4,26 @@
  * socket with a dead TCP listener; 345 KeepAlive respawns exited 0 against it).
  */
 import { describe, expect, test } from '@jest/globals';
-import { decideDuplicateAction, probeTcpHealth, terminateStalePid } from '../../lib/daemon-takeover.js';
+import { decideDuplicateAction, healthBodyIsOk, probeTcpHealth, terminateStalePid } from '../../lib/daemon-takeover.js';
+
+describe('healthBodyIsOk', () => {
+  test('compact and pretty-printed ok bodies both count as healthy', () => {
+    expect(healthBodyIsOk('{"status":"ok","version":"x"}')).toBe(true);
+    expect(healthBodyIsOk('{\n  "status": "ok",\n  "version": "x"\n}')).toBe(true);
+    expect(healthBodyIsOk('{"version":"x","status":"ok"}')).toBe(true);
+  });
+
+  test('degraded / non-ok status is not healthy', () => {
+    expect(healthBodyIsOk('{"status":"degraded"}')).toBe(false);
+    expect(healthBodyIsOk('{"status":"error"}')).toBe(false);
+    expect(healthBodyIsOk('{}')).toBe(false);
+  });
+
+  test('unparseable body falls back to the exact substring', () => {
+    expect(healthBodyIsOk('garbage prefix {"status":"ok"')).toBe(true);
+    expect(healthBodyIsOk('not json at all')).toBe(false);
+  });
+});
 
 describe('decideDuplicateAction', () => {
   test('dead socket → clean-start (stale files, boot normally)', () => {
