@@ -28,7 +28,9 @@ import {
   type FleetConfig,
   type FleetEvent,
   type FleetRunContext,
+  type FleetApprovalProposal,
 } from './fleet-engine.js';
+import { getSharedWebhookReceiver } from './fleet/webhook-receiver.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { loadEnvFiles } from './env-loader.js';
 import { createProjectSemaphoreRegistry, type ProjectSemaphoreRegistry } from './concurrency-semaphore.js';
@@ -663,6 +665,40 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
         subscribe: messaging.subscribe.bind(messaging),
       },
       acquirePermit: () => projectSemaphore.acquire(),
+      // I/O wiring Phase 2: webhook:<channel> triggers register with the
+      // daemon's inbound receiver (routes/fleet-webhooks.ts posts into it).
+      registerWebhookHandler: (channel, handler) =>
+        getSharedWebhookReceiver().registerHandler(channel, handler),
+      // ADR-0093 L2 approval seam. Durable + operator-visible: the proposal
+      // (including the ready-to-run context) lands in tuple space, so
+      // pd-console/FleetBar can list it and an operator approves by hailing
+      // the agent with the stored context (POST /fleet/agent/run). The
+      // fleet HITL proposal queue (PR #648) can consume this same seam.
+      enqueueForApproval: (proposal: FleetApprovalProposal) => {
+        tuples?.out([
+          'fleet:approval',
+          proposal.agent,
+          proposal.trigger,
+          proposal.tier,
+          {
+            project: proposal.project,
+            reason: proposal.reason,
+            safeTools: proposal.safeTools,
+            context: proposal.context,
+            timestamp: proposal.timestamp,
+          },
+        ], {
+          harbor: config.harbor || `${config.name}:fleet`,
+          writtenBy: 'fleetd:trust-gate',
+          ttlMs: 7 * 24 * 60 * 60 * 1000,
+        });
+        logger.info('fleet_approval_requested', {
+          project: proposal.project,
+          agent: proposal.agent,
+          trigger: proposal.trigger,
+          tier: proposal.tier,
+        });
+      },
     });
 
     return {

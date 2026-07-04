@@ -254,6 +254,34 @@ export class IoDispatch {
   }
 
   /**
+   * Probe every registered trigger source and output sink for availability
+   * (the `pd fleet sources` health board, Phase 2). Purely observational:
+   * nothing is started or dispatched. Honesty rule: this surfaces exactly
+   * what `available()` reports — a STUB channel shows its `{ready:false,
+   * reason, requires}` instead of pretending.
+   */
+  async health(): Promise<IoChannelHealth[]> {
+    const out: IoChannelHealth[] = [];
+    for (const [kind, source] of this.triggerRegistry) {
+      try {
+        const a = await source.available();
+        out.push({ kind, direction: 'trigger', ready: a.ready, reason: a.reason, requires: a.requires });
+      } catch (err) {
+        out.push({ kind, direction: 'trigger', ready: false, reason: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    for (const [kind, sink] of this.outputRegistry) {
+      try {
+        const a = await sink.available();
+        out.push({ kind, direction: 'output', ready: a.ready, reason: a.reason, requires: a.requires });
+      } catch (err) {
+        out.push({ kind, direction: 'output', ready: false, reason: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    return out.sort((x, y) => x.kind.localeCompare(y.kind) || x.direction.localeCompare(y.direction));
+  }
+
+  /**
    * Dispatch every declared output for an agent run. Never throws — each
    * sink failure is captured in its own result so one broken output does
    * not stop the others (or crash the agent). The engine logs the
@@ -269,6 +297,14 @@ export class IoDispatch {
     }
     return results;
   }
+}
+
+export interface IoChannelHealth {
+  kind: string;
+  direction: 'trigger' | 'output';
+  ready: boolean;
+  reason?: string;
+  requires?: string[];
 }
 
 export type StartTriggerResult =

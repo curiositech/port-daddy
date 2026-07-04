@@ -1212,6 +1212,74 @@ async function fleetPrompt(): Promise<void> {
   }
 }
 
+// ─── Sources health board (I/O wiring Phase 2) ──────────────────────────────
+
+/**
+ * `pd fleet sources` — the I/O channel health board. Shows every trigger
+ * source and output sink with its honest availability: REAL channels read
+ * `ready`, STUB channels show their `{reason, requires}` instead of
+ * pretending. Prefers the daemon's live view (which includes armed webhook
+ * channel slugs); falls back to a local registry probe when the daemon is
+ * down.
+ */
+async function fleetSources(options: CLIOptions): Promise<void> {
+  interface ChannelHealth {
+    kind: string;
+    direction: 'trigger' | 'output';
+    ready: boolean;
+    reason?: string;
+    requires?: string[];
+  }
+
+  let channels: ChannelHealth[] = [];
+  let webhookChannels: string[] = [];
+  let source = 'daemon';
+
+  try {
+    const res = await pdFetch('/fleet/sources');
+    if (res.ok) {
+      const body = await res.json();
+      channels = (body.channels as ChannelHealth[]) ?? [];
+      webhookChannels = (body.webhookChannels as string[]) ?? [];
+    } else {
+      throw new Error(`daemon responded ${res.status}`);
+    }
+  } catch {
+    // Daemon down: probe the local registry directly. Honest difference:
+    // no armed webhook channels can exist without the daemon receiver.
+    const { IoDispatch } = await import('../../lib/fleet/io-dispatch.js');
+    channels = await new IoDispatch().health();
+    source = 'local probe (daemon not reachable — webhook receiver not armed)';
+  }
+
+  if (isJson(options)) {
+    console.log(JSON.stringify({ source, channels, webhookChannels }, null, 2));
+    return;
+  }
+
+  console.log('');
+  ui.info('Fleet I/O Sources — channel health board');
+  console.log(`  (${source})`);
+  console.log('');
+  const pad = (s: string, n: number) => s.padEnd(n);
+  console.log(`  ${pad('CHANNEL', 12)}${pad('DIRECTION', 11)}${pad('STATUS', 9)}DETAIL`);
+  for (const ch of channels) {
+    const status = ch.ready ? 'ready' : 'stub';
+    const detail = ch.ready
+      ? ''
+      : [ch.reason, ch.requires?.length ? `requires: ${ch.requires.join(', ')}` : '']
+          .filter(Boolean)
+          .join(' — ');
+    console.log(`  ${pad(ch.kind, 12)}${pad(ch.direction, 11)}${pad(status, 9)}${detail}`);
+  }
+  if (webhookChannels.length > 0) {
+    console.log('');
+    ui.info(`Armed webhook channels: ${webhookChannels.join(', ')}`);
+    console.log('  POST /webhooks/fleet/<channel> to fire (trust-gated: ADR-0093)');
+  }
+  console.log('');
+}
+
 // ─── Entry Point ────────────────────────────────────────────────────────────
 
 export async function handleFleet(positional: string[], _options: Record<string, unknown>): Promise<void> {
@@ -1271,6 +1339,10 @@ export async function handleFleet(positional: string[], _options: Record<string,
       await fleetInspect(_options as CLIOptions, positional[1]);
       break;
 
+    case 'sources':
+      await fleetSources(_options as CLIOptions);
+      break;
+
     case 'help':
     case '--help':
     case '-h': {
@@ -1287,6 +1359,7 @@ export async function handleFleet(positional: string[], _options: Record<string,
       console.log('  status          Show fleet health');
       console.log('  validate        Parse pd-fleet.yml, resolve templates, and check topology');
       console.log('  models          Show backend model ladders and readiness');
+      console.log('  sources         I/O channel health board (triggers/outputs: ready vs stub)');
       console.log('');
       console.log('Conductor control (ADR-0060 — operate the live fleet):');
       console.log('  halt [rootId]   Total stop: SIGKILL the scope, refund bonds (--root <id> or global)');
