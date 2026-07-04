@@ -178,7 +178,7 @@ verify against this doc and `tokens.semantic.css` before acting.
 - **Flat, not skeuomorphic.** All `--shadow-*` tokens are `none`. Separation comes from 2px borders, alternating surfaces, and spacing — never raised drop-shadows.
 - **Hard borders are load-bearing.** Sections, panels, and cards use `border-2 border-[var(--border-strong)]`. This is the figure-ground mechanism. Don't add rounded corners (`rounded-2xl`/`rounded-full`) unless rendering a system primitive (avatar, badge) that genuinely calls for it.
 - **Type is editorial.** `--font-display` for headlines, `--font-sans` for body, `--font-mono` for command/code/channel strings. Sizes through `--type-*` tokens.
-- **Illustration is architectural-blueprint.** Crisp linework, hatching for shading, hand-lettered italic labels. Not painterly cinematic. Canonical reference: `public/img/generated/_brand-reference/style-ref-blueprint.png`.
+- **Illustration is architectural-blueprint.** Crisp linework, hatching for shading, hand-lettered italic labels. Not painterly cinematic. Canonical reference: `public/img/generated/_brand-reference/style-ref-blueprint.png` (not yet shipped — generate and commit when the next blueprint illustration lands).
 
 ## When in doubt
 
