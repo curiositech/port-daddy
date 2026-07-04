@@ -660,4 +660,21 @@ slug in §8):
 - `.scratch/multiplayer-input-research.md` — DOM lasso → `feedback.drop()` via React fiber `_debugSource`, FleetBar Vision-OCR region capture, multi-human concerns
 - `.scratch/agent-coordination-research.md` — FIPA-DF / Mastodon / LangGraph / Slack patterns; phonebook substrate; ad-hoc working groups; conscription model; blackboard vs CRDT decision
 
+## 9. Design system — story palette rollout (2026-06-18)
+
+The brand palette was rounded out into a harmonious **story palette** where each
+hue maps to an ADR-0048 stack layer (cobalt = L0 kernel/truth, health-green = L1
+ready, teal = L2 legibility, violet = L3 identity/continuity, indigo =
+federation, rust = reputation/Elo, amber = economy). Tokens shipped in
+`website-v2/src/styles/tokens.semantic.css` (light + dark, all WCAG AA+) and are
+documented with rationale in `website-v2/docs/design/BRAND.md`.
+
+Concrete fix-it tasks to roll the new hues across charts, the L0→L3 stack table,
+the library map / agent-ecosystem viz, fleet-health/reputation/identity feature
+accents, Mermaid classDefs, Storybook, and OG cards live in
+**`website-v2/docs/design/color-rollout.md`** (7 scoped tasks + acceptance
+gates). Spec sheet: `website-v2/docs/design/story-palette-spec.png`. These
+graduate into a roadmap wave via `pd ideas` / the Cartographer harvest if they
+need sequencing.
+
 These docs survive session compaction and are the source of truth for the design choices summarized above.
