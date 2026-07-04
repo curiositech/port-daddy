@@ -79,8 +79,8 @@ Center: budget as a gold block, Papa empty states, micro-flag activity rail.
 CLI: box-glyph corner ticks, half-block stripes, reverse-video zones,
 voice-procedure chips; `NO_COLOR`/`!isTTY`/`--json` strip to plain.
 
-Adopted 2026-07-05 (parley punch item 5; normative mocks in
-`docs/design/2026-07-05-surface-redesign/mockups-ch20/`, fork rulings recorded
+Adopted 2026-07-04 (parley punch item 5; normative mocks in
+`docs/design/2026-07-05-surface-redesign/mockups-ch20/` <!-- cite-exempt: lands with PR #691 -->, fork rulings recorded
 there): FleetBar's gate queue is **state-dependent** — it does not render when
 empty; when armed it renders above the intent composer as the view's one color
 zone. Four more surfaces join the set:
