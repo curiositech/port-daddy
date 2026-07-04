@@ -361,10 +361,20 @@ if (IS_DEV_MODE) {
 
 // =============================================================================
 // DUPLICATE DAEMON DETECTION (identical to server.ts)
+//
+// A live unix socket alone is NOT proof of a healthy predecessor: a daemon
+// whose binary was deleted underneath it (brew upgrade churn) can keep
+// answering on the socket while its TCP listener is dead. Under launchd
+// KeepAlive that half-alive zombie once ate 345 consecutive respawns — each
+// new spawn heard "ok" on the socket and exited 0 while the TCP port served nothing
+// (2026-07-04). Defer only when BOTH surfaces answer; socket-ok + TCP-dead
+// (after generous retries) means zombie: terminate the stale PID, take over.
 // =============================================================================
 
+import { decideDuplicateAction, probeTcpHealth, terminateStalePid } from './lib/daemon-takeover.js';
+
 if (existsSync(SOCK_PATH)) {
-  const isAlive: boolean = await new Promise<boolean>((resolve) => {
+  const sockAlive: boolean = await new Promise<boolean>((resolve) => {
     const conn = createConnection({ path: SOCK_PATH }, () => {
       conn.write('GET /health HTTP/1.0\r\nHost: localhost\r\n\r\n');
     });
@@ -376,12 +386,27 @@ if (existsSync(SOCK_PATH)) {
     conn.setTimeout(2000, () => { conn.destroy(); resolve(false); });
   });
 
-  if (isAlive) {
+  const tcpAlive: boolean = sockAlive && !DISABLE_TCP ? await probeTcpHealth(PORT) : false;
+  const action = decideDuplicateAction({ sockAlive, tcpAlive, tcpDisabled: DISABLE_TCP });
+
+  if (action === 'defer') {
     let existingPid = '?';
     try { existingPid = readFileSync(PID_FILE, 'utf-8').trim(); } catch {}
     console.error(`Port Daddy already running (PID ${existingPid}). Not starting a second daemon.`);
     process.exit(0);
   }
+
+  if (action === 'takeover') {
+    let stalePid = NaN;
+    try { stalePid = parseInt(readFileSync(PID_FILE, 'utf-8').trim(), 10); } catch {}
+    console.error(
+      `[takeover] unix socket answers /health but TCP :${PORT} is dead after retries — ` +
+      `half-alive daemon (stale PID ${Number.isFinite(stalePid) ? stalePid : '?'}). Terminating it and taking over.`,
+    );
+    const outcome = await terminateStalePid(stalePid);
+    console.error(`[takeover] stale daemon termination: ${outcome}`);
+  }
+
   try { unlinkSync(SOCK_PATH); } catch {}
   try { unlinkSync(PID_FILE); } catch {}
 }
