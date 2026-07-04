@@ -1,14 +1,43 @@
 ---
+license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 name: tailwind-v4-expert
 description: 'Use when migrating Tailwind v3 to v4, configuring CSS-first @theme tokens, debugging Oxide engine errors, dealing with the absence of tailwind.config.js, container queries (@container) usage, layer cascade problems, or "dynamic class names not generating". Triggers: switching from `@tailwind base` to `@import "tailwindcss"`, RSC/Next.js streaming + CSS ordering, dark-mode strategy choices, custom variants via @variant, content-scanning glob tuning. NOT for Tailwind v3 (different config model), CSS-in-JS frameworks, vanilla CSS architecture (BEM/SMACSS), or react-native styling.'
-category: Frontend & UI
-tags:
-  - tailwind
-  - css
-  - design-tokens
-  - oxide
-  - container-queries
-  - frontend
+metadata:
+  category: Frontend & UI
+  tags:
+    - tailwind
+    - css
+    - design-tokens
+    - oxide
+    - container-queries
+    - frontend
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: web-design-expert
+      reason: Owns the design decisions (layout, hierarchy, visual voice) that this skill's @theme tokens and utilities implement.
+    - skill: color-contrast-auditor
+      reason: The @theme color tokens defined here should pass its contrast checks in both light and dark variants.
+    - skill: ideal-web-app-builder
+      reason: The app-scaffolding skill whose Next.js/globals.css setup this skill's v4 import model plugs into.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: styling-requirement
+        format: markdown
+        description: A description of the styling task -- v3 codebase to migrate, design tokens needed, workspace layout, dark-mode expectations.
+      - kind: tailwind-v4-plan
+        format: json
+        description: A structured plan naming the import model, config-file status, dynamic-class strategy, and scan/theme posture, matching schemas/tailwind-v4-plan.schema.json.
+    produces:
+      - kind: migration-guide
+        format: markdown
+        description: The v4 setup or v3-to-v4 migration -- @theme token blocks, @source globs, @variant definitions, dark-mode strategy, plugin replacements.
+      - kind: tailwind-audit
+        format: json
+        description: A deterministic pass/fail audit of the tailwind-v4-plan against this skill's Quality Gates, as produced by scripts/tailwind_v4_audit.mjs.
 ---
 
 # Tailwind v4 Expert
@@ -209,6 +238,25 @@ const STATUS_COLORS = { error: 'bg-red-500', ok: 'bg-green-500', info: 'bg-blue-
 - [ ] CSS bundle <50KB gzipped for a typical app; <30KB for a marketing page.
 - [ ] Container queries used wherever a component is reused at different widths (cards, sidebars).
 - [ ] Theme tokens accessible from raw CSS (`var(--color-brand-500)`) and from utilities.
+
+## Deterministic Audit
+
+Before committing to a v4 setup or migration (or reviewing another agent's), write it
+as a JSON plan matching `schemas/tailwind-v4-plan.schema.json` and run the deterministic
+auditor:
+
+```bash
+node scripts/tailwind_v4_audit.mjs --input examples/sample-input.json
+```
+
+`auditTailwindV4(plan)` (in `scripts/tailwind_v4_audit.mjs`) turns this skill's
+anti-patterns and Quality Gates into machine-checkable rules over structured fields —
+no keyword matching: v3 `@tailwind` directives in a v4 build, a surviving
+`tailwind.config.js`, template-literal class names Oxide cannot see, workspace deps
+with Tailwind classes but no `@source` glob, a scattered dark-mode strategy, unported
+v3 plugins, and a CSS bundle over budget. It returns
+`{ pass, score, findings, recommendations }`. `examples/sample-input.json` is a
+completed v4 migration plan (`pass: true`). Version history lives in `CHANGELOG.md`.
 
 ## NOT for
 

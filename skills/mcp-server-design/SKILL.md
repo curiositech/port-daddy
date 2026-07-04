@@ -1,14 +1,41 @@
 ---
 name: mcp-server-design
 description: 'Use when designing, building, or debugging a Model Context Protocol (MCP) server in Node/TypeScript. Triggers: stdio JSON-RPC handshake, tool descriptions as discovery surface, lazy startup vs eager catalog loading, telemetry placement, schema design for tool inputs (zod), tool naming conventions for discoverability, error handling that does not leak stack traces, MCP client compatibility (Claude Desktop, Claude Code, Cursor), local resource fetching, secrets and env var handling, distributing as npm + claude mcp add. NOT for MCP client implementation, MCP HTTP transport (different surface), Anthropic Agent SDK building, or non-MCP plugin systems.'
-category: AI & Machine Learning
-tags:
-  - mcp
-  - model-context-protocol
-  - claude
-  - server
-  - jsonrpc
-  - stdio
+license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
+metadata:
+  category: AI & Machine Learning
+  tags:
+    - mcp
+    - model-context-protocol
+    - claude
+    - server
+    - jsonrpc
+    - stdio
+  pairs-with:
+    - skill: skill-architect
+      reason: Tool descriptions are a discovery surface exactly like skill descriptions; that skill's activation-engineering discipline applies to every tool an MCP server exposes
+    - skill: error-handling-patterns
+      reason: The isError/sanitization boundary this skill requires at each tool handler is an instance of that skill's error-taxonomy and boundary patterns
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: server-requirement
+        format: markdown
+        description: A description of the domain the MCP server exposes — the tools, data sources, secrets, and clients (Claude Desktop/Code, Cursor) it must serve.
+      - kind: server-design-plan
+        format: json
+        description: A structured plan naming transport, startup strategy, logging/telemetry placement, and safety guards, per schemas/mcp-server-plan.schema.json.
+    produces:
+      - kind: server-design-review
+        format: markdown
+        description: The tool-surface, startup, and safety design (or review of one) following this skill's discovery-surface and stdio-hygiene rules.
+      - kind: server-design-audit
+        format: json
+        description: A deterministic pass/fail audit of the server-design-plan against this skill's Quality Gates, as produced by scripts/mcp_server_design_audit.mjs.
 ---
 
 # MCP Server Design
@@ -277,6 +304,25 @@ Run this in CI on every commit. It catches startup regressions before they reach
 - [ ] Tool inputs validated by zod with `min`/`max`/`enum` constraints.
 - [ ] Errors return `isError: true`, not thrown exceptions.
 - [ ] Distribution path tested: install + register + handshake on a clean machine.
+
+## Deterministic Audit
+
+Before shipping an MCP server (or reviewing one), write its design as a JSON plan
+matching `schemas/mcp-server-plan.schema.json` and run the deterministic auditor:
+
+```bash
+node scripts/mcp_server_design_audit.mjs --input examples/sample-input.json
+```
+
+`auditMcpServerDesign(plan)` (in `scripts/mcp_server_design_audit.mjs`) encodes this
+skill's anti-patterns as machine-checkable rules over structured fields only: logging to
+stdout on the stdio transport, eager loading at startup (or a boot over the 100ms budget),
+a file tool without a path-traversal guard, thrown or unsanitized errors, secrets checked
+on the first tool call instead of at boot, blocking telemetry, a tool with too many
+optional args, descriptions without a when-not-to-use clause, unconstrained inputs, and a
+missing CI handshake test. It returns `{ pass, score, findings, recommendations }` and
+exits 1 on failure. `examples/sample-input.json` is a clean stdio/lazy design that audits
+`pass: true`. Version history lives in `CHANGELOG.md`.
 
 ## NOT for
 

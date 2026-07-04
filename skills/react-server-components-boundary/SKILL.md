@@ -1,9 +1,33 @@
 ---
+license: Apache-2.0
 name: react-server-components-boundary
-description: Drawing the `'use client'` boundary correctly in React Server Components apps (Next.js App Router, RSC frameworks) — leaf-pushing, slot composition, serialization rules, and environment poisoning prevention. Grounded in react.dev and Next.js 16 docs.
-category: Frontend Frameworks
-tags: [react, rsc, server-components, nextjs, use-client, ssr, app-router]
+description: "Drawing the `'use client'` boundary correctly in React Server Components apps (Next.js App Router, RSC frameworks) — leaf-pushing, slot composition, serialization rules, and environment poisoning prevention. Grounded in react.dev and Next.js 16 docs. NOT for: generic React patterns, data-fetching strategy inside Server Components, hydration-mismatch debugging, or client bundle performance profiling."
 allowed-tools: Read, Grep, Glob, Edit, Write, Bash(grep:*, rg:*, find:*)
+metadata:
+  category: Frontend Frameworks
+  tags: [react, rsc, server-components, nextjs, use-client, ssr, app-router]
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: ideal-web-app-builder
+      reason: The production Next.js/React app-building skill whose bundle, security, and performance bars this boundary discipline directly serves.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: boundary-change-request
+        format: markdown
+        description: A component addition/change in an RSC app -- what it renders, what interactivity it needs, and what crosses into it as props.
+      - kind: boundary-plan
+        format: json
+        description: A structured boundary decision (component role, 'use client' placement, crossing prop kinds, import hygiene) matching schemas/react-server-components-boundary-plan.schema.json.
+    produces:
+      - kind: boundary-recommendation
+        format: markdown
+        description: Where the 'use client' directive belongs (leaf, slot wrapper, or none), the prop shapes that may cross, and the server-only/client-only guards to add.
+      - kind: boundary-plan-audit
+        format: json
+        description: Deterministic pass/fail audit of a boundary-plan against this skill's Quality Gates, produced by scripts/react_server_components_boundary_audit.mjs.
 ---
 
 # React Server Components Boundary
@@ -293,6 +317,31 @@ A change touching the RSC boundary ships when:
 - [ ] **Lint:** A custom rule (or `eslint-plugin-react-server-components`) flags `'use client'` files that import known server-only paths (`@/lib/db`, `@/lib/secrets`).
 - [ ] **Manual:** Provider tree rendered as deep as possible — `<ThemeProvider>` etc. wrap `{children}`, not `<html>`.
 - [ ] **Manual:** Any third-party component using hooks has either `'use client'` in its dist, or a one-file local wrapper.
+
+---
+
+## Deterministic Audit
+
+Before landing a boundary change (or reviewing another agent's), write it as a JSON
+`boundary-plan` matching `schemas/react-server-components-boundary-plan.schema.json` and run
+it through the deterministic auditor:
+
+```bash
+node scripts/react_server_components_boundary_audit.mjs --input examples/sample-input.json
+```
+
+`auditReactServerComponentsBoundary(plan)` (in
+`scripts/react_server_components_boundary_audit.mjs`) turns this skill's rules into
+machine-checkable checks over structured fields — no keyword matching: hooks without
+`'use client'` (the runtime error), `'use client'` creep onto non-interactive layouts/pages
+when the interactive bit is extractable, a Client wrapper that swallows Server children
+instead of using the slot pattern, non-serializable prop kinds (functions, class instances,
+null-prototype objects, unregistered symbols) crossing the boundary, data-layer/secrets
+imports inside client modules (environment poisoning), missing `server-only` guards,
+providers wrapping `<html>` instead of `{children}`, and unwrapped third-party hook
+libraries. It returns `{ pass, score, findings, recommendations }`;
+`examples/sample-input.json` is a correctly leaf-pushed interactive component that audits
+`pass: true`. Version history: `CHANGELOG.md`.
 
 ---
 

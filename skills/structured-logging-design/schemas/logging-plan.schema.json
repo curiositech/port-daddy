@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/logging-plan.schema.json",
+  "title": "Structured Logging Plan",
+  "description": "A structured plan for a service's production logging design, so this skill's anti-patterns and Quality Gates can be checked deterministically by scripts/structured_logging_audit.mjs.",
+  "type": "object",
+  "required": ["format"],
+  "additionalProperties": true,
+  "properties": {
+    "format": {
+      "type": "string",
+      "enum": ["json", "text"],
+      "description": "The production log line format. Must be json to pass."
+    },
+    "dataInMessageString": {
+      "type": "boolean",
+      "description": "True if any values are interpolated into the message string instead of living in named fields."
+    },
+    "piiRedactorAtLoggerLevel": {
+      "type": "boolean",
+      "description": "True if a single redactor runs over every log line at the logger level, keyed by field name."
+    },
+    "traceIdBound": {
+      "type": "boolean",
+      "description": "True if request-scoped logs carry a trace_id bound via middleware/contextvars, W3C traceparent-compatible."
+    },
+    "fieldNameConvention": {
+      "type": "string",
+      "enum": ["snake_case", "camelCase", "mixed", "none"],
+      "description": "The field-name convention actually in force across the service's logs."
+    },
+    "highCardinalityFieldsNormalized": {
+      "type": "boolean",
+      "description": "True if high-cardinality values (raw IDs in paths, error messages with embedded UUIDs) are normalized to templates before indexing."
+    },
+    "errorLogSites": {
+      "type": "string",
+      "enum": ["single-top-level", "per-layer"],
+      "description": "Where exceptions get logged: one top-level handler, or at every layer they pass through."
+    },
+    "asyncLogger": {
+      "type": "boolean",
+      "description": "True if the logger is asynchronous with a drop-on-overflow buffer, so a slow destination never blocks requests."
+    },
+    "longFieldsCapped": {
+      "type": "boolean",
+      "description": "True if long fields (request/response bodies) are truncated to ~1KB outside debug level."
+    },
+    "coldStorageTier": {
+      "type": "boolean",
+      "description": "True if a cheap cold-storage tier (e.g. S3 + Athena) holds long-retention logs separately from the hot search vendor."
+    }
+  }
+}

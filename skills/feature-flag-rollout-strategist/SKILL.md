@@ -1,15 +1,43 @@
 ---
+license: Apache-2.0
 name: feature-flag-rollout-strategist
 description: 'Use when introducing a feature flag system, choosing between release flags / experiment flags / operational flags / kill switches / permission flags, designing percentage rollouts, building kill-switch + circuit-breaker patterns, structuring evaluation contexts (user IDs, plan tier, region), or building flag-cleanup discipline. Triggers: LaunchDarkly / GrowthBook / Unleash / Flagsmith / OpenFeature, percentage ramp, sticky bucketing, kill switch wired to alerting, "we still have flags from 2 years ago", flag debt, OpenFeature provider, evaluation context, default value on provider failure. NOT for A/B test statistical analysis (separate skill), traffic-split routing at the edge, build-time bundler defines, or environment-based config.'
-category: Backend & Infrastructure
 allowed-tools: Read,Grep,Glob,Edit,Write,Bash
-tags:
-  - feature-flags
-  - feature-management
-  - launchdarkly
-  - openfeature
-  - rollouts
-  - kill-switch
+metadata:
+  category: Backend & Infrastructure
+  tags:
+    - feature-flags
+    - feature-management
+    - launchdarkly
+    - openfeature
+    - rollouts
+    - kill-switch
+  pairs-with:
+    - skill: monitoring-stack-deployer
+      reason: Circuit-breaker flags are flipped by alerts; that skill deploys the alerting stack whose webhooks drive them.
+    - skill: observability-apm-expert
+      reason: Each ramp step is gated on error-rate and p99 dashboards that skill owns.
+    - skill: error-handling-patterns
+      reason: The provider-down default-value decision is a graceful-degradation design, which is that skill''s home turf.
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: rollout-requirement
+        format: markdown
+        description: The feature being gated, its risk profile, the targeting dimensions available, and the vendor/SDK constraints.
+      - kind: flag-rollout-plan
+        format: json
+        description: A structured plan naming flag type, naming, defaults, bucketing key, ramp steps, and cleanup metadata, matching schemas/flag-rollout-plan.schema.json.
+    produces:
+      - kind: rollout-strategy
+        format: markdown
+        description: The flag design (type, name, default, targeting, ramp schedule, kill-switch wiring) plus the cleanup/TTL plan.
+      - kind: flag-rollout-audit
+        format: json
+        description: A deterministic pass/fail audit of the flag-rollout-plan against this skill's Quality Gates, as produced by scripts/flag_rollout_audit.mjs.
 ---
 
 # Feature Flag Rollout Strategist
@@ -281,6 +309,28 @@ Beyond ~3 conditions, targeting becomes a black box that nobody understands six 
 - [ ] Targeting rules per flag ≤ 3 conditions; complex cohorts encoded in evaluation context, not in the flag service.
 - [ ] Bucket-stable identifier is `user.id` (or stable cookie for unauthenticated), not session/request ID.
 - [ ] OTel spans tag `feature_flag.<key>=<value>` for every evaluated flag (see `opentelemetry-instrumentation`).
+
+## Deterministic Audit
+
+Before creating (or reviewing) a flag, write its design as a JSON plan matching
+`schemas/flag-rollout-plan.schema.json` and run the auditor:
+
+```bash
+node scripts/flag_rollout_audit.mjs --input examples/sample-input.json
+```
+
+`auditFlagRollout(plan)` (in `scripts/flag_rollout_audit.mjs`) turns this
+skill's three deciders — right flag type, hard cleanup discipline, fail-safe
+defaults — and its Quality Gates into machine-checkable rules over structured
+fields: a kill switch defaulting `false` (critical — the default becomes the
+outage), a stale `false` default after a 100% ramp, session/request-ID
+bucketing (critical — the flicker bug), a big-bang 0-to-100 flip or a ramp
+starting above 5%, a temporary flag with no TTL or one past 90 days, a missing
+maintainer or type prefix, untested flag paths, undocumented provider-failure
+behavior, vendor-locked call sites, over-complex targeting rules, and an
+unwired circuit breaker. It returns
+`{ pass, score, findings, recommendations }`. `examples/sample-input.json` is a
+well-formed release-flag ramp plan (`pass: true`, zero findings).
 
 ## NOT for
 

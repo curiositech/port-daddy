@@ -1,22 +1,41 @@
 ---
 name: kafka-consumer-group-design
 description: Design Kafka consumer groups that survive rebalances, hit the right delivery guarantee (at-most/at-least/exactly-once), and handle poison messages without stalling the topic. Use when picking a partition assignment strategy (Range vs Sticky vs Cooperative-Sticky vs the new KIP-848 protocol), tuning heartbeat / session / max.poll.interval timeouts, choosing manual vs auto offset commits, designing dead-letter or retry topics, or migrating from Classic to the next-gen Consumer protocol. NOT for Kafka cluster ops (broker tuning, partition reassignment), schema design (Avro/Protobuf/Schema Registry), or stream processing topology (use a kafka-streams skill).
+license: Apache-2.0
 allowed-tools: Read,Write,Edit,Grep,Glob,Bash(kafka-*:*)
-category: Backend & Databases
-tags:
-  - kafka
-  - consumer-groups
-  - rebalancing
-  - delivery-semantics
-  - dead-letter-queue
-  - kip-848
 metadata:
   category: Backend & Databases
+  tags:
+    - kafka
+    - consumer-groups
+    - rebalancing
+    - delivery-semantics
+    - dead-letter-queue
+    - kip-848
   pairs-with:
     - skill: idempotency-key-patterns
       reason: At-least-once delivery requires idempotent processing; the two skills compose
-    - skill: outbox-pattern-implementation
-      reason: Producers writing to Kafka from a transactional database use the outbox pattern to avoid dual-write inconsistency
+    - skill: observability-apm-expert
+      reason: Per-partition consumer-group lag and rebalance-storm detection are monitoring problems; that skill owns the metrics/alerting surface this skill's Quality Gates require
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: consumer-requirement
+        format: markdown
+        description: A description of the topic, throughput, ordering, and delivery-guarantee requirements for the consumer group being designed.
+      - kind: consumer-group-plan
+        format: json
+        description: A structured plan naming delivery guarantee, commit mode, assignment strategy, poll budget, DLQ pattern, and transactional-id strategy, per schemas/kafka-consumer-group-plan.schema.json.
+    produces:
+      - kind: consumer-group-design
+        format: markdown
+        description: The protocol/strategy/commit/DLQ design (or review of one), following this skill's version-tiered rebalance and delivery-semantics rules.
+      - kind: consumer-group-audit
+        format: json
+        description: A deterministic pass/fail audit of the consumer-group-plan against this skill's Quality Gates, as produced by scripts/kafka_consumer_group_design_audit.mjs.
 ---
 
 # Kafka Consumer Group Design
@@ -274,6 +293,27 @@ What this gives you:
 - [ ] Rebalance listener commits offsets in `onPartitionsRevoked` to avoid replay churn
 - [ ] Migration from RoundRobin to Cooperative was done as a documented two-step rolling bounce
 - [ ] Consumer group lag is monitored per-partition (not just aggregate) — single hot partitions hide in averages
+
+## Deterministic Audit
+
+Before committing to a consumer-group design (or reviewing another agent's), write it as
+a JSON plan matching `schemas/kafka-consumer-group-plan.schema.json` and run the
+deterministic auditor:
+
+```bash
+node scripts/kafka_consumer_group_design_audit.mjs --input examples/sample-input.json
+```
+
+`auditKafkaConsumerGroupDesign(plan)` (in `scripts/kafka_consumer_group_design_audit.mjs`)
+encodes this skill's failure modes as machine-checkable rules over structured fields only:
+auto-commit paired with a stronger-than-at-most-once guarantee, at-least-once without an
+idempotent sink, an unstable or shared `transactional.id`, exactly-once claimed across a
+non-Kafka system boundary, RoundRobin under the classic protocol, a client-side assignor
+under KIP-848, a poll budget that can't clear `max.poll.interval.ms` with 50% headroom,
+no poison-message plan, and a DLQ pattern that breaks a per-entity ordering requirement.
+It returns `{ pass, score, findings, recommendations }` and exits 1 on failure.
+`examples/sample-input.json` is the worked at-least-once + DLQ + cooperative design above,
+which audits `pass: true`. Version history lives in `CHANGELOG.md`.
 
 ## NOT-FOR Boundaries
 

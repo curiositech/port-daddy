@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/duckdb-pipeline-plan.schema.json",
+  "title": "DuckDB Pipeline Plan",
+  "description": "A structured description of a DuckDB analytics pipeline, so this skill's Quality Gates (OLAP-only, single writer, explicit types, projection/filter pushdown, ZSTD, credential hygiene) can be checked deterministically by scripts/duckdb_pipeline_audit.mjs.",
+  "type": "object",
+  "required": ["workloadType", "environment"],
+  "additionalProperties": true,
+  "properties": {
+    "workloadType": {
+      "type": "string",
+      "enum": ["olap", "oltp", "streaming", "vector-search"],
+      "description": "The workload class. DuckDB is only the right tool for olap."
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["exploration", "production"],
+      "description": "Exploratory notebook work, or a scheduled/production pipeline (stricter gates)."
+    },
+    "concurrentWriters": {
+      "type": "number",
+      "minimum": 0,
+      "description": "How many processes hold write transactions on the same database file. DuckDB is single-writer."
+    },
+    "readsCsv": {
+      "type": "boolean",
+      "description": "True if the pipeline reads CSV inputs."
+    },
+    "csvTypeStrategy": {
+      "type": "string",
+      "enum": ["explicit", "auto", "none"],
+      "description": "Whether CSV column types are locked with read_csv(columns={...}) or auto-detected with read_csv_auto."
+    },
+    "columnProjection": {
+      "type": "string",
+      "enum": ["explicit-columns", "select-star"],
+      "description": "Whether queries project only needed columns or SELECT *."
+    },
+    "filterPushdown": {
+      "type": "string",
+      "enum": ["duckdb-sql", "pandas-post-load"],
+      "description": "Where row filtering happens: inside DuckDB SQL (pushdown) or after materializing everything into pandas."
+    },
+    "writesParquet": {
+      "type": "boolean",
+      "description": "True if the pipeline exports Parquet via COPY TO."
+    },
+    "parquetCompression": {
+      "type": "string",
+      "enum": ["zstd", "snappy", "gzip", "uncompressed", "none"],
+      "description": "Compression codec for Parquet output; ZSTD is the production default."
+    },
+    "partitionColumnCardinality": {
+      "type": "string",
+      "enum": ["low", "high", "none"],
+      "description": "Cardinality of the PARTITION_BY column(s), if partitioned output is written."
+    },
+    "usesHttpfs": {
+      "type": "boolean",
+      "description": "True if the pipeline reads s3:// / https:// data via the httpfs extension."
+    },
+    "extensionLoadPaired": {
+      "type": "boolean",
+      "description": "True if every INSTALL is paired with a LOAD in the session (or a persistent DB carries the extension)."
+    },
+    "s3CredentialsInVersionControl": {
+      "type": "boolean",
+      "description": "True if S3 access keys appear in committed SQL/notebooks/config."
+    },
+    "duckdbVersionPinned": {
+      "type": "boolean",
+      "description": "True if the DuckDB version is pinned for the pipeline."
+    }
+  }
+}

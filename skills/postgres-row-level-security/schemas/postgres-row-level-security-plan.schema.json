@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/postgres-row-level-security-plan.schema.json",
+  "title": "Postgres RLS Policy Plan",
+  "description": "A structured RLS configuration for one table (or a homogeneous table family), so policy-merge semantics, subselect wrapping, index hygiene, and bypass paths can be checked deterministically by scripts/postgres_row_level_security_audit.mjs.",
+  "type": "object",
+  "required": ["rlsEnabled", "policies"],
+  "additionalProperties": true,
+  "properties": {
+    "rlsEnabled": {
+      "type": "boolean",
+      "description": "True if ALTER TABLE ... ENABLE ROW LEVEL SECURITY is applied (default-deny in effect)."
+    },
+    "forceRls": {
+      "type": "boolean",
+      "description": "True if ALTER TABLE ... FORCE ROW LEVEL SECURITY is applied so the table owner is also subject to policies."
+    },
+    "ownerMayConnect": {
+      "type": "boolean",
+      "description": "True if the connecting role (e.g. the Postgres user PostgREST connects as) might own tables — the bypass-by-accident condition."
+    },
+    "policies": {
+      "type": "array",
+      "description": "One entry per CREATE POLICY statement.",
+      "items": {
+        "type": "object",
+        "required": ["command", "type"],
+        "additionalProperties": true,
+        "properties": {
+          "command": {
+            "type": "string",
+            "enum": ["select", "insert", "update", "delete", "all"],
+            "description": "The FOR clause of the policy."
+          },
+          "type": {
+            "type": "string",
+            "enum": ["permissive", "restrictive"],
+            "description": "AS PERMISSIVE (OR-merged) or AS RESTRICTIVE (AND-merged). Default in Postgres is permissive."
+          },
+          "toRoleSpecified": {
+            "type": "boolean",
+            "description": "True if the policy names TO <role> instead of defaulting to PUBLIC."
+          },
+          "usesAuthFunction": {
+            "type": "boolean",
+            "description": "True if the predicate calls a row-independent auth function (auth.uid(), auth.jwt(), current_setting)."
+          },
+          "authFnWrappedInSubselect": {
+            "type": "boolean",
+            "description": "True if every such auth function call is wrapped as (SELECT auth.uid()) for the once-per-statement initPlan."
+          },
+          "hasUsing": {
+            "type": "boolean",
+            "description": "True if the policy has a USING expression (filters visible/affected rows)."
+          },
+          "hasWithCheck": {
+            "type": "boolean",
+            "description": "True if the policy has an explicit WITH CHECK expression (validates new row values)."
+          }
+        }
+      }
+    },
+    "tenantColumnIndexed": {
+      "type": "boolean",
+      "description": "True if the policy column (user_id / tenant_id) has a btree index — RLS does not create one."
+    },
+    "securityDefinerInApiSchema": {
+      "type": "boolean",
+      "description": "True if any SECURITY DEFINER function is exposed in the API schema (Supabase: public). Must be false."
+    },
+    "serviceRoleKeyServerOnly": {
+      "type": "boolean",
+      "description": "True if the BYPASSRLS service_role credential is strictly server-side and verified absent from client bundles."
+    },
+    "viewsUseSecurityInvoker": {
+      "type": "boolean",
+      "description": "True if data-layer views use WITH (security_invoker = true) (PG15+) or are explicitly designed for RLS bypass."
+    },
+    "isolationTested": {
+      "type": "boolean",
+      "description": "True if an end-to-end test proves one tenant cannot read or write another tenant's rows."
+    }
+  }
+}

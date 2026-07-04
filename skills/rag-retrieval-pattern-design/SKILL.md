@@ -1,16 +1,42 @@
 ---
+license: Apache-2.0
 name: rag-retrieval-pattern-design
 description: 'Use when designing or fixing the retrieval side of a RAG system, choosing chunking strategy (fixed-size / recursive / semantic), implementing hybrid search (BM25 + dense) with RRF fusion, adding a cross-encoder reranker, evaluating with RAGAS, or running an index-freshness pipeline. Triggers: "RAG keeps citing the wrong doc", chunk size 512 tokens with overlap, RRF reciprocal rank fusion, dense+sparse hybrid, cross-encoder rerank top-5, RAGAS faithfulness / context precision, voyage-3-large vs text-embedding-3-large, daily / hourly reindex cadence. NOT for fine-tuning vs RAG decision (separate skill), agentic tool-use designs, vector DB operational tuning, or general LLM prompt engineering.'
-category: AI & Machine Learning
 allowed-tools: Read,Grep,Glob,Edit,Write,Bash
-tags:
-  - rag
-  - retrieval
-  - llm
-  - vector-search
-  - bm25
-  - reranking
-  - embeddings
+metadata:
+  category: AI & Machine Learning
+  tags:
+    - rag
+    - retrieval
+    - llm
+    - vector-search
+    - bm25
+    - reranking
+    - embeddings
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: llm-router
+      reason: Owns the model/cost routing for the generation stage that sits downstream of the retrieval pipeline designed here.
+    - skill: logging-observability
+      reason: The per-query structured logs and OTel spans (embed, retrieve, rerank, generate) that this skill's quality gates require.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: retrieval-requirement
+        format: markdown
+        description: The corpus shape, query patterns, freshness needs, and observed failure symptoms (wrong doc cited, stale answers, empty results) for the RAG system.
+      - kind: retrieval-pipeline-plan
+        format: json
+        description: A structured retrieval design (chunking, hybrid mode, rerank, eval, freshness) matching schemas/rag-retrieval-pattern-design-plan.schema.json.
+    produces:
+      - kind: retrieval-architecture
+        format: markdown
+        description: The chunking-to-freshness pipeline design with parameter choices justified against the eval set and the failure-mode triage table.
+      - kind: retrieval-plan-audit
+        format: json
+        description: Deterministic pass/fail audit of a retrieval-pipeline-plan against this skill's Quality Gates, produced by scripts/rag_retrieval_pattern_design_audit.mjs.
 ---
 
 # RAG Retrieval Pattern Design
@@ -326,6 +352,27 @@ Structured logging — see `structured-logging-design`. OTel spans for each stag
 - [ ] OTel spans across the four stages (embed → retrieve → rerank → generate). See `opentelemetry-instrumentation`.
 - [ ] LLM context order: highest-relevance first; consider sandwich (best at top + bottom).
 - [ ] Cost monitoring: cost per query (embeddings + LLM) trended; alert on 2× baseline.
+
+## Deterministic Audit
+
+Before committing to a retrieval design (or reviewing another agent's), write it as a JSON
+`retrieval-pipeline-plan` matching `schemas/rag-retrieval-pattern-design-plan.schema.json`
+and run it through the deterministic auditor:
+
+```bash
+node scripts/rag_retrieval_pattern_design_audit.mjs --input examples/sample-input.json
+```
+
+`auditRagRetrievalPatternDesign(plan)` (in `scripts/rag_retrieval_pattern_design_audit.mjs`)
+turns this skill's fixed order of work and Quality Gates into machine-checkable rules over
+structured fields — no keyword matching: dense-only or sparse-only retrieval instead of
+hybrid+RRF, chunk sizes far from the 512-token baseline, overlap outside 10–20%, semantic
+chunking adopted without a proven benefit over recursive, a missing reranker (the highest-ROI
+change), a candidate set too small to rerank, an eval set below the 100-question bar, RAGAS
+not gating CI, no reindex cadence, and unmonitored zero-result rates. It returns
+`{ pass, score, findings, recommendations }`; `examples/sample-input.json` is the canonical
+2026 stack (recursive 512/12%, hybrid RRF k=60, rerank 20→5, 150-question RAGAS eval, daily
+reindex) and audits `pass: true`. Version history: `CHANGELOG.md`.
 
 ## NOT for
 

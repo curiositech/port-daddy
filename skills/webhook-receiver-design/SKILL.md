@@ -1,15 +1,43 @@
 ---
+license: Apache-2.0
 name: webhook-receiver-design
 description: 'Use when designing webhook endpoints (Stripe/GitHub/Slack/internal), implementing HMAC signature verification, ensuring idempotency on retries, handling out-of-order events, building dead-letter queues, or replaying historical webhooks. Triggers: signature header verification (Stripe-Signature, X-Hub-Signature-256), timestamp window for replay protection, idempotency keys, exactly-once processing semantics, retry storms, webhook handler latency budgets, async vs sync processing, dead-letter capture and replay UIs. NOT for outbound webhook publishing (different concerns), event-driven internal pubsub (Redis Streams skill), or polling-based integrations.'
-category: Backend & Infrastructure
 allowed-tools: Read,Grep,Glob,Edit,Write,Bash
-tags:
-  - webhooks
-  - hmac
-  - idempotency
-  - integrations
-  - stripe
-  - github
+metadata:
+  category: Backend & Infrastructure
+  tags:
+    - webhooks
+    - hmac
+    - idempotency
+    - integrations
+    - stripe
+    - github
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: background-job-orchestrator
+      reason: The ack-fast-work-slow pattern hands verified events to exactly the queue/worker machinery (retries, priorities, scheduling) that skill owns.
+    - skill: event-driven-architecture-expert
+      reason: Dead-letter queues, out-of-order delivery, and event transports beyond HTTP (Kafka, Redis Streams) continue there once events are inside your system.
+    - skill: error-handling-patterns
+      reason: Retry/backoff policy and error taxonomy for the worker side of the receiver come from that skill's patterns.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: integration-requirement
+        format: markdown
+        description: The inbound-webhook need -- provider, event types, side effects, volume, and latency constraints -- as described by a human or another agent.
+      - kind: webhook-receiver-plan
+        format: json
+        description: A structured plan naming signature, idempotency, latency, and dead-letter decisions, matching schemas/webhook-receiver-design-plan.schema.json.
+    produces:
+      - kind: receiver-design
+        format: markdown
+        description: The endpoint design -- raw-body verification, dedup primitive, ack/enqueue split, reconciliation, dead-letter and replay tooling -- with provider-specific quirks handled.
+      - kind: receiver-audit-report
+        format: json
+        description: A deterministic pass/fail audit of the webhook-receiver-plan against this skill's Quality Gates, as produced by scripts/webhook_receiver_design_audit.mjs.
 ---
 
 # Webhook Receiver Design
@@ -287,6 +315,26 @@ This is the difference between "we lost three days of webhooks" and "Sarah repla
 - [ ] Per-environment webhook secrets in env: `STRIPE_WEBHOOK_SECRET_TEST` vs `STRIPE_WEBHOOK_SECRET_LIVE`. CI fails if both share a value.
 - [ ] State reconciled from provider API on each event (not from event payload alone). Test: feed an out-of-order pair (cancel before create), assert final state matches API.
 - [ ] OTel span around the handler with `webhook.provider`, `webhook.event_type`, `webhook.event_id` attributes (see `opentelemetry-instrumentation`).
+
+## Deterministic Audit
+
+Before shipping (or reviewing) a receiver, write the design as a JSON plan matching
+`schemas/webhook-receiver-design-plan.schema.json` and run the deterministic auditor:
+
+```bash
+node scripts/webhook_receiver_design_audit.mjs --input examples/sample-input.json
+```
+
+`auditWebhookReceiverDesign(plan)` (in `scripts/webhook_receiver_design_audit.mjs`) turns
+this skill's three failure axes — signatures, idempotency, latency budget — and its Quality
+Gates into machine-checkable rules over structured fields: no signature verification,
+HMAC over parsed JSON instead of the raw bytes, `===` instead of `timingSafeEqual`, a
+missing or oversized replay window, a Redis/in-memory dedup primitive instead of a DB
+unique constraint, a synchronous handler past the ack budget, no dead-letter escape, state
+derived from the event payload instead of the provider API, and shared per-environment
+secrets. It returns `{ pass, score, findings, recommendations }`.
+`examples/sample-input.json` is a Stripe receiver plan that clears every gate
+(`pass: true`). Changes are tracked in `CHANGELOG.md`.
 
 ## NOT for
 

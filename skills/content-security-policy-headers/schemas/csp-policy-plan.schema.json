@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/csp-policy-plan.schema.json",
+  "title": "CSP Policy Plan",
+  "description": "A structured plan for a Content-Security-Policy deployment, so the strict-CSP baseline and this skill's Quality Gates can be checked deterministically by scripts/csp_policy_audit.mjs.",
+  "type": "object",
+  "required": ["scriptSrcStrategy", "deploymentMode", "htmlGeneration"],
+  "additionalProperties": true,
+  "properties": {
+    "scriptSrcStrategy": {
+      "type": "string",
+      "enum": ["nonce", "hash", "allowlist", "unsafe-inline"],
+      "description": "How script-src admits scripts: per-response nonce, build-time sha256 hash, an origin allowlist (legacy), or 'unsafe-inline' (defeats CSP)."
+    },
+    "deploymentMode": {
+      "type": "string",
+      "enum": ["report-only", "enforced"],
+      "description": "Whether the policy ships as Content-Security-Policy-Report-Only (phase 1) or the enforcing Content-Security-Policy header (phase 2)."
+    },
+    "htmlGeneration": {
+      "type": "string",
+      "enum": ["server-rendered", "static"],
+      "description": "Whether HTML is rendered per request (nonce-friendly) or statically generated/cached (requires hashes)."
+    },
+    "strictDynamic": {
+      "type": "boolean",
+      "description": "True if script-src includes 'strict-dynamic' so nonce/hash-trusted scripts may load further scripts transitively."
+    },
+    "objectSrcNone": {
+      "type": "boolean",
+      "description": "True if the policy sets object-src 'none'."
+    },
+    "baseUriNone": {
+      "type": "boolean",
+      "description": "True if the policy sets base-uri 'none'."
+    },
+    "usesUnsafeEval": {
+      "type": "boolean",
+      "description": "True if the policy includes 'unsafe-eval' in script-src."
+    },
+    "wildcardInScriptSrc": {
+      "type": "boolean",
+      "description": "True if script-src contains a bare wildcard (*)."
+    },
+    "nonceEntropyBits": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Bits of entropy in the generated nonce; the minimum acceptable is 128."
+    },
+    "nonceFreshPerResponse": {
+      "type": "boolean",
+      "description": "True if a new nonce is generated for every HTTP response (not at startup or per route)."
+    },
+    "nonceInjection": {
+      "type": "string",
+      "enum": ["template-emission", "html-rewrite-middleware"],
+      "description": "How nonces reach <script> tags: emitted at known template points (safe), or stamped onto all script tags by an HTML-rewriting middleware (unsafe — attacker-injected tags get the nonce too)."
+    },
+    "reportOnlyDays": {
+      "type": "number",
+      "minimum": 0,
+      "description": "How many days the identical policy ran under Content-Security-Policy-Report-Only before (or instead of) enforcement; the gate is >= 7."
+    },
+    "reportToConfigured": {
+      "type": "boolean",
+      "description": "True if the report-to directive plus a Reporting-Endpoints header are configured."
+    },
+    "reportUriConfigured": {
+      "type": "boolean",
+      "description": "True if the legacy report-uri directive is configured for older browsers."
+    },
+    "frameAncestorsViaMetaOnly": {
+      "type": "boolean",
+      "description": "True if frame-ancestors is only declared inside a <meta http-equiv> tag, where CSP3 says it is silently ignored."
+    },
+    "legacyHeadersRemoved": {
+      "type": "boolean",
+      "description": "True if obsolete X-Content-Security-Policy / X-WebKit-CSP headers have been removed."
+    }
+  }
+}

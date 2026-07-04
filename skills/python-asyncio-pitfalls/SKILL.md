@@ -1,14 +1,43 @@
 ---
+license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 name: python-asyncio-pitfalls
 description: 'Use when debugging asyncio event-loop hangs, blocking calls inside coroutines, asyncio.gather vs TaskGroup choice, cancellation handling, structured concurrency, mixing sync and async, run_in_executor decisions, asyncio task lifetimes, "Task was destroyed but it is pending" warnings, or async context manager bugs. Triggers: event loop blocked by sync I/O, ConnectionResetError on cancellation, asyncio in libraries that also offer sync API, FastAPI/aiohttp performance regressions, queue.Queue used in async code. NOT for trio/anyio (different paradigm), threading without asyncio, or Python 2 sync patterns.'
-category: AI & Machine Learning
-tags:
-  - python
-  - asyncio
-  - concurrency
-  - performance
-  - taskgroup
-  - structured-concurrency
+metadata:
+  category: AI & Machine Learning
+  tags:
+    - python
+    - asyncio
+    - concurrency
+    - performance
+    - taskgroup
+    - structured-concurrency
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: background-job-orchestrator
+      reason: Celery/queue worker code is where sync-in-async mixing and missing backpressure bite hardest; that skill owns the queue architecture this one debugs inside.
+    - skill: error-handling-patterns
+      reason: Retry, circuit-breaker, and exception-hierarchy strategy sits above the asyncio cancellation/ExceptionGroup primitives covered here.
+    - skill: websocket-streaming
+      reason: Long-lived async streams are where cancellation propagation and unbounded-queue OOMs surface in practice.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: concurrency-bug-report
+        format: markdown
+        description: A symptom description -- loop hang, throughput collapse under load, "Task was destroyed but it is pending", partial fan-out results -- with the code path in question.
+      - kind: asyncio-concurrency-plan
+        format: json
+        description: A structured concurrency design (Python version, fan-out primitive, blocking-call offload, timeout and cancellation posture) matching schemas/python-asyncio-pitfalls-plan.schema.json.
+    produces:
+      - kind: asyncio-diagnosis
+        format: markdown
+        description: The pinpointed pitfall (which trap from this catalog) and the corrected pattern, with the debug-mode evidence that confirms it.
+      - kind: asyncio-plan-audit
+        format: json
+        description: Deterministic pass/fail audit of an asyncio-concurrency-plan against this skill's Quality Gates, produced by scripts/python_asyncio_pitfalls_audit.mjs.
 ---
 
 # Python Asyncio Pitfalls
@@ -231,6 +260,26 @@ Don't share an `asyncio.Lock` across event loops; each loop has its own.
 - [ ] `asyncio.Queue(maxsize=…)` has explicit backpressure.
 - [ ] `loop.set_debug(True)` enabled in dev; `slow_callback_duration` alerts in prod.
 - [ ] ContextVars used for request-scoped state.
+
+## Deterministic Audit
+
+Before committing to an asyncio design (or reviewing another agent's), write it as a JSON
+`asyncio-concurrency-plan` matching `schemas/python-asyncio-pitfalls-plan.schema.json` and
+run it through the deterministic auditor:
+
+```bash
+node scripts/python_asyncio_pitfalls_audit.mjs --input examples/sample-input.json
+```
+
+`auditPythonAsyncioPitfalls(plan)` (in `scripts/python_asyncio_pitfalls_audit.mjs`) turns
+this catalog's traps and Quality Gates into machine-checkable rules over structured fields —
+no keyword matching: blocking calls with no `to_thread`/executor offload, `gather` where
+sibling cancellation is required, `TaskGroup`/`asyncio.timeout` on a pre-3.11 interpreter,
+`queue.Queue` inside async code, unbounded `asyncio.Queue`, swallowed `CancelledError`,
+missing external-call timeouts, per-request connection pools, and thread-local request
+state. It returns `{ pass, score, findings, recommendations }`;
+`examples/sample-input.json` is a clean 3.12 TaskGroup fan-out design that audits
+`pass: true`. Version history: `CHANGELOG.md`.
 
 ## NOT for
 

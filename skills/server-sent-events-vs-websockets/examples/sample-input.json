@@ -1,0 +1,11 @@
+{
+  "direction": "server-to-client",
+  "chosenTransport": "sse",
+  "behindBufferingProxy": true,
+  "proxyBufferingDisabled": true,
+  "httpVersion": "http2",
+  "heartbeatIntervalSeconds": 20,
+  "replayOnReconnect": true,
+  "serverReplayBufferKeyedById": true,
+  "backpressureHandled": true
+}

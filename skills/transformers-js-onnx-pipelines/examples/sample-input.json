@@ -1,0 +1,17 @@
+{
+  "pipelineType": "cross-encoder",
+  "environment": "node",
+  "runsInCI": true,
+  "usesHighLevelPipeline": false,
+  "readsRawLogits": true,
+  "maxCandidateTokens": 400,
+  "lazyLoadPromiseCached": true,
+  "allowLocalModels": false,
+  "cacheDirConfigured": true,
+  "ciCachePersisted": true,
+  "persistsVectors": false,
+  "copiesOutputBuffer": true,
+  "modelVersionPinned": true,
+  "quantized": true,
+  "ciSmokeTest": true
+}

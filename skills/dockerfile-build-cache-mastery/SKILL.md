@@ -1,15 +1,41 @@
 ---
+license: Apache-2.0
 name: dockerfile-build-cache-mastery
 description: 'Use when optimizing Docker builds with BuildKit, designing multi-stage Dockerfiles, leveraging cache mounts, building multi-arch images, choosing distroless vs alpine, or signing images with cosign. Triggers: docker build slow, layer cache not hitting, npm install / pip install reruns, multi-stage final image bloat, glibc vs musl issues, RUN --mount=type=cache, BUILDKIT_INLINE_CACHE, registry cache exporters, qemu emulation for arm64, COPY ordering for cache. NOT for Docker daemon admin, Kubernetes-specific image policies, container security scanning workflows, or Buildpacks (different paradigm).'
-category: DevOps & Infrastructure
 allowed-tools: Read,Grep,Glob,Edit,Write,Bash
-tags:
-  - docker
-  - buildkit
-  - multi-stage
-  - cache
-  - distroless
-  - container
+metadata:
+  category: DevOps & Infrastructure
+  tags:
+    - docker
+    - buildkit
+    - multi-stage
+    - cache
+    - distroless
+    - container
+  pairs-with:
+    - skill: rust-app-distribution
+      reason: Static Rust binaries built for distribution are what scratch/distroless runtime stages here are made for.
+    - skill: agentic-zero-trust-security
+      reason: Image signing (cosign) and secret-mount hygiene are the container leg of a zero-trust supply chain.
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: build-requirement
+        format: markdown
+        description: The Dockerfile (or its pain points), CI build times, image sizes, target platforms, and the runtime language/stack.
+      - kind: docker-build-plan
+        format: json
+        description: A structured plan naming BuildKit posture, layer ordering, cache mounts, stages, secrets handling, and arch targets, matching schemas/docker-build-plan.schema.json.
+    produces:
+      - kind: dockerfile-review
+        format: markdown
+        description: The reordered/multi-stage Dockerfile with cache-mount and CI cache wiring, plus measured before/after build times and image sizes.
+      - kind: docker-build-audit
+        format: json
+        description: A deterministic pass/fail audit of the docker-build-plan against this skill's Quality Gates, as produced by scripts/docker_build_audit.mjs.
 ---
 
 # Dockerfile Build Cache Mastery
@@ -308,6 +334,28 @@ ARG is build-time only; ENV is runtime. Don't ARG secrets — they're visible in
 - [ ] Multi-arch (amd64+arm64) for any image deployed to mixed-arch clusters. Verified: `docker buildx imagetools inspect <ref>` shows both platforms.
 - [ ] Image signed with cosign in production deploy.
 - [ ] Multi-arch (amd64+arm64) for any image deployed to mixed-arch clusters.
+
+## Deterministic Audit
+
+Before landing (or reviewing) a Dockerfile/CI change, write the build design as
+a JSON plan matching `schemas/docker-build-plan.schema.json` and run the
+auditor:
+
+```bash
+node scripts/docker_build_audit.mjs --input examples/sample-input.json
+```
+
+`auditDockerBuildPlan(plan)` (in `scripts/docker_build_audit.mjs`) turns this
+skill's Quality Gates and Anti-patterns into machine-checkable rules over
+structured fields — no keyword matching: BuildKit disabled (critical — nothing
+else works), `COPY . .` before the install, no package-manager cache mount, a
+single-stage build, a final image over the size budget for its stack, a missing
+`.dockerignore`, cold CI without a registry cache, secrets in ARG/ENV
+(critical — `docker history` leaks them), a root runtime user, `--no-cache` as
+the CI default, and QEMU-emulated arm64 for compiled languages. It returns
+`{ pass, score, findings, recommendations }`. `examples/sample-input.json` is a
+BuildKit multi-stage plan with registry cache and secret mounts (`pass: true`,
+zero findings).
 
 ## NOT for
 

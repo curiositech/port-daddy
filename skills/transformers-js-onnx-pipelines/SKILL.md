@@ -1,14 +1,41 @@
 ---
+license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 name: transformers-js-onnx-pipelines
 description: 'Use when integrating Hugging Face Transformers.js (Xenova/transformers) for in-browser or in-Node inference, debugging quantized model loading, building bi-encoder / cross-encoder / classification pipelines, configuring model cache directories, or bypassing high-level pipelines to read raw logits. Triggers: "model failed to load", cross-encoder scores all 1.0 (softmax-over-1 trap), env.allowLocalModels confusion, cacheDir overrides, ONNX runtime mismatch, ESM vs CJS pipeline imports, browser vs node feature gaps. NOT for full transformers Python (different SDK), TensorFlow.js, ONNX Runtime Web directly without Transformers.js, or model training.'
-category: AI & Machine Learning
-tags:
-  - transformers-js
-  - onnx
-  - embeddings
-  - cross-encoder
-  - inference
-  - huggingface
+metadata:
+  category: AI & Machine Learning
+  tags:
+    - transformers-js
+    - onnx
+    - embeddings
+    - cross-encoder
+    - inference
+    - huggingface
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: llm-router
+      reason: When a retrieval or classification cascade must decide between local ONNX inference and a hosted model call, llm-router owns that routing decision.
+    - skill: cost-optimizer
+      reason: Replacing hosted embedding/classification API calls with a local quantized model is a cost lever cost-optimizer tracks across a running budget.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: inference-requirement
+        format: markdown
+        description: A description of the inference need -- embeddings, reranking, classification -- with target environment (Node, browser, CI) and latency/size constraints.
+      - kind: onnx-pipeline-plan
+        format: json
+        description: A structured plan naming the pipeline type, environment, caching and logits-access decisions, matching schemas/transformers-js-onnx-pipelines-plan.schema.json.
+    produces:
+      - kind: pipeline-implementation
+        format: markdown
+        description: The recommended pipeline wiring (bi-encoder, cross-encoder bypass, caching, corpus build) with the anti-patterns above ruled out.
+      - kind: pipeline-audit-report
+        format: json
+        description: A deterministic pass/fail audit of the onnx-pipeline-plan against this skill's Quality Gates, as produced by scripts/transformers_js_onnx_pipelines_audit.mjs.
 ---
 
 # Transformers.js ONNX Pipelines
@@ -221,6 +248,26 @@ Be honest about the download cost — show a progress bar.
 - [ ] Model versions pinned in code; never "latest".
 - [ ] Quantized variants (`quantized: true`) unless full precision is critical.
 - [ ] Smoke test runs the model on 3 known queries on every CI build.
+
+## Deterministic Audit
+
+Before wiring (or reviewing) a Transformers.js integration, write the decisions as a JSON
+plan matching `schemas/transformers-js-onnx-pipelines-plan.schema.json` and run the
+deterministic auditor:
+
+```bash
+node scripts/transformers_js_onnx_pipelines_audit.mjs --input examples/sample-input.json
+```
+
+`auditTransformersJsOnnxPipelines(plan)` (in `scripts/transformers_js_onnx_pipelines_audit.mjs`)
+turns this skill's anti-patterns and Quality Gates into machine-checkable rules over
+structured fields: a cross-encoder routed through the `text-classification` pipeline
+instead of raw logits (the softmax-over-1 trap), un-normalized bi-encoder vectors fed to
+cosine, `allowLocalModels: true` in CI, a missing CI model cache, an uncached first-load
+Promise, persisted vectors that were never copied out of the reused tensor buffer,
+unpinned model versions, and reranker inputs past the 512-token joint limit. It returns
+`{ pass, score, findings, recommendations }`. `examples/sample-input.json` is a correctly
+bypassed cross-encoder rerank plan (`pass: true`). Changes are tracked in `CHANGELOG.md`.
 
 ## NOT for
 
