@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/background-job-queue-plan.schema.json",
+  "title": "Background Job Queue Design Plan",
+  "description": "A structured plan for a background-job system — broker, idempotency, lock, retry, DLQ, and Redis choices — so background-job-queue-design's Quality Gates can be checked deterministically by scripts/job_queue_design_audit.mjs.",
+  "type": "object",
+  "required": ["broker", "workShape", "handlersIdempotent"],
+  "additionalProperties": true,
+  "properties": {
+    "broker": {
+      "type": "string",
+      "enum": ["bullmq", "sidekiq-oss", "sidekiq-pro", "sqs", "temporal", "rq", "celery", "asynq"],
+      "description": "The queue/workflow primitive chosen."
+    },
+    "workShape": {
+      "type": "string",
+      "enum": ["single-side-effect", "multi-step-seconds", "multi-step-hours", "human-in-loop"],
+      "description": "The shape of the work: single side effect, short pipeline, hours-plus workflow, or human-in-the-loop."
+    },
+    "handlersIdempotent": {
+      "type": "boolean",
+      "description": "True if every handler is idempotent with a stable idempotency key derived from the business event."
+    },
+    "dedupBackedByDbConstraint": {
+      "type": "boolean",
+      "description": "True if a DB-level unique constraint backs up any in-Redis dedup (jobId, SET-NX)."
+    },
+    "expectsExactlyOnce": {
+      "type": "boolean",
+      "description": "True if the design assumes exactly-once delivery across systems — an anti-pattern; at-least-once is the only honest semantic."
+    },
+    "lockDurationMs": {
+      "type": "number",
+      "minimum": 0,
+      "description": "lockDuration (BullMQ) / visibility timeout (SQS) in milliseconds."
+    },
+    "handlerP99Ms": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Measured p99 handler latency in milliseconds."
+    },
+    "handlerExtendsLock": {
+      "type": "boolean",
+      "description": "True if long handlers extend the lock (job.extendLock / ChangeMessageVisibility) mid-run."
+    },
+    "backoffStrategy": {
+      "type": "string",
+      "enum": ["none", "fixed", "exponential", "exponential-full-jitter"],
+      "description": "Retry backoff strategy. Only exponential-full-jitter avoids the thundering herd."
+    },
+    "permanentErrorsBypassRetry": {
+      "type": "boolean",
+      "description": "True if permanent errors (user-not-found, malformed input) skip the retry policy and go straight to the DLQ."
+    },
+    "dlqConfigured": {
+      "type": "boolean",
+      "description": "True if failed jobs land in a dead-letter queue after the retry policy is exhausted."
+    },
+    "dlqReplayToolExists": {
+      "type": "boolean",
+      "description": "True if a tested replay tool exists (replay-by-id, replay-by-range, drain-with-confirmation)."
+    },
+    "dlqAlertOnGrowthRate": {
+      "type": "boolean",
+      "description": "True if DLQ alerting fires on growth rate (N/min), not just nonzero count."
+    },
+    "redisMaxmemoryPolicy": {
+      "type": "string",
+      "enum": ["noeviction", "allkeys-lru", "volatile-lru", "allkeys-lfu", "volatile-lfu", "allkeys-random", "volatile-random", "volatile-ttl"],
+      "description": "Redis maxmemory-policy for Redis-backed brokers. Must be noeviction or queued jobs are silently evicted."
+    },
+    "redisAofEnabled": {
+      "type": "boolean",
+      "description": "True if Redis AOF persistence is enabled (appendfsync everysec)."
+    },
+    "gracefulShutdownHandled": {
+      "type": "boolean",
+      "description": "True if SIGTERM/SIGINT close workers (finish in-flight jobs) before process exit."
+    },
+    "queueLevelRateLimiter": {
+      "type": "boolean",
+      "description": "True if a queue-level limiter caps aggregate downstream calls across all workers."
+    }
+  }
+}

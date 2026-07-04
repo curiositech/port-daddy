@@ -312,13 +312,20 @@ const TOOLS = [
       '[Essential] Register agent + start session in one atomic step. Use this at the start of every ' +
       'coding session instead of calling register_agent and start_session separately. ' +
       'Returns agentId, sessionId, and a salvageHint if dead agents need attention. ' +
-      'Usage: begin_session({purpose: "Building auth system", identity: "myapp:api:main"})',
+      'Usage: begin_session({purpose: "Building auth system", identity: "myapp:api:main", lifecycle: "ephemeral"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
         purpose: {
           type: 'string',
           description: 'What you are working on (e.g. "Implementing OAuth flow")',
+        },
+        lifecycle: {
+          type: 'string',
+          enum: ['durable', 'ephemeral'],
+          description:
+            'Session lifecycle: "ephemeral" for one-off task sessions (most agent work), ' +
+            '"durable" for long-lived staff agents that persist across tasks',
         },
         identity: {
           type: 'string',
@@ -338,7 +345,7 @@ const TOOLS = [
           description: 'Files to claim for this session (advisory — shows conflicts to other agents)',
         },
       },
-      required: ['purpose'],
+      required: ['purpose', 'lifecycle'],
     },
   },
   {
@@ -3214,6 +3221,10 @@ async function handleTool(
     // ── Sugar (Compound Operations) ────────────────────────────────────
     case 'begin_session': {
       const body: Record<string, unknown> = { purpose: args.purpose };
+      // Forward unconditionally: an empty/malformed value must reach the daemon
+      // so its SESSION_LIFECYCLE_REQUIRED error names the real problem instead
+      // of being dropped here and failing identically but opaquely.
+      body.lifecycle = args.lifecycle;
       if (args.identity) body.identity = args.identity;
       if (args.agent_id) body.agentId = args.agent_id;
       if (args.type) body.type = args.type;
@@ -4812,7 +4823,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.23.0',
+    version: '3.24.0',
   },
   {
     capabilities: {

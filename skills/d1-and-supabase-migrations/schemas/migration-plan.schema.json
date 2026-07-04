@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/migration-plan.schema.json",
+  "title": "D1 / Supabase Migration Plan",
+  "description": "A structured plan for applying a schema migration to Cloudflare D1 or Supabase, so the repair-vs-execute trap and this skill's Quality Gates can be checked deterministically by scripts/migration_plan_audit.mjs.",
+  "type": "object",
+  "required": ["platform", "environment"],
+  "additionalProperties": true,
+  "properties": {
+    "platform": {
+      "type": "string",
+      "enum": ["supabase", "d1"],
+      "description": "Which migration system this plan targets."
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["production", "staging", "local"],
+      "description": "The environment whose database the migration must actually change."
+    },
+    "connection": {
+      "type": "string",
+      "enum": ["direct-5432", "pooler-6543", "sql-editor", "cli"],
+      "description": "Supabase only: how the SQL reaches the database. The pgbouncer pooler (port 6543) cannot run migrations."
+    },
+    "d1Target": {
+      "type": "string",
+      "enum": ["remote", "local"],
+      "description": "D1 only: whether wrangler applies with --remote (the real database) or --local (.wrangler/state). Wrangler defaults to local."
+    },
+    "repairPlanned": {
+      "type": "boolean",
+      "description": "Supabase only: true if `supabase migration repair --status applied` will be run for this migration."
+    },
+    "sqlExecutedBeforeRepair": {
+      "type": "boolean",
+      "description": "Supabase only: true if the migration SQL has actually been executed (psql / SQL editor) before any repair marks it applied."
+    },
+    "verificationQueryPlanned": {
+      "type": "boolean",
+      "description": "True if a post-apply query asserts the new shape against information_schema.columns / pragma_table_info, rather than trusting migration history."
+    },
+    "addsNotNullColumn": {
+      "type": "boolean",
+      "description": "True if the migration adds a NOT NULL column."
+    },
+    "tableHasRows": {
+      "type": "boolean",
+      "description": "True if the target table already contains rows in the target environment."
+    },
+    "hasDefaultOrBackfill": {
+      "type": "boolean",
+      "description": "True if the NOT NULL addition carries a DEFAULT, or follows the three-step nullable -> backfill -> NOT NULL pattern."
+    },
+    "migrationFileEditedAfterApply": {
+      "type": "boolean",
+      "description": "True if an already-applied migration file has been (or will be) edited instead of adding a new file."
+    },
+    "hotTableLongMigration": {
+      "type": "boolean",
+      "description": "True if the migration rewrites or indexes a large, hot production table."
+    },
+    "batchedApproach": {
+      "type": "boolean",
+      "description": "True if the hot-table work is batched (CONCURRENTLY index, chunked UPDATEs, shadow table + rename) instead of one long transaction."
+    },
+    "forwardOnly": {
+      "type": "boolean",
+      "description": "True if the migration is declared forward-only (no down-script expected)."
+    },
+    "downScriptTested": {
+      "type": "boolean",
+      "description": "True if a down-script exists and has actually been executed against a copy of the schema."
+    }
+  }
+}

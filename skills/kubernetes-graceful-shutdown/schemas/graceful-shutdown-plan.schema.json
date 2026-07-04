@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/graceful-shutdown-plan.schema.json",
+  "title": "Kubernetes Graceful-Shutdown Plan",
+  "description": "A structured plan for a pod's shutdown lifecycle — preStop sleep, grace-period budget, signal handling, readiness behavior — so this skill's timing rules and Quality Gates can be checked deterministically by scripts/kubernetes_graceful_shutdown_audit.mjs.",
+  "type": "object",
+  "required": ["preStopSleepSeconds", "terminationGracePeriodSeconds", "drainBudgetSeconds", "sigtermHandlerRegistered"],
+  "additionalProperties": true,
+  "properties": {
+    "preStopSleepSeconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Duration of the preStop sleep hook (0 = no hook). Covers the EndpointSlice/kube-proxy/LB convergence race: 5s small cluster, 10-15s typical cloud LB, 30s+ large clusters."
+    },
+    "terminationGracePeriodSeconds": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "The pod's terminationGracePeriodSeconds (Kubernetes default 30). Shared between preStop and the post-SIGTERM drain."
+    },
+    "drainBudgetSeconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Worst-case time the app needs after SIGTERM to finish in-flight work. preStop + drain must fit inside the grace period with margin."
+    },
+    "sigtermHandlerRegistered": {
+      "type": "boolean",
+      "description": "True if the app registers a SIGTERM handler that drains (server.close() / srv.Shutdown(ctx)) rather than ignoring the signal."
+    },
+    "immediateExitOnSigterm": {
+      "type": "boolean",
+      "description": "True if the handler calls process.exit()/os.Exit() without draining — the connection-reset anti-pattern."
+    },
+    "pid1IsApp": {
+      "type": "boolean",
+      "description": "True if the runtime itself is PID 1 (exec-form CMD, or tini init) so SIGTERM is not swallowed by a shell wrapper."
+    },
+    "hardDeadlineShorterThanGrace": {
+      "type": "boolean",
+      "description": "True if the drain has an in-app hard ceiling (setTimeout + closeAllConnections / context.WithTimeout) shorter than the grace period."
+    },
+    "readinessFlipsOnShutdown": {
+      "type": "boolean",
+      "description": "True if the readiness probe returns 503 once shutdown begins — complementing the preStop sleep."
+    },
+    "readinessFlipReplacesSleep": {
+      "type": "boolean",
+      "description": "True if the design relies on the readiness flip INSTEAD of a preStop sleep. The flip only helps the next propagation cycle; this fails the audit."
+    },
+    "backgroundWorkersHandleShutdown": {
+      "type": "boolean",
+      "description": "True if queue consumers, cron loops, and DB pools are cancelled by the same shutdown context as the HTTP server."
+    }
+  }
+}

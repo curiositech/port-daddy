@@ -12,6 +12,7 @@ import {
 } from '@/components/site/primitives'
 import {
   findWhitePaperById,
+  LIBRARY_CHANGELOG,
   paperPdfUrl,
   READING_ORDER,
   WHITE_PAPERS,
@@ -389,6 +390,53 @@ export default function WhitepaperPage() {
                       </p>
                     </div>
                   </div>
+                ))}
+              </div>
+            </div>
+          </PageContainer>
+        </section>
+
+        <section className="border-t-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
+          <PageContainer width="wide">
+            <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.35fr)_minmax(0,0.65fr)]">
+              <div className="space-y-[var(--space-4)]">
+                <PanelEyebrow>Library changelog</PanelEyebrow>
+                <PanelTitle as="h2" size="section" className="max-w-[14ch]">
+                  What changed, and when.
+                </PanelTitle>
+                <PanelBody className="max-w-[44ch]">
+                  These papers are living documents: they get argued with, proven
+                  against, and revised in the open. One entry per release wave,
+                  newest first. For the per-objection history of the adversarial
+                  reviews, see{' '}
+                  <Link to="/whitepaper/rounds" className="font-black text-[var(--brand-primary)] underline underline-offset-4 hover:no-underline">
+                    the review rounds
+                  </Link>
+                  .
+                </PanelBody>
+              </div>
+
+              <div className="grid gap-[var(--space-3)]">
+                {LIBRARY_CHANGELOG.map((entry) => (
+                  <article
+                    key={`${entry.date}-${entry.title}`}
+                    className="grid gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)]"
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-[var(--space-2)]">
+                      <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                        {entry.date}
+                      </span>
+                      <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                        {entry.chapters.join(' · ')}
+                      </span>
+                    </div>
+                    <h3 className="font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] tracking-[var(--tracking-display-nav)] text-[var(--text-primary)]">
+                      {entry.title}
+                    </h3>
+                    <p className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                      {entry.summary}
+                    </p>
+                  </article>
                 ))}
               </div>
             </div>
