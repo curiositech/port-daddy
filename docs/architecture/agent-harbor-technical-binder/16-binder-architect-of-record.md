@@ -341,7 +341,9 @@ its stated product universe, technically falsifiable, and honest about shipped,
 partial, speculative, or blocked status?
 
 Read docs/architecture/agent-harbor-technical-binder/README.md and chapters
-01-16. Read docs/proposals/official-port-daddy-agent-compliance-plan.md. Read
+01-16. Read `docs/proposals/official-port-daddy-agent-compliance-plan.md`
+(not yet shipped on main; it will land with `codex/gpui-harness-mux` — skip
+until it lands). Read
 the public and historical ambition corpus: website-v2 product/tutorial/example/
 blog data, docs/plans/V4-*.md, docs/plans/PHONE-INTEGRATION-MASTER-PLAN.md,
 docs/V4-RECOVERY-MAP.md, docs/recovery/IDEAS-TROVE.md, docs/IDEAS_INDEX.md,

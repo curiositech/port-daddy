@@ -116,8 +116,11 @@ FleetBar renders chapter 18's C5 shapes directly:
 - Approve/Modify/Deny becomes a durable **ControlCommand**; the decision and
   its latency land in the transcript and the Work Receipt (denial receipts
   included).
-- Gate cards render only for bodies whose compliance level can honor the
-  decision (C4+ for pre-action gates). For anything weaker, FleetBar shows
+- Gate cards render only for bodies whose probed capability predicates can
+  honor the decision — the Controllable predicates (steer/interrupt/pause/
+  kill, individually probed) for pre-action gates. Numeric C badges wait for
+  the F0 ladder freeze per `official-agent-control-plane-synthesis.md`; the
+  UI names the predicate, not the number. For anything weaker, FleetBar shows
   state and remediation, never a decorative button (chapter 00 criterion 6).
 - Notification policy: gates may post a user notification; everything else is
   glance-only. The menu-bar icon carries at most one signal (count of pending

@@ -74,6 +74,10 @@ Tasks:
 Gate:
 
 - one compliant local Codex Agent Node;
+- one compliant local Claude Code Agent Node;
+- one compliant local Antigravity Agent Node;
+- one compliant Cloudflare (cloud fleet) Agent Node;
+- one compliant LM Studio Agent Node;
 - one weak observed agent;
 - one fake/custom probe fixture;
 - app displays compliance and failed checks.
