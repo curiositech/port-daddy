@@ -515,6 +515,11 @@
       "summaryMd": "Fix pd session coordination: begin-hang, resolver divergence (PPID/TTY slot), MCP lifecycle parity (#556)"
     },
     {
+      "slug": "pd-sortie-cli",
+      "status": "backlog",
+      "summaryMd": "Land the pd sortie CLI surface (one-shot multi-agent mission: run/list/status/logs) recovered from the April 2026 parked work; thin client over the existing daemon /sorties endpoints, aligned with ADR-0060 conductor consolidation."
+    },
+    {
       "slug": "roadmap-delete-verb-and-harbor-fix",
       "status": "backlog",
       "summaryMd": "Shepherd PR #558: roadmap delete verb, DELETE route, and project-harbor default; takeover rebase after stale session release."
