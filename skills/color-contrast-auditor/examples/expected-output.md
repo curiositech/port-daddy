@@ -9,7 +9,7 @@ Scenario: a design brief eyeballs `#777777` gray body text over a white card bec
   "pairs": [
     { "name": "hero-tagline", "foreground": "#777777", "background": "#FFFFFF", "usage": "body-text" },
     { "name": "helper-text", "foreground": "#ccc", "background": "#FFFFFF", "usage": "body-text" },
-    { "name": "brand-mark", "foreground": "#F5F2E, "background": "#111111", "usage": "decorative" }
+    { "name": "brand-mark", "foreground": "#F5F2E", "background": "#111111", "usage": "decorative" }
   ],
   "semanticSignals": [
     { "name": "form-error-dot", "conveyedByColorOnly": true }

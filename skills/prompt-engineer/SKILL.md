@@ -2,7 +2,7 @@
 license: Apache-2.0
 name: prompt-engineer
 description: Expert prompt optimization for LLMs and AI systems. Use PROACTIVELY when building AI features, improving agent performance, or crafting system prompts. Masters prompt patterns and techniques.
-allowed-tools: Read,Write,Edit,Glob,Grep,mcp__SequentialThinking__sequentialthinking
+allowed-tools: Read,Write,Edit,Glob,Grep,mcp__sequentialthinking__sequentialthinking
 metadata:
   category: AI & Machine Learning
   tags:
