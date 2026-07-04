@@ -328,7 +328,7 @@ export function memoryD1(): D1Capture {
 export interface AiStub {
   ai: Ai;
   /** Every AI call: which model, the map/reduce phase, and the routed ship. */
-  calls: Array<{ model: string; phase: 'map' | 'reduce'; ship: string | null }>;
+  calls: Array<{ model: string; phase: 'map' | 'reduce'; ship: string | null; temperature?: number }>;
 }
 
 /**
@@ -359,13 +359,16 @@ export function aiStub(opts: {
     return null;
   };
 
-  const run = async (model: string, args: { messages: Array<{ role: string; content: string }> }) => {
+  const run = async (
+    model: string,
+    args: { messages: Array<{ role: string; content: string }>; temperature?: number },
+  ) => {
     const sys = args.messages.find(m => m.role === 'system')?.content ?? '';
     const ship = matchShip(sys);
 
     // --- REDUCE manager call ---
     if (/REDUCE manager/.test(sys)) {
-      calls.push({ model, phase: 'reduce', ship });
+      calls.push({ model, phase: 'reduce', ship, temperature: args.temperature });
       if (ship && opts.throwForShip === ship) throw new Error('AI exploded (reduce)');
       const mgr = opts.managerOutput;
       const out =
@@ -374,7 +377,7 @@ export function aiStub(opts: {
     }
 
     // --- MAP call ---
-    calls.push({ model, phase: 'map', ship });
+    calls.push({ model, phase: 'map', ship, temperature: args.temperature });
     if (ship) {
       if (opts.throwForShip === ship) throw new Error('AI exploded');
       return { response: opts.perShip[ship] };
