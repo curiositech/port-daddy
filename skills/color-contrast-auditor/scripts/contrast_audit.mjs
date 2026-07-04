@@ -26,6 +26,13 @@ const KNOWN_USAGE = new Set([...Object.keys(REQUIRED_RATIO), ...EXEMPT_USAGE]);
 
 const SEVERITY_WEIGHT = { critical: 12, high: 8, medium: 4, low: 2 };
 
+function severityWeight(severity) {
+  if (!Object.prototype.hasOwnProperty.call(SEVERITY_WEIGHT, severity)) {
+    throw new Error(`unknown finding severity "${severity}" (expected one of ${Object.keys(SEVERITY_WEIGHT).join(', ')})`);
+  }
+  return SEVERITY_WEIGHT[severity];
+}
+
 const HEX3 = /^#?([0-9a-fA-F]{3})$/;
 const HEX6 = /^#?([0-9a-fA-F]{6})$/;
 
@@ -184,7 +191,7 @@ export function auditContrast(spec) {
     }
   }
 
-  const totalWeight = findings.reduce((sum, f) => sum + ((SEVERITY_WEIGHT[f.severity] ?? (() => { throw new Error(`unknown finding severity: ${f.severity}`); })())), 0);
+  const totalWeight = findings.reduce((sum, f) => sum + (severityWeight(f.severity)), 0);
   const score = Math.max(0, 100 - totalWeight);
   const hasCritical = findings.some((f) => f.severity === 'critical');
   const pass = !hasCritical && score >= 75;
