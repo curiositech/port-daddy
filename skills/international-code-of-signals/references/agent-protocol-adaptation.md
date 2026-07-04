@@ -87,6 +87,21 @@ Beyond message shape, ICOS encodes conversation *dynamics* — the concerns mode
 
 Termination discipline: every ICOS exchange has an explicit end (`AR`→`R` by light, answering pennant hoisted singly by flags, `AR` by radio). The transferable rule: **a conversation without an agreed termination handshake is not over, it is abandoned** — and abandoned conversations are where multi-agent systems leak claims, locks, and half-done work (pd's `pd done` + salvage queue is this exact distinction).
 
+## Transport-Layer Grounding (IPC and channel selection)
+
+Chapter 1's "methods of signaling" is a transport-selection layer: seven media carrying one semantics, each chosen by range, conditions, and failure properties. The selection logic transfers directly to IPC mechanism choice in agent systems:
+
+| ICOS transport rule | IPC/channel principle |
+|---|---|
+| Flags by day at visual range; light by night; RT anywhere; sound as last resort | Select transport by locality and conditions, not habit: stdio pipes for parent-child agents, Unix sockets for same-machine daemons, HTTP/SSE/WebSocket only when the boundary demands it — semantics unchanged across all of them (mechanism 8) |
+| Tackline separating groups on one halyard | Message framing on a stream: a shared channel needs an explicit delimiter (newline-framed JSON, length prefixes) — adjacent flags are *one group*, tackline-separated hoists are *distinct signals*, and a stream without framing can't tell the difference |
+| Morse timing ratios (dot 1 : dash 3 : letter-gap 3 : word-gap 7), "err toward shorter dots" | Wire framing needs designed-in margins: the ratio is the spec, the shorter-dots advice is jitter tolerance. Standard rate 40 letters/min = an explicit, agreed rate limit rather than "as fast as the sender can flash" |
+| Sound signaling in fog: reduce to a minimum, single letters only, long intervals so one-letter signals cannot be mistaken for two-letter groups | On a broadcast medium with collision risk, shrink to the urgent vocabulary, space transmissions out (backoff), and design codes so truncation/concatenation cannot alias one message into another |
+| Substitutes: one flag set must still express repeats | Resource-constrained encoding: the protocol accommodates the sender's limited resources in-band (substitute flags) rather than assuming infinite buffers — the receiver's decode logic covers the constrained form |
+| Stale hoist rule: keep flying until answered, haul down before the next | Channel occupancy is exclusive per message: don't multiplex unacked messages onto one channel; clean up the old signal (stale socket files, dangling claims) before hoisting the new one |
+
+The three groundings compose: **wire formats** say what the bytes mean, **conversation protocols** say whose turn it is and how exchanges end, **transport selection** says which medium carries it — ICOS is the rare system that specified all three in one book and kept the semantics invariant across every combination.
+
 ## Designing a Fleet Signal Registry (procedure)
 
 ```mermaid
