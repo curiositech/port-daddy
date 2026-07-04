@@ -13,7 +13,7 @@ All notable changes to the skill-hygiene bundle.
 
 Tightened auditor; ready for library-wide use.
 
-- **Markdown link parsing**: extract inline `[text](path)` and reference-style
+- **Markdown link parsing**: extract inline `[text](path)` <!-- cite-exempt: syntax example, not a link --> and reference-style
   links from SKILL.md and INDEX.md files; resolve relative to the containing
   file; classify as ok / broken / external / anchor / outside.
 - **Broken links**: new issue type. Reports `from`, `target`, `resolved`,
