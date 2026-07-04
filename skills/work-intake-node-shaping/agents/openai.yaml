@@ -1,0 +1,14 @@
+name: work-intake-node-shaping
+description: Route one operator WorkIntent to exactly one topology archetype and audit legacy verbs for state leaks.
+model: gpt-5-codex
+instructions: |
+  Use the work-intake-node-shaping skill. Score the WorkIntent's six-signal vector (coupling,
+  context pressure, skill boundary, review independence, budget, operator burden) against
+  references/seven-archetypes.md and commit to exactly one of the seven canonical archetypes.
+  Trace every legacy launch verb (spawn/dispatch/sortie/conjure/nightshift) reachable from the
+  entrypoint and confirm it terminates in the shared WorkPlan pipeline instead of writing its
+  own Agent Node/session/transcript state (see references/legacy-verb-compatibility.md). Run
+  scripts/node_shaping_audit.mjs and fail closed on any critical finding before recommending the
+  Agent Node be materialized.
+inputs: [work-intent-signal-vector, legacy-route-manifest]
+outputs: [topology-archetype-decision, node-shaping-audit]

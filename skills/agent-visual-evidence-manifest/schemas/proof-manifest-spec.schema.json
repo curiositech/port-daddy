@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Proof Manifest Spec",
+  "description": "Input shape for scripts/proof_manifest_audit.mjs — a normalized description of a PR's visual-evidence artifacts, their provenance manifests, and (for control-panel PRs) the required-state coverage they demonstrate.",
+  "type": "object",
+  "required": ["branchCommit", "isControlPanelPr", "statesCovered", "artifacts"],
+  "additionalProperties": true,
+  "properties": {
+    "branchCommit": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The PR branch's current HEAD commit SHA. Every artifact manifest's \"commit\" field is checked against this value."
+    },
+    "isControlPanelPr": {
+      "type": "boolean",
+      "description": "True if this PR changes the operator control-panel surface (GPUI/console/dashboard) and must therefore clear full required-state coverage."
+    },
+    "statesCovered": {
+      "type": "array",
+      "description": "Which of the required control-panel proof states this PR's artifact set demonstrates. Only checked when isControlPanelPr is true, but always validated for shape.",
+      "items": {
+        "type": "string",
+        "enum": ["active", "historical", "blocked", "stale", "gate", "interrupt", "receipt"]
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "description": "Every proof artifact (screenshot, GIF, recording) attached to the PR, each with its provenance manifest. Empty is legal input but always fails the audit (no-artifacts).",
+      "items": {
+        "type": "object",
+        "required": ["file", "manifest"],
+        "additionalProperties": true,
+        "properties": {
+          "file": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Path (or SHA-pinned raw URL) of the artifact, e.g. .github/assets/661/control-panel-active-stream.gif."
+          },
+          "manifest": {
+            "type": "object",
+            "description": "Provenance manifest binding the artifact to a real daemon-backed run. Pass {} for an artifact that truly carries no manifest yet — the audit will name every missing field.",
+            "additionalProperties": true,
+            "properties": {
+              "daemonPort": {
+                "type": "number",
+                "description": "The Port Daddy-allocated daemon port the artifact's daemon-backed flow ran against."
+              },
+              "runId": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The run identifier of the agent session captured in the artifact."
+              },
+              "transcriptHeadHash": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Hash of the transcript HEAD at capture time, proving the artifact matches a specific point in the real event stream."
+              },
+              "agentNodeId": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The agent node id whose session is depicted."
+              },
+              "commit": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The commit the artifact was captured against. Must equal branchCommit or the artifact is stale/reused proof."
+              },
+              "sourceLabel": {
+                "type": "string",
+                "enum": ["real", "fixture", "mock"],
+                "description": "Honest declaration of what produced the artifact's data. \"fixture\"/\"mock\" are allowed — undeclared is not."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Articles of Agreement Spec",
+  "description": "Input shape for scripts/articles_audit.mjs — a normalized description of an Articles of Agreement contract's signing identity and per-obligation enforcement clauses.",
+  "type": "object",
+  "required": ["identity", "clauses"],
+  "additionalProperties": true,
+  "properties": {
+    "identity": {
+      "type": "object",
+      "required": ["daemonIssued", "signed"],
+      "additionalProperties": true,
+      "properties": {
+        "daemonIssued": {
+          "type": "boolean",
+          "description": "True only if the Agent Node id was issued by the daemon (e.g. via a registrationNonce at agent.register), never self-asserted by the body."
+        },
+        "signed": {
+          "type": "boolean",
+          "description": "True only if an articlesSignature binds this specific Agent Node identity to this specific Articles contract."
+        }
+      }
+    },
+    "clauses": {
+      "type": "array",
+      "description": "Every obligation the Articles impose. An empty array is never treated as safe.",
+      "items": {
+        "type": "object",
+        "required": ["name", "obligation", "enforcementMechanism", "daemonObservable"],
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Short identifier for the clause, e.g. \"register-with-daemon\"."
+          },
+          "obligation": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Plain-language statement of what the agent must do or refrain from doing."
+          },
+          "enforcementMechanism": {
+            "type": "string",
+            "enum": [
+              "pre-tool-gate",
+              "hook",
+              "capability-lease",
+              "mcp-gateway",
+              "probe",
+              "transcript-event",
+              "none"
+            ],
+            "description": "How the daemon actually enforces this clause. \"none\" is a legal-but-unsafe value: it names an unenforced obligation honestly instead of omitting the field."
+          },
+          "daemonObservable": {
+            "type": "boolean",
+            "description": "True only if the daemon can independently observe compliance or violation, not merely trust the agent's own report."
+          },
+          "denialShape": {
+            "type": "string",
+            "minLength": 1,
+            "description": "For a gate-style mechanism (pre-tool-gate, hook, capability-lease, mcp-gateway): the concrete rejection the agent receives on violation (error code, refused tool call, revoked lease). Meaningless for probe/transcript-event, which only observe."
+          }
+        }
+      }
+    }
+  }
+}

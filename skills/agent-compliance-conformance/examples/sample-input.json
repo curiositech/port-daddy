@@ -1,0 +1,169 @@
+{
+  "ladders": [
+    {
+      "name": "compliance-ladder",
+      "levels": [
+        { "id": "C0", "order": 0, "name": "Registered", "requiredPredicates": ["agent-node-identity-exists"] },
+        { "id": "C1", "order": 1, "name": "Transcripted", "requiredPredicates": ["t4-verified-transcript-active"] },
+        { "id": "C2", "order": 2, "name": "Governed", "requiredPredicates": ["tool-preflight-witnessed", "destructive-action-gate-witnessed"] },
+        { "id": "C3", "order": 3, "name": "Suggestible", "requiredPredicates": ["scoped-injection-with-provenance"] }
+      ]
+    },
+    {
+      "name": "transcript-fidelity-ladder",
+      "levels": [
+        { "id": "T0", "order": 0, "name": "Inventory only", "requiredPredicates": ["agent-session-exists"] },
+        { "id": "T1", "order": 1, "name": "Run log", "requiredPredicates": ["structured-steps-recorded"] },
+        { "id": "T2", "order": 2, "name": "Visible chat", "requiredPredicates": ["operator-assistant-messages-visible"] }
+      ]
+    }
+  ],
+  "surfaces": [
+    {
+      "kind": "doc",
+      "ladder": "compliance-ladder",
+      "source": "docs/architecture/agent-harbor-technical-binder/work-packets/official-agent-control-plane-synthesis.md",
+      "levels": [
+        { "id": "C0", "order": 0, "name": "Registered", "requiredPredicates": ["agent-node-identity-exists"] },
+        { "id": "C1", "order": 1, "name": "Transcripted", "requiredPredicates": ["t4-verified-transcript-active"] },
+        { "id": "C2", "order": 2, "name": "Governed", "requiredPredicates": ["tool-preflight-witnessed", "destructive-action-gate-witnessed"] },
+        { "id": "C3", "order": 3, "name": "Suggestible", "requiredPredicates": ["scoped-injection-with-provenance"] }
+      ]
+    },
+    {
+      "kind": "schema",
+      "ladder": "compliance-ladder",
+      "source": "compliance/schema/compliance-ladder.schema.json",
+      "levels": [
+        { "id": "C0", "order": 0, "name": "Registered", "requiredPredicates": ["agent-node-identity-exists"] },
+        { "id": "C1", "order": 1, "name": "Transcripted", "requiredPredicates": ["t4-verified-transcript-active"] },
+        { "id": "C2", "order": 2, "name": "Governed", "requiredPredicates": ["tool-preflight-witnessed", "destructive-action-gate-witnessed"] },
+        { "id": "C3", "order": 3, "name": "Suggestible", "requiredPredicates": ["scoped-injection-with-provenance"] }
+      ]
+    },
+    {
+      "kind": "ui",
+      "ladder": "compliance-ladder",
+      "source": "pd-console AgentNode detail pane",
+      "levels": [
+        { "id": "C0", "order": 0, "name": "Registered", "requiredPredicates": ["agent-node-identity-exists"] },
+        { "id": "C1", "order": 1, "name": "Transcripted", "requiredPredicates": ["t4-verified-transcript-active"] },
+        { "id": "C2", "order": 2, "name": "Governed", "requiredPredicates": ["tool-preflight-witnessed", "destructive-action-gate-witnessed"] },
+        { "id": "C3", "order": 3, "name": "Suggestible", "requiredPredicates": ["scoped-injection-with-provenance"] }
+      ]
+    },
+    {
+      "kind": "probe",
+      "ladder": "compliance-ladder",
+      "source": "pd spawn --probe compliance report",
+      "levels": [
+        { "id": "C0", "order": 0, "name": "Registered", "requiredPredicates": ["agent-node-identity-exists"] },
+        { "id": "C1", "order": 1, "name": "Transcripted", "requiredPredicates": ["t4-verified-transcript-active"] },
+        { "id": "C2", "order": 2, "name": "Governed", "requiredPredicates": ["tool-preflight-witnessed", "destructive-action-gate-witnessed"] },
+        { "id": "C3", "order": 3, "name": "Suggestible", "requiredPredicates": ["scoped-injection-with-provenance"] }
+      ]
+    },
+    {
+      "kind": "doc",
+      "ladder": "transcript-fidelity-ladder",
+      "source": "docs/architecture/agent-harbor-technical-binder/work-packets/official-agent-control-plane-synthesis.md",
+      "levels": [
+        { "id": "T0", "order": 0, "name": "Inventory only", "requiredPredicates": ["agent-session-exists"] },
+        { "id": "T1", "order": 1, "name": "Run log", "requiredPredicates": ["structured-steps-recorded"] },
+        { "id": "T2", "order": 2, "name": "Visible chat", "requiredPredicates": ["operator-assistant-messages-visible"] }
+      ]
+    },
+    {
+      "kind": "schema",
+      "ladder": "transcript-fidelity-ladder",
+      "source": "compliance/schema/transcript-fidelity-ladder.schema.json",
+      "levels": [
+        { "id": "T0", "order": 0, "name": "Inventory only", "requiredPredicates": ["agent-session-exists"] },
+        { "id": "T1", "order": 1, "name": "Run log", "requiredPredicates": ["structured-steps-recorded"] },
+        { "id": "T2", "order": 2, "name": "Visible chat", "requiredPredicates": ["operator-assistant-messages-visible"] }
+      ]
+    },
+    {
+      "kind": "ui",
+      "ladder": "transcript-fidelity-ladder",
+      "source": "pd-console transcript fidelity chip",
+      "levels": [
+        { "id": "T0", "order": 0, "name": "Inventory only", "requiredPredicates": ["agent-session-exists"] },
+        { "id": "T1", "order": 1, "name": "Run log", "requiredPredicates": ["structured-steps-recorded"] },
+        { "id": "T2", "order": 2, "name": "Visible chat", "requiredPredicates": ["operator-assistant-messages-visible"] }
+      ]
+    },
+    {
+      "kind": "probe",
+      "ladder": "transcript-fidelity-ladder",
+      "source": "pd spawn --probe transcript-fidelity report",
+      "levels": [
+        { "id": "T0", "order": 0, "name": "Inventory only", "requiredPredicates": ["agent-session-exists"] },
+        { "id": "T1", "order": 1, "name": "Run log", "requiredPredicates": ["structured-steps-recorded"] },
+        { "id": "T2", "order": 2, "name": "Visible chat", "requiredPredicates": ["operator-assistant-messages-visible"] }
+      ]
+    }
+  ],
+  "adapters": [
+    {
+      "name": "codex",
+      "ladder": "compliance-ladder",
+      "claimedLevel": "C1",
+      "negativeProbes": [
+        { "kind": "forged-level", "present": true, "downgraded": true },
+        { "kind": "direct-mcp-bypass", "present": true, "downgraded": true },
+        { "kind": "disabled-hook-after-launch", "present": true, "downgraded": true },
+        { "kind": "forged-heartbeat", "present": true, "downgraded": true },
+        { "kind": "observed-to-controlled", "present": true, "downgraded": true }
+      ]
+    },
+    {
+      "name": "claude-code",
+      "ladder": "compliance-ladder",
+      "claimedLevel": "C2",
+      "negativeProbes": [
+        { "kind": "forged-level", "present": true, "downgraded": true },
+        { "kind": "direct-mcp-bypass", "present": true, "downgraded": true },
+        { "kind": "disabled-hook-after-launch", "present": true, "downgraded": true },
+        { "kind": "forged-heartbeat", "present": true, "downgraded": true },
+        { "kind": "observed-to-controlled", "present": true, "downgraded": true }
+      ]
+    },
+    {
+      "name": "cloudflare",
+      "ladder": "compliance-ladder",
+      "claimedLevel": "C3",
+      "negativeProbes": [
+        { "kind": "forged-level", "present": true, "downgraded": true },
+        { "kind": "direct-mcp-bypass", "present": true, "downgraded": true },
+        { "kind": "disabled-hook-after-launch", "present": true, "downgraded": true },
+        { "kind": "forged-heartbeat", "present": true, "downgraded": true },
+        { "kind": "observed-to-controlled", "present": true, "downgraded": true }
+      ]
+    },
+    {
+      "name": "ollama",
+      "ladder": "transcript-fidelity-ladder",
+      "claimedLevel": "T1",
+      "negativeProbes": [
+        { "kind": "forged-level", "present": true, "downgraded": true },
+        { "kind": "direct-mcp-bypass", "present": true, "downgraded": true },
+        { "kind": "disabled-hook-after-launch", "present": true, "downgraded": true },
+        { "kind": "forged-heartbeat", "present": true, "downgraded": true },
+        { "kind": "observed-to-controlled", "present": true, "downgraded": true }
+      ]
+    },
+    {
+      "name": "custom-stdio",
+      "ladder": "transcript-fidelity-ladder",
+      "claimedLevel": "T2",
+      "negativeProbes": [
+        { "kind": "forged-level", "present": true, "downgraded": true },
+        { "kind": "direct-mcp-bypass", "present": true, "downgraded": true },
+        { "kind": "disabled-hook-after-launch", "present": true, "downgraded": true },
+        { "kind": "forged-heartbeat", "present": true, "downgraded": true },
+        { "kind": "observed-to-controlled", "present": true, "downgraded": true }
+      ]
+    }
+  ]
+}
