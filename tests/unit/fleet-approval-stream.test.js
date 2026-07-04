@@ -62,7 +62,8 @@ describe('FleetApprovalStream', () => {
     const removed = [];
     s.configure({
       hail: async (p) => { hailed.push(p.id); return { success: true }; },
-      removeDurable: (p) => removed.push(p.id),
+      claimDurable: (p) => { removed.push(p.id); return true; },
+      restoreDurable: () => { throw new Error('must not restore on success'); },
     });
     s.enqueue(proposal());
     const events = [];
@@ -76,17 +77,47 @@ describe('FleetApprovalStream', () => {
     expect(events.map((e) => e.type)).toContain('human_gate_resolved');
   });
 
-  test('approve: FAILED hail keeps the proposal pending and broadcasts an error', async () => {
+  test('approve: FAILED hail keeps the proposal pending, restores the durable record (compensation)', async () => {
     const s = new FleetApprovalStream();
+    const restored = [];
     s.configure({
       hail: async () => ({ success: false, error: 'no such agent' }),
-      removeDurable: () => { throw new Error('must not remove on failed hail'); },
+      claimDurable: () => true,
+      restoreDurable: (p) => { restored.push(p.id); },
     });
     s.enqueue(proposal());
     const outcome = await s.decide({ type: 'human_decision', id: 'p-1', decision: 'approve' }, 'op');
     expect(outcome.type).toBe('error');
     expect(outcome.message).toMatch(/no such agent/);
     expect(s.list()).toHaveLength(1); // still pending — operator can retry
+    expect(restored).toEqual(['p-1']); // compensating transaction ran
+  });
+
+  test('claim ordering: durable record is claimed BEFORE the hail (crash cannot double-spawn)', async () => {
+    const s = new FleetApprovalStream();
+    const order = [];
+    s.configure({
+      hail: async () => { order.push('hail'); return { success: true }; },
+      claimDurable: () => { order.push('claim'); return true; },
+      restoreDurable: () => {},
+    });
+    s.enqueue(proposal());
+    await s.decide({ type: 'human_decision', id: 'p-1', decision: 'approve' }, 'op');
+    expect(order).toEqual(['claim', 'hail']);
+  });
+
+  test('lost claim race (decided elsewhere / expired) refuses the decision and drops the stale entry', async () => {
+    const s = new FleetApprovalStream();
+    s.configure({
+      hail: async () => { throw new Error('must not hail without a claim'); },
+      claimDurable: () => false,
+      restoreDurable: () => {},
+    });
+    s.enqueue(proposal());
+    const outcome = await s.decide({ type: 'human_decision', id: 'p-1', decision: 'approve' }, 'op');
+    expect(outcome.type).toBe('error');
+    expect(outcome.message).toMatch(/already decided|expired/);
+    expect(s.list()).toHaveLength(0); // stale entry cleared from the live view
   });
 
   test('reject: removed without hailing', async () => {
@@ -94,7 +125,8 @@ describe('FleetApprovalStream', () => {
     const hailed = [];
     s.configure({
       hail: async (p) => { hailed.push(p.id); return { success: true }; },
-      removeDurable: () => {},
+      claimDurable: () => true,
+      restoreDurable: () => {},
     });
     s.enqueue(proposal());
     const outcome = await s.decide({ type: 'human_decision', id: 'p-1', decision: 'reject', feedback: 'nope' }, 'op');
@@ -105,7 +137,7 @@ describe('FleetApprovalStream', () => {
 
   test('unknown id → error', async () => {
     const s = new FleetApprovalStream();
-    s.configure({ hail: async () => ({ success: true }), removeDurable: () => {} });
+    s.configure({ hail: async () => ({ success: true }), claimDurable: () => true, restoreDurable: () => {} });
     const outcome = await s.decide({ type: 'human_decision', id: 'ghost', decision: 'reject' }, 'op');
     expect(outcome.type).toBe('error');
     expect(outcome.message).toMatch(/unknown/);
@@ -174,7 +206,8 @@ describe('GET /fleet/approvals/stream (WebSocket)', () => {
     const hailed = [];
     stream.configure({
       hail: async (p) => { hailed.push(p.agent); return { success: true }; },
-      removeDurable: () => {},
+      claimDurable: () => true,
+      restoreDurable: () => {},
     });
     stream.enqueue(proposal({ id: 'pre-existing', timestamp: 1 }));
 
@@ -213,7 +246,7 @@ describe('GET /fleet/approvals/stream (WebSocket)', () => {
 
   test('REST fallbacks: list + decision', async () => {
     const stream = getSharedApprovalStream();
-    stream.configure({ hail: async () => ({ success: true }), removeDurable: () => {} });
+    stream.configure({ hail: async () => ({ success: true }), claimDurable: () => true, restoreDurable: () => {} });
     stream.enqueue(proposal({ id: 'rest-1' }));
 
     const list = await app.inject({ method: 'GET', url: '/fleet/approvals' });
@@ -316,7 +349,7 @@ describe('GET /fleet/approvals/events (SSE fallback)', () => {
   test('streams the snapshot then live deltas as data-only JSON frames', async () => {
     const stream = new FleetApprovalStream();
     setSharedApprovalStream(stream);
-    stream.configure({ hail: async () => ({ success: true }), removeDurable: () => {} });
+    stream.configure({ hail: async () => ({ success: true }), claimDurable: () => true, restoreDurable: () => {} });
     stream.enqueue(proposal({ id: 'sse-pre', timestamp: 1 }));
 
     const app = Fastify();

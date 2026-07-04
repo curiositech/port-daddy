@@ -60,8 +60,20 @@ export type ApprovalClientEvent = {
 export interface ApprovalActions {
   /** Release the held spawn: hail the agent with the stored context. */
   hail: (proposal: PendingApproval) => Promise<{ success: boolean; error?: string }>;
-  /** Drop the durable fleet:approval tuple for this proposal. */
-  removeDurable: (proposal: PendingApproval) => void;
+  /**
+   * Atomically CLAIM the durable fleet:approval record (tuple take) before
+   * acting on a decision. Returns false when a durable record exists-space
+   * but this proposal's record is gone — i.e. another surface already
+   * claimed it, or it expired — in which case the decision is refused.
+   * Implementations without a durable store return true (nothing to claim).
+   */
+  claimDurable: (proposal: PendingApproval) => boolean;
+  /**
+   * Compensating transaction: restore the durable record after a claim
+   * whose follow-up action (the hail) failed, so the proposal survives a
+   * retry — and a crash — instead of silently evaporating.
+   */
+  restoreDurable: (proposal: PendingApproval) => void;
 }
 
 type Listener = (event: ApprovalServerEvent) => void;
@@ -103,13 +115,29 @@ export class FleetApprovalStream {
       };
     }
 
+    // Mini-saga ordering (microservices-patterns): CLAIM the durable record
+    // FIRST (atomic take), then act. A crash after the claim loses the
+    // decision (fail-closed: the trigger can fire again) instead of leaving
+    // a record that rehydrates after restart and gets approved a second
+    // time (double spawn). A concurrent decision from another surface loses
+    // the claim race and is refused here.
+    let claimed: boolean;
+    try {
+      claimed = this.actions.claimDurable(proposal);
+    } catch {
+      claimed = true; // durable store unavailable — in-memory truth stands
+    }
+    if (!claimed) {
+      this.pending.delete(event.id);
+      return {
+        type: 'error',
+        id: event.id,
+        message: 'proposal was already decided elsewhere (or its durable record expired)',
+      };
+    }
+
     if (event.decision === 'reject') {
       this.pending.delete(event.id);
-      try {
-        this.actions.removeDurable(proposal);
-      } catch {
-        // Durable cleanup is best-effort; the tuple TTLs out regardless.
-      }
       const resolved: ApprovalServerEvent = {
         type: 'human_gate_resolved',
         id: event.id,
@@ -122,10 +150,16 @@ export class FleetApprovalStream {
     }
 
     // Approve: the spawn must actually succeed before the proposal leaves
-    // the queue — a failed hail keeps it pending so the operator retries
-    // instead of the request silently evaporating.
+    // the queue. On a failed hail, COMPENSATE: restore the durable record
+    // so the proposal survives retries and restarts.
     const result = await this.actions.hail(proposal);
     if (!result.success) {
+      try {
+        this.actions.restoreDurable(proposal);
+      } catch {
+        // If restore also fails the proposal still lives in memory for
+        // retry within this process; it just won't survive a restart.
+      }
       const err: ApprovalServerEvent = {
         type: 'error',
         id: event.id,
@@ -135,11 +169,6 @@ export class FleetApprovalStream {
       return err;
     }
     this.pending.delete(event.id);
-    try {
-      this.actions.removeDurable(proposal);
-    } catch {
-      // Best-effort; see above.
-    }
     const resolved: ApprovalServerEvent = {
       type: 'human_gate_resolved',
       id: event.id,

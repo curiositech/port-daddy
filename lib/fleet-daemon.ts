@@ -709,6 +709,10 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       },
     });
 
+    // Crash-safety: resurface any approvals that were pending when the
+    // daemon last died. Replay-safe (enqueue dedupes by id).
+    rehydrateApprovals(config.name, config.harbor || `${config.name}:fleet`);
+
     return {
       projectDir,
       projectName: config.name,
@@ -1234,15 +1238,81 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   // both decisions drop the durable tuple. Until configure() runs the
   // stream refuses decisions (fail-closed), so a half-booted daemon can
   // never approve a spawn it cannot execute.
+  function approvalHarbor(proposal: FleetApprovalProposal): string {
+    const managed = [...fleets.values()].find((f) => f.projectName === proposal.project);
+    return managed?.config.harbor || `${proposal.project}:fleet`;
+  }
+
+  const APPROVAL_TUPLE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
   getSharedApprovalStream().configure({
     hail: (proposal) =>
       hailAgent(proposal.agent, { ...proposal.context, project: proposal.project }),
-    removeDurable: (proposal) => {
-      const managed = [...fleets.values()].find((f) => f.projectName === proposal.project);
-      const harbor = managed?.config.harbor || `${proposal.project}:fleet`;
-      tuples?.take(['fleet:approval', proposal.id], { harbor });
+    // Atomic claim: take() deletes and returns the record in one step, so
+    // two surfaces deciding the same proposal race on the tuple, not on
+    // the spawn. No tuple space → nothing to claim → true.
+    claimDurable: (proposal) => {
+      if (!tuples?.take) return true;
+      const taken = tuples.take(['fleet:approval', proposal.id], { harbor: approvalHarbor(proposal) });
+      return taken.length > 0;
+    },
+    // Compensation for a failed hail: put the record back so the proposal
+    // survives retries and daemon restarts.
+    restoreDurable: (proposal) => {
+      tuples?.out([
+        'fleet:approval',
+        proposal.id,
+        proposal.agent,
+        proposal.trigger,
+        {
+          project: proposal.project,
+          tier: proposal.tier,
+          reason: proposal.reason,
+          safeTools: proposal.safeTools,
+          context: proposal.context,
+          timestamp: proposal.timestamp,
+        },
+      ], {
+        harbor: approvalHarbor(proposal),
+        writtenBy: 'fleetd:trust-gate',
+        ttlMs: APPROVAL_TUPLE_TTL_MS,
+      });
     },
   });
+
+  /**
+   * Boot-time rehydration (the in-memory queue must not die with the
+   * process): replay every durable fleet:approval record for a project
+   * into the live stream. enqueue() is replay-safe, so re-loading a
+   * project is idempotent.
+   */
+  function rehydrateApprovals(projectName: string, harbor: string): void {
+    if (!tuples?.poll) return;
+    let cursor = 0;
+    for (let i = 0; i < 500; i += 1) { // hard bound, not a silent cap: 200 pending is the queue ceiling
+      const result = tuples.poll(['fleet:approval'], { harbor, afterId: cursor });
+      cursor = result.lastId;
+      const tuple = result.tuple;
+      if (!tuple) break;
+      const [, id, agent, trigger] = tuple.fields as [string, string, string, string];
+      const payload = (tuple.fields[4] ?? {}) as {
+        project?: string; tier?: string; reason?: string;
+        safeTools?: string[]; context?: FleetRunContext; timestamp?: number;
+      };
+      if (typeof id !== 'string' || typeof agent !== 'string' || typeof trigger !== 'string') continue;
+      getSharedApprovalStream().enqueue({
+        id,
+        project: payload.project ?? projectName,
+        agent,
+        trigger,
+        tier: (payload.tier ?? 'ANONYMOUS_EXTERNAL') as FleetApprovalProposal['tier'],
+        reason: payload.reason ?? 'rehydrated after daemon restart',
+        safeTools: payload.safeTools ?? [],
+        context: payload.context ?? { source: 'trigger' },
+        timestamp: payload.timestamp ?? tuple.createdAt,
+      });
+    }
+  }
 
   // Approval gates → the operator's devices. Web Push to every registered
   // fleet-ui subscription, plus a best-effort local macOS banner (pii:low —

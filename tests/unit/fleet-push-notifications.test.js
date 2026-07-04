@@ -117,7 +117,7 @@ describe('FleetPushNotifier', () => {
     n.addSubscription(sub('https://push.example/phone'));
 
     const stream = new FleetApprovalStream();
-    stream.configure({ hail: async () => ({ success: true }), removeDurable: () => {} });
+    stream.configure({ hail: async () => ({ success: true }), claimDurable: () => true, restoreDurable: () => {} });
     n.bindApprovalStream(stream);
 
     stream.enqueue({
