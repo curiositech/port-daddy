@@ -243,11 +243,19 @@ not shipped. What is shipped is the escrow + conservation floor they will sit on
 
 ## 4. Hosted trust is the product (C3)
 
-The 2025–26 agentic-payments landscape — **AP2** (Google, signed payment mandates), **ACP**
-(OpenAI/Stripe), and **x402** (Coinbase, stablecoin settlement over HTTP, with Stripe and
-Cloudflare integrations by early 2026) [7] — has commoditized the *settlement rail*. Wiring an
-agent to pay another agent is now table stakes. This is *good news* for the harbor economy
-thesis, because it sharpens what the product actually is.
+The 2025–26 agentic-payments landscape — **AP2** (Google, signed payment mandates), **UCP**
+(Google/Shopify, 2026: discovery + cart + checkout for agent-mediated retail, with Walmart,
+Target, Visa, and Mastercard endorsing), **ACP** (OpenAI/Stripe), and **x402** (Coinbase,
+stablecoin settlement over HTTP, with Stripe and Cloudflare integrations by early
+2026) [7] — has commoditized the *settlement rail* and now the *transaction envelope* too.
+Wiring an agent to pay another agent is table stakes; discovering and checking out with a
+merchant is becoming table stakes. This is *good news* for the harbor economy thesis,
+because it sharpens what the product actually is: every one of these protocols names agent
+trustworthiness out of scope — no collateral, no settlement oracle, no priced deterrent —
+and UCP's own security critics say so in print. Port Daddy meets them at the boundary
+rather than competing on rails: ADR-0094 profiles harbor identity artifacts on AP2's
+credential formats (SD-JWT-VC, JWS detached content over JCS), and ADR-0051's
+`/.well-known/harbor` discovery profile adopts UCP's proven discovery pattern.
 
 What remains scarce, and therefore defensible, is **hosted trust**: the verified ledger
 (conservation-checked, Merkle-anchored evidence), the **relay** (the Lighthouse / harbor-mesh
@@ -436,10 +444,13 @@ https://presnick.people.si.umich.edu/papers/postcards/
 Review of Economics* 8:321–340, 2016.
 https://faculty.haas.berkeley.edu/stadelis/Annual_Review_Tadelis.pdf
 
-[7] Agentic payment protocols (2025–2026): Google AP2 (Agent Payments Protocol),
-OpenAI/Stripe ACP (Agentic Commerce Protocol), Coinbase x402.
+[7] Agentic payment/commerce protocols (2025–2026): Google AP2 (Agent Payments Protocol),
+Google/Shopify UCP (Universal Commerce Protocol, https://ucp.dev), OpenAI/Stripe ACP
+(Agentic Commerce Protocol), Coinbase x402.
 https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol
 · https://www.crossmint.com/learn/agentic-payments-protocols-compared
+· https://datadome.co/agent-trust-management/universal-commerce-protocol/ (the
+agent-trust-vacuum critique)
 
 [8] C. Chiu, S. Zhang & M. van der Schaar. "Strategic Self-Improvement for Competitive Agents
 in AI Labour Markets." arXiv:2512.04988, 2025. https://arxiv.org/abs/2512.04988

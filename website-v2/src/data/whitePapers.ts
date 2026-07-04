@@ -459,10 +459,10 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     pdfPath: '/whitepaper/spawn-to-person-whitepaper.pdf',
     readerHref: '/whitepaper/spawn-to-person',
     overviewHref: '/whitepaper?paper=spawn-to-person',
-    date: 'June 2026',
+    date: 'July 2026',
     pages: 35,
     sizeKb: 684,
-    status: 'Version 1.0',
+    status: 'Version 1.1',
     order: '03',
     chapter: 'III',
     group: 'explain',
@@ -572,10 +572,10 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     pdfPath: '/whitepaper/harbor-economy-whitepaper.pdf',
     readerHref: '/whitepaper/harbor-economy',
     overviewHref: '/whitepaper?paper=harbor-economy',
-    date: 'June 2026',
+    date: 'July 2026',
     pages: 31,
     sizeKb: 871,
-    status: 'Version 1.0',
+    status: 'Version 1.1',
     order: '04',
     chapter: 'IV',
     group: 'explain',
@@ -686,10 +686,10 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     pdfPath: '/whitepaper/anchor-protocol-whitepaper.pdf',
     readerHref: '/whitepaper/anchor-protocol',
     overviewHref: '/whitepaper?paper=anchor-protocol',
-    date: 'May 2026',
+    date: 'July 2026',
     pages: 27,
     sizeKb: 849,
-    status: 'Version 1.2',
+    status: 'Version 1.3',
     order: '05',
     chapter: 'V',
     group: 'prove',
@@ -798,10 +798,10 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     pdfPath: '/whitepaper/agent-transactions-whitepaper.pdf',
     readerHref: '/whitepaper/bonded-commons',
     overviewHref: '/whitepaper?paper=bonded-commons',
-    date: 'May 2026',
+    date: 'July 2026',
     pages: 48,
-    sizeKb: 931,
-    status: 'Version 2.5 (pre-print)',
+    sizeKb: 932,
+    status: 'Version 2.6 (pre-print)',
     order: '06',
     chapter: 'VI',
     group: 'prove',
@@ -917,10 +917,10 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     pdfPath: '/whitepaper/federated-harbor-whitepaper.pdf',
     readerHref: '/whitepaper/federated-harbor',
     overviewHref: '/whitepaper?paper=federated-harbor',
-    date: 'May 2026',
+    date: 'July 2026',
     pages: 29,
-    sizeKb: 718,
-    status: 'Version 0.9 (pre-print)',
+    sizeKb: 719,
+    status: 'Version 0.9.1 (pre-print)',
     order: '07',
     chapter: 'VII',
     group: 'prove',
@@ -1082,6 +1082,57 @@ export const READING_PATHS = [
     chapters: ['V', 'VI', 'VII'],
   },
 ] as const
+
+/**
+ * The library changelog: dated release waves across the whole volume, newest
+ * first. One entry per wave, not per commit — the per-objection history of the
+ * adversarial review rounds lives at /whitepaper/rounds.
+ */
+export interface LibraryChangelogEntry {
+  date: string
+  title: string
+  summary: string
+  /** Chapter numerals of the papers this wave touched. */
+  chapters: string[]
+}
+
+export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
+  {
+    date: 'July 4, 2026',
+    title: 'The agentic-commerce stack arrives — every paper places itself against it',
+    summary:
+      'All five papers with LaTeX sources gain related-work treatment of the 2026 agentic-commerce protocols (UCP, AP2, ACP): the rails standardize the transaction and name agent trust out of scope — the layer this library prices. The reference implementation aligns at the boundary: harbor cards profile onto AP2’s verifiable-credential formats (ADR-0094) and the marketplace adopts UCP’s /.well-known discovery pattern (ADR-0051 Phase 1b). Versions bumped: III 1.0→1.1, IV 1.0→1.1, V 1.2→1.3, VI 2.5→2.6, VII 0.9→0.9.1.',
+    chapters: ['III', 'IV', 'V', 'VI', 'VII'],
+  },
+  {
+    date: 'June 11, 2026',
+    title: 'Paper VII lands; the PDFs start building themselves',
+    summary:
+      'The Federated Harbor (VII) publishes as a 0.9 pre-print — cross-machine capability transfer, revocation gossip, bounded escrow — and CI begins rebuilding every PDF from source on each change, so the published papers can no longer drift from their LaTeX.',
+    chapters: ['VII'],
+  },
+  {
+    date: 'June 10, 2026',
+    title: 'The Harbor Volume: seven papers become one cross-linked book',
+    summary:
+      'The /library guide ships and the papers are restructured as seven co-equal chapters — four explain, three prove — each declaring what it assumes, what it underwrites, and which proof discharges it. Every figure in the explain quartet is de-cluttered in the same wave.',
+    chapters: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'],
+  },
+  {
+    date: 'June 5, 2026',
+    title: 'The attenuation proof stops being vacuous',
+    summary:
+      'The Anchor Protocol’s capability-attenuation proof is closed for real: a sound subset relation plus an explicit escalation adversary in ProVerif 2.05, replacing a model that could not have failed.',
+    chapters: ['V'],
+  },
+  {
+    date: 'May 2026',
+    title: 'Five adversarial review rounds forge Bonded Commons v2.5',
+    summary:
+      'The Bonded Commons is argued through five review rounds (v2.0 → v2.5) by two AI review teams — one attacking, one defending, neither reading the other’s notes. Every objection, fix, and still-open gap is on the record on the rounds page.',
+    chapters: ['VI'],
+  },
+]
 
 export const EXPLAIN_PAPERS = WHITE_PAPERS.filter((paper) => paper.group === 'explain')
 export const PROVE_PAPERS = WHITE_PAPERS.filter((paper) => paper.group === 'prove')

@@ -46,7 +46,7 @@ The seeds cover three regions well — the identity→reputation chain, the thre
 
 ### 1.H — Hosted trust as the moat (the business claim)
 - **Primitives:** verified ledger + relay + reputation hosting.
-- **Mechanisms:** rail/product separation (x402/AP2/ACP/Stripe/credits are interchangeable substrate); revenue from *successful* trade (txn fee 2–5%, small listing fee for collusion deterrence, tiny bond-spread kept small so the platform never profits from over-slashing).
+- **Mechanisms:** rail/product separation (x402/AP2/UCP/ACP/Stripe/credits are interchangeable substrate — and per ADR-0094 the harbor boundary now speaks AP2's credential formats, so "interchangeable" is an implemented interface, not a slogan); revenue from *successful* trade (txn fee 2–5%, small listing fee for collusion deterrence, tiny bond-spread kept small so the platform never profits from over-slashing).
 - **Claims:** *you don't sell crypto — crypto is the substrate; you sell hosted trust.* The defensible asset is attestation + federation membership + reputation, not the commoditized payment rail.
 
 ---
