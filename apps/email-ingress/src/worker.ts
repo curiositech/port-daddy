@@ -23,6 +23,7 @@ import PostalMime from 'postal-mime';
 import { createMimeMessage } from 'mimetext';
 import { EmailMessage } from 'cloudflare:email';
 import { buildInboundEnvelope, postWithRetry, signBody, verifySignature } from './envelope.js';
+import { dlqDepth, replayDlq, stashEnvelope, type KVLike } from './dlq.js';
 
 export interface EmailIngressEnv {
   /** Daemon (or tunnel) base URL for inbound envelope delivery. */
@@ -41,6 +42,9 @@ export interface EmailIngressEnv {
   /** Optional verified address that receives a copy of ALL inbound mail. */
   PD_FALLBACK_FORWARD?: string;
   SEND_EMAIL?: SendEmail;
+  /** Dead-letter store for envelopes the daemon couldn't take (long
+   *  outages); replayed by the cron trigger. */
+  ENVELOPE_DLQ?: KVNamespace;
 }
 
 interface SendEmail {
@@ -88,18 +92,46 @@ export default {
 
     // At-least-once toward the daemon (bounded retries; the daemon-side
     // trigger dedupes by x-pd-delivery-id so retries never double-fire).
+    // Exhausted retries dead-letter into KV for the cron to replay — a
+    // long daemon outage delays fleet triggers, never loses them.
+    const deliveryId = envelope.messageId ?? `email:${envelope.from}:${envelope.date}`;
     ctx.waitUntil(
       postWithRetry(fetch, url, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
           'x-pd-webhook-signature': signature,
-          'x-pd-delivery-id': envelope.messageId ?? `email:${envelope.from}:${envelope.date}`,
+          'x-pd-delivery-id': deliveryId,
         },
         body,
-      }).then((result) => {
-        if (!result.ok) {
-          console.error(`daemon envelope delivery failed after ${result.attempts} attempt(s): ${result.error}`);
+      }).then(async (result) => {
+        if (result.ok) return;
+        console.error(`daemon envelope delivery failed after ${result.attempts} attempt(s): ${result.error}`);
+        if (env.ENVELOPE_DLQ) {
+          await stashEnvelope(env.ENVELOPE_DLQ as unknown as KVLike, {
+            channel,
+            body,
+            deliveryId,
+            attempts: result.attempts,
+          });
+        }
+      }),
+    );
+  },
+
+  /** Cron: replay dead-lettered envelopes once the daemon is back. */
+  async scheduled(_controller: ScheduledController, env: EmailIngressEnv, ctx: ExecutionContext): Promise<void> {
+    if (!env.ENVELOPE_DLQ || !env.PD_FORWARD_URL || !env.PD_EMAIL_INBOUND_SECRET) return;
+    ctx.waitUntil(
+      replayDlq(
+        env.ENVELOPE_DLQ as unknown as KVLike,
+        fetch,
+        env.PD_FORWARD_URL,
+        env.PD_EMAIL_INBOUND_SECRET,
+        (msg) => console.error(msg),
+      ).then((result) => {
+        if (result.scanned > 0) {
+          console.log(`dlq replay: ${result.delivered} delivered, ${result.kept} kept of ${result.scanned}`);
         }
       }),
     );
@@ -110,10 +142,14 @@ export default {
     const url = new URL(request.url);
 
     if (request.method === 'GET' && url.pathname === '/healthz') {
+      const dlq = env.ENVELOPE_DLQ
+        ? await dlqDepth(env.ENVELOPE_DLQ as unknown as KVLike)
+        : null;
       return Response.json({
         ok: true,
         inbound: Boolean(env.PD_FORWARD_URL && env.PD_EMAIL_INBOUND_SECRET),
         outbound: Boolean(env.SEND_EMAIL && env.PD_EMAIL_WORKER_SECRET && env.PD_EMAIL_FROM),
+        dlqDepth: dlq,
       });
     }
 

@@ -51,5 +51,14 @@ PD_EMAIL_FROM = "fleet@REPLACE-WITH-YOUR-DOMAIN"
 # so no message is ever lost when the daemon is unreachable.
 # PD_FALLBACK_FORWARD = "you@example.com"
 
+# Dead-letter store for inbound envelopes the daemon couldn't take;
+# the cron below replays them (re-signed) until delivered or 7d TTL.
+[[kv_namespaces]]
+binding = "ENVELOPE_DLQ"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[triggers]
+crons = ["*/15 * * * *"]
+
 [observability]
 enabled = true
