@@ -1181,8 +1181,10 @@
       }
     },
     "sorties": {
-      "description": "Legacy HTTP record compatibility for historical spawned runs",
-      "cli": [],
+      "description": "One-shot multi-agent missions (pd sortie run/list/status/logs) plus HTTP record compatibility for historical spawned runs",
+      "cli": [
+        "sortie"
+      ],
       "sdk": [],
       "routes": [
         "POST /sorties",
@@ -1190,7 +1192,9 @@
         "GET /sorties/:param",
         "GET /sorties/:param/logs"
       ],
-      "completions": [],
+      "completions": [
+        "sortie"
+      ],
       "docs": {
         "readme": false,
         "sdk": false
@@ -2078,7 +2082,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "CLI / CI-only release engineering \u2014 a deliberate human or pipeline act, not an agent action, so no daemon routes or MCP surface (MCP_EXEMPT)."
+      "_note": "CLI / CI-only release engineering — a deliberate human or pipeline act, not an agent action, so no daemon routes or MCP surface (MCP_EXEMPT)."
     },
     "secrets": {
       "description": "Managed provider secret store — keychain-backed CRUD over allow-listed provider keys (generalizes /fleet/backend-secrets)",
