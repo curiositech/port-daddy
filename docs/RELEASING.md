@@ -12,7 +12,9 @@ See [`VERSIONING.md`](VERSIONING.md) for semver policy and the canonical list of
 
 ## 1. Public release
 
-The release boundary is a git tag plus a GitHub Release. The workflow `.github/workflows/release.yml` builds notarized binaries from the tagged commit and automatically dispatches to `curiositech/homebrew-tap` to roll the formula. `.github/workflows/publish.yml` is the manual companion for **npm** only (not the brew tap).
+The release boundary is a git tag plus a GitHub Release. The workflow `.github/workflows/release.yml` builds notarized binaries from the tagged commit and automatically dispatches to `curiositech/homebrew-tap` to roll the formula.
+
+**npm distribution is retired** (2026-07-04, operator decision): brew, the release binaries, and `latest.json` cover every supported install path; the npm token had been dead since 3.15.0 so the registry was eight releases stale anyway. `.github/workflows/publish.yml` remains as the manual path if npm is ever revived — if so, `npm deprecate` the stale versions first.
 
 ### Recipe
 
