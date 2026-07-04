@@ -1,8 +1,9 @@
 # 20 Design System: Story Linework
 
-Status: approved by the operator, 2026-07-04. This chapter encodes the design
-system developed on PR #657 (`docs/design/story-linework/`) as binder truth so
-every surface build cites one authority. The living artifacts — self-rendering
+Status: design decisions approved by the operator in PR #657 review
+(2026-07-04); this chapter becomes binder truth when that PR merges, and the
+rollout (W0-W5) lands as separate PRs. It encodes the design system developed
+in `docs/design/story-linework/` so every surface build cites one authority. The living artifacts — self-rendering
 spec pages — are the normative source for exact values:
 
 - `docs/design/story-linework/proposal.html` — palette v2/v2.1, WCAG + surface-adjacency studies, type options, linework primitives, blocking dial, route→flag map
@@ -48,8 +49,9 @@ warm studio light) or near-black (`#101216`, low-key + cool rim light) paper
 tabletop; strict palette-v2 color discipline; Swiss composition (one hero
 subject, negative space, invisible grid); entirely wordless. Reference set in
 `art/`: pr-fleet, manifesto harbor (the L0→L3 terraced quays), library wall —
-each in light and dark. Full generation prompts live in the PR #657 history;
-the style paragraph above is the contract.
+each in light and dark. Full generation prompts are committed at
+`docs/design/story-linework/art/PROMPTS.md`; the style paragraph above is the
+contract.
 
 ## OG cards
 

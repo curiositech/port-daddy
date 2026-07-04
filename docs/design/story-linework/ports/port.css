@@ -2,7 +2,8 @@
    Story Linework v2 — shared port stylesheet
    Palette v2 (CIEDE2000-separated), IBM Plex default type,
    fractional linework utilities. See ../proposal.html for the system.
-   Fonts load from Google for these mocks only — production self-hosts.
+   Plex loads from Google for these mocks only (production self-hosts);
+   Recursive is self-hosted from website-v2/public/fonts.
    ══════════════════════════════════════════════════════════════════ */
 
 @font-face {
@@ -130,10 +131,12 @@ p { text-wrap: pretty; }
   position: absolute; width: var(--lw-bracket); height: var(--lw-bracket);
   border: 0 solid var(--border-strong); pointer-events: none;
 }
-.lw-brackets > i.lw:nth-of-type(1) { top: 0; left: 0; border-top-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-.lw-brackets > i.lw:nth-of-type(2) { top: 0; right: 0; border-top-width: var(--lw-weight); border-right-width: var(--lw-weight); }
-.lw-brackets > i.lw:nth-of-type(3) { bottom: 0; left: 0; border-bottom-width: var(--lw-weight); border-left-width: var(--lw-weight); }
-.lw-brackets > i.lw:nth-of-type(4) { bottom: 0; right: 0; border-bottom-width: var(--lw-weight); border-right-width: var(--lw-weight); }
+/* corners are the first four children by contract; nth-child so a stray
+   sibling breaks loudly instead of silently renumbering the corners */
+.lw-brackets > i.lw:nth-child(1) { top: 0; left: 0; border-top-width: var(--lw-weight); border-left-width: var(--lw-weight); }
+.lw-brackets > i.lw:nth-child(2) { top: 0; right: 0; border-top-width: var(--lw-weight); border-right-width: var(--lw-weight); }
+.lw-brackets > i.lw:nth-child(3) { bottom: 0; left: 0; border-bottom-width: var(--lw-weight); border-left-width: var(--lw-weight); }
+.lw-brackets > i.lw:nth-child(4) { bottom: 0; right: 0; border-bottom-width: var(--lw-weight); border-right-width: var(--lw-weight); }
 
 .lw-midline { position: relative; }
 .lw-midline::before {
@@ -253,7 +256,8 @@ figure.art figcaption { font-size: 13.5px; line-height: 1.55; color: var(--text-
 .state-row .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--state, var(--text-ghost)); position: relative; }
 .state-row.running .dot::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: var(--lw-weight) solid var(--state); opacity: 0.6; animation: lw-pulse 1.8s ease-out infinite; }
 
-/* tag chips — 14px floor + hairline edge (contrast-study fix) */
+/* tag chips — 12px is the sanctioned eyebrow exception (uppercase,
+   weight 700, tracking ≥0.1em); prose floor stays 14px */
 .chip {
   display: inline-block; font-family: "IBM Plex Mono", monospace;
   font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
