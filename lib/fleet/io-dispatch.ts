@@ -38,6 +38,7 @@ import {
   resolveOutput,
   type OutputRegistry,
 } from './outputs/index.js';
+import { getSharedConsentGate } from './consent-gate.js';
 import {
   parseTriggerSpec,
   parseOutputTarget,
@@ -229,6 +230,17 @@ export class IoDispatch {
       };
     }
     try {
+      // Consent is ALSO asserted at the bridge for high-PII payloads
+      // (ADR-0093 §5.3 defense in depth): a future sink that forgets its own
+      // gate must not become a consent bypass for the highest-stakes data.
+      // Below `high`, each sink's own pii threshold stays authoritative
+      // (e.g. the file sink deliberately gates only pii:high — local file
+      // writes of low-pii run summaries need no operator grant). Sinks that
+      // ALWAYS require consent (sms/email coerce pii to high internally)
+      // keep their stricter internal check.
+      if ((full.pii ?? 'high') === 'high') {
+        getSharedConsentGate().assertAllowed(full.sink, full);
+      }
       const result = await sink.dispatch(full);
       return { ok: true, target, sinkKind: full.sink, result };
     } catch (err) {

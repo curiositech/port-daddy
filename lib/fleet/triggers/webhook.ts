@@ -80,6 +80,16 @@ export class WebhookTriggerSource implements TriggerSource {
 
     const secretEnvVar = spec.filters.secret ?? null;
     const expectedSecret = secretEnvVar ? process.env[secretEnvVar] ?? null : null;
+    // Fail closed (ADR-0093 §5.3): a spec that DECLARES HMAC verification but
+    // whose secret env var is unset must refuse to start, not silently run
+    // without verification. Silent no-HMAC turns a typo into an open endpoint.
+    if (secretEnvVar && !expectedSecret) {
+      throw new Error(
+        `webhook trigger "${channel}" declares secret:${secretEnvVar} but that ` +
+        `environment variable is not set; refusing to start without HMAC ` +
+        `verification (fail-closed)`,
+      );
+    }
 
     const deregister = this.deps.registerHandler(channel, async (req) => {
       // If the spec asked for HMAC verification, enforce it.
@@ -104,8 +114,16 @@ export class WebhookTriggerSource implements TriggerSource {
         payload,
         metadata: {
           correlation_id: req.headers['x-pd-correlation-id'] ?? `webhook:${channel}:${Date.now()}`,
-          sender: req.headers['x-pd-sender'] ?? req.ip,
-          consent_verified: Boolean(expectedSecret),
+          // NEVER copy an attacker-controllable header (x-pd-sender) into
+          // `sender`: the trust gate upgrades allowlisted senders, so a
+          // spoofable sender is a tier-escalation primitive (ADR-0093 §5.3).
+          // The source IP is the only transport fact we report.
+          sender: req.ip,
+          // Transport authentication ≠ content trust (ADR-0093 invariant #1).
+          // A valid HMAC proves the RELAY holds the secret, not that the
+          // payload AUTHOR is trusted. consent_verified may only be set by a
+          // content-level author verification, which no webhook has.
+          consent_verified: false,
         },
       };
       emit(event);
