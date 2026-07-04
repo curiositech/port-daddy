@@ -61,7 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx tsx scripts/sync-skills.ts --scope user --quiet 2>/dev/null || true"
+            "command": "npx tsx scripts/sync-skills.ts --scope user --quiet >/dev/null 2>&1 || true"
           }
         ]
       }

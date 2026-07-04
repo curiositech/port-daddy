@@ -28,17 +28,20 @@ describe('skills sync hook', () => {
     // resolution, symlink planning) works without touching the real $HOME.
     const base = mkdtempSync(join(os.tmpdir(), 'pd-skill-sync-'));
     try {
-      const out = execFileSync(
+      execFileSync(
         'npx',
-        ['tsx', 'scripts/sync-skills.ts', '--scope', 'user', '--base', base, '--json'],
+        ['tsx', 'scripts/sync-skills.ts', '--scope', 'user', '--base', base],
         { cwd: REPO, encoding: 'utf8', timeout: 120_000 },
       );
-      const result = JSON.parse(out);
-      const payload = JSON.stringify(result);
-      // The repo's own first-party skills must be part of the fanned-out set.
-      expect(payload).toContain('port-daddy-agent-skill');
-      // And the run must have created links under our throwaway base.
-      expect(payload).toContain(base);
+      // Assert against the filesystem, not the summary JSON (whose shape is
+      // environment-dependent): the run must have materialized real links
+      // under the throwaway base, including the repo's first-party skill.
+      const { readdirSync, lstatSync } = require('node:fs');
+      const linkDir = join(base, '.claude', 'skills');
+      const entries = readdirSync(linkDir);
+      expect(entries.length).toBeGreaterThan(10);
+      expect(entries).toContain('port-daddy-agent-skill');
+      expect(lstatSync(join(linkDir, 'port-daddy-agent-skill')).isSymbolicLink()).toBe(true);
     } finally {
       rmSync(base, { recursive: true, force: true });
     }
