@@ -25,6 +25,9 @@ import type {
   OutputSink,
 } from '../types.js';
 
+/** Bound every outbound call; a hung receiver fails fast. */
+const OUTBOUND_FETCH_TIMEOUT_MS = 15_000;
+
 export class WebhookOutputSink implements OutputSink {
   readonly kind = 'webhook' as const;
 
@@ -65,10 +68,13 @@ export class WebhookOutputSink implements OutputSink {
     if (payload.correlation_id) headers['X-PD-Correlation-Id'] = payload.correlation_id;
     if (payload.idempotency_key) headers['Idempotency-Key'] = payload.idempotency_key;
 
+    // Explicit timeout — an unresponsive receiver must fail the dispatch,
+    // never hang it (no infinite waits on any outbound call).
     const res = await fetch(payload.recipient, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
     });
 
     if (!res.ok) {

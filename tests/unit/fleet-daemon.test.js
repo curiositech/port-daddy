@@ -26,6 +26,19 @@ jest.unstable_mockModule('node:fs', () => ({
   unlinkSync: jest.fn(),
   mkdirSync: jest.fn(),
   watch: mockFsWatch,
+  // Transitive imports of the push notifier (lib/fleet/push-notifications.ts)
+  // and the EventKit bridge need these at module-link time.
+  chmodSync: jest.fn(),
+  statSync: jest.fn(() => ({ mtimeMs: 0 })),
+  appendFileSync: jest.fn(),
+  // squid/matrix.ts (Ink Cloud steering alerts) — atomic write + lock file.
+  renameSync: jest.fn(),
+  openSync: jest.fn(() => 3),
+  closeSync: jest.fn(),
+  rmSync: jest.fn(),
+  rmdirSync: jest.fn(),
+  readdirSync: jest.fn(() => []),
+  utimesSync: jest.fn(),
 }));
 
 // Mock fleet-engine to avoid real process spawning
@@ -61,6 +74,10 @@ jest.unstable_mockModule('../../lib/fleet-engine.js', () => ({
 jest.unstable_mockModule('node:child_process', () => ({
   spawn: jest.fn(),
   execSync: jest.fn(() => 'main'),
+  // notify-macos (osascript) + the EventKit bridge, imported transitively
+  // by the daemon's approval-notification wiring.
+  execFile: jest.fn((_cmd, _args, cb) => { if (typeof cb === 'function') cb(null, '', ''); }),
+  execFileSync: jest.fn(),
 }));
 
 // ─── Import after mocks ────────────────────────────────────────────────────

@@ -9,6 +9,7 @@
 import type Database from 'better-sqlite3';
 import { parseIdentity, patternToSql } from './identity.js';
 import type { SemanticIndex } from './semantic-index.js';
+import { getSharedApprovalStream } from './fleet/approval-stream.js';
 
 const DEFAULT_HEARTBEAT_INTERVAL = 30000;  // 30 seconds
 const DEFAULT_AGENT_TTL = 120000;          // 2 minutes without heartbeat = display as inactive
@@ -37,6 +38,22 @@ export const DEAD_THRESHOLDS: Record<string, number> = {
 };
 export const DEFAULT_DEAD_THRESHOLD = 4 * 60 * 60 * 1000;  // was 20m — see above
 const DEFAULT_CLEANUP_TTL = DEFAULT_DEAD_THRESHOLD;
+
+
+/** Held trust-gate spawns (ADR-0093 L2) — surfaced at every session start
+ *  so a pending human gate cannot be missed. Fail-open: an error here must
+ *  never block `pd begin`. */
+function pendingApprovalsHint(): string | null {
+  try {
+    const pending = getSharedApprovalStream().list();
+    if (pending.length === 0) return null;
+    const head = pending.slice(0, 3).map((p) => `${p.agent} ← ${p.trigger}`).join('; ');
+    const more = pending.length > 3 ? ` (+${pending.length - 3} more)` : '';
+    return `HITL: ${pending.length} spawn approval(s) WAITING — ${head}${more}. Decide: pd fleet approvals`;
+  } catch {
+    return null;
+  }
+}
 
 export function getDeadThresholdForStatus(status?: string): number {
   return DEAD_THRESHOLDS[status || ''] || DEFAULT_DEAD_THRESHOLD;
@@ -385,7 +402,9 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
         message: existing ? 'agent updated' : 'agent registered',
         // Include dead agent count so CLI can show a notice
         deadAgentsInProject,
-        salvageHint: deadAgentsInProject > 0 ? `${deadAgentsInProject} dead agent(s) in ${identityProject}:*. Run: pd salvage --project ${identityProject}` : null
+        salvageHint: deadAgentsInProject > 0 ? `${deadAgentsInProject} dead agent(s) in ${identityProject}:*. Run: pd salvage --project ${identityProject}` : null,
+        // Unmissable HITL: held spawn approvals surface at session start.
+        approvalsHint: pendingApprovalsHint(),
       };
     } catch (err) {
       return { success: false, error: (err as Error).message };

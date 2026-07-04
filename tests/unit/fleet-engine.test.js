@@ -30,6 +30,9 @@ jest.unstable_mockModule('node:fs', () => ({
   // (lib/fleet/io-dispatch.ts), whose file trigger uses fs.watch. The
   // wholesale node:fs mock must surface it or module link fails.
   watch: jest.fn(() => ({ close: jest.fn() })),
+  // …and the calendar channel's EventKit bridge (lib/fleet/calendar-
+  // eventkit.ts) stats the helper source/binary at module-eval time.
+  statSync: jest.fn(() => ({ mtimeMs: 0 })),
 }));
 
 const mockSpawn = jest.fn();
