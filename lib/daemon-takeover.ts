@@ -5,7 +5,7 @@
  * something answered `"status":"ok"` on SOCK_PATH, the new spawn exited 0.
  * That is necessary but NOT sufficient. A daemon whose Cellar binary was
  * deleted underneath it (brew upgrade churn) can keep answering on the unix
- * socket while its TCP listener on :9876 is dead — a half-alive zombie. Under
+ * socket while its TCP listener on the daemon port is dead — a half-alive zombie. Under
  * launchd KeepAlive that produced 345 consecutive polite exits: every respawn
  * probed the socket, heard "ok" from the corpse, and quit, while every HTTP
  * client fell back to the dev daemon's database (split-brain sessions/claims).

@@ -366,7 +366,7 @@ if (IS_DEV_MODE) {
 // whose binary was deleted underneath it (brew upgrade churn) can keep
 // answering on the socket while its TCP listener is dead. Under launchd
 // KeepAlive that half-alive zombie once ate 345 consecutive respawns — each
-// new spawn heard "ok" on the socket and exited 0 while :9876 served nothing
+// new spawn heard "ok" on the socket and exited 0 while the TCP port served nothing
 // (2026-07-04). Defer only when BOTH surfaces answer; socket-ok + TCP-dead
 // (after generous retries) means zombie: terminate the stale PID, take over.
 // =============================================================================

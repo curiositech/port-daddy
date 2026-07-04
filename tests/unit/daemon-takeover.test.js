@@ -3,7 +3,8 @@
  * the 2026-07-04 incident (brew upgrade left a daemon answering on the unix
  * socket with a dead TCP listener; 345 KeepAlive respawns exited 0 against it).
  */
-const { decideDuplicateAction, probeTcpHealth, terminateStalePid } = require('../../lib/daemon-takeover');
+import { describe, expect, test } from '@jest/globals';
+import { decideDuplicateAction, probeTcpHealth, terminateStalePid } from '../../lib/daemon-takeover.js';
 
 describe('decideDuplicateAction', () => {
   test('dead socket → clean-start (stale files, boot normally)', () => {
