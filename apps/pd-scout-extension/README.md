@@ -4,16 +4,17 @@ Port Daddy Scout is the browser-side visual task intake. It turns the web page
 you are looking at into a Port Daddy visual task with a screenshot, optional
 region rectangle, and DOM clues when the page allows them.
 
-Scout is in preview. Today it runs as an unpacked Manifest V3 extension against
-the local Port Daddy daemon at:
+Scout is in preview. Today it runs as a Manifest V3 Chrome extension against the
+local Port Daddy daemon at:
 
 ```text
 http://127.0.0.1:9876
 ```
 
 The customer install should be the Chrome Web Store, not a manual Developer Mode
-walkthrough. The preview steps below are for this branch while we finish the
-store package.
+walkthrough. The preview package in this checkout is a Web Store-shaped ZIP plus
+checksum; local Chrome still loads the unpacked directory while the Store listing
+is pending.
 
 ## Preview install
 
@@ -24,7 +25,7 @@ pd setup
 pd status
 ```
 
-Then load Scout in Chrome:
+Then load Scout in Chrome from the checkout:
 
 1. Open `chrome://extensions`.
 2. Turn on Developer mode.
@@ -35,18 +36,36 @@ Then load Scout in Chrome:
 Chrome blocks extension capture on browser-internal pages such as `chrome://`.
 Use a normal page when you test capture or region selection.
 
+To build the preview package:
+
+```bash
+npm run package:scout-extension
+```
+
+The package lands at:
+
+```text
+website-v2/public/downloads/pd-scout-chrome-0.1.0.zip
+website-v2/public/downloads/pd-scout-chrome-0.1.0.zip.sha256
+website-v2/public/downloads/pd-scout-chrome-preview-manifest.json
+```
+
+That ZIP is for Chrome Web Store upload and preview download. To test it
+locally, unzip it and use **Load unpacked** on the extracted folder.
+
 ## Real release path
 
 The public install should come from the Chrome Web Store:
 
-1. Package only the extension files into a ZIP.
+1. Package only the runtime extension files into a ZIP with `manifest.json` at
+   the root.
 
    ```bash
-   cd apps/pd-scout-extension
-   zip -r ../../dist/pd-scout-preview.zip . -x '*.DS_Store'
+   npm run package:scout-extension
    ```
 
-2. Upload the ZIP in the Chrome Web Store Developer Dashboard.
+2. Upload `website-v2/public/downloads/pd-scout-chrome-0.1.0.zip` in the Chrome
+   Web Store Developer Dashboard.
 3. Fill out the Store Listing, Privacy, Distribution, and Test instructions.
 4. Submit for review. Use trusted testers first, then move to public or unlisted
    distribution when the local path has enough proof.
