@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="port.css">
 <style>
   /* page-specific */
-  .hero { display: grid; grid-template-columns: 1.2fr 1fr; gap: 48px; padding: 150px 0 56px; align-items: start; }
+  .hero { display: grid; grid-template-columns: 1.2fr 1fr; gap: 48px; padding: 150px 0 56px; align-items: start; --hero-ko-b: 118px; }
   .hero h1 { font-size: var(--fs-hero); font-weight: 700; line-height: 1.02; letter-spacing: var(--tracking-display); max-width: 16ch; }
   .hero h1 .accent { color: var(--cobalt); }
   .hero .eyebrow { margin-bottom: 14px; }
@@ -25,7 +25,9 @@
   .story-title { font-size: 15px; font-weight: 700; margin-top: 3px; letter-spacing: var(--tracking-h3); }
   .story-hook { font-size: 13.5px; color: var(--text-muted); margin-top: 2px; line-height: 1.5; }
   .ladder { margin-top: 26px; }
-  .rung { position: relative; display: grid; grid-template-columns: 120px 1fr auto; gap: 18px; align-items: center; padding: 14px 18px 14px 22px; background: var(--surface-card); border: 1px solid var(--hair); border-left: none; margin-bottom: 4px; }
+  .rung { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; padding: 15px 18px; background: var(--surface-card); border: 1px solid var(--hair); border-left: none; margin-bottom: 4px; }
+  .rung .l-line { font-size: 15px; line-height: 1.55; max-width: 84ch; }
+  .rung .l-chip { font-size: 13px; font-weight: 700; margin-right: 6px; }
   .rung::before { content: ""; position: absolute; left: 0; top: 5px; bottom: 5px; width: var(--lw-stripe); background: var(--layer); }
   .rung .l-id { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 700; color: var(--layer); }
   .rung .l-name { font-size: 15.5px; font-weight: 700; }
@@ -79,6 +81,24 @@
   }
   .hero > * { position: relative; }
 
+  /* knockout — a block passes through display type; glyphs flip to the
+     highest-contrast text color exactly at the block edge (dual-layer clip:
+     base ink layer + aria-hidden overlay clipped to the block's rectangle). */
+  .ko { position: relative; z-index: 0; }
+  .ko::before {
+    content: ""; position: absolute; z-index: -1;
+    left: -100vw; right: calc(100% - var(--ko-r));
+    top: -500px; bottom: calc(100% - var(--ko-b));
+    background: var(--cobalt);
+  }
+  .ko .ko-over {
+    position: absolute; inset: 0; color: var(--inverse); pointer-events: none;
+    clip-path: inset(-500px calc(100% - var(--ko-r)) calc(100% - var(--ko-b)) -100vw);
+  }
+  @media (max-width: 1080px) { .ko { --ko-r: 78% !important; } }
+  .ko .ko-over .accent { color: var(--inverse) !important; }
+  [data-theme="dark"] .ko .ko-over { color: #121212; }
+
   /* edge-bleeding slabs */
   .slab { position: absolute; pointer-events: none; }
   .slab .slab-label {
@@ -126,7 +146,9 @@
   .rung.fill-health { background: var(--health) !important; color: var(--inverse); }
   .rung.fill-teal   { background: var(--teal) !important; color: var(--inverse); }
   .rung.fill-gold { background: var(--lime) !important; color: #121212 !important; }
-  [data-theme="dark"] .rung.fill-cobalt, [data-theme="dark"] .rung.fill-health, [data-theme="dark"] .rung.fill-teal { color: #121212; }
+  [data-theme="dark"] .rung.fill-cobalt { background: #003fb8 !important; color: #fbf7ef; }
+  [data-theme="dark"] .rung.fill-health { background: #1f7a4d !important; color: #fbf7ef; }
+  [data-theme="dark"] .rung.fill-teal   { background: #006b5f !important; color: #fbf7ef; }
   .rung.fill-health .l-id, .rung.fill-teal .l-id, .rung.fill-health .l-tag, .rung.fill-teal .l-tag { color: inherit !important; opacity: 0.9; }
   .rung.fill-health .l-body, .rung.fill-teal .l-body { color: inherit !important; opacity: 0.92; }
   .rung.fill-cobalt .l-id, .rung.fill-gold .l-id, .rung.fill-cobalt .l-tag, .rung.fill-gold .l-tag { color: inherit !important; opacity: 0.9; }
@@ -157,11 +179,13 @@
 
   <!-- HERO -->
   <section class="hero">
-    <div class="slab" style="top:-64px; left:calc(50% - 50vw); width: calc(50vw - 720px + 340px); min-width: 220px; height: 128px; background: var(--cobalt);"><span class="slab-label">Port Daddy</span></div>
     <div class="slab" style="top:-16px; right:calc(50% - 50vw); width: calc(50vw - 720px + 190px); min-width: 110px; height: 260px; background: var(--teal);"></div>
     <div>
-      <div class="eyebrow">Fleet coordination for coding agents</div>
-      <h1>Run a tight ship. <span class="accent">Agents sail safer when they coordinate.</span></h1>
+      <div class="eyebrow" style="position:relative; z-index:1; color: var(--inverse);">Fleet coordination for coding agents</div>
+      <h1 class="ko" style="--ko-r: 560px; --ko-b: 56px;">
+        <span>Run a tight ship. <span class="accent">Agents sail safer when they coordinate.</span></span>
+        <span class="ko-over" aria-hidden="true">Run a tight ship. <span class="accent">Agents sail safer when they coordinate.</span></span>
+      </h1>
       <div class="is-panel" style="background: var(--cobalt); color: var(--inverse); padding: 16px 20px;">
         <div class="sc-label mono" style="font-size:12px; font-weight:700; letter-spacing:0.13em; text-transform:uppercase; opacity:0.8;">Port Daddy is</div>
         <p style="margin-top:6px; font-size:15px; line-height:1.6;">a harness, white papers, an agent event-triggering lab, agent skills, an MCP server, a Rust app, a CLI, an orchestrator, an SDK.</p>
@@ -195,10 +219,10 @@
       <p class="sect-desc">It starts the moment two agents reach for the same file in one repo, and it grows from there — to the whole machine, across the network to fleets you don't own, and toward a market for agent labor. The small idea and the big idea are the same idea, at four scales.</p>
     </div>
     <div class="ladder">
-      <div class="rung fill-cobalt" style="--layer: var(--cobalt)"><span class="l-id">L0 — for the daemon</span><div><div class="l-name">Your machine</div><div class="l-body">A local daemon decides what is true — one writer, one durable file, no consensus.</div></div><span class="l-tag">Shipped</span></div>
-      <div class="rung fill-health" style="--layer: var(--health)"><span class="l-id">L1 — for the agents</span><div><div class="l-name">Your swarm</div><div class="l-body">Agents claim before they touch, so the second one to reach a file waits instead of clobbering it.</div></div><span class="l-tag">Shipped</span></div>
-      <div class="rung fill-teal" style="--layer: var(--teal)"><span class="l-id">L2 — for the operator</span><div><div class="l-name">Your cockpit</div><div class="l-body">The whole swarm as one picture you zoom into — down to the real diff, never a wall of them.</div></div><span class="l-tag">In progress · 2026</span></div>
-      <div class="rung fill-gold" style="--layer: var(--gold)"><span class="l-id">L3 — the market</span><div><div class="l-name">For operators who never met</div><div class="l-body">Rent a trustworthy agent across machines, settled on one ledger that cannot lose your money.</div></div><span class="l-tag">Specified · 2027</span></div>
+      <div class="rung fill-cobalt"><p class="l-line"><span class="mono l-chip">L0</span> <b>Your machine.</b> A local daemon decides what is true — one writer, one durable file, no consensus.</p><span class="l-tag">Shipped</span></div>
+      <div class="rung fill-health"><p class="l-line"><span class="mono l-chip">L1</span> <b>Your swarm.</b> Agents claim before they touch, so the second one to reach a file waits instead of clobbering it.</p><span class="l-tag">Shipped</span></div>
+      <div class="rung fill-teal"><p class="l-line"><span class="mono l-chip">L2</span> <b>Your cockpit.</b> The whole swarm as one picture you zoom into — down to the real diff, never a wall of them.</p><span class="l-tag">In progress · 2026</span></div>
+      <div class="rung fill-gold"><p class="l-line"><span class="mono l-chip">L3</span> <b>The market.</b> Rent a trustworthy agent across machines, settled on one ledger that cannot lose your money.</p><span class="l-tag">Specified · 2027</span></div>
     </div>
     <p style="font-size:13.5px; color: var(--text-muted); margin-top:12px; max-width:76ch;">Four layers, one widening scope. The daemon and the swarm coordination run today. The operator's cockpit is the work of 2026. The cross-machine market is specified in the papers and targeted for 2027 — dated, not promised.</p>
     <a class="cta ghost" style="margin-top:18px;" href="library.html"><i></i><i></i>See the whole argument — the Harbor Library</a>
@@ -377,8 +401,6 @@ listening on ui:clicks · cursor @0
       </div>
     </div>
   </section>
-
-  <div style="position:relative; height:0;"><div class="slab" style="top:-40px; left:calc(50% - 50vw); width: calc(50vw - 720px + 240px); min-width: 160px; height: 240px; background: var(--violet);"></div></div>
 
 </main>
 
