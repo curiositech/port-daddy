@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/palette-plan.schema.json",
+  "title": "Palette Selection Plan",
+  "description": "A palette/arrangement selection plan for computational photo composition: the color space and delta-E method used for comparisons, the diversity-aware selection algorithm and its parameters, and the measured diagnostics (diversity, saturation spread, temperature coherence, Sinkhorn convergence, and color-grading blend ratio) that palette_audit.mjs checks against this skill's own failure modes.",
+  "type": "object",
+  "required": [
+    "colorSpace",
+    "deltaEMethod",
+    "selection",
+    "maxPairwiseEmd",
+    "chromaStdDev",
+    "hueCoverageDegrees",
+    "maxAdjacentTempDeltaB",
+    "sinkhorn",
+    "blendRatio"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "colorSpace": {
+      "type": "string",
+      "enum": ["lab", "rgb", "hsv"],
+      "description": "Color space used for all distance/delta-E calculations. Must be 'lab' for perceptually valid comparisons; 'rgb'/'hsv' produce Perceptual Mismatch."
+    },
+    "deltaEMethod": {
+      "type": "string",
+      "enum": ["ciede2000", "de94", "euclidean"],
+      "description": "Color-difference metric. CIEDE2000 is most accurate, deltaE94 is a middle ground, euclidean LAB distance is a fast approximation."
+    },
+    "selection": {
+      "type": "object",
+      "required": ["lambda", "algo"],
+      "properties": {
+        "lambda": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Harmony/diversity trade-off weight. Values above ~0.8 risk Diversity Collapse."
+        },
+        "algo": {
+          "type": "string",
+          "enum": ["mmr", "dpp", "emd", "flat"],
+          "description": "Selection algorithm: Maximal Marginal Relevance, Determinantal Point Process, pure Earth-Mover Distance matching, or flat/unweighted selection."
+        }
+      }
+    },
+    "maxPairwiseEmd": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Maximum pairwise Earth-Mover Distance between selected palettes. Below 0.3 indicates Diversity Collapse."
+    },
+    "chromaStdDev": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Standard deviation of chroma across selected palettes. Below 15 indicates Saturation Monotony."
+    },
+    "hueCoverageDegrees": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 360,
+      "description": "Degrees of hue circle spanned by the selection. >120 for diverse selections, <60 for intentionally monochromatic ones."
+    },
+    "maxAdjacentTempDeltaB": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Maximum absolute LAB b-axis difference between temporally/spatially adjacent selections. Above 40 indicates Temperature Incoherence."
+    },
+    "sinkhorn": {
+      "type": "object",
+      "required": ["iterations", "relError"],
+      "properties": {
+        "iterations": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Sinkhorn algorithm iterations to convergence. Above 50 indicates EMD Optimization Failure."
+        },
+        "relError": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Sinkhorn relative error at termination. Above 0.01 indicates EMD Optimization Failure."
+        }
+      }
+    },
+    "blendRatio": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Fraction of global color-grading correction applied (e.g. warm/cool white-balance normalization). Above 0.4 loses photo authenticity."
+    }
+  }
+}

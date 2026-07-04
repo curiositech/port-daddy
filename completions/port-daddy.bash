@@ -107,6 +107,8 @@ _port_daddy() {
     briefing history
     # Consolidated read/write (3.8.4)
     say look sitrep pheromone ph advise preflight compass guard snapshots snapshot backup restore attest shipwright
+    # Host-safety posture audit (ADR-0088)
+    safe
     # Agent Inbox
     inbox send sent
     # AI Agent Spawner + Watch
@@ -342,6 +344,11 @@ _port_daddy() {
           # Complete file paths
           # shellcheck disable=SC2207
           COMPREPLY=( $(compgen -f -- "$cur") )
+          ;;
+        env)
+          # `pd env <here>` — offer the `exec` subcommand alongside services.
+          COMPREPLY=( $(compgen -W "exec" -- "$cur") )
+          _pd_complete_service '--file'
           ;;
         *)
           _pd_complete_service '--file'
@@ -1774,6 +1781,37 @@ _port_daddy() {
           fi
           ;;
       esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # safe  scan|baseline accept <id>|fix [--auto]  (ADR-0088 host-safety)
+    # -----------------------------------------------------------------------
+    safe)
+      local safe_subcommands='scan baseline fix corral guard'
+      local subcmd=""
+      for (( i = 1; i < cword; i++ )); do
+        local w="${words[$i]}"
+        if [[ "$w" == "safe" ]]; then
+          if (( i + 1 < cword )); then
+            subcmd="${words[$((i+1))]}"
+          fi
+          break
+        fi
+      done
+
+      if [[ -z "$subcmd" ]]; then
+        COMPREPLY=( $(compgen -W "$safe_subcommands" -- "$cur") )
+      elif [[ "$subcmd" == "baseline" ]]; then
+        COMPREPLY=( $(compgen -W "accept" -- "$cur") )
+      elif [[ "$subcmd" == "scan" ]]; then
+        _pd_opts '--json --allow --quiet'
+      elif [[ "$subcmd" == "fix" ]]; then
+        _pd_opts '--auto --json'
+      elif [[ "$subcmd" == "corral" ]]; then
+        _pd_opts '--all --apply --json'
+      elif [[ "$subcmd" == "guard" ]]; then
+        _pd_opts '--staged --json --quiet'
+      fi
       ;;
 
     # -----------------------------------------------------------------------

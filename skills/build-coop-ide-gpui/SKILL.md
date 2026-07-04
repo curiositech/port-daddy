@@ -1,6 +1,39 @@
 ---
+license: Apache-2.0
 name: build-coop-ide-gpui
 description: 'Capstone/orchestration skill — build an M-Agent + N-Human cooperative IDE in Rust gpui (the Harbor): many agents and humans co-editing the same files as co-equal CRDT replicas, governed by claims/guard/salvage, across LAN/shared/remote harbors. The INDEX that dispatches into the sibling rust skills. Use when building the collaborative editor, the agent-fleet console, multiplayer editing with agents-as-peers, or any slice of the Harbor. Trigger on: cooperative IDE, collaborative editor, multiplayer editor, agents and humans co-editing, gpui IDE, Loro CRDT editor, harbor editor, claims/salvage, "build the cooperative IDE". NOT for: a single non-collaborative gpui screen (compose the siblings directly), web editors, or non-editor apps.'
+allowed-tools: Read,Write,Edit,Bash,Grep,Glob
+metadata:
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  pairs-with:
+    - skill: rust-gpui-motion
+      reason: Owns every pane/board/hop transition and the no-transform constraint the coop-IDE shell composes for open/claim/conflict animations.
+    - skill: gpui-shaders
+      reason: Supplies the bespoke GPU surfaces (living-harbor water, dithered chrome, sonar sweep) the Harbor's visual-polish layer pulls in.
+    - skill: vello-parley-rendering
+      reason: Vector viz and Parley text layout for salvage/replica visualizations above the widget layer.
+    - skill: metal-text-pipeline
+      reason: Bare-metal glyph/text rendering when a coop-IDE surface drops below GPUI's text widget.
+    - skill: gpui-rust-console
+      reason: The Harbor's gpui shell (mux/Workspace pane tree, render-agnostic Pane/Surface contract) IS pd-console; this is the authoritative skill for that base app.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: feature-or-surface-requirement
+        format: markdown
+        description: A request to build or extend a cooperative-IDE feature or surface (e.g. "add a collaborative diff surface", "wire salvage for the editor pane") as reported by a human or another agent.
+      - kind: coop-ide-architecture-plan
+        format: json
+        description: A structured plan describing the actors, claims/conflict handling, salvage, daemon-as-collab-server, transport topology, and sibling-skill composition for a coop-IDE surface, matching schemas/coop-ide-plan.schema.json.
+    produces:
+      - kind: phased-build-plan
+        format: markdown
+        description: A build plan sequenced by this skill's four layers and phased roadmap (P0 skeleton -> P5 remote+viz), citing which sibling skill each phase pulls (rust-gpui-motion, gpui-shaders, vello-parley-rendering, metal-text-pipeline, gpui-rust-console).
+      - kind: architecture-audit-report
+        format: json
+        description: A deterministic pass/fail audit of a coop-ide-architecture-plan against this skill's phased Quality Gates and four anti-patterns, as produced by scripts/coop_ide_audit.mjs.
 ---
 
 # Build an M-Agent + N-Human Cooperative IDE in Rust gpui
@@ -11,6 +44,7 @@ This is the **capstone**: the whole-system skill for building the Harbor — an 
 
 | Sibling skill | Pull it when you're working on… |
 |---|---|
+| **gpui-rust-console** | the shell itself — `core/pd-console`'s mux/Workspace pane tree, the render-agnostic `Pane`/`Surface` contract, or the reqwest↔smol refresh pipeline the Harbor is built on top of. |
 | **rust-gpui-motion** | any transition/animation — pane expand, board/hop, the spawn→fullscreen→diff flow, presence pulses. The no-transform constraint lives here. |
 | **gpui-shaders** | bespoke GPU surfaces — the living-harbor water, dithered chrome, sonar sweep, biofield. |
 | **sound-design-and-audio** | the fleet audio cues (board/steer/hop/approve/fail) and how to ship them in Rust. |
@@ -109,7 +143,7 @@ Fork by layer: **shell** (ref 02 + the three visual siblings) · **editor core**
 - `references/03-collaboration-coordination-salvage.md` — the heart: agents+humans as co-equal Loro replicas, presence-as-claims, the daemon as collab server, conflict UX, agents-as-peers via MCP, salvage; the M×N model + three harbor topologies.
 - `references/04-build-order-and-composing-the-skills.md` — the phased roadmap (P0 skeleton → P1 buffer → P2 LAN → P3 agents+claims → P3.5 salvage → P4 shared → P5 remote+viz), each phase naming which sibling skill it pulls; the "you are here / read next" map.
 
-**Sibling skills (dependencies):** `rust-gpui-motion`, `gpui-shaders`, `sound-design-and-audio`, `beautiful-gui-design`, `vello-parley-rendering`, `metal-text-pipeline`.
+**Sibling skills (dependencies):** `gpui-rust-console`, `rust-gpui-motion`, `gpui-shaders`, `sound-design-and-audio`, `beautiful-gui-design`, `vello-parley-rendering`, `metal-text-pipeline`.
 
 <!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
 
@@ -117,10 +151,22 @@ Fork by layer: **shell** (ref 02 + the three visual siblings) · **editor core**
 
 *Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
 
+**root**
+- [`CHANGELOG.md`](CHANGELOG.md) — UbuildUcoopUideUgpui — Changelog — - Brought to the agentic-family standard: added `io-contract`/`provenance`/`pairs-with` frontmatter - Added a deterministic audit helper (ma
+
+**`examples/`**
+- [`examples/sample-input.json`](examples/sample-input.json) — sample input (data/schema)
+
 **`references/`**
 - [`references/01-architecture-and-the-stack.md`](references/01-architecture-and-the-stack.md) — Architecture & The Stack — The Whole-System View — This is the load-bearing wall of the capstone.
 - [`references/02-the-gpui-app-skeleton.md`](references/02-the-gpui-app-skeleton.md) — The gpui App Skeleton — > *Capstone reference 02 of the "Build an M-Agent + N-Human Cooperative IDE in Rust gpui" skill.* > This is the **structural** chapter: how 
 - [`references/03-collaboration-coordination-salvage.md`](references/03-collaboration-coordination-salvage.md) — Collaboration, Coordination & Salvage — the heart of the M×N IDE — This is the capstone's load-bearing chapter.
 - [`references/04-build-order-and-composing-the-skills.md`](references/04-build-order-and-composing-the-skills.md) — Build Order & Composing the Skills — This is the **index card for the whole capstone**.
+
+**`schemas/`**
+- [`schemas/coop-ide-plan.schema.json`](schemas/coop-ide-plan.schema.json) — coop ide plan.schema (data/schema)
+
+**`scripts/`**
+- [`scripts/coop_ide_audit.mjs`](scripts/coop_ide_audit.mjs)
 
 <!-- END BUNDLE INDEX -->
