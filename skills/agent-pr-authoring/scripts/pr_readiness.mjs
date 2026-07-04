@@ -181,18 +181,22 @@ export function auditPullRequest(pr) {
 
   // --- Landing mechanics -----------------------------------------------------
   if (pr.usedAdminBypass === true) {
-    // Distinguish the two very different uses of `--admin`: skipping a *failing
-    // required repo gate* (never OK) vs skipping only the BEHIND gate or an
+    // Distinguish the two very different uses of `--admin`: skipping a real
+    // required repo gate (never OK) vs skipping only the BEHIND gate or an
     // external non-blocking check like a Cloudflare Pages preview — which some
     // repos (e.g. port-daddy, see port-daddy-internal-dev) document as correct.
-    const skipsRealGate = pr.checks.some(
-      (check) => check.required && !check.external && check.status === 'failure',
-    );
-    if (skipsRealGate) {
+    // Fail CLOSED: only downgrade to a non-blocking finding when we can PROVE
+    // every required repo-owned check is green. An empty checks list, or any
+    // required check that is pending/neutral/skipped/failing, means the bypass
+    // may have skipped a real gate — treat that as critical, not safe.
+    const requiredRepoChecks = pr.checks.filter((check) => check.required && !check.external);
+    const allRequiredGreen =
+      requiredRepoChecks.length > 0 && requiredRepoChecks.every((check) => check.status === 'success');
+    if (!allRequiredGreen) {
       pushFinding(
         findings, 'critical', 'admin-bypass-skips-required-gate',
-        'PR used an admin override while a required, repo-owned check was still failing.',
-        'Never use --admin to merge past a failing required gate; fix the gate or escalate to a human.',
+        'PR used an admin override without every required repo-owned check verified green (a required check is failing/pending/skipped, or none were reported) — the bypass may have skipped a real gate.',
+        'Never use --admin to merge past a required gate that is not green; wait for/ fix the gate, or escalate to a human.',
         recommendations,
       );
     } else {
