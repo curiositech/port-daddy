@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Story Linework v2 — Palette, Type Options, WCAG Study, and Five Ports</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Schibsted+Grotesk:wght@500;700;900&family=Archivo:wght@500;700;900&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ports/port.css">
+<style>
+  .doc-masthead { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 24px; padding: 56px 0 26px; border-bottom: 1px solid var(--hair-strong); margin-bottom: 48px; }
+  .doc-masthead h1 { font-size: clamp(36px, 5vw, 64px); font-weight: 700; line-height: 1.0; letter-spacing: var(--tracking-display); max-width: 18ch; }
+  .doc-masthead h1 .accent { color: var(--cobalt); }
+  .doc-meta { font-family: "IBM Plex Mono", monospace; font-size: 13px; line-height: 1.7; color: var(--text-muted); text-align: right; }
+  .doc-meta strong { color: var(--text-primary); }
+  .fix-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 56px; }
+  .swatch-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .swatch-table th, .swatch-table td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--hair); vertical-align: middle; }
+  .swatch-table th { font-family: "IBM Plex Mono", monospace; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; color: var(--text-muted); border-bottom: 1px solid var(--border-strong); }
+  .sw { display: inline-block; width: 40px; height: 22px; vertical-align: middle; border: 1px solid var(--hair-strong); }
+  .de-good { color: var(--health); font-weight: 700; }
+  .de-bad { color: var(--error); font-weight: 700; }
+  .mono-sm { font-family: "IBM Plex Mono", monospace; font-size: 13px; }
+  .zone-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 20px; }
+  .zc { padding: 14px 16px; color: var(--inverse); min-height: 92px; display: flex; flex-direction: column; justify-content: space-between; }
+  [data-theme="dark"] .zc { color: #121212; }
+  .zc .e { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.78; }
+  .zc .t { font-size: 15px; font-weight: 700; margin-top: 3px; }
+  .zc .n { font-family: "IBM Plex Mono", monospace; font-size: 12px; opacity: 0.85; margin-top: 8px; }
+  .study-note { font-size: 14.5px; line-height: 1.65; color: var(--text-secondary); max-width: 74ch; margin: 14px 0 22px; }
+  .study-note b { color: var(--text-primary); }
+  details.study { border: 1px solid var(--hair-strong); margin-top: 14px; }
+  details.study summary { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; padding: 12px 16px; cursor: pointer; color: var(--text-secondary); }
+  details.study .study-body { padding: 4px 16px 16px; }
+  .type-option { border-top: 2px solid var(--border-strong); padding: 26px 0 34px; display: grid; grid-template-columns: 240px 1fr; gap: 32px; }
+  .type-option .to-meta .to-name { font-size: 18px; font-weight: 700; letter-spacing: var(--tracking-h3); }
+  .type-option .to-meta .to-recipe { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; line-height: 1.8; color: var(--text-muted); margin-top: 8px; }
+  .type-option .to-meta .to-why { font-size: 13.5px; line-height: 1.6; color: var(--text-secondary); margin-top: 12px; }
+  .type-option .to-spec .big { font-size: 40px; line-height: 1.05; letter-spacing: -0.025em; }
+  .type-option .to-spec .body { font-size: 15.5px; line-height: 1.65; color: var(--text-secondary); margin-top: 12px; max-width: 58ch; }
+  .type-option .to-spec .metrics { font-size: 13.5px; margin-top: 12px; color: var(--text-secondary); }
+  .port-links { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .port-link { display: block; text-decoration: none; color: var(--text-primary); background: var(--surface-card); border: 1px solid var(--hair); border-left: none; padding: 16px 16px 14px; box-shadow: inset var(--lw-stripe) 0 0 var(--pl); }
+  .port-link .pl-route { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; font-weight: 700; color: var(--pl-tint, var(--pl)); }
+  .port-link .pl-name { font-size: 16px; font-weight: 700; margin-top: 4px; }
+  .port-link .pl-note { font-size: 13px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
+  @media (max-width: 1080px) { .fix-list, .zone-strip { grid-template-columns: 1fr 1fr; } .type-option { grid-template-columns: 1fr; } .port-links { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div style="position:fixed; top:20px; right:26px; z-index:60;"><button class="theme-toggle" id="themeToggle">Dark</button></div>
+
+<main class="page">
+
+  <header class="doc-masthead">
+    <div>
+      <div class="eyebrow">Design proposal v2 · Port Daddy website-v2 · 2026-07-04</div>
+      <h1>Story linework, <span class="accent">corrected.</span></h1>
+    </div>
+    <div class="doc-meta">
+      <strong>Proposal 02</strong><br>
+      palette v2 · CIEDE2000-gated<br>
+      WCAG 2.2 study · 76 pairs<br>
+      4 type options · Plex default<br>
+      5 straight ports of live pages
+    </div>
+  </header>
+
+  <!-- WHAT CHANGED -->
+  <section class="fix-list">
+    <div class="stripe-card" style="--stripe: var(--error)">
+      <div class="sc-label" style="color: var(--error)">The complaints, measured</div>
+      <div class="sc-title">v1 failed perceptually, not just aesthetically</div>
+      <ul>
+        <li>Dark indigo vs violet: <b class="mono-sm">ΔE00 5.5</b>. Functionally the same color.</li>
+        <li>Light indigo vs violet: <b class="mono-sm">ΔE00 7.4</b>.</li>
+        <li>Rust vs error: <b class="mono-sm">13.8–18.0</b>. It reads as a second red.</li>
+        <li>Economy reused <span class="mono-sm">--status-warning</span> verbatim: <b class="mono-sm">ΔE00 0.0</b>.</li>
+        <li>Dark chips &amp; sunken code: near-invisible surface edges, low-contrast small text.</li>
+      </ul>
+    </div>
+    <div class="stripe-card" style="--stripe: var(--health)">
+      <div class="sc-label" style="color: var(--health)">The gates v2 clears</div>
+      <div class="sc-title">Every pair re-derived in OKLCH, gated by CIEDE2000</div>
+      <ul>
+        <li>indigo ↔ violet: <b class="mono-sm">19.1 light · 19.3 dark</b> (3.5× the v1 dark gap).</li>
+        <li>rust ↔ error: <b class="mono-sm">21.0 · 21.3</b>. Rust is earth now.</li>
+        <li>economy is a new token, <span class="mono-sm">--story-gold</span>: <b class="mono-sm">20.1 · 16.8</b> from amber.</li>
+        <li>WCAG 2.2 AA on both surfaces per theme, ink-on-fill AA on every zone.</li>
+        <li>Code panels use the site's own theme-independent tokens: <b class="mono-sm">12.9:1</b>.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- §01 PALETTE V2 -->
+  <section class="block">
+    <div class="sect-head">
+      <div class="eyebrow">§ 01 · Palette v2</div>
+      <h2>Four hues re-derived, one minted</h2>
+      <p class="sect-desc">Anchors stay untouched (cobalt, teal, health, amber, error). Indigo goes deep slate-blue-violet; violet goes clear purple, separated on lightness, chroma, <em>and</em> hue. Rust drops chroma and moves to true earth. Economy gets its own metal: <strong>gold</strong>, literally the money color, and (dark) ΔE 3.0 from the chart-lime family the brand already owns.</p>
+    </div>
+    <table class="swatch-table"><thead><tr><th>Token</th><th>Story</th><th>Light v1</th><th>Light v2</th><th>Dark v1</th><th>Dark v2</th></tr></thead><tbody>
+<tr><td class="mono-sm">--story-indigo</td><td>protocol / federation</td><td><span class="sw" style="background:#4b3f9e"></span> <span class="mono-sm">#4b3f9e</span></td><td><span class="sw" style="background:#353a85"></span> <span class="mono-sm">#353a85</span></td><td><span class="sw" style="background:#9d92e8"></span> <span class="mono-sm">#9d92e8</span></td><td><span class="sw" style="background:#8a8af8"></span> <span class="mono-sm">#8a8af8</span></td></tr>
+<tr><td class="mono-sm">--story-violet</td><td>identity / continuity</td><td><span class="sw" style="background:#6f48b5"></span> <span class="mono-sm">#6f48b5</span></td><td><span class="sw" style="background:#933fa5"></span> <span class="mono-sm">#933fa5</span></td><td><span class="sw" style="background:#b69bec"></span> <span class="mono-sm">#b69bec</span></td><td><span class="sw" style="background:#e0a5ed"></span> <span class="mono-sm">#e0a5ed</span></td></tr>
+<tr><td class="mono-sm">--story-rust</td><td>reputation / Elo</td><td><span class="sw" style="background:#9a4a1e"></span> <span class="mono-sm">#9a4a1e</span></td><td><span class="sw" style="background:#7a4514"></span> <span class="mono-sm">#7a4514</span></td><td><span class="sw" style="background:#e09464"></span> <span class="mono-sm">#e09464</span></td><td><span class="sw" style="background:#b98e6b"></span> <span class="mono-sm">#b98e6b</span></td></tr>
+<tr><td class="mono-sm">--story-gold</td><td>economy / value (new)</td><td><span class="mono-sm" style="color:var(--text-muted)">(= warning #a66f00)</span></td><td><span class="sw" style="background:#666a00"></span> <span class="mono-sm">#666a00</span></td><td><span class="mono-sm" style="color:var(--text-muted)">(= warning #f2be51)</span></td><td><span class="sw" style="background:#d8dd3c"></span> <span class="mono-sm">#d8dd3c</span></td></tr>
+</tbody></table>
+    <p class="study-note"><b>Pairwise separation, before → after (CIEDE2000; higher is more distinct).</b> Calibration: the closest pair that has never drawn a complaint (dark health ↔ teal) sits at 6.1; the flagged pairs were at or barely above that. v2 puts every semantic pair at 2.5–3.5× the complaint threshold.</p>
+    <table class="swatch-table"><thead><tr><th>Pair</th><th>v1 ΔE00</th><th>v2 ΔE00</th><th>Verdict</th></tr></thead><tbody>
+<tr><td>indigo ↔ violet (light)</td><td class="mono-sm de-bad">7.4</td><td class="mono-sm de-good">19.1</td><td>distinct</td></tr>
+<tr><td>indigo ↔ violet (dark)</td><td class="mono-sm de-bad">5.5</td><td class="mono-sm de-good">19.3</td><td>distinct</td></tr>
+<tr><td>rust ↔ error (light)</td><td class="mono-sm ">13.8</td><td class="mono-sm de-good">21.0</td><td>distinct</td></tr>
+<tr><td>rust ↔ error (dark)</td><td class="mono-sm ">18.0</td><td class="mono-sm de-good">21.3</td><td>distinct</td></tr>
+<tr><td>rust ↔ amber (dark)</td><td class="mono-sm ">18.6</td><td class="mono-sm de-good">19.7</td><td>distinct</td></tr>
+<tr><td>economy ↔ warning (light)</td><td class="mono-sm de-bad">0.0</td><td class="mono-sm de-good">20.1</td><td>distinct</td></tr>
+<tr><td>economy ↔ warning (dark)</td><td class="mono-sm de-bad">0.0</td><td class="mono-sm de-good">16.8</td><td>distinct</td></tr>
+<tr><td>indigo ↔ cobalt (dark)</td><td class="mono-sm ">16.0</td><td class="mono-sm ">14.6</td><td>status quo kept</td></tr>
+</tbody></table>
+    <div class="zone-strip">
+      <div class="zc" style="background: var(--indigo)"><div><div class="e">Federation</div><div class="t">Alice's fleet, visiting</div></div><div class="n">--story-indigo · protocol</div></div>
+      <div class="zc" style="background: var(--rust)"><div><div class="e">Reputation</div><div class="t">Elo · trust earned</div></div><div class="n">--story-rust · L3</div></div>
+      <div class="zc" style="background: var(--violet)"><div><div class="e">Identity</div><div class="t">Memory → a person</div></div><div class="n">--story-violet · L3</div></div>
+      <div class="zc" style="background: var(--gold)"><div><div class="e">Economy</div><div class="t">Value · the market</div></div><div class="n">--story-gold · L3 · new token</div></div>
+    </div>
+    <p class="study-note" style="margin-top:18px;">The four concept zones, re-cut. Toggle the theme (top right): in dark mode indigo reads blue-violet and violet reads pink-purple; you can tell the families apart at a glance. Rust has gone leather, and gold reads as coin.</p>
+  </section>
+
+  <!-- §02 WCAG STUDY -->
+  <section class="block">
+    <div class="sect-head">
+      <div class="eyebrow">§ 02 · Contrast study</div>
+      <h2>WCAG 2.2, every pair, both themes</h2>
+      <p class="sect-desc">76 foreground/background pairs computed with the WCAG relative-luminance formula: the three text tiers on all three surfaces, every hue as small-text foreground on base and raised, and ink/cream text on every zone fill. Thresholds: AA text ≥ 4.5, AA large/UI ≥ 3.0, AAA ≥ 7.0.</p>
+    </div>
+    <div class="fix-list" style="margin-bottom:20px;">
+      <div class="stripe-card" style="--stripe: var(--amber)">
+        <div class="sc-label" style="color: var(--amber-on-tint)">Finding 1 — amber was never a text color</div>
+        <p>Light-theme <span class="mono-sm">--status-warning #a66f00</span> scores <b>3.71</b> on cream: it fails AA for small text and always did. It passes as a stripe/dot (UI ≥ 3.0) and at large sizes. Rule shipped with v2: <b>amber text uses <span class="mono-sm">--status-warning-on-tint</span> (8.5:1); raw amber is reserved for stripes, dots, and ≥24px display</b>. Economy zones no longer inherit this trap: gold clears 5.0 as text and 5.4 under cream fills.</p>
+      </div>
+      <div class="stripe-card" style="--stripe: var(--cobalt)">
+        <div class="sc-label" style="color: var(--cobalt)">Finding 2 — the dark "black on gray" failure</div>
+        <p>The v1 doc put near-black code wells (<span class="mono-sm">#0b0d11</span>) on the near-black page (<span class="mono-sm">#101216</span>) — a 1.06:1 surface edge, invisible, with small colored text on top. v2 rule: <b>code panels use the site's own theme-independent tokens</b> (<span class="mono-sm">#edf1f9</span> on <span class="mono-sm">#12161f</span>, 12.9:1), dark raised surfaces always carry a hairline or bracket edge, and colored text on dark surfaces uses the lighter <span class="mono-sm">*-on-tint</span> cut.</p>
+      </div>
+    </div>
+
+    <div class="stripe-card" style="--stripe: var(--violet); margin-bottom: 20px;">
+      <div class="sc-label" style="color: var(--violet-on-tint)">Finding 3 — the audit itself was too narrow (self-caught late)</div>
+      <p>The first pass graded only <b>text-on-surface</b> pairs — so it certified pages whose <b>surface-on-surface</b> edges were invisible. Light-theme cards sat raised-on-base at <b class="mono-sm">1.046:1</b>: the "white on near beige." The matrix below now grades every surface adjacency in both themes. Fixes shipped: cards use the <span class="mono-sm">strong</span> well in light (1.113:1, the same tint depth the FleetBar research report's own cards use), and every unbordered card carries a hairline edge in both themes. Nothing relies on background delta alone.</p>
+      <table class="swatch-table"><thead><tr><th>Surfaces</th><th>Light ratio</th><th>Dark ratio</th><th>Edge rule</th></tr></thead><tbody>
+<tr><td>base ↔ raised</td><td class="de-bad"><span class="mono-sm">1.046</span></td><td class="de-bad"><span class="mono-sm">1.096</span></td><td style="font-size:13px;color:var(--text-muted)">raised is bordered-panels only (2px border always present)</td></tr>
+<tr><td>base ↔ strong</td><td><span class="mono-sm">1.113</span></td><td><span class="mono-sm">1.267</span></td><td style="font-size:13px;color:var(--text-muted)">the card well — hairline + stripe mandatory</td></tr>
+<tr><td>base ↔ sunken</td><td><span class="mono-sm">1.213</span></td><td class="de-bad"><span class="mono-sm">1.037</span></td><td style="font-size:13px;color:var(--text-muted)">dark sunken retired for wells; light needs a bracket edge</td></tr>
+<tr><td>raised ↔ strong</td><td><span class="mono-sm">1.164</span></td><td><span class="mono-sm">1.156</span></td><td style="font-size:13px;color:var(--text-muted)">never adjacent without a rule</td></tr>
+<tr><td>raised ↔ sunken</td><td><span class="mono-sm">1.269</span></td><td><span class="mono-sm">1.137</span></td><td style="font-size:13px;color:var(--text-muted)">—</td></tr>
+<tr><td>strong ↔ sunken</td><td class="de-bad"><span class="mono-sm">1.090</span></td><td><span class="mono-sm">1.314</span></td><td style="font-size:13px;color:var(--text-muted)">never adjacent</td></tr>
+</tbody></table>
+    </div>
+    <details class="study" open>
+      <summary>Full study — 76 pairs, computed (click to fold)</summary>
+      <div class="study-body">
+      <table class="swatch-table"><thead><tr><th>Pair</th><th>FG</th><th>BG</th><th>Ratio</th><th>Grade</th></tr></thead><tbody>
+<tr><td colspan="5" style="font-weight:700; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; text-transform:uppercase; padding-top:20px;">Light theme</td></tr>
+<tr><td>text-primary on base</td><td class="mono-sm">#121212</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">16.19</td><td class="de-good">AAA</td></tr>
+<tr><td>text-primary on raised</td><td class="mono-sm">#121212</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">16.93</td><td class="de-good">AAA</td></tr>
+<tr><td>text-primary on strong</td><td class="mono-sm">#121212</td><td class="mono-sm">#e9e2d5</td><td class="mono-sm">14.54</td><td class="de-good">AAA</td></tr>
+<tr><td>text-secondary on base</td><td class="mono-sm">#403b34</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">9.59</td><td class="de-good">AAA</td></tr>
+<tr><td>text-secondary on raised</td><td class="mono-sm">#403b34</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">10.02</td><td class="de-good">AAA</td></tr>
+<tr><td>text-secondary on strong</td><td class="mono-sm">#403b34</td><td class="mono-sm">#e9e2d5</td><td class="mono-sm">8.61</td><td class="de-good">AAA</td></tr>
+<tr><td>text-muted on base</td><td class="mono-sm">#47423a</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">8.61</td><td class="de-good">AAA</td></tr>
+<tr><td>text-muted on raised</td><td class="mono-sm">#47423a</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">9.00</td><td class="de-good">AAA</td></tr>
+<tr><td>text-muted on strong</td><td class="mono-sm">#47423a</td><td class="mono-sm">#e9e2d5</td><td class="mono-sm">7.73</td><td class="de-good">AAA</td></tr>
+<tr><td>cobalt text on base</td><td class="mono-sm">#003fb8</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">7.55</td><td class="de-good">AAA</td></tr>
+<tr><td>cobalt text on raised</td><td class="mono-sm">#003fb8</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">7.90</td><td class="de-good">AAA</td></tr>
+<tr><td>cream text on cobalt fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#003fb8</td><td class="mono-sm">8.18</td><td class="de-good">AAA</td></tr>
+<tr><td>teal text on base</td><td class="mono-sm">#006b5f</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">5.55</td><td class="de-good">AA</td></tr>
+<tr><td>teal text on raised</td><td class="mono-sm">#006b5f</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">5.81</td><td class="de-good">AA</td></tr>
+<tr><td>cream text on teal fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#006b5f</td><td class="mono-sm">6.01</td><td class="de-good">AA</td></tr>
+<tr><td>health text on base</td><td class="mono-sm">#1f7a4d</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">4.60</td><td class="de-good">AA</td></tr>
+<tr><td>health text on raised</td><td class="mono-sm">#1f7a4d</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">4.80</td><td class="de-good">AA</td></tr>
+<tr><td>cream text on health fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#1f7a4d</td><td class="mono-sm">4.98</td><td class="de-good">AA</td></tr>
+<tr><td>indigo text on base</td><td class="mono-sm">#353a85</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">8.66</td><td class="de-good">AAA</td></tr>
+<tr><td>indigo text on raised</td><td class="mono-sm">#353a85</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">9.06</td><td class="de-good">AAA</td></tr>
+<tr><td>cream text on indigo fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#353a85</td><td class="mono-sm">9.38</td><td class="de-good">AAA</td></tr>
+<tr><td>violet text on base</td><td class="mono-sm">#933fa5</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">5.19</td><td class="de-good">AA</td></tr>
+<tr><td>violet text on raised</td><td class="mono-sm">#933fa5</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">5.43</td><td class="de-good">AA</td></tr>
+<tr><td>cream text on violet fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#933fa5</td><td class="mono-sm">5.62</td><td class="de-good">AA</td></tr>
+<tr><td>rust text on base</td><td class="mono-sm">#7a4514</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">6.75</td><td class="de-good">AA</td></tr>
+<tr><td>rust text on raised</td><td class="mono-sm">#7a4514</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">7.06</td><td class="de-good">AAA</td></tr>
+<tr><td>cream text on rust fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#7a4514</td><td class="mono-sm">7.31</td><td class="de-good">AAA</td></tr>
+<tr><td>gold text on base</td><td class="mono-sm">#666a00</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">5.00</td><td class="de-good">AA</td></tr>
+<tr><td>gold text on raised</td><td class="mono-sm">#666a00</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">5.23</td><td class="de-good">AA</td></tr>
+<tr><td>cream text on gold fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#666a00</td><td class="mono-sm">5.42</td><td class="de-good">AA</td></tr>
+<tr><td>amber text on base</td><td class="mono-sm">#a66f00</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">3.71</td><td class="de-bad">UI-only</td></tr>
+<tr><td>amber text on raised</td><td class="mono-sm">#a66f00</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">3.88</td><td class="de-bad">UI-only</td></tr>
+<tr><td>cream text on amber fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#a66f00</td><td class="mono-sm">4.01</td><td class="de-bad">UI-only</td></tr>
+<tr><td>error text on base</td><td class="mono-sm">#bf2f2f</td><td class="mono-sm">#f2eee6</td><td class="mono-sm">4.95</td><td class="de-good">AA</td></tr>
+<tr><td>error text on raised</td><td class="mono-sm">#bf2f2f</td><td class="mono-sm">#f7f3eb</td><td class="mono-sm">5.18</td><td class="de-good">AA</td></tr>
+<tr><td>cream text on error fill</td><td class="mono-sm">#fbf7ef</td><td class="mono-sm">#bf2f2f</td><td class="mono-sm">5.36</td><td class="de-good">AA</td></tr>
+<tr><td>code text on code panel</td><td class="mono-sm">#edf1f9</td><td class="mono-sm">#12161f</td><td class="mono-sm">15.99</td><td class="de-good">AAA</td></tr>
+<tr><td colspan="5" style="font-weight:700; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; text-transform:uppercase; padding-top:20px;">Dark theme</td></tr>
+<tr><td>text-primary on base</td><td class="mono-sm">#f5f3ed</td><td class="mono-sm">#101216</td><td class="mono-sm">16.90</td><td class="de-good">AAA</td></tr>
+<tr><td>text-primary on raised</td><td class="mono-sm">#f5f3ed</td><td class="mono-sm">#181c22</td><td class="mono-sm">15.41</td><td class="de-good">AAA</td></tr>
+<tr><td>text-primary on strong</td><td class="mono-sm">#f5f3ed</td><td class="mono-sm">#222833</td><td class="mono-sm">13.33</td><td class="de-good">AAA</td></tr>
+<tr><td>text-secondary on base</td><td class="mono-sm">#d3cec2</td><td class="mono-sm">#101216</td><td class="mono-sm">11.94</td><td class="de-good">AAA</td></tr>
+<tr><td>text-secondary on raised</td><td class="mono-sm">#d3cec2</td><td class="mono-sm">#181c22</td><td class="mono-sm">10.89</td><td class="de-good">AAA</td></tr>
+<tr><td>text-secondary on strong</td><td class="mono-sm">#d3cec2</td><td class="mono-sm">#222833</td><td class="mono-sm">9.43</td><td class="de-good">AAA</td></tr>
+<tr><td>text-muted on base</td><td class="mono-sm">#a59f93</td><td class="mono-sm">#101216</td><td class="mono-sm">7.12</td><td class="de-good">AAA</td></tr>
+<tr><td>text-muted on raised</td><td class="mono-sm">#a59f93</td><td class="mono-sm">#181c22</td><td class="mono-sm">6.50</td><td class="de-good">AA</td></tr>
+<tr><td>text-muted on strong</td><td class="mono-sm">#a59f93</td><td class="mono-sm">#222833</td><td class="mono-sm">5.62</td><td class="de-good">AA</td></tr>
+<tr><td>cobalt text on base</td><td class="mono-sm">#7db4ff</td><td class="mono-sm">#101216</td><td class="mono-sm">8.79</td><td class="de-good">AAA</td></tr>
+<tr><td>cobalt text on raised</td><td class="mono-sm">#7db4ff</td><td class="mono-sm">#181c22</td><td class="mono-sm">8.02</td><td class="de-good">AAA</td></tr>
+<tr><td>ink text on cobalt fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#7db4ff</td><td class="mono-sm">8.78</td><td class="de-good">AAA</td></tr>
+<tr><td>teal text on base</td><td class="mono-sm">#8fd0a7</td><td class="mono-sm">#101216</td><td class="mono-sm">10.49</td><td class="de-good">AAA</td></tr>
+<tr><td>teal text on raised</td><td class="mono-sm">#8fd0a7</td><td class="mono-sm">#181c22</td><td class="mono-sm">9.57</td><td class="de-good">AAA</td></tr>
+<tr><td>ink text on teal fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#8fd0a7</td><td class="mono-sm">10.48</td><td class="de-good">AAA</td></tr>
+<tr><td>health text on base</td><td class="mono-sm">#5fce97</td><td class="mono-sm">#101216</td><td class="mono-sm">9.61</td><td class="de-good">AAA</td></tr>
+<tr><td>health text on raised</td><td class="mono-sm">#5fce97</td><td class="mono-sm">#181c22</td><td class="mono-sm">8.76</td><td class="de-good">AAA</td></tr>
+<tr><td>ink text on health fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#5fce97</td><td class="mono-sm">9.60</td><td class="de-good">AAA</td></tr>
+<tr><td>indigo text on base</td><td class="mono-sm">#8a8af8</td><td class="mono-sm">#101216</td><td class="mono-sm">6.31</td><td class="de-good">AA</td></tr>
+<tr><td>indigo text on raised</td><td class="mono-sm">#8a8af8</td><td class="mono-sm">#181c22</td><td class="mono-sm">5.76</td><td class="de-good">AA</td></tr>
+<tr><td>ink text on indigo fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#8a8af8</td><td class="mono-sm">6.31</td><td class="de-good">AA</td></tr>
+<tr><td>violet text on base</td><td class="mono-sm">#e0a5ed</td><td class="mono-sm">#101216</td><td class="mono-sm">9.62</td><td class="de-good">AAA</td></tr>
+<tr><td>violet text on raised</td><td class="mono-sm">#e0a5ed</td><td class="mono-sm">#181c22</td><td class="mono-sm">8.77</td><td class="de-good">AAA</td></tr>
+<tr><td>ink text on violet fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#e0a5ed</td><td class="mono-sm">9.61</td><td class="de-good">AAA</td></tr>
+<tr><td>rust text on base</td><td class="mono-sm">#b98e6b</td><td class="mono-sm">#101216</td><td class="mono-sm">6.38</td><td class="de-good">AA</td></tr>
+<tr><td>rust text on raised</td><td class="mono-sm">#b98e6b</td><td class="mono-sm">#181c22</td><td class="mono-sm">5.82</td><td class="de-good">AA</td></tr>
+<tr><td>ink text on rust fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#b98e6b</td><td class="mono-sm">6.37</td><td class="de-good">AA</td></tr>
+<tr><td>gold text on base</td><td class="mono-sm">#d8dd3c</td><td class="mono-sm">#101216</td><td class="mono-sm">12.79</td><td class="de-good">AAA</td></tr>
+<tr><td>gold text on raised</td><td class="mono-sm">#d8dd3c</td><td class="mono-sm">#181c22</td><td class="mono-sm">11.67</td><td class="de-good">AAA</td></tr>
+<tr><td>ink text on gold fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#d8dd3c</td><td class="mono-sm">12.78</td><td class="de-good">AAA</td></tr>
+<tr><td>amber text on base</td><td class="mono-sm">#f2be51</td><td class="mono-sm">#101216</td><td class="mono-sm">10.95</td><td class="de-good">AAA</td></tr>
+<tr><td>amber text on raised</td><td class="mono-sm">#f2be51</td><td class="mono-sm">#181c22</td><td class="mono-sm">9.98</td><td class="de-good">AAA</td></tr>
+<tr><td>ink text on amber fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#f2be51</td><td class="mono-sm">10.94</td><td class="de-good">AAA</td></tr>
+<tr><td>error text on base</td><td class="mono-sm">#ff7d7d</td><td class="mono-sm">#101216</td><td class="mono-sm">7.57</td><td class="de-good">AAA</td></tr>
+<tr><td>error text on raised</td><td class="mono-sm">#ff7d7d</td><td class="mono-sm">#181c22</td><td class="mono-sm">6.91</td><td class="de-good">AA</td></tr>
+<tr><td>ink text on error fill</td><td class="mono-sm">#121212</td><td class="mono-sm">#ff7d7d</td><td class="mono-sm">7.57</td><td class="de-good">AAA</td></tr>
+<tr><td>code text on code panel</td><td class="mono-sm">#edf1f9</td><td class="mono-sm">#12161f</td><td class="mono-sm">15.99</td><td class="de-good">AAA</td></tr>
+</tbody></table>
+      </div>
+    </details>
+  </section>
+
+  <!-- §03 TYPE OPTIONS -->
+  <section class="block">
+    <div class="sect-head">
+      <div class="eyebrow">§ 03 · Type</div>
+      <h2>Four systems, same page — you pick</h2>
+      <p class="sect-desc">IBM Plex is your chosen default and stays Option A. The question is only what, if anything, earns a place beside it. All four options use faces already on the site's rostered switcher, all self-hostable. Loading matches the design system’s own mechanism: IBM Plex arrives via the identical Google Fonts stylesheet the site ships in <span class="mono-sm">index.html</span> (same families, same weights), and alternates load on demand exactly as <span class="mono-sm">TypeThemeSwitcher</span> does. Each renders the same hero line and body so the voices compare directly. Per the typography audit: <strong>Bricolage Grotesque is excluded</strong> (high-contrast humanist terminals read "bubbly" against a Swiss-technical brief — the canonical mismatch), Hanken sits too close to the Inter voice you called boring, Recursive is back in the mix as the play voice: its CASL axis marks display em-phrases in the ports (Plex and Recursive are both superfamily-shortcut faces in the updated typography reference). Radnika remains the archive reference.</p>
+    </div>
+
+    <div class="type-option">
+      <div class="to-meta">
+        <div class="to-name">A · Plex, disciplined <span class="chip" style="margin-left:6px;">default</span></div>
+        <div class="to-recipe">display — Plex Sans 700, −3% track<br>body — Plex Sans 400/16<br>mono — Plex Mono, tnum + zero</div>
+        <p class="to-why">Your call, kept. What changes is usage, not face: per-scale tracking, tabular figures on every metric, and the mono voice doing all eyebrows/timestamps. The five ports below are set in exactly this.</p>
+      </div>
+      <div class="to-spec">
+        <div class="big" style="font-family:'IBM Plex Sans'; font-weight:700;">Run a tight ship. <span style="color:var(--cobalt)">Agents sail safer when they coordinate.</span></div>
+        <p class="body" style="font-family:'IBM Plex Sans';">Port Daddy is shared memory for AI coding agents — the notes they leave each other, the files each one has claimed, and the work you can recover when one crashes.</p>
+        <p class="metrics mono">pd begin --identity myapp:api:main · claimed :9876 · 412/1,840 files · $0.00</p>
+      </div>
+    </div>
+
+    <div class="type-option">
+      <div class="to-meta">
+        <div class="to-name">B · Schibsted display</div>
+        <div class="to-recipe">display — Schibsted Grotesk 900<br>body — Plex Sans 400/16<br>mono — Plex Mono</div>
+        <p class="to-why">Scandinavian grotesque with grit for headlines only; Plex keeps the body and instruments. The display face has real personality (angular joins, tight apertures) without going humanist. The lowest-risk upgrade.</p>
+      </div>
+      <div class="to-spec">
+        <div class="big" style="font-family:'Schibsted Grotesk'; font-weight:900;">Run a tight ship. <span style="color:var(--cobalt)">Agents sail safer when they coordinate.</span></div>
+        <p class="body" style="font-family:'IBM Plex Sans';">Port Daddy is shared memory for AI coding agents — the notes they leave each other, the files each one has claimed, and the work you can recover when one crashes.</p>
+        <p class="metrics mono">pd begin --identity myapp:api:main · claimed :9876 · 412/1,840 files · $0.00</p>
+      </div>
+    </div>
+
+    <div class="type-option">
+      <div class="to-meta">
+        <div class="to-name">C · Archivo poster</div>
+        <div class="to-recipe">display — Archivo 900, tight<br>body — Plex Sans 400/16<br>mono — Plex Mono</div>
+        <p class="to-why">The loudest option: a poster grotesque built for headlines at scale, closest to the Swiss-poster lineage in the FleetBar research (Vignelli/Unimark). Pairs cleanly with Plex because both are neo-grotesque, different mood.</p>
+      </div>
+      <div class="to-spec">
+        <div class="big" style="font-family:'Archivo'; font-weight:900; letter-spacing:-0.035em;">Run a tight ship. <span style="color:var(--cobalt)">Agents sail safer when they coordinate.</span></div>
+        <p class="body" style="font-family:'IBM Plex Sans';">Port Daddy is shared memory for AI coding agents — the notes they leave each other, the files each one has claimed, and the work you can recover when one crashes.</p>
+        <p class="metrics mono">pd begin --identity myapp:api:main · claimed :9876 · 412/1,840 files · $0.00</p>
+      </div>
+    </div>
+
+    <div class="type-option">
+      <div class="to-meta">
+        <div class="to-name">D · Newsreader counterpoint</div>
+        <div class="to-recipe">display — Plex Sans 700<br>editorial em — Newsreader italic, opsz 72<br>body — Plex Sans · mono — Plex Mono</div>
+        <p class="to-why">The editorial move: Plex keeps the structure, and Newsreader's optical-size italic marks only the em-phrase: the manifesto voice, the pull quote, the spine sentence. Highest sophistication, easiest to overuse; ship with a "display-only, one phrase per view" rule.</p>
+      </div>
+      <div class="to-spec">
+        <div class="big" style="font-family:'IBM Plex Sans'; font-weight:700;">Run a tight ship. <span style="color:var(--cobalt); font-family:'Newsreader'; font-style:italic; font-weight:400; font-optical-sizing:auto;">Agents sail safer when they coordinate.</span></div>
+        <p class="body" style="font-family:'IBM Plex Sans';">Port Daddy is shared memory for AI coding agents — the notes they leave each other, the files each one has claimed, and the work you can recover when one crashes.</p>
+        <p class="metrics mono">pd begin --identity myapp:api:main · claimed :9876 · 412/1,840 files · $0.00</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- §04 THE PORTS -->
+  <section class="block">
+    <div class="sect-head">
+      <div class="eyebrow">§ 04 · The assignment</div>
+      <h2>Five straight ports of the live pages</h2>
+      <p class="sect-desc">Faithful to the real routes: actual headlines, actual copy, actual data (18 blog posts, 13 examples, 7 papers, 13 product features), actual generated art from <span class="mono-sm">public/img</span> — re-drawn in linework + palette v2, set in Plex (Option A). <b>Level 3</b> — blocks as page architecture, calibrated against the v0-agentsd reference: edge-bleeding cobalt/chartreuse slabs, exposed column grid, poster-caps display, the one-filled-cell rule, legend-semantic diagram fills, black bands (all five ports run at this level; slab/fill chartreuse is <span class="mono-sm">--chart-yellow #cad900</span> with ink text; never small text). Blocking is a dial. The FleetBar rule ("one zone per view") was written for a 380pt popover; full pages earn more. <b>Level 1</b> — hairline + stripe only (library, examples, blog, cli-backend). <b>Level 2</b> — Vignelli blocking: filled ink label-blocks, filled stat tiles, a solid definition block, one zone per section (retired — home has moved up). Everywhere: stripes carry state or layer, brackets frame live panels, hard borders stay on primary surfaces. Toggle dark mode on each.</p>
+    </div>
+    <table class="swatch-table" style="margin-bottom: 26px;">
+      <thead><tr><th>Route</th><th>Flag</th><th>Signal meaning</th><th>Why it is that page's flag</th></tr></thead>
+      <tbody>
+        <tr><td class="mono-sm">/</td><td>Kilo</td><td>"I wish to communicate with you"</td><td>the coordination product's own hail — the install band</td></tr>
+        <tr><td class="mono-sm">/blog</td><td>Oscar</td><td>"man overboard"</td><td>the salvage log flies the recovery flag — the masthead</td></tr>
+        <tr><td class="mono-sm">/examples</td><td>Papa</td><td>"all aboard, about to sail"</td><td>featured content lives in Papa's white square</td></tr>
+        <tr><td class="mono-sm">/library</td><td>India</td><td>"I am altering my course to port"</td><td>the reading-paths section — choosing your door into the book</td></tr>
+        <tr><td class="mono-sm">/cli-backend</td><td>Golf</td><td>"I require a pilot"</td><td>bring your own CLI — the final CTA field</td></tr>
+        <tr><td class="mono-sm">/pd-tube</td><td>Zulu</td><td>"I require a tug"</td><td>hailing a working boat to take the job — the event-to-agent loop</td></tr>
+        <tr><td class="mono-sm">/scout</td><td>Hotel</td><td>"I have a pilot on board"</td><td>the scout is the pilot guiding you in</td></tr>
+        <tr><td class="mono-sm">/security</td><td>X-ray</td><td>"stop carrying out your intentions"</td><td>the macaroon gate's whole thesis</td></tr>
+        <tr><td class="mono-sm">/manifesto</td><td>Bravo</td><td>"taking in dangerous goods"</td><td>the big idea as dangerous cargo</td></tr>
+        <tr><td class="mono-sm">/mac-preview</td><td>Delta</td><td>"keep clear; maneuvering with difficulty"</td><td>an honest flag for a preview build</td></tr>
+        <tr><td class="mono-sm">/docs</td><td>Lima</td><td>"stop your vessel instantly"</td><td>stop and read</td></tr>
+        <tr><td class="mono-sm">/tutorials</td><td>Echo</td><td>"altering my course to starboard"</td><td>the guided turns, one at a time</td></tr>
+        <tr><td class="mono-sm">/landscape</td><td>Mike</td><td>"my vessel is stopped"</td><td>the survey — holding station and looking around</td></tr>
+      </tbody>
+    </table>
+    <p class="study-note">Every major route: slug hoist at the top, one giant flag integrated as a working section (never a decorative divider — the flag holds content or carries the masthead), meaning stated in the eyebrow. Rollout carries this table into <span class="mono-sm">website-v2</span>.</p>
+    <div class="port-links">
+      <a class="port-link" href="ports/home.html" style="--pl: var(--cobalt)"><span class="pl-route">/</span><span class="pl-name">Home</span><span class="pl-note">Hero, scope ladder (layer stripes), guard panel, 13-feature index, install zone.</span></a>
+      <a class="port-link" href="ports/library.html" style="--pl: var(--teal)"><span class="pl-route">/library</span><span class="pl-name">Library</span><span class="pl-note">Seven chapters striped by layer, the spine as an ink block, reading paths.</span></a>
+      <a class="port-link" href="ports/examples.html" style="--pl: var(--health)"><span class="pl-route">/examples</span><span class="pl-name">Examples</span><span class="pl-note">13 real examples in three hue-coded groups; PD Tube as the one zone.</span></a>
+      <a class="port-link" href="ports/cli-backend.html" style="--pl: var(--gold); --pl-tint: var(--gold-on-tint)"><span class="pl-route">/cli-backend</span><span class="pl-name">CLI Backend</span><span class="pl-note">The economy page: gold does its literal job, real blueprint art, the math table.</span></a>
+      <a class="port-link" href="apps.html" style="--pl: var(--indigo); --pl-tint: var(--indigo-on-tint)"><span class="pl-route">apps</span><span class="pl-name">The three surfaces</span><span class="pl-note">FleetBar popover, pd-console deck, Fleet Control Center — one system, three runtimes, with the token mapping.</span></a>
+      <a class="port-link" href="ports/blog.html" style="--pl: var(--violet); --pl-tint: var(--violet-on-tint)"><span class="pl-route">/blog</span><span class="pl-name">Blog</span><span class="pl-note">All 18 posts, featured macaroon-gate with real hero art, retired threads.</span></a>
+    </div>
+  </section>
+
+  <!-- §05 TOKEN DIFF -->
+  <section class="block">
+    <div class="sect-head">
+      <div class="eyebrow">§ 05 · To ship</div>
+      <h2>The exact token diff</h2>
+      <p class="sect-desc">Palette v2 is a change to <span class="mono-sm">tokens.semantic.css</span> + <span class="mono-sm">BRAND.md</span> (the lockstep test keeps them honest). Since nothing on main consumes the four re-derived tokens yet, the blast radius is zero; this is the moment to correct them.</p>
+    </div>
+    <div class="codeblock"><div class="codeblock-title" style="margin:-16px -18px 12px;">tokens.semantic.css — v2 diff (light · dark)</div><pre><span class="c-comment">/* re-derived */</span>
+--story-indigo:  <span class="c-flag">#4b3f9e → #353a85</span>   ·   <span class="c-flag">#9d92e8 → #8a8af8</span>
+--story-violet:  <span class="c-flag">#6f48b5 → #933fa5</span>   ·   <span class="c-flag">#b69bec → #e0a5ed</span>
+--story-rust:    <span class="c-flag">#9a4a1e → #7a4514</span>   ·   <span class="c-flag">#e09464 → #b98e6b</span>
+<span class="c-comment">/* minted — economy stops borrowing the warning token */</span>
+--story-gold:    <span class="c-flag">#666a00</span> (on-tint #4d5000)   ·   <span class="c-flag">#d8dd3c</span> (on-tint #f5fa78)
+--layer-l3-economy: var(--status-warning) → <span class="c-flag">var(--story-gold)</span>
+<span class="c-comment">/* rule change */</span>
+amber text ⇒ --status-warning-on-tint; raw amber = stripes/dots/display only
+<span class="c-comment">/* v2.1 — depth, not breadth (no tenth hue: the wheel is full) */</span>
+--*-slab  <span class="c-comment">deep theme-independent cut for large fields + knockout blocks (cream text)</span>
+--*-wash  <span class="c-comment">10% color-mix quiet-room tint over the page surface</span>
+<span class="c-comment">/* line-weight law: 1px texture · 1.5px linework marks · 2px enclosure */</span>
+<span class="c-comment">/* midlines: left-anchored 64px = continuation · centered third = division */</span>
+<span class="c-comment">/* brackets: live panels only; never on bordered or ink panels */</span>
+<span class="c-comment">/* LW-7 signal blocks: ICS flag geometry, palette-mapped, decorative</span>
+<span class="c-comment">   fields only. Kilo=coordination hero, Papa=install/launch,</span>
+<span class="c-comment">   Oscar=salvage, Quebec=healthy, Uniform=warning, November=failure.</span>
+<span class="c-comment">   The token file already names these (--signal-*); now they draw.</span>
+<span class="c-comment">   LW-7b: full letter alphabet (.fl-*), slug hoists at each page top</span>
+<span class="c-comment">   (substitute pennants repeat 1st/2nd/3rd flags; later repeats fly the</span>
+<span class="c-comment">   letter again, as at sea), and one GIANT flag per page as THE block:</span>
+<span class="c-comment">   home=Kilo install band · blog=Oscar masthead · examples=Papa featured</span>
+<span class="c-comment">   panel · library=India band · cli-backend=Golf band. */</span></pre></div>
+  </section>
+
+  <footer class="doc-footer">
+    <span><strong>Story Linework</strong> · Proposal 02</span>
+    <span>skills · color-theory-palette-harmony-expert · typography-expert · swiss-modern-website-design</span>
+    <span>sources · fleetbar research-report + PR #455</span>
+  </footer>
+
+</main>
+
+<script>
+  const btn=document.getElementById('themeToggle'),root=document.documentElement;
+  let t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  const apply=()=>{root.setAttribute('data-theme',t);btn.textContent=t==='light'?'Dark':'Light'};apply();
+  btn.addEventListener('click',()=>{t=t==='light'?'dark':'light';apply()});
+</script>
+</body>
+</html>
