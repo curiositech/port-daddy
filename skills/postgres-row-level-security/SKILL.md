@@ -36,9 +36,9 @@ flowchart TD
   D --> F[Decide policy types per command]
   E --> F
   F --> G{SELECT visibility?}
-  G -->|"User sees own rows"| H[CREATE POLICY ... FOR SELECT TO authenticated<br/>USING (auth.uid)= user_id)]
+  G -->|"User sees own rows"| H["CREATE POLICY ... FOR SELECT TO authenticated<br/>USING (auth.uid)= user_id)"]
   F --> I{INSERT validation?}
-  I -->|"User can only create own row"| J[CREATE POLICY ... FOR INSERT TO authenticated<br/>WITH CHECK (auth.uid)= user_id)]
+  I -->|"User can only create own row"| J["CREATE POLICY ... FOR INSERT TO authenticated<br/>WITH CHECK (auth.uid)= user_id)"]
   F --> K{UPDATE - both filter AND validate?}
   K -->|Yes| L[USING + WITH CHECK both<br/>typically same predicate]
   H --> M[Performance audit]
