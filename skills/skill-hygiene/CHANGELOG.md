@@ -2,11 +2,18 @@
 
 All notable changes to the skill-hygiene bundle.
 
+## [0.3.0] — 2026-07-04
+- audit_skill_bundle.py: new failing issue type `mermaid_hazard` — flags flowchart
+  edge labels with embedded (non-wrapping) double quotes and unquoted parentheses
+  in node text, both of which pass naive syntax checks but parse-error in mermaid
+  11.x. Quote-stripping + cylinder-shape exclusion keep false positives at zero
+  across the full skills/ tree.
+
 ## [0.2.0] — 2026-05-13
 
 Tightened auditor; ready for library-wide use.
 
-- **Markdown link parsing**: extract inline `[text](path)` and reference-style
+- **Markdown link parsing**: extract inline `[text](path)` <!-- cite-exempt: syntax example, not a link --> and reference-style
   links from SKILL.md and INDEX.md files; resolve relative to the containing
   file; classify as ok / broken / external / anchor / outside.
 - **Broken links**: new issue type. Reports `from`, `target`, `resolved`,

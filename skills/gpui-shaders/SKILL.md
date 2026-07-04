@@ -56,8 +56,8 @@ flowchart TD
   B -->|No, it's shapes/quads/text| C[gpui element tree or paint/canvas]
   B -->|No, but vector + crisp text| D[Vello vector pass]
   B -->|Yes| E{Must it sit INSIDE the pane tree,\nreflowing with splits?}
-  E -->|No — focused/modal/full-window| F[Companion window: own winit+wgpu (ADR-0086 path 3) — ship-now]
-  E -->|Yes — ambient, in a pane| G[Render-to-texture, sample back as a gpui image (ADR-0086 path 2)]
+  E -->|No — focused/modal/full-window| F["Companion window: own winit+wgpu (ADR-0086 path 3) — ship-now"]
+  E -->|Yes — ambient, in a pane| G["Render-to-texture, sample back as a gpui image (ADR-0086 path 2)"]
   F --> H[Push gpui state as uniforms: time, res, mouse, accent token]
   G --> H
 ```
