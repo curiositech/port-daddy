@@ -43,6 +43,8 @@ import {
   diagnoseSquidHookInstall,
   SQUID_HOOK_PRIVACY_NOTICE,
 } from '../../lib/squid/adapter.js';
+import { isEmbeddingModelCached, prefetchEmbeddingModel } from './embed.js';
+import { DEFAULT_SEMANTIC_MODEL_ID, defaultTransformersCacheDir } from '../../lib/semantic-resolver.js';
 import { createPlatforms } from './mcp-install.js';
 import * as ui from '../utils/ui.js';
 
@@ -1384,6 +1386,30 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   }
 
   // -------------------------------------------------------------------------
+  // 15. Local embedding model (ADR-0061 shared cache; hybrid-search policy)
+  // -------------------------------------------------------------------------
+  // ONE model for every semantic surface: resolver, LLM semantic cache,
+  // shipwright skill index, and `pd embed` (the surface skills shell out to).
+  // A cancelled setup download is allowed — this is the repair path.
+  let embeddingModelCached = true;
+  try {
+    const embCacheDir = defaultTransformersCacheDir();
+    embeddingModelCached = isEmbeddingModelCached(embCacheDir);
+    if (embeddingModelCached) {
+      check('Local embedding model', true, `${DEFAULT_SEMANTIC_MODEL_ID} cached at ${embCacheDir}`);
+    } else {
+      check(
+        'Local embedding model',
+        false,
+        `${DEFAULT_SEMANTIC_MODEL_ID} not cached at ${embCacheDir} — semantic/hybrid search degrades to lexical-only`,
+        'Run: pd embed prefetch   (one-time ~27 MB download; also offered below)',
+      );
+    }
+  } catch (err: unknown) {
+    check('Local embedding model', false, `Error: ${(err as Error).message}`, 'Run: pd embed prefetch');
+  }
+
+  // -------------------------------------------------------------------------
   // Tally + overall severity (the three-tier model)
   // -------------------------------------------------------------------------
   const warnCount = results.filter((r) => r.severity === 'warn').length;
@@ -1507,6 +1533,26 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
           }
         }
       }
+    }
+  }
+
+  // Repair path for a cancelled/failed setup download of the shared embedding
+  // model (ADR-0061): offer the one-time fetch right here instead of leaving
+  // hybrid search silently degraded to lexical-only.
+  if (!nonInteractive && !embeddingModelCached) {
+    console.log('');
+    const download = await confirmFix(
+      `Download the local embedding model now? (${DEFAULT_SEMANTIC_MODEL_ID}, ~27 MB, one-time)`,
+    );
+    if (download) {
+      try {
+        await prefetchEmbeddingModel();
+        console.log('  ✓ Embedding model downloaded to the shared cache');
+      } catch (err: unknown) {
+        console.log(`  ✗ Download failed: ${(err as Error).message} — retry with: pd embed prefetch`);
+      }
+    } else {
+      console.log('  — Skipped: run `pd embed prefetch` whenever you are ready');
     }
   }
 

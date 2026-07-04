@@ -39,6 +39,15 @@ The two Port Daddy skills are the operating instructions for *all* future agents
 
 You are explicitly invited to fix errors, sharpen inefficient passages, and add anti-patterns the moment you notice them — no issue, ticket, or permission required. Same-slice edits (landing the doc fix alongside the code change that revealed the problem) are the default; retrospective edits days later are still owed and welcome. Both skills carry their own "Maintain These Skills" sections with the small ceremony (worktree, explicit-path staging, tests, Cartographer ping). Internal agents working on port-daddy itself own *both* surfaces continuously — split-decision rule lives in `port-daddy-internal-dev`.
 
+## Search & Matching Policy — hybrid, one shared embedder
+
+Operator directive (2026-07-04). Any search, matching, or classification over unstructured text — in a skill, a lib, a script, or the daemon — follows two rules:
+
+1. **Never ship lexical-only search.** BM25/TF-IDF alone is the floor, not the ship gate. Pair it with semantic similarity and fuse (RRF or equivalent). Keyword/substring lists remain banned outright.
+2. **One embedding model for everything.** The canonical local model is `Xenova/all-MiniLM-L6-v2` in the shared cache `~/.port-daddy/transformers-cache` (ADR-0061). TypeScript reuses `createLocalEmbedder()` from `lib/semantic-resolver.ts`; everything else (Python skills, shell scripts) shells out to **`pd embed`** (`text`/`stdin` → normalized 384-dim vectors as JSON; `status`/`prefetch` manage the cache). Do not introduce a second model, a per-skill model choice, or a remote embedding API for local matching.
+
+Lifecycle: `pd setup` offers the one-time ~27 MB download (cancellable); `pd doctor` detects a missing model and offers the same fetch as a repair; `pd embed prefetch` is the manual path. Degrading to lexical-only is allowed **only** as an explicit fallback that warns and points at `pd doctor`.
+
 ## Port Daddy First
 
 - On this computer, use Port Daddy for repo work by default, not only when a task already looks multi-agent.
