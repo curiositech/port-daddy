@@ -139,6 +139,8 @@ _port_daddy() {
     tuple
     # Semantic graph + episodic memory
     graph memory ideas
+    # Shared local embedder (ADR-0061)
+    embed
     # Cartographer roadmap projection
     roadmap
     # Quorum (swarm consensus primitive)
@@ -1837,6 +1839,28 @@ _port_daddy() {
           _pd_opts '--json --quiet'
           ;;
         *) _pd_opts '--json --quiet' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # embed  status|prefetch|text|stdin  [options]
+    # -----------------------------------------------------------------------
+    embed)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "status prefetch text stdin" -- "$cur") )
+          ;;
+        status)
+          _pd_opts '--json --cache-dir'
+          ;;
+        prefetch)
+          _pd_opts '--cache-dir'
+          ;;
+        text|stdin)
+          _pd_opts '--offline --cache-dir'
+          ;;
+        *) _pd_opts '' ;;
       esac
       ;;
 

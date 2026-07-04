@@ -1587,6 +1587,21 @@
         "sdk": false
       }
     },
+    "embed": {
+      "description": "The one shared local embedding surface (ADR-0061): status/prefetch lifecycle plus text/stdin embedding so skills and matching code reuse the operator's model for hybrid search",
+      "cli": [
+        "embed"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "embed"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "memory": {
       "description": "Episodic memory entries and aggregate memory stats promoted from sessions and spawned runs",
       "cli": [

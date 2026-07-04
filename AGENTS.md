@@ -533,8 +533,7 @@ These bite every contributor session; they are not theoretical.
 ## Control Plane
 
 - Before changing delegation UX, reread the product docs first:
-  - `docs/recovery/PD-AGENT-SORTIE-PLAN.md` for mission/sortie behavior
-  - `docs/DELEGATION-MODES.md` for spawn vs agent vs sortie vs fleet vs harbor
+  - `docs/DELEGATION-MODES.md` for spawn vs agent vs sortie vs fleet vs harbor (the standalone sortie plan doc was removed with the sortie surface in #638)
   - if source/docs promise a command or surface and the build does not have it, treat that as a drift bug to fix instead of silently redefining the product
 - `skills/port-daddy-agent-skill/SKILL.md` and `skills/port-daddy-agent-skill/references/api-reference.md` are release surfaces, not optional afterthoughts. If Port Daddy’s CLI, SDK, MCP, delegation model, website story, Mac app/FleetBar behavior, README install flow, or operator workflows change, update those skill docs and the matching docs/website/README surface in the same slice.
 - `pd agent` is a thin ad hoc wrapper over `/sugar/begin` + `/spawn` + `/sugar/done`, not a sortie object. Treat its UI presence as a manual job/run unless the launch explicitly came from the sortie workflow.
