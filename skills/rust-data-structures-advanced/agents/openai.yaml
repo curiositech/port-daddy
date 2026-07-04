@@ -23,6 +23,7 @@ recommended_context:
   - examples/crossbeam_pipeline.rs
 quality_gates:
   - scripts/validate_skill.py
+  - scripts/structure_choice_audit.mjs
 interface:
   display_name: "Rust Data Structures (Advanced)"
   short_description: "Choose the Rust structure that makes ownership trivial"

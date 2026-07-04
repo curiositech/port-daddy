@@ -1,0 +1,28 @@
+{
+  "memoryTypes": ["core", "short", "long", "episodic"],
+  "vectorIndex": {
+    "algo": "hnsw",
+    "entryCount": 1000000
+  },
+  "retrievalWeights": {
+    "specific-recall": { "relevance": 0.6, "recency": 0.2, "importance": 0.2 },
+    "context-selection": { "relevance": 0.3, "recency": 0.2, "importance": 0.5 },
+    "conversation-flow": { "relevance": 0.3, "recency": 0.5, "importance": 0.2 },
+    "cold-start": { "relevance": 0.3, "recency": 0.0, "importance": 0.7 }
+  },
+  "forgetting": {
+    "coreNeverForget": true,
+    "policiesByImportance": [
+      { "minImportance": 9, "maxImportance": 10, "policy": "never_forget" },
+      { "minImportance": 7, "maxImportance": 8, "policy": "decay_720h" },
+      { "minImportance": 4, "maxImportance": 6, "policy": "decay_168h" },
+      { "minImportance": 1, "maxImportance": 3, "policy": "decay_24h" }
+    ]
+  },
+  "biTemporal": true,
+  "contradictionDetection": true,
+  "tokenBudgetFraction": 0.25,
+  "similarityThreshold": 0.78,
+  "coldStartLoadsIdentity": true,
+  "degradesToKeywordFallback": true
+}

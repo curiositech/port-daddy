@@ -97,6 +97,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   tuple: 'silent',
   pheromone: 'silent',
   ph: 'silent',
+  safe: 'silent',           // bare form = `safe scan`, read-only. Refined below:
+                            // `safe baseline accept` (notify), `safe fix` (approval).
   scan: 'silent',
   s: 'silent',
   projects: 'silent',       // refined: `projects rm` is destructive
@@ -223,6 +225,24 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'session takeover': 'notify',     // creates successor, preserves predecessor notes
   'session rm': 'notify',           // archives session; notes and claim history stay append-only
   'session files': 'notify',        // add/rm of caller's own claims
+
+  // safe: scan is read-only; baseline accept writes the committed triage file;
+  // fix --auto mutates host file modes (reversible, but a host write → approval).
+  'safe': 'silent',                 // default subcommand = `safe scan`
+  'safe scan': 'silent',
+  'safe baseline': 'silent',        // bare form is a usage hint
+  'safe baseline accept': 'notify', // writes .pd-secrets-baseline.json
+  'safe fix': 'approval',           // chmod of crown-jewel perms (opt-in, reversible)
+  // safe corral: dry-run (default) is read-only; --apply writes the vault AND
+  // rewrites a source file (reversible — a .bak is kept) → a host write → approval.
+  'safe corral': 'silent',          // dry-run plan only by default
+  'safe corral --apply': 'approval',// packs secret into vault + rewrites source
+  'safe guard': 'silent',           // read-only scan of the staged diff
+
+  // env exec runs an arbitrary child command (with pd-secret:// refs resolved
+  // into its env). Running an arbitrary command is a notify-tier action; the
+  // plain `pd env` listing stays silent via TIER_REGISTRY.
+  'env exec': 'notify',
 
   // release: bare release of caller's own port is notify; --expired is global
   'release --expired': 'destructive',

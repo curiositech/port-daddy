@@ -1,0 +1,22 @@
+name: rust-kernel-ffi
+description: Implements and audits a Rust cdylib FFI boundary called from TypeScript/Bun via koffi.
+model: gpt-5-codex
+instructions: |
+  Use the rust-kernel-ffi skill. Every extern "C" export must wrap its body in
+  catch_unwind (or the crate must build with panic = "abort"), apply the five
+  input guards (null/len/bound/utf8/parse) before any logic, return a sentinel
+  on any failure, and never pass a Rust struct/enum across the boundary — JSON
+  over *const c_char + usize len only. Every into_raw() needs a matching
+  #[no_mangle] free fn the TS caller invokes in a finally block. MAC/tag
+  comparisons must be constant-time (fold-XOR, no early return). Ship
+  crate-type = ["rlib", "cdylib"]. The TS/koffi loader must degrade gracefully
+  (capture the load error, return null, fall back to a pure-TS path) when the
+  dylib is absent. Verify under the real host runtime (e.g. bun), not only a
+  unit-test harness. Run scripts/ffi_safety_audit.mjs against the export plan
+  before calling the boundary done.
+inputs:
+  - ffi_boundary_requirement
+  - ffi_export_plan
+outputs:
+  - cdylib_koffi_implementation_guide
+  - ffi_safety_audit_report

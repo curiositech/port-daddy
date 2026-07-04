@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/appeal-spec.schema.json",
+  "title": "Product Appeal Audit Spec",
+  "description": "Structured, already-scored input for scripts/appeal_audit.mjs. Every field is a number or boolean the analyst decided during the Analysis Process in SKILL.md; the auditor never inspects free text, images, or URLs itself.",
+  "type": "object",
+  "required": ["personas", "fiveSecondTest"],
+  "additionalProperties": true,
+  "properties": {
+    "personas": {
+      "type": "array",
+      "minItems": 1,
+      "description": "One entry per target persona, each with the Desirability Triangle sub-scores from the Analysis Process (Step 2).",
+      "items": {
+        "type": "object",
+        "required": ["name", "identityFit", "problemUrgency", "trustSignals"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "identityFit": {
+            "type": "object",
+            "required": ["visual", "language", "impliedUser"],
+            "properties": {
+              "visual": { "type": "number", "minimum": 0, "maximum": 10 },
+              "language": { "type": "number", "minimum": 0, "maximum": 10 },
+              "impliedUser": { "type": "number", "minimum": 0, "maximum": 10 }
+            }
+          },
+          "problemUrgency": {
+            "type": "object",
+            "required": ["painAcknowledged", "emotionalResonance", "solutionClarity"],
+            "properties": {
+              "painAcknowledged": { "type": "number", "minimum": 0, "maximum": 10 },
+              "emotionalResonance": { "type": "number", "minimum": 0, "maximum": 10 },
+              "solutionClarity": { "type": "number", "minimum": 0, "maximum": 10 }
+            }
+          },
+          "trustSignals": {
+            "type": "object",
+            "required": ["execution", "socialProof", "riskReduction"],
+            "properties": {
+              "execution": { "type": "number", "minimum": 0, "maximum": 10 },
+              "socialProof": { "type": "number", "minimum": 0, "maximum": 10 },
+              "riskReduction": { "type": "number", "minimum": 0, "maximum": 10 }
+            }
+          }
+        }
+      }
+    },
+    "fiveSecondTest": {
+      "type": "object",
+      "description": "Whether each of the 5-Second Test's four questions was clear within ~5 seconds (SKILL.md 'Quick Analysis: The 5-Second Test').",
+      "required": ["category", "forWho", "promise", "cta"],
+      "properties": {
+        "category": { "type": "boolean", "description": "Visitor could identify what this is." },
+        "forWho": { "type": "boolean", "description": "Visitor could identify who it's for." },
+        "promise": { "type": "boolean", "description": "Visitor could identify the core promise." },
+        "cta": { "type": "boolean", "description": "Visitor could identify what to do next." }
+      }
+    },
+    "objectionsAddressed": {
+      "type": "object",
+      "description": "Whether each standard objection type from the Objection Map (Step 3) is addressed on the page.",
+      "properties": {
+        "trust": { "type": "boolean" },
+        "skepticism": { "type": "boolean" },
+        "value": { "type": "boolean" },
+        "effort": { "type": "boolean" },
+        "identity": { "type": "boolean" },
+        "risk": { "type": "boolean" },
+        "urgency": { "type": "boolean" }
+      }
+    },
+    "trustLadderViolation": {
+      "type": "boolean",
+      "description": "True if the page asks for account creation/payment before demonstrating value (Trust Ladder Violation anti-pattern)."
+    },
+    "identityMismatch": {
+      "type": "boolean",
+      "description": "True if the analyst judges the page tries to visually/verbally appeal to too many distinct identities, independent of persona count."
+    },
+    "featureSoupHeadline": {
+      "type": "boolean",
+      "description": "True if the headline lists 3+ capabilities/buzzwords instead of one outcome (Feature Soup Headline anti-pattern)."
+    },
+    "screenshotHero": {
+      "type": "boolean",
+      "description": "True if the hero image is a bare product screenshot with no outcome/context (Screenshot Hero anti-pattern)."
+    }
+  }
+}

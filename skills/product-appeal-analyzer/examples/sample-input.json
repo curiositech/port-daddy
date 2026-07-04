@@ -1,0 +1,35 @@
+{
+  "personas": [
+    {
+      "name": "Solo indie hacker shipping nights and weekends",
+      "identityFit": { "visual": 8, "language": 9, "impliedUser": 8 },
+      "problemUrgency": { "painAcknowledged": 9, "emotionalResonance": 8, "solutionClarity": 9 },
+      "trustSignals": { "execution": 7, "socialProof": 6, "riskReduction": 8 }
+    },
+    {
+      "name": "Staff engineer evaluating tools for a team rollout",
+      "identityFit": { "visual": 7, "language": 8, "impliedUser": 7 },
+      "problemUrgency": { "painAcknowledged": 8, "emotionalResonance": 6, "solutionClarity": 8 },
+      "trustSignals": { "execution": 9, "socialProof": 8, "riskReduction": 7 }
+    }
+  ],
+  "fiveSecondTest": {
+    "category": true,
+    "forWho": true,
+    "promise": true,
+    "cta": true
+  },
+  "objectionsAddressed": {
+    "trust": true,
+    "skepticism": true,
+    "value": true,
+    "effort": true,
+    "identity": true,
+    "risk": true,
+    "urgency": false
+  },
+  "trustLadderViolation": false,
+  "identityMismatch": false,
+  "featureSoupHeadline": false,
+  "screenshotHero": false
+}

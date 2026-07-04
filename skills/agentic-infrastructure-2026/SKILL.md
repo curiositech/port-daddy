@@ -15,13 +15,31 @@ metadata:
     - evaluation
     - change-management
     - enterprise
+  provenance:
+    kind: first-party
+    owners:
+      - port-daddy
   pairs-with:
     - skill: multi-agent-coordination
       reason: Coordination patterns sit on top of agent infrastructure
-    - skill: ai-engineer
-      reason: AI engineers are the primary consumers of agent infrastructure
     - skill: agentic-patterns
       reason: Behavioral patterns inform infrastructure design choices
+    - skill: agentic-app-architecture
+      reason: App-shape decisions (transparency, memory, context economics) precede the infra plan this skill builds
+    - skill: agent-work-receipt-designer
+      reason: Once infra ships, receipts give the audit trail this skill's Production Readiness gate requires
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: agent-infra-requirements-brief
+        format: markdown
+      - kind: framework-stack-plan
+        format: json
+    produces:
+      - kind: architecture-decision
+        format: markdown
+      - kind: infra-readiness-audit
+        format: json
 category: Agent & Orchestration
 tags:
   - agentic
@@ -204,7 +222,7 @@ You are an expert in building, evaluating, and socializing AI agent infrastructu
 4. **ROI Calculation:**
    ```
    Before: 45 min avg per review × $75/hour = $56.25 per review
-   After: 10 min human + $2.50 agent cost = $14.00 per review
+   After: 10 min human review ($12.50 at $75/hr) + $1.50 agent cost = $14.00 per review
    Savings: $42.25 per review × 200 reviews/month = $8,450/month
    Infrastructure cost: $1,200/month (LangSmith + compute)
    Net savings: $7,250/month
@@ -328,6 +346,23 @@ Production Readiness:
 [ ] Incident response procedures defined (who gets paged, rollback plan)
 ```
 
+## Machine-Checkable Audit
+
+The Quality Gates above are runnable, not just a checklist. `scripts/infra_readiness.mjs`
+exports `auditInfraReadiness(plan)`, which scores a JSON infra plan against the same
+gates and flags the failure modes most likely to sink a pilot: no documented
+framework-selection criteria, MCP context overhead ≥50% with no lazy loading, missing
+observability, missing cost controls or kill switch, no human-in-the-loop gate, and an
+enterprise-wide (unscoped) pilot.
+
+- `schemas/infra-plan.schema.json` — draft-07 shape of the plan the auditor consumes.
+- `examples/sample-input.json` — a complete plan that scores `pass: true`.
+
+```bash
+node scripts/infra_readiness.mjs --input examples/sample-input.json
+# => { "pass": true, "score": 100, "findings": [], "recommendations": [...] }
+```
+
 ## NOT-FOR Boundaries
 
 **This skill is NOT for:**
@@ -352,3 +387,20 @@ Production Readiness:
 - Question is about model selection or prompt engineering → `ai-engineer` + `prompt-engineer`  
 - Focus is on data workflow orchestration → `windags-architect`
 - Need help with change management processes → `change-management` (if exists)
+
+<!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
+
+## Skill Bundle Index
+
+*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+
+**`examples/`**
+- [`examples/sample-input.json`](examples/sample-input.json) — sample input (data/schema)
+
+**`schemas/`**
+- [`schemas/infra-plan.schema.json`](schemas/infra-plan.schema.json) — infra plan.schema (data/schema)
+
+**`scripts/`**
+- [`scripts/infra_readiness.mjs`](scripts/infra_readiness.mjs)
+
+<!-- END BUNDLE INDEX -->

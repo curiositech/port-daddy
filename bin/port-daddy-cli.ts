@@ -42,7 +42,7 @@ import PKG from '../package.json' with { type: 'json' };
 // Command modules (extracted from this file)
 import {
   // Services
-  handleClaim, handleRelease, handleFind, handleUrl, handleEnv, autoIdentityFromPackageJson,
+  handleClaim, handleRelease, handleFind, handleUrl, handleEnv, handleEnvExec, autoIdentityFromPackageJson,
   // Locks
   handleLock, handleUnlock, handleLocks,
   // Messaging
@@ -132,6 +132,8 @@ import {
   handleRestore,
   // Honest attestation / loud-fail invariants (ADR-0045)
   handleAttest,
+  // Host-safety posture audit — `pd safe scan|baseline|fix` (ADR-0088 Phase A)
+  handleSafe,
   // Shipwright — survey/propose/apply for fleet authoring
   handleShipwright,
   // App-Native Development Cockpit
@@ -1351,6 +1353,7 @@ const ALL_COMMANDS: string[] = [
   'backend',
   'periscope', 'sight', 'scope',
   'coast-guard', 'cg',
+  'safe',
   'relay',
 ];
 
@@ -2521,7 +2524,14 @@ export async function main(): Promise<void> {
         break;
 
       case 'env':
-        await handleEnv(positional[0], options);
+        if (positional[0] === 'exec') {
+          // `pd env exec -- <cmd>` resolves pd-secret:// refs into the child env
+          // only (ADR-0088 Phase B access path). `--` flattens the command into
+          // positional, so everything after `exec` is the command + its args.
+          await handleEnvExec(positional.slice(1), options);
+        } else {
+          await handleEnv(positional[0], options);
+        }
         break;
 
       // Agent coordination
@@ -2897,6 +2907,13 @@ export async function main(): Promise<void> {
 
       case 'attest':
         await handleAttest(positional, options, PKG.version);
+        break;
+
+      // Host-safety layer — the read-only posture audit + opt-in reversible
+      // perm-fix (ADR-0088 Phase A). `pd safe scan` defaults; `pd safe baseline
+      // accept <id>` triages a finding; `pd safe fix --auto` tightens perms.
+      case 'safe':
+        await handleSafe(positional, options);
         break;
 
       case 'restore':

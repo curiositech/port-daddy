@@ -1,0 +1,20 @@
+{
+  "identityNonForgeable": true,
+  "continuityPersists": {
+    "memory": true,
+    "checkpoint": true,
+    "outcomeLedger": true
+  },
+  "outcomesCloseAgainstOracle": true,
+  "sampledAdversarialAuditor": true,
+  "estimator": "trueskill",
+  "representsUncertainty": true,
+  "scoreIsTelemetryGatesArePredicates": true,
+  "newcomerPolicy": true,
+  "judge": {
+    "present": true,
+    "deBiased": true
+  },
+  "sanctionsStakedGraduated": true,
+  "notes": "Daemon-minted agent id bound to a signing key (ADR-0040 target state). Continuity = episodic-memory-algorithms stream + checkpoint snapshot + an append-only outcome ledger keyed on merged SHAs and passing CI run ids. A sampled adversarial auditor re-opens 10% of cleared outcomes weekly, risk-weighted toward high-spend tasks. TrueSkill estimator per (role, backend) with variance exposed. Score surfaced as telemetry only; routing/spend gates check predicate counts (clean exits, no overdue obligations), not the raw score. Newcomer floor: full task eligibility, reduced payout ceiling until 10 clean exits accrue. An LLM-as-judge participates in pairwise PR comparisons, blinded and order-swapped, and never judges its own model family. Sanction ladder: first audit failure = payout clawback; repeat = suspension with staked bond forfeiture."
+}
