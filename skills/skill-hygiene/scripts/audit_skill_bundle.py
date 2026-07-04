@@ -225,6 +225,8 @@ def find_mermaid_label_hazards(text: str, rel_path: str) -> list[dict]:
         first = next((ln.strip() for ln in body.splitlines() if ln.strip()), "")
         if not (first.startswith("flowchart") or first.startswith("graph")):
             continue
+        # file-accurate line numbers: offset by the lines preceding the block body
+        base = text[: block.start(1)].count("\n")
         for lineno, line in enumerate(body.splitlines(), start=1):
             if "--" in line:
                 for label in re.findall(r"\|([^|\n]+)\|", line):
@@ -236,7 +238,7 @@ def find_mermaid_label_hazards(text: str, rel_path: str) -> list[dict]:
                     if '"' in stripped and not fully_quoted:
                         hazards.append({
                             "file": rel_path,
-                            "line": lineno,
+                            "line": base + lineno,
                             "kind": "edge_label_embedded_quote",
                             "snippet": line.strip()[:100],
                         })
@@ -252,7 +254,7 @@ def find_mermaid_label_hazards(text: str, rel_path: str) -> list[dict]:
                 if "(" in stripped or ")" in stripped:
                     hazards.append({
                         "file": rel_path,
-                        "line": lineno,
+                        "line": base + lineno,
                         "kind": "unquoted_parens_in_node_text",
                         "snippet": line.strip()[:100],
                     })
