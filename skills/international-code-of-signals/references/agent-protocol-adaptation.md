@@ -29,6 +29,47 @@ The International Code of Signals is a century-hardened answer to the exact prob
 
 **Registry governance is part of the protocol.** ICOS meanings are set by IMO revision, printed identically in nine languages; nobody mints new two-letter groups locally (local codes must be bracketed with `YV 1`). Agent verb registries need the same: a canonical schema source, versioned revisions, and an explicit escape hatch for experimental/local verbs — not silent dialect drift per agent.
 
+## Wire-Format Grounding (2026 interchange formats)
+
+The ten mechanisms map onto today's concrete agent interchange formats — use this table when translating ICOS discipline into an actual schema:
+
+| ICOS mechanism | Wire-format counterpart |
+|---|---|
+| Complete-meaning registry (1) | Registered method/skill ids with input schemas: MCP tool definitions, A2A `AgentCard.skills[]`, JSON-RPC method names. No verb exists until registered with a schema; free composition of registered verbs is still not a message |
+| Urgency-ranked namespace (2) | Priority classes in the envelope, not the payload — and a true interrupt travels out-of-band (push notification / control channel), never queued behind routine traffic |
+| Complements tables (3) | Shared enum registries in JSON Schema `$defs`, referenced by `$ref` and versioned once — never inline-duplicated per message type (that's how Table 2 would drift) |
+| Procedure vs content signals (4) | Envelope/lifecycle fields vs `parts[]` payload: A2A task states (`submitted → working → completed/failed`), sequence numbers on stream events, correlation via `conversationId`. Never encode transport control inside a domain payload |
+| `ZL` vs `RPT` (5) | The `retryable` boolean on structured errors. Transport failure → `retryable: true` + `retryAfterMs` (retry same payload, backoff). Semantic NAK → `retryable: false` + `details.expectedSchema` (an `MQB`: resend *in standard form*, never byte-identical) |
+| Two-phase ack (6) | Delivery receipt ≠ comprehension receipt: HTTP 202 / message-id echo is *at the dip*; the task state transition to `working` (schema validated, work accepted) is *close up*. Track both or delivered-but-unparsed hides |
+| Modality operators (7) | Operations over message ids: `{op: "affirm" | "negate" | "query", ref: <messageId>}` as a small DataPart — instead of minting `X`, `not-X`, and `is-X?` as three registered types |
+| Cross-modality invariance (8) | One schema source of truth projected to every surface (CLI, RPC, MCP, UI) — pd's `features.manifest.json` bijective-parity gates are exactly this enforcement |
+| Session brackets `WM`/`WO` (9) | A mode is opened by an explicit acked message carrying its own id, scoped to a `conversationId`, and closed the same way. Inferring mode from recent traffic is the anti-pattern |
+| Distress preemption (10) | A reserved top-priority class whose misuse is a protocol violation; distress traffic may suppress routine streams (SEELONCE MAYDAY = pausing non-involved producers, not just ranking the queue) |
+
+An ICOS-shaped signal as an A2A-style envelope (pd flavor):
+
+```json
+{
+  "id": "01JZC8...",
+  "conversationId": "sortie-shared-embedder-078ce3",
+  "timestamp": "2026-07-04T13:05:00Z",
+  "sender": { "agentId": "pd:builder-3" },
+  "recipient": { "agentId": "pd:harbormaster" },
+  "parts": [{
+    "kind": "data",
+    "schema": "pd.signal.v1",
+    "data": {
+      "code": "F",
+      "gloss": "disabled; communicate with me",
+      "priority": "urgency",
+      "refs": { "claim": "cli/commands/embed.ts", "task": "01JZC7..." }
+    }
+  }]
+}
+```
+
+The `code` is the registered complete meaning; `gloss` is display-only (never parsed); `refs` are the typed data fields (`L`/`G`-style complements); priority is envelope-level. A receiver that can't validate `pd.signal.v1` answers with a `retryable: false` error naming the schema — `ZL`, not `RPT`.
+
 ## Designing a Fleet Signal Registry (procedure)
 
 ```mermaid
