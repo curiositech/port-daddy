@@ -197,7 +197,7 @@ export function auditSurfaceAuthority(spec) {
     }
   }
 
-  const totalWeight = findings.reduce((sum, f) => sum + (SEVERITY_WEIGHT[f.severity] ?? 0), 0);
+  const totalWeight = findings.reduce((sum, f) => sum + ((SEVERITY_WEIGHT[f.severity] ?? (() => { throw new Error(`unknown finding severity: ${f.severity}`); })())), 0);
   const score = Math.max(0, 100 - totalWeight);
   const hasCritical = findings.some((f) => f.severity === 'critical');
   const pass = !hasCritical && score >= 75;

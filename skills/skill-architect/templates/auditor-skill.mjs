@@ -35,7 +35,7 @@ export function auditThing(spec) {
   //   }
   // }
 
-  const totalWeight = findings.reduce((sum, f) => sum + (SEVERITY_WEIGHT[f.severity] ?? 0), 0);
+  const totalWeight = findings.reduce((sum, f) => sum + ((SEVERITY_WEIGHT[f.severity] ?? (() => { throw new Error(`unknown finding severity: ${f.severity}`); })())), 0);
   const score = Math.max(0, 100 - totalWeight);
   const pass = !findings.some((f) => f.severity === 'critical') && score >= 75;
   if (pass) recommendations.push('Spec meets the bar on every gate. Proceed.');
