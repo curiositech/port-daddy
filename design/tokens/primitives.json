@@ -20,7 +20,7 @@
     "cinnabar-dim": { "hex": "#8B1622", "rgb": [139,  22,  34], "note": "deeper crimson for mayday band, 9.2:1 on paper" },
     "tan":          { "hex": "#8B5A1A", "rgb": [139,  90,  26], "note": "warm tan — securité severity band, 7.6:1 on cream" },
 
-    "canary":       { "hex": "#D8DD3C", "rgb": [216, 221,  60], "note": "neobrutalism canary — primary brand, 12.3:1 on ebony" },
+    "canary":       { "hex": "#D8DD3C", "rgb": [216, 221,  60], "note": "palette v2 gold (dark) — replaced retired mustard per binder ch20; re-validate contrast per surface" },
     "canary-soft":  { "hex": "#FAE583", "rgb": [250, 229, 131], "note": "softer canary for hovers" },
     "canary-warm":  { "hex": "#FDE68A", "rgb": [253, 230, 138], "note": "warm cream-canary, captions" },
     "canary-strong":{ "hex": "#FFCC00", "rgb": [255, 204,   0], "note": "punchier canary for emphasis" },

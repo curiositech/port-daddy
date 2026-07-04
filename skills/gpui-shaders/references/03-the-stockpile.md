@@ -2,7 +2,7 @@
 
 > **Scope.** This is the showpiece. A gallery of *complete*, on-brand WGSL fragment shaders for **T3 surfaces** (Vello/wgpu on Metal) in pd-console — the moment you've earned a fragment shader per `05-bespoke-graphics-vello-wgpu.md` (per-pixel dither at full res + 60fps, a real water sim, a CRT post pass). Every example below is the *escape-hatch ceiling*: a `wgpu::RenderPipeline` on the same `Surface` Vello renders into, or a Vello post-pass. None of this belongs in the gpui element tree, and none of it is a substitute for a T1 `with_animation` glow.
 >
-> **Brand law.** Harbor / maritime / **palette v2 gold + cobalt**, pixelated retro-futurism. Every color below traces a `palette.rs` role — `GOLD 0xd8dd3c`, `NAVY 0x141b2e`, `BG 0xf5f5f0`, `SEA 0x1c3a5e`, `FOAM 0xcfe3f0`. **Never** cinnabar red, brass, or patina (`scripts/check-brand-colors.mjs` fails CI on them). When the operator flips theme (`Ctrl-A g`), you re-push a uniform buffer, not a new pipeline.
+> **Brand law.** Harbor / maritime / **palette v2 gold + navy**, pixelated retro-futurism. Every color below traces a `palette.rs` role — `GOLD 0xd8dd3c`, `NAVY 0x141b2e`, `BG 0xf5f5f0`, `SEA 0x1c3a5e`, `FOAM 0xcfe3f0`. **Never** cinnabar red, brass, or patina (`scripts/check-brand-colors.mjs` fails CI on them). When the operator flips theme (`Ctrl-A g`), you re-push a uniform buffer, not a new pipeline.
 >
 > **House WGSL conventions used throughout** (so you can paste any one shader and it compiles against the same scaffold):
 > - Full-screen triangle vertex shader (§0), one shared `Uniforms` block, fragment entry `fs_main`.
@@ -141,7 +141,7 @@ fn fs_main(in : VOut) -> @location(0) vec4f {
     col = mix(col, FOAM, foam_line);
     // A few mustard sun-sparks riding the brightest crests.
     let spark = step(0.93, crest) * step(0.5, hash21(frag * 0.5 + floor(t * 6.0)));
-    col = mix(col, MUSTARD, spark * 0.6);
+    col = mix(col, GOLD, spark * 0.6);
     return vec4f(col, 1.0);
 }
 ```
@@ -206,10 +206,10 @@ fn fs_main(in : VOut) -> @location(0) vec4f {
     let flag = sd_box(bp - vec2f(0.0 + 0.14*sin(t*8.0), 1.0), vec2f(0.14, 0.05));
 
     // Composite back-to-front with hard SDF edges (no AA = crisp pixel look).
-    col = select(col, MUSTARD, sail < 0.0);
+    col = select(col, GOLD, sail < 0.0);
     col = select(col, NAVY,    mast < 0.0);
     col = select(col, HULL,    hull < 0.0);
-    col = select(col, MUSTARD, flag < 0.0);
+    col = select(col, GOLD, flag < 0.0);
 
     // Reflection smear: faint vertical mustard/navy streak below the hull.
     if (uv.y > waterline) {
@@ -266,13 +266,13 @@ fn fs_main(in : VOut) -> @location(0) vec4f {
         // ── SKY: vertical gradient, dithered navy→foam (or navy→mustard at dawn).
         let g = uv.y / sea_y;                              // 0 top .. 1 at sea line
         let top = select(FOAM, NAVY, night);
-        let dawn = mix(top, MUSTARD, smoothstep(0.55, 1.0, g) * 0.7);
+        let dawn = mix(top, GOLD, smoothstep(0.55, 1.0, g) * 0.7);
         let sky_tone = g;
         col = dither_quant(dawn, frag, 4.0);
         // Sun disk + halo.
         let d = length((uv - sun) * vec2f(res.x/res.y, 1.0));
-        col = mix(col, MUSTARD, smoothstep(0.075, 0.055, d));          // disk
-        col = mix(col, MUSTARD, smoothstep(0.20, 0.0, d) * 0.25);      // halo
+        col = mix(col, GOLD, smoothstep(0.075, 0.055, d));          // disk
+        col = mix(col, GOLD, smoothstep(0.20, 0.0, d) * 0.25);      // halo
         // Stars at night, dithered sparse.
         if (night) {
             let s = step(0.985, hash21(frag)) * step(0.5, hash21(frag + 7.0));
@@ -284,7 +284,7 @@ fn fs_main(in : VOut) -> @location(0) vec4f {
         var tone  = 0.25 + swell * 0.5;
         col = dither_pick(tone, frag, select(SEA, NAVY, night), FOAM);
         let glint = sun_glint(uv, sun, t);
-        col = mix(col, MUSTARD, smoothstep(0.35, 0.9, glint));
+        col = mix(col, GOLD, smoothstep(0.35, 0.9, glint));
     }
 
     // ── BOATS: three moored silhouettes on the sea line (back-to-front).
@@ -346,7 +346,7 @@ fn fs_main(in : VOut) -> @location(0) vec4f {
     col = dither_quant(col * mix(0.78, 1.12, shade), frag, 4.0);
     // A travelling mustard highlight glints along the crest of each fold.
     let glint = smoothstep(0.92, 1.0, shade) * flap;
-    col = mix(col, MUSTARD, glint * 0.5);
+    col = mix(col, GOLD, glint * 0.5);
     return vec4f(col, 1.0);
 }
 ```
@@ -391,11 +391,11 @@ fn fs_main(in : VOut) -> @location(0) vec4f {
     col = col + FOAM * star * tw;
     // A few brighter mustard "navigation stars".
     let nav = step(0.9985, hash21(frag + 3.0));
-    col = col + MUSTARD * nav * (0.6 + 0.4 * tw);
+    col = col + GOLD * nav * (0.6 + 0.4 * tw);
 
     // Two aurora curtains: mustard low, foam-tinted high.
-    col = col + aurora_band(uv, t, 0.55, MUSTARD * 0.8, 0.35);
-    col = col + aurora_band(uv, t, 0.40, mix(FOAM, MUSTARD, 0.3) * 0.7, -0.22);
+    col = col + aurora_band(uv, t, 0.55, GOLD * 0.8, 0.35);
+    col = col + aurora_band(uv, t, 0.40, mix(FOAM, GOLD, 0.3) * 0.7, -0.22);
 
     // Dither-quantize so the gradients band into clean retro steps.
     col = dither_quant(col, frag, 6.0);
@@ -455,7 +455,7 @@ fn fs_main(in : VOut) -> @location(0) vec4f {
 
     // Vignette + a whisper of mustard bloom in the corners.
     let vig = smoothstep(1.25, 0.4, length(dir) * 2.0);
-    col = mix(col, col + MUSTARD * 0.05, length(dir));
+    col = mix(col, col + GOLD * 0.05, length(dir));
     col = col * vig;
     return vec4f(col, 1.0);
 }
@@ -484,7 +484,7 @@ fn fs_main(in : VOut) -> @location(0) vec4f {
 
     // Two-stop ramp navy→mustard→navy (a travelling highlight band).
     let band = smoothstep(0.0, 0.5, phase) * smoothstep(1.0, 0.5, phase);
-    var col = mix(NAVY, MUSTARD, band);
+    var col = mix(NAVY, GOLD, band);
 
     // Ordered-dither the ramp into ~5 visible steps — the signature retro edge.
     col = dither_quant(col, frag, 5.0);
@@ -547,11 +547,11 @@ fn fs_main(in : VOut) -> @location(0) vec4f {
         rel = rel - floor(rel / TAU) * TAU;                // 0..TAU behind the arm
         let arm   = smoothstep(0.04, 0.0, rel) ;           // leading edge
         let trail = exp(-rel * 2.2);                       // phosphor afterglow
-        col = mix(col, MUSTARD, (arm + trail * 0.5) * smoothstep(1.0, 0.95, r));
+        col = mix(col, GOLD, (arm + trail * 0.5) * smoothstep(1.0, 0.95, r));
 
         // A few contacts that flare as the beam passes (drive from a storage buf).
-        col = col + MUSTARD * contact(uv, 0.45, 1.1, sweep, 0.04);
-        col = col + MUSTARD * contact(uv, 0.72, 3.7, sweep, 0.05);
+        col = col + GOLD * contact(uv, 0.45, 1.1, sweep, 0.04);
+        col = col + GOLD * contact(uv, 0.72, 3.7, sweep, 0.05);
         col = col + FOAM    * contact(uv, 0.30, 5.2, sweep, 0.035);
 
         // Dither the whole scope to lock the retro look.
@@ -570,7 +570,7 @@ fn fs_main(in : VOut) -> @location(0) vec4f {
 
 ## Quality Gates (every shader in the stockpile)
 
-- [ ] **Palette-only literals.** Every `vec3f` color is a named brand const (`MUSTARD`/`NAVY`/`SEA`/`FOAM`/`BG`/`HULL`/`RUST`). No cinnabar red, brass, or patina — `scripts/check-brand-colors.mjs` would fail.
+- [ ] **Palette-only literals.** Every `vec3f` color is a named brand const (`GOLD`/`NAVY`/`SEA`/`FOAM`/`BG`/`HULL`/`RUST`). No cinnabar red, brass, or patina — `scripts/check-brand-colors.mjs` would fail.
 - [ ] **Theme-reactive.** Reads `U.i_theme`; `Ctrl-A g` re-pushes the uniform and the surface re-skins next frame with **zero** pipeline rebuild.
 - [ ] **Off-switch.** Under `PD_CONSOLE_FX=off` the Rust side stops advancing `i_time` (freeze mid-phase) — every shader must look "lit," not broken, at a static `i_time`. No effect *requires* motion to be legible.
 - [ ] **Pixelation is intentional.** Any chunky look comes from `pixelate(... , CHUNK≥3.0)` or `dither_quant`, never from accidental low-res sampling. Borders/post passes that must stay crisp (`g`, `f`) deliberately skip `pixelate`.

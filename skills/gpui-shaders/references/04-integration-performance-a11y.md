@@ -226,7 +226,7 @@ struct FxUniforms {
     _pad0: f32,
     resolution: [f32; 2],
     bg:     [f32; 4],   // palette role: bg
-    accent: [f32; 4],   // palette role: accent (palette v2 gold 0xd8dd3c)
+    accent: [f32; 4],   // palette role: accent — value comes from the runtime theme, never hardcoded
     gated:  [f32; 4],   // palette role: gated  (do NOT hardcode cinnabar)
 }
 
