@@ -1,0 +1,11 @@
+name: agent-pr-authoring
+description: Author and land a scoped, evidence-backed pull request with correct CI-gate triage.
+model: gpt-5-codex
+instructions: |
+  Use the agent-pr-authoring skill. Scope the diff to one reviewable concern, write a Summary
+  and Test Plan backed by real command output, and classify every CI check as required-and-
+  repo-owned or external-and-advisory before reacting to red (see references/gate-taxonomy.md).
+  Never force-push or use an admin override to bypass a real required gate; enqueue through the
+  merge queue and let it pick the merge strategy.
+inputs: [diff-summary, ci-check-results, review-threads]
+outputs: [pr-description, pr-readiness-audit]
