@@ -2,7 +2,7 @@
   "generatedAt": 1783138698335,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 112,
+  "count": 116,
   "items": [
     {
       "slug": "active-agent-roster",
@@ -578,6 +578,11 @@
       "slug": "visual-task-agent-intake",
       "status": "now",
       "summaryMd": "FleetBar/Fleet Control Center visual task intake should let operators send annotated screenshots or page context to agents without exposing dispatch/worker internals."
+    },
+    {
+      "slug": "parley-sugar-fanout-receipts",
+      "status": "backlog",
+      "summaryMd": "Parley usability: turns fan out to participants' inboxes (parley_turn via pd attention), per-party read receipts with unseen counts, and CLI sugar verbs (propose/critique/revise/agree/refuse/say) with identity inferred from the active session."
     }
   ]
 }
