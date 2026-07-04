@@ -56,22 +56,36 @@ mkdir -p "$BASE" "$BUILD_LOGS"
 
 log() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 notify() { # notify <title> <message> — best-effort operator toast
-  osascript -e "display notification \"${2//\"/\\\"}\" with title \"${1//\"/\\\"}\"" >/dev/null 2>&1 || true
+  # AppleScript string escaping: backslashes FIRST, then quotes (fleet red-team:
+  # tap-controlled text reaches this — never let it break out of the literal).
+  local t="$1" m="$2"
+  t="${t//\\/\\\\}"; t="${t//\"/\\\"}"
+  m="${m//\\/\\\\}"; m="${m//\"/\\\"}"
+  osascript -e "display notification \"$m\" with title \"$t\"" >/dev/null 2>&1 || true
 }
 state_get() { cat "$BASE/$1" 2>/dev/null || true; }
 state_set() { printf '%s' "$2" > "$BASE/$1"; }
 
 # ── Single-flight lock (builds run many minutes; polls every few) ──────────────
-if mkdir "$LOCK" 2>/dev/null; then
-  printf '%s' $$ > "$LOCK/pid"
-  trap 'rm -rf "$LOCK"' EXIT
-else
+# Fail-closed discipline (fleet review finding): every path that does not WIN
+# the mkdir exits this tick. Stale detection uses dead-pid OR an age ceiling —
+# the age check breaks the PID-reuse wedge (holder pid recycled by an unrelated
+# long-lived process would otherwise hold the lock forever).
+LOCK_MAX_AGE_S=$((3 * 3600))
+lock_acquire() {
+  mkdir "$LOCK" 2>/dev/null && printf '%s' $$ > "$LOCK/pid" && trap 'rm -rf "$LOCK"' EXIT
+}
+if ! lock_acquire; then
   HOLDER="$(cat "$LOCK/pid" 2>/dev/null || true)"
-  if [ -n "$HOLDER" ] && kill -0 "$HOLDER" 2>/dev/null; then
+  LOCK_BORN="$(stat -f %m "$LOCK" 2>/dev/null || stat -c %Y "$LOCK" 2>/dev/null || echo 0)"
+  LOCK_AGE=$(( $(date +%s) - LOCK_BORN ))
+  if [ -n "$HOLDER" ] && kill -0 "$HOLDER" 2>/dev/null && [ "$LOCK_AGE" -lt "$LOCK_MAX_AGE_S" ]; then
     exit 0   # a build is in flight; this poll tick simply yields
   fi
-  log "removing stale lock (pid ${HOLDER:-?} is gone)"
-  rm -rf "$LOCK"; mkdir "$LOCK" && printf '%s' $$ > "$LOCK/pid" && trap 'rm -rf "$LOCK"' EXIT
+  log "removing stale lock (pid ${HOLDER:-?}, age ${LOCK_AGE}s)"
+  rm -rf "$LOCK"
+  # If another tick wins the re-acquire race, YIELD — never continue unlocked.
+  lock_acquire || exit 0
 fi
 
 # ── Ensure the build clone exists and is current ───────────────────────────────
@@ -107,10 +121,15 @@ if [ "$FORCE_LATEST" = 1 ] || { [ "$MAIN_SHA" != "$(state_get built-main-sha)" ]
     notify "Port Daddy apps" "latest lanes rebuilt + relaunched (main @ ${MAIN_SHA:0:10})"
     # Self-update: the copy launchd runs lives outside the repo; refresh it (and
     # the installer) from the ref we just built so the watcher tracks main too.
+    # ATOMIC (fleet review HIGH): a plain cp onto the RUNNING script truncates
+    # the open inode mid-execution and bash reads misaligned bytes — write a
+    # temp file and mv over it, which swaps the directory entry while the
+    # running shell keeps its old inode until exit.
     for f in pd-app-watch.sh install-app-watch.sh; do
       if [ -f "$REPO/scripts/$f" ] && ! cmp -s "$REPO/scripts/$f" "$HOME/.port-daddy/bin/$f"; then
-        cp "$REPO/scripts/$f" "$HOME/.port-daddy/bin/$f" && chmod +x "$HOME/.port-daddy/bin/$f"
-        log "self-updated $f from main"
+        TMPF="$HOME/.port-daddy/bin/.$f.new.$$"
+        cp "$REPO/scripts/$f" "$TMPF" && chmod +x "$TMPF" && mv -f "$TMPF" "$HOME/.port-daddy/bin/$f"
+        log "self-updated $f from main (atomic swap; takes effect next tick)"
       fi
     done
   else
@@ -135,7 +154,8 @@ elif [ "$FORCE_PROD" = 1 ] || { [ "$TAP_VERSION" != "$(state_get built-prod-vers
     # Brew churn is exactly what unloads the daemon's launchd job (silent daemon
     # death — see pd doctor supervision-integrity). Re-start the service if the
     # upgrade left it unloaded.
-    if brew services list 2>/dev/null | grep -E '^port-daddy\s' | grep -qv started; then
+    # [[:space:]] not \s — BSD grep has no \s and this net must actually fire.
+    if brew services list 2>/dev/null | grep -E '^port-daddy[[:space:]]' | grep -qv started; then
       log "daemon service not running after upgrade — brew services start port-daddy"
       brew services start port-daddy >/dev/null 2>&1 || true
     fi

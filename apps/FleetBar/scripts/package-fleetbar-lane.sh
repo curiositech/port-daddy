@@ -159,7 +159,15 @@ PLIST
   # Old manually-launched instances of this lane's bundle would linger beside the
   # supervised one — clear them before launchd takes over.
   pkill -f "$APP/Contents/MacOS/FleetBar" 2>/dev/null || true
-  launchctl bootstrap "$GUI" "$PLIST_DST"
+  # bootout is asynchronous: an immediate bootstrap can race it (EBUSY) and,
+  # under set -e, abort AFTER the teardown but BEFORE the restart — leaving the
+  # lane down (fleet review finding). Retry briefly instead of trusting one shot.
+  BOOTSTRAPPED=0
+  for _try in 1 2 3 4 5; do
+    if launchctl bootstrap "$GUI" "$PLIST_DST" 2>/dev/null; then BOOTSTRAPPED=1; break; fi
+    sleep 1
+  done
+  [ "$BOOTSTRAPPED" = 1 ] || { echo "✗ launchctl bootstrap failed after retries — $LABEL may be down" >&2; exit 1; }
   launchctl kickstart -k "$GUI/$LABEL" 2>/dev/null || true
   echo "▸ launchd $LABEL restarted on the fresh bundle"
 else
