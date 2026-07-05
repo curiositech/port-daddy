@@ -291,6 +291,7 @@ run_read "parley list"       parley       -- parley list
 run_read "obligations"       obligations  -- obligations
 run_read "who-owns"          who-owns     -- who-owns README.md
 run_read "guard status"      guard        -- guard status
+run_read "hooks list"        hooks        -- hooks list
 run_read "spawned"           spawned      -- spawned
 run_read "sortie list"       sortie       -- sortie list
 run_read "agent (usage)"     agent        -- agent

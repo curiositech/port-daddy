@@ -37,6 +37,9 @@ export interface AnthropicMessagesRequest {
   messages?: AnthropicMessage[];
   stream?: boolean;
   thinking?: unknown;
+  // Current Claude Code (Opus 4.7+/Sonnet 5) signals reasoning depth here, not
+  // via the deprecated thinking.budget_tokens ladder.
+  output_config?: { effort?: unknown; [key: string]: unknown };
   tools?: AnthropicToolDefinition[];
   tool_choice?: unknown;
   metadata?: Record<string, unknown>;
@@ -86,6 +89,8 @@ export interface NormalizedRequest {
   tools: Array<Required<Pick<AnthropicToolDefinition, 'name'>> & AnthropicToolDefinition>;
   toolChoice?: unknown;
   thinking?: NormalizedThinking;
+  /** Codex effort derived from the client's output_config.effort (if any). */
+  outputEffort?: 'low' | 'medium' | 'high';
   stream: boolean;
 }
 
@@ -111,8 +116,42 @@ export function normalizeAnthropicMessages(req: AnthropicMessagesRequest): Norma
     tools: normalizeTools(req.tools),
     toolChoice: req.tool_choice,
     thinking: normalizeThinking(req.thinking),
+    outputEffort: normalizeOutputEffort(req.output_config),
     stream: Boolean(req.stream),
   };
+}
+
+/**
+ * Map the client's Anthropic effort tier (low|medium|high|xhigh|max) to a Codex
+ * reasoning effort (low|medium|high). Codex has no xhigh/max, so both fold to
+ * high. Returns undefined for an absent or unrecognized value.
+ */
+function normalizeOutputEffort(outputConfig: AnthropicMessagesRequest['output_config']): 'low' | 'medium' | 'high' | undefined {
+  const raw = outputConfig?.effort;
+  if (typeof raw !== 'string') return undefined;
+  switch (raw.trim().toLowerCase()) {
+    case 'low': return 'low';
+    case 'medium': return 'medium';
+    case 'high':
+    case 'xhigh':
+    case 'max': return 'high';
+    default: return undefined;
+  }
+}
+
+/**
+ * Resolve the Codex reasoning effort for a request. Precedence: the client's
+ * explicit output_config.effort, then the thinking-budget ladder, then — when
+ * thinking is on adaptively with no depth signal — a sensible 'medium' default
+ * (NOT 'low', which would silently dumb down every current Claude Code session,
+ * since adaptive thinking carries no budget_tokens). An explicit operator
+ * --tier/--codex-effort in the base config still wins over all of this.
+ */
+export function resolveCodexEffort(normalized: NormalizedRequest): 'low' | 'medium' | 'high' | undefined {
+  if (normalized.outputEffort) return normalized.outputEffort;
+  if (normalized.thinking?.codexEffort) return normalized.thinking.codexEffort;
+  if (normalized.thinking?.enabled) return 'medium';
+  return undefined;
 }
 
 /** Render a normalized request as Codex-facing context. */
@@ -141,9 +180,10 @@ export function formatNormalizedRequestForCodex(
     }
   }
 
-  if (normalized.thinking) {
-    const effort = normalized.thinking.codexEffort ?? (normalized.thinking.enabled ? 'low' : 'disabled');
-    lines.push(`Reasoning request: enabled=${normalized.thinking.enabled}; codex_effort=${effort}; raw=${stableJson(normalized.thinking.raw)}.`);
+  if (normalized.thinking || normalized.outputEffort) {
+    const effort = resolveCodexEffort(normalized) ?? 'disabled';
+    const enabled = normalized.thinking?.enabled ?? Boolean(normalized.outputEffort);
+    lines.push(`Reasoning request: enabled=${enabled}; codex_effort=${effort}; raw=${stableJson(normalized.thinking?.raw ?? { effort: normalized.outputEffort })}.`);
   }
 
   if (containsThinking(normalized)) {
@@ -187,9 +227,11 @@ export function formatNormalizedRequestForCodex(
 /** Codex CLI `-c` overrides implied by the Anthropic request itself. */
 export function codexConfigForNormalizedRequest(normalized: NormalizedRequest, base: string[] = []): string[] {
   const config = [...base];
+  // An explicit operator --tier / --codex-effort (already in base) wins.
   const hasEffort = config.some((entry) => entry.startsWith('model_reasoning_effort='));
-  if (!hasEffort && normalized.thinking?.codexEffort) {
-    config.push(`model_reasoning_effort="${normalized.thinking.codexEffort}"`);
+  const effort = resolveCodexEffort(normalized);
+  if (!hasEffort && effort) {
+    config.push(`model_reasoning_effort="${effort}"`);
   }
   return [...new Set(config)];
 }
@@ -295,13 +337,15 @@ function normalizeThinking(thinking: unknown): NormalizedThinking | undefined {
   return {
     enabled,
     ...(budgetTokens !== undefined ? { budgetTokens } : {}),
-    ...(enabled ? { codexEffort: codexEffortForThinkingBudget(budgetTokens) } : {}),
+    // Only the deprecated budget_tokens ladder yields a concrete effort here.
+    // Adaptive thinking (no budget) intentionally leaves codexEffort unset so
+    // resolveCodexEffort() can apply its 'medium' default instead of 'low'.
+    ...(enabled && budgetTokens !== undefined ? { codexEffort: codexEffortForThinkingBudget(budgetTokens) } : {}),
     raw: thinking,
   };
 }
 
-function codexEffortForThinkingBudget(budgetTokens: number | undefined): 'low' | 'medium' | 'high' {
-  if (budgetTokens === undefined) return 'low';
+function codexEffortForThinkingBudget(budgetTokens: number): 'low' | 'medium' | 'high' {
   if (budgetTokens >= 4096) return 'high';
   if (budgetTokens >= 1024) return 'medium';
   return 'low';
