@@ -188,6 +188,9 @@ jobs:
           fi
           scripts/package-fleetbar.sh dist/fleetbar
           rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary.p8" 2>/dev/null || true
+          if [ -n "${APPLE_CERT_P12_BASE64:-}" ]; then
+            security delete-keychain "$KEYCHAIN" || true
+          fi
 
       - name: Signature guard — reject ad-hoc when signing was configured
         # The "ensure it's signed from now on" lever: if the Developer ID cert
