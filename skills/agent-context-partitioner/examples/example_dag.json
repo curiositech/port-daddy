@@ -1,0 +1,34 @@
+{
+  "_comment": "Example task DAG for dag_partitioner.py demo. Represents a full-stack feature: database → backend → frontend → testing → deploy.",
+  "nodes": [
+    { "id": "design_schema",    "token_cost": 3000,  "skill_tags": ["architecture", "database"], "description": "Design the data model and write schema docs" },
+    { "id": "write_migration",  "token_cost": 4000,  "skill_tags": ["database", "sql"],         "description": "Write Drizzle migration from schema docs" },
+    { "id": "implement_model",  "token_cost": 8000,  "skill_tags": ["backend", "typescript"],   "description": "Implement TypeScript domain model + validation" },
+    { "id": "write_api",        "token_cost": 12000, "skill_tags": ["backend", "fastify"],      "description": "Implement Fastify routes: CRUD + pagination" },
+    { "id": "write_api_tests",  "token_cost": 6000,  "skill_tags": ["testing"],                 "description": "Unit tests for API routes" },
+    { "id": "write_docs",       "token_cost": 3000,  "skill_tags": ["docs"],                    "description": "OpenAPI spec + README section" },
+    { "id": "implement_ui",     "token_cost": 15000, "skill_tags": ["frontend", "react"],       "description": "React UI components + data fetching hooks" },
+    { "id": "ui_tests",         "token_cost": 5000,  "skill_tags": ["testing", "playwright"],   "description": "Playwright e2e tests for the UI" },
+    { "id": "integration_test", "token_cost": 7000,  "skill_tags": ["testing"],                 "description": "Full-stack integration test suite" },
+    { "id": "deploy",           "token_cost": 2000,  "skill_tags": ["infra"],                   "description": "Deploy to staging, smoke test, tag release" }
+  ],
+  "edges": [
+    { "src": "design_schema",    "dst": "write_migration",  "handoff_tokens": 1500 },
+    { "src": "write_migration",  "dst": "implement_model",  "handoff_tokens": 2000 },
+    { "src": "implement_model",  "dst": "write_api",        "handoff_tokens": 3000 },
+    { "src": "write_api",        "dst": "write_api_tests",  "handoff_tokens": 1500 },
+    { "src": "write_api",        "dst": "write_docs",       "handoff_tokens": 1000 },
+    { "src": "write_api",        "dst": "implement_ui",     "handoff_tokens": 2500 },
+    { "src": "implement_ui",     "dst": "ui_tests",         "handoff_tokens": 1500 },
+    { "src": "write_api_tests",  "dst": "integration_test", "handoff_tokens": 2000 },
+    { "src": "ui_tests",         "dst": "integration_test", "handoff_tokens": 2000 },
+    { "src": "write_docs",       "dst": "deploy",           "handoff_tokens": 500  },
+    { "src": "integration_test", "dst": "deploy",           "handoff_tokens": 1000 }
+  ],
+  "expected_partition": {
+    "_comment": "With window=30k: chain 1 = design→migration→model→api, chain 2 = api_tests→integration→deploy, chain 3 = ui→ui_tests, chain 4 = docs",
+    "window_tokens": 30000,
+    "expected_agent_runs": 4,
+    "expected_handoffs": 4
+  }
+}
