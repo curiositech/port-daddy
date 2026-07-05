@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Corralling reduces blast radius (no plaintext at rest, scoped + logged Keychain access), but it is **not** confidentiality against a malicious same-UID agent whose binary satisfies the Keychain ACL — that needs the separate-UID broker (ADR-0087 phase 5). Every corral report path echoes that honest limit verbatim.
 
+### Fixed
+- **Release: FleetBar.app is now Developer ID signed + notarized (#531).** The release job extends the daemon/pd-console signing rig (same `APPLE_*` secrets, temp keychain, notary profile) to FleetBar: nested bun payload binaries signed inside-out with bun's JIT entitlements, SwiftUI host sealed with empty entitlements + hardened runtime, then notarized + stapled. A new signature guard re-extracts the released zip and fails the release if the cert secret was present but the .app is not Developer-ID signed — no more silently shipping a Gatekeeper-quarantined app.
+
 ### Removed
 - **Web dashboard retired; operator surfaces consolidated to THREE (#652).** `public/index.html` is no longer a 2,600-line dashboard — it is a minimal landing page that health-checks the daemon and points at the sanctioned surfaces: **FleetBar** (menu bar), **Control Center** (FleetBar's window, whose content IS `public/fleet-ui/`), and **pd-console** (GPU operator console). Deleted the orphaned `public/fleet-live.html`, `public/app-surgery.html`, and `public/fleet-config.html` (their live counterparts are Control Center surfaces), and removed the Control Center's redundant "Browser" pill (`FleetControlCenter.swift`) — the browser control plane it opened is the same `fleet-ui` the window already shows. References to the retired pages in old release notes below are historical record and intentionally unchanged. <!-- cite-exempt: the cited paths are the files this PR deletes -->
 
