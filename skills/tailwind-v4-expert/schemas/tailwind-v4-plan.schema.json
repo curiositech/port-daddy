@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/tailwind-v4-plan.schema.json",
+  "title": "Tailwind v4 Setup / Migration Plan",
+  "description": "A structured plan for a Tailwind v4 setup or v3-to-v4 migration, so this skill's anti-patterns and Quality Gates can be checked deterministically by scripts/tailwind_v4_audit.mjs.",
+  "type": "object",
+  "required": ["importModel", "dynamicClassStrategy"],
+  "additionalProperties": true,
+  "properties": {
+    "importModel": {
+      "type": "string",
+      "enum": ["import-tailwindcss", "v3-tailwind-directives"],
+      "description": "The CSS entry point: v4's single `@import \"tailwindcss\"` vs the v3 `@tailwind base/components/utilities` directives."
+    },
+    "configFileDeleted": {
+      "type": "boolean",
+      "description": "True if tailwind.config.js is deleted (or absent from a fresh project) -- v4 ignores it."
+    },
+    "dynamicClassStrategy": {
+      "type": "string",
+      "enum": ["literal-map", "css-variable", "template-literal", "none"],
+      "description": "How dynamic class names are handled: a const map of literal classes, a CSS-variable indirection, raw template literals (invisible to Oxide), or no dynamic classes."
+    },
+    "workspaceDepsWithClasses": {
+      "type": "boolean",
+      "description": "True if any workspace/monorepo dependency (e.g. a shared @my-org/ui package) contains Tailwind class strings."
+    },
+    "sourceGlobsDeclared": {
+      "type": "boolean",
+      "description": "True if every such workspace dep has an @source glob (relative to the CSS file) so Oxide scans it."
+    },
+    "darkModeStrategy": {
+      "type": "string",
+      "enum": ["media", "class", "data-attribute", "none", "multiple"],
+      "description": "The single dark-mode strategy in force. 'multiple' means strategies are mixed/scattered (a defect)."
+    },
+    "themeTokensInTheme": {
+      "type": "boolean",
+      "description": "True if design tokens (colors, fonts, breakpoints, spacing) are defined in an @theme block, generating utilities and CSS variables from one source of truth."
+    },
+    "v3PluginsPorted": {
+      "type": "boolean",
+      "description": "True if every v3 plugin the project used has a v4-native replacement or was rewritten via @variant / @layer / custom utilities. Omit if no plugins were in use."
+    },
+    "cssBundleKbGzipped": {
+      "type": "number",
+      "minimum": 0,
+      "description": "The gzipped size of the production CSS bundle in KB. Budget: <50KB for a typical app."
+    }
+  }
+}

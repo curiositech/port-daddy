@@ -17,6 +17,20 @@ jest.unstable_mockModule('node:fs', () => ({
   statSync: mockStatSync,
   unlinkSync: jest.fn(),
   writeFileSync: mockWriteFileSync,
+  // routes/fleet.ts now imports the I/O registry (GET /fleet/sources), whose
+  // file trigger references fs.watch at module-link time; email/notify sinks
+  // pull appendFileSync via the consent gate.
+  watch: jest.fn(() => ({ close: jest.fn() })),
+  appendFileSync: jest.fn(),
+}));
+
+jest.unstable_mockModule('node:child_process', () => ({
+  spawn: jest.fn(),
+  execSync: jest.fn(() => ''),
+  execFileSync: jest.fn(),
+  // notify-macos sink + EventKit bridge, transitively imported by the
+  // I/O registry the routes now reference.
+  execFile: jest.fn((_cmd, _args, cb) => { if (typeof cb === 'function') cb(null, '', ''); }),
 }));
 
 jest.unstable_mockModule('../../lib/fleet-engine.js', () => ({

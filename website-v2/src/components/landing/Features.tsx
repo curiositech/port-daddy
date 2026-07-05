@@ -277,7 +277,7 @@ export function Features() {
           <SectionIntro
             eyebrow="Product surface"
             title="One layer, many ways to inspect work."
-            description="Port Daddy is built as infrastructure first, with a real operator surface on top. FleetBar, Fleet Control Center, sessions, guardrails, inboxes, resources, sorties, and relay security all point back to the same local daemon state."
+            description="Port Daddy is built as infrastructure first, with a real operator surface on top. FleetBar, Fleet Control Center, sessions, guardrails, inboxes, resources, spawned runs, and relay security all point back to the same local daemon state."
             titleAs="h2"
             className="max-w-[46rem]"
             titleClassName="max-w-[14ch]"

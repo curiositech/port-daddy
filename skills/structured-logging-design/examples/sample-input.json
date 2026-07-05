@@ -1,0 +1,12 @@
+{
+  "format": "json",
+  "dataInMessageString": false,
+  "piiRedactorAtLoggerLevel": true,
+  "traceIdBound": true,
+  "fieldNameConvention": "snake_case",
+  "highCardinalityFieldsNormalized": true,
+  "errorLogSites": "single-top-level",
+  "asyncLogger": true,
+  "longFieldsCapped": true,
+  "coldStorageTier": true
+}

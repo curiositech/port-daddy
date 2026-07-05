@@ -157,7 +157,8 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     models: [
       '@cf/zai-org/glm-4.7-flash',
       '@cf/openai/gpt-oss-120b',
-      '@cf/moonshotai/kimi-k2.6',
+      // Real Workers AI slug — the phantom kimi-k2.6 id hung ai.run (2026-07-03 fleet outage).
+      '@cf/moonshotai/kimi-k2-instruct',
       '@cf/qwen/qwen3-30b-a3b-fp8',
       '@cf/nvidia/nemotron-3-120b-a12b',
       '@cf/meta/llama-4-scout-17b-16e-instruct',
@@ -243,6 +244,20 @@ export function recommendedBackendIds(): string[] {
     .map((b) => b.id);
 }
 
+/**
+ * Explicit off-switch values for PD_USE_CLI_BACKEND. Setting the env var to
+ * one of these disables the forced-CLI override ENTIRELY — including the
+ * persisted ~/.port-daddy-cli-backend fallback. This is the only way for a
+ * single process (a test run, a one-off spawn) to opt out of an operator's
+ * persisted FleetBar selection without deleting the file.
+ */
+const FORCED_CLI_BACKEND_OFF_VALUES = new Set(['none', 'off', 'disabled', 'disable', '0', 'false']);
+
+function isForcedCliBackendOff(raw: string | undefined | null): boolean {
+  if (!raw) return false;
+  return FORCED_CLI_BACKEND_OFF_VALUES.has(raw.trim().toLowerCase());
+}
+
 function normalizeForcedCliBackend(raw: string | undefined | null): {
   id: string;
   value: NonNullable<BackendCatalogEntry['pdUseCliBackendValue']>;
@@ -275,6 +290,11 @@ function detectForcedCliBackendMatch(
   env: NodeJS.ProcessEnv = process.env,
   options: { persistedPath?: string | null } = {},
 ): { id: string; value: NonNullable<BackendCatalogEntry['pdUseCliBackendValue']> } | null {
+  // PD_USE_CLI_BACKEND=none (off/disabled/0/false) hard-disables the override:
+  // the persisted dotfile is NOT consulted. Without this, a process has no way
+  // to escape an operator's ~/.port-daddy-cli-backend selection.
+  if (isForcedCliBackendOff(env.PD_USE_CLI_BACKEND)) return null;
+
   const envMatch = normalizeForcedCliBackend(env.PD_USE_CLI_BACKEND);
   if (envMatch) return envMatch;
 

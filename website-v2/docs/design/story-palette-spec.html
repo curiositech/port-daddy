@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Port Daddy — Story Palette Spec</title>
+<style>
+  :root{
+    --cream:#f2eee6; --cream-raised:#f7f3eb; --cream-tint:#e9e2d5;
+    --night:#101216; --night-raised:#181c22;
+    --ink:#121212; --ink-2:#403b34; --inv:#fbf7ef;
+    --strong:#121212;
+    --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --mono: "IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--font);background:var(--cream);color:var(--ink);
+       -webkit-font-smoothing:antialiased;font-size:16px;line-height:1.5;}
+  .wrap{max-width:1180px;margin:0 auto;padding:48px 40px 64px;}
+  header{border:2px solid var(--strong);padding:28px 32px;margin-bottom:40px;background:var(--cream-raised);}
+  .eyebrow{font-family:var(--mono);font-size:0.8125rem;font-weight:700;letter-spacing:0.14em;
+           text-transform:uppercase;color:#006b5f;margin:0 0 10px;}
+  h1{font-size:2.4rem;line-height:1.04;margin:0 0 12px;font-weight:900;letter-spacing:-0.01em;}
+  .sub{font-size:1.0625rem;color:var(--ink-2);max-width:62ch;margin:0;}
+  h2{font-size:1.45rem;margin:44px 0 18px;border-bottom:2px solid var(--strong);padding-bottom:8px;}
+  /* Wheel-order story grid */
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:2px solid var(--strong);}
+  .cell{border:1px solid var(--strong);padding:0;display:flex;flex-direction:column;min-height:172px;}
+  .chip{flex:1;display:flex;align-items:flex-end;padding:14px 16px;color:var(--inv);}
+  .chip .h{font-family:var(--mono);font-size:0.8125rem;font-weight:700;letter-spacing:0.04em;
+           background:rgba(18,18,18,0.22);padding:3px 8px;}
+  .meta{padding:14px 16px 16px;background:var(--cream-raised);border-top:2px solid var(--strong);}
+  .meta .name{font-weight:700;font-size:1.0625rem;margin:0 0 2px;}
+  .meta .role{font-size:0.9375rem;color:var(--ink-2);margin:0 0 8px;}
+  .meta .specs{font-family:var(--mono);font-size:0.8125rem;color:var(--ink-2);display:flex;
+               flex-wrap:wrap;gap:4px 12px;}
+  .meta .specs b{color:var(--ink);font-weight:700;}
+  .badge{display:inline-block;font-family:var(--mono);font-size:0.75rem;font-weight:700;
+         letter-spacing:0.08em;padding:2px 7px;border:1.5px solid var(--strong);}
+  /* dark sample panel */
+  .dark{background:var(--night);border:2px solid #f5f3ed;padding:28px 32px;margin-top:24px;}
+  .dark h3{color:#f5f3ed;margin:0 0 18px;font-size:1.15rem;font-family:var(--mono);
+           letter-spacing:0.04em;text-transform:uppercase;}
+  .darkrow{display:flex;flex-wrap:wrap;gap:14px;}
+  .darkchip{border:2px solid #f5f3ed;padding:12px 14px;min-width:150px;flex:1;background:var(--night-raised);}
+  .darkchip .dname{font-weight:700;font-size:0.9375rem;margin-bottom:6px;}
+  .darkchip .dhex{font-family:var(--mono);font-size:0.8125rem;}
+  /* footer legend */
+  .legend{margin-top:36px;border:2px solid var(--strong);padding:20px 24px;background:var(--cream-raised);
+          font-size:0.9375rem;display:grid;grid-template-columns:repeat(2,1fr);gap:4px 28px;}
+  .legend div{padding:4px 0;}
+  .legend .dot{display:inline-block;width:13px;height:13px;border:1.5px solid var(--strong);
+               margin-right:9px;vertical-align:middle;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Port Daddy · Brand · Story Palette v1</p>
+    <h1>Color as the ADR-0048 stack</h1>
+    <p class="sub">The radar-logo amber rounded out into a harmonious wheel where every hue maps
+    to a layer of the L0→L3 stack. One warm arc (alarm→value→economy), one cool arc
+    (ready→legible→true→federated→continuous). All AA+ on cream and near-black.</p>
+  </header>
+
+  <h2>Wheel order — warm arc → cool arc</h2>
+  <div class="grid" id="grid"></div>
+
+  <h2>Dark mode — luminous variants on near-black</h2>
+  <div class="dark">
+    <h3>Story hues · foreground on #101216</h3>
+    <div class="darkrow" id="darkrow"></div>
+  </div>
+
+  <div class="legend">
+    <div><span class="dot" style="background:#003fb8"></span><b>cobalt</b> — L0 kernel / truth</div>
+    <div><span class="dot" style="background:#9a4a1e"></span><b>rust</b> — L3 reputation / Elo earned</div>
+    <div><span class="dot" style="background:#1f7a4d"></span><b>health</b> — L1 ready / coordinated</div>
+    <div><span class="dot" style="background:#a66f00"></span><b>amber</b> — L3 economy / value</div>
+    <div><span class="dot" style="background:#006b5f"></span><b>teal</b> — L2 legibility</div>
+    <div><span class="dot" style="background:#4b3f9e"></span><b>indigo</b> — L1→L3 protocol / federation</div>
+    <div><span class="dot" style="background:#bf2f2f"></span><b>danger</b> — the Leviathan / breach</div>
+    <div><span class="dot" style="background:#6f48b5"></span><b>violet</b> — L3 identity / continuity</div>
+  </div>
+</div>
+
+<script>
+// Wheel order, warm cluster then cool cluster (matches BRAND.md hue map)
+const cells = [
+  {hex:'#bf2f2f', name:'Danger', role:'breach / mayday', hue:0,   sat:61,  lig:47, layer:'LEVIATHAN', c:'4.5*'},
+  {hex:'#9a4a1e', name:'Rust',   role:'reputation / Elo', hue:21,  sat:67,  lig:36, layer:'L3', c:'5.4'},
+  {hex:'#a66f00', name:'Amber',  role:'economy / value',  hue:40,  sat:100, lig:33, layer:'L3', c:'4.8'},
+  {hex:'#1f7a4d', name:'Health', role:'ready / coordinated', hue:150, sat:59, lig:30, layer:'L1', c:'4.6'},
+  {hex:'#006b5f', name:'Teal',   role:'legibility',       hue:173, sat:100, lig:21, layer:'L2', c:'6.9'},
+  {hex:'#003fb8', name:'Cobalt', role:'truth / kernel',   hue:220, sat:100, lig:36, layer:'L0', c:'8.4'},
+  {hex:'#4b3f9e', name:'Indigo', role:'protocol / federation', hue:248, sat:43, lig:43, layer:'L1→L3', c:'7.3'},
+  {hex:'#6f48b5', name:'Violet', role:'identity / continuity', hue:261, sat:38, lig:48, layer:'L3', c:'5.6'},
+];
+const g = document.getElementById('grid');
+cells.forEach(s=>{
+  g.insertAdjacentHTML('beforeend', `
+    <div class="cell">
+      <div class="chip" style="background:${s.hex}">
+        <span class="h">${s.hex.toUpperCase()}</span>
+      </div>
+      <div class="meta">
+        <p class="name">${s.name} <span class="badge">${s.layer}</span></p>
+        <p class="role">${s.role}</p>
+        <div class="specs">
+          <span>H <b>${s.hue}°</b></span><span>S <b>${s.sat}%</b></span>
+          <span>L <b>${s.lig}%</b></span><span>AA <b>${s.c}</b></span>
+        </div>
+      </div>
+    </div>`);
+});
+const dk = [
+  {hex:'#5fce97', name:'Health', c:'9.6'},
+  {hex:'#e09464', name:'Rust',   c:'7.7'},
+  {hex:'#9d92e8', name:'Indigo', c:'6.9'},
+  {hex:'#b69bec', name:'Violet', c:'7.9'},
+];
+const dr = document.getElementById('darkrow');
+dk.forEach(s=>{
+  dr.insertAdjacentHTML('beforeend', `
+    <div class="darkchip">
+      <div class="dname" style="color:${s.hex}">${s.name}</div>
+      <div class="dhex" style="color:${s.hex}">${s.hex.toUpperCase()} · AA ${s.c}</div>
+    </div>`);
+});
+</script>
+</body>
+</html>

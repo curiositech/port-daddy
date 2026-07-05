@@ -133,17 +133,15 @@ const fleetTriggerTopology = String.raw`flowchart TB
   class Evidence green;`
 
 const delegationChoiceMap = String.raw`flowchart TB
-  Intent["Operator work<br/>choose by lifetime"]
-  Question["What needs to<br/>survive inspection?"]
-  Spawn["pd spawn<br/>exact low-level<br/>launch"]
-  Agent["pd agent<br/>one bounded task<br/>with wrapper"]
-  Sortie["pd sortie<br/>mission id<br/>logs + result"]
+  Intent["Operator work<br/>bounded AI task"]
+  Spawn["pd spawn<br/>launch + budget<br/>transcript + salvage"]
+  Artifacts["Artifacts<br/>screenshots, issues,<br/>notes, test cases"]
   Fleet["pd fleet<br/>always-on project<br/>automation"]
   Harbor["harbor<br/>scope + membership<br/>tuples + channels"]
 
-  Intent --> Question --> Spawn --> Agent --> Sortie --> Fleet
-  Agent -. coordination grows .-> Harbor
-  Sortie --> Harbor
+  Intent --> Spawn --> Artifacts
+  Intent -. recurring work .-> Fleet
+  Spawn -. grouped work .-> Harbor
   Fleet --> Harbor
 
   classDef cobalt fill:{{cobalt}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
@@ -151,33 +149,9 @@ const delegationChoiceMap = String.raw`flowchart TB
   classDef ink fill:{{ink}},color:{{inkText}},stroke:{{stroke}},stroke-width:2px;
   classDef accent fill:{{accent}},color:{{accentText}},stroke:{{stroke}},stroke-width:2px;
   class Intent,Spawn ink;
-  class Agent,Sortie,Fleet cobalt;
+  class Fleet,Artifacts cobalt;
   class Harbor green;
-  class Question accent;`
-
-const sortieMissionPath = String.raw`flowchart TB
-  Brief["Mission brief<br/>goal + expected output<br/>context"]
-  Record["Sortie record<br/>id, project, harbor<br/>budget"]
-  Preflight["Spawn preflight<br/>backend ready<br/>budget gate"]
-  Blocked["blocked<br/>nothing launched"]
-  Running["running<br/>single coordinator<br/>spawn today"]
-  Events["event log<br/>created, planned,<br/>started, completed"]
-  Result["result lookup<br/>status + logs<br/>output or error"]
-  Future["future layer<br/>recipe roster<br/>human gates"]
-
-  Brief --> Record --> Preflight
-  Preflight -->|not ready| Blocked
-  Preflight -->|ready| Running --> Events --> Result
-  Result -. next architecture .-> Future
-
-  classDef cobalt fill:{{cobalt}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
-  classDef green fill:{{green}},color:{{greenText}},stroke:{{stroke}},stroke-width:2px;
-  classDef ink fill:{{ink}},color:{{inkText}},stroke:{{stroke}},stroke-width:2px;
-  classDef accent fill:{{accent}},color:{{accentText}},stroke:{{stroke}},stroke-width:2px;
-  class Brief,Running ink;
-  class Record,Preflight,Events cobalt;
-  class Result green;
-  class Blocked,Future accent;`
+  class Artifacts accent;`
 
 export const referenceArchitecturesSection: DocsContentSection = {
   slug: 'reference-architectures',
@@ -263,7 +237,7 @@ export const referenceArchitecturesSection: DocsContentSection = {
         },
         {
           path: 'server.ts',
-          rationale: 'Wires the daemon-owned runtime primitives together: harbors, tokens, spawner, tuples, fleet daemon, sorties, and route registration.',
+          rationale: 'Wires the daemon-owned runtime primitives together: harbors, tokens, spawner, tuples, fleet daemon, and route registration.',
         },
         {
           path: 'routes/index.ts',
@@ -565,21 +539,21 @@ export const referenceArchitecturesSection: DocsContentSection = {
       slug: 'delegation-surfaces',
       title: 'Delegation Workflows',
       summary:
-        'How `pd spawn`, `pd agent`, `pd sortie`, `pd fleet`, and harbors differ in daily use.',
+        'How `pd spawn`, `pd fleet`, and harbors fit together in daily use.',
       truth: 'source-backed',
       goals: [
-        'Choose the right delegation command.',
+        'Use one launch primitive for bounded AI work.',
         'Understand how harbors fit across those commands.',
-        'Know which parts are shipped today and which parts are still growing.',
+        'Know where richer intake and artifact pages should attach.',
       ],
       blocks: [
         {
           type: 'paragraph',
-          title: 'Different commands exist because the job lifetime is different',
+          title: 'One launch primitive, richer intake around it',
           paragraphs: [
-            'Delegation in Port Daddy is not one command with five names. The surfaces split by lifetime and accountability. `pd spawn` is the low-level primitive for one explicit launch. `pd agent` is the safe one-shot wrapper that begins a session, preflights the backend and budget, spawns the run, and closes the session with an outcome note. `pd sortie` is a persisted mission record over spawned work. `pd fleet` is always-on project automation.',
-            'Harbors cut across those workflows. A simple `pd spawn` or `pd agent` can stay lightweight, but sorties, fleets, and explicit multi-agent work should have a harbor because they need scoped channels, tuple isolation, membership, and capability boundaries.',
-            'The most useful product rule is not "which command is newest?" It is "what should I be able to inspect later?" If the answer is only the run, use spawn. If the answer is one bounded task plus coordination hygiene, use agent. If the answer is a mission id, event log, artifacts, and result, use sortie. If the answer is a project automation topology, use fleet.',
+            '`pd spawn` is the public launch primitive for one bounded delegated run. Browser visual intake, roadmap buttons, review helpers, and future artifact pages can all add better context and result views, but they should lower to spawn instead of creating another operator-facing verb.',
+            '`pd fleet` is the separate lifecycle for recurring automation from `pd-fleet.yml`. Harbors cut across both: a simple spawn can stay lightweight, while grouped work can enter a harbor for scoped channels, tuple isolation, membership, and capability boundaries.',
+            'The most useful product rule is not "which command is newest?" It is "what context and artifacts should travel with this spawned run?"',
           ],
         },
         {
@@ -594,11 +568,11 @@ export const referenceArchitecturesSection: DocsContentSection = {
           title: 'Delegation invariants',
           tone: 'blue',
           items: [
-            'Keep `pd spawn` raw enough for scripts, SDK/MCP wrappers, backend debugging, and explicit model/budget/time control.',
-            'Make `pd agent` the normal user-facing single-agent path: positive budget, backend preflight, `/sugar/begin`, `/spawn`, and `/sugar/done` around one bounded task.',
-            'Treat `pd sortie` as a mission record first: id, project, harbor, goal, recipe, status, budget, event log, and result lookup.',
+            'Keep `pd spawn` clear enough for scripts, SDK/MCP wrappers, backend debugging, and explicit model/budget/time control.',
+            'Route every bounded delegated run through spawn: CLI, SDK, MCP, FleetBar, browser extension, roadmap action, review helper, or dispatch job.',
+            'Attach artifacts, screenshots, DOM decompositions, issues, notes, transcripts, and test repros to spawned runs rather than inventing a second launch surface.',
             'Do not describe `pd fleet` like a one-shot task; it is long-lived project automation from `pd-fleet.yml`.',
-            'Auto-provision or require harbors for fleets, sorties, and explicit multi-agent workflows instead of letting coordinated work float in the global namespace.',
+            'Auto-provision or require harbors for fleets and explicit multi-run workflows instead of letting coordinated work float in the global namespace.',
             'Surface blocked, failed, waiting, completed, and cancelled as different states. Do not flatten "could not launch" and "failed while running" into one generic error.',
           ],
         },
@@ -606,90 +580,63 @@ export const referenceArchitecturesSection: DocsContentSection = {
           type: 'command',
           title: 'Shipped command shapes',
           command:
-            'pd agent "Review the last commit for regressions" --backend codex --tier low --budget 0.35\npd sortie run "Investigate flaky auth tests and summarize risks" --backend codex --budget 0.75 --recipe investigate\npd sortie list\npd sortie status <id>\npd sortie logs <id>',
+            'pd spawn --backend codex --tier low --budget 0.35 --purpose "Review branch" -- "Review the last commit for regressions"\npd spawned\npd watch <spawn-id>',
           output:
-            'pd agent preflights the runtime, opens a Port Daddy session, spawns one run, closes the session, and prints the spawned output.\n\npd sortie creates a persisted sortie id, assigns a project harbor, records created/planned/started/completed or failed events, and lets the operator inspect status and logs later.',
+            'pd spawn preflights the runtime, launches one supervised run, records coordination and budget state, and leaves a run id that other surfaces can inspect.',
           notes: [
-            '`pd sortie approve`, `pd sortie cancel`, rich roster execution, and a full mission workspace are still future layers.',
-            'The current sortie route launches a single coordinating spawned agent underneath; the page should say that plainly because it is the present runtime truth.',
+            'A browser extension, FleetBar action, or roadmap button should collect richer context and still submit through spawn.',
+            'Legacy mission records may exist in old databases, but they are not a current launch command.',
           ],
         },
         {
           type: 'command',
           title: 'Non-launching delegation sanity check',
-          command: 'pd sortie --help\npd agent --help',
+          command: 'pd spawn --help\npd spawned --help',
           output:
-            'Usage: pd sortie <goal text> [options]\n   or: pd sortie run <goal text> [options]\n   or: pd sortie list [--all] [--limit N]\n   or: pd sortie status <id>\n   or: pd sortie logs <id> [--limit N]\n\nOptions for run:\n  --backend <name>      Required backend\n  --budget <usd>        Required spend ceiling\n  --recipe <name>       Mission recipe label\n\nUsage: port-daddy agent <subcommand> [options]\n\nSubcommands:\n  "task text"                               Run a one-shot pd agent autopilot task\n  run <task text>                           Explicit autopilot form\n  register [--agent <id>] [--type <type>] [--identity <project:stack:context>] [--purpose <text>]\n  inbox                                     Read your inbox',
+            'Usage: pd spawn [options] -- <task>\nUsage: pd spawned [--json] [--limit N]',
           notes: [
-            'This help output is a cheap way to verify the shipped CLI surface without launching a paid or background agent.',
-            'It backs the page distinction: sortie has durable list/status/log commands, while agent is the one-shot autopilot entry point plus agent registry/inbox utilities.',
+            'This help output is a cheap way to verify the shipped CLI surface without launching paid or background work.',
+            'It backs the page distinction: spawn launches bounded work, spawned lists what already ran.',
           ],
-        },
-        {
-          type: 'mermaid',
-          title: 'Current sortie mission path',
-          chart: sortieMissionPath,
-          caption:
-            'Today, a sortie is already more durable than a raw spawn because it has a mission record and event log. It is not yet the full multi-agent roster engine described in the product plan.',
         },
         {
           type: 'paragraph',
           title: 'What is shipped today versus where it should go',
           paragraphs: [
-            'The shipped system already has the crucial first slice: `pd agent` is an autopilot wrapper around session lifecycle and spawn; `pd sortie` has durable ids, status, logs, budget validation, preflight, events, and result output; `/spawn` has preflight, launch, list, and kill routes. That is enough to make delegation inspectable instead of purely terminal-local.',
-            'The important honesty line is that the current sortie implementation still launches a single coordinating spawned agent underneath. The richer mission architecture is the next layer: recipe-driven rosters, explicit approvals, artifacts, per-agent status, cost so far, and a final briefing that reads like a mission result rather than raw stdout.',
-            'A good UI should teach this distinction instead of hiding it. The Fleet Control Center and SortiePanel should show one-shot agent runs, sorties, and always-on fleet work as separate lenses, then let a harbor tie them together when they are part of one temporary team.',
+            'The shipped system already has the crucial first slice: `/spawn` has preflight, launch, list, watch, and kill behavior. That is enough to make delegated work inspectable instead of purely terminal-local.',
+            'The next layer is not another launch command. It is better intake and better artifacts: screenshot attachments, DOM decomposition, issue creation, roadmap links, approval state, cost so far, and a final briefing that reads like a usable result rather than raw stdout.',
+            'A good UI should teach the distinction between bounded spawned work, recurring fleet automation, and harbors as coordination scope. It should not ask the operator to pick a synonym for "launch this task."',
           ],
         },
         {
           type: 'callout',
           tone: 'warning',
-          title: 'Do not collapse delegation into one magic button',
+          title: 'Do not multiply launch nouns',
           body:
-            'A single shiny "run agents" control would erase the important contracts. Users need to know whether they launched a raw process, a coordinated one-shot task, a mission record, or an always-on fleet. The architecture should make that choice obvious before money is spent.',
+            'Users need to know what context, budget, artifacts, and authority a run has. They should not need to learn separate launch verbs for the same bounded task.',
         },
         {
           type: 'paragraph',
           title: 'Future-facing recommendation',
           paragraphs: [
-            'The next version of this architecture should make `pd agent` boringly dependable and `pd sortie` visibly mission-shaped. For `pd agent`, keep the wrapper narrow: preflight, budget, begin, spawn, done, output. For `pd sortie`, build the mission workspace: goal, recipe, roster preview, what is blocking launch, approval gates, artifacts, timeline, cost, and final briefing.',
-            'Sorties should create ephemeral harbors by default: `project:sortie:<id>`. The harbor gives the mission a namespace for channels, tuples, file claims, notes, and approval messages. When a sortie later grows into multiple agents, the coordination boundary is already there.',
-            'Saved templates should be the eventual bridge between one-off prompts and fleet automation. A release-check sortie template can run on demand with human gates; if it becomes routine, promote the behavior into `pd-fleet.yml`. That keeps the system understandable as it grows.',
+            'The next version of this architecture should make spawned work visibly artifact-shaped: goal, context captures, browser DOM evidence, what is blocking launch, approval gates, timeline, cost, and final briefing.',
+            'Grouped spawned runs should create or enter harbors by default when they need shared channels, tuples, file claims, notes, and approval messages.',
+            'Saved templates should be the eventual bridge between one-off prompts and fleet automation. A release-check spawn template can run on demand with human gates; if it becomes routine, promote the behavior into `pd-fleet.yml`. That keeps the system understandable as it grows.',
           ],
         },
       ],
       sources: [
         {
           path: 'docs/DELEGATION-MODES.md',
-          rationale: 'Delegation modes document explains how spawn, agent, sortie, fleet, and harbor differ today.',
-        },
-        {
-          path: 'docs/recovery/PD-AGENT-SORTIE-PLAN.md',
-          rationale: 'Sortie plan explains the intended product layering and the specific problem each delegation workflow should solve.',
-        },
-        {
-          path: 'cli/commands/agents.ts',
-          rationale: 'CLI implementation shows `pd agent` preflight, budget requirement, `/sugar/begin`, `/spawn`, and `/sugar/done` around one bounded task.',
-        },
-        {
-          path: 'cli/commands/sortie.ts',
-          rationale: 'CLI implementation shows shipped `pd sortie run/list/status/logs` behavior and the required backend/budget flags.',
+          rationale: 'Delegation modes document explains spawn as the launch primitive and fleet as recurring automation.',
         },
         {
           path: 'routes/spawn.ts',
           rationale: 'Spawn routes define low-level preflight, launch, list, and kill behavior plus validation and could-not-launch failures.',
         },
         {
-          path: 'routes/sorties.ts',
-          rationale: 'Sortie routes create persisted missions, validate project/backend/budget, add events, preflight whether the spawn can launch, and launch the current coordinating spawned agent.',
-        },
-        {
-          path: 'lib/sorties.ts',
-          rationale: 'Sortie storage model defines mission fields, statuses, event rows, project indexing, and result persistence.',
-        },
-        {
           path: 'docs/adr/0013-unified-harbor-model.md',
-          rationale: 'Harbor ADR establishes the namespace/capability model that should frame sorties, fleets, and explicit multi-agent delegation.',
+          rationale: 'Harbor ADR establishes the namespace/capability model that should frame fleets and explicit multi-run delegation.',
         },
       ],
     },

@@ -155,8 +155,31 @@ export interface VisualTaskIntakeDeps {
 
 const VISUAL_CHANNEL = 'visual-feedback';
 
+/** Client sent something invalid — maps to HTTP 400. */
 export class VisualTaskInputError extends Error {
   readonly statusCode = 400;
+  readonly code = 'VALIDATION_ERROR';
+}
+
+/**
+ * The daemon is missing a dependency the request needs (e.g. no blob store
+ * wired while the client submitted screenshot evidence). Maps to HTTP 503:
+ * the request was fine, the deployment is not. Evidence loss must be
+ * impossible, so this fails closed instead of silently dropping the image.
+ */
+export class VisualTaskDependencyError extends Error {
+  readonly statusCode = 503;
+  constructor(message: string, readonly code: string) {
+    super(message);
+  }
+}
+
+/** A wired dependency failed at runtime (blob write, publish, dispatch) — HTTP 500. */
+export class VisualTaskInternalError extends Error {
+  readonly statusCode = 500;
+  constructor(message: string, readonly code: string) {
+    super(message);
+  }
 }
 
 function agentSteeringChannel(agentId: string): string {
@@ -282,12 +305,29 @@ function laneVisualTaskPayload(
   };
 }
 
+function describeDomElement(element: VisualTaskDomElement): string {
+  const parts = [
+    element.selector || element.xpath || element.tagName || 'element',
+    element.tagName ? `<${element.tagName}>` : null,
+    element.role ? `role=${element.role}` : null,
+    element.bounds ? `bounds=${element.bounds.x},${element.bounds.y} ${element.bounds.width}x${element.bounds.height}` : null,
+    element.source?.fileName
+      ? `source=${element.source.fileName}:${element.source.lineNumber ?? 1}:${element.source.columnNumber ?? 1}`
+      : null,
+    element.text ? `text="${element.text.replace(/\s+/g, ' ').slice(0, 96)}"` : null,
+  ];
+  return parts.filter(Boolean).join(' | ');
+}
+
 function workItemGoal(task: VisualTaskSubmission, channel: string, messageId?: number, screenshotUrl?: string): string {
   const sourceElements = task.domContext?.elementsInRegion
     ?.map((element) => element.source)
     .filter((source): source is NonNullable<VisualTaskDomElement['source']> => !!source?.fileName)
     .slice(0, 6)
     .map((source) => `${source.fileName}:${source.lineNumber ?? 1}:${source.columnNumber ?? 1}`);
+  const domDecomposition = task.domContext?.elementsInRegion
+    ?.slice(0, 8)
+    .map((element) => `- ${describeDomElement(element)}`);
 
   return [
     `Visual issue from ${task.source}: ${task.kind} - ${task.title}`,
@@ -301,6 +341,7 @@ function workItemGoal(task: VisualTaskSubmission, channel: string, messageId?: n
     screenshotUrl ? `Screenshot: ${screenshotUrl}` : null,
     task.region ? `Selected region: ${task.region.coordinateSpace} ${task.region.x},${task.region.y} ${task.region.width}x${task.region.height}` : null,
     task.domContext?.selectors?.length ? `DOM selectors: ${task.domContext.selectors.slice(0, 6).join(' | ')}` : null,
+    domDecomposition?.length ? `DOM decomposition:\n${domDecomposition.join('\n')}` : null,
     sourceElements?.length ? `Likely source: ${sourceElements.join(' | ')}` : null,
     '',
     'Use the visual payload for reproduction context. If this is a project web app, inspect the DOM/source hints and add or update a focused regression test.',
@@ -316,12 +357,23 @@ export function createVisualTaskIntake(deps: VisualTaskIntakeDeps) {
 
     let screenshot: VisualTaskIntakeResult['screenshot'];
     if (task.image?.dataUrl && !deps.blobs) {
-      throw new Error('visual task screenshot storage unavailable');
+      throw new VisualTaskDependencyError(
+        'visual task screenshot storage unavailable: this daemon has no blob store wired, so the submitted screenshot cannot be persisted. Configure deps.blobs (default filesystem store lives at ~/.port-daddy/blobs) and retry — evidence is never dropped silently.',
+        'BLOB_STORE_UNCONFIGURED',
+      );
     }
 
     if (task.image?.dataUrl && deps.blobs) {
       const parsed = parseDataUrl(task.image.dataUrl);
-      const blob = deps.blobs.put(parsed.buffer, { contentType: task.image.mimeType || parsed.mimeType });
+      let blob: BlobStat;
+      try {
+        blob = deps.blobs.put(parsed.buffer, { contentType: task.image.mimeType || parsed.mimeType });
+      } catch (err) {
+        throw new VisualTaskInternalError(
+          `could not persist screenshot evidence: ${err instanceof Error ? err.message : String(err)}`,
+          'BLOB_WRITE_FAILED',
+        );
+      }
       screenshot = { blob, url: `/blob/${blob.id}` };
       task.image = {
         ...sanitizeImage(task.image),
@@ -353,7 +405,12 @@ export function createVisualTaskIntake(deps: VisualTaskIntakeDeps) {
         sender: `${task.source ?? 'visual-task'}-visual`,
         expires: null,
       });
-      if (published.success === false) throw new Error(published.error || 'could not publish visual task');
+      if (published.success === false) {
+        throw new VisualTaskInternalError(
+          published.error || 'could not publish visual task',
+          'MESSAGING_PUBLISH_FAILED',
+        );
+      }
       channelMessageId = typeof published.id === 'number' ? published.id : undefined;
     }
 
@@ -400,16 +457,23 @@ export function createVisualTaskIntake(deps: VisualTaskIntakeDeps) {
     let agentStart: VisualTaskIntakeResult['agentStart'];
     if (shouldOpenIssue && deps.dispatchQueue) {
       const dispatchTarget = assignee === 'local-agent' ? targetAgent : assignee === 'cloud-fleet' ? 'cloud-fleet' : null;
-      workItem = deps.dispatchQueue.propose({
-        goal: workItemGoal(task, channelName, channelMessageId, screenshot?.url),
-        requestedBy: `${task.source ?? 'visual-task'}-visual`,
-        mergePolicy: 'review',
-        baseBranch: 'main',
-        targetActorId: dispatchTarget ?? undefined,
-      });
+      try {
+        workItem = deps.dispatchQueue.propose({
+          goal: workItemGoal(task, channelName, channelMessageId, screenshot?.url),
+          requestedBy: `${task.source ?? 'visual-task'}-visual`,
+          mergePolicy: 'review',
+          baseBranch: 'main',
+          targetActorId: dispatchTarget ?? undefined,
+        });
+      } catch (err) {
+        throw new VisualTaskInternalError(
+          `could not open work item for visual task: ${err instanceof Error ? err.message : String(err)}`,
+          'DISPATCH_QUEUE_FAILED',
+        );
+      }
       if (task.routing?.startAgent === true) {
         if (!deps.dispatchWorker) {
-          agentStart = { requested: true, error: 'agent start unavailable: no daemon worker is wired' };
+          agentStart = { requested: true, error: 'spawn unavailable: no daemon spawn runner is wired' };
         } else {
           try {
             agentStart = { requested: true, launchedThisTick: await deps.dispatchWorker.poll() };
@@ -448,7 +512,12 @@ export function createVisualTaskIntake(deps: VisualTaskIntakeDeps) {
           expires: null,
         },
       );
-      if (lane.success === false) throw new Error(lane.error || 'could not publish visual task to agent lane');
+      if (lane.success === false) {
+        throw new VisualTaskInternalError(
+          lane.error || 'could not publish visual task to target lane',
+          'MESSAGING_PUBLISH_FAILED',
+        );
+      }
     }
 
     return {

@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/kafka-consumer-group-plan.schema.json",
+  "title": "Kafka Consumer-Group Design Plan",
+  "description": "A structured plan for a Kafka consumer group — delivery guarantee, commit mode, assignment strategy, poll budget, DLQ pattern — so this skill's Quality Gates can be checked deterministically by scripts/kafka_consumer_group_design_audit.mjs.",
+  "type": "object",
+  "required": ["deliveryGuarantee", "autoCommit", "assignmentStrategy"],
+  "additionalProperties": true,
+  "properties": {
+    "deliveryGuarantee": {
+      "type": "string",
+      "enum": ["at-most-once", "at-least-once", "exactly-once"],
+      "description": "The required delivery semantic per the Kafka design docs' three commit patterns."
+    },
+    "autoCommit": {
+      "type": "boolean",
+      "description": "True if enable.auto.commit=true. Must be false for at-least-once and exactly-once designs."
+    },
+    "processingIdempotent": {
+      "type": "boolean",
+      "description": "True if the sink is idempotent (duplicates on reprocess are harmless). Required for at-least-once."
+    },
+    "assignmentStrategy": {
+      "type": "string",
+      "enum": ["range", "round-robin", "sticky", "cooperative-sticky", "kip848-server-side"],
+      "description": "The partition assignment strategy. cooperative-sticky is the classic-protocol default choice; kip848-server-side under group.protocol=consumer."
+    },
+    "groupProtocol": {
+      "type": "string",
+      "enum": ["classic", "consumer"],
+      "default": "classic",
+      "description": "The rebalance protocol: classic (eager/cooperative client-side) or consumer (KIP-848 next-gen, Kafka 4.0+)."
+    },
+    "usesClientSideAssignor": {
+      "type": "boolean",
+      "description": "True if the design depends on a custom client-side assignor. Not supported under KIP-848 as of Kafka 4.0 (KAFKA-18327)."
+    },
+    "maxPollRecords": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "max.poll.records — records per poll (client default 500)."
+    },
+    "perRecordProcessingMs": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Measured worst-case per-record processing time in milliseconds."
+    },
+    "maxPollIntervalMs": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "max.poll.interval.ms (default 300000). The worst-case batch must clear this with 50%+ headroom."
+    },
+    "transactionalIdStrategy": {
+      "type": "string",
+      "enum": ["stable-per-instance", "random", "shared"],
+      "description": "How transactional.id is derived for exactly-once designs. Must be stable-per-instance."
+    },
+    "isolationLevelReadCommitted": {
+      "type": "boolean",
+      "description": "True if consumers of the output topics set isolation.level=read_committed. Required for exactly-once."
+    },
+    "sendOffsetsToTransaction": {
+      "type": "boolean",
+      "description": "True if offsets are committed via producer.sendOffsetsToTransaction inside the output transaction. Required for exactly-once."
+    },
+    "crossSystemSideEffects": {
+      "type": "boolean",
+      "description": "True if processing also writes to a non-Kafka system (DB, external API). Kafka transactions do not cover that boundary."
+    },
+    "dlqPattern": {
+      "type": "string",
+      "enum": ["stop-on-error", "dead-letter-queue", "retry-topic", "ordered-redirect", "none"],
+      "default": "none",
+      "description": "The poison-message strategy, per Confluent's four error-handling patterns."
+    },
+    "perEntityOrderingRequired": {
+      "type": "boolean",
+      "description": "True if events for the same key must be processed in order even when some detour through the error path."
+    },
+    "commitsInOnPartitionsRevoked": {
+      "type": "boolean",
+      "description": "True if a ConsumerRebalanceListener commits current offsets in onPartitionsRevoked."
+    }
+  }
+}

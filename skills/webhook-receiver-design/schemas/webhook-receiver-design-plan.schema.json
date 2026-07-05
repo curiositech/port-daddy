@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/webhook-receiver-design-plan.schema.json",
+  "title": "Webhook Receiver Design Plan",
+  "description": "A structured plan for an inbound webhook receiver -- signature, idempotency, latency, dead-letter, and reconciliation decisions -- so this skill's Quality Gates can be checked deterministically by scripts/webhook_receiver_design_audit.mjs.",
+  "type": "object",
+  "required": ["provider", "processingModel"],
+  "additionalProperties": true,
+  "properties": {
+    "provider": {
+      "type": "string",
+      "enum": ["stripe", "github", "slack", "twilio", "shopify", "internal", "other"],
+      "description": "The webhook source."
+    },
+    "verifiesSignature": {
+      "type": "boolean",
+      "description": "True if the provider's HMAC signature is verified before any processing."
+    },
+    "signatureOverRawBody": {
+      "type": "boolean",
+      "description": "True if the HMAC is computed over the raw wire bytes, not a parsed-then-restringified body."
+    },
+    "timingSafeCompare": {
+      "type": "boolean",
+      "description": "True if signature comparison uses crypto.timingSafeEqual, not ===."
+    },
+    "replayWindowSeconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Tolerance on the signed timestamp; events older than this are rejected (~300s recommended)."
+    },
+    "idempotencyPrimitive": {
+      "type": "string",
+      "enum": ["db-unique-constraint", "redis", "in-memory", "none"],
+      "description": "The dedup mechanism keyed on the provider's event ID. db-unique-constraint is the correct answer."
+    },
+    "processingModel": {
+      "type": "string",
+      "enum": ["sync", "async-queue"],
+      "description": "Whether the handler does the work inline or acks fast and enqueues for a worker."
+    },
+    "ackLatencyBudgetMs": {
+      "type": "number",
+      "minimum": 0,
+      "description": "The p99 budget for returning 200 to the provider."
+    },
+    "deadLetterAfterRetries": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Number of worker attempts before an event is dead-lettered. 0 means no dead-letter."
+    },
+    "replayToolingExists": {
+      "type": "boolean",
+      "description": "True if a UI or CLI can list dead-lettered events and replay by ID or timestamp range."
+    },
+    "stateSource": {
+      "type": "string",
+      "enum": ["provider-api", "event-payload", "event-sourced"],
+      "description": "Where derived state comes from when processing an event. provider-api handles out-of-order delivery."
+    },
+    "perEnvironmentSecrets": {
+      "type": "boolean",
+      "description": "True if each endpoint/environment has its own webhook secret and CI fails when they match."
+    },
+    "replayTestInCI": {
+      "type": "boolean",
+      "description": "True if CI replays a captured event set twice and asserts identical DB state (idempotency proof)."
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "product": "Port Daddy Agent Harbor (pd-console) — 2026-07 self-assessment",
+  "tableStakes": {
+    "singleAgentLoop": "par",
+    "latency": "above-par",
+    "contextAttach": "par",
+    "recoverableEdits": "above-par"
+  },
+  "differentiatorThreshold": 3,
+  "differentiators": {
+    "isolationClaims": { "present": true, "hasRealBehavior": true, "leavesReceipt": true },
+    "swarmVisibility": { "present": true, "hasRealBehavior": true, "leavesReceipt": true },
+    "transcriptsSalvage": { "present": true, "hasRealBehavior": true, "leavesReceipt": true },
+    "receipts": { "present": true, "hasRealBehavior": true, "leavesReceipt": true },
+    "spendVisibility": { "present": true, "hasRealBehavior": false, "leavesReceipt": false }
+  },
+  "stickiness": {
+    "comebackTriggers": ["fixed-while-watching", "queued-next-task", "swarm-no-collision"],
+    "usesOverIncumbentForRealWork": true
+  },
+  "metricsHonest": true
+}

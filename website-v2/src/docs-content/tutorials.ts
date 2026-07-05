@@ -135,65 +135,65 @@ export const tutorialsSection: DocsContentSection = {
       ],
     },
     {
-      slug: 'launch-and-inspect-a-sortie',
-      title: 'Launch And Inspect A Sortie',
+      slug: 'launch-and-inspect-a-spawn',
+      title: 'Launch And Inspect A Spawn',
       summary:
-        'Create a tracked mission, inspect the saved sortie record, and read the event log.',
+        'Create a tracked spawned run, inspect the saved record, and follow its activity.',
       truth: 'source-backed',
       goals: [
-        'Use the shipped sortie workflow as it exists today.',
+        'Use the shipped spawn workflow as it exists today.',
         'Inspect status and logs from the persisted record.',
-        'Understand the current boundary between shipped sortie state and future richer orchestration.',
+        'Understand where richer artifact and approval surfaces should attach.',
       ],
       blocks: [
         {
           type: 'paragraph',
-          title: 'Use sortie for tracked missions',
+          title: 'Use spawn for tracked work',
           paragraphs: [
-            'A sortie is for work you want to inspect later as a mission, not just as one terminal run. The current slice is intentionally modest: it gives you a durable id, a persisted mission record, and an event log you can read back after the coordinating run finishes.',
-            'That matters because many delegation failures are really inspection failures. If you cannot come back later and understand what happened, the system has not given you a useful mission record. This tutorial stays inside what the repo actually ships today.',
+            'A spawned run is for work you want Port Daddy to supervise, budget, transcript, and make salvageable instead of hiding inside one terminal run.',
+            'That matters because many delegation failures are really inspection failures. If you cannot come back later and understand what happened, the system has not given you a useful record. This tutorial stays inside what the repo actually ships today.',
           ],
         },
         {
           type: 'command',
-          title: 'Run and inspect the sortie',
+          title: 'Run and inspect the spawn',
           command:
-            'pd sortie "Review the latest auth changes and summarize the real risks" --budget 0.50\npd sortie list\npd sortie status <sortie-id>\npd sortie logs <sortie-id>',
+            'pd spawn --backend codex --budget 0.50 --purpose "Review auth changes" -- "Review the latest auth changes and summarize the real risks"\npd spawned\npd watch <spawn-id>',
           notes: [
             'Launch with an explicit budget ceiling so spend stays visible.',
-            'Use the persisted sortie id for later inspection instead of scraping raw child-process output.',
-            'Read the logs when you need the event narrative, not just the final status.',
+            'Use the spawned run id for later inspection instead of scraping raw child-process output.',
+            'Follow the run when you need the event narrative, not just the final status.',
           ],
         },
         {
           type: 'checklist',
           items: [
-            'Expect durable ids, status, and logs from the shipped slice.',
-            'Do not expect approval queues or rich multi-agent mission authoring yet.',
-            'Use sortie when you need a tracked mission, not when one bounded `pd agent` run is enough.',
+            'Expect durable ids, status, transcripts, and salvageable state from spawned work.',
+            'Do not invent a second launch noun for approval queues or rich artifact pages.',
+            'Use spawn when you need bounded delegated AI work.',
           ],
         },
         {
           type: 'paragraph',
           title: 'What the current slice buys you',
           paragraphs: [
-            'The shipped slice already solves one important user problem: you can launch a mission, walk away, and return to a durable record instead of hoping the terminal scrollback still tells the story.',
-            'The richer multi-agent mission engine is still a later layer. The tutorial should make that boundary feel crisp rather than coy, because that honesty is what keeps the docs credible.',
+            'The shipped slice already solves one important user problem: you can launch work, walk away, and return to a durable record instead of hoping the terminal scrollback still tells the story.',
+            'Richer artifact pages, approvals, and visual issue intake should attach to spawned runs rather than introducing another operator-facing launch command.',
           ],
         },
       ],
       sources: [
         {
           path: 'docs/DELEGATION-MODES.md',
-          rationale: 'Delegation modes document defines current sortie behavior and gaps.',
+          rationale: 'Delegation modes document defines spawn as the current launch primitive.',
         },
         {
-          path: 'routes/sorties.ts',
-          rationale: 'Sortie routes expose create, list, status, and logs on the live daemon.',
+          path: 'routes/spawn.ts',
+          rationale: 'Spawn routes expose launch, list, status, watch, and kill behavior on the live daemon.',
         },
         {
-          path: 'tests/unit/sortie-cli.test.js',
-          rationale: 'CLI tests cover sortie launch, status lookup, and log inspection behavior.',
+          path: 'tests/unit/spawn-command.test.js',
+          rationale: 'CLI tests cover spawn launch and inspection behavior.',
         },
       ],
     },
@@ -213,7 +213,7 @@ export const tutorialsSection: DocsContentSection = {
           type: 'paragraph',
           title: 'Start from the product',
           paragraphs: [
-            'Open the Mac preview when the question is visual: what does the app do, what does FleetBar embed, and where do resources, sorties, Shipwright, backend readiness, and agent communication appear?',
+            'Open the Mac preview when the question is visual: what does the app do, what does FleetBar embed, and where do resources, spawned runs, Shipwright, backend readiness, and agent communication appear?',
             'Open the primitives tutorial when the question is procedural: which command or app view proves each primitive is real, and what should you inspect after running it?',
           ],
         },

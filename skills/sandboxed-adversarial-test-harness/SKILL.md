@@ -153,7 +153,7 @@ Use `scripts/containment_audit.mjs` to compute coverage and flag missing threat-
 
 **`references/`**
 - [`references/isolation-mechanisms-macos-linux.md`](references/isolation-mechanisms-macos-linux.md) — Isolation Mechanisms — macOS And Linux — Use this when choosing what actually enforces an isolation dimension, not just what policy describes it.
-- [`references/threat-classes-and-adversarial-recipes.md`](references/threat-classes-and-adversarial-recipes.md) — Threat Classes And Adversarial Recipes — Use this when writing `adversarialCases` for a harness spec — each recipe below is a concrete, runnable attack, not a description of a risk 
+- [`references/threat-classes-and-adversarial-recipes.md`](references/threat-classes-and-adversarial-recipes.md) — Threat Classes And Adversarial Recipes — Use this when writing `adversarialCases` for a harness spec — each recipe below is a concrete, runnable attack, not a description of a risk
 
 **`schemas/`**
 - [`schemas/harness-spec.schema.json`](schemas/harness-spec.schema.json) — harness spec.schema (data/schema)

@@ -53,7 +53,7 @@ Plenty. The CLI is the **agent's** native surface and it should stay rich:
 
 - `pd whoami`, `pd begin`, `pd note`, `pd done` — the agent coordination loop.
 - `pd guard check`, `pd feedback drop`, `pd roadmap pop` — the things agents do dozens of times per session.
-- `pd sortie run` — the dogfood entry point.
+- `pd spawn` — the dogfood entry point.
 - Diagnostic and emergency commands — `pd salvage`, `pd activity`, `pd sitrep --since 60` — for when the GUI itself is broken and the operator is debugging *with* an agent.
 
 These do not move. They are not what this post is about. This post is about the soft middle — the routine operator action that should be a button and currently is a man-page.

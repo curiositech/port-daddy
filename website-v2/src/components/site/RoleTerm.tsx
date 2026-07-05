@@ -110,11 +110,11 @@ const ROLE_DEFINITIONS: Record<string, RoleDefinition> = {
     short: 'Tests install realism daily.',
     detail: 'Rotates through developer personas and operating systems, tries to install Port Daddy from scratch on real public repos, and files issues for every failure.',
   },
-  sortie: {
-    name: 'Sortie',
-    category: 'One-off mission',
+  spawn: {
+    name: 'Spawn',
+    category: 'One-off run',
     short: 'A tracked, budgeted run.',
-    detail: 'Use it for one explicit goal with a backend, model, budget, harbor, event log, and result.',
+    detail: 'Use it for one explicit goal with a backend, model, budget, transcript, and result.',
   },
   fleet: {
     name: 'Fleet',

@@ -63,6 +63,34 @@ async function storeCapture(capture) {
   return capture;
 }
 
+async function reopenComposer() {
+  const url = chrome.runtime.getURL('popup.html?capture=region');
+  try {
+    await chrome.windows.create({
+      url,
+      type: 'popup',
+      width: 460,
+      height: 760,
+      focused: true,
+    });
+    return { reopened: 'composer-window' };
+  } catch {
+    // Fall back to the action popup if Chrome refuses to create an extension
+    // window in this context.
+  }
+
+  if (chrome.action?.openPopup) {
+    try {
+      await chrome.action.openPopup();
+      return { reopened: 'action-popup' };
+    } catch {
+      // Chrome only allows action.openPopup in some user-activation paths.
+    }
+  }
+
+  return { reopened: 'manual' };
+}
+
 async function captureTabIssue() {
   const tab = await activeTab();
   const [image, context] = await Promise.all([
@@ -102,7 +130,11 @@ async function completeRegionSelection(selection, sender) {
     viewport: selection?.viewport || null,
     capturedAt: new Date().toISOString(),
   });
-  return { success: true };
+  const reopen = await reopenComposer().catch((err) => ({
+    reopened: 'manual',
+    error: err instanceof Error ? err.message : String(err),
+  }));
+  return { success: true, ...reopen };
 }
 
 async function getLastCapture() {
@@ -110,12 +142,45 @@ async function getLastCapture() {
   return stored[LAST_CAPTURE_KEY] || null;
 }
 
+async function uploadImageIfNeeded(daemonUrl, task) {
+  const image = task?.image;
+  if (!image?.dataUrl) return task;
+
+  const imageRes = await fetch(image.dataUrl);
+  if (!imageRes.ok) throw new Error('Could not read captured screenshot.');
+  const blob = await imageRes.blob();
+  const contentType = image.mimeType || blob.type || 'application/octet-stream';
+
+  const uploadRes = await fetch(`${daemonUrl}/blob`, {
+    method: 'POST',
+    headers: { 'Content-Type': contentType },
+    body: blob,
+  });
+  const payload = await uploadRes.json().catch(() => null);
+  if (!uploadRes.ok) {
+    throw new Error(payload?.error || `Screenshot upload returned ${uploadRes.status}`);
+  }
+
+  const { dataUrl: _dataUrl, ...rest } = image;
+  return {
+    ...task,
+    image: {
+      ...rest,
+      mimeType: rest.mimeType || contentType,
+      size: rest.size || blob.size || payload?.blob?.size || null,
+      blobId: payload?.blob?.id || rest.blobId || null,
+      blobUrl: payload?.blob?.id ? `/blob/${payload.blob.id}` : rest.blobUrl || null,
+    },
+  };
+}
+
 async function submitVisualTask(input) {
   const daemonUrl = (input.daemonUrl || DEFAULT_DAEMON_URL).replace(/\/+$/, '');
+  const task = await uploadImageIfNeeded(daemonUrl, input.task);
   const res = await fetch(`${daemonUrl}/visual-tasks`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input.task),
+    body: JSON.stringify(task),
   });
   const payload = await res.json().catch(() => null);
   if (!res.ok) {

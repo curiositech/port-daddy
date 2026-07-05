@@ -22,8 +22,7 @@ These are the tools the Port Daddy MCP server exposes. They are the **preferred 
 | `pd_discover` | `pd discover` | "What primitives does this daemon support?" |
 | `drop_feedback` | (writes `.spark/feedback/...`) | Dogfooding bug reports. |
 | `fleet_init` | `pd fleet init` | Scaffold `pd-fleet.yml`. |
-| `spawn_agent` | `pd spawn …` | Manual launch of a sub-agent. |
-| `run_sortie` | (compound) | Spawn + monitor + collect. |
+| `spawn` | `pd spawn …` | Manual launch of a spawned run. |
 
 ## Always-call-first contract
 

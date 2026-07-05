@@ -1,0 +1,22 @@
+{
+  "receipt": {
+    "decision": "Ship the Harbor Editor collaborative pane.",
+    "now": "Launch three GPUI agents on cooperative editing this week.",
+    "whyNow": "",
+    "evidence": "",
+    "firstVisibleProof": "",
+    "acceptanceGate": {
+      "statement": "The control panel shows the file being edited.",
+      "testableAgainstDaemonTruth": false
+    },
+    "killRevisitTrigger": "",
+    "owner": "",
+    "reviewDate": "2026-05-01"
+  },
+  "workOrder": {
+    "input": "the binder",
+    "output": "",
+    "owner": "",
+    "proofGate": ""
+  }
+}

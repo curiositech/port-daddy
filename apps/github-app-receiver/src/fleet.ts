@@ -37,6 +37,27 @@ export interface ShipConfig {
 const DEFAULT_CF_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
 const CODER_CF_MODEL = '@cf/qwen/qwen2.5-coder-32b-instruct';
 
+// Models a ship is allowed to request. An id outside this list is remapped to a
+// default instead of being passed to ai.run: an unknown Workers AI id does not
+// fail fast — it hangs the request, the waitUntil budget dies, and the check
+// run is stuck in_progress forever (the 2026-07-03 outage: every reviewer ship
+// pinned to the nonexistent @cf/moonshotai/kimi-k2.7-code, zero reviews posted).
+const KNOWN_CF_MODELS = new Set<string>([
+  DEFAULT_CF_MODEL,
+  CODER_CF_MODEL,
+  '@cf/openai/gpt-oss-120b',
+  '@cf/zai-org/glm-4.7-flash',
+  '@cf/moonshotai/kimi-k2-instruct',
+]);
+
+export function resolveCfModel(requested: string | null | undefined, shipName: string): string {
+  const fallback = shipName.includes('reviewer') ? CODER_CF_MODEL : DEFAULT_CF_MODEL;
+  if (!requested) return fallback;
+  if (KNOWN_CF_MODELS.has(requested)) return requested;
+  console.warn(`fleet: ship ${shipName} requested unknown model ${requested} — using ${fallback}`);
+  return fallback;
+}
+
 // Tools that require local execution (can't run in a Worker)
 const EXECUTION_TOOLS_RE = /Bash\((?!gh)[^)]*\)/;
 
@@ -92,7 +113,7 @@ ${fleetYaml.slice(0, 12000)}
       name: s.name,
       trigger: s.trigger,
       prompt: s.prompt,
-      cfModel: s.cfModel ?? (s.name.includes('reviewer') ? CODER_CF_MODEL : DEFAULT_CF_MODEL),
+      cfModel: resolveCfModel(s.cfModel, s.name),
       role: s.telos || s.role || `${s.name} ship`,
       telos: s.telos,
       needsExecution: EXECUTION_TOOLS_RE.test(s.allowedTools ?? ''),

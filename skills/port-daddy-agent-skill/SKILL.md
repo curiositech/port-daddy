@@ -218,7 +218,7 @@ Use these only when the task actually needs them:
 - Tuples and channels for machine-readable shared facts.
 - Actor inboxes for durable role ownership.
 - Pheromones and file heat for contention signals.
-- Fleet YAML, sorties, and spawned agents for real parallel work.
+- Fleet YAML and spawned runs for real parallel work.
 - Locks for scarce resources such as promotion, generated artifacts,
   migrations, and release packaging.
 - FleetBar and Fleet Control Center for operator-visible truth.
@@ -372,7 +372,7 @@ ambiguous handoffs, and local green checks that do not match the installed app.
 
 FleetBar is the native Mac entry point. Fleet Control Center is the full
 console. Use them when the task touches agents, readiness, launches, Shipwright,
-resources, sorties, or operator-visible coordination. Deeper guidance lives in
+resources, spawned runs, or operator-visible coordination. Deeper guidance lives in
 `references/fleetbar-and-console.md` (loaded via the bundled assets map below).
 
 ## Bundled Assets — Load On Demand

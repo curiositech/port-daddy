@@ -89,7 +89,7 @@ export function DistributionSection() {
                   </PanelTitle>
                   <PanelBody className="max-w-[38rem]">
                     FleetBar opens the Fleet Control Center from the menu bar. It shows daemon
-                    health, the selected project, active agents, claimed files, inboxes, sorties,
+                    health, the selected project, active agents, claimed files, inboxes, spawned runs,
                     Shipwright, and backend readiness without making the operator read terminal
                     output first.
                   </PanelBody>

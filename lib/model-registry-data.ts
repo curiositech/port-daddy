@@ -70,8 +70,12 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
     cloudflare: {
       cheap: '@cf/zai-org/glm-4.7-flash',
       balanced: '@cf/openai/gpt-oss-120b',
-      high: '@cf/moonshotai/kimi-k2.6',
-      'max-thinking': '@cf/moonshotai/kimi-k2.6',
+      // kimi-k2-instruct is the REAL Workers AI slug. The previous
+      // '@cf/moonshotai/kimi-k2.6' does not exist on Workers AI: ai.run() of an
+      // unknown id HANGS (never errors), which is how the fleet PR reviewer
+      // silently died on 2026-07-03 — every ship pinned to a phantom model.
+      high: '@cf/moonshotai/kimi-k2-instruct',
+      'max-thinking': '@cf/moonshotai/kimi-k2-instruct',
       code: '@cf/qwen/qwen3-30b-a3b-fp8',
     },
     aider: {

@@ -106,6 +106,8 @@ import {
   handleTuple,
   // Semantic graph + episodic memory
   handleGraph, handleIdeas,
+  // Shared local embedder (ADR-0061)
+  handleEmbed,
   handleRoadmap,
   // Durable commitments (ADR-0041)
   handleCommit, handleObligations,
@@ -1341,7 +1343,7 @@ const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'transcripts', 'transcript', 'relay',
-  'harbor', 'harbors', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
+  'harbor', 'harbors', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'memory', 'ideas',
   'quorum', 'parley',
   'feedback',
   'commit', 'obligations',
@@ -2987,10 +2989,6 @@ export async function main(): Promise<void> {
         await handleSpawned(positional, options);
         break;
 
-      case 'sortie':
-        await handleSortie(positional, options);
-        break;
-
       // Dispatch -- autonomous feature dev queue (renamed from nightshift per
       // ADR-0035). `nightshift` is an alias kept for one minor version.
       case 'dispatch':
@@ -3013,6 +3011,11 @@ export async function main(): Promise<void> {
       // Watch — ambient agent kernel (SSE subscriber)
       case 'watch':
         await handleWatch(positional[0], options);
+        break;
+
+      // Sortie — one-shot multi-agent mission (ephemeral harbor, explicit budget)
+      case 'sortie':
+        await handleSortie(positional, options);
         break;
 
       // Fleet transcripts — chat-record viewer for every ship run
@@ -3145,6 +3148,12 @@ export async function main(): Promise<void> {
 
       case 'graph':
         await handleGraph(positional, options);
+        break;
+
+      // The one shared local embedding surface (ADR-0061): skills and
+      // matching code shell out here instead of standing up their own model.
+      case 'embed':
+        await handleEmbed(positional, options);
         break;
 
       case 'memory':

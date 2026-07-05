@@ -39,7 +39,7 @@ const surfaceScreenshots: Record<string, ThemedScreenshot> = {
     light: '/img/app-screens/resources-light.webp',
     dark: '/img/app-screens/resources-dark.webp',
   },
-  sorties: {
+  'spawned-runs': {
     light: '/img/app-screens/sorties-light.webp',
     dark: '/img/app-screens/sorties-dark.webp',
   },
@@ -60,7 +60,7 @@ const surfaceScreenshots: Record<string, ThemedScreenshot> = {
 const surfacePreviewRows: Record<string, string[]> = {
   agents: ['Coxswain: active', 'Lookout: docs drift clear', 'Quartermaster: budget guarded'],
   roadmap: ['ready: FleetBar', 'next: Shipwright onboarding', 'watch: docs drift'],
-  activity: ['session.note', 'file.claim', 'sortie.completed'],
+  activity: ['session.note', 'file.claim', 'spawn.completed'],
   channels: ['website:coordination', 'coordination:inconsistency', 'project:git:committed'],
   inbox: ['Claude handoff unread', 'Codex proof request', 'Navigator status ping'],
   memory: ['salvage context found', 'tuples joined', 'session anchor restored'],
@@ -136,8 +136,8 @@ function SurfaceTitle({ title }: { title: string }) {
       </>
     )
   }
-  if (title === 'Sorties') {
-    return <RoleTerm role="sortie">Sorties</RoleTerm>
+  if (title === 'Spawned Runs') {
+    return <RoleTerm role="spawn">Spawned Runs</RoleTerm>
   }
   return <>{title}</>
 }
@@ -426,7 +426,7 @@ export function MacAppShowcase() {
                   <>
                     The native app is not a toy launcher. It is the compact Mac entrance to shared
                     agent state: Fleet Control Center, project fleets, agent radio,{' '}
-                    <RoleTerm role="sortie">sortie</RoleTerm> work,{' '}
+                    <RoleTerm role="spawn">spawned</RoleTerm> work,{' '}
                     <RoleTerm role="shipwright">Shipwright</RoleTerm> proposals, resource pressure,
                     and backend readiness.
                   </>

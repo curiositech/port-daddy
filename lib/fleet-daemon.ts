@@ -28,7 +28,13 @@ import {
   type FleetConfig,
   type FleetEvent,
   type FleetRunContext,
+  type FleetApprovalProposal,
 } from './fleet-engine.js';
+import { getSharedWebhookReceiver } from './fleet/webhook-receiver.js';
+import { getSharedApprovalStream } from './fleet/approval-stream.js';
+import { getSharedPushNotifier, setSharedPushNotifier, FleetPushNotifier } from './fleet/push-notifications.js';
+import { setKey as setMatrixKey, deleteKey as deleteMatrixKey } from './squid/matrix.js';
+import { MacOSNotificationSink } from './fleet/outputs/notify-macos.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { loadEnvFiles } from './env-loader.js';
 import { createProjectSemaphoreRegistry, type ProjectSemaphoreRegistry } from './concurrency-semaphore.js';
@@ -252,6 +258,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   let isRunning = false;
   let startedAt: number | null = null;
   let leaseRenewTimer: ReturnType<typeof setInterval> | null = null;
+  let approvalSweepTimer: ReturnType<typeof setInterval> | null = null;
 
   const daemonOwner = [
     'fleetd',
@@ -663,7 +670,64 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
         subscribe: messaging.subscribe.bind(messaging),
       },
       acquirePermit: () => projectSemaphore.acquire(),
+      // I/O wiring Phase 2: webhook:<channel> triggers register with the
+      // daemon's inbound receiver (routes/fleet-webhooks.ts posts into it).
+      registerWebhookHandler: (channel, handler) =>
+        getSharedWebhookReceiver().registerHandler(channel, handler),
+      // ADR-0093 L2 approval seam. Two surfaces per proposal:
+      //   1. a durable fleet:approval tuple (7d TTL, keyed by proposal id)
+      //      — the record of truth that survives daemon restarts;
+      //   2. the live approval stream (lib/fleet/approval-stream.ts) that
+      //      the /fleet/approvals WebSocket + REST surfaces broadcast from
+      //      and that decisions resolve through.
+      // The fleet HITL proposal queue (PR #648) can consume the same seam.
+      enqueueForApproval: (proposal: FleetApprovalProposal) => {
+        // Stream first: enqueue() is the dedup authority (id + content
+        // fingerprint). Writing the tuple only for ACCEPTED proposals keeps
+        // duplicates out of the durable record — an orphan tuple for a
+        // collapsed duplicate would resurrect as a ghost gate on the next
+        // restart, after its twin was already decided.
+        const accepted = getSharedApprovalStream().enqueue(proposal);
+        if (!accepted) {
+          logger.info('fleet_approval_deduped', {
+            id: proposal.id,
+            project: proposal.project,
+            agent: proposal.agent,
+            trigger: proposal.trigger,
+          });
+          return;
+        }
+        tuples?.out([
+          'fleet:approval',
+          proposal.id,
+          proposal.agent,
+          proposal.trigger,
+          {
+            project: proposal.project,
+            tier: proposal.tier,
+            reason: proposal.reason,
+            safeTools: proposal.safeTools,
+            context: proposal.context,
+            timestamp: proposal.timestamp,
+          },
+        ], {
+          harbor: config.harbor || `${config.name}:fleet`,
+          writtenBy: 'fleetd:trust-gate',
+          ttlMs: APPROVAL_TUPLE_TTL_MS,
+        });
+        logger.info('fleet_approval_requested', {
+          id: proposal.id,
+          project: proposal.project,
+          agent: proposal.agent,
+          trigger: proposal.trigger,
+          tier: proposal.tier,
+        });
+      },
     });
+
+    // Crash-safety: resurface any approvals that were pending when the
+    // daemon last died. Replay-safe (enqueue dedupes by id).
+    rehydrateApprovals(config.name, config.harbor || `${config.name}:fleet`);
 
     return {
       projectDir,
@@ -812,6 +876,19 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   function start(): void {
     if (isRunning) return;
 
+    // Fail-closed TTL sweep: a gate unanswered for PD_APPROVAL_TTL_HOURS
+    // (default 24h) expires rather than accumulating as stale context an
+    // operator might approve days later. Swept every 10 minutes; lifecycle-
+    // bound (cleared in stop()).
+    const approvalTtlMs = Math.max(1, Number(process.env.PD_APPROVAL_TTL_HOURS ?? 24)) * 3_600_000;
+    approvalSweepTimer = setInterval(() => {
+      const expired = getSharedApprovalStream().expireOlderThan(approvalTtlMs);
+      if (expired > 0) {
+        logger.info('fleet_approvals_expired', { expired, ttlHours: approvalTtlMs / 3_600_000 });
+      }
+    }, 10 * 60_000);
+    approvalSweepTimer.unref?.();
+
     const discovered = discoverFleets();
     logger.info('fleet_daemon_starting', {
       projects: discovered.map(d => d.name),
@@ -850,6 +927,10 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     if (leaseRenewTimer) {
       clearInterval(leaseRenewTimer);
       leaseRenewTimer = null;
+    }
+    if (approvalSweepTimer) {
+      clearInterval(approvalSweepTimer);
+      approvalSweepTimer = null;
     }
     for (const dir of [...fleets.keys()]) {
       stopManagedFleet(dir, { releaseLease: true });
@@ -1184,6 +1265,130 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   function resizeProjectConcurrency(project: string, newCapacity: number): void {
     concurrency.resize(project, newCapacity);
   }
+
+  // Wire the approval stream's decision actions to THIS daemon's spawn
+  // path. Approve = hail the agent with the proposal's stored context;
+  // both decisions drop the durable tuple. Until configure() runs the
+  // stream refuses decisions (fail-closed), so a half-booted daemon can
+  // never approve a spawn it cannot execute.
+  function approvalHarbor(proposal: FleetApprovalProposal): string {
+    const managed = [...fleets.values()].find((f) => f.projectName === proposal.project);
+    return managed?.config.harbor || `${proposal.project}:fleet`;
+  }
+
+  const APPROVAL_TUPLE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+  getSharedApprovalStream().configure({
+    hail: (proposal) =>
+      hailAgent(proposal.agent, { ...proposal.context, project: proposal.project }),
+    // Atomic claim: take() deletes and returns the record in one step, so
+    // two surfaces deciding the same proposal race on the tuple, not on
+    // the spawn. No tuple space → nothing to claim → true.
+    claimDurable: (proposal) => {
+      if (!tuples?.take) return true;
+      const taken = tuples.take(['fleet:approval', proposal.id], { harbor: approvalHarbor(proposal) });
+      return taken.length > 0;
+    },
+    // Compensation for a failed hail: put the record back so the proposal
+    // survives retries and daemon restarts.
+    restoreDurable: (proposal) => {
+      tuples?.out([
+        'fleet:approval',
+        proposal.id,
+        proposal.agent,
+        proposal.trigger,
+        {
+          project: proposal.project,
+          tier: proposal.tier,
+          reason: proposal.reason,
+          safeTools: proposal.safeTools,
+          context: proposal.context,
+          timestamp: proposal.timestamp,
+        },
+      ], {
+        harbor: approvalHarbor(proposal),
+        writtenBy: 'fleetd:trust-gate',
+        ttlMs: APPROVAL_TUPLE_TTL_MS,
+      });
+    },
+  });
+
+  /**
+   * Boot-time rehydration (the in-memory queue must not die with the
+   * process): replay every durable fleet:approval record for a project
+   * into the live stream. enqueue() is replay-safe, so re-loading a
+   * project is idempotent.
+   */
+  function rehydrateApprovals(projectName: string, harbor: string): void {
+    if (!tuples?.poll) return;
+    let cursor = 0;
+    for (let i = 0; i < 500; i += 1) { // hard bound, not a silent cap: 200 pending is the queue ceiling
+      const result = tuples.poll(['fleet:approval'], { harbor, afterId: cursor });
+      cursor = result.lastId;
+      const tuple = result.tuple;
+      if (!tuple) break;
+      const [, id, agent, trigger] = tuple.fields as [string, string, string, string];
+      const payload = (tuple.fields[4] ?? {}) as {
+        project?: string; tier?: string; reason?: string;
+        safeTools?: string[]; context?: FleetRunContext; timestamp?: number;
+      };
+      if (typeof id !== 'string' || typeof agent !== 'string' || typeof trigger !== 'string') continue;
+      getSharedApprovalStream().enqueue({
+        id,
+        project: payload.project ?? projectName,
+        agent,
+        trigger,
+        tier: (payload.tier ?? 'ANONYMOUS_EXTERNAL') as FleetApprovalProposal['tier'],
+        reason: payload.reason ?? 'rehydrated after daemon restart',
+        safeTools: payload.safeTools ?? [],
+        context: payload.context ?? { source: 'trigger' },
+        timestamp: payload.timestamp ?? tuple.createdAt,
+      });
+    }
+  }
+
+  // Approval gates → the operator's devices. Web Push to every registered
+  // fleet-ui subscription, plus a best-effort local macOS banner (pii:low —
+  // the push body is agent/trigger/tier only, never event content).
+  const macNotify = new MacOSNotificationSink();
+  setSharedPushNotifier(new FleetPushNotifier({
+    localNotify: async (title, body) => {
+      if ((await macNotify.available()).ready) {
+        await macNotify.dispatch({ sink: 'notify', type: 'os', title, body, pii: 'low' });
+      }
+    },
+  }));
+  getSharedPushNotifier().bindApprovalStream(getSharedApprovalStream());
+
+  // Unmissable HITL: mirror the pending-approvals count into the Ink Cloud
+  // matrix as a steering ALERT. The UserPromptSubmit hook (bin/pd-hook-
+  // prompt) prepends alerts to EVERY compliant agent turn, so a held spawn
+  // is in front of the operator/agent at the start of each turn until
+  // decided. Cleared the moment the queue empties.
+  const syncApprovalAlert = (): void => {
+    try {
+      const pending = getSharedApprovalStream().list();
+      if (pending.length === 0) {
+        deleteMatrixKey('PD_ALERT_FLEET_APPROVALS');
+        return;
+      }
+      const head = pending
+        .slice(0, 3)
+        .map((p) => `${p.agent} ← ${p.trigger}`)
+        .join('; ');
+      const more = pending.length > 3 ? ` (+${pending.length - 3} more)` : '';
+      setMatrixKey(
+        'PD_ALERT_FLEET_APPROVALS',
+        `HITL: ${pending.length} spawn approval(s) waiting — ${head}${more}. Decide: pd fleet approvals | pd fleet approve <id> | pd fleet reject <id>`,
+      );
+    } catch (err) {
+      // Advisory surface: a matrix write failure degrades steering, never
+      // the daemon.
+      logger.warn('fleet_approval_alert_sync_failed', { error: (err as Error).message });
+    }
+  };
+  getSharedApprovalStream().subscribe(() => syncApprovalAlert());
+  syncApprovalAlert();
 
   return {
     start,

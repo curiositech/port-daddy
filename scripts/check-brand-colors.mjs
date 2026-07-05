@@ -28,6 +28,11 @@ const FORBIDDEN = {
   'CC3D2E': { name: 'cinnabar red',   rgb: [204, 61, 46] },
   'B08D57': { name: 'brass gold',     rgb: [176, 141, 87] },
   '5C7A6A': { name: 'patina green',   rgb: [92, 122, 106] },
+  // Retired 2026-07-05 per binder ch. 20 / the design parley (#671): mustard-as-brand
+  // is replaced by palette v2 gold (#666a00 light / #d8dd3c dark) — economy semantics,
+  // not a brand accent. All prior uses (pd-tui tokens, planner board, tokens.aaa.css)
+  // were migrated in the same PR that added this entry.
+  'FFDB33': { name: 'mustard brand (retired for palette v2 gold)', rgb: [255, 219, 51] },
 }
 
 // Quick pre-filter: does this file contain ANY forbidden content at all?
@@ -61,7 +66,10 @@ const EXT = /\.(ts|tsx|js|jsx|mjs|cjs|css|scss|html|svg|md|mdx|sh|json|swift|rs|
 // The whitepaper TikZ figures (.tex) have their own dedicated guard,
 // website-v2/scripts/check-figure-palette.mjs — exclude them here so the two
 // guards don't fight over the same files across separate PRs.
-const SKIP_DIR = /(^|\/)(node_modules|dist|build|port-daddy-stable|\.git)(\/|$)|(^|\/)whitepaper\/|(^|\/)docs\/design\//
+// neobrutalism-pro-files/ documents an EXTERNAL design system whose brand token is
+// #FFDB33 — reference material, not our tokens (same principle as the cinnabar
+// ban-list exemption above).
+const SKIP_DIR = /(^|\/)(node_modules|dist|build|port-daddy-stable|\.git|neobrutalism-pro-files)(\/|$)|(^|\/)whitepaper\/|(^|\/)docs\/design\//
 // The guard scripts themselves NAME the forbidden hexes as detection patterns —
 // they must not trip on their own definitions.
 const SKIP_FILE = /(check-brand-colors|check-figure-palette)\.mjs$/

@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Prompt Spec",
+  "description": "Input shape for scripts/prompt_audit.mjs — a structured, already-analyzed description of a prompt's structural properties. This scores properties an engineer has already decided, not the prompt's natural-language text itself.",
+  "type": "object",
+  "required": [
+    "hasClearRole",
+    "hasExplicitOutputContract",
+    "outputFormatSpecified",
+    "fewShotExamples",
+    "guardrailsPresent",
+    "hasEvalCriteria",
+    "delimitsUntrustedInput",
+    "avoidsKitchenSink",
+    "specifiesRefusalBehavior"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "promptId": {
+      "type": "string",
+      "description": "Optional identifier for the prompt under audit."
+    },
+    "targetModel": {
+      "type": "string",
+      "description": "Optional model/provider this prompt targets (e.g. \"claude-sonnet-5\", \"gpt-5\")."
+    },
+    "hasClearRole": {
+      "type": "boolean",
+      "description": "True if the prompt establishes a specific role/persona and domain (e.g. \"You are a senior support engineer...\"), not a generic assistant framing."
+    },
+    "hasExplicitOutputContract": {
+      "type": "boolean",
+      "description": "True if the prompt states the required output shape/contract explicitly, not just the task."
+    },
+    "outputFormatSpecified": {
+      "type": "boolean",
+      "description": "True if the concrete output FORMAT (exact JSON schema, markdown structure, delimiters) is spelled out, not just that structure is required."
+    },
+    "fewShotExamples": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Count of concrete input/output example pairs included in the prompt."
+    },
+    "guardrailsPresent": {
+      "type": "boolean",
+      "description": "True if the prompt includes an explicit guardrail against hallucination or scope creep (e.g. \"only use information provided\")."
+    },
+    "hasEvalCriteria": {
+      "type": "boolean",
+      "description": "True if the prompt (or its accompanying spec) defines how to tell whether an output is correct — a rubric, golden examples, or an LLM-judge prompt."
+    },
+    "delimitsUntrustedInput": {
+      "type": "boolean",
+      "description": "True only if every untrusted/user-supplied or retrieved span embedded in the prompt is wrapped in an explicit delimiter separating it from instructions, OR the prompt takes no untrusted input at all. Fails closed: unknown/unset must be recorded as false, never assumed safe."
+    },
+    "avoidsKitchenSink": {
+      "type": "boolean",
+      "description": "True if the prompt is NOT overloaded — a bounded set of essential instructions/constraints rather than every possible rule or topic crammed in."
+    },
+    "specifiesRefusalBehavior": {
+      "type": "boolean",
+      "description": "True if the prompt explicitly defines what to do at the edges: refuse, ask a clarifying question, or degrade gracefully for out-of-scope, adversarial, or ambiguous input."
+    }
+  }
+}

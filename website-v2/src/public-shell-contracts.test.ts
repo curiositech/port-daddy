@@ -306,7 +306,7 @@ describe('public shell contracts', () => {
       'Activity',
       'Channels',
       'Inbox',
-      'Sorties',
+      'Spawned Runs',
       'Memory',
       'YAML',
       'Shipwright Harbor',
@@ -322,7 +322,7 @@ describe('public shell contracts', () => {
       'activity',
       'channels',
       'inbox',
-      'sorties',
+      'spawned-runs',
       'memory',
       'yaml',
       'shipwright-harbor',
@@ -554,7 +554,7 @@ describe('public shell contracts', () => {
     expect(findDocsContentSection('tutorials')?.pages.map((page) => page.slug)).toEqual([
       'bootstrap-a-project-fleet',
       'recover-a-dead-agent-session',
-      'launch-and-inspect-a-sortie',
+      'launch-and-inspect-a-spawn',
       'walk-the-eleven-primitives',
       'pd-tube-agent-handoffs',
       'relay-pki-boundary',
@@ -575,7 +575,7 @@ describe('public shell contracts', () => {
     expect(findDocsContentPage('concepts', 'harbors-and-identity')?.truth).toBe('source-backed')
     expect(findDocsContentPage('best-practices', 'onboarding-surfaces')?.truth).toBe('blocked')
     expect(findDocsContentPage('examples', 'exchange-state-through-tuples')).toBeUndefined()
-    expect(findDocsContentPage('tutorials', 'launch-and-inspect-a-sortie')?.truth).toBe('source-backed')
+    expect(findDocsContentPage('tutorials', 'launch-and-inspect-a-spawn')?.truth).toBe('source-backed')
     expect(findDocsContentPage('tutorials', 'pd-tube-agent-handoffs')?.truth).toBe('source-backed')
     expect(findDocsContentPage('tutorials', 'relay-pki-boundary')?.truth).toBe('source-backed')
     expect(findDocsContentPage('reference-architectures', 'delegation-surfaces')?.truth).toBe('source-backed')

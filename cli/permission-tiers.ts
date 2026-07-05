@@ -87,6 +87,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   roadmap: 'silent',
   ideas: 'silent',
   graph: 'silent',
+  embed: 'notify', // worst case: `embed prefetch` downloads ~27 MB into the shared cache; reads/embeds are silent
   memory: 'silent',
   'who-owns': 'silent',
   harbors: 'silent',
@@ -166,7 +167,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   up: 'approval',           // brings up multi-service stacks; effects on shared ports
   u: 'approval',
   spawn: 'approval',        // refined: `spawn kill` is destructive
-  sortie: 'approval',
+  sortie: 'approval',       // one-shot multi-agent mission: spawns agents, spends budget; refined: read subcommands are silent
   agent: 'approval',        // refined: `agent unregister`, `agent inbox clear` are destructive
   mcp: 'approval',
   harbor: 'approval',       // refined: `harbor destroy` is destructive
@@ -209,6 +210,14 @@ export const TIER_REGISTRY: Record<string, Tier> = {
  * by best-effort prefix.
  */
 export const SUBCOMMAND_TIERS: Record<string, Tier> = {
+  // embed: local reads/embeddings are silent; prefetch performs a one-time
+  // ~27 MB network download into the shared cache
+  'embed': 'silent',                // default subcommand = status
+  'embed status': 'silent',
+  'embed text': 'silent',
+  'embed stdin': 'silent',
+  'embed prefetch': 'notify',
+
   // salvage: list is read-only, mutations are destructive
   'salvage': 'silent',              // default subcommand = listing
   'salvage triage': 'silent',
@@ -316,6 +325,12 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
 
   // spawn subcommands
   'spawn kill': 'destructive',
+
+  // sortie subcommands — `sortie run` (and bare `sortie <goal>`) stays at the
+  // top-level 'approval'; the read-only forms are silent
+  'sortie list': 'silent',
+  'sortie status': 'silent',
+  'sortie logs': 'silent',
 
   // fleet subcommands
   'fleet up': 'approval',

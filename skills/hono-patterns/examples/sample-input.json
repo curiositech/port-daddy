@@ -1,0 +1,14 @@
+{
+  "middlewareAwaitsNext": true,
+  "catchAllRegisteredLast": true,
+  "routesValidated": true,
+  "onErrorSanitized": true,
+  "bindingsGenericDeclared": true,
+  "variablesGenericDeclared": true,
+  "corsCredentials": true,
+  "corsOriginPolicy": "allowlist",
+  "hasStreamingEndpoints": true,
+  "streamChecksAborted": true,
+  "loginUsesRedirect": true,
+  "sessionCookieSameSite": "lax"
+}

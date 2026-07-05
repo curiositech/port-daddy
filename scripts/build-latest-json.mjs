@@ -89,6 +89,26 @@ function classifyArtifact(filename) {
   return null;
 }
 
+function fleetbarSignedFromManifest(manifestPath) {
+  if (!existsSync(manifestPath)) return null;
+
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  } catch {
+    console.warn(`build-latest-json: ignoring unusable FleetBar manifest at ${manifestPath}: malformed JSON`);
+    return null;
+  }
+
+  if (typeof manifest.unsigned !== 'boolean') {
+    const actual = Object.prototype.hasOwnProperty.call(manifest, 'unsigned') ? typeof manifest.unsigned : 'missing';
+    console.warn(`build-latest-json: ignoring unusable FleetBar manifest at ${manifestPath}: unsigned must be boolean (got ${actual})`);
+    return null;
+  }
+
+  return !manifest.unsigned;
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const tag = args.tag;
@@ -123,13 +143,23 @@ function main() {
   };
   walk(distDir);
 
+  // FleetBar uploads a manifest asset under dist/fleetbar/ that records whether
+  // its .app was ACTUALLY signed (`unsigned: false` once it is). Derive the feed's
+  // FleetBar `signed` flag from that truth rather than the blanket --signed flag,
+  // which only means "the daemon was signed this release" — FleetBar's build
+  // historically shipped ad-hoc while --signed marked it signed:true, so the feed
+  // advertised a Gatekeeper-quarantined app as signed. `null` means no usable
+  // manifest truth was found, so fall back to the blanket flag.
+  const fleetbarSigned = fleetbarSignedFromManifest(join(distDir, 'fleetbar', 'fleetbar-preview-manifest.json'));
+
   const artifacts = [];
   for (const filePath of found) {
     const fn = basename(filePath);
     const cls = classifyArtifact(fn);
     if (!cls) continue;
     const sha256 = sha256File(filePath);
-    const signed = signedFlag && cls.macSigned;
+    let signed = signedFlag && cls.macSigned;
+    if (cls.surface === 'fleetbar' && fleetbarSigned !== null) signed = fleetbarSigned;
     artifacts.push({
       surface: cls.surface,
       filename: fn,

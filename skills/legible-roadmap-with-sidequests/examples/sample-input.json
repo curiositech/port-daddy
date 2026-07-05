@@ -1,0 +1,56 @@
+{
+  "canonicalRoadmaps": 1,
+  "reconciliationCadenceDays": 7,
+  "policy": {
+    "linkOrOptOutRequired": true,
+    "maxReconciliationCadenceDays": 14
+  },
+  "workUnits": [
+    {
+      "id": "incremental-symbol-index-refresh",
+      "kind": "planned",
+      "roadmapLink": "incremental-symbol-index-refresh",
+      "spawnedItems": 0,
+      "spawnedItemsCaptured": 0,
+      "progressEvidence": ["commit:1a2b3c4", "pr:598"],
+      "status": "in-progress"
+    },
+    {
+      "id": "daemon-introspection-api",
+      "kind": "planned",
+      "roadmapLink": "daemon-introspection-api",
+      "spawnedItems": 0,
+      "spawnedItemsCaptured": 0,
+      "progressEvidence": [],
+      "status": "todo"
+    },
+    {
+      "id": "console-conductor-hardening-burst",
+      "kind": "sidequest",
+      "roadmapLink": null,
+      "optOutReason": "energy-driven console hardening pass, tracked separately under ADR-0060; not a phase deliverable",
+      "spawnedItems": 2,
+      "spawnedItemsCaptured": 2,
+      "progressEvidence": ["commit:7d84bfc4", "pr:595"],
+      "status": "done"
+    },
+    {
+      "id": "adr-0060-conductor-followups",
+      "kind": "planned",
+      "roadmapLink": "adr-0060-conductor-followups",
+      "spawnedItems": 0,
+      "spawnedItemsCaptured": 0,
+      "progressEvidence": ["receipt:conductor-followups-2026-07-01"],
+      "status": "todo"
+    },
+    {
+      "id": "release-3-21-0-workflow",
+      "kind": "sidequest",
+      "roadmapLink": "release-3-21-0-workflow",
+      "spawnedItems": 0,
+      "spawnedItemsCaptured": 0,
+      "progressEvidence": ["commit:0d610341", "pr:372"],
+      "status": "shipped"
+    }
+  ]
+}

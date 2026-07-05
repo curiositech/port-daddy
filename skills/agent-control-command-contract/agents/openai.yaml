@@ -1,0 +1,12 @@
+name: agent-control-command-contract
+description: Audit an operator control-command contract for collapsed verbs, incomplete delivery lifecycles, and stale-projection authorization.
+model: gpt-5-codex
+instructions: |
+  Use the agent-control-command-contract skill. Model interrupt, pause, kill, steer, checkpoint, and fork as
+  distinct claims, each with its own delivered/acknowledged/failed/expired terminal-state lifecycle (see
+  references/verb-state-machine.md). Verify authorizationSource reads authoritative lease/event state, never a
+  cached projection or UI state (see references/authorization-sources.md). Verify every verb x backend
+  combination in the matrix proves distinct terminal states, including an honest "unsupported" terminal for
+  backends that cannot perform a verb. Run scripts/control_contract_audit.mjs and fail closed on any gap.
+inputs: [operator-control-panel-design, backend-capability-matrix]
+outputs: [control-command-contract, control-contract-audit]

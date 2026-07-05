@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/grafana-dashboard-builder-plan.schema.json",
+  "title": "Grafana Dashboard Plan",
+  "description": "A structured plan of a Grafana dashboard's panels, query functions, alert settings, and provisioning mode, so this skill's Quality Gates can be checked deterministically by scripts/grafana_dashboard_builder_audit.mjs.",
+  "type": "object",
+  "required": ["panelCount", "metricType", "rangeFunction", "hasAlerts"],
+  "additionalProperties": true,
+  "properties": {
+    "panelCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total panels on the dashboard."
+    },
+    "metricType": {
+      "type": "string",
+      "enum": ["counter", "gauge", "histogram"],
+      "description": "The Prometheus metric type of the primary series being graphed."
+    },
+    "rangeFunction": {
+      "type": "string",
+      "enum": ["rate", "irate", "increase", "delta", "none"],
+      "description": "The range-vector function applied to that series in the main queries."
+    },
+    "usesHistogramQuantile": {
+      "type": "boolean",
+      "description": "True if any panel computes quantiles via histogram_quantile()."
+    },
+    "aggregatesByLe": {
+      "type": "boolean",
+      "description": "True if every histogram_quantile aggregation preserves the le label (sum by (le, ...))."
+    },
+    "hasAlerts": {
+      "type": "boolean",
+      "description": "True if this plan includes alert rules."
+    },
+    "alertKind": {
+      "type": "string",
+      "enum": ["slo", "hard-failure"],
+      "description": "Whether the alert is SLO-tier (error rate, latency) or a hard-failure signal (service down)."
+    },
+    "alertForSeconds": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "The alert rule's for: dwell time, in seconds."
+    },
+    "alertUsesIrate": {
+      "type": "boolean",
+      "description": "True if any alert expression uses irate()."
+    },
+    "alertHasRunbookUrl": {
+      "type": "boolean",
+      "description": "True if every alert carries a runbook annotation URL."
+    },
+    "panelsSharingExpensiveQuery": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "How many panels (across dashboards) reuse the most expensive query expression."
+    },
+    "usesRecordingRules": {
+      "type": "boolean",
+      "description": "True if shared expensive expressions are pre-computed as Prometheus recording rules."
+    },
+    "dashboardsInVersionControl": {
+      "type": "boolean",
+      "description": "True if the dashboard JSON lives in git and is provisioned (Terraform/grafonnet), not live-edited."
+    },
+    "variableIncludeAllEnabled": {
+      "type": "boolean",
+      "description": "True if a template variable has Include All enabled."
+    },
+    "variableCardinality": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "The number of values the largest template variable can take."
+    }
+  }
+}

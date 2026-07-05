@@ -33,6 +33,8 @@ import {
 } from '../lib/fleet-engine.js';
 import { ensureStarterFleetProject } from '../lib/fleet-bootstrap.js';
 import { resolveFleetChannel } from '../lib/fleet-channels.js';
+import { IoDispatch } from '../lib/fleet/io-dispatch.js';
+import { getSharedWebhookReceiver } from '../lib/fleet/webhook-receiver.js';
 import { assessBackendReadiness } from '../lib/backend-readiness.js';
 import {
   BACKEND_CATALOG as SHARED_BACKEND_CATALOG,
@@ -327,6 +329,25 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
           agents: remoteAgents,
         },
       },
+    };
+  });
+
+  // GET /fleet/sources — I/O channel health board (I/O wiring Phase 2).
+  // Probes every registered trigger source and output sink for availability
+  // with the daemon's REAL deps (the shared webhook receiver), so what the
+  // operator sees is what a fleet would actually get: STUB channels show
+  // their honest {ready:false, reason, requires}; armed webhook channels are
+  // listed by slug.
+  fastify.get('/fleet/sources', async () => {
+    const probe = new IoDispatch({
+      registerWebhookHandler: (channel, handler) =>
+        getSharedWebhookReceiver().registerHandler(channel, handler),
+    });
+    const channels = await probe.health();
+    return {
+      success: true,
+      channels,
+      webhookChannels: getSharedWebhookReceiver().channels(),
     };
   });
 

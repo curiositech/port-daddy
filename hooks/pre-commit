@@ -84,7 +84,10 @@ MIN_LINES=(
   lib/orchestrator.ts 150
   bin/port-daddy-cli.ts 800
   mcp/server.ts 800
-  public/index.html 500
+  # public/index.html: the web dashboard was retired (surface consolidation,
+  # 2026-07) — the root page is now a deliberately minimal pointer to the
+  # native surfaces. Floor guards against accidental truncation only.
+  public/index.html 60
 )
 
 MODIFIED_FILES=$(git diff --cached --name-only --diff-filter=M 2>/dev/null || true)

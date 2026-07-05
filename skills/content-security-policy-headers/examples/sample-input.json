@@ -1,0 +1,18 @@
+{
+  "scriptSrcStrategy": "nonce",
+  "deploymentMode": "enforced",
+  "htmlGeneration": "server-rendered",
+  "strictDynamic": true,
+  "objectSrcNone": true,
+  "baseUriNone": true,
+  "usesUnsafeEval": false,
+  "wildcardInScriptSrc": false,
+  "nonceEntropyBits": 128,
+  "nonceFreshPerResponse": true,
+  "nonceInjection": "template-emission",
+  "reportOnlyDays": 14,
+  "reportToConfigured": true,
+  "reportUriConfigured": true,
+  "frameAncestorsViaMetaOnly": false,
+  "legacyHeadersRemoved": true
+}
