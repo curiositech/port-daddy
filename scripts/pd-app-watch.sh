@@ -114,8 +114,15 @@ MAIN_SHA="$(git -C "$REPO" rev-parse origin/main)"
 if [ "$FORCE_LATEST" = 1 ] || { [ "$MAIN_SHA" != "$(state_get built-main-sha)" ] && [ "$MAIN_SHA" != "$(state_get attempted-main-sha)" ]; }; then
   state_set attempted-main-sha "$MAIN_SHA"
   log "origin/main → ${MAIN_SHA:0:10}; refreshing latest lanes"
-  git -C "$REPO" checkout --quiet --force --detach origin/main
-  if run_lanes --latest latest; then
+  # Checkout result MUST gate the build (Copilot review finding): an unchecked
+  # checkout that fails leaves $REPO on whatever ref it was on before. If we
+  # then built+succeeded from THAT stale ref while still recording
+  # built-main-sha=$MAIN_SHA, the state would lie — "latest" would look built
+  # for a SHA it never actually compiled, permanently masking the real gap.
+  if ! git -C "$REPO" checkout --quiet --force --detach origin/main; then
+    log "✗ git checkout origin/main (${MAIN_SHA:0:10}) FAILED — not building from a stale ref"
+    notify "Port Daddy apps" "checkout of origin/main failed — latest lanes NOT rebuilt"
+  elif run_lanes --latest latest; then
     state_set built-main-sha "$MAIN_SHA"
     log "✓ latest lanes refreshed to ${MAIN_SHA:0:10}"
     notify "Port Daddy apps" "latest lanes rebuilt + relaunched (main @ ${MAIN_SHA:0:10})"
@@ -163,8 +170,13 @@ elif [ "$FORCE_PROD" = 1 ] || { [ "$TAP_VERSION" != "$(state_get built-prod-vers
 
   # 2. The prod apps, built from the release tag the cut corresponds to.
   if git -C "$REPO" rev-parse -q --verify "refs/tags/v$TAP_VERSION" >/dev/null; then
-    git -C "$REPO" checkout --quiet --force --detach "v$TAP_VERSION"
-    if run_lanes --prod prod; then
+    # Same gate as the latest-lane checkout above (Copilot review finding): a
+    # failed checkout must not fall through to a build off the wrong ref while
+    # still recording built-prod-version=$TAP_VERSION.
+    if ! git -C "$REPO" checkout --quiet --force --detach "v$TAP_VERSION"; then
+      log "✗ git checkout v$TAP_VERSION FAILED — not building prod lanes from a stale ref"
+      notify "Port Daddy apps" "checkout of v$TAP_VERSION failed — prod lanes NOT rebuilt"
+    elif run_lanes --prod prod; then
       state_set built-prod-version "$TAP_VERSION"
       log "✓ prod lanes refreshed to v$TAP_VERSION"
       notify "Port Daddy apps" "prod lanes rebuilt + relaunched (v$TAP_VERSION)"
@@ -173,7 +185,7 @@ elif [ "$FORCE_PROD" = 1 ] || { [ "$TAP_VERSION" != "$(state_get built-prod-vers
       notify "Port Daddy apps" "prod lane build FAILED @ v$TAP_VERSION — check $BUILD_LOGS"
     fi
     # Leave the clone back on main so the next latest build starts from the right ref.
-    git -C "$REPO" checkout --quiet --force --detach origin/main
+    git -C "$REPO" checkout --quiet --force --detach origin/main || log "⚠ could not return clone to origin/main after prod build"
   else
     log "✗ tag v$TAP_VERSION not found on origin — tap moved before the tag was pushed? Skipping prod app build."
     notify "Port Daddy apps" "tap cut v$TAP_VERSION but tag is missing — prod apps NOT rebuilt"

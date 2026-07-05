@@ -46,6 +46,23 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"      # apps/FleetBar/scripts
 FLEETBAR_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"                    # apps/FleetBar
 ROOT_DIR="$(cd "$FLEETBAR_DIR/../.." && pwd)"                   # repo root
+
+# pkill/pgrep -f treats its pattern as an extended regex, not a literal string
+# (Copilot review finding). The "latest" lane's display name puts literal
+# parens in the install path — "FleetBar (dev-latest).app" — and unescaped
+# "(" "..." ")" in ERE means GROUP, not "match a literal paren". A pattern
+# built from that raw path therefore does not match the process it names, so
+# lingering manually-launched instances never get killed. Escape every ERE
+# metacharacter before handing a path to pkill -f.
+re_escape() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//./\\.}"; s="${s//\*/\\*}"; s="${s//^/\\^}"; s="${s//\$/\\\$}"
+  s="${s//(/\\(}"; s="${s//)/\\)}"; s="${s//+/\\+}"; s="${s//\?/\\?}"
+  s="${s//\{/\\\{}"; s="${s//\}/\\\}}"; s="${s//|/\\|}"
+  s="${s//\[/\\[}"; s="${s//\]/\\]}"
+  printf '%s' "$s"
+}
 INFO_PLIST_SRC="$FLEETBAR_DIR/FleetBar-Info.plist"
 ICON_SRC="$FLEETBAR_DIR/FleetBar/Resources/FleetBarIcon.icns"
 INSTALL_ROOT="$HOME/Applications/Port Daddy"
@@ -121,7 +138,7 @@ if [ "$LANE" = dev ] && [ "${PD_FLEETBAR_KEEP_OLD_DEV:-0}" != "1" ]; then
     [ -d "$OLD" ] || continue
     [ "$OLD" = "$APP" ] && continue
     echo "▸ retiring superseded dev build $(basename "$OLD")"
-    pkill -f "$OLD/Contents/MacOS/FleetBar" 2>/dev/null || true
+    pkill -f "$(re_escape "$OLD/Contents/MacOS/FleetBar")" 2>/dev/null || true
     rm -rf "$OLD"
   done
 fi
@@ -158,7 +175,7 @@ PLIST
   fi
   # Old manually-launched instances of this lane's bundle would linger beside the
   # supervised one — clear them before launchd takes over.
-  pkill -f "$APP/Contents/MacOS/FleetBar" 2>/dev/null || true
+  pkill -f "$(re_escape "$APP/Contents/MacOS/FleetBar")" 2>/dev/null || true
   # bootout is asynchronous: an immediate bootstrap can race it (EBUSY) and,
   # under set -e, abort AFTER the teardown but BEFORE the restart — leaving the
   # lane down (fleet review finding). Retry briefly instead of trusting one shot.
@@ -171,7 +188,7 @@ PLIST
   launchctl kickstart -k "$GUI/$LABEL" 2>/dev/null || true
   echo "▸ launchd $LABEL restarted on the fresh bundle"
 else
-  pkill -f "$APP/Contents/MacOS/FleetBar" 2>/dev/null || true
+  pkill -f "$(re_escape "$APP/Contents/MacOS/FleetBar")" 2>/dev/null || true
   sleep 0.5
   open "$APP"
   echo "▸ launched $(basename "$APP")"
