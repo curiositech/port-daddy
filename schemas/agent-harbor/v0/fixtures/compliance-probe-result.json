@@ -6,6 +6,7 @@
   "adapterKind": "codex-cli",
   "probedAt": "2026-07-05T12:01:00.000Z",
   "complianceLevel": "C2",
+  "witnessedLevel": "C2",
   "transcriptFidelity": "T4",
   "checks": [
     { "name": "can-register", "passed": true, "daemonWitnessed": true, "level": "C0", "details": "nonce challenge answered" },
@@ -14,11 +15,12 @@
     { "name": "turn-start-guidance", "passed": false, "daemonWitnessed": true, "level": "C3", "details": "adapter does not inject guidance yet" }
   ],
   "negativeProbes": [
-    { "kind": "forged-level", "present": true, "fired": true, "downgraded": true },
-    { "kind": "direct-mcp-bypass", "present": true, "fired": true, "downgraded": true },
-    { "kind": "disabled-hook-after-launch", "present": true, "fired": false, "downgraded": false },
-    { "kind": "forged-heartbeat", "present": true, "fired": false, "downgraded": false },
-    { "kind": "observed-to-controlled", "present": true, "fired": false, "downgraded": false }
+    { "kind": "forged-level", "targetLevel": "C1", "present": true, "fired": true, "downgraded": true, "observedLevel": "C0", "details": "body claimed a verified transcript with no hash chain; daemon recomputed effective level from observed events" },
+    { "kind": "forged-level", "targetLevel": "C2", "present": true, "fired": true, "downgraded": true, "observedLevel": "C1", "details": "body reported governed writes while a shell side effect skipped preflight; downgraded to C1" },
+    { "kind": "direct-mcp-bypass", "targetLevel": "C2", "present": true, "fired": true, "downgraded": true, "observedLevel": "C1", "details": "modified MCP config wrote around the gateway; unexpected write path detected" },
+    { "kind": "disabled-hook-after-launch", "targetLevel": "C2", "present": true, "fired": false, "downgraded": false },
+    { "kind": "forged-heartbeat", "targetLevel": "C0", "present": true, "fired": false, "downgraded": false },
+    { "kind": "observed-to-controlled", "targetLevel": "C2", "present": true, "fired": false, "downgraded": false }
   ],
   "failedChecks": ["turn-start-guidance"],
   "remediation": [

@@ -7,6 +7,7 @@
   "role": "implementer",
   "authority": "local",
   "complianceLevel": "C2",
+  "complianceProbeId": "probe_01JZFIX0001",
   "transcriptFidelity": "T4",
   "officialMode": "official",
   "status": "active",

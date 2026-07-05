@@ -21,6 +21,13 @@ import { describe, it, expect } from '@jest/globals';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import {
+  witnessedComplianceLevel,
+  checkProbeWitnessing,
+  assertProbeWitnessing,
+  checkNodeWitnessing,
+  assertNodeWitnessing,
+} from '../../schemas/agent-harbor/v0/compliance-invariants.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const schemaDir = join(here, '..', '..', 'schemas', 'agent-harbor', 'v0');
@@ -279,6 +286,17 @@ describe('ADR-0095 fork resolutions', () => {
     }
   });
 
+  it('fork 2: negativeProbes and witnessedLevel are required on ComplianceProbeResult', () => {
+    const probe = loadSchema('compliance-probe-result');
+    expect(probe.required).toContain('negativeProbes');
+    expect(probe.required).toContain('witnessedLevel');
+    // Each negative probe can pin the level it forges — forged-level is per-level.
+    expect(probe.properties.negativeProbes.items.properties.targetLevel.enum).toContain('C1');
+    expect(probe.properties.negativeProbes.items.properties.observedLevel).toBeDefined();
+    // AgentNode's level is linked to witnessing evidence, not free-standing.
+    expect(loadSchema('agent-node').properties.complianceProbeId).toBeDefined();
+  });
+
   it('receipt truth: the nine sections are required and validation is artifact-backed by construction', () => {
     const receipt = loadSchema('work-receipt');
     for (const section of ['identity', 'intent', 'risks', 'validation', 'actions', 'contextUsed', 'rollback', 'spend', 'provenance']) {
@@ -288,5 +306,111 @@ describe('ADR-0095 fork resolutions', () => {
     expect(receipt.properties.provenance.required).toContain('transcriptHeadHash');
     // sessionId null is a failing receipt for official work — it is required here.
     expect(receipt.required).toContain('sessionId');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 3. The compliance witnessing invariant is enforced, not merely asserted.
+//    (ADR-0095 §8 — closes the "self-attested level is contract-valid" blocker.)
+// ---------------------------------------------------------------------------
+
+const LADDER = ['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6'];
+
+/** A probe whose evidence chain honestly witnesses every level up to `level`. */
+function buildWitnessedProbe(level) {
+  const order = LADDER.indexOf(level);
+  const checks = [];
+  const negativeProbes = [];
+  for (let i = 0; i <= order; i += 1) {
+    checks.push({ name: `gate-${LADDER[i]}`, passed: true, daemonWitnessed: true, level: LADDER[i] });
+    if (i >= 1) {
+      negativeProbes.push({
+        kind: 'forged-level', targetLevel: LADDER[i], present: true, fired: true, downgraded: true, observedLevel: LADDER[i - 1],
+      });
+    }
+  }
+  return {
+    schema: 'pd.agent-harbor.compliance-probe-result.v0',
+    probeId: `probe_${level}`,
+    agentNodeId: 'agent_node_test',
+    probedAt: '2026-07-05T12:00:00.000Z',
+    complianceLevel: level,
+    witnessedLevel: level,
+    transcriptFidelity: 'T4',
+    checks,
+    negativeProbes,
+  };
+}
+
+describe('ADR-0095 §8 compliance witnessing invariant', () => {
+  it('the shipped fixture is witness-valid and its complianceLevel equals what evidence supports', () => {
+    const probe = loadFixture('compliance-probe-result');
+    const result = checkProbeWitnessing(probe);
+    expect(result.valid).toBe(true);
+    expect(result.witnessedLevel).toBe(probe.complianceLevel);
+    expect(() => assertProbeWitnessing(probe)).not.toThrow();
+  });
+
+  it('BLOCKER regression: a self-attested C6 (no probes, all checks self-reported) is INVALID', () => {
+    const forged = {
+      ...loadFixture('compliance-probe-result'),
+      complianceLevel: 'C6',
+      witnessedLevel: 'C6',
+      negativeProbes: [],
+      checks: [
+        { name: 'i-swear-im-c6', passed: true, daemonWitnessed: false, level: 'C6' },
+      ],
+    };
+    const result = checkProbeWitnessing(forged);
+    expect(result.valid).toBe(false);
+    expect(result.witnessedLevel).toBe('C0'); // no witnessed evidence at all
+    expect(() => assertProbeWitnessing(forged)).toThrow(/self-report|witnessing/i);
+  });
+
+  it('a level with a witnessed check but NO negative probe is not witnessed (missing-negative-probe)', () => {
+    const probe = buildWitnessedProbe('C2');
+    probe.negativeProbes = probe.negativeProbes.filter((n) => n.targetLevel !== 'C2');
+    // C1 still witnessed, C2 loses its falsification probe -> caps at C1.
+    expect(witnessedComplianceLevel(probe)).toBe('C1');
+    probe.complianceLevel = 'C2';
+    expect(checkProbeWitnessing(probe).valid).toBe(false);
+  });
+
+  it('every non-base level C1..C6 is daemon-witnessable via a forged-level probe (finding 6)', () => {
+    for (const level of ['C1', 'C2', 'C3', 'C4', 'C5', 'C6']) {
+      const probe = buildWitnessedProbe(level);
+      expect(witnessedComplianceLevel(probe)).toBe(level);
+      expect(checkProbeWitnessing(probe).valid).toBe(true);
+    }
+  });
+
+  it('a hole beneath a high witness caps the level at the gap (no skip-grant)', () => {
+    const probe = buildWitnessedProbe('C4');
+    // Remove the C2 witnessed check: C3/C4 sit above a gap and must not be granted.
+    probe.checks = probe.checks.filter((c) => c.level !== 'C2');
+    expect(witnessedComplianceLevel(probe)).toBe('C1');
+  });
+
+  it('no-downgrade-on-forgery: a present+fired probe that did not downgrade is a violation', () => {
+    const probe = buildWitnessedProbe('C2');
+    probe.negativeProbes.push({ kind: 'direct-mcp-bypass', targetLevel: 'C2', present: true, fired: true, downgraded: false });
+    expect(checkProbeWitnessing(probe).valid).toBe(false);
+    expect(checkProbeWitnessing(probe).violations.join(' ')).toMatch(/no-downgrade-on-forgery/);
+  });
+
+  it('an AgentNode level cannot exceed its linked probe witnessedLevel', () => {
+    const node = loadFixture('agent-node');
+    const probe = loadFixture('compliance-probe-result');
+    expect(() => assertNodeWitnessing(node, probe)).not.toThrow();
+
+    const overclaim = { ...node, complianceLevel: 'C6' };
+    expect(checkNodeWitnessing(overclaim, probe).valid).toBe(false);
+    expect(() => assertNodeWitnessing(overclaim, probe)).toThrow(/exceeds|witness/i);
+  });
+
+  it('an AgentNode above C0 with no complianceProbeId is self-attested and invalid', () => {
+    const node = { ...loadFixture('agent-node') };
+    delete node.complianceProbeId;
+    expect(checkNodeWitnessing(node, loadFixture('compliance-probe-result')).valid).toBe(false);
   });
 });

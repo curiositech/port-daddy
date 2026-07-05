@@ -98,7 +98,9 @@ The daemon is the single writer of runtime truth. Concretely:
 - **Compliance is daemon-witnessed.** The daemon issues Agent Node ids, signs Articles,
   grants expiring capability leases, and challenges adapters with nonces. A body can
   request capabilities; it cannot declare itself compliant. Self-reported checks cannot
-  advance a level past C0 (`ComplianceProbeResult.checks[].daemonWitnessed`).
+  advance a level past C0 — and this is **enforced, not merely asserted**, by the
+  Compliance Witnessing Invariant in §8 (`ComplianceProbeResult.checks[].daemonWitnessed`
+  plus a targeted, downgraded negative probe per level).
 - **Receipts are generated from persisted events and artifacts**, never from the agent's
   final chat message. `validation.artifactBacked` is true only when every `passed: true`
   test carries a real `exitCode` or `artifactPath`.
@@ -107,9 +109,9 @@ The daemon is the single writer of runtime truth. Concretely:
   `busy_timeout`, migrations verified by querying the target schema object, single-writer
   topology.
 
-### 4. The four fork resolutions
+### 4. The five fork resolutions
 
-The binder contradicts itself in four places. This ADR pins each fork; superseded prose
+The binder contradicts itself in five places. This ADR pins each fork; superseded prose
 should be patched to reference this section.
 
 **Fork 1 — TranscriptEvent field names: ch09 wins.** The canonical shape uses
@@ -128,6 +130,11 @@ including its required predicates (C1 requires T4 verified transcript; C6 requir
 Doc, schema, UI, and probe surfaces must declare this identical ladder — drift across
 surfaces is a stop-rule violation, and no numeric C badge ships from any surface that
 disagrees with `agent-node.schema.json` / `compliance-probe-result.schema.json`.
+Every non-base level is daemon-witnessable: `forged-level` is the universal per-level
+negative probe (instantiated once per level via `targetLevel`), so C1, C3, C5, and C6 are
+each falsifiable, not only the gateway levels the four specialized probes cover. The
+enforcement that a level is never granted by self-report is **fork resolution's teeth in
+§8**, not prose alone.
 
 **Fork 3 — Canonical DB path: `port-registry.db` per `lib/db.ts`.** Resolution order is
 (1) `PORT_DADDY_PREFIX` → `$PORT_DADDY_PREFIX/port-daddy.db` as passed by `server.ts`,
@@ -146,6 +153,25 @@ sortie → a WorkPlan whose shape is `dag-workgroup`, conjure → console-source
 No verb owns a session, transcript, budget, compliance probe, UI pane, or state machine.
 A body that starts without a WorkIntent + WorkPlan chain is an unmanaged import, never an
 official agent.
+
+**Fork 5 — the AgentRun dimension and where continuation lives: run-level, per ch14.**
+Chapter 09's data model, written before the ch14 naming rule was settled, has no
+`agent_runs` table and hangs the per-attempt continuation chain off the `sessions` table
+(`successor_session_id` / `predecessor_session_id`). Chapter 14's naming rule and the
+swarm-invocation packet make **AgentRun** — "one execution attempt by a Body attached to a
+node" — the first-class per-attempt unit: the node endures, bodies die and are replaced,
+and each attempt is a run joined to exactly one session and one transcript stream. This ADR
+resolves the fork in ch14's favor and **ch09 is patched** (see Consequences) to (1) add the
+`agent_runs` table, (2) carry `current_run_id` on `agent_nodes`, (3) add a nullable
+`run_id` foreign key to `control_commands`, `cost_events`, `skill_grafts`, and
+`work_receipts` — matching the `runId` already frozen on those schemas — and (4) relocate
+continuation: **resume creates a successor _run_** (`successor_run_id` /
+`predecessor_run_id` on `agent_runs`), and the session-level successor columns become a
+derived convenience view over run linkage, not the source of truth. `transcript_events`
+stay session-keyed by design — a transcript stream is per session, and a run maps to exactly
+one session — so no `run_id` column is added there. This is the one fork where the schemas,
+not the doc, were already correct; the fix is to make ch09 agree with the frozen contract,
+which is exactly what the freeze's cross-surface-drift tripwire demands.
 
 ### 5. Command / query / event boundary
 
@@ -215,15 +241,73 @@ Ordered; each step keeps the old surface as an honest bridge until parity is pro
 The exit test (ch14): a new body is impossible to start without either a
 WorkIntent + WorkPlan chain or an explicit unmanaged-import reason.
 
+### 8. The Compliance Witnessing Invariant (normative)
+
+The freeze's headline promise — "compliance is daemon-witnessed, never self-attested" —
+must be a machine-checkable part of the contract, not prose a reader could ignore. The
+draft-2020-12 keyword subset the schemas commit to cannot express a cross-field,
+array-quantified rule, so a schema-valid `ComplianceProbeResult` could otherwise assert
+`complianceLevel: "C6"` with `negativeProbes: []` and every `checks[].daemonWitnessed:
+false`. That gap is closed here and enforced by
+`schemas/agent-harbor/v0/compliance-invariants.mjs` (a frozen contract artifact gated by
+`tests/unit/agent-harbor-contracts.test.js`). Every consumer — the TypeScript daemon, the
+Rust `pd-console`, external custom agents — MUST implement this identical predicate:
+
+- **Per-level witness.** A level `Lk` (order ≥ 1) is *witnessed* only when BOTH hold:
+  (a) some `checks[]` entry gates it with daemon-observed positive evidence
+  (`level == Lk`, `daemonWitnessed: true`, `passed: true`); AND (b) some `negativeProbes[]`
+  entry targets it (`targetLevel == Lk`), is `present: true`, and — if it `fired` — was
+  `downgraded: true`. An absent `downgraded` is never read as `true` (fail-closed).
+- **`witnessedLevel`** is the highest level for which *every* level beneath it is witnessed
+  (a gap caps the grant — no skip-grants). It is recomputable from `checks` +
+  `negativeProbes`; a `witnessedLevel` field that disagrees with the recomputation is a
+  drift violation.
+- **`complianceLevel` MUST NOT exceed `witnessedLevel`.** A probe that over-claims is
+  INVALID — this is the `level-advances-on-self-report` stop rule made executable.
+- **Node linkage.** An `AgentNode.complianceLevel > C0` MUST carry a `complianceProbeId`
+  referencing a witness-valid probe whose `witnessedLevel ≥` the node's level. A
+  free-standing node level with no witnessing probe is self-attested and rejected.
+- **Every level is falsifiable.** Because `forged-level` is instantiated per level via
+  `targetLevel`, C1, C3, C5, and C6 are each daemon-witnessable, closing the "only C0/C2/C4
+  have a negative probe" gap. The four specialized probes (`direct-mcp-bypass`,
+  `disabled-hook-after-launch`, `forged-heartbeat`, `observed-to-controlled`) are
+  additional targeted attacks on the governance and liveness gates, not the only witnesses.
+
+## Open questions (minor, non-blocking)
+
+Recorded here per the F0 revision so they are not lost; neither blocks the freeze.
+
+- **Cost event time-field name.** ch09 `cost_events` named the event-time column
+  `timestamp`; `CostAccrualEvent` uses `occurredAt`, harmonizing to the TranscriptEvent
+  event-time convention (`occurredAt` for source time, `ingestedAt` for daemon time). This
+  ADR adopts `occurredAt` as canonical and **patches ch09** to rename the column
+  (Consequences), so a projection keyed on the old `timestamp` name will not silently drop
+  the field. Open question: whether to also expose a read-only `timestamp` alias during the
+  ch09→schema migration window.
+- **`payload_json` casing across objects.** Both `TranscriptEvent.payloadJson` and
+  `ControlCommand.payload` derive from a `*_json` column but differ in suffix.
+  `TranscriptEvent.payloadJson` is frozen by fork resolution 1 (ch09 canonical names) and
+  carries mixed metadata + small text; `ControlCommand.payload` is a typed, kind-specific
+  command-argument object, so the divergence is intentional rather than an accident — but it
+  does complicate a uniform Zod/DB-projection generator. Open question for a v0.x additive
+  pass: settle a single convention (likely `payloadJson` everywhere) without a v1 break.
+
 ## Consequences
 
 - C1 (event ledger), C2 (adapter probes), C3 (control panel), C5 (governance), and C8
   (setup/doctor) can now fan out against one contract instead of inventing five.
-- Binder chapters 02, 03, and the pre-binder compliance plan need small patches marking
-  their superseded variants as resolved by this ADR (Architect-of-Record sweep).
+- Binder chapters 02, 03, **09**, and the pre-binder compliance plan need patches marking
+  their superseded variants as resolved by this ADR (Architect-of-Record sweep). **Chapter
+  09 is patched in this PR** (fork resolution 5): the `agent_runs` table is added,
+  `current_run_id` joins `agent_nodes`, a nullable `run_id` joins `control_commands`,
+  `cost_events`, `skill_grafts`, and `work_receipts`, `cost_events.timestamp` is renamed to
+  `occurred_at`, and the continuation chain moves to run level. Chapters 02/03 and the
+  compliance plan remain follow-up sweeps.
+- Compliance is enforced, not asserted: `compliance-invariants.mjs` is the normative
+  witnessing predicate (§8); a self-attested level now fails CI, not just review.
 - The schema test suite is the drift tripwire: any surface that redefines the ladder, the
-  TranscriptEvent field names, or the archetype set fails
-  `tests/unit/agent-harbor-contracts.test.js` review.
+  TranscriptEvent field names, the archetype set, or grants a compliance level with no
+  daemon-witnessed probe chain fails `tests/unit/agent-harbor-contracts.test.js` review.
 - v0 deliberately excludes: GPUI implementation, adapter code, cloud/billing, Harbor
   Editor transport, and the tool-gate envelope (C5 owns that schema next, referencing this
   saga).

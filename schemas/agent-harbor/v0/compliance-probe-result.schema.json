@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/compliance-probe-result.schema.json",
   "title": "ComplianceProbeResult",
-  "description": "Machine-readable output of pd agent probe (binder ch03). Compliance is daemon-witnessed, never self-attested: a level is earned only when a daemon-exercised probe backs it, and a fired negative probe (forged-level, direct-mcp-bypass, disabled-hook-after-launch, forged-heartbeat, observed-to-controlled) must downgrade the effective level. Ladder frozen to 7 levels C0..C6 (ADR-0095 fork resolution 2).",
+  "description": "Machine-readable output of pd agent probe (binder ch03). Compliance is daemon-witnessed, never self-attested. THE WITNESSING INVARIANT (ADR-0095 §8, normative — enforced by compliance-invariants.mjs, not expressible in the draft-2020-12 keyword subset): for every ladder level Lk from C1 up to the asserted complianceLevel, (a) some checks[] entry with level==Lk must have daemonWitnessed:true AND passed:true, and (b) some negativeProbes[] entry that targets Lk (a forged-level probe with targetLevel==Lk, or a gateway probe whose targetLevel==Lk) must have present:true and, if fired:true, downgraded:true. witnessedLevel is the daemon-computed highest level meeting (a)+(b) for every level beneath it; complianceLevel MUST NOT exceed witnessedLevel. A probe with complianceLevel>C0 and no such witness chain is self-attested and INVALID. forged-level is the universal per-level witness — instantiate one per non-base level so C1, C3, C5, and C6 are each daemon-witnessable, not only the gateway levels (C0/C2). Ladder frozen to 7 levels C0..C6 (ADR-0095 fork resolution 2).",
   "type": "object",
   "properties": {
     "schema": { "const": "pd.agent-harbor.compliance-probe-result.v0" },
@@ -13,7 +13,11 @@
     "probedAt": { "type": "string", "minLength": 1 },
     "complianceLevel": {
       "enum": ["C0", "C1", "C2", "C3", "C4", "C5", "C6"],
-      "description": "C0 Registered, C1 Transcripted, C2 Governed, C3 Suggestible, C4 Controllable, C5 Cooperative, C6 Resumable."
+      "description": "The effective (granted) level. C0 Registered, C1 Transcripted, C2 Governed, C3 Suggestible, C4 Controllable, C5 Cooperative, C6 Resumable. MUST NOT exceed witnessedLevel (see the witnessing invariant)."
+    },
+    "witnessedLevel": {
+      "enum": ["C0", "C1", "C2", "C3", "C4", "C5", "C6"],
+      "description": "Daemon-computed highest level backed by a positive daemon-witnessed check AND a present (fired->downgraded) targeted negative probe for every level beneath it. Recomputable from checks + negativeProbes by compliance-invariants.mjs. complianceLevel that exceeds this is self-report and invalid."
     },
     "transcriptFidelity": { "enum": ["T0", "T1", "T2", "T3", "T4", "T5"] },
     "checks": {
@@ -32,14 +36,23 @@
     },
     "negativeProbes": {
       "type": "array",
-      "description": "Adversarial fixtures. Every fired probe that succeeds at forging must produce downgraded: true.",
+      "description": "Adversarial fixtures that try to forge a level; the daemon must catch them. Every non-base level in witnessedLevel needs at least one targeted probe here. Every fired probe that succeeds at forging must produce downgraded: true.",
       "items": {
         "type": "object",
         "properties": {
           "kind": { "enum": ["forged-level", "direct-mcp-bypass", "disabled-hook-after-launch", "forged-heartbeat", "observed-to-controlled"] },
+          "targetLevel": {
+            "enum": ["C0", "C1", "C2", "C3", "C4", "C5", "C6", null],
+            "description": "The ladder level this probe attacks. forged-level is parameterized: instantiate one per non-base level so every level is falsifiable. Gateway kinds pin to their gate: forged-heartbeat->C0, direct-mcp-bypass/disabled-hook-after-launch/observed-to-controlled->C2 (the governance gate)."
+          },
           "present": { "type": "boolean", "description": "A real, daemon-exercised fixture — not stubbed or planned." },
           "fired": { "type": "boolean" },
-          "downgraded": { "type": "boolean", "description": "Never assumed true when absent." }
+          "downgraded": { "type": "boolean", "description": "Never assumed true when absent. Required to be true when a fired forge would otherwise succeed." },
+          "observedLevel": {
+            "enum": ["C0", "C1", "C2", "C3", "C4", "C5", "C6", null],
+            "description": "Daemon-computed effective level after the probe. When a fired forge is caught this is below targetLevel — the concrete downgrade evidence v0 previously left undefined."
+          },
+          "details": { "type": "string" }
         },
         "required": ["kind", "present"]
       }
@@ -68,6 +81,6 @@
     },
     "privacyImplications": { "type": "array", "items": { "type": "string" } }
   },
-  "required": ["schema", "probeId", "agentNodeId", "probedAt", "complianceLevel", "transcriptFidelity", "checks"],
+  "required": ["schema", "probeId", "agentNodeId", "probedAt", "complianceLevel", "witnessedLevel", "transcriptFidelity", "checks", "negativeProbes"],
   "additionalProperties": true
 }
