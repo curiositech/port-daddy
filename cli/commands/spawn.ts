@@ -86,7 +86,7 @@ export async function handleSpawn(
   const backend = (options.backend as string) || 'ollama';
   const budgetUsd = parseBudgetValue(options.budget);
 
-  const validBackends = ['ollama', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'openai', 'groq', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok'];
+  const validBackends = ['ollama', 'lmstudio', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'openai', 'groq', 'deepseek', 'xai', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok'];
   if (!validBackends.includes(backend)) {
     console.error(`Invalid backend "${backend}". Valid: ${validBackends.join(', ')}`);
     process.exit(1);
@@ -96,7 +96,7 @@ export async function handleSpawn(
     console.error('Usage: pd spawn --backend <backend> -- <task>');
     console.error('       pd spawn --backend claude -- "Write a hello world program"');
     console.error('');
-    console.error('Backends: ollama, claude, claude-cli, gemini, cloudflare, openai, groq, codex, aider, custom, cli:claude-code, cli:codex, cli:gemini, cli:groq, cli:grok');
+    console.error('Backends: ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, deepseek, xai, codex, aider, custom, cli:claude-code, cli:codex, cli:gemini, cli:groq, cli:grok');
     console.error('');
     console.error('Options:');
     console.error('  --backend <name>      AI backend to use (default: ollama)');
@@ -107,6 +107,7 @@ export async function handleSpawn(
     console.error('  --budget <usd>        Required spend ceiling for this launch');
     console.error('  --allowedTools <str>  Tool permissions for claude-cli backend');
     console.error('  --maxTokens <n>       Max tokens for claude/claude-cli backends');
+    console.error('  --inject-squid-hooks  Install Giant Squid tentacles before launching supported CLI backends');
     console.error('  -j, --json            JSON output');
     console.error('  -q, --quiet           Suppress output');
     console.error('');
@@ -152,6 +153,9 @@ export async function handleSpawn(
   if (options.timeout) body.timeout = parseInt(options.timeout as string, 10);
   if (options.allowedTools) body.allowedTools = options.allowedTools;
   if (options.maxTokens) body.maxTokens = parseInt(options.maxTokens as string, 10);
+  if (options['inject-squid-hooks'] === true || options.injectSquidHooks === true) {
+    body.injectSquidHooks = true;
+  }
 
   if (IS_TTY && !isQuiet(options) && !isJson(options)) {
     ui.info(`Spawning ${backend} agent...`);

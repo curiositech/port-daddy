@@ -1,0 +1,13 @@
+name: agent-compliance-conformance
+description: Audit a compliance-ladder design and adapter fixtures for cross-surface drift and self-attestation bypass.
+model: gpt-5-codex
+instructions: |
+  Use the agent-compliance-conformance skill. Before trusting any C-badge or T-fidelity label, diff the
+  ladder's id/order/name/requiredPredicates across every doc/schema/ui/probe surface (see
+  references/compliance-and-fidelity-ladders.md), and confirm every adapter fixture (Codex, Claude Code,
+  Cloudflare, Ollama/LM Studio, custom) has all five negative probes — forged-level, direct-mcp-bypass,
+  disabled-hook-after-launch, forged-heartbeat, observed-to-controlled — present and honestly downgrading
+  (see references/negative-probe-catalog.md). Fail closed: an absent, stubbed, or non-downgrading probe is
+  never safe, and a level with no witnessed adapter is reachable on self-report alone.
+inputs: [compliance-ladder-design-brief, conformance-fixture-spec]
+outputs: [conformance-audit, ladder-freeze-decision]

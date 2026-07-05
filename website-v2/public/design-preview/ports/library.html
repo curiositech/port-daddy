@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Port Daddy — Harbor Library (story linework port)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="port.css">
+<style>
+  .lib-hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 48px; padding: 64px 0 48px; align-items: start; }
+  .lib-hero h1 { font-size: clamp(38px, 5vw, 66px); font-weight: 700; line-height: 1.04; letter-spacing: var(--tracking-display); max-width: 18ch; }
+  .lib-hero .eyebrow { margin-bottom: 14px; color: var(--teal); }
+  .lib-hero .lede { font-size: 16px; line-height: 1.7; color: var(--text-secondary); max-width: 58ch; margin-top: 18px; }
+  .lib-hero .lede em { font-style: italic; }
+  .stat-strip { display: flex; gap: 40px; margin-top: 26px; }
+  .stat-strip .s { border-top: 2px solid var(--border-strong); padding-top: 10px; }
+  .stat-strip .n { font-family: "IBM Plex Mono", monospace; font-size: 32px; font-weight: 700; line-height: 1; }
+  .stat-strip .l { font-size: 13px; color: var(--text-muted); margin-top: 5px; }
+  .spine { margin: 56px 0; padding: 44px 48px; background: var(--border-strong); color: var(--surface-base); position: relative; }
+  .spine > i { position: absolute; width: 20px; height: 20px; border: 0 solid var(--surface-base); }
+  .spine > i:nth-of-type(1) { top: 12px; left: 12px; border-top-width: var(--lw-weight); border-left-width: var(--lw-weight); }
+  .spine > i:nth-of-type(2) { bottom: 12px; right: 12px; border-bottom-width: var(--lw-weight); border-right-width: var(--lw-weight); }
+  .spine .sp-eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; opacity: 0.6; margin-bottom: 14px; }
+  .spine blockquote { font-size: clamp(24px, 3vw, 38px); line-height: 1.4; letter-spacing: -0.012em; font-weight: 500; max-width: 42ch; }
+  .chap { position: relative; display: grid; grid-template-columns: 90px 1fr 200px; gap: 22px; padding: 22px 22px 22px 26px; background: var(--surface-card); border: 1px solid var(--hair); border-left: none; margin-bottom: 6px; }
+  .chap::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: var(--lw-stripe); background: var(--ch); }
+  .chap .c-num { font-family: "IBM Plex Mono", monospace; font-size: 24px; font-weight: 700; color: var(--ch); line-height: 1; }
+  .chap .c-kind { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.11em; color: var(--text-muted); margin-top: 6px; }
+  .chap .c-title { font-size: 19px; font-weight: 700; letter-spacing: var(--tracking-h3); }
+  .chap .c-sub { font-size: 14.5px; line-height: 1.6; color: var(--text-secondary); margin-top: 6px; max-width: 66ch; }
+  .chap .c-claim { font-size: 14px; line-height: 1.6; color: var(--text-secondary); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--hair); font-style: italic; }
+  .chap .c-meta { text-align: right; }
+  .chap .c-layer { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ch); }
+  .chap .c-mat { font-size: 12.5px; color: var(--text-muted); margin-top: 8px; line-height: 1.55; }
+  .chap .c-pp { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; font-weight: 600; color: var(--text-muted); margin-top: 12px; }
+  .group-label { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: baseline; margin: 34px 0 14px; }
+  .group-label h3 { font-size: 20px; font-weight: 700; letter-spacing: var(--tracking-h3); }
+  .group-label p { font-size: 14px; color: var(--text-muted); }
+  .paths { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .arch-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .arch-cell { background: var(--surface-card); padding: 16px; }
+  .arch-cell .a-vis { aspect-ratio: 1.5/1; background: var(--surface-base); margin-bottom: 12px; display:flex; align-items:center; justify-content:center; }
+  .arch-cell .a-name { font-size: 14.5px; font-weight: 700; }
+  .arch-cell .a-desc { font-size: 13px; color: var(--text-muted); margin-top: 3px; line-height: 1.5; }
+  .refs { columns: 2; column-gap: 40px; font-size: 14px; line-height: 1.65; color: var(--text-secondary); }
+  .refs div { break-inside: avoid; padding: 8px 0; border-bottom: 1px solid var(--hair); }
+  .refs b { color: var(--text-primary); }
+  .refs .rn { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; font-weight: 700; color: var(--teal); margin-right: 8px; }
+  @media (max-width: 1080px) { .lib-hero { grid-template-columns: 1fr; } .chap { grid-template-columns: 64px 1fr; } .chap .c-meta { grid-column: 2; text-align: left; } .paths, .arch-row { grid-template-columns: 1fr; } .refs { columns: 1; } }
+</style>
+<style>:root { --lime: #cad900; }</style>
+</head>
+<body>
+<header class="site-header">
+  <a class="sh-brand" href="home.html"><span class="pd-mark themed-img" aria-hidden="true"><img class="light-only" src="/logos/portdaddy-mark-radar-lightmode.svg" alt=""><img class="dark-only" src="/logos/portdaddy-mark-radar-darkmode.svg" alt=""></span>Port Daddy</a>
+  <nav class="sh-nav">
+    <a href="home.html">Home</a><a href="#">Agent Tubes</a><a href="#">Scout</a>
+    <a href="examples.html">Examples</a><a href="blog.html">Blog</a><a href="#">Cryptography</a><a href="#">The Big Idea</a><a class="more active" href="#">More ▾</a>
+  </nav>
+  <div class="sh-tools"><button class="theme-toggle" id="themeToggle">Dark</button></div>
+</header>
+
+<main class="page">
+  <div class="slug-hoist" aria-label="/library spelled in signal flags"><span class="route">/library</span><i class="fl fl-lima" title="L"></i><i class="fl fl-india" title="I"></i><i class="fl fl-bravo" title="B"></i><i class="fl fl-romeo" title="R"></i><i class="fl fl-alfa" title="A"></i><i class="fl fl-romeo" title="R — repeated: original past 3rd, letter flag repeats"></i><i class="fl fl-yankee" title="Y"></i></div>
+
+  <!-- HERO -->
+  <section class="lib-hero">
+    <div>
+      <div class="eyebrow">The Harbor Library — read it as one book</div>
+      <h1 class="ko" style="--ko-c: var(--teal-slab); --ko-r: 430px; --ko-b: 46px;"><span>Seven papers. Four explain the system. Three prove it.</span><span class="ko-over" aria-hidden="true">Seven papers. Four explain the system. Three prove it.</span></h1>
+      <p class="lede">One coding agent is useful; ten, on a real codebase, make you less sure, not more — two edit the same file and the second erases the first; one "fixes" the tests by deleting them. That is not a bug in any one agent. It is a <em>coordination</em> failure, and it lives in the space between agents, where no one keeps the record. These seven chapters build the institution that does — and then follow it all the way to its surprising conclusion: an economy.</p>
+      <div class="stat-strip">
+        <div class="s"><div class="n">04</div><div class="l">chapters explain</div></div>
+        <div class="s" style="background: var(--cobalt); color: var(--inverse); padding: 10px 14px; border: none;"><div class="n">03</div><div class="l" style="color: inherit; opacity: 0.85;">chapters prove</div></div>
+        <div class="s" style="background: var(--lime); color: #121212; padding: 10px 14px; border: none;"><div class="n">243</div><div class="l" style="color: inherit; opacity: 0.8;">pages, free PDFs</div></div>
+      </div>
+      <div style="display:flex; gap:12px; margin-top:26px;">
+        <a class="cta" href="#the-climb">Climb the stack</a>
+        <a class="cta ghost" href="#"><i></i><i></i>Read the PDFs</a>
+      </div>
+    </div>
+    <figure class="art">
+      <img src="/img/manifesto/seven-papers.webp" alt="A drafting wall of seven blueprint plates, each one chapter of the Harbor Library.">
+      <figcaption>Seven plates on the drafting wall — four that explain, three that prove.</figcaption>
+    </figure>
+  </section>
+
+  <!-- SPINE -->
+  <section class="spine"><i></i><i></i>
+    <div class="sp-eyebrow">The spine</div>
+    <blockquote class="rec">"Memory makes continuity; continuity makes a person, not a spawn; a person accrues a record; a record is reputation; reputation is a tradeable asset; and tradeable assets make a market."</blockquote>
+  </section>
+
+  <!-- THE CLIMB -->
+  <section id="the-climb">
+    <div class="sect-head">
+      <div class="eyebrow" style="color: var(--teal)">The L0 → L3 climb</div>
+      <h2>From the machine, up to the market.</h2>
+      <p class="sect-desc">Each chapter is striped with the layer it lives on — cobalt for the kernel, sage for the protocol, teal for legibility, violet for identity, gold for the economy, indigo for the proofs that federate them. The stack is legible before a single label is read.</p>
+    </div>
+
+    <figure class="art" style="margin-bottom:26px;">
+      <img src="/img/generated/manifesto/trilogy-arc.webp" alt="One hut, one house with its own crane, then a harbor with many berths — the three stages the papers climb.">
+      <figcaption>One process → one machine → many machines. The same arc the three papers climb, drawn once.</figcaption>
+    </figure>
+    <div class="group-label rule-div" style="padding-top:12px;"><h3>The four that explain</h3><p>Chapters I–IV · self-contained and pedagogic, climbing one ladder. Stop after the first and you still have a useful mental model.</p></div>
+
+    <article class="chap" style="--ch: var(--teal)">
+      <div><div class="c-num">I</div><div class="c-kind">Explains</div></div>
+      <div>
+        <div class="c-title">The Legible Swarm</div>
+        <p class="c-sub">Why the operator's real problem is not collision but blindness — and how a swarm becomes one picture you can zoom into, never a wall of diffs.</p>
+        <p class="c-claim">"The operator's real problem is blindness, not collision; the cure is legibility-with-zoom — every summary a lens onto a verifiable artifact, never a wall."</p>
+      </div>
+      <div class="c-meta"><div class="c-layer">L2 · legibility</div><div class="c-mat">the wedge · mostly built<br>Assumes II · Underwrites III, IV</div><div class="c-pp">PDF · 39 pp</div></div>
+    </article>
+
+    <article class="chap" style="--ch: var(--cobalt)">
+      <div><div class="c-num">II</div><div class="c-kind">Explains</div></div>
+      <div>
+        <div class="c-title">The Single-Writer Kernel</div>
+        <p class="c-sub">The small, stubborn program at the bottom that decides what is true — one writer, one machine, one durable file, no distributed consensus.</p>
+        <p class="c-claim">"One writer, one machine, one durable file, no consensus: the kernel decides what is true so nothing above it has to guess — and it is honest about where it stops."</p>
+      </div>
+      <div class="c-meta"><div class="c-layer">L0 / L1 · the daemon</div><div class="c-mat">built (durability split by fault class)<br>Underwrites I, III, IV · Proved by V</div><div class="c-pp">PDF · 35 pp</div></div>
+    </article>
+
+    <div style="position:relative;"><div class="slab" style="top:-8px; left:calc(50% - 50vw); width: calc(50vw - 720px + 90px); min-width: 60px; height: 120px; background: var(--violet-slab);"></div></div>
+    <article class="chap" style="--ch: var(--violet)">
+      <div><div class="c-num">III</div><div class="c-kind">Explains</div></div>
+      <div>
+        <div class="c-title">From Spawn to Person</div>
+        <p class="c-sub">The hinge of the library: continuity — memory, a checkpoint, a witnessed record — turns an anonymous spawn into a person with a track record, the raw material of reputation.</p>
+        <p class="c-claim">"A role is a job description; a person is a role plus continuity. Reputation is only as real as the non-forgeable identity it keys on — the score is cheap, the substrate is the gate."</p>
+      </div>
+      <div class="c-meta"><div class="c-layer">L3 bridge · identity</div><div class="c-mat">partial · identity root local; cross-operator keystone unbuilt<br>Assumes I, V · Underwrites IV</div><div class="c-pp">PDF · 35 pp</div></div>
+    </article>
+
+    <article class="chap" style="--ch: var(--gold)">
+      <div><div class="c-num">IV</div><div class="c-kind">Explains</div></div>
+      <div>
+        <div class="c-title">The Harbor Economy</div>
+        <p class="c-sub">Where it all arrives: a three-sided market — labor, rentable agents, licensed skills — settling on one conserving bond ledger via escrow that cannot steal.</p>
+        <p class="c-claim">"Once agents have un-fakeable reputations, you can rent trust between people who never met: a three-sided market on one conserving ledger, where the product is hosted trust, not the payment rail."</p>
+      </div>
+      <div class="c-meta"><div class="c-layer" style="color: var(--gold-on-tint)">L3 · the market</div><div class="c-mat">specified → proposed · cross-operator keystone unbuilt<br>Assumes III · Proved by V, VI, VII</div><div class="c-pp">PDF · 31 pp</div></div>
+    </article>
+
+    <div class="group-label rule-div" style="padding-top:12px;"><h3>The three that prove</h3><p>Chapters V–VII · not appendices — chapters, where the prose stops and the proof-checkers start. ProVerif, Kani, and TLA⁺.</p></div>
+
+    <article class="chap" style="--ch: var(--indigo)">
+      <div><div class="c-num">V</div><div class="c-kind">Proves</div></div>
+      <div>
+        <div class="c-title">The Anchor Protocol</div>
+        <p class="c-sub">How one program proves who it is to another — on the same machine, without secrets blowing around in the wind.</p>
+        <p class="c-claim">"An agent can prove who it is and what it may do with no trusted third party, and delegated authority can only ever shrink — machine-checked in ProVerif and Kani."</p>
+      </div>
+      <div class="c-meta"><div class="c-layer">proof · identity &amp; capability</div><div class="c-mat">verified · ProVerif + Kani<br>Proves II, IV</div><div class="c-pp">PDF · 26 pp</div></div>
+    </article>
+
+    <article class="chap" style="--ch: var(--indigo)">
+      <div><div class="c-num">VI</div><div class="c-kind">Proves</div></div>
+      <div>
+        <div class="c-title">The Bonded Commons</div>
+        <p class="c-sub">How a group of independent programs can share a workspace without one of them being put in charge.</p>
+        <p class="c-claim">"Why there should be a coordinator at all, and that value can be neither conjured nor vanished in a settlement — the conservation law, verified in TLA⁺."</p>
+      </div>
+      <div class="c-meta"><div class="c-layer">proof · conservation</div><div class="c-mat">verified · TLA⁺ + ProVerif · v2.5 pre-print<br>Proves IV</div><div class="c-pp">PDF · 48 pp</div></div>
+    </article>
+
+    <article class="chap" style="--ch: var(--indigo)">
+      <div><div class="c-num">VII</div><div class="c-kind">Proves</div></div>
+      <div>
+        <div class="c-title">The Federated Harbor</div>
+        <p class="c-sub">How two machines run by two different people share one project without one of them being put in charge of the other.</p>
+        <p class="c-claim">"Trust crossing between machines that do not trust each other, with revocation that converges in bounded time and an escrow that cannot steal — the cross-machine secrecy proven in ProVerif."</p>
+      </div>
+      <div class="c-meta"><div class="c-layer">proof · federation</div><div class="c-mat">ProVerif secrecy proven · convergence bound named, not yet machine-checked · v0.9 pre-print<br>Proves IV, III</div><div class="c-pp">PDF · 29 pp</div></div>
+    </article>
+  </section>
+
+  <!-- ARCHITECTURE DRAWN -->
+  <section id="the-architecture-drawn">
+    <div class="slab" style="top:-10px; right:calc(50% - 50vw); width: calc(50vw - 720px + 130px); min-width: 90px; height: 260px; background: var(--indigo-slab);"></div>
+    <div class="sect-head">
+      <div class="eyebrow" style="color: var(--teal)">The architecture, drawn</div>
+      <h2>Four layers, seven chapters, one bond ledger.</h2>
+      <p class="sect-desc">The same shape from four angles — the nested layers (L0–L3), the spine that threads the seven chapters, the reading order as a dependency graph, and Chapter IV's three-sided market settling onto one conserving bond ledger.</p>
+    </div>
+    <div class="arch-row">
+      <div class="arch-cell lw-brackets"><i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
+        <div class="a-vis"><svg width="86" height="86" viewBox="0 0 86 86" aria-hidden="true"><rect x="2" y="2" width="82" height="82" fill="none" stroke="var(--gold)" stroke-width="2"/><rect x="14" y="14" width="58" height="58" fill="none" stroke="var(--teal)" stroke-width="2"/><rect x="26" y="26" width="34" height="34" fill="none" stroke="var(--health)" stroke-width="2"/><rect x="36" y="36" width="14" height="14" fill="var(--cobalt)"/></svg></div>
+        <div class="a-name">Nesting</div><div class="a-desc">L0 kernel inside L1 protocol inside L2 legibility inside the L3 market.</div></div>
+      <div class="arch-cell lw-brackets"><i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
+        <div class="a-vis"><svg width="120" height="40" viewBox="0 0 120 40" aria-hidden="true"><circle cx="12" cy="20" r="6" fill="var(--cobalt)"/><line x1="18" y1="20" x2="36" y2="20" stroke="var(--hair-strong)" stroke-width="1.5"/><circle cx="42" cy="20" r="6" fill="var(--health)"/><line x1="48" y1="20" x2="66" y2="20" stroke="var(--hair-strong)" stroke-width="1.5"/><circle cx="72" cy="20" r="6" fill="var(--violet)"/><line x1="78" y1="20" x2="96" y2="20" stroke="var(--hair-strong)" stroke-width="1.5"/><circle cx="102" cy="20" r="6" fill="var(--gold)"/></svg></div>
+        <div class="a-name">Spine chain</div><div class="a-desc">Memory → person → reputation → market, one sentence threaded through seven chapters.</div></div>
+      <div class="arch-cell lw-brackets"><i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
+        <div class="a-vis"><svg width="110" height="70" viewBox="0 0 110 70" aria-hidden="true"><circle cx="20" cy="14" r="6" fill="var(--teal)"/><circle cx="20" cy="38" r="6" fill="var(--cobalt)"/><circle cx="58" cy="26" r="6" fill="var(--violet)"/><circle cx="92" cy="26" r="6" fill="var(--gold)"/><circle cx="58" cy="56" r="6" fill="var(--indigo)"/><line x1="26" y1="16" x2="52" y2="24" stroke="var(--hair-strong)" stroke-width="1.5"/><line x1="26" y1="36" x2="52" y2="28" stroke="var(--hair-strong)" stroke-width="1.5"/><line x1="64" y1="26" x2="86" y2="26" stroke="var(--hair-strong)" stroke-width="1.5"/><line x1="58" y1="50" x2="58" y2="32" stroke="var(--hair-strong)" stroke-width="1.5"/></svg></div>
+        <div class="a-name">Reading DAG</div><div class="a-desc">The reading order as a dependency graph — every chapter names which others it leans on.</div></div>
+      <div class="arch-cell lw-brackets"><i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
+        <div class="a-vis"><svg width="100" height="72" viewBox="0 0 100 72" aria-hidden="true"><circle cx="20" cy="14" r="7" fill="var(--violet)"/><circle cx="80" cy="14" r="7" fill="var(--rust)"/><circle cx="50" cy="30" r="7" fill="var(--health)"/><rect x="26" y="52" width="48" height="12" fill="var(--gold)"/><line x1="24" y1="20" x2="44" y2="48" stroke="var(--hair-strong)" stroke-width="1.5"/><line x1="76" y1="20" x2="56" y2="48" stroke="var(--hair-strong)" stroke-width="1.5"/><line x1="50" y1="37" x2="50" y2="50" stroke="var(--hair-strong)" stroke-width="1.5"/></svg></div>
+        <div class="a-name">Three-sided market</div><div class="a-desc">Labor, rentable agents, licensed skills — settling on one conserving bond ledger.</div></div>
+    </div>
+  </section>
+
+  <!-- READING PATHS — flying India: "I am altering my course to port" -->
+  <section>
+    <div style="position:absolute; inset: 24px calc(50% - 50vw) 0; background: radial-gradient(circle 130px at 82% 30%, #17191d 0 129px, transparent 130px), var(--lime); z-index: -1;"></div>
+    <div class="sect-head" style="padding-top: 84px;">
+      <div class="eyebrow" style="display:inline-block; background: #17191d; color: var(--lime); padding: 4px 10px;">How to read it — flying India: altering course to port</div>
+      <h2 style="color: #17191d;">Different doors into the same book.</h2>
+      <p class="sect-desc" style="color: #2a2c14;">This is the map. You can enter any chapter from here, and every chapter tells you which others it leans on. Pick the door that matches who you are talking to.</p>
+    </div>
+    <div class="paths" style="padding-bottom: 44px;">
+      <div class="stripe-card" style="--stripe: var(--teal)"><div class="sc-title">"Just tell me what it is."</div><p>Read the manifesto, then Chapter I — The Legible Swarm.</p><p class="mono" style="font-size:12.5px; margin-top:10px; color: var(--teal)">Chapters: I</p></div>
+      <div class="stripe-card" style="--stripe: var(--cobalt)"><div class="sc-title">"Convince the skeptic."</div><p>Read the four that explain, in order: I → II → III → IV.</p><p class="mono" style="font-size:12.5px; margin-top:10px; color: var(--cobalt)">Chapters: I–IV</p></div>
+      <div class="stripe-card" style="--stripe: var(--indigo)"><div class="sc-title">"Prove it to the cryptographer / the economist."</div><p>Jump to the matching proof chapter — V (Anchor Protocol), VI (Bonded Commons), or VII (Federated Harbor).</p><p class="mono" style="font-size:12.5px; margin-top:10px; color: var(--indigo-on-tint)">Chapters: V–VII</p></div>
+    </div>
+  </section>
+
+  <!-- HONEST STATUS -->
+  <section>
+    <div class="sect-head">
+      <div class="eyebrow" style="color: var(--teal)">Working software vs. finished argument</div>
+      <h2>Honest about the seam between them.</h2>
+      <p class="sect-desc">Each chapter labels its claims by maturity — built, partial, specified, proposed — so you always know whether you are reading about something that runs today or something we have only proven should. The harbor runs now. The economy is the thing it was always for.</p>
+    </div>
+    <div class="two-col" style="display:grid; grid-template-columns: 1fr 1fr; gap: 28px;">
+      <div class="codeblock"><div class="codeblock-title" style="margin:-16px -18px 12px;">Open the harbor</div><pre><span class="c-prompt">$</span> <span class="c-cmd">brew install</span> curiositech/tap/port-daddy <span class="c-cmd">&amp;&amp; pd setup</span></pre></div>
+      <p style="font-size:15px; line-height:1.65; color: var(--text-secondary); align-self:center;">You need none of the theory for the first benefit. One command, and two agents that used to collide take turns instead.</p>
+    </div>
+  </section>
+
+  <!-- REFERENCES -->
+  <section>
+    <div class="sect-head">
+      <div class="eyebrow" style="color: var(--teal)">References &amp; intellectual lineage</div>
+      <h2>The shoulders it stands on.</h2>
+    </div>
+    <div class="refs">
+      <div><span class="rn">01</span><b>Hobbes</b> — Leviathan, 1651</div>
+      <div><span class="rn">02</span><b>Ostrom</b> — Governing the Commons, 1990; Nobel 2009; cf. Hardin 1968</div>
+      <div><span class="rn">03</span><b>Scott</b> — Seeing Like a State, 1998</div>
+      <div><span class="rn">04</span><b>Parfit</b> — Reasons and Persons, 1984</div>
+      <div><span class="rn">05</span><b>Reputation</b> — Elo; Bradley–Terry 1952; EigenTrust 2003; Liu &amp; Skrzypacz 2014</div>
+      <div><span class="rn">06</span><b>Mechanism design</b> — Hurwicz / Maskin / Myerson, Nobel 2007; Myerson–Satterthwaite 1983</div>
+      <div><span class="rn">07</span><b>Formal verification</b> — ProVerif / Tamarin; TLA⁺; Kani</div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="sf-grid">
+    <div class="sf-brand">
+      <div style="font-weight:700; font-size:18px;"><span class="pd-mark themed-img" aria-hidden="true"><img class="light-only" src="/logos/portdaddy-mark-radar-lightmode.svg" alt=""><img class="dark-only" src="/logos/portdaddy-mark-radar-darkmode.svg" alt=""></span> Port Daddy</div>
+      <div class="sf-tag">A harbor-master for your agents</div>
+      <p class="sf-blurb">Port Daddy is shared memory for AI coding agents — the notes they leave each other, the files each one has claimed, and the work you can recover when one crashes. The Mac app makes all of it visible before anything drifts.</p>
+    </div>
+    <div class="sf-col"><h4>Site</h4><a href="home.html">Home</a><a href="#">Mac Preview</a><a href="examples.html">Examples</a><a href="#">Agents</a><a href="#">Install &amp; MCP</a><a href="#">Manifesto</a></div>
+    <div class="sf-col"><h4>Learn</h4><a href="#">Docs</a><a href="#">Tutorials</a><a href="#">Templates</a><a href="blog.html">Harbor Blog</a></div>
+    <div class="sf-col"><h4>Reference</h4><a href="#">Getting started</a><a href="#">CLI reference</a><a href="#">SDK reference</a><a href="#">MCP tools</a><a href="#">REST API</a><a href="#">Library</a></div>
+    <div class="sf-col"><h4>Source</h4><a href="#">GitHub</a><a href="#">Discussions</a></div>
+  </div>
+</footer>
+
+<div class="port-note">Port · story linework v2</div>
+<script>
+  const btn=document.getElementById('themeToggle'),root=document.documentElement;
+  let t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  const apply=()=>{root.setAttribute('data-theme',t);btn.textContent=t==='light'?'Dark':'Light'};apply();
+  btn.addEventListener('click',()=>{t=t==='light'?'dark':'light';apply()});
+</script>
+</body>
+</html>

@@ -112,7 +112,17 @@ export const cloudflareAdapter: LLMAdapter = async ({ prompt, model, maxTokens, 
     });
     if (!res.ok) {
       const txt = await res.text().catch(() => 'unknown error');
-      return { ok: false, error: `Cloudflare Workers AI HTTP ${res.status}: ${txt}` };
+      // Self-diagnosing auth failures: a 401 with a token+account that work via
+      // direct REST means the daemon RESOLVED different creds at runtime (stale
+      // env snapshot / launchd-injected value shadowing the keychain). Surface
+      // non-secret fingerprints so the transcript shows exactly which account +
+      // token the daemon used, instead of an opaque "Authentication error".
+      const acctTail = String(accountId).slice(-6);
+      const tokFp = `${String(token).slice(0, 6)}…${String(token).slice(-4)}(${String(token).length})`;
+      const diag = res.status === 401 || res.status === 403
+        ? ` [resolved account …${acctTail}, token ${tokFp} — if this token+account work via direct ai/run, the daemon resolved a stale credential]`
+        : '';
+      return { ok: false, error: `Cloudflare Workers AI HTTP ${res.status}: ${txt}${diag}` };
     }
     const data = await res.json() as Record<string, any>;
     const result = data.result ?? data;

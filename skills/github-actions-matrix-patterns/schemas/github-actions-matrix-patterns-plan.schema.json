@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/github-actions-matrix-patterns-plan.schema.json",
+  "title": "GitHub Actions Workflow Plan",
+  "description": "A structured plan of a GitHub Actions workflow's matrix shape, pinning policy, permissions, cloud auth, and cache/concurrency settings, so this skill's Quality Gates can be checked deterministically by scripts/github_actions_matrix_patterns_audit.mjs.",
+  "type": "object",
+  "required": ["workflowKind", "thirdPartyActionPinning", "topLevelPermissions", "cloudAuth"],
+  "additionalProperties": true,
+  "properties": {
+    "workflowKind": {
+      "type": "string",
+      "enum": ["pr-ci", "release-ci", "deploy"],
+      "description": "What this workflow is for: PR checks, release-branch CI, or a deployment."
+    },
+    "thirdPartyActionPinning": {
+      "type": "string",
+      "enum": ["sha", "major-tag", "floating"],
+      "description": "How third-party actions are pinned: full commit SHA, an audited major tag (@v4), or a floating ref (@main/@latest)."
+    },
+    "topLevelPermissions": {
+      "type": "string",
+      "enum": ["read-all", "write-all", "unset"],
+      "description": "The workflow's top-level permissions block: explicit read-all, explicit write-all, or absent (inheriting the repo default)."
+    },
+    "cloudAuth": {
+      "type": "string",
+      "enum": ["oidc", "long-lived-secrets", "none"],
+      "description": "How the workflow authenticates to a cloud provider, if at all."
+    },
+    "oidcSubClaimScope": {
+      "type": "string",
+      "enum": ["environment", "branch-ref", "repo-wildcard"],
+      "description": "How tight the OIDC trust policy's sub condition is: an environment claim, a specific branch ref, or a repo-wide wildcard."
+    },
+    "failFast": {
+      "type": "boolean",
+      "description": "The matrix strategy's fail-fast setting."
+    },
+    "matrixCellCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total number of cells the matrix expands to before exclusions."
+    },
+    "excludeCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of cells removed via exclude."
+    },
+    "cacheKeyIncludesLockfileHash": {
+      "type": "boolean",
+      "description": "True if every actions/cache primary key includes hashFiles() of the lockfile it covers."
+    },
+    "concurrencyCancelInProgress": {
+      "type": "boolean",
+      "description": "True if a concurrency group with cancel-in-progress is set for PR-triggered runs."
+    },
+    "deployBehindEnvironment": {
+      "type": "boolean",
+      "description": "True if the production deploy job declares environment: so GitHub protection rules (required reviewers, branch policy, wait timer) apply."
+    },
+    "secretsInheritToForkPRs": {
+      "type": "boolean",
+      "description": "True if secrets: inherit (or equivalent) is reachable from workflows triggered by fork PRs."
+    }
+  }
+}

@@ -103,7 +103,7 @@ export const DEFAULT_GUARD_CONFIG: CoordinationGuardConfig = {
 const ROADMAP_RECEIPT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const COORDINATION_ROADMAP_PATTERNS: RegExp[] = [
-  /^cli\/commands\/(?:guard|roadmap|parley|quorum|agents|spawn|dispatch|sortie|sessions|attention)\.ts$/,
+  /^cli\/commands\/(?:guard|roadmap|parley|quorum|agents|spawn|dispatch|sessions|attention)\.ts$/,
   /^routes\/(?:parley|quorum|roadmap|sessions|coordination|operator)\.ts$/,
   /^lib\/(?:parley|swarm-coordination|roadmap-[^/]+|roadmap-items|coordination-[^/]+|sessions|spawner|dispatch\/.+|obligation-monitor|commitments)\.ts$/,
   /^docs\/adr\/\d+-.+\.md$/,
@@ -596,6 +596,99 @@ async function loadOwners(files: string[], repoRoot = process.cwd()): Promise<Re
   return ownersByFile;
 }
 
+/**
+ * Classify a BLOCKING guard result for operator escalation.
+ *
+ *   - 'structural' : the coordination layer itself could not be verified
+ *     (daemon unreachable / no active session). This is the dangerous case —
+ *     it is NOT a normal "you forgot to claim" block; an unattended agent that
+ *     bypasses the hook here loses all coordination. Always escalated, loudly.
+ *   - 'conflict'   : a file is claimed by ANOTHER active session — a real
+ *     collision; the human should arbitrate.
+ *   - 'requirement': a satisfiable coordination requirement (unclaimed file,
+ *     note-per-commit rent, roadmap receipt). The agent can self-resolve.
+ *
+ * Pure + exported so the escalation policy is unit-tested without spawning
+ * osascript. Returns null when the result is not a block.
+ */
+export type GuardBlockSeverity = 'structural' | 'conflict' | 'requirement';
+export interface GuardBlockNotice {
+  severity: GuardBlockSeverity;
+  title: string;
+  body: string;
+  /** Whether to fire the operator (macOS) notification for this block. */
+  notifyOperator: boolean;
+}
+
+export function describeGuardBlock(
+  result: Pick<GuardCheckResult, 'shouldBlock' | 'violations'>,
+  context: { hook?: boolean } = {},
+): GuardBlockNotice | null {
+  if (!result.shouldBlock) return null;
+  const codes = new Set(result.violations.map((v) => v.code));
+  const structural = codes.has('daemon-unreachable') || codes.has('no-active-session');
+  const conflict = codes.has('claimed-by-other-session');
+  const severity: GuardBlockSeverity = structural ? 'structural' : conflict ? 'conflict' : 'requirement';
+  const first = result.violations[0]?.message ?? 'coordination requirement unmet';
+
+  const title = structural
+    ? 'Port Daddy: COORDINATION LAYER DOWN — commit blocked'
+    : conflict
+      ? 'Port Daddy: commit blocked — file owned by another agent'
+      : 'Port Daddy: commit blocked by Coordination Guard';
+  const body = structural
+    ? `Coordination could not be verified (${first}). A human should repair the daemon/session — don't let this be worked around.`
+    : first;
+
+  // HITL escalation policy: ALWAYS notify on a structural failure (the daemon /
+  // session is broken — the operator must know, especially for autonomous
+  // agents). For ordinary conflicts/requirements only notify at real commit
+  // time (the git hook), not on every manual `pd guard check` an agent runs
+  // while iterating — that would be noise.
+  const notifyOperator = severity === 'structural' || context.hook === true;
+  return { severity, title, body, notifyOperator };
+}
+
+/**
+ * HITL escalation for a blocked commit: a loud stderr banner plus a macOS
+ * notification (with sound) so a HUMAN is alerted even when an autonomous
+ * agent hit the wall — instead of the block being silently worked around.
+ * Best-effort: never throws, never blocks the commit path; no-ops off macOS
+ * (Linux/Windows operators rely on the stderr banner). `spawnSync` so the
+ * banner fires before the caller's process.exit.
+ */
+function notifyOperatorOfGuardBlock(result: GuardCheckResult, options: CLIOptions): void {
+  const notice = describeGuardBlock(result, { hook: Boolean(options.hook) });
+  if (!notice || !notice.notifyOperator) return;
+
+  // Loud stderr banner — points only to the corrective action, never names a
+  // hook override (a refusal must not advertise its own bypass).
+  ui.error(notice.title);
+  if (notice.severity === 'structural') {
+    console.error('  This is NOT a routine block — the coordination layer could not be verified.');
+    console.error('  Repair it (restart/repair the daemon, re-run `pd begin`) and retry the commit.');
+    console.error('  Escalating to the operator.');
+  }
+
+  if (process.platform === 'darwin') {
+    try {
+      const script = `display notification "${osaEscape(notice.body)}" with title "${osaEscape(notice.title)}" sound name "Basso"`;
+      spawnSync('osascript', ['-e', script], { timeout: 5000 });
+    } catch {
+      // Notifier is best-effort; a failed banner must never break the commit path.
+    }
+  }
+}
+
+/** Escape a string for an AppleScript double-quoted literal (notifications are plain text). */
+function osaEscape(input: string): string {
+  return input
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\r?\n/g, ' ')
+    .slice(0, 240);
+}
+
 function printCheckResult(result: GuardCheckResult, options: CLIOptions): void {
   if (options.json || options.j) {
     console.log(JSON.stringify(result, null, 2));
@@ -1002,7 +1095,10 @@ export async function handleGuard(positional: string[], options: CLIOptions): Pr
     case 'check': {
       const result = await runCheck(rest, options);
       printCheckResult(result, options);
-      if (result.shouldBlock) process.exit(1);
+      if (result.shouldBlock) {
+        notifyOperatorOfGuardBlock(result, options);
+        process.exit(1);
+      }
       return;
     }
     case 'help':
@@ -1013,7 +1109,10 @@ export async function handleGuard(positional: string[], options: CLIOptions): Pr
     default: {
       const result = await runCheck(positional, options);
       printCheckResult(result, options);
-      if (result.shouldBlock) process.exit(1);
+      if (result.shouldBlock) {
+        notifyOperatorOfGuardBlock(result, options);
+        process.exit(1);
+      }
     }
   }
 }

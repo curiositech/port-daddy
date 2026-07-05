@@ -1,0 +1,30 @@
+{
+  "name": "Port Daddy Scout",
+  "shortName": "Scout",
+  "version": "0.1.0",
+  "versionName": "0.1.0 developer preview",
+  "description": "Capture any web app as a visual issue and route it to Port Daddy with screenshot and DOM context.",
+  "package": "/downloads/pd-scout-chrome-0.1.0.zip",
+  "sha256": "3e33e1968ea452da3c1a50299aa9e4d3b07fda432977801ce0ea704c4645e5a8",
+  "sizeBytes": 28902,
+  "source": "apps/pd-scout-extension",
+  "runtimeFiles": [
+    "manifest.json",
+    "background.js",
+    "content-script.js",
+    "popup.html",
+    "popup.css",
+    "popup.js"
+  ],
+  "runtimeDirectories": [
+    "assets/icons"
+  ],
+  "storeListingAssets": [
+    "apps/pd-scout-extension/assets/store/scout-store-icon-128.png",
+    "apps/pd-scout-extension/assets/store/scout-small-promo-440x280.png",
+    "apps/pd-scout-extension/assets/store/scout-marquee-promo-1400x560.png",
+    "apps/pd-scout-extension/assets/store/scout-screenshot-1280x800.png"
+  ],
+  "localPreviewInstall": "Unzip the package and load the extracted directory from chrome://extensions with Developer mode enabled.",
+  "chromeWebStoreUpload": "Upload this ZIP in the Chrome Web Store Developer Dashboard; the public signed install starts after store review."
+}

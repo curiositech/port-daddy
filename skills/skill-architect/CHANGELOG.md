@@ -1,62 +1,21 @@
 # Changelog: skill-architect
 
-## v2.4.0 (2026-04-24)
-
-### Advanced Structure And Sync Doctrine
-
-**Workgroup authority**: Added doctrine that shared skills should be edited in
-the workgroup source first, then mirrored into repo-local and user-level
-locations. Repo copies should stay portable; user-level registries may use
-symlinks to the authoritative workgroup source on a single machine.
-
-**Port Daddy grounding**: Added explicit use of Port Daddy sessions, notes,
-claims/locks, tuples, channels, and handoffs for skill mutations inside Port
-Daddy repos, especially when multiple agents or mirrors are involved.
-
-**Interface and subagent assets**: Added `agents/openai.yaml`,
-`agents/affordance-planner.md`, and `agents/sync-coordinator.md` so the skill
-demonstrates the UI metadata and delegated-agent patterns it now teaches.
-
-**Review, schema, and audit artifacts**: Added
-`references/advanced-structure-and-sync.md`,
-`templates/visual-decision-board.md`, `templates/skill-sync-plan.md`,
-`schemas/skill-sync-plan.schema.json`, and
-`scripts/audit_skill_operating_system.py`.
-
-**Repo/workgroup reconciliation**: Synced the repo copy forward from the newer
-workgroup `skill-architect/skill-architect` bundle before adding this doctrine.
-
-## v2.3.1 (2026-04-18)
-
-### Metadata And Doctrine Tightening
-
-**Authorship doctrine**: Tightened the active doctrine so first-party skills now explicitly carry both `metadata.provenance` and `metadata.authorship`, with guidance on using `authorship.maintainers` for library/team ownership and `authorship.authors` when original-author data is known.
-
-**Scorecard template**: Added an `authorship` block to `templates/skill-scorecard.json` so dossiers and downstream UI chrome can expose maintainers/authors alongside provenance.
-
-**Validator guidance**: Updated bundled validators to suggest missing `metadata.authorship`, not just missing provenance.
-
-**Mermaid doctrine**: Clarified that flowcharts should use explicit direction (`flowchart TD` or `flowchart LR`) rather than a bare `flowchart` declaration.
-
-**Bundle artifacts**: Added `metadata.authorship` to the live package frontmatter, created `references/INDEX.md`, added Mermaid companion files under `diagrams/`, and created `affordance-scorecard.json` so the package now passes the repo-local artifact checks it teaches.
-
 ## v2.3.0 (2026-03-10)
 
 ### Cross-Evaluation Fixes (sc-on-sa iter-3)
 
 **HTML entities in reference files**: The iter-2 self-evaluation claimed to fix HTML entities "throughout SKILL.md and references," but the `validate_skill.py` script only checked SKILL.md — not other markdown files. Three reference files still contained rendering-broken entities:
 
-- `references/skill-lifecycle.md` lines 178-182: comparison markers in
-  the Skill Health Indicators table were HTML-entity encoded.
+- `references/skill-lifecycle.md` lines 178-182: `>90%`, `<70%`, `<300`, `>500`, `<3 months`, `>6 months`, `>2` in the Skill Health Indicators table (all were `>`/`<` encoded)
 - `references/subagent-design.md` lines 30-31: `>80%` and `<5k tokens` in Layer 1 preload criteria prose
 - `references/self-contained-tools.md` line 107: `<500` inside a bash `echo` command in a code block
 - `references/subagent-template.md` line 238: `>95%` in the Success Criteria section
 
-**Validator gap closed**: `scripts/validate_skill.py` now includes `validate_all_md_html_entities()` — scans all `.md` files recursively (excluding SKILL.md which was already covered). This prevents entity-in-reference-files from escaping future validation passes.
+**Validator gap closed**: `./scripts/validate_skill.py` now includes `validate_all_md_html_entities()` — scans all `.md` files recursively (excluding SKILL.md which was already covered). This prevents entity-in-reference-files from escaping future validation passes.
 
 **Phantom references in EVALUATION.md**: The iter-2 `EVALUATION.md` itself contained 4 phantom-triggering paths in its prose description of phantom fixes — causing `check_self_contained.py` to fail after the self-evaluation declared it passing. Fixed by adding `<!-- phantom-ok -->` annotations to the 4 lines.
 
-**Extended ILLUSTRATIVE_MARKERS**: Added 3 new suppression patterns to `scripts/check_self_contained.py` covering evaluation-document language (`backtick-formatted path`, `triggering a false phantom`, `false positive root cause`) that future cross-evaluations will generate.
+**Extended ILLUSTRATIVE_MARKERS**: Added 3 new suppression patterns to `./scripts/check_self_contained.py` covering evaluation-document language (`backtick-formatted path`, `triggering a false phantom`, `false positive root cause`) that future cross-evaluations will generate.
 
 **README.md**: Fixed 5 HTML entities (`<500 lines`, `>90%`, `<5%`, `<5k`, `<5 min`). Added v2.2.0 and v2.3.0 entries to the Version History section.
 
@@ -68,13 +27,11 @@ workgroup `skill-architect/skill-architect` bundle before adding this doctrine.
 
 **SKILL.md line count**: Reduced from 504 lines to 467 by compressing the Visual Artifacts Mermaid table from 23 types to the 8 most relevant (full catalog remains in `references/visual-artifacts.md`) and removing script entries from the Reference Files table (scripts are not references).
 
-**HTML entities**: Replaced encoded less-than and greater-than markers
-throughout SKILL.md and references; entities were rendering incorrectly in some
-viewers.
+**HTML entities**: Replaced all HTML entities with literal comparison operators throughout SKILL.md and references — entities were rendering incorrectly in some viewers.
 
 **Phantom references resolved**: `check_self_contained.py` was generating false positives on illustrative example paths in prose. Fixed via two approaches:
 1. Removed backtick-quoted paths from illustrative anti-pattern prose in `references/self-contained-tools.md`, `references/knowledge-engineering.md`, `references/subagent-design.md`, and `references/claude-extension-taxonomy.md`
-2. Added `ILLUSTRATIVE_MARKERS` detection to `scripts/check_self_contained.py` to skip lines containing "e.g.," "for example," "What it looks like," etc.
+2. Added `ILLUSTRATIVE_MARKERS` detection to `./scripts/check_self_contained.py` to skip lines containing "e.g.," "for example," "What it looks like," etc.
 
 Both validators now pass: `validate_skill.py` 0 errors, `check_self_contained.py` 0 phantoms.
 
@@ -198,19 +155,3 @@ From "progressive disclosure machines" to "progressive disclosure machines with 
 
 ### Migration
 Users of skill-coach or skill-creator should switch to skill-architect for the unified experience.
-
-## 2026-04-17
-
-### Updated
-- Rewrote `SKILL.md` around current Claude Code runtime rules and the repo's metadata-first frontmatter discipline
-- Added explicit doctrine for `!` preprocessing, `context: fork`, subagent skill preloading, channels, and scheduled-task distinctions
-- Added templates and examples for scorecards and runtime-export decisions
-
-### References Added
-- `references/channels-and-scheduling.md`
-
-### References Updated
-- `references/claude-code-runtime.md`
-- `references/subagent-design.md`
-- `references/visual-artifacts.md`
-- `references/scoring-rubric.md`

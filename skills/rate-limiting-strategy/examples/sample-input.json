@@ -1,0 +1,19 @@
+{
+  "algorithm": "sliding-window-counter",
+  "customerFacing": true,
+  "burstsRequired": false,
+  "enforcementPoints": ["edge", "origin-redis"],
+  "replicaCount": 6,
+  "keyTier": "user-id",
+  "authEndpointsCovered": true,
+  "loginKeyTuples": ["ip-username", "ip", "username"],
+  "atomicLua": true,
+  "redisCluster": true,
+  "clusterHashTags": true,
+  "retryAfterHeader": true,
+  "rateLimitHeaders": true,
+  "redisFailureMode": "local-fallback",
+  "failOpenTelemetry": true,
+  "perEndpointLimits": true,
+  "unauthenticatedTraffic": true
+}

@@ -1,0 +1,19 @@
+{
+  "deployTarget": "workers",
+  "authMethod": "api-token",
+  "ciDeploy": true,
+  "secretUploadMethod": "file-redirect",
+  "secretsVerifiedPostUpload": true,
+  "usesD1": true,
+  "d1MigrationsRemote": true,
+  "oauthScopesRefreshedForNewProducts": true,
+  "observabilityEnabled": true,
+  "compatibilityDateAgeDays": 20,
+  "customDomain": true,
+  "workerRenamed": false,
+  "staleDomainAssignmentCleared": true,
+  "bindingsEnumeratedAtStartup": true,
+  "cookieSetOnRedirect": true,
+  "sessionCookieSameSite": "lax",
+  "cpuLimitMonitored": true
+}

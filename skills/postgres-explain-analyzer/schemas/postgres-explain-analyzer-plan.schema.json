@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/postgres-explain-analyzer-plan.schema.json",
+  "title": "Postgres Query-Tuning Plan",
+  "description": "A structured plan for a Postgres query-tuning session, so evidence capture, fix ordering, and this skill's Quality Gates can be checked deterministically by scripts/postgres_explain_analyzer_audit.mjs.",
+  "type": "object",
+  "required": ["symptom", "explainCaptured", "plannedFixes"],
+  "additionalProperties": true,
+  "properties": {
+    "symptom": {
+      "type": "string",
+      "enum": ["slow-query", "plan-regression", "index-ignored", "dead-tuple-bloat", "disk-spill", "parameter-sniffing"],
+      "description": "The observed problem shape, per this skill's decision diagram."
+    },
+    "explainCaptured": {
+      "type": "boolean",
+      "description": "True if EXPLAIN ANALYZE output for the actual query has been captured (not guessed)."
+    },
+    "buffersIncluded": {
+      "type": "boolean",
+      "description": "True if the captured plan used the BUFFERS option so shared hit/read I/O is visible."
+    },
+    "plannedFixes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": ["add-index", "partial-index", "expression-index", "covering-index", "drop-index", "analyze-stats", "raise-stats-target", "extended-statistics", "raise-work-mem", "force-custom-plan", "autovacuum-tuning", "rewrite-query", "none"]
+      },
+      "description": "The fixes this session intends to apply, in order."
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["production", "staging", "dev"],
+      "description": "Where the fixes will be applied. Production index builds must be CONCURRENTLY."
+    },
+    "scanType": {
+      "type": "string",
+      "enum": ["seq-scan", "index-scan", "index-only-scan", "bitmap-heap-scan", "unknown"],
+      "description": "The dominant scan node in the captured plan."
+    },
+    "tableRowCount": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Approximate row count of the main table in the plan (pg_class.reltuples)."
+    },
+    "estimateVsActualRatio": {
+      "type": "number",
+      "minimum": 1,
+      "description": "How far off the planner's row estimate is from actual rows (max(est/actual, actual/est)). >= 10 means statistics need fixing first."
+    },
+    "sortSpillsToDisk": {
+      "type": "boolean",
+      "description": "True if any Sort/Hash node in the captured plan shows 'external merge Disk'."
+    },
+    "deadTupleRatio": {
+      "type": "number",
+      "minimum": 0,
+      "description": "n_dead_tup / n_live_tup for the hot table. > 0.2 requires autovacuum tuning."
+    },
+    "indexDropJustified": {
+      "type": "boolean",
+      "description": "True if any planned DROP INDEX has 30 days of idx_scan evidence plus an EXPLAIN showing affected queries hit a different index."
+    },
+    "usesConcurrently": {
+      "type": "boolean",
+      "description": "True if planned index builds use CREATE INDEX CONCURRENTLY."
+    },
+    "verifiedAfterFix": {
+      "type": "boolean",
+      "description": "True if the plan commits to re-running EXPLAIN (ANALYZE, BUFFERS) after the fix to confirm the node change."
+    }
+  }
+}

@@ -118,6 +118,19 @@ jobs:
           rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary.p8" || true
           security delete-keychain "$KEYCHAIN" || true
 
+      # Soak the EXACT binary that ships (post-signing on macOS). v3.24.0
+      # segfaulted ~68s after boot (Bun null-deref on a ~60s timer) and
+      # nothing in CI had ever run the packaged binary — unit tests run from
+      # source, which is a different runtime shape than the compiled bundle.
+      # 180s is comfortably past that signature and lets every first-firing
+      # ~60s timer (pheromone evaporator, bosun heartbeat) run at least twice.
+      # A crash, a health wedge, or a dirty SIGTERM here FAILS THE RELEASE.
+      - name: Soak the packaged binary (crash/wedge gate)
+        env:
+          SOAK_SECONDS: 180
+          SOAK_PORT: 19876
+        run: bash scripts/soak-binary.sh dist/port-daddy
+
       - name: Package binary
         run: cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json
 
@@ -359,6 +372,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+  # Roll the brew tap ONLY for a real, non-prerelease published Release. A
+  # prerelease (vX.Y.Z-rc.N) builds + signs binaries but must NEVER roll the tap —
+  # candidates are opt-in (RELEASING.md §2). A workflow_dispatch re-run also skips
+  # this (it's for re-building a failed release, not re-rolling the tap); dispatch
+  # the tap by hand via RELEASING.md §1 step J if a real release needs a re-roll.
+  # Previously this fired for ANY release event incl. prereleases — an RC would have
+  # shipped to every `brew upgrade` user.
   update-homebrew:
     runs-on: ubuntu-latest
     # FleetBar is now ESSENTIAL (operator directive 2026-06-18): a release ships
@@ -369,7 +389,7 @@ jobs:
     # FIXED rather than bypassed. publish-npm stays non-gating (it's a separate
     # distribution channel, not part of the daemon+GUI bundle).
     needs: [build-binaries, build-fleetbar-preview]
-    if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
+    if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && github.event_name == 'release' && github.event.release.prerelease == false
     steps:
       - name: Set release version
         id: release

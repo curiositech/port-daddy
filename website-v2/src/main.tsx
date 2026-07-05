@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ThemeProvider } from '@/lib/theme'
 import { DocumentMeta } from '@/components/layout/DocumentMeta'
 import { HashScroll } from '@/components/layout/HashScroll'
+import { ScrollToTop } from '@/components/layout/ScrollToTop'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { TypeThemeSwitcher } from '@/components/layout/TypeThemeSwitcher'
 import { RouteFallback } from '@/components/layout/RouteFallback'
@@ -23,7 +24,10 @@ const TutorialsPage = lazyNamed(() => import('@/pages/TutorialsPage'), 'Tutorial
 const ExamplesPage = lazyNamed(() => import('@/pages/ExamplesPage'), 'ExamplesPage')
 const ExampleDetailPage = lazyNamed(() => import('@/pages/ExampleDetailPage'), 'ExampleDetailPage')
 const LibraryPage = lazy(() => import('@/pages/library'))
+const SecurityPage = lazy(() => import('@/pages/SecurityPage'))
+const HarnessPage = lazy(() => import('@/pages/HarnessPage'))
 const CliBackendPage = lazy(() => import('@/pages/cli-backend'))
+const SquidCodexPage = lazy(() => import('@/pages/SquidCodexPage'))
 const WhitepaperDetailPage = lazy(() => import('@/pages/whitepaper/PaperDetailPage'))
 const WhitepaperRoundsPage = lazy(() => import('@/pages/whitepaper/RoundsPage'))
 const WhitepaperHowWeProvePage = lazy(() => import('@/pages/whitepaper/HowWeProveGameTheory'))
@@ -32,6 +36,7 @@ const BlogPage = lazyNamed(() => import('@/pages/BlogPage'), 'BlogPage')
 const BlogPostPage = lazyNamed(() => import('@/pages/BlogPostPage'), 'BlogPostPage')
 const ManifestoPage = lazyNamed(() => import('@/pages/ManifestoPage'), 'ManifestoPage')
 const MacPreviewPage = lazyNamed(() => import('@/pages/MacPreviewPage'), 'MacPreviewPage')
+const ScoutPage = lazyNamed(() => import('@/pages/ScoutPage'), 'ScoutPage')
 const PdTubePlayground = lazyNamed(() => import('@/pages/pd-tube/Playground'), 'Playground')
 const SkillAuditPage = lazyNamed(() => import('@/pages/SkillAuditPage'), 'SkillAuditPage')
 const AgentsPage = lazyNamed(() => import('@/pages/AgentsPage'), 'AgentsPage')
@@ -187,6 +192,7 @@ createRoot(document.getElementById('root')!).render(
     <ThemeProvider>
       <BrowserRouter>
         <DocumentMeta />
+        <ScrollToTop />
         <HashScroll />
         <TypeThemeSwitcher />
         <Suspense fallback={<RouteFallback />}>
@@ -194,6 +200,7 @@ createRoot(document.getElementById('root')!).render(
             <Route element={<MainLayout />}>
               <Route path="/" element={<App />} />
               <Route path="/mac-preview" element={<MacPreviewPage />} />
+              <Route path="/scout" element={<ScoutPage />} />
               {/* The playground IS the pd-tube page now; the old marketing page
                   is retired and the /playground URL redirects in. */}
               <Route path="/pd-tube" element={<PdTubePlayground />} />
@@ -241,6 +248,10 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/blog/:slug" element={<BlogPostPage />} />
 
               <Route path="/manifesto" element={<ManifestoPage />} />
+              <Route path="/security" element={<SecurityPage />} />
+              <Route path="/harness" element={<HarnessPage />} />
+              <Route path="/squid-codex" element={<SquidCodexPage />} />
+              <Route path="/cryptography" element={<Navigate to="/security" replace />} />
               <Route path="/library" element={<LibraryPage />} />
               {/* /whitepaper now forwards to the Library (the canonical home for
                   the papers). The URL is preserved as a forwarding link because

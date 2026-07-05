@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Port Daddy Scout">
+  <defs>
+    <linearGradient id="scout-bg" x1="18" y1="14" x2="112" y2="118" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#172034" />
+      <stop offset="0.54" stop-color="#111827" />
+      <stop offset="1" stop-color="#07130f" />
+    </linearGradient>
+    <linearGradient id="scout-ring" x1="20" y1="18" x2="108" y2="110" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2f7df6" />
+      <stop offset="0.62" stop-color="#19c69b" />
+      <stop offset="1" stop-color="#f5a623" />
+    </linearGradient>
+    <mask id="pd-cutout" maskContentUnits="userSpaceOnUse">
+      <rect width="128" height="128" fill="white" />
+      <g stroke="black" stroke-width="10" stroke-linecap="round" fill="none">
+        <line x1="51" y1="48" x2="51" y2="84" />
+        <circle cx="61" cy="58" r="12" />
+      </g>
+    </mask>
+  </defs>
+
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#scout-bg)" />
+  <path d="M31 23H18v26" fill="none" stroke="#8fb7ff" stroke-width="7" stroke-linecap="round" />
+  <path d="M97 23h13v26" fill="none" stroke="#8ce8d0" stroke-width="7" stroke-linecap="round" />
+  <path d="M31 105H18V79" fill="none" stroke="#8ce8d0" stroke-width="7" stroke-linecap="round" />
+  <path d="M97 105h13V79" fill="none" stroke="#ffcf76" stroke-width="7" stroke-linecap="round" />
+  <circle cx="64" cy="64" r="39" fill="none" stroke="url(#scout-ring)" stroke-width="5" />
+  <circle cx="64" cy="64" r="3.5" fill="#ffcf76" />
+  <path d="M64 34v17M64 77v17M34 64h17M77 64h17" fill="none" stroke="#f8fafc" stroke-width="5" stroke-linecap="round" opacity="0.92" />
+
+  <g fill="none" stroke-linecap="round">
+    <g stroke="#2f7df6" stroke-width="10">
+      <line x1="51" y1="48" x2="51" y2="84" />
+      <circle cx="61" cy="58" r="12" />
+    </g>
+    <g stroke="#19c69b" stroke-width="10">
+      <line x1="77" y1="80" x2="77" y2="44" />
+      <circle cx="67" cy="70" r="12" />
+    </g>
+    <g stroke="#f5a623" stroke-width="10" mask="url(#pd-cutout)">
+      <line x1="77" y1="80" x2="77" y2="44" />
+      <circle cx="67" cy="70" r="12" />
+    </g>
+  </g>
+</svg>

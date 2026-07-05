@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/docker-build-plan.schema.json",
+  "title": "Docker Build Plan",
+  "description": "A structured description of a Dockerfile/CI build design, so this skill's Quality Gates (BuildKit, layer ordering, cache mounts, multi-stage, secrets, nonroot, multi-arch) can be checked deterministically by scripts/docker_build_audit.mjs.",
+  "type": "object",
+  "required": ["buildkitEnabled", "copyOrder", "runtimeLanguage"],
+  "additionalProperties": true,
+  "properties": {
+    "buildkitEnabled": {
+      "type": "boolean",
+      "description": "True if the build runs under BuildKit (DOCKER_BUILDKIT=1 or buildx)."
+    },
+    "copyOrder": {
+      "type": "string",
+      "enum": ["manifest-first", "source-first"],
+      "description": "Whether the Dockerfile copies the lockfile/manifest and installs before copying source (manifest-first), or does COPY . . before the install (source-first — busts the cache every commit)."
+    },
+    "runtimeLanguage": {
+      "type": "string",
+      "enum": ["node", "python", "go", "rust", "jvm", "other"],
+      "description": "The runtime stack, which sets the image-size budget and the QEMU-emulation rule."
+    },
+    "cacheMountForPackageManager": {
+      "type": "boolean",
+      "description": "True if the install step uses RUN --mount=type=cache on the package-manager directory."
+    },
+    "multiStage": {
+      "type": "boolean",
+      "description": "True if the Dockerfile separates build stage(s) from a slim runtime stage."
+    },
+    "finalImageSizeMB": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Measured size of the final image in MB; gates are <= 300MB for Node/Python and <= 100MB for Go/Rust."
+    },
+    "dockerignorePresent": {
+      "type": "boolean",
+      "description": "True if a .dockerignore excludes node_modules, .git, dist, and .env."
+    },
+    "ciColdBuilds": {
+      "type": "boolean",
+      "description": "True if CI runners start with an empty local build cache (e.g. ephemeral GitHub Actions runners)."
+    },
+    "registryCacheConfigured": {
+      "type": "boolean",
+      "description": "True if CI uses --cache-to/--cache-from type=registry (mode=max) so cold runners pull cache layers."
+    },
+    "secretsHandling": {
+      "type": "string",
+      "enum": ["secret-mount", "build-arg", "env", "runtime-injection", "none-needed"],
+      "description": "How build-time credentials reach the build. ARG/ENV persist in image metadata and are forbidden."
+    },
+    "runtimeUser": {
+      "type": "string",
+      "enum": ["nonroot", "numeric-uid", "root"],
+      "description": "The USER of the runtime stage."
+    },
+    "noCacheFlagInCI": {
+      "type": "boolean",
+      "description": "True if the CI build passes --no-cache by default."
+    },
+    "targetsArm64": {
+      "type": "boolean",
+      "description": "True if linux/arm64 is a build target."
+    },
+    "arm64Builder": {
+      "type": "string",
+      "enum": ["native", "qemu", "none"],
+      "description": "How arm64 images are built: a native arm64 builder, QEMU emulation, or not at all."
+    }
+  }
+}

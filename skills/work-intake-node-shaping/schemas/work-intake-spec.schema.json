@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Work Intake Spec",
+  "description": "Input shape for scripts/node_shaping_audit.mjs — one operator WorkIntent's signal vector, the topology archetype(s) it resolved to, and the legacy launch verbs reachable from its entrypoint.",
+  "type": "object",
+  "required": ["workIntent", "selectedArchetypes", "legacyRoutes"],
+  "additionalProperties": true,
+  "properties": {
+    "workIntent": {
+      "type": "object",
+      "required": ["id", "signals"],
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable identifier for the operator WorkIntent being shaped."
+        },
+        "signals": {
+          "type": "object",
+          "required": [
+            "coupling",
+            "contextPressure",
+            "skillBoundary",
+            "reviewIndependence",
+            "budget",
+            "operatorBurden"
+          ],
+          "additionalProperties": true,
+          "properties": {
+            "coupling": {
+              "type": "string",
+              "enum": ["low", "medium", "high"],
+              "description": "How tightly the sub-steps of this work depend on each other's live output."
+            },
+            "contextPressure": {
+              "type": "string",
+              "enum": ["low", "medium", "high"],
+              "description": "How much accumulated context the work needs to carry forward as it proceeds."
+            },
+            "skillBoundary": {
+              "type": "string",
+              "enum": ["single", "few", "many"],
+              "description": "How many distinct skill domains the work spans."
+            },
+            "reviewIndependence": {
+              "type": "string",
+              "enum": ["shared", "independent"],
+              "description": "Whether the work's outputs need a reviewer separate from the agent(s) producing them."
+            },
+            "budget": {
+              "type": "string",
+              "enum": ["small", "medium", "large"],
+              "description": "Cost/time envelope the operator is willing to commit before checking in."
+            },
+            "operatorBurden": {
+              "type": "string",
+              "enum": ["low", "medium", "high"],
+              "description": "How much steering/attention the operator expects to give while the work runs."
+            }
+          }
+        }
+      }
+    },
+    "selectedArchetypes": {
+      "type": "array",
+      "description": "The topology archetype(s) this WorkIntent resolved to. A safe spec has exactly one entry from the canonical seven (node, scout, chain, dag-workgroup, tournament, ambient-watcher, human-gate).",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "legacyRoutes": {
+      "type": "array",
+      "description": "Legacy launch verbs (spawn, dispatch, sortie, conjure, nightshift) reachable from this WorkIntent's entrypoint, and whether each one independently writes Agent Node/session/transcript state.",
+      "items": {
+        "type": "object",
+        "required": ["verb", "writesIndependentState"],
+        "additionalProperties": true,
+        "properties": {
+          "verb": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The legacy launch verb, e.g. \"spawn\", \"dispatch\", \"sortie\", \"conjure\", \"nightshift\"."
+          },
+          "writesIndependentState": {
+            "type": "boolean",
+            "description": "True if this verb's compatibility shim opens its own Agent Node/session/transcript instead of routing into the shared WorkPlan pipeline. Must be false for every route in a safe spec."
+          }
+        }
+      }
+    }
+  }
+}

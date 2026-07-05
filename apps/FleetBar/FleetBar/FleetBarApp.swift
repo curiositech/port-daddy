@@ -96,18 +96,25 @@ struct FleetMenuBarLabel: View {
     /// installed one. `nil` on the shipped app.
     var devBadge: String? = AppChannel.current.menuBarBadge
 
+    /// Per-channel accent so a dev FleetBar is a visibly different colour in the
+    /// menu bar; `nil` on production, where we keep the daemon-state colour.
+    private var channelAccent: Color? {
+        AppChannel.current.accentColorHex.flatMap { Fleet.Color.hex($0) }
+    }
+
     var body: some View {
+        let tint = channelAccent ?? color
         HStack(spacing: 3) {
             Image(systemName: icon)
                 .symbolRenderingMode(.monochrome)
-                .foregroundStyle(color)
+                .foregroundStyle(tint)
             if let devBadge {
                 // Uppercase, bold, tracked-out tag — reads larger than its point
                 // size, the only sanctioned small-label form.
                 Text(devBadge)
                     .font(.system(size: 9, weight: .heavy))
                     .tracking(0.5)
-                    .foregroundStyle(color)
+                    .foregroundStyle(tint)
                     .accessibilityLabel("development build \(devBadge)")
             }
         }

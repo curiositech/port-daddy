@@ -328,24 +328,9 @@ const FLEET_AGENTS: FleetAgent[] = [
 
 const ONE_OFFS: OneOff[] = [
   {
-    title: 'Sortie',
-    roleKey: 'sortie',
-    label: 'A tracked mission',
-    body: 'One clear goal with a spending cap. You get status, logs, the result, and any leftover risk, all tied to a single mission id you can look up later.',
-    command: 'pd sortie run "Investigate flaky auth tests" --backend codex --budget 2',
-    icon: Route,
-  },
-  {
-    title: 'pd agent',
-    label: 'Hand off one task',
-    body: 'Port Daddy opens a tracked session, runs one agent, and closes it out. Nothing stays running afterward.',
-    command: 'pd agent "Review this branch for launch blockers"',
-    icon: Terminal,
-  },
-  {
     title: 'pd spawn',
-    label: 'Set every detail by hand',
-    body: 'For when you need to pick the exact backend, model, tools, and timeout yourself, and handle the coordination around it on your own.',
+    label: 'Hand off one bounded task',
+    body: 'Port Daddy launches one supervised run with backend preflight, budget, transcripts, and salvage state. Nothing stays resident afterward.',
     command: 'pd spawn --backend codex --model gpt-5.4-mini -- "Inspect src/auth"',
     icon: Code2,
   },
@@ -710,7 +695,7 @@ pd fleet up
       {
         label: 'Bootstrap a project fleet',
         href: '/tutorials/fleet',
-        body: 'Build the first pd-fleet.yml and learn when a recurring agent is better than a one-off sortie.',
+        body: 'Build the first pd-fleet.yml and learn when recurring automation is better than one spawned task.',
       },
       {
         label: 'Use the webhook adapter',
@@ -753,7 +738,7 @@ pd note "Template adopted: starter fleet; validation: pd fleet validate + pd fle
     bullets: [
       'Canonical navigation is /agents/templates; old /templates URLs redirect here.',
       'Every listed pack maps to a real file or folder under templates/. No phantom blueprint IDs.',
-      'YAML templates are for recurring agents; one-off work still belongs in sorties, pd agent, or pd spawn.',
+      'YAML templates are for recurring agents; one-off work belongs in pd spawn.',
     ],
     screenshots: [
       {
@@ -841,7 +826,7 @@ pd guard check --staged`,
         title: 'Flow view',
         href: '/mac-preview',
         image: FLOW_SCREENSHOT,
-        body: 'Fleet Control Center is where the skill points agents for project-level truth: active work, activity, resources, sorties, and YAML.',
+        body: 'Fleet Control Center is where the skill points agents for project-level truth: active work, activity, resources, spawned runs, and YAML.',
       },
     ],
     builds: [
@@ -943,7 +928,7 @@ pd fleet run qa`,
     codeLabel: 'Actor inboxes',
     code: `pd actors --project port-daddy
 pd actor coxswain --inbox --unread
-pd actor quartermaster --message "Budget check before the next sortie"
+pd actor quartermaster --message "Budget check before the next spawn"
 pd actor cartographer --message "Roadmap drifted from what shipped; re-map" --wake
 pd notes --limit 10`,
     theory: [
@@ -1209,10 +1194,10 @@ pd guard check --staged`,
       },
       {
         label: 'Console',
-        title: 'Sorties',
+        title: 'Spawned runs',
         href: '/mac-preview',
         image: SORTIES_SCREENSHOT,
-        body: 'Sorties are the mission-shaped complement to recurring fleet work when a bounded task needs status and evidence.',
+        body: 'Spawned run history is the complement to recurring fleet work when a bounded task needs status and evidence.',
       },
     ],
     builds: [

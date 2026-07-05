@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GUI Design Spec",
+  "description": "Input shape for scripts/gui_design_audit.mjs — a measured summary of a GUI design's contrast, typography, tokens, spacing, touch targets, and interactive states.",
+  "type": "object",
+  "required": [
+    "textContrastMinRatio",
+    "touchTargetMinPx",
+    "spacingScale",
+    "fontWeightsCount",
+    "fontSizesCount",
+    "semanticTokensUsed",
+    "lightAndDark",
+    "minBodyFontPx",
+    "interactiveStatesDefined"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "textContrastMinRatio": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 21,
+      "description": "Worst-case measured contrast ratio for body text against its background, across both themes."
+    },
+    "touchTargetMinPx": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Smallest interactive hit-area (including padding, not just the visible glyph) in px."
+    },
+    "spacingScale": {
+      "type": "string",
+      "enum": ["8pt", "4pt", "ad-hoc"],
+      "description": "The spacing system actually shipped. \"ad-hoc\" means one-off pixel values not on a grid."
+    },
+    "fontWeightsCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Distinct font weights used across the shipped system."
+    },
+    "fontSizesCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Distinct font sizes used across the shipped system."
+    },
+    "semanticTokensUsed": {
+      "type": "boolean",
+      "description": "True only if components reference semantic design tokens, never raw hex/px values."
+    },
+    "lightAndDark": {
+      "type": "boolean",
+      "description": "True only if both light and dark themes are designed and contrast-verified (not one inverted from the other)."
+    },
+    "minBodyFontPx": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Smallest body/caption font size shipped, in px (rem values should be converted at the 16px root)."
+    },
+    "interactiveStatesDefined": {
+      "type": "boolean",
+      "description": "True only if every interactive element defines default/hover/active/focus-visible/disabled (+ loading where async)."
+    }
+  }
+}

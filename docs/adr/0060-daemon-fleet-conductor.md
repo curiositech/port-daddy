@@ -5,7 +5,7 @@
 Proposed — 2026-06-18. Author: Erich (operator, single-person operation).
 
 Supersedes the *operational overlap* between `pd dispatch` (ADR-0035 lineage),
-`pd sortie`, and `pd fleet` (the YAML runner). It does **not** supersede the
+`pd spawn`, and `pd fleet` (the YAML runner). It does **not** supersede the
 substrate ADRs it builds on: 0013 (harbors), 0022 (durable actor souls / body
 leases), 0028 (actor / fleet-agent / session three layers), 0050 (Coast Guard:
 bonds, rent, slash, sandbox), 0046 (operator console), 0047-conversation-protocol
@@ -22,7 +22,8 @@ each is missing a different safety property.
 
 ### The four spawn surfaces today
 
-1. **`dispatch`** — `lib/dispatch/{queue,runner,spawn-adapter,state-machine}.ts`,
+1. **`dispatch`** — `lib/dispatch/queue.ts`, `lib/dispatch/runner.ts`,
+   `lib/dispatch/spawn-adapter.ts`, `lib/dispatch/state-machine.ts`,
    `routes/dispatches.ts`, `cli/commands/dispatch.ts`.
    - Best-in-class **state machine** (`queue.ts:11-35`, `state-machine.ts:87`):
      `proposed → claimed → in_progress → produced → review_pending →
@@ -39,15 +40,15 @@ each is missing a different safety property.
      no inbox; **no recursion**; the runner is a *pure planner* that delegates, so
      it knows nothing about the live spawner's circuit breaker.
 
-2. **`sortie`** — `lib/sorties.ts`, `routes/sorties.ts`, `cli/commands/sortie.ts`.
-   - Best-in-class **spawn primitive**: `routes/sorties.ts:223` calls
-     `spawner.spawn(...)`, which is the *only* path today that does bond escrow
+2. **spawned-run records** — `pd spawn`, `lib/sorties.ts`, `routes/sorties.ts`.
+   - Best-in-class **spawn primitive**: the spawn path calls
+     `spawner.spawn(...)`, which is the path today that does bond escrow
      (`spawner.ts:1541-1569`), harbor admission (`spawner.ts:1478-1539`), Coast
      Guard write-policy from capability tier (`spawner.ts:1428-1475`), telemetry
      enforcement (`spawner.ts:1349-1360`), transcript recording, and **slash on
      dirty exit / refund on clean exit** (`spawner.ts:1872-1887`).
    - Best-in-class **economic safety**: NO_SPAWN_WITHOUT_BOND is enforced here.
-   - **Missing:** worktree creation — sortie *refuses* a main checkout
+   - **Missing:** worktree creation — spawned runs refuse a main checkout
      (`spawner.ts:1059`) but never *creates* a worktree, so the caller must have
      already cd'd into one; a weaker lifecycle (`sorties.ts:5` — six flat states,
      no review gate, no PR); **no recursion** (`sorties.ts`/`spawner.ts`, ABSENT);
@@ -96,7 +97,7 @@ each is missing a different safety property.
 
 ### Where they overlap and where they diverge
 
-| Property | dispatch | sortie | fleet | orchestrator |
+| Property | dispatch | spawn | fleet | orchestrator |
 |---|---|---|---|---|
 | Persisted lifecycle | **strong** (8 states + PR) | weak (6 flat) | none (in-mem) | none |
 | Worktree off main | **creates it** | refuses main, doesn't create | inherits | inherits |
@@ -112,22 +113,22 @@ each is missing a different safety property.
 
 The divergence is not principled — it is accidental. `dispatch` got the lifecycle
 and the worktree because it grew out of nightshift's "open a PR overnight" use case.
-`sortie` got the economy and the harbor card because it grew out of `spawner.spawn`,
+`spawn` got the economy and the harbor card because it grew out of `spawner.spawn`,
 the real launch primitive. **Neither is wrong; each has half the answer.**
 
 ## Decision
 
 **Collapse all four surfaces onto one daemon-resident `Conductor` that owns one
-`spawn primitive`. The Conductor is the all-powerful entity. `dispatch`, `sortie`,
+`spawn primitive`. The Conductor is the all-powerful entity. `dispatch`, `spawn`,
 `fleet`, and the reactive orchestrator become *intents* that the Conductor admits,
 prices, places, and supervises — they stop being separate launchers.**
 
 Concretely:
 
 1. **One spawn primitive: `conductor.launch(intent)`.** It is the *union* of
-   dispatch's lifecycle + worktree + PR and sortie's bond + harbor + slash. It is
+   dispatch's lifecycle + worktree + PR and spawn's bond + harbor + slash. It is
    the only code path that ever reaches `spawner.spawn`. `dispatch.runner`,
-   `sorties` POST, `fleet-engine`, and the reactive orchestrator all call
+   spawn launch, `fleet-engine`, and the reactive orchestrator all call
    `conductor.launch` instead of any private spawn.
 
 2. **The Conductor is the conductor of a durable actor fleet, not a process pool.**
@@ -197,13 +198,13 @@ interface LaunchIntent {
   mergePolicy: 'review' | 'never' | 'auto';  // 'auto' requires the Steward (ADR-0056)
 
   // — provenance —
-  source: 'operator' | 'dispatch' | 'sortie' | 'fleet' | 'orchestrator' | 'nightshift' | 'agent';
+  source: 'operator' | 'dispatch' | 'spawn' | 'fleet' | 'orchestrator' | 'nightshift' | 'agent';
 }
 ```
 
-`dispatch`, `sortie`, `fleet`, `orchestrator`, and `nightshift` become **thin
+`dispatch`, `spawn`, `fleet`, `orchestrator`, and `nightshift` become **thin
 constructors of `LaunchIntent`** with different defaults (dispatch defaults
-`worktree:'create', mergePolicy:'review'`; sortie defaults `worktree:'inherit',
+`worktree:'create', mergePolicy:'review'`; direct spawn defaults `worktree:'inherit',
 mergePolicy:'never'`; an agent-proposed launch defaults `source:'agent'` and is
 depth-checked). They no longer own spawning.
 
@@ -264,7 +265,7 @@ flowchart TB
     end
     subgraph Intents
       D[dispatch] --> C
-      S[sortie] --> C
+      S[spawn] --> C
       F[fleet YAML] --> C
       RO[reactive orchestrator] --> C
       NS[nightshift / roadmap-popper] --> C
@@ -360,7 +361,7 @@ ADR and not a one-PR refactor.
    self-inflicted exit slashes. The breaker tripping on *budget* refunds in-flight
    bonds; tripping on *error-rate* pauses (no kill, no slash).
 
-5. **Backward-compat during migration.** `pd dispatch` / `pd sortie` must keep
+5. **Backward-compat during migration.** `pd dispatch` / `pd spawn` must keep
    working byte-for-byte while the Conductor is introduced behind them. We do this
    by making the Conductor's first incarnation a *pass-through* that both commands
    route through, with the new gates **observe-only** (log, don't refuse) until
@@ -387,22 +388,22 @@ ADR and not a one-PR refactor.
 - The reactive-orchestrator's private `spawner.spawn` call (`server.ts:544` wiring)
   → rerouted to `conductor.launch`. The orchestrator keeps its *trigger* logic, loses
   its *launch* logic.
-- `sorties` POST's direct `spawner.spawn` (`routes/sorties.ts:223`) → `conductor.launch`.
+- Direct spawn launch → `conductor.launch`; legacy `/sorties` HTTP rows stay as compatibility records.
 - `fleet-engine`'s direct spawn → `conductor.launch`; `FleetLimits` is *subsumed* by
   the lineage/global ledger (kept as per-fleet overrides, no longer the only governor).
 - Dispatch's `runner.ts` clamp-only budget (`runner.ts:99-113`) → replaced by the
   real ledger; the pure planner becomes the dispatch *intent constructor*.
 
 **Renamed / command surface:**
-- `pd dispatch <...>` → preserved as alias; constructs a `LaunchIntent{source:'dispatch'}`.
-- `pd sortie <...>` → preserved as alias; constructs `LaunchIntent{source:'sortie'}`.
+- `pd dispatch <...>` → preserved as queue sugar; constructs a `LaunchIntent{source:'dispatch'}`.
+- `pd spawn <...>` → preserved as the only direct one-shot launch primitive; constructs `LaunchIntent{source:'spawn'}`.
 - `pd nightshift` → already a dispatch alias; now a Conductor intent on a schedule.
 - **New** `pd fleet halt|pause|resume|inspect [scope]` — the operator control plane
   (extends today's `pd fleet up/down/status`).
 - **New** `pd fleet tree <rootId>` — render the lineage tree with per-node cost/state.
 
 The end state: **one `pd fleet` verb-space is the operator's window onto the whole
-autonomous system**, and `dispatch`/`sortie`/`nightshift` are sugar over it.
+autonomous system**, and `dispatch`/`spawn`/`nightshift` route through it.
 
 ## Phased build plan
 
@@ -417,7 +418,7 @@ the safe way to introduce a chokepoint.
   emits a `fleet:state` broadcast, and then **delegates to the existing
   `spawner.spawn` unchanged**. No gates enforce yet — depth-over-cap and
   budget-over-ceiling **log a warning and proceed** (the ADR-0050 advisory pattern).
-- Reroute `routes/sorties.ts:223` and the reactive orchestrator (`server.ts:544`)
+- Reroute direct spawn launch and the reactive orchestrator (`server.ts:544`)
   to call `conductor.launch` instead of `spawner.spawn` directly. `dispatch`
   untouched this phase (it already has its own adapter; it joins in Phase 3).
 - Tests: lineage stamping, depth computation, the launch row is written, the
@@ -425,7 +426,7 @@ the safe way to introduce a chokepoint.
 - **Concrete first PR title:** `feat(fleet): introduce Conductor launch chokepoint with lineage stamping (observe-only) — ADR-0060 Phase 1`.
 
 ### Phase 2 — *The cost ledger + global/lineage breaker, enforcing*
-- `lib/fleet/cost-ledger.ts` (per-launch · per-lineage · global) reserving bonds
+- `lib/fleet/cost-ledger.ts` (designed-not-built; per-launch · per-lineage · global) reserving bonds
   against `lineageCeilingUsd` in one SQLite transaction at admission.
 - `lib/fleet/circuit-breaker.ts` consuming cost + exit events; trips on budget
   (→ pause+grace) and error-rate (→ pause only, min-sample guard).
@@ -469,7 +470,8 @@ the safe way to introduce a chokepoint.
   via `cli/commands/nightshift.ts`) · ADR-0046 Operator Console · ADR-0047
   Conversation Protocol (FIPA performatives) · ADR-0050 Coast Guard (bonds, rent,
   slash, sandbox) · ADR-0056 The Steward.
-- Code: `lib/dispatch/{queue,runner,spawn-adapter,state-machine}.ts`,
+- Code: `lib/dispatch/queue.ts`, `lib/dispatch/runner.ts`,
+  `lib/dispatch/spawn-adapter.ts`, `lib/dispatch/state-machine.ts`,
   `lib/sorties.ts`, `routes/sorties.ts`, `lib/spawner.ts`,
   `lib/spawner/backends/cli-tube.ts`, `lib/orchestrator.ts`, `lib/fleet-engine.ts`,
   `lib/budget-pause.ts`, `lib/bonds.ts`, `lib/coast-guard/`, `lib/harbors.ts`,

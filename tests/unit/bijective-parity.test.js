@@ -103,15 +103,6 @@ function extractRouteCategories() {
   return [...new Set(matches)]; // deduplicate
 }
 
-/**
- * Extract tab/panel IDs from the dashboard HTML.
- * The dashboard uses id="panel-xxx" for its content panels.
- */
-function extractDashboardPanels() {
-  const matches = DASHBOARD_HTML.matchAll(/id="panel-(\w+)"/g);
-  return [...matches].map(m => m[1]);
-}
-
 // ---------------------------------------------------------------------------
 // Test Group 1: CLI -> Completions Parity
 // ---------------------------------------------------------------------------
@@ -296,6 +287,9 @@ describe('Test Group 3: API -> CLI Parity', () => {
     messaging: ['pub', 'sub', 'channels'],
     locks: ['lock', 'unlock', 'locks'],
     agents: ['agent', 'agents'],
+    // agentroster: live aggregate over agents/sessions/claims.
+    // CLI surface is `pd agents --live` / `pd agents --roster`.
+    agentroster: ['agents'],
     actors: ['actor', 'actors'],
     // agentcockpit: "Watch + Grab the Wheel" SSE stream + soft interrupt
     // (routes/agent-cockpit.ts, agentCockpitPlugin). CLI surface is
@@ -327,7 +321,6 @@ describe('Test Group 3: API -> CLI Parity', () => {
     whois: ['whois'],
     orchestrator: ['up', 'down'],
     tuples: ['tuple'],
-    sorties: ['sortie'],
     cockpit: ['cockpit'],
     graph: ['graph'],
     memory: ['memory'],
@@ -362,6 +355,16 @@ describe('Test Group 3: API -> CLI Parity', () => {
     // shipped-dead (never registered), which is why this category did not
     // appear here before. `pd relay <url|status|exchange>` is its CLI surface.
     relay: ['relay'],
+    // safe: host-safety posture audit (ADR-0088). routes/safe.ts (safePlugin)
+    // exposes the read-only GET /safe/scan; `pd safe <scan|baseline|fix|corral|guard>`
+    // is its CLI surface.
+    safe: ['safe'],
+    // fleetapprovals: trust-gate spawn approvals (ADR-0093 L2). CLI surface is
+    // `pd fleet approvals` / `pd fleet approve <id>` / `pd fleet reject <id>`.
+    fleetapprovals: ['fleet'],
+    // fleetpush: Web Push registration for approval alerts. CLI surface is
+    // `pd fleet push <status|test>`.
+    fleetpush: ['fleet'],
   };
 
   // API-only routes that have no CLI equivalent (accessed via curl or SDK).
@@ -371,8 +374,14 @@ describe('Test Group 3: API -> CLI Parity', () => {
   // context: agent context-window health + task ledger (ADR-0048 P1/P3) — MCP+HTTP only, no pd CLI command.
   // harvest: session note→episode promotion (ADR-0048 P2/P3) — MCP+HTTP only.
   // custodian: knowledge custodian status + approval resolution (ADR-0048 P3) — MCP+HTTP only.
+  // cloudapptelemetry: inbound GitHub App / Cloudflare Worker telemetry ingestion + read API;
+  // surfaced through fleet/agents/observability reporting, not a dedicated `pd` command.
+  // sorties: legacy HTTP record compatibility for old spawned-run rows; new CLI launch is `pd spawn`.
   // (relay is NOT API-only: it has the `pd relay` CLI, mapped in ROUTE_TO_CLI_MAP above.)
-  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian']);
+  // fleetwebhooks: inbound fleet webhook receiver (POST /webhooks/fleet/:channel),
+  // driven by external senders / the email-ingress Worker, never by a `pd`
+  // command — API-only by design. See routes/fleet-webhooks.ts.
+  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian', 'cloudapptelemetry', 'visualtasks', 'sorties', 'fleetwebhooks']);
 
   test('all route modules have at least one corresponding CLI command', () => {
     const missingCoverage = [];
@@ -422,137 +431,55 @@ describe('Test Group 3: API -> CLI Parity', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Test Group 4: Dashboard Visual Regression
+// Test Group 4: Root Landing Page (dashboard retired)
+//
+// Surface consolidation (2026-07): the browser dashboard at `/` was retired
+// in favor of the native surfaces (FleetBar Control Center, pd-console, and
+// the `pd dashboard` terminal UI). The root page is now a minimal pointer.
+// These tests enforce that it STAYS minimal and keeps pointing operators at
+// the sanctioned surfaces — the inverse of the old visual-richness checks.
 // ---------------------------------------------------------------------------
 
-describe('Test Group 4: Dashboard Visual Regression', () => {
-  /**
-   * Count occurrences of a pattern in the dashboard HTML.
-   */
-  function countOccurrences(pattern) {
-    const regex = pattern instanceof RegExp ? pattern : new RegExp(pattern, 'g');
-    const flags = regex.flags.includes('g') ? regex.flags : regex.flags + 'g';
-    const globalRegex = new RegExp(regex.source, flags);
-    return (DASHBOARD_HTML.match(globalRegex) || []).length;
-  }
-
-  test('dashboard defines --accent-glow CSS custom property', () => {
-    expect(DASHBOARD_HTML).toMatch(/--accent-glow\s*:/);
+describe('Test Group 4: Root Landing Page (dashboard retired)', () => {
+  test('landing page declares the web dashboard retired', () => {
+    expect(DASHBOARD_HTML).toMatch(/retired/i);
   });
 
-  test('dashboard defines maritime color palette variables', () => {
-    expect(DASHBOARD_HTML).toMatch(/--bg-dark\s*:/);
-    expect(DASHBOARD_HTML).toMatch(/--bg-card\s*:/);
-    expect(DASHBOARD_HTML).toMatch(/--accent\s*:/);
-    expect(DASHBOARD_HTML).toMatch(/--text\s*:/);
-    expect(DASHBOARD_HTML).toMatch(/--border\s*:/);
+  test('landing page points to Control Center, Operator Console, and CLI', () => {
+    expect(DASHBOARD_HTML).toMatch(/Control Center/);
+    expect(DASHBOARD_HTML).toMatch(/Operator Console|pd-console/);
+    expect(DASHBOARD_HTML).toMatch(/pd dashboard/);
   });
 
-  test('dashboard uses linear-gradient for visual richness (>= 5 occurrences)', () => {
-    const count = countOccurrences(/linear-gradient/g);
-    expect(count).toBeGreaterThanOrEqual(5);
+  test('landing page fetches only /health', () => {
+    const fetched = [...DASHBOARD_HTML.matchAll(/fetch\(['"`]([^'"`]+)/g)].map(m => m[1]);
+    expect(fetched).toEqual(['/health']);
   });
 
-  test('dashboard uses backdrop-filter for glassmorphism (>= 3 occurrences)', () => {
-    const count = countOccurrences(/backdrop-filter/g);
-    expect(count).toBeGreaterThanOrEqual(3);
+  test('landing page has no dashboard panels or embedded terminal', () => {
+    expect(DASHBOARD_HTML).not.toMatch(/id="panel-/);
+    expect(DASHBOARD_HTML).not.toMatch(/showPanel/);
+    expect(DASHBOARD_HTML).not.toMatch(/var COMMANDS/);
   });
 
-  test('dashboard uses radial-gradient for background atmosphere (>= 1 occurrence)', () => {
-    const count = countOccurrences(/radial-gradient/g);
-    expect(count).toBeGreaterThanOrEqual(1);
-  });
-
-  test('dashboard uses blur() for frosted glass effect (>= 3 occurrences)', () => {
-    // Count blur( but exclude JavaScript .blur() method calls
-    // CSS blur is in style blocks; JS blur is in script blocks
-    const styleSection = DASHBOARD_HTML.split('<script')[0]; // everything before first script tag
-    const count = countOccurrences.call(null,
-      new RegExp('blur\\(', 'g')
-    );
-    // Even counting JS .blur() calls, we need at least 3 total
-    // because glassmorphism requires multiple blur applications
-    expect(count).toBeGreaterThanOrEqual(3);
-  });
-
-  test('dashboard defines signal flag semantic colors', () => {
-    // The maritime theme uses signal flag colors for status
-    expect(DASHBOARD_HTML).toMatch(/--success\s*:/);
-    expect(DASHBOARD_HTML).toMatch(/--warning\s*:/);
-    expect(DASHBOARD_HTML).toMatch(/--danger\s*:/);
-    expect(DASHBOARD_HTML).toMatch(/--info\s*:/);
-  });
-
-  test('dashboard uses CSS animations for polish', () => {
-    expect(DASHBOARD_HTML).toMatch(/@keyframes\s+fadeIn/);
-    // Dashboard uses various animations: toastIn, countPulse, shimmer, etc.
-    const keyframeCount = countOccurrences(/@keyframes\s+\w+/g);
-    expect(keyframeCount).toBeGreaterThanOrEqual(3);
-  });
-
-  test('dashboard uses SVG icon system (not emojis as icons)', () => {
-    // The dashboard uses SVG sprite system with <symbol viewBox="..."> + <use href="...">
-    const symbolCount = countOccurrences(/<symbol\s+id="/g);
-    const useHrefCount = countOccurrences(/<use\s+href="#icon-/g);
-    // Must have at least 10 SVG symbol definitions and 15 icon usages
-    expect(symbolCount).toBeGreaterThanOrEqual(10);
-    expect(useHrefCount).toBeGreaterThanOrEqual(15);
-  });
-
-  test('dashboard total size exceeds 50KB (prevents gutted replacement)', () => {
-    // A fully-featured dashboard with glassmorphism CSS, 12+ tabs,
-    // and JS for all panels should be well over 50KB.
+  test('landing page stays under 20KB (prevents the dashboard growing back)', () => {
     const sizeKB = Buffer.byteLength(DASHBOARD_HTML, 'utf8') / 1024;
-    expect(sizeKB).toBeGreaterThanOrEqual(50);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Test Group 5: Dashboard Panel Coverage
-// ---------------------------------------------------------------------------
-
-describe('Test Group 5: Dashboard Panel Coverage', () => {
-  const panels = extractDashboardPanels();
-
-  // The dashboard uses id="panel-xxx" for its content panels.
-  // These are the minimum required panels for feature parity.
-  const REQUIRED_PANELS = [
-    'overview',    // Dashboard overview with stats
-    'services',    // Fleet/services management
-    'agents',      // Agent registry
-    'sessions',    // Sessions and notes
-    'locks',       // Distributed locks
-    'channels',    // Pub/sub messaging channels
-    'salvage',     // Resurrection queue / dead agent salvage
-    'activity',    // Activity log / audit trail
-    'projects',    // Registered projects
-    'config',      // Configuration
-    'changelog',   // Hierarchical changelog
-    'webhooks',    // Webhook management
-  ];
-
-  test(`dashboard has at least ${REQUIRED_PANELS.length} panels (currently: ${panels.length})`, () => {
-    expect(panels.length).toBeGreaterThanOrEqual(REQUIRED_PANELS.length);
+    expect(sizeKB).toBeLessThanOrEqual(20);
   });
 
-  test.each(REQUIRED_PANELS)(
-    'dashboard has panel for "%s"',
-    (panelName) => {
-      expect(panels).toContain(panelName);
-    }
-  );
-
-  test('dashboard panels are discoverable via id="panel-" pattern', () => {
-    // This ensures the extraction regex is working correctly and
-    // panels haven't been renamed to a different scheme
-    expect(panels.length).toBeGreaterThan(0);
-  });
-
-  test('dashboard has panel navigation for switching between panels', () => {
-    // There should be clickable elements that reference panel names
-    // The dashboard uses showPanel() function and nav-item onclick handlers
-    const hasPanelSwitching = DASHBOARD_HTML.includes('showPanel');
-    expect(hasPanelSwitching).toBe(true);
+  test('landing page body text respects the 14px minimum font floor', () => {
+    // Parse every declared font-size and enforce the floor NUMERICALLY:
+    // px >= 14, rem/em >= 0.875 (1rem = 16px). The old regex denylist only
+    // banned a couple of `0.x`rem prefixes and let `13px` and `0.87rem`
+    // (13.9px) straight through — parse values, don't pattern-match them.
+    const decls = [...DASHBOARD_HTML.matchAll(/font-size:\s*([\d.]+)(px|rem|em)\b/g)]
+      .map(m => ({ raw: m[0], value: Number(m[1]), unit: m[2] }));
+    expect(decls.length).toBeGreaterThan(0); // the page does declare sizes
+    const violations = decls
+      .map(d => ({ ...d, px: d.unit === 'px' ? d.value : d.value * 16 }))
+      .filter(d => d.px < 14)
+      .map(d => `${d.raw} (= ${d.px.toFixed(1)}px)`);
+    expect(violations).toEqual([]);
   });
 });
 

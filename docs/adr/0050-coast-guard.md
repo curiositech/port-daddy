@@ -145,6 +145,57 @@ This is the L1-safety / L2-legibility wedge of ADR-0048 made concrete; it is the
 day-one converting feature. It composes with the Arbiter jail (ADR-0045) and the
 `auth-chain` capability attenuation (the Anchor Protocol).
 
+### Phase 7 — rent→slash: advisory-only landing, enforce quarantined (2026-06-26)
+
+The note-per-commit compulsion above is shipped. Closing the *economic* loop —
+turning a repeated, egregious rent breach into a graduated **bond slash** — lands
+in two deliberately separated halves:
+
+**Landed (the safe 80%):**
+
+- `lib/coast-guard/rent-slash.ts` — the **pure policy**. Modes `off|advisory|enforce`
+  resolved from `PD_RENT_SLASH_MODE`, **failing safe to `advisory`** (a typo never
+  arms debiting). Graduation: first miss is grace (the commit-block is the whole
+  response), then `baseFraction · (breachCount − grace)` clamped to `maxFraction`.
+  Defaults: grace 1, 10%/step, **50% hard cap** — a rent slash never takes the whole
+  bond. No I/O, no clock, no wallet.
+- `lib/coast-guard/rent-breach-ledger.ts` — the **per-principal escalation memory**
+  (SQLite, injected clock). `cure()` decays toward grace; a 24h quiet window resets.
+  Keyed on the **Anchor/principal** identity, never a re-rollable agent id (Sybil
+  defense). The graduated-trigger / "graduated, not grim" doctrine (`game-theory.md §4`):
+  a crash and a defection look identical to an observer, so punishment is forgiving.
+
+In this landing the policy is an **observability instrument**: a caller can compute
+the slash that *would* apply and log it. Nothing here moves money.
+
+**Quarantined (the unsafe 20% — do NOT ship until reconciled with ADR-0087):**
+
+The money-moving enforcer (`bonds.slash` call) and the HTTP routes
+(`POST /coast-guard/rent-breach`, `POST /coast-guard/rent-cure`) are intentionally
+**not** shipped. An earlier draft authenticated them only by *possession of a
+`sessionId`*, which carries two incentive bugs that make `enforce` exploitable:
+
+1. **Breach-report griefing.** A `sessionId` is readable by every local agent via
+   `pd sessions`. Deriving the breaching principal "server-side" from a *caller-supplied*
+   sessionId means a malicious agent can pass a **neighbour's** sessionId and slash
+   **their** bond — griefing a rival's collateral into the commons for the cost of one
+   request. The Sybil defense protects who gets slashed, not who can *trigger* a slash.
+2. **Unauthenticated self-cure (Goodhart).** A `cure` route that decays the caller's
+   own count without verifying a note was actually published lets a breacher
+   `breach → cure → breach …` forever and never escalate past grace.
+
+The fix is exactly the reconciliation ADR-0087 (#500) already specifies: **the daemon
+signs its rent verdict so a verifier can check it rather than be told it.** Breach
+detection must therefore be a **guard-signed / daemon-internal** event, not an open
+bearer route. Until that wiring exists, `enforce` stays unreachable in practice and
+the routes do not ship. The advisory default is unaffected — it moves no money, so
+neither bug can bite it.
+
+One honest caveat the advisory landing makes explicit: the metric is note-**presence**
+per commit, not coordination **quality**. Rent can be "paid" with a trivial note. That
+is acceptable for a presence incentive but must not be mistaken for a measure of useful
+coordination.
+
 ## Consequences
 
 ### Positive

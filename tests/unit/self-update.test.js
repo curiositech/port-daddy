@@ -72,3 +72,71 @@ describe('cli/commands/self-update parseInstalledVersion', () => {
     expect(parseInstalledVersion('node 22.0.0\nripgrep 14.1.0')).toBe(null);
   });
 });
+
+// The freshness LaunchAgent cadence is the lever that makes a published brew
+// release a *necessary* (prompt) consequence on the running machine rather than
+// an eventual one. Regression-lock it so it can't silently drift back to hourly.
+describe('install-daemon freshness LaunchAgent cadence', () => {
+  test('interval is 15 min (900s), tightened from hourly', async () => {
+    const { FRESHNESS_INTERVAL_SECONDS } = await import('../../install-daemon.js');
+    expect(FRESHNESS_INTERVAL_SECONDS).toBe(900);
+  });
+
+  test('generated plist wires `pd self-update --tick` at the 900s interval, RunAtLoad', async () => {
+    const { generateFreshnessPlist, FRESHNESS_INTERVAL_SECONDS } = await import('../../install-daemon.js');
+    const plist = generateFreshnessPlist('/opt/homebrew/bin/pd');
+    expect(plist).toContain('<string>/opt/homebrew/bin/pd</string>');
+    expect(plist).toContain('<string>self-update</string>');
+    expect(plist).toContain('<string>--tick</string>');
+    expect(plist).toContain(`<integer>${FRESHNESS_INTERVAL_SECONDS}</integer>`);
+    expect(plist).toContain('<integer>900</integer>');
+    expect(plist).toContain('<key>RunAtLoad</key>');
+  });
+});
+
+describe('cli/commands/self-update parseAvailableVersion (brew info --json=v2)', () => {
+  test('extracts versions.stable from the formula entry', async () => {
+    const { parseAvailableVersion } = await import('../../cli/commands/self-update.js');
+    const json = JSON.stringify({ formulae: [{ name: 'port-daddy', versions: { stable: '3.21.0' } }] });
+    expect(parseAvailableVersion(json)).toBe('3.21.0');
+  });
+
+  test('null on malformed JSON, missing fields, or empty', async () => {
+    const { parseAvailableVersion } = await import('../../cli/commands/self-update.js');
+    expect(parseAvailableVersion('not json')).toBe(null);
+    expect(parseAvailableVersion('{}')).toBe(null);
+    expect(parseAvailableVersion(JSON.stringify({ formulae: [] }))).toBe(null);
+    expect(parseAvailableVersion(JSON.stringify({ formulae: [{ versions: {} }] }))).toBe(null);
+  });
+});
+
+describe('cli/commands/self-update parseDaemonVersion (/status)', () => {
+  test('extracts version from the daemon status JSON', async () => {
+    const { parseDaemonVersion } = await import('../../cli/commands/self-update.js');
+    expect(parseDaemonVersion(JSON.stringify({ version: '3.21.0', pid: 123 }))).toBe('3.21.0');
+  });
+
+  test('null on malformed/empty status', async () => {
+    const { parseDaemonVersion } = await import('../../cli/commands/self-update.js');
+    expect(parseDaemonVersion('')).toBe(null);
+    expect(parseDaemonVersion('<html>502</html>')).toBe(null);
+    expect(parseDaemonVersion('{}')).toBe(null);
+  });
+});
+
+describe('cli/commands/self-update isNewerVersionAvailable (deadlock-proof signal)', () => {
+  test('true iff available > installed by semver', async () => {
+    const { isNewerVersionAvailable } = await import('../../cli/commands/self-update.js');
+    expect(isNewerVersionAvailable('3.20.0', '3.21.0')).toBe(true);
+    expect(isNewerVersionAvailable('3.20.0', '3.20.1')).toBe(true);
+    expect(isNewerVersionAvailable('3.21.0', '3.21.0')).toBe(false); // equal
+    expect(isNewerVersionAvailable('3.21.0', '3.20.0')).toBe(false); // older
+  });
+
+  test('false (never upgrade on missing/unparseable data)', async () => {
+    const { isNewerVersionAvailable } = await import('../../cli/commands/self-update.js');
+    expect(isNewerVersionAvailable(null, '3.21.0')).toBe(false);
+    expect(isNewerVersionAvailable('3.20.0', null)).toBe(false);
+    expect(isNewerVersionAvailable('garbage', '3.21.0')).toBe(false);
+  });
+});

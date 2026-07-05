@@ -1,0 +1,50 @@
+name: PR Comments Answered
+
+# Advisory gate (does NOT block merge): flags a PR whose review threads — the
+# inline comments left ON THE DIFF by humans or review bots — have been left
+# unanswered, so "just ignore the nits" stops being a silent option. It applies
+# the `needs-comment-replies` label and re-evaluates whenever a comment/review
+# arrives or the author responds. See AGENTS.md § "Respond to every review
+# comment". This is intentionally NOT a required status check.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_review:
+    types: [submitted, dismissed]
+  pull_request_review_comment:
+    types: [created, edited, deleted]
+  issue_comment:
+    types: [created, edited, deleted]
+
+permissions:
+  contents: read
+  pull-requests: write # apply/remove the needs-comment-replies label
+  issues: write
+
+# Queue the burst of events a single review produces into one run group per PR.
+# This advisory job is cheap, and canceled check-runs still attach to the head
+# SHA as red noise in `gh pr checks`, even when a later run passes.
+concurrency:
+  group: pr-comments-${{ github.event.pull_request.number || github.event.issue.number || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  pr-comments-guard:
+    runs-on: ubuntu-latest
+    # issue_comment fires for plain issues too; only act when it's on a PR.
+    if: ${{ github.event_name != 'issue_comment' || github.event.issue.pull_request }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Unit-test the decision core
+        run: node --test scripts/check-pr-comments-answered.test.mjs
+      - name: Check review threads are answered (advisory)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/check-pr-comments-answered.mjs

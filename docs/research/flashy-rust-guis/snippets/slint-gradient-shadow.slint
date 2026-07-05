@@ -1,0 +1,37 @@
+// Slint: three patterns worth stealing for a console — (1) a theme = a TABLE of
+// gradient brushes; (2) drop-shadow with a spring/overshoot cubic-bezier so panels
+// settle with life; (3) "shadow alpha = f(live metric)" so a halo breathes with load.
+// 8-digit hex is RGBA (trailing alpha byte fades to transparent -> soft neon glow).
+//
+// Source:  https://github.com/slint-ui/slint/blob/master/demos/energy-monitor/ui/theme.slint
+//          https://github.com/slint-ui/slint/blob/master/examples/slide_puzzle/slide_puzzle.slint
+//          https://github.com/slint-ui/slint/blob/master/examples/speedometer/demo.slint
+// License: ⚠️ Slint is TRI-LICENSED (GPLv3 / royalty-free-with-disclosure /
+//          commercial) — NOT MIT for the framework you link against. Individual
+//          example .slint files carry an MIT SPDX header for the example code, but
+//          shipping a Slint app is governed by the tri-license. These are reference
+//          PATTERNS to reimplement in gpui, not code to vendor. Pulled June 2026.
+
+// (1) theme = table of gradient brushes (energy-monitor)
+// lemon-green-gradient: @linear-gradient(135deg, #defb3a75 0%, #defb3a00 100%);
+// slint-blue-gradient:  @linear-gradient(135deg, #6c4bff76 0%, #6c4bff00 100%);
+// ebony-radial-gradient:@radial-gradient(circle, #100F23 0%, #1F1946 100%);
+// background-gradient:  @radial-gradient(circle, #0026ff40 50%, #0025FF00 100%);
+
+// (2) spring/overshoot settle on a shadowed tile (slide_puzzle)
+//   drop-shadow-offset-x: 1px; drop-shadow-offset-y: 1px;
+//   drop-shadow-blur: 3px; drop-shadow-color: #00000040;
+//   animate px, py {
+//       duration: 170ms;
+//       easing: cubic-bezier(0.17, 0.76, 0.4, 1.75);  // final y = 1.75 (>1) -> overshoot
+//   }
+
+// (3) glow whose intensity tracks a live value (speedometer)
+//   inner-circle := Rectangle {
+//       border-radius: self.width / 2;
+//       border-color: @conic-gradient(#020414 67.5deg, #ff0000 121deg, #020414 167deg);
+//       drop-shadow-blur: 25px;
+//       drop-shadow-color: #fe5a5a.with-alpha(0.4 + (0.2 * (speed / 260)));  // halo breathes
+//   }
+//   // animatable gradient angle:
+//   background: @linear-gradient(45deg + touch-animation, #000000 0%, #4d0404 100%);

@@ -1,0 +1,15 @@
+name: swarm-invocation-designer
+description: Designs low-friction, observable multi-agent invocation and fast coordination buses.
+model: gpt-5-codex
+instructions: |
+  Use the swarm-invocation-designer skill. Separate hot-path agent chatter from durable receipts.
+  Produce typed message contracts, latency budgets, invocation affordances, and rollback/kill semantics.
+  Use latency_budget.mjs to test whether the design can feel instantaneous.
+inputs:
+  - operator_intent
+  - agent_catalog
+  - latency_budget
+outputs:
+  - swarm_invocation_spec
+  - message_contracts
+  - latency_report

@@ -60,6 +60,8 @@ export * from './snapshots.js';
 export * from './backup.js';
 export * from './restore.js';
 export * from './attest.js';
+// pd safe — host-safety posture audit (ADR-0088 Phase A)
+export * from './safe.js';
 export * from './shipwright.js';
 export * from './cockpit.js';
 export * from './popper.js';
@@ -71,3 +73,4 @@ export * from './morning.js';
 export * from './backend.js';
 
 export * from './cut.js';
+export * from './embed.js';

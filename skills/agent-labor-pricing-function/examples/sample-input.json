@@ -1,0 +1,58 @@
+{
+  "model": "hybrid",
+  "valueMetric": {
+    "name": "completed fleet task",
+    "unit": "completed-task",
+    "buyerCanPredict": true,
+    "description": "One background fleet agent run that reaches a terminal state (merged PR, closed ticket, or explicit human accept/reject)."
+  },
+  "unitCosts": {
+    "modelTokenCost": 0.18,
+    "toolCompute": 0.06,
+    "overhead": 0.03
+  },
+  "targetMarginPct": 0.3,
+  "pricePoints": [
+    {
+      "tier": "starter",
+      "basePrice": 29,
+      "includedUnits": 100,
+      "overageRatePerUnit": 0.35
+    },
+    {
+      "tier": "team",
+      "basePrice": 219,
+      "includedUnits": 600,
+      "overageRatePerUnit": 0.45
+    },
+    {
+      "tier": "enterprise",
+      "basePrice": 1299,
+      "includedUnits": 5000,
+      "overageRatePerUnit": 0.22
+    }
+  ],
+  "guardrails": {
+    "spendCap": true,
+    "budgetPreview": true,
+    "perTaskEstimate": true,
+    "transparentMetering": true
+  },
+  "personas": [
+    {
+      "name": "solo-founder",
+      "tier": "starter",
+      "monthlyUnits": 60
+    },
+    {
+      "name": "staff-engineer",
+      "tier": "team",
+      "monthlyUnits": 900
+    },
+    {
+      "name": "enterprise-admin",
+      "tier": "enterprise",
+      "monthlyUnits": 3200
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/transformers-js-onnx-pipelines-plan.schema.json",
+  "title": "Transformers.js ONNX Pipeline Plan",
+  "description": "A structured plan for a Transformers.js integration -- pipeline type, environment, caching, and logits-access decisions -- so this skill's Quality Gates can be checked deterministically by scripts/transformers_js_onnx_pipelines_audit.mjs.",
+  "type": "object",
+  "required": ["pipelineType", "environment", "runsInCI"],
+  "additionalProperties": true,
+  "properties": {
+    "pipelineType": {
+      "type": "string",
+      "enum": ["bi-encoder", "cross-encoder", "classification"],
+      "description": "The shape of the pipeline: sentence embeddings (bi-encoder), (query, candidate) reranking (cross-encoder), or single-input classification."
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["node", "browser"],
+      "description": "Where inference runs."
+    },
+    "runsInCI": {
+      "type": "boolean",
+      "description": "Whether this pipeline is also exercised in CI (tests, corpus builds)."
+    },
+    "usesHighLevelPipeline": {
+      "type": "boolean",
+      "description": "True if the integration goes through pipeline() rather than AutoTokenizer + AutoModel* directly."
+    },
+    "readsRawLogits": {
+      "type": "boolean",
+      "description": "True if scores are read from outputs.logits.data directly (required for single-logit cross-encoder heads)."
+    },
+    "maxCandidateTokens": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Upper bound on candidate text length in tokens fed to a cross-encoder; must fit the 512-token joint (query, candidate) limit."
+    },
+    "pooling": {
+      "type": "string",
+      "enum": ["mean", "cls", "none"],
+      "description": "Pooling strategy for bi-encoder sentence embeddings."
+    },
+    "normalizeEmbeddings": {
+      "type": "boolean",
+      "description": "True if embeddings are L2-normalized so cosine equals dot product."
+    },
+    "lazyLoadPromiseCached": {
+      "type": "boolean",
+      "description": "True if the model load Promise is created lazily inside a function and cached so concurrent first calls share one download."
+    },
+    "allowLocalModels": {
+      "type": "boolean",
+      "description": "The value of env.allowLocalModels. Must be false in CI or the SDK fails looking for on-disk model files."
+    },
+    "cacheDirConfigured": {
+      "type": "boolean",
+      "description": "True if env.cacheDir is set to an explicit, controllable path."
+    },
+    "ciCachePersisted": {
+      "type": "boolean",
+      "description": "True if the model cache directory is persisted across CI runs (e.g. actions/cache)."
+    },
+    "persistsVectors": {
+      "type": "boolean",
+      "description": "True if embedding vectors are stored (Float32Array buffers, DB, files) rather than used-and-dropped."
+    },
+    "copiesOutputBuffer": {
+      "type": "boolean",
+      "description": "True if outputs are copied on capture (new Float32Array(out.data)) rather than holding a view into a reused tensor buffer."
+    },
+    "modelVersionPinned": {
+      "type": "boolean",
+      "description": "True if the exact model id/revision is pinned in code, never 'latest'."
+    },
+    "quantized": {
+      "type": "boolean",
+      "description": "True if the quantized model variant is used ({ quantized: true })."
+    },
+    "fullPrecisionJustified": {
+      "type": "boolean",
+      "description": "True if a measured accuracy regression justifies full-precision weights over quantized."
+    },
+    "ciSmokeTest": {
+      "type": "boolean",
+      "description": "True if CI runs the model on a few known queries every build and asserts stable results."
+    }
+  }
+}

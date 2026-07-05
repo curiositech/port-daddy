@@ -1,0 +1,307 @@
+#!/bin/sh
+# pd-hook-pre-tool — PreToolUse tentacle (ADR-0091, Giant Squid Harness)
+# =============================================================================
+# Multi-vendor PreToolUse gate. Invoked BEFORE a tool runs, with the event JSON
+# on stdin. This is the QUARTERMASTER (file locks) tentacle and the load-bearing
+# L2 edit-moment gate of the harness. If the requested file target is locked in
+# the Ink Cloud by a DIFFERENT actor, the repo's ADR-0092 `suggestibility` dial
+# decides whether we stay advisory, warn, or structurally BLOCK.
+#
+# VENDOR EVENT FORMATS + BLOCK CONTRACTS — verified 2026-06-25 against the actual
+# vendor binaries (gemini.js bundle EVENT_MAPPING; codex rust binary HookEvent
+# wire structs):
+#   Claude Code : { tool_name, tool_input:{ file_path|command }, cwd }.
+#                 BLOCK = exit 2 + stderr (stderr → agent context).
+#   Gemini CLI  : same snake_case shape — gemini's hook layer NORMALIZES to the
+#                 Claude event format (EVENT_MAPPING/TOOL_NAME_MAPPING in the
+#                 bundle). BLOCK = exit 2 + stderr (same as Claude).
+#   Codex CLI   : ALSO snake_case { tool_name, tool_input, tool_use_id, cwd,
+#                 hook_event_name } — confirmed by strings on the codex binary:
+#                 "tool_name" / "tool_input" / "hook_event_name" are the hook
+#                 input fields (the camelCase toolName/toolInput keys are Codex's
+#                 *app-server* protocol, a DIFFERENT surface). Codex supports the
+#                 SAME exit-2 + stderr block: the binary literally checks
+#                 "PreToolUse hook exited with code 2 but did not write a blocking
+#                 reason to stderr". It ALSO accepts exit-0 + stdout JSON
+#                 hookSpecificOutput.permissionDecision:"deny" with a non-empty
+#                 permissionDecisionReason.
+#
+# CODEX apply_patch PATH GAP (fixed 2026-06-26): Codex's primary edit tool is
+# `apply_patch`, whose tool_input is { "command": ["apply_patch", "<patch text>"] }
+# — there is NO top-level file_path. The touched paths live INSIDE the patch text
+# after the envelope markers "*** Update File: <p>" / "*** Add File: <p>" /
+# "*** Delete File: <p>" / "*** Move to: <p>" (markers verified from the codex
+# rust binary; multi-file confirmed from the live --json `file_change` item's
+# changes[].path array). A file_path-only probe MISSES every apply_patch edit, so
+# below we ALSO harvest every File: path from the patch body and gate ALL of them.
+#
+# We therefore default to the universal exit-2 + stderr contract (works for all
+# three). When the event is the Codex *app-server* camelCase shape (toolName,
+# no snake_case tool_name), we instead emit the deny-JSON contract so that
+# surface is covered too. Both are first-class for Codex.
+#
+# Failure posture: on ANY parse error we fail OPEN (exit 0) — we never crash the
+# CLI loop. A missed lock is degraded coordination; a crashed loop is a broken
+# product (ADR §Mitigation).
+set -u
+
+PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
+MATRIX="${PD_MATRIX_FILE:-$PD_HOME/matrix.env}"
+# This agent's identity; the daemon sets PD_ACTOR per voyage. Unknown → "".
+SELF="${PD_ACTOR:-}"
+
+EVENT="$(cat 2>/dev/null || true)"
+[ -n "$EVENT" ] || exit 0          # no event → nothing to gate, allow
+[ -f "$MATRIX" ] || exit 0         # no matrix → no locks, allow
+
+normalize_suggestibility() {
+  LEVEL="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+  case "$LEVEL" in
+    advisory|warn|enforce) printf '%s' "$LEVEL" ;;
+    *) printf '' ;;
+  esac
+}
+
+json_suggestibility_level() {
+  CFG="$1"
+  [ -f "$CFG" ] || return 0
+  if command -v jq >/dev/null 2>&1; then
+    jq -r '.suggestibility.level // .suggestibility // empty' "$CFG" 2>/dev/null || true
+    return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$CFG" <<'PY' 2>/dev/null || true
+import json
+import sys
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as fh:
+        data = json.load(fh)
+    if not isinstance(data, dict):
+        raise SystemExit
+    value = data.get("suggestibility")
+    if isinstance(value, dict):
+        value = value.get("level")
+    if isinstance(value, str):
+        print(value)
+except Exception:
+    pass
+PY
+    return 0
+  fi
+  # No JSON parser is available. Fail closed by returning no repo-level dial; the
+  # caller will keep the default structural `enforce` gate instead of letting a
+  # raw text scan lower policy from malformed config.
+  return 0
+}
+
+event_cwd() {
+  if command -v jq >/dev/null 2>&1; then
+    CAND="$(printf '%s' "$EVENT" | jq -r '.cwd // .workspaceRoot // .workspace_root // empty' 2>/dev/null || true)"
+    [ -n "$CAND" ] && { printf '%s' "$CAND"; return 0; }
+  fi
+  printf '%s' "$EVENT" \
+    | sed -n -E 's/.*"(cwd|workspaceRoot|workspace_root)"[[:space:]]*:[[:space:]]*"([^"]*)".*/\2/p' \
+    | head -n1
+}
+
+config_suggestibility_level() {
+  START="$EVENT_CWD"
+  case "$START" in
+    /*) DIR="$START" ;;
+    *) DIR="$(pwd 2>/dev/null || printf '.')" ;;
+  esac
+
+  while [ -n "$DIR" ] && [ "$DIR" != "/" ]; do
+    for CFG in "$DIR/agent.config.json" "$DIR/.portdaddy/suggestibility.json" "$DIR/.portdaddy/project.json"; do
+      RAW="$(json_suggestibility_level "$CFG" | head -n1)"
+      LEVEL="$(normalize_suggestibility "$RAW")"
+      [ -n "$LEVEL" ] && { printf '%s' "$LEVEL"; return 0; }
+    done
+    NEXT="$(dirname "$DIR" 2>/dev/null || printf '/')"
+    [ "$NEXT" = "$DIR" ] && break
+    DIR="$NEXT"
+  done
+  printf ''
+}
+
+EVENT_CWD="$(event_cwd)"
+SUGGESTIBILITY="$(normalize_suggestibility "${PD_SUGGESTIBILITY:-}")"
+[ -n "$SUGGESTIBILITY" ] || SUGGESTIBILITY="$(config_suggestibility_level)"
+# Preserve ADR-0091 behavior for repos that installed the hook before declaring
+# ADR-0092's dial: a real foreign lock remains a structural edit gate by default.
+[ -n "$SUGGESTIBILITY" ] || SUGGESTIBILITY="enforce"
+TARGET_BASE_CWD=""
+case "$EVENT_CWD" in
+  /*) TARGET_BASE_CWD="$EVENT_CWD" ;;
+esac
+
+# ── Detect the camelCase Codex app-server shape (deny-JSON contract). ────────
+# Standard hook input (Claude/Gemini/Codex-hooks) is snake_case tool_name. Only
+# the Codex app-server camelCase event (toolName, NO tool_name) needs the JSON
+# deny contract. Everything else gets the universal exit-2 + stderr block.
+CAMEL=0
+case "$EVENT" in
+  *'"tool_name"'*) CAMEL=0 ;;       # snake_case → exit-2 contract
+  *'"toolName"'*) CAMEL=1 ;;        # camelCase app-server → deny-JSON contract
+  *) CAMEL=0 ;;
+esac
+
+# ── Extract the tool name + ALL candidate file targets from the event ─────────
+# Most tools carry a single file_path. Codex `apply_patch` is the exception: its
+# tool_input is { "command": ["apply_patch", "<patch text>"] } and the touched
+# paths live INSIDE the patch text after the envelope markers — verified against
+# the codex v0.139.0 rust binary (strings show `{"command":["apply_patch","***
+# Begin Patch\n*** Update File: path...`) AND the live --json file_change item
+# shape ({changes:[{path,kind}]}). So a single file_path probe MISSES every
+# apply_patch edit. We therefore collect a NEWLINE-LIST of targets:
+#   1. the standard file_path/path/notebook_path field (Claude/Gemini/most tools)
+#   2. every `*** Update|Add|Delete|Move (to)? File:` path in an apply_patch body
+# and lock-check each. One foreign-locked path in the set blocks the whole call.
+TOOL=""
+if command -v jq >/dev/null 2>&1; then
+  TOOL="$(printf '%s' "$EVENT" | jq -r '.tool_name // .toolName // .tool // empty' 2>/dev/null || true)"
+fi
+# Fall back to a raw sed scan whenever jq is absent OR returned nothing (e.g. the
+# event was not strict JSON). The block decision must never depend on jq parsing.
+if [ -z "$TOOL" ]; then
+  TOOL="$(printf '%s' "$EVENT" \
+    | sed -n 's/.*"tool[_N]ame"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+fi
+
+# (1) standard single-path field (both snake_case and camelCase shapes).
+TARGETS=""
+if command -v jq >/dev/null 2>&1; then
+  STD="$(printf '%s' "$EVENT" | jq -r '
+      .tool_input.file_path
+      // .tool_input.path
+      // .tool_input.notebook_path
+      // .toolInput.file_path
+      // .toolInput.path
+      // .params.file_path
+      // .target
+      // empty' 2>/dev/null || true)"
+else
+  STD="$(printf '%s' "$EVENT" \
+    | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+fi
+[ -n "$STD" ] && TARGETS="$STD"
+
+# (2) Codex apply_patch: pull the patch text out of tool_input.command[1] (or the
+# whole command array as a string) and harvest every File: path from the markers.
+# The patch text arrives JSON-escaped (\n for newlines), so we translate \n → real
+# newlines before scanning. Markers (verified): "*** Update File: <p>",
+# "*** Add File: <p>", "*** Delete File: <p>", "*** Move to: <p>".
+PATCH=""
+if command -v jq >/dev/null 2>&1; then
+  PATCH="$(printf '%s' "$EVENT" | jq -r '
+      ( .tool_input.command // .toolInput.command // empty ) as $c
+      | if ($c|type) == "array" then ($c | join("\n"))
+        elif ($c|type) == "string" then $c
+        else empty end' 2>/dev/null || true)"
+  # Fallback: some surfaces nest the raw patch under .tool_input.patch / .input.
+  [ -n "$PATCH" ] || PATCH="$(printf '%s' "$EVENT" | jq -r '.tool_input.patch // .toolInput.patch // empty' 2>/dev/null || true)"
+fi
+# jq-less (or jq-empty) fallback: scan the raw event for escaped patch markers.
+[ -n "$PATCH" ] || PATCH="$EVENT"
+
+if printf '%s' "$PATCH" | grep -q '\*\*\* '; then
+  # Translate literal "\n" (JSON-escaped) into real newlines so per-line sed works,
+  # then extract the path following each File marker.
+  PATCH_PATHS="$(printf '%s' "$PATCH" \
+    | sed 's/\\n/\n/g' \
+    | sed -n -E 's/^[*]{3} (Update File|Add File|Delete File|Move to): (.+)$/\2/p' \
+    | sed -E 's/[[:space:]]+$//')"
+  if [ -n "$PATCH_PATHS" ]; then
+    TARGETS="$(printf '%s\n%s' "$TARGETS" "$PATCH_PATHS")"
+  fi
+fi
+
+# Trim blank lines; no targets at all (Bash/Grep/run_shell_command) → allow.
+TARGETS="$(printf '%s\n' "$TARGETS" | sed '/^[[:space:]]*$/d')"
+[ -n "$TARGETS" ] || exit 0
+
+# ── Compute the canonical PD_LOCK_<path> key (matches lib/squid/matrix.ts) ──
+# keySuffix(): non-alnum → "_", trim "_", uppercase, cap 80. Mirror it in sed.
+suffix() {
+  printf '%s' "$1" \
+    | sed -E 's/[^A-Za-z0-9]+/_/g; s/^_+//; s/_+$//' \
+    | tr '[:lower:]' '[:upper:]' \
+    | cut -c1-80
+}
+
+# Check every candidate path. The FIRST one foreign-locked blocks the whole call —
+# an apply_patch that touches one locked file must not slip the rest through.
+BLOCK_TARGET=""
+BLOCK_OWNER=""
+while IFS= read -r CAND; do
+  [ -n "$CAND" ] || continue
+  CHECKS="$CAND"
+  case "$CAND" in
+    /*) ;;
+    *) [ -n "$TARGET_BASE_CWD" ] && CHECKS="$(printf '%s\n%s/%s' "$CHECKS" "$TARGET_BASE_CWD" "$CAND")" ;;
+  esac
+  while IFS= read -r LOCK_CAND; do
+    [ -n "$LOCK_CAND" ] || continue
+    LOCK_KEY="PD_LOCK_$(suffix "$LOCK_CAND")"
+    LINE="$(grep -E "^${LOCK_KEY}=" "$MATRIX" 2>/dev/null | head -n1 || true)"
+    [ -n "$LINE" ] || continue       # this path not locked → keep checking
+    OWNER="$(printf '%s' "$LINE" | sed -E 's/^[A-Za-z0-9_]+="?//; s/"$//')"
+    [ -n "$OWNER" ] || continue      # owner unknowable → not a foreign block
+    # Locked by US → allow our own edit; keep checking the remaining paths.
+    if [ -n "$SELF" ] && [ "$OWNER" = "$SELF" ]; then
+      continue
+    fi
+    BLOCK_TARGET="$LOCK_CAND"
+    BLOCK_OWNER="$OWNER"
+    break
+  done <<EOF_CANDIDATES
+$CHECKS
+EOF_CANDIDATES
+  [ -n "$BLOCK_TARGET" ] && break
+done <<EOF
+$TARGETS
+EOF
+
+# Nothing foreign-locked → allow.
+[ -n "$BLOCK_TARGET" ] || exit 0
+
+# ── Respond in the contract the calling surface understands. ─────────────────
+REASON="[PORT DADDY L2] coordinate-before-you-cut: ${TOOL:-tool} on '${BLOCK_TARGET}' is locked by actor '${BLOCK_OWNER}'. Another voyage holds this file. Coordinate via 'pd note' / wait for the lock to release before editing."
+
+if [ "$SUGGESTIBILITY" = "advisory" ]; then
+  exit 0
+fi
+
+if [ "$SUGGESTIBILITY" = "warn" ]; then
+  if [ "$CAMEL" -eq 1 ]; then
+    ESCAPED="$(printf '%s' "$REASON" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
+    printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s","decision":"ask","message":"%s"}}\n' "$ESCAPED" "$ESCAPED"
+    exit 0
+  fi
+  echo "[PORT DADDY L2] WARNING: $REASON" >&2
+  echo "Suggestibility is warn; this would be blocked when suggestibility=enforce." >&2
+  exit 0
+fi
+
+if [ "$CAMEL" -eq 1 ]; then
+  # camelCase stdin (toolName) is sent by TWO surfaces with DIFFERENT deny keys:
+  #   - Codex app-server: { hookSpecificOutput: { permissionDecision:"deny",
+  #     permissionDecisionReason } } — codex requires a NON-EMPTY reason.
+  #   - Antigravity/Gemini-CLI (agy): { hookSpecificOutput: { decision:"block",
+  #     message } } — verified from agy's own gemini-kit `scout-block.js` hook,
+  #     whose live block emits exactly this shape on stdout, exit 0.
+  # We emit a SUPERSET object carrying BOTH key pairs (+ hookEventName) so the same
+  # stdout JSON satisfies whichever surface is reading. Extra keys are ignored by
+  # each side; the one it needs is present and non-empty.
+  ESCAPED="$(printf '%s' "$REASON" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s","decision":"block","message":"%s"}}\n' "$ESCAPED" "$ESCAPED"
+  exit 0
+fi
+
+# Universal contract (Claude / Gemini / Codex-hooks): exit 2 + stderr.
+# The blocking reason MUST be on stderr (Codex binary rejects exit-2 with no
+# stderr: "exited with code 2 but did not write a blocking reason to stderr").
+echo "[PORT DADDY L2] BLOCKED: ${TOOL:-tool} on '${BLOCK_TARGET}' is locked by actor '${BLOCK_OWNER}'." >&2
+echo "Another voyage holds this file. Coordinate via 'pd note' / wait for the lock to release before editing." >&2
+exit 2

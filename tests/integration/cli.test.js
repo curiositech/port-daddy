@@ -417,90 +417,6 @@ describe('CLI Integration Tests', () => {
     });
   });
 
-  describe('Dashboard Terminal Command Parity', () => {
-    let html, dashboardCommands, cliOnlyCommands;
-
-    const knownCliCommands = [
-      'claim', 'release', 'find', 'ps', 'url', 'env',
-      'pub', 'sub', 'wait', 'lock', 'unlock', 'locks',
-      'up', 'down',
-      'scan', 'projects',
-      'agent', 'agents',
-      'log', 'activity',
-      'start', 'stop', 'restart', 'status',
-      'install', 'uninstall', 'dev', 'ci-gate',
-      'doctor', 'version', 'help'
-    ];
-
-    beforeAll(() => {
-      html = readFileSync(join(import.meta.dirname, '../../public/index.html'), 'utf8');
-
-      // Parse COMMANDS — supports both old object format and new array format
-      const oldStart = html.indexOf('var COMMANDS = {');
-      if (oldStart !== -1) {
-        let depth = 0;
-        let end = oldStart;
-        for (let i = oldStart; i < html.length; i++) {
-          if (html[i] === '{') depth++;
-          if (html[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
-        }
-        const block = html.slice(oldStart, end + 1);
-        const keyMatches = block.match(/^\s+(\w+)\s*:/gm);
-        dashboardCommands = keyMatches
-          ? keyMatches.map(m => m.trim().replace(/:$/, ''))
-          : [];
-      } else {
-        // New array format: var COMMANDS=[{cmd:'claim',...},...]
-        const arrayStart = html.indexOf('var COMMANDS = [');
-        if (arrayStart !== -1) {
-          let depth = 0, end = arrayStart;
-          for (let i = arrayStart; i < html.length; i++) {
-            if (html[i] === '[') depth++;
-            if (html[i] === ']') { depth--; if (depth === 0) { end = i; break; } }
-          }
-          const block = html.slice(arrayStart, end + 1);
-          const cmdMatches = block.match(/cmd\s*:\s*'([^']+)'/g);
-          dashboardCommands = cmdMatches
-            ? cmdMatches.map(m => m.replace(/cmd\s*:\s*'/, '').replace(/'$/, ''))
-            : [];
-        }
-      }
-
-      const cliOnlyMatch = html.match(/(?:const|var)\s+CLI_ONLY\s*=\s*\[([^\]]+)\]/);
-      cliOnlyCommands = cliOnlyMatch
-        ? cliOnlyMatch[1].match(/'(\w[\w-]*)'/g).map(m => m.replace(/'/g, ''))
-        : [];
-    });
-
-    test('dashboard COMMANDS object is not empty', () => {
-      expect(dashboardCommands.length).toBeGreaterThan(5);
-    });
-
-    test('dashboard CLI_ONLY array is not empty', () => {
-      expect(cliOnlyCommands.length).toBeGreaterThan(3);
-    });
-
-    test('every known CLI command is either in COMMANDS or CLI_ONLY', () => {
-      const covered = new Set([...dashboardCommands, ...cliOnlyCommands]);
-      const exceptions = ['sub', 'wait', 'url', 'env', 'agent', 'version'];
-      const missing = knownCliCommands.filter(cmd =>
-        !covered.has(cmd) && !exceptions.includes(cmd)
-      );
-      expect(missing).toEqual([]);
-    });
-
-    test('CLI_ONLY and COMMANDS do not overlap', () => {
-      const overlap = cliOnlyCommands.filter(cmd => dashboardCommands.includes(cmd));
-      expect(overlap).toEqual([]);
-    });
-
-    test('CLI-only commands get a helpful message, not "Unknown command"', () => {
-      // Verify dashboard HTML directly — no HTTP request needed (ephemeral daemon may be socket-only)
-      expect(html).toContain('is a CLI-only command');
-      expect(html).toContain('Run it in your terminal');
-    });
-  });
-
   describe('CLI Syntactic Sugar', () => {
     const aliasId = `test-alias-${Date.now()}`;
 
@@ -1192,6 +1108,60 @@ describe('CLI Integration Tests', () => {
       expect(data.identity).toBe('port-daddy:test:stale-whoami');
 
       runCli(['done', '--session', beginData.sessionId]);
+    });
+
+    test('pd session takeover makes the successor the current noteable context', () => {
+      const beginResult = runCli([
+        'begin',
+        'Takeover context continuity',
+        '--identity',
+        'port-daddy:test:takeover-context',
+        '--lifecycle',
+        'durable',
+        '--json',
+      ]);
+      expect(beginResult.success).toBe(true);
+      const beginData = JSON.parse(beginResult.stdout);
+
+      const takeoverResult = runCli([
+        'session',
+        'takeover',
+        beginData.sessionId,
+        'same shell continues',
+        '--json',
+      ]);
+      expect(takeoverResult.success).toBe(true);
+      const takeoverData = JSON.parse(takeoverResult.stdout);
+      expect(takeoverData.success).toBe(true);
+      expect(takeoverData.predecessorId).toBe(beginData.sessionId);
+      expect(takeoverData.successorId).toMatch(/^session-takeover-context-continuity-/);
+      expect(takeoverData.session.agentId).toBe(beginData.agentId);
+
+      const whoamiResult = runCli(['whoami', '--json']);
+      expect(whoamiResult.success).toBe(true);
+      const whoami = JSON.parse(whoamiResult.stdout);
+      expect(whoami.active).toBe(true);
+      expect(whoami.agentId).toBe(beginData.agentId);
+      expect(whoami.sessionId).toBe(takeoverData.successorId);
+
+      const noteResult = runCli(['note', '--content', 'successor note after takeover', '--json']);
+      expect(noteResult.success).toBe(true);
+      const noteData = JSON.parse(noteResult.stdout);
+      expect(noteData.success).toBe(true);
+      expect(noteData.sessionId).toBe(takeoverData.successorId);
+
+      const doneResult = runCli([
+        'done',
+        'Result: takeover context regression complete - not-applicable: integration test cleanup',
+        '--skip-origin-check',
+        '--reason',
+        'takeover context regression test',
+        '--json',
+      ]);
+      expect(doneResult.success).toBe(true);
+      const doneData = JSON.parse(doneResult.stdout);
+      expect(doneData.success).toBe(true);
+      expect(doneData.sessionId).toBe(takeoverData.successorId);
     });
 
     test('pd session files add uses stored session context across worktree drift', async () => {

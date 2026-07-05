@@ -1,4 +1,18 @@
 <!--
+  ⛔ TWO REQUIRED, FAIL-CLOSED CHECKS — fill these in or the PR is bounced and
+  cannot enter the merge queue:
+    1. pr-requirements-guard → a real `## Summary` (≥10 words) and `## Test Plan`
+       (≥12 words: commands + their output) below. A visual-surface change also
+       needs a screenshot AND a GIF/recording (or a visual-exempt marker — see
+       the Visual Proof section / CONTRIBUTING.md).
+    2. roadmap-link → exactly one `Roadmap-Item:` trailer near the bottom: a known
+       slug, or `none — <reason>` for a chore/docs/hotfix. No slug yet? Run
+       `npx tsx scripts/roadmap-link.ts <pr-number>` to create + stamp it.
+  Self-check before you push:
+    npm run check:pr-requirements -- --body-file <this-draft.md>
+-->
+
+<!--
   Port Daddy PR template. The headings below are load-bearing: the
   `pr-requirements-guard` CI job (scripts/check-pr-requirements.mjs) parses
   ## Summary and ## Test Plan and FAILS the merge queue if either is missing or
@@ -85,6 +99,28 @@
   Not a doc/plan PR? Delete this guidance; this section is advisory and not
   machine-gated, so no marker is needed.
 -->
+
+## Roadmap link
+
+<!--
+  The Roadmap Link Gate (non-blocking CI) reads ONE trailer line below. Put the
+  PR on the roadmap so merges write back to a tracked item — or opt out with a
+  reason. No item yet? Create it and stamp this PR in one step (daemon required):
+      npx tsx scripts/roadmap-link.ts <this-pr-number>
+  Without a valid line, this PR gets the `needs-roadmap-link` label and waits for
+  a human to approve the land.
+
+  Use exactly one of:
+    Roadmap-Item: <slug>
+    Roadmap-Item: none — <reason>     (chore/docs/hotfix)
+
+  PLANNING DOCS (a new ADR, a PLAN/ROADMAP file, a docs/ proposal) must ALSO
+  enumerate the downstream items they spawn — a plan exists to create work:
+    Roadmap-Spawns: <slug-a>, <slug-b>
+    Roadmap-Spawns: none — <reason>   (supersedes/clarifies only, no new work)
+-->
+
+Roadmap-Item:
 
 ## Changelog & Parsimony
 

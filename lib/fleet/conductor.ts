@@ -470,9 +470,9 @@ export function createConductor(deps: ConductorDeps) {
       capabilities_json, bond_usd, lineage_ceiling_usd, worktree, merge_policy,
       created_at
     ) VALUES (
-      @id, @rootId, @parentId, @depth, @goal, @source, @backend, @state,
-      @capabilitiesJson, @bondUsd, @lineageCeilingUsd, @worktree, @mergePolicy,
-      @createdAt
+      ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?,
+      ?
     )
   `);
   const selectByIdStmt = db.prepare<[string], LaunchRow>(
@@ -489,14 +489,14 @@ export function createConductor(deps: ConductorDeps) {
   );
   const setStateStmt = db.prepare(`
     UPDATE fleet_launches
-       SET state = @state,
-           agent_id = COALESCE(@agentId, agent_id),
-           cost_usd = COALESCE(@costUsd, cost_usd),
-           result_artifact = COALESCE(@resultArtifact, result_artifact),
-           error_message = COALESCE(@errorMessage, error_message),
-           refused_reason = COALESCE(@refusedReason, refused_reason),
-           settled_at = COALESCE(@settledAt, settled_at)
-     WHERE id = @id
+       SET state = ?,
+           agent_id = COALESCE(?, agent_id),
+           cost_usd = COALESCE(?, cost_usd),
+           result_artifact = COALESCE(?, result_artifact),
+           error_message = COALESCE(?, error_message),
+           refused_reason = COALESCE(?, refused_reason),
+           settled_at = COALESCE(?, settled_at)
+     WHERE id = ?
   `);
 
   function emit(channel: string, payload: Record<string, unknown>): void {
@@ -693,22 +693,22 @@ export function createConductor(deps: ConductorDeps) {
       }
 
       // All gates passed → write the launch row in `admitted`.
-      insertStmt.run({
+      insertStmt.run(
         id,
-        rootId: resolvedRootId,
+        resolvedRootId,
         parentId,
         depth,
-        goal: intent.goal,
-        source: intent.source,
-        backend: intent.backend,
-        state: 'admitted',
-        capabilitiesJson: JSON.stringify(capabilities),
-        bondUsd: bond > 0 ? bond : null,
-        lineageCeilingUsd: lineageCeiling,
-        worktree: intent.worktree ?? 'inherit',
-        mergePolicy: intent.mergePolicy ?? 'review',
-        createdAt: at,
-      });
+        intent.goal,
+        intent.source,
+        intent.backend,
+        'admitted',
+        JSON.stringify(capabilities),
+        bond > 0 ? bond : null,
+        lineageCeiling,
+        intent.worktree ?? 'inherit',
+        intent.mergePolicy ?? 'review',
+        at,
+      );
       return { launch: get(id)!, reserved };
     });
 
@@ -727,32 +727,23 @@ export function createConductor(deps: ConductorDeps) {
     reason: string,
     at: number,
   ): { launch: Launch; reserved: number } {
-    insertStmt.run({
+    insertStmt.run(
       id,
       rootId,
       parentId,
       depth,
-      goal: intent.goal,
-      source: intent.source,
-      backend: intent.backend,
-      state: 'refused',
-      capabilitiesJson: JSON.stringify(capabilities),
-      bondUsd: bond > 0 ? bond : null,
-      lineageCeilingUsd: intent.lineageCeilingUsd ?? null,
-      worktree: intent.worktree ?? 'inherit',
-      mergePolicy: intent.mergePolicy ?? 'review',
-      createdAt: at,
-    });
-    setStateStmt.run({
-      id,
-      state: 'refused',
-      agentId: null,
-      costUsd: null,
-      resultArtifact: null,
-      errorMessage: null,
-      refusedReason: reason,
-      settledAt: at,
-    });
+      intent.goal,
+      intent.source,
+      intent.backend,
+      'refused',
+      JSON.stringify(capabilities),
+      bond > 0 ? bond : null,
+      intent.lineageCeilingUsd ?? null,
+      intent.worktree ?? 'inherit',
+      intent.mergePolicy ?? 'review',
+      at,
+    );
+    setStateStmt.run('refused', null, null, null, null, reason, at, id);
     return { launch: get(id)!, reserved: 0 };
   }
 
@@ -805,16 +796,16 @@ export function createConductor(deps: ConductorDeps) {
     errorMessage: string | null;
     settledAt: number | null;
   }> = {}): void {
-    setStateStmt.run({
-      id,
+    setStateStmt.run(
       state,
-      agentId: patch.agentId ?? null,
-      costUsd: patch.costUsd ?? null,
-      resultArtifact: patch.resultArtifact ?? null,
-      errorMessage: patch.errorMessage ?? null,
-      refusedReason: null,
-      settledAt: patch.settledAt ?? null,
-    });
+      patch.agentId ?? null,
+      patch.costUsd ?? null,
+      patch.resultArtifact ?? null,
+      patch.errorMessage ?? null,
+      null,
+      patch.settledAt ?? null,
+      id,
+    );
     emit('fleet:state', { launchId: id, state });
   }
 
@@ -925,16 +916,7 @@ export function createConductor(deps: ConductorDeps) {
         breaker.release(GLOBAL_SCOPE, reserved);
       }
       // Record the body's agentId on the (already-halted) row for inspection.
-      setStateStmt.run({
-        id: admitted.id,
-        state: 'halted',
-        agentId: spawnResult.agentId,
-        costUsd: null,
-        resultArtifact: null,
-        errorMessage: null,
-        refusedReason: null,
-        settledAt: now(),
-      });
+      setStateStmt.run('halted', spawnResult.agentId, null, null, null, null, now(), admitted.id);
       return { launch: get(admitted.id)!, admitted: true, refusedReason: null, spawn: spawnResult };
     }
 

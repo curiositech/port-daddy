@@ -73,6 +73,10 @@
     <lastmod>2026-05-17T00:00:00Z</lastmod>
   </url>
   <url>
+    <loc>https://portdaddy.dev/blog/the-macaroon-gate</loc>
+    <lastmod>2026-06-16T00:00:00Z</lastmod>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/blog/the-pr-that-reviews-itself</loc>
     <lastmod>2026-05-20T00:00:00Z</lastmod>
   </url>
@@ -108,16 +112,10 @@
     <loc>https://portdaddy.dev/docs/cli/advise</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/docs/cli/agent</loc>
-  </url>
-  <url>
     <loc>https://portdaddy.dev/docs/cli/agent-heartbeat-unregister-inbox</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/agent-register</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/docs/cli/agent-run</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/agents</loc>
@@ -385,12 +383,6 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/snapshots</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/docs/cli/sortie</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/docs/cli/sortie-list-status-logs</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/spawn</loc>
@@ -732,7 +724,7 @@
     <loc>https://portdaddy.dev/examples</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/examples/agent-archetypes</loc>
+    <loc>https://portdaddy.dev/examples/agent-topologies</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/examples/editor-lightbulb-to-agent</loc>
@@ -754,6 +746,9 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/examples/webhook-to-local-agent</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/harness</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/integrations</loc>
@@ -793,6 +788,15 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/pd-tube</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/scout</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/security</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/squid-codex</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/tutorials</loc>

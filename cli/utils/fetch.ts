@@ -9,7 +9,7 @@ import http from 'node:http';
 import type { IncomingMessage, ClientRequest } from 'node:http';
 
 import { DEFAULT_SOCK, DEFAULT_PORT_FILE } from '../../shared/paths.js';
-import { CANONICAL_TCP_PORT, LOOPBACK_TCP_HOST, getDaemonTcpUrl, readDaemonPort, resolveDaemonTarget } from '../../shared/daemon-discovery.js';
+import { CANONICAL_TCP_PORT, LOOPBACK_TCP_HOST, getDaemonTcpUrl, readDaemonPort, resolveDaemonTarget, resolveDaemonTcpTarget } from '../../shared/daemon-discovery.js';
 import type { DaemonTarget } from '../../shared/daemon-discovery.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE;
@@ -33,6 +33,7 @@ export interface FetchOptions {
   headers?: Record<string, string | number>;
   body?: string | null;
   timeout?: number;
+  transport?: 'auto' | 'tcp';
 }
 
 /**
@@ -57,6 +58,12 @@ export function getDaemonUrl(): string {
 
 function requestTarget(target: ConnectionTarget, path: string, options: FetchOptions): Promise<PdFetchResponse> {
   const { method = 'GET', headers = {}, body = null, timeout = 10000 } = options;
+  const requestPath = path.startsWith('http://') || path.startsWith('https://')
+    ? new URL(path).pathname + (new URL(path).search || '')
+    : path;
+  const safeTarget: ConnectionTarget = target.socketPath && /^https?:\/\//.test(target.socketPath)
+    ? { host: LOOPBACK_TCP_HOST, port: readDaemonPort(PORT_FILE) }
+    : target;
 
   const reqHeaders: Record<string, string | number> = { ...headers };
   if (body && !reqHeaders['Content-Length']) {
@@ -66,14 +73,13 @@ function requestTarget(target: ConnectionTarget, path: string, options: FetchOpt
   return new Promise((resolve, reject) => {
     const reqOpts: http.RequestOptions = {
       method,
-      path,
+      path: requestPath,
       headers: reqHeaders as http.OutgoingHttpHeaders,
       timeout,
-      ...(target.socketPath
-        ? { socketPath: target.socketPath }
-        : { host: target.host, port: target.port }),
+      ...(safeTarget.socketPath
+        ? { socketPath: safeTarget.socketPath }
+        : { host: safeTarget.host, port: safeTarget.port }),
     };
-
     const req: ClientRequest = http.request(reqOpts, (res: IncomingMessage) => {
       const chunks: Buffer[] = [];
       res.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -132,7 +138,9 @@ function isDaemonDownError(error: unknown): boolean {
 const DAEMON_RECONNECT_DELAYS_MS: readonly number[] = [200, 400, 800, 1500];
 
 function singleRequest(path: string, options: FetchOptions): Promise<PdFetchResponse> {
-  const target: ConnectionTarget = resolveTarget();
+  const target: ConnectionTarget = options.transport === 'tcp'
+    ? resolveDaemonTcpTarget(process.env.PORT_DADDY_URL)
+    : resolveTarget();
   return requestTarget(target, path, options).catch((error: unknown) => {
     if (!target.socketPath || process.env.PORT_DADDY_URL || !shouldFallbackFromSocket(error)) {
       throw error;

@@ -1,0 +1,18 @@
+name: product-appeal-analyzer
+description: Evaluates product desirability, positioning, and emotional resonance against the Desirability Triangle, then validates a structured scorecard deterministically.
+model: gpt-5-codex
+instructions: |
+  Use the product-appeal-analyzer skill. For each target persona, score the
+  Desirability Triangle (identityFit, problemUrgency, trustSignals, each
+  0-10 on its three sub-fields) and the 5-Second Test (category/forWho/
+  promise/cta booleans). Flag trustLadderViolation, identityMismatch,
+  featureSoupHeadline, and screenshotHero honestly rather than optimistically.
+  Write the result as a spec matching schemas/appeal-spec.schema.json, then
+  run scripts/appeal_audit.mjs to score it deterministically before handing
+  the analysis to a reviewer.
+inputs:
+  - landing_page_or_product_page
+  - target_personas
+outputs:
+  - appeal_analysis_markdown
+  - appeal_scorecard_json

@@ -41,7 +41,7 @@ export function DocsSidebar() {
       description: 'Tools an MCP agent (Claude, Cursor, Windsurf) can call directly.',
       featured: [
         { title: 'begin_session', href: '/docs/mcp/begin-session' },
-        { title: 'spawn_agent', href: '/docs/mcp/spawn-agent' },
+        { title: 'spawn', href: '/docs/mcp/spawn' },
         { title: 'salvage', href: '/docs/mcp/salvage' },
       ],
     },

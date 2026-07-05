@@ -1,0 +1,61 @@
+{
+  "capabilities": [
+    {
+      "name": "capture-region-with-evidence",
+      "assignedSurface": "scout",
+      "distance": "intake",
+      "evidenceScreens": 1,
+      "daemonEnforceable": true,
+      "busSubscription": "cool"
+    },
+    {
+      "name": "ask-agent-scoped-reply",
+      "assignedSurface": "scout",
+      "distance": "intake",
+      "evidenceScreens": 1,
+      "daemonEnforceable": true,
+      "busSubscription": "cool"
+    },
+    {
+      "name": "approve-deny-human-gate",
+      "assignedSurface": "fleetbar",
+      "distance": "ambient",
+      "evidenceScreens": 1,
+      "daemonEnforceable": true,
+      "busSubscription": "hot"
+    },
+    {
+      "name": "roster-digest-glance",
+      "assignedSurface": "fleetbar",
+      "distance": "ambient",
+      "evidenceScreens": 1,
+      "daemonEnforceable": true,
+      "busSubscription": "hot"
+    },
+    {
+      "name": "resume-recent-session",
+      "assignedSurface": "fleetbar",
+      "distance": "ambient",
+      "evidenceScreens": 1,
+      "daemonEnforceable": true,
+      "busSubscription": "cool"
+    },
+    {
+      "name": "full-transcript-replay",
+      "assignedSurface": "pd-console",
+      "distance": "deep",
+      "evidenceScreens": 3,
+      "daemonEnforceable": true,
+      "busSubscription": "cool"
+    },
+    {
+      "name": "claims-and-diff-inspection",
+      "assignedSurface": "pd-console",
+      "distance": "deep",
+      "evidenceScreens": 2,
+      "daemonEnforceable": true,
+      "busSubscription": "cool"
+    }
+  ],
+  "surfacesOwnRuntimeState": false
+}

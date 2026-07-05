@@ -3,6 +3,10 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { ArrowDownRight, ArrowRight, ArrowUpRight, BadgeCheck, Compass, FileText } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
+import { NestingDiagram } from '@/components/library/NestingDiagram'
+import { ReadingDag } from '@/components/library/ReadingDag'
+import { SpineChain } from '@/components/library/SpineChain'
+import { ThreeSidedMarket } from '@/components/library/ThreeSidedMarket'
 import {
   BracketLabel,
   PageContainer,
@@ -12,6 +16,7 @@ import {
 } from '@/components/site/primitives'
 import {
   EXPLAIN_PAPERS,
+  LIBRARY_CHANGELOG,
   LIBRARY_SPINE,
   PROVE_PAPERS,
   READING_PATHS,
@@ -20,6 +25,7 @@ import {
   type WhitePaper,
 } from '@/data/whitePapers'
 import { harborEvolutionFigure } from '@/data/manifestoContent'
+import { ThemedImage } from '@/components/site/ThemedImage'
 
 /**
  * The cross-reference relationships, in the order they read on a chapter card.
@@ -224,7 +230,7 @@ export default function LibraryPage() {
               </div>
 
               <figure className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] shadow-[var(--shadow-brutal)]">
-                <img
+                <ThemedImage
                   src="/img/manifesto/seven-papers.webp"
                   alt="A drafting wall pinned with seven blueprint plates: a back row of three stamped with wax seals labelled “three prove,” and a front row of four tugboat schematics labelled “four explain,” with a small robot studying them."
                   className="block aspect-[16/9] w-full object-cover"
@@ -292,7 +298,7 @@ export default function LibraryPage() {
                   → many machines. The three stages are re-stated in words so the
                   figure does not have to be decoded from the numerals alone. */}
               <figure className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] shadow-[var(--shadow-brutal)]">
-                <img
+                <ThemedImage
                   src={harborEvolutionFigure.src}
                   alt={harborEvolutionFigure.alt}
                   className="block w-full border-b-2 border-[var(--border-strong)] object-cover"
@@ -342,6 +348,33 @@ export default function LibraryPage() {
                   ))}
                 </div>
               </div>
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* ── ADR-0048 figures — the architecture, drawn ── */}
+        <section
+          id="the-architecture-drawn"
+          className="scroll-mt-[var(--space-8)] border-t-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]"
+        >
+          <PageContainer width="wide">
+            <div className="space-y-[var(--space-3)]">
+              <PanelEyebrow>The architecture, drawn</PanelEyebrow>
+              <PanelTitle as="h2" size="section" className="max-w-[18ch]">
+                Four layers, seven chapters, one bond ledger.
+              </PanelTitle>
+              <PanelBody className="max-w-[52ch] text-[length:var(--type-panel-body-size)]">
+                The same shape from four angles &mdash; the nested layers
+                (L0&ndash;L3), the spine that threads the seven chapters, the
+                reading order as a dependency graph, and Chapter IV&rsquo;s
+                three-sided market settling onto one conserving bond ledger.
+              </PanelBody>
+            </div>
+            <div className="mt-[var(--space-5)] grid gap-[var(--space-6)]">
+              <NestingDiagram />
+              <SpineChain />
+              <ReadingDag />
+              <ThreeSidedMarket />
             </div>
           </PageContainer>
         </section>
@@ -422,6 +455,63 @@ export default function LibraryPage() {
                   You need none of the theory for the first benefit. One command,
                   and two agents that used to collide take turns instead.
                 </PanelBody>
+              </div>
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* ── Library changelog: dated release waves, newest first ── */}
+        <section
+          id="library-changelog"
+          className="scroll-mt-[var(--space-8)] border-t-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]"
+        >
+          <PageContainer width="wide">
+            <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.34fr)_minmax(0,0.66fr)]">
+              <div className="space-y-[var(--space-3)]">
+                <PanelEyebrow>Library changelog</PanelEyebrow>
+                <PanelTitle as="h2" size="section" className="max-w-[14ch]">
+                  What changed, and when.
+                </PanelTitle>
+                <PanelBody className="max-w-[44ch] text-[length:var(--text-lg)]">
+                  These papers are living documents: they get argued with, proven
+                  against, and revised in the open. One entry per release wave,
+                  newest first. For the per-objection history of the adversarial
+                  reviews, see{' '}
+                  <Link
+                    to="/whitepaper/rounds"
+                    className="font-black text-[var(--brand-primary)] underline underline-offset-4 hover:no-underline"
+                  >
+                    the review rounds
+                  </Link>
+                  .
+                </PanelBody>
+              </div>
+
+              <div className="grid gap-[var(--space-4)]">
+                {LIBRARY_CHANGELOG.map((entry) => (
+                  <article
+                    key={`${entry.date}-${entry.title}`}
+                    className="grid gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-5)]"
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-[var(--space-2)]">
+                      <time
+                        dateTime={entry.dateIso}
+                        className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]"
+                      >
+                        {entry.date}
+                      </time>
+                      <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                        {entry.chapters.join(' · ')}
+                      </span>
+                    </div>
+                    <h3 className="font-display text-[length:var(--text-xl)] font-black leading-[var(--leading-nav)] text-[var(--text-primary)]">
+                      {entry.title}
+                    </h3>
+                    <p className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                      {entry.summary}
+                    </p>
+                  </article>
+                ))}
               </div>
             </div>
           </PageContainer>

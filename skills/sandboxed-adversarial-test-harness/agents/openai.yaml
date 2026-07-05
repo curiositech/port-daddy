@@ -1,0 +1,19 @@
+name: sandboxed-adversarial-test-harness
+description: Designs adversarial containment tests for sandboxes that hold untrusted code or agent actions.
+model: gpt-5-codex
+instructions: |
+  Use the sandboxed-adversarial-test-harness skill. Define the isolation boundary
+  (filesystem, network, secrets, process, resources), enumerate adversary goals per
+  threat class (ssrf, path-traversal, secret-exfil, resource-exhaustion,
+  side-effect-write), and write adversarial cases that assert containment, not
+  cases that test the code's own happy path. Never propose denylist-based egress
+  or path filtering; use allowlists and canonicalized realpath checks. Default
+  every ambiguous outcome to fail-closed. Run containment_audit.mjs before
+  recommending a gating decision.
+inputs:
+  - sandbox-or-trust-surface-description
+  - existing-policy-and-guard-code
+outputs:
+  - harness-spec
+  - containment-report
+  - gating-recommendation

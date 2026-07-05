@@ -523,7 +523,9 @@ pub struct PushGrant {
     /// The discharge root key. `pub(crate)` so external/FFI code can't read it
     /// out of the struct — key custody is the keystore's job (PR #496 review
     /// finding). Within the crate, `keystore` ignores it (it stores the key it
-    /// generated) and the parity tests still read it.
+    /// generated) and the parity tests still read it. Intentionally unread by the
+    /// non-test lib (it's custodied, not consumed here) — hence `allow(dead_code)`.
+    #[allow(dead_code)]
     pub(crate) caveat_key: Vec<u8>,
 }
 

@@ -13,19 +13,19 @@ import { ArrowRight, Check } from 'lucide-react'
 const STEPS = [
   {
     number: '01',
-    title: 'Install Port Daddy',
-    description: 'Install globally via npm.',
-    code: '$ npm install -g port-daddy',
-    output: '+ port-daddy@3.13.0\nadded 1 package in 3s',
+    title: 'Install Port Daddy and run setup',
+    description: 'Install with Homebrew, then let setup add the app, MCP, hooks, and skills.',
+    code: '$ brew install curiositech/tap/port-daddy\n$ pd setup',
+    output: 'FleetBar installed\nHooks installed\nMCP server configured',
     verifyCommand: '$ pd --version',
-    verifyOutput: 'port-daddy v3.13.0',
+    verifyOutput: 'port-daddy v3.x',
   },
   {
     number: '02',
-    title: 'Start the Daemon',
-    description: 'The daemon runs in the background and manages all coordination.',
-    code: '$ pd start',
-    output: 'Port Daddy daemon started\nSocket: ~/.port-daddy/daemon.sock',
+    title: 'Run Doctor',
+    description: 'Doctor checks FleetBar, the daemon, hooks, MCP, skills, and project wiring.',
+    code: '$ pd doctor',
+    output: 'Port Daddy is healthy\nFleetBar: installed\nHooks: installed',
     verifyCommand: '$ pd status',
     verifyOutput: 'Port Daddy is running\nRuntime: nominal',
   },
@@ -56,7 +56,7 @@ export default function QuickStart() {
         <SectionIntro
           eyebrow="First run"
           title="Get Port Daddy running in four checked commands."
-          description="Install the CLI, start the background service, claim a stable port for a service, and register an agent session. Each command shows the output you should expect before moving on."
+          description="Install Port Daddy, run setup, check it with doctor, claim a stable port, and start your first agent session. Each command shows the output you should expect before moving on."
           titleAs="h1"
           titleSize="section"
           titleClassName="max-w-[16ch]"

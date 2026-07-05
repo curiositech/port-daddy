@@ -9,20 +9,15 @@ Skill Architect is a meta-skill that teaches Claude how to build other skills we
 - **Domain expertise encoding** (shibboleths, anti-patterns, temporal knowledge)
 - **Progressive disclosure architecture** (three-layer loading with lazy references)
 - **Subagent-aware design** (skills that work well when consumed by subagents)
-- **Operating-surface design** (`agents/openai.yaml`, subagent prompts,
-  schemas, visual decision boards, eval fixtures, and sync plans)
-- **Port Daddy-grounded coordination** (sessions, claims, notes, tuples, and
-  workgroup/repo/user-level skill sync)
 
 ## Quick Start
 
 **Creating a new skill**:
 1. Gather 3-5 concrete example queries (what should/shouldn't trigger)
-2. Plan reusable contents (scripts, references, templates, examples, agents,
-   schemas, and assets when justified)
-3. Initialize with `scripts/init_skill.py` and the skill name
-4. Write deterministic support files first, references next, SKILL.md last
-5. Validate with `scripts/validate_skill.py`
+2. Plan reusable contents (`scripts/`, `references/`, and, when justified, `examples/`, `templates/`, `agents/`)
+3. Initialize: `scripts/init_skill.py <skill-name> --path <dir> [--with-mermaid --with-examples --with-templates --with-preflight --fork-context]`
+4. Write preflight scripts first, examples and templates next, references next, SKILL.md last
+5. Validate: `scripts/validate_skill.py <path>`
 6. Iterate based on real-world use
 
 **Improving an existing skill**:
@@ -71,32 +66,19 @@ Skills consumed by subagents should have:
 - Numbered steps (not prose)
 - Output contracts (JSON schema or markdown template)
 - QA/validation checklists
-- Bounded write scopes, no-revert rules, and validation gates
-- Port Daddy session/claim/note/tuple expectations when used in this repo
+- `context: fork` + `agent:` only when isolation or parallel specialists genuinely help
 
 See `references/subagent-design.md` for full patterns.
 
-### Advanced Operating Assets
+### Support Assets
 
-First-party distributed skills should consider:
+Use support assets selectively:
+- `scripts/` for working validators, transformers, or safe read-only preflight scripts
+- `examples/` for concrete finished outputs
+- `templates/` for reusable deliverable shapes
+- `agents/` for forked subagent prompts
 
-- `agents/openai.yaml` for user-facing catalog metadata
-- agent prompt files for narrow delegated specialists
-- `schemas/` for machine-checkable plans, scorecards, and sync records
-- `templates/` for visual decision boards and repeatable handoffs
-- `examples/` or `fixtures/` proving validators and activation boundaries
-- audit scripts that catch deterministic drift
-
-See `references/advanced-structure-and-sync.md`.
-
-### Workgroup Sync
-
-When a skill exists in workgroup, repo, and user-level locations, treat the
-workgroup copy as authoritative. Merge useful local deltas into that source,
-validate it, then mirror to repo-local copies and symlink or mirror user-level
-registries. In Port Daddy repos, coordinate this with `pd status`, `pd
-briefing`, `pd salvage`, a session, file claims, notes, and tuples when another
-agent or watcher needs machine-readable sync state.
+Do not add empty folders or placeholder files just to satisfy a pattern.
 
 ### Shibboleths
 
@@ -114,25 +96,17 @@ skill-architect/
 ├── CHANGELOG.md                      # Version history
 ├── README.md                         # This file
 ├── agents/
-│   ├── openai.yaml                   # User-facing skill UI metadata
-│   ├── affordance-planner.md         # Support-asset planning agent
-│   ├── sync-coordinator.md           # Workgroup/repo/user-level sync agent
-│   └── cross-evaluator.md            # Cross-evaluation agent
-├── schemas/
-│   └── skill-sync-plan.schema.json   # Machine-checkable sync plan
-├── templates/
-│   ├── skill-scorecard.json          # Scorecard skeleton
-│   ├── skill-sync-plan.md            # Sync plan template
-│   └── visual-decision-board.md      # Human review board
+│   └── cross-evaluator.md            # Cross-evaluation agent (inject expertise → evaluate target)
+├── examples/                         # Concrete finished outputs (optional per skill)
 ├── scripts/
-│   ├── audit_skill_operating_system.py # Advanced affordance audit
+│   ├── preflight.sh                  # Safe read-only environment inspection (optional per skill)
 │   ├── validate_mermaid.py           # Mermaid syntax validator (structural, no renderer needed)
 │   ├── validate_skill.py             # Comprehensive skill directory validator
 │   ├── check_self_contained.py       # Phantom reference and orphan file detector
 │   └── init_skill.py                 # Skill scaffolder (creates directory + templates)
+├── templates/                        # Reusable output shapes (optional per skill)
 └── references/
     ├── antipatterns.md               # Shibboleths and case studies
-    ├── advanced-structure-and-sync.md # Interface/subagent/schema/sync doctrine
     ├── claude-extension-taxonomy.md  # Skills vs Plugins vs MCPs vs Hooks (7-type taxonomy)
     ├── description-guide.md          # How to write effective descriptions
     ├── knowledge-engineering.md      # KE methods for extracting expert knowledge
@@ -161,6 +135,7 @@ skill-architect/
 | 8 | Vague Description | Use the description formula |
 | 9 | Eager Loading | Lazy-load references, never "read all first" |
 | 10 | Prose-Only Processes | Use Mermaid for decision trees, workflows, architectures |
+| 11 | Mechanical Folder Sprawl | Add `examples/`, `templates/`, or `agents/` only when they improve the skill |
 
 ## Success Metrics
 
@@ -173,8 +148,6 @@ skill-architect/
 
 ## Version History
 
-- **v2.4.0** (2026-04-24) — Workgroup-authoritative sync doctrine, Port Daddy coordination, `agents/openai.yaml`, subagent prompt assets, visual decision/sync templates, sync schema, and advanced operating-surface audit script
-- **v2.3.1** (2026-04-18) — Metadata/authorship doctrine, reference index, scorecard/authorship updates, and Mermaid companion artifacts
 - **v2.3.0** (2026-03-10) — HTML entity fixes across all files; EVALUATION.md phantom suppression; enhanced validators (HTML entity + ILLUSTRATIVE_MARKERS coverage)
 - **v2.2.0** (2026-03-10) — Validation fixes (504→467 lines, phantom fixes, ILLUSTRATIVE_MARKERS); activation-debugging.md added; Visual Artifacts 6th rubric dimension; Mermaid in lifecycle/composition
 - **v2.1.0** (2026-02-05) — Visual artifacts: Mermaid diagram guide, 16+ diagram types, YAML config, anti-pattern #10

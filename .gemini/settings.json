@@ -4,7 +4,7 @@
   },
   "mcpServers": {
     "serena": {
-      "command": "uvx --from git+https://github.com/oraios/serena serena start-mcp-server --context agent --project /Users/erichowens/coding/port-daddy",
+      "command": "uvx --from git+https://github.com/oraios/serena serena start-mcp-server --context agent --project .",
       "args": []
     }
   }

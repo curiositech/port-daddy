@@ -168,4 +168,84 @@ describe('spawn routes preflight', () => {
 
     await app.close();
   });
+
+  // Giant Squid Harness (ADR-0091): the conjure-dispatch posture. The console's
+  // ConjureDispatch arm sends `injectSquidHooks: true`, which the route must
+  // plumb onto the spawner spec so runClaudeCli injects the pd-hook tentacles —
+  // running the vendor CLI under PD coordination (lock-gating + pheromones).
+  test('POST /spawn plumbs injectSquidHooks=true into the spawner spec', async () => {
+    const { app, spawner, register } = buildApp();
+    await register();
+
+    await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      payload: {
+        backend: 'claude-cli',
+        identity: 'port-daddy:repo:cli',
+        task: 'review the diff',
+        budgetUsd: 0.75,
+        injectSquidHooks: true,
+        tubeChannel: 'harness:repo:pilot',
+      },
+    });
+
+    expect(spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
+      injectSquidHooks: true,
+      tubeChannel: 'harness:repo:pilot',
+    }));
+
+    await app.close();
+  });
+
+  test('POST /spawn rejects an invalid tube channel before launching', async () => {
+    const { app, spawner, register } = buildApp();
+    await register();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      payload: {
+        backend: 'claude-cli',
+        identity: 'port-daddy:repo:cli',
+        task: 'review the diff',
+        budgetUsd: 0.75,
+        tubeChannel: 'harness room',
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual(expect.objectContaining({
+      success: false,
+      code: 'VALIDATION_ERROR',
+      error: 'tubeChannel channel contains invalid characters',
+    }));
+    expect(spawner.spawn).not.toHaveBeenCalled();
+
+    await app.close();
+  });
+
+  // Backward-compatible default: a body WITHOUT the flag (the manual Spawn) must
+  // leave injectSquidHooks unset on the spec, so the spawn is byte-for-byte the
+  // historical behaviour (no tentacles injected).
+  test('POST /spawn leaves injectSquidHooks unset when the body omits it', async () => {
+    const { app, spawner, register } = buildApp();
+    await register();
+
+    await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      payload: {
+        backend: 'claude-cli',
+        identity: 'port-daddy:repo:cli',
+        task: 'review the diff',
+        budgetUsd: 0.75,
+      },
+    });
+
+    const spec = spawner.spawn.mock.calls[0][0];
+    expect(spec.injectSquidHooks).toBeUndefined();
+
+    await app.close();
+  });
 });

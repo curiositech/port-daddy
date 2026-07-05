@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 220" width="100%" height="100%" role="img" aria-label="Port Daddy">
+  <!-- SPINNING wordmark lockup, DARK theme. The radar mark spins (nested
+       <svg>); "Port"+p and "Daddy"+d step IN TANDEM through the 6 distinct
+       two-colour pairings of {cobalt, ink, seafoam} via SMIL discrete
+       <animate>. Transparent ground; spin is reduced-motion safe. -->
+  <style>
+    .pd-word { font-family: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 900; }
+    .pd-tag  { font-family: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 700; }
+    .pivot { transform-origin: 150px 150px; }
+    .spin-fwd-slow { animation: pd-spin 10s linear infinite; }
+    .spin-rev-med  { animation: pd-spin-r 7s ease-in-out infinite; }
+    .spin-fwd-fast { animation: pd-spin 5s linear infinite; }
+    .pd-flip { animation: pd-flip 6s cubic-bezier(0.77, 0, 0.17, 1) infinite; }
+    @keyframes pd-spin   { 100% { transform: rotate(360deg); } }
+    @keyframes pd-spin-r { 100% { transform: rotate(-360deg); } }
+    @keyframes pd-flip {
+      0%, 15% { transform: rotate(0deg); }
+      45%, 65% { transform: rotate(180deg); }
+      85%, 100% { transform: rotate(360deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .spin-fwd-slow, .spin-rev-med, .spin-fwd-fast, .pd-flip { animation: none; }
+    }
+  </style>
+
+  <!-- MARK: nested radar, 200x200 at (10,10), spinning in its own 300x300 space -->
+  <svg x="10" y="10" width="200" height="200" viewBox="0 0 300 300">
+    <defs>
+      <mask id="pd-wms-dark-int" maskContentUnits="userSpaceOnUse">
+        <g stroke="white" stroke-width="14" stroke-linecap="butt" fill="none">
+          <line x1="110" y1="110" x2="110" y2="210" />
+          <circle cx="135" cy="135" r="25" />
+        </g>
+      </mask>
+    </defs>
+    <g stroke="#1A2434" stroke-width="1.5" fill="none">
+      <circle cx="150" cy="150" r="45" />
+      <circle cx="150" cy="150" r="90" />
+      <circle cx="150" cy="150" r="135" />
+      <line x1="15" y1="150" x2="285" y2="150" stroke-dasharray="4 4" />
+      <line x1="150" y1="15" x2="150" y2="285" stroke-dasharray="4 4" />
+      <line x1="55" y1="55" x2="245" y2="245" stroke-dasharray="2 6" />
+      <line x1="55" y1="245" x2="245" y2="55" stroke-dasharray="2 6" />
+    </g>
+    <g class="pivot spin-fwd-slow">
+      <circle cx="150" cy="150" r="125" fill="none" stroke="#20DEB0" stroke-width="2" stroke-dasharray="1 8" stroke-linecap="round" opacity="0.7"/>
+      <path d="M 145 25 L 155 25" stroke="#20DEB0" stroke-width="3" fill="none" />
+      <path d="M 145 275 L 155 275" stroke="#20DEB0" stroke-width="3" fill="none" />
+      <path d="M 25 145 L 25 155" stroke="#20DEB0" stroke-width="3" fill="none" />
+      <path d="M 275 145 L 275 155" stroke="#20DEB0" stroke-width="3" fill="none" />
+    </g>
+    <g class="pivot spin-rev-med">
+      <circle cx="150" cy="150" r="105" fill="none" stroke="#FFB505" stroke-width="2" stroke-dasharray="40 10 5 10" opacity="0.8"/>
+      <circle cx="150" cy="150" r="115" fill="none" stroke="#2076FE" stroke-width="1.5" stroke-dasharray="2 4" opacity="0.6"/>
+    </g>
+    <g class="pivot spin-fwd-fast" stroke="#2076FE" stroke-width="2" fill="none">
+      <path d="M 213 87 A 90 90 0 0 0 187 68" />
+      <path d="M 87 87 A 90 90 0 0 1 113 68" />
+      <path d="M 213 213 A 90 90 0 0 1 187 232" />
+      <path d="M 87 213 A 90 90 0 0 0 113 232" />
+    </g>
+    <g class="pivot pd-flip">
+      <!-- p (group A): tandem with the word "Port" -->
+      <g stroke="#7DB4FF" stroke-width="14" stroke-linecap="butt" fill="none">
+        <line x1="110" y1="110" x2="110" y2="210" />
+        <circle cx="135" cy="135" r="25" />
+        <animate attributeName="stroke" calcMode="discrete" dur="9s" repeatCount="indefinite"
+                 values="#7DB4FF;#F5F3ED;#20DEB0;#7DB4FF;#20DEB0;#F5F3ED"/>
+      </g>
+      <!-- d (group B): tandem with the word "Daddy" -->
+      <g stroke="#20DEB0" stroke-width="14" stroke-linecap="butt" fill="none">
+        <line x1="190" y1="190" x2="190" y2="90" />
+        <circle cx="165" cy="165" r="25" />
+        <animate attributeName="stroke" calcMode="discrete" dur="9s" repeatCount="indefinite"
+                 values="#20DEB0;#7DB4FF;#F5F3ED;#F5F3ED;#7DB4FF;#20DEB0"/>
+      </g>
+      <!-- amber intersection accent stays constant where the glyphs cross -->
+      <g stroke="#FFB505" stroke-width="14" stroke-linecap="butt" fill="none" mask="url(#pd-wms-dark-int)">
+        <line x1="190" y1="190" x2="190" y2="90" />
+        <circle cx="165" cy="165" r="25" />
+      </g>
+    </g>
+    <circle cx="150" cy="150" r="4" fill="none" stroke="#2076FE" stroke-width="2"/>
+  </svg>
+
+  <!-- TYPE: "Port" (group A) and "Daddy" (group B) cycle in tandem with p / d -->
+  <text x="240" y="118" class="pd-word" font-size="74" letter-spacing="-1"><tspan fill="#7DB4FF">Port<animate attributeName="fill" calcMode="discrete" dur="9s" repeatCount="indefinite" values="#7DB4FF;#F5F3ED;#20DEB0;#7DB4FF;#20DEB0;#F5F3ED"/></tspan><tspan fill="#20DEB0"> Daddy<animate attributeName="fill" calcMode="discrete" dur="9s" repeatCount="indefinite" values="#20DEB0;#7DB4FF;#F5F3ED;#F5F3ED;#7DB4FF;#20DEB0"/></tspan></text>
+  <line x1="242" y1="146" x2="700" y2="146" stroke="#F5F3ED" stroke-width="3" />
+  <text x="242" y="178" class="pd-tag" font-size="18" letter-spacing="2.6" fill="#A59F93">A HARBOR-MASTER FOR YOUR AGENTS</text>
+</svg>

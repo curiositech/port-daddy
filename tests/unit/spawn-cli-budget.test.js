@@ -106,6 +106,26 @@ describe('pd spawn budget enforcement', () => {
     expect(body.modelTier).toBe('low');
   });
 
+  test('forwards Giant Squid hook injection when requested', async () => {
+    mockPdFetch.mockResolvedValueOnce(response(true, {
+      success: true,
+      status: 'completed',
+      agentId: 'spawned-squid',
+      backend: 'cli:claude-code',
+      output: 'done',
+    }));
+
+    await handleSpawn(['review the diff'], {
+      backend: 'cli:claude-code',
+      budget: '0.25',
+      'inject-squid-hooks': true,
+      quiet: true,
+    });
+
+    const body = JSON.parse(mockPdFetch.mock.calls[0][1].body);
+    expect(body.injectSquidHooks).toBe(true);
+  });
+
   test('fails fast when budget is missing', async () => {
     await expect(handleSpawn(['review the diff'], {
       backend: 'custom',

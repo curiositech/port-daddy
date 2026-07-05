@@ -11,9 +11,12 @@
 //!   • `agent.tube`       → steering-channel traffic, including the operator's own
 //!                          `control.interrupt` reappearing — the closed loop
 //!
-//! And it can steer: `SurfaceAction::Interrupt` POSTs `/agents/:id/interrupt`.
-//! The control message then comes BACK on the stream as an `agent.tube` frame, so
-//! the operator sees their signal land.
+//! And it can steer: `SurfaceAction::Interrupt` POSTs `/agents/:id/interrupt`;
+//! `SurfaceAction::OperatorTurn` publishes operator turns to `agent:<id>`. Those
+//! turns can include text, attached files/photos, and requested skill/tool
+//! context. The daemon echoes delivery back as `agent.tube`, while the Lane
+//! renders the structured attachment context as chat/artifact rows after
+//! successful delivery.
 //!
 //! Which agent? `refresh()` (the 2s poll) picks the watch target: `PD_LANE_AGENT`
 //! if set (deterministic for screenshot capture), else the most-recently-active
@@ -21,9 +24,13 @@
 //! stream; envelopes flow back through `on_stream`.
 
 use crate::agent::{DaemonClient, StreamEnvelope, StreamKind};
-use crate::pane::{Block, Pane, Subscription, SurfaceAction, Tone};
+use crate::pane::{
+    Block, OperatorAttachmentKind, OperatorTurn, Pane, Subscription, SurfaceAction, Tone,
+};
 use crate::util;
 use anyhow::Result;
+use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
 
 /// How many transcript/tube lines to retain in the scrollback. Older lines drop
 /// off the top — the Lane is a live tail, not an archive.
@@ -56,8 +63,28 @@ impl ToolState {
 /// A line in the live scrollback, tagged by origin so the renderer can tone it.
 #[derive(Debug, Clone)]
 enum LaneLine {
-    Transcript(String),
-    Tube(String),
+    Chat {
+        speaker: String,
+        text: String,
+        tone: Tone,
+    },
+    Artifact {
+        label: String,
+        path: String,
+        preview: Option<String>,
+    },
+    ImageArtifact {
+        label: String,
+        path: String,
+        preview: Option<String>,
+        image_path: Option<String>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ParsedArtifactRef {
+    raw: String,
+    path: String,
 }
 
 /// The live agent LANE surface.
@@ -70,6 +97,13 @@ pub struct LanePane {
     streamed: bool,
     /// Scrollback of transcript + tube lines (most recent at the end).
     lines: Vec<LaneLine>,
+    /// Transcript route updates carry the full refreshed row. Remember rendered
+    /// message/output keys so one append does not repaint the whole history.
+    seen_transcript_items: BTreeSet<String>,
+    /// Last steering-channel message read from `/msg/agent:<id>`. The live SSE
+    /// stream tails future traffic; this backfill catches messages that arrived
+    /// before the native pane subscribed.
+    channel_cursor: u64,
     /// Tool calls seen on the stream, in arrival order (deduped by name+running).
     tools: Vec<ToolCall>,
     /// Last error from the 2s poll (daemon unreachable / no agents), if any.
@@ -83,6 +117,8 @@ impl LanePane {
             status: "—".into(),
             streamed: false,
             lines: Vec::new(),
+            seen_transcript_items: BTreeSet::new(),
+            channel_cursor: 0,
             tools: Vec::new(),
             error: None,
         }
@@ -118,42 +154,461 @@ impl LanePane {
         }
     }
 
-    /// Fold a transcript envelope. The body may carry streaming text and/or a
-    /// tool-call delta. Shapes vary, so we extract tolerantly:
-    ///   { text } | { delta } | { content }      → transcript text
-    ///   { tool: { name, status } }               → tool-call chip
-    ///   { tool, status }                         → tool-call chip (flat)
-    fn fold_transcript(&mut self, body: &serde_json::Value) {
-        // Tool-call delta (nested or flat).
-        let tool_obj = body.get("tool");
-        let tool_name = tool_obj
-            .and_then(|t| t.as_str().map(str::to_string))
-            .or_else(|| tool_obj.and_then(|t| t.get("name")).and_then(|n| n.as_str()).map(str::to_string))
-            .or_else(|| body.get("toolName").and_then(|n| n.as_str()).map(str::to_string));
-        if let Some(name) = tool_name {
-            let status = tool_obj
-                .and_then(|t| t.get("status"))
-                .or_else(|| body.get("status"))
-                .or_else(|| body.get("toolStatus"))
-                .and_then(|s| s.as_str())
-                .unwrap_or("running");
-            let state = match status {
-                "ok" | "success" | "done" | "complete" | "completed" => ToolState::Ok,
-                "error" | "failed" | "failure" => ToolState::Failed,
-                _ => ToolState::Running,
+    fn push_operator_turn(&mut self, turn: &OperatorTurn) {
+        if !turn.text.trim().is_empty() {
+            self.push_line(LaneLine::Chat {
+                speaker: "you".into(),
+                text: turn.text.trim().to_string(),
+                tone: Tone::Accent,
+            });
+        }
+        for attachment in &turn.attachments {
+            let path = display_artifact_path(&attachment.path)
+                .unwrap_or_else(|| attachment.path.trim().to_string());
+            let (label, preview) = match attachment.kind {
+                OperatorAttachmentKind::File => {
+                    ("file attachment".to_string(), "attached file / open in current worktree")
+                }
+                OperatorAttachmentKind::Photo => (
+                    "photo attachment".to_string(),
+                    "attached photo / open in current worktree",
+                ),
             };
-            self.note_tool(&name, state);
+            self.push_line(LaneLine::Artifact {
+                label,
+                path,
+                preview: Some(preview.to_string()),
+            });
+        }
+        if !turn.skills.is_empty() {
+            self.push_line(LaneLine::Chat {
+                speaker: "skill".into(),
+                text: format!("invoke {}", turn.skills.join(", ")),
+                tone: Tone::Engaged,
+            });
+        }
+        if !turn.tools.is_empty() {
+            self.push_line(LaneLine::Chat {
+                speaker: "tool".into(),
+                text: format!("operator requested {}", turn.tools.join(", ")),
+                tone: Tone::Engaged,
+            });
+        }
+    }
+
+    async fn send_operator_turn(
+        &mut self,
+        daemon: &DaemonClient,
+        turn: OperatorTurn,
+    ) -> Result<()> {
+        if turn.is_empty() {
+            return Ok(());
+        }
+        let Some(id) = self.agent_id.clone() else {
+            return Err(anyhow::anyhow!("no agent to message"));
+        };
+        let text = turn.tube_text();
+        let channel = format!("agent:{id}");
+        daemon.tube_send(&channel, &text, "operator").await?;
+        self.push_operator_turn(&turn);
+        Ok(())
+    }
+
+    /// Fold a transcript envelope. The daemon's real shape is
+    /// `{type, entry:{messages, outputs, ...}}`; older streamers may still send
+    /// flat deltas. Extract both so the Lane is an honest live digest, not a
+    /// happy-path toy parser.
+    fn fold_transcript(&mut self, body: &serde_json::Value) {
+        let mut rendered = false;
+        let has_entry = body.get("entry").is_some();
+
+        if let Some(entry) = body.get("entry") {
+            rendered |=
+                self.fold_transcript_entry(body.get("type").and_then(|t| t.as_str()), entry);
         }
 
-        // Transcript text.
-        let text = body
-            .get("text")
-            .or_else(|| body.get("delta"))
-            .or_else(|| body.get("content"))
-            .and_then(|t| t.as_str())
-            .unwrap_or_default();
-        if !text.is_empty() {
-            self.push_line(LaneLine::Transcript(text.to_string()));
+        // Tool-call delta (nested or flat) for streamers that emit incremental
+        // tool frames instead of row snapshots.
+        if let Some((name, state)) = extract_flat_tool_delta(body) {
+            self.note_tool(&name, state);
+            rendered = true;
+        }
+
+        // Flat text delta fallback: {text} | {delta} | {content} | "text".
+        if let Some(text) = flat_text(body) {
+            rendered |= self.push_unique_chat_turn(
+                format!("flat:{}", digest_text(&text)),
+                "agent".into(),
+                text,
+                Tone::Default,
+            );
+        }
+
+        if !rendered && !has_entry {
+            if let Some(kind) = body.get("type").and_then(|t| t.as_str()) {
+                self.push_unique_chat_turn(
+                    format!("event:{kind}:{}", body.to_string().len()),
+                    "stream".into(),
+                    format!("transcript {kind}"),
+                    Tone::Resting,
+                );
+            }
+        }
+    }
+
+    fn fold_transcript_entry(
+        &mut self,
+        event_type: Option<&str>,
+        entry: &serde_json::Value,
+    ) -> bool {
+        let mut rendered = false;
+        let tx_id = field_str(entry, &["id"]).unwrap_or("transcript");
+
+        if matches!(event_type, Some("start") | Some("snapshot")) {
+            let ship = field_str(entry, &["ship"]).unwrap_or("agent");
+            let backend = field_str(entry, &["backend"]).unwrap_or("backend");
+            let model = field_str(entry, &["model"]).unwrap_or("model");
+            let status = field_str(entry, &["status"]).unwrap_or("running");
+            rendered |= self.push_unique_chat_turn(
+                format!("{tx_id}:meta:{status}:{}", event_type.unwrap_or("event")),
+                "run".into(),
+                format!("run {status}: {ship} via {backend}/{model}"),
+                Tone::Resting,
+            );
+        }
+
+        if let Some(messages) = entry.get("messages").and_then(|m| m.as_array()) {
+            for msg in messages {
+                rendered |= self.fold_transcript_message(tx_id, msg);
+            }
+        }
+
+        if let Some(outputs) = entry.get("outputs").and_then(|o| o.as_array()) {
+            for output in outputs {
+                rendered |= self.fold_transcript_output(tx_id, output);
+            }
+        }
+
+        if matches!(event_type, Some("end")) {
+            let ship = field_str(entry, &["ship"]).unwrap_or("agent");
+            let status = field_str(entry, &["status"]).unwrap_or("completed");
+            let cost = entry.get("cost_usd").and_then(|c| c.as_f64());
+            let tokens_in = entry.get("tokens_in").and_then(|t| t.as_i64());
+            let tokens_out = entry.get("tokens_out").and_then(|t| t.as_i64());
+            let mut line = format!("run {status}: {ship}");
+            if let Some(cost) = cost {
+                line.push_str(&format!(" ${cost:.4}"));
+            }
+            if tokens_in.is_some() || tokens_out.is_some() {
+                line.push_str(&format!(
+                    " tokens {} in / {} out",
+                    tokens_in.unwrap_or(0),
+                    tokens_out.unwrap_or(0)
+                ));
+            }
+            if let Some(err) = field_str(entry, &["error"]) {
+                if !err.is_empty() {
+                    line.push_str(&format!(" error: {err}"));
+                }
+            }
+            let tone = if matches!(status, "failed" | "error" | "blocked") {
+                Tone::Gated
+            } else {
+                Tone::Landed
+            };
+            rendered |= self.push_unique_chat_turn(
+                format!("{tx_id}:end:{status}"),
+                "run".into(),
+                line,
+                tone,
+            );
+        }
+
+        rendered
+    }
+
+    fn fold_transcript_message(&mut self, tx_id: &str, msg: &serde_json::Value) -> bool {
+        let mut rendered = false;
+        let timestamp = msg.get("timestamp").and_then(|t| t.as_i64()).unwrap_or(0);
+
+        if let Some(tool_calls) = msg.get("tool_calls").and_then(|calls| calls.as_array()) {
+            for (idx, call) in tool_calls.iter().enumerate() {
+                if let Some(name) = field_str(call, &["name", "tool", "toolName"]) {
+                    let state = if call.get("result").is_some() {
+                        ToolState::Ok
+                    } else {
+                        ToolState::Running
+                    };
+                    let key = format!("{tx_id}:tool:{timestamp}:{idx}:{name}:{state:?}");
+                    if self.seen_transcript_items.insert(key) {
+                        self.note_tool(name, state);
+                        rendered = true;
+                    }
+                }
+            }
+        }
+
+        let Some(content) = field_str(msg, &["content", "text", "delta"]) else {
+            return rendered;
+        };
+        let content = content.trim();
+        if content.is_empty() {
+            return rendered;
+        }
+
+        let role = field_str(msg, &["role"]).unwrap_or("assistant");
+        let (speaker, tone) = chat_speaker_for_role(role);
+        self.push_unique_chat_turn(
+            format!("{tx_id}:msg:{timestamp}:{role}:{}", digest_text(content)),
+            speaker,
+            content.to_string(),
+            tone,
+        ) || rendered
+    }
+
+    fn fold_transcript_output(&mut self, tx_id: &str, output: &serde_json::Value) -> bool {
+        let output_type = field_str(output, &["type"]).unwrap_or("output");
+        let Some(summary) = field_str(output, &["summary", "content", "text"]) else {
+            return false;
+        };
+        let summary = summary.trim();
+        if summary.is_empty() {
+            return false;
+        }
+
+        if let Some(reference) = artifact_ref_from_output(output, summary) {
+            let mime = field_str(
+                output,
+                &["mimeType", "mime_type", "contentType", "content_type"],
+            );
+            if is_transcript_image_output(output_type, &reference.path, mime) {
+                let label = artifact_label(output_type, summary, &reference.raw);
+                return self.push_unique_image_artifact(
+                    format!(
+                        "{tx_id}:output:{output_type}:image:{}:{}",
+                        reference.path,
+                        digest_text(summary)
+                    ),
+                    label,
+                    reference.path.clone(),
+                    Some("image proof from transcript output".into()),
+                    local_image_path(&reference.path),
+                );
+            }
+            let label = artifact_label(output_type, summary, &reference.raw);
+            return self.push_unique_artifact_ref(
+                format!(
+                    "{tx_id}:output:{output_type}:artifact:{}:{}",
+                    reference.path,
+                    digest_text(summary)
+                ),
+                label,
+                reference.path,
+                Some("open / preview in current worktree".into()),
+            );
+        }
+
+        let mut line = format!("artifact {output_type}: {summary}");
+        if let Some(url) = field_str(output, &["url"]) {
+            if !url.is_empty() {
+                line.push_str(&format!(" {url}"));
+            }
+        }
+        self.push_unique_chat_turn(
+            format!("{tx_id}:output:{output_type}:{}", digest_text(summary)),
+            "artifact".into(),
+            line,
+            Tone::Accent,
+        )
+    }
+
+    fn push_unique_chat_turn(
+        &mut self,
+        key: String,
+        speaker: String,
+        text: String,
+        tone: Tone,
+    ) -> bool {
+        if !self.seen_transcript_items.insert(key) {
+            return false;
+        }
+        let artifact_refs = extract_artifact_refs(&text);
+        self.push_line(LaneLine::Chat {
+            speaker,
+            text,
+            tone,
+        });
+        for (idx, reference) in artifact_refs.into_iter().enumerate() {
+            let artifact_key = format!("artifact-from-line:{idx}:{}", reference.path);
+            let label = artifact_label("reference", "", &reference.raw);
+            self.push_unique_artifact_ref(
+                artifact_key,
+                label,
+                reference.path,
+                Some("open / preview in current worktree".into()),
+            );
+        }
+        true
+    }
+
+    fn push_unique_artifact_ref(
+        &mut self,
+        key: String,
+        label: String,
+        path: String,
+        preview: Option<String>,
+    ) -> bool {
+        if !self.seen_transcript_items.insert(key) {
+            return false;
+        }
+        self.push_line(LaneLine::Artifact {
+            label,
+            path,
+            preview,
+        });
+        true
+    }
+
+    fn push_unique_image_artifact(
+        &mut self,
+        key: String,
+        label: String,
+        path: String,
+        preview: Option<String>,
+        image_path: Option<String>,
+    ) -> bool {
+        if !self.seen_transcript_items.insert(key) {
+            return false;
+        }
+        self.push_line(LaneLine::ImageArtifact {
+            label,
+            path,
+            preview,
+            image_path,
+        });
+        true
+    }
+
+    fn fold_visual_task(&mut self, body: &serde_json::Value) -> bool {
+        if !is_visual_task_payload(body) {
+            return false;
+        }
+
+        let task_id = field_str(body, &["taskId", "id"]).unwrap_or("visual-task");
+        let title = field_str(body, &["title"]).unwrap_or("Visual task");
+        let description = field_str(body, &["description"]).unwrap_or("");
+        let mut text = format!("Scout captured visual task: {title}");
+        if !description.is_empty() && description != title {
+            text.push_str(&format!(" - {description}"));
+        }
+        if let Some(url) = field_str(body, &["pageUrl"]) {
+            if !url.is_empty() {
+                text.push_str(&format!(" ({url})"));
+            }
+        }
+
+        let mut rendered = self.push_unique_chat_turn(
+            format!("visual-task:{task_id}:notice"),
+            "scout".into(),
+            text,
+            Tone::Engaged,
+        );
+
+        if let Some((path, preview, image_path)) = visual_task_image_artifact(body) {
+            rendered |= self.push_unique_image_artifact(
+                format!("visual-task:{task_id}:screenshot:{path}"),
+                format!("visual task screenshot: {title}"),
+                path,
+                Some(preview),
+                image_path,
+            );
+        }
+
+        rendered
+    }
+
+    fn fold_tube_body(
+        &mut self,
+        key: String,
+        sender: String,
+        body: &serde_json::Value,
+        tone: Tone,
+    ) -> bool {
+        if self.fold_visual_task(body) {
+            return true;
+        }
+        let text = crate::agent::body_text(body);
+        if text.is_empty() {
+            return false;
+        }
+        self.push_unique_chat_turn(key, sender, text, tone)
+    }
+
+    async fn backfill_agent_channel(&mut self, daemon: &DaemonClient) {
+        let Some(agent_id) = self.agent_id.clone() else {
+            return;
+        };
+        let channel = format!("agent:{agent_id}");
+        let resp = daemon
+            .http_client()
+            .get(format!("{}/msg/{channel}", daemon.base()))
+            .query(&[
+                ("after", self.channel_cursor.to_string()),
+                ("limit", "50".to_string()),
+            ])
+            .send()
+            .await;
+        let Ok(resp) = resp else {
+            return;
+        };
+        if !resp.status().is_success() {
+            return;
+        }
+        let Ok(v) = resp.json::<serde_json::Value>().await else {
+            return;
+        };
+        let Some(messages) = v.get("messages").and_then(|m| m.as_array()) else {
+            return;
+        };
+
+        for message in messages {
+            let id = message.get("id").and_then(|i| i.as_u64()).unwrap_or(0);
+            self.channel_cursor = self.channel_cursor.max(id);
+            let body = message
+                .get("payload")
+                .cloned()
+                .unwrap_or(serde_json::Value::Null);
+            let sender = message
+                .get("sender")
+                .and_then(|s| s.as_str())
+                .unwrap_or("agent")
+                .to_string();
+            self.fold_tube_body(format!("channel:{channel}:{id}"), sender, &body, Tone::Default);
+        }
+    }
+
+    async fn hydrate_image_artifacts(&mut self, daemon: &DaemonClient) {
+        let pending: Vec<(usize, String)> = self
+            .lines
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, line)| match line {
+                LaneLine::ImageArtifact {
+                    path, image_path, ..
+                } if image_path.is_none() => Some((idx, path.clone())),
+                _ => None,
+            })
+            .collect();
+
+        for (idx, path) in pending {
+            let Some(cached) = fetch_image_artifact(daemon, &path).await else {
+                continue;
+            };
+            if let Some(LaneLine::ImageArtifact { image_path, .. }) = self.lines.get_mut(idx) {
+                if image_path.is_none() {
+                    *image_path = Some(cached);
+                }
+            }
         }
     }
 
@@ -175,8 +630,436 @@ impl LanePane {
         if self.tools.len() >= 40 {
             self.tools.remove(0);
         }
-        self.tools.push(ToolCall { name: name.to_string(), state });
+        self.tools.push(ToolCall {
+            name: name.to_string(),
+            state,
+        });
     }
+}
+
+fn extract_flat_tool_delta(body: &serde_json::Value) -> Option<(String, ToolState)> {
+    let tool_obj = body.get("tool");
+    let name = tool_obj
+        .and_then(|t| t.as_str())
+        .or_else(|| {
+            tool_obj
+                .and_then(|t| t.get("name"))
+                .and_then(|n| n.as_str())
+        })
+        .or_else(|| body.get("toolName").and_then(|n| n.as_str()))?;
+    let status = tool_obj
+        .and_then(|t| t.get("status"))
+        .or_else(|| body.get("status"))
+        .or_else(|| body.get("toolStatus"))
+        .and_then(|s| s.as_str())
+        .unwrap_or("running");
+    Some((name.to_string(), tool_state(status)))
+}
+
+fn tool_state(status: &str) -> ToolState {
+    match status {
+        "ok" | "success" | "done" | "complete" | "completed" => ToolState::Ok,
+        "error" | "failed" | "failure" => ToolState::Failed,
+        _ => ToolState::Running,
+    }
+}
+
+fn chat_speaker_for_role(role: &str) -> (String, Tone) {
+    match role {
+        "assistant" => ("agent".into(), Tone::Default),
+        "thinking" => ("thinking".into(), Tone::Resting),
+        "tool" => ("tool".into(), Tone::Engaged),
+        "user" | "operator" => ("you".into(), Tone::Accent),
+        other => (other.to_string(), Tone::Default),
+    }
+}
+
+fn flat_text(body: &serde_json::Value) -> Option<String> {
+    if let Some(text) = body.as_str() {
+        return non_empty(text);
+    }
+    for key in ["text", "delta", "content", "message", "body"] {
+        if let Some(text) = body.get(key).and_then(|v| v.as_str()).and_then(non_empty) {
+            return Some(text);
+        }
+    }
+    None
+}
+
+fn field_str<'a>(value: &'a serde_json::Value, names: &[&str]) -> Option<&'a str> {
+    names
+        .iter()
+        .find_map(|name| value.get(*name).and_then(|v| v.as_str()))
+}
+
+fn non_empty(text: &str) -> Option<String> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+fn artifact_ref_from_output(
+    output: &serde_json::Value,
+    summary: &str,
+) -> Option<ParsedArtifactRef> {
+    field_str(
+        output,
+        &[
+            "path",
+            "file",
+            "filePath",
+            "file_path",
+            "filename",
+            "artifactPath",
+            "artifact_path",
+        ],
+    )
+    .and_then(parsed_artifact_ref)
+    .or_else(|| extract_artifact_refs(summary).into_iter().next())
+}
+
+fn is_visual_task_payload(body: &serde_json::Value) -> bool {
+    field_str(body, &["kind"]) == Some("visual-task")
+        || field_str(body, &["type"]) == Some("visual-task")
+}
+
+fn visual_task_image_artifact(
+    body: &serde_json::Value,
+) -> Option<(String, String, Option<String>)> {
+    let image = body.get("image")?;
+    let path = field_str(image, &["blobUrl", "blob_url", "url", "path", "src"])
+        .map(str::to_string)
+        .or_else(|| field_str(image, &["blobId", "blob_id"]).map(|id| format!("/blob/{id}")))?;
+    let mime = field_str(
+        image,
+        &["mimeType", "mime_type", "contentType", "content_type"],
+    );
+    if !is_image_reference(&path, mime) {
+        return None;
+    }
+
+    let mut parts = Vec::new();
+    if let Some(mime) = mime {
+        parts.push(mime.to_string());
+    }
+    if let (Some(width), Some(height)) =
+        (number_field(image, "width"), number_field(image, "height"))
+    {
+        parts.push(format!("{width}x{height}"));
+    }
+    if let Some(region) = body.get("region").and_then(format_region) {
+        parts.push(region);
+    }
+    if let Some(url) = field_str(body, &["pageUrl"]) {
+        if !url.is_empty() {
+            parts.push(format!("page {url}"));
+        }
+    }
+    if let Some(channel) = body
+        .get("channel")
+        .and_then(|channel| field_str(channel, &["name"]))
+        .filter(|name| !name.is_empty())
+    {
+        parts.push(format!("payload {channel}"));
+    }
+    let preview = if parts.is_empty() {
+        "screenshot evidence from visual-task intake".to_string()
+    } else {
+        parts.join(" / ")
+    };
+    let image_path = local_image_path(&path);
+    Some((path, preview, image_path))
+}
+
+fn format_region(region: &serde_json::Value) -> Option<String> {
+    let x = number_field(region, "x")?;
+    let y = number_field(region, "y")?;
+    let width = number_field(region, "width")?;
+    let height = number_field(region, "height")?;
+    let space = field_str(region, &["coordinateSpace", "coordinate_space"]).unwrap_or("viewport");
+    Some(format!("region {space} {x},{y} {width}x{height}"))
+}
+
+fn number_field(value: &serde_json::Value, key: &str) -> Option<i64> {
+    value
+        .get(key)
+        .and_then(|v| v.as_i64().or_else(|| v.as_f64().map(|n| n.round() as i64)))
+}
+
+fn is_image_reference(path: &str, mime: Option<&str>) -> bool {
+    if mime
+        .map(|m| m.to_ascii_lowercase().starts_with("image/"))
+        .unwrap_or(false)
+    {
+        return true;
+    }
+    if path.starts_with("/blob/") || path.contains("/blob/") {
+        return true;
+    }
+    image_extension(path).is_some()
+}
+
+fn content_type_is_image(mime: Option<&str>) -> bool {
+    mime.map(|m| m.to_ascii_lowercase().starts_with("image/"))
+        .unwrap_or(false)
+}
+
+fn is_transcript_image_output(output_type: &str, path: &str, mime: Option<&str>) -> bool {
+    if content_type_is_image(mime) {
+        return true;
+    }
+    if path.starts_with("/blob/") || path.contains("/blob/") {
+        return true;
+    }
+    matches!(
+        output_type.to_ascii_lowercase().as_str(),
+        "screenshot" | "image" | "visual-task-screenshot" | "proof-image"
+    )
+}
+
+fn image_extension(path: &str) -> Option<&'static str> {
+    let ext = path
+        .split('?')
+        .next()
+        .unwrap_or(path)
+        .rsplit('.')
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    match ext.as_str() {
+        "gif" => Some("gif"),
+        "jpeg" | "jpg" => Some("jpg"),
+        "png" => Some("png"),
+        "webp" => Some("webp"),
+        _ => None,
+    }
+}
+
+fn local_image_path(path: &str) -> Option<String> {
+    if path.starts_with("/blob/") || path.starts_with("http://") || path.starts_with("https://") {
+        return None;
+    }
+    if image_extension(path).is_none() {
+        return None;
+    }
+    let candidate = Path::new(path);
+    let absolute = if candidate.is_absolute() {
+        candidate.to_path_buf()
+    } else {
+        std::env::current_dir().ok()?.join(candidate)
+    };
+    if absolute.exists() {
+        Some(absolute.to_string_lossy().into_owned())
+    } else {
+        None
+    }
+}
+
+fn blob_url(daemon: &DaemonClient, path: &str) -> Option<String> {
+    if path.starts_with("http://") || path.starts_with("https://") {
+        Some(path.to_string())
+    } else if path.starts_with("/blob/") {
+        Some(format!("{}{}", daemon.base(), path))
+    } else {
+        None
+    }
+}
+
+fn cache_extension(path: &str, content_type: Option<&str>) -> &'static str {
+    if let Some(ext) = image_extension(path) {
+        return ext;
+    }
+    match content_type
+        .unwrap_or("")
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim()
+    {
+        "image/gif" => "gif",
+        "image/jpeg" => "jpg",
+        "image/webp" => "webp",
+        _ => "png",
+    }
+}
+
+fn image_cache_path(path: &str, content_type: Option<&str>) -> PathBuf {
+    let ext = cache_extension(path, content_type);
+    std::env::temp_dir()
+        .join("pd-console-lane-images")
+        .join(format!("{:016x}.{ext}", digest_text(path)))
+}
+
+async fn fetch_image_artifact(daemon: &DaemonClient, path: &str) -> Option<String> {
+    let url = blob_url(daemon, path)?;
+    let resp = daemon.http_client().get(url).send().await.ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    let content_type = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
+    if content_type.as_deref().is_some_and(|ct| !content_type_is_image(Some(ct))) {
+        return None;
+    }
+    if content_type.is_none() && !is_image_reference(path, None) {
+        return None;
+    }
+    let cache = image_cache_path(path, content_type.as_deref());
+    if cache.exists() {
+        return Some(cache.to_string_lossy().into_owned());
+    }
+    let bytes = resp.bytes().await.ok()?;
+    if bytes.is_empty() {
+        return None;
+    }
+    if let Some(parent) = cache.parent() {
+        std::fs::create_dir_all(parent).ok()?;
+    }
+    std::fs::write(&cache, bytes.as_ref()).ok()?;
+    Some(cache.to_string_lossy().into_owned())
+}
+
+fn artifact_label(output_type: &str, summary: &str, raw_path: &str) -> String {
+    let trimmed = summary.replace(raw_path, "");
+    let trimmed = trimmed
+        .trim_matches(|c: char| c.is_whitespace() || matches!(c, ':' | '-' | '–' | '—'))
+        .trim();
+    if trimmed.is_empty() {
+        output_type.to_string()
+    } else {
+        format!("{output_type}: {trimmed}")
+    }
+}
+
+fn extract_artifact_refs(text: &str) -> Vec<ParsedArtifactRef> {
+    let mut refs = Vec::new();
+    let mut seen = BTreeSet::new();
+
+    for token in text.split_whitespace() {
+        if let Some(reference) = parsed_artifact_ref(token) {
+            if seen.insert(reference.path.clone()) {
+                refs.push(reference);
+            }
+        }
+        if refs.len() >= 3 {
+            break;
+        }
+    }
+
+    refs
+}
+
+fn parsed_artifact_ref(raw: &str) -> Option<ParsedArtifactRef> {
+    let cleaned = clean_path_token(raw);
+    let pathish = cleaned.strip_prefix("file://").unwrap_or(&cleaned);
+    if !looks_like_file_reference(pathish) {
+        return None;
+    }
+    let stripped = strip_line_suffix(pathish);
+    let path = display_artifact_path(stripped)?;
+    Some(ParsedArtifactRef { raw: cleaned, path })
+}
+
+fn clean_path_token(raw: &str) -> String {
+    raw.trim()
+        .trim_matches(|c: char| {
+            c.is_whitespace()
+                || matches!(
+                    c,
+                    '"' | '\'' | '`' | '<' | '>' | '(' | ')' | '[' | ']' | '{' | '}'
+                )
+        })
+        .trim_end_matches(|c: char| matches!(c, ',' | ';' | '.'))
+        .to_string()
+}
+
+fn strip_line_suffix(token: &str) -> &str {
+    let Some((path, suffix)) = token.rsplit_once(':') else {
+        return token;
+    };
+    if !suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_digit()) {
+        path
+    } else {
+        token
+    }
+}
+
+fn display_artifact_path(raw: &str) -> Option<String> {
+    let raw = raw.strip_prefix("file://").unwrap_or(raw);
+    if raw.is_empty() || raw.contains("://") {
+        return None;
+    }
+
+    let path = std::path::Path::new(raw);
+    if path.is_absolute() {
+        if let Ok(cwd) = std::env::current_dir() {
+            if let Ok(relative) = path.strip_prefix(cwd) {
+                return Some(path_to_display(relative));
+            }
+        }
+    }
+
+    Some(raw.trim_start_matches("./").replace('\\', "/"))
+}
+
+fn path_to_display(path: &std::path::Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
+fn looks_like_file_reference(raw: &str) -> bool {
+    if raw.is_empty() || raw.contains("://") {
+        return false;
+    }
+    let raw = strip_line_suffix(raw);
+    let file_name = raw.rsplit('/').next().unwrap_or(raw);
+    let Some((_, ext)) = file_name.rsplit_once('.') else {
+        return raw.starts_with("./")
+            || raw.starts_with('/')
+            || raw.split('/').any(|segment| segment.contains('.'));
+    };
+    matches!(
+        ext.to_ascii_lowercase().as_str(),
+        "css"
+            | "diff"
+            | "gif"
+            | "html"
+            | "jpeg"
+            | "jpg"
+            | "js"
+            | "json"
+            | "lock"
+            | "log"
+            | "md"
+            | "mjs"
+            | "mov"
+            | "mp4"
+            | "patch"
+            | "png"
+            | "rs"
+            | "sh"
+            | "sql"
+            | "svg"
+            | "toml"
+            | "ts"
+            | "tsx"
+            | "txt"
+            | "webm"
+            | "yaml"
+            | "yml"
+    )
+}
+
+fn digest_text(text: &str) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    text.hash(&mut hasher);
+    hasher.finish()
 }
 
 impl Default for LanePane {
@@ -191,11 +1074,11 @@ impl Pane for LanePane {
     }
 
     fn title(&self) -> String {
-        "Lane".into()
+        "Agent Chat".into()
     }
 
     fn view(&self) -> Vec<Block> {
-        let mut out = vec![Block::Header("Live Lane".into())];
+        let mut out = vec![Block::Header("Agent Work Chat".into())];
 
         match &self.agent_id {
             Some(id) => out.push(Block::KeyVal("watching".into(), util::trunc(id, 48))),
@@ -213,35 +1096,91 @@ impl Pane for LanePane {
 
         // Status chip + live/poll indicator.
         out.push(Block::Chip {
-            label: format!("status: {}", if self.status.is_empty() { "—" } else { &self.status }),
+            label: format!(
+                "status: {}",
+                if self.status.is_empty() {
+                    "—"
+                } else {
+                    &self.status
+                }
+            ),
             tone: Tone::Accent,
         });
         out.push(Block::Chip {
-            label: if self.streamed { "● live".into() } else { "○ connecting".into() },
-            tone: if self.streamed { Tone::Landed } else { Tone::Resting },
+            label: if self.streamed {
+                "● live".into()
+            } else {
+                "○ connecting".into()
+            },
+            tone: if self.streamed {
+                Tone::Landed
+            } else {
+                Tone::Resting
+            },
         });
 
-        // Tool-call chips (running → done/failed).
-        if !self.tools.is_empty() {
-            out.push(Block::Header("tools".into()));
-            for t in self.tools.iter().rev().take(12).collect::<Vec<_>>().into_iter().rev() {
-                let (label, tone) = t.state.chip(&t.name);
-                out.push(Block::Chip { label, tone });
-            }
-        }
-
-        // Live transcript / tube tail.
-        out.push(Block::Header("stream".into()));
+        // Live conversation / tube tail. This is the Lane's primary evidence;
+        // keep it above secondary tool chips so small panes still show the agent.
+        out.push(Block::Header("conversation".into()));
         if self.lines.is_empty() {
-            out.push(Block::KeyVal("—".into(), "(no frames yet)".into()));
+            out.push(Block::KeyVal(
+                "waiting".into(),
+                "connected; waiting for transcript/tool/tube frames".into(),
+            ));
         } else {
             // Show the last ~24 lines (most recent at the bottom).
             let start = self.lines.len().saturating_sub(24);
             for line in &self.lines[start..] {
                 match line {
-                    LaneLine::Transcript(t) => out.push(Block::Row(vec![util::trunc(t, 96)])),
-                    LaneLine::Tube(t) => out.push(Block::Row(vec![format!("⤳ {}", util::trunc(t, 92))])),
+                    LaneLine::Chat {
+                        speaker,
+                        text,
+                        tone,
+                    } => out.push(Block::ChatTurn {
+                        speaker: util::trunc(speaker, 32),
+                        text: util::trunc(text, 160),
+                        tone: *tone,
+                    }),
+                    LaneLine::Artifact {
+                        label,
+                        path,
+                        preview,
+                    } => out.push(Block::ArtifactRef {
+                        label: util::trunc(label, 64),
+                        path: util::trunc(path, 96),
+                        preview: preview.clone(),
+                        tone: Tone::Accent,
+                    }),
+                    LaneLine::ImageArtifact {
+                        label,
+                        path,
+                        preview,
+                        image_path,
+                    } => out.push(Block::ImageArtifact {
+                        label: util::trunc(label, 64),
+                        path: util::trunc(path, 96),
+                        preview: preview.clone(),
+                        image_path: image_path.clone(),
+                        tone: Tone::Accent,
+                    }),
                 }
+            }
+        }
+
+        // Tool-call chips (running → done/failed).
+        if !self.tools.is_empty() {
+            out.push(Block::Header("tools".into()));
+            for t in self
+                .tools
+                .iter()
+                .rev()
+                .take(12)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+            {
+                let (label, tone) = t.state.chip(&t.name);
+                out.push(Block::Chip { label, tone });
             }
         }
 
@@ -266,6 +1205,8 @@ impl Pane for LanePane {
                                 self.agent_id = Some(id);
                                 self.streamed = false;
                                 self.lines.clear();
+                                self.seen_transcript_items.clear();
+                                self.channel_cursor = 0;
                                 self.tools.clear();
                                 self.status = "—".into();
                             }
@@ -275,6 +1216,8 @@ impl Pane for LanePane {
                 },
                 Err(e) => self.error = Some(format!("GET /agents: {e}")),
             }
+            self.backfill_agent_channel(daemon).await;
+            self.hydrate_image_artifacts(daemon).await;
             Ok(())
         })
     }
@@ -293,12 +1236,15 @@ impl Pane for LanePane {
                     daemon.interrupt(&id, reason.as_deref()).await?;
                     Ok(())
                 }
+                SurfaceAction::OperatorTurn { turn } => self.send_operator_turn(daemon, turn).await,
             }
         })
     }
 
     fn subscription(&self) -> Option<Subscription> {
-        self.agent_id.clone().map(|agent_id| Subscription::Agent { agent_id })
+        self.agent_id
+            .clone()
+            .map(|agent_id| Subscription::Agent { agent_id })
     }
 
     fn on_stream(&mut self, env: &StreamEnvelope) {
@@ -320,10 +1266,12 @@ impl Pane for LanePane {
             }
             StreamKind::Transcript => self.fold_transcript(&env.body),
             StreamKind::Tube => {
-                let text = crate::agent::body_text(&env.body);
-                if !text.is_empty() {
-                    self.push_line(LaneLine::Tube(text));
-                }
+                self.fold_tube_body(
+                    format!("tube:{}", digest_text(&env.body.to_string())),
+                    "steer".into(),
+                    &env.body,
+                    Tone::Engaged,
+                );
             }
             StreamKind::Other(_) => { /* preserve forward-compat: ignore unknown kinds */ }
         }
@@ -340,6 +1288,53 @@ mod tests {
             "v": 1, "kind": kind, "agentId": "a", "body": body, "ts": 1,
         }))
         .expect("envelope")
+    }
+
+    fn transcript_lines(lane: &LanePane) -> Vec<String> {
+        lane.lines
+            .iter()
+            .filter_map(|line| match line {
+                LaneLine::Chat { text, .. } => Some(text.clone()),
+                LaneLine::Artifact { .. } => None,
+                LaneLine::ImageArtifact { .. } => None,
+            })
+            .collect()
+    }
+
+    fn chat_turns(lane: &LanePane) -> Vec<(String, String, Tone)> {
+        lane.lines
+            .iter()
+            .filter_map(|line| match line {
+                LaneLine::Chat {
+                    speaker,
+                    text,
+                    tone,
+                } => Some((speaker.clone(), text.clone(), *tone)),
+                LaneLine::Artifact { .. } => None,
+                LaneLine::ImageArtifact { .. } => None,
+            })
+            .collect()
+    }
+
+    fn artifact_paths(lane: &LanePane) -> Vec<String> {
+        lane.lines
+            .iter()
+            .filter_map(|line| match line {
+                LaneLine::Artifact { path, .. } => Some(path.clone()),
+                LaneLine::ImageArtifact { path, .. } => Some(path.clone()),
+                LaneLine::Chat { .. } => None,
+            })
+            .collect()
+    }
+
+    fn image_artifact_paths(lane: &LanePane) -> Vec<String> {
+        lane.lines
+            .iter()
+            .filter_map(|line| match line {
+                LaneLine::ImageArtifact { path, .. } => Some(path.clone()),
+                LaneLine::Chat { .. } | LaneLine::Artifact { .. } => None,
+            })
+            .collect()
     }
 
     #[test]
@@ -375,35 +1370,392 @@ mod tests {
         // The view renders without panicking and includes the live indicator.
         let blocks = lane.view();
         assert!(!blocks.is_empty());
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::ChatTurn { speaker, text, .. } if speaker == "agent" && text == "hello world")));
+        assert!(blocks.iter().any(|b| matches!(
+            b,
+            Block::ChatTurn { speaker, text, tone: Tone::Engaged } if speaker == "steer" && text.contains("control.interrupt")
+        )));
+        assert!(
+            !blocks.iter().any(|b| matches!(b, Block::Row(_))),
+            "Lane transcript lines should not render as table/control rows"
+        );
     }
 
     #[test]
     fn tool_calls_transition_running_to_done() {
         let mut lane = LanePane::new();
         // Running, then completed → one chip that flips to Ok.
-        lane.on_stream(&env("agent.transcript", json!({"tool": {"name": "Bash", "status": "running"}})));
-        lane.on_stream(&env("agent.transcript", json!({"tool": {"name": "Bash", "status": "ok"}})));
+        lane.on_stream(&env(
+            "agent.transcript",
+            json!({"tool": {"name": "Bash", "status": "running"}}),
+        ));
+        lane.on_stream(&env(
+            "agent.transcript",
+            json!({"tool": {"name": "Bash", "status": "ok"}}),
+        ));
         assert_eq!(lane.tools.len(), 1);
         assert_eq!(lane.tools[0].state, ToolState::Ok);
 
         // A failing tool surfaces as Failed.
-        lane.on_stream(&env("agent.transcript", json!({"tool": {"name": "Edit", "status": "error"}})));
+        lane.on_stream(&env(
+            "agent.transcript",
+            json!({"tool": {"name": "Edit", "status": "error"}}),
+        ));
         assert_eq!(lane.tools.last().unwrap().state, ToolState::Failed);
     }
 
     #[test]
     fn flat_tool_shape_also_parsed() {
         let mut lane = LanePane::new();
-        lane.on_stream(&env("agent.transcript", json!({"toolName": "Read", "status": "running"})));
+        lane.on_stream(&env(
+            "agent.transcript",
+            json!({"toolName": "Read", "status": "running"}),
+        ));
         assert_eq!(lane.tools.len(), 1);
         assert_eq!(lane.tools[0].name, "Read");
+    }
+
+    #[test]
+    fn folds_real_daemon_transcript_entry_messages_tools_and_outputs() {
+        let mut lane = LanePane::new();
+        lane.on_stream(&env("agent.transcript", json!({
+            "type": "update",
+            "entry": {
+                "id": "tx-real",
+                "ship": "codex",
+                "spawned_agent_id": "a",
+                "status": "running",
+                "backend": "codex",
+                "model": "gpt-5",
+                "messages": [
+                    {"role": "thinking", "content": "checking the stream contract", "timestamp": 10},
+                    {
+                        "role": "assistant",
+                        "content": "I found the cockpit route.",
+                        "timestamp": 11,
+                        "tool_calls": [
+                            {"name": "rg", "args": {"query": "agent.transcript"}, "result": "matched"}
+                        ]
+                    }
+                ],
+                "outputs": [
+                    {
+                        "type": "draft-pr",
+                        "summary": "opened draft PR #123",
+                        "url": "https://github.com/org/repo/pull/123"
+                    }
+                ]
+            }
+        })));
+
+        let turns = chat_turns(&lane);
+        assert!(turns
+            .iter()
+            .any(|(speaker, text, tone)| speaker == "thinking"
+                && text.contains("checking the stream contract")
+                && *tone == Tone::Resting));
+        assert!(turns
+            .iter()
+            .any(|(speaker, text, _)| speaker == "agent"
+                && text.contains("I found the cockpit route.")));
+        let lines = transcript_lines(&lane);
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("artifact draft-pr: opened draft PR #123")));
+        assert_eq!(lane.tools.len(), 1);
+        assert_eq!(lane.tools[0].name, "rg");
+        assert_eq!(lane.tools[0].state, ToolState::Ok);
+    }
+
+    #[test]
+    fn output_filename_renders_as_artifact_ref_block() {
+        let mut lane = LanePane::new();
+        lane.on_stream(&env(
+            "agent.transcript",
+            json!({
+                "type": "update",
+                "entry": {
+                    "id": "tx-artifact",
+                    "outputs": [
+                        {
+                            "type": "artifact",
+                            "summary": "manual-pane-lane.png refreshed"
+                        }
+                    ]
+                }
+            }),
+        ));
+
+        assert_eq!(artifact_paths(&lane), vec!["manual-pane-lane.png"]);
+        assert!(
+            !transcript_lines(&lane)
+                .iter()
+                .any(|line| line.contains("artifact artifact")),
+            "artifact filenames should render as artifact refs, not transcript prose"
+        );
+
+        let blocks = lane.view();
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::ArtifactRef { label, path, preview, tone: Tone::Accent }
+                if label == "artifact: refreshed"
+                    && path == "manual-pane-lane.png"
+                    && preview.as_deref() == Some("open / preview in current worktree")
+        )));
+    }
+
+    #[test]
+    fn transcript_file_references_emit_artifact_refs() {
+        let mut lane = LanePane::new();
+        lane.on_stream(&env("agent.transcript", json!({
+            "type": "update",
+            "entry": {
+                "id": "tx-file-ref",
+                "messages": [
+                    {
+                        "role": "assistant",
+                        "content": "Updated core/pd-console/src/lane_pane.rs:264 for artifact rows.",
+                        "timestamp": 12
+                    }
+                ]
+            }
+        })));
+
+        assert!(transcript_lines(&lane)
+            .iter()
+            .any(|line| line.contains("Updated core/pd-console/src/lane_pane.rs:264")));
+        assert_eq!(
+            artifact_paths(&lane),
+            vec!["core/pd-console/src/lane_pane.rs"]
+        );
+    }
+
+    #[test]
+    fn visual_task_tube_event_renders_screenshot_image_artifact() {
+        let mut lane = LanePane::new();
+        let blob = format!("/blob/{}", "a".repeat(64));
+        lane.on_stream(&env(
+            "agent.tube",
+            json!({
+                "kind": "visual-task",
+                "taskId": "visual-task-proof",
+                "title": "Checkout button is clipped",
+                "description": "The lower half is hidden behind the cart footer.",
+                "pageUrl": "http://localhost:5173/cart",
+                "image": {
+                    "mimeType": "image/png",
+                    "blobUrl": blob,
+                    "width": 1440,
+                    "height": 900
+                },
+                "region": {
+                    "x": 20,
+                    "y": 30,
+                    "width": 220,
+                    "height": 80,
+                    "coordinateSpace": "viewport"
+                },
+                "channel": { "name": "visual-feedback", "messageId": 7 }
+            }),
+        ));
+
+        assert!(chat_turns(&lane).iter().any(|(speaker, text, tone)| {
+            speaker == "scout"
+                && text.contains("Scout captured visual task")
+                && text.contains("Checkout button is clipped")
+                && *tone == Tone::Engaged
+        }));
+        assert_eq!(
+            image_artifact_paths(&lane),
+            vec![format!("/blob/{}", "a".repeat(64))]
+        );
+        let blocks = lane.view();
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::ImageArtifact { label, path, preview, image_path, tone: Tone::Accent }
+                if label.contains("visual task screenshot")
+                    && path == &format!("/blob/{}", "a".repeat(64))
+                    && preview.as_deref().unwrap_or("").contains("region viewport 20,30 220x80")
+                    && preview.as_deref().unwrap_or("").contains("payload visual-feedback")
+                    && image_path.is_none()
+            )));
+    }
+
+    #[test]
+    fn steering_channel_backfill_uses_visual_task_folding() {
+        let mut lane = LanePane::new();
+        let blob = format!("/blob/{}", "b".repeat(64));
+        lane.fold_tube_body(
+            "channel:agent:proof:1".into(),
+            "chrome-extension-visual".into(),
+            &json!({
+                "kind": "visual-task",
+                "taskId": "visual-task-backfill",
+                "title": "Checkout button is clipped",
+                "image": {
+                    "mimeType": "image/png",
+                    "blobUrl": blob
+                },
+                "channel": { "name": "visual-feedback", "messageId": 1 }
+            }),
+            Tone::Default,
+        );
+
+        assert_eq!(
+            image_artifact_paths(&lane),
+            vec![format!("/blob/{}", "b".repeat(64))]
+        );
+        assert!(chat_turns(&lane).iter().any(|(speaker, text, tone)| {
+            speaker == "scout"
+                && text.contains("Scout captured visual task")
+                && *tone == Tone::Engaged
+        }));
+    }
+
+    #[test]
+    fn folds_real_daemon_transcript_start_and_end_metadata() {
+        let mut lane = LanePane::new();
+        lane.on_stream(&env(
+            "agent.transcript",
+            json!({
+                "type": "start",
+                "entry": {
+                    "id": "tx-meta",
+                    "ship": "codex",
+                    "spawned_agent_id": "a",
+                    "status": "running",
+                    "backend": "codex",
+                    "model": "gpt-5",
+                    "messages": [],
+                    "outputs": []
+                }
+            }),
+        ));
+        lane.on_stream(&env(
+            "agent.transcript",
+            json!({
+                "type": "end",
+                "entry": {
+                    "id": "tx-meta",
+                    "ship": "codex",
+                    "spawned_agent_id": "a",
+                    "status": "completed",
+                    "backend": "codex",
+                    "model": "gpt-5",
+                    "cost_usd": 0.0123,
+                    "tokens_in": 1200,
+                    "tokens_out": 340,
+                    "messages": [],
+                    "outputs": []
+                }
+            }),
+        ));
+
+        let lines = transcript_lines(&lane);
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("run running: codex via codex/gpt-5")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("run completed: codex $0.0123 tokens 1200 in / 340 out")));
+    }
+
+    #[test]
+    fn repeated_full_transcript_updates_do_not_duplicate_scrollback() {
+        let mut lane = LanePane::new();
+        let body = json!({
+            "type": "update",
+            "entry": {
+                "id": "tx-dedupe",
+                "ship": "codex",
+                "spawned_agent_id": "a",
+                "status": "running",
+                "backend": "codex",
+                "model": "gpt-5",
+                "messages": [
+                    {
+                        "role": "assistant",
+                        "content": "same row replayed",
+                        "timestamp": 99,
+                        "tool_calls": [
+                            {"name": "rg", "args": {"query": "agent.transcript"}, "result": "matched"}
+                        ]
+                    }
+                ],
+                "outputs": []
+            }
+        });
+
+        lane.on_stream(&env("agent.transcript", body.clone()));
+        lane.on_stream(&env("agent.transcript", body));
+        assert_eq!(
+            transcript_lines(&lane),
+            vec!["same row replayed".to_string()]
+        );
+        assert_eq!(lane.tools.len(), 1);
+        assert_eq!(lane.tools[0].name, "rg");
+        assert_eq!(lane.tools[0].state, ToolState::Ok);
+    }
+
+    #[test]
+    fn operator_turn_context_renders_as_chat_and_artifacts() {
+        let mut lane = LanePane::new();
+        let turn = OperatorTurn::parse(
+            "Please inspect this @core/pd-console/src/main.rs\n@photo /tmp/lane proof.png\n@skill native-app-designer\n@tool cargo check",
+        );
+
+        lane.push_operator_turn(&turn);
+
+        let turns = chat_turns(&lane);
+        assert!(turns
+            .iter()
+            .any(|(speaker, text, tone)| speaker == "you"
+                && text == "Please inspect this"
+                && *tone == Tone::Accent));
+        assert!(turns
+            .iter()
+            .any(|(speaker, text, tone)| speaker == "skill"
+                && text.contains("native-app-designer")
+                && *tone == Tone::Engaged));
+        assert!(turns
+            .iter()
+            .any(|(speaker, text, tone)| speaker == "tool"
+                && text.contains("cargo check")
+                && *tone == Tone::Engaged));
+        assert_eq!(
+            artifact_paths(&lane),
+            vec![
+                "core/pd-console/src/main.rs".to_string(),
+                "/tmp/lane proof.png".to_string()
+            ]
+        );
+        let blocks = lane.view();
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::ArtifactRef { label, path, preview, .. }
+                if label == "file attachment"
+                    && path == "core/pd-console/src/main.rs"
+                    && preview.as_deref() == Some("attached file / open in current worktree")
+        )));
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::ArtifactRef { label, path, preview, .. }
+                if label == "photo attachment"
+                    && path == "/tmp/lane proof.png"
+                    && preview.as_deref() == Some("attached photo / open in current worktree")
+        )));
     }
 
     #[test]
     fn scrollback_is_bounded() {
         let mut lane = LanePane::new();
         for i in 0..(SCROLLBACK + 50) {
-            lane.on_stream(&env("agent.transcript", json!({"text": format!("line {i}")})));
+            lane.on_stream(&env(
+                "agent.transcript",
+                json!({"text": format!("line {i}")}),
+            ));
         }
         assert!(lane.lines.len() <= SCROLLBACK);
     }

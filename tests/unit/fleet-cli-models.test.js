@@ -61,7 +61,7 @@ const modelsPayload = {
       modelTiers: {
         low: '@cf/zai-org/glm-4.7-flash',
         mid: '@cf/openai/gpt-oss-120b',
-        high: '@cf/moonshotai/kimi-k2.6',
+        high: '@cf/moonshotai/kimi-k2-instruct',
       },
       readinessStatus: 'needs_setup',
       readinessSummary: 'Cloudflare Workers AI credentials missing',
@@ -109,7 +109,7 @@ describe('pd fleet models', () => {
     expect(console.log).toHaveBeenCalledWith('cloudflare — Cloudflare Workers AI [needs_setup]');
     expect(console.log).toHaveBeenCalledWith('  low  @cf/zai-org/glm-4.7-flash');
     expect(console.log).toHaveBeenCalledWith('  mid  @cf/openai/gpt-oss-120b');
-    expect(console.log).toHaveBeenCalledWith('  high @cf/moonshotai/kimi-k2.6');
+    expect(console.log).toHaveBeenCalledWith('  high @cf/moonshotai/kimi-k2-instruct');
     expect(console.log).toHaveBeenCalledWith('codex — OpenAI Codex CLI [manual_check]');
   });
 

@@ -2,16 +2,15 @@
  * Binary Drift Detector
  *
  * When `brew upgrade port-daddy` (or any in-place binary swap) lands a newer
- * binary at the canonical `pd` path, the currently-running daemon process keeps
- * executing the OLD binary in memory. Routes added in the new version return
- * 404. Embedded assets present in the new binary are missing. The user has no
- * obvious signal that they need to `pd stop && pd start`.
+ * binary at the canonical runtime path, the currently-running daemon process
+ * keeps executing the OLD binary in memory. Routes added in the new version
+ * return 404. Embedded assets present in the new binary are missing. The user
+ * has no obvious signal that they need to `pd stop && pd start`.
  *
  * This module detects that condition by comparing two file digests:
  *   - runningHash: SHA-256 of the binary that this process was launched from
  *     (process.execPath, snapshotted at startup before any upgrade can swap it)
- *   - onDiskHash:  SHA-256 of whatever the canonical `pd` command currently
- *     resolves to on disk
+ *   - onDiskHash:  SHA-256 of the comparable on-disk runtime binary
  *
  * When the two diverge, the daemon emits a drift signal that /health surfaces.
  *
@@ -29,6 +28,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { basename, dirname, join } from 'node:path';
 
 export interface BinaryDriftSnapshot {
   /** Absolute, realpath-resolved path to the binary this process was launched from. */
@@ -37,11 +37,11 @@ export interface BinaryDriftSnapshot {
   runningHash: string | null;
   /** Size in bytes of the running binary at startup, for human-readable diagnostics. */
   runningSizeBytes: number | null;
-  /** Absolute, realpath-resolved path to the canonical `pd` on disk now. */
+  /** Absolute, realpath-resolved path to the comparable on-disk runtime binary. */
   onDiskPath: string | null;
-  /** SHA-256 of the canonical `pd` on disk right now. */
+  /** SHA-256 of the comparable on-disk runtime binary right now. */
   onDiskHash: string | null;
-  /** Size in bytes of the canonical `pd` on disk right now. */
+  /** Size in bytes of the comparable on-disk runtime binary right now. */
   onDiskSizeBytes: number | null;
   /** True when the running binary digest differs from the on-disk digest. */
   drifted: boolean;
@@ -106,6 +106,24 @@ export function resolveOnDiskPdPath(env: NodeJS.ProcessEnv = process.env): strin
   }
 }
 
+function resolveComparableOnDiskPath(
+  runningPath: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  if (env.PORT_DADDY_BIN_OVERRIDE) {
+    return resolveOnDiskPdPath(env);
+  }
+
+  if (basename(runningPath) === 'port-daddy-daemon') {
+    const siblingDaemon = join(dirname(runningPath), 'port-daddy-daemon');
+    if (existsSync(siblingDaemon)) {
+      return safeRealpath(siblingDaemon);
+    }
+  }
+
+  return resolveOnDiskPdPath(env);
+}
+
 /**
  * Snapshot the running binary at daemon startup. Call this exactly once, as
  * early as possible in server boot, and pass the result into `detectDrift`
@@ -141,14 +159,13 @@ export interface DetectDriftOptions {
 export function detectDrift(opts: DetectDriftOptions): BinaryDriftSnapshot {
   const env = opts.env ?? process.env;
   const now = opts.now ?? Date.now;
-  const resolve = opts.resolveOnDisk ?? resolveOnDiskPdPath;
+  const { runningPath, runningHash, runningSizeBytes } = opts.runningSnapshot;
+  const resolve = opts.resolveOnDisk ?? ((candidateEnv: NodeJS.ProcessEnv) => resolveComparableOnDiskPath(runningPath, candidateEnv));
 
   const onDiskPath = resolve(env);
   const onDiskExists = onDiskPath !== null && existsSync(onDiskPath);
   const onDiskHash = onDiskExists ? hashFile(onDiskPath!) : null;
   const onDiskSizeBytes = onDiskExists ? safeSize(onDiskPath!) : null;
-
-  const { runningPath, runningHash, runningSizeBytes } = opts.runningSnapshot;
 
   let drifted = false;
   let reason: string | null = null;
@@ -156,16 +173,16 @@ export function detectDrift(opts: DetectDriftOptions): BinaryDriftSnapshot {
   if (!runningHash) {
     reason = 'Running binary could not be hashed at startup; drift detection unavailable.';
   } else if (!onDiskPath) {
-    reason = 'No `pd` binary found on PATH; cannot compare against on-disk.';
+    reason = 'No comparable Port Daddy binary found on disk; cannot compare.';
   } else if (!onDiskExists) {
-    reason = `Canonical pd path ${onDiskPath} does not exist; cannot compare.`;
+    reason = `Comparable Port Daddy binary path ${onDiskPath} does not exist; cannot compare.`;
   } else if (!onDiskHash) {
-    reason = `Canonical pd at ${onDiskPath} could not be hashed; cannot compare.`;
+    reason = `Comparable Port Daddy binary at ${onDiskPath} could not be hashed; cannot compare.`;
   } else if (onDiskHash !== runningHash) {
     drifted = true;
-    reason = `Running daemon hash (${runningHash.slice(0, 12)}…) differs from on-disk pd (${onDiskHash.slice(0, 12)}…). Restart required: pd stop && pd start`;
+    reason = `Running daemon hash (${runningHash.slice(0, 12)}…) differs from on-disk Port Daddy binary (${onDiskHash.slice(0, 12)}…). Restart required: pd stop && pd start`;
   } else {
-    reason = 'Running daemon matches on-disk pd binary.';
+    reason = 'Running daemon matches comparable on-disk Port Daddy binary.';
   }
 
   return {

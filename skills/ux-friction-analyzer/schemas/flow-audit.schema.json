@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/flow-audit.schema.json",
+  "title": "UX Friction Flow Audit Input",
+  "description": "A structured description of a candidate UX flow, sufficient for scripts/friction_audit.mjs to mechanically check the 5 failure modes and mobile/touch/feedback quality gates from SKILL.md. Not a substitute for real-user validation.",
+  "type": "object",
+  "required": [
+    "steps",
+    "primaryActionObviousWithin3s",
+    "touchTargetsMinPx",
+    "worksAt320pxNoHscroll",
+    "feedbackWithin100ms",
+    "simultaneousAttentionElements"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The ordered steps of the flow being audited, e.g. the screens/states of a checkout or onboarding.",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "cognitiveState",
+          "timeSeconds",
+          "chunks",
+          "autoSaves",
+          "showsProgress",
+          "contextPreserved"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Human-readable name of the step, e.g. 'Shipping address form'."
+          },
+          "cognitiveState": {
+            "type": "string",
+            "enum": ["focused", "distracted", "overwhelmed", "time-pressured"],
+            "description": "The user's cognitive state during this step, matching the Primary Decision Tree in SKILL.md."
+          },
+          "timeSeconds": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Expected or observed wall-clock time to complete this step, including any wait/processing time."
+          },
+          "chunks": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of distinct mental chunks (fields, decisions, or facts to hold in working memory) this step requires."
+          },
+          "autoSaves": {
+            "type": "boolean",
+            "description": "Whether progress made in this step is persisted automatically without an explicit save action."
+          },
+          "showsProgress": {
+            "type": "boolean",
+            "description": "Whether this step gives the user visible feedback about system state during any wait (spinner, progress bar, time estimate)."
+          },
+          "contextPreserved": {
+            "type": "boolean",
+            "description": "Whether the user's place and prior input in this step survive an interruption (e.g. backgrounding the app, a notification, a tab switch)."
+          }
+        }
+      }
+    },
+    "primaryActionObviousWithin3s": {
+      "type": "boolean",
+      "description": "Whether a first-time user can identify the primary next action within 3 seconds of arriving at the flow's entry point."
+    },
+    "touchTargetsMinPx": {
+      "type": "number",
+      "minimum": 0,
+      "description": "The smallest interactive touch target size used anywhere in the flow, in CSS pixels."
+    },
+    "worksAt320pxNoHscroll": {
+      "type": "boolean",
+      "description": "Whether the flow renders correctly at a 320px viewport width with no horizontal scrolling."
+    },
+    "feedbackWithin100ms": {
+      "type": "boolean",
+      "description": "Whether every user action (click, tap, keypress) receives visible feedback within 100ms, even if the underlying operation takes longer."
+    },
+    "simultaneousAttentionElements": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "The maximum number of UI elements competing for the user's attention at any single point in the flow (choices, notifications, animated elements, form fields visible at once)."
+    },
+    "hasPowerUserPath": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the flow offers an accelerated path for repeat/expert users (keyboard shortcuts, batch actions, skip-ahead, saved defaults). Omitting this is treated as false."
+    }
+  }
+}

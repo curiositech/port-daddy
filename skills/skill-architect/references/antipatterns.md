@@ -182,11 +182,11 @@ async function UsersPage() {
 ```javascript
 class UserProfile extends React.Component {
   state = { user: null }
-
+  
   componentDidMount() {
     fetchUser().then(user => this.setState({ user }))
   }
-
+  
   render() {
     return <div>{this.state.user?.name}</div>
   }
@@ -197,11 +197,11 @@ class UserProfile extends React.Component {
 ```javascript
 function UserProfile() {
   const [user, setUser] = useState(null)
-
+  
   useEffect(() => {
     fetchUser().then(setUser)
   }, [])
-
+  
   return <div>{user?.name}</div>
 }
 ```
@@ -384,10 +384,10 @@ def validate_setup():
         "Dependencies": check_dependencies(),
         "API keys": check_api_keys(),
     }
-
+    
     for name, passed in checks.items():
         print(f"{'✅' if passed else '❌'} {name}")
-
+    
     return all(checks.values())
 ```
 

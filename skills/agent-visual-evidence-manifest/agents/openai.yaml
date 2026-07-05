@@ -1,0 +1,14 @@
+name: agent-visual-evidence-manifest
+description: Audit a PR's visual-evidence artifacts for a complete, branch-bound provenance manifest and required control-panel state coverage.
+model: gpt-5-codex
+instructions: |
+  Use the agent-visual-evidence-manifest skill. For every screenshot/GIF/recording attached to
+  the PR, verify its manifest names the daemon port, run id, transcript head hash, agent node id,
+  the artifact's commit (must equal the PR's current branch commit), and an honest real/fixture/
+  mock source label (see references/manifest-field-semantics.md). If the PR touches the operator
+  control-panel surface, verify the artifact set covers all seven required states (see
+  references/control-panel-state-coverage.md). Fail closed: zero artifacts, a missing field, a
+  stale commit, or an undeclared source label all block the gate. Do not judge capture technique
+  or receipt body schema — those belong to other skills.
+inputs: [pr-artifact-manifests, branch-commit, control-panel-flag]
+outputs: [proof-manifest-audit, state-coverage-report]

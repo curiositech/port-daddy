@@ -1,0 +1,18 @@
+{
+  "architecture": "outbox-relay",
+  "outboxWriteInBusinessTransaction": true,
+  "relayType": "polling",
+  "relayInstances": 2,
+  "usesSkipLocked": true,
+  "partialUnpublishedIndex": true,
+  "pruneStrategy": "time-partitioning",
+  "consumerIdempotent": true,
+  "dedupMechanism": "db-unique-constraint",
+  "schemaHasAggregateType": true,
+  "schemaHasAggregateId": true,
+  "schemaHasEventType": true,
+  "schemaHasPayload": true,
+  "expectedVolume": "high",
+  "traceIdInOutboxRow": true,
+  "lagMetricsExported": true
+}

@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 220" width="100%" height="100%" role="img" aria-label="Port Daddy">
+  <!-- Horizontal WORDMARK lockup, LIGHT theme: the radar+monogram mark on the
+       left, "PORT DADDY" type on the right, with the tagline rule. Type uses
+       the brand display fallback stack (Radnika → Helvetica Neue → Arial),
+       black weight, uppercase, tracked, to match the site voice. Transparent
+       background so it sits on any light/cream surface.
+       Companion: portdaddy-wordmark-dark.svg. -->
+  <defs>
+    <mask id="pd-wm-light-intersection" maskContentUnits="userSpaceOnUse">
+      <g stroke="white" stroke-width="14" stroke-linecap="butt" fill="none" transform="translate(10,10) scale(0.66667)">
+        <line x1="110" y1="110" x2="110" y2="210" />
+        <circle cx="135" cy="135" r="25" />
+      </g>
+    </mask>
+  </defs>
+
+  <style>
+    :root {
+      --cobalt: #2076FE;
+      --seafoam: #12B88F;
+      --amber: #F5A623;
+      --radar-grid: #DCE3EB;
+      --ink: #121212;
+      --muted: #47423A;
+    }
+    .pd-word { font-family: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 900; }
+    .pd-tag  { font-family: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 700; }
+  </style>
+
+  <!-- MARK (300x300 source, scaled to 200x200 at top-left, offset 10,10) -->
+  <g transform="translate(10,10) scale(0.66667)">
+    <g stroke="var(--radar-grid)" stroke-width="1.5" fill="none">
+      <circle cx="150" cy="150" r="45" />
+      <circle cx="150" cy="150" r="90" />
+      <circle cx="150" cy="150" r="135" />
+      <line x1="15" y1="150" x2="285" y2="150" stroke-dasharray="4 4" />
+      <line x1="150" y1="15" x2="150" y2="285" stroke-dasharray="4 4" />
+    </g>
+    <g>
+      <circle cx="150" cy="150" r="125" fill="none" stroke="var(--seafoam)" stroke-width="2.5" stroke-dasharray="1 8" stroke-linecap="round" opacity="0.7"/>
+    </g>
+    <g>
+      <circle cx="150" cy="150" r="105" fill="none" stroke="var(--amber)" stroke-width="2.5" stroke-dasharray="40 10 5 10" opacity="0.85"/>
+      <circle cx="150" cy="150" r="115" fill="none" stroke="var(--cobalt)" stroke-width="2" stroke-dasharray="2 4" opacity="0.6"/>
+    </g>
+    <g stroke="var(--cobalt)" stroke-width="2.5" fill="none">
+      <path d="M 213 87 A 90 90 0 0 0 187 68" />
+      <path d="M 87 87 A 90 90 0 0 1 113 68" />
+      <path d="M 213 213 A 90 90 0 0 1 187 232" />
+      <path d="M 87 213 A 90 90 0 0 0 113 232" />
+    </g>
+    <g stroke="var(--cobalt)" stroke-width="14" stroke-linecap="butt" fill="none">
+      <line x1="110" y1="110" x2="110" y2="210" />
+      <circle cx="135" cy="135" r="25" />
+    </g>
+    <g stroke="var(--seafoam)" stroke-width="14" stroke-linecap="butt" fill="none">
+      <line x1="190" y1="190" x2="190" y2="90" />
+      <circle cx="165" cy="165" r="25" />
+    </g>
+  </g>
+  <g stroke="var(--amber)" stroke-width="9.33" stroke-linecap="butt" fill="none" mask="url(#pd-wm-light-intersection)" transform="translate(10,10) scale(0.66667)">
+    <line x1="190" y1="190" x2="190" y2="90" />
+    <circle cx="165" cy="165" r="25" />
+  </g>
+
+  <!-- TYPE -->
+  <text x="240" y="118" class="pd-word" font-size="74" letter-spacing="-1" fill="var(--cobalt)">Port<tspan fill="var(--seafoam)"> Daddy</tspan></text>
+  <line x1="242" y1="146" x2="700" y2="146" stroke="var(--ink)" stroke-width="3" />
+  <text x="242" y="178" class="pd-tag" font-size="18" letter-spacing="2.6" fill="var(--muted)">A HARBOR-MASTER FOR YOUR AGENTS</text>
+</svg>

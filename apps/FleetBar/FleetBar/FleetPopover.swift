@@ -39,6 +39,7 @@ struct FleetPopover: View {
     @ObservedObject var secretsStore: SecretsStore
     @ObservedObject var backendStore: BackendStore
     @StateObject private var budgetStore = BudgetPauseStore()
+    @StateObject private var approvalStore = SpawnApprovalStore()
     @StateObject private var berthStore = BerthStore()
     @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
     @State private var appeared = false
@@ -95,13 +96,20 @@ struct FleetPopover: View {
         .onAppear {
             withAnimation(.smooth(duration: 0.4)) { appeared = true }
             budgetStore.start()
+            approvalStore.start()
         }
-        .onDisappear { budgetStore.stop() }
+        .onDisappear {
+            budgetStore.stop()
+            approvalStore.stop()
+        }
     }
 
     @ViewBuilder
     private var popoverContent: some View {
         VStack(spacing: 0) {
+            // HITL first: spawns held by the trust gate lead everything else
+            // in the dropdown (ADR-0093 — a pending human gate is unmissable).
+            SpawnApprovalSection(store: approvalStore)
             if store.versionSkew.needsAttention {
                 versionSkewBanner(store.versionSkew)
                 Divider().opacity(0.5)
@@ -113,6 +121,15 @@ struct FleetPopover: View {
             // Berth switcher (ADR-0084): always available — switch to a live berth
             // even when the current connection is down.
             BerthManagerView(store: store, berthStore: berthStore)
+            Divider().opacity(0.5)
+            // Tools: Fleet Control Center + a button per installed pd-console lane
+            // (prod / latest / dev-NAME), each launchable against a chosen berth.
+            ConsoleLauncherSection(
+                berths: berthStore.berths,
+                activeDaemonURL: store.daemonURL,
+                openControlCenter: { openControlPlane(.flow) },
+                openVisualTask: { openControlPlane(.visual) }
+            )
             Divider().opacity(0.5)
             if store.isDaemonRunning {
                 BackendStatusRow(store: backendStore)
@@ -162,6 +179,20 @@ struct FleetPopover: View {
         FleetBarAppChrome.presentControlCenter()
         if !FleetBarAppChrome.focusExistingControlCenter() {
             openWindow(id: "fleet-control-center")
+        }
+    }
+
+    /// The general "open the operator console" action. Prefers pd-console — the
+    /// GPU-native Rust cockpit — when installed, and falls back to the embedded
+    /// web control plane otherwise. Surface deep-links keep calling
+    /// `openControlPlane` directly (the web view supports them; pd-console doesn't yet).
+    @MainActor
+    private func openOperatorConsole() {
+        switch OperatorConsoleRouter.target(nativeInstalled: OperatorConsoleLauncher.isInstalled()) {
+        case .native:
+            OperatorConsoleLauncher.launch()
+        case .web:
+            openControlPlane(.flow)
         }
     }
 
@@ -250,6 +281,48 @@ struct FleetPopover: View {
         }
     }
 
+    /// The loud daemon-health alarm banner. Uses an SF Symbol (never an emoji)
+    /// in a WCAG-contrasting alert color, with body-sized text (no tiny fonts).
+    @ViewBuilder
+    private func healthAlarmBanner(severity: HealthSeverity, runtimeState: String?) -> some View {
+        let isCritical = severity == .critical
+        let tint = isCritical ? Fleet.Color.failure : Fleet.Color.warning
+        let symbol = isCritical ? "exclamationmark.octagon.fill" : "exclamationmark.triangle.fill"
+        let title = isCritical ? "Daemon health CRITICAL" : "Daemon degraded"
+        let subtitle = isCritical
+            ? "Core daemon health is failing\(runtimeState.map { " — runtime \($0)" } ?? "")"
+            : "Functional, but the daemon reports a degradation\(runtimeState.map { " — runtime \($0)" } ?? "")"
+
+        HStack(alignment: .top, spacing: Fleet.Space.s) {
+            Image(systemName: symbol)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(tint)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(tint)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(Fleet.Space.s)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(tint.opacity(0.12))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(tint.opacity(0.5), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title). \(subtitle)")
+    }
+
     private func daemonReportSection(status: DaemonStatusResponse) -> some View {
         let runtimeColor: Color = status.runtime?.degraded == true ? Fleet.Color.warning : Fleet.Color.healthy
         let bosun = status.guardians?.bosun
@@ -264,8 +337,15 @@ struct FleetPopover: View {
             }
         }()
         let recentActivity = Array(status.history?.recentActivity.prefix(2) ?? [])
+        let severity = store.daemonSeverity
 
         return VStack(alignment: .leading, spacing: Fleet.Space.s) {
+            // LOUD alarm banner when the daemon's health is degraded — the
+            // section visibly changes colour instead of staying quietly green.
+            if severity != .ok {
+                healthAlarmBanner(severity: severity, runtimeState: status.runtime?.state)
+            }
+
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Daemon Report")
@@ -496,8 +576,20 @@ struct FleetPopover: View {
 
             Spacer()
 
-            if store.isDaemonRunning {
-                HStack(spacing: Fleet.Space.s) {
+            HStack(spacing: Fleet.Space.s) {
+                Button {
+                    openControlPlane(.visual)
+                } label: {
+                    Label("Visual Task", systemImage: "viewfinder")
+                        .labelStyle(.iconOnly)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Fleet.Color.healthy)
+                }
+                .buttonStyle(.borderless)
+                .help("Send a screenshot or selected region to an agent")
+                .accessibilityLabel("Visual Task")
+
+                if store.isDaemonRunning {
                     Button {
                         Task { await store.reloadFleet() }
                     } label: {
@@ -643,7 +735,7 @@ struct FleetPopover: View {
                 }
                 Spacer()
                 Button {
-                    openControlPlane(.flow)
+                    openOperatorConsole()
                 } label: {
                     Label("Open", systemImage: "macwindow")
                         .font(.caption2.weight(.semibold))
@@ -915,6 +1007,9 @@ struct FleetPopover: View {
                     onOpenProject: {
                         openControlPlane(.flow, project: project.id)
                     },
+                    onOpenVisualTask: {
+                        openControlPlane(.visual, project: project.id)
+                    },
                     onRemediateProject: {
                         handleProjectRemediation(project)
                     },
@@ -977,14 +1072,14 @@ struct FleetPopover: View {
             }
 
             Button {
-                openControlPlane(.flow)
+                openOperatorConsole()
             } label: {
                 Label("Control Center", systemImage: "macwindow")
             }
             .buttonStyle(.borderless)
             .font(.caption2)
             .foregroundStyle(Fleet.Color.active)
-            .help("Open the Fleet Control Center")
+            .help("Open the operator console — pd-console if installed, else the web control plane")
 
             Button {
                 openSettings()
@@ -1075,6 +1170,7 @@ struct ProjectSection: View {
     let isExpanded: Bool
     let onToggle: () -> Void
     let onOpenProject: () -> Void
+    let onOpenVisualTask: () -> Void
     let onRemediateProject: () -> Void
     let onInspectAgent: (String) -> Void
     let onRunAgent: (String) -> Void
@@ -1157,6 +1253,7 @@ struct ProjectSection: View {
                 ProjectReadinessRow(
                     project: project,
                     onOpenProject: onOpenProject,
+                    onOpenVisualTask: onOpenVisualTask,
                     onRemediateProject: onRemediateProject
                 )
 
@@ -1201,6 +1298,7 @@ struct ProjectSection: View {
 struct ProjectReadinessRow: View {
     let project: FleetProject
     let onOpenProject: () -> Void
+    let onOpenVisualTask: () -> Void
     let onRemediateProject: () -> Void
 
     /// SF Symbol for each remediation action. Picked so the icon reinforces
@@ -1237,6 +1335,16 @@ struct ProjectReadinessRow: View {
             }
 
             Spacer(minLength: Fleet.Space.s)
+
+            Button {
+                onOpenVisualTask()
+            } label: {
+                Image(systemName: "viewfinder")
+            }
+            .buttonStyle(.borderless)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(Fleet.Color.healthy)
+            .help("Open visual task intake")
 
             Button {
                 onOpenProject()
