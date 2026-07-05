@@ -1,0 +1,5 @@
+# Shoham Leyton Brown 2009 Mas Foundations — Changelog
+
+## 2026-04-17
+- Recovered legacy/imported frontmatter into the canonical metadata-based repo shape
+- Recorded imported provenance and skip-oriented mutation policy metadata
