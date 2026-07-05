@@ -16,7 +16,7 @@ substrate), [ADR-0028](0028-salvage-envelope.md) (salvage), [ADR-0039](0039-sugg
 
 Nine threads have been built or sketched in parallel, and the operator asked the right
 question: how do they become *one product* rather than nine demos? The Rust kernel, the
-Giant Squid harness (suggestibility + salvagability), the tube substrate (local / mobile /
+Giant Squid harness (suggestibility + salvageability), the tube substrate (local / mobile /
 remote), a library of fleet ships + tube triggers, the Harbor design system for the Rust
 console, the Swiss-modern FleetBar operator control, the "beat Zed" collaborative editor,
 the mobile experience, and portdaddy.dev accounts + V4 remote harbor.
@@ -49,7 +49,7 @@ flowchart TB
   end
   subgraph HARNESS["THE HARNESS — Giant Squid"]
     SUGGEST["suggestibility (matrix + attention inject)"]
-    SALVAGE["salvagability (telos capsules)"]
+    SALVAGE["salvageability (telos capsules)"]
     GATE["exit-2 enforcement"]
   end
   subgraph SUBSTRATE["THE SUBSTRATE — the tube"]
@@ -69,7 +69,7 @@ Legend: **shipped** / *emerging* / `aspirational`.
 | Thread | Layer | Real anchor | Maturity |
 |---|---|---|---|
 | Rust kernel | Spine | `core/kernel/pd-anchor` (custody #496, broker #508 merged) | **shipped** |
-| Harness: suggestibility + salvagability | Harness | Giant Squid (PR #545); `lib/attention.ts` (ADR-0039); `lib/telos-salvage.ts` (ADR-0028) | harness *designed*; suggestibility/salvage **shipped** |
+| Harness: suggestibility + salvageability | Harness | Giant Squid (PR #545); `lib/attention.ts` (ADR-0039); `lib/telos-salvage.ts` (ADR-0028) | harness *designed*; suggestibility/salvage **shipped** |
 | Tube substrate (incl. mobile) | Substrate | `lib/tube.ts` | local **shipped**; mobile `aspirational` |
 | V4 remote harbor | Substrate (edge) | ADR-0027 Relay Harbor Mesh | *emerging* |
 | Fleet ships + tube triggers | Fleet | `lib/shipwright/archetypes.ts`, `fleet/ships/`, `lib/fleet-channels.ts` | *emerging* |
@@ -97,7 +97,8 @@ Legend: **shipped** / *emerging* / `aspirational`.
 The `tokens.css` design system is the one face. The console renders the Harbor theme;
 FleetBar takes the Swiss-modern restraint of Chart Table; the editor and mobile inherit the
 same tokens; Signal Deck's flag-language becomes the cross-surface status grammar. Choose the
-theme once; it propagates. (Design system + three themes: `~/coding/tmp/pd-harness-design`.)
+theme once; it propagates. (Design system + surface specs:
+`docs/design/2026-07-05-surface-redesign/00-unified-design-language.md`.)
 
 ## Consequences
 
@@ -115,7 +116,7 @@ theme once; it propagates. (Design system + three themes: `~/coding/tmp/pd-harne
 
 - ADR-0048 — "What Port Daddy Is"; this North-Star extends it.
 - ADR-0027 — Relay Harbor Mesh; the remote/federation substrate ("V4 remote harbor").
-- ADR-0028 — the salvage envelope; salvagability.
+- ADR-0028 — the salvage envelope; salvageability.
 - ADR-0039 — the suggestibility / attention layer.
 - ADR-0087 / ADR-0088 — the TCB and host-safety layers the spine and harness compose with.
 - `lib/tube.ts` — the substrate.
