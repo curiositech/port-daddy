@@ -25,7 +25,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest]
+        # macos-14/-15 are pinned Apple Silicon (arm64) images — the smoke script
+        # only supports Darwin/arm64, and "macos-latest" is a moving target that
+        # GitHub has repointed across architectures before.
+        os: [macos-14, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
