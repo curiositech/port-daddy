@@ -128,6 +128,16 @@ const SOURCE_SURFACES = [
     name: 'core/pd-console/Cargo.toml (CARGO_PKG_VERSION → pd-console --version)',
     get: () => literalFrom('core/pd-console/Cargo.toml', /^version\s*=\s*"(\d+\.\d+\.\d+[\w.\-+]*)"/m),
   },
+  {
+    // The repo's front door. Rotted from 3.13 to 3.24 before being gated.
+    name: 'README.md (title version)',
+    get: () => literalFrom('README.md', /^# ⚓ Port Daddy \(v(\d+\.\d+\.\d+[\w.\-+]*)\)/m),
+  },
+  {
+    // The daemon's API version IS the product version; lied at 3.10.0 for months.
+    name: 'docs/openapi.yaml (info.version)',
+    get: () => literalFrom('docs/openapi.yaml', /^  version:\s*(\d+\.\d+\.\d+[\w.\-+]*)\s*$/m),
+  },
 ];
 
 /**
