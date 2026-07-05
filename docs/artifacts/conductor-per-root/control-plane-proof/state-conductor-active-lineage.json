@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "pane": "conductor",
+  "blocks": [
+    {
+      "type": "header",
+      "text": "Conductor \u2014 Fleet Lineage"
+    },
+    {
+      "type": "keyval",
+      "key": "error",
+      "value": "daemon unreachable: error sending request for url (http://127.0.0.1:3104/fleet/conductor)"
+    }
+  ]
+}

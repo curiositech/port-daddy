@@ -1,0 +1,74 @@
+{
+  "prNumber": 519,
+  "branchCommit": "2b8bd50f7d849728e94584b2c7619c2d64440002",
+  "capturedAt": "2026-07-05T04:35:00-07:00",
+  "captureMethod": "PR #694 pd-console scripting control plane (--control-sock / PD_CONSOLE_CONTROL_SOCK, scripts/console-ctl.py), typed JSON state dumps from the live GPUI view",
+  "honestScopeNote": "screencapture -x -l <windowid> and computer-use screenshot both failed in this environment (TCC Screen Recording permission not granted to the agent context; permission panel raised for the operator). These artifacts are the sanctioned fallback: newline-JSON 'state' dumps typed by the RUNNING GPUI console over its control socket. The proof build is the PR's ConductorHead delta ported onto origin/main + PR #694's control plane (local scratch commit 3def2d479, never pushed; the port is required because this branch predates main's app.rs/main.rs churn). The gate header string itself ('⎈ Halt lineage: …') is rendered chrome, not a pane Block, so it is not present in the JSON dump; the state dump proves the live view holds the exact lineage (1 running root) from which ConductorHead::head() derives that header, and head()'s derivation is covered by the branch's two unit tests.",
+  "environment": {
+    "daemon": "isolated proof daemon: bun server.ts (origin/main checkout) with PORT_DADDY_PREFIX/PORT_DADDY_DB pinned to a scratch dir, port 3104 — the shared production daemon (:9876) and its DB were not touched",
+    "lineageSeed": "fleet_launches rows L-proof-root (depth 0, state=running) + L-proof-child (depth 1, state=settled) inserted into the scratch DB only, mirroring the branch's unit-test fixture; served live by GET /fleet/conductor",
+    "consoleBuild": "pd-console devbuild lane per doctrine: scripts/package-console.sh --devbuild proof519 → pd-console-dev-20260705-0423-proof519.app (v3.24.1)"
+  },
+  "artifacts": [
+    {
+      "file": "ping.json",
+      "demonstrates": "console booted, bound to the proof daemon, focused pane = conductor",
+      "manifest": {
+        "daemonPort": 3104,
+        "runId": "proof519-console-20260705-0429",
+        "transcriptHeadHash": "3cf418133c37db2ec4cd6842d1910bdea996663e0731acfff440abd0e36ba667",
+        "agentNodeId": "L-proof-root",
+        "commit": "2b8bd50f7d849728e94584b2c7619c2d64440002",
+        "sourceLabel": "real"
+      }
+    },
+    {
+      "file": "panes.json",
+      "demonstrates": "the running console's full pane roster including 'conductor'",
+      "manifest": {
+        "daemonPort": 3104,
+        "runId": "proof519-console-20260705-0429",
+        "transcriptHeadHash": "5fa96f6cde69572ee9e81be320c291a56a4f503f23918c00be71f43e39074766",
+        "agentNodeId": "L-proof-root",
+        "commit": "2b8bd50f7d849728e94584b2c7619c2d64440002",
+        "sourceLabel": "real"
+      }
+    },
+    {
+      "file": "focus-conductor.json",
+      "demonstrates": "control-plane focus command accepted for the conductor pane",
+      "manifest": {
+        "daemonPort": 3104,
+        "runId": "proof519-console-20260705-0429",
+        "transcriptHeadHash": "a9d0097992ea315942b845caae91cba7a8381448953248543da6fa100fa0a464",
+        "agentNodeId": "L-proof-root",
+        "commit": "2b8bd50f7d849728e94584b2c7619c2d64440002",
+        "sourceLabel": "real"
+      }
+    },
+    {
+      "file": "state-conductor-active-lineage.json",
+      "demonstrates": "THE MISSING ACTIVE-STATE PROOF: the live GPUI view's conductor pane holding root L-proof-root with a running depth-0 launch ('ship the Daemon Fleet Conductor', chip 'running') and a settled child — exactly the non-terminal-root condition ConductorHead::head() targets for the 'Halt lineage: … (1 running)' gate",
+      "manifest": {
+        "daemonPort": 3104,
+        "runId": "proof519-console-20260705-0429",
+        "transcriptHeadHash": "54f2ad7a6cab5bfc9a1954149a8dd0b426665ceb84367b25ad64515313985649",
+        "agentNodeId": "L-proof-root",
+        "commit": "2b8bd50f7d849728e94584b2c7619c2d64440002",
+        "sourceLabel": "fixture"
+      }
+    },
+    {
+      "file": "daemon-fleet-conductor.json",
+      "demonstrates": "the daemon side of the same truth: GET /fleet/conductor serving the seeded lineage the console rendered",
+      "manifest": {
+        "daemonPort": 3104,
+        "runId": "proof519-daemon-20260705-0435",
+        "transcriptHeadHash": "a5b8c115447f14ac3bd0f179289e413f7af89f6958eb1792cc8fc123821dd534",
+        "agentNodeId": "L-proof-root",
+        "commit": "2b8bd50f7d849728e94584b2c7619c2d64440002",
+        "sourceLabel": "fixture"
+      }
+    }
+  ]
+}

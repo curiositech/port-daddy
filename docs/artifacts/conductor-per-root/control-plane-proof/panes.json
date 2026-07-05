@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "panes": [
+    "fleet",
+    "cockpit",
+    "sorties",
+    "claims",
+    "peek",
+    "planner",
+    "adrs",
+    "activity",
+    "sessions",
+    "inbox",
+    "suggest",
+    "memory",
+    "prs",
+    "health",
+    "coast-guard",
+    "dispatch",
+    "lane",
+    "ledger",
+    "lineage",
+    "substrate",
+    "parley",
+    "conductor",
+    "daemons",
+    "cloud-fleet",
+    "active-agents",
+    "galaxy"
+  ],
+  "focused": "conductor"
+}

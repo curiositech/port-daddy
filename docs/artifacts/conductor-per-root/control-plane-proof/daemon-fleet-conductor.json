@@ -1,0 +1,50 @@
+{
+    "success": true,
+    "count": 2,
+    "launches": [
+        {
+            "id": "L-proof-root",
+            "rootId": "L-proof-root",
+            "parentId": "",
+            "depth": 0,
+            "goal": "ship the Daemon Fleet Conductor",
+            "source": "operator",
+            "backend": "claude-cli",
+            "state": "running",
+            "capabilities": [],
+            "bondUsd": 2,
+            "lineageCeilingUsd": 10,
+            "worktree": "inherit",
+            "mergePolicy": "review",
+            "agentId": null,
+            "resultArtifact": null,
+            "costUsd": 0.42,
+            "errorMessage": null,
+            "refusedReason": null,
+            "createdAt": 1783250925000,
+            "settledAt": null
+        },
+        {
+            "id": "L-proof-child",
+            "rootId": "L-proof-root",
+            "parentId": "L-proof-root",
+            "depth": 1,
+            "goal": "unit-test the per-root gate",
+            "source": "L-proof-root",
+            "backend": "claude-cli",
+            "state": "settled",
+            "capabilities": [],
+            "bondUsd": 1,
+            "lineageCeilingUsd": null,
+            "worktree": "inherit",
+            "mergePolicy": "review",
+            "agentId": null,
+            "resultArtifact": null,
+            "costUsd": 0.18,
+            "errorMessage": null,
+            "refusedReason": null,
+            "createdAt": 1783250925000,
+            "settledAt": null
+        }
+    ]
+}
