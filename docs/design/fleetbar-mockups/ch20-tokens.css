@@ -1,0 +1,143 @@
+/* ============================================================
+   ch20-tokens.css — shared token sheet for the converged mock set
+   (parley convergence 2026-07-05, punch-list item 1).
+   Source of truth: binder ch20 (story linework) + PR #657 port.css.
+   Palette v2 · IBM Plex + Recursive casual · rule-8 micro-flags.
+   Mock-local copy; W0 lands the real linework.css into website-v2.
+   ============================================================ */
+
+:root {
+  /* surfaces (light) */
+  --surface-base:   #f2eee6;
+  --surface-card:   #e9e2d5;
+  --surface-strong: #e9e2d5;
+  --surface-sunken: #e0d9cb;
+  /* ink */
+  --text-primary:   #121212;
+  --text-secondary: #403b34;
+  --text-muted:     #47423a;
+  /* hue = layer (accents, never chrome) */
+  --cobalt: #003fb8;  --teal: #006b5f;  --health: #1f7a4d;
+  --amber:  #a66f00;  --amber-on-tint: #5b3900;
+  --error:  #bf2f2f;
+  --indigo: #353a85;
+  --violet: #933fa5;  --violet-on-tint: #772189;
+  --rust:   #7a4514;  --rust-on-tint:   #5f2c00;
+  --gold:   #666a00;  --gold-on-tint:   #4d5000;
+  --lime:   #cad900;
+  /* structure is ink */
+  --hair:        rgba(18, 18, 18, 0.14);
+  --hair-strong: rgba(18, 18, 18, 0.34);
+  --border-strong: #121212;
+  /* slabs are theme-independent (rule 4: cream text in both themes) */
+  --cobalt-slab: #003fb8; --teal-slab: #006b5f; --health-slab: #1f7a4d;
+  --indigo-slab: #353a85; --violet-slab: #933fa5; --rust-slab: #7a4514;
+  --gold-slab: #666a00;
+  --flag-white: #fbf7ef;
+  /* washes: 10% color-mix per rule 4 */
+  --cobalt-wash: color-mix(in oklab, var(--cobalt) 10%, var(--surface-base));
+  --teal-wash:   color-mix(in oklab, var(--teal) 10%, var(--surface-base));
+  --health-wash: color-mix(in oklab, var(--health) 10%, var(--surface-base));
+  --violet-wash: color-mix(in oklab, var(--violet) 10%, var(--surface-base));
+  --gold-wash:   color-mix(in oklab, var(--gold) 10%, var(--surface-base));
+  --rust-wash:   color-mix(in oklab, var(--rust) 10%, var(--surface-base));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-base:   #101216;
+    --surface-card:   #181c22;
+    --surface-strong: #222833;
+    --surface-sunken: #0b0d11;
+    --text-primary:   #f5f3ed;
+    --text-secondary: #d3cec2;
+    --text-muted:     #a59f93;
+    --cobalt: #7db4ff;  --teal: #8fd0a7;  --health: #5fce97;
+    --amber:  #f2be51;  --amber-on-tint: #ffe0a0;
+    --error:  #ff7d7d;
+    --indigo: #9d92e8;
+    --violet: #e0a5ed;  --violet-on-tint: #f8c7ff;
+    --rust:   #b98e6b;  --rust-on-tint:   #cdad94;
+    --gold:   #d8dd3c;  --gold-on-tint:   #f5fa78;
+    --hair:        rgba(245, 243, 237, 0.14);
+    --hair-strong: rgba(245, 243, 237, 0.34);
+    --border-strong: #f5f3ed;
+  }
+}
+
+/* ---- type (verdict 3: IBM Plex superfamily + Recursive casual) ---- */
+.plex, body.ch20 {
+  font-family: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.mono {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: 0.8125rem;
+}
+.casual {
+  font-family: "Recursive", "IBM Plex Sans", sans-serif;
+  font-variation-settings: "CASL" 1;
+}
+.eyebrow {
+  font-size: 0.75rem; font-weight: 650; text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--text-muted);
+}
+
+/* ---- linework (rule 6: 1px texture / 1.5px linework / 2px enclosure) ---- */
+.rule-mid { border: 0; border-top: 1px solid var(--hair-strong); width: 64px; }
+.slab { color: var(--flag-white); }
+.card-hairline { background: var(--surface-card); border: 1px solid var(--hair); }
+
+/* brackets: live panels only (rule: 12px L-ticks, 1.5px, on the grid) */
+.bracketed { position: relative; }
+.bracketed::before, .bracketed::after,
+.bracketed > .bk::before, .bracketed > .bk::after {
+  content: ""; position: absolute; width: 12px; height: 12px;
+  border: 0 solid var(--border-strong); pointer-events: none;
+}
+.bracketed::before { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+.bracketed::after  { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+.bracketed > .bk::before { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.bracketed > .bk::after  { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+
+/* ---- rule-8 state grammar: stripe + dot + micro-flag + label + time ---- */
+.stripe3 { position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; }
+.dot8 { width: 8px; height: 8px; flex: none; }
+@keyframes ch20pulse {
+  0% { outline-offset: 0; outline-color: currentColor; }
+  100% { outline-offset: 7px; outline-color: transparent; }
+}
+.pulse { outline: 1.5px solid currentColor; animation: ch20pulse 1.8s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+
+/* micro-flag chips (13×9.5; ICOS glyphs per port.css / PR #663 corpus) */
+.mfl {
+  display: inline-block; width: 13px; height: 9.5px; flex: none;
+  border: 0.5px solid rgba(0,0,0,0.25);
+  --fw: var(--flag-white); --fink: #17191d;
+  --c: var(--cobalt-slab); --r: #bf2f2f; --y: var(--lime);
+}
+.fl-quebec   { background: var(--y); }                                    /* vessel healthy */
+.fl-kilo     { background: linear-gradient(to right, var(--y) 0 50%, var(--c) 50%); } /* I wish to communicate */
+.fl-lima     { background: conic-gradient(var(--fink) 0 25%, var(--y) 25% 50%, var(--fink) 50% 75%, var(--y) 75%); } /* stop instantly */
+.fl-november { background: repeating-conic-gradient(var(--c) 0 25%, var(--fw) 25% 50%) top left / 50% 50%; } /* negative */
+.fl-uniform  { background: repeating-conic-gradient(var(--r) 0 25%, var(--fw) 25% 50%) top left / 50% 50%; } /* running into danger */
+.fl-papa     { background: linear-gradient(var(--fw), var(--fw)) center / 42% 42% no-repeat, var(--c); } /* about to sail / all aboard */
+.fl-delta    { background: linear-gradient(to bottom, var(--y) 0 25%, var(--c) 25% 75%, var(--y) 75%); } /* keep clear, maneuvering with difficulty */
+.fl-charlie  { background: linear-gradient(to bottom, var(--c) 0 20%, var(--fw) 20% 40%, var(--r) 40% 60%, var(--fw) 60% 80%, var(--c) 80%); } /* affirmative */
+.fl-foxtrot  { background: linear-gradient(var(--r), var(--r)) center / 42% 42% no-repeat, var(--fw); } /* communicate with me */
+
+/* ---- cut-paper art slot (ch20 blessed style; mock placeholder) ---- */
+.art-slot {
+  background:
+    linear-gradient(160deg, var(--surface-strong) 0 38%, transparent 38.5%),
+    linear-gradient(200deg, var(--surface-sunken) 0 30%, transparent 30.5%),
+    var(--surface-card);
+  border: 1px solid var(--hair);
+  display: flex; align-items: flex-end; padding: 0.6rem 0.8rem;
+}
+.art-slot .art-label {
+  font-size: 0.75rem; font-weight: 650; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text-muted);
+}

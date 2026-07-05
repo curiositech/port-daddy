@@ -12,7 +12,12 @@
 #   prod    → ~/Applications/pd-console-prod.app           what Homebrew ships (vX.Y.Z badge, BLUE)
 #   latest  → ~/Applications/pd-console-latest.app         what's on main      ("latest" badge, GREEN)   [DEFAULT]
 #   dev <n> → ~/Applications/pd-console-dev-apps/           a worktree build    ("dev·<n>" badge, AMBER)
-#             pd-console_dev-<n>.app
+#             pd-console-dev-<YYYYMMDD-HHMM>-<n>.app
+#
+# Dev bundles carry their build time in the filename, YYYYMMDD-HHMM first so
+# lexicographic sort == chronological sort — a glance at the folder tells you
+# which build is newest. Rebuilding the same <n> retires that name's older
+# bundles (set PD_CONSOLE_KEEP_OLD_DEV=1 to keep superseded builds).
 #
 # Each lane is a separate CFBundleIdentifier, so LaunchServices keeps separate
 # icon caches and Dock entries — they never overwrite each other.
@@ -66,7 +71,10 @@ case "$LANE" in
     SAFE="$(printf '%s' "$DEVNAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9._-' '-' | sed 's/^-*//; s/-*$//')"
     [ -n "$SAFE" ] || { echo "✗ --devbuild name reduced to empty after sanitising: '$DEVNAME'" >&2; exit 2; }
     mkdir -p "$DEV_APPS_DIR"
-    APP="$DEV_APPS_DIR/pd-console_dev-${SAFE}.app"
+    # Timestamp-first filename (YYYYMMDD-HHMM): the folder sorts newest-last, so
+    # freshness is visible without opening a single bundle.
+    STAMP="$(date +%Y%m%d-%H%M)"
+    APP="$DEV_APPS_DIR/pd-console-dev-${STAMP}-${SAFE}.app"
     BADGE="dev·$SAFE"; TINT="#f59e0b"; BUNDLE_ID="dev.curiositech.pd-console.dev.$SAFE"
     DISPLAY="pd-console (dev: $SAFE)" ;;
 esac
@@ -199,7 +207,23 @@ touch "$APP"
 LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 [ -x "$LSREG" ] && "$LSREG" -f "$APP" || true
 
-# ── 10. Relaunch this lane's app (operator always sees the fresh build) ────────
+# ── 10. Dev lane: retire this name's superseded bundles ────────────────────────
+# The new bundle is installed; older timestamped builds of the SAME dev name (and
+# the pre-timestamp legacy pd-console_dev-<name>.app) are stale binaries that only
+# confuse "which one do I open?". Kill + delete them unless the operator opts out.
+if [ "$LANE" = dev ] && [ "${PD_CONSOLE_KEEP_OLD_DEV:-0}" != "1" ]; then
+  # ????????-???? pins the stamp to exactly YYYYMMDD-HHMM so a name that is a
+  # suffix of another name (pane vs parley-pane) can't match across builds.
+  for OLD in "$DEV_APPS_DIR"/pd-console-dev-????????-????-"${SAFE}.app" "$DEV_APPS_DIR/pd-console_dev-${SAFE}.app"; do
+    [ -d "$OLD" ] || continue
+    [ "$OLD" = "$APP" ] && continue
+    echo "▸ retiring superseded dev build $(basename "$OLD")"
+    pkill -f "$OLD/Contents/MacOS/pd-console" 2>/dev/null || true
+    rm -rf "$OLD"
+  done
+fi
+
+# ── 11. Relaunch this lane's app (operator always sees the fresh build) ────────
 if [ "${PD_CONSOLE_NO_LAUNCH:-0}" != "1" ]; then
   echo "▸ relaunching $(basename "$APP")"
   # Only kill an instance of THIS bundle, not the other lanes' windows.

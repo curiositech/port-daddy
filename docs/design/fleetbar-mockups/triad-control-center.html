@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fleet Control Center — converged mock (ch20 story linework)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600;700&family=Recursive:CASL,wght@1,600..800&display=swap">
+<link rel="stylesheet" href="ch20-tokens.css">
+<style>
+/* ============================================================
+   Fleet Control Center — converged onto binder ch20 story linework.
+   Content/IA: /tmp-mocks control-center.html (PR #671).
+   Skin & law: ch20-tokens.css. One cobalt zone (RUNNING NOW),
+   brackets on the live fleet pane only, budget wears gold,
+   rule-8 rows, Papa teaching empty state, one art slot.
+   ============================================================ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--surface-base); color: var(--text-primary);
+  font-size: .9375rem; line-height: 1.55; padding: 0 1rem 3rem;
+}
+button { font: inherit; font-size: .875rem; font-weight: 600;
+  padding: .3rem .85rem; border: 1.5px solid var(--border-strong);
+  background: transparent; color: var(--text-primary); cursor: pointer; }
+button.primary { background: var(--border-strong); color: var(--surface-base); }
+button.danger { border-color: var(--error); color: var(--error); }
+button.sm { padding: .15rem .6rem; font-size: .8125rem; }
+:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
+
+.pagehead { max-width: 1240px; margin: 2rem auto .4rem; padding: 0 .2rem; }
+.pagehead h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -.02em; }
+.pagehead p { color: var(--text-secondary); max-width: 72ch; margin-top: .35rem; }
+.pagehead .refs { margin-top: .4rem; color: var(--text-muted); font-size: .875rem; }
+
+/* ---- app window: 2px enclosure ---- */
+.window { max-width: 1240px; margin: 1.1rem auto 0;
+  border: 2px solid var(--border-strong); background: var(--surface-base); }
+
+/* ---- header band ---- */
+.mast { display: flex; align-items: stretch; gap: 1rem; flex-wrap: wrap;
+  padding: .85rem 1rem; border-bottom: 1.5px solid var(--border-strong); }
+.mast .appname { align-self: center; font-weight: 700; font-size: 1.1rem;
+  letter-spacing: -.01em; white-space: nowrap; }
+.proj { align-self: center; display: flex; align-items: center; gap: .5rem;
+  border: 1.5px solid var(--hair-strong); padding: .35rem .8rem;
+  background: var(--surface-card); font-weight: 600; }
+.plates { margin-left: auto; display: flex; gap: .8rem; flex-wrap: wrap; }
+.plate { border: 1px solid var(--hair); background: var(--surface-card);
+  padding: .45rem .85rem; min-width: 118px;
+  display: flex; flex-direction: column; gap: .15rem; justify-content: center; }
+.plate .v { font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: .5rem; }
+.plate.gold { background: var(--gold-wash); border-color: var(--gold); color: var(--gold-on-tint); }
+.plate.gold .eyebrow { color: var(--gold-on-tint); }
+.bar { height: 8px; border: 1px solid var(--hair-strong); background: var(--surface-base);
+  width: 118px; position: relative; margin-top: .2rem; }
+.bar i { position: absolute; inset: 0; right: auto; background: var(--gold); }
+
+/* ---- three-pane grid ---- */
+main { display: grid; grid-template-columns: 408px 1fr 292px; gap: 1rem;
+  padding: 1rem; align-items: stretch; }
+.pane { border: 1px solid var(--hair); background: var(--surface-card);
+  display: flex; flex-direction: column; min-width: 0; }
+.pane > h2 { font-size: 1rem; font-weight: 700; padding: .6rem .9rem;
+  border-bottom: 1px solid var(--hair-strong);
+  display: flex; align-items: center; gap: .6rem; }
+.pane-body { padding: .8rem .9rem; display: flex; flex-direction: column; gap: .8rem; }
+
+/* live fleet pane wears the brackets */
+.pane.bracketed { border-color: var(--hair-strong); }
+
+/* the ONE cobalt zone: what is running right now */
+.runningnow { background: var(--cobalt-slab); padding: .6rem .8rem;
+  display: flex; align-items: center; gap: .6rem; }
+.runningnow .dot8 { background: var(--flag-white); color: var(--flag-white); }
+.runningnow .who { font-weight: 700; }
+.runningnow .what { opacity: .9; min-width: 0; flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.runningnow .t { flex: none; opacity: .85; }
+
+/* gate cards */
+.gate { border: 1.5px solid var(--hair-strong); background: var(--surface-base); padding: .7rem .8rem; }
+.gate .g-head { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
+.gate .g-title { font-weight: 700; }
+.gate p { color: var(--text-secondary); margin: .35rem 0 .6rem; }
+.cost { color: var(--gold-on-tint); background: var(--gold-wash);
+  padding: 0 .35rem; font-weight: 600; white-space: nowrap; }
+.g-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+.radio-chip { display: inline-flex; align-items: center; gap: .45rem; padding: .1rem .5rem; }
+.radio-chip.amberwash { background: color-mix(in oklab, var(--amber) 12%, var(--surface-base)); color: var(--amber-on-tint); }
+.radio-chip.errwash { background: color-mix(in oklab, var(--error) 10%, var(--surface-base)); color: var(--error); }
+.wordtag { font-size: .75rem; font-weight: 650; text-transform: uppercase; letter-spacing: .12em; }
+
+/* crew groups: rule-8 rows */
+.grp-head { display: flex; align-items: center; gap: .5rem;
+  padding: .35rem 0 .25rem; border-bottom: 1px solid var(--hair-strong); }
+.grp-head .n { margin-left: auto; color: var(--text-muted); }
+.crew-row { position: relative; display: flex; align-items: center; gap: .55rem;
+  padding: .5rem .5rem .5rem .85rem; border-bottom: 1px solid var(--hair); }
+.crew-row:last-child { border-bottom: 0; }
+.crew-row .dot8 { background: currentColor; }
+.crew-row .name { font-weight: 600; min-width: 118px; color: var(--text-primary); }
+.crew-row .step { color: var(--text-secondary); flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crew-row .t { color: var(--text-muted); flex: none; }
+.crew-row.tall { flex-wrap: wrap; }
+.crew-row .snippet { flex-basis: 100%; margin: .35rem 0 0 1.4rem; padding: .3rem .55rem;
+  background: var(--surface-sunken); border-left: 1.5px solid var(--hair-strong);
+  color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hue-violet { color: var(--violet); } .hue-violet .stripe3 { background: var(--violet); }
+.hue-health { color: var(--health); } .hue-health .stripe3 { background: var(--health); }
+.hue-amber  { color: var(--amber); }  .hue-amber .stripe3  { background: var(--amber); }
+.hue-rust   { color: var(--rust); }   .hue-rust .stripe3   { background: var(--rust); }
+.hue-mute   { color: var(--text-muted); } .hue-mute .stripe3 { background: var(--text-muted); }
+.newchip { font-size: .75rem; font-weight: 650; letter-spacing: .1em; text-transform: uppercase;
+  border: 1px solid var(--rust); color: var(--rust-on-tint); background: var(--rust-wash); padding: 0 .35rem; }
+
+/* flow pane */
+#flow .pane-body { padding: .5rem .6rem 0; flex: 1; }
+#flow svg { width: 100%; height: auto; display: block; }
+.legend { display: flex; gap: .5rem 1.1rem; padding: .5rem .9rem .7rem; margin-top: auto;
+  border-top: 1px solid var(--hair); color: var(--text-muted); font-size: .875rem;
+  align-items: center; flex-wrap: wrap; }
+.legend > span { display: inline-flex; align-items: center; gap: .35rem; white-space: nowrap; }
+
+/* right column */
+.rcol { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.kv { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.stepper { display: flex; align-items: stretch; }
+.stepper button { width: 30px; padding: .15rem 0; font-weight: 700; }
+.stepper .amt { border-top: 1.5px solid var(--border-strong); border-bottom: 1.5px solid var(--border-strong);
+  padding: .15rem .7rem; font-weight: 700; }
+table { width: 100%; border-collapse: collapse; }
+td { padding: .25rem .1rem; border-bottom: 1px solid var(--hair); color: var(--text-secondary); }
+td:last-child { text-align: right; color: var(--text-primary); }
+tr:last-child td { border-bottom: 0; }
+.pane.goldwell { background: var(--gold-wash); border-color: var(--gold); }
+.pane.goldwell > h2 { border-bottom-color: var(--gold); color: var(--gold-on-tint); }
+.pane.goldwell .pane-body, .pane.goldwell td { color: var(--gold-on-tint); }
+.pane.goldwell td { border-bottom-color: color-mix(in oklab, var(--gold) 30%, transparent); }
+.pane.goldwell .eyebrow { color: var(--gold-on-tint); }
+.ok-line { color: var(--health); }
+.blocked-line { color: var(--error); }
+
+.art-slot { min-height: 104px; }
+
+/* footer band: the Papa teaching empty state */
+.emptyband { border-top: 1.5px solid var(--border-strong); background: var(--surface-card);
+  display: flex; align-items: center; gap: 1rem; padding: .8rem 1rem; flex-wrap: wrap; }
+.emptyband .papa { display: inline-flex; align-items: center; gap: .5rem; flex: none; }
+.emptyband p { color: var(--text-secondary); flex: 1; min-width: 26ch; }
+.emptyband .cmd { color: var(--text-primary); background: var(--surface-sunken);
+  padding: 0 .35rem; border: 1px solid var(--hair); white-space: nowrap; }
+
+/* svg text */
+.svgname { font: 700 13px "IBM Plex Mono", monospace; fill: var(--text-primary); }
+.svgstate { font: 650 12px "IBM Plex Sans", sans-serif; text-transform: uppercase;
+  letter-spacing: .08em; fill: var(--text-muted); }
+.svgchan { font: 700 13px "IBM Plex Mono", monospace; fill: var(--flag-white); }
+.svgcap { font: 650 12px "IBM Plex Sans", sans-serif; text-transform: uppercase;
+  letter-spacing: .1em; fill: var(--text-muted); }
+</style>
+</head>
+<body class="ch20 plex">
+
+<div class="pagehead">
+  <h1>Fleet Control Center — the <span class="casual">conn</span></h1>
+  <p>FleetBar's deep window face, not a fourth product: one header band, gates and roster
+     and event flow as conjoined panes, budget as a consent object rendered in gold.
+     Exactly one cobalt zone — the thing running right now — and corner brackets only
+     on the live fleet pane.</p>
+  <p class="refs mono">binder ch20 + 03-parley-convergence.md punch-list item 1 · content: PR #671</p>
+</div>
+
+<div class="window">
+
+  <!-- ============ header band ============ -->
+  <header class="mast">
+    <span class="appname">Fleet Control Center</span>
+    <button class="proj mono" aria-haspopup="listbox" aria-label="Switch project, current: port-daddy">port-daddy ▾</button>
+    <div class="plates">
+      <div class="plate"><span class="eyebrow">Live truth</span>
+        <span class="v" style="color:var(--health)"><span class="mfl fl-quebec" aria-hidden="true"></span>NOMINAL</span></div>
+      <div class="plate"><span class="eyebrow">Build</span><span class="v mono">3.23.0</span></div>
+      <div class="plate gold"><span class="eyebrow">Budget</span>
+        <span class="v mono">$2.10 / $8.50</span>
+        <span class="bar" role="img" aria-label="24.7 percent of daily budget spent"><i style="width:24.7%"></i></span></div>
+      <div class="plate"><span class="eyebrow">Crew</span><span class="v mono">16</span></div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ============ left: gates & attention (the live fleet pane) ============ -->
+    <section class="pane bracketed" aria-labelledby="gates-h"><span class="bk"></span>
+      <h2 id="gates-h">Gates &amp; Attention</h2>
+      <div class="pane-body">
+
+        <!-- the one cobalt zone on this page -->
+        <div class="runningnow slab">
+          <span class="dot8 pulse" aria-hidden="true"></span>
+          <span class="eyebrow" style="color:var(--flag-white)">Running now</span>
+          <span class="who mono">cartographer</span>
+          <span class="what">reading PR #664 diff</span>
+          <span class="t mono">12m</span>
+        </div>
+
+        <article class="gate">
+          <div class="g-head">
+            <span class="mfl fl-foxtrot" aria-label="Foxtrot: communicate with me"></span>
+            <span class="wordtag" style="color:var(--violet-on-tint)">Consent</span>
+            <span class="g-title mono">merge-consent · PR #667</span>
+          </div>
+          <p>auto-committer wants to merge <span class="mono">fix: guard stale-lock sweep</span> into
+          <span class="mono">origin/main</span>. CI green, 2 approvals, threads resolved.
+          <span class="cost mono">est. $0.14</span> to run the merge sortie.</p>
+          <div class="g-actions">
+            <button class="primary">Approve</button>
+            <button>Modify</button>
+            <button class="danger">Deny</button>
+          </div>
+        </article>
+
+        <article class="gate" style="border-color:var(--error)">
+          <div class="g-head">
+            <span class="radio-chip errwash"><span class="mfl fl-lima" aria-label="Lima: stop instantly"></span>
+              <span class="wordtag">Pan pan · claim conflict</span></span>
+            <span class="g-title mono">src/fleet/engine.ts</span>
+          </div>
+          <p>spider and code-reviewer both hold file claims on
+          <span class="mono">src/fleet/engine.ts</span> (lines 180–260 overlap). Neither will yield.
+          <span class="cost mono">est. $0.06</span> to convene the parley.</p>
+          <div class="g-actions">
+            <button class="primary">Force Parley</button>
+          </div>
+        </article>
+
+        <!-- crew groups -->
+        <div class="grp-head hue-violet">
+          <span class="mfl fl-foxtrot" aria-hidden="true"></span>
+          <span class="wordtag">Needs you</span><span class="n mono">1</span>
+        </div>
+        <div class="crew-row hue-violet">
+          <span class="stripe3"></span><span class="dot8"></span>
+          <span class="mfl fl-foxtrot" aria-label="Foxtrot: communicate with me"></span>
+          <span class="name mono">auto-committer</span>
+          <span class="step">holding at merge-consent gate for PR #667</span>
+          <span class="t mono">4m</span>
+          <button class="sm">Open Gate</button>
+        </div>
+
+        <div class="grp-head hue-health">
+          <span class="mfl fl-quebec" aria-hidden="true"></span>
+          <span class="wordtag">Working</span><span class="n mono">3</span>
+        </div>
+        <div class="crew-row tall hue-health">
+          <span class="stripe3"></span><span class="dot8 pulse"></span>
+          <span class="mfl fl-quebec" aria-label="Quebec: vessel healthy"></span>
+          <span class="name mono">cartographer</span>
+          <span class="step">reading PR #664 diff</span>
+          <span class="t mono">12m</span>
+          <div class="snippet mono">+ roadmap: mark symbol-graph-visualization (UNCOMMITTED) → (NOW)</div>
+        </div>
+        <div class="crew-row tall hue-health">
+          <span class="stripe3"></span><span class="dot8 pulse"></span>
+          <span class="mfl fl-quebec" aria-label="Quebec: vessel healthy"></span>
+          <span class="name mono">spider</span>
+          <span class="step">crawling docs/adr for dead links</span>
+          <span class="t mono">3m</span>
+          <div class="snippet mono">GET docs/adr/0087-tcb-broker.md → 200 · 3 outbound refs queued</div>
+        </div>
+        <div class="crew-row tall hue-health">
+          <span class="stripe3"></span><span class="dot8 pulse"></span>
+          <span class="mfl fl-quebec" aria-label="Quebec: vessel healthy"></span>
+          <span class="name mono">code-reviewer</span>
+          <span class="step">writing review of fleet-engine.ts:214</span>
+          <span class="t mono">7m</span>
+          <div class="snippet mono">finding: trust gate bypassed when spawn source is cron — severity: high</div>
+        </div>
+
+        <div class="grp-head hue-amber">
+          <span class="mfl fl-uniform" aria-hidden="true"></span>
+          <span class="wordtag">Stale</span><span class="n mono">2</span>
+        </div>
+        <div class="crew-row hue-amber">
+          <span class="stripe3"></span><span class="dot8"></span>
+          <span class="mfl fl-uniform" aria-label="Uniform: running into danger"></span>
+          <span class="name mono">doc-syncer</span>
+          <span class="step">no heartbeat since claim on README.md</span>
+          <span class="t mono">84m</span>
+          <button class="sm">Salvage</button>
+        </div>
+        <div class="crew-row hue-amber">
+          <span class="stripe3"></span><span class="dot8"></span>
+          <span class="mfl fl-uniform" aria-label="Uniform: running into danger"></span>
+          <span class="name mono">economist</span>
+          <span class="step">pricing-function draft abandoned mid-edit</span>
+          <span class="t mono">2d</span>
+          <button class="sm">Salvage</button>
+        </div>
+
+        <div class="grp-head hue-rust">
+          <span class="mfl fl-papa" aria-hidden="true"></span>
+          <span class="wordtag">Onboarding</span><span class="n mono">1</span>
+        </div>
+        <div class="crew-row hue-rust">
+          <span class="stripe3"></span><span class="dot8"></span>
+          <span class="mfl fl-papa" aria-label="Papa: all aboard"></span>
+          <span class="name mono">tenderfoot</span>
+          <span class="newchip">New</span>
+          <span class="step">reading AGENTS.md — first sortie pending</span>
+          <span class="t mono">1m</span>
+        </div>
+
+        <div class="grp-head hue-mute">
+          <span class="mfl fl-november" aria-hidden="true"></span>
+          <span class="wordtag">Idle</span><span class="n mono">10</span>
+        </div>
+        <div class="crew-row hue-mute" tabindex="0" role="button" aria-expanded="false" aria-label="Expand 10 idle agents">
+          <span class="stripe3"></span><span class="dot8"></span>
+          <span class="mfl fl-november" aria-label="November: negative, nothing running"></span>
+          <span class="step">10 idle · next scheduled: qa-adversary in 42m · show all ▾</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ center: flow ============ -->
+    <section class="pane" id="flow" aria-labelledby="flow-h">
+      <h2 id="flow-h">Flow</h2>
+      <div class="pane-body">
+        <svg viewBox="0 0 480 1160" role="img" aria-label="Fleet event topology: eight agents wired to three channels">
+          <defs>
+            <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+              <path d="M0 0L10 5L0 10z" style="fill:var(--border-strong)"/></marker>
+            <marker id="arrd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+              <path d="M0 0L10 5L0 10z" style="fill:var(--hair-strong)"/></marker>
+          </defs>
+
+          <!-- publish edges (dashed): agent -> channel -->
+          <g style="stroke:var(--hair-strong);stroke-width:1.5;fill:none;stroke-dasharray:6 4">
+            <path marker-end="url(#arrd)" d="M138 122 C158 130, 166 148, 176 162"/>
+            <path marker-end="url(#arrd)" d="M138 462 C158 475, 166 505, 176 528"/>
+            <path marker-end="url(#arrd)" d="M138 632 C158 620, 166 570, 176 546"/>
+            <path marker-end="url(#arrd)" d="M138 942 C158 935, 166 912, 176 900"/>
+          </g>
+          <!-- trigger edges (solid): channel -> agent -->
+          <g style="stroke:var(--border-strong);stroke-width:1.5;fill:none">
+            <path marker-end="url(#arr)" d="M302 160 C318 135, 326 105, 338 86"/>
+            <path marker-end="url(#arr)" d="M302 175 C318 210, 326 265, 338 296"/>
+            <path marker-end="url(#arr)" d="M302 185 C330 300, 334 480, 338 572"/>
+            <path marker-end="url(#arr)" d="M185 518 C150 400, 128 230, 118 148"/>
+            <path marker-end="url(#arr)" d="M302 892 C316 890, 326 887, 338 884"/>
+          </g>
+
+          <!-- channel nodes: teal = legibility / the event index -->
+          <g>
+            <rect x="180" y="150" width="122" height="40" style="fill:var(--teal-slab)"/>
+            <text class="svgchan" x="241" y="167" text-anchor="middle">pull_request</text>
+            <text class="svgchan" x="241" y="182" text-anchor="middle">:merged</text>
+            <rect x="180" y="520" width="122" height="30" style="fill:var(--teal-slab)"/>
+            <text class="svgchan" x="241" y="540" text-anchor="middle">qa:clean</text>
+            <rect x="180" y="880" width="122" height="30" style="fill:var(--teal-slab)"/>
+            <text class="svgchan" x="241" y="900" text-anchor="middle">spark:idea</text>
+          </g>
+
+          <!-- agent nodes: 1.5px stroke = rule-8 state hue -->
+          <g style="fill:var(--surface-base)">
+            <rect x="8" y="100" width="130" height="44" style="stroke:var(--violet);stroke-width:1.5"/>
+            <rect x="8" y="440" width="130" height="44" style="stroke:var(--health);stroke-width:1.5"/>
+            <rect x="8" y="610" width="130" height="44" style="stroke:var(--hair-strong);stroke-width:1.5"/>
+            <rect x="8" y="920" width="130" height="44" style="stroke:var(--health);stroke-width:1.5"/>
+            <rect x="340" y="60" width="132" height="44" style="stroke:var(--amber);stroke-width:1.5"/>
+            <rect x="340" y="280" width="132" height="44" style="stroke:var(--health);stroke-width:1.5"/>
+            <rect x="340" y="560" width="132" height="44" style="stroke:var(--amber);stroke-width:1.5"/>
+            <rect x="340" y="860" width="132" height="44" style="stroke:var(--rust);stroke-width:1.5"/>
+          </g>
+          <g text-anchor="middle">
+            <text class="svgname" x="73" y="118">auto-committer</text><text class="svgstate" x="73" y="136">needs you · 4m</text>
+            <text class="svgname" x="73" y="458">code-reviewer</text><text class="svgstate" x="73" y="476">working · 7m</text>
+            <text class="svgname" x="73" y="628">qa-adversary</text><text class="svgstate" x="73" y="646">idle · in 42m</text>
+            <text class="svgname" x="73" y="938">spider</text><text class="svgstate" x="73" y="956">working · 3m</text>
+            <text class="svgname" x="406" y="78">doc-syncer</text><text class="svgstate" x="406" y="96">stale · 84m</text>
+            <text class="svgname" x="406" y="298">cartographer</text><text class="svgstate" x="406" y="316">working · 12m</text>
+            <text class="svgname" x="406" y="578">economist</text><text class="svgstate" x="406" y="596">stale · 2d</text>
+            <text class="svgname" x="406" y="878">tenderfoot</text><text class="svgstate" x="406" y="896">boarding · new</text>
+          </g>
+
+          <text class="svgcap" x="240" y="1130" text-anchor="middle">event topology · port-daddy · 8 agents / 3 channels · live</text>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><svg class="sw" width="30" height="8"><line x1="0" y1="4" x2="30" y2="4" style="stroke:var(--border-strong);stroke-width:1.5"/></svg>triggers (channel → agent)</span>
+        <span><svg class="sw" width="30" height="8"><line x1="0" y1="4" x2="30" y2="4" style="stroke:var(--hair-strong);stroke-width:1.5;stroke-dasharray:6 4"/></svg>publishes (agent → channel)</span>
+        <span><svg class="sw" width="13" height="9"><rect width="13" height="9" style="fill:var(--teal-slab)"/></svg>channel</span>
+        <span><svg class="sw" width="13" height="9"><rect x="1" y="1" width="11" height="7" style="fill:var(--surface-base);stroke:var(--health);stroke-width:1.5"/></svg>agent (stroke = state)</span>
+      </div>
+    </section>
+
+    <!-- ============ right column ============ -->
+    <div class="rcol">
+      <section class="pane goldwell" aria-labelledby="budget-h">
+        <h2 id="budget-h">Budget as Consent</h2>
+        <div class="pane-body">
+          <div class="kv">
+            <span>Daily cap</span>
+            <span class="stepper">
+              <button aria-label="Decrease daily cap by fifty cents">−</button>
+              <span class="amt mono">$8.50</span>
+              <button aria-label="Increase daily cap by fifty cents">+</button>
+            </span>
+            <button class="primary sm">Apply</button>
+          </div>
+          <div>
+            <div class="kv" style="margin-bottom:.35rem">
+              <span>Spent today</span>
+              <span class="mono" style="font-weight:700">$2.10 / $8.50</span>
+            </div>
+            <span class="bar" style="display:block;width:100%" role="img" aria-label="2 dollars 10 cents spent of 8 dollars 50 cents cap"><i style="width:24.7%"></i></span>
+          </div>
+          <table class="mono" aria-label="Spend by model">
+            <tr><td>claude-sonnet</td><td>$1.20</td></tr>
+            <tr><td>claude-haiku</td><td>$0.31</td></tr>
+            <tr><td>codex</td><td>$0.59</td></tr>
+          </table>
+          <p style="font-size:.875rem">Spawns pause at the cap. Raising it is the consent.</p>
+        </div>
+      </section>
+
+      <section class="pane" aria-labelledby="guard-h" style="flex:1">
+        <h2 id="guard-h">
+          <span class="mfl fl-quebec" aria-label="Quebec: healthy"></span>
+          Coordination Guard
+          <span class="wordtag" style="color:var(--health);margin-left:auto">Enforce</span>
+        </h2>
+        <div class="pane-body">
+          <p style="color:var(--text-secondary);font-size:.875rem">Pre-commit hook blocks pushes that ignore live claims, stale sessions, or an unmerged canonical branch.</p>
+          <div class="g-actions">
+            <button class="primary sm">Check</button>
+            <button class="sm">Install Hook</button>
+          </div>
+          <p class="ok-line mono">last check · pd guard check --staged · CLEAN · 2m ago</p>
+          <table class="mono" aria-label="Recent guard checks">
+            <tr><td>14:31 pre-commit</td><td class="ok-line">CLEAN</td></tr>
+            <tr><td>14:07 pre-push</td><td class="ok-line">CLEAN</td></tr>
+            <tr><td>13:52 pre-commit</td><td class="blocked-line">BLOCKED</td></tr>
+            <tr><td>13:48 pre-commit</td><td class="ok-line">CLEAN</td></tr>
+          </table>
+          <p style="color:var(--text-secondary);font-size:.875rem">13:52 block: spider held a live claim on
+          <span class="mono">src/fleet/engine.ts</span>. Commit retried clean after parley.</p>
+        </div>
+      </section>
+
+      <div class="art-slot"><span class="art-label">Cut-paper: crane over the berth, dusk</span></div>
+    </div>
+
+  </main>
+
+  <!-- ============ Papa teaching empty state ============ -->
+  <footer class="emptyband">
+    <span class="papa"><span class="mfl fl-papa" aria-label="Papa: about to sail"></span>
+      <span class="wordtag">Roadmap intake — nothing aboard yet</span></span>
+    <p>Mission cards will berth here — one per roadmap item, grouped by status, each with its
+    owner and next gate. Tag items <span class="cmd mono">(UNCOMMITTED)</span> or
+    <span class="cmd mono">(BLOCKED)</span> in <span class="cmd mono">UNIFIED-ROADMAP.md</span>, then run
+    <span class="cmd mono">pd roadmap import --file UNIFIED-ROADMAP.md</span> and the cards appear.</p>
+    <button class="primary">Import from Cartographer</button>
+  </footer>
+
+</div>
+
+</body>
+</html>

@@ -24,8 +24,8 @@
 
 import { watch, type FSWatcher } from 'node:fs';
 import { stat } from 'node:fs/promises';
-import { homedir } from 'node:os';
-import { resolve, join } from 'node:path';
+import { join } from 'node:path';
+import { containPath } from '../path-guard.js';
 import type {
   FleetTriggerEvent,
   TriggerAvailability,
@@ -63,7 +63,12 @@ export class FileTriggerSource implements TriggerSource {
     if (!rawPath) {
       throw new Error('file trigger requires a path: file:changed(~/path/to/watch)');
     }
-    const absolute = expandHome(rawPath);
+    // Contain the watch path (ADR-0093 §5.3): same guard as the file output
+    // sink. Expands `~`, resolves, asserts containment within the allowed
+    // roots (home/tmp/cwd), realpath-checks against pre-planted symlink
+    // escapes, and refuses sensitive subpaths (~/.ssh, LaunchAgents, …) so a
+    // fleet config cannot point a watcher at credential material.
+    const absolute = containPath(rawPath);
     const debounceMs = this.opts.debounceMs ?? 200;
 
     let isDir = false;
@@ -142,8 +147,3 @@ export class FileTriggerSource implements TriggerSource {
   }
 }
 
-function expandHome(input: string): string {
-  if (input.startsWith('~/')) return resolve(homedir(), input.slice(2));
-  if (input === '~') return homedir();
-  return resolve(input);
-}

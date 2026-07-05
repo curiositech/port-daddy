@@ -1,0 +1,11 @@
+{
+  "importModel": "import-tailwindcss",
+  "configFileDeleted": true,
+  "dynamicClassStrategy": "literal-map",
+  "workspaceDepsWithClasses": true,
+  "sourceGlobsDeclared": true,
+  "darkModeStrategy": "class",
+  "themeTokensInTheme": true,
+  "v3PluginsPorted": true,
+  "cssBundleKbGzipped": 32
+}

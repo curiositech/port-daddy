@@ -239,10 +239,11 @@ note and feeds `episodic_memory`, ADR-0035).
 | 0 | adr-0052-phase-0-episode-schema-and-exporter | now | — | Episode JSONL schema v1 + `pd export trajectories` CLI + `GET /export/trajectories` route + `export_trajectories` MCP tool; session-rooted join (sessions, session_notes, session_files, activity_log, sortie_events, agent_inbox, commitments, cost_events); streaming, cursor-paginated, redact-by-default; unit tests on `createTestDb` + bun-runtime route smoke (per regression-test rule) |
 | 1 | adr-0052-phase-1-outcome-labelers | now | adr-0052-phase-0-episode-schema-and-exporter | Honest outcome labels: session→commit→PR→merge/CI chain (VERIFIED/UNKNOWN, never inferred); **persist Coast Guard verdicts** (commit-path allow/block events are currently computed and discarded — store them keyed to session); collision attribution from `claim_violation`; salvage-adoption linkage via `resurrection_queue` |
 | 2 | adr-0052-phase-2-reward-rubric | now | adr-0052-phase-1-outcome-labelers | `coordination-reward/v1` as code: versioned, every term cites its evidence row; breadth penalty; note-redundancy via embeddings; rubric annotations attached to exported episodes; Goodhart audit checklist documented |
-| 3 | adr-0052-phase-3-coordination-bench | now | adr-0052-phase-2-reward-rubric | Synthetic harbor on the ephemeral daemon: seeded scenario generator (overlap/salvage/inbox/merge-queue hazards), scripted counterpart agents, sub-minute episodes, `pd bench coordination` runner emitting the same Episode JSONL; wire as advisory CI gate for skill/choreography changes |
-| 4 | adr-0052-phase-4-scaffold-optimization | next | adr-0052-phase-3-coordination-bench | GEPA/DSPy loop over `port-daddy-agent-skill` + AGENTS.md choreography with bench score as metric; high-scoring real episodes as exemplars; report per-round score deltas |
-| 5 | adr-0052-phase-5-sft-dpo-datasets | later | adr-0052-phase-2-reward-rubric | Dataset curation: VERIFIED-positive SFT rows; auto-mined DPO pairs (guard blocks / collisions / abandonment vs matched positives); train LoRA on open-weights coder; integrate as `pd spawn` backend; cost-vs-quality comparison from `cost_events` |
-| 6 | adr-0052-phase-6-rlvr-loop | later | adr-0052-phase-3-coordination-bench, adr-0052-phase-5-sft-dpo-datasets | GRPO/RLVR training against the bench; single-agent first, then 2-agent with shared team bonus; conditional on phase-4 plateau (see decision boundary) |
+| 3a | adr-0052-phase-3a-coordination-bench-v1 | now | adr-0052-phase-2-reward-rubric | Synthetic harbor on the ephemeral daemon: seeded scenario generator (overlap/salvage/inbox/merge-queue hazards), scripted counterpart agents, sub-minute episodes, `pd bench coordination` runner emitting the same Episode JSONL; wire as advisory CI gate for skill/choreography changes |
+| 3b | adr-0052-phase-3b-coordination-bench-v2 | later | adr-0052-phase-3a-coordination-bench-v1, binder Milestone 8 | Bench over the Milestone-8 vocabulary (Amendment 1): scenario generator parameterized over **org-config × problem** (identical vs heterogeneous roles, stigmergic blackboard vs parley/contract-net, advisory vs enforced claims, local vs remote); counterpart agents span the C7 spectrum (compliant/weak/broken/malicious/stale/remote); defection-pricing metric (bypassing claims must be measurably more expensive than cooperating, binder ch. 05); C7 statistical discipline (preregistered plan, confidence intervals, effect sizes, ≥1 Tier A baseline); a slow eval-only tier for binder problems that exceed the sub-minute constraint (PR-response campaign, UI polish, research synthesis) |
+| 4 | adr-0052-phase-4-scaffold-optimization | next | adr-0052-phase-3a-coordination-bench-v1 | GEPA/DSPy loop over `port-daddy-agent-skill` + AGENTS.md choreography with bench score as metric; high-scoring real episodes as exemplars; report per-round score deltas; **evolved prompts/choreography are transcript-derived artifacts — they pass the binder ch. 04 proposal-vs-validation quarantine gate before admission** |
+| 5 | adr-0052-phase-5-sft-dpo-datasets | later | adr-0052-phase-2-reward-rubric, binder Milestone 8 (tool grammar freeze) | Dataset curation: VERIFIED-positive SFT rows; auto-mined DPO pairs (guard blocks / collisions / abandonment vs matched positives); train LoRA on open-weights coder; integrate as `pd spawn` backend; cost-vs-quality comparison from `cost_events`. **Target role: Longshoreman** (binder ch. 05 role split) — conflict watcher, salvage shepherd, inbox/parley duty, dispatcher. **First verifiable-reward task: compaction-packet authorship** (binder ch. 04 — a first-class transcript event with a citation-checking validator, i.e. a ready-made reward checker). Corpus-at-scale waits for the Milestone-8 tool grammar so SFT does not freeze a pre-parley vocabulary into weights |
+| 6 | adr-0052-phase-6-rlvr-loop | later | adr-0052-phase-3a-coordination-bench-v1, adr-0052-phase-5-sft-dpo-datasets | GRPO/RLVR training against the bench; single-agent first, then 2-agent with shared team bonus; conditional on phase-4 plateau (see decision boundary); scenario draws include C7 stochastic resource pressure (context, cost, tool gates, approval latency) so the policy is not trained under abundance |
 
 ## Consequences
 
@@ -275,3 +276,62 @@ note and feeds `episodic_memory`, ADR-0035).
   except persisted guard verdicts, which ADR-0050 arguably owed us anyway.
 - Episode JSONL is also the natural substrate for replay/debugging and the
   triage-taxonomy vision, independent of any training ambition.
+
+## Amendment 1 (2026-07-04) — Agent Harbor binder reconciliation
+
+This ADR and the Agent Harbor technical binder
+(`docs/architecture/agent-harbor-technical-binder/`) were written in parallel
+and, until this amendment, did not reference each other. They describe
+overlapping systems. This amendment registers the dependency in both
+directions and folds the binder's requirements into the phases. The
+corresponding pointers live in binder chapters 04, 05, and 12.
+
+**1. One synthetic harbor, not two.** Coordination-Bench (Phase 3) is *the
+implementation vehicle* for the binder's "Simulation sandbox"
+(ch. 05) and the scoring half of the C7 evaluation/simulation chain (ch. 12).
+No second sandbox gets built. The bench splits into **3a** (bench-v1, today's
+hazards and vocabulary, unchanged from the original matrix row) and **3b**
+(bench-v2, the binder's larger apparatus) — see the amended Implementation
+Matrix.
+
+**2. Episode schema rides the transcript event schema.** Chapter 04 declares
+transcripts the foundational substrate with a canonical event schema in
+ch. 09 (visibility class, redaction state, parent-event ids, hashes). The
+Episode JSONL of Phase 0 must be a *join over that event schema plus the
+coordination tables*, not a parallel event shape — and must carry a schema
+version field with declared extension points for the Milestone-8 coordination
+vocabulary (parley events, blackboard writes, sanctions/reputation ledger
+events). Rationale: SFT freezes the action grammar into weights; the corpus
+must survive vocabulary growth or early episodes become waste.
+
+**3. Rubric v2 backlog.** The binder's sandbox scoring list (ch. 05) and the
+incentive model contribute terms absent from `coordination-reward/v1`:
+operator interruptions, context waste (computable once ch. 04
+context-pressure envelopes ship), transcript completeness,
+time-to-recover-from-failure, handoff quality, early-parley credit,
+ignored-parley penalty, and cleanup escrow for risky autonomous actions.
+These are registered here as the `coordination-reward/v2` backlog; v1 ships
+as specified.
+
+**4. Defection pricing is a bench deliverable.** The binder's incentive model
+requires that "bypassing claims is measurably more expensive than
+cooperating." Bench-v2 therefore reports a price-of-defection metric per
+scenario class, not only cooperative-episode scores.
+
+**5. Phase 4 inherits skill governance.** Evolved prompts and choreography are
+transcript-derived artifacts; ch. 04's proposal-vs-validation separation and
+quarantine apply before any evolved scaffold is admitted. This gives the
+Goodhart audit an enforcement mechanism.
+
+**6. Phase 5 trains a Longshoreman.** The binder names the role the tuned
+small model fills: a Longshoreman body (conflict watcher, salvage shepherd,
+inbox/parley duty, compaction author, dispatcher). The first training target
+is **compaction-packet authorship** — ch. 04 defines the packet as a
+first-class event with a citation-checking validator, which is a ready-made
+verifiable reward. Corpus-at-scale is gated on the Milestone-8 tool grammar.
+
+**7. Data governance tightens.** Training-data curation is **explicitly
+opt-in** (ch. 04), stricter than redact-by-default; and the distilled-source
+contract applies transitively: if raw transcript payloads are deleted,
+episodes and any SFT rows derived from them must cite tombstones and degrade
+honestly rather than pretend the source exists.

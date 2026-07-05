@@ -1,0 +1,16 @@
+{
+  "workloadType": "olap",
+  "environment": "production",
+  "concurrentWriters": 1,
+  "readsCsv": true,
+  "csvTypeStrategy": "explicit",
+  "columnProjection": "explicit-columns",
+  "filterPushdown": "duckdb-sql",
+  "writesParquet": true,
+  "parquetCompression": "zstd",
+  "partitionColumnCardinality": "low",
+  "usesHttpfs": true,
+  "extensionLoadPaired": true,
+  "s3CredentialsInVersionControl": false,
+  "duckdbVersionPinned": true
+}

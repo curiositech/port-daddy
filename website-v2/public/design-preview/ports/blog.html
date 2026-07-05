@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Port Daddy — Harbor Blog (story linework port)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="port.css">
+<style>
+  .blog-head { display: grid; grid-template-columns: 1.2fr 1fr; gap: 48px; padding: 56px 0 44px; align-items: center; }
+  .blog-head h1 { font-size: clamp(40px, 5.4vw, 72px); font-weight: 700; letter-spacing: var(--tracking-display); line-height: 1.02; }
+  .blog-head .sub { font-size: 16.5px; line-height: 1.65; color: var(--text-secondary); max-width: 50ch; margin-top: 14px; }
+  .lanes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .featured { display: grid; grid-template-columns: 1fr 1.1fr; gap: 0; border: 2px solid var(--border-strong); background: var(--surface-raised); margin-top: 44px; }
+  .featured img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .featured .f-body { padding: 28px 32px; display: flex; flex-direction: column; }
+  .featured .f-tags { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .featured h2 { font-size: 27px; font-weight: 700; letter-spacing: var(--tracking-h2); line-height: 1.15; margin-top: 14px; }
+  .featured .f-excerpt { font-size: 14.5px; line-height: 1.65; color: var(--text-secondary); margin-top: 12px; flex: 1; }
+  .featured .f-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--hair); }
+  .log-row { display: grid; grid-template-columns: 56px 110px 1fr auto; gap: 20px; padding: 18px 0; border-bottom: 1px solid var(--hair); align-items: baseline; }
+  .log-row .idx { font-family: "IBM Plex Mono", monospace; font-size: 15px; font-weight: 700; color: var(--cobalt); }
+  .log-row .date { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--text-muted); }
+  .log-row h3 { font-size: 17.5px; font-weight: 700; letter-spacing: var(--tracking-h3); line-height: 1.3; }
+  .log-row .ex { font-size: 14px; line-height: 1.6; color: var(--text-secondary); margin-top: 6px; max-width: 84ch; }
+  .retired { border: 2px solid var(--border-strong); background: var(--surface-raised); padding: 24px 28px; margin-top: 56px; }
+  .retired h2 { font-size: 21px; font-weight: 700; letter-spacing: var(--tracking-h3); }
+  .retired .r-intro { font-size: 14.5px; line-height: 1.6; color: var(--text-secondary); margin-top: 8px; max-width: 70ch; }
+  .retired .r-row { display: grid; grid-template-columns: 1fr 1.3fr auto; gap: 18px; padding: 11px 0; border-bottom: 1px solid var(--hair); font-size: 13.5px; align-items: baseline; }
+  .retired .r-row:last-child { border-bottom: none; }
+  .retired .r-name { font-weight: 700; }
+  .retired .r-reason { color: var(--text-muted); line-height: 1.5; }
+  .retired .r-repl { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--teal); white-space: nowrap; }
+  @media (max-width: 1080px) { .blog-head, .featured { grid-template-columns: 1fr; } .lanes { grid-template-columns: 1fr 1fr; } .log-row { grid-template-columns: 44px 1fr; } .log-row .date { grid-column: 2; } }
+</style>
+</head>
+<body>
+<header class="site-header">
+  <a class="sh-brand" href="home.html"><span class="pd-mark themed-img" aria-hidden="true"><img class="light-only" src="/logos/portdaddy-mark-radar-lightmode.svg" alt=""><img class="dark-only" src="/logos/portdaddy-mark-radar-darkmode.svg" alt=""></span>Port Daddy</a>
+  <nav class="sh-nav">
+    <a href="home.html">Home</a><a href="#">Agent Tubes</a><a href="#">Scout</a>
+    <a href="examples.html">Examples</a><a class="active" href="#">Blog</a><a href="#">Cryptography</a><a href="#">The Big Idea</a><a class="more" href="#">More ▾</a>
+  </nav>
+  <div class="sh-tools"><button class="theme-toggle" id="themeToggle">Dark</button></div>
+</header>
+
+<main class="page">
+  <div class="slug-hoist" aria-label="/blog spelled in signal flags"><span class="route">/blog</span><i class="fl fl-bravo" title="B"></i><i class="fl fl-lima" title="L"></i><i class="fl fl-oscar" title="O"></i><i class="fl fl-golf" title="G"></i></div>
+
+  <!-- HEADER -->
+  <section class="blog-head">
+    <div>
+      <div class="eyebrow">Port Daddy</div>
+      <h1 class="ko" style="--ko-c: linear-gradient(to top right, var(--rust-slab) 0 50%, var(--lime) 50%); --ko-r: calc(100% + 40px); --ko-b: 58px; --ko-up: 90px;"><span>Harbor <span class="rec" style="color: var(--violet)">Blog</span></span><span class="ko-over" aria-hidden="true">Harbor <span class="rec" style="color: inherit">Blog</span></span></h1>
+      <p class="sub">What broke while coordinating agents — and what we did about it. Short, honest write-ups from running a fleet, not announcements.</p>
+    </div>
+    <figure class="art">
+      <img src="/img/blog/harbor-blog-hero.webp" alt="A blueprint-style drawing of an open harbor-master's logbook on a desk with a fountain pen and a brass lantern, a porthole behind showing tugboats at their berths.">
+    </figure>
+  </section>
+
+  <!-- FOCUS LANES -->
+  <section>
+    <div class="slab flag flag-oscar" title="Oscar — man overboard" style="--f1: var(--rust-slab); --f2: var(--lime); top:-30px; right:calc(50% - 50vw); width: calc(50vw - 720px + 120px); min-width: 80px; height: 220px;"></div>
+    <div class="lanes">
+      <div class="stripe-card" style="--stripe: var(--health)"><div class="sc-title" style="font-size:15px;">See what each agent is doing</div><p>FleetBar and the Fleet Control Center show every running agent, which project it claimed, and where its work lives — before anyone presses go.</p></div>
+      <div class="stripe-card" style="--stripe: var(--error)"><div class="sc-title" style="font-size:15px;">Stop a launch that is not ready</div><p>A launch checks the backend, the model rates, and the budget ceiling first. If something is off, it says no in plain English instead of starting anyway.</p></div>
+      <div class="stripe-card" style="--stripe: var(--violet)"><div class="sc-title" style="font-size:15px;">Pick up where an agent left off</div><p>Session notes, file claims, and a record of stale work leave enough of a trail that a different agent can resume the thread.</p></div>
+      <div class="stripe-card" style="--stripe: var(--cobalt)"><div class="sc-title" style="font-size:15px;">Reach the live agent from your terminal</div><p>PD Tube, guard checks, and a few small commands let ordinary tools talk to the agent running in your shell right now.</p></div>
+    </div>
+  </section>
+
+  <!-- FEATURED -->
+  <section class="featured">
+    <img src="/img/generated/macaroon-gate/hero.png" alt="A flat blueprint night scene: a coding-agent robot at a desk under a 3:00 clock holds up a brass key tagged PUSH TOKEN; to its right a turnstile stamped RENT PAID? blocks the way to a fortified vault door labelled main.">
+    <div class="f-body">
+      <div class="f-tags">
+        <span class="mono" style="font-size:12.5px; font-weight:700; letter-spacing:0.12em; color: var(--cobalt);">FEATURED</span>
+        <span class="mono" style="font-size:12.5px; color: var(--text-muted)">2026-06-16 · Erich Owens</span>
+      </div>
+      <h2>Your Coding Agent Has Your Push Token</h2>
+      <p class="f-excerpt">You hand an agent your repo and it has the real push token — nothing structural stops it pinning main at 3am. A stern wrapper does not help; if the agent holds the capability, the restraint is advice. The fix is a macaroon: a credential the agent can narrow but never widen, whose push is gated on a daemon-issued discharge that only exists while coordination rent is paid. And we did not assert it was sound — ProVerif checked it, found the attack the request-binding stops, and proved the gate holds against an active attacker.</p>
+      <div class="f-foot" style="justify-content: flex-end;">
+        <a class="cta" href="#" style="padding: 9px 16px;">Read article ↗</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- THE REST OF THE LOG -->
+  <section>
+    <div class="sect-head">
+      <div class="eyebrow">Earlier entries</div>
+      <h2>The rest of the log</h2>
+    </div>
+    <div class="log-row"><span class="idx">02</span><span class="date">2026-06-01</span><div><h3>One Send, Every Listener: pd tube Goes Multi-Subscriber</h3><p class="ex">I built a two-pane demo of pd tube — a human and a live agent talking over one channel. It worked. Then I added a third listener and the bug fell out of the sky: whichever terminal polled first swallowed the message and the rest saw an empty channel. Here's the shared-cursor race, the per-listener-cursor fix, and the regression test that documents the old bug on purpose. Shipped in v3.16.2.</p></div><figure style="width:150px; border:1px solid var(--hair-strong); align-self:center;"><img src="/img/generated/tube-multiplex/hero.webp" alt="" style="display:block; width:100%; height:84px; object-fit:cover;"></figure></div>
+    <div class="log-row"><span class="idx">03</span><span class="date">2026-05-22</span><div><h3>Attention Is The First Command</h3><p class="ex">Port Daddy has had a perfectly good mailbox for about a year. Inboxes, channels, tuples, a coordination-inconsistency stream where the fleet airs its complaints. Nobody was checking the mail. Each agent turn is a fresh process; nothing inside the turn polls. This is the verb that fixes it, and the deliberate reason this is not an MCP tool.</p></div><figure style="width:150px; border:1px solid var(--hair-strong); align-self:center;"><img src="/img/generated/attention-first-command/hero.webp" alt="" style="display:block; width:100%; height:84px; object-fit:cover;"></figure></div>
+    <div class="log-row"><span class="idx">04</span><span class="date">2026-05-20</span><div><h3>The PR That Reviews Itself</h3><p class="ex">You push at eleven at night. The CI gear-wheel is the only critic in the room. What if every PR you opened arrived with the adversarial review you would have asked for — six paid critics on the same git push you were already doing? The GitHub fleet, the bug it caught (14 green tests against a count that was structurally always 0), and what stays in your hands.</p></div><figure style="width:150px; border:1px solid var(--hair-strong); align-self:center;"><img src="/img/generated/pr-reviews-itself/hero.webp" alt="" style="display:block; width:100%; height:84px; object-fit:cover;"></figure></div>
+    <div class="log-row"><span class="idx">05</span><span class="date">2026-05-20</span><div><h3>Your AI Subscription Already Powers A Fleet</h3><p class="ex">I'm in Claude Code or Codex about ten hours a day. The subscription isn't idle — but a person can only hold one cursor at a time, and the other streams (worktrees, midnight agents, post-commit hooks) are free to share the same hourly budget. The killer experience isn't 'saves money.' It's waking up to a feature that wasn't there last night.</p></div><figure style="width:150px; border:1px solid var(--hair-strong); align-self:center;"><img src="/img/generated/blog-ai-subscription-fleet-hero.jpg" alt="" style="display:block; width:100%; height:84px; object-fit:cover;"></figure></div>
+    <div class="log-row"><span class="idx">06</span><span class="date">2026-05-17</span><div><h3>The CLI Is For The Robots</h3><p class="ex">I edited an .env.local file today. Wrong one. Three directories away from the one the daemon actually reads. The fleet sat there 401'ing for an hour while I edited the wrong file and felt productive. That is a product failure, not a user error. The operator does not run pd commands; the operator gets buttons.</p></div><figure style="width:150px; border:1px solid var(--hair-strong); align-self:center;"><img src="/img/generated/fleetbar-install.webp" alt="" style="display:block; width:100%; height:84px; object-fit:cover;"></figure></div>
+    <div class="log-row"><span class="idx">07</span><span class="date">2026-05-06</span><div><h3>Why Coordination Guard Exists</h3><p class="ex">Coordination Guard was not born from a clean theory of Git as policy. It was born because four agents — politely, professionally, with great commit messages — kept staging, resetting, and cherry-picking through each other's claims, and the Saturday I lost untangling that mess was the Saturday I stopped trusting honor systems.</p></div><figure style="width:150px; border:1px solid var(--hair-strong); align-self:center;"><img src="/img/generated/coordination-guard.webp" alt="" style="display:block; width:100%; height:84px; object-fit:cover;"></figure></div>
+    <div class="log-row"><span class="idx">08</span><span class="date">2026-04-29</span><div><h3>Red and White Stay In Their Lanes</h3><p class="ex">Two AI fleets argue about my whitepaper every month, and they are not allowed to talk to each other. One tries to break the paper; one tries to defend it. Here is the crypto that keeps them in their lanes, the three gates each round has to clear, and what shows up on the operator screen when somebody cheats.</p></div></div>
+    <div class="log-row"><span class="idx">09</span><span class="date">2026-04-29</span><div><h3>Bond Pricing Is a Market, Not a Constant</h3><p class="ex">Daily budgets are training wheels. They keep an agent from setting itself on fire, but they do not price what the fire would cost. The v2 paper points at the destination: cleanup as a lower bound, scope as a multiplier, reputation as a discount, and Thomas Youle's insurer-bidding market on top.</p></div></div>
+    <div class="log-row"><span class="idx">10</span><span class="date">2026-04-29</span><div><h3>Evidence That Survives Multiple Machines</h3><p class="ex">A note only your laptop can verify is half a record — and "trust me, it was on the other machine" is the worst sentence in incident response. The v2 Merkle forest, the KMS witness, and the mutable-signal ledger let a teammate or a CI runner verify the same evidence in 700 bytes, without your laptop in the room.</p></div></div>
+    <div class="log-row"><span class="idx">11</span><span class="date">2026-04-29</span><div><h3>Passkey Identity Across Machines</h3><p class="ex">Single-node was the right answer for one laptop and exactly one human. Then the laptops multiplied, the phone showed up, and the recovery story collapsed into prayer. The Federated Sovereign is what replaces it: passkeys at the front, an abstract KMS in the middle, mobile-as-viewer at the edge.</p></div></div>
+    <div class="log-row"><span class="idx">12</span><span class="date">2026-04-29</span><div><h3>The Control Plane Is the Product</h3><p class="ex">The agents do beautiful work and then quietly clobber each other's files, spend money on the wrong API key, and answer to a daemon that has been serving stale code for three days. The fix is not more agents; it is one inspectable surface where identity, ownership, runtime, backend, cost, and recovery all agree before anyone presses go.</p></div></div>
+    <div class="log-row"><span class="idx">13</span><span class="date">2026-04-29</span><div><h3>Cold Start Without Surprise Launches</h3><p class="ex">The first time you run a fleet should not also be the first time it tells you a credential is missing, the daemon is on the wrong checkout, or the planned spend is roughly your rent. Cold start is supposed to read the repo, list what is missing, simulate the run, and let the human decide whether the bill is worth it.</p></div></div>
+    <div class="log-row"><span class="idx">14</span><span class="date">2026-04-28</span><div><h3>PD Tube Turns UI Events Into Agent Work</h3><p class="ex">PD Tube is a phone line. The browser button, the failing test, the editor lightbulb, the inbound webhook — they all dial the same number, and the agent already sitting in your repo picks up. No SDK, no MCP server, no hosted callback. Just a local socket and a threaded reply.</p></div></div>
+    <div class="log-row"><span class="idx">15</span><span class="date">2026-04-28</span><div><h3>Telemetry Is a Launch Gate</h3><p class="ex">A launch button that does not know what the run will cost is a slot machine in a nice typeface. The fix is unromantic: refuse to launch unless the backend can name the exact tokens, the exact rates, and the exact nonzero cost it has already written down.</p></div></div>
+    <div class="log-row"><span class="idx">16</span><span class="date">2026-04-27</span><div><h3>Keeping the Map Honest</h3><p class="ex">The roadmap says one thing, the recovery doc says another, the session notes say a third, and the live daemon is somehow doing a fourth. The fix is not more documents. It is one surface that reconciles all four into a map an operator can read in twenty seconds.</p></div></div>
+    <div class="log-row"><span class="idx">17</span><span class="date">2026-04-27</span><div><h3>Running Is Not the Same as Current</h3><p class="ex">A daemon can be alive, reachable, answering on the right port, and still serving the version of itself you wrote three weeks ago. "Running" is a heartbeat. "Current" is a different question. Runtime provenance is what makes the second one answerable.</p></div></div>
+    <div class="log-row"><span class="idx">18</span><span class="date">2026-04-26</span><div><h3>Backend Readiness Is Dependency Truth</h3><p class="ex">"Ready" is not one bit; it is five, and they all have to line up. The credential exists. The package is installed. The CLI is logged in. The model is on the catalog. Telemetry will write a real number when the run finishes. Miss one, and the launch becomes a story you tell about why the bill arrived.</p></div></div>
+  </section>
+
+  <!-- RETIRED THREADS -->
+  <section class="retired" style="background: var(--rust-wash);">
+    <h2>Retired threads</h2>
+    <p class="r-intro">Old drafts, future-dated guesses, and off-brief pieces are out of the index. The old links still work — they redirect to the current honest version.</p>
+    <div style="margin-top:14px;">
+      <div class="r-row"><span class="r-name">Original two-command quickstart</span><span class="r-reason">The public story is now broader than begin/done. It needs file claims, notes, guard checks, readiness, and operator surfaces.</span><span class="r-repl">→ coordination-guard</span></div>
+      <div class="r-row"><span class="r-name">Early port-collision anecdote</span><span class="r-reason">Port assignment still matters, but the blog should lead with daemon provenance and current control-plane truth.</span><span class="r-repl">→ running-is-not-current</span></div>
+      <div class="r-row"><span class="r-name">Original crash-recovery article</span><span class="r-reason">Recovery is now part of a larger roadmap and session-map discipline. The old article used outdated framing.</span><span class="r-repl">→ recovery-roadmap</span></div>
+      <div class="r-row"><span class="r-name">Older map-actor route</span><span class="r-reason">The article now uses recovery-roadmap language instead of old role labels on the public blog surface.</span><span class="r-repl">→ recovery-roadmap</span></div>
+      <div class="r-row"><span class="r-name">Older identity-protocol proof article</span><span class="r-reason">The trust-boundary story has moved into launch policy, backend readiness, and operator-visible evidence.</span><span class="r-repl">→ telemetry-launch-gate</span></div>
+      <div class="r-row"><span class="r-name">Standalone distributed-locks tutorial</span><span class="r-reason">Locks remain useful, but the current blog should fold them into commit policy and coordination guard behavior.</span><span class="r-repl">→ coordination-guard</span></div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="sf-grid">
+    <div class="sf-brand">
+      <div style="font-weight:700; font-size:18px;"><span class="pd-mark themed-img" aria-hidden="true"><img class="light-only" src="/logos/portdaddy-mark-radar-lightmode.svg" alt=""><img class="dark-only" src="/logos/portdaddy-mark-radar-darkmode.svg" alt=""></span> Port Daddy</div>
+      <div class="sf-tag">A harbor-master for your agents</div>
+      <p class="sf-blurb">Port Daddy is shared memory for AI coding agents — the notes they leave each other, the files each one has claimed, and the work you can recover when one crashes. The Mac app makes all of it visible before anything drifts.</p>
+    </div>
+    <div class="sf-col"><h4>Site</h4><a href="home.html">Home</a><a href="#">Mac Preview</a><a href="examples.html">Examples</a><a href="#">Agents</a><a href="#">Install &amp; MCP</a><a href="#">Manifesto</a></div>
+    <div class="sf-col"><h4>Learn</h4><a href="#">Docs</a><a href="#">Tutorials</a><a href="#">Templates</a><a href="#">Harbor Blog</a></div>
+    <div class="sf-col"><h4>Reference</h4><a href="#">Getting started</a><a href="#">CLI reference</a><a href="#">SDK reference</a><a href="#">MCP tools</a><a href="#">REST API</a><a href="library.html">Library</a></div>
+    <div class="sf-col"><h4>Source</h4><a href="#">GitHub</a><a href="#">Discussions</a></div>
+  </div>
+</footer>
+
+<div class="port-note">Port · story linework v2</div>
+<script>
+  const btn=document.getElementById('themeToggle'),root=document.documentElement;
+  let t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  const apply=()=>{root.setAttribute('data-theme',t);btn.textContent=t==='light'?'Dark':'Light'};apply();
+  btn.addEventListener('click',()=>{t=t==='light'?'dark':'light';apply()});
+</script>
+</body>
+</html>

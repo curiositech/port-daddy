@@ -61,13 +61,30 @@ describe('backend-catalog', () => {
     expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'bogus' })).toBeNull();
   });
 
-  test('detectForcedCliBackend honors persisted selection when using process env', () => {
+  test('detectForcedCliBackend honors an explicit persisted selection path', () => {
     const dir = mkdtempSync(join(tmpdir(), 'pd-backend-catalog-'));
     const path = join(dir, 'selection');
     try {
       writeFileSync(path, 'codex\n');
-      expect(detectForcedCliBackend(process.env, { persistedPath: path })).toBe('cli:codex');
-      expect(detectForcedCliBackendValue(process.env, { persistedPath: path })).toBe('codex');
+      expect(detectForcedCliBackend({}, { persistedPath: path })).toBe('cli:codex');
+      expect(detectForcedCliBackendValue({}, { persistedPath: path })).toBe('codex');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('PD_USE_CLI_BACKEND=none hard-disables the override, including the persisted fallback', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-backend-catalog-'));
+    const path = join(dir, 'selection');
+    try {
+      writeFileSync(path, 'codex\n');
+      // Every off value beats a valid persisted selection.
+      for (const off of ['none', 'off', 'disabled', 'disable', '0', 'false', 'NONE', ' Off ']) {
+        expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: off }, { persistedPath: path })).toBeNull();
+        expect(detectForcedCliBackendValue({ PD_USE_CLI_BACKEND: off }, { persistedPath: path })).toBeNull();
+      }
+      // ...while unset still falls through to the persisted selection.
+      expect(detectForcedCliBackend({}, { persistedPath: path })).toBe('cli:codex');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -103,7 +120,7 @@ describe('backend-catalog', () => {
     const path = join(dir, 'selection');
     try {
       writeFileSync(path, `${'codex'.repeat(40)}\n`);
-      expect(detectForcedCliBackend(process.env, { persistedPath: path })).toBeNull();
+      expect(detectForcedCliBackend({}, { persistedPath: path })).toBeNull();
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

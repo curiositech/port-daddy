@@ -1,0 +1,25 @@
+{
+  "name": "@port-daddy/email-ingress",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker — Email Routing ingress for fleet email triggers (push-based, no IMAP) + send_email outbound for the fleet email sink.",
+  "type": "module",
+  "main": "src/worker.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "mimetext": "^3.0.24",
+    "postal-mime": "^2.2.5"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0",
+    "wrangler": "^3.60.0"
+  }
+}

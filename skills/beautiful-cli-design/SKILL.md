@@ -25,27 +25,34 @@ metadata:
     - unicode
     - progress-bars
     - interactive
-  pairs-with:
-    - skill: technical-writer
-      reason: Beautiful CLIs need equally clear help text, onboarding copy, and error remediation.
-    - skill: web-design-expert
-      reason: Shared design principles still govern hierarchy, whitespace, and color choice in terminals.
-    - skill: performance-profiling
-      reason: Spinners, dashboards, and redraw loops still need measurable terminal render budgets.
-    - skill: data-viz-2025
-      reason: Quantitative terminal dashboards benefit from the same data-encoding discipline as browser charts.
   provenance:
-    kind: internal-worktree-recovered
-    sourceRepo: workgroup-ai
-    recoveredAt: "2026-04-19T03:48:52-07:00"
-    recoveredFrom: /Users/erichowens/coding/workgroup-ai/.claude/worktrees/agent-aa6fba4b/skills/beautiful-cli-design
-    worktree: agent-aa6fba4b
-    ctaOverlay: /Users/erichowens/coding/workgroup-ai/.windags/cta-upgrades/beautiful-cli-design/after.md
+    kind: first-party
     owners:
-      - some-claude-skills
+      - port-daddy
   authorship:
     maintainers:
       - some-claude-skills
+    history:
+      - Recovered from workgroup-ai (`some-claude-skills`) worktree agent-aa6fba4b on 2026-04-19; see CHANGELOG.md for the full recovery trail.
+  pairs-with:
+    - skill: beautiful-gui-design
+      reason: The GUI counterpart — same hierarchy/color/motion/accessibility discipline applied to windows instead of terminals.
+    - skill: gpui-rust-console
+      reason: This repo's own GPU-native operator console has to make the same TTY/width/color-fallback calls this skill teaches.
+    - skill: web-design-expert
+      reason: Shared design principles still govern hierarchy, whitespace, and color choice in terminals.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: cli-tui-design-brief
+        format: markdown
+      - kind: cli-design-spec
+        format: json
+    produces:
+      - kind: cli-output-interaction-design
+        format: markdown
+      - kind: cli-design-audit
+        format: json
 ---
 
 # Beautiful CLI Design
@@ -261,6 +268,17 @@ Keep final decisions in the parent lane so one actor owns the overall terminal l
 - [ ] **Consistent visual language**: Same symbols, colors, and box styles throughout the app
 - [ ] **Error messages actionable**: Every error includes a specific next step or fix suggestion
 
+## Output Contract
+
+A CLI/TUI design that clears this skill's bar carries:
+
+- `visualSystem`: semantic colors (success/warning/error/accent), consistent symbols and box styles, no rainbow vomit.
+- `runtimeCompatibility`: `NO_COLOR`/`TERM=dumb` honored, pipe/non-TTY output clean, exit codes meaningful, errors on stderr.
+- `layout`: Unicode-width-aware column alignment, reflow at 40/80/120 columns.
+- `feedback`: honest progress (spinner for unknown duration, bar+ETA only with a real denominator), quiet by default, `--json`/`--format=json` escape hatch.
+
+Use `scripts/cli_design_audit.mjs` to audit a CLI design spec JSON and return `{ pass, score, findings, recommendations }`; see `schemas/cli-spec.schema.json` for the input shape and `examples/sample-input.json` for a passing spec.
+
 ## Reference Map
 
 - `diagrams/01_flowchart_decision-points.md` — companion routing diagram for scope checks and first-pass implementation choice.
@@ -268,3 +286,57 @@ Keep final decisions in the parent lane so one actor owns the overall terminal l
 - `references/02-ink-react-for-cli.md` and `references/03-inkjs-ui-components.md` — React-flavored terminal UI guidance.
 - `references/05-lipgloss-go-v2.md` and `references/10-huh-terminal-forms.md` — polished Go output and prompt surfaces.
 - `references/09-log-structured-logging.md` — how to coexist with structured logs and machine-facing consumers.
+- `schemas/cli-spec.schema.json` — validate a CLI design spec JSON before auditing it.
+- `examples/sample-input.json` — a passing CLI design spec, for calibration.
+- `scripts/cli_design_audit.mjs` — deterministic scoring of a CLI design spec against this skill's Quality Gates.
+- `templates/output-template.md` — reusable structure for writing up a CLI/TUI design deliverable.
+- `agents/openai.yaml` — subagent descriptor for delegated CLI/TUI design or audit.
+- `README.md` — quick start for using this skill and its auditor.
+
+<!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
+
+## Skill Bundle Index
+
+*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+
+**root**
+- [`CHANGELOG.md`](CHANGELOG.md) — Beautiful Cli Design — Changelog — - Upgraded to the agentic-family standard: `provenance` moved to block-style `kind: first-party, owners: [port-daddy]` (prior recovery prove
+- [`README.md`](README.md) — Beautiful CLI Design — Treat the terminal as a real interface surface: hierarchy, feedback, accessibility, and fallback modes all matter — for branded setup flows,
+- [`affordance-scorecard.json`](affordance-scorecard.json) — affordance scorecard (data/schema)
+
+**`agents/`**
+- [`agents/openai.yaml`](agents/openai.yaml) — openai (data/schema)
+
+**`diagrams/`**
+- [`diagrams/01_flowchart_decision-points.md`](diagrams/01_flowchart_decision-points.md) — Diagram 1: flowchart
+- [`diagrams/INDEX.md`](diagrams/INDEX.md) — Diagram Index — | File | Type | | |---|---|---| | `diagrams/01_flowchart_decision-points.md` | `flowchart` | companion for inline SKILL.md diagram |
+
+**`examples/`**
+- [`examples/INDEX.md`](examples/INDEX.md) — Examples Index — | File | When to load | |---|---| | `sample-input.json` | A passing `cli-spec.schema.json` input — use as a starting point or to calibrate `
+- [`examples/expected-output.md`](examples/expected-output.md) — Example Output: Beautiful CLI Design — Scenario: a legacy deploy CLI paints every status line in red/green/yellow with no fallback symbol, ignores `NO_COLOR`, and writes its error
+- [`examples/sample-input.json`](examples/sample-input.json) — sample input (data/schema)
+
+**`references/`**
+- [`references/00-charmbracelet-ecosystem-overview.md`](references/00-charmbracelet-ecosystem-overview.md) — Charmbracelet Ecosystem -- Complete Map for TypeScript/Node.js Developers — Charmbracelet is a company building beautiful terminal tools in Go.
+- [`references/01-charmland-lipgloss-js.md`](references/01-charmland-lipgloss-js.md) — @charmland/lipgloss -- Official JS Port of Lip Gloss — **Package**: `@charmland/lipgloss` (npm) **Version**: 2.0.0-beta.3 (experimental) **License**: MIT **Size**: 1.12 MB (includes native bindin
+- [`references/02-ink-react-for-cli.md`](references/02-ink-react-for-cli.md) — Ink -- React for CLIs — **Package**: `ink` (npm) **Current Version**: 5.x (requires Node.js 18+) **License**: MIT **GitHub**: https://github.com/vadimdemedes/ink **
+- [`references/03-inkjs-ui-components.md`](references/03-inkjs-ui-components.md) — @inkjs/ui -- Pre-built Ink Components — **Package**: `@inkjs/ui` (npm) **Version**: 2.0.0 (requires Ink 5, Node.js 18+) **License**: MIT **GitHub**: https://github.com/vadimdemedes
+- [`references/04-bubbletea-elm-architecture.md`](references/04-bubbletea-elm-architecture.md) — Bubble Tea -- The Elm Architecture for Terminal Apps — **Package**: `charm.land/bubbletea/v2` (Go) **Stars**: 30k+ (one of the most popular Go TUI frameworks) **License**: MIT **GitHub**: https:/
+- [`references/05-lipgloss-go-v2.md`](references/05-lipgloss-go-v2.md) — Lip Gloss v2 -- Go Styling Library (Complete Reference) — **Package**: `charm.land/lipgloss/v2` (Go) **Stars**: 10k+ **License**: MIT **GitHub**: https://github.com/charmbracelet/lipgloss This is th
+- [`references/06-glamour-markdown-rendering.md`](references/06-glamour-markdown-rendering.md) — Glamour -- Markdown Rendering in Terminal — **Package**: `charm.land/glamour/v2` (Go) **Stars**: 3.4k **License**: MIT **GitHub**: https://github.com/charmbracelet/glamour **Latest**: 
+- [`references/07-vhs-tape-reference.md`](references/07-vhs-tape-reference.md) — VHS -- Terminal GIF Recording as Code — **Package**: `vhs` (CLI tool, Go binary) **Stars**: 15k+ **License**: MIT **GitHub**: https://github.com/charmbracelet/vhs **Requires**: `tt
+- [`references/08-gum-shell-prompts.md`](references/08-gum-shell-prompts.md) — Gum -- Interactive Shell Prompts from Any Language — **Package**: `gum` (CLI tool, Go binary) **Stars**: 18k+ **License**: MIT **GitHub**: https://github.com/charmbracelet/gum Gum is the fastes
+- [`references/09-log-structured-logging.md`](references/09-log-structured-logging.md) — Charm Log -- Beautiful Structured Logging — **Package**: `github.com/charmbracelet/log` (Go) **Stars**: 3.2k **License**: MIT **GitHub**: https://github.com/charmbracelet/log Minimal, 
+- [`references/10-huh-terminal-forms.md`](references/10-huh-terminal-forms.md) — Huh? -- Terminal Forms Library — **Package**: `charm.land/huh/v2` (Go) **Stars**: 6.7k **License**: MIT **GitHub**: https://github.com/charmbracelet/huh **Inspired by**: Ale
+- [`references/INDEX.md`](references/INDEX.md) — Reference Index — Load only the file that matches the current blocking question.
+
+**`schemas/`**
+- [`schemas/cli-spec.schema.json`](schemas/cli-spec.schema.json) — cli spec.schema (data/schema)
+
+**`scripts/`**
+- [`scripts/cli_design_audit.mjs`](scripts/cli_design_audit.mjs)
+
+**`templates/`**
+- [`templates/output-template.md`](templates/output-template.md) — CLI/TUI Design Output Template — Fill in every section before shipping.
+
+<!-- END BUNDLE INDEX -->

@@ -162,11 +162,19 @@ const PREFETCH_MODEL_SCRIPT = join(PROJECT_ROOT, 'scripts', 'prefetch-embedding-
  * cached) and best-effort — a failure (offline install) never fails setup; the
  * runtime fetches lazily later. (ADR-0061.)
  */
-function prefetchEmbeddingModel(): void {
+async function prefetchEmbeddingModel(): Promise<void> {
+  // The user may cancel the one-time download; `pd doctor` detects the gap and
+  // offers the same fetch as a repair (`pd embed prefetch`). Non-interactive
+  // installs keep the old default: download.
+  const proceed = await ui.confirm('Download the local embedding model now? (one-time, ~27 MB)', true);
+  if (!proceed) {
+    ui.info('Skipped — hybrid/semantic search stays lexical-only until you run: pd embed prefetch  (or pd doctor)');
+    return;
+  }
   ui.step('Pre-downloading local embedding model (one-time, ~27 MB)');
   const r = spawnSync(TSX_BIN, [PREFETCH_MODEL_SCRIPT], { cwd: PROJECT_ROOT, stdio: 'inherit' });
   if ((r.status ?? 0) === 0) ui.success('Embedding model ready');
-  else ui.info('Embedding model will download on first use (prefetch skipped)');
+  else ui.info('Embedding model download failed — repair later with: pd embed prefetch  (or pd doctor)');
 }
 
 /**
@@ -469,7 +477,7 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
   }
 
   if (!options['no-prefetch']) {
-    prefetchEmbeddingModel();
+    await prefetchEmbeddingModel();
   } else {
     ui.info('Skipping embedding-model prefetch (--no-prefetch)');
   }

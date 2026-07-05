@@ -49,6 +49,7 @@ struct FleetBarApp: App {
     @StateObject private var costStore = CostStore()
     @StateObject private var secretsStore = SecretsStore()
     @StateObject private var dispatchStore = DispatchStore()
+    @StateObject private var proposalStore = FleetProposalStore()
     @StateObject private var backendStore = BackendStore()
 
     var body: some Scene {
@@ -61,7 +62,7 @@ struct FleetBarApp: App {
         .menuBarExtraStyle(.window)
 
         WindowGroup("Fleet Control Center", id: Self.controlCenterWindowID) {
-            FleetControlCenter(store: store, costStore: costStore, dispatchStore: dispatchStore, backendStore: backendStore)
+            FleetControlCenter(store: store, costStore: costStore, dispatchStore: dispatchStore, proposalStore: proposalStore, backendStore: backendStore)
         }
         .defaultSize(width: 1360, height: 860)
 

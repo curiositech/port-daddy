@@ -6,6 +6,9 @@ Load only the file that matches the decision in front of you.
   inboxes, actors, and channels.
 - `fleetbar-and-console.md`: where agents should look in FleetBar and Fleet
   Control Center, with screenshot paths used by the public website.
+- `visual-evidence.md`: how to capture screenshots/GIFs for PR visual proof
+  WITHOUT interrupting the operator — headless Playwright, windowed
+  screencapture of already-open windows, capture harnesses, evidence packaging.
 - `recovery-and-salvage.md`: how to resume interrupted work without rewriting
   history or dropping intent.
 - `distribution-and-installation.md`: how this skill ships with Port Daddy

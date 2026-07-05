@@ -317,6 +317,10 @@ describe('Test Group 3: API -> CLI Parity', () => {
     attest: ['attest'],
     spawn: ['spawn', 'spawned'],
     fleet: ['fleet'],
+    // fleethitlproposals: ship-submitted idea packets become operator
+    // approve/reject decisions in FleetBar/pd-console; `pd fleet` remains the
+    // CLI umbrella rather than adding a routine human-approval CLI flow.
+    fleethitlproposals: ['fleet'],
     harbors: ['harbor', 'harbors'],
     whois: ['whois'],
     orchestrator: ['up', 'down'],
@@ -359,6 +363,12 @@ describe('Test Group 3: API -> CLI Parity', () => {
     // exposes the read-only GET /safe/scan; `pd safe <scan|baseline|fix|corral|guard>`
     // is its CLI surface.
     safe: ['safe'],
+    // fleetapprovals: trust-gate spawn approvals (ADR-0093 L2). CLI surface is
+    // `pd fleet approvals` / `pd fleet approve <id>` / `pd fleet reject <id>`.
+    fleetapprovals: ['fleet'],
+    // fleetpush: Web Push registration for approval alerts. CLI surface is
+    // `pd fleet push <status|test>`.
+    fleetpush: ['fleet'],
   };
 
   // API-only routes that have no CLI equivalent (accessed via curl or SDK).
@@ -372,7 +382,10 @@ describe('Test Group 3: API -> CLI Parity', () => {
   // surfaced through fleet/agents/observability reporting, not a dedicated `pd` command.
   // sorties: legacy HTTP record compatibility for old spawned-run rows; new CLI launch is `pd spawn`.
   // (relay is NOT API-only: it has the `pd relay` CLI, mapped in ROUTE_TO_CLI_MAP above.)
-  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian', 'cloudapptelemetry', 'visualtasks', 'sorties']);
+  // fleetwebhooks: inbound fleet webhook receiver (POST /webhooks/fleet/:channel),
+  // driven by external senders / the email-ingress Worker, never by a `pd`
+  // command — API-only by design. See routes/fleet-webhooks.ts.
+  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian', 'cloudapptelemetry', 'visualtasks', 'sorties', 'fleetwebhooks']);
 
   test('all route modules have at least one corresponding CLI command', () => {
     const missingCoverage = [];

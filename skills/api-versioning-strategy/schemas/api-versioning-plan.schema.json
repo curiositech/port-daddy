@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/api-versioning-plan.schema.json",
+  "title": "API Versioning Plan",
+  "description": "A structured plan for an API change — strategy, deprecation signals, and lifecycle tooling — so api-versioning-strategy's Quality Gates can be checked deterministically by scripts/api_versioning_strategy_audit.mjs.",
+  "type": "object",
+  "required": ["apiAudience", "changeKind", "strategy"],
+  "additionalProperties": true,
+  "properties": {
+    "apiAudience": {
+      "type": "string",
+      "enum": ["public", "internal"],
+      "description": "Whether clients deploy independently (public) or a coordinated atomic deploy is possible (internal)."
+    },
+    "changeKind": {
+      "type": "string",
+      "enum": ["additive", "breaking"],
+      "description": "Additive = new field/endpoint/optional param; breaking = removal, rename, or semantic change."
+    },
+    "strategy": {
+      "type": "string",
+      "enum": ["none-additive", "uri-segment", "date-pinned-header", "media-type", "query-param"],
+      "description": "The versioning strategy chosen, per the strategy-comparison table in SKILL.md."
+    },
+    "removesEndpointOrField": {
+      "type": "boolean",
+      "description": "True if this change removes or renames an externally-visible endpoint or field."
+    },
+    "usesTransformerPattern": {
+      "type": "boolean",
+      "description": "True if breaking changes are encapsulated in version-change transformer modules (Stripe model) rather than if/else branches."
+    },
+    "deprecationHeaderSet": {
+      "type": "boolean",
+      "description": "True if deprecated surfaces send Deprecation: @<unix-ts> per RFC 9745."
+    },
+    "sunsetHeaderSet": {
+      "type": "boolean",
+      "description": "True if deprecated surfaces send Sunset: <HTTP-date> per RFC 8594."
+    },
+    "deprecationEpochSeconds": {
+      "type": "number",
+      "description": "Unix timestamp (seconds) of the Deprecation signal."
+    },
+    "sunsetEpochSeconds": {
+      "type": "number",
+      "description": "Unix timestamp (seconds) of the Sunset date. MUST NOT be earlier than deprecationEpochSeconds (RFC 9745)."
+    },
+    "migrationLinkProvided": {
+      "type": "boolean",
+      "description": "True if a Link: <docs-url>; rel=\"deprecation\" header points at a real migration doc."
+    },
+    "usageTelemetryPerVersion": {
+      "type": "boolean",
+      "description": "True if per-version request telemetry exists, so usage can be checked before deleting a version."
+    },
+    "sunsetEnforcementPlanned": {
+      "type": "boolean",
+      "description": "True if something fires when the sunset date arrives: a CI check, calendar reminder, or automated 410 Gone."
+    },
+    "semverVersioning": {
+      "type": "boolean",
+      "description": "True if the API uses semver-style identifiers (v1.2.3) — an anti-pattern for REST wire contracts."
+    },
+    "breakingChangesPerYear": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Expected breaking changes per year; the transformer pattern pays off above ~3."
+    },
+    "consumerCount": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Approximate number of API consumers (keys, services, or customers)."
+    }
+  }
+}

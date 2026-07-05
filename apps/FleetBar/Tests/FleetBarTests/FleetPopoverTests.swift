@@ -9,9 +9,11 @@ final class FleetPopoverTests: XCTestCase {
         XCTAssertEqual(
             FleetControlSurface.allCases.map(\.rawValue),
             [
+                "operator",
                 "flow",
                 "backend",
                 "roadmap",
+                "proposals",
                 "nightshift",
                 "agents",
                 "visual",
@@ -28,9 +30,11 @@ final class FleetPopoverTests: XCTestCase {
         XCTAssertEqual(
             FleetControlSurface.allCases.map(\.title),
             [
+                "Operator",
                 "Flow",
                 "Backend",
                 "Roadmap",
+                "Proposals",
                 "Nightshift",
                 "Agents",
                 "Visual Task",
@@ -47,15 +51,16 @@ final class FleetPopoverTests: XCTestCase {
     }
 
     /// Native surfaces render via SwiftUI inside FleetBar; web surfaces are
-    /// loaded through the embedded `/fleet-ui/` webview. Nightshift and Backend
-    /// are fully native — the loop must work even when the web bundle is stale
-    /// or offline. Everything else is web. Pinning the exact native set catches
-    /// an accidental opt-in (or opt-out) when surfaces are added.
-    func testNativeSurfacesAreBackendAndNightshift() {
+    /// loaded through the embedded `/fleet-ui/` webview. Nightshift, Backend,
+    /// and Proposals are fully native — the loop must work even when the web
+    /// bundle is stale or offline. Everything else is web. Pinning the exact
+    /// native set catches an accidental opt-in (or opt-out) when surfaces are
+    /// added.
+    func testNativeSurfacesAreBackendNightshiftAndProposals() {
         let nativeRaws = FleetControlSurface.allCases.filter(\.isNative).map(\.rawValue)
-        XCTAssertEqual(nativeRaws, ["backend", "nightshift"])
+        XCTAssertEqual(nativeRaws, ["backend", "proposals", "nightshift"])
 
-        let nativeSet: Set<FleetControlSurface> = [.backend, .nightshift]
+        let nativeSet: Set<FleetControlSurface> = [.backend, .proposals, .nightshift]
         for surface in FleetControlSurface.allCases where !nativeSet.contains(surface) {
             XCTAssertFalse(surface.isNative, "Expected \(surface.rawValue) to be a web surface")
         }

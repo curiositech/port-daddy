@@ -161,6 +161,32 @@ describe('validateAllowedToolsForTier — fail-closed least privilege', () => {
   test('internal tier may use bash/edit/write but is still a defined set', () => {
     expect(validateAllowedToolsForTier('INTERNAL', 'Read,Bash,Edit,Write').ok).toBe(true);
   });
+
+  // Invariant #4 as WRITTEN: absent tools = deny for NON-TRUSTED tiers only.
+  // INTERNAL is a trusted tier — the operator's own environment. Refusing it
+  // would break every shipped Phase-1 `file:` agent with no allowedTools,
+  // while the legacy git/schedule path (never tool-gated) sailed on. The
+  // gate's teeth are for external ingress.
+  test('trusted INTERNAL tier with absent allowedTools → ok (engine default stands)', () => {
+    expect(validateAllowedToolsForTier('INTERNAL', undefined).ok).toBe(true);
+    expect(validateAllowedToolsForTier('INTERNAL', '').ok).toBe(true);
+  });
+
+  test('trusted INTERNAL tier accepts ship-declared tools beyond the nominal set (parity with legacy path)', () => {
+    expect(validateAllowedToolsForTier('INTERNAL', 'Read,WebSearch,Task').ok).toBe(true);
+  });
+});
+
+describe('evaluateTrustGate — file trigger (INTERNAL) end-to-end verdict', () => {
+  test('file trigger with no allowedTools → allowed, no approval (Phase-1 path keeps working)', () => {
+    const v = evaluateTrustGate({
+      event: { source: 'file', metadata: { sender: 'fs.watch', consent_verified: true } },
+      allowedTools: undefined,
+    });
+    expect(v.tier).toBe('INTERNAL');
+    expect(v.allowed).toBe(true);
+    expect(v.requiresApproval).toBe(false);
+  });
 });
 
 describe('evaluateTrustGate — the composite verdict', () => {

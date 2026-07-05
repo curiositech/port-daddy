@@ -30,7 +30,7 @@
   --pd-danger:         #BF2F2F;   /* status-error — danger/alert escalations */
   --pd-ebony:          #1E1B18;   /* warm ebony — terminal background */
   --pd-sandstone:      #D4C5A9;   /* harbor heritage warm tone (sparingly) */
-  --brand-yellow:      #FFDB33;   /* existing neobrutalism mustard */
+  --brand-yellow:      #d8dd3c;   /* palette v2 gold (dark); mustard #FFDB33 retired per binder ch20 */
 
   /* -------------------------------------------------------------------------
      DERIVED SHADES — needed because saturated primitives miss AAA on white

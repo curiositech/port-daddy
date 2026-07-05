@@ -1,0 +1,132 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Focus Receipt And Work Order",
+  "description": "Input shape for scripts/focus_receipt_audit.mjs — a Agent Harbor binder ch.18 'current product focus receipt' plus the work order it gates.",
+  "type": "object",
+  "required": ["receipt", "workOrder"],
+  "additionalProperties": true,
+  "properties": {
+    "receipt": {
+      "type": "object",
+      "description": "The current product focus receipt, per docs/architecture/agent-harbor-technical-binder/18-build-prescription-agent-launch-board.md.",
+      "required": [
+        "decision",
+        "now",
+        "whyNow",
+        "evidence",
+        "firstVisibleProof",
+        "acceptanceGate",
+        "killRevisitTrigger",
+        "owner",
+        "reviewDate"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "decision": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The one thing being built/prioritized right now."
+        },
+        "now": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The narrow, concrete slice being executed immediately."
+        },
+        "whyNow": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The reason this decision beats every other candidate at this moment."
+        },
+        "evidence": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The observed fact (operator complaint, failed probe, incident) that justifies whyNow."
+        },
+        "notNow": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional: explicit scope this decision deliberately excludes, so it isn't silently expected later."
+        },
+        "cutSuspend": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional: concepts/verbs/panels being frozen or removed so work doesn't fork into parallel truths."
+        },
+        "firstVisibleProof": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The exact observable artifact (screen, saved event, passing probe) that proves the decision produced something real."
+        },
+        "acceptanceGate": {
+          "type": "object",
+          "required": ["statement", "testableAgainstDaemonTruth"],
+          "additionalProperties": true,
+          "properties": {
+            "statement": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The concrete, checkable claim the proof must satisfy."
+            },
+            "testableAgainstDaemonTruth": {
+              "type": "boolean",
+              "description": "True only if the gate can be proven by rebuilding visible state from daemon/event truth after a restart or reconnect — never from a cached UI model."
+            }
+          }
+        },
+        "killRevisitTrigger": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The exact condition under which this decision is paused and forced back to re-litigation."
+        },
+        "contextSwitchCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Optional: how many independent chains/foundations this decision spans (see 'Agent count rule')."
+        },
+        "agentsNeeded": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Optional: how many agents this decision launches, and in what wave."
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The named role or person accountable for this decision (e.g. 'Harbor Architect of Record')."
+        },
+        "reviewDate": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ISO-8601 date by which this decision must be revisited with fresh evidence."
+        }
+      }
+    },
+    "workOrder": {
+      "type": "object",
+      "description": "The agent launch this focus receipt gates. Per ch.18: 'If a proposed chain cannot state its input, output, owner, and proof gate, it is a planning placeholder, not an agent launch.'",
+      "required": ["input", "output", "owner", "proofGate"],
+      "additionalProperties": true,
+      "properties": {
+        "input": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the agent reads/consumes before starting (docs, prior chain outputs, fixtures)."
+        },
+        "output": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the agent must produce (ADR, schema, code, UI, report)."
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Who is accountable for this specific chain's output, distinct from the receipt's overall owner."
+        },
+        "proofGate": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The concrete acceptance gate(s) this chain's output must pass before it counts as done."
+        }
+      }
+    }
+  }
+}
