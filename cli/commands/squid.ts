@@ -32,6 +32,7 @@ import {
   uninstallPilotSessionStartHook,
 } from '../../lib/pilot-sessionstart-hook.js';
 import { PD_HOOK_MARKER } from '../../lib/squid/hook-shape.js';
+import { ensureSquidClaudeHome } from '../../lib/squid/bridge-client-home.js';
 import type { CLIOptions } from '../types.js';
 import * as ui from '../utils/ui.js';
 
@@ -196,12 +197,23 @@ export function squidBackendLabel(config: Pick<SquidBridgeConfig, 'codexModel' |
   return 'codex';
 }
 
+export interface BridgeClientEnvOptions {
+  backendLabel?: string;
+  /**
+   * Isolated CLAUDE_CONFIG_DIR for a bridged Claude Code session. When set, the
+   * client authenticates with the bridge bearer token ONLY (no ANTHROPIC_API_KEY,
+   * and any inherited one is stripped), so Claude Code does not see both the
+   * token and the operator's stored claude.ai login — no "Auth conflict" warning.
+   */
+  claudeConfigDir?: string;
+}
+
 /** Build the child-process environment for a Claude-compatible client. */
 export function bridgeClientEnv(
   baseUrl: string,
   authToken: string | null,
   baseEnv: NodeJS.ProcessEnv = process.env,
-  backendLabel?: string,
+  options: BridgeClientEnvOptions = {},
 ): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
     ...baseEnv,
@@ -211,9 +223,18 @@ export function bridgeClientEnv(
     PD_SQUID_PILOT: 'codex',
     // Honest model provenance: the statusline shows the model actually
     // answering (the Codex backend), not the client-facing Anthropic model id.
-    PD_SQUID_BACKEND: backendLabel || 'codex',
+    PD_SQUID_BACKEND: options.backendLabel || 'codex',
   };
-  if (authToken) {
+  const cleanClaude = Boolean(options.claudeConfigDir);
+  if (cleanClaude) {
+    // Isolated config home → no stored login → the bearer token is the sole
+    // credential. Bearer only: setting ANTHROPIC_API_KEY here (or inheriting one)
+    // is what triggers Claude Code's auth-conflict warning, so strip it.
+    env.CLAUDE_CONFIG_DIR = options.claudeConfigDir!;
+    delete env.ANTHROPIC_API_KEY;
+    if (authToken) env.ANTHROPIC_AUTH_TOKEN = authToken;
+    else delete env.ANTHROPIC_AUTH_TOKEN;
+  } else if (authToken) {
     env.ANTHROPIC_AUTH_TOKEN = authToken;
     env.ANTHROPIC_API_KEY = authToken;
   } else {
@@ -221,6 +242,12 @@ export function bridgeClientEnv(
     delete env.ANTHROPIC_API_KEY;
   }
   return env;
+}
+
+/** Basename of the client command, for deciding whether to apply clean-Claude launch. */
+function isClaudeClient(command: string): boolean {
+  const base = command.split('/').pop() || command;
+  return base === 'claude';
 }
 
 /**
@@ -234,11 +261,23 @@ export function resolveClientLaunch(
   passthrough: string[],
   options: CLIOptions,
   baseEnv: NodeJS.ProcessEnv = process.env,
-  backendLabel?: string,
+  extra: { backendLabel?: string; cwd?: string } = {},
 ): ClientLaunch {
   const command = passthrough[0] || String(options.client ?? 'claude');
   const args = passthrough.length > 0 ? passthrough.slice(1) : normalizeStringArray(options['client-arg']);
-  return { command, args, env: bridgeClientEnv(baseUrl, authToken, baseEnv, backendLabel) };
+  // Sugar: when the client is Claude Code, seed an isolated, pre-trusted config
+  // home so the one command boots clean — no auth-conflict warning, no folder
+  // trust prompt, no onboarding. --no-isolate opts out (shares the operator's
+  // config, at the cost of the login/token conflict warning).
+  let claudeConfigDir: string | undefined;
+  if (isClaudeClient(command) && !options['no-isolate']) {
+    claudeConfigDir = ensureSquidClaudeHome(extra.cwd ?? process.cwd()) ?? undefined;
+  }
+  return {
+    command,
+    args,
+    env: bridgeClientEnv(baseUrl, authToken, baseEnv, { backendLabel: extra.backendLabel, claudeConfigDir }),
+  };
 }
 
 /**
@@ -358,7 +397,10 @@ async function handleCodexBridge(clientPassthrough: string[], options: CLIOption
   });
 
   if (!mode.serveOnly) {
-    const launch = resolveClientLaunch(baseUrl, config.authToken, clientPassthrough, options, process.env, squidBackendLabel(config));
+    const launch = resolveClientLaunch(baseUrl, config.authToken, clientPassthrough, options, process.env, {
+      backendLabel: squidBackendLabel(config),
+      cwd: config.cwd,
+    });
     console.log('');
     console.log(`Launching: ${[launch.command, ...launch.args].join(' ') || launch.command}`);
     const child = spawnChild(launch.command, launch.args, {
@@ -729,6 +771,9 @@ Bridge options:
   --client <bin>              Client to launch when no -- passthrough is given
   --client-arg <arg>          Client arg; repeatable
   --serve-only                With bridge, do not launch a client
+  --no-isolate                Share the operator's Claude config instead of a clean
+                              isolated one (Claude Code will warn about the login/token
+                              auth conflict; only use if you need your global MCP/login)
 
 Examples:
   pd squid hooks

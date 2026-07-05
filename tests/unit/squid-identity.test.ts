@@ -23,6 +23,7 @@ import {
   STATUSLINE_MARKER,
 } from '../../lib/squid/identity.js';
 import { bridgeClientEnv } from '../../cli/commands/squid.js';
+import { ensureSquidClaudeHome, squidClaudeHomeDir } from '../../lib/squid/bridge-client-home.js';
 
 const SANDBOX = join(process.cwd(), '.scratch', `squid-identity-test-${process.pid}`);
 const PD_BIN = join(SANDBOX, 'pd-bin');
@@ -162,13 +163,55 @@ describe('pd-statusline script (the real sh, end-to-end)', () => {
   });
 });
 
+describe('ensureSquidClaudeHome (clean bridged-session config)', () => {
+  const HOME = join(SANDBOX, 'pdhome');
+  beforeEach(() => {
+    process.env.PD_SQUID_CLAUDE_HOME = join(HOME, 'squid-claude-home');
+  });
+  afterAll(() => { delete process.env.PD_SQUID_CLAUDE_HOME; });
+
+  test('seeds onboarding-complete + folder-trust for the launch cwd, and is additive', () => {
+    const dir = ensureSquidClaudeHome('/work/project-a');
+    expect(dir).toBe(squidClaudeHomeDir());
+    const cfg = JSON.parse(readFileSync(join(dir!, '.claude.json'), 'utf8'));
+    expect(cfg.hasCompletedOnboarding).toBe(true);
+    expect(cfg.projects['/work/project-a'].hasTrustDialogAccepted).toBe(true);
+    // NO stored login — that is the whole point (bearer token is sole credential)
+    expect(cfg.oauthAccount).toBeUndefined();
+
+    // a second project is added without dropping the first
+    ensureSquidClaudeHome('/work/project-b');
+    const cfg2 = JSON.parse(readFileSync(join(dir!, '.claude.json'), 'utf8'));
+    expect(cfg2.projects['/work/project-a'].hasTrustDialogAccepted).toBe(true);
+    expect(cfg2.projects['/work/project-b'].hasTrustDialogAccepted).toBe(true);
+  });
+});
+
 describe('bridgeClientEnv marks the piloted session', () => {
   test('sets PD_SQUID_PILOT=codex and the honest backend label alongside the Anthropic env', () => {
-    const env = bridgeClientEnv('http://127.0.0.1:8765', 'tok', {}, 'codex gpt-5.5');
+    const env = bridgeClientEnv('http://127.0.0.1:8765', 'tok', {}, { backendLabel: 'codex gpt-5.5' });
     expect(env.ANTHROPIC_BASE_URL).toBe('http://127.0.0.1:8765');
     expect(env.ANTHROPIC_AUTH_TOKEN).toBe('tok');
     expect(env.PD_SQUID_PILOT).toBe('codex');
     expect(env.PD_SQUID_BACKEND).toBe('codex gpt-5.5');
     expect(bridgeClientEnv('http://x', null, {}).PD_SQUID_BACKEND).toBe('codex');
+  });
+
+  test('clean-Claude mode: isolated config dir, bearer-only (no ANTHROPIC_API_KEY), strips inherited key', () => {
+    const env = bridgeClientEnv('http://127.0.0.1:8765', 'tok', { ANTHROPIC_API_KEY: 'sk-operator-key' }, {
+      backendLabel: 'codex (strong)',
+      claudeConfigDir: '/home/u/.port-daddy/squid-claude-home',
+    });
+    expect(env.CLAUDE_CONFIG_DIR).toBe('/home/u/.port-daddy/squid-claude-home');
+    expect(env.ANTHROPIC_AUTH_TOKEN).toBe('tok'); // bearer only
+    expect(env.ANTHROPIC_API_KEY).toBeUndefined(); // the conflict trigger is stripped
+    expect(env.PD_SQUID_PILOT).toBe('codex');
+  });
+
+  test('shared-config mode keeps both auth vars (back-compat for non-claude clients)', () => {
+    const env = bridgeClientEnv('http://x', 'tok', {});
+    expect(env.ANTHROPIC_AUTH_TOKEN).toBe('tok');
+    expect(env.ANTHROPIC_API_KEY).toBe('tok');
+    expect(env.CLAUDE_CONFIG_DIR).toBeUndefined();
   });
 });
