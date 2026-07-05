@@ -3,89 +3,123 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>pd-console — Roster + Transcript Truth (spec mockup)</title>
+<title>pd-console — Roster + Transcript Truth (converged mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600;700&family=Recursive:CASL,wght@1,600..800&display=swap">
 <style>
 /* ============================================================
-   pd-console spec mockup — renders ch19 boundary + ch10 contract:
-   conjoined roster/detail, live transcript with tool calls and a
-   gate denial, files touched, compliance-gated controls, and an
-   observed agent whose controls are honestly disabled.
-   Dark-native (the console is the seated deep surface).
-   Type: system SF for chrome, mono tabular for events. 14px floor.
+   pd-console converged mockup — punch-list item 1.
+   Skin/law: binder ch20 (palette v2, layer-hued pane rail, brackets
+   on the live pane, rule-8 grammar, hot-bus latency in status bar).
+   Structure: ch19/ch10 — denial-as-evidence transcript, compliance-
+   gated controls, "live — events arriving" adopted verbatim (§8).
+   Dark-native; tokens declared locally because the console is the
+   one always-dark surface (GPUI constants, not prefers-color-scheme).
    ============================================================ */
 :root {
-  --bg: #181C22; --bg-raised: #222833; --bg-deep: #101216;
-  --ink: #F5F3ED; --ink-soft: #D3CEC2; --ink-mute: #A59F93;
-  --accent: #7DB4FF;
-  --ok: #66D28A; --warn: #F2BE51; --err: #FF7D7D; --blocked: #B69BEC; --idle: #736D60;
-  --hairline: rgba(245,243,237,.16); --bracket: rgba(245,243,237,.7);
+  --bg: #181c22; --bg-raised: #222833; --bg-deep: #101216;
+  --ink: #f5f3ed; --ink-soft: #d3cec2; --ink-mute: #a59f93;
+  --cobalt: #7db4ff; --teal: #8fd0a7; --health: #5fce97;
+  --amber: #f2be51; --error: #ff7d7d; --violet: #e0a5ed;
+  --gold: #d8dd3c; --indigo: #9d92e8; --idle: #736d60;
+  --cobalt-slab: #003fb8; --flag-white: #fbf7ef; --lime: #cad900;
+  --hair: rgba(245,243,237,.14); --hair-strong: rgba(245,243,237,.34);
+  --border-strong: #f5f3ed;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-family: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
   background: var(--bg-deep); color: var(--ink);
   font-size: .9375rem; line-height: 1.55; -webkit-font-smoothing: antialiased;
   padding-bottom: 4rem;
 }
-.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace;
+.mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   font-variant-numeric: tabular-nums slashed-zero; font-size: .8125rem; }
+.casual { font-family: "Recursive", "IBM Plex Sans", sans-serif;
+  font-variation-settings: "CASL" 1; }
 .eyebrow { font-size: .75rem; font-weight: 650; text-transform: uppercase;
   letter-spacing: .12em; color: var(--ink-mute); }
+/* rule-8 micro-flags */
+.mfl { display: inline-block; width: 13px; height: 9.5px; flex: none;
+  border: .5px solid rgba(0,0,0,.35);
+  --fw: var(--flag-white); --fink: #17191d; --c: var(--cobalt-slab); --r: #bf2f2f; --y: var(--lime); }
+.fl-quebec { background: var(--y); }
+.fl-uniform { background: repeating-conic-gradient(var(--r) 0 25%, var(--fw) 25% 50%) top left / 50% 50%; }
+.fl-lima { background: conic-gradient(var(--fink) 0 25%, var(--y) 25% 50%, var(--fink) 50% 75%, var(--y) 75%); }
+.fl-november { background: repeating-conic-gradient(var(--c) 0 25%, var(--fw) 25% 50%) top left / 50% 50%; }
+
 .pagehead { max-width: 1160px; margin: 2.2rem auto .6rem; padding: 0 2rem; }
 .pagehead h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -.02em; }
 .pagehead p { color: var(--ink-soft); max-width: 66ch; margin-top: .35rem; }
 .pagehead .refs { margin-top: .4rem; color: var(--ink-mute); font-size: .875rem; }
 
 .app { max-width: 1160px; margin: 1.2rem auto 0; background: var(--bg);
-  border: 1px solid var(--hairline); display: grid;
-  grid-template-columns: 168px 328px 1fr; min-height: 640px; }
+  border: 1px solid var(--hair-strong); display: grid;
+  grid-template-columns: 176px 328px 1fr; min-height: 640px; }
 
-/* ---- left rail ---- */
-.rail { border-right: 1px solid var(--hairline); padding: .9rem .8rem; }
-.rail .item { padding: .35rem .55rem; color: var(--ink-mute); font-size: .875rem; }
-.rail .item.on { color: var(--ink); background: var(--bg-raised);
-  border-left: 3px solid var(--accent); padding-left: .4rem; font-weight: 600; }
+/* ---- left rail: layer-hued (hue = layer, ch20) ---- */
+.rail { border-right: 1px solid var(--hair); padding: .9rem .8rem; }
+.rail .item { padding: .35rem .55rem .35rem .7rem; color: var(--ink-mute);
+  font-size: .875rem; position: relative; }
+.rail .item.on { color: var(--ink); background: var(--bg-raised); font-weight: 600; }
+.rail .item .lh { position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px; }
+.rail .l0 .lh { background: var(--cobalt); }
+.rail .l1 .lh { background: var(--health); }
+.rail .l2 .lh { background: var(--teal); }
+.rail .l3 .lh { background: var(--gold); }
+.rail .lid .lh { background: var(--violet); }
 .rail .sect { margin-top: 1rem; }
 
 /* ---- roster ---- */
-.roster { border-right: 1px solid var(--hairline); padding: .9rem 0; overflow: hidden; }
+.roster { border-right: 1px solid var(--hair); padding: .9rem 0; overflow: hidden; }
 .roster .head { display: flex; align-items: baseline; gap: .5rem; padding: 0 1rem .6rem; }
 .roster .head .t { font-weight: 750; }
 .roster .head .n { color: var(--ink-mute); margin-left: auto; }
-.row { display: flex; gap: .6rem; align-items: center; padding: .55rem 1rem .55rem .95rem;
+.roster .head .n b { color: var(--gold); font-weight: 650; }
+.row { display: flex; gap: .55rem; align-items: center; padding: .55rem 1rem .55rem .95rem;
   position: relative; }
 .row .stripe { position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; }
 .row.sel { background: var(--bg-raised); }
-.row .dot { width: 8px; height: 8px; flex: none; background: currentColor; position: relative; }
+.row .dot { width: 8px; height: 8px; flex: none; background: currentColor; }
 .row .body { min-width: 0; flex: 1; }
 .row .name { font-weight: 600; display: flex; gap: .5rem; align-items: baseline; }
 .row .meta { color: var(--ink-mute); font-size: .875rem; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
 .row .age { margin-left: auto; color: var(--ink-mute); flex: none; }
 .lvl { font-size: .75rem; font-weight: 650; letter-spacing: .08em; text-transform: uppercase;
-  padding: 0 .35rem; border: 1px solid var(--hairline); color: var(--ink-mute); }
-.lvl.c4 { color: var(--accent); border-color: var(--accent); }
+  padding: 0 .35rem; border: 1px solid var(--hair-strong); color: var(--ink-mute); }
+.lvl.c4 { color: var(--cobalt); border-color: var(--cobalt); }
 .lvl.obs { color: var(--idle); }
-.s-running { color: var(--accent); } .s-running .stripe { background: var(--accent); }
-.s-ok { color: var(--ok); } .s-ok .stripe { background: var(--ok); }
-.s-err { color: var(--err); } .s-err .stripe { background: var(--err); }
-.s-blocked { color: var(--blocked); } .s-blocked .stripe { background: var(--blocked); }
+.s-running { color: var(--cobalt); } .s-running .stripe { background: var(--cobalt); }
+.s-ok { color: var(--health); } .s-ok .stripe { background: var(--health); }
+.s-err { color: var(--error); } .s-err .stripe { background: var(--error); }
+.s-blocked { color: var(--violet); } .s-blocked .stripe { background: var(--violet); }
 .s-idle { color: var(--idle); } .s-idle .stripe { background: var(--idle); }
 @keyframes pulse { 0% { outline-offset: 0; outline-color: currentColor; } 100% { outline-offset: 7px; outline-color: transparent; } }
 .row.live .dot { outline: 1.5px solid currentColor; animation: pulse 1.8s ease-out infinite; }
 @media (prefers-reduced-motion: reduce) { .row.live .dot { animation: none; } }
 
-/* ---- detail ---- */
-.detail { display: flex; flex-direction: column; min-width: 0; }
-.dhead { padding: .9rem 1.2rem .7rem; border-bottom: 1px solid var(--hairline); }
+/* ---- detail: THE live pane — brackets on live panels only ---- */
+.detail { display: flex; flex-direction: column; min-width: 0; position: relative; }
+.detail::before, .detail::after, .detail .bk::before, .detail .bk::after {
+  content: ""; position: absolute; width: 12px; height: 12px;
+  border: 0 solid var(--border-strong); pointer-events: none; z-index: 5; }
+.detail::before { top: 4px; left: 4px; border-top-width: 1.5px; border-left-width: 1.5px; }
+.detail::after { top: 4px; right: 4px; border-top-width: 1.5px; border-right-width: 1.5px; }
+.detail .bk::before { bottom: 4px; left: 4px; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.detail .bk::after { bottom: 4px; right: 4px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+
+.dhead { padding: .9rem 1.2rem .7rem; border-bottom: 1px solid var(--hair); }
 .dhead .top { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
 .dhead .name { font-weight: 750; font-size: 1.05rem; }
 .dhead .facts { display: flex; gap: 1.1rem; flex-wrap: wrap; margin-top: .3rem;
   color: var(--ink-mute); font-size: .875rem; }
 .dhead .facts b { color: var(--ink-soft); font-weight: 600; }
+.dhead .facts b.money { color: var(--gold); }
 .tabs { display: flex; gap: 1.2rem; margin-top: .7rem; font-size: .875rem; }
 .tab { color: var(--ink-mute); padding-bottom: .3rem; }
-.tab.on { color: var(--ink); font-weight: 600; border-bottom: 2px solid var(--accent); }
+.tab.on { color: var(--ink); font-weight: 600; border-bottom: 2px solid var(--cobalt); }
 
 .stream { flex: 1; padding: 1rem 1.2rem; overflow: hidden; }
 .ev { display: flex; gap: .9rem; padding: .45rem 0; }
@@ -94,69 +128,70 @@ body {
   letter-spacing: .08em; text-transform: uppercase; padding-top: .15rem; }
 .ev .body { min-width: 0; flex: 1; color: var(--ink-soft); }
 .ev.op .kind { color: var(--ink); }
-.ev.asst .kind { color: var(--accent); }
-.ev.tool .kind { color: var(--warn); }
-.ev.file .kind { color: var(--ok); }
-.ev.deny .kind { color: var(--err); }
+.ev.asst .kind { color: var(--cobalt); }
+.ev.tool .kind { color: var(--amber); }
+.ev.file .kind { color: var(--health); }
+.ev.deny .kind { color: var(--error); }
 .ev .body .mono { color: var(--ink); }
-.ev.deny .body { border-left: 3px solid var(--err); padding-left: .7rem; }
+.ev.deny .body { border-left: 3px solid var(--error); padding-left: .7rem; }
 .ev.deny .alt { color: var(--ink-mute); font-size: .875rem; margin-top: .15rem; }
-.cursor { display: inline-block; width: 8px; height: 15px; background: var(--accent);
+.cursor { display: inline-block; width: 8px; height: 15px; background: var(--cobalt);
   vertical-align: text-bottom; }
 
 /* files + controls */
-.dfoot { border-top: 1px solid var(--hairline); padding: .7rem 1.2rem .9rem; }
+.dfoot { border-top: 1px solid var(--hair); padding: .7rem 1.2rem .9rem; }
 .files { display: flex; gap: 1rem; flex-wrap: wrap; color: var(--ink-mute); font-size: .875rem; }
-.files .f { border-bottom: 1px solid var(--hairline); }
-.files .f.mod { color: var(--warn); }
-.files .f.add { color: var(--ok); }
+.files .f { border-bottom: 1px solid var(--hair-strong); }
+.files .f.mod { color: var(--amber); }
+.files .f.add { color: var(--health); }
 .controls { display: flex; gap: .5rem; margin-top: .75rem; align-items: center; }
 .btn { font: inherit; font-size: .875rem; font-weight: 600; padding: .28rem .75rem;
-  border: 1.5px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer; }
-.btn.primary { background: var(--ink); color: var(--bg); }
-.btn[disabled] { border-color: var(--hairline); color: var(--ink-mute); cursor: not-allowed; }
+  border: 2px solid var(--border-strong); background: transparent; color: var(--ink); cursor: pointer; }
+.btn.primary { background: var(--border-strong); color: var(--bg); }
+.btn[disabled] { border-color: var(--hair-strong); color: var(--ink-mute); cursor: not-allowed; }
 .why-disabled { color: var(--ink-mute); font-size: .875rem; margin-left: .4rem; }
+
+/* status bar: hot-bus latency (apps.html normative console) */
+.statusbar { grid-column: 1 / -1; display: flex; gap: 1.2rem; align-items: center;
+  border-top: 1px solid var(--hair-strong); padding: .45rem 1.2rem;
+  color: var(--ink-mute); background: var(--bg-raised); }
+.statusbar .right { margin-left: auto; display: flex; gap: 1.2rem; }
+.statusbar b { color: var(--ink-soft); font-weight: 600; }
 </style>
 </head>
 <body>
-<div style="max-width:860px;margin:1.2rem auto 0;padding:.7rem 1rem;border:2px solid currentColor;font:600 .9375rem/1.5 'IBM Plex Sans',system-ui,sans-serif;">
-CONVERGED BASE RENDER (parley verdict §8, 2026-07-05) — ch20 story linework
-is the skin and law; this file is one of the base renders to evolve to full
-ch20 (palette v2 expansion, rule-8 micro-flags, IBM Plex + Recursive, cut-paper
-art slots) per migration punch-list item 1 in
-<span style="font-family:monospace">docs/design/2026-07-05-surface-redesign/03-parley-convergence.md</span>.
-Structural contracts here remain the ch19 gate-fixture reference (IT-017 triad consistency, denial-as-evidence transcript).
-</div>
 
 <div class="pagehead">
-  <h1>pd-console — the deep surface</h1>
-  <p>Conjoined roster and detail from daemon truth: live transcript with tool calls,
-     a governance denial rendered as evidence, files touched, and controls enabled
-     only where compliance supports them. The observed agent shows state, never buttons.</p>
-  <p class="refs mono">contract: binder ch10 + ch19 boundary rules · dark-native · type: system SF + tabular mono</p>
+  <h1>pd-console — the <span class="casual">deep</span> surface</h1>
+  <p>Conjoined roster and detail from daemon truth: layer-hued pane rail (hue = layer),
+     brackets on the one live pane, the rule-8 grammar on every roster row, a governance
+     denial rendered as evidence, compliance-gated controls, and hot-bus latency in the
+     status bar. The observed agent shows state, never buttons.</p>
+  <p class="refs mono">skin/law: binder ch20 · structure: ch10 + ch19 · verdicts: 03-parley-convergence.md §2 §8 · punch-list item 1</p>
 </div>
 
 <div class="app">
 
-  <!-- rail -->
+  <!-- rail: layer-hued -->
   <div class="rail">
     <div class="eyebrow">Harbor</div>
-    <div class="item on">port-daddy</div>
+    <div class="item on l0"><span class="lh"></span>port-daddy</div>
     <div class="item">website-v2</div>
     <div class="item">acme-web</div>
-    <div class="sect eyebrow">Views</div>
-    <div class="item">Agents</div>
-    <div class="item">Receipts</div>
-    <div class="item">Memory</div>
-    <div class="item">Claims</div>
+    <div class="sect eyebrow">Views · hue = layer</div>
+    <div class="item l0"><span class="lh"></span>Agents</div>
+    <div class="item l1"><span class="lh"></span>Claims</div>
+    <div class="item l2"><span class="lh"></span>Memory</div>
+    <div class="item l3"><span class="lh"></span>Receipts</div>
+    <div class="item lid"><span class="lh"></span>Crew</div>
   </div>
 
   <!-- roster -->
   <div class="roster">
-    <div class="head"><span class="t">Agent Nodes</span><span class="n mono">5 · $1.84</span></div>
+    <div class="head"><span class="t">Agent Nodes</span><span class="n mono">5 · <b>$1.84</b></span></div>
 
     <div class="row s-running live sel">
-      <span class="stripe"></span><span class="dot"></span>
+      <span class="stripe"></span><span class="dot"></span><span class="mfl" style="background:var(--cobalt-slab)"></span>
       <div class="body">
         <div class="name">Cartographer <span class="lvl c4">controllable</span></div>
         <div class="meta">Indexing src/ — 412/1,840 · claude · mid</div>
@@ -165,7 +200,7 @@ Structural contracts here remain the ch19 gate-fixture reference (IT-017 triad c
     </div>
 
     <div class="row s-ok">
-      <span class="stripe"></span><span class="dot"></span>
+      <span class="stripe"></span><span class="dot"></span><span class="mfl fl-quebec"></span>
       <div class="body">
         <div class="name">QA <span class="lvl c4">controllable</span></div>
         <div class="meta">14/14 passed · codex · fast</div>
@@ -174,7 +209,7 @@ Structural contracts here remain the ch19 gate-fixture reference (IT-017 triad c
     </div>
 
     <div class="row s-blocked">
-      <span class="stripe"></span><span class="dot"></span>
+      <span class="stripe"></span><span class="dot"></span><span class="mfl fl-lima"></span>
       <div class="body">
         <div class="name">Approver <span class="lvl">suggestible</span></div>
         <div class="meta">Waiting on operator · PR #91</div>
@@ -183,7 +218,7 @@ Structural contracts here remain the ch19 gate-fixture reference (IT-017 triad c
     </div>
 
     <div class="row s-err">
-      <span class="stripe"></span><span class="dot"></span>
+      <span class="stripe"></span><span class="dot"></span><span class="mfl fl-november"></span>
       <div class="body">
         <div class="name">Spark <span class="lvl obs">observed</span></div>
         <div class="meta">workers-ai 401 — auth expired</div>
@@ -192,7 +227,7 @@ Structural contracts here remain the ch19 gate-fixture reference (IT-017 triad c
     </div>
 
     <div class="row s-idle">
-      <span class="stripe"></span><span class="dot"></span>
+      <span class="stripe"></span><span class="dot"></span><span class="mfl fl-quebec" style="opacity:.5"></span>
       <div class="body">
         <div class="name">Documentarian <span class="lvl">registered</span></div>
         <div class="meta">Idle · last run 28m ago</div>
@@ -201,20 +236,20 @@ Structural contracts here remain the ch19 gate-fixture reference (IT-017 triad c
     </div>
   </div>
 
-  <!-- detail -->
-  <div class="detail">
+  <!-- detail: the live pane, bracketed -->
+  <div class="detail"><span class="bk"></span>
     <div class="dhead">
       <div class="top">
         <span class="name">Cartographer</span>
         <span class="lvl c4">controllable</span>
-        <span class="eyebrow" style="color:var(--accent)">● live — events arriving</span>
+        <span class="eyebrow" style="color:var(--cobalt)">● live — events arriving</span>
       </div>
       <div class="facts">
         <span>body <b>Claude Code</b></span>
         <span>tier <b>mid</b></span>
         <span>worktree <b class="mono">…/worktrees/symbol-index</b></span>
         <span>context <b class="mono">61%</b></span>
-        <span>cost <b class="mono">$0.04</b></span>
+        <span>cost <b class="mono money">$0.04</b></span>
         <span>skills <b>rust-data-structures-advanced · gpui-rust-console</b></span>
       </div>
       <div class="tabs">
@@ -258,6 +293,16 @@ Structural contracts here remain the ch19 gate-fixture reference (IT-017 triad c
         <span class="why-disabled">retire requires a sealed checkpoint first</span>
       </div>
     </div>
+  </div>
+
+  <!-- status bar: hot-bus truth -->
+  <div class="statusbar mono">
+    <span>daemon <b>healthy</b></span>
+    <span class="mfl fl-quebec"></span>
+    <span>:9876</span>
+    <span>24.1k tok</span>
+    <span style="color:var(--gold)">$1.84 today</span>
+    <span class="right"><span>hot bus <b>41ms</b></span><span>steer p95 <b>87ms</b></span><span>⌃A space</span></span>
   </div>
 
 </div>

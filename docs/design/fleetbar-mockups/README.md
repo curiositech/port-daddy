@@ -14,15 +14,26 @@ normative app mocks live in `docs/design/story-linework/apps.html`
 (FleetBar, pd-console, Fleet Control Center, CLI, Harbor co-edit). Status of
 the files here:
 
-- `triad-scout-panel.html` — **current**: the corpus has no other Scout mock;
-  conformed to ch20 (palette v2, IBM Plex + Recursive, rule-8 micro-flags,
-  rule-5 hairline cards).
-- `triad-fleetbar-popover.html`, `triad-console-detail.html` — **converged
-  base renders** (parley convergence §8): ch20 is the skin/law they evolve
-  under (palette v2 expansion, micro-flags, Plex/Recursive, cut-paper slots =
-  punch-list item 1); PR #671's overlapping FleetBar/console/Scout renders
-  retire in their favor. Also still the ch19 gate-fixture references
-  (IT-016/IT-017 anatomy).
+**THE CONVERGED SET (punch-list item 1, executed 2026-07-05)** — seven
+surfaces on one skin (`ch20-tokens.css`: palette v2, rule-8 micro-flags,
+IBM Plex + Recursive, fractional linework), light+dark:
+
+- `triad-fleetbar-popover.html` — three faces incl. verdict-1 state-dependent
+  stacking (resting/armed/drawer) + berth lanes. Punch-list items 1+2.
+- `triad-console-detail.html` — layer-hued rail, brackets on the live pane,
+  denial-as-evidence transcript, hot-bus status bar.
+- `triad-scout-panel.html` — capture + ask-agent + honest daemon chips.
+- `triad-login.html` — trust model in one screen (cobalt local-first slab,
+  pairing ritual, no-custodial-keys). Content: PR #671.
+- `triad-account.html` — violet keyring slab, receipt drawer, consent ledger,
+  device capability roles. Content: PR #671.
+- `triad-control-center.html` — one cobalt running zone, budget wears gold,
+  Papa teaching empty state, micro-flag activity rail. Content: PR #671.
+- `triad-coop-harbor.html` — remote co-op: crew capability cards (humans and
+  agents), claims as line-range stripes, hatched conflict forecast, structured
+  parley, gold-cost gates, durable ledger. Content: PR #671.
+
+These are also the ch19 gate-fixture references (IT-015..IT-018 anatomy).
 - Older `v*`/`operator-tui-*` files predate the ch19/ch20 decisions; idea
   sources only.
 
