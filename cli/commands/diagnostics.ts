@@ -48,6 +48,15 @@ import { DEFAULT_SEMANTIC_MODEL_ID, defaultTransformersCacheDir } from '../../li
 import { isStdinInteractive, isStdoutInteractive } from '../utils/tty.js';
 import { createPlatforms } from './mcp-install.js';
 import * as ui from '../utils/ui.js';
+import {
+  assessHarborReadiness,
+  computeFirstValue,
+  formatDurationMs,
+  loadFirstValueRecord,
+  saveFirstValueRecord,
+  type AgentNodeV0,
+} from '../../lib/agent-harbor/setup-doctor.js';
+import { gatherHarborFacts } from '../utils/harbor-facts.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
@@ -957,12 +966,17 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   //    removed `com.portdaddy.daemon` label and was blind to every
   //    brew-supervised install.
   // -------------------------------------------------------------------------
+  // Captured for the Agent Harbor readiness section (C8): null = not assessed
+  // (non-darwin), true = exactly-one-supervisor-running, false = anything else.
+  let daemonSupervisedForHarbor: boolean | null = null;
   try {
     if (process.platform === 'darwin') {
-      recordAssessment('Supervision integrity', assessSupervisionIntegrity({
+      const supervision = assessSupervisionIntegrity({
         supervisors: gatherLaunchdSupervisors(),
         daemonReachable: daemonRunning,
-      }));
+      });
+      daemonSupervisedForHarbor = supervision.severity === 'ok';
+      recordAssessment('Supervision integrity', supervision);
     } else if (process.platform === 'linux') {
       const homedir = (await import('node:os')).homedir();
       const unitPath: string = join(homedir, '.config', 'systemd', 'user', 'port-daddy.service');
@@ -1357,8 +1371,17 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   // Agent CLIs are right to show users installed hooks. This section makes that
   // disclosure auditable: the names are plain language, the privacy boundary is
   // explicit, and a user who removed hooks/skills/MCP gets a direct repair path.
+  // Retained for the Agent Harbor readiness section (C8) so the harbor cards
+  // judge the SAME probes this section printed — never a second opinion.
+  let mcpFactsForHarbor: { configured: boolean; detail: string } = {
+    configured: false,
+    detail: 'Agent runtime wiring could not be probed',
+  };
+  let hookDiagnosesForHarbor: ReturnType<typeof diagnoseSquidHookInstall> = [];
+
   try {
     const runtime = diagnoseAgentRuntimeInstall(homedir());
+    mcpFactsForHarbor = { configured: runtime.mcpConfigured, detail: runtime.mcpDetail };
     check('Agent MCP wiring', runtime.mcpConfigured, runtime.mcpDetail, runtime.mcpHint);
     check('Agent Port Daddy skill', runtime.skillInstalled, runtime.skillDetail, runtime.skillHint);
   } catch (err: unknown) {
@@ -1367,6 +1390,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
 
   try {
     const hookChecks = diagnoseSquidHookInstall(process.cwd());
+    hookDiagnosesForHarbor = hookChecks;
     const okHooks = hookChecks.filter((result) => result.ok);
     if (okHooks.length === hookChecks.length) {
       check('Agent lifecycle hooks', true, `${okHooks.length} provider hook contract(s) installed with visible privacy metadata`);
@@ -1408,6 +1432,70 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     }
   } catch (err: unknown) {
     check('Local embedding model', false, `Error: ${(err as Error).message}`, 'Run: pd embed prefetch');
+  }
+
+  // -------------------------------------------------------------------------
+  // 16. Agent Harbor readiness (binder ch18 Work Order C8, ADR-0095)
+  // -------------------------------------------------------------------------
+  // Ten areas, one RemediationCard each, ONE repair per detected issue. Cards
+  // are judged by the pure core in lib/agent-harbor/setup-doctor.ts from facts
+  // gathered here — including the facts this doctor already computed above
+  // (daemon reachability, supervision, hooks, MCP), so the harbor view can
+  // never disagree with the checks the operator just read. Every card names
+  // its sync posture: local-only / syncs (opt-in) / disabled.
+  try {
+    const pkgPathForVersion = join(libDir, 'package.json');
+    const cliVersion: string = existsSync(pkgPathForVersion)
+      ? (JSON.parse(readFileSync(pkgPathForVersion, 'utf8')) as { version?: string }).version ?? 'unknown'
+      : process.env.PORT_DADDY_PACKAGE_VERSION || 'unknown';
+    const facts = await gatherHarborFacts({
+      daemonReachable: daemonRunning,
+      daemonVersion: daemonRunning && daemonData ? String(daemonData.version ?? '') || null : null,
+      daemonSupervised: daemonSupervisedForHarbor,
+      hookDiagnoses: hookDiagnosesForHarbor,
+      mcp: mcpFactsForHarbor,
+      cliVersion,
+    });
+    const cards = assessHarborReadiness(facts);
+    for (const card of cards) {
+      recordAssessment(`Harbor: ${card.title} [${card.syncState === 'local' ? 'local-only' : card.syncState === 'synced' ? 'syncs (opt-in)' : 'disabled'}]`, {
+        severity: card.severity,
+        detail: card.detail,
+        hint: card.repair ? `Run: ${card.repair.command}   (${card.repair.description})` : undefined,
+      });
+    }
+
+    // First-value metric: time to first OFFICIAL Agent Node. Seals once. The
+    // Agent Node ledger route is the F0-canonical GET /agent-nodes (binder
+    // ch09); until the C1 ledger lands the daemon 404s and we say so honestly
+    // instead of inventing a number.
+    let fvRecord = loadFirstValueRecord();
+    if (fvRecord.setupCompletedAt && fvRecord.timeToFirstOfficialAgentNodeMs === null && daemonRunning) {
+      try {
+        const nodesRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agent-nodes`);
+        if (nodesRes.ok) {
+          const payload = await nodesRes.json() as { nodes?: AgentNodeV0[] } | AgentNodeV0[];
+          const nodes = Array.isArray(payload) ? payload : (payload.nodes ?? []);
+          const updated = computeFirstValue(fvRecord, nodes);
+          if (updated.timeToFirstOfficialAgentNodeMs !== null) {
+            saveFirstValueRecord(updated);
+            fvRecord = updated;
+          }
+        }
+      } catch { /* ledger endpoint not live yet (C1) — report honestly below */ }
+    }
+    if (fvRecord.timeToFirstOfficialAgentNodeMs !== null) {
+      check('Harbor: first-value metric', true,
+        `Time to first official Agent Node: ${formatDurationMs(fvRecord.timeToFirstOfficialAgentNodeMs)} (setup ${fvRecord.setupCompletedAt} → node ${fvRecord.firstOfficialAgentNodeAt})`);
+    } else if (fvRecord.setupCompletedAt) {
+      check('Harbor: first-value metric', true,
+        `Not yet measured — setup completed ${fvRecord.setupCompletedAt}; no official (daemon-witnessed) Agent Node observed yet.`);
+    } else {
+      check('Harbor: first-value metric', true,
+        'Not yet measured — run the default install path (pd setup) to start the clock.');
+    }
+  } catch (err: unknown) {
+    check('Harbor readiness', false, `Error: ${(err as Error).message}`, 'Run: pd setup');
   }
 
   // -------------------------------------------------------------------------
