@@ -38,6 +38,7 @@ import {
   resolveOutput,
   type OutputRegistry,
 } from './outputs/index.js';
+import { getSharedConsentGate } from './consent-gate.js';
 import {
   parseTriggerSpec,
   parseOutputTarget,
@@ -229,6 +230,17 @@ export class IoDispatch {
       };
     }
     try {
+      // Consent is ALSO asserted at the bridge for high-PII payloads
+      // (ADR-0093 §5.3 defense in depth): a future sink that forgets its own
+      // gate must not become a consent bypass for the highest-stakes data.
+      // Below `high`, each sink's own pii threshold stays authoritative
+      // (e.g. the file sink deliberately gates only pii:high — local file
+      // writes of low-pii run summaries need no operator grant). Sinks that
+      // ALWAYS require consent (sms/email coerce pii to high internally)
+      // keep their stricter internal check.
+      if ((full.pii ?? 'high') === 'high') {
+        getSharedConsentGate().assertAllowed(full.sink, full);
+      }
       const result = await sink.dispatch(full);
       return { ok: true, target, sinkKind: full.sink, result };
     } catch (err) {
@@ -239,6 +251,34 @@ export class IoDispatch {
         reason: err instanceof Error ? err.message : String(err),
       };
     }
+  }
+
+  /**
+   * Probe every registered trigger source and output sink for availability
+   * (the `pd fleet sources` health board, Phase 2). Purely observational:
+   * nothing is started or dispatched. Honesty rule: this surfaces exactly
+   * what `available()` reports — a STUB channel shows its `{ready:false,
+   * reason, requires}` instead of pretending.
+   */
+  async health(): Promise<IoChannelHealth[]> {
+    const out: IoChannelHealth[] = [];
+    for (const [kind, source] of this.triggerRegistry) {
+      try {
+        const a = await source.available();
+        out.push({ kind, direction: 'trigger', ready: a.ready, reason: a.reason, requires: a.requires });
+      } catch (err) {
+        out.push({ kind, direction: 'trigger', ready: false, reason: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    for (const [kind, sink] of this.outputRegistry) {
+      try {
+        const a = await sink.available();
+        out.push({ kind, direction: 'output', ready: a.ready, reason: a.reason, requires: a.requires });
+      } catch (err) {
+        out.push({ kind, direction: 'output', ready: false, reason: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    return out.sort((x, y) => x.kind.localeCompare(y.kind) || x.direction.localeCompare(y.direction));
   }
 
   /**
@@ -257,6 +297,14 @@ export class IoDispatch {
     }
     return results;
   }
+}
+
+export interface IoChannelHealth {
+  kind: string;
+  direction: 'trigger' | 'output';
+  ready: boolean;
+  reason?: string;
+  requires?: string[];
 }
 
 export type StartTriggerResult =

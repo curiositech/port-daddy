@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fleet Control Center — ch20 Story Linework converged mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&family=Recursive:CASL,wght@1,300..1000&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════════════════════════════════════
+   Fleet Control Center — converged: binder ch20 "Story Linework" law
+   over the 2026-07-05 surface-redesign content. Palette v2 DARK
+   (operator fork). Line-weight law: 1px texture / 1.5px linework /
+   2px enclosure — never adjacent-mixed. Zero radius, zero shadow.
+   Flag geometry follows lib/maritime-signals.ts via port.css LW-7b:
+   red→rust-slab, yellow→lime, blue→cobalt-slab, white→flag-white.
+   ════════════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important; box-shadow: none !important; }
+
+:root {
+  /* surfaces — palette v2 dark */
+  --surface-base:   #101216;
+  --surface-raised: #181c22;
+  --surface-strong: #222833;
+  --surface-sunken: #0b0d11;
+  --text-primary:   #f5f3ed;
+  --text-secondary: #d3cec2;
+  --text-muted:     #a59f93;
+  --text-ghost:     #5c574e;
+
+  /* story hues — dark accents */
+  --cobalt: #7db4ff;  --teal: #8fd0a7;  --health: #5fce97;
+  --amber:  #f2be51;  --error: #ff7d7d;
+  --indigo: #8a8af8;  --violet: #e0a5ed;  --rust: #b98e6b;
+  --gold:   #d8dd3c;  --lime: #cad900;
+
+  /* theme-independent cuts */
+  --gold-slab: #666a00;  --cobalt-slab: #003fb8;  --rust-slab: #7a4514;
+  --flag-white: #fbf7ef; --cream: #fbf7ef; --ink: #17191d;
+
+  --hair:        rgba(245, 243, 237, 0.14);
+  --hair-strong: rgba(245, 243, 237, 0.25);
+  --border-strong: #f5f3ed;
+
+  --lw-weight: 1.5px;   /* linework */
+  --lw-stripe: 3px;     /* state stripes */
+  --lw-bracket: 14px;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: "IBM Plex Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 16px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-width: 1280px;
+  display: grid; grid-template-rows: auto 1fr auto;
+  gap: 14px; padding: 14px; height: 100vh; overflow: hidden;
+}
+.mono, code { font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace; font-variant-numeric: tabular-nums slashed-zero; }
+.rec { font-family: "Recursive", "IBM Plex Sans", sans-serif; font-variation-settings: "CASL" 1; font-weight: 660; }
+
+/* eyebrow — the sanctioned 12px exception: 700 / uppercase / tracked */
+.eyebrow {
+  font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted);
+}
+
+button {
+  font-family: "IBM Plex Mono", monospace; font-size: 13.5px; font-weight: 700;
+  letter-spacing: 0.04em; background: transparent; color: var(--text-primary);
+  border: 1px solid var(--hair-strong); padding: 7px 15px; cursor: pointer;
+}
+button.primary { background: var(--cobalt); color: #101216; border-color: var(--cobalt); }
+button.danger  { border-color: var(--error); color: var(--error); }
+button.sm      { padding: 4px 11px; font-size: 13px; }
+button:focus-visible { outline: var(--lw-weight) solid var(--cobalt); outline-offset: 2px; }
+button.primary:focus-visible { outline-color: var(--border-strong); }
+
+/* ── ICS micro-flags (14×10) — geometry per lib/maritime-signals.ts ── */
+.fl {
+  display: inline-block; flex: none; width: 14px; height: 10px;
+  border: 1px solid var(--hair-strong); vertical-align: -1px; position: relative;
+  --fw: var(--flag-white); --c: var(--cobalt-slab); --r: var(--rust-slab); --y: var(--lime);
+}
+.fl-hotel   { background: linear-gradient(to right, var(--fw) 0 50%, var(--r) 50%); }              /* claim-active */
+.fl-foxtrot { background: var(--fw); }                                                              /* awaiting-human */
+.fl-foxtrot::after { content: ""; position: absolute; inset: 8%; background: var(--r);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.fl-bravo   { background: var(--r); border-right: none;                                             /* burning-cash */
+  clip-path: polygon(0 0, 100% 0, 70% 50%, 100% 100%, 0 100%); }
+.fl-victor  { background:                                                                            /* conflict */
+  linear-gradient(45deg,  transparent 0 calc(50% - 11%), var(--r) calc(50% - 11%) calc(50% + 11%), transparent calc(50% + 11%)),
+  linear-gradient(-45deg, transparent 0 calc(50% - 11%), var(--r) calc(50% - 11%) calc(50% + 11%), transparent calc(50% + 11%)), var(--fw); }
+.fl-delta   { background: linear-gradient(to bottom, var(--y) 0 25%, var(--c) 25% 75%, var(--y) 75%); } /* blocked */
+.fl-yankee  { background: repeating-linear-gradient(45deg, var(--y) 0 3px, var(--r) 3px 6px); }     /* claim-stale */
+.fl-mike    { background:                                                                            /* idle */
+  linear-gradient(45deg,  transparent 0 calc(50% - 11%), var(--fw) calc(50% - 11%) calc(50% + 11%), transparent calc(50% + 11%)),
+  linear-gradient(-45deg, transparent 0 calc(50% - 11%), var(--fw) calc(50% - 11%) calc(50% + 11%), transparent calc(50% + 11%)), var(--c); }
+.fl-quebec  { background: var(--y); }                                                               /* newcomer */
+.fl-papa    { background: linear-gradient(var(--fw), var(--fw)) center / 42% 42% no-repeat, var(--c); } /* fleet-healthy / about to proceed */
+.fl-november{ background: repeating-conic-gradient(var(--c) 0 25%, var(--fw) 25% 50%) top left / 50% 50%; } /* refuse / negative */
+.fl-charlie { background: linear-gradient(to bottom, var(--c) 0 20%, var(--fw) 20% 40%, var(--r) 40% 60%, var(--fw) 60% 80%, var(--c) 80%); } /* affirmative */
+.fl-lg { width: 28px; height: 20px; }
+
+.word {
+  font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+/* ══ HEADER BAND ══ */
+header.band {
+  display: flex; align-items: stretch; gap: 16px;
+  border: 2px solid var(--border-strong); background: var(--surface-raised);
+  padding: 12px 18px;
+}
+header.band h1 {
+  align-self: center; white-space: nowrap;
+  font-size: 26px; font-weight: 700; letter-spacing: -0.02em; text-transform: uppercase;
+}
+header.band h1 .rec { text-transform: none; color: var(--cobalt); font-size: 28px; }
+.proj {
+  align-self: center; display: flex; align-items: center; gap: 9px;
+  background: var(--surface-sunken); border: 1px solid var(--hair-strong);
+  font-family: "IBM Plex Mono", monospace; font-size: 15px; font-weight: 600;
+  color: var(--text-primary); padding: 9px 14px; cursor: pointer;
+}
+.plates { margin-left: auto; display: flex; gap: 12px; }
+.plate {
+  background: var(--surface-sunken); border: 1px solid var(--hair);
+  min-width: 128px; padding: 8px 14px;
+  display: flex; flex-direction: column; gap: 3px; justify-content: center;
+}
+.plate .k { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+.plate .v { font-family: "IBM Plex Mono", monospace; font-size: 19px; font-weight: 700;
+  display: flex; align-items: center; gap: 8px; }
+.bar { height: 8px; border: 1px solid var(--hair-strong); background: var(--surface-base);
+  width: 118px; position: relative; }
+.bar i { position: absolute; inset: 0; right: auto; background: var(--gold); }
+
+/* ══ THREE CONJOINED PANES ══ */
+main { display: grid; grid-template-columns: minmax(430px, 465px) 1fr minmax(320px, 345px);
+  gap: 14px; min-height: 0; }
+.pane { border: 2px solid var(--border-strong); background: var(--surface-raised);
+  display: flex; flex-direction: column; min-height: 0; position: relative; }
+.pane > h2 { display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+  border-bottom: 1px solid var(--hair-strong);
+  font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; }
+.pane-body { padding: 12px 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+
+/* corner brackets — live panel only (ch20 rule: brackets are always ink) */
+.lw-brackets > i.lw { position: absolute; width: var(--lw-bracket); height: var(--lw-bracket);
+  border: 0 solid var(--border-strong); pointer-events: none; z-index: 2; }
+.lw-brackets > i.lw:nth-child(1) { top: 4px; left: 4px; border-top-width: var(--lw-weight); border-left-width: var(--lw-weight); }
+.lw-brackets > i.lw:nth-child(2) { top: 4px; right: 4px; border-top-width: var(--lw-weight); border-right-width: var(--lw-weight); }
+.lw-brackets > i.lw:nth-child(3) { bottom: 4px; left: 4px; border-bottom-width: var(--lw-weight); border-left-width: var(--lw-weight); }
+.lw-brackets > i.lw:nth-child(4) { bottom: 4px; right: 4px; border-bottom-width: var(--lw-weight); border-right-width: var(--lw-weight); }
+
+/* ── LEFT · the page's ONE color zone: violet attention block ── */
+.zone-violet {
+  border: 1px solid color-mix(in oklab, var(--violet) 60%, transparent);
+  background: color-mix(in oklab, var(--violet) 7%, var(--surface-raised));
+  padding: 10px; display: flex; flex-direction: column; gap: 10px;
+}
+.zone-violet > .eyebrow { color: var(--violet); }
+.gate { background: var(--surface-sunken); border: 1px solid var(--hair); padding: 10px 12px; }
+.gate .g-head { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; }
+.gate .g-head .word { color: var(--violet); }
+.gate .g-title { font-weight: 700; font-size: 15.5px; }
+.gate p { color: var(--text-secondary); font-size: 14.5px; line-height: 1.55; margin: 2px 0 10px; }
+.gate .cost { color: var(--gold); font-family: "IBM Plex Mono", monospace; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.g-actions { display: flex; gap: 8px; }
+
+/* ── CREW rows — rule 8: stripe + dot + micro-flag + word + time ── */
+.grp-head { display: flex; align-items: center; gap: 9px; padding: 8px 2px 4px;
+  border-bottom: 1px solid var(--hair-strong); }
+.grp-head .n { margin-left: auto; font-family: "IBM Plex Mono", monospace; font-size: 14px; color: var(--text-muted); }
+.crew { display: flex; flex-direction: column; }
+.crew-row { position: relative; display: flex; align-items: center; gap: 10px;
+  padding: 8px 8px 8px 16px; border-bottom: 1px solid var(--hair); }
+.crew-row:last-child { border-bottom: none; }
+.crew-row::before { content: ""; position: absolute; left: 0; top: 5px; bottom: 5px;
+  width: var(--lw-stripe); background: var(--state, var(--text-ghost)); }
+.crew-row .dot { flex: none; width: 8px; height: 8px; border-radius: 50% !important;
+  background: var(--state, var(--text-ghost)); position: relative; }
+.crew-row.running .dot::after { content: ""; position: absolute; inset: -4px;
+  border-radius: 50% !important; border: var(--lw-weight) solid var(--state);
+  opacity: 0.6; animation: lw-pulse 1.8s ease-out infinite; }
+@keyframes lw-pulse { 0% { transform: scale(0.7); opacity: 0.8; } 100% { transform: scale(1.9); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .crew-row.running .dot::after { animation: none !important; opacity: 0.35; } }
+.crew-row .name { font-family: "IBM Plex Mono", monospace; font-size: 14.5px; font-weight: 700; min-width: 118px; }
+.crew-row .step { flex: 1; font-size: 14px; color: var(--text-secondary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crew-row .t { flex: none; font-family: "IBM Plex Mono", monospace; font-size: 13.5px; color: var(--text-muted); }
+.crew-row.tall { flex-wrap: wrap; }
+.crew-row.tall .snippet { flex-basis: 100%; margin: 6px 0 0 18px; padding: 5px 10px;
+  background: var(--surface-sunken); border-left: 1px solid var(--hair-strong);
+  font-family: "IBM Plex Mono", monospace; font-size: 13px; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.badge-new { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.1em; background: var(--lime); color: #101216; padding: 2px 7px; }
+.s-needs { --state: var(--error); }   .s-work { --state: var(--health); }
+.s-burn  { --state: var(--error); }   .s-block { --state: var(--cobalt); }
+.s-stale { --state: var(--amber); }   .s-idle { --state: var(--indigo); }
+.s-new   { --state: var(--lime); }
+.grp-head .word.s-needs, .w-needs { color: var(--error); }
+.grp-head .word.s-work  { color: var(--health); }
+.grp-head .word.s-burn  { color: var(--error); }
+.grp-head .word.s-block { color: var(--cobalt); }
+.grp-head .word.s-stale { color: var(--amber); }
+.grp-head .word.s-idle  { color: var(--indigo); }
+.grp-head .word.s-new   { color: var(--lime); }
+
+/* ── CENTER · flow: micro-flag activity rail + honest topology ── */
+#flow .flow-wrap { flex: 1; display: flex; min-height: 0; }
+.rail { flex: none; width: 86px; border-right: 1px solid var(--hair-strong);
+  display: flex; flex-direction: column; padding: 10px 0; overflow-y: auto; }
+.rail .eyebrow { padding: 0 10px 8px; font-size: 12px; }
+.rail-ev { display: flex; align-items: center; gap: 7px; padding: 5px 10px; }
+.rail-ev time { font-family: "IBM Plex Mono", monospace; font-size: 13px; color: var(--text-muted); }
+.flow-svg { flex: 1; min-width: 0; padding: 6px; }
+.flow-svg svg { width: 100%; height: 100%; display: block; }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; align-items: center;
+  padding: 8px 16px; border-top: 1px solid var(--hair-strong);
+  font-size: 14px; color: var(--text-muted); }
+.legend svg { vertical-align: middle; }
+
+/* ── RIGHT · budget as a gold block + guard ── */
+.rcol { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.zone-gold { border: 1px solid color-mix(in oklab, var(--gold) 55%, transparent);
+  padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+.gold-plate { background: var(--gold-slab); color: var(--cream); padding: 10px 12px;
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.gold-plate .fig { font-family: "IBM Plex Mono", monospace; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+.gold-plate .cap { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: color-mix(in oklab, var(--cream) 78%, var(--gold-slab)); }
+.kv { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.kv .lbl { font-size: 14.5px; color: var(--text-secondary); }
+.stepper { display: flex; align-items: stretch; }
+.stepper button { width: 34px; padding: 5px 0; }
+.stepper .amt { border-top: 1px solid var(--hair-strong); border-bottom: 1px solid var(--hair-strong);
+  padding: 5px 13px; font-family: "IBM Plex Mono", monospace; font-size: 14.5px; font-weight: 700;
+  display: flex; align-items: center; }
+table.mini { width: 100%; border-collapse: collapse; font-family: "IBM Plex Mono", monospace; font-size: 14px; }
+table.mini td { padding: 5px 2px; border-bottom: 1px solid var(--hair); color: var(--text-muted); }
+table.mini td:last-child { text-align: right; color: var(--text-primary); }
+table.mini tr:last-child td { border-bottom: none; }
+.consent { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+.ok-line { font-family: "IBM Plex Mono", monospace; font-size: 13.5px; color: var(--health); }
+td.clean { color: var(--health) !important; } td.blocked { color: var(--error) !important; }
+.guard-note { font-size: 14px; color: var(--text-secondary); line-height: 1.55; }
+
+/* ══ BOTTOM · roadmap intake — Papa empty state ══ */
+footer.band { border: 2px solid var(--border-strong); background: var(--surface-raised);
+  display: flex; align-items: center; gap: 18px; padding: 14px 18px; }
+footer.band h2 { white-space: nowrap; font-family: "IBM Plex Mono", monospace;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+footer.band .teach { flex: 1; font-size: 15px; color: var(--text-secondary); line-height: 1.5; }
+footer.band code { font-family: "IBM Plex Mono", monospace; font-size: 14px; color: var(--gold); }
+.art-slot { flex: none; width: 236px; height: 84px; background: var(--surface-sunken);
+  border: 1px solid var(--hair); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px; padding: 8px 12px; text-align: center; }
+.art-slot .eyebrow { color: var(--text-ghost); font-size: 12px; }
+.art-slot .desc { font-family: "IBM Plex Mono", monospace; font-size: 13px; color: var(--text-ghost); line-height: 1.35; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ HEADER BAND ═══════════ -->
+<header class="band">
+  <h1>Fleet <span class="rec">Control</span> Center</h1>
+  <button class="proj" aria-haspopup="listbox" aria-label="Switch project, current: port-daddy">
+    port-daddy
+    <svg width="11" height="7" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1l5 5 5-5" fill="none" stroke="#f5f3ed" stroke-width="1.5"/></svg>
+  </button>
+  <div class="plates">
+    <div class="plate"><span class="k">Live Truth</span>
+      <span class="v" style="color:var(--health)"><i class="fl fl-papa" role="img" aria-label="Papa: fleet healthy"></i>NOMINAL</span></div>
+    <div class="plate"><span class="k">Build</span><span class="v">3.23.0</span></div>
+    <div class="plate"><span class="k">Budget</span>
+      <span class="v" style="font-size:15.5px">$2.10 <span style="color:var(--text-muted)">/ $8.50</span></span>
+      <span class="bar" role="img" aria-label="24.7 percent of daily budget spent"><i style="width:24.7%"></i></span></div>
+    <div class="plate"><span class="k">Crew</span><span class="v">16</span></div>
+  </div>
+</header>
+
+<!-- ═══════════ THREE CONJOINED PANES ═══════════ -->
+<main>
+
+  <!-- ── LEFT · GATES & ATTENTION ── -->
+  <section class="pane" aria-labelledby="gates-h">
+    <h2 id="gates-h">Gates &amp; Attention</h2>
+    <div class="pane-body">
+
+      <!-- the page's one color zone -->
+      <div class="zone-violet">
+        <span class="eyebrow">Attention &middot; 2 gates holding</span>
+
+        <article class="gate">
+          <div class="g-head">
+            <i class="fl fl-foxtrot" role="img" aria-label="Foxtrot: awaiting human"></i>
+            <span class="word">Consent</span>
+            <span class="g-title">merge-consent &middot; PR #667</span>
+          </div>
+          <p>auto-committer wants to merge <span class="mono">fix: guard stale-lock sweep</span> into
+          <span class="mono">origin/main</span>. CI green, 2 approvals, threads resolved.
+          <span class="cost">est. $0.14 merge sortie</span></p>
+          <div class="g-actions">
+            <button class="primary">Approve</button>
+            <button>Modify</button>
+            <button class="danger">Deny</button>
+          </div>
+        </article>
+
+        <article class="gate">
+          <div class="g-head">
+            <i class="fl fl-victor" role="img" aria-label="Victor: conflict, assistance required"></i>
+            <span class="word">Conflict</span>
+            <span class="g-title">claim-conflict &middot; src/fleet/engine.ts</span>
+          </div>
+          <p>spider and code-reviewer both hold claims on
+          <span class="mono">src/fleet/engine.ts</span> (lines 180&ndash;260 overlap). Neither will yield.
+          <span class="cost">est. $0.06 parley sortie</span></p>
+          <div class="g-actions">
+            <button class="primary">Approve</button>
+            <button>Modify</button>
+            <button class="danger">Deny</button>
+          </div>
+        </article>
+      </div>
+
+      <!-- CREW — grouped rule-8 rows -->
+      <div class="crew">
+        <div class="grp-head">
+          <i class="fl fl-foxtrot" role="img" aria-label="Foxtrot"></i>
+          <span class="word s-needs">Needs You</span><span class="n">1</span>
+        </div>
+        <div class="crew-row s-needs">
+          <span class="dot"></span><i class="fl fl-foxtrot" aria-hidden="true"></i>
+          <span class="name">auto-committer</span>
+          <span class="step">holding at merge-consent gate for PR #667</span>
+          <span class="t">4m</span>
+          <button class="sm">Open Gate</button>
+        </div>
+
+        <div class="grp-head">
+          <i class="fl fl-hotel" role="img" aria-label="Hotel"></i>
+          <span class="word s-work">Working</span><span class="n">3</span>
+        </div>
+        <div class="crew-row tall running s-work">
+          <span class="dot"></span><i class="fl fl-hotel" aria-hidden="true"></i>
+          <span class="name">cartographer</span>
+          <span class="step">reading PR #664 diff</span>
+          <span class="t">12m</span>
+          <div class="snippet">+ roadmap: mark symbol-graph-visualization (UNCOMMITTED) &rarr; (NOW)</div>
+        </div>
+        <div class="crew-row tall running s-work">
+          <span class="dot"></span><i class="fl fl-hotel" aria-hidden="true"></i>
+          <span class="name">spider</span>
+          <span class="step">crawling docs/adr for dead links</span>
+          <span class="t">3m</span>
+          <div class="snippet">GET docs/adr/0087-tcb-broker.md &rarr; 200 &middot; 3 outbound refs queued</div>
+        </div>
+        <div class="crew-row tall running s-work">
+          <span class="dot"></span><i class="fl fl-hotel" aria-hidden="true"></i>
+          <span class="name">code-reviewer</span>
+          <span class="step">writing review of fleet-engine.ts:214</span>
+          <span class="t">7m</span>
+          <div class="snippet">finding: trust gate bypassed when spawn source is cron &mdash; severity: high</div>
+        </div>
+
+        <div class="grp-head">
+          <i class="fl fl-bravo" role="img" aria-label="Bravo"></i>
+          <span class="word s-burn">Burning Cash</span><span class="n">1</span>
+        </div>
+        <div class="crew-row tall running s-burn">
+          <span class="dot"></span><i class="fl fl-bravo" aria-hidden="true"></i>
+          <span class="name">refactor-surgeon</span>
+          <span class="step">long sortie on claude-opus &middot; $0.42 this hour</span>
+          <span class="t">26m</span>
+          <div class="snippet">pass 3/5: extracting mux.rs editor surface into its own module</div>
+        </div>
+
+        <div class="grp-head">
+          <i class="fl fl-delta" role="img" aria-label="Delta"></i>
+          <span class="word s-block">Blocked</span><span class="n">1</span>
+        </div>
+        <div class="crew-row s-block">
+          <span class="dot"></span><i class="fl fl-delta" aria-hidden="true"></i>
+          <span class="name">io-wirer</span>
+          <span class="step">waiting on trust-gate merge (PR #632) before Phase 2</span>
+          <span class="t">18m</span>
+        </div>
+
+        <div class="grp-head">
+          <i class="fl fl-yankee" role="img" aria-label="Yankee"></i>
+          <span class="word s-stale">Stale</span><span class="n">2</span>
+        </div>
+        <div class="crew-row s-stale">
+          <span class="dot"></span><i class="fl fl-yankee" aria-hidden="true"></i>
+          <span class="name">doc-syncer</span>
+          <span class="step">no heartbeat since claim on README.md</span>
+          <span class="t">84m</span>
+          <button class="sm">Salvage</button>
+        </div>
+        <div class="crew-row s-stale">
+          <span class="dot"></span><i class="fl fl-yankee" aria-hidden="true"></i>
+          <span class="name">economist</span>
+          <span class="step">pricing-function draft abandoned mid-edit</span>
+          <span class="t">2d</span>
+          <button class="sm">Salvage</button>
+        </div>
+
+        <div class="grp-head">
+          <i class="fl fl-quebec" role="img" aria-label="Quebec"></i>
+          <span class="word s-new">Onboarding</span><span class="n">1</span>
+        </div>
+        <div class="crew-row s-new">
+          <span class="dot"></span><i class="fl fl-quebec" aria-hidden="true"></i>
+          <span class="name">tenderfoot</span>
+          <span class="badge-new">NEW</span>
+          <span class="step">reading AGENTS.md &mdash; first sortie pending</span>
+          <span class="t">1m</span>
+        </div>
+
+        <div class="grp-head">
+          <i class="fl fl-mike" role="img" aria-label="Mike"></i>
+          <span class="word s-idle">Idle</span><span class="n">7</span>
+        </div>
+        <div class="crew-row s-idle" tabindex="0" role="button" aria-expanded="false" aria-label="Expand 7 idle agents">
+          <span class="dot"></span><i class="fl fl-mike" aria-hidden="true"></i>
+          <span class="step">7 idle &middot; next scheduled: qa-adversary in 42m &middot; show all</span>
+          <svg width="11" height="7" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1l5 5 5-5" fill="none" stroke="#a59f93" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── CENTER · FLOW (live panel: brackets) ── -->
+  <section class="pane lw-brackets" id="flow" aria-labelledby="flow-h">
+    <i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
+    <h2 id="flow-h">Flow</h2>
+    <div class="flow-wrap">
+
+      <!-- micro-flag activity rail: last 10 events -->
+      <aside class="rail" aria-label="Last 10 fleet events">
+        <span class="eyebrow">Activity</span>
+        <div class="rail-ev"><i class="fl fl-hotel"   role="img" aria-label="Hotel: claim active"></i><time>14:34</time></div>
+        <div class="rail-ev"><i class="fl fl-foxtrot" role="img" aria-label="Foxtrot: gate raised"></i><time>14:33</time></div>
+        <div class="rail-ev"><i class="fl fl-charlie" role="img" aria-label="Charlie: guard check clean"></i><time>14:31</time></div>
+        <div class="rail-ev"><i class="fl fl-hotel"   role="img" aria-label="Hotel: claim active"></i><time>14:25</time></div>
+        <div class="rail-ev"><i class="fl fl-victor"  role="img" aria-label="Victor: claim conflict"></i><time>14:19</time></div>
+        <div class="rail-ev"><i class="fl fl-bravo"   role="img" aria-label="Bravo: burning cash"></i><time>14:11</time></div>
+        <div class="rail-ev"><i class="fl fl-charlie" role="img" aria-label="Charlie: guard check clean"></i><time>14:07</time></div>
+        <div class="rail-ev"><i class="fl fl-november" role="img" aria-label="November: guard blocked commit"></i><time>13:52</time></div>
+        <div class="rail-ev"><i class="fl fl-charlie" role="img" aria-label="Charlie: guard check clean"></i><time>13:48</time></div>
+        <div class="rail-ev"><i class="fl fl-yankee"  role="img" aria-label="Yankee: claim went stale"></i><time>13:13</time></div>
+      </aside>
+
+      <!-- honest topology: 8 agents, 3 channels -->
+      <div class="flow-svg">
+        <svg viewBox="0 0 460 620" role="img" aria-label="Fleet event topology: eight agents wired to three channels">
+          <style>
+            .nl { font: 700 14.5px "IBM Plex Mono", monospace; fill: #f5f3ed; }
+            .st { font: 600 14px "IBM Plex Mono", monospace; fill: #a59f93; }
+            .cl { font: 700 14px "IBM Plex Mono", monospace; fill: #d8dd3c; }
+            .an { fill: #0b0d11; stroke-width: 1.5; }
+            .ch { fill: #0b0d11; stroke: #d8dd3c; stroke-width: 1; }
+            .trig { stroke: #f5f3ed; stroke-width: 1.5; fill: none; }
+            .pub  { stroke: #a59f93; stroke-width: 1.5; fill: none; stroke-dasharray: 6 5; }
+          </style>
+          <defs>
+            <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+              <path d="M0 0L10 5L0 10z" fill="#f5f3ed"/></marker>
+            <marker id="arrd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+              <path d="M0 0L10 5L0 10z" fill="#a59f93"/></marker>
+          </defs>
+
+          <!-- publishes (dashed): agent → channel -->
+          <path class="pub" marker-end="url(#arrd)" d="M132 94 C 148 108, 155 132, 166 150"/>   <!-- auto-committer → pr:merged -->
+          <path class="pub" marker-end="url(#arrd)" d="M132 254 C 150 270, 155 290, 166 306"/>  <!-- code-reviewer → qa:clean -->
+          <path class="pub" marker-end="url(#arrd)" d="M132 412 C 152 400, 158 360, 166 336"/>  <!-- qa-adversary → qa:clean -->
+          <path class="pub" marker-end="url(#arrd)" d="M132 562 C 152 552, 158 528, 166 510"/>  <!-- spider → spark:idea -->
+
+          <!-- triggers (solid): channel → agent -->
+          <path class="trig" marker-end="url(#arr)" d="M292 152 C 306 135, 312 112, 324 98"/>   <!-- pr:merged → doc-syncer -->
+          <path class="trig" marker-end="url(#arr)" d="M292 178 C 306 195, 312 218, 324 238"/>  <!-- pr:merged → cartographer -->
+          <path class="trig" marker-end="url(#arr)" d="M290 190 C 306 270, 314 340, 324 386"/>  <!-- pr:merged → economist -->
+          <path class="trig" marker-end="url(#arr)" d="M168 314 C 128 268, 110 175, 94 120"/>   <!-- qa:clean → auto-committer -->
+          <path class="trig" marker-end="url(#arr)" d="M292 500 C 306 512, 312 530, 324 544"/>  <!-- spark:idea → tenderfoot -->
+
+          <!-- channel nodes: gold-hairline rectangles -->
+          <g><rect class="ch" x="170" y="144" width="120" height="46"/>
+             <text class="cl" x="230" y="164" text-anchor="middle">pull_request</text>
+             <text class="cl" x="230" y="181" text-anchor="middle">:merged</text></g>
+          <g><rect class="ch" x="170" y="304" width="120" height="34"/>
+             <text class="cl" x="230" y="326" text-anchor="middle">qa:clean</text></g>
+          <g><rect class="ch" x="170" y="480" width="120" height="34"/>
+             <text class="cl" x="230" y="502" text-anchor="middle">spark:idea</text></g>
+
+          <!-- agent nodes, left column: 1.5px state-hued strokes -->
+          <g><rect class="an" x="4" y="72" width="128" height="44" stroke="#ff7d7d"/>
+             <text class="nl" x="68" y="91" text-anchor="middle">auto-committer</text>
+             <text class="st" x="68" y="108" text-anchor="middle">needs you &#183; 4m</text></g>
+          <g><rect class="an" x="4" y="232" width="128" height="44" stroke="#5fce97"/>
+             <text class="nl" x="68" y="251" text-anchor="middle">code-reviewer</text>
+             <text class="st" x="68" y="268" text-anchor="middle">working &#183; 7m</text></g>
+          <g><rect class="an" x="4" y="392" width="128" height="44" stroke="#8a8af8"/>
+             <text class="nl" x="68" y="411" text-anchor="middle">qa-adversary</text>
+             <text class="st" x="68" y="428" text-anchor="middle">idle &#183; in 42m</text></g>
+          <g><rect class="an" x="4" y="542" width="128" height="44" stroke="#5fce97"/>
+             <text class="nl" x="68" y="561" text-anchor="middle">spider</text>
+             <text class="st" x="68" y="578" text-anchor="middle">working &#183; 3m</text></g>
+
+          <!-- agent nodes, right column -->
+          <g><rect class="an" x="328" y="72" width="128" height="44" stroke="#f2be51"/>
+             <text class="nl" x="392" y="91" text-anchor="middle">doc-syncer</text>
+             <text class="st" x="392" y="108" text-anchor="middle">stale &#183; 84m</text></g>
+          <g><rect class="an" x="328" y="222" width="128" height="44" stroke="#5fce97"/>
+             <text class="nl" x="392" y="241" text-anchor="middle">cartographer</text>
+             <text class="st" x="392" y="258" text-anchor="middle">working &#183; 12m</text></g>
+          <g><rect class="an" x="328" y="372" width="128" height="44" stroke="#f2be51"/>
+             <text class="nl" x="392" y="391" text-anchor="middle">economist</text>
+             <text class="st" x="392" y="408" text-anchor="middle">stale &#183; 2d</text></g>
+          <g><rect class="an" x="328" y="528" width="128" height="44" stroke="#cad900"/>
+             <text class="nl" x="392" y="547" text-anchor="middle">tenderfoot</text>
+             <text class="st" x="392" y="564" text-anchor="middle">new &#183; 1m</text></g>
+
+          <text class="st" x="230" y="612" text-anchor="middle">8 agents / 3 channels &#183; live</text>
+        </svg>
+      </div>
+    </div>
+    <div class="legend">
+      <span><svg width="30" height="10"><line x1="0" y1="5" x2="30" y2="5" stroke="#f5f3ed" stroke-width="1.5"/></svg> triggers (channel &rarr; agent)</span>
+      <span><svg width="30" height="10"><line x1="0" y1="5" x2="30" y2="5" stroke="#a59f93" stroke-width="1.5" stroke-dasharray="6 5"/></svg> publishes (agent &rarr; channel)</span>
+      <span><svg width="14" height="10"><rect x="0.5" y="0.5" width="13" height="9" fill="#0b0d11" stroke="#d8dd3c" stroke-width="1"/></svg> channel</span>
+      <span><svg width="14" height="10"><rect x="1" y="1" width="12" height="8" fill="#0b0d11" stroke="#5fce97" stroke-width="1.5"/></svg> agent (stroke = state)</span>
+    </div>
+  </section>
+
+  <!-- ── RIGHT · BUDGET + GUARD ── -->
+  <div class="rcol">
+    <section class="pane" aria-labelledby="budget-h">
+      <h2 id="budget-h">Budget as Consent</h2>
+      <div class="pane-body">
+        <div class="zone-gold">
+          <!-- the ch20 move: the figure is a small gold slab, never chrome -->
+          <div class="gold-plate">
+            <span class="fig">$2.10 / $8.50</span>
+            <span class="cap">spent today</span>
+          </div>
+          <span class="bar" style="display:block;width:100%" role="img" aria-label="2 dollars 10 cents spent of 8 dollars 50 cents cap"><i style="width:24.7%"></i></span>
+        </div>
+
+        <div class="kv">
+          <span class="lbl">Daily cap</span>
+          <span class="stepper">
+            <button aria-label="Decrease daily cap by fifty cents">&minus;</button>
+            <span class="amt">$8.50</span>
+            <button aria-label="Increase daily cap by fifty cents">+</button>
+          </span>
+          <button class="primary sm">Apply</button>
+        </div>
+
+        <table class="mini" aria-label="Spend by model">
+          <tr><td>claude-sonnet</td><td>$1.20</td></tr>
+          <tr><td>claude-haiku</td><td>$0.31</td></tr>
+          <tr><td>codex</td><td>$0.59</td></tr>
+        </table>
+        <p class="consent">Spawns pause at the cap. Raising it is the consent.</p>
+      </div>
+    </section>
+
+    <section class="pane" aria-labelledby="guard-h" style="flex:1">
+      <h2 id="guard-h">
+        Coordination Guard
+        <span class="word" style="color:var(--health);margin-left:auto">Enforce</span>
+      </h2>
+      <div class="pane-body">
+        <p class="guard-note">Pre-commit hook blocks pushes that ignore live claims, stale sessions, or an unmerged canonical branch.</p>
+        <div class="g-actions">
+          <button class="primary">Check</button>
+          <button>Install Hook</button>
+        </div>
+        <p class="ok-line">last check &middot; pd guard check --staged &middot; CLEAN &middot; 2m ago</p>
+        <table class="mini" aria-label="Recent guard checks">
+          <tr><td>14:31 pre-commit</td><td class="clean">CLEAN</td></tr>
+          <tr><td>14:07 pre-push</td><td class="clean">CLEAN</td></tr>
+          <tr><td>13:52 pre-commit</td><td class="blocked">BLOCKED</td></tr>
+          <tr><td>13:48 pre-commit</td><td class="clean">CLEAN</td></tr>
+        </table>
+        <p class="guard-note">13:52 block: spider held a live claim on
+        <span class="mono">src/fleet/engine.ts</span>. Commit retried clean after parley.</p>
+      </div>
+    </section>
+  </div>
+
+</main>
+
+<!-- ═══════════ BOTTOM · ROADMAP INTAKE (Papa empty state) ═══════════ -->
+<footer class="band">
+  <i class="fl fl-lg fl-papa" role="img" aria-label="Papa: all hands, about to proceed"></i>
+  <h2>Roadmap Intake</h2>
+  <p class="teach">No mission cards parsed yet. Add <code>(UNCOMMITTED)</code>/<code>(BLOCKED)</code>
+  tags to <code>UNIFIED-ROADMAP.md</code> &mdash; or import from the Cartographer.</p>
+  <button class="primary">Import from Cartographer</button>
+  <div class="art-slot" role="img" aria-label="Reserved art slot: cut-paper empty berth, wordless">
+    <span class="eyebrow">Art Slot</span>
+    <span class="desc">cut-paper: empty berth, wordless</span>
+  </div>
+</footer>
+
+</body>
+</html>

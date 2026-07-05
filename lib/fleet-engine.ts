@@ -7,7 +7,7 @@
  * Design: ADR-0019 (Declarative Fleet Configuration)
  */
 
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { DEFAULT_OPERATOR_CLAUDE_MODEL, DEFAULT_OPERATOR_CODEX_MODEL } from './backend-telemetry-policy.js';
@@ -25,7 +25,8 @@ import type { Tuple, TupleSpace } from './tuples.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { buildPortDaddyShellCommand, resolvePortDaddyInvocation } from './port-daddy-command.js';
 import { resolveRawBackendName } from './llm-backend-resolver.js';
-import { IoDispatch, type DispatchOutputResult } from './fleet/io-dispatch.js';
+import { IoDispatch, type DispatchOutputResult, type IoDispatchDeps } from './fleet/io-dispatch.js';
+import { evaluateTrustGate, type TrustPolicy, type TrustTier } from './fleet/trust.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -94,9 +95,24 @@ export interface FleetConfig {
   name: string;
   harbor?: string;
   limits?: FleetLimits;
+  /** Operator-configured trust policy for the event→spawn gate (ADR-0093). */
+  trust?: FleetTrustConfig;
   agents: FleetAgent[];
   watchers: FleetWatcher[];
   channels: Record<string, { description: string; consumers?: string[]; externalProducer?: string | boolean }>;
+}
+
+/**
+ * Fleet-level trust policy (pd-fleet.yml `trust:` block, ADR-0093 §4).
+ * `allowlistedAuthors` names content authors (email address, GH login, phone
+ * number) whose VERIFIED identity upgrades an external trigger from
+ * ANONYMOUS_EXTERNAL to AUTHENTICATED_EXTERNAL. The allowlist alone never
+ * upgrades anyone — the trigger source must also set
+ * `metadata.consent_verified` after a content-level author verification
+ * (transport HMAC does not count).
+ */
+export interface FleetTrustConfig {
+  allowlistedAuthors?: string[];
 }
 
 export interface FleetRuntimeDefaults {
@@ -640,12 +656,35 @@ function getFleetDaemonUrl(): string {
 // ─── Lifecycle Events ──────────────────────────────────────────────────────
 
 export interface FleetEvent {
-  type: 'agent_started' | 'agent_completed' | 'agent_failed' | 'agent_paused' | 'agent_resumed' | 'watcher_started' | 'watcher_triggered' | 'fleet_started' | 'fleet_stopped';
+  type: 'agent_started' | 'agent_completed' | 'agent_failed' | 'agent_paused' | 'agent_resumed' | 'watcher_started' | 'watcher_triggered' | 'fleet_started' | 'fleet_stopped' | 'trust_gate_refused' | 'trust_gate_queued';
   agent?: string;
   identity?: string;
   project?: string;
   timestamp: number;
   details?: Record<string, unknown>;
+}
+
+/**
+ * A spawn the trust gate held for operator approval (ADR-0093 L2). The
+ * runner hands this to `options.enqueueForApproval`; the daemon wires that
+ * to its HITL proposal queue. Without an injected queue the runner refuses
+ * the spawn outright (fail-closed) — approval-required work is never
+ * silently auto-run.
+ */
+export interface FleetApprovalProposal {
+  /** Unique proposal id — the handle approve/reject decisions reference. */
+  id: string;
+  project: string;
+  agent: string;
+  /** The raw trigger spec string that fired (e.g. `webhook:deploy-hook`). */
+  trigger: string;
+  tier: TrustTier;
+  reason: string;
+  /** The tier's safe tool set — what the spawn would be limited to. */
+  safeTools: string[];
+  /** The engine run context; pass to `hailAgent(name, context)` on approval. */
+  context: FleetRunContext;
+  timestamp: number;
 }
 
 export type FleetEventCallback = (event: FleetEvent) => void;
@@ -670,6 +709,22 @@ export interface FleetRunnerOptions {
    * docs/shipwright/FLEETCONTROL-HARDENING.md §5.
    */
   acquirePermit?: () => Promise<() => void>;
+  /**
+   * Inbound webhook receiver registration (I/O wiring Phase 2). The daemon
+   * owns the HTTP surface; it injects this so `webhook:<channel>` triggers
+   * can register handlers with the receiver route. Absent (tests, bare CLI
+   * runners) the webhook trigger source registers into a no-op and never
+   * fires — honest inertness, not an error.
+   */
+  registerWebhookHandler?: IoDispatchDeps['registerWebhookHandler'];
+  /**
+   * L2 approval seam (ADR-0093). Called when the trust gate demands operator
+   * approval for a trigger-fired spawn (any external provenance). The daemon
+   * wires this to its HITL proposal queue. When absent the runner REFUSES
+   * the spawn (fail-closed) and emits `trust_gate_refused` — it never runs
+   * approval-required work unattended.
+   */
+  enqueueForApproval?: (proposal: FleetApprovalProposal) => void | Promise<void>;
 }
 
 export function createFleetRunner(config: FleetConfig, projectDir: string, options?: FleetRunnerOptions) {
@@ -707,7 +762,19 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     // a no-op scheduleCron keeps the CronTriggerSource registerable for the
     // future designer/health-board surfaces without double-firing.
     scheduleCron: () => () => {},
+    // Phase 2: the daemon injects its inbound receiver so webhook:<channel>
+    // triggers fire for real; absent, the source registers into a no-op.
+    registerWebhookHandler: options?.registerWebhookHandler,
   });
+
+  // ─── Trust gate (ADR-0093 L1) ─────────────────────────────────────────────
+  // Every registry-trigger fire passes through evaluateTrustGate BEFORE
+  // requestAgentRun. The policy's author allowlist comes from the fleet
+  // config's `trust:` block; it only upgrades an external event when the
+  // trigger source ALSO verified the content author (consent_verified).
+  const trustPolicy: TrustPolicy = {
+    allowlistedAuthors: config.trust?.allowlistedAuthors ?? [],
+  };
 
   /** True if the agent has any event trigger (singular, plural, or tuple). */
   function agentIsTriggered(agent: FleetAgent): boolean {
@@ -979,6 +1046,86 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         .startTrigger(raw, (event) => {
           // Late-firing watchers must not wake a stopped runner.
           if (stopped || !running.has(agent.name)) return;
+
+          // ── Trust gate (ADR-0093 §4.3): classify provenance and validate
+          // the ship's tools against the tier's safe set BEFORE any spawn.
+          // This is the L1 boundary between an inbound event and an agent
+          // holding tools — the hard dependency of every untrusted-ingress
+          // phase (webhook receiver, inbound email/SMS).
+          const gate = evaluateTrustGate({
+            event,
+            allowedTools: agent.allowedTools,
+            policy: trustPolicy,
+          });
+          if (!gate.allowed) {
+            emit({
+              type: 'trust_gate_refused',
+              agent: agent.name,
+              project,
+              timestamp: Date.now(),
+              details: {
+                trigger: raw,
+                tier: gate.tier,
+                reason: gate.reason,
+                offendingTools: gate.offendingTools,
+              },
+            });
+            console.error(
+              `[Fleet] Trust gate REFUSED trigger "${raw}" for agent "${agent.name}" ` +
+              `(tier ${gate.tier}): ${gate.reason}`,
+            );
+            return; // never spawn; reason only, never how-to-bypass
+          }
+          if (gate.requiresApproval) {
+            const proposal: FleetApprovalProposal = {
+              id: randomUUID(),
+              project,
+              agent: agent.name,
+              trigger: raw,
+              tier: gate.tier,
+              reason: gate.reason,
+              safeTools: gate.safeTools,
+              context: contextFromTriggerEvent(event),
+              timestamp: Date.now(),
+            };
+            const enqueue = options?.enqueueForApproval;
+            if (!enqueue) {
+              // Fail closed: approval-required work is never auto-run just
+              // because no approval queue happens to be wired.
+              emit({
+                type: 'trust_gate_refused',
+                agent: agent.name,
+                project,
+                timestamp: Date.now(),
+                details: {
+                  trigger: raw,
+                  tier: gate.tier,
+                  reason: 'requires operator approval and no approval queue is wired (fail-closed)',
+                },
+              });
+              console.error(
+                `[Fleet] Trust gate REFUSED trigger "${raw}" for agent "${agent.name}" ` +
+                `(tier ${gate.tier}): requires operator approval and no approval queue is wired`,
+              );
+              return;
+            }
+            emit({
+              type: 'trust_gate_queued',
+              agent: agent.name,
+              project,
+              timestamp: Date.now(),
+              details: { trigger: raw, tier: gate.tier, safeTools: gate.safeTools },
+            });
+            // async wrapper so a SYNCHRONOUSLY throwing enqueue is captured
+            // too — a broken queue must not crash the trigger handler.
+            void (async () => enqueue(proposal))().catch((err: Error) => {
+              console.error(
+                `[Fleet] Approval enqueue failed for agent "${agent.name}" trigger "${raw}":`,
+                err.message,
+              );
+            });
+            return;
+          }
           void requestAgentRun(agent, contextFromTriggerEvent(event));
         })
         .then((result) => {
