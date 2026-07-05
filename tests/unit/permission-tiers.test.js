@@ -68,6 +68,7 @@ const SLUG_VERB_OVERRIDES = {
   spawn: ['spawn', 'spawned', 'watch'],
   harbors: ['harbor', 'harbors'],
   bench: ['bench'],
+  'hooks-install': ['hooks'],
   demo: ['demo'],
   tuples: ['tuple'],
   setup: ['setup', 'init'],

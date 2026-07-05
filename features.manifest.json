@@ -1299,7 +1299,7 @@
       }
     },
     "squid": {
-      "description": "Unofficial local Anthropic Messages compatibility bridge for Claude-compatible clients backed by Codex CLI, including model aliases, thinking-effort mapping, local auth, and request-size guards.",
+      "description": "Unofficial local Anthropic Messages compatibility bridge for Claude-compatible clients backed by Codex CLI, including model aliases, thinking-effort mapping, local auth, and request-size guards, plus the one-command harness toggle (pd squid on/off), the non-diegetic status/tap readouts, and the PD_SQUID_PILOT visual-identity stamp.",
       "cli": [
         "squid"
       ],
@@ -1307,6 +1307,21 @@
       "routes": [],
       "completions": [
         "squid"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "agent-cli-hooks": {
+      "description": "Per-project, daemon-gated Giant Squid coordination hooks for interactive agent CLIs (claude/codex/gemini/agy): pd hooks install/list/uninstall stages gate wrappers under ~/.port-daddy/bin and wires each CLI's native hook config from the shared lib/squid/hook-shape.ts shapes (pd-adr-090).",
+      "cli": [
+        "hooks"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "hooks"
       ],
       "docs": {
         "readme": true,

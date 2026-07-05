@@ -15,6 +15,11 @@ import {
 } from '../../cli/commands/squid.js';
 import { buildArgs } from '../../lib/spawner/backends/cli-tube.js';
 import type { CliTubeOptions, CliTubeResult } from '../../lib/spawner/backends/cli-tube.js';
+import {
+  normalizeAnthropicMessages,
+  codexConfigForNormalizedRequest,
+  resolveCodexEffort,
+} from '../../lib/squid/anthropic-normalizer.js';
 
 function okResult(output: string): CliTubeResult {
   return {
@@ -867,5 +872,46 @@ describe('Claude-to-Codex Giant Squid bridge', () => {
     expect(args).toContain('-c');
     expect(args).toEqual(expect.arrayContaining(['model_reasoning_effort="high"', 'foo.bar=1']));
     expect(args[args.length - 1]).toBe('hello');
+  });
+});
+
+describe('reasoning-effort fidelity (current Claude Code request surface)', () => {
+  test('output_config.effort is honored and mapped to a codex effort (xhigh/max fold to high)', () => {
+    for (const [effort, expected] of [['low', 'low'], ['medium', 'medium'], ['high', 'high'], ['xhigh', 'high'], ['max', 'high']] as const) {
+      const norm = normalizeAnthropicMessages({ model: 'claude-opus-4-8', output_config: { effort }, messages: [] });
+      expect(resolveCodexEffort(norm)).toBe(expected);
+      expect(codexConfigForNormalizedRequest(norm)).toContain(`model_reasoning_effort="${expected}"`);
+    }
+  });
+
+  test('adaptive thinking (no budget_tokens) defaults to medium, not low', () => {
+    // This is the current Claude Code shape: thinking:{type:"adaptive"} carries
+    // no budget, so the old ladder produced "low" — silently dumbing sessions down.
+    const norm = normalizeAnthropicMessages({ model: 'claude-sonnet-5', thinking: { type: 'adaptive' }, messages: [] });
+    expect(resolveCodexEffort(norm)).toBe('medium');
+    expect(codexConfigForNormalizedRequest(norm)).toContain('model_reasoning_effort="medium"');
+  });
+
+  test('output_config.effort outranks the thinking-budget ladder', () => {
+    const norm = normalizeAnthropicMessages({
+      model: 'claude-opus-4-8',
+      thinking: { type: 'enabled', budget_tokens: 512 }, // ladder → low
+      output_config: { effort: 'high' },
+      messages: [],
+    });
+    expect(resolveCodexEffort(norm)).toBe('high');
+  });
+
+  test('an explicit operator --tier/--codex-effort in the base config still wins', () => {
+    const norm = normalizeAnthropicMessages({ model: 'claude-opus-4-8', output_config: { effort: 'low' }, messages: [] });
+    const config = codexConfigForNormalizedRequest(norm, ['model_reasoning_effort="high"']);
+    expect(config).toContain('model_reasoning_effort="high"');
+    expect(config).not.toContain('model_reasoning_effort="low"');
+  });
+
+  test('no thinking and no output_config → no effort override (backend default)', () => {
+    const norm = normalizeAnthropicMessages({ model: 'claude-opus-4-8', thinking: { type: 'disabled' }, messages: [] });
+    expect(resolveCodexEffort(norm)).toBeUndefined();
+    expect(codexConfigForNormalizedRequest(norm)).toEqual([]);
   });
 });
