@@ -348,7 +348,7 @@ fleet:
       # High-temperature product imagination. Spark comments buildable
       # ideas on PRs and emits action-shaped packets a follow-up command
       # handler can turn into tested PR builds.
-      trigger:
+      triggers:
         - pull_request:opened
         - git:committed
       cooldown_ms: 7200000
@@ -434,7 +434,7 @@ fleet:
     spider:
       # Syllogism engine. Spider combines two existing facts/capabilities
       # and proposes the new product or workflow that follows from them.
-      trigger:
+      triggers:
         - spark:idea
         - pull_request:opened
       schedule: "0 */2 * * *"

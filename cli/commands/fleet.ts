@@ -290,6 +290,23 @@ function formatModelTierLine(tier: 'low' | 'mid' | 'high', model?: string): stri
   return `  ${tier.padEnd(4)} ${model || '-'}`;
 }
 
+/**
+ * Render an agent's activation mode for roster/status display: schedule wins
+ * if present, otherwise the trigger(s). Agents can declare a single `trigger:`
+ * or an additive `triggers:` list (fleet-ast.ts folds the singular into the
+ * plural list, so `triggers` is the superset when either is set) — prefer
+ * `triggers` and only fall back to the singular field defensively.
+ */
+function formatTriggerMode(
+  agent: { schedule?: string; trigger?: string; triggers?: string[] },
+  opts: { colon?: boolean } = {},
+): string {
+  const sep = opts.colon ? ':' : '';
+  if (agent.schedule) return `schedule${sep} ${agent.schedule}`;
+  if (agent.triggers && agent.triggers.length > 0) return `trigger${sep} ${agent.triggers.join(', ')}`;
+  return `trigger${sep} ${agent.trigger ?? 'none'}`;
+}
+
 function printFleetModelBackend(backend: FleetModelBackend, detailed: boolean): void {
   const label = backend.name ? `${backend.id} — ${backend.name}` : backend.id;
   const status = backend.readinessStatus || 'unknown';
@@ -504,7 +521,7 @@ async function fleetUp(ships: string[] = []): Promise<void> {
     }
 
     for (const agent of enabledAgents) {
-      const mode = agent.schedule ? `schedule: ${agent.schedule}` : `trigger: ${agent.trigger}`;
+      const mode = formatTriggerMode(agent, { colon: true });
       ui.success(`  ${agent.name} (${agent.backend}) — ${mode}`);
     }
     for (const name of selection.paused) {
@@ -617,7 +634,7 @@ async function fleetStatus(): Promise<void> {
   } else {
     for (const agent of config.agents) {
       const runtime = resolveFleetAgentRuntime(agent);
-      const mode = agent.schedule ? `schedule ${agent.schedule}` : `trigger ${agent.trigger}`;
+      const mode = formatTriggerMode(agent);
       const backend = runtime.backend || 'MISSING';
       const model = runtime.model || (backend === 'claude-cli' ? 'CLI default' : runtime.modelTier ? `${runtime.modelTier} tier (unmapped)` : 'backend default');
       const fallbacks = (agent.fallbacks || []).map((fallback) => {
@@ -1504,7 +1521,7 @@ export async function handleFleet(positional: string[], _options: Record<string,
       if (config) {
         console.log(`Agents in pd-fleet.yml (${config.agents.length}):`);
         for (const a of config.agents) {
-          const mode = a.schedule ? `schedule: ${a.schedule}` : `trigger: ${a.trigger}`;
+          const mode = formatTriggerMode(a, { colon: true });
           const runtime = resolveFleetAgentRuntime(a);
           const backend = runtime.backend || 'MISSING';
           const model = runtime.model || (backend === 'claude-cli' ? 'CLI default' : runtime.modelTier ? `${runtime.modelTier} tier` : 'backend default');

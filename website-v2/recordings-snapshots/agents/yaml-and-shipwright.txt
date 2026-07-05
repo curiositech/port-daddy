@@ -8,15 +8,15 @@
     channels: 13
     budget:   8.5
 
-  WARN: Topology warnings (3):
+  WARN: Topology warnings (5):
+    - Channel "spark:idea" has no producer in the fleet
+    - Channel "spider:connections" has no producer in the fleet
     - Channel "git:status" has no producer in the fleet
     - Channel "qa:clean" has no producer in the fleet
     - Channel "qa:findings" has no producer in the fleet
 
   INFO: Dry-run checklist:
     - YAML syntax parsed
-    - templates resolved
-    - trigger graph checked for cycles
 
   $ python3 -c "from pathlib import Path; [print(line) for line in Path('pd-fleet.yml').read_text().splitlines()[:28]]"
   # pd-fleet.yml — Port Daddy's own fleet configuration

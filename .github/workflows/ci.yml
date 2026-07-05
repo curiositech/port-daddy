@@ -525,13 +525,17 @@ jobs:
         working-directory: website-v2
         run: npm run record:gifs
 
-      - name: Drift gate — check all 42 recordings match their golden transcript
-        # 38 of 42 casts are regenerated above (31 site + 7 agent). The remaining
-        # 4 root-level casts (quickstart, fleet, diagnostics, coordination at
-        # public/casts/*.cast) are legacy casts recorded manually; they are not
-        # regenerated in CI but their committed golden transcripts are still
-        # snapshot-checked here — any unreviewed change in those files will also
-        # cause this step to fail.
+      - name: Drift gate — check all 43 recordings match their golden transcript
+        # All 43 casts under public/casts/ (36 site + 7 agent) are regenerated
+        # by `npm run record:gifs` above, then compared to their committed
+        # golden transcript here — full behavioral coverage, no tautological
+        # snapshot-vs-itself checks. (The 4 legacy root-level casts —
+        # quickstart/fleet/diagnostics/coordination — had no demo definition
+        # in the record scripts and were never re-recorded, so their gate was
+        # tautological; two had already drifted to pre-`--lifecycle` `pd begin`
+        # syntax that errors on current `pd`. Retired rather than converted:
+        # they were unreferenced by any page after the site's data-driven
+        # recording model replaced them. See PR #283 review thread.)
         working-directory: website-v2
         run: npm run test:gifs
 

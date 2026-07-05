@@ -25,15 +25,15 @@
     channels: 13
     budget:   8.5
 
-  WARN: Topology warnings (3):
+  WARN: Topology warnings (5):
+    - Channel "spark:idea" has no producer in the fleet
+    - Channel "spider:connections" has no producer in the fleet
     - Channel "git:status" has no producer in the fleet
     - Channel "qa:clean" has no producer in the fleet
     - Channel "qa:findings" has no producer in the fleet
 
   INFO: Dry-run checklist:
     - YAML syntax parsed
-    - templates resolved
-    - trigger graph checked for cycles
 
   $ pd fleet status
 
@@ -43,14 +43,14 @@
   INFO:   Start with: pd fleet up
 
   INFO: Configured agents:
-    gardener — cli:claude-code / claude-haiku-4-5-20251001 / trigger git:committed / fallbacks: cli:codex/gpt-5.4-mini -> cloudflare/@cf/qwen/qwen3-30b-a3b-fp8
-    qa — cli:claude-code / claude-haiku-4-5-20251001 / trigger pull_request:opened / fallbacks: cli:codex/gpt-5.4-mini -> openai/gpt-5-mini -> cloudflare/@cf/qwen/qwen3-30b-a3b-fp8
-    test-hunter — cli:claude-code / claude-haiku-4-5-20251001 / trigger git:committed / fallbacks: cli:codex/gpt-5.4-mini -> cloudflare/@cf/qwen/qwen2.5-coder-32b-instruct
-    documentarian — cli:claude-code / claude-haiku-4-5-20251001 / trigger promotion:release-surfaces / fallbacks: cli:codex/gpt-5.4-mini -> cloudflare/@cf/qwen/qwen2.5-coder-32b-instruct
-    simplifier — cli:claude-code / claude-haiku-4-5-20251001 / trigger git:committed / fallbacks: cli:codex/gpt-5.4-mini -> cloudflare/@cf/qwen/qwen2.5-coder-32b-instruct
-    cartographer — cli:claude-code / claude-haiku-4-5-20251001 / schedule */30 * * * * / fallbacks: cli:codex/gpt-5.4-mini -> cloudflare/@cf/qwen/qwen3-30b-a3b-fp8
-    spark — cli:claude-code / claude-haiku-4-5-20251001 / trigger git:committed / fallbacks: cli:codex/gpt-5.4-mini -> cloudflare/@cf/moonshotai/kimi-k2.6
-    spider — cli:claude-code / claude-haiku-4-5-20251001 / schedule 0 */2 * * * / fallbacks: cli:codex/gpt-5.4-mini -> cloudflare/@cf/qwen/qwen3-30b-a3b-fp8
-    code-reviewer — cli:claude-code / claude-haiku-4-5-20251001 / trigger pull_request:opened / fallbacks: cli:codex/gpt-5.4-mini -> anthropic/claude-haiku-4-5-20251001 -> openai/gpt-5-mini -> cloudflare/@cf/qwen/qwen2.5-coder-32b-instruct
-    red-team — cli:claude-code / claude-haiku-4-5-20251001 / trigger pull_request:opened / fallbacks: cli:codex/gpt-5.4-mini -> anthropic/claude-sonnet-4-5-20251001 -> openai/gpt-5 -> cloudflare/@cf/qwen/qwen3-30b-a3b-fp8
-    test-author — cli:claude-code / claude-haiku-4-5-20251001 / trigger pull_request:opened / fallbacks: cli:codex/gpt-5.4-mini -> anthropic/claude-haiku-4-5-20251001 -> openai/gpt-5-mini -> cloudflare/@cf/qwen/qwen2.5-coder-32b-instruct
+    gardener — cli:claude-code / claude-haiku-4-5-20251001 / trigger git:committed / fallbacks: cli:codex/gpt-5.4-mini -> cloudflare/@cf/openai/gpt-oss-120b
+    qa — cli:claude-code / claude-haiku-4-5-20251001 / trigger pull_request:opened / fallbacks: cli:codex/gpt-5.4-mini -> openai/gpt-5-mini -> cloudflare/@cf/openai/gpt-oss-120b
+    test-hunter — cli:claude-code / claude-haiku-4-5-20251001 / trigger git:committed / fallbacks: cli:codex/gpt-5.4-mini -> cloudflare/@cf/openai/gpt-oss-120b
+    documentarian — cli:claude-code / claude-haiku-4-5-20251001 / trigger promotion:release-surfaces / fallbacks: cli:codex/gpt-5.4-mini -> cloudflare/@cf/openai/gpt-oss-120b
+    simplifier — cli:claude-code / claude-haiku-4-5-20251001 / trigger git:committed / fallbacks: cli:codex/gpt-5.4-mini -> cloudflare/@cf/openai/gpt-oss-120b
+    cartographer — cli:claude-code / claude-haiku-4-5-20251001 / schedule */30 * * * * / fallbacks: cli:codex/gpt-5.4-mini -> cloudflare/@cf/openai/gpt-oss-120b
+    spark — cli:claude-code / claude-haiku-4-5-20251001 / trigger pull_request:opened, git:committed / fallbacks: cli:codex/gpt-5.4-mini -> cloudflare/@cf/qwen/qwen3-30b-a3b-fp8
+    spider — cli:claude-code / claude-haiku-4-5-20251001 / schedule 0 */2 * * * / fallbacks: cli:codex/gpt-5.4-mini -> cloudflare/@cf/openai/gpt-oss-120b
+    code-reviewer — cli:claude-code / claude-haiku-4-5-20251001 / trigger pull_request:opened / fallbacks: cli:codex/gpt-5.4-mini -> anthropic/claude-haiku-4-5-20251001 -> openai/gpt-5-mini -> cloudflare/@cf/openai/gpt-oss-120b
+    red-team — cli:claude-code / claude-haiku-4-5-20251001 / trigger pull_request:opened / fallbacks: cli:codex/gpt-5.4-mini -> anthropic/claude-sonnet-4-5-20251001 -> openai/gpt-5 -> cloudflare/@cf/openai/gpt-oss-120b
+    test-author — cli:claude-code / claude-haiku-4-5-20251001 / trigger pull_request:opened / fallbacks: cli:codex/gpt-5.4-mini -> anthropic/claude-haiku-4-5-20251001 -> openai/gpt-5-mini -> cloudflare/@cf/openai/gpt-oss-120b

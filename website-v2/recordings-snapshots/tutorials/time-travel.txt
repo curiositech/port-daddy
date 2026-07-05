@@ -9,7 +9,7 @@
 
   TIMESTAMP             TYPE                AGENT             DETAILS
   ─────────────────────────────────────────────────────────────────────────────────────
-  <DATE> <TIME>   daemon.start        -                 Port Daddy v3.23.0 started (Fastify)
+  <DATE> <TIME>   daemon.start        -                 Port Daddy v3.24.1 started (Fastify)
   <DATE> <TIME>   daemon.stop         -                 Port Daddy stopped (SIGTERM)
   <DATE> <TIME>   session_note        -                 Note added to session session-<ID>
   <DATE> <TIME>   session.note        agent-backfill-se Note added to session session-<ID>
