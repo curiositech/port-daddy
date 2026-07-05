@@ -1,13 +1,21 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import SessionGalaxyPanel, {
   CLUSTER_COLORS,
+  UNCLUSTERED_POINT_COLOR,
   clientToViewBox,
   clusterColor,
+  copyFilePathToClipboard,
   defaultParleyReason,
   distinctAgentIds,
+  formatClockTime,
+  formatDuration,
+  parseWindowHours,
+  pointColor,
   pointToViewBox,
   pointsInRect,
+  resolveFileLinkHref,
+  resolveSessionTimes,
   selectionTermsSlug,
 } from './SessionGalaxyPanel';
 import { callGalaxyParley, fetchGalaxyMap, fetchGalaxySessionDetail } from '../api';
@@ -15,6 +23,7 @@ import type {
   GalaxyCluster,
   GalaxyMapResponse,
   GalaxyPoint,
+  GalaxySessionDetail,
   GalaxySessionDetailResponse,
 } from '../types';
 
@@ -89,6 +98,10 @@ const mapFixture: GalaxyMapResponse = {
   stats: { sessionCount: 6, embeddedNow: 6, cacheHits: 0, elapsedMs: 42 },
 };
 
+// startedAt/endedAt at the top level are the daemon-guaranteed fields; the
+// transcript's snake_case started_at/ended_at mirror them here on purpose so
+// tests that exercise the *fallback* path can drop the top-level fields and
+// still assert the exact same rendered values.
 const detailFixture: GalaxySessionDetailResponse = {
   success: true,
   detail: {
@@ -110,9 +123,19 @@ const detailFixture: GalaxySessionDetailResponse = {
       outputs: [],
     },
     session: null,
+    startedAt: 1_750_000_000_000,
+    endedAt: 1_750_000_100_000,
     notes: [],
     files: [
-      { filePath: 'lib/migrations.ts', startLine: 12, endLine: 80, symbol: 'runMigrations', claimedAt: 1_750_000_010_000, releasedAt: null },
+      {
+        filePath: 'lib/migrations.ts', startLine: 12, endLine: 80,
+        symbol: 'runMigrations', claimedAt: 1_750_000_010_000, releasedAt: null,
+        absolutePath: '/repo/lib/migrations.ts',
+      },
+      {
+        filePath: 'lib/wal.ts', startLine: null, endLine: null,
+        symbol: null, claimedAt: 1_750_000_011_000, releasedAt: null,
+      },
     ],
     toolUses: [
       { name: 'Bash', args: { command: 'npm test' }, at: 1_750_000_060_000 },
@@ -133,6 +156,13 @@ beforeEach(() => {
   vi.mocked(fetchGalaxyMap).mockReset().mockResolvedValue(mapFixture);
   vi.mocked(fetchGalaxySessionDetail).mockReset().mockResolvedValue(detailFixture);
   vi.mocked(callGalaxyParley).mockReset().mockResolvedValue({ success: true, parley: { parleyId: 'parley-9' } });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  // Clipboard tests attach their own mock per-test; drop it so it never bleeds
+  // into a test that doesn't expect one.
+  delete (navigator as unknown as { clipboard?: unknown }).clipboard;
 });
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
@@ -201,6 +231,122 @@ describe('selection helpers', () => {
   it('defaultParleyReason names the cluster and the session count', () => {
     expect(defaultParleyReason('sqlite migration · wal', 3))
       .toBe('Operator convened parley from session galaxy cluster "sqlite migration · wal" (3 sessions)');
+  });
+});
+
+describe('pointColor', () => {
+  it('uses the clustered palette when clustering is enabled', () => {
+    expect(pointColor(true, 0)).toBe(CLUSTER_COLORS[0]);
+    expect(pointColor(true, 9)).toBe(CLUSTER_COLORS[1]);
+  });
+
+  it('collapses to the single neutral palette var when clustering is disabled', () => {
+    expect(pointColor(false, 0)).toBe(UNCLUSTERED_POINT_COLOR);
+    expect(pointColor(false, 5)).toBe(UNCLUSTERED_POINT_COLOR);
+  });
+});
+
+describe('formatClockTime', () => {
+  it('formats a valid epoch as zero-padded 24h HH:MM:SS', () => {
+    const epoch = 1_750_000_050_000;
+    const d = new Date(epoch);
+    const expected = [d.getHours(), d.getMinutes(), d.getSeconds()]
+      .map((n) => String(n).padStart(2, '0'))
+      .join(':');
+    expect(formatClockTime(epoch)).toBe(expected);
+    expect(formatClockTime(epoch)).toMatch(/^\d{2}:\d{2}:\d{2}$/);
+  });
+
+  it('returns an em dash when the timestamp is missing or invalid', () => {
+    expect(formatClockTime(undefined)).toBe('—');
+    expect(formatClockTime(null)).toBe('—');
+    expect(formatClockTime(Number.NaN)).toBe('—');
+  });
+});
+
+describe('formatDuration', () => {
+  it('formats seconds, minutes, and hours components', () => {
+    expect(formatDuration(0, 5_000)).toBe('5s');
+    expect(formatDuration(0, 65_000)).toBe('1m 5s');
+    expect(formatDuration(0, 3_725_000)).toBe('1h 2m 5s');
+  });
+
+  it('returns null when a bound is missing, non-finite, or end precedes start', () => {
+    expect(formatDuration(null, 1000)).toBeNull();
+    expect(formatDuration(1000, undefined)).toBeNull();
+    expect(formatDuration(Number.NaN, 1000)).toBeNull();
+    expect(formatDuration(2000, 1000)).toBeNull();
+  });
+});
+
+describe('resolveSessionTimes', () => {
+  it('prefers the daemon-guaranteed top-level startedAt/endedAt', () => {
+    expect(resolveSessionTimes(detailFixture.detail)).toEqual({
+      startedAt: 1_750_000_000_000,
+      endedAt: 1_750_000_100_000,
+    });
+  });
+
+  it('falls back to transcript.started_at/ended_at when the top-level fields are absent', () => {
+    const { startedAt: _startedAt, endedAt: _endedAt, ...withoutTopLevel } = detailFixture.detail;
+    expect(resolveSessionTimes(withoutTopLevel as GalaxySessionDetail)).toEqual({
+      startedAt: detailFixture.detail.transcript.started_at,
+      endedAt: detailFixture.detail.transcript.ended_at,
+    });
+  });
+
+  it('returns nulls for a missing detail', () => {
+    expect(resolveSessionTimes(null)).toEqual({ startedAt: null, endedAt: null });
+    expect(resolveSessionTimes(undefined)).toEqual({ startedAt: null, endedAt: null });
+  });
+});
+
+describe('resolveFileLinkHref', () => {
+  it('builds a vscode://file/ deep link when an absolute path is known', () => {
+    expect(resolveFileLinkHref({ absolutePath: '/repo/lib/migrations.ts' })).toBe('vscode://file//repo/lib/migrations.ts');
+  });
+
+  it('returns null when the absolute path is absent, null, or blank', () => {
+    expect(resolveFileLinkHref({})).toBeNull();
+    expect(resolveFileLinkHref({ absolutePath: null })).toBeNull();
+    expect(resolveFileLinkHref({ absolutePath: '   ' })).toBeNull();
+  });
+});
+
+describe('copyFilePathToClipboard', () => {
+  it('writes the text and resolves true when the clipboard API is available', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    await expect(copyFilePathToClipboard('lib/migrations.ts')).resolves.toBe(true);
+    expect(writeText).toHaveBeenCalledWith('lib/migrations.ts');
+  });
+
+  it('resolves false (never throws) when the clipboard API is missing', async () => {
+    Object.assign(navigator, { clipboard: undefined });
+    await expect(copyFilePathToClipboard('lib/migrations.ts')).resolves.toBe(false);
+  });
+
+  it('resolves false (never throws) when the clipboard write is rejected', async () => {
+    Object.assign(navigator, { clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } });
+    await expect(copyFilePathToClipboard('lib/migrations.ts')).resolves.toBe(false);
+  });
+});
+
+describe('parseWindowHours', () => {
+  it('accepts positive whole numbers, trimming surrounding whitespace', () => {
+    expect(parseWindowHours('48')).toBe(48);
+    expect(parseWindowHours(' 12 ')).toBe(12);
+    expect(parseWindowHours('1')).toBe(1);
+  });
+
+  it('rejects blank, zero, negative, decimal, and non-numeric input', () => {
+    expect(parseWindowHours('')).toBeNull();
+    expect(parseWindowHours('   ')).toBeNull();
+    expect(parseWindowHours('0')).toBeNull();
+    expect(parseWindowHours('-5')).toBeNull();
+    expect(parseWindowHours('3.5')).toBeNull();
+    expect(parseWindowHours('abc')).toBeNull();
+    expect(parseWindowHours('48h')).toBeNull();
   });
 });
 
@@ -275,7 +421,7 @@ describe('SessionGalaxyPanel', () => {
 
     // Best-effort provenance: no PRs recorded is labeled, not implied as "no PRs produced".
     expect(await screen.findByText(/none recorded/i)).toBeInTheDocument();
-    expect(screen.getByText(/lib\/migrations\.ts:12-80/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'lib/migrations.ts:12-80' })).toBeInTheDocument();
     expect(screen.getByText('Bash')).toBeInTheDocument();
     expect(screen.getByText(/Reordered the sqlite migrations/)).toBeInTheDocument();
   });
@@ -287,5 +433,142 @@ describe('SessionGalaxyPanel', () => {
     fireEvent.click(screen.getByTestId('galaxy-point-t-2'), { metaKey: true });
     fireEvent.click(screen.getByRole('button', { name: /initiate parley/i }));
     expect(await screen.findByText('parley requires at least 2 distinct parties')).toBeInTheDocument();
+  });
+
+  // ── Detail drawer: timestamps ────────────────────────────────────────────────
+
+  it('shows HH:MM:SS transcript timestamps and defends against a missing message timestamp', async () => {
+    vi.mocked(fetchGalaxySessionDetail).mockResolvedValueOnce({
+      success: true,
+      detail: {
+        ...detailFixture.detail,
+        transcript: {
+          ...detailFixture.detail.transcript,
+          messages: [
+            { role: 'assistant', content: 'Reordered the sqlite migrations.', timestamp: 1_750_000_050_000 },
+            { role: 'assistant', content: 'Ran the suite again with no timestamp recorded.', timestamp: undefined },
+          ],
+        },
+      },
+    });
+    await renderGalaxy();
+    fireEvent.click(screen.getByTestId('galaxy-point-t-1'));
+    const drawer = await screen.findByTestId('galaxy-detail-drawer');
+
+    const clockTimes = within(drawer).getAllByText(/^\d{2}:\d{2}:\d{2}$/);
+    expect(clockTimes.length).toBeGreaterThanOrEqual(1);
+    expect(within(drawer).getByText('—')).toBeInTheDocument();
+  });
+
+  it('shows started/ended and duration in the detail drawer header from the top-level session bounds', async () => {
+    await renderGalaxy();
+    fireEvent.click(screen.getByTestId('galaxy-point-t-1'));
+    const drawer = await screen.findByTestId('galaxy-detail-drawer');
+    const times = within(drawer).getByTestId('galaxy-detail-times');
+    // 1_750_000_100_000 - 1_750_000_000_000 = 100_000ms = 1m 40s.
+    expect(times.textContent).toMatch(/^Started \d{2}:\d{2}:\d{2} · Ended \d{2}:\d{2}:\d{2} · 1m 40s$/);
+  });
+
+  it('falls back to transcript.started_at/ended_at when top-level session bounds are absent', async () => {
+    const { startedAt: _startedAt, endedAt: _endedAt, ...withoutTopLevel } = detailFixture.detail;
+    vi.mocked(fetchGalaxySessionDetail).mockResolvedValueOnce({ success: true, detail: withoutTopLevel as GalaxySessionDetail });
+    await renderGalaxy();
+    fireEvent.click(screen.getByTestId('galaxy-point-t-1'));
+    const drawer = await screen.findByTestId('galaxy-detail-drawer');
+    const times = within(drawer).getByTestId('galaxy-detail-times');
+    expect(times.textContent).toMatch(/^Started \d{2}:\d{2}:\d{2} · Ended \d{2}:\d{2}:\d{2} · 1m 40s$/);
+  });
+
+  // ── Detail drawer: files as hyperlinks ───────────────────────────────────────
+
+  it('renders a vscode deep link for files with a known absolute path and copies the repo-relative path on click', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    await renderGalaxy();
+    fireEvent.click(screen.getByTestId('galaxy-point-t-1'));
+    await screen.findByTestId('galaxy-detail-drawer');
+
+    const link = screen.getByRole('link', { name: 'lib/migrations.ts:12-80' });
+    expect(link).toHaveAttribute('href', 'vscode://file//repo/lib/migrations.ts');
+
+    fireEvent.click(link);
+    expect(writeText).toHaveBeenCalledWith('lib/migrations.ts');
+    expect(await screen.findByText('Copied')).toBeInTheDocument();
+  });
+
+  it('falls back to a copy-only control when no absolute path is known for a file', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    await renderGalaxy();
+    fireEvent.click(screen.getByTestId('galaxy-point-t-1'));
+    await screen.findByTestId('galaxy-detail-drawer');
+
+    const link = screen.getByRole('button', { name: 'lib/wal.ts' });
+    expect(link).not.toHaveAttribute('href');
+
+    fireEvent.click(link);
+    expect(writeText).toHaveBeenCalledWith('lib/wal.ts');
+    expect(await screen.findByText('Copied')).toBeInTheDocument();
+  });
+
+  // ── Controls: free-form time window ──────────────────────────────────────────
+
+  // Real timers, not vi.useFakeTimers(): this component's debounce interacts
+  // with React 18's effect scheduling (the setTimeout is armed from inside a
+  // useEffect keyed on the input value) in a way that fake timers + fireEvent
+  // do not reliably flush in jsdom — the state update itself silently never
+  // lands. A short real 400ms wait via waitFor is deterministic here and the
+  // wall-clock cost is negligible (well under the per-test timeout).
+  it('debounces free-form hours entry then requests the parsed window', async () => {
+    await renderGalaxy();
+    vi.mocked(fetchGalaxyMap).mockClear();
+    fireEvent.change(screen.getByLabelText('Custom time window in hours'), { target: { value: '48' } });
+    expect(fetchGalaxyMap).not.toHaveBeenCalled();
+    await waitFor(
+      () => expect(fetchGalaxyMap).toHaveBeenCalledWith(expect.objectContaining({ windowHours: 48 })),
+      { timeout: 2000 },
+    );
+  }, 5000);
+
+  it('rejects a non-positive-integer custom hours value without refetching', async () => {
+    await renderGalaxy();
+    vi.mocked(fetchGalaxyMap).mockClear();
+    fireEvent.change(screen.getByLabelText('Custom time window in hours'), { target: { value: '-3' } });
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument(), { timeout: 2000 });
+    expect(fetchGalaxyMap).not.toHaveBeenCalled();
+  }, 5000);
+
+  it('selecting a window preset clears any pending custom hours error', async () => {
+    await renderGalaxy();
+    fireEvent.change(screen.getByLabelText('Custom time window in hours'), { target: { value: 'abc' } });
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument(), { timeout: 2000 });
+    fireEvent.change(screen.getByLabelText('Time window'), { target: { value: '6' } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  }, 5000);
+
+  // ── Controls: optional clustering ────────────────────────────────────────────
+
+  it('toggling clustering off requests cluster=false and hides cluster labels/legend', async () => {
+    await renderGalaxy();
+    expect(screen.getByText('sqlite migration · wal')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Enable clustering'));
+
+    expect(screen.queryByText('sqlite migration · wal')).not.toBeInTheDocument();
+    expect(screen.queryByText('parley broker')).not.toBeInTheDocument();
+    await waitFor(() => expect(fetchGalaxyMap).toHaveBeenLastCalledWith(expect.objectContaining({ cluster: false })));
+  });
+
+  it('toggling clustering back on omits the cluster param and restores labels', async () => {
+    await renderGalaxy();
+    const toggle = screen.getByLabelText('Enable clustering');
+    fireEvent.click(toggle); // off
+    await waitFor(() => expect(fetchGalaxyMap).toHaveBeenLastCalledWith(expect.objectContaining({ cluster: false })));
+    fireEvent.click(toggle); // back on
+    expect(screen.getByText('sqlite migration · wal')).toBeInTheDocument();
+    await waitFor(() => {
+      const lastCall = vi.mocked(fetchGalaxyMap).mock.calls.at(-1)?.[0];
+      expect(lastCall).not.toHaveProperty('cluster');
+    });
   });
 });

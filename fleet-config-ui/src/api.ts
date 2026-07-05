@@ -1009,6 +1009,10 @@ export async function fetchGalaxyMap(opts: {
   minTokens?: number;
   limit?: number;
   project?: string;
+  // Additive: omitted (or true) preserves default clustered behavior for
+  // daemons that predate cluster=false support. Only send the param when
+  // explicitly disabling clustering.
+  cluster?: boolean;
 } = {}): Promise<GalaxyMapResponse> {
   const params = new URLSearchParams();
   if (typeof opts.windowHours === 'number') params.set('windowHours', String(opts.windowHours));
@@ -1016,6 +1020,7 @@ export async function fetchGalaxyMap(opts: {
   if (typeof opts.minTokens === 'number') params.set('minTokens', String(opts.minTokens));
   if (typeof opts.limit === 'number') params.set('limit', String(opts.limit));
   if (opts.project) params.set('project', opts.project);
+  if (opts.cluster === false) params.set('cluster', 'false');
   return get(`/galaxy/map${params.toString() ? `?${params}` : ''}`);
 }
 

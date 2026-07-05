@@ -131,6 +131,10 @@ export interface GalaxySessionDetail {
   notes: Array<{ id: string; content: string; type: string; createdAt: number }>;
   files: Array<{
     filePath: string;
+    /** Original absolute path when the stored claim was absolute — lets a UI
+     * build an editor deep link (vscode://file/<abs>) alongside the
+     * repo-relative display path. Absent when the claim was already relative. */
+    absolutePath?: string;
     startLine: number | null;
     endLine: number | null;
     symbol: string | null;
@@ -548,6 +552,7 @@ export function createGalaxy(deps: GalaxyDeps): GalaxyModule {
           }));
           files = (result.files ?? []).map((f) => ({
             filePath: toRepoRelative(String(f.filePath)),
+            ...(String(f.filePath).startsWith('/') ? { absolutePath: String(f.filePath) } : {}),
             startLine: (f.startLine as number | null) ?? null,
             endLine: (f.endLine as number | null) ?? null,
             symbol: (f.symbol as string | null) ?? null,

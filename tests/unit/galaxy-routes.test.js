@@ -516,5 +516,12 @@ describe('galaxy routes', () => {
     const { detail } = JSON.parse(res.body);
     const paths = detail.files.map((f) => f.filePath).sort();
     expect(paths).toEqual(['already/relative.ts', 'lib/galaxy-path-example.ts', outsideRepoRoot].sort());
+
+    // absolutePath rides along ONLY for originally-absolute claims — the UI's
+    // vscode://file deep link needs it; relative claims must not grow one.
+    const byPath = Object.fromEntries(detail.files.map((f) => [f.filePath, f]));
+    expect(byPath['lib/galaxy-path-example.ts'].absolutePath).toBe(underRepoRoot);
+    expect(byPath[outsideRepoRoot].absolutePath).toBe(outsideRepoRoot);
+    expect(byPath['already/relative.ts'].absolutePath).toBeUndefined();
   });
 });

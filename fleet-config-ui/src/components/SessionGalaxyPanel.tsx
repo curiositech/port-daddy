@@ -4,7 +4,7 @@
  * component; exporting them here only costs a full reload on dev fast-refresh. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
-import { ExternalLink, MessagesSquare, RefreshCw, X } from 'lucide-react';
+import { Check, Copy, ExternalLink, Layers, MessagesSquare, RefreshCw, X } from 'lucide-react';
 import { callGalaxyParley, fetchGalaxyMap, fetchGalaxySessionDetail } from '../api';
 import type {
   GalaxyCluster,
@@ -35,9 +35,19 @@ export const CLUSTER_COLORS: string[] = [
   'oklch(0.65 0.1 350)',
 ];
 
+// When clustering is toggled off every point renders in one neutral color —
+// there is no cluster identity to encode, so the palette collapses to a
+// single shared token rather than an arbitrary member of CLUSTER_COLORS.
+export const UNCLUSTERED_POINT_COLOR = 'var(--pd-line)';
+
 export function clusterColor(clusterId: number): string {
   const idx = Number.isFinite(clusterId) ? Math.abs(Math.trunc(clusterId)) % CLUSTER_COLORS.length : 0;
   return CLUSTER_COLORS[idx];
+}
+
+/** Point fill color honoring the clustering toggle: neutral when disabled. */
+export function pointColor(clusteringEnabled: boolean, clusterId: number): string {
+  return clusteringEnabled ? clusterColor(clusterId) : UNCLUSTERED_POINT_COLOR;
 }
 
 /** Project a normalized [0,1] galaxy point into viewBox coordinates. */
@@ -137,6 +147,85 @@ export function defaultParleyReason(clusterLabel: string, sessionCount: number):
   return `Operator convened parley from session galaxy cluster "${clusterLabel}" (${sessionCount} sessions)`;
 }
 
+// ─── Time / duration formatting ───────────────────────────────────────────────
+
+/**
+ * HH:MM:SS (zero-padded, 24h, local time) from an epoch-ms value. Deliberately
+ * not locale-formatted (unlike the summary-line `formatTime` below) so
+ * transcript rows line up in a fixed-width column and so tests are
+ * deterministic regardless of the runner's locale.
+ */
+export function formatClockTime(epochMs: number | null | undefined): string {
+  if (typeof epochMs !== 'number' || !Number.isFinite(epochMs)) return '—';
+  const d = new Date(epochMs);
+  if (Number.isNaN(d.getTime())) return '—';
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const ss = String(d.getSeconds()).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+}
+
+/** "1h 5m 3s" style duration between two epoch-ms bounds; null when either bound is missing/invalid/negative. */
+export function formatDuration(startedAt: number | null | undefined, endedAt: number | null | undefined): string | null {
+  if (typeof startedAt !== 'number' || !Number.isFinite(startedAt)) return null;
+  if (typeof endedAt !== 'number' || !Number.isFinite(endedAt)) return null;
+  const deltaMs = endedAt - startedAt;
+  if (deltaMs < 0) return null;
+  const totalSeconds = Math.round(deltaMs / 1000);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  const parts: string[] = [];
+  if (h > 0) parts.push(`${h}h`);
+  if (h > 0 || m > 0) parts.push(`${m}m`);
+  parts.push(`${s}s`);
+  return parts.join(' ');
+}
+
+/**
+ * Session bounds, preferring the daemon's guaranteed top-level startedAt/endedAt
+ * and falling back to the legacy transcript.started_at/ended_at snake_case
+ * fields for daemons that haven't shipped the top-level fields yet.
+ */
+export function resolveSessionTimes(
+  detail: GalaxySessionDetail | null | undefined,
+): { startedAt: number | null; endedAt: number | null } {
+  if (!detail) return { startedAt: null, endedAt: null };
+  const startedAt = typeof detail.startedAt === 'number'
+    ? detail.startedAt
+    : typeof detail.transcript?.started_at === 'number'
+      ? detail.transcript.started_at
+      : null;
+  const endedAt = typeof detail.endedAt === 'number'
+    ? detail.endedAt
+    : typeof detail.transcript?.ended_at === 'number'
+      ? detail.transcript.ended_at
+      : null;
+  return { startedAt, endedAt };
+}
+
+// ─── Files-touched hyperlinks ─────────────────────────────────────────────────
+
+/** vscode://file/ deep link when an absolute path is known; null otherwise (caller falls back to copy-only). */
+export function resolveFileLinkHref(file: { absolutePath?: string | null }): string | null {
+  const abs = file.absolutePath;
+  if (typeof abs !== 'string' || abs.trim() === '') return null;
+  return `vscode://file/${abs}`;
+}
+
+/** Best-effort clipboard write; resolves false (never throws) so callers can skip the "copied" affordance. */
+export async function copyFilePathToClipboard(text: string): Promise<boolean> {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* clipboard not available / permission denied */
+  }
+  return false;
+}
+
 // ─── Controls ─────────────────────────────────────────────────────────────────
 
 const WINDOW_OPTIONS: Array<{ label: string; hours: number }> = [
@@ -145,6 +234,18 @@ const WINDOW_OPTIONS: Array<{ label: string; hours: number }> = [
   { label: '24h', hours: 24 },
   { label: '7d', hours: 168 },
 ];
+
+const CUSTOM_WINDOW_DEBOUNCE_MS = 400;
+const FILE_COPIED_AFFORDANCE_MS = 1500;
+
+/** Positive whole number of hours from free-form input, or null when invalid (blank, decimal, zero, negative, non-numeric). */
+export function parseWindowHours(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
 
 const POLL_MS = 15_000; // daemon caches the whole map response 30s, so this is cheap
 
@@ -193,17 +294,22 @@ export default function SessionGalaxyPanel({ project }: SessionGalaxyPanelProps)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [windowHours, setWindowHours] = useState(24);
+  const [customWindowInput, setCustomWindowInput] = useState('');
+  const [customWindowError, setCustomWindowError] = useState<string | null>(null);
   const [minTokens, setMinTokens] = useState(256);
+  const [clusteringEnabled, setClusteringEnabled] = useState(true);
   const [selection, setSelection] = useState<Set<string>>(() => new Set());
   const [hover, setHover] = useState<HoverState | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [detail, setDetail] = useState<DetailState | null>(null);
+  const [copiedFileIdx, setCopiedFileIdx] = useState<number | null>(null);
   const [reason, setReason] = useState('');
   const [parleyBusy, setParleyBusy] = useState(false);
   const [parleyNotice, setParleyNotice] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const copiedFileTimeoutRef = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -211,6 +317,7 @@ export default function SessionGalaxyPanel({ project }: SessionGalaxyPanelProps)
         windowHours,
         minTokens,
         ...(project ? { project } : {}),
+        ...(clusteringEnabled ? {} : { cluster: false }),
       });
       setMap(data);
       setError(null);
@@ -219,13 +326,36 @@ export default function SessionGalaxyPanel({ project }: SessionGalaxyPanelProps)
     } finally {
       setLoading(false);
     }
-  }, [project, windowHours, minTokens]);
+  }, [project, windowHours, minTokens, clusteringEnabled]);
 
   useEffect(() => {
     void refresh();
     const interval = window.setInterval(() => void refresh(), POLL_MS);
     return () => window.clearInterval(interval);
   }, [refresh]);
+
+  // Free-form "any lookback" hours input: debounced so every keystroke doesn't
+  // refetch, validated so a malformed value never reaches the daemon query.
+  useEffect(() => {
+    if (customWindowInput.trim() === '') {
+      setCustomWindowError(null);
+      return;
+    }
+    const handle = window.setTimeout(() => {
+      const parsed = parseWindowHours(customWindowInput);
+      if (parsed === null) {
+        setCustomWindowError('Enter a positive whole number of hours');
+      } else {
+        setCustomWindowError(null);
+        setWindowHours(parsed);
+      }
+    }, CUSTOM_WINDOW_DEBOUNCE_MS);
+    return () => window.clearTimeout(handle);
+  }, [customWindowInput]);
+
+  useEffect(() => () => {
+    if (copiedFileTimeoutRef.current) window.clearTimeout(copiedFileTimeoutRef.current);
+  }, []);
 
   const points = useMemo(() => map?.points ?? [], [map]);
   const clusters = useMemo(() => map?.clusters ?? [], [map]);
@@ -235,9 +365,15 @@ export default function SessionGalaxyPanel({ project }: SessionGalaxyPanelProps)
   const canParley = parleyParties.length >= 2;
 
   const hoverClusterLabel = useMemo(() => {
-    if (!hover) return null;
+    if (!hover || !clusteringEnabled) return null;
     return clusters.find((c) => c.id === hover.point.clusterId) ?? null;
-  }, [hover, clusters]);
+  }, [hover, clusters, clusteringEnabled]);
+
+  // Not memoized: resolveSessionTimes/formatDuration are a handful of property
+  // reads and one subtraction, far below the cost of a useMemo cache lookup —
+  // memoizing here would be reflexive, not measured.
+  const detailTimes = resolveSessionTimes(detail?.detail);
+  const detailDuration = formatDuration(detailTimes.startedAt, detailTimes.endedAt);
 
   const openDetail = useCallback(async (id: string) => {
     setDetail({ id, loading: true, error: null, detail: null });
@@ -325,6 +461,15 @@ export default function SessionGalaxyPanel({ project }: SessionGalaxyPanelProps)
     }
   }, [canParley, parleyBusy, selectionCluster, selectedPoints, clusters, reason, parleyParties]);
 
+  const handleFileCopy = useCallback((idx: number, filePath: string) => {
+    void copyFilePathToClipboard(filePath).then((ok) => {
+      if (!ok) return;
+      setCopiedFileIdx(idx);
+      if (copiedFileTimeoutRef.current) window.clearTimeout(copiedFileTimeoutRef.current);
+      copiedFileTimeoutRef.current = window.setTimeout(() => setCopiedFileIdx(null), FILE_COPIED_AFFORDANCE_MS);
+    });
+  }, []);
+
   const clusterLabelText = selectionCluster?.label ?? 'unlabeled';
   const reasonPlaceholder = defaultParleyReason(clusterLabelText, selectedPoints.length);
 
@@ -338,12 +483,34 @@ export default function SessionGalaxyPanel({ project }: SessionGalaxyPanelProps)
           style={{ width: 'auto' }}
           aria-label="Time window"
           value={windowHours}
-          onChange={(e) => setWindowHours(Number(e.target.value))}
+          onChange={(e) => {
+            setWindowHours(Number(e.target.value));
+            setCustomWindowInput('');
+            setCustomWindowError(null);
+          }}
         >
           {WINDOW_OPTIONS.map((opt) => (
             <option key={opt.hours} value={opt.hours}>{opt.label}</option>
           ))}
         </select>
+        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--pd-muted)' }}>
+          custom hours
+          <input
+            className="pd-input"
+            style={{ width: '5.5rem' }}
+            type="text"
+            inputMode="numeric"
+            placeholder="e.g. 48"
+            aria-label="Custom time window in hours"
+            value={customWindowInput}
+            onChange={(e) => setCustomWindowInput(e.target.value)}
+          />
+        </label>
+        {customWindowError && (
+          <span role="alert" className="text-[13px]" style={{ color: 'var(--pd-accent)' }}>
+            {customWindowError}
+          </span>
+        )}
         <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--pd-muted)' }}>
           min tokens
           <input
@@ -360,13 +527,24 @@ export default function SessionGalaxyPanel({ project }: SessionGalaxyPanelProps)
             }}
           />
         </label>
+        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--pd-muted)' }}>
+          <input
+            type="checkbox"
+            className="pd-checkbox"
+            aria-label="Enable clustering"
+            checked={clusteringEnabled}
+            onChange={(e) => setClusteringEnabled(e.target.checked)}
+          />
+          <Layers size={14} />
+          Cluster
+        </label>
         <button className="pd-button pd-button-secondary" onClick={() => void refresh()}>
           <RefreshCw size={15} />
           Refresh
         </button>
         <div className="ml-auto text-sm" style={{ color: 'var(--pd-muted)' }}>
           {map
-            ? `Computed ${formatTime(map.computedAt)} · ${map.stats?.sessionCount ?? points.length} sessions · ${clusters.length} clusters`
+            ? `Computed ${formatTime(map.computedAt)} · ${map.stats?.sessionCount ?? points.length} sessions${clusteringEnabled ? ` · ${clusters.length} clusters` : ''}`
             : loading
               ? 'Loading galaxy…'
               : 'No map yet'}
@@ -418,7 +596,7 @@ export default function SessionGalaxyPanel({ project }: SessionGalaxyPanelProps)
             onMouseUp={finishDrag}
             onMouseLeave={() => { setDrag(null); setHover(null); }}
           >
-            {clusters.map((cluster) => {
+            {clusteringEnabled && clusters.map((cluster) => {
               const { cx, cy } = pointToViewBox({ x: cluster.centroid?.[0] ?? 0.5, y: cluster.centroid?.[1] ?? 0.5 });
               return (
                 <text
@@ -438,7 +616,7 @@ export default function SessionGalaxyPanel({ project }: SessionGalaxyPanelProps)
             {points.map((p) => {
               const { cx, cy } = pointToViewBox(p);
               const isSelected = selection.has(p.id);
-              const color = clusterColor(p.clusterId);
+              const color = pointColor(clusteringEnabled, p.clusterId);
               return (
                 <g key={p.id}>
                   {p.status === 'running' && (
@@ -545,6 +723,12 @@ export default function SessionGalaxyPanel({ project }: SessionGalaxyPanelProps)
                   {detail.detail?.transcript?.spawned_agent_id ?? points.find((p) => p.id === detail.id)?.agentId ?? ''}
                   {detail.detail?.transcript?.status ? ` · ${detail.detail.transcript.status}` : ''}
                 </div>
+                {detail.detail && (detailTimes.startedAt != null || detailTimes.endedAt != null) && (
+                  <div className="mt-1 text-[13px]" style={{ color: 'var(--pd-muted)' }} data-testid="galaxy-detail-times">
+                    Started {formatClockTime(detailTimes.startedAt)} · Ended {detailTimes.endedAt != null ? formatClockTime(detailTimes.endedAt) : 'ongoing'}
+                    {detailDuration ? ` · ${detailDuration}` : ''}
+                  </div>
+                )}
               </div>
               <button className="pd-button pd-button-secondary" aria-label="Close detail" onClick={() => setDetail(null)}>
                 <X size={15} />
@@ -598,13 +782,59 @@ export default function SessionGalaxyPanel({ project }: SessionGalaxyPanelProps)
                   <div className="pd-kicker">Files touched</div>
                   {(detail.detail.files ?? []).length > 0 ? (
                     <ul className="mt-2 flex flex-col gap-1.5">
-                      {(detail.detail.files ?? []).map((file, idx) => (
-                        <li key={idx} className="text-sm break-all" style={{ color: 'var(--pd-text)', fontFamily: 'var(--pd-font-mono)' }}>
-                          {file.filePath}
-                          {file.startLine != null ? `:${file.startLine}${file.endLine != null ? `-${file.endLine}` : ''}` : ''}
-                          {file.symbol ? <span style={{ color: 'var(--pd-muted)' }}> · {file.symbol}</span> : null}
-                        </li>
-                      ))}
+                      {(detail.detail.files ?? []).map((file, idx) => {
+                        const href = resolveFileLinkHref(file);
+                        const label = `${file.filePath}${file.startLine != null ? `:${file.startLine}${file.endLine != null ? `-${file.endLine}` : ''}` : ''}`;
+                        const isCopied = copiedFileIdx === idx;
+                        const linkStyle = {
+                          color: 'var(--pd-text)',
+                          fontFamily: 'var(--pd-font-mono)',
+                          cursor: 'pointer',
+                          background: 'none',
+                          border: 'none',
+                          padding: 0,
+                          textAlign: 'left' as const,
+                        };
+                        return (
+                          <li key={idx} className="text-sm break-all flex items-center gap-2 flex-wrap">
+                            {href ? (
+                              <a
+                                href={href}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1.5 hover:underline"
+                                style={linkStyle}
+                                onClick={() => handleFileCopy(idx, file.filePath)}
+                              >
+                                <ExternalLink size={12} />
+                                {label}
+                              </a>
+                            ) : (
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1.5 hover:underline"
+                                style={linkStyle}
+                                onClick={() => handleFileCopy(idx, file.filePath)}
+                                title="Copy path to clipboard"
+                              >
+                                <Copy size={12} />
+                                {label}
+                              </button>
+                            )}
+                            {isCopied && (
+                              <span
+                                role="status"
+                                className="inline-flex items-center gap-1 text-[13px] font-semibold"
+                                style={{ color: 'var(--pd-success)' }}
+                              >
+                                <Check size={12} />
+                                Copied
+                              </span>
+                            )}
+                            {file.symbol ? <span style={{ color: 'var(--pd-muted)' }}>· {file.symbol}</span> : null}
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : (
                     <div className="mt-2 text-sm" style={{ color: 'var(--pd-muted)' }}>No file claims recorded.</div>
@@ -649,7 +879,7 @@ export default function SessionGalaxyPanel({ project }: SessionGalaxyPanelProps)
                         <div key={idx} className="rounded-lg border px-3 py-2" style={{ borderColor: 'var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}>
                           <div className="flex items-center justify-between gap-3">
                             <span className="text-[13px] font-semibold uppercase tracking-wide" style={{ color: 'var(--pd-muted)' }}>{msg.role}</span>
-                            <span className="text-[13px]" style={{ color: 'var(--pd-dim)' }}>{formatTime(msg.timestamp)}</span>
+                            <span className="text-[13px]" style={{ color: 'var(--pd-dim)' }}>{formatClockTime(msg.timestamp)}</span>
                           </div>
                           <pre className="mt-1.5 text-sm whitespace-pre-wrap break-words" style={{ color: 'var(--pd-text)', fontFamily: 'var(--pd-font-mono)', margin: 0 }}>
                             {msg.content}

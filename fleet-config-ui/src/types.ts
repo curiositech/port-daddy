@@ -1239,7 +1239,7 @@ export interface GalaxyPoint {
   tailTokens: number;          // estimated tokens actually embedded (chars/4)
   x: number;                   // t-SNE coord min-max normalized to [0, 1]
   y: number;                   // [0, 1]
-  clusterId: number;           // 0..k-1, reindexed by size desc (0 = biggest)
+  clusterId: number;           // 0..k-1, reindexed by size desc (0 = biggest); always 0 when cluster=false
   snippet: string;             // first 140 chars of the embedded tail (secret-redacted)
   prNumber: number | null;
 }
@@ -1255,8 +1255,12 @@ export interface GalaxyCluster {
 export interface GalaxyMapResponse {
   success: true;
   computedAt: number;
-  params: { windowHours: number; tailTokens: number; minTokens: number; limit: number; project: string | null };
+  // `cluster` is optional/additive: daemon echoes the effective clustering mode
+  // back in params; absent on older daemons, in which case treat as clustered.
+  params: { windowHours: number; tailTokens: number; minTokens: number; limit: number; project: string | null; cluster?: boolean };
   points: GalaxyPoint[];
+  // With cluster=false the daemon returns clusters: [] and every point carries
+  // clusterId 0 — render defensively rather than assuming clusters.length > 0.
   clusters: GalaxyCluster[];
   stats: { sessionCount: number; embeddedNow: number; cacheHits: number; elapsedMs: number };
 }
@@ -1266,7 +1270,9 @@ export type GalaxyTranscriptRole = 'system' | 'user' | 'assistant' | 'tool' | 't
 export interface GalaxyTranscriptMessage {
   role: GalaxyTranscriptRole;
   content: string;
-  timestamp: number;
+  // Guaranteed epoch-ms by the daemon going forward, but parsed defensively
+  // (older transcripts / partial replays may omit it).
+  timestamp?: number | null;
   tool_calls?: Array<{ name: string; args: unknown; result?: unknown }>;
 }
 
@@ -1307,10 +1313,20 @@ export interface GalaxySessionDetail {
     agentId: string | null; identityProject: string | null;
     createdAt: number; updatedAt: number; completedAt: number | null;
   } | null;
+  // Additive: top-level session bounds guaranteed by the daemon lane going
+  // forward. Fall back to transcript.started_at/ended_at when absent (older
+  // daemons / partial data) — see resolveSessionTimes in SessionGalaxyPanel.
+  startedAt?: number | null;
+  endedAt?: number | null;
   notes: Array<{ id: string; content: string; type: string; createdAt: number }>;
   files: Array<{
     filePath: string; startLine: number | null; endLine: number | null;
     symbol: string | null; claimedAt: number; releasedAt: number | null;
+    // Additive: absolute path on the machine that ran the session, when the
+    // daemon can resolve one. Repo-relative filePath is always present and is
+    // what gets copied to the clipboard; absolutePath (when present) upgrades
+    // the entry to a vscode://file/ deep link.
+    absolutePath?: string | null;
   }>;
   toolUses: Array<{ name: string; args: unknown; at: number }>;
   prs: Array<{ prNumber: number | null; url: string | null; type: string; summary: string }>;
