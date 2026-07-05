@@ -1,0 +1,68 @@
+#!/bin/sh
+# pd-statusline — Port Daddy visual identity for a harnessed Claude Code session
+# =============================================================================
+# Claude Code invokes this on every status render with session JSON on stdin
+# (model.display_name, workspace.current_dir, ...). We print ONE line that makes
+# a Giant-Squid-harnessed session unmistakable at a glance:
+#
+#   ◆ PD           cyan  — direct Anthropic seat, harness armed
+#   ◆ PD⇄CODEX     magenta — Claude Code piloted through the Codex bridge
+#                    (pd squid codex sets PD_SQUID_PILOT=codex in the client env)
+#
+# plus the live non-diegetic counters: daemon liveness, steering alerts,
+# pheromone traces, and locks from the Ink Cloud matrix.
+#
+# CONTRACT: exit 0 always, never block. This runs on the render hot path, so it
+# is filesystem-only POSIX sh — no `pd`, no node. jq is optional (model name).
+set -u
+
+PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
+MATRIX="${PD_MATRIX_FILE:-$PD_HOME/matrix.env}"
+
+INPUT="$(cat 2>/dev/null || true)"
+
+MODEL=""
+if command -v jq >/dev/null 2>&1 && [ -n "$INPUT" ]; then
+  MODEL="$(printf '%s' "$INPUT" | jq -r '.model.display_name // empty' 2>/dev/null || true)"
+fi
+
+# ANSI (statusline supports color; keep it quiet when NO_COLOR is set).
+if [ -n "${NO_COLOR:-}" ]; then
+  CYAN=''; MAGENTA=''; DIM=''; GREEN=''; RED=''; RESET=''
+else
+  CYAN="$(printf '\033[36m')"; MAGENTA="$(printf '\033[35m')"
+  DIM="$(printf '\033[2m')"; GREEN="$(printf '\033[32m')"
+  RED="$(printf '\033[31m')"; RESET="$(printf '\033[0m')"
+fi
+
+# Identity badge: which loop is really answering this session?
+if [ "${PD_SQUID_PILOT:-}" = "codex" ]; then
+  BADGE="${MAGENTA}◆ PD⇄CODEX${RESET}"
+else
+  BADGE="${CYAN}◆ PD${RESET}"
+fi
+
+# Daemon liveness — fs-only (same check as the hook gate).
+DAEMON="${RED}daemon down${RESET}"
+if pid="$(cat "$PD_HOME/daemon.pid" 2>/dev/null)" && kill -0 "$pid" 2>/dev/null; then
+  DAEMON="${GREEN}daemon${RESET}"
+fi
+
+# Ink Cloud counters (single greps over one flat file; absent file → zeros).
+ALERTS=0; PHER=0; LOCKS=0
+if [ -f "$MATRIX" ]; then
+  ALERTS="$(grep -cE '^PD_ALERT_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+  PHER="$(grep -cE '^PD_PHEROMONE_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+  LOCKS="$(grep -cE '^PD_LOCK_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+fi
+CLOUD=""
+[ "${ALERTS:-0}" -gt 0 ] 2>/dev/null && CLOUD="${CLOUD} ${RED}${ALERTS} alert$( [ "$ALERTS" = 1 ] || printf 's' )${RESET}"
+[ "${PHER:-0}" -gt 0 ] 2>/dev/null && CLOUD="${CLOUD} ${DIM}${PHER} trace$( [ "$PHER" = 1 ] || printf 's' )${RESET}"
+[ "${LOCKS:-0}" -gt 0 ] 2>/dev/null && CLOUD="${CLOUD} ${DIM}${LOCKS} lock$( [ "$LOCKS" = 1 ] || printf 's' )${RESET}"
+
+LINE="${BADGE} ${DIM}│${RESET} ${DAEMON}"
+[ -n "$CLOUD" ] && LINE="${LINE} ${DIM}│${RESET}${CLOUD}"
+[ -n "$MODEL" ] && LINE="${LINE} ${DIM}│ ${MODEL}${RESET}"
+
+printf '%s\n' "$LINE"
+exit 0

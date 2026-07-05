@@ -667,6 +667,7 @@ function buildHelp(): string {
   lines.push(
     `${A}Get started:${Z}`,
     `  ${G}pd setup${Z}                  ${tag('notify')} Install daemon, MCP, FleetBar, hooks, Guard`,
+    `  ${G}pd hooks install${Z}          ${tag('notify')} Wire coordination into claude/codex/gemini/agy (per-project, daemon-gated)`,
     `  ${G}pd begin${Z} "purpose" --lifecycle durable  ${tag('notify')} I'll set up your agent + session`,
     `  ${G}pd done${Z} "summary"        ${tag('notify')} Finish up — I'll clean everything`,
     `  ${G}pd whoami${Z}                ${tag('silent')} See your current context`,
@@ -748,7 +749,13 @@ Examples:
   pd setup --no-fleetbar
   pd setup --no-skill
   pd setup --no-init
-  pd setup --no-harness`,
+  pd setup --no-harness
+
+Agent-CLI hooks (per-project, daemon-gated):
+  pd hooks install              Wire claude/codex/gemini/agy for THIS project
+  pd hooks install --user       Also write user-level config for claude/gemini
+  pd hooks list                 Show detected CLIs + wiring status
+  pd hooks uninstall            Remove Port Daddy hooks from every surface`,
 
   sessions: `Sessions & Notes \u2014 Structured multi-agent coordination
 
@@ -1338,7 +1345,7 @@ const ALL_COMMANDS: string[] = [
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
   'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update', 'upgrade',
   'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'benchmark', 'look', 'sitrep', 'roadmap',
-  'advise', 'preflight', 'compass', 'guard',
+  'advise', 'preflight', 'compass', 'guard', 'hooks',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
@@ -2830,6 +2837,12 @@ export async function main(): Promise<void> {
           process.env.PORT_DADDY_URL = `http://localhost:${options.port}`;
         }
         await import('../mcp/server.js');
+        break;
+      }
+
+      case 'hooks': {
+        const { handleHooks } = await import('../cli/commands/hooks-install.js');
+        await handleHooks(positional, options);
         break;
       }
 
