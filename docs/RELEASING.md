@@ -165,7 +165,7 @@ cd .scratch/rc && tar -xzf pd-darwin-arm64.tar.gz
 git tag -a v3.14.1 -m "Port Daddy 3.14.1 — <hotfix description>"
 git push origin v3.14.1
 gh release create v3.14.1 --generate-notes --title "v3.14.1 — <hotfix>"
-# ... then publish.yml as in §1 step J
+# ... then babysit release.yml as in §1 step I/J (binaries + brew tap roll)
 ```
 
 ### Anti-pattern
@@ -243,7 +243,7 @@ Not decoration — these primitives matter:
 |---|---|
 | `pd begin --identity port-daddy:<work> --lifecycle durable` | Always. Session is the atomic unit of "who's editing what". |
 | `pd session files add <path>` | Before any edit. Advisory, but visible to other agents via `pd sessions --all-worktrees`. |
-| `pd lock release-publish` | **Only for §1 step J** (`publish.yml` dispatch). Brew formula is shared state; two agents racing here = duplicate PRs to the tap. Hold the lock until the tap PR merges. |
+| `pd lock release-publish` | **Only for §1 step J** (manual Homebrew-tap `repository_dispatch`, used when `release.yml`'s automatic roll fails). Brew formula is shared state; two agents racing here = duplicate PRs to the tap. Hold the lock until the tap PR merges. |
 | `pd note "..."` | Scope notes, milestones, blockers. Use `pd say --pin` for cross-session truths (`"3.15.0 binaries published"`). |
 | `pd pub promotion:release-surfaces` | Manual fire of the channel that `pd-fleet.yml`'s documentarian listens on. After a release, this kicks the docs-review fleet. |
 | `pd claim <port-name> -q` | For isolated test daemons in worktrees. Don't hardcode ports. |
