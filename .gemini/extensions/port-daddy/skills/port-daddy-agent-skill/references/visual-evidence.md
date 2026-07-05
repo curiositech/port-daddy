@@ -47,7 +47,7 @@ for w in wl:
     o = w.get('kCGWindowOwnerName','')
     if 'FleetBar' in o or 'pd-console' in o:
         print(w.get('kCGWindowNumber'), o, w.get('kCGWindowBounds'))"
-screencapture -x -l<ID> out.png    # -l <id> targets the window (no raise/focus); -x just mutes the shutter sound
+screencapture -x -l "$ID" out.png    # -l <id> targets the window (no raise/focus); -x just mutes the shutter sound
 ```
 
 **TCC gotcha:** `could not create image from window` means your shell's host
@@ -59,11 +59,14 @@ server reconnected) to pick it up. Ask once, plainly — do not retry in a loop.
 ### 3. No window open, native app (menu-bar popover, GPUI pane) → purpose-built harness, not clicks
 
 - **pd-console:** `core/pd-console/scripts/capture-gpui.sh` builds and drives
-  the console offscreen-ish and writes captures to `docs/artifacts/gpui/`.
-  Prefer it over opening the operator's console lanes.
-- **FleetBar:** build a dev-lane bundle
-  (`apps/FleetBar/scripts/package-fleetbar-lane.sh --devbuild <name>`) so you
-  never touch the operator's running prod/dev-latest instances. If evidence
+  the console offscreen-ish and writes captures to
+  `core/pd-console/docs/artifacts/gpui/` by default (override with an
+  explicit `[output-dir]` arg). Prefer it over opening the operator's console
+  lanes.
+- **FleetBar:** build a named dev-lane bundle
+  (`scripts/install-fleetbar-lane.sh dev-<name>`, or
+  `scripts/package-fleetbar.sh` for a plain zipped artifact) so you never
+  touch the operator's running prod/dev-latest instances. If evidence
   requires its window and none is open, say so in the PR body and fall back to
   the computer-use MCP (rung 4) or an honest partial (rung 5).
 - **Never** AppleScript/System-Events click the real menu bar, and never
