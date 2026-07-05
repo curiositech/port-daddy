@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Port Daddy — Sign In (converged mock)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600;700&family=Recursive:CASL,wght@1,600..800&display=swap">
+<link rel="stylesheet" href="ch20-tokens.css">
+<style>
+/* ============================================================
+   triad-login — /login reskinned onto binder ch20 story linework.
+   Content doctrine preserved from PR #671 02-accounts spec:
+   local-first block above the fold (the page's one cobalt slab),
+   OIDC primary + magic link, the 4-digit pairing ritual on the
+   login page itself, no-custodial-keys honesty unsoftened.
+   ============================================================ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--surface-base); color: var(--text-primary);
+  font-size: 0.9375rem; line-height: 1.6; padding-bottom: 3rem;
+}
+a { color: var(--cobalt); text-decoration: underline; text-underline-offset: 3px; }
+a:hover { color: var(--teal); }
+:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
+
+/* ---------- spec pagehead ---------- */
+.pagehead { max-width: 1080px; margin: 2.2rem auto 0.4rem; padding: 0 2rem; }
+.pagehead h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
+.pagehead > p { color: var(--text-secondary); max-width: 70ch; margin-top: 0.35rem; }
+.pagehead .refs { margin-top: 0.4rem; color: var(--text-muted); }
+
+/* ---------- surface chrome ---------- */
+.top {
+  max-width: 1080px; margin: 1.6rem auto 0; padding: 0.8rem 2rem;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
+  border-top: 1px solid var(--hair-strong); border-bottom: 1px solid var(--hair-strong);
+}
+.wordmark { font-weight: 700; font-size: 1.0625rem; letter-spacing: 0.02em;
+  color: var(--text-primary); text-decoration: none; }
+.wordmark:hover { color: var(--cobalt); }
+.top-truth { display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted); }
+.top-truth .dot8 { background: var(--health); }
+.top-truth b { color: var(--health); font-weight: 600; }
+
+/* ---------- split ---------- */
+main.split {
+  max-width: 1080px; margin: 0 auto;
+  display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 3rem; padding: 2.6rem 2rem 3rem; align-items: start;
+}
+@media (max-width: 900px) { main.split { grid-template-columns: 1fr; gap: 2.5rem; } }
+
+/* ---------- left: the argument ---------- */
+.arg .eyebrow-line { display: block; margin-bottom: 0.7rem; }
+.arg h2 { font-size: clamp(1.7rem, 3.4vw, 2.3rem); font-weight: 700;
+  letter-spacing: -0.02em; line-height: 1.12; margin-bottom: 1.4rem; max-width: 20ch; }
+.arg h2 .accent { color: var(--cobalt); }
+
+/* the one slab on this page: local-first honesty, cobalt (L0 truth) */
+.honesty { background: var(--cobalt-slab); padding: 1.4rem 1.6rem; max-width: 40rem; }
+.honesty .tag { font-size: 0.75rem; font-weight: 650; text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--flag-white); opacity: 0.85; display: block; margin-bottom: 0.6rem; }
+.honesty p { font-size: 1.0625rem; line-height: 1.55; }
+.honesty strong { font-weight: 700; }
+
+.proof { margin-top: 2rem; max-width: 40rem; }
+.proof-row {
+  display: grid; grid-template-columns: 8rem 1fr; gap: 1rem;
+  padding: 0.8rem 0; border-top: 1px solid var(--hair-strong); align-items: baseline;
+}
+.proof-row:last-of-type { border-bottom: 1px solid var(--hair-strong); }
+.proof-label { font-weight: 700; letter-spacing: 0.06em; color: var(--cobalt); font-size: 0.875rem; }
+.proof-body { color: var(--text-primary); }
+.proof-body .path { color: var(--text-muted); }
+@media (max-width: 520px) { .proof-row { grid-template-columns: 1fr; gap: 0.2rem; } }
+
+.arg .art-slot { margin-top: 2rem; max-width: 40rem; min-height: 140px; }
+
+/* ---------- right: the door (the page's one live panel) ---------- */
+.door { background: var(--surface-card); border: 1px solid var(--hair); padding: 3px; }
+.door-head {
+  border-bottom: 1px solid var(--hair-strong); padding: 0.9rem 1.4rem;
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+.door-head h3 { font-size: 1.125rem; font-weight: 700; letter-spacing: 0.01em; }
+.door-head .num { color: var(--text-muted); }
+.door-body { padding: 1.4rem; }
+
+.btn {
+  display: block; width: 100%; border: 2px solid var(--border-strong);
+  background: var(--surface-card); color: var(--text-primary);
+  font: inherit; font-size: 1rem; font-weight: 600;
+  padding: 0.75rem 1rem; cursor: pointer; text-align: center;
+}
+.btn:hover { background: var(--surface-sunken); }
+.btn-primary {
+  background: var(--cobalt-slab); color: var(--flag-white); border-color: var(--cobalt-slab);
+}
+.btn-primary:hover { background: var(--cobalt-slab); opacity: 0.92; }
+.sub-caption { display: block; margin-top: 0.5rem; font-size: 0.875rem;
+  color: var(--text-muted); text-align: center; }
+
+.divider {
+  display: flex; align-items: center; gap: 0.9rem; margin: 1.4rem 0;
+  color: var(--text-muted); font-size: 0.875rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.1em;
+}
+.divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--hair-strong); }
+
+label.field-label { display: block; font-size: 0.875rem; font-weight: 600;
+  letter-spacing: 0.04em; margin-bottom: 0.4rem; }
+input[type="email"] {
+  display: block; width: 100%; border: 2px solid var(--border-strong);
+  background: var(--surface-base); color: var(--text-primary);
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: 0.9375rem; padding: 0.7rem 0.9rem; margin-bottom: 0.75rem;
+}
+input::placeholder { color: var(--text-muted); opacity: 1; }
+
+/* pairing ritual: secondary tinted well = cobalt wash */
+.pair { margin-top: 1.6rem; background: var(--cobalt-wash);
+  border: 1px solid var(--hair); padding: 1.1rem 1.3rem 1.3rem; }
+.pair h4 { font-size: 1rem; font-weight: 700; margin-bottom: 0.9rem;
+  display: flex; align-items: center; gap: 0.55rem; }
+.digits { display: flex; gap: 0.7rem; margin-bottom: 0.8rem; }
+.digits input {
+  width: 3.4rem; height: 3.4rem; border: 2px solid var(--border-strong);
+  background: var(--surface-base); color: var(--text-primary);
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: 1.6rem; font-weight: 700; text-align: center;
+}
+.pair .hint { font-size: 0.875rem; color: var(--text-secondary);
+  display: flex; align-items: baseline; gap: 0.5rem; }
+.pair .hint .mfl { transform: translateY(1px); }
+.pair .hint .cmd { color: var(--teal); font-weight: 600; }
+.pair .invariant { margin-top: 0.6rem; font-size: 0.875rem; color: var(--text-muted); }
+
+.door-foot { border-top: 1px solid var(--hair-strong); padding: 1.1rem 1.4rem; }
+.door-foot .warn { font-size: 0.9375rem; line-height: 1.55; margin-bottom: 0.7rem; }
+.door-foot .warn strong { font-weight: 700; }
+.door-foot .cost { font-size: 0.875rem; color: var(--gold); font-weight: 600; margin-bottom: 0.8rem; }
+.door-foot nav { font-size: 0.9375rem; font-weight: 600; display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.door-foot nav .sep { color: var(--text-muted); }
+
+/* ---------- footer plaques ---------- */
+footer.creed { max-width: 1080px; margin: 0 auto; padding: 0 2rem; }
+.creed-inner { border-top: 1px solid var(--hair-strong);
+  display: grid; grid-template-columns: repeat(3, 1fr); }
+.plaque { padding: 1.1rem 1rem; text-align: center; font-weight: 650;
+  font-size: 0.875rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-secondary); border-left: 1px solid var(--hair); }
+.plaque:first-child { border-left: none; }
+@media (max-width: 700px) {
+  .creed-inner { grid-template-columns: 1fr; }
+  .plaque { border-left: none; border-top: 1px solid var(--hair); }
+  .plaque:first-child { border-top: none; }
+}
+</style>
+</head>
+<body class="ch20 plex">
+
+<div class="pagehead">
+  <h1>Login — the trust model in one <span class="casual">screen</span></h1>
+  <p>The page's job is not conversion. Local-first honesty is the first block a visitor
+     reads, the cobalt slab; GitHub OIDC is the primary door, magic link the secondary.
+     The 4-digit pairing ritual lives on the login page itself because pairing a daemon
+     is the product's real sign-in.</p>
+  <p class="refs mono">binder ch20 + 03-parley-convergence.md punch-list item 1 · content: PR #671 02-accounts spec</p>
+</div>
+
+<header class="top">
+  <a class="wordmark" href="#">Port Daddy</a>
+  <p class="top-truth mono"><span class="dot8"></span> accounts.portdaddy.dev <b>ONLINE</b> · daemon optional</p>
+</header>
+
+<main class="split">
+
+  <!-- LEFT: the argument -->
+  <section class="arg" aria-labelledby="headline">
+    <span class="eyebrow eyebrow-line">Port Daddy / Accounts</span>
+    <h2 id="headline">Sign in to the <span class="accent">control plane.</span></h2>
+
+    <div class="honesty slab">
+      <span class="tag">Local-first</span>
+      <p>
+        Port Daddy works without an account. Your daemon, agents, and transcripts
+        stay on your machine. An account adds what only a server can:
+        <strong>signed downloads, device pairing, receipts you can share, team harbors.</strong>
+      </p>
+    </div>
+
+    <div class="proof">
+      <div class="proof-row">
+        <span class="proof-label mono">RECEIPTS</span>
+        <span class="proof-body">Verifiable URLs for every fleet run <span class="path mono">&middot; portdaddy.dev/r/&hellip;</span></span>
+      </div>
+      <div class="proof-row">
+        <span class="proof-label mono">PAIRING</span>
+        <span class="proof-body">4-digit code, echoed on your daemon</span>
+      </div>
+      <div class="proof-row">
+        <span class="proof-label mono">KEYS</span>
+        <span class="proof-body">The website never holds your private keys</span>
+      </div>
+    </div>
+
+    <div class="art-slot"><span class="art-label">cut-paper: harbor at dusk — light/dark pair</span></div>
+  </section>
+
+  <!-- RIGHT: the door (live panel — brackets) -->
+  <section aria-labelledby="door-title">
+    <div class="door bracketed"><span class="bk"></span>
+      <div class="door-head">
+        <h3 id="door-title">Sign in</h3>
+        <span class="num mono">AUTH / 01</span>
+      </div>
+
+      <div class="door-body">
+        <button class="btn btn-primary" type="button">Continue with GitHub</button>
+        <span class="sub-caption mono">OIDC &mdash; 1-hour session, httponly &middot; re-auth for sensitive writes</span>
+
+        <div class="divider" role="separator">or</div>
+
+        <form action="#" method="post">
+          <label class="field-label" for="email">Email me a magic link</label>
+          <input type="email" id="email" name="email" autocomplete="email"
+                 placeholder="operator@example.com" required>
+          <button class="btn" type="submit">Email me a magic link</button>
+        </form>
+
+        <div class="pair">
+          <h4><span class="mfl fl-papa" title="Papa — about to sail"></span>Pair this browser to a daemon</h4>
+          <div class="digits" role="group" aria-label="Four-digit pairing code">
+            <input type="text" inputmode="numeric" maxlength="1" aria-label="Pairing digit 1">
+            <input type="text" inputmode="numeric" maxlength="1" aria-label="Pairing digit 2">
+            <input type="text" inputmode="numeric" maxlength="1" aria-label="Pairing digit 3">
+            <input type="text" inputmode="numeric" maxlength="1" aria-label="Pairing digit 4">
+          </div>
+          <p class="hint"><span class="mfl fl-kilo" title="Kilo — I wish to communicate"></span>
+            <span>The code appears in FleetBar &rarr; <span class="cmd mono">Pair this device</span>
+            (terminal alternative: <span class="cmd mono">pd account pair</span>)</span></p>
+          <p class="invariant">Pairing requires OIDC proof <em>and</em> your account-key co-signature. Neither alone is enough.</p>
+        </div>
+      </div>
+
+      <div class="door-foot">
+        <p class="warn">
+          <strong>No custodial recovery</strong> &mdash; your account key lives in your
+          OS keychain. Lose it and the account is dead by design.
+        </p>
+        <p class="cost">An account is <span class="mono">$0</span> on the Local-only tier. Every paid action shows its price before you approve it.</p>
+        <nav aria-label="Account footer links">
+          <a href="#">Docs</a><span class="sep">&middot;</span>
+          <a href="#">Security model</a><span class="sep">&middot;</span>
+          <a href="#">Download</a>
+        </nav>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="creed">
+  <div class="creed-inner">
+    <p class="plaque">Local-first</p>
+    <p class="plaque">Receipts over promises</p>
+    <p class="plaque">No keys server-side</p>
+  </div>
+</footer>
+
+</body>
+</html>
