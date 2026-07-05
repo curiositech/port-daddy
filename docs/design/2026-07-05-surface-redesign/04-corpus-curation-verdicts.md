@@ -58,3 +58,13 @@ v4 verbs + ch20 skin + verdict-1 state-dependent stacking + rebuilt sound set.
 4. Follow-up work orders, in value order: (a) FleetBar reset (v4 verbs, sound
    rebuild), (b) persona presets into pd-console/FCC, (c) account
    color-blocking graft, (d) FCC product charter.
+
+## Addendum (operator, same day)
+
+- `v4-mockup.html`: "looks and feels good, great motion and color and space —
+  though the dark needs a different palette." FleetBar-reset work order
+  inherits v4's motion/spacing; dark theme gets its own palette pass (ch20
+  luminous stack, not v4's dark as-is).
+- `operator-tui-v9.html`: the **translation layer** is elevated alongside the
+  persona presets ("genius") — the same underlying state rendered per-persona
+  through a translation layer, not forked views. Deep-surface requirement.
