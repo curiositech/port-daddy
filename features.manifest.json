@@ -1370,6 +1370,23 @@
         "check_harbor_envelope"
       ]
     },
+    "harbor-ledger": {
+      "description": "Agent Harbor append-only event ledger and disposable projections (roster, transcript timeline, files touched, costs, compliance, work receipts) — binder ch18 Work Order C1, ADR-0095",
+      "module": "lib/agent-harbor/event-ledger.ts",
+      "cli": [
+        "harbor-ledger"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "harbor-ledger"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "CLI + library only in the C1 slice; daemon routes land with the C3 operator panel wave"
+    },
     "bonds": {
       "description": "Bond escrow state machine \u2014 daemon escrows money before spawn, refunds on clean exit, slashes on violation. Enforcement half of the cost-tracker/bonds split.",
       "module": "lib/bonds.ts",
