@@ -12,7 +12,9 @@ See [`VERSIONING.md`](VERSIONING.md) for semver policy and the canonical list of
 
 ## 1. Public release
 
-The release boundary is a git tag plus a GitHub Release. The workflow `.github/workflows/release.yml` builds notarized binaries from the tagged commit and automatically dispatches to `curiositech/homebrew-tap` to roll the formula. `.github/workflows/publish.yml` is the manual companion for **npm** only (not the brew tap).
+The release boundary is a git tag plus a GitHub Release. The workflow `.github/workflows/release.yml` builds notarized binaries from the tagged commit and automatically dispatches to `curiositech/homebrew-tap` to roll the formula.
+
+**npm distribution is retired** (2026-07-04, operator decision): brew, the release binaries, and `latest.json` cover every supported install path; the npm token had been dead since 3.15.0 so the registry was eight releases stale anyway. `.github/workflows/publish.yml` remains as the manual path if npm is ever revived — if so, `npm deprecate` the stale versions first.
 
 ### Recipe
 
@@ -163,7 +165,7 @@ cd .scratch/rc && tar -xzf pd-darwin-arm64.tar.gz
 git tag -a v3.14.1 -m "Port Daddy 3.14.1 — <hotfix description>"
 git push origin v3.14.1
 gh release create v3.14.1 --generate-notes --title "v3.14.1 — <hotfix>"
-# ... then publish.yml as in §1 step J
+# ... then babysit release.yml as in §1 step I/J (binaries + brew tap roll)
 ```
 
 ### Anti-pattern
@@ -241,7 +243,7 @@ Not decoration — these primitives matter:
 |---|---|
 | `pd begin --identity port-daddy:<work> --lifecycle durable` | Always. Session is the atomic unit of "who's editing what". |
 | `pd session files add <path>` | Before any edit. Advisory, but visible to other agents via `pd sessions --all-worktrees`. |
-| `pd lock release-publish` | **Only for §1 step J** (`publish.yml` dispatch). Brew formula is shared state; two agents racing here = duplicate PRs to the tap. Hold the lock until the tap PR merges. |
+| `pd lock release-publish` | **Only for §1 step J** (manual Homebrew-tap `repository_dispatch`, used when `release.yml`'s automatic roll fails). Brew formula is shared state; two agents racing here = duplicate PRs to the tap. Hold the lock until the tap PR merges. |
 | `pd note "..."` | Scope notes, milestones, blockers. Use `pd say --pin` for cross-session truths (`"3.15.0 binaries published"`). |
 | `pd pub promotion:release-surfaces` | Manual fire of the channel that `pd-fleet.yml`'s documentarian listens on. After a release, this kicks the docs-review fleet. |
 | `pd claim <port-name> -q` | For isolated test daemons in worktrees. Don't hardcode ports. |
