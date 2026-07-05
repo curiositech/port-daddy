@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Port Daddy — Account · Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Recursive:CASL,wght@1,400..800&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════════════════════════════════
+   ACCOUNT HOME — converged on ch20 Story Linework (binder ch. 20)
+   Palette v2 tokens verbatim from story-linework/ports/port.css.
+   Fractional linework: 1px texture · 1.5px linework · 2px enclosure,
+   never adjacent-mixed. Zero radius. Zero elevation shadow (inset
+   box-shadow is the sanctioned stripe technique, not elevation).
+   One color zone per view: the RECEIPTS cobalt masthead.
+   ════════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root, [data-theme="light"] {
+  --surface-base:   #f2eee6;
+  --surface-raised: #f7f3eb;
+  --surface-strong: #e9e2d5;
+  --text-primary:   #121212;
+  --text-secondary: #403b34;
+  --text-muted:     #47423a;
+  --text-ghost:     #98928a;
+
+  --cobalt: #003fb8;  --teal: #006b5f;  --health: #1f7a4d;
+  --amber:  #a66f00;  --error: #bf2f2f;
+  --violet: #933fa5;  --rust: #7a4514;  --gold: #666a00;
+
+  --hair:        rgba(18, 18, 18, 0.14);
+  --hair-strong: rgba(18, 18, 18, 0.34);
+  --border-strong: #121212;
+  --surface-card: #e9e2d5;   /* light cards sit on the STRONG well (rule 5) */
+  --on-accent: #fbf7ef;      /* text on cobalt fills, per theme */
+}
+/* v2.1 cuts — theme-independent. Slabs take cream text in BOTH themes. */
+:root {
+  --cobalt-slab: #003fb8;
+  --gold-slab:   #666a00;   /* the "budget as gold" cut — money artifacts only */
+  --lime: #cad900;
+  --flag-white: #fbf7ef;
+  --cream: #fbf7ef;
+  --lw-weight: 1.5px;
+  --lw-stripe: 3px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface-base:   #101216;
+    --surface-raised: #181c22;
+    --surface-strong: #222833;
+    --text-primary:   #f5f3ed;
+    --text-secondary: #d3cec2;
+    --text-muted:     #a59f93;
+    --text-ghost:     #5c574e;
+    --cobalt: #7db4ff;  --teal: #8fd0a7;  --health: #5fce97;
+    --amber:  #f2be51;  --error: #ff7d7d;
+    --violet: #e0a5ed;  --rust: #b98e6b;  --gold: #d8dd3c;
+    --hair:        rgba(245, 243, 237, 0.14);
+    --hair-strong: rgba(245, 243, 237, 0.34);
+    --border-strong: #f5f3ed;
+    --surface-card: #181c22;
+    --on-accent: #121212;
+  }
+}
+:root[data-theme="dark"] {
+  --surface-base:   #101216;
+  --surface-raised: #181c22;
+  --surface-strong: #222833;
+  --text-primary:   #f5f3ed;
+  --text-secondary: #d3cec2;
+  --text-muted:     #a59f93;
+  --text-ghost:     #5c574e;
+  --cobalt: #7db4ff;  --teal: #8fd0a7;  --health: #5fce97;
+  --amber:  #f2be51;  --error: #ff7d7d;
+  --violet: #e0a5ed;  --rust: #b98e6b;  --gold: #d8dd3c;
+  --hair:        rgba(245, 243, 237, 0.14);
+  --hair-strong: rgba(245, 243, 237, 0.34);
+  --border-strong: #f5f3ed;
+  --surface-card: #181c22;
+  --on-accent: #121212;
+}
+
+html, body { overflow-x: clip; }
+body {
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: "IBM Plex Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+.mono, code { font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace; font-variant-numeric: tabular-nums slashed-zero; }
+h1, h2, h3 { text-wrap: balance; letter-spacing: -0.02em; }
+p { text-wrap: pretty; }
+a { color: var(--cobalt); }
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
+
+/* the play voice — Recursive casual axis marks display em-phrases */
+.rec { font-family: "Recursive", "IBM Plex Sans", sans-serif; font-variation-settings: "CASL" 1; font-weight: 680; }
+
+/* 12px is the sanctioned eyebrow exception: mono, weight 700, caps, 0.12em */
+.eyebrow {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--text-muted);
+}
+.caption { font-size: 13.5px; line-height: 1.55; color: var(--text-muted); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ── shell: rail + content ── */
+.shell { display: grid; grid-template-columns: 236px 1fr; max-width: 1240px; margin: 0 auto; min-height: 100vh; }
+
+/* ── nav rail: enclosure weight (2px) on the page chrome only ── */
+.rail {
+  border-right: 2px solid var(--border-strong);
+  display: flex; flex-direction: column;
+  position: sticky; top: 0; align-self: start; min-height: 100vh;
+  padding: 26px 0 18px;
+}
+.rail-brand { display: flex; align-items: baseline; gap: 9px; padding: 0 22px 22px; }
+.rail-brand .mark { font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 19px; color: var(--cobalt); }
+.rail-brand .word { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+.rail nav { flex: 1; padding-top: 10px; position: relative; }
+.rail nav::before { content: ""; position: absolute; top: 0; left: 22px; width: 64px; height: 1px; background: var(--hair-strong); }
+.rail nav .eyebrow { display: block; padding: 10px 22px 8px; }
+.rail nav a {
+  display: block; padding: 8px 22px; font-size: 15px; font-weight: 500;
+  color: var(--text-primary); text-decoration: none;
+}
+.rail nav a:hover { color: var(--cobalt); }
+.rail nav a[aria-current="page"] {
+  font-weight: 700;
+  box-shadow: inset var(--lw-stripe) 0 0 var(--cobalt);  /* 3px state stripe */
+}
+.rail-foot { padding: 16px 22px 0; position: relative; }
+.rail-foot::before { content: ""; position: absolute; top: 0; left: 22px; width: 64px; height: 1px; background: var(--hair-strong); }
+.rail-foot .who { display: block; font-family: "IBM Plex Mono", monospace; font-size: 13.5px; color: var(--text-secondary); margin-bottom: 6px; }
+.rail-foot button { font-size: 14px; font-weight: 600; color: var(--cobalt); text-decoration: underline; text-underline-offset: 3px; padding: 0; }
+
+/* ── content column ── */
+.content { padding: 40px 56px 80px; min-width: 0; }
+.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+.page-head h1 { font-size: clamp(30px, 3.4vw, 42px); font-weight: 700; line-height: 1.05; letter-spacing: -0.03em; }
+.page-head .caption { margin-top: 10px; max-width: 52ch; }
+
+.theme-toggle {
+  font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  background: var(--border-strong); color: var(--surface-base);
+  padding: 7px 13px; flex: none;
+}
+
+/* ── the fractional section pattern: midline rules, generous gaps, no boxes.
+     Division dialect = centered-third rule at linework weight (1.5px). ── */
+section.sect { padding-top: 56px; margin-top: 56px; position: relative; }
+section.sect.first { padding-top: 40px; margin-top: 24px; }
+section.sect.first::before { content: none; }  /* no rule above the first section */
+section.sect::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: var(--lw-weight);
+  background-image: linear-gradient(to right, transparent 0 32%, var(--border-strong) 32% 68%, transparent 68% 100%);
+}
+.sect-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.sect-head h2 { font-size: 24px; font-weight: 700; }
+.sect-head .eyebrow { margin-bottom: 6px; display: block; }
+
+/* ── buttons ── */
+.cta {
+  display: inline-block; font-family: "IBM Plex Mono", monospace;
+  font-size: 13.5px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 10px 18px; background: var(--cobalt); color: var(--on-accent);
+}
+.btn-ghost {
+  display: inline-block; font-family: "IBM Plex Mono", monospace;
+  font-size: 13.5px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 9px 17px; border: 1px solid var(--hair-strong); color: var(--text-primary);
+  background: transparent;
+}
+.btn-ghost:hover { border-color: var(--border-strong); }
+/* error is spent ONLY on revoke/delete */
+.btn-revoke {
+  font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 6px 12px; border: 1px solid var(--error); color: var(--error);
+  background: transparent; white-space: nowrap;
+}
+.btn-revoke:hover { background: var(--error); color: var(--surface-base); }
+
+/* ── 1 · IDENTITY — the plate is a card: strong well + mandatory hairline (rule 5) ── */
+.identity-plate { background: var(--surface-card); border: 1px solid var(--hair); padding: 26px 28px; }
+.identity-plate .name { font-size: 30px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; }
+.identity-plate .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.chip {
+  display: inline-block; font-family: "IBM Plex Mono", monospace;
+  font-size: 13px; font-weight: 600; letter-spacing: 0.01em;
+  padding: 5px 11px; border: 1px solid var(--hair-strong); color: var(--text-secondary);
+}
+/* violet edges identity artifacts only */
+.chip-identity { border-color: var(--violet); color: var(--violet); }
+/* teal carries OIDC + device roles */
+.chip-oidc { border-color: var(--teal); color: var(--teal); font-weight: 700; }
+.oidc-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-top: 16px; padding-top: 12px; box-shadow: inset 0 1px 0 var(--hair); }
+.oidc-row .provider { font-weight: 700; font-size: 15px; }
+.oidc-row .detail { font-family: "IBM Plex Mono", monospace; font-size: 13.5px; color: var(--text-muted); }
+.identity-plate .caption { margin-top: 14px; }
+
+/* ── 2 · DEVICES — ledger rows, hairline-separated, no enclosure ── */
+/* rule 7: the page's one literal flag. KILO — "I wish to communicate
+   with you" — holds the pairing masthead, where its meaning is true.
+   (Romeo is banned: it has no single-flag meaning.) */
+.flag-kilo {
+  display: inline-block; width: 28px; height: 20px; flex: none;
+  border: 1px solid var(--hair-strong); align-self: center;
+  background: linear-gradient(to right, var(--lime) 0 50%, var(--cobalt-slab) 50% 100%);
+}
+.flag-title { display: flex; align-items: center; gap: 12px; }
+.flag-mean { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
+
+.ledger { border-top: var(--lw-weight) solid var(--border-strong); }
+.dev-row { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: center; padding: 16px 2px; }
+.dev-row + .dev-row { box-shadow: inset 0 1px 0 var(--hair); }
+/* state is never color alone: dot + word + relative time (rule 8) */
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.dot-live { background: var(--health); }
+.dot-idle { background: var(--amber); }
+.dev-row .d-line { font-size: 15.5px; }
+.dev-row .d-name { font-weight: 700; }
+.dev-row .d-role { color: var(--teal); font-weight: 600; }
+.dev-row .d-cap { font-size: 14px; color: var(--text-secondary); margin-top: 2px; max-width: 64ch; }
+.dev-row .d-meta { font-family: "IBM Plex Mono", monospace; font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+.dev-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 22px; }
+.dev-actions .caption { max-width: 48ch; }
+
+/* ── 3 · RECEIPTS — carries the page's ONE color zone: a cobalt-slab
+     masthead whose glyphs flip to cream at the block edge (knockout). ── */
+.zone-mast { margin-bottom: 26px; }
+.ko { position: relative; z-index: 0; display: inline-block; --ko-r: 64%; }
+.ko::before {
+  content: ""; position: absolute; z-index: -1;
+  left: -56px; right: calc(100% - var(--ko-r));
+  top: -13px; bottom: -13px;
+  background: var(--cobalt-slab);
+}
+.ko .ko-over {
+  position: absolute; inset: 0; color: var(--cream); pointer-events: none;
+  clip-path: inset(-13px calc(100% - var(--ko-r)) -13px -56px);
+}
+.zone-mast h2 { font-size: 26px; font-weight: 700; line-height: 1.15; }
+.zone-mast .caption { display: block; margin-top: 22px; max-width: 62ch; }
+
+.receipt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.receipt { background: var(--surface-card); border: 1px solid var(--hair); display: flex; flex-direction: column; }
+.receipt .r-url {
+  font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600;
+  color: var(--text-muted); padding: 10px 16px;
+  box-shadow: inset 0 -1px 0 var(--hair);
+  white-space: nowrap; overflow-x: auto;
+}
+.receipt .r-body { padding: 14px 16px 4px; flex: 1; }
+.receipt h3 { font-size: 16.5px; font-weight: 700; line-height: 1.35; }
+.receipt .r-stats {
+  font-family: "IBM Plex Mono", monospace; font-size: 13.5px; color: var(--text-muted);
+  display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 10px;
+}
+/* gold marks money, nothing else */
+.receipt .cost { color: var(--gold); font-weight: 700; }
+.receipt .r-foot { padding: 12px 16px 16px; }
+
+/* ── 4 · HARBORS — tier cards on the strong well ── */
+.harbor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.harbor { background: var(--surface-card); border: 1px solid var(--hair); padding: 20px 22px; }
+.harbor h3 { font-family: "IBM Plex Mono", monospace; font-size: 16px; font-weight: 700; }
+.tier {
+  display: inline-block; font-family: "IBM Plex Mono", monospace;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 3px 9px; border: 1px solid currentColor; margin: 8px 0 10px;
+}
+.tier-personal { color: var(--teal); }
+.tier-team { color: var(--cobalt); }
+.tier-guest { color: var(--rust); }        /* rust = guest / reputation */
+.harbor .h-meta { font-size: 14.5px; line-height: 1.6; color: var(--text-secondary); }
+.harbor-guest { border-color: var(--rust); }
+.harbor-guest .expiry { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 700; color: var(--rust); }
+/* violet = identity/federation teaser; dashed hairline = not yet real */
+.harbor-federate { border: 1px dashed var(--violet); background: transparent; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 20px 22px; }
+.harbor-federate a { color: var(--violet); font-weight: 700; font-size: 16.5px; text-decoration: none; }
+.harbor-federate a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ── 5 · PLAN & CAPS — the ch20 "budget as gold" move ── */
+.plan-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: stretch; }
+.plan-plate, .caps-plate { background: var(--surface-card); border: 1px solid var(--hair); padding: 22px 24px; }
+.plan-plate .plan-name { font-size: 21px; font-weight: 700; margin-top: 4px; }
+/* the price is a small gold-slab plate — cream text in both themes (rule 4) */
+.price-slab {
+  display: inline-block; background: var(--gold-slab); color: var(--cream);
+  font-family: "IBM Plex Mono", monospace; font-size: 19px; font-weight: 700;
+  padding: 6px 13px; margin-top: 10px;
+}
+.plan-plate .plan-inc { font-size: 14px; color: var(--text-secondary); margin-top: 10px; }
+.usage { margin-top: 20px; padding-top: 14px; box-shadow: inset 0 1px 0 var(--hair); }
+.usage-row + .usage-row { margin-top: 14px; }
+.usage-row .u-label { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; margin-bottom: 5px; }
+.usage-row .u-num { font-family: "IBM Plex Mono", monospace; font-size: 13.5px; color: var(--text-muted); }
+.bar { height: 9px; border: 1px solid var(--hair-strong); }
+.bar > span { display: block; height: 100%; background: var(--border-strong); }
+
+.caps-plate h3 { font-size: 16.5px; font-weight: 700; }
+.cap-row { display: grid; grid-template-columns: 1fr 8.5rem; gap: 12px; align-items: center; margin-top: 12px; }
+.cap-row label { font-size: 14.5px; font-weight: 600; }
+.cap-row .cap-when { display: block; font-size: 13px; font-weight: 400; color: var(--text-muted); }
+.cap-row input {
+  font-family: "IBM Plex Mono", monospace; font-size: 15px; font-weight: 600;
+  padding: 6px 10px; border: 1px solid var(--hair-strong);
+  background: var(--surface-base); color: var(--text-primary);
+  width: 100%; text-align: right;
+}
+.caps-foot { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
+.caps-foot .caption { max-width: 34ch; }
+
+/* ── 6 · DANGER — a strip, not a box; error only on the destructive act ── */
+.danger { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.btn-delete {
+  display: inline-block; font-family: "IBM Plex Mono", monospace;
+  font-size: 13.5px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 9px 17px; border: 1px solid var(--error); color: var(--error);
+  background: transparent;
+}
+.btn-delete:hover { background: var(--error); color: var(--surface-base); }
+.danger .caption { flex-basis: 100%; max-width: 66ch; }
+
+/* corner note */
+.port-note {
+  position: fixed; bottom: 18px; right: 18px; z-index: 60;
+  font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  background: var(--border-strong); color: var(--surface-base);
+  padding: 6px 12px;
+}
+
+/* ── responsive ── */
+@media (max-width: 1020px) {
+  .receipt-grid { grid-template-columns: 1fr; }
+  .harbor-grid, .plan-wrap { grid-template-columns: 1fr; }
+}
+@media (max-width: 860px) {
+  .shell { grid-template-columns: 1fr; }
+  .rail { position: static; min-height: 0; border-right: none; border-bottom: 2px solid var(--border-strong); padding-bottom: 18px; }
+  .content { padding: 28px 20px 64px; }
+  .ko::before { left: -20px; }
+  .ko .ko-over { clip-path: inset(-13px calc(100% - var(--ko-r)) -13px -20px); }
+  .dev-row { grid-template-columns: auto 1fr; }
+  .dev-row .btn-revoke { grid-column: 2; justify-self: start; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ═══════════ NAV RAIL ═══════════ -->
+  <aside class="rail">
+    <div class="rail-brand">
+      <span class="mark" aria-hidden="true">pd</span>
+      <span class="word">Port Daddy</span>
+    </div>
+    <nav aria-label="Account">
+      <span class="eyebrow">Account</span>
+      <a href="#" aria-current="page">Overview</a>
+      <a href="#devices">Devices</a>
+      <a href="#receipts">Receipts</a>
+      <a href="#harbors">Harbors</a>
+      <a href="#plan">Plan &amp; caps</a>
+      <a href="#">Provider keys</a>
+      <a href="#">Security</a>
+    </nav>
+    <div class="rail-foot">
+      <span class="who">operator@example.com</span>
+      <button type="button">Sign out</button>
+    </div>
+  </aside>
+
+  <!-- ═══════════ CONTENT ═══════════ -->
+  <main class="content">
+
+    <div class="page-head">
+      <div>
+        <span class="eyebrow">portdaddy.dev · account · overview</span>
+        <h1 style="margin-top: 8px;">Your <span class="rec">account</span></h1>
+        <p class="caption">Everything here mirrors your daemon. The daemon is the authority; this page is the window.</p>
+      </div>
+      <button type="button" class="theme-toggle" id="themeToggle">Dark</button>
+    </div>
+
+    <!-- ── 1 · IDENTITY ── -->
+    <section class="sect first" aria-labelledby="identity-h">
+      <div class="sect-head">
+        <div>
+          <span class="eyebrow" aria-hidden="true">Identity</span>
+          <h2 id="identity-h" class="sr-only">Identity</h2>
+        </div>
+      </div>
+      <div class="identity-plate">
+        <div class="name">Erich <span class="rec">Owens</span></div>
+        <div class="chips">
+          <span class="chip chip-identity mono">account key · ed25519 · macOS keychain · created 2026-03-02</span>
+        </div>
+        <div class="oidc-row">
+          <span class="provider">GitHub OIDC</span>
+          <span class="chip chip-oidc mono">verified</span>
+          <span class="detail">github.com/operator-example · last asserted 3d ago</span>
+        </div>
+        <p class="caption">The website never holds this key. It lives in your keychain; the server only ever sees signatures.</p>
+      </div>
+    </section>
+
+    <!-- ── 2 · DEVICES — Kilo holds the masthead: pairing IS "I wish to
+         communicate with you." The page's one literal flag (rule 7). ── -->
+    <section class="sect" id="devices" aria-labelledby="devices-h">
+      <div class="sect-head">
+        <div class="flag-title">
+          <i class="flag-kilo" role="img" aria-label="Kilo signal flag: I wish to communicate with you"></i>
+          <h2 id="devices-h">Devices</h2>
+          <span class="flag-mean">Kilo — I wish to communicate with you</span>
+        </div>
+        <span class="caption">3 paired</span>
+      </div>
+      <div class="ledger">
+        <div class="dev-row">
+          <span class="dot dot-live" aria-hidden="true"></span>
+          <div>
+            <div class="d-line"><span class="d-name">MacBook Pro M4</span> — <span class="d-role">primary control plane</span></div>
+            <div class="d-cap">Runs the daemon. Starts work, approves gates, holds the account key.</div>
+            <div class="d-meta">online · seen 2m ago · paired 2026-03-02</div>
+          </div>
+          <button type="button" class="btn-revoke">Revoke</button>
+        </div>
+        <div class="dev-row">
+          <span class="dot dot-live" aria-hidden="true"></span>
+          <div>
+            <div class="d-line"><span class="d-name">iPhone 15</span> — <span class="d-role">thin approval surface</span></div>
+            <div class="d-cap">Approvals and replies only. Cannot start work or read code.</div>
+            <div class="d-meta">online · seen 1h ago · paired 2026-04-11</div>
+          </div>
+          <button type="button" class="btn-revoke">Revoke</button>
+        </div>
+        <div class="dev-row">
+          <span class="dot dot-idle" aria-hidden="true"></span>
+          <div>
+            <div class="d-line"><span class="d-name">Home PC</span> — <span class="d-role">compute worker</span></div>
+            <div class="d-cap">GPU + Ollama. Accepts render and test requests only; refuses everything else.</div>
+            <div class="d-meta">idle · seen 3d ago · paired 2026-05-20</div>
+          </div>
+          <button type="button" class="btn-revoke">Revoke</button>
+        </div>
+      </div>
+      <div class="dev-actions">
+        <button type="button" class="cta">Pair new device</button>
+        <span class="caption">Pairing shows the same 4-digit code on both screens. Match them, done. No passwords cross the wire.</span>
+      </div>
+    </section>
+
+    <!-- ── 3 · RECEIPTS — the one color zone: cobalt-slab masthead,
+         glyphs flip to cream at the block edge. ── -->
+    <section class="sect" id="receipts" aria-labelledby="receipts-h">
+      <div class="zone-mast">
+        <h2 id="receipts-h" class="ko">Receipts — <span class="rec">verifiable</span>, not promised<span class="ko-over" aria-hidden="true">Receipts — <span class="rec">verifiable</span>, not promised</span></h2>
+        <span class="caption">The Strava-map of code work. Anyone with the link sees the proof — agents, commits, cost, duration — never your code.</span>
+      </div>
+      <div class="receipt-grid">
+        <article class="receipt">
+          <div class="r-url">portdaddy.dev/r/01JZC8KQ4M</div>
+          <div class="r-body">
+            <h3>ICOS skill shipped — PR #663</h3>
+            <div class="r-stats">
+              <span>7 agents</span><span>34 commits</span><span class="cost">$4.12</span><span>6h</span>
+            </div>
+          </div>
+          <div class="r-foot"><button type="button" class="btn-ghost">Share scoped link</button></div>
+        </article>
+        <article class="receipt">
+          <div class="r-url">portdaddy.dev/r/01JZB2W7XN</div>
+          <div class="r-body">
+            <h3>FleetBar PR sweep — 8 PRs closed</h3>
+            <div class="r-stats">
+              <span>12 agents</span><span>61 commits</span><span class="cost">$9.87</span><span>2d</span>
+            </div>
+          </div>
+          <div class="r-foot"><button type="button" class="btn-ghost">Share scoped link</button></div>
+        </article>
+        <article class="receipt">
+          <div class="r-url">portdaddy.dev/r/01JZ9THVRC</div>
+          <div class="r-body">
+            <h3>Daemon supervision integrity — PR #607</h3>
+            <div class="r-stats">
+              <span>3 agents</span><span>18 commits</span><span class="cost">$2.31</span><span>4h</span>
+            </div>
+          </div>
+          <div class="r-foot"><button type="button" class="btn-ghost">Share scoped link</button></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- ── 4 · HARBORS ── -->
+    <section class="sect" id="harbors" aria-labelledby="harbors-h">
+      <div class="sect-head">
+        <div>
+          <span class="eyebrow">Harbors</span>
+          <h2 id="harbors-h">Where your agents work</h2>
+        </div>
+        <span class="caption">— and who governs them there.</span>
+      </div>
+      <div class="harbor-grid">
+        <article class="harbor">
+          <h3>port-daddy</h3>
+          <span class="tier tier-personal">Personal</span>
+          <p class="h-meta">Local daemon. You are the only authority. Nothing leaves the machine unless you say so.</p>
+        </article>
+        <article class="harbor">
+          <h3>curiositech</h3>
+          <span class="tier tier-team">Team</span>
+          <p class="h-meta">3 seats · RBAC. Roles decide who approves gates, who spends, who merely watches.</p>
+        </article>
+        <article class="harbor harbor-guest">
+          <h3>harbor-coop</h3>
+          <span class="tier tier-guest">Guest</span>
+          <p class="h-meta">Guest card from <span class="mono">@mira</span> · <span class="expiry">expires in 6d</span>. Scoped access; her rules, her revocation.</p>
+        </article>
+        <div class="harbor-federate">
+          <a href="#">Federate a harbor &rarr;</a>
+          <p class="caption">Link two harbors so agents can carry credentials across them — under both harbors' rules, or not at all.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 5 · PLAN & CAPS — budget as gold ── -->
+    <section class="sect" id="plan" aria-labelledby="plan-h">
+      <div class="sect-head">
+        <div>
+          <span class="eyebrow">Plan &amp; caps</span>
+          <h2 id="plan-h">What it costs, and where it stops</h2>
+        </div>
+      </div>
+      <div class="plan-wrap">
+        <div class="plan-plate">
+          <span class="eyebrow">Current plan</span>
+          <div class="plan-name">Hybrid Relay</div>
+          <span class="price-slab">$12/mo</span>
+          <p class="plan-inc">Relay, pairing, push, metadata sync.</p>
+          <div class="usage">
+            <div class="usage-row">
+              <div class="u-label">
+                <span>Relay events</span>
+                <span class="u-num">41,200 / 100,000</span>
+              </div>
+              <div class="bar" role="img" aria-label="Relay events: 41 percent used"><span style="width:41%"></span></div>
+            </div>
+            <div class="usage-row">
+              <div class="u-label">
+                <span>Transcript storage</span>
+                <span class="u-num">2.6 GB / 10 GB</span>
+              </div>
+              <div class="bar" role="img" aria-label="Transcript storage: 26 percent used"><span style="width:26%"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="caps-plate">
+          <h3>Cost caps</h3>
+          <div class="cap-row">
+            <label for="cap-daily">Daily cap <span class="cap-when">resets 00:00 local</span></label>
+            <input id="cap-daily" type="text" inputmode="decimal" value="$8.50">
+          </div>
+          <div class="cap-row">
+            <label for="cap-run">Per-run cap <span class="cap-when">hard stop, mid-flight</span></label>
+            <input id="cap-run" type="text" inputmode="decimal" value="$2.00">
+          </div>
+          <div class="cap-row">
+            <label for="cap-month">Monthly cap <span class="cap-when">calendar month</span></label>
+            <input id="cap-month" type="text" inputmode="decimal" value="$120.00">
+          </div>
+          <div class="caps-foot">
+            <button type="button" class="cta">Apply</button>
+            <span class="caption">Caps are enforced by YOUR daemon, mirrored here.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 6 · DANGER ── -->
+    <section class="sect" aria-labelledby="danger-h">
+      <div class="sect-head">
+        <div>
+          <span class="eyebrow">Leaving</span>
+          <h2 id="danger-h">Take everything with you</h2>
+        </div>
+      </div>
+      <div class="danger">
+        <button type="button" class="btn-ghost">Export everything</button>
+        <button type="button" class="btn-delete">Delete account</button>
+        <span class="caption">Deletion is real: server data purged, local daemon unaffected. Your machine keeps working; we just stop knowing you.</span>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="port-note">ch20 · account · story linework</div>
+
+<script>
+  // prefers-color-scheme is primary; data-theme is set ONLY on explicit toggle,
+  // so the page keeps tracking system theme changes until the user overrides
+  // (same behavior as login.html).
+  const btn = document.getElementById('themeToggle');
+  const root = document.documentElement;
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  const current = () => root.getAttribute('data-theme') || (mq.matches ? 'dark' : 'light');
+  const label = () => { btn.textContent = current() === 'light' ? 'Dark' : 'Light'; };
+  label();
+  mq.addEventListener('change', label);
+  btn.addEventListener('click', () => { root.setAttribute('data-theme', current() === 'light' ? 'dark' : 'light'); label(); });
+</script>
+</body>
+</html>

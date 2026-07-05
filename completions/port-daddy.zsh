@@ -1774,6 +1774,45 @@ _pd_cmd_pheromone() {
   esac
 }
 
+_pd_cmd_embed() {
+  local -a embed_subcmds
+  embed_subcmds=(
+    'status:is the shared embedding model cached?'
+    'prefetch:download the model into the shared cache (one-time ~27 MB)'
+    'text:embed argument texts to JSON vectors'
+    'stdin:embed one text per stdin line to JSON vectors'
+  )
+
+  local state
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'embed subcommand' embed_subcmds
+      ;;
+    args)
+      case "${words[2]}" in
+        status)
+          _arguments \
+            '--cache-dir[override the shared transformers cache]:path:_files -/' \
+            '(-j --json)'{-j,--json}'[output JSON]'
+          ;;
+        prefetch)
+          _arguments '--cache-dir[override the shared transformers cache]:path:_files -/'
+          ;;
+        text|stdin)
+          _arguments \
+            '--offline[exit 3 instead of downloading when the model is not cached]' \
+            '--cache-dir[override the shared transformers cache]:path:_files -/'
+          ;;
+        *)
+          _describe 'embed subcommand' embed_subcmds
+          ;;
+      esac
+      ;;
+  esac
+}
+
 _pd_cmd_graph() {
   local -a graph_subcmds
   graph_subcmds=(
@@ -2178,6 +2217,7 @@ _port_daddy() {
     # Tuple space
     'tuple:Linda-style tuple space (out, rd, in, scan, count)'
     # Semantic graph + episodic memory
+    'embed:shared local embedding model — status, prefetch, embed text'
     'graph:inspect semantic graph edges and stats'
     'memory:inspect episodic memory entries and stats'
     'ideas:search the canonical ideas trove and local residue'
@@ -2345,6 +2385,7 @@ _port_daddy() {
         pheromone|ph)           _pd_cmd_pheromone ;;
         wallet)                 _pd_cmd_wallet ;;
         bond)                   _pd_cmd_bond ;;
+        embed)                  _pd_cmd_embed ;;
         graph)                  _pd_cmd_graph ;;
         memory)                 _pd_cmd_memory ;;
         ideas)                  _pd_cmd_ideas ;;

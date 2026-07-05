@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.24.1] - 2026-07-04
+
+### Fixed
+- **`pd-console --version` panicked without a daemon, sinking the release console build (#673).** `main()` ran daemon discovery before parsing args, so the release workflow's deep version-drift guard — which execs the freshly built binary on a daemonless CI runner — got a panic instead of a version, and no contiguous `pd-console v<ver>` literal existed for its strings-extraction fallback. `--version`/`-V` now early-exits printing the build stamp before any daemon, GPU, or window init, and a `#[used]` static keeps the marker in rodata for cross-arch checks. Restores the `pd-console.app` release asset, absent from v3.24.0 and failing on the three release runs before it.
+
 ## [3.24.0] - 2026-07-04
 
 ### Fixed

@@ -54,7 +54,7 @@ flowchart TD
   C -->|No - already batched| E[Already fixed]
   D --> F{Same key across resolvers?}
   F -->|Yes| G[Wrap with DataLoader<br/>per-request instance]
-  F -->|No - unique key per call| H[Refactor to batchable<br/>SELECT ... WHERE id IN (...)]
+  F -->|No - unique key per call| H["Refactor to batchable<br/>SELECT ... WHERE id IN (...)"]
   G --> I{Total cost still high?}
   I -->|Yes| J[Add cost analysis<br/>+ depth limit + APQ]
   I -->|No| K[Ship + monitor]

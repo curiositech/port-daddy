@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FleetBar Popover — ch20 Story Linework (converged)</title>
+<!--
+  CONVERGED design: binder ch20 "Story Linework" skin over the
+  2026-07-05 surface-redesign content patterns. Palette v2 values are
+  copied verbatim from docs/design/story-linework/ports/port.css.
+  Laws honored: fractional linework (1px texture / 1.5px linework /
+  2px enclosure, never adjacent-mixed); brackets on LIVE panels only;
+  zero border-radius (except the 12px macOS popover container radius);
+  zero box-shadow; one color zone per view (violet = attention, gates
+  only); story hues are accents never chrome; state is never color
+  alone (stripe + dot + micro-flag + label + relative time); pulse
+  only while work is in flight; flag whites theme-independent #fbf7ef.
+  Flag map (operator-final): H=claim-active F=awaiting-human
+  B=burning-cash V=conflict D=blocked Y=stale M=idle Q=newcomer.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&family=Recursive:CASL,MONO,slnt,wght@0..1,0..1,-15..0,300..1000&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; }
+  body {
+    font-family: "IBM Plex Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 16px; line-height: 1.5;
+    background: #8b8781; /* neutral studio backdrop — not a theme surface */
+    min-height: 100vh; padding: 44px 28px 72px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+          font-variant-numeric: tabular-nums slashed-zero; }
+  /* the play voice — one Recursive CASL-1 display em-phrase per view */
+  .rec { font-family: "Recursive", "IBM Plex Sans", sans-serif;
+         font-variation-settings: "MONO" 0, "CASL" 1, "slnt" -8; font-weight: 660; }
+
+  .stage { display: flex; gap: 40px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+  figure.unit { display: flex; flex-direction: column; gap: 12px; }
+  figcaption.cap {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase; color: #26231f; text-align: center;
+    /* 12px is the sanctioned eyebrow exception: 700 / uppercase / tracked */
+  }
+
+  /* ══ palette v2 tokens — values verbatim from port.css ══ */
+  .pop, .pop.light {
+    --surface-base:   #f2eee6;
+    --surface-raised: #f7f3eb;
+    --surface-strong: #e9e2d5;
+    --surface-sunken: #e0d9cb;
+    --text-primary:   #121212;
+    --text-secondary: #403b34;
+    --text-muted:     #47423a;
+    --text-ghost:     #98928a;
+    --inverse:        #fbf7ef;
+    --cobalt: #003fb8;  --teal: #006b5f;  --health: #1f7a4d;
+    --amber:  #a66f00;  --amber-on-tint: #5b3900;  --error: #bf2f2f;
+    --indigo: #353a85;  --violet: #933fa5;  --violet-on-tint: #772189;
+    --rust:   #7a4514;  --gold:   #666a00;  --gold-on-tint: #4d5000;
+    --hair:        rgba(18, 18, 18, 0.14);
+    --hair-strong: rgba(18, 18, 18, 0.34);
+    --border-strong: #121212;
+    --surface-card: #e9e2d5; /* light cards sit on the STRONG well + hairline */
+    --violet-wash: color-mix(in oklab, var(--violet) 10%, var(--surface-base));
+  }
+  .pop.dark {
+    --surface-base:   #101216; /* operator fork A·1: palette v2 near-black, not warm ebony */
+    --surface-raised: #181c22;
+    --surface-strong: #222833;
+    --surface-sunken: #0b0d11;
+    --text-primary:   #f5f3ed;
+    --text-secondary: #d3cec2;
+    --text-muted:     #a59f93;
+    --text-ghost:     #5c574e;
+    --inverse:        #121212;
+    --cobalt: #7db4ff;  --teal: #8fd0a7;  --health: #5fce97;
+    --amber:  #f2be51;  --amber-on-tint: #ffe0a0;  --error: #ff7d7d;
+    --indigo: #8a8af8;  --violet: #e0a5ed;  --violet-on-tint: #f8c7ff;
+    --rust:   #b98e6b;  --gold:   #d8dd3c;  --gold-on-tint: #f5fa78;
+    --hair:        rgba(245, 243, 237, 0.14);
+    --hair-strong: rgba(245, 243, 237, 0.34);
+    --border-strong: #f5f3ed;
+    --surface-card: #181c22;
+    --violet-wash: color-mix(in oklab, var(--violet) 10%, var(--surface-base));
+  }
+
+  /* ══ popover shell — 380pt; the ONE sanctioned radius (macOS container) ══ */
+  .pop {
+    width: 380px;
+    background: var(--surface-base); color: var(--text-primary);
+    border: 2px solid var(--border-strong); /* enclosure weight */
+    border-radius: 12px; overflow: hidden;
+  }
+  .sec { padding: 16px 18px; }
+  .sec + .sec { border-top: 1px solid var(--hair); } /* hairlines, not walls */
+
+  .eyebrow {
+    display: flex; align-items: center; gap: 8px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  button, input { font: inherit; color: inherit; background: none; border: none; }
+  button { cursor: pointer; }
+  :is(button, input):focus-visible { outline: 1.5px solid var(--cobalt); outline-offset: 2px; }
+
+  /* ══ intent composer ══ */
+  .ask { font-size: 20px; font-weight: 700; letter-spacing: -0.012em; margin-bottom: 12px; }
+  .composer { display: flex; gap: 8px; }
+  .composer input {
+    flex: 1; min-width: 0; font-size: 16px; padding: 9px 11px;
+    font-family: "IBM Plex Mono", monospace;
+    background: var(--surface-raised); border: 1px solid var(--hair-strong);
+    color: var(--text-primary);
+  }
+  .composer input::placeholder { color: var(--text-ghost); opacity: 1; }
+  .btn {
+    font-family: "IBM Plex Mono", monospace; font-size: 14px; font-weight: 700;
+    letter-spacing: 0.04em; padding: 9px 14px;
+    background: var(--cobalt); color: var(--inverse);
+  }
+  .pop.dark .btn { color: #121212; }
+  .btn.ghost { background: transparent; color: var(--text-primary); border: 1px solid var(--hair-strong); }
+  .btn.deny  { background: transparent; color: var(--error); border: 1px solid var(--hair-strong); }
+  .chips { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .chip {
+    font-size: 14px; font-weight: 600; padding: 5px 10px;
+    color: var(--text-secondary); background: var(--surface-raised);
+    border: 1px solid var(--hair-strong);
+  }
+  .chip:hover { color: var(--text-primary); border-color: var(--border-strong); }
+
+  /* ══ gate queue — the page's ONE color zone (violet = attention) ══ */
+  .gates {
+    background: var(--violet-wash); /* wash law: color-mix 10% over base */
+    border-bottom: 1px solid var(--hair);
+    position: relative; padding: 14px 18px 16px 21px;
+  }
+  .gates::before { /* 3px state stripe — the zone announces itself */
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--violet);
+  }
+  .gates .eyebrow { color: var(--violet-on-tint); margin-bottom: 4px; }
+  .gates .gate-head { font-size: 18px; font-weight: 700; letter-spacing: -0.012em; margin-bottom: 10px; }
+  .gate {
+    background: var(--surface-card); border: 1px solid var(--hair); /* card law: hairline edge mandatory */
+    padding: 12px 14px;
+  }
+  .gate-state {
+    display: flex; align-items: center; gap: 8px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--violet-on-tint);
+    margin-bottom: 7px;
+  }
+  .gate-body { font-size: 16px; line-height: 1.45; margin-bottom: 6px; }
+  .gate-cost { font-size: 14px; color: var(--text-muted); margin-bottom: 11px; }
+  .gate-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ══ art slot — placeholder well only, no fake art drawn ══ */
+  .art-slot {
+    border: 1px dashed var(--hair-strong); background: var(--surface-raised);
+    min-height: 84px; display: flex; align-items: center; justify-content: center;
+    text-align: center; padding: 14px;
+  }
+  .art-slot span {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-ghost);
+  }
+
+  /* ══ resume re-entry cards ══ */
+  .resume-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .rcard {
+    display: flex; flex-direction: column; gap: 3px; text-align: left;
+    background: var(--surface-card); border: 1px solid var(--hair); /* strong well + hairline */
+    padding: 10px; color: var(--text-primary);
+  }
+  .rcard:hover { border-color: var(--hair-strong); }
+  .r-proj { font-size: 14px; font-weight: 700; letter-spacing: -0.012em; overflow-wrap: break-word; }
+  .r-task { font-size: 14px; color: var(--text-secondary); line-height: 1.3; overflow-wrap: break-word; }
+  .r-meta { font-family: "IBM Plex Mono", monospace; font-size: 14px; font-weight: 600; margin-top: auto; }
+  .r-meta.ok  { color: var(--health); }
+  .r-meta.amb { color: var(--amber-on-tint); } /* rule 3: amber is never small text on cream — -on-tint cut only */
+  .r-meta.mut { color: var(--text-muted); }
+  .r-time { font-family: "IBM Plex Mono", monospace; font-size: 14px; color: var(--text-muted); }
+
+  /* ══ quick actions ══ */
+  .quick { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .qa {
+    font-size: 14px; font-weight: 600; line-height: 1.3; padding: 9px 6px;
+    color: var(--text-primary); background: var(--surface-raised);
+    border: 1px solid var(--hair-strong); text-align: center;
+  }
+  .qa:hover { border-color: var(--border-strong); }
+
+  /* ══ collapsed fleet-drawer bar + glance strip ══ */
+  .drawer-bar {
+    display: block; width: 100%; text-align: left;
+    background: var(--surface-raised); border-top: 1px solid var(--hair);
+    padding: 12px 18px; color: var(--text-primary);
+  }
+  .drawer-bar:hover { background: var(--surface-strong); }
+  .drawer-line { display: flex; align-items: baseline; gap: 6px; font-size: 14px; font-weight: 600; }
+  .drawer-line .needs { color: var(--violet-on-tint); font-weight: 700; }
+  .pop.dark .drawer-line .needs { color: var(--violet); }
+  .drawer-line .disclose { margin-left: auto; font-family: "IBM Plex Mono", monospace; font-size: 14px; color: var(--text-muted); }
+  .glance { display: flex; gap: 14px; margin-top: 8px; flex-wrap: wrap; }
+  .g {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: "IBM Plex Mono", monospace; font-size: 14px; font-weight: 600;
+    color: var(--text-secondary);
+  }
+  .g.zero { color: var(--text-ghost); }
+
+  /* ══ daemon micro-footer ══ */
+  .foot { display: flex; align-items: center; gap: 8px; padding: 10px 18px; border-top: 1px solid var(--hair); }
+  .foot .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--health); flex: none; }
+  .stat { font-family: "IBM Plex Mono", monospace; font-size: 14px; color: var(--text-muted); }
+  .flink { margin-left: auto; font-size: 14px; font-weight: 600; color: var(--text-muted); padding: 2px 4px; }
+  .flink + .flink { margin-left: 0; }
+  .flink:hover { color: var(--text-primary); }
+
+  /* ══ fleet-drawer face (dark view) — rule-8 state rows ══ */
+  .dr-head { padding: 16px 18px 12px; }
+  .dr-head .ask { margin-bottom: 2px; }
+  .dr-sub { font-size: 14px; color: var(--text-muted); }
+  .group-eye {
+    display: flex; align-items: center; gap: 8px; padding: 10px 18px 4px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted);
+    border-top: 1px solid var(--hair);
+  }
+  .group-eye:first-of-type { border-top: none; }
+  .crew {
+    position: relative; display: grid;
+    grid-template-columns: auto auto 1fr auto; gap: 10px; align-items: center;
+    padding: 9px 18px 9px 21px;
+  }
+  .crew + .crew { border-top: 1px solid var(--hair); }
+  .crew::before { /* 3px state stripe */
+    content: ""; position: absolute; left: 0; top: 6px; bottom: 6px;
+    width: 3px; background: var(--st, var(--text-ghost));
+  }
+  .crew .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--st, var(--text-ghost)); position: relative; }
+  .crew.running .dot::after { /* pulse ring: 1.5px linework, in-flight ONLY */
+    content: ""; position: absolute; inset: -4px; border-radius: 50%;
+    border: 1.5px solid var(--st); opacity: 0.6;
+    animation: lw-pulse 1.8s ease-out infinite;
+  }
+  @keyframes lw-pulse { 0% { transform: scale(0.7); opacity: 0.8; } 100% { transform: scale(1.9); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .crew.running .dot::after { animation: none; } }
+  .crew .who { min-width: 0; }
+  .crew .nm { font-size: 14px; font-weight: 700; }
+  .crew .st-word { font-family: "IBM Plex Mono", monospace; font-size: 14px; color: var(--text-secondary); }
+  .crew .tm { font-family: "IBM Plex Mono", monospace; font-size: 14px; color: var(--text-muted); }
+  .more-row {
+    padding: 8px 18px 12px 21px; font-family: "IBM Plex Mono", monospace;
+    font-size: 14px; color: var(--text-ghost);
+  }
+
+  /* expanded working row — the LIVE panel; brackets live here and only here */
+  .crew-x {
+    position: relative; margin: 6px 12px 10px; padding: 12px 14px 12px 17px;
+    background: var(--surface-raised); border: 1px solid var(--hair);
+  }
+  .crew-x::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--st); }
+  .lw-brackets > i.lw { /* 12px corner L-ticks, 1.5px, ink — live panels only */
+    position: absolute; width: 12px; height: 12px;
+    border: 0 solid var(--border-strong); pointer-events: none;
+  }
+  .lw-brackets > i.lw:nth-child(1) { top: -1px; left: -1px; border-top-width: 1.5px; border-left-width: 1.5px; }
+  .lw-brackets > i.lw:nth-child(2) { top: -1px; right: -1px; border-top-width: 1.5px; border-right-width: 1.5px; }
+  .lw-brackets > i.lw:nth-child(3) { bottom: -1px; left: -1px; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+  .lw-brackets > i.lw:nth-child(4) { bottom: -1px; right: -1px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+  .x-top { display: grid; grid-template-columns: auto auto 1fr auto; gap: 10px; align-items: center; }
+  .x-top .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--st); position: relative; }
+  .crew-x.running .x-top .dot::after {
+    content: ""; position: absolute; inset: -4px; border-radius: 50%;
+    border: 1.5px solid var(--st); opacity: 0.6; animation: lw-pulse 1.8s ease-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) { .crew-x.running .x-top .dot::after { animation: none; } }
+  .x-task { font-size: 14px; color: var(--text-secondary); margin: 7px 0 9px; }
+  .x-tools { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tool {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase; /* sanctioned eyebrow-scale chip */
+    color: var(--text-secondary); border: 1px solid var(--hair-strong); padding: 3px 8px;
+  }
+  .tool.now { color: var(--cobalt); border-color: var(--cobalt); }
+  .x-cost { font-family: "IBM Plex Mono", monospace; font-size: 14px; color: var(--text-muted); margin-top: 9px; }
+
+  /* micro-flags: 14×10 SVG, palette-locked fills, hairline frame */
+  .fx { flex: none; display: inline-block; vertical-align: -1px; }
+</style>
+</head>
+<body>
+
+<!-- ICS micro-flags, 14×10. Palette-locked per LW-7b: red→rust-slab #7a4514,
+     yellow→lime #cad900, blue→cobalt-slab #003fb8, white→flag-white #fbf7ef
+     (theme-independent, hard rule 7). Frame via currentColor at hairline opacity. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="f-hotel" viewBox="0 0 14 10"><!-- H · claim-active: white/red vertical halves -->
+      <rect width="7" height="10" fill="#fbf7ef"/><rect x="7" width="7" height="10" fill="#7a4514"/>
+      <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+    </symbol>
+    <symbol id="f-foxtrot" viewBox="0 0 14 10"><!-- F · awaiting-human: white field, red diamond (Pub 102) -->
+      <rect width="14" height="10" fill="#fbf7ef"/>
+      <polygon points="7,1.5 12.5,5 7,8.5 1.5,5" fill="#7a4514"/>
+      <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+    </symbol>
+    <symbol id="f-bravo" viewBox="0 0 14 10"><!-- B · burning-cash: red swallowtail -->
+      <polygon points="0,0 14,0 9.5,5 14,10 0,10" fill="#7a4514"/>
+      <polygon points=".5,.5 13,.5 8.9,5 13,9.5 .5,9.5" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+    </symbol>
+    <symbol id="f-victor" viewBox="0 0 14 10"><!-- V · conflict: red X on white -->
+      <clipPath id="cv"><rect width="14" height="10"/></clipPath>
+      <rect width="14" height="10" fill="#fbf7ef"/>
+      <path d="M0,0 L14,10 M14,0 L0,10" stroke="#7a4514" stroke-width="2" clip-path="url(#cv)"/>
+      <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+    </symbol>
+    <symbol id="f-delta" viewBox="0 0 14 10"><!-- D · blocked: yellow/blue/yellow bands (Pub 102) -->
+      <rect width="14" height="10" fill="#cad900"/>
+      <rect y="3" width="14" height="4" fill="#003fb8"/>
+      <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+    </symbol>
+    <symbol id="f-yankee" viewBox="0 0 14 10"><!-- Y · stale: yellow + red diagonals -->
+      <clipPath id="cy"><rect width="14" height="10"/></clipPath>
+      <rect width="14" height="10" fill="#cad900"/>
+      <path d="M-3,7 L7,-3 M1,13 L13,1 M7,15 L19,3" stroke="#7a4514" stroke-width="2" clip-path="url(#cy)"/>
+      <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+    </symbol>
+    <symbol id="f-mike" viewBox="0 0 14 10"><!-- M · idle: white saltire on blue (Pub 102) -->
+      <clipPath id="cm"><rect width="14" height="10"/></clipPath>
+      <rect width="14" height="10" fill="#003fb8"/>
+      <path d="M0,0 L14,10 M14,0 L0,10" stroke="#fbf7ef" stroke-width="2" clip-path="url(#cm)"/>
+      <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+    </symbol>
+    <symbol id="f-quebec" viewBox="0 0 14 10"><!-- Q · newcomer: solid yellow -->
+      <rect width="14" height="10" fill="#cad900"/>
+      <rect x=".5" y=".5" width="13" height="9" fill="none" stroke="currentColor" stroke-opacity=".35"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="stage">
+
+  <!-- ═══════════ 1 · RESTING (light) — no gates exist; gate section ABSENT ═══════════ -->
+  <figure class="unit">
+    <figcaption class="cap">1 · Resting — light · no gates</figcaption>
+    <section class="pop light" aria-label="FleetBar popover, resting state, light theme">
+
+      <!-- intent composer (the view's Recursive em-phrase lives here) -->
+      <div class="sec" aria-label="Intent composer">
+        <h1 class="ask">What should the <span class="rec">fleet</span> do?</h1>
+        <form class="composer" onsubmit="return false">
+          <input type="text" placeholder="rebase PR #663 onto main, rerun the spawner suite" aria-label="Tell the fleet what to do">
+          <button class="btn" type="submit">Send</button>
+        </form>
+        <div class="chips">
+          <button class="chip" type="button">Fix the flaky spawner test</button>
+          <button class="chip" type="button">Catch me up on overnight work</button>
+        </div>
+        <!-- the empty-gate area: no gates exist, so the attention berth holds
+             the cut-paper art slot instead. Placeholder well only. -->
+        <div class="art-slot" style="margin-top:12px;" role="img" aria-label="Art slot: cut-paper harbor at rest, wordless">
+          <span>art slot · cut-paper: harbor at rest — wordless</span>
+        </div>
+      </div>
+
+      <!-- resume re-entry cards -->
+      <div class="sec" aria-label="Resume work">
+        <p class="eyebrow">Resume</p>
+        <div class="resume-grid">
+          <button class="rcard" type="button">
+            <span class="r-proj">port-daddy</span>
+            <span class="r-task">PR #663</span>
+            <span class="r-meta ok">merged</span>
+            <span class="r-time">2h ago</span>
+          </button>
+          <button class="rcard" type="button">
+            <span class="r-proj">sobriety-tools</span>
+            <span class="r-task">landing rework</span>
+            <span class="r-meta amb">paused</span>
+            <span class="r-time">today</span>
+          </button>
+          <button class="rcard" type="button">
+            <span class="r-proj">expungement-guide</span>
+            <span class="r-task">blog pipeline</span>
+            <span class="r-meta mut">idle</span>
+            <span class="r-time">since Tue</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- quick actions -->
+      <div class="sec quick" aria-label="Quick actions">
+        <button class="qa" type="button">Show me what you built</button>
+        <button class="qa" type="button">Talk to the fleet</button>
+        <button class="qa" type="button">Console</button>
+      </div>
+
+      <!-- collapsed fleet drawer + glance strip -->
+      <button class="drawer-bar" type="button" aria-expanded="false">
+        <span class="drawer-line">Fleet drawer — 15 crew · 3 working <span class="disclose">&#9656;</span></span>
+        <span class="glance">
+          <span class="g" title="Hotel — claim-active"><svg class="fx" width="14" height="10"><use href="#f-hotel"/></svg> H 3</span>
+          <span class="g zero" title="Foxtrot — awaiting human"><svg class="fx" width="14" height="10"><use href="#f-foxtrot"/></svg> F 0</span>
+          <span class="g" title="Victor — conflict"><svg class="fx" width="14" height="10"><use href="#f-victor"/></svg> V 1</span>
+          <span class="g" title="Yankee — stale"><svg class="fx" width="14" height="10"><use href="#f-yankee"/></svg> Y 2</span>
+          <span class="g" title="Mike — idle"><svg class="fx" width="14" height="10"><use href="#f-mike"/></svg> M 9</span>
+        </span>
+      </button>
+
+      <!-- daemon micro-footer -->
+      <footer class="foot">
+        <span class="dot" role="img" aria-label="daemon healthy"></span>
+        <span class="stat">stable :9876 · v3.23</span>
+        <button class="flink" type="button">Secrets</button>
+        <button class="flink" type="button">Quit</button>
+      </footer>
+    </section>
+  </figure>
+
+  <!-- ═══════════ 2 · ARMED (light) — one gate; violet zone above the composer ═══════════ -->
+  <figure class="unit">
+    <figcaption class="cap">2 · Armed — light · one gate</figcaption>
+    <section class="pop light" aria-label="FleetBar popover, armed state, light theme">
+
+      <!-- gate queue — the ONE color zone (violet = attention, human gates only).
+           This view's Recursive em-phrase lives here, so the composer stays plain. -->
+      <div class="gates" aria-label="Human gates">
+        <p class="eyebrow"><svg class="fx" width="14" height="10"><use href="#f-foxtrot"/></svg> Foxtrot &middot; 1 gate</p>
+        <p class="gate-head">Needs <span class="rec">you</span></p>
+        <article class="gate">
+          <p class="gate-state"><svg class="fx" width="14" height="10"><use href="#f-foxtrot"/></svg> awaiting human</p>
+          <p class="gate-body"><strong>code-reviewer</strong> requests: merge PR #686</p>
+          <p class="gate-cost mono">est. $0.14 to complete &middot; queued 40s</p>
+          <div class="gate-row">
+            <button class="btn" type="button">Approve</button>
+            <button class="btn ghost" type="button">Modify</button>
+            <button class="btn deny" type="button">Deny</button>
+          </div>
+        </article>
+      </div>
+
+      <!-- intent composer, pushed down (no em-phrase here; one per view) -->
+      <div class="sec" aria-label="Intent composer">
+        <h1 class="ask">What should the fleet do?</h1>
+        <form class="composer" onsubmit="return false">
+          <input type="text" placeholder="rebase PR #663 onto main, rerun the spawner suite" aria-label="Tell the fleet what to do">
+          <button class="btn" type="submit">Send</button>
+        </form>
+        <div class="chips">
+          <button class="chip" type="button">Fix the flaky spawner test</button>
+          <button class="chip" type="button">Catch me up on overnight work</button>
+        </div>
+      </div>
+
+      <!-- resume re-entry cards -->
+      <div class="sec" aria-label="Resume work">
+        <p class="eyebrow">Resume</p>
+        <div class="resume-grid">
+          <button class="rcard" type="button">
+            <span class="r-proj">port-daddy</span>
+            <span class="r-task">PR #663</span>
+            <span class="r-meta ok">merged</span>
+            <span class="r-time">2h ago</span>
+          </button>
+          <button class="rcard" type="button">
+            <span class="r-proj">sobriety-tools</span>
+            <span class="r-task">landing rework</span>
+            <span class="r-meta amb">paused</span>
+            <span class="r-time">today</span>
+          </button>
+          <button class="rcard" type="button">
+            <span class="r-proj">expungement-guide</span>
+            <span class="r-task">blog pipeline</span>
+            <span class="r-meta mut">idle</span>
+            <span class="r-time">since Tue</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- quick actions -->
+      <div class="sec quick" aria-label="Quick actions">
+        <button class="qa" type="button">Show me what you built</button>
+        <button class="qa" type="button">Talk to the fleet</button>
+        <button class="qa" type="button">Console</button>
+      </div>
+
+      <!-- collapsed fleet drawer + glance strip (F now honestly 1) -->
+      <button class="drawer-bar" type="button" aria-expanded="false">
+        <span class="drawer-line">Fleet drawer — 16 crew · 3 working · <span class="needs">1 needs you</span> <span class="disclose">&#9656;</span></span>
+        <span class="glance">
+          <span class="g" title="Hotel — claim-active"><svg class="fx" width="14" height="10"><use href="#f-hotel"/></svg> H 3</span>
+          <span class="g" title="Foxtrot — awaiting human"><svg class="fx" width="14" height="10"><use href="#f-foxtrot"/></svg> F 1</span>
+          <span class="g" title="Victor — conflict"><svg class="fx" width="14" height="10"><use href="#f-victor"/></svg> V 1</span>
+          <span class="g" title="Yankee — stale"><svg class="fx" width="14" height="10"><use href="#f-yankee"/></svg> Y 2</span>
+          <span class="g" title="Mike — idle"><svg class="fx" width="14" height="10"><use href="#f-mike"/></svg> M 9</span>
+        </span>
+      </button>
+
+      <!-- daemon micro-footer -->
+      <footer class="foot">
+        <span class="dot" role="img" aria-label="daemon healthy"></span>
+        <span class="stat">stable :9876 · v3.23</span>
+        <button class="flink" type="button">Secrets</button>
+        <button class="flink" type="button">Quit</button>
+      </footer>
+    </section>
+  </figure>
+
+  <!-- ═══════════ 3 · DRAWER (dark) — crew grouped by state, rule-8 rows ═══════════ -->
+  <figure class="unit">
+    <figcaption class="cap">3 · Drawer face — dark #101216</figcaption>
+    <section class="pop dark" aria-label="FleetBar fleet drawer, dark theme">
+
+      <div class="dr-head">
+        <h1 class="ask">The <span class="rec">crew</span>, berth by berth</h1>
+        <p class="dr-sub">16 crew · 3 working · 1 needs you · updated 4s ago</p>
+      </div>
+
+      <!-- WORKING · Hotel = claim-active · cobalt stripe -->
+      <p class="group-eye"><svg class="fx" width="14" height="10"><use href="#f-hotel"/></svg> Hotel &middot; claim-active &middot; 3</p>
+
+      <!-- the LIVE panel: expanded in-flight row — brackets + the view's ONLY pulse -->
+      <div class="crew-x running lw-brackets" style="--st: var(--cobalt);">
+        <i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
+        <div class="x-top">
+          <span class="dot" role="img" aria-label="in flight"></span>
+          <svg class="fx" width="14" height="10" role="img" aria-label="Hotel — claim-active"><use href="#f-hotel"/></svg>
+          <span class="nm">code-reviewer &middot; port-daddy</span>
+          <span class="tm">18s</span>
+        </div>
+        <p class="x-task">reviewing PR #686 — spawner test isolation &middot; claim: <span class="mono">cli/spawn/*.ts</span></p>
+        <div class="x-tools">
+          <span class="tool now">bash &middot; running</span>
+          <span class="tool">read &times;14</span>
+          <span class="tool">grep &times;6</span>
+          <span class="tool">edit &times;2</span>
+        </div>
+        <p class="x-cost">$0.09 this task &middot; est. $0.14 total</p>
+      </div>
+
+      <div class="crew" style="--st: var(--cobalt);">
+        <span class="dot"></span>
+        <svg class="fx" width="14" height="10" role="img" aria-label="Hotel — claim-active"><use href="#f-hotel"/></svg>
+        <span class="who"><span class="nm">doc-syncer</span> <span class="st-word">claim-active</span></span>
+        <span class="tm">2m</span>
+      </div>
+      <div class="crew" style="--st: var(--cobalt);">
+        <span class="dot"></span>
+        <svg class="fx" width="14" height="10" role="img" aria-label="Hotel — claim-active"><use href="#f-hotel"/></svg>
+        <span class="who"><span class="nm">test-gap-hunter</span> <span class="st-word">claim-active</span></span>
+        <span class="tm">7m</span>
+      </div>
+
+      <!-- NEEDS YOU · Foxtrot = awaiting-human · violet stripe -->
+      <p class="group-eye" style="color: var(--violet);"><svg class="fx" width="14" height="10"><use href="#f-foxtrot"/></svg> Foxtrot &middot; awaiting human &middot; 1</p>
+      <div class="crew" style="--st: var(--violet);">
+        <span class="dot"></span>
+        <svg class="fx" width="14" height="10" role="img" aria-label="Foxtrot — awaiting human"><use href="#f-foxtrot"/></svg>
+        <span class="who"><span class="nm">code-reviewer</span> <span class="st-word">gate: merge PR #686</span></span>
+        <span class="tm">40s</span>
+      </div>
+
+      <!-- CONFLICT · Victor · error stripe -->
+      <p class="group-eye"><svg class="fx" width="14" height="10"><use href="#f-victor"/></svg> Victor &middot; conflict &middot; 1</p>
+      <div class="crew" style="--st: var(--error);">
+        <span class="dot"></span>
+        <svg class="fx" width="14" height="10" role="img" aria-label="Victor — conflict"><use href="#f-victor"/></svg>
+        <span class="who"><span class="nm">nightshift</span> <span class="st-word">wants <span class="mono">embed.ts</span> — yours</span></span>
+        <span class="tm">4m</span>
+      </div>
+
+      <!-- STALE · Yankee · amber stripe -->
+      <p class="group-eye"><svg class="fx" width="14" height="10"><use href="#f-yankee"/></svg> Yankee &middot; stale &middot; 2</p>
+      <div class="crew" style="--st: var(--amber);">
+        <span class="dot"></span>
+        <svg class="fx" width="14" height="10" role="img" aria-label="Yankee — stale"><use href="#f-yankee"/></svg>
+        <span class="who"><span class="nm">economist</span> <span class="st-word">no heartbeat</span></span>
+        <span class="tm">85d</span>
+      </div>
+      <div class="crew" style="--st: var(--amber);">
+        <span class="dot"></span>
+        <svg class="fx" width="14" height="10" role="img" aria-label="Yankee — stale"><use href="#f-yankee"/></svg>
+        <span class="who"><span class="nm">harbor-editor</span> <span class="st-word">claim expired</span></span>
+        <span class="tm">3d</span>
+      </div>
+
+      <!-- IDLE · Mike · ghost stripe -->
+      <p class="group-eye"><svg class="fx" width="14" height="10"><use href="#f-mike"/></svg> Mike &middot; idle &middot; 9</p>
+      <div class="crew" style="--st: var(--text-ghost);">
+        <span class="dot"></span>
+        <svg class="fx" width="14" height="10" role="img" aria-label="Mike — idle"><use href="#f-mike"/></svg>
+        <span class="who"><span class="nm">gardener</span> <span class="st-word">idle</span></span>
+        <span class="tm">1h</span>
+      </div>
+      <div class="crew" style="--st: var(--text-ghost);">
+        <span class="dot"></span>
+        <svg class="fx" width="14" height="10" role="img" aria-label="Mike — idle"><use href="#f-mike"/></svg>
+        <span class="who"><span class="nm">archivist</span> <span class="st-word">idle</span></span>
+        <span class="tm">3h</span>
+      </div>
+      <p class="more-row">+ 7 more idle &middot; open console for the full roster</p>
+
+      <!-- daemon micro-footer -->
+      <footer class="foot">
+        <span class="dot" role="img" aria-label="daemon healthy"></span>
+        <span class="stat">stable :9876 · v3.23</span>
+        <button class="flink" type="button">Secrets</button>
+        <button class="flink" type="button">Quit</button>
+      </footer>
+    </section>
+  </figure>
+
+</div>
+</body>
+</html>
