@@ -135,6 +135,19 @@ The hook story is simple enough to write out. Pseudo-code by harness:
 
 If you're an agent-coding-tool author reading this and your tool doesn't have a session-start hook, file an issue against yourself. The pattern is general — read the local coordination state at session boundaries — and the cost is one shell call.
 
+For a plain shell harness, the whole integration is small enough to audit:
+
+```bash
+attention_json="$(pd attention --json 2>/dev/null || true)"
+if [ -n "$attention_json" ]; then
+  printf '%s\n' "$attention_json" > .portdaddy/session-attention.json
+fi
+```
+
+The important bit is not where the file lands. The important bit is that the
+mail check happens before the first prompt is assembled, not after the model
+remembers to ask.
+
 ---
 
 ## What's still missing

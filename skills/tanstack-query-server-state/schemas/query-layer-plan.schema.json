@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/query-layer-plan.schema.json",
+  "title": "TanStack Query Layer Plan",
+  "description": "A structured plan for a TanStack Query v5 server-state layer, so this skill's anti-patterns and Quality Gates can be checked deterministically by scripts/tanstack_query_audit.mjs.",
+  "type": "object",
+  "required": ["stateKind", "queryKeySource"],
+  "additionalProperties": true,
+  "properties": {
+    "stateKind": {
+      "type": "string",
+      "enum": ["server-state", "client-state"],
+      "description": "What the cache would hold. TanStack Query is only for server state; client-state is a critical mismatch."
+    },
+    "queryKeySource": {
+      "type": "string",
+      "enum": ["typed-factory", "inline-literals"],
+      "description": "Where query keys come from: a typed factory in one file, or inline array/string literals scattered across the codebase."
+    },
+    "staleTimeExplicit": {
+      "type": "boolean",
+      "description": "True if each query family sets staleTime deliberately instead of inheriting the v5 default of 0."
+    },
+    "hasMutations": {
+      "type": "boolean",
+      "description": "True if the layer includes useMutation flows (POST/PUT/DELETE)."
+    },
+    "invalidationScope": {
+      "type": "string",
+      "enum": ["prefix", "exact", "none"],
+      "description": "How mutations invalidate the cache: by factory prefix, by exact key only, or not at all."
+    },
+    "optimisticUpdates": {
+      "type": "boolean",
+      "description": "True if any mutation performs an optimistic cache write."
+    },
+    "cancelsInFlightQueriesFirst": {
+      "type": "boolean",
+      "description": "For optimistic updates: true if onMutate awaits cancelQueries before writing, so an in-flight GET cannot overwrite the optimistic value."
+    },
+    "snapshotsForRollback": {
+      "type": "boolean",
+      "description": "For optimistic updates: true if onMutate snapshots the current cache and returns it as context for the onError rollback."
+    },
+    "settledInvalidation": {
+      "type": "boolean",
+      "description": "For optimistic updates: true if onSettled (not onSuccess) invalidates the affected prefix so server truth wins after success and failure alike."
+    },
+    "ssr": {
+      "type": "boolean",
+      "description": "True if the app server-renders (Next.js App Router or similar) with query prefetch/hydration."
+    },
+    "queryClientPerRequest": {
+      "type": "boolean",
+      "description": "For SSR: true if a fresh QueryClient is created per server request (never a module-level singleton shared across users)."
+    },
+    "realtimeViaPollingIntervalMs": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "If refetchInterval polling is used to simulate real-time, the interval in ms. Omit if not polling."
+    }
+  }
+}

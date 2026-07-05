@@ -4,7 +4,12 @@
 //! Hover tooltip shows the full International Code of Signals meaning.
 //! Colors are pre-computed from OKLCH (no runtime conversion needed in GPUI).
 
+// Only the FlagBadge renderer needs gpui. The Flag enum + flag_for_state are pure,
+// so the ratatui REPL and Linux CI can render the fleet pane without pulling gpui
+// (whose derive macros also overflow rustc's stack in the non-gpui binary).
+#[cfg(feature = "gpui")]
 use gpui::prelude::*;
+#[cfg(feature = "gpui")]
 use gpui::*;
 
 /// One ICS single-letter flag with its Port Daddy semantic mapping.
@@ -145,14 +150,17 @@ pub fn flag_for_state(state: &str) -> Flag {
         "approved" | "affirmative"           => Flag::Charlie,
         "blocked" | "waiting"                => Flag::Delta,
         "pivoting"                           => Flag::Echo,
-        "awaiting-human" | "hitl" | "gated"  => Flag::Foxtrot,
+        // Fleet ship lifecycle: a dry-docked ship is disabled and needs the operator.
+        "awaiting-human" | "hitl" | "gated" | "dry-dock" | "drydock" => Flag::Foxtrot,
         "needs-orchestrator"                 => Flag::Golf,
-        "claim-active" | "engaged"           => Flag::Hotel,
+        // Fleet ship lifecycle: a sailing ship is underway / engaged.
+        "claim-active" | "engaged" | "sailing" => Flag::Hotel,
         "mayday" | "crisis" | "runaway"      => Flag::Juliett,
         "messaging" | "request"              => Flag::Kilo,
         "guard-blocked" | "commit-blocked"   => Flag::Lima,
-        "idle" | "resting"                   => Flag::Mike,
-        "error" | "failed" | "refused"       => Flag::November,
+        "idle" | "resting" | "paused"        => Flag::Mike,
+        // Fleet ship lifecycle: "failing" is a ship erroring its way toward dry-dock.
+        "error" | "failed" | "refused" | "failing" => Flag::November,
         "crashed" | "dead"                   => Flag::Oscar,
         "healthy" | "fleet-healthy"          => Flag::Papa,
         "new" | "newcomer"                   => Flag::Quebec,
@@ -163,17 +171,20 @@ pub fn flag_for_state(state: &str) -> Flag {
         "needs-help"                         => Flag::Victor,
         "degraded"                           => Flag::Whiskey,
         "guard-intercept"                    => Flag::Xray,
-        "claim-stale" | "stale"              => Flag::Yankee,
+        // Fleet ship lifecycle: a cooling-down ship is drifting after a stumble.
+        "claim-stale" | "stale" | "cooldown" => Flag::Yankee,
         _                                    => Flag::Mike,
     }
 }
 
 /// Rendered ICS flag badge — 32×20px colored block with letter, tooltip on hover.
+#[cfg(feature = "gpui")]
 #[derive(IntoElement)]
 pub struct FlagBadge {
     flag: Flag,
 }
 
+#[cfg(feature = "gpui")]
 impl FlagBadge {
     pub fn new(flag: Flag) -> Self {
         Self { flag }
@@ -184,6 +195,7 @@ impl FlagBadge {
     }
 }
 
+#[cfg(feature = "gpui")]
 impl RenderOnce for FlagBadge {
     fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let flag = self.flag;

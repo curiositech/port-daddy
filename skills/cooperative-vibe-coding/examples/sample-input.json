@@ -1,0 +1,13 @@
+{
+  "teamSize": 3,
+  "timezoneOverlapHours": 6,
+  "mode": "hybrid",
+  "voiceChannelTested": true,
+  "workScopeSentence": "We are implementing the JWT auth system's login/logout/refresh endpoints, scoped to middleware and routes only.",
+  "fileOwnershipMapped": true,
+  "syncCadenceMinutes": 25,
+  "agentBoundariesSet": true,
+  "conflictResolutionOwner": "Alice",
+  "commitCadenceMinutes": 25,
+  "integrationTestedBeforeHandoff": true
+}

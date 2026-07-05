@@ -1,7 +1,6 @@
 import './App.css'
 import { Hero } from '@/components/landing/Hero'
 import { ScopeLadderSection } from '@/components/landing/ScopeLadderSection'
-import { FeaturedMarquee } from '@/components/landing/FeaturedMarquee'
 import { CliBackendValueProp } from '@/components/landing/CliBackendValueProp'
 import { TubeShowcase } from '@/components/landing/TubeShowcase'
 import { TubeMultiplexSection } from '@/components/landing/TubeMultiplexSection'
@@ -38,7 +37,6 @@ export default function App() {
         */}
         <Hero />
         <ScopeLadderSection />
-        <FeaturedMarquee />
         <CliBackendValueProp />
         <TerminalDemos />
         <CoordinationEnforcementSection />

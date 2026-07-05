@@ -187,7 +187,8 @@ export class KnowledgeCustodian {
     this.lastDuty.harvest = Date.now();
   }
 
-  // Called externally when a session ends — immediate harvest before cascade delete
+  // Called externally when a session ends — immediate harvest while the
+  // append-only session notes remain queryable.
   async onSessionEnd(sessionId: string): Promise<void> {
     try {
       await harvestSession(sessionId, this.db, {

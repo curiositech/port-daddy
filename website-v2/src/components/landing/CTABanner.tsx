@@ -47,7 +47,7 @@ export function CTABanner() {
               <PanelBody className="max-w-[46rem]">
                 Port Daddy is open source and free. You run it from the Mac app: pick a project,
                 start a <RoleTerm role="shipwright">Shipwright</RoleTerm> to plan a fleet of agents,
-                launch a one-off <RoleTerm role="sortie">sortie</RoleTerm>, set spending limits, and
+                launch one-off <RoleTerm role="spawn">spawned work</RoleTerm>, set spending limits, and
                 hand work between agents. Agents stay in the terminal. You should not have to read
                 command output to know what is going on.
               </PanelBody>
@@ -119,10 +119,8 @@ export function CTABanner() {
             </PanelBody>
             <div className="grid gap-[var(--space-2)]">
               <CodeBlock language="bash" showHeaderLabel={false}>
-                {`brew install curiositech/tap/port-daddy`}
-              </CodeBlock>
-              <CodeBlock language="bash" showHeaderLabel={false}>
-                {`npm install -g port-daddy`}
+                {`brew install curiositech/tap/port-daddy
+pd setup`}
               </CodeBlock>
             </div>
             <div className="grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">

@@ -97,6 +97,21 @@ function repoPathExists(p) {
   return existsSync(abs)
 }
 
+/**
+ * The nearest ancestor of `docAbs` that holds a SKILL.md — i.e. the skill
+ * bundle root the doc belongs to — or null if the doc is not inside a skill
+ * bundle. Bundle docs cite assets relative to this root.
+ */
+function skillBundleRoot(docAbs) {
+  let dir = dirname(docAbs)
+  // Stop at the repo root; never escape it.
+  while (dir.startsWith(REPO) && dir !== REPO) {
+    if (existsSync(join(dir, 'SKILL.md'))) return dir
+    dir = dirname(dir)
+  }
+  return null
+}
+
 function checkFile(relFile, violations) {
   // Resolve against the repo root unless an absolute path was passed explicitly.
   const abs = isAbsolute(relFile) ? relFile : join(REPO, relFile)
@@ -132,7 +147,18 @@ function checkFile(relFile, violations) {
       const lineRef = token.match(/^(.*):\d+$/)
       const bare = lineRef ? lineRef[1] : token
       if (!REPO_PATH_RE.test(bare)) continue
-      if (!repoPathExists(bare)) {
+      // A citation is valid if it resolves at the repo root, relative to the
+      // doc's own directory, OR relative to the doc's skill-bundle root (the
+      // nearest ancestor holding a SKILL.md). Skill bundles cite sibling assets
+      // with bare bundle-relative paths (`scripts/preflight.sh`,
+      // `schemas/INDEX.md`) from any depth — e.g. schemas/INDEX.md points at the
+      // bundle's `scripts/fleet-validate.sh`, not the repo's top-level scripts/.
+      // Resolving against the bundle root too keeps those green without per-line
+      // cite-exempt noise; a genuinely-missing path still fails all three.
+      const bundleRoot = skillBundleRoot(abs)
+      const okHere = existsSync(resolve(dirname(abs), bare))
+      const okBundle = bundleRoot && existsSync(resolve(bundleRoot, bare))
+      if (!repoPathExists(bare) && !okHere && !okBundle) {
         violations.push({ file: relFile, line: i + 1, kind: 'path', token })
       }
     }

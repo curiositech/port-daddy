@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="780" viewBox="0 0 1400 780" role="img" aria-labelledby="title desc">
+  <title id="title">Port Daddy Articles of Agreement contract topology</title>
+  <desc id="desc">A concrete diagram showing an agent runtime connected to hooks, MCP tools, the Port Daddy daemon, worktree sandbox, and model backend.</desc>
+  <style>
+    .bg { fill: #f6f3ea; }
+    text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #171717; }
+    .label { font-size: 28px; font-weight: 800; }
+    .small { font-size: 20px; font-weight: 650; fill: #525252; }
+    .tiny { font-size: 17px; font-weight: 700; fill: #525252; }
+    .node { fill: #fffaf0; stroke: #171717; stroke-width: 3; }
+    .sub { fill: #ebe5d6; stroke: #171717; stroke-width: 2; }
+    .arrow { fill: none; stroke: #171717; stroke-width: 4; marker-end: url(#arrow); }
+    .soft { fill: none; stroke: #525252; stroke-width: 3; stroke-dasharray: 10 10; marker-end: url(#arrow-muted); }
+    .accent { stroke: #0f766e; }
+    .danger { stroke: #b91c1c; }
+    .warn { stroke: #b45309; }
+    .blue { stroke: #1d4ed8; }
+    .arrow-head { fill: #171717; }
+    .arrow-head-muted { fill: #525252; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #101214; }
+      text { fill: #f3f4f6; }
+      .small, .tiny { fill: #b6bec8; }
+      .node { fill: #171a1d; stroke: #e5e7eb; }
+      .sub { fill: #23272b; stroke: #e5e7eb; }
+      .arrow { stroke: #e5e7eb; }
+      .soft { stroke: #b6bec8; }
+      .accent { stroke: #5eead4; }
+      .danger { stroke: #f87171; }
+      .warn { stroke: #fbbf24; }
+      .blue { stroke: #93c5fd; }
+      .arrow-head { fill: #e5e7eb; }
+      .arrow-head-muted { fill: #b6bec8; }
+    }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrow-head" d="M 0 0 L 10 5 L 0 10 z" />
+    </marker>
+    <marker id="arrow-muted" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrow-head-muted" d="M 0 0 L 10 5 L 0 10 z" />
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1400" height="780" />
+  <text x="60" y="72" class="label">Articles of Agreement harness topology</text>
+  <text x="60" y="108" class="small">The model can vary. The runtime contract stays the same.</text>
+
+  <rect x="62" y="162" width="300" height="164" rx="0" class="node" />
+  <text x="92" y="210" class="label">Agent runtime</text>
+  <text x="92" y="250" class="small">Claude Code</text>
+  <text x="92" y="282" class="small">Codex CLI</text>
+  <text x="92" y="314" class="small">Gemini / cloud agent</text>
+
+  <rect x="518" y="132" width="340" height="220" rx="0" class="node" />
+  <text x="550" y="182" class="label">Hook layer</text>
+  <rect x="552" y="206" width="270" height="34" class="sub" />
+  <text x="568" y="230" class="tiny">Turn start: attention digest</text>
+  <rect x="552" y="252" width="270" height="34" class="sub" />
+  <text x="568" y="276" class="tiny">Pre-tool: veto / redirect</text>
+  <rect x="552" y="298" width="270" height="34" class="sub" />
+  <text x="568" y="322" class="tiny">Post-tool: logs / heat</text>
+
+  <rect x="1014" y="152" width="318" height="180" rx="0" class="node" />
+  <text x="1046" y="200" class="label">Model backend</text>
+  <text x="1046" y="240" class="small">Claude, Codex, Gemma</text>
+  <text x="1046" y="272" class="small">Ollama, vLLM, Workers AI</text>
+  <text x="1046" y="304" class="small">Tool-call parity required</text>
+
+  <rect x="100" y="468" width="320" height="190" rx="0" class="node" />
+  <text x="132" y="516" class="label">MCP response path</text>
+  <text x="132" y="556" class="small">note, claim, lock</text>
+  <text x="132" y="588" class="small">tube reply, bid, review</text>
+  <text x="132" y="620" class="small">memory candidate</text>
+
+  <rect x="540" y="444" width="340" height="236" rx="0" class="node" />
+  <text x="572" y="492" class="label">Port Daddy daemon</text>
+  <text x="572" y="532" class="small">sessions, claims, channels</text>
+  <text x="572" y="564" class="small">budget, bonds, CI verdicts</text>
+  <text x="572" y="596" class="small">episodic memory, skills</text>
+  <rect x="572" y="620" width="250" height="34" class="sub" />
+  <text x="588" y="644" class="tiny">durable truth, not cache</text>
+
+  <rect x="1006" y="464" width="318" height="194" rx="0" class="node" />
+  <text x="1038" y="512" class="label">Berth / sandbox</text>
+  <text x="1038" y="552" class="small">linked worktree</text>
+  <text x="1038" y="584" class="small">Coast Guard / container</text>
+  <text x="1038" y="616" class="small">Relay / cloud harbor</text>
+
+  <path class="arrow accent" d="M 362 244 C 420 244, 454 242, 514 242" />
+  <text x="394" y="224" class="tiny">native events</text>
+
+  <path class="arrow blue" d="M 858 242 C 922 242, 954 242, 1010 242" />
+  <text x="884" y="222" class="tiny">messages API / CLI call</text>
+
+  <path class="soft" d="M 688 352 C 688 382, 704 402, 704 440" />
+  <text x="722" y="402" class="tiny">hook facts</text>
+
+  <path class="arrow warn" d="M 420 562 C 468 562, 494 562, 536 562" />
+  <path class="arrow accent" d="M 880 562 C 922 562, 958 562, 1002 562" />
+
+  <path class="soft danger" d="M 662 444 C 566 382, 580 346, 584 330" />
+  <text x="444" y="374" class="tiny">deny unsafe tool calls</text>
+
+  <path class="soft" d="M 1164 464 C 1164 386, 1164 356, 1164 334" />
+  <text x="1186" y="402" class="tiny">runtime provenance</text>
+</svg>

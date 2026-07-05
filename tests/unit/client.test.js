@@ -441,6 +441,28 @@ describe('Sessions', () => {
     expect(result.success).toBe(true);
   });
 
+  test('takeoverSession sends successor request', async () => {
+    queueResponse({ success: true, predecessorId: 'session-123', successorId: 'session-456', notesPreserved: true });
+
+    const result = await pd.takeoverSession('session-123', {
+      note: 'continuing here',
+      purpose: 'Continue ship',
+      lifecycle: 'durable',
+      claimFiles: false,
+    });
+
+    expect(receivedRequests[0].method).toBe('POST');
+    expect(receivedRequests[0].url).toBe('/sessions/session-123/takeover');
+    expect(receivedRequests[0].body).toEqual({
+      note: 'continuing here',
+      purpose: 'Continue ship',
+      claimFiles: false,
+      agentId: 'session-agent',
+      durable: true,
+    });
+    expect(result.successorId).toBe('session-456');
+  });
+
   test('sessions encodes filters', async () => {
     queueResponse({ success: true, sessions: [], count: 0, worktreeId: 'wt-1' });
 
@@ -1072,6 +1094,29 @@ describe('IPC fast paths', () => {
     );
     expect(receivedRequests).toHaveLength(0);
     expect(result.success).toBe(true);
+  });
+
+  test('takeoverSession prefers IPC before HTTP', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue({
+      success: true,
+      predecessorId: 'session-123',
+      successorId: 'session-456',
+      notesPreserved: true,
+    });
+
+    const result = await pd.takeoverSession('session-123', { note: 'take over', lifecycle: 'ephemeral' });
+
+    expect(pd._requestViaIpc).toHaveBeenCalledWith(
+      'session.takeover',
+      {
+        sessionId: 'session-123',
+        note: 'take over',
+        agentId: 'registered-agent',
+        durable: false,
+      },
+    );
+    expect(receivedRequests).toHaveLength(0);
+    expect(result.successorId).toBe('session-456');
   });
 
   test('claimFiles prefers IPC before HTTP', async () => {

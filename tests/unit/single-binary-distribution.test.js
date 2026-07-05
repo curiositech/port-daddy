@@ -73,12 +73,15 @@ describe('single binary distribution path', () => {
     expect(buildScript).toContain('launcherSource');
     expect(buildScript).toContain("run('cc'");
     expect(buildScript).toContain('execv(target, child_argv)');
+    expect(buildScript).toContain('setenv("PORT_DADDY_FORCE_TCP", "1", 1)');
     expect(buildScript).toContain("basename(requestedOutfile) === 'pd'");
     expect(buildScript).toContain("join(dirname(requestedOutfile), 'port-daddy')");
     expect(buildScript).toContain('target: target || null');
     expect(buildScript).toContain('/arbiter/status');
     expect(buildScript).toContain('embedded native Arbiter enforcer was not loaded cleanly');
     expect(buildScript).toContain("['attention', '--agent', 'pd-single-binary-smoke-agent', '--json']");
+    expect(buildScript).toContain("['attention', '--json']");
+    expect(buildScript).toContain('single binary CLI smoke failed: bare pd attention did not return the expected summary');
     expect(buildScript).toContain('single binary CLI smoke failed: pd attention did not return the expected summary');
     expect(buildScript).toContain('isolated-bin');
     expect(buildScript).toContain('copyFileSync(outfile, isolatedOutfile)');

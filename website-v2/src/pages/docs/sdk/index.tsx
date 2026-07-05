@@ -74,7 +74,7 @@ export default function SdkOverview() {
         <p className="max-w-3xl text-xl leading-relaxed text-[var(--text-secondary)]">
           Programmatic access to the same daemon that powers the CLI and MCP server. This page now
           lists every public method on <code>PortDaddy</code> in <code>lib/client.ts</code>, including
-          newer actor, budget, bond, pheromone, Arbiter, tuple, and sortie surfaces.
+          newer actor, budget, bond, pheromone, Arbiter, tuple, and spawn surfaces.
         </p>
         <p className="max-w-xl rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3 text-sm text-[var(--text-muted)]">
           Use this reference when you are writing JavaScript or TypeScript. For terminal usage see the{' '}

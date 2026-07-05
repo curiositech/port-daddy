@@ -125,6 +125,7 @@ export default function McpOverview() {
         <CodeBlock language="bash">{`$ pd mcp install
 ✓ Port Daddy MCP configured for detected clients
 ✓ Port Daddy agent skill installed
+✓ Port Daddy Pilot definitions installed
 ✓ Optional shell hook configured`}</CodeBlock>
       </div>
 

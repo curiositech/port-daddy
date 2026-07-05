@@ -30,7 +30,7 @@ function readJson(filePath) {
 
 // ─── Imports ──────────────────────────────────────────────────────────────────
 
-const { createPlatforms, configurePlatform, silentMcpInstall } =
+const { createPlatforms, configurePlatform, installPilotDefinitions, silentMcpInstall } =
   await import('../../cli/commands/mcp-install.js');
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -218,6 +218,68 @@ describe('configurePlatform()', () => {
     const result = configurePlatform(cc);
     expect(result.success).toBe(false);
     expect(result.error).toBeDefined();
+  });
+});
+
+// ─── Port Daddy Pilot definitions ───────────────────────────────────────────
+
+describe('installPilotDefinitions(home)', () => {
+  let tmpHome;
+
+  beforeEach(() => { tmpHome = makeTmpHome(); });
+  afterEach(() => { rmSync(tmpHome, { recursive: true, force: true }); });
+
+  it('renders the Port Daddy Pilot persona into every local agent runtime', () => {
+    const sourceDir = join(process.cwd(), 'agents', 'port-daddy-pilot');
+
+    const result = installPilotDefinitions(tmpHome, { sourceDir });
+
+    expect(result.errors).toEqual([]);
+    expect(result.written.map(w => w.runtime)).toEqual([
+      'Claude Code',
+      'Codex CLI',
+      'Gemini CLI',
+      'Gemini extension (Antigravity)',
+      'Generic agents',
+    ]);
+    expect(existsSync(join(tmpHome, '.claude', 'agents', 'port-daddy-pilot.md'))).toBe(true);
+    expect(existsSync(join(tmpHome, '.codex', 'agents', 'port-daddy-pilot.toml'))).toBe(true);
+    expect(existsSync(join(tmpHome, '.gemini', 'commands', 'pd-pilot.toml'))).toBe(true);
+    expect(existsSync(join(tmpHome, '.gemini', 'extensions', 'port-daddy', 'commands', 'pd-pilot.toml'))).toBe(true);
+    expect(existsSync(join(tmpHome, '.agents', 'agents', 'port-daddy-pilot.md'))).toBe(true);
+    expect(readFileSync(join(tmpHome, '.codex', 'agents', 'port-daddy-pilot.toml'), 'utf-8'))
+      .toContain('developer_instructions');
+  });
+
+  it('supports dry-run without writing files', () => {
+    const sourceDir = join(process.cwd(), 'agents', 'port-daddy-pilot');
+
+    const result = installPilotDefinitions(tmpHome, { sourceDir, dryRun: true });
+
+    expect(result.errors).toEqual([]);
+    expect(result.written).toHaveLength(5);
+    expect(existsSync(join(tmpHome, '.codex', 'agents', 'port-daddy-pilot.toml'))).toBe(false);
+    expect(existsSync(join(tmpHome, '.claude', 'agents', 'port-daddy-pilot.md'))).toBe(false);
+  });
+});
+
+describe('pd setup integration', () => {
+  it('delegates MCP install without double-installing Pilot definitions and arms the project harness', () => {
+    const setup = readFileSync(join(process.cwd(), 'cli', 'commands', 'setup.ts'), 'utf-8');
+
+    expect(setup).toContain("await handleMcpInstall({ 'no-agents': true })");
+    expect(setup).toContain('installPilotAgentDefinitions(options)');
+    expect(setup).toContain("import { installSquidHooks } from './squid.js'");
+    expect(setup).toContain('installProjectHarness(projectDir, options)');
+    expect(setup).toContain('await installSquidHooks(projectDir)');
+    expect(setup).toContain("await handleGuard(['install'], { dir: projectDir, mode: 'enforce', yes: true })");
+    expect(setup).toContain('installRemediation');
+
+    const cli = readFileSync(join(process.cwd(), 'bin', 'port-daddy-cli.ts'), 'utf-8');
+    expect(cli).toContain('--no-agents             Skip Port Daddy Pilot agent definitions');
+    expect(cli).toContain('--no-harness            Skip Squid hooks and Coordination Guard');
+    expect(cli).toContain('--no-squid-hooks        Skip agent hook installation only');
+    expect(cli).toContain('--no-guard              Skip Coordination Guard hook installation only');
   });
 });
 

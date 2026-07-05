@@ -84,7 +84,10 @@ MIN_LINES=(
   lib/orchestrator.ts 150
   bin/port-daddy-cli.ts 800
   mcp/server.ts 800
-  public/index.html 500
+  # public/index.html: the web dashboard was retired (surface consolidation,
+  # 2026-07) — the root page is now a deliberately minimal pointer to the
+  # native surfaces. Floor guards against accidental truncation only.
+  public/index.html 60
 )
 
 MODIFIED_FILES=$(git diff --cached --name-only --diff-filter=M 2>/dev/null || true)
@@ -138,6 +141,22 @@ if echo "$STAGED_FILES" | grep -q '^website-v2/'; then
 
   if ! npm --prefix website-v2 run build >/dev/null 2>&1; then
     fail "website-v2 build failed. The public shell must build clean before committing."
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# 6. Secret-at-rest guard on the staged diff (ADR-0088 Phase B / ADR-0053)
+# ---------------------------------------------------------------------------
+# `pd safe guard --staged` reuses the A1 structured-format + entropy scanner
+# against `git diff --staged` and exits 1 when a NEW secret is staged. It prints
+# only path/line/rule-id/last-4 — never the raw value. Fail-OPEN if the `pd`
+# binary is absent (do not block a commit just because pd isn't installed);
+# fail-CLOSED when pd is present and finds a staged secret.
+if command -v pd >/dev/null 2>&1; then
+  if ! pd safe guard --staged --quiet >/dev/null 2>&1; then
+    # Re-run without --quiet so the operator sees which finding blocked them.
+    pd safe guard --staged >&2 || true
+    fail "staged changes add a secret (pd safe guard). Un-stage it or corral it: pd safe corral <KEY> --apply."
   fi
 fi
 

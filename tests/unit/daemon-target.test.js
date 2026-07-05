@@ -9,8 +9,9 @@
  *
  * `resolveDaemonTarget()` is now the ONE place that decides socket-vs-TCP.
  * Precedence (pinned here and matching the long-standing lib/request.test.js):
- *   1. PORT_DADDY_SOCK env  -> explicit Unix socket
- *   2. PORT_DADDY_URL env   -> explicit TCP URL
+ *   0. PORT_DADDY_FORCE_TCP=1 -> loopback TCP, bypassing Unix socket
+ *   1. PORT_DADDY_SOCK env    -> explicit Unix socket
+ *   2. PORT_DADDY_URL env     -> explicit TCP URL
  *   3. the daemon's socket file exists -> Unix socket
  *   4. TCP from the port file (or the canonical preferred port)
  *
@@ -25,6 +26,20 @@ const NEVER = () => false;
 const ALWAYS = () => true;
 
 describe('resolveDaemonTarget (the one canonical resolver)', () => {
+  test('0. PORT_DADDY_FORCE_TCP bypasses socket env and socket files', () => {
+    const t = resolveDaemonTarget(
+      {
+        PORT_DADDY_FORCE_TCP: '1',
+        PORT_DADDY_SOCK: '/run/pd-custom.sock',
+        PORT_DADDY_URL: 'http://127.0.0.1:4321',
+      },
+      ALWAYS,
+    );
+    expect(t.socketPath).toBeUndefined();
+    expect(t.host).toBe('127.0.0.1');
+    expect(t.port).toBe(4321);
+  });
+
   test('1. PORT_DADDY_SOCK env -> explicit socket', () => {
     const t = resolveDaemonTarget({ PORT_DADDY_SOCK: '/run/pd-custom.sock' }, NEVER);
     expect(t.socketPath).toBe('/run/pd-custom.sock');

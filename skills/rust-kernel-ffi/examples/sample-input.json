@@ -1,0 +1,38 @@
+{
+  "exports": [
+    {
+      "name": "pd_macaroon_verify_json",
+      "hasCatchUnwindOrPanicAbort": true,
+      "inputGuards": {
+        "null": true,
+        "len": true,
+        "bound": true,
+        "utf8": true,
+        "parse": true
+      },
+      "returnsSentinelOnFailure": true,
+      "handsOutString": true,
+      "hasMatchingFreeFn": true,
+      "passesRustStructAcrossBoundary": false
+    },
+    {
+      "name": "pd_string_free",
+      "hasCatchUnwindOrPanicAbort": true,
+      "inputGuards": {
+        "null": true,
+        "len": true,
+        "bound": true,
+        "utf8": true,
+        "parse": true
+      },
+      "returnsSentinelOnFailure": true,
+      "handsOutString": false,
+      "hasMatchingFreeFn": false,
+      "passesRustStructAcrossBoundary": false
+    }
+  ],
+  "constantTimeCompareForMacs": true,
+  "crateType": ["rlib", "cdylib"],
+  "loaderDegradesGracefully": true,
+  "testedUnderRealRuntime": true
+}

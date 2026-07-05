@@ -7,6 +7,7 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{maydayred}{HTML}{8B0000}
 
 \begin{figure}[H]
 \centering
@@ -23,7 +24,7 @@
                inner sep=3pt,font=\sffamily\footnotesize,align=left,
                text width=44mm},
   edge/.style={->,>=Latex,thick,draw=hhebony},
-  refuseedge/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
+  forbidedge/.style={->,>=Latex,thick,draw=maydayred,line width=1.1pt},
 ]
 
 % ─── Parties at top: Alice's principal (poster), Bob's principal (claimant) ─
@@ -45,10 +46,10 @@
 % ─── Outcome nodes — placed directly below each stepbox ──────────────────────
 \node[party,fill=hhteal!30,below=28mm of s2.south] (Op) {%
   \textbf{Clear:}\\\footnotesize $B$ paid out of bond,\\\footnotesize remainder refunded};
-\node[party,fill=hhcobalt!22,below=28mm of s3.south] (Or) {%
+\node[party,fill=hhamber!20,below=28mm of s3.south] (Or) {%
   \textbf{Refuse:}\\\footnotesize bond returned to $A$,\\\footnotesize escrow logs reason};
-\node[party,fill=hhcobalt!22,below=28mm of s1.south] (Of) {%
-  \textbf{Forbidden:}\\\footnotesize redirect, equivocate,\\\footnotesize delay past TTL};
+\node[party,draw=maydayred,line width=1.1pt,fill=maydayred!10,below=28mm of s1.south] (Of) {%
+  \textcolor{maydayred}{\textbf{$\times$~Forbidden:}}\\\footnotesize redirect, equivocate,\\\footnotesize delay past TTL};
 
 % ─── Flow edges ────────────────────────────────────────────────────
 \draw[edge] (PA.south) -- (s1.north);
@@ -59,9 +60,9 @@
 % Outcomes from the escrow verification step (s3)
 \draw[edge] (s3.south) -- (Op.north);
 \draw[edge] (s3.south) -- (Or.north);
-% Forbidden: structurally excluded — shown as dashed from escrow node
-\draw[refuseedge] (E.south) -- (Of.north);
-\node[font=\sffamily\scriptsize\itshape,text=hhcobalt,below=2pt of Of.south,text width=34mm,align=center]{ruled out structurally\\(Theorem~\ref{thm:fh-escrow-bound})};
+% Forbidden: structurally blocked — red barred connector
+\draw[forbidedge] (E.south) -- (Of.north);
+\node[font=\sffamily\scriptsize\itshape,text=maydayred,below=2pt of Of.south,text width=34mm,align=center]{blocked structurally\\(Theorem~\ref{thm:fh-escrow-bound})};
 
 \end{tikzpicture}%
 }

@@ -11,14 +11,16 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { Counters } from '../lib/counters.js';
 import type { CostTracker } from '../lib/cost-tracker.js';
+import type { CloudAppTelemetry } from '../lib/cloud-app-telemetry.js';
 
 interface ObservabilityDeps {
   counters: Counters;
   costTracker: CostTracker;
+  cloudAppTelemetry?: CloudAppTelemetry;
 }
 
 export const observabilityPlugin: FastifyPluginAsync<{ deps: ObservabilityDeps }> = async (fastify, opts) => {
-  const { counters, costTracker } = opts.deps;
+  const { counters, costTracker, cloudAppTelemetry } = opts.deps;
 
   /** Parse `?since=N` (seconds ago) into epoch ms. Returns undefined when absent and no default given. */
   function parseSince(q: Record<string, string>, defaultSecs?: number): number | undefined {
@@ -134,8 +136,22 @@ export const observabilityPlugin: FastifyPluginAsync<{ deps: ObservabilityDeps }
     const totals = costTracker.total({ since });
     const byProject = costTracker.summary({ since, projectName: q.project });
     const byBackend = costTracker.byBackend({ since });
+    const remoteSummary = cloudAppTelemetry?.summary({ since, limit: 20 }) ?? null;
+    const remote = cloudAppTelemetry
+      ? { cloudApp: remoteSummary }
+      : { cloudApp: null };
+    const combinedTotals = {
+      totalUsd: +Number(totals.totalUsd + (remoteSummary?.totals.costUsd ?? 0)).toFixed(6),
+      localUsd: totals.totalUsd,
+      remoteUsd: remoteSummary?.totals.costUsd ?? 0,
+      localSpawnCount: totals.spawnCount,
+      remoteEventCount: remoteSummary?.totals.events ?? 0,
+      remoteShipEventCount: remoteSummary?.totals.shipEvents ?? 0,
+      estimatedCount: totals.estimatedCount + (remoteSummary?.totals.estimatedCostEvents ?? 0),
+      unknownRemoteCostEvents: remoteSummary?.totals.unknownCostEvents ?? 0,
+    };
 
-    return { since, periodSecs: sinceSecs, totals, byProject, byBackend };
+    return { since, periodSecs: sinceSecs, totals, byProject, byBackend, remote, combinedTotals };
   });
 
   /**

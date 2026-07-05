@@ -1,0 +1,19 @@
+{
+  "broker": "bullmq",
+  "workShape": "single-side-effect",
+  "handlersIdempotent": true,
+  "dedupBackedByDbConstraint": true,
+  "expectsExactlyOnce": false,
+  "lockDurationMs": 90000,
+  "handlerP99Ms": 30000,
+  "handlerExtendsLock": true,
+  "backoffStrategy": "exponential-full-jitter",
+  "permanentErrorsBypassRetry": true,
+  "dlqConfigured": true,
+  "dlqReplayToolExists": true,
+  "dlqAlertOnGrowthRate": true,
+  "redisMaxmemoryPolicy": "noeviction",
+  "redisAofEnabled": true,
+  "gracefulShutdownHandled": true,
+  "queueLevelRateLimiter": true
+}

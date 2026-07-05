@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Port Daddy — Remote Harbor · curiositech/checkout-rework (ch20)</title>
+<!-- Plex from Google for this mock only (production self-hosts); see port.css header note -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&family=Recursive:CASL,wght@1,300..1000&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   Remote Harbor — the web-distance sibling of the in-buffer co-edit
+   (apps.html M·F). Story Linework ch20, palette v2, light theme.
+   Laws honored: fractional linework (1px texture / 1.5px linework /
+   2px enclosure, never adjacent-mixed); zero radius, zero drop
+   shadows; hues never chrome; one color zone (violet, parley/gates
+   header); one giant flag (Victor, claims-map masthead — assistance
+   IS required on the contested range); state = stripe + dot +
+   micro-flag + label + relative time; pulse only in-flight.
+   ══════════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --surface-base:   #f2eee6;
+  --surface-raised: #f7f3eb;
+  --surface-strong: #e9e2d5;
+  --surface-sunken: #e0d9cb;
+  --surface-card:   #e9e2d5;
+  --text-primary:   #121212;
+  --text-secondary: #403b34;
+  --text-muted:     #47423a;
+  --text-ghost:     #98928a;
+  --inverse:        #fbf7ef;
+
+  --cobalt: #003fb8;  --teal: #006b5f;  --health: #1f7a4d;
+  --amber:  #a66f00;  --amber-on-tint: #5b3900;  --error: #bf2f2f;
+  --indigo: #353a85;  --violet: #933fa5;  --violet-on-tint: #772189;
+  --rust:   #7a4514;  --gold:   #666a00;
+
+  --cobalt-slab: #003fb8; --teal-slab: #006b5f; --health-slab: #1f7a4d;
+  --indigo-slab: #353a85; --violet-slab: #933fa5; --rust-slab: #7a4514;
+  --lime: #cad900;
+  --violet-wash: color-mix(in oklab, var(--violet) 10%, var(--surface-base));
+  --amber-wash:  color-mix(in oklab, var(--amber) 10%, var(--surface-base));
+  --flag-white: #fbf7ef;
+  --ink: #17191d;
+
+  --hair:        rgba(18, 18, 18, 0.14);
+  --hair-strong: rgba(18, 18, 18, 0.34);
+  --border-strong: #121212;
+
+  --lw-weight: 1.5px;   /* linework */
+  --lw-bracket: 14px;
+  --lw-stripe: 3px;
+
+  /* buffer substrate — theme-independent, same tokens as port.css
+     codeblock (the web-distance view of the dark co-edit buffer) */
+  --buf-bg: #12161f; --buf-head: #0d1118; --buf-text: #edf1f9;
+  --buf-dim: #c7d0e5; --buf-ghost: #7c8496;
+  --buf-cobalt: #8dc4ff; --buf-health: #5fce97; --buf-indigo: #a6a9ff;
+  --buf-teal: #8fd0a7; --buf-error: #ff7d7d; --buf-amber: #f2be51;
+
+  --tracking-allcaps: 0.12em;
+}
+
+body {
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: "IBM Plex Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  min-width: 1380px;
+  -webkit-font-smoothing: antialiased;
+}
+.mono, code {
+  font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
+
+/* the play voice — Recursive casual axis, display em-phrases only */
+.rec { font-family: "Recursive", "IBM Plex Sans", sans-serif;
+       font-variation-settings: "CASL" 1; font-weight: 660; }
+
+/* eyebrow — the sanctioned 12px exception (mono 700 uppercase, ≥0.1em) */
+.eyebrow {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: var(--tracking-allcaps); color: var(--text-muted);
+}
+.cap { font-size: 13.5px; line-height: 1.55; color: var(--text-muted); }
+
+/* ── ICS letter flags, Swiss-abstracted (port.css LW-7b geometry,
+      14×10 at web distance; red→rust, yellow→lime, blue→cobalt) ── */
+.f { display: inline-block; width: 14px; height: 10px; flex: none;
+     border: 1px solid var(--hair-strong); vertical-align: -1px;
+     --fw: var(--flag-white); --c: var(--cobalt-slab); --r: var(--rust-slab); --y: var(--lime); }
+.f-echo    { background: linear-gradient(to bottom, var(--c) 0 50%, var(--r) 50%); }
+.f-hotel   { background: linear-gradient(to right, var(--fw) 0 50%, var(--r) 50%); }
+.f-mike    { background:
+  linear-gradient(to bottom right, transparent calc(50% - 9%), var(--fw) calc(50% - 9%) calc(50% + 9%), transparent calc(50% + 9%)),
+  linear-gradient(to bottom left,  transparent calc(50% - 9%), var(--fw) calc(50% - 9%) calc(50% + 9%), transparent calc(50% + 9%)),
+  var(--c); }
+.f-victor  { background:
+  linear-gradient(to bottom right, transparent calc(50% - 9%), var(--r) calc(50% - 9%) calc(50% + 9%), transparent calc(50% + 9%)),
+  linear-gradient(to bottom left,  transparent calc(50% - 9%), var(--r) calc(50% - 9%) calc(50% + 9%), transparent calc(50% + 9%)),
+  var(--fw); }
+.f-foxtrot { background:  /* white field, red diamond = four white corner triangles */
+  linear-gradient(to bottom right, var(--fw) 50%, transparent 50%) top left    / 50% 50% no-repeat,
+  linear-gradient(to bottom left,  var(--fw) 50%, transparent 50%) top right   / 50% 50% no-repeat,
+  linear-gradient(to top right,    var(--fw) 50%, transparent 50%) bottom left / 50% 50% no-repeat,
+  linear-gradient(to top left,     var(--fw) 50%, transparent 50%) bottom right/ 50% 50% no-repeat,
+  var(--r); }
+.f-yankee  { background: repeating-linear-gradient(45deg, var(--y) 0 3px, var(--r) 3px 6px); }
+.f-quebec  { background: var(--y); }
+.f-oscar   { background: linear-gradient(to top right, var(--r) 0 50%, var(--y) 50%); }
+
+/* ── linework brackets (live panels only; 1.5px, always ink) ── */
+.lw-brackets { position: relative; }
+.lw-brackets > i.lw {
+  position: absolute; width: var(--lw-bracket); height: var(--lw-bracket);
+  border: 0 solid var(--border-strong); pointer-events: none;
+}
+.lw-brackets > i.lw:nth-child(1) { top: -1px; left: -1px; border-top-width: var(--lw-weight); border-left-width: var(--lw-weight); }
+.lw-brackets > i.lw:nth-child(2) { top: -1px; right: -1px; border-top-width: var(--lw-weight); border-right-width: var(--lw-weight); }
+.lw-brackets > i.lw:nth-child(3) { bottom: -1px; left: -1px; border-bottom-width: var(--lw-weight); border-left-width: var(--lw-weight); }
+.lw-brackets > i.lw:nth-child(4) { bottom: -1px; right: -1px; border-bottom-width: var(--lw-weight); border-right-width: var(--lw-weight); }
+
+@keyframes lw-pulse { 0% { transform: scale(0.7); opacity: 0.8; } 100% { transform: scale(1.9); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .dot::after { animation: none !important; } }
+
+/* ═══════════ HEADER ═══════════ */
+header.mast {
+  border-bottom: 2px solid var(--border-strong);
+  padding: 22px 36px 18px;
+  display: flex; gap: 36px; align-items: flex-start;
+}
+.mast h1 { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+.mast h1 .rec { color: var(--cobalt); }
+.mast h1 .repo { font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 30px; }
+.mast .sub { margin-top: 6px; font-size: 14.5px; color: var(--text-secondary); max-width: 62ch; }
+.mast-tools { margin-left: auto; text-align: right; }
+.mast-tools-row { display: flex; gap: 14px; align-items: stretch; justify-content: flex-end; }
+.relay {
+  display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid var(--hair-strong); padding: 8px 14px;
+  font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600;
+  color: var(--teal);
+}
+.relay .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); flex: none; }
+.budget {
+  background: var(--gold); color: var(--flag-white);
+  padding: 6px 16px; display: flex; flex-direction: column; justify-content: center;
+}
+.budget .b-label { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em; }
+.budget .b-amt { font-family: "IBM Plex Mono", monospace; font-size: 19px; font-weight: 700; line-height: 1.25; }
+.btn-invite {
+  background: var(--cobalt); color: var(--inverse);
+  font-family: "IBM Plex Mono", monospace; font-size: 13.5px; font-weight: 700;
+  letter-spacing: 0.04em; padding: 12px 22px;
+}
+.btn-invite:hover { background: var(--border-strong); }
+.mast-tools .cap { display: block; margin-top: 10px; max-width: 52ch; }
+
+/* ═══════════ DECK GRID ═══════════ */
+main.deck { display: grid; grid-template-columns: 296px 1fr 396px; align-items: stretch; }
+.panel-h {
+  border-bottom: 1px solid var(--hair-strong);
+  padding: 10px 18px; display: flex; align-items: baseline; gap: 12px;
+  background: var(--surface-raised);
+}
+.panel-h .cap { margin-left: auto; text-align: right; }
+
+/* ═══════════ CREW RAIL ═══════════ */
+.crew { border-right: 2px solid var(--border-strong); display: flex; flex-direction: column; }
+.crew-group { padding: 14px 16px 4px; }
+.crew-group > .eyebrow { display: block; margin-bottom: 4px; color: var(--rust); }
+.crew-group > .cap { display: block; margin-bottom: 12px; }
+.mate {
+  background: var(--surface-card); border: 1px solid var(--hair);
+  padding: 11px 13px; margin-bottom: 12px; position: relative;
+}
+.mate::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: var(--lw-stripe); background: var(--who, var(--text-ghost)); }
+.mate .who { display: flex; align-items: center; gap: 9px; }
+.mate .name { font-weight: 700; font-size: 15px; }
+.mate .role { font-size: 13.5px; color: var(--text-muted); }
+.mate .state-line { display: flex; align-items: center; gap: 8px; margin-top: 7px;
+  font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em; }
+.mate .state-line .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--who); position: relative; flex: none; }
+.mate.running .dot::after { content: ""; position: absolute; inset: -4px; border-radius: 50%;
+  border: var(--lw-weight) solid var(--who); opacity: 0.6; animation: lw-pulse 1.8s ease-out infinite; }
+.mate .step { font-size: 13.5px; color: var(--text-secondary); margin-top: 6px; }
+.mate .age { font-size: 13.5px; color: var(--text-muted); margin-top: 3px; }
+.capcard {
+  margin-top: 8px; border-top: 1px solid var(--hair);
+  padding-top: 7px; font-size: 13.5px; line-height: 1.5; color: var(--text-secondary);
+}
+.capcard b { color: var(--teal); font-weight: 700; }
+.capcard .no { color: var(--error); font-weight: 700; }
+.newtag {
+  display: inline-block; font-family: "IBM Plex Mono", monospace;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.1em;
+  background: var(--lime); color: var(--ink); padding: 1px 6px; margin-left: 6px;
+}
+/* flag key */
+.flagkey { margin: 4px 16px 18px; border: 1px solid var(--hair);
+  background: var(--surface-raised); padding: 11px 13px; }
+.flagkey > .eyebrow { display: block; margin-bottom: 8px; color: var(--rust); }
+.flagkey ul { list-style: none; display: grid; grid-template-columns: 1fr; gap: 6px; }
+.flagkey li { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+.flagkey li b { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-primary); }
+.flagkey .keynote { margin-top: 8px; font-size: 13px; color: var(--text-muted);
+  border-top: 1px solid var(--hair); padding-top: 7px; }
+
+/* ═══════════ CLAIMS MAP (center) ═══════════ */
+.claims { border-right: 2px solid var(--border-strong); display: flex; flex-direction: column; min-width: 0; }
+
+/* the page's ONE giant flag — VICTOR carries the claims-map masthead;
+   "I require assistance" is literally true of the contested range */
+.victor-band {
+  position: relative; height: 148px;
+  background:
+    linear-gradient(to bottom right, transparent calc(50% - 5.5%), var(--rust-slab) calc(50% - 5.5%) calc(50% + 5.5%), transparent calc(50% + 5.5%)),
+    linear-gradient(to bottom left,  transparent calc(50% - 5.5%), var(--rust-slab) calc(50% - 5.5%) calc(50% + 5.5%), transparent calc(50% + 5.5%)),
+    var(--flag-white);
+  border-bottom: 1px solid var(--hair-strong);
+}
+.victor-band .masthead {
+  position: absolute; left: 22px; bottom: 18px;
+  background: var(--border-strong); color: var(--surface-base);
+  padding: 8px 14px;
+}
+.victor-band .masthead .m-eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px;
+  font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--surface-base); }
+.victor-band .masthead h2 { font-size: 21px; font-weight: 700; letter-spacing: -0.012em; line-height: 1.2; }
+.victor-band .fb-cap {
+  position: absolute; right: 22px; top: 16px;
+  font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  background: var(--border-strong); color: var(--surface-base); padding: 4px 10px;
+}
+
+.claims-body { padding: 18px 22px; flex: 1; }
+.claims-body > .lead { font-size: 14.5px; color: var(--text-secondary); max-width: 70ch; margin-bottom: 14px; }
+.claims-body > .lead code { font-size: 14px; font-weight: 600; }
+
+/* the buffer at web distance — read-only fragment, holder stripes */
+.buffer { border: 2px solid var(--border-strong); background: var(--buf-bg); }
+.buffer-title {
+  font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.12em; color: var(--buf-dim);
+  background: var(--buf-head); padding: 9px 18px;
+  display: flex; gap: 14px; align-items: baseline;
+}
+.buffer-title .rd { margin-left: auto; color: var(--buf-ghost); letter-spacing: 0.08em; }
+.buffer-code { padding: 12px 0 14px; font-family: "IBM Plex Mono", monospace;
+  font-size: 14px; line-height: 1.75; color: var(--buf-text); overflow-x: auto; }
+.ln { display: grid; grid-template-columns: 46px 26px 6px 1fr; align-items: center; white-space: pre; }
+.ln .no { text-align: right; padding-right: 10px; color: var(--buf-ghost); font-size: 13px; }
+.ln .gf { display: flex; justify-content: center; }         /* gutter flag cell */
+.ln .st { height: 100%; }                                    /* stripe cell */
+.ln .cd { padding-left: 12px; }
+.ln .cm { color: var(--buf-dim); }
+.ln.held-erich .st { background: var(--buf-cobalt); width: var(--lw-stripe); }
+.ln.held-v1    .st { background: var(--buf-health); width: var(--lw-stripe); }
+/* the contested band — the semantic-conflict forecast drawn BEFORE
+   the collision: hatched, error hue at a 10% wash */
+.ln.contested { background: repeating-linear-gradient(45deg,
+    color-mix(in srgb, var(--buf-error) 10%, transparent) 0 5px, transparent 5px 10px); }
+.ln.contested .st { background: var(--buf-error); width: var(--lw-stripe); }
+.ln .note { font-size: 13px; color: var(--buf-amber); padding-left: 14px; white-space: normal; }
+.buffer-forecast {
+  border-top: 1px solid rgba(237, 241, 249, 0.14);
+  padding: 9px 18px; font-family: "IBM Plex Mono", monospace; font-size: 13px;
+  color: var(--buf-amber); display: flex; gap: 10px; align-items: center;
+}
+
+/* claims ledger rows — rule 8: stripe + dot + micro-flag + label + time */
+.ledger-claims { margin-top: 18px; border: 1px solid var(--hair); background: var(--surface-card); }
+.lc-head { padding: 9px 18px; border-bottom: 1px solid var(--hair-strong);
+  display: flex; align-items: baseline; gap: 12px; }
+.lc-head .cap { margin-left: auto; }
+.claim-row {
+  position: relative; display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  gap: 12px; align-items: center; padding: 10px 18px 10px 22px;
+}
+.claim-row + .claim-row { box-shadow: inset 0 1px 0 var(--hair); }
+.claim-row::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px;
+  width: var(--lw-stripe); background: var(--state, var(--text-ghost)); }
+.claim-row .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--state); flex: none; }
+.claim-row .target { font-family: "IBM Plex Mono", monospace; font-size: 14px; font-weight: 700; }
+.claim-row .kind { font-size: 13.5px; color: var(--text-secondary); }
+.claim-row .kind b { font-family: "IBM Plex Mono", monospace; font-size: 12px; letter-spacing: 0.08em;
+  color: var(--text-primary); }
+.claim-row .holder { display: flex; align-items: center; gap: 7px; white-space: nowrap;
+  font-size: 14px; font-weight: 600; justify-self: end; }
+.claim-row .when { font-size: 13.5px; color: var(--text-muted); white-space: nowrap; }
+.claim-row.is-contested { background: repeating-linear-gradient(45deg,
+    color-mix(in srgb, var(--error) 10%, transparent) 0 5px, transparent 5px 10px); }
+
+.claims-foot { border-top: 1px solid var(--hair-strong); background: var(--surface-raised);
+  padding: 11px 22px; }
+.claims-foot .cap b { color: var(--text-primary); }
+
+/* ═══════════ PARLEY + GATES (right) ═══════════ */
+.starboard { display: flex; flex-direction: column; position: relative; }
+
+/* the page's ONE color zone — violet marks the identity/consent lane */
+.zone-violet {
+  background: var(--violet-wash);
+  border-bottom: 1px solid var(--hair-strong);
+  padding: 10px 18px; display: flex; align-items: baseline; gap: 12px;
+}
+.zone-violet .eyebrow { color: var(--violet-on-tint); }
+.zone-violet .cap { margin-left: auto; color: var(--violet-on-tint); text-align: right; }
+
+/* voice-procedure chips — radio voice, drawn from the --voice-* names */
+.voice { display: inline-block; font-family: "IBM Plex Mono", monospace;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 3px 9px; }
+.voice-securite { background: var(--teal-slab); color: var(--flag-white); }
+.voice-panpan   { background: var(--amber-wash); color: var(--amber-on-tint);
+  border: 1px solid var(--amber); }
+
+.parley-card { margin: 16px 18px 0; background: var(--surface-card);
+  border: 1px solid var(--hair); }             /* live panel → brackets, below */
+.parley-strip { padding: 10px 14px; border-bottom: 1px solid var(--hair-strong);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.parley-strip .t { font-family: "IBM Plex Mono", monospace; font-size: 14px; font-weight: 700; }
+.position { padding: 11px 14px; }
+.position + .position { border-top: 1px solid var(--hair); }
+.p-who { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14.5px; }
+.p-who .kind { font-size: 13px; font-weight: 400; color: var(--text-muted); }
+.p-say { font-size: 14px; line-height: 1.55; color: var(--text-secondary); margin-top: 4px; }
+.p-say code { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.position.evidence { background: var(--surface-raised); }
+.resolve { border-top: 1px solid var(--hair-strong); padding: 12px 14px;
+  display: flex; flex-wrap: wrap; gap: 8px; }
+.resolve .eyebrow { width: 100%; color: var(--violet-on-tint); }
+.btn-res { border: 1px solid var(--hair-strong); background: var(--surface-base);
+  padding: 8px 13px; font-family: "IBM Plex Mono", monospace;
+  font-size: 13px; font-weight: 700; }
+.btn-res:hover { background: var(--border-strong); color: var(--surface-base); }
+.btn-res.freeze { color: var(--error); }
+.btn-res.freeze:hover { background: var(--error); color: var(--flag-white); }
+
+/* gates queue */
+.gates { margin: 18px 18px 0; }
+.gates > .g-intro { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.gates > .g-intro .cap { margin: 0; }
+.gate { background: var(--surface-card); border: 1px solid var(--hair);
+  padding: 11px 14px 12px; position: relative; }
+.gate::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px;
+  width: var(--lw-stripe); background: var(--amber); }
+.gate .g-title { font-family: "IBM Plex Mono", monospace; font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; gap: 8px; padding-left: 8px; }
+.gate .g-req { font-size: 13.5px; color: var(--text-secondary); margin-top: 5px; padding-left: 8px; }
+.gate .g-req b { color: var(--text-primary); }
+.gate .g-cost { font-family: "IBM Plex Mono", monospace; font-size: 13px;
+  color: var(--text-muted); margin-top: 3px; padding-left: 8px; }
+
+/* salvage tide-line — the ghost of crashed work, above the waterline */
+.tideline { margin: 18px 18px 0; border-top: 1px dashed var(--hair-strong); padding-top: 12px; }
+.salvage-row { display: flex; align-items: center; gap: 10px;
+  background: var(--surface-card); border: 1px solid var(--hair); padding: 10px 14px; }
+.salvage-row .ghost { opacity: 0.4; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.salvage-row .ghost .s-text { font-size: 13.5px; color: var(--text-primary); }
+.salvage-row .ghost .s-text b { font-family: "IBM Plex Mono", monospace; font-size: 13px; }
+.btn-salvage { margin-left: auto; flex: none; border: 1px solid var(--hair-strong);
+  background: var(--surface-base); padding: 7px 13px;
+  font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 700; }
+.btn-salvage:hover { background: var(--border-strong); color: var(--surface-base); }
+.tideline .cap { display: block; margin-top: 8px; }
+
+/* stale-truth chip — cached truth is labeled truth */
+.stale {
+  position: absolute; right: 0; bottom: 0; max-width: 320px;
+  background: var(--amber-wash); color: var(--amber-on-tint);
+  border-top: 1px solid var(--amber); border-left: 1px solid var(--amber);
+  font-size: 13px; font-weight: 600; padding: 7px 14px;
+}
+.stale b { font-weight: 700; }
+
+/* ═══════════ DURABLE TRANSCRIPT ═══════════ */
+footer.transcript { border-top: 2px solid var(--border-strong);
+  background: var(--buf-bg); color: var(--buf-text); }
+.tr-head { display: flex; align-items: baseline; gap: 14px; padding: 12px 36px 0; }
+.tr-head .eyebrow { color: var(--buf-amber); }
+.tr-head .cap { color: var(--buf-dim); margin-left: auto; }
+.tr-head .cap b { color: var(--buf-text); }
+.transcript ol { list-style: none; padding: 10px 36px 18px;
+  font-family: "IBM Plex Mono", monospace; font-size: 14px; line-height: 1.75; }
+.transcript li { display: flex; gap: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.transcript .seq { color: var(--buf-amber); flex: none; width: 3.4em; }
+.transcript .ev { flex: none; width: 10em; font-weight: 700; }
+.ev.e-grant { color: var(--buf-health); } .ev.e-parl { color: var(--buf-indigo); }
+.ev.e-gate  { color: var(--buf-error); }  .ev.e-tick { color: var(--buf-amber); }
+.transcript .body { color: var(--buf-dim); }
+
+/* mock plate — static, inside the transcript band */
+.port-note { display: inline-block; margin: 0 36px 16px;
+  font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  background: var(--surface-base); color: var(--border-strong); padding: 5px 11px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ HEADER ═══════════ -->
+<header class="mast">
+  <div>
+    <span class="eyebrow" style="color: var(--rust);">Port Daddy · Remote Harbor</span>
+    <h1><span class="rec">Harbor</span> — <span class="repo">curiositech/checkout-rework</span></h1>
+    <p class="sub">The web-distance view of the same harbor the editor co-edits: every claim,
+      parley, and gate below is the buffer's own truth, relayed — never a second authority.</p>
+  </div>
+  <div class="mast-tools">
+    <div class="mast-tools-row">
+      <span class="relay"><span class="dot"></span>connected · outbound-only · last ack 3s</span>
+      <div class="budget">
+        <span class="b-label">Session budget</span>
+        <span class="b-amt">$3.20 / $10</span>
+      </div>
+      <button class="btn-invite" type="button">Invite crew</button>
+    </div>
+    <span class="cap">QR or magic link — guests see their capability card before joining.</span>
+  </div>
+</header>
+
+<main class="deck">
+
+  <!-- ═══════════ CREW RAIL ═══════════ -->
+  <aside class="crew" aria-label="Crew">
+    <div class="panel-h">
+      <span class="eyebrow">Crew</span>
+      <span class="cap">2 humans · 4 agents</span>
+    </div>
+
+    <div class="crew-group">
+      <span class="eyebrow">Humans</span>
+      <span class="cap">crew fly their initial&rsquo;s flag</span>
+
+      <div class="mate" style="--who: var(--cobalt);">
+        <div class="who">
+          <span class="f f-echo" title="Echo — E for erich" aria-label="Echo letter flag"></span>
+          <div><span class="name">erich</span>
+            <div class="role">operator · the conn</div></div>
+        </div>
+        <div class="step">reviewing the claims map; holds <code>retry.ts</code> modify</div>
+        <div class="age">in harbor 2h 10m · identity verified</div>
+        <div class="capcard"><b>can:</b> everything the daemon can<br>
+          <span class="no">cannot:</span> be overridden by an agent</div>
+      </div>
+
+      <div class="mate" style="--who: var(--teal);">
+        <div class="who">
+          <span class="f f-mike" title="Mike — M for mira" aria-label="Mike letter flag"></span>
+          <div><span class="name">mira</span>
+            <div class="role">collaborator · guest card</div></div>
+        </div>
+        <div class="step">styling the payment sheet, <code>checkout.css</code></div>
+        <div class="age">in harbor 38m · joined by magic link</div>
+        <div class="capcard"><b>can:</b> edit <code>src/checkout</code>, open PRs<br>
+          <span class="no">cannot:</span> spend, delete</div>
+      </div>
+    </div>
+
+    <div class="crew-group">
+      <span class="eyebrow">Agents</span>
+      <span class="cap">agents fly their work-state flag</span>
+
+      <div class="mate running" style="--who: var(--health);">
+        <div class="who">
+          <span class="f f-hotel" title="Hotel — claim active" aria-label="Hotel state flag"></span>
+          <div><span class="name">voyager-1</span>
+            <div class="role">builder sortie</div></div>
+        </div>
+        <div class="state-line"><span class="dot"></span><span style="color: var(--health);">claim-active</span></div>
+        <div class="step">wiring Stripe webhook retries</div>
+        <div class="age">this step 12m · $0.88 spent</div>
+        <div class="capcard"><b>can:</b> edit <code>src/checkout</code>, run tests<br>
+          <span class="no">cannot:</span> merge, exceed ceiling</div>
+      </div>
+
+      <div class="mate" style="--who: var(--error);">
+        <div class="who">
+          <span class="f f-victor" title="Victor — conflict, assistance required" aria-label="Victor state flag"></span>
+          <div><span class="name">voyager-2</span>
+            <div class="role">builder sortie</div></div>
+        </div>
+        <div class="state-line"><span class="dot"></span><span style="color: var(--error);">conflict</span></div>
+        <div class="step">wants <code>backoff()</code> modify — held to parley #413</div>
+        <div class="age">waiting 4m · $0.41 spent</div>
+      </div>
+
+      <div class="mate" style="--who: var(--text-ghost);">
+        <div class="who">
+          <span class="f f-mike" title="Mike — idle" aria-label="Mike state flag"></span>
+          <div><span class="name">longshoreman-memory</span>
+            <div class="role">evidence &amp; recall</div></div>
+        </div>
+        <div class="state-line"><span class="dot"></span><span style="color: var(--text-muted);">idle</span></div>
+        <div class="step">on call; last served incident 2026-06-12</div>
+        <div class="age">idle 26m · $0.00 this hour</div>
+      </div>
+
+      <div class="mate" style="--who: var(--amber);">
+        <div class="who">
+          <span class="f f-quebec" title="Quebec — newcomer" aria-label="Quebec state flag"></span>
+          <div><span class="name">tenderfoot<span class="newtag">NEW</span></span>
+            <div class="role">probationary sortie</div></div>
+        </div>
+        <div class="state-line"><span class="dot"></span><span style="color: var(--amber-on-tint);">newcomer</span></div>
+        <div class="step">$0.50 ceiling until first clean exit</div>
+        <div class="age">first sortie · 8m</div>
+        <div class="capcard"><b>can:</b> read, propose claims<br>
+          <span class="no">cannot:</span> modify, spend past $0.50</div>
+      </div>
+    </div>
+
+    <div class="flagkey">
+      <span class="eyebrow">Work-state flags · lib/maritime-signals.ts</span>
+      <ul>
+        <li><span class="f f-hotel"></span><b>Hotel</b> claim-active</li>
+        <li><span class="f f-foxtrot"></span><b>Foxtrot</b> awaiting-human</li>
+        <li><span class="f f-victor"></span><b>Victor</b> conflict</li>
+        <li><span class="f f-yankee"></span><b>Yankee</b> stale</li>
+        <li><span class="f f-mike"></span><b>Mike</b> idle</li>
+        <li><span class="f f-quebec"></span><b>Quebec</b> newcomer</li>
+      </ul>
+      <div class="keynote">State is never color alone: stripe + dot + flag + word + relative time,
+        on every row, everywhere.</div>
+    </div>
+  </aside>
+
+  <!-- ═══════════ CLAIMS MAP ═══════════ -->
+  <section class="claims" aria-label="Claims map">
+
+    <!-- rule 7: the one giant flag carries this masthead. VICTOR:
+         "I require assistance" — literally true of the contested range. -->
+    <div class="victor-band" role="img" aria-label="Victor signal flag: I require assistance">
+      <span class="fb-cap">Victor · assistance required</span>
+      <div class="masthead">
+        <span class="m-eyebrow">Claims map</span>
+        <h2>src/checkout — 5 live claims · 1 contested range</h2>
+      </div>
+    </div>
+
+    <div class="claims-body">
+      <p class="lead">The in-buffer move at web distance: every held range wears its holder&rsquo;s
+        stripe on the exact lines held. The Longshoreman&rsquo;s forecast hatches the range where
+        <code>voyager-2</code> and <code>erich</code> will collide — drawn before the collision, not after.</p>
+
+      <div class="buffer">
+        <div class="buffer-title">
+          <span>src/checkout/retry.ts</span>
+          <span class="rd">read-only mirror · seq #415</span>
+        </div>
+        <div class="buffer-code">
+          <div class="ln held-v1"><span class="no">40</span><span class="gf"><span class="f f-hotel" title="voyager-1 holds 40–43"></span></span><span class="st"></span><span class="cd">export interface RetryPolicy {</span></div>
+          <div class="ln held-v1"><span class="no">41</span><span class="gf"></span><span class="st"></span><span class="cd">  maxAttempts: number</span></div>
+          <div class="ln held-v1"><span class="no">42</span><span class="gf"></span><span class="st"></span><span class="cd">  windowMs: number  <span class="cm">// SLA: total retry window &le; 30s</span></span></div>
+          <div class="ln held-v1"><span class="no">43</span><span class="gf"></span><span class="st"></span><span class="cd">}</span></div>
+          <div class="ln"><span class="no">44</span><span class="gf"></span><span class="st"></span><span class="cd"></span></div>
+          <div class="ln held-erich"><span class="no">45</span><span class="gf"><span class="f f-echo" title="erich holds 45–56"></span></span><span class="st"></span><span class="cd">export async function retryWebhook(ev: WebhookEvent, policy: RetryPolicy) {</span></div>
+          <div class="ln held-erich"><span class="no">46</span><span class="gf"></span><span class="st"></span><span class="cd">  let attempt = 0</span></div>
+          <div class="ln held-erich"><span class="no">47</span><span class="gf"></span><span class="st"></span><span class="cd">  while (attempt &lt; policy.maxAttempts) {</span></div>
+          <div class="ln held-erich"><span class="no">48</span><span class="gf"></span><span class="st"></span><span class="cd">    try {</span></div>
+          <div class="ln held-erich"><span class="no">49</span><span class="gf"></span><span class="st"></span><span class="cd">      return await deliver(ev)</span></div>
+          <div class="ln held-erich"><span class="no">50</span><span class="gf"></span><span class="st"></span><span class="cd">    } catch (err) {</span></div>
+          <div class="ln held-erich"><span class="no">51</span><span class="gf"></span><span class="st"></span><span class="cd">      attempt += 1</span></div>
+          <div class="ln held-erich"><span class="no">52</span><span class="gf"></span><span class="st"></span><span class="cd">      await sleep(backoff(attempt, policy))</span></div>
+          <div class="ln held-erich"><span class="no">53</span><span class="gf"></span><span class="st"></span><span class="cd">    }</span></div>
+          <div class="ln held-erich"><span class="no">54</span><span class="gf"></span><span class="st"></span><span class="cd">  }</span></div>
+          <div class="ln held-erich"><span class="no">55</span><span class="gf"></span><span class="st"></span><span class="cd">  throw new RetryExhausted(ev.id)</span></div>
+          <div class="ln held-erich"><span class="no">56</span><span class="gf"></span><span class="st"></span><span class="cd">}</span></div>
+          <div class="ln"><span class="no">57</span><span class="gf"></span><span class="st"></span><span class="cd"></span></div>
+          <div class="ln contested"><span class="no">58</span><span class="gf"><span class="f f-victor" title="contested: voyager-2 × erich"></span></span><span class="st"></span><span class="cd">function backoff(attempt: number, policy: RetryPolicy) {</span></div>
+          <div class="ln contested"><span class="no">59</span><span class="gf"></span><span class="st"></span><span class="cd">  return policy.windowMs / policy.maxAttempts  <span class="cm">// linear — erich holds</span></span></div>
+          <div class="ln contested"><span class="no">60</span><span class="gf"></span><span class="st"></span><span class="cd">}</span></div>
+        </div>
+        <div class="buffer-forecast">
+          <span class="f f-victor"></span>
+          <span>forecast: voyager-2 modify &times; erich modify on 58&ndash;60 — both edits type-check
+            alone; together they change backoff under load &rarr; parley #413</span>
+        </div>
+      </div>
+
+      <!-- claims ledger — rule-8 rows -->
+      <div class="ledger-claims">
+        <div class="lc-head">
+          <span class="eyebrow">Live claims</span>
+          <span class="cap">symbol &middot; region &middot; file — intent declared before edits exist</span>
+        </div>
+        <div class="claim-row" style="--state: var(--health);">
+          <span class="dot"></span><span class="f f-hotel"></span>
+          <span><span class="target">PaymentIntent.confirm</span>
+            <span class="kind"><b>SYMBOL</b> · modify — retry semantics only; signature frozen</span></span>
+          <span class="holder"><span class="f f-hotel"></span>voyager-1</span>
+          <span class="when">12m</span>
+        </div>
+        <div class="claim-row" style="--state: var(--teal);">
+          <span class="dot"></span><span class="f f-mike"></span>
+          <span><span class="target">checkout.css:120&ndash;210</span>
+            <span class="kind"><b>REGION</b> · add — human hands; payment-sheet styles only</span></span>
+          <span class="holder"><span class="f f-mike"></span>mira</span>
+          <span class="when">31m</span>
+        </div>
+        <div class="claim-row" style="--state: var(--health);">
+          <span class="dot"></span><span class="f f-hotel"></span>
+          <span><span class="target">webhook/handlers.ts</span>
+            <span class="kind"><b>FILE</b> · modify — protocol claim; retry callers move together</span></span>
+          <span class="holder"><span class="f f-hotel"></span>voyager-1</span>
+          <span class="when">9m</span>
+        </div>
+        <div class="claim-row" style="--state: var(--cobalt);">
+          <span class="dot"></span><span class="f f-echo"></span>
+          <span><span class="target">retry.ts:45&ndash;56</span>
+            <span class="kind"><b>REGION</b> · modify — operator hold on the retry loop</span></span>
+          <span class="holder"><span class="f f-echo"></span>erich</span>
+          <span class="when">2h</span>
+        </div>
+        <div class="claim-row is-contested" style="--state: var(--error);">
+          <span class="dot"></span><span class="f f-victor"></span>
+          <span><span class="target">retry.ts:58&ndash;60</span>
+            <span class="kind"><b>REGION</b> · contested — voyager-2 modify &times; erich modify</span></span>
+          <span class="holder"><span class="f f-victor"></span>voyager-2 &times; erich</span>
+          <span class="when">parley #413</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="claims-foot">
+      <span class="cap"><b>A clean Git merge is not proof of semantic safety.</b>
+        Claims declare intent before edits exist, so contention surfaces here — not in production.</span>
+    </div>
+  </section>
+
+  <!-- ═══════════ PARLEY + GATES ═══════════ -->
+  <aside class="starboard" aria-label="Parley and gates">
+
+    <!-- the page's one color zone: violet, the identity/consent lane -->
+    <div class="zone-violet">
+      <span class="eyebrow">Parley &amp; gates</span>
+      <span class="cap">positions and evidence, not chat — the operator decides</span>
+    </div>
+
+    <div class="parley-card lw-brackets"><i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
+      <div class="parley-strip">
+        <span class="voice voice-securite">S&Eacute;CURIT&Eacute;</span>
+        <span class="t">parley #413 open</span>
+        <span class="cap" style="margin-left:auto;">retry.ts backoff strategy</span>
+      </div>
+
+      <div class="position">
+        <div class="p-who"><span class="f f-victor"></span>voyager-2 <span class="kind">· proposer</span></div>
+        <div class="p-say">Exponential backoff with jitter. Linear retry loses the failing case at
+          <code>test/retry.spec.ts:88</code> — a burst of 50 webhooks, all retries collide on the same tick.</div>
+      </div>
+
+      <div class="position">
+        <div class="p-who"><span class="f f-echo"></span>erich <span class="kind">· holder of the claim</span></div>
+        <div class="p-say">Keep linear. The SLA doc caps the total retry window at 30s; unbounded
+          exponential blows past it. If jitter wins, the cap has to survive.</div>
+      </div>
+
+      <div class="position evidence">
+        <div class="p-who"><span class="f f-mike"></span>longshoreman-memory <span class="kind">· evidence</span></div>
+        <div class="p-say">Incident 2026-06-12: exponential backoff without a ceiling starved the
+          webhook queue for 11 minutes. Prior art says: exponential, jittered, hard-capped at 30s
+          — <code>pd notes #2214</code>.</div>
+      </div>
+
+      <div class="resolve">
+        <span class="eyebrow">Resolution — operator decides, ledger records</span>
+        <button class="btn-res" type="button">Adopt A · voyager-2</button>
+        <button class="btn-res" type="button">Adopt B · erich</button>
+        <button class="btn-res freeze" type="button">Freeze contested region</button>
+      </div>
+    </div>
+
+    <div class="gates">
+      <div class="g-intro">
+        <span class="voice voice-panpan">Pan pan</span>
+        <span class="cap">1 gate queued — urgency without distress</span>
+      </div>
+      <div class="gate">
+        <div class="g-title"><span class="f f-foxtrot" title="Foxtrot — awaiting human"></span>
+          merge checkout-rework &rarr; main</div>
+        <div class="g-req">requires <b>green CI</b> + <b>operator consent</b> · held until parley #413 resolves</div>
+        <div class="g-cost">est. $0.00 · queued 6m</div>
+      </div>
+    </div>
+
+    <div class="tideline">
+      <div class="salvage-row">
+        <div class="ghost">
+          <span class="f f-oscar" title="Oscar — salvage"></span>
+          <span class="s-text"><b>voyager-3</b> crashed 22m ago holding
+            <b>retry.spec.ts:61&ndash;74</b> — salvage this work</span>
+        </div>
+        <button class="btn-salvage" type="button">Salvage</button>
+      </div>
+      <span class="cap">The tide-line keeps a crashed agent&rsquo;s claims and diff as a ghost until
+        someone claims them or the lease expires.</span>
+    </div>
+
+    <div class="stale"><b>mira&rsquo;s device:</b> last sync 47s — cached truth</div>
+  </aside>
+</main>
+
+<!-- ═══════════ DURABLE TRANSCRIPT ═══════════ -->
+<footer class="transcript">
+  <div class="tr-head">
+    <span class="eyebrow">Durable transcript</span>
+    <span class="cap"><b>hot messages move the UI; durable events decide history.</b>
+      Every grant, parley, and gate lands with a sequence number — replayable after any disconnect.</span>
+  </div>
+  <ol>
+    <li><span class="seq">#412</span><span class="ev e-grant">claim granted</span>
+      <span class="body">voyager-1 &rarr; PaymentIntent.confirm — SYMBOL · modify · lease 30m</span></li>
+    <li><span class="seq">#413</span><span class="ev e-parl">parley opened</span>
+      <span class="body">retry.ts:58&ndash;60 backoff strategy — voyager-2 (proposer) &times; erich (holder) · 3 positions filed</span></li>
+    <li><span class="seq">#414</span><span class="ev e-gate">gate armed</span>
+      <span class="body">merge checkout-rework &rarr; main — requires green CI + operator consent · est. $0.00</span></li>
+    <li><span class="seq">#415</span><span class="ev e-tick">budget tick</span>
+      <span class="body">session spend $3.20 of $10.00 — voyager-2 +$0.41 this step · ceiling holds</span></li>
+  </ol>
+  <span class="port-note">CH20 · Remote Harbor · Mock</span>
+</footer>
+
+</body>
+</html>

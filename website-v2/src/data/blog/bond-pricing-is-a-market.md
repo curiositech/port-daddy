@@ -1,6 +1,6 @@
 # Bond Pricing Is a Market, Not a Constant
 
-![A motionless AI agent locked into a server rack, chains on the filing cabinets, papers frozen in mid-air — the immortal worker that cannot be fired](/img/generated/bond-pricing/bond-pricing-hero.webp)
+![A Port Daddy bond market board where cleanup cost, scope, reputation, and insurer bids set the stake for a risky agent job](/img/generated/bond-pricing/bond-pricing-hero.webp)
 
 **TL;DR.** Daily budgets stop your AI agents from spending money they don't have. They don't stop them from doing damage. The [Bonded Commons whitepaper](/whitepaper) v2 replaces the static budget with a real market for agent insurance — where the cost of a job is priced against the cost of cleaning it up, and an insurer eats the loss when the agent goes rogue. This post is the product walkthrough.
 
@@ -24,9 +24,9 @@ This is fine when the worst the agent can do is overspend its API budget. It is 
 
 The Bonded Commons paper calls the thing it can lose its **bond** — a stake the agent posts before working, slashable on breach. The headline of v2 is that the *size* of that stake should not be a daily-budget number. It should be priced against what the agent could actually cost you.
 
-## A rogues' gallery, or: how agents really break things
+## Four failure modes daily budgets miss
 
-![Four AI robot villains in a 2x2 gallery — the Hoarder, the Slow Walker, the Nuker, and the Quitter](/img/generated/bond-pricing/bond-pricing-villains.webp)
+![Four risk panels showing resource hoarding, runaway duration, destructive edits, and abandoned state as cleanup liabilities](/img/generated/bond-pricing/bond-pricing-villains.webp)
 
 Forget "overspending" for a minute. Here are the four ways an agent damages a project that a daily budget does not catch.
 
@@ -58,7 +58,7 @@ This one is the most expensive of the four because the *cleanup* — figuring ou
 
 ## Why a daily budget can't price any of these
 
-Look at what those four villains share. None of their cost lives in API spend. All of their cost lives in **cleanup**. Cleanup is the human-plus-compute work of detecting the damage, assessing it, and restoring the project to a known state.
+Look at what those four failures share. None of their cost lives in API spend. All of their cost lives in **cleanup**. Cleanup is the human-plus-compute work of detecting the damage, assessing it, and restoring the project to a known state.
 
 A daily budget is a guess at "what's the worst this agent can spend on tokens." It is silent on the question we actually care about: *what's the worst this agent can spend on my Sunday afternoon?*
 
@@ -238,13 +238,13 @@ In order from "doable now" to "still being designed":
 4. **Insurer-agent prototype.** Build the smallest insurer that quotes `(q, c)` against the existing bond ledger. Run it dual-pipe with static-cap budgets for one project before flipping the default.
 5. **Eventually deprecate the daily budget as the primary risk control.** Not until insurance pricing has run long enough to be trusted. Daily budgets stick around as a circuit breaker forever — they are a fine *floor*, just not a fine *price*.
 
-The thing operators have to do today, and that they should not have to do once the market is real, is **set a daily cap by intuition**. Most teams pick a round number and adjust when they hit pain. With `c` and `α` exposed, that intuition becomes calibration against a measured cleanup cost — not a vibe.
+The thing operators have to do today, and that they should not have to do once the market is real, is **set a daily cap by intuition**. Most teams pick a round number and adjust when they hit pain. With `c` and `α` exposed, that intuition becomes calibration against a measured cleanup cost — not a hunch.
 
 ## Try it
 
 Static caps are what we ship today. The market needs reputation history to function, and reputation history needs the [Merkle forest](/blog/evidence-that-survives-machines) — which is what the next post is about.
 
-If you want to be the first project running on bonded coordination instead of vibes-based budgets:
+If you want to be the first project running on bonded coordination instead of intuition-based budgets:
 
 ```bash
 brew install curiositech/tap/port-daddy

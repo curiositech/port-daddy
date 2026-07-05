@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "packageVersion": "3.22.0",
+  "packageVersion": "3.24.1",
   "sources": [
     "examples",
     "templates"
@@ -346,8 +346,8 @@
     {
       "path": "templates/post-commit-hook",
       "url": "/samples/files/templates/post-commit-hook",
-      "bytes": 1773,
-      "sha256": "427ef1055ad53b4f5037f30eb8bbff5d44fc14301a56382de1b1701a7c92632d"
+      "bytes": 2504,
+      "sha256": "294d7ae133e981058b9d199db6b27058247805909ee93e498a020ae1ca99bac2"
     },
     {
       "path": "templates/swarm-researcher/README.md",

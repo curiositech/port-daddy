@@ -258,6 +258,26 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     return { success: true, item };
   });
 
+  fastify.delete('/roadmap/items/:slug', async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { slug?: string };
+    const slug = asString(params.slug);
+    if (!slug) {
+      reply.code(400);
+      return { success: false, error: 'slug required in path' };
+    }
+    const q = (request.query ?? {}) as Record<string, unknown>;
+    const harbor = asString(q.harbor);
+    const result = roadmapItems.remove(slug, harbor);
+    if (!result.removed) {
+      reply.code(404);
+      return {
+        success: false,
+        error: `roadmap item '${slug}'${harbor ? ` in harbor '${harbor}'` : ''} not found`,
+      };
+    }
+    return { success: true, removed: true, item: result.item };
+  });
+
   fastify.post('/roadmap/items/:slug/status', async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { slug?: string };
     const slug = asString(params.slug);

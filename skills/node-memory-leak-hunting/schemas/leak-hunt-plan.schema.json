@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/leak-hunt-plan.schema.json",
+  "title": "Node.js Leak-Hunt Plan",
+  "description": "A structured plan for hunting a Node.js memory leak — RSS shape, chosen technique, snapshot target, metric coverage — so this skill's Quality Gates can be checked deterministically by scripts/node_memory_leak_hunting_audit.mjs.",
+  "type": "object",
+  "required": ["leakConfirmed", "rssPattern", "plannedTechnique"],
+  "additionalProperties": true,
+  "properties": {
+    "leakConfirmed": {
+      "type": "boolean",
+      "description": "True if the reporter believes a genuine leak is confirmed (not heap pressure, not a plateau at the ceiling)."
+    },
+    "rssPattern": {
+      "type": "string",
+      "enum": ["monotonic", "plateau", "sawtooth", "flat-rss-heap-climbing", "periodic-spike"],
+      "description": "The observed memory-curve shape, per the confirm-before-chasing table. Only monotonic and flat-rss-heap-climbing justify a snapshot hunt."
+    },
+    "plannedTechnique": {
+      "type": "string",
+      "enum": ["two-snapshot-diff", "allocation-sampling", "clinic-doctor", "raise-max-old-space", "scheduled-restart"],
+      "description": "The primary technique for this hunt. scheduled-restart always fails the audit; raise-max-old-space fails on monotonic growth."
+    },
+    "loadDrivenBetweenSnapshots": {
+      "type": "boolean",
+      "description": "True if the suspect path is exercised (k6, curl loop, real traffic) between snapshot 1 and snapshot 2. Required for two-snapshot-diff."
+    },
+    "snapshotTarget": {
+      "type": "string",
+      "enum": ["busy-primary", "canary", "drained-replica", "local-repro"],
+      "description": "Which process gets the synchronous heap-walk pause. Never the busy primary."
+    },
+    "metricsTracked": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["heap_used", "heap_total", "rss", "external", "arrayBuffers"]
+      },
+      "uniqueItems": true,
+      "description": "process.memoryUsage() series exported to metrics. heap_used, heap_total, rss, and external are all required."
+    },
+    "sourceMapsEnabled": {
+      "type": "boolean",
+      "description": "True if the process runs with --enable-source-maps so retainer chains resolve to real source positions."
+    },
+    "scheduledRestartMasking": {
+      "type": "boolean",
+      "description": "True if an existing cron/PM2/liveness restart is currently masking the leak."
+    }
+  }
+}

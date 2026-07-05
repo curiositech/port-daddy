@@ -1,4 +1,18 @@
 <!--
+  ⛔ TWO REQUIRED, FAIL-CLOSED CHECKS — fill these in or the PR is bounced and
+  cannot enter the merge queue:
+    1. pr-requirements-guard → a real `## Summary` (≥10 words) and `## Test Plan`
+       (≥12 words: commands + their output) below. A visual-surface change also
+       needs a screenshot AND a GIF/recording (or a visual-exempt marker — see
+       the Visual Proof section / CONTRIBUTING.md).
+    2. roadmap-link → exactly one `Roadmap-Item:` trailer near the bottom: a known
+       slug, or `none — <reason>` for a chore/docs/hotfix. No slug yet? Run
+       `npx tsx scripts/roadmap-link.ts <pr-number>` to create + stamp it.
+  Self-check before you push:
+    npm run check:pr-requirements -- --body-file <this-draft.md>
+-->
+
+<!--
   Port Daddy PR template. The headings below are load-bearing: the
   `pr-requirements-guard` CI job (scripts/check-pr-requirements.mjs) parses
   ## Summary and ## Test Plan and FAILS the merge queue if either is missing or

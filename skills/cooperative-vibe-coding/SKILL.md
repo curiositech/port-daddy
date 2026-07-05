@@ -2,7 +2,7 @@
 license: Apache-2.0
 name: cooperative-vibe-coding
 description: |
-  Cooperative vibe coding across machines — real-time collaborative development with humans and AI agents. Covers current tools (Live Share, Code With Me, Zed, Cursor multiplayer, tmux), git-based async patterns, AI agent coordination, and the aspirational future of multi-human multi-agent development. Activate on: "pair programming", "vibe coding together", "collaborative coding", "mob programming", "remote pairing", "code together", "multiplayer coding", "Live Share", "Code With Me", "ensemble programming", "cooperative development". NOT for: building a real-time collaboration ENGINE (use real-time-collaboration-engine), git workflow mechanics (use git-best-practices), single-user AI coding assistance (use prompt-engineer).
+  Cooperative vibe coding across machines — real-time collaborative development with humans and AI agents. Covers current tools (Live Share, Code With Me, Zed, Cursor multiplayer, tmux), git-based async patterns, AI agent coordination, and the aspirational future of multi-human multi-agent development. Activate on: "pair programming", "vibe coding together", "collaborative coding", "mob programming", "remote pairing", "code together", "multiplayer coding", "Live Share", "Code With Me", "ensemble programming", "cooperative development". NOT for: building a real-time collaboration ENGINE (use real-time-collaboration-engine), git workflow mechanics (use git-best-practices), single-user AI coding assistance.
 allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 metadata:
   category: Development Workflow & Collaboration
@@ -17,17 +17,33 @@ metadata:
     - agents
     - mob-programming
     - ensemble
+  provenance:
+    kind: first-party
+    owners:
+      - port-daddy
   pairs-with:
     - skill: multi-agent-coordination
       reason: Agents as collaborative participants, not just tools
-    - skill: git-best-practices
-      reason: Git is the coordination layer for async collaboration
     - skill: real-time-collaboration-engine
       reason: The technical infrastructure (CRDTs/OT) enabling real-time editing
-    - skill: ipc-communication-patterns
-      reason: How machines communicate during collaborative sessions
-    - skill: always-on-agent-architecture
-      reason: Persistent agents as always-available pair programming partners
+    - skill: build-coop-ide-gpui
+      reason: The capstone build target when ad hoc cooperative sessions graduate into a purpose-built M-agent + N-human editor
+    - skill: swarm-invocation-designer
+      reason: Designs how multiple agents are summoned and communicate; this skill governs how the resulting human+agent session is actually run
+    - skill: port-daddy-agent-skill
+      reason: Supplies the claims/notes/salvage substrate this skill's file-ownership mapping and handoff practices anchor to
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: team-collaboration-context
+        format: markdown
+      - kind: cooperative-session-plan
+        format: json
+    produces:
+      - kind: session-structure-recommendation
+        format: markdown
+      - kind: session-readiness-audit
+        format: json
 category: Code Quality & Testing
 tags:
   - pair-programming
@@ -231,14 +247,30 @@ After the session:
 - [ ] **Deliverable completed or next session scheduled** - no dangling incomplete work
 - [ ] **Shared context updated** - README, docs, or team notes reflect what was built
 
+### Deterministic Session Readiness Audit
+
+The Quality Gates above and the failure modes in this skill are encoded as a runnable check in
+`scripts/session_readiness.mjs`. It exports `auditCoopSession(plan)`, taking a JSON session plan
+matching `schemas/session-plan.schema.json` (team size, timezone overlap, mode, voice-channel/ownership/
+boundary/cadence flags) and returning `{ pass, findings, recommendations }`. It flags exactly the
+failure modes documented above: **Merge Conflict Hell** (no file ownership mapped, or sync cadence over
+45min), **Spectator Sport Pairing** (no agent boundaries/reviewer set), **Context Fragmentation** (no
+1-sentence scope, or no sync points for a sync/hybrid session), and a **mode mismatched to team shape**
+(team size over 5, or under 4 hours of timezone overlap, without `mode: "async"`). See
+`examples/sample-input.json` for a plan that passes cleanly.
+
+```bash
+node scripts/session_readiness.mjs --input examples/sample-input.json
+```
+
 ## NOT-FOR BOUNDARIES
 
 **Do NOT use cooperative vibe coding for:**
 
 - **Building collaboration infrastructure itself** - For implementing CRDTs, operational transform, or real-time sync engines → use `real-time-collaboration-engine`
 - **Git workflow design decisions** - For branching strategies, PR templates, merge policies → use `git-best-practices`  
-- **Solo AI prompt engineering** - For optimizing prompts for single-user coding → use `prompt-engineer`
-- **Code review processes** - For establishing review standards and approval workflows → use `code-review-standards`
+- **Solo AI prompt engineering** - For optimizing prompts for single-user coding, not a cooperative session
+- **Code review processes** - For establishing review standards and approval workflows, distinct from live pairing/mobbing
 - **Team onboarding or training** - For teaching junior developers → use dedicated mentorship approaches
 
 **When to delegate instead:**
@@ -246,3 +278,20 @@ After the session:
 - Performance issues with collaboration tools → IT support or tool vendor
 - Team communication breakdown → team lead or manager intervention
 - Large-scale refactoring across multiple teams → architectural planning session
+
+<!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
+
+## Skill Bundle Index
+
+*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+
+**`examples/`**
+- [`examples/sample-input.json`](examples/sample-input.json) — sample input (data/schema)
+
+**`schemas/`**
+- [`schemas/session-plan.schema.json`](schemas/session-plan.schema.json) — session plan.schema (data/schema)
+
+**`scripts/`**
+- [`scripts/session_readiness.mjs`](scripts/session_readiness.mjs)
+
+<!-- END BUNDLE INDEX -->

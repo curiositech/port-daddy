@@ -261,6 +261,47 @@ Composition: staged file blocks, session identity, file-claim boundaries, lock g
 No visible words, numbers, letters, labels, logos, humans, mascots, rounded cards, or nautical imagery.
 `.trim(),
   },
+  {
+    id: 'harness-hero',
+    filename: 'harness-hero.jpg',
+    aspectRatio: '16:9',
+    imageSize: '2K',
+    prompt: `
+${sharedDirection}
+
+Create a wide hero image for a marketing page about a coordination harness that wraps an AI coding agent.
+Composition: a single agent module rendered as a precise rectilinear core at the center-right, with eight thin instrumented tendrils reaching outward into a surrounding control plane — message tubes, a subscription rail, a swarm-ownership grid, a returning verdict path, a turn-ordered conversation loop, a budget meter, an isolated worktree enclosure, and a guard gate intercepting a dangerous lane. Render the tendrils as disciplined engineering lines hooking into the runtime, not organic tentacles. Use layered paper, deep ink, technical blue spine lines, restrained lime tuple marks, and a single amber accent on the guard gate.
+Leave a calm negative-space band on the left third so a website headline can sit beside it without visual fighting.
+No humans. No nautical objects. No big rounded cards. No mock browser chrome. No visible words or numbers.
+`.trim(),
+  },
+  {
+    id: 'harness-hooks',
+    filename: 'harness-hooks.jpg',
+    aspectRatio: '16:9',
+    imageSize: '2K',
+    prompt: `
+${sharedDirection}
+
+Create a textless diagram showing a harness sinking instrumentation into a vendor CLI's own hook surface.
+Composition: on the left, a vendor command-line tool drawn as a layered module exposing a vertical row of four hook ports along its right edge. On the right, the Port Daddy daemon spine as a tall ruled lattice. Between them, precise connectors plug the daemon into each exposed hook port, drawn as keyed couplings seating into sockets. One primary connection is fully seated and inked solid (the verified path); the other three are drawn as dashed, partially-seated couplings to read as in-progress validation. Use deep ink, technical blue, restrained lime, and a quiet warm off-white paper grain.
+Absolutely no Latin letters, no words, no numbers, no captions, no labels, no legible text anywhere. Where a port might be named, leave it blank or mark it with abstract non-letter ticks only.
+No humans, no nautical imagery, no rounded SaaS cards.
+`.trim(),
+  },
+  {
+    id: 'harness-veto',
+    filename: 'harness-veto.jpg',
+    aspectRatio: '16:9',
+    imageSize: '2K',
+    prompt: `
+${sharedDirection}
+
+Create a textless diagram about a guard that intercepts a destructive command and names the safe alternative.
+Composition: an incoming command lane arrives from the left as a bold ink line carrying a hazard mark (a small geometric blast / strike glyph, no letters). A guard gate at center stops that lane with a solid barrier rendered in amber. Below and to the right, a clean rerouted lane departs in technical blue toward a tidy, safe terminal node — the suggested alternative — making clear the command was redirected, not merely blocked. Use a precise Swiss grid, deep ink, technical blue, one amber accent on the gate, restrained lime on the safe terminal, warm off-white paper grain.
+No humans, no nautical imagery, no rounded SaaS cards, no visible words, letters, numbers, or labels.
+`.trim(),
+  },
 ]
 
 function loadEnvFile(path) {

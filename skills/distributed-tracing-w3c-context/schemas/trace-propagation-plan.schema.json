@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/trace-propagation-plan.schema.json",
+  "title": "Trace Propagation Plan",
+  "description": "A structured plan for W3C Trace Context propagation and sampling, so this skill's Quality Gates can be checked deterministically by scripts/trace_propagation_audit.mjs.",
+  "type": "object",
+  "required": ["propagator", "samplingStrategy"],
+  "additionalProperties": true,
+  "properties": {
+    "propagator": {
+      "type": "string",
+      "enum": ["w3c", "b3", "composite", "vendor"],
+      "description": "The propagation scheme: W3C traceparent, legacy B3, a composite (W3C + legacy) for migration, or a vendor-proprietary header set."
+    },
+    "samplingStrategy": {
+      "type": "string",
+      "enum": ["head", "tail", "both", "always-on"],
+      "description": "Head (SDK, trace-id ratio), tail (collector, whole-trace policies), both (head baseline + tail enrichment), or always-on (100%)."
+    },
+    "legacyUpstreamsRemain": {
+      "type": "boolean",
+      "description": "True if any upstream service still emits only B3 / X-Ray / vendor headers."
+    },
+    "newParentIdPerSpan": {
+      "type": "boolean",
+      "description": "True if every service allocates a fresh span_id (parent-id) for outgoing traceparent headers instead of forwarding the incoming one."
+    },
+    "traceparentLowercaseHexValidated": {
+      "type": "boolean",
+      "description": "True if emitted traceparent headers are asserted to be exactly 55 chars of lowercase hex with correct separators (fixtures or boundary tests)."
+    },
+    "needErrorSampling": {
+      "type": "boolean",
+      "description": "True if the team requires that traces containing errors are always sampled."
+    },
+    "productionSampleRatePercent": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "The baseline percentage of traces sampled in production."
+    },
+    "sqlCommenterEnabled": {
+      "type": "boolean",
+      "description": "True if HTTP->SQL propagation via sqlcommenter comments is part of the plan."
+    },
+    "sqlCommenterDefaultOn": {
+      "type": "boolean",
+      "description": "True if sqlcommenter is enabled by default rather than as an explicit opt-in (the OTel spec says it SHOULD NOT be default-on)."
+    },
+    "dbSystem": {
+      "type": "string",
+      "enum": ["postgres", "mysql", "oracle", "sqlserver", "sqlite", "other"],
+      "description": "The database system receiving sqlcommenter comments; MySQL/Oracle/SQL Server have plan-cache impact."
+    },
+    "piiInTracestate": {
+      "type": "boolean",
+      "description": "True if user-identifying attributes are carried in the tracestate header (they must not be)."
+    }
+  }
+}

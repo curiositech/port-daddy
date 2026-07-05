@@ -1,0 +1,8 @@
+{
+  "suggestibility": {
+    "level": "enforce",
+    "scope": "local",
+    "adr": "ADR-0092",
+    "description": "Local edit-moment hooks must block foreign-locked edits before the cut; cloud sync is out of scope for this dial."
+  }
+}

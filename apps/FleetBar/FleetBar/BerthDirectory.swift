@@ -149,10 +149,53 @@ final class BerthStore: ObservableObject {
     @Published var isRefreshing = false
     @Published var actionMessage: String?
 
+    /// Watches `~/.port-daddy/dev-daemons.json` so a newly-registered (or removed)
+    /// berth shows up instantly, not just on the next poll.
+    private var registryWatch: DispatchSourceFileSystemObject?
+
     func refresh() async {
         isRefreshing = true
         berths = await BerthDirectory.discover()
         isRefreshing = false
+    }
+
+    /// Keep the berth list live while the popover is open: re-scan on an interval
+    /// (catches daemons that came up / died / changed reachability) and watch the
+    /// dev-daemons registry for instant updates when `pd dev up/down` runs. The
+    /// loop is cancelled automatically when the hosting `.task` tears down (the
+    /// popover closing), which also tears down the file watch.
+    ///
+    /// A *new FleetBar build* is handled separately by `SingleInstanceGuard` (the
+    /// newer peer takes over the menu bar); this is about new *daemons*.
+    func autoRefreshLoop(interval: Duration = .seconds(6)) async {
+        ensureRegistryWatch()
+        defer { teardownRegistryWatch() }
+        while !Task.isCancelled {
+            try? await Task.sleep(for: interval)
+            if Task.isCancelled { break }
+            await refresh()
+        }
+    }
+
+    private func ensureRegistryWatch() {
+        guard registryWatch == nil else { return }
+        let fd = open(BerthDirectory.registryURL.path, O_EVTONLY)
+        guard fd >= 0 else { return } // file may not exist yet — the poll covers it
+        let source = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fd,
+            eventMask: [.write, .extend, .delete, .rename],
+            queue: .main)
+        source.setEventHandler { [weak self] in
+            Task { @MainActor in await self?.refresh() }
+        }
+        source.setCancelHandler { close(fd) }
+        registryWatch = source
+        source.resume()
+    }
+
+    private func teardownRegistryWatch() {
+        registryWatch?.cancel()
+        registryWatch = nil
     }
 
     /// Stop a dev berth via `pd dev down <label>` (which also releases its claimed

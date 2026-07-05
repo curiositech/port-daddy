@@ -100,6 +100,7 @@ int main(int argc, char **argv) {
   }
   child_argv[argc] = NULL;
 
+  setenv("PORT_DADDY_FORCE_TCP", "1", 1);
   execv(target, child_argv);
   fprintf(stderr, "pd launcher: failed to exec %s: %s\\n", target, strerror(errno));
   return 127;
@@ -355,6 +356,19 @@ async function smokeSelfHostedDaemon(outfile, companionFiles = []) {
     if (attention?.success !== true || attention?.agentId !== 'pd-single-binary-smoke-agent') {
       throw new Error('single binary CLI smoke failed: pd attention did not return the expected summary');
     }
+    const cliBareAttention = run(isolatedOutfile, ['attention', '--json'], {
+      timeout: 15_000,
+      env: {
+        PD_AGENT_ID: 'pd-single-binary-smoke-agent',
+        PORT_DADDY_URL: `http://127.0.0.1:${port}`,
+        PORT_DADDY_PORT_FILE: join(prefix, 'missing.port'),
+        PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',
+      },
+    });
+    const bareAttention = JSON.parse(cliBareAttention.stdout);
+    if (bareAttention?.success !== true || bareAttention?.agentId !== 'pd-single-binary-smoke-agent') {
+      throw new Error('single binary CLI smoke failed: bare pd attention did not return the expected summary');
+    }
     return {
       status: health?.status ?? 'unknown',
       pid: health?.pid ?? null,
@@ -366,7 +380,7 @@ async function smokeSelfHostedDaemon(outfile, companionFiles = []) {
       isolatedBinaryDir: isolatedBinDir,
       samples: { count: samples.count },
       fleetUi: { indexHtmlBytes: Buffer.byteLength(fleetHtml) },
-      cli: { attention: attention.success === true },
+      cli: { attention: attention.success === true, bareAttention: bareAttention.success === true },
     };
   } finally {
     if (child.exitCode === null) {

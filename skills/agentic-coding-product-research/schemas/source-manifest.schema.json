@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agentic Coding Product Research Source Manifest",
+  "type": "object",
+  "required": ["sources", "audiences"],
+  "properties": {
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["url"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "kind": {
+            "type": "string",
+            "enum": ["official-doc", "tech-press", "academic", "social", "repo", "homegrown", "unknown"]
+          },
+          "url": { "type": "string" },
+          "claim": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "audiences": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "jobs", "evidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "jobs": { "type": "array", "items": { "type": "string" } },
+          "pains": { "type": "array", "items": { "type": "string" } },
+          "craves": { "type": "array", "items": { "type": "string" } },
+          "evidence": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+          "trustThresholds": { "type": "array", "items": { "type": "string" } },
+          "comebackTriggers": { "type": "array", "items": { "type": "string" } },
+          "portDaddyImplication": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "opportunities": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "risks": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": true
+}

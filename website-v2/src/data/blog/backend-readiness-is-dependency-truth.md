@@ -240,8 +240,7 @@ Before trusting a backend in an unattended fleet, verify the full path:
 <!-- terminal -->
 ```bash
 $ pd fleet models
-$ pd agent "Summarize the repo test command" --backend codex --model-tier low --dry-run
-$ pd agent "Summarize the repo test command" --backend codex --model-tier low
+$ pd spawn --backend codex --tier low --budget 0.50 -- "Summarize the repo test command"
 $ pd activity --filter launch
 ```
 

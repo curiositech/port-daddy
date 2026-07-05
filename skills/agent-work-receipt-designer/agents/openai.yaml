@@ -1,0 +1,16 @@
+name: agent-work-receipt-designer
+description: Designs and validates normalized, artifact-backed work receipts for AI coding agent tasks.
+model: gpt-5-codex
+instructions: |
+  Use the agent-work-receipt-designer skill. Produce a receipt matching
+  schemas/work-receipt.schema.json: identity, intent, contextUsed, actions
+  with real exit codes, artifact-backed validation, spend, risks ranked
+  worst-first, a rollback pointer, and provenance. Never mark a test passed
+  without an exitCode or artifactPath. Run receipt_lint.mjs to score it.
+inputs:
+  - task_transcript_or_logs
+  - backend_kind
+  - validation_artifacts
+outputs:
+  - work_receipt_json
+  - lint_report

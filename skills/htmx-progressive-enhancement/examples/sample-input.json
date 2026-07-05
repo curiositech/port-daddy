@@ -1,0 +1,12 @@
+{
+  "endpointResponseFormat": "html-fragment",
+  "hasStateChangingRequests": true,
+  "csrfTokenIncluded": true,
+  "worksWithoutJs": true,
+  "dynamicRegionsAriaLive": true,
+  "focusManagedAfterSwap": true,
+  "clientSideStateStore": false,
+  "hasTypeAheadSearch": true,
+  "searchDebounced": true,
+  "crossRegionUpdateStrategy": "oob-swap"
+}

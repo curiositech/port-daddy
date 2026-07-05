@@ -1,0 +1,11 @@
+{
+  "textContrastMinRatio": 7.2,
+  "touchTargetMinPx": 44,
+  "spacingScale": "8pt",
+  "fontWeightsCount": 3,
+  "fontSizesCount": 7,
+  "semanticTokensUsed": true,
+  "lightAndDark": true,
+  "minBodyFontPx": 16,
+  "interactiveStatesDefined": true
+}

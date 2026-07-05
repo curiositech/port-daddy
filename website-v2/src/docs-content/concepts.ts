@@ -105,14 +105,14 @@ export const conceptsSection: DocsContentSection = {
           {
             family: 'Human Control',
             question: 'Where does a person inspect and approve the state?',
-            summary: 'FleetBar, Fleet Control Center, Shipwright, Resources, and Sorties make coordination visible to a human operator.',
+            summary: 'FleetBar, Fleet Control Center, Shipwright, Resources, and Spawned Runs make coordination visible to a human operator.',
             tone: 'ink',
             links: [
               { label: 'FleetBar', href: '/mac-preview' },
               { label: 'Fleet Control Center', href: '/mac-preview' },
               { label: 'Shipwright', href: '/agents/yaml-and-shipwright' },
               { label: 'Resources', href: '/agents/smart-resources' },
-              { label: 'Sorties', href: '/docs/tutorials/launch-and-inspect-a-sortie' },
+              { label: 'Spawned Runs', href: '/docs/tutorials/launch-and-inspect-a-spawn' },
             ],
           },
         ],
@@ -319,7 +319,7 @@ export const conceptsSection: DocsContentSection = {
             'Messaging: [channels](/docs/cli/pub), [inboxes](/agents/communication-protocols), and [tuples](/docs/features/tuples).',
             'Recovery: [session notes](/docs/cli/note), [activity](/docs/features/timeline), [salvage](/docs/features/salvage), and [resurrection](/agents/resurrection).',
             'Verification: [Arbiter invariants](/docs/features/arbiter), [guard checks](/agents/coordination-guard), [telemetry gates](/agents/smart-resources), and [budget gates](/agents/smart-resources).',
-            'Human control: [FleetBar](/mac-preview), [Fleet Control Center](/mac-preview), [Shipwright](/agents/yaml-and-shipwright), [Resources](/agents/smart-resources), and [Sorties](/docs/tutorials/launch-and-inspect-a-sortie).',
+            'Human control: [FleetBar](/mac-preview), [Fleet Control Center](/mac-preview), [Shipwright](/agents/yaml-and-shipwright), [Resources](/agents/smart-resources), and [Spawned Runs](/docs/tutorials/launch-and-inspect-a-spawn).',
           ],
         },
         {

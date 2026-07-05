@@ -1,0 +1,17 @@
+{
+  "colorSpace": "lab",
+  "deltaEMethod": "ciede2000",
+  "selection": {
+    "lambda": 0.6,
+    "algo": "mmr"
+  },
+  "maxPairwiseEmd": 0.42,
+  "chromaStdDev": 21.5,
+  "hueCoverageDegrees": 168,
+  "maxAdjacentTempDeltaB": 18,
+  "sinkhorn": {
+    "iterations": 34,
+    "relError": 0.004
+  },
+  "blendRatio": 0.25
+}

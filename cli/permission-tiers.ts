@@ -87,6 +87,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   roadmap: 'silent',
   ideas: 'silent',
   graph: 'silent',
+  embed: 'notify', // worst case: `embed prefetch` downloads ~27 MB into the shared cache; reads/embeds are silent
   memory: 'silent',
   'who-owns': 'silent',
   harbors: 'silent',
@@ -97,6 +98,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   tuple: 'silent',
   pheromone: 'silent',
   ph: 'silent',
+  safe: 'silent',           // bare form = `safe scan`, read-only. Refined below:
+                            // `safe baseline accept` (notify), `safe fix` (approval).
   scan: 'silent',
   s: 'silent',
   projects: 'silent',       // refined: `projects rm` is destructive
@@ -116,6 +119,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   wallet: 'silent',
   bond: 'silent',
   fleet: 'silent',          // refined: `fleet down`, `fleet panic` are destructive
+  squid: 'approval',        // starts a local Anthropic-compatible bridge and optional client process
   tube: 'silent',
   tunnel: 'silent',
   relay: 'silent',           // refined: `relay url <url>` is notify
@@ -132,7 +136,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   r: 'notify',
   lock: 'notify',
   unlock: 'notify',         // refined: `unlock --force` is destructive
-  session: 'notify',        // refined: `session rm`, `session abandon` are destructive
+  session: 'notify',        // refined: `session abandon` is destructive
+  takeover: 'notify',       // alias for session takeover; preserves predecessor notes
   note: 'notify',
   n: 'notify',
   begin: 'notify',
@@ -162,7 +167,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   up: 'approval',           // brings up multi-service stacks; effects on shared ports
   u: 'approval',
   spawn: 'approval',        // refined: `spawn kill` is destructive
-  sortie: 'approval',
+  sortie: 'approval',       // one-shot multi-agent mission: spawns agents, spends budget; refined: read subcommands are silent
   agent: 'approval',        // refined: `agent unregister`, `agent inbox clear` are destructive
   mcp: 'approval',
   harbor: 'approval',       // refined: `harbor destroy` is destructive
@@ -205,6 +210,14 @@ export const TIER_REGISTRY: Record<string, Tier> = {
  * by best-effort prefix.
  */
 export const SUBCOMMAND_TIERS: Record<string, Tier> = {
+  // embed: local reads/embeddings are silent; prefetch performs a one-time
+  // ~27 MB network download into the shared cache
+  'embed': 'silent',                // default subcommand = status
+  'embed status': 'silent',
+  'embed text': 'silent',
+  'embed stdin': 'silent',
+  'embed prefetch': 'notify',
+
   // salvage: list is read-only, mutations are destructive
   'salvage': 'silent',              // default subcommand = listing
   'salvage triage': 'silent',
@@ -214,13 +227,32 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'salvage abandon': 'destructive', // forces session back to queue
   'salvage dismiss': 'destructive', // permanently removes from queue
 
-  // session: most are notify, removals are destructive
+  // session: most are notify; abandon can release another agent's active claims
   'session start': 'notify',
   'session end': 'notify',
   'session done': 'notify',
   'session abandon': 'destructive', // marks session abandoned — affects others reading the trail
-  'session rm': 'destructive',      // deletes session + notes
+  'session takeover': 'notify',     // creates successor, preserves predecessor notes
+  'session rm': 'notify',           // archives session; notes and claim history stay append-only
   'session files': 'notify',        // add/rm of caller's own claims
+
+  // safe: scan is read-only; baseline accept writes the committed triage file;
+  // fix --auto mutates host file modes (reversible, but a host write → approval).
+  'safe': 'silent',                 // default subcommand = `safe scan`
+  'safe scan': 'silent',
+  'safe baseline': 'silent',        // bare form is a usage hint
+  'safe baseline accept': 'notify', // writes .pd-secrets-baseline.json
+  'safe fix': 'approval',           // chmod of crown-jewel perms (opt-in, reversible)
+  // safe corral: dry-run (default) is read-only; --apply writes the vault AND
+  // rewrites a source file (reversible — a .bak is kept) → a host write → approval.
+  'safe corral': 'silent',          // dry-run plan only by default
+  'safe corral --apply': 'approval',// packs secret into vault + rewrites source
+  'safe guard': 'silent',           // read-only scan of the staged diff
+
+  // env exec runs an arbitrary child command (with pd-secret:// refs resolved
+  // into its env). Running an arbitrary command is a notify-tier action; the
+  // plain `pd env` listing stays silent via TIER_REGISTRY.
+  'env exec': 'notify',
 
   // release: bare release of caller's own port is notify; --expired is global
   'release --expired': 'destructive',
@@ -293,6 +325,12 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
 
   // spawn subcommands
   'spawn kill': 'destructive',
+
+  // sortie subcommands — `sortie run` (and bare `sortie <goal>`) stays at the
+  // top-level 'approval'; the read-only forms are silent
+  'sortie list': 'silent',
+  'sortie status': 'silent',
+  'sortie logs': 'silent',
 
   // fleet subcommands
   'fleet up': 'approval',
@@ -536,7 +574,6 @@ export const DESTRUCTIVE_COMMANDS: readonly string[] = Object.freeze([
   'salvage abandon',
   'salvage dismiss',
   'session abandon',
-  'session rm',
   'release --expired',
   'unlock --force',
   'ports cleanup',

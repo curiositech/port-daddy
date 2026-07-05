@@ -81,6 +81,34 @@ describe('buildArgs', () => {
     expect(args[idx + 1]).toBe('sonnet');
   });
 
+  // Regression: DEFAULT_MODELS (lib/spawner.ts) hands out the sentinel
+  // "claude-cli" / "codex-cli" ("the CLI manages its own model"). Passing that
+  // straight to `--model` made the CLI reject the spawn ("model may not
+  // exist") — so cli:claude-code looked broken. The sentinel must be treated
+  // as a placeholder and mapped to a real default, not forwarded verbatim.
+  test.each(['claude-cli', 'codex', 'claude-code', 'cli'])(
+    'claude-code maps placeholder/sentinel model %s to a real default (never --model <sentinel>)',
+    (sentinel) => {
+      const { args } = buildArgs('claude-code', 'hi', undefined, sentinel);
+      const idx = args.indexOf('--model');
+      expect(idx).toBeGreaterThan(-1);
+      expect(args[idx + 1]).toBe('sonnet'); // real model, not the sentinel
+      expect(args).not.toContain(sentinel);
+    },
+  );
+
+  test('codex drops --model for the codex-cli sentinel (CLI uses its own default)', () => {
+    const { args } = buildArgs('codex', 'hi', undefined, 'codex-cli');
+    expect(args).not.toContain('--model');
+    expect(args).not.toContain('codex-cli');
+  });
+
+  test('a real explicit model is still forwarded (sentinel guard is not over-broad)', () => {
+    const { args } = buildArgs('claude-code', 'hi', undefined, 'claude-haiku-4-5-20251001');
+    const idx = args.indexOf('--model');
+    expect(args[idx + 1]).toBe('claude-haiku-4-5-20251001');
+  });
+
   test('codex uses exec + workspace-write sandbox', () => {
     const { args } = buildArgs('codex', 'hello');
     expect(args[0]).toBe('exec');
@@ -96,6 +124,21 @@ describe('buildArgs', () => {
     const idx = args.indexOf('--output-last-message');
     expect(idx).toBeGreaterThan(-1);
     expect(args[idx + 1]).toBe('/tmp/fake.txt');
+  });
+
+  test('codex validates -c config overrides before building argv', () => {
+    expect(buildArgs(
+      'codex',
+      'hi',
+      undefined,
+      undefined,
+      undefined,
+      ['model_reasoning_effort="high"', 'foo.bar=1'],
+    ).args).toEqual(expect.arrayContaining(['-c', 'model_reasoning_effort="high"', 'foo.bar=1']));
+    expect(() => buildArgs('codex', 'hi', undefined, undefined, undefined, ['--profile=prod']))
+      .toThrow(/Invalid Codex config override/);
+    expect(() => buildArgs('codex', 'hi', undefined, undefined, undefined, ['foo\nbar=1']))
+      .toThrow(/Invalid Codex config override/);
   });
 
   test.each(['gemini', 'groq', 'grok'])('%s uses -p headless flag with prompt last', (cli) => {

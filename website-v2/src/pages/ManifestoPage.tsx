@@ -8,6 +8,7 @@ import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Mermaid } from '@/components/ui/Mermaid'
 import { GiscusComments } from '@/components/blog/GiscusComments'
 import { Footer } from '@/components/layout/Footer'
+import { ThemedImage } from '@/components/site/ThemedImage'
 import { extractDirectives, SIDENOTE_PATTERN } from '@/lib/blogDirectives'
 import {
   cryptoPapers,
@@ -162,7 +163,7 @@ const markdownComponents: Components = {
     const cls = wrap === 'left' ? 'figure--wrap-left' : wrap === 'right' ? 'figure--wrap' : undefined
     return (
       <figure className={cls}>
-        <img src={src} alt={alt} loading="lazy" />
+        {src ? <ThemedImage src={src} alt={alt} loading="lazy" /> : null}
         {caption && <figcaption>{caption}</figcaption>}
       </figure>
     )
@@ -265,7 +266,7 @@ function CollisionDiagram() {
 function ManifestoPlate({ src, alt, caption }: { src: string; alt: string; caption: string }) {
   return (
     <figure className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
-      <img
+      <ThemedImage
         src={src}
         alt={alt}
         loading="lazy"
@@ -315,7 +316,7 @@ function BondReceiptFigure() {
 function HarborEvolutionFigure() {
   return (
     <figure className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
-      <img
+      <ThemedImage
         src={harborEvolutionFigure.src}
         alt={harborEvolutionFigure.alt}
         loading="lazy"
@@ -346,7 +347,7 @@ function OlogFunctorFigure() {
       className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch]"
     >
       <figure className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
-        <img
+        <ThemedImage
           src={ologFunctorFigure.src}
           alt={ologFunctorFigure.alt}
           loading="lazy"
@@ -357,7 +358,7 @@ function OlogFunctorFigure() {
         </figcaption>
       </figure>
       <figure className="mt-[var(--space-5)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
-        <img
+        <ThemedImage
           src="/img/generated/manifesto/olog-exchange.webp"
           alt="A blueprint-style pen drawing on cream graph paper: two ologs of labelled boxes joined by a functor F. Left (olog A): a person is born in a city, a city is in a country, a person is a citizen of a country. Right (olog B): a class is declared in a file, a file lives in a package, a class belongs to a package. F maps person to class, city to file, country to package, and each arrow to its match; the 'is in' / 'lives in' pair is highlighted in red."
           loading="lazy"
@@ -405,7 +406,7 @@ function OperadWiringFigure() {
   return (
     <section aria-labelledby="operad-heading" className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch]">
       <figure className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
-        <img
+        <ThemedImage
           src="/img/generated/manifesto/operad-wiring.webp"
           alt="A blueprint-style wiring diagram on cream graph paper. Boxes wired left to right: 'claim' takes a Task and emits a Claim; 'implement' takes a Task and the Claim and emits a Patch; the Patch forks to 'test' (emitting Tests) and 'review' (emitting Review) running in parallel; 'merge' takes Patch, Tests, Review and the Claim and emits a Merge. The Claim wire is drawn in red the whole way from claim to merge, annotated 'no Claim, no Merge'."
           loading="lazy"

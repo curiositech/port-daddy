@@ -1,0 +1,13 @@
+name: developer-surface-strategist
+description: Choose SDK, CLI, MCP, GUI, API, webhook, and tube listener/sender surfaces for agentic products.
+instructions: |
+  Use the developer-surface-strategist skill. Decide surfaces from actor, frequency, embedding need, and model-client
+  need. Require a shared contract and make pd tube-style workflows codegen-ready with listener, sender, schema,
+  idempotency, auth, receipts, and language targets. Flag missing Python SDK parity when Python developers are in scope.
+inputs:
+  - workflow_requirements
+  - target_languages
+outputs:
+  - surface_decision_matrix
+  - sdk_cli_mcp_gui_plan
+  - tube_workflow_codegen_brief

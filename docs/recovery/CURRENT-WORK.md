@@ -273,7 +273,7 @@ Current coordination session: `session-a4b3a18d-1651-4d2b-b4ca-e83fb79b5ea3`.
 - Added `website-v2/scripts/generate-gemini-assets.mjs`,
   `npm run generate:visuals`, and `npm run optimize:visuals`. The generator
   loads `GEMINI_API_KEY` from the shell, repo-root `.env.local`, or
-  `website-v2/.env.local`; secrets are not written to source or manifest.
+  `website-v2/.env.local`; secrets are not written to source or manifest. <!-- cite-exempt -->
 - Generated and optimized four Gemini/Nano Banana visual assets under
   `website-v2/public/img/generated/` with manifest provenance:
   `control-plane-hero`, `control-plane-og`, `agent-runtime-map`, and
@@ -281,7 +281,7 @@ Current coordination session: `session-a4b3a18d-1651-4d2b-b4ca-e83fb79b5ea3`.
 - Replaced the homepage hero image with the generated control-plane schematic,
   moved the hero two-column breakpoint to `min-[900px]` so the image appears in
   the in-app browser first viewport, and deleted the retired
-  `website-v2/public/img/hero-portdaddy.png` asset.
+  `website-v2/public/img/hero-portdaddy.png` asset. <!-- cite-exempt -->
 - Default social metadata now uses `/img/generated/control-plane-og.jpg`.
   Blog fallback imagery now uses generated WebP page images instead of the
   retired sailor image or missing blog hero files.
@@ -382,8 +382,8 @@ Current coordination session: `session-7d6f4ac6-5c47-401d-853b-804be7eecbd6`.
 - React Router now mounts `DocumentMeta`, which updates title, description,
   canonical URL, robots, Open Graph, Twitter card, article fields, tags, and
   JSON-LD on SPA navigation through the upgraded `useDocumentMeta` hook.
-- `npm run generate:seo` now writes `public/sitemap.xml`, `public/robots.txt`,
-  and `public/llms.txt` from that same registry. `npm run build` runs this as
+- `npm run generate:seo` now writes `public/sitemap.xml`, `public/robots.txt`, <!-- cite-exempt -->
+  and `public/llms.txt` from that same registry. `npm run build` runs this as <!-- cite-exempt -->
   `prebuild` so checked-in discovery artifacts are regenerated before the
   production bundle.
 - SEO tests now enforce unique canonical URLs, existing social image files,
@@ -697,7 +697,7 @@ Follow-on execution session: `session-652f982e-46f1-404c-a6d2-417b1eb2e7f5`.
   - lime/accent foreground-muted tokens now satisfy the strict route gate
   - dimmed `DocsCard` eyebrow opacity was removed
   - `BlogPage` feature badges no longer use raw color literals
-- `scripts/check-public-shell-a11y.mjs` and `npm run test:a11y:shell` now
+- `scripts/check-public-shell-a11y.mjs` and `npm run test:a11y:shell` now <!-- cite-exempt -->
   audit `/`, `/docs`, `/mcp`, and `/blog` at desktop and mobile sizes for shell
   structure, visible first-tab skip-link focus, horizontal overflow, screenshots,
   WCAG tags through AAA, and `color-contrast-enhanced`.
@@ -735,7 +735,7 @@ fleet name for the durable `navigator` actor:
 - `docs/adr/0022-durable-actor-souls-and-body-leases.md` defines the governing actor split: durable actor souls persist, body leases carry live mutation authority.
 - `docs/adr/0023-cartographer-roadmap-actor.md` defines the target actor: durable identity, mailbox, roadmap/work-slice read model, tuples, graph edges, and evidence links across docs, sessions, claims, commits, tests, and promotion attempts.
 - `.cartographer/README.md` now defines the operating contract for bootstrap reconciliation, document authority classes, tuple vocabulary, graph vocabulary, and patch policy.
-- `lib/maritime-actors.ts` defines the canonical maritime actor roster and projects live body, recent session, and salvage evidence from existing daemon state.
+- `lib/maritime-actors.ts` defines the canonical maritime actor roster and projects live body, recent session, and salvage evidence from existing daemon state. <!-- cite-exempt -->
 - `routes/actors.ts` exposes `GET /actors`, `GET /actors/:id`, and `POST /actors/:id/message`; `cartographer` currently resolves to `navigator`, and actor messages queue to `actor:<id>` inbox targets without granting dormant actors live mutation authority.
 - `pd actors` and `pd actor <id-or-alias>` expose the directory in the CLI; `--inbox` and `--inbox-stats` expose durable mailbox state separately from live-body wake status.
 - `PortDaddy` SDK clients now have `listActors()`, `getActor()`, `messageActor()`, `actorInboxList()`, and `actorInboxStats()` helpers, with SDK reference docs and request-formation regression coverage.
@@ -748,12 +748,12 @@ fleet name for the durable `navigator` actor:
 
 The promotion script is now the high-signal trigger for docs/website/SDK/CLI/tutorial/README/skill drift work:
 
-- `scripts/emit-promotion-release-review.mjs` builds a structured promotion review payload, writes a harbor-scoped `promotion:release-surfaces` tuple, and publishes the same payload on the `promotion:release-surfaces` channel.
+- `scripts/emit-promotion-release-review.mjs` builds a structured promotion review payload, writes a harbor-scoped `promotion:release-surfaces` tuple, and publishes the same payload on the `promotion:release-surfaces` channel. <!-- cite-exempt -->
 - The payload filters generated/build artifact paths, carries changed-file counts, and truncates the file list so promotion review cannot accidentally shove stable archaeology through pub/sub.
-- `scripts/promote-stable.sh` emits that review after the test gate passes and before merging `main` into stable.
+- `scripts/promote-stable.sh` emits that review after the test gate passes and before merging `main` into stable. <!-- cite-exempt -->
 - The trigger is intentionally not a direct spawn. Fleet policy owns activation through the `documentarian` agent, which now listens to `promotion:release-surfaces` with singleton, cooldown, dedupe, and backoff controls.
 - `PORT_DADDY_PROMOTION_REVIEW_REQUIRED=1` makes emission failures block promotion; `PORT_DADDY_PROMOTION_REVIEW_ONLY=1` stops after signaling so release-surface agents can work before stable moves.
-- The contract is covered by `tests/unit/promotion-release-review.test.js`.
+- The contract is covered by `tests/unit/promotion-release-review.test.js`. <!-- cite-exempt -->
 - Validation truth on 2026-04-26: focused promotion/fleet tests are green, `npm run typecheck` and `npm run build` are green, source `pd fleet validate` reports no topology warnings, and broad `npm test -- --no-coverage --runInBand` is green at `143/143` suites and `4980/4981` passing tests with `1` intentional skip.
 
 ### Port Daddy Skill Happy Path Polish (2026-04-26)
@@ -952,7 +952,7 @@ Captured from the docs-redesign/operator vision thread and now tracked as roadma
 
 ## New Architecture Intake (2026-04-11)
 
-Captured from the spawn-storm / remote-harbor thread plus `docs/plans/agentsd_ai_technical_architecture.md`:
+Captured from the spawn-storm / remote-harbor thread plus `docs/plans/agentsd_ai_technical_architecture.md`: <!-- cite-exempt -->
 
 1. Virtual-actor scheduling layer:
    - stop treating every watcher/subscriber as a peer that can wake every other participant
@@ -1233,7 +1233,7 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
    - Documentarian/Lookout must keep singleton/cooldown/dedupe/backoff so repeated promotion attempts collapse instead of burning fleet budget
    - use `PORT_DADDY_PROMOTION_REVIEW_REQUIRED=1` when stale docs should block promotion, and `PORT_DADDY_PROMOTION_REVIEW_ONLY=1` when agents need a pre-merge docs pass
 9. Finish Bosun/Barnacle consolidation:
-   - V2 `bin/watchdog.ts` / `daemon:watch` are removed in the active Bosun slice
+   - V2 `bin/watchdog.ts` / `daemon:watch` are removed in the active Bosun slice <!-- cite-exempt -->
    - daemon heartbeat writer and `core/pd-bosun/` std-only supervisor scaffold are in-tree
    - remaining: distribute `dist/core/pd-bosun`, promote `com.portdaddy.bosun`, then remove legacy Barnacle crate/client/compat field after the compatibility window
 
@@ -1327,7 +1327,7 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
    - drill-in outcomes
 8. Add explicit human-in-the-loop controls for approval, pause, resume, intervention, and result acceptance.
 9. Build DAG-native task decomposition in operator UX with inspectable slices and human approval before dispatch.
-10. Keep `pd agent`, `pd spawn`, `pd sortie`, fleet agents, and harbor missions distinct in product language and history surfaces.
+10. Keep the `pd agent` registry, `pd spawn` launches, fleet agents, and harbor missions distinct in product language and history surfaces.
 
 ### L. Cloudflare, Remote Harbor, Lighthouse, And Distributed Trust
 
@@ -1404,7 +1404,7 @@ convention: HIGH / MEDIUM / LOW / BLOCKED.
 
 ### Cluster TUBE — Coordination substrate roadmap
 
-Source: `docs/plans/TUBE-AS-COORDINATION-SUBSTRATE-ROADMAP.md` (updated 2026-05-02).
+Source: `docs/plans/TUBE-AS-COORDINATION-SUBSTRATE-ROADMAP.md` (updated 2026-05-02). <!-- cite-exempt -->
 
 **Phase 0 prerequisites / blockers (Spider 2026-05-02 harvest):**
 
@@ -1415,13 +1415,13 @@ Source: `docs/plans/TUBE-AS-COORDINATION-SUBSTRATE-ROADMAP.md` (updated 2026-05-
 
 **Phase 0 deliverables (this week per the plan):**
 
-- [ ] **`docs/coordination/primitives.md`** — MEDIUM — codify the pub/sub vs inbox vs tuples vs tube distinction matrix as durable docs. Replaces ad-hoc explanations in tutorials.
-- [ ] **`docs/tutorials/pd-tube-as-ui-button.md`** — LOW — second tube tutorial showing channel-as-UI-button pattern (post-from-curl, react-from-listener).
+- [ ] **`docs/coordination/primitives.md`** — MEDIUM — codify the pub/sub vs inbox vs tuples vs tube distinction matrix as durable docs. Replaces ad-hoc explanations in tutorials. <!-- cite-exempt -->
+- [ ] **`docs/tutorials/pd-tube-as-ui-button.md`** — LOW — second tube tutorial showing channel-as-UI-button pattern (post-from-curl, react-from-listener). <!-- cite-exempt -->
 - [ ] **Three-horizon briefings absorption** — LOW — `pd briefing` consumes `tuples.scan()` to surface the live-tuple horizon alongside the activity-log horizon. Absorbs Spark item `spider-2026-04-07-three-horizon-briefing.md`.
 
 **Phases 1+ (post-foundation):**
 
-- [ ] **Phase 1 Scout Chrome extension** — MEDIUM — `apps/pd-scout-extension/`, Manifest V3, `Cmd+Shift+K` project picker, capture modes (Page/Selection/Region), Readability.js extract, `chrome.tabs.captureVisibleTab`, POST to `<project>:scout:inbox`, reference triage agent `fleet/triage.sh`. ~1 week scope.
+- [ ] **Phase 1 Scout Chrome extension** — MEDIUM — `apps/pd-scout-extension/`, Manifest V3, `Cmd+Shift+K` project picker, capture modes (Page/Selection/Region), Readability.js extract, `chrome.tabs.captureVisibleTab`, POST to `<project>:scout:inbox`, reference triage agent `fleet/triage.sh`. ~1 week scope. <!-- cite-exempt -->
 - [ ] **Phase 2 Stevedore V1 (feedback extension)** — MEDIUM — `apps/pd-feedback-extension/`, localhost-only enforcement at three layers, drag-rect overlay, 3-second decompose pipeline, React fiber bones overlay, repro recorder emitting `repro.spec.ts`. ~2 weeks scope. Depends on blob store.
 - [ ] **Phase 3 tube-as-UI rewire** — MEDIUM — migrate destructive dashboard and FleetBar actions (claim/release/lock/spawn/abort) from RPC to tube performatives on `<project>:ui:requests`. Reads stay RPC. ~1 week, parallelizable. Blocked on activity-attribution fix above.
 - [ ] **Phase 4 A2A protocol layer** — MEDIUM — extend envelope with `pd tube --act <performative> --protocol <name>` (FIPA-00037 performatives, FIPA-00025 protocol templates). Ship `pd auction <channel>` as first-class CFP/bid/award helper. `coordination-judge.ts` learns thread-shape templates. ~2 weeks. Blocked on harbor capability enforcement above.
@@ -1436,19 +1436,19 @@ Source: `docs/plans/TUBE-AS-COORDINATION-SUBSTRATE-ROADMAP.md` (updated 2026-05-
 Source: `docs/plans/PHONE-INTEGRATION-MASTER-PLAN.md` (updated 2026-04-26). Tracks A1, B1, B2 are shipped; remaining tracks are open.
 
 - [ ] **B3 button-click HTML demo** — LOW — `examples/button-click-demo/` (HTML + README); recorded GIF deferred to GIF-CI work. ~half-day; depends on B1 (shipped).
-- [ ] **C1 ADR-0026 Relay Architecture** — MEDIUM — use `templates/ADR-Relay-Architecture.md`; lands as `docs/adr/0026-relay-architecture.md`. Gates C2.
-- [ ] **C2 Relay v0 implementation** — MEDIUM — `lib/relay-envelope.ts` (pure-fn wire format), Cloudflare Worker + Durable Object scaffolding, identity registry per ADR-0025 OIDC choice, `lib/relay-client.ts` outbound-only daemon SSE client. ~3-4 weeks initial scope. Blocked on C1.
+- [ ] **C1 ADR-0026 Relay Architecture** — MEDIUM — use `templates/ADR-Relay-Architecture.md`; lands as `docs/adr/0026-relay-architecture.md`. Gates C2. <!-- cite-exempt -->
+- [ ] **C2 Relay v0 implementation** — MEDIUM — `lib/relay-envelope.ts` (pure-fn wire format), Cloudflare Worker + Durable Object scaffolding, identity registry per ADR-0025 OIDC choice, `lib/relay-client.ts` outbound-only daemon SSE client. ~3-4 weeks initial scope. Blocked on C1. <!-- cite-exempt -->
 - [ ] **D1 VS Code extension `port-daddy-vscode`** — MEDIUM — selection-based publish, right-click "Ask Claude about this", diagnostic-reactive publish, subscribe to `editor:reply:<id>` for inline rendering. ~1 week; separate repo. Depends on B1 (shipped).
 - [ ] **D2 Test runner publishers** — LOW — `@port-daddy/jest-reporter` and `port-daddy-pytest`; both publish on first failure to `test:failed`. ~3-4 days each; parallelizable. Depends on B1 (shipped).
-- [ ] **E1 Phase 3 attenuation in production code** — LOW — promote `scripts/attenuate_card.py` algorithm to `lib/`; OIDC exchange endpoint on relay; GH Actions integration walkthrough lifts `examples/attenuation-walkthrough.md`. Depends on Tracks B + C.
-- [ ] **E2 ProVerif extension** — LOW — copy `templates/proverif-relay.pv` into `analyses/relay-handshake.pv`, fill in queries from `references/proverif-relay-extension.md`, iterate until I1 + authentication pass. Depends on Tracks B + C.
+- [ ] **E1 Phase 3 attenuation in production code** — LOW — promote `scripts/attenuate_card.py` algorithm to `lib/`; OIDC exchange endpoint on relay; GH Actions integration walkthrough lifts `examples/attenuation-walkthrough.md`. Depends on Tracks B + C. <!-- cite-exempt -->
+- [ ] **E2 ProVerif extension** — LOW — copy `templates/proverif-relay.pv` into `analyses/relay-handshake.pv`, fill in queries from `references/proverif-relay-extension.md`, iterate until I1 + authentication pass. Depends on Tracks B + C. <!-- cite-exempt -->
 - [ ] **E3 ADR-0027 V4 Remote Harbor Redefinition** — LOW — use `templates/ADR-V4-Remote-Harbor-Redefinition.md`; update `V4-DAG.md`, `v4.dag.yaml`, `V4-MASTER-PLAN.md`, `README.md`; implement `pd harbor share` / `pd harbor join`. Depends on Tracks B + C.
 - [ ] **ACME on self-hosted `step-ca` (PKI v1)** — LOW — ADR-0025 phased plan; v1 follows the shipped v0 OIDC. No dispatch yet.
 - [ ] **Self-hosted OIDC issuers + BYO-domain ACME (PKI v2)** — LOW — ADR-0025 v2 phase; far future.
 
 ### Cluster ANCHOR — Anchor protocol workstream backlog (AP-001..AP-022)
 
-Source: `docs/plans/anchor-protocol-workstream-backlog.md` (updated 2026-04-11). PR #166 captures the Task #100 ("Anchor paper Bonded-style upgrade") umbrella but does not enumerate the 22 AP-tagged sub-tasks. The plan's own "Immediate Next Slice" recommendation is AP-001 / AP-002 / AP-003 / AP-010 / AP-016 / AP-018.
+Source: `docs/plans/anchor-protocol-workstream-backlog.md` (updated 2026-04-11). PR #166 captures the Task #100 ("Anchor paper Bonded-style upgrade") umbrella but does not enumerate the 22 AP-tagged sub-tasks. The plan's own "Immediate Next Slice" recommendation is AP-001 / AP-002 / AP-003 / AP-010 / AP-016 / AP-018. <!-- cite-exempt -->
 
 **Cluster A — Protocol truth (whitepaper honesty):**
 
@@ -1481,7 +1481,7 @@ Source: `docs/plans/anchor-protocol-workstream-backlog.md` (updated 2026-04-11).
 **Cluster E — Website and rebrand execution:**
 
 - [ ] **AP-017 Preserve agentsd mock visual system without inflated claims** — LOW — design carry-forward memo.
-- [ ] **AP-018 Audit protocol-version / verification claims across `website-v2`** — MEDIUM — per-file audit + claim-by-claim corrections. Known contradictions: `website-v2/src/data/product.ts` still describes harbors as HMAC while protocol is Ed25519; `website-v2/src/pages/RoadmapPage.tsx` reflects older phase model; whitepaper page count disagrees between site and repo. Recommended in "Immediate Next Slice"; depends on AP-016.
+- [ ] **AP-018 Audit protocol-version / verification claims across `website-v2`** — MEDIUM — per-file audit + claim-by-claim corrections. Known contradictions: `website-v2/src/data/product.ts` still describes harbors as HMAC while protocol is Ed25519; `website-v2/src/pages/RoadmapPage.tsx` reflects older phase model; whitepaper page count disagrees between site and repo. Recommended in "Immediate Next Slice"; depends on AP-016. <!-- cite-exempt -->
 - [ ] **AP-019 Rebuild website IA around operator trust** — LOW — preserve hero / proof / architecture / monetization / docs sequence.
 - [ ] **AP-020 Choose right typography + identity system** — LOW — structural/industrial, not trendy.
 
@@ -1492,7 +1492,7 @@ Source: `docs/plans/anchor-protocol-workstream-backlog.md` (updated 2026-04-11).
 
 ### Cluster WORKTREE-SWARMS — Stigmergic isolation + parallel coordination
 
-Source: `docs/plans/WORKTREE_SWARMS.md` (updated 2026-03-12). Harbormaster (ADR-0037 / PR #141) is the named implementation of the Janitor Agent idea from §4 of this plan; the remaining three roadmap items are unmapped elsewhere.
+Source: `docs/plans/WORKTREE_SWARMS.md` (updated 2026-03-12). Harbormaster (ADR-0037 / PR #141) is the named implementation of the Janitor Agent idea from §4 of this plan; the remaining three roadmap items are unmapped elsewhere. <!-- cite-exempt -->
 
 - [ ] **Worktree-Harbor binding** — MEDIUM — update `lib/harbors.ts` to allow pinning a Harbor to a specific set of `worktree_ids`. Currently Port Daddy auto-detects `worktree_id` on agent registration but harbors are not worktree-scoped. Roadmap item §6.1.
 - [ ] **Metadata decay daemon (Evaporation)** — LOW — background process in the daemon that slowly reduces the weight of stale metadata pheromones. Pheromone read-time decay shipped (V4 roadmap §3-27); background evaporation is the missing companion piece. Roadmap item §6.2.
@@ -1516,7 +1516,7 @@ Concrete invariants and primitives the protocol spec promises that aren't fully 
 - [ ] **BlackboardSWMR static validation** — single-writer-multiple-reader per output dir (e.g., `.spark/ideas/` written only by Spark). YAML-load validator should refuse two writers to same dir.
 - [ ] **Typed channels** (FleetChannelMap discriminated union) — channels are still untyped JSON. Producer/consumer agreement is by convention.
 - [ ] **Confidence scoring in message envelope** — protocol promises `{agent, channel, confidence, coverage, duration_ms, files_examined, issues_found, payload}` shape. Today fleet messages don't carry confidence/coverage fields.
-- [ ] **TLA+ FleetProtocol.tla mechanization** — spec is written inline in the doc (section 6). Should live at `proofs/fleet/FleetProtocol.tla` and run in CI alongside the claim_signaling.tla model from PR #136.
+- [ ] **TLA+ FleetProtocol.tla mechanization** — spec is written inline in the doc (section 6). Should live at `proofs/fleet/FleetProtocol.tla` and run in CI alongside the claim_signaling.tla model from PR #136. <!-- cite-exempt -->
 - [ ] **Gather policies** (`gates:` YAML stanza with `requires: / policy: all|majority|any / timeout:`) — proposed but not implemented. The "release readiness" RELEASE_CHECK example in §3 is aspirational.
 - [ ] **Conversation protocols** (FIPA-style CRITIQUE_REFINE state machines) — §9.2 future work. PR #163's dispatch state machine is the closest live implementation.
 - [ ] **Semantic channel routing via trie** — §9.3 future work. PR #122's `pd whois` scaffolding is the substrate; channel-subscribe-by-pattern (`port-daddy:fleet:qa:*`) isn't wired.
@@ -1586,7 +1586,7 @@ of three leaves an inert system.
 8. Repair remaining file-action truth where relative mutation paths still fail to resolve in web or native surfaces.
 9. Root-cause active-port/zombie-claim inflation if `port-daddy status` reports rows that cleanup cannot free.
 10. Add Cloudflare research notes before expanding beyond Workers AI runtime support: official Workers AI, AI Gateway, Vectorize, AI Search, auth, limits, pricing, and telemetry behavior.
-11. Fold `docs/plans/agentsd_ai_technical_architecture.md` into the live recovery story by mapping each shared-medium, actor, revocation, graph-memory, and remote-harbor idea to a concrete queue item.
+11. Fold `docs/plans/agentsd_ai_technical_architecture.md` into the live recovery story by mapping each shared-medium, actor, revocation, graph-memory, and remote-harbor idea to a concrete queue item. <!-- cite-exempt -->
 12. Convert `docs/reports/GOOGLE_AGENTS_CLI_RESEARCH_2026-04-24.md` into a concrete Port Daddy lifecycle IA proposal before the public/operator docs split drifts further.
 13. Keep the full test suite in the operator loop: focused bundles for iteration, full `npm test` before broad health claims, and failing files/root-cause hypotheses recorded here when the suite fails.
 
@@ -1595,7 +1595,7 @@ of three leaves an inert system.
 - The operator surface now has a proper machine action for files, not just text: the daemon exposes `/operator/open-file`, the web control plane calls it, and FleetBar mirrors the same two affordances natively (`Open in Finder`, `Open with default editor`).
 - Fleet project truth was one of the remaining big operator lies. `/fleet` only described live loaded fleets, while the UI treated that as the complete project universe. The current working tree now merges `/projects` with `/fleet` in both FleetBar and the web control plane, and `/fleet/config/:project` can resolve a registered stopped project instead of only a running fleet.
 - `tests/unit/semantic-index.test.js` and `tests/unit/tunnel-lifecycle.test.js` were legitimate archaeology, not dead scratch. They passed and are now committed.
-- The old `tests/unit/spawner-commit-0df9155-bugs.test.js` archaeology file was retired instead of promoted. The only useful assertions were folded into `tests/unit/spawner.test.js`; the rest duplicated existing coverage or canonized known-bad behavior.
+- The old `tests/unit/spawner-commit-0df9155-bugs.test.js` archaeology file was retired instead of promoted. The only useful assertions were folded into `tests/unit/spawner.test.js`; the rest duplicated existing coverage or canonized known-bad behavior. <!-- cite-exempt -->
 - The spawner heartbeat timer was another real Jest open-handle culprit. `lib/spawner.ts` now `unref()`s that interval so blocked-spawn tests do not hold the process open just by reaching the concurrency ceiling.
 - Port Daddy now has a real `codex` backend path in source. It shells out to `codex exec`, captures the final assistant message from `--output-last-message`, and unit coverage now exercises readiness, spawn dispatch, model catalog, and opaque-cost estimation for that backend.
 - The first live Codex dogfood launch succeeded end-to-end through Port Daddy after replacing the stale manual daemon on `127.0.0.1:9876`: backend `codex`, model `gpt-5.4-mini`, output `codex backend smoke from port-daddy`.
