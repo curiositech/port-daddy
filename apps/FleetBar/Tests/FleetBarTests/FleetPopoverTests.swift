@@ -9,6 +9,7 @@ final class FleetPopoverTests: XCTestCase {
         XCTAssertEqual(
             FleetControlSurface.allCases.map(\.rawValue),
             [
+                "operator",
                 "flow",
                 "backend",
                 "roadmap",
@@ -29,6 +30,7 @@ final class FleetPopoverTests: XCTestCase {
         XCTAssertEqual(
             FleetControlSurface.allCases.map(\.title),
             [
+                "Operator",
                 "Flow",
                 "Backend",
                 "Roadmap",

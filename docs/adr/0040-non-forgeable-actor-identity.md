@@ -76,7 +76,11 @@ key in budget-guard is migrated to `(project, actor_id, utcDay)`.
 - **Non-goal:** cryptographic agent attestation against a malicious *human* operator. The
   threat model is a lazy/self-interested *agent* in a fleet the operator owns, not a
   hostile operator. Per-actor keys raise the cost of accidental and strategic churn; they
-  are not a PKI.
+  are not a PKI. The cross-operator extension — the "unbuilt keystone" the marketplace
+  (ADR-0051) waits on — is specified separately in **ADR-0094**, which profiles the
+  boundary artifacts on SD-JWT-VC / JWS / JCS so external verifiers need no bespoke SDK;
+  this ADR's local ULID + newcomer floor remains the right machinery *inside* one
+  operator's fleet.
 
 ## Alternatives considered
 
@@ -90,3 +94,4 @@ key in budget-guard is migrated to `(project, actor_id, utcDay)`.
 - `docs/research/agent-accountability-proposal.md` (Law 3; the 46→29→1 result)
 - ADR-0022 (durable actor-souls / body-leases)
 - ADR-0041 (durable commitments — the primary consumer of this identity)
+- ADR-0094 (harbor cards as verifiable credentials — the cross-operator extension)

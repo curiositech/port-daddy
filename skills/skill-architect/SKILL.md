@@ -376,6 +376,7 @@ See `references/antipatterns.md` for full catalog with case studies.
 | Need | Extension Type | Key Requirement |
 |------|---------------|-----------------|
 | Domain expertise / process | **Skill** (SKILL.md) | Decision trees, anti-patterns, output contracts |
+| Design/decision discipline with quality gates | **Deterministic-Auditor Skill** | A fail-closed `scripts/*.mjs` scorer + draft-07 schema + verified `sample-input.json`; anti-pattern Detection lines name the finding `id`s. See `references/deterministic-auditor-archetype.md`. |
 | Packaging & distribution | **Plugin** (plugin.json) | Bundles skills + hooks + MCP + agents |
 | External API + auth | **MCP Server** | Working server + setup README |
 | Repeatable local operation | **Script** | Actually runs (not a template), minimal deps |
@@ -468,6 +469,7 @@ Run: `python scripts/validate_skill.py <path>` and `python scripts/check_self_co
 - `references/claude-code-runtime.md` — Claude Code runtime constraints for skills, subagents, preprocessing, compaction, and invocation. **Read when** behavior depends on current Claude runtime semantics.
 - `references/claude-extension-taxonomy.md` — Taxonomy of seven extension types (Skills, Plugins, MCPs, Scripts, Slash Commands, Hooks, Agent SDK) with decision flowchart. **Read when** choosing between skill vs. plugin vs. MCP vs. script.
 - `references/description-guide.md` — Formula for activation-critical description field: `[What] [When] [Triggers]. NOT for [Exclusions].` **Read when** tightening description or debugging false positives.
+- `references/deterministic-auditor-archetype.md` — The archetype for a design/decision discipline captured as a fail-closed scorer (`scripts/*.mjs`) + draft-07 schema + verified `sample-input.json`, with anti-pattern Detection lines wired to finding `id`s and the fail-closed rule. Skeletons: `templates/auditor-skill.mjs`, `templates/auditor-spec.schema.json`. **Read when** the skill's deliverable is a spec/plan/contract that can be scored against known failure modes (the port-daddy first-party skill family shape).
 - `references/expertise-elicitation.md` — Elicitation prompts and contrastive methods for extracting L3 expert judgment. **Read when** converting human knowledge or old docs into skill guidance.
 - `references/guide.md` — Concise authoring contract for skill-architect: minimal frontmatter, repo-specific metadata, preference for references over oversized SKILL.md. **Read when** creating legacy wrapper copies.
 - `references/knowledge-engineering.md` — Methods for extracting expert mental models (structured acquisition, repertory grids, tacit-to-explicit conversion) into skill-ready shibboleths. **Read when** encoding domain expertise from subject matter experts.
@@ -504,7 +506,7 @@ linking every file with a derived purpose. Run it whenever you add/rename a file
 
 ## Skill Bundle Index
 
-*Every file in this skill, and when to open it. Auto-generated; run `./scripts/index_references.py --fix`.*
+*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
 
 **root**
 - [`CHANGELOG.md`](CHANGELOG.md) — Changelog: skill-architect — **HTML entities in reference files**: The iter-2 self-evaluation claimed to fix HTML entities "throughout SKILL.md and references," but the 
@@ -512,7 +514,7 @@ linking every file with a derived purpose. Run it whenever you add/rename a file
 - [`affordance-scorecard.json`](affordance-scorecard.json) — affordance scorecard (data/schema)
 
 **`agents/`**
-- [`agents/INDEX.md`](agents/INDEX.md) — skill-architect Subagents — Five focused subagents implementing the skill-architect's decision branches.
+- [`agents/INDEX.md`](agents/INDEX.md) — skill-architect Subagents — Focused subagents implementing the skill-architect's decision branches.
 - [`agents/activation-debugger.md`](agents/activation-debugger.md) — When you fire — --- name: activation-debugger description: DEBUG-path subagent for skill-architect.
 - [`agents/affordance-planner.md`](agents/affordance-planner.md) — Affordance Planner — You are the structural affordance planner for `skill-architect`.
 - [`agents/cross-evaluator.md`](agents/cross-evaluator.md) — Cross-Evaluator Agent — Evaluates and improves a target skill by embodying a source skill's expertise.
@@ -524,12 +526,70 @@ linking every file with a derived purpose. Run it whenever you add/rename a file
 
 **`diagrams/`**
 - [`diagrams/01_flowchart_primary-decision-tree.md`](diagrams/01_flowchart_primary-decision-tree.md) — Diagram 1: flowchart
+- [`diagrams/INDEX.md`](diagrams/INDEX.md) — Diagram Index — | File | Type | Purpose | |---|---|---| | `diagrams/01_flowchart_primary-decision-tree.md` | `flowchart` | Companion artifact for the primar
 
 **`examples/`**
 - [`examples/runtime-export-example.md`](examples/runtime-export-example.md) — Runtime Export Example — In the repo copy, keep runtime intent under `metadata.runtime` unless native top-level fields are strictly required by the target runtime.
 - [`examples/structural-upgrade-example.md`](examples/structural-upgrade-example.md) — Structural Upgrade Example — - First-party skill - Good domain knowledge - Weak activation description - No decision points, failure modes, or quality gates - Large `ref
 
+**`output/`**
+- [`output/CHANGELOG.md`](output/CHANGELOG.md) — Changelog: skill-architect — **Workgroup authority**: Added doctrine that shared skills should be edited in the workgroup source first, then mirrored into repo-local and
+- [`output/README.md`](output/README.md) — Skill Architect — The authoritative meta-skill for creating, auditing, and improving Agent Skills.
+- [`output/affordance-scorecard.json`](output/affordance-scorecard.json) — affordance scorecard (data/schema)
+
+**`output/agents/`**
+- [`output/agents/affordance-planner.md`](output/agents/affordance-planner.md) — Affordance Planner — You are the structural affordance planner for `skill-architect`.
+- [`output/agents/cross-evaluator.md`](output/agents/cross-evaluator.md) — Cross-Evaluator Agent — Evaluates and improves a target skill by embodying a source skill's expertise.
+- [`output/agents/openai.yaml`](output/agents/openai.yaml) — openai (data/schema)
+- [`output/agents/sync-coordinator.md`](output/agents/sync-coordinator.md) — Skill Sync Coordinator — You coordinate skill copies across a workgroup source, repo mirrors, and user-level registries.
+
+**`output/diagrams/`**
+- [`output/diagrams/01_flowchart_primary-decision-tree.md`](output/diagrams/01_flowchart_primary-decision-tree.md) — Diagram 1: flowchart
+- [`output/diagrams/INDEX.md`](output/diagrams/INDEX.md) — Diagram Index — | File | Type | Purpose | |---|---|---| | `diagrams/01_flowchart_primary-decision-tree.md` | `flowchart` | Companion artifact for the primar
+
+**`output/examples/`**
+- [`output/examples/runtime-export-example.md`](output/examples/runtime-export-example.md) — Runtime Export Example — In the repo copy, keep runtime intent under `metadata.runtime` unless native top-level fields are strictly required by the target runtime.
+- [`output/examples/structural-upgrade-example.md`](output/examples/structural-upgrade-example.md) — Structural Upgrade Example — - First-party skill - Good domain knowledge - Weak activation description - No decision points, failure modes, or quality gates - Large `ref
+
+**`output/references/`**
+- [`output/references/INDEX.md`](output/references/INDEX.md) — Reference Index — Load only the file that matches the blocking question.
+- [`output/references/activation-debugging.md`](output/references/activation-debugging.md) — Skill Activation Debugging — Systematic diagnosis when a skill doesn't activate when it should, or activates when it shouldn't.
+- [`output/references/advanced-structure-and-sync.md`](output/references/advanced-structure-and-sync.md) — Advanced Structure and Sync — Use this when a skill should become a durable operating surface instead of a single Markdown instruction file.
+- [`output/references/antipatterns.md`](output/references/antipatterns.md) — Skill Anti-Patterns: The Shibboleths — This document catalogs **domain-specific knowledge that separates novices from experts** - the things LLMs get wrong because their training 
+- [`output/references/channels-and-scheduling.md`](output/references/channels-and-scheduling.md) — Channels and Scheduling — This reference captures the official Claude Code surfaces adjacent to skills that often get confused with skill features.
+- [`output/references/claude-code-runtime.md`](output/references/claude-code-runtime.md) — Claude Code Runtime — This reference captures the official Claude Code runtime surface that matters when authoring `some_claude_skills`.
+- [`output/references/claude-extension-taxonomy.md`](output/references/claude-extension-taxonomy.md) — Claude Extension Taxonomy — Choose the lightest extension primitive that solves the real problem.
+- [`output/references/description-guide.md`](output/references/description-guide.md) — Skill Description Writing Guide — The `description` field in SKILL.md frontmatter is the single most important line for activation.
+- [`output/references/expertise-elicitation.md`](output/references/expertise-elicitation.md) — Expertise Elicitation for Skills: L1, L2, L3 and CTA — Use this reference when a skill needs to encode real expert performance rather than polished prose.
+- [`output/references/knowledge-engineering.md`](output/references/knowledge-engineering.md) — Knowledge Engineering for Skill Creation — How to apply knowledge engineering (KE) methods to extract expert knowledge and build skills.
+- [`output/references/mcp-template.md`](output/references/mcp-template.md) — Minimal MCP Server Template — Production-ready starter template for MCP servers.
+- [`output/references/plugin-architecture.md`](output/references/plugin-architecture.md) — Plugin Architecture: Creating, Packaging, and Distributing — Complete guide to Claude Code plugins — the distribution mechanism for skills, hooks, MCP servers, and agents.
+- [`output/references/scoring-rubric.md`](output/references/scoring-rubric.md) — Skill Scoring Rubric — Use this rubric for per-skill scorecards and bulk-upgrade triage.
+- [`output/references/self-contained-tools.md`](output/references/self-contained-tools.md) — Self-Contained Tools — Implementation patterns for scripts, MCP servers, and subagents that make skills immediately useful.
+- [`output/references/skill-composition.md`](output/references/skill-composition.md) — Skill Composition Patterns — How skills work together, depend on each other, and compose into workflows.
+- [`output/references/skill-lifecycle.md`](output/references/skill-lifecycle.md) — Skill Lifecycle Management — From creation to deprecation - how to maintain skills over time.
+- [`output/references/subagent-design.md`](output/references/subagent-design.md) — Subagent Design — Official docs: - Skills: https://code.claude.com/docs/en/skills - Subagents: https://code.claude.com/docs/en/sub-agents There are two differ
+- [`output/references/subagent-template.md`](output/references/subagent-template.md) — Subagent Definition Template — Template for defining specialized subagents for complex workflows.
+- [`output/references/visual-artifacts.md`](output/references/visual-artifacts.md) — Visual Artifacts and Mermaid Doctrine — Use visual artifacts when they improve reasoning, review, or downstream usability.
+
+**`output/schemas/`**
+- [`output/schemas/skill-sync-plan.schema.json`](output/schemas/skill-sync-plan.schema.json) — skill sync plan.schema (data/schema)
+
+**`output/scripts/`**
+- [`output/scripts/audit_skill_operating_system.py`](output/scripts/audit_skill_operating_system.py) — Heuristic audit for advanced skill operating-surface affordances.
+- [`output/scripts/check_self_contained.py`](output/scripts/check_self_contained.py) — Self-Containment Checker — Detect Phantom References and Orphaned Files
+- [`output/scripts/init_skill.py`](output/scripts/init_skill.py) — Skill Scaffolder — Initialize a New Agent Skill Directory
+- [`output/scripts/validate_mermaid.py`](output/scripts/validate_mermaid.py) — Mermaid Syntax Validator — Structural Validation Without Rendering
+- [`output/scripts/validate_skill.py`](output/scripts/validate_skill.py) — Skill Validator — Comprehensive Structural Validation for Agent Skills
+
+**`output/templates/`**
+- [`output/templates/runtime-export-frontmatter.yaml`](output/templates/runtime-export-frontmatter.yaml) — runtime export frontmatter (data/schema)
+- [`output/templates/skill-scorecard.json`](output/templates/skill-scorecard.json) — skill scorecard (data/schema)
+- [`output/templates/skill-sync-plan.md`](output/templates/skill-sync-plan.md) — Skill Sync Plan — Use when a skill has workgroup, repo-local, and user-level copies.
+- [`output/templates/visual-decision-board.md`](output/templates/visual-decision-board.md) — Visual Decision Board — Use this when a human must review direction before execution.
+
 **`references/`**
+- [`references/INDEX.md`](references/INDEX.md) — Reference Index — Load only the file that matches the blocking question.
 - [`references/activation-debugging.md`](references/activation-debugging.md) — Skill Activation Debugging — Systematic diagnosis when a skill doesn't activate when it should, or activates when it shouldn't.
 - [`references/advanced-structure-and-sync.md`](references/advanced-structure-and-sync.md) — Advanced Structure and Sync — Use this when a skill should become a durable operating surface instead of a single Markdown instruction file.
 - [`references/antipatterns.md`](references/antipatterns.md) — Skill Anti-Patterns: The Shibboleths — This document catalogs **domain-specific knowledge that separates novices from experts** - the things LLMs get wrong because their training 
@@ -537,6 +597,7 @@ linking every file with a derived purpose. Run it whenever you add/rename a file
 - [`references/claude-code-runtime.md`](references/claude-code-runtime.md) — Claude Code Runtime — This reference captures the official Claude Code runtime surface that matters when authoring `some_claude_skills`.
 - [`references/claude-extension-taxonomy.md`](references/claude-extension-taxonomy.md) — Claude Extension Taxonomy: Skills, Plugins, MCPs, Hooks, Agent SDK — The Claude ecosystem has seven extension types.
 - [`references/description-guide.md`](references/description-guide.md) — Skill Description Writing Guide — The `description` field in SKILL.md frontmatter is the single most important line for activation.
+- [`references/deterministic-auditor-archetype.md`](references/deterministic-auditor-archetype.md) — The Deterministic-Auditor Skill Archetype — **Read when** the skill you are building is a *design/decision discipline with quality gates* — "is this architecture/plan/contract sound?" 
 - [`references/expertise-elicitation.md`](references/expertise-elicitation.md) — Expertise Elicitation for Skills: L1, L2, L3 and CTA — Use this reference when a skill needs to encode real expert performance rather than polished prose.
 - [`references/guide.md`](references/guide.md) — Skill Architect Guide — Use this file when you need the concise authoring contract for legacy wrapper copies of `skill-architect`.
 - [`references/knowledge-engineering.md`](references/knowledge-engineering.md) — Knowledge Engineering for Skill Creation — How to apply knowledge engineering (KE) methods to extract expert knowledge and build skills.
@@ -554,17 +615,19 @@ linking every file with a derived purpose. Run it whenever you add/rename a file
 **`schemas/`**
 - [`schemas/skill-sync-plan.schema.json`](schemas/skill-sync-plan.schema.json) — skill sync plan.schema (data/schema)
 
-**`./scripts/`**
-- [`./scripts/audit_skill_operating_system.py`](scripts/audit_skill_operating_system.py) — Heuristic audit for advanced skill operating-surface affordances.
-- [`./scripts/check_self_contained.py`](scripts/check_self_contained.py) — Self-Containment Checker — Detect Phantom References and Orphaned Files
-- [`./scripts/index_references.py`](scripts/index_references.py) — index_references.py — ensure a skill's SKILL.md indexes its whole bundle.
-- [`./scripts/init_skill.py`](scripts/init_skill.py) — Skill Scaffolder — Initialize a New Agent Skill Directory
-- [`./scripts/migration_planner.py`](scripts/migration_planner.py) — !/usr/bin/env python3
-- [`./scripts/preflight.sh`](scripts/preflight.sh) — !/usr/bin/env bash
-- [`./scripts/validate_mermaid.py`](scripts/validate_mermaid.py) — Mermaid Syntax Validator — Structural Validation Without Rendering
-- [`./scripts/validate_skill.py`](scripts/validate_skill.py) — Skill Validator — Comprehensive Structural Validation for Agent Skills
+**`scripts/`**
+- [`scripts/audit_skill_operating_system.py`](scripts/audit_skill_operating_system.py) — Heuristic audit for advanced skill operating-surface affordances.
+- [`scripts/check_self_contained.py`](scripts/check_self_contained.py) — Self-Containment Checker — Detect Phantom References and Orphaned Files
+- [`scripts/index_references.py`](scripts/index_references.py) — index_references.py — ensure a skill's SKILL.md indexes its whole bundle.
+- [`scripts/init_skill.py`](scripts/init_skill.py) — Skill Scaffolder — Initialize a New Agent Skill Directory
+- [`scripts/migration_planner.py`](scripts/migration_planner.py) — !/usr/bin/env python3
+- [`scripts/preflight.sh`](scripts/preflight.sh) — !/usr/bin/env bash
+- [`scripts/validate_mermaid.py`](scripts/validate_mermaid.py) — Mermaid Syntax Validator — Structural Validation Without Rendering
+- [`scripts/validate_skill.py`](scripts/validate_skill.py) — Skill Validator — Comprehensive Structural Validation for Agent Skills
 
 **`templates/`**
+- [`templates/auditor-skill.mjs`](templates/auditor-skill.mjs)
+- [`templates/auditor-spec.schema.json`](templates/auditor-spec.schema.json) — auditor spec.schema (data/schema)
 - [`templates/runtime-export-frontmatter.yaml`](templates/runtime-export-frontmatter.yaml) — runtime export frontmatter (data/schema)
 - [`templates/skill-scorecard.json`](templates/skill-scorecard.json) — skill scorecard (data/schema)
 - [`templates/skill-sync-plan.md`](templates/skill-sync-plan.md) — Skill Sync Plan — Use when a skill has workgroup, repo-local, and user-level copies.

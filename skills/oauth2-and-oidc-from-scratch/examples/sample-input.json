@@ -1,0 +1,26 @@
+{
+  "clientType": "web-confidential",
+  "flow": "authorization-code",
+  "oidc": true,
+  "usesPkce": true,
+  "browserArchitecture": "bff",
+  "tokenStorage": "server-side-session",
+  "statePresent": true,
+  "noncePresent": true,
+  "redirectUriMatching": "exact",
+  "idTokenValidation": {
+    "library": "vetted",
+    "algPinned": true,
+    "checksIssuer": true,
+    "checksAudience": true,
+    "checksExpiry": true,
+    "checksNonce": true
+  },
+  "refreshTokens": {
+    "issued": true,
+    "rotationEnabled": true,
+    "storage": "server-side"
+  },
+  "jwksSource": "jwks-endpoint",
+  "clockSkewSeconds": 60
+}

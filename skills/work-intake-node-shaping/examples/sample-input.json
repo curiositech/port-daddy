@@ -1,0 +1,17 @@
+{
+  "workIntent": {
+    "id": "wi-2026-07-03-fix-symbol-index-fd-leak",
+    "signals": {
+      "coupling": "low",
+      "contextPressure": "low",
+      "skillBoundary": "single",
+      "reviewIndependence": "shared",
+      "budget": "small",
+      "operatorBurden": "low"
+    }
+  },
+  "selectedArchetypes": ["node"],
+  "legacyRoutes": [
+    { "verb": "spawn", "writesIndependentState": false }
+  ]
+}

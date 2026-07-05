@@ -1,6 +1,10 @@
 import Foundation
 
 enum FleetControlSurface: String, CaseIterable, Identifiable {
+    /// The operator home: needs-you list + trust-gate spawn approvals
+    /// (ADR-0093). First in the strip — held spawns are the one thing the
+    /// Control Center must never bury.
+    case `operator`
     case flow
     case backend
     case roadmap
@@ -21,6 +25,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .operator: return "Operator"
         case .flow: return "Flow"
         case .backend: return "Backend"
         case .roadmap: return "Roadmap"
@@ -41,6 +46,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
 
     var icon: String {
         switch self {
+        case .operator: return "checklist"
         case .flow: return "point.3.connected.trianglepath.dotted"
         case .backend: return "rectangle.stack.badge.person.crop"
         case .roadmap: return "map"

@@ -1,0 +1,13 @@
+{
+  "propagator": "composite",
+  "samplingStrategy": "both",
+  "legacyUpstreamsRemain": true,
+  "newParentIdPerSpan": true,
+  "traceparentLowercaseHexValidated": true,
+  "needErrorSampling": true,
+  "productionSampleRatePercent": 10,
+  "sqlCommenterEnabled": true,
+  "sqlCommenterDefaultOn": false,
+  "dbSystem": "postgres",
+  "piiInTracestate": false
+}

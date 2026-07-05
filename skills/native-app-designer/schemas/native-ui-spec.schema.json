@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Native UI Spec",
+  "description": "Input shape for scripts/native_design_audit.mjs — a normalized description of a native iOS/macOS design's HIG-relevant properties.",
+  "type": "object",
+  "required": [
+    "usesSfSymbolsNotEmojiIcons",
+    "honorsDynamicType",
+    "minTapTargetPt",
+    "minBodyFontPt",
+    "respectsSafeAreas",
+    "lightAndDark",
+    "contrastMinRatio",
+    "usesSystemMaterials"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "component": {
+      "type": "string",
+      "description": "Optional name of the screen/component/flow being audited."
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["ios", "macos", "ipados", "cross-platform"],
+      "description": "Optional target platform."
+    },
+    "usesSfSymbolsNotEmojiIcons": {
+      "type": "boolean",
+      "description": "True only if every UI icon is an SF Symbol (or an equivalent custom vector) — never an emoji used as an icon."
+    },
+    "honorsDynamicType": {
+      "type": "boolean",
+      "description": "True only if body/prose text scales with the system Dynamic Type accessibility setting instead of using hard-coded point sizes."
+    },
+    "minTapTargetPt": {
+      "type": "number",
+      "minimum": 0,
+      "description": "The smallest interactive control's tap target size, in points (width and height are assumed equal or this is the smaller dimension)."
+    },
+    "minBodyFontPt": {
+      "type": "number",
+      "minimum": 0,
+      "description": "The smallest body/prose/caption font size anywhere in the design, in points."
+    },
+    "respectsSafeAreas": {
+      "type": "boolean",
+      "description": "True only if layout avoids notch/Dynamic Island/home-indicator intrusion for interactive or critical content."
+    },
+    "lightAndDark": {
+      "type": "boolean",
+      "description": "True only if both light and dark appearances are implemented using semantic colors (not a single hard-coded palette)."
+    },
+    "contrastMinRatio": {
+      "type": "number",
+      "minimum": 0,
+      "description": "The worst-case (lowest) text/background contrast ratio anywhere in the design."
+    },
+    "usesSystemMaterials": {
+      "type": "boolean",
+      "description": "True if chrome/overlay surfaces use system materials (.ultraThinMaterial, .regularMaterial, etc.) rather than flat/opaque fills."
+    }
+  }
+}

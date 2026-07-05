@@ -63,7 +63,9 @@ export function buildTriggerRegistry(deps: BuildRegistryDeps): TriggerRegistry {
     new GitHubTriggerSource(githubDeps),
     new GitTriggerSource(gitDeps),
     new CronTriggerSource(cronDeps),
-    new EmailTriggerSource(),
+    // Email shares the webhook receiver primitive for its inbound-webhook
+    // delivery mode (Cloudflare Email Routing → Worker → daemon).
+    new EmailTriggerSource({}, { registerHandler: deps.registerWebhookHandler }),
     new SmsTriggerSource(),
     new CalendarTriggerSource(),
     new FileTriggerSource(),

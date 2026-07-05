@@ -16,6 +16,7 @@ import {
 } from '@/components/site/primitives'
 import {
   EXPLAIN_PAPERS,
+  LIBRARY_CHANGELOG,
   LIBRARY_SPINE,
   PROVE_PAPERS,
   READING_PATHS,
@@ -454,6 +455,63 @@ export default function LibraryPage() {
                   You need none of the theory for the first benefit. One command,
                   and two agents that used to collide take turns instead.
                 </PanelBody>
+              </div>
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* ── Library changelog: dated release waves, newest first ── */}
+        <section
+          id="library-changelog"
+          className="scroll-mt-[var(--space-8)] border-t-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]"
+        >
+          <PageContainer width="wide">
+            <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.34fr)_minmax(0,0.66fr)]">
+              <div className="space-y-[var(--space-3)]">
+                <PanelEyebrow>Library changelog</PanelEyebrow>
+                <PanelTitle as="h2" size="section" className="max-w-[14ch]">
+                  What changed, and when.
+                </PanelTitle>
+                <PanelBody className="max-w-[44ch] text-[length:var(--text-lg)]">
+                  These papers are living documents: they get argued with, proven
+                  against, and revised in the open. One entry per release wave,
+                  newest first. For the per-objection history of the adversarial
+                  reviews, see{' '}
+                  <Link
+                    to="/whitepaper/rounds"
+                    className="font-black text-[var(--brand-primary)] underline underline-offset-4 hover:no-underline"
+                  >
+                    the review rounds
+                  </Link>
+                  .
+                </PanelBody>
+              </div>
+
+              <div className="grid gap-[var(--space-4)]">
+                {LIBRARY_CHANGELOG.map((entry) => (
+                  <article
+                    key={`${entry.date}-${entry.title}`}
+                    className="grid gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-5)]"
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-[var(--space-2)]">
+                      <time
+                        dateTime={entry.dateIso}
+                        className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]"
+                      >
+                        {entry.date}
+                      </time>
+                      <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                        {entry.chapters.join(' · ')}
+                      </span>
+                    </div>
+                    <h3 className="font-display text-[length:var(--text-xl)] font-black leading-[var(--leading-nav)] text-[var(--text-primary)]">
+                      {entry.title}
+                    </h3>
+                    <p className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                      {entry.summary}
+                    </p>
+                  </article>
+                ))}
               </div>
             </div>
           </PageContainer>

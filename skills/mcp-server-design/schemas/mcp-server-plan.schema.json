@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/mcp-server-plan.schema.json",
+  "title": "MCP Server Design Plan",
+  "description": "A structured plan for a Model Context Protocol server — transport, startup, logging, safety guards, tool-surface hygiene — so this skill's Quality Gates can be checked deterministically by scripts/mcp_server_design_audit.mjs.",
+  "type": "object",
+  "required": ["transport", "startupStrategy", "logsToStdout"],
+  "additionalProperties": true,
+  "properties": {
+    "transport": {
+      "type": "string",
+      "enum": ["stdio", "http"],
+      "description": "The MCP transport. This skill covers stdio; http has different framing concerns."
+    },
+    "startupStrategy": {
+      "type": "string",
+      "enum": ["lazy", "eager"],
+      "description": "Whether heavy resources (indexes, models) load behind the first tool call (lazy) or at boot (eager). Must be lazy."
+    },
+    "startupBudgetMs": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Measured or budgeted time from process start to connect(). Quality Gates require < 100ms."
+    },
+    "logsToStdout": {
+      "type": "boolean",
+      "description": "True if any logging writes to stdout after connect(). Must be false on stdio — stdout is reserved for JSON-RPC frames."
+    },
+    "exposesFileTools": {
+      "type": "boolean",
+      "description": "True if any tool reads a file by caller-supplied path."
+    },
+    "pathTraversalGuard": {
+      "type": "boolean",
+      "description": "True if file tools resolve + startsWith-check paths against the root. Required whenever exposesFileTools is true."
+    },
+    "errorsReturnIsError": {
+      "type": "boolean",
+      "description": "True if handlers return { content, isError: true } instead of throwing."
+    },
+    "errorsSanitized": {
+      "type": "boolean",
+      "description": "True if errors are sanitized at the tool boundary — generic message to the client, detail to stderr, secrets never included."
+    },
+    "requiresSecrets": {
+      "type": "boolean",
+      "description": "True if the server needs API keys or other env-var secrets."
+    },
+    "requiredEnvValidatedAtStartup": {
+      "type": "boolean",
+      "description": "True if required env vars are validated at boot with an actionable error, not on the first tool call."
+    },
+    "telemetryBlocking": {
+      "type": "boolean",
+      "description": "True if any telemetry call blocks a tool response. Must be false — fire-and-forget with a short abort."
+    },
+    "maxOptionalArgsPerTool": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "The largest number of optional arguments on any single tool. More than ~8 signals a tool doing too much."
+    },
+    "descriptionsIncludeWhenNotToUse": {
+      "type": "boolean",
+      "description": "True if every tool description includes capability, return shape, and a when-NOT-to-use clause."
+    },
+    "inputsValidatedWithConstraints": {
+      "type": "boolean",
+      "description": "True if tool inputs are validated by zod with min/max/enum constraints that surface as client metadata."
+    },
+    "handshakeTestInCi": {
+      "type": "boolean",
+      "description": "True if the initialize → tools/list handshake test runs in CI on every commit."
+    }
+  }
+}

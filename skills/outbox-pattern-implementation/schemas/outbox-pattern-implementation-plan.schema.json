@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/outbox-pattern-implementation-plan.schema.json",
+  "title": "Transactional Outbox Plan",
+  "description": "A structured plan for a transactional-outbox implementation so scripts/outbox_pattern_implementation_audit.mjs can check it deterministically against this skill's Quality Gates.",
+  "type": "object",
+  "required": ["architecture", "relayType", "consumerIdempotent"],
+  "additionalProperties": true,
+  "properties": {
+    "architecture": {
+      "type": "string",
+      "enum": ["outbox-relay", "dual-write", "publish-first"],
+      "description": "How DB write and broker publish relate. dual-write and publish-first are the hazards the pattern removes and always fail."
+    },
+    "outboxWriteInBusinessTransaction": {
+      "type": "boolean",
+      "description": "True if the outbox INSERT rides the exact same transaction as the business rows."
+    },
+    "relayType": {
+      "type": "string",
+      "enum": ["polling", "cdc", "none"],
+      "description": "How outbox rows reach the broker: polling publisher, Debezium CDC, or none (fails for outbox-relay)."
+    },
+    "relayInstances": {
+      "type": "number",
+      "minimum": 0,
+      "description": "How many relay instances run concurrently (raises SKIP LOCKED severity when > 1)."
+    },
+    "usesSkipLocked": {
+      "type": "boolean",
+      "description": "True if the polling relay claims rows with FOR UPDATE SKIP LOCKED."
+    },
+    "partialUnpublishedIndex": {
+      "type": "boolean",
+      "description": "True if a partial index exists on unpublished rows (WHERE published_at IS NULL)."
+    },
+    "replicationSlotLagMonitored": {
+      "type": "boolean",
+      "description": "True if pg_replication_slots lag is monitored/alerted for the CDC relay."
+    },
+    "pruneStrategy": {
+      "type": "string",
+      "enum": ["delete-after-publish", "scheduled-delete", "time-partitioning", "none"],
+      "description": "How published rows are removed. 'none' fails; high volume wants time-partitioning."
+    },
+    "consumerIdempotent": {
+      "type": "boolean",
+      "description": "True if the consumer dedupes -- at-least-once delivery guarantees eventual duplicates."
+    },
+    "dedupMechanism": {
+      "type": "string",
+      "enum": ["db-unique-constraint", "redis", "in-memory", "none"],
+      "description": "The idempotency primitive. Only a DB unique constraint is transactional with the side effect."
+    },
+    "schemaHasAggregateType": { "type": "boolean", "description": "True if the outbox table has aggregate_type (routes to topic)." },
+    "schemaHasAggregateId": { "type": "boolean", "description": "True if the outbox table has aggregate_id (Kafka message key / partition ordering)." },
+    "schemaHasEventType": { "type": "boolean", "description": "True if the outbox table has event_type." },
+    "schemaHasPayload": { "type": "boolean", "description": "True if the outbox table has a payload column (JSONB)." },
+    "expectedVolume": {
+      "type": "string",
+      "enum": ["low", "high"],
+      "description": "Expected event volume; 'high' tightens the prune-strategy check."
+    },
+    "traceIdInOutboxRow": {
+      "type": "boolean",
+      "description": "True if trace_id travels in the outbox row for cross-boundary tracing."
+    },
+    "lagMetricsExported": {
+      "type": "boolean",
+      "description": "True if outbox_unpublished_count / oldest-unpublished-age metrics are exported and alerted."
+    }
+  }
+}

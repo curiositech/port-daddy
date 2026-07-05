@@ -118,6 +118,19 @@ jobs:
           rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary.p8" || true
           security delete-keychain "$KEYCHAIN" || true
 
+      # Soak the EXACT binary that ships (post-signing on macOS). v3.24.0
+      # segfaulted ~68s after boot (Bun null-deref on a ~60s timer) and
+      # nothing in CI had ever run the packaged binary — unit tests run from
+      # source, which is a different runtime shape than the compiled bundle.
+      # 180s is comfortably past that signature and lets every first-firing
+      # ~60s timer (pheromone evaporator, bosun heartbeat) run at least twice.
+      # A crash, a health wedge, or a dirty SIGTERM here FAILS THE RELEASE.
+      - name: Soak the packaged binary (crash/wedge gate)
+        env:
+          SOAK_SECONDS: 180
+          SOAK_PORT: 19876
+        run: bash scripts/soak-binary.sh dist/port-daddy
+
       - name: Package binary
         run: cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json
 
@@ -137,8 +150,8 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
       # package-fleetbar.sh bundles the CLI payload via scripts/build-single-binary.mjs,
-      # which shells out to bun. Keep this job aligned with build-binaries and
-      # publish-npm so recovery reruns do not fail after the Swift build succeeds.
+      # which shells out to bun. Keep this job aligned with build-binaries so
+      # recovery reruns do not fail after the Swift build succeeds.
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -316,48 +329,12 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           files: dist/latest.json
 
-  publish-npm:
-    # Run on real release events and on operator-triggered workflow_dispatch.
-    # workflow_dispatch is privileged (repo-write required), so this isn't a
-    # broadening of who can publish — it's a recovery path for releases where
-    # the original `release: published` run failed partway through (e.g. the
-    # bun-missing-in-publish-npm regression that wedged v3.14.1 + v3.15.0).
-    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
-
-      - name: Use Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: 'https://registry.npmjs.org'
-
-      # npm publish runs prepublishOnly which calls build:daemon:dist, which
-      # shells out to `bun` to compile the standalone daemon binary that ships
-      # in the npm tarball. v3.14.1's release run failed here with
-      # `Error: bun --version failed` because the ubuntu-latest runner doesn't
-      # ship with bun. Mirror the bun setup that build-binaries uses above.
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.2.21
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
-        run: npm test
-
-      - name: Publish to npm
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  # publish-npm was RETIRED 2026-07-04 (operator decision): brew + the release
+  # binaries + latest.json cover every supported install path, the npm token
+  # had been dead since 3.15.0 (every publish 404'd), and the perpetually red
+  # job trained everyone to ignore release failures. The manual companion
+  # .github/workflows/publish.yml remains if npm distribution is ever revived;
+  # the registry package should be `npm deprecate`d when a working token exists.
 
   # Roll the brew tap ONLY for a real, non-prerelease published Release. A
   # prerelease (vX.Y.Z-rc.N) builds + signs binaries but must NEVER roll the tap —
@@ -373,8 +350,7 @@ jobs:
     # preview failed to build. This reverses the prior "binaries-only" gate — that
     # let FleetBar rot silently across releases. The tradeoff is deliberate: a
     # flaky FleetBar build now blocks the release, which forces FleetBar to be
-    # FIXED rather than bypassed. publish-npm stays non-gating (it's a separate
-    # distribution channel, not part of the daemon+GUI bundle).
+    # FIXED rather than bypassed.
     needs: [build-binaries, build-fleetbar-preview]
     if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && github.event_name == 'release' && github.event.release.prerelease == false
     steps:

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.24.1] - 2026-07-04
+
+### Fixed
+- **`pd-console --version` panicked without a daemon, sinking the release console build (#673).** `main()` ran daemon discovery before parsing args, so the release workflow's deep version-drift guard — which execs the freshly built binary on a daemonless CI runner — got a panic instead of a version, and no contiguous `pd-console v<ver>` literal existed for its strings-extraction fallback. `--version`/`-V` now early-exits printing the build stamp before any daemon, GPU, or window init, and a `#[used]` static keeps the marker in rodata for cross-arch checks. Restores the `pd-console.app` release asset, absent from v3.24.0 and failing on the three release runs before it.
+
+## [3.24.0] - 2026-07-04
+
+### Fixed
+- **`begin_session` MCP tool could not satisfy the daemon's lifecycle requirement.** The daemon (`lib/sugar.ts`) hard-requires `lifecycle: "durable" | "ephemeral"` on session begin, but the MCP tool schema neither declared the field nor forwarded it — every MCP-driven `begin_session` failed with `SESSION_LIFECYCLE_REQUIRED`, locking MCP agents out of the mandatory coordination protocol (the CLI worked via `--lifecycle`). The tool schema now declares `lifecycle` as a required enum with guidance (ephemeral = one-off task session, durable = long-lived staff agent) and the handler forwards it to `/sugar/begin`.
+
 ### Added
 - **Fleet HITL proposal queue (#648).** Cloud ships (Spark, Spider, future ships) can now submit product/build proposals without spawning any work: `POST /fleet-proposals` persists an inert packet into a new `fleet_hitl_proposals` SQLite table, FleetBar renders native Approve/Reject controls, and pd-console's Cloud Fleet pane shows pending-proposal awareness. Approval — and only approval — hands the packet to the dispatch queue as a specialist PR build (`review` merge policy). The surface is deliberately operator-only: no MCP tool can approve a proposal (an agent must never approve its own idea). Hardened under adversarial review: honest HTTP codes (404 unknown id, 409 state/duplicate conflict, 429 queue full), a 200-pending queue cap, a 16KB context cap, SQL-side list filtering, and cross-process race guards on every state transition.
 - **`pd safe corral` — pack secrets off disk into the vault (ADR-0088 Phase B).** Takes the read-only scanner's findings and, for each detected plaintext secret, saves the value into the Keychain/broker vault (`lib/secret-env.ts`) and rewrites the source line to a `pd-secret://KEY` reference, so there is no plaintext secret at rest. `pd safe corral <KEY>` targets one finding, `--all` does every one; **dry-run by default** (prints the plan, writes nothing), `--apply` to write. The safety order is an invariant: re-verify the value at the line → save to vault → **verify the resolver round-trips the exact value** → write a `.bak` under `~/.port-daddy/recovered` → only then rewrite the source. A failure at any step aborts that item with the source untouched (no plaintext lost). No raw secret is ever printed, logged, or stored — plan/result objects carry path/line/ruleId/last4 + the env-var key only.

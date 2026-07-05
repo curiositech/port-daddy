@@ -1,0 +1,12 @@
+{
+  "preStopSleepSeconds": 15,
+  "terminationGracePeriodSeconds": 60,
+  "drainBudgetSeconds": 25,
+  "sigtermHandlerRegistered": true,
+  "immediateExitOnSigterm": false,
+  "pid1IsApp": true,
+  "hardDeadlineShorterThanGrace": true,
+  "readinessFlipsOnShutdown": true,
+  "readinessFlipReplacesSleep": false,
+  "backgroundWorkersHandleShutdown": true
+}

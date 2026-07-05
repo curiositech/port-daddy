@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Compliance Conformance Spec",
+  "description": "Input shape for scripts/conformance_audit.mjs — a compliance-ladder design (with its doc/schema/ui/probe surface declarations) plus adapter conformance fixtures that either back or fail to back each level with a daemon-witnessed negative probe.",
+  "type": "object",
+  "required": ["ladders", "surfaces", "adapters"],
+  "additionalProperties": true,
+  "definitions": {
+    "level": {
+      "type": "object",
+      "required": ["id", "order", "name", "requiredPredicates"],
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Level identifier, e.g. \"C3\" or \"T4\"."
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Position in the ladder; 0 is the base/entry level that requires no daemon-witnessed evidence."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable level name, e.g. \"Suggestible\". This is exactly the field that drifted across binder docs for the same id/order (e.g. C3 \"Suggestible\" vs C3 \"Controllable\")."
+        },
+        "requiredPredicates": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Structured predicate names this level requires be daemon-witnessed true, e.g. \"tool-preflight-witnessed\". Never free-text prose."
+        }
+      }
+    }
+  },
+  "properties": {
+    "ladders": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Canonical ladder definitions, e.g. the compliance ladder (C0-C6) and the transcript-fidelity ladder (T0-T5).",
+      "items": {
+        "type": "object",
+        "required": ["name", "levels"],
+        "additionalProperties": true,
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "description": "e.g. \"compliance-ladder\" or \"transcript-fidelity-ladder\"." },
+          "levels": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/definitions/level" }
+          }
+        }
+      }
+    },
+    "surfaces": {
+      "type": "array",
+      "description": "Every place the ladder is independently declared: documentation prose, a JSON/type schema, the operator UI, and the compliance probe implementation itself. May be empty, but an empty array or missing kind is never treated as safe.",
+      "items": {
+        "type": "object",
+        "required": ["kind", "ladder", "levels"],
+        "additionalProperties": true,
+        "properties": {
+          "kind": { "type": "string", "enum": ["doc", "schema", "ui", "probe"] },
+          "ladder": { "type": "string", "minLength": 1, "description": "References ladders[].name." },
+          "source": { "type": "string", "description": "Optional file path or component name identifying where this surface's declaration actually lives." },
+          "levels": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/level" }
+          }
+        }
+      }
+    },
+    "adapters": {
+      "type": "array",
+      "minItems": 1,
+      "description": "One conformance fixture per backend under test, e.g. Codex, Claude Code, Cloudflare, Ollama/LM Studio, or a custom stdio/HTTP agent.",
+      "items": {
+        "type": "object",
+        "required": ["name", "ladder", "claimedLevel", "negativeProbes"],
+        "additionalProperties": true,
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "description": "e.g. \"codex\", \"claude-code\", \"cloudflare\", \"ollama\", \"custom-stdio\"." },
+          "ladder": { "type": "string", "minLength": 1, "description": "References ladders[].name this claimedLevel is measured against." },
+          "claimedLevel": { "type": "string", "minLength": 1, "description": "The level id this adapter fixture claims, or is tested at." },
+          "negativeProbes": {
+            "type": "array",
+            "description": "Hostile fixtures that try to make the adapter appear more compliant than it is. All five required kinds should appear per adapter.",
+            "items": {
+              "type": "object",
+              "required": ["kind", "present"],
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "forged-level",
+                    "direct-mcp-bypass",
+                    "disabled-hook-after-launch",
+                    "forged-heartbeat",
+                    "observed-to-controlled"
+                  ]
+                },
+                "present": {
+                  "type": "boolean",
+                  "description": "True only if this hostile-probe fixture actually exists and the daemon exercised it against this adapter — not a planned/stubbed probe."
+                },
+                "downgraded": {
+                  "type": "boolean",
+                  "description": "True only if, having fired, the daemon correctly downgraded the adapter's effective level in response. Absent or false fails closed: an untested outcome is never assumed safe."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

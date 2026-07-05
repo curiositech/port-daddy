@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Port Daddy — Account</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Recursive:MONO,wght@0,400..700;1,400..600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f2eee6;
+    --raised: #f7f3eb;
+    --well: #e9e2d5;
+    --ink: #121212;
+    --ink-soft: #4a463e;
+    --cobalt: #003fb8;
+    --teal: #006b5f;
+    --health: #1f7a4d;
+    --violet: #6f48b5;
+    --rust: #9a4a1e;
+    --amber: #a66f00;
+    --mayday: #a8231b;
+    --border: #121212;
+    --hairline: #cfc6b4;
+    --oncobalt: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #101216;
+      --raised: #171a20;
+      --well: #0b0d10;
+      --ink: #e8e4da;
+      --ink-soft: #a49e91;
+      --cobalt: #7db4ff;
+      --teal: #8fd0a7;
+      --health: #6cc794;
+      --violet: #b79ae8;
+      --rust: #e09a68;
+      --amber: #e3b45c;
+      --mayday: #ff8d84;
+      --border: #e8e4da;
+      --hairline: #2e333c;
+      --oncobalt: #101216;
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-size: 100%; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Recursive', system-ui, sans-serif;
+    font-size: 1rem;
+    line-height: 1.55;
+    font-variation-settings: "MONO" 0;
+  }
+  .mono { font-variation-settings: "MONO" 1; letter-spacing: 0; }
+
+  h1, h2, h3, .display {
+    font-family: 'Big Shoulders Display', 'Recursive', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  a { color: var(--cobalt); }
+  button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 3px solid var(--cobalt);
+    outline-offset: 2px;
+  }
+
+  .eyebrow {
+    font-family: 'Recursive', sans-serif;
+    font-size: 0.75rem; /* exception: eyebrow — weight 700, uppercase, 0.14em tracking */
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-soft);
+  }
+  .caption { font-size: 0.875rem; color: var(--ink-soft); }
+
+  /* ---------- shell ---------- */
+  .shell {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    max-width: 1280px;
+    margin: 0 auto;
+    min-height: 100vh;
+    border-left: 2px solid var(--border);
+    border-right: 2px solid var(--border);
+    background: var(--paper);
+  }
+
+  /* ---------- nav rail ---------- */
+  .rail {
+    border-right: 2px solid var(--border);
+    background: var(--raised);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    align-self: start;
+    min-height: 100vh;
+  }
+  .rail-brand {
+    padding: 1.5rem 1.25rem 1.25rem;
+    border-bottom: 2px solid var(--border);
+  }
+  .rail-brand .word {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 800;
+    font-size: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .rail-brand .word span { color: var(--cobalt); }
+  .rail nav { padding: 1rem 0; flex: 1; }
+  .rail nav .eyebrow { padding: 0 1.25rem 0.5rem; display: block; }
+  .rail nav a {
+    display: block;
+    padding: 0.6rem 1.25rem;
+    color: var(--ink);
+    text-decoration: none;
+    font-weight: 500;
+    border-left: 4px solid transparent;
+  }
+  .rail nav a:hover { background: var(--well); }
+  .rail nav a[aria-current="page"] {
+    border-left-color: var(--cobalt);
+    background: var(--well);
+    font-weight: 700;
+    color: var(--cobalt);
+  }
+  .rail-foot {
+    border-top: 2px solid var(--border);
+    padding: 1rem 1.25rem;
+    font-size: 0.875rem;
+  }
+  .rail-foot .who { font-variation-settings: "MONO" 1; display: block; margin-bottom: 0.35rem; }
+  .rail-foot button {
+    color: var(--cobalt);
+    font-weight: 600;
+    text-decoration: underline;
+    padding: 0;
+  }
+
+  /* ---------- content ---------- */
+  .content { padding: 2.5rem 3rem 4rem; min-width: 0; }
+  .page-head { margin-bottom: 2.5rem; }
+  .page-head h1 { font-size: 2.25rem; font-weight: 800; }
+  section { margin-bottom: 3rem; }
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .sec-head h2 { font-size: 1.375rem; font-weight: 700; }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border: 2px solid var(--border);
+    font-weight: 700;
+    font-size: 0.9375rem;
+    background: var(--raised);
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--well); }
+  .btn-cobalt {
+    background: var(--cobalt);
+    color: var(--oncobalt);
+    border-color: var(--cobalt);
+  }
+  .btn-cobalt:hover { background: var(--cobalt); opacity: 0.9; }
+  .btn-mayday {
+    background: transparent;
+    color: var(--mayday);
+    border-color: var(--mayday);
+  }
+  .btn-mayday:hover { background: var(--mayday); color: var(--paper); }
+  .btn-sm { padding: 0.3rem 0.75rem; font-size: 0.875rem; }
+
+  /* ---------- identity plate ---------- */
+  .identity-plate {
+    border: 2px solid var(--border);
+    background: var(--raised);
+    padding: 1.75rem 2rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1.25rem 2rem;
+  }
+  .identity-plate .name {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  .chip {
+    display: inline-block;
+    border: 2px solid var(--hairline);
+    padding: 0.35rem 0.75rem;
+    font-size: 0.875rem;
+    font-variation-settings: "MONO" 1;
+    background: var(--well);
+  }
+  .chip-identity { border-color: var(--violet); color: var(--violet); font-weight: 600; }
+  .chip-oidc { border-color: var(--teal); color: var(--teal); font-weight: 700; }
+  .identity-plate .caption { flex-basis: 100%; }
+
+  /* ---------- devices ---------- */
+  .device-table { border: 2px solid var(--border); background: var(--raised); }
+  .device-row {
+    display: grid;
+    grid-template-columns: 1rem 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    padding: 1.1rem 1.5rem;
+  }
+  .device-row + .device-row { border-top: 2px solid var(--hairline); }
+  .dot {
+    width: 0.75rem;
+    height: 0.75rem;
+    border: 2px solid var(--border);
+    display: inline-block;
+  }
+  .dot-live { background: var(--health); border-color: var(--health); }
+  .dot-idle { background: var(--amber); border-color: var(--amber); }
+  .device-row .d-name { font-weight: 700; }
+  .device-row .d-role { color: var(--teal); font-weight: 600; }
+  .device-row .d-meta { font-size: 0.875rem; color: var(--ink-soft); font-variation-settings: "MONO" 1; }
+  .device-row .d-cap { font-size: 0.875rem; color: var(--ink-soft); }
+  .device-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+
+  /* ---------- receipts ---------- */
+  .receipt-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+  }
+  .receipt {
+    border: 2px solid var(--border);
+    background: var(--raised);
+    display: flex;
+    flex-direction: column;
+  }
+  .receipt .r-url {
+    font-variation-settings: "MONO" 1;
+    font-size: 0.875rem;
+    color: var(--cobalt);
+    padding: 0.6rem 1rem;
+    border-bottom: 2px solid var(--hairline);
+    background: var(--well);
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .receipt .r-body { padding: 1rem; flex: 1; }
+  .receipt h3 { font-size: 1.125rem; font-weight: 700; margin-bottom: 0.6rem; }
+  .receipt .r-stats {
+    font-variation-settings: "MONO" 1;
+    font-size: 0.875rem;
+    color: var(--ink-soft);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.6rem;
+  }
+  .receipt .r-stats .cost { color: var(--amber); font-weight: 700; }
+  .receipt .r-foot { padding: 0 1rem 1rem; }
+
+  /* ---------- harbors ---------- */
+  .harbor-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+  }
+  .harbor {
+    border: 2px solid var(--border);
+    background: var(--raised);
+    padding: 1.25rem 1.5rem;
+  }
+  .harbor h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.4rem; }
+  .tier {
+    display: inline-block;
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.15rem 0.5rem;
+    border: 2px solid currentColor;
+    margin-bottom: 0.6rem;
+  }
+  .tier-personal { color: var(--teal); }
+  .tier-team { color: var(--cobalt); }
+  .tier-guest { color: var(--rust); }
+  .harbor .h-meta { font-size: 0.9375rem; color: var(--ink-soft); }
+  .harbor-federate {
+    border: 2px dashed var(--violet);
+    background: transparent;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.4rem;
+  }
+  .harbor-federate a { color: var(--violet); font-weight: 700; font-size: 1.125rem; text-decoration: none; }
+  .harbor-federate a:hover { text-decoration: underline; }
+
+  /* ---------- plan & caps ---------- */
+  .plan-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    align-items: stretch;
+  }
+  .plan-plate {
+    border: 2px solid var(--border);
+    background: var(--raised);
+    padding: 1.5rem;
+  }
+  .plan-plate .plan-name {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--cobalt);
+  }
+  .plan-plate .plan-price { font-variation-settings: "MONO" 1; font-weight: 700; }
+  .usage { margin-top: 1.25rem; }
+  .usage-row { margin-bottom: 1rem; }
+  .usage-row .u-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9375rem;
+    margin-bottom: 0.3rem;
+  }
+  .usage-row .u-num { font-variation-settings: "MONO" 1; color: var(--ink-soft); }
+  .bar {
+    height: 0.85rem;
+    border: 2px solid var(--border);
+    background: var(--well);
+  }
+  .bar > span { display: block; height: 100%; background: var(--teal); }
+  .caps-plate {
+    border: 2px solid var(--border);
+    background: var(--raised);
+    padding: 1.5rem;
+  }
+  .caps-plate h3 { font-size: 1.125rem; font-weight: 700; margin-bottom: 1rem; }
+  .cap-row {
+    display: grid;
+    grid-template-columns: 1fr 8rem;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+  .cap-row label { font-weight: 600; font-size: 0.9375rem; }
+  .cap-row input {
+    font: inherit;
+    font-variation-settings: "MONO" 1;
+    padding: 0.35rem 0.6rem;
+    border: 2px solid var(--border);
+    background: var(--paper);
+    color: var(--ink);
+    width: 100%;
+    text-align: right;
+  }
+  .caps-foot { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; }
+
+  /* ---------- danger strip ---------- */
+  .danger {
+    border: 2px solid var(--mayday);
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .danger .caption { flex-basis: 100%; }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 980px) {
+    .shell { grid-template-columns: 1fr; border-left: none; border-right: none; }
+    .rail { position: static; min-height: 0; border-right: none; border-bottom: 2px solid var(--border); }
+    .content { padding: 1.5rem 1.25rem 3rem; }
+    .receipt-grid, .harbor-grid, .plan-wrap { grid-template-columns: 1fr; }
+    .device-row { grid-template-columns: 1rem 1fr; }
+    .device-row .btn { grid-column: 2; justify-self: start; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ============ NAV RAIL ============ -->
+  <aside class="rail">
+    <div class="rail-brand">
+      <div class="word">Port <span>Daddy</span></div>
+      <div class="caption">portdaddy.dev</div>
+    </div>
+    <nav aria-label="Account">
+      <span class="eyebrow">Account</span>
+      <a href="#" aria-current="page">Overview</a>
+      <a href="#devices">Devices</a>
+      <a href="#receipts">Receipts</a>
+      <a href="#harbors">Harbors</a>
+      <a href="#plan">Billing</a>
+      <a href="#">Provider Keys</a>
+      <a href="#">Security</a>
+    </nav>
+    <div class="rail-foot">
+      <span class="who">erich@curiositech.dev</span>
+      <button type="button">Sign out</button>
+    </div>
+  </aside>
+
+  <!-- ============ CONTENT ============ -->
+  <main class="content">
+    <div class="page-head">
+      <span class="eyebrow">Account · Overview</span>
+      <h1>Your account</h1>
+    </div>
+
+    <!-- 1. IDENTITY -->
+    <section aria-labelledby="identity-h">
+      <div class="sec-head"><h2 id="identity-h">Identity</h2></div>
+      <div class="identity-plate">
+        <span class="name">Erich Owens</span>
+        <span class="chip chip-identity">account key ed25519 &middot; in macOS keychain &middot; created 2026-03-02</span>
+        <span class="chip chip-oidc">GitHub OIDC &middot; verified</span>
+        <p class="caption">The website never holds this key. It lives in your keychain; the server only ever sees signatures.</p>
+      </div>
+    </section>
+
+    <!-- 2. DEVICES -->
+    <section id="devices" aria-labelledby="devices-h">
+      <div class="sec-head">
+        <h2 id="devices-h">Devices</h2>
+        <span class="caption">3 paired</span>
+      </div>
+      <div class="device-table">
+        <div class="device-row">
+          <span class="dot dot-live" aria-label="online"></span>
+          <div>
+            <div><span class="d-name">MacBook Pro M4</span> — <span class="d-role">primary control plane</span></div>
+            <div class="d-meta">paired 2026-03-02 &middot; last seen 2m ago</div>
+          </div>
+          <button type="button" class="btn btn-mayday btn-sm">Revoke</button>
+        </div>
+        <div class="device-row">
+          <span class="dot dot-live" aria-label="online"></span>
+          <div>
+            <div><span class="d-name">iPhone 15</span> — <span class="d-role">thin approval surface</span></div>
+            <div class="d-cap">Can approve gates and reply to agents. Cannot start work or read code.</div>
+            <div class="d-meta">paired 2026-04-11 &middot; last seen 1h ago</div>
+          </div>
+          <button type="button" class="btn btn-mayday btn-sm">Revoke</button>
+        </div>
+        <div class="device-row">
+          <span class="dot dot-idle" aria-label="idle"></span>
+          <div>
+            <div><span class="d-name">Home PC</span> — <span class="d-role">compute worker</span></div>
+            <div class="d-cap">GPU + Ollama. Accepts render and test requests only; refuses everything else.</div>
+            <div class="d-meta">paired 2026-05-20 &middot; last seen 3d ago</div>
+          </div>
+          <button type="button" class="btn btn-mayday btn-sm">Revoke</button>
+        </div>
+      </div>
+      <div class="device-actions">
+        <button type="button" class="btn btn-cobalt">Pair new device</button>
+        <span class="caption">Pairing shows a 4-digit code on both screens. Match them, done. No passwords cross the wire.</span>
+      </div>
+    </section>
+
+    <!-- 3. RECEIPTS -->
+    <section id="receipts" aria-labelledby="receipts-h">
+      <div class="sec-head">
+        <h2 id="receipts-h">Receipts</h2>
+        <span class="eyebrow">Verifiable. Anyone with the link sees the proof, not your code.</span>
+      </div>
+      <div class="receipt-grid">
+        <article class="receipt">
+          <div class="r-url">portdaddy.dev/r/01JZC8KQ4M</div>
+          <div class="r-body">
+            <h3>ICOS skill shipped — PR #663</h3>
+            <div class="r-stats">
+              <span>7 agents</span> &middot; <span>34 commits</span> &middot;
+              <span class="cost">$4.12</span> &middot; <span>6h</span>
+            </div>
+          </div>
+          <div class="r-foot"><button type="button" class="btn btn-sm">Share scoped link</button></div>
+        </article>
+        <article class="receipt">
+          <div class="r-url">portdaddy.dev/r/01JZB2W7XN</div>
+          <div class="r-body">
+            <h3>FleetBar PR sweep — 8 PRs closed</h3>
+            <div class="r-stats">
+              <span>12 agents</span> &middot; <span>61 commits</span> &middot;
+              <span class="cost">$9.87</span> &middot; <span>2d</span>
+            </div>
+          </div>
+          <div class="r-foot"><button type="button" class="btn btn-sm">Share scoped link</button></div>
+        </article>
+        <article class="receipt">
+          <div class="r-url">portdaddy.dev/r/01JZ9THVRC</div>
+          <div class="r-body">
+            <h3>Daemon supervision integrity — PR #607</h3>
+            <div class="r-stats">
+              <span>3 agents</span> &middot; <span>18 commits</span> &middot;
+              <span class="cost">$2.31</span> &middot; <span>4h</span>
+            </div>
+          </div>
+          <div class="r-foot"><button type="button" class="btn btn-sm">Share scoped link</button></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 4. HARBORS -->
+    <section id="harbors" aria-labelledby="harbors-h">
+      <div class="sec-head">
+        <h2 id="harbors-h">Harbors</h2>
+        <span class="caption">Where your agents work, and who governs them there.</span>
+      </div>
+      <div class="harbor-grid">
+        <article class="harbor">
+          <h3>port-daddy</h3>
+          <span class="tier tier-personal">Personal</span>
+          <p class="h-meta">Local daemon. You are the only authority. Nothing leaves the machine unless you say so.</p>
+        </article>
+        <article class="harbor">
+          <h3>curiositech</h3>
+          <span class="tier tier-team">Team</span>
+          <p class="h-meta">3 seats &middot; RBAC. Roles decide who approves gates, who spends, who merely watches.</p>
+        </article>
+        <article class="harbor">
+          <h3>harbor-coop</h3>
+          <span class="tier tier-guest">Guest</span>
+          <p class="h-meta">Guest card from <span class="mono">@mira</span> &middot; expires in 6d. Scoped access; her rules, her revocation.</p>
+        </article>
+        <div class="harbor-federate">
+          <a href="#">Federate a harbor &rarr;</a>
+          <p class="caption">Link two harbors so agents can carry credentials across them, under both harbors' rules.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. PLAN & CAPS -->
+    <section id="plan" aria-labelledby="plan-h">
+      <div class="sec-head"><h2 id="plan-h">Plan &amp; caps</h2></div>
+      <div class="plan-wrap">
+        <div class="plan-plate">
+          <span class="eyebrow">Current plan</span>
+          <div class="plan-name">Hybrid Relay</div>
+          <div class="plan-price">$12/mo &middot; relay, pairing, push, metadata sync</div>
+          <div class="usage">
+            <div class="usage-row">
+              <div class="u-label">
+                <span>Relay events</span>
+                <span class="u-num">41,200 / 100,000</span>
+              </div>
+              <div class="bar" role="img" aria-label="Relay events: 41 percent used"><span style="width:41%"></span></div>
+            </div>
+            <div class="usage-row">
+              <div class="u-label">
+                <span>Transcript storage</span>
+                <span class="u-num">2.6 GB / 10 GB</span>
+              </div>
+              <div class="bar" role="img" aria-label="Transcript storage: 26 percent used"><span style="width:26%"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="caps-plate">
+          <h3>Cost caps</h3>
+          <div class="cap-row">
+            <label for="cap-daily">Daily cap</label>
+            <input id="cap-daily" type="text" inputmode="decimal" value="$8.50">
+          </div>
+          <div class="cap-row">
+            <label for="cap-run">Per-run cap</label>
+            <input id="cap-run" type="text" inputmode="decimal" value="$2.00">
+          </div>
+          <div class="cap-row">
+            <label for="cap-month">Monthly cap</label>
+            <input id="cap-month" type="text" inputmode="decimal" value="$120.00">
+          </div>
+          <div class="caps-foot">
+            <button type="button" class="btn btn-cobalt">Apply</button>
+            <span class="caption">Caps are enforced by YOUR daemon, mirrored here.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. DANGER -->
+    <section aria-labelledby="danger-h">
+      <div class="sec-head"><h2 id="danger-h">Leaving</h2></div>
+      <div class="danger">
+        <button type="button" class="btn">Export everything</button>
+        <button type="button" class="btn btn-mayday">Delete account</button>
+        <span class="caption">Deletion is real: server data purged, local daemon unaffected. Your machine keeps working; we just stop knowing you.</span>
+      </div>
+    </section>
+
+  </main>
+</div>
+</body>
+</html>

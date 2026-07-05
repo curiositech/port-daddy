@@ -39,6 +39,7 @@ struct FleetPopover: View {
     @ObservedObject var secretsStore: SecretsStore
     @ObservedObject var backendStore: BackendStore
     @StateObject private var budgetStore = BudgetPauseStore()
+    @StateObject private var approvalStore = SpawnApprovalStore()
     @StateObject private var berthStore = BerthStore()
     @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
     @State private var appeared = false
@@ -95,13 +96,20 @@ struct FleetPopover: View {
         .onAppear {
             withAnimation(.smooth(duration: 0.4)) { appeared = true }
             budgetStore.start()
+            approvalStore.start()
         }
-        .onDisappear { budgetStore.stop() }
+        .onDisappear {
+            budgetStore.stop()
+            approvalStore.stop()
+        }
     }
 
     @ViewBuilder
     private var popoverContent: some View {
         VStack(spacing: 0) {
+            // HITL first: spawns held by the trust gate lead everything else
+            // in the dropdown (ADR-0093 — a pending human gate is unmissable).
+            SpawnApprovalSection(store: approvalStore)
             if store.versionSkew.needsAttention {
                 versionSkewBanner(store.versionSkew)
                 Divider().opacity(0.5)
@@ -171,6 +179,20 @@ struct FleetPopover: View {
         FleetBarAppChrome.presentControlCenter()
         if !FleetBarAppChrome.focusExistingControlCenter() {
             openWindow(id: "fleet-control-center")
+        }
+    }
+
+    /// The general "open the operator console" action. Prefers pd-console — the
+    /// GPU-native Rust cockpit — when installed, and falls back to the embedded
+    /// web control plane otherwise. Surface deep-links keep calling
+    /// `openControlPlane` directly (the web view supports them; pd-console doesn't yet).
+    @MainActor
+    private func openOperatorConsole() {
+        switch OperatorConsoleRouter.target(nativeInstalled: OperatorConsoleLauncher.isInstalled()) {
+        case .native:
+            OperatorConsoleLauncher.launch()
+        case .web:
+            openControlPlane(.flow)
         }
     }
 
@@ -713,7 +735,7 @@ struct FleetPopover: View {
                 }
                 Spacer()
                 Button {
-                    openControlPlane(.flow)
+                    openOperatorConsole()
                 } label: {
                     Label("Open", systemImage: "macwindow")
                         .font(.caption2.weight(.semibold))
@@ -1050,14 +1072,14 @@ struct FleetPopover: View {
             }
 
             Button {
-                openControlPlane(.flow)
+                openOperatorConsole()
             } label: {
                 Label("Control Center", systemImage: "macwindow")
             }
             .buttonStyle(.borderless)
             .font(.caption2)
             .foregroundStyle(Fleet.Color.active)
-            .help("Open the Fleet Control Center")
+            .help("Open the operator console — pd-console if installed, else the web control plane")
 
             Button {
                 openSettings()

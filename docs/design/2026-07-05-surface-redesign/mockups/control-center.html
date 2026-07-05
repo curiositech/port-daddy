@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fleet Control Center — Port Daddy north-star mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500..800&family=Recursive:MONO,wght@0,300..1000;1,300..1000&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1e1b18; --raised:#262220; --well:#171412;
+    --bone:#f5f3ed; --bone2:#c9c4bb;
+    --mustard:#FFDB33; --mayday:#F26475; --health:#6fbf8e;
+    --amber:#e3b341; --indigo:#a89ae8; --violet:#b79aee;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;border-radius:0!important;box-shadow:none!important}
+  html,body{background:var(--bg);color:var(--bone);font:400 16px/1.45 'Recursive',sans-serif}
+  body{min-height:100vh;display:flex;flex-direction:column;padding:16px;gap:14px}
+  .mono{font-variation-settings:'MONO' 1;font-size:0.875rem}
+  h1,h2,h3{font-family:'Big Shoulders Display',sans-serif;text-transform:uppercase}
+  button{font:600 1rem 'Recursive',sans-serif;background:transparent;color:var(--bone);
+    border:2px solid var(--bone);padding:7px 16px;cursor:pointer}
+  button.primary{background:var(--mustard);color:#1e1b18;border-color:var(--mustard)}
+  button.danger{border-color:var(--mayday);color:var(--mayday)}
+  button:focus-visible, [tabindex]:focus-visible{outline:3px solid var(--mustard);outline-offset:2px}
+  button.primary:focus-visible{outline-color:var(--bone)}
+  .flag{flex:none;display:inline-block;vertical-align:-1px}
+  .word{font:700 0.8125rem/1 'Recursive',sans-serif;letter-spacing:0.08em;text-transform:uppercase}
+  .badge-new{font:700 0.8125rem/1 'Recursive',sans-serif;background:var(--mustard);color:#1e1b18;padding:3px 7px;letter-spacing:0.06em}
+
+  /* ============ HEADER BAND ============ */
+  header{display:flex;align-items:stretch;gap:14px;border:2px solid var(--bone);background:var(--raised);padding:14px 18px}
+  header h1{font-size:2.1rem;font-weight:750;letter-spacing:0.03em;align-self:center;white-space:nowrap}
+  .proj{align-self:center;display:flex;align-items:center;gap:8px;border:2px solid var(--bone2);
+    padding:8px 14px;font-variation-settings:'MONO' 1;font-size:1rem;font-weight:600;cursor:pointer;background:var(--well);color:var(--bone)}
+  .plates{margin-left:auto;display:flex;gap:12px}
+  .plate{border:2px solid var(--bone2);background:var(--well);padding:8px 14px;min-width:130px;
+    display:flex;flex-direction:column;gap:4px;justify-content:center}
+  .plate .k{font:700 0.8125rem/1 'Recursive',sans-serif;letter-spacing:0.12em;text-transform:uppercase;color:var(--bone2)}
+  .plate .v{font-family:'Big Shoulders Display';font-size:1.45rem;font-weight:700;letter-spacing:0.02em;display:flex;align-items:center;gap:8px}
+  .bar{height:10px;border:2px solid var(--bone2);background:var(--well);width:120px;position:relative}
+  .bar i{position:absolute;inset:0;right:auto;background:var(--mustard)}
+
+  /* ============ THREE-PANE GRID ============ */
+  main{flex:1;display:grid;grid-template-columns:minmax(430px,470px) 1fr minmax(300px,330px);gap:14px;min-height:0}
+  .pane{border:2px solid var(--bone);background:var(--raised);display:flex;flex-direction:column;min-height:0}
+  .pane>h2{font-size:1.3rem;font-weight:700;letter-spacing:0.06em;padding:10px 14px;border-bottom:2px solid var(--bone);
+    display:flex;align-items:center;gap:10px}
+  .pane-body{padding:12px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+
+  /* Gates */
+  .gate{border:2px solid var(--mayday);background:var(--well);padding:12px}
+  .gate .g-head{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+  .gate .g-head .word{color:var(--mayday)}
+  .gate .g-title{font-weight:700}
+  .gate p{color:var(--bone2);font-size:1rem;margin:2px 0 10px}
+  .gate .cost{color:var(--amber);font-variation-settings:'MONO' 1;font-size:0.9375rem;font-weight:600}
+  .g-actions{display:flex;gap:8px}
+
+  /* Crew */
+  .grp-head{display:flex;align-items:center;gap:9px;padding:6px 2px 2px;border-bottom:2px solid var(--bone2)}
+  .grp-head .n{margin-left:auto;color:var(--bone2);font-variation-settings:'MONO' 1;font-size:0.9375rem}
+  .crew-row{display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:2px solid #35302b}
+  .crew-row:last-child{border-bottom:0}
+  .crew-row .name{font-variation-settings:'MONO' 1;font-weight:700;font-size:1rem;min-width:130px}
+  .crew-row .step{color:var(--bone2);flex:1}
+  .crew-row .t{color:var(--bone2);font-variation-settings:'MONO' 1;font-size:0.875rem;flex:none}
+  .crew-row.tall{flex-wrap:wrap;padding:10px 6px}
+  .crew-row.tall .snippet{flex-basis:100%;margin:6px 0 0 24px;padding:6px 10px;background:var(--well);
+    border-left:2px solid var(--bone2);color:var(--bone2);font-variation-settings:'MONO' 1;font-size:0.875rem;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .w-needs .word{color:var(--mayday)} .w-work .word{color:var(--health)}
+  .w-stale .word{color:var(--amber)} .w-idle .word{color:var(--indigo)} .w-newb .word{color:var(--mustard)}
+  button.sm{padding:4px 12px;font-size:0.9375rem}
+
+  /* Flow */
+  #flow .pane-body{padding:8px;flex:1}
+  #flow .pane-body>svg{width:100%;height:100%;min-height:520px;display:block}
+  .legend{display:flex;gap:20px;padding:8px 14px;border-top:2px solid var(--bone);color:var(--bone2);font-size:0.9375rem;align-items:center;flex-wrap:wrap}
+  .legend svg{vertical-align:middle}
+
+  /* Right column */
+  .rcol{display:flex;flex-direction:column;gap:14px;min-height:0}
+  .kv{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .stepper{display:flex;align-items:center;gap:0}
+  .stepper button{width:38px;padding:6px 0;font-weight:800}
+  .stepper .amt{border-top:2px solid var(--bone);border-bottom:2px solid var(--bone);padding:6px 14px;
+    font-variation-settings:'MONO' 1;font-weight:700;font-size:1rem}
+  table{width:100%;border-collapse:collapse;font-variation-settings:'MONO' 1;font-size:0.9375rem}
+  td{padding:5px 2px;border-bottom:2px solid #35302b;color:var(--bone2)}
+  td:last-child{text-align:right;color:var(--bone)}
+  tr:last-child td{border-bottom:0}
+  .ok-line{color:var(--health);font-variation-settings:'MONO' 1;font-size:0.9375rem}
+
+  /* Bottom band */
+  footer{border:2px solid var(--bone);background:var(--raised);display:flex;align-items:center;gap:18px;padding:14px 18px}
+  footer h2{font-size:1.2rem;font-weight:700;letter-spacing:0.06em;white-space:nowrap}
+  footer p{color:var(--bone2);flex:1}
+  footer code{font-variation-settings:'MONO' 1;color:var(--mustard);font-size:0.9375rem}
+</style>
+</head>
+<body>
+
+<!-- ======================= HEADER BAND ======================= -->
+<header>
+  <h1>Fleet Control Center</h1>
+  <button class="proj" aria-haspopup="listbox" aria-label="Switch project, current: port-daddy">
+    port-daddy
+    <svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1l5 5 5-5" fill="none" stroke="#f5f3ed" stroke-width="2"/></svg>
+  </button>
+  <div class="plates">
+    <div class="plate"><span class="k">Live Truth</span>
+      <span class="v" style="color:var(--health)">
+        <svg class="flag" width="14" height="10" aria-label="nominal"><rect width="14" height="10" fill="#fff"/><path d="M0 0h14v3.3H0zM0 6.7h14V10H0z" fill="#2b5bd7"/><rect y="3.3" width="14" height="3.4" fill="#FFDB33"/></svg>
+        NOMINAL</span></div>
+    <div class="plate"><span class="k">Build</span><span class="v">3.23.0</span></div>
+    <div class="plate"><span class="k">Budget</span>
+      <span class="v" style="font-size:1.1rem">$2.10&nbsp;<span style="color:var(--bone2)">/ $8.50</span></span>
+      <span class="bar" role="img" aria-label="24.7 percent of daily budget spent"><i style="width:24.7%"></i></span></div>
+    <div class="plate"><span class="k">Crew</span><span class="v">16</span></div>
+  </div>
+</header>
+
+<!-- ======================= THREE-PANE GRID ======================= -->
+<main>
+
+  <!-- ============ LEFT: GATES & ATTENTION ============ -->
+  <section class="pane" aria-labelledby="gates-h">
+    <h2 id="gates-h">Gates &amp; Attention</h2>
+    <div class="pane-body">
+
+      <article class="gate">
+        <div class="g-head">
+          <svg class="flag" width="14" height="10" aria-label="Foxtrot: consent requested"><rect width="14" height="10" fill="#F26475"/><path d="M7 1l5 4-5 4-5-4z" fill="#fff"/></svg>
+          <span class="word">Consent</span>
+          <span class="g-title">merge-consent · PR #667</span>
+        </div>
+        <p>auto-committer wants to merge <span class="mono">fix: guard stale-lock sweep</span> into
+        <span class="mono">origin/main</span>. CI green, 2 approvals, threads resolved.
+        <span class="cost">est. $0.14</span> to run the merge sortie.</p>
+        <div class="g-actions">
+          <button class="primary">Approve</button>
+          <button>Modify</button>
+          <button class="danger">Deny</button>
+        </div>
+      </article>
+
+      <article class="gate">
+        <div class="g-head">
+          <svg class="flag" width="14" height="10" aria-label="Victor: assistance required"><rect width="14" height="10" fill="#fff"/><path d="M0 0l14 10M14 0L0 10" stroke="#F26475" stroke-width="2.4"/></svg>
+          <span class="word">Conflict</span>
+          <span class="g-title">claim-conflict · src/fleet/engine.ts</span>
+        </div>
+        <p>spider and code-reviewer both hold file claims on
+        <span class="mono">src/fleet/engine.ts</span> (lines 180–260 overlap). Neither will yield.</p>
+        <div class="g-actions">
+          <button class="primary">Force Parley</button>
+        </div>
+      </article>
+
+      <!-- CREW -->
+      <div class="grp-head w-needs">
+        <svg class="flag" width="14" height="10" aria-label="Foxtrot: awaiting human"><rect width="14" height="10" fill="#F26475"/><path d="M7 1l5 4-5 4-5-4z" fill="#fff"/></svg>
+        <span class="word">Needs You</span><span class="n">1</span>
+      </div>
+      <div class="crew-row">
+        <svg class="flag" width="14" height="10" aria-hidden="true"><rect width="14" height="10" fill="#F26475"/><path d="M7 1l5 4-5 4-5-4z" fill="#fff"/></svg>
+        <span class="name">auto-committer</span>
+        <span class="step">holding at merge-consent gate for PR #667</span>
+        <span class="t">4m</span>
+        <button class="sm">Open Gate</button>
+      </div>
+
+      <div class="grp-head w-work">
+        <svg class="flag" width="14" height="10" aria-label="Hotel: claim active"><rect width="7" height="10" fill="#fff"/><rect x="7" width="7" height="10" fill="#6fbf8e"/></svg>
+        <span class="word">Working</span><span class="n">3</span>
+      </div>
+      <div class="crew-row tall">
+        <svg class="flag" width="14" height="10" aria-hidden="true"><rect width="7" height="10" fill="#fff"/><rect x="7" width="7" height="10" fill="#6fbf8e"/></svg>
+        <span class="name">cartographer</span>
+        <span class="step">reading PR #664 diff</span>
+        <span class="t">12m</span>
+        <div class="snippet">+ roadmap: mark symbol-graph-visualization (UNCOMMITTED) → (NOW)</div>
+      </div>
+      <div class="crew-row tall">
+        <svg class="flag" width="14" height="10" aria-hidden="true"><rect width="7" height="10" fill="#fff"/><rect x="7" width="7" height="10" fill="#6fbf8e"/></svg>
+        <span class="name">spider</span>
+        <span class="step">crawling docs/adr for dead links</span>
+        <span class="t">3m</span>
+        <div class="snippet">GET docs/adr/0087-tcb-broker.md → 200 · 3 outbound refs queued</div>
+      </div>
+      <div class="crew-row tall">
+        <svg class="flag" width="14" height="10" aria-hidden="true"><rect width="7" height="10" fill="#fff"/><rect x="7" width="7" height="10" fill="#6fbf8e"/></svg>
+        <span class="name">code-reviewer</span>
+        <span class="step">writing review of fleet-engine.ts:214</span>
+        <span class="t">7m</span>
+        <div class="snippet">finding: trust gate bypassed when spawn source is cron — severity: high</div>
+      </div>
+
+      <div class="grp-head w-stale">
+        <svg class="flag" width="14" height="10" aria-label="Yankee"><rect width="14" height="10" fill="#FFDB33"/><path d="M-2 4L8 -3M-1 9L12 0M4 12L16 3" stroke="#F26475" stroke-width="2"/></svg>
+        <span class="word">Stale</span><span class="n">2</span>
+      </div>
+      <div class="crew-row">
+        <svg class="flag" width="14" height="10" aria-hidden="true"><rect width="14" height="10" fill="#FFDB33"/><path d="M-2 4L8 -3M-1 9L12 0M4 12L16 3" stroke="#F26475" stroke-width="2"/></svg>
+        <span class="name">doc-syncer</span>
+        <span class="step">no heartbeat since claim on README.md</span>
+        <span class="t">84m</span>
+        <button class="sm">Salvage</button>
+      </div>
+      <div class="crew-row">
+        <svg class="flag" width="14" height="10" aria-hidden="true"><rect width="14" height="10" fill="#FFDB33"/><path d="M-2 4L8 -3M-1 9L12 0M4 12L16 3" stroke="#F26475" stroke-width="2"/></svg>
+        <span class="name">economist</span>
+        <span class="step">pricing-function draft abandoned mid-edit</span>
+        <span class="t">2d</span>
+        <button class="sm">Salvage</button>
+      </div>
+
+      <div class="grp-head w-newb">
+        <svg class="flag" width="14" height="10" aria-label="Quebec"><rect width="14" height="10" fill="#FFDB33"/></svg>
+        <span class="word">Onboarding</span><span class="n">1</span>
+      </div>
+      <div class="crew-row">
+        <svg class="flag" width="14" height="10" aria-hidden="true"><rect width="14" height="10" fill="#FFDB33"/></svg>
+        <span class="name">tenderfoot</span>
+        <span class="badge-new">NEW</span>
+        <span class="step">reading AGENTS.md — first sortie pending</span>
+        <span class="t">1m</span>
+      </div>
+
+      <div class="grp-head w-idle">
+        <svg class="flag" width="14" height="10" aria-label="Mike"><rect width="14" height="10" fill="#fff"/><path d="M0 0l14 10M14 0L0 10" stroke="#2b5bd7" stroke-width="2.4"/></svg>
+        <span class="word">Idle</span><span class="n">10</span>
+      </div>
+      <div class="crew-row" tabindex="0" role="button" aria-expanded="false" aria-label="Expand 10 idle agents">
+        <svg class="flag" width="14" height="10" aria-hidden="true"><rect width="14" height="10" fill="#fff"/><path d="M0 0l14 10M14 0L0 10" stroke="#2b5bd7" stroke-width="2.4"/></svg>
+        <span class="step">10 idle · next scheduled: qa-adversary in 42m · show all</span>
+        <svg width="12" height="8" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1l5 5 5-5" fill="none" stroke="#c9c4bb" stroke-width="2"/></svg>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ CENTER: FLOW ============ -->
+  <section class="pane" id="flow" aria-labelledby="flow-h">
+    <h2 id="flow-h">Flow</h2>
+    <div class="pane-body">
+      <svg viewBox="0 0 620 1380" role="img" aria-label="Fleet topology: eight agents wired to three channels">
+        <style>
+          .nl{font:700 13px 'Recursive';font-variation-settings:'MONO' 1;fill:#f5f3ed}
+          .cl{font:700 13px 'Recursive';font-variation-settings:'MONO' 1;fill:#1e1b18}
+          .st{font:600 11px 'Recursive';font-variation-settings:'MONO' 1;fill:#c9c4bb}
+          .an{fill:#171412;stroke-width:2}
+          .trig{stroke:#f5f3ed;stroke-width:2;fill:none}
+          .pub{stroke:#c9c4bb;stroke-width:2;fill:none;stroke-dasharray:7 5}
+        </style>
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0 0L10 5L0 10z" fill="#f5f3ed"/></marker>
+          <marker id="arrd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0 0L10 5L0 10z" fill="#c9c4bb"/></marker>
+        </defs>
+
+        <!-- publish edges (dashed): agent -> channel -->
+        <path class="pub" marker-end="url(#arrd)" d="M150 222 C 230 240, 262 285, 306 310"/>   <!-- auto-committer -> pr:merged -->
+        <path class="pub" marker-end="url(#arrd)" d="M150 632 C 220 645, 256 660, 304 672"/>   <!-- code-reviewer -> qa:clean -->
+        <path class="pub" marker-end="url(#arrd)" d="M150 822 C 225 800, 258 728, 302 694"/>   <!-- qa-adversary -> qa:clean -->
+        <path class="pub" marker-end="url(#arrd)" d="M150 1100 C 225 1090, 260 1066, 304 1052"/><!-- spider -> spark:idea -->
+
+        <!-- trigger edges (solid): channel -> agent -->
+        <path class="trig" marker-end="url(#arr)" d="M418 306 C 450 272, 460 232, 470 194"/>   <!-- pr:merged -> doc-syncer -->
+        <path class="trig" marker-end="url(#arr)" d="M418 330 C 450 362, 458 394, 470 424"/>   <!-- pr:merged -> cartographer -->
+        <path class="trig" marker-end="url(#arr)" d="M414 342 C 445 450, 460 558, 470 644"/>   <!-- pr:merged -> economist -->
+        <path class="trig" marker-end="url(#arr)" d="M356 658 C 330 520, 262 342, 172 250"/>   <!-- qa:clean -> auto-committer -->
+        <path class="trig" marker-end="url(#arr)" d="M418 1038 C 442 1022, 452 1004, 466 986"/><!-- spark:idea -> tenderfoot -->
+
+        <!-- channel nodes -->
+        <g><rect x="308" y="298" width="110" height="44" fill="#FFDB33" stroke="#f5f3ed" stroke-width="2"/>
+           <text class="cl" x="363" y="316" text-anchor="middle">pull_request</text>
+           <text class="cl" x="363" y="332" text-anchor="middle">:merged</text></g>
+        <g><rect x="306" y="658" width="110" height="34" fill="#FFDB33" stroke="#f5f3ed" stroke-width="2"/>
+           <text class="cl" x="361" y="679" text-anchor="middle">qa:clean</text></g>
+        <g><rect x="306" y="1028" width="112" height="34" fill="#FFDB33" stroke="#f5f3ed" stroke-width="2"/>
+           <text class="cl" x="362" y="1049" text-anchor="middle">spark:idea</text></g>
+
+        <!-- agent nodes: left column -->
+        <g><rect class="an" x="24" y="200" width="126" height="44" stroke="#F26475"/>
+           <text class="nl" x="87" y="219" text-anchor="middle">auto-committer</text>
+           <text class="st" x="87" y="235" text-anchor="middle">needs you · 4m</text></g>
+        <g><rect class="an" x="24" y="610" width="126" height="44" stroke="#6fbf8e"/>
+           <text class="nl" x="87" y="629" text-anchor="middle">code-reviewer</text>
+           <text class="st" x="87" y="645" text-anchor="middle">working · 7m</text></g>
+        <g><rect class="an" x="24" y="800" width="126" height="44" stroke="#a89ae8"/>
+           <text class="nl" x="87" y="819" text-anchor="middle">qa-adversary</text>
+           <text class="st" x="87" y="835" text-anchor="middle">idle · in 42m</text></g>
+        <g><rect class="an" x="24" y="1078" width="126" height="44" stroke="#6fbf8e"/>
+           <text class="nl" x="87" y="1097" text-anchor="middle">spider</text>
+           <text class="st" x="87" y="1113" text-anchor="middle">working · 3m</text></g>
+
+        <!-- agent nodes: right column -->
+        <g><rect class="an" x="472" y="150" width="126" height="44" stroke="#e3b341"/>
+           <text class="nl" x="535" y="169" text-anchor="middle">doc-syncer</text>
+           <text class="st" x="535" y="185" text-anchor="middle">stale · 84m</text></g>
+        <g><rect class="an" x="472" y="420" width="126" height="44" stroke="#6fbf8e"/>
+           <text class="nl" x="535" y="439" text-anchor="middle">cartographer</text>
+           <text class="st" x="535" y="455" text-anchor="middle">working · 12m</text></g>
+        <g><rect class="an" x="472" y="640" width="126" height="44" stroke="#e3b341"/>
+           <text class="nl" x="535" y="659" text-anchor="middle">economist</text>
+           <text class="st" x="535" y="675" text-anchor="middle">stale · 2d</text></g>
+        <g><rect class="an" x="472" y="940" width="126" height="44" stroke="#b79aee"/>
+           <text class="nl" x="535" y="959" text-anchor="middle">tenderfoot</text>
+           <text class="st" x="535" y="975" text-anchor="middle">onboarding · new</text></g>
+
+        <!-- canvas caption -->
+        <text class="st" x="310" y="1340" text-anchor="middle">event topology · port-daddy · 8 agents / 3 channels · live</text>
+      </svg>
+    </div>
+    <div class="legend">
+      <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" stroke="#f5f3ed" stroke-width="2"/></svg> triggers (channel → agent)</span>
+      <span><svg width="34" height="10"><line x1="0" y1="5" x2="34" y2="5" stroke="#c9c4bb" stroke-width="2" stroke-dasharray="7 5"/></svg> publishes (agent → channel)</span>
+      <span><svg width="14" height="10"><rect width="14" height="10" fill="#FFDB33"/></svg> channel</span>
+      <span><svg width="14" height="10"><rect x="1" y="1" width="12" height="8" fill="#171412" stroke="#6fbf8e" stroke-width="2"/></svg> agent (stroke = state)</span>
+    </div>
+  </section>
+
+  <!-- ============ RIGHT COLUMN ============ -->
+  <div class="rcol">
+    <section class="pane" aria-labelledby="budget-h">
+      <h2 id="budget-h">Budget as Consent</h2>
+      <div class="pane-body">
+        <div class="kv">
+          <span style="color:var(--bone2)">Daily cap</span>
+          <span class="stepper">
+            <button aria-label="Decrease daily cap by fifty cents">&minus;</button>
+            <span class="amt">$8.50</span>
+            <button aria-label="Increase daily cap by fifty cents">+</button>
+          </span>
+          <button class="primary sm">Apply</button>
+        </div>
+        <div>
+          <div class="kv" style="margin-bottom:6px">
+            <span style="color:var(--bone2)">Spent today</span>
+            <span class="mono" style="font-weight:700">$2.10 / $8.50</span>
+          </div>
+          <span class="bar" style="display:block;width:100%" role="img" aria-label="2 dollars 10 cents spent of 8 dollars 50 cents cap"><i style="width:24.7%"></i></span>
+        </div>
+        <table aria-label="Spend by model">
+          <tr><td>claude-sonnet</td><td>$1.20</td></tr>
+          <tr><td>claude-haiku</td><td>$0.31</td></tr>
+          <tr><td>codex</td><td>$0.59</td></tr>
+        </table>
+        <p style="color:var(--bone2);font-size:0.9375rem">Spawns pause at the cap. Raising it is the consent.</p>
+      </div>
+    </section>
+
+    <section class="pane" aria-labelledby="guard-h" style="flex:1">
+      <h2 id="guard-h">
+        <svg class="flag" width="14" height="10" aria-label="Delta: keep clear, enforcing"><rect width="14" height="10" fill="#FFDB33"/><path d="M0 0h14v3H0zM0 7h14v3H0z" fill="#2b5bd7"/></svg>
+        Coordination Guard
+        <span class="word" style="color:var(--health);margin-left:auto">Enforce</span>
+      </h2>
+      <div class="pane-body">
+        <p style="color:var(--bone2)">Pre-commit hook blocks pushes that ignore live claims, stale sessions, or an unmerged canonical branch.</p>
+        <div class="g-actions">
+          <button class="primary">Check</button>
+          <button>Install Hook</button>
+        </div>
+        <p class="ok-line">last check · pd guard check --staged · CLEAN · 2m ago</p>
+        <table aria-label="Recent guard checks">
+          <tr><td>14:31 pre-commit</td><td style="color:var(--health)">CLEAN</td></tr>
+          <tr><td>14:07 pre-push</td><td style="color:var(--health)">CLEAN</td></tr>
+          <tr><td>13:52 pre-commit</td><td style="color:var(--mayday)">BLOCKED</td></tr>
+          <tr><td>13:48 pre-commit</td><td style="color:var(--health)">CLEAN</td></tr>
+        </table>
+        <p style="color:var(--bone2);font-size:0.9375rem">13:52 block: spider held a live claim on
+        <span class="mono">src/fleet/engine.ts</span>. Commit retried clean after parley.</p>
+      </div>
+    </section>
+  </div>
+
+</main>
+
+<!-- ======================= BOTTOM BAND ======================= -->
+<footer>
+  <h2>Roadmap Intake</h2>
+  <p>No mission cards parsed from this project yet. Add status tags like
+  <code>(UNCOMMITTED)</code> or <code>(BLOCKED)</code> to <code>UNIFIED-ROADMAP.md</code> —
+  or import from the Cartographer.</p>
+  <button class="primary">Import from Cartographer</button>
+</footer>
+
+</body>
+</html>

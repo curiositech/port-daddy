@@ -18,6 +18,10 @@ Issue types
 - missing_index   : a subdirectory has multiple bundled files but no
                     INDEX.md hub. WARNING only when SKILL.md already names
                     every file in the directory; otherwise FAILURE.
+- mermaid_hazard  : a flowchart/graph block contains a construct that passes
+                    naive syntax checks but parse-errors in mermaid 11.x —
+                    an edge label with an embedded (non-wrapping) double
+                    quote, or unquoted parentheses in node text.
 
 Exit codes
 ----------
@@ -204,6 +208,59 @@ def classify_link(target: str, container_dir: Path, skill_root: Path) -> tuple[s
 
 # ---------- Audit ----------
 
+MERMAID_BLOCK_RE = re.compile(r"```mermaid\s*\n(.*?)```", re.DOTALL)
+
+
+def find_mermaid_label_hazards(text: str, rel_path: str) -> list[dict]:
+    """Flag flowchart label constructs that pass naive validators but fail to render.
+
+    Two known render-breakers (mermaid 11.x):
+    - an edge label ``|...|`` containing a double quote that does not wrap the
+      whole label (``|"a" / "b"|`` -> Parse error, got 'STR');
+    - unquoted parentheses inside square-bracket node text (``A[uses foo()]``).
+    """
+    hazards: list[dict] = []
+    for block in MERMAID_BLOCK_RE.finditer(text):
+        body = block.group(1)
+        first = next((ln.strip() for ln in body.splitlines() if ln.strip()), "")
+        if not (first.startswith("flowchart") or first.startswith("graph")):
+            continue
+        # file-accurate line numbers: offset by the lines preceding the block body
+        base = text[: block.start(1)].count("\n")
+        for lineno, line in enumerate(body.splitlines(), start=1):
+            if "--" in line:
+                for label in re.findall(r"\|([^|\n]+)\|", line):
+                    stripped = label.strip()
+                    fully_quoted = (
+                        stripped.startswith('"') and stripped.endswith('"')
+                        and '"' not in stripped[1:-1]
+                    )
+                    if '"' in stripped and not fully_quoted:
+                        hazards.append({
+                            "file": rel_path,
+                            "line": base + lineno,
+                            "kind": "edge_label_embedded_quote",
+                            "snippet": line.strip()[:100],
+                        })
+            # Node-text parens check: first blank out double-quoted spans
+            # (quoted node text may legally contain anything), then look for
+            # bracket content with parens. Cylinder [( ... )] and other shape
+            # delimiters are excluded (capture wrapped entirely in parens).
+            dequoted = re.sub(r'"[^"]*"', '""', line)
+            for node_text in re.findall(r"\[([^\[\]\n]+)\]", dequoted):
+                stripped = node_text.strip()
+                if stripped.startswith("(") and stripped.endswith(")"):
+                    continue  # cylinder shape [( ... )]
+                if "(" in stripped or ")" in stripped:
+                    hazards.append({
+                        "file": rel_path,
+                        "line": base + lineno,
+                        "kind": "unquoted_parens_in_node_text",
+                        "snippet": line.strip()[:100],
+                    })
+    return hazards
+
+
 def audit(skill_root: Path) -> dict:
     skill_root = skill_root.resolve()
     subdir_files = collect_subdir_files(skill_root)
@@ -257,6 +314,18 @@ def audit(skill_root: Path) -> dict:
     drift: list[dict] = []
     missing_indexes_failure: list[str] = []
     missing_indexes_warning: list[str] = []
+
+    # Mermaid render hazards: SKILL.md plus every bundled .md doc (references
+    # render in viewers and get loaded on demand — a broken diagram anywhere
+    # in the bundle is a shipped defect).
+    mermaid_hazards: list[dict] = []
+    md_files = [skill_md] if skill_md.exists() else []
+    for subdir, files in subdir_files.items():
+        md_files.extend(f for f in files if f.suffix.lower() == ".md")
+    for f in md_files:
+        mermaid_hazards.extend(
+            find_mermaid_label_hazards(load_text(f), str(f.relative_to(skill_root)))
+        )
 
     for subdir, files in subdir_files.items():
         rel_subdir = subdir.relative_to(skill_root)
@@ -321,7 +390,7 @@ def audit(skill_root: Path) -> dict:
                     "ghost_entries": ghost_entries,
                 })
 
-    ok = not (orphans or drift or missing_indexes_failure or broken_links)
+    ok = not (orphans or drift or missing_indexes_failure or broken_links or mermaid_hazards)
     return {
         "skill_root": str(skill_root),
         "orphans": sorted(orphans),
@@ -329,6 +398,7 @@ def audit(skill_root: Path) -> dict:
         "missing_indexes_failure": sorted(missing_indexes_failure),
         "missing_indexes_warning": sorted(missing_indexes_warning),
         "broken_links": broken_links,
+        "mermaid_hazards": mermaid_hazards,
         "ok": ok,
     }
 
@@ -365,6 +435,14 @@ def render_human(report: dict) -> str:
             if b.get("suggestions"):
                 suffix = f"  -> did you mean: {', '.join(b['suggestions'])}?"
             lines.append(f"  {b['from']}: {b['target']} (resolves to {b['resolved']}){suffix}")
+
+    if report.get("mermaid_hazards"):
+        lines.append("")
+        lines.append(f"Mermaid render hazards ({len(report['mermaid_hazards'])}) — these parse-error in mermaid 11.x:")
+        for h in report["mermaid_hazards"]:
+            lines.append(f"  {h['file']}:{h['line']} [{h['kind']}] {h['snippet']}")
+        lines.append("  Fix: no embedded double quotes in |edge labels| (quote the WHOLE label or none);")
+        lines.append("  wrap node text containing parentheses in double quotes: A[\"uses foo()\"].")
 
     if report["missing_indexes_failure"]:
         lines.append("")

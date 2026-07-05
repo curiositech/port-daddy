@@ -1,0 +1,16 @@
+{
+  "buildkitEnabled": true,
+  "copyOrder": "manifest-first",
+  "runtimeLanguage": "node",
+  "cacheMountForPackageManager": true,
+  "multiStage": true,
+  "finalImageSizeMB": 220,
+  "dockerignorePresent": true,
+  "ciColdBuilds": true,
+  "registryCacheConfigured": true,
+  "secretsHandling": "secret-mount",
+  "runtimeUser": "nonroot",
+  "noCacheFlagInCI": false,
+  "targetsArm64": true,
+  "arm64Builder": "native"
+}
