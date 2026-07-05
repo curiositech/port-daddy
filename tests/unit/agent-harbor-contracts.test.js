@@ -152,9 +152,19 @@ function validate(schema, value, path = '$') {
         if (key in value) errors.push(...validate(sub, value[key], `${path}.${key}`));
       }
     }
-    if (schema.additionalProperties === false && schema.properties) {
+    // `additionalProperties` — enforce BOTH forms compile() accepts: the
+    // boolean `false` (reject undeclared keys) and the subschema form
+    // (validate undeclared keys against it). Anything compile() passes must
+    // be enforced here, or the fail-closed guarantee is a lie.
+    if (schema.additionalProperties !== undefined && schema.additionalProperties !== true) {
+      const declared = schema.properties ?? {};
       for (const key of Object.keys(value)) {
-        if (!(key in schema.properties)) errors.push(`${path}: unexpected property "${key}"`);
+        if (key in declared) continue;
+        if (schema.additionalProperties === false) {
+          errors.push(`${path}: unexpected property "${key}"`);
+        } else {
+          errors.push(...validate(schema.additionalProperties, value[key], `${path}.${key}`));
+        }
       }
     }
   }
@@ -236,6 +246,17 @@ describe('agent-harbor v0 schema package', () => {
     const schema = loadSchema('work-intent');
     const broken = { ...loadFixture('work-intent'), schema: 'pd.agent-harbor.work-intent.v1' };
     expect(validate(schema, broken).some((e) => e.includes('const'))).toBe(true);
+  });
+
+  it('validator drift lock: every additionalProperties form compile() accepts is enforced by validate()', () => {
+    // The subschema form: undeclared keys are validated against it, not ignored.
+    const sub = { type: 'object', properties: { a: { type: 'string' } }, additionalProperties: { type: 'integer' } };
+    expect(() => compile(sub)).not.toThrow();
+    expect(validate(sub, { a: 'x', extra: 3 })).toEqual([]);
+    expect(validate(sub, { a: 'x', extra: 'not-an-int' }).some((e) => e.includes('extra'))).toBe(true);
+    // The boolean-false form: undeclared keys are rejected even with no `properties` map.
+    const closed = { type: 'object', additionalProperties: false };
+    expect(validate(closed, { anything: 1 }).some((e) => e.includes('unexpected property'))).toBe(true);
   });
 });
 

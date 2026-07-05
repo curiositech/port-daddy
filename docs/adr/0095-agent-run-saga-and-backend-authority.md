@@ -292,6 +292,21 @@ Recorded here per the F0 revision so they are not lost; neither blocks the freez
   does complicate a uniform Zod/DB-projection generator. Open question for a v0.x additive
   pass: settle a single convention (likely `payloadJson` everywhere) without a v1 break.
 
+## Implementation Matrix
+
+<!-- ADR-0043: one row per phase; the Roadmap slug is the stable join key into
+     roadmap_items. Phase F0 is delivered by the PR that lands this ADR; the
+     C-wave phases are the binder ch18 work orders this contract freeze gates. -->
+
+| Phase | Roadmap slug | Status | Depends on | Description |
+|-------|--------------|--------|------------|-------------|
+| F0 | agent-harbor-f0-contract-freeze | now | — | v0 contract freeze: this ADR + eleven schemas/fixtures + compliance-invariants.mjs + contract tests |
+| C1 | agent-harbor-c1-event-ledger | backlog | agent-harbor-f0-contract-freeze | Event ledger and projections (append-only event store, roster/transcript/cost/compliance/receipt projections, replay rules) |
+| C2 | agent-harbor-c2-compliance-probes | backlog | agent-harbor-f0-contract-freeze | Adapter compliance probes: witness which bodies are compliant, weak, observed, or unmanaged |
+| C3 | agent-harbor-c3-operator-control-panel | backlog | agent-harbor-f0-contract-freeze | Operator control panel: Agent Node roster and detail view in pd-console |
+| C5 | agent-harbor-c5-governance-tool-gates | backlog | agent-harbor-f0-contract-freeze | Governance and tool gates: destructive-git blocking + human approval before risky actions |
+| C8 | agent-harbor-c8-setup-doctor-remediation | backlog | agent-harbor-f0-contract-freeze | Setup and doctor remediation: installable, repairable harness without command walls |
+
 ## Consequences
 
 - C1 (event ledger), C2 (adapter probes), C3 (control panel), C5 (governance), and C8

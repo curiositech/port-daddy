@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1783138698335,
+  "generatedAt": 1783288096248,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 120,
+  "count": 131,
   "items": [
     {
       "slug": "active-agent-roster",
@@ -310,6 +310,16 @@
       "summaryMd": "feat(coast-guard): rent\u2192slash advisory-only \u2014 pure policy + breach ledger (ADR-0050 ph7)"
     },
     {
+      "slug": "adr-0052-phase-3a-coordination-bench-v1",
+      "status": "now",
+      "summaryMd": "Coordination-Bench v1 (ADR-0052 Amendment 1): seeded hazards on the ephemeral daemon, scripted counterparts, sub-minute episodes, advisory CI gate"
+    },
+    {
+      "slug": "adr-0052-phase-3b-coordination-bench-v2",
+      "status": "backlog",
+      "summaryMd": "Coordination-Bench v2 (ADR-0052 Amendment 1, post-Milestone-8): org-config sweeps, C7 counterpart spectrum, defection pricing, statistical discipline"
+    },
+    {
       "slug": "adr-0090-database-distribution",
       "status": "now",
       "summaryMd": "ADR-0090 DB distribution plan"
@@ -348,6 +358,36 @@
       "slug": "adr-0092-l2-local-edit-gate",
       "status": "now",
       "summaryMd": "ADR-0092 first local L2 slice: PreToolUse edit-moment suggestibility dial enforces coordinate-before-you-cut before cloud federation."
+    },
+    {
+      "slug": "agent-harbor-c1-event-ledger",
+      "status": "backlog",
+      "summaryMd": "Agent Harbor C1 \u2014 event ledger and projections (binder ch18 Work Order C1)"
+    },
+    {
+      "slug": "agent-harbor-c2-compliance-probes",
+      "status": "backlog",
+      "summaryMd": "Agent Harbor C2 \u2014 adapter compliance probes (binder ch18 Work Order C2)"
+    },
+    {
+      "slug": "agent-harbor-c3-operator-control-panel",
+      "status": "backlog",
+      "summaryMd": "Agent Harbor C3 \u2014 operator control panel (binder ch18 Work Order C3)"
+    },
+    {
+      "slug": "agent-harbor-c5-governance-tool-gates",
+      "status": "backlog",
+      "summaryMd": "Agent Harbor C5 \u2014 governance and tool gates (binder ch18 Work Order C5)"
+    },
+    {
+      "slug": "agent-harbor-c8-setup-doctor-remediation",
+      "status": "backlog",
+      "summaryMd": "Agent Harbor C8 \u2014 setup and doctor remediation (binder ch18 Work Order C8)"
+    },
+    {
+      "slug": "agent-harbor-f0-contract-freeze",
+      "status": "now",
+      "summaryMd": "Agent Harbor v0 contract freeze \u2014 ADR-0095 + 11 schemas + fixture tests (binder ch18 Work Order F0)"
     },
     {
       "slug": "agent-harness-installer-roster",
@@ -440,6 +480,11 @@
       "summaryMd": "fix(sessions): make takeover successor the active context"
     },
     {
+      "slug": "feat-backend-dropdown-spawn-forecast",
+      "status": "backlog",
+      "summaryMd": "feat(fleet): backend dropdown in FleetBar popover + GET /fleet/forecast spawn-rate estimator"
+    },
+    {
       "slug": "feat-pd-console-operator-chat",
       "status": "backlog",
       "summaryMd": "feat(pd-console): operator chat surface (real tube transport + GPUI text input)"
@@ -448,6 +493,11 @@
       "slug": "fleet-hitl-proposal-queue",
       "status": "backlog",
       "summaryMd": "Add fleet HITL proposal queue"
+    },
+    {
+      "slug": "fleetbar-developer-id-signing",
+      "status": "backlog",
+      "summaryMd": "fix(release): Developer ID sign + notarize FleetBar.app (stop shipping a Gatekeeper-quarantined app)"
     },
     {
       "slug": "fleetbar-developer-id-signing",
@@ -510,6 +560,11 @@
       "summaryMd": "binder: ch19 operator surface triad (Scout/FleetBar/pd-console), technical specs, Hypatia's audit"
     },
     {
+      "slug": "parley-sugar-fanout-receipts",
+      "status": "backlog",
+      "summaryMd": "Parley usability: turns fan out to participants' inboxes (parley_turn via pd attention), per-party read receipts with unseen counts, and CLI sugar verbs (propose/critique/revise/agree/refuse/say) with identity inferred from the active session."
+    },
+    {
       "slug": "pd-safe-scan",
       "status": "backlog",
       "summaryMd": "feat(safe): pd safe \u2014 the AI sniffer (Phase A read-only posture scan + Phase B secret corral, ADR-0088)"
@@ -538,6 +593,11 @@
       "slug": "seeded-daemon-fleet-console-lanes",
       "status": "backlog",
       "summaryMd": "feat: seeded daemon fleet + FleetBar console links/chrome + cut-and-rebuild orchestrator"
+    },
+    {
+      "slug": "session-galaxy-embedding-map",
+      "status": "backlog",
+      "summaryMd": "Session Galaxy: daemon embeds recent agent-session transcript tails (MiniLM), seeded t-SNE 2D projection, k-means clusters labeled by mutual-information terms; fleet-ui tab + pd-console pane + FleetBar surface with hover/detail/rect-select and parley-from-selection."
     },
     {
       "slug": "session-takeover-legibility",
@@ -580,31 +640,6 @@
       "summaryMd": "B3.2 pd-fleet.yml suggestions:{enabled:true} gate; broker opt-in per project, default off. Done when broker only runs when enabled."
     },
     {
-      "slug": "visual-evidence-doctrine",
-      "status": "backlog",
-      "summaryMd": "docs(skill): visual-evidence doctrine — non-interruptive screenshot capture for every agent"
-    },
-    {
-      "slug": "visual-task-agent-intake",
-      "status": "now",
-      "summaryMd": "FleetBar/Fleet Control Center visual task intake should let operators send annotated screenshots or page context to agents without exposing dispatch/worker internals."
-    },
-    {
-      "slug": "adr-0052-phase-3a-coordination-bench-v1",
-      "status": "now",
-      "summaryMd": "Coordination-Bench v1 (ADR-0052 Amendment 1): seeded hazards on the ephemeral daemon, scripted counterparts, sub-minute episodes, advisory CI gate"
-    },
-    {
-      "slug": "adr-0052-phase-3b-coordination-bench-v2",
-      "status": "backlog",
-      "summaryMd": "Coordination-Bench v2 (ADR-0052 Amendment 1, post-Milestone-8): org-config sweeps, C7 counterpart spectrum, defection pricing, statistical discipline"
-    },
-    {
-      "slug": "fleetbar-developer-id-signing",
-      "status": "backlog",
-      "summaryMd": "fix(release): Developer ID sign + notarize FleetBar.app (stop shipping a Gatekeeper-quarantined app)"
-    },
-    {
       "slug": "surface-triad-redesign",
       "status": "backlog",
       "summaryMd": "design: surface-triad redesign + portdaddy.dev accounts/login + remote harbor co-op"
@@ -613,6 +648,16 @@
       "slug": "visual-evidence-doctrine",
       "status": "backlog",
       "summaryMd": "docs(skill): visual-evidence doctrine \u2014 non-interruptive screenshot capture for every agent"
+    },
+    {
+      "slug": "visual-evidence-doctrine",
+      "status": "backlog",
+      "summaryMd": "docs(skill): visual-evidence doctrine \u2014 non-interruptive screenshot capture for every agent"
+    },
+    {
+      "slug": "visual-task-agent-intake",
+      "status": "now",
+      "summaryMd": "FleetBar/Fleet Control Center visual task intake should let operators send annotated screenshots or page context to agents without exposing dispatch/worker internals."
     }
   ]
 }
