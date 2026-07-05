@@ -27,6 +27,7 @@ type NavItem = {
 
 const PRIMARY_NAV_ITEMS = [
   { label: "Home", href: "/", end: true },
+  { label: "Agent Harness", href: "/harness", end: true },
   { label: "Agent Tubes", href: "/pd-tube", end: false },
   { label: "Scout", href: "/scout", end: false },
   { label: "Examples", href: "/examples", end: false },
