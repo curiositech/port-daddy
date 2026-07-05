@@ -105,7 +105,7 @@ set -l __pd_commands \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
     'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'self-update' 'upgrade' 'mcp' \
-    'setup' 'init' 'cut' \
+    'setup' 'init' 'cut' 'hooks' \
     'version' 'help'
 
 # Register each command for both `port-daddy` and `pd`
@@ -221,8 +221,12 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command dispatch" -l state -x -a 'proposed claimed in_progress produced review_pending accepted rejected settled failed salvage open terminal awaiting_review all' -d 'State filter'
     complete -c $prog -n __pd_needs_command -a nightshift -d '(deprecated alias) Use pd dispatch'
     complete -c $prog -n "__pd_using_command nightshift" -x -a 'propose queue list show run review cancel help' -d 'Nightshift subcommand (alias for dispatch)'
+    complete -c $prog -n __pd_needs_command -a hooks -d 'Per-project daemon-gated coordination hooks for agent CLIs'
+    complete -c $prog -n "__pd_using_command hooks" -x -a 'install list uninstall' -d 'Hooks subcommand'
+    complete -c $prog -n "__pd_using_command hooks" -l user -d 'Also write user-level config for claude/gemini'
+    complete -c $prog -n "__pd_using_command hooks" -l yes -d 'Skip the confirmation prompt'
     complete -c $prog -n __pd_needs_command -a squid -d 'Run an unofficial Anthropic-compatible bridge backed by Codex CLI'
-    complete -c $prog -n "__pd_using_command squid" -x -a 'bridge serve' -d 'Squid subcommand'
+    complete -c $prog -n "__pd_using_command squid" -x -a 'bridge serve codex pro on off arm disarm status tap hooks' -d 'Squid subcommand'
     complete -c $prog -n "__pd_using_command squid" -l port -x -d 'Local bridge port'
     complete -c $prog -n "__pd_using_command squid" -l host -x -d 'Local bind host'
     complete -c $prog -n "__pd_using_command squid" -l cwd -x -d 'Working directory for Codex and launched client'
