@@ -52,6 +52,43 @@ async function makeApp(conductor) {
 }
 
 describe('Conductor operator-control routes (ADR-0060)', () => {
+  test('GET /fleet folds Cloudflare telemetry agents into aggregate reporting', async () => {
+    const remoteAgent = {
+      id: 'cloudflare:curiositech.port-daddy:code-reviewer:abc12345',
+      type: 'cloudflare',
+      pid: 0,
+      isActive: true,
+      lastHeartbeat: Date.now(),
+    };
+    const cloudAppTelemetry = {
+      agents: jest.fn(() => [remoteAgent]),
+    };
+    const app = Fastify();
+    await app.register(fleetPlugin, {
+      deps: {
+        ...baseDeps(undefined),
+        cloudAppTelemetry,
+      },
+    });
+
+    const res = await app.inject({ method: 'GET', url: '/fleet' });
+    const body = res.json();
+
+    expect(res.statusCode).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.totalAgents).toBe(1);
+    expect(body.localTotalAgents).toBe(0);
+    expect(body.remoteAgentCount).toBe(1);
+    expect(body.remoteActiveAgentCount).toBe(1);
+    expect(body.remote.cloudApp.agents).toEqual([remoteAgent]);
+    expect(cloudAppTelemetry.agents).toHaveBeenCalledWith({
+      since: expect.any(Number),
+      limit: 500,
+    });
+
+    await app.close();
+  });
+
   test('POST /fleet/halt (global) halts running launches and reports the count', async () => {
     // A pending spawner keeps the launch RUNNING so the halt has a live target.
     let resolveSpawn;

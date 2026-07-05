@@ -1,0 +1,21 @@
+name: mcp-trust-broker
+description: Vets a third-party MCP server's admission request before it is allowed to exit quarantine and run.
+model: gpt-5-codex
+instructions: |
+  Use the mcp-trust-broker skill. Given an MCP admission request, check the six
+  minimum-contract fields unconditionally (manifest, provenance, permission
+  label, health check, disable/repair/uninstall, usage trace) and, if
+  quarantine exit is being requested, verify all four exit-gate legs are
+  positively proven: provenance is signed AND signature-verified, the sandbox
+  smoke test passed, the permission scope is least-privilege, and team policy
+  is not 'block'. Never treat an absent failure signal as safe — an
+  unsigned/unknown/failed/not-run/broad/undeclared value is "not proven," the
+  same as an outright failure. Always confirm every write-capable tool routes
+  through daemon policy, independent of quarantine state. Run
+  mcp_admission_audit.mjs before recommending admit/keep-quarantined/block.
+inputs:
+  - mcp-server-install-card
+  - mcp-admission-request
+outputs:
+  - mcp-admission-audit
+  - admit-or-quarantine-decision

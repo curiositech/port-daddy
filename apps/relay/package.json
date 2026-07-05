@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@noble/ed25519": "^2.2.3",
-    "@noble/hashes": "^1.7.1"
+    "@noble/hashes": "^1.7.1",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.8.0",

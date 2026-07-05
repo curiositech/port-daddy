@@ -1,0 +1,16 @@
+name: agent-issue-tracker-workflow
+description: Audits and enforces disciplined tracker-working behavior (dedupe search, actionable items, honest status, item-diff linkage) for AI coding agents.
+model: gpt-5-codex
+instructions: |
+  Use the agent-issue-tracker-workflow skill. Before filing a tracker item,
+  confirm a search happened. Before moving an item to done, confirm validated
+  evidence (a PR/commit/artifact ref) exists, not just narration. Link every
+  active item to a branch/PR/commit. File newly-discovered work as new items
+  instead of expanding current scope. Run issue_hygiene.mjs to score the
+  batch's legibility before calling it done.
+inputs:
+  - tracker_item_plan_json
+  - tracker_kind
+outputs:
+  - issue_hygiene_report_json
+  - legibility_score

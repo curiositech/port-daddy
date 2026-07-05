@@ -39,6 +39,12 @@ pub enum SurfaceKind {
     CartographerChat,
     /// Filetree rooted at a repo/worktree path (`None` = the operator's repo).
     FileTree { root: Option<String> },
+    /// Read-only editor surface hosting one file from local disk. The Harbor
+    /// Editor's P0 walking skeleton: `path` is the file to host; `region` is an
+    /// optional 1-based inclusive `(start, end)` line span to scroll to / mark
+    /// (the seam P1 authorship color and P3 claim bands paint into). P0 has no
+    /// buffer, no CRDT, no networking — it reads the file and renders it.
+    Editor { path: String, region: Option<(u32, u32)> },
     /// Daemon health / runtime state.
     DaemonHealth,
     /// All running fleet agents at a glance.
@@ -47,6 +53,13 @@ pub enum SurfaceKind {
     Sessions,
     /// The dispatch queue (the approval gate).
     Dispatch,
+    /// The HITL alerts log — the dead-letter queue of captured action failures,
+    /// rendered untruncated (foreground-only: reads `ConsoleView.alerts`).
+    Hitl,
+    /// Conjure — prompt → predicted-DAG of skillful agents. Foundation slice:
+    /// renders a fixture `PredictedDag` through the Block UI (no windags call,
+    /// no Vello graph, no dispatch yet).
+    Conjure,
     /// Any existing console panel addressed by its nav id (fleet, cockpit,
     /// claims, peek, adrs, activity, inbox, suggest, memory, prs, coast, …).
     /// This is the bridge to the live data the shell already fetches: every
@@ -64,10 +77,16 @@ impl SurfaceKind {
             SurfaceKind::CartographerChat => "cartographer".into(),
             SurfaceKind::FileTree { root: Some(r) } => format!("files {r}"),
             SurfaceKind::FileTree { root: None } => "files".into(),
+            SurfaceKind::Editor { path, .. } => {
+                let base = path.rsplit(['/', '\\']).next().filter(|s| !s.is_empty()).unwrap_or(path);
+                format!("edit {base}")
+            }
             SurfaceKind::DaemonHealth => "daemon".into(),
             SurfaceKind::Fleet => "fleet".into(),
             SurfaceKind::Sessions => "sessions".into(),
             SurfaceKind::Dispatch => "dispatch".into(),
+            SurfaceKind::Hitl => "alerts".into(),
+            SurfaceKind::Conjure => "conjure".into(),
             SurfaceKind::Panel { nav } => nav.clone(),
         }
     }
@@ -268,6 +287,13 @@ impl Workspace {
             match s {
                 SurfaceKind::AgentTranscript { agent_id } => *agent_id = entity,
                 SurfaceKind::FileTree { root } => *root = entity,
+                // Rebind the Editor onto a different file. `None` clears the host
+                // (the pane keeps its kind but shows an empty/error face). Rebinding
+                // the path resets `region` — a different file's spans are unrelated.
+                SurfaceKind::Editor { path, region } => {
+                    *path = entity.unwrap_or_default();
+                    *region = None;
+                }
                 _ => {}
             }
         }
@@ -287,6 +313,21 @@ impl Workspace {
     pub fn resize_pair(&mut self, path: &[usize], left: usize, target: f32) -> bool {
         resize_pair_in(&mut self.root, path, left, target)
     }
+}
+
+/// The console's first-screen workspace. Deep-linked panes are user experiences,
+/// so an explicit initial surface opens as a single full workspace; the no-arg
+/// launch keeps the overview layout.
+pub fn default_operator_workspace(initial: Option<SurfaceKind>) -> Workspace {
+    if let Some(surface) = initial {
+        return Workspace::new(surface);
+    }
+
+    let mut ws = Workspace::new(SurfaceKind::Fleet);
+    ws.split(Dir::Row, SurfaceKind::AgentTranscript { agent_id: None }); // fleet | lane
+    ws.split(Dir::Col, SurfaceKind::Roadmap); // lane / roadmap
+    ws.focus(1); // start on the fleet pane (first leaf id)
+    ws
 }
 
 // ── Recursive tree surgery (free fns keep the borrow checker happy) ──────────
@@ -517,6 +558,20 @@ mod tests {
     }
 
     #[test]
+    fn default_operator_workspace_without_initial_opens_overview() {
+        let ws = default_operator_workspace(None);
+        assert_eq!(ws.pane_count(), 3);
+        assert!(matches!(ws.focused_surface(), SurfaceKind::Fleet));
+    }
+
+    #[test]
+    fn default_operator_workspace_with_initial_opens_single_experience() {
+        let ws = default_operator_workspace(Some(SurfaceKind::AgentTranscript { agent_id: None }));
+        assert_eq!(ws.pane_count(), 1);
+        assert!(matches!(ws.focused_surface(), SurfaceKind::AgentTranscript { agent_id: None }));
+    }
+
+    #[test]
     fn swap_surface_hops_context_without_moving_layout() {
         let mut ws = Workspace::new(SurfaceKind::Roadmap);
         ws.split(Dir::Row, agent("a1"));
@@ -533,6 +588,29 @@ mod tests {
         assert_eq!(ws.focused_surface(), &agent("a2"));
         ws.bind_entity(None);
         assert_eq!(ws.focused_surface(), &SurfaceKind::AgentTranscript { agent_id: None });
+    }
+
+    #[test]
+    fn editor_label_is_basename_only() {
+        let e = SurfaceKind::Editor { path: "core/pd-console/src/mux.rs".into(), region: None };
+        assert_eq!(e.label(), "edit mux.rs");
+        // A bare filename (no separators) labels as itself.
+        let bare = SurfaceKind::Editor { path: "README.md".into(), region: Some((3, 9)) };
+        assert_eq!(bare.label(), "edit README.md");
+    }
+
+    #[test]
+    fn bind_entity_repoints_editor_and_clears_region() {
+        let mut ws = Workspace::new(SurfaceKind::Editor {
+            path: "a.txt".into(),
+            region: Some((2, 4)),
+        });
+        ws.bind_entity(Some("b.txt".into()));
+        assert_eq!(
+            ws.focused_surface(),
+            &SurfaceKind::Editor { path: "b.txt".into(), region: None },
+            "rebinding the path resets the region — a different file's spans are unrelated",
+        );
     }
 
     #[test]

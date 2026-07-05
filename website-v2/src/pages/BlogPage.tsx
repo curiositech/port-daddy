@@ -50,7 +50,7 @@ function Tag({ children }: { children: string }) {
 function ArticleImage({ post, eager = false }: { post: BlogPost; eager?: boolean }) {
   return (
     <div className="relative aspect-[16/9] w-full overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-      <img
+      <ThemedImage
         src={post.heroImage}
         alt={post.heroAlt}
         className="h-full w-full object-cover"

@@ -30,7 +30,7 @@ pub const NAV: &[NavItem] = &[
     NavItem { id: "sorties",  label: "Sorties",  icon: "icons/nav/sorties.svg",  key: "3" },
     NavItem { id: "claims",   label: "Claims",   icon: "icons/nav/claims.svg",   key: "4" },
     NavItem { id: "peek",     label: "Peek",     icon: "icons/nav/peek.svg",     key: "5" },
-    NavItem { id: "roadmap",  label: "Planner",  icon: "icons/nav/roadmap.svg",  key: "6" },
+    NavItem { id: "planner",  label: "Planner",  icon: "icons/nav/roadmap.svg",  key: "6" },
     NavItem { id: "adrs",     label: "ADRs",     icon: "icons/nav/adrs.svg",     key: "7" },
     NavItem { id: "activity", label: "Activity", icon: "icons/nav/activity.svg", key: "8" },
     NavItem { id: "sessions", label: "Sessions", icon: "icons/nav/sessions.svg", key: "9" },
@@ -39,7 +39,7 @@ pub const NAV: &[NavItem] = &[
     NavItem { id: "memory",   label: "Memory",   icon: "icons/nav/memory.svg",   key: "m" },
     NavItem { id: "prs",      label: "PRs",      icon: "icons/nav/prs.svg",      key: "p" },
     NavItem { id: "health",   label: "Health",   icon: "icons/nav/health.svg",   key: "h" },
-    NavItem { id: "coast",    label: "C.Guard",  icon: "icons/nav/coast.svg",    key: "c" },
+    NavItem { id: "coast-guard", label: "C.Guard", icon: "icons/nav/coast.svg", key: "c" },
     NavItem { id: "dispatch", label: "Dispatch", icon: "icons/nav/dispatch.svg", key: "d" },
     NavItem { id: "lane",     label: "Lane",     icon: "icons/nav/lane.svg",     key: "l" },
     NavItem { id: "ledger",   label: "Cost",     icon: "icons/nav/ledger.svg",   key: "b" },
@@ -47,6 +47,9 @@ pub const NAV: &[NavItem] = &[
     NavItem { id: "substrate",label: "Substrate",icon: "icons/nav/substrate.svg",key: "y" },
     NavItem { id: "parley",   label: "Parley",   icon: "icons/nav/parley.svg",   key: "j" },
     NavItem { id: "conductor",label: "Conductor",icon: "icons/nav/conductor.svg",key: "k" },
+    NavItem { id: "daemons",  label: "Daemons",  icon: "icons/nav/daemons.svg",  key: "e" },
+    NavItem { id: "cloud-fleet", label: "Cloud Fleet", icon: "icons/nav/cloud-fleet.svg", key: "f" },
+    NavItem { id: "active-agents", label: "Agents", icon: "icons/nav/agents.svg", key: "a" },
 ];
 
 /// Canonical slot → pane-id map: the single source of truth the producer thread
@@ -56,11 +59,11 @@ pub const NAV: &[NavItem] = &[
 /// `grid_is_one_to_one_with_pane_slots` (below) pins it to [`NAV`]. Add a pane
 /// here, in [`NAV`], and in the producer — or the gate turns red. Order is
 /// load-bearing (slot index == NAV index == producer index).
-pub const SLOT_PANE_IDS: [&str; 22] = [
-    "fleet", "cockpit", "sorties", "claims", "peek", "roadmap", "adrs",
+pub const SLOT_PANE_IDS: [&str; 25] = [
+    "fleet", "cockpit", "sorties", "claims", "peek", "planner", "adrs",
     "activity", "sessions", "inbox", "suggest", "memory", "prs", "health",
-    "coast", "dispatch", "lane", "ledger", "lineage", "substrate", "parley",
-    "conductor",
+    "coast-guard", "dispatch", "lane", "ledger", "lineage", "substrate", "parley",
+    "conductor", "daemons", "cloud-fleet", "active-agents",
 ];
 
 // ── Launcher-grid 1:1 invariants ────────────────────────────────────────────

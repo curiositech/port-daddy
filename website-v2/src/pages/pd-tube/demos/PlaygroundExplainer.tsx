@@ -22,21 +22,35 @@ import type { ReactNode } from 'react'
  */
 export function PlaygroundExplainer() {
   return (
-    <div className="space-y-[var(--space-6)]">
-      <div className="max-w-[52rem] space-y-[var(--space-4)]">
-        <PanelEyebrow>How pd tube actually works</PanelEyebrow>
-        <PanelTitle as="h2" size="display" className="max-w-[24ch]">
-          Where everything lives — no magic, no cloud.
-        </PanelTitle>
-        <PanelBody className="max-w-[46rem] text-[length:var(--text-lg)]">
-          The demos below look like a page summoning an agent out of thin air. It is not. Each one is
-          four concrete things you can point at: a channel, a trigger, a prompt, and a daemon that
-          ties them together on your own machine. Here is each one, then every demo shows its exact
-          wiring.
-        </PanelBody>
+    <div className="space-y-[var(--space-5)]">
+      <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.9fr)_minmax(20rem,0.55fr)] lg:items-end">
+        <div className="max-w-[52rem] space-y-[var(--space-3)]">
+          <PanelEyebrow>How pd tube actually works</PanelEyebrow>
+          <PanelTitle as="h2" size="display" className="max-w-[18ch]">
+            Channel, trigger, prompt, daemon.
+          </PanelTitle>
+          <PanelBody className="max-w-[42rem] text-[length:var(--text-lg)]">
+            The demos below are not a page summoning an agent out of thin air. Each one has four
+            things you can point at, and every demo shows its exact wiring.
+          </PanelBody>
+        </div>
+
+        <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--space-3)]">
+          <PanelEyebrow>The short version</PanelEyebrow>
+          <PanelBody size="compact" className="max-w-none">
+            A channel is a named mailbox. A trigger and a prompt live in{' '}
+            <Code>pd-fleet.yml</Code> or an inline <Code>pd tube</Code> listener. The local daemon
+            dispatches the agent, and FleetBar shows the round-trip.
+          </PanelBody>
+          <div className="flex flex-wrap items-center gap-[var(--space-2)] pt-[var(--space-1)]">
+            <ExplainerDocLink to="/docs/cli/tube">pd tube</ExplainerDocLink>
+            <ExplainerDocLink to="/docs/features/fleet">Fleet</ExplainerDocLink>
+            <ExplainerDocLink to="/tutorials/fleet">Tutorial</ExplainerDocLink>
+          </div>
+        </SurfacePanel>
       </div>
 
-      <div className="grid gap-[var(--space-4)] md:grid-cols-2">
+      <div className="grid gap-[var(--space-3)] md:grid-cols-2 xl:grid-cols-4">
         <ExplainerCard
           icon={Inbox}
           eyebrow="The channel"
@@ -80,22 +94,6 @@ export function PlaygroundExplainer() {
           same round-trip these demos draw, on your real fleet.
         </ExplainerCard>
       </div>
-
-      <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--space-3)]">
-        <PanelEyebrow>The short version</PanelEyebrow>
-        <PanelBody size="compact" className="max-w-[72ch]">
-          A channel is a named mailbox. A trigger and a prompt are declared in{' '}
-          <Code>pd-fleet.yml</Code> (or supplied inline to <Code>pd tube</Code>). The local daemon
-          watches triggers and dispatches the agent. FleetBar is where you watch it. Each demo below
-          opens a “How this is wired” panel with its real channel, agent name + role, prompt, and the
-          exact config.
-        </PanelBody>
-        <div className="flex flex-wrap items-center gap-[var(--space-3)] pt-[var(--space-1)]">
-          <ExplainerDocLink to="/docs/cli/tube">Read: pd tube</ExplainerDocLink>
-          <ExplainerDocLink to="/docs/features/fleet">Read: Fleet</ExplainerDocLink>
-          <ExplainerDocLink to="/tutorials/fleet">Tutorial: declare a fleet</ExplainerDocLink>
-        </div>
-      </SurfacePanel>
     </div>
   )
 }

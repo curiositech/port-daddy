@@ -49,7 +49,7 @@ export interface DistributionOption {
   title: string;
   description: string;
   command: string;
-  status: 'available' | 'signed-build' | 'release-channel';
+  status: 'available' | 'mac-app';
 }
 
 export const PRODUCT_FEATURES = [
@@ -79,7 +79,7 @@ export const PRODUCT_FEATURES = [
   {
     id: 'fleet-control',
     title: 'Fleet Control Center',
-    description: 'The console for Flow, Roadmap, Agents, Resources, Activity, Channels, Inbox, Sorties, Memory, Shipwright, and YAML. It is served by the daemon and embedded by FleetBar.',
+    description: 'The console for Flow, Roadmap, Agents, Resources, Activity, Channels, Inbox, Spawned Runs, Memory, Shipwright, and YAML. It is served by the daemon and embedded by FleetBar.',
     category: 'control-plane',
     cli: 'pd fleet status',
     href: '/agents',
@@ -87,7 +87,7 @@ export const PRODUCT_FEATURES = [
       src: '/img/app-screens/fleet-flow-light.webp',
       alt: 'Fleet Control Center flow view showing agent coordination',
     },
-    detail: 'Fleet Control Center is the dashboard for real multi-agent work. It brings Flow, Agents, Activity, Channels, Inbox, Sorties, Memory, Resources, Shipwright, and YAML into one inspectable console backed by the live daemon.',
+    detail: 'Fleet Control Center is the dashboard for real multi-agent work. It brings Flow, Agents, Activity, Channels, Inbox, Spawned Runs, Memory, Resources, Shipwright, and YAML into one inspectable console backed by the live daemon.',
     outcomes: [
       'Inspect the current project without guessing which branch, daemon, or browser tab is authoritative.',
       'Move from roadmap and flow state into individual agent, channel, inbox, and resource views.',
@@ -123,17 +123,17 @@ export const PRODUCT_FEATURES = [
     status: 'preview'
   },
   {
-    id: 'sorties',
-    title: 'Sortie missions',
-    description: 'Launch a tracked delegated mission with a durable id, goal, recipe, backend/model, budget ceiling, logs, and a result record you can inspect later.',
+    id: 'spawned-runs',
+    title: 'Spawned runs',
+    description: 'Launch tracked delegated work with a durable id, backend/model, budget ceiling, transcripts, and result state you can inspect later.',
     category: 'agents',
-    cli: 'pd sortie run --backend codex',
+    cli: 'pd spawn --backend codex',
     href: '/agents',
     image: {
       src: '/img/app-screens/sorties-light.webp',
-      alt: 'Sorties view showing delegated agent missions',
+      alt: 'Spawned runs view showing delegated agent work',
     },
-    detail: 'Sorties package delegated work as missions with a goal, recipe, backend, model tier, budget ceiling, logs, and result record. They are for bounded agent work that should remain inspectable after the process exits.',
+    detail: 'Spawn packages delegated work with a goal, backend, model tier, budget ceiling, transcripts, and result state. It is for bounded agent work that should remain inspectable after the process exits.',
     outcomes: [
       'Launch delegated work without losing the run id, model, budget, or result trail.',
       'Separate planned missions from ad hoc shell commands and background fleet loops.',
@@ -366,7 +366,7 @@ export const MAC_APP_CAPABILITIES = [
     id: 'console',
     label: '02',
     title: 'One console, many views',
-    description: 'Flow, Roadmap, Agents, Resources, Activity, Channels, Inbox, Sorties, Memory, Shipwright, and YAML are top-level pages instead of hidden side panels.',
+    description: 'Flow, Roadmap, Agents, Resources, Activity, Channels, Inbox, Spawned Runs, Memory, Shipwright, and YAML are top-level pages instead of hidden side panels.',
     proof: 'FleetBar embeds the same Fleet Control Center with ?embed=fleetbar so native chrome and web chrome stay aligned.',
   },
   {
@@ -394,7 +394,7 @@ export const APP_SURFACES = [
     highlights: [
       'Backend cards show which providers are actually launchable before a mission starts.',
       'Live agent cards keep role, model, touched files, and latest signals on one screen.',
-      'Budget and guard controls make coordination state visible before a commit or sortie.',
+      'Budget and guard controls make coordination state visible before a commit or spawned run.',
     ],
     actions: [
       'Check whether Claude, Codex, Gemini, Ollama, or local tools are actually ready.',
@@ -461,12 +461,12 @@ export const APP_SURFACES = [
   {
     id: 'activity',
     title: 'Activity',
-    caption: 'The project audit trail: session starts, notes, file claims, releases, handoffs, mutations, sortie completions, and fleet events in one time-ordered feed.',
+    caption: 'The project audit trail: session starts, notes, file claims, releases, handoffs, mutations, spawned completions, and fleet events in one time-ordered feed.',
     operatorValue: 'Use Activity when you need to reconstruct what changed, who touched it, and which handoff or claim explains the current state.',
     highlights: [
       'Structured events preserve agent id and project identity.',
       'File claims and session notes become visible evidence, not terminal residue.',
-      'Handoffs and sortie completions remain discoverable after the original chat is gone.',
+      'Handoffs and spawned completions remain discoverable after the original chat is gone.',
     ],
     actions: [
       'Reconstruct who changed what and why across several agents.',
@@ -513,10 +513,10 @@ export const APP_SURFACES = [
     surface: 'Fleet Control Center',
   },
   {
-    id: 'sorties',
-    title: 'Sorties',
-    caption: 'Mission launches with recipes, backend/model preflight, budget ceilings, generated briefs, logs, result summaries, and durable run history.',
-    operatorValue: 'Use Sorties when a task deserves a tracked mission instead of an anonymous spawn: you can inspect the brief, budget, backend, and result after the run.',
+    id: 'spawned-runs',
+    title: 'Spawned Runs',
+    caption: 'Spawned launches with backend/model preflight, budget ceilings, generated briefs, transcripts, result summaries, and durable run history.',
+    operatorValue: 'Use Spawned Runs when a bounded task deserves evidence: you can inspect the brief, budget, backend, and result after the run.',
     highlights: [
       'Preflight checks backend readiness and budget before launch.',
       'Generated briefs make the mission goal explicit before the agent starts.',
@@ -671,39 +671,25 @@ export const COLD_START_STEPS = [
   {
     id: 'operate',
     title: 'Operate from the Fleet view',
-    description: 'Start the fleet, inspect agents, run a sortie, read activity, tune YAML, and watch resources from the same console the Mac app embeds.',
+    description: 'Start the fleet, inspect agents, spawn bounded work, read activity, tune YAML, and watch resources from the same console the Mac app embeds.',
     command: 'pd fleet up\npd begin "first coordinated change" --lifecycle durable',
-    appSurface: 'Flow, Agents, Sorties, Resources, and Activity stay connected by project identity.',
+    appSurface: 'Flow, Agents, Spawned Runs, Resources, and Activity stay connected by project identity.',
   },
 ] satisfies ColdStartStep[];
 
 export const DISTRIBUTION_OPTIONS = [
   {
     id: 'mac-binary',
-    title: 'Signed Mac build',
-    description: 'A source-backed FleetBar.app ZIP for Apple Silicon developers. The artifact is generated from apps/FleetBar by npm run package:fleetbar-preview and signed with the Curiositech Developer ID certificate when that certificate is present on the release machine.',
-    command: 'curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64.zip\ncurl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64.zip.sha256\nshasum -a 256 -c PortDaddy-FleetBar-macOS-arm64.zip.sha256',
-    status: 'signed-build',
+    title: 'FleetBar for Mac',
+    description: 'The Mac app that pd setup installs for daemon health and project readiness.',
+    command: 'pd setup',
+    status: 'mac-app',
   },
   {
     id: 'brew',
     title: 'Homebrew + setup',
-    description: 'The preferred developer path: install the CLI/daemon, then let setup install FleetBar, MCP, launchd ownership, and project initialization.',
-    command: 'brew install curiositech/tap/port-daddy\npd setup --project ~/coding/my-app',
+    description: 'Install Port Daddy, then run setup to add FleetBar, MCP, hooks, skills, and project markers.',
+    command: 'brew install curiositech/tap/port-daddy\npd setup',
     status: 'available',
-  },
-  {
-    id: 'npm',
-    title: 'npm package',
-    description: 'A Node-native install path for users who want the CLI, daemon, MCP server, and skills through the package registry.',
-    command: 'npm install -g port-daddy\npd setup',
-    status: 'available',
-  },
-  {
-    id: 'release-artifacts',
-    title: 'GitHub release artifacts',
-    description: 'Release builds attach standalone CLI tarballs today; the release workflow now has a Mac app packaging path for FleetBar artifacts.',
-    command: 'gh release download --repo curiositech/port-daddy --pattern "PortDaddy-FleetBar-*.zip"',
-    status: 'release-channel',
   },
 ] satisfies DistributionOption[];

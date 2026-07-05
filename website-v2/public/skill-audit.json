@@ -1,11 +1,21 @@
 {
   "auditor_version": "0.2.0",
   "summary": {
-    "total": 116,
-    "passing": 111,
-    "failing": 5
+    "total": 162,
+    "passing": 162,
+    "failing": 0
   },
   "skills": [
+    {
+      "name": "advanced-rust-patterns",
+      "root": "skills/advanced-rust-patterns",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
     {
       "name": "agent-conversation-protocols",
       "root": "skills/agent-conversation-protocols",
@@ -17,6 +27,18 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "agent-identity-continuity-reputation",
+      "root": "skills/agent-identity-continuity-reputation",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples"
+      ]
+    },
+    {
       "name": "agent-interchange-formats",
       "root": "skills/agent-interchange-formats",
       "ok": true,
@@ -25,6 +47,109 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "agent-issue-tracker-workflow",
+      "root": "skills/agent-issue-tracker-workflow",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "agent-labor-pricing-function",
+      "root": "skills/agent-labor-pricing-function",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "agent-pr-authoring",
+      "root": "skills/agent-pr-authoring",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "agent-rl-sandbox-trainer",
+      "root": "skills/agent-rl-sandbox-trainer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references",
+        "schemas",
+        "scripts"
+      ]
+    },
+    {
+      "name": "agent-work-receipt-designer",
+      "root": "skills/agent-work-receipt-designer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "agentic-app-architecture",
+      "root": "skills/agentic-app-architecture",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "agentic-coding-product-research",
+      "root": "skills/agentic-coding-product-research",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "agentic-coding-ux-designer",
+      "root": "skills/agentic-coding-ux-designer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
     },
     {
       "name": "agentic-infrastructure-2026",
@@ -109,6 +234,40 @@
       ]
     },
     {
+      "name": "beautiful-cli-design",
+      "root": "skills/beautiful-cli-design",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "beautiful-gui-design",
+      "root": "skills/beautiful-gui-design",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "build-coop-ide-gpui",
+      "root": "skills/build-coop-ide-gpui",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
       "name": "charrier-et-al-big-brother-logic",
       "root": "skills/charrier-et-al-big-brother-logic",
       "ok": true,
@@ -117,6 +276,19 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "color-theory-palette-harmony-expert",
+      "root": "skills/color-theory-palette-harmony-expert",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
     },
     {
       "name": "cooperative-vibe-coding",
@@ -449,6 +621,18 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "developer-surface-strategist",
+      "root": "skills/developer-surface-strategist",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
       "name": "distributed-algorithms",
       "root": "skills/distributed-algorithms",
       "ok": true,
@@ -513,82 +697,31 @@
     {
       "name": "federated-harbor-author",
       "root": "skills/federated-harbor-author",
-      "ok": false,
-      "orphans": [
-        "agents/cross-paper-citation.md",
-        "agents/drafter.md",
-        "agents/voice-editor.md",
-        "examples/section-claim-example.json",
-        "references/topic-map.md",
-        "scripts/new-round.sh",
-        "scripts/probe-template.json",
-        "scripts/voice-check.sh"
-      ],
+      "ok": true,
+      "orphans": [],
       "drift": [],
       "broken_links": [],
-      "missing_indexes_failure": [
-        "agents",
-        "references",
-        "scripts"
-      ],
+      "missing_indexes_failure": [],
       "missing_indexes_warning": []
     },
     {
       "name": "federated-harbor-redteam",
       "root": "skills/federated-harbor-redteam",
-      "ok": false,
-      "orphans": [
-        "agents/fh-proof-gap-auditor.md",
-        "agents/fh-redteam-econ.md",
-        "agents/fh-redteam-revocation.md",
-        "agents/fh-redteam-tokens.md",
-        "agents/fh-redteam-trust.md",
-        "examples/dialogue-fh-v0.1-to-v0.2.example.json",
-        "examples/probe-trust-example.json",
-        "references/topic-map.md",
-        "scripts/env.sh",
-        "scripts/new-round.sh",
-        "scripts/probe-template.json",
-        "scripts/verify-probe.sh"
-      ],
+      "ok": true,
+      "orphans": [],
       "drift": [],
       "broken_links": [],
-      "missing_indexes_failure": [
-        "agents",
-        "examples",
-        "references",
-        "scripts"
-      ],
+      "missing_indexes_failure": [],
       "missing_indexes_warning": []
     },
     {
       "name": "federated-harbor-whitehat",
       "root": "skills/federated-harbor-whitehat",
-      "ok": false,
-      "orphans": [
-        "agents/fh-proof-completer.md",
-        "agents/fh-secops-lead.md",
-        "agents/fh-whitehat-econ.md",
-        "agents/fh-whitehat-revocation.md",
-        "agents/fh-whitehat-tokens.md",
-        "agents/fh-whitehat-trust.md",
-        "examples/defense-tokens-example.json",
-        "examples/dialogue-fh-v0.1-to-v0.2.example.json",
-        "references/mechanization-targets.md",
-        "references/topic-map.md",
-        "scripts/defense-template.json",
-        "scripts/env.sh",
-        "scripts/new-round.sh",
-        "scripts/run-fh-secops-lead.sh"
-      ],
+      "ok": true,
+      "orphans": [],
       "drift": [],
       "broken_links": [],
-      "missing_indexes_failure": [
-        "agents",
-        "examples",
-        "references",
-        "scripts"
-      ],
+      "missing_indexes_failure": [],
       "missing_indexes_warning": []
     },
     {
@@ -632,6 +765,26 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "fleet-event-spawn-trust",
+      "root": "skills/fleet-event-spawn-trust",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "frame0-wireframing",
+      "root": "skills/frame0-wireframing",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "game-theoretic-agent-incentives",
       "root": "skills/game-theoretic-agent-incentives",
       "ok": true,
@@ -650,6 +803,32 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "gpui-rust-console",
+      "root": "skills/gpui-rust-console",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references",
+        "scripts"
+      ]
+    },
+    {
+      "name": "gpui-shaders",
+      "root": "skills/gpui-shaders",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
     },
     {
       "name": "hoare-1978-csp",
@@ -712,6 +891,19 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "legible-roadmap-with-sidequests",
+      "root": "skills/legible-roadmap-with-sidequests",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
       "name": "liaison",
       "root": "skills/liaison",
       "ok": true,
@@ -752,6 +944,43 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "macos-host-security",
+      "root": "skills/macos-host-security",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "macos-launchd-supervision",
+      "root": "skills/macos-launchd-supervision",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "make_copy_and_media_human",
+      "root": "skills/make_copy_and_media_human",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references",
+        "scripts"
+      ]
+    },
+    {
       "name": "mechanism-design-for-agent-labor",
       "root": "skills/mechanism-design-for-agent-labor",
       "ok": true,
@@ -762,6 +991,30 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "metal-shader-expert",
+      "root": "skills/metal-shader-expert",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "metal-text-pipeline",
+      "root": "skills/metal-text-pipeline",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
       "name": "monitoring-stack-deployer",
       "root": "skills/monitoring-stack-deployer",
       "ok": true,
@@ -770,6 +1023,19 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "multi-agent-authoring-product-bar",
+      "root": "skills/multi-agent-authoring-product-bar",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
     },
     {
       "name": "multi-agent-coordination",
@@ -867,22 +1133,9 @@
     {
       "name": "port-daddy-agent-skill",
       "root": "skills/port-daddy-agent-skill",
-      "ok": false,
+      "ok": true,
       "orphans": [],
-      "drift": [
-        {
-          "index": "diagrams/INDEX.md",
-          "ghost_entries": [
-            "05_promote-stable-timing.md"
-          ]
-        },
-        {
-          "index": "references/INDEX.md",
-          "missing_from_index": [
-            "git-discipline.md"
-          ]
-        }
-      ],
+      "drift": [],
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
@@ -905,10 +1158,8 @@
     {
       "name": "port-daddy-internal-dev",
       "root": "skills/port-daddy-internal-dev",
-      "ok": false,
-      "orphans": [
-        "examples/01-add-mcp-tool.md"
-      ],
+      "ok": true,
+      "orphans": [],
       "drift": [],
       "broken_links": [],
       "missing_indexes_failure": [],
@@ -925,6 +1176,42 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "port-daddy-user-surrogate-pm-review",
+      "root": "skills/port-daddy-user-surrogate-pm-review",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "product-appeal-analyzer",
+      "root": "skills/product-appeal-analyzer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references",
+        "scripts"
+      ]
+    },
+    {
+      "name": "product-reality-reviewer",
+      "root": "skills/product-reality-reviewer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
     },
     {
       "name": "proverif-tamarin-protocol-modeling",
@@ -990,6 +1277,106 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "rust-app-distribution",
+      "root": "skills/rust-app-distribution",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "rust-code-testing",
+      "root": "skills/rust-code-testing",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references",
+        "scripts"
+      ]
+    },
+    {
+      "name": "rust-data-structures-advanced",
+      "root": "skills/rust-data-structures-advanced",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "scripts"
+      ]
+    },
+    {
+      "name": "rust-debugging-mastery",
+      "root": "skills/rust-debugging-mastery",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "rust-gpui-motion",
+      "root": "skills/rust-gpui-motion",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "rust-kernel-ffi",
+      "root": "skills/rust-kernel-ffi",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples"
+      ]
+    },
+    {
+      "name": "rust-performance-and-idioms",
+      "root": "skills/rust-performance-and-idioms",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "rust-tauri-development",
+      "root": "skills/rust-tauri-development",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "rust-with-claude-code",
+      "root": "skills/rust-with-claude-code",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "sagas-garcia-molina-salem-1987",
       "root": "skills/sagas-garcia-molina-salem-1987",
       "ok": true,
@@ -998,6 +1385,19 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "sandboxed-adversarial-test-harness",
+      "root": "skills/sandboxed-adversarial-test-harness",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
         "references"
       ]
     },
@@ -1020,7 +1420,6 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": [
-        "agents",
         "examples",
         "scripts",
         "templates"
@@ -1067,6 +1466,43 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "sound-design-and-audio",
+      "root": "skills/sound-design-and-audio",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "sqlite-durable-agent-state",
+      "root": "skills/sqlite-durable-agent-state",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "swarm-invocation-designer",
+      "root": "skills/swarm-invocation-designer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
       "name": "task-decomposer",
       "root": "skills/task-decomposer",
       "ok": true,
@@ -1097,6 +1533,19 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "ux-friction-analyzer",
+      "root": "skills/ux-friction-analyzer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
       "name": "van-der-aalst-2003-workflow-patterns",
       "root": "skills/van-der-aalst-2003-workflow-patterns",
       "ok": true,
@@ -1105,6 +1554,19 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "vello-parley-rendering",
+      "root": "skills/vello-parley-rendering",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
     },
     {
       "name": "vibe-coding-background-agent",
@@ -1117,6 +1579,18 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "vibe-project-master-plan",
+      "root": "skills/vibe-project-master-plan",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
       "name": "wang-et-al-2025-tdag",
       "root": "skills/wang-et-al-2025-tdag",
       "ok": true,
@@ -1125,6 +1599,19 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "web-design-expert",
+      "root": "skills/web-design-expert",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
     },
     {
       "name": "websocket-realtime-expert",

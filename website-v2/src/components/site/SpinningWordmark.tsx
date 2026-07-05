@@ -1,4 +1,4 @@
-import { useTheme } from '@/lib/theme-context'
+import { useId } from 'react'
 import { cn } from '@/lib/utils'
 
 /**
@@ -14,8 +14,15 @@ import { cn } from '@/lib/utils'
  */
 
 const PALETTE = {
-  light: { c1: '#2076FE', c2: '#121212', c3: '#12B88F', grid: '#DCE3EB', sea: '#12B88F', amber: '#F5A623', cobalt: '#2076FE', ink: '#121212', muted: '#47423A' },
-  dark: { c1: '#7DB4FF', c2: '#F5F3ED', c3: '#20DEB0', grid: '#1A2434', sea: '#20DEB0', amber: '#FFB505', cobalt: '#2076FE', ink: '#F5F3ED', muted: '#A59F93' },
+  c1: 'var(--brand-primary)',
+  c2: 'var(--text-primary)',
+  c3: 'var(--brand-accent)',
+  grid: 'var(--border-subtle)',
+  sea: 'var(--brand-accent)',
+  amber: 'var(--status-warning)',
+  cobalt: 'var(--brand-primary)',
+  ink: 'var(--text-primary)',
+  muted: 'var(--text-muted)',
 } as const
 
 // Turn centres as % of the 18s colour cycle — the six 180° flips (two per 6s
@@ -78,15 +85,18 @@ const RAD_STOPS = [0, 0.4, 0.72, 1].map((offset, i) => ({
 }))
 
 export function SpinningWordmark({ className }: { className?: string }) {
-  const { theme } = useTheme()
-  const p = PALETTE[theme === 'dark' ? 'dark' : 'light']
+  const id = useId().replaceAll(':', '')
+  const maskId = `pdw-mask-${id}`
+  const radialWashId = `pdw-rad-wash-${id}`
+  const wordWashId = `pdw-word-wash-${id}`
+  const p = PALETTE
   const rootStyle = { '--c1': p.c1, '--c2': p.c2, '--c3': p.c3 } as React.CSSProperties
 
   return (
     <svg
       className={cn('pdw block w-auto select-none', className)}
       style={rootStyle}
-      viewBox="0 0 720 220"
+      viewBox="0 0 860 220"
       role="img"
       aria-label="Port Daddy"
       xmlns="http://www.w3.org/2000/svg"
@@ -94,7 +104,7 @@ export function SpinningWordmark({ className }: { className?: string }) {
       <style>{STYLE}</style>
       <defs>
         {/* Tilted linear wash for the words (objectBoundingBox; y2 > 0 => tilt). */}
-        <linearGradient id="pdw-word-wash" x1="0" y1="0" x2="1" y2="0.16">
+        <linearGradient id={wordWashId} x1="0" y1="0" x2="1" y2="0.16">
           {WORD_STOPS.map((s, i) => (
             <stop key={i} className={`pdw-t${s.base}`} offset={s.offset} style={{ animationDelay: `${s.delay}s` }} />
           ))}
@@ -104,14 +114,14 @@ export function SpinningWordmark({ className }: { className?: string }) {
       {/* MARK */}
       <svg x="10" y="10" width="200" height="200" viewBox="0 0 300 300">
         <defs>
-          <mask id="pdw-mask" maskContentUnits="userSpaceOnUse">
+          <mask id={maskId} maskContentUnits="userSpaceOnUse">
             <g stroke="white" strokeWidth="14" strokeLinecap="butt" fill="none">
               <line x1="110" y1="110" x2="110" y2="210" />
               <circle cx="135" cy="135" r="25" />
             </g>
           </mask>
           {/* Radial wash for the p·d monogram, centred on the glyph. */}
-          <radialGradient id="pdw-rad-wash" gradientUnits="userSpaceOnUse" cx="150" cy="150" r="72">
+          <radialGradient id={radialWashId} gradientUnits="userSpaceOnUse" cx="150" cy="150" r="72">
             {RAD_STOPS.map((s, i) => (
               <stop key={i} className={`pdw-t${s.base}`} offset={s.offset} style={{ animationDelay: `${s.delay}s` }} />
             ))}
@@ -146,15 +156,15 @@ export function SpinningWordmark({ className }: { className?: string }) {
         </g>
         <g className="pdw-pivot pdw-flip">
           {/* p and d share the radial wash; amber intersection stays constant */}
-          <g stroke="url(#pdw-rad-wash)" strokeWidth="14" strokeLinecap="butt" fill="none">
+          <g stroke={`url(#${radialWashId})`} strokeWidth="14" strokeLinecap="butt" fill="none">
             <line x1="110" y1="110" x2="110" y2="210" />
             <circle cx="135" cy="135" r="25" />
           </g>
-          <g stroke="url(#pdw-rad-wash)" strokeWidth="14" strokeLinecap="butt" fill="none">
+          <g stroke={`url(#${radialWashId})`} strokeWidth="14" strokeLinecap="butt" fill="none">
             <line x1="190" y1="190" x2="190" y2="90" />
             <circle cx="165" cy="165" r="25" />
           </g>
-          <g stroke={p.amber} strokeWidth="14" strokeLinecap="butt" fill="none" mask="url(#pdw-mask)">
+          <g stroke={p.amber} strokeWidth="14" strokeLinecap="butt" fill="none" mask={`url(#${maskId})`}>
             <line x1="190" y1="190" x2="190" y2="90" />
             <circle cx="165" cy="165" r="25" />
           </g>
@@ -163,8 +173,8 @@ export function SpinningWordmark({ className }: { className?: string }) {
       </svg>
 
       {/* TYPE */}
-      <text className="pdw-words" x="240" y="118" fontSize="74" letterSpacing="-1" fill="url(#pdw-word-wash)">Port Daddy</text>
-      <line x1="242" y1="146" x2="700" y2="146" stroke={p.ink} strokeWidth="3" />
+      <text className="pdw-words" x="240" y="118" fontSize="74" letterSpacing="-1" fill={`url(#${wordWashId})`}>Port Daddy</text>
+      <line x1="242" y1="146" x2="820" y2="146" stroke={p.ink} strokeWidth="3" />
       <text className="pdw-tag" x="242" y="178" fontSize="18" letterSpacing="2.6" fill={p.muted}>A HARBOR-MASTER FOR YOUR AGENTS</text>
     </svg>
   )

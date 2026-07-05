@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Port Daddy — Run agents on your subscription (story linework port)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="port.css">
+<style>
+  .cb-hero { display: grid; grid-template-columns: 1.25fr 1fr; gap: 48px; padding: 64px 0 44px; align-items: start; }
+  .cb-hero h1 { font-size: clamp(38px, 5vw, 64px); font-weight: 700; line-height: 1.03; letter-spacing: var(--tracking-display); max-width: 17ch; }
+  .cb-hero .eyebrow { margin-bottom: 14px; color: var(--gold-on-tint); }
+  .cb-hero .summary { font-size: 17px; line-height: 1.65; color: var(--text-primary); font-weight: 500; max-width: 56ch; margin-top: 18px; }
+  .cb-hero .body { font-size: 15px; line-height: 1.7; color: var(--text-secondary); max-width: 58ch; margin-top: 14px; }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .math-band { background: var(--surface-raised); padding: 8px 28px 28px; margin-top: 12px; }
+  .worked { margin-top: 20px; }
+  .setup-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .fit-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .limits { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .final-zone { background: repeating-linear-gradient(to right, var(--lime) 0 8.333%, var(--cobalt-slab) 8.333% 16.667%); padding: 56px 44px; margin-top: 72px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 36px; align-items: center; }
+  .final-zone > div:first-child { background: var(--cobalt-slab); color: #fbf7ef; padding: 30px 32px; }
+  
+  .final-zone h2 { font-size: 28px; font-weight: 700; letter-spacing: var(--tracking-h2); }
+  .final-zone p { font-size: 15px; line-height: 1.65; opacity: 0.92; margin-top: 10px; max-width: 50ch; }
+  .final-zone .fz-eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; opacity: 0.72; margin-bottom: 10px; }
+  .fz-code { background: rgba(0,0,0,0.72); color: #edf1f9; font-family: "IBM Plex Mono", monospace; font-size: 13.5px; line-height: 1.85; padding: 16px 18px; }
+  @media (max-width: 1080px) { .cb-hero, .fit-2, .limits, .final-zone { grid-template-columns: 1fr; } .steps { grid-template-columns: 1fr 1fr; } .setup-3 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header class="site-header">
+  <a class="sh-brand" href="home.html"><span class="pd-mark themed-img" aria-hidden="true"><img class="light-only" src="/logos/portdaddy-mark-radar-lightmode.svg" alt=""><img class="dark-only" src="/logos/portdaddy-mark-radar-darkmode.svg" alt=""></span>Port Daddy</a>
+  <nav class="sh-nav">
+    <a href="home.html">Home</a><a href="#">Agent Tubes</a><a href="#">Scout</a>
+    <a href="examples.html">Examples</a><a href="blog.html">Blog</a><a href="#">Cryptography</a><a href="#">The Big Idea</a><a class="more active" href="#">More ▾</a>
+  </nav>
+  <div class="sh-tools"><button class="theme-toggle" id="themeToggle">Dark</button></div>
+</header>
+
+<main class="page">
+  <div class="slug-hoist" aria-label="/cli-backend spelled in signal flags"><span class="route">/cli-backend</span><i class="fl fl-charlie" title="C"></i><i class="fl fl-lima" title="L"></i><i class="fl fl-india" title="I"></i><span style="width:10px"></span><i class="fl fl-bravo" title="B"></i><i class="fl fl-alfa" title="A"></i><i class="fl fl-sub fl-sub1" title="1st substitute — repeats C, the first flag"></i><i class="fl fl-kilo" title="K"></i><i class="fl fl-echo" title="E"></i><i class="fl fl-november" title="N"></i><i class="fl fl-delta" title="D"></i></div>
+
+  <!-- HERO -->
+  <section class="cb-hero">
+    <div>
+      <div class="eyebrow">Run agents on your subscription</div>
+      <h1 class="ko" style="--ko-c: var(--pd-lime, #cad900); --ko-t: #121212; --ko-r: 520px; --ko-b: 42px;"><span>Your AI subscription <span class="rec" style="color: var(--gold-on-tint)">already pays for the fleet.</span></span><span class="ko-over" aria-hidden="true">Your AI subscription <span class="rec" style="color: inherit">already pays for the fleet.</span></span></h1>
+      <p class="summary">You already pay $20 a month for ChatGPT Pro, or $200 for Claude Max. Port Daddy runs your background agents on that same login. Every agent that reviews pull requests, lints commits, and drafts release notes uses the seat you already bought. No extra API bill arrives at the end of the month.</p>
+      <p class="body">Most agent tools charge you twice. Once for the seat you type into as a person. Again for the API tokens your agents spend overnight. The seat is already paid for. The model is already running. The <code>claude</code> command is already on your <code>PATH</code>. Port Daddy hands the fleet that same command and lets it work in the quiet hours between your own turns.</p>
+      <p class="body">Setup takes about two minutes: install the daemon, confirm <code>claude</code> or <code>codex</code> is logged in, set one environment variable, start the fleet. The math is in the middle of this page. The honest limits are at the bottom. Read them in any order.</p>
+    </div>
+    <div>
+      <div class="codeblock">
+        <div class="codeblock-title" style="margin:-16px -18px 12px;">Set up the fleet — two-minute setup</div>
+        <pre><span class="c-comment"># 1. Install the daemon and CLI</span>
+<span class="c-cmd">brew install</span> curiositech/tap/port-daddy
+
+<span class="c-comment"># 2. Confirm your subscription CLI is logged in</span>
+<span class="c-cmd">claude</span> <span class="c-flag">--version</span>       <span class="c-comment"># or: codex --version</span>
+
+<span class="c-comment"># 3. Point the fleet at your subscription</span>
+<span class="c-cmd">export</span> PD_USE_CLI_BACKEND=claude-cli
+<span class="c-cmd">pd fleet up</span></pre>
+      </div>
+      <p style="font-size:14px; line-height:1.6; color: var(--text-secondary); margin-top:12px;">That is the whole setup. The fleet now drafts pull-request reviews, lints commits, and writes release notes using the same model you have open in your editor.</p>
+    </div>
+  </section>
+
+  <!-- HERO FIGURE -->
+  <figure class="art">
+    <img src="/img/generated/cli-backend-hero.webp" alt="Blueprint diagram of a single AI subscription card distributing cobalt-blue pipelines down to seven small sailing ships, each labeled with a fleet agent name: gardener, qa, spider, tenderfoot, cartographer, spark, augur.">
+    <figcaption>One login, shared across the whole fleet. The lines are each a <code>pd spawn</code>; the ships are the background agents already listed in your <code>pd-fleet.yml</code>.</figcaption>
+  </figure>
+
+  <!-- HOW IT WORKS -->
+  <section>
+    <div class="sect-head">
+      <div class="eyebrow">How it works</div>
+      <h2>Port Daddy starts the same CLI you do.</h2>
+      <p class="sect-desc">The spawner is a small piece of plumbing. It starts a local CLI process, hands it a prompt, captures the reply, and records the cost. The shape is the same whether the command is claude, codex, aider, or a shell script you wrote yourself.</p>
+    </div>
+    <div class="steps">
+      <div class="stripe-card" style="--stripe: var(--cobalt)"><div class="sc-label" style="color: var(--cobalt)">Step 1</div><div class="sc-title" style="font-size:15.5px;">It starts your CLI</div><p>Port Daddy runs <code>claude --print "…"</code> (or <code>codex exec …</code>) as a child process of the daemon, in your project directory, under the agent's identity, with a time limit.</p></div>
+      <div class="stripe-card" style="--stripe: var(--cobalt)"><div class="sc-label" style="color: var(--cobalt)">Step 2</div><div class="sc-title" style="font-size:15.5px;">It captures the work</div><p>The prompt goes in on stdin. The reply comes back on stdout. Errors feed the activity log. Everything is saved to the session transcript, so you can read back the work after the process exits.</p></div>
+      <div class="stripe-card" style="--stripe: var(--gold)"><div class="sc-label" style="color: var(--gold-on-tint)">Step 3</div><div class="sc-title" style="font-size:15.5px;">It records the cost</div><p>On a subscription CLI the cost of each spawn is <code>$0.00</code>, because the model is already paid for. Port Daddy still logs the wall-clock time and token count, so you can watch the pace without watching a bill grow.</p></div>
+      <div class="stripe-card" style="--stripe: var(--teal)"><div class="sc-label" style="color: var(--teal)">Step 4</div><div class="sc-title" style="font-size:15.5px;">It lands in your timeline</div><p>The transcript, exit code, and any tool calls land in the session record. <code>pd timeline</code> shows it like any other agent run. A subscription backend is not a special case.</p></div>
+    </div>
+    <figure class="art" style="margin-top:22px;">
+      <img src="/img/generated/cli-backend-howitworks.webp" alt="Cutaway blueprint of a labeled pd-tube pipe with a claude-code CLI process running inside it; the spawner connects to it on the left, the reply emits on the right.">
+      <figcaption>A cutaway of one spawn. The CLI you already have is the process running inside.</figcaption>
+    </figure>
+  </section>
+
+  <!-- THE MATH -->
+  <section>
+    <div class="slab" style="top:20px; left:calc(50% - 50vw); width: calc(50vw - 720px + 170px); min-width: 110px; height: 280px; background: var(--pd-lime, #cad900);"></div>
+    <div class="sect-head">
+      <div class="eyebrow" style="color: var(--gold-on-tint)">The math</div>
+      <h2>Same work, three bills.</h2>
+      <p class="sect-desc">Picture a small fleet — gardener, qa, spider, spark — handling about 100 pull-request reviews and 600 short summaries a month. The work does not change. Only what you pay for it does.</p>
+    </div>
+    <table class="data">
+      <thead><tr><th>Backend</th><th>Fixed cost</th><th>Marginal per spawn</th><th>Monthly bill</th></tr></thead>
+      <tbody>
+        <tr><td>Your subscription — Claude Max or ChatGPT Pro</td><td>$20–$200 / mo, already paid</td><td class="mono" style="font-weight:700; color: var(--gold-on-tint)">$0.00</td><td>Nothing on top of your seat</td></tr>
+        <tr><td>Cloudflare Workers AI — Qwen3 30B, a fallback</td><td>$0</td><td class="mono">about $0.005 / spawn</td><td>about $15 / mo</td></tr>
+        <tr><td>Anthropic API direct — Sonnet via SDK, a fallback</td><td>$0</td><td class="mono">about $0.04 / spawn</td><td>about $120 / mo</td></tr>
+      </tbody>
+    </table>
+    <div class="worked stripe-card" style="--stripe: var(--gold); max-width: 720px; background: var(--gold-wash);">
+      <div class="sc-label" style="color: var(--gold-on-tint)">A worked example</div>
+      <div class="sc-title">100 reviews in a month</div>
+      <p>A mid-sized open-source repo gets about 100 pull requests a month. Each review is one spawn of the qa agent: three to five minutes, a modest number of tokens.</p>
+      <ul>
+        <li><b>Your subscription:</b> $0 on top of the $200/mo Max seat you already pay for.</li>
+        <li><b>Cloudflare Workers AI:</b> about $0.50 in inference. The cheapest option if you do not have a subscription.</li>
+        <li><b>Anthropic API direct:</b> about $4.00. The same model the seat gives you, but billed per call.</li>
+      </ul>
+      <p style="margin-top:8px;">If you already use Claude Max in your editor, the first row costs you nothing extra. You were going to pay for the seat anyway.</p>
+    </div>
+    <figure class="art" style="margin-top:22px;">
+      <img src="/img/generated/cli-backend-math.webp" alt="Blueprint-style bar chart comparing effective per-spawn cost across CLI subscription (smallest bar), Cloudflare Workers AI (medium), and Anthropic API direct (largest).">
+      <figcaption>The same fleet, three bills. The seat you already pay for adds nothing per spawn, so its bar barely registers.</figcaption>
+    </figure>
+  </section>
+
+  <!-- THE SETUP -->
+  <section>
+    <div class="sect-head">
+      <div class="eyebrow">The setup</div>
+      <h2>Three commands, about two minutes.</h2>
+      <p class="sect-desc">There is no plugin to install and no API key to rotate. If your CLI is on your PATH and the daemon is running, the fleet can use it.</p>
+    </div>
+    <div class="setup-3">
+      <div>
+        <div class="codeblock"><div class="codeblock-title" style="margin:-16px -18px 12px;">1. Install the daemon — one time</div><pre><span class="c-cmd">brew install</span> curiositech/tap/port-daddy</pre></div>
+        <p style="font-size:13.5px; color: var(--text-muted); margin-top:8px; line-height:1.55;">Daemon, CLI, and MCP server in one Homebrew formula. It starts on its own through <code>launchd</code>. Run <code>pd status</code> to confirm it is up.</p>
+      </div>
+      <div>
+        <div class="codeblock"><div class="codeblock-title" style="margin:-16px -18px 12px;">2. Check your CLI — one time</div><pre><span class="c-cmd">claude</span> <span class="c-flag">--version</span>   <span class="c-comment"># for Claude Max</span>
+<span class="c-cmd">codex</span> <span class="c-flag">--version</span>    <span class="c-comment"># for ChatGPT Pro</span></pre></div>
+        <p style="font-size:13.5px; color: var(--text-muted); margin-top:8px; line-height:1.55;">The CLI you use as a person is the one the fleet will use. If --version prints a number, you are done: the command is on your PATH and logged in.</p>
+      </div>
+      <div>
+        <div class="codeblock"><div class="codeblock-title" style="margin:-16px -18px 12px;">3. Point the fleet at it — per project</div><pre><span class="c-cmd">export</span> PD_USE_CLI_BACKEND=claude-cli
+<span class="c-comment"># or PD_USE_CLI_BACKEND=codex</span>
+<span class="c-cmd">pd fleet up</span></pre></div>
+        <p style="font-size:13.5px; color: var(--text-muted); margin-top:8px; line-height:1.55;">Set the variable in your shell startup file, or name the backend per agent in <code>pd-fleet.yml</code>. The cost ledger will start showing $0.00 for each spawn.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- IS THIS FOR YOU -->
+  <section>
+    <div class="sect-head">
+      <div class="eyebrow">Is this for you?</div>
+      <h2>When to use it. When to skip it.</h2>
+      <p class="sect-desc">This setup is a strong fit, but a narrow one. If you already pay for a seat, the math is hard to beat. If you don't, Cloudflare Workers AI is cheap and a fine default. Picking that instead is a reasonable call.</p>
+    </div>
+    <div class="fit-2">
+      <div class="stripe-card" style="--stripe: var(--health)">
+        <div class="sc-label" style="color: var(--health)">Use it if</div>
+        <div class="sc-title">You already pay for Max or Pro</div>
+        <ul>
+          <li>You use <code>claude</code> or <code>codex</code> in your editor every day.</li>
+          <li>You want background agents to draft, review, and summarize without a second invoice arriving.</li>
+          <li>You want every spawn on record. The transcripts sit in the same timeline as the work you do by hand.</li>
+          <li>You can live with your own CLI slowing down for a moment when the fleet is busy. See the limits below.</li>
+        </ul>
+      </div>
+      <div class="stripe-card" style="--stripe: var(--text-ghost)">
+        <div class="sc-label" style="color: var(--text-muted)">Skip it if</div>
+        <div class="sc-title">No subscription, no problem</div>
+        <ul>
+          <li>You do not have Max or Pro and do not want one. Cloudflare Workers AI on Qwen3 is the cheap default.</li>
+          <li>You need agents on a machine without your login: a CI box, a remote build node, a server you do not sit at.</li>
+          <li>You need an exact cost for every call, for billing or chargeback. A subscription seat does not break the cost down that way.</li>
+          <li>You need a model the subscription does not offer, like Gemini, a fine-tune, or a vision-heavy job. Use the direct API.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- HONEST LIMITS -->
+  <section>
+    <div class="sect-head">
+      <div class="eyebrow" style="color: var(--amber-on-tint)">The honest limits</div>
+      <h2>What to expect.</h2>
+      <p class="sect-desc">Subscription terms exist for a reason. Anthropic and OpenAI both meter usage by the hour underneath, and a fleet that runs too hot will run into those limits. Here is what that looks like, and the dial that keeps it tame.</p>
+    </div>
+    <div class="limits">
+      <div class="stripe-card" style="--stripe: var(--amber)"><div class="sc-label" style="color: var(--amber-on-tint)">Rate limits</div><div class="sc-title">Subscriptions cap you by the hour</div><p>Claude Max and ChatGPT Pro both set an hourly usage budget. It is generous for one person and tight for a fleet. If the agents use too much in a short window, the CLI asks you to wait, the same way it would for a fast-typing human.</p></div>
+      <div class="stripe-card" style="--stripe: var(--amber)"><div class="sc-label" style="color: var(--amber-on-tint)">Shared budget</div><div class="sc-title">The fleet shares your seat</div><p>While the fleet runs on your seat, your own Claude Code or Codex calls draw from the same budget. Most of the time you will not notice. Now and then you will see a wait-a-moment banner when two agents fire at once. A daily cap per agent keeps your own work fast.</p></div>
+      <div class="stripe-card" style="--stripe: var(--health)"><div class="sc-label" style="color: var(--health)">Caps</div><div class="sc-title">The dial you want</div><p>Each agent in <code>pd-fleet.yml</code> takes a <code>budget_usd_per_day</code> and a <code>max_spawns_per_hour</code>. On a subscription the dollar cap maps to a token estimate; the spawn-rate cap is the real lever. Start low, around three spawns an hour for the qa agent, watch the ledger, and raise it as you trust it.</p></div>
+      <div class="stripe-card" style="--stripe: var(--violet)"><div class="sc-label" style="color: var(--violet-on-tint)">Terms</div><div class="sc-title">Read the agreement you signed</div><p>Anthropic and OpenAI both allow programmatic use of their CLIs from the account holder's own machine. Neither allows reselling the inference or spreading it across accounts you do not own. Port Daddy stays on the first side of that line: your agents, your machine, your seat.</p></div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA — the page's one zone, gold: this is the economy page -->
+  <section class="final-zone">
+    <div>
+      <div class="fz-eyebrow">Try the fleet — flying Golf: I require a pilot</div>
+      <h2>Three commands. Your subscription does the rest.</h2>
+      <p>If you already pay for Claude Max or ChatGPT Pro, this is the smallest change you can make: same model, same login, more hours of work in a day.</p>
+      <div style="display:flex; gap:12px; margin-top:18px;">
+        <span class="cta" style="background: rgba(0,0,0,0.78); color:#edf1f9;">Walk the fleet tutorial</span>
+        <span class="cta" style="background: transparent; color: inherit; border: 2px solid currentColor;">Read the quickstart</span>
+      </div>
+    </div>
+    <div class="fz-code">brew install curiositech/tap/port-daddy<br>export PD_USE_CLI_BACKEND=claude-cli<br>pd fleet up</div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="sf-grid">
+    <div class="sf-brand">
+      <div style="font-weight:700; font-size:18px;"><span class="pd-mark themed-img" aria-hidden="true"><img class="light-only" src="/logos/portdaddy-mark-radar-lightmode.svg" alt=""><img class="dark-only" src="/logos/portdaddy-mark-radar-darkmode.svg" alt=""></span> Port Daddy</div>
+      <div class="sf-tag">A harbor-master for your agents</div>
+      <p class="sf-blurb">Port Daddy is shared memory for AI coding agents — the notes they leave each other, the files each one has claimed, and the work you can recover when one crashes. The Mac app makes all of it visible before anything drifts.</p>
+    </div>
+    <div class="sf-col"><h4>Site</h4><a href="home.html">Home</a><a href="#">Mac Preview</a><a href="examples.html">Examples</a><a href="#">Agents</a><a href="#">Install &amp; MCP</a><a href="#">Manifesto</a></div>
+    <div class="sf-col"><h4>Learn</h4><a href="#">Docs</a><a href="#">Tutorials</a><a href="#">Templates</a><a href="blog.html">Harbor Blog</a></div>
+    <div class="sf-col"><h4>Reference</h4><a href="#">Getting started</a><a href="#">CLI reference</a><a href="#">SDK reference</a><a href="#">MCP tools</a><a href="#">REST API</a><a href="library.html">Library</a></div>
+    <div class="sf-col"><h4>Source</h4><a href="#">GitHub</a><a href="#">Discussions</a></div>
+  </div>
+</footer>
+
+<div class="port-note">Port · story linework v2</div>
+<script>
+  const btn=document.getElementById('themeToggle'),root=document.documentElement;
+  let t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  const apply=()=>{root.setAttribute('data-theme',t);btn.textContent=t==='light'?'Dark':'Light'};apply();
+  btn.addEventListener('click',()=>{t=t==='light'?'dark':'light';apply()});
+</script>
+</body>
+</html>

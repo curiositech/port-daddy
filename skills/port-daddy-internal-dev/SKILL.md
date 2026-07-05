@@ -66,6 +66,9 @@ repo-specific mechanics:
 - **Coordinate + pay rent.** Clean linked worktree off `origin/main`,
   `pd begin … --lifecycle durable`, `pd session files add` before editing, a
   `pd note` per commit (the Coordination Guard enforces it), `pd done` at the end.
+  When inheriting stale work, prefer `pd takeover <old-session-id> [reason]`
+  (or `pd session takeover <old-session-id> [reason]`) over deleting or silently reusing the old session; notes and claim
+  history are append-only evidence.
 - **Assume broken; verify both ends.** After any write, read it back from the
   surface that should serve it, and prove cold start (daemon down → elegant
   operator instruction, never a stack trace), worktrees, a second user, and the
@@ -87,7 +90,7 @@ repo-specific mechanics:
   research. The intended home is a **seamanship** match-cascade/graft selector
   (proposed, not yet built — modelled on windags `windags_skill_induct` /
   `windags_skill_graft`); until it lands, match by hand against `skills/`.
-- **Launch agents through PD** (`pd agent` / `pd sortie` / `pd dispatch` / conductor),
+- **Launch work through PD spawn** (`pd spawn`, SDK `spawn()`, or MCP `spawn`),
   never a raw side-channel — so the work is registered, sandboxed, budgeted, salvageable.
 - **Keep `README.md` current** in the same PR when a slice changes a documented surface.
 
@@ -170,12 +173,14 @@ Contributor gotchas specific to these:
   (e.g. generic-typed Fastify handlers the route-parser cannot extract) — keep
   those notes accurate when you add or remove a route.
 
-### Rust surfaces — three crates, no single kernel (be honest)
+### Rust surfaces — four crates, no single kernel (be honest)
 
-`core/` holds three separate crates on `main`: `core/pd-tui` (ratatui),
-`core/pd-bosun`, and `core/harbor-card-rs`. There is **no single landed
-"rust kernel."** `core/pd-console` (the GPUI conversation-multiplexer) is
-**unlanded** — PRs #306/#318. A sibling WIP build `~/coding/port-daddy-kernel-rs`
+`core/` holds four separate crates on `main`: `core/pd-tui` (ratatui),
+`core/pd-bosun`, `core/harbor-card-rs`, and `core/pd-console` (the landed GPUI
+conversation-multiplexer). There is **no single landed "rust kernel."**
+`core/pd-console` is not the sibling kernel-rs runtime and is no longer only an
+old planning surface; keep prod/latest/dev pd-console lanes distinct when
+building or reviewing it. A sibling WIP build `~/coding/port-daddy-kernel-rs`
 maps the product spine (pd-anchor / pd-mesh / pd-eventlog / pd-runtime /
 pd-core) but is not this repo. **Do not scaffold a fourth Rust shell** without
 reconciling against `AGENTS.md` § *Architecture truths*. A release-cadence +
@@ -311,6 +316,41 @@ work; never reset or clobber the main checkout.
   the repo's `.scratch/` (gitignored, resolves `node_modules`) and run it.
 - **Secrets go through `pd secret set`** (hidden stdin prompt) — never as an
   argv argument.
+
+### Test + session gotchas (dev-loop shibboleths)
+
+The friction below costs every fresh session real time. Internalize it.
+
+- **Tests are Jest, not vitest.** `tests/unit/*.test.js` import from
+  `@jest/globals`; run them with `npm test` (which is `node
+  --experimental-vm-modules node_modules/jest/bin/jest.js`). Invoking `vitest`
+  fails at import with *"Do not import `@jest/globals` outside of the Jest test
+  environment"* — that's a wrong-runner error, not a broken test.
+- **A fresh linked worktree has no `node_modules`.** `git worktree add` copies
+  tracked files only, so `npm test` / `jest` / `tsc` all fail with
+  `MODULE_NOT_FOUND` until you install. Either `npm ci` in the worktree, or run
+  the parent checkout's binary directly against the worktree:
+  `node --experimental-vm-modules
+  /Users/erichowens/coding/port-daddy/node_modules/jest/bin/jest.js --rootDir .
+  <path/to/test>`. A bare `node_modules` symlink to the parent does **not**
+  work — Node resolves the symlink target and looks for `node_modules` beside
+  *it*, not inside it.
+- **Headless `pd begin` needs an explicit lifecycle and closed stdin.** With no
+  TTY, `pd begin` blocks waiting for interactive input, and even with a purpose
+  it errors without `--lifecycle`. Use `pd begin "<purpose>" --lifecycle
+  durable < /dev/null` (or `--lifecycle ephemeral` for heartbeat-bound process
+  sessions). Sessions launched via the Bash background-job wrapper never
+  register — run `pd begin` in the foreground.
+- **Coordination-Guard claims are per-file, not per-directory.** `pd session
+  files add skills/foo/` does not cover `skills/foo/SKILL.md`; the guard rejects
+  the commit file-by-file. Claim exactly what you staged:
+  `pd session files add $(git diff --cached --name-only)` right before `pd guard
+  check --staged`.
+- **A `git add -A` / `reset --hard` / `rebase` refused with "coordination
+  guard … could not be verified"** (not the routine advisory refusal) means the
+  daemon-side guard couldn't confirm your session. Re-run `pd begin`, then
+  retry; only fall back to `PD_SHIM_OFF=1` for a genuinely session-less isolated
+  worktree that holds nothing but your own commit.
 
 ## Distribution Mirror Sync
 
@@ -542,6 +582,11 @@ pd feedback "<contributor experience report>"   # bare form; auto slug + agent
 **Detection:** Internal contributor sessions end clean but the friction isn't recorded; the same friction visits the next contributor.
 **Symptoms:** "Why is this so hard" gets discovered repeatedly. The roadmap doesn't reflect the actual pain. Cartographer's priorities lag reality.
 **Fix:** End every contributor session with `pd feedback "<one-liner>"` (bare form) or `drop_feedback({ slug, summary, droppedBy })` from MCP, even (especially) if everything went smoothly — record what worked too. Friction patterns and frictionless patterns are both signal.
+
+### Rewriting The Registry In Place
+**Detection:** A DB consolidation, backup, restore, or berth-seeding script writes directly over `~/.port-daddy/port-registry.db`, skips dry-run by default, or archives fragments while a daemon still has any candidate DB open.
+**Symptoms:** The live daemon keeps an old SQLite handle, `-wal`/`-shm` sidecars are orphaned, rollback depends on manual archaeology, or same-basename fragments overwrite each other in the archive.
+**Fix:** Use the `lib/backup.ts` pattern: durable scratch under `~/.port-daddy`, a read-only source handle for `VACUUM INTO`, a staged destination file, `PRAGMA integrity_check`, archive the existing canonical DB family first, rename the staged DB into place, and roll back the old canonical DB automatically if install fails. Default the script to dry-run; require an explicit apply flag and fail closed when `lsof` shows a daemon holding a candidate DB.
 
 ## Worked Examples
 

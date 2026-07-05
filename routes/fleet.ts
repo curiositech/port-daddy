@@ -22,6 +22,7 @@ import { isMap, parse as parseYaml, parseDocument } from 'yaml';
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import type { Conductor } from '../lib/fleet/conductor.js';
+import type { CloudAppTelemetry } from '../lib/cloud-app-telemetry.js';
 import {
   BUILTIN_MODEL_TIERS,
   findFleetConfigPath,
@@ -32,11 +33,14 @@ import {
 } from '../lib/fleet-engine.js';
 import { ensureStarterFleetProject } from '../lib/fleet-bootstrap.js';
 import { resolveFleetChannel } from '../lib/fleet-channels.js';
+import { IoDispatch } from '../lib/fleet/io-dispatch.js';
+import { getSharedWebhookReceiver } from '../lib/fleet/webhook-receiver.js';
 import { assessBackendReadiness } from '../lib/backend-readiness.js';
 import {
   BACKEND_CATALOG as SHARED_BACKEND_CATALOG,
   KNOWN_BACKEND_IDS,
   detectForcedCliBackend,
+  detectForcedCliBackendValue,
 } from '../lib/backend-catalog.js';
 import { managedSecretStorageStatus, saveManagedSecret } from '../lib/secret-env.js';
 import { validateProjectRoot } from '../lib/utils.js';
@@ -61,6 +65,7 @@ interface FleetRouteDeps {
    * is wired to the in-process conductor methods. Absent in legacy/test setups.
    */
   conductor?: Conductor;
+  cloudAppTelemetry?: CloudAppTelemetry;
 }
 
 // Backend catalog is shared with the CLI and FleetBar/dashboard surfaces;
@@ -208,7 +213,7 @@ function setFleetYamlRuntime(yaml: string, update: FleetRuntimeYamlUpdate): Flee
 }
 
 export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (fastify, opts) => {
-  const { fleetDaemon, messaging, projects, conductor } = opts.deps;
+  const { fleetDaemon, messaging, projects, conductor, cloudAppTelemetry } = opts.deps;
 
   // ── Conductor operator control surface (ADR-0060) ──────────────────────────
   // halt = total (SIGTERM→SIGKILL the scope, refund-not-slash); pause = soft
@@ -299,7 +304,47 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
   // GET /fleet — Aggregated status
   fastify.get('/fleet', async () => {
     const status = fleetDaemon.getStatus();
-    return { success: true, ...status };
+    const remoteAgents = cloudAppTelemetry?.agents({ since: Date.now() - 86_400_000, limit: 500 }) ?? [];
+    if (remoteAgents.length === 0) {
+      return { success: true, ...status };
+    }
+    const localTotalAgents = typeof status.totalAgents === 'number' ? status.totalAgents : 0;
+    const remoteActiveAgentCount = remoteAgents.filter((agent) => agent.isActive).length;
+    return {
+      success: true,
+      ...status,
+      totalAgents: localTotalAgents + remoteAgents.length,
+      localTotalAgents,
+      remoteAgentCount: remoteAgents.length,
+      remoteActiveAgentCount,
+      remoteAgents,
+      remote: {
+        cloudApp: {
+          agentCount: remoteAgents.length,
+          activeAgentCount: remoteActiveAgentCount,
+          agents: remoteAgents,
+        },
+      },
+    };
+  });
+
+  // GET /fleet/sources — I/O channel health board (I/O wiring Phase 2).
+  // Probes every registered trigger source and output sink for availability
+  // with the daemon's REAL deps (the shared webhook receiver), so what the
+  // operator sees is what a fleet would actually get: STUB channels show
+  // their honest {ready:false, reason, requires}; armed webhook channels are
+  // listed by slug.
+  fastify.get('/fleet/sources', async () => {
+    const probe = new IoDispatch({
+      registerWebhookHandler: (channel, handler) =>
+        getSharedWebhookReceiver().registerHandler(channel, handler),
+    });
+    const channels = await probe.health();
+    return {
+      success: true,
+      channels,
+      webhookChannels: getSharedWebhookReceiver().channels(),
+    };
   });
 
   // GET /fleet/:project — Specific project status
@@ -685,6 +730,7 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     }
 
     const forcedCliBackend = detectForcedCliBackend();
+    const pdUseCliBackend = detectForcedCliBackendValue();
     const backends = await Promise.all(
       BACKEND_CATALOG.map(async (backend) => {
         const readiness = await assessBackendReadiness(backend.id);
@@ -734,7 +780,7 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     return {
       success: true,
       forcedCliBackend,
-      pdUseCliBackend: process.env.PD_USE_CLI_BACKEND || null,
+      pdUseCliBackend,
       backends,
     };
   });

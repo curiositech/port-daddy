@@ -156,9 +156,8 @@ export async function assessSpawnPreflight(
   const dedupedAttempts = dedupeAttempts(attempts);
   const projectName = inferProjectName(input.identity);
   // The daily-ceiling overage check uses `dailyBudgetUsd`, not the per-call
-  // `budgetUsd`. Conflating the two caused project-spend-vs-per-mission-cap
-  // false blocks (see docs/operations/sortie-runbook.md "Budget exceeded for
-  // <project>"). Callers that want the overage gate must opt in by passing a
+  // `budgetUsd`. Conflating the two caused project-spend-vs-per-call-cap
+  // false blocks. Callers that want the overage gate must opt in by passing a
   // configured daily ceiling explicitly; everyone else's per-call budget is
   // enforced by the spawner during execution.
   const budget = (

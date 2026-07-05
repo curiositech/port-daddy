@@ -2,7 +2,8 @@
 import { render, cleanup, fireEvent } from '@testing-library/react'
 import { afterEach, describe, it, expect } from 'vitest'
 import { ThemeContext, type Theme } from '@/lib/theme-context'
-import { ThemedImage, toDarkSrc } from './ThemedImage'
+import { ThemedImage } from './ThemedImage'
+import { toDarkSrc } from './ThemedImageSrc'
 
 afterEach(cleanup)
 
@@ -24,6 +25,11 @@ describe('toDarkSrc', () => {
   it('preserves a query string and hash after the extension', () => {
     expect(toDarkSrc('/img/a.jpg?v=2#x')).toBe('/img/a-dark.jpg?v=2#x')
     expect(toDarkSrc('/img/a.jpg#frag')).toBe('/img/a-dark.jpg#frag')
+  })
+
+  it('replaces a -light suffix with -dark for paired captures', () => {
+    expect(toDarkSrc('/img/app-screens/resources-light.webp')).toBe('/img/app-screens/resources-dark.webp')
+    expect(toDarkSrc('/media/live-flow-light.webp?v=2')).toBe('/media/live-flow-dark.webp?v=2')
   })
 
   it('does not treat a dot in a directory as an extension', () => {

@@ -10,6 +10,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [Port Daddy - Local Control Plane for AI Coding Agents](https://portdaddy.dev/): Port Daddy is a local control plane and shared-state substrate for AI coding agents: sessions, claims, notes, channels, readiness, budgets, and recoverable handoffs on your machine.
 - [Docs Overview - Port Daddy](https://portdaddy.dev/docs): Start here to evaluate Port Daddy as a local control plane for coding agents, then jump to runnable examples or reference.
 - [Quickstart - Port Daddy](https://portdaddy.dev/docs/quickstart): Install Port Daddy, check the local service, claim a port, and start the first coordinated agent task.
+- [Port Daddy Scout - Port Daddy](https://portdaddy.dev/scout): Capture any ordinary Chrome page as a Port Daddy visual task: screenshot, selected region, DOM clues for project apps, local issue creation, and optional spawn-backed follow-up work.
 - [Get Started - Port Daddy](https://portdaddy.dev/docs/get-started): Install Port Daddy, check that it is running, and try your first coordinated agent task.
 - [Best Practices - Port Daddy](https://portdaddy.dev/docs/best-practices): Keep agent work visible, avoid collisions, recover interrupted runs, and promote changes with evidence.
 - [API Reference - Port Daddy](https://portdaddy.dev/docs/api): Inspect Port Daddy API routes, request shapes, response contracts, and the workflows they support.
@@ -39,10 +40,8 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd actors - Port Daddy](https://portdaddy.dev/docs/cli/actors): Reference for pd actors, including Port Daddy syntax, what the command does, and when to use it.
 - [pd add [path...] - Port Daddy](https://portdaddy.dev/docs/cli/add): Reference for pd add [path...], including Port Daddy syntax, what the command does, and when to use it.
 - [pd advise [files...] - Port Daddy](https://portdaddy.dev/docs/cli/advise): Reference for pd advise [files...], including Port Daddy syntax, what the command does, and when to use it.
-- [pd agent "task" - Port Daddy](https://portdaddy.dev/docs/cli/agent): Reference for pd agent "task", including Port Daddy syntax, what the command does, and when to use it.
 - [pd agent heartbeat|unregister|inbox|<id> - Port Daddy](https://portdaddy.dev/docs/cli/agent-heartbeat-unregister-inbox): Reference for pd agent heartbeat|unregister|inbox|<id>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd agent register - Port Daddy](https://portdaddy.dev/docs/cli/agent-register): Reference for pd agent register, including Port Daddy syntax, what the command does, and when to use it.
-- [pd agent run <task> - Port Daddy](https://portdaddy.dev/docs/cli/agent-run): Reference for pd agent run <task>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd agents - Port Daddy](https://portdaddy.dev/docs/cli/agents): Reference for pd agents, including Port Daddy syntax, what the command does, and when to use it.
 - [pd b - Port Daddy](https://portdaddy.dev/docs/cli/b): Reference for pd b, including Port Daddy syntax, what the command does, and when to use it.
 - [pd begin "purpose" - Port Daddy](https://portdaddy.dev/docs/cli/begin): Reference for pd begin "purpose", including Port Daddy syntax, what the command does, and when to use it.
@@ -132,8 +131,6 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd sitrep - Port Daddy](https://portdaddy.dev/docs/cli/sitrep): Reference for pd sitrep, including Port Daddy syntax, what the command does, and when to use it.
 - [pd snapshot - Port Daddy](https://portdaddy.dev/docs/cli/snapshot): Reference for pd snapshot, including Port Daddy syntax, what the command does, and when to use it.
 - [pd snapshots <command> - Port Daddy](https://portdaddy.dev/docs/cli/snapshots): Reference for pd snapshots <command>, including Port Daddy syntax, what the command does, and when to use it.
-- [pd sortie <goal> - Port Daddy](https://portdaddy.dev/docs/cli/sortie): Reference for pd sortie <goal>, including Port Daddy syntax, what the command does, and when to use it.
-- [pd sortie list|status|logs - Port Daddy](https://portdaddy.dev/docs/cli/sortie-list-status-logs): Reference for pd sortie list|status|logs, including Port Daddy syntax, what the command does, and when to use it.
 - [pd spawn <task> - Port Daddy](https://portdaddy.dev/docs/cli/spawn): Reference for pd spawn <task>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd spawn kill <agent> - Port Daddy](https://portdaddy.dev/docs/cli/spawn-kill): Reference for pd spawn kill <agent>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd spawned - Port Daddy](https://portdaddy.dev/docs/cli/spawned): Reference for pd spawned, including Port Daddy syntax, what the command does, and when to use it.

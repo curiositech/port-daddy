@@ -75,6 +75,8 @@ interface SitrepResponse {
   notes: NoteEntry[];
   salvage_queue: SalvageEntry[];
   spawned_agents: SpawnedEntry[];
+  /** Held trust-gate spawn approvals (ADR-0093 L2). */
+  approvals?: Array<{ id: string; agent: string; trigger: string; tier: string; project: string; timestamp: number }>;
 }
 
 function shortId(id: string | undefined): string {
@@ -126,6 +128,19 @@ export async function handleSitrep(options: CLIOptions): Promise<void> {
   console.log('');
   console.log(`SITREP · ${data.summary}`);
   console.log('\u2500'.repeat(Math.min(80, data.summary.length + 9)));
+
+  // Held spawn approvals lead everything else — a pending human gate is
+  // the most actionable line in a sitrep and must be impossible to miss.
+  const approvals = (data.approvals ?? []) as Array<{ id: string; agent: string; trigger: string; tier: string; project: string; timestamp: number }>;
+  if (approvals.length > 0) {
+    console.log('');
+    console.log(`⚠ HITL — ${approvals.length} SPAWN APPROVAL${approvals.length === 1 ? '' : 'S'} WAITING:`);
+    for (const p of approvals) {
+      const ageMin = Math.floor((Date.now() - p.timestamp) / 60_000);
+      console.log(`  ${p.id}  ${p.agent} ← ${p.trigger}  (${p.tier}, ${p.project}, ${ageMin}m)`);
+    }
+    console.log('  Decide: pd fleet approve <id> | pd fleet reject <id> --feedback "<why>"');
+  }
 
   if (data.activity.length > 0) {
     const preview = data.activity.slice(0, 5);

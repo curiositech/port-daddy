@@ -30,6 +30,9 @@ jest.unstable_mockModule('node:fs', () => ({
   // (lib/fleet/io-dispatch.ts), whose file trigger uses fs.watch. The
   // wholesale node:fs mock must surface it or module link fails.
   watch: jest.fn(() => ({ close: jest.fn() })),
+  // …and the calendar channel's EventKit bridge (lib/fleet/calendar-
+  // eventkit.ts) stats the helper source/binary at module-eval time.
+  statSync: jest.fn(() => ({ mtimeMs: 0 })),
 }));
 
 const mockSpawn = jest.fn();
@@ -333,6 +336,53 @@ test('parses trigger_tuple arrays from fleet yaml', () => {
   expect(config?.agents[0].triggerTuple).toEqual(['fleet:mailbox', 'qa']);
 });
 
+test('parses scheduled agent run_on_start opt-in from fleet yaml', () => {
+  mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+  mockExecSync.mockReturnValue('main');
+  mockReadFileSync.mockReturnValue(JSON.stringify({
+    name: 'scheduled-fleet',
+    agents: {
+      cartographer: {
+        backend: 'claude-cli',
+        prompt: 'Map the repo',
+        schedule: '*/30 * * * *',
+        run_on_start: true,
+      },
+    },
+  }));
+
+  const config = loadFleetConfig('/tmp/proj');
+  expect(config?.agents[0]).toEqual(expect.objectContaining({
+    name: 'cartographer',
+    schedule: '*/30 * * * *',
+    runOnStart: true,
+  }));
+});
+
+test('ignores camelCase runOnStart in fleet yaml when run_on_start is false', () => {
+  mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+  mockExecSync.mockReturnValue('main');
+  mockReadFileSync.mockReturnValue(JSON.stringify({
+    name: 'scheduled-fleet',
+    agents: {
+      cartographer: {
+        backend: 'claude-cli',
+        prompt: 'Map the repo',
+        schedule: '*/30 * * * *',
+        run_on_start: false,
+        runOnStart: true,
+      },
+    },
+  }));
+
+  const config = loadFleetConfig('/tmp/proj');
+  expect(config?.agents[0]).toEqual(expect.objectContaining({
+    name: 'cartographer',
+    schedule: '*/30 * * * *',
+    runOnStart: false,
+  }));
+});
+
 test('parses per-agent cooldown, dedupe, and backoff settings from YAML', () => {
   mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
   mockExecSync.mockReturnValue('main');
@@ -523,6 +573,7 @@ test('budgetUsdPerDay blocks spawn when project is over budget', async () => {
   const config = {
     ...makeConfig({
       schedule: '*/10 * * * *',
+      runOnStart: true,
     }),
     limits: { budgetUsdPerDay: 1.25 },
   };
@@ -570,7 +621,7 @@ test('budgetUsdPerDay blocks spawn when project is over budget', async () => {
 
 test('missing fleet budget blocks spawn before contacting the daemon', async () => {
   const config = {
-    ...makeConfig({ schedule: '*/10 * * * *' }),
+    ...makeConfig({ schedule: '*/10 * * * *', runOnStart: true }),
     limits: undefined,
   };
 
@@ -603,6 +654,7 @@ test('missing fleet budget blocks spawn before contacting the daemon', async () 
 test('singleton agents reject overlapping hail while a run is active', async () => {
   const config = makeConfig({
     schedule: '*/10 * * * *',
+    runOnStart: true,
     singleton: true,
   });
 
@@ -778,6 +830,25 @@ test('falls back to the next backend/model when the first spawn attempt fails', 
 
 // ─── Bug 5: onSuccess/onFailure never fires (dead code) ──────────────────────
 
+test('scheduled agents arm on start without immediately spawning by default', async () => {
+  const config = makeConfig({
+    schedule: '*/10 * * * *',
+  });
+
+  const runner = createFleetRunner(config, '/tmp/proj');
+  runner.startAgent(config.agents[0]);
+
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(global.fetch).not.toHaveBeenCalledWith(
+    `${DAEMON_URL}/spawn`,
+    expect.anything()
+  );
+
+  runner.stopAll();
+});
+
 test('FIX 5: onSuccess fires when spawn returns status=spawned', async () => {
   // /spawn returns immediately with {status: 'spawned'}.
   // The engine now correctly treats 'spawned' as a success (spawn was accepted).
@@ -801,11 +872,12 @@ test('FIX 5: onSuccess fires when spawn returns status=spawned', async () => {
 
   const config = makeConfig({
     schedule: '*/10 * * * *',
+    runOnStart: true,
     onSuccess: 'publish fleet:done',
   });
 
   const runner = createFleetRunner(config, '/tmp/proj');
-  runner.startAgent(config.agents[0]); // triggers runAgentOnce immediately
+  runner.startAgent(config.agents[0]); // run_on_start preserves immediate run behavior
 
   // Wait for the async runAgentOnce to resolve
   await Promise.resolve();
@@ -1124,6 +1196,7 @@ test('BUG B: hailAgent allows singleton hail when no run is in flight', async ()
 
   const config = makeConfig({
     schedule: '*/10 * * * *',
+    runOnStart: true,
     singleton: true,
   });
 
@@ -1385,7 +1458,7 @@ test('BUG 7: spawn body uses computed identity fallback when agent.identity is u
 
 test('maxSpawnsPerHour blocks spawn after limit is reached', async () => {
   const config = {
-    ...makeConfig({ schedule: '*/5 * * * *' }),
+    ...makeConfig({ schedule: '*/5 * * * *', runOnStart: true }),
     limits: { budgetUsdPerDay: 5, maxSpawnsPerHour: 2 },
   };
 
@@ -1699,7 +1772,7 @@ test('onFailure fires when /spawn returns HTTP error', async () => {
   });
 
   const runner = createFleetRunner(config, '/tmp/proj');
-  // Use hailAgent to trigger runAgentOnce (startAgent only auto-runs scheduled agents)
+  // Use hailAgent to trigger runAgentOnce without relying on startup work.
   await runner.hailAgent('test-agent', { source: 'manual' });
   await Promise.resolve();
   await Promise.resolve();
@@ -1723,7 +1796,7 @@ test('trimMessage at exactly maxChars returns message unchanged', async () => {
   });
 
   const runner = createFleetRunner(config, '/tmp/proj');
-  // Use hailAgent to trigger runAgentOnce (startAgent only auto-runs scheduled agents)
+  // Use hailAgent to trigger runAgentOnce without relying on startup work.
   await runner.hailAgent('test-agent', { source: 'manual' });
   await Promise.resolve();
   await Promise.resolve();

@@ -121,8 +121,9 @@ fi
 # Distinct colour frame + bottom label so prod / latest / dev read apart instantly.
 if [ -f "$ICON_PNG" ]; then
   echo "▸ building lane-badged AppIcon.icns"
-  sips -s format png "$ICON_PNG" --out "$ICON_PNG" >/dev/null 2>&1 || true   # nano-banana sometimes emits JPEG-in-.png
   WORK="$(mktemp -d "$HOME/coding/tmp/pd-console-iconset.XXXXXX")"
+  NORMALIZED="$WORK/icon-master.png"
+  sips -s format png "$ICON_PNG" --out "$NORMALIZED" >/dev/null 2>&1 || cp "$ICON_PNG" "$NORMALIZED"   # nano-banana sometimes emits JPEG-in-.png
   BADGED="$WORK/badged.png"
   MAGICK="$(command -v magick || command -v convert || true)"
   # A bold font that actually exists on macOS (magick needs a real file for -annotate).
@@ -137,7 +138,7 @@ if [ -f "$ICON_PNG" ]; then
   # drops the noisy outer rings and lets the bold wordmark dominate, so it stays
   # legible at 64px (operator vision-accessibility line).
   if [ -n "$MAGICK" ] && \
-     "$MAGICK" "$ICON_PNG" -resize 250% -gravity center -extent 1024x1024 \
+     "$MAGICK" "$NORMALIZED" -resize 250% -gravity center -extent 1024x1024 \
        -resize 976x976^ -gravity center -extent 976x976 \
        -bordercolor "$TINT" -border 24 \
        -fill "$TINT" -draw "rectangle 0,860 1024,1010" \
@@ -146,7 +147,7 @@ if [ -f "$ICON_PNG" ]; then
     :
   else
     echo "⚠ icon badge step failed — using unbadged master ($(tail -1 "$WORK/magick.err" 2>/dev/null))"
-    cp "$ICON_PNG" "$BADGED"
+    cp "$NORMALIZED" "$BADGED"
   fi
   ICONSET="$WORK/AppIcon.iconset"; mkdir -p "$ICONSET"
   for sz in 16 32 128 256 512; do
@@ -177,7 +178,17 @@ if [ "$update_shim" = 1 ]; then
   echo "▸ updated PATH shim → $BIN_PATH"
 fi
 
-# ── 8. Sign (real Developer ID if PD_CONSOLE_SIGN_IDENTITY is set, else ad-hoc) ─
+# 4b. Seed the editable model-tier config (the single source of truth for the
+# Spawn picker's provider→tier→model map). Never clobber an operator-edited file
+# — only drop the default if it's missing, so edits survive upgrades.
+MODEL_TIERS_DST="$HOME/.port-daddy/model-tiers.json"
+MODEL_TIERS_SRC="$(cd "$(dirname "$0")/.." && pwd)/config/model-tiers.json"
+if [[ ! -f "$MODEL_TIERS_DST" && -f "$MODEL_TIERS_SRC" ]]; then
+  cp "$MODEL_TIERS_SRC" "$MODEL_TIERS_DST"
+  echo "▸ seeded model-tier config → $MODEL_TIERS_DST (edit it; no rebuild needed)"
+fi
+
+# ── Sign (real Developer ID if PD_CONSOLE_SIGN_IDENTITY is set, else ad-hoc) ─
 SIGN="${PD_CONSOLE_SIGN_IDENTITY:--}"
 echo "▸ codesign ($([ "$SIGN" = "-" ] && echo ad-hoc || echo "$SIGN"))"
 codesign --force --deep --sign "$SIGN" "$APP" >/dev/null 2>&1 || echo "⚠ codesign warning (non-fatal)"

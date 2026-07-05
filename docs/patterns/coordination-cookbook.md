@@ -52,7 +52,6 @@ A short glossary, then the patterns.
 | Inbox (DM)    | `pd inbox send` / `pd inbox` / `pd inbox watch`              | DB row per agent                                          | `--agent`                                                    |
 | Actor mailbox | `pd actor <id> --message`                                    | DB row per canonical actor                                | actor id                                                     |
 | Spawn         | `pd spawn --backend <b> --identity <id> --budget <usd> -- <task>` | Sub-process; agent registered                             | `--backend`, `--model`, `--tier`, `--budget`, `--purpose`    |
-| Sortie        | `pd sortie run <goal> --backend <b> --budget <usd>`          | DB row + spawn; full coordination wired                   | `--recipe`, `--expected`, `--context`, `--dir`               |
 | Watch         | `pd watch <channel> --exec <script>`                         | Long-running SSE subscriber                               | `--once`, `--max-concurrent`, `--timeout`, `--min-interval`  |
 | Quorum        | `pd quorum propose` / `pd quorum vote`                       | DB row, threshold-driven                                  | `--role`, `--threshold`, `--stance`, `--weight`, `--ttl-ms`  |
 | Salvage       | `pd salvage` / `pd salvage claim` / `pd salvage complete`    | Reads stale agents, transfers context                     | `--project`, `--bucket`, `--claim`                           |

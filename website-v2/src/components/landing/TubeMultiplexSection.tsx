@@ -16,6 +16,7 @@ import { CodeBlock } from '@/components/ui/CodeBlock'
 import { cn } from '@/lib/utils'
 import {
   TubeMotionProvider,
+  TubeSimBadge,
   TubeTimeoutError,
   useReducedMotion,
   usePublish,
@@ -238,23 +239,19 @@ function FanOutWall() {
         carol: { phase: 'awaiting', reply: null },
       })
 
-      // Watch each lane independently. waitForReply matches inReplyTo === id and
-      // we additionally route by the replier's sender name so the right lane
-      // lights up. A lane that never answers ends in 'timeout'.
+      // Watch each lane independently. waitForReply matches inReplyTo === id AND
+      // the replier's `--as` name, so each lane resolves only on ITS listener's
+      // reply (without the sender filter, all three lanes would resolve on the
+      // first reply on the channel). A lane that never answers ends in 'timeout'.
       await Promise.all(
         LANES.map(async (lane) => {
           try {
             const reply = await waitForReply(FAN_CHANNEL, id, {
               signal: ctrl.signal,
               timeoutMs: 12_000,
-              // Only accept a reply whose sender matches this lane's name.
-              // waitForReply itself matches inReplyTo; we post-filter here.
+              sender: lane,
             })
             if (ctrl.signal.aborted) return
-            // Route by sender; if the daemon returns a reply from a different
-            // identity, leave this lane awaiting (another lane's watcher claims it).
-            const who = (reply.sender ?? '').toLowerCase()
-            if (who && who !== lane) return
             setLanes((prev) => ({ ...prev, [lane]: { phase: 'replied', reply } }))
           } catch (err) {
             if (ctrl.signal.aborted) return
@@ -343,6 +340,7 @@ function FleetBar({
         <span className="font-mono text-[length:var(--text-base)] font-bold text-[var(--text-primary)]">
           {channel}
         </span>
+        <TubeSimBadge channel={channel} />
       </div>
       <div className="flex items-center gap-[var(--space-2)]">
         <span

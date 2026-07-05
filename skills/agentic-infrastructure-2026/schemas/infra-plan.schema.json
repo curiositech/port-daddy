@@ -1,0 +1,164 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/infra-plan.schema.json",
+  "title": "Agentic Infrastructure Plan",
+  "description": "A plan for agent infrastructure adoption, checked against this skill's Technical Infrastructure, Organizational Readiness, and Production Readiness Quality Gates by scripts/infra_readiness.mjs.",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "framework": {
+      "type": "object",
+      "description": "Framework selection and the decision criteria behind it.",
+      "properties": {
+        "selected": {
+          "type": "string",
+          "description": "e.g. LangGraph, CrewAI, Semantic Kernel, MCP, OpenAI Assistants API."
+        },
+        "decisionCriteria": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Workflow shapes/constraints that drove the choice (must be non-empty to avoid Framework-First Thinking)."
+        }
+      }
+    },
+    "mcp": {
+      "type": "object",
+      "description": "MCP tool interoperability configuration, if used.",
+      "properties": {
+        "used": { "type": "boolean" },
+        "contextOverheadPct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Percent of context window consumed by MCP tool schemas."
+        },
+        "lazyLoading": {
+          "type": "boolean",
+          "description": "Whether tool schemas are loaded on-demand rather than up-front."
+        }
+      }
+    },
+    "observability": {
+      "type": "object",
+      "properties": {
+        "wired": { "type": "boolean" },
+        "platform": { "type": "string", "description": "e.g. LangSmith, Braintrust, Langfuse." },
+        "instrumentedLevels": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["request", "trace", "quality", "drift"] }
+        }
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "properties": {
+        "suiteExists": { "type": "boolean" },
+        "coverage": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["unit", "trajectory", "end-to-end"] }
+        }
+      }
+    },
+    "costControls": {
+      "type": "object",
+      "properties": {
+        "perTaskCapUsd": { "type": "number", "minimum": 0 },
+        "dailyQuotaUsd": { "type": "number", "minimum": 0 },
+        "killSwitch": { "type": "boolean" }
+      }
+    },
+    "memoryArchitecture": {
+      "type": "object",
+      "properties": {
+        "documented": { "type": "boolean" },
+        "layers": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["working", "short-term", "long-term", "episodic"] }
+        }
+      }
+    },
+    "pilot": {
+      "type": "object",
+      "properties": {
+        "scope": {
+          "type": "string",
+          "description": "e.g. single-team, single-workflow, department-wide, enterprise-wide."
+        },
+        "teams": { "type": "array", "items": { "type": "string" } },
+        "workflow": { "type": "string" }
+      }
+    },
+    "roiFramework": {
+      "type": "object",
+      "properties": {
+        "defined": { "type": "boolean" },
+        "baselineMetrics": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "stakeholderComms": {
+      "type": "object",
+      "properties": {
+        "audiences": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["engineering", "product", "security", "executive"] }
+        }
+      }
+    },
+    "hitl": {
+      "type": "object",
+      "description": "Human-in-the-loop approval gates.",
+      "properties": {
+        "approvalGatesDocumented": { "type": "boolean" },
+        "gates": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "successCriteria": {
+      "type": "object",
+      "properties": {
+        "defined": { "type": "boolean" },
+        "binaryPassFail": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "adoptionPlan": {
+      "type": "object",
+      "properties": {
+        "documented": { "type": "boolean" },
+        "pathway": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "reviewCompleted": { "type": "boolean" },
+        "piiFiltering": { "type": "boolean" },
+        "auditTrails": { "type": "boolean" },
+        "accessControls": { "type": "boolean" }
+      }
+    },
+    "errorHandling": {
+      "type": "object",
+      "properties": {
+        "documented": { "type": "boolean" },
+        "retryLogic": { "type": "boolean" },
+        "circuitBreakers": { "type": "boolean" },
+        "escalationPath": { "type": "boolean" }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "benchmarksEstablished": { "type": "boolean" },
+        "latencySlaMs": { "type": "number", "minimum": 0 },
+        "throughputTarget": { "type": "string" }
+      }
+    },
+    "incidentResponse": {
+      "type": "object",
+      "properties": {
+        "documented": { "type": "boolean" },
+        "pagerAssigned": { "type": "boolean" },
+        "rollbackPlan": { "type": "boolean" }
+      }
+    }
+  }
+}

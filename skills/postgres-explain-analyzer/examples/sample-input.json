@@ -1,0 +1,14 @@
+{
+  "symptom": "plan-regression",
+  "explainCaptured": true,
+  "buffersIncluded": true,
+  "plannedFixes": ["add-index", "raise-stats-target"],
+  "environment": "production",
+  "scanType": "index-scan",
+  "tableRowCount": 8400000,
+  "estimateVsActualRatio": 169,
+  "sortSpillsToDisk": false,
+  "deadTupleRatio": 0.04,
+  "usesConcurrently": true,
+  "verifiedAfterFix": true
+}

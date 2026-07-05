@@ -59,6 +59,89 @@ describe('fleet-config-ui api', () => {
     }));
   });
 
+  test('sendAgentMessage sends typed JSON inbox payloads with wake summary', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      headers: {
+        get: () => 'application/json',
+      },
+      json: async () => ({
+        success: true,
+        delivered: true,
+        woke: true,
+        messageId: 77,
+      }),
+    })) as typeof fetch;
+
+    const { sendAgentMessage } = await import('../../fleet-config-ui/src/api.ts');
+    const result = await sendAgentMessage('qa', {
+      content: { type: 'visual-task', title: 'Button is clipped' },
+      contentType: 'json',
+      type: 'visual-task',
+      messageContent: '[visual-task:fix] Button is clipped',
+      from: 'fleet-ui-visual',
+      wake: true,
+    });
+
+    expect(result.messageId).toBe(77);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:9876/agents/qa/inbox',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          content: { type: 'visual-task', title: 'Button is clipped' },
+          project: undefined,
+          from: 'fleet-ui-visual',
+          type: 'visual-task',
+          contentType: 'json',
+          messageContent: '[visual-task:fix] Button is clipped',
+          wake: true,
+        }),
+      }),
+    );
+  });
+
+  test('proposeDispatchGoal posts a review dispatch goal', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      headers: {
+        get: () => 'application/json',
+      },
+      json: async () => ({
+        ok: true,
+        dispatch: {
+          id: 'dispatch-1',
+          slug: 'visual-button-clipped',
+          goal: 'Visual task from FleetBar',
+          state: 'proposed',
+        },
+      }),
+    })) as typeof fetch;
+
+    const { proposeDispatchGoal } = await import('../../fleet-config-ui/src/api.ts');
+    const dispatch = await proposeDispatchGoal({
+      goal: 'Visual task from FleetBar',
+      requestedBy: 'fleet-ui-visual',
+      targetActorId: 'qa',
+    });
+
+    expect(dispatch.id).toBe('dispatch-1');
+    expect(global.fetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:9876/dispatches',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          goal: 'Visual task from FleetBar',
+          requestedBy: 'fleet-ui-visual',
+          mergePolicy: 'review',
+          targetActorId: 'qa',
+        }),
+      }),
+    );
+  });
+
   test('fetchFilePreview unwraps the daemon preview envelope', async () => {
     global.fetch = jest.fn(async () => ({
       ok: true,

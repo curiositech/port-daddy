@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Operator Surface Authority Spec",
+  "description": "Input shape for scripts/surface_authority_audit.mjs — a normalized description of which operator surface (Scout, FleetBar, pd-console) owns each capability, its distance-from-work classification, evidence weight, daemon-enforceability, and hot/cool bus subscription.",
+  "type": "object",
+  "required": ["capabilities", "surfacesOwnRuntimeState"],
+  "additionalProperties": true,
+  "properties": {
+    "capabilities": {
+      "type": "array",
+      "description": "Every capability the three operator surfaces expose, one entry per (capability, surface) claim. A capability legitimately claimed by two surfaces will appear twice with different assignedSurface values — that duplication is exactly what the auditor is built to catch.",
+      "items": {
+        "type": "object",
+        "required": ["name", "assignedSurface", "distance", "evidenceScreens", "daemonEnforceable", "busSubscription"],
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Capability name, e.g. \"approve-destructive-git-op\" or \"transcript-replay\"."
+          },
+          "assignedSurface": {
+            "type": "string",
+            "enum": ["scout", "fleetbar", "pd-console"],
+            "description": "Which of the three operator surfaces renders this capability."
+          },
+          "distance": {
+            "type": "string",
+            "enum": ["intake", "ambient", "deep"],
+            "description": "Distance-from-work classification: intake (Scout, inside the artifact), ambient (FleetBar, glanceable consent), deep (pd-console, seated full-evidence inspection)."
+          },
+          "evidenceScreens": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of distinct screens/panes of evidence a human needs to evaluate this capability's state before acting on it."
+          },
+          "daemonEnforceable": {
+            "type": "boolean",
+            "description": "True only if the daemon can actually back/enforce the control being rendered (acceptance criterion 6: controls are enabled only when the daemon can actually enforce them)."
+          },
+          "busSubscription": {
+            "type": "string",
+            "enum": ["hot", "cool"],
+            "description": "Which message plane this capability subscribes to: hot (ephemeral, in-process multiplexed WebSocket: presence, current step, stream cursors, steering) or cool (append-only, replayable: Work Intents, plans, claims, transcript events, gate decisions, receipts)."
+          }
+        }
+      }
+    },
+    "surfacesOwnRuntimeState": {
+      "type": "boolean",
+      "description": "True if any surface owns runtime state directly instead of rendering daemon truth. Must be false: 'no surface owns runtime state; all three render daemon truth and submit commands through the same envelopes.'"
+    }
+  }
+}

@@ -9,9 +9,9 @@
 \citation{saltzer1975protection}
 \@writefile{toc}{\contentsline {section}{\numberline {1}Introduction: The ``Local Swarm'' Problem}{4}{section.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {2}The Anchor Protocol Architecture}{4}{section.2}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces The four phases of the Anchor Protocol. Each phase is a refinement of the previous: the cryptographic primitive changes, the property strengthens, and a specific threat is foreclosed. The patina pill on each arrow records \emph  {why} the next phase was forced --- not as historical narrative but as a constructive argument that no earlier phase suffices on its own. Phases 1--3 are mechanized in ProVerif (\S  \ref {app:mech}); Phase 4 is enforced at runtime against monotonicity and reanimation invariants (\S  \ref {sec:revocation}).}}{4}{figure.caption.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces The four phases of the Anchor Protocol. Each phase is a refinement of the previous: the cryptographic primitive changes, the property strengthens, and a specific threat is foreclosed. The teal pill on each arrow records \emph  {why} the next phase was forced --- not as historical narrative but as a constructive argument that no earlier phase suffices on its own. Phases 1--3 are mechanized in ProVerif (\S  \ref {app:mech}); Phase 4 is enforced at runtime against monotonicity and reanimation invariants (\S  \ref {sec:revocation}).}}{4}{figure.caption.2}\protected@file@percent }
 \providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
-\newlabel{fig:anchor-four-phases}{{1}{4}{The four phases of the Anchor Protocol. Each phase is a refinement of the previous: the cryptographic primitive changes, the property strengthens, and a specific threat is foreclosed. The patina pill on each arrow records \emph {why} the next phase was forced --- not as historical narrative but as a constructive argument that no earlier phase suffices on its own. Phases 1--3 are mechanized in ProVerif (\S \ref {app:mech}); Phase 4 is enforced at runtime against monotonicity and reanimation invariants (\S \ref {sec:revocation})}{figure.caption.2}{}}
+\newlabel{fig:anchor-four-phases}{{1}{4}{The four phases of the Anchor Protocol. Each phase is a refinement of the previous: the cryptographic primitive changes, the property strengthens, and a specific threat is foreclosed. The teal pill on each arrow records \emph {why} the next phase was forced --- not as historical narrative but as a constructive argument that no earlier phase suffices on its own. Phases 1--3 are mechanized in ProVerif (\S \ref {app:mech}); Phase 4 is enforced at runtime against monotonicity and reanimation invariants (\S \ref {sec:revocation})}{figure.caption.2}{}}
 \citation{cve20159235}
 \citation{cve202348238}
 \citation{ietf2024jwtbcp}
@@ -66,39 +66,42 @@
 \citation{cve20181000531}
 \citation{cve202348238}
 \citation{ietf2024jwtbcp}
+\citation{ap2mandates2026}
+\citation{ucp2026}
 \citation{aws2022s2n}
 \citation{bhargavan2017everest}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Capability-Based Authorization}{10}{subsection.3.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.3}JWT Security}{10}{subsection.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Credential Formats in Agentic Commerce}{10}{subsection.3.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {4}Formal Verification Strategy}{10}{section.4}\protected@file@percent }
 \citation{dolev1983security}
 \citation{blanchet2016modeling}
 \citation{lowe1997hierarchy}
-\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces The three-layer verification stack. ProVerif (top) discharges design-level obligations against a Dolev--Yao adversary. Kani (middle) closes the \emph  {specification gap}: the same properties, restated as Rust source-level claims on the \texttt  {harbor-card-rs} crate, are discharged by bounded model checking. Runtime conformance tests (bottom) close the \emph  {deployment gap}: the FFI-bridged binary is exercised with the formally verified attack vectors. Cinnabar arrows show obligations flowing down (what each lower layer must preserve); patina arrows show evidence flowing back up (what each lower layer actually delivers). The stack is sound only if every bridge holds.}}{11}{figure.caption.14}\protected@file@percent }
-\newlabel{fig:anchor-verification-stack}{{7}{11}{The three-layer verification stack. ProVerif (top) discharges design-level obligations against a Dolev--Yao adversary. Kani (middle) closes the \emph {specification gap}: the same properties, restated as Rust source-level claims on the \texttt {harbor-card-rs} crate, are discharged by bounded model checking. Runtime conformance tests (bottom) close the \emph {deployment gap}: the FFI-bridged binary is exercised with the formally verified attack vectors. Cinnabar arrows show obligations flowing down (what each lower layer must preserve); patina arrows show evidence flowing back up (what each lower layer actually delivers). The stack is sound only if every bridge holds}{figure.caption.14}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces The three-layer verification stack. ProVerif (top) discharges design-level obligations against a Dolev--Yao adversary. Kani (middle) closes the \emph  {specification gap}: the same properties, restated as Rust source-level claims on the \texttt  {harbor-card-rs} crate, are discharged by bounded model checking. Runtime conformance tests (bottom) close the \emph  {deployment gap}: the FFI-bridged binary is exercised with the formally verified attack vectors. Cinnabar arrows show obligations flowing down (what each lower layer must preserve); teal arrows show evidence flowing back up (what each lower layer actually delivers). The stack is sound only if every bridge holds.}}{11}{figure.caption.14}\protected@file@percent }
+\newlabel{fig:anchor-verification-stack}{{7}{11}{The three-layer verification stack. ProVerif (top) discharges design-level obligations against a Dolev--Yao adversary. Kani (middle) closes the \emph {specification gap}: the same properties, restated as Rust source-level claims on the \texttt {harbor-card-rs} crate, are discharged by bounded model checking. Runtime conformance tests (bottom) close the \emph {deployment gap}: the FFI-bridged binary is exercised with the formally verified attack vectors. Cinnabar arrows show obligations flowing down (what each lower layer must preserve); teal arrows show evidence flowing back up (what each lower layer actually delivers). The stack is sound only if every bridge holds}{figure.caption.14}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Symbolic Analysis with ProVerif}{11}{subsection.4.1}\protected@file@percent }
 \newlabel{thm:injective}{{4.1}{11}{Injective Agreement}{theorem.4.1}{}}
 \citation{aws2022kani}
-\citation{brumley2011remote}
 \@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces ProVerif verification results across all three protocol phases. All queries verified for an unbounded number of sessions under the Dolev-Yao adversary model.}}{12}{table.caption.15}\protected@file@percent }
 \newlabel{tab:proverif-results}{{1}{12}{ProVerif verification results across all three protocol phases. All queries verified for an unbounded number of sessions under the Dolev-Yao adversary model}{table.caption.15}{}}
 \@writefile{lol}{\contentsline {lstlisting}{\numberline {1}{\ignorespaces ProVerif 2.05 Terminal Output --- Phase 3 Delegation Chain}}{12}{lstlisting.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Runtime Enforcement: The Arbiter}{12}{subsection.4.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Implementation Verification}{12}{subsection.4.3}\protected@file@percent }
+\citation{brumley2011remote}
 \citation{blanchet2016modeling}
 \citation{lowe1997hierarchy}
 \citation{cve20159235}
 \citation{mclean2015critical}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Implementation Verification}{13}{subsection.4.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {5}Verification Algorithms}{13}{section.5}\protected@file@percent }
 \newlabel{sec:algorithms}{{5}{13}{Verification Algorithms}{section.5}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Phase 1: Symmetric HS256 with Algorithm Pinning}{13}{subsection.5.1}\protected@file@percent }
 \newlabel{alg:symmetric}{{2}{13}{Algorithm 1: Secure Harbor Verification (HS256 with Algorithm Pinning)}{lstlisting.2}{}}
 \@writefile{lol}{\contentsline {lstlisting}{\numberline {2}{\ignorespaces Algorithm 1: Secure Harbor Verification (HS256 with Algorithm Pinning)}}{13}{lstlisting.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Phase 2: Asymmetric Ed25519}{13}{subsection.5.2}\protected@file@percent }
-\newlabel{alg:asymmetric}{{3}{13}{Algorithm 2: Asymmetric Harbor Verification (Ed25519)}{lstlisting.3}{}}
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {3}{\ignorespaces Algorithm 2: Asymmetric Harbor Verification (Ed25519)}}{13}{lstlisting.3}\protected@file@percent }
 \citation{bernstein2012high}
 \citation{birgisson2014macaroons}
+\newlabel{alg:asymmetric}{{3}{14}{Algorithm 2: Asymmetric Harbor Verification (Ed25519)}{lstlisting.3}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {3}{\ignorespaces Algorithm 2: Asymmetric Harbor Verification (Ed25519)}}{14}{lstlisting.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Phase 3: Multi-hop Delegation}{14}{subsection.5.3}\protected@file@percent }
 \newlabel{sec:delegation}{{5.3}{14}{Phase 3: Multi-hop Delegation}{subsection.5.3}{}}
 \newlabel{alg:delegation}{{4}{14}{Algorithm 3: Delegation Chain Verification}{lstlisting.4}{}}
@@ -106,7 +109,7 @@
 \@writefile{toc}{\contentsline {section}{\numberline {6}Implementation: Deployed Rust Core}{15}{section.6}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Core Verification Logic}{15}{subsection.6.1}\protected@file@percent }
 \@writefile{lol}{\contentsline {lstlisting}{\numberline {5}{\ignorespaces Deployed Rust Implementation — Harbor Card Verifier (abridged from the \texttt  {harbor-card-rs} crate)}}{15}{lstlisting.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}FFI Bridge to the Node.js Daemon}{15}{subsection.6.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}FFI Bridge to the Node.js Daemon}{16}{subsection.6.2}\protected@file@percent }
 \@writefile{lol}{\contentsline {lstlisting}{\numberline {6}{\ignorespaces FFI Exports — Called from the daemon's Arbiter module}}{16}{lstlisting.6}\protected@file@percent }
 \@writefile{lol}{\contentsline {lstlisting}{\numberline {7}{\ignorespaces TypeScript FFI Binding (daemon-side Arbiter)}}{16}{lstlisting.7}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Kani Verification Harnesses}{16}{subsection.6.3}\protected@file@percent }
@@ -122,14 +125,17 @@
 \citation{birgisson2014macaroons}
 \@writefile{toc}{\contentsline {section}{\numberline {7}Security Analysis}{17}{section.7}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Threat Model}{17}{subsection.7.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Security Properties}{17}{subsection.7.2}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Verified Security Properties. ``Deployed'' indicates the verified Rust code is called by the production daemon via FFI from the Arbiter module into the \texttt  {harbor-card-rs} crate.}}{17}{table.caption.16}\protected@file@percent }
-\newlabel{tab:properties}{{2}{17}{Verified Security Properties. ``Deployed'' indicates the verified Rust code is called by the production daemon via FFI from the Arbiter module into the \texttt {harbor-card-rs} crate}{table.caption.16}{}}
 \citation{blanchet2016modeling}
 \citation{aws2022kani}
 \citation{birgisson2014macaroons}
 \bibstyle{plain}
 \bibcite{blanchet2016modeling}{1}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Security Properties}{18}{subsection.7.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Verified Security Properties. ``Deployed'' indicates the verified Rust code is called by the production daemon via FFI from the Arbiter module into the \texttt  {harbor-card-rs} crate.}}{18}{table.caption.16}\protected@file@percent }
+\newlabel{tab:properties}{{2}{18}{Verified Security Properties. ``Deployed'' indicates the verified Rust code is called by the production daemon via FFI from the Arbiter module into the \texttt {harbor-card-rs} crate}{table.caption.16}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.3}Limitations}{18}{subsection.7.3}\protected@file@percent }
+\newlabel{sec:limitations}{{7.3}{18}{Limitations}{subsection.7.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{18}{section.8}\protected@file@percent }
 \bibcite{blanchet2007cryptoverif}{2}
 \bibcite{blanchet2017proverif}{3}
 \bibcite{birgisson2014macaroons}{4}
@@ -140,8 +146,6 @@
 \bibcite{josefsson2017edwards}{9}
 \bibcite{mclean2015critical}{10}
 \bibcite{cve20159235}{11}
-\@writefile{toc}{\contentsline {subsection}{\numberline {7.3}Limitations}{18}{subsection.7.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{18}{section.8}\protected@file@percent }
 \bibcite{cve20181000531}{12}
 \bibcite{cve202348238}{13}
 \bibcite{ietf2024jwtbcp}{14}
@@ -157,22 +161,30 @@
 \bibcite{barbosa2021sok}{24}
 \bibcite{fan2014cuckoo}{25}
 \bibcite{demers1987epidemic}{26}
+\bibcite{ucp2026}{27}
+\bibcite{ap2mandates2026}{28}
 \citation{demers1987epidemic}
 \citation{demers1987epidemic}
 \@writefile{toc}{\contentsline {section}{\numberline {A}Formal Verification Status}{20}{appendix.A}\protected@file@percent }
 \newlabel{app:mech}{{A}{20}{Formal Verification Status}{appendix.A}{}}
 \@writefile{toc}{\contentsline {paragraph}{Artifact availability.}{20}{section*.18}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Anchor Protocol verification status. {\textcolor {hhpatina}{\textbf  {\textsf  {closed}}}}: model verified \emph  {and} runtime conformance test passes. {\textcolor {hhbrass}{\textbf  {\textsf  {partial}}}}: design verified, runtime empirically tested rather than proved. {\textcolor {hhcinnabar}{\textbf  {\textsf  {open}}}}: known unmechanized.}}{20}{table.caption.19}\protected@file@percent }
-\newlabel{tab:anchor-status}{{3}{20}{Anchor Protocol verification status. \Closed : model verified \emph {and} runtime conformance test passes. \Partial : design verified, runtime empirically tested rather than proved. \Open : known unmechanized}{table.caption.19}{}}
-\@writefile{toc}{\contentsline {paragraph}{Limitations.}{20}{section*.20}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {B}Full ProVerif Models}{21}{appendix.B}\protected@file@percent }
-\newlabel{app:proverif}{{B}{21}{Full ProVerif Models}{appendix.B}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.1}Phase 1: Symmetric HS256}{21}{subsection.B.1}\protected@file@percent }
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {9}{\ignorespaces \texttt  {harbor\_card\_v1\_refined.pv}}}{21}{lstlisting.9}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {C}Phase 2: Asymmetric Ed25519}{21}{appendix.C}\protected@file@percent }
-\newlabel{app:phase2}{{C}{21}{Phase 2: Asymmetric Ed25519}{appendix.C}{}}
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {10}{\ignorespaces \texttt  {harbor\_card\_v2\_asymmetric.pv} --- Verified in ProVerif 2.05}}{22}{lstlisting.10}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {D}Phase 3: Multi-hop Delegation}{23}{appendix.D}\protected@file@percent }
-\newlabel{app:phase3}{{D}{23}{Phase 3: Multi-hop Delegation}{appendix.D}{}}
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {11}{\ignorespaces \texttt  {harbor\_card\_v3\_delegation.pv} --- Verified in ProVerif 2.05}}{23}{lstlisting.11}\protected@file@percent }
-\gdef \@abspage@last{24}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Anchor Protocol verification status. {\textcolor {hhteal}{\textbf  {\textsf  {closed}}}}: model verified \emph  {and} runtime conformance test passes. {\textcolor {hhamber}{\textbf  {\textsf  {partial}}}}: design verified, runtime empirically tested rather than proved. {\textcolor {hhcobalt}{\textbf  {\textsf  {open}}}}: known unmechanized.}}{21}{table.caption.19}\protected@file@percent }
+\newlabel{tab:anchor-status}{{3}{21}{Anchor Protocol verification status. \Closed : model verified \emph {and} runtime conformance test passes. \Partial : design verified, runtime empirically tested rather than proved. \Open : known unmechanized}{table.caption.19}{}}
+\@writefile{toc}{\contentsline {paragraph}{Limitations.}{22}{section*.20}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{GitHub-App relay ingress.}{22}{section*.21}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {B}Full ProVerif Models}{22}{appendix.B}\protected@file@percent }
+\newlabel{app:proverif}{{B}{22}{Full ProVerif Models}{appendix.B}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.1}Phase 1: Symmetric HS256}{22}{subsection.B.1}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {9}{\ignorespaces \texttt  {harbor\_card\_v1\_refined.pv}}}{22}{lstlisting.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {C}Phase 2: Asymmetric Ed25519}{23}{appendix.C}\protected@file@percent }
+\newlabel{app:phase2}{{C}{23}{Phase 2: Asymmetric Ed25519}{appendix.C}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {10}{\ignorespaces \texttt  {harbor\_card\_v2\_asymmetric.pv} --- Verified in ProVerif 2.05}}{23}{lstlisting.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {D}Phase 3: Multi-hop Delegation}{24}{appendix.D}\protected@file@percent }
+\newlabel{app:phase3}{{D}{24}{Phase 3: Multi-hop Delegation}{appendix.D}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {11}{\ignorespaces \texttt  {harbor\_card\_v3\_delegation.pv} --- reflexive-order model (see §\ref {sec:attn-soundness} for the soundness caveat and the enriched v5 proof)}}{24}{lstlisting.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.1}Soundness of the Attenuation Proof (v5)}{26}{subsection.D.1}\protected@file@percent }
+\newlabel{sec:attn-soundness}{{D.1}{26}{Soundness of the Attenuation Proof (v5)}{subsection.D.1}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {12}{\ignorespaces \texttt  {harbor\_card\_v5\_attenuation.pv} (excerpt) --- Verified in ProVerif 2.05}}{26}{lstlisting.12}\protected@file@percent }
+\newlabel{thm:attn-sound}{{D.1}{26}{Attenuation soundness, mechanized}{theorem.D.1}{}}
+\@writefile{toc}{\contentsline {paragraph}{Multi-hop scope (honest boundary).}{26}{section*.22}\protected@file@percent }
+\gdef \@abspage@last{27}

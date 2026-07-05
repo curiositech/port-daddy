@@ -1,0 +1,11 @@
+{
+  "useCase": "cache",
+  "messagingPrimitive": "none",
+  "ttlSet": true,
+  "ttlJitter": true,
+  "atomicSetWithExpiry": true,
+  "usesKeysCommand": false,
+  "largeDeleteMethod": "UNLINK",
+  "evictionPolicy": "allkeys-lru",
+  "maxmemorySet": true
+}

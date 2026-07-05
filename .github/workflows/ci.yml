@@ -314,6 +314,17 @@ jobs:
       - name: Build compiled CLI binary
         run: npm run build:bin
 
+      - name: Doctor health gate (boot daemon, fail build on CRITICAL only)
+        # Boots the COMPILED daemon on a scratch port/prefix and runs the
+        # COMPILED `pd doctor --json` / `--ci` against it. Asserts /health
+        # carries the shared `severity` field and that doctor reports zero
+        # CRITICAL checks. WARN-level findings (no systemd unit for a
+        # manually-booted daemon, etc.) are loud but never gate — the
+        # three-tier contract. This is the machine-readable health gate that
+        # folds the daemon's whole route/runtime contract into one verdict.
+        run: bash scripts/ci-doctor-gate.sh
+        timeout-minutes: 3
+
       - name: Smoke compiled CLI `pd secret set` stdin path
         # Drives the compiled-bun CLI's stdin read end-to-end: a piped value must
         # reach the daemon, and empty stdin must error loudly (never a silent

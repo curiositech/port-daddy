@@ -46,7 +46,7 @@ The seeds cover three regions well — the identity→reputation chain, the thre
 
 ### 1.H — Hosted trust as the moat (the business claim)
 - **Primitives:** verified ledger + relay + reputation hosting.
-- **Mechanisms:** rail/product separation (x402/AP2/ACP/Stripe/credits are interchangeable substrate); revenue from *successful* trade (txn fee 2–5%, small listing fee for collusion deterrence, tiny bond-spread kept small so the platform never profits from over-slashing).
+- **Mechanisms:** rail/product separation (x402/AP2/UCP/ACP/Stripe/credits are interchangeable substrate — and per ADR-0094 the harbor boundary now speaks AP2's credential formats, so "interchangeable" is an implemented interface, not a slogan); revenue from *successful* trade (txn fee 2–5%, small listing fee for collusion deterrence, tiny bond-spread kept small so the platform never profits from over-slashing).
 - **Claims:** *you don't sell crypto — crypto is the substrate; you sell hosted trust.* The defensible asset is attestation + federation membership + reputation, not the commoditized payment rail.
 
 ---
@@ -169,7 +169,7 @@ Consistent with shipped code (`lib/`), the ADRs present, and ADR-0045 discipline
 |---|---|---|---|
 | 1 | Bond ledger: escrow, slash, commons pool | **BUILT** | `lib/bonds.ts` |
 | 2 | Conservation invariant `wallet+escrow+commons=supply` | **BUILT** | `tests/unit/bonds-conservation-property.test.js` (10k-trace property test) |
-| 3 | No-spawn-without-bond | **BUILT-WEAK** | `lib/bonds.ts` enforces escrow-first; the runtime `running`-state check is documented as Phase-2 (`lib/actors.ts`), so the gate is caller-discipline today, not runtime-enforced |
+| 3 | No-spawn-without-bond | **BUILT-WEAK** | `lib/bonds.ts` enforces escrow-first; the runtime `running`-state check is documented as Phase-2 (`lib/actors.ts`, unbuilt), so the gate is caller-discipline today, not runtime-enforced |
 | 4 | Cost ledger / cost tracking | **BUILT** | `lib/cost-ledger.ts`, `lib/cost-tracker.ts` |
 | 5 | Episodic memory (continuity organ 1) | **BUILT** | `lib/episodic-memory.ts` |
 | 6 | Resurrection / checkpoint (continuity organ 2) | **BUILT-WEAK** | `lib/resurrection.ts` — passes *notes*, not state; "resurrection with teeth" is the goal, not the reality |
@@ -177,7 +177,7 @@ Consistent with shipped code (`lib/`), the ADRs present, and ADR-0045 discipline
 | 8 | Non-forgeable actor identity (the architectural bottleneck) | **DESIGNED** | ADR-0040; today identities are self-asserted strings (`lib/actor-roster.ts`, BUILT-but-forgeable) |
 | 9 | Float plan + ed25519 escrow ceremony | **DESIGNED** | ADR-0014 Anchor Protocol; not wired to `lib/bonds.ts` end-to-end |
 | 10 | Anchor Protocol (capability tokens, signed delegation, attenuation) | **DESIGNED** (formally verified) | anchor-protocol-whitepaper.tex — ProVerif + Kani verified *as a model*; no shipping `lib/` implementation |
-| 11 | Reputation estimator (Elo/BT/TrueSkill) | **DESIGNED → VISION** | No `lib/reputation.ts`; ADR-0048 phase-6 gated on phase-5. The *design* is specified; nothing scores yet |
+| 11 | Reputation estimator (Elo/BT/TrueSkill) | **DESIGNED → VISION** | `lib/reputation.ts` doesn't exist yet; ADR-0048 phase-6 gated on phase-5. The *design* is specified; nothing scores yet |
 | 12 | Multi-dimensional reputation (accuracy/aesthetics/efficiency, neutral judges, never-ends) | **VISION** | Stated in seeds + ADR-0049 (pending); no spec for axis-aggregation or judge funding (Gaps #2, #3) |
 | 13 | Learned-outcome routing | **VISION** | Bandit/UCB routing template cited; not built |
 | 14 | Three-sided market (operator-for-hire / asset-rental / skill-licensing) | **DESIGNED, two-sided in reality** | Canonical honesty: *"three-sided by design; two-sided until reputation ships."* Sides 2 & 3 *exist iff* ADR-0040+reputation ship |

@@ -8,16 +8,31 @@ import {
   type ReactNode,
 } from 'react'
 import { cn } from '@/lib/utils'
+import {
+  DEFAULT_DAEMON_URL,
+  TUBE_KIND,
+  isTubeSimulated,
+  tubePoll,
+  tubePublish,
+  type TubeMessage,
+} from './tube-transport'
 
 /**
  * TubeWire — the reusable React primitive for the pd-tube demo suite.
  *
- * It owns the real Port Daddy tube protocol (POST to publish, GET ?after= to
- * poll for a reply) plus the house-style animation vocabulary: a cobalt send
- * pulse, an agent node that glows while awaiting a reply, a teal reply pulse,
- * and threaded reply cards that rise in.
+ * It owns the Port Daddy tube protocol (POST to publish, GET ?after= to poll
+ * for a reply) plus the house-style animation vocabulary: a cobalt send pulse,
+ * an agent node that glows while awaiting a reply, a teal reply pulse, and
+ * threaded reply cards that rise in.
  *
- * The protocol (CORS-allowed for the dev origin):
+ * Transport: publish/poll are routed through `tube-transport`, which resolves a
+ * LIVE daemon (local dev, `?daemon=<url>`, `VITE_PORT_DADDY_URL`, or the
+ * embedded `/fleet-ui` console) or a deterministic SIM replay (the public
+ * marketing site, where the visitor has no daemon on their loopback). The SIM
+ * path makes no network call, so it never trips the browser's Local Network
+ * permission prompt or fails with "Failed to fetch"; it is surfaced to the
+ * visitor with a "Simulated replay" badge (see `TubeSimBadge`).
+ *
  *   - Publish: POST <daemon>/msg/<channel>
  *       body { sender, payload: { v:1, kind:"tube.msg", body, inReplyTo? } }
  *       -> { id }
@@ -28,11 +43,12 @@ import { cn } from '@/lib/utils'
  * The hooks (usePublish, useReplyWatch) and the visual parts (Sender, Wire,
  * AgentNode, ReplyThread, fireTube) are exported separately so other demos
  * (Red-to-Green, Fan-Out, War Room, Editor Lightbulb) can compose them without
- * re-implementing fetch / poll / animation. The all-in-one <TubeWire /> wires
- * the common single-sender / single-agent layout for the simplest cases.
+ * re-implementing transport / animation. The all-in-one <TubeWire /> wires the
+ * common single-sender / single-agent layout for the simplest cases.
  *
- * Honesty: claims are advisory. There is no fake activity — every pulse is
- * driven by a real POST and a real reply (or a real timeout / error).
+ * Honesty: claims are advisory. A LIVE pulse is a real POST and a real reply (or
+ * a real timeout / error). A SIM pulse is a scripted replay, clearly labelled —
+ * we never present simulated chatter as a live agent.
  *
  * Reduced motion: when the user prefers reduced motion, pulses become instant
  * state markers (no travel animation, no looping), reply cards appear without
@@ -40,21 +56,9 @@ import { cn } from '@/lib/utils'
  * than a glow transition. Nothing animates on its own.
  */
 
-export const DEFAULT_DAEMON_URL = 'http://127.0.0.1:9876'
-export const TUBE_KIND = 'tube.msg'
-
-/** A Port Daddy tube message as returned by the daemon. */
-export interface TubeMessage {
-  id: number
-  sender?: string
-  payload: {
-    v?: number
-    kind?: string
-    body?: string
-    inReplyTo?: number
-    [key: string]: unknown
-  }
-}
+// Canonical definitions live in `tube-transport`; re-exported here for the many
+// callers that historically imported them from TubeWire.
+export { DEFAULT_DAEMON_URL, TUBE_KIND, isTubeSimulated, type TubeMessage }
 
 /** What `fireTube` reports back as it progresses through one round-trip. */
 export type TubePhase =
@@ -99,26 +103,19 @@ export function useReducedMotion(): boolean {
 // Hooks: usePublish / useReplyWatch
 // ---------------------------------------------------------------------------
 
-const msgUrl = (daemonUrl: string, channel: string) =>
-  `${daemonUrl.replace(/\/$/, '')}/msg/${encodeURIComponent(channel)}`
-
 /**
- * usePublish — POST a message to a channel. Returns the new message id.
+ * usePublish — publish a message to a channel. Returns the new message id.
  * The returned function is stable for a given (channel, daemonUrl).
+ *
+ * `daemonUrl` is optional: pass one to force the LIVE daemon at that URL;
+ * omit it and the transport resolves LIVE-vs-SIM for this page load.
  */
-export function usePublish(channel: string, daemonUrl: string = DEFAULT_DAEMON_URL) {
+export function usePublish(channel: string, daemonUrl?: string) {
   return useCallback(
     async (body: string, sender: string, inReplyTo?: number): Promise<number> => {
       const payload: TubeMessage['payload'] = { v: 1, kind: TUBE_KIND, body }
       if (typeof inReplyTo === 'number') payload.inReplyTo = inReplyTo
-      const res = await fetch(msgUrl(daemonUrl, channel), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender, payload }),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json = (await res.json()) as { id: number }
-      return json.id
+      return tubePublish(channel, sender, payload, daemonUrl)
     },
     [channel, daemonUrl],
   )
@@ -138,12 +135,19 @@ export interface ReplyWatchOptions {
   timeoutMs?: number
   /** Delay between polls. Default 700ms. */
   intervalMs?: number
+  /**
+   * When set, only accept a reply whose `sender` matches (case-insensitive).
+   * Lets fan-out lanes wait for *their* listener's reply rather than the first
+   * reply on the channel.
+   */
+  sender?: string
   signal?: AbortSignal
 }
 
 /**
  * waitForReply — poll a channel with ?after=<cursor> until a message whose
- * payload.inReplyTo === parentId arrives, or the timeout elapses.
+ * payload.inReplyTo === parentId arrives (optionally also matching `sender`),
+ * or the timeout elapses.
  *
  * Standalone (not a hook) so it can be called imperatively from a handler.
  * Throws TubeTimeoutError on timeout; rethrows transport errors as Error.
@@ -153,22 +157,24 @@ export async function waitForReply(
   parentId: number,
   opts: ReplyWatchOptions = {},
 ): Promise<TubeMessage> {
-  const daemonUrl = opts.daemonUrl ?? DEFAULT_DAEMON_URL
   const timeoutMs = opts.timeoutMs ?? 25_000
   const intervalMs = opts.intervalMs ?? 700
-  const url = msgUrl(daemonUrl, channel)
+  const senderFilter = opts.sender?.toLowerCase()
   const deadline = Date.now() + timeoutMs
   let cursor = parentId
 
   while (Date.now() < deadline) {
     if (opts.signal?.aborted) throw new DOMException('aborted', 'AbortError')
-    const res = await fetch(`${url}?after=${cursor}`, { signal: opts.signal })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const json = (await res.json()) as { messages?: TubeMessage[] }
-    for (const m of json.messages ?? []) {
+    const messages = await tubePoll(channel, cursor, {
+      signal: opts.signal,
+      daemonUrl: opts.daemonUrl,
+    })
+    for (const m of messages) {
       cursor = Math.max(cursor, m.id)
       const p = m.payload
-      if (p && p.kind === TUBE_KIND && p.inReplyTo === parentId) return m
+      if (!p || p.kind !== TUBE_KIND || p.inReplyTo !== parentId) continue
+      if (senderFilter && (m.sender ?? '').toLowerCase() !== senderFilter) continue
+      return m
     }
     await new Promise((r) => setTimeout(r, intervalMs))
   }
@@ -182,7 +188,7 @@ export async function waitForReply(
  */
 export function useReplyWatch(
   channel: string,
-  daemonUrl: string = DEFAULT_DAEMON_URL,
+  daemonUrl?: string,
   defaults: Omit<ReplyWatchOptions, 'daemonUrl' | 'signal'> = {},
 ) {
   const abortRef = useRef<AbortController | null>(null)
@@ -500,6 +506,35 @@ export function ReplyThread({
   )
 }
 
+/**
+ * TubeSimBadge — an honest "Simulated replay" pill, rendered only when the
+ * transport is in SIM mode (the public site). It tells the visitor the replies
+ * are scripted and how to get the real round-trip on their own machine. Returns
+ * null on the LIVE path, so local dev / the embedded console show no badge.
+ */
+export function TubeSimBadge({
+  channel,
+  className,
+}: {
+  channel?: string
+  className?: string
+}) {
+  if (!isTubeSimulated()) return null
+  return (
+    <span
+      title={`Scripted replay — no daemon on your machine is contacted. Run \`pd tube ${
+        channel ?? '<channel>'
+      }\` locally (or add ?daemon=<url>) for a real round-trip.`}
+      className={cn(
+        'inline-flex max-w-full items-center gap-[var(--space-1)] border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-2)] py-[2px] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]',
+        className,
+      )}
+    >
+      Simulated replay
+    </span>
+  )
+}
+
 /** A short, human-readable status line driven by the current phase. */
 export function TubeStatus({
   phase,
@@ -562,12 +597,13 @@ export function TubeStatus({
   return (
     <div
       className={cn(
-        'min-h-[1.4em] font-sans text-[length:var(--text-base)] text-[var(--text-secondary)]',
+        'flex min-h-[1.4em] flex-wrap items-center gap-[var(--space-2)] font-sans text-[length:var(--text-base)] text-[var(--text-secondary)]',
         className,
       )}
       aria-live="polite"
     >
-      {content}
+      <TubeSimBadge channel={channel} />
+      <span className="min-w-0 max-w-full">{content}</span>
     </div>
   )
 }
@@ -604,7 +640,7 @@ export interface TubeWireProps {
  */
 export function TubeWire({
   channel,
-  daemonUrl = DEFAULT_DAEMON_URL,
+  daemonUrl,
   sender = 'web-page',
   senderName = 'web page',
   agentName = 'agent',

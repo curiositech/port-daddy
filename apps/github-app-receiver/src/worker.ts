@@ -26,8 +26,9 @@
 import { buildEnvelope } from './forward.js';
 import { executeFleet } from './execute.js';
 import { handleRoadmapCommand } from './roadmap.js';
+import { emitCloudTelemetry, type PortDaddyTelemetryEnv } from './telemetry.js';
 
-export interface ExecutorEnv {
+export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   GITHUB_WEBHOOK_SECRET: string;
   GITHUB_APP_ID: string;
   GITHUB_APP_PRIVATE_KEY: string;
@@ -88,6 +89,16 @@ function parseJson(raw: string): Record<string, unknown> | null {
   }
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function asNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 export async function handleRequest(request: Request, env: ExecutorEnv, ctx: ExecutionContext): Promise<Response> {
   if (request.method !== 'POST') {
     return new Response('method not allowed', { status: 405 });
@@ -117,8 +128,32 @@ export async function handleRequest(request: Request, env: ExecutorEnv, ctx: Exe
   }
 
   const envelope = buildEnvelope({ event, delivery, payload: parsed, rawPayload: rawBody, signature });
+  const repo = asRecord(parsed.repository);
+  const pr = asRecord(parsed.pull_request);
+  const fullName = typeof repo?.full_name === 'string' ? repo.full_name : null;
+  const [owner, repoName] = fullName ? fullName.split('/') : [null, null];
+  const head = asRecord(pr?.head);
 
   // Respond immediately; dispatch runs in the background
+  ctx.waitUntil(
+    emitCloudTelemetry({
+      deliveryId: delivery,
+      event,
+      action: typeof parsed.action === 'string' ? parsed.action : null,
+      owner,
+      repo: repoName,
+      prNumber: asNumber(pr?.number),
+      sha: typeof head?.sha === 'string' ? head.sha : null,
+      status: 'accepted',
+      metadata: {
+        sender: asRecord(parsed.sender)?.login ?? null,
+        installationId: asNumber(asRecord(parsed.installation)?.id),
+      },
+    }, env).catch(err =>
+      console.error('cloud-telemetry accepted error', err instanceof Error ? err.message : String(err)),
+    ),
+  );
+
   if (env.AI && env.GITHUB_APP_ID && env.GITHUB_APP_PRIVATE_KEY) {
     ctx.waitUntil(
       executeFleet(envelope, env).catch(err =>

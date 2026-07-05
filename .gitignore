@@ -77,11 +77,18 @@ agentsd_mocks/
 # Ephemeral scratch for scripts/smoke-compiled-daemon.sh
 .smoke-tmp/
 
-# Local scratch/probe scripts and generated artifact lists
+# Local scratch/probe scripts and generated artifact lists.
+# Ignore nested .scratch/ trees, but keep the repository-root .scratch/ in git
+# because it holds operator research notes ("save research markdowns always").
+# Both negations are needed: !/.scratch/ re-opens the root directory, and
+# !/.scratch/** re-opens new files below it after **/.scratch/ matched them.
 **/.scratch/
+!/.scratch/
+!/.scratch/**
 
 # Xcode/SwiftPM user-specific and generated workspace files
 xcuserdata/
+*.xcuserstate
 **/.swiftpm/xcode/package.xcworkspace/
 
 # Ephemeral runtime lock files
@@ -106,3 +113,13 @@ xcuserdata/
 .codebuddy/skills/
 .agent/skills/
 .kiro/steering/
+
+# Privacy-scan remediation: machine-local config, build trees, and Xcode
+# per-user state must never be committed. Provisioning ids/secrets live in
+# wrangler.toml — use the checked-in *.example templates instead.
+apps/*/wrangler.toml
+**/.swiftpm/xcode/package.xcworkspace/xcuserdata/
+**/*.xcuserstate
+
+# Generated from com.portdaddy.fleetbar.plist.template by apps/FleetBar/install.sh
+apps/FleetBar/com.portdaddy.fleetbar.plist

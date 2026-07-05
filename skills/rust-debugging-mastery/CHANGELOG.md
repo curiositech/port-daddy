@@ -25,3 +25,7 @@ Initial release.
 - Grounded in current (June 2026) crate versions and Apple man pages / real GitHub issues; URLs cited
   in each reference. Accuracy notes encoded: `DYLD_FALLBACK_LIBRARY_PATH` has no default for Fall-2023+
   binaries; FFI panic-unwind is a defined abort since Rust 1.81 (UB before).
+
+## v1.1.0 (2026-07-03)
+
+- Added `io-contract` frontmatter + `debug_plan_audit.mjs` deterministic auditor, schema, and sample fixtures

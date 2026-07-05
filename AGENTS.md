@@ -11,7 +11,7 @@ These landed on `main` in the last few weeks. The installed Homebrew `pd` binary
 - **Coast Guard — OS-sandbox confinement + compulsion rent** (`docs/adr/0050-coast-guard.md`; `lib/coast-guard.ts`, `lib/coast-guard/compulsion.ts`). Every spawned subprocess is confined (Seatbelt on macOS, bubblewrap/Landlock on Linux), managed secrets scrubbed from the child env, hard egress cap (`402 Spend Cap Exceeded`); wired into `lib/spawner.ts` as the default. The compulsion: an un-noted commit blocks the next commit (`requireNotePerCommit`); a silent, drifted sandbox becomes reclaim-eligible but reclaim never touches the live main checkout. Read path: `pd coast-guard status` (alias `pd cg`).
 - **Attest — honest self-report** (ADR-0045; `cli/commands/attest.ts`, `lib/attest.ts`). `pd attest` exits NON-ZERO when any CRITICAL invariant fails (safe for boot/CI gates); `pd attest --json` for the merged report. No subcommands.
 - **Tube — conversational pipe over channels** (`cli/commands/tube.ts`). Multi-subscriber, relay-independent. `pd tube <channel>` listens; `--send`, `--reply`, `--once`. Prefer a persistent tube channel over point-to-point inboxes for agent↔agent back-and-forth — see `## Architecture truths` below.
-- **Rust surfaces** (in `core/`): `core/pd-tui` (ratatui), `core/pd-bosun`, `core/harbor-card-rs` are separate crates on `main` — there is **no single landed "rust kernel"**. `core/pd-console` (the GPUI conversation-multiplexer) is **unlanded** (PRs #306/#318). Reconcile against `## Architecture truths` before scaffolding any new Rust shell.
+- **Rust surfaces** (in `core/`): `core/pd-tui` (ratatui), `core/pd-bosun`, `core/harbor-card-rs`, and `core/pd-console` (GPUI operator console) are separate crates on `main` — there is **no single landed "rust kernel"**. `pd-console` is landed, but it is not the sibling kernel-rs runtime; reconcile against `## Architecture truths` and the pd-console lane rules before scaffolding any new Rust shell.
 - **Design-stage / in-flight (do NOT document as shipped):** marketplace (ADR-0051), trajectory export + RL loop (ADR-0052), out-of-band enforcement / "DOM DADDY" (ADR-0053, in-flight PR #366), and a release-cadence + Rust-surface-alignment ADR (ADR-0054, being written in parallel — the canonical answer to "is this in my installed `pd`?" once it lands). These are not on every branch; reference by number, do not invent their verbs.
 
 The PR review gate is **backend-agnostic**: any Port Daddy fleet agent — any backend, not specifically Claude — acting adversarial, skeptical, and PM-minded. Respond to every Copilot / bot review comment; create tests where you can. See `## Pull Request Operating Procedure`.
@@ -38,6 +38,15 @@ The two Port Daddy skills are the operating instructions for *all* future agents
 - **`skills/port-daddy-internal-dev/SKILL.md`** — the contributor-only skill. Edit when the lesson is specific to editing *this* repo (release ceremony, internal actor embodiments, drift protocol, worked contributor examples).
 
 You are explicitly invited to fix errors, sharpen inefficient passages, and add anti-patterns the moment you notice them — no issue, ticket, or permission required. Same-slice edits (landing the doc fix alongside the code change that revealed the problem) are the default; retrospective edits days later are still owed and welcome. Both skills carry their own "Maintain These Skills" sections with the small ceremony (worktree, explicit-path staging, tests, Cartographer ping). Internal agents working on port-daddy itself own *both* surfaces continuously — split-decision rule lives in `port-daddy-internal-dev`.
+
+## Search & Matching Policy — hybrid, one shared embedder
+
+Operator directive (2026-07-04). Any search, matching, or classification over unstructured text — in a skill, a lib, a script, or the daemon — follows two rules:
+
+1. **Never ship lexical-only search.** BM25/TF-IDF alone is the floor, not the ship gate. Pair it with semantic similarity and fuse (RRF or equivalent). Keyword/substring lists remain banned outright.
+2. **One embedding model for everything.** The canonical local model is `Xenova/all-MiniLM-L6-v2` in the shared cache `~/.port-daddy/transformers-cache` (ADR-0061). TypeScript reuses `createLocalEmbedder()` from `lib/semantic-resolver.ts`; everything else (Python skills, shell scripts) shells out to **`pd embed`** (`text`/`stdin` → normalized 384-dim vectors as JSON; `status`/`prefetch` manage the cache). Do not introduce a second model, a per-skill model choice, or a remote embedding API for local matching.
+
+Lifecycle: `pd setup` offers the one-time ~27 MB download (cancellable); `pd doctor` detects a missing model and offers the same fetch as a repair; `pd embed prefetch` is the manual path. Degrading to lexical-only is allowed **only** as an explicit fallback that warns and points at `pd doctor`.
 
 ## Port Daddy First
 
@@ -524,8 +533,7 @@ These bite every contributor session; they are not theoretical.
 ## Control Plane
 
 - Before changing delegation UX, reread the product docs first:
-  - `docs/recovery/PD-AGENT-SORTIE-PLAN.md` for mission/sortie behavior
-  - `docs/DELEGATION-MODES.md` for spawn vs agent vs sortie vs fleet vs harbor
+  - `docs/DELEGATION-MODES.md` for spawn vs agent vs sortie vs fleet vs harbor (the standalone sortie plan doc was removed with the sortie surface in #638)
   - if source/docs promise a command or surface and the build does not have it, treat that as a drift bug to fix instead of silently redefining the product
 - `skills/port-daddy-agent-skill/SKILL.md` and `skills/port-daddy-agent-skill/references/api-reference.md` are release surfaces, not optional afterthoughts. If Port Daddy’s CLI, SDK, MCP, delegation model, website story, Mac app/FleetBar behavior, README install flow, or operator workflows change, update those skill docs and the matching docs/website/README surface in the same slice.
 - `pd agent` is a thin ad hoc wrapper over `/sugar/begin` + `/spawn` + `/sugar/done`, not a sortie object. Treat its UI presence as a manual job/run unless the launch explicitly came from the sortie workflow.
@@ -672,10 +680,10 @@ This rule has bitten us repeatedly when the daemon ran on a non-default port (CI
   the durable bus / suggestibility signal), **pd-runtime** (queue/scheduler = voyages),
   **pd-core** (deterministic kernel transitions), **pd-tui/pd-rs** (the console).
   **Do NOT scaffold yet-another Rust UI/daemon without reconciling here first** — the
-  TS repo's `core/pd-tui` (ratatui, landed), the unlanded `core/pd-console` (the
-  on-bus, backend-agnostic, OKLCH conversation-multiplexer engine — PRs #306/#318),
-  and kernel-rs's `pd-tui` are converging and must not fork into 3–4 rival shells.
-  On `main` today `core/` holds only `pd-tui`, `pd-bosun`, and `harbor-card-rs` —
+  TS repo's `core/pd-tui` (ratatui, landed), `core/pd-console` (the landed GPUI
+  on-bus, backend-agnostic, OKLCH conversation-multiplexer), and kernel-rs's
+  `pd-tui` are converging and must not fork into 3–4 rival shells.
+  On `main` today `core/` holds `pd-tui`, `pd-bosun`, `harbor-card-rs`, and `pd-console` —
   there is no single landed "rust kernel," only separate crates.
 - **Coordinate over DURABLE ids/channels, never `cli-<pid>`.** `cli-<pid>` is ephemeral
   (new per CLI invocation) — two agents using it can never reach each other and there

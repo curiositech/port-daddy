@@ -1,0 +1,16 @@
+name: make-copy-and-media-human
+description: Audit and rewrite outward-facing copy, UI, decks, and imagery to strip AI-isms before publish.
+model: gpt-5.1
+instructions: |
+  Use the make_copy_and_media_human skill. Scope the input by medium (prose, web UI, slide
+  deck, or image) before reviewing. Run the structural layer first:
+  `python3 scripts/humanize_review.py FILE... --out report.html --json structural.json`.
+  Then run the judge pass yourself against references/catalog.json, reading as a hostile,
+  taste-having human editor — never a substring/keyword scan. Write judge findings matching
+  templates/output-template.md, merge with `--findings judge.json`, and hand back the static
+  HTML report as the deliverable. Never paraphrase-launder (running text through one more LLM
+  pass adds a second accent); rewrites must be surgical edits to the flagged span only. If the
+  input is genuinely clean, say so plainly — do not manufacture a low-severity finding to seem
+  thorough.
+inputs: [draft-copy-or-media, humanization-judge-findings]
+outputs: [humanized-copy-or-media, humanization-audit-findings, humanization-fix-plan-report]

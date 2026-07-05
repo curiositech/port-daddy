@@ -18,9 +18,13 @@ import { messagingPlugin } from './messaging.js';
 import { locksPlugin } from './locks.js';
 import { agentsPlugin } from './agents.js';
 import { agentCockpitPlugin } from './agent-cockpit.js';
+import { agentRosterPlugin } from './agent-roster.js';
 import { activityPlugin } from './activity.js';
 import { webhooksPlugin } from './webhooks.js';
 import { githubWebhookPlugin } from './github-webhook.js';
+import { fleetWebhooksPlugin } from './fleet-webhooks.js';
+import { fleetApprovalsPlugin } from './fleet-approvals.js';
+import { fleetPushPlugin } from './fleet-push.js';
 import { relayPlugin } from './relay.js';
 import { configPlugin } from './config.js';
 import { projectsPlugin } from './projects.js';
@@ -35,6 +39,7 @@ import { suggestionsPlugin } from './suggestions.js';
 import { launchPlugin } from './launch.js';
 import { spawnPlugin } from './spawn.js';
 import { attestPlugin } from './attest.js';
+import { safePlugin } from './safe.js';
 import { transcriptsPlugin } from './transcripts.js';
 import { harborsPlugin } from './harbors.js';
 import { whoisPlugin } from './whois.js';
@@ -71,10 +76,12 @@ import { roadmapPlugin } from './roadmap.js';
 import { commitmentsPlugin } from './commitments.js';
 import { shipwrightPlugin } from './shipwright.js';
 import { usagePlugin } from './usage.js';
+import { cloudAppTelemetryPlugin } from './cloud-app-telemetry.js';
 import { testHooksPlugin } from './test-hooks.js';
 import { cockpitPlugin } from './cockpit.js';
 import { popperPlugin } from './popper.js';
 import { dispatchesPlugin } from './dispatches.js';
+import { visualTasksPlugin } from './visual-tasks.js';
 import { setupPlugin } from './setup.js';
 import { secretsPlugin } from './secrets.js';
 import { contextRoutes as contextPlugin } from './context.js';
@@ -108,6 +115,7 @@ export async function registerAllRoutes(
   await fastify.register(messagingPlugin, { deps } as any);
   await fastify.register(locksPlugin, { deps } as any);
   await fastify.register(agentsPlugin, { deps } as any);
+  await fastify.register(agentRosterPlugin, { deps } as any);
 
   // Agent Cockpit — "Watch + Grab the Wheel" Phase 0. Additive: GET
   // /agents/:id/stream (merged SSE) + POST /agents/:id/interrupt (soft steer).
@@ -119,6 +127,12 @@ export async function registerAllRoutes(
   await fastify.register(activityPlugin, { deps } as any);
   await fastify.register(webhooksPlugin, { deps } as any);
   await fastify.register(githubWebhookPlugin, { deps } as any);
+  // Fleet inbound webhook receiver (I/O wiring Phase 2, trust-gated).
+  await fastify.register(fleetWebhooksPlugin, { deps } as any);
+  // Trust-gate approval loop: WebSocket stream + REST decisions (ADR-0093 L2).
+  await fastify.register(fleetApprovalsPlugin, { deps } as any);
+  // Web Push (VAPID) so approval gates reach the operator's devices.
+  await fastify.register(fleetPushPlugin, { deps } as any);
 
   // Relay — daemon-side federation management (ADR-0049). Was SHIPPED-DEAD:
   // routes/relay.ts defined GET/POST /relay/config, /relay/status and
@@ -157,6 +171,10 @@ export async function registerAllRoutes(
   await fastify.register(launchPlugin, { deps } as any);
   await fastify.register(spawnPlugin, { deps } as any);
   await fastify.register(attestPlugin, { deps } as any);
+  // ADR-0088 Phase A: GET /safe/scan — the read-only host-safety posture audit.
+  // The A5 trust ledger it records into is daemon-resident (bun:sqlite), so the
+  // scan lives behind the daemon and the CLI/MCP both hit this one route.
+  await fastify.register(safePlugin, { deps } as any);
   await fastify.register(transcriptsPlugin, { deps } as any);
   await fastify.register(sortiesPlugin, { deps } as any);
   await fastify.register(harborsPlugin, { deps } as any);
@@ -201,6 +219,10 @@ export async function registerAllRoutes(
   if ((deps as any).counters && (deps as any).costTracker) {
     await fastify.register(observabilityPlugin, { deps } as any);
   }
+
+  // Cloud App telemetry — remote GitHub App / Cloudflare Worker events that
+  // never passed through the local spawner.
+  await fastify.register(cloudAppTelemetryPlugin, { deps } as any);
 
   // Prometheus metrics + JSON snapshots (powers /metrics dashboard page)
   if ((deps as any).metricsRegistry && (deps as any).db) {
@@ -315,6 +337,10 @@ export async function registerAllRoutes(
   if ((deps as { dispatchQueue?: unknown }).dispatchQueue) {
     await fastify.register(dispatchesPlugin, { deps } as any);
   }
+
+  // Visual task issue intake — browser/FleetBar POST /visual-tasks. This is
+  // product vocabulary over channels, blobs, inboxes, and dispatch queue writes.
+  await fastify.register(visualTasksPlugin, { deps } as any);
 
   // Context health overview — mounts when contextTracker dep is present.
   if ((deps as { contextTracker?: unknown }).contextTracker) {

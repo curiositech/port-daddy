@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/design-plan.schema.json",
+  "title": "Web Design Plan",
+  "description": "Structured description of a web design's compliance with web-design-expert's Quality Gates, checkable deterministically by scripts/design_audit.mjs.",
+  "type": "object",
+  "required": [
+    "primaryActionObviousWithin3s",
+    "textContrastMinRatio",
+    "worksAt320pxNoHscroll",
+    "touchTargetsMinPx",
+    "brandColorsConsistent",
+    "fontWeightsCount",
+    "fontSizesCount",
+    "loadInteractiveSeconds",
+    "navMatchesMentalModel",
+    "lightAndDark",
+    "interactiveStatesDefined"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "primaryActionObviousWithin3s": {
+      "type": "boolean",
+      "description": "Whether the primary user action (signup, purchase, etc.) is visually obvious within 3 seconds of page load."
+    },
+    "textContrastMinRatio": {
+      "type": "number",
+      "minimum": 0,
+      "description": "The lowest text-to-background contrast ratio anywhere in the design. Must be >= 4.5 for WCAG AA (3.0 is acceptable for large text only, but this field tracks the worst case)."
+    },
+    "worksAt320pxNoHscroll": {
+      "type": "boolean",
+      "description": "Whether the layout renders correctly at 320px viewport width without introducing horizontal scroll."
+    },
+    "touchTargetsMinPx": {
+      "type": "number",
+      "minimum": 0,
+      "description": "The smallest interactive touch target size in pixels. Must be >= 44."
+    },
+    "brandColorsConsistent": {
+      "type": "boolean",
+      "description": "Whether the same brand color role (primary, secondary, etc.) uses the same hex value across every component."
+    },
+    "fontWeightsCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total distinct font weights used across the design. Should be <= 3."
+    },
+    "fontSizesCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total distinct font sizes used across the design. Should be <= 4."
+    },
+    "loadInteractiveSeconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Measured or estimated time-to-interactive on a throttled 3G connection. Should be <= 3."
+    },
+    "navMatchesMentalModel": {
+      "type": "boolean",
+      "description": "Whether navigation matches the user's mental model, confirmed by a task-completion rate above 80%."
+    },
+    "lightAndDark": {
+      "type": "boolean",
+      "description": "Whether the design works correctly in both light and dark system color-scheme preferences."
+    },
+    "interactiveStatesDefined": {
+      "type": "boolean",
+      "description": "Whether hover, focus, and active states are all explicitly defined for interactive components."
+    },
+    "buttonStylesCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Optional: total distinct button visual styles used across the design. Should be <= 3 if provided."
+    },
+    "unjustifiedAnimationsCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Optional: count of animations or decorative elements with no stated user-facing purpose. Should be 0 if provided."
+    }
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/test-plan.schema.json",
+  "title": "Rust Test Plan",
+  "description": "A planned Rust test suite, described BEFORE the tests are written, so it can be audited for this skill's shibboleths (coverage theater, #[test] on async fn, mock echo, sleep-faked determinism, /tmp writes, an unasserted parity kernel-load, test deps outside [dev-dependencies]) with scripts/test_plan_audit.mjs.",
+  "type": "object",
+  "required": [
+    "tests",
+    "coverageTheaterRisk",
+    "testDepsInDevDeps",
+    "mockEcho",
+    "fakesDeterminismWithSleeps",
+    "parityAssertsKernelLoaded",
+    "writesToTmp"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "tests": {
+      "type": "array",
+      "minItems": 1,
+      "description": "One entry per planned test. A plan with zero tests cannot be audited meaningfully.",
+      "items": {
+        "type": "object",
+        "required": ["kind", "assertsValueNotType", "isAsync", "usesTokioTestNotTest"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Planned test name, e.g. 'bin_resolver::falls_back_when_path_missing'."
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["unit", "integration", "doc", "bench"],
+            "description": "Where the test lives: #[cfg(test)] mod (unit), tests/ dir (integration), /// doc comment (doc), or benches/ (bench, not part of the test gate)."
+          },
+          "assertsValueNotType": {
+            "type": "boolean",
+            "description": "True if the test asserts a specific value/variant/shape. False means it only checks is_ok()/is_some()/len()>0-style — coverage theater."
+          },
+          "isAsync": {
+            "type": "boolean",
+            "description": "True if the test function body is `async fn`."
+          },
+          "usesTokioTestNotTest": {
+            "type": "boolean",
+            "description": "True if an async test is attributed #[tokio::test] (or #[async_std::test]) rather than bare #[test]. Ignored when isAsync is false."
+          }
+        }
+      }
+    },
+    "coverageTheaterRisk": {
+      "type": "boolean",
+      "description": "True if this plan, taken as a whole, risks measuring execution instead of verification (assertions limited to is_ok/is_some/len()>0 across the suite)."
+    },
+    "testDepsInDevDeps": {
+      "type": "boolean",
+      "description": "True if test-only crates (proptest, criterion, mockall, insta, rstest, tempfile, ...) are declared under [dev-dependencies], not [dependencies]."
+    },
+    "mockEcho": {
+      "type": "boolean",
+      "description": "True if any planned test asserts a mock returns the exact value it was told to return (testing the mock framework, not the code)."
+    },
+    "fakesDeterminismWithSleeps": {
+      "type": "boolean",
+      "description": "True if flakiness in an async/concurrent test is planned to be papered over with thread::sleep/tokio::time::sleep or a bare retry, instead of a readiness signal or a paused clock."
+    },
+    "parityAssertsKernelLoaded": {
+      "type": "boolean",
+      "description": "For cross-language/FFI parity tests: true if the plan asserts the native kernel/dylib actually loaded before comparing outputs. Set true when there is no parity test in this plan (vacuously satisfied)."
+    },
+    "writesToTmp": {
+      "type": "boolean",
+      "description": "True if any planned test writes scratch data to a hardcoded /tmp path instead of tempfile::tempdir() or a repo-local scratch dir."
+    }
+  }
+}

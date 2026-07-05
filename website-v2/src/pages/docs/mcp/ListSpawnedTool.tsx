@@ -28,7 +28,7 @@ export default function ListSpawnedTool() {
         },
       ]}
       seeAlso={[
-        { name: 'spawn_agent', href: '/docs/mcp/spawn-agent' },
+        { name: 'spawn', href: '/docs/mcp/spawn' },
         { name: 'salvage', href: '/docs/mcp/salvage' },
         { name: 'SDK: listSpawned()', href: '/docs/sdk/list-spawned' },
       ]}

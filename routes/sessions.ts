@@ -5,7 +5,8 @@
  * GET    /sessions                - List sessions
  * GET    /sessions/:id            - Get session details
  * PUT    /sessions/:id            - End or abandon a session
- * DELETE /sessions/:id            - Delete session + cascade notes
+ * POST   /sessions/:id/takeover   - Start a successor session without deleting notes
+ * DELETE /sessions/:id            - Archive session, preserving notes
  * POST   /sessions/:id/notes      - Add a note to a session (compat alias for /notes)
  * GET    /sessions/:id/notes      - Get notes for a session
  * POST   /sessions/:id/files      - Claim files for a session
@@ -37,6 +38,16 @@ interface SessionsRouteDeps {
     }): Record<string, unknown>;
     abandon(sessionId: string): Record<string, unknown>;
     remove(sessionId: string): Record<string, unknown>;
+    takeover(sessionId: string, options?: {
+      agentId?: string | null;
+      purpose?: string | null;
+      note?: string | null;
+      project?: string | null;
+      worktreeId?: string | null;
+      metadata?: Record<string, unknown> | null;
+      durable?: boolean;
+      claimFiles?: boolean;
+    }): Record<string, unknown>;
     quickNote(content: string, options?: {
       sessionId?: string | null;
       agentId?: string | null;
@@ -517,6 +528,69 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
   });
 
+  // POST /sessions/:id/takeover - Non-destructively continue an existing session
+  fastify.post('/sessions/:id/takeover', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const sessionIdParam = (request.params as any).id;
+      const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
+      const body = (request.body || {}) as any;
+      const sessionAgent = mutationAgentId(request, body.agentId);
+      if (!sessionAgent.success) {
+        reply.code(400);
+        return sessionAgent.result;
+      }
+      const lifecycle = parseSessionLifecycle(body.lifecycle);
+      const worktreePolicy = evaluateSessionWorktreePolicy({
+        worktree: body.worktree,
+        requireLinkedWorktree: body.requireLinkedWorktree,
+        allowMainWorktree: body.allowMainWorktree,
+      });
+      if (!worktreePolicy.success) {
+        reply.code(400);
+        return worktreePolicy;
+      }
+      const metadata = mergeSessionWorktreeMetadata(
+        body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : null,
+        worktreePolicy.worktree,
+        {
+          requireLinkedWorktree: body.requireLinkedWorktree,
+          allowMainWorktree: body.allowMainWorktree,
+        },
+      );
+
+      const result = sessions.takeover(sessionId, {
+        agentId: sessionAgent.agentId,
+        purpose: typeof body.purpose === 'string' ? body.purpose : null,
+        note: typeof body.note === 'string' ? body.note : null,
+        project: typeof body.project === 'string' ? body.project : null,
+        worktreeId: typeof body.worktreeId === 'string' ? body.worktreeId : worktreePolicy.worktree?.id ?? null,
+        metadata,
+        durable: lifecycle ? lifecycle === 'durable' : typeof body.durable === 'boolean' ? body.durable : undefined,
+        claimFiles: typeof body.claimFiles === 'boolean' ? body.claimFiles : undefined,
+      });
+
+      if (!result.success) {
+        const statusCode = result.code === 'VALIDATION_ERROR' ? 400 : 404;
+        reply.code(statusCode);
+        return result;
+      }
+
+      logger.info('session_taken_over', {
+        predecessorId: result.predecessorId,
+        successorId: result.successorId,
+        claimsTransferred: result.claimsTransferred,
+      });
+
+      return result;
+
+    } catch (error) {
+      metrics.errors++;
+      logger.error('session_takeover_error', { error: (error as Error).message });
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+
   // PUT /sessions/:id/phase - Set session phase
   fastify.put('/sessions/:id/phase', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -568,7 +642,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
   });
 
-  // DELETE /sessions/:id - Delete session + cascade notes
+  // DELETE /sessions/:id - Archive session and preserve notes
   fastify.delete('/sessions/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const sessionIdParam = (request.params as any).id;
@@ -581,11 +655,11 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return { ...result, code: 'SESSION_NOT_FOUND' };
       }
 
-      logger.info('session_deleted', { sessionId });
+      logger.info('session_archived', { sessionId, notesPreserved: result.notesPreserved });
 
       return {
-        success: true,
-        message: `Session "${sessionId}" removed`
+        ...result,
+        message: `Session "${sessionId}" archived; notes preserved`
       };
 
     } catch (error) {

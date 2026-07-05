@@ -1,0 +1,37 @@
+{
+  "appName": "pd-console fleet operator surface",
+  "transparency": {
+    "thinkingVisible": true,
+    "toolUseVisible": true,
+    "planBeforeAct": true,
+    "interruptible": true
+  },
+  "stateModel": {
+    "durableHistory": true,
+    "forking": true,
+    "rename": true,
+    "episodicMemory": true
+  },
+  "contextStrategy": {
+    "caching": true,
+    "eviction": true,
+    "memoryPromotion": true
+  },
+  "capabilities": {
+    "tools": true,
+    "skills": true,
+    "mcp": {
+      "coreSize": 6,
+      "perProjectSpecialists": true
+    },
+    "secretCustody": {
+      "mode": "hidden-stdin"
+    }
+  },
+  "execution": {
+    "agentType": "coding",
+    "isolation": true,
+    "sideEffectHumanGate": true,
+    "artifactReceipts": true
+  }
+}

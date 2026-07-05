@@ -1,0 +1,19 @@
+{
+  "ceremony": "both",
+  "library": "simplewebauthn",
+  "challengeSource": "server",
+  "challengeSingleUse": true,
+  "verifiesChallengeMatch": true,
+  "verifiesOrigin": true,
+  "verifiesRpIdHash": true,
+  "verifiesSignature": true,
+  "counterCheckImplemented": true,
+  "userIdKind": "random-opaque",
+  "residentKey": "required",
+  "userVerification": "preferred",
+  "attestation": "none",
+  "conditionalUiEnabled": true,
+  "allowCredentialsEmptyForConditional": true,
+  "excludeCredentialsPopulated": true,
+  "storesBackupFlags": true
+}

@@ -1,10 +1,45 @@
 # I/O Wiring — Registry → Engine Build Plan
 
-Status: **Phase 1 implemented in this branch (`feat/io-wiring-registry`).** Phases
-2–5 are ROADMAP. The honesty rule is load-bearing: a channel is only "shipped"
+Status (2026-07-04, branch `worktree-io-wiring-finish`):
+**Phase 1 SHIPPED (PR #539). ADR-0093 trust gate WIRED into the engine
+(hard dependency of every untrusted-ingress phase). Phase 2 SHIPPED
+(webhook receiver + notify + `pd fleet sources` health board). Email OUT
+SHIPPED (worker/SendGrid/Postmark transports; raw SMTP honestly refused).
+Email IN SHIPPED via Cloudflare Email Routing → apps/email-ingress Worker
+(push-based, no IMAP creds; the IMAP poll path remains STUB). SMS (Twilio)
+intentionally skipped. CALENDAR SHIPPED, both directions and both
+backends: macOS EventKit via the compiled `pd-calendar-helper`
+(tools/pd-calendar-helper.swift; one-time `pd fleet calendar grant` TCC
+consent required before it arms — WIRED until granted) and Google Calendar
+(OAuth refresh flow, `singleEvents=true`, creds-gated). Phase 5's iMessage
+half remains ROADMAP.**
+
+Calendar trust + privacy posture (per the agentic-calendar-coordination
+skill and ADR-0093): calendar is an EXTERNAL trigger kind — spam invites
+are attacker-controlled content, so the OS read grant never sets
+consent_verified; the emitted payload is minimized (title/time/location/
+conference URL — never notes or attendee lists; the organizer address
+rides only in metadata.sender for allowlist matching); all timestamps are
+UTC-internal; recurring events are expanded to per-occurrence instances
+before dedup.
+
+The honesty rule is load-bearing: a channel is only "shipped"
 when it has real creds-or-no-creds dispatch AND a green end-to-end test. Anything
 short of that is tagged `WIRED` (resolves through the engine but `available()`
 returns `{ready:false}`) or `STUB`.
+
+Every registry-trigger fire now passes the ADR-0093 trust gate
+(`evaluateTrustGate` in `lib/fleet-engine.ts`) before `requestAgentRun`:
+external provenance requires operator approval (durable `fleet:approval`
+tuples; fail-closed refusal when no approval seam is wired), and declared
+tools are validated against the tier's safe set.
+
+Email-IN operator setup (portdaddy.dev): the `pd-email-ingress` Worker is
+deployed with inbound+outbound configured (`/healthz` → all true). Two
+manual steps remain: (1) an Email Routing rule pointing an address (e.g.
+fleet@portdaddy.dev) at the Worker — zone-scoped, needs the dashboard or a
+token with Email Routing:Edit; (2) a public daemon URL (pd tunnel) set as
+the Worker's PD_FORWARD_URL var, then redeploy.
 
 This plan grounds in two facts verified by reading the code (June 2026), not the
 design summary:

@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pd-console — command room (ch20 Story Linework, converged)</title>
+<!--
+  CONVERGED build per binder ch20 "Design System: Story Linework".
+  Palette v2 dark = near-black #101216 (Amendment A·1 — operator fork; the
+  2026-07-05 warm-ebony skin is retired, its CONTENT patterns are kept).
+  Values from docs/design/story-linework/ports/port.css [data-theme="dark"].
+  Hard rules honored: hues as accents never chrome (R1); one color zone —
+  the Gates consent count; concurrent heat pulses in the list (R2); zero
+  radius, zero shadow; 1px texture / 1.5px linework / 3px stripes, no 2px
+  adjacent to 1.5 (R6); state = stripe + dot + micro-flag + word + relative
+  time, never color alone (R8); pulse only while work is in flight,
+  reduced-motion freezes to a still ring (R9); brackets mark THE live panel
+  and nothing else. Flag map per lib/maritime-signals.ts (Amendment A·3).
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600;700&family=Recursive:CASL,wght@1,400..700&display=swap" rel="stylesheet">
+<style>
+  /* ══════════ tokens — palette v2, dark theme (port.css verbatim) ══════════ */
+  :root {
+    --surface-base:   #101216;
+    --surface-raised: #181c22;
+    --surface-strong: #222833;
+    --surface-sunken: #0b0d11;
+    --text-primary:   #f5f3ed;
+    --text-secondary: #d3cec2;
+    --text-muted:     #a59f93;
+    --text-ghost:     #5c574e;
+    --inverse:        #121212;
+
+    --cobalt: #7db4ff;   /* L0 truth / WATCH */
+    --teal:   #8fd0a7;   /* L2 legibility / WORK */
+    --health: #5fce97;
+    --violet: #e0a5ed;   /* identity / TRUTH */
+    --gold:   #d8dd3c;   /* L3 economy — cost surfaces ONLY */
+    --amber:  #f2be51;   /* warning */
+    --error:  #ff7d7d;   /* signal-red */
+    --lime:   #cad900;
+
+    --flag-white: #fbf7ef;                  /* rule 7: theme-independent */
+    --hair: rgba(245, 243, 237, 0.25);      /* 1px texture — dividers */
+    --ink:  #f5f3ed;                        /* linework is always ink (R1) */
+
+    --lw-weight: 1.5px;   /* linework: brackets, pulse rings */
+    --lw-bracket: 12px;
+    --lw-stripe: 3px;     /* state + layer stripes */
+
+    --sans: "IBM Plex Sans", "Helvetica Neue", sans-serif;
+    --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  }
+
+  /* discipline: zero radius, zero shadow, everywhere */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; border-radius: 0 !important; box-shadow: none !important; }
+
+  html, body { height: 100%; }
+  body {
+    background: var(--surface-base);
+    color: var(--text-primary);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.5;
+    min-width: 1360px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono, code, kbd { font-family: var(--mono); font-variant-numeric: tabular-nums slashed-zero; }
+
+  :focus-visible { outline: var(--lw-weight) solid var(--cobalt); outline-offset: 2px; }
+
+  button {
+    font-family: var(--sans); font-size: 14px; font-weight: 600;
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid var(--hair); padding: 4px 12px; cursor: pointer;
+  }
+  button:hover { color: var(--text-primary); border-color: var(--ink); }
+  button:disabled { cursor: not-allowed; opacity: 0.5; }
+
+  /* 12px is the sanctioned eyebrow exception: weight 700, uppercase, tracking ≥0.1em */
+  .eyebrow {
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted);
+  }
+
+  /* the play voice — Recursive casual, ONE display em-phrase per surface */
+  .rec { font-family: "Recursive", var(--sans); font-variation-settings: "CASL" 1; font-weight: 620; font-style: normal; }
+
+  svg.flag { display: inline-block; flex: none; }
+
+  /* ══════════ frame ══════════ */
+  .console {
+    display: grid;
+    grid-template-rows: 56px 1fr 40px;
+    grid-template-columns: 224px 396px 1fr;
+    grid-template-areas:
+      "topbar topbar topbar"
+      "rail   roster detail"
+      "status status status";
+    height: 100vh;
+    min-height: 820px;
+  }
+
+  /* ══════════ top bar ══════════ */
+  .topbar {
+    grid-area: topbar;
+    display: flex; align-items: center; gap: 20px;
+    padding: 0 18px;
+    background: var(--surface-raised);
+    border-bottom: 1px solid var(--hair);
+  }
+  .topbar .brand { display: flex; align-items: baseline; gap: 10px; white-space: nowrap; }
+  .topbar .brand .name { font-size: 17px; font-weight: 700; letter-spacing: 0.02em; }
+  .topbar .brand .sep { color: var(--text-ghost); }
+  .topbar .brand .repo { font-family: var(--mono); font-size: 15px; font-weight: 600; color: var(--text-secondary); }
+  .search {
+    flex: 1; max-width: 540px;
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface-sunken); color: var(--text-muted);
+    border: 1px solid var(--hair);
+    padding: 6px 12px; font-size: 15px; font-weight: 400; text-align: left;
+  }
+  .search:hover { color: var(--text-secondary); border-color: var(--ink); }
+  .search kbd { font-size: 13px; font-weight: 700; color: var(--text-secondary); border: 1px solid var(--hair); padding: 0 5px; }
+  .conjure {
+    margin-left: auto;
+    font-family: var(--mono); font-size: 13.5px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    background: var(--ink); color: var(--inverse); border: none;
+    padding: 9px 20px;
+  }
+  .conjure:hover { background: var(--text-secondary); color: var(--inverse); }
+
+  /* ══════════ left rail — layer-hued groups, items stay ink (R1) ══════════ */
+  .rail {
+    grid-area: rail;
+    display: flex; flex-direction: column;
+    border-right: 1px solid var(--hair);
+    overflow-y: auto;
+    padding-top: 16px;
+  }
+  .rail .group { margin-bottom: 20px; }
+  .rail .group > .eyebrow {
+    display: block; padding: 2px 16px 8px 13px;
+    border-left: var(--lw-stripe) solid var(--layer, var(--text-ghost));
+  }
+  .rail .group.watch { --layer: var(--cobalt); }
+  .rail .group.work  { --layer: var(--teal); }
+  .rail .group.truth { --layer: var(--violet); }
+  .rail a {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 16px;
+    color: var(--text-secondary); text-decoration: none;
+    font-size: 15px; font-weight: 400;
+  }
+  .rail a:hover { color: var(--text-primary); background: var(--surface-raised); }
+  .rail a.active { color: var(--text-primary); background: var(--surface-raised); font-weight: 600; }
+  /* THE one color zone of this view: the consent count. A second hot
+     thing never gets a zone — it pulses in the roster instead (R2). */
+  .rail .count {
+    margin-left: auto;
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    background: var(--error); color: var(--inverse);
+    min-width: 20px; text-align: center; padding: 1px 5px;
+  }
+
+  /* ══════════ center roster ══════════ */
+  .roster {
+    grid-area: roster;
+    border-right: 1px solid var(--hair);
+    overflow-y: auto;
+  }
+  .roster-head { display: flex; align-items: baseline; gap: 10px; padding: 12px 16px 9px; }
+  .roster-head h2 { font-size: 21px; font-weight: 700; letter-spacing: -0.012em; }
+  .roster-head .sub { font-size: 14px; color: var(--text-muted); }
+
+  /* group head + rows: rule 8 — stripe + dot + micro-flag + word + relative
+     time. Color is never the only channel. */
+  .state-head {
+    display: flex; align-items: center; gap: 9px;
+    padding: 5px 16px 4px 13px;
+    border-top: 1px solid var(--hair);
+    border-left: var(--lw-stripe) solid var(--state, var(--text-ghost));
+    background: var(--surface-raised);
+    font-size: 13px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-primary);
+  }
+  .state-head .word { color: var(--state, var(--text-secondary)); }
+  .state-head .n { margin-left: auto; font-family: var(--mono); color: var(--text-muted); }
+  .g-needs { --state: var(--error); }
+  .g-work  { --state: var(--health); }
+  .g-stale { --state: var(--amber); }
+  .g-new   { --state: var(--lime); }
+  .g-idle  { --state: var(--text-ghost); }
+
+  .agent-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 8px 14px 1fr auto;
+    gap: 2px 9px;
+    padding: 6px 16px 6px 13px;
+    border-top: 1px solid var(--hair);
+    border-left: var(--lw-stripe) solid var(--state, var(--text-ghost));
+    align-items: center;
+    cursor: pointer;
+  }
+  .agent-row:hover, .agent-row.selected { background: var(--surface-raised); }
+  .agent-row .dot { width: 8px; height: 8px; border-radius: 50% !important; background: var(--state); position: relative; }
+  /* pulse ring: 1.5px linework, in-flight rows ONLY (R9) */
+  .agent-row.inflight .dot::after {
+    content: ""; position: absolute; inset: -4px; border-radius: 50% !important;
+    border: var(--lw-weight) solid var(--state); opacity: 0.5;
+    animation: lw-pulse 1.8s ease-out infinite;
+  }
+  @keyframes lw-pulse { 0% { transform: scale(0.7); opacity: 0.7; } 100% { transform: scale(1.9); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .agent-row.inflight .dot::after, .live-dot::after { animation: none !important; transform: scale(1.3); opacity: 0.5; }
+  }
+  .agent-row .name { font-family: var(--mono); font-size: 15px; font-weight: 600; color: var(--text-primary); }
+  .agent-row .meta { font-family: var(--mono); font-size: 14px; color: var(--text-muted); white-space: nowrap; text-align: right; }
+  .agent-row .step { grid-column: 3 / 5; font-size: 14.5px; color: var(--text-secondary); }
+  .agent-row.needs .step { color: var(--error); font-weight: 600; }
+  .agent-row .remedy { color: var(--amber); }  /* remediation, not a debug row */
+  .agent-row .snippet {
+    grid-column: 3 / 5;
+    font-family: var(--mono); font-size: 13.5px; color: var(--text-muted);
+    border-left: 1px solid var(--hair); padding-left: 9px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .agent-row .actions { grid-column: 3 / 5; margin-top: 2px; display: flex; gap: 8px; }
+  .agent-row .actions button { padding: 2px 12px; }
+  .btn-review  { border-color: var(--error); color: var(--error); font-weight: 700; }
+  .btn-review:hover  { background: var(--error); color: var(--inverse); border-color: var(--error); }
+  .btn-salvage { border-color: var(--amber); color: var(--amber); }
+  .btn-salvage:hover { background: var(--amber); color: var(--inverse); border-color: var(--amber); }
+  .btn-nudge   { border-color: var(--lime); color: var(--lime); }
+  .btn-nudge:hover   { background: var(--lime); color: var(--inverse); border-color: var(--lime); }
+
+  .tag-new {
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--lime); border: 1px solid var(--lime);
+    padding: 0 5px; margin-left: 7px; vertical-align: 1px;
+  }
+
+  .idle-summary {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 16px 9px 13px;
+    border-top: 1px solid var(--hair);
+    border-left: var(--lw-stripe) solid var(--text-ghost);
+    color: var(--text-muted); font-size: 14.5px;
+  }
+  /* the surface's one Recursive display em-phrase — a teaching state, not chrome */
+  .idle-summary .rec { color: var(--text-secondary); font-size: 16px; }
+  .idle-summary .expand { margin-left: auto; white-space: nowrap; flex: none; }
+
+  /* ══════════ right detail — THE live panel; the only brackets ══════════ */
+  .detail {
+    grid-area: detail;
+    position: relative;
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  /* corner brackets: 12px L-ticks at 1.5px, ink — first four children by contract */
+  .detail > i.lw {
+    position: absolute; z-index: 5; width: var(--lw-bracket); height: var(--lw-bracket);
+    border: 0 solid var(--ink); pointer-events: none;
+  }
+  .detail > i.lw:nth-child(1) { top: 5px; left: 5px; border-top-width: var(--lw-weight); border-left-width: var(--lw-weight); }
+  .detail > i.lw:nth-child(2) { top: 5px; right: 5px; border-top-width: var(--lw-weight); border-right-width: var(--lw-weight); }
+  .detail > i.lw:nth-child(3) { bottom: 5px; left: 5px; border-bottom-width: var(--lw-weight); border-left-width: var(--lw-weight); }
+  .detail > i.lw:nth-child(4) { bottom: 5px; right: 5px; border-bottom-width: var(--lw-weight); border-right-width: var(--lw-weight); }
+
+  .detail-head {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px;
+    padding: 16px 24px 14px;
+    border-bottom: 1px solid var(--hair);
+  }
+  .detail-head h2 {
+    font-size: 25px; font-weight: 700; letter-spacing: -0.02em;
+    font-family: var(--mono);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .detail-head h2 svg.flag { width: 21px; height: 15px; }
+  .live-word {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.1em;
+    color: var(--text-primary);
+  }
+  .live-dot { width: 9px; height: 9px; border-radius: 50% !important; background: var(--health); position: relative; }
+  .live-dot::after {
+    content: ""; position: absolute; inset: -4px; border-radius: 50% !important;
+    border: var(--lw-weight) solid var(--health); opacity: 0.5;
+    animation: lw-pulse 1.8s ease-out infinite;
+  }
+  .live-caption { font-size: 14px; color: var(--text-muted); }
+  .head-actions { margin-left: auto; display: flex; gap: 8px; }
+  .btn-interrupt { border-color: var(--error); color: var(--error); }
+  .btn-interrupt:hover { background: var(--error); color: var(--inverse); border-color: var(--error); }
+
+  .detail-body { flex: 1; display: flex; flex-direction: column; padding: 16px 24px 0; min-height: 0; }
+
+  .panel { border: 1px solid var(--hair); margin-bottom: 16px; background: var(--surface-raised); }
+  .panel-title {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--hair);
+  }
+  .panel-title .eyebrow { color: var(--text-primary); }
+  .panel-title .hint { font-size: 14px; color: var(--text-muted); margin-left: auto; }
+
+  /* live transcript — first-class, above the fold */
+  .transcript { background: var(--surface-sunken); font-family: var(--mono); font-size: 14px; line-height: 1.6; padding: 8px 0; }
+  .tline {
+    display: grid; grid-template-columns: 72px 52px 1fr; gap: 12px;
+    padding: 4px 14px 4px 11px;
+    border-left: var(--lw-stripe) solid transparent;
+  }
+  .tline .ts { color: var(--text-ghost); }
+  .tline .kind { font-weight: 700; }
+  .tline .kind.tool    { color: var(--cobalt); }
+  .tline .kind.thought { color: var(--text-muted); }
+  .tline .kind.pd      { color: var(--teal); }
+  .tline .kind.note    { color: var(--violet); }
+  .tline .body { color: var(--text-secondary); overflow-wrap: anywhere; }
+  .tline .body .pass { color: var(--health); font-weight: 700; }
+  .tline .body .add  { color: var(--health); }
+  .tline .body .del  { color: var(--error); }
+  .tline .body .thought-text { color: var(--text-muted); font-style: italic; }
+  .tline.newest { border-left-color: var(--gold); background: var(--surface-raised); }
+  .tline.newest .body { color: var(--text-primary); }
+
+  /* files + claims */
+  .panel-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .plain-list { list-style: none; }
+  .plain-list li {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 14px;
+    border-top: 1px solid var(--hair);
+    font-family: var(--mono); font-size: 14px;
+  }
+  .plain-list li:first-child { border-top: 0; }
+  .plain-list .path { overflow-wrap: anywhere; color: var(--text-secondary); }
+  .plain-list .delta { margin-left: auto; white-space: nowrap; }
+  .plain-list .delta .add { color: var(--health); font-weight: 700; }
+  .plain-list .delta .del { color: var(--error); font-weight: 700; }
+  .chip {
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 1px 7px; border: 1px solid var(--hair);
+    color: var(--text-muted); white-space: nowrap;
+  }
+  .chip.mine   { border-color: var(--teal); color: var(--teal); }
+  .chip.symbol { border-color: var(--violet); color: var(--violet); }
+  .chip.region { border-color: var(--violet); color: var(--violet); }
+  .claim-kind { color: var(--text-muted); white-space: nowrap; }
+
+  /* cost ribbon — economy is the ONLY legitimate gold; cost shown at the
+     consent surface, not sprinkled through the roster */
+  .cost-ribbon {
+    display: flex; align-items: center; gap: 14px;
+    border: 1px solid var(--hair); border-bottom: 0;
+    background: var(--surface-raised);
+    padding: 7px 14px; margin-top: auto; font-size: 15px;
+  }
+  .cost-ribbon .eyebrow { color: var(--gold); }
+  .cost-ribbon .figures { font-family: var(--mono); font-weight: 700; color: var(--gold); }
+  .cost-ribbon .figures .cap { color: var(--text-muted); font-weight: 400; }
+  .cost-bar { flex: 1; max-width: 320px; height: 10px; border: 1px solid var(--hair); background: var(--surface-sunken); }
+  .cost-bar .fill { height: 100%; width: 21%; background: var(--gold); }
+  .cost-ribbon .pct { font-size: 14px; color: var(--text-muted); }
+
+  /* ══════════ status bar — hot-bus truth in mono ══════════ */
+  .statusbar {
+    grid-area: status;
+    display: flex; align-items: center; gap: 22px;
+    padding: 0 18px;
+    background: var(--surface-raised);
+    border-top: 1px solid var(--hair);
+    font-size: 14px; color: var(--text-secondary);
+  }
+  .statusbar .daemon { display: flex; align-items: center; gap: 8px; }
+  .statusbar .daemon .dot { width: 9px; height: 9px; border-radius: 50% !important; background: var(--health); }
+  .statusbar .daemon strong { font-family: var(--mono); font-weight: 700; color: var(--text-primary); }
+  .statusbar .bus { margin-left: auto; font-family: var(--mono); font-size: 14px; color: var(--text-muted); }
+  .statusbar .bus b { color: var(--text-secondary); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- ═══ ICS micro-flag defs, 14×10 — map per lib/maritime-signals.ts (A·3).
+     Palette-locked: red→error #ff7d7d, yellow→lime #cad900, blue→cobalt
+     #7db4ff, white→flag-white #fbf7ef (theme-independent, rule 7). ═══ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- HOTEL — claim-active: white/red vertical halves -->
+    <g id="flag-hotel"><rect width="7" height="10" fill="#fbf7ef"/><rect x="7" width="7" height="10" fill="#ff7d7d"/></g>
+    <!-- FOXTROT — awaiting-human: white field, red diamond -->
+    <g id="flag-foxtrot"><rect width="14" height="10" fill="#fbf7ef"/><polygon points="7,0 14,5 7,10 0,5" fill="#ff7d7d"/></g>
+    <!-- BRAVO — burning-cash: red swallowtail -->
+    <g id="flag-bravo"><polygon points="0,0 14,0 9.5,5 14,10 0,10" fill="#ff7d7d"/></g>
+    <!-- VICTOR — conflict: white field, red saltire -->
+    <g id="flag-victor"><rect width="14" height="10" fill="#fbf7ef"/><path d="M0 0 L14 10 M14 0 L0 10" stroke="#ff7d7d" stroke-width="2.4"/></g>
+    <!-- DELTA — blocked: yellow / blue / yellow bands (Pub 102) -->
+    <g id="flag-delta"><rect width="14" height="10" fill="#cad900"/><rect y="3.2" width="14" height="3.6" fill="#7db4ff"/></g>
+    <!-- YANKEE — claim-stale: yellow field, red diagonals -->
+    <g id="flag-yankee"><rect width="14" height="10" fill="#cad900"/><path d="M-2 3 L10 -3 M-2 9 L14 1 M2 13 L18 5 M8 13 L20 7" stroke="#ff7d7d" stroke-width="2"/></g>
+    <!-- MIKE — idle: white saltire on blue (Pub 102) -->
+    <g id="flag-mike"><rect width="14" height="10" fill="#7db4ff"/><path d="M0 0 L14 10 M14 0 L0 10" stroke="#fbf7ef" stroke-width="2.4"/></g>
+    <!-- QUEBEC — newcomer: solid yellow -->
+    <g id="flag-quebec"><rect width="14" height="10" fill="#cad900"/></g>
+  </defs>
+</svg>
+
+<div class="console">
+
+  <!-- ═══ TOP BAR ═══ -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="name">PORT DADDY</span>
+      <span class="sep" aria-hidden="true">—</span>
+      <span class="repo">main</span>
+    </div>
+    <button class="search" type="button" aria-label="Find anything, command K">
+      <kbd>&#8984;K</kbd> find anything — agents, files, claims, notes&hellip;
+    </button>
+    <button class="conjure" type="button">Conjure</button>
+  </header>
+
+  <!-- ═══ LEFT RAIL — layer hue on the group header stripe only ═══ -->
+  <aside class="rail" aria-label="Console navigation">
+    <div class="group watch">
+      <span class="eyebrow">Watch</span>
+      <a href="#" class="active" aria-current="page">Fleet</a>
+      <a href="#">Gates <span class="count" aria-label="1 gate awaiting consent">1</span></a>
+      <a href="#">Activity</a>
+    </div>
+    <div class="group work">
+      <span class="eyebrow">Work</span>
+      <a href="#">Sorties</a>
+      <a href="#">Claims</a>
+      <a href="#">PRs</a>
+      <a href="#">Planner</a>
+    </div>
+    <div class="group truth">
+      <span class="eyebrow">Truth</span>
+      <a href="#">Sessions</a>
+      <a href="#">Memory</a>
+      <a href="#">ADRs</a>
+      <a href="#">Health</a>
+      <a href="#">Cost</a>
+    </div>
+  </aside>
+
+  <!-- ═══ CENTER ROSTER — rule-8 state rows ═══ -->
+  <section class="roster" aria-label="Agent roster">
+    <div class="roster-head">
+      <h2>Fleet</h2>
+      <span class="sub">17 agents &middot; grouped by state</span>
+    </div>
+
+    <!-- NEEDS YOU -->
+    <div class="state-head g-needs">
+      <svg class="flag" width="14" height="10" viewBox="0 0 14 10" role="img" aria-label="Foxtrot flag"><use href="#flag-foxtrot"/></svg>
+      Foxtrot <span class="word">&mdash; Needs You</span> <span class="n">1</span>
+    </div>
+    <div class="agent-row needs g-needs" tabindex="0">
+      <span class="dot" aria-hidden="true"></span>
+      <svg class="flag" width="14" height="10" viewBox="0 0 14 10" role="img" aria-label="Foxtrot: awaiting human"><use href="#flag-foxtrot"/></svg>
+      <span class="name">code-reviewer</span>
+      <span class="meta">4m waiting</span>
+      <span class="step">waiting: merge consent for PR&nbsp;#664</span>
+      <span class="actions"><button class="btn-review" type="button">Review PR #664</button></span>
+    </div>
+
+    <!-- WORKING -->
+    <div class="state-head g-work">
+      <svg class="flag" width="14" height="10" viewBox="0 0 14 10" role="img" aria-label="Hotel flag"><use href="#flag-hotel"/></svg>
+      Hotel <span class="word">&mdash; Working</span> <span class="n">3</span>
+    </div>
+    <div class="agent-row g-work inflight" tabindex="0">
+      <span class="dot" aria-hidden="true"></span>
+      <svg class="flag" width="14" height="10" viewBox="0 0 14 10" role="img" aria-label="Hotel: claim active"><use href="#flag-hotel"/></svg>
+      <span class="name">mux-tracer</span>
+      <span class="meta">12m active</span>
+      <span class="step">tracing the spawn path in mux.rs</span>
+    </div>
+    <div class="agent-row g-work inflight selected" tabindex="0" aria-current="true">
+      <span class="dot" aria-hidden="true"></span>
+      <svg class="flag" width="14" height="10" viewBox="0 0 14 10" role="img" aria-label="Hotel: claim active"><use href="#flag-hotel"/></svg>
+      <span class="name">queue-surgeon</span>
+      <span class="meta">23m active</span>
+      <span class="step">fixing the retry double-fire in lib/merge-queue.ts</span>
+      <span class="snippet">14:05:12 note &middot; scope holding: adding regression test next</span>
+    </div>
+    <div class="agent-row g-work inflight" tabindex="0">
+      <span class="dot" aria-hidden="true"></span>
+      <svg class="flag" width="14" height="10" viewBox="0 0 14 10" role="img" aria-label="Hotel: claim active"><use href="#flag-hotel"/></svg>
+      <span class="name">doc-mender</span>
+      <span class="meta">6m active</span>
+      <span class="step">syncing README port table with CLI flags</span>
+    </div>
+
+    <!-- STALE -->
+    <div class="state-head g-stale">
+      <svg class="flag" width="14" height="10" viewBox="0 0 14 10" role="img" aria-label="Yankee flag"><use href="#flag-yankee"/></svg>
+      Yankee <span class="word">&mdash; Stale</span> <span class="n">2</span>
+    </div>
+    <div class="agent-row g-stale" tabindex="0">
+      <span class="dot" aria-hidden="true"></span>
+      <svg class="flag" width="14" height="10" viewBox="0 0 14 10" role="img" aria-label="Yankee: claim stale"><use href="#flag-yankee"/></svg>
+      <span class="name">gate-auditor</span>
+      <span class="meta">quiet 3h</span>
+      <span class="step">last note: mapping gates in fleet-engine.ts</span>
+      <span class="actions"><button class="btn-salvage" type="button">Salvage</button></span>
+    </div>
+    <div class="agent-row g-stale" tabindex="0">
+      <span class="dot" aria-hidden="true"></span>
+      <svg class="flag" width="14" height="10" viewBox="0 0 14 10" role="img" aria-label="Yankee: claim stale"><use href="#flag-yankee"/></svg>
+      <span class="name">test-gapper</span>
+      <span class="meta">quiet 5h</span>
+      <span class="step">last note: 4 bare branches in spawner.ts</span>
+      <span class="actions"><button class="btn-salvage" type="button">Salvage</button></span>
+    </div>
+
+    <!-- NEW — remediation row, not a debug row -->
+    <div class="state-head g-new">
+      <svg class="flag" width="14" height="10" viewBox="0 0 14 10" role="img" aria-label="Quebec flag"><use href="#flag-quebec"/></svg>
+      Quebec <span class="word">&mdash; New</span> <span class="n">1</span>
+    </div>
+    <div class="agent-row g-new" tabindex="0">
+      <span class="dot" aria-hidden="true"></span>
+      <svg class="flag" width="14" height="10" viewBox="0 0 14 10" role="img" aria-label="Quebec: newcomer"><use href="#flag-quebec"/></svg>
+      <span class="name">tenderfoot<span class="tag-new">New</span></span>
+      <span class="meta">spawned 1m</span>
+      <span class="step remedy">no purpose recorded &mdash; nudge it to declare scope</span>
+      <span class="actions"><button class="btn-nudge" type="button">Nudge</button></span>
+    </div>
+
+    <!-- IDLE, collapsed — a teaching state, and the surface's one Recursive em-phrase -->
+    <div class="state-head g-idle">
+      <svg class="flag" width="14" height="10" viewBox="0 0 14 10" role="img" aria-label="Mike flag"><use href="#flag-mike"/></svg>
+      Mike <span class="word">&mdash; Idle</span> <span class="n">10</span>
+    </div>
+    <div class="idle-summary">
+      <svg class="flag" width="14" height="10" viewBox="0 0 14 10" aria-hidden="true"><use href="#flag-mike"/></svg>
+      <span><span class="rec">quiet is a feature</span> &mdash; 10 berths, all sessions closed cleanly</span>
+      <button class="expand" type="button">Show all</button>
+    </div>
+  </section>
+
+  <!-- ═══ RIGHT DETAIL — the live panel; the ONLY corner brackets ═══ -->
+  <main class="detail" aria-label="Selected agent, live">
+    <i class="lw" aria-hidden="true"></i><i class="lw" aria-hidden="true"></i><i class="lw" aria-hidden="true"></i><i class="lw" aria-hidden="true"></i>
+
+    <div class="detail-head">
+      <h2>
+        <svg class="flag" viewBox="0 0 14 10" role="img" aria-label="Hotel flag: claim active"><use href="#flag-hotel"/></svg>
+        queue-surgeon
+      </h2>
+      <span class="live-word"><span class="live-dot" aria-hidden="true"></span>LIVE</span>
+      <span class="live-caption">live &mdash; events arriving</span>
+      <div class="head-actions">
+        <button class="btn-interrupt" type="button">Interrupt</button>
+        <button type="button">Pause</button>
+      </div>
+    </div>
+
+    <div class="detail-body">
+
+      <!-- LIVE TRANSCRIPT — first-class, above the fold -->
+      <section class="panel" aria-label="Live transcript">
+        <div class="panel-title">
+          <span class="eyebrow">Live transcript</span>
+          <span class="hint">newest last &mdash; it carries the gold bar</span>
+        </div>
+        <div class="transcript">
+          <div class="tline">
+            <span class="ts">14:02:11</span><span class="kind tool">Read</span>
+            <span class="body">lib/merge-queue.ts &middot; lines 60&ndash;180</span>
+          </div>
+          <div class="tline">
+            <span class="ts">14:02:38</span><span class="kind thought">think</span>
+            <span class="body"><span class="thought-text">the retry loop re-enqueues before the gate check resolves &mdash; that is the double-fire; guard on the pending promise instead</span></span>
+          </div>
+          <div class="tline">
+            <span class="ts">14:03:02</span><span class="kind tool">Read</span>
+            <span class="body">lib/gates/consent-gate.ts &middot; resolveConsent()</span>
+          </div>
+          <div class="tline">
+            <span class="ts">14:03:41</span><span class="kind tool">Edit</span>
+            <span class="body">lib/merge-queue.ts <span class="add">+14</span> <span class="del">&minus;3</span></span>
+          </div>
+          <div class="tline">
+            <span class="ts">14:04:19</span><span class="kind tool">Bash</span>
+            <span class="body">npm test &mdash; merge-queue suite &rarr; <span class="pass">PASS 34 tests</span></span>
+          </div>
+          <div class="tline">
+            <span class="ts">14:04:47</span><span class="kind pd">pd</span>
+            <span class="body">pd session files add lib/merge-queue.test.ts &rarr; claim recorded</span>
+          </div>
+          <div class="tline newest">
+            <span class="ts">14:05:12</span><span class="kind note">note</span>
+            <span class="body">Scope holding: retry double-fire fixed; adding regression test for the gate-pending path next.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- FILES + CLAIMS -->
+      <div class="panel-pair">
+        <section class="panel" aria-label="Files touched">
+          <div class="panel-title"><span class="eyebrow">Files touched</span><span class="hint">3 files</span></div>
+          <ul class="plain-list">
+            <li>
+              <span class="path">lib/merge-queue.ts</span>
+              <span class="chip mine">claimed</span>
+              <span class="delta"><span class="add">+14</span> <span class="del">&minus;3</span></span>
+            </li>
+            <li>
+              <span class="path">lib/merge-queue.test.ts</span>
+              <span class="chip mine">claimed</span>
+              <span class="delta"><span class="add">+22</span> <span class="del">&minus;0</span></span>
+            </li>
+            <li>
+              <span class="path">lib/gates/consent-gate.ts</span>
+              <span class="chip">read only</span>
+              <span class="delta"><span class="add">+0</span> <span class="del">&minus;0</span></span>
+            </li>
+          </ul>
+        </section>
+
+        <section class="panel" aria-label="Claims">
+          <div class="panel-title"><span class="eyebrow">Claims</span><span class="hint">advisory &mdash; intent, not locks</span></div>
+          <ul class="plain-list">
+            <li>
+              <span class="chip symbol">symbol</span>
+              <span class="path">MergeQueue.enqueue</span>
+              <span class="claim-kind">&mdash; modify</span>
+            </li>
+            <li>
+              <span class="chip region">region</span>
+              <span class="path">lib/merge-queue.ts:88&ndash;140</span>
+              <span class="claim-kind">&mdash; add</span>
+            </li>
+          </ul>
+        </section>
+      </div>
+
+      <!-- COST RIBBON — economy gold, at the consent surface only -->
+      <div class="cost-ribbon" aria-label="Sortie cost">
+        <span class="eyebrow">Cost</span>
+        <span class="figures">$0.42 this sortie <span class="cap">&middot; cap $2.00</span></span>
+        <div class="cost-bar" role="img" aria-label="21 percent of cost cap used">
+          <div class="fill"></div>
+        </div>
+        <span class="pct">21% of cap</span>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ═══ STATUS BAR ═══ -->
+  <footer class="statusbar">
+    <div class="daemon">
+      <span class="dot" aria-hidden="true"></span>
+      <span>daemon stable <strong>:9876</strong> &middot; nominal</span>
+    </div>
+    <span class="bus mono">hot-bus <b>14ms</b> &middot; ledger <b>#418</b> &middot; <b>3</b> panes</span>
+  </footer>
+
+</div>
+
+</body>
+</html>

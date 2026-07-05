@@ -4,7 +4,7 @@ export default function McpInstallCommand() {
   return (
     <CommandPage
       command="pd mcp install"
-      description="Auto-detects installed AI editors and configures Port Daddy as an MCP server for each one. Supports Claude Code, Claude Desktop, Cursor, Windsurf, VS Code (Copilot), Continue.dev, and Cline. Also installs the SKILL.md file and optionally wires the shell fleet-prompt hook."
+      description="Auto-detects installed AI editors and configures Port Daddy as an MCP server for each one. Supports Claude Code, Claude Desktop, Cursor, Windsurf, Gemini CLI, VS Code (Copilot), Continue.dev, and Cline. Also installs the SKILL.md file, writes the Port Daddy Pilot agent definitions for local runtimes, and optionally wires the shell fleet-prompt hook."
       version="3.9.0"
       syntax="pd mcp install [flags]"
       flags={[
@@ -17,6 +17,7 @@ export default function McpInstallCommand() {
         { flag: '--vscode', description: 'Configure VS Code (Copilot). Uses "servers" key instead of "mcpServers" per VS Code spec.' },
         { flag: '--continue', description: 'Configure Continue.dev only' },
         { flag: '--cline', description: 'Configure Cline only' },
+        { flag: '--no-agents', description: 'Skip installing the Port Daddy Pilot agent definitions' },
       ]}
       usagePatterns={[
         'pd mcp install',
@@ -41,6 +42,9 @@ export default function McpInstallCommand() {
 
   Skill installed:
     /Users/you/.port-daddy/skills/SKILL.md
+
+  Pilot agent definitions:
+    ✓ installed 5 runtime definition(s) (2 updated)
 
   Shell hook:
     Added fleet prompt to /Users/you/.zshrc

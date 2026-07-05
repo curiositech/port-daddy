@@ -77,6 +77,11 @@ export interface LimitsNode extends FleetAstNode<'limits'> {
   budgetUsdPerDay?: IntNode;
 }
 
+/** `trust:` block — operator trust policy for the event→spawn gate (ADR-0093). */
+export interface TrustNode extends FleetAstNode<'trust'> {
+  allowlistedAuthors?: StringNode[];
+}
+
 export interface DefaultsNode extends FleetAstNode<'defaults'> {
   backend?: EnumNode<string>;
   model?: StringNode;
@@ -96,6 +101,7 @@ export interface AgentNode extends FleetAstNode<'agent'> {
   /** Additive output target list (kind:type grammar). */
   outputs?:       StringNode[];
   schedule?:      CronNode;
+  runOnStart?:    BoolNode;
   triggerTuple?:  TupleNode;
   backend?:       EnumNode<Backend>;
   model?:         StringNode;
@@ -136,6 +142,7 @@ export interface FleetAst extends FleetAstNode<'fleet'> {
   name:      StringNode;
   harbor?:   StringNode;
   limits?:   LimitsNode;
+  trust?:    TrustNode;
   defaults?: DefaultsNode;
   agents:    Map<string, AgentNode>;
   watchers:  Map<string, WatcherNode>;
@@ -285,6 +292,15 @@ function parseLimits(m: YAMLMap, gr: GetRange): LimitsNode {
   };
 }
 
+function parseTrust(m: YAMLMap, gr: GetRange): TrustNode {
+  return {
+    kind: 'trust', range: gr(nodeRange(m)),
+    allowlistedAuthors:
+      extractStringList(gNode(m, 'allowlisted_authors'), gr) ??
+      extractStringList(gNode(m, 'allowlistedAuthors'), gr),
+  };
+}
+
 function parseDefaults(m: YAMLMap, gr: GetRange): DefaultsNode {
   return {
     kind: 'defaults', range: gr(nodeRange(m)),
@@ -316,6 +332,7 @@ function parseAgentMap(
       const str = extractString(n, gr);
       return str ? { kind: 'cron' as const, range: str.range, expression: str.value } : undefined;
     })(),
+    runOnStart:    gBool(m, 'run_on_start', gr),
     triggerTuple:  extractTuple(gNode(m, 'trigger_tuple'), gr),
     backend:       extractEnum<Backend>(gNode(m, 'backend'), gr),
     model:         gStr(m, 'model', gr),
@@ -494,15 +511,17 @@ export function parseFleetSource(source: string): FleetAst | null {
 
   // ── Limits / Defaults / Name / Harbor ─────────────────────────────────────
   const limitsRaw   = gNode(fleetMap, 'limits');
+  const trustRaw    = gNode(fleetMap, 'trust');
   const defaultsRaw = gNode(fleetMap, 'defaults') ?? (fleetMap !== root ? gNode(root, 'defaults') : undefined);
 
   const limits   = (limitsRaw   && isMap(limitsRaw))   ? parseLimits(limitsRaw   as YAMLMap, gr) : undefined;
+  const trust    = (trustRaw    && isMap(trustRaw))    ? parseTrust(trustRaw     as YAMLMap, gr) : undefined;
   const defaults = (defaultsRaw && isMap(defaultsRaw)) ? parseDefaults(defaultsRaw as YAMLMap, gr) : undefined;
 
   const name   = extractString(gNode(fleetMap, 'name'),   gr) ?? { kind: 'string' as const, range: ZERO_RANGE, value: '' };
   const harbor = extractString(gNode(fleetMap, 'harbor'), gr);
 
-  return { kind: 'fleet', range: fleetRange, name, harbor, limits, defaults, agents, watchers, channels, trivia: [] };
+  return { kind: 'fleet', range: fleetRange, name, harbor, limits, trust, defaults, agents, watchers, channels, trivia: [] };
 }
 
 // ─── Worktree inference (mirrors fleet-engine.ts) ────────────────────────────
@@ -585,6 +604,7 @@ export function astToConfig(ast: FleetAst): FleetConfig {
     agents.push({
       name,
       schedule:       a.schedule?.expression,
+      runOnStart:     a.runOnStart?.value ?? false,
       trigger:        a.trigger?.channel,
       triggers:       triggerList,
       outputs:        outputList,
@@ -640,10 +660,16 @@ export function astToConfig(ast: FleetAst): FleetConfig {
     };
   }
 
+  let trust: FleetConfig['trust'];
+  if (ast.trust?.allowlistedAuthors?.length) {
+    trust = { allowlistedAuthors: ast.trust.allowlistedAuthors.map(a => a.value) };
+  }
+
   return {
     name:    ast.name.value,
     harbor:  ast.harbor?.value,
     limits,
+    trust,
     agents,
     watchers,
     channels,

@@ -19,7 +19,7 @@
  * fetching nothing.
  */
 
-import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
+import { pdFetch } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { readCurrentContext } from '../utils/current-context.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
@@ -133,10 +133,11 @@ function printPretty(summary: AttentionSummary): void {
 }
 
 async function handleSubscribe(agentId: string, channel: string, options: CLIOptions): Promise<void> {
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/attention/subscribe`, {
+  const res: PdFetchResponse = await pdFetch('/attention/subscribe', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ agentId, channel }),
+    transport: 'tcp',
   });
   const data = (await res.json()) as { success: boolean; subscribed?: boolean; error?: string };
   if (!res.ok || !data.success) {
@@ -157,10 +158,11 @@ async function handleSubscribe(agentId: string, channel: string, options: CLIOpt
 }
 
 async function handleUnsubscribe(agentId: string, channel: string, options: CLIOptions): Promise<void> {
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/attention/unsubscribe`, {
+  const res: PdFetchResponse = await pdFetch('/attention/unsubscribe', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ agentId, channel }),
+    transport: 'tcp',
   });
   const data = (await res.json()) as { success: boolean; removed?: boolean; error?: string };
   if (!res.ok || !data.success) {
@@ -182,7 +184,7 @@ async function handleUnsubscribe(agentId: string, channel: string, options: CLIO
 
 async function handleListSubscriptions(agentId: string, options: CLIOptions): Promise<void> {
   const params = new URLSearchParams({ agentId });
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/attention/subscriptions?${params}`);
+  const res: PdFetchResponse = await pdFetch(`/attention/subscriptions?${params}`, { transport: 'tcp' });
   const data = (await res.json()) as { success: boolean; agentId?: string; channels?: string[]; error?: string };
   if (!res.ok || !data.success) {
     ui.error(data.error || 'failed to list subscriptions');
@@ -224,7 +226,7 @@ export async function handleAttention(options: CLIOptions): Promise<void> {
   if (options.peek === true) params.set('peek', 'true');
   if (options.limit !== undefined) params.set('limit', String(options.limit));
 
-  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/attention?${params}`);
+  const res: PdFetchResponse = await pdFetch(`/attention?${params}`, { transport: 'tcp' });
   const data = (await res.json()) as unknown as AttentionSummary;
   if (!res.ok || !data.success) {
     ui.error(data.error || 'attention fetch failed');

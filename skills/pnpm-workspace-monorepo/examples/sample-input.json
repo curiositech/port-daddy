@@ -1,0 +1,16 @@
+{
+  "internalDepProtocol": "workspace",
+  "sharedVersionSource": "catalog",
+  "lockfileCommitted": true,
+  "ciFrozenLockfile": true,
+  "shamefullyHoist": false,
+  "missingPeerFix": "package-extensions",
+  "publishCommand": "pnpm-publish",
+  "taskRunner": "turbo",
+  "turboInputsDeclared": true,
+  "ciAffectedOnlyFilter": true,
+  "usesTypescript": true,
+  "tsProjectReferencesMirrorGraph": true,
+  "postinstallAllowlist": true,
+  "enginesNodeSet": true
+}

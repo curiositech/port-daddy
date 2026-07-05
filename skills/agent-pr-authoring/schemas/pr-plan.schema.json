@@ -1,0 +1,109 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PR Plan",
+  "description": "Input shape for scripts/pr_readiness.mjs — a normalized description of a pull request's narrative, diff shape, CI checks, review state, and landing mechanics.",
+  "type": "object",
+  "required": ["title", "body", "diff", "checks", "reviewThreads"],
+  "additionalProperties": true,
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "PR title."
+    },
+    "body": {
+      "type": "object",
+      "required": ["hasSummary", "hasTestPlan"],
+      "additionalProperties": true,
+      "properties": {
+        "hasSummary": {
+          "type": "boolean",
+          "description": "True if the PR body has a non-boilerplate ## Summary section."
+        },
+        "hasTestPlan": {
+          "type": "boolean",
+          "description": "True if the PR body has a non-boilerplate ## Test Plan section."
+        },
+        "testPlanHasEvidence": {
+          "type": "boolean",
+          "description": "True only if the Test Plan carries real evidence (command output, exit code, artifact path/screenshot), not a bare claim."
+        }
+      }
+    },
+    "diff": {
+      "type": "object",
+      "required": ["filesChanged", "linesChanged"],
+      "additionalProperties": true,
+      "properties": {
+        "filesChanged": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "linesChanged": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Sum of added + removed lines."
+        },
+        "mixedConcerns": {
+          "type": "boolean",
+          "description": "True if the diff bundles unrelated concerns (e.g. refactor + feature + dependency bump)."
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "required", "status", "external"],
+        "additionalProperties": true,
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "required": {
+            "type": "boolean",
+            "description": "True if this is a required context in branch protection."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["success", "failure", "pending", "neutral", "skipped"]
+          },
+          "external": {
+            "type": "boolean",
+            "description": "True if the check is run by a system outside repo CI (e.g. Cloudflare Pages preview build) and should never gate a merge."
+          }
+        }
+      }
+    },
+    "reviewThreads": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "resolved"],
+        "additionalProperties": true,
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"]
+          },
+          "resolved": { "type": "boolean" }
+        }
+      }
+    },
+    "mergeMethod": {
+      "type": ["string", "null"],
+      "enum": ["queue", "squash", "merge", "rebase", "", null],
+      "description": "How the PR was (or would be) merged. \"queue\" (or empty/null) means the merge queue's configured strategy decided; any other value means an agent forced a specific strategy by hand."
+    },
+    "usedAdminBypass": {
+      "type": "boolean",
+      "description": "True if an admin override (e.g. gh pr merge --admin) bypassed branch protection."
+    },
+    "forcePushed": {
+      "type": "boolean",
+      "description": "True if the branch was force-pushed after review or CI ran against it."
+    },
+    "rebasedOnLatestBase": {
+      "type": "boolean",
+      "description": "True if the branch has been rebased onto the latest base branch before the mergeability check."
+    }
+  }
+}

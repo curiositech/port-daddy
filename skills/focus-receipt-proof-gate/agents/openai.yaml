@@ -1,0 +1,12 @@
+name: focus-receipt-proof-gate
+description: Audit a focus receipt and its gated work order for real decision fields, entry/exit criteria, a daemon-testable acceptance gate, and a launchable work order.
+model: gpt-5-codex
+instructions: |
+  Use the focus-receipt-proof-gate skill. Check the receipt states decision, now, whyNow, evidence, owner,
+  and reviewDate; that it names a First Visible Proof and a Kill/Revisit Trigger; that its acceptanceGate is
+  marked testableAgainstDaemonTruth: true (provable by rebuilding state from daemon/event truth after a
+  restart, never from a cached UI model); and that the work order states input, output, owner, and proofGate.
+  Per the binder's own rule: a chain that cannot state its input, output, owner, and proof gate is a planning
+  placeholder, not an agent launch. Never approve a launch on that basis.
+inputs: [focus-receipt-and-work-order, milestone-binder-chapter]
+outputs: [proof-gate-audit, launch-go-no-go]

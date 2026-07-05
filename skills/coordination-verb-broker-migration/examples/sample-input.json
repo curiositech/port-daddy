@@ -1,0 +1,32 @@
+{
+  "brokerTools": [
+    { "name": "work", "denialShape": true, "transcriptEvent": true },
+    { "name": "act", "denialShape": true, "transcriptEvent": true },
+    { "name": "ask", "denialShape": true, "transcriptEvent": true },
+    { "name": "recall", "denialShape": true, "transcriptEvent": true },
+    { "name": "status", "denialShape": true, "transcriptEvent": true }
+  ],
+  "legacyVerbs": [
+    { "name": "begin_session", "mappedTo": "work", "migrationPath": "alias" },
+    { "name": "end_session", "mappedTo": "work", "migrationPath": "alias" },
+    { "name": "claim_port", "mappedTo": "work", "migrationPath": "alias" },
+    { "name": "release_port", "mappedTo": "work", "migrationPath": "alias" },
+    { "name": "acquire_lock", "mappedTo": "work", "migrationPath": "alias" },
+    { "name": "spawn_agent", "mappedTo": "act", "migrationPath": "alias" },
+    { "name": "run_sortie", "mappedTo": "act", "migrationPath": "alias" },
+    { "name": "fleet_init", "mappedTo": "act", "migrationPath": "alias" },
+    { "name": "delegate_task", "mappedTo": "act", "migrationPath": "intake-metadata" },
+    { "name": "coordination_preflight", "mappedTo": "ask", "migrationPath": "alias" },
+    { "name": "pd_discover", "mappedTo": "ask", "migrationPath": "alias" },
+    { "name": "request_review", "mappedTo": "ask", "migrationPath": "intake-metadata" },
+    { "name": "propose_change", "mappedTo": "ask", "migrationPath": "doc-history" },
+    { "name": "add_note", "mappedTo": "recall", "migrationPath": "alias" },
+    { "name": "catch_me_up", "mappedTo": "recall", "migrationPath": "alias" },
+    { "name": "drop_feedback", "mappedTo": "recall", "migrationPath": "intake-metadata" },
+    { "name": "sitrep", "mappedTo": "status", "migrationPath": "alias" },
+    { "name": "whoami", "mappedTo": "status", "migrationPath": "alias" },
+    { "name": "active_agent_roster", "mappedTo": "status", "migrationPath": "doc-history" }
+  ],
+  "complianceMode": "C4",
+  "emitsLegacyVerbCalls": false
+}

@@ -3,7 +3,8 @@
  *
  * Auto-detects installed AI platforms (Claude, Cursor, Windsurf, Gemini,
  * VS Code, Continue, Cline) and configures Port Daddy as an MCP server for each.
- * Also installs the agent skill and offers shell prompt hook setup.
+ * Also installs the agent skill, Port Daddy Pilot agent definitions, and offers
+ * shell prompt hook setup.
  *
  * Usage:
  *   pd mcp install              # Auto-detect and configure all
@@ -17,6 +18,11 @@ import { join, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import * as ui from '../utils/ui.js';
+import {
+  installPilotAgents,
+  resolvePilotSourceDir,
+  type PilotInstallResult,
+} from '../../lib/pilot-agent-render.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..', '..');
@@ -218,6 +224,35 @@ function installSkill(home = DEFAULT_HOME): string | null {
   return skillDst;
 }
 
+// ─── Pilot Agent Installation ───────────────────────────────────────────────
+
+export function installPilotDefinitions(
+  home = DEFAULT_HOME,
+  options: { dryRun?: boolean; sourceDir?: string } = {},
+): PilotInstallResult | null {
+  const sourceDir = options.sourceDir ?? resolvePilotSourceDir(PROJECT_ROOT);
+  if (!sourceDir) return null;
+  return installPilotAgents({ sourceDir, baseDir: home, dryRun: options.dryRun });
+}
+
+function printPilotInstallSummary(result: PilotInstallResult | null, dryRun: boolean): void {
+  if (!result) {
+    ui.warn('Port Daddy Pilot source not found in brew prefix or repo checkout');
+    return;
+  }
+
+  const changed = result.written.filter((w) => w.changed).length;
+  console.log('  Pilot agent definitions:');
+  console.log(
+    `    \x1b[32m✓\x1b[0m ${dryRun ? 'would install' : 'installed'} ${result.written.length} runtime definition(s)` +
+    (changed ? ` (${changed} updated)` : ' (all current)'),
+  );
+  for (const err of result.errors.slice(0, 3)) {
+    console.log(`    \x1b[31m✗\x1b[0m ${err.runtime}: ${err.error}`);
+  }
+  console.log('');
+}
+
 // ─── Shell Hook Installation ───────────────────────────────────────────────
 
 function detectShell(): 'zsh' | 'bash' | 'fish' | 'powershell' | null {
@@ -341,7 +376,7 @@ export async function handleMcpInstall(options: Record<string, unknown>, _home =
       console.log('');
     }
 
-    // ─── Install skill ────────────────────────────────────────────────
+    // ─── Install skill + Pilot persona ────────────────────────────────
 
     if (shouldInstallSkill) {
       const skillPath = installSkill(_home);
@@ -350,6 +385,13 @@ export async function handleMcpInstall(options: Record<string, unknown>, _home =
         console.log(`    \x1b[32m✓\x1b[0m ${skillPath}`);
         console.log('');
       }
+    }
+
+    if (!options['no-agents']) {
+      printPilotInstallSummary(
+        installPilotDefinitions(_home, { dryRun: !!options['dry-run'] }),
+        !!options['dry-run'],
+      );
     }
   }
 

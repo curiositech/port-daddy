@@ -1,4 +1,5 @@
-import { resolve } from 'node:path';
+import { resolve, basename } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 import type { RoadmapProgress, FeedbackEntry, RoadmapFeedbackStatus } from '../../lib/roadmap-progress.js';
 import type { RoadmapClaim, RoadmapEntry, RoadmapPopKind } from '../../lib/roadmap-pop.js';
@@ -165,6 +166,11 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
 
   if (sub === 'upsert' || sub === 'add') {
     await handleRoadmapUpsert(args.slice(1), options);
+    return;
+  }
+
+  if (sub === 'delete' || sub === 'rm' || sub === 'remove') {
+    await handleRoadmapDelete(args.slice(1), options);
     return;
   }
 
@@ -558,6 +564,51 @@ async function getRoadmapItem(slug: string, harbor?: string): Promise<RoadmapIte
   return data.item;
 }
 
+async function deleteRoadmapItem(slug: string, harbor?: string): Promise<RoadmapItem | null> {
+  const qs = harbor ? `?${new URLSearchParams({ harbor }).toString()}` : '';
+  const res = await pdFetch(`/roadmap/items/${encodeURIComponent(slug)}${qs}`, { method: 'DELETE' });
+  if (res.status === 404) return null;
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    item?: RoadmapItem;
+    error?: string;
+  };
+  if (!res.ok || data.success !== true) {
+    throw new Error(data.error || `roadmap delete failed: HTTP ${res.status}`);
+  }
+  return data.item ?? null;
+}
+
+/**
+ * Resolve the harbor a `pd roadmap` write should target. Precedence:
+ *   --harbor flag, then $PD_HARBOR, then the repo/project name
+ *   (git toplevel basename), then cwd basename, then undefined.
+ *
+ * Defaulting to the project name fixes the "harbor split" the Planner pane
+ * flags: the daemon's own fallback is the global `fleet` harbor, so a bare
+ * `pd roadmap upsert` silently forked receipts off the project board (which
+ * lives in the `<project>` harbor). Resolving the project here keeps writes on
+ * the same board the operator reads.
+ */
+export function resolveRoadmapHarbor(options: CLIOptions): string | undefined {
+  const explicit = readOption(options, 'harbor');
+  if (explicit) return explicit;
+  const env = process.env.PD_HARBOR?.trim();
+  if (env) return env;
+  try {
+    const top = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+      .toString()
+      .trim();
+    if (top) return basename(top);
+  } catch {
+    /* not a git repo — fall through to cwd */
+  }
+  const cwdBase = basename(process.cwd());
+  return cwdBase || undefined;
+}
+
 function roadmapNote(actor: string, text: string | undefined): { at: number; by: string; text: string } {
   return {
     at: Date.now(),
@@ -584,7 +635,7 @@ async function handleRoadmapUpsert(args: string[], options: CLIOptions): Promise
   };
   const status = readOption(options, 'status');
   if (status) body.status = status;
-  const harbor = readOption(options, 'harbor');
+  const harbor = resolveRoadmapHarbor(options);
   if (harbor) body.harbor = harbor;
   const project = readOption(options, 'project');
   if (project) body.project = project;
@@ -602,6 +653,30 @@ async function handleRoadmapUpsert(args: string[], options: CLIOptions): Promise
     console.log(`  harbor:  ${item.harbor}`);
   } catch (error) {
     ui.error(error instanceof Error ? error.message : 'roadmap upsert failed');
+    process.exit(1);
+  }
+}
+
+async function handleRoadmapDelete(args: string[], options: CLIOptions): Promise<void> {
+  const slug = readRoadmapSlug(args, options);
+  if (!slug) {
+    ui.error('Usage: pd roadmap delete <slug> [--harbor <harbor>]');
+    process.exit(1);
+  }
+  const harbor = resolveRoadmapHarbor(options);
+  try {
+    const item = await deleteRoadmapItem(slug, harbor);
+    if (isJson(options)) {
+      console.log(JSON.stringify({ success: true, removed: item !== null, item }, null, 2));
+      return;
+    }
+    if (!item) {
+      ui.error(`Roadmap item '${slug}'${harbor ? ` in harbor '${harbor}'` : ''} not found`);
+      process.exit(1);
+    }
+    ui.success(`Roadmap item '${item.slug}' deleted from harbor '${item.harbor}'`);
+  } catch (error) {
+    ui.error(error instanceof Error ? error.message : 'roadmap delete failed');
     process.exit(1);
   }
 }

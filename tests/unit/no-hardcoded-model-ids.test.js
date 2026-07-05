@@ -43,6 +43,11 @@ const ALLOWED_FILES = new Set([
   // Provider supported-model VALIDATION allowlists (reject unknown user input).
   'lib/spawner/backends/groq.ts',
   'lib/spawner/backends/openai.ts',
+  // xAI provider supported-model VALIDATION allowlist (same category as groq/openai).
+  'lib/spawner/backends/xai.ts',
+  // Local-citizen per-backend DEFAULT-model map — an enumeration keyed by backend,
+  // one default ID per OpenAI-compatible substrate (groq/lmstudio/ollama).
+  'lib/local-citizen/backends.ts',
   // FOLLOW-UP: archetype backendDefault slugs still embed an id; convert to a
   // capability descriptor in a follow-up. Tracked, not silently exempt.
   'lib/shipwright/archetypes.ts',

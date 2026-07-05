@@ -172,6 +172,34 @@ describe('CostTracker', () => {
     expect(costUsd).toBeGreaterThan(0.001);
   });
 
+  test('lmstudio computes exact nonzero cost via the local catch-all rate', () => {
+    // LM Studio serves whatever model is loaded; the '' catch-all electricity
+    // proxy (0.05 input / 0.05 output USD/M) prices any reported id, including
+    // the conventional 'local-model' placeholder.
+    //   10000 input × 0.05 / 1M = 0.0005
+    //   2000 output × 0.05 / 1M = 0.0001  → total 0.0006 USD
+    for (const model of ['local-model', 'qwen3-next-coder', 'some-random-gguf']) {
+      const { costUsd, isEstimate } = costTracker.computeCost('lmstudio', model, 10000, 2000);
+      expect(isEstimate).toBe(false);
+      expect(costUsd).toBeCloseTo(0.0006, 6);
+      expect(costUsd).toBeGreaterThan(0);
+    }
+  });
+
+  test('lmstudio without token counts falls back to zero estimate (opaque path)', () => {
+    const { costUsd, isEstimate } = costTracker.computeCost('lmstudio', 'local-model');
+    expect(costUsd).toBe(0);
+    expect(isEstimate).toBe(true);
+  });
+
+  test('lmstudio catch-all does NOT false-match other backends', () => {
+    // The '' key matches every id, but ONLY for the lmstudio backend. A paid
+    // remote model must never pick up the local $0.05/M rate.
+    const { costUsd, isEstimate } = costTracker.computeCost('claude', 'claude-local-model', 10000, 2000);
+    expect(isEstimate).toBe(true);
+    expect(costUsd).toBeGreaterThan(0.001);
+  });
+
   test('gemini-llama would not be falsely classified as ollama rate', () => {
     const { isEstimate, costUsd } = costTracker.computeCost(
       'gemini', 'gemini-llama-distill', 10000, 2000

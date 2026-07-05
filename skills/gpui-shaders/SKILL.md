@@ -1,6 +1,34 @@
 ---
 name: gpui-shaders
 description: 'Metal/wgpu/WGSL shader surfaces for native Rust gpui apps (Zed-family, pd-console), stockpiled with beautiful copy-pasteable shader-toy examples. Use for custom GPU fragment passes behind/around gpui panes: ocean/water shaders, pixelated waves and boats, a living harbor, dithered chrome borders, sonar sweeps, aurora/starfields, CRT/scanline post. Trigger on: wgsl, wgpu, metal shader, gpui shader, shadertoy, fragment shader, SDF, noise/fbm, ordered dithering, pixelation, render-to-texture, "pixelated waves and boats", living harbor water. NOT for: web/GLSL/three.js shaders (use a web tool), non-shader gpui motion (use rust-gpui-motion), general GUI layout/color (use beautiful-gui-design), CLI/TUI (use beautiful-cli-design).'
+license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Grep,Glob
+metadata:
+  provenance:
+    kind: first-party
+    owners:
+      - port-daddy
+  pairs-with:
+    - skill: rust-gpui-motion
+      reason: Animates/fades the shader surface into the pane tree once the fragment pass exists (opacity, timing).
+    - skill: vello-parley-rendering
+      reason: The vector-drawing neighbor — use Vello instead of WGSL when the effect is shapes/text, not per-pixel work.
+    - skill: metal-text-pipeline
+      reason: The bare-metal text-rendering neighbor sharing the same Metal/wgpu surface plumbing on macOS.
+    - skill: build-coop-ide-gpui
+      reason: The gpui IDE host this skill's shader surfaces (companion window, render-to-texture) get embedded into.
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: shader-surface-requirement
+        format: markdown
+      - kind: shader-effect-plan
+        format: json
+    produces:
+      - kind: shader-integration-guide
+        format: markdown
+      - kind: shader-budget-audit
+        format: json
 ---
 
 # gpui Shaders
@@ -28,8 +56,8 @@ flowchart TD
   B -->|No, it's shapes/quads/text| C[gpui element tree or paint/canvas]
   B -->|No, but vector + crisp text| D[Vello vector pass]
   B -->|Yes| E{Must it sit INSIDE the pane tree,\nreflowing with splits?}
-  E -->|No — focused/modal/full-window| F[Companion window: own winit+wgpu (ADR-0086 path 3) — ship-now]
-  E -->|Yes — ambient, in a pane| G[Render-to-texture, sample back as a gpui image (ADR-0086 path 2)]
+  E -->|No — focused/modal/full-window| F["Companion window: own winit+wgpu (ADR-0086 path 3) — ship-now"]
+  E -->|Yes — ambient, in a pane| G["Render-to-texture, sample back as a gpui image (ADR-0086 path 2)"]
   F --> H[Push gpui state as uniforms: time, res, mouse, accent token]
   G --> H
 ```
@@ -58,7 +86,7 @@ Route: **gpui primitive → Vello vector → wgpu fragment pass**, in that order
 **Detection**: frame counter keeps climbing with the window hidden; fans spin on an idle app.
 **Fix**: gate rendering on visibility/focus; cap ambient shaders to 30fps; stop the loop when occluded.
 
-### Anti-Pattern: "Hardcoded #FFDB33 in WGSL"
+### Anti-Pattern: "Hardcoded accent hex in WGSL"
 **Symptom**: the shader looks right in dark mode, wrong (or off-brand) in light; theme changes don't reach it.
 **Detection**: literal colors in the `.wgsl`; no `accent` uniform.
 **Fix**: push the theme token as `u.accent`; derive everything via `palette()`/`mix` from it.
@@ -105,8 +133,9 @@ Fork by lane: **integration** (`01` — surfaces, companion vs embed, uniform pl
 - `references/02-wgsl-fundamentals-for-ui.md` — the per-pixel toolkit: UV spaces, SDFs + `fwidth` AA, hash/value-noise/fbm, domain warping, cosine palettes, Bayer dithering + pixelation, cost.
 - `references/03-the-stockpile.md` — copy-pasteable WGSL examples: pixelated ocean waves, boats, the living harbor, signal-flag shimmer, aurora/starfield, CRT post, dithered chrome border, sonar sweep.
 - `references/04-integration-performance-a11y.md` — when a shader earns its place, frame budget, pausing offscreen, reduced-motion, theme-token sampling, packaging/hot-reload.
+- `scripts/shader_budget_audit.mjs` — deterministic auditor: run a `shader-effect-plan.json` (see `schemas/shader-plan.schema.json`, `examples/sample-input.json`) through this skill's Quality Gates and anti-patterns to catch "shadering a widget," an ambient shader that never sleeps, hardcoded brand hex, unfrozen reduced-motion, per-RGB dither, and fbm-to-the-moon before code is written.
 
-**Sibling skills:** pairs with `rust-gpui-motion` (animate/fade shader surfaces), `beautiful-gui-design` (contrast/hierarchy over shaders), and the Metal/Vello skills `vello-parley-rendering` + `metal-text-pipeline` (the vector + bare-metal neighbors).
+**Sibling skills:** see `metadata.pairs-with` in the frontmatter — `rust-gpui-motion` (animate/fade shader surfaces), `vello-parley-rendering` + `metal-text-pipeline` (the vector + bare-metal neighbors), and `build-coop-ide-gpui` (the host these surfaces embed into). For contrast/hierarchy over shaders, see `beautiful-gui-design`.
 
 <!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
 
@@ -114,10 +143,22 @@ Fork by lane: **integration** (`01` — surfaces, companion vs embed, uniform pl
 
 *Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
 
+**root**
+- [`CHANGELOG.md`](CHANGELOG.md) — UgpuiUshaders — Changelog — - Brought to the agentic-family standard: added `io-contract`/`provenance`/`pairs-with` frontmatter - Added a deterministic audit helper (ma
+
+**`examples/`**
+- [`examples/sample-input.json`](examples/sample-input.json) — sample input (data/schema)
+
 **`references/`**
 - [`references/01-shader-surfaces-in-gpui.md`](references/01-shader-surfaces-in-gpui.md) — Shader Surfaces in gpui — Getting a Custom GPU Fragment-Shader Pass Into a Native Rust Window — > **Scope.** The sibling doc `05-bespoke-graphics-vello-wgpu.md` maps the three tiers of bespoke drawing (T1 element tree → T2 gpui `paint`/
 - [`references/02-wgsl-fundamentals-for-ui.md`](references/02-wgsl-fundamentals-for-ui.md) — WGSL Shader Fundamentals for UI Surfaces — > The Shadertoy mental model, ported to a **WGSL fragment shader feeding a gpui pane** (Metal via wgpu).
 - [`references/03-the-stockpile.md`](references/03-the-stockpile.md) — The Stockpile — Copy-Pasteable WGSL Shader-Toy Examples for the Harbor Console — > **Scope.** This is the showpiece.
 - [`references/04-integration-performance-a11y.md`](references/04-integration-performance-a11y.md) — Integration, Performance & Accessibility — Earning a Shader in a gpui App — > **Scope.** A shader is the most expensive pixel in your app.
+
+**`schemas/`**
+- [`schemas/shader-plan.schema.json`](schemas/shader-plan.schema.json) — shader plan.schema (data/schema)
+
+**`scripts/`**
+- [`scripts/shader_budget_audit.mjs`](scripts/shader_budget_audit.mjs)
 
 <!-- END BUNDLE INDEX -->

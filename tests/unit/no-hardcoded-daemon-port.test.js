@@ -44,6 +44,8 @@ const ALLOWED_FILES = new Set([
   'lib/port-takeover.ts',
   // routes/sitrep.ts: literal appears only in a JSDoc curl example.
   'routes/sitrep.ts',
+  // Rust console berth picker mirrors the canonical daemon port as a Rust const.
+  'core/pd-console/src/berths.rs',
   // This guard test itself.
   'tests/unit/no-hardcoded-daemon-port.test.js',
 ]);

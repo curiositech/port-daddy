@@ -212,6 +212,25 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
     ui.info('Skipping git hook (--no-hook)');
   }
 
+  // ─── 8. SessionStart steering (adopt the Port Daddy Pilot agent) ──────────────
+
+  if (!noHook) {
+    try {
+      const { installPilotSessionStartHook } = await import('../../lib/pilot-sessionstart-hook.js');
+      const hookResult = installPilotSessionStartHook({ projectDir: cwd, projectRoot: cwd });
+      if (hookResult.changed) {
+        results.push(`SessionStart Pilot hook (${hookResult.reason})`);
+        ui.success('Wired SessionStart hook — new sessions adopt the Port Daddy Pilot agent (unless --agent <other>)');
+      } else if (hookResult.command) {
+        ui.info(`SessionStart Pilot hook: ${hookResult.reason}`);
+      } else {
+        warnings.push(`SessionStart Pilot hook not installed: ${hookResult.reason}`);
+      }
+    } catch (err) {
+      warnings.push(`SessionStart Pilot hook failed: ${(err as Error).message}`);
+    }
+  }
+
   // ─── Summary ────────────────────────────────────────────────────────────────
 
   console.log('');

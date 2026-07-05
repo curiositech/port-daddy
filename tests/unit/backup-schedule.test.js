@@ -58,6 +58,15 @@ describe('renderSchedulePlist', () => {
     expect(xml).toContain('<integer>3</integer>');
     expect(xml).toContain('<integer>17</integer>');
   });
+
+  test('pins scheduled backups to the canonical user DB', () => {
+    const xml = renderSchedulePlist({ pdBinary: PD });
+
+    expect(xml).toContain('<key>PORT_DADDY_DB</key>');
+    expect(xml).toContain(
+      `<string>${join(homedir(), '.port-daddy', 'port-registry.db')}</string>`,
+    );
+  });
 });
 
 describe('cronLine', () => {

@@ -11,8 +11,8 @@ description: |
   honest cost accounting of "pure Metal" vs standing on Linebender. Activate on:
   "objc2-metal", "objc2", "CAMetalLayer", "CADisplayLink", "Metal command queue",
   "glyph atlas", "SDF text", "ProMotion frame pacing", "bare-metal Rust
-  rendering on macOS", "pure Metal vs wgpu", "MTLDrawable". NOT for: writing the
-  MSL shaders themselves (use metal-shader-expert), the Vello/Parley high-level
+  rendering on macOS", "pure Metal vs wgpu", "MTLDrawable". NOT for:
+  hand-authoring the MSL shaders themselves, the Vello/Parley high-level
   API (use vello-parley-rendering), 3D engines (use wgpu/bevy), or iOS UIKit
   drawing.
 allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
@@ -32,8 +32,10 @@ metadata:
   pairs-with:
     - skill: vello-parley-rendering
       reason: The high-level path this skill decides whether to drop below.
-    - skill: metal-shader-expert
-      reason: When you do go bare-metal, this is who writes the MSL.
+    - skill: gpui-shaders
+      reason: If the surface lives inside a gpui pane (pd-console), this is where a per-pixel wgpu/WGSL fragment pass gets wired into the element tree — a different question from the Rung 1/2/3 choice this skill makes.
+    - skill: rust-gpui-motion
+      reason: Covers gpui's own paint/Vello/wgpu surfaces and animation primitives; consult it when the custom 2D/text surface is embedded in a gpui pane rather than a standalone winit window.
     - skill: rust-app-distribution
       reason: Signing/notarizing the resulting macOS binary.
   provenance:
@@ -41,13 +43,27 @@ metadata:
     owners: [port-daddy]
   authorship:
     maintainers: [port-daddy]
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: surface-requirement
+        format: markdown
+      - kind: rung-decision-plan
+        format: json
+    produces:
+      - kind: rung-recommendation
+        format: markdown
+      - kind: cost-accounting
+        format: markdown
+      - kind: rung-decision-audit
+        format: json
 ---
 
 # The Metal Text / Render Pipeline (how low to go on Apple GPUs)
 
 There are three rungs on the ladder for a custom 2D + text surface on macOS, and
 the expensive mistake is picking the wrong rung. This skill is the decision and
-the cost accounting — **not** the MSL itself (`metal-shader-expert`) and **not**
+the cost accounting — **not** hand-authoring the MSL itself and **not**
 the Vello API (`vello-parley-rendering`).
 
 ```
@@ -77,11 +93,14 @@ operator UI. Rung 3 is justified only by specific constraints below.
 
 ## NOT For
 
-- Writing the actual MSL vertex/fragment/compute shaders → `metal-shader-expert`.
+- Writing the actual MSL vertex/fragment/compute shaders — a separate
+  shader-authoring skill this repo does not yet have; see
+  `references/objc2-metal-skeleton.md` for where those shaders plug into the
+  pipeline this skill decides on.
 - The Vello + Parley high-level API and its gotchas → `vello-parley-rendering`.
 - 3D engines / scene graphs → `wgpu` directly, `bevy`.
 - iOS UIKit/CoreGraphics 2D drawing, or SwiftUI Canvas → those are different
-  stacks (`swiftui-data-flow-expert`, etc.).
+  stacks entirely, not covered by this skill family.
 
 ## Decision Points
 
@@ -96,7 +115,7 @@ Do you need a CUSTOM 2D vector + text surface on macOS in Rust?
 │   │    raster order groups, custom MSL compute you must hand-tune)
 │   ├─ Must share one MTLCommandQueue with existing Obj-C/Swift Metal code
 │   ├─ Sub-100µs frame budgets where even wgpu's abstraction is measurable
-│   └─ then → Rung 3: objc2 + objc2-metal, and bring metal-shader-expert
+│   └─ then → Rung 3: objc2 + objc2-metal, and hand-author the MSL yourself
 └─ You also want portability (Vulkan/DX12/GL) or 3D
     └─ Rung 2: wgpu directly.
 ```
@@ -233,6 +252,30 @@ Triple-buffer + a completion-handler semaphore. (Free at Rung 1/2.)
 "We'll go straight to Metal" with no baseline means you can never prove the lower
 rung was warranted. Always have the Rung-1 number in hand.
 
+## Auditing a Rung Decision Plan
+
+Before committing to a rung, write the decision as a JSON plan matching
+`schemas/rung-plan.schema.json` and run it through the deterministic auditor:
+
+```bash
+node scripts/rung_decision_audit.mjs --input examples/sample-input.json
+```
+
+`auditRungDecision(plan)` (in `scripts/rung_decision_audit.mjs`) turns this
+skill's core thesis and Failure Modes into machine-checkable rules over
+structured fields — no keyword matching: dropping to Rung 3 with no named,
+measured constraint (Failure Mode 1); reinventing the vector rasterizer for a
+`2d-vector-text` surface at Rung 3 (Failure Mode 2); a ProMotion target that
+never requests the 120Hz cadence or never redraws every frame (Failure Mode
+3); a fixed bitmap font (Anti-Pattern under Decision Point 3); single-
+buffering a hand-rolled Metal frame (Anti-Pattern 3); and wgpu/objc2 code that
+isn't gated out of the default Linux CI matrix. It returns
+`{ pass, score, findings, recommendations }` so a reviewer or CI gate can
+reject an unjustified Rung 3 proposal without re-deriving the reasoning by
+hand. `examples/sample-input.json` is a well-justified Rung-1 plan (`pass:
+true`); a plan with `chosenRung: 3` and no named constraint or measurement
+scores `pass: false`.
+
 ## References
 
 - `references/objc2-metal-skeleton.md` — the minimal Rung-3 pipeline you'd own:
@@ -240,6 +283,11 @@ rung was warranted. Always have the Rung-1 number in hand.
   semaphore, in `objc2`/`objc2-metal` terms.
 - `references/cost-ledger.md` — side-by-side cost accounting (Rung 1 vs Rung 3):
   what you write, what you maintain, what you measure.
+- `schemas/rung-plan.schema.json` — the JSON shape a rung-decision plan must
+  match to be audited.
+- `scripts/rung_decision_audit.mjs` — the deterministic auditor; exports
+  `auditRungDecision(plan)` and runs standalone via `--input <plan>.json`.
+- `examples/sample-input.json` — a verified `pass: true` rung-decision plan.
 
 ## Provenance
 
@@ -252,8 +300,17 @@ winit+wgpu+Vello+Parley), run on Apple M4 Max with the Metal backend.
 
 *Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
 
+**`examples/`**
+- [`examples/sample-input.json`](examples/sample-input.json) — sample input (data/schema)
+
 **`references/`**
 - [`references/cost-ledger.md`](references/cost-ledger.md) — Cost ledger: Rung 1 (Vello/Parley) vs Rung 3 (pure objc2-metal) — Side-by-side of what you actually write, maintain, and measure.
 - [`references/objc2-metal-skeleton.md`](references/objc2-metal-skeleton.md) — Rung-3 skeleton: what you own with pure objc2-metal — This is the pipeline you'd hand-write if you dropped below wgpu/Vello.
+
+**`schemas/`**
+- [`schemas/rung-plan.schema.json`](schemas/rung-plan.schema.json) — rung plan.schema (data/schema)
+
+**`scripts/`**
+- [`scripts/rung_decision_audit.mjs`](scripts/rung_decision_audit.mjs)
 
 <!-- END BUNDLE INDEX -->

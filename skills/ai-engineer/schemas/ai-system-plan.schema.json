@@ -1,0 +1,153 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AI System Plan",
+  "description": "Input shape for scripts/ai_system_audit.mjs — a normalized description of an LLM application's BUILD-quality gates (eval harness, retrieval measurement, grounding, hallucination guardrails, fallback, streaming UX, injection defense, cost ceiling, tool validation). NOT infra/framework selection (see agentic-infrastructure-2026's infra-plan.schema.json for that).",
+  "type": "object",
+  "required": [
+    "systemType",
+    "evalHarness",
+    "retrieval",
+    "grounding",
+    "hallucinationGuardrails",
+    "lowConfidenceFallback",
+    "streamingUx",
+    "promptInjectionDefense",
+    "costCeiling"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "systemType": {
+      "type": "string",
+      "enum": ["rag", "agent", "chatbot", "multi-agent", "pipeline", "hybrid"],
+      "description": "What kind of AI system this plan describes."
+    },
+    "factualClaimsMade": {
+      "type": "boolean",
+      "description": "True (default assumption if omitted) if the system's output makes assertions a user could rely on as fact. Set false only for purely creative/generative output where grounding does not apply."
+    },
+    "interactive": {
+      "type": "boolean",
+      "description": "True (default assumption if omitted) if the system has a live, user-facing turn where perceived latency matters. Set false for offline/batch pipelines."
+    },
+    "acceptsUntrustedInput": {
+      "type": "boolean",
+      "description": "True (default assumption if omitted) if any part of the prompt (user text, retrieved documents, tool output) originates outside your own trusted code."
+    },
+    "evalHarness": {
+      "type": "object",
+      "required": ["exists"],
+      "additionalProperties": true,
+      "properties": {
+        "exists": {
+          "type": "boolean",
+          "description": "True if a repeatable evaluation harness (not ad hoc manual spot-checks) exists."
+        },
+        "coverage": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["unit", "retrieval", "end-to-end", "adversarial"] }
+        }
+      }
+    },
+    "retrieval": {
+      "type": "object",
+      "required": ["used"],
+      "additionalProperties": true,
+      "properties": {
+        "used": {
+          "type": "boolean",
+          "description": "True if the system performs retrieval (RAG) at all."
+        },
+        "recallMeasured": { "type": "boolean" },
+        "precisionMeasured": { "type": "boolean" },
+        "evalSetSize": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "grounding": {
+      "type": "object",
+      "required": ["citationsRequired"],
+      "additionalProperties": true,
+      "properties": {
+        "citationsRequired": {
+          "type": "boolean",
+          "description": "True if the system is required to cite/attribute the source it grounded a claim in."
+        },
+        "sourceAttributionEnforced": {
+          "type": "boolean",
+          "description": "True if the citation requirement is enforced (e.g. output validated to reference retrieved sources), not just documented as a goal."
+        }
+      }
+    },
+    "hallucinationGuardrails": {
+      "type": "object",
+      "required": ["exists"],
+      "additionalProperties": true,
+      "properties": {
+        "exists": { "type": "boolean" },
+        "mechanisms": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "e.g. citation-check, confidence-scoring, self-consistency-check, output-validation-against-source."
+        }
+      }
+    },
+    "lowConfidenceFallback": {
+      "type": "object",
+      "required": ["exists"],
+      "additionalProperties": true,
+      "properties": {
+        "exists": { "type": "boolean" },
+        "threshold": { "type": "number" },
+        "action": { "type": "string" }
+      }
+    },
+    "streamingUx": {
+      "type": "object",
+      "required": ["enabled"],
+      "additionalProperties": true,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "cancellable": { "type": "boolean" }
+      }
+    },
+    "promptInjectionDefense": {
+      "type": "object",
+      "required": ["exists"],
+      "additionalProperties": true,
+      "properties": {
+        "exists": { "type": "boolean" },
+        "mechanisms": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "e.g. input-sanitization, system-prompt-isolation, tool-output-untrusted-tagging, allowlisted-tool-schema."
+        }
+      }
+    },
+    "costCeiling": {
+      "type": "object",
+      "required": ["enforced"],
+      "additionalProperties": true,
+      "properties": {
+        "perRequestUsd": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "enforced": {
+          "type": "boolean",
+          "description": "True if the design commits to and enforces a per-request cost ceiling. NOT the same as agentic-infrastructure-2026's operational cost controls (kill switch, budget alerts, quotas) — this is the build-time design commitment those infra controls later enforce at runtime."
+        }
+      }
+    },
+    "toolUse": {
+      "type": "object",
+      "required": ["used"],
+      "additionalProperties": true,
+      "properties": {
+        "used": { "type": "boolean" },
+        "validationLayer": {
+          "type": "boolean",
+          "description": "True if tool calls are validated against a real schema before execution (guards against the Tool Hallucination Loop failure mode)."
+        }
+      }
+    }
+  }
+}

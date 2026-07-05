@@ -122,7 +122,7 @@ the command and its output.
 This repo coordinates through PD, continuously — not just at session start.
 - **Check:** `pd begin`, file claims before edits, scope/result notes, guard
   enforcing (`pd guard check --staged` before commit). Implementation work
-  dispatched via `pd sortie`/`pd spawn`, not raw harness Agents. Steering via
+  dispatched via `pd spawn`, not raw harness Agents. Steering via
   `pd tube`/inbox, not SendMessage.
 - **Fail signature:** edits with no claim; `.CLAUDE_LOCK`/`.CLAUDE_NOTES.md`
   files; an agent that worked in isolation in PD's own repo.

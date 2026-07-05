@@ -26,6 +26,36 @@ All HTTP endpoints accept and return JSON. Rate limited to 100 req/min per IP.
 
 ---
 
+## Visual Tasks
+
+### POST /visual-tasks
+Submit visual evidence from FleetBar, Port Daddy Scout, or an MCP client and turn
+it into a reviewable work item.
+
+**Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `description` | string | no | Agent brief or bug note. Required when no screenshot or DOM context is supplied. |
+| `title` | string | no | Short issue title. |
+| `kind` | string | no | `fix`, `bug`, `nit`, `feedback`, or `question`. |
+| `projectDir` | string | no | Repo/worktree path used for routing and DOM source hints. |
+| `targetAgent` | string | no | Local agent id to notify directly. |
+| `image` | object | no | Screenshot evidence, usually `mimeType` plus `dataUrl` or an existing `blobId`. |
+| `region` | object | no | Selected rectangle in image or viewport coordinates. |
+| `domContext` | object | no | Selectors, XPath, text snippets, bounds, and source hints captured from the page. |
+| `routing` | object | no | `assignee`, `openIssue`, `startAgent`, and optional `targetAgent`. |
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "issue": { "kind": "port-daddy-work-item", "status": "opened" },
+  "screenshot": { "url": "/blob/abc123" }
+}
+```
+
+---
+
 ## Services (Port Management)
 
 ### POST /claim
@@ -974,9 +1004,9 @@ Clear panic state.
 ## Spawn
 
 ### POST /spawn
-Launch an AI agent with full PD coordination (registration, sessions, heartbeats, salvage on crash).
+Spawn an AI run with full PD coordination (registration, sessions, heartbeats, salvage on crash).
 
-This is the low-level delegation primitive. Use `/sorties` when you want a durable mission id, event log, harbor, and later status/result lookup instead of a raw spawned run.
+This is the delegation primitive. Layer durable issue/work records above spawn rather than introducing another launch verb.
 
 Launches are fail-closed on telemetry. Port Daddy blocks a spawn when the resolved backend/model cannot provide exact token counts plus an exact nonzero model rate for the completed run.
 The live spawner defaults that policy on. Internal code may only opt out by attaching explicit HITL confirmation metadata; an omitted flag is not a valid bypass.
@@ -1017,50 +1047,6 @@ List active spawned agents.
 
 ### DELETE /spawn/:agentId
 Kill a spawned agent.
-
----
-
-## Sorties
-
-### POST /sorties
-Launch a tracked sortie mission.
-
-This is the first-class mission surface over spawned runs: Port Daddy creates a persisted sortie record, assigns an ephemeral harbor like `project:sortie:<id>`, runs spawn preflight, records mission events, and returns a durable sortie id you can inspect later.
-Sorties inherit the same fail-closed telemetry contract as `/spawn`. A sortie launch is blocked before the coordinating run starts if the resolved backend/model cannot provide exact token counts plus an exact nonzero model rate.
-
-**Body:**
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `goal` | string | yes | Mission brief or goal statement |
-| `projectDir` | string | no | Project directory (defaults to daemon cwd) |
-| `backend` | string | yes | `ollama`, `claude`, `claude-cli`, `gemini`, `cloudflare`, `codex`, `aider`, `custom` |
-| `budgetUsd` | number | yes | Positive spend ceiling for this mission |
-| `model` | string | no | Explicit model override |
-| `modelTier` | string | no | Tier hint: `low`, `mid`, `high` |
-| `recipe` | string | no | Mission recipe label (`investigate`, `fix`, `review`, `creative`, `custom`) |
-| `expectedOutput` | string | no | Expected deliverable summary |
-| `context` | string | no | Extra constraints or context |
-| `approvalMode` | string | no | Human gate mode (`none`, `before-build`, `before-apply`, `before-close`) |
-| `roster` | string[] | no | Requested roles or roster preview |
-| `identity` | string | no | Coordinator identity override |
-| `purpose` | string | no | Human-readable label for the coordinating run |
-| `allowedTools` | string | no | Tool permission string for claude-cli-backed coordinators |
-| `timeout` | number | no | Timeout in milliseconds |
-| `maxTokens` | number | no | Optional token ceiling for claude or claude-cli launches |
-
-**Response (precondition failure):**
-- HTTP `400`
-- `{ "success": false, "error": "...", "preflight": { ... }, "sortie": { ... } }`
-- use `/spawn/preflight` or retry the sortie with a telemetry-eligible backend/model before relaunching
-
-### GET /sorties
-List recent sorties. Query params: `projectDir`, `limit`.
-
-### GET /sorties/:id
-Fetch one sortie mission by id.
-
-### GET /sorties/:id/logs
-Fetch the event log for a sortie mission. Query params: `limit`.
 
 ---
 
@@ -1192,7 +1178,7 @@ Summarize graph edges for a project.
 ## Episodic Memory
 
 ### GET /memory/episodes
-List episodic memory entries promoted from sessions and sorties.
+List episodic memory entries promoted from sessions and spawned runs.
 
 **Query params:** `projectDir`, `project`, `harbor`, `agentId`, `episodeType`, `query`, `limit`.
 
@@ -1722,3 +1708,24 @@ SSE stream of real-time dashboard updates. Falls back to 15s polling.
 
 ### GET /config
 Get current daemon configuration. Optional query param: `dir`.
+
+---
+
+## Host Safety (ADR-0088)
+
+### GET /safe/scan
+Read-only host-safety posture audit. Runs the same scan as `pd safe scan` and the `safe_scan` MCP tool: secrets-at-rest, crown-jewel file permissions, binary trust, egress snapshot, and MCP supply-chain inventory. Optional query param `allow` is a comma-separated host allowlist for the egress check.
+
+Always returns `200` — the report carries its own verdict (callers gate on `report.state`, not HTTP status, exactly like `GET /attest`).
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "report": {
+    "state": "ok",
+    "score": 100,
+    "findings": []
+  }
+}
+```

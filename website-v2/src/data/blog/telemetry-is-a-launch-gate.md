@@ -92,7 +92,7 @@ The ledger also makes failure useful. A blocked launch should still leave a pref
 
 <!-- terminal -->
 ```bash
-$ pd agent "Review this release" --backend custom --model-tier high --dry-run
+$ pd spawn --backend custom --tier high --budget 0.50 -- "Review this release"
 blocked: backend telemetry is opaque
 
 preflight:

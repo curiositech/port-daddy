@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/issue-plan.schema.json",
+  "title": "Agent Issue Tracker Workflow Plan",
+  "description": "A set of tracker items (Jira/Linear/GitHub Issues) and how an agent handled each one, for auditing tracker-working discipline: dedupe search, actionable acceptance criteria, honest status transitions, item<->diff linkage, and captured spawned work.",
+  "type": "object",
+  "required": ["items"],
+  "additionalProperties": true,
+  "properties": {
+    "policy": {
+      "type": "object",
+      "description": "Optional overrides for audit thresholds; unset fields fall back to strict defaults.",
+      "additionalProperties": false,
+      "properties": {
+        "requireAcceptanceCriteria": { "type": "boolean", "default": true },
+        "requireDedupeSearch": { "type": "boolean", "default": true },
+        "requireLinkedArtifactForActiveWork": { "type": "boolean", "default": true },
+        "requireEvidenceForDone": { "type": "boolean", "default": true },
+        "minLegibilityScore": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.75 }
+      }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "status", "hasAcceptanceCriteria", "dedupeSearched", "linkedArtifacts"],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Tracker issue key or slug, e.g. 'PROJ-123', 'daemon-introspection-api', '#641'."
+          },
+          "title": { "type": "string", "minLength": 1 },
+          "status": {
+            "type": "string",
+            "enum": ["todo", "in-progress", "done"],
+            "description": "Must reflect observable work, not intent. See policy.requireEvidenceForDone / requireLinkedArtifactForActiveWork."
+          },
+          "hasAcceptanceCriteria": {
+            "type": "boolean",
+            "description": "True only if the item states explicit, checkable acceptance criteria (not just a task description)."
+          },
+          "dedupeSearched": {
+            "type": "boolean",
+            "description": "True only if the tracker was actually searched for an existing item before this one was filed or picked up."
+          },
+          "linkedArtifacts": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Branch names, PR references, or commit shas that trace this item to a diff, e.g. 'PR #641', 'branch:feature/xyz', 'commit:a79dcd81'."
+          },
+          "evidenceOnDone": {
+            "type": ["object", "null"],
+            "description": "Required proof when status is 'done'. Null/absent for non-done items.",
+            "properties": {
+              "type": { "type": "string", "enum": ["pr", "commit", "artifact", "other"] },
+              "ref": { "type": "string", "description": "The PR/commit/artifact a reviewer can open to check the claim." },
+              "validated": { "type": "boolean", "description": "Whether the ref was actually opened/checked, not just cited." }
+            }
+          },
+          "spawnedItemsCaptured": {
+            "type": ["boolean", "null"],
+            "description": "null when no new work was discovered mid-task (not applicable). true when discovered work was filed as new items. false when discovered work was NOT captured (scope-creep risk)."
+          }
+        }
+      }
+    }
+  }
+}

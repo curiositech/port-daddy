@@ -57,9 +57,6 @@ function FeatureArt({
           loading="lazy"
         />
       ) : null}
-      <div className="absolute bottom-0 left-0 border-r-2 border-t-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-2 py-1 font-mono text-[12px] font-black uppercase tracking-[0.14em] text-[var(--brand-primary)]">
-        {feature.status}
-      </div>
     </div>
   )
 }
@@ -78,7 +75,12 @@ function FeatureDetailDialog({
         <Dialog.Content className="fixed left-1/2 top-1/2 z-[101] grid max-h-[calc(100dvh-var(--space-6))] w-[min(calc(100vw-var(--space-6)),72rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[var(--shadow-brutal)]">
           <div className="flex flex-wrap items-start justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-strong)] p-[var(--space-4)]">
             <div className="grid gap-[var(--space-2)]">
-              <BracketLabel>{feature.category}</BracketLabel>
+              <div className="flex flex-wrap items-center gap-[var(--space-2)]">
+                <BracketLabel>{feature.category}</BracketLabel>
+                <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                  {feature.status}
+                </span>
+              </div>
               <Dialog.Title asChild>
                 <PanelTitle as="h3" size="card" className="max-w-[18ch]">
                   {feature.title}
@@ -212,8 +214,11 @@ function FeatureCard({
             <span className="font-mono text-[12px] font-black uppercase tracking-[0.22em] text-[var(--text-primary)]">
               {String(index + 1).padStart(2, '0')}
             </span>
-            <span className="border-l-2 border-[var(--border-strong)] pl-[var(--space-3)] font-sans text-[12px] font-black uppercase tracking-[0.22em] text-[var(--text-secondary)]">
-              {feature.category}
+            <span className="flex flex-wrap items-center justify-end gap-[var(--space-2)] text-right font-sans text-[12px] font-black uppercase tracking-[0.22em]">
+              <span className="text-[var(--text-secondary)]">{feature.category}</span>
+              <span className="border-l-2 border-[var(--border-strong)] pl-[var(--space-2)] text-[var(--brand-primary)]">
+                {feature.status}
+              </span>
             </span>
           </div>
           <PanelTitle as="h3" size={isWide ? 'card' : 'nav'} className="max-w-none">
@@ -272,7 +277,7 @@ export function Features() {
           <SectionIntro
             eyebrow="Product surface"
             title="One layer, many ways to inspect work."
-            description="Port Daddy is built as infrastructure first, with a real operator surface on top. FleetBar, Fleet Control Center, sessions, guardrails, inboxes, resources, sorties, and relay security all point back to the same local daemon state."
+            description="Port Daddy is built as infrastructure first, with a real operator surface on top. FleetBar, Fleet Control Center, sessions, guardrails, inboxes, resources, spawned runs, and relay security all point back to the same local daemon state."
             titleAs="h2"
             className="max-w-[46rem]"
             titleClassName="max-w-[14ch]"

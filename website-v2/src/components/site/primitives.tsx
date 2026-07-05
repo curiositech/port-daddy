@@ -121,11 +121,13 @@ export function BrandMark({ className }: { className?: string }) {
 type WordmarkVariant = 'full' | 'spin' | 'header'
 
 /**
- * The Port Daddy WORDMARK lockup — radar mark + "Port Daddy" type. Theme-aware
- * (light/dark SVG swap), transparent ground so it sits on the live surface.
+ * The Port Daddy WORDMARK lockup — radar mark + "Port Daddy" set in the site's
+ * MAIN font (`--font-display`, the editorial serif) so the navbar/footer
+ * wordmark matches the headings and the hero's spinning wordmark instead of the
+ * old standalone SVG typeface. Theme-aware (the radar mark swaps light/dark).
  *   - 'full'   : mark + "Port Daddy" + tagline rule (footer / brand contexts)
  *   - 'spin'   : same lockup, radar mark animates (hero)
- *   - 'header' : compact mark + "Port Daddy", no tagline (navbar), mark spins
+ *   - 'header' : compact mark + "Port Daddy", no tagline (navbar)
  */
 export function Wordmark({
   variant = 'full',
@@ -136,24 +138,50 @@ export function Wordmark({
   className?: string
   decorative?: boolean
 }) {
-  const { theme } = useTheme()
-
   // The hero's spinning wordmark is rendered inline (not an <img>) so its colour
   // washes can be CSS-driven — smooth, and frozen when not spinning.
   if (variant === 'spin') {
     return <SpinningWordmark className={className} />
   }
 
-  const suffix = theme === 'dark' ? 'dark' : 'light'
-  const base = variant === 'header' ? 'portdaddy-wordmark-header' : 'portdaddy-wordmark'
+  const label = decorative ? undefined : 'Port Daddy'
 
+  if (variant === 'header') {
+    // Sized by the caller's className (e.g. `h-9 xl:h-10`); the mark fills that
+    // height and the name scales alongside it.
+    return (
+      <span
+        role="img"
+        aria-label={label}
+        aria-hidden={decorative || undefined}
+        className={cn('inline-flex items-center gap-[var(--space-2)]', className)}
+      >
+        <BrandMark className="h-full w-auto" />
+        <span className="font-display text-[1.3rem] font-black leading-none tracking-[-0.01em] text-[var(--text-primary)] xl:text-[1.45rem]">
+          Port Daddy
+        </span>
+      </span>
+    )
+  }
+
+  // 'full' — footer / brand lockup: mark + name, then a rule + tagline.
   return (
-    <img
-      src={`/logos/${base}-${suffix}.svg`}
-      alt={decorative ? '' : 'Port Daddy'}
-      aria-hidden={decorative ? true : undefined}
-      className={cn('w-auto select-none', className)}
-    />
+    <span
+      role="img"
+      aria-label={label}
+      aria-hidden={decorative || undefined}
+      className={cn('inline-flex flex-col gap-[var(--space-3)]', className)}
+    >
+      <span className="inline-flex items-center gap-[var(--space-3)]">
+        <BrandMark className="h-12 w-12" />
+        <span className="font-display text-[1.85rem] font-black leading-none tracking-[-0.01em] text-[var(--text-primary)]">
+          Port Daddy
+        </span>
+      </span>
+      <span className="border-t-2 border-[var(--border-strong)] pt-[var(--space-2)] font-display text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+        A harbor-master for your agents
+      </span>
+    </span>
   )
 }
 
@@ -365,7 +393,7 @@ export function SectionIntro({
 }: {
   eyebrow: string
   title: ReactNode
-  description: ReactNode
+  description?: ReactNode
   className?: string
   titleAs?: ElementType
   titleClassName?: string
@@ -378,7 +406,9 @@ export function SectionIntro({
       <PanelTitle as={titleAs} size={titleSize} className={titleClassName}>
         {title}
       </PanelTitle>
-      <PanelBody className={cn('max-w-[var(--measure-copy)]', bodyClassName)}>{description}</PanelBody>
+      {description ? (
+        <PanelBody className={cn('max-w-[var(--measure-copy)]', bodyClassName)}>{description}</PanelBody>
+      ) : null}
     </div>
   )
 }

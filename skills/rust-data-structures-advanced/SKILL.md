@@ -21,17 +21,35 @@ metadata:
   category: Code Architecture & Performance
   tags: [rust, data-structures, arena, generational-index, slotmap, petgraph, lock-free, crossbeam, cache-locality, ecs, performance]
   pairs-with:
-    - skill: rust-tauri-development
-      reason: Tauri/desktop Rust apps hit the same graph/state-ownership walls
-    - skill: performance-profiler
-      reason: Verify a structure swap actually moved the benchmark before keeping it
-    - skill: distributed-algorithms
-      reason: Lock-free queues and epoch reclamation underpin concurrent algorithms
+    - skill: advanced-rust-patterns
+      reason: Trait/generic design and structure choice are the two halves of "idiomatic ownership" in Rust
+    - skill: rust-performance-and-idioms
+      reason: A structure swap (arena, smallvec, dashmap) is only a win if the idiom and the benchmark agree
+    - skill: rust-debugging-mastery
+      reason: Diagnosing a hand-rolled lock-free bug (ABA, use-after-free) or a Miri/Loom failure hands off to this skill's debugging depth
+    - skill: rust-with-claude-code
+      reason: Shares the toolchain/testing workflow this skill's worked examples and quality gates plug into when pairing with an agent
   provenance:
     kind: first-party
     owners: [port-daddy]
   authorship:
     maintainers: [port-daddy]
+  io-contract:
+    kind: deliverable
+    consumes:
+      - kind: data-modeling-problem
+        format: markdown
+        description: A description of the relationships to model -- graph/tree/pool/sequence/map/shared -- as reported by a human or another agent, including whether nodes are deleted, shared across threads, or cheaply cloned.
+      - kind: structure-choice-plan
+        format: json
+        description: A structured plan naming the shape of each relationship and the structural choices made for it (arena vs Rc<RefCell>, StableGraph vs Graph, concurrent map, hand-rolled lock-free reclamation, hasher), matching schemas/structure-plan.schema.json.
+    produces:
+      - kind: structure-recommendation
+        format: markdown
+        description: The recommended structure and rationale, following the Decision Points flowchart and matched to the relationship's shape and mutation/concurrency needs.
+      - kind: structure-choice-audit
+        format: json
+        description: A deterministic pass/fail audit of the structure-choice-plan against this skill's Quality Gates, as produced by scripts/structure_choice_audit.mjs.
 ---
 
 # rust-data-structures-advanced
@@ -178,6 +196,7 @@ in a hot lookup.
 □ examples/ compile: `cargo build` in examples/ is green (slotmap graph + crossbeam pipeline)
 □ Every structural claim cites a real crate doc / benchmark (see References)
 □ python3 scripts/validate_skill.py → 0 errors
+□ node scripts/structure_choice_audit.mjs --input <plan>.json → pass:true (see Structure-Choice Audit)
 ```
 
 ## Worked Example: a Mutable Graph Without `Rc<RefCell>`
@@ -220,6 +239,27 @@ re-implement them on the slotmap — hand the graph to `petgraph` (`StableGraph`
 If the graph is build-once and never mutated (an AST), `typed-arena` (`&'arena Node`) or
 `id-arena` is even simpler. See `references/01-arenas-and-graphs.md`.
 
+## Structure-Choice Audit
+
+`scripts/validate_skill.py` self-checks this *skill's own files* (frontmatter, references,
+examples). It does not check whether a *user's* structure choice actually follows the thesis
+above. For that, run `scripts/structure_choice_audit.mjs` against a `structure-choice-plan`
+matching `schemas/structure-plan.schema.json`. It encodes this skill's Quality Gates as
+deterministic checks over each modeled relationship — no keyword matching, only structured
+fields (`shape`, `usesRcRefCellOnNode`, `deletableGraphUsesStableGraph`, `generationalIndex`,
+`smallvecJustifiedByBench`, `concurrentMap`, `handRolledLockFree`, `cheapCloneUsesPersistent`,
+`hasherDeliberate`):
+
+```bash
+node scripts/structure_choice_audit.mjs --input examples/sample-input.json
+```
+
+`examples/sample-input.json` is a plan where every relationship already follows the thesis
+(arena keys, `StableGraph`, generational indices, `dashmap`, a benchmarked `smallvec`, a
+persistent shared snapshot, a deliberate hasher) and returns `pass: true`. A plan that models a
+graph as `Rc<RefCell<Node>>` with a global-`Mutex`-guarded map returns `pass: false` with
+`critical`/`high` findings pointing at `rc-refcell-on-node` and `arc-mutex-hashmap-default`.
+
 ## References
 
 | File | Consult when |
@@ -236,15 +276,50 @@ If the graph is build-once and never mutated (an AST), `typed-arena` (`&'arena N
 | `examples/slotmap_graph.rs` | A mutable, deletable graph with `slotmap` + a secondary map — the no-`Rc<RefCell>` pattern, with traversal |
 | `examples/crossbeam_pipeline.rs` | A bounded multi-stage `crossbeam-channel` pipeline (MPMC), scoped threads, graceful shutdown |
 | `examples/Cargo.toml` | Pins the exact crate versions both examples compile against |
+| `examples/sample-input.json` | A `structure-choice-plan` where every relationship follows the thesis — `scripts/structure_choice_audit.mjs --input examples/sample-input.json` returns `pass: true` |
 
 ## Scripts
 
 | Script | Purpose |
 |--------|---------|
 | `skills/rust-data-structures-advanced/scripts/validate_skill.py` | Self-check: frontmatter, required references/examples, mermaid present, SKILL.md line budget, example Cargo.toml sanity. Run `python3 scripts/validate_skill.py` from the skill directory. |
+| `skills/rust-data-structures-advanced/scripts/structure_choice_audit.mjs` | Domain auditor: checks a user's `structure-choice-plan` JSON against this skill's Quality Gates (arena vs `Rc<RefCell>`, `StableGraph`, generational indices, concurrent map, hand-rolled lock-free reclamation/Loom, persistent snapshots, deliberate hashers). Run `node scripts/structure_choice_audit.mjs --input <plan>.json`. |
 
 ## Interface
 
 UI/catalog metadata for this first-party skill lives in `agents/openai.yaml` (display name,
 short description, recommended context, and `quality_gates`). Update it alongside the skill
 purpose so chips and skill lists stay accurate.
+
+<!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
+
+## Skill Bundle Index
+
+*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+
+**`agents/`**
+- [`agents/openai.yaml`](agents/openai.yaml) — openai (data/schema)
+
+**`examples/`**
+- [`examples/Cargo.lock`](examples/Cargo.lock)
+- [`examples/Cargo.toml`](examples/Cargo.toml)
+- [`examples/INDEX.md`](examples/INDEX.md) — Examples — rust-data-structures-advanced — Runnable, compilable demonstrations of the skill's core moves.
+- [`examples/crossbeam_pipeline.rs`](examples/crossbeam_pipeline.rs)
+- [`examples/sample-input.json`](examples/sample-input.json) — sample input (data/schema)
+- [`examples/slotmap_graph.rs`](examples/slotmap_graph.rs)
+
+**`references/`**
+- [`references/01-arenas-and-graphs.md`](references/01-arenas-and-graphs.md) — 01 — Arenas, Generational Indices & Graphs — > The idiomatic Rust answer to "how do I model a graph/tree without fighting the borrow > checker" is almost never `Rc<RefCell<T>>`.
+- [`references/02-concurrent-and-lockfree.md`](references/02-concurrent-and-lockfree.md) — 02 — Concurrent & Lock-Free Structures — > The throughline holds across threads too: the right structure makes *sharing* trivial.
+- [`references/03-small-and-cache-friendly.md`](references/03-small-and-cache-friendly.md) — 03 — Small, Inline & Cache-Friendly Structures — > These structures win by respecting the memory hierarchy: keep small things on the stack / > inline, keep iterated things contiguous, and m
+- [`references/04-choosing-a-map.md`](references/04-choosing-a-map.md) — 04 — Choosing a Map: HashMap vs BTreeMap vs hashbrown vs fxhash/ahash vs IndexMap — > Two independent axes: **container** (hash table vs ordered tree vs insertion-ordered) and > **hasher** (security vs speed).
+- [`references/INDEX.md`](references/INDEX.md) — References — rust-data-structures-advanced — `SKILL.md` points here; read only the file the decision in front of you needs.
+
+**`schemas/`**
+- [`schemas/structure-plan.schema.json`](schemas/structure-plan.schema.json) — structure plan.schema (data/schema)
+
+**`scripts/`**
+- [`scripts/structure_choice_audit.mjs`](scripts/structure_choice_audit.mjs)
+- [`scripts/validate_skill.py`](scripts/validate_skill.py) — Self-check the rust-data-structures-advanced skill.
+
+<!-- END BUNDLE INDEX -->

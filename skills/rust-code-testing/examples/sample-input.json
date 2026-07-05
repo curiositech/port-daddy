@@ -1,0 +1,38 @@
+{
+  "tests": [
+    {
+      "name": "bin_resolver::finds_absolute_path_via_launchd_env",
+      "kind": "unit",
+      "assertsValueNotType": true,
+      "isAsync": false,
+      "usesTokioTestNotTest": false
+    },
+    {
+      "name": "bin_resolver::falls_back_when_path_missing",
+      "kind": "unit",
+      "assertsValueNotType": true,
+      "isAsync": false,
+      "usesTokioTestNotTest": false
+    },
+    {
+      "name": "daemon::supervisor_restarts_after_launchd_unload",
+      "kind": "integration",
+      "assertsValueNotType": true,
+      "isAsync": true,
+      "usesTokioTestNotTest": true
+    },
+    {
+      "name": "doctest::readme_quickstart_compiles",
+      "kind": "doc",
+      "assertsValueNotType": true,
+      "isAsync": false,
+      "usesTokioTestNotTest": false
+    }
+  ],
+  "coverageTheaterRisk": false,
+  "testDepsInDevDeps": true,
+  "mockEcho": false,
+  "fakesDeterminismWithSleeps": false,
+  "parityAssertsKernelLoaded": true,
+  "writesToTmp": false
+}

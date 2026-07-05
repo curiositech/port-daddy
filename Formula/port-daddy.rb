@@ -15,6 +15,14 @@ class PortDaddy < Formula
     # same instruction manual into Codex, Claude, AGENTS-aware, Gemini, and
     # compatible editor runtimes without copy drift.
     pkgshare.install "skills/port-daddy-agent-skill" => "skills/port-daddy-agent-skill"
+
+    # Port Daddy Pilot source rendered by `pd setup` into each runtime's
+    # native agent format. See lib/pilot-agent-render.ts.
+    pkgshare.install "agents/port-daddy-pilot" => "agents/port-daddy-pilot"
+
+    # SessionStart steering hook wired by `pd init`; dependency-free and
+    # daemon-independent.
+    pkgshare.install "hooks/sessionstart-pilot.mjs" => "hooks/sessionstart-pilot.mjs"
   end
 
   def post_install
@@ -58,6 +66,16 @@ class PortDaddy < Formula
         ~/.windsurf/skills/port-daddy-agent-skill
         ...and other AGENTS-aware/editor skill registries
 
+      Setup also renders the Port Daddy Pilot agent — the ideal Port Daddy
+      operating persona — into every local LLM runtime's native format:
+        ~/.claude/agents/port-daddy-pilot.md      (Claude Code / Desktop)
+        ~/.codex/agents/port-daddy-pilot.toml     (Codex CLI)
+        ~/.gemini/commands/pd-pilot.toml          (Gemini CLI: /pd-pilot)
+        ~/.agents/agents/port-daddy-pilot.md      (generic AGENTS-aware drop)
+      Antigravity (agy) imports the Gemini command when you run
+      `agy plugin import`. In a Port Daddy project the SessionStart hook steers
+      new sessions to this agent automatically unless you pass --agent <other>.
+
       Verify from the console:
         pd setup --status
         pd status
@@ -70,5 +88,8 @@ class PortDaddy < Formula
   test do
     system "#{bin}/pd", "version"
     assert_predicate pkgshare/"skills/port-daddy-agent-skill/SKILL.md", :exist?
+    assert_predicate pkgshare/"agents/port-daddy-pilot/AGENT.md", :exist?
+    assert_predicate pkgshare/"agents/port-daddy-pilot/agent.config.json", :exist?
+    assert_predicate pkgshare/"hooks/sessionstart-pilot.mjs", :exist?
   end
 end

@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/oauth2-and-oidc-from-scratch-plan.schema.json",
+  "title": "OAuth 2.0 / OIDC Integration Plan",
+  "description": "A structured plan for an OAuth/OIDC client integration so scripts/oauth2_and_oidc_from_scratch_audit.mjs can check it deterministically against OAuth 2.1 and the browser-based-apps BCP.",
+  "type": "object",
+  "required": ["clientType", "flow", "oidc"],
+  "additionalProperties": true,
+  "properties": {
+    "clientType": {
+      "type": "string",
+      "enum": ["web-confidential", "spa", "native-mobile", "service", "device"],
+      "description": "What kind of OAuth client this is."
+    },
+    "flow": {
+      "type": "string",
+      "enum": ["authorization-code", "client-credentials", "device-authorization", "implicit", "ropc"],
+      "description": "The grant type the plan intends to use. implicit and ropc are removed in OAuth 2.1 and always fail the audit."
+    },
+    "oidc": {
+      "type": "boolean",
+      "description": "True if OpenID Connect is in play (an ID token is requested and used for identity)."
+    },
+    "usesPkce": {
+      "type": "boolean",
+      "description": "True if code_challenge/code_verifier (S256) are sent on every authorization request."
+    },
+    "browserArchitecture": {
+      "type": "string",
+      "enum": ["bff", "token-mediating-backend", "pure-spa", "none"],
+      "description": "How the browser side is architected; 'none' for non-browser clients."
+    },
+    "tokenStorage": {
+      "type": "string",
+      "enum": ["server-side-session", "httponly-cookie", "in-memory", "service-worker", "local-storage", "session-storage", "indexeddb", "none"],
+      "description": "Where access/refresh tokens live from the browser's point of view."
+    },
+    "statePresent": {
+      "type": "boolean",
+      "description": "True if a random state parameter is generated per login, stored session-bound, and checked on the callback (CSRF defense)."
+    },
+    "noncePresent": {
+      "type": "boolean",
+      "description": "True if a random nonce is sent and the ID token's nonce claim is compared to it (replay defense)."
+    },
+    "redirectUriMatching": {
+      "type": "string",
+      "enum": ["exact", "prefix", "wildcard", "hostname-only"],
+      "description": "How the registered redirect_uri is matched; anything but 'exact' fails."
+    },
+    "idTokenValidation": {
+      "type": "object",
+      "description": "How the ID token is validated (required in practice when oidc is true).",
+      "properties": {
+        "library": {
+          "type": "string",
+          "enum": ["vetted", "hand-rolled", "none"],
+          "description": "'vetted' = jose / authlib / go-jose / nimbus-jose-jwt class of library."
+        },
+        "algPinned": { "type": "boolean", "description": "True if the expected signing algorithm is pinned in the verifier." },
+        "checksIssuer": { "type": "boolean", "description": "True if iss is compared exactly to the configured issuer." },
+        "checksAudience": { "type": "boolean", "description": "True if aud is checked to contain the client_id." },
+        "checksExpiry": { "type": "boolean", "description": "True if exp/iat/nbf are validated." },
+        "checksNonce": { "type": "boolean", "description": "True if the nonce claim is compared to the sent value." }
+      }
+    },
+    "refreshTokens": {
+      "type": "object",
+      "description": "Refresh-token policy, if refresh tokens are issued.",
+      "properties": {
+        "issued": { "type": "boolean", "description": "True if the integration receives refresh tokens." },
+        "rotationEnabled": { "type": "boolean", "description": "True if each exchange issues a new refresh token and invalidates the old one." },
+        "storage": {
+          "type": "string",
+          "enum": ["server-side", "browser"],
+          "description": "Where refresh tokens live; 'browser' always fails."
+        }
+      }
+    },
+    "jwksSource": {
+      "type": "string",
+      "enum": ["jwks-endpoint", "hardcoded-key", "none"],
+      "description": "Where IdP signing keys come from; must be the /.well-known/jwks.json endpoint with a TTL cache."
+    },
+    "clockSkewSeconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Clock-skew tolerance applied to exp/iat/nbf; must be <= 60."
+    }
+  }
+}
