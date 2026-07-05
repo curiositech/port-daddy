@@ -97,6 +97,31 @@ Center: budget as a gold block, Papa empty states, micro-flag activity rail.
 CLI: box-glyph corner ticks, half-block stripes, reverse-video zones,
 voice-procedure chips; `NO_COLOR`/`!isTTY`/`--json` strip to plain.
 
+Adopted 2026-07-04 (parley punch item 5; normative mocks in
+`docs/design/2026-07-05-surface-redesign/mockups-ch20/` <!-- cite-exempt: lands with PR #691 -->, fork rulings recorded
+there): FleetBar's gate queue is **state-dependent** — it does not render when
+empty; when armed it renders above the intent composer as the view's one color
+zone. Four more surfaces join the set:
+
+- **Scout** (browser intake wedge): evidence hero with gold region economics,
+  the three honest daemon-chip states (online / degraded / offline with its
+  remediation on the face), a closed annotation taxonomy, and the routed-shape
+  confirmation showing the Work Intent id. Intake only; deep-links to console.
+- **Login** (storefront): the trust model in one screen — local-first honesty
+  well, OIDC primary, the 4-digit pairing ritual under a Quebec masthead
+  (pratique: requesting permission to enter), no-custodial-keys truths, one
+  cobalt knockout slab.
+- **Account** (storefront): keyring / receipt drawer / consent ledger — violet
+  edges identity artifacts only, gold marks money (receipts, the plan's
+  gold-slab price plate, caps "enforced by YOUR daemon, mirrored here"),
+  Kilo masthead on device pairing, error hue reserved for revoke/delete.
+- **Harbor remote view** (storefront sibling of the co-edit dream): the same
+  dark buffer mirrored read-only with claims as line-range stripes and the
+  hatched semantic-conflict forecast band; radio-voice parley chips
+  (SÉCURITÉ teal, PAN PAN amber-on-tint); a salvage tide-line; the durable
+  ledger tail; stale-truth chips for remote devices; Victor flying over the
+  contested range because its meaning is literally true.
+
 ## Image overhaul plan (phased, each phase one PR)
 
 - **W0 — tokens + linework.css into website-v2** (palette v2/v2.1 diff from proposal §05, brand-doc lockstep test updated; rollout tasks R·0–R·4 from the proposal).
