@@ -10,18 +10,20 @@ live daemon. There's also a headless TUI build for terminals and CI.
 cd core/pd-console
 
 make            # build + launch the native window  (the one you want)
-make install    # drop a release app into ~/Applications and open it
+make install    # build + open ~/Applications/pd-console-latest.app
+make devapp DEVBUILD=harness-roster
 ```
 
-That's it. `make` builds the release window and opens it; `make install` makes it
-permanent (Spotlight → "pd-console", or drag `~/Applications/pd-console.app` to the
-Dock). From the **FleetBar** menubar app, the popover's **Open Operator Console**
-button launches the same window.
+That's it. `make` builds the release window and opens it; `make install` updates
+the `latest` lane app without touching the production app. From the **FleetBar**
+menubar app, the popover's **Open Operator Console** button launches the operator
+lane.
 
 | Command        | What it does |
 |----------------|--------------|
 | `make` / `make run` | Build (release) + launch the window |
-| `make install` | Build a release `~/Applications/pd-console.app` and open it |
+| `make install` | Build + open `~/Applications/pd-console-latest.app` |
+| `make devapp DEVBUILD=harness-roster` | Build + open an isolated dev app named `pd-console_dev-harness-roster.app` |
 | `make dev`     | Fast debug build + launch (quicker iteration) |
 | `make repl`    | Headless TUI console — no GPU, builds anywhere |
 | `make shots`   | Capture window screenshots (needs macOS Screen Recording permission) |
@@ -29,7 +31,29 @@ button launches the same window.
 | `make check`   | Type-check the no-GPU path (what CI runs on Linux) |
 
 Open straight to a pane: `cargo run --release --features gpui --bin pd-console -- --pane sorties`
-(or `open -a pd-console --args --pane sorties` once installed).
+(or `open ~/Applications/pd-console-dev-apps/pd-console_dev-harness-roster.app --args --pane active-agents`
+for an isolated harness-roster dev build).
+
+## App Lanes
+
+Use lanes when several agents are iterating on the console at once:
+
+| Lane | App | Use it for |
+|------|-----|------------|
+| `prod` | `~/Applications/pd-console-prod.app` | the released operator app |
+| `latest` | `~/Applications/pd-console-latest.app` | current `main` after a merge |
+| `dev` | `~/Applications/pd-console-dev-apps/pd-console_dev-<name>.app` | one branch, one feature, one clearly labeled test app |
+
+Direct lane commands:
+
+```bash
+bash scripts/package-console.sh --latest
+bash scripts/package-console.sh --devbuild harness-roster
+PD_CONSOLE_NO_LAUNCH=1 bash scripts/package-console.sh --devbuild harness-roster
+```
+
+Each lane has its own bundle identifier and badged icon, so Dock entries and
+LaunchServices caches do not blur production, main, and feature builds together.
 
 ## How it's built
 

@@ -2,14 +2,8 @@
 """
 Skill Validator — Comprehensive Structural Validation for Agent Skills
 
-Validates a skill directory against the canonical `some_claude_skills`
-authoring rules:
-
-- minimal top-level frontmatter
-- repo metadata conventions
-- lean SKILL.md structure
-- no phantom references
-- basic quality-hygiene checks
+Validates a skill directory for correctness: frontmatter fields, description
+quality, file references, line counts, anti-patterns, and naming conventions.
 
 Usage:
     python scripts/validate_skill.py <skill-dir>
@@ -56,8 +50,6 @@ def parse_frontmatter(text: str) -> Tuple[Optional[Dict[str, Any]], int]:
 
     fm: Dict[str, Any] = {}
     current_key: Optional[str] = None
-    current_nested_key: Optional[str] = None
-    current_nested_indent = 0
     current_indent = 0
     # Track whether current_key has a string value that may span multiple lines
     current_is_scalar = False
@@ -74,7 +66,6 @@ def parse_frontmatter(text: str) -> Tuple[Optional[Dict[str, Any]], int]:
         if m and indent == 0:
             key, val = m.group(1), m.group(2).strip()
             current_key = key
-            current_nested_key = None
             current_indent = 0
             current_is_scalar = False
             if val:
@@ -105,38 +96,6 @@ def parse_frontmatter(text: str) -> Tuple[Optional[Dict[str, Any]], int]:
         # Nested key or list item under current_key
         if current_key and indent > 0:
             current_is_scalar = False
-            if (
-                current_nested_key
-                and indent > current_nested_indent
-                and isinstance(fm.get(current_key), dict)
-                and isinstance(fm[current_key].get(current_nested_key), dict)
-            ):
-                target = fm[current_key][current_nested_key]
-                if stripped.startswith("- "):
-                    item_val = stripped[2:].strip().strip("'\"")
-                    if not isinstance(target, list):
-                        fm[current_key][current_nested_key] = [item_val]
-                    else:
-                        target.append(item_val)
-                    continue
-
-                dm = re.match(r"^(\w[\w-]*):\s*(.*)", stripped)
-                if dm:
-                    deep_key, deep_val = dm.group(1), dm.group(2).strip()
-                    if deep_val.startswith("[") and deep_val.endswith("]"):
-                        target[deep_key] = [
-                            v.strip().strip("'\"") for v in deep_val[1:-1].split(",") if v.strip()
-                        ]
-                    elif deep_val in ("true", "True"):
-                        target[deep_key] = True
-                    elif deep_val in ("false", "False"):
-                        target[deep_key] = False
-                    elif deep_val:
-                        target[deep_key] = deep_val.strip("'\"")
-                    else:
-                        target[deep_key] = {}
-                    continue
-
             if stripped.startswith("- "):
                 item_val = stripped[2:].strip()
                 # List item under a key
@@ -176,8 +135,6 @@ def parse_frontmatter(text: str) -> Tuple[Optional[Dict[str, Any]], int]:
                         fm[current_key][sub_key] = sub_val.strip("'\"")
                     else:
                         fm[current_key][sub_key] = {}
-                        current_nested_key = sub_key
-                        current_nested_indent = indent
                 continue
 
     return fm, end_idx + 1
@@ -227,11 +184,10 @@ class ValidationReport:
 # ──────────────────────────────────────────────────────────────────────
 
 VALID_FRONTMATTER_KEYS = {
-    "name",
-    "description",
-    "license",
-    "allowed-tools",
-    "metadata",
+    "name", "description", "license", "compatibility", "metadata",
+    "allowed-tools", "when_to_use", "argument-hint", "arguments",
+    "disable-model-invocation", "user-invocable", "disallowed-tools",
+    "model", "effort", "context", "agent", "hooks", "paths", "shell",
 }
 
 RESERVED_NAME_WORDS = {"anthropic", "claude"}
@@ -288,15 +244,24 @@ def validate_frontmatter(skill_dir: Path, text: str, report: ValidationReport):
 
     # Check for invalid frontmatter keys
     for key in fm:
-        if key not in VALID_FRONTMATTER_KEYS:
-            report.add(
-                rel,
-                1,
-                "error",
-                "frontmatter",
-                f"Unexpected top-level key '{key}' — keep only "
-                f"{', '.join(sorted(VALID_FRONTMATTER_KEYS))} at top level and move custom/runtime-specific data under metadata",
-            )
+        if key not in VALID_FRONTMATTER_KEYS and key != "metadata":
+            # Keys inside metadata are custom and always valid
+            if not isinstance(fm.get("metadata"), dict) or key not in fm.get("metadata", {}):
+                report.add(rel, 1, "warning", "frontmatter",
+                           f"Unknown frontmatter key '{key}' — will be ignored by runtime. "
+                           f"Move to metadata: block or SKILL.md body")
+
+    context = fm.get("context")
+    agent = fm.get("agent")
+    if context is not None and context != "fork":
+        report.add(rel, 1, "warning", "frontmatter",
+                   f"Unknown context '{context}' — expected 'fork' or omit the field")
+    if context == "fork" and not agent:
+        report.add(rel, 1, "error", "frontmatter",
+                   "context: fork requires agent: <subagent-name>")
+    if agent and context != "fork":
+        report.add(rel, 1, "warning", "frontmatter",
+                   "agent is set without context: fork — the agent setting may be ignored")
 
 
 def validate_skill_md(skill_dir: Path, report: ValidationReport):
@@ -357,10 +322,10 @@ def validate_all_md_html_entities(skill_dir: Path, report: ValidationReport):
 
 def validate_structure(skill_dir: Path, report: ValidationReport):
     """Validate directory structure."""
-    # CHANGELOG.md is a repo convention for maintained first-party skills
+    # CHANGELOG.md is recommended
     if not (skill_dir / "CHANGELOG.md").exists():
-        report.add("", 0, "warning", "structure",
-                   "No CHANGELOG.md — maintained first-party skills in this repo should track mutations")
+        report.add("", 0, "suggestion", "structure",
+                   "No CHANGELOG.md — recommended for tracking version history")
 
     # Check scripts are executable (have shebang or .py extension)
     scripts_dir = skill_dir / "scripts"
@@ -373,13 +338,56 @@ def validate_structure(skill_dir: Path, report: ValidationReport):
                                "Python script missing shebang (#!/usr/bin/env python3)")
 
     # Check for empty directories
-    for subdir in ["references", "scripts", "assets"]:
+    for subdir in ["references", "scripts", "examples", "templates", "assets", "agents", "hooks"]:
         d = skill_dir / subdir
         if d.exists() and d.is_dir():
             children = [f for f in d.iterdir() if not f.name.startswith(".")]
             if not children:
                 report.add(subdir, 0, "warning", "structure",
                            f"Empty directory: {subdir}/ — remove or add content")
+
+
+def validate_forked_agent_assets(skill_dir: Path, text: str, report: ValidationReport):
+    """Validate local forked-subagent conventions."""
+    fm, _ = parse_frontmatter(text)
+    if fm is None:
+        return
+
+    if fm.get("context") != "fork":
+        return
+
+    agents_dir = skill_dir / "agents"
+    if not agents_dir.exists():
+        report.add("agents", 0, "warning", "structure",
+                   "context: fork is set but agents/ directory is missing")
+        return
+
+    agent_files = [f for f in agents_dir.rglob("*.md") if f.is_file() and not f.name.startswith(".")]
+    if not agent_files:
+        report.add("agents", 0, "warning", "structure",
+                   "context: fork is set but agents/ has no markdown prompt files")
+
+
+def validate_hook_assets(skill_dir: Path, text: str, report: ValidationReport):
+    """Validate local hook conventions."""
+    fm, _ = parse_frontmatter(text)
+    if fm is None:
+        return
+
+    hooks = fm.get("hooks")
+    if not hooks:
+        return
+
+    hooks_dir = skill_dir / "hooks"
+    if not hooks_dir.exists():
+        report.add("hooks", 0, "warning", "structure",
+                   "hooks frontmatter is set but hooks/ directory is missing")
+        return
+
+    hook_files = [f for f in hooks_dir.rglob("*") if f.is_file() and not f.name.startswith(".")]
+    if not hook_files:
+        report.add("hooks", 0, "warning", "structure",
+                   "hooks frontmatter is set but hooks/ has no files")
 
 
 def validate_tags(skill_dir: Path, text: str, report: ValidationReport):
@@ -398,50 +406,6 @@ def validate_tags(skill_dir: Path, text: str, report: ValidationReport):
         else:
             report.add("SKILL.md", 1, "suggestion", "frontmatter",
                        "No tags defined in metadata — consider adding for discoverability")
-
-
-def validate_metadata(skill_dir: Path, text: str, report: ValidationReport):
-    """Validate repo-specific metadata expectations."""
-    fm, _ = parse_frontmatter(text)
-    if fm is None:
-        return
-
-    metadata = fm.get("metadata")
-    if metadata is None:
-        report.add("SKILL.md", 1, "warning", "frontmatter",
-                   "Missing metadata block — repo-specific fields such as category, tags, and provenance belong under metadata")
-        return
-
-    if not isinstance(metadata, dict):
-        report.add("SKILL.md", 1, "error", "frontmatter",
-                   "metadata must be a mapping/dictionary")
-        return
-
-    provenance = metadata.get("provenance")
-    authorship = metadata.get("authorship")
-    if provenance is None:
-        report.add("SKILL.md", 1, "suggestion", "frontmatter",
-                   "metadata.provenance missing — add provenance or authorship for first-party/imported tracking")
-    elif not isinstance(provenance, dict):
-        report.add("SKILL.md", 1, "warning", "frontmatter",
-                   "metadata.provenance should be a mapping with at least a kind field")
-    elif "kind" not in provenance:
-        report.add("SKILL.md", 1, "warning", "frontmatter",
-                   "metadata.provenance.kind missing — use values such as first-party or imported")
-
-    if authorship is None:
-        report.add("SKILL.md", 1, "suggestion", "frontmatter",
-                   "metadata.authorship missing — add maintainers/authors for first-party tracking and dossier UI")
-    elif not isinstance(authorship, dict):
-        report.add("SKILL.md", 1, "warning", "frontmatter",
-                   "metadata.authorship should be a mapping")
-
-    tags = metadata.get("tags")
-    imported = isinstance(tags, list) and "imported" in tags
-    provenance_kind = provenance.get("kind") if isinstance(provenance, dict) else None
-    if imported and provenance_kind != "imported":
-        report.add("SKILL.md", 1, "suggestion", "frontmatter",
-                   "Skill is tagged imported but metadata.provenance.kind is not 'imported'")
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -464,7 +428,8 @@ def validate_skill(skill_dir: Path, strict: bool = False) -> ValidationReport:
     if skill_md.exists():
         text = skill_md.read_text(encoding="utf-8")
         validate_tags(skill_dir, text, report)
-        validate_metadata(skill_dir, text, report)
+        validate_forked_agent_assets(skill_dir, text, report)
+        validate_hook_assets(skill_dir, text, report)
 
     if strict:
         # In strict mode, warnings become errors

@@ -97,7 +97,7 @@ pub mod dark {
         fn bg_surface(&self) -> Color { Color::Rgb(43, 39, 36) }
         fn bg_elevated(&self) -> Color { Color::Rgb(16, 14, 12) }
         fn bg_inverse(&self) -> Color { Color::Rgb(245, 245, 240) }
-        fn bg_brand(&self) -> Color { Color::Rgb(255, 219, 51) }
+        fn bg_brand(&self) -> Color { Color::Rgb(216, 221, 60) }
         fn bg_brand_soft(&self) -> Color { Color::Rgb(253, 230, 138) }
         fn bg_danger(&self) -> Color { Color::Rgb(191, 47, 47) }
         fn bg_success(&self) -> Color { Color::Rgb(21, 128, 61) }
@@ -109,10 +109,10 @@ pub mod dark {
         fn text_on_danger(&self) -> Color { Color::Rgb(255, 255, 255) }
         fn text_on_inverse(&self) -> Color { Color::Rgb(30, 27, 24) }
         fn text_inverse_subtle(&self) -> Color { Color::Rgb(63, 61, 56) }
-        fn text_link(&self) -> Color { Color::Rgb(255, 219, 51) }
+        fn text_link(&self) -> Color { Color::Rgb(216, 221, 60) }
         fn border_default(&self) -> Color { Color::Rgb(245, 245, 240) }
         fn border_muted(&self) -> Color { Color::Rgb(80, 75, 70) }
-        fn border_emphasis(&self) -> Color { Color::Rgb(255, 219, 51) }
+        fn border_emphasis(&self) -> Color { Color::Rgb(216, 221, 60) }
         fn shadow_color(&self) -> Color { Color::Rgb(16, 14, 12) }
         fn state_claim_active_bg(&self) -> Color { Color::Rgb(21, 128, 61) }
         fn state_claim_active_fg(&self) -> Color { Color::Rgb(245, 245, 240) }
@@ -146,12 +146,12 @@ pub mod dark {
         fn perf_agree_bg(&self) -> Color { Color::Rgb(21, 128, 61) }
         fn perf_refuse_bg(&self) -> Color { Color::Rgb(139, 22, 34) }
         fn perf_failure_bg(&self) -> Color { Color::Rgb(139, 22, 34) }
-        fn perf_cfp_bg(&self) -> Color { Color::Rgb(255, 219, 51) }
+        fn perf_cfp_bg(&self) -> Color { Color::Rgb(216, 221, 60) }
         fn perf_propose_bg(&self) -> Color { Color::Rgb(109, 40, 217) }
         fn perf_accept_proposal_bg(&self) -> Color { Color::Rgb(67, 56, 202) }
         fn perf_subscribe_bg(&self) -> Color { Color::Rgb(15, 118, 110) }
         fn perf_query_ref_bg(&self) -> Color { Color::Rgb(127, 196, 255) }
-        fn term_prompt(&self) -> Color { Color::Rgb(255, 219, 51) }
+        fn term_prompt(&self) -> Color { Color::Rgb(216, 221, 60) }
         fn term_cmd(&self) -> Color { Color::Rgb(245, 245, 240) }
         fn term_ok(&self) -> Color { Color::Rgb(109, 211, 168) }
         fn term_warn(&self) -> Color { Color::Rgb(245, 158, 11) }
@@ -177,7 +177,7 @@ pub mod light {
         fn bg_surface(&self) -> Color { Color::Rgb(255, 255, 255) }
         fn bg_elevated(&self) -> Color { Color::Rgb(255, 249, 224) }
         fn bg_inverse(&self) -> Color { Color::Rgb(30, 27, 24) }
-        fn bg_brand(&self) -> Color { Color::Rgb(255, 219, 51) }
+        fn bg_brand(&self) -> Color { Color::Rgb(102, 106, 0) }
         fn bg_brand_soft(&self) -> Color { Color::Rgb(253, 230, 138) }
         fn bg_danger(&self) -> Color { Color::Rgb(191, 47, 47) }
         fn bg_success(&self) -> Color { Color::Rgb(220, 252, 231) }
@@ -226,7 +226,7 @@ pub mod light {
         fn perf_agree_bg(&self) -> Color { Color::Rgb(21, 128, 61) }
         fn perf_refuse_bg(&self) -> Color { Color::Rgb(139, 22, 34) }
         fn perf_failure_bg(&self) -> Color { Color::Rgb(139, 22, 34) }
-        fn perf_cfp_bg(&self) -> Color { Color::Rgb(255, 219, 51) }
+        fn perf_cfp_bg(&self) -> Color { Color::Rgb(102, 106, 0) }
         fn perf_propose_bg(&self) -> Color { Color::Rgb(109, 40, 217) }
         fn perf_accept_proposal_bg(&self) -> Color { Color::Rgb(67, 56, 202) }
         fn perf_subscribe_bg(&self) -> Color { Color::Rgb(15, 118, 110) }
@@ -266,7 +266,7 @@ pub mod primitive {
     pub const CINNABAR_LIT: Color = Color::Rgb(255, 144, 129);
     pub const CINNABAR_DIM: Color = Color::Rgb(139, 22, 34);
     pub const TAN: Color = Color::Rgb(139, 90, 26);
-    pub const CANARY: Color = Color::Rgb(255, 219, 51);
+    pub const CANARY: Color = Color::Rgb(216, 221, 60);
     pub const CANARY_SOFT: Color = Color::Rgb(250, 229, 131);
     pub const CANARY_WARM: Color = Color::Rgb(253, 230, 138);
     pub const CANARY_STRONG: Color = Color::Rgb(255, 204, 0);

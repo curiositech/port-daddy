@@ -68,7 +68,7 @@ export const referenceSection: DocsContentSection = {
       truth: 'source-backed',
       goals: [
         'Show the direct SDK method surface, not a made-up nested module API.',
-        'Expose newer SDK coverage for actors, wallets, bonds, panic, pheromones, Arbiter, tuples, sorties, and semantic work.',
+        'Expose newer SDK coverage for actors, wallets, bonds, panic, pheromones, Arbiter, tuples, spawn, and semantic work.',
         'Keep `/docs/sdk` useful even before every method has a dedicated page.',
       ],
       blocks: [
@@ -158,7 +158,7 @@ export const referenceSection: DocsContentSection = {
       slug: 'daemon-http-surface',
       title: 'Daemon HTTP Routes',
       summary:
-        'The high-value route groups on the live daemon: sessions, salvage, harbors, tuples, sorties, and fleet.',
+        'The high-value route groups on the live daemon: sessions, salvage, harbors, tuples, spawn, and fleet.',
       truth: 'source-backed',
       goals: [
         'Know which route groups exist right now.',
@@ -170,8 +170,8 @@ export const referenceSection: DocsContentSection = {
           type: 'paragraph',
           title: 'Think in route groups before leaf endpoints',
           paragraphs: [
-            'The daemon routes are easiest to navigate when you think in groups first: sessions and sugar, agents and salvage, tuples and messaging, harbors, sorties, fleet, and general status.',
-            'A good reference page should get you to the right neighborhood immediately, then let you drill into the exhaustive endpoint list. It should not force you to read a wall of raw paths just to answer “where do I inspect sorties?” or “which routes own harbor membership?”',
+            'The daemon routes are easiest to navigate when you think in groups first: sessions and sugar, agents and salvage, tuples and messaging, harbors, spawn, fleet, and general status.',
+            'A good reference page should get you to the right neighborhood immediately, then let you drill into the exhaustive endpoint list. It should not force you to read a wall of raw paths just to answer “where do I inspect spawned runs?” or “which routes own harbor membership?”',
           ],
         },
         {
@@ -179,7 +179,7 @@ export const referenceSection: DocsContentSection = {
           items: [
             'Use `/status` and related info routes for daemon health and overview.',
             'Use `/sugar/*`, `/sessions`, `/agents`, and `/salvage` for identity, lifecycle, and recovery.',
-            'Use `/harbors`, `/tuples`, `/sorties`, and `/fleet` when you need scoped coordination, tracked missions, or project automation.',
+            'Use `/harbors`, `/tuples`, `/spawn`, and `/fleet` when you need scoped coordination, tracked runs, or project automation.',
           ],
         },
         {

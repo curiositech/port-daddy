@@ -242,6 +242,10 @@ export async function handleBegin(
     console.error('');
     console.error(`  ${data.salvageHint}`);
   }
+  if (data.approvalsHint) {
+    console.error('');
+    ui.warn(String(data.approvalsHint));
+  }
 }
 
 // =============================================================================

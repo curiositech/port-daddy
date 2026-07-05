@@ -52,7 +52,7 @@ const SLUG_VERB_OVERRIDES = {
   services: ['claim', 'release', 'find', 'url', 'env', 'ports'],
   locks: ['lock', 'unlock', 'locks'],
   messaging: ['pub', 'publish', 'sub', 'subscribe', 'listen', 'channels', 'wait', 'broadcast'],
-  sessions: ['session', 'sessions', 'note', 'notes'],
+  sessions: ['session', 'sessions', 'takeover', 'note', 'notes'],
   agents: ['agent', 'agents', 'swarm'],
   actors: ['actor', 'actors'],
   changelog: ['changelog'],
@@ -65,8 +65,7 @@ const SLUG_VERB_OVERRIDES = {
   briefing: ['briefing', 'history'],
   integration: ['integration'],
   sugar: ['begin', 'done', 'whoami', 'with-lock'],
-  spawn: ['spawn', 'spawned', 'watch', 'sortie'],
-  sortie: ['sortie'],
+  spawn: ['spawn', 'spawned', 'watch'],
   harbors: ['harbor', 'harbors'],
   bench: ['bench'],
   demo: ['demo'],
@@ -239,9 +238,11 @@ describe('resolveTier', () => {
     expect(resolveTier('dns', ['list'])).toBe('silent');
   });
 
-  test('pd session abandon and pd session rm are destructive', () => {
+  test('pd session abandon is destructive while takeover and rm are archival notify actions', () => {
     expect(resolveTier('session', ['abandon'])).toBe('destructive');
-    expect(resolveTier('session', ['rm'])).toBe('destructive');
+    expect(resolveTier('session', ['takeover'])).toBe('notify');
+    expect(resolveTier('takeover', ['session-123'])).toBe('notify');
+    expect(resolveTier('session', ['rm'])).toBe('notify');
     expect(resolveTier('session', ['start'])).toBe('notify');
     expect(resolveTier('session', ['end'])).toBe('notify');
     expect(resolveTier('session', ['files', 'add'])).toBe('notify');
@@ -289,7 +290,6 @@ describe('commandsByTier', () => {
       'salvage claim',
       'salvage dismiss',
       'session abandon',
-      'session rm',
       'ports cleanup',
       'channels clear',
       'agent unregister',
@@ -319,7 +319,6 @@ describe('DESTRUCTIVE_COMMANDS: handler wiring', () => {
     'salvage abandon': ['cli/commands/resurrection.ts'],
     'salvage dismiss': ['cli/commands/resurrection.ts'],
     'session abandon': ['cli/commands/sessions.ts'],
-    'session rm': ['cli/commands/sessions.ts'],
     'release --expired': ['cli/commands/services.ts'],
     'unlock --force': ['cli/commands/locks.ts'],
     'ports cleanup': ['cli/commands/services.ts'],

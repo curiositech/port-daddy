@@ -10,7 +10,7 @@
  * still renders, with a "serve from the daemon for live mode" note.
  *
  * Design follows the repo UI rules: ≥14px body, 12px only on uppercase tracked eyebrows, AAA
- * contrast, maritime palette (mustard accent, crimson alert), no emoji-as-icon.
+ * contrast, palette v2 (gold accent, crimson alert), no emoji-as-icon.
  */
 
 import type { PlannerPlan, PlanNode } from './planner-migrate.js';
@@ -174,13 +174,13 @@ export function renderBoard(input: BoardInput): string {
 <style>
   :root{
     --bg:#0d1117; --panel:#161b22; --panel2:#1c232c; --ink:#e8edf2; --muted:#9aa7b4;
-    --line:#2b333d; --mustard:#FFDB33; --crimson:#E5484D; --teal:#3fb6a8; --blue:#5aa0e6;
+    --line:#2b333d; --gold:#d8dd3c; --crimson:#E5484D; --teal:#3fb6a8; --blue:#5aa0e6;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
     font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   .eyebrow{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
-  header{padding:22px 26px;border-bottom:3px solid var(--mustard);background:var(--panel)}
+  header{padding:22px 26px;border-bottom:3px solid var(--gold);background:var(--panel)}
   h1{margin:0 0 4px;font-size:24px;letter-spacing:-.01em}
   .sub{color:var(--muted);font-size:14px}
   .counts{display:flex;gap:18px;margin-top:14px;flex-wrap:wrap}
@@ -189,48 +189,48 @@ export function renderBoard(input: BoardInput): string {
   .count span{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:700}
   .flags{margin:14px 26px 0;background:rgba(229,72,77,.1);border:1px solid var(--crimson);
     border-radius:10px;padding:12px 14px;font-size:14px}
-  .flags b{color:var(--mustard);font-weight:700}
+  .flags b{color:var(--gold);font-weight:700}
   .tabs{display:flex;gap:6px;padding:14px 26px 0}
   .tab{background:var(--panel2);border:1px solid var(--line);color:var(--ink);padding:8px 16px;
     border-radius:8px 8px 0 0;cursor:pointer;font-size:14px;font-weight:600}
-  .tab.active{background:var(--panel);border-bottom-color:var(--panel);color:var(--mustard)}
+  .tab.active{background:var(--panel);border-bottom-color:var(--panel);color:var(--gold)}
   main{padding:0 26px 60px}
   .view{display:none;background:var(--panel);border:1px solid var(--line);border-radius:0 10px 10px 10px;padding:18px}
   .view.active{display:block}
   details.epic{border:1px solid var(--line);border-radius:10px;margin-bottom:12px;background:var(--panel2)}
   details.epic>summary{cursor:pointer;padding:12px 14px;font-size:15px;display:flex;align-items:center;gap:12px;list-style:none}
   details.epic>summary::-webkit-details-marker{display:none}
-  .epic-title{font-weight:700;color:var(--mustard);font-size:16px}
+  .epic-title{font-weight:700;color:var(--gold);font-size:16px}
   .epic-count{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
   .adrlink{margin-left:auto;font-size:13px;color:var(--blue);text-decoration:none}
   .adrlink:hover{text-decoration:underline}
   .tasks{padding:6px 12px 12px}
   .task{padding:10px 12px;border-top:1px solid var(--line)}
-  .task.is-crit{box-shadow:inset 3px 0 0 var(--mustard)}
+  .task.is-crit{box-shadow:inset 3px 0 0 var(--gold)}
   .task-main{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .task-slug{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;font-weight:600}
   .task-meta{margin-top:4px;display:flex;gap:12px;align-items:center;color:var(--muted);font-size:13.5px}
   .summ{color:var(--muted)}
   .chip{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border-radius:999px;border:1px solid var(--line)}
-  .status-now{background:rgba(255,219,51,.16);color:var(--mustard);border-color:var(--mustard)}
+  .status-now{background:rgba(216,221,60,.16);color:var(--gold);border-color:var(--gold)}
   .status-backlog{background:rgba(90,160,230,.14);color:var(--blue);border-color:#3a5d80}
   .status-parked{background:#222a33;color:var(--muted)}
   .status-merge,.status-done{background:rgba(63,182,168,.14);color:var(--teal);border-color:#2f6f67}
   .pri{color:var(--ink)}.pri-1,.pri-2{border-color:var(--crimson);color:#ff9b9e}
-  .crit{background:var(--mustard);color:#1a1300;border-color:var(--mustard)}
+  .crit{background:var(--gold);color:#1a1300;border-color:var(--gold)}
   .deps,.slack{font-size:13px}
   .grow{display:flex;align-items:center;gap:10px;margin:3px 0}
   .glabel{width:300px;flex:none;font-family:ui-monospace,Menlo,monospace;font-size:13px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
   .gtrack{flex:1;position:relative;height:18px;background:var(--panel2);border-radius:5px;overflow:hidden}
   .gbar{position:absolute;top:0;bottom:0;background:#3a5d80;border-radius:5px}
-  .gbar.gcrit{background:var(--mustard)}
+  .gbar.gcrit{background:var(--gold)}
   .live{display:flex;align-items:center;gap:10px;margin:14px 26px 0;font-size:13.5px;color:var(--muted)}
   .dot{width:9px;height:9px;border-radius:50%;background:#555}
   .dot.on{background:var(--teal)} .dot.off{background:var(--crimson)}
   .tube{margin-left:auto;display:flex;gap:6px}
   .tube input{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 10px;font-size:14px}
-  .tube button{background:var(--mustard);color:#1a1300;border:0;border-radius:8px;padding:7px 14px;font-weight:700;cursor:pointer;font-size:14px}
+  .tube button{background:var(--gold);color:#1a1300;border:0;border-radius:8px;padding:7px 14px;font-weight:700;cursor:pointer;font-size:14px}
   .empty{color:var(--muted);padding:10px;font-size:14px}
   details.adrdoc{margin:2px 12px 10px}
   details.adrdoc>summary{cursor:pointer;font-size:13px;font-weight:700;text-transform:uppercase;
@@ -240,7 +240,7 @@ export function renderBoard(input: BoardInput): string {
   details.adrdoc[open]>summary::before{content:"▾ "}
   .adrbody{background:#0b0f14;border:1px solid var(--line);border-radius:10px;padding:16px 20px;
     max-height:520px;overflow:auto;font-size:15px;line-height:1.62;color:#d7e0ea}
-  .adrbody h1,.adrbody h2,.adrbody h3{color:var(--mustard);margin:18px 0 8px;line-height:1.3}
+  .adrbody h1,.adrbody h2,.adrbody h3{color:var(--gold);margin:18px 0 8px;line-height:1.3}
   .adrbody h1{font-size:20px}.adrbody h2{font-size:17px}.adrbody h3{font-size:15px}
   .adrbody p{margin:8px 0}.adrbody ul,.adrbody ol{margin:8px 0;padding-left:22px}
   .adrbody li{margin:3px 0}

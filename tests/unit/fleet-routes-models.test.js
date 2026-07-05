@@ -123,7 +123,7 @@ describe('fleet routes /fleet/models', () => {
         models: [
           '@cf/zai-org/glm-4.7-flash',
           '@cf/openai/gpt-oss-120b',
-          '@cf/moonshotai/kimi-k2.6',
+          '@cf/moonshotai/kimi-k2-instruct',
           '@cf/qwen/qwen3-30b-a3b-fp8',
           '@cf/nvidia/nemotron-3-120b-a12b',
           '@cf/meta/llama-4-scout-17b-16e-instruct',
@@ -131,7 +131,7 @@ describe('fleet routes /fleet/models', () => {
         modelTiers: {
           low: '@cf/zai-org/glm-4.7-flash',
           mid: '@cf/openai/gpt-oss-120b',
-          high: '@cf/moonshotai/kimi-k2.6',
+          high: '@cf/moonshotai/kimi-k2-instruct',
         },
         setupLinks: [expect.objectContaining({ label: 'Create pd-ai-stack token' })],
       }),

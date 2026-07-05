@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/cloudflare-workers-debug-plan.schema.json",
+  "title": "Cloudflare Workers Deploy/Debug Plan",
+  "description": "A structured deploy plan for a Cloudflare Worker or Pages project, so cloudflare-workers-debugging's Quality Gates can be checked deterministically by scripts/workers_debugging_audit.mjs.",
+  "type": "object",
+  "required": ["deployTarget", "authMethod"],
+  "additionalProperties": true,
+  "properties": {
+    "deployTarget": {
+      "type": "string",
+      "enum": ["workers", "pages"],
+      "description": "Whether this deploys a Worker script or a Pages project."
+    },
+    "authMethod": {
+      "type": "string",
+      "enum": ["oauth", "api-token", "global-api-key"],
+      "description": "How wrangler authenticates: OAuth login (humans), scoped API token (CI), or the legacy global key (never)."
+    },
+    "ciDeploy": {
+      "type": "boolean",
+      "description": "True if the deploy runs from CI rather than a human shell."
+    },
+    "secretUploadMethod": {
+      "type": "string",
+      "enum": ["file-redirect", "printf-pipe", "cat-pipe", "dashboard"],
+      "description": "How secrets reach wrangler secret put. cat-pipe is the alias trap that stores empty strings."
+    },
+    "secretsVerifiedPostUpload": {
+      "type": "boolean",
+      "description": "True if every secret is length-verified after upload (temporary endpoint or smoke test)."
+    },
+    "usesD1": {
+      "type": "boolean",
+      "description": "True if the worker binds a D1 database."
+    },
+    "d1MigrationsRemote": {
+      "type": "boolean",
+      "description": "True if D1 migrations run with --remote against the real database, not the local .wrangler state."
+    },
+    "oauthScopesRefreshedForNewProducts": {
+      "type": "boolean",
+      "description": "True if wrangler logout/login re-consented scopes after adding D1/R2/Queues to the project."
+    },
+    "observabilityEnabled": {
+      "type": "boolean",
+      "description": "True if [observability] enabled = true is set in wrangler.toml for every environment."
+    },
+    "compatibilityDateAgeDays": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Age of compatibility_date in days. Quality gate: bumped within 90 days."
+    },
+    "customDomain": {
+      "type": "boolean",
+      "description": "True if the worker is reached via a custom_domain route."
+    },
+    "workerRenamed": {
+      "type": "boolean",
+      "description": "True if the worker script was renamed since the custom domain was assigned."
+    },
+    "staleDomainAssignmentCleared": {
+      "type": "boolean",
+      "description": "True if the old worker's domain assignment was deleted in the dashboard so the new worker re-creates it."
+    },
+    "bindingsEnumeratedAtStartup": {
+      "type": "boolean",
+      "description": "True if the worker logs its env binding keys at startup so missing bindings are loud, not silent."
+    },
+    "cookieSetOnRedirect": {
+      "type": "boolean",
+      "description": "True if a login flow sets a session cookie on the same response as a 302 redirect."
+    },
+    "sessionCookieSameSite": {
+      "type": "string",
+      "enum": ["strict", "lax", "none"],
+      "description": "SameSite attribute of the session cookie. Strict drops the cookie on the redirect navigation."
+    },
+    "pagesPreviewProjectIsolated": {
+      "type": "boolean",
+      "description": "True if manual Pages preview deploys use a distinct project or branch from git-push production deploys."
+    },
+    "cpuLimitMonitored": {
+      "type": "boolean",
+      "description": "True if 1101/1102 error counts are tracked over time."
+    }
+  }
+}

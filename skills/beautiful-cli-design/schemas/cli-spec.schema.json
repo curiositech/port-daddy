@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CLI Design Spec",
+  "description": "Input shape for scripts/cli_design_audit.mjs — a normalized description of a CLI/TUI's runtime-compatibility and visual-design behavior, structured as booleans so it can be scored deterministically instead of by reading prose.",
+  "type": "object",
+  "required": [
+    "respectsNoColorEnv",
+    "colorHasNonColorFallback",
+    "alignsColumns",
+    "respectsTerminalWidth",
+    "prefixesLinesForGrep",
+    "quietByDefault",
+    "hasProgressForLongOps",
+    "errorsToStderr",
+    "exitCodesMeaningful",
+    "honorsPipeNotATty"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "tool": {
+      "type": "string",
+      "description": "Optional name of the CLI/TUI being audited, for report labeling only — not scored."
+    },
+    "respectsNoColorEnv": {
+      "type": "boolean",
+      "description": "True if `NO_COLOR` (and `TERM=dumb`) suppress ANSI color/styling output entirely."
+    },
+    "colorHasNonColorFallback": {
+      "type": "boolean",
+      "description": "True if every meaning conveyed by color (success/warning/error/etc.) is ALSO conveyed by a symbol, label, or text — color is never the only signal."
+    },
+    "alignsColumns": {
+      "type": "boolean",
+      "description": "True if table/box column alignment uses Unicode display-width (not raw string length), so CJK characters and emoji do not break layout."
+    },
+    "respectsTerminalWidth": {
+      "type": "boolean",
+      "description": "True if output reflows or truncates sanely at narrow widths (e.g. 40/80/120 columns) instead of wrapping unpredictably or overflowing."
+    },
+    "prefixesLinesForGrep": {
+      "type": "boolean",
+      "description": "True if streamed/log-style output lines carry a stable prefix (level, component, timestamp) that survives piping into grep/CI logs."
+    },
+    "quietByDefault": {
+      "type": "boolean",
+      "description": "True if default output is concise (no verbose/debug noise) with an explicit `--verbose`/`-v` opt-in for more."
+    },
+    "hasProgressForLongOps": {
+      "type": "boolean",
+      "description": "True if operations that can take a perceptible amount of time show a spinner (unknown duration) or a bar+ETA (known denominator) — never silence."
+    },
+    "errorsToStderr": {
+      "type": "boolean",
+      "description": "True if error and warning output is written to stderr, not stdout, so it survives `cmd > out.txt` and doesn't corrupt piped stdout."
+    },
+    "exitCodesMeaningful": {
+      "type": "boolean",
+      "description": "True if the process exit code distinguishes success (0) from distinct failure classes, not just 0-vs-1 for everything."
+    },
+    "honorsPipeNotATty": {
+      "type": "boolean",
+      "description": "True if the tool detects a non-TTY stdout (pipe, redirect, CI log) and strips interactive/decorative output (cursor control, live-redraw, ANSI) instead of dumping raw escape codes."
+    }
+  }
+}

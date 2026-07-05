@@ -15,6 +15,8 @@ It ships with:
 - `templates/` for copyable notes and handoffs.
 - `examples/` for concrete build paths.
 - `agents/openai.yaml` for UI/catalog metadata.
+- `architecture.html` for the rendered, standalone architecture overview.
+- `affordance-scorecard.json` for the bundle's self-scored affordance coverage.
 
 Run:
 

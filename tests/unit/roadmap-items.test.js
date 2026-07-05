@@ -203,3 +203,47 @@ describe('durability', () => {
     ]);
   });
 });
+
+describe('remove', () => {
+  test('deletes the item and reports what was removed', () => {
+    roadmap.upsert({ slug: 'dupe', summaryMd: 'a stray', status: 'backlog', harbor: 'fleet' });
+    expect(roadmap.get('dupe', 'fleet')).not.toBeNull();
+
+    const result = roadmap.remove('dupe', 'fleet');
+    expect(result.removed).toBe(true);
+    expect(result.item?.slug).toBe('dupe');
+    expect(roadmap.get('dupe', 'fleet')).toBeNull();
+  });
+
+  test('also deletes the append-only status-event audit rows (no orphans)', () => {
+    roadmap.upsert({ slug: 'withaudit', summaryMd: 'x', status: 'backlog', harbor: 'fleet' });
+    roadmap.updateStatus({ slug: 'withaudit', status: 'now', by: 'agent-1', harbor: 'fleet' });
+    const id = roadmap.get('withaudit', 'fleet').id;
+    expect(db.prepare('SELECT count(*) c FROM roadmap_item_status_events WHERE item_id = ?').get(id).c).toBe(1);
+
+    roadmap.remove('withaudit', 'fleet');
+    expect(db.prepare('SELECT count(*) c FROM roadmap_item_status_events WHERE item_id = ?').get(id).c).toBe(0);
+  });
+
+  test('emits a roadmap:removed tuple', () => {
+    roadmap.upsert({ slug: 'gone', summaryMd: 'x', status: 'now', harbor: 'fleet' });
+    roadmap.remove('gone', 'fleet');
+    const removed = tuples.rd(['roadmap:removed', 'gone', '*'], { harbor: 'fleet' });
+    expect(removed).not.toBeNull();
+  });
+
+  test('is a no-op for an unknown slug', () => {
+    const result = roadmap.remove('never-existed', 'fleet');
+    expect(result).toEqual({ removed: false, item: null });
+  });
+
+  test('is harbor-scoped — removing from one harbor leaves the other intact', () => {
+    roadmap.upsert({ slug: 'shared', summaryMd: 'real', status: 'now', harbor: 'port-daddy' });
+    roadmap.upsert({ slug: 'shared', summaryMd: 'stray dupe', status: 'backlog', harbor: 'fleet' });
+
+    const result = roadmap.remove('shared', 'fleet');
+    expect(result.removed).toBe(true);
+    expect(roadmap.get('shared', 'fleet')).toBeNull();
+    expect(roadmap.get('shared', 'port-daddy')?.summaryMd).toBe('real');
+  });
+});

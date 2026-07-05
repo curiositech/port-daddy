@@ -9,7 +9,7 @@ These are the tools the Port Daddy MCP server exposes. They are the **preferred 
 | MCP tool | CLI equivalent | When to use the tool |
 |---|---|---|
 | `whoami` | `pd whoami` | First call of every session. |
-| `begin_session` | `pd begin --purpose "…" --identity …` | Start of agent work. |
+| `begin_session` | `pd begin --purpose "..." --identity ... --lifecycle durable` | Start of agent work. |
 | `end_session_full` | `pd done` | End of agent work. |
 | `add_note` | `pd note "…" --type …` | Audit trail; checkpoint progress. |
 | `sitrep` (alias: `catch_me_up`) | `pd sitrep` / `pd look` | Resuming, salvaging, or context-switching in. |
@@ -22,8 +22,7 @@ These are the tools the Port Daddy MCP server exposes. They are the **preferred 
 | `pd_discover` | `pd discover` | "What primitives does this daemon support?" |
 | `drop_feedback` | (writes `.spark/feedback/...`) | Dogfooding bug reports. |
 | `fleet_init` | `pd fleet init` | Scaffold `pd-fleet.yml`. |
-| `spawn_agent` | `pd spawn …` | Manual launch of a sub-agent. |
-| `run_sortie` | (compound) | Spawn + monitor + collect. |
+| `spawn` | `pd spawn …` | Manual launch of a spawned run. |
 
 ## Always-call-first contract
 

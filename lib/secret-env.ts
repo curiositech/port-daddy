@@ -74,6 +74,8 @@ const SENSITIVE_KEYS: readonly string[] = Object.freeze([
   'CF_API_TOKEN',
   'NGROK_AUTHTOKEN',
   'VOYAGE_API_KEY',
+  'DEEPSEEK_API_KEY',
+  'XAI_API_KEY',
 ]);
 
 /** Sealed in-module cache. The only way in is snapshotSensitiveEnv(). */
@@ -332,6 +334,245 @@ export function listSnapshottedKeys(): string[] {
   return Array.from(cache.keys());
 }
 
+// ════════════════════════════════════════════════════════════════════════
+//  CORRAL STORE + pd-secret:// RESOLVER (ADR-0088 Phase B)
+// ════════════════════════════════════════════════════════════════════════
+//
+// The managed-secret API above (saveManagedSecret/getSecret) is deliberately
+// gated to the frozen SENSITIVE_KEYS allow-list — those are PD's own provider
+// tokens. The Phase-B `pd safe corral` slice pulls *arbitrary-named* secrets
+// off disk (a project `.env`'s `STRIPE_SECRET_KEY`, `MY_APP_TOKEN`, …) into the
+// same Keychain/broker vault, then rewrites the source occurrence to a
+// `pd-secret://KEY` reference. Those keys are NOT in SENSITIVE_KEYS, so they get
+// their own keychain ACCOUNT namespace (`corral:`) on the same KEYCHAIN_SERVICE.
+//
+// THE NO-RAW-SECRET-AT-REST RULE: a corralled value lives only in the OS
+// Keychain (encrypted at rest) and the in-process cache. The pd-secret://
+// resolver injects it into a CHILD PROCESS ENV ONLY — never back to disk. This
+// is blast-radius reduction (no plaintext dotenv), NOT confidentiality against a
+// malicious same-UID agent whose binary satisfies the Keychain ACL (that needs
+// the separate-UID broker, ADR-0087 phase 5). See CORRAL_HONEST_LIMIT.
+
+const KEYCHAIN_CORRAL_PREFIX = 'corral:';
+
+/** The scheme a corralled secret's source line is rewritten to. */
+export const PD_SECRET_SCHEME = 'pd-secret://';
+
+/** Honest-limit string echoed by every `pd safe corral` report path. */
+export const CORRAL_HONEST_LIMIT =
+  'A same-UID agent can still read a corralled Keychain item if its binary ' +
+  'satisfies the ACL. Corralling reduces blast radius — no plaintext secret at ' +
+  'rest, scoped + logged access — it is NOT confidentiality against a malicious ' +
+  'same-UID agent (that needs the separate-UID broker, ADR-0087 phase 5).';
+
+/**
+ * A corral vault backend. Production binds this to the OS Keychain. Tests inject
+ * an in-memory map so the full round-trip (save → resolve → child-env inject) is
+ * exercised without a real Keychain (which jest disables suite-wide). The vault
+ * NEVER returns a value to disk — only into a child env via the resolver below.
+ */
+export interface CorralVault {
+  /** True when the backend can persist encrypted-at-rest. */
+  available(): boolean;
+  /** Persist a corralled value. Returns false on failure (fail-closed caller). */
+  save(key: string, value: string): boolean;
+  /** Read a corralled value back, or undefined when absent. */
+  load(key: string): string | undefined;
+  /** Remove a corralled value. Returns true when one was present. */
+  remove(key: string): boolean;
+  /** A human description of where values live (for the report, no values). */
+  describe(): { storage: 'keychain' | 'memory' | 'unavailable'; location: string };
+}
+
+function corralAccountFor(key: string): string {
+  return `${KEYCHAIN_CORRAL_PREFIX}${key}`;
+}
+
+/** The default Keychain-backed corral vault. */
+const keychainCorralVault: CorralVault = {
+  available: () => keychain.available(),
+  save: (key, value) =>
+    keychain.available()
+      ? keychain.saveSecret(KEYCHAIN_SERVICE, corralAccountFor(key), value)
+      : false,
+  load: (key) => {
+    if (!keychain.available()) return undefined;
+    return keychain.loadSecret(KEYCHAIN_SERVICE, corralAccountFor(key)) ?? undefined;
+  },
+  remove: (key) =>
+    keychain.available()
+      ? keychain.deleteSecret(KEYCHAIN_SERVICE, corralAccountFor(key))
+      : false,
+  describe: () =>
+    keychain.available()
+      ? { storage: 'keychain', location: 'macOS Keychain (port-daddy / corral:*)' }
+      : { storage: 'unavailable', location: '~/.port-daddy-env fallback (unavailable)' },
+};
+
+/** The active corral vault. Swappable for tests via {@link setCorralVault}. */
+let _corralVault: CorralVault = keychainCorralVault;
+
+/** Override the corral vault backend (TEST ONLY — e.g. an in-memory map). */
+export function setCorralVault(vault: CorralVault): void {
+  _corralVault = vault;
+}
+
+/** An in-memory corral vault — for tests and CI where Keychain is disabled. */
+export function memoryCorralVault(): CorralVault {
+  const m = new Map<string, string>();
+  return {
+    available: () => true,
+    save: (key, value) => {
+      m.set(key, value);
+      return true;
+    },
+    load: (key) => m.get(key),
+    remove: (key) => m.delete(key),
+    describe: () => ({ storage: 'memory', location: 'in-memory (test vault)' }),
+  };
+}
+
+/** A corral key must be an env-var-shaped identifier (the rewrite target). */
+const CORRAL_KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/** Whether `key` is a valid corral key name (env-var shape). */
+export function isValidCorralKey(key: string): boolean {
+  return CORRAL_KEY_RE.test(key);
+}
+
+export interface CorralSaveResult {
+  key: string;
+  storedAt: 'keychain' | 'memory' | 'unavailable';
+  encryptedAtRest: boolean;
+}
+
+/**
+ * Save a corralled secret value into the vault. Fails closed when no encrypted
+ * backend is available (we refuse to silently keep a plaintext copy). The value
+ * is also placed in the in-process cache so the resolver can inject it this run
+ * without a Keychain round-trip.
+ */
+export function corralSecret(key: string, value: string): CorralSaveResult {
+  if (!isValidCorralKey(key)) {
+    throw new Error(`Invalid corral key (must be env-var-shaped): ${key}`);
+  }
+  const trimmed = value;
+  if (trimmed.length === 0) {
+    throw new Error(`Corral value for ${key} must not be empty`);
+  }
+  const desc = _corralVault.describe();
+  if (!_corralVault.available()) {
+    throw new Error(
+      'Encrypted secret storage is unavailable; refusing to corral without ' +
+        'encryption at rest (would leave a plaintext copy).',
+    );
+  }
+  if (!_corralVault.save(key, trimmed)) {
+    throw new Error(`Failed to persist corralled secret ${key} in the vault`);
+  }
+  // Confirm the DURABLE vault round-trips the exact bytes before we cache or
+  // report success. This is what makes the corral resolver-verification honest:
+  // a vault that drops/garbles the value is caught here, not after a source
+  // rewrite. We cache only the value the vault actually returned.
+  const readBack = _corralVault.load(key);
+  if (readBack !== trimmed) {
+    throw new Error(
+      `Vault did not round-trip ${key} (durable read-back mismatch); refusing to ` +
+        'cache or report success.',
+    );
+  }
+  cache.set(`${KEYCHAIN_CORRAL_PREFIX}${key}`, readBack);
+  return {
+    key,
+    storedAt: desc.storage,
+    encryptedAtRest: desc.storage === 'keychain',
+  };
+}
+
+/**
+ * Resolve a `pd-secret://KEY` reference to its corralled value, or undefined
+ * when the ref is malformed or the key is not in the vault. Reads cache first
+ * (this-run fast path), then the durable vault. NEVER writes to disk.
+ */
+export function resolveSecretRef(ref: string): string | undefined {
+  if (!ref.startsWith(PD_SECRET_SCHEME)) return undefined;
+  const key = ref.slice(PD_SECRET_SCHEME.length);
+  if (!isValidCorralKey(key)) return undefined;
+  const cached = cache.get(`${KEYCHAIN_CORRAL_PREFIX}${key}`);
+  if (cached !== undefined) return cached;
+  const loaded = _corralVault.load(key);
+  if (loaded !== undefined) cache.set(`${KEYCHAIN_CORRAL_PREFIX}${key}`, loaded);
+  return loaded;
+}
+
+/** Whether a string is a `pd-secret://` reference. */
+export function isSecretRef(value: string): boolean {
+  return value.startsWith(PD_SECRET_SCHEME);
+}
+
+/** Whether a corralled value currently resolves for `key` (round-trip probe). */
+export function corralResolves(key: string): boolean {
+  return resolveSecretRef(`${PD_SECRET_SCHEME}${key}`) !== undefined;
+}
+
+/**
+ * Remove a corralled secret from the vault and the in-process cache. Returns
+ * true when an entry was present. Used by an un-corral / rollback path.
+ */
+export function unCorralSecret(key: string): boolean {
+  const hadCache = cache.delete(`${KEYCHAIN_CORRAL_PREFIX}${key}`);
+  const removed = _corralVault.remove(key);
+  return hadCache || removed;
+}
+
+export interface CorralStorageStatus {
+  available: boolean;
+  storage: 'keychain' | 'memory' | 'unavailable';
+  encryptedAtRest: boolean;
+  location: string;
+}
+
+/** Describe the corral vault's storage posture WITHOUT exposing any value. */
+export function corralStorageStatus(): CorralStorageStatus {
+  const desc = _corralVault.describe();
+  return {
+    available: _corralVault.available(),
+    storage: desc.storage,
+    encryptedAtRest: desc.storage === 'keychain',
+    location: desc.location,
+  };
+}
+
+/**
+ * Resolve every `pd-secret://KEY` reference in a child-process env into its
+ * corralled value — IN THE RETURNED ENV ONLY, never to disk. A ref that does not
+ * resolve is left as-is (the child sees the literal `pd-secret://…`, which fails
+ * loudly rather than silently emptying a required secret). Returns a NEW env;
+ * the input is never mutated.
+ *
+ * This is the access path `pd env exec -- <cmd>` uses: corralled secrets are
+ * injected into the spawned process's environment for the duration of that one
+ * command, and exist nowhere on disk.
+ */
+export function resolveSecretRefsInEnv(
+  base: NodeJS.ProcessEnv = {},
+): { env: NodeJS.ProcessEnv; resolved: string[]; unresolved: string[] } {
+  const out: NodeJS.ProcessEnv = { ...base };
+  const resolved: string[] = [];
+  const unresolved: string[] = [];
+  for (const [name, value] of Object.entries(out)) {
+    if (typeof value !== 'string' || !isSecretRef(value)) continue;
+    const v = resolveSecretRef(value);
+    if (v !== undefined) {
+      out[name] = v;
+      resolved.push(name);
+    } else {
+      unresolved.push(name);
+    }
+  }
+  return { env: out, resolved, unresolved };
+}
+
 /**
  * Reset the cache. TEST ONLY — do not call from production code.
  * Jest tests may need this to simulate multiple daemon starts.
@@ -343,4 +584,5 @@ export function _resetForTests(): void {
   }
   cache.clear();
   snapshotCalled = false;
+  _corralVault = keychainCorralVault;
 }

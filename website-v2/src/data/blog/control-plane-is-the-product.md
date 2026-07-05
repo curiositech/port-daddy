@@ -62,7 +62,7 @@ Here is a minimal loop for a software engineer who wants help on a route handler
 $ pd begin "Tighten billing route error handling" --identity web:billing --lifecycle durable
 $ pd session files add apps/web/src/routes/billing.ts
 $ pd note "Intent: preserve API shape, add retry-safe validation, run route tests."
-$ pd agent "Review the billing route for idempotency and missing test cases" --backend codex --model-tier low
+$ pd spawn --backend codex --tier low --budget 0.50 -- "Review the billing route for idempotency and missing test cases"
 $ pd guard check --staged
 ```
 
@@ -110,7 +110,7 @@ The useful native surface is not "spawn agent." It is:
 - show me the last useful handoff;
 - open the full Fleet Control Center when I need depth.
 
-That is why Port Daddy keeps pushing toward project selection, resources, activity, sorties, inbox, channels, and fleet config as first-class surfaces. A serious agent tool needs the operator to see the system, not just the prompt input.
+That is why Port Daddy keeps pushing toward project selection, resources, activity, spawned runs, inbox, channels, and fleet config as first-class surfaces. A serious agent tool needs the operator to see the system, not just the prompt input.
 
 ## Different From Everyone Else
 

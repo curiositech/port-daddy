@@ -12,7 +12,7 @@ The product should not be "launch agents from a Mac app." That is too small. The
 
 > Pick work from the roadmap, let Port Daddy plan it, skill-graft the right agent abilities, launch bounded agents across local and hosted backends, enforce coordination before mutation, and leave a perfect evidence trail of what changed, who touched it, what was merged, what was collapsed, and where the human had to decide.
 
-The current repo already has the pieces: roadmap ledgers, Fleet Control Center, FleetBar, `pd sortie`, `pd agent`, `pd spawn`, Tube, file and symbol claims, salvage, backend readiness, Cloudflare/Codex/Claude backends, and Windags skills. The next product step is to make those pieces feel like one operating room.
+The current repo already has the pieces: roadmap ledgers, Fleet Control Center, FleetBar, `pd spawn`, the `pd agent` registry/inbox namespace, Tube, file and symbol claims, salvage, backend readiness, Cloudflare/Codex/Claude backends, and Windags skills. The next product step is to make those pieces feel like one operating room.
 
 ## The Core Loop
 

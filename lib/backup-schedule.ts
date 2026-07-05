@@ -103,6 +103,12 @@ ${programArgs}
     <string>${xmlEscape(join(logDir, 'backup-schedule.log'))}</string>
     <key>StandardErrorPath</key>
     <string>${xmlEscape(join(logDir, 'backup-schedule.log'))}</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PORT_DADDY_DB</key>
+        <string>${xmlEscape(join(homedir(), '.port-daddy', 'port-registry.db'))}</string>
+    </dict>
 </dict>
 </plist>
 `;

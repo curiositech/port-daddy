@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/sse-ws-channel-plan.schema.json",
+  "title": "SSE / WebSocket Channel Plan",
+  "description": "A structured plan for a real-time browser-server channel, so the transport decision and this skill's Quality Gates can be checked deterministically by scripts/sse_ws_channel_audit.mjs.",
+  "type": "object",
+  "required": ["direction", "chosenTransport", "heartbeatIntervalSeconds"],
+  "additionalProperties": true,
+  "properties": {
+    "direction": {
+      "type": "string",
+      "enum": ["server-to-client", "bidirectional"],
+      "description": "The dominant traffic direction, per the decision diagram in SKILL.md."
+    },
+    "chosenTransport": {
+      "type": "string",
+      "enum": ["sse", "websocket"],
+      "description": "The transport this plan commits to."
+    },
+    "behindBufferingProxy": {
+      "type": "boolean",
+      "description": "True if the channel traverses nginx or another response-buffering proxy/LB/CDN in production."
+    },
+    "proxyBufferingDisabled": {
+      "type": "boolean",
+      "description": "True if X-Accel-Buffering: no is set on SSE responses AND the proxy is configured with proxy_buffering off."
+    },
+    "httpVersion": {
+      "type": "string",
+      "enum": ["http1.1", "http2", "http3"],
+      "description": "The HTTP version negotiated for the SSE origin (irrelevant post-upgrade for WebSocket)."
+    },
+    "heartbeatIntervalSeconds": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Idle-connection heartbeat cadence: SSE comment line or WebSocket ping frame. Should be <=30."
+    },
+    "reconnectBackoffJittered": {
+      "type": "boolean",
+      "description": "True if WebSocket reconnect logic uses full-jitter exponential backoff (SSE reconnects automatically)."
+    },
+    "replayOnReconnect": {
+      "type": "boolean",
+      "description": "True if the channel promises to replay events missed while disconnected."
+    },
+    "serverReplayBufferKeyedById": {
+      "type": "boolean",
+      "description": "For SSE with replay: true if the server persists events keyed by the emitted id: so Last-Event-ID resume actually works."
+    },
+    "sequenceNumbersPersisted": {
+      "type": "boolean",
+      "description": "For WebSocket with replay: true if the client persists the last-seen sequence number and the server resumes from it."
+    },
+    "backpressureHandled": {
+      "type": "boolean",
+      "description": "True if the server measures per-connection send-buffer growth and drops/batches/closes when a client falls behind."
+    }
+  }
+}

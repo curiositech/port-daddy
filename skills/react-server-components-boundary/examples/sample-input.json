@@ -1,0 +1,15 @@
+{
+  "componentRole": "interactive-leaf",
+  "usesHooksOrBrowserApis": true,
+  "markedUseClient": true,
+  "interactiveBitExtractable": false,
+  "serverChildrenNeeded": true,
+  "usesChildrenSlot": true,
+  "crossingProps": ["primitive", "plain-object", "jsx", "server-function"],
+  "importsServerOnlyModules": false,
+  "serverOnlyGuardUsed": true,
+  "providerWrapsHtml": false,
+  "usesThirdPartyHookLib": true,
+  "thirdPartyHookLibWrapped": true,
+  "bundleSizeChecked": true
+}

@@ -911,6 +911,22 @@ interface SessionResponse {
   code?: string;
 }
 
+interface SessionTakeoverResponse {
+  success: boolean;
+  predecessorId?: string;
+  successorId?: string;
+  session?: Record<string, unknown>;
+  predecessorStatus?: string;
+  notesPreserved?: boolean;
+  claimsTransferred?: boolean;
+  releasedFiles?: string[];
+  claimedFiles?: string[];
+  conflicts?: Array<{ filePath: string; sessionId: string; purpose: string; claimedAt: number }>;
+  warnings?: string[];
+  error?: string;
+  code?: string;
+}
+
 /** Matches the actual GET /sessions/:id response */
 interface SessionDetailResponse {
   success: boolean;
@@ -1335,6 +1351,10 @@ class PortDaddy {
 
   /** @private - Resolve connection target: prefer socket, fallback to TCP */
   _resolveTarget(): ConnectionTarget {
+    if (process.env.PORT_DADDY_FORCE_TCP === '1') {
+      const url = new URL(this.url);
+      return { host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT };
+    }
     // Explicit TCP URL overrides socket
     if (process.env.PORT_DADDY_URL) {
       const url = new URL(this.url);
@@ -2359,6 +2379,47 @@ class PortDaddy {
   }
 
   /**
+   * Start a successor session from an existing one without deleting its notes.
+   */
+  async takeoverSession(sessionId: string, options?: {
+    agentId?: string;
+    purpose?: string;
+    note?: string;
+    project?: string;
+    worktreeId?: string;
+    metadata?: Record<string, unknown>;
+    worktree?: Record<string, unknown>;
+    requireLinkedWorktree?: boolean;
+    allowMainWorktree?: boolean;
+    lifecycle?: 'durable' | 'ephemeral';
+    claimFiles?: boolean;
+  }): Promise<SessionTakeoverResponse> {
+    const body: Record<string, unknown> = {
+      ...(options || {}),
+      agentId: options?.agentId || this.agentId,
+    };
+    if (options?.lifecycle) {
+      body.durable = options.lifecycle === 'durable';
+      delete body.lifecycle;
+    }
+
+    const ipcResult = await this._requestViaIpc<SessionTakeoverResponse>(
+      IpcAction.SESSION_TAKEOVER,
+      {
+        sessionId,
+        ...body,
+      },
+    );
+    if (ipcResult) {
+      if (ipcResult.success === false) {
+        this._throwIpcParityError(ipcResult, 'Failed to take over session', ipcResult.code === 'VALIDATION_ERROR' ? 400 : 404);
+      }
+      return ipcResult;
+    }
+    return this._request('POST', `/sessions/${sessionId}/takeover`, body) as Promise<SessionTakeoverResponse>;
+  }
+
+  /**
    * Add a quick note (auto-creates session if needed).
    */
   async note(content: string, options?: {
@@ -3165,41 +3226,6 @@ class PortDaddy {
   }
 
   /**
-   * Launch a tracked sortie mission.
-   * This is the first-class mission surface over spawned runs: persisted id, event log,
-   * harbor, and durable status/result lookup.
-   */
-  async runSortie(spec: SortieSpec): Promise<RunSortieResponse> {
-    return this._request('POST', '/sorties', spec as unknown as Record<string, unknown>) as Promise<RunSortieResponse>;
-  }
-
-  /**
-   * List recent sorties for the current project or all projects.
-   */
-  async listSorties(options: ListSortiesOptions = {}): Promise<ListSortiesResponse> {
-    const params = new URLSearchParams();
-    if (options.projectDir) params.set('projectDir', options.projectDir);
-    if (typeof options.limit === 'number') params.set('limit', String(options.limit));
-    const suffix = params.toString();
-    return this._request('GET', suffix ? `/sorties?${suffix}` : '/sorties') as Promise<ListSortiesResponse>;
-  }
-
-  /**
-   * Fetch a single sortie mission by id.
-   */
-  async getSortie(sortieId: string): Promise<GetSortieResponse> {
-    return this._request('GET', `/sorties/${encodeURIComponent(sortieId)}`) as Promise<GetSortieResponse>;
-  }
-
-  /**
-   * Fetch the event log for a sortie mission.
-   */
-  async getSortieLogs(sortieId: string, limit?: number): Promise<GetSortieLogsResponse> {
-    const suffix = typeof limit === 'number' ? `?limit=${limit}` : '';
-    return this._request('GET', `/sorties/${encodeURIComponent(sortieId)}/logs${suffix}`) as Promise<GetSortieLogsResponse>;
-  }
-
-  /**
    * App-Native Development Cockpit — read the project's roadmap markdown
    * into typed mission cards (work-queue intake). The list does not mutate
    * any state. Use cockpitMissionDetail / cockpitMissionPlan for the rest
@@ -3946,94 +3972,6 @@ interface KillSpawnedResponse {
 }
 
 // =============================================================================
-// Sortie types
-// =============================================================================
-
-interface SortieSpec {
-  goal: string;
-  projectDir?: string;
-  backend: SpawnSpec['backend'];
-  budgetUsd: number;
-  model?: string;
-  modelTier?: 'low' | 'mid' | 'high';
-  recipe?: string;
-  expectedOutput?: string;
-  context?: string;
-  approvalMode?: 'none' | 'before-build' | 'before-apply' | 'before-close';
-  roster?: string[];
-  identity?: string;
-  purpose?: string;
-  allowedTools?: string;
-  timeout?: number;
-  maxTokens?: number;
-}
-
-interface SortieRecord {
-  id: string;
-  projectDir: string;
-  project: string;
-  harbor: string;
-  goal: string;
-  recipe: string | null;
-  status: 'planned' | 'blocked' | 'running' | 'completed' | 'failed' | 'cancelled';
-  backend: SpawnSpec['backend'];
-  model: string | null;
-  modelTier: 'low' | 'mid' | 'high' | null;
-  budgetUsd: number;
-  expectedOutput: string | null;
-  spawnAgentId: string | null;
-  resultOutput: string | null;
-  error: string | null;
-  metadata: Record<string, unknown> | null;
-  createdAt: number;
-  startedAt: number | null;
-  updatedAt: number;
-  completedAt: number | null;
-}
-
-interface SortieEvent {
-  id: number;
-  sortieId: string;
-  type: string;
-  summary: string | null;
-  metadata: Record<string, unknown> | null;
-  createdAt: number;
-}
-
-interface RunSortieResponse {
-  success: boolean;
-  sortie: SortieRecord;
-  result?: SpawnResult;
-  preflight?: Record<string, unknown>;
-  error?: string;
-}
-
-interface ListSortiesOptions {
-  projectDir?: string;
-  limit?: number;
-}
-
-interface ListSortiesResponse {
-  success: boolean;
-  sorties: SortieRecord[];
-  count: number;
-}
-
-interface GetSortieResponse {
-  success: boolean;
-  sortie: SortieRecord;
-  error?: string;
-}
-
-interface GetSortieLogsResponse {
-  success: boolean;
-  sortie: SortieRecord;
-  events: SortieEvent[];
-  count: number;
-  error?: string;
-}
-
-// =============================================================================
 // Cockpit types
 // =============================================================================
 
@@ -4323,14 +4261,6 @@ export type {
   SpawnedAgent,
   ListSpawnedResponse,
   KillSpawnedResponse,
-  SortieSpec,
-  SortieRecord,
-  SortieEvent,
-  RunSortieResponse,
-  ListSortiesOptions,
-  ListSortiesResponse,
-  GetSortieResponse,
-  GetSortieLogsResponse,
   HarborMemberEntry,
   HarborEntry,
   CreateHarborOptions,

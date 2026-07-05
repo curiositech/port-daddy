@@ -1,0 +1,17 @@
+{
+  "apiAudience": "public",
+  "changeKind": "breaking",
+  "strategy": "date-pinned-header",
+  "removesEndpointOrField": true,
+  "usesTransformerPattern": true,
+  "deprecationHeaderSet": true,
+  "sunsetHeaderSet": true,
+  "deprecationEpochSeconds": 1751500800,
+  "sunsetEpochSeconds": 1775000000,
+  "migrationLinkProvided": true,
+  "usageTelemetryPerVersion": true,
+  "sunsetEnforcementPlanned": true,
+  "semverVersioning": false,
+  "breakingChangesPerYear": 6,
+  "consumerCount": 120000
+}

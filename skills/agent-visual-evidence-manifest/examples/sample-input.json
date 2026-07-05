@@ -1,0 +1,95 @@
+{
+  "branchCommit": "a94b726bff0011223344556677889900aabbccd",
+  "isControlPanelPr": true,
+  "statesCovered": ["active", "historical", "blocked", "stale", "gate", "interrupt", "receipt"],
+  "artifacts": [
+    {
+      "file": ".github/assets/661/control-panel-active-stream.gif",
+      "manifest": {
+        "daemonPort": 9887,
+        "runId": "run_01hx3qz7f6",
+        "transcriptHeadHash": "sha256:4fae1c9d2b7a0e5f",
+        "agentNodeId": "node-codex-7a2",
+        "commit": "a94b726bff0011223344556677889900aabbccd",
+        "sourceLabel": "real"
+      }
+    },
+    {
+      "file": ".github/assets/661/control-panel-historical-replay.png",
+      "manifest": {
+        "daemonPort": 9887,
+        "runId": "run_01hx3qz7f6",
+        "transcriptHeadHash": "sha256:9be21a3f7c001de4",
+        "agentNodeId": "node-codex-7a2",
+        "commit": "a94b726bff0011223344556677889900aabbccd",
+        "sourceLabel": "real"
+      }
+    },
+    {
+      "file": ".github/assets/661/control-panel-blocked-launch.png",
+      "manifest": {
+        "daemonPort": 9887,
+        "runId": "run_01hx3qz7f7",
+        "transcriptHeadHash": "sha256:0c88df51aa22bb33",
+        "agentNodeId": "node-codex-7a2",
+        "commit": "a94b726bff0011223344556677889900aabbccd",
+        "sourceLabel": "real"
+      }
+    },
+    {
+      "file": ".github/assets/661/control-panel-stale-remediation.png",
+      "manifest": {
+        "daemonPort": 9887,
+        "runId": "run_01hx3qz7f8",
+        "transcriptHeadHash": "sha256:77aa11cc99dd22ee",
+        "agentNodeId": "node-codex-7a2",
+        "commit": "a94b726bff0011223344556677889900aabbccd",
+        "sourceLabel": "real"
+      }
+    },
+    {
+      "file": ".github/assets/661/control-panel-approve-deny-gate.png",
+      "manifest": {
+        "daemonPort": 9887,
+        "runId": "run_01hx3qz7f9",
+        "transcriptHeadHash": "sha256:33ff00aa11bb22cc",
+        "agentNodeId": "node-codex-7a2",
+        "commit": "a94b726bff0011223344556677889900aabbccd",
+        "sourceLabel": "real"
+      }
+    },
+    {
+      "file": ".github/assets/661/control-panel-interrupt-ack.gif",
+      "manifest": {
+        "daemonPort": 9887,
+        "runId": "run_01hx3qz7fa",
+        "transcriptHeadHash": "sha256:aa22bb33cc44dd55",
+        "agentNodeId": "node-codex-7a2",
+        "commit": "a94b726bff0011223344556677889900aabbccd",
+        "sourceLabel": "real"
+      }
+    },
+    {
+      "file": ".github/assets/661/control-panel-receipt-sealed.png",
+      "manifest": {
+        "daemonPort": 9887,
+        "runId": "run_01hx3qz7fb",
+        "transcriptHeadHash": "sha256:dd66ee77ff880011",
+        "agentNodeId": "node-codex-7a2",
+        "commit": "a94b726bff0011223344556677889900aabbccd",
+        "sourceLabel": "real"
+      }
+    },
+    {
+      "file": ".github/assets/661/control-panel-fixture-empty-state.png",
+      "manifest": {
+        "daemonPort": 9887,
+        "runId": "run_01hx3qz7fc",
+        "transcriptHeadHash": "sha256:1122334455667788",
+        "agentNodeId": "node-codex-7a2",
+        "commit": "a94b726bff0011223344556677889900aabbccd",
+        "sourceLabel": "fixture"
+      }
+    }
+  ]
+}

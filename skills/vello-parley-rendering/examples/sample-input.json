@@ -1,0 +1,19 @@
+{
+  "deps": {
+    "vello": "0.3",
+    "wgpu": "22",
+    "parley": "0.2",
+    "peniko": "0.2",
+    "kurbo": "0.11",
+    "winit": "0.30"
+  },
+  "usesVelloReexportedWgpu": true,
+  "duplicateWgpuInTree": false,
+  "aaSupport": "area",
+  "aaMethod": "Area",
+  "presentMode": "AutoVsync",
+  "requestsRedrawEveryFrame": true,
+  "glyphCoordsReinterpreted": true,
+  "scaleFactorThreadedThrough": true,
+  "cachesSceneInPlace": false
+}

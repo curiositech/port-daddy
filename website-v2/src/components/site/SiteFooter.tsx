@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Github } from 'lucide-react'
-import { BrandMark } from './primitives'
+import { Wordmark } from './primitives'
 
 const SITE_LINKS = [
   { label: 'Home', href: '/' },
@@ -32,17 +32,8 @@ export function SiteFooter() {
     <footer className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-strong)]">
       <div className="mx-auto grid max-w-[1440px] grid-cols-1 gap-[var(--space-6)] px-[var(--space-5)] py-[var(--space-6)] lg:grid-cols-12 lg:px-[var(--space-6)]">
         <div className="space-y-[var(--space-4)] lg:col-span-5">
-          <div className="inline-flex items-center gap-[var(--space-3)]">
-            <BrandMark />
-            <div className="space-y-[var(--space-1)]">
-              <div className="font-display text-[length:var(--text-lg)] font-black uppercase tracking-[var(--tracking-display-nav)] text-[var(--text-primary)]">
-                Port Daddy
-              </div>
-              <div className="font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
-                coordination for AI coding agents
-              </div>
-            </div>
-          </div>
+          {/* Full wordmark lockup — mark + "Port Daddy" + tagline rule. */}
+          <Wordmark variant="full" className="h-auto w-full max-w-[20rem]" />
           <p className="max-w-[34rem] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
             Port Daddy is shared memory for AI coding agents — the notes they leave each other, the
             files each one has claimed, and the work you can recover when one crashes. The Mac app

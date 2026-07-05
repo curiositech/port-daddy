@@ -6,6 +6,16 @@
  *   POST /v1/handshake
  *   GET  /v1/subscribe/:session_id          (SSE)
  *   POST /v1/publish
+ *   POST /v1/github/webhook                  (GitHub webhook ingress; HMAC-gated)
+ *   GET  /v1/fleet/config                     (operator; fleet control-plane read)
+ *   POST /v1/fleet/validate                   (operator; deterministic YAML validate)
+ *   POST /v1/fleet/smoke-test                 (operator; run one ship on Workers AI)
+ *   POST /v1/fleet/optimize-prompt            (operator; rewrite a ship prompt)
+ *   POST /v1/fleet/save                       (operator; commit to new branch + PR)
+ *   POST /v1/fleet/pause                       (operator; toggle fleet kill switch)
+ *   GET  /v1/fleet/activity                    (operator; recent fleet runs)
+ *   GET  /v1/fleet/health                      (operator; paused flag + last-run age)
+ *   GET  /v1/fleet/runs/:id                    (operator; one run + transcript)
  *   POST /v1/exchange                        (OIDC → PD card)
  *   POST /v1/revoke
  *   POST /v1/revoke-by-issuer               (operator; acceptance criterion #2)
@@ -32,6 +42,20 @@ import {
   handleInvalidateJwks,
   handleAudit,
 } from './handlers.js';
+import { handleGithubWebhook } from './github-webhook.js';
+import {
+  handleFleetConfig,
+  handleFleetValidate,
+  handleFleetSmokeTest,
+  handleFleetOptimizePrompt,
+  handleFleetSave,
+} from './fleet-control.js';
+import {
+  handleFleetActivity,
+  handleFleetRun,
+  handleFleetHealth,
+  handleFleetPause,
+} from './fleet-observability.js';
 
 // Re-export Durable Object class for wrangler to pick up
 export { HarborChannel };
@@ -58,8 +82,9 @@ export default {
       return cors(new Response(null, { status: 204 }));
     }
 
-    let response: Response;
+    let response: Response = notFound();
 
+    try {
     // ── Health ──────────────────────────────────────────────────────────────
     if (pathname === '/health' && method === 'GET') {
       response = handleHealth(env);
@@ -79,6 +104,43 @@ export default {
     // ── Publish ─────────────────────────────────────────────────────────────
     else if (pathname === '/v1/publish' && method === 'POST') {
       response = await handlePublish(request, env);
+    }
+
+    // ── GitHub webhook ingress ───────────────────────────────────────────────
+    else if (pathname === '/v1/github/webhook' && method === 'POST') {
+      response = await handleGithubWebhook(request, env);
+    }
+
+    // ── Fleet control-plane (operator-gated) ─────────────────────────────────
+    else if (pathname === '/v1/fleet/config' && method === 'GET') {
+      response = await handleFleetConfig(request, env);
+    }
+    else if (pathname === '/v1/fleet/validate' && method === 'POST') {
+      response = await handleFleetValidate(request, env);
+    }
+    else if (pathname === '/v1/fleet/smoke-test' && method === 'POST') {
+      response = await handleFleetSmokeTest(request, env);
+    }
+    else if (pathname === '/v1/fleet/optimize-prompt' && method === 'POST') {
+      response = await handleFleetOptimizePrompt(request, env);
+    }
+    else if (pathname === '/v1/fleet/save' && method === 'POST') {
+      response = await handleFleetSave(request, env);
+    }
+
+    // ── Fleet observability + kill switch (operator-gated) ───────────────────
+    else if (pathname === '/v1/fleet/pause' && method === 'POST') {
+      response = await handleFleetPause(request, env);
+    }
+    else if (pathname === '/v1/fleet/activity' && method === 'GET') {
+      response = await handleFleetActivity(request, env);
+    }
+    else if (pathname === '/v1/fleet/health' && method === 'GET') {
+      response = await handleFleetHealth(request, env);
+    }
+    else if (pathname.startsWith('/v1/fleet/runs/') && method === 'GET') {
+      const runId = decodeURIComponent(pathname.slice('/v1/fleet/runs/'.length));
+      response = await handleFleetRun(request, env, runId);
     }
 
     // ── OIDC exchange ────────────────────────────────────────────────────────
@@ -133,6 +195,15 @@ export default {
 
     else {
       response = notFound();
+    }
+    } catch (e) {
+      // Global fail-closed boundary: any uncaught throw (D1/KV/Durable Object
+      // infra error) becomes a controlled {error,code} envelope, never a raw
+      // runtime 500. Matches the contract every handler already uses.
+      response = Response.json(
+        { error: 'internal relay error', code: 'INTERNAL_ERROR' },
+        { status: 500 },
+      );
     }
 
     return cors(response);

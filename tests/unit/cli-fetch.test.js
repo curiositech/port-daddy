@@ -3,6 +3,13 @@ import { jest } from '@jest/globals';
 
 const mockExistsSync = jest.fn();
 const mockReadDaemonPort = jest.fn(() => 9876);
+const mockResolveDaemonTcpTarget = jest.fn((explicitUrl) => {
+  if (explicitUrl) {
+    const url = new URL(explicitUrl);
+    return { host: url.hostname, port: Number.parseInt(url.port, 10) || 9876 };
+  }
+  return { host: '127.0.0.1', port: mockReadDaemonPort() };
+});
 const mockRequest = jest.fn();
 const actualFs = await import('node:fs');
 const actualHttp = await import('node:http');
@@ -22,13 +29,13 @@ jest.unstable_mockModule('../../shared/daemon-discovery.js', () => ({
   LOOPBACK_TCP_HOST: '127.0.0.1',
   getDaemonTcpUrl: () => 'http://127.0.0.1:9876',
   readDaemonPort: mockReadDaemonPort,
-  resolveDaemonTcpTarget: () => ({ host: '127.0.0.1', port: 9876 }),
+  resolveDaemonTcpTarget: mockResolveDaemonTcpTarget,
   // The one canonical resolver fetch.ts now delegates to. Honor the same
   // existsSync flag these tests already use to choose socket vs TCP.
   resolveDaemonTarget: () =>
     mockExistsSync()
       ? { socketPath: '/run/pd-test.sock' }
-      : { host: '127.0.0.1', port: mockReadDaemonPort() },
+      : mockResolveDaemonTcpTarget(process.env.PORT_DADDY_URL),
 }));
 
 const { pdFetch } = await import('../../cli/utils/fetch.js');
@@ -77,6 +84,26 @@ describe('cli/utils/fetch pdFetch', () => {
     expect(mockRequest).toHaveBeenCalledTimes(2);
     expect(mockRequest.mock.calls[0][0]).toMatchObject({ socketPath: expect.any(String) });
     expect(mockRequest.mock.calls[1][0]).toMatchObject({ host: '127.0.0.1', port: 9876 });
+  });
+
+  test('forced TCP honors PORT_DADDY_URL instead of the canonical port file', async () => {
+    process.env.PORT_DADDY_URL = 'http://127.0.0.1:19876';
+    mockExistsSync.mockReturnValue(false);
+    mockReadDaemonPort.mockReturnValue(9876);
+    mockRequest.mockImplementation((options, callback) => {
+      const req = new EventEmitter();
+      req.write = jest.fn();
+      req.destroy = jest.fn();
+      req.setTimeout = jest.fn();
+      req.end = () => callback(makeSuccessResponse({ ok: true, port: options.port }));
+      return req;
+    });
+
+    const response = await pdFetch('/attention?agentId=smoke', { transport: 'tcp' });
+    expect(await response.json()).toEqual({ ok: true, port: 19876 });
+    expect(mockRequest).toHaveBeenCalledTimes(1);
+    expect(mockRequest.mock.calls[0][0]).toMatchObject({ host: '127.0.0.1', port: 19876 });
+    expect(mockReadDaemonPort).not.toHaveBeenCalled();
   });
 
   test('does not fall back to TCP when the unix socket errors with EPERM', async () => {

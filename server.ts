@@ -91,6 +91,7 @@ import { createSymbolIndex } from './lib/symbol-index.js';
 import { createSymbolClaims } from './lib/symbol-claims.js';
 import { createMergeQueue } from './lib/merge-queue.js';
 import { createCostTracker } from './lib/cost-tracker.js';
+import { createCloudAppTelemetry } from './lib/cloud-app-telemetry.js';
 import { createContextWindowTracker } from './lib/context-window-tracker.js';
 import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
 import { createOperatorPermissions } from './lib/operator-permissions.js';
@@ -115,6 +116,7 @@ import { createSemanticResolver, defaultTransformersCacheDir } from './lib/seman
 import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
+import { createDaemonCorsOptions } from './lib/daemon-cors.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -177,7 +179,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.22.0';
+const EMBEDDED_PACKAGE_VERSION: string = '3.24.1';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -359,10 +361,20 @@ if (IS_DEV_MODE) {
 
 // =============================================================================
 // DUPLICATE DAEMON DETECTION (identical to server.ts)
+//
+// A live unix socket alone is NOT proof of a healthy predecessor: a daemon
+// whose binary was deleted underneath it (brew upgrade churn) can keep
+// answering on the socket while its TCP listener is dead. Under launchd
+// KeepAlive that half-alive zombie once ate 345 consecutive respawns — each
+// new spawn heard "ok" on the socket and exited 0 while the TCP port served nothing
+// (2026-07-04). Defer only when BOTH surfaces answer; socket-ok + TCP-dead
+// (after generous retries) means zombie: terminate the stale PID, take over.
 // =============================================================================
 
+import { decideDuplicateAction, probeTcpHealth, terminateStalePid } from './lib/daemon-takeover.js';
+
 if (existsSync(SOCK_PATH)) {
-  const isAlive: boolean = await new Promise<boolean>((resolve) => {
+  const sockAlive: boolean = await new Promise<boolean>((resolve) => {
     const conn = createConnection({ path: SOCK_PATH }, () => {
       conn.write('GET /health HTTP/1.0\r\nHost: localhost\r\n\r\n');
     });
@@ -374,12 +386,27 @@ if (existsSync(SOCK_PATH)) {
     conn.setTimeout(2000, () => { conn.destroy(); resolve(false); });
   });
 
-  if (isAlive) {
+  const tcpAlive: boolean = sockAlive && !DISABLE_TCP ? await probeTcpHealth(PORT) : false;
+  const action = decideDuplicateAction({ sockAlive, tcpAlive, tcpDisabled: DISABLE_TCP });
+
+  if (action === 'defer') {
     let existingPid = '?';
     try { existingPid = readFileSync(PID_FILE, 'utf-8').trim(); } catch {}
     console.error(`Port Daddy already running (PID ${existingPid}). Not starting a second daemon.`);
     process.exit(0);
   }
+
+  if (action === 'takeover') {
+    let stalePid = NaN;
+    try { stalePid = parseInt(readFileSync(PID_FILE, 'utf-8').trim(), 10); } catch {}
+    console.error(
+      `[takeover] unix socket answers /health but TCP :${PORT} is dead after retries — ` +
+      `half-alive daemon (stale PID ${Number.isFinite(stalePid) ? stalePid : '?'}). Terminating it and taking over.`,
+    );
+    const outcome = await terminateStalePid(stalePid);
+    console.error(`[takeover] stale daemon termination: ${outcome}`);
+  }
+
   try { unlinkSync(SOCK_PATH); } catch {}
   try { unlinkSync(PID_FILE); } catch {}
 }
@@ -541,6 +568,7 @@ const costTracker = createCostTracker(db, {
     budgetPause.arm({ agentId, project, reason, spentTodayUsd, budgetUsdPerDay });
   },
 });
+const cloudAppTelemetry = createCloudAppTelemetry(db, { costTracker, counters });
 const contextTracker = createContextWindowTracker(db);
 // Transcript recorder — backs `pd transcripts ...`, the dashboard panel, and
 // (critically) makes every spawn record its full conversation. The spawner is
@@ -1021,10 +1049,7 @@ if (process.env.DEBUG_TESTS) {
 }
 
 // --- CORS (replaces cors middleware) ---
-await app.register(fastifyCors, {
-  origin: /^https?:\/\/(localhost|127\.0\.0\.1|dashboard\.pd\.local)(:\d+)?$/,
-  credentials: true
-});
+await app.register(fastifyCors, createDaemonCorsOptions());
 
 // --- Rate Limiting (replaces express-rate-limit) ---
 await app.register(fastifyRateLimit, {
@@ -1263,7 +1288,7 @@ await registerAllRoutes(
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
     harbors, sorties, conductor, dispatchQueue, dispatchWorker, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
-    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
+    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, cloudAppTelemetry, counters, metricsRegistry,
     contextTracker,
     custodian, operatorPermissions,
     quorum, parley, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,

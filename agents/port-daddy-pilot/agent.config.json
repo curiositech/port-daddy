@@ -1,0 +1,144 @@
+{
+  "$schema": "./agent.config.schema.json",
+  "id": "port-daddy-pilot",
+  "name": "Port Daddy Pilot",
+  "description": "The ideal Port Daddy agent. Drives multi-agent development through the Port Daddy coordination substrate: anchors a session, claims the smallest real edit surface, runs the coordination preflight before editing, leaves durable notes, keeps listening to live sessions/claims/notes, and ends with recoverable evidence. Prefers Port Daddy MCP tools, uses WinDAGs for skill discovery and DAG planning, and orchestrates parallel/adversarial sub-agents when the work is bigger than one bounded change.",
+  "version": "1.0.0",
+  "color": "green",
+  "model": {
+    "claude_local": "opus",
+    "claude_cloud": { "id": "claude-opus-4-8", "speed": "standard" },
+    "codex": "gpt-5.5",
+    "gemini": "Gemini 3.1 Pro (High)",
+    "antigravity": "Claude Opus 4.6 (Thinking)"
+  },
+  "mcpServers": [
+    {
+      "name": "port-daddy",
+      "command": "pd",
+      "args": ["mcp"],
+      "why": "Authoritative local coordination substrate: sessions, claims, locks, notes, ports, swarm awareness, sorties."
+    },
+    {
+      "name": "windags",
+      "command": "windags",
+      "args": ["mcp"],
+      "why": "Skill discovery (BM25 + embeddings), next-move planning, DAG validation. Cross-install encouraged.",
+      "crossInstall": true
+    }
+  ],
+  "skills": [
+    "port-daddy-agent-skill",
+    "multi-agent-coordination",
+    "next-move"
+  ],
+  "tools": {
+    "portDaddyMcp": [
+      "whoami",
+      "begin_session",
+      "catch_me_up",
+      "sitrep",
+      "coordination_preflight",
+      "swarm_awareness",
+      "claim_port",
+      "release_port",
+      "list_services",
+      "acquire_lock",
+      "add_note",
+      "drop_feedback",
+      "pd_discover",
+      "spawn_agent",
+      "run_sortie",
+      "fleet_init",
+      "end_session_full"
+    ],
+    "windagsMcp": [
+      "windags_skill_search",
+      "windags_next_move",
+      "windags_validate_dag"
+    ],
+    "editorLocal": [
+      "Read",
+      "Edit",
+      "Write",
+      "Bash",
+      "Grep",
+      "Glob",
+      "Task",
+      "TodoWrite",
+      "WebSearch",
+      "WebFetch"
+    ],
+    "cloudToolset": "agent_toolset_20260401",
+    "custom": [
+      {
+        "name": "pd_preflight",
+        "description": "Run the Port Daddy coordination preflight before editing any file. Announces intended edit surface and returns live conflicts (other sessions touching the same files, open claims, locks, recent notes). MUST be called before the first Edit/Write of a scope. Backed by `pd coordination-preflight` on a self-hosted worker.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "files": { "type": "array", "items": { "type": "string" }, "description": "Repo-relative paths the agent intends to edit." },
+            "intent": { "type": "string", "description": "One-line description of the change." }
+          },
+          "required": ["files", "intent"]
+        }
+      },
+      {
+        "name": "pd_note",
+        "description": "Append an immutable durable note to Port Daddy. Use for scope notes before edits and result notes after. Backed by `pd note`.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "text": { "type": "string" },
+            "kind": { "type": "string", "enum": ["scope", "progress", "result", "blocker"], "default": "progress" }
+          },
+          "required": ["text"]
+        }
+      },
+      {
+        "name": "pd_status",
+        "description": "Fetch live coordination truth: active sessions across worktrees, claimed files, locks, last N notes, daemon/fleet health. Backed by `pd sitrep`/`pd sessions --all-worktrees`.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "scope": { "type": "string", "enum": ["self", "project", "all-worktrees"], "default": "project" }
+          }
+        }
+      }
+    ]
+  },
+  "permissionPolicy": {
+    "default": "always_allow",
+    "ask": ["pd_preflight"],
+    "notes": "pd_preflight is surfaced as `ask` so the operator can confirm the edit surface on first touch. Everything else runs unattended; the discipline is enforced by the system prompt, not by blocking gates."
+  },
+  "multiagent": {
+    "coordinator": true,
+    "agents": [
+      {
+        "role": "implementer",
+        "delegate_to": "port-daddy-pilot",
+        "purpose": "Owns one bounded edit surface (a claimed set of files). Runs preflight, edits, validates, leaves a result note. Spawned per disjoint file-claim so two implementers never share a surface."
+      },
+      {
+        "role": "adversarial-reviewer",
+        "delegate_to": "port-daddy-redteam",
+        "purpose": "Independent skeptic. Tries to REFUTE the implementer's change: missed edge cases, broken tests, coordination violations (edited unclaimed files), regressions. Reads the diff + the implementer's notes, never the implementer's reasoning. Default verdict = reject-if-uncertain."
+      },
+      {
+        "role": "coordination-keeper",
+        "delegate_to": "port-daddy-pilot",
+        "purpose": "Long-lived. Does no edits. Watches swarm_awareness + notes + claims, resolves overlaps, re-anchors stale sessions, runs salvage on interrupted work, keeps the guard enforcing. The substrate's immune system."
+      }
+    ],
+    "topology": "Coordinator fans out one implementer per disjoint claim, pipelines each implementer's diff into an adversarial-reviewer as it lands, and keeps a single coordination-keeper running for the whole wave."
+  },
+  "render": {
+    "claude": "~/.claude/agents/port-daddy-pilot.md",
+    "codex": "~/.codex/agents/port-daddy-pilot.toml",
+    "gemini": "~/.gemini/commands/pd-pilot.toml",
+    "antigravity": "imported via gemini-cli plugin (skills + commands + mcpServers)",
+    "agents_universal": "~/.agents/agents/port-daddy-pilot.md",
+    "cloud": "config/managed-agents.json"
+  }
+}

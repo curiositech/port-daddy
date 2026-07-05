@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://port-daddy.dev/schemas/vibe-project-master-plan/project-plan.schema.json",
+  "title": "Project Plan Manifest",
+  "type": "object",
+  "required": ["name", "productPromise", "users", "coldStart", "surfaces", "architecture", "buildSlices", "launch"],
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "productPromise": { "type": "string", "minLength": 1 },
+    "nonGoals": { "type": "array", "items": { "type": "string" } },
+    "users": { "type": "array", "items": { "type": "object" }, "minItems": 1 },
+    "coldStart": { "type": "object" },
+    "surfaces": { "type": "array", "items": { "type": "string" } },
+    "architecture": { "type": "object" },
+    "agents": { "type": "array", "items": { "type": "object" } },
+    "buildSlices": { "type": "array", "items": { "type": "object" }, "minItems": 1 },
+    "launch": { "type": "object" }
+  }
+}

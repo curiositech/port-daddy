@@ -39,8 +39,8 @@ export function Spawn() {
               className="m-0 text-[length:var(--type-panel-body-compact-size)]"
               style={{ color: "var(--text-secondary)" }}
             >
-              Reach for <strong>pd agent</strong> when you want a higher-level
-              autopilot. Reach for <strong>fleet</strong> when the work should
+              Reach for <strong>pd spawn</strong> when you want a bounded
+              delegated task. Reach for <strong>fleet</strong> when the work should
               stay resident and trigger over time.
             </p>
           </Surface>

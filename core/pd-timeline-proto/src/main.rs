@@ -16,6 +16,8 @@
 mod data;
 mod scene;
 
+use std::io::Write;
+use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -332,8 +334,220 @@ fn main() {
         timeline.threads.len()
     );
 
+    // Headless path (Method A of docs/recording-visual-artifacts.md): when
+    // PD_TIMELINE_RENDER_OFFSCREEN=<out.mp4> is set, render the playhead sweep to
+    // an offscreen wgpu texture and pipe frames to ffmpeg — no window, no
+    // compositor, no Screen-Recording (TCC) permission. Deterministic: the clock
+    // is synthetic (frame index), not CADisplayLink. Returns without ever
+    // touching winit.
+    if let Ok(out) = std::env::var("PD_TIMELINE_RENDER_OFFSCREEN") {
+        render_offscreen(&timeline, &out);
+        return;
+    }
+
     let event_loop = EventLoop::new().unwrap();
     event_loop.set_control_flow(ControlFlow::Wait);
     let mut app = App::new(timeline);
     event_loop.run_app(&mut app).expect("run app");
+}
+
+/// Read a `u32` from an env var, falling back to `default` if unset/unparseable.
+fn env_u32(key: &str, default: u32) -> u32 {
+    std::env::var(key).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
+}
+
+/// Read an `f64` from an env var, falling back to `default` if unset/unparseable.
+fn env_f64(key: &str, default: f64) -> f64 {
+    std::env::var(key).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
+}
+
+/// Headless render: sweep the playhead 0→1 over `secs` at `fps`, rendering each
+/// frame to an offscreen Vello texture and streaming raw RGBA to ffmpeg. No
+/// window is created. See `docs/recording-visual-artifacts.md` (Method A).
+///
+/// Sizing mirrors the windowed default (1280×720 logical) at a 2× retina scale,
+/// so the artifact matches what you'd see on screen. Override with
+/// `PD_TIMELINE_RENDER_W` / `_H` (physical px), `PD_TIMELINE_RENDER_SCALE`,
+/// `PD_TIMELINE_RENDER_FPS`, `PD_TIMELINE_RENDER_SECS`.
+fn render_offscreen(timeline: &Timeline, out_path: &str) {
+    let width = env_u32("PD_TIMELINE_RENDER_W", 2560);
+    let height = env_u32("PD_TIMELINE_RENDER_H", 1440);
+    let scale = env_f64("PD_TIMELINE_RENDER_SCALE", 2.0);
+    let fps = env_u32("PD_TIMELINE_RENDER_FPS", 60).max(1);
+    let secs = env_f64("PD_TIMELINE_RENDER_SECS", 6.0).max(0.0);
+    let total_frames = ((secs * fps as f64).round() as u32).max(1);
+
+    // A device with NO compatible surface — this is the headless seam. On macOS
+    // this still resolves to Metal under the hood.
+    let mut context = RenderContext::new();
+    let dev_id = pollster::block_on(context.device(None))
+        .expect("no compatible wgpu device for headless render");
+    let device = &context.devices[dev_id].device;
+    let queue = &context.devices[dev_id].queue;
+    let info = context.devices[dev_id].adapter().get_info();
+    println!(
+        "[render] headless via {:?} on '{}' — {width}x{height}@{scale}x, {total_frames} frames @ {fps}fps -> {out_path}",
+        info.backend, info.name
+    );
+
+    let mut renderer = Renderer::new(
+        device,
+        RendererOptions {
+            // No surface to present to; we read the texture back instead.
+            surface_format: None,
+            use_cpu: false,
+            antialiasing_support: vello::AaSupport::area_only(),
+            num_init_threads: None,
+        },
+    )
+    .expect("create headless renderer");
+
+    // Vello's `render_to_texture` writes via a compute storage binding, so the
+    // target MUST be Rgba8Unorm + STORAGE_BINDING. COPY_SRC lets us read it back.
+    let target = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("pd-timeline offscreen"),
+        size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let target_view = target.create_view(&wgpu::TextureViewDescriptor::default());
+
+    // copy_texture_to_buffer requires bytes_per_row aligned to 256; we un-pad on
+    // readback. Skipping this is the classic "sheared video" bug.
+    let unpadded_bpr = width * 4;
+    let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+    let padded_bpr = unpadded_bpr.div_ceil(align) * align;
+    let readback = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("pd-timeline readback"),
+        size: (padded_bpr as u64) * (height as u64),
+        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+        mapped_at_creation: false,
+    });
+
+    // Stream raw RGBA into ffmpeg; it owns the H.264 encode. yuv420p for players
+    // that choke on rgb. -crf 16 is visually lossless for this flat-color UI.
+    // A missing ffmpeg is the single most likely failure on a fresh machine, so
+    // fail with a clear actionable line instead of a panic backtrace. (Bad output
+    // paths / unwritable dirs surface later via ffmpeg's own nonzero exit, which
+    // we check after the stream closes.)
+    let mut child = match Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-f", "rawvideo",
+            "-pix_fmt", "rgba",
+            "-s", &format!("{width}x{height}"),
+            "-r", &fps.to_string(),
+            "-i", "-",
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            "-crf", "16",
+            out_path,
+        ])
+        .stdin(Stdio::piped())
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("[render] could not start ffmpeg ({e}). Install it: brew install ffmpeg");
+            std::process::exit(1);
+        }
+    };
+    let mut ffmpeg_stdin = child.stdin.take().expect("ffmpeg stdin");
+
+    let mut scene = Scene::new();
+    let mut text = TextEngine::new();
+    let spec = Layoutspec {
+        width: width as f64 / scale,
+        height: height as f64 / scale,
+        left_gutter: 140.0,
+        top_pad: 96.0,
+        bottom_pad: 56.0,
+        scale,
+    };
+
+    for frame in 0..total_frames {
+        // Synthetic clock: a single deterministic sweep across the whole clip.
+        let playhead = if total_frames <= 1 {
+            0.0
+        } else {
+            frame as f64 / (total_frames - 1) as f64
+        };
+        build_scene(&mut scene, &mut text, timeline, &spec, playhead);
+
+        renderer
+            .render_to_texture(
+                device,
+                queue,
+                &scene,
+                &target_view,
+                &vello::RenderParams {
+                    base_color: Color::rgb8(0x0d, 0x11, 0x17),
+                    width,
+                    height,
+                    antialiasing_method: AaConfig::Area,
+                },
+            )
+            .expect("render_to_texture");
+
+        let mut encoder =
+            device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("readback") });
+        encoder.copy_texture_to_buffer(
+            wgpu::ImageCopyTexture {
+                texture: &target,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::ImageCopyBuffer {
+                buffer: &readback,
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(padded_bpr),
+                    rows_per_image: Some(height),
+                },
+            },
+            wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        );
+        queue.submit([encoder.finish()]);
+
+        // Block until the GPU finishes and the buffer is mapped — without the
+        // Wait poll you read stale/garbage pixels.
+        let slice = readback.slice(..);
+        let (tx, rx) = std::sync::mpsc::channel();
+        slice.map_async(wgpu::MapMode::Read, move |r| {
+            let _ = tx.send(r);
+        });
+        device.poll(wgpu::Maintain::Wait);
+        rx.recv().expect("map channel").expect("map readback buffer");
+        {
+            let data = slice.get_mapped_range();
+            // Un-pad each row back to width*4 before handing it to ffmpeg.
+            for row in 0..height as usize {
+                let start = row * padded_bpr as usize;
+                let end = start + unpadded_bpr as usize;
+                ffmpeg_stdin
+                    .write_all(&data[start..end])
+                    .expect("write frame to ffmpeg");
+            }
+        }
+        readback.unmap();
+
+        if frame % fps == 0 || frame + 1 == total_frames {
+            println!("[render] {}/{total_frames}  playhead {playhead:.2}", frame + 1);
+        }
+    }
+
+    // Close stdin so ffmpeg flushes and exits, then wait for it.
+    drop(ffmpeg_stdin);
+    let status = child.wait().expect("wait for ffmpeg");
+    if status.success() {
+        println!("[render] done -> {out_path}");
+    } else {
+        eprintln!("[render] ffmpeg exited with {status}");
+        std::process::exit(1);
+    }
 }

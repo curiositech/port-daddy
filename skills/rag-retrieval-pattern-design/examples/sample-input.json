@@ -1,0 +1,16 @@
+{
+  "chunkStrategy": "recursive",
+  "chunkSizeTokens": 512,
+  "chunkOverlapPct": 12,
+  "retrievalMode": "hybrid-rrf",
+  "rrfK": 60,
+  "preRerankTopK": 20,
+  "rerankerPresent": true,
+  "postRerankTopK": 5,
+  "evalSetSize": 150,
+  "ragasInCi": true,
+  "embeddingChosenByDomainEval": true,
+  "reindexCadence": "daily",
+  "zeroResultRateMonitored": true,
+  "perQueryLoggingStructured": true
+}

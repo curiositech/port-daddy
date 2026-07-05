@@ -4,6 +4,8 @@ Load only the file that matches the blocking question. Do not read the entire re
 
 | File | Topic | Lines | When to load |
 |---|---|---:|---|
+| `references/guide.md` | Concise authoring contract (legacy wrapper copies) | 9 | Use when a legacy wrapper copy of `skill-architect` needs the minimal authoring contract. |
+| `references/strategies.md` | Lightest-strategy decision table | 18 | Use when picking the smallest structural change that materially improves execution quality. |
 | `references/activation-debugging.md` | Activation failure diagnosis | 189 | Use when a skill undertriggers, overtriggers, or collides with nearby skills. |
 | `references/advanced-structure-and-sync.md` | Interface metadata, subagents, schemas, review artifacts, sync | 180 | Use when adding `agents/openai.yaml`, subagent prompts, schemas, visual boards, eval fixtures, HTML reports, or Port Daddy/workgroup sync. |
 | `references/antipatterns.md` | Skill anti-pattern catalog | 570 | Use when auditing weak skills or naming failure modes and shibboleths. |
@@ -11,6 +13,7 @@ Load only the file that matches the blocking question. Do not read the entire re
 | `references/claude-code-runtime.md` | Official Claude Code runtime surface | 128 | Use when frontmatter, preprocessing, or lifecycle claims need runtime truth. |
 | `references/claude-extension-taxonomy.md` | Skills vs plugins vs MCP vs other primitives | 52 | Use when routing a request to the right extension mechanism. |
 | `references/description-guide.md` | Activation description writing | 219 | Use when improving trigger language, exclusions, and discoverability. |
+| `references/deterministic-auditor-archetype.md` | Fail-closed scorer skill archetype | 95 | Use when the skill's deliverable is a spec/plan/contract that can be scored against known failure modes. |
 | `references/expertise-elicitation.md` | ACTA, CDM, ShadowBox, L3 extraction | 111 | Use when extracting tacit expertise or deepening a skill beyond L1/L2. |
 | `references/knowledge-engineering.md` | Encoding domain expertise | 279 | Use when deciding what judgment belongs in `SKILL.md` versus support files. |
 | `references/mcp-template.md` | MCP design scaffolding | 271 | Use when a request is drifting into server/plugin territory rather than skill design. |

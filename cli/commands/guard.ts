@@ -103,7 +103,7 @@ export const DEFAULT_GUARD_CONFIG: CoordinationGuardConfig = {
 const ROADMAP_RECEIPT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const COORDINATION_ROADMAP_PATTERNS: RegExp[] = [
-  /^cli\/commands\/(?:guard|roadmap|parley|quorum|agents|spawn|dispatch|sortie|sessions|attention)\.ts$/,
+  /^cli\/commands\/(?:guard|roadmap|parley|quorum|agents|spawn|dispatch|sessions|attention)\.ts$/,
   /^routes\/(?:parley|quorum|roadmap|sessions|coordination|operator)\.ts$/,
   /^lib\/(?:parley|swarm-coordination|roadmap-[^/]+|roadmap-items|coordination-[^/]+|sessions|spawner|dispatch\/.+|obligation-monitor|commitments)\.ts$/,
   /^docs\/adr\/\d+-.+\.md$/,

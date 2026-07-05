@@ -1,0 +1,56 @@
+{
+  "surfaces": [
+    {
+      "name": "spawn-card-expand",
+      "kind": "transition",
+      "usesTransform": false,
+      "animatesLayoutInHotRender": false,
+      "owners": 1,
+      "reducedMotion": {
+        "handled": true,
+        "preservesOrientation": true
+      },
+      "repeat": {
+        "present": false
+      },
+      "easing": "ease_in_out",
+      "interruptible": true
+    },
+    {
+      "name": "fleet-status-breathing-dot",
+      "kind": "micro",
+      "usesTransform": false,
+      "animatesLayoutInHotRender": false,
+      "owners": 1,
+      "reducedMotion": {
+        "handled": true,
+        "preservesOrientation": true
+      },
+      "repeat": {
+        "present": true,
+        "scopedToLeaf": true,
+        "pausesWhenIdle": true
+      },
+      "easing": "pulsating_between",
+      "interruptible": false
+    },
+    {
+      "name": "harbor-water-shimmer",
+      "kind": "bespoke",
+      "usesTransform": false,
+      "animatesLayoutInHotRender": false,
+      "owners": 1,
+      "reducedMotion": {
+        "handled": true,
+        "preservesOrientation": true
+      },
+      "repeat": {
+        "present": true,
+        "scopedToLeaf": true,
+        "pausesWhenIdle": true
+      },
+      "easing": "linear",
+      "interruptible": false
+    }
+  ]
+}

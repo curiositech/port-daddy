@@ -7,6 +7,7 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{maydayred}{HTML}{8B0000}
 
 \begin{figure}[H]
 \centering
@@ -16,7 +17,7 @@
   inc/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
               minimum width=22mm,minimum height=11mm,align=center,inner sep=2pt},
   conn/.style={->,>=Latex,thick,draw=hhink},
-  bad/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
+  bad/.style={draw=hhink!30,thick,dashed},
 ]
 \node[inc] (b)  at (0,0)  {incarnation 1\\{\scriptsize the ``boy''}};
 \node[inc] (o)  at (4,0)  {incarnation 2\\{\scriptsize the ``officer''}};
@@ -27,11 +28,11 @@
   node[midway,above,font=\scriptsize,text=hhink] {remembers} (o.north west);
 \draw[conn] (o.north east) to[bend left=20]
   node[midway,above,font=\scriptsize,text=hhink] {remembers} (g.north west);
-% The non-transitive gap (shallow arc just under the boxes; label centered in the
-% clear band so it never collides with the descending continuity arrows below).
+% The non-transitive gap — faint gray line with bold red ✗ at midpoint.
 \draw[bad] (b.south) to[bend right=14] (g.south);
-\node[font=\scriptsize\itshape,text=hhink] at (4,-1.95)
-  {does \emph{not} directly remember (Reid's objection)};
+\node[font=\small\bfseries,text=maydayred] at (4,-1.3) {$\times$};
+\node[font=\scriptsize\itshape,text=hhink] at (4,-2.0)
+  {no direct memory (Reid's objection)};
 
 
 \end{tikzpicture}}

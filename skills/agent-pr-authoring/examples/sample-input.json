@@ -1,0 +1,29 @@
+{
+  "title": "fix(daemon): close symbol-index fd leak on watcher restart",
+  "body": {
+    "hasSummary": true,
+    "hasTestPlan": true,
+    "testPlanHasEvidence": true
+  },
+  "diff": {
+    "filesChanged": 4,
+    "linesChanged": 148,
+    "mixedConcerns": false
+  },
+  "checks": [
+    { "name": "lint", "required": true, "status": "success", "external": false },
+    { "name": "unit-tests", "required": true, "status": "success", "external": false },
+    { "name": "typecheck", "required": true, "status": "success", "external": false },
+    { "name": "roadmap-link", "required": true, "status": "success", "external": false },
+    { "name": "pr-requirements-guard", "required": true, "status": "success", "external": false },
+    { "name": "cloudflare-pages", "required": false, "status": "failure", "external": true }
+  ],
+  "reviewThreads": [
+    { "severity": "high", "resolved": true },
+    { "severity": "low", "resolved": false }
+  ],
+  "mergeMethod": "queue",
+  "usedAdminBypass": false,
+  "forcePushed": false,
+  "rebasedOnLatestBase": true
+}

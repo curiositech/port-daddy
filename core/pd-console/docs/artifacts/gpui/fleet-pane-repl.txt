@@ -1,0 +1,24 @@
+# Fleet pane — ratatui face (headless, TCC-free proof)
+# Rendered via: printf ':fleet
+:q
+' | PORT_DADDY_URL=<daemon> pd-console-repl
+# Fixture: 4 ships across sailing / cooldown / dry-dock / armed.
+
+  Fleet — Ship Lifecycle ────────────────────────
+  ships              4
+  sailing            1
+  ⚓ dry-dock         1 — needs operator
+
+  ⚑H port-daddy/simplifier  ·  sailing
+    rig              mid · claude-cli · git:committed
+  ⚑Y port-daddy/test-author  ·  cooldown
+    rig              high · codex · git:committed
+    retries          1/3
+    queued           1
+  ⚑F port-daddy/qa-adversary  ·  dry-dock
+    rig              high · codex · git:committed
+    retries          3/3 (exhausted — dry-dock)
+  ⚑M port-daddy/documentarian  ·  armed
+    rig              low · claude · 0 9 * * *
+
+  ⚠ 1 sailing · 1 cooldown · 1 dry-dock · 4 ships

@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/render-plan.schema.json",
+  "title": "Vello/Parley Render Plan",
+  "description": "A version + render-config plan for a Vello+Parley (Linebender stack) rendering loop, as audited by scripts/render_plan_audit.mjs for version skew, AA config mismatches, Scene-model violations, and pixel-space consistency.",
+  "type": "object",
+  "required": [
+    "deps",
+    "usesVelloReexportedWgpu",
+    "duplicateWgpuInTree",
+    "aaSupport",
+    "aaMethod",
+    "presentMode",
+    "requestsRedrawEveryFrame",
+    "glyphCoordsReinterpreted",
+    "scaleFactorThreadedThrough",
+    "cachesSceneInPlace"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "deps": {
+      "type": "object",
+      "description": "Pinned crate versions as they appear in Cargo.toml / Cargo.lock.",
+      "required": ["vello", "wgpu", "parley", "peniko", "kurbo", "winit"],
+      "properties": {
+        "vello": { "type": "string", "description": "e.g. \"0.3\" or \"0.3.1\"." },
+        "wgpu": { "type": "string", "description": "e.g. \"22\" or \"22.1.0\" — wgpu ships plain integer majors." },
+        "parley": { "type": "string" },
+        "peniko": { "type": "string" },
+        "kurbo": { "type": "string" },
+        "winit": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "usesVelloReexportedWgpu": {
+      "type": "boolean",
+      "description": "True if the code depends on vello only and imports wgpu via vello::wgpu::…, rather than pulling a second direct wgpu dependency."
+    },
+    "duplicateWgpuInTree": {
+      "type": "boolean",
+      "description": "True if `cargo tree -d` shows two wgpu crate entries (an incompatible-majors situation)."
+    },
+    "aaSupport": {
+      "type": "string",
+      "enum": ["area", "msaa8", "msaa16"],
+      "description": "RendererOptions.antialiasing_support as configured at Renderer construction time."
+    },
+    "aaMethod": {
+      "type": "string",
+      "enum": ["Area", "Msaa8", "Msaa16"],
+      "description": "RenderParams.antialiasing_method as requested at render time. Must agree with aaSupport or Vello panics."
+    },
+    "presentMode": {
+      "type": "string",
+      "enum": ["AutoVsync", "AutoNoVsync", "Fifo", "Immediate", "Mailbox"],
+      "description": "wgpu::PresentMode used for the surface. AutoVsync is the shippable default; AutoNoVsync is benchmark-only."
+    },
+    "requestsRedrawEveryFrame": {
+      "type": "boolean",
+      "description": "True if window.request_redraw() is called each animating frame (from resumed, after input, and at frame end)."
+    },
+    "glyphCoordsReinterpreted": {
+      "type": "boolean",
+      "description": "True if Parley's &[i16] variation coords are reinterpreted to &[NormalizedCoord]/F2Dot14 before being passed to Scene::draw_glyphs, and glyph runs originate from a Parley Layout (not a hand-rolled bitmap atlas)."
+    },
+    "scaleFactorThreadedThrough": {
+      "type": "boolean",
+      "description": "True if window.scale_factor() is consistently applied to both Parley layout and geometry transforms (no logical/physical pixel mixing)."
+    },
+    "cachesSceneInPlace": {
+      "type": "boolean",
+      "description": "True if the plan diffs or mutates a persisted Scene across frames instead of calling scene.reset() and rebuilding it each frame. Should be false."
+    }
+  }
+}

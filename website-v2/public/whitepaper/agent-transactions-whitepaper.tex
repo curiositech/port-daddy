@@ -141,7 +141,7 @@
   Business Economics \& Public Policy\\[0.1cm]
   Indiana University
 }
-\date{May 2026\\Version 2.5 (pre-print)}
+\date{July 2026\\Version 2.6 (pre-print)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
 \begin{document}
@@ -1213,6 +1213,8 @@ Both transactions execute under \texttt{BEGIN EXCLUSIVE}, so SQLite serializes t
 
 \paragraph{Mechanism design.} The pricing of Float Plan bonds is a mechanism design problem in the tradition of Vickrey~\cite{vickrey1961counterspeculation} and Myerson~\cite{myerson1981optimal}. A full optimal-auction derivation in that tradition is outside the scope of this paper.
 
+\paragraph{Agentic-commerce protocols.} While this paper was in preparation, the transaction rails of an agent economy shipped as industry standards: the Universal Commerce Protocol~\cite{ucp2026} (Google/Shopify, 2026) for merchant-hosted agent-mediated retail, its platform-mediated rival the Agentic Commerce Protocol~\cite{acp2025} (OpenAI/Stripe), and the Agent Payments Protocol~\cite{ap2mandates2026}, whose signed mandate chain --- W3C Verifiable Credentials in SD-JWT form, principal~$\to$~platform~$\to$~merchant --- is the deployed sibling of our countersigned Float Plan. All three are explicit that agent \emph{trustworthiness} is out of scope; published security analyses~\cite{datadome2026} observe that they regulate how agents transact while providing no collateral, no settlement oracle, and no priced deterrent against a misbehaving agent. That gap is precisely the synthesis this paper contributes (\S\ref{sec:related} \emph{supra}): bonded participation, capability attenuation, advisory coordination, and immutable attribution. The reference implementation accordingly adopts their credential formats at the harbor boundary (SD-JWT-VC cards, JWS detached-content countersigns over JCS; ADR-0094) while keeping the bonding mechanism they lack.
+
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Discussion and Limitations}
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -1592,6 +1594,26 @@ Kevin Werbach.
 Vitalik Buterin.
 \newblock A Next-Generation Smart Contract and Decentralized Application Platform.
 \newblock Ethereum white paper, 2014.
+
+\bibitem{ucp2026}
+Universal Commerce Protocol.
+\newblock Specification and reference implementation (Apache-2.0), Google, Shopify, et al., 2026.
+\newblock \texttt{https://ucp.dev}.
+
+\bibitem{ap2mandates2026}
+Agent Payments Protocol (AP2): Mandates.
+\newblock Verifiable-credential authorization chain: SD-JWT+kb checkout mandate, JWS detached-content merchant authorization, JCS canonicalization, 2026.
+\newblock \texttt{https://ap2-protocol.org}.
+
+\bibitem{acp2025}
+Agentic Commerce Protocol.
+\newblock OpenAI and Stripe, 2025.
+\newblock \texttt{https://agenticcommerce.dev}.
+
+\bibitem{datadome2026}
+DataDome.
+\newblock Agent Trust Management and the Universal Commerce Protocol, 2026.
+\newblock \texttt{datadome.co/agent-trust-management/universal-commerce-protocol/}.
 
 \end{thebibliography}
 

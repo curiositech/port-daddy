@@ -130,21 +130,24 @@ const ESSENTIAL_TOOL_NAMES = new Set([
   'list_services',
   // Magic tools — high-level composed operations for vibe coders
   'fleet_init',
+  'active_agent_roster',
   'swarm_awareness',
   'coordination_preflight',
   'sitrep',
   'catch_me_up',  // DEPRECATED 3.8.4 — alias for sitrep. Kept for back-compat.
-  'spawn_agent',
-  'run_sortie',
+  'spawn',
   // Central agentic-feedback primitive — agents drop feedback while
   // they work; cartographer harvests it into the roadmap.
   'drop_feedback',
+  // Host-safety posture audit (ADR-0088 Phase A) — read-only; the agent is a
+  // first-class consumer of its own safety posture.
+  'safe_scan',
 ]);
 
 const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> = {
   'magic': {
-    description: 'High-level composed tools: fleet setup, swarm awareness, situation reports, agent spawning, sortie missions, file heat maps, agent messaging',
-    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn_agent', 'run_sortie'],
+    description: 'High-level composed tools: fleet setup, swarm awareness, situation reports, spawning, file heat maps, agent messaging',
+    tools: ['fleet_init', 'fleet_status', 'active_agent_roster', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn'],
   },
   'session-lifecycle': {
     description: 'Start/end sessions, manage agent registration (sugar commands)',
@@ -153,6 +156,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   'trust': {
     description: 'Honest self-report (ADR-0045): verify the daemon actually enforces what it claims before relying on it',
     tools: ['attest'],
+  },
+  'safety': {
+    description: 'Host-safety posture audit (ADR-0088): a read-only scan of what an agent running as the operator could reach right now (secrets at rest, world-readable crown jewels, unsigned binaries, unpinned MCP fetches, egress flows)',
+    tools: ['safe_scan'],
   },
   'advisor': {
     description: 'Deterministic coordination preflight: context integrity, claims, symbols, salvage, channels, tuples, and locks',
@@ -222,10 +229,6 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     description: 'Activity log queries and statistics',
     tools: ['activity_log', 'activity_summary', 'activity_stats', 'activity_range'],
   },
-  'sorties': {
-    description: 'Tracked mission records over spawned runs — launch, inspect status, and fetch sortie event logs',
-    tools: ['run_sortie', 'list_sorties', 'get_sortie', 'get_sortie_logs'],
-  },
   'cockpit': {
     description: 'App-Native Development Cockpit — read roadmap markdown into typed mission cards',
     tools: ['cockpit_missions_list'],
@@ -253,7 +256,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'feedback': {
     description: 'Agentic feedback primitive — drop structured findings about the project (or about Port Daddy itself); cartographer harvests them into the roadmap',
-    tools: ['drop_feedback', 'list_feedback', 'feedback_summary'],
+    tools: ['drop_feedback', 'submit_visual_task', 'list_feedback', 'feedback_summary'],
   },
   'harbors': {
     description: 'Named permission namespaces — list harbors, inspect membership/envelope, and dry-run a capability decision before you act',
@@ -284,7 +287,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
   },
   'context': {
-    description: 'Context economics — per-agent token budget health, swarm COGS overview, and per-sortie task ledger',
+    description: 'Context economics — per-agent token budget health, swarm COGS overview, and per-spawn task ledger',
     tools: ['get_context_budget', 'get_context_overview', 'get_task_ledger'],
   },
   'harvest': {
@@ -309,13 +312,20 @@ const TOOLS = [
       '[Essential] Register agent + start session in one atomic step. Use this at the start of every ' +
       'coding session instead of calling register_agent and start_session separately. ' +
       'Returns agentId, sessionId, and a salvageHint if dead agents need attention. ' +
-      'Usage: begin_session({purpose: "Building auth system", identity: "myapp:api:main"})',
+      'Usage: begin_session({purpose: "Building auth system", identity: "myapp:api:main", lifecycle: "ephemeral"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
         purpose: {
           type: 'string',
           description: 'What you are working on (e.g. "Implementing OAuth flow")',
+        },
+        lifecycle: {
+          type: 'string',
+          enum: ['durable', 'ephemeral'],
+          description:
+            'Session lifecycle: "ephemeral" for one-off task sessions (most agent work), ' +
+            '"durable" for long-lived staff agents that persist across tasks',
         },
         identity: {
           type: 'string',
@@ -343,7 +353,7 @@ const TOOLS = [
             'Defaults to "durable" if omitted.',
         },
       },
-      required: ['purpose'],
+      required: ['purpose', 'lifecycle'],
     },
   },
   {
@@ -401,6 +411,30 @@ const TOOLS = [
     inputSchema: {
       type: 'object' as const,
       properties: {},
+    },
+  },
+  {
+    name: 'safe_scan',
+    description:
+      '[Safety] READ-ONLY host-safety posture audit (ADR-0088 Phase A). Returns a ' +
+      '0-100 score, a Safe Room state (green/amber/red), and a blast-radius list: ' +
+      'what an agent running as the operator could reach RIGHT NOW (plaintext ' +
+      'secrets at rest, world-readable crown jewels, unsigned running binaries, ' +
+      'unpinned MCP fetches, live egress flows). green = "cooperative-case sensors ' +
+      'clear", NOT a sandbox — the report footer carries the verbatim HONEST_LIMITS. ' +
+      'NEVER returns a raw secret: findings carry only path/line/ruleId/last4. ' +
+      'Optional `allow`: comma-separated allowlisted egress hosts. Usage: safe_scan()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        allow: {
+          type: 'string',
+          description:
+            'Comma-separated allowlisted egress hosts. A live flow to a host not on ' +
+            'this list is a deduction; empty means egress flows are reported as ' +
+            'evidence but never deducted.',
+        },
+      },
     },
   },
   {
@@ -2675,10 +2709,22 @@ const TOOLS = [
     },
   },
   {
+    name: 'active_agent_roster',
+    description:
+      '[Magic] Live harness roster for this repo. Lists active agents by harness lane, worktree, task, touched files, ' +
+      'and control affordances for stream, interrupt, takeover, and steering.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project: { type: 'string', description: 'Filter to a specific project (e.g. "port-daddy"). Omit for all.' },
+      },
+    },
+  },
+  {
     name: 'swarm_awareness',
     description:
       '[Magic] Who else is working here? Returns all active agents with their identities, purposes, ' +
-      'file claims, session notes, and heartbeat freshness. One call to understand the whole swarm.',
+      'file claims, session notes, heartbeat freshness, harness lane, and session-control affordances. One call to understand the whole swarm.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -2745,10 +2791,10 @@ const TOOLS = [
     },
   },
   {
-    name: 'spawn_agent',
+    name: 'spawn',
     description:
-      '[Magic] Launch a background AI agent with a task. The agent gets its own session, ' +
-      'heartbeat, and coordination — all automatic. Returns the agent ID for tracking.',
+      '[Magic] Spawn a background AI run with a task. The run gets its own session, ' +
+      'heartbeat, and coordination — all automatic. Returns the spawned run metadata.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -2766,71 +2812,6 @@ const TOOLS = [
         max_tokens: { type: 'number', description: 'Optional token ceiling for claude or claude-cli launches' },
       },
       required: ['task', 'identity', 'budget_usd'],
-    },
-  },
-  {
-    name: 'run_sortie',
-    description:
-      '[Magic] Launch a tracked sortie mission. Use this when you want a durable mission id, ' +
-      'ephemeral harbor, event log, and inspectable outcome instead of a raw one-shot spawn.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        goal: { type: 'string', description: 'Required mission goal or brief.' },
-        project_dir: { type: 'string', description: 'Optional project directory override. Defaults to the current working directory on the daemon side.' },
-        budget_usd: { type: 'number', description: 'Required spend ceiling for the sortie in USD.' },
-        backend: { type: 'string', description: 'Required setup-ready backend: cloudflare, claude, claude-cli, gemini, codex, aider, custom, or another configured backend.' },
-        model: { type: 'string', description: 'Optional explicit model override.' },
-        model_tier: { type: 'string', description: 'Optional tier hint: low, mid, or high.' },
-        recipe: { type: 'string', description: 'Optional mission recipe such as investigate, fix, review, creative, or custom.' },
-        expected_output: { type: 'string', description: 'Optional expected deliverable summary.' },
-        context: { type: 'string', description: 'Optional extra context or constraints.' },
-        approval_mode: { type: 'string', description: 'Optional human gate mode: none, before-build, before-apply, or before-close.' },
-        roster: { type: 'array', description: 'Optional roster preview or requested roles.', items: { type: 'string' } },
-        identity: { type: 'string', description: 'Optional explicit coordinator identity. Defaults to project:sortie:<id>:coordinator.' },
-        purpose: { type: 'string', description: 'Optional short human-readable label for the coordinating run.' },
-        allowed_tools: { type: 'string', description: 'Optional tool permission string for claude-cli-backed coordinators.' },
-        timeout: { type: 'number', description: 'Optional timeout in milliseconds.' },
-        max_tokens: { type: 'number', description: 'Optional token ceiling for claude or claude-cli launches.' },
-      },
-      required: ['goal', 'backend', 'budget_usd'],
-    },
-  },
-  {
-    name: 'list_sorties',
-    description:
-      '[Mission] List recent sortie missions. Filter to the current project by default, or pass a project directory to inspect another checkout.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        project_dir: { type: 'string', description: 'Optional project directory filter.' },
-        limit: { type: 'number', description: 'Optional maximum number of sorties to return (default: 25).' },
-      },
-    },
-  },
-  {
-    name: 'get_sortie',
-    description:
-      '[Mission] Fetch one sortie mission by id, including status, harbor, backend, output, and failure details when present.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        sortie_id: { type: 'string', description: 'Sortie mission id.' },
-      },
-      required: ['sortie_id'],
-    },
-  },
-  {
-    name: 'get_sortie_logs',
-    description:
-      '[Mission] Fetch the human-readable event log for a sortie mission.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        sortie_id: { type: 'string', description: 'Sortie mission id.' },
-        limit: { type: 'number', description: 'Optional maximum number of log events to return.' },
-      },
-      required: ['sortie_id'],
     },
   },
   // ── App-Native Development Cockpit ────────────────────────────────────
@@ -2954,7 +2935,7 @@ const TOOLS = [
   {
     name: 'memory_episodes',
     description:
-      '[Semantic] List episodic memory entries promoted from sessions and sorties.',
+      '[Semantic] List episodic memory entries promoted from sessions and spawned runs.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -3007,6 +2988,35 @@ const TOOLS = [
         harbor: { type: 'string', description: 'Harbor namespace for scoping. Defaults to <project>:fleet when project is supplied; otherwise legacy fleet.' },
       },
       required: ['slug', 'summary'],
+    },
+  },
+  {
+    name: 'submit_visual_task',
+    description:
+      '[Standard] Submit visual evidence as a Port Daddy work item from any MCP client. ' +
+      'Use this when an agent has a screenshot, selected rectangle, DOM hint, or browser ' +
+      'context that should become a reviewable issue for a local agent, cloud fleet, or ' +
+      'review queue. Mirrors the Chrome extension and FleetBar visual intake route without ' +
+      'exposing dispatch/worker internals to the caller.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        title: { type: 'string', description: 'Short issue title. Defaults to description.' },
+        description: { type: 'string', description: 'What is wrong or what the agent should do.' },
+        kind: { type: 'string', enum: ['fix', 'bug', 'nit', 'feedback', 'question'], description: 'Task flavor. Default: fix.' },
+        project: { type: 'string', description: 'Logical project slug.' },
+        project_dir: { type: 'string', description: 'Absolute project directory for repo-aware routing.' },
+        page_url: { type: 'string', description: 'URL of the page or app where the issue was captured.' },
+        target_agent: { type: 'string', description: 'Specific local agent id to receive the task.' },
+        assignee: { type: 'string', enum: ['local-agent', 'cloud-fleet', 'review-queue'], description: 'Where to route the work. Default: review-queue unless a target_agent is supplied.' },
+        open_issue: { type: 'boolean', description: 'Open a reviewable Port Daddy work item. Default: true.' },
+        start_agent: { type: 'boolean', description: 'Ask the daemon to wake/run the assigned agent after routing. Default: false.' },
+        image: { type: 'object', description: 'Screenshot evidence, usually {mimeType, dataUrl} or an existing blobId.' },
+        region: { type: 'object', description: 'Selected rectangle in image or viewport coordinates.' },
+        dom_context: { type: 'object', description: 'DOM decomposition: selectors, XPath, bounds, source hints, and page title.' },
+        viewport: { type: 'object', description: 'Viewport metadata such as width, height, and devicePixelRatio.' },
+      },
+      required: ['description'],
     },
   },
   {
@@ -3093,9 +3103,9 @@ const TOOLS = [
   {
     name: 'get_task_ledger',
     description:
-      '[Context] Get per-sortie COGS ledger rows for cost attribution. ' +
-      'Returns token counts, cost, and landed work (pr/commit/episode) per sortie. ' +
-      'Use for debugging cost overruns or verifying that sorties landed durable work.',
+      '[Context] Get per-spawn COGS ledger rows for cost attribution. ' +
+      'Returns token counts, cost, and landed work (pr/commit/episode) per spawned run. ' +
+      'Use for debugging cost overruns or verifying that spawned work landed durable artifacts.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -3219,6 +3229,10 @@ async function handleTool(
     // ── Sugar (Compound Operations) ────────────────────────────────────
     case 'begin_session': {
       const body: Record<string, unknown> = { purpose: args.purpose };
+      // Forward unconditionally: an empty/malformed value must reach the daemon
+      // so its SESSION_LIFECYCLE_REQUIRED error names the real problem instead
+      // of being dropped here and failing identically but opaquely.
+      body.lifecycle = args.lifecycle;
       if (args.identity) body.identity = args.identity;
       if (args.agent_id) body.agentId = args.agent_id;
       if (args.type) body.type = args.type;
@@ -3280,6 +3294,17 @@ async function handleTool(
 
     case 'attest': {
       res = await GET('/attest');
+      break;
+    }
+
+    case 'safe_scan': {
+      // READ-ONLY host-safety posture audit (ADR-0088 Phase A, A10). The daemon
+      // runs the sensors + records the A5 ledger; the report it returns carries
+      // findings with last4 only — NEVER a raw secret value.
+      const allow = typeof args.allow === 'string' && args.allow.length > 0
+        ? `?allow=${encodeURIComponent(args.allow as string)}`
+        : '';
+      res = await GET(`/safe/scan${allow}`);
       break;
     }
 
@@ -4393,8 +4418,16 @@ async function handleTool(
       return JSON.stringify({ agents, channels: msgs, recent_notes: recentNotes }, null, 2);
     }
 
+    case 'active_agent_roster':
     case 'swarm_awareness': {
       const project = args.project as string | undefined;
+      const rosterQs = new URLSearchParams({ limit: '50' });
+      if (project) rosterQs.set('project', project);
+      const rosterRes = await GET(`/agent-roster?${rosterQs}`);
+      if (rosterRes.status >= 200 && rosterRes.status < 300 && rosterRes.data && rosterRes.data.success !== false) {
+        return JSON.stringify(rosterRes.data, null, 2);
+      }
+
       const qs = project ? `?identityPrefix=${encodeURIComponent(project)}` : '';
       const sessionQs = new URLSearchParams({ limit: '20' });
       if (project) sessionQs.set('project', project);
@@ -4487,7 +4520,7 @@ async function handleTool(
       return JSON.stringify({ success: true, delivered_via: 'channel', channel: agent, message });
     }
 
-    case 'spawn_agent': {
+    case 'spawn': {
       const task = args.task as string;
       const identity = args.identity as string | undefined;
       const budgetUsd = args.budget_usd as number | undefined;
@@ -4503,13 +4536,13 @@ async function handleTool(
       // the daemon cwd. Reject here too (defense-in-depth with routes/spawn.ts).
       if (workdir !== undefined && workdir !== null) {
         if (typeof workdir !== 'string' || !workdir.trim()) {
-          throw new Error('spawn_agent: workdir must be a non-empty string');
+          throw new Error('spawn: workdir must be a non-empty string');
         }
         if (/["\\\n\r\0]/.test(workdir)) {
-          throw new Error('spawn_agent: workdir contains an illegal character (quote, backslash, newline, or NUL). Provide a plain absolute path.');
+          throw new Error('spawn: workdir contains an illegal character (quote, backslash, newline, or NUL). Provide a plain absolute path.');
         }
         if (!workdir.startsWith('/')) {
-          throw new Error('spawn_agent: workdir must be an absolute path (start with "/").');
+          throw new Error('spawn: workdir must be an absolute path (start with "/").');
         }
       }
       const timeout = args.timeout as number | undefined;
@@ -4526,46 +4559,6 @@ async function handleTool(
       if (allowedTools) body.allowedTools = allowedTools;
       if (typeof args.max_tokens === 'number') body.maxTokens = args.max_tokens;
       res = await POST('/spawn', body);
-      break;
-    }
-    case 'run_sortie': {
-      const body: Record<string, unknown> = {
-        goal: args.goal,
-        backend: args.backend,
-        budgetUsd: args.budget_usd,
-      };
-      if (args.project_dir) body.projectDir = args.project_dir;
-      if (args.model) body.model = args.model;
-      if (args.model_tier) body.modelTier = args.model_tier;
-      if (args.recipe) body.recipe = args.recipe;
-      if (args.expected_output) body.expectedOutput = args.expected_output;
-      if (args.context) body.context = args.context;
-      if (args.approval_mode) body.approvalMode = args.approval_mode;
-      if (Array.isArray(args.roster)) body.roster = args.roster;
-      if (args.identity) body.identity = args.identity;
-      if (args.purpose) body.purpose = args.purpose;
-      if (args.allowed_tools) body.allowedTools = args.allowed_tools;
-      if (typeof args.timeout === 'number') body.timeout = args.timeout;
-      if (typeof args.max_tokens === 'number') body.maxTokens = args.max_tokens;
-      res = await POST('/sorties', body);
-      break;
-    }
-    case 'list_sorties': {
-      const qs = new URLSearchParams();
-      if (args.project_dir) qs.set('projectDir', args.project_dir as string);
-      if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
-      res = await GET(qs.toString() ? `/sorties?${qs.toString()}` : '/sorties');
-      break;
-    }
-    case 'get_sortie': {
-      res = await GET(`/sorties/${encodeURIComponent(args.sortie_id as string)}`);
-      break;
-    }
-    case 'get_sortie_logs': {
-      const qs = new URLSearchParams();
-      if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
-      const suffix = qs.toString() ? `?${qs.toString()}` : '';
-      res = await GET(`/sorties/${encodeURIComponent(args.sortie_id as string)}/logs${suffix}`);
       break;
     }
 
@@ -4680,6 +4673,36 @@ async function handleTool(
       if (args.project) body.project = args.project;
       if (args.harbor) body.harbor = args.harbor;
       res = await POST('/feedback', body);
+      break;
+    }
+
+    case 'submit_visual_task': {
+      const targetAgent = (args.target_agent as string | undefined) || (args.targetAgent as string | undefined);
+      const assignee = (args.assignee as string | undefined) || (targetAgent ? 'local-agent' : 'review-queue');
+      const body: Record<string, unknown> = {
+        schemaVersion: 1,
+        type: 'visual-task',
+        source: 'api',
+        title: (args.title as string | undefined) || (args.description as string | undefined) || 'Visual task',
+        description: (args.description as string | undefined) || (args.title as string | undefined) || '',
+        kind: (args.kind as string | undefined) || 'fix',
+        createdAt: new Date().toISOString(),
+        routing: {
+          assignee,
+          targetAgent,
+          openIssue: args.open_issue !== false && args.openIssue !== false,
+          startAgent: args.start_agent === true || args.startAgent === true,
+        },
+      };
+      if (args.project) body.project = args.project;
+      if (args.project_dir || args.projectDir) body.projectDir = args.project_dir || args.projectDir;
+      if (targetAgent) body.targetAgent = targetAgent;
+      if (args.page_url || args.pageUrl) body.pageUrl = args.page_url || args.pageUrl;
+      if (args.image) body.image = args.image;
+      if (args.region) body.region = args.region;
+      if (args.dom_context || args.domContext) body.domContext = args.dom_context || args.domContext;
+      if (args.viewport) body.viewport = args.viewport;
+      res = await POST('/visual-tasks', body);
       break;
     }
 
@@ -4816,7 +4839,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.22.0',
+    version: '3.24.1',
   },
   {
     capabilities: {

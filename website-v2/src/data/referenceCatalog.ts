@@ -15,7 +15,7 @@ export interface ReferenceGroup {
   items: ReferenceItem[]
 }
 
-export const PORT_DADDY_VERSION = '3.22.0'
+export const PORT_DADDY_VERSION = '3.24.1'
 
 export function referenceAnchor(name: string): string {
   return name
@@ -93,7 +93,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd setup', description: 'Install daemon, MCP, FleetBar, shell hook, and project init in one operator path.', flags: ['--project', '--no-daemon', '--no-mcp', '--no-fleetbar', '--no-init', '--no-hook'] },
       { name: 'pd init', href: '/docs/cli/init', description: 'Initialize Port Daddy project config, fleet config, MCP files, and managed git hook pieces.' },
       { name: 'pd mcp', description: 'Start the stdio MCP server for model clients. Use `pd mcp install` to configure supported tools.' },
-      { name: 'pd mcp install', href: '/docs/cli/mcp-install', description: 'Auto-detect and configure Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Continue, and Cline.' },
+      { name: 'pd mcp install', href: '/docs/cli/mcp-install', description: 'Auto-detect supported tools, configure MCP, install the agent skill, and write Port Daddy Pilot definitions.' },
       { name: 'pd help <topic>', description: 'Print detailed topic help for setup, sessions, locks, agents, actors, ports, messaging, DNS, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, daemon, and tutorial.' },
       { name: 'pd learn', description: 'Open the interactive tutorial.', aliases: ['pd tutorial'] },
       { name: 'pd status', href: '/docs/cli/status', description: 'Show daemon version, PID, uptime, fleet readiness, active ports, and Bosun state.' },
@@ -175,12 +175,10 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
     ],
   },
   {
-    title: 'Agents, Actors, Fleets, Sorties, And Spawn Control',
+    title: 'Agents, Actors, Fleets, And Spawn Control',
     description: 'Launch work, inspect bodies, talk to durable role actors, and run declarative fleets with budget gates.',
-    source: 'cli/commands/agents.ts, cli/commands/actors.ts, cli/commands/spawn.ts, cli/commands/sortie.ts, cli/commands/fleet.ts, cli/commands/quorum.ts',
+    source: 'cli/commands/agents.ts, cli/commands/actors.ts, cli/commands/spawn.ts, cli/commands/fleet.ts, cli/commands/quorum.ts',
     items: [
-      { name: 'pd agent "task"', description: 'Run a one-shot autopilot task through `/sugar/begin`, `/spawn`, and `/sugar/done`.', flags: ['--backend', '--model', '--tier', '--identity', '--budget', '--timeout', '--allowedTools'] },
-      { name: 'pd agent run <task>', description: 'Explicit form of the one-shot autopilot task.' },
       { name: 'pd agent register', href: '/docs/cli/agent-register', description: 'Register this process as an agent.', flags: ['--agent', '--identity', '--purpose', '--type', '--skills', '--worktree'] },
       { name: 'pd agent heartbeat|unregister|inbox|<id>', description: 'Maintain agent liveness, inspect one agent, or use direct inbox commands.' },
       { name: 'pd agents', description: 'List registered agents.', aliases: ['pd swarm'], flags: ['--active', '--json'] },
@@ -189,8 +187,6 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd spawn <task>', href: '/docs/cli/spawn', description: 'Launch a spawned agent with backend, model, identity, and required budget ceiling.', flags: ['--backend', '--model', '--tier', '--identity', '--budget', '--purpose', '--files', '--workdir', '--timeout'] },
       { name: 'pd spawn kill <agent>', description: 'Kill a running spawned agent.' },
       { name: 'pd spawned', href: '/docs/cli/spawned', description: 'List active or recent spawned agents.' },
-      { name: 'pd sortie <goal>', description: 'Run a tracked mission record over a spawned backend.', flags: ['--backend', '--model', '--tier', '--budget', '--dir', '--recipe', '--expected', '--context'] },
-      { name: 'pd sortie list|status|logs', description: 'Inspect sortie records and event logs.' },
       { name: 'pd fleet init|up|down|status|validate|run', href: '/docs/cli/fleet', description: 'Create, validate, run, and inspect YAML-defined background agent fleets.' },
       { name: 'pd fleet panic|unpanic', description: 'Arm or disarm the fleet panic control with an audited reason.' },
       { name: 'pd shipwright survey', description: 'Survey the current project into a structured Shipwright intake record for app-native fleet planning.', flags: ['--root', '--llm', '--model', '--json', '--quiet'] },
@@ -380,18 +376,14 @@ export const SDK_REFERENCE_GROUPS: ReferenceGroup[] = [
     ],
   },
   {
-    title: 'Spawn, Sorties, Fleets, And Orchestration',
-    description: 'Launch backend agents, inspect sorties, and start or stop service stacks.',
+    title: 'Spawn, Fleets, And Orchestration',
+    description: 'Launch backend runs and start or stop service stacks.',
     href: '/docs/sdk/spawn',
-    source: 'lib/client.ts spawn, sortie, and orchestration methods',
+    source: 'lib/client.ts spawn and orchestration methods',
     items: [
-      { name: 'spawn', description: 'Launch an agent with backend, identity, model, and budget.' },
+      { name: 'spawn', description: 'Launch a run with backend, identity, model, and budget.' },
       { name: 'listSpawned', description: 'List spawned agents.' },
       { name: 'killSpawned', description: 'Kill a spawned agent.' },
-      { name: 'runSortie', description: 'Run a tracked sortie mission.' },
-      { name: 'listSorties', description: 'List sortie records.' },
-      { name: 'getSortie', description: 'Read one sortie.' },
-      { name: 'getSortieLogs', description: 'Read sortie event logs.' },
       { name: 'cockpitMissions', description: 'Read typed cockpit mission cards from roadmap and recovery truth without mutating state.' },
       { name: 'up', description: 'Start configured services.' },
       { name: 'down', description: 'Stop configured services.' },

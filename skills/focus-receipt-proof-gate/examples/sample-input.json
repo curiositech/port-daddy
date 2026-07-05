@@ -1,0 +1,26 @@
+{
+  "receipt": {
+    "decision": "Build the official Agent Node control plane, starting with contract truth and transcript truth.",
+    "now": "F0 contract freeze, then a narrow C1/C2/C3/C5/C8 fanout that proves one local official Agent Node can be transcripted, probed, shown, and governed.",
+    "whyNow": "The product will not feel real until the operator can see an agent's live and historical work, know whether it is compliant, and control only the actions Port Daddy can honestly govern.",
+    "evidence": "The strongest repeated operator complaint is blank or hollow control surfaces: no transcript, no live stream, no files, no model/provider truth, no clear compliant versus non-compliant status, and no click-first controls.",
+    "notNow": ["public harbors", "marketplace or trust economy", "full mobile product", "cloud billing", "Harbor Editor remote transport"],
+    "cutSuspend": ["new launch verbs", "decorative control panels", "old dispatch/sortie/spawn concepts keeping independent runtime state"],
+    "firstVisibleProof": "A local Codex or Claude Code body appears in pd-console as an Agent Node with provider/model tier, compliance level, live stream or explicit no-stream reason, saved transcript events, files touched, and controls gated by compliance level.",
+    "acceptanceGate": {
+      "statement": "The proof must survive relaunch from daemon truth, not from a cached UI model.",
+      "testableAgainstDaemonTruth": true
+    },
+    "killRevisitTrigger": "If transcript ingestion cannot be made reliable for at least one local body, pause GPUI expansion and fix the adapter/transcript seam first.",
+    "contextSwitchCount": 1,
+    "agentsNeeded": 6,
+    "owner": "Harbor Architect of Record",
+    "reviewDate": "2026-08-15"
+  },
+  "workOrder": {
+    "input": "README.md, 03-agent-contract-and-extension-api.md, 09-data-model-and-api.md, 11-redteam-whitehat-cross-lens-review.md, 12-agent-work-chains-and-second-pass-review.md, 14-work-intake-and-node-shaping.md, 16-binder-architect-of-record.md",
+    "output": "An ADR for Agent Run Saga and backend authority; versioned schemas for WorkIntent, WorkPlan, AgentNode, AgentRun, TranscriptEvent, ControlCommand, ComplianceProbeResult, CostAccrualEvent, WorkReceipt, and ContextEnvelope; a command/query/event boundary table; API versioning and tolerant-reader policy; a migration list for old launch paths.",
+    "owner": "One senior architecture agent (Work Order F0).",
+    "proofGate": "Every user action maps to a command, query, or event; the UI cannot fabricate runtime truth; transcript/control/cost/claim/receipt events are append-only; restart or reconnect can rebuild visible state from backend truth; old verbs are intake metadata, not runtime concepts."
+  }
+}

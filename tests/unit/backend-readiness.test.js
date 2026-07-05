@@ -190,6 +190,25 @@ describe('backend readiness', () => {
     expect(readiness.setupCommand).toBe('claude');
   });
 
+  test('marks claude-cli launchableUnverified when the binary is found', async () => {
+    mockSpawnSync.mockImplementation((command, args) => ({
+      status: command === 'which' && args[0] === 'claude' ? 0 : 1,
+    }));
+
+    const readiness = await assessBackendReadiness('claude-cli');
+
+    expect(mockSpawnSync).toHaveBeenCalledWith('which', ['claude'], expect.objectContaining({
+      encoding: 'utf-8',
+    }));
+    expect(readiness).toMatchObject({
+      backend: 'claude-cli',
+      status: 'manual_check',
+      launchableUnverified: true,
+    });
+    expect(readiness.summary).toContain('Claude CLI binary found');
+    expect(readiness.setupCommand).toBe('claude');
+  });
+
   test('keeps codex probe details and allows launch when exact telemetry is available', async () => {
     mockSpawnSync.mockImplementation((command, args) => ({
       status: command === 'which' && args[0] === 'codex' ? 0 : 1,
@@ -203,6 +222,10 @@ describe('backend readiness', () => {
     expect(readiness).toMatchObject({
       backend: 'codex',
       status: 'manual_check',
+      // codex manages its own auth — a found binary must be launchable
+      // (with a warning), like its cli:codex twin. Otherwise preflight refuses
+      // every codex launch through the daemon ("no launchable backend").
+      launchableUnverified: true,
     });
     expect(readiness.summary).toContain('Codex CLI binary found');
     expect(readiness.summary).not.toContain('blocked until exact token counts');

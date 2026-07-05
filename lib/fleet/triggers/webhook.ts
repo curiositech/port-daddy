@@ -16,7 +16,8 @@
  * the dry-run path validates the spec.
  */
 
-import { timingSafeEqual, createHmac } from 'node:crypto';
+import { createHash } from 'node:crypto';
+import { verifyWebhookHmac } from '../webhook-hmac.js';
 import type {
   FleetTriggerEvent,
   TriggerAvailability,
@@ -80,13 +81,59 @@ export class WebhookTriggerSource implements TriggerSource {
 
     const secretEnvVar = spec.filters.secret ?? null;
     const expectedSecret = secretEnvVar ? process.env[secretEnvVar] ?? null : null;
+    // Fail closed (ADR-0093 §5.3): a spec that DECLARES HMAC verification but
+    // whose secret env var is unset must refuse to start, not silently run
+    // without verification. Silent no-HMAC turns a typo into an open endpoint.
+    if (secretEnvVar && !expectedSecret) {
+      throw new Error(
+        `webhook trigger "${channel}" declares secret:${secretEnvVar} but that ` +
+        `environment variable is not set; refusing to start without HMAC ` +
+        `verification (fail-closed)`,
+      );
+    }
+
+    // Delivery idempotency (at-least-once senders retry on timeout): dedupe
+    // by the sender's delivery id when provided, else by a hash of the exact
+    // raw bytes. A retried delivery acks 200 without re-emitting — one
+    // inbound event never becomes two agent runs or two approval proposals.
+    const delivered = new Map<string, number>();
+    const DELIVERY_RETENTION_MS = 24 * 60 * 60 * 1000;
+    /** Hard cap so hostile unique delivery ids cannot grow daemon memory
+     *  without bound; oldest entries evict first (Map preserves insertion
+     *  order). Shrinking the window under attack only weakens dedup for
+     *  the attacker's own floods — legitimate senders retry in seconds. */
+    const DELIVERY_CAP = 5000;
 
     const deregister = this.deps.registerHandler(channel, async (req) => {
       // If the spec asked for HMAC verification, enforce it.
       if (expectedSecret) {
         const signature = req.headers['x-pd-webhook-signature'] ?? '';
-        if (!verifyHmac(req.rawBody, expectedSecret, signature)) {
+        if (!verifyWebhookHmac(req.rawBody, expectedSecret, signature)) {
           return { status: 401, body: { error: 'invalid signature' } };
+        }
+      }
+
+      const deliveryKey =
+        req.headers['x-pd-delivery-id'] ??
+        req.headers['x-pd-correlation-id'] ??
+        `sha256:${createHash('sha256').update(req.rawBody).digest('hex')}`;
+      const now = Date.now();
+      if (delivered.has(deliveryKey)) {
+        return { status: 200, body: { received: true, deduped: true } };
+      }
+      delivered.set(deliveryKey, now);
+      // Size cap first: evict oldest insertions until under the cap.
+      while (delivered.size > DELIVERY_CAP) {
+        const oldest = delivered.keys().next().value as string | undefined;
+        if (oldest === undefined) break;
+        delivered.delete(oldest);
+      }
+      // Age prune, amortized: a full scan per request is wasted work at
+      // small sizes. Never wholesale (that would re-open the dedup window
+      // for recent deliveries).
+      if (delivered.size > 512) {
+        for (const [key, at] of delivered) {
+          if (now - at > DELIVERY_RETENTION_MS) delivered.delete(key);
         }
       }
 
@@ -104,8 +151,16 @@ export class WebhookTriggerSource implements TriggerSource {
         payload,
         metadata: {
           correlation_id: req.headers['x-pd-correlation-id'] ?? `webhook:${channel}:${Date.now()}`,
-          sender: req.headers['x-pd-sender'] ?? req.ip,
-          consent_verified: Boolean(expectedSecret),
+          // NEVER copy an attacker-controllable header (x-pd-sender) into
+          // `sender`: the trust gate upgrades allowlisted senders, so a
+          // spoofable sender is a tier-escalation primitive (ADR-0093 §5.3).
+          // The source IP is the only transport fact we report.
+          sender: req.ip,
+          // Transport authentication ≠ content trust (ADR-0093 invariant #1).
+          // A valid HMAC proves the RELAY holds the secret, not that the
+          // payload AUTHOR is trusted. consent_verified may only be set by a
+          // content-level author verification, which no webhook has.
+          consent_verified: false,
         },
       };
       emit(event);
@@ -120,15 +175,3 @@ export class WebhookTriggerSource implements TriggerSource {
   }
 }
 
-function verifyHmac(rawBody: Buffer, secret: string, signatureHeader: string): boolean {
-  if (!signatureHeader) return false;
-  // Header format: "sha256=<hex>"
-  const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
-  const provided = signatureHeader.startsWith('sha256=') ? signatureHeader.slice(7) : signatureHeader;
-  if (expected.length !== provided.length) return false;
-  try {
-    return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(provided, 'hex'));
-  } catch {
-    return false;
-  }
-}

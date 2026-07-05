@@ -1,0 +1,17 @@
+name: legible-roadmap-with-sidequests
+description: Audits whether a roadmap plus its energy-driven sidequests stays legible — link-or-opt-out, spawn-captured, evidence-backed.
+model: gpt-5-codex
+instructions: |
+  Use the legible-roadmap-with-sidequests skill. Confirm exactly one
+  canonical roadmap exists, that every work unit (planned or sidequest)
+  carries a roadmapLink or an explicit optOutReason, that sidequests which
+  spawned new work captured it back into the roadmap, and that any
+  non-trivial status is backed by real progressEvidence (commit/PR/receipt).
+  Run roadmap_legibility.mjs and act on its findings before trusting a
+  green status.
+inputs:
+  - roadmap_and_workunit_state_json
+  - reconciliation_cadence_policy
+outputs:
+  - legibility_audit_json
+  - reconciliation_report

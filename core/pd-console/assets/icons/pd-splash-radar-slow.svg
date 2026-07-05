@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" fill="none" stroke="black">
+  <circle cx="150" cy="150" r="125" stroke-width="2" stroke-dasharray="1 8" stroke-linecap="round" />
+  <path d="M 145 25 L 155 25" stroke-width="3" />
+  <path d="M 145 275 L 155 275" stroke-width="3" />
+  <path d="M 25 145 L 25 155" stroke-width="3" />
+  <path d="M 275 145 L 275 155" stroke-width="3" />
+  <line x1="150" y1="25" x2="150" y2="45" stroke-width="2" stroke-linecap="round" />
+  <line x1="150" y1="275" x2="150" y2="255" stroke-width="2" stroke-linecap="round" />
+  <line x1="25" y1="150" x2="45" y2="150" stroke-width="2" stroke-linecap="round" />
+  <line x1="275" y1="150" x2="255" y2="150" stroke-width="2" stroke-linecap="round" />
+</svg>

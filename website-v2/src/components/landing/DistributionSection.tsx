@@ -1,4 +1,4 @@
-import { Download, FileText, Github, MonitorCheck, PackageCheck, ShieldAlert } from 'lucide-react'
+import { MonitorCheck, PackageCheck } from 'lucide-react'
 import { DISTRIBUTION_OPTIONS } from '@/data/product'
 import { Button } from '@/components/ui/Button'
 import { useTheme } from '@/lib/theme-context'
@@ -13,9 +13,6 @@ import {
   SwissGridItem,
 } from '@/components/site/primitives'
 
-const primaryDownloadHref = '/downloads/PortDaddy-FleetBar-macOS-arm64.zip'
-const checksumHref = '/downloads/PortDaddy-FleetBar-macOS-arm64.zip.sha256'
-const manifestHref = '/downloads/fleetbar-preview-manifest.json'
 const fleetbarNativeShellScreenshots = {
   light: '/img/app-screens/fleetbar-native-shell-light.webp',
   dark: '/img/app-screens/fleetbar-native-shell-dark.webp',
@@ -23,42 +20,25 @@ const fleetbarNativeShellScreenshots = {
 
 const statusCopy = {
   available: 'Available',
-  'signed-build': 'Signed Mac build',
-  'release-channel': 'Release channel',
-} as const
-
-const distributionOperatorCopy = {
-  brew: 'Use the setup guide for the agent-side install command. FleetBar is the human checkpoint for daemon health, MCP wiring, and project readiness after setup runs.',
-  npm: 'Use npm when the CLI and daemon are the installation target. The operator still verifies readiness from the app, not from a pasted prompt.',
-  'release-artifacts': 'Use GitHub release artifacts when you need provenance. Checksums, manifests, and release notes carry the proof instead of a homepage command card.',
-} as const
-
-const distributionDisplayTitle = {
-  brew: 'Guided setup path',
-  npm: 'npm package',
-  'release-artifacts': 'GitHub release artifacts',
+  'mac-app': 'Mac app',
 } as const
 
 const downloadFacts = [
-  ['Artifact', 'PortDaddy-FleetBar-macOS-arm64.zip'],
-  ['Contains', 'FleetBar.app, the native Mac menu-bar shell for Fleet Control Center'],
-  ['Platform', 'Apple Silicon Mac, macOS 14 or newer'],
-  ['Signature', 'Developer ID Application: Curiositech LLC'],
-  ['Notarization', 'Not stapled yet; macOS may require Open Anyway'],
+  ['App', 'FleetBar'],
+  ['Runs on', 'Apple Silicon Mac, macOS 14 or newer'],
+  ['Shows', 'Daemon health, current project, active agents, and install status'],
+  ['Installed by', 'pd setup'],
 ] as const
 
 const downloadSteps = [
-  'Download the FleetBar ZIP.',
-  'Download the SHA-256 file or manifest if you want provenance before opening it.',
-  'Run shasum -a 256 -c PortDaddy-FleetBar-macOS-arm64.zip.sha256 from the folder that contains both files.',
-  'Unzip the archive and move FleetBar.app to Applications.',
-  'Open FleetBar from Finder. Until notarization is stapled, macOS may ask you to confirm the Developer ID build.',
-  'Use Homebrew or npm setup for the daemon, CLI, MCP server, and project onboarding; the ZIP is the Mac operator surface.',
+  'Install Port Daddy with Homebrew.',
+  'Run pd setup.',
+  'Open FleetBar and choose your project.',
+  'Run pd doctor only if FleetBar reports a problem.',
 ] as const
 
 export function DistributionSection() {
   const primary = DISTRIBUTION_OPTIONS[0]
-  const remaining = DISTRIBUTION_OPTIONS.slice(1)
   const { theme } = useTheme()
   const shellScreenshot = theme === 'dark' ? fleetbarNativeShellScreenshots.dark : fleetbarNativeShellScreenshots.light
 
@@ -71,9 +51,9 @@ export function DistributionSection() {
         <SwissGrid className="items-start">
           <SwissGridItem span="narrow">
             <SectionIntro
-              eyebrow="Mac Preview download"
-              title="Know what the ZIP is before you open it."
-              description="This is a real FleetBar.app preview for Apple Silicon Macs. It is the native operator surface for an existing Port Daddy install, not a replacement for the daemon, CLI, MCP server, or project setup."
+              eyebrow="Mac app"
+              title="FleetBar comes with setup."
+              description="Run setup once. It installs the app, starts the local runtime, and adds the project hooks. Doctor is the repair command when anything stops lining up."
               titleAs="h2"
               titleSize="display"
               titleClassName="max-w-[12ch]"
@@ -82,21 +62,9 @@ export function DistributionSection() {
 
             <div className="mt-[var(--space-5)] flex flex-wrap gap-[var(--space-3)]">
               <Button asChild variant="primary" size="lg">
-                <a href={primaryDownloadHref} download>
-                  <Download size={16} />
-                  Download FleetBar
-                </a>
-              </Button>
-              <Button asChild variant="secondary" size="lg">
-                <a href={checksumHref}>
+                <a href="#install">
                   <PackageCheck size={16} />
-                  SHA-256
-                </a>
-              </Button>
-              <Button asChild variant="secondary" size="lg">
-                <a href={manifestHref}>
-                  <FileText size={16} />
-                  Manifest
+                  Run setup
                 </a>
               </Button>
             </div>
@@ -115,15 +83,15 @@ export function DistributionSection() {
             <div className="grid gap-[var(--space-4)]">
               <SurfacePanel elevation="quiet" className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1fr)]">
                 <div className="grid content-start gap-[var(--space-3)]">
-                  <PanelEyebrow>What downloads</PanelEyebrow>
+                  <PanelEyebrow>What setup adds</PanelEyebrow>
                   <PanelTitle as="h3" size="card" className="max-w-[16ch]">
-                    A FleetBar app preview, not the whole Port Daddy runtime.
+                    A Mac window for the fleet.
                   </PanelTitle>
                   <PanelBody className="max-w-[38rem]">
-                    FleetBar embeds the Fleet Control Center so a human can inspect daemon health,
-                    projects, agents, resources, inboxes, sorties, Shipwright, and backend readiness
-                    from the Mac menu bar. The app expects the Port Daddy runtime to be installed
-                    separately through the normal setup path.
+                    FleetBar opens the Fleet Control Center from the menu bar. It shows daemon
+                    health, the selected project, active agents, claimed files, inboxes, spawned runs,
+                    Shipwright, and backend readiness without making the operator read terminal
+                    output first.
                   </PanelBody>
                 </div>
 
@@ -154,25 +122,22 @@ export function DistributionSection() {
                     {primary.description}
                   </PanelBody>
                   <div className="inline-flex items-start gap-[var(--space-2)] border-t border-[color:var(--brand-primary-foreground-subtle)] pt-[var(--space-3)]">
-                    <ShieldAlert className="mt-0.5 shrink-0" size={16} />
+                    <MonitorCheck className="mt-0.5 shrink-0" size={16} />
                     <PanelBody tone="primary" size="compact" className="max-w-none">
-                      The preview is rebuilt by scripts/package-fleetbar-preview.sh, Developer ID
-                      signed when the Curiositech certificate is present, checksummed, and described
-                      by the public manifest. The remaining release gate is accepted notarization,
-                      so macOS may still require Open Anyway until that artifact is regenerated.
+                      Setup installs FleetBar and opens the same control plane the browser uses.
                     </PanelBody>
                   </div>
                 </div>
                 <div className="grid content-start gap-[var(--space-3)] border-l-2 border-[color:var(--brand-primary-foreground-subtle)] pl-[var(--space-4)]">
                   <PanelEyebrow tone="primary">Human path</PanelEyebrow>
                   <PanelBody tone="primary" size="compact" className="max-w-none">
-                    Download FleetBar, inspect the manifest or checksum, then open the Mac app to
-                    choose a project, verify readiness, and continue in the GUI. Agent-side install
-                    commands live in docs where output is shown with context.
+                    Run setup, open FleetBar, choose a project, and continue in the GUI. If a hook,
+                    skill, MCP server, app install, or daemon route drifts, doctor tells you what
+                    changed and how to repair it.
                   </PanelBody>
                   <div className="flex items-center gap-[var(--space-2)] text-[var(--brand-primary-foreground)]">
                     <MonitorCheck size={16} />
-                    <PanelEyebrow tone="primary">No input-only terminal card</PanelEyebrow>
+                    <PanelEyebrow tone="primary">FleetBar is the operator view</PanelEyebrow>
                   </div>
                 </div>
               </SurfacePanel>
@@ -181,7 +146,7 @@ export function DistributionSection() {
                 <div className="grid gap-[var(--space-2)]">
                   <PanelEyebrow>How to open it</PanelEyebrow>
                   <PanelTitle as="h3" size="card" className="max-w-[18ch]">
-                    The short path is download, verify, unzip, open.
+                    The happy path is setup, then FleetBar.
                   </PanelTitle>
                 </div>
                 <ol className="grid gap-[var(--space-3)] md:grid-cols-2">
@@ -201,30 +166,6 @@ export function DistributionSection() {
                 </ol>
               </SurfacePanel>
 
-              <div className="grid gap-[var(--space-4)] md:grid-cols-3">
-                {remaining.map((option) => (
-                  <SurfacePanel key={option.id} elevation="quiet" padding="compact" className="grid gap-[var(--space-3)]">
-                    <div className="flex items-start justify-between gap-[var(--space-3)]">
-                      <div>
-                        <PanelEyebrow>{statusCopy[option.status]}</PanelEyebrow>
-                        <PanelTitle as="h3" size="nav" className="mt-[var(--space-2)] max-w-[16ch]">
-                          {distributionDisplayTitle[option.id as keyof typeof distributionDisplayTitle]}
-                        </PanelTitle>
-                      </div>
-                      {option.id === 'release-artifacts' ? <Github size={18} /> : <PackageCheck size={18} />}
-                    </div>
-                    <PanelBody size="compact" className="max-w-none">
-                      {option.description}
-                    </PanelBody>
-                    <div className="border-t-2 border-[var(--border-subtle)] pt-[var(--space-3)]">
-                      <PanelEyebrow>Operator note</PanelEyebrow>
-                      <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
-                        {distributionOperatorCopy[option.id as keyof typeof distributionOperatorCopy]}
-                      </PanelBody>
-                    </div>
-                  </SurfacePanel>
-                ))}
-              </div>
             </div>
           </SwissGridItem>
         </SwissGrid>

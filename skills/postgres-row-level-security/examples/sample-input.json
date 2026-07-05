@@ -1,0 +1,48 @@
+{
+  "rlsEnabled": true,
+  "forceRls": true,
+  "ownerMayConnect": true,
+  "policies": [
+    {
+      "command": "select",
+      "type": "permissive",
+      "toRoleSpecified": true,
+      "usesAuthFunction": true,
+      "authFnWrappedInSubselect": true,
+      "hasUsing": true,
+      "hasWithCheck": false
+    },
+    {
+      "command": "insert",
+      "type": "permissive",
+      "toRoleSpecified": true,
+      "usesAuthFunction": true,
+      "authFnWrappedInSubselect": true,
+      "hasUsing": false,
+      "hasWithCheck": true
+    },
+    {
+      "command": "update",
+      "type": "permissive",
+      "toRoleSpecified": true,
+      "usesAuthFunction": true,
+      "authFnWrappedInSubselect": true,
+      "hasUsing": true,
+      "hasWithCheck": true
+    },
+    {
+      "command": "update",
+      "type": "restrictive",
+      "toRoleSpecified": true,
+      "usesAuthFunction": true,
+      "authFnWrappedInSubselect": true,
+      "hasUsing": true,
+      "hasWithCheck": true
+    }
+  ],
+  "tenantColumnIndexed": true,
+  "securityDefinerInApiSchema": false,
+  "serviceRoleKeyServerOnly": true,
+  "viewsUseSecurityInvoker": true,
+  "isolationTested": true
+}

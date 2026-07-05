@@ -7,6 +7,7 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{maydayred}{HTML}{8B0000}
 
 \begin{figure}[H]
 \centering
@@ -18,13 +19,14 @@
   arr/.style={->,>=Latex,thick,draw=hhink},
 ]
 % the recursion levels, incentive-to-corrupt shrinking upward
-\node[lvl,fill=hhsand!30,minimum width=64mm] (l0) at (0,0)
+% fills: maydayred (high) → amber → sand → teal!20 (near zero)
+\node[lvl,fill=maydayred!15,draw=maydayred,minimum width=64mm] (l0) at (0,0)
   {\textbf{agent} does work \quad incentive to cheat: \textbf{high}};
-\node[lvl,fill=hhsand!30,minimum width=54mm,above=8mm of l0] (l1)
+\node[lvl,fill=hhamber!25,minimum width=54mm,above=8mm of l0] (l1)
   {\textbf{judge} grades it (bonded) \quad smaller};
-\node[lvl,fill=hhsand!30,minimum width=44mm,above=8mm of l1] (l2)
+\node[lvl,fill=hhsand!40,minimum width=44mm,above=8mm of l1] (l2)
   {\textbf{re-auditor} (bonded) \quad smaller still};
-\node[lvl,fill=hhsand!30,minimum width=34mm,above=8mm of l2] (l3)
+\node[lvl,fill=hhteal!18,draw=hhteal,minimum width=34mm,above=8mm of l2] (l3)
   {\textbf{re-re-auditor} \quad $\to 0$};
 \node[font=\itshape\footnotesize,above=4mm of l3] {\vdots\quad finite honest fixed point};
 
@@ -49,6 +51,6 @@ problem up a level: who audits the auditors? Under sampling, a slash exceeding t
 maximum bribe, and a conflict-free re-auditor pool larger than any clique, the
 incentive to corrupt each level is strictly smaller than the level below ---
 making the tower contractive with a finite honest fixed point. This is the precise
-statement of what Paper~4's central IC theorem needs and currently lacks.}
+statement of what the Harbor Economy paper's central IC theorem needs and currently lacks.}
 \label{fig:rate-raters}
 \end{figure}

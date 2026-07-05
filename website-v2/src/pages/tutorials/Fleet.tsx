@@ -394,7 +394,7 @@ pd fleet down     # Stop everything
           <motion.p>
             Open the Fleet Control Center or the daemon-served dashboard at{" "}
             <code>/fleet-ui/</code>. It carries Flow, Activity, Channels, Inbox,
-            and Sorties in one shell instead of splitting status across older
+            and Spawned Runs in one shell instead of splitting status across older
             one-off pages.
           </motion.p>
 

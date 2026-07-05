@@ -1,13 +1,12 @@
-//! pd-console GPU palette — light + dark, matched to the maritime + neobrutalism
-//! token system (design/tokens/*.json → the v12 synthesis mock's :root vars).
+//! pd-console GPU palette — light + dark, matched to the website semantic tokens.
 //!
 //! Distinct from `theme.rs` (the REPL's OKLCH terminal system). This is the GUI
 //! render palette: every color the gpui render reads lives here as a *role*, so
 //! flipping `ThemeMode` (Ctrl-A g) re-skins the whole window on the next notify.
 //!
-//! Brand is mustard-amber #FFDB33 (accent). Alert is crimson — #C41E30 in light,
-//! #F26475 in dark (gated). NEVER the retired Harbor Heritage trio — cinnabar,
-//! brass, patina — which scripts/check-brand-colors.mjs fails CI on.
+//! The website owns the role vocabulary: cobalt primary, kelp accent, coral heat,
+//! amber warning, paper/ink surfaces. The native console keeps those same meanings
+//! so screenshots read as the app version of portdaddy.dev, not a separate product.
 
 use crate::pane::Tone;
 use gpui::{rgba, Rgba};
@@ -63,60 +62,60 @@ pub struct Theme {
     pub flag_lima: u32,
 }
 
-/// LIGHT — warm paper, mustard brand, crimson alert (#C41E30).
+/// LIGHT — website paper/cobalt/kelp plus coral heat and amber warning.
 const LIGHT: Theme = Theme {
     mode: ThemeMode::Light,
-    bg: 0xf5f5f0,
-    panel: 0xffffff,
-    raised: 0xfff9e0,
-    sunken: 0xf0eddf,
-    ink: 0x1e1b18,
-    ink2: 0x2b2a26,
-    muted: 0x3f3d38,
-    line: 0xd4c5a9,
-    line2: 0x1e1b18,
-    accent: 0xffdb33,
-    accent_ink: 0x8a5a00,
-    engaged: 0xb8860b,
-    gated: 0xc41e30,
-    landed: 0x15803d,
-    resting: 0x6b6457,
-    conflict: 0xc41e30,
+    bg: 0xf2eee6,
+    panel: 0xf7f3eb,
+    raised: 0xfbf7ef,
+    sunken: 0xe9e2d5,
+    ink: 0x121212,
+    ink2: 0x403b34,
+    muted: 0x6f675a,
+    line: 0xcfc1af,
+    line2: 0x8d806e,
+    accent: 0x003fb8,
+    accent_ink: 0x003fb8,
+    engaged: 0x8c540e,
+    gated: 0xaa432e,
+    landed: 0x006b5f,
+    resting: 0x7e6f5c,
+    conflict: 0xbf2f2f,
     mayday: 0x8b1622,
-    cobalt: 0x003f7f,
-    flag_charlie: 0x15803d,
-    flag_kilo: 0x003f7f,
-    flag_uniform: 0xb8860b,
-    flag_november: 0xc41e30,
-    flag_lima: 0x3f3d38,
+    cobalt: 0x0055ff,
+    flag_charlie: 0x006b5f,
+    flag_kilo: 0x0055ff,
+    flag_uniform: 0x8c540e,
+    flag_november: 0xaa432e,
+    flag_lima: 0x6f675a,
 };
 
-/// DARK — warm ebony, mustard brand, crimson alert (#F26475).
+/// DARK — website dark cobalt/kelp plus coral heat and amber warning.
 const DARK: Theme = Theme {
     mode: ThemeMode::Dark,
-    bg: 0x1e1b18,
-    panel: 0x2b2724,
-    raised: 0x3a342d,
-    sunken: 0x100e0c,
-    ink: 0xf5f5f0,
-    ink2: 0xd1d1c7,
-    muted: 0xb5b5a8,
-    line: 0x504b46,
-    line2: 0xf5f5f0,
-    accent: 0xffdb33,
-    accent_ink: 0xffdb33,
-    engaged: 0xf59e0b,
-    gated: 0xf26475,
-    landed: 0x6dd3a8,
-    resting: 0x8a8378,
-    conflict: 0xf26475,
-    mayday: 0x8b1622,
-    cobalt: 0x7fc4ff,
-    flag_charlie: 0x6dd3a8,
-    flag_kilo: 0x1e3a8a,
-    flag_uniform: 0xedc531,
-    flag_november: 0xf26475,
-    flag_lima: 0xb5b5a8,
+    bg: 0x101216,
+    panel: 0x181c22,
+    raised: 0x222833,
+    sunken: 0x0b0d11,
+    ink: 0xf5f3ed,
+    ink2: 0xd3cec2,
+    muted: 0xa59f93,
+    line: 0x3b4654,
+    line2: 0x6d7888,
+    accent: 0x7db4ff,
+    accent_ink: 0xa6cbff,
+    engaged: 0xf2be51,
+    gated: 0xff9c85,
+    landed: 0x8fd0a7,
+    resting: 0x7e8ba3,
+    conflict: 0xff7d7d,
+    mayday: 0xff7d7d,
+    cobalt: 0x7db4ff,
+    flag_charlie: 0x8fd0a7,
+    flag_kilo: 0x7db4ff,
+    flag_uniform: 0xf2be51,
+    flag_november: 0xff9c85,
+    flag_lima: 0xa59f93,
 };
 
 impl Theme {
@@ -137,6 +136,9 @@ impl Theme {
             Tone::Resting => self.resting,
             Tone::Landed => self.landed,
             Tone::Conflicted => self.conflict,
+            // CRITICAL daemon health → the distress red (distinct from the
+            // crimson `gated`/`conflict` warning tone).
+            Tone::Alarm => self.mayday,
         }
     }
 
