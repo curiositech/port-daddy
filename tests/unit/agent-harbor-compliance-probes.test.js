@@ -23,8 +23,9 @@ const { ADAPTER_KINDS, COMPLIANCE_LADDER, NEGATIVE_PROBE_KINDS, complianceOrder 
   await import('../../lib/agent-harbor/types.js');
 const { CAPABILITY_MATRIX, getCapabilityProfile, clampToCeiling } =
   await import('../../lib/agent-harbor/capability-matrix.js');
-const { resolveModelTier, requireResolvedModel, DEFAULT_TIER_MODELS, ADAPTER_PROVIDERS } =
+const { resolveModelTier, requireResolvedModel, defaultModelFor, TIER_CAPABILITY, ADAPTER_REGISTRY_BACKEND, ADAPTER_PROVIDERS } =
   await import('../../lib/agent-harbor/model-tier-policy.js');
+const { resolveModel } = await import('../../lib/model-registry.js');
 const { runComplianceProbe } = await import('../../lib/agent-harbor/compliance-probe.js');
 const { makeAdapterFixture, FIXTURE_PROFILES } = await import('../../lib/agent-harbor/adapter-fixtures.js');
 const { CONTROL_MIN_LEVEL, authorizeControl, applyControlGate, makeControlCommand, effectiveComplianceLevel } =
@@ -32,7 +33,6 @@ const { CONTROL_MIN_LEVEL, authorizeControl, applyControlGate, makeControlComman
 const { CostAccrualLedger, withCostCapture } = await import('../../lib/agent-harbor/cost-accrual.js');
 const { runWorkProbe, capabilityMatrixRows } = await import('../../lib/agent-harbor/probe-surface.js');
 const { validateAgainstSchema } = await import('../../lib/agent-harbor/schema-validate.js');
-const { BACKEND_CATALOG } = await import('../../lib/backend-catalog.js');
 
 function expectSchemaValid(name, instance) {
   const result = validateAgainstSchema(name, instance);
@@ -108,20 +108,20 @@ describe('model-tier policy (ch18 C2 gate: tier AND resolved name visible)', () 
     }
   });
 
-  it('drift tripwire: every default model name exists in lib/backend-catalog.ts', () => {
-    const catalogByAdapter = {
-      'claude-code': ['claude-cli', 'claude', 'cli:claude-code'],
-      'codex-cli': ['cli:codex', 'codex'],
-      cloudflare: ['cloudflare'],
-    };
-    for (const [kind, catalogIds] of Object.entries(catalogByAdapter)) {
-      const catalogModels = BACKEND_CATALOG
-        .filter((entry) => catalogIds.includes(entry.id))
-        .flatMap((entry) => entry.models);
-      for (const modelName of Object.values(DEFAULT_TIER_MODELS[kind] ?? {})) {
-        expect(catalogModels).toContain(modelName);
+  it('drift tripwire: defaults resolve from the model registry (ADR-0057), never a local literal', () => {
+    // Every hosted adapter's tier default is exactly what the registry says
+    // for its mapped (backend, capability) — one source of truth for IDs.
+    for (const [kind, backend] of Object.entries(ADAPTER_REGISTRY_BACKEND)) {
+      for (const [tier, capability] of Object.entries(TIER_CAPABILITY)) {
+        const expected = resolveModel({ backend, capability });
+        expect(defaultModelFor(kind, tier)).toBe(expected);
+        const resolved = resolveModelTier(kind, tier);
+        if (resolved.ok) expect(resolved.modelName).toBe(expected);
       }
     }
+    // Registry-less lanes have no default: null, never a guess.
+    expect(defaultModelFor('ollama', 'local')).toBeNull();
+    expect(defaultModelFor('custom-stdio', 'custom')).toBeNull();
   });
 
   it('local and custom tiers refuse to resolve without an explicit model name (fail-closed)', () => {
@@ -146,7 +146,9 @@ describe('model-tier policy (ch18 C2 gate: tier AND resolved name visible)', () 
     expect(check).toBeDefined();
     expect(check.passed).toBe(true);
     expect(check.details).toMatch(/modelTier=mid/);
-    expect(check.details).toMatch(/modelName=claude-sonnet-4-6/);
+    // The resolved name is whatever the registry says for (claude-cli, balanced).
+    const expected = resolveModel({ backend: 'claude-cli', capability: 'balanced' });
+    expect(check.details).toContain(`modelName=${expected}`);
   });
 
   it('a body without a visible model name fails the visibility check with remediation', async () => {

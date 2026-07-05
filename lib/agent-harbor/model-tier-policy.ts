@@ -8,15 +8,21 @@
  * adapter kind, a requested tier, and an optional explicit model, it returns
  * a fully-resolved `{ modelTier, modelName, provider }` or a typed refusal.
  *
+ * Concrete model IDs live ONLY in lib/model-registry-data.ts (ADR-0057);
+ * this module declares INTENT — adapter kind + tier map to a registry
+ * (backend, capability) pair and resolve at the last second via
+ * lib/model-registry.ts. No model ID is hardcoded here.
+ *
  * Skill lens `llm-router`: tiers map task classes to models (fast = classify/
  * validate/format, mid = write/implement/review, strong = reason/architect/
  * judge); `local` is the no-marginal-cost lane and `custom` is the operator
- * escape hatch. Default names below are asserted by test against
- * lib/backend-catalog.ts entries so the two sources cannot drift.
+ * escape hatch — neither has a defensible default, so both require an
+ * explicit model name (fail-closed, never an invisible model).
  */
 
 import type { AdapterKind, ModelTier } from './types.js';
 import { getCapabilityProfile } from './capability-matrix.js';
+import { resolveModel, type Capability } from '../model-registry.js';
 
 export interface ResolvedModel {
   modelTier: ModelTier;
@@ -46,28 +52,41 @@ export const ADAPTER_PROVIDERS: Record<AdapterKind, string> = {
 };
 
 /**
- * Default tier→model names. Kept aligned with lib/backend-catalog.ts models
- * lists (the drift tripwire test asserts membership). local/custom tiers have
- * no defensible default — the operator's model IS the configuration — so they
- * are absent here and require an explicit name.
+ * C2 tier → registry capability (lib/model-registry-data.ts tierAliases
+ * cover low/mid/high; the C2 ladder names map onto the same intent scale).
  */
-export const DEFAULT_TIER_MODELS: Partial<Record<AdapterKind, Partial<Record<ModelTier, string>>>> = {
-  'claude-code': {
-    fast: 'claude-haiku-4-5',
-    mid: 'claude-sonnet-4-6',
-    strong: 'claude-opus-4-8',
-  },
-  'codex-cli': {
-    fast: 'gpt-5.4-mini',
-    mid: 'gpt-5.3-codex',
-    strong: 'gpt-5.4',
-  },
-  cloudflare: {
-    fast: '@cf/meta/llama-4-scout-17b-16e-instruct',
-    mid: '@cf/qwen/qwen3-30b-a3b-fp8',
-    strong: '@cf/openai/gpt-oss-120b',
-  },
+export const TIER_CAPABILITY: Partial<Record<ModelTier, Capability>> = {
+  fast: 'cheap',
+  mid: 'balanced',
+  strong: 'high',
 };
+
+/**
+ * Adapter kind → model-registry backend key. Only hosted adapters with a
+ * registry entry appear here; local/custom adapters have no defensible
+ * default and always require an explicit model name.
+ */
+export const ADAPTER_REGISTRY_BACKEND: Partial<Record<AdapterKind, string>> = {
+  'claude-code': 'claude-cli',
+  'codex-cli': 'codex',
+  cloudflare: 'cloudflare',
+};
+
+/**
+ * Default model for (adapter, tier), resolved from the registry at call time.
+ * Returns null when no default exists (local/custom lanes) — null means the
+ * caller must supply an explicit name, never that an invisible model is OK.
+ */
+export function defaultModelFor(kind: AdapterKind, tier: ModelTier): string | null {
+  const backend = ADAPTER_REGISTRY_BACKEND[kind];
+  const capability = TIER_CAPABILITY[tier];
+  if (!backend || !capability) return null;
+  try {
+    return resolveModel({ backend, capability });
+  } catch {
+    return null; // unknown backend/capability in this build's registry — fail toward explicit
+  }
+}
 
 /**
  * Resolve a model tier for an adapter into a concrete model name.
@@ -100,11 +119,11 @@ export function resolveModelTier(
       supportedTiers: profile.modelTiers,
     };
   }
-  const defaulted = DEFAULT_TIER_MODELS[kind]?.[tier];
+  const defaulted = defaultModelFor(kind, tier);
   if (!defaulted) {
     return {
       ok: false,
-      reason: `no default model registered for ${kind}/${tier}; pass an explicit model name`,
+      reason: `no registry default for ${kind}/${tier}; pass an explicit model name`,
       supportedTiers: profile.modelTiers,
     };
   }

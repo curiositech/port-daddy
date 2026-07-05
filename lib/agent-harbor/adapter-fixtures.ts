@@ -25,7 +25,7 @@ import type { AdapterDescriptor, ProbeTarget } from './compliance-probe.js';
 import type { AdapterKind, ComplianceLevel, ModelTier } from './types.js';
 import { complianceOrder } from './types.js';
 import { getCapabilityProfile } from './capability-matrix.js';
-import { DEFAULT_TIER_MODELS } from './model-tier-policy.js';
+import { defaultModelFor } from './model-tier-policy.js';
 
 export type FixtureProfile = 'compliant' | 'weak' | 'broken' | 'malicious';
 
@@ -39,9 +39,9 @@ export interface FixtureOptions {
 function defaultTier(kind: AdapterKind): { modelTier: ModelTier; modelName: string | null } {
   const profile = getCapabilityProfile(kind);
   const tier: ModelTier = profile.modelTiers.includes('mid') ? 'mid' : profile.modelTiers[0];
-  // Adapters without registered defaults (local/custom lanes) get an
+  // Adapters without registry defaults (local/custom lanes) get an
   // operator-named model, as a real operator config would supply.
-  const modelName = DEFAULT_TIER_MODELS[kind]?.[tier] ?? `${kind}-operator-model`;
+  const modelName = defaultModelFor(kind, tier) ?? `${kind}-operator-model`;
   return { modelTier: tier, modelName };
 }
 
