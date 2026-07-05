@@ -484,6 +484,28 @@ pd spawn kill <id>      # terminate a running agent
 pd transcripts          # durable agent transcripts (survive DB loss, ADR-0058)
 ```
 
+### 🔬 Adapter conformance probes — `pd work probe`
+
+The first landing of the Work Intent command family (ADR-0095: WorkIntent is the
+sole runtime launch primitive; launch-shaped `pd work` forms refuse until
+`pd work start` lands). Probes prove which bodies are **compliant, weak,
+observed, or unmanaged** against the frozen compliance ladder — daemon-witnessed,
+never self-attested (binder ch18 Work Order C2):
+
+```bash
+pd work probe                                     # all adapter kinds × all fixture profiles
+pd work probe --adapter claude-code --profile malicious
+pd work matrix                                    # capability matrix: mechanical ceilings per body kind
+```
+
+Each probe runs one witnessed check per ladder level (C0 Registered … C6
+Resumable) plus the five required negative probes (`forged-level` per level,
+`direct-mcp-bypass`, `disabled-hook-after-launch`, `forged-heartbeat`,
+`observed-to-controlled`). A fired attack that is not downgraded fails the run
+loudly — forged compliance cannot ship a badge. Exit is non-zero on any
+uncaught forge, so the probe suite gates CI and promotion to a production
+Agent Node.
+
 Quiet mode (`-q`) prints raw output to stdout and exits non-zero on failure — perfect for shell scripts.
 
 **Key flags:** `--backend`, `--model`, `--tier`, `--identity`, `--purpose`, `--budget`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`
