@@ -26,10 +26,14 @@
 import { resolveFleetAgentRuntime, parseCronInterval, type FleetConfig, type FleetAgent } from './fleet-engine.js';
 import { resolveModel } from './model-registry.js';
 
-// Mirrors lib/spawner/backends/cli-tube.ts PLACEHOLDER_MODELS + CLI_DEFAULT_MODEL:
-// a model equal to a backend/CLI name is a placeholder the CLIs reject, so the
-// launcher substitutes a per-CLI default or drops --model entirely (the CLI's
-// authenticated account default runs). The forecast must report the same.
+// Mirrors ONLY the placeholder-detection half of lib/spawner/backends/cli-tube.ts
+// (its PLACEHOLDER_MODELS + CLI_DEFAULT_MODEL substitution): a model equal to a
+// backend/CLI name is a placeholder the CLIs reject, so the launcher drops
+// --model and the CLI's authenticated account default runs. This module is
+// NOT a full mirror of cli-tube's resolution — for a real (non-placeholder)
+// model it defers to `resolveModel` from model-registry below, which pins its
+// own Claude/Codex defaults independently of cli-tube. Readers should not
+// assume this file tracks cli-tube byte-for-byte outside the placeholder case.
 const PLACEHOLDER_MODELS = new Set([
   'claude-code', 'codex', 'gemini', 'groq', 'grok',
   'claude-cli', 'codex-cli', 'cli',

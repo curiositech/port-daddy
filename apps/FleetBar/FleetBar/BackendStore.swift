@@ -142,12 +142,17 @@ struct ForecastModelRate: Decodable, Identifiable {
 
 struct ForecastProject: Decodable, Identifiable {
     let project: String
+    let projectDir: String?
     let running: Bool
     let scheduledPerHour: Double
     let scheduledPerHourRaw: Double?
     let maxSpawnsPerHour: Double?
     let eventAgentCount: Int?
-    var id: String { project }
+    // Project names aren't guaranteed unique across checkouts (two worktrees
+    // of the same repo, or two repos with the same folder name); key off the
+    // daemon's `projectDir` when present so SwiftUI diffing never collides,
+    // falling back to the name for older daemons that predate this field.
+    var id: String { projectDir ?? project }
 }
 
 struct ForecastObserved: Decodable {
@@ -315,7 +320,10 @@ class BackendStore: ObservableObject {
             lastError = nil
         }
         costByBackend = cost
-        if let fc { forecast = fc }
+        // Assign unconditionally (even nil) — a failed/degraded fetch must
+        // clear a previous forecast, not leave a stale one on screen after
+        // the daemon restarts on an older build or a request blips.
+        forecast = fc
         loadedOnce = true
     }
 
