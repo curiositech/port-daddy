@@ -204,10 +204,17 @@ export interface ToolValidation {
 /**
  * Validate that a ship's declared `allowedTools` are all within the safe set
  * for `tier`. Fail-closed semantics (invariant #4):
- *   - OPERATOR: always ok.
- *   - any other tier with EMPTY/absent allowedTools: REFUSED — "unrestricted"
- *     is the worst case for an untrusted trigger; an explicit safe set is
- *     mandatory.
+ *   - TRUSTED tiers (OPERATOR, INTERNAL): always ok. These are the operator's
+ *     own hands and the operator's own environment; the ship's declared tools
+ *     (or the engine's unrestricted default) stand. This matches invariant #4
+ *     as written — "DENY for any NON-TRUSTED tier" — and keeps the shipped
+ *     Phase-1 `file:` trigger path (agents with no allowedTools) working. The
+ *     legacy git/schedule/pd channel path has never been tool-gated; gating
+ *     INTERNAL registry triggers harder than those would be inconsistent, not
+ *     safer. External ingress is where the gate has teeth.
+ *   - any EXTERNAL tier with EMPTY/absent allowedTools: REFUSED —
+ *     "unrestricted" is the worst case for an untrusted trigger; an explicit
+ *     safe set is mandatory.
  *   - otherwise: ok iff every declared tool ⊆ safeSet(tier).
  */
 export function validateAllowedToolsForTier(
@@ -216,6 +223,9 @@ export function validateAllowedToolsForTier(
 ): ToolValidation {
   if (tier === 'OPERATOR') {
     return { ok: true, reason: 'operator tier: full capability', offendingTools: [] };
+  }
+  if (TRUSTED_TIERS.has(tier)) {
+    return { ok: true, reason: `trusted tier ${tier}: ship-declared tools accepted`, offendingTools: [] };
   }
 
   const declared = parseAllowedTools(allowedToolsSpec);

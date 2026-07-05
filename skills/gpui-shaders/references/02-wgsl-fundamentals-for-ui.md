@@ -92,7 +92,7 @@ fn palette(t: f32, a: vec3<f32>, b: vec3<f32>, c: vec3<f32>, d: vec3<f32>) -> ve
 // Harbor mustard→navy ramp: warm sun on dark water
 // palette(t, vec3(0.15,0.15,0.22), vec3(0.5,0.45,0.3), vec3(1.0,1.0,0.6), vec3(0.0,0.1,0.2))
 ```
-Always derive the accent from `u.accent` (the theme token pushed from gpui) so light/dark and the brand palette flow into the shader — never hardcode `#FFDB33` in WGSL.
+Always derive the accent from `u.accent` (the palette v2 theme token pushed from gpui) so light/dark and the brand palette flow into the shader — never hardcode an accent hex in WGSL.
 
 ## Dithering & pixelation — the house style
 

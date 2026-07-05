@@ -1,23 +1,28 @@
 /**
- * Calendar output sink — creates a new calendar event.
+ * Calendar output sink — creates a new calendar event. Two REAL backends,
+ * matching `triggers/calendar.ts`:
+ *   - macOS EventKit (default on darwin) via the compiled
+ *     pd-calendar-helper (survives Calendar.app being closed).
+ *   - Google Calendar API (PD_CALENDAR_BACKEND=google) via OAuth refresh
+ *     token (PD_GCAL_CLIENT_ID + PD_GCAL_CLIENT_SECRET +
+ *     PD_GCAL_REFRESH_TOKEN, calendar via PD_GCAL_CALENDAR_ID).
  *
- * Two backends, matching `triggers/calendar.ts`:
- *   - macOS EventKit (default on darwin)
- *   - Google Calendar API (when PD_CALENDAR_BACKEND=google)
+ * Timestamps cross this boundary as ISO-8601 (UTC canonical); the backend
+ * client normalizes before the API call — never a bare local time string.
  *
- * Both are STUBBED here. Operator setup required:
- *   - macOS: grant Calendar access to the daemon binary
- *   - Google: set PD_GCAL_CLIENT_ID + PD_GCAL_REFRESH_TOKEN +
- *     PD_GCAL_CALENDAR_ID (default "primary")
- *
- * Consent posture:
- *   Writing to the operator's calendar is unambiguously personal data,
- *   so we always run through the consent gate. The first time a fleet
- *   tries to create a calendar event the operator must grant via
- *   `pd fleet consent grant --sink calendar --tier high`.
+ * Consent posture: writing to the operator's calendar is unambiguously
+ * personal data, so we always run through the consent gate. The first time
+ * a fleet tries to create a calendar event the operator must grant via
+ * `pd fleet consent grant --sink calendar --tier high`.
  */
 
 import { getSharedConsentGate } from '../consent-gate.js';
+import {
+  chooseCalendarBackend,
+  getSharedEventKitClient,
+  type EventKitClient,
+} from '../calendar-eventkit.js';
+import { GoogleCalendarClient, googleCredsFromEnv } from '../calendar-google.js';
 import type {
   OutputAvailability,
   OutputPayload,
@@ -25,25 +30,44 @@ import type {
   OutputSink,
 } from '../types.js';
 
+export interface CalendarSinkDeps {
+  /** Injectable clients (tests). */
+  eventKit?: Pick<EventKitClient, 'status' | 'createEvent'>;
+  google?: Pick<GoogleCalendarClient, 'createEvent'>;
+}
+
 export class CalendarOutputSink implements OutputSink {
   readonly kind = 'calendar' as const;
 
+  constructor(private readonly deps: CalendarSinkDeps = {}) {}
+
   async available(): Promise<OutputAvailability> {
-    const backend = chooseBackend();
+    if (this.deps.eventKit || this.deps.google) return { ready: true };
+    const backend = chooseCalendarBackend();
     if (backend === 'macos-eventkit') {
-      return {
-        ready: true,
-        reason: 'macOS EventKit (requires Calendar access for the daemon binary).',
-        requires: ['Calendar access in System Settings → Privacy'],
-      };
+      const status = await getSharedEventKitClient().status();
+      if (!status.available) {
+        return {
+          ready: false,
+          reason: status.reason ?? 'EventKit helper unavailable',
+          requires: ['Swift toolchain (xcode-select --install)'],
+        };
+      }
+      if (!status.authorized) {
+        return {
+          ready: false,
+          reason: status.reason ?? 'calendar access not granted',
+          requires: ['pd fleet calendar grant (OS consent prompt)'],
+        };
+      }
+      return { ready: true };
     }
     if (backend === 'google') {
-      const hasCreds = Boolean(process.env.PD_GCAL_CLIENT_ID && process.env.PD_GCAL_REFRESH_TOKEN);
-      if (!hasCreds) {
+      if (!googleCredsFromEnv()) {
         return {
           ready: false,
           reason: 'Google Calendar OAuth credentials missing.',
-          requires: ['PD_GCAL_CLIENT_ID', 'PD_GCAL_REFRESH_TOKEN'],
+          requires: ['PD_GCAL_CLIENT_ID', 'PD_GCAL_CLIENT_SECRET', 'PD_GCAL_REFRESH_TOKEN'],
         };
       }
       return { ready: true };
@@ -64,53 +88,69 @@ export class CalendarOutputSink implements OutputSink {
     if (!payload.title) throw new Error('calendar:create-event requires payload.title');
     if (!payload.start) throw new Error('calendar:create-event requires payload.start (ISO-8601)');
     if (!payload.end) throw new Error('calendar:create-event requires payload.end (ISO-8601)');
+    const startMs = Date.parse(payload.start);
+    const endMs = Date.parse(payload.end);
+    if (Number.isNaN(startMs) || Number.isNaN(endMs)) {
+      throw new Error('calendar:create-event start/end must be parseable ISO-8601 timestamps');
+    }
+    if (endMs <= startMs) {
+      throw new Error('calendar:create-event end must be after start');
+    }
 
     // Calendar writes always touch PII (event titles, attendees).
     getSharedConsentGate().assertAllowed('calendar', { ...payload, pii: payload.pii ?? 'high' });
 
-    return chooseBackend() === 'google' ? this.dispatchGoogle(payload) : this.dispatchMacOS(payload);
+    const useGoogle = this.deps.google || (!this.deps.eventKit && chooseCalendarBackend() === 'google');
+    return useGoogle ? this.dispatchGoogle(payload) : this.dispatchEventKit(payload);
   }
 
-  // ── stubs ──────────────────────────────────────────────────────────────
-
-  /**
-   * STUBBED. Real implementation either:
-   *   - shells `osascript` to add an event via Calendar.app scripting, or
-   *   - calls a small Swift helper around EventKit that we bundle with
-   *     the daemon (preferred — survives Calendar.app being closed).
-   * For now we acknowledge the call so the rest of the engine can be
-   * tested end-to-end without a real calendar.
-   */
-  private async dispatchMacOS(payload: OutputPayload): Promise<OutputResult> {
+  private async dispatchEventKit(payload: OutputPayload): Promise<OutputResult> {
+    const client = this.deps.eventKit ?? getSharedEventKitClient();
+    const created = await client.createEvent({
+      title: payload.title!,
+      start: new Date(payload.start!).toISOString(),
+      end: new Date(payload.end!).toISOString(),
+      calendar: payload.recipient || undefined, // recipient = target calendar name
+      location: payload.location,
+      notes: payload.body,
+    });
     return {
-      id: payload.idempotency_key ?? `calendar:macos:${Date.now()}`,
+      id: created.id,
       deliveredAt: Date.now(),
-      receipt: { stubbed: true, backend: 'macos-eventkit', title: payload.title, start: payload.start, end: payload.end },
+      receipt: {
+        backend: 'macos-eventkit',
+        calendar: created.calendar,
+        title: payload.title,
+        start: new Date(payload.start!).toISOString(),
+        end: new Date(payload.end!).toISOString(),
+      },
     };
   }
 
-  /**
-   * STUBBED. Real implementation:
-   *   1. Exchange PD_GCAL_REFRESH_TOKEN for an access token (1h TTL,
-   *      cache in memory).
-   *   2. POST https://www.googleapis.com/calendar/v3/calendars/<calendarId>/events
-   *      with { summary, start.dateTime, end.dateTime, location, description }.
-   *   3. Persist the returned event id so a retry can de-dupe.
-   */
   private async dispatchGoogle(payload: OutputPayload): Promise<OutputResult> {
+    let client = this.deps.google;
+    if (!client) {
+      const creds = googleCredsFromEnv();
+      if (!creds) throw new Error('Google Calendar creds missing (available() should have refused)');
+      client = new GoogleCalendarClient(creds);
+    }
+    const created = await client.createEvent({
+      title: payload.title!,
+      start: new Date(payload.start!).toISOString(),
+      end: new Date(payload.end!).toISOString(),
+      location: payload.location,
+      notes: payload.body,
+    });
     return {
-      id: payload.idempotency_key ?? `calendar:google:${Date.now()}`,
-      url: `https://calendar.google.com/calendar/u/0/r/eventedit#stub`,
+      id: created.id,
+      url: created.url,
       deliveredAt: Date.now(),
-      receipt: { stubbed: true, backend: 'google', title: payload.title, start: payload.start, end: payload.end },
+      receipt: {
+        backend: 'google',
+        title: payload.title,
+        start: new Date(payload.start!).toISOString(),
+        end: new Date(payload.end!).toISOString(),
+      },
     };
   }
-}
-
-function chooseBackend(): 'macos-eventkit' | 'google' | 'none' {
-  const env = (process.env.PD_CALENDAR_BACKEND ?? '').toLowerCase();
-  if (env === 'macos') return 'macos-eventkit';
-  if (env === 'google') return 'google';
-  if (process.platform === 'darwin') return 'macos-eventkit';
-  return 'none';
 }

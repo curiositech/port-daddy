@@ -85,11 +85,39 @@ pub struct FleetPane {
     pub ships: Vec<ShipEntry>,
     fleets_running: usize,
     last_error: Option<String>,
+    /// Spawns held by the ADR-0093 trust gate — the operator's HITL queue.
+    /// Rendered ABOVE everything else: a pending human gate is unmissable.
+    pub approvals: Vec<ApprovalEntry>,
+}
+
+/// One held spawn approval (GET /fleet/approvals).
+#[derive(Debug, Clone)]
+pub struct ApprovalEntry {
+    pub id: String,
+    pub agent: String,
+    pub trigger: String,
+    pub tier: String,
+    pub project: String,
+    pub age_min: i64,
+}
+
+impl ApprovalEntry {
+    fn from_value(v: &Value, now_ms: i64) -> Self {
+        let ts = n(v, "timestamp");
+        Self {
+            id: s(v, "id"),
+            agent: s(v, "agent"),
+            trigger: s(v, "trigger"),
+            tier: s(v, "tier"),
+            project: s(v, "project"),
+            age_min: ((now_ms - ts) / 60_000).max(0),
+        }
+    }
 }
 
 impl Default for FleetPane {
     fn default() -> Self {
-        Self { ships: Vec::new(), fleets_running: 0, last_error: None }
+        Self { ships: Vec::new(), fleets_running: 0, last_error: None, approvals: Vec::new() }
     }
 }
 
@@ -114,6 +142,33 @@ impl Pane for FleetPane {
 
     fn view(&self) -> Vec<Block> {
         let mut blocks = vec![Block::Header("Fleet — Ship Lifecycle".into())];
+
+        // HITL queue leads the pane: spawns the trust gate is holding for a
+        // human decision. Shown before errors/empty-states so it cannot be
+        // missed while the queue is non-empty.
+        if !self.approvals.is_empty() {
+            blocks.push(Block::Chip {
+                label: format!(
+                    "HITL — {} spawn approval{} waiting",
+                    self.approvals.len(),
+                    if self.approvals.len() == 1 { "" } else { "s" }
+                ),
+                tone: Tone::Conflicted,
+            });
+            for a in &self.approvals {
+                blocks.push(Block::Row(vec![
+                    trunc(&a.id, 12),
+                    format!("{} ← {}", a.agent, a.trigger),
+                    a.tier.replace('_', " ").to_lowercase(),
+                    a.project.clone(),
+                    format!("{}m", a.age_min),
+                ]));
+            }
+            blocks.push(Block::KeyVal(
+                "decide".into(),
+                "pd fleet approve <id> · pd fleet reject <id> --feedback \"<why>\"".into(),
+            ));
+        }
 
         if let Some(err) = &self.last_error {
             blocks.push(Block::KeyVal("error".into(), err.clone()));
@@ -197,6 +252,26 @@ impl Pane for FleetPane {
         daemon: &'a DaemonClient,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async move {
+            // HITL queue first (tolerant: an older daemon without the route
+            // just leaves the queue empty — never an error).
+            let approvals_url = format!("{}/fleet/approvals", daemon.base());
+            self.approvals = match daemon.http_client().get(&approvals_url).send().await {
+                Ok(resp) if resp.status().is_success() => match resp.json::<Value>().await {
+                    Ok(data) => {
+                        let now_ms = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_millis() as i64)
+                            .unwrap_or(0);
+                        arr(&data, "proposals")
+                            .iter()
+                            .map(|p| ApprovalEntry::from_value(p, now_ms))
+                            .collect()
+                    }
+                    Err(_) => Vec::new(),
+                },
+                _ => Vec::new(),
+            };
+
             let url = format!("{}/fleet", daemon.base());
             match daemon.http_client().get(&url).send().await {
                 Err(e) => {
