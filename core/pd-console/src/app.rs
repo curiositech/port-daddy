@@ -126,6 +126,13 @@ pub enum ControlMsg {
     RebindDaemon {
         url: String,
     },
+    /// Steer the galaxy pane's query (control socket `galaxy` command): the
+    /// producer thread owns the pane, so params travel the same channel as
+    /// every other operator mutation.
+    GalaxyParams {
+        window_hours: Option<u32>,
+        min_tokens: Option<u32>,
+    },
     /// Add an operator note: `POST /notes` with `{ content }`.
     AddNote {
         content: String,
@@ -3022,6 +3029,108 @@ impl ConsoleView {
             self.galaxy_hover = None;
         }
         self.galaxy = galaxy;
+    }
+
+    /// Answer one scripting request (control socket, `--control-sock`). Runs
+    /// on the foreground with full view access; every reply is JSON the caller
+    /// can parse without screenshots. Mutations that belong to the producer
+    /// thread (galaxy params, daemon rebind) are forwarded over `control_tx` —
+    /// the same channel every operator button uses, so scripting can never
+    /// reach state the UI couldn't.
+    pub fn handle_script(&mut self, req: crate::script::ScriptRequest) -> serde_json::Value {
+        use crate::script::{alert_to_json, block_to_json, ScriptRequest};
+        use serde_json::json;
+        match req {
+            ScriptRequest::Ping => json!({
+                "ok": true,
+                "daemon": self.daemon_url,
+                "booted": self.booted,
+                "focused": self.ws().focused_surface().label(),
+            }),
+            ScriptRequest::Panes => json!({
+                "ok": true,
+                "panes": NAV.iter().map(|n| n.id).collect::<Vec<_>>(),
+                "focused": self.ws().focused_surface().label(),
+            }),
+            ScriptRequest::Focus { pane } => match surface_for_query(&pane) {
+                Some(surface) => {
+                    self.ws_mut().swap_surface(surface);
+                    json!({"ok": true, "focused": self.ws().focused_surface().label()})
+                }
+                None => json!({
+                    "ok": false,
+                    "error": format!("unknown pane \"{pane}\""),
+                    "panes": NAV.iter().map(|n| n.id).collect::<Vec<_>>(),
+                }),
+            },
+            ScriptRequest::State { pane } => {
+                let target = pane.unwrap_or_else(|| {
+                    nav_id_for_surface(self.ws().focused_surface())
+                        .unwrap_or("fleet")
+                        .to_string()
+                });
+                let Some(idx) = NAV.iter().position(|n| n.id == target) else {
+                    return json!({
+                        "ok": false,
+                        "error": format!("unknown pane \"{target}\""),
+                        "panes": NAV.iter().map(|n| n.id).collect::<Vec<_>>(),
+                    });
+                };
+                let blocks: Vec<serde_json::Value> = self
+                    .pane_blocks
+                    .get(idx)
+                    .map(|bs| bs.iter().map(block_to_json).collect::<Vec<_>>())
+                    .unwrap_or_default();
+                let mut out = json!({"ok": true, "pane": target, "blocks": blocks});
+                if target == "galaxy" {
+                    out["galaxy"] = json!({
+                        "computedAt": self.galaxy.computed_at,
+                        "error": self.galaxy.last_error,
+                        "points": self.galaxy.points.iter().map(|p| json!({
+                            "id": p.id,
+                            "agentId": p.agent_id,
+                            "x": p.x,
+                            "y": p.y,
+                            "cluster": p.cluster_id,
+                            "purpose": p.purpose,
+                        })).collect::<Vec<_>>(),
+                        "clusters": self.galaxy.clusters.iter().map(|c| json!({
+                            "id": c.id,
+                            "label": c.label,
+                            "size": c.size,
+                        })).collect::<Vec<_>>(),
+                        "selected": self.galaxy_selected.iter().cloned().collect::<Vec<_>>(),
+                    });
+                }
+                out
+            }
+            ScriptRequest::Galaxy { window_hours, min_tokens } => {
+                match &self.control_tx {
+                    Some(tx) => {
+                        let _ = tx.send(ControlMsg::GalaxyParams { window_hours, min_tokens });
+                        json!({
+                            "ok": true,
+                            "note": "params applied on the next 2s refresh",
+                            "windowHours": window_hours,
+                            "minTokens": min_tokens,
+                        })
+                    }
+                    None => json!({"ok": false, "error": "no control channel (view constructed without one)"}),
+                }
+            }
+            ScriptRequest::Rebind { url } => match &self.control_tx {
+                Some(tx) => {
+                    let _ = tx.send(ControlMsg::RebindDaemon { url: url.clone() });
+                    self.daemon_url = url.clone();
+                    json!({"ok": true, "daemon": url})
+                }
+                None => json!({"ok": false, "error": "no control channel (view constructed without one)"}),
+            },
+            ScriptRequest::Alerts => json!({
+                "ok": true,
+                "alerts": self.alerts.iter().map(alert_to_json).collect::<Vec<_>>(),
+            }),
+        }
     }
 
     /// Fold one galaxy push from the background worker into the drawer state:

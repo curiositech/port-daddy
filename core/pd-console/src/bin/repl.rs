@@ -51,6 +51,7 @@
 #[allow(dead_code)]
 #[path = "../galaxy_pane.rs"]    mod galaxy_pane;
 #[path = "../grid.rs"]           mod grid; // launcher-grid data + 1:1 invariant tests
+#[path = "../script.rs"]         mod script; // control-socket scripting (parse + serve tests)
 #[path = "../maritime.rs"]       mod maritime;
 #[path = "../health_pane.rs"]    mod health_pane;
 #[path = "../inbox_pane.rs"]     mod inbox_pane;

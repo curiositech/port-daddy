@@ -565,6 +565,9 @@ pub struct GalaxySnapshot {
     pub clusters: Vec<GalaxyCluster>,
     pub computed_at: Option<i64>,
     pub last_error: Option<String>,
+    /// The query window the map was fetched with — the canvas header renders
+    /// it, so a scripted param change is visible, not silently applied.
+    pub window_hours: u32,
 }
 
 pub struct GalaxyPane {
@@ -572,6 +575,11 @@ pub struct GalaxyPane {
     pub clusters: Vec<GalaxyCluster>,
     pub computed_at: Option<i64>,
     last_error: Option<String>,
+    /// Query window in hours. Scriptable (control socket `galaxy` command);
+    /// the daemon clamps its own bounds.
+    window_hours: u32,
+    /// Significance floor; `None` inherits the daemon default.
+    min_tokens: Option<u32>,
 }
 
 impl Default for GalaxyPane {
@@ -581,6 +589,8 @@ impl Default for GalaxyPane {
             clusters: Vec::new(),
             computed_at: None,
             last_error: None,
+            window_hours: 24,
+            min_tokens: None,
         }
     }
 }
@@ -590,6 +600,26 @@ impl GalaxyPane {
         Self::default()
     }
 
+    /// Apply scripted query params (control socket `galaxy` command). Only the
+    /// provided fields change; the next 2s refresh picks them up.
+    pub fn set_params(&mut self, window_hours: Option<u32>, min_tokens: Option<u32>) {
+        if let Some(h) = window_hours {
+            self.window_hours = h.max(1);
+        }
+        if let Some(m) = min_tokens {
+            self.min_tokens = Some(m);
+        }
+    }
+
+    /// The query string the next refresh will send — pure, so tests can pin
+    /// the scripted-params → wire-request contract without HTTP.
+    pub fn query(&self) -> String {
+        match self.min_tokens {
+            Some(m) => format!("windowHours={}&minTokens={}", self.window_hours, m),
+            None => format!("windowHours={}", self.window_hours),
+        }
+    }
+
     /// The frame the producer ships to the view each refresh.
     pub fn snapshot(&self) -> GalaxySnapshot {
         GalaxySnapshot {
@@ -597,6 +627,7 @@ impl GalaxyPane {
             clusters: self.clusters.clone(),
             computed_at: self.computed_at,
             last_error: self.last_error.clone(),
+            window_hours: self.window_hours,
         }
     }
 }
@@ -653,9 +684,10 @@ impl Pane for GalaxyPane {
         daemon: &'a DaemonClient,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async move {
-            // Daemon-owned defaults: omitting tailTokens/minTokens/limit inherits
-            // them; the daemon's 30s response cache absorbs the 2s pane cadence.
-            let url = format!("{}/galaxy/map?windowHours=24", daemon.base());
+            // Daemon-owned defaults: omitting tailTokens/limit inherits them;
+            // the daemon's 30s response cache absorbs the 2s pane cadence.
+            // window/minTokens are pane state so the control socket can steer them.
+            let url = format!("{}/galaxy/map?{}", daemon.base(), self.query());
             match daemon.http_client().get(&url).send().await {
                 Err(e) => {
                     self.last_error = Some(format!("daemon unreachable: {e}"));
@@ -948,6 +980,18 @@ mod tests {
         assert!(blocks
             .iter()
             .any(|b| matches!(b, Block::KeyVal(k, v) if k == "sessions" && v == "3")));
+    }
+
+    #[test]
+    fn scripted_params_change_the_wire_query() {
+        let mut pane = GalaxyPane::new();
+        assert_eq!(pane.query(), "windowHours=24");
+        pane.set_params(Some(720), None);
+        assert_eq!(pane.query(), "windowHours=720");
+        pane.set_params(None, Some(64));
+        assert_eq!(pane.query(), "windowHours=720&minTokens=64");
+        pane.set_params(Some(0), None); // floor: never a zero-hour window
+        assert_eq!(pane.query(), "windowHours=1&minTokens=64");
     }
 
     #[test]

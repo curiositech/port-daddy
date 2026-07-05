@@ -1,0 +1,317 @@
+//! Console scripting control plane.
+//!
+//! A unix-socket, newline-JSON command surface so agents and shell scripts can
+//! drive a running pd-console instead of screenshot-and-pray: switch panes,
+//! read pane state as structured JSON, tune the galaxy query, rebind the
+//! daemon, and read the HITL alert log.
+//!
+//! Enable with `--control-sock <path>` or `PD_CONSOLE_CONTROL_SOCK=<path>`.
+//! Protocol: one JSON object per line in, one JSON object per line out.
+//!
+//!   {"cmd":"ping"}
+//!   {"cmd":"panes"}
+//!   {"cmd":"focus","pane":"galaxy"}
+//!   {"cmd":"state","pane":"galaxy"}
+//!   {"cmd":"galaxy","windowHours":720,"minTokens":64}
+//!   {"cmd":"rebind","url":"http://127.0.0.1:9899"}
+//!   {"cmd":"alerts"}
+//!
+//! Transport lives on a plain std thread (UnixListener). Each request is
+//! forwarded to the GPUI foreground through an mpsc envelope carrying its own
+//! reply channel; the 500ms foreground drain task answers with full access to
+//! `ConsoleView`. A request that gets no reply within 5s returns a timeout
+//! error to the caller instead of hanging the socket.
+
+use std::io::{BufRead, BufReader, Write};
+use std::os::unix::net::UnixListener;
+use std::sync::mpsc;
+use std::time::Duration;
+
+use serde_json::{json, Value};
+
+use crate::pane::{Alert, Block};
+
+/// A parsed scripting request. Kept data-only so parsing is unit-testable
+/// without a socket or a window.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ScriptRequest {
+    Ping,
+    Panes,
+    Focus { pane: String },
+    State { pane: Option<String> },
+    Galaxy { window_hours: Option<u32>, min_tokens: Option<u32> },
+    Rebind { url: String },
+    Alerts,
+}
+
+/// One in-flight request: the parsed command plus the transport's reply slot.
+pub struct ScriptEnvelope {
+    pub request: ScriptRequest,
+    pub reply: mpsc::Sender<Value>,
+}
+
+/// Parse one wire line into a request. Errors are returned as strings so the
+/// transport can ship them back verbatim — the caller sees WHY it was refused.
+pub fn parse_request(line: &str) -> Result<ScriptRequest, String> {
+    let v: Value = serde_json::from_str(line.trim()).map_err(|e| format!("bad json: {e}"))?;
+    let cmd = v
+        .get("cmd")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "missing \"cmd\"".to_string())?;
+    match cmd {
+        "ping" => Ok(ScriptRequest::Ping),
+        "panes" => Ok(ScriptRequest::Panes),
+        "focus" => {
+            let pane = v
+                .get("pane")
+                .and_then(Value::as_str)
+                .filter(|s| !s.trim().is_empty())
+                .ok_or_else(|| "focus needs \"pane\"".to_string())?;
+            Ok(ScriptRequest::Focus { pane: pane.trim().to_string() })
+        }
+        "state" => Ok(ScriptRequest::State {
+            pane: v
+                .get("pane")
+                .and_then(Value::as_str)
+                .filter(|s| !s.trim().is_empty())
+                .map(|s| s.trim().to_string()),
+        }),
+        "galaxy" => {
+            let window_hours = v.get("windowHours").and_then(Value::as_u64).map(|n| n as u32);
+            let min_tokens = v.get("minTokens").and_then(Value::as_u64).map(|n| n as u32);
+            if window_hours.is_none() && min_tokens.is_none() {
+                return Err("galaxy needs windowHours and/or minTokens".to_string());
+            }
+            Ok(ScriptRequest::Galaxy { window_hours, min_tokens })
+        }
+        "rebind" => {
+            let url = v
+                .get("url")
+                .and_then(Value::as_str)
+                .filter(|s| !s.trim().is_empty())
+                .ok_or_else(|| "rebind needs \"url\"".to_string())?;
+            Ok(ScriptRequest::Rebind { url: url.trim().to_string() })
+        }
+        "alerts" => Ok(ScriptRequest::Alerts),
+        other => Err(format!(
+            "unknown cmd \"{other}\" (try ping/panes/focus/state/galaxy/rebind/alerts)"
+        )),
+    }
+}
+
+/// Serialize a pane [`Block`] to JSON. Faithful but flat: scripting callers
+/// grep fields, they don't re-render chrome.
+pub fn block_to_json(block: &Block) -> Value {
+    match block {
+        Block::Header(t) => json!({"type": "header", "text": t}),
+        Block::KeyVal(k, val) => json!({"type": "keyval", "key": k, "value": val}),
+        Block::Row(cells) => json!({"type": "row", "cells": cells}),
+        Block::ChatTurn { speaker, text, .. } => {
+            json!({"type": "chat", "speaker": speaker, "text": text})
+        }
+        Block::TranscriptLine { text, .. } => json!({"type": "transcript", "text": text}),
+        Block::ArtifactRef { label, path, .. } => {
+            json!({"type": "artifact", "label": label, "path": path})
+        }
+        Block::ImageArtifact { label, path, image_path, .. } => {
+            json!({"type": "image", "label": label, "path": path, "imagePath": image_path})
+        }
+        Block::Chip { label, .. } => json!({"type": "chip", "label": label}),
+        Block::Flag { letter, label, .. } => {
+            json!({"type": "flag", "letter": letter.to_string(), "label": label})
+        }
+        Block::Spark(values) => json!({"type": "spark", "values": values}),
+        Block::Gap => json!({"type": "gap"}),
+        Block::WrappedText { text, .. } => json!({"type": "text", "text": text}),
+    }
+}
+
+pub fn alert_to_json(alert: &Alert) -> Value {
+    json!({
+        "level": alert.level.label(),
+        "title": alert.title,
+        "detail": alert.detail,
+        "ts": alert.ts,
+    })
+}
+
+/// Start the socket server thread. Returns immediately; the thread owns the
+/// listener for the life of the process. A stale socket file from a previous
+/// run is removed first (unix sockets don't self-clean).
+pub fn start_server(sock_path: String, tx: mpsc::Sender<ScriptEnvelope>) {
+    std::thread::spawn(move || {
+        let _ = std::fs::remove_file(&sock_path);
+        let listener = match UnixListener::bind(&sock_path) {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("pd-console: control socket bind failed at {sock_path}: {e}");
+                return;
+            }
+        };
+        eprintln!("pd-console: control socket listening at {sock_path}");
+        for stream in listener.incoming() {
+            let Ok(stream) = stream else { continue };
+            let tx = tx.clone();
+            std::thread::spawn(move || {
+                let mut writer = match stream.try_clone() {
+                    Ok(w) => w,
+                    Err(_) => return,
+                };
+                let reader = BufReader::new(stream);
+                for line in reader.lines() {
+                    let Ok(line) = line else { break };
+                    if line.trim().is_empty() {
+                        continue;
+                    }
+                    let response = match parse_request(&line) {
+                        Err(err) => json!({"ok": false, "error": err}),
+                        Ok(request) => {
+                            let (reply_tx, reply_rx) = mpsc::channel();
+                            if tx.send(ScriptEnvelope { request, reply: reply_tx }).is_err() {
+                                json!({"ok": false, "error": "console shutting down"})
+                            } else {
+                                match reply_rx.recv_timeout(Duration::from_secs(5)) {
+                                    Ok(v) => v,
+                                    Err(_) => json!({
+                                        "ok": false,
+                                        "error": "timed out waiting for the console (5s)"
+                                    }),
+                                }
+                            }
+                        }
+                    };
+                    let mut out = response.to_string();
+                    out.push('\n');
+                    if writer.write_all(out.as_bytes()).is_err() {
+                        break;
+                    }
+                }
+            });
+        }
+    });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::pane::Tone;
+
+    #[test]
+    fn parses_every_command() {
+        assert_eq!(parse_request(r#"{"cmd":"ping"}"#), Ok(ScriptRequest::Ping));
+        assert_eq!(parse_request(r#"{"cmd":"panes"}"#), Ok(ScriptRequest::Panes));
+        assert_eq!(
+            parse_request(r#"{"cmd":"focus","pane":"galaxy"}"#),
+            Ok(ScriptRequest::Focus { pane: "galaxy".into() })
+        );
+        assert_eq!(
+            parse_request(r#"{"cmd":"state"}"#),
+            Ok(ScriptRequest::State { pane: None })
+        );
+        assert_eq!(
+            parse_request(r#"{"cmd":"state","pane":"parley"}"#),
+            Ok(ScriptRequest::State { pane: Some("parley".into()) })
+        );
+        assert_eq!(
+            parse_request(r#"{"cmd":"galaxy","windowHours":720}"#),
+            Ok(ScriptRequest::Galaxy { window_hours: Some(720), min_tokens: None })
+        );
+        assert_eq!(
+            parse_request(r#"{"cmd":"galaxy","minTokens":64}"#),
+            Ok(ScriptRequest::Galaxy { window_hours: None, min_tokens: Some(64) })
+        );
+        assert_eq!(
+            parse_request(r#"{"cmd":"rebind","url":"http://127.0.0.1:9899"}"#),
+            Ok(ScriptRequest::Rebind { url: "http://127.0.0.1:9899".into() })
+        );
+        assert_eq!(parse_request(r#"{"cmd":"alerts"}"#), Ok(ScriptRequest::Alerts));
+    }
+
+    #[test]
+    fn rejects_malformed_input_with_a_reason() {
+        assert!(parse_request("not json").unwrap_err().starts_with("bad json"));
+        assert_eq!(parse_request(r#"{"x":1}"#).unwrap_err(), "missing \"cmd\"");
+        assert_eq!(
+            parse_request(r#"{"cmd":"focus"}"#).unwrap_err(),
+            "focus needs \"pane\""
+        );
+        assert_eq!(
+            parse_request(r#"{"cmd":"galaxy"}"#).unwrap_err(),
+            "galaxy needs windowHours and/or minTokens"
+        );
+        assert!(parse_request(r#"{"cmd":"warp"}"#).unwrap_err().starts_with("unknown cmd"));
+    }
+
+    #[test]
+    fn blocks_serialize_flat_and_faithful() {
+        let blocks = vec![
+            Block::Header("Session Galaxy".into()),
+            Block::KeyVal("sessions".into(), "18".into()),
+            Block::Chip { label: "agent · bash — 12 session(s)".into(), tone: Tone::Engaged },
+            Block::Gap,
+        ];
+        let out: Vec<Value> = blocks.iter().map(block_to_json).collect();
+        assert_eq!(out[0]["type"], "header");
+        assert_eq!(out[1]["value"], "18");
+        assert_eq!(out[2]["label"], "agent · bash — 12 session(s)");
+        assert_eq!(out[3]["type"], "gap");
+    }
+
+    #[test]
+    fn server_round_trips_over_a_real_socket() {
+        use std::io::{BufRead, BufReader, Write};
+        use std::os::unix::net::UnixStream;
+
+        // Socket endpoints only — no work product lives here. $TMPDIR (macOS
+        // /var/folders/…, NOT /tmp) is used deliberately: unix socket paths
+        // must fit SUN_LEN (104 bytes), and ~/-anchored paths break when a
+        // sibling test (conjure) rebinds HOME under a deep scratch dir.
+        let dir = std::env::temp_dir().join(format!("pd-console-script-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let sock = dir.join("ctl.sock").to_string_lossy().to_string();
+
+        let (tx, rx) = mpsc::channel::<ScriptEnvelope>();
+        start_server(sock.clone(), tx);
+
+        // A fake "foreground": answer every request with a canned pong.
+        std::thread::spawn(move || {
+            for env in rx.iter() {
+                let _ = env.reply.send(json!({"ok": true, "echo": format!("{:?}", env.request)}));
+            }
+        });
+
+        // The bind happens on the server thread; poll for the socket file.
+        // Generous window: under a parallel `cargo test` run the thread can be
+        // scheduled late.
+        let mut stream = None;
+        let mut last_err = String::new();
+        for _ in 0..250 {
+            match UnixStream::connect(&sock) {
+                Ok(s) => {
+                    stream = Some(s);
+                    break;
+                }
+                Err(e) => last_err = e.to_string(),
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let stream = stream
+            .unwrap_or_else(|| panic!("control socket never came up at {sock}: {last_err}"));
+        let mut writer = stream.try_clone().unwrap();
+        let mut reader = BufReader::new(stream);
+
+        writer.write_all(b"{\"cmd\":\"ping\"}\n").unwrap();
+        let mut line = String::new();
+        reader.read_line(&mut line).unwrap();
+        let v: Value = serde_json::from_str(&line).unwrap();
+        assert_eq!(v["ok"], true);
+
+        writer.write_all(b"{\"cmd\":\"nope\"}\n").unwrap();
+        let mut line2 = String::new();
+        reader.read_line(&mut line2).unwrap();
+        let v2: Value = serde_json::from_str(&line2).unwrap();
+        assert_eq!(v2["ok"], false);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}

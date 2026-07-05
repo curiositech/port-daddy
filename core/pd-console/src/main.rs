@@ -46,6 +46,7 @@ mod planner_pane;
 mod prs_pane;
 mod roadmap_pane;
 mod sessions_pane;
+mod script;
 mod sortie_pane;
 mod substrate_pane;
 mod suggest_pane;
@@ -235,6 +236,7 @@ fn main() {
 
     let cli_args = parse_console_args(std::env::args());
     let initial_pane = cli_args.initial_pane.clone();
+    let control_sock = cli_args.control_sock.clone();
 
     // `--display <selector>` opens the window on a specific display instead of the
     // primary one. `selector` is a 0-based index into the display list (see
@@ -361,6 +363,13 @@ fn main() {
         // failure) back to the view's drawer. Mirrors the conjure bus: a small
         // dedicated channel, drained in the same 500ms foreground task.
         let (galaxy_tx, galaxy_rx) = mpsc::channel::<app::GalaxyUpdate>();
+        // Scripting bus: the control-socket thread parses newline-JSON commands
+        // and parks each one here with a reply slot; the 500ms foreground task
+        // answers with full ConsoleView access (`--control-sock` / env).
+        let (script_tx, script_rx) = mpsc::channel::<script::ScriptEnvelope>();
+        if let Some(sock) = control_sock.clone() {
+            script::start_server(sock, script_tx);
+        }
         let url = daemon_url.clone();
         std::thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
@@ -803,6 +812,11 @@ fn main() {
                                 lane_stream = None; // drop the old daemon's SSE stream
                                 chat = None; // re-bind chat on the new daemon's channel
                             }
+                            // Steer the galaxy pane's query; the next 2s refresh
+                            // fetches with the new window/floor.
+                            app::ControlMsg::GalaxyParams { window_hours, min_tokens } => {
+                                galaxy.set_params(window_hours, min_tokens);
+                            }
                             // Add an operator note (POST /notes).
                             app::ControlMsg::AddNote { content } => {
                                 match client.add_note(&content).await {
@@ -1181,6 +1195,19 @@ fn main() {
                         let _ = async_cx.update(|app| {
                             let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
                                 view.apply_galaxy_update(update.clone());
+                                cx.notify();
+                            });
+                        });
+                    }
+                    // Drain the scripting bus: answer each control-socket
+                    // command from the view, on the foreground, and post the
+                    // JSON reply back to the waiting socket thread.
+                    while let Ok(envelope) = script_rx.try_recv() {
+                        let script::ScriptEnvelope { request, reply } = envelope;
+                        let _ = async_cx.update(|app| {
+                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                                let response = view.handle_script(request.clone());
+                                let _ = reply.send(response);
                                 cx.notify();
                             });
                         });

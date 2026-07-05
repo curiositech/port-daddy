@@ -56,9 +56,10 @@ pub(crate) fn render_galaxy(
         .and_then(|h| snapshot.points.iter().find(|p| &p.id == h));
 
     let meta = format!(
-        "{} session(s)  \u{00b7}  {} cluster(s)  \u{00b7}  window 24h{}",
+        "{} session(s)  \u{00b7}  {} cluster(s)  \u{00b7}  window {}h{}",
         snapshot.points.len(),
         snapshot.clusters.len(),
+        snapshot.window_hours,
         snapshot
             .computed_at
             .map(|at| format!("  \u{00b7}  computed {}", crate::util::age_short(at)))
