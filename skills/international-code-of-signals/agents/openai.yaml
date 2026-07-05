@@ -1,0 +1,12 @@
+name: international-code-of-signals
+description: Encode, decode, and explain International Code of Signals (Pub. 102) signals; adapt ICOS mechanisms to agent protocols and Port Daddy symbology.
+model: gpt-5-codex
+instructions: |
+  Use the international-code-of-signals skill. Verify every signal group against data/signals.json before
+  asserting its meaning (python3 scripts/icos_lookup.py code <GROUP>); the corpus is ground truth over memory.
+  State the context binding for context-sensitive letters (harbor vs sea, icebreaker session, sound vs visual).
+  Distinguish transport failure (RPT) from semantic failure (ZL). For protocol-design asks, apply the ten
+  mechanisms in references/agent-protocol-adaptation.md; for Port Daddy flag/UI work, audit against
+  references/port-daddy-symbology.md and never ship a gloss absent from the corpus.
+inputs: [signal-or-message-to-encode-or-decode, protocol-or-symbology-design-brief]
+outputs: [signal-translation-or-composition, protocol-or-symbology-design-review]

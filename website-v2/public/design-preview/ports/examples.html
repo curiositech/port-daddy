@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Port Daddy — Examples (story linework port)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="port.css">
+<style>
+  .ex-hero { display: grid; grid-template-columns: 1.35fr 1fr; gap: 48px; padding: 64px 0 40px; align-items: start; }
+  .ex-hero h1 { font-size: clamp(36px, 4.6vw, 60px); font-weight: 700; line-height: 1.05; letter-spacing: var(--tracking-display); max-width: 20ch; }
+  .ex-hero .lede { font-size: 16px; line-height: 1.7; color: var(--text-secondary); max-width: 58ch; margin-top: 16px; }
+  .ex-hero p + p { margin-top: 12px; }
+  .featured-zone { background: var(--cobalt); color: var(--inverse); padding: 30px 34px; margin-top: 24px; display: grid; grid-template-columns: 1.4fr 1fr; gap: 30px; }
+  [data-theme="dark"] .featured-zone { color: #121212; }
+  .featured-zone .fz-eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; opacity: 0.75; }
+  .featured-zone h2 { font-size: 25px; font-weight: 700; letter-spacing: var(--tracking-h2); margin-top: 6px; max-width: 24ch; }
+  .featured-zone p { font-size: 14.5px; line-height: 1.62; opacity: 0.92; margin-top: 10px; }
+  .featured-zone .fz-meta { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; line-height: 2; opacity: 0.9; }
+  .ex-card { background: var(--surface-card); border: 1px solid var(--hair); border-left: none; padding: 18px 20px; box-shadow: inset var(--lw-stripe) 0 0 var(--g); display: flex; flex-direction: column; gap: 8px; }
+  .ex-card .e-eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.11em; color: var(--gt, var(--g)); }
+  .ex-card .e-title { font-size: 16.5px; font-weight: 700; letter-spacing: var(--tracking-h3); line-height: 1.3; }
+  .ex-card .e-sum { font-size: 14px; line-height: 1.58; color: var(--text-secondary); flex: 1; }
+  .ex-card .e-meta { display: flex; justify-content: space-between; align-items: baseline; padding-top: 10px; border-top: 1px solid var(--hair); font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--text-muted); }
+  .ex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .group-head { display: grid; grid-template-columns: 200px 1fr; gap: 24px; align-items: start; margin: 44px 0 18px; padding-top: 16px; position: relative; }
+  .group-head::before { content: ""; position: absolute; top: 0; left: 0; width: 64px; height: 1px; background: var(--hair-strong); }
+  .group-head .g-label { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.13em; }
+  .group-head h3 { font-size: 21px; font-weight: 700; letter-spacing: var(--tracking-h3); margin-top: 4px; }
+  .group-head .g-blurb { font-size: 14.5px; line-height: 1.62; color: var(--text-secondary); max-width: 62ch; }
+  @media (max-width: 1080px) { .ex-hero, .featured-zone, .group-head { grid-template-columns: 1fr; } .ex-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header class="site-header">
+  <a class="sh-brand" href="home.html"><span class="pd-mark themed-img" aria-hidden="true"><img class="light-only" src="/logos/portdaddy-mark-radar-lightmode.svg" alt=""><img class="dark-only" src="/logos/portdaddy-mark-radar-darkmode.svg" alt=""></span>Port Daddy</a>
+  <nav class="sh-nav">
+    <a href="home.html">Home</a><a href="#">Agent Tubes</a><a href="#">Scout</a>
+    <a class="active" href="#">Examples</a><a href="blog.html">Blog</a><a href="#">Cryptography</a><a href="#">The Big Idea</a><a class="more" href="#">More ▾</a>
+  </nav>
+  <div class="sh-tools"><button class="theme-toggle" id="themeToggle">Dark</button></div>
+</header>
+
+<main class="page">
+  <div class="slug-hoist" aria-label="/examples spelled in signal flags"><span class="route">/examples</span><i class="fl fl-echo" title="E"></i><i class="fl fl-xray" title="X"></i><i class="fl fl-alfa" title="A"></i><i class="fl fl-mike" title="M"></i><i class="fl fl-papa" title="P"></i><i class="fl fl-lima" title="L"></i><i class="fl fl-sub fl-sub1" title="1st substitute — repeats E, the first flag"></i><i class="fl fl-sierra" title="S"></i></div>
+
+  <!-- HERO -->
+  <section class="ex-hero">
+    <div class="slab flag flag-papa" title="Papa — all aboard" style="--f1: var(--teal-slab); top:-64px; right:calc(50% - 50vw); width: calc(50vw - 720px + 140px); min-width: 100px; height: 300px;"></div>
+    <div>
+      <div class="eyebrow">Examples</div>
+      <h1 class="ko" style="--ko-c: var(--health-slab); --ko-r: 470px; --ko-b: 44px;"><span>Small programs that <span class="rec" style="color: var(--cobalt)">hand work to your coding agent.</span></span><span class="ko-over" aria-hidden="true">Small programs that <span class="rec" style="color: inherit">hand work to your coding agent.</span></span></h1>
+      <div class="lede">
+        <p>You already have a coding agent running in a repo terminal — Claude Code, Codex, Cursor. Each example is a short program that sends it a task and shows the reply. A button click, a failing test, an editor command, or an incoming webhook becomes a job the agent picks up.</p>
+        <p>They all use the same trick. The program posts a small message to the Port Daddy daemon on your machine. The agent in your terminal reads the message, does the work, and replies. No hosted service, no extra account.</p>
+      </div>
+    </div>
+    <div class="stripe-card" style="--stripe: var(--teal); margin-top: 44px;">
+      <div class="sc-label" style="color: var(--teal)">Start here</div>
+      <div class="sc-title">Read PD Tube first.</div>
+      <p>PD Tube is the smallest version of the idea. A web page sends one task, the agent acts, and the threaded reply shows up inline. Every other example is a variation on that one exchange.</p>
+      <div style="display:flex; gap:14px; margin-top:12px;" class="mono"><a href="#featured" style="color: var(--teal); font-size:13px; font-weight:700; text-decoration:none;">[ Open PD Tube ]</a><a href="#" style="color: var(--text-muted); font-size:13px; font-weight:700; text-decoration:none;">[ CLI reference ]</a></div>
+    </div>
+  </section>
+
+  <!-- FEATURED — the page's one zone -->
+  <section id="featured" class="featured-zone" style="grid-template-columns: 1fr 1.2fr 0.9fr;">
+    <figure style="margin:-30px 0 -30px -34px;"><img src="/img/generated/example-pd-tube-button-to-agent.webp" alt="Paper-craft artwork: a product button wired to an agent in the developer workspace." style="display:block; width:100%; height:100%; object-fit:cover;"></figure>
+    <div style="background: #fbf7ef; color: #17191d; padding: 22px 24px; align-self: center;">
+      <div class="fz-eyebrow" style="color: var(--cobalt-slab); opacity: 1;">PD Tube · featured — flying Papa: all aboard</div>
+      <h2>Turn a plain HTML button into a phone line to the coding agent already running in your repo.</h2>
+      <p>This is the lede. The page does not integrate with Claude, OpenAI, MCP, or a hosted webhook. It POSTs JSON to the local daemon, and the terminal agent already sitting in the repo becomes the worker.</p>
+      <p><strong>What it builds:</strong> a browser page with three buttons that publish work into Port Daddy and render the agent's threaded reply inline.</p>
+    </div>
+    <div class="fz-meta">
+      Intermediate · 18 min guided read<br>
+      2 full source files<br>
+      4 runnable commands<br><br>
+      [ Open full source ] · [ Jump to source ]
+    </div>
+  </section>
+
+  <!-- GROUP 1: COORDINATION -->
+  <section>
+    <div class="group-head">
+      <div><div class="g-label" style="color: var(--health)">Coordination</div><h3>Keep agents out of each other's way</h3></div>
+      <p class="g-blurb">The reason Port Daddy exists. Two agents grab the same file, the second write wins, and an hour of work disappears into a clean-looking merge. These stop that: claims, locks, a shared board, and a trail you can recover from.</p>
+    </div>
+    <div class="ex-grid">
+      <div class="ex-card" style="--g: var(--health)"><figure style="margin:-18px -20px 12px -20px; border-bottom:1px solid var(--hair);"><img src="/img/generated/example-coordination-guard.webp" alt="" style="display:block; width:100%; height:120px; object-fit:cover;"></figure><div class="e-eyebrow">Coordination</div><div class="e-title">Stop two agents from clobbering the same file</div><p class="e-sum">The canonical Port Daddy story: two agents reach for one file, and only one writes at a time — claims, locks, and notes instead of a silent overwrite.</p><div class="e-meta"><span>Intermediate · 15 min</span><span>locks · claims · notes</span></div></div>
+      <div class="ex-card" style="--g: var(--health)"><div class="e-eyebrow">Multi-agent</div><div class="e-title">Run a four-agent swarm that hands off cleanly</div><p class="e-sum">Four agents — scout, builder, verifier, integrator — run in one process and pass work down a chain without ever clobbering each other.</p><div class="e-meta"><span>Advanced · 20 min</span><span>swarm · tuples · locks</span></div></div>
+      <div class="ex-card" style="--g: var(--indigo)"><div class="e-eyebrow" style="color: var(--indigo-on-tint)">Locks</div><div class="e-title">Elect one leader from a local agent swarm</div><p class="e-sum">Run a swarm of identical workers where exactly one becomes leader and the rest keep working as followers.</p><div class="e-meta"><span>Intermediate · 14 min</span><span>locks · leader election</span></div></div>
+      <div class="ex-card" style="--g: var(--error)"><div class="e-eyebrow" style="color: var(--error)">Incident response</div><div class="e-title">Stand up a three-agent incident war room</div><p class="e-sum">Three agents investigate a production bug over one shared channel, record findings as notes, and one of them proposes the root-cause fix.</p><div class="e-meta"><span>Intermediate · 15 min</span><span>incident · pub/sub · notes</span></div></div>
+      <div class="ex-card" style="--g: var(--health)"><div class="e-eyebrow">Swarm patterns</div><div class="e-title">Trace how your agents actually talk</div><p class="e-sum">Publish concrete event traces for star, ring, and arbiter coordination patterns, so a workflow can be inspected after it runs.</p><div class="e-meta"><span>Beginner · 15 min</span><span>swarm · topologies</span></div></div>
+    </div>
+  </section>
+
+  <!-- GROUP 2: THE AGENT LOOP -->
+  <section>
+    <div class="group-head">
+      <div><div class="g-label" style="color: var(--cobalt)">The agent loop</div><h3>Turn an event into agent work</h3></div>
+      <p class="g-blurb">The PD Tube pattern from the lede, pointed at real triggers — a failing test, an editor selection, an inbound webhook. The event enters the daemon; the agent in your terminal answers.</p>
+    </div>
+    <div class="ex-grid">
+      <div class="ex-card" style="--g: var(--cobalt)"><figure style="margin:-18px -20px 12px -20px; border-bottom:1px solid var(--hair);"><img src="/img/generated/example-test-failure-to-agent.webp" alt="" style="display:block; width:100%; height:120px; object-fit:cover;"></figure><div class="e-eyebrow">Test runner</div><div class="e-title">Turn a failing test into an agent request</div><p class="e-sum">Wrap a failing test command, publish the failure to the local agent, and print the diagnosis back in the same terminal.</p><div class="e-meta"><span>Intermediate · 20 min</span><span>tube · tests · reporter</span></div></div>
+      <div class="ex-card" style="--g: var(--cobalt)"><figure style="margin:-18px -20px 12px -20px; border-bottom:1px solid var(--hair);"><img src="/img/generated/example-editor-lightbulb-to-agent.webp" alt="" style="display:block; width:100%; height:120px; object-fit:cover;"></figure><div class="e-eyebrow">Editor extension</div><div class="e-title">Send an editor selection to your local agent</div><p class="e-sum">Select code in a page, publish the file and range to the agent, and render the explanation right next to the selection.</p><div class="e-meta"><span>Beginner · 16 min</span><span>tube · editor · dev tools</span></div></div>
+      <div class="ex-card" style="--g: var(--cobalt)"><figure style="margin:-18px -20px 12px -20px; border-bottom:1px solid var(--hair);"><img src="/img/generated/example-webhook-to-local-agent.webp" alt="" style="display:block; width:100%; height:120px; object-fit:cover;"></figure><div class="e-eyebrow">Bot adapter</div><div class="e-title">Route webhooks to an agent on your machine</div><p class="e-sum">Accept Slack, Discord, Linear, or generic webhook JSON and route it to the local agent through PD Tube.</p><div class="e-meta"><span>Advanced · 24 min</span><span>tube · webhooks · http</span></div></div>
+    </div>
+  </section>
+
+  <!-- GROUP 3: SERVICES & CONNECTIVITY -->
+  <section>
+    <div class="group-head">
+      <div><div class="g-label" style="color: var(--teal)">Services &amp; connectivity</div><h3>Wire local services together</h3></div>
+      <p class="g-blurb">The plumbing underneath: deterministic ports, name-based discovery, throwaway CI databases, a managed tunnel, and peer links brokered through durable inboxes.</p>
+    </div>
+    <div class="ex-grid">
+      <div class="ex-card" style="--g: var(--teal)"><figure style="margin:-18px -20px 12px -20px; border-bottom:1px solid var(--hair);"><img src="/img/generated/example-services-dns.webp" alt="" style="display:block; width:100%; height:120px; object-fit:cover;"></figure><div class="e-eyebrow">Ports + discovery</div><div class="e-title">Let services find each other by name</div><p class="e-sum">An API, a frontend, and a worker each claim a stable port and discover one another by name — no hardcoded ports, no race for 3000.</p><div class="e-meta"><span>Beginner · 12 min</span><span>ports · dns · services</span></div></div>
+      <div class="ex-card" style="--g: var(--teal)"><figure style="margin:-18px -20px 12px -20px; border-bottom:1px solid var(--hair);"><img src="/img/generated/example-ephemeral-ci-db.webp" alt="" style="display:block; width:100%; height:120px; object-fit:cover;"></figure><div class="e-eyebrow">CI services</div><div class="e-title">Claim a throwaway database port for CI</div><p class="e-sum">Claim a semantic port for a throwaway Postgres test database, then print the DATABASE_URL your tests should use.</p><div class="e-meta"><span>Beginner · 12 min</span><span>ports · ci · docker</span></div></div>
+      <div class="ex-card" style="--g: var(--teal)"><div class="e-eyebrow">Tunnels</div><div class="e-title">Share a local preview over a managed tunnel</div><p class="e-sum">Claim a local service, open a public tunnel only when you ask for it, and publish the URL for other agents — then tear it down cleanly.</p><div class="e-meta"><span>Intermediate · 12 min</span><span>tunnel · claim · preview</span></div></div>
+      <div class="ex-card" style="--g: var(--indigo)"><div class="e-eyebrow" style="color: var(--indigo-on-tint)">P2P signaling</div><div class="e-title">Carry WebRTC signaling over agent inboxes</div><p class="e-sum">Use durable agent inboxes to exchange an SDP offer and answer before two peers open their direct channel.</p><div class="e-meta"><span>Advanced · 22 min</span><span>inbox · webrtc · p2p</span></div></div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="sf-grid">
+    <div class="sf-brand">
+      <div style="font-weight:700; font-size:18px;"><span class="pd-mark themed-img" aria-hidden="true"><img class="light-only" src="/logos/portdaddy-mark-radar-lightmode.svg" alt=""><img class="dark-only" src="/logos/portdaddy-mark-radar-darkmode.svg" alt=""></span> Port Daddy</div>
+      <div class="sf-tag">A harbor-master for your agents</div>
+      <p class="sf-blurb">Port Daddy is shared memory for AI coding agents — the notes they leave each other, the files each one has claimed, and the work you can recover when one crashes. The Mac app makes all of it visible before anything drifts.</p>
+    </div>
+    <div class="sf-col"><h4>Site</h4><a href="home.html">Home</a><a href="#">Mac Preview</a><a href="#">Examples</a><a href="#">Agents</a><a href="#">Install &amp; MCP</a><a href="#">Manifesto</a></div>
+    <div class="sf-col"><h4>Learn</h4><a href="#">Docs</a><a href="#">Tutorials</a><a href="#">Templates</a><a href="blog.html">Harbor Blog</a></div>
+    <div class="sf-col"><h4>Reference</h4><a href="#">Getting started</a><a href="#">CLI reference</a><a href="#">SDK reference</a><a href="#">MCP tools</a><a href="#">REST API</a><a href="library.html">Library</a></div>
+    <div class="sf-col"><h4>Source</h4><a href="#">GitHub</a><a href="#">Discussions</a></div>
+  </div>
+</footer>
+
+<div class="port-note">Port · story linework v2</div>
+<script>
+  const btn=document.getElementById('themeToggle'),root=document.documentElement;
+  let t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+  const apply=()=>{root.setAttribute('data-theme',t);btn.textContent=t==='light'?'Dark':'Light'};apply();
+  btn.addEventListener('click',()=>{t=t==='light'?'dark':'light';apply()});
+</script>
+</body>
+</html>

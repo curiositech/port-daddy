@@ -1212,6 +1212,186 @@ async function fleetPrompt(): Promise<void> {
   }
 }
 
+// ─── Sources health board (I/O wiring Phase 2) ──────────────────────────────
+
+/**
+ * `pd fleet sources` — the I/O channel health board. Shows every trigger
+ * source and output sink with its honest availability: REAL channels read
+ * `ready`, STUB channels show their `{reason, requires}` instead of
+ * pretending. Prefers the daemon's live view (which includes armed webhook
+ * channel slugs); falls back to a local registry probe when the daemon is
+ * down.
+ */
+async function fleetSources(options: CLIOptions): Promise<void> {
+  interface ChannelHealth {
+    kind: string;
+    direction: 'trigger' | 'output';
+    ready: boolean;
+    reason?: string;
+    requires?: string[];
+  }
+
+  let channels: ChannelHealth[] = [];
+  let webhookChannels: string[] = [];
+  let source = 'daemon';
+
+  try {
+    const res = await pdFetch('/fleet/sources');
+    if (res.ok) {
+      const body = await res.json();
+      channels = (body.channels as ChannelHealth[]) ?? [];
+      webhookChannels = (body.webhookChannels as string[]) ?? [];
+    } else {
+      throw new Error(`daemon responded ${res.status}`);
+    }
+  } catch {
+    // Daemon down: probe the local registry directly. Honest difference:
+    // no armed webhook channels can exist without the daemon receiver.
+    const { IoDispatch } = await import('../../lib/fleet/io-dispatch.js');
+    channels = await new IoDispatch().health();
+    source = 'local probe (daemon not reachable — webhook receiver not armed)';
+  }
+
+  if (isJson(options)) {
+    console.log(JSON.stringify({ source, channels, webhookChannels }, null, 2));
+    return;
+  }
+
+  console.log('');
+  ui.info('Fleet I/O Sources — channel health board');
+  console.log(`  (${source})`);
+  console.log('');
+  const pad = (s: string, n: number) => s.padEnd(n);
+  console.log(`  ${pad('CHANNEL', 12)}${pad('DIRECTION', 11)}${pad('STATUS', 9)}DETAIL`);
+  for (const ch of channels) {
+    const status = ch.ready ? 'ready' : 'stub';
+    const detail = ch.ready
+      ? ''
+      : [ch.reason, ch.requires?.length ? `requires: ${ch.requires.join(', ')}` : '']
+          .filter(Boolean)
+          .join(' — ');
+    console.log(`  ${pad(ch.kind, 12)}${pad(ch.direction, 11)}${pad(status, 9)}${detail}`);
+  }
+  if (webhookChannels.length > 0) {
+    console.log('');
+    ui.info(`Armed webhook channels: ${webhookChannels.join(', ')}`);
+    console.log('  POST /webhooks/fleet/<channel> to fire (trust-gated: ADR-0093)');
+  }
+  console.log('');
+}
+
+// ─── Calendar access (EventKit, io-wiring Phase 5) ──────────────────────────
+
+/**
+ * `pd fleet calendar grant|status` — compile the EventKit helper if needed
+ * and run (or report) the one-time macOS calendar consent. The trigger and
+ * sink refuse to arm until this grant exists (fail-closed).
+ */
+async function fleetCalendar(options: CLIOptions, action?: string): Promise<void> {
+  const { getSharedEventKitClient } = await import('../../lib/fleet/calendar-eventkit.js');
+  const client = getSharedEventKitClient();
+  const verb = action ?? 'status';
+
+  if (verb === 'grant') {
+    ui.info('Requesting macOS calendar access (watch for the system prompt)…');
+    const result = await client.requestAccess();
+    if (isJson(options)) { console.log(JSON.stringify(result)); return; }
+    if (result.authorized) {
+      ui.success('Calendar access granted. calendar: triggers/outputs are now armable.');
+    } else {
+      ui.error(`Calendar access NOT granted: ${result.reason ?? 'unknown'}`);
+      ui.info('System Settings → Privacy & Security → Calendars, or re-run: pd fleet calendar grant');
+    }
+    return;
+  }
+
+  const status = await client.status();
+  if (isJson(options)) { console.log(JSON.stringify(status)); return; }
+  if (!status.available) {
+    ui.warn(`EventKit helper unavailable: ${status.reason ?? 'unknown'}`);
+  } else if (!status.authorized) {
+    ui.warn(`Helper ready, access not granted: ${status.reason ?? ''}`);
+    ui.info('Run: pd fleet calendar grant');
+  } else {
+    ui.success('EventKit ready: helper compiled and calendar access granted.');
+  }
+}
+
+// ─── Trust-gate approvals (ADR-0093 L2) ──────────────────────────────────────
+
+/** `pd fleet approvals` — spawns the trust gate is holding for a decision. */
+async function fleetApprovals(options: CLIOptions): Promise<void> {
+  const res = await pdFetch('/fleet/approvals');
+  if (!res.ok) {
+    ui.error(`daemon responded ${res.status}`);
+    process.exit(1);
+  }
+  const body = await res.json();
+  const proposals = (body.proposals as Array<{
+    id: string; project: string; agent: string; trigger: string; tier: string;
+    safeTools: string[]; timestamp: number;
+  }>) ?? [];
+  if (isJson(options)) { console.log(JSON.stringify(proposals, null, 2)); return; }
+  if (proposals.length === 0) { ui.info('No spawns waiting for approval.'); return; }
+  console.log('');
+  ui.info(`${proposals.length} spawn(s) held by the trust gate:`);
+  for (const p of proposals) {
+    const ageMin = Math.floor((Date.now() - p.timestamp) / 60_000);
+    console.log(`  ${p.id}`);
+    console.log(`    ${p.agent} ← ${p.trigger}  (${p.tier}, ${p.project}, ${ageMin}m ago)`);
+    console.log(`    tools if approved: ${p.safeTools.join(', ') || 'none'}`);
+  }
+  console.log('');
+  console.log('Decide with: pd fleet approve <id> | pd fleet reject <id> --feedback "<why>"');
+}
+
+/** `pd fleet approve|reject <id>` — resolve a held spawn. */
+async function fleetApprovalDecision(options: CLIOptions, decision: string, id?: string): Promise<void> {
+  if (!id) {
+    ui.error(`Usage: pd fleet ${decision} <proposal-id>`);
+    process.exit(1);
+  }
+  const feedback = typeof options.feedback === 'string' ? options.feedback : undefined;
+  const res = await pdFetch(`/fleet/approvals/${encodeURIComponent(id)}/decision`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ decision, feedback }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (isJson(options)) { console.log(JSON.stringify(body)); return; }
+  if (!res.ok) {
+    ui.error(`${decision} failed: ${(body as { error?: string }).error ?? `HTTP ${res.status}`}`);
+    process.exit(1);
+  }
+  ui.success(decision === 'approve' ? `Approved ${id} — agent hailed with the stored context.` : `Rejected ${id}.`);
+}
+
+/** `pd fleet push <status|test>` — Web Push devices for approval alerts. */
+async function fleetPush(options: CLIOptions, action?: string): Promise<void> {
+  if (action === 'test') {
+    const res = await pdFetch('/fleet/push/test', { method: 'POST' });
+    const body = await res.json().catch(() => ({}));
+    if (isJson(options)) { console.log(JSON.stringify(body)); return; }
+    if (!res.ok) { ui.error(`test push failed (HTTP ${res.status})`); process.exit(1); }
+    const r = body as { sent?: number; pruned?: number; failed?: number };
+    ui.success(`Test push: ${r.sent ?? 0} sent, ${r.pruned ?? 0} dead pruned, ${r.failed ?? 0} failed.`);
+    return;
+  }
+  const res = await pdFetch('/fleet/push/subscriptions');
+  const body = await res.json().catch(() => ({}));
+  if (isJson(options)) { console.log(JSON.stringify(body)); return; }
+  if (!res.ok) { ui.error(`daemon responded ${res.status}`); process.exit(1); }
+  const r = body as { count?: number; subscriptions?: Array<{ endpoint: string; userAgent?: string }> };
+  if (!r.count) {
+    ui.info('No devices registered. Open fleet-ui → Operator → "Notify me on this device".');
+    return;
+  }
+  ui.info(`${r.count} device(s) registered for approval pushes:`);
+  for (const s of r.subscriptions ?? []) {
+    console.log(`  ${s.endpoint}  ${s.userAgent ? `(${s.userAgent.slice(0, 60)})` : ''}`);
+  }
+}
+
 // ─── Entry Point ────────────────────────────────────────────────────────────
 
 export async function handleFleet(positional: string[], _options: Record<string, unknown>): Promise<void> {
@@ -1271,6 +1451,27 @@ export async function handleFleet(positional: string[], _options: Record<string,
       await fleetInspect(_options as CLIOptions, positional[1]);
       break;
 
+    case 'sources':
+      await fleetSources(_options as CLIOptions);
+      break;
+
+    case 'calendar':
+      await fleetCalendar(_options as CLIOptions, positional[1]);
+      break;
+
+    case 'approvals':
+      await fleetApprovals(_options as CLIOptions);
+      break;
+
+    case 'approve':
+    case 'reject':
+      await fleetApprovalDecision(_options as CLIOptions, subcommand, positional[1]);
+      break;
+
+    case 'push':
+      await fleetPush(_options as CLIOptions, positional[1]);
+      break;
+
     case 'help':
     case '--help':
     case '-h': {
@@ -1287,6 +1488,12 @@ export async function handleFleet(positional: string[], _options: Record<string,
       console.log('  status          Show fleet health');
       console.log('  validate        Parse pd-fleet.yml, resolve templates, and check topology');
       console.log('  models          Show backend model ladders and readiness');
+      console.log('  sources         I/O channel health board (triggers/outputs: ready vs stub)');
+      console.log('  calendar grant  Run the one-time macOS calendar consent prompt (EventKit)');
+      console.log('  approvals       List spawns held by the trust gate (ADR-0093)');
+      console.log('  approve <id>    Release a held spawn (hails the agent with its context)');
+      console.log('  reject <id>     Refuse a held spawn (--feedback "<why>")');
+      console.log('  push <status|test>  Web Push devices for approval alerts');
       console.log('');
       console.log('Conductor control (ADR-0060 — operate the live fleet):');
       console.log('  halt [rootId]   Total stop: SIGKILL the scope, refund bonds (--root <id> or global)');

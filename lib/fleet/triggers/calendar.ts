@@ -2,14 +2,15 @@
  * Calendar trigger source — fires when an event on the operator's
  * calendar is about to start (lead-time configurable) or has just ended.
  *
- * Two backends are supported:
+ * Two REAL backends:
  *
- *   1. macOS CalendarStore / EventKit — reads from the system Calendar
- *      database. Requires the operator to grant Calendar access to the
- *      daemon in System Settings → Privacy.
+ *   1. macOS EventKit (default on darwin) — via the compiled
+ *      pd-calendar-helper (lib/fleet/calendar-eventkit.ts). Requires a
+ *      one-time OS calendar grant (`pd fleet calendar grant`).
  *
- *   2. Google Calendar API — reads from the operator's Google account
- *      via OAuth. Requires PD_GCAL_CLIENT_ID + PD_GCAL_REFRESH_TOKEN.
+ *   2. Google Calendar API (PD_CALENDAR_BACKEND=google) — OAuth refresh
+ *      token flow, `singleEvents=true` so recurring events arrive as
+ *      expanded instances (lib/fleet/calendar-google.ts).
  *
  * Spec syntax:
  *   calendar:event-starting(30m)        — 30 minutes before each event
@@ -17,11 +18,24 @@
  *                                       — 5min lead, specific calendar
  *   calendar:event-ended                — when an event finishes
  *
- * Both backends are STUBBED. The TriggerSource contract is fully
- * implemented; the actual fetch path is a placeholder until the
- * operator wires creds.
+ * Trust + privacy posture (ADR-0093 / agentic-calendar-coordination):
+ *   - `calendar` is an EXTERNAL trigger kind: anyone can inject content
+ *     into the operator's calendar with a spam invite. The OS calendar
+ *     grant authorizes US to READ — it says nothing about who AUTHORED an
+ *     event, so consent_verified is NEVER set here.
+ *   - Data minimization: the emitted payload carries title/time/location/
+ *     conference URL only. Event notes/description and attendee lists are
+ *     never copied into agent task text. The organizer address rides in
+ *     metadata.sender solely for trust-gate allowlist matching.
+ *   - All timestamps in the payload are ISO-8601 UTC; instance-unique ids
+ *     (series + occurrence start) make recurring dedup per-occurrence.
  */
 
+import {
+  chooseCalendarBackend,
+  getSharedEventKitClient,
+} from '../calendar-eventkit.js';
+import { GoogleCalendarClient, googleCredsFromEnv } from '../calendar-google.js';
 import type {
   FleetTriggerEvent,
   TriggerAvailability,
@@ -30,43 +44,69 @@ import type {
   TriggerSpec,
 } from '../types.js';
 
-interface CalendarEvent {
+/** The MINIMIZED event shape that reaches agent task text. */
+interface CalendarEventPayload {
+  /** Instance-unique id (series + occurrence start). */
   id: string;
   title: string;
-  /** ISO-8601 with timezone. */
+  /** ISO-8601 UTC. */
   start: string;
-  /** ISO-8601 with timezone. */
+  /** ISO-8601 UTC. */
   end: string;
+  allDay: boolean;
+  calendar: string;
+  recurring: boolean;
   location?: string;
-  /** Plaintext notes/body. May include meeting links. */
-  notes?: string;
-  /** Display name of the source calendar ("Work", "Personal", etc). */
-  calendar?: string;
-  /** RFC 5322 addresses of attendees. */
-  attendees?: string[];
-  /** Free-form videoconference link (Zoom/Meet/Teams). */
   conferenceUrl?: string;
 }
+
+/** What a backend lister returns (superset of the payload; organizer is
+ *  stripped into metadata, never the payload). */
+export interface ListedCalendarEvent extends CalendarEventPayload {
+  organizer?: string;
+}
+
+export interface CalendarTriggerDeps {
+  /** Injectable backend lister (tests). Default resolves per backend. */
+  listEvents?: (fromISO: string, toISO: string, calendar?: string) => Promise<ListedCalendarEvent[]>;
+  /** Injectable clock (tests). */
+  now?: () => number;
+}
+
+const FIRED_RETENTION_MS = 24 * 60 * 60 * 1000;
 
 export class CalendarTriggerSource implements TriggerSource {
   readonly kind = 'calendar' as const;
 
+  constructor(private readonly deps: CalendarTriggerDeps = {}) {}
+
   async available(): Promise<TriggerAvailability> {
-    const backend = chooseBackend();
+    if (this.deps.listEvents) return { ready: true };
+    const backend = chooseCalendarBackend();
     if (backend === 'macos-eventkit') {
-      return {
-        ready: true,
-        reason: 'macOS EventKit (requires Calendar access in System Settings → Privacy).',
-        requires: ['Calendar access for the daemon binary'],
-      };
+      const status = await getSharedEventKitClient().status();
+      if (!status.available) {
+        return {
+          ready: false,
+          reason: status.reason ?? 'EventKit helper unavailable',
+          requires: ['Swift toolchain (xcode-select --install)'],
+        };
+      }
+      if (!status.authorized) {
+        return {
+          ready: false,
+          reason: status.reason ?? 'calendar access not granted',
+          requires: ['pd fleet calendar grant (OS consent prompt)'],
+        };
+      }
+      return { ready: true };
     }
     if (backend === 'google') {
-      const hasCreds = Boolean(process.env.PD_GCAL_CLIENT_ID && process.env.PD_GCAL_REFRESH_TOKEN);
-      if (!hasCreds) {
+      if (!googleCredsFromEnv()) {
         return {
           ready: false,
           reason: 'Google Calendar OAuth credentials missing.',
-          requires: ['PD_GCAL_CLIENT_ID', 'PD_GCAL_REFRESH_TOKEN'],
+          requires: ['PD_GCAL_CLIENT_ID', 'PD_GCAL_CLIENT_SECRET', 'PD_GCAL_REFRESH_TOKEN'],
         };
       }
       return { ready: true };
@@ -78,56 +118,29 @@ export class CalendarTriggerSource implements TriggerSource {
     };
   }
 
-  async start(spec: TriggerSpec, emit: (event: FleetTriggerEvent) => void): Promise<TriggerHandle> {
-    // Parse the lead time. `spec.arg` like "30m" or "1h" or "15s".
-    const leadMs = spec.arg ? parseDuration(spec.arg) : 5 * 60_000;
-    const calendarFilter = spec.filters.calendar ?? null;
+  private resolveLister(): (fromISO: string, toISO: string, calendar?: string) => Promise<ListedCalendarEvent[]> {
+    if (this.deps.listEvents) return this.deps.listEvents;
+    if (chooseCalendarBackend() === 'google') {
+      const creds = googleCredsFromEnv();
+      if (!creds) throw new Error('Google Calendar creds missing (available() should have refused)');
+      const client = new GoogleCalendarClient(creds);
+      return (fromISO, toISO) => client.listEvents(fromISO, toISO);
+    }
+    const client = getSharedEventKitClient();
+    return (fromISO, toISO, calendar) => client.listEvents(fromISO, toISO, calendar);
+  }
 
+  async start(spec: TriggerSpec, emit: (event: FleetTriggerEvent) => void): Promise<TriggerHandle> {
     let stopped = false;
-    const seenFired = new Set<string>();
-    const pollMs = 30_000; // Check every 30s for events crossing the lead-time threshold.
+    /** fireKey → firedAt, pruned on age — clearing wholesale would re-fire
+     *  recent events still inside the lead window. */
+    const state = { fired: new Map<string, number>() };
+    const pollMs = 30_000;
 
     const tick = async () => {
       if (stopped) return;
       try {
-        const events = await fetchUpcomingEvents();
-        const now = Date.now();
-        for (const ev of events) {
-          if (calendarFilter && ev.calendar !== calendarFilter) continue;
-          const startMs = Date.parse(ev.start);
-          if (Number.isNaN(startMs)) continue;
-
-          const fireKey = `${ev.id}:${spec.type}`;
-          if (seenFired.has(fireKey)) continue;
-
-          const fireNow =
-            spec.type === 'event-starting'
-              ? startMs - now <= leadMs && startMs > now
-              : spec.type === 'event-ended'
-                ? Date.parse(ev.end) <= now && Date.parse(ev.end) > now - pollMs * 2
-                : false;
-          if (!fireNow) continue;
-
-          seenFired.add(fireKey);
-          const event: FleetTriggerEvent<CalendarEvent> = {
-            source: 'calendar',
-            type: spec.type,
-            timestamp: Date.now(),
-            payload: ev,
-            metadata: {
-              correlation_id: ev.id,
-              sender: ev.calendar ?? 'calendar',
-              subject: ev.title,
-              consent_verified: true, // Calendar grant is OS-mediated.
-            },
-          };
-          emit(event);
-        }
-        // Prune seenFired so it doesn't grow without bound. Anything we
-        // saw more than 24h ago can be safely forgotten.
-        if (seenFired.size > 1000) {
-          seenFired.clear();
-        }
+        await this.pollOnce(spec, emit, state, pollMs);
       } catch (err) {
         console.error('[fleet.calendar] poll failed:', err instanceof Error ? err.message : err);
       }
@@ -143,14 +156,71 @@ export class CalendarTriggerSource implements TriggerSource {
       },
     };
   }
-}
 
-function chooseBackend(): 'macos-eventkit' | 'google' | 'none' {
-  const env = (process.env.PD_CALENDAR_BACKEND ?? '').toLowerCase();
-  if (env === 'macos') return 'macos-eventkit';
-  if (env === 'google') return 'google';
-  if (process.platform === 'darwin') return 'macos-eventkit';
-  return 'none';
+  /** One poll pass. Public-ish so tests exercise the fire logic without
+   *  timers; start() drives the same code on its interval. */
+  async pollOnce(
+    spec: TriggerSpec,
+    emit: (event: FleetTriggerEvent) => void,
+    state: { fired: Map<string, number> },
+    pollMs = 30_000,
+  ): Promise<void> {
+    const leadMs = spec.arg ? parseDuration(spec.arg) : 5 * 60_000;
+    const calendarFilter = spec.filters.calendar ?? null;
+    const now = this.deps.now ?? Date.now;
+    const listEvents = this.resolveLister();
+    const nowMs = now();
+
+    // Window: recently-ended events (for event-ended) through the lead
+    // horizon plus one poll of slack, so nothing lands between ticks.
+    const fromISO = new Date(nowMs - 2 * pollMs - 60 * 60_000).toISOString();
+    const toISO = new Date(nowMs + leadMs + 2 * pollMs).toISOString();
+    const events = await listEvents(fromISO, toISO, calendarFilter ?? undefined);
+
+    for (const ev of events) {
+      if (calendarFilter && ev.calendar !== calendarFilter) continue;
+      const startMs = Date.parse(ev.start);
+      const endMs = Date.parse(ev.end);
+      if (Number.isNaN(startMs) || Number.isNaN(endMs)) continue;
+
+      const fireKey = `${ev.id}:${spec.type}`;
+      if (state.fired.has(fireKey)) continue;
+
+      const fireNow =
+        spec.type === 'event-starting'
+          ? startMs - nowMs <= leadMs && startMs > nowMs
+          : spec.type === 'event-ended'
+            ? endMs <= nowMs && endMs > nowMs - pollMs * 2
+            : false;
+      if (!fireNow) continue;
+
+      state.fired.set(fireKey, nowMs);
+      const { organizer, ...minimized } = ev;
+      const event: FleetTriggerEvent<CalendarEventPayload> = {
+        source: 'calendar',
+        type: spec.type,
+        timestamp: nowMs,
+        payload: minimized,
+        metadata: {
+          correlation_id: ev.id,
+          // Organizer is the content AUTHOR the trust gate can match
+          // against an operator allowlist; the calendar name is not.
+          sender: organizer ?? ev.calendar ?? 'calendar',
+          subject: ev.title,
+          // NEVER true here: the OS calendar grant authorizes reading,
+          // it does not verify who authored the event — a spam invite
+          // is attacker-controlled content (ADR-0093 invariant #1).
+          consent_verified: false,
+        },
+      };
+      emit(event);
+    }
+
+    // Prune by age, never wholesale.
+    for (const [key, at] of state.fired) {
+      if (nowMs - at > FIRED_RETENTION_MS) state.fired.delete(key);
+    }
+  }
 }
 
 function parseDuration(input: string): number {
@@ -160,18 +230,4 @@ function parseDuration(input: string): number {
   const unit = (match[2] ?? 'm').toLowerCase();
   const mult = unit === 's' ? 1000 : unit === 'm' ? 60_000 : unit === 'h' ? 3_600_000 : 86_400_000;
   return value * mult;
-}
-
-/**
- * STUBBED. The real implementation either:
- *   - shells `osascript` against the Calendar.app scripting interface
- *     (cheap but slow; only works while Calendar is running), or
- *   - links a small Swift helper around EventKit that we ship alongside
- *     the daemon and call via XPC, or
- *   - calls the Google Calendar v3 API with the operator's OAuth token.
- *
- * Operator setup required — see module header.
- */
-async function fetchUpcomingEvents(): Promise<CalendarEvent[]> {
-  return [];
 }

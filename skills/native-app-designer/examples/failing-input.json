@@ -1,0 +1,12 @@
+{
+  "component": "QuickActionsBar",
+  "platform": "ios",
+  "usesSfSymbolsNotEmojiIcons": false,
+  "honorsDynamicType": false,
+  "minTapTargetPt": 30,
+  "minBodyFontPt": 11,
+  "respectsSafeAreas": true,
+  "lightAndDark": false,
+  "contrastMinRatio": 3.1,
+  "usesSystemMaterials": false
+}

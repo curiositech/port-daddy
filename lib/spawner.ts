@@ -1021,7 +1021,11 @@ function runCustom(spec: SpawnSpec, context?: BackendRunContext): Promise<Backen
  * `claude-code` (or `claude`), `codex`, `gemini`, `groq`, `grok`.
  * When set, every spawn — regardless of `spec.backend` — routes through the
  * matching `cli:<tool>` backend. Empty / unset / unrecognized values disable
- * the override (fail-closed: the original backend stays in place).
+ * the env override but still fall through to the persisted selection.
+ * `PD_USE_CLI_BACKEND=none` (or off/disabled/0/false) hard-disables the
+ * override INCLUDING the persisted fallback — the only per-process escape
+ * hatch from an operator's ~/.port-daddy-cli-backend (tests rely on this;
+ * see tests/jest.env.js).
  *
  * This is the operator-level "I already pay for a CLI subscription, use
  * my unmetered CLI for everything" knob. Documented in

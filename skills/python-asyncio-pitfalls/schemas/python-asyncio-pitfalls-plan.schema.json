@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/python-asyncio-pitfalls-plan.schema.json",
+  "title": "Python Asyncio Concurrency Plan",
+  "description": "A structured asyncio concurrency design (interpreter version, fan-out primitive, blocking-call offload, timeout/cancellation posture), so this skill's trap catalog and Quality Gates can be checked deterministically by scripts/python_asyncio_pitfalls_audit.mjs.",
+  "type": "object",
+  "required": ["pythonMinor", "fanOutPrimitive", "blockingCallsPresent"],
+  "additionalProperties": true,
+  "properties": {
+    "pythonMinor": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "The Python 3.x minor version the code targets (e.g. 11 for Python 3.11). Gates TaskGroup and asyncio.timeout availability."
+    },
+    "fanOutPrimitive": {
+      "type": "string",
+      "enum": ["taskgroup", "gather", "gather-return-exceptions", "wait", "manual-create-task", "none"],
+      "description": "The primitive used for concurrent fan-out. taskgroup is the safe default on 3.11+."
+    },
+    "siblingCancellationRequired": {
+      "type": "boolean",
+      "description": "True if a failure in one fan-out task should cancel its siblings."
+    },
+    "blockingCallsPresent": {
+      "type": "boolean",
+      "description": "True if any synchronous/blocking call (requests, time.sleep, psycopg2, CPU-bound work) sits inside a coroutine path."
+    },
+    "blockingOffload": {
+      "type": "string",
+      "enum": ["to-thread", "run-in-executor-thread", "run-in-executor-process", "none"],
+      "description": "How blocking calls are kept off the loop. Required to be non-none when blockingCallsPresent is true."
+    },
+    "externalCallsHaveTimeouts": {
+      "type": "boolean",
+      "description": "True if every awaited external call (HTTP, DB, queue peer) is wrapped in a timeout."
+    },
+    "timeoutPrimitive": {
+      "type": "string",
+      "enum": ["asyncio-timeout", "wait-for", "none"],
+      "description": "Which timeout primitive is used. asyncio.timeout requires 3.11+ and integrates with TaskGroup."
+    },
+    "cancelledErrorReRaised": {
+      "type": "boolean",
+      "description": "True if every except CancelledError handler re-raises after cleanup."
+    },
+    "usesQueue": {
+      "type": "boolean",
+      "description": "True if the design uses an asyncio.Queue between producers and consumers."
+    },
+    "queueBounded": {
+      "type": "boolean",
+      "description": "True if every asyncio.Queue has an explicit maxsize for backpressure."
+    },
+    "usesSyncQueue": {
+      "type": "boolean",
+      "description": "True if queue.Queue (the synchronous one) appears inside async code. Must be false."
+    },
+    "connectionPoolsAtStartup": {
+      "type": "boolean",
+      "description": "True if connection pools (httpx.AsyncClient, asyncpg) are constructed once at app startup, not per request."
+    },
+    "requestScopedState": {
+      "type": "string",
+      "enum": ["contextvars", "thread-local", "globals", "none"],
+      "description": "How request-scoped state is carried. contextvars is the only task-safe answer."
+    },
+    "debugModeInDev": {
+      "type": "boolean",
+      "description": "True if loop.set_debug(True) / PYTHONASYNCIODEBUG=1 is enabled in dev, with slow_callback_duration alerting in prod."
+    }
+  }
+}

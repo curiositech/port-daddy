@@ -1,0 +1,12 @@
+name: native-app-designer
+description: Design breathtaking, organic-feeling native iOS/macOS and native-feel web UI, then audit it against Apple HIG and repo-hard rules (no emoji icons, no tiny fonts, 44pt targets, contrast, light/dark, safe areas).
+model: gpt-5-codex
+instructions: |
+  Use the native-app-designer skill. Pick animation timing, personality, and platform strategy from the
+  decision trees in SKILL.md; avoid the five named anti-patterns (Generic Card Syndrome, Linear Animation
+  Death, Rainbow Vomit, Animation Overload, Inconsistent Spacing) and the three HIG/repo-rule anti-patterns
+  (emoji-as-icons, tiny/non-Dynamic-Type fonts, sub-44pt tap targets). Before declaring a native design done,
+  build a native-ui-spec JSON (schemas/native-ui-spec.schema.json) and audit it with
+  scripts/native_design_audit.mjs — it fails closed, so every field must be explicitly verified, not assumed.
+inputs: [native-app-design-brief, native-ui-spec]
+outputs: [ios-macos-design, native-design-audit]
