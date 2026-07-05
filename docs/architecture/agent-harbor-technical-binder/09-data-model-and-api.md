@@ -1,5 +1,15 @@
 # 09 Data Model And API
 
+> **Reconciled by ADR-0095 (v0 contract freeze), fork resolution 5.** This chapter
+> predates the ch14 AgentRun naming rule. It now carries an `agent_runs` table, a
+> `current_run_id` on `agent_nodes`, a nullable `run_id` on `control_commands`,
+> `cost_events`, `skill_grafts`, and `work_receipts`, and moves the per-attempt
+> continuation chain to run level (`successor_run_id` / `predecessor_run_id` on
+> `agent_runs`); the session-level successor columns are a derived view, not the source of
+> truth. `cost_events.timestamp` is renamed `occurred_at` to match the frozen
+> `CostAccrualEvent`. Field names and shapes are authoritative in
+> `schemas/agent-harbor/v0/`; where prose and schema disagree, the schema wins.
+
 ## Rule
 
 If the daemon cannot query it, the operator cannot trust it.
@@ -59,8 +69,30 @@ last_heartbeat_at
 last_event_at
 current_session_id
 current_body_id
+current_run_id      -- ADR-0095 fork 5: the live AgentRun attempt
 memory_scope_id
 policy_id
+```
+
+`agent_runs` (ADR-0095 fork resolution 5 — one execution attempt by a Body attached to a
+node; the node endures, bodies die and are replaced, and continuation lives here)
+
+```text
+id
+agent_node_id
+session_id          -- exactly one session and one transcript stream per run
+body_id
+plan_id
+intent_id
+transcript_id
+status              -- attaching, running, paused, human-gate, blocked, completed,
+                    --   failed, canceled, abandoned, orphaned
+started_at
+stopped_at
+stop_reason
+successor_run_id    -- resume creates a successor run; old history is never mutated
+predecessor_run_id
+receipt_id
 ```
 
 `agent_bodies`
@@ -127,8 +159,8 @@ goal
 status
 started_at
 ended_at
-successor_session_id
-predecessor_session_id
+successor_session_id     -- ADR-0095 fork 5: derived view over agent_runs continuation,
+predecessor_session_id   --   not the source of truth; run-level linkage is authoritative
 ```
 
 `repositories`
@@ -269,10 +301,11 @@ released_at
 id
 agent_node_id
 session_id
-kind              -- pause, interrupt, steer, checkpoint, resume, retire, fork
+run_id            -- ADR-0095 fork 5: nullable AgentRun linkage
+kind              -- pause, interrupt, steer, checkpoint, resume, retire, fork, kill
 payload_json
 requested_by
-status            -- queued, delivered, acknowledged, failed, expired
+status            -- queued, delivered, acknowledged, failed, expired, unsupported
 created_at
 delivered_at
 acknowledged_at
@@ -319,6 +352,7 @@ revoked_at
 id
 agent_node_id
 session_id
+run_id            -- ADR-0095 fork 5: nullable AgentRun linkage
 skill_card_id
 level             -- light, reference, full, tool, team
 reason
@@ -354,6 +388,7 @@ expires_at
 id
 agent_node_id
 session_id
+run_id            -- ADR-0095 fork 5: nullable AgentRun linkage
 harbor_id
 transcript_head_hash
 diff_hash
@@ -372,13 +407,14 @@ created_at
 id
 agent_node_id
 session_id
+run_id            -- ADR-0095 fork 5: nullable AgentRun linkage
 provider
 meter             -- tokens, seconds, storage, relay, custom
 quantity
 estimated_cost_usd
 actual_cost_usd
 budget_id
-timestamp
+occurred_at       -- ADR-0095: renamed from timestamp to match CostAccrualEvent.occurredAt
 ```
 
 ## Endpoint shape
@@ -592,5 +628,5 @@ Required test fixtures:
 - missing hook remediation;
 - file preview path traversal rejection;
 - transcript search result opens source;
-- successor session inherits predecessor packet;
+- successor run inherits predecessor packet (ADR-0095 fork 5: continuation is run-level);
 - Work Receipt verifies transcript and diff hash.

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/agent-run.schema.json",
+  "title": "AgentRun",
+  "description": "One execution attempt by a Body attached to an Agent Node (binder ch14 naming rule). The AnodeAdapter attaches a body to a node, producing a run joined to exactly one session and one transcript stream. Bodies die and are replaced; the node endures.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.agent-run.v0" },
+    "runId": { "type": "string", "minLength": 1 },
+    "agentNodeId": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": "string", "minLength": 1, "description": "Non-null for official runs. Historical imports that cannot be joined stay observed and must not invent a session." },
+    "bodyId": { "type": "string" },
+    "planId": { "type": "string" },
+    "intentId": { "type": "string" },
+    "body": {
+      "type": "object",
+      "properties": {
+        "kind": { "enum": ["claude-code", "codex-cli", "cloudflare", "ollama", "lmstudio", "custom-stdio", "custom-http", "human"] },
+        "provider": { "type": "string" },
+        "modelTier": { "enum": ["fast", "mid", "strong", "local", "custom"] },
+        "modelName": { "type": ["string", "null"], "description": "Provider-specific resolved model name. Both tier and resolved name must be visible (ch18 C2 gate)." },
+        "launchMode": { "enum": ["native", "hooked", "proxy", "observed", "unmanaged"] },
+        "adapterVersion": { "type": "string" },
+        "pid": { "type": ["number", "null"] },
+        "remoteEndpoint": { "type": ["string", "null"] }
+      },
+      "required": ["kind", "provider", "modelTier", "launchMode"]
+    },
+    "workspace": {
+      "type": "object",
+      "properties": {
+        "repo": { "type": "string" },
+        "worktree": { "type": "string" },
+        "branch": { "type": "string" },
+        "baseCommit": { "type": "string" }
+      }
+    },
+    "transcriptId": { "type": ["string", "null"], "description": "Non-null before the first model turn for official runs." },
+    "retentionPolicyId": { "type": ["string", "null"] },
+    "status": { "enum": ["attaching", "running", "paused", "human-gate", "blocked", "completed", "failed", "canceled", "abandoned", "orphaned"] },
+    "startedAt": { "type": "string", "minLength": 1 },
+    "stoppedAt": { "type": ["string", "null"] },
+    "stopReason": { "type": ["string", "null"] },
+    "successorRunId": { "type": ["string", "null"], "description": "Resume means create a successor with captured state, never mutate old history." },
+    "predecessorRunId": { "type": ["string", "null"] },
+    "budget": {
+      "type": "object",
+      "properties": {
+        "maxSpendUsd": { "type": "number", "minimum": 0 },
+        "timeoutMs": { "type": "number", "minimum": 0 }
+      }
+    },
+    "receiptId": { "type": ["string", "null"] }
+  },
+  "required": ["schema", "runId", "agentNodeId", "sessionId", "body", "status", "startedAt"],
+  "additionalProperties": true
+}

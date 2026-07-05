@@ -207,7 +207,14 @@ Documents`.
   registered, sandboxed (Coast Guard), budgeted, and salvageable.
 - **Keep the README current.** When a slice changes a surface an operator or
   contributor reads about, update `README.md` in the same PR — a stale README is a
-  caught lie just like a stale citation.
+  caught lie just like a stale citation. This is now enforced at commit time:
+  the pre-commit hook runs `scripts/check-readme-freshness.mjs`, which blocks a
+  commit that stages `cli/permission-tiers.ts`, `mcp/server.ts`,
+  `docs/openapi.yaml`, `pd-fleet.yml`, `features.manifest.json`, or a NEW
+  `cli/commands/` file without a staged README.md. If the change is genuinely internal, bypass with
+  `PD_README_OK=1 git commit …` (the bypass is logged). The README's title
+  version is a synced surface (`scripts/sync-version.ts` +
+  `check-version-drift.mjs`), so never hand-edit the version number.
 
 ## Pull Request Operating Procedure
 
@@ -347,6 +354,17 @@ both count. The escape hatch for a genuinely non-visual change is an explicit
 *presence*; whether the artifacts actually show ideal behavior (vs. an error or
 loading state) is judged by the `claude-adversarial-review` workflow, which presumes
 failure on sparse evidence.
+
+**How to capture without interrupting the operator** — the operator is usually
+LIVE on this machine; never open windows, launch headed browsers, or click the
+real menu bar to pose screenshots. The full decision ladder (headless
+Playwright for web, `screencapture -x -l <window-id>` for already-open windows,
+capture harnesses / dev-lane bundles for native apps, computer-use MCP as last
+resort, honest partials over staged evidence) lives in
+`skills/port-daddy-agent-skill/references/visual-evidence.md`. Read it before
+producing any visual artifact. Runtime screenshot evidence flows through the
+default blob store at `~/.port-daddy/blobs` (`lib/blob.ts`) — intake fails
+loudly rather than dropping evidence.
 
 - **TUI / pd-console panes**: record with `vhs` (tape committed under
   `core/pd-console/docs/artifacts/`) — capture per-pane stills + a tour GIF.
@@ -716,7 +734,11 @@ icon colour + label so you can tell them apart in the Dock at a glance:
 |------|--------|-----------|------|-----------|
 | **prod** | `~/Applications/pd-console-prod.app` | the Homebrew cut | **blue**, `vX.Y.Z` badge | yes |
 | **latest** | `~/Applications/pd-console-latest.app` | `main` | **green**, `latest` badge | yes |
-| **dev** | `~/Applications/pd-console-dev-apps/pd-console_dev-<name>.app` | your worktree | **amber**, `dev·<name>` badge | no |
+| **dev** | `~/Applications/pd-console-dev-apps/pd-console-dev-<YYYYMMDD-HHMM>-<name>.app` | your worktree | **amber**, `dev·<name>` badge | no |
+
+Dev bundle filenames lead with the build stamp (`YYYYMMDD-HHMM`) so the folder
+sorts chronologically — newest build is visually obvious. Rebuilding the same
+`<name>` retires that name's older bundles (`PD_CONSOLE_KEEP_OLD_DEV=1` keeps them).
 
 The one tool is `core/pd-console/scripts/package-console.sh`:
 
@@ -740,3 +762,33 @@ bash scripts/package-console.sh --devbuild parley-pane # YOUR isolated build —
   `scripts/sign-and-notarize.mjs`), and ships `pd-console-prod.app` alongside `pd`/`port-daddy`.
   Set `PD_CONSOLE_SIGN_IDENTITY` for a real-signed local prod build; default is ad-hoc.
 - Dev lane never touches the `~/.port-daddy/bin/pd-console` PATH shim — only prod/latest do.
+
+## FleetBar lanes + the app watcher (auto-refresh on main / Homebrew cuts)
+
+FleetBar mirrors the console's lane model via `apps/FleetBar/scripts/package-fleetbar-lane.sh`:
+
+| Lane | Bundle | launchd label |
+|------|--------|---------------|
+| **prod** | `~/Applications/Port Daddy/FleetBar.app` | `com.portdaddy.fleetbar` |
+| **latest** | `~/Applications/Port Daddy/FleetBar (dev-latest).app` | `com.portdaddy.fleetbar.devlatest` |
+| **dev** | `~/Applications/Port Daddy/FleetBar-dev-<YYYYMMDD-HHMM>-<name>.app` | none (`open` once) |
+
+prod/latest are KeepAlive menu-bar agents, so the lane script swaps the bundle and
+`launchctl` re-bootstraps + kickstarts the label — "close running, launch new" is one command.
+
+**The operator's machine keeps itself fresh** via `scripts/pd-app-watch.sh`
+(LaunchAgent `com.portdaddy.appwatch`, installed by `scripts/install-app-watch.sh`,
+polling every 3 min):
+
+- `origin/main` moved → rebuild + relaunch **pd-console-latest.app** and
+  **FleetBar (dev-latest).app**. Polling, not a git hook, because main mostly moves
+  via the GitHub merge queue where no local hook fires.
+- the Homebrew tap cut a new `port-daddy` version → `brew upgrade` (re-starting the
+  daemon service if brew churn unloaded it), then rebuild + relaunch
+  **pd-console-prod.app** and **FleetBar.app** from that release tag.
+
+Builds run in a dedicated clone at `~/.port-daddy/app-watch/repo` — never in anyone's
+working checkout. State + per-build logs live in `~/.port-daddy/app-watch/`; the main
+log is `~/.port-daddy/app-watch.log`. A SHA/version whose build fails is not retried
+until it moves again (the failure notification tells the operator); force a rerun with
+`~/.port-daddy/bin/pd-app-watch.sh --force-latest` / `--force-prod`.

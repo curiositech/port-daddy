@@ -1,0 +1,31 @@
+{
+  "schema": "pd.agent-harbor.compliance-probe-result.v0",
+  "probeId": "probe_01JZFIX0001",
+  "agentNodeId": "agent_node_01JZFIX0001",
+  "bodyId": "body_01JZFIX0001",
+  "adapterKind": "codex-cli",
+  "probedAt": "2026-07-05T12:01:00.000Z",
+  "complianceLevel": "C2",
+  "witnessedLevel": "C2",
+  "transcriptFidelity": "T4",
+  "checks": [
+    { "name": "can-register", "passed": true, "daemonWitnessed": true, "level": "C0", "details": "nonce challenge answered" },
+    { "name": "streams-canonical-events", "passed": true, "daemonWitnessed": true, "level": "C1", "details": "sequence + hash chain verified" },
+    { "name": "tool-preflight-routed", "passed": true, "daemonWitnessed": true, "level": "C2", "details": "destructive git denied before side effects" },
+    { "name": "turn-start-guidance", "passed": false, "daemonWitnessed": true, "level": "C3", "details": "adapter does not inject guidance yet" }
+  ],
+  "negativeProbes": [
+    { "kind": "forged-level", "targetLevel": "C1", "present": true, "fired": true, "downgraded": true, "observedLevel": "C0", "details": "body claimed a verified transcript with no hash chain; daemon recomputed effective level from observed events" },
+    { "kind": "forged-level", "targetLevel": "C2", "present": true, "fired": true, "downgraded": true, "observedLevel": "C1", "details": "body reported governed writes while a shell side effect skipped preflight; downgraded to C1" },
+    { "kind": "direct-mcp-bypass", "targetLevel": "C2", "present": true, "fired": true, "downgraded": true, "observedLevel": "C1", "details": "modified MCP config wrote around the gateway; unexpected write path detected" },
+    { "kind": "disabled-hook-after-launch", "targetLevel": "C2", "present": true, "fired": false, "downgraded": false },
+    { "kind": "forged-heartbeat", "targetLevel": "C0", "present": true, "fired": false, "downgraded": false },
+    { "kind": "observed-to-controlled", "targetLevel": "C2", "present": true, "fired": false, "downgraded": false }
+  ],
+  "failedChecks": ["turn-start-guidance"],
+  "remediation": [
+    { "issue": "No turn-start guidance channel.", "action": "Install or enable the Port Daddy hook pack.", "oneClick": true }
+  ],
+  "downgrade": { "from": null, "to": null, "mode": null, "reason": "" },
+  "privacyImplications": ["Visible reasoning summaries only; provider exposes no hidden reasoning."]
+}

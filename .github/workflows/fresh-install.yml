@@ -1,0 +1,47 @@
+name: Fresh-install smoke
+
+# "Does the SHIPPED release work on a clean machine?" — the test class that every
+# in-repo smoke is blind to (Gatekeeper quarantine, code signing, the published
+# feed). Downloads the real GitHub release artifacts onto a pristine runner and
+# exercises them. Runs AFTER a release, on a daily schedule, and on demand — never
+# on PR push, so it gates published releases rather than in-flight branches.
+
+on:
+  release:
+    types: [published]
+  schedule:
+    - cron: '17 13 * * *'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to smoke (e.g. v3.21.0). Blank = latest.'
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  fresh-install:
+    strategy:
+      fail-fast: false
+      matrix:
+        # macos-14/-15 are pinned Apple Silicon (arm64) images — the smoke script
+        # only supports Darwin/arm64, and "macos-latest" is a moving target that
+        # GitHub has repointed across architectures before.
+        os: [macos-14, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node (for the SHA/feed assertions in the smoke)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fresh-install smoke against the published release
+        # inputs.tag is operator-supplied — pass it through env, never interpolate
+        # untrusted input directly into the run script.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PD_RELEASE_TAG: ${{ inputs.tag }}
+        run: bash scripts/fresh-install-smoke.sh

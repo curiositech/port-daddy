@@ -1265,6 +1265,24 @@
         "sdk": false
       }
     },
+    "fleet_hitl_proposals": {
+      "description": "Human-in-the-loop proposal queue for cloud fleet ships: ships submit inert ideas, the operator approves or rejects them in FleetBar/pd-console, and approval hands the proposal to dispatch.",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /fleet-proposals",
+        "GET /fleet-proposals",
+        "GET /fleet-proposals/:id",
+        "POST /fleet-proposals/:id/approve",
+        "POST /fleet-proposals/:id/reject"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Operator-only HITL HTTP surface consumed by FleetBar and pd-console. Ships may submit proposals, but approve/reject is a human decision and not exposed as a routine agent MCP tool."
+    },
     "backend": {
       "description": "CLI surface for the fleet backend catalog \u2014 list available backends with cost-model framing (subscription/metered/local/cli), switch the forced backend via PD_USE_CLI_BACKEND, and roll up spend per window. The CLI-tube backends (cli:claude-code, cli:codex, cli:gemini, cli:groq, cli:grok) ride the operator's existing CLI subscriptions (Claude Max, ChatGPT Pro, Google account, Groq account, SuperGrok) at $0 marginal cost. Read-only CLI surface \u2014 uses existing routes owned by the fleet + metrics features.",
       "cli": [

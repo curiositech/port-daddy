@@ -317,6 +317,10 @@ describe('Test Group 3: API -> CLI Parity', () => {
     attest: ['attest'],
     spawn: ['spawn', 'spawned'],
     fleet: ['fleet'],
+    // fleethitlproposals: ship-submitted idea packets become operator
+    // approve/reject decisions in FleetBar/pd-console; `pd fleet` remains the
+    // CLI umbrella rather than adding a routine human-approval CLI flow.
+    fleethitlproposals: ['fleet'],
     harbors: ['harbor', 'harbors'],
     whois: ['whois'],
     orchestrator: ['up', 'down'],
