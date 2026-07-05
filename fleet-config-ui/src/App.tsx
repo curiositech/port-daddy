@@ -1,11 +1,13 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, CheckCircle2, FileCog, Gauge, ShieldCheck, ShipWheel, Sun, Moon, Play, RefreshCw, Square, Users, WalletCards, Wifi } from 'lucide-react';
 import { AllProjectsList } from './components/ProjectPicker';
 import ProjectPicker from './components/ProjectPicker';
 import AgentCard from './components/AgentCard';
 import AgentConfigPanel from './components/AgentConfigPanel';
-import FlowGraph from './components/FlowGraph';
+// Lazy: FlowGraph is the sole @xyflow/react importer — splitting it keeps
+// the graph engine out of the initial webview chunk (measured: 1056 kB → see PR).
+const FlowGraph = lazy(() => import('./components/FlowGraph'));
 import ChannelLog, { type ChannelEvent } from './components/ChannelLog';
 import DMPanel from './components/DMPanel';
 import SortiePanel from './components/SortiePanel';
@@ -1742,15 +1744,17 @@ export default function App() {
                       </div>
                       <div className="flex-1 min-h-0 overflow-hidden">
                         {fleetConfig ? (
-                          <FlowGraph
-                            config={fleetConfig}
-                            topology={topology}
-                            theme={theme}
-                            selectedAgent={selectedAgent}
-                            selectedChannel={selectedChannel}
-                            onAgentSelect={focusAgent}
-                            onChannelSelect={focusChannel}
-                          />
+                          <Suspense fallback={<div className="flex items-center justify-center h-full opacity-20" style={{ color: 'var(--pd-text)' }}>Loading graph...</div>}>
+                            <FlowGraph
+                              config={fleetConfig}
+                              topology={topology}
+                              theme={theme}
+                              selectedAgent={selectedAgent}
+                              selectedChannel={selectedChannel}
+                              onAgentSelect={focusAgent}
+                              onChannelSelect={focusChannel}
+                            />
+                          </Suspense>
                         ) : (
                           <div className="flex items-center justify-center h-full opacity-20" style={{ color: 'var(--pd-text)' }}>Loading config...</div>
                         )}
