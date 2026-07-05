@@ -153,7 +153,16 @@ export class CostAccrualLedger {
         + 'stream accrual after abort/failure/finalization would corrupt the partial-cost fact',
       );
     }
+    // Validate BEFORE mutating accrual state: a negative quantity or cost
+    // would both violate the frozen schema (minimum: 0) and corrupt the
+    // partial-cost fact / budget thresholds if it landed after mutation.
     if (!(usage.quantity >= 0)) throw new Error('stream usage quantity must be >= 0');
+    if (usage.estimatedCostUsd != null && !(usage.estimatedCostUsd >= 0)) {
+      throw new Error('stream usage estimatedCostUsd must be >= 0');
+    }
+    if (usage.actualCostUsd != null && !(usage.actualCostUsd >= 0)) {
+      throw new Error('stream usage actualCostUsd must be >= 0');
+    }
     this.accruedQuantity += usage.quantity;
     const usd = usage.estimatedCostUsd ?? 0;
     this.accruedUsd += usd;

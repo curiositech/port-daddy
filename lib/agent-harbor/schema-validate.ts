@@ -12,10 +12,12 @@
  * fields pass. Fail-closed compiler: an unknown validation keyword in a schema
  * throws instead of silently not validating.
  *
- * The published npm package ships lib/ but not schemas/, so schema files can
- * be absent at runtime in installed environments. validateAgainstSchema then
- * returns { skipped: true } rather than pretending it validated; tests always
- * run from the repo and exercise the real path.
+ * The npm package ships schemas/ (package.json "files" — added with this
+ * module), so installed environments normally find the contract files. The
+ * { skipped: true } path remains as a fail-safe for layouts where they are
+ * genuinely absent (e.g. single-binary bundles or trimmed vendored copies):
+ * skipping is reported honestly rather than pretending validation happened;
+ * tests always run from the repo and exercise the real path.
  */
 
 import { readFileSync, existsSync } from 'node:fs';

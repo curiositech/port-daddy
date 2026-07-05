@@ -1487,11 +1487,14 @@ _pd_cmd_work() {
   )
   if (( CURRENT == 2 )); then
     _describe -t subcmds 'work subcommand' subcmds
-  else
+  elif [[ ${words[2]} == probe ]]; then
+    # --adapter/--profile are probe-only flags; matrix/help take only --json.
     _arguments \
       '--adapter[adapter kind]:kind:(claude-code codex-cli cloudflare ollama lmstudio custom-stdio custom-http)' \
       '--profile[fixture profile]:profile:(compliant weak broken malicious)' \
       '(-j --json)'{-j,--json}'[JSON output]'
+  else
+    _arguments '(-j --json)'{-j,--json}'[JSON output]'
   fi
 }
 

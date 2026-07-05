@@ -98,7 +98,8 @@ export function capabilityMatrixRows(): Array<{
   defaultLaunchMode: string;
   modelTiers: string;
 }> {
-  return Object.values(CAPABILITY_MATRIX).map((p) => ({
+  // Row order is explicitly the frozen kind enum, not object insertion order.
+  return ADAPTER_KINDS.map((kind) => CAPABILITY_MATRIX[kind]).map((p) => ({
     kind: p.kind,
     displayName: p.displayName,
     complianceCeiling: p.complianceCeiling,

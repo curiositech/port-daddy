@@ -472,6 +472,20 @@ describe('ch18 C2 gate: partial cost survives abort or failed body start', () =>
     expect(exceeded.budgetId).toBe('budget_1');
   });
 
+  it('rejects negative stream usage BEFORE mutating accrual state (schema minimum: 0)', () => {
+    const ledger = new CostAccrualLedger({ ...baseOpts, runId: 'run_negative' });
+    ledger.recordStart();
+    ledger.recordStream({ quantity: 100, estimatedCostUsd: 0.01 });
+    expect(() => ledger.recordStream({ quantity: -5 })).toThrow(/quantity must be >= 0/);
+    expect(() => ledger.recordStream({ quantity: 1, estimatedCostUsd: -0.5 })).toThrow(/estimatedCostUsd must be >= 0/);
+    expect(() => ledger.recordStream({ quantity: 1, actualCostUsd: -0.5 })).toThrow(/actualCostUsd must be >= 0/);
+    // State was not corrupted by the rejected usages: the abort fact carries
+    // only the accepted accrual.
+    const abort = ledger.recordAbort();
+    expect(abort.quantity).toBe(100);
+    expect(abort.estimatedCostUsd).toBeCloseTo(0.01, 10);
+  });
+
   it('idempotency keys are unique per fact and events carry the run linkage', () => {
     const ledger = new CostAccrualLedger({ ...baseOpts, runId: 'run_idem' });
     ledger.recordStart();

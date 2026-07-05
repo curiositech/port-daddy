@@ -1558,6 +1558,7 @@ _port_daddy() {
     # (ADR-0095 Work Intent family; binder ch18 Work Order C2)
     # -----------------------------------------------------------------------
     work)
+      local work_sub="${words[2]:-}"
       case "$prev" in
         work)
           # shellcheck disable=SC2207
@@ -1571,7 +1572,14 @@ _port_daddy() {
           # shellcheck disable=SC2207
           COMPREPLY=( $(compgen -W "compliant weak broken malicious" -- "$cur") )
           ;;
-        *) _pd_opts '--adapter --profile --json' ;;
+        *)
+          # --adapter/--profile are probe-only flags; matrix/help take only --json.
+          if [[ "$work_sub" == probe ]]; then
+            _pd_opts '--adapter --profile --json'
+          else
+            _pd_opts '--json'
+          fi
+          ;;
       esac
       ;;
 
