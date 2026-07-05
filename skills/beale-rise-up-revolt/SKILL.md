@@ -1,17 +1,17 @@
 ---
 license: Apache-2.0
-name: kephart-chess-2003-autonomic-computing
+name: beale-rise-up-revolt
 description: >-
-  IBM's autonomic computing vision for self-managing systems with self-configuration, healing, optimization, and
-  protection
+  Russell Beale's "Rise up, Revolt!" analysis of why users blame themselves for bad design, and how
+  consciousness-raising (not designer education) is the lever that fixes usability at a market level
 metadata:
   category: Research & Academic
   tags:
-    - autonomic-computing
-    - self-management
-    - self-healing
-    - self-optimization
-    - ibm
+    - hci
+    - usability
+    - user-empowerment
+    - design-accountability
+    - consciousness-raising
   io-contract:
     kind: none
     covers:

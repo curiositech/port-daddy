@@ -11,3 +11,37 @@ HSTS takes a different approach: domain knowledge is encoded as **compatibility 
 ## The Structure of Compatibilities
 
 A compatibility has the form:
+
+`[temporal-relation <comp-class, state-variable, value-type>]`
+
+which reads: "while this value is occurring on its state variable, a behavior segment of type
+`value-type` on `state-variable` must exist, standing in relation `temporal-relation` to the current
+value." (See `compatibility-constraints-as-causal-knowledge.md` for the full temporal-relation
+vocabulary — `before`, `after`, `contained-by`, `contains`, `meets`, `equals` — and a worked example
+built from a telescope's `LOCKED` state.)
+
+## From Templates to Justification Trees
+
+The distinctive move in HSTS is what happens to a compatibility once it is attached to an actual
+occurrence in the plan: it becomes an obligation the planner must discharge, and every value token
+in the timeline accumulates its own instance of its type's compatibility template, called a **causal
+justification tree**. Each leaf of that tree is one compatibility; a leaf is "open" until a matching
+behavior segment is found or created elsewhere on the timeline, and "achieved" once it is. The tree's
+root is achieved only when every mandatory compatibility underneath it is achieved — at that point,
+the token's presence in the plan is fully explained: every state it depends on, every resource it
+needs, and every legal predecessor/successor it requires has been accounted for.
+
+This is what "causal justification" means concretely: not just that a value is scheduled, but that
+the *reason* it is legal to schedule is recorded and checkable. A plan is not just a set of
+non-conflicting activities; it is a set of activities each of which carries an explicit, inspectable
+argument for why it is allowed to occur where it does.
+
+## Application to Agent Systems
+
+For agent orchestration, the causal-justification-tree idea is the difference between "the workflow
+ran without erroring" and "every step in the workflow can point to the specific upstream fact,
+resource, or approval that justified it." Attaching a compatibility template to each task type (what
+inputs must exist, what capability must be available, what prior approval must be recorded) and
+tracking which of those obligations are open versus achieved gives an orchestrator the same benefit
+HSTS gets: when something goes wrong, the open leaves of the justification tree localize exactly what
+was never established, instead of leaving the failure as an undifferentiated "the pipeline broke."

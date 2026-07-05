@@ -50,3 +50,19 @@ The state variable model generalizes cleanly across the full range of resource a
 ## Compatibilities: Encoding Causal Structure in the Model
 
 Every value on every state variable comes with a **compatibility specification** — an AND/OR graph of temporal constraints that must be satisfied by any legal system behavior containing that value. A compatibility has the form:
+
+`[temporal-relation <comp-class, state-variable, value-type>]`
+
+read as: "while this value is occurring, a behavior segment of `value-type` on `state-variable` must
+exist, standing in `temporal-relation` (before, after, contained-by, contains, meets, equals) to the
+current value." This is what lets the state-variable model carry causal structure that classical
+scheduling's bare resource profiles cannot: `LOCKED(?T)` isn't just "the pointing device is busy" —
+its compatibility specification says a `LOCKING(?T)` must immediately precede it and `visibility(?T)`
+must hold `VISIBLE` throughout it, which is a causal justification, not merely a reservation.
+
+See `compatibility-constraints-as-causal-knowledge.md` for the full temporal-relation vocabulary and a
+worked example, and `compatibility-specifications-and-causal-justification.md` for how these templates
+become per-token causal justification trees during planning. For agent orchestration, the same move —
+attaching a compatibility template to each task type rather than treating a task as an opaque unit of
+work — is what makes it possible to check *why* a step is legal to run, not just that its inputs happen
+to be present.

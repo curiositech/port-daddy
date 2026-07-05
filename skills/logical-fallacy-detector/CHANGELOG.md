@@ -14,17 +14,6 @@
 - Recorded CTA audit snapshot from `/Users/erichowens/coding/workgroup-ai/.windags/cta-upgrades/logical-fallacy-detector/audit.json`
 
 ## 2026-04-17
-- Recovered upgraded skill assets from `/Users/erichowens/coding/workgroup-ai/.claude/worktrees/agent-aa6fba4b/skills/logical-fallacy-detector`
-- Applied CTA SKILL.md overlay from `/Users/erichowens/coding/workgroup-ai/.windags/cta-upgrades/logical-fallacy-detector/after.md`
-- Recorded CTA audit snapshot from `/Users/erichowens/coding/workgroup-ai/.windags/cta-upgrades/logical-fallacy-detector/audit.json`
-
-## 2026-04-17
-- Folder affordance pass refreshed scorecard, reference index, and Mermaid companion artifacts
-
-## 2026-04-17
-- Structural bridge pass added or normalized decision, failure, example, quality-gate, and Mermaid scaffolding
-
-## 2026-04-17
 - Folder affordance pass refreshed scorecard, reference index, and Mermaid companion artifacts
 
 ## 2026-04-18
