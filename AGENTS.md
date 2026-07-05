@@ -206,7 +206,14 @@ Documents`.
   registered, sandboxed (Coast Guard), budgeted, and salvageable.
 - **Keep the README current.** When a slice changes a surface an operator or
   contributor reads about, update `README.md` in the same PR — a stale README is a
-  caught lie just like a stale citation.
+  caught lie just like a stale citation. This is now enforced at commit time:
+  the pre-commit hook runs `scripts/check-readme-freshness.mjs`, which blocks a
+  commit that stages `cli/permission-tiers.ts`, `mcp/server.ts`,
+  `docs/openapi.yaml`, `pd-fleet.yml`, `features.manifest.json`, or a NEW
+  `cli/commands/` file without a staged README.md. If the change is genuinely internal, bypass with
+  `PD_README_OK=1 git commit …` (the bypass is logged). The README's title
+  version is a synced surface (`scripts/sync-version.ts` +
+  `check-version-drift.mjs`), so never hand-edit the version number.
 
 ## Pull Request Operating Procedure
 

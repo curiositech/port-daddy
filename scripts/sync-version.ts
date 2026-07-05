@@ -119,4 +119,30 @@ consoleCargo = consoleCargo.replace(consoleCargoVersionRe, `$1${version}$2`);
 writeFileSync(consoleCargoPath, consoleCargo);
 console.log(`  ✓ core/pd-console/Cargo.toml version → ${version}`);
 
+// README.md title — the repo's front door. This surface rotted from 3.13 to
+// 3.24 without anyone noticing, which is why it is now stamped + gated like
+// every other distribution surface (see also scripts/check-readme-freshness.mjs
+// for the content-freshness commit gate).
+const readmePath = join(ROOT, 'README.md');
+const readmeVersionRe = /^(# ⚓ Port Daddy \(v)[\w.\-+]+(\))/m;
+let readmeContent = readFileSync(readmePath, 'utf-8');
+if (!readmeVersionRe.test(readmeContent)) {
+  throw new Error(`sync-version.ts: README.md title version "# ⚓ Port Daddy (vX.Y.Z)" not found — the front-door version would silently rot again. Restore the title before releasing.`);
+}
+readmeContent = readmeContent.replace(readmeVersionRe, `$1${version}$2`);
+writeFileSync(readmePath, readmeContent);
+console.log(`  ✓ README.md title → ${version}`);
+
+// docs/openapi.yaml info.version — the daemon's API version IS the product
+// version; it lied at 3.10.0 for months before being added here.
+const openapiPath = join(ROOT, 'docs', 'openapi.yaml');
+const openapiVersionRe = /^(  version:\s*)[\w.\-+]+$/m;
+let openapiContent = readFileSync(openapiPath, 'utf-8');
+if (!openapiVersionRe.test(openapiContent)) {
+  throw new Error(`sync-version.ts: info.version literal not found in docs/openapi.yaml.`);
+}
+openapiContent = openapiContent.replace(openapiVersionRe, `$1${version}`);
+writeFileSync(openapiPath, openapiContent);
+console.log(`  ✓ docs/openapi.yaml info.version → ${version}`);
+
 console.log(`\nVersion ${version} synced to all surfaces.`);

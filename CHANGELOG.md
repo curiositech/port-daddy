@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **README rewritten against the live v3.24 surface.** The front-door doc had rotted at v3.13: it never mentioned `pd setup`, `pd parley`, `pd dispatch`/`pd review`, `pd safe`, `pd secret` corralling, `pd cut`, daemon berths (`pd dev`/`pd use`), `pd embed`, `pd attention`/`pd nudge`, `pd transcripts`, or the harness lanes; it still advertised the retired web dashboard as "The Dashboard (HUD)"; its OpenAPI stats (96 paths/125 ops) and test badge (3,700+) were stale; and it never said `pd begin --lifecycle` is mandatory. The rewrite documents the three sanctioned operator surfaces (FleetBar, Control Center, pd-console), adds a complete Command Index grouped by task, refreshes the destructive-command list from `cli/permission-tiers.ts`, and states verified numbers (178 MCP tools + 6 resources, 115 API paths / 146 operations, 7,300+ test cases).
+
+### Added
+- **Commit-time README freshness gate (`scripts/check-readme-freshness.mjs`).** The pre-commit hook now blocks a commit that stages changes to README-documented surfaces — `cli/permission-tiers.ts`, `mcp/server.ts`, `docs/openapi.yaml`, `pd-fleet.yml`, `features.manifest.json`, or a NEW file under `cli/commands/` — without staging a README.md update alongside. Edits to existing command files do not trigger (internal churn is not a new verb). Escape hatch for genuinely internal changes: `PD_README_OK=1 git commit …` (logged to stderr). `npm run check:readme-freshness` runs it standalone; regression-tested in `tests/unit/readme-freshness-gate.test.js`.
+- **README.md title and `docs/openapi.yaml` `info.version` are now synced + gated version surfaces.** `scripts/sync-version.ts` stamps both on every version bump (and `postversion` stages them), and `scripts/check-version-drift.mjs` fails CI when either drifts — the README can never silently claim an old version again, and the OpenAPI spec no longer lies at 3.10.0.
+
 ## [3.24.1] - 2026-07-04
 
 ### Fixed
