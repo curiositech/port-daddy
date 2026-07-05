@@ -41,7 +41,10 @@ impl FleetRun {
             pr_number: n(v, "prNumber"),
             repo: s(v, "repo"),
             conclusion: s(v, "conclusion"),
-            ships: arr(v, "ships").iter().filter_map(|x| x.as_str().map(String::from)).collect(),
+            ships: arr(v, "ships")
+                .iter()
+                .filter_map(|x| x.as_str().map(String::from))
+                .collect(),
             elapsed_ms: n(v, "elapsedMs"),
             created_at: n(v, "createdAt"),
         }
@@ -126,7 +129,9 @@ async fn fetch_json(
             if !status.is_success() {
                 return Err(format!("GET {url} → {status}"));
             }
-            resp.json::<Value>().await.map_err(|e| format!("bad response: {e}"))
+            resp.json::<Value>()
+                .await
+                .map_err(|e| format!("bad response: {e}"))
         }
     }
 }
@@ -153,7 +158,10 @@ impl Pane for CloudFleetPane {
 
         if let Some(err) = &self.last_error {
             blocks.push(Block::KeyVal("error".into(), err.clone()));
-            blocks.push(Block::Chip { label: "relay unreachable".into(), tone: Tone::Gated });
+            blocks.push(Block::Chip {
+                label: "relay unreachable".into(),
+                tone: Tone::Gated,
+            });
             return blocks;
         }
 
@@ -165,17 +173,28 @@ impl Pane for CloudFleetPane {
             } else {
                 "running".into()
             },
-            tone: if alarmed { Tone::Conflicted } else { Tone::Engaged },
+            tone: if alarmed {
+                Tone::Conflicted
+            } else {
+                Tone::Engaged
+            },
         });
         if let Some(age) = self.last_run_age_sec {
-            blocks.push(Block::KeyVal("last run".into(), format!("{} ago", age_short(age * 1000))));
+            blocks.push(Block::KeyVal(
+                "last run".into(),
+                format!("{} ago", age_short(age * 1000)),
+            ));
         } else {
             blocks.push(Block::KeyVal("last run".into(), "—".into()));
         }
         if let Some(dlq) = self.dlq_depth {
             blocks.push(Block::KeyVal(
                 "dead-letter queue".into(),
-                if dlq > 0 { format!("{dlq} — needs operator") } else { "0".into() },
+                if dlq > 0 {
+                    format!("{dlq} — needs operator")
+                } else {
+                    "0".into()
+                },
             ));
         }
 
@@ -200,7 +219,12 @@ impl Pane for CloudFleetPane {
                     label: if run.ships.is_empty() {
                         format!("PR #{}: {}", run.pr_number, run.conclusion)
                     } else {
-                        format!("PR #{}: {} · {}", run.pr_number, run.conclusion, run.ships.join(", "))
+                        format!(
+                            "PR #{}: {} · {}",
+                            run.pr_number,
+                            run.conclusion,
+                            run.ships.join(", ")
+                        )
                     },
                     tone: conclusion_tone(&run.conclusion),
                 });
@@ -211,10 +235,17 @@ impl Pane for CloudFleetPane {
         blocks.push(Block::Gap);
         blocks.push(Block::Header("Ships".into()));
         if self.ships.is_empty() {
-            blocks.push(Block::KeyVal("status".into(), "no ships declared in relay config".into()));
+            blocks.push(Block::KeyVal(
+                "status".into(),
+                "no ships declared in relay config".into(),
+            ));
         } else {
             for ship in &self.ships {
-                let role = if ship.role.is_empty() { "—".to_string() } else { trunc(&ship.role, 48) };
+                let role = if ship.role.is_empty() {
+                    "—".to_string()
+                } else {
+                    trunc(&ship.role, 48)
+                };
                 blocks.push(Block::KeyVal(format!("• {}", trunc(&ship.name, 24)), role));
             }
         }
@@ -257,10 +288,19 @@ impl Pane for CloudFleetPane {
             }
 
             // Recent activity (tolerated independently — a failure here keeps health).
-            match fetch_json(daemon, &format!("{base}/v1/fleet/activity?limit=30"), &token).await {
+            match fetch_json(
+                daemon,
+                &format!("{base}/v1/fleet/activity?limit=30"),
+                &token,
+            )
+            .await
+            {
                 Err(e) => self.last_error = Some(e),
                 Ok(data) => {
-                    self.activity = arr(&data, "runs").iter().map(FleetRun::from_value).collect();
+                    self.activity = arr(&data, "runs")
+                        .iter()
+                        .map(FleetRun::from_value)
+                        .collect();
                 }
             }
 
@@ -278,7 +318,10 @@ impl Pane for CloudFleetPane {
                     };
                     self.ships = ships_val
                         .iter()
-                        .map(|v| ShipPrompt { name: s(v, "name"), role: s(v, "role") })
+                        .map(|v| ShipPrompt {
+                            name: s(v, "name"),
+                            role: s(v, "role"),
+                        })
                         .collect();
                 }
             }
@@ -310,7 +353,13 @@ mod tests {
             b, Block::KeyVal(_, v) if v.contains("PD_CONSOLE_RELAY_URL")
         )));
         // No error chip — absence of config is not a failure.
-        assert!(!blocks.iter().any(|b| matches!(b, Block::Chip { tone: Tone::Gated, .. })));
+        assert!(!blocks.iter().any(|b| matches!(
+            b,
+            Block::Chip {
+                tone: Tone::Gated,
+                ..
+            }
+        )));
     }
 
     #[test]
@@ -318,8 +367,16 @@ mod tests {
         let mut p = configured();
         p.last_error = Some("relay unreachable: boom".into());
         let blocks = p.view();
-        assert!(blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k == "error")));
-        assert!(blocks.iter().any(|b| matches!(b, Block::Chip { tone: Tone::Gated, .. })));
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::KeyVal(k, _) if k == "error")));
+        assert!(blocks.iter().any(|b| matches!(
+            b,
+            Block::Chip {
+                tone: Tone::Gated,
+                ..
+            }
+        )));
     }
 
     #[test]
@@ -382,10 +439,15 @@ mod tests {
             elapsed_ms: 12345,
             created_at: 1719432000,
         }];
-        p.ships = vec![ShipPrompt { name: "linter".into(), role: "style + lint review".into() }];
+        p.ships = vec![ShipPrompt {
+            name: "linter".into(),
+            role: "style + lint review".into(),
+        }];
         let blocks = p.view();
         // A row per run + a colored verdict chip.
-        assert!(blocks.iter().any(|b| matches!(b, Block::Row(cells) if cells[1] == "PR #7")));
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::Row(cells) if cells[1] == "PR #7")));
         assert!(blocks.iter().any(|b| matches!(
             b, Block::Chip { tone: Tone::Conflicted, label } if label.contains("PR #7")
         )));

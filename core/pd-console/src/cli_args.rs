@@ -18,8 +18,11 @@ where
         initial_pane: value_after(&args, "--pane"),
         display_selector: value_after(&args, "--display"),
         list_displays: args.iter().any(|a| a == "--list-displays"),
-        control_sock: value_after(&args, "--control-sock")
-            .or_else(|| std::env::var("PD_CONSOLE_CONTROL_SOCK").ok().filter(|s| !s.trim().is_empty())),
+        control_sock: value_after(&args, "--control-sock").or_else(|| {
+            std::env::var("PD_CONSOLE_CONTROL_SOCK")
+                .ok()
+                .filter(|s| !s.trim().is_empty())
+        }),
     }
 }
 

@@ -80,15 +80,15 @@ impl Sem {
     /// 16-color fallback — semantic ANSI, readable on light AND dark themes.
     fn ansi16(self) -> &'static str {
         match self {
-            Sem::Ink => "39",     // default foreground
+            Sem::Ink => "39", // default foreground
             Sem::Ink2 => "39",
             Sem::Muted => "90",   // bright black
             Sem::Accent => "33",  // yellow (amber)
             Sem::Engaged => "34", // blue
             Sem::Gated => "31",   // red
             Sem::Resting => "90",
-            Sem::Landed => "32",  // green
-            Sem::Alarm => "91",   // bright red — louder than gated's 31
+            Sem::Landed => "32", // green
+            Sem::Alarm => "91",  // bright red — louder than gated's 31
         }
     }
 }
@@ -130,7 +130,10 @@ pub struct TermStyle {
 
 impl TermStyle {
     pub fn detect(theme: &'static Theme) -> Self {
-        Self { mode: ColorMode::detect(), theme }
+        Self {
+            mode: ColorMode::detect(),
+            theme,
+        }
     }
 
     pub fn with_mode(mode: ColorMode, theme: &'static Theme) -> Self {
@@ -368,7 +371,11 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                     out.push_str(&format!("  {}\n", line.join(&format!(" {sep} "))));
                 }
             }
-            Block::ChatTurn { speaker, text, tone } => {
+            Block::ChatTurn {
+                speaker,
+                text,
+                tone,
+            } => {
                 let sem = tone.sem();
                 let label = if speaker.trim().is_empty() {
                     "agent".to_string()
@@ -457,7 +464,11 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                 ));
                 i += 1;
             }
-            Block::Flag { letter, label, tone } => {
+            Block::Flag {
+                letter,
+                label,
+                tone,
+            } => {
                 // TUI hoist: a bracketed signal letter painted in the flag tone,
                 // then the label. (The GPU face draws the colored square.)
                 let sem = tone.sem();
@@ -512,7 +523,10 @@ mod tests {
         let blocks = vec![
             Block::Header("Fleet".into()),
             Block::KeyVal("total".into(), "3".into()),
-            Block::Chip { label: "ok".into(), tone: Tone::Landed },
+            Block::Chip {
+                label: "ok".into(),
+                tone: Tone::Landed,
+            },
         ];
         let out = render_blocks(&blocks, &s);
         assert!(!out.contains('\x1b'), "plain mode leaked ANSI: {out:?}");
@@ -546,7 +560,7 @@ mod tests {
     #[test]
     fn ansi16_uses_semantic_codes() {
         let s = TermStyle::with_mode(ColorMode::Ansi16, &DARK);
-        assert!(s.paint("e", Sem::Gated).starts_with("\x1b[31m"));   // red = error
+        assert!(s.paint("e", Sem::Gated).starts_with("\x1b[31m")); // red = error
         assert!(s.paint("ok", Sem::Landed).starts_with("\x1b[32m")); // green = success
     }
 
@@ -593,7 +607,7 @@ mod tests {
         assert_eq!(display_width("a日b"), 4); // 1 + 2 + 1
         assert_eq!(char_width('🚀'), 2); // emoji is wide
         assert_eq!(char_width('\u{0301}'), 0); // combining acute accent
-        // "e" + combining acute renders as one column.
+                                               // "e" + combining acute renders as one column.
         assert_eq!(display_width("e\u{0301}"), 1);
     }
 

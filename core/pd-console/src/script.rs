@@ -37,10 +37,19 @@ use crate::pane::{Alert, Block};
 pub enum ScriptRequest {
     Ping,
     Panes,
-    Focus { pane: String },
-    State { pane: Option<String> },
-    Galaxy { window_hours: Option<u32>, min_tokens: Option<u32> },
-    Rebind { url: String },
+    Focus {
+        pane: String,
+    },
+    State {
+        pane: Option<String>,
+    },
+    Galaxy {
+        window_hours: Option<u32>,
+        min_tokens: Option<u32>,
+    },
+    Rebind {
+        url: String,
+    },
     Alerts,
 }
 
@@ -67,7 +76,9 @@ pub fn parse_request(line: &str) -> Result<ScriptRequest, String> {
                 .and_then(Value::as_str)
                 .filter(|s| !s.trim().is_empty())
                 .ok_or_else(|| "focus needs \"pane\"".to_string())?;
-            Ok(ScriptRequest::Focus { pane: pane.trim().to_string() })
+            Ok(ScriptRequest::Focus {
+                pane: pane.trim().to_string(),
+            })
         }
         "state" => Ok(ScriptRequest::State {
             pane: v
@@ -77,12 +88,18 @@ pub fn parse_request(line: &str) -> Result<ScriptRequest, String> {
                 .map(|s| s.trim().to_string()),
         }),
         "galaxy" => {
-            let window_hours = v.get("windowHours").and_then(Value::as_u64).map(|n| n as u32);
+            let window_hours = v
+                .get("windowHours")
+                .and_then(Value::as_u64)
+                .map(|n| n as u32);
             let min_tokens = v.get("minTokens").and_then(Value::as_u64).map(|n| n as u32);
             if window_hours.is_none() && min_tokens.is_none() {
                 return Err("galaxy needs windowHours and/or minTokens".to_string());
             }
-            Ok(ScriptRequest::Galaxy { window_hours, min_tokens })
+            Ok(ScriptRequest::Galaxy {
+                window_hours,
+                min_tokens,
+            })
         }
         "rebind" => {
             let url = v
@@ -90,7 +107,9 @@ pub fn parse_request(line: &str) -> Result<ScriptRequest, String> {
                 .and_then(Value::as_str)
                 .filter(|s| !s.trim().is_empty())
                 .ok_or_else(|| "rebind needs \"url\"".to_string())?;
-            Ok(ScriptRequest::Rebind { url: url.trim().to_string() })
+            Ok(ScriptRequest::Rebind {
+                url: url.trim().to_string(),
+            })
         }
         "alerts" => Ok(ScriptRequest::Alerts),
         other => Err(format!(
@@ -113,7 +132,12 @@ pub fn block_to_json(block: &Block) -> Value {
         Block::ArtifactRef { label, path, .. } => {
             json!({"type": "artifact", "label": label, "path": path})
         }
-        Block::ImageArtifact { label, path, image_path, .. } => {
+        Block::ImageArtifact {
+            label,
+            path,
+            image_path,
+            ..
+        } => {
             json!({"type": "image", "label": label, "path": path, "imagePath": image_path})
         }
         Block::Chip { label, .. } => json!({"type": "chip", "label": label}),
@@ -167,7 +191,13 @@ pub fn start_server(sock_path: String, tx: mpsc::Sender<ScriptEnvelope>) {
                         Err(err) => json!({"ok": false, "error": err}),
                         Ok(request) => {
                             let (reply_tx, reply_rx) = mpsc::channel();
-                            if tx.send(ScriptEnvelope { request, reply: reply_tx }).is_err() {
+                            if tx
+                                .send(ScriptEnvelope {
+                                    request,
+                                    reply: reply_tx,
+                                })
+                                .is_err()
+                            {
                                 json!({"ok": false, "error": "console shutting down"})
                             } else {
                                 match reply_rx.recv_timeout(Duration::from_secs(5)) {
@@ -199,10 +229,15 @@ mod tests {
     #[test]
     fn parses_every_command() {
         assert_eq!(parse_request(r#"{"cmd":"ping"}"#), Ok(ScriptRequest::Ping));
-        assert_eq!(parse_request(r#"{"cmd":"panes"}"#), Ok(ScriptRequest::Panes));
+        assert_eq!(
+            parse_request(r#"{"cmd":"panes"}"#),
+            Ok(ScriptRequest::Panes)
+        );
         assert_eq!(
             parse_request(r#"{"cmd":"focus","pane":"galaxy"}"#),
-            Ok(ScriptRequest::Focus { pane: "galaxy".into() })
+            Ok(ScriptRequest::Focus {
+                pane: "galaxy".into()
+            })
         );
         assert_eq!(
             parse_request(r#"{"cmd":"state"}"#),
@@ -210,26 +245,41 @@ mod tests {
         );
         assert_eq!(
             parse_request(r#"{"cmd":"state","pane":"parley"}"#),
-            Ok(ScriptRequest::State { pane: Some("parley".into()) })
+            Ok(ScriptRequest::State {
+                pane: Some("parley".into())
+            })
         );
         assert_eq!(
             parse_request(r#"{"cmd":"galaxy","windowHours":720}"#),
-            Ok(ScriptRequest::Galaxy { window_hours: Some(720), min_tokens: None })
+            Ok(ScriptRequest::Galaxy {
+                window_hours: Some(720),
+                min_tokens: None
+            })
         );
         assert_eq!(
             parse_request(r#"{"cmd":"galaxy","minTokens":64}"#),
-            Ok(ScriptRequest::Galaxy { window_hours: None, min_tokens: Some(64) })
+            Ok(ScriptRequest::Galaxy {
+                window_hours: None,
+                min_tokens: Some(64)
+            })
         );
         assert_eq!(
             parse_request(r#"{"cmd":"rebind","url":"http://127.0.0.1:9899"}"#),
-            Ok(ScriptRequest::Rebind { url: "http://127.0.0.1:9899".into() })
+            Ok(ScriptRequest::Rebind {
+                url: "http://127.0.0.1:9899".into()
+            })
         );
-        assert_eq!(parse_request(r#"{"cmd":"alerts"}"#), Ok(ScriptRequest::Alerts));
+        assert_eq!(
+            parse_request(r#"{"cmd":"alerts"}"#),
+            Ok(ScriptRequest::Alerts)
+        );
     }
 
     #[test]
     fn rejects_malformed_input_with_a_reason() {
-        assert!(parse_request("not json").unwrap_err().starts_with("bad json"));
+        assert!(parse_request("not json")
+            .unwrap_err()
+            .starts_with("bad json"));
         assert_eq!(parse_request(r#"{"x":1}"#).unwrap_err(), "missing \"cmd\"");
         assert_eq!(
             parse_request(r#"{"cmd":"focus"}"#).unwrap_err(),
@@ -239,7 +289,9 @@ mod tests {
             parse_request(r#"{"cmd":"galaxy"}"#).unwrap_err(),
             "galaxy needs windowHours and/or minTokens"
         );
-        assert!(parse_request(r#"{"cmd":"warp"}"#).unwrap_err().starts_with("unknown cmd"));
+        assert!(parse_request(r#"{"cmd":"warp"}"#)
+            .unwrap_err()
+            .starts_with("unknown cmd"));
     }
 
     #[test]
@@ -247,7 +299,10 @@ mod tests {
         let blocks = vec![
             Block::Header("Session Galaxy".into()),
             Block::KeyVal("sessions".into(), "18".into()),
-            Block::Chip { label: "agent · bash — 12 session(s)".into(), tone: Tone::Engaged },
+            Block::Chip {
+                label: "agent · bash — 12 session(s)".into(),
+                tone: Tone::Engaged,
+            },
             Block::Gap,
         ];
         let out: Vec<Value> = blocks.iter().map(block_to_json).collect();
@@ -266,7 +321,8 @@ mod tests {
         // /var/folders/…, NOT /tmp) is used deliberately: unix socket paths
         // must fit SUN_LEN (104 bytes), and ~/-anchored paths break when a
         // sibling test (conjure) rebinds HOME under a deep scratch dir.
-        let dir = std::env::temp_dir().join(format!("pd-console-script-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("pd-console-script-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let sock = dir.join("ctl.sock").to_string_lossy().to_string();
 
@@ -276,7 +332,9 @@ mod tests {
         // A fake "foreground": answer every request with a canned pong.
         std::thread::spawn(move || {
             for env in rx.iter() {
-                let _ = env.reply.send(json!({"ok": true, "echo": format!("{:?}", env.request)}));
+                let _ = env
+                    .reply
+                    .send(json!({"ok": true, "echo": format!("{:?}", env.request)}));
             }
         });
 
@@ -295,8 +353,8 @@ mod tests {
             }
             std::thread::sleep(Duration::from_millis(20));
         }
-        let stream = stream
-            .unwrap_or_else(|| panic!("control socket never came up at {sock}: {last_err}"));
+        let stream =
+            stream.unwrap_or_else(|| panic!("control socket never came up at {sock}: {last_err}"));
         let mut writer = stream.try_clone().unwrap();
         let mut reader = BufReader::new(stream);
 

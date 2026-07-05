@@ -59,7 +59,11 @@ pub fn resolve_operator_identity() -> String {
     match out {
         Ok(o) if o.status.success() => {
             let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            if s.is_empty() { DEFAULT_IDENTITY.to_string() } else { s }
+            if s.is_empty() {
+                DEFAULT_IDENTITY.to_string()
+            } else {
+                s
+            }
         }
         _ => DEFAULT_IDENTITY.to_string(),
     }
@@ -67,7 +71,11 @@ pub fn resolve_operator_identity() -> String {
 
 /// Width of the gutter line-number column for a file with `n` lines.
 fn gutter_width(n: usize) -> usize {
-    let digits = if n == 0 { 1 } else { (n as f64).log10().floor() as usize + 1 };
+    let digits = if n == 0 {
+        1
+    } else {
+        (n as f64).log10().floor() as usize + 1
+    };
     digits.max(2)
 }
 
@@ -287,7 +295,9 @@ mod tests {
     fn scratch_dir() -> PathBuf {
         let base = std::env::var("HOME")
             .map(|h| PathBuf::from(h).join("coding/tmp/pd-harbor-editor-tests"))
-            .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/editor-tests"));
+            .unwrap_or_else(|_| {
+                PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/editor-tests")
+            });
         std::fs::create_dir_all(&base).expect("create scratch dir");
         base
     }
@@ -337,12 +347,19 @@ mod tests {
     fn unreadable_path_yields_one_error_block() {
         let pane = make_pane("/nonexistent/path/does/not/exist.rs", None);
         let blocks = pane.view();
-        assert_eq!(row_count(&blocks), 0, "an unreadable file renders no content rows");
+        assert_eq!(
+            row_count(&blocks),
+            0,
+            "an unreadable file renders no content rows"
+        );
         let error_blocks = blocks
             .iter()
             .filter(|b| matches!(b, Block::KeyVal(k, _) if k == "error"))
             .count();
-        assert_eq!(error_blocks, 1, "exactly one error block on an unreadable path");
+        assert_eq!(
+            error_blocks, 1,
+            "exactly one error block on an unreadable path"
+        );
     }
 
     #[test]
@@ -359,7 +376,9 @@ mod tests {
 
     #[test]
     fn large_file_is_capped_and_marked_truncated() {
-        let big: String = (0..(MAX_LINES + 50)).map(|i| format!("line {i}\n")).collect();
+        let big: String = (0..(MAX_LINES + 50))
+            .map(|i| format!("line {i}\n"))
+            .collect();
         let path = write_temp("big.txt", &big);
         let pane = make_pane(&path, None);
         let blocks = pane.view();
@@ -367,7 +386,10 @@ mod tests {
         let has_trunc = blocks
             .iter()
             .any(|b| matches!(b, Block::Chip { label, .. } if label.contains("truncated")));
-        assert!(has_trunc, "a truncation chip is appended when the cap is hit");
+        assert!(
+            has_trunc,
+            "a truncation chip is appended when the cap is hit"
+        );
     }
 
     #[test]
@@ -410,16 +432,28 @@ mod tests {
         let engaged_flag = blocks
             .iter()
             .any(|b| matches!(b, Block::Flag { tone: Tone::Engaged, label, .. } if label.contains("agent")));
-        assert!(resting_flag, "operator authorship legend flag (Resting) must render");
-        assert!(engaged_flag, "agent authorship legend flag (Engaged) must render once an agent line merges");
+        assert!(
+            resting_flag,
+            "operator authorship legend flag (Resting) must render"
+        );
+        assert!(
+            engaged_flag,
+            "agent authorship legend flag (Engaged) must render once an agent line merges"
+        );
 
         // The two lines carry different gutter author tags.
         let r = rows(&blocks);
         assert_eq!(r.len(), 2, "human line + merged agent line");
         let human_tag = author_tag(opener);
         let agent_tag = author_tag(peer_id_for_identity(agent_id));
-        assert!(r[0][0].contains(&human_tag), "line 0 gutter carries the operator's author tag");
-        assert!(r[1][0].contains(&agent_tag), "line 1 gutter carries the agent's author tag");
+        assert!(
+            r[0][0].contains(&human_tag),
+            "line 0 gutter carries the operator's author tag"
+        );
+        assert!(
+            r[1][0].contains(&agent_tag),
+            "line 1 gutter carries the agent's author tag"
+        );
         assert_eq!(r[1][1], "agent added this");
     }
 

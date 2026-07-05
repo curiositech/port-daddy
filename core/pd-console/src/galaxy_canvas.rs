@@ -387,7 +387,13 @@ fn hover_strip(
                         .flex()
                         .items_center()
                         .gap(px(tokens::SPACE_2))
-                        .child(div().w(px(10.0)).h(px(10.0)).rounded(px(10.0)).bg(rgb(color)))
+                        .child(
+                            div()
+                                .w(px(10.0))
+                                .h(px(10.0))
+                                .rounded(px(10.0))
+                                .bg(rgb(color)),
+                        )
                         .child(
                             div()
                                 .text_size(px(tokens::TEXT_BODY))
@@ -415,7 +421,10 @@ fn hover_strip(
                         div()
                             .text_size(px(tokens::TEXT_BODY))
                             .text_color(rgb(t.ink2))
-                            .child(format!("\u{201c}{}\u{201d}", crate::util::trunc(&p.snippet, 140))),
+                            .child(format!(
+                                "\u{201c}{}\u{201d}",
+                                crate::util::trunc(&p.snippet, 140)
+                            )),
                     )
                 })
                 .into_any_element()

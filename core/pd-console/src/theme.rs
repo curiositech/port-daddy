@@ -35,7 +35,11 @@ impl Oklch {
         let lin_b = -0.004_196_086 * l3 - 0.703_418_6 * m3 + 1.707_614_7 * s3;
         let enc = |v: f32| -> u32 {
             let v = v.clamp(0.0, 1.0);
-            let s = if v <= 0.003_130_8 { 12.92 * v } else { 1.055 * v.powf(1.0 / 2.4) - 0.055 };
+            let s = if v <= 0.003_130_8 {
+                12.92 * v
+            } else {
+                1.055 * v.powf(1.0 / 2.4) - 0.055
+            };
             (s.clamp(0.0, 1.0) * 255.0 + 0.5) as u32
         };
         (enc(lin_r) << 16) | (enc(lin_g) << 8) | enc(lin_b)

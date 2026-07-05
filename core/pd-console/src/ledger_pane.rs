@@ -95,7 +95,11 @@ impl Pane for LedgerPane {
         // ── Per-project burn bars (join byProject ⨝ wallets) ──────────────────
         blocks.push(Block::Header("By project — spend vs daily cap".into()));
         let empty: &[Value] = &[];
-        let by_project = self.cost.as_ref().map(|c| arr(c, "byProject")).unwrap_or(empty);
+        let by_project = self
+            .cost
+            .as_ref()
+            .map(|c| arr(c, "byProject"))
+            .unwrap_or(empty);
         let wallets = self
             .wallets
             .as_ref()
@@ -111,14 +115,18 @@ impl Pane for LedgerPane {
                 .unwrap_or("(unattributed)")
                 .to_string();
             let proj_spent = f(row, "totalUsd");
-            let wallet = wallets.iter().find(|w| {
-                w.get("project").and_then(|v| v.as_str()) == Some(proj.as_str())
-            });
+            let wallet = wallets
+                .iter()
+                .find(|w| w.get("project").and_then(|v| v.as_str()) == Some(proj.as_str()));
             let cap = wallet.map(|w| f(w, "budgetUsdPerDay")).filter(|c| *c > 0.0);
 
             match cap {
                 Some(cap) => {
-                    let pct = if cap > 0.0 { proj_spent / cap * 100.0 } else { 0.0 };
+                    let pct = if cap > 0.0 {
+                        proj_spent / cap * 100.0
+                    } else {
+                        0.0
+                    };
                     // Threshold tone: <70% landed (calm), 70–90% gated (watch),
                     // ≥90% conflicted (alarm). Color = the only meaning carried.
                     let tone = if pct >= 90.0 {
@@ -140,11 +148,7 @@ impl Pane for LedgerPane {
                     });
                 }
                 None => {
-                    blocks.push(Block::Row(vec![
-                        proj,
-                        usd(proj_spent),
-                        "no cap".into(),
-                    ]));
+                    blocks.push(Block::Row(vec![proj, usd(proj_spent), "no cap".into()]));
                 }
             }
             if let Some(w) = wallet {
@@ -256,9 +260,15 @@ mod tests {
         let mut pane = make_pane(None, None);
         pane.last_error = Some("daemon unreachable".into());
         let blocks = pane.view();
-        let has_gate = blocks
-            .iter()
-            .any(|b| matches!(b, Block::Chip { tone: Tone::Gated, .. }));
+        let has_gate = blocks.iter().any(|b| {
+            matches!(
+                b,
+                Block::Chip {
+                    tone: Tone::Gated,
+                    ..
+                }
+            )
+        });
         assert!(has_gate, "error state must surface a gated chip");
     }
 
@@ -285,25 +295,41 @@ mod tests {
 
         // The hero accent chip carries the 24h total.
         let hero = blocks.iter().find_map(|b| match b {
-            Block::Chip { label, tone: Tone::Accent } if label.contains("spent") => Some(label),
+            Block::Chip {
+                label,
+                tone: Tone::Accent,
+            } if label.contains("spent") => Some(label),
             _ => None,
         });
-        assert!(hero.map(|l| l.contains("$0.85")).unwrap_or(false), "hero must show 24h total");
+        assert!(
+            hero.map(|l| l.contains("$0.85")).unwrap_or(false),
+            "hero must show 24h total"
+        );
 
         // alpha at 80% must be a Gated (watch) chip; beta calm = Landed.
         let alpha_gated = blocks.iter().any(|b| matches!(
             b, Block::Chip { label, tone: Tone::Gated } if label.contains("alpha") && label.contains("80%")
         ));
-        assert!(alpha_gated, "alpha at 80% of cap must render a gated burn bar");
-        let beta_landed = blocks.iter().any(|b| matches!(
-            b, Block::Chip { label, tone: Tone::Landed } if label.contains("beta")
-        ));
-        assert!(beta_landed, "beta well under cap must render a landed burn bar");
+        assert!(
+            alpha_gated,
+            "alpha at 80% of cap must render a gated burn bar"
+        );
+        let beta_landed = blocks.iter().any(|b| {
+            matches!(
+                b, Block::Chip { label, tone: Tone::Landed } if label.contains("beta")
+            )
+        });
+        assert!(
+            beta_landed,
+            "beta well under cap must render a landed burn bar"
+        );
 
         // The wallet balance joined in for alpha.
-        let bal = blocks.iter().any(|b| matches!(
-            b, Block::KeyVal(k, v) if k.trim() == "balance" && v == "$5.00"
-        ));
+        let bal = blocks.iter().any(|b| {
+            matches!(
+                b, Block::KeyVal(k, v) if k.trim() == "balance" && v == "$5.00"
+            )
+        });
         assert!(bal, "wallet balance must be joined into the project rows");
     }
 
@@ -321,6 +347,9 @@ mod tests {
         let no_cap = blocks.iter().any(|b| matches!(
             b, Block::Row(cells) if cells.iter().any(|c| c == "gamma") && cells.iter().any(|c| c == "no cap")
         ));
-        assert!(no_cap, "without a wallet cap, project spend renders as a no-cap row");
+        assert!(
+            no_cap,
+            "without a wallet cap, project spend renders as a no-cap row"
+        );
     }
 }

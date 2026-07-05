@@ -45,12 +45,20 @@ impl ShipEntry {
                 trig
             } else {
                 let sched = s(v, "schedule");
-                if sched.is_empty() { "manual".into() } else { sched }
+                if sched.is_empty() {
+                    "manual".into()
+                } else {
+                    sched
+                }
             }
         };
         let lifecycle = {
             let lc = s(v, "lifecycle");
-            if lc.is_empty() { s(v, "status") } else { lc }
+            if lc.is_empty() {
+                s(v, "status")
+            } else {
+                lc
+            }
         };
         Self {
             project: project.to_string(),
@@ -89,7 +97,11 @@ pub struct FleetPane {
 
 impl Default for FleetPane {
     fn default() -> Self {
-        Self { ships: Vec::new(), fleets_running: 0, last_error: None }
+        Self {
+            ships: Vec::new(),
+            fleets_running: 0,
+            last_error: None,
+        }
     }
 }
 
@@ -99,7 +111,10 @@ impl FleetPane {
     }
 
     fn count(&self, lifecycle: &str) -> usize {
-        self.ships.iter().filter(|sh| sh.lifecycle == lifecycle).count()
+        self.ships
+            .iter()
+            .filter(|sh| sh.lifecycle == lifecycle)
+            .count()
     }
 }
 
@@ -139,7 +154,10 @@ impl Pane for FleetPane {
         blocks.push(Block::KeyVal("sailing".into(), sailing.to_string()));
         if drydock > 0 {
             // Dry-dock means retries are exhausted — surface it as an escalation line.
-            blocks.push(Block::KeyVal("⚓ dry-dock".into(), format!("{drydock} — needs operator")));
+            blocks.push(Block::KeyVal(
+                "⚓ dry-dock".into(),
+                format!("{drydock} — needs operator"),
+            ));
         }
         blocks.push(Block::Gap);
 
@@ -157,7 +175,11 @@ impl Pane for FleetPane {
             });
 
             // Detail line: tier · backend · what it answers to.
-            let tier = if sh.tier.is_empty() { "—".to_string() } else { sh.tier.clone() };
+            let tier = if sh.tier.is_empty() {
+                "—".to_string()
+            } else {
+                sh.tier.clone()
+            };
             blocks.push(Block::KeyVal(
                 "  rig".into(),
                 format!("{tier} · {} · {}", sh.backend, trunc(&sh.on, 28)),
@@ -166,8 +188,15 @@ impl Pane for FleetPane {
             // Retry budget — only worth showing once a ship has stumbled.
             if sh.consecutive_failures > 0 {
                 let retries = format!("{}/{}", sh.consecutive_failures, sh.max_respawns);
-                let note = if sh.is_dry_dock() { " (exhausted — dry-dock)" } else { "" };
-                blocks.push(Block::KeyVal("  retries".into(), format!("{retries}{note}")));
+                let note = if sh.is_dry_dock() {
+                    " (exhausted — dry-dock)"
+                } else {
+                    ""
+                };
+                blocks.push(Block::KeyVal(
+                    "  retries".into(),
+                    format!("{retries}{note}"),
+                ));
             }
             if sh.queue_depth > 0 {
                 blocks.push(Block::KeyVal("  queued".into(), sh.queue_depth.to_string()));
@@ -207,8 +236,9 @@ impl Pane for FleetPane {
                 Ok(resp) => {
                     let status = resp.status();
                     if !status.is_success() {
-                        self.last_error =
-                            Some(format!("GET /fleet → {status} (daemon may predate ship lifecycle)"));
+                        self.last_error = Some(format!(
+                            "GET /fleet → {status} (daemon may predate ship lifecycle)"
+                        ));
                         self.ships.clear();
                         self.fleets_running = 0;
                         return Ok(());
@@ -304,7 +334,9 @@ mod tests {
         let mut p = FleetPane::default();
         p.last_error = Some("daemon unreachable: boom".into());
         let blocks = p.view();
-        assert!(blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k == "error")));
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::KeyVal(k, _) if k == "error")));
         // Error state must not also render ship rows.
         assert!(!blocks.iter().any(|b| matches!(b, Block::Flag { .. })));
     }
@@ -314,7 +346,10 @@ mod tests {
         let p = populated();
         let blocks = p.view();
         // Every ship hoists a maritime flag.
-        let flag_count = blocks.iter().filter(|b| matches!(b, Block::Flag { .. })).count();
+        let flag_count = blocks
+            .iter()
+            .filter(|b| matches!(b, Block::Flag { .. }))
+            .count();
         assert_eq!(flag_count, 2, "one flag per ship");
         // The dry-dock ship is surfaced as an escalation line with the operator cue.
         assert!(blocks.iter().any(|b| matches!(

@@ -717,8 +717,8 @@ use crate::grid::NAV;
 fn launcher_tone(id: &str, t: &Theme) -> u32 {
     match id {
         "fleet" | "cockpit" | "sorties" | "lane" | "peek" | "chat" | "files" => t.cobalt,
-        "dispatch" | "conductor" | "parley" | "suggest" | "coast" | "coast-guard"
-        | "claims" | "conjure" => t.accent,
+        "dispatch" | "conductor" | "parley" | "suggest" | "coast" | "coast-guard" | "claims"
+        | "conjure" => t.accent,
         "roadmap" | "planner" | "adrs" | "memory" | "lineage" | "substrate" | "galaxy" => t.landed,
         _ => t.gated, // activity, sessions, inbox, prs, health, ledger
     }
@@ -3104,27 +3104,35 @@ impl ConsoleView {
                 }
                 out
             }
-            ScriptRequest::Galaxy { window_hours, min_tokens } => {
-                match &self.control_tx {
-                    Some(tx) => {
-                        let _ = tx.send(ControlMsg::GalaxyParams { window_hours, min_tokens });
-                        json!({
-                            "ok": true,
-                            "note": "params applied on the next 2s refresh",
-                            "windowHours": window_hours,
-                            "minTokens": min_tokens,
-                        })
-                    }
-                    None => json!({"ok": false, "error": "no control channel (view constructed without one)"}),
+            ScriptRequest::Galaxy {
+                window_hours,
+                min_tokens,
+            } => match &self.control_tx {
+                Some(tx) => {
+                    let _ = tx.send(ControlMsg::GalaxyParams {
+                        window_hours,
+                        min_tokens,
+                    });
+                    json!({
+                        "ok": true,
+                        "note": "params applied on the next 2s refresh",
+                        "windowHours": window_hours,
+                        "minTokens": min_tokens,
+                    })
                 }
-            }
+                None => {
+                    json!({"ok": false, "error": "no control channel (view constructed without one)"})
+                }
+            },
             ScriptRequest::Rebind { url } => match &self.control_tx {
                 Some(tx) => {
                     let _ = tx.send(ControlMsg::RebindDaemon { url: url.clone() });
                     self.daemon_url = url.clone();
                     json!({"ok": true, "daemon": url})
                 }
-                None => json!({"ok": false, "error": "no control channel (view constructed without one)"}),
+                None => {
+                    json!({"ok": false, "error": "no control channel (view constructed without one)"})
+                }
             },
             ScriptRequest::Alerts => json!({
                 "ok": true,
@@ -6286,11 +6294,7 @@ mod add_pane_tests {
                 CmdKind::LaneMessage,
                 "@skill native-app-designer",
             ),
-            (
-                "tool cargo test",
-                CmdKind::LaneMessage,
-                "@tool cargo test",
-            ),
+            ("tool cargo test", CmdKind::LaneMessage, "@tool cargo test"),
         ];
         for (line, kind, arg) in cases {
             let (k, a) = parse_verb(line).unwrap_or_else(|| panic!("'{line}' must parse"));

@@ -25,34 +25,164 @@ pub struct NavItem {
 }
 
 pub const NAV: &[NavItem] = &[
-    NavItem { id: "fleet",    label: "Fleet",    icon: "icons/nav/fleet.svg",    key: "1" },
-    NavItem { id: "cockpit",  label: "Cockpit",  icon: "icons/nav/cockpit.svg",  key: "2" },
-    NavItem { id: "sorties",  label: "Sorties",  icon: "icons/nav/sorties.svg",  key: "3" },
-    NavItem { id: "claims",   label: "Claims",   icon: "icons/nav/claims.svg",   key: "4" },
-    NavItem { id: "peek",     label: "Peek",     icon: "icons/nav/peek.svg",     key: "5" },
-    NavItem { id: "planner",  label: "Planner",  icon: "icons/nav/roadmap.svg",  key: "6" },
-    NavItem { id: "adrs",     label: "ADRs",     icon: "icons/nav/adrs.svg",     key: "7" },
-    NavItem { id: "activity", label: "Activity", icon: "icons/nav/activity.svg", key: "8" },
-    NavItem { id: "sessions", label: "Sessions", icon: "icons/nav/sessions.svg", key: "9" },
-    NavItem { id: "inbox",    label: "Inbox",    icon: "icons/nav/inbox.svg",    key: "0" },
-    NavItem { id: "suggest",  label: "Suggest",  icon: "icons/nav/suggest.svg",  key: "s" },
-    NavItem { id: "memory",   label: "Memory",   icon: "icons/nav/memory.svg",   key: "m" },
-    NavItem { id: "prs",      label: "PRs",      icon: "icons/nav/prs.svg",      key: "p" },
-    NavItem { id: "health",   label: "Health",   icon: "icons/nav/health.svg",   key: "h" },
-    NavItem { id: "coast-guard", label: "C.Guard", icon: "icons/nav/coast.svg", key: "c" },
-    NavItem { id: "dispatch", label: "Dispatch", icon: "icons/nav/dispatch.svg", key: "d" },
-    NavItem { id: "lane",     label: "Lane",     icon: "icons/nav/lane.svg",     key: "l" },
-    NavItem { id: "ledger",   label: "Cost",     icon: "icons/nav/ledger.svg",   key: "b" },
-    NavItem { id: "lineage",  label: "Lineage",  icon: "icons/nav/lineage.svg",  key: "g" },
-    NavItem { id: "substrate",label: "Substrate",icon: "icons/nav/substrate.svg",key: "y" },
-    NavItem { id: "parley",   label: "Parley",   icon: "icons/nav/parley.svg",   key: "j" },
-    NavItem { id: "conductor",label: "Conductor",icon: "icons/nav/conductor.svg",key: "k" },
-    NavItem { id: "daemons",  label: "Daemons",  icon: "icons/nav/daemons.svg",  key: "e" },
-    NavItem { id: "cloud-fleet", label: "Cloud Fleet", icon: "icons/nav/cloud-fleet.svg", key: "f" },
-    NavItem { id: "active-agents", label: "Agents", icon: "icons/nav/agents.svg", key: "a" },
+    NavItem {
+        id: "fleet",
+        label: "Fleet",
+        icon: "icons/nav/fleet.svg",
+        key: "1",
+    },
+    NavItem {
+        id: "cockpit",
+        label: "Cockpit",
+        icon: "icons/nav/cockpit.svg",
+        key: "2",
+    },
+    NavItem {
+        id: "sorties",
+        label: "Sorties",
+        icon: "icons/nav/sorties.svg",
+        key: "3",
+    },
+    NavItem {
+        id: "claims",
+        label: "Claims",
+        icon: "icons/nav/claims.svg",
+        key: "4",
+    },
+    NavItem {
+        id: "peek",
+        label: "Peek",
+        icon: "icons/nav/peek.svg",
+        key: "5",
+    },
+    NavItem {
+        id: "planner",
+        label: "Planner",
+        icon: "icons/nav/roadmap.svg",
+        key: "6",
+    },
+    NavItem {
+        id: "adrs",
+        label: "ADRs",
+        icon: "icons/nav/adrs.svg",
+        key: "7",
+    },
+    NavItem {
+        id: "activity",
+        label: "Activity",
+        icon: "icons/nav/activity.svg",
+        key: "8",
+    },
+    NavItem {
+        id: "sessions",
+        label: "Sessions",
+        icon: "icons/nav/sessions.svg",
+        key: "9",
+    },
+    NavItem {
+        id: "inbox",
+        label: "Inbox",
+        icon: "icons/nav/inbox.svg",
+        key: "0",
+    },
+    NavItem {
+        id: "suggest",
+        label: "Suggest",
+        icon: "icons/nav/suggest.svg",
+        key: "s",
+    },
+    NavItem {
+        id: "memory",
+        label: "Memory",
+        icon: "icons/nav/memory.svg",
+        key: "m",
+    },
+    NavItem {
+        id: "prs",
+        label: "PRs",
+        icon: "icons/nav/prs.svg",
+        key: "p",
+    },
+    NavItem {
+        id: "health",
+        label: "Health",
+        icon: "icons/nav/health.svg",
+        key: "h",
+    },
+    NavItem {
+        id: "coast-guard",
+        label: "C.Guard",
+        icon: "icons/nav/coast.svg",
+        key: "c",
+    },
+    NavItem {
+        id: "dispatch",
+        label: "Dispatch",
+        icon: "icons/nav/dispatch.svg",
+        key: "d",
+    },
+    NavItem {
+        id: "lane",
+        label: "Lane",
+        icon: "icons/nav/lane.svg",
+        key: "l",
+    },
+    NavItem {
+        id: "ledger",
+        label: "Cost",
+        icon: "icons/nav/ledger.svg",
+        key: "b",
+    },
+    NavItem {
+        id: "lineage",
+        label: "Lineage",
+        icon: "icons/nav/lineage.svg",
+        key: "g",
+    },
+    NavItem {
+        id: "substrate",
+        label: "Substrate",
+        icon: "icons/nav/substrate.svg",
+        key: "y",
+    },
+    NavItem {
+        id: "parley",
+        label: "Parley",
+        icon: "icons/nav/parley.svg",
+        key: "j",
+    },
+    NavItem {
+        id: "conductor",
+        label: "Conductor",
+        icon: "icons/nav/conductor.svg",
+        key: "k",
+    },
+    NavItem {
+        id: "daemons",
+        label: "Daemons",
+        icon: "icons/nav/daemons.svg",
+        key: "e",
+    },
+    NavItem {
+        id: "cloud-fleet",
+        label: "Cloud Fleet",
+        icon: "icons/nav/cloud-fleet.svg",
+        key: "f",
+    },
+    NavItem {
+        id: "active-agents",
+        label: "Agents",
+        icon: "icons/nav/agents.svg",
+        key: "a",
+    },
     // "G": every lowercase letter is taken across NAV, EXTRA_LAUNCHER_ITEMS, and
     // leader verbs; uppercase follows the O/U/Q/X precedent.
-    NavItem { id: "galaxy",   label: "Galaxy",   icon: "icons/nav/galaxy.svg",   key: "G" },
+    NavItem {
+        id: "galaxy",
+        label: "Galaxy",
+        icon: "icons/nav/galaxy.svg",
+        key: "G",
+    },
 ];
 
 /// Canonical slot → pane-id map: the single source of truth the producer thread
@@ -63,10 +193,32 @@ pub const NAV: &[NavItem] = &[
 /// here, in [`NAV`], and in the producer — or the gate turns red. Order is
 /// load-bearing (slot index == NAV index == producer index).
 pub const SLOT_PANE_IDS: [&str; 26] = [
-    "fleet", "cockpit", "sorties", "claims", "peek", "planner", "adrs",
-    "activity", "sessions", "inbox", "suggest", "memory", "prs", "health",
-    "coast-guard", "dispatch", "lane", "ledger", "lineage", "substrate", "parley",
-    "conductor", "daemons", "cloud-fleet", "active-agents", "galaxy",
+    "fleet",
+    "cockpit",
+    "sorties",
+    "claims",
+    "peek",
+    "planner",
+    "adrs",
+    "activity",
+    "sessions",
+    "inbox",
+    "suggest",
+    "memory",
+    "prs",
+    "health",
+    "coast-guard",
+    "dispatch",
+    "lane",
+    "ledger",
+    "lineage",
+    "substrate",
+    "parley",
+    "conductor",
+    "daemons",
+    "cloud-fleet",
+    "active-agents",
+    "galaxy",
 ];
 
 // ── Launcher-grid 1:1 invariants ────────────────────────────────────────────
@@ -105,7 +257,12 @@ mod tests {
         let mut keys = HashSet::new();
         for nav in NAV {
             assert!(ids.insert(nav.id), "duplicate grid id: '{}'", nav.id);
-            assert!(keys.insert(nav.key), "duplicate leader key '{}' (tile '{}')", nav.key, nav.id);
+            assert!(
+                keys.insert(nav.key),
+                "duplicate leader key '{}' (tile '{}')",
+                nav.key,
+                nav.id
+            );
         }
     }
 

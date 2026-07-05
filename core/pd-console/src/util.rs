@@ -115,7 +115,10 @@ mod tests {
     #[test]
     fn age_short_buckets() {
         assert_eq!(age_short(0), "—");
-        let now_ms = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
+        let now_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64;
         assert_eq!(age_short(now_ms - 30_000), "now");
         assert_eq!(age_short(now_ms - 120_000), "2m");
         assert_eq!(age_short(now_ms - 7_200_000), "2h");

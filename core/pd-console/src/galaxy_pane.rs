@@ -128,7 +128,10 @@ pub fn from_value(v: &Value) -> (Vec<GalaxyPoint>, Vec<GalaxyCluster>, Option<i6
         .map(GalaxyPoint::from_value)
         .filter(|p| !p.id.is_empty())
         .collect();
-    let clusters = arr(v, "clusters").iter().map(GalaxyCluster::from_value).collect();
+    let clusters = arr(v, "clusters")
+        .iter()
+        .map(GalaxyCluster::from_value)
+        .collect();
     let computed = n(v, "computedAt");
     (points, clusters, (computed > 0).then_some(computed))
 }
@@ -326,7 +329,10 @@ pub fn detail_from_value(v: &Value) -> GalaxyDetail {
 
     let mut d = GalaxyDetail {
         transcript_id: s(transcript, "id"),
-        agent_id: first_s(transcript, &["spawned_agent_id", "spawnedAgentId", "agentId"]),
+        agent_id: first_s(
+            transcript,
+            &["spawned_agent_id", "spawnedAgentId", "agentId"],
+        ),
         ship: s(transcript, "ship"),
         project: s(transcript, "project"),
         status: s(transcript, "status"),
@@ -417,7 +423,11 @@ pub fn detail_from_value(v: &Value) -> GalaxyDetail {
         .iter()
         .map(|mv| {
             let role = s(mv, "role");
-            let speaker = if role.is_empty() { "agent".to_string() } else { role };
+            let speaker = if role.is_empty() {
+                "agent".to_string()
+            } else {
+                role
+            };
             (speaker, message_text(mv))
         })
         .filter(|(_, text)| !text.trim().is_empty())
@@ -483,7 +493,10 @@ pub fn detail_blocks(d: &GalaxyDetail) -> Vec<Block> {
         tone: Tone::Engaged,
     });
     if d.files.is_empty() {
-        blocks.push(Block::KeyVal("  files".into(), "no file claims recorded".into()));
+        blocks.push(Block::KeyVal(
+            "  files".into(),
+            "no file claims recorded".into(),
+        ));
     } else {
         for file in &d.files {
             blocks.push(Block::Row(vec!["▸".into(), file.clone()]));
@@ -496,7 +509,10 @@ pub fn detail_blocks(d: &GalaxyDetail) -> Vec<Block> {
         tone: Tone::Resting,
     });
     if d.tool_uses.is_empty() {
-        blocks.push(Block::KeyVal("  tools".into(), "no tool calls recorded".into()));
+        blocks.push(Block::KeyVal(
+            "  tools".into(),
+            "no tool calls recorded".into(),
+        ));
     } else {
         for tool in d.tool_uses.iter().take(DETAIL_TOOL_CAP) {
             blocks.push(Block::Row(vec!["⚙".into(), tool.clone()]));
@@ -504,7 +520,10 @@ pub fn detail_blocks(d: &GalaxyDetail) -> Vec<Block> {
         if d.tool_uses.len() > DETAIL_TOOL_CAP {
             blocks.push(Block::KeyVal(
                 "  more".into(),
-                format!("+{} further tool calls", d.tool_uses.len() - DETAIL_TOOL_CAP),
+                format!(
+                    "+{} further tool calls",
+                    d.tool_uses.len() - DETAIL_TOOL_CAP
+                ),
             ));
         }
     }
@@ -529,7 +548,10 @@ pub fn detail_blocks(d: &GalaxyDetail) -> Vec<Block> {
         tone: Tone::Accent,
     });
     if d.messages.is_empty() {
-        blocks.push(Block::KeyVal("  transcript".into(), "no messages recorded".into()));
+        blocks.push(Block::KeyVal(
+            "  transcript".into(),
+            "no messages recorded".into(),
+        ));
     } else {
         let skipped = d.messages.len().saturating_sub(DETAIL_TURN_CAP);
         if skipped > 0 {
@@ -649,8 +671,14 @@ impl Pane for GalaxyPane {
             return blocks;
         }
 
-        blocks.push(Block::KeyVal("sessions".into(), self.points.len().to_string()));
-        blocks.push(Block::KeyVal("clusters".into(), self.clusters.len().to_string()));
+        blocks.push(Block::KeyVal(
+            "sessions".into(),
+            self.points.len().to_string(),
+        ));
+        blocks.push(Block::KeyVal(
+            "clusters".into(),
+            self.clusters.len().to_string(),
+        ));
         if let Some(at) = self.computed_at {
             blocks.push(Block::KeyVal("computed".into(), age_short(at)));
         }
@@ -666,7 +694,11 @@ impl Pane for GalaxyPane {
         blocks.push(Block::Gap);
         for cluster in &self.clusters {
             blocks.push(Block::Chip {
-                label: format!("{} — {} session(s)", trunc(&cluster.label, 48), cluster.size),
+                label: format!(
+                    "{} — {} session(s)",
+                    trunc(&cluster.label, 48),
+                    cluster.size
+                ),
                 tone: cluster_tone(cluster.id),
             });
             if !cluster.terms.is_empty() {
@@ -817,7 +849,10 @@ mod tests {
         assert_eq!(points[0].y, 0.0);
         assert_eq!(points[0].cluster_id, 0, "negative clusterId clamps to 0");
         assert_eq!(clusters.len(), 1);
-        assert!((clusters[0].cx - 0.5).abs() < 1e-6, "missing centroid → center");
+        assert!(
+            (clusters[0].cx - 0.5).abs() < 1e-6,
+            "missing centroid → center"
+        );
     }
 
     #[test]
@@ -863,13 +898,19 @@ mod tests {
         let (points, clusters, _) = from_value(&map_fixture());
         let sel = selected(&["tr-1", "tr-2", "tr-3"]);
         // Cluster 0 holds 2 of 3 selected points → its terms drive the surface.
-        assert_eq!(parley_surface(&points, &clusters, &sel), "galaxy:sqlite-migration-wal");
+        assert_eq!(
+            parley_surface(&points, &clusters, &sel),
+            "galaxy:sqlite-migration-wal"
+        );
         assert_eq!(
             default_reason(&points, &clusters, &sel),
             "Operator convened parley from session galaxy cluster \"sqlite migration · wal\" (3 sessions)"
         );
         // Empty selection degrades honestly.
-        assert_eq!(parley_surface(&points, &clusters, &HashSet::new()), "galaxy:selection");
+        assert_eq!(
+            parley_surface(&points, &clusters, &HashSet::new()),
+            "galaxy:selection"
+        );
     }
 
     #[test]
@@ -883,9 +924,16 @@ mod tests {
         });
         let (points, clusters, _) = from_value(&v);
         let surface = parley_surface(&points, &clusters, &selected(&["tr-1"]));
-        assert!(surface.len() <= 64, "surface too long: {} chars", surface.len());
+        assert!(
+            surface.len() <= 64,
+            "surface too long: {} chars",
+            surface.len()
+        );
         assert!(surface.starts_with("galaxy:"));
-        assert!(!surface.ends_with('-'), "never ends on a dangling dash: {surface}");
+        assert!(
+            !surface.ends_with('-'),
+            "never ends on a dangling dash: {surface}"
+        );
     }
 
     #[test]
@@ -921,7 +969,10 @@ mod tests {
         assert_eq!(d.files, vec!["lib/db.ts:10-42 · checkpoint".to_string()]);
         assert_eq!(d.notes, vec!["[scope] Scope: lib/db.ts".to_string()]);
         assert_eq!(d.messages.len(), 2);
-        assert_eq!(d.messages[1].1, "done — see the diff", "content-parts arrays flatten");
+        assert_eq!(
+            d.messages[1].1, "done — see the diff",
+            "content-parts arrays flatten"
+        );
         assert!(d.tool_uses[0].starts_with("Bash "));
 
         // PR-provenance honesty: empty prs renders an explicit "none recorded",
@@ -964,9 +1015,9 @@ mod tests {
         let mut pane = GalaxyPane::new();
         pane.last_error = Some("daemon unreachable: connect refused".into());
         let blocks = pane.view();
-        assert!(blocks
-            .iter()
-            .any(|b| matches!(b, Block::KeyVal(k, v) if k == "error" && v.contains("unreachable"))));
+        assert!(blocks.iter().any(
+            |b| matches!(b, Block::KeyVal(k, v) if k == "error" && v.contains("unreachable"))
+        ));
 
         pane.last_error = None;
         let (points, clusters, computed_at) = from_value(&map_fixture());
