@@ -451,6 +451,70 @@ const PROOF_MEDIA: readonly ProofMedia[] = [
   },
 ] as const
 
+type RunItMedia = {
+  eyebrow: string
+  title: string
+  body: string
+  src: string
+  darkSrc: string
+  alt: string
+  featured?: boolean
+}
+
+/**
+ * Real terminal recordings of the squid harness — captured with VHS/asciinema
+ * running the actual commands against the actual daemon; no staged output.
+ * Light GIFs are Catppuccin Latte, -dark are Macchiato, matching pd-tube.
+ */
+const RUN_IT_MEDIA: readonly RunItMedia[] = [
+  {
+    eyebrow: 'Real steering, real Claude Code',
+    title: 'A rule the operator never typed shows up in the file.',
+    body:
+      'A steering alert lives in the Ink Cloud. pd squid tap shows the envelope the next turn will receive; then a live claude -p run creates fleet_greeting.py — and the file opens with the exact comment the alert demanded. Claude even cites the Port Daddy steering alert in its summary. That is the harness working: non-diegetic context changing diegetic output.',
+    src: '/demos/harness/harness-claude-steered.gif',
+    darkSrc: '/demos/harness/harness-claude-steered-dark.gif',
+    alt: 'Terminal recording: pd squid tap prints a steering alert requiring a header comment, then a real claude -p run creates a Python file that begins with that exact comment.',
+    featured: true,
+  },
+  {
+    eyebrow: 'Codex pilots Claude Code — live',
+    title: 'The claude binary answers through codex exec.',
+    body:
+      'pd squid codex boots the local Anthropic-shaped bridge, injects ANTHROPIC_BASE_URL into a real claude -p launch, and the answer comes back from the Codex backend — one command, honest provenance.',
+    src: '/demos/harness/harness-codex-pilot-live.gif',
+    darkSrc: '/demos/harness/harness-codex-pilot-live-dark.gif',
+    alt: 'Terminal recording of pd squid codex starting the bridge and launching claude -p, which answers a question through the Codex CLI backend.',
+  },
+  {
+    eyebrow: 'The arm switch',
+    title: 'pd squid on wires everything; status shows it.',
+    body:
+      'One command arms hooks for every detected agent CLI, the ◆ PD statusline, the Pilot steering hook, and the /squid command — then pd squid status reads back every surface, live.',
+    src: '/demos/harness/harness-squid-on.gif',
+    darkSrc: '/demos/harness/harness-squid-on-dark.gif',
+    alt: 'Terminal recording of pd squid on arming the harness and pd squid status showing daemon, tentacles, per-CLI wiring, identity surfaces, and the Ink Cloud matrix.',
+  },
+  {
+    eyebrow: 'The envelope, verbatim',
+    title: 'pd squid tap prints the next turn’s injection.',
+    body:
+      'No guessing about what the hooks feed the model: tap runs the real UserPromptSubmit tentacle and prints the exact Suggestibility Envelope — steering alerts plus pheromone traces near your directory.',
+    src: '/demos/harness/harness-squid-tap.gif',
+    darkSrc: '/demos/harness/harness-squid-tap-dark.gif',
+    alt: 'Terminal recording of pd squid tap printing the steering alerts and pheromone traces that will be injected into the next Claude Code turn.',
+  },
+  {
+    eyebrow: 'The bridge card',
+    title: 'The Codex bridge announces exactly what it is.',
+    body:
+      'pd squid codex --serve-only prints the boundary card: base URL, local auth, tier, routes — and the honest line that this is a compatibility bridge, not a Claude Code auth mode.',
+    src: '/demos/harness/harness-squid-codex.gif',
+    darkSrc: '/demos/harness/harness-squid-codex-dark.gif',
+    alt: 'Terminal recording of the Giant Squid Claude-shaped local bridge card showing base URL, auth, tier, backend, and routes.',
+  },
+] as const
+
 function ProofMediaCard({ media }: { media: ProofMedia }) {
   const mediaClass = media.featured
     ? 'aspect-[16/10] md:aspect-[21/9]'
@@ -955,6 +1019,122 @@ $ rm -rf build/ .git/
                   </CodeBlock>
                 </SurfacePanel>
               ))}
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* ── Run it yourself: fresh install + real recordings ───────── */}
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide">
+            <SectionIntro
+              eyebrow="Run it yourself"
+              title="Five commands from a clean machine to a harnessed, identifiable Claude Code."
+              description="Everything below is a real terminal recording of these exact commands — no mockups. The install stages the tentacles and the identity statusline; pd squid on is the one-shot arm switch; pd squid off removes every pd-authored entry and nothing else."
+              titleAs="h2"
+              titleSize="display"
+              titleClassName="max-w-[26ch]"
+              bodyClassName="max-w-[58rem]"
+            />
+
+            <div className="mt-[var(--space-6)] grid gap-[var(--space-4)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              <SurfacePanel elevation="raised" padding="compact" className="space-y-[var(--space-3)]">
+                <PanelEyebrow className="text-[var(--brand-primary)]">Fresh install</PanelEyebrow>
+                <CodeBlock language="bash" filename="clean machine → armed project">
+                  {`# 1 — install the daemon + harness machinery
+brew install curiositech/tap/port-daddy
+pd setup            # daemon, MCP, skills, Pilot agents, tentacles staged
+
+# 2 — arm a project (per project, never machine-wide)
+cd ~/code/your-project
+pd squid on         # hooks + ◆ PD statusline + steering + /squid command
+
+# 3 — run Claude Code, visibly harnessed
+claude              # cyan ◆ PD badge; the envelope arrives every turn
+
+# 4 — inspect the non-diegetic machinery any time
+pd squid status     # what is armed, live Ink Cloud, bridge probe
+pd squid tap        # the exact envelope the next turn will receive
+
+# 5 — the off switch (also /squid off inside Claude Code)
+pd squid off`}
+                </CodeBlock>
+                <PanelBody size="compact" className="max-w-none">
+                  Every hook routes through a gate that no-ops unless the daemon is running and the
+                  directory is a Port Daddy project — armed hooks are inert everywhere else. A
+                  statusline or hook you wrote yourself is never touched.
+                </PanelBody>
+              </SurfacePanel>
+
+              <SurfacePanel elevation="raised" padding="compact" className="space-y-[var(--space-3)]">
+                <PanelEyebrow className="text-[var(--brand-primary)]">Codex-piloted Claude Code</PanelEyebrow>
+                <CodeBlock language="bash" filename="ChatGPT Pro as the seat behind Claude Code">
+                  {`# boot a local Anthropic-shaped endpoint backed by codex exec,
+# then launch Claude Code pointed at it — one command
+pd squid codex --tier strong
+
+# the session is visually unmistakable: the statusline flips to a
+# magenta ◆ PD⇄CODEX badge and reports the REAL backend model,
+# not the client-facing Anthropic id. Loopback-only, local auth,
+# honest provenance stamped on every response.`}
+                </CodeBlock>
+                <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
+                  <picture>
+                    <source srcSet="/demos/harness/harness-statusline-dark.png" media="(prefers-color-scheme: dark)" />
+                    <img
+                      src="/demos/harness/harness-statusline.png"
+                      alt="Terminal showing the pd-statusline output twice: a cyan PD badge with daemon state for a direct Anthropic seat, and a magenta PD-to-CODEX badge reporting the codex backend model for a bridged session."
+                      className="w-full"
+                      loading="lazy"
+                    />
+                  </picture>
+                </figure>
+                <PanelBody size="compact" className="max-w-none">
+                  Same session JSON, two truths: the direct seat shows the Anthropic model; the
+                  piloted seat shows the Codex backend actually answering.
+                </PanelBody>
+              </SurfacePanel>
+            </div>
+
+            <div className="mt-[var(--space-8)]">
+              <div className="mb-[var(--space-5)] space-y-[var(--space-2)]">
+                <PanelEyebrow>Real recordings</PanelEyebrow>
+                <PanelTitle as="h3" size="display" className="max-w-[22ch]">
+                  The harness steering a live Claude Code session.
+                </PanelTitle>
+                <PanelBody size="compact" className="max-w-[58rem]">
+                  The featured recording is the whole product in one take: a steering alert sits in
+                  the Ink Cloud, <code>pd squid tap</code> shows the envelope, and then a real
+                  <code> claude -p</code> run creates a file that obeys a rule the operator never
+                  typed into the prompt — the hook injected it.
+                </PanelBody>
+              </div>
+
+              <div className="grid gap-[var(--space-4)] lg:grid-cols-2">
+                {RUN_IT_MEDIA.map((media) => (
+                  <SurfacePanel
+                    key={media.title}
+                    elevation={media.featured ? 'raised' : 'quiet'}
+                    padding="compact"
+                    className={`grid content-start gap-[var(--space-3)] ${media.featured ? 'lg:col-span-2' : ''}`}
+                  >
+                    <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
+                      <picture>
+                        <source srcSet={media.darkSrc} media="(prefers-color-scheme: dark)" />
+                        <img src={media.src} alt={media.alt} className="w-full" loading="lazy" />
+                      </picture>
+                    </figure>
+                    <div className="grid gap-[var(--space-2)]">
+                      <PanelEyebrow className="text-[var(--brand-primary)]">{media.eyebrow}</PanelEyebrow>
+                      <PanelTitle as="h4" size="card" className="max-w-[30ch]">
+                        {media.title}
+                      </PanelTitle>
+                      <PanelBody size="compact" className="max-w-none">
+                        {media.body}
+                      </PanelBody>
+                    </div>
+                  </SurfacePanel>
+                ))}
+              </div>
             </div>
           </PageContainer>
         </section>
