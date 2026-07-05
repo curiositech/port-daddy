@@ -512,8 +512,10 @@ async function printBridgeProbe(options: CLIOptions): Promise<void> {
 function handleSquidTap(options: CLIOptions): void {
   const cwd = String(options.cwd ?? options.workdir ?? process.cwd());
   const home = process.env.HOME || process.env.USERPROFILE || '';
+  // Honor a PD_HOME override the same way the tentacles themselves do.
+  const pdHome = process.env.PD_HOME || join(home, '.port-daddy');
   const candidates = [
-    join(home, '.port-daddy', 'bin', 'squid', 'pd-hook-prompt'),
+    join(pdHome, 'bin', 'squid', 'pd-hook-prompt'),
     join(SQUID_PROJECT_ROOT, 'bin', 'pd-hook-prompt'),
   ];
   const tentacle = candidates.find((p) => existsSync(p));

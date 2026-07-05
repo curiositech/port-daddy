@@ -67,9 +67,13 @@ Add a thin installer layer, `cli/commands/hooks-install.ts`, exposed as
 
 5. **Idempotent upsert.** JSON surfaces: per event, drop prior entries whose
    command references a `pd-hook-` path, keep all other (user-authored) hooks,
-   then add ours. Codex TOML: a sentinel-fenced block
-   (`# >>> port-daddy hooks ... # <<<`) is stripped and re-appended, preserving
-   surrounding user TOML — no TOML parser dependency.
+   then add ours. Codex TOML: an explicitly fenced block — opened by the
+   `# Port Daddy Giant Squid Harness tentacles.` marker comment and closed by
+   `# PD_SQUID_TENTACLES_END` — is stripped between its fences and
+   re-appended, preserving surrounding user TOML (including any user-authored
+   `[[hooks.*]]` tables placed after ours) with no TOML parser dependency.
+   Legacy unfenced blocks (pre-fence installs, or written by the headless
+   adapter) fall back to a skip-until-next-non-hooks-table heuristic.
 
 6. **Codex caveat encoded.** Codex has **no** project surface in this installer
    (`projectConfigPath = null`); it is user-level only, per #17532.

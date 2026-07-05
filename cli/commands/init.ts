@@ -161,8 +161,10 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
   // surfaces (claude/gemini project config; codex/agy gated user config). A
   // runtime gate keeps every hook inert unless the daemon is up and you are
   // inside this pd project — never machine-wide-always-on.
+  // Gated by --no-hooks only: --no-mcp is about MCP server registration and
+  // must not silently drop coordination hooks or the identity surfaces.
 
-  if (!noMcp) {
+  if (!options['no-hooks']) {
     try {
       const { silentHooksInstall } = await import('./hooks-install.js');
       const hooks = silentHooksInstall(undefined, { cwd });

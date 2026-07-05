@@ -157,6 +157,26 @@ describe('configureTarget — per-project scope, gate-pointed commands', () => {
     expect(readFileSync(codex.userConfigPath, 'utf-8')).not.toContain(CODEX_PD_MARKER);
     expect(readFileSync(codex.userConfigPath, 'utf-8')).toContain('model = "o3"');
   });
+
+  test('codex strip is end-fenced: user [[hooks.*]] tables AFTER our block survive', () => {
+    const codex = buildTargets(HOME).find((t) => t.slug === 'codex')!;
+    mkdirSync(join(HOME, '.codex'), { recursive: true });
+    writeFileSync(codex.userConfigPath, 'model = "o3"\n');
+    configureTarget(codex, { scope: 'user' });
+    // user appends their OWN hooks table after ours
+    const userBlock = '\n[[hooks.PostToolUse]]\nmatcher = "shell"\n[[hooks.PostToolUse.hooks]]\ntype = "command"\ncommand = "/usr/local/bin/my-own-audit"\n';
+    writeFileSync(codex.userConfigPath, readFileSync(codex.userConfigPath, 'utf-8') + userBlock);
+    // re-install (strip + re-append) must not eat the user's table
+    configureTarget(codex, { scope: 'user' });
+    const toml = readFileSync(codex.userConfigPath, 'utf-8');
+    expect(toml).toContain('/usr/local/bin/my-own-audit');
+    expect(toml.split(CODEX_PD_MARKER).length - 1).toBe(1);
+    // and a full uninstall leaves the user's hooks in place
+    uninstallTarget(codex, { scope: 'user' });
+    const after = readFileSync(codex.userConfigPath, 'utf-8');
+    expect(after).not.toContain(CODEX_PD_MARKER);
+    expect(after).toContain('/usr/local/bin/my-own-audit');
+  });
 });
 
 describe('JSON upsert idempotency + preservation', () => {

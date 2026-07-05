@@ -50,6 +50,7 @@ import {
   type TentacleResolver,
   PD_HOOK_MARKER,
   CODEX_PD_MARKER,
+  CODEX_PD_END_MARKER,
   buildJsonHookMap,
   codexHooksTomlBlock,
   upsertJsonHookMap,
@@ -238,20 +239,33 @@ export interface ConfigureResult {
   skipped?: string;
 }
 
-/** Strip a prior Port Daddy fenced/marked block from Codex TOML text. */
+/**
+ * Strip a prior Port Daddy fenced/marked block from Codex TOML text.
+ *
+ * New blocks are explicitly fenced (`# <marker>.` … `# end <marker>`), so
+ * removal ends at the end fence and can never eat a user's own `[[hooks.*]]`
+ * tables placed after ours. Legacy blocks (written before the end fence, or by
+ * the headless adapter) fall back to the heuristic: skip until the next
+ * non-hooks top-level table.
+ */
 function stripCodexBlock(text: string): string {
   const lines = text.split('\n');
   const out: string[] = [];
   let skipping = false;
+  let fenced = false;
   for (const line of lines) {
-    if (line.includes(CODEX_PD_MARKER)) {
+    if (!skipping && line.includes(CODEX_PD_MARKER)) {
       skipping = true; // start of our block (the marker comment heads it)
+      fenced = text.includes(CODEX_PD_END_MARKER);
       continue;
     }
     if (skipping) {
-      // our block runs until the next top-level table that isn't ours; the block
-      // is contiguous `[[hooks.*]]` lines + comments + blanks. Stop at a line
-      // that opens a non-hooks table.
+      if (fenced) {
+        if (line.includes(CODEX_PD_END_MARKER)) skipping = false;
+        continue;
+      }
+      // legacy: our block runs until the next top-level table that isn't ours;
+      // it is contiguous `[[hooks.*]]` lines + comments + blanks.
       const t = line.trim();
       if (t.startsWith('[') && !t.startsWith('[[hooks.') && !t.startsWith('[hooks')) {
         skipping = false;

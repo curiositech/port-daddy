@@ -123,6 +123,12 @@ export function buildJsonHookMap(
 
 /** Idempotency marker — IDENTICAL to the squid adapter so the two never double-inject. */
 export const CODEX_PD_MARKER = 'Port Daddy Giant Squid Harness tentacles';
+/**
+ * End fence closing our TOML block, so removal never touches user tables below
+ * it. Deliberately does NOT contain CODEX_PD_MARKER as a substring — the
+ * adapter and tests count marker occurrences for idempotency.
+ */
+export const CODEX_PD_END_MARKER = 'PD_SQUID_TENTACLES_END';
 export const CODEX_TOOL_MATCHER = 'apply_patch|edit|write|str_replace_editor|shell|run_shell_command';
 
 function tomlString(v: string): string {
@@ -163,6 +169,7 @@ export function codexHooksTomlBlock(resolve: TentacleResolver): string {
   L.push(`command = ${tomlString(resolve('pd-hook-post-tool'))}`);
   L.push('timeout = 10');
   L.push('async = true');
+  L.push(`# ${CODEX_PD_END_MARKER}`);
   L.push('');
   return L.join('\n');
 }
