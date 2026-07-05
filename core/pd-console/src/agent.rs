@@ -481,10 +481,23 @@ impl DaemonClient {
 
     /// Construct a client against an already-resolved base URL (e.g. the value
     /// `discover().base()` returned, handed to a background refresh thread).
+    ///
+    /// Timeouts are load-bearing: the producer thread awaits ~26 pane
+    /// refreshes SERIALLY per 2s cycle, and `update_panes` (which dismisses
+    /// the launch splash) only fires after a full cycle. With reqwest's
+    /// default (no timeout), a single blackholed endpoint wedged the console
+    /// on "connecting…" forever. Bounded here, a hung endpoint costs one
+    /// pane's refresh ("daemon unreachable: … timed out"), never the console.
+    /// The Lane's SSE stream shares this client — `subscribe_agent` overrides
+    /// the total deadline per-request, so only connect_timeout governs it.
     pub fn new(base: String) -> Self {
         Self {
             base: base.trim_end_matches('/').to_string(),
-            http: reqwest::Client::new(),
+            http: reqwest::Client::builder()
+                .connect_timeout(std::time::Duration::from_secs(3))
+                .timeout(std::time::Duration::from_secs(15))
+                .build()
+                .expect("reqwest client with static config cannot fail to build"),
         }
     }
 
@@ -911,7 +924,10 @@ impl DaemonClient {
             let mut backoff = Duration::from_millis(500);
             const MAX_BACKOFF: Duration = Duration::from_secs(10);
             loop {
-                let mut req = http.get(&url);
+                // Long-lived SSE: override the client's 15s total-request
+                // deadline (which exists to keep pane refreshes from wedging
+                // the console) — only connect_timeout should govern a stream.
+                let mut req = http.get(&url).timeout(Duration::from_secs(60 * 60 * 24));
                 if let Some(id) = &last_id {
                     req = req.header("Last-Event-ID", id.as_str());
                 }
