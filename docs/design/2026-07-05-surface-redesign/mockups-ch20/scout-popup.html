@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scout Popup — Story Linework (ch20)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════════════════════════════════
+   SCOUT POPUP — converged ch20 "Story Linework" mockup.
+   Palette v2 (port.css, exact values). Fractional linework:
+   1px texture/hairline · 1.5px linework · 2px enclosure (the popup
+   shell only). Zero radius, zero shadow. One color zone per variant:
+   (a) gold L3-economy accents, (b) teal L2 confirmation zone,
+   (c) no zone — error-hue state only. Content patterns carried from
+   mockups/scout-popup.html; that skin is retired.
+   ════════════════════════════════════════════════════════════════ */
+
+@font-face {
+  font-family: "Recursive";
+  src: url("../../../../website-v2/public/fonts/recursive/recursive-latin-full-normal.woff2") format("woff2");
+  font-weight: 300 1000;
+  font-display: swap;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  min-height: 100vh;
+  background: #8c877d; /* neutral scaffold between paper and near-black */
+  font-family: "IBM Plex Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 44px;
+  padding: 44px 32px 72px;
+  flex-wrap: wrap;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono { font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+        font-variant-numeric: tabular-nums slashed-zero; }
+
+/* the play voice — Recursive casual axis, display em-phrases only */
+.rec { font-family: "Recursive", "IBM Plex Sans", sans-serif;
+       font-variation-settings: "MONO" 0, "CASL" 1, "slnt" -8;
+       font-weight: 660; }
+
+.stage { display: flex; flex-direction: column; gap: 12px; }
+.stage-caption {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 14px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: #f5f3ed;
+}
+
+.port-note {
+  position: fixed; bottom: 18px; right: 18px; z-index: 60;
+  font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  background: #121212; color: #f2eee6; padding: 6px 12px;
+}
+
+/* ── popup shell + variant tokens (palette v2, exact) ─────────── */
+.pop {
+  width: 400px;
+  background: var(--bg);
+  color: var(--ink);
+  border: 2px solid var(--border-strong); /* the one true enclosure */
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 16px;
+  --lw: 1.5px;
+  --lime: #cad900; /* theme-independent, like flag whites */
+}
+
+.pop.light {
+  --bg:      #f2eee6;
+  --raised:  #f7f3eb;
+  --strong:  #e9e2d5;  /* the card well — light cream needs STRONG */
+  --sunken:  #e0d9cb;
+  --ink:     #121212;
+  --text2:   #403b34;
+  --muted:   #47423a;
+  --ghost:   #98928a;
+  --health:  #1f7a4d;
+  --error:   #bf2f2f;
+  --teal:    #006b5f;
+  --gold:    #666a00;
+  --on-gold: #fbf7ef;  /* --inverse: cream text on the gold cut */
+  --hair:        rgba(18, 18, 18, 0.14);
+  --hair-strong: rgba(18, 18, 18, 0.34);
+  --border-strong: #121212;
+  --teal-wash: color-mix(in oklab, #006b5f 10%, #f2eee6);
+}
+
+.pop.dark {
+  --bg:      #101216;  /* palette v2 near-black — operator-decided (A·1) */
+  --raised:  #181c22;
+  --strong:  #222833;
+  --sunken:  #0b0d11;
+  --ink:     #f5f3ed;
+  --text2:   #d3cec2;
+  --muted:   #a59f93;
+  --ghost:   #5c574e;
+  --health:  #5fce97;
+  --error:   #ff7d7d;
+  --teal:    #8fd0a7;
+  --gold:    #d8dd3c;
+  --on-gold: #121212;  /* ink text on the bright dark-theme gold */
+  --hair:        rgba(245, 243, 237, 0.14);
+  --hair-strong: rgba(245, 243, 237, 0.34);
+  --border-strong: #f5f3ed;
+  --teal-wash: color-mix(in oklab, #8fd0a7 10%, #101216);
+}
+
+.pop :focus-visible { outline: var(--lw) solid var(--gold); outline-offset: 2px; }
+
+/* ── 1 · header: reticle mark + SCOUT + em-phrase ─────────────── */
+.hd { display: flex; align-items: center; gap: 12px; }
+.hd .mark { flex: none; color: var(--ink); display: block; }
+.hd .titles { flex: 1 1 auto; min-width: 0; }
+
+.eyebrow {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted);
+}
+.wordline { display: flex; align-items: baseline; gap: 9px; }
+.wordmark {
+  font-size: 26px; font-weight: 700; line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+.emphrase { font-size: 17px; color: var(--text2); }
+
+/* ── 2 · daemon chip: stripe + dot + label + relative time ────── */
+.daemon {
+  position: relative;
+  display: grid; grid-template-columns: auto 1fr auto;
+  align-items: center; column-gap: 9px; row-gap: 2px;
+  padding: 8px 10px 8px 14px;
+  background: var(--strong);
+  border: 1px solid var(--hair); /* mandatory hairline edge on wells */
+}
+.daemon::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: var(--state);
+}
+.daemon .dot { width: 8px; height: 8px; flex: none; background: var(--state); border-radius: 50%; }
+.daemon.off .dot { background: transparent; border: var(--lw) solid var(--state); }
+.daemon .dl {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 14px; font-weight: 700; color: var(--state);
+  min-width: 0;
+}
+.daemon .dsub { color: var(--muted); font-weight: 500; }
+.daemon .dfix {
+  grid-column: 2 / -1;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px; color: var(--muted);
+}
+.daemon .when {
+  margin-left: auto; font-family: "IBM Plex Mono", monospace;
+  font-size: 13px; color: var(--ghost); white-space: nowrap;
+}
+.daemon.on  { --state: var(--health); }
+.daemon.off { --state: var(--error); }
+
+/* ── 3 · evidence hero: bracketed 16:9 well + gold region ─────── */
+.evidence { display: flex; flex-direction: column; gap: 8px; }
+
+.shot {
+  position: relative;
+  width: 100%; aspect-ratio: 16 / 9;
+  background: var(--strong);
+  border: 1px solid var(--hair);
+  overflow: hidden;
+}
+/* corner brackets — live capture panel; always ink, 1.5px */
+.shot > i.lw {
+  position: absolute; z-index: 3; width: 14px; height: 14px;
+  border: 0 solid var(--border-strong); pointer-events: none;
+}
+.shot > i.lw:nth-child(1) { top: 0; left: 0; border-top-width: var(--lw); border-left-width: var(--lw); }
+.shot > i.lw:nth-child(2) { top: 0; right: 0; border-top-width: var(--lw); border-right-width: var(--lw); }
+.shot > i.lw:nth-child(3) { bottom: 0; left: 0; border-bottom-width: var(--lw); border-left-width: var(--lw); }
+.shot > i.lw:nth-child(4) { bottom: 0; right: 0; border-bottom-width: var(--lw); border-right-width: var(--lw); }
+
+/* abstract page wireframe — 1px hairline texture only */
+.wf { position: absolute; border: 1px solid var(--hair-strong); }
+.wf.fill { background: var(--hair-strong); border: 0; }
+.wf-nav   { top: 5%;  left: 4%;  width: 92%; height: 9%; }
+.wf-logo  { top: 7.5%; left: 6%; width: 11%; height: 4%; }
+.wf-h1    { top: 20%; left: 4%;  width: 46%; height: 5%; }
+.wf-h2    { top: 29%; left: 4%;  width: 34%; height: 4%; }
+.wf-aside { top: 20%; left: 72%; width: 24%; height: 30%; }
+.wf-table { top: 41%; left: 4%;  width: 64%; height: 52%; }
+.wf-row1  { top: 50%; left: 7%;  width: 30%; height: 4%; }
+.wf-row2  { top: 60%; left: 7%;  width: 30%; height: 4%; }
+.wf-row3  { top: 70%; left: 7%;  width: 30%; height: 4%; }
+/* the defect: paywall banner sitting over the pricing table */
+.wf-pay { top: 44%; left: 41%; width: 30%; height: 26%;
+          background: var(--raised); border: 1px solid var(--hair-strong); z-index: 1; }
+.wf-cta { top: 56%; left: 47%; width: 18%; height: 9%;
+          background: var(--hair-strong); border: 0; z-index: 1; }
+
+/* gold evidence region — 1.5px linework, the L3-economy accent */
+.region {
+  position: absolute; z-index: 2;
+  top: 41%; left: 38.5%; width: 35%; height: 32%;
+  border: var(--lw) solid var(--gold);
+}
+.region .dims {
+  position: absolute; right: -1.5px; top: calc(100% + 3px);
+  white-space: nowrap;
+  background: var(--gold); color: var(--on-gold);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.02em;
+  padding: 2px 6px;
+}
+
+.domstrip {
+  display: flex; flex-direction: column; gap: 2px;
+  background: var(--strong);
+  border: 1px solid var(--hair);
+  padding: 8px 12px;
+}
+.domstrip .path {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 14px; font-weight: 600; color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.domstrip .meta {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px; color: var(--muted);
+}
+
+/* ── 4 · brief ────────────────────────────────────────────────── */
+.fld { display: flex; flex-direction: column; gap: 5px; }
+.lbl {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted);
+}
+textarea {
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 16px; line-height: 1.45;
+  color: var(--ink); background: var(--raised);
+  border: 1px solid var(--hair-strong);
+  padding: 9px 11px; resize: none;
+}
+
+/* ── 5 · routing: closed taxonomy, hairline selects ───────────── */
+.routing { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.selwrap { position: relative; display: block; }
+.selwrap::after {
+  content: ""; position: absolute; right: 12px; top: 50%;
+  width: 7px; height: 7px;
+  border-right: var(--lw) solid var(--ink);
+  border-bottom: var(--lw) solid var(--ink);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+select {
+  appearance: none; -webkit-appearance: none;
+  width: 100%;
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 15px; font-weight: 600;
+  color: var(--ink); background: var(--raised);
+  border: 1px solid var(--hair-strong);
+  padding: 8px 30px 8px 11px; cursor: pointer;
+}
+
+/* Quebec hint — micro-flag + word, only where an agent state shows */
+.voyager-hint {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; color: var(--text2);
+}
+.voyager-hint .flag-quebec {
+  flex: none; width: 20px; height: 14px;
+  background: var(--lime); border: 1px solid var(--hair-strong);
+}
+.voyager-hint .fw {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted);
+}
+
+/* ── 6 · consent footer + gold primary ────────────────────────── */
+.consent {
+  display: flex; flex-direction: column; gap: 10px;
+  border-top: 1px solid var(--hair-strong);
+  padding-top: 12px;
+}
+.consequence {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 14px; line-height: 1.5; color: var(--muted);
+}
+.primary {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 15px; font-weight: 700; letter-spacing: 0.04em;
+  background: var(--gold); color: var(--on-gold);
+  border: none; padding: 12px 10px; cursor: pointer;
+}
+.primary[disabled] {
+  background: transparent; color: var(--ghost);
+  border: 1px solid var(--hair-strong); cursor: not-allowed;
+}
+.disabled-note {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px; color: var(--muted); text-align: center;
+}
+.tertiary {
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 15px; font-weight: 600;
+  color: var(--ink); background: none; border: none;
+  text-decoration: underline;
+  text-underline-offset: 3px; text-decoration-thickness: 1.5px;
+  cursor: pointer; align-self: center; padding: 2px;
+}
+
+/* ── routed-shape confirmation — the teal zone (variant b only) ─ */
+.routed {
+  display: flex; flex-direction: column; gap: 10px;
+  border-top: 1px solid var(--hair-strong);
+  padding-top: 12px;
+}
+.routed-card {
+  position: relative;
+  background: var(--teal-wash);
+  border: 1px solid var(--hair);
+  padding: 12px 14px 12px 18px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.routed-card::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: var(--teal);
+}
+.routed-card .rc-eyebrow {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--teal);
+}
+.routed-card .rc-id {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 18px; font-weight: 700; color: var(--ink);
+}
+.routed-card .rc-line { font-size: 14.5px; color: var(--text2); }
+.routed-card .rc-link {
+  font-size: 14.5px; font-weight: 600; color: var(--teal);
+  text-decoration: underline;
+  text-underline-offset: 3px; text-decoration-thickness: 1.5px;
+  cursor: pointer; align-self: flex-start; margin-top: 2px;
+}
+.ghostbtn {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 14px; font-weight: 700; letter-spacing: 0.04em;
+  background: transparent; color: var(--ink);
+  border: 1px solid var(--hair-strong);
+  padding: 10px; cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ (a) LIGHT · DAEMON ONLINE ═══════════ -->
+<div class="stage">
+  <div class="stage-caption">a · light · daemon online</div>
+  <div class="pop light">
+
+    <header class="hd">
+      <!-- reticle mark — geometric, 1.5px linework, ink -->
+      <svg class="mark" width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+        <rect x="7.75" y="7.75" width="20.5" height="20.5" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="18" y1="1"  x2="18" y2="8.5"  stroke="currentColor" stroke-width="1.5"/>
+        <line x1="18" y1="27.5" x2="18" y2="35" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="1"  y1="18" x2="8.5" y2="18"  stroke="currentColor" stroke-width="1.5"/>
+        <line x1="27.5" y1="18" x2="35" y2="18" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="16.5" y="16.5" width="3" height="3" fill="currentColor"/>
+      </svg>
+      <div class="titles">
+        <div class="eyebrow">Port Daddy &middot; Intake</div>
+        <div class="wordline"><span class="wordmark">SCOUT</span><span class="emphrase rec">sees it, files it</span></div>
+      </div>
+    </header>
+
+    <div class="daemon on">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="dl">daemon online <span class="dsub">&middot; local</span></span>
+      <span class="when">checked 2s ago</span>
+    </div>
+
+    <section class="evidence" aria-label="Captured evidence">
+      <div class="shot">
+        <i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
+        <div class="wf wf-nav"></div><div class="wf fill wf-logo"></div>
+        <div class="wf fill wf-h1"></div><div class="wf fill wf-h2"></div>
+        <div class="wf wf-aside"></div><div class="wf wf-table"></div>
+        <div class="wf fill wf-row1"></div><div class="wf fill wf-row2"></div>
+        <div class="wf fill wf-row3"></div>
+        <div class="wf wf-pay"></div><div class="wf wf-cta"></div>
+        <div class="region"><span class="dims">312&times;184 @ (640,210)</span></div>
+      </div>
+      <div class="domstrip">
+        <span class="path">div.paywall-banner &gt; button.cta</span>
+        <span class="meta">3 elements sampled &middot; xpath + bounds attached</span>
+      </div>
+    </section>
+
+    <div class="fld">
+      <label class="lbl" for="brief-a">What&rsquo;s wrong here?</label>
+      <textarea id="brief-a" rows="2">Paywall banner overlaps the pricing table at 1280px; button.cta is unreachable behind it.</textarea>
+    </div>
+
+    <div class="routing">
+      <div class="fld">
+        <label class="lbl" for="kind-a">Kind</label>
+        <span class="selwrap"><select id="kind-a"><option>Visual defect</option><option>Bug</option><option>Copy</option><option>Idea</option></select></span>
+      </div>
+      <div class="fld">
+        <label class="lbl" for="file-a">File under</label>
+        <span class="selwrap"><select id="file-a"><option>visual-feedback</option><option>review-queue</option></select></span>
+      </div>
+      <div class="fld">
+        <label class="lbl" for="proj-a">Project</label>
+        <span class="selwrap"><select id="proj-a"><option>sobriety-tools</option><option>port-daddy</option><option>expungement-guide</option></select></span>
+      </div>
+      <div class="fld">
+        <label class="lbl" for="send-a">Send to</label>
+        <span class="selwrap"><select id="send-a"><option>next available voyager</option><option>review queue only</option></select></span>
+      </div>
+      <div class="voyager-hint">
+        <span class="flag-quebec" aria-hidden="true"></span>
+        <span class="fw">Quebec</span>
+        <span>newcomer voyager requesting pratique</span>
+      </div>
+    </div>
+
+    <footer class="consent">
+      <p class="consequence">Creates one work item &middot; attaches screenshot + DOM path &middot; est. triage $0.03</p>
+      <button class="primary" type="button">File work intent</button>
+      <button class="tertiary" type="button">Open in Console &rarr;</button>
+    </footer>
+
+  </div>
+</div>
+
+<!-- ═══════════ (b) LIGHT · FILED — ROUTED CONFIRMATION ═══════════ -->
+<div class="stage">
+  <div class="stage-caption">b · light · filed &amp; routed</div>
+  <div class="pop light">
+
+    <header class="hd">
+      <svg class="mark" width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+        <rect x="7.75" y="7.75" width="20.5" height="20.5" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="18" y1="1"  x2="18" y2="8.5"  stroke="currentColor" stroke-width="1.5"/>
+        <line x1="18" y1="27.5" x2="18" y2="35" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="1"  y1="18" x2="8.5" y2="18"  stroke="currentColor" stroke-width="1.5"/>
+        <line x1="27.5" y1="18" x2="35" y2="18" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="16.5" y="16.5" width="3" height="3" fill="currentColor"/>
+      </svg>
+      <div class="titles">
+        <div class="eyebrow">Port Daddy &middot; Intake</div>
+        <div class="wordline"><span class="wordmark">SCOUT</span><span class="emphrase rec">sees it, files it</span></div>
+      </div>
+    </header>
+
+    <div class="daemon on">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="dl">daemon online <span class="dsub">&middot; local</span></span>
+      <span class="when">checked 1s ago</span>
+    </div>
+
+    <section class="evidence" aria-label="Filed evidence">
+      <div class="shot">
+        <i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
+        <div class="wf wf-nav"></div><div class="wf fill wf-logo"></div>
+        <div class="wf fill wf-h1"></div><div class="wf fill wf-h2"></div>
+        <div class="wf wf-aside"></div><div class="wf wf-table"></div>
+        <div class="wf fill wf-row1"></div><div class="wf fill wf-row2"></div>
+        <div class="wf fill wf-row3"></div>
+        <div class="wf wf-pay"></div><div class="wf wf-cta"></div>
+        <div class="region"><span class="dims">312&times;184 @ (640,210)</span></div>
+      </div>
+      <div class="domstrip">
+        <span class="path">div.paywall-banner &gt; button.cta</span>
+        <span class="meta">3 elements sampled &middot; attached to wi_01JZD3&hellip;</span>
+      </div>
+    </section>
+
+    <div class="fld">
+      <label class="lbl" for="brief-b">What&rsquo;s wrong here?</label>
+      <textarea id="brief-b" rows="2" readonly>Paywall banner overlaps the pricing table at 1280px; button.cta is unreachable behind it.</textarea>
+    </div>
+
+    <!-- routed-shape confirmation — the view's one color zone (teal) -->
+    <footer class="routed">
+      <div class="routed-card">
+        <span class="rc-eyebrow">Filed &rarr; Work Intent</span>
+        <span class="rc-id">wi_01JZD3&hellip;</span>
+        <span class="rc-line">routed to next available voyager</span>
+        <span class="rc-link">view in Console &rarr;</span>
+      </div>
+      <button class="ghostbtn" type="button">Capture new evidence</button>
+    </footer>
+
+  </div>
+</div>
+
+<!-- ═══════════ (c) DARK · DAEMON OFFLINE ═══════════ -->
+<div class="stage">
+  <div class="stage-caption">c · dark · daemon offline</div>
+  <div class="pop dark">
+
+    <header class="hd">
+      <svg class="mark" width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+        <rect x="7.75" y="7.75" width="20.5" height="20.5" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="18" y1="1"  x2="18" y2="8.5"  stroke="currentColor" stroke-width="1.5"/>
+        <line x1="18" y1="27.5" x2="18" y2="35" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="1"  y1="18" x2="8.5" y2="18"  stroke="currentColor" stroke-width="1.5"/>
+        <line x1="27.5" y1="18" x2="35" y2="18" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="16.5" y="16.5" width="3" height="3" fill="currentColor"/>
+      </svg>
+      <div class="titles">
+        <div class="eyebrow">Port Daddy &middot; Intake</div>
+        <div class="wordline"><span class="wordmark">SCOUT</span><span class="emphrase rec">sees it, files it</span></div>
+      </div>
+    </header>
+
+    <div class="daemon off">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="dl">daemon offline</span>
+      <span class="when">last seen 6m ago</span>
+      <span class="dfix">&mdash; start it from FleetBar &rarr; Daemon</span>
+    </div>
+
+    <section class="evidence" aria-label="Captured evidence">
+      <div class="shot">
+        <i class="lw"></i><i class="lw"></i><i class="lw"></i><i class="lw"></i>
+        <div class="wf wf-nav"></div><div class="wf fill wf-logo"></div>
+        <div class="wf fill wf-h1"></div><div class="wf fill wf-h2"></div>
+        <div class="wf wf-aside"></div><div class="wf wf-table"></div>
+        <div class="wf fill wf-row1"></div><div class="wf fill wf-row2"></div>
+        <div class="wf fill wf-row3"></div>
+        <div class="wf wf-pay"></div><div class="wf wf-cta"></div>
+        <div class="region"><span class="dims">312&times;184 @ (640,210)</span></div>
+      </div>
+      <div class="domstrip">
+        <span class="path">div.paywall-banner &gt; button.cta</span>
+        <span class="meta">3 elements sampled &middot; xpath + bounds attached</span>
+      </div>
+    </section>
+
+    <div class="fld">
+      <label class="lbl" for="brief-c">What&rsquo;s wrong here?</label>
+      <textarea id="brief-c" rows="2">Paywall banner overlaps the pricing table at 1280px; button.cta is unreachable behind it.</textarea>
+    </div>
+
+    <div class="routing">
+      <div class="fld">
+        <label class="lbl" for="kind-c">Kind</label>
+        <span class="selwrap"><select id="kind-c"><option>Visual defect</option><option>Bug</option><option>Copy</option><option>Idea</option></select></span>
+      </div>
+      <div class="fld">
+        <label class="lbl" for="file-c">File under</label>
+        <span class="selwrap"><select id="file-c"><option>visual-feedback</option><option>review-queue</option></select></span>
+      </div>
+      <div class="fld">
+        <label class="lbl" for="proj-c">Project</label>
+        <span class="selwrap"><select id="proj-c"><option>sobriety-tools</option><option>port-daddy</option><option>expungement-guide</option></select></span>
+      </div>
+      <div class="fld">
+        <label class="lbl" for="send-c">Send to</label>
+        <span class="selwrap"><select id="send-c"><option>next available voyager</option><option>review queue only</option></select></span>
+      </div>
+      <div class="voyager-hint">
+        <span class="flag-quebec" aria-hidden="true"></span>
+        <span class="fw">Quebec</span>
+        <span>newcomer voyager requesting pratique</span>
+      </div>
+    </div>
+
+    <footer class="consent">
+      <p class="consequence">Creates one work item &middot; attaches screenshot + DOM path &middot; est. triage $0.03</p>
+      <button class="primary" type="button" disabled>File work intent</button>
+      <p class="disabled-note">evidence saved locally</p>
+      <button class="tertiary" type="button">Open in Console &rarr;</button>
+    </footer>
+
+  </div>
+</div>
+
+<div class="port-note">ch20 &middot; scout popup &middot; mock</div>
+
+</body>
+</html>

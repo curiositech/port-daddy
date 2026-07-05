@@ -1,8 +1,8 @@
 {
   "auditor_version": "0.2.0",
   "summary": {
-    "total": 149,
-    "passing": 149,
+    "total": 162,
+    "passing": 162,
     "failing": 0
   },
   "skills": [
@@ -27,6 +27,18 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "agent-identity-continuity-reputation",
+      "root": "skills/agent-identity-continuity-reputation",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples"
+      ]
+    },
+    {
       "name": "agent-interchange-formats",
       "root": "skills/agent-interchange-formats",
       "ok": true,
@@ -37,8 +49,34 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "agent-issue-tracker-workflow",
+      "root": "skills/agent-issue-tracker-workflow",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
       "name": "agent-labor-pricing-function",
       "root": "skills/agent-labor-pricing-function",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "agent-pr-authoring",
+      "root": "skills/agent-pr-authoring",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -66,6 +104,19 @@
     {
       "name": "agent-work-receipt-designer",
       "root": "skills/agent-work-receipt-designer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
+      "name": "agentic-app-architecture",
+      "root": "skills/agentic-app-architecture",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -225,6 +276,19 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "color-theory-palette-harmony-expert",
+      "root": "skills/color-theory-palette-harmony-expert",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
     },
     {
       "name": "cooperative-vibe-coding",
@@ -827,6 +891,19 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "legible-roadmap-with-sidequests",
+      "root": "skills/legible-roadmap-with-sidequests",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
       "name": "liaison",
       "root": "skills/liaison",
       "ok": true,
@@ -914,6 +991,18 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "metal-shader-expert",
+      "root": "skills/metal-shader-expert",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
       "name": "metal-text-pipeline",
       "root": "skills/metal-text-pipeline",
       "ok": true,
@@ -934,6 +1023,19 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "multi-agent-authoring-product-bar",
+      "root": "skills/multi-agent-authoring-product-bar",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
     },
     {
       "name": "multi-agent-coordination",
@@ -1086,6 +1188,20 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "product-appeal-analyzer",
+      "root": "skills/product-appeal-analyzer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references",
+        "scripts"
+      ]
+    },
+    {
       "name": "product-reality-reviewer",
       "root": "skills/product-reality-reviewer",
       "ok": true,
@@ -1171,6 +1287,20 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "rust-code-testing",
+      "root": "skills/rust-code-testing",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references",
+        "scripts"
+      ]
+    },
+    {
       "name": "rust-data-structures-advanced",
       "root": "skills/rust-data-structures-advanced",
       "ok": true,
@@ -1178,7 +1308,9 @@
       "drift": [],
       "broken_links": [],
       "missing_indexes_failure": [],
-      "missing_indexes_warning": []
+      "missing_indexes_warning": [
+        "scripts"
+      ]
     },
     {
       "name": "rust-debugging-mastery",
@@ -1200,6 +1332,18 @@
       "missing_indexes_failure": [],
       "missing_indexes_warning": [
         "references"
+      ]
+    },
+    {
+      "name": "rust-kernel-ffi",
+      "root": "skills/rust-kernel-ffi",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples"
       ]
     },
     {
@@ -1389,6 +1533,19 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "ux-friction-analyzer",
+      "root": "skills/ux-friction-analyzer",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
+    },
+    {
       "name": "van-der-aalst-2003-workflow-patterns",
       "root": "skills/van-der-aalst-2003-workflow-patterns",
       "ok": true,
@@ -1407,6 +1564,7 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": [
+        "examples",
         "references"
       ]
     },
@@ -1441,6 +1599,19 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "web-design-expert",
+      "root": "skills/web-design-expert",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references"
+      ]
     },
     {
       "name": "websocket-realtime-expert",

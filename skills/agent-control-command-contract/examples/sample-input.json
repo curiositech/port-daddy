@@ -1,0 +1,36 @@
+{
+  "verbs": [
+    { "name": "steer", "terminalStates": ["queued", "delivered", "acknowledged", "failed", "expired", "unsupported"] },
+    { "name": "interrupt", "terminalStates": ["queued", "delivered", "acknowledged", "failed", "expired", "unsupported"] },
+    { "name": "pause", "terminalStates": ["queued", "delivered", "acknowledged", "failed", "expired", "unsupported"] },
+    { "name": "kill", "terminalStates": ["queued", "delivered", "acknowledged", "failed", "expired", "unsupported"] },
+    { "name": "checkpoint", "terminalStates": ["queued", "delivered", "acknowledged", "failed", "expired", "unsupported"] },
+    { "name": "fork", "terminalStates": ["queued", "delivered", "acknowledged", "failed", "expired", "unsupported"] }
+  ],
+  "backends": [
+    { "name": "local-same-uid", "supportedVerbs": ["steer", "interrupt", "pause", "kill", "checkpoint", "fork"] },
+    { "name": "cloudflare-remote", "supportedVerbs": ["steer", "interrupt", "kill", "checkpoint"] },
+    { "name": "hook-only-observed", "supportedVerbs": [] }
+  ],
+  "authorizationSource": "authoritative-lease",
+  "matrix": [
+    { "verb": "steer", "backend": "local-same-uid", "hasDistinctTerminalStates": true },
+    { "verb": "steer", "backend": "cloudflare-remote", "hasDistinctTerminalStates": true },
+    { "verb": "steer", "backend": "hook-only-observed", "hasDistinctTerminalStates": true },
+    { "verb": "interrupt", "backend": "local-same-uid", "hasDistinctTerminalStates": true },
+    { "verb": "interrupt", "backend": "cloudflare-remote", "hasDistinctTerminalStates": true },
+    { "verb": "interrupt", "backend": "hook-only-observed", "hasDistinctTerminalStates": true },
+    { "verb": "pause", "backend": "local-same-uid", "hasDistinctTerminalStates": true },
+    { "verb": "pause", "backend": "cloudflare-remote", "hasDistinctTerminalStates": true },
+    { "verb": "pause", "backend": "hook-only-observed", "hasDistinctTerminalStates": true },
+    { "verb": "kill", "backend": "local-same-uid", "hasDistinctTerminalStates": true },
+    { "verb": "kill", "backend": "cloudflare-remote", "hasDistinctTerminalStates": true },
+    { "verb": "kill", "backend": "hook-only-observed", "hasDistinctTerminalStates": true },
+    { "verb": "checkpoint", "backend": "local-same-uid", "hasDistinctTerminalStates": true },
+    { "verb": "checkpoint", "backend": "cloudflare-remote", "hasDistinctTerminalStates": true },
+    { "verb": "checkpoint", "backend": "hook-only-observed", "hasDistinctTerminalStates": true },
+    { "verb": "fork", "backend": "local-same-uid", "hasDistinctTerminalStates": true },
+    { "verb": "fork", "backend": "cloudflare-remote", "hasDistinctTerminalStates": true },
+    { "verb": "fork", "backend": "hook-only-observed", "hasDistinctTerminalStates": true }
+  ]
+}

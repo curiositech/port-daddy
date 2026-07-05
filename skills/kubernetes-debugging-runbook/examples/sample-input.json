@@ -1,0 +1,12 @@
+{
+  "symptom": "crashloopbackoff",
+  "firstAction": "describe-pod",
+  "usedPreviousLogs": true,
+  "fixApproach": "manifest-change",
+  "memoryRequestsSet": true,
+  "memoryLimitsSet": true,
+  "livenessSameAsReadiness": false,
+  "networkPolicyAudited": true,
+  "imageTag": "pinned",
+  "restartAlertingConfigured": true
+}

@@ -168,7 +168,7 @@
   function card(kind, who, id, bodyHtml) {
     const el = document.createElement('div');
     el.className = `card ${kind}`;
-    el.innerHTML = `<div class="head"><span class="who">${who}</span><span class="id">#${id}</span></div><div class="body">${bodyHtml}</div>`;
+    el.innerHTML = `<div class="head"><span class="who">${escapeHtml(who)}</span><span class="id">#${escapeHtml(String(id))}</span></div><div class="body">${bodyHtml}</div>`;
     $('thread').prepend(el);
     return el;
   }

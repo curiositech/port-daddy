@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Tenancy Boundary Spec",
+  "description": "Input shape for scripts/tenancy_boundary_audit.mjs — a normalized description of a product's local-first account/tenancy model and its cloud data-boundary consent design.",
+  "type": "object",
+  "required": ["features", "localOnlyMode", "exportDelete", "scopeLadderOrdered"],
+  "additionalProperties": true,
+  "properties": {
+    "features": {
+      "type": "array",
+      "description": "Every user-facing feature that either gates on identity or moves data across a scope tier. An empty array is treated as unsafe (fail closed), not as \"nothing to report.\"",
+      "items": {
+        "type": "object",
+        "required": ["name", "requiresIdentity", "hasLocalOnlyPath", "scopeTier", "crossesTierWithConsentScreen"],
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Human-readable feature name (e.g. \"repo-skill-publish\")."
+          },
+          "requiresIdentity": {
+            "type": "boolean",
+            "description": "True if this feature cannot function without a signed-in account or paired device (passkey, device pairing, etc.)."
+          },
+          "hasLocalOnlyPath": {
+            "type": "boolean",
+            "description": "True if the feature (or a reduced equivalent of it) works with zero account, zero pairing, zero cloud dependency."
+          },
+          "scopeTier": {
+            "type": "string",
+            "enum": ["private", "repo", "team", "public"],
+            "description": "The tenancy scope tier this feature's data lives in. \"private\" never leaves the device; repo/team/public all cross the local/cloud data boundary."
+          },
+          "crossesTierWithConsentScreen": {
+            "type": "boolean",
+            "description": "True if, before this feature's data first moves from the private/local tier into scopeTier, the user sees and affirmatively passes an explicit data-boundary consent screen."
+          }
+        }
+      }
+    },
+    "localOnlyMode": {
+      "type": "object",
+      "required": ["uploadsNothingTestable"],
+      "additionalProperties": true,
+      "properties": {
+        "uploadsNothingTestable": {
+          "type": "boolean",
+          "description": "True only if the \"local-only mode uploads nothing\" claim is backed by a runtime-verifiable check (e.g. a network-egress assertion), not merely documented."
+        }
+      }
+    },
+    "exportDelete": {
+      "type": "object",
+      "required": ["perTierSupported"],
+      "additionalProperties": true,
+      "properties": {
+        "perTierSupported": {
+          "type": "boolean",
+          "description": "True only if export and delete controls are implemented and verified for every scope tier a user's data can land in."
+        }
+      }
+    },
+    "scopeLadderOrdered": {
+      "type": "boolean",
+      "description": "True if the private -> repo -> team -> public scope ladder is declared once, in order, as a single source of truth that role/consent logic derives from."
+    }
+  }
+}

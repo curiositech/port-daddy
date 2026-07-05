@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Port Daddy — Sign In</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Recursive:MONO,wght@0,400..800;1,400..800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f2eee6;
+    --raised: #f7f3eb;
+    --well: #e9e2d5;
+    --ink: #121212;
+    --ink-soft: #3d3a34;
+    --cobalt: #003fb8;
+    --cobalt-ink: #f7f3eb;   /* text on cobalt */
+    --teal: #006b5f;
+    --border: #121212;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #101216;
+      --raised: #161a20;
+      --well: #1b2028;
+      --ink: #f5f3ed;
+      --ink-soft: #c4c0b6;
+      --cobalt: #7db4ff;
+      --cobalt-ink: #101216;
+      --teal: #8fd0a7;
+      --border: #f5f3ed;
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; border-radius: 0 !important; }
+  html { font-size: 100%; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Recursive', system-ui, sans-serif;
+    font-variation-settings: "MONO" 0;
+    font-size: 1rem;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono {
+    font-family: 'Recursive', monospace;
+    font-variation-settings: "MONO" 1;
+    letter-spacing: 0.01em;
+  }
+  a { color: var(--cobalt); text-decoration: underline; text-underline-offset: 3px; }
+  a:hover { color: var(--teal); }
+  :focus-visible {
+    outline: 3px solid var(--cobalt);
+    outline-offset: 2px;
+  }
+
+  /* ---------- shell ---------- */
+  .shell { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; }
+
+  header.top {
+    border-bottom: 2px solid var(--border);
+    background: var(--raised);
+  }
+  .top-inner {
+    max-width: 1200px; margin: 0 auto; padding: 1rem 1.5rem;
+    display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
+  }
+  .wordmark {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 800; font-size: 1.375rem; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--ink); text-decoration: none;
+  }
+  .wordmark:hover { color: var(--cobalt); }
+  .top-status {
+    font-size: 0.875rem; font-weight: 500; color: var(--ink-soft);
+  }
+  .top-status b { color: var(--teal); font-weight: 700; }
+
+  /* ---------- split ---------- */
+  main.split {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: 4rem;
+    padding: 4rem 0 5rem;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    main.split { grid-template-columns: 1fr; gap: 3rem; padding: 2.5rem 0 3rem; }
+  }
+
+  /* ---------- left: the argument ---------- */
+  .eyebrow {
+    font-size: 0.875rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.14em; color: var(--cobalt);
+  }
+  .eyebrow .sep { color: var(--ink-soft); font-weight: 400; padding: 0 0.35em; }
+
+  h1 {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 800;
+    font-size: clamp(2.75rem, 6vw, 4.5rem);
+    line-height: 0.98;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    margin: 0.75rem 0 2rem;
+    max-width: 14ch;
+  }
+  h1 .accent { color: var(--cobalt); }
+
+  .honesty {
+    border: 2px solid var(--border);
+    background: var(--well);
+    padding: 1.5rem 1.75rem;
+    max-width: 40rem;
+  }
+  .honesty .tag {
+    display: inline-block;
+    font-size: 0.875rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--paper);
+    background: var(--teal); padding: 0.2rem 0.6rem; margin-bottom: 0.9rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    .honesty .tag { color: var(--paper); background: var(--teal); }
+  }
+  .honesty p { font-size: 1.0625rem; line-height: 1.6; }
+  .honesty p strong { font-weight: 700; }
+
+  .proof { margin-top: 2.25rem; max-width: 40rem; }
+  .proof-row {
+    display: grid; grid-template-columns: 8.5rem 1fr; gap: 1rem;
+    padding: 0.9rem 0; border-top: 2px solid var(--border);
+    align-items: baseline;
+  }
+  .proof-row:last-child { border-bottom: 2px solid var(--border); }
+  .proof-label {
+    font-size: 0.9375rem; font-weight: 700; letter-spacing: 0.06em;
+    color: var(--cobalt);
+  }
+  .proof-body { font-size: 0.9375rem; color: var(--ink); }
+  .proof-body .path { color: var(--ink-soft); }
+  @media (max-width: 520px) {
+    .proof-row { grid-template-columns: 1fr; gap: 0.2rem; }
+  }
+
+  /* ---------- right: the door ---------- */
+  .door {
+    border: 2px solid var(--border);
+    background: var(--raised);
+  }
+  .door-head {
+    border-bottom: 2px solid var(--border);
+    padding: 1rem 1.5rem;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .door-head h2 {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 700; font-size: 1.5rem; letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .door-head .num { font-size: 0.875rem; font-weight: 600; color: var(--ink-soft); }
+  .door-body { padding: 1.5rem; }
+
+  .btn {
+    display: block; width: 100%;
+    border: 2px solid var(--border);
+    font-family: 'Recursive', system-ui, sans-serif;
+    font-size: 1.0625rem; font-weight: 700;
+    padding: 0.85rem 1rem;
+    cursor: pointer;
+    text-align: center;
+  }
+  .btn-primary {
+    background: var(--cobalt); color: var(--cobalt-ink);
+    border-color: var(--border);
+  }
+  .btn-primary:hover { background: var(--ink); color: var(--paper); }
+  .btn-secondary {
+    background: var(--raised); color: var(--ink);
+  }
+  .btn-secondary:hover { background: var(--well); }
+
+  .sub-caption {
+    display: block; margin-top: 0.5rem;
+    font-size: 0.875rem; color: var(--ink-soft); text-align: center;
+  }
+
+  .divider {
+    display: flex; align-items: center; gap: 0.9rem;
+    margin: 1.5rem 0;
+    color: var(--ink-soft);
+    font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .divider::before, .divider::after {
+    content: ""; flex: 1; height: 2px; background: var(--border);
+  }
+
+  label.field-label {
+    display: block; font-size: 0.875rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 0.4rem;
+  }
+  input[type="email"] {
+    display: block; width: 100%;
+    border: 2px solid var(--border);
+    background: var(--paper); color: var(--ink);
+    font-family: 'Recursive', monospace;
+    font-variation-settings: "MONO" 1;
+    font-size: 1rem; padding: 0.75rem 0.9rem;
+    margin-bottom: 0.75rem;
+  }
+  input::placeholder { color: var(--ink-soft); opacity: 1; }
+
+  /* pairing section */
+  .pair {
+    margin-top: 1.75rem;
+    border: 2px solid var(--border);
+    background: var(--well);
+    padding: 1.25rem 1.5rem 1.5rem;
+  }
+  .pair h3 {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 700; font-size: 1.1875rem;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  .digits { display: flex; gap: 0.75rem; margin-bottom: 0.85rem; }
+  .digits input {
+    width: 3.5rem; height: 3.5rem;
+    border: 2px solid var(--border);
+    background: var(--paper); color: var(--ink);
+    font-family: 'Recursive', monospace;
+    font-variation-settings: "MONO" 1;
+    font-size: 1.75rem; font-weight: 700;
+    text-align: center;
+  }
+  .pair .hint { font-size: 0.9375rem; color: var(--ink-soft); }
+  .pair .hint .cmd {
+    font-family: 'Recursive', monospace;
+    font-variation-settings: "MONO" 1;
+    color: var(--teal); font-weight: 600;
+  }
+
+  .door-foot {
+    border-top: 2px solid var(--border);
+    padding: 1.25rem 1.5rem;
+    background: var(--raised);
+  }
+  .door-foot .warn {
+    font-size: 0.9375rem; line-height: 1.55; color: var(--ink);
+    margin-bottom: 0.9rem;
+  }
+  .door-foot .warn strong { font-weight: 700; }
+  .door-foot nav {
+    font-size: 0.9375rem; font-weight: 600;
+    display: flex; gap: 0.6rem; flex-wrap: wrap;
+  }
+  .door-foot nav .dot { color: var(--ink-soft); }
+
+  /* ---------- footer plaques ---------- */
+  footer.creed {
+    border-top: 2px solid var(--border);
+    background: var(--raised);
+  }
+  .creed-inner {
+    max-width: 1200px; margin: 0 auto; padding: 0 1.5rem;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+  }
+  .plaque {
+    padding: 1.4rem 1rem;
+    text-align: center;
+    font-size: 0.9375rem; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    border-left: 2px solid var(--border);
+  }
+  .plaque:first-child { border-left: none; }
+  @media (max-width: 700px) {
+    .creed-inner { grid-template-columns: 1fr; }
+    .plaque { border-left: none; border-top: 2px solid var(--border); }
+    .plaque:first-child { border-top: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <a class="wordmark" href="#">Port Daddy</a>
+    <p class="top-status mono">accounts.portdaddy.dev &nbsp;/&nbsp; <b>daemon optional</b></p>
+  </div>
+</header>
+
+<div class="shell">
+  <main class="split">
+
+    <!-- LEFT: the argument -->
+    <section aria-labelledby="headline">
+      <p class="eyebrow mono">Port Daddy<span class="sep">/</span>Accounts</p>
+      <h1 id="headline">Sign in to the <span class="accent">control plane.</span></h1>
+
+      <div class="honesty">
+        <span class="tag mono">Local-first</span>
+        <p>
+          Port Daddy works without an account. Your daemon, agents, and transcripts
+          stay on your machine. An account adds what only a server can:
+          <strong>signed downloads, device pairing, receipts you can share, team harbors.</strong>
+        </p>
+      </div>
+
+      <div class="proof">
+        <div class="proof-row">
+          <span class="proof-label mono">RECEIPTS</span>
+          <span class="proof-body">Verifiable URLs for every fleet run <span class="path mono">&middot; portdaddy.dev/r/&hellip;</span></span>
+        </div>
+        <div class="proof-row">
+          <span class="proof-label mono">PAIRING</span>
+          <span class="proof-body">4-digit code, echoed on your daemon</span>
+        </div>
+        <div class="proof-row">
+          <span class="proof-label mono">KEYS</span>
+          <span class="proof-body">The website never holds your private keys</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: the door -->
+    <section aria-labelledby="door-title">
+      <div class="door">
+        <div class="door-head">
+          <h2 id="door-title">Sign In</h2>
+          <span class="num mono">AUTH / 01</span>
+        </div>
+
+        <div class="door-body">
+          <button class="btn btn-primary" type="button">Continue with GitHub</button>
+          <span class="sub-caption mono">OIDC &mdash; 1-hour session, httponly</span>
+
+          <div class="divider" role="separator">or</div>
+
+          <form action="#" method="post">
+            <label class="field-label" for="email">Email me a magic link</label>
+            <input type="email" id="email" name="email" autocomplete="email"
+                   placeholder="operator@example.com" required>
+            <button class="btn btn-secondary" type="submit">Email me a magic link</button>
+          </form>
+
+          <div class="pair">
+            <h3>Pair this browser to a daemon</h3>
+            <div class="digits" role="group" aria-label="Four-digit pairing code">
+              <input type="text" inputmode="numeric" maxlength="1" aria-label="Pairing digit 1">
+              <input type="text" inputmode="numeric" maxlength="1" aria-label="Pairing digit 2">
+              <input type="text" inputmode="numeric" maxlength="1" aria-label="Pairing digit 3">
+              <input type="text" inputmode="numeric" maxlength="1" aria-label="Pairing digit 4">
+            </div>
+            <p class="hint">The code appears in FleetBar &rarr; <span class="cmd">Pair this device</span> (terminal alternative: <span class="cmd">pd account pair</span>)</p>
+          </div>
+        </div>
+
+        <div class="door-foot">
+          <p class="warn">
+            <strong>No custodial recovery</strong> &mdash; your account key lives in your
+            OS keychain. Lose it and the account is dead by design.
+          </p>
+          <nav aria-label="Account footer links">
+            <a href="#">Docs</a><span class="dot">&middot;</span>
+            <a href="#">Security model</a><span class="dot">&middot;</span>
+            <a href="#">Download</a>
+          </nav>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="creed">
+  <div class="creed-inner">
+    <p class="plaque mono">Local-first</p>
+    <p class="plaque mono">Receipts over promises</p>
+    <p class="plaque mono">No keys server-side</p>
+  </div>
+</footer>
+
+</body>
+</html>

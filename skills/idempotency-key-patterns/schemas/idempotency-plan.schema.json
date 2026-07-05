@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/idempotency-plan.schema.json",
+  "title": "Idempotency-Key Implementation Plan",
+  "description": "A structured plan for an Idempotency-Key endpoint implementation, so the fingerprint-check / in-progress-lock / recovery-point trio and this skill's Quality Gates can be checked deterministically by scripts/idempotency_key_patterns_audit.mjs.",
+  "type": "object",
+  "required": ["keyGenerator", "fingerprintCheck", "inProgressLock", "statusCodeFlavor"],
+  "additionalProperties": true,
+  "properties": {
+    "keyGenerator": {
+      "type": "string",
+      "enum": ["client", "server"],
+      "description": "Who generates the idempotency key. Must be the client — a server-generated key cannot survive a network retry."
+    },
+    "keySource": {
+      "type": "string",
+      "enum": ["random-uuid", "pii-derived", "sequential"],
+      "description": "What the key value is derived from. random-uuid is the only safe choice."
+    },
+    "fingerprintCheck": {
+      "type": "boolean",
+      "description": "True if the request fingerprint (method, path, params) is stored and checked, returning 422/400 when a key is reused with a different body."
+    },
+    "inProgressLock": {
+      "type": "boolean",
+      "description": "True if a lock (locked_at column or Redis SET NX EX) prevents two concurrent retries from both executing the work, with 409 returned to the loser."
+    },
+    "lockTtlSeconds": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Stale-lock TTL covering crashed workers; sized to worst-case request latency (canonical: 90)."
+    },
+    "recoveryPointStateMachine": {
+      "type": "boolean",
+      "description": "True if the implementation advances a recovery_point label per atomic phase so a crashed retry resumes mid-flow rather than restarting."
+    },
+    "maxSideEffectsPerPhase": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "The maximum number of external side effects committed inside any single atomic phase. Must be at most 1."
+    },
+    "statusCodeFlavor": {
+      "type": "string",
+      "enum": ["stripe", "ietf"],
+      "description": "Which documented status-code convention the API follows: Stripe (400 on fingerprint mismatch) or IETF draft (422). Never a third invention."
+    },
+    "retentionHours": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "How long keys are retained before the reaper deletes them. 24 is the canonical floor."
+    },
+    "durableStore": {
+      "type": "string",
+      "enum": ["postgres", "redis-plus-postgres", "redis-only"],
+      "description": "Where the durable key record + response cache live. redis-only is lossy and fails the audit."
+    },
+    "uniquenessScope": {
+      "type": "string",
+      "enum": ["per-tenant", "global"],
+      "description": "Scope of the unique index. Must be per-tenant — (user_id, idempotency_key) — to prevent cross-tenant collisions."
+    },
+    "appliesToSafeMethods": {
+      "type": "boolean",
+      "description": "True if the header is also required on GET/PUT/DELETE. Should be false; those methods are already idempotent."
+    }
+  }
+}

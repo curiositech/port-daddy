@@ -102,7 +102,7 @@ export function auditShaderPlan(plan) {
       );
     }
 
-    // "Hardcoded #FFDB33 in WGSL"
+    // "Hardcoded accent hex in WGSL"
     if (effect.hardcodedHex === true || effect.colorFromAccentUniform !== true) {
       fail(
         'hardcoded-hex',

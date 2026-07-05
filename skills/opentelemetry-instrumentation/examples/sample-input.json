@@ -1,0 +1,20 @@
+{
+  "serviceNameSet": true,
+  "serviceVersionSet": true,
+  "deploymentEnvironmentSet": true,
+  "sdkLoadOrder": "preload-flag",
+  "moduleSystem": "esm",
+  "multiService": true,
+  "sampler": "parent-based-ratio",
+  "samplingRatio": 0.1,
+  "exporterProtocol": "otlp-http-protobuf",
+  "environment": "production",
+  "spanProcessor": "batch",
+  "maxQueueSizeSet": true,
+  "errorPathsRecordException": true,
+  "latencyInstrument": "histogram",
+  "crossAsyncBoundaries": true,
+  "contextPropagatedAcrossBoundaries": true,
+  "browserFetchInstrumentation": true,
+  "corsPropagationAllowlistSet": true
+}

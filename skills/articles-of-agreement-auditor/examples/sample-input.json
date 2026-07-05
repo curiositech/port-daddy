@@ -1,0 +1,55 @@
+{
+  "identity": {
+    "daemonIssued": true,
+    "signed": true
+  },
+  "clauses": [
+    {
+      "name": "register-with-daemon",
+      "obligation": "Agent must call agent.register with a daemon-issued registrationNonce and articlesSignature before any tool use.",
+      "enforcementMechanism": "pre-tool-gate",
+      "daemonObservable": true,
+      "denialShape": "every tool call before a successful agent.register is refused with UNREGISTERED_AGENT"
+    },
+    {
+      "name": "stream-transcript-events",
+      "obligation": "Agent must stream every tool call, tool result, shell command, and stop reason as a normalized transcript event.",
+      "enforcementMechanism": "transcript-event",
+      "daemonObservable": true
+    },
+    {
+      "name": "route-destructive-tools-through-gate",
+      "obligation": "Agent must route destructive git actions, secret reads, and writes outside the workspace through the daemon's pre-tool gate.",
+      "enforcementMechanism": "pre-tool-gate",
+      "daemonObservable": true,
+      "denialShape": "the tool call is rejected with PD_TOOL_DENIED and the id of the violated policy"
+    },
+    {
+      "name": "respect-token-and-cost-budget",
+      "obligation": "Agent must halt and request an extension once accrued cost or token usage crosses the harbor's configured budget.",
+      "enforcementMechanism": "capability-lease",
+      "daemonObservable": true,
+      "denialShape": "the tool-use capability lease expires and is not renewed, returning BUDGET_LEASE_EXPIRED on the next tool call"
+    },
+    {
+      "name": "accept-operator-interrupt",
+      "obligation": "Agent must yield control within one turn when the daemon issues a pause or interrupt control signal.",
+      "enforcementMechanism": "hook",
+      "daemonObservable": true,
+      "denialShape": "the process-supervision hook suspends the body process regardless of agent cooperation and marks the turn interrupted"
+    },
+    {
+      "name": "claim-files-before-editing",
+      "obligation": "Agent must register a file or symbol claim with the daemon before editing it, and release the claim on completion.",
+      "enforcementMechanism": "mcp-gateway",
+      "daemonObservable": true,
+      "denialShape": "the coordination MCP gateway rejects a conflicting edit tool call with CLAIM_CONFLICT and the competing claimant's agent id"
+    },
+    {
+      "name": "respond-to-parley-within-window",
+      "obligation": "Agent must acknowledge an incoming parley request within the harbor's configured response window.",
+      "enforcementMechanism": "probe",
+      "daemonObservable": true
+    }
+  ]
+}

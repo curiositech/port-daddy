@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/webauthn-passkey-implementation-plan.schema.json",
+  "title": "WebAuthn Relying-Party Implementation Plan",
+  "description": "A structured plan for a WebAuthn/passkey relying-party implementation -- ceremony, library, verification steps, option choices -- so this skill's Quality Gates can be checked deterministically by scripts/webauthn_passkey_implementation_audit.mjs.",
+  "type": "object",
+  "required": ["ceremony", "library"],
+  "additionalProperties": true,
+  "properties": {
+    "ceremony": {
+      "type": "string",
+      "enum": ["registration", "authentication", "both"],
+      "description": "Which ceremony this plan implements."
+    },
+    "library": {
+      "type": "string",
+      "enum": ["simplewebauthn", "py-webauthn", "webauthn4j", "other-library", "hand-rolled"],
+      "description": "The verification library. hand-rolled means DIY CBOR/COSE/attestation parsing, which is rejected."
+    },
+    "challengeSource": {
+      "type": "string",
+      "enum": ["server", "client"],
+      "description": "Who generates the ceremony challenge. Must be server."
+    },
+    "challengeSingleUse": {
+      "type": "boolean",
+      "description": "True if the challenge is deleted from the session after one verification attempt."
+    },
+    "verifiesChallengeMatch": {
+      "type": "boolean",
+      "description": "True if clientDataJSON.challenge is compared to the session-stored challenge."
+    },
+    "verifiesOrigin": {
+      "type": "boolean",
+      "description": "True if clientDataJSON.origin is checked against a finite expected-origin allowlist."
+    },
+    "verifiesRpIdHash": {
+      "type": "boolean",
+      "description": "True if authData.rpIdHash is compared to SHA-256(rpId)."
+    },
+    "verifiesSignature": {
+      "type": "boolean",
+      "description": "True if the assertion signature is verified over authenticatorData || SHA-256(clientDataJSON) with the stored public key."
+    },
+    "counterCheckImplemented": {
+      "type": "boolean",
+      "description": "True if signCount monotonicity is enforced (strictly greater when either value is > 0) and persisted."
+    },
+    "userIdKind": {
+      "type": "string",
+      "enum": ["random-opaque", "email", "db-sequence"],
+      "description": "How user.id is generated. Must be random-opaque (16-64 bytes, no PII)."
+    },
+    "residentKey": {
+      "type": "string",
+      "enum": ["required", "preferred", "discouraged"],
+      "description": "authenticatorSelection.residentKey. 'required' is passkey-defining."
+    },
+    "userVerification": {
+      "type": "string",
+      "enum": ["required", "preferred", "discouraged"],
+      "description": "The userVerification option sent in ceremony options."
+    },
+    "attestation": {
+      "type": "string",
+      "enum": ["none", "indirect", "direct", "enterprise"],
+      "description": "The attestation conveyance preference. 'none' unless a concrete compliance need exists."
+    },
+    "attestationComplianceNeed": {
+      "type": "boolean",
+      "description": "True if a concrete hardware-policy/compliance requirement justifies attestation stronger than 'none'."
+    },
+    "conditionalUiEnabled": {
+      "type": "boolean",
+      "description": "True if passkey autofill (mediation: 'conditional') is part of this plan."
+    },
+    "allowCredentialsEmptyForConditional": {
+      "type": "boolean",
+      "description": "True if the conditional-UI request sends allowCredentials: [] so any discoverable credential is offered."
+    },
+    "excludeCredentialsPopulated": {
+      "type": "boolean",
+      "description": "True if registration passes the user's existing credentialIds in excludeCredentials."
+    },
+    "storesBackupFlags": {
+      "type": "boolean",
+      "description": "True if deviceType/backedUp (from the BE/BS flags) are persisted per credential."
+    }
+  }
+}

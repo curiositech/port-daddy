@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/graphql-n-plus-one-dataloader-plan.schema.json",
+  "title": "GraphQL DataLoader Plan",
+  "description": "A structured plan of DataLoader scoping, batch-contract handling, and query-abuse defenses for a GraphQL server, so this skill's Quality Gates can be checked deterministically by scripts/graphql_n_plus_one_dataloader_audit.mjs.",
+  "type": "object",
+  "required": [
+    "loaderScope",
+    "batchFnReordersByKey",
+    "batchFnReturnsKeyLengthArray",
+    "roundTripsForListQuery",
+    "depthLimitEnabled",
+    "costAnalysisEnabled"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "loaderScope": {
+      "type": "string",
+      "enum": ["request", "module-singleton"],
+      "description": "Where DataLoader instances are constructed: inside the per-request context factory, or once at module scope (the cross-request poisoning anti-pattern)."
+    },
+    "batchFnReordersByKey": {
+      "type": "boolean",
+      "description": "True if every batchLoadFn reorders rows to match incoming key order (Map by id, then keys.map), since SQL IN (...) guarantees no row order and DataLoader matches by index."
+    },
+    "batchFnReturnsKeyLengthArray": {
+      "type": "boolean",
+      "description": "True if every batchLoadFn resolves an array exactly keys.length long, with null or an Error instance at missing indexes."
+    },
+    "roundTripsForListQuery": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Datastore round trips observed (or expected) for a list-of-N query with one nested association; batched is at most 2, regardless of N."
+    },
+    "usedAsApplicationCache": {
+      "type": "boolean",
+      "description": "True if DataLoader's cache is being relied on across requests as if it were Redis/Memcache."
+    },
+    "depthLimitEnabled": {
+      "type": "boolean",
+      "description": "True if a parse-time query depth limit is in the validation rules."
+    },
+    "costAnalysisEnabled": {
+      "type": "boolean",
+      "description": "True if cost analysis with list-argument multipliers (e.g. @cost, GraphQL Armor) enforces a maximum query cost."
+    },
+    "introspectionExempt": {
+      "type": "boolean",
+      "description": "True if __schema/__type introspection queries are exempted from the depth limit."
+    },
+    "clientsExternal": {
+      "type": "boolean",
+      "description": "True if external or mobile clients (bandwidth-sensitive, CDN-cacheable) consume this API."
+    },
+    "apqEnabled": {
+      "type": "boolean",
+      "description": "True if Automatic Persisted Queries (sha256-hash protocol) are enabled."
+    }
+  }
+}

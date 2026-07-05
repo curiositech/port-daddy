@@ -1,0 +1,13 @@
+name: local-first-tenancy-boundary
+description: Audits a product's local-first account model and cloud data-boundary consent design for gaps.
+model: gpt-5-codex
+instructions: |
+  Use the local-first-tenancy-boundary skill. For every identity-gated feature, verify it ships a real
+  local-only path (not a policy claim). For every feature whose data crosses a scope tier
+  (private -> repo -> team -> public), verify an explicit data-boundary consent screen fires before the
+  crossing. Verify the "local-only mode uploads nothing" claim is runtime-testable, export/delete controls
+  exist per tier, and the scope ladder is declared once, in order. Build a spec matching
+  schemas/tenancy-boundary.schema.json and audit it with scripts/tenancy_boundary_audit.mjs — fail closed on
+  any critical finding.
+inputs: [feature-inventory, local-only-mode-status, export-delete-status, scope-ladder-declaration]
+outputs: [tenancy-boundary-audit, data-boundary-design-doc]

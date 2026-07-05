@@ -1,0 +1,11 @@
+name: coordination-verb-broker-migration
+description: Audit whether a coordination MCP's legacy etiquette verbs have really collapsed into the 5 enforced broker tools.
+model: gpt-5-codex
+instructions: |
+  Use the coordination-verb-broker-migration skill. Confirm every legacy etiquette verb maps to exactly one of the
+  5 enforced tools (work/act/ask/recall/status), that its migration path is intake-metadata, alias, or doc-history
+  and never a parallel runtime, that each of the 5 tools declares both a denial shape and a transcript event, and
+  that a body at compliance mode C4+ emits zero legacy-verb calls (IT-018 Broker Collapse gate). Run
+  scripts/broker_migration_audit.mjs and treat any critical finding as a hold on the migration.
+inputs: [broker-migration-spec, compliance-mode-declaration]
+outputs: [broker-collapse-audit, migration-gap-report]

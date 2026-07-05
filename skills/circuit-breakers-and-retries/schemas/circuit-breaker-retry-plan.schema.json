@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/circuit-breaker-retry-plan.schema.json",
+  "title": "Circuit-Breaker + Retry Resilience Plan",
+  "description": "A structured resilience plan for an outbound dependency call, so circuit-breakers-and-retries' Quality Gates can be checked deterministically by scripts/circuit_breaker_retry_audit.mjs.",
+  "type": "object",
+  "required": ["retryEnabled", "circuitBreakerEnabled"],
+  "additionalProperties": true,
+  "properties": {
+    "retryEnabled": {
+      "type": "boolean",
+      "description": "True if the call retries on failure."
+    },
+    "circuitBreakerEnabled": {
+      "type": "boolean",
+      "description": "True if a circuit breaker wraps the call."
+    },
+    "maxAttemptsPerRequest": {
+      "type": "number",
+      "minimum": 1,
+      "description": "Per-request attempt cap. Google SRE budget: 3."
+    },
+    "backoffStrategy": {
+      "type": "string",
+      "enum": ["none", "constant", "exponential", "exponential-equal-jitter", "exponential-full-jitter", "decorrelated-jitter"],
+      "description": "The retry delay formula. Full jitter is the recommended default (Brooker)."
+    },
+    "backoffCapMs": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Maximum backoff delay in ms; 30s-60s recommended."
+    },
+    "perClientRetryBudgetRatio": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "The per-client retry-ratio ceiling as a fraction (Google SRE: 0.10)."
+    },
+    "retryShortCircuitsOnOpenBreaker": {
+      "type": "boolean",
+      "description": "True if the retry loop treats breaker rejection (CallNotPermittedException) as non-retriable."
+    },
+    "slowCallRateThresholdConfigured": {
+      "type": "boolean",
+      "description": "True if the breaker trips on slow-call rate, not only on errors (Resilience4j ships this disabled)."
+    },
+    "halfOpenProbeLimited": {
+      "type": "boolean",
+      "description": "True if HALF_OPEN permits only a fixed number of probe calls."
+    },
+    "retriesOnClientErrors": {
+      "type": "boolean",
+      "description": "True if 4xx statuses other than 429 are retried — an anti-pattern; they never succeed."
+    },
+    "honorsRetryAfter": {
+      "type": "boolean",
+      "description": "True if a Retry-After header on 429/503 is parsed and honored."
+    },
+    "deadlinePropagation": {
+      "type": "string",
+      "enum": ["propagated", "fresh-per-hop", "none"],
+      "description": "Whether an absolute edge deadline is propagated downstream, re-minted per hop, or absent."
+    },
+    "layersThatRetry": {
+      "type": "number",
+      "minimum": 0,
+      "description": "How many layers in the call chain issue retries. More than 1 multiplies attempts as a product (64x math)."
+    },
+    "retriesNonIdempotentCalls": {
+      "type": "boolean",
+      "description": "True if non-idempotent requests (POST without idempotency semantics) are retried."
+    },
+    "nonIdempotentRetriesHaveIdempotencyKey": {
+      "type": "boolean",
+      "description": "True if retried non-idempotent requests carry an idempotency key."
+    },
+    "library": {
+      "type": "string",
+      "enum": ["resilience4j", "polly", "hystrix", "custom", "none"],
+      "description": "The resilience library in use. Hystrix has been EOL since 2018."
+    }
+  }
+}
