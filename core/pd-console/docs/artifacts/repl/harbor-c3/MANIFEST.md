@@ -37,8 +37,8 @@ lands with the ledger/receipt chain); declared honestly rather than staged.
 
 To be captured once a C1 daemon serves real Agent Nodes (labels then earn `real`):
 
-1. **Screenshots** (via `scripts/capture-gpui.sh`, devbuild app per
-   `package-console.sh --devbuild harbor-c3`): Harbor pane — populated roster w/
+1. **Screenshots** (via `core/pd-console/scripts/capture-gpui.sh`, devbuild app per
+   `core/pd-console/scripts/package-console.sh --devbuild harbor-c3`): Harbor pane — populated roster w/
    selected live node; self-report gate; observed gate; stale gate; roster-404
    remediation; steer entry line open.
 2. **GIF**: click roster row → detail retargets → click Steer → type → send →
