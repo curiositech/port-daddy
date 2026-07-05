@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/agent-node.schema.json",
+  "title": "AgentNode",
+  "description": "The durable Port Daddy record for an agent (binder README, ch09 agent_nodes). Binds identity, class, authority, compliance level, current session and body, and policy. An Agent Node exists before the first model turn; a body cannot self-upgrade compliance.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.agent-node.v0" },
+    "agentNodeId": { "type": "string", "minLength": 1 },
+    "identity": { "type": "string", "minLength": 1, "description": "project:stack:context or repo:role:purpose semantic identity." },
+    "displayName": { "type": "string" },
+    "class": { "enum": ["voyager", "longshoreman", "human", "service"] },
+    "role": { "type": "string" },
+    "authority": { "enum": ["local", "team", "hosted", "remote-worker", "observed"] },
+    "complianceLevel": {
+      "enum": ["C0", "C1", "C2", "C3", "C4", "C5", "C6"],
+      "description": "Frozen 7-level ladder (ADR-0095 fork resolution 2): C0 Registered, C1 Transcripted, C2 Governed, C3 Suggestible, C4 Controllable, C5 Cooperative, C6 Resumable. Daemon-witnessed only; never self-attested. Any value above C0 MUST be backed by complianceProbeId whose ComplianceProbeResult.witnessedLevel is >= this level (ADR-0095 §8 witnessing invariant, enforced by compliance-invariants.mjs); an unbacked level is self-report and invalid."
+    },
+    "complianceProbeId": {
+      "type": ["string", "null"],
+      "description": "The ComplianceProbeResult that witnesses complianceLevel. Mandatory (non-null) whenever complianceLevel > C0; the daemon must not grant a level this node's latest probe did not earn."
+    },
+    "transcriptFidelity": {
+      "enum": ["T0", "T1", "T2", "T3", "T4", "T5"],
+      "description": "T0 inventory, T1 run log, T2 visible chat, T3 tool-backed, T4 verified (minimum for official C1), T5 resumable (required for C6)."
+    },
+    "officialMode": {
+      "enum": ["official", "observed", "run-log", "transcripted-weak", "sandbox-degraded", "privacy-degraded", "unmanaged"],
+      "description": "Honest downgraded modes per the control-plane synthesis packet."
+    },
+    "status": { "enum": ["active", "paused", "blocked", "stale", "complete", "retired"] },
+    "planId": { "type": "string" },
+    "intentId": { "type": "string" },
+    "harborId": { "type": "string" },
+    "currentSessionId": { "type": ["string", "null"] },
+    "currentBodyId": { "type": ["string", "null"] },
+    "currentRunId": { "type": ["string", "null"] },
+    "workspace": {
+      "type": "object",
+      "properties": {
+        "repo": { "type": "string" },
+        "worktree": { "type": "string" },
+        "branch": { "type": "string" },
+        "lane": { "type": "string", "description": "Runtime placement." },
+        "isolation": { "type": "string", "description": "Safety boundary, e.g. linked-worktree." }
+      }
+    },
+    "memoryScopeId": { "type": "string" },
+    "policyId": { "type": "string" },
+    "articlesSignature": { "type": "string", "description": "Signed Articles of Agreement reference; issued by the daemon, never self-declared." },
+    "createdAt": { "type": "string", "minLength": 1 },
+    "lastHeartbeatAt": { "type": ["string", "null"] },
+    "lastEventAt": { "type": ["string", "null"] }
+  },
+  "required": ["schema", "agentNodeId", "identity", "class", "authority", "complianceLevel", "status", "createdAt"],
+  "additionalProperties": true
+}

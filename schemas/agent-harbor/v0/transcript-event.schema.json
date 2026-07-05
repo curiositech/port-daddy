@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/transcript-event.schema.json",
+  "title": "TranscriptEvent",
+  "description": "The canonical append-only fact shape for official agents. Field names are frozen to binder ch09 (ADR-0095 fork resolution 1): agentNodeId, bodyId, payloadJson, payloadBlobRefs, redactionState, retentionPolicyId. The ch03 stream-event variant (agentId, body, blobRefs, redaction, retention) is superseded. (sessionId, sequence) is unique and monotonic in daemon receive order; contentHash/prevHash form a per-session tamper-evident chain.",
+  "type": "object",
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1, "description": "Globally unique." },
+    "harborId": { "type": "string" },
+    "sessionId": { "type": "string", "minLength": 1, "description": "Non-null for official events. Unjoinable imports stay observed; never invent a session." },
+    "agentNodeId": { "type": "string", "minLength": 1 },
+    "bodyId": { "type": ["string", "null"] },
+    "transcriptId": { "type": "string" },
+    "turnId": { "type": ["string", "null"] },
+    "sequence": { "type": "number", "minimum": 0, "description": "Monotonically increasing per session in daemon receive order." },
+    "occurredAt": { "type": "string", "minLength": 1, "description": "Source timestamp when known." },
+    "ingestedAt": { "type": "string", "description": "Daemon time." },
+    "schemaVersion": { "const": 1 },
+    "kind": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Open string for tolerant reading. Known families (transcript-receipt packet): lifecycle (agent_registered, body_attached, session_started, heartbeat, context_pressure, turn_end, session_end, body_stopped), conversation (operator_message, system_guidance, assistant_delta, assistant_message, reasoning_summary, thinking_exposed), tool/shell (tool_call, tool_result, shell_command, stdout_chunk, stderr_chunk, mcp_call, mcp_result), files/git (file_read, file_write, file_diff, file_touch, git_action, commit_created, pr_opened, check_updated, merge_queue_updated), governance (tool_preflight, tool_denied, approval_request, approval_result, capability_lease_issued, capability_lease_revoked), coordination (claim_update, parley_event, blackboard_item, inbox_message, tube_message, skill_graft, memory_retrieval), cost (cost_accrued, budget_warning, budget_pause, budget_kill), continuation (checkpoint, compaction_packet, successor_created, takeover_started), receipts (receipt_started, receipt_completed, receipt_verified, receipt_failed), errors (adapter_error, provider_error, transcript_gap, retention_failure)."
+    },
+    "visibility": { "enum": ["operator", "agent", "system", "private-redacted", "secret-redacted", "internal"] },
+    "source": {
+      "type": "object",
+      "properties": {
+        "adapter": { "type": "string" },
+        "offset": { "type": "string" },
+        "idempotencyKey": { "type": "string", "description": "Required for importers, reconnecting streams, and remote mirrors." }
+      }
+    },
+    "payloadJson": { "type": "object", "description": "Structured metadata and small text. Provider-specific fields live here or under source." },
+    "payloadBlobRefs": {
+      "type": "array",
+      "description": "stdout, stderr, full diffs, screenshots, recordings, long tool results. Refs record media type, byte count, content hash, redaction state, storage tier.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ref": { "type": "string", "minLength": 1 },
+          "mediaType": { "type": "string" },
+          "byteCount": { "type": "number", "minimum": 0 },
+          "contentHash": { "type": "string" },
+          "redactionState": { "type": "string" },
+          "storageTier": { "type": "string" },
+          "truncated": { "type": "boolean", "description": "Truncation preserves original byte count and hash so receipts can mark evidence partial." }
+        },
+        "required": ["ref"]
+      }
+    },
+    "parentEventIds": { "type": "array", "items": { "type": "string" } },
+    "redactionState": { "enum": ["none", "partial", "redacted", "quarantined"] },
+    "retentionPolicyId": { "type": "string" },
+    "contentHash": { "type": "string", "description": "Hash of the canonical event body excluding contentHash." },
+    "prevHash": { "type": ["string", "null"], "description": "Previous persisted event hash for the same session; null for the first event." }
+  },
+  "required": ["eventId", "sessionId", "agentNodeId", "sequence", "occurredAt", "schemaVersion", "kind"],
+  "additionalProperties": true
+}

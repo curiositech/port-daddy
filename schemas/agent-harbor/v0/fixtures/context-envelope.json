@@ -1,0 +1,20 @@
+{
+  "schema": "pd.agent-harbor.context-envelope.v0",
+  "envelopeId": "ctx_01JZFIX0001",
+  "agentNodeId": "agent_node_01JZFIX0001",
+  "sessionId": "session_01JZFIX0001",
+  "runId": "agent_run_01JZFIX0001",
+  "windowTokens": 200000,
+  "usedTokensEstimate": 71000,
+  "compactionNeeded": false,
+  "pressure": "low",
+  "contextRefs": [
+    { "kind": "file", "ref": "tests/unit/auth.test.ts", "tokensEstimate": 3200, "droppable": false },
+    { "kind": "rule", "ref": "AGENTS.md", "tokensEstimate": 1800, "droppable": false },
+    { "kind": "skill-graft", "ref": "vitest-testing-patterns", "tokensEstimate": 2400, "droppable": true },
+    { "kind": "memory-episode", "ref": "memep_flaky_timers", "tokensEstimate": 600, "droppable": true }
+  ],
+  "compactionPacketRef": null,
+  "sourceEventId": "evt_01JZFIX0040",
+  "measuredAt": "2026-07-05T12:03:00.000Z"
+}

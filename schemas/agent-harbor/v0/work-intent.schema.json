@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/work-intent.schema.json",
+  "title": "WorkIntent",
+  "description": "The operator's or system's request before Port Daddy has chosen an execution shape. The sole runtime launch primitive (ADR-0095): every intake path — console, FleetBar, CLI, webhook, staff agent, compatibility verb, import — creates exactly one WorkIntent. Legacy verbs (spawn/dispatch/sortie/conjure/nightshift) survive only as source metadata on this object.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.work-intent.v0" },
+    "intentId": { "type": "string", "minLength": 1, "description": "Globally unique WorkIntent id, e.g. work_intent_01J..." },
+    "idempotencyKey": { "type": "string", "minLength": 1, "description": "Duplicate submissions with the same key are no-ops returning the prior intent." },
+    "source": {
+      "type": "object",
+      "description": "Where the intent came from. Compatibility metadata only — it must never fork the runtime model.",
+      "properties": {
+        "kind": { "enum": ["console", "fleetbar", "dashboard", "cli", "webhook", "schedule", "staff-agent", "compat", "import", "mobile", "api"] },
+        "legacyVerb": { "enum": ["spawn", "dispatch", "sortie", "conjure", "nightshift", null], "description": "Set only when source.kind is compat. Annotates provenance; owns no state." },
+        "surface": { "type": "string" },
+        "actorId": { "type": "string" },
+        "worktree": { "type": "string" },
+        "branch": { "type": "string" }
+      },
+      "required": ["kind"]
+    },
+    "goal": {
+      "type": "object",
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "contextRefs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": { "enum": ["file", "pr", "issue", "session", "note", "url", "selection", "repo"] },
+              "path": { "type": "string" },
+              "number": { "type": "number" },
+              "id": { "type": "string" }
+            },
+            "required": ["kind"]
+          }
+        }
+      },
+      "required": ["text"]
+    },
+    "constraints": {
+      "type": "object",
+      "description": "Operator power flags are constraints, never old verb choices.",
+      "properties": {
+        "placement": { "enum": ["local-only", "cloud-ok", "remote-preferred"] },
+        "maxCostUsd": { "type": "number", "minimum": 0 },
+        "deadlineMs": { "type": "number", "minimum": 0 },
+        "parallelism": { "enum": ["planner-decides", "no-parallel", "allow-workgroup"] },
+        "reviewRequired": { "type": "boolean" },
+        "destructiveActions": { "enum": ["deny", "human-approval", "policy-default"] },
+        "bodyPreference": { "type": "string" },
+        "modelTier": { "enum": ["fast", "mid", "strong", "local", "custom"] },
+        "workdir": { "type": "string" }
+      }
+    },
+    "startPolicy": { "enum": ["immediate", "queued", "scheduled", "attach-existing"], "description": "Absorbs the legacy verb semantics: spawn=immediate, dispatch/nightshift=queued, import=attach-existing." },
+    "attachExisting": { "type": "boolean", "description": "True when importing an existing external run or session." },
+    "operator": { "type": "string" },
+    "status": { "enum": ["draft", "captured", "planning", "planned", "canceled", "superseded"] },
+    "createdAt": { "type": "string", "minLength": 1, "description": "ISO 8601 timestamp." }
+  },
+  "required": ["schema", "intentId", "idempotencyKey", "source", "goal", "createdAt"],
+  "additionalProperties": true
+}

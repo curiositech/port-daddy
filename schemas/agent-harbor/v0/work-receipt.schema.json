@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/work-receipt.schema.json",
+  "title": "WorkReceipt",
+  "description": "The signed, shareable trust object for a completed or stopped Agent Run (binder README, transcript-receipt packet, agent-work-receipt-designer). Nine required sections, reviewer-first order: identity and intent first, risks and validation near the top, provenance last. Generated from persisted events and artifacts, never from agent prose. validation.artifactBacked is true only when every passed test carries a real exitCode or artifactPath.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.work-receipt.v0" },
+    "receiptId": { "type": "string", "minLength": 1 },
+    "agentNodeId": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": "string", "minLength": 1, "description": "sessionId null is a failing receipt for official work — required here." },
+    "runId": { "type": ["string", "null"] },
+    "harborId": { "type": ["string", "null"] },
+    "identity": {
+      "type": "object",
+      "description": "Who did the work: agent, backend, model, session, worktree, operator.",
+      "properties": {
+        "agent": { "type": "string" },
+        "backend": { "type": "string" },
+        "provider": { "type": "string" },
+        "modelTier": { "type": "string" },
+        "modelName": { "type": ["string", "null"] },
+        "sessionId": { "type": "string" },
+        "worktree": { "type": ["string", "null"] },
+        "operator": { "type": ["string", "null"] }
+      }
+    },
+    "intent": {
+      "type": "object",
+      "description": "Goal, authorized scope, non-goals, and a concrete stop condition.",
+      "properties": {
+        "goal": { "type": "string" },
+        "scope": { "type": "string" },
+        "nonGoals": { "type": "array", "items": { "type": "string" } },
+        "stopCondition": { "type": "string" }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "description": "Ranked worst-first. Exactly one high-or-critical item should carry checkFirst: true.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "severity": { "enum": ["critical", "high", "medium", "low"] },
+          "summary": { "type": "string", "minLength": 1 },
+          "checkFirst": { "type": "boolean" }
+        },
+        "required": ["severity", "summary"]
+      }
+    },
+    "validation": {
+      "type": "object",
+      "properties": {
+        "artifactBacked": { "type": "boolean", "description": "True only when every passed: true test has a real exitCode or artifactPath. Agent prose is never validation evidence." },
+        "tests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "passed": { "type": "boolean" },
+              "exitCode": { "type": ["number", "null"] },
+              "artifactPath": { "type": ["string", "null"] }
+            },
+            "required": ["name", "passed"]
+          }
+        },
+        "manualVerification": { "type": ["string", "null"] }
+      },
+      "required": ["artifactBacked"]
+    },
+    "actions": {
+      "type": "object",
+      "description": "Commands with real exit codes, tool-call tallies, files changed, and a triageable diff summary.",
+      "properties": {
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "command": { "type": "string" },
+              "exitCode": { "type": ["number", "null"] }
+            },
+            "required": ["command"]
+          }
+        },
+        "toolCallCounts": { "type": "object" },
+        "filesChanged": { "type": "array", "items": { "type": "string" } },
+        "diffSummary": { "type": "string" }
+      }
+    },
+    "contextUsed": {
+      "type": "object",
+      "description": "Files/rules actually consulted, not every file in the repo.",
+      "properties": {
+        "filesRead": { "type": "array", "items": { "type": "string" } },
+        "rulesConsulted": { "type": "array", "items": { "type": "string" } },
+        "skillGrafts": { "type": "array", "items": { "type": "string" } },
+        "memoryEpisodes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "properties": {
+        "checkpoint": { "type": ["string", "null"], "description": "Concrete rollback pointer: base commit, stash ref, snapshot, or checkpoint event id." },
+        "method": { "type": ["string", "null"] },
+        "verified": { "type": "boolean", "description": "True only when rollback was exercised or mechanically checked." }
+      }
+    },
+    "spend": {
+      "type": "object",
+      "description": "Known token, cost, wall-clock, and budget fields; unknown values stay null, not guessed.",
+      "properties": {
+        "tokens": { "type": ["number", "null"] },
+        "costUsd": { "type": ["number", "null"] },
+        "wallClockMs": { "type": ["number", "null"] },
+        "budgetCapUsd": { "type": ["number", "null"] }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "transcriptHeadHash": { "type": "string", "minLength": 1 },
+        "diffHash": { "type": ["string", "null"] },
+        "filesHash": { "type": ["string", "null"] },
+        "receiptBodyHash": { "type": ["string", "null"], "description": "Hash of the canonical receipt body excluding this field and signature." },
+        "signature": { "type": ["string", "null"], "description": "Sign when the receipt crosses machines, repos, organizations, or PR boundaries." },
+        "replayCommand": { "type": ["string", "null"] }
+      },
+      "required": ["transcriptHeadHash"]
+    },
+    "strength": { "enum": ["strong", "weak"], "description": "A receipt below T4 transcript fidelity must be weak and carry a high-severity evidence risk." },
+    "prRefs": { "type": "array", "items": { "type": "string" } },
+    "verificationStatus": { "enum": ["unverified", "verified", "failed", null] },
+    "createdAt": { "type": "string", "minLength": 1 },
+    "verifiedAt": { "type": ["string", "null"] }
+  },
+  "required": ["schema", "receiptId", "agentNodeId", "sessionId", "identity", "intent", "risks", "validation", "actions", "contextUsed", "rollback", "spend", "provenance", "createdAt"],
+  "additionalProperties": true
+}

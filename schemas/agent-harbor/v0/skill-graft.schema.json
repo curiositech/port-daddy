@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/skill-graft.schema.json",
+  "title": "SkillGraft",
+  "description": "The visible attachment of a chosen skill to an Agent Node before or during a run (binder README Seamanship, ch09 skill_grafts). Every navigated node names its grafted seamanship on the team proposal and the Work Receipt. Grafts are auditable facts with a reason and an outcome, not silent prompt injection.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.skill-graft.v0" },
+    "graftId": { "type": "string", "minLength": 1 },
+    "agentNodeId": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": ["string", "null"] },
+    "runId": { "type": ["string", "null"] },
+    "skillCardId": { "type": ["string", "null"] },
+    "skillName": { "type": "string", "minLength": 1 },
+    "skillVersion": { "type": ["string", "null"] },
+    "level": {
+      "enum": ["light", "reference", "full", "tool", "team"],
+      "description": "Graft depth per ch09: light mention, reference file load, full SKILL.md, tool-backed, or team-wide."
+    },
+    "reason": { "type": "string", "minLength": 1, "description": "Why the planner or agent chose this skill for this node." },
+    "grantedBy": { "type": "string", "description": "Planner, operator, or staff agent that approved the graft." },
+    "expiresAt": { "type": ["string", "null"] },
+    "sourceEventId": { "type": ["string", "null"], "description": "The skill_graft transcript event recording this graft." },
+    "outcome": { "enum": ["pending", "used", "unused", "helpful", "unhelpful", "revoked", null] },
+    "createdAt": { "type": "string", "minLength": 1 }
+  },
+  "required": ["schema", "graftId", "agentNodeId", "skillName", "level", "reason", "createdAt"],
+  "additionalProperties": true
+}
