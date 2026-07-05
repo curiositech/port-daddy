@@ -248,13 +248,23 @@ function normalizeExpectedArtifacts(value: unknown): string[] {
     .slice(0, 24);
 }
 
+function safeHttpUrl(candidate: string): string | null {
+  try {
+    const parsed = new URL(candidate);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? candidate : null;
+  } catch {
+    return null;
+  }
+}
+
 function normalizeLinks(value: unknown): FleetProposalLink[] {
   if (!Array.isArray(value)) return [];
   const links: FleetProposalLink[] = [];
   for (const item of value) {
     if (!item || typeof item !== 'object') continue;
     const record = item as Record<string, unknown>;
-    const url = optionalString(record.url, 2000);
+    const rawUrl = optionalString(record.url, 2000);
+    const url = rawUrl ? safeHttpUrl(rawUrl) : null;
     if (!url) continue;
     links.push({
       label: cleanString(record.label, url, 120),
@@ -267,7 +277,8 @@ function normalizeLinks(value: unknown): FleetProposalLink[] {
 
 function normalizeProposalLinks(input: CreateFleetProposalInput): FleetProposalLink[] {
   const links = normalizeLinks(input.links);
-  const sourceUrl = optionalString(input.sourceUrl, 2000);
+  const rawSourceUrl = optionalString(input.sourceUrl, 2000);
+  const sourceUrl = rawSourceUrl ? safeHttpUrl(rawSourceUrl) : null;
   if (sourceUrl && !links.some((link) => link.url === sourceUrl)) {
     links.unshift({ label: 'source', url: sourceUrl });
   }
@@ -423,9 +434,10 @@ export function createFleetProposalStore(deps: FleetProposalStoreDeps) {
       throw new FleetProposalValidationError('budgetUsd must be a positive number when provided');
     }
     const contextJson = JSON.stringify(normalizeContext(input.context));
-    if (contextJson.length > MAX_CONTEXT_JSON_BYTES) {
+    const contextJsonBytes = Buffer.byteLength(contextJson, 'utf8');
+    if (contextJsonBytes > MAX_CONTEXT_JSON_BYTES) {
       throw new FleetProposalValidationError(
-        `context too large (${contextJson.length} bytes serialized, max ${MAX_CONTEXT_JSON_BYTES})`,
+        `context too large (${contextJsonBytes} bytes serialized, max ${MAX_CONTEXT_JSON_BYTES})`,
       );
     }
     if (pendingCount() >= MAX_PENDING_FLEET_PROPOSALS) {

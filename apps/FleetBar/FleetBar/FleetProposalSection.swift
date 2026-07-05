@@ -176,7 +176,7 @@ struct FleetProposalSection: View {
             if interactive {
                 HStack(spacing: Fleet.Space.s) {
                     ForEach(proposal.links, id: \.url) { link in
-                        if let url = URL(string: link.url) {
+                        if let url = URL(string: link.url), url.scheme == "http" || url.scheme == "https" {
                             Button {
                                 openURL(url)
                             } label: {

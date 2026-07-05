@@ -1,3 +1,4 @@
+import { describe, test, expect } from '@jest/globals';
 import Fastify from 'fastify';
 import { createTestDb } from '../setup-unit.js';
 import {
