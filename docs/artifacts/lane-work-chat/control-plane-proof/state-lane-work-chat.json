@@ -1,0 +1,57 @@
+{
+  "ok": true,
+  "pane": "lane",
+  "blocks": [
+    {
+      "type": "header",
+      "text": "Agent Work Chat"
+    },
+    {
+      "type": "keyval",
+      "key": "watching",
+      "value": "proof-agent-1"
+    },
+    {
+      "type": "chip",
+      "label": "status: \u2014"
+    },
+    {
+      "type": "chip",
+      "label": "\u25cf live"
+    },
+    {
+      "type": "header",
+      "text": "conversation"
+    },
+    {
+      "type": "chat",
+      "speaker": "operator",
+      "text": "Please inspect core/pd-console/src/lane_pane.rs and report the fold_tube_body dedup behavior"
+    },
+    {
+      "type": "artifact",
+      "label": "reference",
+      "path": "core/pd-console/src/lane_pane.rs"
+    },
+    {
+      "type": "chat",
+      "speaker": "steer",
+      "text": "Please inspect core/pd-console/src/lane_pane.rs and report the fold_tube_body dedup behavior"
+    },
+    {
+      "type": "chat",
+      "speaker": "operator",
+      "text": "Attach the gate screenshot docs/artifacts/conductor-per-root/gate-renders-idle.png as evidence"
+    },
+    {
+      "type": "artifact",
+      "label": "reference",
+      "path": "docs/artifacts/conductor-per-root/gate-renders-idle.png"
+    },
+    {
+      "type": "chat",
+      "speaker": "steer",
+      "text": "Attach the gate screenshot docs/artifacts/conductor-per-root/gate-renders-idle.png as evidence"
+    }
+  ]
+}

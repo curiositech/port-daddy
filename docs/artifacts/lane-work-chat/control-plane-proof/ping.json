@@ -1,0 +1,6 @@
+{
+  "ok": true,
+  "daemon": "http://127.0.0.1:3104",
+  "booted": true,
+  "focused": "agent (newest)"
+}

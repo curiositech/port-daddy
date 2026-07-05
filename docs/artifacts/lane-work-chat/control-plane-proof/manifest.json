@@ -1,0 +1,39 @@
+{
+  "prNumber": 637,
+  "branchCommit": "b25baa17b — but see supersessionFinding: these artifacts intentionally do NOT prove this branch's revision",
+  "capturedAt": "2026-07-05T04:55:00-07:00",
+  "captureMethod": "PR #694 pd-console scripting control plane (--control-sock / PD_CONSOLE_CONTROL_SOCK, scripts/console-ctl.py), typed JSON 'state' dumps from the live GPUI window",
+  "supersessionFinding": "PR #637 is superseded by merged PR #641 (cf46ccfd0, 2026-07-03). Receipts: (1) commit 760e40ac8 'Add structured Lane operator turns' inside #641's history is byte-identical to this branch's tip b25baa17b on lane_pane.rs/pane.rs (git diff = 0 lines); (2) origin/main is strictly AHEAD of this branch in the Lane area — merging this branch today would delete ~861 lines of newer main work (Scout screenshot wiring, ImageArtifact tones, planner rename); (3) main's repl carries the :lane-message/:steer proof commands and pane.rs carries operator_turn_tests. The 'fresh GPUI visual proof for this revision' this PR was held on is therefore moot: this revision should not merge. These artifacts instead prove the FEATURE — the Lane agent work chat — live in a native GPUI window at its merged main revision.",
+  "environment": {
+    "daemon": "isolated proof daemon: bun server.ts (origin/main 1bf403342 checkout) with PORT_DADDY_PREFIX/PORT_DADDY_DB pinned to a scratch dir, port 3104; production daemon/DB untouched",
+    "consoleBuild": "pd-console devbuild lane per doctrine: scripts/package-console.sh --devbuild proof519 — local proof tree = origin/worktree-session-galaxy (#694 control plane) + origin/main merge; the Lane surface in this build is main's merged #641 revision",
+    "laneAgent": "PD_LANE_AGENT=proof-agent-1 (deterministic watch target per the pane's own screenshot hook); no agent process was running — the steer turns arrive via the real daemon tube (POST /msg/agent:proof-agent-1 → backfill/stream)"
+  },
+  "artifacts": [
+    {
+      "file": "ping.json",
+      "demonstrates": "console booted, bound to the proof daemon, focused surface = agent lane",
+      "manifest": {
+        "daemonPort": 3104,
+        "runId": "proof637-console-20260705-0450",
+        "transcriptHeadHash": "9086439a2b8009f5048ac0738c7fdda2b25ae9a988cba2e2099e1f7dad440ca3",
+        "agentNodeId": "proof-agent-1",
+        "commit": "1bf40334203dd0ee5c05eda1fdf735065adc9e84 (origin/main — the revision the running Lane code corresponds to; deliberately NOT this branch's head, see supersessionFinding)",
+        "sourceLabel": "real"
+      }
+    },
+    {
+      "file": "state-lane-work-chat.json",
+      "demonstrates": "the live GPUI Lane as an agent work chat: 'Agent Work Chat' header, watching proof-agent-1, '● live' chip, operator chat turns, file references rendered as dedicated artifact rows (reference → core/pd-console/src/lane_pane.rs and → docs/artifacts/conductor-per-root/gate-renders-idle.png), and the tube echo rendered as 'steer' turns — the closed steering loop",
+      "manifest": {
+        "daemonPort": 3104,
+        "runId": "proof637-console-20260705-0450",
+        "transcriptHeadHash": "070dda35bfed91dee0a7f54d1d3f4af16462642d9902e8132ece3b82e0c68066",
+        "agentNodeId": "proof-agent-1",
+        "commit": "1bf40334203dd0ee5c05eda1fdf735065adc9e84 (origin/main — see supersessionFinding)",
+        "sourceLabel": "real"
+      }
+    }
+  ],
+  "honestScopeNote": "screencapture -x -l <windowid> and computer-use capture are TCC-denied in this agent context (Screen Recording permission not granted; permission panel raised for the operator). The typed JSON state dumps from the running GPUI window over the #694 control socket are the sanctioned fallback."
+}
