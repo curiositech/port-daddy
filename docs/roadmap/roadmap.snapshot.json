@@ -2,7 +2,7 @@
   "generatedAt": 1783138698335,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 112,
+  "count": 120,
   "items": [
     {
       "slug": "active-agent-roster",
@@ -578,6 +578,16 @@
       "slug": "visual-task-agent-intake",
       "status": "now",
       "summaryMd": "FleetBar/Fleet Control Center visual task intake should let operators send annotated screenshots or page context to agents without exposing dispatch/worker internals."
+    },
+    {
+      "slug": "adr-0052-phase-3a-coordination-bench-v1",
+      "status": "now",
+      "summaryMd": "Coordination-Bench v1 (ADR-0052 Amendment 1): seeded hazards on the ephemeral daemon, scripted counterparts, sub-minute episodes, advisory CI gate"
+    },
+    {
+      "slug": "adr-0052-phase-3b-coordination-bench-v2",
+      "status": "backlog",
+      "summaryMd": "Coordination-Bench v2 (ADR-0052 Amendment 1, post-Milestone-8): org-config sweeps, C7 counterpart spectrum, defection pricing, statistical discipline"
     },
     {
       "slug": "fleetbar-developer-id-signing",
