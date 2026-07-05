@@ -2,6 +2,9 @@
 model: Qwen/Qwen3-8B-Instruct        # base checkpoint (confirm on HF)
 method: qlora                        # qlora | lora | dora
 output_dir: out/adapter
+trust_remote_code: false             # only set true for the rare base model that needs
+                                      # custom modeling code — it executes arbitrary code
+                                      # from the model repo
 
 # data (from prepare_dataset.py)
 train_file: data/train.jsonl

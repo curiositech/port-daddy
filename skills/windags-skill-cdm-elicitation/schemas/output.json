@@ -56,7 +56,7 @@
       "description": "True if this elicitation produced a new skill (pattern_extension), false if it updated an existing one"
     },
     "proposed_name": {
-      "type": "string",
+      "type": ["string", "null"],
       "description": "Proposed skill ID for new skills (kebab-case). Null for updates."
     },
     "which_expectancy_violated": {

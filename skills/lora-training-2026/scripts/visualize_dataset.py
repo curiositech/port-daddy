@@ -43,7 +43,9 @@ def get_tokenizer(name: str | None):
         return None
     try:
         from transformers import AutoTokenizer  # type: ignore
-        return AutoTokenizer.from_pretrained(name, trust_remote_code=True)
+        # trust_remote_code off by default (executes arbitrary repo code); the
+        # heuristic fallback below covers the rare tokenizer that needs it.
+        return AutoTokenizer.from_pretrained(name, trust_remote_code=False)
     except Exception as e:
         print(f"  (tokenizer '{name}' unavailable: {e}; using heuristic)", file=sys.stderr)
         return None

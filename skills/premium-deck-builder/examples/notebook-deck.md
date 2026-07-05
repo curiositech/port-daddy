@@ -4,9 +4,11 @@ The 15-slide ET-Book-style deck built for a Staff+EM applicant interviewing at O
 
 ## Where it lives
 
-- **Build script**: `~/coding/some_claude_skills/erichowens_com/scripts/build_interview_deck.py`
-- **Output**: `~/coding/some_claude_skills/erichowens_com/interviews/erich-owens-comment-ranking-spaces.pptx`
-- **Rendered PNGs**: `~/coding/tmp/deck-render/v2-slide-*.png`
+This is provenance for the author's own build, not a reproducible path — the
+build script and its output live in the author's private portfolio repo, not
+in this skill bundle. The commands you can actually copy-paste are in
+"Verification pipeline applied" and "Reusing this pattern" below; they use
+this skill's own scripts and a generic deck filename.
 
 ## The brief
 
@@ -74,17 +76,14 @@ Not used: Comparison split, Image-led full-bleed, Quote (the margin notes serve 
 
 ## Verification pipeline applied
 
-After every `python3 scripts/build_interview_deck.py` run:
+After every deck-build run:
 
 ```bash
-# 1. Render to PNGs and ACTUALLY LOOK
-~/.claude/skills/premium-deck-builder/scripts/render_deck.sh \
-  interviews/erich-owens-comment-ranking-spaces.pptx \
-  ~/coding/tmp/deck-render
+# 1. Render to PNGs and ACTUALLY LOOK (paths relative to this skill's own directory)
+scripts/render_deck.sh your-deck.pptx ~/coding/tmp/deck-render
 
 # 2. Programmatic audit
-python3 ~/.claude/skills/premium-deck-builder/scripts/check_deck_quality.py \
-  interviews/erich-owens-comment-ranking-spaces.pptx
+python3 scripts/check_deck_quality.py your-deck.pptx
 ```
 
 The render verified the grid fix from FM-1 (web → PPTX alpha translation). The audit caught 2 real legibility errors (10/11pt text on bio + closer that needed bumping to ≥14pt).

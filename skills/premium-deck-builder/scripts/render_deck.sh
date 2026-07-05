@@ -6,7 +6,7 @@
 #   ./render_deck.sh <deck.pptx> [output-dir] [dpi]
 #
 # Defaults:
-#   output-dir = $TMPDIR/deck-render
+#   output-dir = ~/coding/tmp/deck-render (disposable but not swept like /tmp)
 #   dpi        = 144 (high enough for laptop-screen review)
 #
 # This is NOT optional. Render-and-look is the only way to verify a deck.
@@ -20,7 +20,7 @@ if [[ $# -lt 1 ]]; then
 fi
 
 DECK="$1"
-OUT_DIR="${2:-${TMPDIR:-/tmp}/deck-render}"
+OUT_DIR="${2:-$HOME/coding/tmp/deck-render}"
 DPI="${3:-144}"
 
 if [[ ! -f "$DECK" ]]; then

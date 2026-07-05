@@ -209,7 +209,7 @@ This is the worst failure mode in the skill because it directly damages the cand
 
 ## Worked example (load `examples/notebook-deck.md`)
 
-The 15-slide ET-Book-style interview deck at `~/coding/some_claude_skills/erichowens_com/scripts/build_interview_deck.py` — a notebook/graph-paper aesthetic deck for a Staff+EM applicant interviewing at OpenAI/Anthropic. Two case studies (Comment Ranking 2015, Spaces VR Avatars 2016–2018), full token system mirroring a portfolio website, rendered via python-pptx, verified via soffice + pdftoppm. Walks through every decision named in this SKILL.
+A 15-slide ET-Book-style interview deck — a notebook/graph-paper aesthetic deck for a Staff+EM applicant interviewing at OpenAI/Anthropic. Two case studies (Comment Ranking 2015, Spaces VR Avatars 2016–2018), full token system mirroring a portfolio website, rendered via python-pptx, verified via soffice + pdftoppm. Walks through every decision named in this SKILL. The build script itself lives in the author's private portfolio repo, not this bundle — see the worked example for what's actually reusable.
 
 ## Tooling quick-reference (full code in `references/tooling.md`)
 
@@ -225,8 +225,10 @@ The 15-slide ET-Book-style interview deck at `~/coding/some_claude_skills/ericho
 brew install --cask libreoffice  # macOS
 brew install poppler
 
-soffice --headless --convert-to pdf deck.pptx --outdir /tmp/render/
-pdftoppm -png -r 144 /tmp/render/deck.pdf /tmp/render/slide
+RENDER_DIR=~/coding/tmp/deck-render   # disposable, but not swept like /tmp
+mkdir -p "$RENDER_DIR"
+soffice --headless --convert-to pdf deck.pptx --outdir "$RENDER_DIR"
+pdftoppm -png -r 144 "$RENDER_DIR/deck.pdf" "$RENDER_DIR/slide"
 # Open the PNGs and ACTUALLY LOOK at them. Render is the source of truth.
 ```
 

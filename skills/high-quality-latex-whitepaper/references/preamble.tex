@@ -29,14 +29,20 @@
 \usepackage[hidelinks]{hyperref}
 
 % ============================================================================
-% THE PALETTE — nothing outside this block exists. ONE accent (cinnabar).
+% THE PALETTE — nothing outside this block exists. ONE saturated accent.
 % Structural tones are MUTED. No raw red/green/blue, no neon, no colored bars.
+%
+% NOTE for port-daddy: this is this skill's own generic house palette, not the
+% repo's brand palette. If you use this preamble for a whitepaper that ships
+% under website-v2/public/whitepaper/ or whitepaper/, swap `accent`/`patina`/
+% `brass` to the hexes in website-v2/scripts/check-figure-palette.mjs
+% (ALLOWED_HEX) first — that guard fails CI on these exact values and names.
 % ============================================================================
 \definecolor{paper}{HTML}{FBF7EE}   % background warmth (use sparingly/low opacity)
 \definecolor{sand}{HTML}{E9DCC4}     % the ONE figure fill (use at 15-40% opacity)
 \definecolor{ink}{HTML}{1E1B18}      % text + strokes
 \definecolor{gray}{HTML}{6B6B6B}     % muted secondary text
-\definecolor{accent}{HTML}{CC3D2E}   % CINNABAR — the only saturated color; once per view
+\definecolor{accent}{HTML}{CC3D2E}   % the only saturated color; once per view
 \definecolor{patina}{HTML}{5C7A6A}   % muted structural (use rarely, never as a bar)
 \definecolor{brass}{HTML}{B08D57}    % muted structural (use rarely)
 

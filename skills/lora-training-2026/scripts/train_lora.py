@@ -151,10 +151,11 @@ def train(cfg: dict):
         if load_in_4bit:
             quant = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
                                        bnb_4bit_compute_dtype=torch.bfloat16, bnb_4bit_use_double_quant=True)
-        tokenizer = AutoTokenizer.from_pretrained(cfg["model"], trust_remote_code=True)
+        trust_remote_code = cfg.get("trust_remote_code", False)
+        tokenizer = AutoTokenizer.from_pretrained(cfg["model"], trust_remote_code=trust_remote_code)
         model = AutoModelForCausalLM.from_pretrained(
             cfg["model"], quantization_config=quant, torch_dtype=torch.bfloat16,
-            device_map="auto", trust_remote_code=True,
+            device_map="auto", trust_remote_code=trust_remote_code,
         )
         if load_in_4bit:
             model = prepare_model_for_kbit_training(

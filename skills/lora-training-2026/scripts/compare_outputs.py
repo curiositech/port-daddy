@@ -54,16 +54,16 @@ def prompt_text(row: dict) -> str:
     return users[-1] if users else (msgs[0]["content"] if msgs else "")
 
 
-def generate_all(base_id, adapter, rows, probes, max_new_tokens):
+def generate_all(base_id, adapter, rows, probes, max_new_tokens, trust_remote_code=False):
     """Load base once, generate; then attach adapter, generate. Returns parallel lists."""
     import torch  # type: ignore
     from transformers import AutoModelForCausalLM, AutoTokenizer  # type: ignore
 
-    tok = AutoTokenizer.from_pretrained(base_id, trust_remote_code=True)
+    tok = AutoTokenizer.from_pretrained(base_id, trust_remote_code=trust_remote_code)
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token
     model = AutoModelForCausalLM.from_pretrained(
-        base_id, torch_dtype=torch.bfloat16, device_map="auto", trust_remote_code=True)
+        base_id, torch_dtype=torch.bfloat16, device_map="auto", trust_remote_code=trust_remote_code)
 
     all_prompts = [prompt_text(r) for r in rows] + list(probes)
 
@@ -215,6 +215,9 @@ def main():
     p.add_argument("--out", default="reports/compare.html")
     p.add_argument("--max-new-tokens", type=int, default=256)
     p.add_argument("--no-probes", action="store_true", help="skip general-ability regression probes")
+    p.add_argument("--trust-remote-code", action="store_true",
+                   help="allow executing custom modeling code shipped in the base model repo "
+                        "(off by default because it runs arbitrary code from the repo)")
     args = p.parse_args()
 
     if args.pairs:
@@ -232,7 +235,8 @@ def main():
         probes = [] if args.no_probes else DEFAULT_PROBES
         try:
             prompts, base_outs, tuned_outs = generate_all(
-                args.base, args.adapter, rows_meta, probes, args.max_new_tokens)
+                args.base, args.adapter, rows_meta, probes, args.max_new_tokens,
+                trust_remote_code=args.trust_remote_code)
         except ImportError as e:
             print(f"Error: missing dependency: {e}", file=sys.stderr)
             print("Install: uv pip install transformers peft accelerate torch", file=sys.stderr)
