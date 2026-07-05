@@ -879,8 +879,15 @@ describe('begin_session lifecycle parameter parity', () => {
    * Extract the `begin_session` tool object's inputSchema source from the TOOLS
    * array. The daemon's POST /sugar/begin hard-requires lifecycle and rejects
    * the request with SESSION_LIFECYCLE_REQUIRED when it is absent, so the MCP
-   * tool MUST expose a lifecycle parameter AND the handler MUST send one (with
-   * a sane default) — otherwise an MCP-driven agent can never start a session.
+   * tool MUST expose a required lifecycle parameter AND the handler MUST
+   * forward whatever the caller sent — otherwise an MCP-driven agent can never
+   * start a session. Lifecycle is intentionally never silently defaulted here:
+   * the CLI (`pd begin`) and the daemon's own `sugar.begin()` both hard-require
+   * an explicit choice between "durable" and "ephemeral" (see
+   * tests/unit/sugar.test.js "requires explicit lifecycle"), since guessing
+   * wrong has real consequences — a session meant to be reaped on process exit
+   * would instead linger as durable, or vice versa. The MCP surface matches
+   * that same explicit-choice contract via `required: ['purpose', 'lifecycle']`.
    */
   function beginSessionToolBlock() {
     // Slice from the begin_session tool name to the start of the next tool
@@ -900,19 +907,23 @@ describe('begin_session lifecycle parameter parity', () => {
     return nextCaseIdx > -1 ? afterStart.slice(0, nextCaseIdx) : afterStart;
   }
 
-  it('begin_session inputSchema exposes a lifecycle parameter', () => {
+  it('begin_session inputSchema exposes a required lifecycle parameter', () => {
     const block = beginSessionToolBlock();
     expect(block).toContain('lifecycle');
     // It should be a constrained enum of durable | ephemeral.
     expect(block).toMatch(/enum:\s*\[\s*'durable'\s*,\s*'ephemeral'\s*\]/);
+    // Exactly one lifecycle property in the schema (no duplicate object keys).
+    expect(block.match(/lifecycle:\s*{/g) ?? []).toHaveLength(1);
+    // And the daemon's contract is mirrored: lifecycle is required, not defaulted.
+    expect(block).toMatch(/required:\s*\[\s*'purpose'\s*,\s*'lifecycle'\s*\]/);
   });
 
-  it('begin_session handler forwards lifecycle to /sugar/begin with a default', () => {
+  it('begin_session handler forwards lifecycle to /sugar/begin unconditionally', () => {
     const block = beginSessionCaseBlock();
-    // The handler must set body.lifecycle (so the daemon does not reject with
-    // SESSION_LIFECYCLE_REQUIRED) and default to durable when unspecified.
-    expect(block).toMatch(/body\.lifecycle\s*=/);
-    expect(block).toContain("'durable'");
-    expect(block).toContain("'ephemeral'");
+    // The handler must set body.lifecycle directly from the caller's arg — no
+    // silent default — so an empty/malformed value reaches the daemon and
+    // SESSION_LIFECYCLE_REQUIRED names the real problem instead of being
+    // papered over here.
+    expect(block).toMatch(/body\.lifecycle\s*=\s*args\.lifecycle\s*;/);
   });
 });
