@@ -4,6 +4,7 @@ struct FleetControlCenter: View {
     @ObservedObject var store: FleetStore
     @ObservedObject var costStore: CostStore
     @ObservedObject var dispatchStore: DispatchStore
+    @ObservedObject var proposalStore: FleetProposalStore
     @ObservedObject var backendStore: BackendStore
 
     @AppStorage(FleetControlRoute.surfaceKey) private var selectedSurfaceRaw = FleetControlSurface.flow.rawValue
@@ -547,6 +548,8 @@ struct FleetControlCenter: View {
     @ViewBuilder
     private var nativeSurfaceContent: some View {
         switch selectedSurface {
+        case .proposals:
+            FleetProposalSection(store: proposalStore)
         case .nightshift:
             FleetControlNightshiftSection(store: dispatchStore)
         case .backend:

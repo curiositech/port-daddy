@@ -82,6 +82,7 @@ import { cockpitPlugin } from './cockpit.js';
 import { popperPlugin } from './popper.js';
 import { dispatchesPlugin } from './dispatches.js';
 import { visualTasksPlugin } from './visual-tasks.js';
+import { fleetHitlProposalsPlugin } from './fleet-hitl-proposals.js';
 import { setupPlugin } from './setup.js';
 import { secretsPlugin } from './secrets.js';
 import { contextRoutes as contextPlugin } from './context.js';
@@ -336,6 +337,12 @@ export async function registerAllRoutes(
   // accept/reject/cancel buttons. Requires `dispatchQueue` in deps.
   if ((deps as { dispatchQueue?: unknown }).dispatchQueue) {
     await fastify.register(dispatchesPlugin, { deps } as any);
+  }
+
+  // Fleet HITL proposals — cloud ships can propose work, but only these
+  // operator-gated routes may turn a proposal into a dispatch.
+  if ((deps as { db?: unknown }).db || (deps as { fleetProposals?: unknown }).fleetProposals) {
+    await fastify.register(fleetHitlProposalsPlugin, { deps } as any);
   }
 
   // Visual task issue intake — browser/FleetBar POST /visual-tasks. This is
