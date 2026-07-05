@@ -2,12 +2,13 @@
 /**
  * check-readme-freshness.mjs — commit-time README freshness gate.
  *
- * The README rotted from v3.13 to v3.23 because nothing at commit time asked
- * "did you change the operator-facing surface without telling the README?".
- * This gate closes that hole. It runs from the pre-commit hook (installed by
- * scripts/install-readme-freshness-hook.mjs) and FAILS the commit when staged
- * changes touch a surface the README documents but README.md itself is not
- * part of the same commit.
+ * The README sat frozen at v3.13 while the product shipped ten more minors
+ * (through 3.24.x) because nothing at commit time asked "did you change the
+ * operator-facing surface without telling the README?". This gate closes that
+ * hole. It runs from the pre-commit hook (wired in the repo's versioned
+ * hooks/pre-commit, section 7, and mirrored into .git/hooks/pre-commit) and
+ * FAILS the commit when staged changes touch a surface the README documents
+ * but README.md itself is not part of the same commit.
  *
  * Trigger surfaces are exact paths / path prefixes (structured fields — no
  * content heuristics):
@@ -18,6 +19,8 @@
  *   mcp/server.ts             the MCP tool surface
  *   docs/openapi.yaml         the HTTP API contract
  *   pd-fleet.yml              the dogfooded fleet topology the README describes
+ *   features.manifest.json    the feature manifest — docs.readme=true entries
+ *                             are enforced against README by feature-parity.test.js
  *
  * Escape hatches, in order of preference:
  *   1. Stage a README.md update in the same commit (the point of the gate).
@@ -45,6 +48,7 @@ const TRIGGER_FILES = [
   'mcp/server.ts',
   'docs/openapi.yaml',
   'pd-fleet.yml',
+  'features.manifest.json',
 ];
 
 // Prefix triggers that only fire on ADDED files (a new file under

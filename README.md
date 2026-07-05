@@ -600,7 +600,7 @@ Port Daddy escrows virtual USD before each agent spawn and can stop live spawns 
 
 **Spawning requires a daily budget.** Every project must set `usd_per_day` before its first spawn; the daemon refuses unbonded agents. Run `pd wallet budget <project> --usd-per-day 5` during setup. No agent runs without a number to enforce against.
 
-**Budget breach is pause-and-ask, not cliff SIGTERM.** At 100% of daily budget, Port Daddy posts a *pending kill* with a 60-second grace window and broadcasts on `budget:pending`. The operator can `raise` (credit the wallet, agent keeps running), `kill` (SIGTERM now), or `grace` (extend, up to twice). The backstop SIGTERM fires at expiry. `pd wallet pending` lists; `pd wallet raise --agent <id> --usd 5` resolves.
+**Budget breach is pause-and-ask, not cliff SIGTERM** (the `budget_guard` feature). At 100% of daily budget, Port Daddy posts a *pending kill* with a 60-second grace window and broadcasts on `budget:pending`. The operator can `raise` (credit the wallet, agent keeps running), `kill` (SIGTERM now), or `grace` (extend, up to twice). The backstop SIGTERM fires at expiry. `pd wallet pending` lists; `pd wallet raise --agent <id> --usd 5` resolves.
 
 **Fleet Conductor cost gates (ADR-0060).** Every sortie and reactive spawn routes through one `conductor.launch` chokepoint that reserves against a global ceiling and a per-subtree lineage ceiling *before* admission:
 
@@ -744,7 +744,7 @@ Port Daddy ships exactly **three** sanctioned operator surfaces (the legacy web 
 2. **Control Center** — FleetBar's window. Fleet graph, agents view (configured fleet agents, live registry, spawned runs, salvage ghosts, inbox traffic, sessions/notes, channels, claims), fleet config editing with topology validation.
 3. **pd-console** (`core/pd-console/`) — the GPU-native (gpui) operator console. Sidebar panes for Fleet, Sorties, Dispatch, Sessions, Health, Parley, Conductor, Substrate; a headless TUI build for terminals/CI; three build lanes (prod/latest/dev) with distinct bundle IDs and icons. Build via `make` / `make install`; the Homebrew cask ships `pd-console-prod.app`.
 
-Visual feedback loop: FleetBar and the `apps/pd-scout-extension` Chrome extension can submit annotated screenshots (`POST /visual-tasks`); the daemon persists the evidence, publishes `visual-feedback`, routes to a local agent or cloud-fleet target, and opens a reviewable work item.
+Visual feedback loop (the `visual_tasks` feature): FleetBar and the `apps/pd-scout-extension` Chrome extension can submit annotated screenshots (`POST /visual-tasks`); the daemon persists the evidence, publishes `visual-feedback`, routes to a local agent or cloud-fleet target, and opens a reviewable work item.
 
 ---
 
@@ -831,7 +831,7 @@ We maintain an extreme standard of reliability for the control plane:
 
 - **Test suite:** 7,300+ test cases (Jest + `bun test` for compiled-binary regressions). Zero failures is the norm.
 - **Version drift gate:** `package.json` is the sole version authority; `scripts/sync-version.ts` stamps it across every surface (including this README's title) and `scripts/check-version-drift.mjs` fails CI on drift — deep mode also reads versions embedded in built artifacts.
-- **README freshness gate:** the pre-commit hook runs `scripts/check-readme-freshness.mjs` — staged changes to the CLI verb registry, MCP tool surface, OpenAPI contract, or fleet topology are blocked unless README.md is updated in the same commit (bypass with `PD_README_OK=1` when the change is genuinely internal).
+- **README freshness gate:** the pre-commit hook runs `scripts/check-readme-freshness.mjs` — staged changes to the CLI verb registry, MCP tool surface, OpenAPI contract, feature manifest, or fleet topology are blocked unless README.md is updated in the same commit (bypass with `PD_README_OK=1` when the change is genuinely internal). `tests/unit/feature-parity.test.js` additionally enforces that every `docs.readme=true` manifest feature stays mentioned here.
 - **Compiled-CLI smoke:** CI hard-fails when the compiled CLI or daemon doesn't actually run.
 - **Surface parity:** new CLI verbs must reach API/MCP parity (`npm run parity`).
 - **Formal verification:** ProVerif protocol models + Kani proofs for Rust kernel invariants.
