@@ -65,8 +65,11 @@ This is the **Giant Squid Harness** (pd-adr-092). Historically it injected hooks
 only for **headless** spawned runs (`claude -p`, `gemini -p`, `codex exec`,
 `agy -p`). Since **pd-adr-090** (this installer layer) the interactive surfaces
 are wired too — using the SAME shape source of truth
-(`lib/squid/hook-shape.ts`), so the headless and interactive injectors can never
-drift. Normal use is just `pd hooks install` in your repo (or `pd init`).
+(`lib/squid/hook-shape.ts` <!-- cite-exempt --> — the squid harness has moved
+files since this skill was written; check `lib/squid/` for the current shape
+source before relying on the exact filename), so the headless and interactive
+injectors can never drift. Normal use is just `pd hooks install` in your repo
+(or `pd init`).
 
 ## When to Use
 

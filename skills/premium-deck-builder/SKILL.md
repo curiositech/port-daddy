@@ -115,7 +115,7 @@ See the worked example for the specific RGBColor / line-width values that ship.
 **Symptom**: deck contains specific technical claims, quoted aphorisms, or characterizations of past work that the agent has no source for. Reads as "AI garbage" to anyone who knows the actual material.
 **Root cause**: agent over-reached past the verifiable source (resume / constants file / portfolio copy) and generated plausible-sounding detail. Worst form: text inside actual quotation marks — implying an attributable quote when nobody said it.
 **Fix**:
-1. Identify the single source-of-truth file (`lib/constants.ts`, the candidate's resume, the brief). Treat anything not in there as fabricated.
+1. Identify the single source-of-truth file (e.g. a project's `constants.ts` <!-- cite-exempt: illustrative example path, not this repo's -->, the candidate's resume, the brief). Treat anything not in there as fabricated.
 2. Strip every quoted aphorism. If it's not attributed to a real person with a date, it doesn't belong in quote marks.
 3. Replace fabricated specifics with bracketed prompts: `[ERICH: what was the actual cold-start handling approach?]`. The candidate fills these in.
 4. Reduce each case-study slide to the verifiable facts + explicit `[FILL]` slots.

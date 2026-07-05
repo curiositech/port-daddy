@@ -100,8 +100,8 @@ and activity all exist — and as of 2026-06-10 **nothing consumed them
 looking for problems**. "File not found: ollama/qwen2.5-coder" flooded
 MESSAGE TRAFFIC for weeks unread. Gaps that need new code:
 
-1. `lib/error-monitor.ts` — daemon-side consumer that polls
-   transcript/activity error events, classifies, detects floods.
+1. `lib/error-monitor.ts` (proposed, not yet built) — daemon-side consumer
+   that polls transcript/activity error events, classifies, detects floods.
    Until it exists, the watch ship does its own grouping in-prompt.
 2. `POST /memory/episodes` — write route for episodic memory.
 3. ADR-0041 obligation monitor + sanction ladder.
