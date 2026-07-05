@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/governance/tool-gate-envelope.schema.json",
+  "title": "ToolGateEnvelope",
+  "description": "The pre-tool / post-tool governance envelope for one gated action (binder ch18 Work Order C5; ADR-0095 §5 'Tool preflight decision' command row). A pre-tool envelope is the ONLY point at which a block-tier action can be stopped with zero side effects; a post-tool envelope records tool-result persistence for actions that ran. Invariant (governance-invariants.mjs): a pre-tool envelope with tier block and decision proceeded is a contradiction — if it proceeded, the gate did not block. Verdict maps to decision: allow→proceeded, deny→denied, require-approval→held, rewrite→rewritten. Renders into the transcript timeline as governance-family TranscriptEvents (tool_preflight, tool_denied, approval_request).",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.tool-gate-envelope.v0" },
+    "envelopeId": { "type": "string", "minLength": 1 },
+    "phase": { "enum": ["pre-tool", "post-tool"] },
+    "actionName": { "type": "string", "minLength": 1, "description": "The governed action, e.g. \"git reset --hard\", \"rm -rf outside workspace root\"." },
+    "command": { "type": ["string", "null"], "description": "The raw command/tool input as proposed, verbatim. Null when the surface is not command-shaped." },
+    "category": { "enum": ["git", "filesystem", "network", "shell", "github"] },
+    "tier": { "enum": ["block", "approve", "allow"], "description": "block = denied automatically; approve = held for a human gate; allow = proceeds without a gate. A tier is a property of the action, not the caller." },
+    "verdict": { "enum": ["allow", "deny", "require-approval", "rewrite"], "description": "The preflight command outcome per ADR-0095 §5. Denial is a durable event, never a silent no-op." },
+    "decision": { "enum": ["proceeded", "denied", "held", "rewritten"] },
+    "reason": { "type": ["string", "null"], "description": "Why the gate decided this — required in practice for denied/held." },
+    "gateIntegrity": { "enum": ["enforced", "missing-hook", "forged-compliance", "post-hoc-observation"], "description": "Honest gate posture. missing-hook / forged-compliance mean the gate failed closed because pre-side-effect enforcement could not be guaranteed; post-hoc-observation means the action was only seen after it ran." },
+    "agentNodeId": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": "string", "minLength": 1 },
+    "bodyId": { "type": ["string", "null"] },
+    "runId": { "type": ["string", "null"] },
+    "toolCallId": { "type": "string", "minLength": 1 },
+    "idempotencyKey": { "type": "string" },
+    "transcriptEventIds": { "type": "array", "items": { "type": "string" }, "description": "The governance TranscriptEvents this envelope rendered into. A gated decision with no transcript event is invisible and fails the C5 acceptance gate." },
+    "denialReceiptId": { "type": ["string", "null"], "description": "Set when decision is denied — links the durable DenialReceipt." },
+    "humanGateId": { "type": ["string", "null"], "description": "Set when decision is held — links the HumanGatePayload awaiting review." },
+    "occurredAt": { "type": "string", "minLength": 1, "description": "ISO 8601 source time (ADR-0095 occurredAt convention)." }
+  },
+  "required": ["schema", "envelopeId", "phase", "actionName", "category", "tier", "verdict", "decision", "agentNodeId", "sessionId", "toolCallId", "occurredAt"],
+  "additionalProperties": true
+}
