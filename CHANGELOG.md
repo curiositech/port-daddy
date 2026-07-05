@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **README rewritten against the live v3.24 surface.** The front-door doc had rotted at v3.13: it never mentioned `pd setup`, `pd parley`, `pd dispatch`/`pd review`, `pd safe`, `pd secret` corralling, `pd cut`, daemon berths (`pd dev`/`pd use`), `pd embed`, `pd attention`/`pd nudge`, `pd transcripts`, or the harness lanes; it still advertised the retired web dashboard as "The Dashboard (HUD)"; its OpenAPI stats (96 paths/125 ops) and test badge (3,700+) were stale; and it never said `pd begin --lifecycle` is mandatory. The rewrite documents the three sanctioned operator surfaces (FleetBar, Control Center, pd-console), adds a complete Command Index grouped by task, refreshes the destructive-command list from `cli/permission-tiers.ts`, and states verified numbers (178 MCP tools + 6 resources, 115 API paths / 146 operations, 7,300+ test cases).
+
+### Added
+- **Commit-time README freshness gate (`scripts/check-readme-freshness.mjs`).** The pre-commit hook now blocks a commit that stages changes to README-documented surfaces — `cli/permission-tiers.ts`, `mcp/server.ts`, `docs/openapi.yaml`, `pd-fleet.yml`, `features.manifest.json`, or a NEW file under `cli/commands/` — without staging a README.md update alongside. Edits to existing command files do not trigger (internal churn is not a new verb). Escape hatch for genuinely internal changes: `PD_README_OK=1 git commit …` (logged to stderr). `npm run check:readme-freshness` runs it standalone; regression-tested in `tests/unit/readme-freshness-gate.test.js`.
+- **README.md title and `docs/openapi.yaml` `info.version` are now synced + gated version surfaces.** `scripts/sync-version.ts` stamps both on every version bump (and `postversion` stages them), and `scripts/check-version-drift.mjs` fails CI when either drifts — the README can never silently claim an old version again, and the OpenAPI spec no longer lies at 3.10.0.
+
 ## [3.24.1] - 2026-07-04
 
 ### Fixed
@@ -23,8 +30,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`pd env exec -- <cmd>` — frictionless corralled-secret access.** Runs a command with any `pd-secret://KEY` env refs resolved into the child process environment only (never to disk). This is the read side of corralling: a `.env` rewritten to `FOO=pd-secret://FOO` is transparently re-injected for the duration of the one command. An unresolved ref is passed through literally so a missing secret fails loudly rather than silently running empty.
 - **`pd safe guard --staged` — a secret guard on the staged diff (ADR-0053 surface).** Reuses the structured-format + entropy scanner against `git diff --staged` and exits non-zero when a NEW secret is staged, stopping leaks at the commit/push boundary. Wired into the `hooks/pre-commit` guard (fail-open when `pd` is absent, fail-closed when it finds a staged secret). Findings show path/line/rule-id/last-4 only.
 
+- **App watcher — the operator's app lanes refresh themselves.** `scripts/pd-app-watch.sh` (LaunchAgent `com.portdaddy.appwatch`, installed via `scripts/install-app-watch.sh`, 3-min poll) rebuilds + relaunches the **latest** pair (`pd-console-latest.app`, `FleetBar (dev-latest).app`) whenever `origin/main` moves — polling rather than a git hook, because merge-queue pushes never fire local hooks — and, when the Homebrew tap cuts a new `port-daddy` version, runs `brew upgrade` (re-starting the daemon service if brew churn unloaded it) and rebuilds + relaunches the **prod** pair (`pd-console-prod.app`, `FleetBar.app`) from that release tag. Builds run in a dedicated clone under `~/.port-daddy/app-watch/repo`, never in a working checkout; failed SHAs/versions are not retried until they move again.
+- **FleetBar build LANES.** `apps/FleetBar/scripts/package-fleetbar-lane.sh` mirrors the console's lane model: `--prod` → `FleetBar.app`, `--latest` → `FleetBar (dev-latest).app` (each swapped + `launchctl` kickstarted under its KeepAlive label), `--devbuild <name>` → a timestamped one-shot bundle.
+
+### Changed
+- **pd-console dev bundles are date-sorted.** `--devbuild <name>` now writes `pd-console-dev-<YYYYMMDD-HHMM>-<name>.app` (stamp first, so lexicographic sort == chronological sort in `pd-console-dev-apps/`) and retires that name's superseded bundles, including legacy `pd-console_dev-<name>.app` (`PD_CONSOLE_KEEP_OLD_DEV=1` to keep).
+
 ### Security
 - Corralling reduces blast radius (no plaintext at rest, scoped + logged Keychain access), but it is **not** confidentiality against a malicious same-UID agent whose binary satisfies the Keychain ACL — that needs the separate-UID broker (ADR-0087 phase 5). Every corral report path echoes that honest limit verbatim.
+
+### Fixed
+- **Release: FleetBar.app is now Developer ID signed + notarized (#531).** The release job extends the daemon/pd-console signing rig (same `APPLE_*` secrets, temp keychain, notary profile) to FleetBar: nested bun payload binaries signed inside-out with bun's JIT entitlements, SwiftUI host sealed with empty entitlements + hardened runtime, then notarized + stapled. A new signature guard re-extracts the released zip and fails the release if the cert secret was present but the .app is not Developer-ID signed — no more silently shipping a Gatekeeper-quarantined app.
 
 ### Removed
 - **Web dashboard retired; operator surfaces consolidated to THREE (#652).** `public/index.html` is no longer a 2,600-line dashboard — it is a minimal landing page that health-checks the daemon and points at the sanctioned surfaces: **FleetBar** (menu bar), **Control Center** (FleetBar's window, whose content IS `public/fleet-ui/`), and **pd-console** (GPU operator console). Deleted the orphaned `public/fleet-live.html`, `public/app-surgery.html`, and `public/fleet-config.html` (their live counterparts are Control Center surfaces), and removed the Control Center's redundant "Browser" pill (`FleetControlCenter.swift`) — the browser control plane it opened is the same `fleet-ui` the window already shows. References to the retired pages in old release notes below are historical record and intentionally unchanged. <!-- cite-exempt: the cited paths are the files this PR deletes -->
