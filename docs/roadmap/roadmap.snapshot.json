@@ -2,7 +2,7 @@
   "generatedAt": 1783138698335,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 112,
+  "count": 119,
   "items": [
     {
       "slug": "active-agent-roster",
@@ -62,7 +62,7 @@
     {
       "slug": "adr-0043-phase-1-adr-sync-wiring",
       "status": "now",
-      "summaryMd": "ADR-0043 partial: lib/adr-matrix.ts parser shipped (Phase 0); Phase 1 missing \u2014 no cli/commands/adr.ts, no POST /adr/sync."
+      "summaryMd": "ADR-0043 partial: lib/adr-matrix.ts parser shipped (Phase 0); Phase 1 missing — no cli/commands/adr.ts, no POST /adr/sync."
     },
     {
       "slug": "adr-0043-phase-1-daemon-route-and-cli",
@@ -142,7 +142,7 @@
     {
       "slug": "adr-0045-phase-6-watchdog-and-signed-attestation",
       "status": "now",
-      "summaryMd": "Continuous watchdog (PASS->FAIL -> pheromone+notify+FleetBar red); sign clean reports with actor identity (ADR-0040) \u2014 non-repudiable green"
+      "summaryMd": "Continuous watchdog (PASS->FAIL -> pheromone+notify+FleetBar red); sign clean reports with actor identity (ADR-0040) — non-repudiable green"
     },
     {
       "slug": "adr-0046-phase-0-conversation-multiplex-shell",
@@ -227,7 +227,7 @@
     {
       "slug": "adr-0048-phase-2-L2-readsurfaces",
       "status": "now",
-      "summaryMd": "L2 SPINE: the read-surfaces \u2014 suggestibility briefings (agent read), Attention Queue (operator read), resurrection-with-memory (successor read), discovery/pd whois index. Done when tuples/pheromones/memories are READ in >=3 surfaces."
+      "summaryMd": "L2 SPINE: the read-surfaces — suggestibility briefings (agent read), Attention Queue (operator read), resurrection-with-memory (successor read), discovery/pd whois index. Done when tuples/pheromones/memories are READ in >=3 surfaces."
     },
     {
       "slug": "adr-0048-phase-3-L2-legibility-digest",
@@ -307,7 +307,7 @@
     {
       "slug": "adr-0050-phase-7-compulsion",
       "status": "backlog",
-      "summaryMd": "feat(coast-guard): rent\u2192slash advisory-only \u2014 pure policy + breach ledger (ADR-0050 ph7)"
+      "summaryMd": "feat(coast-guard): rent→slash advisory-only — pure policy + breach ledger (ADR-0050 ph7)"
     },
     {
       "slug": "adr-0090-database-distribution",
@@ -357,7 +357,7 @@
     {
       "slug": "app-lane-auto-refresh",
       "status": "backlog",
-      "summaryMd": "feat(dist): app-lane auto-refresh \u2014 main/tap watcher, FleetBar lanes, date-sorted dev bundles"
+      "summaryMd": "feat(dist): app-lane auto-refresh — main/tap watcher, FleetBar lanes, date-sorted dev bundles"
     },
     {
       "slug": "ast-a0-intra-file-call-edges",
@@ -367,7 +367,7 @@
     {
       "slug": "ast-a1-1-cross-file-resolution",
       "status": "merge",
-      "summaryMd": "A1.1 cross-file import resolution \u2014 KEYSTONE. PR #576: resolveImportSpecifier (filesystem-verified relative+baseUrl; externals stay raw). Unblocks ast-a1-3/a2-1/a3-1. Follow-ups: tsconfig paths globs, Python module resolution."
+      "summaryMd": "A1.1 cross-file import resolution — KEYSTONE. PR #576: resolveImportSpecifier (filesystem-verified relative+baseUrl; externals stay raw). Unblocks ast-a1-3/a2-1/a3-1. Follow-ups: tsconfig paths globs, Python module resolution."
     },
     {
       "slug": "ast-a1-2-references-edges",
@@ -462,12 +462,12 @@
     {
       "slug": "harbor-editor",
       "status": "now",
-      "summaryMd": "Harbor Editor \u2014 cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
+      "summaryMd": "Harbor Editor — cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
     },
     {
       "slug": "io-wiring",
       "status": "now",
-      "summaryMd": "Wire the pluggable trigger/output registry into the fleet engine so fleet agents can fire on and emit to file, webhook, notify, email, SMS, iMessage and calendar \u2014 not just singular trigger:/schedule:. Phased: io-wiring-phase-1..5."
+      "summaryMd": "Wire the pluggable trigger/output registry into the fleet engine so fleet agents can fire on and emit to file, webhook, notify, email, SMS, iMessage and calendar — not just singular trigger:/schedule:. Phased: io-wiring-phase-1..5."
     },
     {
       "slug": "io-wiring-phase-1-registry-engine",
@@ -507,7 +507,7 @@
     {
       "slug": "pd-safe-scan",
       "status": "backlog",
-      "summaryMd": "feat(safe): pd safe \u2014 the AI sniffer (Phase A read-only posture scan + Phase B secret corral, ADR-0088)"
+      "summaryMd": "feat(safe): pd safe — the AI sniffer (Phase A read-only posture scan + Phase B secret corral, ADR-0088)"
     },
     {
       "slug": "pd-session-coordination-hardening",
@@ -527,7 +527,7 @@
     {
       "slug": "roadmap-link-gate",
       "status": "now",
-      "summaryMd": "Non-blocking CI gate: every PR declares its roadmap item (committed snapshot + label\u2192human-approval fallback + loud-on-broken). Daemon is the only writer; CI reads the mirror."
+      "summaryMd": "Non-blocking CI gate: every PR declares its roadmap item (committed snapshot + label→human-approval fallback + loud-on-broken). Daemon is the only writer; CI reads the mirror."
     },
     {
       "slug": "seeded-daemon-fleet-console-lanes",
@@ -592,7 +592,12 @@
     {
       "slug": "visual-evidence-doctrine",
       "status": "backlog",
-      "summaryMd": "docs(skill): visual-evidence doctrine \u2014 non-interruptive screenshot capture for every agent"
+      "summaryMd": "docs(skill): visual-evidence doctrine — non-interruptive screenshot capture for every agent"
+    },
+    {
+      "slug": "session-galaxy-embedding-map",
+      "status": "backlog",
+      "summaryMd": "Session Galaxy: daemon embeds recent agent-session transcript tails (MiniLM), seeded t-SNE 2D projection, k-means clusters labeled by mutual-information terms; fleet-ui tab + pd-console pane + FleetBar surface with hover/detail/rect-select and parley-from-selection."
     }
   ]
 }

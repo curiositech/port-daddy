@@ -23,6 +23,7 @@ final class FleetPopoverTests: XCTestCase {
                 "memory",
                 "shipwright",
                 "yaml",
+                "galaxy",
             ]
         )
         XCTAssertEqual(
@@ -42,6 +43,7 @@ final class FleetPopoverTests: XCTestCase {
                 "Memory",
                 "Shipwright",
                 "YAML",
+                "Galaxy",
             ]
         )
     }

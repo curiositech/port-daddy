@@ -27,7 +27,7 @@ use crate::palette::{Theme, ThemeMode};
 use crate::pane::{Alert, AlertLevel, Block, OperatorTurn, Pane, Tone};
 use crate::tokens;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::mpsc;
@@ -163,6 +163,23 @@ pub enum ControlMsg {
     InterruptAgent {
         agent_id: String,
     },
+    /// Convene a parley from a session-galaxy selection: `POST /parley/call`.
+    /// `parties` are DEDUPED AGENT ids (`fleet_transcripts.spawned_agent_id` —
+    /// never transcript/session ids; parley DMs parties via agent inbox). The
+    /// daemon 400s below 2 distinct ids; the UI disables the button first, and
+    /// any rejection body comes back verbatim on the alert bus.
+    GalaxyParley {
+        surface: String,
+        reason: String,
+        parties: Vec<String>,
+    },
+    /// Fetch one galaxy session's full detail: `GET /galaxy/session/:id`
+    /// (`:id` = the transcript id from a clicked point). The parsed
+    /// [`crate::galaxy_pane::GalaxyDetail`] returns on the dedicated galaxy bus
+    /// (mirroring the conjure bus), drained into the view's detail drawer.
+    GalaxyDetail {
+        transcript_id: String,
+    },
 }
 
 /// A flattened, transport-ready spawn request for one Conjure node — the wire
@@ -191,6 +208,16 @@ pub enum ConjureUpdate {
     /// The path to the rendered Vello PNG for the current DAG — shown INLINE at the
     /// top of the Conjure surface (gpui `img(path)`).
     Png(std::path::PathBuf),
+}
+
+/// A push from the background worker back to the view about the Galaxy surface:
+/// the parsed session detail for a clicked point, or the daemon's real failure
+/// (surfaced in the drawer, never swallowed). Rides its own small bus alongside
+/// the conjure/chat buses in `main.rs`.
+#[derive(Debug, Clone)]
+pub enum GalaxyUpdate {
+    Detail(crate::galaxy_pane::GalaxyDetail),
+    DetailError(String),
 }
 
 /// Resolve the default (pre-rendered fixture) Conjure PNG path. Honors the
@@ -252,6 +279,11 @@ pub enum CmdKind {
     Kill,
     /// Interrupt a specific agent. Buffer is the agent id. → `POST /agents/:id/interrupt`.
     InterruptAgent,
+    /// Convene a parley over the current galaxy selection. Buffer is the
+    /// operator's reason (empty = the contract's default reason); the parties/
+    /// surface are computed from `ConsoleView::galaxy_selected` at submit time.
+    /// → `POST /parley/call`.
+    GalaxyParley,
     /// The operator verb palette (vim-`:` style). Buffer is `<verb> <args>`; the
     /// first token selects an operator write, the rest are its arguments. One
     /// keybinding (`Ctrl-A :`) reaches every write without exhausting the
@@ -279,6 +311,7 @@ impl CmdKind {
             CmdKind::Release => "release (identity)",
             CmdKind::Kill => "kill (agent id)",
             CmdKind::InterruptAgent => "interrupt (agent id)",
+            CmdKind::GalaxyParley => "parley reason",
             CmdKind::Verb => ":",
         }
     }
@@ -331,6 +364,9 @@ impl CmdKind {
             CmdKind::Release => "project:stack:context".to_string(),
             CmdKind::Kill => "agent-id".to_string(),
             CmdKind::InterruptAgent => "agent-id".to_string(),
+            CmdKind::GalaxyParley => {
+                "why convene these agents? Enter sends — empty uses the default reason".to_string()
+            }
             CmdKind::Verb => {
                 "note/begin/done/propose/sortie/claim/release/kill/interrupt …".to_string()
             }
@@ -676,7 +712,7 @@ fn launcher_tone(id: &str, t: &Theme) -> u32 {
         "fleet" | "cockpit" | "sorties" | "lane" | "peek" | "chat" | "files" => t.cobalt,
         "dispatch" | "conductor" | "parley" | "suggest" | "coast" | "coast-guard"
         | "claims" | "conjure" => t.accent,
-        "roadmap" | "planner" | "adrs" | "memory" | "lineage" | "substrate" => t.landed,
+        "roadmap" | "planner" | "adrs" | "memory" | "lineage" | "substrate" | "galaxy" => t.landed,
         _ => t.gated, // activity, sessions, inbox, prs, health, ledger
     }
 }
@@ -732,7 +768,7 @@ fn launcher_legend_chip(label: &'static str, color: u32) -> impl IntoElement {
 // 0 = light, 1 = dark (default = the shipped look).
 static THEME_MODE: AtomicU8 = AtomicU8::new(1);
 
-fn current_theme() -> Theme {
+pub(crate) fn current_theme() -> Theme {
     let mode = if THEME_MODE.load(Ordering::Relaxed) == 0 {
         ThemeMode::Light
     } else {
@@ -930,7 +966,7 @@ fn tone_rgb(tone: &Tone) -> u32 {
 // ── Motion — gpui 0.2.2 has no fluent transform, so "lift/glow/spring" reads
 // through hover color + box-shadow (instant, GPU-cheap) and with_animation
 // one-shot/looping timelines. Curves match the mock's bezier set. ≤500ms.
-mod motion {
+pub(crate) mod motion {
     use gpui::{point, px, BoxShadow, Hsla};
 
     pub const RISE_MS: u64 = 500;
@@ -1156,7 +1192,7 @@ impl RenderOnce for WavingFlag {
     }
 }
 
-fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
+pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
     let t = current_theme();
     match block {
         Block::Header(text) => div()
@@ -1737,6 +1773,29 @@ pub struct ConsoleView {
     /// so keydown pushes `key_char` here (case-preserving) the same way the command
     /// line does, and Enter submits a turn up the tube.
     chat_input: String,
+    // ── Session Galaxy state (rendered by `galaxy_canvas`; pub(crate) because
+    // the bespoke canvas module reads them — the two-layer rule keeps all the
+    // math in `galaxy_pane`, all the pixels there, and only state here). ──
+    /// The latest map frame from the producer thread (points + clusters with
+    /// daemon-precomputed normalized coords).
+    pub(crate) galaxy: crate::galaxy_pane::GalaxySnapshot,
+    /// Selected point ids (transcript ids). Click = select-one; ⌘-click toggles;
+    /// a marquee drag unions. Pruned when points leave the map window.
+    pub(crate) galaxy_selected: HashSet<String>,
+    /// The point under the cursor (drives the fixed hover readout strip).
+    pub(crate) galaxy_hover: Option<String>,
+    /// In-flight rectangle select: (anchor, current) in WINDOW pixels. The root
+    /// mouse handlers own the update/complete arms (divider-drag pattern).
+    pub(crate) galaxy_drag: Option<(Point<Pixels>, Point<Pixels>)>,
+    /// The map's laid-out bounds, captured by a canvas prepaint each frame (the
+    /// split_bounds pattern; one frame stale is fine at the 500ms drain cadence)
+    /// so drag/hover pixel positions convert to normalized map coords.
+    pub(crate) galaxy_bounds: Rc<RefCell<Option<Bounds<Pixels>>>>,
+    /// The clicked session's parsed detail (the drawer). `None` ⇒ closed.
+    pub(crate) galaxy_detail: Option<crate::galaxy_pane::GalaxyDetail>,
+    /// The daemon's real failure fetching a detail — shown in the drawer slot,
+    /// never swallowed.
+    pub(crate) galaxy_detail_error: Option<String>,
 }
 
 impl ConsoleView {
@@ -1830,6 +1889,13 @@ impl ConsoleView {
             flag_ticking: false,
             chat: ChatLog::default(),
             chat_input: String::new(),
+            galaxy: crate::galaxy_pane::GalaxySnapshot::default(),
+            galaxy_selected: HashSet::new(),
+            galaxy_hover: None,
+            galaxy_drag: None,
+            galaxy_bounds: Rc::new(RefCell::new(None)),
+            galaxy_detail: None,
+            galaxy_detail_error: None,
         }
     }
 
@@ -2317,8 +2383,13 @@ impl ConsoleView {
             return;
         }
         // Reject and Done may submit empty (Reject falls back to a default reason;
-        // Done's summary is optional); every other verb needs text.
-        if text.is_empty() && cmd.kind != CmdKind::DispatchReject && cmd.kind != CmdKind::Done {
+        // Done's summary is optional; GalaxyParley falls back to the contract's
+        // default reason); every other verb needs text.
+        if text.is_empty()
+            && cmd.kind != CmdKind::DispatchReject
+            && cmd.kind != CmdKind::Done
+            && cmd.kind != CmdKind::GalaxyParley
+        {
             return;
         }
         // AddPane is a purely local UI mutation (split a new pane of the chosen
@@ -2503,6 +2574,45 @@ impl ConsoleView {
                     agent_id: text.clone(),
                 });
                 self.control_flash = Some(format!("interrupting agent {text}…"));
+            }
+            CmdKind::GalaxyParley => {
+                // Parties are AGENT ids (never transcript/session ids) — recompute
+                // from the live selection at submit time so a pruned map can't
+                // ship stale parties. Below 2 distinct agents the daemon 400s,
+                // so refuse here with the reason instead of a doomed round-trip.
+                let parties =
+                    crate::galaxy_pane::distinct_agents(&self.galaxy.points, &self.galaxy_selected);
+                if parties.len() < 2 {
+                    self.control_flash = Some(
+                        "parley needs ≥2 distinct agents — select sessions from ≥2 agents first"
+                            .into(),
+                    );
+                    return;
+                }
+                let surface = crate::galaxy_pane::parley_surface(
+                    &self.galaxy.points,
+                    &self.galaxy.clusters,
+                    &self.galaxy_selected,
+                );
+                let reason = if text.is_empty() {
+                    crate::galaxy_pane::default_reason(
+                        &self.galaxy.points,
+                        &self.galaxy.clusters,
+                        &self.galaxy_selected,
+                    )
+                } else {
+                    text
+                };
+                let n_parties = parties.len();
+                let _ = tx.send(ControlMsg::GalaxyParley {
+                    surface,
+                    reason,
+                    parties,
+                });
+                crate::audio::play(crate::audio::Cue::Dispatch);
+                self.control_flash = Some(format!(
+                    "convening parley with {n_parties} agents — outcome lands in Alerts"
+                ));
             }
             // AddPane, Conjure, UseDaemon, and Verb are handled locally above
             // (early return) — never reach here.
@@ -2888,6 +2998,7 @@ impl ConsoleView {
         &mut self,
         updates: Vec<(usize, Vec<Block>)>,
         dispatch_head: Option<DispatchHead>,
+        galaxy: crate::galaxy_pane::GalaxySnapshot,
     ) {
         // First refresh dismisses the launch splash (idempotent thereafter).
         if !self.booted {
@@ -2899,6 +3010,62 @@ impl ConsoleView {
             }
         }
         self.dispatch_head = dispatch_head;
+        // Fresh galaxy frame: prune selection/hover of points that slid out of
+        // the map window, so a parley can never target a vanished session.
+        let ids: HashSet<&str> = galaxy.points.iter().map(|p| p.id.as_str()).collect();
+        self.galaxy_selected.retain(|id| ids.contains(id.as_str()));
+        if self
+            .galaxy_hover
+            .as_ref()
+            .is_some_and(|h| !ids.contains(h.as_str()))
+        {
+            self.galaxy_hover = None;
+        }
+        self.galaxy = galaxy;
+    }
+
+    /// Fold one galaxy push from the background worker into the drawer state:
+    /// a parsed session detail, or the daemon's real failure (shown, not eaten).
+    pub fn apply_galaxy_update(&mut self, update: GalaxyUpdate) {
+        match update {
+            GalaxyUpdate::Detail(detail) => {
+                self.galaxy_detail = Some(detail);
+                self.galaxy_detail_error = None;
+                crate::audio::play(crate::audio::Cue::Receive);
+            }
+            GalaxyUpdate::DetailError(reason) => {
+                self.galaxy_detail = None;
+                self.galaxy_detail_error = Some(reason);
+                crate::audio::play(crate::audio::Cue::Error);
+            }
+        }
+    }
+
+    /// Open the parley-reason command line for the current galaxy selection
+    /// (the canvas' "Initiate parley" button lands here; `CommandLine` is
+    /// app-private, so the module boundary crosses through this method).
+    pub(crate) fn open_galaxy_parley_command(&mut self) {
+        self.command = Some(CommandLine::new(CmdKind::GalaxyParley));
+        self.control_flash =
+            Some("type a reason for the parley — Enter sends (empty uses the default)".into());
+    }
+
+    /// Ask the background thread for one session's full detail
+    /// (`GET /galaxy/session/:id`); the reply lands via [`Self::apply_galaxy_update`].
+    pub(crate) fn request_galaxy_detail(&mut self, transcript_id: String) {
+        self.galaxy_detail = None;
+        match &self.control_tx {
+            Some(tx) => {
+                self.galaxy_detail_error = None;
+                let _ = tx.send(ControlMsg::GalaxyDetail { transcript_id });
+            }
+            None => {
+                // No control plane (an isolated test view): be honest rather
+                // than leaving a silent forever-loading drawer.
+                self.galaxy_detail_error =
+                    Some("no control plane — session detail is unavailable in this build".into());
+            }
+        }
     }
 
     /// The launch splash — a centered brand lockup (spinning radar mark + "Port Daddy") shown
@@ -3028,6 +3195,10 @@ impl ConsoleView {
         // The Conjure surface (focused) gets the "Render graph" action bar — the
         // discoverable control that ships the live DAG to the Vello PNG renderer.
         let is_conjure = matches!(surface, SurfaceKind::Conjure);
+        // The Galaxy surface renders the bespoke interactive scatter canvas
+        // (galaxy_canvas.rs) instead of the generic Block list — the daemon
+        // precomputed the layout; the canvas only places, hits, and selects.
+        let is_galaxy = nav_id_for_surface(surface) == Some("galaxy");
         // The chat surface renders bespoke bubbles (from view state) + a focused
         // composer, NOT the generic Block list. Snapshot the transcript for this frame.
         let is_chat = matches!(surface, SurfaceKind::CartographerChat);
@@ -3231,6 +3402,11 @@ impl ConsoleView {
                         b
                     }
                     None if is_daemons => body.children(daemon_rows),
+                    // Galaxy: the interactive embedding map (points, marquee,
+                    // hover readout, selection bar, detail drawer).
+                    None if is_galaxy => {
+                        body.child(crate::galaxy_canvas::render_galaxy(self, id, cx))
+                    }
                     // Chat: bespoke bubbles from view state (three states: empty
                     // invitation / populated transcript / error banner) — never the
                     // generic Block list.
@@ -5419,9 +5595,56 @@ impl Render for ConsoleView {
                         cx.notify();
                     }
                 }
+                // Galaxy marquee: while a rectangle-select is live, track the far
+                // corner; auto-cancel when Left is no longer held (same
+                // bulletproof-release rule as the divider drag above).
+                if this.galaxy_drag.is_some() {
+                    if ev.pressed_button != Some(MouseButton::Left) {
+                        this.galaxy_drag = None;
+                        cx.notify();
+                        return;
+                    }
+                    if let Some((_, end)) = this.galaxy_drag.as_mut() {
+                        *end = ev.position;
+                    }
+                    cx.notify();
+                }
             }))
             .on_mouse_up(MouseButton::Left, cx.listener(|this, _ev: &MouseUpEvent, _window, cx| {
                 if this.dragging.take().is_some() {
+                    cx.notify();
+                }
+                // Galaxy marquee release: convert the pixel rect to normalized
+                // map coords via the captured bounds and UNION the hits into the
+                // selection (⌘-free additive sweep; the pure hit test lives in
+                // galaxy_pane so the REPL bin gates it).
+                if let Some((start, end)) = this.galaxy_drag.take() {
+                    let bounds = *this.galaxy_bounds.borrow();
+                    if let Some(b) = bounds {
+                        let w = f32::from(b.size.width).max(1.0);
+                        let h = f32::from(b.size.height).max(1.0);
+                        let ox = f32::from(b.origin.x);
+                        let oy = f32::from(b.origin.y);
+                        // A sub-4px travel is a click on empty space, not a
+                        // marquee — don't sweep-select on jitter.
+                        let travelled = (f32::from(end.x) - f32::from(start.x)).abs() > 4.0
+                            || (f32::from(end.y) - f32::from(start.y)).abs() > 4.0;
+                        if travelled {
+                            let hits = crate::galaxy_pane::rect_hits(
+                                &this.galaxy.points,
+                                (f32::from(start.x) - ox) / w,
+                                (f32::from(start.y) - oy) / h,
+                                (f32::from(end.x) - ox) / w,
+                                (f32::from(end.y) - oy) / h,
+                            );
+                            if !hits.is_empty() {
+                                crate::audio::play(crate::audio::Cue::Tick);
+                            }
+                            for hit in hits {
+                                this.galaxy_selected.insert(hit);
+                            }
+                        }
+                    }
                     cx.notify();
                 }
             }))

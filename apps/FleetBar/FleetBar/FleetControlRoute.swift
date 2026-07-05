@@ -15,6 +15,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
     case memory
     case shipwright
     case yaml
+    case galaxy
 
     var id: String { rawValue }
 
@@ -34,6 +35,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         case .memory: return "Memory"
         case .shipwright: return "Shipwright"
         case .yaml: return "YAML"
+        case .galaxy: return "Galaxy"
         }
     }
 
@@ -53,6 +55,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         case .memory: return "square.stack.3d.up"
         case .shipwright: return "hammer"
         case .yaml: return "curlybraces"
+        case .galaxy: return "circle.hexagongrid"
         }
     }
 

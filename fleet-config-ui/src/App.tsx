@@ -25,6 +25,7 @@ import CockpitControlPanel from './components/CockpitControlPanel';
 import VisualTaskPanel from './components/VisualTaskPanel';
 import EventsRegistryPanel from './components/EventsRegistryPanel';
 import { MetricsPanel } from './components/MetricsPanel';
+import SessionGalaxyPanel from './components/SessionGalaxyPanel';
 import ShipwrightPanel from './shipwright/ShipwrightPanel';
 import OperatorStatePanel from './components/OperatorStatePanel';
 import { useOperatorState } from './hooks/useOperatorState';
@@ -66,8 +67,8 @@ import type {
   TopologyValidation,
 } from './types';
 
-type MainTab = 'Operator' | 'Flow' | 'Roadmap' | 'Agents' | 'Visual' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'TubeBrowser' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Metrics' | 'Dispatch' | 'CoastGuard' | 'Cockpit' | 'Shipwright' | 'YAML';
-type ControlSurface = 'operator' | 'flow' | 'roadmap' | 'agents' | 'visual' | 'resources' | 'activity' | 'channels' | 'tube' | 'tubebrowser' | 'events' | 'inbox' | 'sorties' | 'memory' | 'metrics' | 'dispatch' | 'coastguard' | 'cockpit' | 'shipwright' | 'yaml';
+type MainTab = 'Operator' | 'Flow' | 'Roadmap' | 'Agents' | 'Visual' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'TubeBrowser' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Metrics' | 'Galaxy' | 'Dispatch' | 'CoastGuard' | 'Cockpit' | 'Shipwright' | 'YAML';
+type ControlSurface = 'operator' | 'flow' | 'roadmap' | 'agents' | 'visual' | 'resources' | 'activity' | 'channels' | 'tube' | 'tubebrowser' | 'events' | 'inbox' | 'sorties' | 'memory' | 'metrics' | 'galaxy' | 'dispatch' | 'coastguard' | 'cockpit' | 'shipwright' | 'yaml';
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined';
@@ -85,6 +86,7 @@ function normalizeSurface(value: string | null): ControlSurface {
     case 'sorties':
     case 'memory':
     case 'metrics':
+    case 'galaxy':
     case 'dispatch':
     case 'coastguard':
     case 'cockpit':
@@ -133,6 +135,8 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
       return 'Memory';
     case 'metrics':
       return 'Metrics';
+    case 'galaxy':
+      return 'Galaxy';
     case 'dispatch':
       return 'Dispatch';
     case 'coastguard':
@@ -163,6 +167,7 @@ function mainTabToSurface(activeTab: MainTab): ControlSurface {
   if (activeTab === 'Sorties') return 'sorties';
   if (activeTab === 'Memory') return 'memory';
   if (activeTab === 'Metrics') return 'metrics';
+  if (activeTab === 'Galaxy') return 'galaxy';
   if (activeTab === 'Dispatch') return 'dispatch';
   if (activeTab === 'CoastGuard') return 'coastguard';
   if (activeTab === 'Cockpit') return 'cockpit';
@@ -1479,10 +1484,10 @@ export default function App() {
     (!!fleet.status && !fleet.error) ||
     (!!operatorStateHook.state && !operatorStateHook.error);
 
-  const surfaceTabs: MainTab[] = ['Operator', 'Flow', 'Roadmap', 'Agents', 'Visual', 'Resources', 'Activity', 'Channels', 'Tube', 'TubeBrowser', 'Events', 'Inbox', 'Sorties', 'Memory', 'Metrics', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright', 'YAML'];
+  const surfaceTabs: MainTab[] = ['Operator', 'Flow', 'Roadmap', 'Agents', 'Visual', 'Resources', 'Activity', 'Channels', 'Tube', 'TubeBrowser', 'Events', 'Inbox', 'Sorties', 'Memory', 'Metrics', 'Galaxy', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright', 'YAML'];
   // Visual task intake can start from a screenshot before the operator picks a repo.
   // It still attaches a project when FleetBar opens it from a project context.
-  const allProjectSurfaceTabs: MainTab[] = ['Operator', 'Flow', 'Visual', 'Metrics', 'TubeBrowser', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright'];
+  const allProjectSurfaceTabs: MainTab[] = ['Operator', 'Flow', 'Visual', 'Metrics', 'Galaxy', 'TubeBrowser', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
   const visibleSurfaceTabs = selectedProjectId ? surfaceTabs : allProjectSurfaceTabs;
   const handleProjectRefresh = useCallback(() => {
@@ -1623,6 +1628,10 @@ export default function App() {
                   Loading operator state…
                 </div>
               )}
+            </motion.div>
+          ) : activeTab === 'Galaxy' ? (
+            <motion.div key="galaxy-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
+              <SessionGalaxyPanel key={`${daemonUrl}:all:galaxy`} project={null} theme={theme} />
             </motion.div>
           ) : activeTab === 'TubeBrowser' ? (
             <motion.div key="tubebrowser-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
@@ -1992,6 +2001,13 @@ export default function App() {
                     )}
                     {activeTab === 'Metrics' && (
                       <MetricsPanel theme={theme} embedded={embedded} daemonUrl={daemonUrl} />
+                    )}
+                    {activeTab === 'Galaxy' && (
+                      <SessionGalaxyPanel
+                        key={`${daemonUrl}:${selectedProjectId ?? 'all'}:galaxy`}
+                        project={selectedProjectName ?? null}
+                        theme={theme}
+                      />
                     )}
                     {activeTab === 'TubeBrowser' && (
                       <TubeMessagePanel />

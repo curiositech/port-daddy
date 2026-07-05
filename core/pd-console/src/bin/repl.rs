@@ -45,6 +45,11 @@
 // maritime's gpui FlagBadge is now #[cfg(feature = "gpui")]-gated, so the pure
 // Flag/flag_for_state compile here and the fleet pane renders in the REPL too.
 #[path = "../fleet_pane.rs"]     mod fleet_pane;
+// Session-galaxy engine (parsing + hit-testing + selection math) — gpui-free by
+// design; its #[cfg(test)] suite runs HERE, in the rust-console CI gate. The
+// geometry helpers are canvas-only at runtime, hence the dead_code allow.
+#[allow(dead_code)]
+#[path = "../galaxy_pane.rs"]    mod galaxy_pane;
 #[path = "../grid.rs"]           mod grid; // launcher-grid data + 1:1 invariant tests
 #[path = "../maritime.rs"]       mod maritime;
 #[path = "../health_pane.rs"]    mod health_pane;
@@ -72,6 +77,7 @@ use active_agents_pane::ActiveAgentsPane;
 use anyhow::Result;
 use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
+use galaxy_pane::GalaxyPane;
 use lane_pane::LanePane;
 use lineage_pane::LineagePane;
 use pane::{OperatorTurn, PaneRegistry, Subscription, SurfaceAction};
@@ -153,6 +159,7 @@ async fn main() -> Result<()> {
     reg.register(Box::new(SubstratePane::new()));
     reg.register(Box::new(ParleyPane::new()));
     reg.register(Box::new(ActiveAgentsPane::new()));
+    reg.register(Box::new(GalaxyPane::new()));
 
     let ok = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✓", Sem::Landed));
     let err = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✗", Sem::Gated));
@@ -244,6 +251,16 @@ async fn main() -> Result<()> {
         } else if line == ":parley" {
             // RCP-2a convene decision over the channel's unresolved contradictions.
             reg.active = reg.panes.iter().position(|p| p.id() == "parley").unwrap_or(0);
+            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
+        } else if line == ":galaxy" {
+            // Session galaxy — the daemon's embedding map of recent sessions,
+            // rendered headlessly (session count + cluster chips/terms).
+            reg.active = reg.panes.iter().position(|p| p.id() == "galaxy").unwrap_or(0);
             if let Err(e) = reg.refresh_active(mgr.daemon()).await {
                 err(&style, &format!("refresh failed: {e}"));
             }
