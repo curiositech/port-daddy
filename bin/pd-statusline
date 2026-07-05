@@ -35,9 +35,12 @@ else
   RED="$(printf '\033[31m')"; RESET="$(printf '\033[0m')"
 fi
 
-# Identity badge: which loop is really answering this session?
+# Identity badge: which loop is really answering this session? In pilot mode
+# the honest model is the Codex backend (PD_SQUID_BACKEND, stamped by
+# `pd squid codex`), NOT the client-facing Anthropic model id.
 if [ "${PD_SQUID_PILOT:-}" = "codex" ]; then
   BADGE="${MAGENTA}◆ PD⇄CODEX${RESET}"
+  MODEL="${PD_SQUID_BACKEND:-codex}"
 else
   BADGE="${CYAN}◆ PD${RESET}"
 fi

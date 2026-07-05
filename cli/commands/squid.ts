@@ -189,14 +189,29 @@ export function validateSquidBridgeConfig(config: SquidBridgeConfig): string | n
   return null;
 }
 
+/** Human-readable label for the model REALLY answering behind the bridge. */
+export function squidBackendLabel(config: Pick<SquidBridgeConfig, 'codexModel' | 'capabilityTier'>): string {
+  if (config.codexModel) return `codex ${config.codexModel}`;
+  if (config.capabilityTier) return `codex (${SQUID_TIER_PRESETS[config.capabilityTier].label})`;
+  return 'codex';
+}
+
 /** Build the child-process environment for a Claude-compatible client. */
-export function bridgeClientEnv(baseUrl: string, authToken: string | null, baseEnv: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+export function bridgeClientEnv(
+  baseUrl: string,
+  authToken: string | null,
+  baseEnv: NodeJS.ProcessEnv = process.env,
+  backendLabel?: string,
+): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
     ...baseEnv,
     ANTHROPIC_BASE_URL: baseUrl,
     // Visual identity: pd-statusline renders the magenta ◆ PD⇄CODEX badge when
     // it sees this, so a bridged session can never be mistaken for a direct seat.
     PD_SQUID_PILOT: 'codex',
+    // Honest model provenance: the statusline shows the model actually
+    // answering (the Codex backend), not the client-facing Anthropic model id.
+    PD_SQUID_BACKEND: backendLabel || 'codex',
   };
   if (authToken) {
     env.ANTHROPIC_AUTH_TOKEN = authToken;
@@ -219,10 +234,11 @@ export function resolveClientLaunch(
   passthrough: string[],
   options: CLIOptions,
   baseEnv: NodeJS.ProcessEnv = process.env,
+  backendLabel?: string,
 ): ClientLaunch {
   const command = passthrough[0] || String(options.client ?? 'claude');
   const args = passthrough.length > 0 ? passthrough.slice(1) : normalizeStringArray(options['client-arg']);
-  return { command, args, env: bridgeClientEnv(baseUrl, authToken, baseEnv) };
+  return { command, args, env: bridgeClientEnv(baseUrl, authToken, baseEnv, backendLabel) };
 }
 
 /**
@@ -342,7 +358,7 @@ async function handleCodexBridge(clientPassthrough: string[], options: CLIOption
   });
 
   if (!mode.serveOnly) {
-    const launch = resolveClientLaunch(baseUrl, config.authToken, clientPassthrough, options);
+    const launch = resolveClientLaunch(baseUrl, config.authToken, clientPassthrough, options, process.env, squidBackendLabel(config));
     console.log('');
     console.log(`Launching: ${[launch.command, ...launch.args].join(' ') || launch.command}`);
     const child = spawnChild(launch.command, launch.args, {

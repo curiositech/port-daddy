@@ -129,9 +129,19 @@ describe('pd-statusline script (the real sh, end-to-end)', () => {
     expect(out).toContain('daemon down');
   });
 
-  test('codex pilot env flips the badge to ◆ PD⇄CODEX', () => {
+  test('codex pilot env flips the badge to ◆ PD⇄CODEX and shows the REAL backend model', () => {
+    const out = runStatusline({ PD_SQUID_PILOT: 'codex', PD_SQUID_BACKEND: 'codex gpt-5.5' });
+    expect(out).toContain('◆ PD⇄CODEX');
+    expect(out).toContain('codex gpt-5.5');
+    // the client-facing Anthropic display name must NOT masquerade as the model
+    expect(out).not.toContain('Opus');
+  });
+
+  test('codex pilot without an explicit backend label falls back to "codex"', () => {
     const out = runStatusline({ PD_SQUID_PILOT: 'codex' });
     expect(out).toContain('◆ PD⇄CODEX');
+    expect(out).toContain('codex');
+    expect(out).not.toContain('Opus');
   });
 
   test('live daemon + matrix counters show up', () => {
@@ -153,10 +163,12 @@ describe('pd-statusline script (the real sh, end-to-end)', () => {
 });
 
 describe('bridgeClientEnv marks the piloted session', () => {
-  test('sets PD_SQUID_PILOT=codex alongside the Anthropic env', () => {
-    const env = bridgeClientEnv('http://127.0.0.1:8765', 'tok', {});
+  test('sets PD_SQUID_PILOT=codex and the honest backend label alongside the Anthropic env', () => {
+    const env = bridgeClientEnv('http://127.0.0.1:8765', 'tok', {}, 'codex gpt-5.5');
     expect(env.ANTHROPIC_BASE_URL).toBe('http://127.0.0.1:8765');
     expect(env.ANTHROPIC_AUTH_TOKEN).toBe('tok');
     expect(env.PD_SQUID_PILOT).toBe('codex');
+    expect(env.PD_SQUID_BACKEND).toBe('codex gpt-5.5');
+    expect(bridgeClientEnv('http://x', null, {}).PD_SQUID_BACKEND).toBe('codex');
   });
 });
