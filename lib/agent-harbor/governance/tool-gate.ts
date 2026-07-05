@@ -32,6 +32,7 @@
 import { randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
+import { isAbsolute, resolve } from 'node:path';
 import {
   classifyCommand,
   type ClassificationContext,
@@ -239,7 +240,12 @@ export function computeBlastRadius(action: ClassifiedAction, ctx: GateContext): 
       };
     }
     if (action.category === 'filesystem') {
-      const target = action.matchedSegment.split(/\s+/).filter((t) => !t.startsWith('-')).slice(1).pop();
+      const raw = action.matchedSegment.split(/\s+/).filter((t) => !t.startsWith('-')).slice(1).pop();
+      // Relative targets are relative to the agent's jail root, never this
+      // process's cwd — same base the classifier used.
+      const target = raw && !isAbsolute(raw) && ctx.workspaceRoot
+        ? resolve(ctx.workspaceRoot, raw)
+        : raw;
       if (target && existsSync(target)) {
         const entries = readdirSync(target).slice(0, BLAST_PREVIEW_LIMIT);
         return {
@@ -403,7 +409,11 @@ export function preToolGate(command: string, ctx: GateContext): GateResult {
       safeAlternative: action.safeAlternative ?? (action.tier === 'approve'
         ? 'wait for a governed body (hook installed, witnessed compliance) and re-request approval'
         : null),
-      sideEffectFree: true, // proven by the negative fixtures in tests/unit/agent-harbor-governance.test.js
+      // Fixture-earned, never asserted: true only when this row's negative
+      // fixture proved zero side effects on deny AND the gate's enforcement
+      // integrity is intact. A missing-hook / forged-compliance denial cannot
+      // guarantee the body honored it, so it must not claim side-effect-freedom.
+      sideEffectFree: d.integrity === 'enforced' && action.fixtureProven,
       transcriptEventId: deniedEvent.eventId,
       agentNodeId: ctx.agentNodeId,
       sessionId: ctx.sessionId,
@@ -488,20 +498,81 @@ export function preToolGate(command: string, ctx: GateContext): GateResult {
  * The post-tool envelope: tool-result persistence for actions that actually
  * ran. If a BLOCK-tier action shows up here as executed, the pre-tool hook
  * was missing or bypassed — that is recorded as a post-hoc observation with
- * gateIntegrity, never laundered into a clean "proceeded".
+ * its own tool_denied transcript event and a denial receipt whose
+ * sideEffectFree is honestly FALSE (the side effects already happened),
+ * never laundered into a clean "proceeded" or hidden in an event-less
+ * envelope the silent-denial invariant would reject.
  */
 export function postToolGate(
   command: string,
   outcome: { executed: boolean; exitCode: number | null },
   ctx: GateContext,
-): { envelope: ToolGateEnvelope; violation: string | null } {
+): {
+  envelope: ToolGateEnvelope;
+  violation: string | null;
+  denialReceipt: DenialReceipt | null;
+  transcriptEvents: GovernanceTranscriptEvent[];
+} {
   const ids = makeIds(ctx);
+  const seq = makeSeq(ctx);
   const at = isoNow(ctx);
   const action = classifyCommand(command, ctx);
   const blockObservedRan = action?.tier === 'block' && outcome.executed;
+  const envelopeId = ids();
+  const bodyId = ctx.body.bodyId ?? null;
+
+  const events: GovernanceTranscriptEvent[] = [];
+  let denialReceipt: DenialReceipt | null = null;
+  if (blockObservedRan && action) {
+    const reason = `${action.actionName} is block-tier but was observed post-tool with side effects — pre-tool hook missing or bypassed`;
+    const deniedEvent: GovernanceTranscriptEvent = {
+      sessionId: ctx.sessionId,
+      agentNodeId: ctx.agentNodeId,
+      bodyId,
+      occurredAt: at,
+      schemaVersion: 1,
+      visibility: 'operator',
+      eventId: ids(),
+      sequence: seq(),
+      kind: 'tool_denied',
+      payloadJson: {
+        envelopeId,
+        command,
+        actionName: action.actionName,
+        category: action.category,
+        tier: action.tier,
+        reason,
+        gateIntegrity: 'post-hoc-observation',
+        exitCode: outcome.exitCode,
+      },
+    };
+    events.push(deniedEvent);
+    denialReceipt = {
+      schema: 'pd.agent-harbor.denial-receipt.v0',
+      kind: 'denial-receipt',
+      receiptId: ids(),
+      envelopeId,
+      actionName: action.actionName,
+      command,
+      category: action.category,
+      tier: action.tier,
+      decision: 'denied',
+      reason,
+      safeAlternative: action.safeAlternative ?? null,
+      sideEffectFree: false, // the action RAN — never claim otherwise
+      transcriptEventId: deniedEvent.eventId,
+      agentNodeId: ctx.agentNodeId,
+      sessionId: ctx.sessionId,
+      bodyId,
+      runId: ctx.runId ?? null,
+      toolCallId: ctx.toolCallId,
+      occurredAt: at,
+    };
+  }
+
   const envelope: ToolGateEnvelope = {
     schema: 'pd.agent-harbor.tool-gate-envelope.v0',
-    envelopeId: ids(),
+    envelopeId,
     phase: 'post-tool',
     actionName: action?.actionName ?? 'unmatched command',
     command,
@@ -515,12 +586,12 @@ export function postToolGate(
     gateIntegrity: blockObservedRan ? 'post-hoc-observation' : 'enforced',
     agentNodeId: ctx.agentNodeId,
     sessionId: ctx.sessionId,
-    bodyId: ctx.body.bodyId ?? null,
+    bodyId,
     runId: ctx.runId ?? null,
     toolCallId: ctx.toolCallId,
     idempotencyKey: `${ctx.sessionId}:${ctx.toolCallId}:post-tool`,
-    transcriptEventIds: [],
-    denialReceiptId: null,
+    transcriptEventIds: events.map((e) => e.eventId),
+    denialReceiptId: denialReceipt?.receiptId ?? null,
     humanGateId: null,
     occurredAt: at,
     exitCode: outcome.exitCode,
@@ -530,6 +601,8 @@ export function postToolGate(
     violation: blockObservedRan
       ? `block-tier action "${action?.actionName}" executed without a pre-tool gate — governance integrity violation (missing hook)`
       : null,
+    denialReceipt,
+    transcriptEvents: events,
   };
 }
 

@@ -67,6 +67,12 @@ export interface ClassifiedAction {
   safeAlternative?: string;
   /** The command segment that matched (chained commands classify worst-first). */
   matchedSegment: string;
+  /**
+   * True only when this row's zero-side-effect-on-deny behavior is proven by
+   * the negative fixture suite (row.sideEffectFreeOnBlockFixture). Consumers
+   * must never report a stronger claim than this.
+   */
+  fixtureProven: boolean;
 }
 
 const SENSITIVE_SEGMENTS = ['.ssh', '.aws', '.gnupg', 'LaunchAgents', 'LaunchDaemons', '.git/hooks'];
@@ -393,6 +399,7 @@ function matchFromRow(name: string, segment: string, reason: string): Classified
     reason,
     safeAlternative: row.safeAlternative,
     matchedSegment: segment,
+    fixtureProven: row.sideEffectFreeOnBlockFixture === true,
   };
 }
 
@@ -480,10 +487,51 @@ function classifyFilesystem(argv: string[], segment: string, ctx: Classification
   return null;
 }
 
+/**
+ * Flags that consume the NEXT token as their value (headers, data, output
+ * paths, ...). Without this, `curl -H "Accept: x" https://host/` would misread
+ * the header value as an egress target and force a false approval. The sets
+ * are PER COMMAND because the same short flag differs between tools (curl -O
+ * takes no value, wget -O does) — skipping a boolean flag's "value" would eat
+ * the URL and fail OPEN, so any flag not listed here conservatively keeps its
+ * following token as a candidate target (worst case: a false-positive hold,
+ * which is the fail-closed direction).
+ */
+const NETWORK_VALUE_FLAGS: Record<string, Set<string>> = {
+  curl: new Set([
+    '-H', '--header', '-d', '--data', '--data-raw', '--data-binary', '--data-urlencode',
+    '-F', '--form', '-o', '--output', '-X', '--request', '-u', '--user', '-A', '--user-agent',
+    '-b', '--cookie', '-c', '--cookie-jar', '-e', '--referer', '-T', '--upload-file',
+    '-w', '--write-out', '--connect-timeout', '--max-time', '--retry', '--resolve',
+    '--cacert', '--capath', '--cert', '--key', '--proxy', '-x', '--interface',
+  ]),
+  wget: new Set([
+    '-O', '--output-document', '-o', '--output-file', '-a', '--append-output',
+    '-e', '--execute', '-T', '--timeout', '-t', '--tries', '-U', '--user-agent',
+    '--header', '--post-data', '--post-file', '-P', '--directory-prefix',
+    '-A', '--accept', '-R', '--reject', '--user', '--password', '-w', '--wait',
+  ]),
+};
+
+function networkTargets(argv: string[]): string[] {
+  const valueFlags = NETWORK_VALUE_FLAGS[argv[0]] ?? new Set<string>();
+  const targets: string[] = [];
+  for (let i = 1; i < argv.length; i += 1) {
+    const tok = argv[i];
+    if (tok.startsWith('-')) {
+      const eq = tok.indexOf('=');
+      const flag = eq >= 0 ? tok.slice(0, eq) : tok;
+      if (eq < 0 && valueFlags.has(flag)) i += 1; // skip the flag's value
+      continue;
+    }
+    targets.push(tok);
+  }
+  return targets;
+}
+
 function classifyNetwork(argv: string[], segment: string, ctx: ClassificationContext): ClassifiedAction | null {
   if (!NETWORK_COMMANDS.has(argv[0])) return null;
-  const urlish = argv.slice(1).filter((t) => !t.startsWith('-'));
-  for (const raw of urlish) {
+  for (const raw of networkTargets(argv)) {
     let host: string | null = null;
     try {
       const url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `http://${raw}`);

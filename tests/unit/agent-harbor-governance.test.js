@@ -89,6 +89,9 @@ function compile(schema, path = '#') {
     for (const [prop, sub] of Object.entries(schema.properties)) compile(sub, `${path}/properties/${prop}`);
   }
   if (schema.items) compile(schema.items, `${path}/items`);
+  if (schema.additionalProperties !== undefined && typeof schema.additionalProperties !== 'boolean') {
+    compile(schema.additionalProperties, `${path}/additionalProperties`);
+  }
   return schema;
 }
 
@@ -125,10 +128,27 @@ function validate(schema, value, path = '$') {
     if (schema.minLength !== undefined && value.length < schema.minLength) {
       errors.push(`${path}: shorter than minLength ${schema.minLength}`);
     }
+    if (schema.maxLength !== undefined && value.length > schema.maxLength) {
+      errors.push(`${path}: longer than maxLength ${schema.maxLength}`);
+    }
+    if (schema.pattern !== undefined && !new RegExp(schema.pattern).test(value)) {
+      errors.push(`${path}: does not match pattern ${schema.pattern}`);
+    }
+  }
+  if (typeof value === 'number') {
+    if (schema.minimum !== undefined && value < schema.minimum) {
+      errors.push(`${path}: below minimum ${schema.minimum}`);
+    }
+    if (schema.maximum !== undefined && value > schema.maximum) {
+      errors.push(`${path}: above maximum ${schema.maximum}`);
+    }
   }
   if (Array.isArray(value)) {
     if (schema.minItems !== undefined && value.length < schema.minItems) {
       errors.push(`${path}: fewer than minItems ${schema.minItems}`);
+    }
+    if (schema.maxItems !== undefined && value.length > schema.maxItems) {
+      errors.push(`${path}: more than maxItems ${schema.maxItems}`);
     }
     if (schema.items) value.forEach((item, i) => errors.push(...validate(schema.items, item, `${path}[${i}]`)));
   }
@@ -141,6 +161,17 @@ function validate(schema, value, path = '$') {
     if (schema.properties) {
       for (const [key, sub] of Object.entries(schema.properties)) {
         if (key in value) errors.push(...validate(sub, value[key], `${path}.${key}`));
+      }
+    }
+    if (schema.additionalProperties !== undefined && schema.additionalProperties !== true) {
+      const declared = schema.properties ?? {};
+      for (const key of Object.keys(value)) {
+        if (key in declared) continue;
+        if (schema.additionalProperties === false) {
+          errors.push(`${path}: unexpected property "${key}"`);
+        } else {
+          errors.push(...validate(schema.additionalProperties, value[key], `${path}.${key}`));
+        }
       }
     }
   }
@@ -469,7 +500,7 @@ describe('negative fixture: missing pre-tool hook', () => {
   });
 
   it('a block-tier action observed post-tool as executed is a recorded integrity violation, not a clean proceed', () => {
-    const { envelope, violation } = postToolGate(
+    const { envelope, violation, denialReceipt, transcriptEvents } = postToolGate(
       'git reset --hard',
       { executed: true, exitCode: 0 },
       governedCtx(),
@@ -477,6 +508,38 @@ describe('negative fixture: missing pre-tool hook', () => {
     expect(violation).toMatch(/without a pre-tool gate/);
     expect(envelope.gateIntegrity).toBe('post-hoc-observation');
     expect(envelope.decision).not.toBe('proceeded');
+    // The violation is VISIBLE: it emits its own transcript event and a
+    // denial receipt that honestly refuses to claim side-effect-freedom.
+    expect(transcriptEvents.some((e) => e.kind === 'tool_denied')).toBe(true);
+    expect(envelope.transcriptEventIds).toEqual(transcriptEvents.map((e) => e.eventId));
+    expect(denialReceipt.sideEffectFree).toBe(false); // the action ran
+    expect(denialReceipt.transcriptEventId).toBe(transcriptEvents[0].eventId);
+    expect(checkEnvelope(envelope).valid).toBe(true);
+    expect(validate(loadGovSchema('denial-receipt'), denialReceipt)).toEqual([]);
+  });
+
+  it('an ordinary post-tool result proceeds cleanly with no violation', () => {
+    const { envelope, violation, denialReceipt } = postToolGate(
+      'npm test',
+      { executed: true, exitCode: 0 },
+      governedCtx(),
+    );
+    expect(violation).toBeNull();
+    expect(denialReceipt).toBeNull();
+    expect(envelope.decision).toBe('proceeded');
+    expect(checkEnvelope(envelope).valid).toBe(true);
+  });
+
+  it('a missing-hook/forged-compliance denial never claims fixture-proven side-effect-freedom', () => {
+    const unhooked = preToolGate('git reset --hard', governedCtx({
+      body: { bodyId: 'body_unhooked', preToolHookInstalled: false },
+    }));
+    expect(unhooked.denialReceipt.sideEffectFree).toBe(false);
+    const forged = preToolGate('git reset --hard', governedCtx({ complianceWitnessValid: false }));
+    expect(forged.denialReceipt.sideEffectFree).toBe(false);
+    // An enforced denial of a fixture-proven block row DOES claim it.
+    const enforced = preToolGate('git reset --hard', governedCtx());
+    expect(enforced.denialReceipt.sideEffectFree).toBe(true);
   });
 
   it('the invariants module rejects the contradiction envelopes a bypassed hook would produce', () => {
@@ -500,6 +563,17 @@ describe('negative fixture: missing pre-tool hook', () => {
     const receipt = { ...loadGovFixture('denial-receipt'), safeAlternative: null };
     expect(checkDenialReceipt(receipt).valid).toBe(false);
     expect(() => assertDenialReceipt(receipt)).toThrow(/safeAlternative|route around/);
+  });
+
+  it('the invariants module rejects an un-linkable receipt and the sideEffectFree inverse lie', () => {
+    // No envelopeId: the receipt cannot be joined to its tool call.
+    const orphaned = { ...loadGovFixture('denial-receipt') };
+    delete orphaned.envelopeId;
+    expect(checkDenialReceipt(orphaned).violations.join(' ')).toMatch(/envelopeId/);
+    expect(validate(loadGovSchema('denial-receipt'), orphaned).length).toBeGreaterThan(0);
+    // sideEffectFree true on a non-denied decision: nothing has been proven.
+    const heldLie = { ...loadGovFixture('denial-receipt'), decision: 'held', sideEffectFree: true };
+    expect(checkDenialReceipt(heldLie).violations.join(' ')).toMatch(/sideEffectFree/);
   });
 });
 
@@ -570,6 +644,9 @@ describe('classification breadth and allow path', () => {
     expect(classifyCommand('curl http://169.254.169.254/latest/meta-data/', ctx)?.tier).toBe('block');
     expect(classifyCommand('curl http://2852039166/', ctx)?.tier).toBe('block'); // decimal IP literal
     expect(classifyCommand('curl https://api.github.com/user', ctx)).toBeNull(); // allowlisted
+    // Flag values (headers, data, output) are never misread as egress targets.
+    expect(classifyCommand('curl -H "Accept: application/json" -o out.json https://api.github.com/user', ctx)).toBeNull();
+    expect(classifyCommand('curl -X POST -d "k=v" https://api.github.com/gists', ctx)).toBeNull();
     expect(classifyCommand('curl https://new-host.example.org/', ctx)?.tier).toBe('approve');
     expect(classifyCommand('sh -c "rm -rf $TARGET"', ctx)?.tier).toBe('block');
     expect(classifyCommand('gh repo delete owner/repo --yes', ctx)?.tier).toBe('block');

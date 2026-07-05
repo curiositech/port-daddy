@@ -8,7 +8,7 @@
     "schema": { "const": "pd.agent-harbor.denial-receipt.v0" },
     "kind": { "const": "denial-receipt" },
     "receiptId": { "type": "string", "minLength": 1 },
-    "envelopeId": { "type": "string", "description": "The pre-tool ToolGateEnvelope this denial belongs to." },
+    "envelopeId": { "type": "string", "minLength": 1, "description": "The ToolGateEnvelope this denial belongs to. Required — a receipt that cannot be joined back to its envelope (and thus its tool call) is unauditable evidence." },
     "actionName": { "type": "string", "minLength": 1 },
     "command": { "type": ["string", "null"] },
     "category": { "enum": ["git", "filesystem", "network", "shell", "github"] },
@@ -25,6 +25,6 @@
     "toolCallId": { "type": "string" },
     "occurredAt": { "type": "string", "minLength": 1 }
   },
-  "required": ["schema", "kind", "receiptId", "actionName", "category", "tier", "decision", "reason", "sideEffectFree", "transcriptEventId", "agentNodeId", "sessionId", "occurredAt"],
+  "required": ["schema", "kind", "receiptId", "envelopeId", "actionName", "category", "tier", "decision", "reason", "sideEffectFree", "transcriptEventId", "agentNodeId", "sessionId", "occurredAt"],
   "additionalProperties": true
 }

@@ -74,11 +74,15 @@ export function assertEnvelope(envelope) {
 }
 
 /**
- * Denial-receipt predicates (the three load-bearing fields).
+ * Denial-receipt predicates (the load-bearing fields).
  * - block-tier denials MUST carry a concrete, non-empty safeAlternative.
  * - sideEffectFree may only be true when the caller proved it by fixture;
  *   this predicate cannot see the fixture, but it CAN catch the inverse lie:
- *   a receipt claiming sideEffectFree while decision is not a denial.
+ *   a receipt claiming sideEffectFree while decision is not a denial (a held
+ *   action may still run — nothing about its side effects is proven yet).
+ * - envelopeId must be present and non-empty — a receipt that cannot be
+ *   joined back to its ToolGateEnvelope (and thus its tool call) is
+ *   unauditable evidence.
  * - transcriptEventId must be present and non-empty (schema requires it, but
  *   consumers of hand-built receipts re-check here — tolerant reader, strict writer).
  */
@@ -89,6 +93,12 @@ export function checkDenialReceipt(receipt) {
     if (alt === '') {
       violations.push('block-tier denial with no safeAlternative — a bare denial teaches agents to route around the gate (gated-action-no-safe-alternative)');
     }
+  }
+  if (typeof receipt.envelopeId !== 'string' || receipt.envelopeId.trim() === '') {
+    violations.push('denial receipt with no envelopeId — cannot be joined back to its ToolGateEnvelope/tool call (unauditable evidence)');
+  }
+  if (receipt.sideEffectFree === true && receipt.decision !== 'denied') {
+    violations.push(`sideEffectFree is true but decision is "${receipt.decision}" — only a pre-tool denial can have proven zero side effects (the-blocker-that-still-ran inverse)`);
   }
   if (!GATED_TIERS.includes(receipt.tier)) {
     violations.push(`denial receipt for tier "${receipt.tier}" — only gated tiers (block, approve) can be denied`);
