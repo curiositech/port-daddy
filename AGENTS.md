@@ -347,6 +347,17 @@ both count. The escape hatch for a genuinely non-visual change is an explicit
 loading state) is judged by the `claude-adversarial-review` workflow, which presumes
 failure on sparse evidence.
 
+**How to capture without interrupting the operator** — the operator is usually
+LIVE on this machine; never open windows, launch headed browsers, or click the
+real menu bar to pose screenshots. The full decision ladder (headless
+Playwright for web, `screencapture -x -l <window-id>` for already-open windows,
+capture harnesses / dev-lane bundles for native apps, computer-use MCP as last
+resort, honest partials over staged evidence) lives in
+`skills/port-daddy-agent-skill/references/visual-evidence.md`. Read it before
+producing any visual artifact. Runtime screenshot evidence flows through the
+default blob store at `~/.port-daddy/blobs` (`lib/blob.ts`) — intake fails
+loudly rather than dropping evidence.
+
 - **TUI / pd-console panes**: record with `vhs` (tape committed under
   `core/pd-console/docs/artifacts/`) — capture per-pane stills + a tour GIF.
 - **GPUI native window**: `cargo build --release --features gpui --bin pd-console`,

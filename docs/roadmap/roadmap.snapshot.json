@@ -575,6 +575,11 @@
       "summaryMd": "B3.2 pd-fleet.yml suggestions:{enabled:true} gate; broker opt-in per project, default off. Done when broker only runs when enabled."
     },
     {
+      "slug": "visual-evidence-doctrine",
+      "status": "backlog",
+      "summaryMd": "docs(skill): visual-evidence doctrine — non-interruptive screenshot capture for every agent"
+    },
+    {
       "slug": "visual-task-agent-intake",
       "status": "now",
       "summaryMd": "FleetBar/Fleet Control Center visual task intake should let operators send annotated screenshots or page context to agents without exposing dispatch/worker internals."
