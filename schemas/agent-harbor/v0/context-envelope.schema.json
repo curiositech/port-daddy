@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/context-envelope.schema.json",
+  "title": "ContextEnvelope",
+  "description": "A point-in-time report of an Agent Run's context window state plus the context actually attached to it (binder ch03 agent.heartbeat context, ch04 compaction). Powers context-pressure planning: the planner prepares a split or successor before the body is out of room, never after.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.context-envelope.v0" },
+    "envelopeId": { "type": "string", "minLength": 1 },
+    "agentNodeId": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": "string", "minLength": 1 },
+    "runId": { "type": ["string", "null"] },
+    "windowTokens": { "type": "number", "minimum": 0, "description": "Total context window size." },
+    "usedTokensEstimate": { "type": "number", "minimum": 0 },
+    "compactionNeeded": { "type": "boolean" },
+    "pressure": { "enum": ["low", "medium", "high", "critical", null], "description": "Planner-facing summary derived from used/window ratio and growth rate." },
+    "contextRefs": {
+      "type": "array",
+      "description": "What was actually loaded: files read, rules consulted, memory episodes retrieved, skill grafts attached, predecessor packets.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": { "enum": ["file", "rule", "memory-episode", "skill-graft", "compaction-packet", "predecessor-receipt", "attachment", "url"] },
+          "ref": { "type": "string", "minLength": 1 },
+          "tokensEstimate": { "type": "number", "minimum": 0 },
+          "droppable": { "type": "boolean", "description": "Priority signal for context budgeting under pressure." }
+        },
+        "required": ["kind", "ref"]
+      }
+    },
+    "compactionPacketRef": { "type": ["string", "null"], "description": "Latest compaction/checkpoint packet event id, if one exists." },
+    "sourceEventId": { "type": ["string", "null"], "description": "The heartbeat or context_pressure transcript event this envelope was derived from." },
+    "measuredAt": { "type": "string", "minLength": 1 }
+  },
+  "required": ["schema", "envelopeId", "agentNodeId", "sessionId", "windowTokens", "usedTokensEstimate", "measuredAt"],
+  "additionalProperties": true
+}

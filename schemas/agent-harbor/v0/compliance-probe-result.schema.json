@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/compliance-probe-result.schema.json",
+  "title": "ComplianceProbeResult",
+  "description": "Machine-readable output of pd agent probe (binder ch03). Compliance is daemon-witnessed, never self-attested: a level is earned only when a daemon-exercised probe backs it, and a fired negative probe (forged-level, direct-mcp-bypass, disabled-hook-after-launch, forged-heartbeat, observed-to-controlled) must downgrade the effective level. Ladder frozen to 7 levels C0..C6 (ADR-0095 fork resolution 2).",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.compliance-probe-result.v0" },
+    "probeId": { "type": "string", "minLength": 1 },
+    "agentNodeId": { "type": "string", "minLength": 1 },
+    "bodyId": { "type": ["string", "null"] },
+    "adapterKind": { "type": "string", "description": "codex-cli, claude-code, cloudflare, ollama, lmstudio, custom-stdio, custom-http." },
+    "probedAt": { "type": "string", "minLength": 1 },
+    "complianceLevel": {
+      "enum": ["C0", "C1", "C2", "C3", "C4", "C5", "C6"],
+      "description": "C0 Registered, C1 Transcripted, C2 Governed, C3 Suggestible, C4 Controllable, C5 Cooperative, C6 Resumable."
+    },
+    "transcriptFidelity": { "enum": ["T0", "T1", "T2", "T3", "T4", "T5"] },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "passed": { "type": "boolean" },
+          "daemonWitnessed": { "type": "boolean", "description": "False means self-report; self-reported checks cannot advance a level past C0." },
+          "level": { "enum": ["C0", "C1", "C2", "C3", "C4", "C5", "C6", null], "description": "The level this check gates, when applicable." },
+          "details": { "type": "string" }
+        },
+        "required": ["name", "passed", "daemonWitnessed"]
+      }
+    },
+    "negativeProbes": {
+      "type": "array",
+      "description": "Adversarial fixtures. Every fired probe that succeeds at forging must produce downgraded: true.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": { "enum": ["forged-level", "direct-mcp-bypass", "disabled-hook-after-launch", "forged-heartbeat", "observed-to-controlled"] },
+          "present": { "type": "boolean", "description": "A real, daemon-exercised fixture — not stubbed or planned." },
+          "fired": { "type": "boolean" },
+          "downgraded": { "type": "boolean", "description": "Never assumed true when absent." }
+        },
+        "required": ["kind", "present"]
+      }
+    },
+    "failedChecks": { "type": "array", "items": { "type": "string" } },
+    "remediation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "issue": { "type": "string", "minLength": 1 },
+          "action": { "type": "string" },
+          "oneClick": { "type": "boolean" }
+        },
+        "required": ["issue"]
+      }
+    },
+    "downgrade": {
+      "type": "object",
+      "properties": {
+        "from": { "enum": ["C0", "C1", "C2", "C3", "C4", "C5", "C6", null] },
+        "to": { "enum": ["C0", "C1", "C2", "C3", "C4", "C5", "C6", null] },
+        "mode": { "enum": ["observed", "run-log", "transcripted-weak", "sandbox-degraded", "privacy-degraded", "unmanaged", null] },
+        "reason": { "type": "string" }
+      }
+    },
+    "privacyImplications": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["schema", "probeId", "agentNodeId", "probedAt", "complianceLevel", "transcriptFidelity", "checks"],
+  "additionalProperties": true
+}
