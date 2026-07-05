@@ -33,6 +33,17 @@ function isPresent(value: unknown): boolean {
   return true;
 }
 
+/** Strict "true"/"false" boolean parse — anything else is a client error, never a silent default. */
+function asBoolean(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim().toLowerCase();
+    if (trimmed === 'true') return true;
+    if (trimmed === 'false') return false;
+  }
+  return undefined;
+}
+
 export const galaxyPlugin: FastifyPluginAsync<{ deps: GalaxyRouteDeps }> = async (fastify, opts) => {
   const { galaxy } = opts.deps;
 
@@ -52,6 +63,18 @@ export const galaxyPlugin: FastifyPluginAsync<{ deps: GalaxyRouteDeps }> = async
       numeric[name] = parsed;
     }
 
+    // `cluster` opts out of k-means + MI labeling (default true). A present-
+    // but-unparsable value is a 400, same discipline as the numeric params.
+    let cluster: boolean | undefined;
+    if (isPresent(query.cluster)) {
+      const parsed = asBoolean(query.cluster);
+      if (parsed === undefined) {
+        reply.code(400);
+        return { success: false, error: 'cluster must be "true" or "false"' };
+      }
+      cluster = parsed;
+    }
+
     try {
       const map = await galaxy.getMap({
         windowHours: numeric.windowHours,
@@ -59,6 +82,7 @@ export const galaxyPlugin: FastifyPluginAsync<{ deps: GalaxyRouteDeps }> = async
         minTokens: numeric.minTokens,
         limit: numeric.limit,
         project: asString(query.project) ?? null,
+        cluster,
       });
       return map;
     } catch (error) {

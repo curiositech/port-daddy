@@ -10,6 +10,7 @@ use crate::app::{current_theme, motion, render_block, ConsoleView, FlagMotion};
 use crate::galaxy_pane as gp;
 use crate::mux::PaneId;
 use crate::palette::Theme;
+use crate::pane::Block;
 use crate::tokens;
 use gpui::prelude::*;
 use gpui::*;
@@ -55,16 +56,15 @@ pub(crate) fn render_galaxy(
         .as_ref()
         .and_then(|h| snapshot.points.iter().find(|p| &p.id == h));
 
-    let meta = format!(
-        "{} session(s)  \u{00b7}  {} cluster(s)  \u{00b7}  window {}h{}",
+    let base_meta = format!(
+        "{} session(s)  \u{00b7}  {} cluster(s)",
         snapshot.points.len(),
         snapshot.clusters.len(),
-        snapshot.window_hours,
-        snapshot
-            .computed_at
-            .map(|at| format!("  \u{00b7}  computed {}", crate::util::age_short(at)))
-            .unwrap_or_default(),
     );
+    let computed_meta = snapshot
+        .computed_at
+        .map(|at| format!("  \u{00b7}  computed {}", crate::util::age_short(at)))
+        .unwrap_or_default();
 
     let mut root = div()
         .flex()
@@ -81,13 +81,7 @@ pub(crate) fn render_galaxy(
                 .text_color(rgb(t.accent_ink))
                 .child("\u{2693} SESSION GALAXY \u{00b7} EMBEDDING MAP OF RECENT AGENT SESSIONS"),
         )
-        .child(
-            div()
-                .text_size(px(tokens::TEXT_BODY))
-                .text_color(rgb(t.muted))
-                .font_family("IBM Plex Mono")
-                .child(meta),
-        );
+        .child(meta_row(snapshot, &base_meta, &computed_meta, &t, cx));
 
     if let Some(err) = &snapshot.last_error {
         root = root.child(
@@ -140,7 +134,12 @@ pub(crate) fn render_galaxy(
 
     root = root
         .child(galaxy_map(view, pane_id, &t, cx))
-        .child(hover_strip(hover_point, &snapshot.clusters, &t))
+        .child(hover_strip(
+            hover_point,
+            &snapshot.clusters,
+            snapshot.cluster,
+            &t,
+        ))
         .child(selection_bar(selected_count, &parties, &t, cx));
 
     if let Some(reason) = &view.galaxy_detail_error {
@@ -162,6 +161,78 @@ pub(crate) fn render_galaxy(
     }
 
     root.into_any_element()
+}
+
+/// The header's meta line: static session/cluster counts + two clickable
+/// chips — "window Nh" cycles the query window (24→72→168→720→24, the SAME
+/// `ControlMsg::GalaxyParams` path the control socket's `galaxy` command
+/// uses) and "clustering on/off" toggles daemon-side k-means (`cluster=false`
+/// on the wire). Both chips call NEW `pub(crate)` hooks on `ConsoleView`
+/// (`cycle_galaxy_window` / `toggle_galaxy_cluster`) — see this crate's
+/// gpui-rust-console skill graft notes for why the hook lives in app.rs.
+fn meta_row(
+    snapshot: &gp::GalaxySnapshot,
+    base_meta: &str,
+    computed_meta: &str,
+    t: &Theme,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    div()
+        .flex()
+        .flex_wrap()
+        .items_center()
+        .gap(px(tokens::SPACE_1))
+        .text_size(px(tokens::TEXT_BODY))
+        .font_family("IBM Plex Mono")
+        .child(div().text_color(rgb(t.muted)).child(base_meta.to_string()))
+        .child(
+            div()
+                .text_color(rgb(t.muted))
+                .child("  \u{00b7}  ".to_string()),
+        )
+        .child(
+            div()
+                .id("galaxy-window-chip")
+                .cursor_pointer()
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(rgb(t.accent_ink))
+                .hover(|s| s.text_color(rgb(current_theme().accent)))
+                .child(format!("window {}h \u{25be}", snapshot.window_hours))
+                .on_click(cx.listener(|this, _ev, _window, cx| {
+                    this.cycle_galaxy_window();
+                    crate::audio::play(crate::audio::Cue::Tick);
+                    cx.notify();
+                })),
+        )
+        .child(
+            div()
+                .text_color(rgb(t.muted))
+                .child("  \u{00b7}  ".to_string()),
+        )
+        .child(
+            div()
+                .id("galaxy-cluster-chip")
+                .cursor_pointer()
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(rgb(if snapshot.cluster { t.engaged } else { t.muted }))
+                .hover(|s| s.text_color(rgb(current_theme().accent)))
+                .child(if snapshot.cluster {
+                    "clustering on"
+                } else {
+                    "clustering off"
+                })
+                .on_click(cx.listener(|this, _ev, _window, cx| {
+                    this.toggle_galaxy_cluster();
+                    crate::audio::play(crate::audio::Cue::Tick);
+                    cx.notify();
+                })),
+        )
+        .child(
+            div()
+                .text_color(rgb(t.muted))
+                .child(computed_meta.to_string()),
+        )
+        .into_any_element()
 }
 
 /// The scatter map itself: a relative container whose laid-out bounds a canvas
@@ -225,26 +296,36 @@ fn galaxy_map(
             }
         }));
 
-    // Cluster labels sit UNDER the points (painted first) at their centroids.
-    for cluster in &view.galaxy.clusters {
-        let color = cluster_color(t, cluster.id);
-        map = map.child(
-            div()
-                .absolute()
-                .left(relative(cluster.cx))
-                .top(relative(cluster.cy))
-                .ml(px(8.0))
-                .mt(px(-8.0))
-                .text_size(px(tokens::TEXT_CAPTION))
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(wash(color, 0xb8))
-                .child(crate::util::trunc(&cluster.label, 40)),
-        );
+    // Cluster labels sit UNDER the points (painted first) at their centroids
+    // — skipped entirely when clustering is off (defensive: even if the
+    // daemon still sent some, "no centroid labels" is this toggle's contract).
+    if view.galaxy.cluster {
+        for cluster in &view.galaxy.clusters {
+            let color = cluster_color(t, cluster.id);
+            map = map.child(
+                div()
+                    .absolute()
+                    .left(relative(cluster.cx))
+                    .top(relative(cluster.cy))
+                    .ml(px(8.0))
+                    .mt(px(-8.0))
+                    .text_size(px(tokens::TEXT_CAPTION))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(wash(color, 0xb8))
+                    .child(crate::util::trunc(&cluster.label, 40)),
+            );
+        }
     }
 
     // The points — daemon-normalized [0,1] coords placed as parent fractions.
+    // Clustering off ⇒ one neutral tone for every point, regardless of
+    // whatever `cluster_id` the response still carries.
     for point_data in &view.galaxy.points {
-        let color = cluster_color(t, point_data.cluster_id);
+        let color = if view.galaxy.cluster {
+            cluster_color(t, point_data.cluster_id)
+        } else {
+            t.ink2
+        };
         let is_selected = view.galaxy_selected.contains(&point_data.id);
         let is_hovered = view.galaxy_hover.as_deref() == Some(point_data.id.as_str());
         let size = if is_selected || is_hovered { 13.0 } else { 9.0 };
@@ -326,6 +407,7 @@ fn galaxy_map(
 fn hover_strip(
     hover: Option<&gp::GalaxyPoint>,
     clusters: &[gp::GalaxyCluster],
+    clustering: bool,
     t: &Theme,
 ) -> AnyElement {
     let strip = div()
@@ -353,12 +435,20 @@ fn hover_strip(
             )
             .into_any_element(),
         Some(p) => {
-            let color = cluster_color(t, p.cluster_id);
-            let cluster_label = clusters
-                .iter()
-                .find(|c| c.id == p.cluster_id)
-                .map(|c| c.label.clone())
-                .unwrap_or_default();
+            let color = if clustering {
+                cluster_color(t, p.cluster_id)
+            } else {
+                t.ink2
+            };
+            let cluster_label = if clustering {
+                clusters
+                    .iter()
+                    .find(|c| c.id == p.cluster_id)
+                    .map(|c| c.label.clone())
+                    .unwrap_or_default()
+            } else {
+                String::new()
+            };
             let head = p
                 .purpose
                 .clone()
@@ -564,6 +654,20 @@ fn detail_drawer(
     cx: &mut Context<ConsoleView>,
 ) -> AnyElement {
     let blocks = gp::detail_blocks(detail);
+    // Every block goes through the shared `render_block` EXCEPT this pane's
+    // `"file"`-labeled ArtifactRef rows: those get a bespoke clickable row
+    // that opens the Harbor Editor surface, since the shared renderer has no
+    // click affordance for ArtifactRef (and other panes' PR/commit refs must
+    // stay inert — this is intentionally scoped to just the galaxy drawer).
+    let rendered: Vec<AnyElement> = blocks
+        .into_iter()
+        .map(|b| match b {
+            Block::ArtifactRef { label, path, .. } if label == "file" => {
+                file_artifact_row(pane_id, path, t, cx)
+            }
+            other => render_block(other, FlagMotion::default()).into_any_element(),
+        })
+        .collect();
     div()
         .rounded(px(tokens::RADIUS_LG))
         .border_1()
@@ -616,11 +720,76 @@ fn detail_drawer(
                 .flex()
                 .flex_col()
                 .pb(px(tokens::SPACE_2))
-                .children(
-                    blocks
-                        .into_iter()
-                        .map(|b| render_block(b, FlagMotion::default())),
-                ),
+                .children(rendered),
         )
+        .into_any_element()
+}
+
+/// One clickable "files touched" row in the session-detail drawer. The
+/// daemon sends repo-relative paths (per the concurrent daemon-lane
+/// contract); a click opens the SAME `SurfaceKind::Editor` surface the
+/// FileTree's file row opens (`render_filetree_row` in app.rs) — reusing the
+/// Editor surface rather than inventing a second file-preview affordance.
+fn file_artifact_row(
+    pane_id: PaneId,
+    path: String,
+    t: &Theme,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let color = t.engaged;
+    let click_path = path.clone();
+    div()
+        .id(SharedString::from(format!("galaxy-file-{pane_id}-{path}")))
+        .mx(px(tokens::SPACE_3))
+        .my(px(2.0))
+        .px(px(tokens::SPACE_2))
+        .py(px(tokens::SPACE_2))
+        .border_l_2()
+        .border_color(rgb(color))
+        .bg(wash(color, 0x12))
+        .cursor_pointer()
+        .flex()
+        .items_center()
+        .gap(px(tokens::SPACE_2))
+        .hover(|s| s.bg(wash(current_theme().engaged, 0x22)))
+        .child(
+            div()
+                .text_color(rgb(color))
+                .text_size(px(tokens::TEXT_BODY))
+                .font_weight(FontWeight::BOLD)
+                .child("\u{25a3}"),
+        )
+        .child(
+            div()
+                .rounded(px(tokens::RADIUS_SM))
+                .border_1()
+                .border_color(rgb(color))
+                .px(px(tokens::SPACE_1))
+                .py(px(1.0))
+                .text_color(rgb(color))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child("FILE"),
+        )
+        .child(
+            div()
+                .flex_1()
+                .min_w(px(0.0))
+                .text_color(rgb(t.ink))
+                .text_size(px(tokens::TEXT_BODY))
+                .font_family("IBM Plex Mono")
+                .child(path),
+        )
+        .child(
+            div()
+                .text_color(rgb(t.muted))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .child("open in editor"),
+        )
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            this.open_galaxy_file(pane_id, click_path.clone());
+            crate::audio::play(crate::audio::Cue::Tick);
+            cx.notify();
+        }))
         .into_any_element()
 }

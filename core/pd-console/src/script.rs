@@ -46,6 +46,7 @@ pub enum ScriptRequest {
     Galaxy {
         window_hours: Option<u32>,
         min_tokens: Option<u32>,
+        cluster: Option<bool>,
     },
     Rebind {
         url: String,
@@ -93,12 +94,14 @@ pub fn parse_request(line: &str) -> Result<ScriptRequest, String> {
                 .and_then(Value::as_u64)
                 .map(|n| n as u32);
             let min_tokens = v.get("minTokens").and_then(Value::as_u64).map(|n| n as u32);
-            if window_hours.is_none() && min_tokens.is_none() {
-                return Err("galaxy needs windowHours and/or minTokens".to_string());
+            let cluster = v.get("cluster").and_then(Value::as_bool);
+            if window_hours.is_none() && min_tokens.is_none() && cluster.is_none() {
+                return Err("galaxy needs windowHours, minTokens, and/or cluster".to_string());
             }
             Ok(ScriptRequest::Galaxy {
                 window_hours,
                 min_tokens,
+                cluster,
             })
         }
         "rebind" => {
@@ -253,14 +256,24 @@ mod tests {
             parse_request(r#"{"cmd":"galaxy","windowHours":720}"#),
             Ok(ScriptRequest::Galaxy {
                 window_hours: Some(720),
-                min_tokens: None
+                min_tokens: None,
+                cluster: None
             })
         );
         assert_eq!(
             parse_request(r#"{"cmd":"galaxy","minTokens":64}"#),
             Ok(ScriptRequest::Galaxy {
                 window_hours: None,
-                min_tokens: Some(64)
+                min_tokens: Some(64),
+                cluster: None
+            })
+        );
+        assert_eq!(
+            parse_request(r#"{"cmd":"galaxy","cluster":false}"#),
+            Ok(ScriptRequest::Galaxy {
+                window_hours: None,
+                min_tokens: None,
+                cluster: Some(false)
             })
         );
         assert_eq!(
@@ -287,7 +300,7 @@ mod tests {
         );
         assert_eq!(
             parse_request(r#"{"cmd":"galaxy"}"#).unwrap_err(),
-            "galaxy needs windowHours and/or minTokens"
+            "galaxy needs windowHours, minTokens, and/or cluster"
         );
         assert!(parse_request(r#"{"cmd":"warp"}"#)
             .unwrap_err()

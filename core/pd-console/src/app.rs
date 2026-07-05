@@ -133,6 +133,11 @@ pub enum ControlMsg {
         window_hours: Option<u32>,
         min_tokens: Option<u32>,
     },
+    /// Toggle galaxy clustering (cluster=false skips k-means + MI labels
+    /// daemon-side); same producer-owned channel as GalaxyParams.
+    GalaxyCluster {
+        enabled: bool,
+    },
     /// Add an operator note: `POST /notes` with `{ content }`.
     AddNote {
         content: String,
@@ -3107,17 +3112,24 @@ impl ConsoleView {
             ScriptRequest::Galaxy {
                 window_hours,
                 min_tokens,
+                cluster,
             } => match &self.control_tx {
                 Some(tx) => {
-                    let _ = tx.send(ControlMsg::GalaxyParams {
-                        window_hours,
-                        min_tokens,
-                    });
+                    if window_hours.is_some() || min_tokens.is_some() {
+                        let _ = tx.send(ControlMsg::GalaxyParams {
+                            window_hours,
+                            min_tokens,
+                        });
+                    }
+                    if let Some(enabled) = cluster {
+                        let _ = tx.send(ControlMsg::GalaxyCluster { enabled });
+                    }
                     json!({
                         "ok": true,
                         "note": "params applied on the next 2s refresh",
                         "windowHours": window_hours,
                         "minTokens": min_tokens,
+                        "cluster": cluster,
                     })
                 }
                 None => {
@@ -3139,6 +3151,33 @@ impl ConsoleView {
                 "alerts": self.alerts.iter().map(alert_to_json).collect::<Vec<_>>(),
             }),
         }
+    }
+
+    /// Cycle the galaxy window through the 4-stop contract (24→72→168→720h);
+    /// the canvas's window chip calls this.
+    pub(crate) fn cycle_galaxy_window(&mut self) {
+        let next = crate::galaxy_pane::next_window_hours(self.galaxy.window_hours);
+        if let Some(tx) = &self.control_tx {
+            let _ = tx.send(ControlMsg::GalaxyParams {
+                window_hours: Some(next),
+                min_tokens: None,
+            });
+        }
+    }
+
+    /// Toggle daemon-side clustering; the canvas's cluster chip calls this.
+    pub(crate) fn toggle_galaxy_cluster(&mut self) {
+        let next = !self.galaxy.cluster;
+        if let Some(tx) = &self.control_tx {
+            let _ = tx.send(ControlMsg::GalaxyCluster { enabled: next });
+        }
+    }
+
+    /// Open a galaxy-detail file row in the Editor surface (read-only host).
+    pub(crate) fn open_galaxy_file(&mut self, pane_id: PaneId, path: String) {
+        self.ws_mut().focus(pane_id);
+        self.ws_mut()
+            .swap_surface(SurfaceKind::Editor { path, region: None });
     }
 
     /// Fold one galaxy push from the background worker into the drawer state:

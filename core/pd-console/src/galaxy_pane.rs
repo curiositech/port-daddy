@@ -297,8 +297,24 @@ pub struct GalaxyDetail {
     /// Best-effort linked artifacts (PRs/commits/issues). Absence ≠ no PRs were
     /// produced — the spawner only records what it captured.
     pub prs: Vec<String>,
-    /// (speaker, text) turns from the full transcript.
-    pub messages: Vec<(String, String)>,
+    /// Full-transcript turns, each carrying its own epoch-ms timestamp.
+    pub messages: Vec<DetailMessage>,
+    /// Session start, epoch ms — `0` when the daemon hasn't surfaced one
+    /// (checked with `> 0`, never assumed present: the top-level
+    /// `startedAt`/`endedAt` fields are a concurrent daemon-lane addition,
+    /// so this stays defensive against an older daemon).
+    pub started_at: i64,
+    /// Session end, epoch ms — `0` while still running / unknown.
+    pub ended_at: i64,
+}
+
+/// One transcript turn: who spoke, what they said, and when (epoch ms; `0` if
+/// the daemon didn't send a per-message timestamp for this row).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DetailMessage {
+    pub speaker: String,
+    pub text: String,
+    pub epoch_ms: i64,
 }
 
 /// A message's display text: plain string content, or a content-parts array
@@ -316,6 +332,77 @@ fn message_text(m: &Value) -> String {
             .collect::<Vec<_>>()
             .join("\n"),
         _ => s(m, "text"),
+    }
+}
+
+/// A message's epoch-ms timestamp — tried across every key name the daemon
+/// has used for one (`TranscriptMessage.timestamp` is the canonical field;
+/// `at`/`createdAt`/`ts` cover drift), `0` when none parse.
+fn message_epoch_ms(m: &Value) -> i64 {
+    ["timestamp", "at", "createdAt", "ts"]
+        .iter()
+        .map(|k| n(m, k))
+        .find(|v| *v > 0)
+        .unwrap_or(0)
+}
+
+// ── Time formatting (pure — no chrono; timezone-free by construction, the
+// same doctrine as `util::age_short`) ────────────────────────────────────────
+
+/// UTC time-of-day `HH:MM:SS` from an epoch-ms timestamp. Empty string for
+/// non-positive/missing timestamps so a row with no time renders blank —
+/// never a fake `00:00:00`.
+pub fn hhmmss(epoch_ms: i64) -> String {
+    if epoch_ms <= 0 {
+        return String::new();
+    }
+    let day_s = (epoch_ms / 1000).rem_euclid(86_400);
+    let (h, m, sec) = (day_s / 3600, (day_s % 3600) / 60, day_s % 60);
+    format!("{h:02}:{m:02}:{sec:02}")
+}
+
+/// A short duration string from a millisecond span: `"45s"`, `"3m12s"`,
+/// `"1h05m"`. Non-positive spans render `"0s"` (never negative).
+pub fn duration_short(span_ms: i64) -> String {
+    if span_ms <= 0 {
+        return "0s".into();
+    }
+    let total_s = span_ms / 1000;
+    let (h, m, sec) = (total_s / 3600, (total_s % 3600) / 60, total_s % 60);
+    if h > 0 {
+        format!("{h}h{m:02}m")
+    } else if m > 0 {
+        format!("{m}m{sec:02}s")
+    } else {
+        format!("{sec}s")
+    }
+}
+
+/// Prefix a transcript turn's text with its `HH:MM:SS` (blank when the
+/// message carries no timestamp — the text renders unprefixed rather than a
+/// dangling blank tag).
+fn format_turn_text(text: &str, epoch_ms: i64) -> String {
+    let ts = hhmmss(epoch_ms);
+    if ts.is_empty() {
+        text.to_string()
+    } else {
+        format!("{ts}  {text}")
+    }
+}
+
+/// The header window-hours cycle the canvas chip and the `galaxy`
+/// control-socket command share: `24 → 72 → 168 → 720 → 24`. A current value
+/// off the cycle (a scripted arbitrary hour count) advances to the next
+/// stop greater than it, wrapping to the first stop past the top.
+pub fn next_window_hours(current: u32) -> u32 {
+    const STOPS: [u32; 4] = [24, 72, 168, 720];
+    match STOPS.iter().position(|&stop| stop == current) {
+        Some(i) => STOPS[(i + 1) % STOPS.len()],
+        None => STOPS
+            .iter()
+            .copied()
+            .find(|&stop| stop > current)
+            .unwrap_or(STOPS[0]),
     }
 }
 
@@ -342,6 +429,25 @@ pub fn detail_from_value(v: &Value) -> GalaxyDetail {
         d.session_id = s(sv, "id");
         d.purpose = s(sv, "purpose");
     }
+    // Top-level startedAt/endedAt (camelCase, a concurrent daemon-lane
+    // addition) win when present; otherwise fall back to the transcript's
+    // own snake_case fields — an older daemon still renders a real value.
+    d.started_at = {
+        let top = n(detail, "startedAt");
+        if top > 0 {
+            top
+        } else {
+            n(transcript, "started_at")
+        }
+    };
+    d.ended_at = {
+        let top = n(detail, "endedAt");
+        if top > 0 {
+            top
+        } else {
+            n(transcript, "ended_at")
+        }
+    };
     d.notes = arr(detail, "notes")
         .iter()
         .map(|nv| {
@@ -428,9 +534,13 @@ pub fn detail_from_value(v: &Value) -> GalaxyDetail {
             } else {
                 role
             };
-            (speaker, message_text(mv))
+            DetailMessage {
+                speaker,
+                text: message_text(mv),
+                epoch_ms: message_epoch_ms(mv),
+            }
         })
-        .filter(|(_, text)| !text.trim().is_empty())
+        .filter(|m| !m.text.trim().is_empty())
         .collect();
     d
 }
@@ -465,6 +575,24 @@ pub fn detail_blocks(d: &GalaxyDetail) -> Vec<Block> {
     if !d.session_id.is_empty() {
         blocks.push(Block::KeyVal("session".into(), d.session_id.clone()));
     }
+    if d.started_at > 0 {
+        blocks.push(Block::KeyVal("started".into(), hhmmss(d.started_at)));
+    }
+    if d.ended_at > 0 {
+        blocks.push(Block::KeyVal("ended".into(), hhmmss(d.ended_at)));
+    }
+    match (d.started_at > 0, d.ended_at > 0) {
+        (true, true) if d.ended_at >= d.started_at => {
+            blocks.push(Block::KeyVal(
+                "duration".into(),
+                duration_short(d.ended_at - d.started_at),
+            ));
+        }
+        (true, false) => {
+            blocks.push(Block::KeyVal("duration".into(), "running".into()));
+        }
+        _ => {}
+    }
     blocks.push(Block::Gap);
 
     // PR provenance is BEST-EFFORT (the spawner default records only
@@ -498,8 +626,17 @@ pub fn detail_blocks(d: &GalaxyDetail) -> Vec<Block> {
             "no file claims recorded".into(),
         ));
     } else {
+        // ArtifactRef (not Row) with the `"file"` label — the galaxy canvas
+        // renders THESE specifically as click-to-open-Editor rows (repo-
+        // relative paths, per the daemon-lane contract), distinct from the
+        // `"artifact"`-labeled PR/commit refs above which stay inert.
         for file in &d.files {
-            blocks.push(Block::Row(vec!["▸".into(), file.clone()]));
+            blocks.push(Block::ArtifactRef {
+                label: "file".into(),
+                path: file.clone(),
+                preview: None,
+                tone: Tone::Engaged,
+            });
         }
     }
     blocks.push(Block::Gap);
@@ -560,15 +697,15 @@ pub fn detail_blocks(d: &GalaxyDetail) -> Vec<Block> {
                 format!("{skipped} earlier turn(s) omitted — showing the tail"),
             ));
         }
-        for (speaker, text) in d.messages.iter().skip(skipped) {
-            let tone = match speaker.to_ascii_lowercase().as_str() {
+        for m in d.messages.iter().skip(skipped) {
+            let tone = match m.speaker.to_ascii_lowercase().as_str() {
                 "operator" | "user" => Tone::Accent,
                 "tool" | "system" => Tone::Resting,
                 _ => Tone::Engaged,
             };
             blocks.push(Block::ChatTurn {
-                speaker: speaker.clone(),
-                text: text.clone(),
+                speaker: m.speaker.clone(),
+                text: format_turn_text(&m.text, m.epoch_ms),
                 tone,
             });
         }
@@ -590,6 +727,12 @@ pub struct GalaxySnapshot {
     /// The query window the map was fetched with — the canvas header renders
     /// it, so a scripted param change is visible, not silently applied.
     pub window_hours: u32,
+    /// Whether the daemon's k-means clustering was requested for this frame.
+    /// `false` ⇒ the canvas paints every point in one neutral tone with no
+    /// centroid labels, regardless of whatever `cluster_id`/`clusters` the
+    /// response still carries (defensive against a daemon that hasn't wired
+    /// `cluster=false` all the way through yet).
+    pub cluster: bool,
 }
 
 pub struct GalaxyPane {
@@ -602,6 +745,10 @@ pub struct GalaxyPane {
     window_hours: u32,
     /// Significance floor; `None` inherits the daemon default.
     min_tokens: Option<u32>,
+    /// Clustering toggle (canvas header chip). `true` (the default) inherits
+    /// the daemon's k-means clustering by omitting the param entirely;
+    /// `false` sends `cluster=false` on the wire.
+    cluster: bool,
 }
 
 impl Default for GalaxyPane {
@@ -613,6 +760,7 @@ impl Default for GalaxyPane {
             last_error: None,
             window_hours: 24,
             min_tokens: None,
+            cluster: true,
         }
     }
 }
@@ -633,13 +781,26 @@ impl GalaxyPane {
         }
     }
 
+    /// Toggle daemon-side clustering (the canvas header chip / a scripted
+    /// `cluster` param). A separate setter from [`Self::set_params`] so the
+    /// existing 2-arg wire contract (window/minTokens) never has to change
+    /// shape for callers that don't care about clustering.
+    pub fn set_cluster(&mut self, enabled: bool) {
+        self.cluster = enabled;
+    }
+
     /// The query string the next refresh will send — pure, so tests can pin
-    /// the scripted-params → wire-request contract without HTTP.
+    /// the scripted-params → wire-request contract without HTTP. `cluster` is
+    /// omitted when `true` (the daemon default); `cluster=false` is explicit.
     pub fn query(&self) -> String {
-        match self.min_tokens {
+        let mut q = match self.min_tokens {
             Some(m) => format!("windowHours={}&minTokens={}", self.window_hours, m),
             None => format!("windowHours={}", self.window_hours),
+        };
+        if !self.cluster {
+            q.push_str("&cluster=false");
         }
+        q
     }
 
     /// The frame the producer ships to the view each refresh.
@@ -650,6 +811,7 @@ impl GalaxyPane {
             computed_at: self.computed_at,
             last_error: self.last_error.clone(),
             window_hours: self.window_hours,
+            cluster: self.cluster,
         }
     }
 }
@@ -941,14 +1103,19 @@ mod tests {
         let v = json!({
             "success": true,
             "detail": {
+                // Top-level startedAt/endedAt — the concurrent daemon-lane
+                // addition; wins over transcript.started_at/ended_at below.
+                "startedAt": 47_109_000_i64,
+                "endedAt": 47_863_000_i64,
                 "transcript": {
                     "id": "tr-1",
                     "spawned_agent_id": "agent-a",
                     "ship": "night-watch",
                     "project": "port-daddy",
                     "status": "completed",
+                    "started_at": 1, "ended_at": 2,
                     "messages": [
-                        { "role": "user", "content": "fix the wal checkpoint" },
+                        { "role": "user", "content": "fix the wal checkpoint", "timestamp": 47_109_000_i64 },
                         { "role": "assistant", "content": [ { "type": "text", "text": "done — see the diff" } ] }
                     ]
                 },
@@ -970,10 +1137,19 @@ mod tests {
         assert_eq!(d.notes, vec!["[scope] Scope: lib/db.ts".to_string()]);
         assert_eq!(d.messages.len(), 2);
         assert_eq!(
-            d.messages[1].1, "done — see the diff",
+            d.messages[1].text, "done — see the diff",
             "content-parts arrays flatten"
         );
         assert!(d.tool_uses[0].starts_with("Bash "));
+
+        // Top-level startedAt/endedAt won over transcript's started_at/ended_at.
+        assert_eq!(d.started_at, 47_109_000);
+        assert_eq!(d.ended_at, 47_863_000);
+        assert_eq!(d.messages[0].epoch_ms, 47_109_000);
+        assert_eq!(
+            d.messages[1].epoch_ms, 0,
+            "no timestamp on this message → 0, never a fake time"
+        );
 
         // PR-provenance honesty: empty prs renders an explicit "none recorded",
         // never an implied "no PRs were produced".
@@ -987,6 +1163,38 @@ mod tests {
         assert!(blocks
             .iter()
             .any(|b| matches!(b, Block::ChatTurn { speaker, .. } if speaker == "assistant")));
+
+        // Header shows started/ended (HH:MM:SS) + a computed duration.
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::KeyVal(k, v) if k == "started" && v == "13:05:09")));
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::KeyVal(k, v) if k == "ended" && v == "13:17:43")));
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::KeyVal(k, v) if k == "duration" && v == "12m34s")));
+
+        // Files touched render as a labeled, click-to-editor ArtifactRef —
+        // not the plain Row they used to be.
+        assert!(blocks.iter().any(|b| matches!(
+            b,
+            Block::ArtifactRef { label, path, .. }
+                if label == "file" && path == "lib/db.ts:10-42 · checkpoint"
+        )));
+
+        // Transcript turn text carries the HH:MM:SS prefix when the message
+        // had a timestamp, and stays unprefixed when it didn't.
+        assert!(blocks.iter().any(|b| matches!(
+            b,
+            Block::ChatTurn { speaker, text, .. }
+                if speaker == "user" && text == "13:05:09  fix the wal checkpoint"
+        )));
+        assert!(blocks.iter().any(|b| matches!(
+            b,
+            Block::ChatTurn { speaker, text, .. }
+                if speaker == "assistant" && text == "done — see the diff"
+        )));
     }
 
     #[test]
@@ -1046,6 +1254,65 @@ mod tests {
     }
 
     #[test]
+    fn cluster_toggle_extends_the_wire_query_only_when_off() {
+        let mut pane = GalaxyPane::new();
+        // Default (true) omits the param entirely — the daemon's own default.
+        assert_eq!(pane.query(), "windowHours=24");
+        assert!(pane.snapshot().cluster);
+
+        pane.set_cluster(false);
+        assert_eq!(pane.query(), "windowHours=24&cluster=false");
+        assert!(!pane.snapshot().cluster);
+
+        pane.set_params(Some(72), Some(64));
+        assert_eq!(pane.query(), "windowHours=72&minTokens=64&cluster=false");
+
+        pane.set_cluster(true);
+        assert_eq!(
+            pane.query(),
+            "windowHours=72&minTokens=64",
+            "flipping back to on drops the param again"
+        );
+    }
+
+    #[test]
+    fn next_window_hours_cycles_the_4_stop_contract() {
+        assert_eq!(next_window_hours(24), 72);
+        assert_eq!(next_window_hours(72), 168);
+        assert_eq!(next_window_hours(168), 720);
+        assert_eq!(next_window_hours(720), 24, "wraps back to the first stop");
+        // Off-cycle values (a scripted arbitrary hour count) advance to the
+        // next stop greater than them, never getting stuck.
+        assert_eq!(next_window_hours(48), 72);
+        assert_eq!(next_window_hours(1), 24);
+        assert_eq!(
+            next_window_hours(1000),
+            24,
+            "past the top stop wraps to the first"
+        );
+    }
+
+    #[test]
+    fn hhmmss_formats_utc_time_of_day_and_blanks_on_absence() {
+        assert_eq!(hhmmss(47_109_000), "13:05:09");
+        assert_eq!(
+            hhmmss(0),
+            "",
+            "non-positive epoch renders blank, not 00:00:00"
+        );
+        assert_eq!(hhmmss(-5), "");
+    }
+
+    #[test]
+    fn duration_short_formats_by_magnitude() {
+        assert_eq!(duration_short(45_000), "45s");
+        assert_eq!(duration_short(754_000), "12m34s");
+        assert_eq!(duration_short(3_900_000), "1h05m");
+        assert_eq!(duration_short(0), "0s");
+        assert_eq!(duration_short(-100), "0s", "never a negative duration");
+    }
+
+    #[test]
     fn cluster_tones_cycle_the_shared_8_slot_contract() {
         assert_eq!(cluster_tone(0), Tone::Accent);
         assert_eq!(cluster_tone(5), Tone::Conflicted);
@@ -1065,5 +1332,6 @@ mod tests {
         assert_eq!(snap.clusters.len(), 2);
         assert_eq!(snap.computed_at, Some(1_751_600_000_000));
         assert!(snap.last_error.is_none());
+        assert!(snap.cluster, "clustering defaults to on");
     }
 }

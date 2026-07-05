@@ -24,6 +24,7 @@
  */
 
 import { createHash } from 'node:crypto';
+import { relative as relativePath } from 'node:path';
 import type Database from 'better-sqlite3';
 import type { TranscriptEntry, TranscriptStatus, TranscriptsModule } from './transcripts.js';
 import type { createSessions } from './sessions.js';
@@ -63,6 +64,8 @@ export interface GalaxyMapParams {
   minTokens?: number;
   limit?: number;
   project?: string | null;
+  /** Skip k-means clustering + MI labeling entirely when false (default true). */
+  cluster?: boolean;
 }
 
 export interface GalaxyPoint {
@@ -101,6 +104,7 @@ export interface GalaxyMapResponse {
     minTokens: number;
     limit: number;
     project: string | null;
+    cluster: boolean;
   };
   points: GalaxyPoint[];
   clusters: GalaxyCluster[];
@@ -109,6 +113,10 @@ export interface GalaxyMapResponse {
 
 export interface GalaxySessionDetail {
   transcript: TranscriptEntry;
+  /** Epoch-ms — mirrors transcript.started_at, hoisted for click-through UIs. */
+  startedAt: number;
+  /** Epoch-ms, or null while the ship-run is still active. */
+  endedAt: number | null;
   session: {
     id: string;
     purpose: string;
@@ -161,6 +169,20 @@ const PR_OUTPUT_TYPES = new Set(['pr-comment', 'draft-pr', 'commit', 'issue']);
 // =============================================================================
 // Implementation
 // =============================================================================
+
+/**
+ * Best-effort absolute → repo-relative path normalization for the detail
+ * files-touched list. Already-relative paths pass through untouched; absolute
+ * paths outside the daemon's cwd (a different repo, a different worktree)
+ * are left absolute rather than guessed at — "where derivable" only.
+ */
+function toRepoRelative(filePath: string): string {
+  if (!filePath || !filePath.startsWith('/')) return filePath;
+  const rel = relativePath(process.cwd(), filePath);
+  if (rel === '' ) return '.';
+  if (rel.startsWith('..')) return filePath; // outside the repo root — can't derive
+  return rel;
+}
 
 export function createGalaxy(deps: GalaxyDeps): GalaxyModule {
   const { db, transcripts, sessions, embedder } = deps;
@@ -289,7 +311,8 @@ export function createGalaxy(deps: GalaxyDeps): GalaxyModule {
     const project = typeof params.project === 'string' && params.project.trim().length > 0
       ? params.project.trim()
       : null;
-    return { windowHours, tailTokens, minTokens, limit, project };
+    const cluster = params.cluster ?? true;
+    return { windowHours, tailTokens, minTokens, limit, project, cluster };
   }
 
   async function getMap(rawParams: GalaxyMapParams = {}): Promise<GalaxyMapResponse> {
@@ -386,25 +409,62 @@ export function createGalaxy(deps: GalaxyDeps): GalaxyModule {
     let clusters: GalaxyCluster[] = [];
 
     if (P > 0) {
-      // (4) Cluster the FULL-dimensional embeddings, then reindex cluster ids
-      // by size desc (0 = biggest) so colors are stable-ish across polls.
-      const { k, assignments } = chooseK(embedded, mulberry32(seed));
-      const sizes = new Array<number>(Math.max(1, k)).fill(0);
-      for (const c of assignments) sizes[c] += 1;
-      const order = sizes
-        .map((size, id) => ({ id, size }))
-        .sort((a, b) => b.size - a.size || a.id - b.id);
-      const remap = new Array<number>(order.length).fill(0);
-      order.forEach(({ id }, newId) => { remap[id] = newId; });
-      const reindexed = assignments.map((c) => remap[c]);
-      const effectiveK = Math.max(1, k);
-
-      // (5) Seeded t-SNE on the full embeddings → normalized [0,1] map space.
+      // (4) Seeded t-SNE on the full embeddings → normalized [0,1] map space.
+      // Positions are always computed — `cluster=false` opts out of the
+      // clustering/labeling step below, not of the map layout itself.
       const coords = minMaxNormalize2d(tsne2d(embedded, { seed }));
 
-      // (6) MI term descriptors over the actual tails.
-      const tails = kept.map((e) => e.tail);
-      const termsPerCluster = clusterTerms(tails, reindexed, effectiveK);
+      // (5) Cluster the FULL-dimensional embeddings (opt-out via params.cluster),
+      // then reindex cluster ids by size desc (0 = biggest) so colors are
+      // stable-ish across polls. Skipping this entirely means every point is
+      // clusterId 0 and no MI-term labeling work happens.
+      let clusterIds = new Array<number>(P).fill(0);
+      clusters = [];
+
+      if (params.cluster) {
+        const { k, assignments } = chooseK(embedded, mulberry32(seed));
+        const sizes = new Array<number>(Math.max(1, k)).fill(0);
+        for (const c of assignments) sizes[c] += 1;
+        const order = sizes
+          .map((size, id) => ({ id, size }))
+          .sort((a, b) => b.size - a.size || a.id - b.id);
+        const remap = new Array<number>(order.length).fill(0);
+        order.forEach(({ id }, newId) => { remap[id] = newId; });
+        const reindexed = assignments.map((c) => remap[c]);
+        const effectiveK = Math.max(1, k);
+        clusterIds = reindexed;
+
+        // (6) MI term descriptors over the actual tails.
+        const tails = kept.map((e) => e.tail);
+        const termsPerCluster = clusterTerms(tails, reindexed, effectiveK);
+
+        for (let c = 0; c < effectiveK; c++) {
+          const memberIndices = reindexed
+            .map((cluster, i) => ({ cluster, i }))
+            .filter((m) => m.cluster === c)
+            .map((m) => m.i);
+          if (memberIndices.length === 0) continue;
+          let cx = 0;
+          let cy = 0;
+          for (const i of memberIndices) {
+            cx += coords[i][0];
+            cy += coords[i][1];
+          }
+          cx /= memberIndices.length;
+          cy /= memberIndices.length;
+          const terms = termsPerCluster[c] ?? [];
+          const label = terms.length > 0
+            ? terms.slice(0, 3).map((t) => t.term).join(' · ')
+            : `cluster ${c}`;
+          clusters.push({
+            id: c,
+            label,
+            terms,
+            size: memberIndices.length,
+            centroid: [cx, cy],
+          });
+        }
+      }
 
       // (7) + (8) Assemble points with best-effort session purpose join.
       points = kept.map(({ entry, tail, tailTokens }, i) => ({
@@ -421,38 +481,10 @@ export function createGalaxy(deps: GalaxyDeps): GalaxyModule {
         tailTokens,
         x: coords[i][0],
         y: coords[i][1],
-        clusterId: reindexed[i],
+        clusterId: clusterIds[i],
         snippet: tail.slice(0, SNIPPET_CHARS),
         prNumber: entry.pr_number ?? null,
       }));
-
-      clusters = [];
-      for (let c = 0; c < effectiveK; c++) {
-        const memberIndices = reindexed
-          .map((cluster, i) => ({ cluster, i }))
-          .filter((m) => m.cluster === c)
-          .map((m) => m.i);
-        if (memberIndices.length === 0) continue;
-        let cx = 0;
-        let cy = 0;
-        for (const i of memberIndices) {
-          cx += coords[i][0];
-          cy += coords[i][1];
-        }
-        cx /= memberIndices.length;
-        cy /= memberIndices.length;
-        const terms = termsPerCluster[c] ?? [];
-        const label = terms.length > 0
-          ? terms.slice(0, 3).map((t) => t.term).join(' · ')
-          : `cluster ${c}`;
-        clusters.push({
-          id: c,
-          label,
-          terms,
-          size: memberIndices.length,
-          centroid: [cx, cy],
-        });
-      }
     }
 
     const computedAt = now();
@@ -515,7 +547,7 @@ export function createGalaxy(deps: GalaxyDeps): GalaxyModule {
             createdAt: Number(n.createdAt ?? 0),
           }));
           files = (result.files ?? []).map((f) => ({
-            filePath: String(f.filePath),
+            filePath: toRepoRelative(String(f.filePath)),
             startLine: (f.startLine as number | null) ?? null,
             endLine: (f.endLine as number | null) ?? null,
             symbol: (f.symbol as string | null) ?? null,
@@ -557,7 +589,16 @@ export function createGalaxy(deps: GalaxyDeps): GalaxyModule {
       });
     }
 
-    return { transcript, session, notes, files, toolUses, prs };
+    return {
+      transcript,
+      startedAt: transcript.started_at,
+      endedAt: transcript.ended_at ?? null,
+      session,
+      notes,
+      files,
+      toolUses,
+      prs,
+    };
   }
 
   return { getMap, getSessionDetail };

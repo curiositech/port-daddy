@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import path from 'node:path';
 import Fastify from 'fastify';
 import { createTestDb } from '../setup-unit.js';
 import { createTranscripts } from '../../lib/transcripts.js';
@@ -217,7 +218,7 @@ describe('galaxy routes', () => {
     expect(body.success).toBe(true);
     expect(body.computedAt).toBe(NOW);
     expect(body.params).toEqual({
-      windowHours: 24, tailTokens: 4000, minTokens: 256, limit: 500, project: null,
+      windowHours: 24, tailTokens: 4000, minTokens: 256, limit: 500, project: null, cluster: true,
     });
 
     const ids = body.points.map((p) => p.id).sort();
@@ -366,6 +367,52 @@ describe('galaxy routes', () => {
     }
   });
 
+  it('rejects a malformed cluster param with 400', async () => {
+    const res = await app.inject({ method: 'GET', url: '/galaxy/map?cluster=nope' });
+    expect(res.statusCode).toBe(400);
+    const body = JSON.parse(res.body);
+    expect(body.success).toBe(false);
+    expect(typeof body.error).toBe('string');
+  });
+
+  it('cluster=false skips k-means/MI labeling — empty clusters, every clusterId 0 — and gets its own cache entry', async () => {
+    // First call: default clustering. Full embed work, own cache entry.
+    const a = JSON.parse((await app.inject({ method: 'GET', url: '/galaxy/map' })).body);
+    expect(a.params.cluster).toBe(true);
+    expect(a.stats.cacheHits).toBe(0);
+    expect(a.stats.embeddedNow).toBe(5);
+    expect(a.clusters.length).toBeGreaterThan(0);
+
+    // Second call, cluster=false: a DIFFERENT param tuple, so this is not a
+    // whole-response cache hit against `a` — it recomputes, but reuses the
+    // already-embedded vectors from the sqlite embedding cache.
+    const b = JSON.parse((await app.inject({ method: 'GET', url: '/galaxy/map?cluster=false' })).body);
+    expect(b.params.cluster).toBe(false);
+    expect(b.clusters).toEqual([]);
+    expect(b.points.length).toBe(a.points.length);
+    expect(b.points.every((p) => p.clusterId === 0)).toBe(true);
+    expect(b.stats.embeddedNow).toBe(0);
+    expect(b.stats.cacheHits).toBe(5);
+    // Positions are still computed — only clustering/labeling is skipped.
+    for (const point of b.points) {
+      expect(point.x).toBeGreaterThanOrEqual(0);
+      expect(point.x).toBeLessThanOrEqual(1);
+      expect(point.y).toBeGreaterThanOrEqual(0);
+      expect(point.y).toBeLessThanOrEqual(1);
+    }
+
+    // Repeating cluster=false hits ITS OWN cache entry (cacheHits = b's + 1).
+    const c = JSON.parse((await app.inject({ method: 'GET', url: '/galaxy/map?cluster=false' })).body);
+    expect(c.stats.cacheHits).toBe(b.stats.cacheHits + 1);
+    expect(c.clusters).toEqual([]);
+
+    // Repeating the default (cluster=true) call hits A's cache entry, not
+    // B/C's — proving the two param tuples own distinct cache slots.
+    const d = JSON.parse((await app.inject({ method: 'GET', url: '/galaxy/map' })).body);
+    expect(d.stats.cacheHits).toBe(a.stats.cacheHits + 1);
+    expect(d.clusters.length).toBeGreaterThan(0);
+  });
+
   // -------------------------------------------------------------------------
   // GET /galaxy/session/:id
   // -------------------------------------------------------------------------
@@ -402,6 +449,17 @@ describe('galaxy routes', () => {
     expect(detail.transcript.messages.length).toBeGreaterThanOrEqual(3);
     expect(detail.transcript.outputs).toHaveLength(1);
 
+    // Top-level epoch-ms timestamps, additive alongside the nested transcript.
+    expect(detail.startedAt).toBe(NOW - 1 * HOUR);
+    expect(detail.endedAt).toBe(NOW - 1 * HOUR + 60_000);
+
+    // Every message carries an epoch-ms timestamp sourced from
+    // fleet_transcript_messages.timestamp (not a synthesized/derived value).
+    for (const message of detail.transcript.messages) {
+      expect(typeof message.timestamp).toBe('number');
+      expect(message.timestamp).toBeGreaterThan(0);
+    }
+
     // Session join
     expect(detail.session).not.toBeNull();
     expect(detail.session.id).toBe(sessionId);
@@ -436,5 +494,27 @@ describe('galaxy routes', () => {
     expect(detail.notes).toEqual([]);
     expect(detail.files).toEqual([]);
     expect(detail.prs).toEqual([]);
+  });
+
+  it('normalizes absolute file claims under the repo root to repo-relative, leaving paths outside it untouched', async () => {
+    const underRepoRoot = path.join(process.cwd(), 'lib', 'galaxy-path-example.ts');
+    const outsideRepoRoot = '/definitely/outside/the/repo/example.ts';
+
+    const started2 = sessions.start('Touch files with absolute paths', {
+      agentId: 'agent-pathtest-1',
+      files: [underRepoRoot, outsideRepoRoot, 'already/relative.ts'],
+    });
+    expect(started2.success).toBe(true);
+
+    seedTranscript(transcripts, {
+      id: 'tx_pathtest', ship: 'migrator', agentId: 'agent-pathtest-1', sessionId: started2.id,
+      project: 'port-daddy', startedAt: NOW - 1 * HOUR, topic: TOPIC_SQLITE, salt: 'pathtest',
+    });
+
+    const res = await app.inject({ method: 'GET', url: '/galaxy/session/tx_pathtest' });
+    expect(res.statusCode).toBe(200);
+    const { detail } = JSON.parse(res.body);
+    const paths = detail.files.map((f) => f.filePath).sort();
+    expect(paths).toEqual(['already/relative.ts', 'lib/galaxy-path-example.ts', outsideRepoRoot].sort());
   });
 });

@@ -817,6 +817,9 @@ fn main() {
                             app::ControlMsg::GalaxyParams { window_hours, min_tokens } => {
                                 galaxy.set_params(window_hours, min_tokens);
                             }
+                            app::ControlMsg::GalaxyCluster { enabled } => {
+                                galaxy.set_cluster(enabled);
+                            }
                             // Add an operator note (POST /notes).
                             app::ControlMsg::AddNote { content } => {
                                 match client.add_note(&content).await {

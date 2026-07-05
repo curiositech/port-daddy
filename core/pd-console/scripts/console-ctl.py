@@ -62,6 +62,8 @@ def main() -> int:
     p_galaxy = sub.add_parser("galaxy")
     p_galaxy.add_argument("--window-hours", type=int)
     p_galaxy.add_argument("--min-tokens", type=int)
+    p_galaxy.add_argument("--cluster", dest="cluster", action="store_true", default=None)
+    p_galaxy.add_argument("--no-cluster", dest="cluster", action="store_false")
     p_rebind = sub.add_parser("rebind")
     p_rebind.add_argument("url")
     sub.add_parser("alerts")
@@ -81,6 +83,8 @@ def main() -> int:
             payload["windowHours"] = args.window_hours
         if args.min_tokens is not None:
             payload["minTokens"] = args.min_tokens
+        if args.cluster is not None:
+            payload["cluster"] = args.cluster
     elif args.cmd == "rebind":
         payload = {"cmd": "rebind", "url": args.url}
     elif args.cmd == "raw":
