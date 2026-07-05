@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/cdn-cache-headers-plan.schema.json",
+  "title": "CDN Cache-Header Plan",
+  "description": "A structured cache-header plan for one response class, so cdn-cache-control-headers' Quality Gates can be checked deterministically by scripts/cdn_cache_headers_audit.mjs.",
+  "type": "object",
+  "required": ["responseKind", "cacheability"],
+  "additionalProperties": true,
+  "properties": {
+    "responseKind": {
+      "type": "string",
+      "enum": ["hashed-asset", "anonymous-html", "public-api-json", "authenticated", "personalized-feed", "login-form"],
+      "description": "The response class, per the canonical-recipes table in SKILL.md."
+    },
+    "cacheability": {
+      "type": "string",
+      "enum": ["public", "private", "no-store", "no-cache"],
+      "description": "The storage directive: public (any cache), private (browser only), no-store (nothing), no-cache (store but always revalidate)."
+    },
+    "maxAge": {
+      "type": "number",
+      "minimum": 0,
+      "description": "max-age in seconds (browser + shared caches unless s-maxage overrides)."
+    },
+    "sMaxage": {
+      "type": "number",
+      "minimum": 0,
+      "description": "s-maxage in seconds — shared caches only; overrides max-age there per RFC 9111."
+    },
+    "immutable": {
+      "type": "boolean",
+      "description": "True if the immutable extension (RFC 8246) is set, skipping revalidation entirely."
+    },
+    "staleWhileRevalidate": {
+      "type": "number",
+      "minimum": 0,
+      "description": "stale-while-revalidate window in seconds (RFC 5861): serve stale instantly while refreshing in the background."
+    },
+    "staleIfError": {
+      "type": "number",
+      "minimum": 0,
+      "description": "stale-if-error window in seconds (RFC 5861): serve stale on origin 5xx."
+    },
+    "varyHeaders": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["accept-encoding", "accept-language", "accept", "user-agent", "cookie"]
+      },
+      "description": "Request headers named in Vary. user-agent and cookie are hit-rate killers."
+    },
+    "setCookiePresent": {
+      "type": "boolean",
+      "description": "True if the response carries Set-Cookie — most CDNs decline to cache such responses."
+    },
+    "mutableContent": {
+      "type": "boolean",
+      "description": "True if the content changes after publish (edited articles, updated listings)."
+    },
+    "purgeOnEdit": {
+      "type": "boolean",
+      "description": "True if origin edit events trigger a purge (surrogate-key or URL) so long TTLs stay safe."
+    },
+    "surrogateKeysUsed": {
+      "type": "boolean",
+      "description": "True if Surrogate-Key / Cache-Tag headers enable tag-based purging."
+    },
+    "surrogateKeyCount": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Number of surrogate keys/tags on this response. Cloudflare caps at 16, Fastly ~20."
+    },
+    "expiresHeaderAlsoSet": {
+      "type": "boolean",
+      "description": "True if a legacy Expires header is set alongside Cache-Control — conflicting signals."
+    }
+  }
+}

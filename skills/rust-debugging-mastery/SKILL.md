@@ -101,15 +101,15 @@ flowchart TD
   C -->|"panicked at ..."| C1[RUST_BACKTRACE=full + panic hook → 04-panics-and-heisenbugs.md]
   C -->|"has overflowed its stack"| C2[RUST_MIN_STACK, NOT recursion_limit → 04]
   C -->|"SIGSEGV / SIGABRT, no Rust message"| C3[FFI/native lib or UB → 02-native-ffi-and-dyld.md / Miri]
-  B -->|"Library not loaded / image not found / dlopen"| D[dyld: otool -L, DYLD_PRINT_*, install_name_tool → 02]
+  B -->|Library not loaded / image not found / dlopen| D[dyld: otool -L, DYLD_PRINT_*, install_name_tool → 02]
   B -->|Hangs / deadlocks / stalls, no crash| E{Async?}
   E -->|Yes| E1[tokio-console: never-yielded / lost-waker → 01-tracing-and-async.md]
   E -->|No| E2[rust-lldb: bt all on each thread for the lock cycle → 05-lldb-and-build-link.md]
   B -->|Wrong result, want causal trace| F[tracing spans + EnvFilter → 01]
   B -->|Too slow| G[flamegraph / samply / Instruments → 03-profiling-and-memory.md]
-  B -->|"Works in debug, breaks in release" or flaky| H[Heisenbug: Miri + sanitizers, overflow-checks → 04]
+  B -->|Works in debug breaks in release / flaky| H[Heisenbug: Miri + sanitizers, overflow-checks → 04]
   B -->|Suspected UB / unsafe / data race| I[Miri + ThreadSanitizer → 03 / 04]
-  B -->|"undefined symbol" / "multiple definition" / won't link| J[cargo build -v, cargo tree -d → 05]
+  B -->|undefined symbol / multiple definition / will not link| J[cargo build -v, cargo tree -d → 05]
   B -->|Need to step through state at a line| K[rust-lldb, regex breakpoints for generics → 05]
 ```
 

@@ -1,6 +1,6 @@
 {
   "name": "port-daddy",
-  "version": "3.23.0",
+  "version": "3.24.1",
   "description": "Authoritative port management and service orchestration for multi-agent development — port-daddy up/down, atomic assignment, pub/sub messaging, distributed locks, agent registry, and project:stack:context semantic identities",
   "main": "./dist/server.js",
   "type": "module",
@@ -95,6 +95,7 @@
     "lib/",
     "routes/",
     "shared/",
+    "tools/",
     "public/",
     "scripts/build-core.sh",
     "scripts/build-daemon-binary.mjs",
@@ -116,6 +117,7 @@
     "@fastify/cors": "^11.2.0",
     "@fastify/rate-limit": "^10.3.0",
     "@fastify/static": "^9.0.0",
+    "@fastify/websocket": "^11.2.0",
     "@huggingface/transformers": "^4.1.0",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@types/commander": "^2.12.0",
@@ -129,6 +131,7 @@
     "react": "^19.2.4",
     "tree-sitter-wasms": "^0.1.13",
     "tsx": "^4.21.0",
+    "web-push": "^3.6.7",
     "web-tree-sitter": "^0.24.7",
     "winston": "^3.19.0",
     "yaml": "^2.8.3"
@@ -143,6 +146,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^25.3.0",
     "@types/react": "^19.2.14",
+    "@types/web-push": "^3.6.4",
     "fast-check": "^4.7.0",
     "jest": "^30.2.0",
     "typescript": "^5.9.3"

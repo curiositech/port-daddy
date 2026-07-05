@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.24.1] - 2026-07-04
+
+### Fixed
+- **`pd-console --version` panicked without a daemon, sinking the release console build (#673).** `main()` ran daemon discovery before parsing args, so the release workflow's deep version-drift guard — which execs the freshly built binary on a daemonless CI runner — got a panic instead of a version, and no contiguous `pd-console v<ver>` literal existed for its strings-extraction fallback. `--version`/`-V` now early-exits printing the build stamp before any daemon, GPU, or window init, and a `#[used]` static keeps the marker in rodata for cross-arch checks. Restores the `pd-console.app` release asset, absent from v3.24.0 and failing on the three release runs before it.
+
+## [3.24.0] - 2026-07-04
+
+### Fixed
+- **`begin_session` MCP tool could not satisfy the daemon's lifecycle requirement.** The daemon (`lib/sugar.ts`) hard-requires `lifecycle: "durable" | "ephemeral"` on session begin, but the MCP tool schema neither declared the field nor forwarded it — every MCP-driven `begin_session` failed with `SESSION_LIFECYCLE_REQUIRED`, locking MCP agents out of the mandatory coordination protocol (the CLI worked via `--lifecycle`). The tool schema now declares `lifecycle` as a required enum with guidance (ephemeral = one-off task session, durable = long-lived staff agent) and the handler forwards it to `/sugar/begin`.
+
 ### Added
 - **`pd safe corral` — pack secrets off disk into the vault (ADR-0088 Phase B).** Takes the read-only scanner's findings and, for each detected plaintext secret, saves the value into the Keychain/broker vault (`lib/secret-env.ts`) and rewrites the source line to a `pd-secret://KEY` reference, so there is no plaintext secret at rest. `pd safe corral <KEY>` targets one finding, `--all` does every one; **dry-run by default** (prints the plan, writes nothing), `--apply` to write. The safety order is an invariant: re-verify the value at the line → save to vault → **verify the resolver round-trips the exact value** → write a `.bak` under `~/.port-daddy/recovered` → only then rewrite the source. A failure at any step aborts that item with the source untouched (no plaintext lost). No raw secret is ever printed, logged, or stored — plan/result objects carry path/line/ruleId/last4 + the env-var key only.
 - **`pd env exec -- <cmd>` — frictionless corralled-secret access.** Runs a command with any `pd-secret://KEY` env refs resolved into the child process environment only (never to disk). This is the read side of corralling: a `.env` rewritten to `FOO=pd-secret://FOO` is transparently re-injected for the duration of the one command. An unresolved ref is passed through literally so a missing secret fails loudly rather than silently running empty.

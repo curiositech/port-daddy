@@ -1,0 +1,15 @@
+{
+  "locatorStrategy": "user-facing",
+  "waitForTimeoutCount": 0,
+  "assertionStyle": "web-first",
+  "authStrategy": "storage-state-setup",
+  "testIsolation": true,
+  "thirdPartyCalls": "mocked",
+  "traceMode": "on-first-retry",
+  "artifactsUploadedOnCi": true,
+  "ciRetries": 2,
+  "localRetries": 0,
+  "parallelEnabled": true,
+  "shardCount": 4,
+  "p95TestSeconds": 18
+}

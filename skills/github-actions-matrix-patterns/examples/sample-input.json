@@ -1,0 +1,14 @@
+{
+  "workflowKind": "deploy",
+  "thirdPartyActionPinning": "sha",
+  "topLevelPermissions": "read-all",
+  "cloudAuth": "oidc",
+  "oidcSubClaimScope": "environment",
+  "failFast": false,
+  "matrixCellCount": 6,
+  "excludeCount": 1,
+  "cacheKeyIncludesLockfileHash": true,
+  "concurrencyCancelInProgress": true,
+  "deployBehindEnvironment": true,
+  "secretsInheritToForkPRs": false
+}

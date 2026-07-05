@@ -39,6 +39,7 @@ struct FleetPopover: View {
     @ObservedObject var secretsStore: SecretsStore
     @ObservedObject var backendStore: BackendStore
     @StateObject private var budgetStore = BudgetPauseStore()
+    @StateObject private var approvalStore = SpawnApprovalStore()
     @StateObject private var berthStore = BerthStore()
     @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
     @State private var appeared = false
@@ -95,13 +96,20 @@ struct FleetPopover: View {
         .onAppear {
             withAnimation(.smooth(duration: 0.4)) { appeared = true }
             budgetStore.start()
+            approvalStore.start()
         }
-        .onDisappear { budgetStore.stop() }
+        .onDisappear {
+            budgetStore.stop()
+            approvalStore.stop()
+        }
     }
 
     @ViewBuilder
     private var popoverContent: some View {
         VStack(spacing: 0) {
+            // HITL first: spawns held by the trust gate lead everything else
+            // in the dropdown (ADR-0093 — a pending human gate is unmissable).
+            SpawnApprovalSection(store: approvalStore)
             if store.versionSkew.needsAttention {
                 versionSkewBanner(store.versionSkew)
                 Divider().opacity(0.5)

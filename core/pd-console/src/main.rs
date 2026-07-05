@@ -203,7 +203,23 @@ impl AssetSource for FsAssets {
     }
 }
 
+/// Contiguous `pd-console v<ver>` literal in rodata: the release version-drift
+/// guard strings-extracts this exact marker when the binary is not runnable on
+/// the checking host (cross-arch), and `--version` prints it when it is.
+#[used]
+static BUILD_STAMP: &str = concat!("pd-console v", env!("CARGO_PKG_VERSION"));
+
 fn main() {
+    // `--version` must answer before daemon discovery or any GPU/window init:
+    // the release version-drift guard (scripts/check-version-drift.mjs --deep)
+    // execs this binary headlessly on a CI runner with no daemon, and the
+    // printed `pd-console v<ver>` literal doubles as the strings-extraction
+    // marker the guard falls back to on non-runnable arches.
+    if std::env::args().any(|a| a == "--version" || a == "-V") {
+        println!("{BUILD_STAMP}");
+        return;
+    }
+
     // Seed light/dark from PD_CONSOLE_THEME before the window opens (default dark).
     app::init_theme_from_env();
 
