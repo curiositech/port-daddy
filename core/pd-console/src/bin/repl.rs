@@ -11,6 +11,11 @@
 //!   :lane                     show the watched agent's live work chat
 //!   :lane-message <text>      send an operator turn to the watched agent
 //!                             supports @file/@photo/@skill/@tool markers
+//!   :harbor                   Agent Node roster + detail (binder ch18 C3)
+//!   :harbor select <n>        select roster row n (retargets the detail)
+//!   :harbor control <verb> [arg]
+//!                             issue a compliance-gated control (steer/pause/
+//!                             interrupt/checkpoint/successor/retire)
 //!   <text>                    send a turn to the active agent (over tube)
 //!   :quit
 //!
@@ -46,6 +51,7 @@
 // Flag/flag_for_state compile here and the fleet pane renders in the REPL too.
 #[path = "../fleet_pane.rs"]     mod fleet_pane;
 #[path = "../grid.rs"]           mod grid; // launcher-grid data + 1:1 invariant tests
+#[path = "../harbor_pane.rs"]    mod harbor_pane; // Agent Node roster+detail (ch18 C3)
 #[path = "../maritime.rs"]       mod maritime;
 #[path = "../health_pane.rs"]    mod health_pane;
 #[path = "../inbox_pane.rs"]     mod inbox_pane;
@@ -72,6 +78,7 @@ use active_agents_pane::ActiveAgentsPane;
 use anyhow::Result;
 use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
+use harbor_pane::HarborPane;
 use lane_pane::LanePane;
 use lineage_pane::LineagePane;
 use pane::{OperatorTurn, PaneRegistry, Subscription, SurfaceAction};
@@ -101,7 +108,7 @@ fn banner(style: &TermStyle, daemon_url: &str) {
         "{}  {}",
         rail("└"),
         style.paint(
-            ":harness <backend> <prompt> · :new <backend> <prompt> · :agents · :switch <n> · :lane · :lane-message <text> · :quit",
+            ":harness <backend> <prompt> · :new <backend> <prompt> · :agents · :switch <n> · :lane · :lane-message <text> · :harbor · :quit",
             Sem::Muted
         )
     );
@@ -153,6 +160,7 @@ async fn main() -> Result<()> {
     reg.register(Box::new(SubstratePane::new()));
     reg.register(Box::new(ParleyPane::new()));
     reg.register(Box::new(ActiveAgentsPane::new()));
+    reg.register(Box::new(HarborPane::new()));
 
     let ok = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✓", Sem::Landed));
     let err = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✗", Sem::Gated));
@@ -218,6 +226,51 @@ async fn main() -> Result<()> {
                 }
             }
             drain_active_subscription(&mut reg, &mgr, Duration::from_millis(1_200)).await;
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
+        } else if line == ":harbor"
+            || line.starts_with(":harbor select ")
+            || line.starts_with(":harbor control ")
+        {
+            // The Agent Node roster + detail surface (binder ch18 C3). One
+            // headless tick: refresh, optionally select a row / issue a
+            // compliance-gated control, then render. The GPUI face makes rows
+            // and controls clickable; this face proves the same pane headless.
+            reg.active = reg.panes.iter().position(|p| p.id() == "harbor").unwrap_or(0);
+            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            if let Some(rest) = line.strip_prefix(":harbor select ") {
+                match rest.trim().parse::<usize>() {
+                    Ok(index) => {
+                        match reg
+                            .mutate_active(mgr.daemon(), SurfaceAction::SelectRow { index })
+                            .await
+                        {
+                            Ok(()) => {
+                                // Repopulate the detail for the new selection.
+                                if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+                                    err(&style, &format!("refresh failed: {e}"));
+                                }
+                            }
+                            Err(e) => err(&style, &format!("select failed: {e}")),
+                        }
+                    }
+                    Err(_) => err(&style, "usage: :harbor select <row-index>"),
+                }
+            } else if let Some(rest) = line.strip_prefix(":harbor control ") {
+                let mut parts = rest.trim().splitn(2, ' ');
+                let verb = parts.next().unwrap_or("").to_string();
+                let argument = parts.next().map(str::trim).filter(|a| !a.is_empty()).map(String::from);
+                match reg
+                    .mutate_active(mgr.daemon(), SurfaceAction::Control { verb: verb.clone(), argument })
+                    .await
+                {
+                    Ok(()) => ok(&style, &format!("{verb} queued — watch the control history")),
+                    Err(e) => err(&style, &format!("{verb} refused: {e}")),
+                }
+            }
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
