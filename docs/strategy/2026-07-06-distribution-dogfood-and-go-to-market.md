@@ -218,3 +218,199 @@ layer. Which means the operator can afford to be generous with individual
 skills. One discipline: **curate, don't dump.** A graded starter pack is a
 product; an undifferentiated 231-skill dump is noise. Curation is itself the
 quality signal (`skill-grader`, `attestable-skill-quality-signal`).
+
+---
+
+# Addendum, 2026-07-06 — surface reality, cohesive install, onboarding, and the automation loop
+
+Operator review of v1 flagged that the strategy was GTM-shaped and skipped the
+*surface reality*: cross-platform, the full ~19-thing inventory, cohesive
+install, cold-start onboarding, task-system integration, the automation loop as
+its own product, and orchestration visualization. This addendum takes positions
+on each. Backing skills grafted: `cross-platform-desktop`,
+`developer-surface-strategist`, `recovery-app-onboarding`,
+`wellness-app-engagement`, `legible-roadmap-with-sidequests`, `dag-runtime`,
+`windags-architect`, `agent-issue-tracker-workflow`, `always-on-agent-applications`.
+
+## 9. The surface inventory, and how ~19 things install as *one*
+
+The fear ("how do we distribute and install 19 things?") dissolves with one
+principle: **the daemon is the hub; every other surface is a spoke that
+discovers or pairs to it. You never install 19 things — you install one
+substrate and add spokes as you need them.**
+
+| # | Surface | Kind | How it reaches the daemon | Distribution |
+|---|---|---|---|---|
+| 1 | **Daemon** | the hub | *is* the hub | Homebrew (mac), MSI (win) |
+| 2 | **CLI (`pd`)** | local | loopback socket | ships with daemon |
+| 3 | **FleetBar** (menu bar) | glance/consent | loopback + relay | signed app, bundled by `pd setup` |
+| 4 | **Fleet Control Center** (native window) | deep operator view | loopback | *distinct from FleetBar* — see §9.1 |
+| 5 | **pd-console** (GPUI IDE) | seated deep work | loopback | signed app |
+| 6 | **Scout** (Chrome ext.) | browser intake | loopback→pair | Chrome Web Store |
+| 7 | **Mobile** (iOS/Android) | remote observe/steer | relay + device pairing | App Store / Play |
+| 8 | **GitHub App** | repo events → reviews | webhook → relay | GitHub Marketplace |
+| 9 | **Skills** | capability packs | daemon graft service | curated pack + marketplace (§8) |
+| 10 | **MCP server** | agent tool surface | loopback | ships with daemon; registries |
+| 11 | **SDK** | programmatic | HTTP/socket | npm (TS **now**); PyPI (Python **next** — parity is a real ask, not TS-only) |
+| 12 | **bosun** (`pd-bosun`) | supervisor/health | in-process | internal, ships in daemon |
+| 13 | **Rust kernel** (`core/kernel`) | hot-path substrate | in-process | internal (see kernel focus-receipt) |
+| 14 | **Relay** | remote transport | — | Cloudflare Worker (hosted) |
+| 15 | **Website** (portdaddy.dev) | accounts/dist/receipts | — | Cloudflare Pages |
+| 16 | **Automations app** | trigger→agent flows | daemon + relay | new high-level surface — see §10 |
+| 17 | **Editor plugins** (VS Code, …) | thin client | loopback | editor marketplaces |
+| 18 | **Webhooks / HTTP API** | inbound events | relay/loopback | part of daemon |
+| 19 | **Installers/updaters** | the meta-surface | — | the app-lane watcher + brew/MSI |
+
+**The cohesive install story:** `brew install port-daddy && pd setup` (or the
+Windows MSI) stands up the substrate — daemon, CLI, hooks, MCP, and FleetBar —
+in one step. Every *other* surface is then a one-command or one-click **add**
+that pairs to the already-running daemon (`pd add scout`, `pd add mobile` shows a
+pairing QR, the GitHub App is an OAuth click). The operator's mental model is
+never "19 installs"; it is "install Port Daddy, then turn on the surfaces I
+want." `pd doctor` (C8, shipped) already reports which surfaces are installed,
+paired, or stale — it becomes the single pane for the whole spoke set.
+
+**Cross-platform (the Windows gap):** Mac-first is a sequencing choice, not a
+strategy. The daemon and CLI are already portable (TS/Bun); the porting cost is
+the native surfaces (FleetBar → a Windows tray app, pd-console GPUI → Windows is
+supported by the framework) and IPC (loopback socket → **named pipe with DACLs**,
+the V4 Windows work). Position: **ship Mac fully first, then a Windows track**
+gated behind M10, with the daemon/CLI/SDK/GitHub-App/web/Scout wedges working on
+Windows *earlier* because they are already platform-neutral. Name the Windows
+gate explicitly in the roadmap so it stops being an omission.
+
+### 9.1 FleetBar vs Fleet Control Center — distinct surfaces, one lineage
+
+The review is right to separate them:
+
+- **FleetBar** = the *menu-bar* surface. Ambient, glanceable, consent. Its job
+  is the six-state glance + the gate queue + the intent composer (ch19). It is
+  the surface that may *demand* attention, and only for human gates. It is
+  always present, costs nothing to glance at.
+- **Fleet Control Center** = the *fuller native window*. When you click "show me
+  everything" from FleetBar, this is where you land: the whole fleet, activity,
+  budget, the flow graph, the YAML/config, the memory explorer. It is a *seated*
+  surface, not a glance.
+
+They share a lineage (Control Center is the deep face behind FleetBar's popover)
+but they are different interaction distances and must be designed as such — the
+curation ledger already treats them separately.
+
+## 10. The automation loop deserves its own app
+
+Strong agreement with the review: the event-trigger automation loop should not
+live buried in the CLI. It is a distinct, high-level product surface, and it is
+possibly the widest wedge (§3) because it reaches non-coders.
+
+**The concept (working name: "Automations" / the Tideworks deck — name is an
+operator call).** A visual flow surface: *when X happens → run agent Y with
+skills Z, under budget B → deliver the receipt to me.* Triggers: email, webhook,
+cron, GitHub event, file change, inbound SMS (io-wiring, shipped in PR #672).
+
+**The differentiator that makes it a product, not a Zapier clone:** *agents
+write the wiring for you.* You describe the automation in plain English ("every
+morning, summarize overnight Sentry errors and open issues for the P1s"); an
+agent builds the trigger→event→agent→sink graph, shows it to you, and you
+approve it at a consent gate. Each automation run leaves a Work Receipt — so
+unlike Zapier, you can *audit what your automation actually did.*
+
+**It becomes a gallery/store.** Published automations (with receipts proving
+they work) are shareable and, eventually, leasable (§4). This is the same
+receipt-as-good economy applied to automations.
+
+This needs its own design pass and likely its own binder chapter — flagging it
+as a **dedicated design work order**, not something a strategy doc resolves.
+
+## 11. Cold start: the Shipwright onboarding + the "do this next" layer
+
+The review names the real adoption risk: an operator installs, and then faces a
+blank fleet. Two mechanisms, both grounded in `recovery-app-onboarding` and
+`wellness-app-engagement` (progressive disclosure, an aha-moment demo, ethical
+engagement — serve the user, not a retention metric):
+
+**(a) The Shipwright first-run.** On first launch, Port Daddy *surveys the repo*
+(the Shipwright concept from the binder corpus: repo survey → proposal →
+generated fleet) and proposes a **starter fleet** — a PR reviewer, a test-runner,
+a doc-syncer — set up with hand-holding, one confirm each. The cold-start
+guarantee: **within ~5 minutes of install, the operator has watched one agent do
+one real thing on their own repo and produce a receipt.** Setup is not a wall of
+config; it is a guided "here's what I'd run for a repo like yours — yes/no."
+Maintenance and updates get the same treatment: `pd doctor` proposes repairs,
+the app-lane watcher keeps builds fresh, and a fleet that drifts gets a
+"your reviewer hasn't run in 2 weeks — re-arm it?" nudge.
+
+**(b) The "do this next" suggestibility layer, at the entry of every app.**
+M5's guidance envelope (just shipped) is not only a mid-run injection channel —
+surfaced at *app entry*, it is the one-click next-action rail: "PR #91 needs a
+review — run it? · your context is 92% full — compact? · a conflict is
+forecast on retry.ts — open the parley?" This rail appears on FleetBar's home,
+pd-console's launch, the mobile home, and the web dashboard — **one consistent
+layer**, backed by the signed guidance channel so the suggestions are trusted
+operator-authored actions, not noise. This is the single most important
+adoption feature: it turns a blank fleet into a guided next step, everywhere.
+
+## 12. Task systems are the source of truth — read them, and build them from a mess
+
+Two positions, both using `legible-roadmap-with-sidequests` and
+`agent-issue-tracker-workflow`:
+
+**(a) Integrate with real trackers, don't reinvent them.** The M8 coordination
+layer and the roadmap must read/write **GitHub Issues, Jira, and Linear** as the
+source of truth — the operator's team already lives there. Port Daddy's job is
+to *work the tracker* (pull the right next item, link PRs/receipts to items,
+keep status honest), not to be a competing tracker. The internal roadmap
+(`pd roadmap`) stays for Port-Daddy-native work; external teams point Port Daddy
+at their existing board.
+
+**(b) The killer onboarding demo: a real backlog from a mess of informal docs.**
+Point Port Daddy at your scattered notes, TODOs, Slack threads, and half-written
+plans; it produces a real, prioritized backlog in your tracker — and, per
+`legible-roadmap-with-sidequests`, it *harmonizes the ADHD tangents*: the
+sidequests get captured as legible sidequests linked to the main line, not lost
+and not derailing it. This is simultaneously (1) a jaw-dropping proof of agent
+prowess for the cold-start demo, (2) a standalone wedge, and (3) the "lookout"
+loop — once the backlog exists, the suggestibility layer (§11b) watches it and
+surfaces what's next. This is a top-tier first-session experience; recommend
+building it as an explicit onboarding path.
+
+## 13. Show the plan, argue the choices, verify adversarially, grade the output
+
+The multi-agent orchestration must be *visible and opinionated*, not a black
+box. This is exactly the discipline that built this product (the workflow → I0 →
+adversarial-verify → merge loop used across the whole Agent Harbor build) — the
+product should expose it. Four pieces, backed by `dag-runtime`,
+`windags-architect`, `dag-quality`, `skill-grader`:
+
+1. **DAG / hypertree visualization.** The planned execution graph — waves,
+   dependencies, which skills graft onto which node — rendered and *steerable*
+   (a visual editor; reactflow-class on web, a native pane in pd-console). The
+   operator sees the plan before it runs and can edit it.
+2. **Opinions on execution choices.** Not just "here's the DAG" but "here's why
+   parallel here, serial there, a human gate at this node, this topology over
+   that one" — the planner argues its choices (the WinDAGs next-move rationale),
+   so the operator can overrule with understanding.
+3. **Automated adversarial review.** Every multi-agent run gets an I0-style
+   verification pass — independent skeptics that try to refute the output before
+   it's accepted. Productize the exact pattern this session ran: findings,
+   verdicts, merge-order. This is a differentiator no competitor ships.
+4. **Agentic output evaluation.** Score outputs against schemas and quality
+   criteria, detect hallucination, decide when to iterate vs stop
+   (`dag-quality`, `llm-as-judge`, `skill-grader`). The evaluation feeds the
+   ratings/guild layer (§4) — the same machinery that grades a marketplace skill
+   grades a run.
+
+This visualization + opinion + adversarial-review + evaluation stack is not a
+side feature; it is the visible form of the product's core claim
+(accountability), and it is the multi-agent-coordination wedge (§3) made
+tangible.
+
+## 14. What this addendum defers to dedicated design work
+
+Positions are taken above, but several items need their own design pass / binder
+chapter, not just a strategy paragraph: **the Automations app (§10)**, **the
+cross-platform/Windows track (§9)**, **the orchestration-visualization surface
+(§13)**, and **the from-a-mess onboarding path (§12b)**. Each is a work order,
+sequenced against the M-waves, and each should get the same contract-first,
+adversarially-verified treatment the foundation got. The strategy's job is to
+say *these are real, here is the position*; the design's job is the pixels and
+the plumbing.
