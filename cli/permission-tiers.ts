@@ -93,6 +93,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   harbors: 'silent',
   'harbor-ledger': 'notify', // worst case: `harbor-ledger rebuild` truncates+replays DISPOSABLE projection tables (the event log is never touched); refined below
   spawned: 'silent',
+  work: 'silent',           // `pd work probe`/`pd work matrix` are read-only conformance surfaces (ch18 C2); launch forms refuse until pd work start lands
   feedback: 'silent',       // default form is `feedback list/show/summary`; writes are `notify`
   quorum: 'silent',
   parley: 'approval',       // summons/resolves other agents; read-only forms refined below

@@ -112,7 +112,7 @@ _port_daddy() {
     # Agent Inbox
     inbox send sent
     # AI Agent Spawner + Watch
-    spawn spawned sortie watch
+    spawn spawned work sortie watch
     # Fleet ship-run transcripts
     transcripts transcript
     # Cloud relay — zero-trust event fabric (ADR-0049)
@@ -1553,6 +1553,36 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     spawned)
       _pd_opts ''
+      ;;
+
+    # -----------------------------------------------------------------------
+    # work  probe [--adapter K] [--profile P] | matrix  — conformance probes
+    # (ADR-0095 Work Intent family; binder ch18 Work Order C2)
+    # -----------------------------------------------------------------------
+    work)
+      local work_sub="${words[2]:-}"
+      case "$prev" in
+        work)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "probe matrix help" -- "$cur") )
+          ;;
+        --adapter)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "claude-code codex-cli cloudflare ollama lmstudio custom-stdio custom-http" -- "$cur") )
+          ;;
+        --profile)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "compliant weak broken malicious" -- "$cur") )
+          ;;
+        *)
+          # --adapter/--profile are probe-only flags; matrix/help take only --json.
+          if [[ "$work_sub" == probe ]]; then
+            _pd_opts '--adapter --profile --json'
+          else
+            _pd_opts '--json'
+          fi
+          ;;
+      esac
       ;;
 
     # -----------------------------------------------------------------------
