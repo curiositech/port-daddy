@@ -1,7 +1,8 @@
 # Show HN — the accountability wedge
 
 Launch asset for wedge 1 of the go-to-market plan
-(`docs/strategy/2026-07-06-distribution-dogfood-and-go-to-market.md`, §6).
+(`docs/strategy/2026-07-06-distribution-dogfood-and-go-to-market.md` §6, on the
+`strategy/distribution-and-dogfood` branch, not yet shipped to main). <!-- cite-exempt -->
 Channel playbook per `tech-launch-channels` (Tue–Thu, 6:00–8:00 AM ET, factual
 title, first comment posted immediately, answer every reply for two hours).
 Voice per `port-daddy-marketing-copy`; machine-accent pass per

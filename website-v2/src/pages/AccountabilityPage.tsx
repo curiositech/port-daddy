@@ -141,7 +141,7 @@ function ArtSlot({ label, source }: { label: string; source: string }) {
       <PanelBody size="compact" className="max-w-[36ch]">
         {label}
       </PanelBody>
-      <code className="font-mono text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
+      <code className="max-w-full break-all font-mono text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
         {source}
       </code>
     </div>
