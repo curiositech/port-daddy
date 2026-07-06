@@ -68,8 +68,12 @@ export interface FleetAgent {
   timeout?: number;
   allowedTools?: string;
   /** Opt-in: splice a windags-pattern skill shortlist (lib/skill-graft.ts)
-   *  into this ship's task text before it spawns. Default false/undefined —
-   *  existing ships are byte-for-byte unaffected. */
+   *  into this ship's task text before it spawns. `astToConfig()` (the YAML
+   *  path, i.e. every real pd-fleet.yml ship) always normalizes this to a
+   *  concrete boolean, defaulting to `false`; the `?:` here only matters for
+   *  hand-constructed `FleetConfig`s (e.g. tests) that omit the field
+   *  entirely. Either way, falsy means existing ships are byte-for-byte
+   *  unaffected. */
   skillGraft?: boolean;
   fallbacks?: FleetRuntimeTarget[];
   cooldownMs?: number;

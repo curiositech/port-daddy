@@ -124,6 +124,41 @@ describe('createSkillGraftIndex().craft', () => {
     expect(result.shortlist[1]).not.toHaveProperty('body');
   });
 
+  test('truncates a top body over maxBodyChars with an explicit marker (never blows up the task)', async () => {
+    const hugeBody = `# huge-skill\n\n${'x'.repeat(20000)}`;
+    writeSkill(tmpRoot, 'huge-skill', 'a skill with an enormous SKILL.md body', { body: hugeBody });
+    writeSkill(tmpRoot, 'small-skill', 'a skill with a small SKILL.md body');
+
+    const graft = createSkillGraftIndex({
+      roots: [{ label: 'test', path: tmpRoot }],
+      embedder: makeMockEmbedder(),
+      index: createSkillIndex({ db: new Database(':memory:'), embedder: makeMockEmbedder() }),
+      maxBodyChars: 500,
+    });
+
+    const result = await graft.craft('huge enormous body', { topLimit: 1 });
+    expect(result.top).toHaveLength(1);
+    expect(result.top[0].id).toBe('huge-skill');
+    expect(result.top[0].body.length).toBeLessThan(600); // capped, not the full ~20KB body
+    expect(result.top[0].body).toMatch(/\[truncated \d+ chars\]$/);
+  });
+
+  test('clamps an invalid maxBodyChars to the default rather than disabling the cap', async () => {
+    const hugeBody = `# huge-skill\n\n${'x'.repeat(20000)}`;
+    writeSkill(tmpRoot, 'huge-skill', 'a skill with an enormous SKILL.md body', { body: hugeBody });
+
+    const graft = createSkillGraftIndex({
+      roots: [{ label: 'test', path: tmpRoot }],
+      embedder: makeMockEmbedder(),
+      index: createSkillIndex({ db: new Database(':memory:'), embedder: makeMockEmbedder() }),
+      maxBodyChars: -1, // invalid — must not disable the cap
+    });
+
+    const result = await graft.craft('huge enormous body', { topLimit: 1 });
+    expect(result.top[0].body.length).toBeLessThan(hugeBody.length);
+    expect(result.top[0].body).toContain('[truncated');
+  });
+
   test('clamps invalid or out-of-range limits to sane defaults', async () => {
     for (let i = 0; i < 5; i++) {
       writeSkill(tmpRoot, `skill-${i}`, `topic number ${i} words filler content`);

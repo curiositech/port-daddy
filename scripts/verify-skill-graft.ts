@@ -74,11 +74,31 @@ async function main(): Promise<void> {
 
   const topMatch = result.top.find((entry) => entry.id === 'rag-retrieval-pattern-design');
   if (topMatch) {
-    if (!topMatch.body.includes('Reciprocal Rank Fusion')) {
+    if (!topMatch.body.includes('rag-retrieval-pattern-design') && !topMatch.body.includes('RAG Retrieval Pattern Design')) {
       failures.push('top match body did not include expected SKILL.md content');
     } else {
-      console.log('[verify-skill-graft] full SKILL.md body attached to top match — OK');
+      console.log(`[verify-skill-graft] SKILL.md body attached to top match (${topMatch.body.length} chars) — OK`);
     }
+    // rag-retrieval-pattern-design/SKILL.md is well over the default 8000-char
+    // cap, so the default-config top[].body is EXPECTED to be truncated (that
+    // cap is the fix for a real Copilot review finding: an uncapped body could
+    // bloat a spawned ship's task). Verify the cap actually fired...
+    if (!topMatch.body.includes('[truncated')) {
+      failures.push('top match body was not truncated even though the real SKILL.md exceeds the default cap — the size cap may be broken');
+    } else {
+      console.log('[verify-skill-graft] default maxBodyChars cap correctly truncated the oversized real SKILL.md — OK');
+    }
+  }
+
+  // ...and separately verify the FULL, uncapped content is still reachable via
+  // getReference() (a distinct code path with no size cap), so "the cap
+  // truncates top[].body" and "full content is still retrievable on demand"
+  // are both proven, not just the first at the expense of the second.
+  const fullSkillMd = graft.getReference('rag-retrieval-pattern-design', 'SKILL.md');
+  if (!fullSkillMd.found || !fullSkillMd.content?.includes('Reciprocal Rank Fusion')) {
+    failures.push('getReference() on SKILL.md itself did not return the full, uncapped content');
+  } else {
+    console.log(`[verify-skill-graft] getReference() returns the FULL uncapped SKILL.md (${fullSkillMd.content.length} chars) — OK`);
   }
 
   const ref = graft.getReference('rag-retrieval-pattern-design', 'scripts/rag_retrieval_pattern_design_audit.mjs');

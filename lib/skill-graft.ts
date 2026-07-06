@@ -71,8 +71,10 @@ export interface SkillShortlistEntry {
   description: string;
   category: string;
   tags: string[];
-  /** Cosine similarity to the query, roughly 0..1 (MiniLM vectors are
-   *  L2-normalized so this is a dot product). Higher is more relevant. */
+  /** Cosine similarity to the query — mathematically in [-1, 1] (MiniLM
+   *  vectors are L2-normalized so this is a dot product); in practice
+   *  related short-text embeddings tend to land in a narrow positive band,
+   *  but don't assume it's bounded at 0. Higher is more relevant. */
   similarity: number;
 }
 
@@ -122,6 +124,17 @@ export interface SkillGraftOptions extends SkillGraftCraftOptions {
    *  at `~/.port-daddy/skill-index.sqlite`, keyed by skill id + content hash,
    *  so re-embedding only happens when a SKILL.md's indexed fields change). */
   index?: SkillIndex;
+  /**
+   * Hard cap, in characters, on each `top[].body` before it's inlined into a
+   * ship's task text. Default 8000 (~2k tokens). Some SKILL.md files in this
+   * repo run past 1200 lines (e.g. semantic-conflict-prediction); with the
+   * default `topLimit: 3` that's several such files with NO cap, which can
+   * bloat a spawned task enough to raise cost or trip transport/413 limits on
+   * `/spawn`. A body over the cap is truncated with a `[truncated N chars]`
+   * marker (same idiom `trimMessage()` uses elsewhere in this engine for
+   * trigger message content) rather than silently dropped.
+   */
+  maxBodyChars?: number;
   /** Called with a human-readable message when a SKILL.md is skipped
    *  (malformed frontmatter, missing name/description) or a reference read
    *  fails. Never throws on the caller's behalf. */
@@ -157,6 +170,9 @@ export interface SkillGraftIndex {
 const DEFAULT_SHORTLIST_LIMIT = 10;
 const DEFAULT_TOP_LIMIT = 3;
 const MAX_LIMIT = 50;
+const DEFAULT_MAX_BODY_CHARS = 8000;
+const MIN_MAX_BODY_CHARS = 500;
+const MAX_MAX_BODY_CHARS = 50000;
 
 /** Just this repo's `skills/` directory — "start with this repo's skills/
  *  dir" per the task brief. Callers who want the fuller windags/workgroup-ai/
@@ -185,6 +201,7 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
   const index: SkillIndex = options.index ?? createSkillIndex({ embedder });
   const defaultShortlistLimit = clampLimit(options.shortlistLimit, DEFAULT_SHORTLIST_LIMIT);
   const defaultTopLimit = clampLimit(options.topLimit, DEFAULT_TOP_LIMIT);
+  const maxBodyChars = clampBodyChars(options.maxBodyChars, DEFAULT_MAX_BODY_CHARS);
 
   let catalog: SkillEntry[] = [];
   let catalogById = new Map<string, SkillEntry>();
@@ -226,7 +243,7 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
 
       const top: SkillGraftEntry[] = [];
       for (const result of results.slice(0, topLimit)) {
-        const body = readSkillBody(result.skill.sourcePath, options.onWarning);
+        const body = readSkillBody(result.skill.sourcePath, maxBodyChars, options.onWarning);
         if (body === null) continue;
         top.push({
           id: result.skill.id,
@@ -325,9 +342,25 @@ function clampLimit(value: number | undefined, fallback: number): number {
   return Math.min(Math.floor(value), MAX_LIMIT);
 }
 
-function readSkillBody(sourcePath: string, onWarning?: (message: string) => void): string | null {
+function clampBodyChars(value: number | undefined, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return fallback;
+  return Math.min(Math.max(Math.floor(value), MIN_MAX_BODY_CHARS), MAX_MAX_BODY_CHARS);
+}
+
+/**
+ * Read a skill's full SKILL.md body, hard-capped at `maxBodyChars`. Some
+ * SKILL.md files in this repo run past 1200 lines; with no cap, a handful of
+ * `top` entries could bloat a spawned ship's task enough to raise cost or
+ * trip transport/413 limits on `/spawn`. A truncated body gets the same
+ * `[truncated N chars]` marker idiom `lib/fleet-engine.ts`'s `trimMessage()`
+ * uses for trigger message content, so a human reading a spawned task
+ * recognizes it regardless of which subsystem produced it.
+ */
+function readSkillBody(sourcePath: string, maxBodyChars: number, onWarning?: (message: string) => void): string | null {
   try {
-    return readFileSync(sourcePath, 'utf-8');
+    const body = readFileSync(sourcePath, 'utf-8');
+    if (body.length <= maxBodyChars) return body;
+    return `${body.slice(0, maxBodyChars)}\n\n[truncated ${body.length - maxBodyChars} chars]`;
   } catch (err) {
     onWarning?.(`skill-graft: failed to read ${sourcePath}: ${(err as Error).message}`);
     return null;

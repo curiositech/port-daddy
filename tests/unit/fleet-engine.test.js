@@ -34,9 +34,12 @@ jest.unstable_mockModule('node:fs', () => ({
   // eventkit.ts) stats the helper source/binary at module-eval time.
   statSync: jest.fn(() => ({ mtimeMs: 0 })),
   // …and lib/skill-graft.ts transitively imports lib/shipwright/skill-index.ts,
-  // whose catalog walker calls readdirSync. No test here sets
-  // `skill_graft: true` on an agent, so the real function is never invoked —
-  // it only needs to exist so ESM module linking succeeds.
+  // whose catalog walker calls readdirSync. Some tests below DO set
+  // `skill_graft: true` on an agent, but every one of them injects a fake
+  // `options.skillGraft` (see "Skill Graft wiring" tests), so the real
+  // createSkillGraftIndex()/loadSkillCatalog() path — the thing that would
+  // actually call readdirSync — is never reached. This stub only needs to
+  // exist so ESM module linking succeeds for lib/skill-graft.ts's import.
   readdirSync: jest.fn(() => []),
 }));
 
