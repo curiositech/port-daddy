@@ -43,6 +43,6 @@
   "importance": 7,
   "confidence": 0.93,
   "forgettingPolicy": { "kind": "decay", "halfLifeHours": 720 },
-  "embeddingRef": "minilm-l6-v2/memep_01JZM6FIX0001",
+  "embeddingRef": "Xenova/all-MiniLM-L6-v2/memep_01JZM6FIX0001",
   "retentionPolicyId": "retain_default_365d"
 }

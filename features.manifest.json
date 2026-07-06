@@ -1400,6 +1400,7 @@
         "GET /sessions/:param/events",
         "GET /costs",
         "GET /receipts/:param",
+        "GET /blackboard",
         "GET /compliance/:param"
       ],
       "completions": [
