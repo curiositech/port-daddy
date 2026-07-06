@@ -2,7 +2,7 @@
 
 Status: design chapter, target-state. This chapter realizes the dedicated
 design work order deferred by
-`docs/strategy/2026-07-06-distribution-dogfood-and-go-to-market.md` §10 and
+`docs/strategy/2026-07-06-distribution-dogfood-and-go-to-market.md` §10 and <!-- cite-exempt: strategy doc lives on the strategy/distribution-and-dogfood branch (PR #707), not yet shipped to main -->
 §14 ("the Automations app needs its own design pass and likely its own binder
 chapter"). The trigger and sink plumbing it rides on shipped in PR #672
 (io-wiring); the app surface, the plan-writing agent, the automation record,
