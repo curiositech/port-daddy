@@ -1,12 +1,13 @@
 # Show HN — the accountability wedge
 
-Launch asset for wedge 1 of the go-to-market plan
-(`docs/strategy/2026-07-06-distribution-dogfood-and-go-to-market.md` §6, on the
-`strategy/distribution-and-dogfood` branch, not yet shipped to main). <!-- cite-exempt -->
-Channel playbook per `tech-launch-channels` (Tue–Thu, 6:00–8:00 AM ET, factual
-title, first comment posted immediately, answer every reply for two hours).
-Voice per `port-daddy-marketing-copy`; machine-accent pass per
-`make_copy_and_media_human`.
+Launch asset for wedge 1 of the go-to-market plan:
+`docs/strategy/2026-07-06-distribution-dogfood-and-go-to-market.md` §6 <!-- cite-exempt: lives on the strategy/distribution-and-dogfood branch, not yet shipped to main -->.
+Channel playbook per the operator-level `tech-launch-channels` skill, which
+lives in the operator's skill library rather than this repo — the concrete
+rules it contributed are inlined here so the doc stands alone: post Tue–Thu,
+6:00–8:00 AM ET, factual title, first comment posted immediately, answer every
+reply for two hours. Voice per `skills/port-daddy-marketing-copy/`;
+machine-accent pass per `skills/make_copy_and_media_human/` (both in-repo).
 
 Every claim below is checked against `README.md`, `lib/agent-harbor/`, and
 ADR-0095 as of this commit. If the product changes, change this file — do not
