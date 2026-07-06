@@ -4,18 +4,17 @@ name: semantic-conflict-prediction
 description: >
   AST-based semantic conflict prediction for multi-agent coding environments.
   Uses tree-sitter to parse code into ASTs, extract symbol-level claims, build
-  dependency graphs, and predict conflicts BEFORE they happen -- at work-assignment
-  time, not merge time. The key insight: git's textual merge is necessary but not
-  sufficient. Two changes can merge cleanly and break the program. This skill covers
-  tree-sitter fundamentals, symbol-level claims, dependency graph construction,
-  conflict prediction algorithms, integration with Port Daddy or similar
-  coordination daemons, an optional LLM-verification tier for ambiguous predictions,
-  and the multi-agent-swarm-execution (MASE) coordination-protocol failure modes
-  (context thrashing, cascading hallucinations) that sit above pure AST diffing.
-  NOT FOR: textual merge conflict resolution (use git skills), linting or
-  formatting (use static analysis tools), runtime verification of invariants (use
-  runtime-verification-for-agents), or general multi-agent orchestration (use
-  multi-agent-coordination).
+  dependency graphs, and predict conflicts BEFORE they happen -- at work-
+  assignment time, not merge time, because git's textual merge is necessary
+  but not sufficient (two changes can merge cleanly and break the program).
+  Covers tree-sitter fundamentals, symbol-level claims, dependency graphs,
+  conflict prediction algorithms, Port Daddy integration, an optional
+  LLM-verification tier for ambiguous predictions, and MASE coordination-layer
+  failure modes (context thrashing, cascading hallucinations) above pure AST
+  diffing. NOT FOR: textual merge conflict resolution (use git skills),
+  linting/formatting (use static analysis tools), runtime invariant
+  verification (use runtime-verification-for-agents), or general multi-agent
+  orchestration (use multi-agent-coordination).
 category: Formal Methods & Verification
 tags:
   - tree-sitter
