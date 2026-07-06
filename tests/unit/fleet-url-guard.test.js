@@ -70,6 +70,26 @@ describe('IPv4-mapped IPv6 — the form url.hostname actually yields (regression
   it('does NOT false-flag a legitimate public IPv6 (Cloudflare DNS)', () => {
     expect(() => assertSafeOutboundUrl('http://[2606:4700:4700::1111]/')).not.toThrow();
   });
+
+  // Generative encoding sweep (test-strategy: enumerated examples miss forms —
+  // that gap is exactly what shipped the original bypass). Rather than hand-pick
+  // hex spellings, construct each blocked v4 as an IPv4-mapped IPv6 URL, let
+  // Node's URL parser normalize the hostname (which yields the hex-hextet form),
+  // and assert the guard blocks it — and does NOT over-block public v4s.
+  const BLOCKED_V4 = ['169.254.169.254', '127.0.0.1', '10.0.0.1', '192.168.1.1', '172.16.0.1', '100.64.0.1', '0.0.0.0'];
+  const PUBLIC_V4 = ['8.8.8.8', '1.1.1.1', '93.184.216.34'];
+  for (const v4 of BLOCKED_V4) {
+    for (const form of [`http://[::ffff:${v4}]/`, `http://[::${v4}]/`]) {
+      it(`refuses blocked v4 ${v4} encoded as ${form}`, () => {
+        expect(() => assertSafeOutboundUrl(form)).toThrow(SsrfBlockedError);
+      });
+    }
+  }
+  for (const v4 of PUBLIC_V4) {
+    it(`allows public v4 ${v4} in IPv4-mapped form (no over-block)`, () => {
+      expect(() => assertSafeOutboundUrl(`http://[::ffff:${v4}]/`)).not.toThrow();
+    });
+  }
 });
 
 describe('assertSafeOutboundUrl — the guard webhook.ts calls', () => {
