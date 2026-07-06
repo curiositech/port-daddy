@@ -34,8 +34,9 @@
  *     (stale / lastLedgerSeq / headSeq); stale results are labeled, never
  *     hidden.
  *
- * Search mechanism policy (repo CLAUDE.md, non-negotiable): NO keyword-list /
- * substring matching. The lexical leg is BM25 (Okapi, k1=1.2 b=0.75) and the
+ * Search mechanism policy (repo AGENTS.md, "Never ship lexical-only search";
+ * non-negotiable): NO keyword-list / substring matching. The lexical leg is
+ * BM25 (Okapi, k1=1.2 b=0.75) and the
  * dense leg reuses the ONE shared local embedder
  * (Xenova/all-MiniLM-L6-v2 via lib/semantic-resolver.ts createLocalEmbedder —
  * the same model `pd embed` fronts; ADR-0061). No per-feature model, no
@@ -187,6 +188,10 @@ const SEARCH_INDEX_SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS idx_hsi_session ON harbor_search_index(session_id);
   CREATE INDEX IF NOT EXISTS idx_hsi_node ON harbor_search_index(agent_node_id);
   CREATE INDEX IF NOT EXISTS idx_hsi_seq ON harbor_search_index(ledger_seq);
+  CREATE INDEX IF NOT EXISTS idx_hsi_source_visibility ON harbor_search_index(source, visibility);
+  CREATE INDEX IF NOT EXISTS idx_hsi_kind ON harbor_search_index(kind);
+  CREATE INDEX IF NOT EXISTS idx_hsi_harbor ON harbor_search_index(harbor_id);
+  CREATE INDEX IF NOT EXISTS idx_hsi_occurred ON harbor_search_index(occurred_at);
 
   CREATE TABLE IF NOT EXISTS harbor_search_meta (
     id              INTEGER PRIMARY KEY CHECK (id = 1),

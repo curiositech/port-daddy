@@ -418,24 +418,37 @@ describe('agent-harbor transcript search (M6, ADR-0097 phase 2)', () => {
   });
 
   it('visibility ceiling filters classes above the caller', async () => {
+    // Operator-only event (must be EXCLUDED under an agent ceiling) and a
+    // positive-control agent-visibility event with the same vocabulary (must
+    // be RETURNED) — so this test cannot pass vacuously on an empty result.
     appendEvent(db, {
       streamType: 'transcript-event',
       payload: transcriptA('system_guidance', { text: 'operator only deploy guidance ingress' }, { visibility: 'operator' }),
     });
+    appendEvent(db, {
+      streamType: 'transcript-event',
+      payload: transcriptA('assistant_message', { text: 'agent visible deploy guidance ingress' }, { visibility: 'agent' }),
+    });
     const agentCeiling = await searchTranscripts(
       db,
       baseQuery({
-        queryText: 'operator only deploy guidance ingress',
+        queryText: 'deploy guidance ingress',
         issuedBy: { kind: 'agent', agentNodeId: NODE_B, sessionId: SESSION_B },
         visibilityCeiling: 'agent',
         budget: { maxResults: 50 },
       }),
     );
-    for (const hit of agentCeiling.hits) {
+    expect(agentCeiling.hits.length).toBeGreaterThan(0);
+    const hitVisibilities = agentCeiling.hits.map((hit) => {
       const row = db
         .prepare('SELECT payload_json FROM harbor_events WHERE event_id = ?')
         .get(hit.citations[0].transcriptEventId) as { payload_json: string };
-      const visibility = (JSON.parse(row.payload_json) as { visibility?: string }).visibility;
+      return (JSON.parse(row.payload_json) as { visibility?: string }).visibility;
+    });
+    // Positive control: the agent-visibility event IS returned…
+    expect(hitVisibilities).toContain('agent');
+    // …and nothing above the caller's ceiling leaks through.
+    for (const visibility of hitVisibilities) {
       expect(['agent', 'system']).toContain(visibility);
     }
   });
