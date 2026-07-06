@@ -1,7 +1,7 @@
 # 23 Onboarding And Cold Start: The Shipwright First-Run And The Do-This-Next Rail
 
 Status: target-state design chapter. This is the dedicated design pass that
-strategy doc `docs/strategy/2026-07-06-distribution-dogfood-and-go-to-market.md`
+strategy doc `docs/strategy/2026-07-06-distribution-dogfood-and-go-to-market.md` <!-- cite-exempt: proposed in PR #707; not yet shipped -->
 §11 took a position on and §14 deferred to "dedicated design work." Nothing in
 this chapter is shipped; its substrate mostly is (M1–M4, the F0 v0 contracts,
 and the M5 GuidanceEnvelope frozen by ADR-0096 on 2026-07-06).
