@@ -194,6 +194,13 @@ describe('agent-harbor read-only blackboard (M6)', () => {
       expect(cards[0].title).toContain(receipt.strength);
       expect(cards[0].citations[0].kind).toBe('transcript-event');
       expect(typeof cards[0].citations[0].transcriptEventId).toBe('string');
+      // The resolvable zoom target: GET /receipts/:id serves this event id
+      // (the frozen citation enum has no `receipt` kind, so the subject
+      // carries the typed ref instead of mislabeling the citation).
+      expect(cards[0].subjects).toContainEqual({
+        kind: 'receipt',
+        ref: cards[0].citations[0].transcriptEventId,
+      });
     });
   });
 
@@ -240,6 +247,54 @@ describe('agent-harbor read-only blackboard (M6)', () => {
       const card = getBlackboard(db).items.find((i) => i.itemId === 'bbi_ttl_test');
       expect(card).toBeDefined();
       expect(card.status).toBe('expired');
+    });
+
+    test('TTL comparison is numeric, not lexicographic — offset ISO variants classify correctly', () => {
+      // Expired, but written with a +02:00 offset: lexicographically this
+      // string sorts AFTER a "2026-…Z" now-string ("2020-01-01T02" > nothing
+      // useful) only by accident of digits — numerically it is long past.
+      appendEvent(db, {
+        streamType: 'transcript-event',
+        payload: transcript({
+          kind: 'blackboard_item',
+          payloadJson: {
+            ...fixture('blackboard-item'),
+            itemId: 'bbi_ttl_offset_past',
+            expiresAt: '2020-01-01T02:00:00+02:00',
+          },
+        }),
+      });
+      // Alive far in the future, also with an offset — and lexicographically
+      // SMALLER than the current "2026-…Z" now-string because '+' sorts
+      // before 'Z' never enters into a numeric compare.
+      appendEvent(db, {
+        streamType: 'transcript-event',
+        payload: transcript({
+          kind: 'blackboard_item',
+          payloadJson: {
+            ...fixture('blackboard-item'),
+            itemId: 'bbi_ttl_offset_future',
+            expiresAt: '2099-01-01T00:00:00+09:00',
+          },
+        }),
+      });
+      // Unparseable expiresAt: never expires (misclassifying a live warning
+      // as expired is the worse failure) — the card stays active.
+      appendEvent(db, {
+        streamType: 'transcript-event',
+        payload: transcript({
+          kind: 'blackboard_item',
+          payloadJson: {
+            ...fixture('blackboard-item'),
+            itemId: 'bbi_ttl_unparseable',
+            expiresAt: 'sometime next week',
+          },
+        }),
+      });
+      const items = getBlackboard(db).items;
+      expect(items.find((i) => i.itemId === 'bbi_ttl_offset_past').status).toBe('expired');
+      expect(items.find((i) => i.itemId === 'bbi_ttl_offset_future').status).toBe('active');
+      expect(items.find((i) => i.itemId === 'bbi_ttl_unparseable').status).toBe('active');
     });
 
     test('an invalid assertion is dropped AND counted — visible, not absorbed, not a crash', () => {

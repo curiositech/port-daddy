@@ -163,6 +163,7 @@ function readAssertedItems(
   nowIso: string,
   headSeq: number,
 ): { items: Array<Record<string, unknown>>; dropped: number } {
+  const nowMs = Date.parse(nowIso);
   const rows = db
     .prepare(
       `SELECT ledger_seq, event_id, session_id, agent_node_id, occurred_at, ingested_at, payload_json
@@ -215,10 +216,17 @@ function readAssertedItems(
 
     // Read-model TTL semantics (frozen schema: "the projection marks
     // status=expired when passed") — a status transition computed at read
-    // time, not a write.
+    // time, not a write. Compare numerically (Date.parse), not
+    // lexicographically: asserters may use any ISO-8601 variant (offsets,
+    // fractional-second widths) and string order lies across variants. An
+    // unparseable expiresAt never expires a card — misclassifying a live
+    // warning as expired is the worse failure.
     const expiresAt = s(item.expiresAt);
-    if (item.status === 'active' && expiresAt !== null && expiresAt <= nowIso) {
-      item.status = 'expired';
+    if (item.status === 'active' && expiresAt !== null) {
+      const expiresMs = Date.parse(expiresAt);
+      if (Number.isFinite(expiresMs) && expiresMs <= nowMs) {
+        item.status = 'expired';
+      }
     }
 
     const verdict = validateAgainstSchema('blackboard-item', item);
@@ -489,6 +497,12 @@ function receiptCards(
         `Receipt ${row.event_id} — strength ${strength}, verification ${verification}.` +
         (prRefs.length > 0 ? ` PRs: ${prRefs.join(', ')}.` : ''),
       subjects: [
+        // The resolvable zoom target: GET /receipts/:id serves this ledger
+        // fact directly (subjects.kind is an open string per the frozen
+        // schema). The citation below stays kind `transcript-event` because
+        // the frozen v0 citation enum is transcript-event | file | claim —
+        // its id is the harbor_events event_id, which /receipts/:id resolves.
+        { kind: 'receipt', ref: row.event_id },
         ...(row.session_id ? [{ kind: 'session', ref: row.session_id }] : []),
         ...prRefs.map((pr) => ({ kind: 'pr', ref: pr })),
       ],

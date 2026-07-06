@@ -1160,8 +1160,8 @@ impl Pane for HarborPane {
                     if status.as_u16() == 404 {
                         self.blackboard_error = Some(
                             "GET /blackboard → 404 — this daemon predates the M6 \
-                             read-only blackboard (ADR-0097 phase 4). Remediation: \
-                             upgrade the daemon (`pd doctor`)"
+                             read-only blackboard (ADR-0097 phase 4). Upgrade the \
+                             daemon to see the board."
                                 .into(),
                         );
                     } else if !status.is_success() {
