@@ -185,6 +185,12 @@ Work Receipt:
   Scout, FleetBar, and pd-console as the three operator surfaces: division of
   labor, the hot/durable bus with latency budgets, the enforced-MCP broker
   collapse to five tools, and proof gates IT-015..IT-018.
+- [24 Cross-Platform And The Windows Track](./24-crossplatform.md):
+  Windows as a named gate, not an omission: what is platform-neutral now
+  (daemon/CLI/SDK/Scout/GitHub-App/web) versus the port (native surfaces,
+  named-pipe IPC with DACLs, AppContainer/Job Object containment,
+  MSI + Authenticode), the W1/W2 gates sequenced against M3 and M10, and
+  proof gates IT-24A..IT-24D.
 
 ## Architecture in one diagram
 
