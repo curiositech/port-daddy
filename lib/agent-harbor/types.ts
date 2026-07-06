@@ -81,6 +81,35 @@ export const NEGATIVE_PROBE_KINDS = [
 ] as const;
 export type NegativeProbeKind = (typeof NEGATIVE_PROBE_KINDS)[number];
 
+/**
+ * Known guidance item kinds (guidance-envelope.schema.json). The schema keeps
+ * `kind` an OPEN string for tolerant reading (ADR-0096): unknown kinds are
+ * preserved and rendered as "unrecognized guidance (verified source)" — never
+ * silently dropped, never acted on.
+ */
+export const KNOWN_GUIDANCE_KINDS = [
+  'inbox',
+  'conflict-warning',
+  'skill-graft',
+  'memory-packet',
+  'repo-update',
+] as const;
+export type KnownGuidanceKind = (typeof KNOWN_GUIDANCE_KINDS)[number];
+
+export const GUIDANCE_AUTHORITY_MODES = ['loopback', 'macaroon'] as const;
+export type GuidanceAuthorityMode = (typeof GUIDANCE_AUTHORITY_MODES)[number];
+
+export const GUIDANCE_OPERATOR_ACTIONS = [
+  'fleetbar-gate-approval',
+  'pd-cli',
+  'console-click',
+  'daemon-policy',
+] as const;
+export type GuidanceOperatorAction = (typeof GUIDANCE_OPERATOR_ACTIONS)[number];
+
+export const GUIDANCE_SIG_ALGS = ['hmac-sha256', 'ed25519'] as const;
+export type GuidanceSigAlg = (typeof GUIDANCE_SIG_ALGS)[number];
+
 export const COST_PHASES = ['start', 'stream', 'abort', 'failure', 'finalization'] as const;
 export type CostPhase = (typeof COST_PHASES)[number];
 
@@ -199,6 +228,49 @@ export interface CostAccrualEvent {
   budgetAction?: 'none' | 'warning' | 'pause' | 'kill' | null;
   idempotencyKey?: string;
   occurredAt: string;
+  [key: string]: unknown;
+}
+
+export interface GuidanceItem {
+  /** Open string for tolerant reading; see KNOWN_GUIDANCE_KINDS. */
+  kind: string;
+  ref: string;
+  priority?: string;
+  severity?: string;
+  skills?: string[];
+  [key: string]: unknown;
+}
+
+export interface GuidanceAuthority {
+  mode: GuidanceAuthorityMode;
+  /** The attenuated macaroon id, when mode=macaroon (ADR-0053 lineage). */
+  authorityRef?: string | null;
+  operatorAction?: GuidanceOperatorAction | null;
+  [key: string]: unknown;
+}
+
+export interface GuidanceSig {
+  alg: GuidanceSigAlg;
+  /** The launch-provisioned session key id (loopback, C2 nonce challenge). */
+  keyId: string;
+  /** base64 signature over canonical(sessionId, agentNodeId, turnSequence, envelopeContentHash, notAfter, nonce). */
+  value: string;
+  [key: string]: unknown;
+}
+
+/** The signed turn-start guidance channel (guidance-envelope.schema.json, ADR-0096). */
+export interface GuidanceEnvelope {
+  schema: 'pd.agent-harbor.guidance-envelope.v0';
+  envelopeId: string;
+  agentNodeId: string;
+  sessionId: string;
+  turnSequence: number;
+  issuedAt: string;
+  notAfter: string;
+  nonce: string;
+  items: GuidanceItem[];
+  authority: GuidanceAuthority;
+  sig: GuidanceSig;
   [key: string]: unknown;
 }
 
