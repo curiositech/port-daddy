@@ -24,13 +24,32 @@
  * Run: npx tsx scripts/verify-skill-graft.ts
  */
 
-import { createSkillIndex } from '../lib/shipwright/skill-index.js';
+import { createTool2VecStore } from '../lib/skill-graft-tool2vec.js';
 import { createLocalEmbedder, defaultTransformersCacheDir } from '../lib/semantic-resolver.js';
 import {
   createSkillGraftIndex,
   defaultSkillGraftRoots,
   renderSkillGraftContext,
 } from '../lib/skill-graft.js';
+
+/**
+ * Local, deterministic stand-in for the real Haiku-backed synthetic-query
+ * generator (`createLLMClientSyntheticQueryGenerator` in
+ * `lib/skill-graft-tool2vec.ts`). This script's whole point is proving the
+ * REAL embedder + REAL skills/ directory + REAL SQLite cache work end to
+ * end without fighting Jest's sandbox — it deliberately does NOT require an
+ * Anthropic/Cloudflare/Ollama API key to run, so any contributor can run it
+ * with zero extra setup. The vocabulary-mismatch fix ITSELF (does a
+ * differently-worded task match a differently-worded skill) is proven
+ * precisely, with controlled inputs, by the Jest adversarial test in
+ * tests/unit/skill-graft.test.js — this script only needs to prove the real
+ * MiniLM pipeline produces real 384-dim centroids and real cosine scores
+ * without crashing.
+ */
+function localSyntheticQueryGenerator(skill: { name: string; description: string; tags: string[] }, count: number): Promise<string[]> {
+  const base = `${skill.name} ${skill.description} ${skill.tags.join(' ')}`.trim();
+  return Promise.resolve(Array.from({ length: count }, (_, i) => `${base} — example task ${i}`));
+}
 
 async function main(): Promise<void> {
   const failures: string[] = [];
@@ -43,7 +62,12 @@ async function main(): Promise<void> {
   const graft = createSkillGraftIndex({
     roots: defaultSkillGraftRoots(process.cwd()),
     embedder,
-    index: createSkillIndex({ embedder, dbDir: process.env.PD_SKILL_GRAFT_VERIFY_DB_DIR }),
+    generateSyntheticQueries: localSyntheticQueryGenerator,
+    centroidStore: createTool2VecStore({
+      dbDir: process.env.PD_SKILL_GRAFT_VERIFY_DB_DIR,
+      embedderModelId: embedder.modelId,
+      generatorId: 'verify-script-local-generator',
+    }),
   });
 
   const refreshStats = await graft.refresh();
@@ -62,7 +86,11 @@ async function main(): Promise<void> {
   const rank = ids.indexOf('rag-retrieval-pattern-design');
 
   console.log(`[verify-skill-graft] query: "${query}"`);
+  console.log(`[verify-skill-graft] semanticTier: ${result.semanticTier} (BM25 + Tool2Vec fused via RRF)`);
   console.log(`[verify-skill-graft] shortlist: ${ids.join(', ')}`);
+  if (result.semanticTier !== 'hybrid') {
+    failures.push(`expected semanticTier 'hybrid' (a generator was configured) but got '${result.semanticTier}'`);
+  }
 
   if (rank === -1) {
     failures.push('rag-retrieval-pattern-design did not appear in the shortlist at all');

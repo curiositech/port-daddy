@@ -29,32 +29,70 @@
  * - Embeddings: `createLocalEmbedder` from `./semantic-resolver.js` — the
  *   ONE shared local MiniLM encoder. This module never loads a second
  *   embedding pipeline.
- * - Skill scanning + vector cache: `loadSkillCatalog` / `createSkillIndex`
- *   from `./shipwright/skill-index.ts` — the existing defensive SKILL.md
- *   frontmatter parser and SQLite-backed cosine index Shipwright already
- *   uses for `pd shipwright propose`. Skill Graft injects the shared local
- *   embedder into it instead of letting it lazily build its own (equivalent
- *   but separate) loader, and layers the windags-style shortlist/full-body
- *   split and the reference-file fetch on top — neither of which
- *   `createSkillIndex` does today (it only stores `description`, by
- *   design, to keep embeddings cheap).
+ * - Skill scanning: `loadSkillCatalog` from `./shipwright/skill-index.ts` —
+ *   the existing defensive SKILL.md frontmatter parser Shipwright already
+ *   uses for `pd shipwright propose`. Skill Graft does NOT delegate ranking
+ *   to that module's own `createSkillIndex()` search, though — see below.
  * - Path safety: `containPath` from `./fleet/path-guard.ts` guards
  *   `getReference()` against path traversal / symlink escape out of a
  *   skill's own directory, the same primitive `lib/fleet/outputs/file.ts`
  *   and the file trigger use.
+ *
+ * Ranking — BM25 + Tool2Vec, fused via RRF (why NOT cosine-vs-description):
+ * An earlier version of this module ranked skills by cosine similarity
+ * between the task's embedding and an embedding of the SKILL'S OWN
+ * description text. That's a vocabulary-mismatch trap: a task phrased in
+ * user/action language ("fix a memory leak in the daemon") often has low
+ * cosine similarity to a skill's own description phrased differently
+ * ("detects unbounded heap growth via snapshot diffing") even when the
+ * skill is exactly right — comparing a shovel to a bonsai tree. Both sides
+ * need to live in the same semantic space for cosine to mean anything.
+ *
+ * Fixed the way windags' Tool2Vec cascade fixes it (see
+ * https://windags.ai/blog/the-skill-matching-cascade): `./skill-graft-tool2vec.js`
+ * generates ~15 synthetic user-phrased task descriptions per skill via a
+ * cheap LLM call, embeds them with the shared local embedder, and averages
+ * them into a centroid — comparing the task against "what would you use
+ * this for," not "what is this." Centroids are cached content-hash-keyed
+ * (skill id + SKILL.md hash) so the LLM call happens once per skill, not
+ * per query. `./skill-graft-bm25.js` adds a second, independent lexical
+ * signal (BM25 + Porter stemming) so genuine keyword overlap isn't lost
+ * when it happens to disagree with the semantic tier. `reciprocalRankFusion()`
+ * below (k=60) combines the two ranked lists into one. When no synthetic-
+ * query generator is configured (no LLM backend available), ranking
+ * degrades honestly to BM25-only (`SkillGraftResult.semanticTier:
+ * 'lexical-only'`) rather than silently reintroducing the cosine-vs-
+ * description bug as a "fallback."
+ *
+ * Scoped deliberately: windags' full cascade also has cross-encoder
+ * reranking, local attribution k-NN, and cross-installation global priors.
+ * None of those are built here — they need a second (reranker) model, an
+ * outcomes-tracking DB, and a multi-installation telemetry population
+ * respectively, none of which exist yet for this native single-repo
+ * version. BM25 + Tool2Vec + RRF is the real fix for the reported bug
+ * without building infrastructure nothing here asked for yet.
  */
 
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { createLocalEmbedder, defaultTransformersCacheDir } from './semantic-resolver.js';
+import { cosineSimilarity, createLocalEmbedder, defaultTransformersCacheDir } from './semantic-resolver.js';
 import {
-  createSkillIndex,
   loadSkillCatalog,
   type SkillEmbedder,
   type SkillEntry,
-  type SkillIndex,
 } from './shipwright/skill-index.js';
 import { containPath, PathEscapeError } from './fleet/path-guard.js';
+import type { LLMClient } from './llm-call.js';
+import { bm25Rank } from './skill-graft-bm25.js';
+import {
+  createLLMClientSyntheticQueryGenerator,
+  createTool2VecStore,
+  getOrBuildCentroid,
+  tool2VecRank,
+  type SyntheticQueryGenerator,
+  type Tool2VecRankedEntry,
+  type Tool2VecStore,
+} from './skill-graft-tool2vec.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -94,6 +132,16 @@ export interface SkillGraftResult {
   shortlist: SkillShortlistEntry[];
   /** Expensive: full SKILL.md body for up to `topLimit` skills (<= shortlist.length). */
   top: SkillGraftEntry[];
+  /**
+   * Which signals actually contributed to this ranking.
+   * - `'hybrid'`: BM25 lexical + Tool2Vec synthetic-query-centroid semantic
+   *   scores, fused via reciprocal rank fusion (the intended default path).
+   * - `'lexical-only'`: no synthetic-query generator was configured (no
+   *   `llmClient`/`generateSyntheticQueries` and none could be resolved),
+   *   so ranking is BM25 alone. Still correct, just missing the semantic
+   *   tier's ability to match on meaning rather than shared vocabulary.
+   */
+  semanticTier: 'hybrid' | 'lexical-only';
 }
 
 export interface SkillReferenceResult {
@@ -119,11 +167,34 @@ export interface SkillGraftOptions extends SkillGraftCraftOptions {
   projectRoot?: string;
   /** Inject a fake embedder for deterministic tests. Defaults to `createLocalEmbedder()`. */
   embedder?: SkillEmbedder;
-  /** Inject a fake/shared index for tests or to share a cache. Defaults to
-   *  `createSkillIndex({ embedder })` (the same on-disk cache Shipwright uses
-   *  at `~/.port-daddy/skill-index.sqlite`, keyed by skill id + content hash,
-   *  so re-embedding only happens when a SKILL.md's indexed fields change). */
-  index?: SkillIndex;
+  /**
+   * Synthetic-query generator for the Tool2Vec semantic tier (see
+   * `./skill-graft-tool2vec.js`) — the thing that fixes the vocabulary-
+   * mismatch bug. Tests inject a deterministic function directly. When
+   * omitted, the default generator is built from `llmClient` (below); when
+   * NEITHER is provided, the semantic tier is skipped and `craft()` falls
+   * back to BM25-only ranking (never throws — see `SkillGraftResult.semanticTier`).
+   */
+  generateSyntheticQueries?: SyntheticQueryGenerator;
+  /**
+   * Request-shape LLM client (`lib/llm-call.ts createLLMClient`) used to
+   * build the default synthetic-query generator when
+   * `generateSyntheticQueries` is not injected directly. Same
+   * backend-agnostic convention `lib/shipwright/survey.ts` and
+   * `lib/coordination-judge.ts` use: caller resolves whichever backend is
+   * configured (see `lib/llm-backend-resolver.ts`) and passes a ready client.
+   */
+  llmClient?: LLMClient;
+  /** Model id for the synthetic-query generation call. Caller picks a cheap
+   *  (Haiku-class) model — same convention as `SurveyOptions.model`. Required
+   *  when `llmClient` is set and `generateSyntheticQueries` is not. */
+  llmModel?: string;
+  /** Inject a fake/shared Tool2Vec centroid cache for tests (e.g.
+   *  `createTool2VecStore({ db: new Database(':memory:'), ... })`). Defaults
+   *  to the real on-disk cache at `~/.port-daddy/skill-graft-tool2vec.sqlite`,
+   *  keyed by skill id + SKILL.md content hash so a skill's centroid is only
+   *  regenerated when its frontmatter actually changes. */
+  centroidStore?: Tool2VecStore;
   /**
    * Hard cap, in characters, on each `top[].body` before it's inlined into a
    * ship's task text. Default 8000 (~2k tokens). Some SKILL.md files in this
@@ -143,11 +214,13 @@ export interface SkillGraftOptions extends SkillGraftCraftOptions {
 
 export interface SkillGraftIndex {
   /**
-   * Rank every scanned skill against `query` and return a cheap shortlist
-   * plus the full body for the top few. Scans + (re-)indexes on first call
-   * (and whenever `refresh()` is called explicitly); subsequent calls reuse
-   * the persisted vector cache and only re-embed skills whose frontmatter
-   * changed.
+   * Rank every scanned skill against `query` — BM25 lexical score fused
+   * with Tool2Vec synthetic-query-centroid semantic score via reciprocal
+   * rank fusion (k=60) — and return a cheap shortlist plus the full body
+   * for the top few. Scans + (re-)indexes on first call (and whenever
+   * `refresh()` is called explicitly); subsequent calls reuse the
+   * persisted centroid cache and only regenerate a skill's centroid when
+   * its SKILL.md content hash changes.
    */
   craft(query: string, options?: SkillGraftCraftOptions): Promise<SkillGraftResult>;
   /**
@@ -161,7 +234,15 @@ export interface SkillGraftIndex {
   getReference(skillId: string, filePath: string): SkillReferenceResult;
   /** Skill ids known as of the last scan (empty until `craft()`/`refresh()` runs). */
   listSkillIds(): string[];
-  /** Force a re-scan + re-index. Returns cache-hit accounting. */
+  /**
+   * Force a re-scan + rebuild every scanned skill's Tool2Vec centroid
+   * (cache misses only — a skill whose content hash is unchanged is a
+   * `reused` hit, not a `embedded` regeneration). Returns cache-hit
+   * accounting so operators can see the one-time cost happen and then
+   * disappear on subsequent runs. When no synthetic-query generator is
+   * configured, this only re-scans the catalog — `embedded`/`reused` are
+   * both 0 and `craft()` falls back to BM25-only ranking.
+   */
   refresh(): Promise<{ scannedCount: number; embedded: number; reused: number; removed: number }>;
 }
 
@@ -198,10 +279,24 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
   // shipwright skill index) already paid for.
   const embedder: SkillEmbedder = options.embedder
     ?? createLocalEmbedder({ cacheDir: defaultTransformersCacheDir() });
-  const index: SkillIndex = options.index ?? createSkillIndex({ embedder });
   const defaultShortlistLimit = clampLimit(options.shortlistLimit, DEFAULT_SHORTLIST_LIMIT);
   const defaultTopLimit = clampLimit(options.topLimit, DEFAULT_TOP_LIMIT);
   const maxBodyChars = clampBodyChars(options.maxBodyChars, DEFAULT_MAX_BODY_CHARS);
+
+  // Synthetic-query generator resolution: explicit injection (tests) wins,
+  // then a default built from an injected LLM client, then nothing — the
+  // semantic tier is opt-in-by-configuration, never a hard requirement
+  // (see `SkillGraftResult.semanticTier`).
+  const generateQueries: SyntheticQueryGenerator | null = options.generateSyntheticQueries
+    ?? (options.llmClient && options.llmModel
+      ? createLLMClientSyntheticQueryGenerator(options.llmClient, options.llmModel)
+      : null);
+  const centroidStore: Tool2VecStore | null = generateQueries
+    ? (options.centroidStore ?? createTool2VecStore({
+      embedderModelId: embedder.modelId,
+      generatorId: options.llmModel ?? 'injected-generator',
+    }))
+    : null;
 
   let catalog: SkillEntry[] = [];
   let catalogById = new Map<string, SkillEntry>();
@@ -213,11 +308,30 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
     return catalog;
   }
 
+  /**
+   * The expensive step: (re-)scan the catalog and, when a synthetic-query
+   * generator is configured, build every scanned skill's Tool2Vec centroid
+   * (cache misses only). `craft()` calls this once lazily on first use so
+   * ranking itself never pays an LLM cost — see `tool2VecRank()`.
+   */
   async function ensureIndexed(): Promise<{ embedded: number; reused: number; removed: number }> {
     const entries = scan();
-    const stats = await index.index(entries);
+    if (!generateQueries || !centroidStore) {
+      indexed = true;
+      return { embedded: 0, reused: 0, removed: 0 };
+    }
+    let embedded = 0;
+    let reused = 0;
+    for (const skill of entries) {
+      const before = centroidStore.get(skill.id, skill.contentHash);
+      if (before) { reused++; continue; }
+      const built = await getOrBuildCentroid(skill, centroidStore, embedder, generateQueries);
+      if (built) embedded++;
+      else options.onWarning?.(`skill-graft: Tool2Vec centroid generation failed for "${skill.id}" — will rank via BM25 only`);
+    }
+    const removed = centroidStore.prune(entries.map((entry) => entry.id));
     indexed = true;
-    return stats;
+    return { embedded, reused, removed };
   }
 
   return {
@@ -229,34 +343,49 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
       const topLimit = Math.min(clampLimit(callOptions.topLimit, defaultTopLimit), shortlistLimit);
 
       if (!trimmed) {
-        return { query, scannedCount: catalog.length, roots, shortlist: [], top: [] };
+        return { query, scannedCount: catalog.length, roots, shortlist: [], top: [], semanticTier: centroidStore ? 'hybrid' : 'lexical-only' };
       }
 
-      const results = await index.search(trimmed, { k: shortlistLimit });
-      const shortlist: SkillShortlistEntry[] = results.map((result) => ({
-        id: result.skill.id,
-        description: result.skill.description,
-        category: result.skill.category,
-        tags: result.skill.tags,
-        similarity: result.similarity,
-      }));
+      const lexicalRank = bm25Rank(trimmed, catalog);
+      let semanticRank: Tool2VecRankedEntry[] = [];
+      if (centroidStore) {
+        const [queryVector] = await embedder.embed([trimmed]);
+        semanticRank = queryVector ? tool2VecRank(queryVector, catalog, centroidStore) : [];
+      }
 
-      const top: SkillGraftEntry[] = [];
-      for (const result of results.slice(0, topLimit)) {
-        const body = readSkillBody(result.skill.sourcePath, maxBodyChars, options.onWarning);
-        if (body === null) continue;
-        top.push({
-          id: result.skill.id,
-          description: result.skill.description,
-          category: result.skill.category,
-          tags: result.skill.tags,
-          similarity: result.similarity,
-          body,
-          sourcePath: result.skill.sourcePath,
+      const fused = reciprocalRankFusion(lexicalRank, semanticRank).slice(0, shortlistLimit);
+      const semanticById = new Map(semanticRank.map((entry) => [entry.id, entry.similarity]));
+
+      const shortlist: SkillShortlistEntry[] = [];
+      for (const { id } of fused) {
+        const skill = catalogById.get(id);
+        if (!skill) continue; // stale id from a fused list computed before a rescan; defensive, not expected
+        shortlist.push({
+          id: skill.id,
+          description: skill.description,
+          category: skill.category,
+          tags: skill.tags,
+          similarity: semanticById.get(id) ?? 0,
         });
       }
 
-      return { query, scannedCount: catalog.length, roots, shortlist, top };
+      const top: SkillGraftEntry[] = [];
+      for (const entry of shortlist.slice(0, topLimit)) {
+        const skill = catalogById.get(entry.id);
+        if (!skill) continue;
+        const body = readSkillBody(skill.sourcePath, maxBodyChars, options.onWarning);
+        if (body === null) continue;
+        top.push({ ...entry, body, sourcePath: skill.sourcePath });
+      }
+
+      return {
+        query,
+        scannedCount: catalog.length,
+        roots,
+        shortlist,
+        top,
+        semanticTier: centroidStore ? 'hybrid' : 'lexical-only',
+      };
     },
 
     getReference(skillId, filePath) {
@@ -333,6 +462,46 @@ export function renderSkillGraftContext(result: SkillGraftResult): string {
   }
 
   return lines.join('\n');
+}
+
+// ─── Reciprocal rank fusion ─────────────────────────────────────────────────
+
+const RRF_K = 60;
+
+interface RankedId { id: string }
+
+/**
+ * Fuse two independently-ranked lists (BM25 lexical, Tool2Vec semantic)
+ * into one order via reciprocal rank fusion: `score = Σ 1/(k + rank)` for
+ * each list the id appears in (1-indexed rank), k=60 — the standard RRF
+ * constant. An id in both lists sums both contributions and outranks an id
+ * in only one; an id in only one list still contributes and ranks below
+ * anything both signals agree on. This is what actually closes the
+ * vocabulary-mismatch bug: BM25 catches literal overlap Tool2Vec might
+ * miss, Tool2Vec catches meaning-overlap BM25 can't see, and neither
+ * signal has to be "right" alone for a genuinely relevant skill to surface.
+ *
+ * @example
+ *   reciprocalRankFusion(
+ *     [{ id: 'a', score: 4.1 }, { id: 'b', score: 2.0 }],
+ *     [{ id: 'b', similarity: 0.9 }, { id: 'c', similarity: 0.5 }],
+ *   )
+ *   // → [{ id: 'b', ... }, { id: 'a', ... }, { id: 'c', ... }] by fused score
+ */
+export function reciprocalRankFusion(
+  lexical: readonly RankedId[],
+  semantic: readonly RankedId[],
+): Array<{ id: string; fusedScore: number }> {
+  const scores = new Map<string, number>();
+  lexical.forEach((entry, i) => {
+    scores.set(entry.id, (scores.get(entry.id) ?? 0) + 1 / (RRF_K + i + 1));
+  });
+  semantic.forEach((entry, i) => {
+    scores.set(entry.id, (scores.get(entry.id) ?? 0) + 1 / (RRF_K + i + 1));
+  });
+  return [...scores.entries()]
+    .map(([id, fusedScore]) => ({ id, fusedScore }))
+    .sort((a, b) => b.fusedScore - a.fusedScore || a.id.localeCompare(b.id));
 }
 
 // ─── Internals ──────────────────────────────────────────────────────────────

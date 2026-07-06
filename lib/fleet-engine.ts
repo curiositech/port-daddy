@@ -24,7 +24,9 @@ import type { SemanticResolver } from './semantic-resolver.js';
 import type { Tuple, TupleSpace } from './tuples.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { buildPortDaddyShellCommand, resolvePortDaddyInvocation } from './port-daddy-command.js';
-import { resolveRawBackendName } from './llm-backend-resolver.js';
+import { resolveRawBackendName, resolveLLMBackend } from './llm-backend-resolver.js';
+import { createLLMClient } from './llm-call.js';
+import { transportToAdapter } from './coordination-judge.js';
 import { IoDispatch, type DispatchOutputResult, type IoDispatchDeps } from './fleet/io-dispatch.js';
 import { evaluateTrustGate, type TrustPolicy, type TrustTier } from './fleet/trust.js';
 import { createSkillGraftIndex, renderSkillGraftContext, type SkillGraftIndex } from './skill-graft.js';
@@ -737,10 +739,11 @@ export interface FleetRunnerOptions {
   /**
    * Native, local skill-injection index (lib/skill-graft.ts) for ships that
    * set `skill_graft: true`. When omitted, the runner lazily constructs a
-   * real one (real local MiniLM embedder + this repo's skills/ directory)
-   * the first time an opted-in agent actually spawns — so a fleet with no
-   * opted-in ships never pays for it. Tests inject a narrow fake here to
-   * avoid the real embedder and filesystem scan.
+   * real one (real local MiniLM embedder + this repo's skills/ directory,
+   * BM25 + Tool2Vec hybrid ranking — see that module for why it's not just
+   * cosine-vs-description) the first time an opted-in agent actually
+   * spawns — so a fleet with no opted-in ships never pays for it. Tests
+   * inject a narrow fake here to avoid the real embedder and filesystem scan.
    */
   skillGraft?: Pick<SkillGraftIndex, 'craft'>;
 }
@@ -770,7 +773,27 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   // inject `options.skillGraft` directly to avoid the real embedder/fs scan.
   let skillGraftIndex: Pick<SkillGraftIndex, 'craft'> | undefined = options?.skillGraft;
   function getSkillGraftIndex(): Pick<SkillGraftIndex, 'craft'> {
-    if (!skillGraftIndex) skillGraftIndex = createSkillGraftIndex({ projectRoot: projectDir });
+    if (!skillGraftIndex) {
+      // Resolve a real request-shape LLM backend for Tool2Vec's
+      // synthetic-query generation, same convention lib/coordination-judge.ts
+      // uses (lib/llm-backend-resolver.ts + createLLMClient). Actor
+      // 'skill-graft' → PD_SKILL_GRAFT_BACKEND env override. `claude`/`codex`
+      // don't have a request-shape transport built (see that resolver's own
+      // header comment) — same pre-existing limitation the judge has today,
+      // not something new this introduces. When no backend resolves,
+      // `createSkillGraftIndex` gets no llmClient and craft() gracefully
+      // degrades to BM25-only ranking (SkillGraftResult.semanticTier:
+      // 'lexical-only') rather than reintroducing the vocabulary-mismatch bug.
+      const resolved = resolveLLMBackend({ actor: 'skill-graft' });
+      const llmClient = resolved
+        ? createLLMClient({ adapter: transportToAdapter(resolved.transport), model: resolved.model, timeoutMs: 15_000 })
+        : undefined;
+      skillGraftIndex = createSkillGraftIndex({
+        projectRoot: projectDir,
+        llmClient,
+        llmModel: resolved?.model,
+      });
+    }
     return skillGraftIndex;
   }
 
