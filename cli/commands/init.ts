@@ -156,6 +156,42 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
     ui.info('Skipping MCP (--no-mcp)');
   }
 
+  // ─── 5b. Agent-CLI interactive hooks (silent, per-project) ──────────────────
+  // Wire the Giant Squid Harness tentacles into THIS project's interactive
+  // surfaces (claude/gemini project config; codex/agy gated user config). A
+  // runtime gate keeps every hook inert unless the daemon is up and you are
+  // inside this pd project — never machine-wide-always-on.
+  // Gated by --no-hooks only: --no-mcp is about MCP server registration and
+  // must not silently drop coordination hooks or the identity surfaces.
+
+  if (!options['no-hooks']) {
+    try {
+      const { silentHooksInstall } = await import('./hooks-install.js');
+      const hooks = silentHooksInstall(undefined, { cwd });
+      if (hooks.tentaclesMissing) {
+        warnings.push('Agent-CLI hooks skipped — squid tentacles (bin/pd-hook-*) not on this build');
+      } else if (hooks.configured > 0) {
+        results.push(`Interactive hooks wired for this project (${hooks.configured} agent CLI${hooks.configured > 1 ? 's' : ''})`);
+        ui.success(`Coordination hooks wired for this project — ${hooks.detected.join(', ')} (gated: only active when the daemon runs)`);
+      } else if (hooks.detected.length === 0) {
+        ui.info('No agent CLIs detected — run pd hooks install after installing one');
+      }
+
+      // Visual identity: the ◆ PD statusline badge + /squid toggle command, so a
+      // harnessed Claude Code session in this project is identifiable at a glance.
+      const { stageStatusline, installStatusline, installSlashCommand } = await import('../../lib/squid/identity.js');
+      if (stageStatusline()) {
+        const sl = installStatusline(cwd);
+        if (sl.changed) results.push('Port Daddy statusline wired (◆ PD badge in Claude Code)');
+        const slash = installSlashCommand(cwd);
+        if (slash.changed) results.push('/squid slash command installed (.claude/commands/squid.md)');
+      }
+    } catch (err) {
+      warnings.push(`Agent-CLI hooks failed: ${(err as Error).message}`);
+      ui.warn('Agent-CLI hooks failed — run pd hooks install manually');
+    }
+  }
+
   // ─── 6. Project-local skill symlinks ───────────────────────────────────────
   // Drop the canonical Port Daddy skill into <project>/.claude/skills/,
   // <project>/.cursor/rules/, etc. so every agent in this project sees the

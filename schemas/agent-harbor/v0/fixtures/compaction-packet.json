@@ -1,0 +1,92 @@
+{
+  "schema": "pd.agent-harbor.compaction-packet.v0",
+  "packetId": "cpk_01JZM6FIX0001",
+  "agentNodeId": "agent_node_01JZFIX0001",
+  "sessionId": "session_01JZFIX0001",
+  "runId": "agent_run_01JZFIX0001",
+  "createdAt": "2026-07-06T14:10:00.000Z",
+  "createdBy": { "kind": "longshoreman", "agentNodeId": "agent_node_longshoreman_01" },
+  "trigger": { "kind": "context-threshold", "pressure": 0.76, "contextEnvelopeRef": "ctx_01JZFIX0001" },
+  "identity": {
+    "role": "implementation voyager",
+    "task": "Deploy the pd-email-ingress worker and wire the webhook receiver health board",
+    "successCriteria": ["worker deployed via OAuth wrangler", "health board shows green webhook receiver"],
+    "operatorInstructions": ["deploy via OAuth wrangler, not the repo token"]
+  },
+  "obligations": [
+    {
+      "obligationId": "obl_01",
+      "text": "Add the Email Routing rule after the worker deploy",
+      "status": "open",
+      "citations": [{ "kind": "transcript-event", "transcriptEventId": "evt_01JZFIX0031" }]
+    },
+    {
+      "obligationId": "obl_02",
+      "text": "Verify the tunnel URL is reachable from the health board",
+      "status": "blocked",
+      "citations": [{ "kind": "transcript-event", "transcriptEventId": "evt_01JZFIX0035" }]
+    }
+  ],
+  "factualClaims": [
+    {
+      "claimId": "fc_01",
+      "text": "The worker was deployed with `wrangler deploy` using the operator's OAuth login; the repo API token 403s on this account.",
+      "confidence": 0.95,
+      "citations": [
+        { "kind": "transcript-event", "transcriptEventId": "evt_01JZFIX0038", "span": { "start": 0, "end": 240 } },
+        { "kind": "file", "fileRef": "workers/pd-email-ingress/wrangler.toml" }
+      ]
+    },
+    {
+      "claimId": "fc_02",
+      "text": "routes/webhooks.ts is under an active claim by another session; edits there must go through the claim holder.",
+      "confidence": 0.9,
+      "citations": [{ "kind": "claim", "claimRef": "claim_routes_webhooks_ts" }]
+    }
+  ],
+  "omittedKnownRisks": [
+    { "text": "The retry backoff for webhook redelivery was not tested under load", "reason": "no load harness in this environment" }
+  ],
+  "workspace": {
+    "worktree": ".claude/worktrees/io-wiring-2",
+    "files": ["workers/pd-email-ingress/src/index.ts", "src/routes/health-board.ts"],
+    "claims": ["claim_health_board_route"],
+    "diffSummary": "+214 -32 across 4 files; worker entrypoint plus health-board projection route"
+  },
+  "commandsRun": [
+    { "command": "npx wrangler deploy", "exitCode": 0, "resultSummary": "deployed pd-email-ingress (version 4c1f)", "transcriptEventId": "evt_01JZFIX0038" },
+    { "command": "npx jest tests/unit/health-board.test.js", "exitCode": 0, "resultSummary": "12 passed", "transcriptEventId": "evt_01JZFIX0042" }
+  ],
+  "reviewState": { "prRef": "curiositech/port-daddy#672", "ciState": "green", "unresolvedThreads": 0 },
+  "blockers": ["Email Routing rule requires operator dashboard access"],
+  "decisions": [
+    {
+      "text": "Deploy through OAuth wrangler instead of repairing the repo token",
+      "rationale": "operator instruction plus the 403 evidence",
+      "citations": [{ "kind": "transcript-event", "transcriptEventId": "evt_01JZFIX0036" }]
+    }
+  ],
+  "transcriptExcerpts": [
+    {
+      "citation": { "kind": "transcript-event", "transcriptEventId": "evt_01JZFIX0038", "span": { "start": 0, "end": 120 } },
+      "excerpt": "Uploaded pd-email-ingress (1.2 sec) — deployed to https://pd-email-ingress.example.workers.dev"
+    }
+  ],
+  "nextAction": {
+    "recommendation": "Ask the operator to add the Email Routing rule, then re-run the health-board smoke check",
+    "safetyConstraints": ["do not rotate the worker secret", "no force-push"],
+    "budgetRemaining": 4.2
+  },
+  "sourceTranscript": {
+    "headEventId": "evt_01JZFIX0042",
+    "headHash": "sha256:9f2ab6d41c0e77aa510f3b8f2f6f4e6b0a1e2d3c4b5a69788796a5b4c3d2e1f0",
+    "throughSequence": 42
+  },
+  "validator": {
+    "passed": true,
+    "validatedBy": "daemon:compaction-validator",
+    "uncitedClaimCount": 0,
+    "missingObligationWarnings": []
+  },
+  "transcriptEventId": "evt_01JZFIX0043"
+}

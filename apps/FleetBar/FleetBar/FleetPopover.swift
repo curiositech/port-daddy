@@ -820,7 +820,13 @@ struct FleetPopover: View {
                 versionLine: "app \(app)  →  daemon \(daemon)",
                 primaryLabel: "Download FleetBar \(daemon)",
                 primaryAction: { NSWorkspace.shared.open(FleetVersion.downloadPageURL) },
-                footnote: "Unsigned build — the download page lists the checksum to verify."
+                // A Developer-ID-signed build means the release pipeline signs +
+                // notarizes every artifact, so the download needs no manual
+                // checksum ritual — Gatekeeper verifies it. Only unsigned/ad-hoc
+                // builds keep the caveat.
+                footnote: FleetVersion.isSignedBuild
+                    ? "Signed & notarized — Gatekeeper verifies the download automatically."
+                    : "Unsigned build — the download page lists the checksum to verify."
             )
 
         case let .daemonBehindApp(app, daemon):

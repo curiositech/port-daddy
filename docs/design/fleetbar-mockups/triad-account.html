@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Port Daddy — Account (converged mock)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600;700&family=Recursive:CASL,wght@1,600..800&display=swap">
+<link rel="stylesheet" href="ch20-tokens.css">
+<style>
+/* ============================================================
+   triad-account — /account reskinned onto binder ch20 story linework.
+   Content doctrine preserved from PR #671 02-accounts spec:
+   the account is a keyring (violet slab), a receipt drawer, and a
+   consent ledger — not a dashboard. Devices carry plain-language
+   capability roles; costs wear gold; problems state their fix.
+   ============================================================ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--surface-base); color: var(--text-primary);
+  font-size: 0.9375rem; line-height: 1.6; padding-bottom: 3rem;
+}
+a { color: var(--cobalt); text-decoration: underline; text-underline-offset: 3px; }
+a:hover { color: var(--teal); }
+:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+
+/* ---------- spec pagehead ---------- */
+.pagehead { max-width: 1180px; margin: 2.2rem auto 0.4rem; padding: 0 2rem; }
+.pagehead h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
+.pagehead > p { color: var(--text-secondary); max-width: 70ch; margin-top: 0.35rem; }
+.pagehead .refs { margin-top: 0.4rem; color: var(--text-muted); }
+
+/* ---------- shell ---------- */
+.shell {
+  display: grid; grid-template-columns: 230px 1fr;
+  max-width: 1180px; margin: 1.6rem auto 0;
+  border-top: 1px solid var(--hair-strong);
+}
+.caption { font-size: 0.875rem; color: var(--text-muted); }
+
+/* ---------- nav rail ---------- */
+.rail { border-right: 1px solid var(--hair-strong); display: flex; flex-direction: column; }
+.rail-brand { padding: 1.3rem 1.25rem 1.1rem; border-bottom: 1px solid var(--hair); }
+.rail-brand .word { font-weight: 700; font-size: 1.125rem; letter-spacing: 0.02em; }
+.rail-brand .word span { color: var(--cobalt); }
+.rail nav { padding: 1rem 0 1.25rem; }
+.rail nav .eyebrow { padding: 0 1.25rem 0.5rem; display: block; }
+.rail nav a {
+  display: block; padding: 0.5rem 1.25rem; color: var(--text-primary);
+  text-decoration: none; font-weight: 500; border-left: 3px solid transparent;
+}
+.rail nav a:hover { background: var(--surface-card); }
+.rail nav a[aria-current="page"] {
+  border-left-color: var(--cobalt); background: var(--surface-card);
+  font-weight: 600; color: var(--cobalt);
+}
+.rail .art-slot { margin: 0.5rem 1rem 1rem; min-height: 120px; }
+.rail-foot { border-top: 1px solid var(--hair); padding: 1rem 1.25rem; font-size: 0.875rem; margin-top: auto; }
+.rail-foot .who { display: block; margin-bottom: 0.35rem; color: var(--text-secondary); }
+.rail-foot button { color: var(--cobalt); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; padding: 0; }
+
+/* ---------- content ---------- */
+.content { padding: 2.2rem 2.6rem 3.5rem; min-width: 0; }
+.page-head { margin-bottom: 2.2rem; }
+.page-head h2 { font-size: 1.9rem; font-weight: 700; letter-spacing: -0.02em; }
+.page-head .truth { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; color: var(--text-muted); }
+.page-head .truth .dot8 { background: var(--health); }
+.page-head .truth b { color: var(--health); font-weight: 600; }
+section { margin-bottom: 2.8rem; }
+.sec-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+  border-bottom: 1px solid var(--hair-strong); padding-bottom: 0.45rem; margin-bottom: 1.1rem;
+}
+.sec-head h3 { font-size: 1.1875rem; font-weight: 700; }
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-block; padding: 0.45rem 1rem; border: 2px solid var(--border-strong);
+  background: var(--surface-card); color: var(--text-primary);
+  font-weight: 600; font-size: 0.9375rem; white-space: nowrap;
+}
+.btn:hover { background: var(--surface-sunken); }
+.btn-primary { background: var(--cobalt-slab); color: var(--flag-white); border-color: var(--cobalt-slab); }
+.btn-primary:hover { background: var(--cobalt-slab); opacity: 0.92; }
+.btn-danger { background: transparent; color: var(--error); border-color: var(--error); }
+.btn-danger:hover { background: transparent; opacity: 0.8; }
+.btn-sm { padding: 0.25rem 0.7rem; font-size: 0.875rem; }
+
+/* ---------- identity: the page's one slab (violet = the person) ---------- */
+.identity-plate { background: var(--violet-slab); padding: 1.6rem 1.8rem; }
+.identity-plate .name { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.01em; display: block; }
+.identity-chips { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.85rem; }
+.identity-plate .chip {
+  display: inline-block; border: 1px solid var(--flag-white); color: var(--flag-white);
+  padding: 0.3rem 0.7rem; font-size: 0.8125rem;
+}
+.identity-plate .caption { color: var(--flag-white); opacity: 0.85; margin-top: 0.9rem; font-size: 0.9375rem; }
+
+/* ---------- devices (live panel — brackets) ---------- */
+.device-table { background: var(--surface-card); border: 1px solid var(--hair); padding: 3px; }
+.device-row {
+  position: relative; display: grid; grid-template-columns: auto auto 1fr auto;
+  gap: 0.7rem; align-items: start; padding: 1rem 1.3rem 1rem 1.5rem;
+}
+.device-row + .device-row { border-top: 1px solid var(--hair); }
+.device-row .dot8 { margin-top: 0.45rem; }
+.device-row .mfl { margin-top: 0.42rem; }
+.dot-live { background: var(--health); }
+.dot-idle { background: var(--amber); }
+.dot-dead { background: var(--text-muted); }
+.device-row .d-name { font-weight: 700; }
+.device-row .d-role { color: var(--teal); font-weight: 600; }
+.device-row .d-cap { font-size: 0.9375rem; color: var(--text-secondary); }
+.device-row .d-meta { font-size: 0.8125rem; color: var(--text-muted); }
+.device-row .stale { color: var(--amber); font-weight: 600; }
+.device-row .fix { font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.15rem; }
+.device-row .fix b { font-weight: 650; }
+.device-row.revoked .d-name, .device-row.revoked .d-cap { color: var(--text-muted); }
+.device-row.revoked .d-role { color: var(--text-muted); font-weight: 500; }
+.device-actions { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; }
+.device-actions .mfl { transform: translateY(1px); }
+
+/* ---------- receipts ---------- */
+.receipt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; }
+.receipt { display: flex; flex-direction: column; }
+.receipt .r-url {
+  font-size: 0.8125rem; color: var(--cobalt);
+  padding: 0.55rem 1rem; border-bottom: 1px solid var(--hair);
+  background: var(--surface-sunken); overflow-x: auto; white-space: nowrap;
+}
+.receipt .r-body { padding: 0.9rem 1rem; flex: 1; }
+.receipt h4 { font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; line-height: 1.4; }
+.receipt .r-stats { font-size: 0.8125rem; color: var(--text-muted);
+  display: flex; flex-wrap: wrap; gap: 0.25rem 0.55rem; }
+.receipt .r-stats .cost { color: var(--gold); font-weight: 700; }
+.receipt .r-foot { padding: 0 1rem 1rem; }
+
+/* ---------- consent ledger: teaching empty state ---------- */
+.ledger-empty {
+  border-left: 3px solid var(--teal); background: var(--teal-wash);
+  padding: 1rem 1.3rem; max-width: 46rem;
+}
+.ledger-empty .t { font-weight: 700; color: var(--teal); display: block; margin-bottom: 0.25rem; }
+.ledger-empty p { font-size: 0.9375rem; color: var(--text-secondary); }
+.ledger-empty .cmd { color: var(--teal); font-weight: 600; }
+
+/* ---------- harbors ---------- */
+.harbor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.1rem; }
+.harbor { padding: 1.1rem 1.3rem; }
+.harbor h4 { font-size: 1.0625rem; font-weight: 700; margin-bottom: 0.35rem; }
+.tier {
+  display: inline-block; font-size: 0.75rem; font-weight: 650; text-transform: uppercase;
+  letter-spacing: 0.1em; padding: 0.12rem 0.5rem; border: 1px solid currentColor; margin-bottom: 0.55rem;
+}
+.tier-personal { color: var(--cobalt); }
+.tier-team { color: var(--indigo); }
+.tier-guest { color: var(--amber); }
+.harbor .h-meta { font-size: 0.9375rem; color: var(--text-secondary); }
+.harbor-federate {
+  border: 1.5px solid var(--indigo); background: transparent;
+  padding: 1.1rem 1.3rem; display: flex; flex-direction: column; justify-content: center; gap: 0.35rem;
+}
+.harbor-federate a { color: var(--indigo); font-weight: 700; font-size: 1.0625rem; text-decoration: none; }
+.harbor-federate a:hover { text-decoration: underline; }
+
+/* ---------- plan & caps (economy wears gold) ---------- */
+.plan-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; align-items: stretch; }
+.plan-plate { background: var(--gold-wash); border: 1px solid var(--hair); padding: 1.3rem 1.4rem; }
+.plan-plate .plan-name { font-size: 1.35rem; font-weight: 700; color: var(--gold-on-tint); }
+.plan-plate .plan-price { font-weight: 600; color: var(--gold-on-tint); }
+.usage { margin-top: 1.1rem; }
+.usage-row { margin-bottom: 0.9rem; }
+.usage-row .u-label { display: flex; justify-content: space-between; font-size: 0.9375rem; margin-bottom: 0.3rem; }
+.usage-row .u-num { color: var(--text-muted); }
+.bar { height: 0.7rem; border: 1px solid var(--hair-strong); background: var(--surface-base); }
+.bar > span { display: block; height: 100%; background: var(--gold); }
+.caps-plate { background: var(--surface-card); border: 1px solid var(--hair); padding: 1.3rem 1.4rem; }
+.caps-plate h4 { font-size: 1.0625rem; font-weight: 700; margin-bottom: 0.9rem; }
+.cap-row { display: grid; grid-template-columns: 1fr 7.5rem; gap: 0.75rem; align-items: center; margin-bottom: 0.7rem; }
+.cap-row label { font-weight: 600; font-size: 0.9375rem; }
+.cap-row input {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums slashed-zero; font-size: 0.9375rem;
+  padding: 0.35rem 0.6rem; border: 2px solid var(--border-strong);
+  background: var(--surface-base); color: var(--gold); font-weight: 600;
+  width: 100%; text-align: right;
+}
+.caps-foot { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; }
+.caps-foot .caption { color: var(--gold); font-weight: 600; }
+
+/* ---------- danger strip ---------- */
+.danger {
+  border: 1.5px solid var(--error); padding: 1.1rem 1.3rem;
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+}
+.danger .caption { flex-basis: 100%; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 980px) {
+  .shell { grid-template-columns: 1fr; }
+  .rail { border-right: none; border-bottom: 1px solid var(--hair-strong); }
+  .content { padding: 1.5rem 1.25rem 3rem; }
+  .receipt-grid, .harbor-grid, .plan-wrap { grid-template-columns: 1fr; }
+  .device-row { grid-template-columns: auto auto 1fr; }
+  .device-row .btn { grid-column: 3; justify-self: start; }
+}
+</style>
+</head>
+<body class="ch20 plex">
+
+<div class="pagehead">
+  <h1>Account — a <span class="casual">keyring</span>, a receipt drawer, a consent ledger</h1>
+  <p>Not a dashboard. The identity plate is the page's violet slab — the person, canonically.
+     Devices state their capability role in plain words and a problem row states its fix.
+     Every cost on the page wears gold, and caps are enforced by your daemon, never by this website.</p>
+  <p class="refs mono">binder ch20 + 03-parley-convergence.md punch-list item 1 · content: PR #671 02-accounts spec</p>
+</div>
+
+<div class="shell">
+
+  <!-- ============ NAV RAIL ============ -->
+  <aside class="rail">
+    <div class="rail-brand">
+      <div class="word">Port <span>Daddy</span></div>
+      <div class="caption mono">portdaddy.dev</div>
+    </div>
+    <nav aria-label="Account">
+      <span class="eyebrow">Account</span>
+      <a href="#" aria-current="page">Overview</a>
+      <a href="#devices">Devices</a>
+      <a href="#receipts">Receipts</a>
+      <a href="#consent">Consent ledger</a>
+      <a href="#harbors">Harbors</a>
+      <a href="#plan">Billing</a>
+      <a href="#">Security</a>
+    </nav>
+    <div class="art-slot"><span class="art-label">cut-paper: keyring on a hook — light/dark pair</span></div>
+    <div class="rail-foot">
+      <span class="who mono">erich@curiositech.dev</span>
+      <button type="button">Sign out</button>
+    </div>
+  </aside>
+
+  <!-- ============ CONTENT ============ -->
+  <main class="content">
+    <div class="page-head">
+      <span class="eyebrow">Account · Overview</span>
+      <h2>Your account</h2>
+      <p class="truth mono"><span class="dot8"></span> relay <b>CONNECTED</b> · outbound-only · last ack 3s</p>
+    </div>
+
+    <!-- 1. IDENTITY: the violet slab -->
+    <section aria-labelledby="identity-h">
+      <div class="sec-head"><h3 id="identity-h">Identity</h3></div>
+      <div class="identity-plate slab">
+        <span class="name">Erich Owens</span>
+        <div class="identity-chips">
+          <span class="chip mono">account key ed25519 &middot; in macOS keychain &middot; created 2026-03-02</span>
+          <span class="chip mono">GitHub OIDC &middot; verified</span>
+        </div>
+        <p class="caption">The website never holds this key. It lives in your keychain; the server only ever sees signatures.</p>
+      </div>
+    </section>
+
+    <!-- 2. DEVICES: the live panel -->
+    <section id="devices" aria-labelledby="devices-h">
+      <div class="sec-head">
+        <h3 id="devices-h">Devices</h3>
+        <span class="caption">3 paired · 1 revoked</span>
+      </div>
+      <div class="device-table bracketed"><span class="bk"></span>
+        <div class="device-row">
+          <span class="dot8 dot-live" aria-label="online"></span>
+          <span class="mfl fl-quebec" title="Quebec — vessel healthy"></span>
+          <div>
+            <div><span class="d-name">MacBook Pro M4</span> — <span class="d-role">primary control plane</span></div>
+            <div class="d-cap">Runs the daemon and the fleet. Full authority; everything else defers to it.</div>
+            <div class="d-meta mono">paired 2026-03-02 &middot; last seen 2m ago</div>
+          </div>
+          <button type="button" class="btn btn-danger btn-sm">Revoke</button>
+        </div>
+        <div class="device-row">
+          <span class="dot8 dot-live" aria-label="online"></span>
+          <span class="mfl fl-quebec" title="Quebec — vessel healthy"></span>
+          <div>
+            <div><span class="d-name">iPhone 15</span> — <span class="d-role">thin approval surface</span></div>
+            <div class="d-cap">Can approve gates and reply to agents. Cannot start work or read code.</div>
+            <div class="d-meta mono">paired 2026-04-11 &middot; last seen 1h ago</div>
+          </div>
+          <button type="button" class="btn btn-danger btn-sm">Revoke</button>
+        </div>
+        <div class="device-row">
+          <span class="dot8 dot-idle" aria-label="stale"></span>
+          <span class="mfl fl-kilo" title="Kilo — I wish to communicate"></span>
+          <div>
+            <div><span class="d-name">Home PC</span> — <span class="d-role">compute worker</span></div>
+            <div class="d-cap">GPU + Ollama. Accepts render and test requests only; refuses everything else.</div>
+            <div class="d-meta mono"><span class="stale">stale — showing cached truth</span> &middot; paired 2026-05-20 &middot; last seen 3d ago</div>
+            <div class="fix"><b>Fix:</b> bring it online and run <span class="mono">pd doctor</span> there — or revoke it and stop counting on it.</div>
+          </div>
+          <button type="button" class="btn btn-danger btn-sm">Revoke</button>
+        </div>
+        <div class="device-row revoked">
+          <span class="dot8 dot-dead" aria-label="revoked"></span>
+          <span class="mfl fl-lima" title="Lima — stop instantly"></span>
+          <div>
+            <div><span class="d-name">Old ThinkPad</span> — <span class="d-role">revoked</span></div>
+            <div class="d-cap">Revoked 2026-06-01. Its key is dead; if the machine returns, pair it fresh.</div>
+            <div class="d-meta mono">paired 2026-03-18 &middot; revoked 2026-06-01</div>
+          </div>
+        </div>
+      </div>
+      <div class="device-actions">
+        <button type="button" class="btn btn-primary">Pair new device</button>
+        <span class="caption"><span class="mfl fl-papa" title="Papa — about to sail"></span>
+          Pairing shows a 4-digit code on both screens. Match them, done. No passwords cross the wire.</span>
+      </div>
+    </section>
+
+    <!-- 3. RECEIPTS -->
+    <section id="receipts" aria-labelledby="receipts-h">
+      <div class="sec-head">
+        <h3 id="receipts-h">Receipts</h3>
+        <span class="caption">Verifiable. Anyone with the link sees the proof, not your code.</span>
+      </div>
+      <div class="receipt-grid">
+        <article class="receipt card-hairline">
+          <div class="r-url mono">portdaddy.dev/r/01JZC8KQ4M</div>
+          <div class="r-body">
+            <h4>ICOS skill shipped — PR #663</h4>
+            <div class="r-stats mono">
+              <span>7 agents</span> &middot; <span>34 commits</span> &middot;
+              <span class="cost">$4.12</span> &middot; <span>6h</span>
+            </div>
+          </div>
+          <div class="r-foot"><button type="button" class="btn btn-sm">Share scoped link</button></div>
+        </article>
+        <article class="receipt card-hairline">
+          <div class="r-url mono">portdaddy.dev/r/01JZB2W7XN</div>
+          <div class="r-body">
+            <h4>FleetBar PR sweep — 8 PRs closed</h4>
+            <div class="r-stats mono">
+              <span>12 agents</span> &middot; <span>61 commits</span> &middot;
+              <span class="cost">$9.87</span> &middot; <span>2d</span>
+            </div>
+          </div>
+          <div class="r-foot"><button type="button" class="btn btn-sm">Share scoped link</button></div>
+        </article>
+        <article class="receipt card-hairline">
+          <div class="r-url mono">portdaddy.dev/r/01JZ9THVRC</div>
+          <div class="r-body">
+            <h4>Daemon supervision integrity — PR #607</h4>
+            <div class="r-stats mono">
+              <span>3 agents</span> &middot; <span>18 commits</span> &middot;
+              <span class="cost">$2.31</span> &middot; <span>4h</span>
+            </div>
+          </div>
+          <div class="r-foot"><button type="button" class="btn btn-sm">Share scoped link</button></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 4. CONSENT LEDGER: teaching empty state -->
+    <section id="consent" aria-labelledby="consent-h">
+      <div class="sec-head">
+        <h3 id="consent-h">Consent ledger</h3>
+        <span class="caption">Every yes you give, dated and priced.</span>
+      </div>
+      <div class="ledger-empty">
+        <span class="t">Nothing here yet — and that is the point.</span>
+        <p>When you approve a gate or authorize a spend, it lands here as a dated line with
+           the exact cost you consented to. Approve your first gate in
+           <span class="cmd">FleetBar &rarr; Gates</span> and this ledger begins.</p>
+      </div>
+    </section>
+
+    <!-- 5. HARBORS -->
+    <section id="harbors" aria-labelledby="harbors-h">
+      <div class="sec-head">
+        <h3 id="harbors-h">Harbors</h3>
+        <span class="caption">Where your agents work, and who governs them there.</span>
+      </div>
+      <div class="harbor-grid">
+        <article class="harbor card-hairline">
+          <h4>port-daddy</h4>
+          <span class="tier tier-personal">Personal</span>
+          <p class="h-meta">Local daemon. You are the only authority. Nothing leaves the machine unless you say so.</p>
+        </article>
+        <article class="harbor card-hairline">
+          <h4>curiositech</h4>
+          <span class="tier tier-team">Team</span>
+          <p class="h-meta">3 seats &middot; RBAC. Roles decide who approves gates, who spends, who merely watches.</p>
+        </article>
+        <article class="harbor card-hairline">
+          <h4>harbor-coop</h4>
+          <span class="tier tier-guest">Guest</span>
+          <p class="h-meta">Guest card from <span class="mono">@mira</span> &middot; <span class="mono">expires in 6d</span>. Scoped access; her rules, her revocation.</p>
+        </article>
+        <div class="harbor-federate">
+          <a href="#">Federate a harbor &rarr;</a>
+          <p class="caption">Link two harbors so agents can carry credentials across them, under both harbors' rules.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. PLAN & CAPS -->
+    <section id="plan" aria-labelledby="plan-h">
+      <div class="sec-head"><h3 id="plan-h">Plan &amp; caps</h3></div>
+      <div class="plan-wrap">
+        <div class="plan-plate">
+          <span class="eyebrow">Current plan</span>
+          <div class="plan-name">Hybrid Relay</div>
+          <div class="plan-price mono">$12/mo &middot; relay, pairing, push, metadata sync</div>
+          <div class="usage">
+            <div class="usage-row">
+              <div class="u-label">
+                <span>Relay events</span>
+                <span class="u-num mono">41,200 / 100,000</span>
+              </div>
+              <div class="bar" role="img" aria-label="Relay events: 41 percent used"><span style="width:41%"></span></div>
+            </div>
+            <div class="usage-row">
+              <div class="u-label">
+                <span>Transcript storage</span>
+                <span class="u-num mono">2.6 GB / 10 GB</span>
+              </div>
+              <div class="bar" role="img" aria-label="Transcript storage: 26 percent used"><span style="width:26%"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="caps-plate">
+          <h4>Cost caps</h4>
+          <div class="cap-row">
+            <label for="cap-daily">Daily cap</label>
+            <input id="cap-daily" type="text" inputmode="decimal" value="$8.50">
+          </div>
+          <div class="cap-row">
+            <label for="cap-run">Per-run cap</label>
+            <input id="cap-run" type="text" inputmode="decimal" value="$2.00">
+          </div>
+          <div class="cap-row">
+            <label for="cap-month">Monthly cap</label>
+            <input id="cap-month" type="text" inputmode="decimal" value="$120.00">
+          </div>
+          <div class="caps-foot">
+            <button type="button" class="btn btn-primary">Apply</button>
+            <span class="caption">Caps are enforced by YOUR daemon, mirrored here.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. DANGER -->
+    <section aria-labelledby="danger-h">
+      <div class="sec-head"><h3 id="danger-h">Leaving</h3></div>
+      <div class="danger">
+        <button type="button" class="btn">Export everything</button>
+        <button type="button" class="btn btn-danger">Delete account</button>
+        <span class="caption">Deletion is real: server data purged, local daemon unaffected. Your machine keeps working; we just stop knowing you.</span>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+</body>
+</html>

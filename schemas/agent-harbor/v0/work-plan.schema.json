@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/work-plan.schema.json",
+  "title": "WorkPlan",
+  "description": "The daemon-owned plan that shapes a WorkIntent into exactly one topology archetype (binder ch14, work-intake-node-shaping). Default is single-node; the planner must record split evidence before choosing anything wider. Planning Placeholders are unresolved roles that reserve no provider, budget, worktree, or capabilities.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.work-plan.v0" },
+    "planId": { "type": "string", "minLength": 1 },
+    "intentId": { "type": "string", "minLength": 1 },
+    "shape": {
+      "enum": ["single-node", "scout", "chain", "dag-workgroup", "tournament", "ambient-watcher", "human-gate"],
+      "description": "Exactly one of the seven canonical topology archetypes. Zero or many is a scoring bug, never a tie to break by launching both."
+    },
+    "state": {
+      "enum": ["intent-captured", "planning", "needs-scout", "scout-running", "placeholder-waiting", "approval-required", "materializing", "nodes-ready", "runs-attached", "running", "human-gate", "blocked", "replanning", "review-ready", "receipt-sealing", "receipt-sealed", "canceled"],
+      "description": "Work Plan state machine per binder ch14 and the swarm-invocation packet."
+    },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "evidence": { "type": "string", "description": "Why the planner chose this shape. Required in practice for any shape other than single-node." },
+    "splitEvidence": {
+      "type": "object",
+      "description": "Six-signal vector plus split economics recorded before any multi-node shape.",
+      "properties": {
+        "coupling": { "type": "string" },
+        "graphWidth": { "type": "number", "minimum": 0 },
+        "contextPressure": { "type": "string" },
+        "skillBoundary": { "type": "string" },
+        "failureDomain": { "type": "string" },
+        "reviewIndependence": { "type": "string" },
+        "coordinationCost": { "type": "string" },
+        "budgetCost": { "type": "number", "minimum": 0 },
+        "operatorBurden": { "type": "string" }
+      }
+    },
+    "nodeSpecs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "nodeSpecId": { "type": "string", "minLength": 1 },
+          "role": { "type": "string" },
+          "kind": { "enum": ["agent-node", "scout", "reviewer", "staff-service", "human-gate"] },
+          "bodyPreference": {
+            "type": "object",
+            "properties": {
+              "adapter": { "type": "string" },
+              "modelTier": { "enum": ["fast", "mid", "strong", "local", "custom"] }
+            }
+          },
+          "scope": {
+            "type": "object",
+            "properties": {
+              "files": { "type": "array", "items": { "type": "string" } },
+              "symbols": { "type": "array", "items": { "type": "string" } },
+              "forbiddenSurfaces": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "contracts": {
+            "type": "object",
+            "properties": {
+              "claimsRequired": { "type": "boolean" },
+              "worktreeRequired": { "type": "boolean" },
+              "noteBeforeEdit": { "type": "boolean" },
+              "maxSpendUsd": { "type": "number", "minimum": 0 },
+              "stopConditions": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "dependencies": { "type": "array", "items": { "type": "string" } },
+          "acceptance": {
+            "type": "object",
+            "properties": {
+              "doneWhen": { "type": "string" },
+              "validationCommands": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "skillGrafts": { "type": "array", "items": { "type": "string" }, "description": "Skill names grafted onto this node before launch (Seamanship)." }
+        },
+        "required": ["nodeSpecId", "role"]
+      }
+    },
+    "placeholders": {
+      "type": "array",
+      "description": "Planning Placeholders. Forbidden fields (provider, model tier, body config, claims, capability grants, cost reservation, transcript id) are enforced by the planner, not tolerated here.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "placeholderId": { "type": "string", "minLength": 1 },
+          "role": { "type": "string" },
+          "uncertaintyReason": { "type": "string" },
+          "knownDependencies": { "type": "array", "items": { "type": "string" } },
+          "resolutionTrigger": { "type": "string" },
+          "maxWaitWave": { "type": "number", "minimum": 0 },
+          "evidenceNeeded": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["placeholderId", "role", "uncertaintyReason", "resolutionTrigger"]
+      }
+    },
+    "gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": { "enum": ["human-approval", "budget", "review", "destructive-action", "privacy", "merge"] },
+          "reason": { "type": "string" },
+          "status": { "enum": ["pending", "approved", "denied", "expired"] }
+        },
+        "required": ["kind"]
+      }
+    },
+    "requiresApproval": { "type": "boolean" },
+    "createdAt": { "type": "string", "minLength": 1 }
+  },
+  "required": ["schema", "planId", "intentId", "shape", "state", "createdAt"],
+  "additionalProperties": true
+}

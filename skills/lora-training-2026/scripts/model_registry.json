@@ -1,0 +1,37 @@
+{
+  "_comment": "Source of truth for recommend_base_model.py. Sizes/specs are approximate, chosen for selection-by, not spec sheets. ALWAYS confirm the exact checkpoint, license, and context length on the model's Hugging Face card before training. Edit freely as new checkpoints ship.",
+  "_schema": {
+    "id": "human-friendly key",
+    "hf": "Hugging Face repo to confirm",
+    "params_b": "approx total params in billions (use TOTAL for MoE memory sizing)",
+    "active_b": "approx active params for MoE (null for dense)",
+    "license": "permissive | community | research | proprietary-open",
+    "instruct": "true if an instruct/chat checkpoint",
+    "context_k": "approx max context in thousands of tokens",
+    "modality": "list, e.g. ['text'] or ['text','vision']",
+    "languages": "csv of strongest languages or 'many'",
+    "strengths": "tags",
+    "weaknesses": "short notes",
+    "good_for": "task tags this excels at"
+  },
+  "models": [
+    {"id": "qwen3-1.7b", "hf": "Qwen/Qwen3-1.7B-Instruct", "params_b": 1.7, "active_b": null, "license": "permissive", "instruct": true, "context_k": 32, "modality": ["text"], "languages": "many", "strengths": ["small", "multilingual", "fast"], "weaknesses": "low reasoning ceiling", "good_for": ["edge", "classification", "format", "routing"]},
+    {"id": "qwen3-8b", "hf": "Qwen/Qwen3-8B-Instruct", "params_b": 8, "active_b": null, "license": "permissive", "instruct": true, "context_k": 128, "modality": ["text"], "languages": "many", "strengths": ["general", "multilingual", "long-context", "default"], "weaknesses": "version churn; pin checkpoint", "good_for": ["general", "chat", "agent", "support", "summarization"]},
+    {"id": "qwen3-14b", "hf": "Qwen/Qwen3-14B-Instruct", "params_b": 14, "active_b": null, "license": "permissive", "instruct": true, "context_k": 128, "modality": ["text"], "languages": "many", "strengths": ["general", "stronger-reasoning", "multilingual"], "weaknesses": "needs 24GB QLoRA", "good_for": ["general", "reasoning", "agent", "coding"]},
+    {"id": "qwen3-32b", "hf": "Qwen/Qwen3-32B-Instruct", "params_b": 32, "active_b": null, "license": "permissive", "instruct": true, "context_k": 128, "modality": ["text"], "languages": "many", "strengths": ["high-capability", "multilingual"], "weaknesses": "cloud-class VRAM (48GB+)", "good_for": ["general", "reasoning", "hard-tasks"]},
+    {"id": "qwen3-coder", "hf": "Qwen/Qwen3-Coder", "params_b": 30, "active_b": 3, "license": "permissive", "instruct": true, "context_k": 256, "modality": ["text"], "languages": "code", "strengths": ["coding", "long-context", "moe-efficient"], "weaknesses": "MoE: size by total params for memory", "good_for": ["coding", "code-agent"]},
+    {"id": "qwen-vl-7b", "hf": "Qwen/Qwen2.5-VL-7B-Instruct", "params_b": 8, "active_b": null, "license": "permissive", "instruct": true, "context_k": 32, "modality": ["text", "vision"], "languages": "many", "strengths": ["vision", "document-understanding", "ocr"], "weaknesses": "vision data pipeline needed", "good_for": ["vision", "vlm", "document", "ocr"]},
+    {"id": "llama-3.3-8b", "hf": "meta-llama/Llama-3.3-8B-Instruct", "params_b": 8, "active_b": null, "license": "community", "instruct": true, "context_k": 128, "modality": ["text"], "languages": "en+", "strengths": ["ecosystem", "tool-use", "english"], "weaknesses": "community license (AUP, MAU clause)", "good_for": ["general", "tool-use", "agent", "english"]},
+    {"id": "llama-4-scout", "hf": "meta-llama/Llama-4-Scout", "params_b": 109, "active_b": 17, "license": "community", "instruct": true, "context_k": 1000, "modality": ["text", "vision"], "languages": "many", "strengths": ["very-long-context", "moe", "vision"], "weaknesses": "MoE memory = total params; cloud-class", "good_for": ["long-context", "vision", "general"]},
+    {"id": "gemma-3-4b", "hf": "google/gemma-3-4b-it", "params_b": 4, "active_b": null, "license": "community", "instruct": true, "context_k": 128, "modality": ["text", "vision"], "languages": "many", "strengths": ["small", "vision", "multilingual", "efficient"], "weaknesses": "Gemma use-restrictions; finicky template", "good_for": ["edge", "vision", "multilingual", "general-small"]},
+    {"id": "gemma-3-12b", "hf": "google/gemma-3-12b-it", "params_b": 12, "active_b": null, "license": "community", "instruct": true, "context_k": 128, "modality": ["text", "vision"], "languages": "many", "strengths": ["vision", "multilingual", "balanced"], "weaknesses": "Gemma license", "good_for": ["vision", "multilingual", "general"]},
+    {"id": "gemma-3-27b", "hf": "google/gemma-3-27b-it", "params_b": 27, "active_b": null, "license": "community", "instruct": true, "context_k": 128, "modality": ["text", "vision"], "languages": "many", "strengths": ["high-capability-small-footprint", "vision"], "weaknesses": "48GB-class for QLoRA at long seq", "good_for": ["vision", "general", "multilingual"]},
+    {"id": "mistral-small-3", "hf": "mistralai/Mistral-Small-3", "params_b": 24, "active_b": null, "license": "permissive", "instruct": true, "context_k": 128, "modality": ["text"], "languages": "eu+en", "strengths": ["fast", "permissive", "european-languages"], "weaknesses": "verify per-release license", "good_for": ["general", "latency-sensitive", "european"]},
+    {"id": "ministral-8b", "hf": "mistralai/Ministral-8B-Instruct", "params_b": 8, "active_b": null, "license": "permissive", "instruct": true, "context_k": 128, "modality": ["text"], "languages": "eu+en", "strengths": ["fast", "permissive", "edge-server"], "weaknesses": "lower raw benchmarks vs qwen3-8b", "good_for": ["general", "latency-sensitive", "edge"]},
+    {"id": "phi-4", "hf": "microsoft/phi-4", "params_b": 14, "active_b": null, "license": "permissive", "instruct": true, "context_k": 16, "modality": ["text"], "languages": "en", "strengths": ["reasoning", "stem", "small"], "weaknesses": "thin world knowledge; weaker casual chat", "good_for": ["reasoning", "math", "structured", "stem"]},
+    {"id": "r1-distill-qwen-7b", "hf": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B", "params_b": 7, "active_b": null, "license": "permissive", "instruct": true, "context_k": 64, "modality": ["text"], "languages": "en+zh", "strengths": ["reasoning", "cheap-to-train", "thinking"], "weaknesses": "verbose <think>; handle in data/template", "good_for": ["reasoning", "math", "agent-planning"]},
+    {"id": "r1-distill-qwen-32b", "hf": "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B", "params_b": 32, "active_b": null, "license": "permissive", "instruct": true, "context_k": 64, "modality": ["text"], "languages": "en+zh", "strengths": ["strong-reasoning", "distill"], "weaknesses": "48GB-class; verbose thinking", "good_for": ["reasoning", "hard-tasks"]},
+    {"id": "smollm3-3b", "hf": "HuggingFaceTB/SmolLM3-3B", "params_b": 3, "active_b": null, "license": "permissive", "instruct": true, "context_k": 64, "modality": ["text"], "languages": "many", "strengths": ["tiny", "on-device", "instant-iteration"], "weaknesses": "limited knowledge/reasoning", "good_for": ["edge", "on-device", "format", "classification"]},
+    {"id": "smollm3-1.7b", "hf": "HuggingFaceTB/SmolLM3-1.7B", "params_b": 1.7, "active_b": null, "license": "permissive", "instruct": true, "context_k": 64, "modality": ["text"], "languages": "en+", "strengths": ["tiny", "cpu-adjacent"], "weaknesses": "low ceiling", "good_for": ["edge", "on-device", "routing"]}
+  ]
+}

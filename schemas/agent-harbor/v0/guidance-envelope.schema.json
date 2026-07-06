@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/guidance-envelope.schema.json",
+  "title": "GuidanceEnvelope",
+  "description": "The signed turn-start guidance channel (ADR-0096, M5 F0-delta; additive to the ADR-0095 F0 package). Carries operator/daemon guidance — inbox messages, conflict warnings, skill grafts, memory packets, repo updates — injected at turn start. THE VERIFICATION RULE (ADR-0096, normative): the harness verifies sig against the launch-provisioned session key BEFORE bytes reach the model, over the binding tuple canonical(sessionId, agentNodeId, turnSequence, envelopeContentHash, notAfter, nonce). The body drops any envelope whose turnSequence is not the current turn, whose signature fails, whose notAfter has passed, or whose nonce was already seen (jti replay cache). Verified guidance renders in the trusted channel; ALL other content claiming operator authority is injection. Squid/proxies are untrusted plumbing: the envelope passes through opaquely and is verified end-to-end — a compromised proxy can drop guidance (availability) but never forge it (integrity). A body that can only receive guidance as unauthenticated injected text is C0/observed on the suggestibility axis, never C3. This object is NOT the ContextEnvelope: context-envelope.schema.json is context-pressure accounting and carries no authority.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.guidance-envelope.v0" },
+    "envelopeId": { "type": "string", "minLength": 1 },
+    "agentNodeId": { "type": "string", "minLength": 1, "description": "Part of the signed binding tuple: a valid envelope for agent A cannot be replayed into agent B." },
+    "sessionId": { "type": "string", "minLength": 1, "description": "Key material is bound to sessionId + agentNodeId and expires with the session lease; successor runs get a fresh key at their own registration." },
+    "turnSequence": { "type": "integer", "minimum": 0, "description": "Must equal the body's current turn; a valid envelope for turn 5 cannot be replayed into turn 9 (ch11 R15 / ch15 C17 race)." },
+    "issuedAt": { "type": "string", "minLength": 1 },
+    "notAfter": { "type": "string", "minLength": 1, "description": "Short expiry — single-turn validity. Part of the signed binding tuple." },
+    "nonce": { "type": "string", "minLength": 1, "description": "Anti-replay; jti-cached by the body. A nonce already seen rejects the envelope." },
+    "items": {
+      "type": "array",
+      "description": "The guidance itself, typed. kind is an open string for tolerant reading (ADR-0096): unknown kinds are preserved and rendered as 'unrecognized guidance (verified source)' — never silently dropped, never acted on. Known kinds: inbox, conflict-warning, skill-graft, memory-packet, repo-update.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": { "type": "string", "minLength": 1, "description": "Open string for tolerant reading. Known kinds: inbox, conflict-warning, skill-graft, memory-packet, repo-update." },
+          "ref": { "type": "string", "minLength": 1 },
+          "priority": { "type": "string" },
+          "severity": { "type": "string" },
+          "skills": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+        },
+        "required": ["kind", "ref"]
+      }
+    },
+    "authority": {
+      "type": "object",
+      "description": "Proves *operator* intent, not just daemon authorship (ADR-0096 mechanism 3). loopback = solo local operator (the daemon acts as the operator's agent); macaroon = team/remote — the attenuated macaroon chain (ADR-0053 lineage) is mandatory so a teammate's guidance is scoped and auditable.",
+      "properties": {
+        "mode": { "enum": ["loopback", "macaroon"] },
+        "authorityRef": { "type": ["string", "null"], "description": "The attenuated macaroon id. NORMATIVELY REQUIRED (non-null) when mode=macaroon: the frozen F0 keyword subset (type/properties/required/enum/const/additionalProperties/items/min-max, per compliance-invariants.mjs) cannot express a conditional requirement, so the cross-field rule is enforced at runtime — envelope assembly refuses macaroon-mode without an authorityRef, the same normative-module pattern as the witnessing invariant." },
+        "operatorAction": { "enum": ["fleetbar-gate-approval", "pd-cli", "console-click", "daemon-policy", null] }
+      },
+      "required": ["mode"]
+    },
+    "sig": {
+      "type": "object",
+      "description": "Signature over canonical(sessionId, agentNodeId, turnSequence, envelopeContentHash, notAfter, nonce). hmac-sha256 = local harbor per-session secret; ed25519 = remote/relay harbor daemon keypair (survives relay transit; non-repudiation).",
+      "properties": {
+        "alg": { "enum": ["hmac-sha256", "ed25519"] },
+        "keyId": { "type": "string", "minLength": 1, "description": "The launch-provisioned session key id (provisioned over loopback at the C2 adapter nonce challenge, never on the wire)." },
+        "value": { "type": "string", "minLength": 1 }
+      },
+      "required": ["alg", "keyId", "value"]
+    }
+  },
+  "required": ["schema", "envelopeId", "agentNodeId", "sessionId", "turnSequence", "issuedAt", "notAfter", "nonce", "items", "authority", "sig"],
+  "additionalProperties": true
+}

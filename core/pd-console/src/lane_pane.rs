@@ -1237,6 +1237,9 @@ impl Pane for LanePane {
                     Ok(())
                 }
                 SurfaceAction::OperatorTurn { turn } => self.send_operator_turn(daemon, turn).await,
+                // Roster selection / control verbs belong to conjoined
+                // roster/detail surfaces (HarborPane); the Lane ignores them.
+                _ => Ok(()),
             }
         })
     }

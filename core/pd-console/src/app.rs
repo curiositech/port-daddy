@@ -163,6 +163,19 @@ pub enum ControlMsg {
     InterruptAgent {
         agent_id: String,
     },
+    /// Select a roster row on the Harbor surface (binder ch18 C3): clicking a
+    /// NodeRow retargets the conjoined detail pane — never an id typed.
+    HarborSelect {
+        index: usize,
+    },
+    /// Issue a compliance-gated control verb against the Harbor's selected
+    /// node. The pane re-checks its gate, then POSTs the F0 ControlCommand;
+    /// the daemon is the sole authorizer. `argument` carries a steer message
+    /// or checkpoint reason.
+    HarborControl {
+        verb: String,
+        argument: Option<String>,
+    },
 }
 
 /// A flattened, transport-ready spawn request for one Conjure node — the wire
@@ -252,6 +265,9 @@ pub enum CmdKind {
     Kill,
     /// Interrupt a specific agent. Buffer is the agent id. → `POST /agents/:id/interrupt`.
     InterruptAgent,
+    /// Steer the Harbor's selected Agent Node (ch18 C3). Buffer is the steer
+    /// message injected before the node's next turn. → `POST /agent-nodes/:id/control`.
+    HarborSteer,
     /// The operator verb palette (vim-`:` style). Buffer is `<verb> <args>`; the
     /// first token selects an operator write, the rest are its arguments. One
     /// keybinding (`Ctrl-A :`) reaches every write without exhausting the
@@ -279,6 +295,7 @@ impl CmdKind {
             CmdKind::Release => "release (identity)",
             CmdKind::Kill => "kill (agent id)",
             CmdKind::InterruptAgent => "interrupt (agent id)",
+            CmdKind::HarborSteer => "steer node (message)",
             CmdKind::Verb => ":",
         }
     }
@@ -331,6 +348,9 @@ impl CmdKind {
             CmdKind::Release => "project:stack:context".to_string(),
             CmdKind::Kill => "agent-id".to_string(),
             CmdKind::InterruptAgent => "agent-id".to_string(),
+            CmdKind::HarborSteer => {
+                "guidance for the selected node — injected before its next turn…".to_string()
+            }
             CmdKind::Verb => {
                 "note/begin/done/propose/sortie/claim/release/kill/interrupt …".to_string()
             }
@@ -1604,6 +1624,28 @@ fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
                 .child(text)
                 .into_any_element()
         }
+        // Interactive Harbor blocks are routed to their cx-aware renderers in
+        // render_leaf (they need click listeners this free function can't
+        // build). Reaching here means a non-Harbor surface emitted one; paint
+        // a legible inert fallback rather than panicking.
+        Block::NodeRow { name, meta, .. } => div()
+            .mx(px(tokens::SPACE_3))
+            .my(px(2.0))
+            .text_color(rgb(t.ink))
+            .text_size(px(tokens::TEXT_BODY))
+            .child(format!("{name} — {meta}"))
+            .into_any_element(),
+        Block::ControlButton { label, enabled, why_disabled, .. } => div()
+            .mx(px(tokens::SPACE_3))
+            .my(px(2.0))
+            .text_color(rgb(t.muted))
+            .text_size(px(tokens::TEXT_BODY))
+            .child(if enabled {
+                format!("[ {label} ]")
+            } else {
+                format!("( {label} ) {}", why_disabled.unwrap_or_default())
+            })
+            .into_any_element(),
     }
 }
 
@@ -2504,6 +2546,20 @@ impl ConsoleView {
                 });
                 self.control_flash = Some(format!("interrupting agent {text}…"));
             }
+            CmdKind::HarborSteer => {
+                if text.trim().is_empty() {
+                    self.control_flash =
+                        Some("steer needs a message — nothing was sent".into());
+                    return;
+                }
+                let _ = tx.send(ControlMsg::HarborControl {
+                    verb: "steer".into(),
+                    argument: Some(text),
+                });
+                self.control_flash = Some(
+                    "steer queued — watch the node's transcript for the guidance turn".into(),
+                );
+            }
             // AddPane, Conjure, UseDaemon, and Verb are handled locally above
             // (early return) — never reach here.
             CmdKind::AddPane | CmdKind::Conjure | CmdKind::UseDaemon | CmdKind::Verb => {}
@@ -3247,8 +3303,25 @@ impl ConsoleView {
                         }
                         b
                     }
-                    // Every other surface: the generic read-agnostic Block renderer.
-                    None => body.children(blocks.into_iter().map(move |b| render_block(b, motion))),
+                    // Every other surface: the generic read-agnostic Block
+                    // renderer — except the two interactive Harbor blocks,
+                    // which need cx listeners (clickable roster rows and
+                    // compliance-gated control buttons; ch18 C3).
+                    None => {
+                        let mut b = body;
+                        for blk in blocks {
+                            b = match blk {
+                                blk @ Block::NodeRow { .. } => {
+                                    b.child(render_harbor_node_row(id, blk, cx))
+                                }
+                                blk @ Block::ControlButton { .. } => {
+                                    b.child(render_harbor_control(id, blk, cx))
+                                }
+                                other => b.child(render_block(other, motion)),
+                            };
+                        }
+                        b
+                    }
                 }
             })
             // Steering bar — only the focused agent transcript grabs the wheel.
@@ -5108,6 +5181,191 @@ fn pane_ctrl(
 /// it to the Harbor Editor surface on that file; activating a **directory**
 /// rebinds the FileTree root to descend (the existing expand behavior). This is
 /// the P0 `FileTree → open-in-Editor` wiring.
+/// Clickable Harbor roster row (binder ch18 C3): clicking selects the node and
+/// retargets the conjoined detail pane — the operator never types an id. Live
+/// rows carry the breathing dot + engaged tone; historical rows are hollow.
+fn render_harbor_node_row(
+    id: PaneId,
+    block: Block,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    let Block::NodeRow {
+        index,
+        selected,
+        live,
+        flag,
+        name,
+        badge,
+        badge_tone,
+        meta,
+        age,
+        tone,
+    } = block
+    else {
+        unreachable!("render_harbor_node_row called with a non-NodeRow block");
+    };
+    let t = current_theme();
+    let row_tone = tone_rgb(&tone);
+    let badge_color = tone_rgb(&badge_tone);
+    div()
+        .id(SharedString::from(format!("harbor-row-{id}-{index}")))
+        .flex()
+        .items_center()
+        .gap(px(tokens::SPACE_2))
+        .mx(px(tokens::SPACE_3))
+        .my(px(2.0))
+        .px(px(tokens::SPACE_3))
+        .py(px(tokens::SPACE_2))
+        .rounded(px(tokens::RADIUS_MD))
+        .border_1()
+        .border_color(rgb(if selected { t.accent } else { t.line }))
+        .bg(rgb(if selected { t.raised } else { t.panel }))
+        .when(selected, |s| s.shadow(motion::glow(t.accent, 0.25, 10.0, 0.0)))
+        .cursor_pointer()
+        .hover(|s| {
+            let t = current_theme();
+            s.bg(rgb(t.raised)).border_color(rgb(t.accent))
+        })
+        // Live vs historical: filled breathing marker vs hollow static one.
+        .child(
+            div()
+                .text_color(rgb(row_tone))
+                .text_size(px(13.0))
+                .flex_shrink_0()
+                .child(if live { "●" } else { "○" }),
+        )
+        .child(
+            div()
+                .text_color(rgb(row_tone))
+                .text_size(px(13.0))
+                .font_weight(FontWeight::BOLD)
+                .flex_shrink_0()
+                .child(format!("⚑{flag}")),
+        )
+        .child(
+            div()
+                .text_color(rgb(t.ink))
+                .text_size(px(tokens::TEXT_BODY))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(name),
+        )
+        .child(
+            div()
+                .text_color(rgb(badge_color))
+                .text_size(px(13.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(badge),
+        )
+        .child(
+            div()
+                .flex_1()
+                .text_color(rgb(t.muted))
+                .text_size(px(13.0))
+                .font_family("IBM Plex Mono")
+                .overflow_hidden()
+                .child(meta),
+        )
+        .child(
+            div()
+                .text_color(rgb(t.muted))
+                .text_size(px(13.0))
+                .font_family("IBM Plex Mono")
+                .flex_shrink_0()
+                .child(age),
+        )
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            this.ws_mut().focus(id);
+            if let Some(tx) = &this.control_tx {
+                let _ = tx.send(ControlMsg::HarborSelect { index });
+            }
+            cx.notify();
+        }))
+}
+
+/// A compliance-gated Harbor control (steer/pause/interrupt/checkpoint/
+/// successor/retire). Enabled buttons dispatch the control; `steer` opens the
+/// message entry first. Disabled buttons render inert with their exact
+/// `why_disabled` cause beside them — an honest gate, never a dead affordance.
+fn render_harbor_control(
+    id: PaneId,
+    block: Block,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    let Block::ControlButton {
+        verb,
+        label,
+        enabled,
+        why_disabled,
+        primary,
+    } = block
+    else {
+        unreachable!("render_harbor_control called with a non-ControlButton block");
+    };
+    let t = current_theme();
+    let row = div()
+        .flex()
+        .items_center()
+        .gap(px(tokens::SPACE_3))
+        .mx(px(tokens::SPACE_3))
+        .my(px(2.0));
+    let button = div()
+        .id(SharedString::from(format!("harbor-ctl-{id}-{verb}")))
+        .px(px(tokens::SPACE_3))
+        .py(px(4.0))
+        .rounded(px(tokens::RADIUS_MD))
+        .border_1()
+        .text_size(px(tokens::TEXT_BODY))
+        .font_weight(FontWeight::SEMIBOLD)
+        .flex_shrink_0();
+    if enabled {
+        let verb_for_click = verb.clone();
+        row.child(
+            button
+                .border_color(rgb(if primary { t.accent } else { t.line }))
+                .bg(rgb(if primary { t.raised } else { t.panel }))
+                .text_color(rgb(if primary { t.accent_ink } else { t.ink }))
+                .cursor_pointer()
+                .hover(|s| {
+                    let t = current_theme();
+                    s.border_color(rgb(t.accent))
+                        .shadow(motion::glow(t.accent, 0.2, 8.0, 0.0))
+                })
+                .on_click(cx.listener(move |this, _ev, _window, cx| {
+                    if verb_for_click == "steer" {
+                        // Steer needs a message: open the entry line; submit
+                        // sends ControlMsg::HarborControl with the text.
+                        this.command = Some(CommandLine::new(CmdKind::HarborSteer));
+                    } else if let Some(tx) = &this.control_tx {
+                        let _ = tx.send(ControlMsg::HarborControl {
+                            verb: verb_for_click.clone(),
+                            argument: None,
+                        });
+                        this.control_flash = Some(format!(
+                            "{verb_for_click} queued — watch for the acknowledgement event"
+                        ));
+                    }
+                    cx.notify();
+                }))
+                .child(label),
+        )
+    } else {
+        row.child(
+            button
+                .border_color(rgb(t.line))
+                .bg(rgb(t.panel))
+                .text_color(rgb(t.muted))
+                .opacity(0.55)
+                .child(label),
+        )
+        .child(
+            div()
+                .text_color(rgb(t.muted))
+                .text_size(px(13.0))
+                .child(why_disabled.unwrap_or_else(|| "unavailable".into())),
+        )
+    }
+}
+
 fn render_filetree_row(
     id: PaneId,
     entry: FileEntry,

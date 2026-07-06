@@ -8,6 +8,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
     case flow
     case backend
     case roadmap
+    case proposals
     case nightshift
     case agents
     case visual
@@ -28,6 +29,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         case .flow: return "Flow"
         case .backend: return "Backend"
         case .roadmap: return "Roadmap"
+        case .proposals: return "Proposals"
         case .nightshift: return "Nightshift"
         case .agents: return "Agents"
         case .visual: return "Visual Task"
@@ -48,6 +50,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         case .flow: return "point.3.connected.trianglepath.dotted"
         case .backend: return "rectangle.stack.badge.person.crop"
         case .roadmap: return "map"
+        case .proposals: return "person.crop.circle.badge.questionmark"
         case .nightshift: return "moon.stars.fill"
         case .agents: return "person.3"
         case .visual: return "viewfinder"
@@ -64,11 +67,11 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
 
     /// Whether this surface is rendered by a native SwiftUI view instead of
     /// embedded into the `/fleet-ui/` webview. Native surfaces opt in here:
-    /// Nightshift, and Backend (BackendStore is already wired in-process, so
-    /// routing it through the browser would mean an extra trip + duplicate state).
+    /// Nightshift, Backend, and Proposals have app-owned state/actions, so
+    /// routing them through the browser would mean an extra trip + duplicate state.
     var isNative: Bool {
         switch self {
-        case .nightshift, .backend: return true
+        case .nightshift, .backend, .proposals: return true
         default: return false
         }
     }

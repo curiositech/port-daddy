@@ -1,0 +1,17 @@
+{
+  "schema": "pd.agent-harbor.skill-graft.v0",
+  "graftId": "graft_01JZFIX0001",
+  "agentNodeId": "agent_node_01JZFIX0001",
+  "sessionId": "session_01JZFIX0001",
+  "runId": "agent_run_01JZFIX0001",
+  "skillCardId": "skillcard_vitest_testing_patterns",
+  "skillName": "vitest-testing-patterns",
+  "skillVersion": "1.2.0",
+  "level": "full",
+  "reason": "Flaky-test debugging maps to fake-timer and async-teardown patterns this skill owns.",
+  "grantedBy": "planner:work_plan_01JZFIX0001",
+  "expiresAt": null,
+  "sourceEventId": "evt_01JZFIX0010",
+  "outcome": "used",
+  "createdAt": "2026-07-05T12:00:08.000Z"
+}
