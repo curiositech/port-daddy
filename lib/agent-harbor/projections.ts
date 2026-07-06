@@ -34,6 +34,7 @@ import {
   type LedgerRow,
 } from './event-ledger.js';
 import {
+  checkNodeWitnessing,
   checkProbeWitnessing,
 } from '../../schemas/agent-harbor/v0/compliance-invariants.mjs';
 
@@ -184,14 +185,67 @@ const PROJECTION_TABLES: Record<ProjectionName, string> = {
   'work-receipts': 'harbor_proj_work_receipts',
 };
 
-/** Idempotent schema apply + post-apply verification probe (real tables, not bookkeeping). */
+/** Required columns per projection table — the post-apply probe checks shape, not mere existence. */
+const REQUIRED_PROJ_COLUMNS: Record<string, string[]> = {
+  harbor_proj_meta: ['projection', 'last_ledger_seq', 'updated_at', 'last_rebuild_at'],
+  harbor_proj_applied: ['projection', 'event_id'],
+  harbor_proj_roster: [
+    'agent_node_id', 'identity', 'display_name', 'class', 'role', 'authority',
+    'compliance_level', 'compliance_probe_id', 'transcript_fidelity',
+    'official_mode', 'status', 'plan_id', 'intent_id', 'harbor_id',
+    'current_session_id', 'current_body_id', 'current_run_id', 'workspace_json',
+    'created_at', 'last_heartbeat_at', 'last_event_at', 'event_count',
+    'placeholder', 'updated_ledger_seq',
+  ],
+  harbor_proj_timeline: [
+    'session_id', 'sequence', 'event_id', 'agent_node_id', 'body_id', 'turn_id',
+    'kind', 'visibility', 'occurred_at', 'ingested_at', 'redaction_state',
+    'blob_count', 'content_hash', 'prev_hash',
+  ],
+  harbor_proj_files_touched: [
+    'session_id', 'path', 'touch_kind', 'agent_node_id', 'absolute_path',
+    'touch_count', 'first_event_id', 'last_event_id', 'first_at', 'last_at',
+  ],
+  harbor_proj_costs: [
+    'agent_node_id', 'session_key', 'run_key', 'event_count',
+    'total_estimated_usd', 'total_actual_usd', 'meters_json',
+    'last_budget_action', 'last_occurred_at',
+  ],
+  harbor_proj_compliance: [
+    'agent_node_id', 'probe_id', 'probed_at', 'asserted_level',
+    'recomputed_level', 'transcript_fidelity', 'witness_valid',
+    'violations_json', 'failed_checks_json', 'updated_ledger_seq',
+  ],
+  harbor_proj_work_receipts: [
+    'receipt_id', 'agent_node_id', 'session_id', 'run_id', 'strength',
+    'verification_status', 'artifact_backed', 'transcript_head_hash',
+    'created_at', 'pr_refs_json',
+  ],
+};
+
+/**
+ * Idempotent schema apply + post-apply verification probe.
+ *
+ * Per sqlite-durable-agent-state ("Migration History Is Not Migration"): the
+ * probe inspects the real tables AND their required columns — a
+ * partially/wrongly-shaped table fails closed instead of passing on mere
+ * existence.
+ */
 export function ensureProjectionSchema(db: DatabaseInstance): void {
   ensureEventLedgerSchema(db);
   db.exec(PROJECTION_SCHEMA_SQL);
-  for (const table of ['harbor_proj_meta', 'harbor_proj_applied', ...Object.values(PROJECTION_TABLES)]) {
+  for (const [table, required] of Object.entries(REQUIRED_PROJ_COLUMNS)) {
     const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
     if (cols.length === 0) {
       throw new Error(`projection migration verification failed: table ${table} missing`);
+    }
+    const present = new Set(cols.map((c) => c.name));
+    const missing = required.filter((c) => !present.has(c));
+    if (missing.length > 0) {
+      throw new Error(
+        `projection migration verification failed: table ${table} missing column(s) ${missing.join(', ')}. ` +
+        'Projections cannot run against a partial schema.',
+      );
     }
   }
 }
@@ -257,11 +311,47 @@ function applyRoster(db: DatabaseInstance, row: LedgerRow, payload: Record<strin
 
   if (row.stream_type === 'agent-node') {
     ensureRosterRow(db, agentNodeId, false);
+
+    // Compliance is daemon-witnessed only (ADR-0095 §8): the node fact's
+    // complianceLevel is honored only when checkNodeWitnessing validates it
+    // against its linked, already-ledgered probe — otherwise the roster keeps
+    // its probe-derived level. There is no self-report upgrade path through
+    // an agent-node fact (level-advances-on-self-report stop rule).
+    const claimedLevel = s(payload.complianceLevel);
+    let grantedLevel: string | null = null;
+    let grantedProbeId: string | null = null;
+    let grantedFidelity: string | null = null;
+    if (claimedLevel !== null && claimedLevel !== 'C0') {
+      const probeId = s(payload.complianceProbeId);
+      const probeRow = probeId
+        ? (db
+            .prepare(
+              "SELECT payload_json FROM harbor_events WHERE stream_type = 'compliance-probe-result' AND event_id = ?",
+            )
+            .get(probeId) as { payload_json: string } | undefined)
+        : undefined;
+      let probe: Record<string, unknown> | undefined;
+      try {
+        probe = probeRow ? (JSON.parse(probeRow.payload_json) as Record<string, unknown>) : undefined;
+      } catch {
+        probe = undefined;
+      }
+      const { valid } = checkNodeWitnessing(payload, probe);
+      if (valid) {
+        grantedLevel = claimedLevel;
+        grantedProbeId = probeId;
+        grantedFidelity = s(payload.transcriptFidelity);
+      }
+    }
+
     db.prepare(
       `UPDATE harbor_proj_roster SET
          identity = ?, display_name = ?, class = ?, role = ?, authority = ?,
-         compliance_level = ?, compliance_probe_id = ?, transcript_fidelity = ?,
-         official_mode = ?, status = ?, plan_id = ?, intent_id = ?, harbor_id = ?,
+         compliance_level = COALESCE(?, compliance_level),
+         compliance_probe_id = COALESCE(?, compliance_probe_id),
+         transcript_fidelity = COALESCE(?, transcript_fidelity),
+         official_mode = COALESCE(?, official_mode),
+         status = ?, plan_id = ?, intent_id = ?, harbor_id = ?,
          current_session_id = ?, current_body_id = ?, current_run_id = ?,
          workspace_json = ?, created_at = ?,
          last_heartbeat_at = COALESCE(?, last_heartbeat_at),
@@ -274,9 +364,12 @@ function applyRoster(db: DatabaseInstance, row: LedgerRow, payload: Record<strin
       s(payload.class),
       s(payload.role),
       s(payload.authority),
-      s(payload.complianceLevel) ?? 'C0',
-      s(payload.complianceProbeId),
-      s(payload.transcriptFidelity),
+      grantedLevel,
+      grantedProbeId,
+      grantedFidelity,
+      // officialMode is optional in the frozen schema: COALESCE keeps the
+      // previously materialized value (e.g. the honest 'observed' default)
+      // instead of erasing it with NULL when the fact omits the field.
       s(payload.officialMode),
       s(payload.status),
       s(payload.planId),

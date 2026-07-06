@@ -168,6 +168,46 @@ describe('agent-harbor projections', () => {
       expect(row.compliance_level).toBe('C0');
       closeDatabase(fresh);
     });
+
+    it('a node fact claiming a level above C0 without a ledgered witness-valid probe NEVER advances the roster', () => {
+      const fresh = initDatabase({ inMemory: true });
+      // The fixture self-reports C2 + a probe id, but the probe is NOT in the
+      // ledger — checkNodeWitnessing fails and the claim is refused.
+      appendEvent(fresh, { streamType: 'agent-node', payload: fixture('agent-node') });
+      projectPending(fresh);
+      const row = getRoster(fresh).rows[0] as Record<string, unknown>;
+      expect(row.agent_node_id).toBe(NODE_ID);
+      expect(row.compliance_level).toBe('C0');
+      expect(row.compliance_probe_id).toBeNull();
+      closeDatabase(fresh);
+    });
+
+    it('a node fact whose level is backed by an already-ledgered witness-valid probe is honored', () => {
+      const fresh = initDatabase({ inMemory: true });
+      appendEvent(fresh, { streamType: 'compliance-probe-result', payload: fixture('compliance-probe-result') });
+      appendEvent(fresh, { streamType: 'agent-node', payload: fixture('agent-node') });
+      projectPending(fresh);
+      const row = getRoster(fresh).rows[0] as Record<string, unknown>;
+      expect(row.compliance_level).toBe('C2');
+      expect(row.compliance_probe_id).toBe('probe_01JZFIX0001');
+      closeDatabase(fresh);
+    });
+
+    it('a node fact omitting the optional officialMode preserves the previously materialized value', () => {
+      const fresh = initDatabase({ inMemory: true });
+      // Placeholder first — official_mode defaults to the honest 'observed'.
+      appendEvent(fresh, {
+        streamType: 'transcript-event',
+        payload: transcript({ sequence: 1, eventId: 'evt_pre_fact' }),
+      });
+      const fact = fixture('agent-node');
+      delete fact.officialMode;
+      appendEvent(fresh, { streamType: 'agent-node', payload: fact });
+      projectPending(fresh);
+      const row = getRoster(fresh).rows[0] as Record<string, unknown>;
+      expect(row.official_mode).toBe('observed'); // not erased to NULL
+      closeDatabase(fresh);
+    });
   });
 
   describe('transcript timeline projection', () => {
