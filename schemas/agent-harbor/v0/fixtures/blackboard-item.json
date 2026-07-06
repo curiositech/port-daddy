@@ -1,0 +1,29 @@
+{
+  "schema": "pd.agent-harbor.blackboard-item.v0",
+  "itemId": "bbi_01JZM6FIX0001",
+  "harborId": "harbor_local_default",
+  "kind": "do-not-duplicate",
+  "title": "Email ingress deploy already in progress — do not start a second io-wiring worker",
+  "detail": "Session session_01JZFIX0001 deployed pd-email-ingress and holds the health-board route claim. The remaining step (Email Routing rule) is an operator manual action, not agent work.",
+  "subjects": [
+    { "kind": "file", "ref": "workers/pd-email-ingress/src/index.ts" },
+    { "kind": "session", "ref": "session_01JZFIX0001" },
+    { "kind": "claim", "ref": "claim_health_board_route" }
+  ],
+  "agentNodeId": "agent_node_01JZFIX0001",
+  "sessionId": "session_01JZFIX0001",
+  "runId": "agent_run_01JZFIX0001",
+  "severity": "warning",
+  "confidence": 0.92,
+  "status": "active",
+  "supersededBy": null,
+  "postedAt": "2026-07-06T14:15:00.000Z",
+  "updatedAt": null,
+  "expiresAt": "2026-07-07T14:15:00.000Z",
+  "assertedBy": { "kind": "longshoreman", "agentNodeId": "agent_node_longshoreman_01" },
+  "citations": [
+    { "kind": "transcript-event", "transcriptEventId": "evt_01JZFIX0038" },
+    { "kind": "claim", "claimRef": "claim_health_board_route" }
+  ],
+  "projection": { "stale": false, "lastLedgerSeq": 4212, "headSeq": 4212 }
+}
