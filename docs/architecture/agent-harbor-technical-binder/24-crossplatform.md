@@ -19,6 +19,17 @@ trust map that Windows must re-derive — read-only sensors vs real authority),
 and `architecture-binder-of-record` (every capability below carries an owner,
 a gate, and an evidence slot; prose without proof is not coverage).
 
+The design pass added three surface lenses that bind the W2 native work:
+`beautiful-gui-design` (platform-native idioms are load-bearing — tray-flyout
+vs menu-bar popover, close-means-minimize, semantic tokens that survive
+light/dark on both hosts), `typography-expert` (the IT-24D legibility gates:
+Segoe UI Variable in the Windows token font stack, tabular figures for
+transcript-density numerics, text verified at 125%/150% fractional scaling
+where DirectWrite hinting diverges from Core Text), and `frontend-design`
+(words are design material — the honest empty state "not available on this
+platform yet, lands at gate W2" is copy that names the gate, never a vague
+apology).
+
 ## The concept: Windows is a gate, not a hope
 
 Mac-first is a sequencing choice, not a strategy (strategy §9, verbatim). The
@@ -45,31 +56,82 @@ The one-line contract:
 > touch the host — tray, GPUI window, sandbox, IPC endpoint — are ports, and
 > each port has a gate.
 
+The same picture as a diagram. The top band never changes between hosts —
+those spokes dial whichever daemon is local (or relay-paired) over the same
+wire protocol. Everything below the daemon line is host territory, and host
+territory is where the W gates live:
+
+```mermaid
+flowchart TB
+  subgraph neutral[Platform-neutral spokes - identical on every host - wave W1]
+    CLI[pd CLI]
+    SDK[SDK npm and PyPI]
+    SCOUT[Scout extension]
+    GHAPP[GitHub App via relay]
+    MCPS[MCP server]
+    WEB[Web receipts]
+  end
+
+  subgraph mac[macOS host - shipping today]
+    MACIPC[Unix domain socket]
+    MACD[daemon hub]
+    FB[FleetBar - SwiftUI menu bar]
+    PCM[pd-console - GPUI on Metal]
+    SEAT[Seatbelt profiles plus launchd trust map]
+  end
+
+  subgraph winh[Windows host - W1 substrate, W2 native]
+    WINIPC[W1 interim 127.0.0.1 TCP - W2 named pipe with DACLs]
+    WIND[daemon hub - W1]
+    TRAY[tray app on FleetBar contract - W2]
+    PCW[pd-console - GPUI on DirectX - W2]
+    APPC[AppContainer plus Job Objects - W2]
+  end
+
+  neutral -->|loopback HTTP and WebSocket| MACD
+  neutral -->|same wire protocol| WIND
+  FB --> MACIPC
+  PCM --> MACIPC
+  MACIPC --> MACD
+  MACD --> SEAT
+  TRAY --> WINIPC
+  PCW --> WINIPC
+  WINIPC --> WIND
+  WIND --> APPC
+```
+
+Reading rule: an arrow into a daemon is a spoke; an arrow out of a daemon is
+the enforcement substrate it stands on. The two hosts differ only in the
+bottom two layers — transport and containment — which is exactly where W1
+(interim, honest) and W2 (hardened, native) draw their lines.
+
 ## What is platform-neutral now versus what needs the port
 
-This is the honest inventory, keyed to the strategy §9 surface table.
-"Neutral now" means the code has no macOS dependency and needs only packaging
-plus CI proof; "port" means real platform work exists.
+This is the honest inventory as a capability matrix, keyed to the strategy §9
+surface table: what each surface is on macOS today, what it is on Windows
+today, and what the port actually costs. "Zero/near-zero" means packaging
+plus CI proof of code that has no macOS dependency; anything more is real
+platform work and carries a W gate.
 
-| Surface | Verdict | Why | Windows wave |
-| --- | --- | --- | --- |
-| Daemon (hub) | neutral now* | TS/Bun; already runs on Linux. *Asterisk: IPC endpoint and service supervision are ports (below) | W1 |
-| CLI (`pd`) | neutral now | node/Bun; `path.join` discipline already holds (ADR-0028). Needs PowerShell completion + `%LOCALAPPDATA%` runtime dir | W1 |
-| SDK (npm TS, PyPI next) | neutral now | HTTP/socket client; socket→TCP fallback already exists | W1 |
-| GitHub App | neutral now | webhook → relay → daemon; never touches the host OS | W1 |
-| Scout (Chrome ext.) | neutral now | Chrome is Chrome; talks loopback HTTP to the daemon (ch19). Only the pairing/loopback address differs | W1 |
-| Website / receipts | neutral now | Cloudflare Pages; browser-verifiable receipts are platform-free by design (ch00 test 11) | W1 |
-| Relay | neutral now | hosted Cloudflare Worker | already |
-| MCP server | neutral now | ships with daemon; stdio/loopback | W1 |
-| Webhooks / HTTP API | neutral now | part of daemon | W1 |
-| IPC transport | **port** | Unix domain socket → named pipe with explicit DACLs (SDDL) + `PIPE_REJECT_REMOTE_CLIENTS`; interim TCP-only on `127.0.0.1` per ADR-0028 while Bun lacks named pipes (V4 phase 4F) | W1 interim, W2 hardened |
-| Service supervision | **port** | LaunchAgent plist → Windows Service (`sc.exe`) or Run-key for early users; restart/backoff parity per `daemon-development` | W1 |
-| Sandbox / containment | **port** | Seatbelt profiles + launchd trust map → AppContainer, Job Objects, restricted tokens; the `macos-host-security` cardinal rule re-derived for Windows (below) | W2 |
-| FleetBar | **port** | SwiftUI menu-bar app → a Windows tray app (new code; only the ch19 contract carries over) | W2 |
-| pd-console | **port** | GPUI supports Windows (Zed's framework; DirectX/DirectWrite backend) but our Metal-adjacent shader and text work (`metal-text-pipeline`, `gpui-shaders`) needs per-backend verification | W2 |
-| Fleet Control Center | **port** | rides FleetBar's shell; its webview content (`/fleet-ui/`) is neutral, the window chrome is the port | W2 |
-| Mobile | n/a | relay-paired; indifferent to desktop host OS | M10 |
-| Installers/updaters | **port** | brew + Developer ID + notarization → MSI/winget + Authenticode (EV or Azure Trusted Signing) + SmartScreen reputation | W1 |
+| Surface | macOS status | Windows status | Port cost | Wave |
+| --- | --- | --- | --- | --- |
+| Daemon (hub) | shipping — LaunchAgent-supervised, Unix-socket endpoint | runs wherever Bun runs (Linux already proves it); unsupervised, unpackaged | **low** — supervision + transport are the ports (own rows below); the TS core is neutral | W1 |
+| CLI (`pd`) | shipping | neutral — `path.join` discipline already holds (ADR-0028) | **low** — PowerShell completion, `%LOCALAPPDATA%\port-daddy\` runtime dir | W1 |
+| SDK (npm TS, PyPI next) | shipping | neutral — HTTP/socket client; socket→TCP fallback already exists | **near-zero** — CI proof on a Windows runner | W1 |
+| MCP server | shipping — ships with daemon | neutral — stdio/loopback | **near-zero** — rides the daemon port | W1 |
+| Webhooks / HTTP API | shipping — part of daemon | neutral — part of daemon | **zero** beyond the daemon row | W1 |
+| GitHub App | shipping | neutral — webhook → relay → daemon; never touches the host OS | **zero** | W1 |
+| Scout (Chrome ext.) | shipping (ch19) | neutral — Chrome is Chrome; loopback HTTP to the daemon | **near-zero** — pairing/loopback address only | W1 |
+| Website / receipts | shipping — Cloudflare Pages | neutral by design — browser-verifiable receipts are platform-free (ch00 test 11) | **zero** | already |
+| Relay | hosted Cloudflare Worker | hosted — host-OS-indifferent | **zero** | already |
+| Installers / updaters | brew + Developer ID + notarization | absent | **medium** — MSI/winget/Scoop, Authenticode (EV or Azure Trusted Signing), SmartScreen reputation, soak gates | W1 |
+| Service supervision | LaunchAgent plist, KeepAlive | absent | **low-medium** — Windows Service (SCM recovery actions) or Run-key early; restart/backoff parity per `daemon-development`; `pd doctor` Windows probe | W1 |
+| IPC transport | Unix domain socket, file-mode authority | absent | **medium** — interim `127.0.0.1` TCP per ADR-0028, then named pipe with SDDL DACLs + `PIPE_REJECT_REMOTE_CLIENTS` (V4 phase 4F); blocked on Bun named-pipe support or a Rust shim | W1 interim, W2 hardened |
+| Sandbox / containment | Seatbelt profiles + launchd trust map | absent | **high** — AppContainer, Job Objects, restricted tokens; profiles re-derived, not translated (`macos-host-security` cardinal rule below) | W2 |
+| FleetBar | shipping — SwiftUI menu bar | absent — only the ch19 contract carries over | **high** — a new tray-app body; contract, tokens, and state machine reused, code not | W2 |
+| pd-console | shipping — GPUI on Metal | GPUI supports Windows (DirectX/DirectWrite) but our Metal-tuned text/shader work (`metal-text-pipeline`, `gpui-shaders`) is unverified there | **medium-high** — rendering spike + host integration (window chrome, IME, DPI) | W2 |
+| Fleet Control Center | shipping — rides FleetBar's shell | webview content (`/fleet-ui/`) is neutral; window chrome is the port | **low** once the tray app exists — token CSS verified on WebView2 | W2 |
+| Mobile | n/a — relay-paired | n/a — indifferent to desktop host OS | **zero** for this track | M10 |
 
 Consequence worth stating plainly: **an operator on Windows can get the
 daemon, CLI, SDK, Scout, GitHub App, MCP, webhooks, and web receipts — eight
