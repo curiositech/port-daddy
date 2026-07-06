@@ -1,0 +1,48 @@
+{
+  "schema": "pd.agent-harbor.memory-episode.v0",
+  "episodeId": "memep_01JZM6FIX0001",
+  "harborId": "harbor_local_default",
+  "tier": "graph",
+  "agentNodeId": "agent_node_01JZFIX0001",
+  "sessionId": "session_01JZFIX0001",
+  "runId": "agent_run_01JZFIX0001",
+  "scope": {
+    "projectId": "port-daddy",
+    "repoRef": "curiositech/port-daddy",
+    "workgroupId": null,
+    "paths": ["workers/pd-email-ingress/"]
+  },
+  "summary": "The pd-email-ingress worker deploys via the operator's OAuth wrangler login; the repo-scoped API token 403s and must not be used.",
+  "facts": [
+    {
+      "subject": "workers/pd-email-ingress",
+      "predicate": "deployed-via",
+      "object": "wrangler-oauth-login",
+      "confidence": 0.95,
+      "validFrom": "2026-07-06T14:05:00.000Z",
+      "validUntil": null
+    },
+    {
+      "subject": "repo-api-token",
+      "predicate": "fails-with",
+      "object": "403-on-worker-deploy",
+      "confidence": 0.9
+    }
+  ],
+  "validFrom": "2026-07-06T14:05:00.000Z",
+  "validUntil": null,
+  "ingestedAt": "2026-07-06T14:12:00.000Z",
+  "supersedes": ["memep_01JZOLD0007"],
+  "supersededBy": null,
+  "extractedBy": { "kind": "longshoreman", "agentNodeId": "agent_node_longshoreman_01" },
+  "citations": [
+    { "kind": "transcript-event", "transcriptEventId": "evt_01JZFIX0038", "span": { "start": 0, "end": 240 } },
+    { "kind": "file", "fileRef": "workers/pd-email-ingress/wrangler.toml" }
+  ],
+  "sourcePayloadState": "present",
+  "importance": 7,
+  "confidence": 0.93,
+  "forgettingPolicy": { "kind": "decay", "halfLifeHours": 720 },
+  "embeddingRef": "Xenova/all-MiniLM-L6-v2/memep_01JZM6FIX0001",
+  "retentionPolicyId": "retain_default_365d"
+}

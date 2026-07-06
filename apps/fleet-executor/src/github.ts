@@ -258,6 +258,106 @@ export async function fetchRepoFile(
 }
 
 // ---------------------------------------------------------------------------
+// Fleet-context helpers (Lookout's tools: cross-PR / cross-branch awareness)
+
+export interface OpenPR {
+  number: number;
+  title: string;
+  headRef: string;
+  baseRef: string;
+  draft: boolean;
+}
+
+/**
+ * List the repo's currently-open PRs (excluding `excludeNumber`, the PR under
+ * review). Lookout uses this to spot cross-PR contradictions and duplication —
+ * two branches building the same thing, or one PR that breaks another's
+ * assumption. Best-effort: a failure returns [] (Lookout just loses that
+ * context, never crashes the run).
+ */
+export async function fetchOpenPullRequests(
+  owner: string,
+  repo: string,
+  token: string,
+  excludeNumber: number,
+  limit = 30,
+): Promise<OpenPR[]> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls?state=open&per_page=${Math.min(limit, 100)}&sort=updated&direction=desc`,
+      { headers: ghHeaders(token) },
+    );
+    if (!res.ok) return [];
+    const body = (await res.json()) as Array<{
+      number: number;
+      title: string;
+      draft?: boolean;
+      head?: { ref?: string };
+      base?: { ref?: string };
+    }>;
+    return body
+      .filter(p => p.number !== excludeNumber)
+      .map(p => ({
+        number: p.number,
+        title: p.title ?? '',
+        headRef: p.head?.ref ?? '',
+        baseRef: p.base?.ref ?? '',
+        draft: p.draft === true,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * List recently-updated branches (feature branches + worktree branches). Lookout
+ * uses this to notice work-in-flight that isn't a PR yet. Best-effort: [] on
+ * failure.
+ */
+export async function listRecentBranches(
+  owner: string,
+  repo: string,
+  token: string,
+  limit = 40,
+): Promise<string[]> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/branches?per_page=${Math.min(limit, 100)}`,
+      { headers: ghHeaders(token) },
+    );
+    if (!res.ok) return [];
+    const body = (await res.json()) as Array<{ name?: string }>;
+    return body.map(b => b.name ?? '').filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Build the "fleet context" block Lookout is given in its user message: the
+ * other open PRs and recent feature/worktree branches. Rendered as compact
+ * markdown so the model can reason about cross-PR contradiction and duplication.
+ * Returns '' when there is nothing to report.
+ */
+export function renderFleetContext(openPRs: OpenPR[], branches: string[]): string {
+  if (openPRs.length === 0 && branches.length === 0) return '';
+  const parts: string[] = ['## Fleet context (other work in flight)'];
+  if (openPRs.length) {
+    parts.push('### Other open PRs');
+    parts.push(
+      openPRs
+        .map(p => `- #${p.number}${p.draft ? ' (draft)' : ''}: ${p.title} [${p.headRef} → ${p.baseRef}]`)
+        .join('\n'),
+    );
+  }
+  if (branches.length) {
+    parts.push('### Recent branches');
+    parts.push(branches.map(b => `- ${b}`).join('\n'));
+  }
+  return parts.join('\n');
+}
+
+// ---------------------------------------------------------------------------
 // Commenting
 
 export async function postShipComment(

@@ -1,0 +1,68 @@
+{
+  "schema": "pd.agent-harbor.transcript-search-result.v0",
+  "queryId": "tsq_01JZM6FIX0001",
+  "completedAt": "2026-07-06T15:00:01.200Z",
+  "engine": {
+    "mode": "hybrid",
+    "embeddingModel": "Xenova/all-MiniLM-L6-v2",
+    "fusion": "rrf",
+    "reranked": true
+  },
+  "budget": {
+    "configured": { "maxResults": 10, "maxContextTokens": 4000 },
+    "used": { "results": 3, "contextTokensEstimate": 640 },
+    "truncated": false
+  },
+  "hits": [
+    {
+      "rank": 1,
+      "score": 0.91,
+      "source": "transcript-events",
+      "snippet": "npx wrangler deploy — Uploaded pd-email-ingress (1.2 sec), deployed via OAuth login",
+      "agentNodeId": "agent_node_01JZFIX0001",
+      "sessionId": "session_01JZFIX0001",
+      "runId": "agent_run_01JZFIX0001",
+      "occurredAt": "2026-07-06T14:05:00.000Z",
+      "citations": [
+        { "kind": "transcript-event", "transcriptEventId": "evt_01JZFIX0038", "span": { "start": 0, "end": 120 } }
+      ]
+    },
+    {
+      "rank": 2,
+      "score": 0.84,
+      "source": "memory-episodes",
+      "snippet": "pd-email-ingress deploys via the operator's OAuth wrangler login; the repo token 403s",
+      "agentNodeId": null,
+      "sessionId": null,
+      "runId": null,
+      "occurredAt": "2026-07-06T14:12:00.000Z",
+      "citations": [
+        { "kind": "transcript-event", "transcriptEventId": "evt_01JZFIX0038" },
+        { "kind": "file", "fileRef": "workers/pd-email-ingress/wrangler.toml" }
+      ]
+    },
+    {
+      "rank": 3,
+      "score": 0.77,
+      "source": "prs",
+      "snippet": "PR #672 io-wiring: deploy via OAuth wrangler, not repo token (manual step: Email Routing rule)",
+      "agentNodeId": null,
+      "sessionId": null,
+      "runId": null,
+      "occurredAt": "2026-07-04T18:00:00.000Z",
+      "citations": [
+        { "kind": "file", "fileRef": "docs/adr/0093-event-spawn-trust-substrate.md" },
+        { "kind": "claim", "claimRef": "claim_routes_webhooks_ts" }
+      ]
+    }
+  ],
+  "answer": {
+    "text": "The email ingress worker was deployed with `npx wrangler deploy` under the operator's OAuth wrangler login; the repo-scoped API token 403s and is not used. The Email Routing rule remains a manual operator step.",
+    "confidence": 0.88,
+    "citations": [
+      { "kind": "transcript-event", "transcriptEventId": "evt_01JZFIX0038", "span": { "start": 0, "end": 240 } },
+      { "kind": "file", "fileRef": "workers/pd-email-ingress/wrangler.toml" }
+    ]
+  },
+  "projection": { "stale": false, "lastLedgerSeq": 4210, "headSeq": 4210 }
+}

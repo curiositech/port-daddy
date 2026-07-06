@@ -10,11 +10,26 @@
  * shape and the rendering; the substrate is untouched.
  */
 
+import { randomUUID } from 'node:crypto';
 import { pdFetch } from '../utils/fetch.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { handleMemory as handleEpisodicMemory } from './semantic.js';
+import { initDatabase } from '../../lib/db.js';
+import {
+  EmbedderUnavailableError,
+  SUPPORTED_SOURCES,
+  searchTranscripts,
+  type SearchMode,
+  type TranscriptSearchQuery,
+} from '../../lib/agent-harbor/transcript-search.js';
+import {
+  createLocalEmbedder,
+  defaultTransformersCacheDir,
+  type LocalEmbedder,
+} from '../../lib/semantic-resolver.js';
+import { isEmbeddingModelCached } from './embed.js';
 
 export type MemoryTier = 'Core' | 'Recall' | 'Archival' | 'Recall→Archival';
 
@@ -289,6 +304,16 @@ function printUsage(): never {
   console.error('  episodes                  List episodic memory entries');
   console.error('  stats                     Summarize episodic memory counts');
   console.error('');
+  console.error('Transcript search (M6, ADR-0097 phase 2 — always cited, never a bare answer):');
+  console.error('  search "<query>"          Hybrid BM25 + embedding search over the harbor event ledger');
+  console.error('    --session <id,...>        Scope to session id(s)');
+  console.error('    --agent <id,...>          Scope to agentNodeId(s)');
+  console.error('    --kind <kind,...>         Scope to transcript event kind(s)');
+  console.error(`    --sources <src,...>       Corpora to search (default transcript-events; supported: ${SUPPORTED_SOURCES.join(', ')})`);
+  console.error('    --mode <m>                hybrid (default) | semantic | lexical (explicit degraded opt-in)');
+  console.error('    --limit <n>               Budget: max results (default 10)');
+  console.error('    --max-tokens <n>          Budget: max snippet context tokens (default 4000)');
+  console.error('');
   console.error('Options:');
   console.error('  --json, -j                Machine-readable output');
   console.error('  --quiet, -q               Bare value (single number / tier name)');
@@ -383,6 +408,119 @@ export async function handleMemorySummary(options: CLIOptions): Promise<void> {
 }
 
 // =============================================================================
+// handleMemorySearch — pd memory search "<query>" (M6, ADR-0097 phase 2)
+//
+// Hybrid (BM25 + shared local embedder, RRF-fused) search over the C1 event
+// ledger. Builds a schema-valid TranscriptSearchQuery, runs
+// lib/agent-harbor/transcript-search.ts, and prints CITED hits — never a bare
+// answer. Lexical-only is an explicit opt-in (--mode lexical), never a silent
+// fallback when the embedding model is missing.
+// =============================================================================
+
+const SEARCH_MODES: ReadonlySet<string> = new Set(['hybrid', 'semantic', 'lexical']);
+
+function optString(options: CLIOptions, key: string): string | undefined {
+  const value = options[key];
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function optList(options: CLIOptions, key: string): string[] {
+  const raw = optString(options, key);
+  if (!raw) return [];
+  return raw.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+}
+
+export async function handleMemorySearch(args: string[], options: CLIOptions): Promise<void> {
+  const queryText = args.slice(1).join(' ').trim();
+  if (!queryText) {
+    ui.error('Usage: pd memory search "<query>" [--session <id,...>] [--agent <id,...>] [--kind <kind,...>] [--mode hybrid|semantic|lexical] [--sources <src,...>] [--limit N] [--max-tokens N] [--json]');
+    process.exit(1);
+  }
+
+  const mode = (optString(options, 'mode') ?? 'hybrid') as SearchMode;
+  if (!SEARCH_MODES.has(mode)) {
+    ui.error(`Unknown --mode "${mode}". Known: hybrid (default), semantic, lexical.`);
+    process.exit(1);
+  }
+
+  const sources = optList(options, 'sources');
+  const limitRaw = optString(options, 'limit');
+  const maxResults = limitRaw ? Math.max(1, Number.parseInt(limitRaw, 10) || 10) : 10;
+  const maxTokensRaw = optString(options, 'max-tokens');
+  const maxContextTokens = maxTokensRaw ? Math.max(1, Number.parseInt(maxTokensRaw, 10) || 4000) : 4000;
+
+  // The ONE shared local embedder (ADR-0061; pd embed fronts the same model).
+  // MODE RULE (M6 contract): if hybrid/semantic is asked for and the model is
+  // not cached, fail with instructions — never silently degrade to lexical.
+  let embedder: LocalEmbedder | null = null;
+  if (mode !== 'lexical') {
+    const cacheDir = defaultTransformersCacheDir();
+    if (!isEmbeddingModelCached(cacheDir)) {
+      ui.error(new EmbedderUnavailableError(mode).message);
+      process.exit(3);
+    }
+    embedder = createLocalEmbedder({ cacheDir });
+  }
+
+  const query: TranscriptSearchQuery = {
+    schema: 'pd.agent-harbor.transcript-search-query.v0',
+    queryId: `tsq_${randomUUID()}`,
+    issuedAt: new Date().toISOString(),
+    issuedBy: { kind: 'operator', agentNodeId: null, sessionId: null },
+    queryText,
+    mode,
+    scope: {
+      agentNodeIds: optList(options, 'agent'),
+      sessionIds: optList(options, 'session'),
+      eventKinds: optList(options, 'kind'),
+    },
+    sources: sources.length > 0 ? sources : ['transcript-events'],
+    budget: { maxResults, maxContextTokens },
+    visibilityCeiling: 'operator',
+  };
+
+  const db = initDatabase();
+  try {
+    const result = await searchTranscripts(db, query, { embedder });
+    if (isJson(options)) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+    if (isQuiet(options)) {
+      for (const hit of result.hits) console.log(hit.citations[0].transcriptEventId);
+      return;
+    }
+    if (result.hits.length === 0) {
+      console.log('No matches (honest miss — nothing in the searched corpus scored for this query).');
+    }
+    for (const hit of result.hits) {
+      const where = [hit.sessionId && `session=${hit.sessionId}`, hit.agentNodeId && `agent=${hit.agentNodeId}`, hit.occurredAt]
+        .filter(Boolean)
+        .join('  ');
+      console.log(`${String(hit.rank).padStart(3)}. [${hit.source}] score=${hit.score.toFixed(4)}  ${where}`);
+      if (hit.snippet) console.log(`     ${hit.snippet.replace(/\s+/g, ' ')}`);
+      console.log(`     cites: ${hit.citations.map((c) => c.transcriptEventId).join(', ')}`);
+    }
+    const b = result.budget;
+    const freshness = result.projection.stale ? 'STALE (label, never authority)' : 'fresh';
+    console.log('');
+    console.log(
+      `engine=${result.engine.mode}${result.engine.embeddingModel ? ` (${result.engine.embeddingModel})` : ''}` +
+      `  budget: ${b.used.results}/${b.configured.maxResults} results, ~${b.used.contextTokensEstimate} tokens` +
+      `${b.truncated ? ' [truncated]' : ''}  projection: ${freshness}`,
+    );
+  } catch (err) {
+    if (err instanceof EmbedderUnavailableError) {
+      ui.error(err.message);
+      process.exit(3);
+    }
+    throw err;
+  } finally {
+    db.close();
+  }
+}
+
+// =============================================================================
 // handleMemory — dispatcher
 // =============================================================================
 
@@ -409,6 +547,10 @@ export async function handleMemory(args: string[], options: CLIOptions): Promise
     if (sub === 'tiers') return handleMemoryTiers(options);
     if (sub === 'tier') return handleMemoryTier(args[1], options);
     if (sub === 'summary') return handleMemorySummary(options);
+  }
+
+  if (sub === 'search') {
+    return handleMemorySearch(args, options);
   }
 
   if (EPISODIC_SUBCOMMANDS.has(sub)) {
