@@ -85,10 +85,34 @@ export interface FleetWatcher {
 export interface FleetLimits {
   /** Max concurrent spawns for this project's fleet (default: unlimited) */
   maxConcurrentSpawns?: number;
+  /**
+   * Max concurrent spawns on a LOCAL model backend (ollama / lmstudio),
+   * enforced by a daemon-global semaphore because local inference shares one
+   * machine across every project. A small local model can only serve one or two
+   * requests before it thrashes CPU/RAM, so this defaults conservatively
+   * (DEFAULT_MAX_CONCURRENT_LOCAL_SPAWNS) rather than unlimited. Cloud/CLI
+   * spawns are unaffected.
+   */
+  maxConcurrentLocalSpawns?: number;
   /** Max spawns per hour (rate limit, default: unlimited) */
   maxSpawnsPerHour?: number;
   /** Required daily LLM spend ceiling for this project */
   budgetUsdPerDay?: number;
+}
+
+/**
+ * Backends whose body runs LOCAL inference on the operator's own machine. They
+ * share one CPU/GPU/RAM budget across ALL projects, so their concurrency is
+ * capped by a daemon-global semaphore, not the per-project spawn cap.
+ */
+export const LOCAL_BACKENDS: ReadonlySet<string> = new Set(['ollama', 'lmstudio']);
+
+/** Default local-spawn concurrency when a fleet does not set the limit. */
+export const DEFAULT_MAX_CONCURRENT_LOCAL_SPAWNS = 2;
+
+/** True when a resolved backend runs local inference (thrash-sensitive). */
+export function isLocalBackend(backend: string | null | undefined): boolean {
+  return typeof backend === 'string' && LOCAL_BACKENDS.has(backend.trim());
 }
 
 export interface FleetConfig {
@@ -751,6 +775,15 @@ export interface FleetRunnerOptions {
    * docs/shipwright/FLEETCONTROL-HARDENING.md §5.
    */
   acquirePermit?: () => Promise<() => void>;
+  /**
+   * Daemon-GLOBAL local-inference permit. Called (in addition to
+   * `acquirePermit`) only when the spawn's primary backend runs local inference
+   * (ollama / lmstudio), because those share one machine across every project.
+   * Returns a release function the runner MUST call exactly once. When omitted,
+   * local spawns are not additionally throttled (fine for tests; the daemon
+   * always injects it so a fleet of local ships cannot thrash the box).
+   */
+  acquireLocalPermit?: (backend: string) => Promise<() => void>;
   /**
    * Inbound webhook receiver registration (I/O wiring Phase 2). The daemon
    * owns the HTTP surface; it injects this so `webhook:<channel>` triggers
@@ -1853,11 +1886,37 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     // throws (e.g. registry was drained mid-shutdown), surface as a normal
     // agent_failed event — same shape as every other admission failure.
     let releasePermit: (() => void) | null = null;
+    let releaseLocalPermit: (() => void) | null = null;
     if (options?.acquirePermit) {
       try {
         releasePermit = await options.acquirePermit();
       } catch (err) {
         const reason = (err as Error).message || 'permit-acquire-failed';
+        emit({
+          type: 'agent_failed', agent: agent.name, identity, project,
+          timestamp: Date.now(), details: { error: `quota: ${reason}` },
+        });
+        return { success: false, error: `quota: ${reason}` };
+      }
+    }
+
+    // Daemon-GLOBAL local-inference permit. A fleet of local (ollama/lmstudio)
+    // ships shares one machine, so cap their concurrency separately from the
+    // per-project spawn cap — otherwise N project permits become N concurrent
+    // local model requests and the box thrashes. Gate on the PRIMARY backend:
+    // local-first ships hold a local slot; cloud/CLI ships never do. Acquired
+    // after the project permit and released in the same finally.
+    if (options?.acquireLocalPermit && isLocalBackend(primaryRuntime.backend)) {
+      try {
+        releaseLocalPermit = await options.acquireLocalPermit(primaryRuntime.backend);
+      } catch (err) {
+        // Release the project permit we already hold before bailing, so a local
+        // acquire failure never leaks a project slot.
+        if (releasePermit) {
+          try { releasePermit(); } catch { /* idempotent */ }
+          releasePermit = null;
+        }
+        const reason = (err as Error).message || 'local-permit-acquire-failed';
         emit({
           type: 'agent_failed', agent: agent.name, identity, project,
           timestamp: Date.now(), details: { error: `quota: ${reason}` },
@@ -1998,6 +2057,10 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       // context. If we held the permit while requeuing, a saturated semaphore
       // could deadlock the same agent against itself: it would await its own
       // released slot. Releasing first lets the FIFO advance one waiter.
+      if (releaseLocalPermit) {
+        try { releaseLocalPermit(); } catch { /* idempotent — second release is a no-op */ }
+        releaseLocalPermit = null;
+      }
       if (releasePermit) {
         try { releasePermit(); } catch { /* idempotent — second release is a no-op */ }
         releasePermit = null;

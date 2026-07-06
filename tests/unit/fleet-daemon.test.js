@@ -68,6 +68,7 @@ jest.unstable_mockModule('../../lib/fleet-engine.js', () => ({
   createFleetRunner: mockCreateFleetRunner,
   validateTopology: mockValidateTopology,
   findFleetConfigPath: jest.fn((dir) => `${dir}/pd-fleet.yml`),
+  DEFAULT_MAX_CONCURRENT_LOCAL_SPAWNS: 2,
 }));
 
 // Mock child_process (fleet-engine imports it)

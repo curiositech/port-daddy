@@ -103,6 +103,13 @@ fleet:
 
   limits:
     max_concurrent_spawns: 3
+    # LOCAL-inference concurrency cap (2026-07-06). The local fleet's Ollama
+    # ships share ONE machine; a small local model can only serve a couple of
+    # requests before it thrashes CPU/RAM. This daemon-GLOBAL semaphore serializes
+    # local (ollama/lmstudio) spawns across every project — cloud/CLI spawns are
+    # unaffected and still bounded by max_concurrent_spawns. Raise it if your box
+    # has the headroom (or set PD_MAX_CONCURRENT_LOCAL_SPAWNS). Default when unset: 2.
+    max_concurrent_local_spawns: 2
     max_spawns_per_hour: 12
     # Daily ceiling. Since the 2026-07-06 overhaul the LOCAL fleet
     # (gardener, test-hunter, documentarian, simplifier, cartographer,

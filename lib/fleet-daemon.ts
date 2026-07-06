@@ -25,6 +25,7 @@ import {
   createFleetRunner,
   validateTopology,
   findFleetConfigPath,
+  DEFAULT_MAX_CONCURRENT_LOCAL_SPAWNS,
   type FleetConfig,
   type FleetEvent,
   type FleetRunContext,
@@ -37,7 +38,7 @@ import { setKey as setMatrixKey, deleteKey as deleteMatrixKey } from './squid/ma
 import { MacOSNotificationSink } from './fleet/outputs/notify-macos.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { loadEnvFiles } from './env-loader.js';
-import { createProjectSemaphoreRegistry, type ProjectSemaphoreRegistry } from './concurrency-semaphore.js';
+import { createProjectSemaphoreRegistry, createSemaphore, type ProjectSemaphoreRegistry, type Semaphore } from './concurrency-semaphore.js';
 import type { CostTracker } from './cost-tracker.js';
 import type { SemanticResolver } from './semantic-resolver.js';
 import type { TupleSpace } from './tuples.js';
@@ -255,6 +256,20 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   // acquire from the same Semaphore, so the project-level cap is honored across
   // runners. Spec: docs/shipwright/FLEETCONTROL-HARDENING.md §5.
   const concurrency: ProjectSemaphoreRegistry = createProjectSemaphoreRegistry();
+  // Daemon-GLOBAL local-inference gate. Local model backends (ollama/lmstudio)
+  // share ONE machine across every project, so their concurrency is capped here,
+  // not per-project — otherwise a fleet of local ships fans out N simultaneous
+  // model requests and thrashes CPU/RAM. Default is conservative; a fleet's
+  // `limits.max_concurrent_local_spawns` (or PD_MAX_CONCURRENT_LOCAL_SPAWNS)
+  // resizes it. Sized ≥1 always; drained on daemon stop.
+  const envLocalCap = Number.parseInt(process.env.PD_MAX_CONCURRENT_LOCAL_SPAWNS ?? '', 10);
+  const localInferenceCapacity = Number.isInteger(envLocalCap) && envLocalCap > 0
+    ? envLocalCap
+    : DEFAULT_MAX_CONCURRENT_LOCAL_SPAWNS;
+  const localConcurrency: Semaphore = createSemaphore({
+    capacity: localInferenceCapacity,
+    name: 'local-inference',
+  });
   let isRunning = false;
   let startedAt: number | null = null;
   let leaseRenewTimer: ReturnType<typeof setInterval> | null = null;
@@ -660,6 +675,14 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     const projectCap = config.limits?.maxConcurrentSpawns;
     const projectSemaphore = concurrency.for(config.name, projectCap);
 
+    // A fleet may tighten/loosen the daemon-global local-inference cap. Resize
+    // the shared semaphore (grow drains FIFO; shrink keeps holders running) so
+    // the operator's `max_concurrent_local_spawns` takes effect on reload.
+    const localCap = config.limits?.maxConcurrentLocalSpawns;
+    if (typeof localCap === 'number' && Number.isInteger(localCap) && localCap > 0) {
+      localConcurrency.resize(localCap);
+    }
+
     const runner = createFleetRunner(config, projectDir, {
       onEvent: handleEvent,
       costTracker,
@@ -670,6 +693,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
         subscribe: messaging.subscribe.bind(messaging),
       },
       acquirePermit: () => projectSemaphore.acquire(),
+      acquireLocalPermit: () => localConcurrency.acquire(),
       // I/O wiring Phase 2: webhook:<channel> triggers register with the
       // daemon's inbound receiver (routes/fleet-webhooks.ts posts into it).
       registerWebhookHandler: (channel, handler) =>
@@ -940,6 +964,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     // event instead of hanging forever. Holders aren't affected — their
     // child processes have already been SIGTERM'd by `stopManagedFleet`.
     concurrency.drainAll('fleet daemon stopping');
+    localConcurrency.drain('fleet daemon stopping');
     fleets.clear();
     projectLeases.clear();
     skippedProjects.clear();

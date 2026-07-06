@@ -73,6 +73,7 @@ export interface TriviaNode extends FleetAstNode<'trivia'> {
 
 export interface LimitsNode extends FleetAstNode<'limits'> {
   maxConcurrentSpawns?: IntNode;
+  maxConcurrentLocalSpawns?: IntNode;
   maxSpawnsPerHour?: IntNode;
   budgetUsdPerDay?: IntNode;
 }
@@ -286,9 +287,10 @@ function gEnum<T extends string>(m: YAMLMap, key: string, gr: GetRange): EnumNod
 function parseLimits(m: YAMLMap, gr: GetRange): LimitsNode {
   return {
     kind: 'limits', range: gr(nodeRange(m)),
-    maxConcurrentSpawns: gInt(m, 'max_concurrent_spawns', gr),
-    maxSpawnsPerHour:    gInt(m, 'max_spawns_per_hour',   gr),
-    budgetUsdPerDay:     gInt(m, 'budget_usd_per_day',    gr),
+    maxConcurrentSpawns:      gInt(m, 'max_concurrent_spawns',       gr),
+    maxConcurrentLocalSpawns: gInt(m, 'max_concurrent_local_spawns', gr),
+    maxSpawnsPerHour:         gInt(m, 'max_spawns_per_hour',         gr),
+    budgetUsdPerDay:          gInt(m, 'budget_usd_per_day',          gr),
   };
 }
 
@@ -659,9 +661,10 @@ export function astToConfig(ast: FleetAst): FleetConfig {
   let limits: FleetLimits | undefined;
   if (ast.limits) {
     limits = {
-      maxConcurrentSpawns: ast.limits.maxConcurrentSpawns?.value,
-      maxSpawnsPerHour:    ast.limits.maxSpawnsPerHour?.value,
-      budgetUsdPerDay:     normBudget(ast.limits.budgetUsdPerDay),
+      maxConcurrentSpawns:      ast.limits.maxConcurrentSpawns?.value,
+      maxConcurrentLocalSpawns: ast.limits.maxConcurrentLocalSpawns?.value,
+      maxSpawnsPerHour:         ast.limits.maxSpawnsPerHour?.value,
+      budgetUsdPerDay:          normBudget(ast.limits.budgetUsdPerDay),
     };
   }
 
