@@ -360,6 +360,50 @@ Acceptance gates:
 - no "live" claim without runtime proof;
 - binder updates reflect what shipped versus what remains target-only.
 
+### Work Order C10 - Cloudflare code-writing remote body + joinable read-only co-edit
+
+Origin:
+  Operator request (2026-07-06): "expand the Cloudflare fleet to also write code
+  in remote harbors, and let these be joinable by the operator." Folded into the
+  binder as the early example of the remote-harbor / cooperative-editing thread.
+  Executable design: `docs/adr/0096-cloudflare-code-writing-remote-harbor-and-operator-coedit.md`.
+
+Status:
+  **Held.** Do not launch until the current C-wave has landed AND at least one
+  LOCAL Agent Node's governance (transcript + tool gate + control) is visibly
+  working end-to-end. The editable-buffer half is C6 and stays on the Not-now
+  fence below.
+
+Send (when unheld):
+  One remote-runtime/harbor-authority agent, after a Harbor Authority contract
+  freeze derived from ADR-0096 (the F0-analogue for this slice).
+
+Mission:
+  Turn the Cloudflare review executor's sibling — a code-writing remote body —
+  into a compliant remote Agent Node in an authoritative remote harbor, and let
+  the operator JOIN its governed buffer read-only.
+
+Outputs (design → contract → slice):
+
+- a Harbor Authority contract (harbor_id, authority epoch, single writer lease,
+  revocation, per-artifact ACLs) — the deferred ch02 ADR, now ADR-0096;
+- a `cloudflare` code-writing anode adapter: worktree binding, Sandbox Level 5,
+  capability card (draft-PR-only until push is explicitly granted), transcript
+  stream, cost meter;
+- the ch20 "Harbor remote view": operator joins the running remote buffer
+  read-only, claims as line-range stripes, semantic-conflict band;
+- proof-gate results G1..G5 from ADR-0096.
+
+Acceptance gates:
+  ADR-0096 G1..G5 — remote node card with authority/cost/revocation; governed
+  worktree with destructive-git blocked; remote interrupt race has no silent
+  half-control; joinable read-only mirror sourced from durable events with
+  operator writes explicitly disabled (Phase B pending); a verifiable Work Receipt.
+
+Do not:
+  Ship editable co-edit over the relay (that is C6 / ADR-0096 Phase B), public
+  harbors, cloud billing, or a push to the operator's main checkout.
+
 ## Agent count rule
 
 For the first execution wave:
@@ -445,5 +489,8 @@ After `F0` lands:
 - start `C9` Longshoremen as passive observers before they can steer agents;
 - keep `C6` Harbor Editor in design until local Agent Node governance is
   visibly working.
+- keep `C10` (Cloudflare code-writing remote body + joinable read-only co-edit,
+  ADR-0096) held until the C-wave lands and local Agent Node governance is
+  visibly working; its editable-buffer half is C6 and stays on the Not-now fence.
 
 This is the prescription until the next focus receipt revises it with evidence.

@@ -48,6 +48,9 @@ Rules:
   the artifact owner explicitly exports or transfers ownership.
 
 This deserves a dedicated Harbor Authority ADR before team/public harbors ship.
+That ADR is now drafted as `docs/adr/0096-cloudflare-code-writing-remote-harbor-and-operator-coedit.md`
+(ADR-0096, §2 "Remote harbor authority"), scoped to the first code-writing
+remote-body slice; it must be generalized before team/public harbors ship.
 
 ## Deployment modes
 
@@ -108,6 +111,15 @@ Cloudflare production lane:
   remote body whose events stream back to the user's local or account harbor.
   The card must show remote authority, Cloudflare lane, budget owner, retention,
   and revocation controls before launch.
+
+  Today the shipped Cloudflare workers are a **review** fleet: `apps/fleet-executor`
+  reads a PR diff and posts review comments + a check run, but never clones,
+  edits, commits, or pushes. Expanding this lane into a **code-writing** remote
+  body — one that writes code in a remote harbor the operator can join — is
+  designed in `docs/adr/0096-cloudflare-code-writing-remote-harbor-and-operator-coedit.md`
+  (ADR-0096, the "dedicated Harbor Authority ADR" the next section asks for) and
+  sequenced as ch18 Work Order C10. It is design-only until its proof gates pass;
+  no surface may call code-writing-on-Cloudflare "live" before then.
 
 Custom agent lane:
   A custom runtime targets the same Agent Node API: register, heartbeat, stream

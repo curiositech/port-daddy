@@ -242,7 +242,9 @@ Spec-only or target until proven by tests:
 - browser-verifiable Work Receipts;
 - passkey/device account flow;
 - C6 successor replay;
-- complete transcript/session joins for every body.
+- complete transcript/session joins for every body;
+- code-writing Cloudflare remote body + operator-joinable read-only co-edit
+  (ch18 Work Order C10, ADR-0096) — today's Cloudflare fleet only *reviews* PRs.
 
 Target, not fully real yet:
 
