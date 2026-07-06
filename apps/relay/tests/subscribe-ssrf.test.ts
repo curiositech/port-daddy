@@ -74,3 +74,57 @@ describe('handleSubscribe — SSRF sessionId validation', () => {
     );
   });
 });
+
+/**
+ * Reconciliation with PR #724 (lib/fleet/url-guard.ts mappedIpv4() fix).
+ *
+ * #724 closed an SSRF bypass where an IPv4-mapped IPv6 literal
+ * (::ffff:169.254.169.254, which Node normalizes to ::ffff:a9fe:a9fe) reached
+ * cloud metadata through the FLEET *outbound-host* guard. That guard classifies
+ * a real network destination.
+ *
+ * handleSubscribe is a DIFFERENT surface: sessionId is never a network host. It
+ * is a DB key and a URL-encoded query param on a fetch to a FIXED Durable Object
+ * binding (`http://do/...` — a synthetic hostname Cloudflare ignores; there is no
+ * DNS and no IP resolution). So the mapped-IPv4 class cannot cause egress here.
+ *
+ * Nonetheless, every host/IP literal that carries a URL-control or host character
+ * (`:`, `.`, `/`, `[`, `]`) is refused by the sessionId allowlist BEFORE any
+ * backend call — including the exact literals #724 had to special-case. This
+ * proves the relay's subscribe path has no mapped-IPv4-style hole to close.
+ */
+const SSRF_HOST_LITERALS = [
+  '::ffff:169.254.169.254', // IPv4-mapped IPv6, dotted tail (the #724 payload)
+  '::ffff:a9fe:a9fe',        // IPv4-mapped IPv6, hex-hextet form (Node's normalization)
+  '::ffff:7f00:1',           // IPv4-mapped loopback, hex-hextet
+  '169.254.169.254',         // dotted metadata IP
+  '0177.0.0.1',              // octal-encoded 127.0.0.1
+  '[::1]',                   // bracketed IPv6 loopback
+  '2130706433.nip.io',       // decimal-IP DNS-rebind style host (dot-bearing)
+  'metadata.google.internal',// metadata DNS name
+];
+
+describe('handleSubscribe — mapped-IPv4 / host-literal SSRF forms (reconciliation with #724)', () => {
+  for (const host of SSRF_HOST_LITERALS) {
+    it(`refuses host literal ${JSON.stringify(host)} with 400 before any backend call`, async () => {
+      const resp = await handleSubscribe(req(), trapEnv(), host);
+      expect(resp.status).toBe(400);
+      expect(((await resp.json()) as { code: string }).code).toBe('INVALID_SESSION');
+    });
+  }
+
+  it('an inert all-alphanumeric IP encoding (decimal 2130706433) is ACCEPTED as a session-id shape — safe because it is never resolved as a host', async () => {
+    // Bare digits/hex like 2130706433 or 0x7f000001 match [a-zA-Z0-9_-] and so
+    // pass the allowlist. That is correct here: the value is used only as a DB
+    // lookup key and a URL-encoded query param routed to a fixed Durable Object,
+    // never as a network destination — so it cannot cause SSRF. Documented so a
+    // future maintainer does not "harden" the regex against inert numeric ids and
+    // mistake this relay guard for an outbound-host guard (that is #724's job).
+    await expect(handleSubscribe(req(), trapEnv(), '2130706433')).rejects.toThrow(
+      /backend reached/
+    );
+    await expect(handleSubscribe(req(), trapEnv(), '0x7f000001')).rejects.toThrow(
+      /backend reached/
+    );
+  });
+});

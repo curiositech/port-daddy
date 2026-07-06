@@ -81,7 +81,11 @@ export function operatorOnly(request: Request, env: Env): Response | null {
   // misconfigured. Reject every request rather than silently comparing against
   // an empty/undefined secret (which would let a blank token through).
   if (!env.RELAY_OPERATOR_TOKEN || env.RELAY_OPERATOR_TOKEN.length < 32) {
-    return err('MISCONFIGURED', 'Operator token not configured', 500);
+    return err(
+      'MISCONFIGURED',
+      'RELAY_OPERATOR_TOKEN is not configured or shorter than the 32-character minimum',
+      500
+    );
   }
   const auth = request.headers.get('Authorization');
   const token = auth?.replace(/^Bearer\s+/i, '') ?? '';
