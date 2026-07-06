@@ -589,6 +589,75 @@ impl DaemonClient {
         self.tube_send(channel, frame_text, "presence").await
     }
 
+    // ── Harbor Editor P2 slice 3: durability + channel isolation ──────────────
+
+    /// Store a doc **snapshot** in the daemon's content-addressed `/blob` store and
+    /// return its content address (`sha256(body)` hex). REUSES routes/blob.ts as-is:
+    /// `POST /blob` with the raw bytes takes the body, hashes it server-side, and
+    /// returns `{ blob: { id, size, ... } }` — so the returned `id` IS the content
+    /// address (no client-side crypto dep). `bytes` is [`crate::buffer::HarborBuffer::export_snapshot`].
+    /// The id then rides an [`crate::editor_sync::encode_snapshot_frame`] up the edit
+    /// lane so a behind peer can fetch it.
+    pub async fn put_blob(&self, bytes: Vec<u8>) -> Result<String> {
+        let resp = self
+            .http
+            .post(format!("{}/blob", self.base))
+            // A non-JSON content-type routes to blob.ts's wildcard raw-body parser,
+            // which preserves the exact bytes (a JSON content-type would re-encode).
+            .header("content-type", "application/octet-stream")
+            .body(bytes)
+            .send()
+            .await
+            .context("POST /blob")?;
+        let resp = ensure_success(resp, "put_blob").await?;
+        let v: serde_json::Value = resp.json().await.context("blob put response")?;
+        parse_blob_id(&v).ok_or_else(|| anyhow!("POST /blob returned no blob id: {v}"))
+    }
+
+    /// Fetch a snapshot blob back by its content address (`GET /blob/:id`). Returns
+    /// the raw bytes for [`crate::buffer::HarborBuffer::apply_remote_ops`] to import.
+    /// A 404 (blob evicted) surfaces as an error rather than empty bytes.
+    pub async fn get_blob(&self, id: &str) -> Result<Vec<u8>> {
+        let resp = self
+            .http
+            .get(format!("{}/blob/{id}", self.base))
+            .send()
+            .await
+            .context("GET /blob/:id")?;
+        let resp = ensure_success(resp, "get_blob").await?;
+        let bytes = resp.bytes().await.context("blob body")?;
+        Ok(bytes.to_vec())
+    }
+
+    /// Broadcast a snapshot **reference** frame up a file's EDIT-lane channel
+    /// ([`crate::editor_sync::channel_for_path`]). Same wire as [`tube_send`](Self::tube_send),
+    /// stamped `sender = "snapshot"` so a log reader can tell the durability lane
+    /// apart. `frame_text` is [`crate::editor_sync::encode_snapshot_frame`].
+    pub async fn broadcast_snapshot_ref(&self, channel: &str, frame_text: &str) -> Result<()> {
+        self.tube_send(channel, frame_text, "snapshot").await
+    }
+
+    /// Append one op-log delta to the durable, immutable op-log via `POST /notes`
+    /// (REUSING [`add_note`](Self::add_note) — notes are write-once, exactly what a
+    /// replayable audit log needs). `note_content` is
+    /// [`crate::editor_sync::encode_oplog_note`]. Isolation note: this is a `/notes`
+    /// write, wholly off BOTH tube lanes — the durable log never competes with live
+    /// doc-ops or coordination for tube bandwidth.
+    pub async fn log_oplog_delta(&self, note_content: &str) -> Result<()> {
+        self.add_note(note_content).await
+    }
+
+    /// Send a coordination-control-plane signal (claim acquire/release, conflict
+    /// predicted) up a file's **coordination** channel
+    /// ([`crate::editor_sync::coordination_channel_for_path`]) — a SEPARATE tube
+    /// channel from the edit lane, so a keystroke burst on the edit channel cannot
+    /// starve this latency-sensitive lane (the ref-03 §3 isolation contract; proven
+    /// structurally by `editor_sync::LaneQueues`). `frame_text` is
+    /// [`crate::editor_sync::encode_coord_frame`]; stamped `sender = "coord"`.
+    pub async fn send_coord_signal(&self, coord_channel: &str, frame_text: &str) -> Result<()> {
+        self.tube_send(coord_channel, frame_text, "coord").await
+    }
+
     /// Mirror an editor's local SELECTION into the durable claims table — the
     /// stronger, persistent "I am working here" signal that outlives the ephemeral
     /// cursor lane. This REUSES the exact endpoint `pd session files add` /
@@ -1101,6 +1170,23 @@ fn region_claim_body(path: &str, start_line: u32, end_line: u32, agent_id: &str)
         }],
         "agentId": agent_id,
     })
+}
+
+/// Pull the content-addressed blob id out of a `POST /blob` response
+/// (`{ success, blob: { id, size, ... } }`, per routes/blob.ts). Kept pure so the
+/// response shape is a checked contract (see `parse_blob_id_reads_the_blob_stat_id`)
+/// without a live daemon. Tolerates a bare `{ id }` too, but never invents an id.
+///
+/// `allow(dead_code)`: its caller [`DaemonClient::put_blob`] is a `pub` method
+/// (exempt from the lint) that is not yet invoked from `main.rs` — the same
+/// not-yet-live status the slice-1 receive path had. The test exercises it.
+#[allow(dead_code)]
+fn parse_blob_id(v: &serde_json::Value) -> Option<String> {
+    v.get("blob")
+        .and_then(|b| b.get("id"))
+        .or_else(|| v.get("id"))
+        .and_then(|id| id.as_str())
+        .map(String::from)
 }
 
 /// A payload may be a string, `{text:...}`, or `{content:...}` — pull readable text.
@@ -1633,5 +1719,18 @@ mod tests {
         );
         // The claim is attributed to the acting replica's PD identity.
         assert_eq!(body.get("agentId").and_then(|a| a.as_str()), Some("port-daddy:editor:agent-A"));
+    }
+
+    /// `put_blob` reads the content address out of routes/blob.ts's response shape
+    /// (`{ success, blob: { id, ... } }`) — the P2 slice-3 durability contract.
+    #[test]
+    fn parse_blob_id_reads_the_blob_stat_id() {
+        let id = "e".repeat(64);
+        let ok = serde_json::json!({ "success": true, "blob": { "id": id, "size": 128 } });
+        assert_eq!(parse_blob_id(&ok).as_deref(), Some(id.as_str()), "reads blob.id (the sha256 content address)");
+        // A bare {id} is tolerated; a body with no id yields None (never invented).
+        assert_eq!(parse_blob_id(&serde_json::json!({ "id": "abc" })).as_deref(), Some("abc"));
+        assert_eq!(parse_blob_id(&serde_json::json!({ "success": false, "error": "boom" })), None);
+        assert_eq!(parse_blob_id(&serde_json::json!({ "blob": { "size": 1 } })), None);
     }
 }

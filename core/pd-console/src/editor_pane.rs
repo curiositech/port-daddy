@@ -110,12 +110,19 @@ pub struct EditorPane {
     buffer: Option<HarborBuffer>,
     truncated: bool,
     error: Option<String>,
-    /// The per-file tube channel this editor's op stream rides on (P2 slice 1),
-    /// derived once from `path` via [`crate::editor_sync::channel_for_path`]. Two
-    /// replicas opening the same file land on the same channel and exchange Loro op
-    /// frames over it. Presence (slice 2) rides this SAME channel under a distinct
-    /// frame kind.
+    /// The per-file **edit-sync** tube channel this editor's op stream rides on (P2
+    /// slice 1), derived once from `path` via [`crate::editor_sync::channel_for_path`].
+    /// Two replicas opening the same file land on the same channel and exchange Loro
+    /// op frames over it. Presence (slice 2) and snapshot refs (slice 3) ride this
+    /// SAME channel under distinct frame kinds.
     channel: String,
+    /// The per-file **coordination** tube channel (P2 slice 3), derived from `path`
+    /// via [`crate::editor_sync::coordination_channel_for_path`]. Deliberately a
+    /// SEPARATE channel from `channel` so claims / guard / conflict-predict signals
+    /// never share a queue with the high-frequency doc-op lane — a keystroke burst
+    /// cannot starve coordination (ref-03 §3 isolation). Derived once; stable for the
+    /// pane's life.
+    coord_channel: String,
     /// P2 slice 2 — the ephemeral presence lane. All three fields are **owned by
     /// this pane and touched only on the render/main thread** (in the gpui face,
     /// via `cx`). The SSE→render seam stays a plain mpsc of frame bytes (as slice 1
@@ -152,10 +159,12 @@ impl EditorPane {
     ) -> Self {
         let path = path.into();
         let identity = identity.into();
-        // Derive the sync channel once at construction — it is a pure function of
-        // the path, so it is stable for the pane's whole life (and matches every
-        // other replica that opens the same file).
+        // Derive both per-file channels once at construction — each is a pure
+        // function of the path, so both are stable for the pane's whole life (and
+        // match every other replica that opens the same file). The edit-sync lane and
+        // the coordination lane are DISTINCT channels (slice-3 isolation).
         let channel = crate::editor_sync::channel_for_path(&path);
+        let coord_channel = crate::editor_sync::coordination_channel_for_path(&path);
         // Mint the local replica id from the identity directly (same FNV-1a as the
         // buffer) so presence has a stable local PeerId even before a file loads —
         // the presence lane does not depend on the buffer being open.
@@ -168,6 +177,7 @@ impl EditorPane {
             truncated: false,
             error: None,
             channel,
+            coord_channel,
             presence: PresenceStore::new(local_peer),
             remote: BTreeMap::new(),
             presence_out: PresenceDebouncer::new(PRESENCE_SEND_INTERVAL_MS),
@@ -207,6 +217,15 @@ impl EditorPane {
         &self.channel
     }
 
+    /// The per-file **coordination** channel (P2 slice 3) — the isolated control
+    /// plane for claims / guard / conflict-predict. Callers open a SEPARATE live
+    /// receiver with `DaemonClient::subscribe_channel(pane.coordination_channel())`
+    /// (its own `mpsc`, distinct from the edit lane's) and send signals with
+    /// `DaemonClient::send_coord_signal`. Always distinct from [`channel`](Self::channel).
+    pub fn coordination_channel(&self) -> &str {
+        &self.coord_channel
+    }
+
     /// Fold one Loro op frame (a `TubeMsg::text` off this file's channel) into the
     /// buffer — the "land in the buffer" end of the P2 slice-1 transport. Decodes
     /// via [`crate::editor_sync::decode_frame`]; a non-frame (handshake, heartbeat,
@@ -226,6 +245,37 @@ impl EditorPane {
             return false; // our own ops, echoed back — nothing to fold
         }
         crate::editor_sync::apply_frame(buffer, &frame).is_ok()
+    }
+
+    // ── P2 slice 3: durability (snapshot ⇄ /blob) ─────────────────────────────
+
+    /// Export the buffer's current state as a compacted **snapshot** blob for the
+    /// content-addressed `/blob` store — the durability primitive. `None` until a
+    /// buffer is loaded. The caller POSTs these bytes with
+    /// `DaemonClient::put_blob`, then broadcasts the returned id via
+    /// `encode_snapshot_frame` + `broadcast_snapshot_ref` on [`channel`](Self::channel)
+    /// so a behind peer can catch up from snapshot+recent-deltas.
+    pub fn snapshot_blob(&self) -> Option<Vec<u8>> {
+        self.buffer.as_ref().map(|b| b.export_snapshot())
+    }
+
+    /// Hydrate this pane's buffer from a snapshot blob fetched from `/blob` — the
+    /// reconnect / salvage path (the "a buffer that survives reconnect" case slice 1
+    /// deferred). Imports the snapshot into the live buffer (or opens a fresh replica
+    /// under this pane's identity if none is loaded), merging CRDT-clean with
+    /// authorship intact. Returns whether the snapshot applied. Idempotent: importing
+    /// a snapshot the buffer already contains is a no-op.
+    pub fn hydrate_from_snapshot(&mut self, snapshot: &[u8]) -> bool {
+        let buffer = self
+            .buffer
+            .get_or_insert_with(|| HarborBuffer::empty(self.identity.clone()));
+        match buffer.apply_remote_ops(snapshot) {
+            Ok(()) => {
+                self.error = None;
+                true
+            }
+            Err(_) => false,
+        }
     }
 
     // ── P2 slice 2: presence lane ─────────────────────────────────────────────
@@ -480,9 +530,10 @@ impl Pane for EditorPane {
     /// errored / not-yet-loaded pane has nothing to fold remote ops into, so it
     /// subscribes to nothing (poll-only).
     fn subscription(&self) -> Option<Subscription> {
-        self.buffer
-            .as_ref()
-            .map(|_| Subscription::Editor { channel: self.channel.clone() })
+        self.buffer.as_ref().map(|_| Subscription::Editor {
+            channel: self.channel.clone(),
+            coord_channel: self.coord_channel.clone(),
+        })
     }
 }
 
@@ -652,9 +703,13 @@ mod tests {
         let path = write_temp("sub.txt", "hello\n");
         let pane = make_pane(&path, None);
         match pane.subscription() {
-            Some(Subscription::Editor { channel }) => {
+            Some(Subscription::Editor { channel, coord_channel }) => {
                 assert_eq!(channel, crate::editor_sync::channel_for_path(&path));
                 assert_eq!(channel, pane.channel());
+                // Slice-3 isolation: the coordination lane is a SEPARATE channel.
+                assert_eq!(coord_channel, crate::editor_sync::coordination_channel_for_path(&path));
+                assert_eq!(coord_channel, pane.coordination_channel());
+                assert_ne!(channel, coord_channel, "edit-sync and coordination ride distinct channels");
             }
             other => panic!("a loaded editor must subscribe to its file channel, got {other:?}"),
         }
@@ -860,5 +915,44 @@ mod tests {
         assert!(pane.ingest_presence(&frame_c), "a genuine new cursor re-renders once");
         assert!(!pane.ingest_presence(&frame_c), "replaying that same frame does not re-render");
         assert_eq!(pane.remote_cursors().len(), 3, "the new cursor joined the pool");
+    }
+
+    // ── P2 slice 3: durability + isolation ────────────────────────────────────
+
+    /// THE PANE-LEVEL SLICE-3 DURABILITY PROOF: a pane exports its buffer as a
+    /// snapshot blob (the bytes that would land in `/blob`); a COLD pane — a
+    /// reconnecting/salvaging replica that never saw the live op stream — hydrates
+    /// from ONLY that blob and renders the same content, with authorship intact.
+    #[test]
+    fn cold_pane_hydrates_from_a_snapshot_blob() {
+        // A live editor with an operator line + a merged agent line.
+        let path = write_temp("snapshot-src.txt", "operator seed\n");
+        let live = make_pane(&path, None);
+        let agent_id = "port-daddy:editor:agent-snap";
+        let agent = HarborBuffer::empty(agent_id);
+        agent.apply_remote_ops(&live.buffer().unwrap().export_ops()).unwrap();
+        agent.append_line("agent added before the crash");
+        live.buffer().unwrap().apply_remote_ops(&agent.export_ops()).unwrap();
+
+        // Export the snapshot blob — content-addressed durability.
+        let snapshot = live.snapshot_blob().expect("a loaded pane snapshots");
+
+        // A cold successor pane (no file on disk) hydrates from ONLY the blob.
+        let mut cold = EditorPane::new_with_identity(&path, None, "port-daddy:console:successor");
+        assert!(cold.buffer().is_none(), "cold pane has no buffer before hydrate");
+        assert!(cold.hydrate_from_snapshot(&snapshot), "the snapshot blob hydrates the cold pane");
+
+        // It renders both lines, each attributed to its original author.
+        let blocks = cold.view();
+        let r = rows(&blocks);
+        assert_eq!(r.len(), 2, "operator + agent lines survived to the cold replica via /blob");
+        assert_eq!(r[1][1], "agent added before the crash");
+        let agent_tag = author_tag(peer_id_for_identity(agent_id));
+        assert!(r[1][0].contains(&agent_tag), "the agent's line keeps the agent's author tag after salvage");
+
+        // Hydrating the same snapshot again is idempotent (double-consume safety).
+        assert!(cold.hydrate_from_snapshot(&snapshot));
+        let after = cold.view();
+        assert_eq!(rows(&after).len(), 2, "re-hydrating the snapshot must not duplicate lines");
     }
 }

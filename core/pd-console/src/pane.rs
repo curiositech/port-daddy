@@ -415,15 +415,18 @@ pub enum Subscription {
     /// Subscribe to one agent's live feed (`GET /agents/:id/stream`). Yields typed
     /// `StreamEnvelope`s folded via [`Pane::on_stream`].
     Agent { agent_id: String },
-    /// Subscribe to one file's collaborative op stream on a per-file tube channel
-    /// (`GET /msg/:channel/subscribe`) — the Harbor Editor's LAN-multiplayer
-    /// transport (P2 slice 1). `channel` is `editor_sync::channel_for_path(path)`.
-    /// The same declare-intent → main.rs opens the SSE → drain-and-fold pattern the
-    /// `Agent` subscription uses. The single channel now carries BOTH lanes: durable
-    /// Loro op frames (`editor_sync::decode_frame` → the buffer) and slice-2 lossy
-    /// presence frames (`editor_sync::decode_presence_frame` → the remote-cursor
-    /// pool), routed by frame kind so the two never cross.
-    Editor { channel: String },
+    /// Subscribe to one file's collaborative streams. The Harbor Editor's
+    /// LAN-multiplayer transport (P2). `channel` is
+    /// `editor_sync::channel_for_path(path)` — the **edit-sync lane**, carrying
+    /// durable Loro op frames (`decode_frame` → the buffer), slice-2 lossy presence
+    /// frames (`decode_presence_frame` → the remote-cursor pool), and slice-3
+    /// snapshot refs (`decode_snapshot_frame`), routed by frame kind so they never
+    /// cross. `coord_channel` is `editor_sync::coordination_channel_for_path(path)` —
+    /// the **coordination control plane** (claims / guard / conflict-predict),
+    /// deliberately a SEPARATE tube channel so a keystroke burst on the edit lane
+    /// cannot starve coordination latency (P2 slice 3 isolation, ref-03 §3). main.rs
+    /// opens ONE SSE per channel — two independent `mpsc`s — which IS the isolation.
+    Editor { channel: String, coord_channel: String },
 }
 
 /// What every pane implements. Object-safe (the registry holds `Box<dyn Pane>`):
