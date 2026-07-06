@@ -327,11 +327,6 @@ describe('Test Group 3: API -> CLI Parity', () => {
     // CLI umbrella rather than adding a routine human-approval CLI flow.
     fleethitlproposals: ['fleet'],
     harbors: ['harbor', 'harbors'],
-    // agentharbor: Agent Harbor read models (routes/agent-harbor.ts —
-    // roster/detail/files/timeline/costs/receipts/compliance projections,
-    // binder ch18, ADR-0095). CLI surface is `pd harbor-ledger
-    // status/project/rebuild` over the same C1 ledger + projections library.
-    agentharbor: ['harbor-ledger'],
     whois: ['whois'],
     orchestrator: ['up', 'down'],
     tuples: ['tuple'],
