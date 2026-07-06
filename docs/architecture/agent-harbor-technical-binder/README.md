@@ -185,6 +185,15 @@ Work Receipt:
   Scout, FleetBar, and pd-console as the three operator surfaces: division of
   labor, the hot/durable bus with latency budgets, the enforced-MCP broker
   collapse to five tools, and proof gates IT-015..IT-018.
+- [20 Design System: Story Linework](./20-design-system-story-linework.md):
+  palette v2 on the ADR-0048 stack, fractional linework, Vignelli blocking,
+  signal-flag state chips, the cut-paper art style, content honesty laws, and
+  the phased image overhaul.
+- [23 Onboarding And Cold Start](./23-onboarding.md):
+  killing the blank-fleet cold start — the Shipwright first-run (repo survey →
+  starter fleet → one confirm each → a receipt within ~5 minutes) and the
+  do-this-next rail at the entry of every surface, on F0 v0 contracts, with
+  ethical-engagement laws and gates IT-23A..IT-23D.
 
 ## Architecture in one diagram
 
