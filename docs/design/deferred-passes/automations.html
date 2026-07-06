@@ -151,6 +151,9 @@ body {
 .btn.primary { background: var(--border-strong); color: var(--surface-base); }
 .btn.quiet { border-color: var(--hair-strong); color: var(--text-muted); }
 .btn.violet { border-color: var(--violet); color: var(--violet-on-tint); }
+/* keyboard focus: visible ring on any interactive element (ch20 a11y) */
+.btn:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--cobalt); outline-offset: 2px; border-radius: 1px; }
 @media (prefers-color-scheme: dark) { .btn.violet { color: var(--violet); } }
 
 /* ---- composer: the first gesture is a sentence ---- */
