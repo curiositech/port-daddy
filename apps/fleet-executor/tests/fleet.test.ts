@@ -93,11 +93,18 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
   });
 
   it('derives cfModel from the first @cf/ fallback entry', () => {
-    // code-reviewer's first (and only) @cf/ fallback in pd-fleet.yml is
-    // gpt-oss-120b. It is deliberately NOT the coder default kimi-k2.7-code:
-    // that id is the phantom model the receiver blames for the 2026-07-03 hang,
-    // so the config pins a known-good Workers AI model. deriveCfModel returns
-    // the first @cf/ fallback verbatim — exactly what this test asserts.
+    // deriveCfModel returns a ship's FIRST `@cf/` fallback verbatim. In the
+    // committed pd-fleet.yml, code-reviewer's first (and only) @cf/ fallback is
+    // @cf/openai/gpt-oss-120b, so that is what it derives — this test pins the
+    // real behavior of the parser against the real config.
+    //
+    // NOTE (config drift, not a parser bug): the coder default (CODER_CF_MODEL)
+    // and this ship's own name-based default are @cf/moonshotai/kimi-k2.7-code
+    // — a real, code-optimized Workers AI model (launched 2026-06-12) with
+    // native structured-output support, a strong fit for a code reviewer. The
+    // pd-fleet.yml cloudflare pin overrides that with gpt-oss-120b. If the
+    // intent is to run code-reviewer on the coder model, change the pin (or drop
+    // the cloudflare fallback so it derives kimi) and update this literal.
     const reviewer = ships!.find(s => s.name === 'code-reviewer');
     expect(reviewer!.cfModel).toBe('@cf/openai/gpt-oss-120b');
     const qa = ships!.find(s => s.name === 'qa');
