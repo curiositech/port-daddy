@@ -133,13 +133,18 @@ export interface SkillGraftResult {
   /** Expensive: full SKILL.md body for up to `topLimit` skills (<= shortlist.length). */
   top: SkillGraftEntry[];
   /**
-   * Which signals actually contributed to this ranking.
-   * - `'hybrid'`: BM25 lexical + Tool2Vec synthetic-query-centroid semantic
-   *   scores, fused via reciprocal rank fusion (the intended default path).
-   * - `'lexical-only'`: no synthetic-query generator was configured (no
-   *   `llmClient`/`generateSyntheticQueries` and none could be resolved),
-   *   so ranking is BM25 alone. Still correct, just missing the semantic
-   *   tier's ability to match on meaning rather than shared vocabulary.
+   * Which signals actually contributed to THIS ranking (not merely whether
+   * a generator is theoretically configured).
+   * - `'hybrid'`: at least one skill's Tool2Vec centroid was already
+   *   cached and contributed a semantic score alongside BM25, fused via
+   *   reciprocal rank fusion (the intended default path once `refresh()`
+   *   has run at least once).
+   * - `'lexical-only'`: either no synthetic-query generator is configured,
+   *   or one is configured but no centroids have been built for this
+   *   catalog yet (`craft()` never triggers generation itself — see
+   *   `refresh()`), so ranking is BM25 alone. Still correct, just missing
+   *   the semantic tier's ability to match on meaning rather than shared
+   *   vocabulary.
    */
   semanticTier: 'hybrid' | 'lexical-only';
 }
@@ -217,10 +222,13 @@ export interface SkillGraftIndex {
    * Rank every scanned skill against `query` — BM25 lexical score fused
    * with Tool2Vec synthetic-query-centroid semantic score via reciprocal
    * rank fusion (k=60) — and return a cheap shortlist plus the full body
-   * for the top few. Scans + (re-)indexes on first call (and whenever
-   * `refresh()` is called explicitly); subsequent calls reuse the
-   * persisted centroid cache and only regenerate a skill's centroid when
-   * its SKILL.md content hash changes.
+   * for the top few. Scans the catalog on first call if it hasn't been
+   * already, but NEVER builds Tool2Vec centroids itself (that's `refresh()`'s
+   * job, an explicit and potentially expensive step) — `craft()` only reads
+   * whatever centroids are already cached, so it stays fast and bounded
+   * even the very first time it's called on a fully cold cache. See
+   * `SkillGraftResult.semanticTier` for whether the semantic tier actually
+   * had anything cached to contribute for this particular call.
    */
   craft(query: string, options?: SkillGraftCraftOptions): Promise<SkillGraftResult>;
   /**
@@ -235,13 +243,19 @@ export interface SkillGraftIndex {
   /** Skill ids known as of the last scan (empty until `craft()`/`refresh()` runs). */
   listSkillIds(): string[];
   /**
-   * Force a re-scan + rebuild every scanned skill's Tool2Vec centroid
-   * (cache misses only — a skill whose content hash is unchanged is a
-   * `reused` hit, not a `embedded` regeneration). Returns cache-hit
-   * accounting so operators can see the one-time cost happen and then
-   * disappear on subsequent runs. When no synthetic-query generator is
-   * configured, this only re-scans the catalog — `embedded`/`reused` are
-   * both 0 and `craft()` falls back to BM25-only ranking.
+   * The explicit, potentially-expensive precompute step: re-scan the
+   * catalog and rebuild every scanned skill's Tool2Vec centroid (cache
+   * misses only — a skill whose content hash is unchanged is a `reused`
+   * hit, not an `embedded` regeneration). This is the ONLY thing that
+   * generates centroids — `craft()` never does, deliberately, so a live
+   * ship spawn can never block on hundreds of LLM calls across a cold
+   * cache. Call this out of band from any spawn path: a maintenance
+   * script, a future `pd skill-graft warm` CLI command, or
+   * `scripts/verify-skill-graft.ts`'s manual verification run. Returns
+   * cache-hit accounting so operators can see the one-time cost happen and
+   * then disappear on subsequent runs. When no synthetic-query generator
+   * is configured, this only re-scans the catalog — `embedded`/`reused`
+   * are both 0 and `craft()` stays BM25-only.
    */
   refresh(): Promise<{ scannedCount: number; embedded: number; reused: number; removed: number }>;
 }
@@ -300,24 +314,43 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
 
   let catalog: SkillEntry[] = [];
   let catalogById = new Map<string, SkillEntry>();
-  let indexed = false;
+  let scanned = false;
 
   function scan(): SkillEntry[] {
     catalog = loadSkillCatalog(roots.map((root) => root.path), { onWarning: options.onWarning });
     catalogById = new Map(catalog.map((entry) => [entry.id, entry]));
+    scanned = true;
     return catalog;
   }
 
   /**
-   * The expensive step: (re-)scan the catalog and, when a synthetic-query
+   * The CHEAP step: (re-)scan the catalog only. This is what `craft()` runs
+   * lazily on first use — a spawn-path ranking call must never block on an
+   * LLM call. Tool2Vec ranking (`tool2VecRank()`) only ever READS whatever
+   * centroids are already cached; a skill with no cached centroid yet
+   * simply doesn't contribute to the semantic signal for that call (it
+   * still gets a fair shot via BM25). See `ensureIndexed()` for the
+   * separate, EXPLICIT precompute step that actually builds centroids.
+   */
+  function ensureScanned(): void {
+    if (!scanned) scan();
+  }
+
+  /**
+   * The EXPENSIVE step: (re-)scan the catalog and, when a synthetic-query
    * generator is configured, build every scanned skill's Tool2Vec centroid
-   * (cache misses only). `craft()` calls this once lazily on first use so
-   * ranking itself never pays an LLM cost — see `tool2VecRank()`.
+   * (cache misses only). Deliberately NOT called automatically by `craft()`
+   * — with ~290 skills and 15 synthetic queries each, a cold cache means
+   * hundreds of LLM calls and thousands of embeddings, which would block a
+   * real ship spawn for an unacceptable amount of time (Copilot review
+   * finding on this fix's own diff). Callers that want the semantic tier
+   * warm — an operator maintenance script, a future `pd skill-graft warm`
+   * CLI command, `scripts/verify-skill-graft.ts` — call `refresh()`
+   * explicitly, out of band from any live spawn path.
    */
   async function ensureIndexed(): Promise<{ embedded: number; reused: number; removed: number }> {
     const entries = scan();
     if (!generateQueries || !centroidStore) {
-      indexed = true;
       return { embedded: 0, reused: 0, removed: 0 };
     }
     let embedded = 0;
@@ -330,20 +363,19 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
       else options.onWarning?.(`skill-graft: Tool2Vec centroid generation failed for "${skill.id}" — will rank via BM25 only`);
     }
     const removed = centroidStore.prune(entries.map((entry) => entry.id));
-    indexed = true;
     return { embedded, reused, removed };
   }
 
   return {
     async craft(query, callOptions = {}) {
-      if (!indexed) await ensureIndexed();
+      ensureScanned();
 
       const trimmed = query.trim();
       const shortlistLimit = clampLimit(callOptions.shortlistLimit, defaultShortlistLimit);
       const topLimit = Math.min(clampLimit(callOptions.topLimit, defaultTopLimit), shortlistLimit);
 
       if (!trimmed) {
-        return { query, scannedCount: catalog.length, roots, shortlist: [], top: [], semanticTier: centroidStore ? 'hybrid' : 'lexical-only' };
+        return { query, scannedCount: catalog.length, roots, shortlist: [], top: [], semanticTier: 'lexical-only' };
       }
 
       const lexicalRank = bm25Rank(trimmed, catalog);
@@ -384,7 +416,12 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
         roots,
         shortlist,
         top,
-        semanticTier: centroidStore ? 'hybrid' : 'lexical-only',
+        // Reflects whether the semantic tier actually contributed a cached
+        // centroid to THIS result — not merely whether a generator is
+        // configured. Centroid generation is a separate, explicit step
+        // (`refresh()`, never run automatically by `craft()`), so a cold
+        // cache genuinely means 'lexical-only' even with a generator wired.
+        semanticTier: semanticRank.length > 0 ? 'hybrid' : 'lexical-only',
       };
     },
 

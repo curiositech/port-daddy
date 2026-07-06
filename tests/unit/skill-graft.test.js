@@ -128,6 +128,7 @@ describe('createSkillGraftIndex().craft', () => {
     writeSkill(tmpRoot, 'rag-retrieval-pattern-design', 'rag retrieval chunking hybrid bm25 dense reranking ragas', { category: 'AI' });
 
     const graft = makeGraftIndex(tmpRoot);
+    await graft.refresh(); // build Tool2Vec centroids — craft() itself never does (explicit precompute)
     const result = await graft.craft('parquet columnar olap analytics duckdb');
 
     expect(result.scannedCount).toBe(3);
@@ -144,6 +145,7 @@ describe('createSkillGraftIndex().craft', () => {
     writeSkill(tmpRoot, 'c-skill', 'completely unrelated zebra giraffe elephant', { body: '# c-skill\n\nFull gamma body.' });
 
     const graft = makeGraftIndex(tmpRoot);
+    await graft.refresh(); // build Tool2Vec centroids — craft() itself never does (explicit precompute)
     const result = await graft.craft('alpha topic words', { topLimit: 1 });
 
     expect(result.shortlist).toHaveLength(3);
@@ -221,14 +223,15 @@ describe('createSkillGraftIndex().craft', () => {
       centroidStore: createTool2VecStore({ db: new Database(':memory:'), embedderModelId: 'counting', generatorId: 'mock-generator' }),
     });
 
+    await graft.refresh(); // explicit precompute — does embed (one call per skill's centroid)
+    expect(embedCalls).toBeGreaterThan(0); // indexing already ran
+
     const result = await graft.craft('   ');
     expect(result.shortlist).toEqual([]);
     expect(result.top).toEqual([]);
-    // Indexing itself does embed (one call per skill, to build its Tool2Vec
-    // centroid); assert we never issued an ADDITIONAL embed call for a blank
-    // query specifically — craft() returns early before ever calling
+    // Assert we never issued an ADDITIONAL embed call for a blank query
+    // specifically — craft() returns early before ever calling
     // embedder.embed() on the (blank) query text.
-    expect(embedCalls).toBeGreaterThan(0); // indexing already ran
     const callsAfterEmptyQuery = embedCalls;
     await graft.craft('   ');
     expect(embedCalls).toBe(callsAfterEmptyQuery); // no extra embed call for another blank query
@@ -409,6 +412,7 @@ describe('Tool2Vec closes the vocabulary-mismatch gap (the bug this PR fixes)', 
       },
     });
 
+    await graft.refresh(); // build Tool2Vec centroids — craft() itself never does (explicit precompute)
     const result = await graft.craft('fix a memory leak in the daemon');
 
     expect(result.semanticTier).toBe('hybrid');
@@ -438,8 +442,36 @@ describe('Tool2Vec closes the vocabulary-mismatch gap (the bug this PR fixes)', 
       },
     });
 
+    await graft.refresh(); // build the (deliberately weak/off-topic) Tool2Vec centroid too — this must be a real RRF fusion, not just BM25 running alone
     const result = await graft.craft('tune connection pool size and timeout for postgres pgbouncer');
+    expect(result.semanticTier).toBe('hybrid'); // both signals ran — BM25 is what carries the win here
     expect(result.shortlist[0].id).toBe('postgres-connection-pooling');
+  });
+
+  test('craft() never calls the synthetic-query generator — a cold cache stays lexical-only instead of blocking on LLM calls (Copilot review finding)', async () => {
+    // A real fleet ship spawn calls craft() with no prior refresh(). With
+    // ~290 real skills and 15 synthetic queries each, generating on demand
+    // here would mean hundreds of LLM calls blocking a live spawn — a real
+    // reliability/cost risk this test guards against regressing.
+    for (let i = 0; i < 5; i++) writeSkill(tmpRoot, `skill-${i}`, `topic number ${i} filler words`);
+    let generatorCalls = 0;
+    const countingGenerator = async (skill, count) => {
+      generatorCalls += 1;
+      return makeMockSyntheticQueryGenerator()(skill, count);
+    };
+    const graft = createSkillGraftIndex({
+      roots: [{ label: 'test', path: tmpRoot }],
+      embedder: makeMockEmbedder(),
+      generateSyntheticQueries: countingGenerator,
+      centroidStore: createTool2VecStore({ db: new Database(':memory:'), embedderModelId: 'mock/test-embedder', generatorId: 'counting' }),
+    });
+
+    const result = await graft.craft('topic filler'); // no refresh() called first
+    expect(generatorCalls).toBe(0); // craft() never triggers generation itself
+    expect(result.semanticTier).toBe('lexical-only'); // honest: nothing was cached to contribute
+
+    await graft.refresh(); // the explicit, separate precompute step
+    expect(generatorCalls).toBe(5); // now it actually built centroids, once per skill
   });
 });
 

@@ -776,22 +776,41 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     if (!skillGraftIndex) {
       // Resolve a real request-shape LLM backend for Tool2Vec's
       // synthetic-query generation, same convention lib/coordination-judge.ts
-      // uses (lib/llm-backend-resolver.ts + createLLMClient). Actor
-      // 'skill-graft' → PD_SKILL_GRAFT_BACKEND env override. `claude`/`codex`
-      // don't have a request-shape transport built (see that resolver's own
-      // header comment) — same pre-existing limitation the judge has today,
-      // not something new this introduces. When no backend resolves,
-      // `createSkillGraftIndex` gets no llmClient and craft() gracefully
-      // degrades to BM25-only ranking (SkillGraftResult.semanticTier:
-      // 'lexical-only') rather than reintroducing the vocabulary-mismatch bug.
+      // uses (lib/llm-backend-resolver.ts + createLLMClient) — but
+      // deliberately MORE conservative than the judge's own resolution:
+      //
+      // 1. Only `cloudflare`/`ollama` count as usable. `resolveLLMBackend()`
+      //    still returns a non-null result for `claude`/`codex`/`custom`
+      //    (a `notSupportedTransport` that always fails at call time) — if
+      //    we treated that as "configured," every centroid build would
+      //    silently fail, the centroidStore would exist for nothing, and
+      //    craft() would misreport `semanticTier: 'hybrid'` (Copilot review
+      //    finding on this fix's own diff).
+      // 2. Only an EXPLICIT `PD_SKILL_GRAFT_BACKEND` pin (source ===
+      //    'actor-env') counts — NOT an inherited `PD_FLEET_DEFAULT_BACKEND`.
+      //    Tool2Vec centroid generation is a heavier, less-obviously-
+      //    anticipated cost than the judge's per-request completions (a
+      //    burst of LLM calls across the whole skill catalog the first time
+      //    `refresh()` runs); an operator enabling `skill_graft: true` on a
+      //    ship should opt into that cost explicitly, not inherit it from an
+      //    unrelated judge/fleet-default configuration.
+      //
+      // When neither holds, `createSkillGraftIndex` gets no llmClient and
+      // craft() gracefully degrades to BM25-only ranking (never reintroduces
+      // the vocabulary-mismatch bug as a silent "fallback").
       const resolved = resolveLLMBackend({ actor: 'skill-graft' });
-      const llmClient = resolved
-        ? createLLMClient({ adapter: transportToAdapter(resolved.transport), model: resolved.model, timeoutMs: 15_000 })
+      const usable = resolved
+        && resolved.source === 'actor-env'
+        && (resolved.backend === 'cloudflare' || resolved.backend === 'ollama')
+        ? resolved
+        : null;
+      const llmClient = usable
+        ? createLLMClient({ adapter: transportToAdapter(usable.transport), model: usable.model, timeoutMs: 15_000 })
         : undefined;
       skillGraftIndex = createSkillGraftIndex({
         projectRoot: projectDir,
         llmClient,
-        llmModel: resolved?.model,
+        llmModel: usable?.model,
       });
     }
     return skillGraftIndex;

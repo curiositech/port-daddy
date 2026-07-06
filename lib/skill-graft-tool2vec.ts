@@ -328,7 +328,11 @@ function parseQueriesResponse(text: string, count: number): string[] {
 export function createLLMClientSyntheticQueryGenerator(client: LLMClient, model: string): SyntheticQueryGenerator {
   return async (skill, count) => {
     const prompt = buildPrompt(skill, count);
-    const cacheKey = `skill-graft-tool2vec:${skill.id}:${skill.contentHash}:${model}`;
+    // `count` is part of the key: a cache hit for count=5 must never be
+    // replayed for a later count=15 call on the same skill — the client's
+    // semantic/exact cache has no idea "15 queries" and "5 queries" are
+    // different-shaped results for the same underlying prompt family.
+    const cacheKey = `skill-graft-tool2vec:${skill.id}:${skill.contentHash}:${model}:${count}`;
     const result = await client.complete({ prompt, model, maxTokens: 1200, cacheKey });
     if (!result.ok || !result.text) return [];
     return parseQueriesResponse(result.text, count);
