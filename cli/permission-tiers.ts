@@ -92,6 +92,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   'who-owns': 'silent',
   harbors: 'silent',
   spawned: 'silent',
+  work: 'silent',           // `pd work probe`/`pd work matrix` are read-only conformance surfaces (ch18 C2); launch forms refuse until pd work start lands
   feedback: 'silent',       // default form is `feedback list/show/summary`; writes are `notify`
   quorum: 'silent',
   parley: 'approval',       // summons/resolves other agents; read-only forms refined below
@@ -119,7 +120,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   wallet: 'silent',
   bond: 'silent',
   fleet: 'silent',          // refined: `fleet down`, `fleet panic` are destructive
-  squid: 'approval',        // starts a local Anthropic-compatible bridge and optional client process
+  squid: 'approval',        // starts a local Anthropic-compatible bridge and optional client process; refined: on/off/status/tap below
+  hooks: 'notify',          // wires daemon-gated agent-CLI coordination hooks; refined: `hooks list` is silent
   tube: 'silent',
   tunnel: 'silent',
   relay: 'silent',           // refined: `relay url <url>` is notify
@@ -342,6 +344,18 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'fleet prompt': 'silent',
   'fleet panic': 'destructive',
   'fleet unpanic': 'notify',
+
+  // squid harness toggle + readouts (the bridge itself stays approval-tier)
+  'squid status': 'silent',         // read-only non-diegetic readout
+  'squid tap': 'silent',            // read-only envelope preview
+  'squid on': 'notify',             // writes project hook/statusline config
+  'squid arm': 'notify',
+  'squid off': 'notify',            // removes only pd-authored entries
+  'squid disarm': 'notify',
+  'squid hooks': 'notify',
+
+  // agent-CLI hooks installer
+  'hooks list': 'silent',
 
   // guard subcommands
   'guard status': 'silent',

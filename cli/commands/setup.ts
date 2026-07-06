@@ -494,6 +494,50 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
     ui.info('Skipping MCP install (--no-mcp)');
   }
 
+  // Agent-CLI interactive hooks — stage the Giant Squid tentacles + the runtime
+  // gate, and wire the CLIs that can ONLY be user-level (codex/agy). The gate
+  // keeps them inert unless the daemon is up AND you are inside a pd project, so
+  // this is never machine-wide-always-on. Claude/Gemini are wired PER PROJECT by
+  // `pd init` / `pd hooks install`. Defaults to Yes; --no-hooks opts out.
+  if (!options['no-hooks']) {
+    try {
+      const { stageTentacles, buildTargets, configureTarget, tentacleBinDir } = await import('./hooks-install.js');
+      const detected = buildTargets(process.env.HOME || '').filter((t) => t.detect());
+      // Only codex/agy have no project surface — those are staged here. Per-project
+      // CLIs (claude/gemini) are wired by pd init so they stay project-scoped.
+      const globalOnly = detected.filter((t) => !t.projectConfigPath);
+      if (detected.length > 0) {
+        const wire = ui.canPrompt()
+          ? await ui.confirm(`Stage Port Daddy coordination hooks (gated: only active in pd projects when the daemon runs)?`, true)
+          : true;
+        if (wire) {
+          const stage = stageTentacles();
+          if (stage.missing.length > 0) {
+            ui.warn('Agent-CLI hooks skipped — squid tentacles (bin/pd-hook-*) not on this build');
+          } else {
+            // Stage the visual-identity statusline alongside the tentacles so
+            // `pd init` / `pd squid on` can wire the ◆ PD badge per project.
+            const { stageStatusline } = await import('../../lib/squid/identity.js');
+            stageStatusline();
+            let n = 0;
+            for (const t of globalOnly) {
+              const r = configureTarget(t, { scope: 'user' });
+              if (r.success && !r.skipped) n++;
+            }
+            ui.success(`Staged tentacles + gate at ${tentacleBinDir()}`);
+            if (n > 0) ui.info(`Wired ${n} home-scoped CLI${n > 1 ? 's' : ''} (codex/agy), gated to pd projects`);
+            const perProject = detected.filter((t) => t.projectConfigPath).map((t) => t.name);
+            if (perProject.length) ui.info(`${perProject.join(', ')} are wired per-project — run \`pd init\` or \`pd hooks install\` in a repo`);
+          }
+        }
+      }
+    } catch (err) {
+      ui.warn(`Agent-CLI hooks step failed: ${(err as Error).message}`);
+    }
+  } else {
+    ui.info('Skipping agent-CLI hooks (--no-hooks)');
+  }
+
   installFleetBarIfEnabled(!!options['no-fleetbar']);
 
   if (!options['no-skill']) {

@@ -1478,6 +1478,26 @@ _pd_cmd_spawned() {
     '(-h --help)'{-h,--help}'[show help]'
 }
 
+_pd_cmd_work() {
+  local -a subcmds
+  subcmds=(
+    'probe:run adapter conformance probes (compliance ladder + five negative probes)'
+    'matrix:print the adapter capability matrix (mechanical ceilings)'
+    'help:show pd work usage'
+  )
+  if (( CURRENT == 2 )); then
+    _describe -t subcmds 'work subcommand' subcmds
+  elif [[ ${words[2]} == probe ]]; then
+    # --adapter/--profile are probe-only flags; matrix/help take only --json.
+    _arguments \
+      '--adapter[adapter kind]:kind:(claude-code codex-cli cloudflare ollama lmstudio custom-stdio custom-http)' \
+      '--profile[fixture profile]:profile:(compliant weak broken malicious)' \
+      '(-j --json)'{-j,--json}'[JSON output]'
+  else
+    _arguments '(-j --json)'{-j,--json}'[JSON output]'
+  fi
+}
+
 _pd_cmd_watch() {
   _arguments \
     '--exec[shell command to run on each message]:command:_command_names' \
@@ -2184,6 +2204,7 @@ _port_daddy() {
     # AI Agent Spawner + Watch
     'spawn:launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
     'spawned:list active spawned agents'
+    'work:Work Intent family — adapter conformance probes + capability matrix (ADR-0095, ch18 C2)'
     'sortie:launch and inspect tracked mission records'
     'dispatch:queue and run autonomous feature dev (ADR-0035; renames nightshift)'
     'nightshift:(deprecated alias) Use pd dispatch'
@@ -2205,6 +2226,7 @@ _port_daddy() {
     'transcript:alias for transcripts — view a single ship-run record'
     # Squid bridge
     'squid:run an unofficial Anthropic-compatible bridge backed by Codex CLI'
+    'hooks:per-project daemon-gated coordination hooks for agent CLIs'
     # Cloud relay — zero-trust event fabric (ADR-0049)
     'relay:cloud relay management — configure, exchange, status (ADR-0049)'
     # Harbormaster — canonical merge-owning actor body (ADR-0037)
@@ -2373,6 +2395,7 @@ _port_daddy() {
         popper)                 _pd_cmd_popper ;;
         harbormaster|hm)        _pd_cmd_harbormaster ;;
         spawned)                _pd_cmd_spawned ;;
+        work)                   _pd_cmd_work ;;
         watch)                  _pd_cmd_watch ;;
         harbor)                 _pd_cmd_harbor ;;
         harbors)                _pd_cmd_harbors ;;

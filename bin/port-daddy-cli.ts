@@ -92,6 +92,8 @@ import {
   handleHistory,
   // Spawn + Watch
   handleSpawn, handleSpawned, handleWatch, handleSortie,
+  // Work Intent family (ADR-0095): pd work probe / matrix (binder ch18 C2)
+  handleWork,
   // Transcripts
   handleTranscripts,
   // Dispatch (renamed from nightshift per ADR-0035) + morning summary +
@@ -667,6 +669,7 @@ function buildHelp(): string {
   lines.push(
     `${A}Get started:${Z}`,
     `  ${G}pd setup${Z}                  ${tag('notify')} Install daemon, MCP, FleetBar, hooks, Guard`,
+    `  ${G}pd hooks install${Z}          ${tag('notify')} Wire coordination into claude/codex/gemini/agy (per-project, daemon-gated)`,
     `  ${G}pd begin${Z} "purpose" --lifecycle durable  ${tag('notify')} I'll set up your agent + session`,
     `  ${G}pd done${Z} "summary"        ${tag('notify')} Finish up — I'll clean everything`,
     `  ${G}pd whoami${Z}                ${tag('silent')} See your current context`,
@@ -748,7 +751,13 @@ Examples:
   pd setup --no-fleetbar
   pd setup --no-skill
   pd setup --no-init
-  pd setup --no-harness`,
+  pd setup --no-harness
+
+Agent-CLI hooks (per-project, daemon-gated):
+  pd hooks install              Wire claude/codex/gemini/agy for THIS project
+  pd hooks install --user       Also write user-level config for claude/gemini
+  pd hooks list                 Show detected CLIs + wiring status
+  pd hooks uninstall            Remove Port Daddy hooks from every surface`,
 
   sessions: `Sessions & Notes \u2014 Structured multi-agent coordination
 
@@ -1338,11 +1347,11 @@ const ALL_COMMANDS: string[] = [
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
   'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update', 'upgrade',
   'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'benchmark', 'look', 'sitrep', 'roadmap',
-  'advise', 'preflight', 'compass', 'guard',
+  'advise', 'preflight', 'compass', 'guard', 'hooks',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
-  'spawn', 'spawned', 'watch', 'transcripts', 'transcript', 'relay',
+  'spawn', 'spawned', 'watch', 'work', 'transcripts', 'transcript', 'relay',
   'harbor', 'harbors', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'memory', 'ideas',
   'quorum', 'parley',
   'feedback',
@@ -2833,6 +2842,12 @@ export async function main(): Promise<void> {
         break;
       }
 
+      case 'hooks': {
+        const { handleHooks } = await import('../cli/commands/hooks-install.js');
+        await handleHooks(positional, options);
+        break;
+      }
+
       case 'dns':
         await handleDns(positional[0], positional.slice(1), options);
         break;
@@ -2983,6 +2998,12 @@ export async function main(): Promise<void> {
       // Spawn — AI agent launcher
       case 'spawn':
         await handleSpawn(positional, options);
+        break;
+
+      // Work Intent family (ADR-0095 fork 4). First landing: pd work probe —
+      // adapter conformance probes per binder ch18 Work Order C2.
+      case 'work':
+        await handleWork(positional, options);
         break;
 
       case 'spawned':
