@@ -50,7 +50,7 @@ import type {
   GuidanceItem,
   GuidanceSigAlg,
 } from './types.js';
-import { assertAgainstSchema } from './schema-validate.js';
+import { validateAgainstSchema } from './schema-validate.js';
 import { applyControlGate, makeControlCommand } from './control-gate.js';
 
 /**
@@ -203,7 +203,18 @@ export function assembleGuidanceEnvelope(
       value: signGuidanceBinding(key, guidanceBindingTuple(unsigned)),
     },
   };
-  assertAgainstSchema('guidance-envelope', envelope);
+  // STRICTLY fail-closed, unlike the general assertAgainstSchema path (which
+  // honestly skips when schemas/ is absent, a deliberate fail-safe for the C2
+  // emit paths): the guidance channel is an AUTHORITY channel, so a trimmed
+  // install missing the frozen contract must not emit signed guidance at all
+  // (ADR-0096 "schema-validated before emit").
+  const schemaResult = validateAgainstSchema('guidance-envelope', envelope);
+  if (schemaResult.skipped) {
+    throw new Error('guidance-envelope.schema.json not found — refusing to emit unvalidated guidance (fail closed, ADR-0096); restore schemas/agent-harbor/v0/ or set PORT_DADDY_SCHEMA_DIR');
+  }
+  if (!schemaResult.valid) {
+    throw new Error(`agent-harbor v0 contract violation (guidance-envelope): ${schemaResult.errors.join('; ')}`);
+  }
   return envelope;
 }
 

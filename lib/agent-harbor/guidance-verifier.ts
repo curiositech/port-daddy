@@ -150,18 +150,26 @@ export function verifyGuidanceEnvelope(
     unrecognizedKinds: [],
   });
 
-  // 1. Shape: structural guard + frozen-schema validation (fail closed; the
-  //    schema-missing { skipped } path still has the structural guard).
+  // 1. Shape: structural guard + frozen-schema validation. STRICTLY fail
+  //    closed: a harness that cannot see the frozen contract cannot vouch for
+  //    the trusted channel, so a schema-missing install rejects guidance
+  //    outright (an availability downgrade to C0 — the honest ADR-0096
+  //    posture — never an unvalidated trusted render).
   const shaped = isEnvelopeShaped(envelope);
   checks.push({ name: 'shape', passed: shaped });
   if (!shaped) return reject('not a pd.agent-harbor.guidance-envelope.v0 object — unauthenticated text is never guidance');
   const schemaResult = validateAgainstSchema('guidance-envelope', envelope);
   checks.push({
     name: 'schema',
-    passed: schemaResult.skipped || schemaResult.valid,
-    details: schemaResult.skipped ? 'schema file absent; structural guard only' : schemaResult.errors.join('; ') || 'valid',
+    passed: !schemaResult.skipped && schemaResult.valid,
+    details: schemaResult.skipped
+      ? 'guidance-envelope.schema.json not found — fail closed'
+      : schemaResult.errors.join('; ') || 'valid',
   });
-  if (!schemaResult.skipped && !schemaResult.valid) {
+  if (schemaResult.skipped) {
+    return reject('schema-unavailable: the frozen guidance contract is not present in this install — refusing to vouch for the trusted channel (fail closed, ADR-0096)');
+  }
+  if (!schemaResult.valid) {
     return reject(`schema-invalid: ${schemaResult.errors.join('; ')}`);
   }
   const env = envelope as GuidanceEnvelope;
