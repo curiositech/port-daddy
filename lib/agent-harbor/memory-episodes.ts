@@ -595,6 +595,11 @@ export function persistEpisode(
             }
           }
         }
+        // The mutated prior payload passes back through the same contract
+        // gate as a fresh insert — supersession closure must never leave a
+        // schema-invalid blob in the derived store.
+        assertAgainstSchema('memory-episode', priorPayload);
+        assertCitationCrossFields(priorPayload.citations, `${prior.episode_id} (supersession closure)`);
         db.prepare(
           'UPDATE harbor_memory_episodes SET valid_until = ?, superseded_by = ?, payload_json = ? WHERE episode_id = ?',
         ).run(episode.validFrom, episode.episodeId, JSON.stringify(priorPayload), prior.episode_id);
@@ -826,12 +831,18 @@ function cosine(a: number[], b: number[]): number {
   return norm > 0 ? dot / norm : 0;
 }
 
-/** Reciprocal rank fusion (k=60), the ADR-0097 default hybrid posture. */
+/**
+ * Reciprocal rank fusion (k=60), the ADR-0097 default hybrid posture.
+ * Zero-score entries are excluded from each leg's ranking BEFORE fusion:
+ * RRF scores by rank position, so without this filter a candidate that both
+ * legs scored 0 would still earn a positive fused score and defeat the
+ * downstream `rel > 0` honest-miss guard by padding results with noise.
+ */
 function rrfFuse(rankings: Array<Map<string, number>>): Map<string, number> {
   const K = 60;
   const fused = new Map<string, number>();
   for (const scores of rankings) {
-    const ranked = [...scores.entries()].sort((a, b) => b[1] - a[1]);
+    const ranked = [...scores.entries()].filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]);
     ranked.forEach(([id], idx) => {
       fused.set(id, (fused.get(id) ?? 0) + 1 / (K + idx + 1));
     });

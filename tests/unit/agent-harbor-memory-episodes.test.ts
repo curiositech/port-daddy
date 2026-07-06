@@ -380,6 +380,27 @@ describe('agent-harbor episodic memory (M6, ADR-0097 phase 3)', () => {
       expect(validateAgainstSchema('transcript-search-result', result).errors).toEqual([]);
     });
 
+    it('hybrid excludes candidates both legs score 0 — RRF never pads misses with rank noise', () => {
+      persistEpisode(db, manualEpisode({
+        episodeId: 'memep_hybrid_relevant',
+        summary: 'wrangler deploy email ingress worker runbook',
+      }));
+      persistEpisode(db, manualEpisode({
+        episodeId: 'memep_hybrid_orthogonal',
+        summary: 'zzz qqq xxx', // zero lexical overlap with the query
+      }));
+      // Orthogonal embedder: the query and relevant doc share an axis; the
+      // orthogonal doc's vector is perpendicular — cosine exactly 0.
+      const orthogonalEmbedder: Embedder = {
+        modelId: 'stub-orthogonal/test',
+        embed: (texts) => texts.map((t) => (t.includes('zzz') ? [0, 1] : [1, 0])),
+      };
+      const result = recallEpisodes(db, baseQuery({ mode: 'hybrid' }), { embedder: orthogonalEmbedder });
+      const ids = result.hits.map((h) => h.episodeId);
+      expect(ids).toContain('memep_hybrid_relevant');
+      expect(ids).not.toContain('memep_hybrid_orthogonal');
+    });
+
     it('never serves superseded or expired episodes as current facts', () => {
       persistEpisode(db, manualEpisode({
         episodeId: 'memep_stale_token',
