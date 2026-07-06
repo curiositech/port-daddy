@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/blackboard-item.schema.json",
+  "title": "BlackboardItem",
+  "description": "One card on the shared live blackboard: structured, timestamped, source-linked harbor state — active goals, blockers, file heat, unresolved parleys, decisions waiting for the operator, similar-work and do-not-duplicate warnings (binder ch04 'Transcript search and blackboard'; ch05 'Blackboard'). READ-ONLY CONTRACT (ADR-0097, normative — scope guard): this v0 schema is the READ MODEL ONLY. Binder ch05 explicitly defers the write side: 'Milestone 6 should ship a read-only/search blackboard over transcript and memory facts; active conflict/parley write semantics belong in Milestone 8.' Therefore this schema carries NO write/parley/acknowledgement/mutation/permission-grant fields — no writeToken, no parleyState, no ackRequired, no proposal/vote fields, no writer-permission grants. Do not add them here; M8 will introduce a separate contract (or a v0-additive delta under its own ADR) for write semantics. The item is a projection over ledger facts plus explicit Longshoreman assertions (ch05): assertedBy is provenance of the underlying fact, not a write API. CITATION RULE: source-linked, not a loose chat (ch04) — citations has minItems 1. Citation cross-field enforcement is runtime, per the compaction-packet pattern.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.blackboard-item.v0" },
+    "itemId": { "type": "string", "minLength": 1 },
+    "harborId": { "type": "string" },
+    "kind": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Open string for tolerant reading (transcript-event kind discipline). Known kinds (ch04/ch05): active-goal, blocker, file-heat, contested-file, unresolved-parley, pending-operator-decision, recent-decision, similar-work-warning, do-not-duplicate, test-failure, open-contradiction, pr-queue, suggested-next-move, transcript-episode."
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "detail": { "type": ["string", "null"], "description": "Card detail text the operator sees. Cards, badges, search, and timeline — not raw JSON (ch05). Named `detail`, not `body`: `body` is a superseded ch03 name for the runtime Body (ADR-0095 fork 1) and must not reappear on any contract." },
+    "subjects": {
+      "type": "array",
+      "description": "What the item is about, as typed refs (files, agents, sessions, claims, PRs, tests, routes).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": { "type": "string", "minLength": 1, "description": "Open string. Known: file, agent-node, session, run, claim, pr, issue, test, route, doc." },
+          "ref": { "type": "string", "minLength": 1 }
+        },
+        "required": ["kind", "ref"]
+      }
+    },
+    "agentNodeId": { "type": ["string", "null"], "description": "Primary agent join key, when the item is about one agent." },
+    "sessionId": { "type": ["string", "null"] },
+    "runId": { "type": ["string", "null"] },
+    "severity": { "enum": ["info", "warning", "high", "critical", null] },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "ch05: items need confidence." },
+    "status": { "enum": ["active", "resolved", "superseded", "expired"], "description": "Read-model status of the underlying fact. Status transitions happen in the ledger/projection, never by writing to this object." },
+    "supersededBy": { "type": ["string", "null"], "description": "ch05: items need supersession. The itemId that replaced this one." },
+    "postedAt": { "type": "string", "minLength": 1, "description": "ch05: items are timestamped." },
+    "updatedAt": { "type": ["string", "null"] },
+    "expiresAt": { "type": ["string", "null"], "description": "ch05: items need TTL. Null = no expiry; the projection marks status=expired when passed." },
+    "assertedBy": {
+      "type": "object",
+      "description": "Provenance of the underlying assertion (ch05: Longshoremen write to the blackboard; Voyagers read scoped slices). This records WHO the projection derived the item from — it is not a write-permission field.",
+      "properties": {
+        "kind": { "enum": ["longshoreman", "daemon", "operator", "projection"] },
+        "agentNodeId": { "type": ["string", "null"] }
+      },
+      "required": ["kind"]
+    },
+    "citations": {
+      "type": "array",
+      "minItems": 1,
+      "description": "ch05: items need source links. Every card traces to ledger facts — transcript events, files, or claims.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": { "enum": ["transcript-event", "file", "claim"] },
+          "transcriptEventId": { "type": "string", "minLength": 1 },
+          "span": { "type": "object", "properties": { "start": { "type": "integer", "minimum": 0 }, "end": { "type": "integer", "minimum": 0 } } },
+          "fileRef": { "type": "string", "minLength": 1 },
+          "claimRef": { "type": "string", "minLength": 1 },
+          "sessionId": { "type": "string", "minLength": 1 }
+        },
+        "required": ["kind"]
+      }
+    },
+    "projection": {
+      "type": "object",
+      "description": "Freshness envelope (C-routes convention): the blackboard is a projection; stale cards are labeled, never hidden, and never authorize anything.",
+      "properties": {
+        "stale": { "type": "boolean" },
+        "lastLedgerSeq": { "type": ["integer", "null"], "minimum": 0 },
+        "headSeq": { "type": ["integer", "null"], "minimum": 0 }
+      },
+      "required": ["stale"]
+    }
+  },
+  "required": ["schema", "itemId", "kind", "title", "status", "postedAt", "assertedBy", "citations", "projection"],
+  "additionalProperties": true
+}
