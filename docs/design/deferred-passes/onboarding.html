@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onboarding — Shipwright First-Run + Do-This-Next Rail (ch23 design pass)</title>
+<style>
+/* ============================================================
+   ch23 onboarding design pass — Shipwright first-run + the
+   do-this-next rail. Deferred design item from strategy §11/§14,
+   realized against binder ch23 (23-onboarding.md).
+   Skin/law: binder ch20 story linework — ch20-tokens.css inlined
+   below verbatim (palette v2, IBM Plex + Recursive casual, rule-8
+   micro-flags, 1/1.5/2px fractional borders, hue = zone, 14px floor,
+   light + dark). Self-contained: no external URLs; Plex/Recursive
+   degrade to system stacks when not installed.
+   Grafted skills (cited in-page): frontend-design,
+   beautiful-gui-design, typography-expert, recovery-app-onboarding,
+   wellness-app-engagement, ai-introduction-educator,
+   agentic-coding-ux-designer, legible-roadmap-with-sidequests.
+   ============================================================ */
+
+/* ---- ch20-tokens.css (inlined verbatim) ---- */
+:root {
+  --surface-base:   #f2eee6;
+  --surface-card:   #e9e2d5;
+  --surface-strong: #e9e2d5;
+  --surface-sunken: #e0d9cb;
+  --text-primary:   #121212;
+  --text-secondary: #403b34;
+  --text-muted:     #47423a;
+  --cobalt: #003fb8;  --teal: #006b5f;  --health: #1f7a4d;
+  --amber:  #a66f00;  --amber-on-tint: #5b3900;
+  --error:  #bf2f2f;
+  --indigo: #353a85;
+  --violet: #933fa5;  --violet-on-tint: #772189;
+  --rust:   #7a4514;  --rust-on-tint:   #5f2c00;
+  --gold:   #666a00;  --gold-on-tint:   #4d5000;
+  --lime:   #cad900;
+  --hair:        rgba(18, 18, 18, 0.14);
+  --hair-strong: rgba(18, 18, 18, 0.34);
+  --border-strong: #121212;
+  --cobalt-slab: #003fb8; --teal-slab: #006b5f; --health-slab: #1f7a4d;
+  --indigo-slab: #353a85; --violet-slab: #933fa5; --rust-slab: #7a4514;
+  --gold-slab: #666a00;
+  --flag-white: #fbf7ef;
+  --cobalt-wash: color-mix(in oklab, var(--cobalt) 10%, var(--surface-base));
+  --teal-wash:   color-mix(in oklab, var(--teal) 10%, var(--surface-base));
+  --health-wash: color-mix(in oklab, var(--health) 10%, var(--surface-base));
+  --violet-wash: color-mix(in oklab, var(--violet) 10%, var(--surface-base));
+  --gold-wash:   color-mix(in oklab, var(--gold) 10%, var(--surface-base));
+  --rust-wash:   color-mix(in oklab, var(--rust) 10%, var(--surface-base));
+  --idle: #8f8879;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-base:   #101216;
+    --surface-card:   #181c22;
+    --surface-strong: #222833;
+    --surface-sunken: #0b0d11;
+    --text-primary:   #f5f3ed;
+    --text-secondary: #d3cec2;
+    --text-muted:     #a59f93;
+    --cobalt: #7db4ff;  --teal: #8fd0a7;  --health: #5fce97;
+    --amber:  #f2be51;  --amber-on-tint: #ffe0a0;
+    --error:  #ff7d7d;
+    --indigo: #9d92e8;
+    --violet: #e0a5ed;  --violet-on-tint: #f8c7ff;
+    --rust:   #b98e6b;  --rust-on-tint:   #cdad94;
+    --gold:   #d8dd3c;  --gold-on-tint:   #f5fa78;
+    --hair:        rgba(245, 243, 237, 0.14);
+    --hair-strong: rgba(245, 243, 237, 0.34);
+    --border-strong: #f5f3ed;
+    --idle: #736d60;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  background: var(--surface-sunken); color: var(--text-primary);
+  font-size: .9375rem; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  padding-bottom: 4rem;
+}
+.mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums slashed-zero; font-size: .8125rem; }
+.casual { font-family: "Recursive", "IBM Plex Sans", sans-serif;
+  font-variation-settings: "CASL" 1; }
+.eyebrow { font-size: .75rem; font-weight: 650; text-transform: uppercase;
+  letter-spacing: .12em; color: var(--text-muted); }
+.money { color: var(--gold); font-weight: 650; }
+
+/* rule-8 micro-flags (ICOS, ch20 rule 8) */
+.mfl { display: inline-block; width: 13px; height: 9.5px; flex: none;
+  border: .5px solid rgba(0,0,0,.25);
+  --fw: var(--flag-white); --fink: #17191d;
+  --c: var(--cobalt-slab); --r: #bf2f2f; --y: var(--lime); }
+.fl-quebec   { background: var(--y); }                                    /* vessel healthy */
+.fl-kilo     { background: linear-gradient(to right, var(--y) 0 50%, var(--c) 50%); } /* I wish to communicate */
+.fl-november { background: repeating-conic-gradient(var(--c) 0 25%, var(--fw) 25% 50%) top left / 50% 50%; } /* negative */
+.fl-papa     { background: linear-gradient(var(--fw), var(--fw)) center / 42% 42% no-repeat, var(--c); } /* about to sail */
+.fl-charlie  { background: linear-gradient(to bottom, var(--c) 0 20%, var(--fw) 20% 40%, var(--r) 40% 60%, var(--fw) 60% 80%, var(--c) 80%); } /* affirmative */
+.fl-uniform  { background: repeating-conic-gradient(var(--r) 0 25%, var(--fw) 25% 50%) top left / 50% 50%; } /* running into danger */
+
+/* ---- page chrome ---- */
+.pagehead { max-width: 1160px; margin: 2.2rem auto .4rem; padding: 0 2rem; }
+.pagehead h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -.02em; text-wrap: balance; }
+.pagehead p { color: var(--text-secondary); max-width: 72ch; margin-top: .35rem; text-wrap: pretty; }
+.pagehead .refs { margin-top: .4rem; color: var(--text-muted); font-size: .875rem; }
+.facehead { max-width: 1160px; margin: 2.6rem auto .9rem; padding: 0 2rem;
+  display: flex; align-items: baseline; gap: .9rem; flex-wrap: wrap; }
+.facehead .fh-title { font-size: 1.15rem; font-weight: 750; letter-spacing: -.015em; }
+.facehead .fh-note { color: var(--text-muted); font-size: .875rem; }
+.rule-mid { border: 0; border-top: 1px solid var(--hair-strong); width: 64px; }
+.stage { max-width: 1160px; margin: 0 auto; padding: 0 2rem;
+  display: flex; gap: 1.6rem; align-items: flex-start; flex-wrap: wrap; }
+.col { min-width: 300px; flex: 1 1 320px; }
+.face-label { text-align: center; margin: .8rem 0 0; }
+
+/* ---- shared panel + card grammar ---- */
+.panel { background: var(--surface-base); border: 1px solid var(--hair); }
+.card { background: var(--surface-card); border: 1px solid var(--hair); }
+.btn { font: inherit; font-size: .875rem; font-weight: 600; padding: .28rem .8rem;
+  border: 2px solid var(--border-strong); background: transparent;
+  color: var(--text-primary); cursor: pointer; }
+.btn.primary { background: var(--border-strong); color: var(--surface-base); }
+.btn.quiet { border-color: var(--hair-strong); color: var(--text-muted); }
+.lvl { font-size: .75rem; font-weight: 650; letter-spacing: .08em; text-transform: uppercase;
+  padding: 0 .35rem; border: 1px solid var(--hair-strong); color: var(--text-muted); }
+
+/* ============================================================
+   FACE 1 — Shipwright first-run (zone hue: cobalt)
+   ============================================================ */
+
+/* survey panel */
+.survey { padding: 1rem 1.1rem 1.1rem; }
+.survey .who { display: flex; gap: .55rem; align-items: center; position: relative;
+  padding-left: .8rem; }
+.survey .who .stripe { position: absolute; left: 0; top: 3px; bottom: 3px; width: 3px;
+  background: var(--cobalt); }
+.survey .who .dot { width: 8px; height: 8px; flex: none; background: var(--health); }
+.survey .who .nm { font-weight: 750; }
+.survey .who .age { margin-left: auto; color: var(--text-muted); }
+.survey .whatis { color: var(--text-muted); font-size: .875rem; margin-top: .45rem; }
+.evd { margin-top: .8rem; border-top: 1px solid var(--hair); }
+.evd .li { display: flex; gap: .7rem; padding: .5rem 0; border-bottom: 1px solid var(--hair);
+  font-size: .875rem; align-items: baseline; }
+.evd .k { color: var(--text-muted); flex: none; width: 6.2rem; }
+.evd .v { color: var(--text-secondary); }
+.evd .v b { color: var(--text-primary); font-weight: 600; }
+.privacy { margin-top: .75rem; color: var(--text-muted); font-size: .875rem;
+  border-left: 3px solid var(--hair-strong); padding-left: .7rem; }
+
+/* gate cards (FleetBar consent cards) */
+.gates { display: flex; flex-direction: column; gap: .8rem; }
+.gate { position: relative; padding: .85rem 1rem .9rem 1.15rem; }
+.gate .stripe { position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px;
+  background: var(--cobalt); }
+.gate.denied .stripe { background: var(--error); }
+.gate .head { display: flex; gap: .55rem; align-items: baseline; flex-wrap: wrap; }
+.gate .head .nm { font-weight: 750; }
+.gate .head .shape { color: var(--text-muted); font-size: .8125rem; margin-left: auto; }
+.gate .because { margin-top: .35rem; font-size: .875rem; color: var(--text-secondary); }
+.gate .because b { color: var(--text-primary); font-weight: 600; }
+.gate .facts { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: .45rem;
+  color: var(--text-muted); font-size: .8125rem; }
+.gate .facts b { color: var(--text-secondary); font-weight: 600; }
+.gate .acts { display: flex; gap: .5rem; margin-top: .65rem; align-items: center; }
+.gate .decided { font-size: .875rem; font-weight: 650; }
+.gate .decided.ok { color: var(--health); }
+.gate .decided.no { color: var(--error); }
+.gate .decided-note { color: var(--text-muted); font-size: .8125rem; }
+.capnote { color: var(--text-muted); font-size: .875rem; margin-top: .2rem; }
+
+/* the receipt moment */
+.receipt { padding: 1rem 1.1rem 1.1rem; border: 1px solid var(--hair);
+  background: var(--health-wash); }
+.receipt .sealhead { display: flex; gap: .55rem; align-items: center; }
+.receipt .sealhead .t { font-weight: 750; }
+.receipt .sealhead .when { margin-left: auto; color: var(--text-muted); }
+.receipt .lede { margin-top: .4rem; font-size: .9375rem; color: var(--text-secondary);
+  text-wrap: pretty; }
+.receipt .lede b { color: var(--text-primary); font-weight: 650; }
+.rfacts { margin-top: .7rem; border-top: 1px solid var(--hair); }
+.rfacts .li { display: flex; gap: .7rem; padding: .42rem 0; border-bottom: 1px solid var(--hair);
+  font-size: .875rem; align-items: baseline; }
+.rfacts .k { color: var(--text-muted); flex: none; width: 6.2rem; }
+.rfacts .v { color: var(--text-secondary); min-width: 0; overflow-wrap: anywhere; }
+.receipt .acts { display: flex; gap: .5rem; margin-top: .8rem; align-items: center; flex-wrap: wrap; }
+.honest-fail { margin-top: .8rem; border: 1px solid var(--hair);
+  border-left: 3px solid var(--amber); background: var(--surface-card);
+  padding: .55rem .8rem; font-size: .875rem; color: var(--text-secondary); }
+.honest-fail b { color: var(--amber-on-tint); }
+@media (prefers-color-scheme: dark) { .honest-fail b { color: var(--amber); } }
+
+/* the five-minute ruler — signature element */
+.ruler-wrap { max-width: 1160px; margin: 1.7rem auto 0; padding: 0 2rem; }
+.ruler-box { background: var(--surface-base); border: 1px solid var(--hair);
+  padding: 1rem 1.3rem 1.35rem; }
+.ruler-box .rt { display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap; }
+.ruler-box .rt .guarantee { color: var(--text-secondary); font-size: .875rem; }
+.ruler { position: relative; height: 58px; margin-top: 1rem; }
+.ruler .line { position: absolute; left: 0; right: 0; top: 34px; height: 0;
+  border-top: 1.5px solid var(--border-strong); }
+.ruler .tick { position: absolute; top: 28px; width: 0; height: 13px;
+  border-left: 1px solid var(--hair-strong); }
+.ruler .stop { position: absolute; top: 0; transform: translateX(-50%);
+  text-align: center; white-space: nowrap; }
+.ruler .stop .sd { width: 8px; height: 8px; background: var(--cobalt);
+  margin: 0 auto; position: relative; top: 30.5px; }
+.ruler .stop.done .sd { background: var(--health); }
+.ruler .stop .sl { font-size: .8125rem; font-weight: 650; color: var(--text-secondary);
+  position: relative; top: -4px; }
+.ruler .stop .st { position: relative; top: 32px; color: var(--text-muted); }
+.ruler .zone { position: absolute; top: 34px; height: 0; border-top: 3px solid var(--cobalt); }
+
+/* ============================================================
+   FACE 2 — do-this-next rail (zone hue: teal)
+   ============================================================ */
+.rail-panel { background: var(--surface-base); position: relative; padding: 16px; }
+/* brackets: live panel only (12px L-ticks, 1.5px) */
+.rail-panel::before, .rail-panel::after,
+.rail-panel > .bk::before, .rail-panel > .bk::after {
+  content: ""; position: absolute; width: 12px; height: 12px;
+  border: 0 solid var(--border-strong); pointer-events: none; }
+.rail-panel::before { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+.rail-panel::after  { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+.rail-panel > .bk::before { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.rail-panel > .bk::after  { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+.rail-head { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
+.rail-head .t { font-weight: 750; font-size: 1.05rem; }
+.rail-head .live { color: var(--teal); font-size: .75rem; font-weight: 650;
+  text-transform: uppercase; letter-spacing: .12em; }
+.trust { display: inline-flex; gap: .5rem; align-items: center; margin-left: auto;
+  border: 1px solid var(--hair-strong); padding: .1rem .55rem;
+  font-size: .8125rem; color: var(--text-muted); }
+.trust .td { width: 8px; height: 8px; background: var(--teal); flex: none; }
+.rail-items { margin-top: .9rem; display: flex; flex-direction: column; gap: 2px; }
+.ritem { display: flex; gap: .8rem; align-items: center; position: relative;
+  background: var(--surface-card); padding: .7rem .8rem .7rem 1rem; }
+.ritem .stripe { position: absolute; left: 0; top: 5px; bottom: 5px; width: 3px;
+  background: var(--teal); }
+.ritem.warn .stripe { background: var(--amber); }
+.ritem.conflict .stripe { background: var(--violet); }
+.ritem .body { min-width: 0; flex: 1; }
+.ritem .what { font-weight: 600; }
+.ritem .why { color: var(--text-muted); font-size: .8125rem; margin-top: .1rem;
+  overflow-wrap: anywhere; }
+.ritem .verb { flex: none; }
+.ritem .est { flex: none; font-size: .8125rem; }
+.ritem .x { flex: none; color: var(--text-muted); font-size: 1rem; line-height: 1;
+  border: 0; background: none; cursor: pointer; padding: .2rem .3rem; font-family: inherit; }
+.rail-foot { display: flex; gap: 1.1rem; margin-top: .8rem; align-items: baseline;
+  color: var(--text-muted); font-size: .875rem; flex-wrap: wrap; }
+.rail-foot .more { color: var(--teal); font-weight: 600; }
+.rail-foot .pause { margin-left: auto; color: var(--text-secondary);
+  border-bottom: 1px solid var(--hair-strong); }
+
+/* rail side notes: stale chip + empty state + dismissal */
+.note-card { background: var(--surface-card); border: 1px solid var(--hair);
+  padding: .8rem .95rem .9rem; }
+.note-card + .note-card { margin-top: .9rem; }
+.note-card .nt { font-weight: 700; display: flex; gap: .5rem; align-items: center; }
+.note-card p { color: var(--text-secondary); font-size: .875rem; margin-top: .35rem;
+  text-wrap: pretty; }
+.stale-chip { display: inline-flex; gap: .5rem; align-items: center;
+  border: 1px solid var(--amber); color: var(--amber-on-tint);
+  background: var(--gold-wash); padding: .12rem .55rem; font-size: .8125rem;
+  font-weight: 600; margin-top: .5rem; }
+@media (prefers-color-scheme: dark) { .stale-chip { color: var(--amber); } }
+.empty-teach { border-left: 3px solid var(--teal); padding-left: .7rem; }
+.empty-teach .cmd { display: block; margin-top: .3rem; color: var(--text-primary); }
+
+/* ethics strip */
+.ethics { max-width: 1160px; margin: 2.4rem auto 0; padding: 0 2rem; }
+.ethics .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2px; border: 1px solid var(--hair); background: var(--hair); }
+.ethics .law { background: var(--surface-base); padding: .8rem .95rem .9rem; }
+.ethics .law .n { color: var(--teal); font-weight: 750; }
+.ethics .law .b { font-weight: 650; }
+.ethics .law p { color: var(--text-muted); font-size: .875rem; margin-top: .2rem; }
+
+@media (max-width: 720px) {
+  .pagehead, .facehead, .stage, .ruler-wrap, .ethics { padding: 0 1rem; }
+  .col { flex-basis: 100%; min-width: 0; }
+  .ritem { flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+
+<div class="pagehead">
+  <h1>Onboarding — the first <span class="casual">five</span> minutes</h1>
+  <p>Two daemon-truth mechanisms kill the blank-fleet cold start. Face 1: the
+     Shipwright first-run — a staff Agent Node surveys the repo, proposes a starter
+     fleet of at most three as ambient-watcher Work Plans, consented one FleetBar
+     gate card at a time, and seals a real Work Receipt on the operator's own repo
+     within five minutes. Face 2: the do-this-next rail — the operator-facing twin
+     of the M5 guidance channel, at most three evidence-backed actions at the entry
+     of every sanctioned surface. The rail suggests; the operator decides; the
+     daemon enforces.</p>
+  <p class="refs mono">binder ch23 (23-onboarding.md) · strategy §9–§14 · skin/law: binder ch20 + ch20-tokens.css · ADR-0096 GuidanceEnvelope v0 · skills: recovery-app-onboarding · wellness-app-engagement · ai-introduction-educator · agentic-coding-ux-designer · legible-roadmap-with-sidequests</p>
+</div>
+
+<!-- ================= FACE 1 ================= -->
+<div class="facehead">
+  <span class="eyebrow" style="color:var(--cobalt)">Face 1 · zone cobalt</span>
+  <span class="fh-title">The Shipwright first-run</span>
+  <span class="fh-note">survey → propose ≤3 → one consent each → one real thing → receipt</span>
+</div>
+
+<div class="stage">
+
+  <!-- survey -->
+  <div class="col">
+    <div class="panel survey">
+      <div class="who">
+        <span class="stripe"></span><span class="dot"></span>
+        <span class="mfl fl-charlie"></span>
+        <span class="nm">Shipwright</span>
+        <span class="lvl">staff agent</span>
+        <span class="age mono">survey 0:48</span>
+      </div>
+      <div class="whatis">The first agent you ever watch is Shipwright itself —
+        an ordinary Agent Node, launched through the same intent → plan → node
+        chain as everything it proposes. Its survey is evidence, and every
+        proposal below cites it.</div>
+      <div class="evd">
+        <div class="li"><span class="k">stack</span><span class="v"><b>TypeScript + Bun</b> · Fastify daemon · gpui console</span></div>
+        <div class="li"><span class="k">tests</span><span class="v"><b>bun test</b> · 212 tests · suite red on main for 2 days</span></div>
+        <div class="li"><span class="k">ci</span><span class="v">GitHub Actions · <b>merge queue on</b></span></div>
+        <div class="li"><span class="k">pull requests</span><span class="v"><b>14 open</b> · 6 older than a week</span></div>
+        <div class="li"><span class="k">docs</span><span class="v">docs/ drift: <b>3 files</b> behind recent src churn</span></div>
+      </div>
+      <div class="privacy">RepoSurvey is local-only evidence: it never leaves this
+        host, is never synced, and is referenced — not embedded — by each proposal.</div>
+    </div>
+    <div class="face-label eyebrow">Survey · ≤60 s · daemon truth, rendered per-surface</div>
+  </div>
+
+  <!-- gate cards -->
+  <div class="col">
+    <div class="gates">
+
+      <div class="gate card">
+        <span class="stripe"></span>
+        <div class="head">
+          <span class="mfl fl-papa"></span><span class="nm">Reviewer</span>
+          <span class="lvl">ambient-watcher</span>
+          <span class="shape mono">work-plan · requiresApproval</span>
+        </div>
+        <div class="because">Because: <b>14 open PRs, 6 older than a week.</b>
+          Watches PR opens and staleness; reviews with your checklist.</div>
+        <div class="facts">
+          <span>skills <b>code-review-checklist · agent-pr-authoring</b></span>
+          <span>trigger <b>PR opened / stale 48h</b></span>
+          <span>ceiling <b class="money">$0.40/day hard cap</b></span>
+        </div>
+        <div class="acts">
+          <button class="btn primary">Approve reviewer</button>
+          <button class="btn quiet">Not now</button>
+          <span class="decided-note">est. <span class="money">$0.09</span> per review · cost shown at the gate</span>
+        </div>
+      </div>
+
+      <div class="gate card">
+        <span class="stripe"></span>
+        <div class="head">
+          <span class="mfl fl-kilo"></span><span class="nm">Test-runner</span>
+          <span class="lvl">ambient-watcher</span>
+          <span class="shape mono">work-plan · requiresApproval</span>
+        </div>
+        <div class="because">Because: <b>the suite is red on main and has been for
+          2 days.</b> Runs the suite on push and reports what is actually broken.</div>
+        <div class="facts">
+          <span>skills <b>rust-code-testing · vitest-testing-patterns</b></span>
+          <span>trigger <b>push to main</b></span>
+          <span>ceiling <b class="money">$0.25/day hard cap</b></span>
+        </div>
+        <div class="acts">
+          <span class="decided ok">Approved 1:20</span>
+          <span class="decided-note">plan materialized · gate decision durable</span>
+        </div>
+      </div>
+
+      <div class="gate card denied">
+        <span class="stripe"></span>
+        <div class="head">
+          <span class="mfl fl-november"></span><span class="nm">Doc-syncer</span>
+          <span class="lvl">ambient-watcher</span>
+          <span class="shape mono">work-plan · requiresApproval</span>
+        </div>
+        <div class="because">Because: <b>3 docs drifted against src churn.</b>
+          Diffs one drifted doc at a time and proposes the sync.</div>
+        <div class="acts">
+          <span class="decided no">Denied 1:26</span>
+          <span class="decided-note">durable denial · nothing runs · the rail can teach this later</span>
+        </div>
+      </div>
+
+    </div>
+    <p class="capnote">Three is a hard cap — a repo whose evidence supports fewer
+      gets fewer. Each card is its own consent; denying all three is a
+      first-class path that leaves a working, teaching install.</p>
+    <div class="face-label eyebrow">Consent · one FleetBar gate card per starter agent</div>
+  </div>
+
+  <!-- the receipt moment -->
+  <div class="col">
+    <div class="receipt">
+      <div class="sealhead">
+        <span class="mfl fl-charlie"></span>
+        <span class="t">Your first agent just did one real thing</span>
+        <span class="when mono">4:41</span>
+      </div>
+      <div class="lede"><b>Test-runner</b> ran your suite and sealed a receipt:
+        <b>207 of 212 pass</b> — the 5 failures are all in
+        <span class="mono">relay/macaroon.test.ts</span>, broken by
+        <span class="mono">c41f9e2</span> two days ago.</div>
+      <div class="rfacts">
+        <div class="li"><span class="k">receipt</span><span class="v mono">wr_01JQ9F… · transcript hash-chain sealed</span></div>
+        <div class="li"><span class="k">task</span><span class="v">bun test · full suite · worktree <span class="mono">…/wt/starter-qa</span></span></div>
+        <div class="li"><span class="k">cost</span><span class="v"><span class="money">$0.07</span> of $0.25 daily ceiling</span></div>
+        <div class="li"><span class="k">duration</span><span class="v mono">3m 12s</span></div>
+        <div class="li"><span class="k">skills</span><span class="v">rust-code-testing · vitest-testing-patterns — named on the receipt</span></div>
+        <div class="li"><span class="k">approvals</span><span class="v">1 gate · you, 1:20 · loopback</span></div>
+      </div>
+      <div class="acts">
+        <button class="btn primary">Watch in pd-console</button>
+        <button class="btn quiet">Show a teammate</button>
+      </div>
+      <div class="honest-fail"><b>Failure is a teaching moment, not a crash:</b>
+        the suite genuinely fails, and the receipt says so honestly. That is a
+        true fact about the repo the agent just proved — one agent, one real
+        thing, one receipt. Never fake a success.</div>
+    </div>
+    <div class="face-label eyebrow">Receipt · the micro-win and the proof object</div>
+  </div>
+
+</div>
+
+<!-- the five-minute ruler -->
+<div class="ruler-wrap">
+  <div class="ruler-box">
+    <div class="rt">
+      <span class="eyebrow" style="color:var(--cobalt)">The cold-start guarantee · IT-23A</span>
+      <span class="guarantee">Within ~5 minutes of install, the operator has watched one
+        agent do one real thing on their own repo and produce a receipt.</span>
+    </div>
+    <div class="ruler" aria-label="Timeline from pd setup to sealed receipt, under five minutes">
+      <div class="line"></div>
+      <div class="zone" style="left:0; width:94.5%"></div>
+      <div class="tick" style="left:20%"></div>
+      <div class="tick" style="left:40%"></div>
+      <div class="tick" style="left:60%"></div>
+      <div class="tick" style="left:80%"></div>
+      <div class="stop done" style="left:2%">
+        <div class="sl">pd setup</div><div class="sd"></div><div class="st mono">0:00</div>
+      </div>
+      <div class="stop done" style="left:16%">
+        <div class="sl">survey</div><div class="sd"></div><div class="st mono">0:48</div>
+      </div>
+      <div class="stop done" style="left:27%">
+        <div class="sl">consent</div><div class="sd"></div><div class="st mono">1:20</div>
+      </div>
+      <div class="stop done" style="left:60%">
+        <div class="sl">real task</div><div class="sd"></div><div class="st mono">1:29 → 4:41</div>
+      </div>
+      <div class="stop done" style="left:94.5%">
+        <div class="sl">receipt sealed</div><div class="sd"></div><div class="st mono">4:41</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FACE 2 ================= -->
+<div class="facehead">
+  <span class="eyebrow" style="color:var(--teal)">Face 2 · zone teal</span>
+  <span class="fh-title">The do-this-next rail, at app entry</span>
+  <span class="fh-note">≤3 evidence-backed actions · one-tap verbs · never auto-acting · same rail on every surface</span>
+</div>
+
+<div class="stage">
+
+  <div class="col" style="flex-grow:2">
+    <div class="rail-panel"><span class="bk"></span>
+      <div class="rail-head">
+        <span class="t">Do this next</span>
+        <span class="live">● live — hot bus</span>
+        <span class="trust"><span class="td"></span>daemon truth · authority loopback ·
+          <span class="mono">issued 21:04 · fresh</span></span>
+      </div>
+
+      <div class="rail-items">
+        <div class="ritem">
+          <span class="stripe"></span><span class="mfl fl-kilo"></span>
+          <div class="body">
+            <div class="what">PR #91 needs a review — 6 days stale</div>
+            <div class="why mono">ref pr-projection/91 · draft work-intent wi_01JQA2… · roadmapLink: review-debt</div>
+          </div>
+          <span class="est money mono">$0.09</span>
+          <button class="btn verb">Review it</button>
+          <button class="x" aria-label="Dismiss">×</button>
+        </div>
+
+        <div class="ritem warn">
+          <span class="stripe"></span><span class="mfl fl-quebec"></span>
+          <div class="body">
+            <div class="what">Context at 92% on <span class="mono">voyager-3</span></div>
+            <div class="why mono">ref context-envelope/voyager-3 · control-command compact · reversible</div>
+          </div>
+          <span class="est mono" style="color:var(--text-muted)">free</span>
+          <button class="btn verb">Compact</button>
+          <button class="x" aria-label="Dismiss">×</button>
+        </div>
+
+        <div class="ritem conflict">
+          <span class="stripe"></span><span class="mfl fl-uniform"></span>
+          <div class="body">
+            <div class="what">Conflict forecast on <span class="mono">retry.ts</span> — two agents converging</div>
+            <div class="why mono">ref conflict-forecast/ev_88c1 · draft parley · both agents suggestible</div>
+          </div>
+          <span class="est money mono">$0.04</span>
+          <button class="btn verb">Convene parley</button>
+          <button class="x" aria-label="Dismiss">×</button>
+        </div>
+      </div>
+
+      <div class="rail-foot">
+        <span class="more">1 more</span>
+        <span>acting routes through normal intent/command intake — one consent, cost at the gate</span>
+        <span class="pause">Pause everything</span>
+      </div>
+    </div>
+    <div class="face-label eyebrow">FleetBar home · Control Center · console launch · mobile · Scout popup · web account — one rail, everywhere</div>
+  </div>
+
+  <div class="col" style="max-width:360px">
+    <div class="note-card">
+      <div class="nt"><span class="mfl fl-quebec" style="opacity:.55"></span>Past <span class="mono">notAfter</span> — honest, never confident</div>
+      <p>A rail item that outlives its envelope degrades to a stale chip
+        (ch20 law 13) with remediation on its face. It never renders as current.</p>
+      <span class="stale-chip">stale 6m · daemon unreachable · <span class="mono">pd doctor</span></span>
+    </div>
+
+    <div class="note-card">
+      <div class="nt">Dismissed durably</div>
+      <p>Dismissing an item persists against its evidence <span class="mono">ref</span> —
+        the same ref never resurfaces without new evidence. A rail that nags is a
+        guilt machine.</p>
+    </div>
+
+    <div class="note-card empty-teach">
+      <div class="nt">Denied everything? The empty state teaches.</div>
+      <p>No starter fleet, no rail items — still a working install. “When you're
+        ready, your fleet is one survey away.”
+        <span class="cmd mono">pd setup --rerun</span></p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ethics strip -->
+<div class="ethics">
+  <div class="facehead" style="margin:0 0 .9rem; padding:0">
+    <span class="eyebrow">Binding, not aspirational</span>
+    <span class="fh-title">Ethical-engagement laws on every pixel above</span>
+  </div>
+  <div class="grid">
+    <div class="law"><span class="n">1</span> <span class="b">Outcome KPI.</span>
+      <p>Receipts sealed on operator repos and time-to-first-receipt — never DAU,
+        session length, or rail-tap rate.</p></div>
+    <div class="law"><span class="n">2</span> <span class="b">Every step skippable.</span>
+      <p>Skip-all leaves a working install; the whole flow completes in under
+        five minutes.</p></div>
+    <div class="law"><span class="n">3</span> <span class="b">No guilt copy.</span>
+      <p>No loss-framing, no streaks. Nudges stop after 14 idle days; a return
+        leads with accumulated value, never the gap.</p></div>
+    <div class="law"><span class="n">4</span> <span class="b">No dark-pattern items.</span>
+      <p>Every rail item traces to daemon evidence of operator value —
+        promotional items are forbidden by construction.</p></div>
+    <div class="law"><span class="n">5</span> <span class="b">Cost before consent.</span>
+      <p>Estimated cost on every card and verb; ceilings are daemon-enforced
+        hard caps, defaulting conservative.</p></div>
+    <div class="law"><span class="n">6</span> <span class="b">Easy to leave.</span>
+      <p>“Pause everything” and <span class="mono">pd fleet retire --starter</span>
+        are one gesture, receipts retained, no confirm-shaming.</p></div>
+  </div>
+</div>
+
+</body>
+</html>
