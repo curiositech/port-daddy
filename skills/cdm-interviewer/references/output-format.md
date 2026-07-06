@@ -46,7 +46,7 @@ Aim for 5–15 events with 3–8 decision points flagged.
   - **Chosen**: [option taken and why]
   - **Rejected option A**: [option and why rejected]
   - **Rejected option B**: [if applicable]
-- **Time pressure**: [decision economics — how much time, what was tradedaway]
+- **Time pressure**: [decision economics — how much time, what was traded away]
 - **Confidence**: [stated confidence + the disconfirming signal the expert was monitoring]
 - **Outcome of this decision**: [what happened next as a result]
 

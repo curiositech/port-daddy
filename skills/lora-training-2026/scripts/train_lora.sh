@@ -88,7 +88,7 @@ PYEOF
     echo "==> syncing to $HOST…"
     rsync -az -e "ssh -p $PORT" --exclude '.git' --exclude 'out' ./ "$HOST:/workspace/lora/"
     echo "==> installing + training on pod…"
-    ssh -p "$PORT" "$HOST" "cd /workspace/lora && ($PIP_INSTALL) && python3 scripts/train_lora.py --config $CONFIG"
+    ssh -p "$PORT" "$HOST" "cd /workspace/lora && ($PIP_INSTALL) && python3 scripts/train_lora.py --config $(printf '%q' "$CONFIG")"
     echo "==> retrieving adapter (before reclaim!)…"
     mkdir -p "$OUTPUT_DIR"
     rsync -az -e "ssh -p $PORT" "$HOST:/workspace/lora/$OUTPUT_DIR/" "./$OUTPUT_DIR/"
