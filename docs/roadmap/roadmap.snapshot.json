@@ -1,9 +1,14 @@
 {
-  "generatedAt": 1783301546497,
+  "generatedAt": 1783315035961,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 130,
+  "count": 131,
   "items": [
+    {
+      "slug": "accountability-wedge-launch-assets",
+      "status": "now",
+      "summaryMd": "Wedge 1 launch assets from the GTM strategy (\u00a76): Show HN post + founder note, and the portdaddy.dev /accountability launch page (hero, before/after, compliance ladder, git-guard demo, install CTA). Spawned by distribution-dogfood-gtm-strategy."
+    },
     {
       "slug": "active-agent-roster",
       "status": "backlog",
