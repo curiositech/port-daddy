@@ -185,6 +185,15 @@ Work Receipt:
   Scout, FleetBar, and pd-console as the three operator surfaces: division of
   labor, the hot/durable bus with latency budgets, the enforced-MCP broker
   collapse to five tools, and proof gates IT-015..IT-018.
+- [20 Design System: Story Linework](./20-design-system-story-linework.md):
+  palette v2 on the ADR-0048 layer stack, fractional linework, Vignelli
+  blocking, maritime signal flags via `lib/maritime-signals.ts`, content
+  honesty laws, and the phased image overhaul.
+- [22 Orchestration Surface](./22-orchestration.md):
+  the Chart (steerable DAG/hypertree plan visualization), argued execution
+  opinions with durable overrules, automated I0-style adversarial review,
+  and agentic output evaluation feeding the ratings/guild layer; proof gates
+  IT-019..IT-022.
 
 ## Architecture in one diagram
 
