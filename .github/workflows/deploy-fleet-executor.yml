@@ -20,6 +20,7 @@ name: Deploy fleet-executor (Cloudflare Worker)
 #                                     Set it once from a machine that has the
 #                                     working config:
 #                                       gh secret set FLEET_EXECUTOR_WRANGLER_TOML \
+#                                         --repo curiositech/port-daddy --app actions \
 #                                         < apps/fleet-executor/wrangler.toml
 #
 # The Worker's runtime secret GITHUB_APP_PRIVATE_KEY is set out-of-band via
@@ -69,7 +70,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${WRANGLER_TOML:-}" ]; then
-            echo "::error::FLEET_EXECUTOR_WRANGLER_TOML is not set. The real wrangler.toml is gitignored (KV/D1/account ids), so CI needs it as a secret. From a machine with the working config run:  gh secret set FLEET_EXECUTOR_WRANGLER_TOML < apps/fleet-executor/wrangler.toml"
+            echo "::error::FLEET_EXECUTOR_WRANGLER_TOML is not set. The real wrangler.toml is gitignored (KV/D1/account ids), so CI needs it as a secret. From a machine with the working config run:  gh secret set FLEET_EXECUTOR_WRANGLER_TOML --repo curiositech/port-daddy --app actions < apps/fleet-executor/wrangler.toml"
             exit 1
           fi
           printf '%s' "$WRANGLER_TOML" > wrangler.toml
