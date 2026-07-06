@@ -1379,7 +1379,7 @@ const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'work', 'transcripts', 'transcript', 'relay',
-  'harbor', 'harbors', 'harbor-ledger', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'memory', 'ideas',
+  'harbor', 'harbors', 'harbor-ledger', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'skill-graft', 'skillgraft', 'memory', 'ideas',
   'quorum', 'parley',
   'feedback',
   'commit', 'obligations',
