@@ -6,6 +6,7 @@ struct FleetControlCenter: View {
     @ObservedObject var dispatchStore: DispatchStore
     @ObservedObject var proposalStore: FleetProposalStore
     @ObservedObject var backendStore: BackendStore
+    @ObservedObject var cloudFleetStore: CloudFleetStore = CloudFleetStore()
 
     @AppStorage(FleetControlRoute.surfaceKey) private var selectedSurfaceRaw = FleetControlSurface.flow.rawValue
     @AppStorage(FleetControlRoute.projectKey) private var selectedProjectStorage = ""
@@ -550,6 +551,15 @@ struct FleetControlCenter: View {
         switch selectedSurface {
         case .proposals:
             FleetProposalSection(store: proposalStore)
+        case .cloudfleet:
+            ScrollView {
+                CloudFleetSection(
+                    store: cloudFleetStore,
+                    localProjects: store.projects,
+                    localDaemonURL: store.daemonURL,
+                    compact: false
+                )
+            }
         case .nightshift:
             FleetControlNightshiftSection(store: dispatchStore)
         case .backend:
@@ -848,6 +858,7 @@ struct FleetControlCenter: View {
         await costStore.refresh()
         await dispatchStore.refresh()
         await backendStore.refresh()
+        await cloudFleetStore.refresh()
         syncProjectSelection()
     }
 
