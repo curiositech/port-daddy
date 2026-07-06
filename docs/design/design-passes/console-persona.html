@@ -1,0 +1,789 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<title>The Extensible Console — one state, three lenses</title>
+<style>
+/* ============================================================
+   The Extensible Console — design pass (strategy §11 translation layer)
+   Skin/law: binder ch20 via ch20-tokens.css (palette v2, hue = layer,
+   rule-8 grammar, fractional borders 1/1.5/2px, 14px floor).
+   Preset mechanism: operator-tui-v9 persona picker, reduced to the
+   three lenses the curation ledger names.
+   Motion: v4-mockup easing tokens (--ease-spring / --ease-quick).
+   Self-contained: no external URLs; fonts fall back gracefully.
+   ============================================================ */
+:root {
+  /* surfaces (light / cream) */
+  --surface-base:   #f2eee6;
+  --surface-card:   #e9e2d5;
+  --surface-strong: #e0d9cb;
+  --surface-sunken: #e0d9cb;
+  --text-primary:   #121212;
+  --text-secondary: #403b34;
+  --text-muted:     #47423a;
+  /* hue = layer (accents, never chrome) */
+  --cobalt: #003fb8;  --teal: #006b5f;  --health: #1f7a4d;
+  --amber:  #a66f00;  --error: #bf2f2f;
+  --violet: #933fa5;  --gold:  #666a00; --idle: #8f8879;
+  --lime:   #cad900;  --cobalt-slab: #003fb8; --flag-white: #fbf7ef;
+  --hair:        rgba(18,18,18,.14);
+  --hair-strong: rgba(18,18,18,.34);
+  --border-strong: #121212;
+  /* motion (v4-mockup tokens) */
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-quick:  cubic-bezier(0.4, 0, 0.2, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-base:   #101216;
+    --surface-card:   #181c22;
+    --surface-strong: #222833;
+    --surface-sunken: #0b0d11;
+    --text-primary:   #f5f3ed;
+    --text-secondary: #d3cec2;
+    --text-muted:     #a59f93;
+    --cobalt: #7db4ff; --teal: #8fd0a7; --health: #5fce97;
+    --amber:  #f2be51; --error: #ff7d7d;
+    --violet: #e0a5ed; --gold:  #d8dd3c; --idle: #736d60;
+    --lime:   #d8dd3c;
+    --hair:        rgba(245,243,237,.14);
+    --hair-strong: rgba(245,243,237,.34);
+    --border-strong: #f5f3ed;
+  }
+}
+:root[data-theme="dark"] {
+  --surface-base:   #101216;
+  --surface-card:   #181c22;
+  --surface-strong: #222833;
+  --surface-sunken: #0b0d11;
+  --text-primary:   #f5f3ed;
+  --text-secondary: #d3cec2;
+  --text-muted:     #a59f93;
+  --cobalt: #7db4ff; --teal: #8fd0a7; --health: #5fce97;
+  --amber:  #f2be51; --error: #ff7d7d;
+  --violet: #e0a5ed; --gold:  #d8dd3c; --idle: #736d60;
+  --lime:   #d8dd3c;
+  --hair:        rgba(245,243,237,.14);
+  --hair-strong: rgba(245,243,237,.34);
+  --border-strong: #f5f3ed;
+}
+:root[data-theme="light"] {
+  --surface-base:   #f2eee6;
+  --surface-card:   #e9e2d5;
+  --surface-strong: #e0d9cb;
+  --surface-sunken: #e0d9cb;
+  --text-primary:   #121212;
+  --text-secondary: #403b34;
+  --text-muted:     #47423a;
+  --cobalt: #003fb8; --teal: #006b5f; --health: #1f7a4d;
+  --amber:  #a66f00; --error: #bf2f2f;
+  --violet: #933fa5; --gold:  #666a00; --idle: #8f8879;
+  --lime:   #cad900;
+  --hair:        rgba(18,18,18,.14);
+  --hair-strong: rgba(18,18,18,.34);
+  --border-strong: #121212;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  background: var(--surface-base); color: var(--text-primary);
+  font-size: .9375rem; line-height: 1.55; -webkit-font-smoothing: antialiased;
+  padding: 0 0 4rem;
+}
+.mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums slashed-zero; font-size: .8125rem; }
+.casual { font-family: "Recursive", "IBM Plex Sans", -apple-system, sans-serif;
+  font-variation-settings: "CASL" 1; }
+.eyebrow { font-size: .75rem; font-weight: 650; text-transform: uppercase;
+  letter-spacing: .12em; color: var(--text-muted); }
+
+/* rule-8 micro-flags (ICOS glyphs, PR #663 corpus) */
+.mfl { display: inline-block; width: 13px; height: 9.5px; flex: none;
+  border: .5px solid rgba(0,0,0,.28);
+  --fw: var(--flag-white); --fink: #17191d; --c: var(--cobalt-slab); --r: #bf2f2f; --y: var(--lime); }
+.fl-quebec   { background: var(--y); }
+.fl-kilo     { background: linear-gradient(to right, var(--y) 0 50%, var(--c) 50%); }
+.fl-lima     { background: conic-gradient(var(--fink) 0 25%, var(--y) 25% 50%, var(--fink) 50% 75%, var(--y) 75%); }
+.fl-november { background: repeating-conic-gradient(var(--c) 0 25%, var(--fw) 25% 50%) top left / 50% 50%; }
+.fl-uniform  { background: repeating-conic-gradient(var(--r) 0 25%, var(--fw) 25% 50%) top left / 50% 50%; }
+
+/* ---------- page head ---------- */
+.pagehead { max-width: 1240px; margin: 2.4rem auto .6rem; padding: 0 2rem; }
+.pagehead h1 { font-size: 1.7rem; font-weight: 800; letter-spacing: -.02em; text-wrap: balance; }
+.pagehead p { color: var(--text-secondary); max-width: 72ch; margin-top: .4rem; }
+.pagehead .refs { margin-top: .45rem; color: var(--text-muted); font-size: .875rem; }
+
+/* ---------- the console shell ---------- */
+.console { max-width: 1240px; margin: 1.3rem auto 0; background: var(--surface-card);
+  border: 1px solid var(--hair-strong); display: grid;
+  grid-template-columns: 172px 1fr; grid-template-rows: auto 1fr auto; min-height: 620px; }
+
+/* mast: title + preset picker */
+.mast { grid-column: 1 / -1; display: flex; align-items: center; gap: 1rem;
+  padding: .65rem 1.1rem; border-bottom: 1px solid var(--hair); flex-wrap: wrap; }
+.mast .wordmark { font-weight: 750; letter-spacing: -.01em; }
+.mast .wordmark .tld { color: var(--lens); }
+.mast .spend-chip { color: var(--text-muted); font-size: .875rem; }
+.mast .spend-chip b { color: var(--gold); font-weight: 650; }
+
+.picker { display: flex; gap: .45rem; margin-left: auto; align-items: center; flex-wrap: wrap; }
+.picker .pk-label { font-size: .75rem; font-weight: 650; text-transform: uppercase;
+  letter-spacing: .12em; color: var(--text-muted); margin-right: .2rem; }
+.chip { font: inherit; font-size: .875rem; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: .5rem;
+  background: transparent; color: var(--text-secondary);
+  border: 1.5px solid var(--hair-strong); padding: .3rem .8rem .3rem .65rem;
+  transition: border-color 180ms var(--ease-quick), color 180ms var(--ease-quick),
+              background 180ms var(--ease-quick), transform 220ms var(--ease-spring); }
+.chip .cdot { width: 8px; height: 8px; flex: none; background: var(--chue); }
+.chip .ckey { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: .75rem; color: var(--text-muted); border: 1px solid var(--hair);
+  padding: 0 .3rem; font-weight: 400; }
+.chip:hover { transform: translateY(-2px); border-color: var(--chue); color: var(--text-primary); }
+.chip:focus-visible { outline: 2px solid var(--chue); outline-offset: 2px; }
+.chip.on { border-color: var(--chue); color: var(--text-primary);
+  background: color-mix(in oklab, var(--chue) 10%, var(--surface-card)); }
+@keyframes modePop { 0% { transform: scale(.86); } 55% { transform: scale(1.07); } 100% { transform: scale(1); } }
+.chip.pop { animation: modePop 300ms var(--ease-spring); }
+
+/* rail: hue = layer */
+.rail { border-right: 1px solid var(--hair); padding: .9rem .7rem; min-width: 0; }
+.rail .item { padding: .32rem .55rem .32rem .75rem; color: var(--text-muted);
+  font-size: .875rem; position: relative; transition: padding-left 220ms var(--ease-spring); }
+.rail .item.on { color: var(--text-primary); background: var(--surface-strong); font-weight: 600; }
+.rail .item .lh { position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px; }
+.rail .l0 .lh { background: var(--cobalt); }
+.rail .l1 .lh { background: var(--health); }
+.rail .l2 .lh { background: var(--teal); }
+.rail .l3 .lh { background: var(--gold); }
+.rail .lid .lh { background: var(--violet); }
+.rail .sect { margin-top: 1rem; }
+.rail .more { margin-top: 1.1rem; color: var(--text-muted); font-size: .875rem; padding-left: .75rem; }
+.rail .more .k { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: .8125rem;
+  border: 1px solid var(--hair-strong); padding: 0 .3rem; }
+
+/* deck: the persona-composed card grid */
+.deck { padding: 1rem 1.1rem 1.2rem; display: grid; gap: .9rem;
+  grid-template-columns: repeat(6, 1fr); align-content: start; align-items: start; min-width: 0; }
+.card { background: var(--surface-base); border: 1px solid var(--hair);
+  padding: .85rem 1rem 1rem; min-width: 0; position: relative;
+  will-change: transform; }
+.card .chead { display: flex; align-items: baseline; gap: .6rem; margin-bottom: .55rem; }
+.card .chead .t { font-weight: 700; font-size: 1rem; letter-spacing: -.01em; }
+.card .chead .n { margin-left: auto; color: var(--text-muted); font-size: .875rem; white-space: nowrap; }
+.card.hero { border: 2px solid var(--border-strong); background: var(--surface-base); }
+.card.hero .chead .t { font-size: 1.15rem; font-weight: 750; }
+.card.quiet { background: transparent; }
+.card .lede { color: var(--text-secondary); }
+/* brackets: only the persona's live hero pane */
+.card.hero::before, .card.hero::after,
+.card.hero > .bk::before, .card.hero > .bk::after {
+  content: ""; position: absolute; width: 12px; height: 12px;
+  border: 0 solid var(--lens); pointer-events: none; z-index: 3; }
+.card.hero::before { top: -2px; left: -2px; border-top-width: 2px; border-left-width: 2px; }
+.card.hero::after  { top: -2px; right: -2px; border-top-width: 2px; border-right-width: 2px; }
+.card.hero > .bk::before { bottom: -2px; left: -2px; border-bottom-width: 2px; border-left-width: 2px; }
+.card.hero > .bk::after  { bottom: -2px; right: -2px; border-bottom-width: 2px; border-right-width: 2px; }
+
+/* entrance: staggered settle (v4 settle-in) */
+@keyframes settleIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.card.settle { animation: settleIn 360ms var(--ease-spring) both; }
+
+/* rule-8 roster rows */
+.row { display: flex; gap: .55rem; align-items: center; padding: .42rem .2rem .42rem .8rem;
+  position: relative; min-width: 0; }
+.row + .row { border-top: 1px solid var(--hair); }
+.row .stripe { position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; background: currentColor; }
+.row .dot { width: 8px; height: 8px; flex: none; background: currentColor; }
+.row .body { min-width: 0; flex: 1; color: var(--text-primary); }
+.row .name { font-weight: 600; font-size: .9375rem; display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap; }
+.row .meta { color: var(--text-muted); font-size: .875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .age { margin-left: auto; color: var(--text-muted); flex: none; }
+.s-running { color: var(--cobalt); } .s-ok { color: var(--health); }
+.s-err { color: var(--error); } .s-blocked { color: var(--violet); } .s-idle { color: var(--idle); }
+.lvl { font-size: .75rem; font-weight: 650; letter-spacing: .08em; text-transform: uppercase;
+  padding: 0 .35rem; border: 1px solid var(--hair-strong); color: var(--text-muted); }
+.lvl.c4 { color: var(--cobalt); border-color: var(--cobalt); }
+.lvl.obs { color: var(--idle); }
+/* pulse only on in-flight */
+@keyframes ch20pulse { 0% { outline-offset: 0; outline-color: currentColor; }
+  100% { outline-offset: 7px; outline-color: transparent; } }
+.row.live .dot { outline: 1.5px solid currentColor; animation: ch20pulse 1.8s ease-out infinite; }
+
+/* progress hairline */
+.prog { height: 3px; background: var(--surface-strong); margin-top: .45rem; overflow: hidden; }
+.prog i { display: block; height: 100%; background: var(--cobalt);
+  transition: width 900ms var(--ease-quick); }
+
+/* the one big action (builder hero) */
+.bigact { margin-top: .3rem; }
+.bigact .ask { font-size: 1.3rem; font-weight: 750; letter-spacing: -.015em; line-height: 1.3;
+  text-wrap: balance; }
+.bigact .why { color: var(--text-muted); font-size: .875rem; margin-top: .3rem; }
+.actrow { display: flex; gap: .55rem; align-items: center; margin-top: .85rem; flex-wrap: wrap; }
+.btn { font: inherit; font-size: .875rem; font-weight: 600; padding: .32rem .85rem;
+  border: 2px solid var(--border-strong); background: transparent; color: var(--text-primary);
+  cursor: pointer; transition: transform 220ms var(--ease-spring), background 140ms var(--ease-quick); }
+.btn.primary { background: var(--border-strong); color: var(--surface-base); }
+.btn:hover { transform: translateY(-2px); }
+.btn:active { transform: translateY(0) scale(.97); }
+.btn:focus-visible { outline: 2px solid var(--lens); outline-offset: 2px; }
+.btn[disabled] { border-color: var(--hair-strong); color: var(--text-muted); cursor: not-allowed; }
+.calm { color: var(--text-muted); font-size: .875rem; margin-top: .8rem; }
+.calm b { color: var(--health); font-weight: 650; }
+
+/* denial evidence rows */
+.deny { border-left: 3px solid var(--error); padding: .35rem 0 .35rem .75rem; margin-top: .55rem; }
+.deny .cmd { color: var(--text-primary); }
+.deny .why { color: var(--text-secondary); font-size: .875rem; }
+.deny .alt { color: var(--text-muted); font-size: .875rem; margin-top: .1rem; }
+.deny .alt b { color: var(--health); font-weight: 600; }
+
+/* compliance ladder */
+.ladder .rung { display: flex; align-items: center; gap: .6rem; padding: .3rem 0; }
+.ladder .rung .lb { width: 7.2rem; flex: none; font-size: .875rem; color: var(--text-secondary); }
+.ladder .rung .bar { flex: 1; height: 10px; background: var(--surface-strong); position: relative; }
+.ladder .rung .bar i { position: absolute; inset: 0 auto 0 0; background: var(--violet); }
+.ladder .rung .ct { width: 1.4rem; text-align: right; flex: none; color: var(--text-primary); font-weight: 650; }
+.ladder .foot { margin-top: .5rem; color: var(--text-muted); font-size: .875rem; }
+
+/* budget bars */
+.burn .cap { display: flex; align-items: baseline; gap: .6rem; }
+.burn .cap .amt { font-size: 1.45rem; font-weight: 750; letter-spacing: -.02em; color: var(--text-primary); }
+.burn .cap .of { color: var(--text-muted); font-size: .875rem; }
+.burn .capbar { height: 10px; background: var(--surface-strong); margin: .5rem 0 .75rem; position: relative; }
+.burn .capbar i { position: absolute; inset: 0 auto 0 0; background: var(--gold);
+  transition: width 900ms var(--ease-quick); }
+.attr { display: grid; grid-template-columns: auto 1fr auto; gap: .2rem .7rem; align-items: center; }
+.attr .an { font-size: .875rem; color: var(--text-secondary); white-space: nowrap; }
+.attr .ab { height: 7px; background: var(--surface-strong); position: relative; }
+.attr .ab i { position: absolute; inset: 0 auto 0 0; background: color-mix(in oklab, var(--gold) 72%, var(--surface-base)); }
+.attr .av { color: var(--text-muted); }
+
+/* roadmap lanes + receipts */
+.lane { display: flex; gap: .55rem; align-items: baseline; padding: .32rem 0; min-width: 0; }
+.lane + .lane { border-top: 1px solid var(--hair); }
+.lane .st { flex: none; width: 4.4rem; font-size: .75rem; font-weight: 650;
+  letter-spacing: .08em; text-transform: uppercase; }
+.lane .st.now { color: var(--health); } .lane .st.next { color: var(--amber); }
+.lane .st.blocked { color: var(--violet); }
+.lane .nm { color: var(--text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rcpt { display: flex; gap: .6rem; align-items: baseline; padding: .34rem 0; min-width: 0; }
+.rcpt + .rcpt { border-top: 1px solid var(--hair); }
+.rcpt .ok { flex: none; color: var(--health); font-weight: 700; }
+.rcpt .nm { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rcpt .cost { color: var(--gold); flex: none; }
+.rcpt .res { color: var(--text-muted); flex: none; font-size: .875rem; }
+
+/* live feed */
+.feed { max-height: 15.5rem; overflow: hidden; }
+.ev { display: flex; gap: .7rem; padding: .3rem 0; align-items: baseline; min-width: 0; }
+.ev .ts { color: var(--text-muted); flex: none; width: 4.4rem; }
+.ev .kind { flex: none; width: 4.6rem; font-size: .75rem; font-weight: 650;
+  letter-spacing: .08em; text-transform: uppercase; }
+.ev .ebody { min-width: 0; flex: 1; color: var(--text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev.tool .kind { color: var(--amber); } .ev.file .kind { color: var(--health); }
+.ev.deny .kind { color: var(--error); } .ev.agent .kind { color: var(--cobalt); }
+.ev.settle { animation: settleIn 360ms var(--ease-spring) both; }
+
+/* statusbar: hot-bus truth */
+.statusbar { grid-column: 1 / -1; display: flex; gap: 1.1rem; align-items: center;
+  border-top: 1px solid var(--hair-strong); padding: .45rem 1.1rem;
+  color: var(--text-muted); background: var(--surface-strong); flex-wrap: wrap; }
+.statusbar b { color: var(--text-secondary); font-weight: 600; }
+.statusbar .gold { color: var(--gold); }
+.statusbar .right { margin-left: auto; display: flex; gap: 1.1rem; flex-wrap: wrap; }
+.statusbar .hint { color: var(--lens); }
+
+/* persona lens hue — one color zone per view */
+.console[data-persona="builder"]  { --lens: var(--cobalt); }
+.console[data-persona="security"] { --lens: var(--violet); }
+.console[data-persona="lead"]     { --lens: var(--gold); }
+.lensnote { grid-column: 1 / -1; display: flex; gap: .6rem; align-items: baseline;
+  padding: .5rem 1.1rem; border-bottom: 1px solid var(--hair);
+  background: color-mix(in oklab, var(--lens) 8%, var(--surface-card));
+  color: var(--text-secondary); font-size: .875rem;
+  transition: background 480ms var(--ease-quick); }
+.lensnote .pn { color: var(--lens); font-weight: 700; flex: none; }
+.lensnote b { color: var(--text-primary); }
+/* density */
+.console[data-density="cozy"]  .deck { gap: 1.1rem; padding: 1.25rem 1.35rem 1.5rem; }
+.console[data-density="dense"] .deck { gap: .7rem; padding: .8rem .9rem 1rem; }
+.console[data-density="dense"] .card { padding: .7rem .85rem .85rem; }
+
+/* ---------- translation strip ---------- */
+.strip { max-width: 1240px; margin: 1.6rem auto 0; padding: 0 2rem; }
+.strip h2 { font-size: 1.05rem; font-weight: 750; letter-spacing: -.01em; }
+.strip .sub { color: var(--text-muted); font-size: .875rem; margin-top: .15rem; }
+.tblwrap { overflow-x: auto; margin-top: .8rem; border: 1px solid var(--hair-strong); }
+table.xlate { border-collapse: collapse; width: 100%; min-width: 720px; background: var(--surface-card); }
+.xlate th, .xlate td { text-align: left; padding: .55rem .8rem; border-bottom: 1px solid var(--hair);
+  vertical-align: top; font-size: .875rem; }
+.xlate th { font-size: .75rem; font-weight: 650; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--text-muted); border-bottom: 1px solid var(--hair-strong); }
+.xlate td.fact { color: var(--text-muted); width: 24%; }
+.xlate td.v { color: var(--text-secondary); width: 25.3%; }
+.xlate th.pcol .swatch { display: inline-block; width: 8px; height: 8px; margin-right: .4rem; }
+.xlate .col-on { background: color-mix(in oklab, var(--lenspage) 9%, var(--surface-card)); }
+.xlate td.col-on { color: var(--text-primary); }
+.strip[data-active="builder"]  { --lenspage: var(--cobalt); }
+.strip[data-active="security"] { --lenspage: var(--violet); }
+.strip[data-active="lead"]     { --lenspage: var(--gold); }
+
+/* reduced motion: freeze to a still */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+@media (max-width: 900px) {
+  .console { grid-template-columns: 1fr; }
+  .rail { display: flex; gap: .2rem .6rem; flex-wrap: wrap; border-right: 0;
+    border-bottom: 1px solid var(--hair); padding: .6rem .9rem; }
+  .rail .sect, .rail .eyebrow { display: none; }
+  .rail .item { padding-left: .75rem; }
+  .rail .more { margin-top: 0; }
+  .deck { grid-template-columns: 1fr; }
+  .deck .card { grid-column: 1 / -1 !important; }
+}
+</style>
+
+<div class="pagehead">
+  <div class="eyebrow">Port Daddy · design pass · strategy §11 — the translation layer</div>
+  <h1>The <span class="casual">Extensible</span> Console — one state, three lenses</h1>
+  <p>A persona preset does not fork the view. It re-airs the <b>same daemon truth</b>:
+     which card leads, what things are called, how much chrome, which hue carries the zone.
+     Below, one live fleet state rendered through three presets — switch them and watch the
+     same cards travel to their new prominence. It auto-cycles until you choose.</p>
+  <p class="refs mono">skin/law: binder ch20 · preset mechanism: operator-tui-v9 ⌘K picker · hue = layer per ADR-0048 · motion: v4 spring tokens</p>
+</div>
+
+<div class="console" id="console" data-persona="builder" data-density="cozy">
+  <div class="mast">
+    <span class="wordmark">pd-console<span class="tld">·</span><span class="mono" id="projName">port-daddy</span></span>
+    <span class="spend-chip mono" id="mastSpend"></span>
+    <div class="picker" role="group" aria-label="Persona preset picker">
+      <span class="pk-label">Lens</span>
+      <button class="chip" id="chip-builder" style="--chue: var(--cobalt)" aria-pressed="false">
+        <span class="cdot"></span>ADHD Builder<span class="ckey">1</span></button>
+      <button class="chip" id="chip-security" style="--chue: var(--violet)" aria-pressed="false">
+        <span class="cdot"></span>Security Lead<span class="ckey">2</span></button>
+      <button class="chip" id="chip-lead" style="--chue: var(--gold)" aria-pressed="false">
+        <span class="cdot"></span>Project Lead<span class="ckey">3</span></button>
+    </div>
+  </div>
+
+  <div class="lensnote" id="lensNote"><span class="pn" id="lensName"></span><span id="lensText"></span></div>
+
+  <div class="rail" id="rail" aria-label="Views — hue is layer"></div>
+
+  <div class="deck" id="deck" aria-live="polite"></div>
+
+  <div class="statusbar mono">
+    <span>daemon <b>healthy</b></span>
+    <span class="mfl fl-quebec"></span>
+    <span>:9876</span>
+    <span><span data-live="tok">24.1</span>k tok</span>
+    <span class="gold">$<span data-live="cost">1.84</span> today</span>
+    <span class="right"><span>hot bus <b>41ms</b></span><span>steer p95 <b>87ms</b></span><span class="hint" id="sbHint"></span></span>
+  </div>
+</div>
+
+<div class="strip" id="strip" data-active="builder">
+  <h2>The translation layer, made literal</h2>
+  <p class="sub">One state fact, three vocabularies. The active lens column is tinted — nothing else about the data changes.</p>
+  <div class="tblwrap">
+    <table class="xlate">
+      <thead><tr>
+        <th>daemon truth</th>
+        <th class="pcol" data-col="builder"><span class="swatch" style="background:var(--cobalt)"></span>ADHD Builder</th>
+        <th class="pcol" data-col="security"><span class="swatch" style="background:var(--violet)"></span>Security Lead</th>
+        <th class="pcol" data-col="lead"><span class="swatch" style="background:var(--gold)"></span>Project Lead</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td class="fact mono">gate.pending = 1 (PR #91, 4m)</td>
+          <td class="v" data-col="builder">“Do this next: approve the Approver’s plan.”</td>
+          <td class="v" data-col="security">“HiTL gate: 1 pending sign-off · decision will be recorded.”</td>
+          <td class="v" data-col="lead">“PR #91 is blocking the release lane — waiting 4m.”</td>
+        </tr>
+        <tr>
+          <td class="fact mono">denials[0] = git checkout -- src/</td>
+          <td class="v" data-col="builder">“2 risky commands auto-blocked. Handled.”</td>
+          <td class="v" data-col="security">“Denied before side effects: destructive restore on a dirty worktree. Alternative offered.”</td>
+          <td class="v" data-col="lead">“Guardrail events: 2 today, 0 needed escalation.”</td>
+        </tr>
+        <tr>
+          <td class="fact mono">budget.spent = $1.84 / cap $25</td>
+          <td class="v" data-col="builder">“$1.84” (a chip in the mast — not your problem right now)</td>
+          <td class="v" data-col="security">“Spend within cap · alerts armed at 80%.”</td>
+          <td class="v" data-col="lead">“$1.84 of $25 · on pace $4.10/day · per-agent attribution below.”</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ═══ ONE STATE. The deck below never gets different data — only a different lens. ═══ */
+const STATE = {
+  budget: { spent: 1.84, cap: 25, pace: 4.10,
+    attribution: [
+      { name: 'Cartographer', usd: 0.94 },
+      { name: 'QA',           usd: 0.41 },
+      { name: 'Approver',     usd: 0.28 },
+      { name: 'Spark',        usd: 0.21 } ] },
+  gate: { who: 'Approver', what: 'PR #91 — retire-flag cleanup', waiting: '4m',
+          policy: 'suggestible → merge requires operator sign-off' },
+  denials: [
+    { t: '21:47:31', cmd: 'git checkout -- src/', why: 'destructive restore on a dirty worktree',
+      alt: 'git stash push -m "cartographer-wip"' },
+    { t: '21:12:08', cmd: 'rm -rf node_modules', why: 'broad delete outside the claimed surface',
+      alt: 'npm ci (scoped reinstall)' } ],
+  agents: [
+    { id: 'carto', name: 'Cartographer', lvl: 'controllable', c4: true,  st: 'running',
+      flag: 'fl-kilo',    doing: 'Indexing src/', backend: 'claude · mid',  age: '2m14s', live: true },
+    { id: 'qa',    name: 'QA',           lvl: 'controllable', c4: true,  st: 'ok',
+      flag: 'fl-quebec',  doing: '14/14 passed',  backend: 'codex · fast',  age: '8s' },
+    { id: 'appr',  name: 'Approver',     lvl: 'suggestible',  c4: false, st: 'blocked',
+      flag: 'fl-lima',    doing: 'Waiting on operator · PR #91', backend: '', age: '4m' },
+    { id: 'spark', name: 'Spark',        lvl: 'observed',     c4: false, st: 'err',
+      flag: 'fl-november', doing: 'workers-ai 401 — auth expired', backend: '', age: '23s' } ],
+  ladder: [
+    { lb: 'controllable', n: 2 }, { lb: 'suggestible', n: 1 },
+    { lb: 'registered',   n: 1 }, { lb: 'observed',    n: 1 } ],
+  progress: { done: 412, total: 1840 },
+  roadmap: [
+    { st: 'now',     nm: 'incremental symbol-index refresh' },
+    { st: 'now',     nm: 'daemon introspection API' },
+    { st: 'next',    nm: 'salvage UX for interrupted work' },
+    { st: 'blocked', nm: 'bun binary distribution · needs adversarial review' } ],
+  receipts: [
+    { nm: 'FleetBar popover spec', cost: '$0.62', res: 'merged #657' },
+    { nm: 'story palette rollout', cost: '$0.48', res: 'merged #455' },
+    { nm: 'spawner test hermetics', cost: '$0.31', res: 'merged #653' } ],
+  feed: [
+    { t: '21:48:12', kind: 'agent', body: '412 of 1,840 files indexed. Hot spot: lib/db.ts — 19 importers.' },
+    { t: '21:48:00', kind: 'file',  body: 'write lib/symbol-index.ts (+118 −6)' },
+    { t: '21:47:31', kind: 'deny',  body: 'shell git checkout -- src/ — blocked before side effects' },
+    { t: '21:46:09', kind: 'tool',  body: 'grep "POST /feedback" → 5 matches · 3 files' } ],
+};
+
+/* ═══ THE LENSES. Pure config over the same STATE: hero, deck order, vocabulary, air. ═══ */
+const money = (v) => '$' + v.toFixed(2);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g,
+  (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+const CARDS = {
+  gate: {
+    builder: (s) => card('gate', 6, 'hero', `
+      <div class="chead"><span class="t casual">Do this next</span><span class="n mono">1 thing needs you</span></div>
+      <div class="bigact">
+        <div class="ask casual">Approve the ${esc(s.gate.who)}’s plan for ${esc(s.gate.what.split(' — ')[0])}.</div>
+        <div class="why">${esc(s.gate.what.split(' — ')[1] || '')} · waiting ${esc(s.gate.waiting)} · everything else is handled</div>
+        <div class="actrow">
+          <button class="btn primary">Approve &amp; keep moving</button>
+          <button class="btn">Show me the diff first</button>
+        </div>
+        <div class="calm"><b>Nothing else needs you.</b> 1 agent working, 2 risky commands auto-blocked, spend is fine.</div>
+      </div>`),
+    security: (s) => card('gate', 3, '', `
+      <div class="chead"><span class="t">Human gate · HiTL</span><span class="n mono">1 pending</span></div>
+      <div class="lede">${esc(s.gate.who)} requests sign-off: <b>${esc(s.gate.what)}</b></div>
+      <div class="deny" style="border-left-color: var(--violet); margin-top:.5rem">
+        <div class="why">policy: ${esc(s.gate.policy)}</div>
+        <div class="alt">decision is recorded to the receipt either way</div>
+      </div>
+      <div class="actrow"><button class="btn primary">Approve</button><button class="btn">Decline</button>
+        <span class="calm" style="margin-top:0">waiting ${esc(s.gate.waiting)}</span></div>`),
+    lead: (s) => card('gate', 3, '', `
+      <div class="chead"><span class="t">Blocking</span><span class="n mono">1 item</span></div>
+      <div class="lede"><b>${esc(s.gate.what)}</b> is holding the release lane — waiting ${esc(s.gate.waiting)}.</div>
+      <div class="actrow"><button class="btn primary">Review &amp; sign off</button></div>`),
+  },
+  fleet: {
+    builder: (s) => card('fleet', 3, 'quiet', `
+      <div class="chead"><span class="t casual">Your crew</span><span class="n mono">4</span></div>
+      ${rows(s.agents.slice(0, 3), { lvl: false })}`),
+    security: (s) => card('fleet', 3, '', `
+      <div class="chead"><span class="t">Agents by authority</span><span class="n mono">4 bodies</span></div>
+      ${rows(s.agents, { lvl: true })}`),
+    lead: (s) => card('fleet', 3, 'quiet', `
+      <div class="chead"><span class="t">Fleet</span><span class="n mono">4 · ${money(s.budget.spent)}</span></div>
+      ${rows(s.agents, { lvl: true, cost: true })}`),
+  },
+  ladder: {
+    security: (s) => {
+      const max = Math.max(...s.ladder.map((r) => r.n));
+      return card('ladder', 3, 'hero', `
+      <div class="chead"><span class="t">Compliance ladder</span><span class="n mono">authority, not vibes</span></div>
+      <div class="ladder">
+        ${s.ladder.map((r) => `<div class="rung"><span class="lb">${esc(r.lb)}</span>
+          <span class="bar"><i style="width:${(r.n / max) * 100}%"></i></span>
+          <span class="ct mono">${r.n}</span></div>`).join('')}
+        <div class="foot">Controls render only at <b>controllable</b>. The observed agent shows state, never buttons.</div>
+      </div>`);
+    },
+  },
+  denials: {
+    builder: (s) => card('denials', 3, 'quiet', `
+      <div class="chead"><span class="t casual">Handled for you</span><span class="n mono">${s.denials.length} blocked</span></div>
+      <div class="lede">${s.denials.length} risky commands were stopped before side effects. You don’t need to do anything.</div>`),
+    security: (s) => card('denials', 3, '', `
+      <div class="chead"><span class="t">Denials as evidence</span><span class="n mono">${s.denials.length} today · 0 escalated</span></div>
+      ${s.denials.map((d) => `<div class="deny">
+        <div class="cmd mono">${esc(d.t)} · shell ${esc(d.cmd)}</div>
+        <div class="why">blocked before side effects: ${esc(d.why)}</div>
+        <div class="alt">offered: <b class="mono">${esc(d.alt)}</b> · recorded → receipt</div>
+      </div>`).join('')}`),
+    lead: (s) => card('denials', 3, 'quiet', `
+      <div class="chead"><span class="t">Guardrails</span><span class="n mono">${s.denials.length} events</span></div>
+      <div class="lede">${s.denials.length} commands blocked today, 0 required escalation. Policy is holding without slowing the lane.</div>`),
+  },
+  budget: {
+    security: (s) => card('budget', 3, 'quiet', `
+      <div class="chead"><span class="t">Spend</span><span class="n mono">within cap</span></div>
+      <div class="lede mono">$<span data-live="cost">${s.budget.spent.toFixed(2)}</span> of ${money(s.budget.cap)} · alerts armed at 80%</div>`),
+    lead: (s) => card('budget', 3, 'hero', `
+      <div class="chead"><span class="t">Budget</span><span class="n mono">cap ${money(s.budget.cap)}</span></div>
+      <div class="burn">
+        <div class="cap"><span class="amt mono">$<span data-live="cost">${s.budget.spent.toFixed(2)}</span></span>
+          <span class="of">of ${money(s.budget.cap)} · on pace ${money(s.budget.pace)}/day</span></div>
+        <div class="capbar"><i data-live="capbar" style="width:${(s.budget.spent / s.budget.cap) * 100}%"></i></div>
+        <div class="attr">${s.budget.attribution.map((a) => `
+          <span class="an">${esc(a.name)}</span>
+          <span class="ab"><i style="width:${(a.usd / s.budget.spent) * 100}%"></i></span>
+          <span class="av mono">${money(a.usd)}</span>`).join('')}</div>
+      </div>`),
+  },
+  roadmap: {
+    builder: (s) => card('roadmap', 3, 'quiet', `
+      <div class="chead"><span class="t casual">Parked for later</span><span class="n mono">so you don’t hold it</span></div>
+      ${s.roadmap.slice(0, 3).map((r) => `<div class="lane"><span class="st ${r.st}">${r.st}</span><span class="nm">${esc(r.nm)}</span></div>`).join('')}`),
+    lead: (s) => card('roadmap', 3, '', `
+      <div class="chead"><span class="t">Roadmap</span><span class="n mono">2 now · 1 next · 1 blocked</span></div>
+      ${s.roadmap.map((r) => `<div class="lane"><span class="st ${r.st}">${r.st}</span><span class="nm">${esc(r.nm)}</span></div>`).join('')}`),
+  },
+  receipts: {
+    builder: (s) => card('receipts', 3, 'quiet', `
+      <div class="chead"><span class="t casual">Done today</span><span class="n mono">${s.receipts.length} wins</span></div>
+      ${s.receipts.map((r) => `<div class="rcpt"><span class="ok">✓</span><span class="nm">${esc(r.nm)}</span><span class="res">${esc(r.res)}</span></div>`).join('')}`),
+    security: (s) => card('receipts', 3, 'quiet', `
+      <div class="chead"><span class="t">Audit trail</span><span class="n mono">sealed receipts</span></div>
+      ${s.receipts.map((r) => `<div class="rcpt"><span class="ok">✓</span><span class="nm">${esc(r.nm)}</span><span class="res mono">${esc(r.res)} · sealed</span></div>`).join('')}`),
+    lead: (s) => card('receipts', 3, '', `
+      <div class="chead"><span class="t">Receipts</span><span class="n mono">outcome · cost</span></div>
+      ${s.receipts.map((r) => `<div class="rcpt"><span class="ok">✓</span><span class="nm">${esc(r.nm)}</span><span class="cost mono">${esc(r.cost)}</span><span class="res">${esc(r.res)}</span></div>`).join('')}`),
+  },
+  feed: {
+    security: (s) => card('feed', 3, 'quiet', `
+      <div class="chead"><span class="t">Event stream</span><span class="n" style="color:var(--cobalt)">● live — events arriving</span></div>
+      <div class="feed mono" id="feedList">${s.feed.map(evRow).join('')}</div>`),
+    lead: (s) => card('feed', 3, 'quiet', `
+      <div class="chead"><span class="t">Activity</span><span class="n" style="color:var(--cobalt)">● live</span></div>
+      <div class="feed mono" id="feedList">${s.feed.slice(0, 3).map(evRow).join('')}</div>`),
+  },
+};
+
+function evRow(e) {
+  const kinds = { agent: 'agent', tool: 'tool', file: 'file', deny: 'denied' };
+  return `<div class="ev ${e.kind}"><span class="ts">${esc(e.t)}</span><span class="kind">${kinds[e.kind]}</span><span class="ebody">${esc(e.body)}</span></div>`;
+}
+function rows(agents, opt) {
+  return agents.map((a) => `
+    <div class="row s-${a.st}${a.live ? ' live' : ''}">
+      <span class="stripe"></span><span class="dot"></span><span class="mfl ${a.flag}"></span>
+      <div class="body">
+        <div class="name">${esc(a.name)}${opt.lvl ? ` <span class="lvl${a.c4 ? ' c4' : ''}${a.lvl === 'observed' ? ' obs' : ''}">${esc(a.lvl)}</span>` : ''}</div>
+        <div class="meta">${a.id === 'carto'
+          ? `${esc(a.doing)} — <span data-live="idx">${STATE.progress.done}</span>/${STATE.progress.total.toLocaleString('en-US')}${a.backend ? ' · ' + esc(a.backend) : ''}`
+          : esc(a.doing) + (a.backend ? ' · ' + esc(a.backend) : '')}</div>
+        ${a.id === 'carto' ? `<div class="prog"><i data-live="progbar" style="width:${(STATE.progress.done / STATE.progress.total) * 100}%"></i></div>` : ''}
+      </div>
+      <span class="age mono">${opt.cost ? esc(moneyFor(a.id)) : esc(a.age)}</span>
+    </div>`).join('');
+}
+function moneyFor(id) {
+  const m = { carto: '$0.94', qa: '$0.41', appr: '$0.28', spark: '$0.21' };
+  return m[id] || '—';
+}
+function card(id, span, cls, inner) {
+  return `<section class="card ${cls}" data-card="${id}" style="grid-column: span ${span}">
+    ${cls.includes('hero') ? '<span class="bk"></span>' : ''}${inner}</section>`;
+}
+
+const PRESETS = {
+  builder: {
+    label: 'ADHD Builder', density: 'cozy',
+    note: '<b>One next action, minimal chrome.</b> The gate leads, plain words, everything not-urgent is parked. Same state as the other two lenses.',
+    hint: 'keys 1·2·3 switch the lens',
+    deck: ['gate', 'fleet', 'receipts', 'roadmap', 'denials'],
+    rail: [['Agents', 'l0', true]],
+    railMore: '4 more doors · <span class="k">⌘K</span>',
+  },
+  security: {
+    label: 'Security Lead', density: 'dense',
+    note: '<b>Compliance ladder, denials, gates — front.</b> Authority is policy, not whoever holds the keyboard. Every denial is evidence; every decision lands in a receipt.',
+    hint: 'every denial → receipt',
+    deck: ['ladder', 'denials', 'gate', 'fleet', 'feed', 'budget'],
+    rail: [['Agents', 'l0', false], ['Claims', 'l1', false], ['Receipts', 'l3', false], ['Crew', 'lid', true]],
+    railMore: '',
+  },
+  lead: {
+    label: 'Project Lead', density: 'dense',
+    note: '<b>Budget, receipts, roadmap — front.</b> What it costs, what shipped, what’s blocking the lane. The wiring stays out of the way.',
+    hint: 'burn on pace',
+    deck: ['budget', 'gate', 'receipts', 'roadmap', 'feed', 'fleet'],
+    rail: [['Agents', 'l0', false], ['Memory', 'l2', false], ['Receipts', 'l3', true], ['Crew', 'lid', false]],
+    railMore: '',
+  },
+};
+const ORDER = ['builder', 'security', 'lead'];
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let active = null;
+let userLocked = false;
+
+function renderRail(p) {
+  const rail = document.getElementById('rail');
+  rail.innerHTML = `<div class="eyebrow">Views · hue = layer</div>` +
+    p.rail.map(([nm, layer, on]) => `<div class="item ${layer}${on ? ' on' : ''}"><span class="lh"></span>${nm}</div>`).join('') +
+    (p.railMore ? `<div class="more">${p.railMore}</div>` : '');
+}
+
+function applyPreset(id, opts = {}) {
+  if (id === active) return;
+  const p = PRESETS[id];
+  const deckEl = document.getElementById('deck');
+  const consoleEl = document.getElementById('console');
+
+  /* FLIP: first — where every card is now */
+  const first = new Map();
+  if (!REDUCED && active) {
+    for (const el of deckEl.children) first.set(el.dataset.card, el.getBoundingClientRect());
+  }
+
+  /* re-render the SAME state through the new lens */
+  active = id;
+  deckEl.innerHTML = p.deck.map((cid) => CARDS[cid][id](STATE)).join('');
+  consoleEl.dataset.persona = id;
+  consoleEl.dataset.density = p.density;
+  document.getElementById('lensName').textContent = p.label;
+  document.getElementById('lensText').innerHTML = p.note;
+  document.getElementById('sbHint').textContent = p.hint;
+  document.getElementById('strip').dataset.active = id;
+  for (const cell of document.querySelectorAll('.xlate [data-col]')) {
+    cell.classList.toggle('col-on', cell.dataset.col === id);
+  }
+  for (const pid of ORDER) {
+    const chip = document.getElementById('chip-' + pid);
+    const on = pid === id;
+    chip.classList.toggle('on', on);
+    chip.setAttribute('aria-pressed', String(on));
+    if (on && !REDUCED && !opts.first) {
+      chip.classList.remove('pop'); void chip.offsetWidth; chip.classList.add('pop');
+    }
+  }
+  renderRail(p);
+  document.getElementById('mastSpend').innerHTML =
+    id === 'builder' ? `$<span data-live="cost">${STATE.budget.spent.toFixed(2)}</span>` : '';
+
+  if (REDUCED) return;
+
+  /* FLIP: last + invert + spring play; new cards settle in staggered */
+  let stagger = 0;
+  for (const el of deckEl.children) {
+    const f = first.get(el.dataset.card);
+    if (f) {
+      const l = el.getBoundingClientRect();
+      const dx = f.left - l.left, dy = f.top - l.top;
+      const sx = f.width / l.width, sy = f.height / l.height;
+      if (Math.abs(dx) + Math.abs(dy) > 1 || Math.abs(1 - sx) > 0.02 || Math.abs(1 - sy) > 0.02) {
+        el.style.transformOrigin = 'top left';
+        el.style.transition = 'none';
+        el.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+        void el.offsetWidth;
+        el.style.transition = 'transform 520ms var(--ease-spring)';
+        el.style.transform = '';
+        el.addEventListener('transitionend', () => { el.style.transition = ''; }, { once: true });
+      }
+    } else if (!opts.first) {
+      el.classList.add('settle');
+      el.style.animationDelay = `${120 + stagger}ms`;
+      stagger += 55;
+    } else {
+      el.classList.add('settle');
+      el.style.animationDelay = `${stagger}ms`;
+      stagger += 70;
+    }
+  }
+}
+
+for (const pid of ORDER) {
+  document.getElementById('chip-' + pid).addEventListener('click', () => {
+    userLocked = true;
+    applyPreset(pid);
+  });
+}
+addEventListener('keydown', (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = { 1: 'builder', 2: 'security', 3: 'lead' }[e.key];
+  if (k) { userLocked = true; applyPreset(k); }
+});
+
+applyPreset('builder', { first: true });
+
+/* ═══ AUTONOMOUS DEMO LOOP — state advances; the lens auto-cycles until you choose. ═══ */
+if (!REDUCED) {
+  /* the fleet keeps working: indexing progresses, cost accrues, events arrive */
+  const FEED_POOL = [
+    { kind: 'tool', body: 'read_file src/routes/claims.ts → 190 lines · added to index' },
+    { kind: 'file', body: 'write lib/import-graph.ts (+64 −2)' },
+    { kind: 'tool', body: 'grep "requireClaim(" → 12 matches · 7 files' },
+    { kind: 'agent', body: 'flagging lib/db.ts for claim protection — 19 importers' },
+    { kind: 'file', body: 'write lib/symbol-index.ts (+41 −3)' },
+    { kind: 'tool', body: 'read_file src/fleet/spawner.ts → 512 lines · added to index' },
+  ];
+  let feedI = 0, tok = 24.1;
+  setInterval(() => {
+    if (document.hidden) return;
+    STATE.progress.done = Math.min(STATE.progress.total, STATE.progress.done + 17 + Math.floor(Math.random() * 41));
+    STATE.budget.spent += 0.002 + Math.random() * 0.006;
+    tok += 0.1 + Math.random() * 0.3;
+    for (const el of document.querySelectorAll('[data-live="idx"]')) el.textContent = STATE.progress.done;
+    for (const el of document.querySelectorAll('[data-live="progbar"]')) el.style.width = (STATE.progress.done / STATE.progress.total) * 100 + '%';
+    for (const el of document.querySelectorAll('[data-live="cost"]')) el.textContent = STATE.budget.spent.toFixed(2);
+    for (const el of document.querySelectorAll('[data-live="capbar"]')) el.style.width = (STATE.budget.spent / STATE.budget.cap) * 100 + '%';
+    for (const el of document.querySelectorAll('[data-live="tok"]')) el.textContent = tok.toFixed(1);
+    const list = document.getElementById('feedList');
+    if (list && Math.random() > 0.35) {
+      const ev = FEED_POOL[feedI++ % FEED_POOL.length];
+      const now = new Date();
+      const t = `21:${String(48 + Math.floor(feedI / 3)).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+      const div = document.createElement('div');
+      div.innerHTML = evRow({ ...ev, t });
+      const row = div.firstElementChild;
+      row.classList.add('settle');
+      list.prepend(row);
+      while (list.children.length > 6) list.lastElementChild.remove();
+    }
+  }, 2200);
+
+  /* the lens cycles so the re-layout sells itself — until the operator chooses */
+  let cycleI = 0;
+  setInterval(() => {
+    if (userLocked || document.hidden) return;
+    cycleI = (cycleI + 1) % ORDER.length;
+    applyPreset(ORDER[cycleI]);
+  }, 8500);
+}
+</script>
+
+</body>
+</html>
