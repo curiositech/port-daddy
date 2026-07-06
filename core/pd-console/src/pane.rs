@@ -424,8 +424,12 @@ pub enum Subscription {
     /// cross. `coord_channel` is `editor_sync::coordination_channel_for_path(path)` —
     /// the **coordination control plane** (claims / guard / conflict-predict),
     /// deliberately a SEPARATE tube channel so a keystroke burst on the edit lane
-    /// cannot starve coordination latency (P2 slice 3 isolation, ref-03 §3). main.rs
-    /// opens ONE SSE per channel — two independent `mpsc`s — which IS the isolation.
+    /// cannot starve coordination latency (P2 slice 3 isolation, ref-03 §3). The
+    /// intended wiring is ONE SSE per channel — two independent `mpsc`s, which IS the
+    /// isolation — but like slice 1's receive path this is declared here and NOT yet
+    /// consumed in main.rs (which currently treats an `Editor` intent as "nothing to
+    /// follow"); the editor surface will drive both subscriptions when the keystroke
+    /// input layer lands.
     Editor { channel: String, coord_channel: String },
 }
 

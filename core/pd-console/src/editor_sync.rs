@@ -92,7 +92,8 @@ const CHANNEL_PREFIX: &str = "harbor-editor:";
 /// the transport proof.
 pub fn channel_for_path(path: &str) -> String {
     // FNV-1a 64-bit — same family as buffer.rs's peer id mint: deterministic,
-    // dependency-free, and good enough for a collision-resistant channel key.
+    // dependency-free, and collision-unlikely enough for a channel key. (FNV is
+    // NOT cryptographic — this is a routing digest, never a security boundary.)
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
     for b in path.as_bytes() {
         hash ^= *b as u64;

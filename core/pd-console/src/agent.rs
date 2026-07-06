@@ -468,6 +468,19 @@ async fn ensure_success(resp: reqwest::Response, op: &str) -> Result<reqwest::Re
     }
 }
 
+/// Whether an SSE (re)connect that came back with `status` should be RETRIED
+/// (transient) rather than abandoned (permanent). A `429 Too Many Requests` — the
+/// messaging route's connection-limit, which ships a `Retry-After` (routes/messaging.ts) —
+/// and any `5xx` (the daemon restarting, e.g. a freshness self-heal) are transient:
+/// backing off and reconnecting recovers the lane. Any other non-2xx (a `400`
+/// invalid channel, a `404` unknown agent) is permanent — retrying it just spins.
+/// Pure + unit-tested so the reconnect policy is a checked contract, not folklore
+/// buried in a match arm (the bug: treating *every* non-2xx as permanent killed the
+/// live lane forever on a transient blip).
+fn sse_status_is_retryable(status: reqwest::StatusCode) -> bool {
+    status == reqwest::StatusCode::TOO_MANY_REQUESTS || status.is_server_error()
+}
+
 impl DaemonClient {
     pub fn discover() -> Result<Self> {
         // Resolution order, highest priority first:
@@ -1020,8 +1033,16 @@ impl DaemonClient {
                 }
                 let resp = match req.send().await {
                     Ok(r) if r.status().is_success() => r,
-                    // 404 = unknown agent: nothing will ever stream, so stop
-                    // (don't spin reconnecting against a permanent error).
+                    // A 429 (rate-limit Retry-After) or 5xx (daemon restarting) is
+                    // TRANSIENT — back off and retry so a momentary hiccup can't
+                    // kill the live lane forever.
+                    Ok(r) if sse_status_is_retryable(r.status()) => {
+                        sleep(backoff).await;
+                        backoff = (backoff * 2).min(MAX_BACKOFF);
+                        continue;
+                    }
+                    // Any other 4xx (404 = unknown agent) is permanent: nothing will
+                    // ever stream, so stop (don't spin against a permanent error).
                     Ok(_) => return,
                     Err(_) => {
                         // Connection failure — back off and retry (daemon may be
@@ -1101,8 +1122,16 @@ impl DaemonClient {
                 }
                 let resp = match req.send().await {
                     Ok(r) if r.status().is_success() => r,
-                    // A 4xx (invalid channel) is permanent: nothing will ever
-                    // stream, so stop rather than spin against it.
+                    // A 429 (connection-limit Retry-After) or 5xx (daemon restarting)
+                    // is TRANSIENT — back off and retry so a momentary rate-limit or
+                    // server hiccup can't kill the editor lane forever.
+                    Ok(r) if sse_status_is_retryable(r.status()) => {
+                        sleep(backoff).await;
+                        backoff = (backoff * 2).min(MAX_BACKOFF);
+                        continue;
+                    }
+                    // Any other 4xx (invalid channel) is permanent: nothing will
+                    // ever stream, so stop rather than spin against it.
                     Ok(_) => return,
                     Err(_) => {
                         sleep(backoff).await;
@@ -1732,5 +1761,24 @@ mod tests {
         assert_eq!(parse_blob_id(&serde_json::json!({ "id": "abc" })).as_deref(), Some("abc"));
         assert_eq!(parse_blob_id(&serde_json::json!({ "success": false, "error": "boom" })), None);
         assert_eq!(parse_blob_id(&serde_json::json!({ "blob": { "size": 1 } })), None);
+    }
+
+    /// The SSE reconnect policy is a checked contract: a 429 (connection-limit
+    /// Retry-After) and any 5xx (daemon restarting) are transient and MUST be
+    /// retried so a blip can't kill the live lane forever; any other 4xx is
+    /// permanent and MUST stop (retrying would spin). Guards the editor + agent
+    /// receive lanes' recovery.
+    #[test]
+    fn sse_retry_policy_retries_429_and_5xx_but_stops_on_other_4xx() {
+        use reqwest::StatusCode;
+        // Transient → retry.
+        assert!(sse_status_is_retryable(StatusCode::TOO_MANY_REQUESTS), "429 Retry-After is transient");
+        assert!(sse_status_is_retryable(StatusCode::INTERNAL_SERVER_ERROR), "500 is transient");
+        assert!(sse_status_is_retryable(StatusCode::BAD_GATEWAY), "502 (daemon restart) is transient");
+        assert!(sse_status_is_retryable(StatusCode::SERVICE_UNAVAILABLE), "503 is transient");
+        // Permanent → stop.
+        assert!(!sse_status_is_retryable(StatusCode::BAD_REQUEST), "400 invalid channel is permanent");
+        assert!(!sse_status_is_retryable(StatusCode::FORBIDDEN), "403 is permanent");
+        assert!(!sse_status_is_retryable(StatusCode::NOT_FOUND), "404 unknown agent is permanent");
     }
 }
