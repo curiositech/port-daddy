@@ -55,7 +55,7 @@ export function BondSlashMechanism() {
           viewBox="0 0 664 300"
           role="img"
           aria-labelledby={`${titleId} ${descId}`}
-          className="mx-auto block min-w-[34rem] max-w-[46rem]"
+          className="mx-auto block min-w-[36rem] max-w-[48rem]"
         >
           <title id={titleId}>The graduated-sanction ladder, capped below total bond loss</title>
           <desc id={descId}>
