@@ -60,8 +60,10 @@
 
 import { createHash } from 'node:crypto';
 import type { DatabaseInstance } from '../sqlite-runtime.js';
+import type { LocalEmbedder } from '../semantic-resolver.js';
 import { readEvents, ledgerHeadSeq, type LedgerRow } from './event-ledger.js';
 import { assertAgainstSchema } from './schema-validate.js';
+import { UnsupportedScopeError } from './transcript-search.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types mirroring the frozen v0 contracts (schemas win on any disagreement)
@@ -158,6 +160,15 @@ export class MemoryValidationError extends Error {
 export class RetrievalModeError extends Error {
   code = 'RETRIEVAL_MODE' as const;
 }
+
+/**
+ * Re-exported from transcript-search.ts: the SAME scope-refusal contract
+ * (ADR-0097 §2) — a scope narrowing this v0 engine cannot honor (harborId,
+ * projectId, repoRef, eventKinds; harbor_memory_episodes/-facts carry no
+ * columns to filter on for any of these) refuses rather than silently
+ * returning broader-than-requested results (R2 fix).
+ */
+export { UnsupportedScopeError };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Runtime citation cross-field enforcement (compaction-packet pattern)
@@ -739,11 +750,15 @@ export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
-/** Embedder signature (shared-embedder directive: injected, versioned by model id). */
-export interface Embedder {
-  modelId: string;
-  embed(texts: string[]): number[][];
-}
+/**
+ * Embedder signature (shared-embedder directive, ADR-0061): a type alias for
+ * semantic-resolver.ts's LocalEmbedder — the actual async contract
+ * createLocalEmbedder implements — not a parallel redefinition. This used to
+ * be its own interface with a sync `embed`, which drifted from the real
+ * shared embedder and forced callers through an adapter (R3 fix); aliasing
+ * means the two contracts can never diverge again.
+ */
+export type Embedder = LocalEmbedder;
 
 export interface RecallOptions {
   /** Required for mode hybrid/semantic. Its absence is an ERROR, never a silent lexical fallback. */
@@ -923,11 +938,11 @@ const SNIPPET_MAX_CHARS = 280;
  * `asOf` are never served as current facts. Pass opts.asOf for "what did we
  * believe on date D" audits (episodes ingested after asOf are excluded too).
  */
-export function recallEpisodes(
+export async function recallEpisodes(
   db: DatabaseInstance,
   query: RecallQuery,
   opts: RecallOptions = {},
-): RecallResult {
+): Promise<RecallResult> {
   ensureMemoryEpisodeSchema(db);
   assertAgainstSchema('transcript-search-query', query);
   if (!query.sources.includes('memory-episodes')) {
@@ -935,6 +950,21 @@ export function recallEpisodes(
       'recallEpisodes serves the "memory-episodes" source only; the query.sources array does not include it',
     );
   }
+
+  // Scope narrowing this v0 recall engine cannot honor — refusing beats
+  // silently returning results broader than the caller requested (same
+  // UnsupportedScopeError contract as transcript-search.ts's
+  // searchTranscripts, ADR-0097 §2). harbor_memory_episodes/-facts carry no
+  // harbor_id, project/repo, or event-kind columns, so these four scope
+  // fields are structurally unfilterable here, not merely unimplemented.
+  const scope = query.scope ?? {};
+  if (scope.harborId) throw new UnsupportedScopeError('harborId');
+  if (scope.projectId) throw new UnsupportedScopeError('projectId');
+  if (scope.repoRef) throw new UnsupportedScopeError('repoRef');
+  if (Array.isArray(scope.eventKinds) && scope.eventKinds.length > 0) {
+    throw new UnsupportedScopeError('eventKinds');
+  }
+
   if ((query.mode === 'hybrid' || query.mode === 'semantic') && !opts.embedder) {
     throw new RetrievalModeError(
       `query mode "${query.mode}" requires an embedder (shared-embedder directive). ` +
@@ -959,7 +989,6 @@ export function recallEpisodes(
     where.push('ingested_at <= ?'); // system-time axis: known by believedAt
     params.push(opts.believedAt);
   }
-  const scope = query.scope ?? {};
   if (Array.isArray(scope.sessionIds) && scope.sessionIds.length > 0) {
     where.push(`session_id IN (${scope.sessionIds.map(() => '?').join(', ')})`);
     params.push(...scope.sessionIds);
@@ -993,7 +1022,7 @@ export function recallEpisodes(
   } else {
     const embedder = opts.embedder as Embedder;
     engineModel = embedder.modelId;
-    const vectors = embedder.embed([query.queryText, ...candidates.map((c) => c.summary)]);
+    const vectors = await embedder.embed([query.queryText, ...candidates.map((c) => c.summary)]);
     const queryVec = vectors[0];
     const semantic = new Map<string, number>();
     candidates.forEach((c, i) => semantic.set(c.episode_id, cosine(queryVec, vectors[i + 1])));

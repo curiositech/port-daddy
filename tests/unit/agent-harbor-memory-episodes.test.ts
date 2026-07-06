@@ -20,6 +20,7 @@ import { initDatabase, closeDatabase } from '../../lib/db.js';
 import type { DatabaseInstance } from '../../lib/sqlite-runtime.js';
 import { appendEvent, type HarborPayload } from '../../lib/agent-harbor/event-ledger.js';
 import { validateAgainstSchema } from '../../lib/agent-harbor/schema-validate.js';
+import { createLocalEmbedder } from '../../lib/semantic-resolver.js';
 import {
   ensureMemoryEpisodeSchema,
   extractEpisodesFromSession,
@@ -31,10 +32,12 @@ import {
   estimateTokens,
   RetrievalModeError,
   MemoryValidationError,
+  UnsupportedScopeError,
   MEMORY_EPISODE_SCHEMA,
   SEARCH_QUERY_SCHEMA,
   type MemoryEpisode,
   type RecallQuery,
+  type RecallOptions,
   type Embedder,
 } from '../../lib/agent-harbor/memory-episodes.js';
 
@@ -72,7 +75,7 @@ function appendTranscript(
 /** Deterministic stub embedder: 8-dim char-code folding, versioned model id. */
 const stubEmbedder: Embedder = {
   modelId: 'stub-fold-8d/test',
-  embed(texts: string[]): number[][] {
+  async embed(texts: string[]): Promise<number[][]> {
     return texts.map((t) => {
       const v = new Array(8).fill(0);
       for (let i = 0; i < t.length; i++) v[i % 8] += t.charCodeAt(i) / 1000;
@@ -317,9 +320,9 @@ describe('agent-harbor episodic memory (M6, ADR-0097 phase 3)', () => {
       }
     }
 
-    it('returns cited, schema-valid results for a task query', () => {
+    it('returns cited, schema-valid results for a task query', async () => {
       seedRecallCorpus();
-      const result = recallEpisodes(db, baseQuery(), { now: () => new Date('2026-07-06T12:00:00.000Z') });
+      const result = await recallEpisodes(db, baseQuery(), { now: () => new Date('2026-07-06T12:00:00.000Z') });
 
       const check = validateAgainstSchema('transcript-search-result', result);
       expect(check.skipped).toBe(false);
@@ -335,18 +338,18 @@ describe('agent-harbor episodic memory (M6, ADR-0097 phase 3)', () => {
       expect(top!.summary).toContain('wrangler deploy');
     });
 
-    it('enforces maxResults as a hard cap and reports truncation as data', () => {
+    it('enforces maxResults as a hard cap and reports truncation as data', async () => {
       seedRecallCorpus();
-      const result = recallEpisodes(db, baseQuery({ budget: { maxResults: 2, maxContextTokens: 4000 } }));
+      const result = await recallEpisodes(db, baseQuery({ budget: { maxResults: 2, maxContextTokens: 4000 } }));
       expect(result.hits).toHaveLength(2);
       expect(result.budget.used.results).toBe(2);
       expect(result.budget.truncated).toBe(true);
     });
 
-    it('NEVER exceeds maxContextTokens — the cap holds across adversarial budgets', () => {
+    it('NEVER exceeds maxContextTokens — the cap holds across adversarial budgets', async () => {
       seedRecallCorpus(20);
       for (const maxContextTokens of [1, 8, 25, 60, 200, 4000]) {
-        const result = recallEpisodes(db, baseQuery({ budget: { maxResults: 20, maxContextTokens } }));
+        const result = await recallEpisodes(db, baseQuery({ budget: { maxResults: 20, maxContextTokens } }));
         expect(result.budget.used.contextTokensEstimate).toBeLessThanOrEqual(maxContextTokens);
         // Sanity: the echo matches the actual snippet weight returned.
         const actual = result.hits.reduce((s, h) => s + (h.snippet ? estimateTokens(h.snippet) : 0), 0);
@@ -358,29 +361,29 @@ describe('agent-harbor episodic memory (M6, ADR-0097 phase 3)', () => {
       }
     });
 
-    it('marks truncated when token budget forces snippet omission', () => {
+    it('marks truncated when token budget forces snippet omission', async () => {
       seedRecallCorpus(10);
-      const result = recallEpisodes(db, baseQuery({ budget: { maxResults: 10, maxContextTokens: 20 } }));
+      const result = await recallEpisodes(db, baseQuery({ budget: { maxResults: 10, maxContextTokens: 20 } }));
       expect(result.budget.truncated).toBe(true);
       expect(result.hits.some((h) => h.snippet === null)).toBe(true);
     });
 
-    it('throws on hybrid/semantic without an embedder — lexical is never a silent fallback', () => {
+    it('throws on hybrid/semantic without an embedder — lexical is never a silent fallback', async () => {
       seedRecallCorpus(2);
-      expect(() => recallEpisodes(db, baseQuery({ mode: 'hybrid' }))).toThrow(RetrievalModeError);
-      expect(() => recallEpisodes(db, baseQuery({ mode: 'semantic' }))).toThrow(/never a silent fallback/);
+      await expect(recallEpisodes(db, baseQuery({ mode: 'hybrid' }))).rejects.toThrow(RetrievalModeError);
+      await expect(recallEpisodes(db, baseQuery({ mode: 'semantic' }))).rejects.toThrow(/never a silent fallback/);
     });
 
-    it('runs hybrid with an injected embedder and echoes the engine for drift audits', () => {
+    it('runs hybrid with an injected embedder and echoes the engine for drift audits', async () => {
       seedRecallCorpus();
-      const result = recallEpisodes(db, baseQuery({ mode: 'hybrid' }), { embedder: stubEmbedder });
+      const result = await recallEpisodes(db, baseQuery({ mode: 'hybrid' }), { embedder: stubEmbedder });
       expect(result.engine.mode).toBe('hybrid');
       expect(result.engine.embeddingModel).toBe('stub-fold-8d/test');
       expect(result.engine.fusion).toBe('rrf');
       expect(validateAgainstSchema('transcript-search-result', result).errors).toEqual([]);
     });
 
-    it('hybrid excludes candidates both legs score 0 — RRF never pads misses with rank noise', () => {
+    it('hybrid excludes candidates both legs score 0 — RRF never pads misses with rank noise', async () => {
       persistEpisode(db, manualEpisode({
         episodeId: 'memep_hybrid_relevant',
         summary: 'wrangler deploy email ingress worker runbook',
@@ -393,15 +396,15 @@ describe('agent-harbor episodic memory (M6, ADR-0097 phase 3)', () => {
       // orthogonal doc's vector is perpendicular — cosine exactly 0.
       const orthogonalEmbedder: Embedder = {
         modelId: 'stub-orthogonal/test',
-        embed: (texts) => texts.map((t) => (t.includes('zzz') ? [0, 1] : [1, 0])),
+        embed: async (texts) => texts.map((t) => (t.includes('zzz') ? [0, 1] : [1, 0])),
       };
-      const result = recallEpisodes(db, baseQuery({ mode: 'hybrid' }), { embedder: orthogonalEmbedder });
+      const result = await recallEpisodes(db, baseQuery({ mode: 'hybrid' }), { embedder: orthogonalEmbedder });
       const ids = result.hits.map((h) => h.episodeId);
       expect(ids).toContain('memep_hybrid_relevant');
       expect(ids).not.toContain('memep_hybrid_orthogonal');
     });
 
-    it('never serves superseded or expired episodes as current facts', () => {
+    it('never serves superseded or expired episodes as current facts', async () => {
       persistEpisode(db, manualEpisode({
         episodeId: 'memep_stale_token',
         summary: 'Deploy via repo api token wrangler deploy email ingress',
@@ -414,26 +417,26 @@ describe('agent-harbor episodic memory (M6, ADR-0097 phase 3)', () => {
         validFrom: '2026-07-06T00:00:00.000Z',
         facts: [{ subject: 'w', predicate: 'deployed-via', object: 'oauth' }],
       }));
-      const current = recallEpisodes(db, baseQuery());
+      const current = await recallEpisodes(db, baseQuery());
       const ids = current.hits.map((h) => h.episodeId);
       expect(ids).toContain('memep_fresh_oauth');
       expect(ids).not.toContain('memep_stale_token');
 
       // Bi-temporal recall, validity axis: as of July 3rd the superseded fact HELD.
-      const then = recallEpisodes(db, baseQuery(), { asOf: '2026-07-03T00:00:00.000Z' });
+      const then = await recallEpisodes(db, baseQuery(), { asOf: '2026-07-03T00:00:00.000Z' });
       expect(then.hits.map((h) => h.episodeId)).toContain('memep_stale_token');
       expect(then.hits.map((h) => h.episodeId)).not.toContain('memep_fresh_oauth');
 
       // System-time axis: on July 2nd the system had not yet LEARNED either
       // fact (ingestedAt is July 6) — "what did we believe on D" is empty.
-      const believed = recallEpisodes(db, baseQuery(), {
+      const believed = await recallEpisodes(db, baseQuery(), {
         asOf: '2026-07-03T00:00:00.000Z',
         believedAt: '2026-07-02T00:00:00.000Z',
       });
       expect(believed.hits).toHaveLength(0);
     });
 
-    it('respects session/agent scope narrowing', () => {
+    it('respects session/agent scope narrowing', async () => {
       persistEpisode(db, manualEpisode({
         episodeId: 'memep_in_scope',
         summary: 'wrangler deploy email ingress note in scope',
@@ -444,28 +447,71 @@ describe('agent-harbor episodic memory (M6, ADR-0097 phase 3)', () => {
         summary: 'wrangler deploy email ingress note in another session',
         sessionId: 'session_other',
       }));
-      const result = recallEpisodes(db, baseQuery({ scope: { sessionIds: [SESSION] } }));
+      const result = await recallEpisodes(db, baseQuery({ scope: { sessionIds: [SESSION] } }));
       const ids = result.hits.map((h) => h.episodeId);
       expect(ids).toContain('memep_in_scope');
       expect(ids).not.toContain('memep_out_of_scope');
     });
 
-    it('fails closed on a query that violates the frozen contract or wrong source', () => {
-      const missingBudget = baseQuery() as Record<string, unknown>;
-      delete missingBudget.budget;
-      expect(() => recallEpisodes(db, missingBudget as unknown as RecallQuery)).toThrow(/contract violation/);
-
-      expect(() => recallEpisodes(db, baseQuery({ sources: ['transcript-events'] }))).toThrow(MemoryValidationError);
+    it('refuses (never silently broadens) scope filters it cannot honor: harborId, projectId, repoRef, eventKinds (R2 regression)', async () => {
+      seedRecallCorpus(2);
+      // Each of these scope fields has no backing column in
+      // harbor_memory_episodes/-facts. Before the R2 fix, recallEpisodes
+      // silently dropped them and served the FULL unscoped corpus instead of
+      // refusing — a provenance/privacy risk in a memory-recall/citation
+      // system. It must now throw the same UnsupportedScopeError
+      // transcript-search.ts uses for the identical situation.
+      await expect(
+        recallEpisodes(db, baseQuery({ scope: { harborId: 'some-other-harbor' } })),
+      ).rejects.toThrow(UnsupportedScopeError);
+      await expect(
+        recallEpisodes(db, baseQuery({ scope: { projectId: 'some-project' } })),
+      ).rejects.toThrow(UnsupportedScopeError);
+      await expect(
+        recallEpisodes(db, baseQuery({ scope: { repoRef: 'org/some-repo' } })),
+      ).rejects.toThrow(UnsupportedScopeError);
+      await expect(
+        recallEpisodes(db, baseQuery({ scope: { eventKinds: ['file_write'] } })),
+      ).rejects.toThrow(UnsupportedScopeError);
+      // Supported scope fields (sessionIds/agentNodeIds/occurredAfter/Before)
+      // are unaffected — refusal is specific to the unfilterable fields.
+      await expect(
+        recallEpisodes(db, baseQuery({ scope: { sessionIds: [SESSION] } })),
+      ).resolves.toBeDefined();
     });
 
-    it('labels projection staleness honestly (C-routes convention)', () => {
+    it('accepts the real shared embedder (semantic-resolver createLocalEmbedder) directly — no adapter (R3 regression)', () => {
+      // R3 regression: Embedder must be structurally identical to
+      // semantic-resolver.ts's LocalEmbedder (the actual async contract
+      // createLocalEmbedder implements), so the ONE shared embedder
+      // (ADR-0061) plugs straight into recall — no cast, no wrapper, no
+      // adapter. This assignment alone is the compile-time proof: it would
+      // fail to type-check if Embedder still declared a sync `embed`.
+      const shared: Embedder = createLocalEmbedder();
+      const opts: RecallOptions = { embedder: shared };
+      expect(typeof opts.embedder?.embed).toBe('function');
+      expect(typeof opts.embedder?.modelId).toBe('string');
+      expect(opts.embedder?.modelId.length).toBeGreaterThan(0);
+      // Never invoked here: calling .embed() would trigger the real model
+      // download, which unit tests must not depend on (no network in CI).
+    });
+
+    it('fails closed on a query that violates the frozen contract or wrong source', async () => {
+      const missingBudget = baseQuery() as Record<string, unknown>;
+      delete missingBudget.budget;
+      await expect(recallEpisodes(db, missingBudget as unknown as RecallQuery)).rejects.toThrow(/contract violation/);
+
+      await expect(recallEpisodes(db, baseQuery({ sources: ['transcript-events'] }))).rejects.toThrow(MemoryValidationError);
+    });
+
+    it('labels projection staleness honestly (C-routes convention)', async () => {
       appendTranscript(db, 'file_write', { filesTouched: ['lib/x.ts'] });
       extractEpisodesFromSession(db, { sessionId: SESSION });
-      const fresh = recallEpisodes(db, baseQuery());
+      const fresh = await recallEpisodes(db, baseQuery());
       expect(fresh.projection.stale).toBe(false);
 
       appendTranscript(db, 'file_write', { filesTouched: ['lib/y.ts'] });
-      const stale = recallEpisodes(db, baseQuery());
+      const stale = await recallEpisodes(db, baseQuery());
       expect(stale.projection.stale).toBe(true);
       expect(stale.projection.headSeq).toBeGreaterThan(stale.projection.lastLedgerSeq as number);
     });
