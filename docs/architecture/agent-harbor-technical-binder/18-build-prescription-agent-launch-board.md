@@ -288,6 +288,51 @@ Acceptance gates:
 - no stale npm instructions;
 - users can see what is local, what syncs, and what is disabled.
 
+### Work Order C-routes - Daemon HTTP route layer
+
+Origin:
+  This work order was missing from the original fanout. I0's first
+  compatibility report flagged it as Contradiction 1 ("the route triangle"):
+  C3 and C8 both assume `GET /agent-nodes` exists, chapter `09` prescribes the
+  endpoint family, and C1 built the projections — but no chain owned the HTTP
+  routes joining them.
+
+Send:
+  One REST/SSE/daemon TypeScript agent, after C1 lands.
+
+Mission:
+  Serve the chapter `09` read API family over C1's projections from the
+  Fastify daemon.
+
+Outputs:
+
+- `routes/agent-harbor.ts` (FastifyPluginAsync, registered in the route
+  aggregator): `GET /agent-nodes`, `GET /agent-nodes/:id` (detail join),
+  `GET /agent-nodes/:id/files`, `GET /sessions/:id/events` (cursor-paged
+  history plus SSE live tail with `Last-Event-ID` replay), `GET /costs`,
+  `GET /receipts/:id` (hash-chain verification against the ledger),
+  `GET /compliance/:agentNodeId`;
+- freshness envelope on every response: `projection.stale`,
+  `lastLedgerSeq`, `headSeq`;
+- fastify.inject test fixtures against seeded projections.
+
+Acceptance gates:
+
+- read-only: no route authorizes a command, stale or fresh;
+- stale projections are labeled in the envelope, never hidden;
+- unknown payload fields and query params are tolerated (tolerant reader);
+- SSE stream sets `Cache-Control: no-cache` and `X-Accel-Buffering: no`,
+  emits `id:` on every event, honors `Last-Event-ID` with a real replay
+  buffer (the timeline projection), and heartbeats at most every 30 seconds;
+- receipt verification checks the per-session hash chain AND the receipt's
+  committed transcript head against the ledger — a mismatch is reported, not
+  rubber-stamped;
+- transcript history is cursor-paged, never unbounded.
+
+Status:
+  Shipped with C1 merged in (branch `wave3/routes`); registered in
+  ADR-0095's Implementation Matrix as `agent-harbor-daemon-routes`.
+
 ### Work Order I0 - Integration reviewer
 
 Send:
