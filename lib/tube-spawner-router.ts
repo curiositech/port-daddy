@@ -120,7 +120,7 @@ export interface TubeCommandEnvelope {
   task?: string;
   name?: string;
   model?: string;
-  modelTier?: 'low' | 'mid' | 'high';
+  modelTier?: 'low' | 'mid' | 'high' | 'cheap' | 'balanced' | 'max-thinking' | 'code';
   identity?: string;
   purpose?: string;
   timeout?: number;

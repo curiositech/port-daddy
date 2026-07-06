@@ -114,7 +114,7 @@ export interface LaunchIntent {
   actor?: string;
   backend: string;
   model?: string;
-  modelTier?: 'low' | 'mid' | 'high';
+  modelTier?: 'low' | 'mid' | 'high' | 'cheap' | 'balanced' | 'max-thinking' | 'code';
 
   // safety envelope —
   capabilities?: string[];

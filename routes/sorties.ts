@@ -256,7 +256,9 @@ export const sortiesPlugin: FastifyPluginAsync<{ deps: SortieRouteDeps }> = asyn
           task,
           backend,
           model: running.model || undefined,
-          modelTier: running.modelTier as ('low' | 'mid' | 'high') | undefined,
+          modelTier: running.modelTier as
+            | 'low' | 'mid' | 'high' | 'cheap' | 'balanced' | 'max-thinking' | 'code'
+            | undefined,
           identity,
           purpose,
           workdir: projectDir,

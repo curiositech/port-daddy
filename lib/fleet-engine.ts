@@ -11,7 +11,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { DEFAULT_OPERATOR_CLAUDE_MODEL, DEFAULT_OPERATOR_CODEX_MODEL } from './backend-telemetry-policy.js';
-import { resolveModel } from './model-registry.js';
+import { resolveModel, type Capability } from './model-registry.js';
 import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import { get as httpGet } from 'node:http';
 import { parse as parseYaml } from 'yaml';
@@ -120,7 +120,18 @@ export interface FleetRuntimeDefaults {
   model?: string;
 }
 
-export type FleetModelTier = 'low' | 'mid' | 'high';
+// A ship declares a power tier, never a concrete model id (operator directive
+// 2026-07-06). These are the model-registry capabilities (lib/model-registry.ts)
+// plus the legacy low/mid/high aliases (low→cheap, mid→balanced, high→high). The
+// concrete id for a (backend, tier) pair lives ONLY in lib/model-registry-data.ts.
+export type FleetModelTier =
+  | 'low'
+  | 'mid'
+  | 'high'
+  | 'cheap'
+  | 'balanced'
+  | 'max-thinking'
+  | 'code';
 
 export interface FleetRuntimeTarget {
   backend?: string;
@@ -298,34 +309,65 @@ function getTemplateVars(projectDir: string, projectName?: string, includeGitVar
 // ─── Fleet Config Loader ────────────────────────────────────────────────────
 
 const FLEET_CONFIG_NAMES = ['pd-fleet.yml', 'pd-fleet.yaml', '.portdaddy/fleet.yml', '.portdaddy/fleet.yaml'];
-const MODEL_TIERS = new Set<FleetModelTier>(['low', 'mid', 'high']);
+// Legacy tiers (low/mid/high) alias registry capabilities (cheap/balanced/high);
+// the other three are the registry capabilities themselves.
+const LEGACY_MODEL_TIERS = ['low', 'mid', 'high'] as const;
+const CAPABILITY_MODEL_TIERS = ['cheap', 'balanced', 'high', 'max-thinking', 'code'] as const;
+const ALL_MODEL_TIERS: readonly FleetModelTier[] = [...LEGACY_MODEL_TIERS, ...CAPABILITY_MODEL_TIERS];
+const MODEL_TIERS = new Set<string>(ALL_MODEL_TIERS);
 
-// API-backed backends derive their low/mid/high tiers from the declarative
-// registry (lib/model-registry-data.ts) via resolveModel — NO hardcoded model
-// IDs here (operator directive 2026-06-15; see lib/model-registry.ts + ADR-0057).
-// The map shape is preserved for back-compat with routes/fleet.ts importers.
-const REGISTRY_TIER_BACKENDS = ['claude', 'codex', 'gemini', 'openai', 'groq', 'cloudflare', 'aider'] as const;
-
-// Genuinely-special forms the registry does NOT govern: claude-cli takes the
-// CLI's short aliases (`--model sonnet`), ollama takes LOCAL model names, custom
-// is a placeholder triple. These are stable CLI/local identifiers, not churning
-// API model IDs, so they stay literal (and are allowlisted in the
-// no-hardcoded-model-ids guard).
-const SPECIAL_FORM_MODEL_TIERS: Record<string, Record<FleetModelTier, string>> = {
-  'claude-cli': { low: 'haiku', mid: 'sonnet', high: 'opus' },
-  ollama: { low: 'qwen2.5-coder:7b', mid: 'llama3.1:8b', high: 'qwen2.5-coder:14b' },
-  custom: { low: 'custom-low', mid: 'custom-mid', high: 'custom-high' },
-};
-
-function tierMapFromRegistry(backend: string): Record<FleetModelTier, string> {
-  return {
-    low: resolveModel({ backend, tier: 'low' }),
-    mid: resolveModel({ backend, tier: 'mid' }),
-    high: resolveModel({ backend, tier: 'high' }),
-  };
+// True for the registry-capability tier names (resolved via `capability:` rather
+// than the legacy `tier:` alias path). `high` is a member of both sets and
+// resolves identically either way.
+function isCapabilityTier(tier: FleetModelTier): boolean {
+  return (CAPABILITY_MODEL_TIERS as readonly string[]).includes(tier);
 }
 
-export const BUILTIN_MODEL_TIERS: Partial<Record<string, Record<FleetModelTier, string>>> = {
+// EVERY concrete model id is governed by the declarative registry
+// (lib/model-registry-data.ts) via resolveModel — the ONE ground-truth file
+// (operator directive 2026-06-15 + 2026-07-06; see lib/model-registry.ts +
+// ADR-0057). The LOCAL backends (ollama, lmstudio) now live in the registry too,
+// so a ship declares "provider + power tier" and never a model id. This list is
+// the set of backends the registry governs; the map shape is preserved for
+// back-compat with routes/fleet.ts importers.
+const REGISTRY_TIER_BACKENDS = [
+  'claude', 'anthropic', 'codex', 'gemini', 'openai', 'groq',
+  'cloudflare', 'aider', 'ollama', 'lmstudio', 'deepseek', 'xai',
+] as const;
+
+// Genuinely-special forms the registry does NOT govern with model ids:
+// claude-cli takes the CLI's short aliases (`--model sonnet`), and custom is a
+// placeholder triple. These are stable CLI/placeholder identifiers, NOT model
+// ids, so they stay literal (and are the only fleet-engine entries the
+// no-hardcoded-model-ids guard still exempts).
+const SPECIAL_FORM_MODEL_TIERS: Record<string, Partial<Record<FleetModelTier, string>>> = {
+  'claude-cli': {
+    low: 'haiku', cheap: 'haiku',
+    mid: 'sonnet', balanced: 'sonnet', code: 'sonnet',
+    high: 'opus', 'max-thinking': 'opus',
+  },
+  custom: {
+    low: 'custom-low', cheap: 'custom-low',
+    mid: 'custom-mid', balanced: 'custom-mid', code: 'custom-mid',
+    high: 'custom-high', 'max-thinking': 'custom-high',
+  },
+};
+
+function tierMapFromRegistry(backend: string): Partial<Record<FleetModelTier, string>> {
+  const out: Partial<Record<FleetModelTier, string>> = {};
+  for (const tier of ALL_MODEL_TIERS) {
+    try {
+      out[tier] = isCapabilityTier(tier)
+        ? resolveModel({ backend, capability: tier as Capability })
+        : resolveModel({ backend, tier });
+    } catch {
+      // A backend that does not map a given capability simply omits that tier.
+    }
+  }
+  return out;
+}
+
+export const BUILTIN_MODEL_TIERS: Partial<Record<string, Partial<Record<FleetModelTier, string>>>> = {
   ...Object.fromEntries(REGISTRY_TIER_BACKENDS.map((b) => [b, tierMapFromRegistry(b)])),
   ...SPECIAL_FORM_MODEL_TIERS,
 };

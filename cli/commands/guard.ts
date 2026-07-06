@@ -9,6 +9,7 @@ import type { CLIOptions } from '../types.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 import { evaluateLeaseRent } from '../../lib/coast-guard/compulsion.js';
 import { gatherCommitsSinceLastNote } from '../../lib/coast-guard/compulsion-facts.js';
+import { validateFleetShipDefinitions } from '../../lib/fleet-validate.js';
 
 /**
  * Destructive git verbs intercepted by the optional `~/.port-daddy/bin/git`
@@ -412,6 +413,10 @@ export function evaluateGuardFacts(input: {
    *  invariant; dirty-tree advisory checks should not demand a roadmap receipt. */
   atCommitTime?: boolean;
   roadmapReceipts?: GuardRoadmapReceipt[];
+  /** Staged fleet-config files (path → content) to validate for pinned model
+   *  ids at commit time (operator directive 2026-07-06). Ships must declare a
+   *  provider + power tier, never a concrete model id. */
+  fleetConfigContents?: Record<string, string>;
   nowMs?: number;
 }): GuardCheckResult {
   const mode = input.mode ?? (input.config.enabled ? input.config.mode : 'off');
@@ -523,6 +528,22 @@ export function evaluateGuardFacts(input: {
             'without a recent roadmap_items receipt from this agent. Run `pd roadmap upsert <slug> --summary <md>` or `pd roadmap touch <slug> --note <why>`.',
         });
       }
+    }
+  }
+
+  // Fleet ship-definition validation (operator directive 2026-07-06): a staged
+  // fleet config must not pin a concrete model id — provider + power tier only,
+  // ids injected from the single ground-truth registry. Runs at commit time so a
+  // fragile ship def fails BEFORE production, not after.
+  for (const [file, content] of Object.entries(input.fleetConfigContents ?? {})) {
+    for (const v of validateFleetShipDefinitions(content)) {
+      if (v.severity !== 'error') continue;
+      violations.push({
+        code: `fleet-ship-definition:${v.rule}`,
+        severity: 'critical',
+        file,
+        message: `${file} — ${v.ship}: ${v.message}`,
+      });
     }
   }
 
@@ -880,6 +901,14 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
       ? await loadRoadmapReceipts()
       : undefined;
 
+  // Read staged fleet-config files so evaluateGuardFacts can reject a pinned
+  // model id at commit time. Prefer the STAGED blob (`git show :file`) — that is
+  // what the commit will contain — and fall back to the working tree.
+  const fleetConfigContents =
+    mode !== 'off'
+      ? readFleetConfigContents(files.filter(isFleetConfigFile), root, Boolean(options.staged || options.hook))
+      : undefined;
+
   return evaluateGuardFacts({
     config,
     mode,
@@ -892,7 +921,41 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
     commitsSinceLastNote,
     atCommitTime,
     roadmapReceipts,
+    fleetConfigContents,
   });
+}
+
+/** A fleet config carries ship definitions we must validate (basename heuristic). */
+export function isFleetConfigFile(file: string): boolean {
+  const base = file.split('/').pop() ?? file;
+  return /\.ya?ml$/i.test(base) && /fleet/i.test(base);
+}
+
+/** Read staged (or working-tree) content for each fleet config, best-effort. */
+function readFleetConfigContents(
+  files: string[],
+  root: string,
+  preferStaged: boolean,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const file of files) {
+    let content: string | null = null;
+    if (preferStaged) {
+      // `git show :path` yields the staged blob. Empty output ⇒ fall through.
+      const staged = gitText(['show', `:${file}`], root);
+      if (staged && staged.trim().length > 0) content = staged;
+    }
+    if (content === null) {
+      const abs = isAbsolute(file) ? file : join(root, file);
+      try {
+        content = readFileSync(abs, 'utf-8');
+      } catch {
+        content = null;
+      }
+    }
+    if (content !== null) out[file] = content;
+  }
+  return out;
 }
 
 async function handleInstallShim(options: CLIOptions): Promise<void> {

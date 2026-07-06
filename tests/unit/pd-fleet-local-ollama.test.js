@@ -41,6 +41,9 @@ const CLOUD_SHIPS = ['qa', 'spark', 'spider', 'code-reviewer', 'red-team', 'stew
 // Backends that cost metered money — forbidden anywhere on a local ship.
 const METERED_BACKENDS = ['cloudflare', 'openai', 'anthropic', 'groq', 'xai', 'gemini'];
 
+// Valid power tiers (legacy aliases + registry capabilities).
+const VALID_TIERS = new Set(['low', 'mid', 'high', 'cheap', 'balanced', 'max-thinking', 'code']);
+
 // Find a ship's config block wherever it lives (agents: or watchers:).
 function findShip(doc, name) {
   const fleet = doc.fleet ?? {};
@@ -75,11 +78,12 @@ describe('pd-fleet.yml local fleet runs local Ollama models only', () => {
         expect(ship).toBeDefined();
       });
 
-      it('leads with a local Ollama model (backend: ollama + explicit model)', () => {
+      it('leads with a local Ollama model via a power tier (never a model id)', () => {
         expect(ship.backend).toBe('ollama');
-        // Explicit model required — the `local` tier has no defensible default.
-        expect(typeof ship.model).toBe('string');
-        expect(ship.model.length).toBeGreaterThan(0);
+        // Ships declare a power tier, not a concrete model id (operator directive
+        // 2026-07-06). The id is injected from lib/model-registry-data.ts.
+        expect(ship.model).toBeUndefined();
+        expect(VALID_TIERS.has(String(ship.modelTier))).toBe(true);
       });
 
       it('keeps a CLI safety-net fallback (fails loud, never silent)', () => {

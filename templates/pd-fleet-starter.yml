@@ -4,9 +4,9 @@
 # Requires: Port Daddy running (pd start)
 #
 # This starter uses `claude-cli` because these prompts assume a local agent
-# runtime with file/tool access. Swap backend/model per agent as needed.
-# Pin `model:` so costs are predictable. If you omit backend/model entirely,
-# set PD_FLEET_DEFAULT_BACKEND / PD_FLEET_DEFAULT_MODEL in your environment.
+# runtime with file/tool access. Swap the backend per agent as needed.
+# Declare a PROVIDER + POWER TIER (backend + modelTier: low|mid|high), NEVER a
+# model id — ids live only in the ground-truth registry; pd guard enforces it.
 #
 # What you get:
 #   - QA reviews every commit for bugs
@@ -28,7 +28,7 @@ fleet:
     qa:
       trigger: git:committed
       backend: claude-cli
-      model: haiku
+      modelTier: low
       respawn: true                      # Auto-respawn if this agent dies
       max_respawns: 3                    # Circuit breaker — stop after 3 deaths
       allowedTools: "Read,Grep,Glob,Bash(npm test*)"
@@ -44,7 +44,7 @@ fleet:
     documentarian:
       trigger: git:committed
       backend: claude-cli
-      model: haiku
+      modelTier: low
       allowedTools: "Read,Grep,Glob,Write,Edit"
       prompt: |
         You maintain documentation for this project.
@@ -59,7 +59,7 @@ fleet:
     cartographer:
       trigger: git:committed
       backend: claude-cli
-      model: haiku
+      modelTier: low
       allowedTools: "Read,Grep,Glob,Write"
       prompt: |
         You maintain the map between what was planned and what was built.
@@ -88,7 +88,7 @@ fleet:
     spark:
       schedule: "*/30 * * * *"
       backend: claude-cli
-      model: sonnet
+      modelTier: mid
       singleton: true
       allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
       prompt: |
@@ -117,7 +117,7 @@ fleet:
       trigger: spark:idea
       schedule: "0 */2 * * *"
       backend: claude-cli
-      model: sonnet
+      modelTier: mid
       singleton: true
       allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
       prompt: |

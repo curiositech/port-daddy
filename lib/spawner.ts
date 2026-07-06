@@ -103,7 +103,10 @@ export interface SpawnSpec {
   backend: 'ollama' | 'lmstudio' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'deepseek' | 'xai' | 'cli:claude-code' | 'cli:codex' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
   name?: string;        // human-readable display name
   model?: string;
-  modelTier?: 'low' | 'mid' | 'high';
+  // Power tier: legacy low/mid/high aliases + the model-registry capabilities
+  // (see lib/fleet-engine.ts FleetModelTier). The concrete model id for a
+  // (backend, tier) pair is resolved from lib/model-registry-data.ts.
+  modelTier?: 'low' | 'mid' | 'high' | 'cheap' | 'balanced' | 'max-thinking' | 'code';
   identity?: string;   // PD semantic identity: project:stack:context
   purpose?: string;    // human-readable task description
   task: string;        // the prompt / task

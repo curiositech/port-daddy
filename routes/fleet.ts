@@ -734,7 +734,20 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     const backends = await Promise.all(
       BACKEND_CATALOG.map(async (backend) => {
         const readiness = await assessBackendReadiness(backend.id);
-        const tierDefaults = BUILTIN_MODEL_TIERS[backend.id];
+        const allTierDefaults = BUILTIN_MODEL_TIERS[backend.id];
+        // The operator-facing picker shows the three primary tiers (low/mid/high);
+        // the registry also resolves capability aliases (cheap/balanced/code/
+        // max-thinking) for ship definitions, but those are not a picker concern.
+        const tierDefaults = allTierDefaults
+          ? (() => {
+              const t: Record<string, string> = {};
+              for (const k of ['low', 'mid', 'high'] as const) {
+                const v = allTierDefaults[k];
+                if (v) t[k] = v;
+              }
+              return Object.keys(t).length > 0 ? t : undefined;
+            })()
+          : undefined;
         let models = [...backend.models];
         if (tierDefaults) {
           models = [...new Set([...models, ...Object.values(tierDefaults)])];

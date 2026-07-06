@@ -39,14 +39,17 @@
 #   test-file pattern scoring. They now lead with a CHEAP LOCAL OLLAMA
 #   model and NEVER reach for a metered cloud backend:
 #
-#     1. ollama qwen2.5-coder:7b — FREE, runs on the operator's machine
-#                                  (localhost:11434). One `ollama pull
-#                                  qwen2.5-coder:7b` and the whole local
-#                                  fleet is self-hosted. Swap to
-#                                  `llama3.1:8b` (general) or
-#                                  `qwen2.5-coder:14b` (stronger) per
-#                                  taste; see lib/fleet-engine.ts
-#                                  SPECIAL_FORM_MODEL_TIERS.
+#     1. backend: ollama + modelTier: low — FREE, on the operator's
+#                                  machine (localhost:11434). Ships declare
+#                                  a PROVIDER + POWER TIER, never a concrete
+#                                  model id; the id lives ONLY in the single
+#                                  ground-truth registry (lib/model-registry-
+#                                  data.ts). `low` resolves to qwen2.5-coder:7b
+#                                  there, so `ollama pull qwen2.5-coder:7b`
+#                                  once and the whole local fleet is self-
+#                                  hosted. Retune the tier→id map in that one
+#                                  file (mid → llama3.1:8b, high → qwen2.5-
+#                                  coder:14b) — never in a ship.
 #     2. cli:claude-code / cli:codex — free-if-subscriber safety net so
 #                                  a ship still runs when Ollama is not
 #                                  installed or `ollama serve` is down.
@@ -128,7 +131,7 @@ fleet:
       # Leads with a free local Ollama coder model; CLI backends are the
       # free-if-subscriber safety net; NO metered cloud rung.
       backend: ollama
-      model: qwen2.5-coder:7b
+      modelTier: low
       fallbacks:
         - backend: cli:claude-code
         - backend: cli:codex
@@ -171,9 +174,9 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: openai
-          model: gpt-5-mini
+          modelTier: low
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          modelTier: mid
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -220,7 +223,7 @@ fleet:
       # Leads with a free local Ollama coder model; CLI backends are the
       # free-if-subscriber safety net; NO metered cloud rung.
       backend: ollama
-      model: qwen2.5-coder:7b
+      modelTier: low
       fallbacks:
         - backend: cli:claude-code
         - backend: cli:codex
@@ -260,7 +263,7 @@ fleet:
       # Leads with a free local Ollama coder model; CLI backends are the
       # free-if-subscriber safety net; NO metered cloud rung.
       backend: ollama
-      model: qwen2.5-coder:7b
+      modelTier: low
       fallbacks:
         - backend: cli:claude-code
         - backend: cli:codex
@@ -311,7 +314,7 @@ fleet:
       # Leads with a free local Ollama coder model; CLI backends are the
       # free-if-subscriber safety net; NO metered cloud rung.
       backend: ollama
-      model: qwen2.5-coder:7b
+      modelTier: low
       fallbacks:
         - backend: cli:claude-code
         - backend: cli:codex
@@ -341,7 +344,7 @@ fleet:
       # Leads with a free local Ollama coder model; CLI backends are the
       # free-if-subscriber safety net; NO metered cloud rung.
       backend: ollama
-      model: qwen2.5-coder:7b
+      modelTier: low
       fallbacks:
         - backend: cli:claude-code
         - backend: cli:codex
@@ -412,7 +415,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          modelTier: code
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
@@ -497,7 +500,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          modelTier: mid
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
@@ -570,11 +573,11 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: anthropic
-          model: claude-haiku-4-5-20251001
+          modelTier: low
         - backend: openai
-          model: gpt-5-mini
+          modelTier: low
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          modelTier: mid
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false
@@ -616,11 +619,11 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: anthropic
-          model: claude-sonnet-4-5-20251001
+          modelTier: mid
         - backend: openai
-          model: gpt-5
+          modelTier: high
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          modelTier: mid
       cooldown_ms: 600000
       dedupe_window_ms: 1800000
       singleton: false
@@ -656,11 +659,11 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: anthropic
-          model: claude-haiku-4-5-20251001
+          modelTier: low
         - backend: openai
-          model: gpt-5-mini
+          modelTier: low
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          modelTier: mid
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: false
@@ -703,7 +706,7 @@ fleet:
       # Leads with a free local Ollama coder model; CLI backends are the
       # free-if-subscriber safety net; NO metered cloud rung.
       backend: ollama
-      model: qwen2.5-coder:7b
+      modelTier: low
       fallbacks:
         - backend: cli:claude-code
         - backend: cli:codex
@@ -755,11 +758,11 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: anthropic
-          model: claude-haiku-4-5-20251001
+          modelTier: low
         - backend: openai
-          model: gpt-5-mini
+          modelTier: low
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          modelTier: mid
       cooldown_ms: 3600000
       dedupe_window_ms: 21600000
       singleton: true
@@ -812,7 +815,7 @@ fleet:
       # Leads with a free local Ollama coder model; CLI backends are the
       # free-if-subscriber safety net; NO metered cloud rung.
       backend: ollama
-      model: qwen2.5-coder:7b
+      modelTier: low
       fallbacks:
         - backend: cli:claude-code
         - backend: cli:codex
@@ -906,9 +909,9 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: anthropic
-          model: claude-sonnet-4-5-20251001
+          modelTier: mid
         - backend: openai
-          model: gpt-5
+          modelTier: high
       cooldown_ms: 600000
       dedupe_window_ms: 600000
       singleton: true
@@ -1007,7 +1010,7 @@ fleet:
       # Leads with a free local Ollama coder model; CLI backends are the
       # free-if-subscriber safety net; NO metered cloud rung.
       backend: ollama
-      model: qwen2.5-coder:7b
+      modelTier: low
       fallbacks:
         - backend: cli:claude-code
         - backend: cli:codex

@@ -3914,7 +3914,7 @@ interface SpawnSpec {
   backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'openai' | 'groq' | 'codex' | 'aider' | 'custom' | 'cli:claude-code' | 'cli:codex' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
   name?: string;
   model?: string;
-  modelTier?: 'low' | 'mid' | 'high';
+  modelTier?: 'low' | 'mid' | 'high' | 'cheap' | 'balanced' | 'max-thinking' | 'code';
   identity: string;
   budgetUsd: number;
   purpose?: string;

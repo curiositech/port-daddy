@@ -180,11 +180,14 @@ describe('astToConfig', () => {
     expect(config.harbor).toBe('{project}:fleet');
   });
 
-  it('qa agent backend and model', () => {
+  it('qa agent backend and power tier (no pinned model id)', () => {
     const qa = config.agents.find(a => a.name === 'qa');
     expect(qa).toBeDefined();
     expect(qa.backend).toBe('claude-cli');
-    expect(qa.model).toBe('haiku');
+    // Ships declare a power tier, not a concrete model id (operator directive
+    // 2026-07-06). claude-cli + `low` resolves to the haiku CLI alias.
+    expect(qa.model).toBeUndefined();
+    expect(qa.modelTier).toBe('low');
   });
 
   it('qa trigger and on_success / on_failure serialized back to strings', () => {

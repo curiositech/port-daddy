@@ -538,7 +538,12 @@ function resolveWorktree(agent: AgentNode, defs?: DefaultsNode): boolean {
 
 // ─── astToConfig ──────────────────────────────────────────────────────────────
 
-const MODEL_TIERS = new Set<string>(['low', 'mid', 'high']);
+// Power tiers a ship may declare: legacy low/mid/high aliases plus the
+// model-registry capability names (see lib/model-registry.ts). Concrete model
+// ids never appear in a ship definition — only a (backend, tier) pair.
+const MODEL_TIERS = new Set<string>([
+  'low', 'mid', 'high', 'cheap', 'balanced', 'max-thinking', 'code',
+]);
 
 function normMs(n?: IntNode): number | undefined {
   const v = n?.value;

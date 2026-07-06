@@ -14,6 +14,7 @@
  */
 
 import { parse as parseYaml } from 'yaml';
+import { cfModelForTier } from './models.js';
 
 export interface ShipConfig {
   name: string;
@@ -56,6 +57,8 @@ const CLOUD_STATIC_SHIPS = new Set(['qa']);
 interface RawFallback {
   backend?: string;
   model?: string;
+  modelTier?: string;
+  model_tier?: string;
 }
 
 interface RawAgent {
@@ -87,11 +90,24 @@ function coerceTemperature(value: unknown): number | null {
 
 /**
  * Derive the Cloudflare Workers AI model for a ship:
- *   1. the first `fallbacks[].model` that starts with `@cf/`, else
- *   2. a name-based default (coder model for *reviewer* ships, general otherwise).
+ *   1. a `cloudflare` fallback declaring a power TIER (`modelTier`/`model_tier`)
+ *      resolved through the registry-mirrored tier→model map (the ground-truth
+ *      way — no model id ever appears in the ship YAML), else
+ *   2. a legacy literal `fallbacks[].model` starting with `@cf/` (deprecated
+ *      back-compat during the tier migration), else
+ *   3. a name-based default (coder model for *reviewer* ships, general otherwise).
  */
 function deriveCfModel(agent: RawAgent, name: string): string {
   for (const fb of agent.fallbacks ?? []) {
+    if (fb?.backend === 'cloudflare') {
+      const tier = typeof fb.modelTier === 'string' ? fb.modelTier
+        : typeof fb.model_tier === 'string' ? fb.model_tier
+        : null;
+      if (tier) {
+        const resolved = cfModelForTier(tier);
+        if (resolved) return resolved;
+      }
+    }
     if (typeof fb?.model === 'string' && fb.model.startsWith('@cf/')) return fb.model;
   }
   return name.includes('reviewer') ? CODER_CF_MODEL : DEFAULT_CF_MODEL;

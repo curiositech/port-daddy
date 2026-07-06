@@ -99,6 +99,27 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       'max-thinking': 'openai/gpt-oss-120b',
       code: 'llama-3.3-70b-versatile',
     },
+    // Ollama — LOCAL, on-device models (localhost:11434). These are the ONE
+    // home for the local-fleet model ids: the small-coder tiers the on-machine
+    // bookkeeping/lint/pattern ships run on. Stable local tags, not churning API
+    // ids, but they live here (not scattered in fleet-engine or ship YAML) so
+    // "provider + tier" is the only thing a ship ever declares. Priced as $0
+    // (local compute) — see lib/cost-tracker.ts OLLAMA_MODEL_RATES.
+    ollama: {
+      cheap: 'qwen2.5-coder:7b',
+      balanced: 'llama3.1:8b',
+      high: 'qwen2.5-coder:14b',
+      'max-thinking': 'qwen2.5-coder:14b',
+      code: 'qwen2.5-coder:7b',
+    },
+    // LM Studio — LOCAL, OpenAI-compatible substrate (same role as ollama).
+    lmstudio: {
+      cheap: 'qwen2.5-coder-7b',
+      balanced: 'qwen2.5-coder-14b',
+      high: 'qwen2.5-coder-32b',
+      'max-thinking': 'qwen2.5-coder-32b',
+      code: 'qwen2.5-coder-7b',
+    },
     deepseek: {
       cheap: 'deepseek-chat',
       balanced: 'deepseek-chat',

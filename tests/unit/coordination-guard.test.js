@@ -150,6 +150,54 @@ describe('Coordination Guard', () => {
     expect(result.violations.map(item => item.code)).toContain('no-active-session');
   });
 
+  test('blocks a staged fleet config that pins a concrete model id (enforce)', () => {
+    const result = evaluateGuardFacts({
+      config: { ...DEFAULT_GUARD_CONFIG, enabled: true, mode: 'enforce' },
+      active: true,
+      agentId: 'agent-self',
+      sessionId: 'session-self',
+      files: ['pd-fleet.yml'],
+      ownersByFile: { 'pd-fleet.yml': [{ sessionId: 'session-self' }] },
+      fleetConfigContents: {
+        'pd-fleet.yml': [
+          'fleet:',
+          '  agents:',
+          '    bad:',
+          '      backend: ollama',
+          '      model: qwen2.5-coder:7b',
+          '      prompt: hi',
+          '',
+        ].join('\n'),
+      },
+    });
+
+    expect(result.shouldBlock).toBe(true);
+    expect(result.violations.map((v) => v.code)).toContain('fleet-ship-definition:pinned-model');
+  });
+
+  test('a tier-only fleet config passes the guard', () => {
+    const result = evaluateGuardFacts({
+      config: { ...DEFAULT_GUARD_CONFIG, enabled: true, mode: 'enforce', requireSession: false, requireClaims: false, requireNotePerCommit: false },
+      active: true,
+      agentId: 'agent-self',
+      sessionId: 'session-self',
+      files: ['pd-fleet.yml'],
+      fleetConfigContents: {
+        'pd-fleet.yml': [
+          'fleet:',
+          '  agents:',
+          '    good:',
+          '      backend: ollama',
+          '      modelTier: low',
+          '      prompt: hi',
+          '',
+        ].join('\n'),
+      },
+    });
+
+    expect(result.violations.filter((v) => v.code.startsWith('fleet-ship-definition'))).toEqual([]);
+  });
+
   test('warn mode reports violations without blocking', () => {
     const result = evaluateGuardFacts({
       config: { ...DEFAULT_GUARD_CONFIG, enabled: true, mode: 'warn' },

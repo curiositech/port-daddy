@@ -70,9 +70,16 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(spider!.prompt).toContain('syllogism engine');
   });
 
-  it('derives cfModel from the first @cf/ fallback entry', () => {
+  it("derives cfModel from a cloudflare fallback's power tier", () => {
+    // code-reviewer + qa both declare `- backend: cloudflare / modelTier: mid`.
+    // Ships never pin a concrete @cf id (operator directive 2026-07-06); the
+    // executor resolves the power tier through the registry-mirrored tier map
+    // (src/models.ts), and `mid` → balanced → the general Workers AI reviewer.
+    // (Before the tier migration this assertion read kimi-k2.7-code and was
+    // already stale against the real pd-fleet.yml, which carried an @cf/openai
+    // cloudflare fallback for code-reviewer.)
     const reviewer = ships!.find(s => s.name === 'code-reviewer');
-    expect(reviewer!.cfModel).toBe('@cf/moonshotai/kimi-k2.7-code');
+    expect(reviewer!.cfModel).toBe('@cf/openai/gpt-oss-120b');
     const qa = ships!.find(s => s.name === 'qa');
     expect(qa!.cfModel).toBe('@cf/openai/gpt-oss-120b');
   });
