@@ -80,6 +80,32 @@ role class → narrowly-scoped concrete agent.
 **Name:** Semantic Intent Sentinel (`sentinel` in fleet config; ship class
 `ideation`, same non-blocking category as Spider/Spark/Lookout/Snipe)
 
+> **Naming collision found during audit (unresolved, flagging for the
+> operator rather than picking a replacement unilaterally):** `sentinel` is
+> already claimed, three times over, in this codebase:
+> 1. `docs/shipwright/SHIP-GRAMMAR.md` § 8.2 ("Other codenames (port-daddy
+>    fleet)") lists `sentinel` as an existing visual codename -- a
+>    "battleship"-feel hull, `L_a=8, V_a=3, C_a=5`.
+> 2. `docs/shipwright/AGENT-MODEL.md` § 3.2 names **QA Sentinel** as an
+>    existing `fleet-scheduled`-class agent (alongside Typesafety,
+>    Documentarian, Perf Hawk, Gardener, Spark), and `qa-sentinel` is a
+>    live, typed archetype id in `lib/shipwright/archetypes.ts` (used in
+>    `fleet-config-ui/src/shipwright/fixtures.ts` and `lib/bonds.ts`).
+> 3. `pd-fleet.yml` already has a real, wired `developer-onboarding-sentinel`
+>    fleet-scheduled agent entry -- the exact kind of YAML key this
+>    proposal's build step 5 plans to add a second `sentinel` key next to.
+>
+> SHIP-GRAMMAR.md states its own policy explicitly: "when two popular
+> codenames collide we prefer a rename during archetype naming (e.g.
+> `wanderer` instead of a second cousin of `scout`)." This proposal's
+> "Relationship to existing roles" table below checks against
+> `semantic-conflict-prediction`, Lookout, Longshoreman, and unSpider, but
+> never checked the shipwright codename registry or these existing
+> Sentinel-named agents -- that check should have happened before naming
+> this ship. Recommend renaming before any `pd-fleet.yml` entry is added
+> (see TODO); not renamed here because picking the replacement name is an
+> authorial call, not a mechanical one.
+
 **Concern (one sentence):** Detect and broadcast topical/semantic proximity
 between concurrently active agents' declared work, before either agent has
 produced a diff worth AST-comparing or a PR worth Lookout-comparing.
@@ -187,3 +213,10 @@ Between Advisory and Enforced Claims).
 - [ ] Reuse PR #721's ideation `Proposal` schema; do not invent a second output contract.
 - [ ] Add `sentinel` to `pd-fleet.yml` only after the above land and pass e2e tests.
 - [ ] Operator sign-off on the $/day budget cap (model unSpider's $0.20/day precedent).
+- [ ] **Resolve the `sentinel` naming collision** against the existing shipwright
+      codename (`docs/shipwright/SHIP-GRAMMAR.md` § 8.2), the existing QA
+      Sentinel agent / `qa-sentinel` archetype (`docs/shipwright/AGENT-MODEL.md`
+      § 3.2, `lib/shipwright/archetypes.ts`), and the existing
+      `developer-onboarding-sentinel` entry already in `pd-fleet.yml`, before
+      any new `pd-fleet.yml` entry is added -- see the naming-collision callout
+      above.
