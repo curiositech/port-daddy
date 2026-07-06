@@ -327,6 +327,76 @@ interface FilePreviewEnvelope {
   preview?: FilePreview;
 }
 
+// ─── Cloud fleet telemetry (Cloudflare PR-review fleet) ─────────────────────────
+
+export interface CloudFleetTelemetry {
+  success?: boolean;
+  generatedAt?: number;
+  since?: number;
+  totals: {
+    events: number;
+    uniqueDeliveries: number;
+    shipEvents: number;
+    checkRunEvents: number;
+    commentEvents: number;
+    errorEvents: number;
+    costUsd: number;
+    inputTokens: number;
+    outputTokens: number;
+    cachedInputTokens: number;
+    totalTokens: number;
+    estimatedCostEvents: number;
+    unknownCostEvents: number;
+  };
+  byRepo: Array<{
+    owner: string | null;
+    repo: string | null;
+    events: number;
+    pullRequests: number;
+    costUsd: number;
+    lastSeen: number;
+  }>;
+  byShip: Array<{
+    ship: string;
+    events: number;
+    clean: number;
+    findings: number;
+    errors: number;
+    costUsd: number;
+    inputTokens: number;
+    outputTokens: number;
+    lastSeen: number;
+  }>;
+  byBackend: Array<{
+    backend: string;
+    model: string | null;
+    events: number;
+    costUsd: number;
+    inputTokens: number;
+    outputTokens: number;
+    estimatedCostEvents: number;
+  }>;
+  recent: Array<Record<string, unknown>>;
+}
+
+/**
+ * Cloud fleet PR-review telemetry from the daemon (the Cloudflare edge fleet's
+ * activity projected back over POST /telemetry/cloud-app). Cost/token/model
+ * stats per repo, ship, and backend.
+ */
+export async function fetchCloudFleetTelemetry(opts: {
+  sinceHours?: number;
+  limit?: number;
+} = {}): Promise<CloudFleetTelemetry> {
+  const params = new URLSearchParams();
+  // The route reads `since` as an epoch-ms timestamp (default: last 24h).
+  if (typeof opts.sinceHours === 'number') {
+    params.set('since', String(Date.now() - opts.sinceHours * 3_600_000));
+  }
+  if (typeof opts.limit === 'number') params.set('limit', String(opts.limit));
+  return get(`/telemetry/cloud-app${params.toString() ? `?${params}` : ''}`);
+}
+
 // ─── Fleet ────────────────────────────────────────────────────────────────────
 
 export async function fetchFleetStatus(): Promise<FleetDaemonStatus> {

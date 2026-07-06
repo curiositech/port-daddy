@@ -25,6 +25,7 @@ import CockpitControlPanel from './components/CockpitControlPanel';
 import VisualTaskPanel from './components/VisualTaskPanel';
 import EventsRegistryPanel from './components/EventsRegistryPanel';
 import { MetricsPanel } from './components/MetricsPanel';
+import CloudFleetPanel from './components/CloudFleetPanel';
 import ShipwrightPanel from './shipwright/ShipwrightPanel';
 import OperatorStatePanel from './components/OperatorStatePanel';
 import ApprovalsPanel from './components/ApprovalsPanel';
@@ -67,8 +68,8 @@ import type {
   TopologyValidation,
 } from './types';
 
-type MainTab = 'Operator' | 'Flow' | 'Roadmap' | 'Agents' | 'Visual' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'TubeBrowser' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Metrics' | 'Dispatch' | 'CoastGuard' | 'Cockpit' | 'Shipwright' | 'YAML';
-type ControlSurface = 'operator' | 'flow' | 'roadmap' | 'agents' | 'visual' | 'resources' | 'activity' | 'channels' | 'tube' | 'tubebrowser' | 'events' | 'inbox' | 'sorties' | 'memory' | 'metrics' | 'dispatch' | 'coastguard' | 'cockpit' | 'shipwright' | 'yaml';
+type MainTab = 'Operator' | 'Flow' | 'Roadmap' | 'Agents' | 'Visual' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'TubeBrowser' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Metrics' | 'CloudFleet' | 'Dispatch' | 'CoastGuard' | 'Cockpit' | 'Shipwright' | 'YAML';
+type ControlSurface = 'operator' | 'flow' | 'roadmap' | 'agents' | 'visual' | 'resources' | 'activity' | 'channels' | 'tube' | 'tubebrowser' | 'events' | 'inbox' | 'sorties' | 'memory' | 'metrics' | 'cloudfleet' | 'dispatch' | 'coastguard' | 'cockpit' | 'shipwright' | 'yaml';
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined';
@@ -86,6 +87,7 @@ function normalizeSurface(value: string | null): ControlSurface {
     case 'sorties':
     case 'memory':
     case 'metrics':
+    case 'cloudfleet':
     case 'dispatch':
     case 'coastguard':
     case 'cockpit':
@@ -134,6 +136,8 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
       return 'Memory';
     case 'metrics':
       return 'Metrics';
+    case 'cloudfleet':
+      return 'CloudFleet';
     case 'dispatch':
       return 'Dispatch';
     case 'coastguard':
@@ -164,6 +168,7 @@ function mainTabToSurface(activeTab: MainTab): ControlSurface {
   if (activeTab === 'Sorties') return 'sorties';
   if (activeTab === 'Memory') return 'memory';
   if (activeTab === 'Metrics') return 'metrics';
+  if (activeTab === 'CloudFleet') return 'cloudfleet';
   if (activeTab === 'Dispatch') return 'dispatch';
   if (activeTab === 'CoastGuard') return 'coastguard';
   if (activeTab === 'Cockpit') return 'cockpit';
@@ -1480,10 +1485,10 @@ export default function App() {
     (!!fleet.status && !fleet.error) ||
     (!!operatorStateHook.state && !operatorStateHook.error);
 
-  const surfaceTabs: MainTab[] = ['Operator', 'Flow', 'Roadmap', 'Agents', 'Visual', 'Resources', 'Activity', 'Channels', 'Tube', 'TubeBrowser', 'Events', 'Inbox', 'Sorties', 'Memory', 'Metrics', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright', 'YAML'];
+  const surfaceTabs: MainTab[] = ['Operator', 'Flow', 'Roadmap', 'Agents', 'Visual', 'Resources', 'Activity', 'Channels', 'Tube', 'TubeBrowser', 'Events', 'Inbox', 'Sorties', 'Memory', 'Metrics', 'CloudFleet', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright', 'YAML'];
   // Visual task intake can start from a screenshot before the operator picks a repo.
   // It still attaches a project when FleetBar opens it from a project context.
-  const allProjectSurfaceTabs: MainTab[] = ['Operator', 'Flow', 'Visual', 'Metrics', 'TubeBrowser', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright'];
+  const allProjectSurfaceTabs: MainTab[] = ['Operator', 'Flow', 'Visual', 'Metrics', 'CloudFleet', 'TubeBrowser', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
   const visibleSurfaceTabs = selectedProjectId ? surfaceTabs : allProjectSurfaceTabs;
   const handleProjectRefresh = useCallback(() => {
@@ -1602,6 +1607,10 @@ export default function App() {
           ) : activeTab === 'Metrics' ? (
             <motion.div key="metrics-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
               <MetricsPanel key="metrics-all" theme={theme} embedded={embedded} daemonUrl={daemonUrl} />
+            </motion.div>
+          ) : activeTab === 'CloudFleet' ? (
+            <motion.div key="cloudfleet-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
+              <CloudFleetPanel key="cloudfleet-all" theme={theme} embedded={embedded} daemonUrl={daemonUrl} />
             </motion.div>
           ) : activeTab === 'Operator' ? (
             <motion.div key="operator-global" className="flex-1 overflow-y-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
@@ -1995,6 +2004,9 @@ export default function App() {
                     )}
                     {activeTab === 'Metrics' && (
                       <MetricsPanel theme={theme} embedded={embedded} daemonUrl={daemonUrl} />
+                    )}
+                    {activeTab === 'CloudFleet' && (
+                      <CloudFleetPanel theme={theme} embedded={embedded} daemonUrl={daemonUrl} />
                     )}
                     {activeTab === 'TubeBrowser' && (
                       <TubeMessagePanel />
