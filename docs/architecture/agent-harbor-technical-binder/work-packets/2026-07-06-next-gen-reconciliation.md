@@ -155,3 +155,23 @@ surprise the next reconciler.
 - Merge skill_graft (PR #723) — zero ships can use it today; only `test-author` is queued to adopt it once merged — depends on: PR #723 review completion.
 - Unify the three divergent GitHub-output code paths (`github-output.ts` with zero real importers, `outputs/github.ts`, `harbor-pilot.ts`) — the "known consumers" list matches neither the code nor the YAML's own prompt citations — depends on: a `fleet-ast.ts` consumer audit.
 - Enforce or remove the `daily_cap_usd` per-ship field — it is unenforced decoration today, since only the shared $8.50/day fleet pool and global spawn-rate caps are real, which misleads anyone reading `pd-fleet.yml` — depends on: cost-tracking hookup in `fleet-engine.ts`.
+
+## Gap List: What "Finished" Actually Requires
+
+### Shipped
+- Rust kernel macaroon/custody enforcement (`pd-anchor`) is live-wired into the TS daemon via `koffi`/`dlopen`, not a parallel demo.
+- pd-console the app (not just its design) ships real daemon-write mutations, a signed v3.24.1 release artifact, and a visual-proof harness.
+- FleetBar is signed, notarized, and now release-gating — a release aborts if FleetBar fails to build.
+- Harbor editor P0/P1 proves the CRDT merge algebra correct (Loro, byte-identical multi-replica merge, per-line authorship).
+
+### Emerging
+- pd-console's Harbor design-skin is hand-aligned only; the CI diff-gate against the website's token file is still an unbuilt follow-up.
+- pd-console's release packaging is real but fragile — v3.24.0 shipped with the console asset missing entirely.
+- FleetBar's public download artifact on the marketing site is 2+ months stale versus the actual signed release.
+- Harbor editor work has been stalled for 9 days since P1 landed, with no P2 doc and zero forward-motion commits.
+
+### Aspirational
+- Mobile and accounts surfaces are genuinely zero code, unchanged since the ADR table was written.
+- FleetBar's Swiss-modern skin has zero lines of code behind it — it exists only as a static HTML mockup.
+- Harbor editor has no live keystroke editing and no network/transport code anywhere — still read-only on screen.
+- Harbor editor's actual "beat Zed" differentiators (claims, real multi-actor sync) remain entirely unbuilt.
