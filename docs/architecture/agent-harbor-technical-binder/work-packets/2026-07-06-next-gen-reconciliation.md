@@ -18,7 +18,8 @@ The binder survey calls 0090 "two different, unrelated ADRs sharing number 0090"
 a "minor hygiene defect." The ADR survey found a third claimant hiding under a
 non-`NNNN-*.md` filename: `pd-adr-090-interactive-session-hook-installer.md` —
 which is **Accepted** (shipped), while the other two are both **Proposed**.
-Verified independently in this checkout: `docs/adr/{0090-database-distribution-and-sync,0090-the-harbor,pd-adr-090-interactive-session-hook-installer}.md`
+Verified independently in this checkout: `docs/adr/0090-database-distribution-and-sync.md`,
+`docs/adr/0090-the-harbor.md`, and `docs/adr/pd-adr-090-interactive-session-hook-installer.md`
 all exist today. The binder survey's characterization is therefore **contradicted**
 by the more rigorous ADR-survey sweep, not merely incomplete — "minor hygiene
 defect" understates a case where an Accepted ADR and two Proposed ADRs are
@@ -32,7 +33,7 @@ files in `docs/adr/`, 76 unique numbers, 3 triples — `0028`, `0086`, `0090` �
 `docs/adr/0087-trusted-computing-base-broker.md:8-10` logs an explicit TODO
 ("Numbering hygiene is itself broken and needs a sweep... `0028` is used by three
 files, and `0037/0039/0040/0047/0057/0086` are each used by two... an
-administrative renumber is its own task") and `docs/adr/0092-...md:3-6` predicts
+administrative renumber is its own task") and `docs/adr/0092-suggestibility-ladder-and-cloud-coordination-federation.md:3-6` predicts
 the 0090/0091 collision *before* it lands ("If 0092 collides at merge, renumber
 this one"). Both self-diagnoses are still unresolved. **Resolution:** Tier 2 per
 ch16 — block any implementation chain that cites a bare `ADR-0090` (or any of the
@@ -89,7 +90,7 @@ after that timestamp should be updated to "M6 shipped."
 ### 4. ADR-0027 vs ADR-0049 — self-contradicting status claim — `contradicted` (ADR survey finding, confirmed)
 
 Verified directly: `docs/adr/0027-relay-harbor-mesh.md` header reads `Proposed -
-2026-05-06` today. `docs/adr/0049-...md:36` asserts *"ADR-0027 (Accepted)
+2026-05-06` today. `docs/adr/0049-relay-architecture.md:36` asserts *"ADR-0027 (Accepted)
 formalized this pivot"* while its own References list (line 303) says *"ADR-0027
 (...depends on this, Proposed → Accepted after this lands)"* — one Accepted ADR
 claims a dependency is simultaneously already-Accepted and not-yet-Accepted, and
@@ -148,7 +149,7 @@ surprise the next reconciler.
 - Reconcile roadmap-item counts (135 committed snapshot vs 37 live-DB vs 13 harbor-scoped, 53 scattered .db files found) — no roadmap total is trustworthy until this lands, undermining all prioritization — depends on: ADR-0090 database-distribution-and-sync plus ADR-0044 dark-launch resolver.
 - Fix `roadmap upsert`'s default harbor tag, which currently falls back to a per-worktree scratch harbor instead of canonical `port-daddy` — root cause of live-DB fragmentation across 24 harbor tags — depends on: the roadmap-count diagnosis above being accepted.
 - Fix the `parseCronInterval()` day-of-week/day-of-month gap — weekly ships (e.g. tenderfoot) silently degrade to ~10min/hourly polling, burning spawn budget unnoticed — depends on: new unit tests covering weekly/monthly cron shapes in fleet-engine.ts.
-- Repair two phantom-trigger ships — documentarian's missing `scripts/promote-stable.sh` producer, and developer-onboarding-sentinel's `schedule:daily` misrouted as a literal pub/sub channel — neither can fire automatically today — depends on: a routing fix in `lib/fleet/io-dispatch.ts`'s LEGACY_TRIGGER_KINDS.
+- Repair two phantom-trigger ships — documentarian's missing `scripts/promote-stable.sh` producer, and developer-onboarding-sentinel's `schedule:daily` misrouted as a literal pub/sub channel — neither can fire automatically today — depends on: a routing fix in `lib/fleet/io-dispatch.ts`'s LEGACY_TRIGGER_KINDS. <!-- cite-exempt: scripts/promote-stable.sh does not exist yet — that is the bug -->
 - Rewrite ADR-0049's two conflicting sentences about ADR-0027's status to read "Proposed" — the cheapest fix in the register, Tier 1, ready now — depends on: nothing.
 - Re-stamp ADR-0014 (Anchor Protocol) as `superseded → see lib/bonds.ts` — blocks any chain citing 0014 as a description of shipped behavior — depends on: a decision on ADR-0018's still-open security-review findings.
 - Decide Windows/cross-platform scope (ADR-0004 "out of scope" vs ADR-0016's full Named Pipe/SDDL design, both Accepted) — determines whether 0016 is dead weight or a real gate, and isn't an agent-closable call — depends on: operator decision (Tier 3).
