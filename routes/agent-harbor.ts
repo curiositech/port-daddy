@@ -38,7 +38,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { DatabaseInstance } from '../lib/sqlite-runtime.js';
-import { readEvents, verifySessionChain } from '../lib/agent-harbor/event-ledger.js';
+import { sessionChainHeadHash, verifySessionChain } from '../lib/agent-harbor/event-ledger.js';
 import {
   ensureProjectionSchema,
   getCompliance,
@@ -80,6 +80,8 @@ interface ProjectionMeta {
   stale: boolean;
   lastLedgerSeq: number;
   headSeq: number;
+  /** For multi-projection joins: exactly which projections are behind. */
+  staleProjections?: ProjectionName[];
 }
 
 function projectionMeta(db: DatabaseInstance, name: ProjectionName): ProjectionMeta {
@@ -189,6 +191,18 @@ export const agentHarborPlugin: FastifyPluginAsync<AgentHarborPluginOpts> = asyn
       const costs = getCostSummary(db, { agentNodeId: id });
       const receipts = getWorkReceipts(db, { agentNodeId: id });
       const files = getFilesTouched(db, { agentNodeId: id });
+      // The detail view joins five projections: the envelope's freshness must
+      // describe the JOIN, not just the roster — lastLedgerSeq is the least
+      // caught-up checkpoint, headSeq the furthest head seen, and
+      // staleProjections names exactly which read models are behind.
+      const joined: Array<{ name: ProjectionName; stale: boolean; lastLedgerSeq: number; headSeq: number }> = [
+        { name: 'roster', stale: roster.stale, lastLedgerSeq: roster.lastLedgerSeq, headSeq: roster.headSeq },
+        { name: 'compliance', stale: compliance.stale, lastLedgerSeq: compliance.lastLedgerSeq, headSeq: compliance.headSeq },
+        { name: 'costs', stale: costs.stale, lastLedgerSeq: costs.lastLedgerSeq, headSeq: costs.headSeq },
+        { name: 'work-receipts', stale: receipts.stale, lastLedgerSeq: receipts.lastLedgerSeq, headSeq: receipts.headSeq },
+        { name: 'files-touched', stale: files.stale, lastLedgerSeq: files.lastLedgerSeq, headSeq: files.headSeq },
+      ];
+      const staleProjections = joined.filter((p) => p.stale).map((p) => p.name);
       return {
         data: {
           node,
@@ -199,9 +213,10 @@ export const agentHarborPlugin: FastifyPluginAsync<AgentHarborPluginOpts> = asyn
         },
         projection: {
           name: 'roster',
-          stale: roster.stale || compliance.stale || costs.stale || receipts.stale || files.stale,
-          lastLedgerSeq: roster.lastLedgerSeq,
-          headSeq: roster.headSeq,
+          stale: staleProjections.length > 0,
+          lastLedgerSeq: Math.min(...joined.map((p) => p.lastLedgerSeq)),
+          headSeq: Math.max(...joined.map((p) => p.headSeq)),
+          staleProjections,
         } satisfies ProjectionMeta,
       };
     } catch (error) {
@@ -388,8 +403,9 @@ export const agentHarborPlugin: FastifyPluginAsync<AgentHarborPluginOpts> = asyn
       if (sessionId) {
         const broken = verifySessionChain(db, sessionId);
         chainBrokenAt = broken ? { ...broken } : null;
-        const events = readEvents(db, { streamType: 'transcript-event', sessionId, limit: 100_000 });
-        ledgerHeadHash = events.length > 0 ? events[events.length - 1].content_hash : null;
+        // Chain head via a single ORDER BY ledger_seq DESC LIMIT 1 read — a
+        // bounded bulk load would compute the wrong head for very long sessions.
+        ledgerHeadHash = sessionChainHeadHash(db, sessionId);
       }
       const receiptHeadHash =
         typeof receipt.transcript_head_hash === 'string' ? receipt.transcript_head_hash : null;
