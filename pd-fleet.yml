@@ -23,30 +23,64 @@
 # Every LLM-powered ship below specifies `backend:` (primary) PLUS a
 # `fallbacks:` array that expresses preference *order*, not just a
 # tail-end safety net. The runtime walks the list and uses the FIRST
-# available + healthy + under-cap option. The ordering is the same
-# for every ship:
+# available + healthy + under-cap option.
 #
-#   1. cli:claude-code     — free if the operator is a Claude Max
-#                            subscriber and PD_USE_CLI_BACKEND=claude-code
-#                            (or claude-code is on PATH and healthy).
-#                            Routed via the pd-tube CLI backend
-#                            (sibling PR #109 work).
-#   2. cli:codex           — free if the operator has a ChatGPT Pro
-#                            subscription and codex is on PATH.
-#                            Also routed via pd-tube.
-#   3. cloudflare          — cheapest cloud option that's competent
-#                            for the ship's task (qwen3-30b-a3b-fp8
-#                            for general; qwen2.5-coder for code work).
-#                            Requires CLOUDFLARE_ACCOUNT_ID +
-#                            CLOUDFLARE_API_TOKEN.
-#   4. openai (gpt-5-mini) — middle-tier; pattern recognition,
-#                            tautology detection.
-#   5. anthropic (haiku)   — soft preference for voice-sensitive
-#                            ships (code-reviewer, tenderfoot,
-#                            red-team). NEVER a hard requirement.
-#                            If only cloudflare is available, the
-#                            ship runs on cloudflare and accepts the
-#                            quality tradeoff.
+# Local fleet vs cloud fleet (2026-07-06 overhaul)
+# ─────────────────────────────────────────────────────
+# The fleet splits into two lanes, and the two lanes deliberately
+# resolve to different tiers of model:
+#
+#   LOCAL FLEET — the on-machine bookkeeping / lint / pattern ships
+#   (gardener, test-hunter, documentarian, simplifier, cartographer,
+#   tautology-sniffer, officer-of-the-watch, developer-onboarding-
+#   sentinel). These fire on local git/cron/file events, run many
+#   times a day, and do work a small local coder model handles well:
+#   worktree hygiene, coverage gaps, log triage, roadmap bookkeeping,
+#   test-file pattern scoring. They now lead with a CHEAP LOCAL OLLAMA
+#   model and NEVER reach for a metered cloud backend:
+#
+#     1. ollama qwen2.5-coder:7b — FREE, runs on the operator's machine
+#                                  (localhost:11434). One `ollama pull
+#                                  qwen2.5-coder:7b` and the whole local
+#                                  fleet is self-hosted. Swap to
+#                                  `llama3.1:8b` (general) or
+#                                  `qwen2.5-coder:14b` (stronger) per
+#                                  taste; see lib/fleet-engine.ts
+#                                  SPECIAL_FORM_MODEL_TIERS.
+#     2. cli:claude-code / cli:codex — free-if-subscriber safety net so
+#                                  a ship still runs when Ollama is not
+#                                  installed or `ollama serve` is down.
+#
+#   There is NO `cloudflare` (or other metered) rung on a local ship:
+#   a machine-local janitor must not silently spend cloud money. If
+#   neither Ollama nor a CLI backend is serviceable the ship fails
+#   loudly (see below) rather than degrading to a paid tier.
+#
+#   CLOUD / JUDGMENT FLEET — reviewers and ideators whose output the
+#   operator reads and trusts (qa, code-reviewer, red-team, test-
+#   author, tenderfoot, steward, spark, spider). A 7B local model is
+#   not good enough for novel-attack construction, land/no-land calls,
+#   voice-sensitive review, or high-temperature ideation, so these keep
+#   the capable ladder:
+#
+#     1. cli:claude-code     — free if the operator is a Claude Max
+#                              subscriber and PD_USE_CLI_BACKEND=claude-code
+#                              (or claude-code is on PATH and healthy).
+#     2. cli:codex           — free if the operator has a ChatGPT Pro
+#                              subscription and codex is on PATH.
+#     3. cloudflare          — cheapest competent cloud option
+#                              (qwen3-30b-a3b-fp8 general; gpt-oss-120b
+#                              for review). Requires CLOUDFLARE_ACCOUNT_ID
+#                              + CLOUDFLARE_API_TOKEN.
+#     4. openai (gpt-5-mini) — middle-tier; pattern recognition.
+#     5. anthropic (haiku/sonnet) — soft preference for voice-sensitive
+#                              ships. NEVER a hard requirement.
+#
+#   The Cloudflare edge PR-review fleet (apps/fleet-executor, the GitHub
+#   App receiver) is the cloud fleet's remote body: it reviews PRs on
+#   Workers AI and streams cost/token/model telemetry back to the
+#   daemon (surfaced in FleetBar's Cloud Fleet view). The local fleet
+#   never rides that path.
 #
 # The spawner picks the first entry whose backend is reachable AND
 # whose remaining daily-cap budget covers an average run. Ships fail
@@ -67,12 +101,17 @@ fleet:
   limits:
     max_concurrent_spawns: 3
     max_spawns_per_hour: 12
-    # Daily ceiling under the new config: $5.50 if every ship runs
-    # on the cheapest cloud option for its tier (cloudflare for
-    # general, openai gpt-5-mini for code/tautology, anthropic only
-    # for voice-sensitive review). If PD_USE_CLI_BACKEND=claude-code
-    # is set and the operator is a Max subscriber, marginal cost
-    # drops to ~$0 — the cap becomes a safety net, not a forecast.
+    # Daily ceiling. Since the 2026-07-06 overhaul the LOCAL fleet
+    # (gardener, test-hunter, documentarian, simplifier, cartographer,
+    # tautology-sniffer, officer-of-the-watch, developer-onboarding-
+    # sentinel) leads with a free local Ollama model and carries NO
+    # metered rung, so it contributes ~$0 to this cap. The remaining
+    # spend is the CLOUD / JUDGMENT fleet (qa, code-reviewer, red-team,
+    # test-author, tenderfoot, steward, spark, spider) when their CLI
+    # backends are unavailable and they fall to a paid tier. If
+    # PD_USE_CLI_BACKEND=claude-code is set and the operator is a Max
+    # subscriber, marginal cost drops to ~$0 and the cap is a safety
+    # net, not a forecast.
     budget_usd_per_day: 8.50
 
   agents:
@@ -85,11 +124,14 @@ fleet:
       trigger: git:committed
       cooldown_ms: 1800000
       dedupe_window_ms: 1800000
-      backend: cli:claude-code
+      # LOCAL FLEET (2026-07-06): worktree-hygiene lint on every commit — pattern work a 7B coder nails.
+      # Leads with a free local Ollama coder model; CLI backends are the
+      # free-if-subscriber safety net; NO metered cloud rung.
+      backend: ollama
+      model: qwen2.5-coder:7b
       fallbacks:
+        - backend: cli:claude-code
         - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
       singleton: true
       prompt: |
         You are Gardener. After every commit, audit the worktree's
@@ -174,11 +216,14 @@ fleet:
       # `coverage-gap` referencing the offending file. test-author
       # listens on that label.
       trigger: git:committed
-      backend: cli:claude-code
+      # LOCAL FLEET (2026-07-06): coverage-gap bookkeeping — mechanical, low reasoning.
+      # Leads with a free local Ollama coder model; CLI backends are the
+      # free-if-subscriber safety net; NO metered cloud rung.
+      backend: ollama
+      model: qwen2.5-coder:7b
       fallbacks:
+        - backend: cli:claude-code
         - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -211,11 +256,14 @@ fleet:
       # against docs surface when code-doc drift detected. Previously
       # just appended notes; now ships a real diff.
       trigger: promotion:release-surfaces
-      backend: cli:claude-code
+      # LOCAL FLEET (2026-07-06): release-surface drift notes — scheduled, first-pass prose.
+      # Leads with a free local Ollama coder model; CLI backends are the
+      # free-if-subscriber safety net; NO metered cloud rung.
+      backend: ollama
+      model: qwen2.5-coder:7b
       fallbacks:
+        - backend: cli:claude-code
         - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
       singleton: true
       cooldown_ms: 900000
       dedupe_window_ms: 43200000
@@ -259,11 +307,14 @@ fleet:
     simplifier:
       # PAUSED until explicitly requested. Convention preserved.
       trigger: git:committed
-      backend: cli:claude-code
+      # LOCAL FLEET (2026-07-06): mechanical code-simplification suggestions.
+      # Leads with a free local Ollama coder model; CLI backends are the
+      # free-if-subscriber safety net; NO metered cloud rung.
+      backend: ollama
+      model: qwen2.5-coder:7b
       fallbacks:
+        - backend: cli:claude-code
         - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -286,11 +337,14 @@ fleet:
       # file in the repo, auto-committed to the `cartographer-state`
       # branch.
       schedule: "*/30 * * * *"
-      backend: cli:claude-code
+      # LOCAL FLEET (2026-07-06): roadmap/status bookkeeping every 30 min — high-frequency janitor work.
+      # Leads with a free local Ollama coder model; CLI backends are the
+      # free-if-subscriber safety net; NO metered cloud rung.
+      backend: ollama
+      model: qwen2.5-coder:7b
       fallbacks:
+        - backend: cli:claude-code
         - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
       timeout: 900000
       singleton: true
       allowedTools: "Read,Grep,Glob,Write,Bash(pd feedback*),Bash(pd roadmap*),Bash(pd ideas*),Bash(git*)"
@@ -645,13 +699,14 @@ fleet:
       # Pattern recognition over test code — gpt-5-mini is the
       # sweet spot. Anthropic dropped from the preference list
       # entirely: this isn't a voice-sensitive task.
-      backend: cli:claude-code
+      # LOCAL FLEET (2026-07-06): weighted test-file pattern scoring — the ship contract itself calls this a pattern job.
+      # Leads with a free local Ollama coder model; CLI backends are the
+      # free-if-subscriber safety net; NO metered cloud rung.
+      backend: ollama
+      model: qwen2.5-coder:7b
       fallbacks:
+        - backend: cli:claude-code
         - backend: cli:codex
-        - backend: openai
-          model: gpt-5-mini
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false
@@ -753,11 +808,14 @@ fleet:
       # tiers, and known gaps: fleet/ships/officer-of-the-watch.md.
       # General pattern: the `solely-responsible-agent` skill.
       schedule: "0 */4 * * *"
-      backend: cli:claude-code
+      # LOCAL FLEET (2026-07-06): four-hourly log sweep + error-class grouping — the ship born from an Ollama incident; log triage is a natural local job.
+      # Leads with a free local Ollama coder model; CLI backends are the
+      # free-if-subscriber safety net; NO metered cloud rung.
+      backend: ollama
+      model: qwen2.5-coder:7b
       fallbacks:
+        - backend: cli:claude-code
         - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
       cooldown_ms: 3600000
       dedupe_window_ms: 10800000
       singleton: true
@@ -945,11 +1003,14 @@ fleet:
     developer-onboarding-sentinel:
       trigger: schedule:daily
       cooldown_ms: 82800000       # 23 h — one run per day max
-      backend: cli:claude-code
+      # LOCAL FLEET (2026-07-06): daily onboarding-doc freshness check — scheduled, low reasoning.
+      # Leads with a free local Ollama coder model; CLI backends are the
+      # free-if-subscriber safety net; NO metered cloud rung.
+      backend: ollama
+      model: qwen2.5-coder:7b
       fallbacks:
+        - backend: cli:claude-code
         - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
       singleton: true
       prompt: |
         You are the Developer-Onboarding Sentinel. Your mission:

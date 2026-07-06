@@ -21,6 +21,12 @@
 #   - extended output sink syntax (notify:, calendar:, email:, sms:,
 #     webhook:, file:, pd:)
 #
+# LOCAL-FIRST (2026-07-06): a personal fleet is a LOCAL fleet — its ships
+# lead with a free local Ollama model (ollama/qwen2.5-coder:7b) and only
+# fall back to a CLI subscription or a metered cloud tier when Ollama is
+# unreachable. Run `ollama pull qwen2.5-coder:7b` once and the whole
+# personal fleet runs on-device at ~$0. Swap the model per ship as you like.
+#
 # CONSENT: every output sink that touches PII calls through
 # lib/fleet/consent-gate.ts before dispatching. The first time a ship
 # tries to write to a calendar or send an email, the gate refuses and
@@ -48,6 +54,7 @@ fleet:
         - notify:os
         - file:write(~/notes/morning-{date}.md)
       backend_preference:
+        - ollama/qwen2.5-coder:7b   # local-first: free, on-device (see header)
         - cli:claude-code           # use your Claude Max subscription
         - cli:codex
         - cloudflare/qwen3-30b
@@ -68,6 +75,7 @@ fleet:
         - file:write(~/notes/commitments.md)
         - calendar:create-event
       backend_preference:
+        - ollama/qwen2.5-coder:7b   # local-first: free, on-device (see header)
         - cli:claude-code
         - cli:codex
       daily_cap_usd: 0.20
@@ -87,6 +95,7 @@ fleet:
         - file:write(~/notes/reflection-{date}.md)
         - notify:os
       backend_preference:
+        - ollama/qwen2.5-coder:7b   # local-first: free, on-device (see header)
         - cli:claude-code
         - cli:codex
       singleton: true
@@ -118,6 +127,7 @@ fleet:
         - notify:os
         - file:write(~/notes/processed/{date}-handled.md)
       backend_preference:
+        - ollama/qwen2.5-coder:7b   # local-first: free, on-device (see header)
         - cli:claude-code
       daily_cap_usd: 0.05
       identity: personal:fleet:notes-inbox
@@ -141,6 +151,7 @@ fleet:
         - file:write(~/notes/inbound-{date}-{time}.md)
         - notify:os
       backend_preference:
+        - ollama/qwen2.5-coder:7b   # local-first: free, on-device (see header)
         - cli:claude-code
       daily_cap_usd: 0.05
       identity: personal:fleet:zapier
