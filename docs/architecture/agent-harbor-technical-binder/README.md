@@ -185,6 +185,15 @@ Work Receipt:
   Scout, FleetBar, and pd-console as the three operator surfaces: division of
   labor, the hot/durable bus with latency budgets, the enforced-MCP broker
   collapse to five tools, and proof gates IT-015..IT-018.
+- [20 Design System: Story Linework](./20-design-system-story-linework.md):
+  palette v2 on the ADR-0048 stack, fractional linework, Vignelli blocking,
+  signal-flag state grammar, the cut-paper art style, hard rules and content
+  honesty laws, and the per-surface application contract.
+- [21 Automations: The Trigger-To-Agent App](./21-automations.md):
+  the event-trigger automation loop as its own surface: plain-English wiring
+  written by agents, trigger→plan→sink graphs gated at consent, Work Receipts
+  per firing, the standing `Automation` record over F0 v0 contracts, inherited
+  trust/receiver discipline, the gallery shape, and proof gates IT-019..IT-022.
 
 ## Architecture in one diagram
 
