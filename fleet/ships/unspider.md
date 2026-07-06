@@ -1,9 +1,26 @@
-# unspider (STUB — future ship, not yet built)
+# unspider (SUPERSEDED — the role is now `lookout`)
 
-**Status:** placeholder. Not implemented. Not in `pd-fleet.yml` agents.
+**Status:** the contradiction-finder ambition ADR-0032 filed under the
+name *unSpider* now ships as the **`lookout`** ship. See
+[`fleet/ships/lookout.md`](./lookout.md) and the `lookout` block in
+`pd-fleet.yml`. This file is kept as a pointer so anyone who reads the ADR
+or greps for `unspider` lands on the real ship.
 **ADR:** [`docs/adr/0032-unspider-contradiction-finder.md`](../../docs/adr/0032-unspider-contradiction-finder.md)
 **Sibling:** [`fleet/ships/tenderfoot.md`](./tenderfoot.md) — fresh-eyes
 new-developer audit, already shipping.
+
+## What changed
+
+The 2026-07 fleet retool built the contradiction-finder as a cloud
+PR-commenting ship named **lookout** (aligned with the existing Lookout
+actor — both are "spot trouble ahead"). Lookout runs on every
+`pull_request:opened`, is handed the other open PRs and feature branches as
+context, and alerts the operator with actionable `parley`/`roadmap`
+proposals when it spots a contradiction, an ownership gap, duplication, or
+newly broken UX. The ADR-0032 detail below is retained as design history;
+the live behavior contract is `fleet/ships/lookout.md`.
+
+---
 
 ## Why this file exists
 

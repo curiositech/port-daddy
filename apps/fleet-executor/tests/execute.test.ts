@@ -208,7 +208,7 @@ describe('deterministic ship resolution', () => {
     expect(shipsRun.has('test-author')).toBe(false); // needsExecution → GHA, skipped here
   });
 
-  it('runs Spark as a PR comment ship and passes its creative temperature', async () => {
+  it('runs Spark as an ideation ship, passes its temperature, and renders actionable proposals', async () => {
     state.files.set(
       'main:pd-fleet.yml',
       fleetYaml([
@@ -225,12 +225,16 @@ describe('deterministic ship resolution', () => {
     const ai = aiStub({
       perShip: {
         spark: [
-          '## Spark Idea: PR-actionable fleet ideas',
-          '',
-          '- Kickoff: `/pd assign spark pr-actionable-fleet-ideas`',
-          '',
           '```json',
-          '[]',
+          JSON.stringify([
+            {
+              title: 'Stream harbor events to the roster',
+              rationale: 'The new event ledger makes live roster updates buildable.',
+              evidence: ['lib/agent-harbor/event-ledger.ts'],
+              action: 'assign',
+              prompt: 'Wire the harbor event ledger into the roster pane so rows update live.',
+            },
+          ]),
           '```',
           '',
           'FLEET-VERDICT: PASS',
@@ -240,18 +244,20 @@ describe('deterministic ship resolution', () => {
 
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
 
+    // Creative temperature is still passed through to the model call.
     expect(ai.calls).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        ship: 'spark',
-        phase: 'map',
-        temperature: 1.25,
-      }),
+      expect.objectContaining({ ship: 'spark', phase: 'map', temperature: 1.25 }),
     ]));
+
     const commentBodies = state.records
       .filter(r => r.method === 'POST' && /\/issues\/\d+\/comments$/.test(r.url))
       .map(r => (r.body as { body?: string }).body ?? '');
+    // The comment is tagged as spark and carries a REAL actionable command.
     expect(commentBodies.some(body => body.includes('pd-ship:spark'))).toBe(true);
-    expect(commentBodies.some(body => body.includes('/pd assign spark'))).toBe(true);
+    expect(commentBodies.some(body => body.includes('pd dispatch propose'))).toBe(true);
+    expect(commentBodies.some(body => body.includes('Stream harbor events to the roster'))).toBe(true);
+    // Ideation ships never gate: the check concludes success (no findings, no block).
+    expect(state.completed[0].conclusion).toBe('success');
   });
 });
 
@@ -378,5 +384,213 @@ describe('idempotent re-run', () => {
 
     expect(state.commentPosts).toBe(1); // only the first run created
     expect(state.commentPatches).toBe(1); // the re-run edited in place
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ideation ships (spark / spider / lookout / snipe): end-to-end proof that each
+// can do the job we ask — validate the Proposal schema and post REAL actionable
+// Port Daddy syntax, while never gating a merge.
+
+/** A pd-fleet.yml with one ideation ship, prompt embedding its name for routing. */
+function ideationYaml(name: string, temperature = 0.8): string {
+  return [
+    'fleet:',
+    '  name: test',
+    '  agents:',
+    `    ${name}:`,
+    '      trigger: pull_request:opened',
+    '      class: ideation',
+    `      temperature: ${temperature}`,
+    '      allowedTools: "Read,Grep,Glob"',
+    '      fallbacks:',
+    '        - backend: cloudflare',
+    "          model: '@cf/openai/gpt-oss-120b'",
+    '      prompt: |',
+    `        ${name} ship: propose forward work for this diff.`,
+    '',
+  ].join('\n');
+}
+
+function commentBodiesOf(state: GitHubState): string[] {
+  return state.records
+    .filter(r => r.method === 'POST' && /\/issues\/\d+\/comments$/.test(r.url))
+    .map(r => (r.body as { body?: string }).body ?? '');
+}
+
+describe('ideation ships — schema-validated, actionable, non-gating', () => {
+  it('spider posts a syllogism proposal rendered into a runnable assign command', async () => {
+    state.files.set('main:pd-fleet.yml', ideationYaml('spider', 0.95));
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: {
+        spider: [
+          '```json',
+          JSON.stringify([
+            {
+              title: 'Roster-driven parley routing',
+              rationale: 'A: the roster knows agent state. B: parley needs parties. Therefore C: auto-pick parties.',
+              evidence: ['lib/actor-roster.ts', 'cli/commands/parley.ts'],
+              action: 'assign',
+              prompt: 'Add roster-driven default --with selection to pd parley call.',
+            },
+          ]),
+          '```',
+          'FLEET-VERDICT: PASS',
+        ].join('\n'),
+      },
+    }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    const bodies = commentBodiesOf(state);
+    expect(bodies.some(b => b.includes('pd-ship:spider'))).toBe(true);
+    expect(bodies.some(b => b.includes('Roster-driven parley routing'))).toBe(true);
+    expect(bodies.some(b => b.includes('pd dispatch propose'))).toBe(true);
+    // Ideation never gates.
+    expect(state.completed[0].conclusion).toBe('success');
+    // Ideation ships contribute no inline review comments.
+    for (const rev of state.reviews) expect(rev.comments).toHaveLength(0);
+  });
+
+  it('lookout is given cross-PR + branch context and posts a parley proposal with severity', async () => {
+    state.files.set('main:pd-fleet.yml', ideationYaml('lookout', 0.4));
+    state.openPRs = [
+      { number: 700, title: 'C8 setup', draft: false, head: { ref: 'wave2-c8' }, base: { ref: 'main' } },
+    ];
+    state.branches = [{ name: 'wave2-c8' }, { name: 'wave2-c3' }];
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: {
+        lookout: [
+          '```json',
+          JSON.stringify([
+            {
+              title: 'Route triangle: GET /agent-nodes ownership',
+              rationale: 'This PR calls a route PR #700 also assumes but nobody owns.',
+              evidence: ['cli/commands/diagnostics.ts'],
+              action: 'parley',
+              severity: 'HIGH',
+            },
+          ]),
+          '```',
+          'FLEET-VERDICT: PASS',
+        ].join('\n'),
+      },
+    }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    // The model was actually handed the fleet context (other open PRs / branches).
+    const aiCalls = (ai.run as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    const userMsgs = aiCalls
+      .map(c => (c[1] as { messages: Array<{ role: string; content: string }> }).messages)
+      .flat()
+      .filter(m => m.role === 'user')
+      .map(m => m.content);
+    expect(userMsgs.some(m => m.includes('Fleet context'))).toBe(true);
+    expect(userMsgs.some(m => m.includes('#700'))).toBe(true);
+    expect(userMsgs.some(m => m.includes('wave2-c3'))).toBe(true);
+
+    const bodies = commentBodiesOf(state);
+    expect(bodies.some(b => b.includes('pd-ship:lookout'))).toBe(true);
+    expect(bodies.some(b => b.includes('`HIGH`'))).toBe(true);
+    expect(bodies.some(b => b.includes('pd parley call'))).toBe(true);
+    // A HIGH trouble-ahead alert is still advisory — never fails the check.
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('snipe proposes a skill-architect skill with a runnable dispatch command', async () => {
+    state.files.set('main:pd-fleet.yml', ideationYaml('snipe', 0.7));
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: {
+        snipe: [
+          '```json',
+          JSON.stringify([
+            {
+              title: 'Harbor fixture authoring skill',
+              rationale: 'Every harbor PR hand-rolls fixture daemons; a skill would remove that friction.',
+              evidence: ['core/pd-console/scripts/harbor-fixture-daemon.py'],
+              action: 'skill',
+              prompt: 'author F0-shaped harbor fixture daemons and capture scripts in one step',
+            },
+          ]),
+          '```',
+          'FLEET-VERDICT: PASS',
+        ].join('\n'),
+      },
+    }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    const bodies = commentBodiesOf(state);
+    expect(bodies.some(b => b.includes('pd-ship:snipe'))).toBe(true);
+    expect(bodies.some(b => b.includes('Use the skill-architect skill'))).toBe(true);
+    expect(bodies.some(b => b.includes('--tags skill,from-fleet,pd-snipe'))).toBe(true);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('an ideation ship that proposes nothing ([]) posts no comment (silence)', async () => {
+    state.files.set('main:pd-fleet.yml', ideationYaml('spark', 1.25));
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { spark: '```json\n[]\n```\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    expect(commentBodiesOf(state)).toHaveLength(0);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('malformed proposal JSON on an ideation ship falls back to raw output and never gates', async () => {
+    state.files.set('main:pd-fleet.yml', ideationYaml('spark', 1.25));
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { spark: 'I think we could build stuff.\n```json\n{ broken\n```\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    const bodies = commentBodiesOf(state);
+    // Raw prose is preserved rather than dropped.
+    expect(bodies.some(b => b.includes('I think we could build stuff.'))).toBe(true);
+    // Malformed ideation output must NOT flip the check to neutral/failure.
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('ideation ships run alongside a blocking reviewer without affecting its gate', async () => {
+    // spider is ideation by identity (IDEATION_SHIPS), so no `class:` field needed.
+    state.files.set(
+      'main:pd-fleet.yml',
+      fleetYaml([
+        { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+        { name: 'spider', temperature: 0.95 },
+      ]),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': 'HIGH bug\n\nFLEET-VERDICT: BLOCK',
+        spider: '```json\n' + JSON.stringify([
+          { title: 'Adjacent work', rationale: 'why', evidence: ['x'], action: 'roadmap' },
+        ]) + '\n```\nFLEET-VERDICT: PASS',
+      },
+    }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    // The blocking reviewer still fails the gate; spider's PASS doesn't rescue it.
+    expect(state.completed[0].conclusion).toBe('failure');
+    const bodies = commentBodiesOf(state);
+    expect(bodies.some(b => b.includes('pd-ship:spider'))).toBe(true);
+    expect(bodies.some(b => b.includes('pd-ship:code-reviewer'))).toBe(true);
   });
 });
