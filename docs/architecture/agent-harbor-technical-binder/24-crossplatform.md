@@ -4,7 +4,7 @@ Status: platform-scope chapter. This chapter answers the chapter 16 AoR open
 row "Cross-platform and Windows IPC — the binder is Mac-heavy; if Port Daddy
 is Mac-first now, say so and name the later platform gate." It realizes the
 deferred design item from the distribution strategy
-(`docs/strategy/2026-07-06-distribution-dogfood-and-go-to-market.md`, §9 and
+(`docs/strategy/2026-07-06-distribution-dogfood-and-go-to-market.md`, §9 and <!-- cite-exempt: strategy doc lives on the strategy/distribution-and-dogfood branch (PR #707), not yet shipped to main -->
 §14): the Windows track becomes a **named gate with an owner and acceptance
 tests**, not an omission. Nothing in this chapter changes the Mac-first
 sequencing; it makes that sequencing an explicit, auditable product decision.
@@ -161,7 +161,7 @@ it:
   `cross-platform-desktop` conventions: tray-flyout instead of menu-bar
   popover, close-means-minimize-to-tray, Segoe UI in the font stack, tested
   at 125%/150% fractional scaling). Ch20's token contract already defines a
-  cross-runtime mapping (`apps.html`); the tray app consumes the same tokens.
+  cross-runtime mapping (`docs/design/story-linework/apps.html`); the tray app consumes the same tokens.
   It is a re-expression of a spec, not a fork of a product: the popover state
   machine and gate-card schema in `work-packets/fleetbar-technical-spec.md`
   are the source, and any behavior the tray app cannot express is logged as a
@@ -391,7 +391,7 @@ DPI defect class); close-button semantics follow platform convention
   the FleetBar work-packet.
 - **Chapter 19/20**: the bus contract, latency budgets, design tokens, and
   content-honesty laws bind the Windows surfaces verbatim; ch20's
-  cross-runtime token mapping (`apps.html`) is the tray app's skin authority.
+  cross-runtime token mapping (`docs/design/story-linework/apps.html`) is the tray app's skin authority.
 - **Strategy §9/§14**: this chapter is the dedicated design pass §14 ordered
   for the cross-platform track; the strategy paragraph is superseded by this
   chapter where they differ in detail (they do not currently differ in
