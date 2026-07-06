@@ -21,7 +21,7 @@ to apply here regardless, argued from first principles below.
 Where should the **algorithm** (tree-sitter parsing, symbol claims, dependency
 graph, conflict prediction, the 2026 research extensions) and the
 **integration** (Port Daddy API shape, `pd session symbols claim`, Arbiter
-invariant wiring, the Lookout/Sentinel evaluation) live going forward?
+invariant wiring, the Lookout/Skipper evaluation) live going forward?
 
 ## Drift found (honest accounting)
 
@@ -61,7 +61,7 @@ Port-Daddy-specific dependency -- it applies to any coordination daemon. That
 belongs in the **shared, windags-distributed skill**, same as the rest of the
 skill's current content already does. The *integration* content -- the `pd
 session symbols claim` API shape, the Arbiter invariant, the CLI verbs, the
-Lookout/Sentinel evaluation and the new work-packet agent proposal -- is
+Lookout/Skipper evaluation and the new work-packet agent proposal -- is
 Port-Daddy-specific and should stay **local to this repo**, the same
 "shared library, not a hard runtime dependency" shape used for the M7 cascade
 fork.
@@ -79,7 +79,7 @@ Concretely:
    scoped to this repo's concrete surfaces (`pd-fleet.yml`, `apps/
    fleet-executor`, `pd session symbols claim`) and are the sections that
    would move first if a hard split ever happens.
-2. **The new agent proposal (Semantic Intent Sentinel) is Port-Daddy-local by
+2. **The new agent proposal (Semantic Intent Skipper) is Port-Daddy-local by
    construction** -- it's defined against this repo's fleet/ideation-ship
    pattern, `pd embed`, and `pd-fleet.yml`. It should not be pushed upstream
    into windags; windags has no fleet-executor, no ideation-ship schema, and

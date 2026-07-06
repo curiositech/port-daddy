@@ -1,11 +1,11 @@
-# Semantic Intent Sentinel — Agent Proposal
+# Semantic Intent Skipper — Agent Proposal
 
 Status: proposal, not yet implemented. No code exists. No `pd-fleet.yml` entry.
 This packet exists to reserve the concern and settle the "does this duplicate
 Lookout or the binder's Longshoreman role" question before anyone builds it.
 
 Scope:
-  Defines a new, narrowly-scoped agent -- the Semantic Intent Sentinel -- that
+  Defines a new, narrowly-scoped agent -- the Semantic Intent Skipper -- that
   watches semantic/topical proximity between concurrently active work across
   the fleet, as distinct from (a) literal file/symbol overlap (already covered
   by `skills/semantic-conflict-prediction`) and (b) post-hoc cross-PR
@@ -77,34 +77,22 @@ role class → narrowly-scoped concrete agent.
 
 ## Agent definition
 
-**Name:** Semantic Intent Sentinel (`sentinel` in fleet config; ship class
+**Name:** Semantic Intent Skipper (`skipper` in fleet config; ship class
 `ideation`, same non-blocking category as Spider/Spark/Lookout/Snipe)
 
-> **Naming collision found during audit (unresolved, flagging for the
-> operator rather than picking a replacement unilaterally):** `sentinel` is
-> already claimed, three times over, in this codebase:
-> 1. `docs/shipwright/SHIP-GRAMMAR.md` § 8.2 ("Other codenames (port-daddy
->    fleet)") lists `sentinel` as an existing visual codename -- a
->    "battleship"-feel hull, `L_a=8, V_a=3, C_a=5`.
-> 2. `docs/shipwright/AGENT-MODEL.md` § 3.2 names **QA Sentinel** as an
->    existing `fleet-scheduled`-class agent (alongside Typesafety,
->    Documentarian, Perf Hawk, Gardener, Spark), and `qa-sentinel` is a
->    live, typed archetype id in `lib/shipwright/archetypes.ts` (used in
->    `fleet-config-ui/src/shipwright/fixtures.ts` and `lib/bonds.ts`).
-> 3. `pd-fleet.yml` already has a real, wired `developer-onboarding-sentinel`
->    fleet-scheduled agent entry -- the exact kind of YAML key this
->    proposal's build step 5 plans to add a second `sentinel` key next to.
->
-> SHIP-GRAMMAR.md states its own policy explicitly: "when two popular
-> codenames collide we prefer a rename during archetype naming (e.g.
-> `wanderer` instead of a second cousin of `scout`)." This proposal's
-> "Relationship to existing roles" table below checks against
-> `semantic-conflict-prediction`, Lookout, Longshoreman, and unSpider, but
-> never checked the shipwright codename registry or these existing
-> Sentinel-named agents -- that check should have happened before naming
-> this ship. Recommend renaming before any `pd-fleet.yml` entry is added
-> (see TODO); not renamed here because picking the replacement name is an
-> authorial call, not a mechanical one.
+> **Naming collision resolved by the operator.** The working name "Sentinel"
+> collided, three times over, with existing usage in this codebase:
+> `docs/shipwright/SHIP-GRAMMAR.md` § 8.2's `sentinel` visual codename, the
+> live `QA Sentinel` / `qa-sentinel` archetype (`docs/shipwright/AGENT-MODEL.md`
+> § 3.2, `lib/shipwright/archetypes.ts`), and the already-wired
+> `developer-onboarding-sentinel` entry in `pd-fleet.yml`. Per SHIP-GRAMMAR.md's
+> own stated policy ("when two popular codenames collide we prefer a rename"),
+> the operator picked **Skipper**: the sailor in direct command of a ship
+> during docking -- the maneuver where collisions with other vessels are most
+> likely and most need a steady hand. Apt for an agent whose entire job is
+> watching for collisions between concurrently active work before they
+> happen. No further naming action is needed before the `pd-fleet.yml` entry
+> lands.
 
 **Concern (one sentence):** Detect and broadcast topical/semantic proximity
 between concurrently active agents' declared work, before either agent has
@@ -118,7 +106,7 @@ produced a diff worth AST-comparing or a PR worth Lookout-comparing.
 - IN scope: computing embedding-space proximity between session intents and
   surfacing pairs above a similarity threshold as an advisory note.
 - OUT of scope: literal symbol/file conflict detection (that is
-  `semantic-conflict-prediction`'s job; the Sentinel should *consume* its
+  `semantic-conflict-prediction`'s job; the Skipper should *consume* its
   dependency graph as one input, not reimplement it).
 - OUT of scope: reasoning over already-opened PRs or finished diffs (that is
   Lookout's job; if a PR already exists, route there instead).
@@ -180,12 +168,12 @@ Between Advisory and Enforced Claims).
 
 ## Relationship to existing roles (explicit, so this doesn't get built twice)
 
-| Existing thing | What it does | How the Sentinel differs |
+| Existing thing | What it does | How the Skipper differs |
 |---|---|---|
-| `semantic-conflict-prediction` skill (symbol claims) | Structural: same-symbol or dependency-graph-connected conflicts, requires literal overlap | Sentinel fires on *topical* proximity with zero literal overlap; consumes the dependency graph as a secondary signal, does not replace it |
-| Lookout ideation ship (PR #721) | Reasons over *already-opened* PRs and recent branches for contradiction/architecture trouble | Sentinel watches *pre-PR*, in-progress session intent; if a PR already exists, that pair should be routed to Lookout, not re-detected by the Sentinel |
-| Longshoreman (binder role, ch04/ch05) | Broad governance archetype: parleys, compaction guidance, warns on high-semantic-conflict predictions | Sentinel is a concrete specialization of this archetype, scoped to one signal (semantic-cloud proximity), the same way unSpider specializes it toward contradiction-hunting |
-| unSpider (ADR-0032, not yet built) | Structural contradiction/overlap hunting across roadmap and code reality, 8 detector kinds, $0.20/day cap | Sibling ship, not a competitor: unSpider hunts stale/contradictory *facts*; the Sentinel hunts *in-flight proximity* between active agents. They could share the `feedback` queue output lane but should ship as separate detectors. |
+| `semantic-conflict-prediction` skill (symbol claims) | Structural: same-symbol or dependency-graph-connected conflicts, requires literal overlap | Skipper fires on *topical* proximity with zero literal overlap; consumes the dependency graph as a secondary signal, does not replace it |
+| Lookout ideation ship (PR #721) | Reasons over *already-opened* PRs and recent branches for contradiction/architecture trouble | Skipper watches *pre-PR*, in-progress session intent; if a PR already exists, that pair should be routed to Lookout, not re-detected by the Skipper |
+| Longshoreman (binder role, ch04/ch05) | Broad governance archetype: parleys, compaction guidance, warns on high-semantic-conflict predictions | Skipper is a concrete specialization of this archetype, scoped to one signal (semantic-cloud proximity), the same way unSpider specializes it toward contradiction-hunting |
+| unSpider (ADR-0032, not yet built) | Structural contradiction/overlap hunting across roadmap and code reality, 8 detector kinds, $0.20/day cap | Sibling ship, not a competitor: unSpider hunts stale/contradictory *facts*; the Skipper hunts *in-flight proximity* between active agents. They could share the `feedback` queue output lane but should ship as separate detectors. |
 
 ## Build sequence (if greenlit)
 
@@ -197,7 +185,7 @@ Between Advisory and Enforced Claims).
 3. Wire read access to active sessions + the existing dependency graph.
 4. Emit the JSON contract above to a `feedback`-style queue; render as an
    advisory `pd note`.
-5. Add `sentinel` to `pd-fleet.yml` as `class: ideation`, non-blocking, once
+5. Add `skipper` to `pd-fleet.yml` as `class: ideation`, non-blocking, once
    the executor's ideation-ship `Proposal` schema (from PR #721) is merged --
    reuse that schema/renderer rather than building a second one.
 6. Validate against real multi-agent sessions (not synthetic pairs alone) the
@@ -211,12 +199,8 @@ Between Advisory and Enforced Claims).
 - [ ] Decide similarity threshold via calibration set, not a guessed constant.
 - [ ] Implement the sweep as a scheduled job, not a per-claim synchronous check.
 - [ ] Reuse PR #721's ideation `Proposal` schema; do not invent a second output contract.
-- [ ] Add `sentinel` to `pd-fleet.yml` only after the above land and pass e2e tests.
+- [ ] Add `skipper` to `pd-fleet.yml` only after the above land and pass e2e tests.
 - [ ] Operator sign-off on the $/day budget cap (model unSpider's $0.20/day precedent).
-- [ ] **Resolve the `sentinel` naming collision** against the existing shipwright
-      codename (`docs/shipwright/SHIP-GRAMMAR.md` § 8.2), the existing QA
-      Sentinel agent / `qa-sentinel` archetype (`docs/shipwright/AGENT-MODEL.md`
-      § 3.2, `lib/shipwright/archetypes.ts`), and the existing
-      `developer-onboarding-sentinel` entry already in `pd-fleet.yml`, before
-      any new `pd-fleet.yml` entry is added -- see the naming-collision callout
-      above.
+- [x] **Naming collision resolved** — operator chose `skipper` over `sentinel`
+      (see naming callout above); no further action needed before the
+      `pd-fleet.yml` entry lands.
