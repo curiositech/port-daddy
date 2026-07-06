@@ -15,7 +15,8 @@ import { handleKeys, handleChainHead, handleAudit } from '../src/handlers.js';
 import type { Env } from '../src/types.js';
 
 const HARBOR = 'a'.repeat(64);
-const OPERATOR = 'super-secret-operator-token';
+// >= 32 chars: operatorOnly() fail-closes (500 MISCONFIGURED) below the minimum.
+const OPERATOR = 'super-secret-operator-token-32bytes-min';
 
 // ── D1 mock driven by callbacks per query shape ───────────────────────────────
 function makeMockD1(handlers: {

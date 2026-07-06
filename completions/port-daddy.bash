@@ -140,7 +140,7 @@ _port_daddy() {
     # Tuple space
     tuple
     # Semantic graph + episodic memory
-    graph memory ideas
+    graph memory ideas skill-graft skillgraft
     # Shared local embedder (ADR-0061)
     embed
     # Cartographer roadmap projection
@@ -1910,6 +1910,28 @@ _port_daddy() {
           ;;
         text|stdin)
           _pd_opts '--offline --cache-dir'
+          ;;
+        *) _pd_opts '' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # skill-graft  query|warm|reference  [options]
+    # -----------------------------------------------------------------------
+    skill-graft|skillgraft)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "query warm reference" -- "$cur") )
+          ;;
+        query)
+          _pd_opts '--root --shortlist-limit --top-limit --body-chars --json'
+          ;;
+        warm)
+          _pd_opts '--root --json'
+          ;;
+        reference)
+          _pd_opts '--root --json'
           ;;
         *) _pd_opts '' ;;
       esac

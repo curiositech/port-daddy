@@ -1693,6 +1693,24 @@
         "sdk": false
       }
     },
+    "skill_graft": {
+      "description": "Native local skill-graft index and operator inspection surface. Fleet ships call lib/skill-graft.ts through lib/fleet-engine.ts; `pd skill-graft` lets agents query, warm, and read guarded references from the same index.",
+      "module": "lib/skill-graft.ts",
+      "cli": [
+        "skill-graft",
+        "skillgraft"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "skill-graft",
+        "skillgraft"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
     "memory": {
       "description": "Episodic memory entries and aggregate memory stats promoted from sessions and spawned runs",
       "cli": [

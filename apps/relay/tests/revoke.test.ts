@@ -42,7 +42,7 @@ function makeCard(payload: Record<string, unknown>, kid = 'kid-x'): string {
 
 const DAEMON = 'd'.repeat(64);
 
-function baseEnv(db: D1Database, operatorToken = 'super-secret-operator-token'): Env {
+function baseEnv(db: D1Database, operatorToken = 'super-secret-operator-token-32bytes-min'): Env {
   return {
     DB: db,
     HARBOR_CHANNEL: {
@@ -237,7 +237,7 @@ function bulkRequest(token: string | null, body: unknown): Request {
   });
 }
 
-const OPERATOR = 'super-secret-operator-token';
+const OPERATOR = 'super-secret-operator-token-32bytes-min';
 
 describe('handleRevokeByIssuer — operator gate', () => {
   it('401 UNAUTHORIZED when the operator token is missing', async () => {
