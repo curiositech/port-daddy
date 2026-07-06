@@ -1,0 +1,62 @@
+{
+  "schema": "pd.agent-harbor.work-plan.v0",
+  "planId": "work_plan_01JZFIX0001",
+  "intentId": "work_intent_01JZFIX0001",
+  "shape": "single-node",
+  "state": "nodes-ready",
+  "confidence": 0.82,
+  "evidence": "One coupled test surface; no independent branches; split cost exceeds stay cost.",
+  "splitEvidence": {
+    "coupling": "high file overlap on tests/unit/auth.test.ts",
+    "graphWidth": 1,
+    "contextPressure": "fits one context window",
+    "skillBoundary": "single skill domain (jest debugging)",
+    "failureDomain": "one failure invalidates the whole task",
+    "reviewIndependence": "review handled by PR gate, not a separate node",
+    "coordinationCost": "n/a for single node",
+    "budgetCost": 3,
+    "operatorBurden": "one approval card"
+  },
+  "nodeSpecs": [
+    {
+      "nodeSpecId": "node_spec_01JZFIX0001",
+      "role": "implementer",
+      "kind": "agent-node",
+      "bodyPreference": { "adapter": "cli:codex", "modelTier": "mid" },
+      "scope": {
+        "files": ["tests/unit/auth.test.ts"],
+        "symbols": [],
+        "forbiddenSurfaces": ["routes/agents.ts"]
+      },
+      "contracts": {
+        "claimsRequired": true,
+        "worktreeRequired": true,
+        "noteBeforeEdit": true,
+        "maxSpendUsd": 3,
+        "stopConditions": ["claim-conflict", "red-ci-without-path", "unsafe-command-refusal"]
+      },
+      "dependencies": [],
+      "acceptance": {
+        "doneWhen": "focused test passes and diff is limited to the auth test",
+        "validationCommands": ["npm test -- tests/unit/auth.test.ts"]
+      },
+      "skillGrafts": ["vitest-testing-patterns"]
+    }
+  ],
+  "placeholders": [
+    {
+      "placeholderId": "placeholder_01JZFIX0001",
+      "role": "reviewer",
+      "uncertaintyReason": "review rubric depends on the diff shape",
+      "knownDependencies": ["node_spec_01JZFIX0001"],
+      "resolutionTrigger": "implementer marks review-ready",
+      "maxWaitWave": 2,
+      "evidenceNeeded": ["diff summary", "validation artifacts"]
+    }
+  ],
+  "gates": [
+    { "kind": "review", "reason": "operator requested review-required", "status": "pending" }
+  ],
+  "requiresApproval": false,
+  "createdAt": "2026-07-05T12:00:05.000Z"
+}

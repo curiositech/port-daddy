@@ -1,0 +1,40 @@
+import AppKit
+import SwiftUI
+import XCTest
+@testable import FleetBar
+
+@MainActor
+final class FleetProposalSectionSnapshotTests: XCTestCase {
+    func testRenderFleetProposalSectionSnapshotWhenRequested() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let output = env["FLEETBAR_PROPOSAL_SNAPSHOT_OUT"], !output.isEmpty else {
+            throw XCTSkip("Set FLEETBAR_PROPOSAL_SNAPSHOT_OUT to render the Fleet Proposals visual artifact.")
+        }
+        let baseURL = env["FLEETBAR_PROPOSAL_SNAPSHOT_BASE_URL"] ?? DaemonLocation.resolveBaseURL()
+        let store = FleetProposalStore(autoStart: false, baseURL: baseURL)
+        await store.refresh()
+        XCTAssertGreaterThan(store.pending.count, 0, "snapshot fixture daemon should expose pending proposals")
+
+        let view = FleetProposalSection(store: store)
+            .frame(width: 1120, height: 760)
+            .preferredColorScheme(.dark)
+
+        let hosting = NSHostingView(rootView: view)
+        hosting.frame = NSRect(x: 0, y: 0, width: 1120, height: 760)
+        hosting.appearance = NSAppearance(named: .darkAqua)
+        hosting.layoutSubtreeIfNeeded()
+        guard let bitmap = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else {
+            XCTFail("Could not encode Fleet Proposals snapshot as PNG")
+            return
+        }
+        hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
+        guard let data = bitmap.representation(using: .png, properties: [:]) else {
+            XCTFail("Could not encode Fleet Proposals snapshot as PNG")
+            return
+        }
+
+        let url = URL(fileURLWithPath: output)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try data.write(to: url)
+    }
+}

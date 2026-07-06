@@ -295,6 +295,11 @@ describe('Test Group 3: API -> CLI Parity', () => {
     // (routes/agent-cockpit.ts, agentCockpitPlugin). CLI surface is
     // `pd agent stream <id>` + `pd agent interrupt <id> [--reason]`.
     agentcockpit: ['agent'],
+    // agentharbor: Agent Harbor read API (routes/agent-harbor.ts) — the binder
+    // ch09 endpoint family over the C1 event-ledger projections. CLI surface
+    // is `pd harbor-ledger ...` (append/read/verify/project/status), the C1
+    // verb that drives the same ledger + projections these routes serve.
+    agentharbor: ['harbor-ledger'],
     health: ['health'],
     activity: ['log', 'activity'],
     webhooks: ['webhook'],
@@ -317,6 +322,10 @@ describe('Test Group 3: API -> CLI Parity', () => {
     attest: ['attest'],
     spawn: ['spawn', 'spawned'],
     fleet: ['fleet'],
+    // fleethitlproposals: ship-submitted idea packets become operator
+    // approve/reject decisions in FleetBar/pd-console; `pd fleet` remains the
+    // CLI umbrella rather than adding a routine human-approval CLI flow.
+    fleethitlproposals: ['fleet'],
     harbors: ['harbor', 'harbors'],
     whois: ['whois'],
     orchestrator: ['up', 'down'],

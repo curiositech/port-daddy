@@ -19,6 +19,7 @@ import { locksPlugin } from './locks.js';
 import { agentsPlugin } from './agents.js';
 import { agentCockpitPlugin } from './agent-cockpit.js';
 import { agentRosterPlugin } from './agent-roster.js';
+import { agentHarborPlugin } from './agent-harbor.js';
 import { activityPlugin } from './activity.js';
 import { webhooksPlugin } from './webhooks.js';
 import { githubWebhookPlugin } from './github-webhook.js';
@@ -82,6 +83,7 @@ import { cockpitPlugin } from './cockpit.js';
 import { popperPlugin } from './popper.js';
 import { dispatchesPlugin } from './dispatches.js';
 import { visualTasksPlugin } from './visual-tasks.js';
+import { fleetHitlProposalsPlugin } from './fleet-hitl-proposals.js';
 import { setupPlugin } from './setup.js';
 import { secretsPlugin } from './secrets.js';
 import { contextRoutes as contextPlugin } from './context.js';
@@ -116,6 +118,12 @@ export async function registerAllRoutes(
   await fastify.register(locksPlugin, { deps } as any);
   await fastify.register(agentsPlugin, { deps } as any);
   await fastify.register(agentRosterPlugin, { deps } as any);
+
+  // Agent Harbor read API (binder ch09; work order C-routes). Serves C1's
+  // projections over HTTP: GET /agent-nodes (+detail/files), paged+SSE
+  // GET /sessions/:id/events, /costs, /receipts/:id verify, /compliance/:id.
+  // Read-only; stale projections are labeled in the envelope, never hidden.
+  await fastify.register(agentHarborPlugin, { deps } as any);
 
   // Agent Cockpit — "Watch + Grab the Wheel" Phase 0. Additive: GET
   // /agents/:id/stream (merged SSE) + POST /agents/:id/interrupt (soft steer).
@@ -336,6 +344,12 @@ export async function registerAllRoutes(
   // accept/reject/cancel buttons. Requires `dispatchQueue` in deps.
   if ((deps as { dispatchQueue?: unknown }).dispatchQueue) {
     await fastify.register(dispatchesPlugin, { deps } as any);
+  }
+
+  // Fleet HITL proposals — cloud ships can propose work, but only these
+  // operator-gated routes may turn a proposal into a dispatch.
+  if ((deps as { db?: unknown }).db || (deps as { fleetProposals?: unknown }).fleetProposals) {
+    await fastify.register(fleetHitlProposalsPlugin, { deps } as any);
   }
 
   // Visual task issue intake — browser/FleetBar POST /visual-tasks. This is

@@ -24,6 +24,12 @@ import {
   syncAgentSkills,
 } from '../../lib/skill-sync.js';
 import { installPilotAgents, resolvePilotSourceDir } from '../../lib/pilot-agent-render.js';
+import {
+  HARBOR_AREAS,
+  loadFirstValueRecord,
+  saveFirstValueRecord,
+  transparentHookInventory,
+} from '../../lib/agent-harbor/setup-doctor.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Walk up from __dirname looking for the repo marker (Formula/port-daddy.rb
@@ -488,6 +494,50 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
     ui.info('Skipping MCP install (--no-mcp)');
   }
 
+  // Agent-CLI interactive hooks — stage the Giant Squid tentacles + the runtime
+  // gate, and wire the CLIs that can ONLY be user-level (codex/agy). The gate
+  // keeps them inert unless the daemon is up AND you are inside a pd project, so
+  // this is never machine-wide-always-on. Claude/Gemini are wired PER PROJECT by
+  // `pd init` / `pd hooks install`. Defaults to Yes; --no-hooks opts out.
+  if (!options['no-hooks']) {
+    try {
+      const { stageTentacles, buildTargets, configureTarget, tentacleBinDir } = await import('./hooks-install.js');
+      const detected = buildTargets(process.env.HOME || '').filter((t) => t.detect());
+      // Only codex/agy have no project surface — those are staged here. Per-project
+      // CLIs (claude/gemini) are wired by pd init so they stay project-scoped.
+      const globalOnly = detected.filter((t) => !t.projectConfigPath);
+      if (detected.length > 0) {
+        const wire = ui.canPrompt()
+          ? await ui.confirm(`Stage Port Daddy coordination hooks (gated: only active in pd projects when the daemon runs)?`, true)
+          : true;
+        if (wire) {
+          const stage = stageTentacles();
+          if (stage.missing.length > 0) {
+            ui.warn('Agent-CLI hooks skipped — squid tentacles (bin/pd-hook-*) not on this build');
+          } else {
+            // Stage the visual-identity statusline alongside the tentacles so
+            // `pd init` / `pd squid on` can wire the ◆ PD badge per project.
+            const { stageStatusline } = await import('../../lib/squid/identity.js');
+            stageStatusline();
+            let n = 0;
+            for (const t of globalOnly) {
+              const r = configureTarget(t, { scope: 'user' });
+              if (r.success && !r.skipped) n++;
+            }
+            ui.success(`Staged tentacles + gate at ${tentacleBinDir()}`);
+            if (n > 0) ui.info(`Wired ${n} home-scoped CLI${n > 1 ? 's' : ''} (codex/agy), gated to pd projects`);
+            const perProject = detected.filter((t) => t.projectConfigPath).map((t) => t.name);
+            if (perProject.length) ui.info(`${perProject.join(', ')} are wired per-project — run \`pd init\` or \`pd hooks install\` in a repo`);
+          }
+        }
+      }
+    } catch (err) {
+      ui.warn(`Agent-CLI hooks step failed: ${(err as Error).message}`);
+    }
+  } else {
+    ui.info('Skipping agent-CLI hooks (--no-hooks)');
+  }
+
   installFleetBarIfEnabled(!!options['no-fleetbar']);
 
   if (!options['no-skill']) {
@@ -518,6 +568,38 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
   } else {
     ui.warn('Setup completed with remediation steps above');
   }
+
+  // ── Agent Harbor onboarding receipt (binder ch18 Work Order C8) ──────────
+  // 1. Start the first-value clock: time to first OFFICIAL Agent Node is
+  //    measured from the moment the default install path completes. Sealed
+  //    records are never overwritten — re-running setup does not reset a
+  //    metric that already measured real onboarding.
+  try {
+    const record = loadFirstValueRecord();
+    if (!record.setupCompletedAt) {
+      saveFirstValueRecord({ ...record, setupCompletedAt: new Date().toISOString() });
+      ui.info('First-value clock started — `pd doctor` reports time to your first official Agent Node.');
+    }
+  } catch (err) {
+    ui.warn(`Could not record setup completion time: ${(err as Error).message}`);
+  }
+
+  // 2. Transparency receipt: exactly what got installed, by name, and where
+  //    each area's data lives (local / syncs / disabled). No hidden hooks.
+  console.log('');
+  console.log('  What is installed and where your data lives:');
+  for (const area of HARBOR_AREAS) {
+    console.log(`    ${area.title}: ${area.syncCopy}`);
+  }
+  console.log('');
+  console.log('  Hooks installed (by name — these are the only ones):');
+  for (const hook of transparentHookInventory()) {
+    console.log(`    ${hook.displayName} (${hook.hookBinary})`);
+    console.log(`      ${hook.description} ${hook.privacy}`);
+  }
+  console.log('');
+  console.log('  Repair anything later with one command per issue: pd doctor');
+
   console.log('  Next steps:');
   if (projectDir) {
     console.log(`    cd ${projectDir}`);

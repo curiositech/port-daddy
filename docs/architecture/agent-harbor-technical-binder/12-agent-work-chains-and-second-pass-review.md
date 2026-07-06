@@ -302,6 +302,10 @@ Human gate:
 
 Send one empirical evaluation and temporal-planning agent.
 
+Scoring substrate: this chain's scenario library and metrics land in
+**Coordination-Bench** (ADR-0052 phases 3a/3b, Amendment 1) — the same
+Episode JSONL and reward rubric score both real-fleet and synthetic episodes.
+
 Mission:
   Make the system measurable: coordination overhead, recovery fidelity,
   salvage latency, cost, and operator usefulness.

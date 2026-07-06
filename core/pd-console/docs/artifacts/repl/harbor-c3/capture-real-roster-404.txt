@@ -1,0 +1,9 @@
+┌  pd-console  conversation multiplexer · on the PD bus
+│  daemon http://127.0.0.1:9876
+└  :harness <backend> <prompt> · :new <backend> <prompt> · :agents · :switch <n> · :lane · :lane-message <text> · :harbor · :quit
+
+» 
+  Agent Nodes — Harbor ──────────────────────────
+  roster unavailable: GET /agent-nodes → 404 — this daemon predates the Agent Harbor ledger (work order C1). Remediation: upgrade the daemon (`pd doctor`), or this pane stays honestly empty
+The console renders daemon truth only — no fabricated rows (ADR-0095 §3).
+» out.

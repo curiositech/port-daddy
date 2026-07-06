@@ -1,0 +1,21 @@
+{
+  "schema": "pd.agent-harbor.denial-receipt.v0",
+  "kind": "denial-receipt",
+  "receiptId": "dnl_01JZC50000000000000000001",
+  "envelopeId": "tge_01JZC50000000000000000001",
+  "actionName": "git reset --hard",
+  "command": "git reset --hard HEAD~1",
+  "category": "git",
+  "tier": "block",
+  "decision": "denied",
+  "reason": "git reset --hard is block-tier: destroys uncommitted working-tree state irrecoverably",
+  "safeAlternative": "git stash push -m \"<reason>\" (recoverable), or git checkout -- <path> for a scoped revert",
+  "sideEffectFree": true,
+  "transcriptEventId": "evt_01JZC5DENIED",
+  "agentNodeId": "agent_node_01JZC5FIXTURE",
+  "sessionId": "session_01JZC5FIXTURE",
+  "bodyId": "body_01JZC5FIXTURE",
+  "runId": "run_01JZC5FIXTURE",
+  "toolCallId": "toolu_01JZC5FIXTURE",
+  "occurredAt": "2026-07-05T12:00:00.000Z"
+}

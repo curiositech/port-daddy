@@ -1,0 +1,23 @@
+{
+  "schema": "pd.agent-harbor.human-gate-payload.v0",
+  "gateId": "hg_01JZC50000000000000000001",
+  "envelopeId": "tge_01JZC50000000000000000002",
+  "actionName": "git push --force-with-lease",
+  "command": "git push --force-with-lease origin feature/rebased",
+  "category": "git",
+  "requestedBy": "agent_node_01JZC5FIXTURE/session_01JZC5FIXTURE",
+  "context": "Rebased the feature branch onto main to resolve a conflict; remote still has the pre-rebase commits.",
+  "blastRadius": {
+    "computedBy": "git status --porcelain",
+    "preview": [" M lib/agent-harbor/governance/tool-gate.ts", "?? notes.md"],
+    "truncated": false,
+    "summary": "2 dirty/untracked path(s) at risk in /work/repo; remote branch feature/rebased would be rewritten"
+  },
+  "options": ["approve", "reject", "modify"],
+  "costSoFarUsd": 0.42,
+  "agentNodeId": "agent_node_01JZC5FIXTURE",
+  "sessionId": "session_01JZC5FIXTURE",
+  "toolCallId": "toolu_01JZC5FIXTURE2",
+  "occurredAt": "2026-07-05T12:05:00.000Z",
+  "expiresAt": "2026-07-05T13:05:00.000Z"
+}

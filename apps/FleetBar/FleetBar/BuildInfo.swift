@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 // MARK: - FleetBar Build Identity
 
@@ -139,8 +140,34 @@ enum FleetVersion {
         return .upToDate
     }
 
-    /// Canonical, arch-agnostic download/remediation page. Unsigned `.app`, so we
-    /// send people to the page that carries the checksum + verification steps
-    /// rather than auto-pulling the zip.
+    /// Canonical, arch-agnostic download/remediation page. We send people to the
+    /// page (which resolves the right release asset for their machine) rather
+    /// than auto-pulling the zip; for unsigned builds it also carries the
+    /// checksum + verification steps.
     static let downloadPageURL = URL(string: "https://portdaddy.dev/#download")!
+
+    /// True when the running app carries a real certificate-backed code
+    /// signature (the Developer-ID-signed release that
+    /// `scripts/package-fleetbar.sh` produces when `PORT_DADDY_SIGN_IDENTITY`
+    /// is set). Ad-hoc and unsigned builds — local `swift run`, forks without
+    /// the cert secret — fail the requirement because they have no certificate
+    /// chain, and any Security API hiccup also lands on `false`: we would
+    /// rather show a stale checksum caveat than falsely claim a signed build.
+    ///
+    /// Used by the update banner: a signed build implies the release pipeline
+    /// signs + notarizes, so the "verify the checksum" caveat is dropped and
+    /// the download Just Works under Gatekeeper.
+    static let isSignedBuild: Bool = {
+        var code: SecCode?
+        guard SecCodeCopySelf(SecCSFlags(), &code) == errSecSuccess, let code else { return false }
+        var staticCode: SecStaticCode?
+        guard SecCodeCopyStaticCode(code, SecCSFlags(), &staticCode) == errSecSuccess,
+              let staticCode else { return false }
+        var requirement: SecRequirement?
+        // "anchor apple generic" matches any Apple-issued signing chain
+        // (Developer ID, App Store) and rejects ad-hoc signatures.
+        guard SecRequirementCreateWithString("anchor apple generic" as CFString, SecCSFlags(), &requirement) == errSecSuccess,
+              let requirement else { return false }
+        return SecStaticCodeCheckValidity(staticCode, SecCSFlags(), requirement) == errSecSuccess
+    }()
 }

@@ -1,0 +1,41 @@
+{
+  "eventId": "evt_01JZFIX0042",
+  "harborId": "harbor_local",
+  "sessionId": "session_01JZFIX0001",
+  "agentNodeId": "agent_node_01JZFIX0001",
+  "bodyId": "body_01JZFIX0001",
+  "transcriptId": "tx_01JZFIX0001",
+  "turnId": "turn_01JZFIX0003",
+  "sequence": 42,
+  "occurredAt": "2026-07-05T12:03:00.000Z",
+  "ingestedAt": "2026-07-05T12:03:00.120Z",
+  "schemaVersion": 1,
+  "kind": "tool_result",
+  "visibility": "operator",
+  "source": {
+    "adapter": "codex-cli",
+    "offset": "jsonl:12345",
+    "idempotencyKey": "codex-cli:session_01JZFIX0001:jsonl:12345"
+  },
+  "payloadJson": {
+    "toolCallId": "tool_01JZFIX0007",
+    "exitCode": 0,
+    "filesTouched": ["/Users/me/coding/tmp/port-daddy-auth-fix/tests/unit/auth.test.ts"]
+  },
+  "payloadBlobRefs": [
+    {
+      "ref": "blob:stdout_01JZFIX0007",
+      "mediaType": "text/plain",
+      "byteCount": 20480,
+      "contentHash": "sha256:aaaa",
+      "redactionState": "none",
+      "storageTier": "local",
+      "truncated": false
+    }
+  ],
+  "parentEventIds": ["evt_01JZFIX0041"],
+  "redactionState": "none",
+  "retentionPolicyId": "local-default",
+  "contentHash": "sha256:bbbb",
+  "prevHash": "sha256:cccc"
+}
