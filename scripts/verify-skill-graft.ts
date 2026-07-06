@@ -1,0 +1,121 @@
+#!/usr/bin/env tsx
+/**
+ * Manual end-to-end verification for lib/skill-graft.ts against the REAL
+ * local MiniLM embedder and this repo's REAL skills/ directory.
+ *
+ * Why this is a standalone script and not a Jest test: the real
+ * @huggingface/transformers pipeline (onnxruntime-node under the hood)
+ * crashes when invoked from inside Jest's `--experimental-vm-modules` ESM
+ * sandbox --
+ *
+ *   TypeError: A float32 tensor's data must be type of function Float32Array()
+ *
+ * -- a cross-realm TypedArray identity check failing inside Jest's VM
+ * context, confirmed to be pre-existing and environment-specific (NOT a
+ * skill-graft bug): the exact same embed() call succeeds cleanly when run
+ * via plain `tsx`/`node` outside Jest. No existing test anywhere in this
+ * repo exercises the real transformers.js pipeline under Jest either
+ * (tests/unit/semantic-resolver.test.js and
+ * tests/unit/shipwright-skill-index.test.js both inject a deterministic
+ * mock embedder for exactly this reason) — this script is the honest
+ * substitute: a real, runnable, repo-checked-in end-to-end proof that
+ * doesn't fight Jest's sandbox.
+ *
+ * Run: npx tsx scripts/verify-skill-graft.ts
+ */
+
+import { createSkillIndex } from '../lib/shipwright/skill-index.js';
+import { createLocalEmbedder, defaultTransformersCacheDir } from '../lib/semantic-resolver.js';
+import {
+  createSkillGraftIndex,
+  defaultSkillGraftRoots,
+  renderSkillGraftContext,
+} from '../lib/skill-graft.js';
+
+async function main(): Promise<void> {
+  const failures: string[] = [];
+  const cacheDir = defaultTransformersCacheDir();
+  const embedder = createLocalEmbedder({ cacheDir });
+
+  console.log(`[verify-skill-graft] using real MiniLM embedder (cache: ${cacheDir})`);
+  console.log('[verify-skill-graft] scanning real skills/ directory...');
+
+  const graft = createSkillGraftIndex({
+    roots: defaultSkillGraftRoots(process.cwd()),
+    embedder,
+    index: createSkillIndex({ embedder, dbDir: process.env.PD_SKILL_GRAFT_VERIFY_DB_DIR }),
+  });
+
+  const refreshStats = await graft.refresh();
+  console.log(
+    `[verify-skill-graft] scanned ${refreshStats.scannedCount} skills ` +
+    `(embedded ${refreshStats.embedded}, reused ${refreshStats.reused}, removed ${refreshStats.removed})`,
+  );
+  if (refreshStats.scannedCount < 100) {
+    failures.push(`expected 100+ real skills, scanned only ${refreshStats.scannedCount}`);
+  }
+
+  const query = 'choosing chunk size, hybrid BM25 plus dense retrieval with RRF fusion, ' +
+    'and adding a cross-encoder reranker for a RAG pipeline';
+  const result = await graft.craft(query, { shortlistLimit: 10, topLimit: 2 });
+  const ids = result.shortlist.map((entry) => entry.id);
+  const rank = ids.indexOf('rag-retrieval-pattern-design');
+
+  console.log(`[verify-skill-graft] query: "${query}"`);
+  console.log(`[verify-skill-graft] shortlist: ${ids.join(', ')}`);
+
+  if (rank === -1) {
+    failures.push('rag-retrieval-pattern-design did not appear in the shortlist at all');
+  } else if (rank >= 3) {
+    failures.push(`rag-retrieval-pattern-design ranked #${rank + 1}; expected top 3`);
+  } else {
+    console.log(`[verify-skill-graft] rag-retrieval-pattern-design ranked #${rank + 1} — OK`);
+  }
+
+  const topMatch = result.top.find((entry) => entry.id === 'rag-retrieval-pattern-design');
+  if (topMatch) {
+    if (!topMatch.body.includes('Reciprocal Rank Fusion')) {
+      failures.push('top match body did not include expected SKILL.md content');
+    } else {
+      console.log('[verify-skill-graft] full SKILL.md body attached to top match — OK');
+    }
+  }
+
+  const ref = graft.getReference('rag-retrieval-pattern-design', 'scripts/rag_retrieval_pattern_design_audit.mjs');
+  if (!ref.found || !ref.content) {
+    failures.push(`getReference() failed to fetch a real reference file: ${ref.error ?? 'unknown error'}`);
+  } else {
+    console.log(`[verify-skill-graft] getReference() fetched ${ref.content.length} bytes — OK`);
+  }
+
+  const escapeAttempt = graft.getReference('rag-retrieval-pattern-design', '../../../../../../etc/passwd');
+  if (escapeAttempt.found) {
+    failures.push('getReference() did NOT refuse a path-traversal escape attempt — SECURITY BUG');
+  } else {
+    console.log('[verify-skill-graft] path-traversal escape correctly refused — OK');
+  }
+
+  const rendered = renderSkillGraftContext(result);
+  if (!rendered.includes('rag-retrieval-pattern-design')) {
+    failures.push('renderSkillGraftContext() output missing the expected skill id');
+  } else {
+    console.log('[verify-skill-graft] renderSkillGraftContext() rendering — OK');
+    console.log('---');
+    console.log(rendered.slice(0, 400) + (rendered.length > 400 ? '\n... (truncated)' : ''));
+    console.log('---');
+  }
+
+  if (failures.length > 0) {
+    console.error(`\n[verify-skill-graft] FAILED (${failures.length}):`);
+    for (const failure of failures) console.error(`  - ${failure}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  console.log('\n[verify-skill-graft] ALL CHECKS PASSED — real embedder, real skills/ directory, real files.');
+}
+
+main().catch((err) => {
+  console.error('[verify-skill-graft] crashed:', err);
+  process.exitCode = 1;
+});

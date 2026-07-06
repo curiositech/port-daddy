@@ -27,6 +27,7 @@ import { buildPortDaddyShellCommand, resolvePortDaddyInvocation } from './port-d
 import { resolveRawBackendName } from './llm-backend-resolver.js';
 import { IoDispatch, type DispatchOutputResult, type IoDispatchDeps } from './fleet/io-dispatch.js';
 import { evaluateTrustGate, type TrustPolicy, type TrustTier } from './fleet/trust.js';
+import { createSkillGraftIndex, renderSkillGraftContext, type SkillGraftIndex } from './skill-graft.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,10 @@ export interface FleetAgent {
   identity?: string;
   timeout?: number;
   allowedTools?: string;
+  /** Opt-in: splice a windags-pattern skill shortlist (lib/skill-graft.ts)
+   *  into this ship's task text before it spawns. Default false/undefined —
+   *  existing ships are byte-for-byte unaffected. */
+  skillGraft?: boolean;
   fallbacks?: FleetRuntimeTarget[];
   cooldownMs?: number;
   dedupeWindowMs?: number;
@@ -725,6 +730,15 @@ export interface FleetRunnerOptions {
    * approval-required work unattended.
    */
   enqueueForApproval?: (proposal: FleetApprovalProposal) => void | Promise<void>;
+  /**
+   * Native, local skill-injection index (lib/skill-graft.ts) for ships that
+   * set `skill_graft: true`. When omitted, the runner lazily constructs a
+   * real one (real local MiniLM embedder + this repo's skills/ directory)
+   * the first time an opted-in agent actually spawns — so a fleet with no
+   * opted-in ships never pays for it. Tests inject a narrow fake here to
+   * avoid the real embedder and filesystem scan.
+   */
+  skillGraft?: Pick<SkillGraftIndex, 'craft'>;
 }
 
 export function createFleetRunner(config: FleetConfig, projectDir: string, options?: FleetRunnerOptions) {
@@ -744,6 +758,17 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   const pausedAgents = new Set((options?.initiallyPausedAgents ?? []).filter((name) => agentIndex.has(name)));
   const tupleHarbor = config.harbor || `${project}:fleet`;
   const FLEET_TUPLE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+  // ─── Skill Graft (opt-in per-ship context injection) ─────────────────────
+  // Only ever constructed if some agent actually sets `skill_graft: true` in
+  // pd-fleet.yml AND that agent runs — a bare `createFleetRunner()` with no
+  // opted-in ships never touches the embedder or the skill catalog. Tests
+  // inject `options.skillGraft` directly to avoid the real embedder/fs scan.
+  let skillGraftIndex: Pick<SkillGraftIndex, 'craft'> | undefined = options?.skillGraft;
+  function getSkillGraftIndex(): Pick<SkillGraftIndex, 'craft'> {
+    if (!skillGraftIndex) skillGraftIndex = createSkillGraftIndex({ projectRoot: projectDir });
+    return skillGraftIndex;
+  }
 
   function resolveChannel(channel: string): string {
     return resolveFleetChannel(channel, projectDir, project);
@@ -1653,30 +1678,64 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       .slice(0, 32);
   }
 
-  function buildAgentTask(agent: FleetAgent, context?: FleetRunContext): string {
+  /**
+   * Returns a plain `string` synchronously whenever `agent.skillGraft` is not
+   * set — i.e. for every ship today, byte-for-byte identical to this
+   * function's pre-skill-graft behavior, with ZERO extra microtask ticks.
+   * That matters: several existing tests assert exact scheduling/backoff/
+   * singleton timing by counting `await Promise.resolve()` ticks, and
+   * unconditionally making this function `async` (even with no internal
+   * `await`) shifts those counts by one tick per the spec's Promise
+   * resolution semantics — it broke two such tests during development.
+   * Returning `Promise<string>` only on the opt-in path keeps the fast path
+   * perfectly synchronous; see the call site below for how it's consumed
+   * without forcing an `await` on the common case either.
+   */
+  function buildAgentTask(agent: FleetAgent, context?: FleetRunContext): string | Promise<string> {
     const basePrompt = agent.prompt.trim();
-    if (!context) return basePrompt;
+    const messageText = context ? (context.messageContent ?? serializeMessage(context.message)).trim() : '';
 
-    const messageText = (context.messageContent ?? serializeMessage(context.message)).trim();
-    if (!messageText) return basePrompt;
+    let task = basePrompt;
+    if (context && messageText) {
+      const lines = [
+        basePrompt,
+        '',
+        'Trigger context:',
+        `- source: ${context.source || 'trigger'}`,
+        context.channel ? `- channel: ${context.channel}` : null,
+        context.from ? `- sender: ${context.from}` : null,
+        context.tupleHarbor ? `- tuple harbor: ${context.tupleHarbor}` : null,
+        context.tuplePattern ? `- tuple pattern: ${JSON.stringify(context.tuplePattern)}` : null,
+        context.tuple ? `- tuple id: ${context.tuple.id}` : null,
+        '- message:',
+        messageText,
+        '',
+        'Take one bounded pass in response to this trigger. Use only your configured channels and stop after this pass.',
+      ].filter((line): line is string => !!line);
+      task = lines.join('\n');
+    }
 
-    const lines = [
-      basePrompt,
-      '',
-      'Trigger context:',
-      `- source: ${context.source || 'trigger'}`,
-      context.channel ? `- channel: ${context.channel}` : null,
-      context.from ? `- sender: ${context.from}` : null,
-      context.tupleHarbor ? `- tuple harbor: ${context.tupleHarbor}` : null,
-      context.tuplePattern ? `- tuple pattern: ${JSON.stringify(context.tuplePattern)}` : null,
-      context.tuple ? `- tuple id: ${context.tuple.id}` : null,
-      '- message:',
-      messageText,
-      '',
-      'Take one bounded pass in response to this trigger. Use only your configured channels and stop after this pass.',
-    ].filter((line): line is string => !!line);
+    if (!agent.skillGraft) return task;
+    return appendSkillGraftContext(agent, task);
+  }
 
-    return lines.join('\n');
+  /**
+   * Append a windags-pattern "relevant skills" section to `task` using
+   * lib/skill-graft.ts, keyed on the ship's own task text as the query. Never
+   * throws and never blocks a spawn: a skill-graft failure (embedder error,
+   * unreadable skills/ dir, etc.) logs and falls back to the unmodified task,
+   * the same fail-open posture the rest of this engine uses for advisory
+   * enrichment (see emitSemanticAliasTuples/observeSemanticAliases below).
+   */
+  async function appendSkillGraftContext(agent: FleetAgent, task: string): Promise<string> {
+    try {
+      const result = await getSkillGraftIndex().craft(task);
+      const rendered = renderSkillGraftContext(result);
+      return rendered ? `${task}\n\n${rendered}` : task;
+    } catch (err) {
+      console.error(`[Fleet] skill-graft failed for agent "${agent.name}" (continuing without it):`, (err as Error).message);
+      return task;
+    }
   }
 
   function mergePendingContext(existing: FleetRunContext | undefined, incoming: FleetRunContext): FleetRunContext {
@@ -1846,7 +1905,11 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
     try {
       const attemptErrors: SpawnAttemptFailure[] = [];
-      const task = buildAgentTask(agent, context);
+      // Only await when skill-graft actually returned a Promise (agent.skillGraft
+      // is set) — see buildAgentTask's doc comment for why the fast path must
+      // stay perfectly synchronous.
+      const taskResult = buildAgentTask(agent, context);
+      const task = typeof taskResult === 'string' ? taskResult : await taskResult;
       emitSemanticAliasTuples(agent, task, context);
       observeSemanticAliases(agent, task, context, now);
 
