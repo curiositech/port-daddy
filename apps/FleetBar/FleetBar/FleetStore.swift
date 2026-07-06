@@ -218,6 +218,30 @@ struct FleetStatusResponse: Decodable {
     let fleets: [FleetResponse]
     let totalAgents: Int
     let totalWatchers: Int
+    // Cloud fleet (Cloudflare edge PR-review fleet). The daemon augments GET /fleet
+    // with these when remote telemetry exists; all optional so a local-only daemon
+    // still decodes cleanly. `totalAgents` already includes remote agents (the
+    // daemon sums local + remote), so these split it out for a local-vs-cloud view.
+    let localTotalAgents: Int?
+    let remoteAgentCount: Int?
+    let remoteActiveAgentCount: Int?
+    let remote: FleetRemoteBlock?
+
+    /// Cloud (Cloudflare) agent count, or 0 when the daemon reports none.
+    var cloudAgentCount: Int { remoteAgentCount ?? remote?.cloudApp?.agentCount ?? 0 }
+    var cloudActiveAgentCount: Int { remoteActiveAgentCount ?? remote?.cloudApp?.activeAgentCount ?? 0 }
+    /// Local agent count = total minus cloud (falls back to localTotalAgents).
+    var localAgentCount: Int { localTotalAgents ?? max(0, totalAgents - cloudAgentCount) }
+}
+
+/// The `remote` block GET /fleet adds when the cloud fleet is active.
+struct FleetRemoteBlock: Decodable {
+    let cloudApp: FleetRemoteCloudApp?
+}
+
+struct FleetRemoteCloudApp: Decodable {
+    let agentCount: Int?
+    let activeAgentCount: Int?
 }
 
 struct RegisteredProjectsResponse: Decodable {

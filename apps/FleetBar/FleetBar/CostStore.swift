@@ -21,6 +21,31 @@ struct CostProjectSpend: Decodable {
 struct CostResponse: Decodable {
     let totals: CostTotals
     let byProject: [CostProjectSpend]
+    // Cloud fleet (Cloudflare) spend. The daemon adds these to GET /metrics/cost
+    // when remote telemetry exists; all optional so a local-only cost response
+    // still decodes. `combinedTotals` splits local vs remote (cloud) USD so the
+    // operator can see cloud spend distinctly from local spawns.
+    let combinedTotals: CostCombinedTotals?
+    let byBackend: [CostBackendSpend]?
+
+    /// Cloud (Cloudflare) spend so far in the window, or 0 when none.
+    var cloudUsd: Double { combinedTotals?.remoteUsd ?? 0 }
+    /// Local spawn spend (falls back to the plain totals when unsplit).
+    var localUsd: Double { combinedTotals?.localUsd ?? totals.totalUsd }
+}
+
+struct CostCombinedTotals: Decodable {
+    let localUsd: Double?
+    let remoteUsd: Double?
+    let remoteEventCount: Int?
+    let remoteShipEventCount: Int?
+}
+
+struct CostBackendSpend: Decodable {
+    let backend: String?
+    let model: String?
+    let totalUsd: Double?
+    let spawnCount: Int?
 }
 
 struct GoldenSignals: Decodable {
