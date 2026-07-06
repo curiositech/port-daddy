@@ -185,9 +185,20 @@ export function slugify(title: string): string {
     .slice(0, 60) || 'proposal';
 }
 
-/** Collapse a multi-line prompt into a single shell-safe line for a CLI goal. */
+/**
+ * Collapse to one line AND escape for safe placement INSIDE double quotes in a
+ * shell command. Every value interpolated into a rendered `pd …` command below
+ * is model-provided (untrusted), so escaping only `"` is not enough: an
+ * unescaped `$`, backtick, or backslash would trigger `$(...)` / `$VAR` /
+ * backtick command substitution the moment an operator pastes the command.
+ * Escape all four shell-in-double-quote metacharacters (`\ $ ` " `). Backslash
+ * is escaped first via a single character-class pass so no double-escaping.
+ */
 function oneLine(text: string): string {
-  return text.replace(/\s+/g, ' ').replace(/"/g, '\\"').trim();
+  return text
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/([\\`$"])/g, '\\$1');
 }
 
 const SHIP_EMOJI: Record<string, string> = {
@@ -226,9 +237,12 @@ function renderAction(p: Proposal, ctx: ProposalRenderCtx): string {
         `https://github.com/${ctx.owner}/${ctx.repo}/issues/new` +
         `?title=${issueTitle}&body=${issueBody}&labels=roadmap,from-fleet`;
       lines.push(`- [📌 Open as roadmap issue](${url})`);
+      // `next` is NOT a valid pd roadmap status — the CLI accepts only
+      // now|backlog|parked|merge|done. A roadmap-action proposal is a
+      // durable-but-not-now idea, so it belongs in `backlog`.
       lines.push(
         '- Or track it locally: ' +
-          `\`pd roadmap upsert ${slug} --summary "${oneLine(p.title)}" --status next\``,
+          `\`pd roadmap upsert ${slug} --summary "${oneLine(p.title)}" --status backlog\``,
       );
       break;
     }
@@ -248,19 +262,23 @@ function renderAction(p: Proposal, ctx: ProposalRenderCtx): string {
       break;
     }
     case 'parley': {
+      // surface comes from model-provided evidence[0] (untrusted) — quote +
+      // escape it so the pasted command can't token-split or run substitutions.
       const surface = p.evidence[0] ?? `PR#${ctx.prNumber}`;
       lines.push(
         '- Open a parley to resolve it: ' +
-          `\`pd parley call --surface ${surface} --reason "${oneLine(p.title)}" ` +
+          `\`pd parley call --surface "${oneLine(surface)}" --reason "${oneLine(p.title)}" ` +
           `--with <sessionA,sessionB> --as <your-agent-id>\``,
       );
       break;
     }
     case 'skill': {
+      // "build a skill. Goal: <brief>" reads naturally whether the brief is
+      // verb-led ("make …") or noun-led — avoids "a skill that make …".
       const brief = oneLine(p.prompt || p.rationale);
       lines.push(
         '- Author a skill for it: ' +
-          `\`pd dispatch propose "Use the skill-architect skill to build a skill that ${brief}" ` +
+          `\`pd dispatch propose "Use the skill-architect skill to build a skill. Goal: ${brief}" ` +
           `--tags skill,${tags}\``,
       );
       if (p.prompt) {

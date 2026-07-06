@@ -98,11 +98,14 @@ describe('renderProposalComment — REAL actionable syntax', () => {
     expect(renderProposalComment([], CTX)).toBe('');
   });
 
-  it('roadmap → a GitHub prefilled-issue URL and a pd roadmap upsert command', () => {
+  it('roadmap → a GitHub prefilled-issue URL and a pd roadmap upsert command with a VALID status', () => {
     const body = renderProposalComment([p({ action: 'roadmap' })], CTX);
     expect(body).toContain('https://github.com/curiositech/port-daddy/issues/new?title=');
     expect(body).toContain('labels=roadmap,from-fleet');
-    expect(body).toContain('pd roadmap upsert title-here');
+    // Status must be one the CLI actually accepts (now|backlog|parked|merge|done);
+    // `next` would error when pasted.
+    expect(body).toContain('pd roadmap upsert title-here --summary "Title Here" --status backlog');
+    expect(body).not.toContain('--status next');
   });
 
   it('assign → a runnable pd dispatch propose command and a paste-able prompt', () => {
@@ -120,7 +123,8 @@ describe('renderProposalComment — REAL actionable syntax', () => {
       [p({ action: 'parley', evidence: ['docs/adr/0095.md'], title: 'Resolve verb drift' })],
       CTX,
     );
-    expect(body).toContain('pd parley call --surface docs/adr/0095.md');
+    // surface is quoted (it comes from untrusted evidence[0]).
+    expect(body).toContain('pd parley call --surface "docs/adr/0095.md"');
     expect(body).toContain('--reason "Resolve verb drift"');
   });
 
@@ -129,9 +133,31 @@ describe('renderProposalComment — REAL actionable syntax', () => {
       [p({ action: 'skill', prompt: 'make harbor fixtures trivial to author', title: 'Harbor fixture kit' })],
       { ...CTX, shipName: 'snipe' },
     );
-    expect(body).toContain('Use the skill-architect skill to build a skill that make harbor fixtures trivial to author');
+    // "build a skill. Goal: <brief>" reads naturally for a verb-led brief
+    // ("make …"), unlike the ungrammatical "a skill that make …".
+    expect(body).toContain('Use the skill-architect skill to build a skill. Goal: make harbor fixtures trivial to author');
     expect(body).toContain('--tags skill,from-fleet,pd-snipe');
     expect(body).toContain('Skill-architect brief');
+  });
+
+  it('escapes shell metacharacters in untrusted model text so the pasted command cannot run substitutions', () => {
+    const body = renderProposalComment(
+      [
+        p({
+          action: 'assign',
+          title: 'Injection attempt',
+          prompt: 'do $(rm -rf /) and `whoami` and $HOME and a "quote"',
+        }),
+      ],
+      CTX,
+    );
+    // The `pd dispatch propose "…"` COMMAND line wraps the goal in double quotes,
+    // so $, backtick, backslash and the inner quote are all backslash-escaped —
+    // pasting it can't trigger $(...) / `…` substitution or break out of the
+    // quotes. (The separate <details> code-fence echoes the raw prompt verbatim;
+    // that's documentation, not a runnable command.)
+    const escapedGoal = 'do \\$(rm -rf /) and \\`whoami\\` and \\$HOME and a \\"quote\\"';
+    expect(body).toContain(`pd dispatch propose "${escapedGoal}"`);
   });
 
   it('renders a severity badge for trouble-ahead proposals (lookout)', () => {
