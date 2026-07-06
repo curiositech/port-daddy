@@ -934,9 +934,13 @@ const SNIPPET_MAX_CHARS = 280;
  * embedder; a hybrid/semantic query without one THROWS — lexical is a
  * degraded mode a caller opts into by sending mode: "lexical".
  *
- * Validity discipline (ADR-0097 §3): episodes whose validUntil has passed at
- * `asOf` are never served as current facts. Pass opts.asOf for "what did we
- * believe on date D" audits (episodes ingested after asOf are excluded too).
+ * Validity discipline (ADR-0097 §3), both bi-temporal axes: episodes whose
+ * validUntil has passed at `asOf` are never served as current facts (world
+ * time). Pass opts.asOf for "what was true on date D" audits on that axis
+ * alone. The system-time axis is separate and opt-in: pass opts.believedAt
+ * to additionally exclude episodes ingested after that instant, answering
+ * "what did we believe on date D" — asOf and believedAt are independent
+ * parameters, not the same cut.
  */
 export async function recallEpisodes(
   db: DatabaseInstance,
