@@ -160,6 +160,37 @@ describe('FleetApprovalStream', () => {
     expect(errors[0].message).toMatch(/queue full/);
   });
 
+  test('griefing-cap DoS fix: a full queue refuses new enqueues WITHOUT running the O(n) fingerprint scan', () => {
+    const s = new FleetApprovalStream();
+    // Each pending proposal exposes messageContent via a getter that counts
+    // reads — proposalFingerprint() hashes exactly that field, so a read is a
+    // proxy for "this proposal got hashed". Fill the queue to the cap.
+    let existingHashReads = 0;
+    for (let i = 0; i < MAX_PENDING_APPROVALS; i += 1) {
+      s.enqueue(proposal({
+        id: `flood-${i}`,
+        context: { source: 'trigger', get messageContent() { existingHashReads += 1; return `distinct-${i}`; } },
+      }));
+    }
+    expect(s.list()).toHaveLength(MAX_PENDING_APPROVALS);
+
+    // Count only the work triggered by the OVER-cap attempt.
+    existingHashReads = 0;
+    let newcomerHashReads = 0;
+    const accepted = s.enqueue(proposal({
+      id: 'over-cap',
+      context: { source: 'trigger', get messageContent() { newcomerHashReads += 1; return 'over-cap-content'; } },
+    }));
+
+    expect(accepted).toBe(false);                         // refused (cap)
+    expect(s.list()).toHaveLength(MAX_PENDING_APPROVALS); // not added
+    // The load-bearing assertion: the cap short-circuits BEFORE any hashing —
+    // zero existing proposals rehashed, and the newcomer isn't fingerprinted
+    // either. Pre-fix (dedup-before-cap) this would be MAX_PENDING_APPROVALS.
+    expect(existingHashReads).toBe(0);
+    expect(newcomerHashReads).toBe(0);
+  });
+
   test('content fingerprint dedup: a retried delivery with a fresh uuid does not stack a second gate', () => {
     const s = new FleetApprovalStream();
     s.enqueue(proposal({ id: 'uuid-1' }));

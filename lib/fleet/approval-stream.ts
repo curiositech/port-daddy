@@ -111,18 +111,19 @@ export class FleetApprovalStream {
    * on the next restart after its twin was decided.
    */
   enqueue(proposal: PendingApproval): boolean {
-    if (this.pending.has(proposal.id)) return false; // replay-safe by id
-    // Content-level idempotency: a retried delivery that slipped past the
-    // trigger-layer dedup (daemon restart cleared it, different transport)
-    // arrives with a FRESH uuid but identical substance. One inbound event
-    // must never stack two human gates.
-    const fingerprint = proposalFingerprint(proposal);
-    for (const existing of this.pending.values()) {
-      if (proposalFingerprint(existing) === fingerprint) return false;
-    }
-    // Griefing cap (Attack Class 2): refuse past the ceiling rather than let
-    // a distinct-content flood exhaust memory / bury the operator. Warn once
-    // per saturation episode so it's visible, not silent.
+    if (this.pending.has(proposal.id)) return false; // replay-safe by id (O(1))
+
+    // Griefing cap (Attack Class 2) — checked BEFORE the O(n) fingerprint dedup
+    // scan below, and this ordering is load-bearing, not cosmetic. Refuse past
+    // the ceiling in O(1) rather than let a distinct-content flood exhaust
+    // memory / bury the operator. If the cap were checked *after* the dedup
+    // scan, then once the queue is full every *rejected* flood enqueue would
+    // still hash the newcomer plus all ~MAX_PENDING_APPROVALS pending proposals
+    // (SHA-1 each) before refusing — the cap meant to blunt the flood would
+    // itself become an O(n)-per-request CPU-amplification vector (Copilot
+    // review finding). Fail-closed: the trigger can fire again once the
+    // operator drains the queue; dropping a flood beats OOMing (or pinning the
+    // CPU of) the daemon. Warn once per saturation episode so it's visible.
     if (this.pending.size >= MAX_PENDING_APPROVALS) {
       if (!this.capWarned) {
         this.capWarned = true;
@@ -134,6 +135,18 @@ export class FleetApprovalStream {
       return false;
     }
     this.capWarned = false;
+
+    // Content-level idempotency: a retried delivery that slipped past the
+    // trigger-layer dedup (daemon restart cleared it, different transport)
+    // arrives with a FRESH uuid but identical substance. One inbound event
+    // must never stack two human gates. Bounded by the cap check above, so
+    // this scan is at most MAX_PENDING_APPROVALS-1 hashes and only runs when
+    // the queue has headroom — never on the flood-rejection path.
+    const fingerprint = proposalFingerprint(proposal);
+    for (const existing of this.pending.values()) {
+      if (proposalFingerprint(existing) === fingerprint) return false;
+    }
+
     this.pending.set(proposal.id, proposal);
     this.broadcast({ type: 'human_gate_waiting', proposal });
     return true;
