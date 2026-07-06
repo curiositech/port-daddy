@@ -42,7 +42,10 @@
  *      ledger from the previously persisted transcript event of the same
  *      session (null for the first). contentHash is the sha256 of the
  *      canonical JSON body excluding contentHash and prevHash (prevHash is
- *      ledger-assigned, so a sender cannot include it in the hash).
+ *      ledger-assigned, so a sender cannot include it in the hash). The
+ *      ledger always computes contentHash itself; a sender-supplied
+ *      contentHash is verified against the computed one and a mismatch is
+ *      rejected fail-closed.
  *   6. Unknown fields ride along inside payload_json; replay re-emits them.
  */
 
@@ -344,10 +347,12 @@ function extractFields(streamType: StreamType, payload: HarborPayload): Extracte
     case 'agent-node': {
       // State fact (event-carried state). The event id is derived from the
       // content hash, so re-declaring an UNCHANGED node is a natural no-op
-      // and any state change is a new fact.
+      // and any state change is a new fact. The FULL sha256 hex is embedded —
+      // a truncated slice would make an event_id collision (silent dedup of a
+      // distinct fact) materially more likely than the hash itself allows.
       const hash = computeContentHash(payload);
       return {
-        eventId: `agent-node:${payload.agentNodeId as string}:${hash.slice(7, 23)}`,
+        eventId: `agent-node:${payload.agentNodeId as string}:${hash.slice(7)}`,
         agentNodeId: str(payload.agentNodeId),
         sessionId: str(payload.currentSessionId),
         runId: str(payload.currentRunId),
@@ -359,9 +364,10 @@ function extractFields(streamType: StreamType, payload: HarborPayload): Extracte
       };
     }
     case 'agent-run': {
+      // Full-hash event id for the same reason as agent-node facts above.
       const hash = computeContentHash(payload);
       return {
-        eventId: `agent-run:${payload.runId as string}:${hash.slice(7, 23)}`,
+        eventId: `agent-run:${payload.runId as string}:${hash.slice(7)}`,
         agentNodeId: str(payload.agentNodeId),
         sessionId: str(payload.sessionId),
         runId: str(payload.runId),
@@ -442,7 +448,20 @@ export function appendEvent(db: DatabaseInstance, input: AppendInput): AppendRes
       }
 
       // Replay rule 5: per-session hash chain, prevHash assigned by ledger.
-      contentHash = str(payload.contentHash) ?? computeContentHash(payload);
+      // The ledger ALWAYS computes the hash from the canonical body — a
+      // caller-supplied contentHash is verified, never trusted, so a writer
+      // cannot persist an arbitrary hash that still chains cleanly (tamper
+      // evidence would be defeated otherwise).
+      const computedHash = computeContentHash(payload);
+      const claimedHash = str(payload.contentHash);
+      if (claimedHash !== null && claimedHash !== computedHash) {
+        throw new LedgerValidationError(
+          `transcript contentHash mismatch for ${fields.eventId}: payload claims ` +
+          `${claimedHash} but the canonical body hashes to ${computedHash} — ` +
+          'refusing to persist a hash the ledger cannot verify',
+        );
+      }
+      contentHash = computedHash;
       const prev = db
         .prepare(
           "SELECT content_hash FROM harbor_events WHERE stream_type = 'transcript-event' AND session_id = ? ORDER BY ledger_seq DESC LIMIT 1",

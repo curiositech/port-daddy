@@ -159,6 +159,39 @@ describe('agent-harbor event ledger', () => {
       expect(other.prevHash).toBeNull();
     });
 
+    it('rejects a caller-supplied contentHash that disagrees with the canonical body (forged hash)', () => {
+      expect(() =>
+        appendEvent(db, {
+          streamType: 'transcript-event',
+          payload: transcriptFixture({
+            eventId: 'evt_forged_hash',
+            sequence: 1,
+            source: {},
+            contentHash: 'sha256:' + 'f'.repeat(64),
+          }),
+        }),
+      ).toThrow(LedgerValidationError);
+      // Nothing was persisted — the forged hash never entered the chain.
+      expect(ledgerHeadSeq(db)).toBe(0);
+    });
+
+    it('accepts a caller-supplied contentHash that matches the canonical body', () => {
+      const payload = transcriptFixture({ eventId: 'evt_honest_hash', sequence: 1, source: {} });
+      const honest = computeContentHash(payload);
+      const res = appendEvent(db, {
+        streamType: 'transcript-event',
+        payload: { ...payload, contentHash: honest },
+      });
+      expect(res.duplicate).toBe(false);
+      expect(res.contentHash).toBe(honest);
+    });
+
+    it('state-fact event ids embed the FULL content hash (no truncated collision window)', () => {
+      const res = appendEvent(db, { streamType: 'agent-node', payload: fixture('agent-node') });
+      const hex = res.eventId.split(':').pop() as string;
+      expect(hex).toMatch(/^[0-9a-f]{64}$/);
+    });
+
     it('rejects a (sessionId, sequence) collision under a different eventId', () => {
       appendEvent(db, {
         streamType: 'transcript-event',
