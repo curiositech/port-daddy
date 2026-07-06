@@ -14,13 +14,22 @@ import * as ui from '../utils/ui.js';
 import { isDaemonRunning } from '../utils/fetch.js';
 import { detectStack } from '../../lib/detect.js';
 import { handleDaemon } from './daemon.js';
+import { handleGuard } from './guard.js';
 import { handleInit } from './init.js';
 import { handleMcpInstall } from './mcp-install.js';
+import { installSquidHooks } from './squid.js';
 import {
   ensureGeminiPortDaddyExtension,
   formatSkillSyncSummary,
   syncAgentSkills,
 } from '../../lib/skill-sync.js';
+import { installPilotAgents, resolvePilotSourceDir } from '../../lib/pilot-agent-render.js';
+import {
+  HARBOR_AREAS,
+  loadFirstValueRecord,
+  saveFirstValueRecord,
+  transparentHookInventory,
+} from '../../lib/agent-harbor/setup-doctor.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Walk up from __dirname looking for the repo marker (Formula/port-daddy.rb
@@ -105,6 +114,19 @@ function inferProjectDir(explicitProject: string | undefined): string | null {
   return looksLikeProjectDir(process.cwd()) ? process.cwd() : null;
 }
 
+function isGitRepository(dir: string): boolean {
+  const git = spawnSync('git', ['rev-parse', '--git-dir'], {
+    cwd: dir,
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  });
+  return (git.status ?? 1) === 0 && git.stdout.trim().length > 0;
+}
+
+function installRemediation(label: string, command: string): void {
+  ui.info(`${label} remediation: ${command}`);
+}
+
 async function ensureDaemonInstalledAndRunning(): Promise<boolean> {
   if (await isDaemonRunning()) {
     ui.success('Daemon already running');
@@ -119,6 +141,7 @@ async function ensureDaemonInstalledAndRunning(): Promise<boolean> {
 
   if ((install.status ?? 1) !== 0) {
     ui.error('Daemon install failed');
+    installRemediation('Daemon', 'pd daemon install && pd daemon start');
     return false;
   }
 
@@ -133,7 +156,31 @@ async function ensureDaemonInstalledAndRunning(): Promise<boolean> {
   }
 
   ui.error('Daemon did not come up');
+  installRemediation('Daemon', 'pd doctor && pd daemon start');
   return false;
+}
+
+const PREFETCH_MODEL_SCRIPT = join(PROJECT_ROOT, 'scripts', 'prefetch-embedding-model.ts');
+
+/**
+ * Pre-download the local embedding model (Xenova/all-MiniLM-L6-v2, ~27 MB) so the
+ * first semantic operation isn't blocked on a network fetch. Idempotent (skips if
+ * cached) and best-effort — a failure (offline install) never fails setup; the
+ * runtime fetches lazily later. (ADR-0061.)
+ */
+async function prefetchEmbeddingModel(): Promise<void> {
+  // The user may cancel the one-time download; `pd doctor` detects the gap and
+  // offers the same fetch as a repair (`pd embed prefetch`). Non-interactive
+  // installs keep the old default: download.
+  const proceed = await ui.confirm('Download the local embedding model now? (one-time, ~27 MB)', true);
+  if (!proceed) {
+    ui.info('Skipped — hybrid/semantic search stays lexical-only until you run: pd embed prefetch  (or pd doctor)');
+    return;
+  }
+  ui.step('Pre-downloading local embedding model (one-time, ~27 MB)');
+  const r = spawnSync(TSX_BIN, [PREFETCH_MODEL_SCRIPT], { cwd: PROJECT_ROOT, stdio: 'inherit' });
+  if ((r.status ?? 0) === 0) ui.success('Embedding model ready');
+  else ui.info('Embedding model download failed — repair later with: pd embed prefetch  (or pd doctor)');
 }
 
 /**
@@ -262,6 +309,31 @@ function installAgentSkillUnion(options: Record<string, unknown>): boolean {
   return result.errors.length === 0;
 }
 
+/**
+ * Render + install the Port Daddy Pilot agent definition into every local LLM
+ * runtime (Claude .md, Codex .toml, Gemini command, generic .agents). Runs on
+ * every `pd setup` / brew upgrade so the persona follows the canonical source.
+ */
+function installPilotAgentDefinitions(options: Record<string, unknown>): boolean {
+  const dryRun = !!options['dry-run'];
+  const source = resolvePilotSourceDir(PROJECT_ROOT);
+  if (!source) {
+    ui.warn('Port Daddy Pilot source not found in brew prefix or repo checkout');
+    return false;
+  }
+
+  const result = installPilotAgents({ sourceDir: source, dryRun });
+  const changed = result.written.filter((w) => w.changed).length;
+  ui.info(
+    `Port Daddy Pilot: ${dryRun ? 'would install' : 'installed'} ${result.written.length} runtime definition(s)` +
+    (changed ? ` (${changed} updated)` : ' (all current)'),
+  );
+  for (const err of result.errors.slice(0, 3)) {
+    ui.warn(`Pilot ${err.runtime}: ${err.path}: ${err.error}`);
+  }
+  return result.errors.length === 0;
+}
+
 function lstatSyncSafe(p: string) {
   try {
     return lstatSync(p);
@@ -283,6 +355,7 @@ function installFleetBarIfEnabled(skipFleetBar: boolean): boolean {
 
   if (!existsSync(FLEETBAR_INSTALL_SCRIPT)) {
     ui.warn('FleetBar install script not found');
+    installRemediation('FleetBar', 'pd setup --no-fleetbar, or download the signed app from the Install page');
     return false;
   }
 
@@ -294,6 +367,7 @@ function installFleetBarIfEnabled(skipFleetBar: boolean): boolean {
 
   if ((install.status ?? 1) !== 0) {
     ui.warn('FleetBar install failed');
+    installRemediation('FleetBar', 'pd setup --no-fleetbar, then install FleetBar from the signed zip');
     return false;
   }
 
@@ -332,6 +406,63 @@ async function maybeInitProject(projectDir: string | null, options: Record<strin
   }
 }
 
+async function installProjectHarness(projectDir: string | null, options: Record<string, unknown>): Promise<boolean> {
+  if (!projectDir) {
+    ui.info('Project harness skipped (no project directory detected)');
+    installRemediation('Project harness', 'cd your-project && pd setup');
+    return true;
+  }
+
+  if (options['no-harness']) {
+    ui.info('Skipping Squid hooks and Guard (--no-harness)');
+    installRemediation('Project harness', 'pd setup, or pd squid hooks && pd guard install --mode enforce');
+    return true;
+  }
+
+  let ok = true;
+
+  if (!options['no-squid-hooks']) {
+    ui.step('Installing Squid hooks for local agent runtimes');
+    try {
+      const results = await installSquidHooks(projectDir);
+      for (const result of results) {
+        const proof = result.verified ? 'verified live' : 'contract installed';
+        ui.success(`${result.binaryName}: ${proof}`);
+      }
+    } catch (err) {
+      ok = false;
+      ui.warn(`Squid hooks could not be installed: ${(err as Error).message}`);
+      installRemediation('Squid hooks', 'pd squid hooks');
+    }
+  } else {
+    ui.info('Skipping Squid hooks (--no-squid-hooks)');
+    installRemediation('Squid hooks', 'pd squid hooks');
+  }
+
+  if (!options['no-guard']) {
+    if (!isGitRepository(projectDir)) {
+      ok = false;
+      ui.warn('Coordination Guard skipped (project is not a git repository)');
+      installRemediation('Coordination Guard', 'git init, then pd guard install --mode enforce');
+    } else {
+      ui.step('Installing Coordination Guard in enforce mode');
+      try {
+        await handleGuard(['install'], { dir: projectDir, mode: 'enforce', yes: true });
+        ui.success('Coordination Guard enforces session, claim, and note discipline');
+      } catch (err) {
+        ok = false;
+        ui.warn(`Coordination Guard could not be installed: ${(err as Error).message}`);
+        installRemediation('Coordination Guard', 'pd guard install --mode enforce');
+      }
+    }
+  } else {
+    ui.info('Skipping Coordination Guard (--no-guard)');
+    installRemediation('Coordination Guard', 'pd guard install --mode enforce');
+  }
+
+  return ok;
+}
+
 export async function handleSetup(options: Record<string, unknown>): Promise<void> {
   console.log('');
   ui.info('Port Daddy setup');
@@ -351,10 +482,60 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
     ui.info('Skipping daemon install (--no-daemon)');
   }
 
+  if (!options['no-prefetch']) {
+    await prefetchEmbeddingModel();
+  } else {
+    ui.info('Skipping embedding-model prefetch (--no-prefetch)');
+  }
+
   if (!options['no-mcp']) {
-    await handleMcpInstall({});
+    await handleMcpInstall({ 'no-agents': true });
   } else {
     ui.info('Skipping MCP install (--no-mcp)');
+  }
+
+  // Agent-CLI interactive hooks — stage the Giant Squid tentacles + the runtime
+  // gate, and wire the CLIs that can ONLY be user-level (codex/agy). The gate
+  // keeps them inert unless the daemon is up AND you are inside a pd project, so
+  // this is never machine-wide-always-on. Claude/Gemini are wired PER PROJECT by
+  // `pd init` / `pd hooks install`. Defaults to Yes; --no-hooks opts out.
+  if (!options['no-hooks']) {
+    try {
+      const { stageTentacles, buildTargets, configureTarget, tentacleBinDir } = await import('./hooks-install.js');
+      const detected = buildTargets(process.env.HOME || '').filter((t) => t.detect());
+      // Only codex/agy have no project surface — those are staged here. Per-project
+      // CLIs (claude/gemini) are wired by pd init so they stay project-scoped.
+      const globalOnly = detected.filter((t) => !t.projectConfigPath);
+      if (detected.length > 0) {
+        const wire = ui.canPrompt()
+          ? await ui.confirm(`Stage Port Daddy coordination hooks (gated: only active in pd projects when the daemon runs)?`, true)
+          : true;
+        if (wire) {
+          const stage = stageTentacles();
+          if (stage.missing.length > 0) {
+            ui.warn('Agent-CLI hooks skipped — squid tentacles (bin/pd-hook-*) not on this build');
+          } else {
+            // Stage the visual-identity statusline alongside the tentacles so
+            // `pd init` / `pd squid on` can wire the ◆ PD badge per project.
+            const { stageStatusline } = await import('../../lib/squid/identity.js');
+            stageStatusline();
+            let n = 0;
+            for (const t of globalOnly) {
+              const r = configureTarget(t, { scope: 'user' });
+              if (r.success && !r.skipped) n++;
+            }
+            ui.success(`Staged tentacles + gate at ${tentacleBinDir()}`);
+            if (n > 0) ui.info(`Wired ${n} home-scoped CLI${n > 1 ? 's' : ''} (codex/agy), gated to pd projects`);
+            const perProject = detected.filter((t) => t.projectConfigPath).map((t) => t.name);
+            if (perProject.length) ui.info(`${perProject.join(', ')} are wired per-project — run \`pd init\` or \`pd hooks install\` in a repo`);
+          }
+        }
+      }
+    } catch (err) {
+      ui.warn(`Agent-CLI hooks step failed: ${(err as Error).message}`);
+    }
+  } else {
+    ui.info('Skipping agent-CLI hooks (--no-hooks)');
   }
 
   installFleetBarIfEnabled(!!options['no-fleetbar']);
@@ -365,6 +546,12 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
     ui.info('Skipping agent skill symlink (--no-skill)');
   }
 
+  if (!options['no-agents']) {
+    installPilotAgentDefinitions(options);
+  } else {
+    ui.info('Skipping Pilot agent definitions (--no-agents)');
+  }
+
   const explicitProject = typeof options.project === 'string' ? options.project : undefined;
   if (explicitProject && !existsSync(resolve(explicitProject))) {
     ui.error(`Project path not found: ${explicitProject}`);
@@ -373,15 +560,52 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
 
   const projectDir = inferProjectDir(explicitProject);
   await maybeInitProject(projectDir, options);
+  const harnessOk = await installProjectHarness(projectDir, options);
 
   console.log('');
-  ui.info('Setup complete');
+  if (harnessOk) {
+    ui.success('Setup complete');
+  } else {
+    ui.warn('Setup completed with remediation steps above');
+  }
+
+  // ── Agent Harbor onboarding receipt (binder ch18 Work Order C8) ──────────
+  // 1. Start the first-value clock: time to first OFFICIAL Agent Node is
+  //    measured from the moment the default install path completes. Sealed
+  //    records are never overwritten — re-running setup does not reset a
+  //    metric that already measured real onboarding.
+  try {
+    const record = loadFirstValueRecord();
+    if (!record.setupCompletedAt) {
+      saveFirstValueRecord({ ...record, setupCompletedAt: new Date().toISOString() });
+      ui.info('First-value clock started — `pd doctor` reports time to your first official Agent Node.');
+    }
+  } catch (err) {
+    ui.warn(`Could not record setup completion time: ${(err as Error).message}`);
+  }
+
+  // 2. Transparency receipt: exactly what got installed, by name, and where
+  //    each area's data lives (local / syncs / disabled). No hidden hooks.
+  console.log('');
+  console.log('  What is installed and where your data lives:');
+  for (const area of HARBOR_AREAS) {
+    console.log(`    ${area.title}: ${area.syncCopy}`);
+  }
+  console.log('');
+  console.log('  Hooks installed (by name — these are the only ones):');
+  for (const hook of transparentHookInventory()) {
+    console.log(`    ${hook.displayName} (${hook.hookBinary})`);
+    console.log(`      ${hook.description} ${hook.privacy}`);
+  }
+  console.log('');
+  console.log('  Repair anything later with one command per issue: pd doctor');
+
   console.log('  Next steps:');
   if (projectDir) {
     console.log(`    cd ${projectDir}`);
     console.log('    pd fleet up');
   }
   console.log('    pd fleet status');
-  console.log('    pd begin "your next task"');
+  console.log('    pd begin "your next task" --lifecycle durable');
   console.log('');
 }

@@ -1,4 +1,5 @@
-import { resolve } from 'node:path';
+import { resolve, basename } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 import type { RoadmapProgress, FeedbackEntry, RoadmapFeedbackStatus } from '../../lib/roadmap-progress.js';
 import type { RoadmapClaim, RoadmapEntry, RoadmapPopKind } from '../../lib/roadmap-pop.js';
@@ -25,6 +26,10 @@ interface PopFailureResponse {
   claim?: RoadmapClaim | null;
   error?: string;
 }
+
+type RoadmapItemResponse =
+  | { success: true; item: RoadmapItem }
+  | { success: false; error?: string };
 
 function readOption(options: CLIOptions, ...keys: string[]): string | undefined {
   for (const key of keys) {
@@ -156,6 +161,21 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
 
   if (sub === 'promote') {
     await handleRoadmapPromote(args.slice(1), options);
+    return;
+  }
+
+  if (sub === 'upsert' || sub === 'add') {
+    await handleRoadmapUpsert(args.slice(1), options);
+    return;
+  }
+
+  if (sub === 'delete' || sub === 'rm' || sub === 'remove') {
+    await handleRoadmapDelete(args.slice(1), options);
+    return;
+  }
+
+  if (sub === 'touch') {
+    await handleRoadmapTouch(args.slice(1), options);
     return;
   }
 
@@ -352,6 +372,7 @@ async function handleRoadmapPop(args: string[], options: CLIOptions): Promise<vo
     const beginOptions: CLIOptions = { ...options };
     const identity = readOption(options, 'identity') ?? defaultClaimedBy(options);
     if (identity) beginOptions.identity = identity;
+    if (!beginOptions.lifecycle) beginOptions.lifecycle = 'durable';
     try {
       await handleBegin(purpose, [], beginOptions);
     } catch (err) {
@@ -498,6 +519,202 @@ async function handleRoadmapClaims(options: CLIOptions): Promise<void> {
   }
   for (const c of claims) printClaimRow(c);
   console.log('');
+}
+
+function currentRoadmapActor(options: CLIOptions): string {
+  return (
+    readOption(options, 'as', 'agent', 'by', 'promotedBy') ||
+    readCurrentContext()?.agentId ||
+    'operator-cli'
+  );
+}
+
+function readRoadmapSlug(args: string[], options: CLIOptions): string | undefined {
+  return args[0] && !args[0].startsWith('--') ? args[0] : readOption(options, 'slug');
+}
+
+function readRoadmapSummary(args: string[], options: CLIOptions): string | undefined {
+  const explicit = readOption(options, 'summary', 'summaryMd');
+  if (explicit) return explicit;
+  const rest = args.slice(1).filter((part) => !part.startsWith('--'));
+  const joined = rest.join(' ').trim();
+  return joined || undefined;
+}
+
+async function postRoadmapItem(body: Record<string, unknown>): Promise<RoadmapItem> {
+  const res = await pdFetch('/roadmap/items', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => ({}))) as RoadmapItemResponse;
+  if (!res.ok || data.success !== true) {
+    throw new Error((data as { error?: string }).error || `roadmap upsert failed: HTTP ${res.status}`);
+  }
+  return data.item;
+}
+
+async function getRoadmapItem(slug: string, harbor?: string): Promise<RoadmapItem> {
+  const qs = harbor ? `?${new URLSearchParams({ harbor }).toString()}` : '';
+  const res = await pdFetch(`/roadmap/items/${encodeURIComponent(slug)}${qs}`);
+  const data = (await res.json().catch(() => ({}))) as RoadmapItemResponse;
+  if (!res.ok || data.success !== true) {
+    throw new Error((data as { error?: string }).error || `roadmap item '${slug}' not found`);
+  }
+  return data.item;
+}
+
+async function deleteRoadmapItem(slug: string, harbor?: string): Promise<RoadmapItem | null> {
+  const qs = harbor ? `?${new URLSearchParams({ harbor }).toString()}` : '';
+  const res = await pdFetch(`/roadmap/items/${encodeURIComponent(slug)}${qs}`, { method: 'DELETE' });
+  if (res.status === 404) return null;
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    item?: RoadmapItem;
+    error?: string;
+  };
+  if (!res.ok || data.success !== true) {
+    throw new Error(data.error || `roadmap delete failed: HTTP ${res.status}`);
+  }
+  return data.item ?? null;
+}
+
+/**
+ * Resolve the harbor a `pd roadmap` write should target. Precedence:
+ *   --harbor flag, then $PD_HARBOR, then the repo/project name
+ *   (git toplevel basename), then cwd basename, then undefined.
+ *
+ * Defaulting to the project name fixes the "harbor split" the Planner pane
+ * flags: the daemon's own fallback is the global `fleet` harbor, so a bare
+ * `pd roadmap upsert` silently forked receipts off the project board (which
+ * lives in the `<project>` harbor). Resolving the project here keeps writes on
+ * the same board the operator reads.
+ */
+export function resolveRoadmapHarbor(options: CLIOptions): string | undefined {
+  const explicit = readOption(options, 'harbor');
+  if (explicit) return explicit;
+  const env = process.env.PD_HARBOR?.trim();
+  if (env) return env;
+  try {
+    const top = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+      .toString()
+      .trim();
+    if (top) return basename(top);
+  } catch {
+    /* not a git repo — fall through to cwd */
+  }
+  const cwdBase = basename(process.cwd());
+  return cwdBase || undefined;
+}
+
+function roadmapNote(actor: string, text: string | undefined): { at: number; by: string; text: string } {
+  return {
+    at: Date.now(),
+    by: actor,
+    text: text?.trim() || 'roadmap touched for active work slice',
+  };
+}
+
+async function handleRoadmapUpsert(args: string[], options: CLIOptions): Promise<void> {
+  const slug = readRoadmapSlug(args, options);
+  const summaryMd = readRoadmapSummary(args, options);
+  if (!slug || !summaryMd) {
+    ui.error('Usage: pd roadmap upsert <slug> --summary <md> [--status <now|backlog|parked|merge|done>] [--as <agentId>]');
+    process.exit(1);
+  }
+
+  const actor = currentRoadmapActor(options);
+  const body: Record<string, unknown> = {
+    slug,
+    summaryMd,
+    promotedByAgentId: actor,
+    promotedAt: Date.now(),
+    notes: [roadmapNote(actor, readOption(options, 'note', 'receipt'))],
+  };
+  const status = readOption(options, 'status');
+  if (status) body.status = status;
+  const harbor = resolveRoadmapHarbor(options);
+  if (harbor) body.harbor = harbor;
+  const project = readOption(options, 'project');
+  if (project) body.project = project;
+  const dependencies = readOption(options, 'dependencies', 'deps');
+  if (dependencies) body.dependencies = dependencies.split(',').map((s) => s.trim()).filter(Boolean);
+
+  try {
+    const item = await postRoadmapItem(body);
+    if (isJson(options)) {
+      console.log(JSON.stringify({ success: true, item }, null, 2));
+      return;
+    }
+    ui.success(`Roadmap item '${item.slug}' upserted`);
+    console.log(`  status:  ${item.status}`);
+    console.log(`  harbor:  ${item.harbor}`);
+  } catch (error) {
+    ui.error(error instanceof Error ? error.message : 'roadmap upsert failed');
+    process.exit(1);
+  }
+}
+
+async function handleRoadmapDelete(args: string[], options: CLIOptions): Promise<void> {
+  const slug = readRoadmapSlug(args, options);
+  if (!slug) {
+    ui.error('Usage: pd roadmap delete <slug> [--harbor <harbor>]');
+    process.exit(1);
+  }
+  const harbor = resolveRoadmapHarbor(options);
+  try {
+    const item = await deleteRoadmapItem(slug, harbor);
+    if (isJson(options)) {
+      console.log(JSON.stringify({ success: true, removed: item !== null, item }, null, 2));
+      return;
+    }
+    if (!item) {
+      ui.error(`Roadmap item '${slug}'${harbor ? ` in harbor '${harbor}'` : ''} not found`);
+      process.exit(1);
+    }
+    ui.success(`Roadmap item '${item.slug}' deleted from harbor '${item.harbor}'`);
+  } catch (error) {
+    ui.error(error instanceof Error ? error.message : 'roadmap delete failed');
+    process.exit(1);
+  }
+}
+
+async function handleRoadmapTouch(args: string[], options: CLIOptions): Promise<void> {
+  const slug = readRoadmapSlug(args, options);
+  if (!slug) {
+    ui.error('Usage: pd roadmap touch <slug> [--note <receipt>] [--as <agentId>]');
+    process.exit(1);
+  }
+
+  const harbor = readOption(options, 'harbor');
+  const actor = currentRoadmapActor(options);
+  try {
+    const existing = await getRoadmapItem(slug, harbor);
+    const note = roadmapNote(actor, readOption(options, 'note', 'receipt'));
+    const item = await postRoadmapItem({
+      slug: existing.slug,
+      summaryMd: existing.summaryMd,
+      status: existing.status,
+      promotedFromFeedbackId: existing.promotedFromFeedbackId ?? undefined,
+      promotedByAgentId: actor,
+      promotedAt: existing.promotedAt ?? Date.now(),
+      dependencies: existing.dependencies,
+      notes: [...(existing.notes ?? []), note],
+      harbor: existing.harbor,
+    });
+    if (isJson(options)) {
+      console.log(JSON.stringify({ success: true, item }, null, 2));
+      return;
+    }
+    ui.success(`Roadmap item '${item.slug}' touched`);
+    console.log(`  receipt: ${note.text}`);
+    console.log(`  by:      ${actor}`);
+  } catch (error) {
+    ui.error(error instanceof Error ? error.message : 'roadmap touch failed');
+    process.exit(1);
+  }
 }
 
 async function handleRoadmapPromote(args: string[], options: CLIOptions): Promise<void> {

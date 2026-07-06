@@ -274,6 +274,7 @@ describe('CLI Integration Tests', () => {
           body: {
             purpose: 'CLI stale-session recovery',
             agentId,
+            lifecycle: 'durable',
           },
         });
         expect(begin.ok).toBe(true);
@@ -416,90 +417,6 @@ describe('CLI Integration Tests', () => {
     });
   });
 
-  describe('Dashboard Terminal Command Parity', () => {
-    let html, dashboardCommands, cliOnlyCommands;
-
-    const knownCliCommands = [
-      'claim', 'release', 'find', 'ps', 'url', 'env',
-      'pub', 'sub', 'wait', 'lock', 'unlock', 'locks',
-      'up', 'down',
-      'scan', 'projects',
-      'agent', 'agents',
-      'log', 'activity',
-      'start', 'stop', 'restart', 'status',
-      'install', 'uninstall', 'dev', 'ci-gate',
-      'doctor', 'version', 'help'
-    ];
-
-    beforeAll(() => {
-      html = readFileSync(join(import.meta.dirname, '../../public/index.html'), 'utf8');
-
-      // Parse COMMANDS — supports both old object format and new array format
-      const oldStart = html.indexOf('var COMMANDS = {');
-      if (oldStart !== -1) {
-        let depth = 0;
-        let end = oldStart;
-        for (let i = oldStart; i < html.length; i++) {
-          if (html[i] === '{') depth++;
-          if (html[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
-        }
-        const block = html.slice(oldStart, end + 1);
-        const keyMatches = block.match(/^\s+(\w+)\s*:/gm);
-        dashboardCommands = keyMatches
-          ? keyMatches.map(m => m.trim().replace(/:$/, ''))
-          : [];
-      } else {
-        // New array format: var COMMANDS=[{cmd:'claim',...},...]
-        const arrayStart = html.indexOf('var COMMANDS = [');
-        if (arrayStart !== -1) {
-          let depth = 0, end = arrayStart;
-          for (let i = arrayStart; i < html.length; i++) {
-            if (html[i] === '[') depth++;
-            if (html[i] === ']') { depth--; if (depth === 0) { end = i; break; } }
-          }
-          const block = html.slice(arrayStart, end + 1);
-          const cmdMatches = block.match(/cmd\s*:\s*'([^']+)'/g);
-          dashboardCommands = cmdMatches
-            ? cmdMatches.map(m => m.replace(/cmd\s*:\s*'/, '').replace(/'$/, ''))
-            : [];
-        }
-      }
-
-      const cliOnlyMatch = html.match(/(?:const|var)\s+CLI_ONLY\s*=\s*\[([^\]]+)\]/);
-      cliOnlyCommands = cliOnlyMatch
-        ? cliOnlyMatch[1].match(/'(\w[\w-]*)'/g).map(m => m.replace(/'/g, ''))
-        : [];
-    });
-
-    test('dashboard COMMANDS object is not empty', () => {
-      expect(dashboardCommands.length).toBeGreaterThan(5);
-    });
-
-    test('dashboard CLI_ONLY array is not empty', () => {
-      expect(cliOnlyCommands.length).toBeGreaterThan(3);
-    });
-
-    test('every known CLI command is either in COMMANDS or CLI_ONLY', () => {
-      const covered = new Set([...dashboardCommands, ...cliOnlyCommands]);
-      const exceptions = ['sub', 'wait', 'url', 'env', 'agent', 'version'];
-      const missing = knownCliCommands.filter(cmd =>
-        !covered.has(cmd) && !exceptions.includes(cmd)
-      );
-      expect(missing).toEqual([]);
-    });
-
-    test('CLI_ONLY and COMMANDS do not overlap', () => {
-      const overlap = cliOnlyCommands.filter(cmd => dashboardCommands.includes(cmd));
-      expect(overlap).toEqual([]);
-    });
-
-    test('CLI-only commands get a helpful message, not "Unknown command"', () => {
-      // Verify dashboard HTML directly — no HTTP request needed (ephemeral daemon may be socket-only)
-      expect(html).toContain('is a CLI-only command');
-      expect(html).toContain('Run it in your terminal');
-    });
-  });
-
   describe('CLI Syntactic Sugar', () => {
     const aliasId = `test-alias-${Date.now()}`;
 
@@ -604,14 +521,14 @@ describe('CLI Integration Tests', () => {
     // because CLI used data.sessionId but API returns data.id
     test('session start shows actual session ID (not undefined)', () => {
       const agentId = `bug2-agent-${Date.now()}`;
-      const result = runCli(['session', 'start', 'Bug regression test', '--agent', agentId]);
+      const result = runCli(['session', 'start', 'Bug regression test', '--agent', agentId, '--lifecycle', 'durable']);
       expect(result.success).toBe(true);
       expect(result.stdout).not.toContain('undefined');
       expect(result.stdout).toMatch(/session-[a-z0-9-]+-[a-f0-9]{12}/);
       const firstSessionId = result.stdout.match(/session-[a-z0-9-]+-[a-f0-9]{12}/)?.[0];
 
       // Also test -q returns just the ID
-      const quietResult = runCli(['session', 'start', 'Quiet test', '--agent', agentId, '-q']);
+      const quietResult = runCli(['session', 'start', 'Quiet test', '--agent', agentId, '--lifecycle', 'durable', '-q']);
       expect(quietResult.success).toBe(true);
       expect(quietResult.stdout).toMatch(/^session-[a-z0-9-]+-[a-f0-9]{12}$/);
       expect(quietResult.stdout).not.toBe('undefined');
@@ -630,6 +547,8 @@ describe('CLI Integration Tests', () => {
         'Conflict holder',
         '--agent',
         `bug-conflict-holder-${Date.now()}`,
+        '--lifecycle',
+        'durable',
         '--files',
         filePath,
         '-q',
@@ -641,6 +560,8 @@ describe('CLI Integration Tests', () => {
         'Conflict challenger',
         '--agent',
         `bug-conflict-challenger-${Date.now()}`,
+        '--lifecycle',
+        'durable',
         '--files',
         filePath,
       ]);
@@ -661,6 +582,8 @@ describe('CLI Integration Tests', () => {
         'Release count test',
         '--agent',
         agentId,
+        '--lifecycle',
+        'durable',
         '--files',
         filePath,
         '-q',
@@ -682,6 +605,8 @@ describe('CLI Integration Tests', () => {
         'Files rm count test',
         '--agent',
         agentId,
+        '--lifecycle',
+        'durable',
         '--files',
         filePath,
         '-q',
@@ -704,6 +629,8 @@ describe('CLI Integration Tests', () => {
         'Files alias compatibility test',
         '--agent',
         agentId,
+        '--lifecycle',
+        'durable',
         '-q',
       ]).stdout.trim();
 
@@ -740,6 +667,8 @@ describe('CLI Integration Tests', () => {
           'Symbol region claim test',
           '--agent',
           agentId,
+          '--lifecycle',
+          'durable',
           '-q',
         ]).stdout.trim();
 
@@ -796,7 +725,7 @@ describe('CLI Integration Tests', () => {
     // but API returns { createdAt, updatedAt, completedAt }
     test('sessions list shows proper values (not undefined/NaN)', () => {
       const agentId = `bug3-agent-${Date.now()}`;
-      const sessionId = runCli(['session', 'start', 'Bug 3 session test', '--agent', agentId, '-q']).stdout.trim();
+      const sessionId = runCli(['session', 'start', 'Bug 3 session test', '--agent', agentId, '--lifecycle', 'durable', '-q']).stdout.trim();
       const result = runCli(['sessions', '--agent', agentId, '--json']);
       expect(result.success).toBe(true);
 
@@ -865,7 +794,7 @@ describe('CLI Integration Tests', () => {
     // Bug #15: session start --json ignored --json flag, output human-readable
     test('session start --json outputs JSON (not colored text)', () => {
       const agentId = `bug15-agent-${Date.now()}`;
-      const result = runCli(['session', 'start', 'Bug 15 test', '--agent', agentId, '--json']);
+      const result = runCli(['session', 'start', 'Bug 15 test', '--agent', agentId, '--lifecycle', 'durable', '--json']);
       expect(result.success).toBe(true);
 
       // Should be valid JSON
@@ -962,7 +891,7 @@ describe('CLI Integration Tests', () => {
   // =========================================================================
   describe('Flag Alternatives (v3.6)', () => {
     test('pd begin --purpose works as flag alternative to positional', () => {
-      const result = runCli(['begin', '--purpose', 'Flag alternative test', '-q']);
+      const result = runCli(['begin', '--purpose', 'Flag alternative test', '--lifecycle', 'durable', '-q']);
       expect(result.success).toBe(true);
       expect(result.stdout).toBeTruthy(); // agent ID in quiet mode
 
@@ -972,7 +901,7 @@ describe('CLI Integration Tests', () => {
     });
 
     test('pd begin -P works as short flag', () => {
-      const result = runCli(['begin', '-P', 'Short flag test', '-q']);
+      const result = runCli(['begin', '-P', 'Short flag test', '--lifecycle', 'durable', '-q']);
       expect(result.success).toBe(true);
       expect(result.stdout).toBeTruthy();
 
@@ -986,6 +915,7 @@ describe('CLI Integration Tests', () => {
         '--purpose', 'Multi-flag test',
         '--identity', 'test:cli:flags',
         '--type', 'cli',
+        '--lifecycle', 'durable',
         '--json',
       ]);
       expect(result.success).toBe(true);
@@ -1000,7 +930,7 @@ describe('CLI Integration Tests', () => {
     });
 
     test('pd done --note works as flag alternative', () => {
-      const beginResult = runCli(['begin', '-P', 'Done flag test', '-q']);
+      const beginResult = runCli(['begin', '-P', 'Done flag test', '--lifecycle', 'durable', '-q']);
       const agentId = beginResult.stdout.trim();
 
       // pd-done origin rule (substrate fix 2026-05-20): bypass for this
@@ -1015,7 +945,7 @@ describe('CLI Integration Tests', () => {
     });
 
     test('pd done -n works as short flag for note', () => {
-      const beginResult = runCli(['begin', '-P', 'Done short flag test', '-q']);
+      const beginResult = runCli(['begin', '-P', 'Done short flag test', '--lifecycle', 'durable', '-q']);
       const agentId = beginResult.stdout.trim();
 
       // pd-done origin rule bypass — see comment in --note test above.
@@ -1028,7 +958,7 @@ describe('CLI Integration Tests', () => {
     });
 
     test('pd done --status works as flag alternative', () => {
-      const beginResult = runCli(['begin', '-P', 'Status flag test', '-q']);
+      const beginResult = runCli(['begin', '-P', 'Status flag test', '--lifecycle', 'durable', '-q']);
       const agentId = beginResult.stdout.trim();
 
       const result = runCli(['done', '--status', 'abandoned', '--agent', agentId, '--json']);
@@ -1040,7 +970,7 @@ describe('CLI Integration Tests', () => {
     });
 
     test('pd session start --purpose works as flag alternative', () => {
-      const result = runCli(['session', 'start', '--purpose', 'Session flag test', '--json']);
+      const result = runCli(['session', 'start', '--purpose', 'Session flag test', '--lifecycle', 'durable', '--json']);
       expect(result.success).toBe(true);
 
       const data = JSON.parse(result.stdout);
@@ -1051,9 +981,18 @@ describe('CLI Integration Tests', () => {
       runCli(['session', 'rm', data.id]);
     });
 
+    test('pd session start requires explicit lifecycle in non-interactive mode', () => {
+      const result = runCli(['session', 'start', 'Missing lifecycle']);
+      expect(result.success).toBe(false);
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('--lifecycle');
+      expect(output).toContain('durable');
+      expect(output).toContain('ephemeral');
+    });
+
     test('pd note --content works as flag alternative', () => {
       // Start a session first
-      const sessionResult = runCli(['session', 'start', 'Note flag test', '--json']);
+      const sessionResult = runCli(['session', 'start', 'Note flag test', '--lifecycle', 'durable', '--json']);
       const sessionData = JSON.parse(sessionResult.stdout);
 
       const result = runCli(['note', '--content', 'Flag note content', '--session', sessionData.id, '--json']);
@@ -1067,7 +1006,7 @@ describe('CLI Integration Tests', () => {
     });
 
     test('pd note -c works as short flag for content', () => {
-      const sessionResult = runCli(['session', 'start', 'Short note test', '--json']);
+      const sessionResult = runCli(['session', 'start', 'Short note test', '--lifecycle', 'durable', '--json']);
       const sessionData = JSON.parse(sessionResult.stdout);
 
       const result = runCli(['note', '-c', 'Short flag content', '--session', sessionData.id, '--json']);
@@ -1080,7 +1019,7 @@ describe('CLI Integration Tests', () => {
     });
 
     test('pd n works as the top-level note alias advertised by completions', () => {
-      const sessionResult = runCli(['session', 'start', 'Short alias note test', '--json']);
+      const sessionResult = runCli(['session', 'start', 'Short alias note test', '--lifecycle', 'durable', '--json']);
       const sessionData = JSON.parse(sessionResult.stdout);
 
       const result = runCli(['n', '-c', 'Short alias content', '--session', sessionData.id, '--json']);
@@ -1099,6 +1038,8 @@ describe('CLI Integration Tests', () => {
         'Stale note fallback',
         '--identity',
         identity,
+        '--lifecycle',
+        'durable',
         '--json',
       ]);
       expect(beginResult.success).toBe(true);
@@ -1145,6 +1086,8 @@ describe('CLI Integration Tests', () => {
         'Stale whoami fallback',
         '--identity',
         'port-daddy:test:stale-whoami',
+        '--lifecycle',
+        'durable',
         '--json',
       ]);
       expect(beginResult.success).toBe(true);
@@ -1167,12 +1110,68 @@ describe('CLI Integration Tests', () => {
       runCli(['done', '--session', beginData.sessionId]);
     });
 
+    test('pd session takeover makes the successor the current noteable context', () => {
+      const beginResult = runCli([
+        'begin',
+        'Takeover context continuity',
+        '--identity',
+        'port-daddy:test:takeover-context',
+        '--lifecycle',
+        'durable',
+        '--json',
+      ]);
+      expect(beginResult.success).toBe(true);
+      const beginData = JSON.parse(beginResult.stdout);
+
+      const takeoverResult = runCli([
+        'session',
+        'takeover',
+        beginData.sessionId,
+        'same shell continues',
+        '--json',
+      ]);
+      expect(takeoverResult.success).toBe(true);
+      const takeoverData = JSON.parse(takeoverResult.stdout);
+      expect(takeoverData.success).toBe(true);
+      expect(takeoverData.predecessorId).toBe(beginData.sessionId);
+      expect(takeoverData.successorId).toMatch(/^session-takeover-context-continuity-/);
+      expect(takeoverData.session.agentId).toBe(beginData.agentId);
+
+      const whoamiResult = runCli(['whoami', '--json']);
+      expect(whoamiResult.success).toBe(true);
+      const whoami = JSON.parse(whoamiResult.stdout);
+      expect(whoami.active).toBe(true);
+      expect(whoami.agentId).toBe(beginData.agentId);
+      expect(whoami.sessionId).toBe(takeoverData.successorId);
+
+      const noteResult = runCli(['note', '--content', 'successor note after takeover', '--json']);
+      expect(noteResult.success).toBe(true);
+      const noteData = JSON.parse(noteResult.stdout);
+      expect(noteData.success).toBe(true);
+      expect(noteData.sessionId).toBe(takeoverData.successorId);
+
+      const doneResult = runCli([
+        'done',
+        'Result: takeover context regression complete - not-applicable: integration test cleanup',
+        '--skip-origin-check',
+        '--reason',
+        'takeover context regression test',
+        '--json',
+      ]);
+      expect(doneResult.success).toBe(true);
+      const doneData = JSON.parse(doneResult.stdout);
+      expect(doneData.success).toBe(true);
+      expect(doneData.sessionId).toBe(takeoverData.successorId);
+    });
+
     test('pd session files add uses stored session context across worktree drift', async () => {
       const beginResult = runCli([
         'begin',
         'Cross-worktree file claim fallback',
         '--identity',
         'port-daddy:test:cross-worktree-file-claim',
+        '--lifecycle',
+        'durable',
         '--json',
       ]);
       expect(beginResult.success).toBe(true);
@@ -1200,9 +1199,9 @@ describe('CLI Integration Tests', () => {
       }
     });
 
-    test('positional args still work (backward compat)', () => {
+    test('positional purpose works with explicit lifecycle', () => {
       // Positional purpose
-      const result = runCli(['begin', 'Positional purpose', '-q']);
+      const result = runCli(['begin', 'Positional purpose', '--lifecycle', 'durable', '-q']);
       expect(result.success).toBe(true);
       expect(result.stdout).toBeTruthy();
 
@@ -1216,6 +1215,15 @@ describe('CLI Integration Tests', () => {
 
       const data = JSON.parse(doneResult.stdout);
       expect(data.success).toBe(true);
+    });
+
+    test('pd begin requires explicit lifecycle in non-interactive mode', () => {
+      const result = runCli(['begin', 'Missing lifecycle']);
+      expect(result.success).toBe(false);
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('--lifecycle');
+      expect(output).toContain('durable');
+      expect(output).toContain('ephemeral');
     });
 
     test('non-interactive mode shows usage when no args', () => {

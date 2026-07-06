@@ -1,0 +1,92 @@
+Process 0 (that is, the initial process):
+{1}out(c, fwd_token);
+(
+    {2}!
+    {3}new payload: bitstring;
+    {4}event GitHubSigned(payload);
+    {5}out(c, (payload,mac(payload,gh_secret)))
+) | (
+    {6}!
+    {7}in(c, (payload_1: bitstring,sig: bitstring,tok: bitstring));
+    {8}if (tok = fwd_token) then
+    {9}if (checkmac(payload_1,gh_secret,sig) = true) then
+    {10}event Dispatched(payload_1)
+)
+
+-- Query event(Dispatched(m)) ==> event(GitHubSigned(m)) in process 0.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Dispatched(m)) ==> event(GitHubSigned(m))
+goal reachable: b-event(GitHubSigned(payload_2)) -> event(Dispatched(payload_2))
+Abbreviations:
+payload_2 = payload[!1 = @sid]
+RESULT event(Dispatched(m)) ==> event(GitHubSigned(m)) is true.
+-- Query not event(Dispatched(m)) in process 0.
+Translating the process into Horn clauses...
+Completing...
+Starting query not event(Dispatched(m))
+goal reachable: event(Dispatched(payload_2))
+Abbreviations:
+payload_2 = payload[!1 = @sid]
+
+Derivation:
+Abbreviations:
+payload_2 = payload[!1 = @sid]
+
+1. The attacker initially knows fwd_token[].
+attacker(fwd_token[]).
+
+2. The message (payload_2,mac(payload_2,gh_secret[])) may be sent to the attacker at output {5}.
+attacker((payload_2,mac(payload_2,gh_secret[]))).
+
+3. By 2, the attacker may know (payload_2,mac(payload_2,gh_secret[])).
+Using the function 2-proj-2-tuple the attacker may obtain mac(payload_2,gh_secret[]).
+attacker(mac(payload_2,gh_secret[])).
+
+4. By 2, the attacker may know (payload_2,mac(payload_2,gh_secret[])).
+Using the function 1-proj-2-tuple the attacker may obtain payload_2.
+attacker(payload_2).
+
+5. By 4, the attacker may know payload_2.
+By 3, the attacker may know mac(payload_2,gh_secret[]).
+By 1, the attacker may know fwd_token[].
+Using the function 3-tuple the attacker may obtain (payload_2,mac(payload_2,gh_secret[]),fwd_token[]).
+attacker((payload_2,mac(payload_2,gh_secret[]),fwd_token[])).
+
+6. The message (payload_2,mac(payload_2,gh_secret[]),fwd_token[]) that the attacker may have by 5 may be received at input {7}.
+So event Dispatched(payload_2) may be executed at {10}.
+event(Dispatched(payload_2)).
+
+7. By 6, event(Dispatched(payload_2)).
+The goal is reached, represented in the following fact:
+event(Dispatched(payload_2)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(c, ~M) with ~M = fwd_token at {1}
+
+new payload: bitstring creating payload_3 at {3} in copy a
+
+event GitHubSigned(payload_3) at {4} in copy a
+
+out(c, (~M_1,~M_2)) with ~M_1 = payload_3, ~M_2 = mac(payload_3,gh_secret) at {5} in copy a
+
+in(c, (~M_1,~M_2,fwd_token)) with ~M_1 = payload_3, ~M_2 = mac(payload_3,gh_secret) at {7} in copy a_1
+
+event Dispatched(payload_3) at {10} in copy a_1 (goal)
+
+The event Dispatched(payload_3) is executed at {10} in copy a_1.
+A trace has been found.
+RESULT not event(Dispatched(m)) is false.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query event(Dispatched(m)) ==> event(GitHubSigned(m)) is true.
+
+Query not event(Dispatched(m)) is false.
+
+--------------------------------------------------------------
+

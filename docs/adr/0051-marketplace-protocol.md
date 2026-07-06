@@ -34,7 +34,7 @@ the protocol below.
 | **Harbor envelope** | `assessEnvelope(envelope, action) → verdict` — fail-closed capability boundary per action kind; `boundary` label surfaced at the crossing point | `lib/harbor-envelope.ts`; ADR-0047 |
 | **Harbor cards / tokens** | Ed25519-signed JWTs (`hv: 2`), one-hour TTL, JTI audit rows, JTI revocation; capability grammar (`chan:pub:<prefix>`, `spawn:agent`, `backend:<id>`, …) | `lib/harbor-tokens.ts`; ADR-0025/0027 |
 | **Capability attenuation monitor** | TS runtime verifier: a delegated capability set must be a strict subset of the parent's; proven in ProVerif (`harbor_card_v7_multihop_fixed.pv`) | `lib/cap-attenuation-monitor.ts`; Arbiter `CAP_ESCALATION` rule |
-| **Bonds / wallet / conservation** | `escrow → running → refund/slash`; conserving ledger: `wallet + escrow + commons = supply`, enforced by a runtime conservation check (TLA⁺ sketch in `docs/shipwright/FLEETCONTROL-HARDENING.md`) | `lib/bonds.ts`, `cli/commands/{bond,wallet}.ts` |
+| **Bonds / wallet / conservation** | `escrow → running → refund/slash`; conserving ledger: `wallet + escrow + commons = supply`, enforced by a runtime conservation check (TLA⁺ sketch in `docs/shipwright/FLEETCONTROL-HARDENING.md`) | `lib/bonds.ts`, `cli/commands/bond.ts`, `cli/commands/wallet.ts` |
 | **Attest** | Honest self-report over registered invariants: PASS / FAIL / SKIPPED / UNKNOWN; green is conjunctive — absent attestation is not a pass | `lib/attest.ts`, `lib/attest-invariants.ts`; ADR-0045 |
 | **Tube → spawner router** | Routes work/messages between fleets; loop detection; fail-closed | `lib/tube-spawner-router.ts`, `lib/tube.ts`; ADR-0045 |
 | **Blob store** | Content-addressed local storage; hash-addressed payloads keep relay payloads small | `lib/blob.ts` |
@@ -157,6 +157,79 @@ and a listing publication surface are all unbuilt.
   "Honest green is conjunctive and scoped").
 - I-L3: The listing signature covers all fields; any relay or transit mutation
   invalidates it.
+
+---
+
+### Phase 1b — Discovery: the `/.well-known/harbor` profile
+
+A listing is only findable and verifiable if a stranger can answer two questions
+with one cacheable request: *what does this harbor offer,* and *which keys sign its
+artifacts.* The Universal Commerce Protocol solved the identical problem for retail
+commerce with a `/.well-known/ucp` JSON profile that does double duty — capability
+declaration and key publication — with server-selects version negotiation. The
+pattern is boring, proven, and directly liftable; this section adopts it.
+
+Every daemon that participates in the marketplace serves (directly, or via its
+relay-published mirror for daemons without a public HTTPS surface):
+
+```
+GET /.well-known/harbor        (HTTPS required; Cache-Control: public, max-age ≥ 60)
+
+HarborProfile {
+  harbor: {
+    version:            string          // date-versioned, YYYY-MM-DD: the profile
+                                        //   schema version this daemon speaks
+    supported_versions: string[]        // older schema dates still accepted
+    services:           object          // invocation surfaces: relay address,
+                                        //   listing registry endpoint, tube ingress
+    capabilities:       string[]        // reverse-domain capability identifiers this
+                                        //   harbor lists (see namespacing below)
+  }
+  signing_keys:         JWK[]           // public keys for listing signatures,
+                                        //   countersigns, and principal mandates
+                                        //   (ADR-0094); matched by `kid`
+}
+```
+
+**Key discovery.** Every signed marketplace artifact (listing, countersign,
+receipt, principal mandate) carries a `kid`; verifiers resolve it against the
+issuer's `signing_keys`. This closes the gap named under *Trust and Identity
+Assumptions* below — "a buyer cannot verify a seller's listing signature without a
+trusted channel to their account public key" — with a cacheable HTTPS document
+rather than a bespoke registry. Honesty label: the profile authenticates keys **to
+an origin** (the HTTPS domain), not to a person. Binding an account identity to an
+origin is still ADR-0040/ADR-0094 territory; the profile is the *channel*, not the
+*root of trust*.
+
+**Version negotiation (server-selects).** A buyer daemon sends its own profile URL
+with each first contact (`Harbor-Agent: profile="<url>"` header on REST, the
+equivalent envelope field on relay transport). The *seller* computes the
+intersection: match capability identifiers, select the highest mutually supported
+`version` date, prune anything whose prerequisite the peer lacks, and echo the
+result in the response. The party with the most at stake in a malformed request —
+the one executing it — makes the compatibility decision.
+
+**Capability namespacing.** Marketplace capability identifiers are reverse-domain
+strings: `dev.portdaddy.market.listing`, `dev.portdaddy.market.escrow`, third
+parties under their own domains (`com.example.custom-skill`). Own the domain, own
+the namespace; a profile advertising a capability whose schema URL is outside its
+own namespace authority is rejected. This gives third-party capability sellers an
+extension point without a central approval queue.
+
+**Build state: Proposed.** Nothing of this exists today. It is deliberately the
+cheapest unbuilt piece of the protocol: one static JSON document, one header, one
+intersection function. It replaces no shipped code and unblocks Phase 2's
+cross-operator signature verification.
+
+**Discovery invariants:**
+
+- I-D1: Profiles are served over HTTPS only; a profile fetched over plaintext is
+  discarded.
+- I-D2: A `kid` that does not resolve against the issuer's current `signing_keys`
+  fails verification closed — no fallback to "try all keys."
+- I-D3: Capability identifiers outside the profile origin's namespace authority are
+  ignored (mirror of UCP's rule; prevents namespace squatting via someone else's
+  profile).
 
 ---
 
@@ -387,9 +460,16 @@ These are the load-bearing assumptions; each is honestly labeled.
 **The critical unbuilt keystone:** nothing in this protocol works across operators
 without non-forgeable cross-operator identity (ADR-0040). A buyer cannot verify a
 seller's listing signature without a trusted channel to their account public key.
-Until ADR-0040 ships, this protocol is correct in structure but cannot execute
-cross-machine. It can execute intra-machine (one operator, multiple harbors) with
-the shipped primitives today.
+The key-distribution half of that channel is now specified: the
+`/.well-known/harbor` profile (Phase 1b) publishes `signing_keys` JWKs, and
+**ADR-0094** profiles the artifacts themselves on the credential standards the
+agentic-payments ecosystem deploys (SD-JWT-VC harbor cards, JWS detached-content
+countersigns over JCS, SD-JWT+kb principal mandates), so verification requires
+off-the-shelf tooling rather than a bespoke SDK. The identity half — binding an
+account to an origin so a key rotation is not an identity reset — remains
+ADR-0040's unbuilt extension. Until both ship, this protocol is correct in
+structure but cannot execute cross-machine. It can execute intra-machine (one
+operator, multiple harbors) with the shipped primitives today.
 
 ---
 
@@ -452,6 +532,7 @@ authority. Myerson–Satterthwaite accepted explicitly.
 | Phase | Roadmap slug | Status | Depends on | Done when |
 |---|---|---|---|---|
 | 0 | mktplace-p0-intra-machine | now | ADR-0047 shipped | Intra-machine listing + ECE issuance + invocation using existing harbor/crypto/bonds; no relay, single operator |
+| 0b | mktplace-p0b-wellknown-profile | now | nothing unbuilt | `/.well-known/harbor` profile served + parsed: capability list, `signing_keys` JWKs, server-selects version intersection (Phase 1b). Static JSON + one header + one function |
 | 1 | mktplace-p1-relay-transport | 2027 | ADR-0027 relay transport | Relay envelope routing for listings, negotiations, ECEs, and settlement receipts |
 | 2 | mktplace-p2-account-identity | 2027 | ADR-0029/ADR-0040 | Non-forgeable account identity; cross-operator listing signature verification |
 | 3 | mktplace-p3-cross-op-revocation | 2027 | mktplace-p2, ADR-0027 gossip | Bounded-convergence revocation propagation across operators |
@@ -492,9 +573,11 @@ the protocol structure.
 
 ### Neutral
 
-- This protocol does not specify a discovery / search surface for listings. That is
-  ADR-0030 (`pd whois` talent phonebook) — a companion primitive that rides on
-  top of the relay and account identity this ADR needs anyway.
+- Wire-level discovery (which harbors exist, what they offer, which keys they sign
+  with) is Phase 1b's `/.well-known/harbor` profile. The *search and ranking*
+  surface over discovered listings remains ADR-0030 (`pd whois` talent phonebook) —
+  a companion primitive that rides on top of the relay and account identity this
+  ADR needs anyway.
 - Reputation scoring on listings is phase 4 — gated on ADR-0048 phase 6, which
   requires durable identity first.
 
@@ -519,6 +602,11 @@ the protocol structure.
 - `lib/tube.ts`, `lib/tube-spawner-router.ts`
 - `analyses/harbor_card_v7_multihop_fixed.pv` — ProVerif multi-hop attenuation proof
 - `docs/shipwright/FLEETCONTROL-HARDENING.md` — TLA⁺ conservation law sketch
+- `docs/adr/0094-harbor-cards-as-verifiable-credentials.md` — SD-JWT-VC /
+  JWS-detached / JCS profile for the signed artifacts in Phases 1–4
+- Universal Commerce Protocol — https://ucp.dev,
+  `github.com/Universal-Commerce-Protocol/ucp` — provenance of the
+  `/.well-known/*` profile + server-selects negotiation pattern in Phase 1b
 - Myerson, R. and Satterthwaite, M. (1983). "Efficient mechanisms for bilateral
   trading." *Journal of Economic Theory* 29(2): 265–281.
 - Operator context (2026-06-10 working session, not a committed source): the L3

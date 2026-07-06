@@ -42,6 +42,7 @@ function createSpawner(deps = {}) {
   return createSpawnerBase({
     ...deps,
     enforceTelemetryPolicy: false,
+    enforceTranscriptPolicy: deps.enforceTranscriptPolicy ?? false,
     telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
   });
 }

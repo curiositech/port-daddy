@@ -130,21 +130,24 @@ const ESSENTIAL_TOOL_NAMES = new Set([
   'list_services',
   // Magic tools — high-level composed operations for vibe coders
   'fleet_init',
+  'active_agent_roster',
   'swarm_awareness',
   'coordination_preflight',
   'sitrep',
   'catch_me_up',  // DEPRECATED 3.8.4 — alias for sitrep. Kept for back-compat.
-  'spawn_agent',
-  'run_sortie',
+  'spawn',
   // Central agentic-feedback primitive — agents drop feedback while
   // they work; cartographer harvests it into the roadmap.
   'drop_feedback',
+  // Host-safety posture audit (ADR-0088 Phase A) — read-only; the agent is a
+  // first-class consumer of its own safety posture.
+  'safe_scan',
 ]);
 
 const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> = {
   'magic': {
-    description: 'High-level composed tools: fleet setup, swarm awareness, situation reports, agent spawning, sortie missions, file heat maps, agent messaging',
-    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn_agent', 'run_sortie'],
+    description: 'High-level composed tools: fleet setup, swarm awareness, situation reports, spawning, file heat maps, agent messaging',
+    tools: ['fleet_init', 'fleet_status', 'active_agent_roster', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn'],
   },
   'session-lifecycle': {
     description: 'Start/end sessions, manage agent registration (sugar commands)',
@@ -153,6 +156,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   'trust': {
     description: 'Honest self-report (ADR-0045): verify the daemon actually enforces what it claims before relying on it',
     tools: ['attest'],
+  },
+  'safety': {
+    description: 'Host-safety posture audit (ADR-0088): a read-only scan of what an agent running as the operator could reach right now (secrets at rest, world-readable crown jewels, unsigned binaries, unpinned MCP fetches, egress flows)',
+    tools: ['safe_scan'],
   },
   'advisor': {
     description: 'Deterministic coordination preflight: context integrity, claims, symbols, salvage, channels, tuples, and locks',
@@ -164,7 +171,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'sessions': {
     description: 'Detailed session management (start, end, phases, file claims)',
-    tools: ['start_session', 'end_session', 'get_session', 'delete_session', 'list_sessions', 'set_session_phase', 'claim_files', 'release_files', 'list_file_claims', 'who_owns_file'],
+    tools: ['start_session', 'end_session', 'get_session', 'delete_session', 'list_sessions', 'set_session_phase', 'claim_files', 'claim_symbols', 'release_files', 'list_file_claims', 'who_owns_file'],
   },
   'notes': {
     description: 'Add and list session notes',
@@ -176,7 +183,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'messaging': {
     description: 'Pub/sub messaging between agents',
-    tools: ['publish_message', 'get_messages', 'list_channels', 'clear_channel'],
+    tools: ['publish_message', 'get_messages', 'discourse_lineage', 'list_channels', 'clear_channel'],
   },
   'agents': {
     description: 'Agent registry, heartbeats, salvage/resurrection',
@@ -222,10 +229,6 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     description: 'Activity log queries and statistics',
     tools: ['activity_log', 'activity_summary', 'activity_stats', 'activity_range'],
   },
-  'sorties': {
-    description: 'Tracked mission records over spawned runs — launch, inspect status, and fetch sortie event logs',
-    tools: ['run_sortie', 'list_sorties', 'get_sortie', 'get_sortie_logs'],
-  },
   'cockpit': {
     description: 'App-Native Development Cockpit — read roadmap markdown into typed mission cards',
     tools: ['cockpit_missions_list'],
@@ -253,15 +256,15 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'feedback': {
     description: 'Agentic feedback primitive — drop structured findings about the project (or about Port Daddy itself); cartographer harvests them into the roadmap',
-    tools: ['drop_feedback', 'list_feedback', 'feedback_summary'],
+    tools: ['drop_feedback', 'submit_visual_task', 'list_feedback', 'feedback_summary'],
   },
   'harbors': {
     description: 'Named permission namespaces — list harbors, inspect membership/envelope, and dry-run a capability decision before you act',
-    tools: ['list_harbors', 'get_harbor', 'check_harbor_envelope'],
+    tools: ['list_harbors', 'get_harbor', 'check_harbor_envelope', 'whois'],
   },
   'signals': {
     description: 'Pheromone trail — leave and read stigmergic signals on entities/files so the swarm coordinates without direct messaging',
-    tools: ['spray_pheromone', 'read_pheromones', 'read_entity_pheromones'],
+    tools: ['spray_pheromone', 'resolve_pheromone', 'pheromone_coverage', 'read_pheromones', 'read_entity_pheromones'],
   },
   'roadmap': {
     description: 'Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get items, and promote feedback into a roadmap item',
@@ -271,12 +274,20 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     description: 'Durable commitments + obligation monitor (ADR-0041) — make a commitment, list yours, and see what is overdue',
     tools: ['commit', 'list_commitments', 'list_overdue_commitments'],
   },
+  'suggestions': {
+    description: 'Suggestibility nudges (ADR-0039) — list claim-overlap heads-up nudges and accept/decline them',
+    tools: ['list_nudges', 'respond_nudge'],
+  },
+  'parley': {
+    description: 'Forced reconciliation for overlapping agents — summon, inspect, respond to, and resolve bounded parleys',
+    tools: ['call_parley', 'list_parleys', 'get_parley', 'respond_parley', 'resolve_parley'],
+  },
   'knowledge': {
     description: 'Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
-    tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts'],
+    tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
   },
   'context': {
-    description: 'Context economics — per-agent token budget health, swarm COGS overview, and per-sortie task ledger',
+    description: 'Context economics — per-agent token budget health, swarm COGS overview, and per-spawn task ledger',
     tools: ['get_context_budget', 'get_context_overview', 'get_task_ledger'],
   },
   'harvest': {
@@ -301,13 +312,20 @@ const TOOLS = [
       '[Essential] Register agent + start session in one atomic step. Use this at the start of every ' +
       'coding session instead of calling register_agent and start_session separately. ' +
       'Returns agentId, sessionId, and a salvageHint if dead agents need attention. ' +
-      'Usage: begin_session({purpose: "Building auth system", identity: "myapp:api:main"})',
+      'Usage: begin_session({purpose: "Building auth system", identity: "myapp:api:main", lifecycle: "ephemeral"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
         purpose: {
           type: 'string',
           description: 'What you are working on (e.g. "Implementing OAuth flow")',
+        },
+        lifecycle: {
+          type: 'string',
+          enum: ['durable', 'ephemeral'],
+          description:
+            'Session lifecycle: "ephemeral" for one-off task sessions (most agent work), ' +
+            '"durable" for long-lived staff agents that persist across tasks',
         },
         identity: {
           type: 'string',
@@ -327,7 +345,7 @@ const TOOLS = [
           description: 'Files to claim for this session (advisory — shows conflicts to other agents)',
         },
       },
-      required: ['purpose'],
+      required: ['purpose', 'lifecycle'],
     },
   },
   {
@@ -388,6 +406,30 @@ const TOOLS = [
     },
   },
   {
+    name: 'safe_scan',
+    description:
+      '[Safety] READ-ONLY host-safety posture audit (ADR-0088 Phase A). Returns a ' +
+      '0-100 score, a Safe Room state (green/amber/red), and a blast-radius list: ' +
+      'what an agent running as the operator could reach RIGHT NOW (plaintext ' +
+      'secrets at rest, world-readable crown jewels, unsigned running binaries, ' +
+      'unpinned MCP fetches, live egress flows). green = "cooperative-case sensors ' +
+      'clear", NOT a sandbox — the report footer carries the verbatim HONEST_LIMITS. ' +
+      'NEVER returns a raw secret: findings carry only path/line/ruleId/last4. ' +
+      'Optional `allow`: comma-separated allowlisted egress hosts. Usage: safe_scan()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        allow: {
+          type: 'string',
+          description:
+            'Comma-separated allowlisted egress hosts. A live flow to a host not on ' +
+            'this list is a deduction; empty means egress flows are reported as ' +
+            'evidence but never deducted.',
+        },
+      },
+    },
+  },
+  {
     name: 'relay_status',
     description:
       '[System] Relay federation status (ADR-0049). Returns whether this daemon is ' +
@@ -438,6 +480,22 @@ const TOOLS = [
       required: ['name', 'agent_id', 'action'],
     },
   },
+  {
+    name: 'whois',
+    description:
+      'Skill-routing phonebook: given a capability query, returns ranked agents by semantic match × heartbeat freshness. ' +
+      'Usage: whois({ "query": "react server components", "kind": "agent", "limit": 5 })',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        query: { type: 'string', description: 'Capability query phrase to route on' },
+        kind: { type: 'string', enum: ['agent', 'human', 'any'], description: 'Entity kind filter (default agent)' },
+        fresh_min: { type: 'number', description: 'Minimum freshness in seconds; excludes agents whose last heartbeat is older' },
+        limit: { type: 'number', description: 'Max ranked hits to return (default 10)' },
+      },
+      required: ['query'],
+    },
+  },
 
   // ── Pheromone signals (stigmergy) ────────────────────────────────────
   {
@@ -465,14 +523,42 @@ const TOOLS = [
   {
     name: 'read_entity_pheromones',
     description:
-      '[Signals] Read the signals on one specific entity. Usage: read_entity_pheromones({table: "sessions", id: "sess-1"})',
+      '[Signals] Read the signals on one specific entity. Usage: read_entity_pheromones({table: "sessions", id: "sess-1"}). Pass effective:true to apply anti-inflammatory resolution damping (RCP-7a).',
     inputSchema: {
       type: 'object' as const,
       properties: {
         table: { type: 'string', description: 'Entity table' },
         id: { type: 'string', description: 'Entity id' },
+        effective: { type: 'boolean', description: 'Apply resolution damping (RCP-7a)' },
       },
       required: ['table', 'id'],
+    },
+  },
+  {
+    name: 'resolve_pheromone',
+    description:
+      '[Signals] Deposit a RESOLUTION trace (RCP-7a): mark a signal on an entity as resolved so it is damped on effective reads — stop agents piling onto solved work. Usage: resolve_pheromone({table: "services", id: "svc-1", key: "heat", strength: 1})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        table: { type: 'string', description: 'Entity table' },
+        id: { type: 'string', description: 'Entity id' },
+        key: { type: 'string', description: 'Signal key to resolve' },
+        strength: { type: 'number', description: 'Resolution strength 0-1 (default 1)' },
+      },
+      required: ['table', 'id', 'key'],
+    },
+  },
+  {
+    name: 'pheromone_coverage',
+    description:
+      '[Signals] Coverage of a table (RCP-12): the fraction of entities that carry any pheromone ("seen") plus the unseen set — what an innate scan should target so no entity stays invisible. Usage: pheromone_coverage({table: "services"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        table: { type: 'string', description: 'Entity table (services, projects, sessions, agents)' },
+      },
+      required: ['table'],
     },
   },
 
@@ -563,6 +649,117 @@ const TOOLS = [
     inputSchema: { type: 'object' as const, properties: {} },
   },
 
+  // ── Suggestibility nudges (ADR-0039) ─────────────────────────────────
+  {
+    name: 'list_nudges',
+    description:
+      '[Suggestions] List your pending suggestibility nudges — e.g. claim-overlap heads-up when another live session is on your surface. ' +
+      'Usage: list_nudges({agent_id: "my-agent-id"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        agent_id: { type: 'string', description: 'Agent whose nudges to list (required — scopes the result to you, never list all)' },
+        status: { type: 'string', description: "Filter by status (default 'pending')" },
+      },
+      required: ['agent_id'],
+    },
+  },
+  {
+    name: 'respond_nudge',
+    description:
+      '[Suggestions] Respond to a nudge: accept (you acted on it) or decline (not relevant — primes the cooldown so it stays quiet). ' +
+      'Usage: respond_nudge({id: 12, action: "accept"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        id: { type: 'number', description: 'Nudge id' },
+        action: { type: 'string', description: "'accept' or 'decline' (default 'accept')" },
+      },
+      required: ['id'],
+    },
+  },
+
+  // ── Parley (ADR-0055 forced reconciliation) ─────────────────────────
+  {
+    name: 'call_parley',
+    description:
+      '[Parley] Summon a bounded reconciliation dialogue for overlapping agents. ' +
+      'Usage: call_parley({surface: "lib/foo.ts", reason: "overlap", parties: ["agent-a", "agent-b"], calledBy: "agent-a"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        surface: { type: 'string', description: 'Contested path, symbol, or surface' },
+        reason: { type: 'string', description: 'Why the parley is being summoned' },
+        parties: { type: 'array', items: { type: 'string' }, description: 'Summoned party agent/session ids' },
+        calledBy: { type: 'string', description: 'Agent/session id summoning the parley' },
+        trigger: { type: 'string', description: 'operator, claim_overlap, detector, or swarm_fit (optional)' },
+        harbor: { type: 'string', description: 'Harbor scope (optional)' },
+        ttlMs: { type: 'number', description: 'Response TTL in milliseconds (optional)' },
+        roundLimit: { type: 'number', description: 'Non-terminal turns per party before escalation (optional)' },
+      },
+      required: ['surface', 'reason', 'parties', 'calledBy'],
+    },
+  },
+  {
+    name: 'list_parleys',
+    description:
+      '[Parley] List active or historical parleys, optionally filtered by status or harbor. Usage: list_parleys({status: "SUMMONED"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        status: { type: 'string', description: 'SUMMONED, CONVENED, COLLAPSED, ESCALATED, or VOIDED (optional)' },
+        harbor: { type: 'string', description: 'Harbor scope (optional)' },
+        limit: { type: 'number', description: 'Max rows (optional)' },
+      },
+    },
+  },
+  {
+    name: 'get_parley',
+    description:
+      '[Parley] Fetch a parley summary, including turns, missing parties, and outcome. Usage: get_parley({id: "..."})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        id: { type: 'string', description: 'Parley id' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'respond_parley',
+    description:
+      '[Parley] Record a performative turn in a parley. Usage: respond_parley({id: "...", party: "agent-a", performative: "propose", content: "..."})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        id: { type: 'string', description: 'Parley id' },
+        party: { type: 'string', description: 'Summoned party responding' },
+        performative: { type: 'string', description: 'propose, critique, revise, agree, refuse, or inform' },
+        content: { type: 'string', description: 'Turn content' },
+        proposalId: { type: 'string', description: 'Proposal id (optional)' },
+        evidenceRefs: { type: 'array', items: { type: 'string' }, description: 'Evidence refs (optional)' },
+      },
+      required: ['id', 'party', 'performative', 'content'],
+    },
+  },
+  {
+    name: 'resolve_parley',
+    description:
+      '[Parley] Resolve a parley to COLLAPSED, ESCALATED, or VOIDED. Usage: resolve_parley({id: "...", status: "COLLAPSED", resolvedBy: "operator", decision: "..."})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        id: { type: 'string', description: 'Parley id' },
+        status: { type: 'string', description: 'COLLAPSED, ESCALATED, or VOIDED' },
+        resolvedBy: { type: 'string', description: 'Agent/operator resolving the parley' },
+        decision: { type: 'string', description: 'Decision text, required for COLLAPSED' },
+        reason: { type: 'string', description: 'Resolution reason (optional)' },
+        dissenters: { type: 'array', items: { type: 'string' }, description: 'Dissenting parties (optional)' },
+      },
+      required: ['id', 'status', 'resolvedBy'],
+    },
+  },
+
   // ── Knowledge (semantic search + symbol index) ───────────────────────
   {
     name: 'semantic_search',
@@ -625,6 +822,22 @@ const TOOLS = [
         directory: { type: 'string', description: 'Directory to scan' },
         glob: { type: 'string', description: 'Glob filter (optional)' },
       },
+    },
+  },
+  {
+    name: 'blast_radius',
+    description:
+      '[Knowledge] Reverse-dependency closure of a symbol — everything that breaks if you change it, ' +
+      'plus a ready-to-reserve claim set (modify the target, read everything downstream). ' +
+      'Usage: blast_radius({file: "lib/server.ts", symbol: "createRoutes", depth: 3})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        file: { type: 'string', description: 'File containing the symbol' },
+        symbol: { type: 'string', description: 'Symbol path, e.g. "createRoutes" or "UserService.authenticate"' },
+        depth: { type: 'number', description: 'Max dependency hops (1-6, default 3)' },
+      },
+      required: ['file', 'symbol'],
     },
   },
 
@@ -984,6 +1197,36 @@ const TOOLS = [
     },
   },
   {
+    name: 'claim_symbols',
+    description:
+      '[Standard] Declare symbol-level claims for the active session. A `modify` claim AUTO-RESERVES its ' +
+      'blast radius (read-claims on every downstream caller), so a contract change holds its callers stable. ' +
+      'Returns predicted conflicts (direct/dependency/signature/transitive) with other active sessions — advisory, never blocks. ' +
+      'Usage: claim_symbols({session_id, claims: [{filePath: "lib/server.ts", symbolPath: "createRoutes", type: "modify"}]})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        session_id: { type: 'string', description: 'Session ID' },
+        claims: {
+          type: 'array',
+          description: 'Symbol claims to declare',
+          items: {
+            type: 'object',
+            properties: {
+              filePath: { type: 'string', description: 'File containing the symbol' },
+              symbolPath: { type: 'string', description: 'Canonical symbol path, e.g. "UserService.authenticate"' },
+              type: { type: 'string', description: "read | modify | add-sibling | add-child | delete | rename (default modify; rename/delete auto-reserve the blast radius)" },
+            },
+            required: ['filePath', 'symbolPath'],
+          },
+        },
+        auto_derive_radius: { type: 'boolean', description: 'Auto-reserve each modify\'s blast radius (default true)' },
+        radius_depth: { type: 'number', description: 'How far the auto-reservation reaches (default 3)' },
+      },
+      required: ['session_id', 'claims'],
+    },
+  },
+  {
     name: 'release_files',
     description: '[Standard] Release whole-file or symbol/line region claims from a session.',
     inputSchema: {
@@ -1179,6 +1422,24 @@ const TOOLS = [
         limit: {
           type: 'number',
           description: 'Maximum number of messages to return',
+        },
+      },
+      required: ['channel'],
+    },
+  },
+  {
+    name: 'discourse_lineage',
+    description: '[Advanced] Argument graph (RCP-14) over a channel: builds the typed inReplyTo lineage of the conversation and returns a digest (counts by stance/act, participants, and the contradiction edges — flagging which look unresolved) plus an indented tree. Use to see who answered whom and where agents disagree.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        channel: {
+          type: 'string',
+          description: 'Channel name to analyze',
+        },
+        conversationId: {
+          type: 'string',
+          description: 'Optional: scope the lineage to a single conversationId',
         },
       },
       required: ['channel'],
@@ -2440,10 +2701,22 @@ const TOOLS = [
     },
   },
   {
+    name: 'active_agent_roster',
+    description:
+      '[Magic] Live harness roster for this repo. Lists active agents by harness lane, worktree, task, touched files, ' +
+      'and control affordances for stream, interrupt, takeover, and steering.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project: { type: 'string', description: 'Filter to a specific project (e.g. "port-daddy"). Omit for all.' },
+      },
+    },
+  },
+  {
     name: 'swarm_awareness',
     description:
       '[Magic] Who else is working here? Returns all active agents with their identities, purposes, ' +
-      'file claims, session notes, and heartbeat freshness. One call to understand the whole swarm.',
+      'file claims, session notes, heartbeat freshness, harness lane, and session-control affordances. One call to understand the whole swarm.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -2510,10 +2783,10 @@ const TOOLS = [
     },
   },
   {
-    name: 'spawn_agent',
+    name: 'spawn',
     description:
-      '[Magic] Launch a background AI agent with a task. The agent gets its own session, ' +
-      'heartbeat, and coordination — all automatic. Returns the agent ID for tracking.',
+      '[Magic] Spawn a background AI run with a task. The run gets its own session, ' +
+      'heartbeat, and coordination — all automatic. Returns the spawned run metadata.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -2531,71 +2804,6 @@ const TOOLS = [
         max_tokens: { type: 'number', description: 'Optional token ceiling for claude or claude-cli launches' },
       },
       required: ['task', 'identity', 'budget_usd'],
-    },
-  },
-  {
-    name: 'run_sortie',
-    description:
-      '[Magic] Launch a tracked sortie mission. Use this when you want a durable mission id, ' +
-      'ephemeral harbor, event log, and inspectable outcome instead of a raw one-shot spawn.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        goal: { type: 'string', description: 'Required mission goal or brief.' },
-        project_dir: { type: 'string', description: 'Optional project directory override. Defaults to the current working directory on the daemon side.' },
-        budget_usd: { type: 'number', description: 'Required spend ceiling for the sortie in USD.' },
-        backend: { type: 'string', description: 'Required setup-ready backend: cloudflare, claude, claude-cli, gemini, codex, aider, custom, or another configured backend.' },
-        model: { type: 'string', description: 'Optional explicit model override.' },
-        model_tier: { type: 'string', description: 'Optional tier hint: low, mid, or high.' },
-        recipe: { type: 'string', description: 'Optional mission recipe such as investigate, fix, review, creative, or custom.' },
-        expected_output: { type: 'string', description: 'Optional expected deliverable summary.' },
-        context: { type: 'string', description: 'Optional extra context or constraints.' },
-        approval_mode: { type: 'string', description: 'Optional human gate mode: none, before-build, before-apply, or before-close.' },
-        roster: { type: 'array', description: 'Optional roster preview or requested roles.', items: { type: 'string' } },
-        identity: { type: 'string', description: 'Optional explicit coordinator identity. Defaults to project:sortie:<id>:coordinator.' },
-        purpose: { type: 'string', description: 'Optional short human-readable label for the coordinating run.' },
-        allowed_tools: { type: 'string', description: 'Optional tool permission string for claude-cli-backed coordinators.' },
-        timeout: { type: 'number', description: 'Optional timeout in milliseconds.' },
-        max_tokens: { type: 'number', description: 'Optional token ceiling for claude or claude-cli launches.' },
-      },
-      required: ['goal', 'backend', 'budget_usd'],
-    },
-  },
-  {
-    name: 'list_sorties',
-    description:
-      '[Mission] List recent sortie missions. Filter to the current project by default, or pass a project directory to inspect another checkout.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        project_dir: { type: 'string', description: 'Optional project directory filter.' },
-        limit: { type: 'number', description: 'Optional maximum number of sorties to return (default: 25).' },
-      },
-    },
-  },
-  {
-    name: 'get_sortie',
-    description:
-      '[Mission] Fetch one sortie mission by id, including status, harbor, backend, output, and failure details when present.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        sortie_id: { type: 'string', description: 'Sortie mission id.' },
-      },
-      required: ['sortie_id'],
-    },
-  },
-  {
-    name: 'get_sortie_logs',
-    description:
-      '[Mission] Fetch the human-readable event log for a sortie mission.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        sortie_id: { type: 'string', description: 'Sortie mission id.' },
-        limit: { type: 'number', description: 'Optional maximum number of log events to return.' },
-      },
-      required: ['sortie_id'],
     },
   },
   // ── App-Native Development Cockpit ────────────────────────────────────
@@ -2719,7 +2927,7 @@ const TOOLS = [
   {
     name: 'memory_episodes',
     description:
-      '[Semantic] List episodic memory entries promoted from sessions and sorties.',
+      '[Semantic] List episodic memory entries promoted from sessions and spawned runs.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -2772,6 +2980,35 @@ const TOOLS = [
         harbor: { type: 'string', description: 'Harbor namespace for scoping. Defaults to <project>:fleet when project is supplied; otherwise legacy fleet.' },
       },
       required: ['slug', 'summary'],
+    },
+  },
+  {
+    name: 'submit_visual_task',
+    description:
+      '[Standard] Submit visual evidence as a Port Daddy work item from any MCP client. ' +
+      'Use this when an agent has a screenshot, selected rectangle, DOM hint, or browser ' +
+      'context that should become a reviewable issue for a local agent, cloud fleet, or ' +
+      'review queue. Mirrors the Chrome extension and FleetBar visual intake route without ' +
+      'exposing dispatch/worker internals to the caller.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        title: { type: 'string', description: 'Short issue title. Defaults to description.' },
+        description: { type: 'string', description: 'What is wrong or what the agent should do.' },
+        kind: { type: 'string', enum: ['fix', 'bug', 'nit', 'feedback', 'question'], description: 'Task flavor. Default: fix.' },
+        project: { type: 'string', description: 'Logical project slug.' },
+        project_dir: { type: 'string', description: 'Absolute project directory for repo-aware routing.' },
+        page_url: { type: 'string', description: 'URL of the page or app where the issue was captured.' },
+        target_agent: { type: 'string', description: 'Specific local agent id to receive the task.' },
+        assignee: { type: 'string', enum: ['local-agent', 'cloud-fleet', 'review-queue'], description: 'Where to route the work. Default: review-queue unless a target_agent is supplied.' },
+        open_issue: { type: 'boolean', description: 'Open a reviewable Port Daddy work item. Default: true.' },
+        start_agent: { type: 'boolean', description: 'Ask the daemon to wake/run the assigned agent after routing. Default: false.' },
+        image: { type: 'object', description: 'Screenshot evidence, usually {mimeType, dataUrl} or an existing blobId.' },
+        region: { type: 'object', description: 'Selected rectangle in image or viewport coordinates.' },
+        dom_context: { type: 'object', description: 'DOM decomposition: selectors, XPath, bounds, source hints, and page title.' },
+        viewport: { type: 'object', description: 'Viewport metadata such as width, height, and devicePixelRatio.' },
+      },
+      required: ['description'],
     },
   },
   {
@@ -2858,9 +3095,9 @@ const TOOLS = [
   {
     name: 'get_task_ledger',
     description:
-      '[Context] Get per-sortie COGS ledger rows for cost attribution. ' +
-      'Returns token counts, cost, and landed work (pr/commit/episode) per sortie. ' +
-      'Use for debugging cost overruns or verifying that sorties landed durable work.',
+      '[Context] Get per-spawn COGS ledger rows for cost attribution. ' +
+      'Returns token counts, cost, and landed work (pr/commit/episode) per spawned run. ' +
+      'Use for debugging cost overruns or verifying that spawned work landed durable artifacts.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -2984,6 +3221,10 @@ async function handleTool(
     // ── Sugar (Compound Operations) ────────────────────────────────────
     case 'begin_session': {
       const body: Record<string, unknown> = { purpose: args.purpose };
+      // Forward unconditionally: an empty/malformed value must reach the daemon
+      // so its SESSION_LIFECYCLE_REQUIRED error names the real problem instead
+      // of being dropped here and failing identically but opaquely.
+      body.lifecycle = args.lifecycle;
       if (args.identity) body.identity = args.identity;
       if (args.agent_id) body.agentId = args.agent_id;
       if (args.type) body.type = args.type;
@@ -3040,6 +3281,17 @@ async function handleTool(
       break;
     }
 
+    case 'safe_scan': {
+      // READ-ONLY host-safety posture audit (ADR-0088 Phase A, A10). The daemon
+      // runs the sensors + records the A5 ledger; the report it returns carries
+      // findings with last4 only — NEVER a raw secret value.
+      const allow = typeof args.allow === 'string' && args.allow.length > 0
+        ? `?allow=${encodeURIComponent(args.allow as string)}`
+        : '';
+      res = await GET(`/safe/scan${allow}`);
+      break;
+    }
+
     case 'relay_status': {
       res = await GET('/relay/status');
       break;
@@ -3064,6 +3316,16 @@ async function handleTool(
       break;
     }
 
+    case 'whois': {
+      const params = new URLSearchParams();
+      params.set('q', String(args.query));
+      if (args.kind) params.set('kind', String(args.kind));
+      if (args.fresh_min !== undefined) params.set('fresh_min', String(args.fresh_min));
+      if (args.limit !== undefined) params.set('limit', String(args.limit));
+      res = await GET(`/whois?${params.toString()}`);
+      break;
+    }
+
     // ── Pheromone signals ───────────────────────────────────────────
     case 'spray_pheromone': {
       const body: Record<string, unknown> = {
@@ -3082,9 +3344,22 @@ async function handleTool(
     }
 
     case 'read_entity_pheromones': {
+      const eff = args.effective ? '?effective=1' : '';
       res = await GET(
-        `/pheromone/${encodeURIComponent(args.table as string)}/${encodeURIComponent(args.id as string)}`,
+        `/pheromone/${encodeURIComponent(args.table as string)}/${encodeURIComponent(args.id as string)}${eff}`,
       );
+      break;
+    }
+
+    case 'resolve_pheromone': {
+      const body: Record<string, unknown> = { table: args.table, id: args.id, key: args.key };
+      if (args.strength !== undefined) body.strength = args.strength;
+      res = await POST('/pheromone/resolve', body);
+      break;
+    }
+
+    case 'pheromone_coverage': {
+      res = await GET(`/pheromone/coverage/${encodeURIComponent(args.table as string)}`);
       break;
     }
 
@@ -3143,6 +3418,79 @@ async function handleTool(
       break;
     }
 
+    case 'list_nudges': {
+      // agent_id is required by the tool schema — always scope to the caller so an
+      // agent can never enumerate every agent's nudges via an unfiltered list.
+      const params = new URLSearchParams();
+      params.set('agentId', args.agent_id as string);
+      params.set('status', (args.status as string) || 'pending');
+      res = await GET(`/suggestions?${params.toString()}`);
+      break;
+    }
+
+    case 'respond_nudge': {
+      const action = args.action === 'decline' ? 'decline' : 'accept';
+      res = await POST(`/suggestions/${args.id}/${action}`, {});
+      break;
+    }
+
+    // ── Parley (ADR-0055 forced reconciliation) ─────────────────────
+    case 'call_parley': {
+      const body: Record<string, unknown> = {
+        surface: args.surface,
+        reason: args.reason,
+        parties: args.parties,
+        calledBy: args.calledBy,
+      };
+      if (args.trigger !== undefined) body.trigger = args.trigger;
+      if (args.harbor !== undefined) body.harbor = args.harbor;
+      if (args.ttlMs !== undefined) body.ttlMs = args.ttlMs;
+      if (args.roundLimit !== undefined) body.roundLimit = args.roundLimit;
+      res = await POST('/parley/call', body);
+      break;
+    }
+
+    case 'list_parleys': {
+      const params = new URLSearchParams();
+      if (args.status) params.set('status', args.status as string);
+      if (args.harbor) params.set('harbor', args.harbor as string);
+      if (args.limit !== undefined) params.set('limit', String(args.limit));
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      res = await GET(`/parley${qs}`);
+      break;
+    }
+
+    case 'get_parley': {
+      res = await GET(`/parley/${encodeURIComponent(args.id as string)}`);
+      break;
+    }
+
+    case 'respond_parley': {
+      const body: Record<string, unknown> = {
+        parleyId: args.id,
+        party: args.party,
+        performative: args.performative,
+        content: args.content,
+      };
+      if (args.proposalId !== undefined) body.proposalId = args.proposalId;
+      if (args.evidenceRefs !== undefined) body.evidenceRefs = args.evidenceRefs;
+      res = await POST('/parley/respond', body);
+      break;
+    }
+
+    case 'resolve_parley': {
+      const body: Record<string, unknown> = {
+        parleyId: args.id,
+        status: args.status,
+        resolvedBy: args.resolvedBy,
+      };
+      if (args.decision !== undefined) body.decision = args.decision;
+      if (args.reason !== undefined) body.reason = args.reason;
+      if (args.dissenters !== undefined) body.dissenters = args.dissenters;
+      res = await POST('/parley/resolve', body);
+      break;
+    }
+
     case 'list_overdue_commitments': {
       res = await GET('/commitments/overdue');
       break;
@@ -3178,6 +3526,15 @@ async function handleTool(
 
     case 'symbol_stats': {
       res = await GET('/symbols/stats');
+      break;
+    }
+
+    case 'blast_radius': {
+      const params = new URLSearchParams();
+      params.set('file', args.file as string);
+      params.set('symbol', args.symbol as string);
+      if (args.depth != null) params.set('depth', String(args.depth));
+      res = await GET(`/symbols/blast-radius?${params.toString()}`);
       break;
     }
 
@@ -3357,6 +3714,15 @@ async function handleTool(
       break;
     }
 
+    case 'claim_symbols': {
+      res = await POST(`/sessions/${args.session_id}/symbols`, {
+        claims: args.claims ?? [],
+        autoDeriveRadius: args.auto_derive_radius,
+        radiusDepth: args.radius_depth,
+      });
+      break;
+    }
+
     case 'release_files': {
       res = await DELETE(`/sessions/${encodeURIComponent(args.session_id as string)}/files`, {
         files: args.files ?? [],
@@ -3429,6 +3795,14 @@ async function handleTool(
     case 'get_messages': {
       const qs = args.limit ? `?limit=${args.limit}` : '';
       res = await GET(`/msg/${encodeURIComponent(args.channel as string)}${qs}`);
+      break;
+    }
+
+    case 'discourse_lineage': {
+      const params = new URLSearchParams();
+      if (args.conversationId) params.set('conversationId', args.conversationId as string);
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      res = await GET(`/msg/${encodeURIComponent(args.channel as string)}/lineage${qs}`);
       break;
     }
 
@@ -4028,8 +4402,16 @@ async function handleTool(
       return JSON.stringify({ agents, channels: msgs, recent_notes: recentNotes }, null, 2);
     }
 
+    case 'active_agent_roster':
     case 'swarm_awareness': {
       const project = args.project as string | undefined;
+      const rosterQs = new URLSearchParams({ limit: '50' });
+      if (project) rosterQs.set('project', project);
+      const rosterRes = await GET(`/agent-roster?${rosterQs}`);
+      if (rosterRes.status >= 200 && rosterRes.status < 300 && rosterRes.data && rosterRes.data.success !== false) {
+        return JSON.stringify(rosterRes.data, null, 2);
+      }
+
       const qs = project ? `?identityPrefix=${encodeURIComponent(project)}` : '';
       const sessionQs = new URLSearchParams({ limit: '20' });
       if (project) sessionQs.set('project', project);
@@ -4122,7 +4504,7 @@ async function handleTool(
       return JSON.stringify({ success: true, delivered_via: 'channel', channel: agent, message });
     }
 
-    case 'spawn_agent': {
+    case 'spawn': {
       const task = args.task as string;
       const identity = args.identity as string | undefined;
       const budgetUsd = args.budget_usd as number | undefined;
@@ -4138,13 +4520,13 @@ async function handleTool(
       // the daemon cwd. Reject here too (defense-in-depth with routes/spawn.ts).
       if (workdir !== undefined && workdir !== null) {
         if (typeof workdir !== 'string' || !workdir.trim()) {
-          throw new Error('spawn_agent: workdir must be a non-empty string');
+          throw new Error('spawn: workdir must be a non-empty string');
         }
         if (/["\\\n\r\0]/.test(workdir)) {
-          throw new Error('spawn_agent: workdir contains an illegal character (quote, backslash, newline, or NUL). Provide a plain absolute path.');
+          throw new Error('spawn: workdir contains an illegal character (quote, backslash, newline, or NUL). Provide a plain absolute path.');
         }
         if (!workdir.startsWith('/')) {
-          throw new Error('spawn_agent: workdir must be an absolute path (start with "/").');
+          throw new Error('spawn: workdir must be an absolute path (start with "/").');
         }
       }
       const timeout = args.timeout as number | undefined;
@@ -4161,46 +4543,6 @@ async function handleTool(
       if (allowedTools) body.allowedTools = allowedTools;
       if (typeof args.max_tokens === 'number') body.maxTokens = args.max_tokens;
       res = await POST('/spawn', body);
-      break;
-    }
-    case 'run_sortie': {
-      const body: Record<string, unknown> = {
-        goal: args.goal,
-        backend: args.backend,
-        budgetUsd: args.budget_usd,
-      };
-      if (args.project_dir) body.projectDir = args.project_dir;
-      if (args.model) body.model = args.model;
-      if (args.model_tier) body.modelTier = args.model_tier;
-      if (args.recipe) body.recipe = args.recipe;
-      if (args.expected_output) body.expectedOutput = args.expected_output;
-      if (args.context) body.context = args.context;
-      if (args.approval_mode) body.approvalMode = args.approval_mode;
-      if (Array.isArray(args.roster)) body.roster = args.roster;
-      if (args.identity) body.identity = args.identity;
-      if (args.purpose) body.purpose = args.purpose;
-      if (args.allowed_tools) body.allowedTools = args.allowed_tools;
-      if (typeof args.timeout === 'number') body.timeout = args.timeout;
-      if (typeof args.max_tokens === 'number') body.maxTokens = args.max_tokens;
-      res = await POST('/sorties', body);
-      break;
-    }
-    case 'list_sorties': {
-      const qs = new URLSearchParams();
-      if (args.project_dir) qs.set('projectDir', args.project_dir as string);
-      if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
-      res = await GET(qs.toString() ? `/sorties?${qs.toString()}` : '/sorties');
-      break;
-    }
-    case 'get_sortie': {
-      res = await GET(`/sorties/${encodeURIComponent(args.sortie_id as string)}`);
-      break;
-    }
-    case 'get_sortie_logs': {
-      const qs = new URLSearchParams();
-      if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
-      const suffix = qs.toString() ? `?${qs.toString()}` : '';
-      res = await GET(`/sorties/${encodeURIComponent(args.sortie_id as string)}/logs${suffix}`);
       break;
     }
 
@@ -4315,6 +4657,36 @@ async function handleTool(
       if (args.project) body.project = args.project;
       if (args.harbor) body.harbor = args.harbor;
       res = await POST('/feedback', body);
+      break;
+    }
+
+    case 'submit_visual_task': {
+      const targetAgent = (args.target_agent as string | undefined) || (args.targetAgent as string | undefined);
+      const assignee = (args.assignee as string | undefined) || (targetAgent ? 'local-agent' : 'review-queue');
+      const body: Record<string, unknown> = {
+        schemaVersion: 1,
+        type: 'visual-task',
+        source: 'api',
+        title: (args.title as string | undefined) || (args.description as string | undefined) || 'Visual task',
+        description: (args.description as string | undefined) || (args.title as string | undefined) || '',
+        kind: (args.kind as string | undefined) || 'fix',
+        createdAt: new Date().toISOString(),
+        routing: {
+          assignee,
+          targetAgent,
+          openIssue: args.open_issue !== false && args.openIssue !== false,
+          startAgent: args.start_agent === true || args.startAgent === true,
+        },
+      };
+      if (args.project) body.project = args.project;
+      if (args.project_dir || args.projectDir) body.projectDir = args.project_dir || args.projectDir;
+      if (targetAgent) body.targetAgent = targetAgent;
+      if (args.page_url || args.pageUrl) body.pageUrl = args.page_url || args.pageUrl;
+      if (args.image) body.image = args.image;
+      if (args.region) body.region = args.region;
+      if (args.dom_context || args.domContext) body.domContext = args.dom_context || args.domContext;
+      if (args.viewport) body.viewport = args.viewport;
+      res = await POST('/visual-tasks', body);
       break;
     }
 
@@ -4451,7 +4823,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.18.0',
+    version: '3.24.1',
   },
   {
     capabilities: {

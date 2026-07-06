@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/ffi-plan.schema.json",
+  "title": "FFI Export Plan",
+  "description": "Declares the safety-relevant shape of a Rust cdylib's extern \"C\" exports and the TypeScript/Bun loader that calls them, for deterministic auditing against the rust-kernel-ffi quality gates.",
+  "type": "object",
+  "required": [
+    "exports",
+    "constantTimeCompareForMacs",
+    "crateType",
+    "loaderDegradesGracefully",
+    "testedUnderRealRuntime"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "exports": {
+      "type": "array",
+      "description": "Every #[no_mangle] extern \"C\" function exposed by the cdylib.",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "hasCatchUnwindOrPanicAbort",
+          "inputGuards",
+          "returnsSentinelOnFailure",
+          "handsOutString",
+          "hasMatchingFreeFn",
+          "passesRustStructAcrossBoundary"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The exported symbol name, e.g. pd_macaroon_verify_json."
+          },
+          "hasCatchUnwindOrPanicAbort": {
+            "type": "boolean",
+            "description": "True if the export body is wrapped in std::panic::catch_unwind and/or the crate builds with panic = \"abort\"."
+          },
+          "inputGuards": {
+            "type": "object",
+            "description": "Which of the five input guards are present before any parsing/logic runs.",
+            "required": ["null", "len", "bound", "utf8", "parse"],
+            "properties": {
+              "null": { "type": "boolean", "description": "Null-pointer check on every raw pointer argument." },
+              "len": { "type": "boolean", "description": "len == 0 rejected before dereferencing." },
+              "bound": { "type": "boolean", "description": "len > BOUND rejected to cap allocation/parse size." },
+              "utf8": { "type": "boolean", "description": "std::str::from_utf8 validated, sentinel on failure." },
+              "parse": { "type": "boolean", "description": "serde_json::from_str (or equivalent) validated, sentinel on failure." }
+            }
+          },
+          "returnsSentinelOnFailure": {
+            "type": "boolean",
+            "description": "The export returns a clear sentinel (null / false / negative code) on every failure path, rather than crashing or returning ambiguous output."
+          },
+          "handsOutString": {
+            "type": "boolean",
+            "description": "True if this export returns a heap-allocated CString via into_raw()."
+          },
+          "hasMatchingFreeFn": {
+            "type": "boolean",
+            "description": "True if a paired #[no_mangle] free function exists for strings handed out by this export. Irrelevant (should be false) when handsOutString is false."
+          },
+          "passesRustStructAcrossBoundary": {
+            "type": "boolean",
+            "description": "True if this export passes a Rust struct/enum by value or reference across the FFI boundary instead of primitives or a *const c_char JSON payload. Should be false."
+          }
+        }
+      }
+    },
+    "constantTimeCompareForMacs": {
+      "type": "boolean",
+      "description": "True only if every MAC/tag comparison in the crate uses a full-length fold-XOR compare with no early return on the first differing byte."
+    },
+    "crateType": {
+      "type": "array",
+      "description": "Cargo.toml crate-type. Should be [\"rlib\", \"cdylib\"] so the core is unit-tested as an rlib and shipped as a dylib.",
+      "items": {
+        "type": "string",
+        "enum": ["rlib", "cdylib", "staticlib", "lib", "bin", "other"]
+      }
+    },
+    "loaderDegradesGracefully": {
+      "type": "boolean",
+      "description": "True if the TS/Bun koffi loader captures a load failure and returns null (falling back to a pure-TS path) instead of throwing/crashing the host when the dylib is absent."
+    },
+    "testedUnderRealRuntime": {
+      "type": "boolean",
+      "description": "True if the FFI call path has been exercised under the actual host runtime (e.g. the bun daemon), not only a unit-test harness like jest."
+    }
+  }
+}

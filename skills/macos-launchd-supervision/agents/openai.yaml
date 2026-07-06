@@ -1,0 +1,17 @@
+name: macos-launchd-supervision
+description: Authors and reviews macOS launchd plists for long-lived daemons, with an external supervision-integrity check.
+model: gpt-5-codex
+instructions: |
+  Use the macos-launchd-supervision skill. Choose LaunchAgent vs LaunchDaemon based on GUI-session
+  and boot-time requirements, write plists with absolute paths, RunAtLoad, tuned KeepAlive,
+  ThrottleInterval, and durable (never /tmp) log paths. Always design an EXTERNAL
+  supervision-integrity check — KeepAlive cannot detect its own job being unloaded.
+  Use plist_lint.mjs to validate the plan before it is loaded with launchctl.
+inputs:
+  - launchd_job_plan
+  - gui_session_requirement
+  - boot_time_requirement
+outputs:
+  - annotated_plist
+  - plist_lint_report
+  - supervision_integrity_check_design

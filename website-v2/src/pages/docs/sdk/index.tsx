@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, Terminal } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 import {
-  PORT_DADDY_VERSION,
   SDK_METHOD_TOTAL,
   SDK_REFERENCE_GROUPS,
   referenceAnchor,
@@ -20,7 +19,7 @@ function MethodGroup({ group }: { group: (typeof SDK_REFERENCE_GROUPS)[number] }
             {group.href ? <Badge variant="success">detail page</Badge> : <Badge variant="default">overview only</Badge>}
           </div>
           <p className="text-sm leading-relaxed text-[var(--text-muted)]">{group.description}</p>
-          <p className="text-xs text-[var(--text-muted)]">
+          <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
             Source: <code>{group.source}</code>
           </p>
         </div>
@@ -33,7 +32,7 @@ function MethodGroup({ group }: { group: (typeof SDK_REFERENCE_GROUPS)[number] }
           <code
             id={referenceAnchor(method.name)}
             key={method.name}
-            className="scroll-mt-24 rounded bg-[var(--code-bg)] px-2 py-1 font-mono text-xs text-[var(--brand-primary)]"
+            className="scroll-mt-24 rounded bg-[var(--code-bg)] px-2 py-1 font-mono text-[length:var(--type-meta-size)] text-[var(--brand-primary)]"
             title={method.description}
           >
             {method.name}()
@@ -68,8 +67,6 @@ export default function SdkOverview() {
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="teal">SDK</Badge>
-          <Badge variant="default">v{PORT_DADDY_VERSION}</Badge>
-          <Badge variant="gold">source-backed</Badge>
         </div>
         <h1 className="text-4xl font-semibold tracking-tight text-[var(--text-primary)]">
           TypeScript SDK
@@ -77,7 +74,7 @@ export default function SdkOverview() {
         <p className="max-w-3xl text-xl leading-relaxed text-[var(--text-secondary)]">
           Programmatic access to the same daemon that powers the CLI and MCP server. This page now
           lists every public method on <code>PortDaddy</code> in <code>lib/client.ts</code>, including
-          newer actor, budget, bond, pheromone, Arbiter, tuple, and sortie surfaces.
+          newer actor, budget, bond, pheromone, Arbiter, tuple, and spawn surfaces.
         </p>
         <p className="max-w-xl rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-3 text-sm text-[var(--text-muted)]">
           Use this reference when you are writing JavaScript or TypeScript. For terminal usage see the{' '}
@@ -124,6 +121,7 @@ const pd = new PortDaddy()
 
 const { port } = await pd.claim('myapp:api:main')
 await pd.begin('Building API preview', {
+  lifecycle: 'durable',
   identity: 'myapp:api:main',
   files: ['src/server.ts']
 })

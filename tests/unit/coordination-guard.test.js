@@ -5,9 +5,11 @@ import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import {
   DEFAULT_GUARD_CONFIG,
+  describeGuardBlock,
   evaluateGuardFacts,
   extractClaimPaths,
   filterClaimsToRepo,
+  fileNeedsRoadmapReceipt,
   localGuardConfigPath,
   mergePostCommitHook,
   mergePreCommitHook,
@@ -244,6 +246,106 @@ describe('Coordination Guard', () => {
     test('normalizeGuardConfig defaults requireNotePerCommit to true', () => {
       expect(normalizeGuardConfig({}).requireNotePerCommit).toBe(true);
       expect(normalizeGuardConfig({ requireNotePerCommit: false }).requireNotePerCommit).toBe(false);
+    });
+  });
+
+  describe('the roadmap compulsion — coordination changes must touch roadmap_items', () => {
+    const owned = {
+      config: { ...DEFAULT_GUARD_CONFIG, enabled: true, mode: 'enforce' },
+      active: true,
+      agentId: 'agent-self',
+      sessionId: 'session-self',
+      ownersByFile: {},
+      atCommitTime: true,
+      nowMs: 10_000,
+    };
+
+    test('classifies coordination architecture surfaces as roadmap-bound', () => {
+      expect(fileNeedsRoadmapReceipt('lib/swarm-coordination.ts')).toBe(true);
+      expect(fileNeedsRoadmapReceipt('routes/parley.ts')).toBe(true);
+      expect(fileNeedsRoadmapReceipt('docs/adr/0055-parley-wave-collapse.md')).toBe(true);
+      expect(fileNeedsRoadmapReceipt('src/plain-widget.ts')).toBe(false);
+    });
+
+    test('blocks coordination changes without a recent roadmap receipt', () => {
+      const result = evaluateGuardFacts({
+        ...owned,
+        files: ['lib/swarm-coordination.ts'],
+        ownersByFile: {
+          'lib/swarm-coordination.ts': [{ agentId: 'agent-self', sessionId: 'session-self' }],
+        },
+        roadmapReceipts: [],
+      });
+
+      expect(result.shouldBlock).toBe(true);
+      expect(result.violations.map(v => v.code)).toContain('roadmap-receipt-missing');
+    });
+
+    test('passes when this agent recently touched roadmap_items', () => {
+      const result = evaluateGuardFacts({
+        ...owned,
+        files: ['lib/swarm-coordination.ts'],
+        ownersByFile: {
+          'lib/swarm-coordination.ts': [{ agentId: 'agent-self', sessionId: 'session-self' }],
+        },
+        roadmapReceipts: [{
+          slug: 'swarm-coordination',
+          lastTouchedAt: 9_500,
+          promotedByAgentId: 'agent-self',
+          notes: [],
+        }],
+      });
+
+      expect(result.violations.map(v => v.code)).not.toContain('roadmap-receipt-missing');
+      expect(result.passed).toBe(true);
+    });
+
+    test('passes when this agent left a recent roadmap note receipt', () => {
+      const result = evaluateGuardFacts({
+        ...owned,
+        files: ['routes/parley.ts'],
+        ownersByFile: {
+          'routes/parley.ts': [{ agentId: 'agent-self', sessionId: 'session-self' }],
+        },
+        roadmapReceipts: [{
+          slug: 'parley',
+          lastTouchedAt: 1,
+          promotedByAgentId: 'agent-other',
+          notes: [{ at: 9_900, by: 'agent-self', text: 'phase 0 parley' }],
+        }],
+      });
+
+      expect(result.violations.map(v => v.code)).not.toContain('roadmap-receipt-missing');
+      expect(result.passed).toBe(true);
+    });
+
+    test('does not require roadmap receipts for non-commit advisory checks', () => {
+      const result = evaluateGuardFacts({
+        ...owned,
+        atCommitTime: false,
+        files: ['lib/swarm-coordination.ts'],
+        ownersByFile: {
+          'lib/swarm-coordination.ts': [{ agentId: 'agent-self', sessionId: 'session-self' }],
+        },
+      });
+
+      expect(result.violations.map(v => v.code)).not.toContain('roadmap-receipt-missing');
+      expect(result.passed).toBe(true);
+    });
+
+    test('requireRoadmapForCoordinationChanges:false opts out', () => {
+      const result = evaluateGuardFacts({
+        ...owned,
+        config: { ...owned.config, requireRoadmapForCoordinationChanges: false },
+        files: ['docs/adr/0055-parley-wave-collapse.md'],
+        ownersByFile: {
+          'docs/adr/0055-parley-wave-collapse.md': [{ agentId: 'agent-self', sessionId: 'session-self' }],
+        },
+        roadmapReceipts: [],
+      });
+
+      expect(result.violations.map(v => v.code)).not.toContain('roadmap-receipt-missing');
+      expect(result.passed).toBe(true);
     });
   });
 
@@ -500,5 +602,54 @@ describe('Coordination Guard', () => {
       const result = filterClaimsToRepo(['anything.ts'], '/nonexistent-repo-root-pd-guard-test');
       expect(result).toEqual([]);
     });
+  });
+});
+
+describe('describeGuardBlock — HITL escalation policy', () => {
+  const enforce = { ...DEFAULT_GUARD_CONFIG, enabled: true, mode: 'enforce' };
+
+  test('returns null when the result is not a block', () => {
+    const result = evaluateGuardFacts({ config: enforce, active: true, agentId: 'a', sessionId: 's', files: [] });
+    expect(result.shouldBlock).toBe(false);
+    expect(describeGuardBlock(result)).toBeNull();
+  });
+
+  test('no active session → structural; notifies the operator even outside the git hook', () => {
+    const result = evaluateGuardFacts({ config: enforce, active: false, files: ['src/a.ts'] });
+    const notice = describeGuardBlock(result, { hook: false });
+    expect(notice).not.toBeNull();
+    expect(notice.severity).toBe('structural');
+    expect(notice.notifyOperator).toBe(true); // structural always escalates
+    expect(notice.title).toMatch(/COORDINATION LAYER DOWN/);
+  });
+
+  test('daemon unreachable → structural and always notifies', () => {
+    const result = evaluateGuardFacts({ config: enforce, active: false, daemonReachable: false, files: ['src/a.ts'] });
+    const notice = describeGuardBlock(result, { hook: false });
+    expect(notice.severity).toBe('structural');
+    expect(notice.notifyOperator).toBe(true);
+  });
+
+  test('file owned by another session → conflict; notifies only at real commit time (hook)', () => {
+    const result = evaluateGuardFacts({
+      config: enforce, active: true, agentId: 'agent-self', sessionId: 'session-self',
+      files: ['src/shared.ts'],
+      ownersByFile: { 'src/shared.ts': [{ agentId: 'agent-other', sessionId: 'session-other' }] },
+    });
+    expect(describeGuardBlock(result, { hook: false }).notifyOperator).toBe(false);
+    const hooked = describeGuardBlock(result, { hook: true });
+    expect(hooked.severity).toBe('conflict');
+    expect(hooked.notifyOperator).toBe(true);
+  });
+
+  test('unclaimed file → requirement; notifies only at commit time, not on manual checks', () => {
+    const result = evaluateGuardFacts({
+      config: enforce, active: true, agentId: 'agent-self', sessionId: 'session-self',
+      files: ['src/a.ts'], ownersByFile: { 'src/a.ts': [] },
+    });
+    const manual = describeGuardBlock(result, { hook: false });
+    expect(manual.severity).toBe('requirement');
+    expect(manual.notifyOperator).toBe(false);
+    expect(describeGuardBlock(result, { hook: true }).notifyOperator).toBe(true);
   });
 });

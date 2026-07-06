@@ -1,0 +1,46 @@
+{
+  "features": [
+    {
+      "name": "skill-authoring-local",
+      "requiresIdentity": false,
+      "hasLocalOnlyPath": true,
+      "scopeTier": "private",
+      "crossesTierWithConsentScreen": false
+    },
+    {
+      "name": "passkey-sign-in",
+      "requiresIdentity": true,
+      "hasLocalOnlyPath": true,
+      "scopeTier": "private",
+      "crossesTierWithConsentScreen": false
+    },
+    {
+      "name": "repo-skill-publish",
+      "requiresIdentity": true,
+      "hasLocalOnlyPath": true,
+      "scopeTier": "repo",
+      "crossesTierWithConsentScreen": true
+    },
+    {
+      "name": "team-harbor-invite",
+      "requiresIdentity": true,
+      "hasLocalOnlyPath": true,
+      "scopeTier": "team",
+      "crossesTierWithConsentScreen": true
+    },
+    {
+      "name": "public-skill-gallery-listing",
+      "requiresIdentity": true,
+      "hasLocalOnlyPath": true,
+      "scopeTier": "public",
+      "crossesTierWithConsentScreen": true
+    }
+  ],
+  "localOnlyMode": {
+    "uploadsNothingTestable": true
+  },
+  "exportDelete": {
+    "perTierSupported": true
+  },
+  "scopeLadderOrdered": true
+}

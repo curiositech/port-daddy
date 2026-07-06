@@ -69,7 +69,7 @@ pd dns <command>
 Sessions, notes, recovery, and evidence:
 
 ```bash
-pd begin "purpose"
+pd begin "purpose" --lifecycle durable
 pd done "summary"
 pd whoami
 pd session <command>
@@ -103,11 +103,9 @@ pd tunnel <identity>
 pd tunnel stop <identity>
 ```
 
-Agents, actors, fleets, sorties, and spawn control:
+Agents, actors, fleets, and spawn control:
 
 ```bash
-pd agent "task"
-pd agent run <task>
 pd agent register
 pd agent heartbeat
 pd agents
@@ -116,8 +114,6 @@ pd actor <id>
 pd spawn <task>
 pd spawn kill <agent>
 pd spawned
-pd sortie <goal>
-pd sortie status
 pd fleet init
 pd fleet status
 pd fleet run <agent>

@@ -24,13 +24,14 @@ function sectionAnchor(text: string) {
 
 function exampleMetaLines(example: {
   lastReviewed: string
+  level: string
   time: string
   files: string[]
   commands: { title: string }[]
 }) {
   return [
-    `Reviewed ${example.lastReviewed}. First run takes about ${example.time} — including the part where you read the source.`,
-    `${example.files.length} source file${example.files.length === 1 ? '' : 's'}, ${example.commands.length} operator step${example.commands.length === 1 ? '' : 's'}. The publisher stays small on purpose; the agent work happens in the repo terminal you already trust.`,
+    `${example.level} · last checked ${example.lastReviewed}. Plan on about ${example.time} the first time, reading the source included.`,
+    `${example.files.length} source file${example.files.length === 1 ? '' : 's'}, ${example.commands.length} command${example.commands.length === 1 ? '' : 's'} to run. The program that sends the task stays short. The actual work happens in the agent terminal you already have open.`,
   ]
 }
 
@@ -97,7 +98,7 @@ export function ExampleDetailPage() {
 
             {example.uiScreenshots?.length ? (
               <section id="ui-screenshots" className="scroll-mt-[calc(var(--space-10)+var(--space-6))]">
-                <DocsNoteCard label="UI screenshots" title="The browser surface this example actually ships." elevation="quiet">
+                <DocsNoteCard label="UI screenshots" title="What this looks like when it runs." elevation="quiet">
                   <div className="grid gap-[var(--panel-gap)]">
                     {example.uiScreenshots.map((screenshot) => (
                       <figure key={screenshot.src} className="m-0 grid gap-[var(--panel-gap-tight)]">
@@ -132,14 +133,11 @@ export function ExampleDetailPage() {
               {needsPortDaddy ? (
                 <div className="grid gap-[var(--space-3)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
                   <PanelBody size="compact" className="max-w-[58rem]">
-                    If Port Daddy is not installed or the daemon is not running, do this part first. The example will not work without it.
+                    This example needs Port Daddy installed and its daemon running. If you do not have it yet, set that up first — the example will not work without it.
                   </PanelBody>
                   <div className="flex flex-wrap gap-[var(--panel-gap-tight)]">
                     <BracketLink to="/docs/get-started" tone="blue" side="left">
                       Install Port Daddy
-                    </BracketLink>
-                    <BracketLink to="/docs/get-started" tone="accent" side="right">
-                      Get setup command
                     </BracketLink>
                   </div>
                 </div>
@@ -184,7 +182,7 @@ export function ExampleDetailPage() {
             </section>
 
             <section id="adapt" className="scroll-mt-[calc(var(--space-10)+var(--space-6))]">
-              <DocsNoteCard label="Adapt it" title="How to turn the demo into product code." tone="accent">
+              <DocsNoteCard label="Adapt it" title="Turn this demo into your own tool." tone="accent">
                 <PanelList items={example.adapt} tone="accent" />
               </DocsNoteCard>
             </section>

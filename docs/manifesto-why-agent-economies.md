@@ -38,9 +38,12 @@ machinery a market needs to not be a knife fight.** No identity you can trust. N
 post collateral. No settlement. No way to tell a one-shot grifter from a counterparty
 with a reputation to protect.
 
-The rails are, suddenly, real. Google shipped an Agent Payments Protocol; Coinbase
-shipped x402 so an agent can satisfy an HTTP 402 with a stablecoin; Anthropic's MCP is
-becoming the substrate agents talk *over*.[^rails] Two serious economists, Gillian
+The rails are, suddenly, real. Google shipped an Agent Payments Protocol, then teamed
+with Shopify on the Universal Commerce Protocol — Walmart, Target, Visa, and Mastercard
+endorsing — so an agent can discover, cart, and check out at any merchant serving a
+`/.well-known/ucp` profile; Coinbase shipped x402 so an agent can satisfy an HTTP 402
+with a stablecoin; Anthropic's MCP is becoming the substrate agents talk
+*over*.[^rails] Two serious economists, Gillian
 Hadfield and Andrew Koh, wrote a paper this year literally titled *An Economy of AI
 Agents* and meant it.[^hadfield] The plumbing is being laid. The question is whether we
 lay any **institutions** under it, or whether we let the agent economy relive the
@@ -177,9 +180,14 @@ machinery is already built:
 - You **price by categorical fidelity.** A full equivalence is worth more than a faithful
   functor is worth more than a Galois connection is worth more than a bare span. The
   market can grade its merchandise.
-- And you **bond it.** Post collateral against the claim. If the receipt fails an audit —
-  if your "functor" turns out to be a leaky span dressed up — the bond is slashed and
-  the conservation law makes sure no value evaporated quietly in the process.
+- And you **bond it** — honestly about what the bond is for. The receipt is *checkable*:
+  a buyer verifies the witness themselves, so no trusted auditor sits in the middle to
+  bribe, and that structural check, not the collateral, is what kills the market for
+  lemons. The bond is the residual backstop, covering the damage a claim that *passes* the
+  check can still do downstream; if the bonded claim turns out to be a leaky span dressed
+  up, it is slashed and the conservation law keeps any value from evaporating quietly.
+  Sizing that bond — high enough to deter, low enough not to price out honest sellers — is
+  its own open problem, not a detail I get to wave past.
 
 That is the whole trick. The boring permit office — bonds, evidence chains, a
 conservation theorem, structurally-bounded settlement — turns out to be the missing
@@ -201,7 +209,7 @@ true to *earn* the sentence instead of merely shouting it:
    not the solution and not the marketplace — it is the **verified functor**, and those
    are hard-won. *(The caveat, kept in the load-bearing position where it belongs.)*
 
-Get those three and the fantasy stops being a fantasy and starts being plumbing. Elliott
+Get those three and the fantasy stops being a fantasy and starts being plumbing. Elinor
 Ostrom spent a career showing that commons don't need a tyrant *or* a tragedy — they
 need rules, monitoring, and graduated stakes.[^ostrom] That is what we are building, for
 the strangest commons yet: the space of ideas, traded by machines, priced by how much
@@ -212,7 +220,7 @@ cathedral is buttresses before it is a ceiling.
 
 ```bash
 brew install curiositech/tap/port-daddy
-pd begin --identity myapp:auth --purpose "refactoring token refresh"
+pd begin --identity myapp:auth --purpose "refactoring token refresh" --lifecycle durable
 pd session files claim src/auth.ts
 # If another agent reaches for that file, the institution already said no.
 ```
@@ -226,10 +234,15 @@ The Leviathan is not tyranny. It is the reason the market can exist at all.
 [^hobbes]: Thomas Hobbes, *Leviathan* (1651). The war of all against all is the
     canonical argument for why self-interested actors with no shared sovereign
     coordinate badly — the multi-agent file collision, four centuries early.
-[^rails]: Google, *Agent Payments Protocol (AP2)*, 2025; Coinbase, *x402* (HTTP 402
-    settlement for agents), 2025; Anthropic, *Model Context Protocol (MCP)*, 2024. The
-    payment and coordination rails for autonomous agents now exist; the institutions
-    under them mostly do not.
+[^rails]: Google, *Agent Payments Protocol (AP2)*, 2025; Google & Shopify, *Universal
+    Commerce Protocol (UCP)*, 2026 (ucp.dev — discovery, cart, checkout for
+    agent-mediated retail; authorization proof delegated to AP2's verifiable-credential
+    mandates, whose SD-JWT/JWS formats Port Daddy adopts at the harbor boundary in
+    ADR-0094); Coinbase, *x402* (HTTP 402 settlement for agents), 2025; Anthropic,
+    *Model Context Protocol (MCP)*, 2024. The payment and coordination rails for
+    autonomous agents now exist; the institutions under them mostly do not — UCP's own
+    security critics (DataDome, 2026) say plainly that it standardizes *how* agents
+    transact while leaving *which agents to trust* unsolved.
 [^hadfield]: Gillian K. Hadfield & Andrew Koh, *An Economy of AI Agents*, NBER Working
     Paper, 2025 — the serious-economics treatment of agents as economic actors.
 [^olog]: David I. Spivak & Robert E. Kent, "Ologs: A Categorical Framework for Knowledge

@@ -1,0 +1,12 @@
+name: beautiful-cli-design
+description: Design polished, accessible CLI/TUI output and interaction, and audit a design spec for pipe/NO_COLOR/exit-code safety.
+model: gpt-5-codex
+instructions: |
+  Use the beautiful-cli-design skill. Route framework choice through the decision flow (prompt
+  library vs. full TUI framework), apply the visual system rules (semantic color only, Unicode-
+  aware width, honest progress), and validate every design against the six anti-patterns before
+  calling it done. Audit the final design with scripts/cli_design_audit.mjs — never rely on color
+  alone for meaning, always honor NO_COLOR/non-TTY, always send errors to stderr with meaningful
+  exit codes.
+inputs: [cli-tui-design-brief, cli-design-spec]
+outputs: [cli-output-interaction-design, cli-design-audit]

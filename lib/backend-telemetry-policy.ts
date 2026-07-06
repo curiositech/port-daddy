@@ -1,4 +1,5 @@
 import { hasExactModelRate } from './cost-tracker.js';
+import { resolveModel } from './model-registry.js';
 
 export interface BackendTelemetryPolicy {
   backend: string;
@@ -8,12 +9,17 @@ export interface BackendTelemetryPolicy {
   effectiveModel?: string | null;
 }
 
-export const DEFAULT_OPERATOR_CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
-export const DEFAULT_OPERATOR_CODEX_MODEL = 'gpt-5.4-mini';
-export const DEFAULT_OPERATOR_CLOUDFLARE_MODEL = '@cf/zai-org/glm-4.7-flash';
-export const DEFAULT_OPERATOR_OPENAI_MODEL = 'gpt-5-mini';
-export const DEFAULT_OPERATOR_GEMINI_MODEL = 'gemini-2.5-flash';
-export const DEFAULT_OPERATOR_GROQ_MODEL = 'llama-3.3-70b-versatile';
+// Operator-default models are the registry's `cheap` tier per backend — resolved
+// at load time, NOT hardcoded. Change the IDs in lib/model-registry-data.ts; the
+// names below stay stable for back-compat with importers.
+export const DEFAULT_OPERATOR_CLAUDE_MODEL = resolveModel({ backend: 'claude', capability: 'cheap' });
+export const DEFAULT_OPERATOR_CODEX_MODEL = resolveModel({ backend: 'codex', capability: 'cheap' });
+export const DEFAULT_OPERATOR_CLOUDFLARE_MODEL = resolveModel({ backend: 'cloudflare', capability: 'cheap' });
+export const DEFAULT_OPERATOR_OPENAI_MODEL = resolveModel({ backend: 'openai', capability: 'cheap' });
+export const DEFAULT_OPERATOR_GEMINI_MODEL = resolveModel({ backend: 'gemini', capability: 'cheap' });
+export const DEFAULT_OPERATOR_GROQ_MODEL = resolveModel({ backend: 'groq', capability: 'cheap' });
+export const DEFAULT_OPERATOR_DEEPSEEK_MODEL = resolveModel({ backend: 'deepseek', capability: 'cheap' });
+export const DEFAULT_OPERATOR_XAI_MODEL = resolveModel({ backend: 'xai', capability: 'cheap' });
 
 function blocked(backend: string, summary: string, nextStep?: string): BackendTelemetryPolicy {
   return {
@@ -164,8 +170,51 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
       };
     }
 
+    case 'deepseek': {
+      // DeepSeek's OpenAI-compatible API returns usage.prompt_tokens +
+      // completion_tokens, extracted by the shared OpenAI adapter the DeepSeek
+      // backend delegates to. Gate flips on a known rate in MODEL_RATES.
+      const effectiveModel = model?.trim() || DEFAULT_OPERATOR_DEEPSEEK_MODEL;
+      if (!hasExactModelRate(effectiveModel)) {
+        return blocked(
+          backend,
+          `DeepSeek model "${effectiveModel}" has no exact cost rate entry; fail-closed telemetry policy blocks launch.`,
+          'Add an exact model rate before enabling this model.'
+        );
+      }
+      return {
+        backend,
+        launchAllowed: true,
+        summary: `Exact telemetry policy satisfied for DeepSeek model "${effectiveModel}"`,
+        effectiveModel,
+      };
+    }
+
+    case 'xai': {
+      // xAI's OpenAI-compatible API returns usage.prompt_tokens +
+      // completion_tokens, extracted by the shared OpenAI adapter the xAI
+      // backend delegates to. Gate flips on a known rate in MODEL_RATES.
+      const effectiveModel = model?.trim() || DEFAULT_OPERATOR_XAI_MODEL;
+      if (!hasExactModelRate(effectiveModel)) {
+        return blocked(
+          backend,
+          `xAI model "${effectiveModel}" has no exact cost rate entry; fail-closed telemetry policy blocks launch.`,
+          'Add an exact model rate before enabling this model.'
+        );
+      }
+      return {
+        backend,
+        launchAllowed: true,
+        summary: `Exact telemetry policy satisfied for xAI model "${effectiveModel}"`,
+        effectiveModel,
+      };
+    }
+
     case 'cli:claude-code':
-    case 'cli:codex': {
+    case 'cli:codex':
+    case 'cli:gemini':
+    case 'cli:groq':
+    case 'cli:grok': {
       // CLI-tube backends route through the operator's local Claude
       // Code / Codex CLI. Auth + billing live in that CLI; this app
       // doesn't see per-token cost. We mark these as flat-rate
@@ -173,7 +222,7 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
       // assumption the operator pays for Claude Max / ChatGPT Pro.
       // Operators MUST still set a daily project budget; the kill-switch
       // monitors call count and per-spawn timeouts.
-      const effectiveModel = model?.trim() || (backend === 'cli:claude-code' ? 'claude-code' : 'codex');
+      const effectiveModel = model?.trim() || backend.slice('cli:'.length);
       return {
         backend,
         launchAllowed: true,
@@ -210,6 +259,34 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
         backend,
         launchAllowed: true,
         summary: `Exact telemetry policy satisfied for Ollama model "${effectiveModel}"`,
+        effectiveModel,
+      };
+    }
+
+    case 'lmstudio': {
+      // LM Studio's OpenAI-compatible local server returns exact
+      // usage.{prompt_tokens,completion_tokens} on every completion (see
+      // lib/spawner/backends/openai.ts), so the exact telemetry path applies
+      // just like Ollama. It serves whatever model is loaded in the app, so
+      // the id is operator-chosen and unbounded; cost-tracker's lmstudio
+      // catch-all electricity-proxy rate prices any id at the local floor.
+      // The model id may be the conventional 'local-model' placeholder, which
+      // is fine — the catch-all rate matches it.
+      const effectiveModel = model?.trim() || 'local-model';
+      if (!hasExactModelRate(effectiveModel, 'lmstudio')) {
+        return {
+          ...blocked(
+            backend,
+            `LM Studio model "${effectiveModel}" has no exact cost rate entry; fail-closed telemetry policy blocks launch.`,
+            'Add a rate for LM Studio to cost-tracker LMSTUDIO_MODEL_RATES before enabling it.'
+          ),
+          effectiveModel,
+        };
+      }
+      return {
+        backend,
+        launchAllowed: true,
+        summary: `Exact telemetry policy satisfied for LM Studio model "${effectiveModel}"`,
         effectiveModel,
       };
     }

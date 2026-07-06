@@ -130,7 +130,7 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{May 2026\\Version 1.2 (Port Daddy v3.13.0)}
+\date{July 2026\\Version 1.3 (Port Daddy v3.23.0)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
 \begin{document}
@@ -312,6 +312,26 @@ Capability-based security dates back to Dennis and Van Horn's seminal 1966 paper
 \subsection{JWT Security}
 
 JSON Web Tokens have been the subject of extensive security analysis. Algorithm confusion attacks were first systematically studied by McLean~\cite{mclean2015critical}, with subsequent vulnerabilities documented in CVE-2015-9235~\cite{cve20159235} (HS256/RS256 confusion), CVE-2018-1000531~\cite{cve20181000531} (``none'' algorithm), and CVE-2023-48238~\cite{cve202348238} (generic algorithm confusion). Our protocol implements the defense recommended by the IETF JWT Best Current Practices~\cite{ietf2024jwtbcp}: strict algorithm whitelisting and key separation.
+
+\subsection{Credential Formats in Agentic Commerce}
+
+Since this protocol was first specified, the agentic-payments industry has
+converged on a concrete credential dialect: the Agent Payments
+Protocol~\cite{ap2mandates2026}, adopted by the Universal Commerce
+Protocol~\cite{ucp2026} (Google/Shopify, 2026), carries its authorization
+mandates as W3C Verifiable Credentials in SD-JWT form --- SD-JWT+kb for
+principal proof, JWS detached-content signatures (RFC~7515 Appendix~F) over
+JCS-canonicalized payloads (RFC~8785) for counterparty authorization, with
+ES256 as the recommended algorithm and keys published as JWK sets in a
+\texttt{/.well-known} profile. The reference implementation migrates the
+Harbor Card envelope to this profile (\texttt{hv:~3}, ADR-0094) so that
+external verifiers need no bespoke SDK. The migration is deliberately
+envelope-only: the delegation-chain semantics, the attenuation invariant of
+Theorem~\ref{thm:injective}, and the ProVerif obligations are independent of
+the serialization, though the key-binding construction of SD-JWT+kb adds a
+binding obligation the model must re-discharge. The JWT hardening above
+(strict algorithm whitelisting, key separation) transfers unchanged --- SD-JWT
+is a JWT profile, not a departure from one.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Formal Verification Strategy}
@@ -816,6 +836,16 @@ Alan Demers, Dan Greene, Carl Hauser, Wes Irish, John Larson, Scott Shenker, How
 \newblock Epidemic Algorithms for Replicated Database Maintenance.
 \newblock In \textit{ACM Symposium on Principles of Distributed Computing (PODC)}, 1987.
 
+\bibitem{ucp2026}
+Universal Commerce Protocol.
+\newblock Specification and reference implementation (Apache-2.0), Google, Shopify, et al., 2026.
+\newblock \texttt{https://ucp.dev}.
+
+\bibitem{ap2mandates2026}
+Agent Payments Protocol (AP2): Mandates.
+\newblock Verifiable-credential authorization chain: SD-JWT+kb, JWS detached content, JCS canonicalization, 2026.
+\newblock \texttt{https://ap2-protocol.org}.
+
 \end{thebibliography}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -840,9 +870,14 @@ Authentication + injective agreement, all three phases (\S\ref{sec:algorithms}) 
 Algorithm-confusion immunity & ProVerif pinned vs.\ naive & \Closed\ pinned TRUE; counter-trace witnessed & \texttt{algconfusion.pv} \\
 Delegation chain replay (\S\ref{sec:delegation}) & ProVerif at depth 3 & \Closed\ chain authenticity TRUE; 17-case runtime conformance & \texttt{chain-replay.pv} \\
 Cuckoo-filter pollution resistance (\S\ref{sec:revocation}) & 5-invariant property test & \Closed\ FP rate within $2B/2^f$ at load $0.95$ & cuckoo property tests \\
+GitHub-App webhook origin authentication & ProVerif (Dolev-Yao relay) & \Closed\ origin auth TRUE; daemon re-verifies GitHub HMAC (runtime conformance) & \texttt{github\_ingress\_origin\_auth.pv} \\
+Multi-tenant relay namespace isolation & ProVerif + runtime & \Closed\ member of $A$ cannot publish into $B$; \texttt{HARBOR\_MISMATCH} conformance & \texttt{github\_ingress\_tenant\_isolation.pv} \\
 \midrule
 Cuckoo-filter revocation soundness & inspection + empirical & \Partial\ gate strictly narrows acceptance; gossip bound reproduced from~\cite{demers1987epidemic} & runtime test \\
 Constant-time signature comparison & audited library (\texttt{subtle::ConstantTimeEq}) & \Partial\ no side-channel proof; library trust documented & --- \\
+Relay payload secrecy via HPKE (daemon key pinned) & ProVerif (design) & \Partial\ secrecy TRUE under pinned key; seal not yet implemented & \texttt{github\_ingress\_hpke\_secrecy.pv} \\
+Webhook replay-freedom + in-order delivery & TLA+ / TLC (exhaustive at bound) & \Partial\ design model-checked; runtime via ordered-chain ingest & \texttt{WebhookDelivery.tla} \\
+Card revocation finality under backup/restore (ADR-0018 Attack~2) & TLA+ / TLC & \Partial\ rollback attack + revocation-epoch mitigation both model-checked & \texttt{CardRevocation.tla} \\
 \midrule
 Formal gossip-convergence bound & --- & \Open\ leaning on standard anti-entropy analysis~\cite{demers1987epidemic} & --- \\
 \bottomrule
@@ -850,6 +885,8 @@ Formal gossip-convergence bound & --- & \Open\ leaning on standard anti-entropy 
 \end{table}
 
 \paragraph{Limitations.} The cuckoo-filter pollution closure handles the local-filter side; cross-peer gossip propagation still leans on the standard anti-entropy analysis rather than a mechanized proof. The side-channel resistance of signature comparison is inherited from an audited library rather than re-proved. These deferrals are documented as known open problems rather than as defects in the present claims.
+
+\paragraph{GitHub-App relay ingress.} The webhook-dispatch surface (GitHub $\to$ untrusted relay $\to$ daemon) is modeled with the relay as the Dolev-Yao attacker, in three relay-agnostic properties, each paired with a negative control (\texttt{*\_vuln.pv}) that exhibits the attack once the mitigation is removed---so a \emph{true} result is non-vacuous. (i)~\emph{Origin authentication}: the daemon dispatches a fleet event only if GitHub signed it, even when the forwarder's transport credential is attacker-held; the control omits the daemon-side HMAC re-verification and the property fails (forged dispatch). This is \emph{non-injective} agreement (origin), not replay-freedom: a captured genuine $(\textit{payload},\textit{mac})$ may be re-delivered. Replay-freedom is an ordering-sensitive, mutable-state property outside ProVerif's reach, so it is discharged separately in TLA+ (\texttt{proofs/relay/WebhookDelivery.tla}): a daemon consuming the \emph{ordered} per-publisher chain (dispatch iff $\textit{seq}=\textit{tip}+1$) is model-checked at-most-once \emph{and} gap-free against an adversarial relay that reorders, duplicates, and redelivers, with the unguarded daemon as the model-checked counterexample (TLC exhibits a double-dispatch). The obligation it names: the daemon ingests webhooks over the relay's ordered \texttt{from\_seq} subscribe path, not the raw forward. (ii)~\emph{Payload secrecy}: under HPKE to the daemon's \emph{pinned} X25519 key the relay never learns plaintext; the control sources the key from the relay and the secrecy property collapses to a key-substitution MITM---hence out-of-band key pinning is a requirement, not a recommendation. The seal is specified but not yet implemented, so this row is \Partial. (iii)~\emph{Namespace isolation}: a member of tenant $A$ cannot publish into tenant $B$ because harbor binding is checked against authoritative membership; the control trusts the card's self-declared issuer and crosses the tenant boundary. Honesty rider: HMAC-SHA256 gives origin authentication to a shared-key holder (EUF-CMA), not third-party non-repudiation; HPKE base mode is assumed IND-CCA2.
 
 \pullquote{We err toward listing fewer items as closed rather than more.}
 

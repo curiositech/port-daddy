@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/postgres-connection-pooling-plan.schema.json",
+  "title": "Postgres Connection-Pooling Plan",
+  "description": "A structured plan for a Postgres pooling setup so scripts/postgres_connection_pooling_audit.mjs can check it deterministically against this skill's feature matrix and Quality Gates.",
+  "type": "object",
+  "required": ["poolMode", "pooler"],
+  "additionalProperties": true,
+  "properties": {
+    "poolMode": {
+      "type": "string",
+      "enum": ["session", "transaction", "statement"],
+      "description": "The pool mode the plan intends to run."
+    },
+    "pooler": {
+      "type": "string",
+      "enum": ["pgbouncer", "supavisor", "rds-proxy", "none"],
+      "description": "The pooling layer in front of Postgres."
+    },
+    "usesListen": { "type": "boolean", "description": "True if the app uses LISTEN (session-only in transaction mode)." },
+    "usesSessionAdvisoryLocks": { "type": "boolean", "description": "True if the app takes session-level advisory locks (pg_advisory_lock)." },
+    "usesWithHoldCursors": { "type": "boolean", "description": "True if the app uses WITH HOLD cursors." },
+    "usesSessionSet": { "type": "boolean", "description": "True if the app or ORM emits session-scoped SET/RESET (e.g. SET search_path per session)." },
+    "usesSqlPrepare": { "type": "boolean", "description": "True if the app uses SQL-level PREPARE/EXECUTE/DEALLOCATE (never tracked by poolers)." },
+    "usesTempTables": { "type": "boolean", "description": "True if the app creates temporary tables/sequences/views (pins RDS Proxy sessions)." },
+    "usesMultiStatementTransactions": { "type": "boolean", "description": "True if the app runs multi-statement transactions (disallowed in statement mode)." },
+    "usesProtocolPreparedStatements": { "type": "boolean", "description": "True if the client library uses protocol-level named prepared statements (Prisma, postgres-js, asyncpg defaults)." },
+    "poolerTracksPreparedStatements": { "type": "boolean", "description": "True if the pooler can track protocol-level prepared statements (pgBouncer >= 1.21 / Supavisor with PS support)." },
+    "maxPreparedStatements": {
+      "type": "number",
+      "minimum": 0,
+      "description": "The pgBouncer max_prepared_statements value; must be non-zero to enable tracking (200 is the 1.22+ default)."
+    },
+    "idleInTransactionTimeoutSeconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "idle_in_transaction_session_timeout in seconds; 0 (the Postgres default) disables it and fails the audit."
+    },
+    "idleSessionTimeoutEnabled": {
+      "type": "boolean",
+      "description": "True if idle_session_timeout is enabled (a hazard behind a pooler)."
+    },
+    "initQueryForSessionState": {
+      "type": "boolean",
+      "description": "True if identical per-connection SET statements are moved into the RDS Proxy InitQuery."
+    },
+    "pinnedSessionAlarm": {
+      "type": "boolean",
+      "description": "True if a CloudWatch alarm watches DatabaseConnectionsCurrentlySessionPinned."
+    },
+    "migrationPlanFlush": {
+      "type": "string",
+      "enum": ["rolling-restart", "discard-all", "none"],
+      "description": "How cached plans are flushed after column-altering migrations."
+    },
+    "supabaseWorkload": {
+      "type": "string",
+      "enum": ["serverless", "persistent"],
+      "description": "The workload class, for Supabase deployments."
+    },
+    "supabasePort": {
+      "type": "number",
+      "enum": [5432, 6543],
+      "description": "The Supabase port in use: 5432 (direct/Supavisor session) or 6543 (Supavisor transaction)."
+    },
+    "expectedConcurrentClients": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Expected concurrent client connections; > 100 with no pooler fails."
+    }
+  }
+}

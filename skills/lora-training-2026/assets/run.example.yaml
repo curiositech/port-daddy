@@ -1,0 +1,38 @@
+# LoRA run config — see references/hyperparameters.md
+model: Qwen/Qwen3-8B-Instruct        # base checkpoint (confirm on HF)
+method: qlora                        # qlora | lora | dora
+output_dir: out/adapter
+trust_remote_code: false             # only set true for the rare base model that needs
+                                      # custom modeling code — it executes arbitrary code
+                                      # from the model repo
+
+# data (from prepare_dataset.py)
+train_file: data/train.jsonl
+eval_file: data/eval.jsonl           # optional
+data_format: chatml                  # chatml | alpaca | completion | dpo
+train_on_responses_only: true        # mask the prompt, train on assistant turns
+
+# adapter
+r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+use_rslora: false
+target_modules: all-linear           # or q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj
+
+# optimization
+learning_rate: 2.0e-4
+epochs: 3
+max_seq_len: 2048                    # set to your data p95 (visualize_dataset.py)
+micro_batch_size: 1
+gradient_accumulation_steps: 16      # effective batch = micro * accum
+warmup_ratio: 0.05
+lr_scheduler: cosine
+optimizer: adamw_8bit
+weight_decay: 0.0
+max_grad_norm: 1.0
+gradient_checkpointing: true
+seed: 42
+logging_steps: 10
+save_steps: 200                      # checkpoint cadence (important on ephemeral cloud)
+packing: false                       # pack short examples to fill sequences (throughput)
+

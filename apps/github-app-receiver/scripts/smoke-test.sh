@@ -2,8 +2,7 @@
 #
 # smoke-test.sh — POST a synthetic pull_request.opened webhook with a
 # valid HMAC signature to the Worker (local `wrangler dev` by default).
-# The Worker should respond 204 and forward the envelope to whatever
-# DAEMON_FORWARD_URL points at.
+# The Worker should respond 202 and queue the cloud fleet dispatch.
 #
 # Usage:
 #   GITHUB_WEBHOOK_SECRET=local-dev-secret \
@@ -69,11 +68,10 @@ rm -f /tmp/smoke-resp.$$
 echo "← HTTP $HTTP_STATUS"
 if [[ -n "$BODY" ]]; then echo "  body: $BODY"; fi
 
-if [[ "$HTTP_STATUS" == "204" ]]; then
-  echo "PASS: valid signature accepted, envelope forwarded"
+if [[ "$HTTP_STATUS" == "202" ]]; then
+  echo "PASS: valid signature accepted, fleet dispatch queued"
 else
-  echo "FAIL: expected 204, got $HTTP_STATUS" >&2
-  echo "Hint: a 502 means the Worker accepted the signature but DAEMON_FORWARD_URL is unreachable." >&2
+  echo "FAIL: expected 202, got $HTTP_STATUS" >&2
   exit 1
 fi
 

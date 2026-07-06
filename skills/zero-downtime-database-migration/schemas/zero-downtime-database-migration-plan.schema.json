@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/zero-downtime-database-migration-plan.schema.json",
+  "title": "Zero-Downtime Database Migration Plan",
+  "description": "A structured plan for a live-database schema change -- engine, change type, deploy phasing, lock/backfill/tool decisions -- so this skill's Quality Gates can be checked deterministically by scripts/zero_downtime_database_migration_audit.mjs.",
+  "type": "object",
+  "required": ["engine", "changeType", "deployPhases"],
+  "additionalProperties": true,
+  "properties": {
+    "engine": {
+      "type": "string",
+      "enum": ["postgres", "mysql"],
+      "description": "The database engine."
+    },
+    "changeType": {
+      "type": "string",
+      "enum": ["add-column", "rename-column", "add-index", "add-foreign-key", "type-change", "drop-column", "split-table", "not-null"],
+      "description": "The shape of the schema change."
+    },
+    "deployPhases": {
+      "type": "number",
+      "minimum": 1,
+      "description": "How many separate deploys the change is split across. Breaking changes require >= 3 (expand -> migrate -> contract)."
+    },
+    "lockTimeoutSeconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "The lock_timeout set on the migration session, in seconds. Commonly < 2; 0/absent means wait forever."
+    },
+    "indexCreatedConcurrently": {
+      "type": "boolean",
+      "description": "True if index builds use CREATE INDEX CONCURRENTLY (Postgres)."
+    },
+    "fkUsesNotValidThenValidate": {
+      "type": "boolean",
+      "description": "True if FK adds are split into ADD CONSTRAINT ... NOT VALID then VALIDATE CONSTRAINT (Postgres)."
+    },
+    "backfillRequired": {
+      "type": "boolean",
+      "description": "True if historical rows must be backfilled as part of this change."
+    },
+    "backfillBatchSize": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Rows per backfill batch. 0/absent with backfillRequired means a single-statement backfill (rejected). 1k-10k recommended."
+    },
+    "backfillUsesSkipLocked": {
+      "type": "boolean",
+      "description": "True if batch selection uses FOR UPDATE SKIP LOCKED."
+    },
+    "backfillSleepBetweenBatches": {
+      "type": "boolean",
+      "description": "True if the backfill sleeps between batches to protect replication and autovacuum."
+    },
+    "replicaLagMonitored": {
+      "type": "boolean",
+      "description": "True if replica lag is watched during the backfill with a pause criterion."
+    },
+    "dualWritesPlanned": {
+      "type": "boolean",
+      "description": "True if the app will write to both old and new schema during the migration."
+    },
+    "dualWriteFeatureFlagged": {
+      "type": "boolean",
+      "description": "True if the dual-write is gated by a feature flag toggleable without redeploy."
+    },
+    "verificationBeforeContract": {
+      "type": "boolean",
+      "description": "True if counts + sampled diffs + error-rate checks run before the irreversible contract step."
+    },
+    "rollbackPlanDocumented": {
+      "type": "boolean",
+      "description": "True if a per-phase rollback plan is documented before deploy."
+    },
+    "rehearsedOnSnapshot": {
+      "type": "boolean",
+      "description": "True if the migration was rehearsed and timed on a production snapshot."
+    },
+    "mysqlTool": {
+      "type": "string",
+      "enum": ["gh-ost", "pt-online-schema-change", "native-alter"],
+      "description": "The online-schema-change tool for MySQL."
+    },
+    "tableHasForeignKeys": {
+      "type": "boolean",
+      "description": "True if the target table participates in foreign keys (gh-ost does not support them)."
+    },
+    "binlogFormatRow": {
+      "type": "boolean",
+      "description": "True if MySQL binary logging is ROW-based (required by gh-ost)."
+    },
+    "tableRowCount": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Approximate row count of the target table."
+    }
+  }
+}

@@ -15,7 +15,7 @@ export interface McpCategory {
   description: string
 }
 
-export const MCP_TOOL_TOTAL = 135
+export const MCP_TOOL_TOTAL = 136
 export const MCP_DEFAULT_TOOL_TOTAL = 17
 
 export const ESSENTIAL_TOOLS: McpTool[] = [
@@ -91,8 +91,8 @@ export const ALL_CATEGORIES: McpCategory[] = [
     darkColor: 'var(--p-teal-300)',
     bg: 'var(--badge-teal-bg)',
     border: 'var(--badge-teal-border)',
-    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn_agent', 'run_sortie'],
-    description: 'High-level composed tools for fleet setup, swarm awareness, situation reports, agent spawning, sortie missions, file heat maps, and agent messaging.',
+    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn'],
+    description: 'High-level composed tools for fleet setup, swarm awareness, situation reports, spawning, file heat maps, and agent messaging.',
   },
   {
     id: 'session-lifecycle',
@@ -285,16 +285,6 @@ export const ALL_CATEGORIES: McpCategory[] = [
     description: 'Full audit trail of all port claims, sessions, notes, and coordination events.',
   },
   {
-    id: 'sorties',
-    label: 'Sorties',
-    color: 'var(--p-amber-700)',
-    darkColor: 'var(--p-amber-300)',
-    bg: 'var(--badge-amber-bg)',
-    border: 'var(--badge-amber-border)',
-    tools: ['run_sortie', 'list_sorties', 'get_sortie', 'get_sortie_logs'],
-    description: 'Tracked mission records over spawned runs: launch, inspect status, and fetch sortie event logs.',
-  },
-  {
     id: 'system',
     label: 'System',
     color: 'var(--p-navy-700)',
@@ -341,8 +331,8 @@ export const ALL_CATEGORIES: McpCategory[] = [
     darkColor: 'var(--p-green-400)',
     bg: 'var(--badge-green-bg)',
     border: 'var(--badge-green-border)',
-    tools: ['drop_feedback', 'list_feedback', 'feedback_summary'],
-    description: 'Agentic feedback primitives for structured findings that Cartographer can harvest into the roadmap.',
+    tools: ['drop_feedback', 'submit_visual_task', 'list_feedback', 'feedback_summary'],
+    description: 'Agentic feedback and visual task primitives for structured findings that Cartographer or the fleet can harvest into work.',
   },
 ]
 
@@ -350,7 +340,7 @@ export const CONFIG_EXAMPLES = [
   {
     label: 'Gemini CLI',
     file: '.gemini/extensions/port-daddy/GEMINI.md',
-    code: `gemini install npx -g port-daddy\n\nOr create a native extension with:\n- MCP Server: "npx port-daddy mcp"\n- Skill: "port-daddy"`,
+    code: `brew install curiositech/tap/port-daddy\npd setup\n\nIf you are wiring Gemini by hand:\n- MCP Server: "pd mcp"\n- Skill: "port-daddy"`,
   },
   {
     label: 'Claude Code',
@@ -358,8 +348,8 @@ export const CONFIG_EXAMPLES = [
     code: `{
   "mcpServers": {
     "port-daddy": {
-      "command": "npx",
-      "args": ["port-daddy", "mcp"]
+      "command": "pd",
+      "args": ["mcp"]
     }
   }
 }`,

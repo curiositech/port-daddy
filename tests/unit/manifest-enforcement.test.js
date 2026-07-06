@@ -48,7 +48,13 @@ function extractServerRoutes() {
   const routesDir = join(ROOT, 'routes');
   const routes = [];
 
-  const routePattern = /\.(get|post|put|delete|patch)\s*\(\s*['"`]([^'"`]+)['"`]/gi;
+  // Tolerate an optional Fastify TypeScript generic between the method and the
+  // call, e.g. `fastify.get<{ Params: { id: string } }>('/path', ...)`. Without
+  // this the extractor silently drops every generic-form route (dispatches.ts,
+  // custodian.ts, harvest.ts, cockpit.ts), so a manifested generic route reads
+  // as a ghost. The generic is balanced-brace-free at this depth, so `<[^(]*>`
+  // (lazy, stopping before the opening paren) is sufficient.
+  const routePattern = /\.(get|post|put|delete|patch)\s*(?:<[^(]*>)?\s*\(\s*['"`]([^'"`]+)['"`]/gi;
 
   // routes/test-hooks.ts mounts only when NODE_ENV=test (see
   // routes/test-hooks.ts + routes/index.ts). Intentionally absent from
@@ -376,6 +382,8 @@ describe('CLI --> Manifest (no undocumented CLI commands)', () => {
     // independent manifest entries.
     const metaCommands = new Set([
       'help', 'version', '--help', '-h', '--version', '-V', '--json', '-j', '--quiet', '-q',
+      // Repeatable bridge option names extracted from REPEATABLE_FLAGS, not commands
+      'client-arg', 'codex-config',
       // Short flag characters (from shortFlags map, not commands)
       'p', 'e', 'P', 'n', 'c', 'm', 'd', 't', 'i', 'a', 's', 'o', 'f',
       // Session subcommands: handled inside `case 'session':` dispatch
@@ -503,12 +511,16 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
     // Mapping from MCP tool name -> expected feature
     const toolFeatureMap = {
       'attest': 'attest',
+      'safe_scan': 'safe',
       'relay_status': 'relay',
       // #199 cop-out conversion → real MCP tools
       'list_harbors': 'harbors',
       'get_harbor': 'harbors',
       'check_harbor_envelope': 'harbors',
+      'whois': 'whois',
       'spray_pheromone': 'pheromone',
+      'resolve_pheromone': 'pheromone',
+      'pheromone_coverage': 'pheromone',
       'read_pheromones': 'pheromone',
       'read_entity_pheromones': 'pheromone',
       'roadmap_progress': 'cartographer',
@@ -516,14 +528,22 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'roadmap_list': 'roadmap',
       'roadmap_get': 'roadmap',
       'roadmap_promote': 'roadmap',
+      'call_parley': 'parley',
+      'list_parleys': 'parley',
+      'get_parley': 'parley',
+      'respond_parley': 'parley',
+      'resolve_parley': 'parley',
       'commit': 'commitments',
       'list_commitments': 'commitments',
       'list_overdue_commitments': 'commitments',
+      'list_nudges': 'suggestions',
+      'respond_nudge': 'suggestions',
       'semantic_search': 'semantic',
       'semantic_resolve': 'semantic',
       'find_symbols': 'symbols',
       'symbol_stats': 'symbols',
       'predict_conflicts': 'symbols',
+      'blast_radius': 'symbols',
       'claim_port': 'claim',
       'release_port': 'release',
       'list_services': 'services',
@@ -535,14 +555,17 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'list_sessions': 'sessions',
       'list_notes': 'notes',
       'claim_files': 'sessions',
+      'claim_symbols': 'sessions',
       'acquire_lock': 'locks',
       'release_lock': 'locks',
       'list_locks': 'locks',
       'publish_message': 'messaging',
       'get_messages': 'messaging',
+      'discourse_lineage': 'messaging',
       'register_agent': 'agents',
       'agent_heartbeat': 'agents',
       'list_agents': 'agents',
+      'active_agent_roster': 'agents',
       'check_salvage': 'salvage',
       'claim_salvage': 'salvage',
       'start_tunnel': 'tunnel',
@@ -688,11 +711,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'catch_me_up': 'system',
       'file_heat': 'pheromone',
       'talk_to_agent': 'inbox',
-      'spawn_agent': 'spawn',
-      'run_sortie': 'sorties',
-      'list_sorties': 'sorties',
-      'get_sortie': 'sorties',
-      'get_sortie_logs': 'sorties',
+      'spawn': 'spawn',
       'cockpit_missions_list': 'cockpit',
 
       // Tuples
@@ -706,6 +725,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'memory_episodes': 'memory',
       'memory_stats': 'memory',
       'drop_feedback': 'feedback',
+      'submit_visual_task': 'visual_tasks',
       'list_feedback': 'feedback',
       'feedback_summary': 'feedback',
 

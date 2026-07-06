@@ -2,8 +2,7 @@
  * Port Daddy Launch Splash
  *
  * The "name is so silly it deserves a splash" splash. Big PORT DADDY block
- * letters, a tiny lighthouse silhouette with a sage-green beam sweeping into
- * a foggy cove, and a cathedral-voice tagline.
+ * letters, a sage halo ribbon, and a cathedral-voice tagline.
  *
  * Displayed on:
  *   - `pd --splash`     (explicit invocation)
@@ -25,12 +24,9 @@
 //   ebony  #1f1f1f   foreground
 
 const COBALT = '\x1b[38;2;0;63;184m';
-const COBALT_BRIGHT = '\x1b[38;2;48;111;232m'; // halo / lift
 const SAGE = '\x1b[38;2;0;107;95m';
-const SAGE_BRIGHT = '\x1b[38;2;72;167;152m'; // beam light
-const CREAM = '\x1b[38;2;242;238;230m';
-const EBONY = '\x1b[38;2;31;31;31m';
-const GRAY = '\x1b[38;2;138;134;126m'; // subdued cream for fog / tagline
+const SAGE_BRIGHT = '\x1b[38;2;72;167;152m'; // halo ribbon
+const GRAY = '\x1b[38;2;138;134;126m'; // subdued cream for tagline
 const RESET = '\x1b[0m';
 const BOLD = '\x1b[1m';
 const DIM = '\x1b[2m';
@@ -67,46 +63,6 @@ const DADDY_LINES: string[] = [
 // half = 5 spaces leading.
 const PORT_PAD = ' '.repeat(5);
 
-// ─── Lighthouse + cove ────────────────────────────────────────────────────────
-//
-// Compact silhouette. The beam sweeps to the right in sage. Fog/water in dim
-// cream below. Ships are tiny ▲▲▲ marks in the cove.
-
-// The lighthouse silhouette. We use only box-drawing and block characters —
-// NO emojis as design elements (sail-glyphs, etc.). Ships in the cove are
-// rendered as tiny ⌂-style triangular silhouettes built from box drawing.
-//
-// Layout reference (column 0 ............................................. 50)
-//                            ▲
-//                          ╔═══╗                  <- lantern room
-//                          ║ ● ║◁─ ─ ─ ─ ─ ─ ─    <- sage beam sweeping out
-//                          ╚═╤═╝
-//                          ┌─┴─┐                  <- gallery / rail
-//                          │░░░│                  <- cobalt stripe
-//                          │   │                  <- cream stripe
-//                          │░░░│                  <- cobalt stripe
-//                          │   │       /\  /\  /\ <- ships in the cove
-//                         ╱│░░░│╲                 <- splaying base
-//                        ╱_└───┘_╲
-//                  ▁▂▃▄▅▆▇█████▇▆▅▄▃▂▁           <- rocky shoals
-//              ~  ~~ ~~~~  ~~~~ ~~~~~~ ~~ ~~~ ~  <- water in fog
-
-const LIGHTHOUSE: ReadonlyArray<{ ink: string; text: string }> = [
-  { ink: CREAM,        text: '                              ▲                                          ' },
-  { ink: COBALT_BRIGHT,text: '                            ╔═══╗                                        ' },
-  { ink: SAGE_BRIGHT,  text: '                            ║ ● ║◁─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─          ' },
-  { ink: CREAM,        text: '                            ╚═╤═╝                                        ' },
-  { ink: COBALT,       text: '                            ┌─┴─┐                                        ' },
-  { ink: COBALT,       text: '                            │░░░│                                        ' },
-  { ink: CREAM,        text: '                            │   │                                        ' },
-  { ink: COBALT,       text: '                            │░░░│                                        ' },
-  { ink: CREAM,        text: '                            │   │              /\\    /\\    /\\         ' },
-  { ink: COBALT,       text: '                           ╱│░░░│╲                                       ' },
-  { ink: EBONY,        text: '                          ╱_└───┘_╲                                      ' },
-  { ink: EBONY,        text: '                     ▁▂▃▄▅▆▇█████▇▆▅▄▃▂▁                                 ' },
-  { ink: GRAY,         text: '               ~  ~~ ~~~~  ~~~~ ~~~~~~ ~~ ~~~  ~~   ~~                  ' },
-];
-
 // ─── Capability detection ─────────────────────────────────────────────────────
 
 /**
@@ -137,11 +93,11 @@ interface SplashOptions {
   color?: boolean;
   /** Override truecolor detection */
   truecolor?: boolean;
-  /** Tagline shown beneath the lighthouse */
+  /** Tagline shown beneath the wordmark */
   tagline?: string;
 }
 
-const DEFAULT_TAGLINE = 'the lighthouse for your fleet of agents.';
+const DEFAULT_TAGLINE = 'the control plane for your fleet of agents.';
 
 /**
  * Render the splash as a string. Safe to console.log directly.
@@ -189,11 +145,6 @@ export function renderSplash(opts: SplashOptions = {}): string {
   const ribbon = '═══════════════════════════════════════════════════';
   lines.push(`  ${colorize(SAGE_BRIGHT, ribbon)}`);
   lines.push('');
-
-  // Lighthouse + cove
-  for (const { ink, text } of LIGHTHOUSE) {
-    lines.push(truecolor ? `${ink}${text}${RESET}` : text);
-  }
 
   // Tagline (cream/dim, single line, centered to width 76)
   lines.push('');

@@ -1,0 +1,85 @@
+{
+  "ladders": [
+    {
+      "name": "compliance-ladder",
+      "levels": [
+        { "id": "C0", "order": 0, "name": "Registered", "requiredPredicates": ["agent-node-identity-exists"] },
+        { "id": "C1", "order": 1, "name": "Transcripted", "requiredPredicates": ["t4-verified-transcript-active"] },
+        { "id": "C2", "order": 2, "name": "Governed", "requiredPredicates": ["tool-preflight-witnessed", "destructive-action-gate-witnessed"] },
+        { "id": "C3", "order": 3, "name": "Suggestible", "requiredPredicates": ["scoped-injection-with-provenance"] }
+      ]
+    }
+  ],
+  "surfaces": [
+    {
+      "kind": "doc",
+      "ladder": "compliance-ladder",
+      "source": "docs/agent-compliance-plan.md",
+      "levels": [
+        { "id": "C0", "order": 0, "name": "Registered", "requiredPredicates": ["agent-node-identity-exists"] },
+        { "id": "C1", "order": 1, "name": "Transcripted", "requiredPredicates": ["t4-verified-transcript-active"] },
+        { "id": "C2", "order": 2, "name": "Governed", "requiredPredicates": ["tool-preflight-witnessed", "destructive-action-gate-witnessed"] },
+        { "id": "C3", "order": 3, "name": "Controllable", "requiredPredicates": ["scoped-injection-with-provenance"] }
+      ]
+    },
+    {
+      "kind": "schema",
+      "ladder": "compliance-ladder",
+      "source": "compliance/schema/compliance-ladder.schema.json",
+      "levels": [
+        { "id": "C0", "order": 0, "name": "Registered", "requiredPredicates": ["agent-node-identity-exists"] },
+        { "id": "C2", "order": 2, "name": "Governed", "requiredPredicates": ["tool-preflight-witnessed", "destructive-action-gate-witnessed"] },
+        { "id": "C3", "order": 3, "name": "Suggestible", "requiredPredicates": ["scoped-injection-with-provenance"] }
+      ]
+    }
+  ],
+  "adapters": [
+    {
+      "name": "codex",
+      "ladder": "compliance-ladder",
+      "claimedLevel": "C9",
+      "negativeProbes": [
+        { "kind": "forged-level", "present": true, "downgraded": true },
+        { "kind": "direct-mcp-bypass", "present": true, "downgraded": true },
+        { "kind": "disabled-hook-after-launch", "present": true, "downgraded": true }
+      ]
+    },
+    {
+      "name": "claude-code",
+      "ladder": "compliance-ladder",
+      "claimedLevel": "C2",
+      "negativeProbes": [
+        { "kind": "forged-level", "present": true, "downgraded": true },
+        { "kind": "direct-mcp-bypass", "present": true, "downgraded": false },
+        { "kind": "disabled-hook-after-launch", "present": true, "downgraded": true },
+        { "kind": "forged-heartbeat", "present": true, "downgraded": true },
+        { "kind": "observed-to-controlled", "present": true, "downgraded": true }
+      ]
+    },
+    {
+      "name": "cloudflare",
+      "ladder": "compliance-ladder",
+      "claimedLevel": "C3",
+      "negativeProbes": [
+        { "kind": "forged-level", "present": true, "downgraded": true },
+        { "kind": "forged-level", "present": true, "downgraded": true },
+        { "kind": "direct-mcp-bypass", "present": true, "downgraded": true },
+        { "kind": "disabled-hook-after-launch", "present": true, "downgraded": true },
+        { "kind": "forged-heartbeat", "present": true, "downgraded": true },
+        { "kind": "observed-to-controlled", "present": true, "downgraded": true }
+      ]
+    },
+    {
+      "name": "custom-stdio",
+      "ladder": "made-up-ladder",
+      "claimedLevel": "C1",
+      "negativeProbes": [
+        { "kind": "forged-level", "present": true, "downgraded": true },
+        { "kind": "direct-mcp-bypass", "present": true, "downgraded": true },
+        { "kind": "disabled-hook-after-launch", "present": true, "downgraded": true },
+        { "kind": "forged-heartbeat", "present": true, "downgraded": true },
+        { "kind": "observed-to-controlled", "present": true, "downgraded": true }
+      ]
+    }
+  ]
+}

@@ -89,7 +89,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/openai/gpt-oss-120b'
       singleton: true
       prompt: |
         You are Gardener. After every commit, audit the worktree's
@@ -131,7 +131,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/openai/gpt-oss-120b'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -178,7 +178,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          model: '@cf/openai/gpt-oss-120b'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -215,7 +215,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          model: '@cf/openai/gpt-oss-120b'
       singleton: true
       cooldown_ms: 900000
       dedupe_window_ms: 43200000
@@ -263,7 +263,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          model: '@cf/openai/gpt-oss-120b'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: true
@@ -290,7 +290,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/openai/gpt-oss-120b'
       timeout: 900000
       singleton: true
       allowedTools: "Read,Grep,Glob,Write,Bash(pd feedback*),Bash(pd roadmap*),Bash(pd ideas*),Bash(git*)"
@@ -345,28 +345,46 @@ fleet:
       telos: "Keep the roadmap, recovery queue, and live work map aligned."
 
     spark:
-      # PAUSED. Output: writes proposals to .spark/ideas/ markdown
-      # files. Spark is the only ship that does NOT write to GitHub
-      # — its consumers are spider and cartographer, both internal.
-      trigger: git:committed
+      # High-temperature product imagination. Spark comments buildable
+      # ideas on PRs as validated Proposals; the cloud executor renders each
+      # into REAL actionable Port Daddy syntax (see fleet/ships/spark.md and
+      # apps/fleet-executor/src/proposals.ts).
+      class: ideation
+      trigger:
+        - pull_request:opened
+        - git:committed
       cooldown_ms: 7200000
       dedupe_window_ms: 7200000
       backend: cli:claude-code
+      temperature: 1.25
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/moonshotai/kimi-k2.6'
+          model: '@cf/openai/gpt-oss-120b'
       singleton: true
-      allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
+      allowedTools: "Read,Grep,Glob"
+      side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
+      output_receipts: [comment_url, assignment_packet, command_token, dispatch_command]
       prompt: |
-        PAUSED. Unpause when ideation throughput is the bottleneck.
-        Current bottleneck is execution, not idea generation.
+        Read fleet/ships/spark.md end to end before doing anything else.
 
-        When active: see prior prompt (Spark idea engine with novelty
-        gate, dedupe against IDEAS-TROVE, output to .spark/ideas/).
-      on_success: publish spark:idea
+        You are Spark, Port Daddy's high-temperature product imagination
+        engine. You do NOT review the PR for correctness. You notice what
+        this diff makes newly possible for the product — legible agent work,
+        operator control, durable transcripts, repo-scoped fleets, safe
+        autonomy, beautiful control surfaces, agents that put up tested PRs.
+
+        Think hotter than the reviewer ships; make surprising leaps, but
+        ground every idea in evidence from the PR, roadmap, fleet config, or
+        existing code. Emit 0-4 proposals in the ideation JSON schema (the
+        executor injects the exact contract). Prefer `action: "assign"` with a
+        runnable `prompt` for buildable ideas, `action: "roadmap"` for durable
+        but not-now ideas. Never dump a chore on the operator — shape each idea
+        so an agent can build it. End with FLEET-VERDICT: PASS.
+      on_success:
+        - publish spark:idea
       identity: "{project}:fleet:spark"
-      telos: "Propose one novel, buildable improvement with traceable lineage."
+      telos: "Comment buildable product opportunities that can be assigned to PR-producing bots."
 
     # ─── Dispatch runner (DISABLED by default; see docs/proposals/pd-nightshift.md) ──
     # Renamed from `nightshift-runner` per ADR-0035 -- the verb generalized. This
@@ -393,35 +411,125 @@ fleet:
     #   telos: "Drain the operator's dispatch queue without supervision, bounded by cost and time."
 
     spider:
-      # Stays scheduled every 2 hours. Output: writes syllogisms to
-      # .spider/connections/. Internal consumer (cartographer)
-      # harvests on its own schedule. No GitHub output.
-      trigger: spark:idea
+      # Syllogism engine. Spider combines two existing facts/capabilities
+      # and proposes the new product or workflow that follows from them, as
+      # validated Proposals rendered into actionable syntax by the executor.
+      class: ideation
+      trigger:
+        - spark:idea
+        - pull_request:opened
       schedule: "0 */2 * * *"
       backend: cli:claude-code
+      temperature: 0.95
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/openai/gpt-oss-120b'
       singleton: true
-      allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
+      allowedTools: "Read,Grep,Glob"
+      side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
+      output_receipts: [comment_url, assignment_packet, command_token, dispatch_command]
       prompt: |
-        You are Spider, the connection engine for Port Daddy. Your job
-        is to find combinatorial possibilities between features that
-        no one has noticed yet.
+        Read fleet/ships/spider.md end to end before doing anything else.
 
-        Process unchanged from prior version: read manifest +
-        roadmap + recovery + lib/ headers + git log + spark ideas,
-        emit 1-3 syllogisms per run to .spider/connections/,
-        dedupe against IDEAS-TROVE and prior syllogisms.
+        You are Spider, Port Daddy's syllogism engine. You do not invent wild
+        ideas from nothing. You take two things already true in the repo/product
+        (Premise A and Premise B), connect them, and name the new product or
+        workflow now possible (Therefore C). Put the full A + B ⇒ C syllogism in
+        each proposal's `rationale`, with the two premises cited in `evidence`.
 
-        Output stays at .spider/connections/ (no GitHub output —
-        spider is research input, not operator-visible).
+        Emit 0-4 proposals in the ideation JSON schema (the executor injects the
+        exact contract). Each syllogism should become a bounded, buildable
+        assignment — prefer `action: "assign"` with a runnable `prompt`; use
+        `action: "roadmap"` only for durable-but-not-now connections. No passive
+        suggestions. End with FLEET-VERDICT: PASS.
 
         coordination:inconsistency posture preserved.
-      on_success: publish spider:connections
+      on_success:
+        - publish spider:connections
       identity: "{project}:fleet:spider"
-      telos: "Find surprising feature connections without inventing novelty."
+      telos: "Comment new products implied by connections between existing capabilities."
+
+    lookout:
+      # Trouble-ahead watch. The PR-commenting embodiment of the Lookout actor:
+      # spots contradictions, architectural trouble, duplication, and newly
+      # broken user experiences — especially ACROSS other open PRs and feature
+      # branches (the executor injects that fleet context) — and alerts the
+      # operator with an actionable parley/roadmap proposal. Advisory: never
+      # gates a merge. Absorbs the ADR-0032 unSpider contradiction-finder
+      # ambition into the cloud fleet. See fleet/ships/lookout.md.
+      class: ideation
+      trigger:
+        - pull_request:opened
+      backend: cli:claude-code
+      temperature: 0.4
+      fallbacks:
+        - backend: cli:codex
+        - backend: cloudflare
+          model: '@cf/openai/gpt-oss-120b'
+      singleton: true
+      allowedTools: "Read,Grep,Glob"
+      side_effects: [pr_comment, parley_suggestion, dispatch_command_suggestion]
+      output_receipts: [comment_url, parley_command, dispatch_command]
+      prompt: |
+        Read fleet/ships/lookout.md end to end before doing anything else.
+
+        You are the Lookout — Port Daddy's trouble-ahead watch. You are given
+        the PR diff AND a "Fleet context" section listing OTHER open PRs and
+        recent feature/worktree branches. Your job is to spot, before it lands:
+        - contradictions (this diff assumes something another PR/branch breaks),
+        - architectural trouble (a route/owner nobody owns, a ladder that
+          disagrees with itself, a schema drift),
+        - duplication (two branches building the same thing),
+        - newly broken intended user experiences (a flow this diff quietly
+          breaks).
+
+        Emit 0-4 proposals in the ideation JSON schema (the executor injects the
+        exact contract). Set `severity` (HIGH/MEDIUM/LOW). Prefer
+        `action: "parley"` for a genuine multi-party conflict that needs
+        resolving, `action: "roadmap"` to log a risk to watch. You ALERT — you
+        do not fix. Silence (empty array) when the coast is clear. End with
+        FLEET-VERDICT: PASS (advisory — never block).
+
+        coordination:inconsistency posture preserved.
+      identity: "{project}:fleet:lookout-pr"
+      telos: "Spot contradictions, architectural trouble, and broken UX before they land — and alert the operator."
+
+    snipe:
+      # Engineman. Looks at the code/ideas a PR introduces and, when a reusable
+      # capability would remove recurring friction, proposes ONE skill to author
+      # via the skill-architect skill — with a ready-to-run dispatch command.
+      # Advisory: never gates a merge. See fleet/ships/snipe.md.
+      class: ideation
+      trigger:
+        - pull_request:opened
+      backend: cli:claude-code
+      temperature: 0.7
+      fallbacks:
+        - backend: cli:codex
+        - backend: cloudflare
+          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+      singleton: true
+      allowedTools: "Read,Grep,Glob"
+      side_effects: [pr_comment, skill_proposal, dispatch_command_suggestion]
+      output_receipts: [comment_url, dispatch_command]
+      prompt: |
+        Read fleet/ships/snipe.md end to end before doing anything else.
+
+        You are Snipe (Engineman). You look at the code and ideas THIS PR
+        introduces and ask one question: would a reusable skill make this kind
+        of work materially easier next time? A skill is worth proposing when the
+        PR hand-rolls something (a fixture harness, a migration dance, a
+        review-checklist, a generator) that future PRs will hand-roll again.
+
+        When — and only when — it genuinely helps, emit ONE proposal with
+        `action: "skill"` and a concrete skill-architect brief in `prompt`
+        (what the skill should do, its inputs/outputs, and the deep-research it
+        needs). The executor renders it into a `pd dispatch propose` command that
+        tasks an agent to author the skill via the skill-architect skill. If no
+        skill is warranted, emit an empty array. End with FLEET-VERDICT: PASS.
+      identity: "{project}:fleet:snipe"
+      telos: "Propose a reusable skill-architect skill that makes the PR's kind of work easier."
 
     # ─── New ships (added 2026-05-20) ────────────────────────────────
     #
@@ -449,7 +557,10 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          # Code-specialized coder model (Moonshot Kimi K2.7 Code, 1T MoE,
+          # 262k ctx, native structured outputs) — the right Workers AI tier for
+          # a code reviewer that emits JSON findings.
+          model: '@cf/moonshotai/kimi-k2.7-code'
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false
@@ -495,7 +606,7 @@ fleet:
         - backend: openai
           model: gpt-5
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/openai/gpt-oss-120b'
       cooldown_ms: 600000
       dedupe_window_ms: 1800000
       singleton: false
@@ -535,7 +646,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          model: '@cf/openai/gpt-oss-120b'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       singleton: false
@@ -580,7 +691,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          model: '@cf/openai/gpt-oss-120b'
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false
@@ -633,7 +744,7 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/openai/gpt-oss-120b'
       cooldown_ms: 3600000
       dedupe_window_ms: 21600000
       singleton: true
@@ -686,7 +797,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/openai/gpt-oss-120b'
       cooldown_ms: 3600000
       dedupe_window_ms: 10800000
       singleton: true
@@ -721,6 +832,123 @@ fleet:
       identity: "{project}:fleet:officer-of-the-watch"
       telos: "Stand the watch: read what nobody else reads, keep the deck log,
         escalate what the operator must see."
+
+    harbor-pilot:
+      # Repo-wide PR custody: arms merge-when-ready on non-draft PRs,
+      # DEMOTES (never closes) PRs whose entire diff already landed on
+      # main via other PRs (the #353 failure mode no GitHub setting
+      # catches), and flags conflicted PRs once.
+      #
+      # Naming: the harbor pilot boards any inbound vessel and guides
+      # it to berth. Distinct from lib/harbormaster.ts (ADR-0037),
+      # which owns merges of DISPATCHED agent work only and never
+      # touches operator-authored PRs. The pilot covers the rest of
+      # the harbor. GitHub's merge queue owns mechanical correctness
+      # (latest-main validation, serialization); the pilot owns the
+      # judgment calls the queue cannot make.
+      #
+      # Deterministic code body, not an LLM prompt — every rule is
+      # unit-tested in tests/unit/harbor-pilot.test.ts. Safety
+      # defaults: uncertainty never demotes; drafts are never
+      # touched; an operator re-readying a demoted PR (label still
+      # present) is an override the pilot never re-overrides.
+      handle: harbor-pilot
+      role: guides every open PR to berth; demotes ghosts, flags fouled anchors
+      mark: "◯"
+      schedule: "*/10 * * * *"
+      trigger: pull_request:opened
+      body: apps/github-app-fleet/bin/harbor-pilot.ts
+      backend: local
+      singleton: true
+      cooldown_ms: 300000
+      allowedTools: "Bash(gh*),Bash(pd note*)"
+      identity: "{project}:fleet:harbor-pilot"
+      telos: "No stale, superseded, or silently rotting PR ever reaches main."
+
+    steward:
+      # The single approver (ADR-0056). One agent responsible for every
+      # open PR from open to merged, and for what gets built next when
+      # the queue is dry. The JUDGMENT layer above the mechanical
+      # custody: harbor-pilot arms/demotes by rule, officer-of-the-watch
+      # reads logs — the Steward reads the diff, conducts the
+      # adversarial review (code-reviewer/red-team/tautology-sniffer),
+      # answers the bots (Copilot/claude-review), decides LAND /
+      # NEEDS-WORK / SURFACE, lands genuinely-green non-production PRs,
+      # and advances ONE background improvement per drained tick.
+      #
+      # Full behavior contract + the hard guardrails (never --admin over
+      # red, production-site PRs need operator "ship it", push-only
+      # sub-agents, continuous PD coordination): fleet/ships/steward.md.
+      #
+      # Sonnet is a soft preference — landing decisions want a capable
+      # model, but the Steward never blocks on one being available.
+      schedule: "*/20 * * * *"
+      trigger: pull_request:opened
+      backend: cli:claude-code
+      fallbacks:
+        - backend: cli:codex
+        - backend: anthropic
+          model: claude-sonnet-4-5-20251001
+        - backend: openai
+          model: gpt-5
+      cooldown_ms: 600000
+      dedupe_window_ms: 600000
+      singleton: true
+      timeout: 1800000
+      # $4/day sub-cap under the fleet's $8.50 ceiling (matches the
+      # "Daily budget: $4.00" line in fleet/ships/steward.md).
+      daily_cap_usd: 4
+      allowedTools: "Read,Grep,Glob,Bash(gh*),Bash(pd*),Bash(git*),Bash(curl*)"
+      prompt: |
+        Read fleet/ships/steward.md end to end before doing anything
+        else. That is your full behavior contract — the lifecycle, the
+        hard guardrails, and the output contract. Re-read ADR-0056
+        (docs/adr/0056-the-steward-single-approver.md); it is your
+        charter.
+
+        You are the Steward: the one agent responsible for every open
+        PR from open to merged, and for what gets built next when the
+        queue is dry. The Cartographer surfaces; you ship.
+
+        Each tick:
+        1. SURVEY every open non-draft PR (gh pr list) + the live fleet
+           (pd sessions/notes/claims). Review with conflict awareness.
+        2. For each PR: read the diff + checks + existing review
+           comments. Conduct the review ships (code-reviewer always;
+           red-team on the security surface; tautology-sniffer on
+           prose). Fold into one verdict: LAND / NEEDS-WORK / SURFACE.
+        3. RESPOND to every Copilot/claude-review comment — fix+reply or
+           dismiss-with-reason vs origin/main. Never merge with bot
+           comments unaddressed.
+        4. LAND only when ALL hold: every required check genuinely green,
+           verdict=LAND, all bot comments addressed, NOT a production-site
+           PR, branch current with origin/main. Merge is TWO-PHASE
+           (feedback_auto_merge_races_copilot_review): for a non-trivial
+           CODE PR, wait for the Copilot review pass + zero unaddressed
+           inline comments, THEN `gh pr merge <N> --squash` (NO --auto:
+           --auto fires before Copilot reviews and lands unreviewed).
+           Docs-only/trivial PRs may use --auto. NEVER --admin/--no-verify
+           over a real red check — fix the root cause or SURFACE it.
+        5. SURFACE what you can't land (real red you can't fix,
+           production-site PR, roadmap conflict, unanswerable ambiguity)
+           to the dashboard issue as an operator decision.
+        6. IMPROVE only when the queue is drained: advance exactly ONE
+           small, cited, reversible roadmap step (pd roadmap pop, or one
+           draft PR). Sub-agents you spawn are worktree-isolated AND
+           push-only.
+
+        Output: ONE rolling dashboard issue (title "Steward log", label
+        pd-fleet:steward-log), edited in place — sections Landed /
+        Needs operator decision / In review / Background improvement.
+        Plus per-comment PR replies in the operator's voice. Drop any
+        Claude-coauthor trailer from commits.
+
+        Coordinate through Port Daddy continuously: pd begin, claim
+        before edit, re-read live state each tick. Never destructive-git
+        on the main checkout. Never write to /tmp (use ~/coding/tmp/).
+      identity: "{project}:fleet:steward"
+      telos: "Be the one agent responsible for every open PR open-to-merged, and
+        for the next improvement when the queue is dry — review IS the gate."
 
   watchers:
     # Operator-facing watcher: when a HIGH finding lands, drop a
@@ -761,7 +989,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/openai/gpt-oss-120b'
       singleton: true
       prompt: |
         You are the Developer-Onboarding Sentinel. Your mission:
@@ -847,12 +1075,16 @@ fleet:
       consumers: [ documentarian ]
 
     spark:idea:
-      description: "Spark proposed a new feature idea"
+      description: "Spark proposed a high-temperature buildable product
+        idea on a PR or commit. Payload includes an assignment packet,
+        command token, `/pd assign ...` kickoff text, and CLI fallback."
       consumers: [ spider ]
 
     spider:connections:
-      description: "Spider found new combinatorial possibilities
-        (cartographer harvests on its 30-min schedule)"
+      description: "Spider connected two existing capabilities into a
+        new product/workflow syllogism. Payload includes premises,
+        assignment packet, command token, `/pd assign ...` kickoff text,
+        and CLI fallback."
 
     coordination:inconsistency:
       description: "INTER-agent coordination channel — overlapping
@@ -875,13 +1107,14 @@ fleet:
         webhook receiver (forthcoming) OR manual `pd pub` for
         testing."
       external_producer: github-webhook-bridge
-      consumers: [ code-reviewer, red-team, qa, test-author, tautology-sniffer ]
+      consumers: [ code-reviewer, red-team, qa, test-author, tautology-sniffer, steward ]
 
     pull_request:synchronize:
       description: "GitHub PR head updated. Same payload as :opened.
-        Drives code-reviewer's edit-in-place re-review."
+        Drives code-reviewer's edit-in-place re-review and the Steward's
+        re-survey (so it reacts to head updates between scheduled ticks)."
       external_producer: github-webhook-bridge
-      consumers: [ code-reviewer ]
+      consumers: [ code-reviewer, steward ]
 
     pull_request:merged:
       description: "GitHub PR merged to main. Payload: { prNumber,

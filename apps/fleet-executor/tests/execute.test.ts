@@ -1,0 +1,596 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { executeFleet } from '../src/execute.js';
+import {
+  freshState,
+  installGitHubFetch,
+  memoryKV,
+  aiStub,
+  makeEnv,
+  makeJob,
+  type GitHubState,
+} from './harness.js';
+
+/**
+ * Build a real pd-fleet.yml body. The deterministic parser reads this directly
+ * (no LLM), so the YAML must be well-formed. Each ship's prompt embeds its name
+ * so the AI stub can route per-ship responses.
+ */
+function fleetYaml(
+  ships: Array<{
+    name: string;
+    blocking?: boolean;
+    model?: string;
+    allowedTools?: string;
+    trigger?: string;
+    temperature?: number;
+  }>,
+): string {
+  const body = ships
+    .map(s => {
+      const lines = [
+        `    ${s.name}:`,
+        `      trigger: ${s.trigger ?? 'pull_request:opened'}`,
+      ];
+      if (s.blocking) lines.push('      blocking: true');
+      if (s.temperature !== undefined) lines.push(`      temperature: ${s.temperature}`);
+      if (s.allowedTools) lines.push(`      allowedTools: "${s.allowedTools}"`);
+      lines.push('      fallbacks:');
+      lines.push('        - backend: cloudflare');
+      lines.push(`          model: '${s.model ?? '@cf/qwen/qwen3-30b-a3b-fp8'}'`);
+      lines.push('      prompt: |');
+      lines.push(`        ${s.name} ship: review the diff and report findings.`);
+      return lines.join('\n');
+    })
+    .join('\n');
+  return `fleet:\n  name: test\n  agents:\n${body}\n`;
+}
+
+const REVIEWER_YAML = fleetYaml([
+  { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+]);
+
+const REVIEWER_PLUS_QA_YAML = fleetYaml([
+  { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+  { name: 'qa', blocking: false },
+]);
+
+/** Seed a KV cache hit so the orchestrator never mints (avoids real crypto). */
+function seedToken(kv: KVNamespace, installationId: number): void {
+  void (kv as KVNamespace).put(
+    `github_inst_${installationId}`,
+    JSON.stringify({ token: 'seeded-tok', expiresAt: Date.now() + 60 * 60 * 1000 }),
+  );
+}
+
+let state: GitHubState;
+
+beforeEach(() => {
+  state = freshState();
+  installGitHubFetch(state);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('zero-trust config + contract fetching', () => {
+  it('fetches pd-fleet.yml and ship contracts from main, NEVER from PR head', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    state.files.set('main:fleet/ships/code-reviewer.md', '## contract');
+
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'looks ok\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    // Every contents fetch must use the trusted 'main' ref. The PR head SHA is
+    // 'HEADSHA' — assert it never appears as a contents ref.
+    expect(state.contentsRefs.length).toBeGreaterThan(0);
+    for (const { ref } of state.contentsRefs) {
+      expect(ref).toBe('main');
+      expect(ref).not.toBe('HEADSHA');
+    }
+    // And specifically the config + contract were read from main.
+    expect(state.contentsRefs).toContainEqual({ path: 'pd-fleet.yml', ref: 'main' });
+    expect(state.contentsRefs).toContainEqual({ path: 'fleet/ships/code-reviewer.md', ref: 'main' });
+  });
+});
+
+describe('blocking-ship verdict → check conclusion', () => {
+  it('blocking ship emitting BLOCK => check conclusion failure', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'HIGH: injection\n\nFLEET-VERDICT: BLOCK' },
+    }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('failure');
+  });
+
+  it('blocking ship with NO verdict => failure (fail closed)', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      // No FLEET-VERDICT line at all.
+      perShip: { 'code-reviewer': 'I looked and it seems fine, probably.' },
+    }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    expect(state.completed[0].conclusion).toBe('failure');
+  });
+
+  it('blocking ship with malformed findings JSON => failure (fail closed)', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const malformed = ['```json', '{ not valid array', '```', '', 'FLEET-VERDICT: PASS'].join('\n');
+    const ai = aiStub({ perShip: { 'code-reviewer': malformed } }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    // Unparseable findings on a BLOCKING ship => errored => failure, even though
+    // the verdict line literally says PASS.
+    expect(state.completed[0].conclusion).toBe('failure');
+  });
+
+  it('blocking ship that errors => failure (fail closed) and other ships still run', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'x', 'qa': 'gaps\n\nFLEET-VERDICT: PASS' },
+      throwForShip: 'code-reviewer',
+    }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    expect(state.completed[0].conclusion).toBe('failure');
+    // qa still posted a comment despite code-reviewer crashing.
+    expect(state.commentPosts).toBeGreaterThanOrEqual(1);
+  });
+
+  it('createCheckRun failure REJECTS (job retries) and never completes a check — fail closed', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    state.failCreateCheckRun = 99; // every check-run create fails
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    // Must throw so the queue handler calls message.retry() — never ack a job
+    // whose gating check we could not even create.
+    await expect(
+      executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai })),
+    ).rejects.toThrow(/createCheckRun failed|cannot establish/i);
+
+    // No check was completed (no falsely-green or stray verdict on GitHub).
+    expect(state.completed).toHaveLength(0);
+  });
+});
+
+describe('deterministic ship resolution', () => {
+  it('parses qa from real YAML and runs it as a cloud-static (non-execution) ship', async () => {
+    // qa carries Bash(npm test*) historically, but is forced cloud-static.
+    state.files.set(
+      'main:pd-fleet.yml',
+      fleetYaml([
+        { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+        { name: 'qa', blocking: false, allowedTools: 'Read,Grep,Bash(npm test*),Bash(gh*)' },
+        // An execution ship: routes to GHA, must NOT run in the cloud.
+        { name: 'test-author', blocking: false, allowedTools: 'Read,Write,Bash(npm test*)' },
+      ]),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS',
+        'qa': 'qa: tests look thin\n\nFLEET-VERDICT: PASS',
+        'test-author': 'should not run\n\nFLEET-VERDICT: PASS',
+      },
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
+
+    const shipsRun = new Set(ai.calls.map(c => c.ship));
+    expect(shipsRun.has('code-reviewer')).toBe(true);
+    expect(shipsRun.has('qa')).toBe(true); // cloud-static, runs in the cloud
+    expect(shipsRun.has('test-author')).toBe(false); // needsExecution → GHA, skipped here
+  });
+
+  it('runs Spark as an ideation ship, passes its temperature, and renders actionable proposals', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      fleetYaml([
+        {
+          name: 'spark',
+          blocking: false,
+          allowedTools: 'Read,Grep,Glob',
+          temperature: 1.25,
+        },
+      ]),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: {
+        spark: [
+          '```json',
+          JSON.stringify([
+            {
+              title: 'Stream harbor events to the roster',
+              rationale: 'The new event ledger makes live roster updates buildable.',
+              evidence: ['lib/agent-harbor/event-ledger.ts'],
+              action: 'assign',
+              prompt: 'Wire the harbor event ledger into the roster pane so rows update live.',
+            },
+          ]),
+          '```',
+          '',
+          'FLEET-VERDICT: PASS',
+        ].join('\n'),
+      },
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
+
+    // Creative temperature is still passed through to the model call.
+    expect(ai.calls).toEqual(expect.arrayContaining([
+      expect.objectContaining({ ship: 'spark', phase: 'map', temperature: 1.25 }),
+    ]));
+
+    const commentBodies = state.records
+      .filter(r => r.method === 'POST' && /\/issues\/\d+\/comments$/.test(r.url))
+      .map(r => (r.body as { body?: string }).body ?? '');
+    // The comment is tagged as spark and carries a REAL actionable command.
+    expect(commentBodies.some(body => body.includes('pd-ship:spark'))).toBe(true);
+    expect(commentBodies.some(body => body.includes('pd dispatch propose'))).toBe(true);
+    expect(commentBodies.some(body => body.includes('Stream harbor events to the roster'))).toBe(true);
+    // Ideation ships never gate: the check concludes success (no findings, no block).
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+});
+
+describe('map-reduce fan-out', () => {
+  it('chunks a large diff into N map calls + exactly 1 manager reduce call', async () => {
+    // Two files, each ~9KB, exceed the 12KB chunk budget combined → 2 chunks.
+    const file = (name: string) =>
+      `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` + '+line\n'.repeat(1500);
+    state.prDiff = file('a.ts') + file('b.ts');
+
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'partial\n\nFLEET-VERDICT: PASS' },
+      managerOutput: 'merged review\n\nFLEET-VERDICT: PASS',
+    });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
+
+    const mapCalls = ai.calls.filter(c => c.ship === 'code-reviewer' && c.phase === 'map');
+    const reduceCalls = ai.calls.filter(c => c.ship === 'code-reviewer' && c.phase === 'reduce');
+    expect(mapCalls.length).toBe(2); // N chunks
+    expect(reduceCalls.length).toBe(1); // 1 manager
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('a single-chunk diff makes one map call and no manager call', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }));
+
+    expect(ai.calls.filter(c => c.phase === 'map').length).toBe(1);
+    expect(ai.calls.filter(c => c.phase === 'reduce').length).toBe(0);
+  });
+});
+
+describe('inline GitHub review', () => {
+  it('posts ONE review with [ship]-prefixed inline comments from structured findings', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const out = [
+      '```json',
+      '[{"path":"src/x.ts","line":4,"severity":"HIGH","body":"bad thing"}]',
+      '```',
+      '',
+      'FLEET-VERDICT: BLOCK',
+    ].join('\n');
+    const ai = aiStub({ perShip: { 'code-reviewer': out } }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    expect(state.reviews).toHaveLength(1);
+    const review = state.reviews[0];
+    expect(review.event).toBe('COMMENT');
+    expect(review.comments).toHaveLength(1);
+    expect(review.comments[0]).toEqual({
+      path: 'src/x.ts',
+      line: 4,
+      body: '[code-reviewer] bad thing',
+    });
+    // Blocking ship emitted BLOCK → the check still fails (gate is the check run).
+    expect(state.completed[0].conclusion).toBe('failure');
+  });
+});
+
+describe('non-blocking ship semantics', () => {
+  it('non-blocking ship BLOCK => check still success-or-neutral (never failure) + comment posted', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_PLUS_QA_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': 'clean\n\nFLEET-VERDICT: PASS',
+        'qa': 'missing tests\n\nFLEET-VERDICT: BLOCK',
+      },
+    }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    // A non-blocking BLOCK must NOT fail the merge gate.
+    expect(state.completed[0].conclusion).not.toBe('failure');
+    expect(state.completed[0].conclusion).toBe('neutral');
+    // The advisory finding was still posted (per-ship history comment).
+    expect(state.commentPosts).toBe(2);
+  });
+});
+
+describe('idempotent re-run', () => {
+  it('same deliveryId / head SHA does not double-create the check run', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const mkAi = () =>
+      aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } }).ai;
+
+    const job = makeJob();
+    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
+    // Re-deliver the SAME job. The commit check-runs lookup now finds the run
+    // created on the first pass, so no second check run is created.
+    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
+
+    expect(state.checkRunsCreated).toBe(1);
+    expect(state.completed.length).toBe(2); // completed both times, same id
+    expect(state.completed[0].id).toBe(state.completed[1].id);
+  });
+
+  it('re-run edits the ship comment in place instead of posting a duplicate', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const mkAi = () =>
+      aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } }).ai;
+
+    const job = makeJob();
+    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
+    // Simulate the comment now existing on GitHub.
+    state.existingComments = [{ id: 555, body: 'old\n\n<!-- pd-ship:code-reviewer -->' }];
+    await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
+
+    expect(state.commentPosts).toBe(1); // only the first run created
+    expect(state.commentPatches).toBe(1); // the re-run edited in place
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ideation ships (spark / spider / lookout / snipe): end-to-end proof that each
+// can do the job we ask — validate the Proposal schema and post REAL actionable
+// Port Daddy syntax, while never gating a merge.
+
+/** A pd-fleet.yml with one ideation ship, prompt embedding its name for routing. */
+function ideationYaml(name: string, temperature = 0.8): string {
+  return [
+    'fleet:',
+    '  name: test',
+    '  agents:',
+    `    ${name}:`,
+    '      trigger: pull_request:opened',
+    '      class: ideation',
+    `      temperature: ${temperature}`,
+    '      allowedTools: "Read,Grep,Glob"',
+    '      fallbacks:',
+    '        - backend: cloudflare',
+    "          model: '@cf/openai/gpt-oss-120b'",
+    '      prompt: |',
+    `        ${name} ship: propose forward work for this diff.`,
+    '',
+  ].join('\n');
+}
+
+function commentBodiesOf(state: GitHubState): string[] {
+  return state.records
+    .filter(r => r.method === 'POST' && /\/issues\/\d+\/comments$/.test(r.url))
+    .map(r => (r.body as { body?: string }).body ?? '');
+}
+
+describe('ideation ships — schema-validated, actionable, non-gating', () => {
+  it('spider posts a syllogism proposal rendered into a runnable assign command', async () => {
+    state.files.set('main:pd-fleet.yml', ideationYaml('spider', 0.95));
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: {
+        spider: [
+          '```json',
+          JSON.stringify([
+            {
+              title: 'Roster-driven parley routing',
+              rationale: 'A: the roster knows agent state. B: parley needs parties. Therefore C: auto-pick parties.',
+              evidence: ['lib/actor-roster.ts', 'cli/commands/parley.ts'],
+              action: 'assign',
+              prompt: 'Add roster-driven default --with selection to pd parley call.',
+            },
+          ]),
+          '```',
+          'FLEET-VERDICT: PASS',
+        ].join('\n'),
+      },
+    }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    const bodies = commentBodiesOf(state);
+    expect(bodies.some(b => b.includes('pd-ship:spider'))).toBe(true);
+    expect(bodies.some(b => b.includes('Roster-driven parley routing'))).toBe(true);
+    expect(bodies.some(b => b.includes('pd dispatch propose'))).toBe(true);
+    // Ideation never gates.
+    expect(state.completed[0].conclusion).toBe('success');
+    // Ideation ships contribute no inline review comments.
+    for (const rev of state.reviews) expect(rev.comments).toHaveLength(0);
+  });
+
+  it('lookout is given cross-PR + branch context and posts a parley proposal with severity', async () => {
+    state.files.set('main:pd-fleet.yml', ideationYaml('lookout', 0.4));
+    state.openPRs = [
+      { number: 700, title: 'C8 setup', draft: false, head: { ref: 'wave2-c8' }, base: { ref: 'main' } },
+    ];
+    state.branches = [{ name: 'wave2-c8' }, { name: 'wave2-c3' }];
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: {
+        lookout: [
+          '```json',
+          JSON.stringify([
+            {
+              title: 'Route triangle: GET /agent-nodes ownership',
+              rationale: 'This PR calls a route PR #700 also assumes but nobody owns.',
+              evidence: ['cli/commands/diagnostics.ts'],
+              action: 'parley',
+              severity: 'HIGH',
+            },
+          ]),
+          '```',
+          'FLEET-VERDICT: PASS',
+        ].join('\n'),
+      },
+    }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    // The model was actually handed the fleet context (other open PRs / branches).
+    const aiCalls = (ai.run as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    const userMsgs = aiCalls
+      .map(c => (c[1] as { messages: Array<{ role: string; content: string }> }).messages)
+      .flat()
+      .filter(m => m.role === 'user')
+      .map(m => m.content);
+    expect(userMsgs.some(m => m.includes('Fleet context'))).toBe(true);
+    expect(userMsgs.some(m => m.includes('#700'))).toBe(true);
+    expect(userMsgs.some(m => m.includes('wave2-c3'))).toBe(true);
+
+    const bodies = commentBodiesOf(state);
+    expect(bodies.some(b => b.includes('pd-ship:lookout'))).toBe(true);
+    expect(bodies.some(b => b.includes('`HIGH`'))).toBe(true);
+    expect(bodies.some(b => b.includes('pd parley call'))).toBe(true);
+    // A HIGH trouble-ahead alert is still advisory — never fails the check.
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('snipe proposes a skill-architect skill with a runnable dispatch command', async () => {
+    state.files.set('main:pd-fleet.yml', ideationYaml('snipe', 0.7));
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: {
+        snipe: [
+          '```json',
+          JSON.stringify([
+            {
+              title: 'Harbor fixture authoring skill',
+              rationale: 'Every harbor PR hand-rolls fixture daemons; a skill would remove that friction.',
+              evidence: ['core/pd-console/scripts/harbor-fixture-daemon.py'],
+              action: 'skill',
+              prompt: 'author F0-shaped harbor fixture daemons and capture scripts in one step',
+            },
+          ]),
+          '```',
+          'FLEET-VERDICT: PASS',
+        ].join('\n'),
+      },
+    }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    const bodies = commentBodiesOf(state);
+    expect(bodies.some(b => b.includes('pd-ship:snipe'))).toBe(true);
+    expect(bodies.some(b => b.includes('Use the skill-architect skill'))).toBe(true);
+    expect(bodies.some(b => b.includes('--tags skill,from-fleet,pd-snipe'))).toBe(true);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('an ideation ship that proposes nothing ([]) posts no comment (silence)', async () => {
+    state.files.set('main:pd-fleet.yml', ideationYaml('spark', 1.25));
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { spark: '```json\n[]\n```\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    expect(commentBodiesOf(state)).toHaveLength(0);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('malformed proposal JSON on an ideation ship falls back to raw output and never gates', async () => {
+    state.files.set('main:pd-fleet.yml', ideationYaml('spark', 1.25));
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { spark: 'I think we could build stuff.\n```json\n{ broken\n```\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    const bodies = commentBodiesOf(state);
+    // Raw prose is preserved rather than dropped.
+    expect(bodies.some(b => b.includes('I think we could build stuff.'))).toBe(true);
+    // Malformed ideation output must NOT flip the check to neutral/failure.
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('ideation ships run alongside a blocking reviewer without affecting its gate', async () => {
+    // spider is ideation by identity (IDEATION_SHIPS), so no `class:` field needed.
+    state.files.set(
+      'main:pd-fleet.yml',
+      fleetYaml([
+        { name: 'code-reviewer', blocking: true, model: '@cf/qwen/qwen2.5-coder-32b-instruct' },
+        { name: 'spider', temperature: 0.95 },
+      ]),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: {
+        'code-reviewer': 'HIGH bug\n\nFLEET-VERDICT: BLOCK',
+        spider: '```json\n' + JSON.stringify([
+          { title: 'Adjacent work', rationale: 'why', evidence: ['x'], action: 'roadmap' },
+        ]) + '\n```\nFLEET-VERDICT: PASS',
+      },
+    }).ai;
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai }));
+
+    // The blocking reviewer still fails the gate; spider's PASS doesn't rescue it.
+    expect(state.completed[0].conclusion).toBe('failure');
+    const bodies = commentBodiesOf(state);
+    expect(bodies.some(b => b.includes('pd-ship:spider'))).toBe(true);
+    expect(bodies.some(b => b.includes('pd-ship:code-reviewer'))).toBe(true);
+  });
+});

@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/Button";
 import { DocsSearch } from "@/components/docs/DocsSearch";
 import { openDocsSearch } from "@/components/docs/docsSearchEvents";
 import { useTheme } from "@/lib/theme-context";
-import { BrandMark, PageContainer } from "./primitives";
+import { PageContainer, Wordmark } from "./primitives";
+import { useHeroWordmark } from "@/lib/hero-brand-context";
 
 type NavItem = {
   label: string;
@@ -25,23 +26,25 @@ type NavItem = {
 };
 
 const PRIMARY_NAV_ITEMS = [
-  { label: "Agents", href: "/agents", end: true },
-  { label: "Tube", href: "/pd-tube", end: false },
-  { label: "Skill + MCP", href: "/mcp", end: true },
-  { label: "Library", href: "/library", end: false, featured: true },
-  { label: "Docs", href: "/docs", end: false },
+  { label: "Home", href: "/", end: true },
+  { label: "Agent Harness", href: "/harness", end: true },
+  { label: "Agent Tubes", href: "/pd-tube", end: false },
+  { label: "Scout", href: "/scout", end: false },
+  { label: "Examples", href: "/examples", end: false },
+  { label: "Blog", href: "/blog", end: false },
+  { label: "Cryptography", href: "/security", end: false },
+  { label: "The Big Idea", href: "/manifesto", end: true },
 ] satisfies readonly NavItem[];
 
+// Secondary destinations live behind the "More" dropdown to keep the top bar
+// uncrowded. Docs dropped out of the primary row but stays reachable here.
 const OVERFLOW_NAV_ITEMS = [
-  { label: "Mac Preview", href: "/mac-preview", end: false, badge: "New" },
-  { label: "CLI Backend", href: "/cli-backend", end: true, badge: "$0" },
-  { label: "Examples", href: "/examples", end: false },
+  { label: "Docs", href: "/docs", end: false },
+  { label: "Mac app", href: "/mac-preview", end: false },
+  { label: "Run agents on your subscription", href: "/cli-backend", end: true },
   { label: "Tutorials", href: "/tutorials", end: false },
-  { label: "Templates", href: "/agents/templates", end: true },
+  { label: "Library", href: "/library", end: false },
   { label: "Landscape", href: "/landscape", end: false },
-  { label: "Blog", href: "/blog", end: false },
-  { label: "Manifesto", href: "/manifesto", end: true },
-  { label: "Papers", href: "/whitepaper", end: false },
 ] satisfies readonly NavItem[];
 
 const NAV_ITEMS: readonly NavItem[] = [
@@ -59,7 +62,7 @@ function navItemClass(
 
   return [
     displayClass,
-    "shrink-0 items-center gap-[var(--space-2)] border-2 px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:0.76rem] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] xl:px-[var(--space-3)]",
+    "shrink-0 items-center gap-[var(--space-2)] border-2 px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] xl:px-[var(--space-3)]",
     featuredDesktop
       ? "border-[var(--border-strong)] bg-[var(--text-primary)] text-[var(--surface-base)] hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)]"
       : isActive
@@ -109,11 +112,6 @@ function PrimaryNavItem({
       }
     >
       <span>{item.label}</span>
-      {item.badge ? (
-        <span className="border border-current px-[var(--space-1)] py-[1px] text-[0.62rem] leading-none tracking-[0.08em]">
-          {item.badge}
-        </span>
-      ) : null}
     </NavLink>
   );
 }
@@ -124,7 +122,7 @@ function OverflowNavMenu() {
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="inline-flex shrink-0 items-center gap-[var(--space-2)] border-2 border-transparent px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:0.76rem] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] xl:px-[var(--space-3)]"
+          className="inline-flex shrink-0 items-center gap-[var(--space-2)] border-2 border-transparent px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] xl:px-[var(--space-3)]"
         >
           More
           <ChevronDown size={14} aria-hidden="true" />
@@ -211,11 +209,6 @@ function CompressedNavMenu() {
                   }
                 >
                   <span>{item.label}</span>
-                  {item.badge ? (
-                    <span className="border border-current px-[var(--space-1)] py-[1px] text-[length:var(--type-meta-size)] leading-none tracking-[var(--tracking-meta)]">
-                      {item.badge}
-                    </span>
-                  ) : null}
                 </NavLink>
               </Popover.Close>
             ))}
@@ -228,6 +221,7 @@ function CompressedNavMenu() {
 
 export function SiteHeader() {
   const { theme, toggle } = useTheme();
+  const { heroWordmarkVisible } = useHeroWordmark();
 
   return (
     <>
@@ -247,17 +241,16 @@ export function SiteHeader() {
         >
           <Link
             to="/"
-            className="inline-flex shrink-0 items-center gap-[var(--space-3)] text-[var(--text-primary)]"
+            aria-label="Port Daddy — home"
+            aria-hidden={heroWordmarkVisible || undefined}
+            tabIndex={heroWordmarkVisible ? -1 : undefined}
+            className={`inline-flex shrink-0 items-center text-[var(--text-primary)] transition-opacity duration-200 ${
+              heroWordmarkVisible ? "pointer-events-none opacity-0" : "opacity-100"
+            }`}
           >
-            <BrandMark className="h-10 w-10 xl:h-11 xl:w-11" />
-            <div className="flex flex-col">
-              <span className="whitespace-nowrap font-display text-[length:var(--text-base)] font-black uppercase leading-none tracking-[var(--tracking-display-nav)] xl:text-[length:var(--text-lg)]">
-                Port Daddy
-              </span>
-              <span className="hidden max-w-[16ch] truncate font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] 2xl:block">
-                agent comms
-              </span>
-            </div>
+            {/* Compact wordmark lockup — spinning mark + "Port Daddy". Hidden
+                while the hero wordmark is on-screen so the two don't stack. */}
+            <Wordmark variant="header" className="h-9 xl:h-10" />
           </Link>
 
           <nav
@@ -270,7 +263,10 @@ export function SiteHeader() {
             <OverflowNavMenu />
           </nav>
 
-          <div className="flex min-w-0 items-center justify-end gap-[var(--space-2)]">
+          {/* Pin controls to the last column. Below 2xl the primary nav is
+              display:none, so without an explicit column it auto-places into the
+              empty middle track and the controls float mid-bar. */}
+          <div className="flex min-w-0 items-center justify-end gap-[var(--space-2)] lg:col-start-3">
             <CompressedNavMenu />
 
             <div className="hidden min-w-[14rem] max-w-[19rem] flex-1 2xl:block">

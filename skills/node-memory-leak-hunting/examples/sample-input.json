@@ -1,0 +1,10 @@
+{
+  "leakConfirmed": true,
+  "rssPattern": "monotonic",
+  "plannedTechnique": "two-snapshot-diff",
+  "loadDrivenBetweenSnapshots": true,
+  "snapshotTarget": "canary",
+  "metricsTracked": ["heap_used", "heap_total", "rss", "external", "arrayBuffers"],
+  "sourceMapsEnabled": true,
+  "scheduledRestartMasking": false
+}

@@ -1,0 +1,74 @@
+{
+  "success": true,
+  "statusCode": 201,
+  "agentId": "visual-proof-agent",
+  "baseUrl": "http://127.0.0.1:9988",
+  "taskId": "visual-task-loyw3v28-naof1",
+  "blobId": "742a48d176775143f6b10c544cc70787f85d48727e5ebd63cdfcca6be9072387",
+  "blobUrl": "/blob/742a48d176775143f6b10c544cc70787f85d48727e5ebd63cdfcca6be9072387",
+  "laneMessages": [
+    {
+      "id": 2,
+      "payload": {
+        "kind": "visual-task",
+        "taskId": "visual-task-loyw3v28-naof1",
+        "title": "Checkout button is clipped",
+        "description": "The checkout button falls below the visible cart card.",
+        "source": "chrome-extension",
+        "taskKind": "fix",
+        "pageUrl": "http://localhost:5173/cart",
+        "createdAt": "2023-11-14T22:13:20.000Z",
+        "region": {
+          "x": 38,
+          "y": 324,
+          "width": 336,
+          "height": 92,
+          "coordinateSpace": "viewport"
+        },
+        "viewport": null,
+        "domContext": {
+          "url": "http://localhost:5173/cart",
+          "title": "Cart",
+          "selectors": [
+            "button.checkout"
+          ],
+          "elementsInRegion": [
+            {
+              "selector": "button.checkout",
+              "tagName": "button",
+              "text": "Checkout",
+              "source": {
+                "fileName": "/repo/src/CheckoutButton.tsx",
+                "lineNumber": 42,
+                "columnNumber": 7,
+                "componentName": "CheckoutButton"
+              }
+            }
+          ]
+        },
+        "image": {
+          "name": "cart-proof.png",
+          "mimeType": "image/png",
+          "size": 32645,
+          "blobId": "742a48d176775143f6b10c544cc70787f85d48727e5ebd63cdfcca6be9072387",
+          "blobUrl": "/blob/742a48d176775143f6b10c544cc70787f85d48727e5ebd63cdfcca6be9072387"
+        },
+        "issue": {
+          "id": "b30860e4-38da-4655-bd30-6dada3ab1ce6",
+          "kind": "port-daddy-work-item",
+          "title": "Checkout button is clipped",
+          "status": "opened",
+          "workItemId": "b30860e4-38da-4655-bd30-6dada3ab1ce6",
+          "workItemSlug": "visual-issue-from-chrome-extension-fix-checkout-button-is-cl"
+        },
+        "channel": {
+          "name": "visual-feedback",
+          "messageId": 1
+        }
+      },
+      "contentType": "json",
+      "sender": "chrome-extension-visual",
+      "createdAt": 1783063280022
+    }
+  ]
+}

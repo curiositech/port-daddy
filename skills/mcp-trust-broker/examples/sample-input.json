@@ -1,0 +1,18 @@
+{
+  "server": {
+    "name": "github-mcp",
+    "manifestPresent": true,
+    "provenance": "signed",
+    "signatureVerified": true,
+    "permissionScope": "least-privilege",
+    "sandboxSmokeTest": "passed",
+    "healthCheck": true,
+    "hasDisableRepairUninstall": true,
+    "usageTrace": true
+  },
+  "quarantine": {
+    "exitRequested": true
+  },
+  "teamPolicy": "approve",
+  "writeToolsRouteThroughDaemonPolicy": true
+}

@@ -10,7 +10,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import type { ChildProcess, SpawnSyncReturns } from 'node:child_process';
 
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
 import type { IncomingMessage, ClientRequest } from 'node:http';
@@ -42,7 +42,7 @@ import PKG from '../package.json' with { type: 'json' };
 // Command modules (extracted from this file)
 import {
   // Services
-  handleClaim, handleRelease, handleFind, handleUrl, handleEnv, autoIdentityFromPackageJson,
+  handleClaim, handleRelease, handleFind, handleUrl, handleEnv, handleEnvExec, autoIdentityFromPackageJson,
   // Locks
   handleLock, handleUnlock, handleLocks,
   // Messaging
@@ -56,6 +56,7 @@ import {
   handleChangelog,
   // Inbox
   handleInbox,
+  handleSent,
   // Tunnel
   handleTunnel,
   // Activity
@@ -81,6 +82,8 @@ import {
   handleBegin, handleDone, handleWhoami, handleWithLock,
   // Attention (inbox + subscribed channels — see docs/RELEASING.md for hook wiring)
   handleAttention,
+  // Nudge (suggestibility layer — claim-overlap heads-up, ADR-0039)
+  handleNudge,
   // Tutorial
   handleLearn,
   // File claims
@@ -89,6 +92,8 @@ import {
   handleHistory,
   // Spawn + Watch
   handleSpawn, handleSpawned, handleWatch, handleSortie,
+  // Work Intent family (ADR-0095): pd work probe / matrix (binder ch18 C2)
+  handleWork,
   // Transcripts
   handleTranscripts,
   // Dispatch (renamed from nightshift per ADR-0035) + morning summary +
@@ -103,10 +108,13 @@ import {
   handleTuple,
   // Semantic graph + episodic memory
   handleGraph, handleIdeas,
+  // Shared local embedder (ADR-0061)
+  handleEmbed,
   handleRoadmap,
   // Durable commitments (ADR-0041)
   handleCommit, handleObligations,
   handleQuorum,
+  handleParley,
   handleFeedback,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
   handleSitrep, handleSay, handleLook, handlePheromone,
@@ -124,9 +132,12 @@ import {
   handleSnapshots,
   // Durable backups of port-registry.db (ADR-0037)
   handleBackup,
+  handleCut,
   handleRestore,
   // Honest attestation / loud-fail invariants (ADR-0045)
   handleAttest,
+  // Host-safety posture audit — `pd safe scan|baseline|fix` (ADR-0088 Phase A)
+  handleSafe,
   // Shipwright — survey/propose/apply for fleet authoring
   handleShipwright,
   // App-Native Development Cockpit
@@ -145,10 +156,18 @@ import {
 // over the older semantic.ts export. See docs/adr/0035-three-tier-memory-vocabulary.md
 import { handleMemory } from '../cli/commands/memory.js';
 import { handleRelay } from '../cli/commands/relay.js';
+import { handleWhois } from '../cli/commands/whois.js';
+// Daemon Berths (ADR-0084): `pd dev up/down/list` + `pd use` per-shell targeting.
+import { handleDevBerth, handleUse } from '../cli/commands/berths.js';
+import { handleSelfUpdate } from '../cli/commands/self-update.js';
+import { handleUpgrade } from '../cli/commands/upgrade.js';
+import { resolveBerthTargetUrl } from '../shared/daemon-berths.js';
+import { readDevDaemonRegistry } from '../cli/utils/berth-registry.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget, DEFAULT_DAEMON_PORT } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
 import { shouldAutoRestartDaemonForFreshness, shouldCheckDaemonFreshness } from '../cli/utils/freshness.js';
+import { maybeNudgeStaleness } from '../cli/utils/staleness-nudge.js';
 import { readCurrentContext } from '../cli/utils/current-context.js';
 import {
   attachCliSessionWorktreePolicy,
@@ -178,7 +197,7 @@ const TIER_1_COMMANDS: Set<string> = new Set([
   'lock', 'unlock', 'locks',
   'status', 'version',
   'ports',               // 'ports cleanup' is Tier 1
-  'session', 'sessions',
+  'session', 'sessions', 'takeover',
   'note', 'notes',
 ]);
 
@@ -336,6 +355,9 @@ function printLaunchHints(hints: {
  * Resolve connection target: Unix socket or TCP.
  */
 function resolveTarget(): ConnectionTarget {
+  if (process.env.PORT_DADDY_FORCE_TCP === '1') {
+    return { host: 'localhost', port: readDaemonPort(_DEFAULT_PORT_FILE) };
+  }
   // Explicit TCP URL overrides socket
   if (process.env.PORT_DADDY_URL) {
     return resolveDaemonTcpTarget(process.env.PORT_DADDY_URL);
@@ -607,6 +629,19 @@ function readCurrentSession(): { sessionId: string; agentId?: string; purpose?: 
   return data?.sessionId ? data : null;
 }
 
+// Maps a command (or alias) to the `pd help <topic>` whose text documents it,
+// so `pd <command> --help` shows real help instead of falling through to the
+// global help. TOPIC_HELP is keyed by topic name (messaging, sessions, …), NOT
+// by command name, so `pd inbox --help` needs this indirection. Exported for
+// the help-topic-aliases unit test.
+export const HELP_TOPIC_ALIASES: Record<string, string> = {
+  // messaging family: durable directed (inbox/send) + ephemeral pub/sub
+  inbox: 'messaging', send: 'messaging', sent: 'messaging', tube: 'messaging',
+  pub: 'messaging', publish: 'messaging', broadcast: 'messaging',
+  sub: 'messaging', subscribe: 'messaging', listen: 'messaging',
+  channels: 'messaging', wait: 'messaging',
+};
+
 /**
  * Build the compact main help output.
  * Shows context-aware next steps if an active session exists.
@@ -633,8 +668,9 @@ function buildHelp(): string {
 
   lines.push(
     `${A}Get started:${Z}`,
-    `  ${G}pd setup${Z}                  ${tag('notify')} Install daemon, MCP, FleetBar, init project`,
-    `  ${G}pd begin${Z} "purpose"       ${tag('notify')} I'll set up your agent + session`,
+    `  ${G}pd setup${Z}                  ${tag('notify')} Install daemon, MCP, FleetBar, hooks, Guard`,
+    `  ${G}pd hooks install${Z}          ${tag('notify')} Wire coordination into claude/codex/gemini/agy (per-project, daemon-gated)`,
+    `  ${G}pd begin${Z} "purpose" --lifecycle durable  ${tag('notify')} I'll set up your agent + session`,
     `  ${G}pd done${Z} "summary"        ${tag('notify')} Finish up — I'll clean everything`,
     `  ${G}pd whoami${Z}                ${tag('silent')} See your current context`,
     `  ${G}pd attention${Z}             ${tag('notify')} What other agents queued for you (run first thing!)`,
@@ -646,14 +682,20 @@ function buildHelp(): string {
     '',
     `${A}Sessions & notes:${Z}`,
     `  ${G}pd session start${Z} "why"   ${tag('notify')} Manual session start`,
+    `  ${G}pd session takeover${Z} <id> ${tag('notify')} Continue stale work, preserve notes`,
+    `  ${G}pd takeover${Z} <id>         ${tag('notify')} Alias for session takeover`,
     `  ${G}pd session abandon${Z}        ${tag('destructive')} End session as abandoned, release claims`,
     `  ${G}pd note${Z} "message"        ${tag('notify')} Leave a note`,
     `  ${G}pd notes${Z}                 ${tag('silent')} Review recent notes`,
     `  ${G}pd feedback${Z} "message"    ${tag('notify')} Drop structured feedback (auto-slug, agent from context)`,
+    `  ${G}pd send${Z} <agent> "msg"    ${tag('notify')} Send a durable direct message to one agent`,
+    `  ${G}pd inbox${Z}                 ${tag('silent')} Read direct messages sent to you`,
+    `  ${G}pd sent${Z}                  ${tag('silent')} Read receipts: messages you sent + if/when read`,
     '',
     `${A}Coordination:${Z}`,
     `  ${G}pd lock${Z} <name>           ${tag('notify')} Grab a distributed lock`,
     `  ${G}pd agent${Z} "task"          ${tag('approval')} One-shot autopilot delegation`,
+    `  ${G}pd agents --live${Z}         ${tag('silent')} Active harness roster + session controls`,
     `  ${G}pd agent register${Z}        ${tag('notify')} Register as an agent`,
     `  ${G}pd salvage${Z}               ${tag('silent')} List a dead agent's work  ${D}(claim/dismiss are destructive)${Z}`,
     `  ${G}pd actors${Z}                ${tag('silent')} Inspect durable actor roster`,
@@ -685,12 +727,16 @@ const TOPIC_HELP: Record<string, string> = {
   setup: `Setup — Install the full local Port Daddy environment
 
 Commands:
-  setup                     Install daemon, MCP, FleetBar, and init project
+  setup                     Install daemon, MCP, FleetBar, Pilot, project hooks, and Guard
     --project <path>        Initialize a specific project directory
     --no-daemon             Skip daemon installation/start
     --no-mcp                Skip MCP + shell hook installation
     --no-fleetbar           Skip FleetBar install (macOS)
     --no-skill              Skip Port Daddy agent skill symlink
+    --no-agents             Skip Port Daddy Pilot agent definitions
+    --no-harness            Skip Squid hooks and Coordination Guard
+    --no-squid-hooks        Skip agent hook installation only
+    --no-guard              Skip Coordination Guard hook installation only
     --status                Show cross-tool skill sync status only
     --skill-status          Alias for --status
     --dry-run               Preview cross-tool skill sync without writing links
@@ -704,7 +750,14 @@ Examples:
   pd setup --project ~/coding/workgroup-ai
   pd setup --no-fleetbar
   pd setup --no-skill
-  pd setup --no-init`,
+  pd setup --no-init
+  pd setup --no-harness
+
+Agent-CLI hooks (per-project, daemon-gated):
+  pd hooks install              Wire claude/codex/gemini/agy for THIS project
+  pd hooks install --user       Also write user-level config for claude/gemini
+  pd hooks list                 Show detected CLIs + wiring status
+  pd hooks uninstall            Remove Port Daddy hooks from every surface`,
 
   sessions: `Sessions & Notes \u2014 Structured multi-agent coordination
 
@@ -712,13 +765,16 @@ Commands:
   session start <purpose>    Start a new session
     --agent <id>             Associate with an agent
     --force                  Force start even if another session is active
+    --lifecycle <mode>       Required: durable for work contexts, ephemeral for heartbeat-bound process sessions
     --files <paths...>       Claim files at session start
     --allow-main-worktree    Explicitly allow an integration session in the main worktree
 
   session end [note]         End the active session (completed)
   session done [note]        Alias for "session end"
   session abandon [note]     End active session (abandoned)
-  session rm <id>            Delete a session and its notes
+  session takeover <id> [note]  Create successor; preserve predecessor notes
+  takeover <id> [note]       Alias for "session takeover"
+  session rm <id>            Archive a session; preserve notes
   session files add <paths>  Claim files in active session
   session files rm <paths>   Release files from active session
     compat aliases           claim -> add, release -> rm
@@ -751,7 +807,7 @@ Commands:
   feedback summary           Counts by severity + surface
 
 Examples:
-  pd session start "Building auth module" --agent agent-42
+  pd session start "Building auth module" --agent agent-42 --lifecycle durable
   pd note "Finished login endpoint" --type progress
   pd notes --limit 10
   pd feedback "tests dropped from 1638 to 1620 — investigate" --severity high
@@ -807,6 +863,9 @@ Commands:
 
   agents                   List all registered agents
     --active               Show only active agents
+    --live, --roster       Show active harness lanes, worktrees, files, and control commands
+    --project <name>       Filter the live roster by project
+    --limit <n>            Cap live roster rows
     -j, --json             Output as JSON
 
   salvage                  Check resurrection queue for dead agents
@@ -827,6 +886,7 @@ Examples:
   pd agent register --agent build-42 --identity myapp:api --purpose "Building auth"
   pd agent heartbeat --agent build-42
   pd agents --active --json
+  pd agents --live --project port-daddy
   pd salvage --project myapp
   pd salvage triage --project myapp
   pd salvage next --project myapp --json
@@ -920,9 +980,20 @@ Examples:
   pd find 'myapp:*'                     # All stacks for myapp
   pd release 'myapp:*:*'               # Release all for project`,
 
-  messaging: `Pub/Sub Messaging \u2014 Real-time inter-agent communication
+  messaging: `Inter-agent messaging \u2014 durable direct messages + ephemeral pub/sub
 
-Commands:
+Direct durable messages (RELIABLE \u2014 survives the recipient being offline):
+  pd send <agent> <message>       Send a durable direct message to one agent
+  pd inbox [list|stats|read-all]  Read messages others sent you (default: list)
+  pd sent [--unread]              Read receipts: messages YOU sent + if/when read
+
+Reliability:
+  The pub/sub below is an EPHEMERAL SSE stream \u2014 it times out and is only
+  received by a subscriber holding the stream open live. A turn-based agent
+  cannot hold a stream open, so for durable agent-to-agent handoffs prefer
+  \`pd send\`/\`pd inbox\` or \`pd note\` (both durable), NOT pub/sub.
+
+Pub/Sub (ephemeral, real-time) commands:
   pub <channel> <message>  Publish a message to a channel
     --sender <id>          Sender identifier
     --dir <path>           Resolve declared logical channels for this worktree
@@ -1014,6 +1085,7 @@ They manage agent registration, sessions, and local context together.
 Commands:
   begin "purpose"          Register agent + start session atomically
                            Writes context to .portdaddy/current.json
+    --lifecycle <mode>     Required: durable for work contexts, ephemeral for heartbeat-bound process sessions
     --allow-main-worktree  Explicitly allow an integration session in the main worktree
 
   done "summary"           End session + unregister agent atomically
@@ -1034,7 +1106,7 @@ Aliases:
   d                        Alias for "down"
 
 Examples:
-  pd begin "Building auth module"
+  pd begin "Building auth module" --lifecycle durable
   pd note "Login endpoint done"
   pd done "Auth module complete"
   pd done --self-salvage --telos-verdict not-fulfilled --doable yes --why-stopped "Tests still red" --next-plan "Fix parser fixture and rerun npm test"
@@ -1162,15 +1234,27 @@ Examples:
   roadmap: `Roadmap Projection \u2014 Cartographer-curated work for agents
 
 Commands:
-  roadmap                   Show Next Cuts, curated now items, live feedback, and dogfood feedback
+  roadmap                   Show roadmap_items DB-of-record entries
     --dir <path>            Project directory (defaults to cwd)
     --limit <n>             Limit rows per section (default: 8)
-    --feedback-status <s>   Live tuple feedback status: open|harvested|wontfix|all
-    --feedback-harbor <h>   Harbor scope for live tuple feedback
-    --feedback-limit <n>    Max live feedback rows to fetch
-    --no-excerpts           Hide CURRENT-WORK and Cartographer status excerpts
-    -q, --quiet             Print machine-readable section:slug lines
-    -j, --json              Output the raw Cartographer projection
+    --status <s>            now|backlog|parked|merge|done|all
+    --harbor <h>            Harbor scope
+    -q, --quiet             Print one slug per line
+    -j, --json              Output raw roadmap_items rows
+
+  roadmap upsert <slug>     Create/update a durable roadmap item receipt
+    --summary <md>          Roadmap summary markdown
+    --status <s>            now|backlog|parked|merge|done
+    --as <agentId>          Actor recorded on the receipt
+    --note <text>           Receipt note attached to the item
+    --harbor <h>            Target harbor (default: repo/project name, then $PD_HARBOR)
+
+  roadmap delete <slug>     Remove a roadmap item (and its status-event audit rows)
+    --harbor <h>            Harbor to delete from (default: repo/project name)
+
+  roadmap touch <slug>      Append a roadmap receipt note to an existing item
+    --as <agentId>          Actor recorded on the receipt
+    --note <text>           Why this slice touched the roadmap
 
   roadmap ack <feedbackId>  Harvest/ack live feedback through the feedback primitive
     --as <agentId>          Harvester id (default: operator-cli)
@@ -1178,8 +1262,10 @@ Commands:
 
 Examples:
   pd roadmap
-  pd roadmap --limit 3 --no-excerpts
+  pd roadmap --limit 3 --status now
   pd roadmap --dir /Users/you/coding/port-daddy --json
+  pd roadmap upsert swarm-coordination --summary "Governed swarm coordination" --status now
+  pd roadmap touch swarm-coordination --note "Phase 0 parley implementation"
   pd roadmap ack 5a8e37de --as cartographer --into coordination-guard`,
 
   secret: `Managed Secrets \u2014 keychain-backed provider credentials
@@ -1252,22 +1338,22 @@ Run: pd learn`,
 const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'tube', 'wait', 'lock', 'unlock', 'locks',
-  'up', 'down', 'setup', 'init', 'scan', 's', 'projects', 'p',
-  'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'log', 'activity',
+  'up', 'down', 'setup', 'init', 'cut', 'scan', 's', 'projects', 'p',
+  'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'send', 'sent', 'log', 'activity',
   'wallet', 'bond',
-  'session', 'sessions', 'note', 'notes', 'say',
-  'begin', 'done', 'whoami', 'attention', 'with-lock', 'learn',
+  'session', 'sessions', 'takeover', 'note', 'notes', 'say',
+  'begin', 'done', 'whoami', 'attention', 'nudge', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
-  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'daemon', 'ci-gate',
+  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update', 'upgrade',
   'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'benchmark', 'look', 'sitrep', 'roadmap',
-  'advise', 'preflight', 'compass', 'guard',
+  'advise', 'preflight', 'compass', 'guard', 'hooks',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
-  'spawn', 'spawned', 'watch', 'transcripts', 'transcript', 'relay',
-  'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
-  'quorum',
+  'spawn', 'spawned', 'watch', 'work', 'transcripts', 'transcript', 'relay',
+  'harbor', 'harbors', 'harbor-ledger', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'memory', 'ideas',
+  'quorum', 'parley',
   'feedback',
   'commit', 'obligations',
   'secret', 'secrets',
@@ -1278,6 +1364,7 @@ const ALL_COMMANDS: string[] = [
   'backend',
   'periscope', 'sight', 'scope',
   'coast-guard', 'cg',
+  'safe',
   'relay',
 ];
 
@@ -1315,6 +1402,36 @@ function suggestCommand(input: string): string | undefined {
 
 let autoStartAttempted: boolean = false;
 
+function maybeRelaunchShortBinary(): void {
+  if (process.env.PORT_DADDY_DISABLE_SHORT_REEXEC === '1') return;
+
+  const execPath = process.execPath || '';
+  const argv0 = process.argv[0] || '';
+  const invokedAsPd = basename(execPath) === 'pd' || basename(argv0) === 'pd';
+  if (!invokedAsPd) return;
+
+  const sibling = join(dirname(execPath), 'port-daddy');
+  if (sibling === execPath || !existsSync(sibling)) return;
+
+  const result = spawnSync(sibling, process.argv.slice(2), {
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      PORT_DADDY_DISABLE_SHORT_REEXEC: '1',
+    },
+  });
+
+  if (result.error) {
+    ui.error(`Failed to relaunch sibling port-daddy binary: ${result.error.message}`);
+    process.exit(127);
+  }
+  if (result.signal) {
+    const signalNumber = result.signal === 'SIGINT' ? 2 : result.signal === 'SIGTERM' ? 15 : 1;
+    process.exit(128 + signalNumber);
+  }
+  process.exit(result.status ?? 0);
+}
+
 // =============================================================================
 // Direct-DB Mode — Tier 1 command execution without the daemon
 // =============================================================================
@@ -1328,6 +1445,11 @@ async function executeDirectMode(
   positional: string[],
   options: CLIOptions
 ): Promise<boolean> {
+  if (command === 'takeover') {
+    command = 'session';
+    positional = ['takeover', ...positional];
+  }
+
   // Only Tier 1 commands are supported
   if (!TIER_1_COMMANDS.has(command)) {
     return false;
@@ -1701,7 +1823,7 @@ async function executeDirectMode(
       const sess = getDirectSessions();
 
       if (!subcommand) {
-        console.error('Usage: port-daddy session <start|end|done|abandon|rm> [args]');
+        console.error('Usage: port-daddy session <start|end|done|abandon|takeover|rm> [args]');
         process.exit(1);
       }
 
@@ -1709,7 +1831,13 @@ async function executeDirectMode(
         case 'start': {
           const purpose = rest[0];
           if (!purpose) {
-            console.error('Usage: port-daddy session start <purpose> [--agent AGENT_ID] [--force]');
+            console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--agent AGENT_ID] [--force]');
+            process.exit(1);
+          }
+
+          const lifecycle = typeof options.lifecycle === 'string' ? options.lifecycle.trim().toLowerCase() : '';
+          if (lifecycle !== 'durable' && lifecycle !== 'ephemeral') {
+            console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--agent AGENT_ID] [--force]');
             process.exit(1);
           }
 
@@ -1720,6 +1848,7 @@ async function executeDirectMode(
             : current?.agentId || `cli-${process.pid}`;
           if (agentId) startOpts.agentId = agentId;
           if (options.force) startOpts.force = true;
+          startOpts.durable = lifecycle === 'durable';
 
           // Collect files: --files may appear as a single string (one occurrence)
           // or an array (repeated --files flags). Positional tail also accepted.
@@ -1820,6 +1949,60 @@ async function executeDirectMode(
           break;
         }
 
+        case 'takeover': {
+          const sessionId = rest[0];
+          if (!sessionId) {
+            console.error('Usage: port-daddy session takeover <id> [note]');
+            process.exit(1);
+          }
+
+          const current = readCurrentSession();
+          const agentId = typeof options.agent === 'string'
+            ? options.agent
+            : current?.agentId || `cli-${process.pid}`;
+          const takeoverOpts: Record<string, unknown> = {
+            agentId,
+            note: rest.slice(1).join(' ') || undefined,
+            purpose: typeof options.purpose === 'string' ? options.purpose : undefined,
+            claimFiles: !(options['no-files'] || options['no-claims']),
+          };
+
+          const lifecycle = typeof options.lifecycle === 'string' ? options.lifecycle.trim().toLowerCase() : '';
+          if (lifecycle) {
+            if (lifecycle !== 'durable' && lifecycle !== 'ephemeral') {
+              console.error('Usage: port-daddy session takeover <id> [note] --lifecycle durable|ephemeral');
+              process.exit(1);
+            }
+            takeoverOpts.durable = lifecycle === 'durable';
+          }
+
+          const worktreePolicy = resolveCliSessionWorktreePolicy(options);
+          if (!worktreePolicy.success) {
+            ui.error(worktreePolicy.error || 'Session worktree policy failed');
+            if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
+            process.exit(1);
+          }
+          attachCliSessionWorktreePolicy(takeoverOpts, worktreePolicy);
+          if (worktreePolicy.worktree) takeoverOpts.worktreeId = worktreePolicy.worktree.id;
+
+          const result = sess.takeover(sessionId, takeoverOpts as Parameters<typeof sess.takeover>[1]);
+          if (!result.success) {
+            ui.error(typeof result.error === 'string' ? result.error : 'Failed to take over session');
+            process.exit(1);
+          }
+
+          if (options.json) {
+            console.log(JSON.stringify(result, null, 2));
+          } else if (options.quiet) {
+            console.log(result.successorId);
+          } else {
+            ui.success(`Took over session: ${sessionId}`);
+            console.log(`  Successor: ${result.successorId}`);
+            console.log('  Notes preserved: yes');
+          }
+          break;
+        }
+
         case 'rm': {
           const sessionId = rest[0];
           if (!sessionId) {
@@ -1829,14 +2012,15 @@ async function executeDirectMode(
 
           const result = sess.remove(sessionId);
           if (!result.success) {
-            console.error(result.error || 'Failed to delete session');
+            console.error(result.error || 'Failed to archive session');
             process.exit(1);
           }
 
           if (options.json) {
-            console.log(JSON.stringify({ success: true, id: sessionId, deleted: true }, null, 2));
+            console.log(JSON.stringify(result, null, 2));
           } else if (!options.quiet) {
-            console.log(`Deleted session: ${sessionId}`);
+            console.log(`Archived session: ${sessionId}`);
+            console.log('  Notes preserved: yes');
           }
           break;
         }
@@ -2070,12 +2254,35 @@ async function executeDirectMode(
 }
 
 export async function main(): Promise<void> {
-  const args: string[] = process.argv.slice(2);
+  maybeRelaunchShortBinary();
+
+  const rawArgs: string[] = process.argv.slice(2);
+
+  // GLOBAL `--daemon <tier|label|url>` flag (ADR-0084): it may appear BEFORE the
+  // subcommand (`pd --daemon dev status`). Extract it up front so `command` is
+  // the real verb, then stash the target for the resolver below. Supports both
+  // `--daemon dev` and `--daemon=dev`. (It is also tolerated mid-args by the
+  // normal option parser, which sets options.daemon for the post-parse resolver.)
+  let preDaemonTarget: string | undefined;
+  const args: string[] = [];
+  for (let i = 0; i < rawArgs.length; i++) {
+    const a = rawArgs[i];
+    if (a === '--daemon' && i + 1 < rawArgs.length && !rawArgs[i + 1].startsWith('-')) {
+      preDaemonTarget = rawArgs[i + 1];
+      i++;
+      continue;
+    }
+    if (a.startsWith('--daemon=')) {
+      preDaemonTarget = a.slice('--daemon='.length);
+      continue;
+    }
+    args.push(a);
+  }
   const command: string | undefined = args[0];
 
   if (!command || command === '--help' || command === '-h') {
     if (IS_TTY) {
-      ui.intro('Port Daddy — Your ports. My rules. Zero conflicts.');
+      ui.intro('Port Daddy — Run a tight harbor.');
     }
 
     // Launch hints — best-effort, skip if daemon not running (500ms timeout)
@@ -2149,6 +2356,12 @@ export async function main(): Promise<void> {
     await checkDaemonFreshness(true, isQuiet);
   }
 
+  // Cross-platform staleness nudge (ADR-0054 Phase 2): at most once/day, print a
+  // one-line "you're behind the latest release" hint to stderr. Complements the
+  // macOS-only auto-upgrade `pd self-update` (ADR-0062) for npm/Linux installs.
+  // Throttled, TTY-gated, opt-out via PORT_DADDY_NO_UPDATE_CHECK, fail-soft.
+  await maybeNudgeStaleness({ command: command as string, currentVersion: PKG.version, isQuiet });
+
   // Parse options
   const options: CLIOptions = {};
   const positional: string[] = [];
@@ -2165,7 +2378,7 @@ export async function main(): Promise<void> {
   // Flags whose repeated occurrences should accumulate into an array
   // instead of last-write-wins. Add a key here when a consumer is array-aware
   // (e.g. `--files A --files B`).
-  const REPEATABLE_FLAGS: Set<string> = new Set(['files']);
+  const REPEATABLE_FLAGS: Set<string> = new Set(['files', 'client-arg', 'codex-config']);
 
   const assignOption = (key: string, value: string | true): void => {
     if (REPEATABLE_FLAGS.has(key) && key in options) {
@@ -2242,6 +2455,27 @@ export async function main(): Promise<void> {
     }
   }
 
+  // --daemon <tier|label|url>: GLOBAL targeting flag (ADR-0084). Resolves to a
+  // daemon URL via the fixed berth lanes (stable→canonical, dev-latest→DEV_LATEST_PORT)
+  // + the dev-berth registry, then overrides PORT_DADDY_URL for THIS command only by mutating the
+  // process env before dispatch. pdFetch reads PORT_DADDY_URL live (and clearing
+  // PORT_DADDY_SOCK forces it off the canonical socket onto the chosen berth).
+  // Precedence: --daemon flag wins over PORT_DADDY_URL / `pd use` env.
+  const daemonTarget = preDaemonTarget ?? (options.daemon ? String(options.daemon) : undefined);
+  if (daemonTarget && command !== 'use' && command !== 'dev') {
+    const targetArg = daemonTarget;
+    const resolved = resolveBerthTargetUrl(targetArg, readDevDaemonRegistry());
+    if (!resolved) {
+      console.error(`--daemon: unknown target "${targetArg}". Known: stable, dev, dev-latest, a label from \`pd dev list\`, or a URL.`);
+      process.exit(1);
+    }
+    process.env.PORT_DADDY_URL = resolved.url;
+    delete process.env.PORT_DADDY_SOCK;
+    if (!resolved.url.includes(`:${DEFAULT_DAEMON_PORT}`)) {
+      process.env.PD_ACTIVE_DAEMON = resolved.label;
+    }
+  }
+
   // --direct flag: skip daemon, go straight to direct-DB mode
   if (options.direct) {
     if (TIER_2_COMMANDS.has(command)) {
@@ -2269,7 +2503,7 @@ export async function main(): Promise<void> {
   // demos (website-terminal-recordings reviewer flags /ERROR:/). Falls back to
   // the global help for commands without a dedicated topic.
   if (options.help) {
-    const topicHelp = TOPIC_HELP[command as string];
+    const topicHelp = TOPIC_HELP[command as string] ?? TOPIC_HELP[HELP_TOPIC_ALIASES[command as string]];
     console.log(topicHelp || buildHelp());
     process.exit(0);
   }
@@ -2301,7 +2535,14 @@ export async function main(): Promise<void> {
         break;
 
       case 'env':
-        await handleEnv(positional[0], options);
+        if (positional[0] === 'exec') {
+          // `pd env exec -- <cmd>` resolves pd-secret:// refs into the child env
+          // only (ADR-0088 Phase B access path). `--` flattens the command into
+          // positional, so everything after `exec` is the command + its args.
+          await handleEnvExec(positional.slice(1), options);
+        } else {
+          await handleEnv(positional[0], options);
+        }
         break;
 
       // Agent coordination
@@ -2411,6 +2652,18 @@ export async function main(): Promise<void> {
         await handleInbox(positional[0], positional.slice(1), options);
         break;
 
+      // `pd send <agent> "msg"` — discoverable alias for the durable directed
+      // send (`pd inbox send …`). POSTs to /agents/:id/inbox; survives the
+      // recipient being offline, unlike ephemeral pub/sub.
+      case 'send':
+        await handleInbox('send', positional, options);
+        break;
+
+      // `pd sent` — read receipts: messages YOU sent + whether/when each was read.
+      case 'sent':
+        await handleSent(options);
+        break;
+
       // Tunnel
       case 'tunnel':
         await handleTunnel(positional[0], positional.slice(1), options);
@@ -2423,6 +2676,10 @@ export async function main(): Promise<void> {
         break;
 
       // Sessions & Notes
+      case 'takeover':
+        await handleSession('takeover', positional, options);
+        break;
+
       case 'session':
         await handleSession(positional[0], positional.slice(1), options);
         break;
@@ -2475,150 +2732,50 @@ export async function main(): Promise<void> {
         await handleDaemon('uninstall', options);
         break;
 
-      case 'dev': {
-        const devSubcmd = positional[0] || 'start';
-        const { mkdirSync: devMkdir, existsSync: devExists, readFileSync: devRead, writeFileSync: devWrite, unlinkSync: devUnlink } = await import('node:fs');
-        const { tmpdir: devTmpdir } = await import('node:os');
-        const { spawn: devSpawnFn } = await import('node:child_process');
-
-        const devDir = join(devTmpdir(), 'port-daddy-dev');
-        const devStateFile = join(devDir, 'dev-state.json');
-        const devServerPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'server.ts');
-        const devTsxPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'node_modules', '.bin', 'tsx');
-
-        if (devSubcmd === 'start') {
-          devMkdir(devDir, { recursive: true });
-
-          // Check if already running
-          if (devExists(devStateFile)) {
-            try {
-              const st = JSON.parse(devRead(devStateFile, 'utf-8'));
-              process.kill(st.pid, 0);
-              ui.warn(`Dev daemon already running (PID ${st.pid}, port ${st.port})`);
-              ui.info(`  PD_URL=http://localhost:${st.port}`);
-              ui.info(`  pd dev stop   — to stop it`);
-              process.exit(0);
-            } catch {
-              try { devUnlink(devStateFile); } catch {}
-            }
-          }
-
-          const devPort = parseInt(process.env.PORT_DADDY_PORT as string) || 9877;
-
-          ui.info(`Starting isolated dev daemon from ${process.cwd()}`);
-          ui.info(`  Port: ${devPort} (stable stays on ${DEFAULT_DAEMON_PORT})`);
-          ui.info(`  DB: ${join(devDir, 'port-daddy.db')} (isolated)`);
-
-          const child = devSpawnFn(devTsxPath, [devServerPath], {
-            env: {
-              ...process.env,
-              PORT_DADDY_PREFIX: devDir,
-              PORT_DADDY_PORT: String(devPort),
-              NODE_ENV: 'development',
-            },
-            stdio: ['ignore', 'pipe', 'pipe'],
-            detached: true,
-          });
-          child.unref();
-
-          // Wait for health check
-          let devReady = false;
-          const devDeadline = Date.now() + 15000;
-          while (Date.now() < devDeadline) {
-            try {
-              const res = await fetch(`http://localhost:${devPort}/health`);
-              if (res.ok) { devReady = true; break; }
-            } catch { /* not ready yet */ }
-            await new Promise(r => setTimeout(r, 200));
-          }
-
-          if (!devReady) {
-            ui.error(`Dev daemon failed to start within 15s`);
-            child.kill();
-            process.exit(1);
-          }
-
-          devWrite(devStateFile, JSON.stringify({
-            pid: child.pid,
-            port: devPort,
-            prefix: devDir,
-            startedAt: new Date().toISOString(),
-            cwd: process.cwd(),
-          }));
-
-          // Fetch version to confirm
-          try {
-            const vRes = await fetch(`http://localhost:${devPort}/version`);
-            const vData = await vRes.json() as any;
-            ui.success(`Dev daemon v${vData.version} running (PID ${child.pid})`);
-          } catch {
-            ui.success(`Dev daemon running (PID ${child.pid})`);
-          }
-
-          ui.info('');
-          ui.info(`  Test commands:`);
-          ui.info(`    PD_URL=http://localhost:${devPort} pd status`);
-          ui.info(`    curl http://localhost:${devPort}/arbiter/status`);
-          ui.info(`    curl http://localhost:${devPort}/version`);
-          ui.info('');
-          ui.info(`  Stop: pd dev stop`);
-
-        } else if (devSubcmd === 'stop') {
-          if (!devExists(devStateFile)) {
-            ui.warn('No dev daemon running');
-            process.exit(0);
-          }
-          const okDev = await requireConfirmation({
-            summary: 'Dev stop will SIGTERM the isolated dev daemon. Its in-memory DB is preserved in the prefix dir but live connections drop.',
-            args: options as Record<string, unknown>,
-          });
-          if (!okDev) process.exit(DESTRUCTIVE_EXIT_CODE);
-          try {
-            const st = JSON.parse(devRead(devStateFile, 'utf-8'));
-            process.kill(st.pid, 'SIGTERM');
-            devUnlink(devStateFile);
-            ui.success(`Dev daemon stopped (was PID ${st.pid})`);
-          } catch {
-            ui.warn(`Dev daemon not running (stale state cleaned up)`);
-            try { devUnlink(devStateFile); } catch {}
-          }
-
-        } else if (devSubcmd === 'status') {
-          if (!devExists(devStateFile)) {
-            ui.info('No dev daemon running');
-            process.exit(0);
-          }
-          try {
-            const st = JSON.parse(devRead(devStateFile, 'utf-8'));
-            process.kill(st.pid, 0);
-            const res = await fetch(`http://localhost:${st.port}/version`);
-            const ver = await res.json() as any;
-            ui.success(`Dev daemon running`);
-            ui.info(`  PID: ${st.pid}`);
-            ui.info(`  Port: ${st.port}`);
-            ui.info(`  Version: ${ver.version}`);
-            ui.info(`  Prefix: ${st.prefix}`);
-            ui.info(`  Started: ${st.startedAt}`);
-          } catch {
-            ui.warn('Dev daemon not running (stale state cleaned up)');
-            try { devUnlink(devStateFile); } catch {}
-          }
-
-        } else {
-          ui.error(`Unknown: pd dev ${devSubcmd}`);
-          ui.info('Usage: pd dev start | stop | status');
-          process.exit(1);
-        }
+      case 'dev':
+        // ADR-0084 Daemon Berths: pd dev up/down/list (+ back-compat
+        // start/stop/status). Builds the daemon BINARY (never tsx) and runs
+        // tiered, colour-coded berths beside the canonical stable daemon.
+        await handleDevBerth(positional, options);
         break;
-      }
+
+      case 'use':
+        // ADR-0084: per-shell targeting. Emits a shell snippet to eval:
+        //   eval "$(pd use dev)"  → exports PORT_DADDY_URL + PD_ACTIVE_DAEMON.
+        await handleUse(positional, options);
+        break;
 
       case 'ci-gate':
         await ciGateCheck();
         break;
 
+      case 'self-update':
+        // ADR-0062: auto-freshness self-heal. The hourly com.portdaddy.freshness
+        // LaunchAgent runs `pd self-update --tick`; humans can run `pd self-update`.
+        await handleSelfUpdate({ tick: !!options.tick });
+        break;
+
+      case 'upgrade': {
+        // ADR-0057 phase 7 (dist-update-channel): fetch the published latest.json
+        // feed, compare to THIS binary's embedded version, report or (--apply)
+        // perform the brew-upgrade path. Distinct from `self-update` (unattended
+        // freshness): this is the interactive "is there a newer release" command.
+        const upgradeResult = await handleUpgrade(PKG.version, {
+          feed: typeof options.feed === 'string' ? options.feed : undefined,
+          apply: !!options.apply,
+          json: !!(options.json ?? options.j),
+        });
+        if (upgradeResult.exitCode !== 0) process.exitCode = upgradeResult.exitCode;
+        break;
+      }
+
       case 'doctor':
       case 'diagnose':
-        await handleDoctor();
+        await handleDoctor({
+          json: !!(options.json ?? options.j),
+          ci: !!options.ci,
+          exitCode: !!(options['exit-code'] ?? options.exitCode),
+        });
         break;
 
       case 'bench':
@@ -2682,6 +2839,12 @@ export async function main(): Promise<void> {
           process.env.PORT_DADDY_URL = `http://localhost:${options.port}`;
         }
         await import('../mcp/server.js');
+        break;
+      }
+
+      case 'hooks': {
+        const { handleHooks } = await import('../cli/commands/hooks-install.js');
+        await handleHooks(positional, options);
         break;
       }
 
@@ -2755,8 +2918,19 @@ export async function main(): Promise<void> {
         await handleBackup(positional, options);
         break;
 
+      case 'cut':
+        await handleCut(positional, options);
+        break;
+
       case 'attest':
         await handleAttest(positional, options, PKG.version);
+        break;
+
+      // Host-safety layer — the read-only posture audit + opt-in reversible
+      // perm-fix (ADR-0088 Phase A). `pd safe scan` defaults; `pd safe baseline
+      // accept <id>` triages a finding; `pd safe fix --auto` tightens perms.
+      case 'safe':
+        await handleSafe(positional, options);
         break;
 
       case 'restore':
@@ -2813,6 +2987,10 @@ export async function main(): Promise<void> {
         await handleAttention(options);
         break;
 
+      case 'nudge':
+        await handleNudge(positional, options);
+        break;
+
       case 'with-lock':
         await handleWithLock(positional[0], positional.slice(1), options);
         break;
@@ -2822,12 +3000,14 @@ export async function main(): Promise<void> {
         await handleSpawn(positional, options);
         break;
 
-      case 'spawned':
-        await handleSpawned(positional, options);
+      // Work Intent family (ADR-0095 fork 4). First landing: pd work probe —
+      // adapter conformance probes per binder ch18 Work Order C2.
+      case 'work':
+        await handleWork(positional, options);
         break;
 
-      case 'sortie':
-        await handleSortie(positional, options);
+      case 'spawned':
+        await handleSpawned(positional, options);
         break;
 
       // Dispatch -- autonomous feature dev queue (renamed from nightshift per
@@ -2852,6 +3032,11 @@ export async function main(): Promise<void> {
       // Watch — ambient agent kernel (SSE subscriber)
       case 'watch':
         await handleWatch(positional[0], options);
+        break;
+
+      // Sortie — one-shot multi-agent mission (ephemeral harbor, explicit budget)
+      case 'sortie':
+        await handleSortie(positional, options);
         break;
 
       // Fleet transcripts — chat-record viewer for every ship run
@@ -2929,6 +3114,18 @@ export async function main(): Promise<void> {
         await handleHarbors(positional, options);
         break;
 
+      // Agent Harbor event ledger + projections (binder ch18 C1, ADR-0095)
+      case 'harbor-ledger': {
+        const { handleHarborLedger } = await import('../cli/commands/harbor-ledger.js');
+        await handleHarborLedger(positional, options);
+        break;
+      }
+
+      // Semantic phonebook / skill router
+      case 'whois':
+        await handleWhois(positional, options);
+        break;
+
       // Tutorial
       case 'learn':
       case 'tutorial':
@@ -2954,6 +3151,12 @@ export async function main(): Promise<void> {
         break;
       }
 
+      case 'squid': {
+        const { handleSquid } = await import('../cli/commands/squid.js');
+        await handleSquid(positional, options);
+        break;
+      }
+
       case 'wallet': {
         const { handleWallet } = await import('../cli/commands/wallet.js');
         await handleWallet(positional, options);
@@ -2973,6 +3176,12 @@ export async function main(): Promise<void> {
 
       case 'graph':
         await handleGraph(positional, options);
+        break;
+
+      // The one shared local embedding surface (ADR-0061): skills and
+      // matching code shell out here instead of standing up their own model.
+      case 'embed':
+        await handleEmbed(positional, options);
         break;
 
       case 'memory':
@@ -2998,6 +3207,10 @@ export async function main(): Promise<void> {
 
       case 'quorum':
         await handleQuorum(positional, options);
+        break;
+
+      case 'parley':
+        await handleParley(positional, options);
         break;
 
       case 'feedback':

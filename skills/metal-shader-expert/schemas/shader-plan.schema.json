@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/shader-plan.schema.json",
+  "title": "MSL Shader Plan",
+  "description": "A plan describing a set of Metal shaders and the GPU counters observed for them, for deterministic auditing against this skill's failure modes (bandwidth bandit, register pressure cascade / precision overkill, branch divergence, tile memory overflow, misaligned threadgroup size).",
+  "type": "object",
+  "required": ["shaders", "occupancyPct", "registerUsagePct", "tileMemoryKb", "threadgroupSize"],
+  "additionalProperties": true,
+  "properties": {
+    "shaders": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "stage",
+          "precision",
+          "usesFloatForDisplayBound",
+          "runtimeBranchOnUniform",
+          "usesFunctionConstant",
+          "multiPassStoreLoad",
+          "memorylessIntermediates"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Shader function name, for locating findings in the source."
+          },
+          "stage": {
+            "type": "string",
+            "enum": ["fragment", "compute", "vertex", "tile"]
+          },
+          "precision": {
+            "type": "string",
+            "enum": ["half", "float"],
+            "description": "Dominant precision used for the shader's display-bound working values."
+          },
+          "usesFloatForDisplayBound": {
+            "type": "boolean",
+            "description": "True if float (not half) is used for display-bound values like color/normal, where half would suffice."
+          },
+          "runtimeBranchOnUniform": {
+            "type": "boolean",
+            "description": "True if the shader branches at runtime on a uniform/material property instead of a compile-time function constant."
+          },
+          "usesFunctionConstant": {
+            "type": "boolean",
+            "description": "True if the shader uses function constants for compile-time specialization of variant behavior."
+          },
+          "multiPassStoreLoad": {
+            "type": "boolean",
+            "description": "True if this shader is part of a multi-pass pipeline that stores to and loads from a full render target between passes, rather than staying resident in tile memory."
+          },
+          "memorylessIntermediates": {
+            "type": "boolean",
+            "description": "True if intermediate render targets this shader writes are declared MTLStorageModeMemoryless (or equivalent) rather than backed by real memory."
+          }
+        }
+      }
+    },
+    "occupancyPct": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Measured GPU occupancy percentage (Instruments GPU profiler). Below 75% indicates register pressure or excessive threadgroup memory use."
+    },
+    "registerUsagePct": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Measured register usage as a percentage of the available register file. Above 80% risks spilling and occupancy loss."
+    },
+    "tileMemoryKb": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Tile memory used per tile, in kilobytes. Apple GPUs cap this at 32KB per tile."
+    },
+    "threadgroupSize": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Threadgroup size used for compute/tile dispatch. Should be a multiple of 32 (SIMD-group width) to avoid wasted lanes."
+    }
+  }
+}

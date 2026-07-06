@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PD Tube — Mission Control</title>
+<style>
+  :root {
+    --paper: #f2eee6;
+    --raised: #f7f3eb;
+    --ink: #121212;
+    --cobalt: #003fb8;
+    --teal: #006b5f;
+    --muted: #47423a;
+    --on-cobalt: #fbf7ef;
+    --ok: #2d7a43;
+    font-family: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink);
+    background-image: radial-gradient(circle, rgba(18,18,18,0.05) 1px, transparent 1px);
+    background-size: 26px 26px;
+    padding: 40px 32px;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; }
+  .eyebrow {
+    font-size: 0.875rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--muted);
+    border-left: 3px solid var(--cobalt); padding-left: 10px; margin-bottom: 14px;
+  }
+  h1 { font-size: clamp(2.4rem, 5vw, 3.6rem); line-height: 0.98; margin: 0 0 12px; font-weight: 900; max-width: 16ch; }
+  h1 .hl { color: var(--cobalt); }
+  .lede { font-size: 1.0625rem; line-height: 1.55; color: var(--muted); max-width: 60ch; margin: 0 0 28px; }
+  code { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+  .stage {
+    display: grid; grid-template-columns: 300px 1fr; gap: 0;
+    border: 2px solid var(--ink); background: var(--raised);
+  }
+  @media (max-width: 820px){ .stage { grid-template-columns: 1fr; } }
+
+  /* ---- left: the app that fires events ---- */
+  .panel { border-right: 2px solid var(--ink); padding: 22px; }
+  @media (max-width: 820px){ .panel { border-right: 0; border-bottom: 2px solid var(--ink); } }
+  .panel h2 { font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.12em; margin: 0 0 4px; }
+  .panel .sub { font-size: 0.875rem; color: var(--muted); margin: 0 0 18px; }
+  .btn {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    border: 2px solid var(--ink); background: var(--paper); color: var(--ink);
+    padding: 13px 14px; margin-bottom: 12px; font: inherit; font-weight: 800;
+    font-size: 0.9375rem; text-align: left; cursor: pointer; transition: all .12s;
+  }
+  .btn .dot { width: 9px; height: 9px; background: var(--cobalt); flex: none; }
+  .btn:hover:not(:disabled) { background: var(--cobalt); color: var(--on-cobalt); }
+  .btn:hover:not(:disabled) .dot { background: var(--on-cobalt); }
+  .btn:disabled { opacity: .45; cursor: wait; }
+  .ask { margin-top: 6px; }
+  .ask input {
+    width: 100%; border: 2px solid var(--ink); background: var(--paper); color: var(--ink);
+    padding: 11px 12px; font: inherit; font-size: 0.9375rem; margin-bottom: 10px;
+  }
+  .ask .btn { background: var(--ink); color: var(--paper); }
+  .ask .btn .dot { background: var(--teal); }
+
+  /* ---- right: the live wire ---- */
+  .wire { padding: 22px 26px; position: relative; min-height: 460px; }
+  .nodes { display: grid; grid-template-columns: 1fr 36px 1fr; align-items: center; gap: 0; margin-bottom: 22px; }
+  .node {
+    border: 2px solid var(--ink); background: var(--paper); padding: 14px 16px; text-align: center;
+  }
+  .node .role { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+  .node .name { font-weight: 900; font-size: 1.0625rem; margin-top: 3px; }
+  .node.agent { border-color: var(--cobalt); }
+  .node.agent.awake { background: var(--cobalt); color: var(--on-cobalt); box-shadow: 0 0 0 4px rgba(0,63,184,0.18); }
+  .node.agent.awake .role { color: var(--on-cobalt); opacity: .8; }
+  .link { position: relative; height: 2px; background: var(--ink); align-self: center; }
+  .pulse {
+    position: absolute; top: -4px; left: 0; width: 10px; height: 10px; background: var(--cobalt);
+    border-radius: 50%; opacity: 0; transform: translateX(0);
+  }
+  .pulse.go { animation: travel .55s cubic-bezier(.5,0,.5,1) forwards; }
+  .pulse.back { background: var(--teal); animation: travelback .55s cubic-bezier(.5,0,.5,1) forwards; }
+  @keyframes travel { 0%{opacity:1;transform:translateX(0)} 100%{opacity:1;transform:translateX(34px)} }
+  @keyframes travelback { 0%{opacity:1;transform:translateX(34px)} 100%{opacity:1;transform:translateX(0)} }
+
+  .status { font-size: 0.875rem; color: var(--muted); margin-bottom: 16px; min-height: 1.2em; }
+  .status b { color: var(--ink); }
+  .status .live { color: var(--ok); font-weight: 800; }
+
+  .thread { display: flex; flex-direction: column; gap: 12px; }
+  .card { border: 2px solid var(--ink); background: var(--paper); padding: 0; animation: rise .25s ease-out; }
+  @keyframes rise { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  .card .head {
+    display: flex; justify-content: space-between; gap: 12px; padding: 9px 13px;
+    border-bottom: 1px solid rgba(18,18,18,.18); font-size: 0.8125rem;
+  }
+  .card .who { font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+  .card.click .who { color: var(--cobalt); }
+  .card.reply .who { color: var(--teal); }
+  .card .id { color: var(--muted); font-family: "IBM Plex Mono", monospace; }
+  .card .body { padding: 12px 13px; font-size: 0.9375rem; line-height: 1.5; }
+  .card .body code { font-size: 0.875rem; color: var(--cobalt); }
+  .reply .body { background: rgba(0,107,95,0.06); }
+  .foot { margin-top: 18px; font-size: 0.875rem; color: var(--muted); border-top: 2px solid var(--ink); padding-top: 14px; }
+  .foot code { color: var(--ink); font-weight: 700; }
+  .err { color: #bf2f2f; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Anything triggers an agent</div>
+  <h1>Click a button. <span class="hl">A real agent answers.</span></h1>
+  <p class="lede">
+    This page has no backend. Each button is a plain <code>fetch()</code> that posts a JSON
+    message to a Port Daddy channel. A local agent running <code>pd tube ui:clicks</code> wakes
+    up, does the work, and replies — and the reply lands back here. Watch the wire.
+  </p>
+
+  <div class="stage">
+    <div class="panel">
+      <h2>Your app</h2>
+      <p class="sub">A static page. No SDK, no socket.</p>
+      <button class="btn" data-action="deploy-staging"><span class="dot"></span>Deploy staging</button>
+      <button class="btn" data-action="run-tests"><span class="dot"></span>Run the test suite</button>
+      <button class="btn" data-action="summarize-pr"><span class="dot"></span>Summarize the PR</button>
+      <div class="ask">
+        <input id="ask" placeholder="…or ask the agent anything" maxlength="120">
+        <button class="btn" data-action="ask"><span class="dot"></span>Send to agent</button>
+      </div>
+    </div>
+
+    <div class="wire">
+      <div class="nodes">
+        <div class="node"><div class="role">Sender</div><div class="name">web&nbsp;page</div></div>
+        <div class="link"><div class="pulse" id="pulse"></div></div>
+        <div class="node agent" id="agentNode"><div class="role">Listening on ui:clicks</div><div class="name">agent</div></div>
+      </div>
+      <div class="status" id="status">Agent idle — waiting for a click.</div>
+      <div class="thread" id="thread"></div>
+      <div class="foot">
+        Agent side, one command: <code>pd tube ui:clicks</code> &nbsp;·&nbsp; replies with <code>pd tube ui:clicks --reply "…"</code>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const DAEMON = 'http://127.0.0.1:9876';
+  const CHANNEL = 'ui:clicks';
+  const KIND = 'tube.msg';
+  const url = `${DAEMON}/msg/${encodeURIComponent(CHANNEL)}`;
+  const $ = (id) => document.getElementById(id);
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  const ACTIONS = {
+    'deploy-staging': 'deploy staging',
+    'run-tests': 'run the test suite',
+    'summarize-pr': 'summarize the open PR',
+  };
+
+  function pulse(cls) {
+    const p = $('pulse'); p.className = 'pulse';
+    void p.offsetWidth; p.classList.add('go', ...(cls ? [cls] : []));
+  }
+  function setStatus(html) { $('status').innerHTML = html; }
+
+  function card(kind, who, id, bodyHtml) {
+    const el = document.createElement('div');
+    el.className = `card ${kind}`;
+    el.innerHTML = `<div class="head"><span class="who">${escapeHtml(who)}</span><span class="id">#${escapeHtml(String(id))}</span></div><div class="body">${bodyHtml}</div>`;
+    $('thread').prepend(el);
+    return el;
+  }
+
+  async function publish(body, sender) {
+    const res = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sender, payload: { v: 1, kind: KIND, body } }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return (await res.json()).id;
+  }
+
+  async function poll(after) {
+    const res = await fetch(`${url}?after=${after}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return (await res.json()).messages || [];
+  }
+
+  async function waitForReply(parentId) {
+    const deadline = Date.now() + 90000;
+    let cursor = parentId;
+    while (Date.now() < deadline) {
+      for (const m of await poll(cursor)) {
+        cursor = Math.max(cursor, m.id);
+        const p = m.payload;
+        if (p && p.kind === KIND && p.inReplyTo === parentId) return m;
+      }
+      await sleep(700);
+    }
+    throw new Error('timed out');
+  }
+
+  let busy = false;
+  async function fire(label, humanText) {
+    if (busy) return; busy = true;
+    document.querySelectorAll('button').forEach(b => b.disabled = true);
+    const t0 = performance.now();
+    try {
+      setStatus('Posting to <b>ui:clicks</b>…');
+      pulse();
+      const id = await publish(humanText, 'web-page');
+      card('click', 'web page', id, `Asked the agent to <code>${escapeHtml(label)}</code>`);
+      await sleep(300);
+      $('agentNode').classList.add('awake');
+      setStatus('<span class="live">● agent awake</span> — working…');
+      const reply = await waitForReply(id);
+      const ms = Math.round(performance.now() - t0);
+      pulse('back');
+      card('reply', reply.sender || 'agent', reply.id, escapeHtml(reply.payload.body));
+      setStatus(`<span class="live">● replied</span> in ${ms} ms — <b>round-trip over one channel.</b>`);
+    } catch (e) {
+      setStatus(`<span class="err">${e.message === 'timed out' ? 'No agent is listening. Run ' : 'Error: ' }</span>` +
+        (e.message === 'timed out' ? '<code>pd tube ui:clicks</code> in a terminal.' : escapeHtml(e.message)));
+    } finally {
+      $('agentNode').classList.remove('awake');
+      document.querySelectorAll('button').forEach(b => b.disabled = false);
+      busy = false;
+    }
+  }
+
+  function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+
+  document.querySelectorAll('button[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const a = btn.dataset.action;
+      if (a === 'ask') {
+        const v = $('ask').value.trim(); if (!v) { $('ask').focus(); return; }
+        fire(v, v);
+      } else {
+        fire(ACTIONS[a], `please ${ACTIONS[a]}`);
+      }
+    });
+  });
+</script>
+</body>
+</html>

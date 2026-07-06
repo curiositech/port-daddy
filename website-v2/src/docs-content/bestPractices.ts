@@ -14,7 +14,7 @@ export const bestPracticesSection: DocsContentSection = {
       truth: 'source-backed',
       goals: [
         'Start every session with pd status, pd briefing, and pd salvage.',
-        'Use pd spawn or pd agent instead of raw claude -p so coordination is automatic.',
+        'Use pd spawn instead of raw claude -p so coordination is automatic.',
         'Close sessions with pd done — dangling agents become salvage-queue noise.',
       ],
       blocks: [
@@ -42,18 +42,18 @@ export const bestPracticesSection: DocsContentSection = {
           title: 'Use pd spawn, not raw claude -p',
           paragraphs: [
             'Fleet scripts and one-off tasks that call `claude -p` directly are invisible to Port Daddy. They bypass session registration, heartbeats, notes, and budget gates.',
-            '**Use `pd spawn` (or `pd agent` for one-shot tasks) instead of raw `claude -p`.** Port Daddy wraps the launch with automatic registration, heartbeats, note trails, and cost accounting at no extra cost to you.',
+            '**Use `pd spawn` instead of raw `claude -p`.** Port Daddy wraps the launch with automatic registration, heartbeats, note trails, and cost accounting at no extra cost to you.',
           ],
         },
         {
           type: 'command',
           title: 'Spawn an AI session through Port Daddy',
           command:
-            'pd agent --identity myapp:api:auth --purpose "Fix session token refresh" -- "Read the session middleware and fix the token-refresh race condition."',
+            'pd spawn --identity myapp:api:auth --purpose "Fix session token refresh" -- "Read the session middleware and fix the token-refresh race condition."',
           output:
-            'SUCCESS: Agent "Fix session token refresh" launched\n  Identity: myapp:api:auth\n  Session:  session-fix-session-token-refresh',
+            'SUCCESS: Spawn launched\n  Identity: myapp:api:auth\n  Session:  session-fix-session-token-refresh',
           notes: [
-            'Every pd agent or pd spawn launch is registered, heartbeating, and draining toward the project budget ceiling.',
+            'Every pd spawn launch is registered, heartbeating, and draining toward the project budget ceiling.',
             'Raw `claude -p "..."` leaves no coordination trail, no cost record, and no salvageable session if it crashes.',
           ],
         },
@@ -86,7 +86,7 @@ export const bestPracticesSection: DocsContentSection = {
           type: 'checklist',
           items: [
             'pd status + pd briefing + pd salvage before any coordinated work.',
-            'pd spawn or pd agent for every AI session — never raw claude -p.',
+            'pd spawn for every AI session — never raw claude -p.',
             'pd note with scope before edits, result before pd done.',
             'pd done when work finishes — not just closing the terminal.',
           ],
@@ -101,7 +101,7 @@ export const bestPracticesSection: DocsContentSection = {
         {
           path: 'docs/DELEGATION-MODES.md',
           rationale:
-            'Canonical explanation of when to use pd spawn vs pd agent vs pd fleet vs raw invocations.',
+            'Canonical explanation of when to use pd spawn vs pd fleet vs raw invocations.',
         },
         {
           path: 'docs/adr/0019-declarative-fleet-yaml.md',
@@ -322,7 +322,7 @@ export const bestPracticesSection: DocsContentSection = {
         'Run parallel agent write work in isolated git worktrees, not in the main working tree.',
         'Commit current changes before launching any worktree-based agent.',
         'Fetch and rebase against origin/main before every push.',
-        'Run the full test gate and use the promotion script before claiming release readiness.',
+        'Run the full test gate and use the promotion script before claiming the release is ready.',
       ],
       blocks: [
         {
@@ -375,7 +375,7 @@ export const bestPracticesSection: DocsContentSection = {
           type: 'paragraph',
           title: 'Test gate and promotion',
           paragraphs: [
-            '`npm test` is the minimum repo-health gate. Run it before claiming any release readiness. A green exit code is not a clean result if Jest prints "A worker process has failed to exit gracefully" — chase worker-exit warnings before treating the run as done.',
+            '`npm test` is the minimum repo-health gate. Run it before claiming a release is ready. A green exit code is not a clean result if Jest prints "A worker process has failed to exit gracefully" — chase worker-exit warnings before treating the run as done.',
             'When promoting to stable, use `./scripts/promote-stable.sh`. Never hand-roll daemon promotion with ad hoc launchctl commands.',
           ],
         },

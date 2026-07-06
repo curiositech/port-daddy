@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/agent-labor-pricing-function/pricing-plan.schema.json",
+  "title": "Agent Labor Pricing Plan",
+  "description": "Input shape for scripts/pricing_stress.mjs — a draft pricing plan for a variable-cost agent-labor product feature, stress-tested for margin and bill-shock risk.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["model", "valueMetric", "unitCosts", "pricePoints", "guardrails", "personas"],
+  "properties": {
+    "model": {
+      "type": "string",
+      "enum": ["per-seat", "metered", "credits", "hybrid", "outcome"],
+      "description": "The chosen pricing model. per-seat = flat per-user/month. metered = pay per raw usage unit. credits = prepaid consumable bucket (e.g. Copilot 'premium requests'). hybrid = seat base plus metered/credit overage. outcome = priced on a verified delivered result."
+    },
+    "valueMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "unit", "buyerCanPredict"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "unit": { "type": "string", "minLength": 1, "description": "The countable unit the buyer is billed against, e.g. 'completed task', 'premium request', 'seat-month'." },
+        "buyerCanPredict": {
+          "type": "boolean",
+          "description": "Can the buyer estimate their monthly count of this unit BEFORE running work, using something they already track (seats, tickets, PRs)? False for raw infra metrics like tokens or tool calls."
+        },
+        "description": { "type": "string" }
+      }
+    },
+    "unitCosts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modelTokenCost", "toolCompute", "overhead"],
+      "description": "Fully-loaded cost in USD to deliver ONE unit of valueMetric, at the model/tool mix actually used in production.",
+      "properties": {
+        "modelTokenCost": { "type": "number", "minimum": 0, "description": "Blended $ cost of LLM input+output tokens per unit, across every model call in the task." },
+        "toolCompute": { "type": "number", "minimum": 0, "description": "$ cost of sandboxes, browser automation, compute minutes, and other non-LLM tool calls per unit." },
+        "overhead": { "type": "number", "minimum": 0, "description": "Amortized $ cost per unit for support, payment processing, infra, and observability." }
+      }
+    },
+    "targetMarginPct": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0.3,
+      "description": "Minimum acceptable gross margin fraction (0.3 = 30%) below which a persona is flagged 'thin' even if positive."
+    },
+    "pricePoints": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tier", "basePrice", "includedUnits"],
+        "properties": {
+          "tier": { "type": "string", "minLength": 1 },
+          "basePrice": { "type": "number", "minimum": 0, "description": "Flat $/month charge for this tier." },
+          "includedUnits": { "type": "number", "minimum": 0, "description": "Units of valueMetric included in basePrice before overage applies." },
+          "overageRatePerUnit": {
+            "type": ["number", "null"],
+            "minimum": 0,
+            "description": "$ charged per unit beyond includedUnits. Omit or null means overage is unmetered (free) — a margin-erosion flag."
+          }
+        }
+      }
+    },
+    "guardrails": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spendCap", "budgetPreview", "perTaskEstimate", "transparentMetering"],
+      "properties": {
+        "spendCap": { "type": "boolean", "description": "A hard, buyer-configurable ceiling that stops billing/execution once reached." },
+        "budgetPreview": { "type": "boolean", "description": "An estimated cost shown to the buyer before they commit to a run or billing period." },
+        "perTaskEstimate": { "type": "boolean", "description": "A cost estimate attached to each individual task at submission time." },
+        "transparentMetering": { "type": "boolean", "description": "A line-item receipt per task (model calls, tokens, tool calls, $) available after the fact." }
+      }
+    },
+    "personas": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "tier", "monthlyUnits"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "description": "e.g. 'solo-founder', 'staff-engineer', 'enterprise-admin'." },
+          "tier": { "type": "string", "minLength": 1, "description": "Must match a pricePoints[].tier." },
+          "monthlyUnits": { "type": "number", "minimum": 0, "description": "Modeled monthly consumption of valueMetric for this persona." }
+        }
+      }
+    }
+  }
+}

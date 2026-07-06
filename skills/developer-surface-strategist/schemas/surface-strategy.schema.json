@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://port-daddy.dev/schemas/developer-surface-strategist/surface-strategy.schema.json",
+  "title": "Developer Surface Strategy Manifest",
+  "type": "object",
+  "required": ["name", "workflows"],
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "targetLanguages": { "type": "array", "items": { "type": "string" } },
+    "surfaces": { "type": "array", "items": { "type": "string" } },
+    "workflows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "actor": { "type": "string" },
+          "frequency": { "type": "string" },
+          "transport": { "type": "string", "enum": ["pd-tube", "http", "webhook", "stdio", "in-process", "other"] },
+          "requiresTube": { "type": "boolean" },
+          "setup": { "type": "boolean" },
+          "embedded": { "type": "boolean" },
+          "primarySurface": { "type": "string" },
+          "secondarySurface": { "type": "string" },
+          "rationale": { "type": "string" },
+          "mustNotDo": { "type": "string" }
+        }
+      },
+      "minItems": 1
+    },
+    "tubeWorkflow": {
+      "type": "object",
+      "properties": {
+        "channel": { "type": "string" },
+        "messageSchema": { "type": "string" },
+        "sender": { "type": "string" },
+        "listener": { "type": "string" },
+        "receipt": { "type": "string" },
+        "idempotency": { "type": "string" },
+        "auth": { "type": "string" },
+        "targetLanguages": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "sdkPlan": { "type": "object" }
+  }
+}

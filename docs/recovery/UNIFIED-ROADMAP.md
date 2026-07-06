@@ -181,13 +181,13 @@ Immediate ships:
 - `tuple-driven-fleet` so tuple coordination turns into actual swarm routing instead of broadcast-only work distribution
 - `operator-decision-journal` so approvals, overrides, and pauses have an immutable "why" trail
 - merge the best of `public/fleet-live.html` and `public/fleet-config.html` into `fleet-config-ui`
-- turn `SortiePanel` into a mission workspace, not just a raw launch form
+- turn the spawn panel into a mission workspace, not just a raw launch form
 
 Representative idea pressure:
 - launch hints in the fleet UI
 - live feedback for YAML editing
 - better inbox/channel/review protocols
-- `PD-AGENT-SORTIE-PLAN.md`
+- `PD-SPAWN-PLAN.md`
 
 Done when:
 - the React control plane feels as alive as the old HTML surfaces
@@ -210,7 +210,7 @@ Immediate ships:
 - per-project fleet leases so only one daemon owns a project fleet at a time
 - next event sources: `file:saved`, `build:error`, `test:result`
 - next declarative trigger primitives: `trigger: webhook:<event>` and `trigger: files:<glob>`
-- preflight-backed single-use mission launches so `pd agent` and sorties show readiness, budget, and fallback choices before work starts
+- preflight-backed single-use mission launches so `pd spawn` shows readiness, budget, and fallback choices before work starts
 - `cost-gated-spawning` so launch-time budget ceilings are enforced before work starts instead of only warned about
 - `empirical-model-efficiency-routing` so spawn-time model choice uses historical cost and success data instead of guesswork
 - `unified-spawn-risk-synthesis` so cost, skill, dependency, harbor, and learning risk are combined before spawn
@@ -230,7 +230,7 @@ Representative idea pressure:
 - review protocol via inbox
 - phase-gated harbors
 - durable circuit breakers
-- `PD-AGENT-SORTIE-PLAN.md`
+- `PD-SPAWN-PLAN.md`
 
 Done when:
 - fleet behavior can be edited and reasoned about without hidden runaway paths

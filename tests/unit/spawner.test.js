@@ -52,11 +52,12 @@ const TEST_TELEMETRY_BYPASS = {
 
 function createSpawner(deps = {}) {
   if (deps.enforceTelemetryPolicy === true) {
-    return createSpawnerBase(deps);
+    return createSpawnerBase({ enforceTranscriptPolicy: false, ...deps });
   }
   return createSpawnerBase({
     ...deps,
     enforceTelemetryPolicy: false,
+    enforceTranscriptPolicy: deps.enforceTranscriptPolicy ?? false,
     telemetryBypassApproval: deps.telemetryBypassApproval ?? TEST_TELEMETRY_BYPASS,
   });
 }
@@ -198,11 +199,14 @@ describe('createSpawner', () => {
   });
 
   test('accepts empty deps object', () => {
-    expect(() => createSpawnerBase({})).not.toThrow();
+    // Transcript enforcement is mandatory by default (covered in
+    // spawner-transcripts.test.js); opt out here to assert the rest of the
+    // empty-deps contract.
+    expect(() => createSpawnerBase({ enforceTranscriptPolicy: false })).not.toThrow();
   });
 
   test('defaults telemetry enforcement on when called with no args', async () => {
-    const spawner = createSpawnerBase();
+    const spawner = createSpawnerBase({ enforceTranscriptPolicy: false });
     setupOllamaFetchMock('blocked');
 
     const result = await spawner.spawn({
@@ -221,6 +225,7 @@ describe('createSpawner', () => {
   test('accepts telemetry opt-out only with explicit HITL confirmation data', () => {
     expect(() => createSpawnerBase({
       enforceTelemetryPolicy: false,
+      enforceTranscriptPolicy: false,
       telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
     })).not.toThrow();
   });
@@ -1034,6 +1039,7 @@ describe('PD coordination', () => {
     expect(beginCalls.length).toBe(1);
     const body = JSON.parse(beginCalls[0][1].body);
     expect(body.identity).toBe('myapp:api:main');
+    expect(body.lifecycle).toBe('ephemeral');
   });
 
   test('calls /sugar/done on successful completion', async () => {
@@ -1633,6 +1639,7 @@ describe('spawn — codex backend', () => {
     const spawner = createSpawnerBase({
       costTracker,
       enforceTelemetryPolicy: true,
+      enforceTranscriptPolicy: false,
     });
 
     mockChildProcess.stdout.on.mockImplementation((event, cb) => {
@@ -1697,6 +1704,7 @@ describe('spawn — codex backend', () => {
     const spawner = createSpawnerBase({
       costTracker,
       enforceTelemetryPolicy: true,
+      enforceTranscriptPolicy: false,
     });
 
     let closeHandler;

@@ -1,0 +1,149 @@
+Process 0 (that is, the initial process):
+(
+    {1}!
+    {2}let root_key: bitstring = root_key_A in
+    {3}let caveat_key: bitstring = caveat_key_A in
+    {4}let grant_id: bitstring = grant_id_A in
+    {5}let rent_cid: bitstring = rent_cid_A in
+    {6}let s0: bitstring = hmac(root_key,grant_id) in
+    {7}let s1: bitstring = hmac(s0,deny_main) in
+    {8}let vid: bitstring = hmac(s1,caveat_key) in
+    {9}let s2: bitstring = hmac(s1,(vid,rent_cid)) in
+    {10}out(c, (deny_main,vid,rent_cid,s2));
+    {11}let d0: bitstring = hmac(caveat_key,rent_cid) in
+    {12}let d1: bitstring = hmac(d0,expires_cav) in
+    {13}let bound: bitstring = hmac(BIND0,(s2,d1)) in
+    {14}event DaemonIssuesDischarge(s2);
+    {15}out(c, (rent_cid,expires_cav,bound))
+) | (
+    {16}!
+    {17}let root_key_1: bitstring = root_key_B in
+    {18}let caveat_key_1: bitstring = caveat_key_B in
+    {19}let grant_id_1: bitstring = grant_id_B in
+    {20}let rent_cid_1: bitstring = rent_cid_B in
+    {21}let s0_1: bitstring = hmac(root_key_1,grant_id_1) in
+    {22}let s1_1: bitstring = hmac(s0_1,deny_main) in
+    {23}let vid_1: bitstring = hmac(s1_1,caveat_key_1) in
+    {24}let s2_1: bitstring = hmac(s1_1,(vid_1,rent_cid_1)) in
+    {25}out(c, (deny_main,vid_1,rent_cid_1,s2_1));
+    {26}let d0_1: bitstring = hmac(caveat_key_1,rent_cid_1) in
+    {27}let d1_1: bitstring = hmac(d0_1,expires_cav) in
+    {28}let bound_1: bitstring = hmac(BIND0,(s2_1,d1_1)) in
+    {29}event DaemonIssuesDischarge(s2_1);
+    {30}out(c, (rent_cid_1,expires_cav,bound_1))
+) | (
+    {31}!
+    {32}let root_key_2: bitstring = root_key_A in
+    {33}let caveat_key_2: bitstring = caveat_key_A in
+    {34}let grant_id_2: bitstring = grant_id_A in
+    {35}in(c, (g_deny: bitstring,g_vid: bitstring,g_cid: bitstring,g_sig: bitstring,d_cid: bitstring,d_cav: bitstring,d_bound: bitstring));
+    {36}let s0_2: bitstring = hmac(root_key_2,grant_id_2) in
+    {37}let s1_2: bitstring = hmac(s0_2,g_deny) in
+    {38}if (g_vid = hmac(s1_2,caveat_key_2)) then
+    {39}let s2_2: bitstring = hmac(s1_2,(g_vid,g_cid)) in
+    {40}if (s2_2 = g_sig) then
+    {41}let d0_2: bitstring = hmac(caveat_key_2,d_cid) in
+    {42}let d1_2: bitstring = hmac(d0_2,d_cav) in
+    {43}if (d_bound = hmac(BIND0,(g_sig,d1_2))) then
+    {44}event RelayAuthorizes(g_sig);
+    {45}out(c, PUSH_OK)
+) | (
+    {46}!
+    {47}let root_key_3: bitstring = root_key_B in
+    {48}let caveat_key_3: bitstring = caveat_key_B in
+    {49}let grant_id_3: bitstring = grant_id_B in
+    {50}in(c, (g_deny_1: bitstring,g_vid_1: bitstring,g_cid_1: bitstring,g_sig_1: bitstring,d_cid_1: bitstring,d_cav_1: bitstring,d_bound_1: bitstring));
+    {51}let s0_3: bitstring = hmac(root_key_3,grant_id_3) in
+    {52}let s1_3: bitstring = hmac(s0_3,g_deny_1) in
+    {53}if (g_vid_1 = hmac(s1_3,caveat_key_3)) then
+    {54}let s2_3: bitstring = hmac(s1_3,(g_vid_1,g_cid_1)) in
+    {55}if (s2_3 = g_sig_1) then
+    {56}let d0_3: bitstring = hmac(caveat_key_3,d_cid_1) in
+    {57}let d1_3: bitstring = hmac(d0_3,d_cav_1) in
+    {58}if (d_bound_1 = hmac(BIND0,(g_sig_1,d1_3))) then
+    {59}event RelayAuthorizes(g_sig_1);
+    {60}out(c, PUSH_OK)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+(
+    {1}!
+    {4}let grant_id: bitstring = grant_id_A in
+    {2}let root_key: bitstring = root_key_A in
+    {6}let s0: bitstring = hmac(root_key,grant_id) in
+    {7}let s1: bitstring = hmac(s0,deny_main) in
+    {3}let caveat_key: bitstring = caveat_key_A in
+    {8}let vid: bitstring = hmac(s1,caveat_key) in
+    {5}let rent_cid: bitstring = rent_cid_A in
+    {9}let s2: bitstring = hmac(s1,(vid,rent_cid)) in
+    {10}out(c, (deny_main,vid,rent_cid,s2));
+    {14}event DaemonIssuesDischarge(s2);
+    {11}let d0: bitstring = hmac(caveat_key,rent_cid) in
+    {12}let d1: bitstring = hmac(d0,expires_cav) in
+    {13}let bound: bitstring = hmac(BIND0,(s2,d1)) in
+    {15}out(c, (rent_cid,expires_cav,bound))
+) | (
+    {16}!
+    {19}let grant_id_1: bitstring = grant_id_B in
+    {17}let root_key_1: bitstring = root_key_B in
+    {21}let s0_1: bitstring = hmac(root_key_1,grant_id_1) in
+    {22}let s1_1: bitstring = hmac(s0_1,deny_main) in
+    {18}let caveat_key_1: bitstring = caveat_key_B in
+    {23}let vid_1: bitstring = hmac(s1_1,caveat_key_1) in
+    {20}let rent_cid_1: bitstring = rent_cid_B in
+    {24}let s2_1: bitstring = hmac(s1_1,(vid_1,rent_cid_1)) in
+    {25}out(c, (deny_main,vid_1,rent_cid_1,s2_1));
+    {29}event DaemonIssuesDischarge(s2_1);
+    {26}let d0_1: bitstring = hmac(caveat_key_1,rent_cid_1) in
+    {27}let d1_1: bitstring = hmac(d0_1,expires_cav) in
+    {28}let bound_1: bitstring = hmac(BIND0,(s2_1,d1_1)) in
+    {30}out(c, (rent_cid_1,expires_cav,bound_1))
+) | (
+    {31}!
+    {35}in(c, (g_deny: bitstring,g_vid: bitstring,g_cid: bitstring,g_sig: bitstring,d_cid: bitstring,d_cav: bitstring,d_bound: bitstring));
+    {34}let grant_id_2: bitstring = grant_id_A in
+    {32}let root_key_2: bitstring = root_key_A in
+    {36}let s0_2: bitstring = hmac(root_key_2,grant_id_2) in
+    {37}let s1_2: bitstring = hmac(s0_2,g_deny) in
+    {33}let caveat_key_2: bitstring = caveat_key_A in
+    {38}if (g_vid = hmac(s1_2,caveat_key_2)) then
+    {39}let s2_2: bitstring = hmac(s1_2,(g_vid,g_cid)) in
+    {40}if (s2_2 = g_sig) then
+    {41}let d0_2: bitstring = hmac(caveat_key_2,d_cid) in
+    {42}let d1_2: bitstring = hmac(d0_2,d_cav) in
+    {43}if (d_bound = hmac(BIND0,(g_sig,d1_2))) then
+    {44}event RelayAuthorizes(g_sig);
+    {45}out(c, PUSH_OK)
+) | (
+    {46}!
+    {50}in(c, (g_deny_1: bitstring,g_vid_1: bitstring,g_cid_1: bitstring,g_sig_1: bitstring,d_cid_1: bitstring,d_cav_1: bitstring,d_bound_1: bitstring));
+    {49}let grant_id_3: bitstring = grant_id_B in
+    {47}let root_key_3: bitstring = root_key_B in
+    {51}let s0_3: bitstring = hmac(root_key_3,grant_id_3) in
+    {52}let s1_3: bitstring = hmac(s0_3,g_deny_1) in
+    {48}let caveat_key_3: bitstring = caveat_key_B in
+    {53}if (g_vid_1 = hmac(s1_3,caveat_key_3)) then
+    {54}let s2_3: bitstring = hmac(s1_3,(g_vid_1,g_cid_1)) in
+    {55}if (s2_3 = g_sig_1) then
+    {56}let d0_3: bitstring = hmac(caveat_key_3,d_cid_1) in
+    {57}let d1_3: bitstring = hmac(d0_3,d_cav_1) in
+    {58}if (d_bound_1 = hmac(BIND0,(g_sig_1,d1_3))) then
+    {59}event RelayAuthorizes(g_sig_1);
+    {60}out(c, PUSH_OK)
+)
+
+-- Query event(RelayAuthorizes(s)) ==> event(DaemonIssuesDischarge(s)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(RelayAuthorizes(s)) ==> event(DaemonIssuesDischarge(s))
+goal reachable: b-event(DaemonIssuesDischarge(hmac(hmac(hmac(root_key_A[],grant_id_A),deny_main),(hmac(hmac(hmac(root_key_A[],grant_id_A),deny_main),caveat_key_A[]),rent_cid_A)))) -> event(RelayAuthorizes(hmac(hmac(hmac(root_key_A[],grant_id_A),deny_main),(hmac(hmac(hmac(root_key_A[],grant_id_A),deny_main),caveat_key_A[]),rent_cid_A))))
+goal reachable: b-event(DaemonIssuesDischarge(hmac(hmac(hmac(root_key_B[],grant_id_B),deny_main),(hmac(hmac(hmac(root_key_B[],grant_id_B),deny_main),caveat_key_B[]),rent_cid_B)))) -> event(RelayAuthorizes(hmac(hmac(hmac(root_key_B[],grant_id_B),deny_main),(hmac(hmac(hmac(root_key_B[],grant_id_B),deny_main),caveat_key_B[]),rent_cid_B))))
+RESULT event(RelayAuthorizes(s)) ==> event(DaemonIssuesDischarge(s)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query event(RelayAuthorizes(s)) ==> event(DaemonIssuesDischarge(s)) is true.
+
+--------------------------------------------------------------
+

@@ -4,7 +4,9 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ThemeProvider } from '@/lib/theme'
 import { DocumentMeta } from '@/components/layout/DocumentMeta'
 import { HashScroll } from '@/components/layout/HashScroll'
+import { ScrollToTop } from '@/components/layout/ScrollToTop'
 import { MainLayout } from '@/components/layout/MainLayout'
+import { TypeThemeSwitcher } from '@/components/layout/TypeThemeSwitcher'
 import { RouteFallback } from '@/components/layout/RouteFallback'
 import { LegacyExampleRedirect } from '@/components/routing/LegacyExampleRedirect'
 import './index.css'
@@ -18,14 +20,14 @@ function lazyNamed(loader: () => Promise<Record<string, unknown>>, exportName: s
 
 const App = lazy(() => import('./App'))
 const DocsLayout = lazyNamed(() => import('@/components/docs/DocsLayout'), 'DocsLayout')
-const DocsPage = lazy(() => import('@/pages/DocsPage'))
 const TutorialsPage = lazyNamed(() => import('@/pages/TutorialsPage'), 'TutorialsPage')
 const ExamplesPage = lazyNamed(() => import('@/pages/ExamplesPage'), 'ExamplesPage')
 const ExampleDetailPage = lazyNamed(() => import('@/pages/ExampleDetailPage'), 'ExampleDetailPage')
-const McpPage = lazy(() => import('@/pages/MCPPage'))
 const LibraryPage = lazy(() => import('@/pages/library'))
-const WhitepaperPage = lazy(() => import('@/pages/whitepaper'))
+const SecurityPage = lazy(() => import('@/pages/SecurityPage'))
+const HarnessPage = lazy(() => import('@/pages/HarnessPage'))
 const CliBackendPage = lazy(() => import('@/pages/cli-backend'))
+const SquidCodexPage = lazy(() => import('@/pages/SquidCodexPage'))
 const WhitepaperDetailPage = lazy(() => import('@/pages/whitepaper/PaperDetailPage'))
 const WhitepaperRoundsPage = lazy(() => import('@/pages/whitepaper/RoundsPage'))
 const WhitepaperHowWeProvePage = lazy(() => import('@/pages/whitepaper/HowWeProveGameTheory'))
@@ -34,7 +36,9 @@ const BlogPage = lazyNamed(() => import('@/pages/BlogPage'), 'BlogPage')
 const BlogPostPage = lazyNamed(() => import('@/pages/BlogPostPage'), 'BlogPostPage')
 const ManifestoPage = lazyNamed(() => import('@/pages/ManifestoPage'), 'ManifestoPage')
 const MacPreviewPage = lazyNamed(() => import('@/pages/MacPreviewPage'), 'MacPreviewPage')
-const PdTubePage = lazyNamed(() => import('@/pages/PdTubePage'), 'PdTubePage')
+const ScoutPage = lazyNamed(() => import('@/pages/ScoutPage'), 'ScoutPage')
+const AccountabilityPage = lazyNamed(() => import('@/pages/AccountabilityPage'), 'AccountabilityPage')
+const PdTubePlayground = lazyNamed(() => import('@/pages/pd-tube/Playground'), 'Playground')
 const SkillAuditPage = lazyNamed(() => import('@/pages/SkillAuditPage'), 'SkillAuditPage')
 const AgentsPage = lazyNamed(() => import('@/pages/AgentsPage'), 'AgentsPage')
 const IntegrationsPage = lazyNamed(() => import('@/pages/integrations/IntegrationsPage'), 'IntegrationsPage')
@@ -189,20 +193,28 @@ createRoot(document.getElementById('root')!).render(
     <ThemeProvider>
       <BrowserRouter>
         <DocumentMeta />
+        <ScrollToTop />
         <HashScroll />
+        <TypeThemeSwitcher />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route element={<MainLayout />}>
               <Route path="/" element={<App />} />
               <Route path="/mac-preview" element={<MacPreviewPage />} />
-              <Route path="/pd-tube" element={<PdTubePage />} />
+              <Route path="/scout" element={<ScoutPage />} />
+              <Route path="/accountability" element={<AccountabilityPage />} />
+              {/* The playground IS the pd-tube page now; the old marketing page
+                  is retired and the /playground URL redirects in. */}
+              <Route path="/pd-tube" element={<PdTubePlayground />} />
+              <Route path="/pd-tube/playground" element={<Navigate to="/pd-tube" replace />} />
               <Route path="/skill-audit" element={<SkillAuditPage />} />
               <Route path="/examples" element={<ExamplesPage />} />
               <Route path="/examples/:slug" element={<ExampleDetailPage />} />
-              <Route path="/mcp" element={<McpPage />} />
+              {/* Skills + MCP page retired; its install + skill story merged into the Mac app page. */}
+              <Route path="/mcp" element={<Navigate to="/mac-preview" replace />} />
               <Route path="/templates" element={<Navigate to="/agents/templates" replace />} />
               <Route path="/agents" element={<AgentsPage />} />
-              <Route path="/agents/agent-skill" element={<Navigate to="/mcp" replace />} />
+              <Route path="/agents/agent-skill" element={<Navigate to="/mac-preview" replace />} />
               <Route path="/agents/:section" element={<AgentsPage />} />
 
               <Route path="/tutorials" element={<TutorialsPage />} />
@@ -238,8 +250,16 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/blog/:slug" element={<BlogPostPage />} />
 
               <Route path="/manifesto" element={<ManifestoPage />} />
+              <Route path="/security" element={<SecurityPage />} />
+              <Route path="/harness" element={<HarnessPage />} />
+              <Route path="/squid-codex" element={<SquidCodexPage />} />
+              <Route path="/cryptography" element={<Navigate to="/security" replace />} />
               <Route path="/library" element={<LibraryPage />} />
-              <Route path="/whitepaper" element={<WhitepaperPage />} />
+              {/* /whitepaper now forwards to the Library (the canonical home for
+                  the papers). The URL is preserved as a forwarding link because
+                  it was shared externally. Deep links to individual papers below
+                  still resolve. */}
+              <Route path="/whitepaper" element={<Navigate to="/library" replace />} />
               <Route path="/whitepaper/rounds" element={<WhitepaperRoundsPage />} />
               <Route path="/whitepaper/how-we-prove-game-theory" element={<WhitepaperHowWeProvePage />} />
               <Route path="/whitepaper/:paperSlug" element={<WhitepaperDetailPage />} />
@@ -252,6 +272,10 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/docs" element={<DocsLayout />}>
               <Route index element={<DocsOverview />} />
               <Route path="quickstart" element={<QuickStart />} />
+              {/* Forwarding redirect: "Get started" links historically pointed at
+                  /docs/get-started, which had no route and fell through to the docs
+                  index. Canonical entry point is /docs/quickstart. */}
+              <Route path="get-started" element={<Navigate to="/docs/quickstart" replace />} />
               <Route path="guides/prompting-agents" element={<PromptingAgents />} />
               <Route path="guides/templates" element={<TemplatesGuide />} />
               <Route path="guides/protocol" element={<ProtocolGuide />} />
@@ -384,7 +408,8 @@ createRoot(document.getElementById('root')!).render(
               <Route path="*" element={<Navigate to="/docs" replace />} />
             </Route>
 
-            <Route path="/docs-old" element={<DocsPage />} />
+            {/* Legacy docs route retired — redirect to the current docs. */}
+            <Route path="/docs-old" element={<Navigate to="/docs" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

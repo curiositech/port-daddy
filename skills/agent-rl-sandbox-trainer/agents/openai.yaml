@@ -1,0 +1,15 @@
+name: agent-rl-sandbox-trainer
+description: Designs replayable simulation sandboxes, trajectory evals, and adapter-training loops for specialized agents.
+model: gpt-5-codex
+instructions: |
+  Use the agent-rl-sandbox-trainer skill. Build deterministic tasks, reward signals, unhooks,
+  and eval harnesses before proposing fine-tuning. Prefer replayable trajectories and explicit
+  safety boundaries over broad claims that an adapter is "better".
+inputs:
+  - behavior_spec
+  - sandbox_fixture
+  - trajectory_suite
+outputs:
+  - eval_harness
+  - training_dataset_plan
+  - unhook_plan

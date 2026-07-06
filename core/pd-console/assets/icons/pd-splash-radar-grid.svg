@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" fill="none" stroke="black" stroke-width="1">
+  <circle cx="150" cy="150" r="45" />
+  <circle cx="150" cy="150" r="90" />
+  <circle cx="150" cy="150" r="135" />
+  <line x1="15" y1="150" x2="285" y2="150" stroke-dasharray="4 4" />
+  <line x1="150" y1="15" x2="150" y2="285" stroke-dasharray="4 4" />
+  <line x1="55" y1="55" x2="245" y2="245" stroke-dasharray="2 6" />
+  <line x1="55" y1="245" x2="245" y2="55" stroke-dasharray="2 6" />
+</svg>

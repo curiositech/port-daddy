@@ -334,3 +334,90 @@ describe('info routes runtime summary', () => {
     await app.close();
   });
 });
+
+describe('daemon berth self-identity (ADR-0084)', () => {
+  const stableBerth = {
+    tier: 'stable',
+    label: 'stable',
+    color: '#E6A23C',
+    sourceDir: null,
+    gitBranch: null,
+    gitRev: null,
+    builtAt: '2026-06-15T00:00:00.000Z',
+    port: 9876,
+    canonical: true,
+  };
+  const devBerth = {
+    tier: 'dev-latest',
+    label: 'dev-latest',
+    color: '#3B82F6',
+    sourceDir: '/repo/port-daddy',
+    gitBranch: 'main',
+    gitRev: 'abc1234',
+    builtAt: '2026-06-15T01:00:00.000Z',
+    port: 9886,
+    canonical: false,
+  };
+
+  test('GET /health embeds the stable berth identity when daemonBerth is wired', async () => {
+    const app = Fastify();
+    await app.register(infoPlugin, { deps: buildDeps({ daemonBerth: stableBerth }) });
+    const res = await app.inject({ method: 'GET', url: '/health' });
+    const body = res.json();
+    expect(res.statusCode).toBe(200);
+    expect(body.daemon).toEqual(stableBerth);
+    expect(body.daemon.canonical).toBe(true);
+    await app.close();
+  });
+
+  test('GET /whoami returns the berth identity', async () => {
+    const app = Fastify();
+    await app.register(infoPlugin, { deps: buildDeps({ daemonBerth: devBerth }) });
+    const res = await app.inject({ method: 'GET', url: '/whoami' });
+    const body = res.json();
+    expect(res.statusCode).toBe(200);
+    expect(body.service).toBe('port-daddy');
+    expect(body.daemon).toEqual(devBerth);
+    expect(body.daemon.tier).toBe('dev-latest');
+    expect(body.daemon.canonical).toBe(false);
+    await app.close();
+  });
+
+  test('GET /health omits daemon when no berth wired; /whoami reports null', async () => {
+    const app = Fastify();
+    await app.register(infoPlugin, { deps: buildDeps() });
+    const health = (await app.inject({ method: 'GET', url: '/health' })).json();
+    const whoami = (await app.inject({ method: 'GET', url: '/whoami' })).json();
+    expect(health.daemon).toBeUndefined();
+    expect(whoami.daemon).toBeNull();
+    await app.close();
+  });
+
+  // ADR-0084 Phase 2: FleetBar reads the berth from its existing `/status` poll,
+  // so the berth must ride inside `/status.daemon.berth` (alongside build info),
+  // not only on `/health`/`/whoami`. Pin that nested contract.
+  test('GET /status nests the berth identity under daemon.berth', async () => {
+    const app = Fastify();
+    await app.register(infoPlugin, { deps: buildDeps({ daemonBerth: devBerth }) });
+    const res = await app.inject({ method: 'GET', url: '/status' });
+    const body = res.json();
+    expect(res.statusCode).toBe(200);
+    // build info still present...
+    expect(typeof body.daemon.version).toBe('string');
+    expect(typeof body.daemon.codeHash).toBe('string');
+    // ...with the berth nested alongside it.
+    expect(body.daemon.berth).toEqual(devBerth);
+    expect(body.daemon.berth.tier).toBe('dev-latest');
+    expect(body.daemon.berth.canonical).toBe(false);
+    await app.close();
+  });
+
+  test('GET /status omits daemon.berth when no berth is wired (legacy daemon)', async () => {
+    const app = Fastify();
+    await app.register(infoPlugin, { deps: buildDeps() });
+    const body = (await app.inject({ method: 'GET', url: '/status' })).json();
+    expect(typeof body.daemon.version).toBe('string');
+    expect(body.daemon.berth).toBeUndefined();
+    await app.close();
+  });
+});

@@ -52,8 +52,8 @@ const MAC_APP_DEMOS: MacAppDemo[] = [
     description: 'Install daemon, MCP, FleetBar',
     media: {
       type: 'image',
-      light: '/img/app-screens/fleetbar-native-shell-light.png',
-      dark: '/img/app-screens/fleetbar-native-shell-dark.png',
+      light: '/img/app-screens/fleetbar-native-shell-light.webp',
+      dark: '/img/app-screens/fleetbar-native-shell-dark.webp',
       alt: 'FleetBar native Mac shell around the Fleet Control Center',
       caption: 'FleetBar is the human entry point after agent-side setup work runs.',
     },
@@ -69,8 +69,8 @@ const MAC_APP_DEMOS: MacAppDemo[] = [
     description: `${MCP_TOOL_TOTAL} functions visible`,
     media: {
       type: 'image',
-      light: '/img/app-screens/resources-light.png',
-      dark: '/img/app-screens/resources-dark.png',
+      light: '/img/app-screens/resources-light.webp',
+      dark: '/img/app-screens/resources-dark.webp',
       alt: 'Fleet Control Center resources surface showing readiness and capacity',
       caption: 'The app turns MCP and runtime capability into inspectable readiness.',
     },
@@ -86,8 +86,8 @@ const MAC_APP_DEMOS: MacAppDemo[] = [
     description: 'Make missing backends obvious',
     media: {
       type: 'image',
-      light: '/img/app-screens/resources-light.png',
-      dark: '/img/app-screens/resources-dark.png',
+      light: '/img/app-screens/resources-light.webp',
+      dark: '/img/app-screens/resources-dark.webp',
       alt: 'Backend readiness surface in the Fleet Control Center',
       caption: 'Backend readiness is product UX: missing keys and dependencies are visible before launch.',
     },
@@ -103,8 +103,8 @@ const MAC_APP_DEMOS: MacAppDemo[] = [
     description: 'Cold-start a new repo',
     media: {
       type: 'image',
-      light: '/img/app-screens/shipwright-harbor-light.png',
-      dark: '/img/app-screens/shipwright-harbor-dark.png',
+      light: '/img/app-screens/shipwright-harbor-light.webp',
+      dark: '/img/app-screens/shipwright-harbor-dark.webp',
       alt: 'Shipwright Harbor screen proposing a starter fleet',
       caption: 'Shipwright surveys the repo and proposes the first bounded fleet in the app.',
     },
@@ -115,19 +115,19 @@ const MAC_APP_DEMOS: MacAppDemo[] = [
     ],
   },
   {
-    id: 'sortie',
-    title: 'Sortie',
-    description: 'Launch a budgeted mission',
+    id: 'spawned-runs',
+    title: 'Spawned Runs',
+    description: 'Launch budgeted work',
     media: {
       type: 'image',
-      light: '/img/app-screens/sorties-light.png',
-      dark: '/img/app-screens/sorties-dark.png',
-      alt: 'Sorties surface showing tracked one-shot agent missions',
-      caption: 'Sorties make budgeted one-shot work inspectable without relying on terminal scrollback.',
+      light: '/img/app-screens/sorties-light.webp',
+      dark: '/img/app-screens/sorties-dark.webp',
+      alt: 'Spawned runs surface showing tracked one-shot agent work',
+      caption: 'Spawned runs make budgeted one-shot work inspectable without relying on terminal scrollback.',
     },
     evidence: [
-      'A sortie has a budget, expected result, backend/model choice, and persisted event history.',
-      'Completed work remains visible as a mission record after the agent run exits.',
+      'A spawned run has a budget, expected result, backend/model choice, and persisted event history.',
+      'Completed work remains visible after the agent run exits.',
       'The operator sees launch status and outcome in the app before reading raw logs.',
     ],
   },
@@ -176,7 +176,7 @@ export function MacWorkflowDemos() {
             <>
               These are the workflows the website was missing: the Mac app opens the real control
               plane, backend readiness tells you what is missing, <RoleTerm role="shipwright">Shipwright</RoleTerm>{' '}
-              proposes a bounded fleet, and <RoleTerm role="sortie">sorties</RoleTerm> run explicit
+              proposes a bounded fleet, and <RoleTerm role="spawn">spawned runs</RoleTerm> handle explicit
               one-shot missions.
             </>
           }
@@ -205,7 +205,7 @@ export function MacWorkflowDemos() {
                     <Cpu size={14} className="text-[var(--text-muted)]" />
                   ) : demo.id === 'keys' ? (
                     <KeyRound size={14} className="text-[var(--text-muted)]" />
-                  ) : demo.id === 'sortie' ? (
+                  ) : demo.id === 'spawned-runs' ? (
                     <Radar size={14} className="text-[var(--text-muted)]" />
                   ) : demo.id === 'mac-setup' ? (
                     <MonitorCheck size={14} className="text-[var(--text-muted)]" />

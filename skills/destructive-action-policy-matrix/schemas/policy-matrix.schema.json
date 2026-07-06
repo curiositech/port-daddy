@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Destructive Action Policy Matrix",
+  "description": "Input shape for scripts/policy_matrix_audit.mjs — a normalized classification of every destructive/gated action an agent body can attempt, its pre-tool/post-tool gate coverage, and any containment claim about the body running it.",
+  "type": "object",
+  "required": ["actions"],
+  "additionalProperties": true,
+  "properties": {
+    "actions": {
+      "type": "array",
+      "description": "Every destructive/gated action in scope, one entry each. May be empty, but an empty matrix will not pass the audit.",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "category",
+          "tier",
+          "hasPreToolGate",
+          "hasDenialReceipt",
+          "emitsTranscriptEvent",
+          "sideEffectFreeOnBlockFixture"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The action being governed, e.g. \"git reset --hard\", \"rm -rf outside jail\", \"gh pr merge --admin\"."
+          },
+          "category": {
+            "type": "string",
+            "enum": ["git", "filesystem", "network", "shell", "github"]
+          },
+          "tier": {
+            "type": "string",
+            "enum": ["block", "approve", "allow"],
+            "description": "block = denied automatically, no human round-trip. approve = held for a human gate decision. allow = proceeds without a gate."
+          },
+          "hasPreToolGate": {
+            "type": "boolean",
+            "description": "True if enforcement fires before the tool call executes, not after."
+          },
+          "hasDenialReceipt": {
+            "type": "boolean",
+            "description": "True if a deny/hold decision emits a durable, machine-readable denial receipt."
+          },
+          "safeAlternative": {
+            "type": "string",
+            "description": "The non-destructive path offered in place of a blocked action. Required in practice for block-tier actions."
+          },
+          "emitsTranscriptEvent": {
+            "type": "boolean",
+            "description": "True if a deny/hold decision is recorded as a visible transcript event."
+          },
+          "sideEffectFreeOnBlockFixture": {
+            "type": "boolean",
+            "description": "True only if a negative fixture has proven the action produces zero side effects when blocked. False/absent means this has not been proven."
+          }
+        }
+      }
+    },
+    "containmentClaim": {
+      "type": "object",
+      "description": "Optional. Present when a report claims a specific body's actions are contained.",
+      "required": ["sameUidBodyMarkedContained"],
+      "additionalProperties": true,
+      "properties": {
+        "sameUidBodyMarkedContained": {
+          "type": "boolean",
+          "description": "True if an unmanaged or same-UID body's actions were marked 'contained'. This is never a truthful claim — flip it to false or remove the claim."
+        }
+      }
+    }
+  }
+}

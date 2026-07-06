@@ -49,6 +49,10 @@ export interface CoordinationGuardConfig {
    *  When true, a commit left un-noted blocks the next commit. Default true —
    *  coordination is the price of the sandbox. */
   requireNotePerCommit: boolean;
+  /** Coordination primitives must also leave a roadmap receipt. Source of truth
+   *  is roadmap_items, not docs/ROADMAP.md. Default true: serious swarm work has
+   *  to be visible in the maintained roadmap, not only in a branch diff. */
+  requireRoadmapForCoordinationChanges: boolean;
   updatedAt?: string;
 }
 
@@ -57,6 +61,13 @@ export interface GuardOwner {
   agentId?: string | null;
   purpose?: string | null;
   phase?: string | null;
+}
+
+export interface GuardRoadmapReceipt {
+  slug: string;
+  lastTouchedAt?: number | null;
+  promotedByAgentId?: string | null;
+  notes?: Array<{ at?: number | null; by?: string | null; text?: string | null }>;
 }
 
 export interface GuardViolation {
@@ -86,7 +97,20 @@ export const DEFAULT_GUARD_CONFIG: CoordinationGuardConfig = {
   requireSession: true,
   requireClaims: true,
   requireNotePerCommit: true,
+  requireRoadmapForCoordinationChanges: true,
 };
+
+const ROADMAP_RECEIPT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+const COORDINATION_ROADMAP_PATTERNS: RegExp[] = [
+  /^cli\/commands\/(?:guard|roadmap|parley|quorum|agents|spawn|dispatch|sessions|attention)\.ts$/,
+  /^routes\/(?:parley|quorum|roadmap|sessions|coordination|operator)\.ts$/,
+  /^lib\/(?:parley|swarm-coordination|roadmap-[^/]+|roadmap-items|coordination-[^/]+|sessions|spawner|dispatch\/.+|obligation-monitor|commitments)\.ts$/,
+  /^docs\/adr\/\d+-.+\.md$/,
+  /^docs\/research\/.+\.md$/,
+  /^skills\/port-daddy-agent-skill\/.+/,
+  /^features\.manifest\.json$/,
+];
 
 function boolValue(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
@@ -105,6 +129,10 @@ export function normalizeGuardConfig(raw: unknown): CoordinationGuardConfig {
     requireSession: boolValue(input.requireSession, DEFAULT_GUARD_CONFIG.requireSession),
     requireClaims: boolValue(input.requireClaims, DEFAULT_GUARD_CONFIG.requireClaims),
     requireNotePerCommit: boolValue(input.requireNotePerCommit, DEFAULT_GUARD_CONFIG.requireNotePerCommit),
+    requireRoadmapForCoordinationChanges: boolValue(
+      input.requireRoadmapForCoordinationChanges,
+      DEFAULT_GUARD_CONFIG.requireRoadmapForCoordinationChanges,
+    ),
     updatedAt: typeof input.updatedAt === 'string' ? input.updatedAt : undefined,
   };
 }
@@ -221,6 +249,30 @@ function commitFiles(ref: string, cwd = process.cwd()): string[] {
 
 function normalizeFiles(files: string[]): string[] {
   return Array.from(new Set(files.map(file => file.trim()).filter(Boolean)));
+}
+
+export function fileNeedsRoadmapReceipt(file: string): boolean {
+  const normalized = posixPath(file).replace(/^\.\//, '');
+  return COORDINATION_ROADMAP_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function noteMatchesAgent(
+  note: { at?: number | null; by?: string | null },
+  agentId: string | null | undefined,
+  since: number,
+): boolean {
+  if (!agentId) return false;
+  return note.by === agentId && typeof note.at === 'number' && note.at >= since;
+}
+
+function receiptMatchesAgent(
+  receipt: GuardRoadmapReceipt,
+  agentId: string | null | undefined,
+  since: number,
+): boolean {
+  const touchedRecently = typeof receipt.lastTouchedAt === 'number' && receipt.lastTouchedAt >= since;
+  if (touchedRecently && agentId && receipt.promotedByAgentId === agentId) return true;
+  return Array.isArray(receipt.notes) && receipt.notes.some((note) => noteMatchesAgent(note, agentId, since));
 }
 
 function posixPath(path: string): string {
@@ -356,6 +408,11 @@ export function evaluateGuardFacts(input: {
    *  Supplied only at commit-time (staged/hook/post-commit). Drives the
    *  compulsion: no note, no commit (ADR-0050). */
   commitsSinceLastNote?: number;
+  /** True for staged/hook/post-commit checks. Roadmap compulsion is a commit
+   *  invariant; dirty-tree advisory checks should not demand a roadmap receipt. */
+  atCommitTime?: boolean;
+  roadmapReceipts?: GuardRoadmapReceipt[];
+  nowMs?: number;
 }): GuardCheckResult {
   const mode = input.mode ?? (input.config.enabled ? input.config.mode : 'off');
   const files = normalizeFiles(input.files ?? []);
@@ -445,6 +502,30 @@ export function evaluateGuardFacts(input: {
     }
   }
 
+  if (
+    input.config.requireRoadmapForCoordinationChanges &&
+    input.atCommitTime &&
+    input.active
+  ) {
+    const roadmapFiles = files.filter(fileNeedsRoadmapReceipt);
+    if (roadmapFiles.length > 0) {
+      const since = (input.nowMs ?? Date.now()) - ROADMAP_RECEIPT_WINDOW_MS;
+      const hasReceipt = (input.roadmapReceipts ?? []).some((receipt) =>
+        receiptMatchesAgent(receipt, input.agentId, since),
+      );
+      if (!hasReceipt) {
+        violations.push({
+          code: 'roadmap-receipt-missing',
+          severity: 'critical',
+          file: roadmapFiles[0],
+          message:
+            `Coordination architecture changed (${roadmapFiles.slice(0, 3).join(', ')}${roadmapFiles.length > 3 ? ', …' : ''}) ` +
+            'without a recent roadmap_items receipt from this agent. Run `pd roadmap upsert <slug> --summary <md>` or `pd roadmap touch <slug> --note <why>`.',
+        });
+      }
+    }
+  }
+
   const shouldBlock = mode === 'enforce' && violations.length > 0;
   return {
     success: !shouldBlock,
@@ -513,6 +594,99 @@ async function loadOwners(files: string[], repoRoot = process.cwd()): Promise<Re
     ownersByFile[file] = mergeOwners(owners);
   }
   return ownersByFile;
+}
+
+/**
+ * Classify a BLOCKING guard result for operator escalation.
+ *
+ *   - 'structural' : the coordination layer itself could not be verified
+ *     (daemon unreachable / no active session). This is the dangerous case —
+ *     it is NOT a normal "you forgot to claim" block; an unattended agent that
+ *     bypasses the hook here loses all coordination. Always escalated, loudly.
+ *   - 'conflict'   : a file is claimed by ANOTHER active session — a real
+ *     collision; the human should arbitrate.
+ *   - 'requirement': a satisfiable coordination requirement (unclaimed file,
+ *     note-per-commit rent, roadmap receipt). The agent can self-resolve.
+ *
+ * Pure + exported so the escalation policy is unit-tested without spawning
+ * osascript. Returns null when the result is not a block.
+ */
+export type GuardBlockSeverity = 'structural' | 'conflict' | 'requirement';
+export interface GuardBlockNotice {
+  severity: GuardBlockSeverity;
+  title: string;
+  body: string;
+  /** Whether to fire the operator (macOS) notification for this block. */
+  notifyOperator: boolean;
+}
+
+export function describeGuardBlock(
+  result: Pick<GuardCheckResult, 'shouldBlock' | 'violations'>,
+  context: { hook?: boolean } = {},
+): GuardBlockNotice | null {
+  if (!result.shouldBlock) return null;
+  const codes = new Set(result.violations.map((v) => v.code));
+  const structural = codes.has('daemon-unreachable') || codes.has('no-active-session');
+  const conflict = codes.has('claimed-by-other-session');
+  const severity: GuardBlockSeverity = structural ? 'structural' : conflict ? 'conflict' : 'requirement';
+  const first = result.violations[0]?.message ?? 'coordination requirement unmet';
+
+  const title = structural
+    ? 'Port Daddy: COORDINATION LAYER DOWN — commit blocked'
+    : conflict
+      ? 'Port Daddy: commit blocked — file owned by another agent'
+      : 'Port Daddy: commit blocked by Coordination Guard';
+  const body = structural
+    ? `Coordination could not be verified (${first}). A human should repair the daemon/session — don't let this be worked around.`
+    : first;
+
+  // HITL escalation policy: ALWAYS notify on a structural failure (the daemon /
+  // session is broken — the operator must know, especially for autonomous
+  // agents). For ordinary conflicts/requirements only notify at real commit
+  // time (the git hook), not on every manual `pd guard check` an agent runs
+  // while iterating — that would be noise.
+  const notifyOperator = severity === 'structural' || context.hook === true;
+  return { severity, title, body, notifyOperator };
+}
+
+/**
+ * HITL escalation for a blocked commit: a loud stderr banner plus a macOS
+ * notification (with sound) so a HUMAN is alerted even when an autonomous
+ * agent hit the wall — instead of the block being silently worked around.
+ * Best-effort: never throws, never blocks the commit path; no-ops off macOS
+ * (Linux/Windows operators rely on the stderr banner). `spawnSync` so the
+ * banner fires before the caller's process.exit.
+ */
+function notifyOperatorOfGuardBlock(result: GuardCheckResult, options: CLIOptions): void {
+  const notice = describeGuardBlock(result, { hook: Boolean(options.hook) });
+  if (!notice || !notice.notifyOperator) return;
+
+  // Loud stderr banner — points only to the corrective action, never names a
+  // hook override (a refusal must not advertise its own bypass).
+  ui.error(notice.title);
+  if (notice.severity === 'structural') {
+    console.error('  This is NOT a routine block — the coordination layer could not be verified.');
+    console.error('  Repair it (restart/repair the daemon, re-run `pd begin`) and retry the commit.');
+    console.error('  Escalating to the operator.');
+  }
+
+  if (process.platform === 'darwin') {
+    try {
+      const script = `display notification "${osaEscape(notice.body)}" with title "${osaEscape(notice.title)}" sound name "Basso"`;
+      spawnSync('osascript', ['-e', script], { timeout: 5000 });
+    } catch {
+      // Notifier is best-effort; a failed banner must never break the commit path.
+    }
+  }
+}
+
+/** Escape a string for an AppleScript double-quoted literal (notifications are plain text). */
+function osaEscape(input: string): string {
+  return input
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\r?\n/g, ' ')
+    .slice(0, 240);
 }
 
 function printCheckResult(result: GuardCheckResult, options: CLIOptions): void {
@@ -588,6 +762,24 @@ async function loadAllActiveClaims(): Promise<string[]> {
   try {
     const data = await fetchJson('/files');
     return extractClaimPaths(data);
+  } catch {
+    return [];
+  }
+}
+
+async function loadRoadmapReceipts(): Promise<GuardRoadmapReceipt[]> {
+  try {
+    const data = await fetchJson('/roadmap/items?status=all&limit=200');
+    if (!Array.isArray(data.items)) return [];
+    return data.items
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+      .map((item) => ({
+        slug: typeof item.slug === 'string' ? item.slug : '',
+        lastTouchedAt: typeof item.lastTouchedAt === 'number' ? item.lastTouchedAt : null,
+        promotedByAgentId: typeof item.promotedByAgentId === 'string' ? item.promotedByAgentId : null,
+        notes: Array.isArray(item.notes) ? item.notes as GuardRoadmapReceipt['notes'] : [],
+      }))
+      .filter((item) => item.slug);
   } catch {
     return [];
   }
@@ -679,6 +871,14 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
     mode !== 'off' && atCommitTime && config.requireNotePerCommit && context.active && context.sessionId
       ? await gatherCommitsSinceLastNote(context.sessionId, root)
       : undefined;
+  const roadmapReceipts =
+    mode !== 'off' &&
+    atCommitTime &&
+    config.requireRoadmapForCoordinationChanges &&
+    context.active &&
+    files.some(fileNeedsRoadmapReceipt)
+      ? await loadRoadmapReceipts()
+      : undefined;
 
   return evaluateGuardFacts({
     config,
@@ -690,6 +890,8 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
     sessionId: context.sessionId,
     ownersByFile,
     commitsSinceLastNote,
+    atCommitTime,
+    roadmapReceipts,
   });
 }
 
@@ -745,6 +947,7 @@ function handleStatus(options: CLIOptions): void {
     mode,
     requireSession: config.requireSession,
     requireClaims: config.requireClaims,
+    requireRoadmapForCoordinationChanges: config.requireRoadmapForCoordinationChanges,
     configPath: configPath(cwd),
   };
 
@@ -755,7 +958,12 @@ function handleStatus(options: CLIOptions): void {
 
   console.log(`${COORDINATION_GUARD_NAME}: ${mode}`);
   console.log(`  config: ${data.configPath}`);
-  console.log(`  requires: ${config.requireSession ? 'active session' : 'session optional'}, ${config.requireClaims ? 'file claims' : 'claims optional'}${config.requireNotePerCommit ? ', a note per commit' : ''}`);
+  console.log(
+    `  requires: ${config.requireSession ? 'active session' : 'session optional'}, ` +
+    `${config.requireClaims ? 'file claims' : 'claims optional'}` +
+    `${config.requireNotePerCommit ? ', a note per commit' : ''}` +
+    `${config.requireRoadmapForCoordinationChanges ? ', roadmap receipts for coordination changes' : ''}`,
+  );
   console.log('  install hook: pd guard install');
   console.log('  check now:    pd guard check --staged');
 }
@@ -887,7 +1095,10 @@ export async function handleGuard(positional: string[], options: CLIOptions): Pr
     case 'check': {
       const result = await runCheck(rest, options);
       printCheckResult(result, options);
-      if (result.shouldBlock) process.exit(1);
+      if (result.shouldBlock) {
+        notifyOperatorOfGuardBlock(result, options);
+        process.exit(1);
+      }
       return;
     }
     case 'help':
@@ -898,7 +1109,10 @@ export async function handleGuard(positional: string[], options: CLIOptions): Pr
     default: {
       const result = await runCheck(positional, options);
       printCheckResult(result, options);
-      if (result.shouldBlock) process.exit(1);
+      if (result.shouldBlock) {
+        notifyOperatorOfGuardBlock(result, options);
+        process.exit(1);
+      }
     }
   }
 }

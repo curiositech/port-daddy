@@ -1,0 +1,35 @@
+{
+  "schema": "pd.agent-harbor.agent-run.v0",
+  "runId": "agent_run_01JZFIX0001",
+  "agentNodeId": "agent_node_01JZFIX0001",
+  "sessionId": "session_01JZFIX0001",
+  "bodyId": "body_01JZFIX0001",
+  "planId": "work_plan_01JZFIX0001",
+  "intentId": "work_intent_01JZFIX0001",
+  "body": {
+    "kind": "codex-cli",
+    "provider": "openai",
+    "modelTier": "mid",
+    "modelName": "gpt-5.2-codex",
+    "launchMode": "native",
+    "adapterVersion": "0.1.0",
+    "pid": 43210,
+    "remoteEndpoint": null
+  },
+  "workspace": {
+    "repo": "/Users/me/coding/port-daddy",
+    "worktree": "/Users/me/coding/tmp/port-daddy-auth-fix",
+    "branch": "pd/auth-test-fix",
+    "baseCommit": "fbf5bda76"
+  },
+  "transcriptId": "tx_01JZFIX0001",
+  "retentionPolicyId": "local-default",
+  "status": "running",
+  "startedAt": "2026-07-05T12:00:07.000Z",
+  "stoppedAt": null,
+  "stopReason": null,
+  "successorRunId": null,
+  "predecessorRunId": null,
+  "budget": { "maxSpendUsd": 3, "timeoutMs": 5400000 },
+  "receiptId": null
+}

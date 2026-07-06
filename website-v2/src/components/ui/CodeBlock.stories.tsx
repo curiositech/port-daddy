@@ -93,7 +93,7 @@ export const WithCopyButton: Story = {
   args: {
     language: 'bash',
     copyable: true,
-    children: 'npm install port-daddy',
+    children: 'brew install curiositech/tap/port-daddy\npd setup',
   },
 }
 
@@ -151,6 +151,7 @@ pd agent register \\
 # Start a session
 pd begin \\
   --agent worker-042 \\
+  --lifecycle durable \\
   --purpose "Implement OAuth2 flow"
 
 # Claim files to avoid conflicts
@@ -223,7 +224,7 @@ export const StateMatrix: Story = {
 
       <div className="grid gap-[var(--space-4)] lg:grid-cols-2">
         <CodeBlock language="bash" filename="copyable.sh">
-          {'pd begin --identity myapp:docs --purpose "ship a11y evidence"'}
+          {'pd begin --identity myapp:docs --purpose "ship a11y evidence" --lifecycle durable'}
         </CodeBlock>
         <CodeBlock language="bash" filename="readonly.log" copyable={false}>
           {`session started

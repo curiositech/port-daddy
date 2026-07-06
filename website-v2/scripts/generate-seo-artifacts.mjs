@@ -85,6 +85,7 @@ function llmsTxt() {
     '/',
     '/docs',
     '/docs/quickstart',
+    '/scout',
     '/docs/get-started',
     '/docs/best-practices',
     '/docs/api',

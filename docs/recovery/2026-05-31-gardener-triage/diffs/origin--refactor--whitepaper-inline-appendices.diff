@@ -1,0 +1,53 @@
+STATS:
+
+---
+LAST COMMIT:
+9e20e3eebaea2ace4370418e52944a18f02b8935
+Erich Owens <[redacted]>
+2026-05-19 04:30:03 -0700
+whitepaper: inline appendix B/C figures into body; delete appendices
+
+Per user feedback: Appendix B (Algorithm Diagrams) and Appendix C
+(Monte Carlo Visualizations) belong inline next to first mention,
+not in standalone appendices.
+
+Magic-link single-use atomicity figure:
+- Extracted to its own file `figures/fig-magic-link-inline.tex`
+  with label `fig:magic-link-inline`.
+- Inlined at §sec:federated-sovereign, right after the Trust
+  boundary paragraph, with a new "Magic-link single-use atomicity"
+  paragraph explaining the injective-event property and the
+  SQL UPDATE atomicity that realizes it.
+
+Cartel A6 (folk-theorem) — promoted from appendix C to body:
+- New subsection §sec:youle:a6 "A6 — Cartel sustainability under
+  the folk theorem" right after §sec:youle:a5.
+- Includes the cartel repeated-game node diagram inline (extracted
+  to `figures/fig-cartel-game-inline.tex`, label
+  `fig:cartel-game-inline`) and the Monte Carlo sustainability
+  chart (label `fig:cartel-folk`, preserved so Exercise E5's ref
+  still resolves).
+- Updated Exercise E5 ref from `\\S\\ref{app:montecarlo}` to
+  `\\S\\ref{sec:youle:a6}`.
+
+Appendix structure after the change:
+  A. Formal Verification Status (table)
+  B. Worked Example: One Agent, All Layers
+  C. Exercises
+
+Deleted (figures redundant with anchor paper or relocated):
+- §app:algorithms "Algorithm Diagrams" appendix (entire section)
+- §app:montecarlo "Monte Carlo Visualizations" appendix (entire
+  section); the cartel-folk-theorem figure moved inline to A6.
+- Magic-link figure source remains in appendix-figures.tex but
+  the appendix-figures.tex file is no longer \\input from anywhere
+  (its delegation, cuckoo, sybil-suppressed, auction-suppressed
+  contents were already redundant with anchor or the inline
+  variants).
+
+Page count: 38 -> 37. No undefined refs (one pre-existing
+sec:revocation cross-paper ref unchanged).
+
+
+---
+DIFF (first 300 lines):

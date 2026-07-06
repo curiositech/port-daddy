@@ -15,20 +15,33 @@ class PortDaddy < Formula
     # same instruction manual into Codex, Claude, AGENTS-aware, Gemini, and
     # compatible editor runtimes without copy drift.
     pkgshare.install "skills/port-daddy-agent-skill" => "skills/port-daddy-agent-skill"
+
+    # Port Daddy Pilot source rendered by `pd setup` into each runtime's
+    # native agent format. See lib/pilot-agent-render.ts.
+    pkgshare.install "agents/port-daddy-pilot" => "agents/port-daddy-pilot"
+
+    # SessionStart steering hook wired by `pd init`; dependency-free and
+    # daemon-independent.
+    pkgshare.install "hooks/sessionstart-pilot.mjs" => "hooks/sessionstart-pilot.mjs"
   end
 
   def post_install
     # Refresh the cross-tool skill symlink union after every install/upgrade so
     # Codex, Claude, Gemini, and editor runtimes follow the current Windags and
-    # workgroup skill sources without a manual copy step. Only the skill step
-    # runs - daemon, MCP, FleetBar, and project init each have their own
-    # lifecycle and should not be touched silently on every brew upgrade.
+    # workgroup skill sources without a manual copy step. Daemon, MCP, FleetBar,
+    # and project init each have their own lifecycle and are skipped here.
+    #
+    # This setup call ALSO pre-downloads the local embedding model
+    # (Xenova/all-MiniLM-L6-v2, ~27 MB) on first install so semantic operations
+    # work offline-first (ADR-0061). It is idempotent (skips if already cached, so
+    # upgrades are instant) and best-effort (an offline install never fails — the
+    # runtime fetches lazily later). Pass --no-prefetch to skip.
     return if ENV["HOME"].nil? || ENV["HOME"].empty?
 
     pd = opt_bin/"pd"
     return unless pd.exist?
 
-    ohai "Refreshing Port Daddy cross-tool skill symlinks"
+    ohai "Refreshing Port Daddy cross-tool skill symlinks + pre-downloading embedding model"
     system pd.to_s, "setup", "--no-daemon", "--no-mcp", "--no-fleetbar", "--no-init"
   end
 
@@ -53,6 +66,16 @@ class PortDaddy < Formula
         ~/.windsurf/skills/port-daddy-agent-skill
         ...and other AGENTS-aware/editor skill registries
 
+      Setup also renders the Port Daddy Pilot agent — the ideal Port Daddy
+      operating persona — into every local LLM runtime's native format:
+        ~/.claude/agents/port-daddy-pilot.md      (Claude Code / Desktop)
+        ~/.codex/agents/port-daddy-pilot.toml     (Codex CLI)
+        ~/.gemini/commands/pd-pilot.toml          (Gemini CLI: /pd-pilot)
+        ~/.agents/agents/port-daddy-pilot.md      (generic AGENTS-aware drop)
+      Antigravity (agy) imports the Gemini command when you run
+      `agy plugin import`. In a Port Daddy project the SessionStart hook steers
+      new sessions to this agent automatically unless you pass --agent <other>.
+
       Verify from the console:
         pd setup --status
         pd status
@@ -65,5 +88,8 @@ class PortDaddy < Formula
   test do
     system "#{bin}/pd", "version"
     assert_predicate pkgshare/"skills/port-daddy-agent-skill/SKILL.md", :exist?
+    assert_predicate pkgshare/"agents/port-daddy-pilot/AGENT.md", :exist?
+    assert_predicate pkgshare/"agents/port-daddy-pilot/agent.config.json", :exist?
+    assert_predicate pkgshare/"hooks/sessionstart-pilot.mjs", :exist?
   end
 end

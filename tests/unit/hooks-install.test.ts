@@ -1,0 +1,192 @@
+/**
+ * Unit + integration tests for the agent-CLI interactive-hooks installer.
+ *
+ * Integration focus (per the unify mandate): the installer and the squid
+ * headless adapter MUST emit identical hook shapes, because both import them
+ * from the single source of truth lib/squid/hook-shape.ts. These tests assert
+ * the canonical event names, tool matchers, Codex TOML, the runtime gate, and
+ * the per-project scoping.
+ *
+ * Sandbox lives under the repo's .scratch/ — NEVER /tmp.
+ */
+import { existsSync, mkdirSync, writeFileSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import {
+  stageTentacles,
+  buildTargets,
+  configureTarget,
+  uninstallTarget,
+} from '../../cli/commands/hooks-install.js';
+import {
+  TENTACLES,
+  buildJsonHookMap,
+  codexHooksTomlBlock,
+  CODEX_PD_MARKER,
+  CODEX_TOOL_MATCHER,
+  CLAUDE_TOOL_MATCHER,
+  GEMINI_TOOL_MATCHER,
+  AGY_TOOL_MATCHER,
+  GEMINI_EVENTS,
+  upsertJsonHookMap,
+} from '../../lib/squid/hook-shape.js';
+
+const SANDBOX = join(process.cwd(), '.scratch', `hooks-test-${process.pid}`);
+const SRC = join(SANDBOX, 'src-bin');
+const DEST = join(SANDBOX, 'pd-bin'); // stand-in for ~/.port-daddy/bin
+const HOME = join(SANDBOX, 'home');
+const REPO = join(SANDBOX, 'repo');
+
+function writeTentacleSources(): void {
+  mkdirSync(SRC, { recursive: true });
+  for (const name of TENTACLES) writeFileSync(join(SRC, name), `#!/bin/sh\n# ${name}\nexit 0\n`);
+}
+
+beforeAll(() => {
+  rmSync(SANDBOX, { recursive: true, force: true });
+  mkdirSync(SANDBOX, { recursive: true });
+  writeTentacleSources();
+  mkdirSync(HOME, { recursive: true });
+  mkdirSync(REPO, { recursive: true });
+});
+afterAll(() => rmSync(SANDBOX, { recursive: true, force: true }));
+
+// ─── Unify: the shared shapes match the squid adapter's documented values ────
+
+describe('hook-shape (single source of truth) matches the squid adapter exactly', () => {
+  test('tool matchers are the canonical squid values', () => {
+    expect(CLAUDE_TOOL_MATCHER).toBe('Edit|Write|MultiEdit|NotebookEdit');
+    expect(GEMINI_TOOL_MATCHER).toBe('replace|write_file|edit|run_shell_command');
+    // agy must include multi_replace_file_content (the bit the installer had forked off)
+    expect(AGY_TOOL_MATCHER).toBe(
+      'Edit|Write|MultiEdit|write_to_file|replace_file_content|multi_replace_file_content|replace|write_file|edit|apply_patch',
+    );
+    expect(CODEX_TOOL_MATCHER).toBe('apply_patch|edit|write|str_replace_editor|shell|run_shell_command');
+  });
+
+  test('gemini uses native event names BeforeAgent/BeforeTool/AfterTool', () => {
+    const map = buildJsonHookMap('gemini', (n) => `/x/${n}`);
+    expect(Object.keys(map)).toEqual(['BeforeAgent', 'BeforeTool', 'AfterTool']);
+    expect(GEMINI_EVENTS.preTool).toBe('BeforeTool');
+    expect(map.BeforeTool[0].matcher).toBe(GEMINI_TOOL_MATCHER);
+    expect(map.BeforeAgent[0].matcher).toBeUndefined(); // prompt hook has no matcher
+  });
+
+  test('claude/agy use UserPromptSubmit/PreToolUse/PostToolUse', () => {
+    for (const v of ['claude', 'agy'] as const) {
+      const map = buildJsonHookMap(v, (n) => `/x/${n}`);
+      expect(Object.keys(map)).toEqual(['UserPromptSubmit', 'PreToolUse', 'PostToolUse']);
+    }
+  });
+
+  test('codex TOML block: marker, matcher, and PostToolUse async (Pre/Prompt sync)', () => {
+    const toml = codexHooksTomlBlock((n) => `/abs/${n}`);
+    expect(toml).toContain(CODEX_PD_MARKER);
+    expect(toml).toContain(`matcher = "${CODEX_TOOL_MATCHER}"`);
+    // PostToolUse is fire-and-forget; the gate-bearing Pre/Prompt are sync.
+    const post = toml.slice(toml.indexOf('[[hooks.PostToolUse]]'));
+    expect(post).toContain('async = true');
+    const pre = toml.slice(toml.indexOf('[[hooks.PreToolUse]]'), toml.indexOf('[[hooks.PostToolUse]]'));
+    expect(pre).toContain('async = false');
+  });
+});
+
+// ─── Runtime gate: inert unless daemon up AND inside a pd project ─────────────
+
+describe('stageTentacles wires a daemon + per-project gate', () => {
+  test('stages real tentacles under squid/ and gate wrappers at the top', () => {
+    const res = stageTentacles(SRC, DEST);
+    expect(res.missing).toEqual([]);
+    for (const name of TENTACLES) {
+      const real = join(DEST, 'squid', name);
+      const wrapper = join(DEST, name);
+      expect(existsSync(real)).toBe(true);
+      expect(existsSync(wrapper)).toBe(true);
+      expect(statSync(wrapper).mode & 0o100).toBeTruthy(); // executable
+    }
+  });
+
+  test('the gate wrapper checks the daemon pid and a .portdaddy project marker', () => {
+    const wrapper = readFileSync(join(DEST, 'pd-hook-pre-tool'), 'utf-8');
+    expect(wrapper).toContain('daemon.pid');
+    expect(wrapper).toContain('kill -0');
+    expect(wrapper).toContain('.portdaddy');
+    expect(wrapper).toContain('exec "$PD_HOME/bin/squid/${0##*/}"');
+    expect(wrapper.trim().endsWith('exit 0')).toBe(true); // fail-open default
+  });
+
+  test('reports missing tentacles when the source lacks them', () => {
+    const empty = join(SANDBOX, 'empty');
+    mkdirSync(empty, { recursive: true });
+    const res = stageTentacles(empty, join(SANDBOX, 'pd-bin-2'));
+    expect(res.staged).toEqual([]);
+    expect(res.missing.sort()).toEqual([...TENTACLES].sort());
+  });
+});
+
+// ─── Per-project scoping + config writing ────────────────────────────────────
+
+describe('configureTarget — per-project scope, gate-pointed commands', () => {
+  test('hook commands point at the GATE wrappers, not the raw tentacles', () => {
+    const claude = buildTargets(HOME).find((t) => t.slug === 'claude')!;
+    const res = configureTarget(claude, { scope: 'project', cwd: REPO });
+    expect(res.success).toBe(true);
+    const cfg = JSON.parse(readFileSync(join(REPO, '.claude', 'settings.json'), 'utf-8'));
+    const cmd = cfg.hooks.PreToolUse[0].hooks[0].command;
+    expect(cmd).toContain('/.port-daddy/bin/pd-hook-pre-tool'); // gate wrapper
+    expect(cmd).not.toContain('/squid/'); // not the raw tentacle
+  });
+
+  test('codex + agy have no project surface (user-level, gated)', () => {
+    const targets = buildTargets(HOME);
+    expect(targets.find((t) => t.slug === 'codex')!.projectConfigPath).toBeNull();
+    expect(targets.find((t) => t.slug === 'agy')!.projectConfigPath).toBeNull();
+  });
+
+  test('codex user-level TOML is idempotent and preserves user config', () => {
+    const codex = buildTargets(HOME).find((t) => t.slug === 'codex')!;
+    // seed a user config
+    mkdirSync(join(HOME, '.codex'), { recursive: true });
+    writeFileSync(codex.userConfigPath, 'model = "o3"\n\n[history]\npersistence = "save-all"\n');
+    configureTarget(codex, { scope: 'user' });
+    configureTarget(codex, { scope: 'user' }); // twice
+    const toml = readFileSync(codex.userConfigPath, 'utf-8');
+    expect(toml).toContain('model = "o3"');
+    expect(toml).toContain('persistence = "save-all"');
+    expect(toml.split(CODEX_PD_MARKER).length - 1).toBe(1); // exactly one block
+    uninstallTarget(codex, { scope: 'user' });
+    expect(readFileSync(codex.userConfigPath, 'utf-8')).not.toContain(CODEX_PD_MARKER);
+    expect(readFileSync(codex.userConfigPath, 'utf-8')).toContain('model = "o3"');
+  });
+
+  test('codex strip is end-fenced: user [[hooks.*]] tables AFTER our block survive', () => {
+    const codex = buildTargets(HOME).find((t) => t.slug === 'codex')!;
+    mkdirSync(join(HOME, '.codex'), { recursive: true });
+    writeFileSync(codex.userConfigPath, 'model = "o3"\n');
+    configureTarget(codex, { scope: 'user' });
+    // user appends their OWN hooks table after ours
+    const userBlock = '\n[[hooks.PostToolUse]]\nmatcher = "shell"\n[[hooks.PostToolUse.hooks]]\ntype = "command"\ncommand = "/usr/local/bin/my-own-audit"\n';
+    writeFileSync(codex.userConfigPath, readFileSync(codex.userConfigPath, 'utf-8') + userBlock);
+    // re-install (strip + re-append) must not eat the user's table
+    configureTarget(codex, { scope: 'user' });
+    const toml = readFileSync(codex.userConfigPath, 'utf-8');
+    expect(toml).toContain('/usr/local/bin/my-own-audit');
+    expect(toml.split(CODEX_PD_MARKER).length - 1).toBe(1);
+    // and a full uninstall leaves the user's hooks in place
+    uninstallTarget(codex, { scope: 'user' });
+    const after = readFileSync(codex.userConfigPath, 'utf-8');
+    expect(after).not.toContain(CODEX_PD_MARKER);
+    expect(after).toContain('/usr/local/bin/my-own-audit');
+  });
+});
+
+describe('JSON upsert idempotency + preservation', () => {
+  test('running twice yields one PD entry; user hooks survive', () => {
+    const userHook = { matcher: 'Bash', hooks: [{ type: 'command' as const, command: '/usr/local/bin/audit' }] };
+    let cfg: Record<string, unknown> = { hooks: { PreToolUse: [userHook] } };
+    cfg = upsertJsonHookMap(cfg, buildJsonHookMap('claude', (n) => `/x/${n}`));
+    cfg = upsertJsonHookMap(cfg, buildJsonHookMap('claude', (n) => `/x/${n}`));
+    const pre = (cfg.hooks as Record<string, unknown[]>).PreToolUse;
+    expect(pre).toHaveLength(2); // audit + one PD
+    expect(JSON.stringify(pre)).toContain('/usr/local/bin/audit');
+  });
+});

@@ -26,41 +26,41 @@ type ThemedScreenshot = {
 }
 
 const fleetbarNativeShellScreenshots: ThemedScreenshot = {
-  light: '/img/app-screens/fleetbar-native-shell-light.png',
-  dark: '/img/app-screens/fleetbar-native-shell-dark.png',
+  light: '/img/app-screens/fleetbar-native-shell-light.webp',
+  dark: '/img/app-screens/fleetbar-native-shell-dark.webp',
 }
 
 const surfaceScreenshots: Record<string, ThemedScreenshot> = {
   'fleet-flow': {
-    light: '/img/app-screens/fleet-flow-light.png',
-    dark: '/img/app-screens/fleet-flow-dark.png',
+    light: '/img/app-screens/fleet-flow-light.webp',
+    dark: '/img/app-screens/fleet-flow-dark.webp',
   },
   resources: {
-    light: '/img/app-screens/resources-light.png',
-    dark: '/img/app-screens/resources-dark.png',
+    light: '/img/app-screens/resources-light.webp',
+    dark: '/img/app-screens/resources-dark.webp',
   },
-  sorties: {
-    light: '/img/app-screens/sorties-light.png',
-    dark: '/img/app-screens/sorties-dark.png',
+  'spawned-runs': {
+    light: '/img/app-screens/sorties-light.webp',
+    dark: '/img/app-screens/sorties-dark.webp',
   },
   'shipwright-harbor': {
-    light: '/img/app-screens/shipwright-harbor-light.png',
-    dark: '/img/app-screens/shipwright-harbor-dark.png',
+    light: '/img/app-screens/shipwright-harbor-light.webp',
+    dark: '/img/app-screens/shipwright-harbor-dark.webp',
   },
   'shipwright-focus': {
-    light: '/img/app-screens/shipwright-focus-light.png',
-    dark: '/img/app-screens/shipwright-focus-dark.png',
+    light: '/img/app-screens/shipwright-focus-light.webp',
+    dark: '/img/app-screens/shipwright-focus-dark.webp',
   },
   'shipwright-control': {
-    light: '/img/app-screens/shipwright-control-light.png',
-    dark: '/img/app-screens/shipwright-control-dark.png',
+    light: '/img/app-screens/shipwright-control-light.webp',
+    dark: '/img/app-screens/shipwright-control-dark.webp',
   },
 }
 
 const surfacePreviewRows: Record<string, string[]> = {
   agents: ['Coxswain: active', 'Lookout: docs drift clear', 'Quartermaster: budget guarded'],
-  roadmap: ['built: FleetBar preview', 'next: Developer ID notarization', 'next: Shipwright onboarding'],
-  activity: ['session.note', 'file.claim', 'sortie.completed'],
+  roadmap: ['ready: FleetBar', 'next: Shipwright onboarding', 'watch: docs drift'],
+  activity: ['session.note', 'file.claim', 'spawn.completed'],
   channels: ['website:coordination', 'coordination:inconsistency', 'project:git:committed'],
   inbox: ['Claude handoff unread', 'Codex proof request', 'Navigator status ping'],
   memory: ['salvage context found', 'tuples joined', 'session anchor restored'],
@@ -136,8 +136,8 @@ function SurfaceTitle({ title }: { title: string }) {
       </>
     )
   }
-  if (title === 'Sorties') {
-    return <RoleTerm role="sortie">Sorties</RoleTerm>
+  if (title === 'Spawned Runs') {
+    return <RoleTerm role="spawn">Spawned Runs</RoleTerm>
   }
   return <>{title}</>
 }
@@ -426,7 +426,7 @@ export function MacAppShowcase() {
                   <>
                     The native app is not a toy launcher. It is the compact Mac entrance to shared
                     agent state: Fleet Control Center, project fleets, agent radio,{' '}
-                    <RoleTerm role="sortie">sortie</RoleTerm> work,{' '}
+                    <RoleTerm role="spawn">spawned</RoleTerm> work,{' '}
                     <RoleTerm role="shipwright">Shipwright</RoleTerm> proposals, resource pressure,
                     and backend readiness.
                   </>
@@ -440,9 +440,8 @@ export function MacAppShowcase() {
               <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-2)] self-start">
                 <PanelEyebrow>Current distribution stance</PanelEyebrow>
                 <PanelBody size="compact" className="max-w-none">
-                  Homebrew and npm remain the install path for Port Daddy. The website now also
-                  hosts an ad-hoc signed FleetBar preview while Developer ID signing and
-                  notarization move into the release channel.
+                  Homebrew installs Port Daddy. pd setup adds FleetBar and connects this project.
+                  pd doctor checks the app, daemon, hooks, MCP, and skills when they stop lining up.
                 </PanelBody>
               </SurfacePanel>
               <figure className="grid gap-[var(--space-2)]">

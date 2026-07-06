@@ -1,0 +1,28 @@
+┌  pd-console  conversation multiplexer · on the PD bus
+│  daemon http://127.0.0.1:48762
+└  :new <backend> <prompt> · :agents · :switch <n> · :dispatch · :lineage · :substrate · :parley · <text> · :quit
+
+» 
+  Active Agents - Harness Roster ────────────────
+  live               2
+  refreshed          1m
+
+  ● squid-codex - alive
+    harness          Claude Code with Codex backend / codex
+    worktree         /tmp/pd-squid @ codex/squid-bridge
+    doing            Run Claude Code with Codex and ChatGPT Pro auth
+    touching         lib/squid/adapter.ts#launchBridge
+    stream           pd agent stream agent-codex
+    steer            pd agent interrupt agent-codex --reason ...
+    takeover         pd session takeover session-codex
+    heartbeat        1m
+  ● workers-ai - alive
+    harness          Cloudflare AI fleet agent / cloudflare
+    worktree         /tmp/pd-cloudflare @ codex/cloudflare-ai
+    doing            Verify Cloudflare AI fleet lane
+    touching         apps/relay/worker.ts#fetch
+    stream           pd agent stream agent-cloudflare
+    steer            pd agent interrupt agent-cloudflare --reason ...
+    takeover         pd session takeover session-cloudflare
+    heartbeat        1m
+» out.

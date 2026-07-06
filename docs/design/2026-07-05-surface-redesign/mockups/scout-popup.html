@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scout Popup — North Star</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Recursive:MONO,wght@0,400..800;1,400..800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   SCOUT POPUP — north-star mockup. Flat operator-deck language:
+   zero radius, zero shadow, 2px borders, mustard/mayday/health.
+   Two variants: LIGHT (daemon online) / DARK (daemon offline).
+   ============================================================ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  min-height: 100vh;
+  background: #8c877d; /* neutral backdrop, between paper and ebony */
+  font-family: "Recursive", system-ui, sans-serif;
+  font-size: 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 48px;
+  padding: 48px 32px 64px;
+  flex-wrap: wrap;
+}
+
+.mono {
+  font-family: "Recursive", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variation-settings: "MONO" 1;
+}
+
+.stage { display: flex; flex-direction: column; gap: 12px; }
+
+.stage-caption {
+  font-family: "Recursive", ui-monospace, monospace;
+  font-variation-settings: "MONO" 1;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #f5f3ed;
+}
+
+/* ---------- popup shell + variant tokens ---------- */
+.pop {
+  width: 400px;
+  min-height: 640px;
+  background: var(--bg);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+
+.pop.light {
+  --bg: #f2eee6;        /* warm paper */
+  --ink: #121212;
+  --muted: #5f584c;
+  --well: #e8e2d4;
+  --mustard: #FFDB33;
+  --mustard-text: #8A5A00; /* mustard-meaning text on paper */
+  --mayday: #C41E30;
+  --health: #1f7a4d;
+}
+
+.pop.dark {
+  --bg: #1e1b18;        /* warm ebony */
+  --ink: #f5f3ed;       /* bone */
+  --muted: #a89e8f;
+  --well: #27231e;
+  --mustard: #FFDB33;
+  --mustard-text: #FFDB33; /* mustard reads directly on ebony */
+  --mayday: #F26475;
+  --health: #6fbf8e;
+}
+
+.pop :focus-visible {
+  outline: 2px solid var(--mustard-text);
+  outline-offset: 2px;
+}
+
+/* ---------- 1. header ---------- */
+.hd { display: flex; align-items: center; gap: 12px; }
+
+.hd .mark { flex: 0 0 auto; color: var(--ink); display: block; }
+
+.hd .titles { flex: 1 1 auto; min-width: 0; }
+
+.eyebrow {
+  font-variation-settings: "MONO" 1;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.wordmark {
+  font-family: "Big Shoulders Display", sans-serif;
+  font-weight: 800;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+
+.chip {
+  font-variation-settings: "MONO" 1;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border-top: 2px solid var(--ink);
+  border-bottom: 2px solid var(--ink);
+  padding: 6px 0;
+}
+.chip.online  { color: var(--health); }
+.chip.offline { color: var(--mayday); }
+.chip .fix { color: var(--muted); font-weight: 500; }
+
+/* ---------- 2. evidence hero ---------- */
+.evidence { display: flex; flex-direction: column; gap: 8px; }
+
+.shot {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--well);
+  border: 2px solid var(--ink);
+  overflow: hidden;
+}
+
+/* abstract page wireframe rendered in CSS blocks */
+.wf { position: absolute; border: 2px solid var(--muted); }
+.wf.fill { background: var(--muted); border: 0; opacity: 0.55; }
+.wf-nav    { top: 6%; left: 5%; width: 90%; height: 9%; }
+.wf-logo   { top: 8.5%; left: 7%; width: 10%; height: 4%; }
+.wf-hero   { top: 21%; left: 5%; width: 55%; height: 20%; }
+.wf-line1  { top: 26%; left: 8%; width: 40%; height: 3%; }
+.wf-line2  { top: 33%; left: 8%; width: 30%; height: 3%; }
+.wf-table  { top: 48%; left: 5%; width: 58%; height: 42%; }
+.wf-row1   { top: 56%; left: 8%; width: 52%; height: 4%; }
+.wf-row2   { top: 65%; left: 8%; width: 52%; height: 4%; }
+.wf-row3   { top: 74%; left: 8%; width: 52%; height: 4%; }
+.wf-aside  { top: 21%; left: 66%; width: 29%; height: 26%; }
+/* the defect: CTA block overlapping the price table */
+.wf-cta {
+  top: 44%; left: 47%; width: 26%; height: 13%;
+  background: var(--muted); border: 2px solid var(--ink); opacity: 0.9;
+}
+
+/* mustard evidence region + dims label */
+.region {
+  position: absolute;
+  top: 40%; left: 43%; width: 34%; height: 22%;
+  border: 2px solid var(--mustard);
+}
+.region .dims {
+  position: absolute;
+  top: -2px;
+  left: calc(100% + 2px);
+  white-space: nowrap;
+  background: var(--mustard);
+  color: #121212;
+  font-variation-settings: "MONO" 1;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 3px 6px;
+}
+/* keep label inside frame on the right edge */
+.region .dims.flip { left: auto; right: -2px; top: calc(100% + 2px); }
+
+.domstrip {
+  border: 2px solid var(--ink);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.domstrip .path {
+  font-variation-settings: "MONO" 1;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--mustard-text);
+  overflow-wrap: anywhere;
+}
+.domstrip .meta {
+  font-variation-settings: "MONO" 1;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* ---------- 3. capture row ---------- */
+.caprow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.btn {
+  font-family: "Recursive", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  border: 2px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  padding: 9px 10px;
+  cursor: pointer;
+  text-align: center;
+}
+.btn:hover { background: var(--well); }
+.btn kbd {
+  font-family: inherit;
+  font-variation-settings: "MONO" 1;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* ---------- 4/5. brief + routing ---------- */
+.fld { display: flex; flex-direction: column; gap: 5px; }
+
+.lbl {
+  font-variation-settings: "MONO" 1;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+textarea {
+  font-family: "Recursive", system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: transparent;
+  border: 2px solid var(--ink);
+  padding: 8px 10px;
+  resize: none;
+}
+
+.routing {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 10px;
+}
+
+.selwrap { position: relative; }
+.selwrap::after {
+  /* flat chevron, built from borders — no images, no shadow */
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--ink);
+  border-bottom: 2px solid var(--ink);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  font-family: "Recursive", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  background: transparent;
+  border: 2px solid var(--ink);
+  padding: 8px 30px 8px 10px;
+  cursor: pointer;
+}
+
+/* ---------- 6. consent footer ---------- */
+.consent {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 2px solid var(--ink);
+  padding-top: 12px;
+}
+
+.consequence {
+  font-variation-settings: "MONO" 1;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.primary {
+  font-family: "Big Shoulders Display", sans-serif;
+  font-weight: 700;
+  font-size: 21px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: var(--mustard);
+  color: #121212;
+  border: 2px solid #121212;
+  padding: 12px 10px;
+  cursor: pointer;
+}
+.pop.dark .primary { border-color: var(--mustard); }
+.primary:hover { background: #f0c800; }
+
+.primary[disabled] {
+  background: transparent;
+  color: var(--muted);
+  border-color: var(--muted);
+  cursor: not-allowed;
+}
+.primary[disabled]:hover { background: transparent; }
+
+.disabled-note {
+  font-variation-settings: "MONO" 1;
+  font-size: 14px;
+  color: var(--mayday);
+  text-align: center;
+}
+
+.tertiary {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 2px;
+  cursor: pointer;
+  align-self: center;
+  padding: 2px;
+}
+</style>
+</head>
+<body>
+
+<!-- ================= LIGHT / DAEMON ONLINE ================= -->
+<div class="stage">
+  <div class="stage-caption">Light · daemon online</div>
+  <div class="pop light">
+
+    <header class="hd">
+      <!-- Scout mark: geometric reticle — square + crosshair ticks, 2px stroke -->
+      <svg class="mark" width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+        <rect x="8" y="8" width="24" height="24" stroke="currentColor" stroke-width="2"/>
+        <line x1="20" y1="1"  x2="20" y2="9"  stroke="currentColor" stroke-width="2"/>
+        <line x1="20" y1="31" x2="20" y2="39" stroke="currentColor" stroke-width="2"/>
+        <line x1="1"  y1="20" x2="9"  y2="20" stroke="currentColor" stroke-width="2"/>
+        <line x1="31" y1="20" x2="39" y2="20" stroke="currentColor" stroke-width="2"/>
+        <rect x="18" y="18" width="4" height="4" fill="currentColor"/>
+      </svg>
+      <div class="titles">
+        <div class="eyebrow">Port Daddy Intake</div>
+        <div class="wordmark">SCOUT</div>
+      </div>
+    </header>
+
+    <div class="chip online">&#9679; DAEMON ONLINE &mdash; local daemon</div>
+
+    <section class="evidence" aria-label="Captured evidence">
+      <div class="shot">
+        <div class="wf wf-nav"></div>
+        <div class="wf fill wf-logo"></div>
+        <div class="wf wf-hero"></div>
+        <div class="wf fill wf-line1"></div>
+        <div class="wf fill wf-line2"></div>
+        <div class="wf wf-aside"></div>
+        <div class="wf wf-table"></div>
+        <div class="wf fill wf-row1"></div>
+        <div class="wf fill wf-row2"></div>
+        <div class="wf fill wf-row3"></div>
+        <div class="wf-cta wf"></div>
+        <div class="region">
+          <span class="dims flip">312&times;184 @ (640,210)</span>
+        </div>
+      </div>
+      <div class="domstrip">
+        <span class="path">div.paywall-banner &gt; button.cta</span>
+        <span class="meta">xpath + bounds sampled &middot; 3 elements</span>
+      </div>
+    </section>
+
+    <div class="caprow">
+      <button class="btn" type="button">Recapture page</button>
+      <button class="btn" type="button">Select region <kbd>(&#8997;&#8679;P)</kbd></button>
+    </div>
+
+    <div class="fld">
+      <label class="lbl" for="brief-l">What&rsquo;s wrong here?</label>
+      <textarea id="brief-l" rows="2">CTA button overlaps the price table at 1280px. Should wrap below it.</textarea>
+    </div>
+
+    <div class="routing">
+      <div class="fld">
+        <label class="lbl" for="kind-l">Kind</label>
+        <span class="selwrap"><select id="kind-l"><option>Bug</option><option>Fix</option><option>Nit</option></select></span>
+      </div>
+      <div class="fld">
+        <label class="lbl" for="file-l">File under</label>
+        <span class="selwrap"><select id="file-l"><option>visual-feedback</option><option>review-queue</option></select></span>
+      </div>
+      <div class="fld">
+        <label class="lbl" for="proj-l">Project</label>
+        <span class="selwrap"><select id="proj-l"><option>sobriety-tools</option><option>port-daddy</option></select></span>
+      </div>
+      <div class="fld">
+        <label class="lbl" for="send-l">Send to</label>
+        <span class="selwrap"><select id="send-l"><option>next available voyager</option><option>review queue only</option></select></span>
+      </div>
+    </div>
+
+    <footer class="consent">
+      <p class="consequence">Creates a work item &middot; attaches screenshot + DOM path &middot; est. triage $0.03</p>
+      <button class="primary" type="button">File visual task</button>
+      <button class="tertiary" type="button">Open in Console &rarr;</button>
+    </footer>
+
+  </div>
+</div>
+
+<!-- ================= DARK / DAEMON OFFLINE ================= -->
+<div class="stage">
+  <div class="stage-caption">Dark · daemon offline</div>
+  <div class="pop dark">
+
+    <header class="hd">
+      <svg class="mark" width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+        <rect x="8" y="8" width="24" height="24" stroke="currentColor" stroke-width="2"/>
+        <line x1="20" y1="1"  x2="20" y2="9"  stroke="currentColor" stroke-width="2"/>
+        <line x1="20" y1="31" x2="20" y2="39" stroke="currentColor" stroke-width="2"/>
+        <line x1="1"  y1="20" x2="9"  y2="20" stroke="currentColor" stroke-width="2"/>
+        <line x1="31" y1="20" x2="39" y2="20" stroke="currentColor" stroke-width="2"/>
+        <rect x="18" y="18" width="4" height="4" fill="currentColor"/>
+      </svg>
+      <div class="titles">
+        <div class="eyebrow">Port Daddy Intake</div>
+        <div class="wordmark">SCOUT</div>
+      </div>
+    </header>
+
+    <div class="chip offline">&#9675; DAEMON OFFLINE &mdash; <span class="fix">start it from FleetBar &rarr; Daemon</span></div>
+
+    <section class="evidence" aria-label="Captured evidence">
+      <div class="shot">
+        <div class="wf wf-nav"></div>
+        <div class="wf fill wf-logo"></div>
+        <div class="wf wf-hero"></div>
+        <div class="wf fill wf-line1"></div>
+        <div class="wf fill wf-line2"></div>
+        <div class="wf wf-aside"></div>
+        <div class="wf wf-table"></div>
+        <div class="wf fill wf-row1"></div>
+        <div class="wf fill wf-row2"></div>
+        <div class="wf fill wf-row3"></div>
+        <div class="wf-cta wf"></div>
+        <div class="region">
+          <span class="dims flip">312&times;184 @ (640,210)</span>
+        </div>
+      </div>
+      <div class="domstrip">
+        <span class="path">div.paywall-banner &gt; button.cta</span>
+        <span class="meta">xpath + bounds sampled &middot; 3 elements</span>
+      </div>
+    </section>
+
+    <div class="caprow">
+      <button class="btn" type="button">Recapture page</button>
+      <button class="btn" type="button">Select region <kbd>(&#8997;&#8679;P)</kbd></button>
+    </div>
+
+    <div class="fld">
+      <label class="lbl" for="brief-d">What&rsquo;s wrong here?</label>
+      <textarea id="brief-d" rows="2">CTA button overlaps the price table at 1280px. Should wrap below it.</textarea>
+    </div>
+
+    <div class="routing">
+      <div class="fld">
+        <label class="lbl" for="kind-d">Kind</label>
+        <span class="selwrap"><select id="kind-d"><option>Bug</option><option>Fix</option><option>Nit</option></select></span>
+      </div>
+      <div class="fld">
+        <label class="lbl" for="file-d">File under</label>
+        <span class="selwrap"><select id="file-d"><option>visual-feedback</option><option>review-queue</option></select></span>
+      </div>
+      <div class="fld">
+        <label class="lbl" for="proj-d">Project</label>
+        <span class="selwrap"><select id="proj-d"><option>sobriety-tools</option><option>port-daddy</option></select></span>
+      </div>
+      <div class="fld">
+        <label class="lbl" for="send-d">Send to</label>
+        <span class="selwrap"><select id="send-d"><option>next available voyager</option><option>review queue only</option></select></span>
+      </div>
+    </div>
+
+    <footer class="consent">
+      <p class="consequence">Creates a work item &middot; attaches screenshot + DOM path &middot; est. triage $0.03</p>
+      <button class="primary" type="button" disabled>File visual task</button>
+      <p class="disabled-note">daemon offline &mdash; evidence saved locally</p>
+      <button class="tertiary" type="button">Open in Console &rarr;</button>
+    </footer>
+
+  </div>
+</div>
+
+</body>
+</html>

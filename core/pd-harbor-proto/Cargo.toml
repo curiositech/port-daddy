@@ -1,0 +1,26 @@
+# Own workspace + lockfile, EXCLUDED from core/Cargo.toml (like pd-flag-proto /
+# pd-timeline-proto) so the Linux rust-console CI never compiles wgpu/Metal.
+[workspace]
+
+[package]
+name = "pd-harbor-proto"
+version = "0.1.0"
+edition = "2021"
+description = "Headless wgpu/WGSL renderer for the pd-console 'living harbor' water shader (the ambient backdrop behind the fleet pane). Method-A offscreen capture (no window, TCC-free) → PNG frames → GIF. Proves + records the shader before the render-to-texture embed (ADR-0086 path 2)."
+license = "MIT"
+publish = false
+
+[[bin]]
+name = "pd-harbor-proto"
+path = "src/main.rs"
+
+[dependencies]
+# Raw wgpu fragment pass (no Vello — this is a WGSL shader on a full-screen tri).
+wgpu = "22"
+# Block on async device/adapter acquisition (no event loop — pure offscreen).
+pollster = "0.4"
+# Write captured frames as PNGs for ffmpeg to assemble into a GIF.
+png = "0.17"
+
+[profile.release]
+opt-level = 3

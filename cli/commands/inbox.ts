@@ -77,7 +77,7 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     const message = args.slice(1).join(' ');
 
     if (!targetAgent || !message) {
-      console.error('Usage: pd inbox send <agent-id> <message>');
+      console.error('Usage: pd send <agent-id> <message>   (alias: pd inbox send …)');
       process.exit(1);
     }
 
@@ -174,4 +174,69 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     console.error('Available: list, send, stats, clear, read-all');
     process.exit(1);
   }
+}
+
+/**
+ * Handle `pd sent` — read receipts: the messages YOU sent and whether each was
+ * read, and when. The sender side of the inbox (`pd inbox` is the recipient side).
+ */
+export async function handleSent(options: CLIOptions): Promise<void> {
+  if (options.help) {
+    console.log('Usage: pd sent [--unread] [--limit <n>] [--agent <id>] [-j] [-q]');
+    console.log('');
+    console.log('Show messages YOU sent and their read receipts (read + when).');
+    console.log('  --unread        Only messages not yet read by the recipient');
+    console.log('  --limit <n>     Max messages to show (default 50)');
+    console.log('  --agent <id>    Sender identity (default: AGENT_ID env or current session)');
+    process.exit(0);
+  }
+
+  const agentId: string =
+    (options.agent as string) || process.env.AGENT_ID || readCurrentContext()?.agentId || `cli-${process.pid}`;
+
+  const params = new URLSearchParams();
+  if (options.unread) params.append('unread', 'true');
+  if (options.limit) params.append('limit', String(options.limit));
+
+  const res: PdFetchResponse = await pdFetch(
+    `${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/sent${params.toString() ? '?' + params : ''}`
+  );
+  const data = await res.json();
+
+  if (!res.ok) {
+    ui.error((data.error as string) || 'Failed to read sent messages');
+    process.exit(1);
+  }
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+
+  const messages = data.messages as Array<{
+    id: number;
+    agentId: string;
+    content: string;
+    read: boolean;
+    readAt: number | null;
+    createdAt: number;
+  }>;
+
+  if (messages.length === 0) {
+    console.log(`No sent messages for ${agentId}`);
+    return;
+  }
+
+  console.log('');
+  for (const msg of messages) {
+    const receipt = msg.read
+      ? `✓ read ${msg.readAt ? new Date(msg.readAt).toISOString().slice(11, 19) : ''}`.trim()
+      : '✉ unread';
+    const preview = String(msg.content).slice(0, 50);
+    console.log(`${receipt}  → ${msg.agentId}  ${preview}${String(msg.content).length > 50 ? '...' : ''}`);
+  }
+  console.log('');
+  const count = (data as { count: number }).count;
+  const readCount = messages.filter((m) => m.read).length;
+  console.log(`${count} sent · ${readCount} read · ${count - readCount} unread`);
 }

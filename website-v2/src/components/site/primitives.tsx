@@ -6,6 +6,7 @@ import { CodeBlock } from '@/components/ui/CodeBlock'
 import { CommandTerminal } from '@/components/ui/CommandTerminal'
 import { useTheme } from '@/lib/theme-context'
 import { cn } from '@/lib/utils'
+import { SpinningWordmark } from './SpinningWordmark'
 import type { AccentTone, CommercialTrack, ProofPanel, TruthState } from '@/data/publicSite'
 
 const truthTone: Record<TruthState, string> = {
@@ -86,7 +87,7 @@ const landingStatTone = {
   accent: 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]',
 } as const
 
-type DocsCodeLanguage = 'cli' | 'text' | 'typescript'
+type DocsCodeLanguage = 'cli' | 'text' | 'typescript' | 'yaml'
 
 function panelToneForAccent(tone: AccentTone): 'default' | 'primary' | 'accent' {
   return panelToneMap[tone]
@@ -103,13 +104,84 @@ export function BrandMark({ className }: { className?: string }) {
   return (
     <img
       aria-hidden="true"
-      src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
+      src={
+        theme === 'dark'
+          ? '/logos/portdaddy-mark-radar-darkmode.svg'
+          : '/logos/portdaddy-mark-radar-lightmode.svg'
+      }
       alt=""
       className={cn(
         'h-11 w-11 shrink-0',
         className,
       )}
     />
+  )
+}
+
+type WordmarkVariant = 'full' | 'spin' | 'header'
+
+/**
+ * The Port Daddy WORDMARK lockup — radar mark + "Port Daddy" set in the site's
+ * MAIN font (`--font-display`, the editorial serif) so the navbar/footer
+ * wordmark matches the headings and the hero's spinning wordmark instead of the
+ * old standalone SVG typeface. Theme-aware (the radar mark swaps light/dark).
+ *   - 'full'   : mark + "Port Daddy" + tagline rule (footer / brand contexts)
+ *   - 'spin'   : same lockup, radar mark animates (hero)
+ *   - 'header' : compact mark + "Port Daddy", no tagline (navbar)
+ */
+export function Wordmark({
+  variant = 'full',
+  className,
+  decorative = false,
+}: {
+  variant?: WordmarkVariant
+  className?: string
+  decorative?: boolean
+}) {
+  // The hero's spinning wordmark is rendered inline (not an <img>) so its colour
+  // washes can be CSS-driven — smooth, and frozen when not spinning.
+  if (variant === 'spin') {
+    return <SpinningWordmark className={className} />
+  }
+
+  const label = decorative ? undefined : 'Port Daddy'
+
+  if (variant === 'header') {
+    // Sized by the caller's className (e.g. `h-9 xl:h-10`); the mark fills that
+    // height and the name scales alongside it.
+    return (
+      <span
+        role="img"
+        aria-label={label}
+        aria-hidden={decorative || undefined}
+        className={cn('inline-flex items-center gap-[var(--space-2)]', className)}
+      >
+        <BrandMark className="h-full w-auto" />
+        <span className="font-display text-[1.3rem] font-black leading-none tracking-[-0.01em] text-[var(--text-primary)] xl:text-[1.45rem]">
+          Port Daddy
+        </span>
+      </span>
+    )
+  }
+
+  // 'full' — footer / brand lockup: mark + name, then a rule + tagline.
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      aria-hidden={decorative || undefined}
+      className={cn('inline-flex flex-col gap-[var(--space-3)]', className)}
+    >
+      <span className="inline-flex items-center gap-[var(--space-3)]">
+        <BrandMark className="h-12 w-12" />
+        <span className="font-display text-[1.85rem] font-black leading-none tracking-[-0.01em] text-[var(--text-primary)]">
+          Port Daddy
+        </span>
+      </span>
+      <span className="border-t-2 border-[var(--border-strong)] pt-[var(--space-2)] font-display text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+        A harbor-master for your agents
+      </span>
+    </span>
   )
 }
 
@@ -321,7 +393,7 @@ export function SectionIntro({
 }: {
   eyebrow: string
   title: ReactNode
-  description: ReactNode
+  description?: ReactNode
   className?: string
   titleAs?: ElementType
   titleClassName?: string
@@ -334,7 +406,9 @@ export function SectionIntro({
       <PanelTitle as={titleAs} size={titleSize} className={titleClassName}>
         {title}
       </PanelTitle>
-      <PanelBody className={cn('max-w-[var(--measure-copy)]', bodyClassName)}>{description}</PanelBody>
+      {description ? (
+        <PanelBody className={cn('max-w-[var(--measure-copy)]', bodyClassName)}>{description}</PanelBody>
+      ) : null}
     </div>
   )
 }
@@ -808,6 +882,7 @@ export function BracketAnchor({
 export function DocsNoteCard({
   label,
   title,
+  titleId,
   tone = 'paper',
   className,
   children,
@@ -818,6 +893,7 @@ export function DocsNoteCard({
 }: {
   label?: string
   title?: string
+  titleId?: string
   tone?: AccentTone
   className?: string
   children?: ReactNode
@@ -841,7 +917,7 @@ export function DocsNoteCard({
         </BracketLabel>
       ) : null}
       {title ? (
-        <PanelTitle size={titleSize} tone={panelTone} className={titleClassName}>
+        <PanelTitle id={titleId} size={titleSize} tone={panelTone} className={titleClassName}>
           {title}
         </PanelTitle>
       ) : null}
@@ -867,8 +943,17 @@ export function DocsCodeBlock({
 }) {
   const [copied, setCopied] = useState(false)
   const surface = useSurfaceTone()
-  const terminalLabel = label ?? (language === 'cli' ? 'CLI' : language === 'typescript' ? 'TypeScript' : 'Text')
-  const codeLanguage = language === 'typescript' ? 'typescript' : undefined
+  const terminalLabel =
+    label ??
+    (language === 'cli'
+      ? 'CLI'
+      : language === 'typescript'
+        ? 'TypeScript'
+        : language === 'yaml'
+          ? 'YAML'
+          : 'Text')
+  const codeLanguage =
+    language === 'typescript' ? 'typescript' : language === 'yaml' ? 'yaml' : undefined
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(code)

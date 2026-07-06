@@ -2,7 +2,7 @@
 license: Apache-2.0
 name: multi-agent-coordination
 description: |
-  Coordinate multiple AI agents working on the same codebase or project simultaneously. Covers git worktree isolation, file locking strategies, message passing between agents, shared state management, conflict resolution, task decomposition for parallel agents, and patterns from Claude Code, Cursor, Devin, and similar multi-agent developer tools. Activate on: "multi-agent", "parallel agents", "agent coordination", "worktree isolation", "concurrent agents", "file locking agents", "agent conflict resolution", "swarming agents", "agent message passing", "parallel development", "agent orchestration", "ccswarm", "port daddy". NOT for: single-agent behavior patterns (use agentic-patterns), agent infrastructure selection (use agentic-infrastructure-2026), DAG topology design (use next-move).
+  Coordinate multiple AI agents working on the same codebase or project simultaneously. Covers git worktree isolation, file locking strategies, message passing between agents, shared state management, conflict resolution, task decomposition for parallel agents, and patterns from Claude Code, Cursor, Devin, and similar multi-agent developer tools. Activate on: "multi-agent", "parallel agents", "agent coordination", "worktree isolation", "concurrent agents", "file locking agents", "agent conflict resolution", "swarming agents", "agent message passing", "parallel development", "agent orchestration", "ccswarm", "port daddy". NOT for: single-agent behavior patterns (use agentic-patterns), agent infrastructure selection (use agentic-infrastructure-2026), DAG topology design (use next-move), or designing product invocation surfaces and hot/durable protocol contracts for swarms (use swarm-invocation-designer).
 allowed-tools: Read,Write,Edit,Bash,Glob,Grep,WebSearch,WebFetch
 metadata:
   category: AI & Agents
@@ -182,7 +182,7 @@ pd agent register --agent session-123 \
   --purpose "implementing OAuth login flow"
 
 # Start a session
-pd session start --purpose "OAuth implementation" --agent session-123
+pd session start --purpose "OAuth implementation" --agent session-123 --lifecycle durable
 
 # Claim files (prevents other agents from editing them)
 pd session files claim session-123 \

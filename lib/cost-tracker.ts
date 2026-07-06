@@ -37,8 +37,9 @@ const FALLBACK_MODEL_RATES: Record<string, ModelRate> = {
 // List more-specific keys before less-specific ones.
 const MODEL_RATES: Array<[string, ModelRate]> = [
   // Cloudflare Workers AI
-  ['@cf/moonshotai/kimi-k2.6',                  { input: 0.950, cachedInput: 0.160, output: 4.000, label: 'Cloudflare Workers AI Kimi K2.6' }],
-  ['@cf/moonshotai/kimi-k2.5',                  { input: 0.600, cachedInput: 0.100, output: 3.000, label: 'Cloudflare Workers AI Kimi K2.5' }],
+  ['@cf/moonshotai/kimi-k2-instruct',           { input: 0.950, cachedInput: 0.160, output: 4.000, label: 'Cloudflare Workers AI Kimi K2 Instruct' }],
+  ['@cf/moonshotai/kimi-k2.6',                  { input: 0.950, cachedInput: 0.160, output: 4.000, label: 'Kimi K2.6 (phantom Workers AI id — never existed, retired 2026-07 #654; row kept so historical cost events still price)' }],
+  ['@cf/moonshotai/kimi-k2.5',                  { input: 0.600, cachedInput: 0.100, output: 3.000, label: 'Kimi K2.5 (phantom Workers AI id — never existed, retired 2026-07 #654; row kept so historical cost events still price)' }],
   ['@cf/zai-org/glm-4.7-flash',                 { input: 0.060, output: 0.400, label: 'Cloudflare Workers AI GLM-4.7-Flash' }],
   ['@cf/qwen/qwen3-30b-a3b-fp8',                { input: 0.051, output: 0.335, label: 'Cloudflare Workers AI Qwen3 30B A3B FP8' }],
   ['@cf/nvidia/nemotron-3-120b-a12b',           { input: 0.500, output: 1.500, label: 'Cloudflare Workers AI Nemotron 3 120B A12B' }],
@@ -97,6 +98,18 @@ const MODEL_RATES: Array<[string, ModelRate]> = [
   ['openai/gpt-oss-120b',       { input: 0.15, cachedInput: 0.075, output: 0.60, label: 'Groq GPT-OSS 120B' }],
   ['openai/gpt-oss-20b',        { input: 0.10, cachedInput: 0.05,  output: 0.50, label: 'Groq GPT-OSS 20B' }],
   ['moonshotai/kimi-k2',        { input: 1.00, output: 3.00, label: 'Groq Kimi K2' }],
+  // DeepSeek (OpenAI-compatible; V3 + R1). Model ids are unique to DeepSeek so
+  // they live safely in the shared table (no bare-word false-match risk).
+  // Rates as of 2026-06 — https://api-docs.deepseek.com/quick_start/pricing.
+  // More-specific id first so 'deepseek-reasoner' wins over 'deepseek-chat'.
+  ['deepseek-reasoner',         { input: 0.55, output: 2.19, label: 'DeepSeek R1 (deepseek-reasoner)' }],
+  ['deepseek-chat',             { input: 0.27, output: 1.10, label: 'DeepSeek V3 (deepseek-chat)' }],
+  // xAI (Grok; OpenAI-compatible). Model ids are unique to xAI so they live
+  // safely in the shared table. Rates as of 2026-06 — https://docs.x.ai/docs/models.
+  // More-specific ids first ('grok-code-fast-1' before 'grok-3'/'grok-2').
+  ['grok-code-fast-1',          { input: 0.20, output: 1.50, label: 'xAI Grok Code Fast 1' }],
+  ['grok-3',                    { input: 3.00, output: 15.00, label: 'xAI Grok 3' }],
+  ['grok-2',                    { input: 2.00, output: 10.00, label: 'xAI Grok 2' }],
   // Gemini — 2.5 family (current). Thinking-model output tokens (incl.
   // thoughtsTokenCount) are billed at the output rate; geminiAdapter folds
   // them into outputTokens. More-specific keys before less-specific.
@@ -139,6 +152,21 @@ const OLLAMA_MODEL_RATES: Array<[string, ModelRate]> = [
   ['nomic-embed', { input:  0.01, output:  0.01, label: 'Ollama local nomic-embed (smaller embedding model)' }],
 ];
 
+// ─── LM Studio-only model rates ───────────────────────────────────────────────
+//
+// LM Studio runs an OpenAI-compatible local server and returns exact
+// `usage.{prompt_tokens,completion_tokens}` on every completion, so the exact
+// telemetry path applies (just like Ollama). It serves whatever model is loaded
+// in the app, so the reported model id is operator-chosen and unbounded — we
+// cannot enumerate it. We therefore use a single catch-all electricity-proxy
+// rate (same $0.05/M floor as the Ollama family) consulted ONLY when the
+// backend argument is 'lmstudio', so it can never false-match a paid remote
+// model. The catch-all '' key matches every model id via substring (`includes`).
+// Held in its own table to keep the bare-word match scoped to this backend.
+const LMSTUDIO_MODEL_RATES: Array<[string, ModelRate]> = [
+  ['', { input: 0.05, output: 0.05, label: 'LM Studio local model (electricity proxy)' }],
+];
+
 /**
  * Flat per-session cost estimates for backends that don't expose token counts.
  * These are conservative estimates meant to flag usage, not for billing.
@@ -152,14 +180,20 @@ const SESSION_ESTIMATES_USD: Record<string, number> = {
   'cloudflare': 0.05,  // remote inference via Cloudflare AI
   'openai':     0.05,  // remote inference via OpenAI API (overridden by exact token rates)
   'groq':       0.02,  // remote inference via Groq LPU (overridden by exact token rates)
+  'deepseek':   0.02,  // remote inference via DeepSeek API (overridden by exact token rates)
+  'xai':        0.05,  // remote inference via xAI Grok API (overridden by exact token rates)
   // CLI-tube backends route through operator's flat-rate subscription
   // (Claude Max / ChatGPT Pro). Marginal cost to PD's wallet is zero,
   // but we record a tiny nonzero session estimate so cost dashboards
   // count usage and a daily project budget can still rate-limit.
   'cli:claude-code': 0.001,
   'cli:codex':       0.001,
+  'cli:gemini':      0.001,
+  'cli:groq':        0.001,
+  'cli:grok':        0.001,
   'custom':     0.00,  // unknown — assume free
   'ollama':     0.00,  // local — free
+  'lmstudio':   0.00,  // local LM Studio server — free (runs on operator hardware)
 };
 
 function estimateOpaqueSessionCost(backend: string, model: string): number {
@@ -179,7 +213,7 @@ function estimateOpaqueSessionCost(backend: string, model: string): number {
 }
 
 function hasKnownPaidRemoteBackend(backend: string): boolean {
-  return ['claude', 'claude-cli', 'gemini', 'codex', 'aider', 'cloudflare', 'openai', 'groq', 'cli:claude-code', 'cli:codex'].includes(backend);
+  return ['claude', 'claude-cli', 'gemini', 'codex', 'aider', 'cloudflare', 'openai', 'groq', 'deepseek', 'xai', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok'].includes(backend);
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -246,6 +280,15 @@ function findRate(model: string, backend?: string): ModelRate | null {
   // remote model that happens to contain those substrings.
   if (backend === 'ollama') {
     for (const [key, rate] of OLLAMA_MODEL_RATES) {
+      if (lc.includes(key)) return rate;
+    }
+    return null;
+  }
+  // LM Studio serves an operator-chosen loaded model whose id we cannot
+  // enumerate; the '' catch-all matches any id but ONLY for the lmstudio
+  // backend, so it can never false-match a paid remote model elsewhere.
+  if (backend === 'lmstudio') {
+    for (const [key, rate] of LMSTUDIO_MODEL_RATES) {
       if (lc.includes(key)) return rate;
     }
     return null;

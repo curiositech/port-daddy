@@ -28,15 +28,20 @@ const ROOT = join(import.meta.dirname, '..', '..');
 const TOOL_FEATURE_MAP = {
   // Trust / introspection
   'attest': 'attest',
+  // Host-safety posture audit (ADR-0088 Phase A) — read-only
+  'safe_scan': 'safe',
   'relay_status': 'relay',
 
   // Harbors (permission namespaces) — #199 cop-out conversion
   'list_harbors': 'harbors',
   'get_harbor': 'harbors',
   'check_harbor_envelope': 'harbors',
+  'whois': 'whois',
 
   // Pheromone signals — #199
   'spray_pheromone': 'pheromone',
+  'resolve_pheromone': 'pheromone',
+  'pheromone_coverage': 'pheromone',
   'read_pheromones': 'pheromone',
   'read_entity_pheromones': 'pheromone',
 
@@ -52,12 +57,24 @@ const TOOL_FEATURE_MAP = {
   'list_commitments': 'commitments',
   'list_overdue_commitments': 'commitments',
 
+  // Suggestibility nudges (ADR-0039)
+  'list_nudges': 'suggestions',
+  'respond_nudge': 'suggestions',
+
+  // Parley (ADR-0055)
+  'call_parley': 'parley',
+  'list_parleys': 'parley',
+  'get_parley': 'parley',
+  'respond_parley': 'parley',
+  'resolve_parley': 'parley',
+
   // Knowledge: semantic search + symbol index — #199
   'semantic_search': 'semantic',
   'semantic_resolve': 'semantic',
   'find_symbols': 'symbols',
   'symbol_stats': 'symbols',
   'predict_conflicts': 'symbols',
+  'blast_radius': 'symbols',
 
   // Port management
   'claim_port': 'claim',
@@ -73,6 +90,7 @@ const TOOL_FEATURE_MAP = {
   'list_sessions': 'sessions',
   'list_notes': 'notes',
   'claim_files': 'sessions',
+  'claim_symbols': 'sessions',
 
   // Locks
   'acquire_lock': 'locks',
@@ -82,11 +100,13 @@ const TOOL_FEATURE_MAP = {
   // Messaging
   'publish_message': 'messaging',
   'get_messages': 'messaging',
+  'discourse_lineage': 'messaging',
 
   // Agents
   'register_agent': 'agents',
   'agent_heartbeat': 'agents',
   'list_agents': 'agents',
+  'active_agent_roster': 'agents',
 
   // Salvage
   'check_salvage': 'salvage',
@@ -238,12 +258,8 @@ const TOOL_FEATURE_MAP = {
   'catch_me_up': 'activity',
   'file_heat': 'pheromone',
   'talk_to_agent': 'inbox',
-  'spawn_agent': 'spawn',
-  'run_sortie': 'sorties',
-  'list_sorties': 'sorties',
+  'spawn': 'spawn',
   'cockpit_missions_list': 'cockpit',
-  'get_sortie': 'sorties',
-  'get_sortie_logs': 'sorties',
 
   // Tuple Space
   'tuple_out': 'tuples',
@@ -258,6 +274,7 @@ const TOOL_FEATURE_MAP = {
 
   // Feedback (central agentic-feedback primitive)
   'drop_feedback': 'feedback',
+  'submit_visual_task': 'visual_tasks',
   'list_feedback': 'feedback',
   'feedback_summary': 'feedback',
 
@@ -285,16 +302,18 @@ const MCP_EXEMPT_FEATURES = new Set([
   'daemon',         // CLI-only (start/stop/restart)
   'diagnostics',    // CLI-only (doctor/diagnose/ci-gate)
   'endpoints',      // Sub-feature of services, managed via claim
-  'spawn',          // CLI/SDK-only; agents use the SDK directly, not MCP
   'arbiter',        // Internal invariant enforcement; admin-only API, not user-facing MCP
   'merge_queue',    // API-only merge queue; no CLI or MCP tools yet
   'observability',  // Internal metrics/golden signals; admin API, not user-facing MCP
   'metricsprom',    // Prometheus scrape + browser dashboard endpoints; consumed by Grafana/scrapers and the /metrics.html page, not by MCP-driving agents
+  'cloud_app_telemetry', // Worker-facing GitHub App / Cloudflare telemetry ingest + read API. Agents consume the merged fleet/agents/observability surfaces instead of posting remote telemetry through MCP.
   'resource_governance', // Operator UI read model; MCP wrapper deferred until enforcement controls exist
+  'sorties',        // Legacy HTTP record surface; MCP and CLI delegation are spawn-only.
   // CONVERTED to real MCP tools (#199): harbors, pheromone, symbols, semantic, cartographer, roadmap, commitments.
   'secrets',        // PR #197 managed provider credential store. CLI-only (`pd secret set/list/reveal/rm`); write + reveal routes are loopback-only (makeLoopbackGuard). Intentionally NO SDK/MCP surface — an agent must not be able to set or read managed provider API keys (e.g. poison ANTHROPIC_API_KEY to exfiltrate prompts). Follows the `setup` CLI-only precedent.
   'quorum',         // New propose/vote primitive; agents drive consensus via SDK calls in v1, MCP wrapper deferred to v4
   'shipwright',     // Survey + propose + apply for fleet authoring; CLI-driven workflow (long-running, interactive review). MCP wrapper deferred until the propose/apply step is non-interactive.
+  'cut',            // CLI/CI-only release engineering (pd cut) — a human/pipeline act, not an agent action; no routes, no MCP.
   'setup',          // Local machine onboarding can run installer commands; daemon routes require loopback + GUI capability token, not MCP exposure.
   'usage',          // Local developer-pane telemetry ingestion; not a user-facing MCP tool.
   'blob',           // Phase 0 tube-as-coordination-substrate: content-addressed object storage; agents use the SDK or HTTP directly, MCP wrapper deferred to Phase 1+
@@ -302,8 +321,11 @@ const MCP_EXEMPT_FEATURES = new Set([
   'popper',         // PR #181 autonomous roadmap-to-dispatch task puller. Operator-driven: `pd popper status/next/pop/enable/disable` + the FleetBar Nightshift surface (HTTP). The popper runs daemon-side on a timer; an MCP tool would invert that (the model deciding to pop work mid-turn). CLI/HTTP-only, MCP wrapper deferred.
   'recovery',       // PR #65 magic-link account recovery. API-only single-use token issue/consume consumed by out-of-band recovery flows (proofs/bonded/recovery/magic-link.pv). Intentionally NO MCP surface — an agent must not be able to mint or consume account-recovery tokens.
   'dispatch',       // PR #163 operator queue for autonomous feature dev (ADR-0035). Operator-driven: `pd dispatch/nightshift/review/morning` + POST/GET /dispatches over the daemon queue. Workers are spawned by the daemon, not by an agent calling a tool mid-turn; accept/reject is a human/operator decision. CLI/HTTP-only, MCP wrapper deferred (same posture as popper).
+  'fleet_hitl_proposals', // Operator HITL queue for fleet ship ideas. Ships submit inert proposals over HTTP; approve/reject happens in FleetBar/pd-console and approval hands off to dispatch. No MCP tool should let an agent approve its own proposal.
   'transcripts',    // Fleet ship-run records. Operator-facing read/delete surface (`pd transcripts`, routes/transcripts.ts) consumed by the FleetBar/dashboard ship-run views. Read-only telemetry browsing, not an agent-driving tool; MCP wrapper deferred.
   'relay',          // Cloud relay config/status (ADR-0049). CLI `pd relay url/status/exchange` + HTTP daemon routes for relay config. Relay exchange is an operator/CI token operation; agents use the relay channel directly, not a tool that calls /relay/exchange. MCP wrapper deferred.
+  'harbor-ledger',  // Agent Harbor read API (routes/agent-harbor.ts, C-routes wave). Read-only projection views consumed by the pd-console roster/detail panes (C3) and doctor (C8), plus a long-lived SSE transcript tail — streams are not MCP-shaped (same posture as agent_cockpit). Agents already write to the ledger via `pd harbor-ledger`; an MCP read wrapper is deferred until an agent-facing consumer exists.
+  'agent_cockpit',  // "Watch + Grab the Wheel" Phase 0. GET /agents/:id/stream is a long-lived SSE feed consumed by the operator console — streams are not MCP-shaped (MCP is request/response, not a held-open subscription; an MCP-driving agent would already use the in-process messaging.subscribe / transcripts.subscribe primitives this route merges). POST /agents/:id/interrupt is the operator grabbing the wheel from a console (same human-decision posture as dispatch accept/reject); a cooperating agent that wants to steer a peer publishes the same control.interrupt envelope onto the `agent:<id>` channel via the existing messaging surface. MCP wrapper deferred.
 ]);
 
 // ============================================================================
@@ -743,15 +765,15 @@ describe('MCP tiered tool loading', () => {
     'begin_session', 'end_session_full', 'whoami',
     'claim_port', 'release_port', 'add_note',
     'acquire_lock', 'list_services',
-    'fleet_init', 'swarm_awareness', 'coordination_preflight', 'catch_me_up', 'spawn_agent',
+    'fleet_init', 'swarm_awareness', 'coordination_preflight', 'catch_me_up', 'spawn',
   ];
 
   const CATEGORY_NAMES = [
-    'magic', 'session-lifecycle', 'trust', 'advisor', 'ports', 'sessions', 'notes', 'locks',
+    'magic', 'session-lifecycle', 'trust', 'safety', 'advisor', 'ports', 'sessions', 'notes', 'locks',
     'messaging', 'agents', 'actors', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
-    'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties',
+    'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples',
     'fleet-control', 'semantic', 'feedback', 'cockpit',
-    'harbors', 'signals', 'roadmap', 'commitments', 'knowledge',
+    'harbors', 'signals', 'roadmap', 'commitments', 'suggestions', 'parley', 'knowledge',
     'context', 'harvest', 'custodian',
   ];
 

@@ -81,12 +81,17 @@ describe('lib/db.ts', () => {
       expect(CORE_SCHEMA_SQL).toContain('CREATE TABLE IF NOT EXISTS sessions');
       expect(CORE_SCHEMA_SQL).toContain('CREATE TABLE IF NOT EXISTS session_files');
       expect(CORE_SCHEMA_SQL).toContain('CREATE TABLE IF NOT EXISTS session_notes');
+      expect(CORE_SCHEMA_SQL).toContain('CREATE TABLE IF NOT EXISTS claim_forest_nodes');
+      expect(CORE_SCHEMA_SQL).toContain('CREATE TABLE IF NOT EXISTS claim_forest_edges');
+      expect(CORE_SCHEMA_SQL).toContain('CREATE TABLE IF NOT EXISTS claim_forest_claims');
     });
 
     it('includes necessary indexes', () => {
       expect(CORE_SCHEMA_SQL).toContain('idx_services_port');
       expect(CORE_SCHEMA_SQL).toContain('idx_sessions_status');
       expect(CORE_SCHEMA_SQL).toContain('idx_session_notes_session');
+      expect(CORE_SCHEMA_SQL).toContain('idx_claim_forest_nodes_repo_world');
+      expect(CORE_SCHEMA_SQL).toContain('idx_claim_forest_claims_node_active');
     });
   });
 
@@ -129,6 +134,9 @@ describe('lib/db.ts', () => {
       expect(tables).toContain('sessions');
       expect(tables).toContain('session_files');
       expect(tables).toContain('session_notes');
+      expect(tables).toContain('claim_forest_nodes');
+      expect(tables).toContain('claim_forest_edges');
+      expect(tables).toContain('claim_forest_claims');
     });
 
     it('is idempotent - can be called multiple times', () => {
@@ -519,7 +527,7 @@ describe('Direct-DB Mode: Edge Cases', () => {
     expect(acquire.success).toBe(true);
   });
 
-  it('cascade deletes work for sessions', () => {
+  it('archives sessions without deleting notes or claim history', () => {
     db = initDatabase({ inMemory: true });
     const sessions = createSessions(db);
 
@@ -536,17 +544,26 @@ describe('Direct-DB Mode: Edge Cases', () => {
     expect(before.files.length).toBe(2);
     expect(before.notes.length).toBe(2);
 
-    // Delete session
-    sessions.remove(session.id);
+    // Archive session
+    const removed = sessions.remove(session.id);
+    expect(removed.success).toBe(true);
+    expect(removed.archived).toBe(true);
+    expect(removed.removed).toBe(false);
+    expect(removed.notesPreserved).toBe(true);
+    expect(removed.releasedFiles).toEqual(['/path/to/file1.ts', '/path/to/file2.ts']);
 
-    // Session and associated data should be gone
+    // Session and associated data should be preserved as append-only evidence.
     const after = sessions.get(session.id);
-    expect(after.success).toBe(false);
+    expect(after.success).toBe(true);
+    expect(after.session.status).toBe('abandoned');
 
-    // Direct DB check that orphans don't remain
-    const orphanFiles = db.prepare('SELECT * FROM session_files WHERE session_id = ?').all(session.id);
-    const orphanNotes = db.prepare('SELECT * FROM session_notes WHERE session_id = ?').all(session.id);
-    expect(orphanFiles.length).toBe(0);
-    expect(orphanNotes.length).toBe(0);
+    // Direct DB check that notes and historical file claims remain, but active
+    // claims were released.
+    const preservedFiles = db.prepare('SELECT * FROM session_files WHERE session_id = ?').all(session.id);
+    const activeFiles = db.prepare('SELECT * FROM session_files WHERE session_id = ? AND released_at IS NULL').all(session.id);
+    const preservedNotes = db.prepare('SELECT * FROM session_notes WHERE session_id = ?').all(session.id);
+    expect(preservedFiles.length).toBe(2);
+    expect(activeFiles.length).toBe(0);
+    expect(preservedNotes.length).toBe(3);
   });
 });

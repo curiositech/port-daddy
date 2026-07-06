@@ -10,7 +10,7 @@ I had. In fact, those other primitives are the main system.
 
 So the original framing was a little backwards. Git was not the beautiful first principle. Git was where the mess became impossible to ignore.
 
-![Coordination guard commit policy illustration](/img/generated/blog-coordination-guard-policy.jpg)
+![Two agents reaching for the same repo at a Git checkpoint while a small gate inspects the staged files against their session claims — the boundary where Coordination Guard does its one job](/img/generated/blog-coordination-guard-policy.jpg)
 
 ## What Actually Happened
 
@@ -52,7 +52,7 @@ Here is the boring table, because the blog still needs to be useful.
 | Channel | Publishes events for commits, status changes, wakeups, and UI state | [`lib/activity.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/activity.ts), [`routes/activity.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/activity.ts), [`server.ts`](https://github.com/curiositech/port-daddy/blob/main/server.ts) |
 | Inbox | Gives a durable handoff to a named actor or role | [`lib/agent-inbox.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/agent-inbox.ts), [`cli/commands/agents.ts`](https://github.com/curiositech/port-daddy/blob/main/cli/commands/agents.ts) |
 | Tuple space | Stores machine-readable shared facts that other tools can query | [`lib/tuples.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/tuples.ts), [`routes/tuples.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/tuples.ts), [`cli/commands/tuples.ts`](https://github.com/curiositech/port-daddy/blob/main/cli/commands/tuples.ts) |
-| Harbor | Gives a shared room and admission boundary to a sortie or fleet run | [`lib/harbors.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/harbors.ts), [`routes/harbors.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/harbors.ts) |
+| Harbor | Gives a shared room and admission boundary to a spawned run or fleet run | [`lib/harbors.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/harbors.ts), [`routes/harbors.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/harbors.ts) |
 | Salvage and resurrection | Finds work left behind when an agent dies | [`lib/resurrection.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/resurrection.ts), [`routes/resurrection.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/resurrection.ts), [`tests/unit/salvage-routes.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/salvage-routes.test.js) |
 | Arbiter | Watches coordination invariants that are broader than one commit | [`lib/arbiter.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/arbiter.ts), [`routes/arbiter.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/arbiter.ts), [`tests/unit/arbiter.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/arbiter.test.js) |
 | Budget and telemetry gate | Keeps launches from spending with opaque or missing telemetry | [`lib/spawner.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/spawner.ts), [`lib/budget-guard.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/budget-guard.ts), [`tests/unit/spawner-telemetry-policy.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/spawner-telemetry-policy.test.js) |
@@ -61,6 +61,7 @@ Here is the boring table, because the blog still needs to be useful.
 
 So the picture is not "Git runs policy." It is more like this:
 
+<!-- figure: The runtime primitives — sessions, claims, locks, channels, salvage — feed into Coordination Guard, and Git's index and commit paths only reach repo history by passing through it; Git is the door, the runtime is the guest list. -->
 ```mermaid
 flowchart LR
   Runtime["Port Daddy runtime"] --> Session["sessions + notes"]
@@ -88,7 +89,7 @@ We had a guard. We had notes. We had claims. It still failed.
 This code will fail, to borrow the old blog-post rhythm.
 
 ```bash
-$ pd begin "repair blog nav" --identity website:nav
+$ pd begin "repair blog nav" --identity website:nav --lifecycle durable
 session: session-website-nav
 
 $ pd note "Only touching SiteHeader and MacPreviewPage."
@@ -120,7 +121,7 @@ pass: staged files are covered by active session claims
 
 The interesting thing is not the command spelling. It is the invariant: before the commit exists, the staged paths should line up with live coordination state.
 
-![Coordination terminal recording](/gifs/agents/coordination.gif)
+![Terminal session showing the right path: pd add --dry-run previews the staged files, pd add stages only the claimed ones, and pd guard check --staged confirms the commit has a coordination story before history changes](/gifs/agents/coordination.gif)
 
 ## Worktrees Would Have Helped
 
@@ -130,10 +131,11 @@ That would have prevented a lot of the dumbest damage. If each agent has its own
 
 But worktrees do not answer everything.
 
-They do not say which session owns the integration commit. They do not tell you whether two clean branches break the program together. They do not protect generated assets or migrations that need a lock. They do not salvage a dead agent's intent. They do not make a cherry-pick explain itself.
+They do not say which session owns the integration commit. They do not tell you whether two clean branches break the program together. They do not protect generated assets or migrations that need a lock. They do not [salvage a dead agent's intent](/blog/recovery-roadmap-map-truth). They do not make a cherry-pick explain itself.
 
 So I now think the default should be:
 
+<!-- figure: The default I landed on the expensive way — worktrees isolate each session's dirty buffer, runtime primitives record intent, and the guard at the Git boundary protects history; all three converge on a safe integration commit because no one of them is enough alone. -->
 ```mermaid
 flowchart LR
   Worktree["one worktree per session"] --> Isolation["protect local edits"]
@@ -156,7 +158,7 @@ Spark and Spider kept turning up the same themes:
 - compare session notes with Git deltas, because intent and output drift;
 - write intent tuples before work begins, not after the conflict;
 - turn hot files and active claims into routing signals;
-- surface stale ownership automatically instead of hoping a human reads every note;
+- surface stale ownership automatically instead of [hoping a human reads every note](/blog/attention-is-the-first-command);
 - treat dead agents as salvage events quickly;
 - prefer symbol claims when whole-file claims are too blunt;
 - make staging and destructive Git operations claim-aware.

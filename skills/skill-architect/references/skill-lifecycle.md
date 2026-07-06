@@ -92,8 +92,7 @@ stateDiagram-v2
 **Example deprecation notice**:
 ```markdown
 > ⚠️ **DEPRECATED**: This skill is deprecated as of v2.3.0.
-> Use `new-skill-name` instead. Migration guide: add a migration reference when
-> one exists.
+> Use `new-skill-name` instead. Migration guide: `references/migration.md`
 > End of support: 2025-06-01
 ```
 

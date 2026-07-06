@@ -21,8 +21,42 @@ import {
   resolveCliSessionWorktreePolicy,
 } from '../utils/session-worktree-policy.js';
 
+type BeginLifecycle = 'durable' | 'ephemeral';
+
+type BeginLifecycleResolution =
+  | { success: true; lifecycle: BeginLifecycle; durable: boolean }
+  | { success: false; error: string };
+
+function parseBeginLifecycle(value: unknown): BeginLifecycle | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'durable' || normalized === 'ephemeral' ? normalized : null;
+}
+
+function resolveBeginLifecycle(options: CLIOptions): BeginLifecycleResolution {
+  if (options.lifecycle === undefined) {
+    return {
+      success: false,
+      error: 'pd begin requires an explicit lifecycle: pass --lifecycle durable for ordinary agent work, or --lifecycle ephemeral for heartbeat-bound process sessions.',
+    };
+  }
+
+  const lifecycle = parseBeginLifecycle(options.lifecycle);
+  if (!lifecycle) {
+    return { success: false, error: '--lifecycle must be either "durable" or "ephemeral".' };
+  }
+
+  return { success: true, lifecycle, durable: lifecycle === 'durable' };
+}
+
+function printBeginUsage(): void {
+  console.error('Usage: pd begin <purpose> --lifecycle durable|ephemeral [--purpose "text"] [-P "text"]');
+  console.error('       pd begin --identity ID --agent AGENT_ID --files f1 f2... --lifecycle durable|ephemeral');
+  console.error('       pd begin                                 # interactive (TTY only)');
+}
+
 // =============================================================================
-// handleBegin — pd begin "purpose" [--identity X] [--files f1 f2...]
+// handleBegin — pd begin "purpose" --lifecycle durable|ephemeral [--identity X] [--files f1 f2...]
 // =============================================================================
 
 export async function handleBegin(
@@ -56,10 +90,27 @@ export async function handleBegin(
         if (filesStr) options.files = filesStr.split(/\s+/).filter(Boolean);
       }
     }
+
+    if (options.lifecycle === undefined) {
+      const lifecycle = await promptSelect({
+        label: 'Session lifecycle?',
+        choices: [
+          { value: 'durable', label: 'Durable work context' },
+          { value: 'ephemeral', label: 'Heartbeat-bound process session' },
+        ],
+        default: 'durable',
+      });
+      if (lifecycle) options.lifecycle = lifecycle;
+    }
   } else if (!purpose) {
-    console.error('Usage: pd begin <purpose> [--purpose "text"] [-P "text"]');
-    console.error('       pd begin --identity ID --agent AGENT_ID --files f1 f2...');
-    console.error('       pd begin                                 # interactive (TTY only)');
+    printBeginUsage();
+    process.exit(1);
+  }
+
+  const lifecycle = resolveBeginLifecycle(options);
+  if (!lifecycle.success) {
+    ui.error(lifecycle.error);
+    printBeginUsage();
     process.exit(1);
   }
 
@@ -72,6 +123,7 @@ export async function handleBegin(
   if (options.name) body.name = options.name;
   if (options.type) body.type = options.type;
   if (options.force) body.force = true;
+  body.lifecycle = lifecycle.lifecycle;
 
   // Collect files from --files option or remaining positional args
   const files: string[] = [];
@@ -161,6 +213,7 @@ export async function handleBegin(
   ui.success(`Agent ${highlightChannel(agentLabel)} ready`);
   console.error(`  Session: ${sessionLabel}`);
   console.error(`  Purpose: ${purpose}`);
+  console.error(`  Lifecycle: ${lifecycle.lifecycle}`);
   if (identity) console.error(`  Identity: ${identity}`);
   if (data.worktree && typeof data.worktree === 'object') {
     const worktree = data.worktree as { name?: string; branch?: string | null; id?: string };
@@ -178,6 +231,10 @@ export async function handleBegin(
   if (data.salvageHint) {
     console.error('');
     console.error(`  ${data.salvageHint}`);
+  }
+  if (data.approvalsHint) {
+    console.error('');
+    ui.warn(String(data.approvalsHint));
   }
 }
 

@@ -1,0 +1,15 @@
+{
+  "deliveryGuarantee": "at-least-once",
+  "autoCommit": false,
+  "processingIdempotent": true,
+  "assignmentStrategy": "cooperative-sticky",
+  "groupProtocol": "classic",
+  "usesClientSideAssignor": false,
+  "maxPollRecords": 100,
+  "perRecordProcessingMs": 50,
+  "maxPollIntervalMs": 120000,
+  "crossSystemSideEffects": false,
+  "dlqPattern": "dead-letter-queue",
+  "perEntityOrderingRequired": false,
+  "commitsInOnPartitionsRevoked": true
+}

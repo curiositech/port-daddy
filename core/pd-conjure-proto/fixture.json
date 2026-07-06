@@ -1,0 +1,85 @@
+{
+  "title": "Design a local web app for characterizing daemon health.",
+  "problem_classification": "well-structured",
+  "confidence": 0.86,
+  "halt_reason": null,
+  "waves": [
+    {
+      "wave_number": 1,
+      "parallelizable": false,
+      "nodes": [
+        {
+          "id": "research-api-patterns",
+          "skill_id": "api-architect",
+          "role_description": "Survey the existing settings + provider contracts",
+          "why": "Grounds the new flow in the shapes already in the codebase",
+          "commitment_level": "COMMITTED",
+          "input_contract": "Repo layout + current settings module",
+          "output_contract": "A provider-settings contract sketch",
+          "model_tier": "sonnet",
+          "estimated_minutes": 8.0,
+          "estimated_cost_usd": 0.07,
+          "cascade_depth": 2,
+          "ask_user_before_proceeding": false
+        }
+      ]
+    },
+    {
+      "wave_number": 2,
+      "parallelizable": true,
+      "nodes": [
+        {
+          "id": "implement-settings-ui",
+          "skill_id": "beautiful-gui-design",
+          "role_description": "Build the provider-settings panel",
+          "why": "The flow needs a real, accessible surface",
+          "commitment_level": "TENTATIVE",
+          "input_contract": "The provider-settings contract",
+          "output_contract": "A wired settings panel",
+          "model_tier": "opus",
+          "estimated_minutes": 16.0,
+          "estimated_cost_usd": 0.22,
+          "cascade_depth": 1,
+          "ask_user_before_proceeding": false
+        },
+        {
+          "id": "write-tests",
+          "skill_id": "test-automation-expert",
+          "role_description": "Add regression coverage for the new flow",
+          "why": "The UI changes need confidence before landing",
+          "commitment_level": "EXPLORATORY",
+          "input_contract": "Existing component behavior",
+          "output_contract": "Passing tests for the changed flow",
+          "model_tier": "haiku",
+          "estimated_minutes": 10.0,
+          "estimated_cost_usd": 0.05,
+          "cascade_depth": 0,
+          "ask_user_before_proceeding": false
+        }
+      ]
+    },
+    {
+      "wave_number": 3,
+      "parallelizable": false,
+      "nodes": [
+        {
+          "id": "ship-and-deploy",
+          "skill_id": "rust-app-distribution",
+          "role_description": "Cut the release once the gate is green",
+          "why": "Landing a settings flow touches the signed build",
+          "commitment_level": "TENTATIVE",
+          "input_contract": "Green CI + the wired panel",
+          "output_contract": "A signed, notarized release",
+          "model_tier": "sonnet",
+          "estimated_minutes": 6.0,
+          "estimated_cost_usd": 0.08,
+          "cascade_depth": 0,
+          "ask_user_before_proceeding": true
+        }
+      ]
+    }
+  ],
+  "estimated_total_minutes": 40.0,
+  "estimated_total_cost_usd": 0.42,
+  "topology": "dag"
+}

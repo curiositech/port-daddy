@@ -26,6 +26,9 @@
  */
 
 import { getSecret } from './secret-env.js';
+// Reuse the operator's existing local embedder + cosine metric for the semantic
+// cache tier — no new embedding service, no external vector DB (ADR-0059).
+import { cosineSimilarity, type LocalEmbedder } from './semantic-resolver.js';
 
 export interface LLMCompletionRequest {
   prompt: string;
@@ -52,6 +55,12 @@ export interface LLMCompletionResult {
   inputTokens?: number;
   outputTokens?: number;
   cachedInputTokens?: number;
+  /** Raw parsed provider response, surfaced for full-depth transcript
+   *  extraction (reasoning / tool calls / messages). Gemini: the parsed
+   *  generateContent object. Cloudflare: the parsed `result` object. The
+   *  flattened `text` field is kept for back-compat; `raw` is additive and
+   *  undefined when a backend has no richer structure to expose. */
+  raw?: unknown;
 }
 
 export type LLMAdapter = (req: LLMCompletionRequest) => Promise<LLMCompletionResult>;
@@ -103,7 +112,17 @@ export const cloudflareAdapter: LLMAdapter = async ({ prompt, model, maxTokens, 
     });
     if (!res.ok) {
       const txt = await res.text().catch(() => 'unknown error');
-      return { ok: false, error: `Cloudflare Workers AI HTTP ${res.status}: ${txt}` };
+      // Self-diagnosing auth failures: a 401 with a token+account that work via
+      // direct REST means the daemon RESOLVED different creds at runtime (stale
+      // env snapshot / launchd-injected value shadowing the keychain). Surface
+      // non-secret fingerprints so the transcript shows exactly which account +
+      // token the daemon used, instead of an opaque "Authentication error".
+      const acctTail = String(accountId).slice(-6);
+      const tokFp = `${String(token).slice(0, 6)}…${String(token).slice(-4)}(${String(token).length})`;
+      const diag = res.status === 401 || res.status === 403
+        ? ` [resolved account …${acctTail}, token ${tokFp} — if this token+account work via direct ai/run, the daemon resolved a stale credential]`
+        : '';
+      return { ok: false, error: `Cloudflare Workers AI HTTP ${res.status}: ${txt}${diag}` };
     }
     const data = await res.json() as Record<string, any>;
     const result = data.result ?? data;
@@ -121,6 +140,9 @@ export const cloudflareAdapter: LLMAdapter = async ({ prompt, model, maxTokens, 
       text,
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,
+      // Surface the parsed `result` object so the spawner can reconstruct
+      // reasoning / tool_calls / message turns for the transcript.
+      raw: result,
     };
   } catch (err) {
     return { ok: false, error: (err as Error).message };
@@ -204,12 +226,21 @@ export const geminiAdapter: LLMAdapter = async ({ prompt, model, maxTokens, sign
     return { ok: false, error: `Invalid Gemini model id: ${JSON.stringify(model)}` };
   }
 
-  const body: Record<string, unknown> = {
-    contents: [{ parts: [{ text: prompt }] }],
+  // includeThoughts surfaces the model's reasoning summary as `thought:true`
+  // parts so the transcript can record a `thinking` turn — not just the final
+  // answer. Supported on the Gemini 2.5 models this backend targets; thinking
+  // tokens are already billed (folded into outputTokens below), so this adds
+  // visibility at no extra cost.
+  const generationConfig: Record<string, unknown> = {
+    thinkingConfig: { includeThoughts: true },
   };
   if (typeof maxTokens === 'number' && maxTokens > 0) {
-    body.generationConfig = { maxOutputTokens: maxTokens };
+    generationConfig.maxOutputTokens = maxTokens;
   }
+  const body: Record<string, unknown> = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig,
+  };
 
   try {
     const res = await fetch(
@@ -246,7 +277,9 @@ export const geminiAdapter: LLMAdapter = async ({ prompt, model, maxTokens, sign
     const outputTokens = usage.candidatesTokenCount === undefined && usage.thoughtsTokenCount === undefined
       ? undefined
       : candidateTokens + thoughtTokens;
-    return { ok: true, text, inputTokens, outputTokens };
+    // Surface the parsed response so the spawner can reconstruct
+    // thinking / functionCall / text turns for the transcript.
+    return { ok: true, text, inputTokens, outputTokens, raw: data };
   } catch (err) {
     return { ok: false, error: (err as Error).message };
   }
@@ -272,6 +305,12 @@ export interface LLMClientCallRequest {
   cacheKey?: string;
   /** Optional max tokens override. */
   maxTokens?: number;
+  /**
+   * Opt OUT of the semantic tier for this call (default: on when the client has
+   * an embedder). Set false for calls where a near-miss prompt must NOT reuse a
+   * neighbour's answer (e.g. exact-identity lookups).
+   */
+  semantic?: boolean;
 }
 
 export interface LLMClientResult extends LLMCompletionResult {
@@ -284,6 +323,8 @@ export interface LLMClientResult extends LLMCompletionResult {
 
 export interface LLMClientStats {
   cacheHits: number;
+  /** Exact-match misses that then hit the semantic tier. */
+  semanticHits: number;
   cacheMisses: number;
   llmCalls: number;
   llmFailures: number;
@@ -304,6 +345,19 @@ export interface LLMClientOptions {
   cacheTtlMs?: number;
   /** Max calls per rolling 60s window. 0 → unlimited. Default 0. */
   callsPerMinute?: number;
+  /**
+   * Optional local embedder (lib/semantic-resolver.ts createLocalEmbedder).
+   * When present AND cacheTtlMs > 0, an exact-match miss falls through to a
+   * semantic tier: the prompt is embedded and compared (cosine) against cached
+   * entries of the SAME model+maxTokens; a match at/above `semanticThreshold`
+   * is served from cache. Absent → exact-match only (unchanged behaviour).
+   */
+  embedder?: LocalEmbedder;
+  /**
+   * Cosine threshold for a semantic hit. Default 0.95 — high precision, because
+   * returning the wrong neighbour's answer is worse than a cache miss.
+   */
+  semanticThreshold?: number;
   /** Optional env passed through to the adapter. */
   env?: NodeJS.ProcessEnv;
   /** `Date.now` injection point for tests. */
@@ -320,6 +374,11 @@ export interface LLMClient {
 interface ClientCacheEntry {
   result: LLMCompletionResult;
   insertedAt: number;
+  /** Semantic-tier metadata (only populated when an embedder is configured). */
+  prompt?: string;
+  embedding?: number[];
+  model?: string;
+  maxTokens?: number;
 }
 
 /**
@@ -339,6 +398,8 @@ export function createLLMClient(options: LLMClientOptions): LLMClient {
   const timeoutMs = options.timeoutMs ?? 0;
   const cacheTtlMs = options.cacheTtlMs ?? 0;
   const callsPerMinute = options.callsPerMinute ?? 0;
+  const embedder = options.embedder;
+  const semanticThreshold = options.semanticThreshold ?? 0.95;
   const env = options.env;
   const now = options.now ?? Date.now;
   const log = options.log ?? (() => {});
@@ -347,12 +408,47 @@ export function createLLMClient(options: LLMClientOptions): LLMClient {
   const callTimestamps: number[] = [];
   const stats: LLMClientStats = {
     cacheHits: 0,
+    semanticHits: 0,
     cacheMisses: 0,
     llmCalls: 0,
     llmFailures: 0,
     rateLimited: 0,
     timedOut: 0,
   };
+
+  /**
+   * Semantic tier: embed the prompt and find the nearest cached entry of the
+   * SAME model+maxTokens (cross-model reuse would return the wrong model's
+   * answer). Best-effort — embedding failure (model not yet downloaded, etc.)
+   * returns null so the call falls through to the adapter; it never blocks.
+   * Returns the matched entry plus the freshly-computed query embedding so the
+   * caller can reuse it when storing a miss (no double-embed).
+   */
+  async function semanticLookup(
+    req: LLMClientCallRequest,
+    model: string,
+  ): Promise<{ hit: ClientCacheEntry | null; embedding: number[] | null }> {
+    if (!embedder) return { hit: null, embedding: null };
+    let embedding: number[];
+    try {
+      [embedding] = await embedder.embed([req.prompt]);
+    } catch (err) {
+      log('llm-call: semantic embed failed, skipping tier', { error: (err as Error).message });
+      return { hit: null, embedding: null };
+    }
+    if (!embedding) return { hit: null, embedding: null };
+    let best: ClientCacheEntry | null = null;
+    let bestSim = -1;
+    for (const v of cache.values()) {
+      if (!v.embedding || v.model !== model || v.maxTokens !== (req.maxTokens ?? defaultMaxTokens)) continue;
+      const sim = cosineSimilarity(embedding, v.embedding);
+      if (sim > bestSim) {
+        bestSim = sim;
+        best = v;
+      }
+    }
+    return { hit: best && bestSim >= semanticThreshold ? best : null, embedding };
+  }
 
   function purgeStaleCache(t: number): void {
     if (cacheTtlMs <= 0) {
@@ -379,6 +475,8 @@ export function createLLMClient(options: LLMClientOptions): LLMClient {
   return {
     async complete(req: LLMClientCallRequest): Promise<LLMClientResult> {
       const t = now();
+      const model = req.model || defaultModel;
+      let queryEmbedding: number[] | null = null;
 
       if (req.cacheKey && cacheTtlMs > 0) {
         purgeStaleCache(t);
@@ -388,6 +486,16 @@ export function createLLMClient(options: LLMClientOptions): LLMClient {
           return { ...hit.result, cached: true, fellBack: false };
         }
         stats.cacheMisses += 1;
+
+        // Tier 2: semantic — a near-miss prompt reuses a neighbour's answer.
+        if (embedder && req.semantic !== false) {
+          const { hit: semHit, embedding } = await semanticLookup(req, model);
+          queryEmbedding = embedding; // reuse on store, avoid a second embed
+          if (semHit) {
+            stats.semanticHits += 1;
+            return { ...semHit.result, cached: true, fellBack: false };
+          }
+        }
       }
 
       if (!rateLimitOK(t)) {
@@ -432,7 +540,25 @@ export function createLLMClient(options: LLMClientOptions): LLMClient {
       }
 
       if (req.cacheKey && cacheTtlMs > 0) {
-        cache.set(req.cacheKey, { result, insertedAt: t });
+        const entry: ClientCacheEntry = { result, insertedAt: t };
+        if (embedder && req.semantic !== false) {
+          // Store the embedding for the semantic tier. Reuse the one computed
+          // during the miss lookup; only embed here if that was skipped.
+          if (!queryEmbedding) {
+            try {
+              [queryEmbedding] = await embedder.embed([req.prompt]);
+            } catch {
+              queryEmbedding = null; // best-effort; entry still serves exact-match
+            }
+          }
+          if (queryEmbedding) {
+            entry.prompt = req.prompt;
+            entry.embedding = queryEmbedding;
+            entry.model = model;
+            entry.maxTokens = req.maxTokens ?? defaultMaxTokens;
+          }
+        }
+        cache.set(req.cacheKey, entry);
       }
 
       return { ...result, cached: false, fellBack: false };

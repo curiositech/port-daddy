@@ -8,11 +8,11 @@ const DEMOS = [
   {
     id: 'quickstart',
     title: 'Quick Start',
-    description: 'Session lifecycle',
+    description: 'Start a task, log what you did, hand it off',
     gif: '/gifs/quickstart.gif',
     caption: 'A real recording of a Port Daddy quickstart: commands appear with daemon output, not as a naked checklist.',
     code: `# Start working on a project
-$ pd begin "Building the photo upload API" --identity photoapp:api
+$ pd begin "Building the photo upload API" --identity photoapp:api --lifecycle durable
   Agent agent-a7f3 ready
   Session started · port 9201 · identity photoapp:api
 
@@ -34,18 +34,18 @@ $ pd done "Upload API complete with tests"
   {
     id: 'coordination',
     title: 'Multi-Agent',
-    description: 'Shared repo work',
+    description: 'Two agents in one repo without collisions',
     gif: '/gifs/agents/coordination.gif',
     caption: 'A real coordination recording with visible terminal responses for claims, notes, and guard state.',
     code: `# Agent 1: Backend developer
-$ pd begin "REST API for auth" --identity myapp:api
+$ pd begin "REST API for auth" --identity myapp:api --lifecycle durable
   Agent agent-c3d1 ready
 
 $ pd claim myapp:api
   Port 9201 claimed · identity myapp:api
 
 # Agent 2: Frontend developer
-$ pd begin "React login page" --identity myapp:web
+$ pd begin "React login page" --identity myapp:web --lifecycle durable
   Agent agent-e5f2 ready
 
 $ pd claim myapp:web
@@ -64,7 +64,7 @@ $ pd with-lock db-migrations npm run migrate
   {
     id: 'spawn',
     title: 'AI Spawn',
-    description: 'Budgeted delegated work',
+    description: 'Hand off a small job with a dollar cap',
     gif: '/gifs/agents/event-triggers.gif',
     caption: 'A real agent-trigger recording. Terminal examples on this page must show the system answering back.',
     code: `# Spawn a cheap Codex agent with an explicit budget ceiling
@@ -92,7 +92,7 @@ $ pd spawned
   {
     id: 'salvage',
     title: 'Salvage',
-    description: 'Recover interrupted work',
+    description: 'Pick up work from an agent that crashed',
     gif: '/gifs/salvage.gif',
     caption: 'A real salvage recording with command output visible for the recovery path.',
     code: `# Check for dead agents at session start
@@ -118,7 +118,7 @@ $ pd notes --session agent-x7y9
   {
     id: 'relay-pki',
     title: 'Relay PKI',
-    description: 'Remote identity boundary',
+    description: 'Let a remote agent in without trusting it with secrets',
     code: `# Score the relay identity options with the skill script
 $ printf '%s\\n' '{"kind":"request","version":"1","command":"pki.score","payload":{"options":["ACME","OIDC","WoT","Hybrid"]}}' \\
     | python3 skills/pd-relay-zero-trust/scripts/pki_decision.py \\
@@ -146,12 +146,12 @@ export function TerminalDemos() {
     <section id="demos" className="relative py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       <PageContainer>
         <SectionIntro
-          eyebrow="Substrate proof"
-          title="The app has a real local API underneath."
-          description="The GUI matters, but engineers evaluating agent infrastructure also need to see the contract agents can automate. These examples show real commands with daemon output for sessions, claims, locks, channels, launches, salvage, and identity."
+          eyebrow="See it run for real"
+          title="Under the app is a real local API your agents can drive."
+          description="The app is where you watch and steer. Underneath it is a set of commands your agents can script themselves: start a session, claim a file, hold a lock, send a message, hand off a job, and recover work from a crash. These are real recordings, with the daemon answering back."
           titleAs="h2"
           className="mb-[var(--space-7)] max-w-[46rem]"
-          titleClassName="max-w-[14ch]"
+          titleClassName="max-w-[20ch]"
           bodyClassName="max-w-[39rem]"
         />
 
@@ -162,11 +162,11 @@ export function TerminalDemos() {
               <button
                 key={demo.id}
                 onClick={() => setActiveDemo(demo)}
-                className="min-w-0 cursor-pointer rounded-[var(--radius-lg)] px-4 py-3 text-left transition-all duration-200"
-                style={{
-                  background: activeDemo.id === demo.id ? 'var(--surface-overlay)' : 'transparent',
-                  boxShadow: activeDemo.id === demo.id ? 'var(--shadow-inset)' : 'none',
-                }}
+                className={`min-w-0 cursor-pointer rounded-[var(--radius-lg)] px-4 py-3 text-left transition-all duration-200 ${
+                  activeDemo.id === demo.id
+                    ? 'bg-[var(--surface-overlay)] shadow-[var(--shadow-inset)]'
+                    : 'bg-transparent'
+                }`}
               >
                 <div className="flex items-center gap-2">
                   {activeDemo.id === demo.id ? (
@@ -174,20 +174,18 @@ export function TerminalDemos() {
                   ) : (
                     <Square size={14} className="text-[var(--text-muted)]" />
                   )}
-                  <PanelTitle as="span" size="nav" className={`max-w-none text-[1rem] ${
+                  <PanelTitle as="span" size="nav" className={`max-w-none ${
                     activeDemo.id === demo.id ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
                   }`}>
                     {demo.title}
                   </PanelTitle>
                 </div>
                 {/*
-                  Indent aligns the description under the demo title
-                  (clearing the 14px Square icon + gap). Snapped from
-                  the arbitrary `ml-[22px]` to the token scale: 24px
-                  is the closest --space-5 step, overshoots by 2px but
-                  keeps the spacing system consistent.
+                  Indent aligns the description under the demo title,
+                  clearing the 14px Square icon + gap. --space-5 (24px)
+                  is the closest grid step.
                 */}
-                <PanelBody size="compact" className="ml-[var(--space-5)] mt-[var(--space-1)] max-w-none text-[0.875rem]">
+                <PanelBody size="compact" className="ml-[var(--space-5)] mt-[var(--space-1)] max-w-none">
                   {demo.description}
                 </PanelBody>
               </button>

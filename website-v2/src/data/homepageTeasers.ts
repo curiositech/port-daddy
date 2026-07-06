@@ -105,7 +105,7 @@ export const homepageTeasers: HomepageTeaser[] = [
     kind: 'Example',
     accent: 'green',
     href: '/examples/test-failure-to-agent',
-    title: 'Build a test reporter that asks the agent for help',
+    title: 'Turn a failing test into an agent request',
     summary:
       'Wrap red test output, publish the failure to the local agent, and print the diagnosis back in the terminal.',
     imageSrc: '/img/generated/example-test-failure-to-agent.jpg',

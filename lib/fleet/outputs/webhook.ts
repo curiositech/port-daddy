@@ -17,12 +17,16 @@
  */
 
 import { getSharedConsentGate } from '../consent-gate.js';
+import { assertSafeOutboundUrl } from '../url-guard.js';
 import type {
   OutputAvailability,
   OutputPayload,
   OutputResult,
   OutputSink,
 } from '../types.js';
+
+/** Bound every outbound call; a hung receiver fails fast. */
+const OUTBOUND_FETCH_TIMEOUT_MS = 15_000;
 
 export class WebhookOutputSink implements OutputSink {
   readonly kind = 'webhook' as const;
@@ -47,6 +51,15 @@ export class WebhookOutputSink implements OutputSink {
     // identify the operator when correlated with the receiving service.
     getSharedConsentGate().assertAllowed('webhook', payload);
 
+    // SSRF guard (ADR-0093): the recipient URL is attacker-influenceable when
+    // an untrusted trigger drives the agent. Block private/loopback/link-local/
+    // cloud-metadata targets and obfuscated-IP forms BEFORE fetch(). An
+    // operator may tighten further via extras.allowlist (exact host allowlist).
+    const allowlist = Array.isArray(payload.extras?.allowlist)
+      ? (payload.extras!.allowlist as unknown[]).filter((h): h is string => typeof h === 'string')
+      : undefined;
+    assertSafeOutboundUrl(payload.recipient, allowlist ? { allowlist } : {});
+
     const body = this.shapeBody(payload);
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -55,10 +68,13 @@ export class WebhookOutputSink implements OutputSink {
     if (payload.correlation_id) headers['X-PD-Correlation-Id'] = payload.correlation_id;
     if (payload.idempotency_key) headers['Idempotency-Key'] = payload.idempotency_key;
 
+    // Explicit timeout — an unresponsive receiver must fail the dispatch,
+    // never hang it (no infinite waits on any outbound call).
     const res = await fetch(payload.recipient, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
     });
 
     if (!res.ok) {

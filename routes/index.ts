@@ -17,9 +17,15 @@ import { servicesPlugin } from './services.js';
 import { messagingPlugin } from './messaging.js';
 import { locksPlugin } from './locks.js';
 import { agentsPlugin } from './agents.js';
+import { agentCockpitPlugin } from './agent-cockpit.js';
+import { agentRosterPlugin } from './agent-roster.js';
+import { agentHarborPlugin } from './agent-harbor.js';
 import { activityPlugin } from './activity.js';
 import { webhooksPlugin } from './webhooks.js';
 import { githubWebhookPlugin } from './github-webhook.js';
+import { fleetWebhooksPlugin } from './fleet-webhooks.js';
+import { fleetApprovalsPlugin } from './fleet-approvals.js';
+import { fleetPushPlugin } from './fleet-push.js';
 import { relayPlugin } from './relay.js';
 import { configPlugin } from './config.js';
 import { projectsPlugin } from './projects.js';
@@ -30,11 +36,14 @@ import { tunnelPlugin } from './tunnel.js';
 import { dnsPlugin } from './dns.js';
 import { sugarPlugin } from './sugar.js';
 import { attentionPlugin } from './attention.js';
+import { suggestionsPlugin } from './suggestions.js';
 import { launchPlugin } from './launch.js';
 import { spawnPlugin } from './spawn.js';
 import { attestPlugin } from './attest.js';
+import { safePlugin } from './safe.js';
 import { transcriptsPlugin } from './transcripts.js';
 import { harborsPlugin } from './harbors.js';
+import { whoisPlugin } from './whois.js';
 import { sortiesPlugin } from './sorties.js';
 import { orchestratorPlugin } from './orchestrator.js';
 import { briefingPlugin } from './briefing.js';
@@ -61,16 +70,20 @@ import { panicPlugin } from './panic.js';
 import { budgetPlugin } from './budget.js';
 import { advisorPlugin } from './advisor.js';
 import { quorumPlugin } from './quorum.js';
+import { parleyPlugin } from './parley.js';
 import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
 import { roadmapPlugin } from './roadmap.js';
 import { commitmentsPlugin } from './commitments.js';
 import { shipwrightPlugin } from './shipwright.js';
 import { usagePlugin } from './usage.js';
+import { cloudAppTelemetryPlugin } from './cloud-app-telemetry.js';
 import { testHooksPlugin } from './test-hooks.js';
 import { cockpitPlugin } from './cockpit.js';
 import { popperPlugin } from './popper.js';
 import { dispatchesPlugin } from './dispatches.js';
+import { visualTasksPlugin } from './visual-tasks.js';
+import { fleetHitlProposalsPlugin } from './fleet-hitl-proposals.js';
 import { setupPlugin } from './setup.js';
 import { secretsPlugin } from './secrets.js';
 import { contextRoutes as contextPlugin } from './context.js';
@@ -104,9 +117,30 @@ export async function registerAllRoutes(
   await fastify.register(messagingPlugin, { deps } as any);
   await fastify.register(locksPlugin, { deps } as any);
   await fastify.register(agentsPlugin, { deps } as any);
+  await fastify.register(agentRosterPlugin, { deps } as any);
+
+  // Agent Harbor read API (binder ch09; work order C-routes). Serves C1's
+  // projections over HTTP: GET /agent-nodes (+detail/files), paged+SSE
+  // GET /sessions/:id/events, /costs, /receipts/:id verify, /compliance/:id.
+  // Read-only; stale projections are labeled in the envelope, never hidden.
+  await fastify.register(agentHarborPlugin, { deps } as any);
+
+  // Agent Cockpit — "Watch + Grab the Wheel" Phase 0. Additive: GET
+  // /agents/:id/stream (merged SSE) + POST /agents/:id/interrupt (soft steer).
+  // Registers AFTER agentsPlugin so its specific /agents/:id/stream path is
+  // matched alongside the generic /agents/:id. transcripts is optional in deps;
+  // the plugin self-degrades to status+tube sources when it's absent.
+  await fastify.register(agentCockpitPlugin, { deps } as any);
+
   await fastify.register(activityPlugin, { deps } as any);
   await fastify.register(webhooksPlugin, { deps } as any);
   await fastify.register(githubWebhookPlugin, { deps } as any);
+  // Fleet inbound webhook receiver (I/O wiring Phase 2, trust-gated).
+  await fastify.register(fleetWebhooksPlugin, { deps } as any);
+  // Trust-gate approval loop: WebSocket stream + REST decisions (ADR-0093 L2).
+  await fastify.register(fleetApprovalsPlugin, { deps } as any);
+  // Web Push (VAPID) so approval gates reach the operator's devices.
+  await fastify.register(fleetPushPlugin, { deps } as any);
 
   // Relay — daemon-side federation management (ADR-0049). Was SHIPPED-DEAD:
   // routes/relay.ts defined GET/POST /relay/config, /relay/status and
@@ -141,12 +175,20 @@ export async function registerAllRoutes(
   await fastify.register(dnsPlugin, { deps } as any);
   await fastify.register(sugarPlugin, { deps } as any);
   await fastify.register(attentionPlugin, { deps } as any);
+  await fastify.register(suggestionsPlugin, { deps } as any);
   await fastify.register(launchPlugin, { deps } as any);
   await fastify.register(spawnPlugin, { deps } as any);
   await fastify.register(attestPlugin, { deps } as any);
+  // ADR-0088 Phase A: GET /safe/scan — the read-only host-safety posture audit.
+  // The A5 trust ledger it records into is daemon-resident (bun:sqlite), so the
+  // scan lives behind the daemon and the CLI/MCP both hit this one route.
+  await fastify.register(safePlugin, { deps } as any);
   await fastify.register(transcriptsPlugin, { deps } as any);
   await fastify.register(sortiesPlugin, { deps } as any);
   await fastify.register(harborsPlugin, { deps } as any);
+  if ((deps as any).whois) {
+    await fastify.register(whoisPlugin, { deps } as any);
+  }
   await fastify.register(orchestratorPlugin, { deps } as any);
   await fastify.register(briefingPlugin, { deps } as any);
   await fastify.register(sitrepPlugin, { deps } as any);
@@ -185,6 +227,10 @@ export async function registerAllRoutes(
   if ((deps as any).counters && (deps as any).costTracker) {
     await fastify.register(observabilityPlugin, { deps } as any);
   }
+
+  // Cloud App telemetry — remote GitHub App / Cloudflare Worker events that
+  // never passed through the local spawner.
+  await fastify.register(cloudAppTelemetryPlugin, { deps } as any);
 
   // Prometheus metrics + JSON snapshots (powers /metrics dashboard page)
   if ((deps as any).metricsRegistry && (deps as any).db) {
@@ -236,6 +282,11 @@ export async function registerAllRoutes(
   // Only mounts if a quorum dep was constructed (depends on tuple space).
   if ((deps as any).quorum) {
     await fastify.register(quorumPlugin, { deps } as any);
+  }
+
+  // Parley — manual forced-reconciliation core for contested agent work.
+  if ((deps as any).parley) {
+    await fastify.register(parleyPlugin, { deps } as any);
   }
 
   // Feedback — central agentic-feedback primitive (tuple-backed).
@@ -294,6 +345,16 @@ export async function registerAllRoutes(
   if ((deps as { dispatchQueue?: unknown }).dispatchQueue) {
     await fastify.register(dispatchesPlugin, { deps } as any);
   }
+
+  // Fleet HITL proposals — cloud ships can propose work, but only these
+  // operator-gated routes may turn a proposal into a dispatch.
+  if ((deps as { db?: unknown }).db || (deps as { fleetProposals?: unknown }).fleetProposals) {
+    await fastify.register(fleetHitlProposalsPlugin, { deps } as any);
+  }
+
+  // Visual task issue intake — browser/FleetBar POST /visual-tasks. This is
+  // product vocabulary over channels, blobs, inboxes, and dispatch queue writes.
+  await fastify.register(visualTasksPlugin, { deps } as any);
 
   // Context health overview — mounts when contextTracker dep is present.
   if ((deps as { contextTracker?: unknown }).contextTracker) {

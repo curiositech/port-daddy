@@ -9,7 +9,7 @@ const workflowSteps = [
   {
     title: "Open FleetBar and the dashboard",
     icon: MonitorCog,
-    body: "FleetBar is the Mac entrance. It opens the daemon-served Fleet Control Center, so Flow, Agents, Resources, Sorties, Shipwright, Activity, Inbox, and YAML all report the same project identity.",
+    body: "FleetBar is the Mac entrance. It opens the daemon-served Fleet Control Center, so Flow, Agents, Resources, Spawned Runs, Shipwright, Activity, Inbox, and YAML all report the same project identity.",
     command: "pd setup --project ~/coding/my-app",
   },
   {
@@ -21,7 +21,7 @@ const workflowSteps = [
   {
     title: "Let Shipwright connect cold start to Flow",
     icon: Wrench,
-    body: "Shipwright surveys the repo, proposes a starter fleet, simulates the envelope, then sends you back to Flow, Agents, YAML, Sorties, and Resources.",
+    body: "Shipwright surveys the repo, proposes a starter fleet, simulates the envelope, then sends you back to Flow, Agents, YAML, Spawned Runs, and Resources.",
     command: "pd fleet init\npd fleet validate",
   },
   {
@@ -29,7 +29,7 @@ const workflowSteps = [
     icon: RadioTower,
     body: "Sessions, notes, scoped channels, actor inboxes, claims, tuples, locks, and salvage records are how agents communicate across separate tools and crashes.",
     command:
-      'pd begin "first coordinated change"\npd note "handoff ready"\npd salvage --project my-app',
+      'pd begin "first coordinated change" --lifecycle durable\npd note "handoff ready"\npd salvage --project my-app',
   },
 ] as const;
 
@@ -146,15 +146,15 @@ Coordination Guard: enforce`}</CodeBlock>
           </motion.h2>
           <motion.p>
             After setup and readiness checks, open FleetBar or the Fleet Control
-            Center. Shipwright should lead into Flow. Sorties should preserve
-            mission history. Resources should show pressure and spend. Activity,
+            Center. Spawned work should preserve enough artifacts and history to
+            be inspected later. Resources should show pressure and spend. Activity,
             Inbox, notes, claims, tuples, and salvage should make agent-to-agent
             communication visible instead of buried in one terminal transcript.
           </motion.p>
           <CodeBlock copyable={false} language="bash">{`open "http://127.0.0.1:9876/fleet-ui/?surface=shipwright"
 pd fleet up
-pd sortie "Check docs drift and summarize product-truth gaps" --budget 0.50
-# Expected result: Fleet Control Center opens, the fleet starts, and the sortie appears in mission history.`}</CodeBlock>
+pd spawn --backend codex --budget 0.50 --purpose "Check docs drift" -- "Summarize product-truth gaps"
+# Expected result: Fleet Control Center opens, the fleet starts, and the spawned run appears in activity.`}</CodeBlock>
         </section>
       </motion.div>
     </TutorialLayout>

@@ -94,7 +94,7 @@ _port_daddy() {
     # Activity
     log activity
     # Sessions & Notes
-    session sessions note notes
+    session sessions takeover note notes
     # Agent Resurrection & Changelog
     salvage resurrection changelog
     # DNS
@@ -102,15 +102,17 @@ _port_daddy() {
     # File Claims & Integration
     files add who-owns integration
     # Sugar (compound commands)
-    begin b done whoami w attention with-lock n u d learn tutorial
+    begin b done whoami w attention nudge with-lock n u d learn tutorial
     # Briefing & History
     briefing history
     # Consolidated read/write (3.8.4)
     say look sitrep pheromone ph advise preflight compass guard snapshots snapshot backup restore attest shipwright
+    # Host-safety posture audit (ADR-0088)
+    safe
     # Agent Inbox
-    inbox
+    inbox send sent
     # AI Agent Spawner + Watch
-    spawn spawned sortie watch
+    spawn spawned work sortie watch
     # Fleet ship-run transcripts
     transcripts transcript
     # Cloud relay — zero-trust event fabric (ADR-0049)
@@ -132,15 +134,21 @@ _port_daddy() {
     # Harbormaster — canonical merge-owning actor body (ADR-0037)
     harbormaster hm
     # Harbors (named permission namespaces)
-    harbor harbors
+    harbor harbors whois
+    # Agent Harbor event ledger + projections (binder ch18 C1, ADR-0095)
+    harbor-ledger
     # Tuple space
     tuple
     # Semantic graph + episodic memory
     graph memory ideas
+    # Shared local embedder (ADR-0061)
+    embed
     # Cartographer roadmap projection
     roadmap
     # Quorum (swarm consensus primitive)
     quorum
+    # Parley (forced reconciliation primitive)
+    parley
     # Feedback (central agentic-feedback primitive)
     feedback
     # Durable commitments + obligation monitor (ADR-0041)
@@ -150,13 +158,13 @@ _port_daddy() {
     # Orchestration
     up down
     # Benchmarking, Demos & Fleet
-    bench benchmark demo fleet backend relay
+    bench benchmark demo fleet backend squid hooks relay
     # Project (+ alias)
     scan s projects p doctor diagnose hints
     # Project onboarding
-    setup init
+    setup init cut
     # Daemon lifecycle
-    start stop restart install uninstall dev daemon ci-gate mcp
+    start stop restart install uninstall dev use daemon ci-gate self-update upgrade mcp
     # Bonds / Wallets — FleetControl hardening
     wallet bond
     # Info
@@ -340,6 +348,11 @@ _port_daddy() {
           # Complete file paths
           # shellcheck disable=SC2207
           COMPREPLY=( $(compgen -f -- "$cur") )
+          ;;
+        env)
+          # `pd env <here>` — offer the `exec` subcommand alongside services.
+          COMPREPLY=( $(compgen -W "exec" -- "$cur") )
+          _pd_complete_service '--file'
           ;;
         *)
           _pd_complete_service '--file'
@@ -571,7 +584,7 @@ _port_daddy() {
     #                         [--maxServices N] [--maxLocks N]
     # -----------------------------------------------------------------------
     agent)
-      local agent_subcommands='register heartbeat unregister'
+      local agent_subcommands='register heartbeat unregister interrupt stream'
       # Find which subcommand (if any) has been typed after "agent".
       local subcmd=""
       for (( i = 1; i < cword; i++ )); do
@@ -636,6 +649,26 @@ _port_daddy() {
               COMPREPLY=( $(compgen -W "$aids" -- "$cur") )
               ;;
             *) _pd_opts '--agent' ;;
+          esac
+          ;;
+        interrupt|stream)
+          # interrupt <agent-id> [--reason TEXT] ; stream <agent-id>
+          case "$prev" in
+            interrupt|stream|--agent)
+              local aids; aids="$(_pd_agent_ids)"
+              # shellcheck disable=SC2207
+              COMPREPLY=( $(compgen -W "$aids" -- "$cur") )
+              ;;
+            --reason)
+              COMPREPLY=()  # Free-form string
+              ;;
+            *)
+              if [[ "$subcmd" == "interrupt" ]]; then
+                _pd_opts '--reason --agent'
+              else
+                _pd_opts '--agent'
+              fi
+              ;;
           esac
           ;;
         *)
@@ -718,7 +751,7 @@ _port_daddy() {
     # session  <subcommand> [args]
     # -----------------------------------------------------------------------
     session)
-      local session_subcommands='start end done abandon rm files phase'
+      local session_subcommands='start end done abandon takeover rm files phase'
       # Find which subcommand (if any) has been typed after "session".
       local subcmd=""
       for (( i = 1; i < cword; i++ )); do
@@ -752,6 +785,9 @@ _port_daddy() {
           ;;
         abandon|rm)
           _pd_opts ''
+          ;;
+        takeover)
+          _pd_opts '--purpose -P --note -n --lifecycle --no-files --no-claims'
           ;;
         files)
           # files has sub-subcommands: add, rm
@@ -787,6 +823,21 @@ _port_daddy() {
           ;;
         *)
           _pd_opts ''
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # takeover <session-id> [note]  (alias for session takeover)
+    # -----------------------------------------------------------------------
+    takeover)
+      case "$prev" in
+        --lifecycle)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "durable ephemeral" -- "$cur") )
+          ;;
+        *)
+          _pd_opts '--purpose -P --note -n --agent -a --lifecycle --no-files --no-claims'
           ;;
       esac
       ;;
@@ -1505,6 +1556,36 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
+    # work  probe [--adapter K] [--profile P] | matrix  — conformance probes
+    # (ADR-0095 Work Intent family; binder ch18 Work Order C2)
+    # -----------------------------------------------------------------------
+    work)
+      local work_sub="${words[2]:-}"
+      case "$prev" in
+        work)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "probe matrix help" -- "$cur") )
+          ;;
+        --adapter)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "claude-code codex-cli cloudflare ollama lmstudio custom-stdio custom-http" -- "$cur") )
+          ;;
+        --profile)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "compliant weak broken malicious" -- "$cur") )
+          ;;
+        *)
+          # --adapter/--profile are probe-only flags; matrix/help take only --json.
+          if [[ "$work_sub" == probe ]]; then
+            _pd_opts '--adapter --profile --json'
+          else
+            _pd_opts '--json'
+          fi
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
     # cockpit  missions  [--project --status --limit --json]
     # -----------------------------------------------------------------------
     cockpit)
@@ -1642,6 +1723,25 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
+    # harbor-ledger  status|project|rebuild  [projection]  [--json]
+    # -----------------------------------------------------------------------
+    harbor-ledger)
+      local hl_subcmd="${words[2]:-}"
+      case "$hl_subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "status project rebuild" -- "$cur") )
+          ;;
+        project|rebuild)
+          COMPREPLY=( $(compgen -W "roster transcript-timeline files-touched costs compliance work-receipts --json" -- "$cur") )
+          ;;
+        status)
+          _pd_opts '--json'
+          ;;
+        *) _pd_opts '--json' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
     # tuple  out|rd|in|scan|count  [args]  [options]
     # -----------------------------------------------------------------------
     tuple)
@@ -1737,6 +1837,37 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
+    # safe  scan|baseline accept <id>|fix [--auto]  (ADR-0088 host-safety)
+    # -----------------------------------------------------------------------
+    safe)
+      local safe_subcommands='scan baseline fix corral guard'
+      local subcmd=""
+      for (( i = 1; i < cword; i++ )); do
+        local w="${words[$i]}"
+        if [[ "$w" == "safe" ]]; then
+          if (( i + 1 < cword )); then
+            subcmd="${words[$((i+1))]}"
+          fi
+          break
+        fi
+      done
+
+      if [[ -z "$subcmd" ]]; then
+        COMPREPLY=( $(compgen -W "$safe_subcommands" -- "$cur") )
+      elif [[ "$subcmd" == "baseline" ]]; then
+        COMPREPLY=( $(compgen -W "accept" -- "$cur") )
+      elif [[ "$subcmd" == "scan" ]]; then
+        _pd_opts '--json --allow --quiet'
+      elif [[ "$subcmd" == "fix" ]]; then
+        _pd_opts '--auto --json'
+      elif [[ "$subcmd" == "corral" ]]; then
+        _pd_opts '--all --apply --json'
+      elif [[ "$subcmd" == "guard" ]]; then
+        _pd_opts '--staged --json --quiet'
+      fi
+      ;;
+
+    # -----------------------------------------------------------------------
     # pheromone  spray|file|files|show|ls  [args]  [options]
     # -----------------------------------------------------------------------
     pheromone|ph)
@@ -1759,6 +1890,28 @@ _port_daddy() {
           _pd_opts '--json --quiet'
           ;;
         *) _pd_opts '--json --quiet' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # embed  status|prefetch|text|stdin  [options]
+    # -----------------------------------------------------------------------
+    embed)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "status prefetch text stdin" -- "$cur") )
+          ;;
+        status)
+          _pd_opts '--json --cache-dir'
+          ;;
+        prefetch)
+          _pd_opts '--cache-dir'
+          ;;
+        text|stdin)
+          _pd_opts '--offline --cache-dir'
+          ;;
+        *) _pd_opts '' ;;
       esac
       ;;
 
@@ -1858,6 +2011,12 @@ _port_daddy() {
         promote)
           _pd_opts '--from-feedback --feedbackId --id --slug --summary --status --as --agent --harbor --json --quiet'
           ;;
+        upsert|add)
+          _pd_opts '--summary --status --as --agent --by --note --receipt --harbor --project --dependencies --json --quiet'
+          ;;
+        touch)
+          _pd_opts '--note --receipt --as --agent --by --harbor --json --quiet'
+          ;;
         render)
           _pd_opts '--write --dir --root --rootDir --projectDir --status --harbor --project --limit --json --quiet'
           ;;
@@ -1865,18 +2024,47 @@ _port_daddy() {
           if [[ "$cur" == -* ]]; then
             _pd_opts '--dir --root --projectDir --limit --feedback-status --feedback-harbor --feedback-limit --no-excerpts --json --quiet'
           else
-            COMPREPLY=( $(compgen -W "ack harvest promote render pop release claims help" -- "$cur") )
+            COMPREPLY=( $(compgen -W "ack harvest promote upsert add touch render pop release claims delete rm help" -- "$cur") )
           fi
           ;;
       esac
       ;;
 
-    # fleet  init|up|down|status|run|panic|unpanic|validate|prompt|help  [agent-name]
+    # parley call|respond|resolve|list|show|fit
+    parley)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        call)
+          _pd_opts '--surface --with --parties --reason --ttl-ms --round-limit --harbor --as --json --quiet'
+          ;;
+        respond)
+          _pd_opts '--id --parley --performative --content --proposal --evidence --as --party --json --quiet'
+          ;;
+        resolve)
+          _pd_opts '--id --parley --status --decision --reason --dissenters --as --json --quiet'
+          ;;
+        list|show)
+          _pd_opts '--id --parley --status --harbor --limit --json --quiet'
+          ;;
+        fit)
+          _pd_opts '--shape --reasoningShape --baseline --singleAgentBaseline --value --taskValueMultiplier --tokens --estimatedTokenMultiplier --independence --subtaskIndependence --contention --writeContention --writers --maxConcurrentWriters --verify --heterogeneous --fits-in-one-context --json --quiet'
+          ;;
+        *)
+          if [[ "$cur" == -* ]]; then
+            _pd_opts '--json --quiet'
+          else
+            COMPREPLY=( $(compgen -W "call respond resolve list show fit help" -- "$cur") )
+          fi
+          ;;
+      esac
+      ;;
+
+    # fleet  init|up|down|status|run|panic|unpanic|halt|pause|resume|inspect|tree|validate|prompt|help  [agent-name|rootId]
     fleet)
       local subcmd="${words[2]:-}"
       case "$subcmd" in
         '')
-          COMPREPLY=( $(compgen -W "init up down status run panic unpanic validate prompt help" -- "$cur") )
+          COMPREPLY=( $(compgen -W "init up down status run panic unpanic halt pause resume inspect tree validate prompt help" -- "$cur") )
           ;;
         run)
           COMPREPLY=()  # agent names from pd-fleet.yml — no live lookup
@@ -1886,6 +2074,15 @@ _port_daddy() {
           ;;
         unpanic)
           _pd_opts '--reason --json --quiet'
+          ;;
+        halt)
+          _pd_opts '--root --yes --json --quiet'
+          ;;
+        pause|resume)
+          _pd_opts '--root --json --quiet'
+          ;;
+        inspect|tree)
+          _pd_opts '--root --json'  # rootId is positional; --root also accepted
           ;;
         *) _pd_opts '' ;;
       esac

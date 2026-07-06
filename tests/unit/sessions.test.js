@@ -267,43 +267,49 @@ describe('Sessions Module', () => {
     });
   });
 
-  describe('Remove (CASCADE)', () => {
-    it('should delete the session', () => {
+  describe('Remove (archive)', () => {
+    it('should archive an active session without deleting it', () => {
       const started = sessions.start('Work item');
       const result = sessions.remove(started.id);
 
       expect(result.success).toBe(true);
+      expect(result.archived).toBe(true);
+      expect(result.removed).toBe(false);
+      expect(result.notesPreserved).toBe(true);
 
       const got = sessions.get(started.id);
-      expect(got.success).toBe(false);
-      expect(got.error).toMatch(/session not found/);
+      expect(got.success).toBe(true);
+      expect(got.session.status).toBe('abandoned');
+      expect(got.notes.some(note => note.type === 'archive')).toBe(true);
     });
 
-    it('should cascade delete notes', () => {
+    it('should preserve notes', () => {
       const started = sessions.start('Work item');
       sessions.addNote(started.id, 'Note 1');
       sessions.addNote(started.id, 'Note 2');
 
       sessions.remove(started.id);
 
-      // Notes should be gone — verify by trying to get the session
       const got = sessions.get(started.id);
-      expect(got.success).toBe(false);
+      expect(got.success).toBe(true);
+      expect(got.notes.map(note => note.content)).toEqual(expect.arrayContaining(['Note 1', 'Note 2']));
 
-      // Also verify at the DB level that notes are gone
       const noteCount = db.prepare('SELECT COUNT(*) as count FROM session_notes WHERE session_id = ?').get(started.id);
-      expect(noteCount.count).toBe(0);
+      expect(noteCount.count).toBe(3);
     });
 
-    it('should cascade delete file claims', () => {
+    it('should release active file claims but preserve claim rows', () => {
       const started = sessions.start('Work item', {
         files: ['src/a.ts', 'src/b.ts']
       });
 
-      sessions.remove(started.id);
+      const result = sessions.remove(started.id);
+      expect(result.releasedFiles).toEqual(['src/a.ts', 'src/b.ts']);
 
       const fileCount = db.prepare('SELECT COUNT(*) as count FROM session_files WHERE session_id = ?').get(started.id);
-      expect(fileCount.count).toBe(0);
+      const activeCount = db.prepare('SELECT COUNT(*) as count FROM session_files WHERE session_id = ? AND released_at IS NULL').get(started.id);
+      expect(fileCount.count).toBe(2);
+      expect(activeCount.count).toBe(0);
     });
 
     it('should fail for nonexistent session', () => {
@@ -318,6 +324,110 @@ describe('Sessions Module', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toMatch(/sessionId/);
+    });
+  });
+
+  describe('Takeover', () => {
+    it('should create a successor session and preserve predecessor notes', () => {
+      const started = sessions.start('Build takeover', {
+        agentId: 'old-agent',
+        files: ['src/a.ts'],
+        project: 'port-daddy',
+        metadata: { old: true },
+      });
+      sessions.addNote(started.id, 'old note');
+
+      const result = sessions.takeover(started.id, {
+        agentId: 'new-agent',
+        note: 'continuing after stale owner',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.predecessorId).toBe(started.id);
+      expect(result.successorId).toMatch(/^session-build-takeover-[a-f0-9]{12}$/);
+      expect(result.notesPreserved).toBe(true);
+      expect(result.claimedFiles).toEqual(['src/a.ts']);
+
+      const predecessor = sessions.get(started.id);
+      expect(predecessor.success).toBe(true);
+      expect(predecessor.session.status).toBe('abandoned');
+      expect(predecessor.session.metadata.takenOverBySessionId).toBe(result.successorId);
+      expect(predecessor.notes.map(note => note.content)).toEqual(expect.arrayContaining([
+        'old note',
+        expect.stringContaining(result.successorId),
+      ]));
+
+      const successor = sessions.get(result.successorId);
+      expect(successor.success).toBe(true);
+      expect(successor.session.status).toBe('active');
+      expect(successor.session.agentId).toBe('new-agent');
+      expect(successor.session.identityProject).toBe('port-daddy');
+      expect(successor.session.metadata.predecessorSessionId).toBe(started.id);
+      expect(successor.files.filter(file => file.releasedAt === null).map(file => file.filePath)).toEqual(['src/a.ts']);
+
+      const oldActiveFiles = db.prepare('SELECT COUNT(*) as count FROM session_files WHERE session_id = ? AND released_at IS NULL').get(started.id);
+      expect(oldActiveFiles.count).toBe(0);
+    });
+
+    it('should preserve region claims when transferring files', () => {
+      const started = sessions.start('Region takeover', { agentId: 'old-agent' });
+      const claim = sessions.claimFiles(started.id, [], {
+        agentId: 'old-agent',
+        regions: [{ path: 'src/a.ts', startLine: 10, endLine: 20, symbol: 'run', symbolPath: 'run' }],
+      });
+      expect(claim.success).toBe(true);
+
+      const result = sessions.takeover(started.id, { agentId: 'new-agent' });
+
+      expect(result.success).toBe(true);
+      const successor = sessions.get(result.successorId);
+      expect(successor.files).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          filePath: 'src/a.ts',
+          startLine: 10,
+          endLine: 20,
+          symbolPath: 'run',
+          releasedAt: null,
+        }),
+      ]));
+    });
+
+    it('should keep the predecessor agent when takeover does not specify a replacement', () => {
+      const started = sessions.start('Agent continuity takeover', {
+        agentId: 'continuity-agent',
+        durable: true,
+      });
+
+      const result = sessions.takeover(started.id, { note: 'same agent continuing' });
+
+      expect(result.success).toBe(true);
+      const successor = sessions.get(result.successorId);
+      expect(successor.success).toBe(true);
+      expect(successor.session.agentId).toBe('continuity-agent');
+      expect(successor.session.metadata.predecessorAgentId).toBe('continuity-agent');
+
+      const predecessor = sessions.get(started.id);
+      expect(predecessor.session.metadata.takenOverByAgentId).toBe('continuity-agent');
+    });
+
+    it('should create a successor from a completed session without changing predecessor status', () => {
+      const started = sessions.start('Completed source');
+      sessions.end(started.id, { note: 'done once' });
+
+      const result = sessions.takeover(started.id, { agentId: 'new-agent', claimFiles: false });
+
+      expect(result.success).toBe(true);
+      expect(result.claimsTransferred).toBe(false);
+      const predecessor = sessions.get(started.id);
+      expect(predecessor.session.status).toBe('completed');
+      expect(predecessor.notes.some(note => note.type === 'takeover')).toBe(true);
+    });
+
+    it('should fail for nonexistent session', () => {
+      const result = sessions.takeover('session-nope', { agentId: 'new-agent' });
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('SESSION_NOT_FOUND');
     });
   });
 
@@ -1074,6 +1184,20 @@ describe('Sessions Module', () => {
       expect(result.sessions[0].notes).toHaveLength(2);
     });
 
+    it('should include active file and note counts in list rows', () => {
+      const started = sessions.start('Counted session', {
+        files: ['src/a.ts', 'src/b.ts'],
+      });
+      sessions.addNote(started.id, 'First note');
+      sessions.addNote(started.id, 'Second note');
+
+      const result = sessions.list({ status: 'active' });
+      const row = result.sessions.find((session) => session.id === started.id);
+
+      expect(row.fileCount).toBe(2);
+      expect(row.noteCount).toBe(2);
+    });
+
     it('should not include notes by default', () => {
       const started = sessions.start('Work item');
       sessions.addNote(started.id, 'Note 1');
@@ -1184,7 +1308,7 @@ describe('Sessions Module', () => {
   // ===========================================================================
 
   describe('cleanup', () => {
-    it('should clean old completed sessions', () => {
+    it('should preserve old completed sessions instead of deleting them', () => {
       const s1 = sessions.start('Old completed');
       sessions.end(s1.id);
       // Backdate to 8 days ago
@@ -1198,15 +1322,17 @@ describe('Sessions Module', () => {
 
       const result = sessions.cleanup();
 
-      expect(result.cleaned).toBe(1);
+      expect(result.cleaned).toBe(0);
+      expect(result.preserved).toBe(1);
+      expect(result.notesPreserved).toBe(true);
 
-      // Old one is gone
-      expect(sessions.get(s1.id).success).toBe(false);
+      // Old one is still queryable
+      expect(sessions.get(s1.id).success).toBe(true);
       // Recent one is still there
       expect(sessions.get(s2.id).success).toBe(true);
     });
 
-    it('should clean old abandoned sessions', () => {
+    it('should preserve old abandoned sessions', () => {
       const s1 = sessions.start('Old abandoned');
       sessions.abandon(s1.id);
       db.prepare('UPDATE sessions SET updated_at = ? WHERE id = ?').run(
@@ -1216,7 +1342,9 @@ describe('Sessions Module', () => {
 
       const result = sessions.cleanup();
 
-      expect(result.cleaned).toBe(1);
+      expect(result.cleaned).toBe(0);
+      expect(result.preserved).toBe(1);
+      expect(sessions.get(s1.id).success).toBe(true);
     });
 
     it('should NOT clean active sessions', () => {
@@ -1229,6 +1357,7 @@ describe('Sessions Module', () => {
       const result = sessions.cleanup();
 
       expect(result.cleaned).toBe(0);
+      expect(result.preserved).toBe(0);
       expect(sessions.get(s1.id).success).toBe(true);
     });
 
@@ -1244,7 +1373,8 @@ describe('Sessions Module', () => {
       // Clean with 1-hour threshold
       const result = sessions.cleanup({ olderThan: 60 * 60 * 1000 });
 
-      expect(result.cleaned).toBe(1);
+      expect(result.cleaned).toBe(0);
+      expect(result.preserved).toBe(1);
     });
 
     it('should filter by specific status', () => {
@@ -1265,7 +1395,8 @@ describe('Sessions Module', () => {
       // Only clean completed
       const result = sessions.cleanup({ status: 'completed' });
 
-      expect(result.cleaned).toBe(1);
+      expect(result.cleaned).toBe(0);
+      expect(result.preserved).toBe(1);
 
       // Abandoned is still there
       expect(sessions.get(s2.id).success).toBe(true);
@@ -1275,9 +1406,10 @@ describe('Sessions Module', () => {
       const result = sessions.cleanup();
 
       expect(result.cleaned).toBe(0);
+      expect(result.preserved).toBe(0);
     });
 
-    it('should cascade-delete notes and files on cleanup', () => {
+    it('should preserve notes and file history on cleanup', () => {
       const s1 = sessions.start('Old completed', { files: ['src/a.ts'] });
       sessions.addNote(s1.id, 'A note');
       sessions.end(s1.id);
@@ -1288,11 +1420,11 @@ describe('Sessions Module', () => {
 
       sessions.cleanup();
 
-      // Verify notes and files are gone at DB level
       const noteCount = db.prepare('SELECT COUNT(*) as count FROM session_notes WHERE session_id = ?').get(s1.id);
       const fileCount = db.prepare('SELECT COUNT(*) as count FROM session_files WHERE session_id = ?').get(s1.id);
-      expect(noteCount.count).toBe(0);
-      expect(fileCount.count).toBe(0);
+      expect(noteCount.count).toBe(1);
+      expect(fileCount.count).toBe(1);
+      expect(sessions.get(s1.id).success).toBe(true);
     });
 
     it('should abandon orphaned active sessions after the grace threshold', () => {

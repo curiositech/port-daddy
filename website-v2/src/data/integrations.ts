@@ -22,7 +22,7 @@ export const INTEGRATIONS: Integration[] = [
       'Progressive disclosure: Claude only sees essential tools until pd_discover() is called.',
       'Session management: begin_session, end_session_full, whoami, and add_note tools built in.'
     ],
-    setupCode: `pd mcp install\n# Claude Code now has Port Daddy tools available.`
+    setupCode: `pd mcp install\n# Claude Code now has Port Daddy tools and the Pilot persona available.`
   },
   {
     id: 'cursor',
@@ -92,7 +92,7 @@ export const INTEGRATIONS: Integration[] = [
       'Session notes capture Aider\'s edit history for cross-agent context.',
       'Automatic salvage: if Aider crashes, its session context enters the resurrection queue.'
     ],
-    setupCode: `pd spawn --backend aider --identity myapp:coder -- "Fix the login bug"\n# Or wrap manually:\npd begin --identity myapp:coder && aider && pd done`
+    setupCode: `pd spawn --backend aider --identity myapp:coder -- "Fix the login bug"\n# Or wrap manually:\npd begin "Fix the login bug" --identity myapp:coder --lifecycle durable && aider && pd done`
   },
   {
     id: 'continue-dev',

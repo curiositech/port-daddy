@@ -1,0 +1,80 @@
+STATS:
+
+---
+LAST COMMIT:
+0feaf6f2be21dda4c0984146c6a1cca7bea001ff
+Erich Owens <[redacted]>
+2026-05-19 21:18:20 -0700
+Delegation chain walker + replay-defense conformance (#66)
+
+* Add multi-hop delegation walker + replay-defense conformance
+
+lib/delegation-chain.ts implements §3 of chain-replay.pv: each hop
+signs hopBind(nonce, prev_id, next_id, message_hash) under Ed25519.
+The walker verifies depth-N chains with a nonce-freshness table and
+rejects splices, replays, hop-swaps, and chain truncation.
+
+Conformance test exercises the counter-traces the .pv defends against:
+nonce reuse, hop swap, signature forgery, chain truncation. 17/17 pass.
+
+Updates RUNTIME-CONFORMANCE.md to drop the SPEC-ONLY tag on delegation.
+
+Spec: proofs/anchor/delegation/chain-replay.pv
+Runtime: lib/delegation-chain.ts
+
+* fix(delegation): bind signer identity to chain identity + add hopBind DST
+
+Addresses three findings from the adversarial security review on PR #66
+(comment #4488401165):
+
+F1 — Verifier accepted attacker-supplied signing key (confidence 5).
+  The DelegationHop carried both prevId (chain identity) and kid
+  (verification key), and verifyDelegationChain used kid to load the
+  Ed25519 public key while building the signed payload from prevId.
+  signHop set them equal, but the verifier trusted whatever the network
+  sent. Attack: Eve crafts a hop with prevId=idVictim, kid=idEve, signed
+  under skEve — verifier accepts as Victim's delegation. Breaks the .pv
+  proof's chain_accepted ==> chain_authorized invariant including hop[0]
+  (principal impersonation).
+
+  Fix: deleted kid entirely. prevId is now both the chain-identity field
+  AND the verification-key source — they cannot drift apart by
+  construction.
+
+F2 — Tests didn't cover F1 (confidence 5). The existing signature-tamper
+  test only flipped a sig byte (trivially broken signature). The 17 tests
+  as written would have all passed even against the broken verifier.
+  Added four new tests:
+   - (F2a) honest hop1 + Eve-signed hop with prevId=idVictim → rejected
+   - (F2b) hop[0] principal impersonation variant → rejected
+   - (F3) signature over a v0-style payload (no DST) → rejected
+   - (F3-meta) HOP_BIND_DST literally appears as the first key in the
+     canonical signed bytes
+
+F3 — Missing domain separation in the signed payload (confidence 4).
+  The .pv writes hopBind(...) : bitstring [data] — a typed constructor,
+  collision-free by construction. The TS encoded a plain JSON object
+  {messageHash, nextId, nonce, prevId} with no type discriminator. Any
+  other signer in the codebase that ever signs an object with these four
+  keys becomes a confused-deputy oracle.
+
+  Fix: hopBindBytes now prepends _dst: 'anchor.delegation.hopBind.v1' as
+  the first canonical key. Exported HOP_BIND_DST so consumers (and the
+  test) can reference the value. Bumping the version is an intentional
+  hard wire-break for any future protocol change.
+
+Deferred (acknowledged but out of scope for this commit):
+F4 NonceTable is in-memory/unbounded (DoS + lost replay protection
+  across daemon restarts). Tracked separately — needs the SQLite-backed
+  table design.
+F5 Truncation isn't enforced (verifier accepts any chain length ≥ 1).
+  The runtime is correctly scoped to no splice / no replay / no
+  message substitution. Minimum-depth / required-intermediary is an
+  application-policy concern that should be added as a verifier param
+  in a separate change; RUNTIME-CONFORMANCE.md should be updated to
+  reflect the actual scope.
+
+All 21 tests pass (was 17, added 4 for F2+F3). Typecheck clean.
+
+---
+DIFF (first 300 lines):

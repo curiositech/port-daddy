@@ -19,6 +19,7 @@ export interface InboxMessage {
   contentType: string;
   type: string;
   read: boolean;
+  readAt: number | null;
   createdAt: number;
 }
 
@@ -30,6 +31,7 @@ interface InboxRow {
   content_type: string;
   type: string;
   read: number;
+  read_at: number | null;
   created_at: number;
 }
 
@@ -67,8 +69,16 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
     db.exec('ALTER TABLE agent_inbox ADD COLUMN content_type TEXT NOT NULL DEFAULT "text"');
   } catch { /* already exists */ }
 
+  // read_at: epoch-ms when the recipient first read the message (null = unread).
+  // Powers sender-visible read receipts via listSent() / `pd sent`. Stamped on
+  // markRead/markAllRead and never overwritten (COALESCE keeps the first read).
+  try {
+    db.exec('ALTER TABLE agent_inbox ADD COLUMN read_at INTEGER');
+  } catch { /* already exists */ }
+
   db.exec(`CREATE INDEX IF NOT EXISTS idx_agent_inbox_agent ON agent_inbox(agent_id, created_at)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_agent_inbox_unread ON agent_inbox(agent_id) WHERE read = 0`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_agent_inbox_from ON agent_inbox(from_agent, created_at)`);
 
   const stmts = {
     send: db.prepare(`
@@ -84,8 +94,11 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
     listSince: db.prepare(`
       SELECT * FROM agent_inbox WHERE agent_id = ? AND created_at > ? ORDER BY created_at DESC LIMIT ?
     `),
-    markRead: db.prepare(`UPDATE agent_inbox SET read = 1 WHERE agent_id = ? AND id = ?`),
-    markAllRead: db.prepare(`UPDATE agent_inbox SET read = 1 WHERE agent_id = ? AND read = 0`),
+    listSent: db.prepare(`
+      SELECT * FROM agent_inbox WHERE from_agent = ? ORDER BY created_at DESC LIMIT ?
+    `),
+    markRead: db.prepare(`UPDATE agent_inbox SET read = 1, read_at = COALESCE(read_at, ?) WHERE agent_id = ? AND id = ?`),
+    markAllRead: db.prepare(`UPDATE agent_inbox SET read = 1, read_at = COALESCE(read_at, ?) WHERE agent_id = ? AND read = 0`),
     clear: db.prepare(`DELETE FROM agent_inbox WHERE agent_id = ?`),
     count: db.prepare(`SELECT COUNT(*) as count FROM agent_inbox WHERE agent_id = ?`),
     countUnread: db.prepare(`SELECT COUNT(*) as count FROM agent_inbox WHERE agent_id = ? AND read = 0`),
@@ -106,6 +119,7 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
       contentType: row.content_type,
       type: row.type,
       read: row.read === 1,
+      readAt: row.read_at ?? null,
       createdAt: row.created_at,
     };
   }
@@ -171,6 +185,7 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
           contentType: contentType,
           type,
           read: false,
+          readAt: null,
           createdAt: now,
         };
 
@@ -212,18 +227,35 @@ export function createAgentInbox(db: Database.Database, onMessage?: (agentId: st
     },
 
     /**
-     * Mark a message as read
+     * List messages this agent SENT, each with its read receipt (read + readAt).
+     * Powers `pd sent` — the sender side of the inbox. `agentId` on each message
+     * is the RECIPIENT; `from` is this sender.
+     */
+    listSent(fromAgent: string, options: { limit?: number; unreadOnly?: boolean } = {}) {
+      const { limit = 50, unreadOnly = false } = options;
+      let rows = stmts.listSent.all(fromAgent, limit) as InboxRow[];
+      if (unreadOnly) rows = rows.filter((r) => r.read === 0);
+      return {
+        success: true,
+        messages: rows.map(formatMessage),
+        count: rows.length,
+      };
+    },
+
+    /**
+     * Mark a message as read. Stamps read_at on first read (COALESCE keeps the
+     * original timestamp if already read), so the sender sees WHEN it was read.
      */
     markRead(agentId: string, messageId: number) {
-      stmts.markRead.run(agentId, messageId);
+      stmts.markRead.run(Date.now(), agentId, messageId);
       return { success: true };
     },
 
     /**
-     * Mark all messages as read
+     * Mark all messages as read (stamps read_at on the newly-read ones)
      */
     markAllRead(agentId: string) {
-      const result = stmts.markAllRead.run(agentId);
+      const result = stmts.markAllRead.run(Date.now(), agentId);
       return { success: true, marked: result.changes };
     },
 

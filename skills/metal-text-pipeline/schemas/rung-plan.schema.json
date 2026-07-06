@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/rung-plan.schema.json",
+  "title": "Metal Text Pipeline Rung Decision Plan",
+  "description": "A structured record of the rung choice (Rung 1: Vello+Parley on wgpu / Rung 2: wgpu directly / Rung 3: pure objc2-metal) for a custom 2D vector + text surface, plus the justification and pacing/CI facts scripts/rung_decision_audit.mjs checks against this skill's Failure Modes and Anti-Patterns.",
+  "type": "object",
+  "required": [
+    "chosenRung",
+    "surfaceKind",
+    "namedConstraintForLowerRung",
+    "measuredRung1Miss",
+    "promotionFrameRateRequested",
+    "redrawEveryFrame",
+    "glyphSource",
+    "tripleBuffered",
+    "keptOutOfLinuxCI"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "chosenRung": {
+      "type": "integer",
+      "enum": [1, 2, 3],
+      "description": "1 = Vello+Parley on wgpu (default). 2 = wgpu directly. 3 = pure objc2 + objc2-metal, hand-written MSL."
+    },
+    "surfaceKind": {
+      "type": "string",
+      "enum": ["2d-vector-text", "3d", "static-svg"],
+      "description": "What the surface actually renders. Rung 3 for '2d-vector-text' means owning the vector rasterizer yourself."
+    },
+    "namedConstraintForLowerRung": {
+      "type": ["string", "null"],
+      "description": "The SPECIFIC Metal feature or hard budget (e.g. 'tile shaders/imageblocks', 'shared MTLCommandQueue with existing Obj-C code', 'sub-100us frame budget') that forces dropping below Rung 1. Null if none named."
+    },
+    "measuredRung1Miss": {
+      "type": "boolean",
+      "description": "True only if the Rung-1 (Vello+Parley) version was actually built and measured missing the named constraint/budget — not assumed."
+    },
+    "promotionFrameRateRequested": {
+      "type": "boolean",
+      "description": "True if the 120Hz ProMotion cadence is explicitly requested (Rung 3: CADisplayLink.preferredFrameRateRange + CAMetalLayer.displaySyncEnabled; Rung 1/2: relies on PresentMode::AutoVsync, which still requires redrawEveryFrame)."
+    },
+    "redrawEveryFrame": {
+      "type": "boolean",
+      "description": "True if the event loop requests a redraw every frame while animating, rather than only on input. False caps the effective frame rate regardless of rung."
+    },
+    "glyphSource": {
+      "type": "string",
+      "enum": ["parley", "bitmap-font", "hand-atlas"],
+      "description": "'parley' = Rung 1 shaping+GPU raster. 'hand-atlas' = Rung 3 CPU-rasterized glyph atlas fed by a real shaper. 'bitmap-font' = fixed bitmap font (always an anti-pattern)."
+    },
+    "tripleBuffered": {
+      "type": "boolean",
+      "description": "True if per-frame uniform/vertex buffers are triple-buffered with a completion-handler semaphore. Only meaningful at Rung 3; wgpu (Rung 1/2) handles this internally."
+    },
+    "keptOutOfLinuxCI": {
+      "type": "boolean",
+      "description": "True if this Apple-GPU-specific pipeline (wgpu Metal backend selection, or objc2/objc2-metal at Rung 3) is gated out of the default Linux CI test matrix."
+    }
+  }
+}

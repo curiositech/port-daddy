@@ -41,6 +41,7 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import http from 'node:http';
 import { hostname } from 'node:os';
 import { dirname, join } from 'node:path';
 import { DEFAULT_PID_FILE, DEFAULT_PORT_FILE, PD_HOME } from '../shared/paths.js';
@@ -48,8 +49,17 @@ import { DEFAULT_PID_FILE, DEFAULT_PORT_FILE, PD_HOME } from '../shared/paths.js
 export const BOSUN_HEARTBEAT_SCHEMA = 'port-daddy.bosun.heartbeat.v1';
 export const DEFAULT_BOSUN_HEARTBEAT_INTERVAL_MS = 5_000;
 export const DEFAULT_BOSUN_STALE_AFTER_MS = 30_000;
+export const DEFAULT_BOSUN_PROBE_FAILURE_THRESHOLD = 3;
+export const DEFAULT_BOSUN_PROBE_TIMEOUT_MS = 2_000;
 
-export type BosunHeartbeatState = 'idle' | 'healthy' | 'degraded' | 'displaced' | 'stopped';
+// 'wedged' = the daemon process is alive and the event loop is turning (so the
+// heartbeat interval still fires), but its own HTTP request pipeline failed a
+// loopback self-probe `probeFailureThreshold` times in a row. We deliberately
+// stop advancing the heartbeat so the external Bosun supervisor sees it go stale
+// and restarts us. Without this, an HTTP-wedged-but-breathing daemon reads as
+// healthy to Bosun forever — Bosun only checks pid liveness + heartbeat freshness
+// (it cannot touch HTTP by design), so a hung request pipeline is invisible to it.
+export type BosunHeartbeatState = 'idle' | 'healthy' | 'degraded' | 'wedged' | 'displaced' | 'stopped';
 
 export interface BosunHeartbeatPayload {
   schema: typeof BOSUN_HEARTBEAT_SCHEMA;
@@ -76,6 +86,10 @@ export interface BosunHeartbeatStatus {
   writeCount: number;
   pid: number;
   ownerPid: number | null;
+  /** Consecutive self-probe failures. Always 0 when no `selfProbe` is configured. */
+  consecutiveProbeFailures: number;
+  /** Result of the most recent self-probe, or null if none has run yet. */
+  lastProbeOk: boolean | null;
 }
 
 export interface BosunHeartbeatOptions {
@@ -92,6 +106,18 @@ export interface BosunHeartbeatOptions {
   requirePidFileMatch?: boolean;
   now?: () => number;
   uptimeMs?: () => number;
+  /**
+   * Optional loopback liveness probe of the daemon's own request pipeline.
+   * Returns true when the daemon can still serve a request, false (or throws)
+   * when it cannot. When omitted, heartbeat behaviour is unchanged: the writer
+   * only proves the event loop is turning, not that HTTP works. See
+   * {@link createSocketHealthProbe} for the production wiring.
+   */
+  selfProbe?: () => boolean | Promise<boolean>;
+  /** Consecutive probe failures before the heartbeat halts. Default 3. */
+  probeFailureThreshold?: number;
+  /** Cadence of the self-probe loop. Defaults to `intervalMs`. */
+  probeIntervalMs?: number;
   logger?: {
     info?(message: string, meta?: Record<string, unknown>): void;
     warn?(message: string, meta?: Record<string, unknown>): void;
@@ -176,8 +202,13 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
   const uptimeMs = options.uptimeMs ?? (() => Math.floor(process.uptime() * 1000));
   const pidFile = options.pidFile ?? DEFAULT_PID_FILE;
   const portFile = options.portFile ?? DEFAULT_PORT_FILE;
+  const selfProbe = options.selfProbe;
+  const probeFailureThreshold = Math.max(1, options.probeFailureThreshold ?? DEFAULT_BOSUN_PROBE_FAILURE_THRESHOLD);
+  const probeIntervalMs = options.probeIntervalMs ?? intervalMs;
 
   let timer: ReturnType<typeof setInterval> | null = null;
+  let probeTimer: ReturnType<typeof setInterval> | null = null;
+  let probeInFlight = false;
   const status: BosunHeartbeatStatus = {
     enabled: false,
     state: 'idle',
@@ -189,6 +220,8 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
     writeCount: 0,
     pid,
     ownerPid: null,
+    consecutiveProbeFailures: 0,
+    lastProbeOk: null,
   };
 
   function readPidFileOwner(): number | null {
@@ -280,6 +313,10 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
       clearInterval(timer);
       timer = null;
     }
+    if (probeTimer) {
+      clearInterval(probeTimer);
+      probeTimer = null;
+    }
     if (reason === 'displaced') {
       status.enabled = false;
       // Preserve state='displaced' so getStatus() and downstream readers can
@@ -288,6 +325,67 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
     }
     status.enabled = false;
     status.state = 'stopped';
+  }
+
+  // Record one self-probe outcome. Pure and synchronous so the gating decision
+  // is deterministic and timer-free in tests.
+  function recordProbeResult(ok: boolean): boolean {
+    status.lastProbeOk = ok;
+    status.consecutiveProbeFailures = ok ? 0 : status.consecutiveProbeFailures + 1;
+    return ok;
+  }
+
+  // Run the configured probe once and fold the result into the failure counter.
+  // A thrown probe (e.g. connection refused, socket hang-up) counts as a failure.
+  async function probeNow(): Promise<boolean> {
+    if (!selfProbe) return true;
+    try {
+      return recordProbeResult((await selfProbe()) === true);
+    } catch {
+      return recordProbeResult(false);
+    }
+  }
+
+  // True once the probe has failed `probeFailureThreshold` consecutive times.
+  // Always false when no probe is configured (back-compat: heartbeat never halts
+  // on its own).
+  function shouldHalt(): boolean {
+    return selfProbe != null && status.consecutiveProbeFailures >= probeFailureThreshold;
+  }
+
+  // One heartbeat interval iteration: halt (let the heartbeat go stale) if the
+  // HTTP self-probe says we are wedged, otherwise write and handle displacement.
+  function heartbeatTick(): void {
+    if (shouldHalt()) {
+      if (status.state !== 'wedged') {
+        status.state = 'wedged';
+        status.lastError = `self-probe failed ${status.consecutiveProbeFailures}x; halting heartbeat so supervisor restarts the daemon`;
+        options.logger?.error?.('bosun_heartbeat_wedged', {
+          path: heartbeatPath,
+          consecutiveProbeFailures: status.consecutiveProbeFailures,
+          threshold: probeFailureThreshold,
+          pid,
+        });
+      }
+      // Do NOT advance the heartbeat. Bosun's staleAfterMs window elapses and it
+      // SIGKILLs + kickstarts us. If the probe recovers first, the next tick
+      // writes again and state returns to 'healthy' (self-heal).
+      return;
+    }
+    try {
+      writeOnce();
+    } catch {
+      // writeOnce records the error in status.
+    }
+    if (status.state === 'displaced') {
+      options.logger?.info?.('bosun_heartbeat_self_stop', {
+        path: heartbeatPath,
+        reason: 'displaced',
+        ownerPid: status.ownerPid,
+        pid,
+      });
+      stopInternal('displaced');
+    }
   }
 
   return {
@@ -310,26 +408,31 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
         });
         return;
       }
-      timer = setInterval(() => {
-        try {
-          writeOnce();
-        } catch {
-          // writeOnce records the error in status.
-        }
-        if (status.state === 'displaced') {
-          options.logger?.info?.('bosun_heartbeat_self_stop', {
-            path: heartbeatPath,
-            reason: 'displaced',
-            ownerPid: status.ownerPid,
-            pid,
+      timer = setInterval(heartbeatTick, intervalMs);
+      // Self-probe loop runs on its own cadence and only updates the failure
+      // counter; heartbeatTick reads it synchronously. Decoupling the async HTTP
+      // probe from the heartbeat write keeps the write path non-blocking and the
+      // gating decision deterministic. Fire one immediately so a daemon that
+      // boots already-wedged is caught within probeFailureThreshold ticks.
+      if (selfProbe) {
+        const runProbe = () => {
+          if (probeInFlight) return;
+          probeInFlight = true;
+          void probeNow().finally(() => {
+            probeInFlight = false;
           });
-          stopInternal('displaced');
-        }
-      }, intervalMs);
+        };
+        runProbe();
+        probeTimer = setInterval(runProbe, probeIntervalMs);
+        if (typeof probeTimer.unref === 'function') probeTimer.unref();
+      }
+      if (typeof timer.unref === 'function') timer.unref();
       options.logger?.info?.('bosun_heartbeat_started', {
         path: heartbeatPath,
         intervalMs,
         staleAfterMs,
+        selfProbe: Boolean(selfProbe),
+        probeFailureThreshold,
       });
     },
 
@@ -339,8 +442,67 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
 
     writeOnce,
 
+    // Exposed for the daemon wiring and for deterministic, timer-free tests of
+    // the wedge-detection path.
+    probeNow,
+    recordProbeResult,
+    heartbeatTick,
+
     getStatus(): BosunHeartbeatStatus {
       return { ...status };
     },
   };
+}
+
+/**
+ * Build a loopback HTTP liveness probe over the daemon's Unix domain socket.
+ *
+ * The probe issues a real `GET /health` through the same Fastify request
+ * pipeline that agents and the CLI use, so a handler/middleware deadlock,
+ * exhausted connection capacity, or a hung route shows up as a non-response.
+ * Any completed HTTP response (even a 5xx) counts as alive — the signal we care
+ * about is "can the request pipeline answer at all", not route-level errors.
+ * Only a timeout, connection refusal, or socket hang-up reads as dead.
+ *
+ * The Unix socket is the daemon's primary listener (TCP is secondary and races
+ * the port file), so probing it is both representative and free of port races.
+ *
+ * Input:
+ *
+ * ```ts
+ * const probe = createSocketHealthProbe({ socketPath: '/Users/me/.port-daddy/port-daddy.sock' });
+ * await probe(); // true while the daemon serves requests, false once it wedges
+ * ```
+ */
+export function createSocketHealthProbe(opts: {
+  socketPath: string;
+  path?: string;
+  timeoutMs?: number;
+}): () => Promise<boolean> {
+  const path = opts.path ?? '/health';
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_BOSUN_PROBE_TIMEOUT_MS;
+  return () =>
+    new Promise<boolean>((resolve) => {
+      let settled = false;
+      const settle = (alive: boolean) => {
+        if (settled) return;
+        settled = true;
+        resolve(alive);
+      };
+      const req = http.request(
+        { socketPath: opts.socketPath, path, method: 'GET', timeout: timeoutMs },
+        (res) => {
+          // Any complete HTTP response means the pipeline answered: alive.
+          const alive = typeof res.statusCode === 'number';
+          res.resume(); // drain so the socket is released
+          settle(alive);
+        },
+      );
+      req.on('timeout', () => {
+        req.destroy();
+        settle(false);
+      });
+      req.on('error', () => settle(false));
+      req.end();
+    });
 }

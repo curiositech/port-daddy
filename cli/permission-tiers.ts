@@ -74,6 +74,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   learn: 'silent',
   tutorial: 'silent',
   sitrep: 'silent',
+  whois: 'silent',          // semantic skill-router: read-only ranking of agents by capability
   look: 'silent',
   periscope: 'silent',     // operator-loop SIGHT stage: read-only state+next-cut rollup
   sight: 'silent',         // alias of periscope
@@ -86,15 +87,21 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   roadmap: 'silent',
   ideas: 'silent',
   graph: 'silent',
+  embed: 'notify', // worst case: `embed prefetch` downloads ~27 MB into the shared cache; reads/embeds are silent
   memory: 'silent',
   'who-owns': 'silent',
   harbors: 'silent',
+  'harbor-ledger': 'notify', // worst case: `harbor-ledger rebuild` truncates+replays DISPOSABLE projection tables (the event log is never touched); refined below
   spawned: 'silent',
+  work: 'silent',           // `pd work probe`/`pd work matrix` are read-only conformance surfaces (ch18 C2); launch forms refuse until pd work start lands
   feedback: 'silent',       // default form is `feedback list/show/summary`; writes are `notify`
   quorum: 'silent',
+  parley: 'approval',       // summons/resolves other agents; read-only forms refined below
   tuple: 'silent',
   pheromone: 'silent',
   ph: 'silent',
+  safe: 'silent',           // bare form = `safe scan`, read-only. Refined below:
+                            // `safe baseline accept` (notify), `safe fix` (approval).
   scan: 'silent',
   s: 'silent',
   projects: 'silent',       // refined: `projects rm` is destructive
@@ -114,6 +121,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   wallet: 'silent',
   bond: 'silent',
   fleet: 'silent',          // refined: `fleet down`, `fleet panic` are destructive
+  squid: 'approval',        // starts a local Anthropic-compatible bridge and optional client process; refined: on/off/status/tap below
+  hooks: 'notify',          // wires daemon-gated agent-CLI coordination hooks; refined: `hooks list` is silent
   tube: 'silent',
   tunnel: 'silent',
   relay: 'silent',           // refined: `relay url <url>` is notify
@@ -130,7 +139,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   r: 'notify',
   lock: 'notify',
   unlock: 'notify',         // refined: `unlock --force` is destructive
-  session: 'notify',        // refined: `session rm`, `session abandon` are destructive
+  session: 'notify',        // refined: `session abandon` is destructive
+  takeover: 'notify',       // alias for session takeover; preserves predecessor notes
   note: 'notify',
   n: 'notify',
   begin: 'notify',
@@ -142,9 +152,11 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   semantic: 'notify',
   watch: 'notify',
   attention: 'notify',      // default fetch marks inbox/channel items read for this agent
+  nudge: 'silent',          // bare form lists this agent's pending suggestibility nudges (read-only)
   commit: 'notify',         // records a caller-scoped commitment/obligation; `commit close` finalizes one
   backend: 'notify',        // sets the active CLI/subscription backend (caller config); status form is read-only
   backup: 'notify',         // writes a durable snapshot of the registry DB; reversible, caller-scoped
+  cut: 'notify',            // cuts a release: runs builds, writes dist/release/<v>, optional sign — local, caller-scoped
   benchmark: 'notify',      // `benchmark run` makes paid multi-backend LLM calls; refined: list-models/list-conditions/report are silent reads
   // ── approval: mutates another agent's state, no data loss ────────────────
   // Top-level entries; subcommand refinement may downgrade.
@@ -158,7 +170,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   up: 'approval',           // brings up multi-service stacks; effects on shared ports
   u: 'approval',
   spawn: 'approval',        // refined: `spawn kill` is destructive
-  sortie: 'approval',
+  sortie: 'approval',       // one-shot multi-agent mission: spawns agents, spends budget; refined: read subcommands are silent
   agent: 'approval',        // refined: `agent unregister`, `agent inbox clear` are destructive
   mcp: 'approval',
   harbor: 'approval',       // refined: `harbor destroy` is destructive
@@ -177,9 +189,12 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   start: 'notify',                  // starts the daemon, not destructive
   restart: 'destructive',           // kills the running daemon
   install: 'notify',                // installs launchd plist; not destructive on its own
+  'self-update': 'notify',          // ADR-0062: opt-in hands-off brew-upgrade + restart; notify, not gated (must run unattended via the freshness LaunchAgent)
+  upgrade: 'notify',                // ADR-0057 phase 7: bare form is a read-only feed check; `--apply` shells brew upgrade. notify (not gated) so the report path is frictionless.
   uninstall: 'destructive',
   guard: 'silent',                  // refined: `guard install`, `guard enable/disable` are destructive
-  dev: 'approval',                  // refined: `dev stop` is destructive
+  dev: 'approval',                  // refined: `dev down` stops a berth (destructive); see SUBCOMMAND_TIERS
+  use: 'silent',                    // emits a shell snippet to eval; read-only, no daemon mutation (ADR-0084)
   daemon: 'silent',                 // refined: subcommands vary
 
   restore: 'destructive',           // overwrites the live registry DB from a snapshot
@@ -198,6 +213,14 @@ export const TIER_REGISTRY: Record<string, Tier> = {
  * by best-effort prefix.
  */
 export const SUBCOMMAND_TIERS: Record<string, Tier> = {
+  // embed: local reads/embeddings are silent; prefetch performs a one-time
+  // ~27 MB network download into the shared cache
+  'embed': 'silent',                // default subcommand = status
+  'embed status': 'silent',
+  'embed text': 'silent',
+  'embed stdin': 'silent',
+  'embed prefetch': 'notify',
+
   // salvage: list is read-only, mutations are destructive
   'salvage': 'silent',              // default subcommand = listing
   'salvage triage': 'silent',
@@ -207,13 +230,32 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'salvage abandon': 'destructive', // forces session back to queue
   'salvage dismiss': 'destructive', // permanently removes from queue
 
-  // session: most are notify, removals are destructive
+  // session: most are notify; abandon can release another agent's active claims
   'session start': 'notify',
   'session end': 'notify',
   'session done': 'notify',
   'session abandon': 'destructive', // marks session abandoned — affects others reading the trail
-  'session rm': 'destructive',      // deletes session + notes
+  'session takeover': 'notify',     // creates successor, preserves predecessor notes
+  'session rm': 'notify',           // archives session; notes and claim history stay append-only
   'session files': 'notify',        // add/rm of caller's own claims
+
+  // safe: scan is read-only; baseline accept writes the committed triage file;
+  // fix --auto mutates host file modes (reversible, but a host write → approval).
+  'safe': 'silent',                 // default subcommand = `safe scan`
+  'safe scan': 'silent',
+  'safe baseline': 'silent',        // bare form is a usage hint
+  'safe baseline accept': 'notify', // writes .pd-secrets-baseline.json
+  'safe fix': 'approval',           // chmod of crown-jewel perms (opt-in, reversible)
+  // safe corral: dry-run (default) is read-only; --apply writes the vault AND
+  // rewrites a source file (reversible — a .bak is kept) → a host write → approval.
+  'safe corral': 'silent',          // dry-run plan only by default
+  'safe corral --apply': 'approval',// packs secret into vault + rewrites source
+  'safe guard': 'silent',           // read-only scan of the staged diff
+
+  // env exec runs an arbitrary child command (with pd-secret:// refs resolved
+  // into its env). Running an arbitrary command is a notify-tier action; the
+  // plain `pd env` listing stays silent via TIER_REGISTRY.
+  'env exec': 'notify',
 
   // release: bare release of caller's own port is notify; --expired is global
   'release --expired': 'destructive',
@@ -252,6 +294,25 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'agent inbox clear': 'destructive',
   'agent inbox read-all': 'notify',
 
+  // parley: list/show/fit are reads; call/respond/resolve mutate shared reconciliation state
+  'parley list': 'silent',
+  'parley show': 'silent',
+  'parley fit': 'silent',
+  'parley call': 'approval',
+  'parley respond': 'approval',
+  'parley resolve': 'approval',
+
+  // roadmap: default/list/show are reads; upsert/touch/promote mutate the roadmap DB-of-record
+  'roadmap upsert': 'notify',
+  'roadmap add': 'notify',
+  'roadmap touch': 'notify',
+  'roadmap promote': 'notify',
+  'roadmap ack': 'notify',
+  'roadmap harvest': 'notify',
+  'roadmap render': 'notify',
+  'roadmap import': 'notify',
+  'roadmap import-markdown': 'notify',
+
   // harbor subcommands
   'harbor create': 'notify',
   'harbor enter': 'notify',
@@ -268,6 +329,12 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   // spawn subcommands
   'spawn kill': 'destructive',
 
+  // sortie subcommands — `sortie run` (and bare `sortie <goal>`) stays at the
+  // top-level 'approval'; the read-only forms are silent
+  'sortie list': 'silent',
+  'sortie status': 'silent',
+  'sortie logs': 'silent',
+
   // fleet subcommands
   'fleet up': 'approval',
   'fleet down': 'destructive',
@@ -278,6 +345,18 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'fleet prompt': 'silent',
   'fleet panic': 'destructive',
   'fleet unpanic': 'notify',
+
+  // squid harness toggle + readouts (the bridge itself stays approval-tier)
+  'squid status': 'silent',         // read-only non-diegetic readout
+  'squid tap': 'silent',            // read-only envelope preview
+  'squid on': 'notify',             // writes project hook/statusline config
+  'squid arm': 'notify',
+  'squid off': 'notify',            // removes only pd-authored entries
+  'squid disarm': 'notify',
+  'squid hooks': 'notify',
+
+  // agent-CLI hooks installer
+  'hooks list': 'silent',
 
   // guard subcommands
   'guard status': 'silent',
@@ -293,8 +372,13 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'guard shim-uninstall': 'destructive',
   'guard help': 'silent',
 
-  // dev subcommands
-  'dev start': 'approval',
+  // dev (berths) subcommands (ADR-0084). up = build+launch a berth (notify);
+  // down = stop a berth (destructive); list = read-only.
+  'dev up': 'notify',
+  'dev down': 'destructive',
+  'dev list': 'silent',
+  // back-compat aliases for the legacy verbs
+  'dev start': 'notify',
   'dev stop': 'destructive',
   'dev status': 'silent',
 
@@ -321,6 +405,11 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'attention --subscriptions': 'silent',
   'attention --subscribe': 'notify',
   'attention --unsubscribe': 'notify',
+
+  // nudge: bare form lists (silent); scan delivers inbox messages, accept/decline mutate state
+  'nudge scan': 'notify',
+  'nudge accept': 'notify',
+  'nudge decline': 'notify',
 
   // session files claim/rm are caller-scoped
   'session files add': 'notify',
@@ -358,6 +447,12 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'transcripts rm': 'destructive',
   'transcript delete': 'destructive',
   'transcript rm': 'destructive',
+
+  // harbor-ledger: status is read-only; project/rebuild rewrite disposable
+  // projections from the append-only ledger (no event data can be lost)
+  'harbor-ledger status': 'silent',
+  'harbor-ledger project': 'notify',
+  'harbor-ledger rebuild': 'notify',
 
   // harbormaster: status/queue are read-only; start/stop control the shared actor
   'harbormaster status': 'silent',
@@ -500,7 +595,6 @@ export const DESTRUCTIVE_COMMANDS: readonly string[] = Object.freeze([
   'salvage abandon',
   'salvage dismiss',
   'session abandon',
-  'session rm',
   'release --expired',
   'unlock --force',
   'ports cleanup',

@@ -299,11 +299,24 @@ The right mental model is the \textbf{reference monitor} of Anderson and
 Lampson~\cite{anderson1972,lampson1974}: a mediator that is \emph{always invoked}
 (complete mediation), \emph{tamper-evident}, and \emph{small enough to verify}.
 The kernel instantiates this not as an abstract security kernel but as a concrete
-local daemon over one SQLite file. Complete mediation is achieved \emph{by
-construction}: because every mutation routes through one writer holding one file
-lock, the operating system's serialization \emph{is} the mediation primitive ---
-Saltzer and Schroeder's ``economy of mechanism''~\cite{saltzer1975protection}
-done with one moving part instead of $N$ hand-rolled critical sections.
+local daemon over one SQLite file. Complete mediation holds \emph{by construction
+over the kernel's own state}: because every mutation of \emph{coordination state}
+routes through one writer holding one file lock, the operating system's
+serialization \emph{is} the mediation primitive --- Saltzer and Schroeder's
+``economy of mechanism''~\cite{saltzer1975protection} done with one moving part
+instead of $N$ hand-rolled critical sections. We are deliberate about the scope of
+the word \emph{complete}: it is complete over writes that \emph{enter} the daemon,
+not over what a same-user agent can do \emph{beside} it. A classical reference
+monitor earns ``always invoked'' from the hardware/operating-system boundary that
+forces every access through it; this kernel has no such boundary at the substrate
+layer, so a same-user process can mutate shared state the daemon never sees ---
+edit a file under an advisory claim, run \texttt{git} directly, or write the
+SQLite file itself --- without routing through the writer. Mediation is therefore
+complete over the daemon's \emph{application-program interface} and advisory
+everywhere else; making it complete over the agent's host capabilities is an
+out-of-band enforcement problem we scope to the threat model
+(\S\ref{sec:threatmodel}) and credit, when it lands, to a separate-user kernel
+boundary that does not yet exist (\S\ref{sec:enforcement-gap}).
 
 \keyidea{The swarm \emph{looks} like a distributed-systems problem --- many
 agents, contention, failover --- so the trained reflex is Raft, Paxos, CRDTs. The
@@ -1265,10 +1278,64 @@ coordination locks between cooperating agents}, not OS-enforced filesystem
 isolation. There is no syscall filter, no \texttt{pledge}/\texttt{unveil}, no macOS
 Seatbelt, no Landlock. A malicious agent ignores a claim row and writes the file.
 The kernel provides \emph{advisory} coordination; real OS sandboxing of agent
-processes is out of scope at this layer (it belongs to a coordination-layer
-``jail'' that is \Designed{} elsewhere and would need to be grounded in a real
-operating-system primitive). We say so plainly rather than let advisory claims be
-read as isolation.
+processes is out of scope at this layer (it belongs to the out-of-band
+``jail'' --- the separate-user kernel boundary of \S\ref{sec:enforcement-gap} ---
+which is \Vision{} and would need to be grounded in a real operating-system
+primitive). We say so plainly rather than let advisory claims be read as isolation.
+
+\subsection{The enforcement gate proves; it does not yet compel}
+\label{sec:enforcement-gap}
+
+The same boundary problem reappears one level up, at the kernel's
+\emph{enforcement} ambition, and it is the paper's most load-bearing
+``\emph{specified}, not \emph{implemented}'' caveat. The kernel ships a real
+cryptographic gate --- a \textbf{macaroon}~\cite{birgisson2014macaroons} discharge
+primitive (a bearer credential whose authority can only ever \emph{narrow}, since
+each caveat is folded into a chained keyed hash so that tampering breaks the
+signature). Its reference implementation is \texttt{core/kernel/pd-anchor/src/macaroon.rs}:
+the root key never leaves the daemon, the third-party ``rent-paid'' caveat is an
+HMAC commitment to a discharge the daemon alone can issue, and the discharge
+construction is machine-checked in a protocol-verification tool
+(\texttt{analyses/macaroon\_discharge\_v1.pv} proves no push is authorized without
+a daemon-issued discharge bound to \emph{that} grant). The cryptography is
+\Built{} and sound \emph{as cryptography}.
+
+\keyidea{A gate that is cryptographically unforgeable is not, for that reason,
+\emph{compulsory}. The macaroon proves that a given push was authorized; it does
+not yet \emph{stop} an unauthorized one, because the agent runs as the same user
+and holds its own host credentials.}
+
+What it does \emph{not} yet do is bind that gate to the agent's actual capability
+to act. Today's coordination enforcement is the \textbf{Coordination Guard}
+(\texttt{cli/commands/guard.ts}) and a \textbf{git shim}
+(\texttt{cli/utils/git-shim.ts}) that intercept destructive verbs --- and both run
+\emph{in-band}, as the same user, through a \texttt{PATH} the agent controls. By
+construction that arrangement is advisory: an agent that hits the wall has at least
+five escapes that defeat no cryptography (a documented bypass environment variable,
+an absolute path to the real \texttt{git}, a \texttt{PATH} rewrite, in-process
+\texttt{libgit2}/editor bindings, or simply never attaching a session). The design
+record for this is \textbf{ADR-0053} (\texttt{docs/adr/0053-out-of-band-enforcement.md}),
+which states the ceiling plainly: \emph{you cannot out-trick a same-user process
+from inside that same process.} The cryptographic version of the same limit is
+ADR-0050's concession --- \emph{a secret a process can use, it can copy} --- and it
+applies to enforcement verbs no less than to keys: a guard a process can decline to
+invoke is advisory.
+
+Closing this gap is a layered program, and only the top layer is a real wall. A
+server-side branch-protection-plus-push-broker layer (\Designed) removes the most
+painful direct-to-protected-ref incidents but not same-user trickery; a credential
+broker that meters and injects credentials per request (\Vision) narrows the
+ambient-token surface; and only a \textbf{separate-user (or separate-VM) kernel
+process} with forced egress (\Vision) actually confines a malicious same-user
+holder, because it is the first layer that removes the capability rather than
+refusing the verb. That separate-user boundary is the analogue of the
+hardware/operating-system boundary a classical reference monitor relies on for
+``always invoked,'' and \emph{it does not yet exist}. Until it does, the honest
+grade of kernel enforcement against a non-cooperating same-user agent is
+\NotGuar: the gate is a verifiable transcript and a loud tripwire, not a wall. We
+state this here so no reader carries the (legitimate) ``mechanically verified
+macaroon'' result forward into the (false) belief that the kernel can presently
+\emph{compel} a same-user agent through it.
 
 \subsection{Self-asserted identity bounds every other invariant}
 
@@ -1588,6 +1655,7 @@ Memory \& recovery & session, episodic-memory, recovery modules & recovery passe
 Audit log \& hash chain & activity-log, hash-chain modules & verification not yet on the read path \\
 Self-attestation & attestation, invariant-registry modules & boot gate + pre-flight + watchdog \\
 Authorization chain & delegation-chain module & mechanically verified \\
+Enforcement gate (macaroon discharge) & kernel macaroon module & crypto verified; in-band, not yet compulsory (\S\ref{sec:enforcement-gap}) \\
 Runtime-parity shim & runtime-shim module & normalizes binding differences \\
 Identity (signing keys) & keychain, identity modules & gating not yet enforced \\
 \bottomrule
@@ -1760,6 +1828,12 @@ Michael T. Nygard.
 \newblock \textit{Release It! Design and Deploy Production-Ready Software}.
 \newblock 2nd ed., Pragmatic Bookshelf, 2018.
 \newblock (The bounded busy-wait as a bulkhead / timeout-budget under contention.)
+
+\bibitem{birgisson2014macaroons}
+Arnar Birgisson, Joe Gibbs Politz, \'Ulfar Erlingsson, Ankur Taly, Michael Vrable, and Mark Lentczner.
+\newblock Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud.
+\newblock In \textit{Network and Distributed System Security Symposium (NDSS)}, 2014.
+\newblock (Attenuation-only bearer credentials with third-party caveats --- the enforcement-gate construction.)
 
 \end{thebibliography}
 

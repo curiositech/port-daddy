@@ -8,6 +8,19 @@ import { CLOUDFLARE_BACKEND_SETUP_LINKS, type BackendSetupLink } from './backend
 export interface BackendReadiness {
   backend: string;
   status: 'ready' | 'needs_setup' | 'manual_check' | 'unknown';
+  /**
+   * True when the daemon may attempt a spawn even though `status` is not
+   * `ready`. Set for installed local CLI backends whose auth genuinely cannot
+   * be verified offline (the `cli:*` tube backends): the binary is present,
+   * and a missing/expired token surfaces as a real non-zero-exit error at
+   * runtime — `lib/spawner/backends/cli-tube.ts` maps auth-failure stderr to an
+   * actionable message and enforces a kill-timeout, so there is no silent hang.
+   * Deliberately NOT set for probed-and-degraded `manual_check` states such as
+   * ollama with its server down, where a launch cannot succeed. The launch gate
+   * (`lib/spawn-preflight.ts`) treats `ready || launchableUnverified` as
+   * launchable; everything else stays blocked.
+   */
+  launchableUnverified?: boolean;
   summary: string;
   nextStep?: string;
   credentialKeys?: string[];
@@ -27,24 +40,13 @@ const require = createRequire(import.meta.url);
 // this readiness check used the bare PATH and fail-closed BEFORE the executor ran,
 // reporting "Claude CLI binary not found" for an install that works in the user's
 // shell. Resolve the same locations the executor does so the gate matches reality.
-// Standard per-user CLI install dirs, plus an operator override
-// (PD_CLI_BIN_DIRS, colon-separated). Computed per-call so the override is
-// honored at runtime (and testable). Operators whose agent CLI lives somewhere
-// unusual can point the daemon at it without touching launchd's PATH.
-function cliBinDirs(): string[] {
-  const home = process.env.HOME || '';
-  const override = process.env.PD_CLI_BIN_DIRS
-    ? process.env.PD_CLI_BIN_DIRS.split(':').filter(Boolean)
-    : [];
-  return [
-    ...override,
-    join(home, '.local', 'bin'), // claude-code + many per-user installs
-    join(home, '.claude', 'local'), // claude-code alternate install path
-    join(home, '.codex', 'bin'), // codex
-    '/opt/homebrew/bin',
-    '/usr/local/bin',
-  ];
-}
+// Standard per-user CLI install dirs live in lib/cli-bin-dirs.ts, shared
+// with the spawn path (lib/spawner/backends/cli-tube.ts) so this readiness
+// gate and the actual spawn resolve binaries against the SAME locations —
+// otherwise readiness can say "binary exists" while the spawn fails under
+// launchd's bare PATH.
+import { cliBinDirs } from './cli-bin-dirs.js';
+export { cliBinDirs };
 
 export function commandExists(command: string): boolean {
   const augmentedPath = [process.env.PATH || '', ...cliBinDirs()].filter(Boolean).join(':');
@@ -76,6 +78,29 @@ async function ollamaReachable(): Promise<boolean> {
   }
 }
 
+/** LM Studio's OpenAI-compatible local server base URL (override via env). */
+const LMSTUDIO_API_BASE =
+  process.env.LMSTUDIO_API_BASE || process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1';
+
+/**
+ * Probe the LM Studio local server's `/v1/models` endpoint. Returns the loaded
+ * model id when reachable (LM Studio reports whatever model is loaded), or null
+ * when the server is off/unreachable — handled gracefully, never throws.
+ */
+async function lmStudioLoadedModel(): Promise<string | null> {
+  try {
+    const res = await fetch(`${LMSTUDIO_API_BASE.replace(/\/$/, '')}/models`, {
+      signal: AbortSignal.timeout(1000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { data?: Array<{ id?: unknown }> };
+    const first = data?.data?.find((m) => typeof m?.id === 'string');
+    return first && typeof first.id === 'string' ? first.id : '';
+  } catch {
+    return null;
+  }
+}
+
 function applyTelemetryPolicy(
   readiness: BackendReadiness,
   telemetryPolicy: ReturnType<typeof assessBackendTelemetryPolicy>,
@@ -94,6 +119,9 @@ function applyTelemetryPolicy(
     status: 'needs_setup',
     summary,
     nextStep: nextStep || undefined,
+    // A telemetry-policy block must override the launchable-unverified opt-in:
+    // never let an installed CLI backend launch past a data-egress refusal.
+    launchableUnverified: false,
   };
 }
 
@@ -127,6 +155,11 @@ export async function assessBackendReadiness(
       return applyTelemetryPolicy({
         backend,
         status: 'manual_check',
+        // The CLI manages its own auth (OAuth/keychain); a found binary is
+        // launchable-with-a-warning, exactly like its cli:claude-code twin.
+        // Without this flag preflight refused every claude-cli launch through
+        // the daemon ("no launchable backend").
+        launchableUnverified: true,
         summary: 'Claude CLI binary found; login cannot be verified non-interactively',
         nextStep: 'Run `claude` once interactively if needed. In sandboxed runners, approve an unsandboxed Port Daddy/Claude command path first.',
         setupCommand: 'claude',
@@ -146,6 +179,11 @@ export async function assessBackendReadiness(
       return applyTelemetryPolicy({
         backend,
         status: 'manual_check',
+        // Codex manages its own auth (ChatGPT OAuth / OPENAI_API_KEY); a found
+        // binary is launchable-with-a-warning, exactly like its cli:codex twin.
+        // Without this flag preflight refused every codex launch through the
+        // daemon ("no launchable backend: codex — manual_check").
+        launchableUnverified: true,
         summary: 'Codex CLI binary found; OpenAI auth and model access cannot be verified non-interactively',
         nextStep: 'Run `codex exec` once interactively if needed. In sandboxed runners, approve an unsandboxed Port Daddy/Codex command path first.',
         setupCommand: 'codex exec "print ok"',
@@ -277,6 +315,50 @@ export async function assessBackendReadiness(
       }, telemetryPolicy);
     }
 
+    case 'deepseek': {
+      // OpenAI-compatible REST adapter (lib/spawner/backends/deepseek.ts) — no
+      // SDK package required. Readiness is a key-present check.
+      const apiKey = getSecret('DEEPSEEK_API_KEY') || process.env.DEEPSEEK_API_KEY;
+      if (apiKey) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'ready',
+          summary: 'DEEPSEEK_API_KEY present',
+          ...setupForKeys(['DEEPSEEK_API_KEY']),
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'needs_setup',
+        summary: 'DEEPSEEK_API_KEY missing',
+        nextStep: 'Run `pd secret set DEEPSEEK_API_KEY` (or add DEEPSEEK_API_KEY to ~/.port-daddy-env), then restart the daemon.',
+        ...setupForKeys(['DEEPSEEK_API_KEY']),
+        setupCommand: 'printf \'\\nDEEPSEEK_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd restart',
+      }, telemetryPolicy);
+    }
+
+    case 'xai': {
+      // OpenAI-compatible REST adapter (lib/spawner/backends/xai.ts) — no
+      // SDK package required. Readiness is a key-present check.
+      const apiKey = getSecret('XAI_API_KEY') || process.env.XAI_API_KEY;
+      if (apiKey) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'ready',
+          summary: 'XAI_API_KEY present',
+          ...setupForKeys(['XAI_API_KEY']),
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'needs_setup',
+        summary: 'XAI_API_KEY missing',
+        nextStep: 'Run `pd secret set XAI_API_KEY` (or add XAI_API_KEY to ~/.port-daddy-env), then restart the daemon.',
+        ...setupForKeys(['XAI_API_KEY']),
+        setupCommand: 'printf \'\\nXAI_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd restart',
+      }, telemetryPolicy);
+    }
+
     case 'cli:claude-code': {
       const bin = process.env.PD_CLI_CLAUDE_CODE_BIN || 'claude';
       if (!commandExists(bin)) {
@@ -291,6 +373,7 @@ export async function assessBackendReadiness(
       return applyTelemetryPolicy({
         backend,
         status: 'manual_check',
+        launchableUnverified: true,
         summary: 'Claude Code CLI binary found; auth cannot be verified non-interactively',
         nextStep: 'Run `claude -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=claude-code forces all spawns through this CLI.',
         setupCommand: 'claude -p "hello"',
@@ -311,9 +394,73 @@ export async function assessBackendReadiness(
       return applyTelemetryPolicy({
         backend,
         status: 'manual_check',
+        launchableUnverified: true,
         summary: 'Codex CLI binary found; auth cannot be verified non-interactively',
         nextStep: 'Run `codex exec "hello"` once to confirm auth. PD_USE_CLI_BACKEND=codex forces all spawns through this CLI.',
         setupCommand: 'codex exec "hello"',
+      }, telemetryPolicy);
+    }
+
+    case 'cli:gemini': {
+      const bin = process.env.PD_CLI_GEMINI_BIN || 'gemini';
+      if (!commandExists(bin)) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'needs_setup',
+          summary: `Gemini CLI binary "${bin}" not found`,
+          nextStep: 'Install the Gemini CLI (npm install -g @google/gemini-cli) and run `gemini` once to authenticate.',
+          setupCommand: 'npm install -g @google/gemini-cli',
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'manual_check',
+        launchableUnverified: true,
+        summary: 'Gemini CLI binary found; auth cannot be verified non-interactively',
+        nextStep: 'Run `gemini -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=gemini forces all spawns through this CLI.',
+        setupCommand: 'gemini -p "hello"',
+      }, telemetryPolicy);
+    }
+
+    case 'cli:groq': {
+      const bin = process.env.PD_CLI_GROQ_BIN || 'groq';
+      if (!commandExists(bin)) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'needs_setup',
+          summary: `Groq CLI binary "${bin}" not found`,
+          nextStep: 'Install the Groq Code CLI (npm install -g groq-code-cli) and run `groq` once to authenticate.',
+          setupCommand: 'npm install -g groq-code-cli',
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'manual_check',
+        launchableUnverified: true,
+        summary: 'Groq CLI binary found; auth cannot be verified non-interactively',
+        nextStep: 'Run `groq -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=groq forces all spawns through this CLI.',
+        setupCommand: 'groq -p "hello"',
+      }, telemetryPolicy);
+    }
+
+    case 'cli:grok': {
+      const bin = process.env.PD_CLI_GROK_BIN || 'grok';
+      if (!commandExists(bin)) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'needs_setup',
+          summary: `Grok CLI binary "${bin}" not found`,
+          nextStep: 'Install the Grok CLI (npm install -g @vibe-kit/grok-cli) and authenticate before using this backend.',
+          setupCommand: 'npm install -g @vibe-kit/grok-cli',
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'manual_check',
+        launchableUnverified: true,
+        summary: 'Grok CLI binary found; auth cannot be verified non-interactively',
+        nextStep: 'Run `grok -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=grok forces all spawns through this CLI.',
+        setupCommand: 'grok -p "hello"',
       }, telemetryPolicy);
     }
 
@@ -340,6 +487,33 @@ export async function assessBackendReadiness(
         summary: 'Ollama not installed and API not reachable',
         nextStep: 'Install Ollama or choose a different backend.',
         setupCommand: 'brew install ollama\nollama serve',
+      }, telemetryPolicy);
+    }
+
+    case 'lmstudio': {
+      // LM Studio runs an OpenAI-compatible local server; GET /v1/models lists
+      // the loaded model. Reachable → ready (and we surface the loaded id);
+      // unreachable → needs_setup with the "Start Server" next step. The server
+      // is OFF by default, so the graceful-down path is the common case.
+      const loaded = await lmStudioLoadedModel();
+      if (loaded !== null) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'ready',
+          summary: loaded
+            ? `LM Studio server reachable at ${LMSTUDIO_API_BASE}; loaded model: ${loaded}`
+            : `LM Studio server reachable at ${LMSTUDIO_API_BASE}, but no model is loaded`,
+          nextStep: loaded
+            ? undefined
+            : 'Load a model in LM Studio (e.g. Qwen 3 Next Coder) so spawns have a model to serve.',
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'needs_setup',
+        summary: `LM Studio server not reachable at ${LMSTUDIO_API_BASE}`,
+        nextStep: 'Start the LM Studio local server (Developer → Start Server) and load a model.',
+        setupCommand: 'open -a "LM Studio"',
       }, telemetryPolicy);
     }
 

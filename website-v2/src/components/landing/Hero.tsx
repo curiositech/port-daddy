@@ -1,126 +1,155 @@
-import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Button } from '@/components/ui/Button'
-import { PageContainer, SectionIntro } from '@/components/site/primitives'
-import { ArrowRight, Download, Terminal } from 'lucide-react'
-import { LiveGloryVideo } from './LiveGloryVideo'
+import { useEffect, useRef } from 'react'
+import { PageContainer, PanelEyebrow, SectionIntro, Wordmark } from '@/components/site/primitives'
+import { ProductLogoLockup, type ProductLogoKey } from '@/components/site/ProductLogos'
+import { MarqueeTrack } from './FeaturedMarquee'
+import { useHeroWordmark } from '@/lib/hero-brand-context'
+
+const productSurfaces = [
+  'a harness',
+  'white papers',
+  'an agent event-triggering lab',
+  'agent skills',
+  'an MCP server',
+  'a Rust app',
+  'a CLI',
+  'an orchestrator',
+  'an SDK',
+]
+
+const supportedTools: ProductLogoKey[] = ['codex', 'claude', 'ollama', 'cursor', 'windsurf']
 
 export function Hero() {
+  const { setHeroWordmarkVisible } = useHeroWordmark()
+  // Two placements of the same animated wordmark: a float beside the title on
+  // mobile, and a centered mark over the preview on desktop. Only one is
+  // displayed at a time, so whichever is active drives the navbar signal.
+  const mobileHeroMarkRef = useRef<HTMLSpanElement>(null)
+  const desktopHeroMarkRef = useRef<HTMLDivElement>(null)
+
+  // Report whether either responsive hero wordmark is on-screen so the navbar
+  // can hide its own duplicative wordmark. rootMargin offsets the sticky header
+  // height, so the mark counts as "gone" once it slides under the navbar.
+  useEffect(() => {
+    const els = [mobileHeroMarkRef.current, desktopHeroMarkRef.current].filter(
+      (el): el is HTMLSpanElement | HTMLDivElement => el != null,
+    )
+    if (els.length === 0) return
+    const visibleByElement = new WeakMap<Element, boolean>()
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          visibleByElement.set(entry.target, entry.isIntersecting)
+        })
+        setHeroWordmarkVisible(els.some((el) => visibleByElement.get(el) ?? false))
+      },
+      { rootMargin: '-80px 0px 0px 0px', threshold: 0 },
+    )
+    els.forEach((el) => observer.observe(el))
+    return () => {
+      observer.disconnect()
+      setHeroWordmarkVisible(false)
+    }
+  }, [setHeroWordmarkVisible])
   return (
-    <section className="relative flex items-center overflow-hidden py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+    <section className="relative flex min-h-[calc(100svh-4.5rem)] items-center overflow-hidden py-[var(--space-3)] sm:py-[clamp(var(--space-4),4vw,var(--space-7))]">
       {/* Swiss-grid field for the infrastructure diagram. */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
         backgroundImage: 'radial-gradient(circle, var(--text-muted) 1px, transparent 1px)',
         backgroundSize: '24px 24px',
       }} />
 
-      <PageContainer className="relative z-10">
-        <div className="grid items-center gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-[var(--space-7)]">
+      <PageContainer width="wide" className="relative z-10">
+        <div className="grid grid-cols-1 items-center gap-[var(--space-5)] min-[1100px]:grid-cols-[minmax(28rem,0.78fr)_minmax(44rem,1.22fr)] min-[1100px]:gap-x-[clamp(var(--space-5),4vw,var(--space-8))]">
           {/* Left -- Copy */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
-            className="space-y-[var(--space-5)]"
+            className="min-w-0 space-y-[var(--space-3)] sm:space-y-[var(--space-4)] min-[1100px]:col-start-1 min-[1100px]:row-start-1"
           >
             <SectionIntro
-              eyebrow="For AI engineering teams"
+              eyebrow="Fleet coordination for coding agents"
               title={
                 <>
-                  A local control plane for{' '}
+                  {/* Mobile only: the mark floats to the right of the headline so
+                      the title text wraps around it. Hidden at >=1100px, where the
+                      centered mark in the right column takes over. */}
+                  <motion.span
+                    ref={mobileHeroMarkRef}
+                    aria-hidden="true"
+                    initial={{ opacity: 0, scale: 0.85 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.7, ease: 'easeOut' as const }}
+                    className="float-right mb-[var(--space-2)] ml-[var(--space-3)] block h-32 w-32 overflow-hidden sm:h-40 sm:w-40 min-[1100px]:hidden"
+                  >
+                    <Wordmark variant="spin" className="h-full max-w-none" />
+                  </motion.span>
+                  Run a tight ship.{' '}
                   <span className="text-[var(--brand-primary)]">
-                    coding agents.
+                    Agents sail safer when they coordinate.
                   </span>
                 </>
               }
-              description="Port Daddy gives Claude Code, Codex, Cursor, Gemini CLI, Aider, and local model agents a shared-state substrate: sessions, claims, notes, channels, readiness, budgets, and salvage records that survive the terminal that created them."
               titleAs="h1"
               titleSize="hero"
-              titleClassName="max-w-[14ch]"
-              bodyClassName="max-w-[34rem]"
+              titleClassName="max-w-[14ch] text-[3rem] leading-[0.96] sm:text-[length:var(--type-hero-size)]"
             />
 
-            {/* CLI-backend pitch — the operator's load-bearing line. */}
-            <Link
-              to="/cli-backend"
-              className="group block max-w-[34rem] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)] no-underline transition-colors hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)]"
-            >
-              <div className="flex items-start justify-between gap-[var(--space-3)]">
-                <div className="space-y-[var(--space-2)]">
-                  <span className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] group-hover:text-[color:var(--brand-primary-foreground-muted)]">
-                    Already pay for Claude Max or ChatGPT Pro?
-                  </span>
-                  <p className="font-sans text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-primary)] group-hover:text-[var(--brand-primary-foreground)]">
-                    <strong>The fleet rides on your subscription at $0 marginal cost.</strong>{' '}
-                    Claude Code and Codex as first-class backends — setup takes two minutes.
-                  </p>
-                </div>
-                <ArrowRight
-                  size={18}
-                  aria-hidden="true"
-                  className="mt-1 shrink-0 text-[var(--text-muted)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--brand-primary-foreground)]"
-                />
+            <div className="grid max-w-[46rem] gap-[var(--space-2)] sm:gap-[var(--space-3)]">
+              <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)] sm:p-[var(--space-4)]">
+                <p className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                  Port Daddy is
+                </p>
+                <p className="mt-[var(--space-2)] max-w-[38rem] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)] sm:text-[length:var(--type-panel-body-size)] sm:leading-[var(--leading-body)]">
+                  {productSurfaces.join(', ')}.
+                </p>
               </div>
-            </Link>
 
-            {/* Feature pills */}
-            <div className="flex max-w-[34rem] flex-wrap gap-2">
-              {[
-                'Shared state substrate',
-                'Visible ownership',
-                'Fail-closed launches',
-              ].map((label) => (
-                <span
-                  key={label}
-                  className="rounded-[var(--radius-sm)] px-3 py-1 text-[length:var(--type-meta-size)] font-semibold"
-                  style={{
-                    background: 'color-mix(in srgb, var(--brand-secondary) 10%, transparent)',
-                    border: '1px solid color-mix(in srgb, var(--brand-secondary) 20%, transparent)',
-                    color: 'var(--text-secondary)',
-                  }}
-                >
-                  {label}
+              <div className="flex flex-wrap items-center gap-x-[var(--space-2)] gap-y-2 border-t-2 border-[var(--border-strong)] pt-[var(--space-2)] text-[length:var(--type-meta-size)] text-[var(--text-muted)] sm:pt-[var(--space-3)]">
+                <span className="font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+                  Runs on
                 </span>
-              ))}
-            </div>
+                {supportedTools.map((tool) => (
+                  <ProductLogoLockup
+                    key={tool}
+                    product={tool}
+                    size="compact"
+                    className="min-h-7 w-7 justify-center border-0 bg-transparent px-0 py-0 text-[0.68rem] sm:w-auto sm:justify-start"
+                    labelClassName="hidden sm:inline"
+                  />
+                ))}
+                <span className="font-semibold uppercase tracking-[var(--tracking-meta)]">
+                  + more
+                </span>
+              </div>
 
-            <div className="flex flex-wrap items-center gap-[var(--space-3)]">
-              <Button asChild variant="primary" size="lg">
-                <Link to="/mac-preview#download">
-                  <Download size={16} />
-                  Evaluate Mac preview
-                  <ArrowRight size={16} />
-                </Link>
-              </Button>
-              <Button asChild variant="ghost" size="lg" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
-                <Link to="/docs/">
-                  <Terminal size={16} />
-                  Technical Docs
-                </Link>
-              </Button>
             </div>
           </motion.div>
 
-          {/* Right -- synchronized light/dark capture */}
+          {/* Right -- the big animated wordmark sits above the live story marquee. */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
-            className="relative min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
+            className="relative hidden min-w-0 min-[1100px]:col-start-2 min-[1100px]:row-start-1 min-[1100px]:block min-[1400px]:-mr-[var(--space-5)]"
           >
-            <picture aria-hidden="true" className="pointer-events-none absolute -right-[6%] -top-[18%] hidden h-[56%] w-[76%] overflow-hidden border opacity-35 min-[1100px]:block dark:opacity-25" style={{ borderColor: 'var(--border-subtle)' }}>
-              <source srcSet="/img/generated/agent-runtime-map.webp" type="image/webp" />
-              <img
-                alt=""
-                loading="lazy"
-                decoding="async"
-                fetchPriority="low"
-                className="h-full w-full object-cover"
-                src="/img/generated/agent-runtime-map.jpg"
-              />
-            </picture>
-            <div className="relative z-10">
-              <LiveGloryVideo />
+            {/* Animated wordmark, centered over the FleetBar preview below it.
+                On wide screens its top is nudged down to line up with the top of
+                the headline (past the eyebrow + intro gap in the left column). */}
+            <motion.div
+              ref={desktopHeroMarkRef}
+              aria-hidden="true"
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.7, ease: 'easeOut' as const }}
+              className="pointer-events-none mx-auto mb-[var(--space-4)] hidden w-[min(55rem,58vw)] select-none min-[1100px]:block"
+            >
+              <Wordmark variant="spin" className="w-full" />
+            </motion.div>
+            <div className="relative z-10 space-y-[var(--space-3)] overflow-hidden">
+              <PanelEyebrow>From the harbor - what people open first</PanelEyebrow>
+              <MarqueeTrack flush />
             </div>
           </motion.div>
         </div>

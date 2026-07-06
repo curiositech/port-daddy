@@ -14,6 +14,8 @@ import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import { formatUptime } from '../shared/port-utils.js';
 import { detectDrift } from '../lib/binary-drift-detector.js';
 import { assessRouteHealth, registeredFromSet, type RouteHealth } from '../lib/route-health.js';
+import { daemonHealthSeverity, type Severity } from '../lib/health-severity.js';
+import type { DaemonBerthIdentity } from '../shared/daemon-berths.js';
 
 interface SystemPort {
   port: number;
@@ -71,6 +73,14 @@ interface InfoRouteDeps {
     runningHash: string | null;
     runningSizeBytes: number | null;
   };
+  /**
+   * This daemon's berth identity (ADR-0084): tier/label/colour/source + git
+   * snapshot. Surfaced on `GET /health` and `GET /whoami` so FleetBar, the
+   * console, and `pd dev list` can colour-code and address each berth. Optional
+   * so older route wirings stay compatible — when absent the daemon is treated
+   * as the stable, canonical berth.
+   */
+  daemonBerth?: DaemonBerthIdentity;
   cleanupStale: () => unknown[];
   getSystemPorts: () => SystemPort[];
   fleetDaemon?: ReturnType<typeof createFleetDaemon>;
@@ -150,6 +160,25 @@ function buildRuntimeSummary(deps: InfoRouteDeps, routeHealth?: RouteHealth | nu
       launchableAgents: fleetStatus.totalLaunchableAgents,
     } : undefined,
   };
+}
+
+/**
+ * Fold the daemon's self-knowledge (routes, runtime, binary drift) into the one
+ * shared severity the console + FleetBar + `pd doctor` all read. Computed from
+ * the SAME `runtime`/`routes` objects already in the response, so the top-level
+ * `severity` can never disagree with the detail below it.
+ */
+function computeHealthSeverity(
+  routeHealth: RouteHealth | null,
+  runtime: { degraded: boolean },
+  binaryDrifted: boolean,
+): Severity {
+  return daemonHealthSeverity({
+    routesOk: routeHealth ? routeHealth.ok : true,
+    routesMissing: routeHealth ? routeHealth.missing.length : 0,
+    runtimeDegraded: runtime.degraded,
+    binaryDrifted,
+  });
 }
 
 function humanizeActivityType(type: string): string {
@@ -301,6 +330,18 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
     };
   });
 
+  // GET /whoami — daemon berth self-identity (ADR-0084). Distinct from the
+  // session `pd whoami` (which answers "which agent am I"); this answers "which
+  // berth is this daemon". Returns the same `daemon` object embedded in /health.
+  fastify.get('/whoami', async (_request: FastifyRequest, _reply: FastifyReply) => {
+    return {
+      service: 'port-daddy',
+      version: VERSION,
+      pid: process.pid,
+      daemon: deps.daemonBerth ?? null,
+    };
+  });
+
   // GET /metrics
   fastify.get('/metrics', async (_request: FastifyRequest, _reply: FastifyReply) => {
     const uptime_seconds = Math.floor((Date.now() - metrics.uptime_start) / 1000);
@@ -329,11 +370,16 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
       ? assessRouteHealth(registeredFromSet(deps.routeRegistry))
       : null;
     const runtime = buildRuntimeSummary(deps, routeHealth);
+    const severity = computeHealthSeverity(routeHealth, runtime, !!binaryDrift?.drifted);
     return {
       // #160: top-level liveness reflects whether the daemon can actually serve
       // its route contract. Arbiter/rule degradation is surfaced separately in
       // `runtime` (it does not mean the daemon is 404'ing its own endpoints).
       status: routeHealth && !routeHealth.ok ? 'degraded' : 'ok',
+      // The shared three-tier severity (ok | warn | critical) that the Rust
+      // console, FleetBar, and `pd doctor` all colour from. Folds routes +
+      // runtime + binary drift via lib/health-severity.ts.
+      severity,
       version: VERSION,
       uptime_seconds: Math.floor(process.uptime()),
       active_ports,
@@ -348,6 +394,9 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
       } : undefined,
       routes: routeHealth ?? undefined,
       runtime,
+      // Berth self-identity (ADR-0084). Always present: defaults to the stable,
+      // canonical berth when PD_DAEMON_* env is unset.
+      daemon: deps.daemonBerth ?? undefined,
       binaryDrift: binaryDrift ? {
         drifted: binaryDrift.drifted,
         runningHash: binaryDrift.runningHash,
@@ -370,8 +419,15 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
       ? assessRouteHealth(registeredFromSet(deps.routeRegistry))
       : null;
     const runtime = buildRuntimeSummary(deps, routeHealth);
+    // Drift is surfaced in depth on /health; /status is the FleetBar hot-poll
+    // path, so we fold routes + runtime only here (skip the per-poll binary
+    // hash) and let /health + `pd doctor` carry the drift→warn signal.
+    const severity = computeHealthSeverity(routeHealth, runtime, false);
     return {
       status: routeHealth && !routeHealth.ok ? 'degraded' : 'ok',
+      // Shared three-tier severity (ok | warn | critical) — see lib/health-severity.ts.
+      // FleetBar's menu-bar alarm and the console badge both colour from this.
+      severity,
       routes: routeHealth ?? undefined,
       version: VERSION,
       pid: process.pid,
@@ -383,6 +439,11 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
         startedAt: STARTED_AT,
         installDir: __dirname,
         nodeVersion: process.version,
+        // Berth self-identity (ADR-0084) embedded here so a single `/status`
+        // poll (FleetBar, dashboards) carries which berth this daemon is —
+        // stable / dev-latest / codebase — without a second `/whoami` round-trip.
+        // Defaults to the stable, canonical berth when PD_DAEMON_* is unset.
+        berth: deps.daemonBerth ?? undefined,
       },
       metrics: {
         ...metrics,

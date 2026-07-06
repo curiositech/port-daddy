@@ -5,11 +5,26 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, readFileSync, accessSync, constants } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, accessSync, constants } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { spawnSync, spawn } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
 import { ANSI as marANSI } from '../../lib/maritime.js';
+// SQLite via the runtime adapter — NOT better-sqlite3 directly. The `pd`
+// CLI is compiled to a single Bun binary (ADR-0028), where a
+// `better-sqlite3` import cannot resolve its native binding inside the
+// read-only /$bunfs/ virtual filesystem (the same blocker that grounded
+// the daemon). The adapter picks bun:sqlite under Bun and better-sqlite3
+// under Node, so `pd doctor` works in both the compiled binary and dev.
+import Database from '../../lib/sqlite-runtime.js';
+// Canonical DB-path resolver. handleDoctor used to derive the registry path
+// as join(__dirname, '..', '..', 'port-registry.db'); inside the compiled `pd`
+// binary __dirname resolves into the read-only /$bunfs/ virtual filesystem, so
+// existsSync() was always false and the SQLite-integrity probe was SILENTLY
+// SKIPPED ('No database file yet') against the real registry. resolveDbPath()
+// honours PORT_DADDY_DB and otherwise anchors on the distribution root, so it
+// finds <project-root>/port-registry.db under both dev and the binary.
+import { resolveDbPath } from '../../lib/db.js';
 import { pdFetch, PORT_DADDY_URL, SOCK_PATH, getDaemonUrl } from '../utils/fetch.js';
 import { CLIOptions, isJson } from '../types.js';
 import { separator, tableHeader } from '../utils/output.js';
@@ -17,12 +32,31 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import { diagnoseStartupBlockers, confirmFix, detectHostileEnvLocal } from '../utils/startup-doctor.js';
 import { CANONICAL_TCP_PORT } from '../../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../../shared/code-hash.js';
+import { PD_HOME } from '../../shared/paths.js';
+import { type Severity, worstSeverity } from '../../lib/health-severity.js';
 import {
   daemonBinaryPath,
   isBunVirtualPath,
   resolveDistributionRoot,
 } from '../../shared/daemon-binary.js';
+import {
+  diagnoseSquidHookInstall,
+  SQUID_HOOK_PRIVACY_NOTICE,
+} from '../../lib/squid/adapter.js';
+import { isEmbeddingModelCached, prefetchEmbeddingModel } from './embed.js';
+import { DEFAULT_SEMANTIC_MODEL_ID, defaultTransformersCacheDir } from '../../lib/semantic-resolver.js';
+import { isStdinInteractive, isStdoutInteractive } from '../utils/tty.js';
+import { createPlatforms } from './mcp-install.js';
 import * as ui from '../utils/ui.js';
+import {
+  assessHarborReadiness,
+  computeFirstValue,
+  formatDurationMs,
+  loadFirstValueRecord,
+  saveFirstValueRecord,
+  type AgentNodeV0,
+} from '../../lib/agent-harbor/setup-doctor.js';
+import { gatherHarborFacts } from '../utils/harbor-facts.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
@@ -202,17 +236,15 @@ export async function handleHealth(id: string | undefined, options: CLIOptions):
 /**
  * Handle `pd dashboard` command
  *
- * Default: launches the Ink terminal UI dashboard
- * --web: opens the browser-based dashboard instead
+ * Default: launches the Ink terminal UI dashboard.
+ * --web is retired: the browser dashboard was consolidated into the native
+ * surfaces (FleetBar Control Center, pd-console).
  */
 export async function handleDashboard(opts: { web?: boolean } = {}): Promise<void> {
-  const daemonUrl = getDaemonUrl();
-  const dashUrl = daemonUrl;
-
   if (opts.web) {
-    console.log(`Opening dashboard: ${dashUrl}`);
-    const openCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
-    spawn(openCmd, [dashUrl], { detached: true, stdio: 'ignore' }).unref();
+    console.log('The web dashboard has been retired.');
+    console.log('Use FleetBar → Control Center, FleetBar → Open Operator Console (pd-console),');
+    console.log('or run `pd dashboard` for the terminal UI.');
     return;
   }
 
@@ -356,6 +388,63 @@ export interface ResourceDirBreakdown {
   binaryExists: boolean;
 }
 
+export interface AgentRuntimeInstallDiagnosis {
+  mcpConfigured: boolean;
+  mcpDetail: string;
+  mcpHint: string;
+  skillInstalled: boolean;
+  skillDetail: string;
+  skillHint: string;
+}
+
+function readJsonFile(path: string): Record<string, unknown> | null {
+  if (!existsSync(path)) return null;
+  try {
+    const raw = readFileSync(path, 'utf8').trim();
+    return raw ? JSON.parse(raw) as Record<string, unknown> : {};
+  } catch {
+    return null;
+  }
+}
+
+export function diagnoseAgentRuntimeInstall(home = homedir()): AgentRuntimeInstallDiagnosis {
+  const platforms = createPlatforms(home);
+  const detected = platforms.filter((platform) => {
+    try {
+      return platform.detect();
+    } catch {
+      return existsSync(platform.configPath);
+    }
+  });
+  const configured = platforms.filter((platform) => {
+    const cfg = readJsonFile(platform.configPath);
+    const servers = cfg?.[platform.configKey] as Record<string, unknown> | undefined;
+    return !!servers?.['port-daddy'];
+  });
+
+  const skillTargets = [
+    join(home, '.claude', 'skills', 'port-daddy-agent-skill', 'SKILL.md'),
+    join(home, '.codex', 'skills', 'port-daddy-agent-skill', 'SKILL.md'),
+    join(home, '.agents', 'skills', 'port-daddy-agent-skill', 'SKILL.md'),
+    join(home, '.gemini', 'extensions', 'port-daddy', 'skills', 'port-daddy-agent-skill', 'SKILL.md'),
+    join(home, '.cursor', 'rules', 'port-daddy-agent-skill.md'),
+  ];
+  const installedSkills = skillTargets.filter((path) => existsSync(path));
+
+  return {
+    mcpConfigured: configured.length > 0,
+    mcpDetail: configured.length > 0
+      ? `port-daddy MCP configured for ${configured.map((platform) => platform.name).join(', ')}`
+      : `port-daddy MCP missing from ${detected.length || platforms.length} known agent config(s)`,
+    mcpHint: 'Run: pd mcp install   (or pd setup)',
+    skillInstalled: installedSkills.length > 0,
+    skillDetail: installedSkills.length > 0
+      ? `Port Daddy skill present in ${installedSkills.length} local agent runtime(s)`
+      : 'Port Daddy skill not found in Claude/Codex/Gemini/Cursor/common agent skill locations',
+    skillHint: 'Run: pd setup   (refreshes skills and Pilot definitions)',
+  };
+}
+
 /**
  * Computes the four-way resolution of `PORT_DADDY_RESOURCE_DIR` at the
  * current moment: explicit env override, raw module dir (and whether
@@ -430,38 +519,254 @@ export function readPlistAsXml(plistPath: string): string {
   return result.stdout;
 }
 
-export async function handleDoctor(): Promise<void> {
+// =============================================================================
+// Supervision integrity — the crux of "is the daemon actually owned?"
+//
+// On macOS the daemon is supervised by exactly ONE launchd job: Homebrew's
+// `homebrew.mxcl.port-daddy` (brew install) OR the legacy `com.portdaddy.daemon`
+// (self/npm install, removed 2026-06-01 but may linger on old machines). The
+// failure modes the operator keeps hitting:
+//   - zero supervisors loaded            → nothing will resurrect the daemon
+//   - one supervisor loaded but NOT      → the daemon is unsupervised right now;
+//     running                              if it's also unreachable this is
+//                                          exactly how it silently died
+//   - two supervisors loaded             → duplicate KeepAlive jobs race the
+//                                          listener (the install-daemon dedup bug)
+// The previous `pd doctor` looked ONLY for `com.portdaddy.daemon` and so was
+// blind to every brew-supervised install — it reported "LaunchAgent not
+// installed" on a perfectly-supervised daemon. This replaces that.
+// =============================================================================
+
+/** The launchd labels that legitimately supervise the Port Daddy daemon. */
+export const DAEMON_SUPERVISOR_LABELS = [
+  'homebrew.mxcl.port-daddy',
+  'com.portdaddy.daemon',
+] as const;
+
+export interface LaunchdSupervisor {
+  label: string;
+  /** launchctl knows this job (status 0). */
+  loaded: boolean;
+  /** the job currently has a live PID. */
+  running: boolean;
+  pid: number | null;
+}
+
+export interface SupervisionAssessment {
+  severity: Severity;
+  detail: string;
+  hint?: string;
+  /**
+   * Structured single-command remediation for the specific failure (bootout a
+   * duplicate, kickstart a stopped job, install a missing supervisor). The
+   * Agent Harbor daemon card consumes this so its one repair is the right
+   * repair, not a blanket `port-daddy install`.
+   */
+  repair?: { command: string; description: string };
+}
+
+/**
+ * Pure severity judgment over the launchd supervisor set + daemon reachability.
+ * Separated from the spawn so it is unit-testable without launchctl.
+ *
+ * ```ts
+ * assessSupervisionIntegrity({ supervisors: [], daemonReachable: false, platform: 'darwin' }).severity
+ * // => 'critical'
+ * assessSupervisionIntegrity({ supervisors: [{label:'homebrew.mxcl.port-daddy',loaded:true,running:true,pid:42}], daemonReachable: true, platform: 'darwin' }).severity
+ * // => 'ok'
+ * ```
+ */
+export function assessSupervisionIntegrity(input: {
+  supervisors: LaunchdSupervisor[];
+  daemonReachable: boolean;
+  platform?: NodeJS.Platform;
+}): SupervisionAssessment {
+  const plat = input.platform ?? process.platform;
+  if (plat !== 'darwin') {
+    return { severity: 'ok', detail: `Supervision integrity is a macOS-only check (skipped on ${plat})` };
+  }
+
+  const loaded = input.supervisors.filter((s) => s.loaded);
+  const running = loaded.filter((s) => s.running);
+
+  if (loaded.length === 0) {
+    if (input.daemonReachable) {
+      return {
+        severity: 'warn',
+        detail: 'Daemon is reachable but NO launchd supervisor owns it — it will not be resurrected if it dies',
+        hint: 'Run: port-daddy install   (installs the launchd supervisor)',
+        repair: { command: 'port-daddy install', description: 'Installs the launchd supervisor for the running daemon.' },
+      };
+    }
+    return {
+      severity: 'critical',
+      detail: 'No launchd supervisor is loaded and the daemon is not reachable',
+      hint: 'Run: port-daddy install   then: port-daddy start',
+      repair: { command: 'port-daddy install', description: 'Installs the launchd supervisor, then start the daemon with port-daddy start.' },
+    };
+  }
+
+  if (loaded.length >= 2) {
+    return {
+      severity: 'warn',
+      detail: `${loaded.length} supervisors loaded (${loaded.map((s) => s.label).join(', ')}) — duplicate KeepAlive jobs race the listener`,
+      hint: `Keep exactly one. Unload the duplicate: launchctl bootout gui/$(id -u)/${loaded[1].label}`,
+      repair: {
+        command: `launchctl bootout gui/$(id -u)/${loaded[1].label}`,
+        description: 'Unloads the duplicate supervisor so exactly one KeepAlive job owns the daemon.',
+      },
+    };
+  }
+
+  // Exactly one supervisor loaded.
+  const one = loaded[0];
+  if (running.length >= 1) {
+    return { severity: 'ok', detail: `${one.label} is loaded and running (PID ${one.pid})` };
+  }
+  // Loaded but not running — the unsupervised-drift precursor.
+  if (input.daemonReachable) {
+    return {
+      severity: 'warn',
+      detail: `${one.label} is loaded but its process is not running — the daemon is currently UNSUPERVISED (reachable now, but won't be resurrected)`,
+      hint: `Re-kick the supervisor: launchctl kickstart -k gui/$(id -u)/${one.label}`,
+      repair: {
+        command: `launchctl kickstart -k gui/$(id -u)/${one.label}`,
+        description: 'Re-kicks the loaded supervisor so the daemon is resurrected if it dies.',
+      },
+    };
+  }
+  return {
+    severity: 'critical',
+    detail: `${one.label} is loaded but not running, and the daemon is not reachable — this is how the daemon silently dies`,
+    hint: `Run: port-daddy start   (or: launchctl kickstart -k gui/$(id -u)/${one.label})`,
+    repair: { command: 'port-daddy start', description: 'Starts the daemon under the already-loaded supervisor.' },
+  };
+}
+
+/**
+ * Query launchd for each candidate supervisor label. macOS-only; on other
+ * platforms returns an empty set (the assessor short-circuits to ok there).
+ *
+ * `launchctl list <label>` exits 0 and prints a `"PID" = N;` line when the job
+ * is loaded AND running; exits 0 with no PID line when loaded-but-stopped; and
+ * exits non-zero ("Could not find service") when the job is not loaded.
+ */
+export function gatherLaunchdSupervisors(
+  labels: readonly string[] = DAEMON_SUPERVISOR_LABELS,
+): LaunchdSupervisor[] {
+  if (process.platform !== 'darwin') return [];
+  return labels.map((label) => {
+    try {
+      const res = spawnSync('launchctl', ['list', label], {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        timeout: 5000,
+      });
+      if (res.status !== 0) return { label, loaded: false, running: false, pid: null };
+      const m = /"PID"\s*=\s*(\d+)/.exec(res.stdout || '');
+      const pid = m ? parseInt(m[1], 10) : null;
+      return { label, loaded: true, running: pid !== null && pid > 0, pid };
+    } catch {
+      return { label, loaded: false, running: false, pid: null };
+    }
+  });
+}
+
+/**
+ * Resolve the Bosun watchdog binary (`core/pd-bosun`). Prefers the release
+ * artifact under `dist/`, falls back to the source-tree release build. Mirrors
+ * the daemon-side `resolveBosunBinaryStatus` in routes/info.ts.
+ */
+export function resolveBosunBinary(rootDir: string): { binaryPath: string; exists: boolean } {
+  const distBinary = join(rootDir, 'dist', 'core', 'pd-bosun');
+  const sourceBinary = join(rootDir, 'core', 'pd-bosun', 'target', 'release', 'pd-bosun');
+  const binaryPath = existsSync(distBinary) ? distBinary : sourceBinary;
+  return { binaryPath, exists: existsSync(binaryPath) };
+}
+
+/**
+ * Find scattered `port-registry*.db` files in a directory. The known continuity
+ * bug (db-fragmentation): backups and brew-Cellar copies leave multiple
+ * registry DBs around, and the daemon can end up reading or backing up the
+ * wrong one. More than one is a fragmentation smell worth a WARN.
+ */
+export function scanRegistryDbFiles(dir: string): string[] {
+  try {
+    return readdirSync(dir)
+      .filter((f) => /^port-registry.*\.db$/.test(f) && !f.endsWith('-wal') && !f.endsWith('-shm'))
+      .map((f) => join(dir, f));
+  } catch {
+    return [];
+  }
+}
+
+export interface DoctorOptions {
+  json?: boolean | string;
+  /** CI/script mode: machine-readable, no interactive fix phase. */
+  ci?: boolean | string;
+  /** Force exit-code gating (alias of --ci's gating half). */
+  exitCode?: boolean | string;
+}
+
+export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void> {
+  const jsonMode = !!(rawOptions.json);
+  // CI/exit-code mode: never prompt, always gate the exit code on critical.
+  const ciMode = !!(rawOptions.ci || rawOptions.exitCode);
+  const nonInteractive = jsonMode || ciMode;
+
   interface CheckResult {
     ok: boolean;
     name: string;
     detail: string;
     hint?: string;
+    severity: Severity;
+    /** retained for back-compat with callers reading `.critical`. */
     critical?: boolean;
   }
 
   const results: CheckResult[] = [];
   let passed: number = 0;
   let total: number = 0;
-  let hasCriticalFailure: boolean = false;
   const daemonPort = resolveDiagnosticPort();
   const portLabel = `Daemon TCP port (${daemonPort}${daemonPort === CANONICAL_TCP_PORT ? ' preferred' : ''})`;
 
   const libDir: string = join(__dirname, '..', '..');
 
+  // A non-critical failure is now a WARN, not a blanket fail: it is loud in the
+  // output and surfaced to CI's machine view, but it does NOT gate the exit code
+  // (only `critical` does). That is the whole point of the three-tier model —
+  // missing shell completions should nag, not break the build.
   function check(name: string, ok: boolean, detail: string, hint?: string): void {
     total++;
     if (ok) {
       passed++;
-      results.push({ ok: true, name, detail });
+      results.push({ ok: true, name, detail, severity: 'ok' });
     } else {
-      results.push({ ok: false, name, detail, hint });
+      results.push({ ok: false, name, detail, hint, severity: 'warn' });
     }
+  }
+
+  function warn(name: string, detail: string, hint?: string): void {
+    total++;
+    results.push({ ok: false, name, detail, hint, severity: 'warn' });
   }
 
   function criticalFail(name: string, detail: string, hint: string): void {
     total++;
-    hasCriticalFailure = true;
-    results.push({ ok: false, name, detail, hint, critical: true });
+    results.push({ ok: false, name, detail, hint, severity: 'critical', critical: true });
+  }
+
+  /** Record a pre-computed assessment (supervision, liveness, bosun, …). */
+  function recordAssessment(name: string, a: { severity: Severity; detail: string; hint?: string }): void {
+    total++;
+    if (a.severity === 'ok') {
+      passed++;
+      results.push({ ok: true, name, detail: a.detail, severity: 'ok' });
+    } else if (a.severity === 'warn') {
+      results.push({ ok: false, name, detail: a.detail, hint: a.hint, severity: 'warn' });
+    } else {
+      results.push({ ok: false, name, detail: a.detail, hint: a.hint, severity: 'critical', critical: true });
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -485,21 +790,31 @@ export async function handleDoctor(): Promise<void> {
   try {
     const nodeModulesPath: string = join(libDir, 'node_modules');
     const pkgPath: string = join(libDir, 'package.json');
-    const pkg: { dependencies?: Record<string, string> } = JSON.parse(readFileSync(pkgPath, 'utf8'));
-    const deps: string[] = Object.keys(pkg.dependencies || {});
-    const missing: string[] = [];
-
-    for (const dep of deps) {
-      const depPath: string = join(nodeModulesPath, dep);
-      if (!existsSync(depPath)) {
-        missing.push(dep);
-      }
-    }
-
-    if (missing.length === 0) {
-      check('Dependencies', true, `All ${deps.length} dependencies installed`);
+    // In the `bun build --compile` binary, libDir resolves into the read-only
+    // /$bunfs/ virtual filesystem (or a layout with no sibling package.json),
+    // and every dependency is BUNDLED into the binary — there is no
+    // node_modules to inspect. Treat that as OK, not a false CRITICAL (this is
+    // why the brew `pd doctor` used to fail "Dependencies: ENOENT /package.json"
+    // on a perfectly healthy install).
+    if (isBunVirtualPath(libDir) || !existsSync(pkgPath)) {
+      check('Dependencies', true, 'Bundled in the compiled binary (no node_modules to verify)');
     } else {
-      criticalFail('Dependencies', `Missing: ${missing.join(', ')}`, 'Run: npm install');
+      const pkg: { dependencies?: Record<string, string> } = JSON.parse(readFileSync(pkgPath, 'utf8'));
+      const deps: string[] = Object.keys(pkg.dependencies || {});
+      const missing: string[] = [];
+
+      for (const dep of deps) {
+        const depPath: string = join(nodeModulesPath, dep);
+        if (!existsSync(depPath)) {
+          missing.push(dep);
+        }
+      }
+
+      if (missing.length === 0) {
+        check('Dependencies', true, `All ${deps.length} dependencies installed`);
+      } else {
+        criticalFail('Dependencies', `Missing: ${missing.join(', ')}`, 'Run: npm install');
+      }
     }
   } catch (err: unknown) {
     criticalFail('Dependencies', `Error: ${(err as Error).message}`, 'Run: npm install');
@@ -509,7 +824,9 @@ export async function handleDoctor(): Promise<void> {
   // 3. Database exists and is writable
   // -------------------------------------------------------------------------
   try {
-    const dbPath: string = join(libDir, 'port-registry.db');
+    // resolveDbPath() so this check sees the real registry in the compiled
+    // binary too (join(__dirname,...) resolves into read-only /$bunfs/).
+    const dbPath: string = resolveDbPath();
     if (existsSync(dbPath)) {
       // Check if writable by trying to open for writing
       try {
@@ -535,9 +852,14 @@ export async function handleDoctor(): Promise<void> {
   try {
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
     if (res.ok) {
-      daemonData = await res.json();
-      daemonRunning = true;
-      check('Network', true, `${getDaemonUrl()} is reachable`);
+      const parsedHealth = await res.json();
+      if (parsedHealth && typeof parsedHealth === 'object' && !Array.isArray(parsedHealth)) {
+        daemonData = parsedHealth as Record<string, unknown>;
+        daemonRunning = true;
+        check('Network', true, `${getDaemonUrl()} is reachable`);
+      } else {
+        check('Network', false, `${getDaemonUrl()} returned an invalid /health payload`, 'Run: port-daddy restart');
+      }
     } else {
       check('Network', false, `${getDaemonUrl()} returned status ${res.status}`, 'Run: port-daddy start');
     }
@@ -552,6 +874,50 @@ export async function handleDoctor(): Promise<void> {
     check('Daemon running', true, `PID ${daemonData.pid}, v${daemonData.version}`);
   } else {
     check('Daemon running', false, 'Daemon is not running', 'Run: port-daddy start');
+  }
+
+  // -------------------------------------------------------------------------
+  // 5b. Daemon liveness DEPTH — not just "TCP bound" but the shared /health
+  //     report: critical routes registered + runtime nominal. Consumes the
+  //     SAME structured report the console and FleetBar read, so the three
+  //     surfaces never disagree about what "degraded" means.
+  // -------------------------------------------------------------------------
+  if (daemonRunning && daemonData) {
+    const routes = daemonData.routes as { ok?: boolean; missing?: Array<{ method: string; url: string }>; checked?: number } | undefined;
+    const runtime = daemonData.runtime as { state?: string; degraded?: boolean } | undefined;
+    const severity = daemonData.severity as Severity | undefined;
+    if (routes && routes.ok === false) {
+      const missingList = (routes.missing ?? []).map((r) => `${r.method} ${r.url}`).join(', ');
+      criticalFail('Daemon liveness',
+        `Daemon is 404'ing ${routes.missing?.length ?? 0} of its own critical routes: ${missingList || 'unknown'}`,
+        'Rebuild + relaunch the daemon: port-daddy restart');
+    } else if (severity === 'warn' || runtime?.degraded) {
+      recordAssessment('Daemon liveness', {
+        severity: 'warn',
+        detail: `Runtime is ${runtime?.state ?? 'degraded'} (routes ok, but the daemon reports a degradation)`,
+        hint: 'Inspect: pd status   (see runtime.reasons)',
+      });
+    } else {
+      check('Daemon liveness', true, `Routes ok (${routes?.checked ?? 0} checked), runtime ${runtime?.state ?? 'nominal'}`);
+    }
+  } else {
+    check('Daemon liveness', false, 'Daemon not running, cannot probe routes/runtime', 'Run: port-daddy start');
+  }
+
+  // -------------------------------------------------------------------------
+  // 5c. Binary drift — the running daemon vs the binary `pd` now resolves on
+  //     disk (brew-upgrade / Cellar-vs-opt drift). WARN: works now, but the
+  //     operator is talking to a stale process.
+  // -------------------------------------------------------------------------
+  if (daemonRunning && daemonData) {
+    const drift = daemonData.binaryDrift as { drifted?: boolean; reason?: string; runningPath?: string; onDiskPath?: string } | undefined;
+    if (drift?.drifted) {
+      warn('Binary drift',
+        `Running daemon differs from on-disk binary (${drift.reason ?? 'hash mismatch'}): running=${drift.runningPath ?? '?'} on-disk=${drift.onDiskPath ?? '?'}`,
+        'Restart to pick up the on-disk binary: port-daddy restart');
+    } else {
+      check('Binary drift', true, drift ? 'Running daemon matches the on-disk binary' : 'No drift snapshot (older daemon) — skipped');
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -611,38 +977,33 @@ export async function handleDoctor(): Promise<void> {
   }
 
   // -------------------------------------------------------------------------
-  // 8. System service (LaunchAgent on macOS, systemd on Linux)
+  // 8. Supervision integrity (the crux) — exactly ONE launchd job owns the
+  //    daemon and it is running. CRITICAL when unsupervised + unreachable
+  //    (silent-death), WARN when unsupervised-but-reachable or when two
+  //    supervisors race the listener. The old check looked only for the
+  //    removed `com.portdaddy.daemon` label and was blind to every
+  //    brew-supervised install.
   // -------------------------------------------------------------------------
+  // Captured for the Agent Harbor readiness section (C8): null = not assessed
+  // (non-darwin), true = exactly-one-supervisor-running, false = anything else.
+  let daemonSupervisedForHarbor: boolean | null = null;
+  // The assessment's own words + structured repair, so the Harbor daemon card
+  // recommends the RIGHT fix (bootout a duplicate / kickstart a stopped job)
+  // instead of collapsing every non-ok state into `port-daddy install`.
+  let daemonSupervisionDetailForHarbor: string | null = null;
+  let daemonSupervisionRepairForHarbor: { command: string; description: string } | null = null;
   try {
     if (process.platform === 'darwin') {
-      const homedir = (await import('node:os')).homedir();
-      const plistPath: string = join(homedir, 'Library', 'LaunchAgents', 'com.portdaddy.daemon.plist');
-
-      if (existsSync(plistPath)) {
-        const result: SpawnSyncReturns<Buffer> = spawnSync('launchctl', ['list', 'com.portdaddy.daemon'], {
-          stdio: ['pipe', 'pipe', 'pipe']
-        });
-
-        if (result.status === 0) {
-          check('System service', true, 'LaunchAgent installed and loaded');
-        } else {
-          check('System service', false,
-            'LaunchAgent plist exists but is not loaded',
-            'Run: port-daddy install');
-        }
-      } else {
-        // Check for legacy plist
-        const legacyPath: string = join(homedir, 'Library', 'LaunchAgents', 'com.erichowens.port-daddy.plist');
-        if (existsSync(legacyPath)) {
-          check('System service', false,
-            'Legacy LaunchAgent found (com.erichowens.port-daddy)',
-            'Run: port-daddy install (will upgrade automatically)');
-        } else {
-          check('System service', false,
-            'LaunchAgent not installed',
-            'Run: port-daddy install');
-        }
+      const supervision = assessSupervisionIntegrity({
+        supervisors: gatherLaunchdSupervisors(),
+        daemonReachable: daemonRunning,
+      });
+      daemonSupervisedForHarbor = supervision.severity === 'ok';
+      if (supervision.severity !== 'ok') {
+        daemonSupervisionDetailForHarbor = supervision.detail;
+        daemonSupervisionRepairForHarbor = supervision.repair ?? null;
       }
+      recordAssessment('Supervision integrity', supervision);
     } else if (process.platform === 'linux') {
       const homedir = (await import('node:os')).homedir();
       const unitPath: string = join(homedir, '.config', 'systemd', 'user', 'port-daddy.service');
@@ -674,6 +1035,44 @@ export async function handleDoctor(): Promise<void> {
     }
   } catch (err: unknown) {
     check('System service', false, `Error: ${(err as Error).message}`, 'Run: port-daddy install');
+  }
+
+  // -------------------------------------------------------------------------
+  // 8b. Bosun watchdog — the Rust heartbeat/PID supervisor (core/pd-bosun).
+  //     Previously this was silently skipped when the binary was missing; now
+  //     it is a loud WARN that names the exact build command. Running-state is
+  //     read from the daemon's guardians.bosun when reachable.
+  // -------------------------------------------------------------------------
+  try {
+    const bosun = resolveBosunBinary(libDir);
+    let bosunRunning: boolean | null = null;
+    let bosunReason: string | null = null;
+    if (daemonRunning) {
+      try {
+        const statusRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/status`);
+        if (statusRes.ok) {
+          const statusData = await statusRes.json() as { guardians?: { bosun?: { state?: string; reason?: string } } };
+          const g = statusData?.guardians?.bosun;
+          if (g) {
+            bosunReason = g.reason ?? g.state ?? null;
+            bosunRunning = g.state === 'healthy' || g.state === 'idle';
+          }
+        }
+      } catch { /* daemon guardians unavailable — fall back to binary presence */ }
+    }
+    if (!bosun.exists) {
+      warn('Bosun watchdog',
+        'pd-bosun binary not built — the daemon has no independent heartbeat/PID watchdog',
+        'Build it: (cd core/pd-bosun && cargo build --release)   or: npm run build');
+    } else if (bosunRunning === false) {
+      warn('Bosun watchdog',
+        `pd-bosun binary present but not active${bosunReason ? ` (${bosunReason})` : ''}`,
+        'Heartbeat writer is the daemon-side fallback; install the supervisor for resurrection coverage');
+    } else {
+      check('Bosun watchdog', true, `pd-bosun present at ${bosun.binaryPath}${bosunReason ? ` (${bosunReason})` : ''}`);
+    }
+  } catch (err: unknown) {
+    check('Bosun watchdog', false, `Error: ${(err as Error).message}`);
   }
 
   // -------------------------------------------------------------------------
@@ -718,9 +1117,10 @@ export async function handleDoctor(): Promise<void> {
   // SQLite integrity
   // -------------------------------------------------------------------------
   try {
-    const dbPath: string = join(libDir, 'port-registry.db');
+    // resolveDbPath() (not join(__dirname, ...)) so the probe runs against the
+    // real registry inside the compiled binary too — see import note above.
+    const dbPath: string = resolveDbPath();
     if (existsSync(dbPath)) {
-      const Database = (await import('better-sqlite3')).default;
       let testDb;
       try {
         testDb = new Database(dbPath, { readonly: true });
@@ -744,6 +1144,29 @@ export async function handleDoctor(): Promise<void> {
     }
   } catch (err: unknown) {
     check('SQLite integrity', false, `Error: ${(err as Error).message}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // DB fragmentation — multiple scattered port-registry*.db files (the known
+  // continuity bug where backups/Cellar copies leave the daemon reading or
+  // backing up the wrong registry). One is healthy; more than one is a WARN.
+  // -------------------------------------------------------------------------
+  try {
+    const registryDbs = scanRegistryDbFiles(PD_HOME);
+    const activeDb = resolveDbPath();
+    const activeDir = activeDb.slice(0, activeDb.lastIndexOf('/'));
+    // Also count a registry living outside ~/.port-daddy (e.g. a brew Cellar copy).
+    const extra = activeDir && activeDir !== PD_HOME ? scanRegistryDbFiles(activeDir) : [];
+    const all = Array.from(new Set([...registryDbs, ...extra]));
+    if (all.length <= 1) {
+      check('DB fragmentation', true, all.length === 1 ? `Single registry: ${all[0]}` : 'No scattered registry copies');
+    } else {
+      warn('DB fragmentation',
+        `${all.length} registry DB files found (${all.join(', ')}) — the daemon may read/back-up the wrong one`,
+        `Active registry is ${activeDb}; consolidate or remove the stale copies`);
+    }
+  } catch (err: unknown) {
+    check('DB fragmentation', true, `Could not check (skipped): ${(err as Error).message}`);
   }
 
   // -------------------------------------------------------------------------
@@ -816,17 +1239,17 @@ export async function handleDoctor(): Promise<void> {
     const zshFile: string = join(completionsDir, 'port-daddy.zsh');
     check('Shell completions', existsSync(zshFile),
       existsSync(zshFile) ? 'Zsh completions file found' : 'Zsh completions file missing',
-      'See: completions/port-daddy.zsh');
+      'Run: port-daddy install   (writes the zsh completion file)');
   } else if (shell.includes('bash')) {
     const bashFile: string = join(completionsDir, 'port-daddy.bash');
     check('Shell completions', existsSync(bashFile),
       existsSync(bashFile) ? 'Bash completions file found' : 'Bash completions file missing',
-      'See: completions/port-daddy.bash');
+      'Run: port-daddy install   (writes the bash completion file)');
   } else if (shell.includes('fish')) {
     const fishFile: string = join(completionsDir, 'port-daddy.fish');
     check('Shell completions', existsSync(fishFile),
       existsSync(fishFile) ? 'Fish completions file found' : 'Fish completions file missing',
-      'See: completions/port-daddy.fish');
+      'Run: port-daddy install   (writes the fish completion file)');
   } else {
     check('Shell completions', true, `Shell "${shell || 'unknown'}" — completions available for bash/zsh/fish`);
   }
@@ -970,33 +1393,210 @@ export async function handleDoctor(): Promise<void> {
   }
 
   // -------------------------------------------------------------------------
-  // Output
+  // 14. Agent runtime wiring: MCP, skills, and lifecycle hooks
+  // -------------------------------------------------------------------------
+  // Agent CLIs are right to show users installed hooks. This section makes that
+  // disclosure auditable: the names are plain language, the privacy boundary is
+  // explicit, and a user who removed hooks/skills/MCP gets a direct repair path.
+  // Retained for the Agent Harbor readiness section (C8) so the harbor cards
+  // judge the SAME probes this section printed — never a second opinion.
+  let mcpFactsForHarbor: { configured: boolean; detail: string } = {
+    configured: false,
+    detail: 'Agent runtime wiring could not be probed',
+  };
+  let hookDiagnosesForHarbor: ReturnType<typeof diagnoseSquidHookInstall> = [];
+
+  try {
+    const runtime = diagnoseAgentRuntimeInstall(homedir());
+    mcpFactsForHarbor = { configured: runtime.mcpConfigured, detail: runtime.mcpDetail };
+    check('Agent MCP wiring', runtime.mcpConfigured, runtime.mcpDetail, runtime.mcpHint);
+    check('Agent Port Daddy skill', runtime.skillInstalled, runtime.skillDetail, runtime.skillHint);
+  } catch (err: unknown) {
+    check('Agent runtime wiring', false, `Error: ${(err as Error).message}`, 'Run: pd setup');
+  }
+
+  try {
+    const hookChecks = diagnoseSquidHookInstall(process.cwd());
+    hookDiagnosesForHarbor = hookChecks;
+    const okHooks = hookChecks.filter((result) => result.ok);
+    if (okHooks.length === hookChecks.length) {
+      check('Agent lifecycle hooks', true, `${okHooks.length} provider hook contract(s) installed with visible privacy metadata`);
+    } else {
+      check(
+        'Agent lifecycle hooks',
+        false,
+        `${okHooks.length}/${hookChecks.length} provider hook contract(s) healthy`,
+        'Run: pd setup   (or pd squid hooks)',
+      );
+      for (const result of hookChecks.filter((item) => !item.ok)) {
+        check(`Agent hooks: ${result.providerName}`, false, `${result.detail} at ${result.configPath}`, result.hint);
+      }
+    }
+    check('Hook privacy disclosure', true, SQUID_HOOK_PRIVACY_NOTICE);
+  } catch (err: unknown) {
+    check('Agent lifecycle hooks', false, `Error: ${(err as Error).message}`, 'Run: pd squid hooks');
+  }
+
+  // -------------------------------------------------------------------------
+  // 15. Local embedding model (ADR-0061 shared cache; hybrid-search policy)
+  // -------------------------------------------------------------------------
+  // ONE model for every semantic surface: resolver, LLM semantic cache,
+  // shipwright skill index, and `pd embed` (the surface skills shell out to).
+  // A cancelled setup download is allowed — this is the repair path.
+  let embeddingModelCached = true;
+  try {
+    const embCacheDir = defaultTransformersCacheDir();
+    embeddingModelCached = isEmbeddingModelCached(embCacheDir);
+    if (embeddingModelCached) {
+      check('Local embedding model', true, `${DEFAULT_SEMANTIC_MODEL_ID} cached at ${embCacheDir}`);
+    } else {
+      check(
+        'Local embedding model',
+        false,
+        `${DEFAULT_SEMANTIC_MODEL_ID} not cached at ${embCacheDir} — semantic/hybrid search degrades to lexical-only`,
+        'Run: pd embed prefetch   (one-time ~27 MB download; also offered below)',
+      );
+    }
+  } catch (err: unknown) {
+    check('Local embedding model', false, `Error: ${(err as Error).message}`, 'Run: pd embed prefetch');
+  }
+
+  // -------------------------------------------------------------------------
+  // 16. Agent Harbor readiness (binder ch18 Work Order C8, ADR-0095)
+  // -------------------------------------------------------------------------
+  // Ten areas, one RemediationCard each, ONE repair per detected issue. Cards
+  // are judged by the pure core in lib/agent-harbor/setup-doctor.ts from facts
+  // gathered here — including the facts this doctor already computed above
+  // (daemon reachability, supervision, hooks, MCP), so the harbor view can
+  // never disagree with the checks the operator just read. Every card names
+  // its sync posture: local-only / syncs (opt-in) / disabled.
+  try {
+    const pkgPathForVersion = join(libDir, 'package.json');
+    const cliVersion: string = existsSync(pkgPathForVersion)
+      ? (JSON.parse(readFileSync(pkgPathForVersion, 'utf8')) as { version?: string }).version ?? 'unknown'
+      : process.env.PORT_DADDY_PACKAGE_VERSION || 'unknown';
+    const facts = await gatherHarborFacts({
+      daemonReachable: daemonRunning,
+      daemonVersion: daemonRunning && daemonData ? String(daemonData.version ?? '') || null : null,
+      daemonSupervised: daemonSupervisedForHarbor,
+      daemonSupervisionDetail: daemonSupervisionDetailForHarbor,
+      daemonSupervisionRepair: daemonSupervisionRepairForHarbor,
+      hookDiagnoses: hookDiagnosesForHarbor,
+      mcp: mcpFactsForHarbor,
+      cliVersion,
+    });
+    const cards = assessHarborReadiness(facts);
+    for (const card of cards) {
+      recordAssessment(`Harbor: ${card.title} [${card.syncState === 'local' ? 'local-only' : card.syncState === 'synced' ? 'syncs (opt-in)' : 'disabled'}]`, {
+        severity: card.severity,
+        detail: card.detail,
+        hint: card.repair ? `Run: ${card.repair.command}   (${card.repair.description})` : undefined,
+      });
+    }
+
+    // First-value metric: time to first OFFICIAL Agent Node. Seals once. The
+    // Agent Node ledger route is the F0-canonical GET /agent-nodes (binder
+    // ch09), served for real by routes/agent-harbor.ts over C1's projections
+    // (wave3/routes). Older daemons without that route still 404 and we say
+    // so honestly instead of inventing a number.
+    let fvRecord = loadFirstValueRecord();
+    if (fvRecord.setupCompletedAt && fvRecord.timeToFirstOfficialAgentNodeMs === null && daemonRunning) {
+      try {
+        const nodesRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agent-nodes`);
+        if (nodesRes.ok) {
+          const payload = await nodesRes.json() as { nodes?: AgentNodeV0[] } | AgentNodeV0[];
+          const nodes = Array.isArray(payload) ? payload : (payload.nodes ?? []);
+          const updated = computeFirstValue(fvRecord, nodes);
+          if (updated.timeToFirstOfficialAgentNodeMs !== null) {
+            saveFirstValueRecord(updated);
+            fvRecord = updated;
+          }
+        }
+      } catch { /* running daemon predates routes/agent-harbor.ts — report honestly below */ }
+    }
+    if (fvRecord.timeToFirstOfficialAgentNodeMs !== null) {
+      check('Harbor: first-value metric', true,
+        `Time to first official Agent Node: ${formatDurationMs(fvRecord.timeToFirstOfficialAgentNodeMs)} (setup ${fvRecord.setupCompletedAt} → node ${fvRecord.firstOfficialAgentNodeAt})`);
+    } else if (fvRecord.setupCompletedAt) {
+      check('Harbor: first-value metric', true,
+        `Not yet measured — setup completed ${fvRecord.setupCompletedAt}; no official (daemon-witnessed) Agent Node observed yet.`);
+    } else {
+      check('Harbor: first-value metric', true,
+        'Not yet measured — run the default install path (pd setup) to start the clock.');
+    }
+  } catch (err: unknown) {
+    check('Harbor readiness', false, `Error: ${(err as Error).message}`, 'Run: pd setup');
+  }
+
+  // -------------------------------------------------------------------------
+  // Tally + overall severity (the three-tier model)
+  // -------------------------------------------------------------------------
+  const warnCount = results.filter((r) => r.severity === 'warn').length;
+  const criticalCount = results.filter((r) => r.severity === 'critical').length;
+  const overall: Severity = worstSeverity(results.map((r) => r.severity));
+
+  // -------------------------------------------------------------------------
+  // JSON mode: one machine-readable report, no interactive phase. This is the
+  // shape CI consumes (`pd doctor --json`) and the same severity vocabulary the
+  // daemon's /health speaks.
+  // -------------------------------------------------------------------------
+  if (jsonMode) {
+    const report = {
+      tool: 'port-daddy doctor',
+      severity: overall,
+      summary: { ok: passed, warn: warnCount, critical: criticalCount, total },
+      checks: results.map((r) => ({
+        name: r.name,
+        severity: r.severity,
+        ok: r.ok,
+        detail: r.detail,
+        ...(r.hint ? { hint: r.hint } : {}),
+      })),
+    };
+    console.log(JSON.stringify(report, null, 2));
+    process.exit(criticalCount > 0 ? 1 : 0);
+  }
+
+  // -------------------------------------------------------------------------
+  // Human output \u2014 severity-aware glyphs so warnings are loud but distinct
+  // from a build-breaking critical.
   // -------------------------------------------------------------------------
   console.log('');
   console.log('Port Daddy Doctor');
   console.log('\u2501'.repeat(50));
 
   for (const r of results) {
-    if (r.ok) {
-      console.log(`\u2713 ${r.name}: ${r.detail}`);
-    } else {
-      console.log(`\u2717 ${r.name}: ${r.detail}`);
-      if (r.hint) {
-        console.log(`  \u2192 ${r.hint}`);
-      }
+    const glyph = r.severity === 'ok' ? '\u2713' : r.severity === 'warn' ? '\u26a0' : '\u2717';
+    const tag = r.severity === 'critical' ? ' [CRITICAL]' : r.severity === 'warn' ? ' [warn]' : '';
+    console.log(`${glyph} ${r.name}${tag}: ${r.detail}`);
+    if (!r.ok && r.hint) {
+      console.log(`  \u2192 ${r.hint}`);
     }
   }
 
   console.log('\u2501'.repeat(50));
-  console.log(`${passed}/${total} checks passed`);
+  console.log(
+    `${passed} ok \u00b7 ${warnCount} warn \u00b7 ${criticalCount} critical` +
+    `   (of ${total})  \u2192  OVERALL: ${overall.toUpperCase()}`,
+  );
+  if (criticalCount > 0) {
+    console.log('Critical failures gate CI and turn the operator UIs red.');
+  }
+
+  // -------------------------------------------------------------------------
+  // CI / exit-code mode: stop here (no interactive prompts), gate on critical.
+  // -------------------------------------------------------------------------
+  if (ciMode) {
+    console.log('');
+    process.exit(criticalCount > 0 ? 1 : 0);
+  }
 
   // -------------------------------------------------------------------------
   // Interactive fix phase: offer to fix each fixable issue
   // -------------------------------------------------------------------------
   const fixableIssues = startupIssues.filter(i => i.fixable && i.fix);
-  const fixableChecks = results.filter(r => !r.ok && r.hint);
 
-  if (fixableIssues.length > 0) {
+  if (!nonInteractive && fixableIssues.length > 0) {
     console.log('');
     console.log('Fixable issues found:');
     console.log('');
@@ -1055,12 +1655,33 @@ export async function handleDoctor(): Promise<void> {
     }
   }
 
+  // Repair path for a cancelled/failed setup download of the shared embedding
+  // model (ADR-0061): offer the one-time fetch right here instead of leaving
+  // hybrid search silently degraded to lexical-only. Interactivity-gated via
+  // the canonical tty helpers: a piped `pd doctor` (CI smoke, scripts) must
+  // never block on a prompt.
+  if (!nonInteractive && !embeddingModelCached && isStdinInteractive() && isStdoutInteractive()) {
+    console.log('');
+    const download = await confirmFix(
+      `Download the local embedding model now? (${DEFAULT_SEMANTIC_MODEL_ID}, ~27 MB, one-time)`,
+    );
+    if (download) {
+      try {
+        await prefetchEmbeddingModel();
+        console.log('  ✓ Embedding model downloaded to the shared cache');
+      } catch (err: unknown) {
+        console.log(`  ✗ Download failed: ${(err as Error).message} — retry with: pd embed prefetch`);
+      }
+    } else {
+      console.log('  — Skipped: run `pd embed prefetch` whenever you are ready');
+    }
+  }
+
   console.log('');
 
-  if (hasCriticalFailure) {
-    process.exit(1);
-  }
-  if (passed < total) {
+  // Exit code gates on CRITICAL only — warnings are loud but do not break the
+  // build (the three-tier contract).
+  if (criticalCount > 0) {
     process.exit(1);
   }
 }

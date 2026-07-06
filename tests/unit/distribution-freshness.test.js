@@ -10,9 +10,12 @@
  *   2. mcp/server.ts         — MCP server version + instructions
  *   3. .claude-plugin/plugin.json — Claude plugin version
  *   4. mcp-server.json       — Static MCP discovery manifest
- *   5. skills/port-daddy-agent-skill/SKILL.md — Distributed agentic skill
- *   6. skills/.../references/ — API reference, SDK reference
- *   7. README.md             — npm README
+ *   5. .gemini/extensions/... — Gemini extension manifest
+ *   6. website-v2 reference catalog — public docs display version
+ *   7. public/samples/manifest.json — bundled sample package version
+ *   8. skills/port-daddy-agent-skill/SKILL.md — Distributed agentic skill
+ *   9. skills/.../references/ — API reference, SDK reference
+ *   10. README.md             — npm README
  *
  * Philosophy: Tests should YELL when you ship a version bump without updating
  * all surfaces. Better to fail CI than to ship stale docs.
@@ -48,6 +51,9 @@ let pkgVersion;
 let mcpServerSource;
 let pluginJson;
 let mcpManifest;
+let geminiExtension;
+let referenceCatalog;
+let publicSamplesManifest;
 let skillContent;
 let apiReference;
 let sdkReference;
@@ -60,6 +66,9 @@ beforeAll(() => {
   mcpServerSource = readFile('mcp/server.ts');
   pluginJson = readJSON('.claude-plugin/plugin.json');
   mcpManifest = readJSON('mcp-server.json');
+  geminiExtension = readJSON('.gemini/extensions/port-daddy/gemini-extension.json');
+  referenceCatalog = readFile('website-v2/src/data/referenceCatalog.ts');
+  publicSamplesManifest = readJSON('public/samples/manifest.json');
   skillContent = readFile('skills/port-daddy-agent-skill/SKILL.md');
   dashboardContent = readFile('public/index.html');
   apiReference = readFile('skills/port-daddy-agent-skill/references/api-reference.md');
@@ -92,6 +101,37 @@ describe('Version consistency', () => {
   it('mcp-server.json version matches package.json', () => {
     expect(mcpManifest).not.toBeNull();
     expect(mcpManifest.version).toBe(pkgVersion);
+  });
+
+  it('Gemini extension version matches package.json', () => {
+    expect(geminiExtension).not.toBeNull();
+    expect(geminiExtension.version).toBe(pkgVersion);
+  });
+
+  it('website reference catalog version matches package.json', () => {
+    const match = referenceCatalog.match(/PORT_DADDY_VERSION\s*=\s*['"](\d+\.\d+\.\d+)['"]/);
+    expect(match).not.toBeNull();
+    expect(match[1]).toBe(pkgVersion);
+  });
+
+  it('public sample manifest version matches package.json', () => {
+    expect(publicSamplesManifest).not.toBeNull();
+    expect(publicSamplesManifest.packageVersion).toBe(pkgVersion);
+  });
+
+  it('VERSION file matches package.json (ADR-0057 dist-version-authority)', () => {
+    const versionFile = readFile('VERSION');
+    expect(versionFile).not.toBeNull();
+    expect(versionFile.trim()).toBe(pkgVersion);
+  });
+
+  it('pd-console crate version matches package.json (its CARGO_PKG_VERSION → pd-console --version)', () => {
+    const cargo = readFile('core/pd-console/Cargo.toml');
+    expect(cargo).not.toBeNull();
+    // The [package] version is the first line-anchored `version = "..."`.
+    const match = cargo.match(/^version\s*=\s*['"](\d+\.\d+\.\d+[\w.\-+]*)['"]/m);
+    expect(match).not.toBeNull();
+    expect(match[1]).toBe(pkgVersion);
   });
 });
 
@@ -381,53 +421,36 @@ describe('README freshness', () => {
 });
 
 // ============================================================================
-// 10. Dashboard — must not use stale API patterns or miss key features
+// 10. Root landing page — the web dashboard is retired; the root page must
+//     stay a minimal pointer to the native surfaces, not grow back into an
+//     operator UI. (Surface consolidation, 2026-07: FleetBar Control Center,
+//     pd-console, and the CLI/TUI are the operator surfaces.)
 // ============================================================================
 
-describe('Dashboard freshness', () => {
-  it('dashboard file exists', () => {
+describe('Root landing page (dashboard retired)', () => {
+  it('landing page file exists', () => {
     expect(dashboardContent).not.toBeNull();
   });
 
-  it('dashboard does NOT use old /claim/:id URL pattern', () => {
-    // v3.4 changed to POST /claim with id in body
-    // Old pattern: fetch(API + '/claim/' + id, { method: 'POST' })
-    // New pattern: fetch(API + '/claim', { body: JSON.stringify({ id }) })
-    // Negative lookbehind excludes /resurrection/claim/ and /salvage/claim/ which are valid routes
-    const oldClaimPattern = /(?<!resurrection|salvage)\/claim\/['"` ]*\+|(?<!resurrection|salvage)\/claim\/['"]\s*\+/;
-    expect(dashboardContent).not.toMatch(oldClaimPattern);
+  it('landing page declares the web dashboard retired', () => {
+    expect(dashboardContent).toMatch(/retired/i);
   });
 
-  it('dashboard does NOT use old /release/:id URL pattern', () => {
-    // v3.4 changed to DELETE /release with id in body
-    const oldReleasePattern = /\/release\/['"` ]*\+|\/release\/['"]\s*\+|fetch\([^)]*\/release\/(?!['"])/;
-    expect(dashboardContent).not.toMatch(oldReleasePattern);
+  it('landing page points to the sanctioned native surfaces', () => {
+    expect(dashboardContent).toMatch(/Control Center/);
+    expect(dashboardContent).toMatch(/pd-console|Operator Console/);
+    expect(dashboardContent).toMatch(/pd dashboard/);
   });
 
-  it('dashboard fetches from key API endpoints', () => {
-    // Core endpoints every dashboard must hit
-    expect(dashboardContent).toMatch(/\/health/);
-    expect(dashboardContent).toMatch(/\/services/);
-    expect(dashboardContent).toMatch(/\/agents/);
-    expect(dashboardContent).toMatch(/\/sessions/);
-    expect(dashboardContent).toMatch(/\/locks/);
+  it('landing page only calls /health — no operator API fetches', () => {
+    const fetched = [...dashboardContent.matchAll(/fetch\(['"`]([^'"`]+)/g)].map(m => m[1]);
+    expect(fetched).toEqual(['/health']);
   });
 
-  it('dashboard has sections for core features', () => {
-    // Check for presence of key feature sections (by ID, class, or text)
-    expect(dashboardContent).toMatch(/services|Services/);
-    expect(dashboardContent).toMatch(/agents|Agents/);
-    expect(dashboardContent).toMatch(/sessions|Sessions/);
-    expect(dashboardContent).toMatch(/salvage|Salvage|resurrection/i);
-    expect(dashboardContent).toMatch(/locks|Locks/);
-  });
-
-  it('dashboard has sections for v3.4+ features', () => {
-    expect(dashboardContent).toMatch(/activity|Activity/i);
-  });
-
-  it('dashboard uses auto-refresh / polling', () => {
-    // Dashboard should poll for live data
-    expect(dashboardContent).toMatch(/setInterval|setTimeout|requestAnimationFrame/);
+  it('landing page stays minimal (no panels, no embedded terminal)', () => {
+    expect(dashboardContent).not.toMatch(/id="panel-/);
+    expect(dashboardContent).not.toMatch(/var COMMANDS/);
+    const sizeKB = Buffer.byteLength(dashboardContent, 'utf8') / 1024;
+    expect(sizeKB).toBeLessThanOrEqual(20);
   });
 });

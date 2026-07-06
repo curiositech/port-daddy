@@ -4,7 +4,7 @@ export default function Spawn() {
   return (
     <SdkFunctionPage
       function="spawn"
-      description="Run a one-shot agent through the Port Daddy daemon. Launches are budget-gated, tied to a semantic identity, and wrapped in the same coordination runtime used by fleet agents and sortie launches."
+      description="Run a one-shot agent through the Port Daddy daemon. Launches are budget-gated, tied to a semantic identity, and wrapped in the same coordination runtime used by fleet agents."
       module="Agents"
       version="3.13.0"
       signature={`spawn(spec: {
@@ -72,7 +72,7 @@ Updated website spawn docs to require identity + budget and reflect current back
         { name: 'listSpawned()', href: '/docs/sdk/list-spawned' },
         { name: 'killSpawned()', href: '/docs/sdk/list-spawned' },
         { name: 'CLI: pd spawn', href: '/docs/cli/spawn' },
-        { name: 'MCP: spawn_agent', href: '/docs/mcp/spawn' },
+        { name: 'MCP: spawn', href: '/docs/mcp/spawn' },
       ]}
     />
   )

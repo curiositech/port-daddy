@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/react-server-components-boundary-plan.schema.json",
+  "title": "RSC Boundary Plan",
+  "description": "A structured 'use client' boundary decision for one component change in an RSC app, so leaf-pushing, slot composition, serialization, and environment-poisoning rules can be checked deterministically by scripts/react_server_components_boundary_audit.mjs.",
+  "type": "object",
+  "required": ["componentRole", "usesHooksOrBrowserApis", "markedUseClient"],
+  "additionalProperties": true,
+  "properties": {
+    "componentRole": {
+      "type": "string",
+      "enum": ["layout", "page", "provider", "interactive-leaf", "wrapper", "shared-util"],
+      "description": "What the component is in the tree. Layouts/pages should almost never be the client boundary."
+    },
+    "usesHooksOrBrowserApis": {
+      "type": "boolean",
+      "description": "True if the component uses hooks, event handlers, or browser APIs (window, localStorage)."
+    },
+    "markedUseClient": {
+      "type": "boolean",
+      "description": "True if the component's module carries the 'use client' directive."
+    },
+    "interactiveBitExtractable": {
+      "type": "boolean",
+      "description": "True if the interactive portion could be split into a smaller leaf component (leaf-pushing applies)."
+    },
+    "serverChildrenNeeded": {
+      "type": "boolean",
+      "description": "True if Server Components (data fetching, secrets) must render inside this component."
+    },
+    "usesChildrenSlot": {
+      "type": "boolean",
+      "description": "True if Server children arrive via the children/JSX-prop slot pattern rather than direct imports."
+    },
+    "crossingProps": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["primitive", "plain-object", "iterable", "date", "jsx", "promise", "server-function", "registered-symbol", "function", "class-instance", "null-prototype-object", "unregistered-symbol"]
+      },
+      "description": "The kinds of props crossing from Server to Client. function / class-instance / null-prototype-object / unregistered-symbol cannot cross."
+    },
+    "importsServerOnlyModules": {
+      "type": "boolean",
+      "description": "True if the module graph pulls in data-layer or secret-reading modules (DB client, process.env.API_KEY readers)."
+    },
+    "serverOnlyGuardUsed": {
+      "type": "boolean",
+      "description": "True if server-only (and client-only where relevant) package guards harden the seam at build time."
+    },
+    "providerWrapsHtml": {
+      "type": "boolean",
+      "description": "True if a context provider wraps the <html> document instead of {children}. Must be false."
+    },
+    "usesThirdPartyHookLib": {
+      "type": "boolean",
+      "description": "True if the component renders a third-party library that uses hooks but may not ship 'use client'."
+    },
+    "thirdPartyHookLibWrapped": {
+      "type": "boolean",
+      "description": "True if such a library is re-exported through a local one-line 'use client' wrapper file."
+    },
+    "bundleSizeChecked": {
+      "type": "boolean",
+      "description": "True if the next build route table (First Load JS) was diffed before and after the change."
+    }
+  }
+}

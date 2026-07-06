@@ -311,7 +311,40 @@ _pd_cmd_env() {
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]' \
-    '1:service identity:_pd_complete_services'
+    '1:env subcommand or service identity:_pd_complete_env_first'
+}
+
+# First positional of `pd env`: the `exec` subcommand PLUS the existing
+# service identities — `pd env <service>` predates `exec` and must keep
+# completing.
+_pd_complete_env_first() {
+  local -a subs
+  subs=('exec:run a command with pd-secret:// refs resolved into its env')
+  _describe 'env subcommand' subs
+  _pd_complete_services
+}
+
+# pd safe scan|baseline|fix|corral|guard  (ADR-0088 host-safety)
+_pd_cmd_safe() {
+  local -a safe_subs
+  safe_subs=(
+    'scan:read-only posture audit (0-100 score + blast radius)'
+    'baseline:triage a finding into .pd-secrets-baseline.json'
+    'fix:opt-in reversible chmod of world/group-readable crown jewels'
+    'corral:pack a detected secret into the vault + rewrite source to pd-secret://'
+    'guard:scan the staged diff for NEW secrets (--staged)'
+  )
+  if (( CURRENT == 2 )); then
+    _describe 'safe subcommand' safe_subs
+    return
+  fi
+  case "${words[2]}" in
+    scan)   _arguments '--json[structured report]' '--allow[allowlisted hosts]:hosts:' ;;
+    fix)    _arguments '--auto[apply the reversible chmod]' '--json[structured output]' ;;
+    corral) _arguments '--all[corral every detected secret]' '--apply[write (default is dry-run)]' '--json[structured output]' ;;
+    guard)  _arguments '--staged[scan the staged diff]' '--json[structured output]' '(-q --quiet)'{-q,--quiet}'[suppress output]' ;;
+    baseline) _arguments '1:action:(accept)' ;;
+  esac
 }
 
 _pd_cmd_pub() {
@@ -405,6 +438,8 @@ _pd_cmd_agent() {
     'register:register a new agent'
     'heartbeat:send a heartbeat for an agent'
     'unregister:unregister an agent'
+    'interrupt:soft-interrupt an agent (publishes control on agent:<id>)'
+    'stream:tail the merged SSE feed (status/tube/transcript)'
   )
 
   local state subcmd
@@ -437,6 +472,21 @@ _pd_cmd_agent() {
             '(-q --quiet)'{-q,--quiet}'[suppress output]'
           ;;
         heartbeat|unregister)
+          _arguments \
+            '--agent[agent ID]:agent ID:_pd_complete_agents' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:agent ID:_pd_complete_agents'
+          ;;
+        interrupt)
+          _arguments \
+            '--reason[why the agent is being interrupted]:reason:' \
+            '--agent[agent ID]:agent ID:_pd_complete_agents' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:agent ID:_pd_complete_agents'
+          ;;
+        stream)
           _arguments \
             '--agent[agent ID]:agent ID:_pd_complete_agents' \
             '(-j --json)'{-j,--json}'[JSON output]' \
@@ -715,6 +765,11 @@ _pd_cmd_fleet() {
     'run:run a specific agent from pd-fleet.yml once'
     'panic:SIGTERM every running fleet agent (confirmation required)'
     'unpanic:disarm a previous panic state'
+    'halt:total stop a conductor scope — SIGKILL + refund bonds (ADR-0060)'
+    'pause:soft stop a conductor scope — stop admitting, leave agents alive'
+    'resume:reopen a halted/paused conductor scope'
+    'inspect:render a conductor lineage tree for a rootId'
+    'tree:render a conductor lineage tree for a rootId'
     'validate:parse pd-fleet.yml and check topology'
     'prompt:one-line fleet status (for shell prompts)'
     'log:show fleet log'
@@ -753,6 +808,24 @@ _pd_cmd_fleet() {
             '--reason[reason for disarming panic (required)]:reason:' \
             '(-j --json)'{-j,--json}'[JSON output]' \
             '(-q --quiet)'{-q,--quiet}'[minimal output]'
+          ;;
+        halt)
+          _arguments \
+            '--root[target one lineage subtree (default: whole fleet)]:rootId:' \
+            '--yes[skip interactive confirmation]' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[minimal output]'
+          ;;
+        pause|resume)
+          _arguments \
+            '--root[target one lineage subtree (default: whole fleet)]:rootId:' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[minimal output]'
+          ;;
+        inspect|tree)
+          _arguments \
+            '--root[lineage root id]:rootId:' \
+            '(-j --json)'{-j,--json}'[JSON output]'
           ;;
       esac
       ;;
@@ -843,7 +916,8 @@ _pd_cmd_session() {
     'end:end a session (completed)'
     'done:end a session (alias for end)'
     'abandon:abandon a session'
-    'rm:delete a session and cascade notes/files'
+    'takeover:create successor session; preserve notes'
+    'rm:archive a session; preserve notes'
     'files:manage file claims for a session'
     'phase:set session phase (planning/in_progress/testing/etc)'
   )
@@ -885,6 +959,17 @@ _pd_cmd_session() {
             '(-q --quiet)'{-q,--quiet}'[suppress output]' \
             '1:session ID:'
           ;;
+        takeover)
+          _arguments \
+            '(-P --purpose)'{-P,--purpose}'[successor purpose]:purpose:' \
+            '(-n --note)'{-n,--note}'[takeover reason]:note:' \
+            '--lifecycle[session lifecycle]:lifecycle:(durable ephemeral)' \
+            '--no-files[do not transfer file claims]' \
+            '--no-claims[alias for --no-files]' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:predecessor session ID:'
+          ;;
         files)
           local -a files_subcmds
           files_subcmds=(
@@ -922,6 +1007,21 @@ _pd_cmd_sessions() {
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]'
+}
+
+_pd_cmd_takeover() {
+  _arguments \
+    '(-P --purpose)'{-P,--purpose}'[successor session purpose]:purpose:' \
+    '(-n --note)'{-n,--note}'[takeover reason]:note:' \
+    '(-a --agent)'{-a,--agent}'[agent ID]:agent:' \
+    '--lifecycle[session lifecycle]:lifecycle:(durable ephemeral)' \
+    '--no-files[do not transfer predecessor file claims]' \
+    '--no-claims[alias for --no-files]' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[only print successor ID]' \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:predecessor session ID:' \
+    '*:takeover note:'
 }
 
 _pd_cmd_note() {
@@ -1378,6 +1478,26 @@ _pd_cmd_spawned() {
     '(-h --help)'{-h,--help}'[show help]'
 }
 
+_pd_cmd_work() {
+  local -a subcmds
+  subcmds=(
+    'probe:run adapter conformance probes (compliance ladder + five negative probes)'
+    'matrix:print the adapter capability matrix (mechanical ceilings)'
+    'help:show pd work usage'
+  )
+  if (( CURRENT == 2 )); then
+    _describe -t subcmds 'work subcommand' subcmds
+  elif [[ ${words[2]} == probe ]]; then
+    # --adapter/--profile are probe-only flags; matrix/help take only --json.
+    _arguments \
+      '--adapter[adapter kind]:kind:(claude-code codex-cli cloudflare ollama lmstudio custom-stdio custom-http)' \
+      '--profile[fixture profile]:profile:(compliant weak broken malicious)' \
+      '(-j --json)'{-j,--json}'[JSON output]'
+  else
+    _arguments '(-j --json)'{-j,--json}'[JSON output]'
+  fi
+}
+
 _pd_cmd_watch() {
   _arguments \
     '--exec[shell command to run on each message]:command:_command_names' \
@@ -1449,6 +1569,26 @@ _pd_cmd_harbor() {
 _pd_cmd_harbors() {
   _arguments \
     '(-j --json)'{-j,--json}'[JSON output]'
+}
+
+_pd_cmd_harbor_ledger() {
+  local -a hl_subcmds hl_projections
+  hl_subcmds=(
+    'status:projection freshness and stale labeling'
+    'project:catch projections up to the ledger head'
+    'rebuild:rebuild projection(s) from scratch by replaying the event ledger'
+  )
+  hl_projections=(
+    'roster' 'transcript-timeline' 'files-touched' 'costs' 'compliance' 'work-receipts'
+  )
+  _arguments \
+    '1:subcommand:->subcmd' \
+    '2:projection:->projection' \
+    '(-j --json)'{-j,--json}'[JSON output]'
+  case "$state" in
+    subcmd) _describe 'harbor-ledger subcommand' hl_subcmds ;;
+    projection) _describe 'projection' hl_projections ;;
+  esac
 }
 
 _pd_cmd_tuple() {
@@ -1674,6 +1814,45 @@ _pd_cmd_pheromone() {
   esac
 }
 
+_pd_cmd_embed() {
+  local -a embed_subcmds
+  embed_subcmds=(
+    'status:is the shared embedding model cached?'
+    'prefetch:download the model into the shared cache (one-time ~27 MB)'
+    'text:embed argument texts to JSON vectors'
+    'stdin:embed one text per stdin line to JSON vectors'
+  )
+
+  local state
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'embed subcommand' embed_subcmds
+      ;;
+    args)
+      case "${words[2]}" in
+        status)
+          _arguments \
+            '--cache-dir[override the shared transformers cache]:path:_files -/' \
+            '(-j --json)'{-j,--json}'[output JSON]'
+          ;;
+        prefetch)
+          _arguments '--cache-dir[override the shared transformers cache]:path:_files -/'
+          ;;
+        text|stdin)
+          _arguments \
+            '--offline[exit 3 instead of downloading when the model is not cached]' \
+            '--cache-dir[override the shared transformers cache]:path:_files -/'
+          ;;
+        *)
+          _describe 'embed subcommand' embed_subcmds
+          ;;
+      esac
+      ;;
+  esac
+}
+
 _pd_cmd_graph() {
   local -a graph_subcmds
   graph_subcmds=(
@@ -1829,7 +2008,7 @@ _pd_cmd_secret() {
 
 _pd_cmd_roadmap() {
   _arguments \
-    '1:subcommand:(ack harvest promote render pop release claims)' \
+    '1:subcommand:(ack harvest promote upsert add touch render pop release claims delete rm)' \
     '2:feedback id:' \
     '--dir[project directory]:path:_files -/' \
     '--root[project root]:path:_files -/' \
@@ -1843,6 +2022,9 @@ _pd_cmd_roadmap() {
     '--from-feedback[feedback id to promote]:feedback id:' \
     '--slug[override roadmap slug for promote]:slug:' \
     '--summary[markdown summary for promoted item]:text:' \
+    '--note[roadmap receipt note]:text:' \
+    '--receipt[roadmap receipt note]:text:' \
+    '--dependencies[comma-separated dependency slugs]:slugs:' \
     '--status[roadmap item status]:(now backlog parked merge done)' \
     '--harbor[harbor scope override]:harbor:' \
     '--write[render: write docs/ROADMAP.md to disk]' \
@@ -1851,6 +2033,49 @@ _pd_cmd_roadmap() {
     '--no-excerpts[hide current-work and Cartographer excerpts]' \
     '(-j --json)'{-j,--json}'[output JSON]' \
     '(-q --quiet)'{-q,--quiet}'[agent-readable section:slug output]'
+}
+
+_pd_cmd_parley() {
+  _arguments \
+    '1:subcommand:(call respond resolve list show fit)' \
+    '2:parley id or surface:' \
+    '--surface[contested path, symbol, or surface]:surface:' \
+    '--with[comma-separated parties]:parties:' \
+    '--parties[comma-separated parties]:parties:' \
+    '--reason[parley reason or outcome reason]:text:' \
+    '--ttl-ms[response TTL in milliseconds]:ms:' \
+    '--round-limit[non-terminal turns per party before escalation]:count:' \
+    '--harbor[harbor scope]:harbor:' \
+    '--id[parley id]:id:' \
+    '--parley[parley id]:id:' \
+    '--performative[turn performative]:(propose critique revise agree refuse inform)' \
+    '--content[turn content]:text:' \
+    '--proposal[proposal id]:proposal:' \
+    '--evidence[comma-separated evidence refs]:refs:' \
+    '--status[outcome status]:(COLLAPSED ESCALATED VOIDED)' \
+    '--decision[outcome decision]:text:' \
+    '--dissenters[comma-separated dissenters]:parties:' \
+    '--limit[max rows]:limit:' \
+    '--shape[reasoning shape]:(breadth_first depth_first mixed)' \
+    '--reasoningShape[reasoning shape]:(breadth_first depth_first mixed)' \
+    '--baseline[single-agent baseline cost]:number:' \
+    '--singleAgentBaseline[single-agent baseline cost]:number:' \
+    '--value[task value multiplier]:number:' \
+    '--taskValueMultiplier[task value multiplier]:number:' \
+    '--tokens[estimated token multiplier]:number:' \
+    '--estimatedTokenMultiplier[estimated token multiplier]:number:' \
+    '--independence[subtask independence]:(none partial high)' \
+    '--subtaskIndependence[subtask independence]:(none partial high)' \
+    '--contention[write contention]:(none low medium high)' \
+    '--writeContention[write contention]:(none low medium high)' \
+    '--writers[max concurrent writers]:count:' \
+    '--maxConcurrentWriters[max concurrent writers]:count:' \
+    '--verify[verification is available]' \
+    '--heterogeneous[heterogeneous agents are available]' \
+    '--fits-in-one-context[task fits one model context]' \
+    '--as[actor id]:agent id:' \
+    '(-j --json)'{-j,--json}'[output JSON]' \
+    '(-q --quiet)'{-q,--quiet}'[machine-readable output]'
 }
 
 _pd_cmd_inbox() {
@@ -1941,8 +2166,9 @@ _port_daddy() {
     'log:tail the activity log'
     'activity:show activity summary or stats'
     # Sessions & Notes
-    'session:manage a session (start/end/abandon/rm/files)'
+    'session:manage a session (start/end/abandon/takeover/rm/files)'
     'sessions:list sessions'
+    'takeover:create successor session; preserve predecessor notes'
     'note:add a quick note'
     'notes:list recent notes'
     # Agent Resurrection
@@ -1963,6 +2189,7 @@ _port_daddy() {
     'whoami:show current agent/session context'
     'w:show current context (alias for whoami)'
     'attention:read inbox + subscribed channels in one call (run first thing every session)'
+    'nudge:suggestibility nudges — claim-overlap heads-up (list/accept/decline/scan)'
     'with-lock:run a command while holding a lock'
     'n:add a quick note (alias for note)'
     'u:start all services (alias for up)'
@@ -1986,14 +2213,18 @@ _port_daddy() {
     'backup:durable snapshots of port-registry.db (ADR-0037)'
     'restore:restore a port-registry.db snapshot (ADR-0037)'
     'attest:honest self-report — loud-fail invariants (ADR-0045)'
+    'safe:host-safety posture audit — scan|baseline|fix (ADR-0088)'
     'shipwright:survey + propose + apply for fleet authoring'
     'pheromone:stigmergic coordination (spray, files, show, ls)'
     'ph:alias for pheromone'
     # Agent Inbox
     'inbox:agent-to-agent direct messaging inbox'
+    'send:send a durable direct message to one agent'
+    'sent:read receipts for messages you sent (read + when)'
     # AI Agent Spawner + Watch
     'spawn:launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
     'spawned:list active spawned agents'
+    'work:Work Intent family — adapter conformance probes + capability matrix (ADR-0095, ch18 C2)'
     'sortie:launch and inspect tracked mission records'
     'dispatch:queue and run autonomous feature dev (ADR-0035; renames nightshift)'
     'nightshift:(deprecated alias) Use pd dispatch'
@@ -2013,6 +2244,9 @@ _port_daddy() {
     # Fleet ship-run transcripts
     'transcripts:browse fleet ship-run transcripts (list/show/cost/delete)'
     'transcript:alias for transcripts — view a single ship-run record'
+    # Squid bridge
+    'squid:run an unofficial Anthropic-compatible bridge backed by Codex CLI'
+    'hooks:per-project daemon-gated coordination hooks for agent CLIs'
     # Cloud relay — zero-trust event fabric (ADR-0049)
     'relay:cloud relay management — configure, exchange, status (ADR-0049)'
     # Harbormaster — canonical merge-owning actor body (ADR-0037)
@@ -2020,24 +2254,30 @@ _port_daddy() {
     'hm:alias for harbormaster'
     # Harbors (named permission namespaces)
     'harbor:create, enter, leave, show, or destroy a harbor'
+    'whois:semantic skill-router — rank agents by capability × freshness'
     'harbors:list all active harbors'
+    # Agent Harbor event ledger + projections (binder ch18 C1, ADR-0095)
+    'harbor-ledger:Agent Harbor event ledger projections — status, project, rebuild'
     # Tuple space
     'tuple:Linda-style tuple space (out, rd, in, scan, count)'
     # Semantic graph + episodic memory
+    'embed:shared local embedding model — status, prefetch, embed text'
     'graph:inspect semantic graph edges and stats'
     'memory:inspect episodic memory entries and stats'
     'ideas:search the canonical ideas trove and local residue'
     # Cartographer roadmap projection
-    'roadmap:show Cartographer-curated Next Cuts, ideas, and dogfood feedback'
+    'roadmap:show and write the roadmap_items DB-of-record'
     # Quorum (swarm consensus primitive)
     'quorum:propose, vote, list, or inspect swarm proposals'
+    # Parley (forced reconciliation primitive)
+    'parley:call, respond, resolve, list, show, or fit swarm parleys'
     # Feedback (central agentic-feedback primitive)
     'feedback:drop, list, show, or harvest structured agentic feedback'
     # Durable commitments + obligation monitor (ADR-0041)
     'commit:create a durable commitment (or close one against an oracle)'
     'obligations:list commitments, or sweep for overdue ones with --overdue'
     # System & Monitoring
-    'dashboard:open web dashboard in browser'
+    'dashboard:open the terminal UI dashboard'
     'channels:list pub/sub channels'
     'webhook:manage webhooks'
     'webhooks:manage webhooks (alias for webhook)'
@@ -2070,11 +2310,15 @@ _port_daddy() {
     'status:show daemon status'
     'install:install daemon as a system service'
     'uninstall:uninstall the system service'
-    'dev:start daemon in development mode (foreground)'
+    'dev:daemon berths — up/down/list tiered side-by-side daemons (ADR-0055)'
+    'use:target this shell at a daemon berth (eval "$(pd use dev)")'
     'ci-gate:exit non-zero if daemon is running stale code'
+    'self-update:brew-upgrade + restart the daemon and FleetBar onto the current release'
+    'upgrade:check the latest.json update feed and report or (--apply) perform an update'
     'mcp:start MCP server for Claude Code / Claude Desktop (pd mcp install to configure)'
     'daemon:daemon lifecycle subcommands (status, log, doctor)'
     'setup:install daemon, MCP, FleetBar, and initialize a project'
+    'cut:cut a release — build daemon + Rust + FleetBar, hash, optionally sign (pd cut)'
     'init:set up Port Daddy for this project (scan, fleet, MCP, git hook)'
     # Bonds / Wallets — FleetControl hardening
     'wallet:manage project USD wallets (show/top-up/history)'
@@ -2112,6 +2356,7 @@ _port_daddy() {
         l|list|ps|services)  _pd_cmd_list ;;
         url)                _pd_cmd_url ;;
         env)                _pd_cmd_env ;;
+        safe)               _pd_cmd_safe ;;
         tunnel)             _pd_cmd_tunnel ;;
         dns)                _pd_cmd_dns ;;
         pub|publish|broadcast) _pd_cmd_pub ;;
@@ -2128,6 +2373,7 @@ _port_daddy() {
         activity)           _pd_cmd_activity ;;
         session)            _pd_cmd_session ;;
         sessions)           _pd_cmd_sessions ;;
+        takeover)           _pd_cmd_takeover ;;
         note)               _pd_cmd_note ;;
         notes)              _pd_cmd_notes ;;
         salvage|resurrection) _pd_cmd_salvage ;;
@@ -2171,9 +2417,11 @@ _port_daddy() {
         popper)                 _pd_cmd_popper ;;
         harbormaster|hm)        _pd_cmd_harbormaster ;;
         spawned)                _pd_cmd_spawned ;;
+        work)                   _pd_cmd_work ;;
         watch)                  _pd_cmd_watch ;;
         harbor)                 _pd_cmd_harbor ;;
         harbors)                _pd_cmd_harbors ;;
+        harbor-ledger)          _pd_cmd_harbor_ledger ;;
         tuple)                  _pd_cmd_tuple ;;
         say)                    _pd_cmd_say ;;
         look)                   _pd_cmd_look ;;
@@ -2183,10 +2431,12 @@ _port_daddy() {
         pheromone|ph)           _pd_cmd_pheromone ;;
         wallet)                 _pd_cmd_wallet ;;
         bond)                   _pd_cmd_bond ;;
+        embed)                  _pd_cmd_embed ;;
         graph)                  _pd_cmd_graph ;;
         memory)                 _pd_cmd_memory ;;
         ideas)                  _pd_cmd_ideas ;;
         roadmap)                _pd_cmd_roadmap ;;
+        parley)                 _pd_cmd_parley ;;
         secret|secrets)         _pd_cmd_secret ;;
         mcp)                _arguments '1:subcommand:(start install)' ;;
         version|help)       ;;

@@ -191,6 +191,9 @@ enum FleetMenuBarTone: Equatable {
     case dormant
     case healthy
     case warning
+    /// LOUD alarm — the daemon's health is CRITICAL. Drives the menu-bar icon to
+    /// a warning-triangle SF Symbol in the failure (red) color.
+    case critical
 
     var color: Color {
         switch self {
@@ -200,6 +203,8 @@ enum FleetMenuBarTone: Equatable {
             return Fleet.Color.healthy
         case .warning:
             return Fleet.Color.warning
+        case .critical:
+            return Fleet.Color.failure
         }
     }
 }
@@ -321,6 +326,19 @@ struct DaemonStatusResponse: Decodable {
     let runtime: DaemonRuntimeResponse?
     let guardians: DaemonGuardiansResponse?
     let history: DaemonHistoryResponse?
+    /// Shared three-tier health severity (ok | warn | critical) — the same
+    /// vocabulary the daemon (lib/health-severity.ts), `pd doctor`, and the Rust
+    /// console all speak. Optional + defaulted so an older daemon that predates
+    /// the field decodes as nil (treated as ok) and the memberwise init stays
+    /// source-compatible.
+    var severity: String? = nil
+}
+
+/// The three-tier daemon health severity surfaced in the menu bar + popover.
+enum HealthSeverity: String {
+    case ok
+    case warn
+    case critical
 }
 
 struct DaemonBuildResponse: Decodable {
@@ -329,6 +347,25 @@ struct DaemonBuildResponse: Decodable {
     let startedAt: Double
     let installDir: String
     let nodeVersion: String
+    /// Which berth this daemon is (ADR-0084): stable / dev-latest / codebase.
+    /// Optional — an older daemon that predates berth self-identity omits it,
+    /// in which case the UI treats the connection as the canonical stable berth.
+    /// Defaulted so the synthesized memberwise init stays source-compatible.
+    var berth: DaemonBerthResponse? = nil
+}
+
+/// The daemon's self-reported berth identity (ADR-0084). Mirrors the TS
+/// `DaemonBerthIdentity` in `shared/daemon-berths.ts`; only the fields the menu
+/// bar surfaces are decoded.
+struct DaemonBerthResponse: Decodable {
+    let tier: String        // "stable" | "dev-latest" | "codebase"
+    let label: String
+    let color: String       // "#RRGGBB"
+    let canonical: Bool
+    let port: Int
+    let gitBranch: String?
+    let gitRev: String?
+    let sourceDir: String?
 }
 
 struct DaemonMetricsResponse: Decodable {
@@ -470,9 +507,16 @@ class FleetStore: ObservableObject {
 
     private var sseTask: Task<Void, Never>?
     private nonisolated(unsafe) var pollTimer: Timer?
-    private let baseURL: String
+    /// Mutable so the operator can switch berths live via `rebind(to:)`. Switching
+    /// is in-memory only — FleetBar returns to the canonical berth on next launch,
+    /// per the ADR-0084 rail that a dev berth must never be the implicit default.
+    private var baseURL: String
 
     var daemonURL: String { baseURL }
+
+    /// The port FleetBar is currently bound to, for matching against discovered
+    /// berths in the manager UI.
+    var activePort: Int? { URL(string: baseURL)?.port }
 
     var daemonLabel: String {
         guard let url = URL(string: baseURL) else { return baseURL }
@@ -486,23 +530,43 @@ class FleetStore: ObservableObject {
             && url.port == DaemonLocation.canonicalPreferredPort
     }
 
-    // Menu bar display
+    /// The daemon's own health severity. Reads the daemon-reported `severity`
+    /// field; falls back to deriving from `runtime.degraded` for an older daemon
+    /// that predates the field, so FleetBar never shows a calm icon over a
+    /// degraded daemon.
+    var daemonSeverity: HealthSeverity {
+        guard isDaemonRunning, let status = daemonStatus else { return .ok }
+        if let raw = status.severity, let sev = HealthSeverity(rawValue: raw) {
+            return sev
+        }
+        return status.runtime?.degraded == true ? .warn : .ok
+    }
+
+    // Menu bar display. Daemon health is the DOMINANT signal: a critical daemon
+    // turns the menu-bar icon into an alarm triangle regardless of fleet state.
     var menuBarIcon: String {
         guard isDaemonRunning else { return "sailboat" }
-        let totalFailed = projects.reduce(0) { $0 + $1.failedCount }
-        let totalActive = projects.reduce(0) { $0 + $1.activeCount }
-        if totalFailed > 0 && totalActive > 0 { return "sailboat.fill" }
-        if totalActive > 0 { return "sailboat.fill" }
-        return "sailboat"
+        switch daemonSeverity {
+        case .critical: return "exclamationmark.triangle.fill"
+        case .warn: return "exclamationmark.triangle"
+        case .ok:
+            let totalActive = projects.reduce(0) { $0 + $1.activeCount }
+            return totalActive > 0 ? "sailboat.fill" : "sailboat"
+        }
     }
 
     var menuBarTone: FleetMenuBarTone {
         guard isDaemonRunning else { return .dormant }
-        let totalFailed = projects.reduce(0) { $0 + $1.failedCount }
-        let totalActive = projects.reduce(0) { $0 + $1.activeCount }
-        if totalFailed > 0 { return .warning }
-        if totalActive > 0 { return .healthy }
-        return .dormant
+        switch daemonSeverity {
+        case .critical: return .critical
+        case .warn: return .warning
+        case .ok:
+            let totalFailed = projects.reduce(0) { $0 + $1.failedCount }
+            let totalActive = projects.reduce(0) { $0 + $1.activeCount }
+            if totalFailed > 0 { return .warning }
+            if totalActive > 0 { return .healthy }
+            return .dormant
+        }
     }
 
     var menuBarColor: Color {
@@ -515,6 +579,16 @@ class FleetStore: ObservableObject {
     var totalActive: Int { projects.reduce(0) { $0 + $1.activeCount } }
     var totalFailed: Int { projects.reduce(0) { $0 + $1.failedCount } }
     var projectsNeedingBudget: Int { projects.filter(\.needsBudget).count }
+
+    /// How the running FleetBar app compares to the daemon it is talking to.
+    /// Drives the staleness banner. `.upToDate` whenever the daemon is offline
+    /// or either version is unknown, so the banner only appears on a real, live
+    /// mismatch.
+    var versionSkew: FleetVersionSkew {
+        guard isDaemonRunning else { return .upToDate }
+        let daemonVersion = daemonStatus?.daemon?.version ?? daemonStatus?.version
+        return FleetVersion.evaluate(appVersion: FleetBarBuild.version, daemonVersion: daemonVersion)
+    }
 
     init(autoStart: Bool = true) {
         self.preferences = FleetBarPreferenceStore.load()
@@ -568,6 +642,29 @@ class FleetStore: ObservableObject {
 
             settingsMessage = "Daemon did not respond"
             isStartingDaemon = false
+        }
+    }
+
+    /// Switch the live connection to a different daemon berth (ADR-0084). Tears
+    /// down the current SSE stream, repoints `baseURL`, clears stale state, and
+    /// reconnects. In-memory only: not persisted, so a relaunch returns to the
+    /// canonical berth and a dev berth never becomes the silent default.
+    func rebind(to url: String) {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = trimmed.hasSuffix("/") ? String(trimmed.dropLast()) : trimmed
+        guard !normalized.isEmpty, normalized != baseURL else { return }
+
+        sseTask?.cancel()
+        baseURL = normalized
+        isConnected = false
+        isDaemonRunning = false
+        daemonStatus = nil
+        projects = []
+        settingsMessage = nil
+
+        Task {
+            await refresh()
+            connectSSE()
         }
     }
 

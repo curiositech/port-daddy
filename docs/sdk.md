@@ -103,13 +103,13 @@ await pd.removeSession(session.id);
 
 Sugar methods combine multiple coordination steps into single atomic calls. Use these instead of the individual `register`, `startSession`, `endSession`, and `unregister` methods for the standard agent lifecycle.
 
-### `pd.begin(options)`
+### `pd.begin(purpose, options)`
 
 Register an agent and start a session in one call. Writes slot-scoped local context under `.portdaddy/contexts/<slot>.json` and updates `.portdaddy/current.json` as a compatibility pointer for the most recent local context.
 
 ```javascript
-const { agentId, sessionId } = await pd.begin({
-  purpose: 'Implementing user auth',
+const { agentId, sessionId } = await pd.begin('Implementing user auth', {
+  lifecycle: 'durable',
   identity: 'myapp:backend:feature-auth',
   type: 'claude',
   files: ['src/auth/*', 'src/middleware/auth.ts'],
@@ -224,8 +224,8 @@ import { PortDaddy } from 'port-daddy/client';
 const pd = new PortDaddy();
 
 // Begin — one call replaces register + startSession + startHeartbeat
-const { agentId, sessionId, salvageHint } = await pd.begin({
-  purpose: 'Implementing user auth',
+const { agentId, sessionId, salvageHint } = await pd.begin('Implementing user auth', {
+  lifecycle: 'durable',
   identity: 'myapp:backend:feature-auth',
   files: ['src/auth/*'],
 });
@@ -876,11 +876,11 @@ function verifySignature(payload, signature, secret) {
 
 ---
 
-## Spawn — AI Agent Launcher
+## Spawn — AI Run Launcher
 
-Launch AI agents through setup-ready runtimes (Cloudflare Workers AI, Codex, Claude, Claude CLI, Gemini, Aider, custom subprocess) with Port Daddy coordination auto-wired. Each spawned agent automatically registers, sends heartbeats, and marks its session done on completion.
+Spawn AI runs through setup-ready runtimes (Cloudflare Workers AI, Codex, Claude, Claude CLI, Gemini, Aider, custom subprocess) with Port Daddy coordination auto-wired. Each spawned run automatically registers, sends heartbeats, and marks its session done on completion.
 
-Use `spawn()` for the low-level primitive. If you want a tracked mission object with a durable id and event log, use the sortie methods below instead. Canonical operator guidance lives in `docs/DELEGATION-MODES.md`.
+Use `spawn()` as the delegation primitive. Canonical operator guidance lives in `docs/DELEGATION-MODES.md`.
 
 **Backends:** Port Daddy only launches backends that pass readiness and exact-telemetry preflight. Use `/fleet/models` or Fleet Control Center to see which are ready on this machine.
 
@@ -946,58 +946,13 @@ await pd.killSpawned(agentId);
 
 | Method | Description |
 |--------|-------------|
-| `pd.spawn(spec)` | Launch an AI agent; returns `SpawnResult` with attached exact telemetry on success |
+| `pd.spawn(spec)` | Spawn an AI run; returns `SpawnResult` with attached exact telemetry on success |
 | `pd.listSpawned()` | List active spawned agents |
 | `pd.killSpawned(agentId)` | Kill a running spawned agent |
 
 `SpawnResult.telemetry` carries `{ inputTokens, outputTokens, costUsd, rateMode }` for accepted launches. If the backend/model cannot satisfy that exact telemetry contract, Port Daddy rejects the launch during preflight/spawn instead of silently estimating.
 The live spawner defaults that enforcement on. Any internal code path that disables it must attach explicit HITL confirmation metadata instead of quietly falling back to unmetered execution.
 Today, the operator-facing launchable path for that contract is the Claude SDK backend with an exact-rate model entry. Other backend integrations may exist in source, but they should be treated as blocked until they can return the same exact telemetry.
-
----
-
-## Sorties — Tracked Mission Records
-
-Sorties are Port Daddy's first-class mission records over spawned runs. They buy you:
-
-- a durable sortie id
-- an ephemeral harbor name (`project:sortie:<id>`)
-- persisted status/result lookup
-- a human-readable event log
-
-Current truthful limitation: the first shipped slice still runs one coordinating spawned agent underneath. Richer multi-agent approvals and artifact/result surfaces are the next layer.
-
-```typescript
-// Launch a tracked sortie mission
-const { sortie, result } = await pd.runSortie({
-  goal: 'Investigate flaky auth tests and summarize the root cause',
-  backend: 'claude',
-  model: 'claude-haiku-4-5-20251001',
-  budgetUsd: 0.75,
-  recipe: 'investigate',
-  expectedOutput: 'Root-cause memo with recommended next actions',
-  context: 'Do not patch yet; evidence only',
-});
-
-console.log(sortie.id, sortie.status, sortie.harbor);
-console.log(result?.output);
-
-// Inspect sortie history later
-const { sorties } = await pd.listSorties({ projectDir: '/path/to/project' });
-const { sortie: oneSortie } = await pd.getSortie(sortie.id);
-const { events } = await pd.getSortieLogs(sortie.id);
-```
-
-| Method | Description |
-|--------|-------------|
-| `pd.runSortie(spec)` | Launch a tracked sortie mission and return its initial result |
-| `pd.listSorties(options?)` | List recent sorties, optionally filtered by project directory |
-| `pd.getSortie(id)` | Fetch one sortie by id |
-| `pd.getSortieLogs(id, limit?)` | Fetch the sortie event log |
-
-`pd.runSortie(...)` inherits the same fail-closed telemetry contract as `pd.spawn(...)`. If the chosen backend/model cannot return exact token counts plus an exact nonzero rate-derived cost, the sortie is blocked before the coordinating run launches.
-
----
 
 ## Harbors — Named Permission Namespaces
 

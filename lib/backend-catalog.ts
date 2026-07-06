@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
 /**
  * Backend Catalog — single source of truth for the fleet's available LLM backends.
  *
@@ -52,10 +56,11 @@ export interface BackendCatalogEntry {
   tagline?: string;
   /**
    * If non-null, the env var the operator would set to force this backend
-   * for every spawn regardless of pd-fleet.yml. Today only
-   * `cli:claude-code` and `cli:codex` honor this (via PD_USE_CLI_BACKEND).
+   * for every spawn regardless of pd-fleet.yml. The CLI-tube backends
+   * (`cli:claude-code`, `cli:codex`, `cli:gemini`, `cli:groq`, `cli:grok`)
+   * honor this (via PD_USE_CLI_BACKEND).
    */
-  pdUseCliBackendValue?: 'claude-code' | 'codex';
+  pdUseCliBackendValue?: 'claude-code' | 'codex' | 'gemini' | 'groq' | 'grok';
   /**
    * Show this prominently in the picker. Used to rank "free via subscription"
    * options ahead of metered ones in the FleetBar/dashboard picker.
@@ -72,7 +77,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'FREE — your Claude Max subscription',
     description: "Drives your local `claude` binary as a child process. Auth and billing flow through your Claude Max ($200/mo) or Claude Pro ($20/mo) subscription. $0 marginal cost per spawn.",
     tagline: '$200/mo Claude Max powers the entire fleet at $0 marginal',
-    models: ['claude-sonnet-4-5', 'claude-opus-4-1', 'claude-haiku-4-5'],
+    models: ['claude-sonnet-4-6', 'claude-opus-4-8', 'claude-haiku-4-5'],
     pdUseCliBackendValue: 'claude-code',
     recommended: true,
   },
@@ -86,6 +91,36 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     models: ['gpt-5', 'gpt-5-codex'],
     pdUseCliBackendValue: 'codex',
     recommended: true,
+  },
+  {
+    id: 'cli:gemini',
+    name: 'Gemini CLI',
+    costModel: 'subscription',
+    framing: 'FREE tier — your Google account',
+    description: "Drives your local `gemini` binary as a child process. Auth and billing flow through your Google account (generous free tier) or Gemini Code Assist subscription.",
+    tagline: 'Google-account Gemini CLI free tier powers spawns at $0 marginal',
+    models: ['gemini-2.5-flash', 'gemini-2.5-pro'],
+    pdUseCliBackendValue: 'gemini',
+  },
+  {
+    id: 'cli:groq',
+    name: 'Groq Code CLI',
+    costModel: 'subscription',
+    framing: 'Rides your Groq account',
+    description: "Drives your local `groq` binary as a child process. Auth and billing flow through your Groq account; the CLI manages its own key.",
+    tagline: 'Groq LPU speed through your existing groq CLI login',
+    models: ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b'],
+    pdUseCliBackendValue: 'groq',
+  },
+  {
+    id: 'cli:grok',
+    name: 'Grok CLI',
+    costModel: 'subscription',
+    framing: 'Rides your xAI / SuperGrok subscription',
+    description: "Drives your local `grok` binary as a child process. Auth and billing flow through your xAI account or SuperGrok subscription.",
+    tagline: 'SuperGrok subscription powers spawns at $0 marginal',
+    models: ['grok-4', 'grok-code-fast-1'],
+    pdUseCliBackendValue: 'grok',
   },
 
   // ──── Metered (pay per token) ───────────────────────────────────────────
@@ -103,7 +138,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     costModel: 'metered',
     framing: 'Metered API — pennies per spawn',
     description: 'Direct Anthropic API via @anthropic-ai/sdk. Requires ANTHROPIC_API_KEY.',
-    models: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-5-20250929', 'claude-opus-4-1-20250805'],
+    models: ['claude-haiku-4-5', 'claude-sonnet-4-6', 'claude-opus-4-8'],
   },
   {
     id: 'gemini',
@@ -122,7 +157,8 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     models: [
       '@cf/zai-org/glm-4.7-flash',
       '@cf/openai/gpt-oss-120b',
-      '@cf/moonshotai/kimi-k2.6',
+      // Real Workers AI slug — the phantom kimi-k2.6 id hung ai.run (2026-07-03 fleet outage).
+      '@cf/moonshotai/kimi-k2-instruct',
       '@cf/qwen/qwen3-30b-a3b-fp8',
       '@cf/nvidia/nemotron-3-120b-a12b',
       '@cf/meta/llama-4-scout-17b-16e-instruct',
@@ -194,6 +230,9 @@ export function getBackendCatalogEntry(id: string): BackendCatalogEntry | undefi
  */
 export const KNOWN_BACKEND_IDS: ReadonlySet<string> = new Set(BACKEND_CATALOG.map((b) => b.id));
 
+export const CLI_BACKEND_SELECTION_PATH = join(homedir(), '.port-daddy-cli-backend');
+const MAX_PERSISTED_BACKEND_SELECTION_BYTES = 128;
+
 /**
  * "Free via subscription / local" backends, ranked first in pickers.
  * Order matches BACKEND_CATALOG declaration order so we get a stable
@@ -206,17 +245,83 @@ export function recommendedBackendIds(): string[] {
 }
 
 /**
- * Detect which CLI backend (if any) the operator has forced via
- * PD_USE_CLI_BACKEND. Returns the catalog id (`cli:claude-code` / `cli:codex`)
- * or null if no override is set.
- *
- * The env var is shipped per PR #109 (spawner CLI-tube backends).
+ * Explicit off-switch values for PD_USE_CLI_BACKEND. Setting the env var to
+ * one of these disables the forced-CLI override ENTIRELY — including the
+ * persisted ~/.port-daddy-cli-backend fallback. This is the only way for a
+ * single process (a test run, a one-off spawn) to opt out of an operator's
+ * persisted FleetBar selection without deleting the file.
  */
-export function detectForcedCliBackend(env: NodeJS.ProcessEnv = process.env): string | null {
-  const raw = env.PD_USE_CLI_BACKEND;
+const FORCED_CLI_BACKEND_OFF_VALUES = new Set(['none', 'off', 'disabled', 'disable', '0', 'false']);
+
+function isForcedCliBackendOff(raw: string | undefined | null): boolean {
+  if (!raw) return false;
+  return FORCED_CLI_BACKEND_OFF_VALUES.has(raw.trim().toLowerCase());
+}
+
+function normalizeForcedCliBackend(raw: string | undefined | null): {
+  id: string;
+  value: NonNullable<BackendCatalogEntry['pdUseCliBackendValue']>;
+} | null {
   if (!raw) return null;
   const normalized = raw.trim().toLowerCase();
-  if (normalized === 'claude-code' || normalized === 'claude') return 'cli:claude-code';
-  if (normalized === 'codex') return 'cli:codex';
+  if (normalized === 'claude-code' || normalized === 'claude') {
+    return { id: 'cli:claude-code', value: 'claude-code' };
+  }
+  if (normalized === 'codex') return { id: 'cli:codex', value: 'codex' };
+  if (normalized === 'gemini') return { id: 'cli:gemini', value: 'gemini' };
+  if (normalized === 'groq') return { id: 'cli:groq', value: 'groq' };
+  if (normalized === 'grok') return { id: 'cli:grok', value: 'grok' };
   return null;
+}
+
+export function readPersistedCliBackendSelection(
+  path: string = CLI_BACKEND_SELECTION_PATH,
+): string | null {
+  try {
+    const raw = readFileSync(path, 'utf-8');
+    if (raw.length > MAX_PERSISTED_BACKEND_SELECTION_BYTES) return null;
+    return raw.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function detectForcedCliBackendMatch(
+  env: NodeJS.ProcessEnv = process.env,
+  options: { persistedPath?: string | null } = {},
+): { id: string; value: NonNullable<BackendCatalogEntry['pdUseCliBackendValue']> } | null {
+  // PD_USE_CLI_BACKEND=none (off/disabled/0/false) hard-disables the override:
+  // the persisted dotfile is NOT consulted. Without this, a process has no way
+  // to escape an operator's ~/.port-daddy-cli-backend selection.
+  if (isForcedCliBackendOff(env.PD_USE_CLI_BACKEND)) return null;
+
+  const envMatch = normalizeForcedCliBackend(env.PD_USE_CLI_BACKEND);
+  if (envMatch) return envMatch;
+
+  const hasExplicitPersistedPath = typeof options.persistedPath === 'string';
+  const shouldReadDefaultPersistedPath = options.persistedPath === undefined && env === process.env;
+  if (!hasExplicitPersistedPath && !shouldReadDefaultPersistedPath) return null;
+  const persistedPath = hasExplicitPersistedPath ? options.persistedPath as string : CLI_BACKEND_SELECTION_PATH;
+
+  return normalizeForcedCliBackend(
+    readPersistedCliBackendSelection(persistedPath),
+  );
+}
+
+/**
+ * Detect which CLI backend (if any) the operator has forced. The process env
+ * wins; otherwise the FleetBar/CLI persisted choice is honored.
+ */
+export function detectForcedCliBackend(
+  env: NodeJS.ProcessEnv = process.env,
+  options: { persistedPath?: string | null } = {},
+): string | null {
+  return detectForcedCliBackendMatch(env, options)?.id ?? null;
+}
+
+export function detectForcedCliBackendValue(
+  env: NodeJS.ProcessEnv = process.env,
+  options: { persistedPath?: string | null } = {},
+): string | null {
+  return detectForcedCliBackendMatch(env, options)?.value ?? null;
 }

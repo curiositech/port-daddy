@@ -30,7 +30,7 @@ export const referenceSection: DocsContentSection = {
           type: 'command',
           title: 'Daily loop plus newer specialist surfaces',
           command:
-            'pd status\npd briefing\npd begin "Fix auth bug" --identity myapp:api\npd note "JWT validation passing"\npd tube ui:clicks\npd guard check --staged\npd actor lookout --message "release-surface drift fixed"\npd done "Docs updated"',
+            'pd status\npd briefing\npd begin "Fix auth bug" --identity myapp:api --lifecycle durable\npd note "JWT validation passing"\npd tube ui:clicks\npd guard check --staged\npd actor lookout --message "release-surface drift fixed"\npd done "Docs updated"',
           notes: [
             'The everyday loop remains first-class.',
             '`pd tube`, actor mailboxes, guard, roadmap, ideas, wallet, bond, and feedback commands now appear in the CLI reference instead of being source-only knowledge.',
@@ -67,8 +67,8 @@ export const referenceSection: DocsContentSection = {
         'Every public method on the `PortDaddy` client class, grouped by daemon capability.',
       truth: 'source-backed',
       goals: [
-        'Show the direct SDK method surface, not an imagined nested module API.',
-        'Expose newer SDK coverage for actors, wallets, bonds, panic, pheromones, Arbiter, tuples, sorties, and semantic work.',
+        'Show the direct SDK method surface, not a made-up nested module API.',
+        'Expose newer SDK coverage for actors, wallets, bonds, panic, pheromones, Arbiter, tuples, spawn, and semantic work.',
         'Keep `/docs/sdk` useful even before every method has a dedicated page.',
       ],
       blocks: [
@@ -84,7 +84,7 @@ export const referenceSection: DocsContentSection = {
           type: 'command',
           title: 'Canonical import and first calls',
           command:
-            "import { PortDaddy } from 'port-daddy/client'\n\nconst pd = new PortDaddy()\nawait pd.claim('myapp:api:main')\nawait pd.begin('Build API preview', { identity: 'myapp:api:main' })\nawait pd.note('Preview server claimed')\nawait pd.done('Preview ready')",
+            "import { PortDaddy } from 'port-daddy/client'\n\nconst pd = new PortDaddy()\nawait pd.claim('myapp:api:main')\nawait pd.begin('Build API preview', { lifecycle: 'durable', identity: 'myapp:api:main' })\nawait pd.note('Preview server claimed')\nawait pd.done('Preview ready')",
         },
         {
           type: 'checklist',
@@ -127,7 +127,7 @@ export const referenceSection: DocsContentSection = {
           title: 'Tiered by default, complete through discovery',
           paragraphs: [
             'The MCP server starts small by exposing the essential tool set plus `pd_discover` unless full mode is enabled.',
-            '`pd_discover` returns categories, counts, names, and schemas so model clients can unlock the full tool surface without flooding the first tool list.',
+            '`pd_discover` returns categories, counts, names, and schemas so model clients can reach the full tool surface without flooding the first tool list.',
           ],
         },
         {
@@ -158,7 +158,7 @@ export const referenceSection: DocsContentSection = {
       slug: 'daemon-http-surface',
       title: 'Daemon HTTP Routes',
       summary:
-        'The high-value route groups on the live daemon: sessions, salvage, harbors, tuples, sorties, and fleet.',
+        'The high-value route groups on the live daemon: sessions, salvage, harbors, tuples, spawn, and fleet.',
       truth: 'source-backed',
       goals: [
         'Know which route groups exist right now.',
@@ -170,8 +170,8 @@ export const referenceSection: DocsContentSection = {
           type: 'paragraph',
           title: 'Think in route groups before leaf endpoints',
           paragraphs: [
-            'The daemon routes are easiest to navigate when you think in groups first: sessions and sugar, agents and salvage, tuples and messaging, harbors, sorties, fleet, and general status.',
-            'A good reference page should get you to the right neighborhood immediately, then let you drill into the exhaustive endpoint list. It should not force you to read a wall of raw paths just to answer “where do I inspect sorties?” or “which routes own harbor membership?”',
+            'The daemon routes are easiest to navigate when you think in groups first: sessions and sugar, agents and salvage, tuples and messaging, harbors, spawn, fleet, and general status.',
+            'A good reference page should get you to the right neighborhood immediately, then let you drill into the exhaustive endpoint list. It should not force you to read a wall of raw paths just to answer “where do I inspect spawned runs?” or “which routes own harbor membership?”',
           ],
         },
         {
@@ -179,7 +179,7 @@ export const referenceSection: DocsContentSection = {
           items: [
             'Use `/status` and related info routes for daemon health and overview.',
             'Use `/sugar/*`, `/sessions`, `/agents`, and `/salvage` for identity, lifecycle, and recovery.',
-            'Use `/harbors`, `/tuples`, `/sorties`, and `/fleet` when you need scoped coordination, tracked missions, or project automation.',
+            'Use `/harbors`, `/tuples`, `/spawn`, and `/fleet` when you need scoped coordination, tracked runs, or project automation.',
           ],
         },
         {

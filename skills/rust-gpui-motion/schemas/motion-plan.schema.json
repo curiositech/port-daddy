@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/rust-gpui-motion/motion-plan.schema.json",
+  "title": "gpui Motion Plan",
+  "description": "A flat inventory of every animated surface in a native Rust gpui app, checked against the rust-gpui-motion skill's Quality Gates by scripts/motion_audit.mjs.",
+  "type": "object",
+  "required": ["surfaces"],
+  "additionalProperties": true,
+  "properties": {
+    "surfaces": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "kind", "usesTransform", "animatesLayoutInHotRender", "owners", "reducedMotion", "repeat", "easing", "interruptible"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Human-readable identifier for the animated surface, e.g. 'spawn-card-expand' or 'fleet-status-dot'."
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["micro", "transition", "bespoke"],
+            "description": "micro = one-shot/looping atom (glow, breathing dot, hover); transition = surface changes shape or identity; bespoke = below the widget layer (paint/canvas/Vello/wgpu)."
+          },
+          "usesTransform": {
+            "type": "boolean",
+            "description": "True if this surface's implementation reaches for scale()/translate()/rotate() or a transform property. gpui 0.2.x has none of these on div — this must always be false."
+          },
+          "animatesLayoutInHotRender": {
+            "type": "boolean",
+            "description": "True if the surface animates width/height/px/insets inside a view that re-renders frequently, forcing a full element-tree re-layout every frame."
+          },
+          "owners": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Count of distinct motion drivers (with_animation calls or transition state machines) writing this surface's animated properties. Must be exactly 1."
+          },
+          "reducedMotion": {
+            "type": "object",
+            "required": ["handled", "preservesOrientation"],
+            "properties": {
+              "handled": {
+                "type": "boolean",
+                "description": "True if a reduced-motion branch exists at all (there is no @media fallback in gpui; this must be decided explicitly)."
+              },
+              "preservesOrientation": {
+                "type": "boolean",
+                "description": "True if the reduced-motion branch still communicates final state (a fade or hint), rather than silently snapping with no cue."
+              }
+            }
+          },
+          "repeat": {
+            "type": "object",
+            "required": ["present"],
+            "properties": {
+              "present": {
+                "type": "boolean",
+                "description": "True if this surface uses Animation::new(..).repeat()."
+              },
+              "scopedToLeaf": {
+                "type": "boolean",
+                "description": "True if the repeat() loop is mounted on the smallest leaf view that needs it, not high in the tree. Required when present is true."
+              },
+              "pausesWhenIdle": {
+                "type": "boolean",
+                "description": "True if the repeat() loop is paused or unmounted when its surface is idle/off-screen. Required when present is true."
+              }
+            }
+          },
+          "easing": {
+            "type": "string",
+            "enum": ["ease_in_out", "bounce", "pulsating_between", "linear"],
+            "description": "Only curves confirmed to exist in gpui 0.2.x's with_easing(). Web curve names (ease_out, cubic-bezier, spring physics) do not port."
+          },
+          "interruptible": {
+            "type": "boolean",
+            "description": "True if a mid-flight change retargets the current value instead of restarting at 0. Required for kind: transition surfaces (shape/identity change)."
+          }
+        }
+      }
+    }
+  }
+}

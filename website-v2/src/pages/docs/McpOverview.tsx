@@ -3,7 +3,6 @@ import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Cpu, Terminal, Code, ExternalLink, Check } from 'lucide-react'
 import { ALL_CATEGORIES, MCP_DEFAULT_TOOL_TOTAL, MCP_TOOL_TOTAL } from '@/data/mcp'
-import { PORT_DADDY_VERSION } from '@/data/referenceCatalog'
 
 const MCP_SERVERS = [
   {
@@ -69,26 +68,22 @@ export default function McpOverview() {
     <div className="space-y-8">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="teal">Integration</Badge>
-          <Badge variant="default">v{PORT_DADDY_VERSION}</Badge>
-          <Badge variant="gold">source-backed</Badge>
-        </div>
+        <Badge variant="teal">Integration</Badge>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Model Context Protocol
         </h1>
         <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          Connect Port Daddy to any AI tool via the Model Context Protocol (MCP).
-          Give your agents native access to the daemon surface without shell parsing.
+          Connect Port Daddy to any AI tool through the Model Context Protocol (MCP).
+          Your agents call Port Daddy directly, as tools, instead of parsing terminal output.
         </p>
-        <p className="text-sm text-[var(--text-muted)] p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)] max-w-xl">
+        <p className="text-[length:var(--text-base)] text-[var(--text-muted)] p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)] max-w-xl">
           Use this reference if your LLM (Claude, Cursor, Windsurf, etc.) needs to coordinate
           agents directly via tool calls. For terminal usage see the{' '}
           <a href="/docs/cli" className="text-[var(--brand-primary)] hover:underline">CLI reference</a>, or
           for programmatic access see the{' '}
           <a href="/docs/sdk" className="text-[var(--brand-primary)] hover:underline">SDK reference</a>.
         </p>
-        <p className="text-sm text-[var(--text-muted)] max-w-3xl">
+        <p className="text-[length:var(--text-base)] text-[var(--text-muted)] max-w-3xl">
           Audited from <code className="font-mono">mcp/server.ts</code>: default mode exposes {MCP_DEFAULT_TOOL_TOTAL} tools
           including <code className="font-mono">pd_discover</code>, and full mode covers {MCP_TOOL_TOTAL} unique registered functions.
         </p>
@@ -130,6 +125,7 @@ export default function McpOverview() {
         <CodeBlock language="bash">{`$ pd mcp install
 ✓ Port Daddy MCP configured for detected clients
 ✓ Port Daddy agent skill installed
+✓ Port Daddy Pilot definitions installed
 ✓ Optional shell hook configured`}</CodeBlock>
       </div>
 
@@ -152,17 +148,10 @@ export default function McpOverview() {
                     <h3 className="font-semibold text-[var(--text-primary)]">{server.name}</h3>
                     <ArrowRight size={14} className="text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] group-hover:translate-x-1 transition-all" />
                   </div>
-                  <p className="text-sm text-[var(--text-muted)] mb-3">{server.description}</p>
-                  <code className="text-xs px-2 py-1 rounded bg-[var(--code-bg)] text-[var(--brand-primary)] font-mono">
+                  <p className="text-[length:var(--text-base)] text-[var(--text-muted)] mb-3">{server.description}</p>
+                  <code className="text-[length:var(--type-meta-size)] px-2 py-1 rounded bg-[var(--code-bg)] text-[var(--brand-primary)] font-mono">
                     {server.setup}
                   </code>
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {server.features.map(feature => (
-                      <span key={feature} className="text-xs px-2 py-1 rounded-full bg-[var(--surface-overlay)] text-[var(--text-muted)]">
-                        {feature}
-                      </span>
-                    ))}
-                  </div>
                 </div>
               </div>
             </Link>
@@ -194,7 +183,7 @@ export default function McpOverview() {
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 {category.tools.map(tool => (
-                  <code id={tool} key={tool} className="scroll-mt-24 text-xs px-2 py-1 rounded bg-[var(--code-bg)] text-[var(--text-muted)] font-mono">
+                  <code id={tool} key={tool} className="scroll-mt-24 text-[length:var(--type-meta-size)] px-2 py-1 rounded bg-[var(--code-bg)] text-[var(--text-muted)] font-mono">
                     {tool}
                   </code>
                 ))}

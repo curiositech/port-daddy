@@ -5,7 +5,8 @@
  * GET    /sessions                - List sessions
  * GET    /sessions/:id            - Get session details
  * PUT    /sessions/:id            - End or abandon a session
- * DELETE /sessions/:id            - Delete session + cascade notes
+ * POST   /sessions/:id/takeover   - Start a successor session without deleting notes
+ * DELETE /sessions/:id            - Archive session, preserving notes
  * POST   /sessions/:id/notes      - Add a note to a session (compat alias for /notes)
  * GET    /sessions/:id/notes      - Get notes for a session
  * POST   /sessions/:id/files      - Claim files for a session
@@ -20,6 +21,7 @@ import {
   evaluateSessionWorktreePolicy,
   mergeSessionWorktreeMetadata,
 } from '../lib/worktree-policy.js';
+import { coerceClaimType, type ClaimType } from '../lib/symbol-conflict-matrix.js';
 
 interface SessionsRouteDeps {
   sessions: {
@@ -28,6 +30,7 @@ interface SessionsRouteDeps {
       files?: string[];
       metadata?: Record<string, unknown> | null;
       worktreeId?: string | null;
+      durable?: boolean;
     }): Record<string, unknown>;
     end(sessionId: string, options?: {
       note?: string;
@@ -35,6 +38,16 @@ interface SessionsRouteDeps {
     }): Record<string, unknown>;
     abandon(sessionId: string): Record<string, unknown>;
     remove(sessionId: string): Record<string, unknown>;
+    takeover(sessionId: string, options?: {
+      agentId?: string | null;
+      purpose?: string | null;
+      note?: string | null;
+      project?: string | null;
+      worktreeId?: string | null;
+      metadata?: Record<string, unknown> | null;
+      durable?: boolean;
+      claimFiles?: boolean;
+    }): Record<string, unknown>;
     quickNote(content: string, options?: {
       sessionId?: string | null;
       agentId?: string | null;
@@ -83,6 +96,23 @@ interface SessionsRouteDeps {
   activityLog: {
     log?(type: string, opts: { details: string; metadata: Record<string, unknown> }): void;
   };
+  symbolClaims?: {
+    claim(
+      sessionId: string,
+      claims: Array<{ filePath: string; symbolPath: string; type: ClaimType }>,
+      options?: { autoDeriveRadius?: boolean; radiusDepth?: number },
+    ): { claimed: unknown[]; autoDerived: unknown[]; conflicts: unknown[] };
+    list(sessionId: string): unknown[];
+    release(sessionId: string): number;
+  };
+}
+
+type SessionLifecycle = 'durable' | 'ephemeral';
+
+function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'durable' || normalized === 'ephemeral' ? normalized : null;
 }
 
 /**
@@ -98,7 +128,7 @@ interface SessionsRouteDeps {
 // =============================================================================
 export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = async (fastify, opts) => {
   const { deps } = opts;
-  const { sessions, metrics, logger, activityLog } = deps;
+  const { sessions, metrics, logger, activityLog, symbolClaims } = deps;
 
   const errorStatus = (result: Record<string, unknown>) => {
     switch (result.code) {
@@ -297,6 +327,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         worktree,
         requireLinkedWorktree,
         allowMainWorktree,
+        lifecycle: rawLifecycle,
       } = request.body as any;
 
       if (!purpose || typeof purpose !== 'string') {
@@ -343,6 +374,16 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return worktreePolicy;
       }
 
+      const lifecycle = rawLifecycle === undefined ? null : parseSessionLifecycle(rawLifecycle);
+      if (rawLifecycle !== undefined && !lifecycle) {
+        reply.code(400);
+        return {
+          success: false,
+          error: 'lifecycle must be "durable" or "ephemeral" when provided',
+          code: 'VALIDATION_ERROR',
+        };
+      }
+
       const mergedMetadata = mergeSessionWorktreeMetadata(metadata, worktreePolicy.worktree, {
         requireLinkedWorktree,
         allowMainWorktree,
@@ -353,6 +394,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         files,
         metadata: mergedMetadata,
         worktreeId: worktreePolicy.worktree?.id,
+        durable: lifecycle === 'durable',
       });
 
       if (!result.success) {
@@ -453,6 +495,11 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         result = sessions.end(sessionId, { note, status });
       }
 
+      // Symbol claims release with the session (advisory reservations are session-scoped).
+      if (result.success && symbolClaims) {
+        try { symbolClaims.release(sessionId); } catch { /* best-effort */ }
+      }
+
       if (!result.success) {
         reply.code(404);
         return { ...result, code: 'SESSION_NOT_FOUND' };
@@ -476,6 +523,69 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     } catch (error) {
       metrics.errors++;
       logger.error('session_end_error', { error: (error as Error).message });
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+
+  // POST /sessions/:id/takeover - Non-destructively continue an existing session
+  fastify.post('/sessions/:id/takeover', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const sessionIdParam = (request.params as any).id;
+      const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
+      const body = (request.body || {}) as any;
+      const sessionAgent = mutationAgentId(request, body.agentId);
+      if (!sessionAgent.success) {
+        reply.code(400);
+        return sessionAgent.result;
+      }
+      const lifecycle = parseSessionLifecycle(body.lifecycle);
+      const worktreePolicy = evaluateSessionWorktreePolicy({
+        worktree: body.worktree,
+        requireLinkedWorktree: body.requireLinkedWorktree,
+        allowMainWorktree: body.allowMainWorktree,
+      });
+      if (!worktreePolicy.success) {
+        reply.code(400);
+        return worktreePolicy;
+      }
+      const metadata = mergeSessionWorktreeMetadata(
+        body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : null,
+        worktreePolicy.worktree,
+        {
+          requireLinkedWorktree: body.requireLinkedWorktree,
+          allowMainWorktree: body.allowMainWorktree,
+        },
+      );
+
+      const result = sessions.takeover(sessionId, {
+        agentId: sessionAgent.agentId,
+        purpose: typeof body.purpose === 'string' ? body.purpose : null,
+        note: typeof body.note === 'string' ? body.note : null,
+        project: typeof body.project === 'string' ? body.project : null,
+        worktreeId: typeof body.worktreeId === 'string' ? body.worktreeId : worktreePolicy.worktree?.id ?? null,
+        metadata,
+        durable: lifecycle ? lifecycle === 'durable' : typeof body.durable === 'boolean' ? body.durable : undefined,
+        claimFiles: typeof body.claimFiles === 'boolean' ? body.claimFiles : undefined,
+      });
+
+      if (!result.success) {
+        const statusCode = result.code === 'VALIDATION_ERROR' ? 400 : 404;
+        reply.code(statusCode);
+        return result;
+      }
+
+      logger.info('session_taken_over', {
+        predecessorId: result.predecessorId,
+        successorId: result.successorId,
+        claimsTransferred: result.claimsTransferred,
+      });
+
+      return result;
+
+    } catch (error) {
+      metrics.errors++;
+      logger.error('session_takeover_error', { error: (error as Error).message });
       reply.code(500);
       return { error: 'internal server error' };
     }
@@ -532,7 +642,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
   });
 
-  // DELETE /sessions/:id - Delete session + cascade notes
+  // DELETE /sessions/:id - Archive session and preserve notes
   fastify.delete('/sessions/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const sessionIdParam = (request.params as any).id;
@@ -545,11 +655,11 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return { ...result, code: 'SESSION_NOT_FOUND' };
       }
 
-      logger.info('session_deleted', { sessionId });
+      logger.info('session_archived', { sessionId, notesPreserved: result.notesPreserved });
 
       return {
-        success: true,
-        message: `Session "${sessionId}" removed`
+        ...result,
+        message: `Session "${sessionId}" archived; notes preserved`
       };
 
     } catch (error) {
@@ -719,6 +829,57 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       reply.code(500);
       return { error: 'internal server error' };
     }
+  });
+
+  // POST /sessions/:id/symbols — declare symbol-level claims; a `modify` auto-reserves
+  // its blast radius (read-claims on every downstream caller). Returns predicted
+  // conflicts with other active sessions (advisory — never blocks).
+  fastify.post('/sessions/:id/symbols', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!symbolClaims) {
+      reply.code(501);
+      return { success: false, error: 'symbol claims not available' };
+    }
+    const sessionIdParam = (request.params as any).id;
+    const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
+    const body = (request.body ?? {}) as { claims?: unknown; autoDeriveRadius?: boolean; radiusDepth?: number };
+    const raw = Array.isArray(body.claims) ? body.claims : [];
+    const claims: Array<{ filePath: string; symbolPath: string; type: ClaimType }> = [];
+    for (const c of raw as any[]) {
+      if (!c || typeof c.filePath !== 'string' || typeof c.symbolPath !== 'string') {
+        reply.code(400);
+        return { success: false, error: 'each claim needs filePath and symbolPath', code: 'VALIDATION_ERROR' };
+      }
+      // read | modify | add-sibling | add-child | delete | rename (unknown → modify)
+      claims.push({ filePath: c.filePath, symbolPath: c.symbolPath, type: coerceClaimType(c.type) });
+    }
+    if (!claims.length) {
+      reply.code(400);
+      return { success: false, error: 'claims must be a non-empty array', code: 'VALIDATION_ERROR' };
+    }
+    try {
+      const result = symbolClaims.claim(sessionId, claims, {
+        autoDeriveRadius: body.autoDeriveRadius,
+        radiusDepth: typeof body.radiusDepth === 'number' ? body.radiusDepth : undefined,
+      });
+      return { success: true, ...result };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('session_symbol_claim_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  // GET /sessions/:id/symbols — list a session's active symbol claims.
+  fastify.get('/sessions/:id/symbols', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!symbolClaims) {
+      reply.code(501);
+      return { success: false, error: 'symbol claims not available' };
+    }
+    const sessionIdParam = (request.params as any).id;
+    const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
+    const items = symbolClaims.list(sessionId);
+    return { success: true, claims: items, count: items.length };
   });
 
   // DELETE /sessions/:id/files - Release files from a session

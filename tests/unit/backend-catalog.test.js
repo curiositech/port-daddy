@@ -1,8 +1,13 @@
 import { describe, test, expect } from '@jest/globals';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   BACKEND_CATALOG,
+  CLI_BACKEND_SELECTION_PATH,
   KNOWN_BACKEND_IDS,
   detectForcedCliBackend,
+  detectForcedCliBackendValue,
   getBackendCatalogEntry,
   recommendedBackendIds,
 } from '../../lib/backend-catalog.js';
@@ -56,6 +61,71 @@ describe('backend-catalog', () => {
     expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'bogus' })).toBeNull();
   });
 
+  test('detectForcedCliBackend honors an explicit persisted selection path', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-backend-catalog-'));
+    const path = join(dir, 'selection');
+    try {
+      writeFileSync(path, 'codex\n');
+      expect(detectForcedCliBackend({}, { persistedPath: path })).toBe('cli:codex');
+      expect(detectForcedCliBackendValue({}, { persistedPath: path })).toBe('codex');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('PD_USE_CLI_BACKEND=none hard-disables the override, including the persisted fallback', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-backend-catalog-'));
+    const path = join(dir, 'selection');
+    try {
+      writeFileSync(path, 'codex\n');
+      // Every off value beats a valid persisted selection.
+      for (const off of ['none', 'off', 'disabled', 'disable', '0', 'false', 'NONE', ' Off ']) {
+        expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: off }, { persistedPath: path })).toBeNull();
+        expect(detectForcedCliBackendValue({ PD_USE_CLI_BACKEND: off }, { persistedPath: path })).toBeNull();
+      }
+      // ...while unset still falls through to the persisted selection.
+      expect(detectForcedCliBackend({}, { persistedPath: path })).toBe('cli:codex');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('env selection wins over persisted selection', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-backend-catalog-'));
+    const path = join(dir, 'selection');
+    try {
+      writeFileSync(path, 'codex\n');
+      const env = { PD_USE_CLI_BACKEND: 'claude-code' };
+      expect(detectForcedCliBackend(env, { persistedPath: path })).toBe('cli:claude-code');
+      expect(detectForcedCliBackendValue(env, { persistedPath: path })).toBe('claude-code');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('invalid persisted selection path types do not fall back to the default file', () => {
+    const hadDefault = existsSync(CLI_BACKEND_SELECTION_PATH);
+    const savedDefault = hadDefault ? readFileSync(CLI_BACKEND_SELECTION_PATH, 'utf-8') : null;
+    try {
+      writeFileSync(CLI_BACKEND_SELECTION_PATH, 'codex\n');
+      expect(detectForcedCliBackend(process.env, { persistedPath: 7 })).toBeNull();
+    } finally {
+      if (hadDefault) writeFileSync(CLI_BACKEND_SELECTION_PATH, savedDefault);
+      else rmSync(CLI_BACKEND_SELECTION_PATH, { force: true });
+    }
+  });
+
+  test('oversized persisted backend selection files are ignored', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-backend-catalog-'));
+    const path = join(dir, 'selection');
+    try {
+      writeFileSync(path, `${'codex'.repeat(40)}\n`);
+      expect(detectForcedCliBackend({}, { persistedPath: path })).toBeNull();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test('recommendedBackendIds surfaces subscription + local options', () => {
     const recs = recommendedBackendIds();
     expect(recs).toContain('cli:claude-code');
@@ -67,6 +137,43 @@ describe('backend-catalog', () => {
 
   test('getBackendCatalogEntry returns undefined for unknown id', () => {
     expect(getBackendCatalogEntry('definitely-not-a-backend')).toBeUndefined();
+  });
+
+  test('includes the cli:gemini / cli:groq / cli:grok tube backends', () => {
+    for (const id of ['cli:gemini', 'cli:groq', 'cli:grok']) {
+      expect(KNOWN_BACKEND_IDS.has(id)).toBe(true);
+      const entry = getBackendCatalogEntry(id);
+      expect(entry).toBeDefined();
+      expect(entry.costModel).toBe('subscription');
+      expect(entry.models.length).toBeGreaterThan(0);
+    }
+    expect(getBackendCatalogEntry('cli:gemini').pdUseCliBackendValue).toBe('gemini');
+    expect(getBackendCatalogEntry('cli:groq').pdUseCliBackendValue).toBe('groq');
+    expect(getBackendCatalogEntry('cli:grok').pdUseCliBackendValue).toBe('grok');
+  });
+
+  test('detectForcedCliBackend maps gemini/groq/grok to cli:* ids', () => {
+    expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'gemini' })).toBe('cli:gemini');
+    expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'GROQ' })).toBe('cli:groq');
+    expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'grok' })).toBe('cli:grok');
+  });
+
+  test('claude SDK ladder uses current undated model ids', () => {
+    const claude = getBackendCatalogEntry('claude');
+    expect(claude.models).toEqual([
+      'claude-haiku-4-5',
+      'claude-sonnet-4-6',
+      'claude-opus-4-8',
+    ]);
+  });
+
+  test('cli:claude-code model list uses current undated model ids', () => {
+    const claudeCode = getBackendCatalogEntry('cli:claude-code');
+    expect(claudeCode.models).toEqual([
+      'claude-sonnet-4-6',
+      'claude-opus-4-8',
+      'claude-haiku-4-5',
+    ]);
   });
 
   test('OpenAI metered backend has openai id and metered framing', () => {
