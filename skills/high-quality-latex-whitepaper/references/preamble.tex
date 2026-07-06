@@ -1,0 +1,113 @@
+% ============================================================================
+% High-Quality Whitepaper Preamble — copy verbatim; do not fork a parallel one.
+% Enforces: one serif typeface (body AND figures), one accent color, a quiet
+% footer (no colored bar), tasteful callouts, and shared TikZ styles so every
+% figure looks like the same author. See SKILL.md for the judgment behind it.
+% ============================================================================
+\documentclass[11pt,a4paper]{article}
+
+% --- Fonts: ONE family, serif, everywhere. No sans in figures. ---
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}            % real ligatures/kerning; looks pressed, not typed
+
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}             % \toprule/\midrule/\bottomrule — never \hline grids
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric}
+\usepackage{mdframed}
+\usepackage[hidelinks]{hyperref}
+
+% ============================================================================
+% THE PALETTE — nothing outside this block exists. ONE saturated accent.
+% Structural tones are MUTED. No raw red/green/blue, no neon, no colored bars.
+%
+% NOTE for port-daddy: this is this skill's own generic house palette, not the
+% repo's brand palette. If you use this preamble for a whitepaper that ships
+% under website-v2/public/whitepaper/ or whitepaper/, swap `accent`/`patina`/
+% `brass` to the hexes in website-v2/scripts/check-figure-palette.mjs
+% (ALLOWED_HEX) first — that guard fails CI on these exact values and names.
+% ============================================================================
+\definecolor{paper}{HTML}{FBF7EE}   % background warmth (use sparingly/low opacity)
+\definecolor{sand}{HTML}{E9DCC4}     % the ONE figure fill (use at 15-40% opacity)
+\definecolor{ink}{HTML}{1E1B18}      % text + strokes
+\definecolor{gray}{HTML}{6B6B6B}     % muted secondary text
+\definecolor{accent}{HTML}{CC3D2E}   % the only saturated color; once per view
+\definecolor{patina}{HTML}{5C7A6A}   % muted structural (use rarely, never as a bar)
+\definecolor{brass}{HTML}{B08D57}    % muted structural (use rarely)
+
+% --- Theorem environments ---
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{property}{Property}[section]
+
+% --- Header/footer: small, single-ink, a thin rule. NO colored band. ---
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\itshape\color{gray} PAPER SHORT TITLE}
+\fancyhead[R]{\small\color{gray}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% --- Listings: quiet, framed, serif-adjacent mono ---
+\lstset{
+  basicstyle=\ttfamily\small, backgroundcolor=\color{paper},
+  frame=single, rulecolor=\color{gray!40}, breaklines=true,
+  numbers=left, numberstyle=\tiny\color{gray}, showstringspaces=false,
+  keywordstyle=\color{ink}\bfseries, commentstyle=\itshape\color{gray},
+}
+
+% ============================================================================
+% PEDAGOGIC APPARATUS — quiet. A thin left rule + a very subtle fill.
+% Accent appears on a label ONLY, never as a saturated box.
+% ============================================================================
+\newmdenv[linewidth=0pt,leftline=true,linecolor=gray!60,
+  backgroundcolor=sand!18,innerleftmargin=10pt,innertopmargin=8pt,
+  innerbottommargin=8pt,skipabove=8pt,skipbelow=8pt]{calloutbox}
+\newcommand{\keyidea}[1]{\begin{calloutbox}{\small\scshape\color{gray}Key idea.\ }#1\end{calloutbox}}
+\newcommand{\pitfall}[1]{\begin{calloutbox}{\small\scshape\color{accent}Pitfall.\ }#1\end{calloutbox}}
+
+% --- Exercises: a quiet boxed list (check / trace / starred open-problem) ---
+\newmdenv[linewidth=0.4pt,linecolor=brass!50,backgroundcolor=paper,
+  innerleftmargin=10pt,innertopmargin=8pt,innerbottommargin=8pt]{exbox}
+\newenvironment{exercises}{\begin{exbox}{\small\scshape Exercises}\par\small}{\end{exbox}}
+
+% --- Pull-quote: large italic, single accent left-stripe, generous margin ---
+\newcommand{\pullquote}[1]{%
+  \par\vspace{8pt}\noindent\begin{tikzpicture}
+    \node[fill=sand!20,inner sep=12pt,text width=\dimexpr\textwidth-34pt\relax,
+          align=left](q){\itshape\large #1};
+    \draw[accent,line width=2.5pt](q.north west)--(q.south west);
+  \end{tikzpicture}\par\vspace{8pt}}
+
+% ============================================================================
+% TIKZ STYLES — define ONCE, use everywhere. Serif figure text, one fill,
+% one stroke, accent only where it earns it, generous padding, clean arrows.
+% ============================================================================
+\tikzset{
+  font=\small,                                   % serif, inherited; never \sffamily
+  box/.style   ={draw=ink,line width=0.6pt,fill=sand!22,rounded corners=2pt,
+                 inner sep=8pt,align=center,minimum height=10mm},
+  accentbox/.style={box,draw=accent,line width=1pt},  % the ONE highlighted node
+  arrow/.style ={-{Stealth[length=2.5mm]},ink,line width=0.7pt},
+  lbl/.style   ={midway,fill=paper,inner sep=2pt,font=\footnotesize\itshape,color=gray},
+}
+
+% --- Honest-status macros for the APPENDIX table (weight/smallcaps, NOT hue) ---
+\newcommand{\stBuilt}{{\scshape\bfseries built}}
+\newcommand{\stPartial}{{\scshape partial}}
+\newcommand{\stSpec}{{\scshape specified}}
+\newcommand{\stProp}{{\itshape proposed}}
