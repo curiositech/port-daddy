@@ -88,10 +88,14 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   ideas: 'silent',
   graph: 'silent',
   embed: 'notify', // worst case: `embed prefetch` downloads ~27 MB into the shared cache; reads/embeds are silent
+  'skill-graft': 'notify', // worst case: `skill-graft warm` refreshes the local graft cache; reads are silent
+  skillgraft: 'notify',    // alias of skill-graft
   memory: 'silent',
   'who-owns': 'silent',
   harbors: 'silent',
+  'harbor-ledger': 'notify', // worst case: `harbor-ledger rebuild` truncates+replays DISPOSABLE projection tables (the event log is never touched); refined below
   spawned: 'silent',
+  work: 'silent',           // `pd work probe`/`pd work matrix` are read-only conformance surfaces (ch18 C2); launch forms refuse until pd work start lands
   feedback: 'silent',       // default form is `feedback list/show/summary`; writes are `notify`
   quorum: 'silent',
   parley: 'approval',       // summons/resolves other agents; read-only forms refined below
@@ -119,7 +123,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   wallet: 'silent',
   bond: 'silent',
   fleet: 'silent',          // refined: `fleet down`, `fleet panic` are destructive
-  squid: 'approval',        // starts a local Anthropic-compatible bridge and optional client process
+  squid: 'approval',        // starts a local Anthropic-compatible bridge and optional client process; refined: on/off/status/tap below
+  hooks: 'notify',          // wires daemon-gated agent-CLI coordination hooks; refined: `hooks list` is silent
   tube: 'silent',
   tunnel: 'silent',
   relay: 'silent',           // refined: `relay url <url>` is notify
@@ -217,6 +222,17 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'embed text': 'silent',
   'embed stdin': 'silent',
   'embed prefetch': 'notify',
+
+  // skill-graft: query/reference are read-only; warm refreshes the shared local
+  // skill index and may call the configured graft backend when enabled.
+  'skill-graft': 'silent',         // default subcommand = query
+  'skill-graft query': 'silent',
+  'skill-graft reference': 'silent',
+  'skill-graft warm': 'notify',
+  'skillgraft': 'silent',
+  'skillgraft query': 'silent',
+  'skillgraft reference': 'silent',
+  'skillgraft warm': 'notify',
 
   // salvage: list is read-only, mutations are destructive
   'salvage': 'silent',              // default subcommand = listing
@@ -343,6 +359,18 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'fleet panic': 'destructive',
   'fleet unpanic': 'notify',
 
+  // squid harness toggle + readouts (the bridge itself stays approval-tier)
+  'squid status': 'silent',         // read-only non-diegetic readout
+  'squid tap': 'silent',            // read-only envelope preview
+  'squid on': 'notify',             // writes project hook/statusline config
+  'squid arm': 'notify',
+  'squid off': 'notify',            // removes only pd-authored entries
+  'squid disarm': 'notify',
+  'squid hooks': 'notify',
+
+  // agent-CLI hooks installer
+  'hooks list': 'silent',
+
   // guard subcommands
   'guard status': 'silent',
   'guard check': 'silent',
@@ -432,6 +460,12 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'transcripts rm': 'destructive',
   'transcript delete': 'destructive',
   'transcript rm': 'destructive',
+
+  // harbor-ledger: status is read-only; project/rebuild rewrite disposable
+  // projections from the append-only ledger (no event data can be lost)
+  'harbor-ledger status': 'silent',
+  'harbor-ledger project': 'notify',
+  'harbor-ledger rebuild': 'notify',
 
   // harbormaster: status/queue are read-only; start/stop control the shared actor
   'harbormaster status': 'silent',

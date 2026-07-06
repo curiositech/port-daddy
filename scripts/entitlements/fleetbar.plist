@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  FleetBar hardened-runtime entitlements: intentionally empty.
+
+  FleetBar is a SwiftUI menu-bar app (URLSession to the loopback daemon + an
+  embedded WKWebView). Under hardened runtime it needs NO special entitlements:
+  outbound network is permitted without the App Sandbox, and WKWebView runs its
+  JavaScript in WebKit's separately-signed WebContent process, so the host needs
+  no allow-jit / unsigned-executable-memory grants. Mirrors scripts/entitlements/
+  pd-console.plist (also empty), the other hardened-runtime Rust/Swift GUI app.
+-->
+<plist version="1.0">
+<dict>
+</dict>
+</plist>

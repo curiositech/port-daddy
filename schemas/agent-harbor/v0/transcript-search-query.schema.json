@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/transcript-search-query.schema.json",
+  "title": "TranscriptSearchQuery",
+  "description": "A search request over the transcript substrate — events, notes, files, PRs, outcomes, and memory episodes (binder ch04 'Transcript search and blackboard'; ch07 M6 gate: search 'how did we deploy X' and get cited results). BUDGET RULE (ADR-0097, normative): every query carries an explicit retrieval budget, and the M6 gate 'memory retrieval never exceeds configured budget' is checked against it — the paired TranscriptSearchResult reports actual usage against this budget so the invariant is auditable per query, not asserted globally. MODE RULE: default mode is hybrid (lexical + semantic with rank fusion); lexical-only is a degraded mode a caller must opt into explicitly, never a silent fallback. This is a query in the CQRS sense: it displays, it never decides — no search result may authorize a command (ADR-0095 'commands decide; queries display; events record'). Redaction is respected: hits are filtered by the caller's visibility ceiling; redacted payloads never leak through search snippets.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.transcript-search-query.v0" },
+    "queryId": { "type": "string", "minLength": 1 },
+    "issuedAt": { "type": "string", "minLength": 1 },
+    "issuedBy": {
+      "type": "object",
+      "description": "Accountability join: who is searching. An agent's own searches appear in its transcript as memory_retrieval events.",
+      "properties": {
+        "kind": { "enum": ["operator", "agent", "longshoreman", "daemon"] },
+        "agentNodeId": { "type": ["string", "null"] },
+        "sessionId": { "type": ["string", "null"] }
+      },
+      "required": ["kind"]
+    },
+    "queryText": { "type": "string", "minLength": 1, "description": "Natural-language or lexical query, e.g. 'how did we deploy the email ingress worker'." },
+    "mode": { "enum": ["hybrid", "semantic", "lexical"], "description": "hybrid = lexical + dense with rank fusion (the default posture); semantic/lexical are explicit narrowings." },
+    "scope": {
+      "type": "object",
+      "description": "Corpus narrowing. Empty scope = the whole harbor the caller can see.",
+      "properties": {
+        "harborId": { "type": ["string", "null"] },
+        "projectId": { "type": ["string", "null"] },
+        "repoRef": { "type": ["string", "null"] },
+        "agentNodeIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "sessionIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "eventKinds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Restrict to transcript event kinds (open strings per transcript-event.schema.json)." },
+        "occurredAfter": { "type": ["string", "null"] },
+        "occurredBefore": { "type": ["string", "null"] }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Which corpora to search (ch04: 'across past agent transcripts, notes, tool calls, diffs, files, PRs, and outcomes').",
+      "items": { "enum": ["transcript-events", "notes", "files", "diffs", "prs", "outcomes", "memory-episodes", "receipts"] }
+    },
+    "budget": {
+      "type": "object",
+      "description": "The configured retrieval budget this query must never exceed (M6 gate). The result echoes it back with actual usage.",
+      "properties": {
+        "maxResults": { "type": "integer", "minimum": 1 },
+        "maxContextTokens": { "type": ["integer", "null"], "minimum": 1, "description": "Hard cap on the token weight of returned snippets/excerpts — the number that protects the caller's context window (ch04: 'retrieved memories should stay under a fixed context budget')." },
+        "maxLatencyMs": { "type": ["integer", "null"], "minimum": 1 }
+      },
+      "required": ["maxResults"]
+    },
+    "retrievalHints": {
+      "type": "object",
+      "description": "Optional tuning; the engine may ignore hints but must never exceed budget because of them.",
+      "properties": {
+        "fusion": { "enum": ["rrf", null], "description": "Rank-fusion method for hybrid mode; rrf = reciprocal rank fusion." },
+        "rerank": { "type": "boolean", "description": "Apply a cross-encoder rerank before returning top results." },
+        "recencyWeight": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "visibilityCeiling": { "enum": ["operator", "agent", "system", null], "description": "Highest visibility class the caller may see (per transcript-event visibility). Redacted classes are never searchable content." }
+  },
+  "required": ["schema", "queryId", "issuedAt", "issuedBy", "queryText", "mode", "sources", "budget"],
+  "additionalProperties": true
+}

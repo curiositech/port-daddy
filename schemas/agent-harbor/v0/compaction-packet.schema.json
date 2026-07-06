@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/compaction-packet.schema.json",
+  "title": "CompactionPacket",
+  "description": "The cited continuation packet a Longshoreman (or the body itself) builds when context pressure crosses a threshold (binder ch04 'How Longshoremen compact Voyagers'; ch07 M6 gate: 'force context threshold and see compaction packet; resume successor from packet and transcript'). It is the payload of the first-class `compaction_packet` transcript event (ch04/ch09) and the successor's primary context source. CITATION RULE (ADR-0097, normative): every factual claim carries at least one citation back to a transcript event span, a file, or a claim — 'a compaction that cannot be traced back is too easy to hallucinate' (ch04). The validator FAILS uncited factual claims and WARNS when active obligations are missing; its result is embedded here so a consumer can refuse an unvalidated packet. Field names follow ADR-0095 fork resolution 1 (agentNodeId/sessionId/runId); ch04's pre-turn sketch name `agentId` is superseded and must not reappear. CITATION CROSS-FIELD RULE: the frozen F0 keyword subset cannot express conditional requirements, so kind=transcript-event requiring transcriptEventId (and kind=file/claim requiring fileRef/claimRef) is enforced at runtime by the packet validator, the same normative-module pattern as the ADR-0095 witnessing invariant and the ADR-0096 macaroon authorityRef.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.compaction-packet.v0" },
+    "packetId": { "type": "string", "minLength": 1 },
+    "agentNodeId": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": "string", "minLength": 1, "description": "The session being compacted. The successor run joins back to the predecessor transcript through this id." },
+    "runId": { "type": ["string", "null"], "description": "The AgentRun being compacted, when run-scoped (ADR-0095 run-level continuation)." },
+    "createdAt": { "type": "string", "minLength": 1 },
+    "createdBy": {
+      "type": "object",
+      "description": "Who built the packet: a Longshoreman compactor, the body itself, the daemon, or an operator-forced checkpoint.",
+      "properties": {
+        "kind": { "enum": ["longshoreman", "self", "daemon", "operator"] },
+        "agentNodeId": { "type": ["string", "null"], "description": "The compactor's own node id, when an agent built it." }
+      },
+      "required": ["kind"]
+    },
+    "trigger": {
+      "type": "object",
+      "description": "Why compaction happened. Thresholds per ch04: 0.60 prepare, 0.75 Longshoreman builds packet, 0.85 warn, 0.92 require compaction or successor.",
+      "properties": {
+        "kind": { "enum": ["context-threshold", "operator-request", "successor-handoff", "checkpoint", "session-end"] },
+        "pressure": { "type": "number", "minimum": 0, "maximum": 1, "description": "used/window ratio at trigger time, from the ContextEnvelope." },
+        "contextEnvelopeRef": { "type": ["string", "null"], "description": "The ContextEnvelope envelopeId this trigger was derived from." }
+      },
+      "required": ["kind"]
+    },
+    "identity": {
+      "type": "object",
+      "description": "Agent identity and role plus the current task (ch04 packet contents list).",
+      "properties": {
+        "role": { "type": "string" },
+        "task": { "type": "string", "minLength": 1 },
+        "successCriteria": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "operatorInstructions": { "type": "array", "items": { "type": "string" }, "description": "Relevant operator instructions carried forward verbatim." }
+      },
+      "required": ["task"]
+    },
+    "obligations": {
+      "type": "array",
+      "description": "Active obligation list (required by the ch04 compaction_packet schema). The validator warns when obligations known to the daemon are missing here.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "obligationId": { "type": ["string", "null"] },
+          "text": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["open", "blocked", "in-progress", "done"] },
+          "citations": { "type": "array", "items": { "type": "object", "properties": { "kind": { "enum": ["transcript-event", "file", "claim"] }, "transcriptEventId": { "type": "string", "minLength": 1 }, "span": { "type": "object", "properties": { "start": { "type": "integer", "minimum": 0 }, "end": { "type": "integer", "minimum": 0 } } }, "fileRef": { "type": "string", "minLength": 1 }, "claimRef": { "type": "string", "minLength": 1 }, "sessionId": { "type": "string", "minLength": 1 } }, "required": ["kind"] } }
+        },
+        "required": ["text", "status"]
+      }
+    },
+    "factualClaims": {
+      "type": "array",
+      "description": "Factual claims with source citations. minItems on citations is the schema-level half of the ch04 rule 'the validator fails uncited factual claims'; a claim with an empty citations array is schema-invalid, not merely validator-failed.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "claimId": { "type": ["string", "null"] },
+          "text": { "type": "string", "minLength": 1 },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "citations": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "description": "One of: {kind:transcript-event, transcriptEventId, span?} | {kind:file, fileRef} | {kind:claim, claimRef}. Cross-field enforcement is runtime (see top-level description).",
+              "properties": {
+                "kind": { "enum": ["transcript-event", "file", "claim"] },
+                "transcriptEventId": { "type": "string", "minLength": 1 },
+                "span": { "type": "object", "properties": { "start": { "type": "integer", "minimum": 0 }, "end": { "type": "integer", "minimum": 0 } }, "description": "Character span within the cited event's payload, when the claim rests on part of a large payload." },
+                "fileRef": { "type": "string", "minLength": 1 },
+                "claimRef": { "type": "string", "minLength": 1, "description": "A coordination file/symbol/region claim id." },
+                "sessionId": { "type": "string", "minLength": 1, "description": "Disambiguates cross-session citations; defaults to this packet's sessionId." }
+              },
+              "required": ["kind"]
+            }
+          }
+        },
+        "required": ["text", "citations"]
+      }
+    },
+    "omittedKnownRisks": {
+      "type": "array",
+      "description": "The omitted-known-risk list (ch04): things the compactor knowingly left out, so the successor inherits the risk knowingly too.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string" }
+        },
+        "required": ["text"]
+      }
+    },
+    "workspace": {
+      "type": "object",
+      "description": "Active files, claims, and worktree covered by this packet (ch04).",
+      "properties": {
+        "worktree": { "type": ["string", "null"] },
+        "files": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "claims": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "diffSummary": { "type": ["string", "null"], "description": "Current diff summary at compaction time." }
+      }
+    },
+    "commandsRun": {
+      "type": "array",
+      "description": "Commands/tests run and results (ch04), each traceable to its transcript event.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "command": { "type": "string", "minLength": 1 },
+          "exitCode": { "type": ["integer", "null"] },
+          "resultSummary": { "type": "string" },
+          "transcriptEventId": { "type": ["string", "null"] }
+        },
+        "required": ["command"]
+      }
+    },
+    "reviewState": {
+      "type": "object",
+      "description": "PR and review state carried forward (ch04).",
+      "properties": {
+        "prRef": { "type": ["string", "null"] },
+        "ciState": { "type": ["string", "null"] },
+        "unresolvedThreads": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "description": "Unresolved blockers (ch04).",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "decisions": {
+      "type": "array",
+      "description": "Decisions made and why (ch04). Cited like factual claims where a decision rests on observed facts.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string", "minLength": 1 },
+          "rationale": { "type": "string" },
+          "citations": { "type": "array", "items": { "type": "object", "properties": { "kind": { "enum": ["transcript-event", "file", "claim"] }, "transcriptEventId": { "type": "string", "minLength": 1 }, "span": { "type": "object", "properties": { "start": { "type": "integer", "minimum": 0 }, "end": { "type": "integer", "minimum": 0 } } }, "fileRef": { "type": "string", "minLength": 1 }, "claimRef": { "type": "string", "minLength": 1 }, "sessionId": { "type": "string", "minLength": 1 } }, "required": ["kind"] } }
+        },
+        "required": ["text"]
+      }
+    },
+    "transcriptExcerpts": {
+      "type": "array",
+      "description": "Recent transcript excerpts BY CITATION (ch04) — the excerpt text is a convenience copy; the citation is the truth.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "citation": { "type": "object", "properties": { "kind": { "enum": ["transcript-event", "file", "claim"] }, "transcriptEventId": { "type": "string", "minLength": 1 }, "span": { "type": "object", "properties": { "start": { "type": "integer", "minimum": 0 }, "end": { "type": "integer", "minimum": 0 } } }, "fileRef": { "type": "string", "minLength": 1 }, "claimRef": { "type": "string", "minLength": 1 }, "sessionId": { "type": "string", "minLength": 1 } }, "required": ["kind"] },
+          "excerpt": { "type": "string" }
+        },
+        "required": ["citation"]
+      }
+    },
+    "nextAction": {
+      "type": "object",
+      "description": "Next-action recommendation (ch04) — what the successor should do first.",
+      "properties": {
+        "recommendation": { "type": "string", "minLength": 1 },
+        "safetyConstraints": { "type": "array", "items": { "type": "string" } },
+        "budgetRemaining": { "type": ["number", "null"], "minimum": 0, "description": "USD remaining against the run budget, when known." }
+      },
+      "required": ["recommendation"]
+    },
+    "sourceTranscript": {
+      "type": "object",
+      "description": "Source hashes (ch04): pins the packet to the exact transcript prefix it summarizes, so 'resume successor from packet and transcript' (M6 gate) verifies against the ledger's per-session hash chain.",
+      "properties": {
+        "headEventId": { "type": "string", "minLength": 1, "description": "The last transcript event this packet covers." },
+        "headHash": { "type": "string", "minLength": 1, "description": "That event's contentHash — anchors the per-session tamper-evident chain." },
+        "throughSequence": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["headEventId", "headHash"]
+    },
+    "validator": {
+      "type": "object",
+      "description": "Validator result (ch04): the validator's whole job is failing uncited factual claims and warning on missing active obligations. A consumer must refuse a packet with passed=false.",
+      "properties": {
+        "passed": { "type": "boolean" },
+        "validatedBy": { "type": ["string", "null"], "description": "The validating agent/daemon component." },
+        "uncitedClaimCount": { "type": "integer", "minimum": 0 },
+        "missingObligationWarnings": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["passed", "uncitedClaimCount"]
+    },
+    "transcriptEventId": { "type": ["string", "null"], "description": "The compaction_packet transcript event that carries this packet, once appended." }
+  },
+  "required": ["schema", "packetId", "agentNodeId", "sessionId", "createdAt", "createdBy", "trigger", "identity", "obligations", "factualClaims", "nextAction", "sourceTranscript", "validator"],
+  "additionalProperties": true
+}

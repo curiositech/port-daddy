@@ -1,0 +1,20 @@
+{
+  "schema": "pd.agent-harbor.cost-accrual-event.v0",
+  "costEventId": "cost_01JZFIX0001",
+  "agentNodeId": "agent_node_01JZFIX0001",
+  "sessionId": "session_01JZFIX0001",
+  "runId": "agent_run_01JZFIX0001",
+  "provider": "openai",
+  "modelTier": "mid",
+  "modelName": "gpt-5.2-codex",
+  "meter": "tokens",
+  "phase": "stream",
+  "quantity": 18250,
+  "unit": "output-tokens",
+  "estimatedCostUsd": 0.22,
+  "actualCostUsd": null,
+  "budgetId": "budget_01JZFIX0001",
+  "budgetAction": "none",
+  "idempotencyKey": "cost:agent_run_01JZFIX0001:stream:42",
+  "occurredAt": "2026-07-05T12:03:30.000Z"
+}

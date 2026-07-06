@@ -70,7 +70,34 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(spider!.prompt).toContain('syllogism engine');
   });
 
+  it('the four ideation ships (spark, spider, lookout, snipe) all parse as advisory ideation', () => {
+    for (const name of ['spark', 'spider', 'lookout', 'snipe']) {
+      const ship = ships!.find(s => s.name === name);
+      expect(ship, `${name} should be present in pull_request:opened ships`).toBeDefined();
+      expect(ship!.ideation, `${name} should be ideation`).toBe(true);
+      expect(ship!.blocking, `${name} must never block`).toBe(false);
+      expect(ship!.needsExecution).toBe(false);
+    }
+  });
+
+  it('reviewer ships are NOT ideation (they raise findings, not proposals)', () => {
+    const reviewer = ships!.find(s => s.name === 'code-reviewer');
+    expect(reviewer!.ideation).toBe(false);
+  });
+
+  it('lookout carries the trouble-ahead telos and cross-branch awareness in its prompt', () => {
+    const lookout = ships!.find(s => s.name === 'lookout');
+    expect(lookout).toBeDefined();
+    expect(lookout!.prompt).toContain('trouble-ahead');
+    expect(lookout!.prompt.toLowerCase()).toContain('branch');
+  });
+
   it('derives cfModel from the first @cf/ fallback entry', () => {
+    // deriveCfModel returns a ship's FIRST `@cf/` fallback verbatim. code-reviewer
+    // pins @cf/moonshotai/kimi-k2.7-code — the code-specialized Workers AI model
+    // (1T MoE, 262k ctx, native structured outputs), the right tier for a code
+    // reviewer that emits JSON findings — so that is what it derives. qa is a
+    // general reviewer and stays on gpt-oss-120b.
     const reviewer = ships!.find(s => s.name === 'code-reviewer');
     expect(reviewer!.cfModel).toBe('@cf/moonshotai/kimi-k2.7-code');
     const qa = ships!.find(s => s.name === 'qa');

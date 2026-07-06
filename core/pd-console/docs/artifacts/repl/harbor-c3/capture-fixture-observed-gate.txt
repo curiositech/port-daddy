@@ -1,0 +1,79 @@
+┌  pd-console  conversation multiplexer · on the PD bus
+│  daemon http://127.0.0.1:3103
+└  :harness <backend> <prompt> · :new <backend> <prompt> · :agents · :switch <n> · :lane · :lane-message <text> · :harbor · :quit
+
+» 
+  Agent Nodes — Harbor ──────────────────────────
+  ▸⚑H ● Cartographer [controllable]  claude-code · mid · active  2m
+   ⚑M ○ Spark [registered]  workers-ai · fast · active  23s
+   ⚑M ○ Documentarian [registered (unwitnessed)]  codex · fast · complete  28m
+
+
+  Cartographer — ● live ─────────────────────────
+  compliance         C4 controllable · fidelity T4
+  body               claude-code · tier mid · model claude-sonnet-4-5
+  worktree           /Users/op/coding/port-daddy/.claude/worktrees/symbol-index @ wave2/symbol-index
+  cost               ~$0.04 est
+
+  historical transcript — replay ────────────────
+  ◆ operator: 21:46:02 Index the src tree and build the import graph.
+  · agent: 21:46:04 Plan: walk src/, parse imports, write graph nodes. Starting with routes.
+  ○ 21:46:05 tool_call · read_file src/routes/feedback.ts → 284 lines
+  ✗ 21:47:31 tool_denied · shell git checkout -- src/ — blocked before side effects (destructive restore); offered: git stash push
+  ● 21:48:00 file_write · lib/symbol-index.ts [1 blob(s)]
+  ○ 21:48:05 cost_accrued · cost_accrued
+  · agent: 21:48:12 412 of 1,840 files indexed. Hot spot: lib/db.ts imported by 19 modules.
+
+  files touched ─────────────────────────────────
+  ▣ artifact write +118 −6 /Users/op/coding/port-daddy/.claude/worktrees/symbol-index/lib/symbol-index.ts — lib/symbol-index.ts
+  ✓ checkpoint → acknowledged
+  [ Steer ]
+  [ Pause ]
+  [ Interrupt ]
+  [ Checkpoint ]
+  ( Successor ) requires C6 resumable — node is C4 controllable
+  [ Retire ]
+» 
+  Agent Nodes — Harbor ──────────────────────────
+   ⚑H ● Cartographer [controllable]  claude-code · mid · active  2m
+  ▸⚑M ○ Spark [registered]  workers-ai · fast · active  23s
+   ⚑M ○ Documentarian [registered (unwitnessed)]  codex · fast · complete  28m
+
+
+  Spark — active ────────────────────────────────
+  compliance         C0 registered · fidelity T0 · mode observed
+  body               workers-ai · tier fast · model —
+  cost               —
+
+  transcript — unavailable ──────────────────────
+  observed import — the transcript stream is unjoinable and Port Daddy never invents a session (F0: "never invent a session"). Remediation: relaunch through `pd work` for an official, transcripted body.
+  ✓ checkpoint → acknowledged
+  ( Steer ) observed import — Port Daddy can watch but not govern this body; no controls (C2+ requires a governed adapter)
+  ( Pause ) observed import — Port Daddy can watch but not govern this body; no controls (C2+ requires a governed adapter)
+  ( Interrupt ) observed import — Port Daddy can watch but not govern this body; no controls (C2+ requires a governed adapter)
+  ( Checkpoint ) observed import — Port Daddy can watch but not govern this body; no controls (C2+ requires a governed adapter)
+  ( Successor ) observed import — Port Daddy can watch but not govern this body; no controls (C2+ requires a governed adapter)
+  ( Retire ) observed import — Port Daddy can watch but not govern this body; no controls (C2+ requires a governed adapter)
+»   ✗ interrupt refused: interrupt not available: observed import — Port Daddy can watch but not govern this body; no controls (C2+ requires a governed adapter)
+
+  Agent Nodes — Harbor ──────────────────────────
+   ⚑H ● Cartographer [controllable]  claude-code · mid · active  2m
+  ▸⚑M ○ Spark [registered]  workers-ai · fast · active  23s
+   ⚑M ○ Documentarian [registered (unwitnessed)]  codex · fast · complete  28m
+
+
+  Spark — active ────────────────────────────────
+  compliance         C0 registered · fidelity T0 · mode observed
+  body               workers-ai · tier fast · model —
+  cost               —
+
+  transcript — unavailable ──────────────────────
+  observed import — the transcript stream is unjoinable and Port Daddy never invents a session (F0: "never invent a session"). Remediation: relaunch through `pd work` for an official, transcripted body.
+  ✓ checkpoint → acknowledged
+  ( Steer ) observed import — Port Daddy can watch but not govern this body; no controls (C2+ requires a governed adapter)
+  ( Pause ) observed import — Port Daddy can watch but not govern this body; no controls (C2+ requires a governed adapter)
+  ( Interrupt ) observed import — Port Daddy can watch but not govern this body; no controls (C2+ requires a governed adapter)
+  ( Checkpoint ) observed import — Port Daddy can watch but not govern this body; no controls (C2+ requires a governed adapter)
+  ( Successor ) observed import — Port Daddy can watch but not govern this body; no controls (C2+ requires a governed adapter)
+  ( Retire ) observed import — Port Daddy can watch but not govern this body; no controls (C2+ requires a governed adapter)
+» out.

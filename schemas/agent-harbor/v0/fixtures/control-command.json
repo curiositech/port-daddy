@@ -1,0 +1,17 @@
+{
+  "schema": "pd.agent-harbor.control-command.v0",
+  "commandId": "ctl_01JZFIX0001",
+  "agentNodeId": "agent_node_01JZFIX0001",
+  "sessionId": "session_01JZFIX0001",
+  "runId": "agent_run_01JZFIX0001",
+  "kind": "steer",
+  "payload": { "message": "Prefer fixing the fake-timer leak over adding retries." },
+  "requestedBy": "operator:erich",
+  "status": "acknowledged",
+  "denialReason": null,
+  "idempotencyKey": "steer:agent_node_01JZFIX0001:2026-07-05T12:04:00Z",
+  "createdAt": "2026-07-05T12:04:00.000Z",
+  "deliveredAt": "2026-07-05T12:04:00.050Z",
+  "acknowledgedAt": "2026-07-05T12:04:00.900Z",
+  "expiresAt": null
+}

@@ -1103,6 +1103,22 @@
         "sdk": true
       }
     },
+    "work": {
+      "description": "Work Intent command family (ADR-0095): adapter conformance probes and capability matrix (binder ch18 Work Order C2)",
+      "cli": [
+        "work"
+      ],
+      "sdk": [],
+      "routes": [],
+      "mcp": [],
+      "completions": [
+        "work"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
     "cockpit": {
       "description": "App-Native Development Cockpit \u2014 read roadmap/recovery markdown into typed mission cards with live coordination cross-ref",
       "cli": [
@@ -1299,7 +1315,7 @@
       }
     },
     "squid": {
-      "description": "Unofficial local Anthropic Messages compatibility bridge for Claude-compatible clients backed by Codex CLI, including model aliases, thinking-effort mapping, local auth, and request-size guards.",
+      "description": "Unofficial local Anthropic Messages compatibility bridge for Claude-compatible clients backed by Codex CLI, including model aliases, thinking-effort mapping, local auth, and request-size guards, plus the one-command harness toggle (pd squid on/off), the non-diegetic status/tap readouts, and the PD_SQUID_PILOT visual-identity stamp.",
       "cli": [
         "squid"
       ],
@@ -1307,6 +1323,21 @@
       "routes": [],
       "completions": [
         "squid"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "agent-cli-hooks": {
+      "description": "Per-project, daemon-gated Giant Squid coordination hooks for interactive agent CLIs (claude/codex/gemini/agy): pd hooks install/list/uninstall stages gate wrappers under ~/.port-daddy/bin and wires each CLI's native hook config from the shared lib/squid/hook-shape.ts shapes (pd-adr-090).",
+      "cli": [
+        "hooks"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "hooks"
       ],
       "docs": {
         "readme": true,
@@ -1354,6 +1385,32 @@
         "get_harbor",
         "check_harbor_envelope"
       ]
+    },
+    "harbor-ledger": {
+      "description": "Agent Harbor append-only event ledger and disposable projections (roster, transcript timeline, files touched, costs, compliance, work receipts) — binder ch18 Work Order C1, ADR-0095",
+      "module": "lib/agent-harbor/event-ledger.ts",
+      "cli": [
+        "harbor-ledger"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /agent-nodes",
+        "GET /agent-nodes/:param",
+        "GET /agent-nodes/:param/files",
+        "GET /sessions/:param/events",
+        "GET /costs",
+        "GET /receipts/:param",
+        "GET /blackboard",
+        "GET /compliance/:param"
+      ],
+      "completions": [
+        "harbor-ledger"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "C1 shipped the CLI + library slice; the C-routes wave added the daemon read API (routes/agent-harbor.ts) serving C1's projections"
     },
     "bonds": {
       "description": "Bond escrow state machine \u2014 daemon escrows money before spawn, refunds on clean exit, slashes on violation. Enforcement half of the cost-tracker/bonds split.",
@@ -1633,6 +1690,24 @@
       ],
       "docs": {
         "readme": false,
+        "sdk": false
+      }
+    },
+    "skill_graft": {
+      "description": "Native local skill-graft index and operator inspection surface. Fleet ships call lib/skill-graft.ts through lib/fleet-engine.ts; `pd skill-graft` lets agents query, warm, and read guarded references from the same index.",
+      "module": "lib/skill-graft.ts",
+      "cli": [
+        "skill-graft",
+        "skillgraft"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "skill-graft",
+        "skillgraft"
+      ],
+      "docs": {
+        "readme": true,
         "sdk": false
       }
     },

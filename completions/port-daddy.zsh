@@ -1478,6 +1478,26 @@ _pd_cmd_spawned() {
     '(-h --help)'{-h,--help}'[show help]'
 }
 
+_pd_cmd_work() {
+  local -a subcmds
+  subcmds=(
+    'probe:run adapter conformance probes (compliance ladder + five negative probes)'
+    'matrix:print the adapter capability matrix (mechanical ceilings)'
+    'help:show pd work usage'
+  )
+  if (( CURRENT == 2 )); then
+    _describe -t subcmds 'work subcommand' subcmds
+  elif [[ ${words[2]} == probe ]]; then
+    # --adapter/--profile are probe-only flags; matrix/help take only --json.
+    _arguments \
+      '--adapter[adapter kind]:kind:(claude-code codex-cli cloudflare ollama lmstudio custom-stdio custom-http)' \
+      '--profile[fixture profile]:profile:(compliant weak broken malicious)' \
+      '(-j --json)'{-j,--json}'[JSON output]'
+  else
+    _arguments '(-j --json)'{-j,--json}'[JSON output]'
+  fi
+}
+
 _pd_cmd_watch() {
   _arguments \
     '--exec[shell command to run on each message]:command:_command_names' \
@@ -1549,6 +1569,26 @@ _pd_cmd_harbor() {
 _pd_cmd_harbors() {
   _arguments \
     '(-j --json)'{-j,--json}'[JSON output]'
+}
+
+_pd_cmd_harbor_ledger() {
+  local -a hl_subcmds hl_projections
+  hl_subcmds=(
+    'status:projection freshness and stale labeling'
+    'project:catch projections up to the ledger head'
+    'rebuild:rebuild projection(s) from scratch by replaying the event ledger'
+  )
+  hl_projections=(
+    'roster' 'transcript-timeline' 'files-touched' 'costs' 'compliance' 'work-receipts'
+  )
+  _arguments \
+    '1:subcommand:->subcmd' \
+    '2:projection:->projection' \
+    '(-j --json)'{-j,--json}'[JSON output]'
+  case "$state" in
+    subcmd) _describe 'harbor-ledger subcommand' hl_subcmds ;;
+    projection) _describe 'projection' hl_projections ;;
+  esac
 }
 
 _pd_cmd_tuple() {
@@ -1807,6 +1847,49 @@ _pd_cmd_embed() {
           ;;
         *)
           _describe 'embed subcommand' embed_subcmds
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_pd_cmd_skill_graft() {
+  local -a skill_graft_subcmds
+  skill_graft_subcmds=(
+    'query:rank skills for an operator task'
+    'warm:refresh the local skill-graft index'
+    'reference:read an allowlisted skill reference'
+  )
+
+  local state
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'skill-graft subcommand' skill_graft_subcmds
+      ;;
+    args)
+      case "${words[2]}" in
+        query)
+          _arguments \
+            '--root[override the skill root]:path:_files -/' \
+            '--shortlist-limit[BM25 shortlist size]:count:' \
+            '--top-limit[number of skills to return]:count:' \
+            '--body-chars[maximum body chars per skill]:count:' \
+            '(-j --json)'{-j,--json}'[output JSON]'
+          ;;
+        warm)
+          _arguments \
+            '--root[override the skill root]:path:_files -/' \
+            '(-j --json)'{-j,--json}'[output JSON]'
+          ;;
+        reference)
+          _arguments \
+            '--root[override the skill root]:path:_files -/' \
+            '(-j --json)'{-j,--json}'[output JSON]'
+          ;;
+        *)
+          _describe 'skill-graft subcommand' skill_graft_subcmds
           ;;
       esac
       ;;
@@ -2184,6 +2267,7 @@ _port_daddy() {
     # AI Agent Spawner + Watch
     'spawn:launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
     'spawned:list active spawned agents'
+    'work:Work Intent family — adapter conformance probes + capability matrix (ADR-0095, ch18 C2)'
     'sortie:launch and inspect tracked mission records'
     'dispatch:queue and run autonomous feature dev (ADR-0035; renames nightshift)'
     'nightshift:(deprecated alias) Use pd dispatch'
@@ -2205,6 +2289,7 @@ _port_daddy() {
     'transcript:alias for transcripts — view a single ship-run record'
     # Squid bridge
     'squid:run an unofficial Anthropic-compatible bridge backed by Codex CLI'
+    'hooks:per-project daemon-gated coordination hooks for agent CLIs'
     # Cloud relay — zero-trust event fabric (ADR-0049)
     'relay:cloud relay management — configure, exchange, status (ADR-0049)'
     # Harbormaster — canonical merge-owning actor body (ADR-0037)
@@ -2214,10 +2299,14 @@ _port_daddy() {
     'harbor:create, enter, leave, show, or destroy a harbor'
     'whois:semantic skill-router — rank agents by capability × freshness'
     'harbors:list all active harbors'
+    # Agent Harbor event ledger + projections (binder ch18 C1, ADR-0095)
+    'harbor-ledger:Agent Harbor event ledger projections — status, project, rebuild'
     # Tuple space
     'tuple:Linda-style tuple space (out, rd, in, scan, count)'
     # Semantic graph + episodic memory
     'embed:shared local embedding model — status, prefetch, embed text'
+    'skill-graft:query and warm the native local skill-graft index'
+    'skillgraft:alias for skill-graft'
     'graph:inspect semantic graph edges and stats'
     'memory:inspect episodic memory entries and stats'
     'ideas:search the canonical ideas trove and local residue'
@@ -2373,9 +2462,11 @@ _port_daddy() {
         popper)                 _pd_cmd_popper ;;
         harbormaster|hm)        _pd_cmd_harbormaster ;;
         spawned)                _pd_cmd_spawned ;;
+        work)                   _pd_cmd_work ;;
         watch)                  _pd_cmd_watch ;;
         harbor)                 _pd_cmd_harbor ;;
         harbors)                _pd_cmd_harbors ;;
+        harbor-ledger)          _pd_cmd_harbor_ledger ;;
         tuple)                  _pd_cmd_tuple ;;
         say)                    _pd_cmd_say ;;
         look)                   _pd_cmd_look ;;
@@ -2386,6 +2477,7 @@ _port_daddy() {
         wallet)                 _pd_cmd_wallet ;;
         bond)                   _pd_cmd_bond ;;
         embed)                  _pd_cmd_embed ;;
+        skill-graft|skillgraft) _pd_cmd_skill_graft ;;
         graph)                  _pd_cmd_graph ;;
         memory)                 _pd_cmd_memory ;;
         ideas)                  _pd_cmd_ideas ;;

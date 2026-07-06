@@ -295,6 +295,11 @@ describe('Test Group 3: API -> CLI Parity', () => {
     // (routes/agent-cockpit.ts, agentCockpitPlugin). CLI surface is
     // `pd agent stream <id>` + `pd agent interrupt <id> [--reason]`.
     agentcockpit: ['agent'],
+    // agentharbor: Agent Harbor read API (routes/agent-harbor.ts) — the binder
+    // ch09 endpoint family over the C1 event-ledger projections. CLI surface
+    // is `pd harbor-ledger ...` (append/read/verify/project/status), the C1
+    // verb that drives the same ledger + projections these routes serve.
+    agentharbor: ['harbor-ledger'],
     health: ['health'],
     activity: ['log', 'activity'],
     webhooks: ['webhook'],

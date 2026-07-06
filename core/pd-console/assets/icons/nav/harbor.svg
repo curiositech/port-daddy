@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <!-- anchor: the Agent Node harbor (roster + detail, work order C3) -->
+  <circle cx="12" cy="5" r="2.2" stroke="#e3b56d" stroke-width="1.6"/>
+  <path d="M12 7.2V19.5" stroke="#e3b56d" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M8.5 9.5h7" stroke="#e3b56d" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M5 14c0 3.6 3.1 5.5 7 5.5s7-1.9 7-5.5" stroke="#2dd4bf" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M5 14l-1.8 1.2M5 14l2.1.7" stroke="#2dd4bf" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M19 14l1.8 1.2M19 14l-2.1.7" stroke="#2dd4bf" stroke-width="1.6" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,27 @@
+{
+  "schema": "pd.agent-harbor.guidance-envelope.v0",
+  "envelopeId": "genv_01J9Z4E3V2C9QWERTY0001",
+  "agentNodeId": "agent_node_demo",
+  "sessionId": "ses_demo_1",
+  "turnSequence": 5,
+  "issuedAt": "2026-07-06T12:00:00.000Z",
+  "notAfter": "2026-07-06T12:02:00.000Z",
+  "nonce": "cGQtZ3VpZGFuY2Utbm9uY2UtMDAx",
+  "items": [
+    { "kind": "inbox", "ref": "msg_01J9Z4F0", "priority": "normal" },
+    { "kind": "conflict-warning", "ref": "claim_lib_agent_harbor", "severity": "high" },
+    { "kind": "skill-graft", "ref": "sg_zt_01", "skills": ["agentic-zero-trust-security", "macaroon-capability-credentials"] },
+    { "kind": "memory-packet", "ref": "compaction_01J9Z4F7" },
+    { "kind": "repo-update", "ref": "origin/main@b4f5d70c3" }
+  ],
+  "authority": {
+    "mode": "macaroon",
+    "authorityRef": "cap_fleetbar_gate_01J9Z4G2",
+    "operatorAction": "fleetbar-gate-approval"
+  },
+  "sig": {
+    "alg": "ed25519",
+    "keyId": "gk_ses_demo_1",
+    "value": "Zml4dHVyZS1zaWduYXR1cmUtYnl0ZXMtbm90LXJlYWw="
+  }
+}
