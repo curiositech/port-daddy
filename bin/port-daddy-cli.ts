@@ -1352,7 +1352,7 @@ const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'work', 'transcripts', 'transcript', 'relay',
-  'harbor', 'harbors', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'memory', 'ideas',
+  'harbor', 'harbors', 'harbor-ledger', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'memory', 'ideas',
   'quorum', 'parley',
   'feedback',
   'commit', 'obligations',
@@ -3113,6 +3113,13 @@ export async function main(): Promise<void> {
       case 'harbors':
         await handleHarbors(positional, options);
         break;
+
+      // Agent Harbor event ledger + projections (binder ch18 C1, ADR-0095)
+      case 'harbor-ledger': {
+        const { handleHarborLedger } = await import('../cli/commands/harbor-ledger.js');
+        await handleHarborLedger(positional, options);
+        break;
+      }
 
       // Semantic phonebook / skill router
       case 'whois':

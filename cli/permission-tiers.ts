@@ -91,6 +91,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   memory: 'silent',
   'who-owns': 'silent',
   harbors: 'silent',
+  'harbor-ledger': 'notify', // worst case: `harbor-ledger rebuild` truncates+replays DISPOSABLE projection tables (the event log is never touched); refined below
   spawned: 'silent',
   work: 'silent',           // `pd work probe`/`pd work matrix` are read-only conformance surfaces (ch18 C2); launch forms refuse until pd work start lands
   feedback: 'silent',       // default form is `feedback list/show/summary`; writes are `notify`
@@ -446,6 +447,12 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'transcripts rm': 'destructive',
   'transcript delete': 'destructive',
   'transcript rm': 'destructive',
+
+  // harbor-ledger: status is read-only; project/rebuild rewrite disposable
+  // projections from the append-only ledger (no event data can be lost)
+  'harbor-ledger status': 'silent',
+  'harbor-ledger project': 'notify',
+  'harbor-ledger rebuild': 'notify',
 
   // harbormaster: status/queue are read-only; start/stop control the shared actor
   'harbormaster status': 'silent',
