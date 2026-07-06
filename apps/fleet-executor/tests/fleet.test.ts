@@ -93,20 +93,13 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
   });
 
   it('derives cfModel from the first @cf/ fallback entry', () => {
-    // deriveCfModel returns a ship's FIRST `@cf/` fallback verbatim. In the
-    // committed pd-fleet.yml, code-reviewer's first (and only) @cf/ fallback is
-    // @cf/openai/gpt-oss-120b, so that is what it derives — this test pins the
-    // real behavior of the parser against the real config.
-    //
-    // NOTE (config drift, not a parser bug): the coder default (CODER_CF_MODEL)
-    // and this ship's own name-based default are @cf/moonshotai/kimi-k2.7-code
-    // — a real, code-optimized Workers AI model (launched 2026-06-12) with
-    // native structured-output support, a strong fit for a code reviewer. The
-    // pd-fleet.yml cloudflare pin overrides that with gpt-oss-120b. If the
-    // intent is to run code-reviewer on the coder model, change the pin (or drop
-    // the cloudflare fallback so it derives kimi) and update this literal.
+    // deriveCfModel returns a ship's FIRST `@cf/` fallback verbatim. code-reviewer
+    // pins @cf/moonshotai/kimi-k2.7-code — the code-specialized Workers AI model
+    // (1T MoE, 262k ctx, native structured outputs), the right tier for a code
+    // reviewer that emits JSON findings — so that is what it derives. qa is a
+    // general reviewer and stays on gpt-oss-120b.
     const reviewer = ships!.find(s => s.name === 'code-reviewer');
-    expect(reviewer!.cfModel).toBe('@cf/openai/gpt-oss-120b');
+    expect(reviewer!.cfModel).toBe('@cf/moonshotai/kimi-k2.7-code');
     const qa = ships!.find(s => s.name === 'qa');
     expect(qa!.cfModel).toBe('@cf/openai/gpt-oss-120b');
   });
