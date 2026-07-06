@@ -140,3 +140,18 @@ survey; they are lower-value to re-derive here and are left as-is pending a full
 pass. Chapters 21–24 (Automations/Orchestration/Onboarding/Windows, PRs #711–#714)
 are open and unmerged — not yet binder material, flagged so headcount doesn't
 surprise the next reconciler.
+
+## Prioritized Execution Backlog
+
+- Run the ADR renumbering sweep (12 numbers collide across 27 files, incl. the 0090 triple) — blocks unambiguous citation of any bare ADR-#, self-diagnosed twice in-repo and fixed zero times — depends on: an assigned owner, no code work required.
+- Fix Giant Squid Harness ADR cross-references (0051 still claims "no ADR-0091 exists"; pd-adr-090 cites a nonexistent "092") — three ADRs disagree on the harness's canonical number, confusing every future citation — depends on: doc-only edit; PR #545 (ADR-0091) already merged.
+- Reconcile roadmap-item counts (135 committed snapshot vs 37 live-DB vs 13 harbor-scoped, 53 scattered .db files found) — no roadmap total is trustworthy until this lands, undermining all prioritization — depends on: ADR-0090 database-distribution-and-sync plus ADR-0044 dark-launch resolver.
+- Fix `roadmap upsert`'s default harbor tag, which currently falls back to a per-worktree scratch harbor instead of canonical `port-daddy` — root cause of live-DB fragmentation across 24 harbor tags — depends on: the roadmap-count diagnosis above being accepted.
+- Fix the `parseCronInterval()` day-of-week/day-of-month gap — weekly ships (e.g. tenderfoot) silently degrade to ~10min/hourly polling, burning spawn budget unnoticed — depends on: new unit tests covering weekly/monthly cron shapes in fleet-engine.ts.
+- Repair two phantom-trigger ships — documentarian's missing `scripts/promote-stable.sh` producer, and developer-onboarding-sentinel's `schedule:daily` misrouted as a literal pub/sub channel — neither can fire automatically today — depends on: a routing fix in `lib/fleet/io-dispatch.ts`'s LEGACY_TRIGGER_KINDS.
+- Rewrite ADR-0049's two conflicting sentences about ADR-0027's status to read "Proposed" — the cheapest fix in the register, Tier 1, ready now — depends on: nothing.
+- Re-stamp ADR-0014 (Anchor Protocol) as `superseded → see lib/bonds.ts` — blocks any chain citing 0014 as a description of shipped behavior — depends on: a decision on ADR-0018's still-open security-review findings.
+- Decide Windows/cross-platform scope (ADR-0004 "out of scope" vs ADR-0016's full Named Pipe/SDDL design, both Accepted) — determines whether 0016 is dead weight or a real gate, and isn't an agent-closable call — depends on: operator decision (Tier 3).
+- Merge skill_graft (PR #723) — zero ships can use it today; only `test-author` is queued to adopt it once merged — depends on: PR #723 review completion.
+- Unify the three divergent GitHub-output code paths (`github-output.ts` with zero real importers, `outputs/github.ts`, `harbor-pilot.ts`) — the "known consumers" list matches neither the code nor the YAML's own prompt citations — depends on: a `fleet-ast.ts` consumer audit.
+- Enforce or remove the `daily_cap_usd` per-ship field — it is unenforced decoration today, since only the shared $8.50/day fleet pool and global spawn-rate caps are real, which misleads anyone reading `pd-fleet.yml` — depends on: cost-tracking hookup in `fleet-engine.ts`.
