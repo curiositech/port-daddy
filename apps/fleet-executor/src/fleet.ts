@@ -31,6 +31,33 @@ export interface ShipConfig {
   blocking: boolean;
   /** When true, ship needs execution (bash/write) — dispatch to GHA instead */
   needsExecution: boolean;
+  /**
+   * When true, this is an IDEATION ship (spark, spider, lookout, snipe): it
+   * proposes forward work via the {@link Proposal} schema and its comment is
+   * rendered into real actionable Port Daddy syntax, rather than raising
+   * file:line findings. Ideation ships are ALWAYS advisory (never blocking) and
+   * never gate a merge. Derived from a `class: ideation` field in pd-fleet.yml
+   * OR from membership in {@link IDEATION_SHIPS} (belt-and-suspenders so a ship
+   * that forgets the field still gets the ideation contract).
+   */
+  ideation: boolean;
+}
+
+/**
+ * Ships that are ideation-class by identity, regardless of whether pd-fleet.yml
+ * declares `class: ideation`. These four always propose forward work and are
+ * always advisory. A repo can add more via `class: ideation` on its own ships.
+ */
+export const IDEATION_SHIPS: ReadonlySet<string> = new Set([
+  'spark',
+  'spider',
+  'lookout',
+  'snipe',
+]);
+
+function deriveIdeation(name: string, agentClass: unknown): boolean {
+  if (IDEATION_SHIPS.has(name)) return true;
+  return agentClass === 'ideation';
 }
 
 // Default Cloudflare AI model per ship if not declared in fallbacks.
@@ -68,6 +95,7 @@ interface RawAgent {
   role?: string;
   temperature?: unknown;
   blocking?: unknown;
+  class?: unknown;
 }
 
 /**
@@ -147,6 +175,7 @@ export function parseFleetShips(fleetYaml: string, trigger: string): ShipConfig[
 
     const telos = typeof agent.telos === 'string' ? agent.telos : '';
     const role = telos || (typeof agent.role === 'string' ? agent.role : '') || `${name} ship`;
+    const ideation = deriveIdeation(name, agent.class);
 
     ships.push({
       name,
@@ -156,8 +185,11 @@ export function parseFleetShips(fleetYaml: string, trigger: string): ShipConfig[
       temperature: coerceTemperature(agent.temperature),
       role,
       telos,
-      blocking: coerceBlocking(agent.blocking),
+      // Ideation ships are advisory by definition — they can never gate a merge,
+      // even if pd-fleet.yml mistakenly sets `blocking: true` on one.
+      blocking: ideation ? false : coerceBlocking(agent.blocking),
       needsExecution: deriveNeedsExecution(name, agent.allowedTools),
+      ideation,
     });
   }
 
@@ -199,6 +231,7 @@ Be direct. Cite specific lines. Flag ADR violations if you see them.`,
       telos: 'Catch the bugs the diff would otherwise ship; cite ADRs.',
       blocking: true,
       needsExecution: false,
+      ideation: false,
     },
     {
       name: 'qa',
@@ -222,6 +255,7 @@ Output:
       telos: 'Find the edge cases.',
       blocking: false,
       needsExecution: false,
+      ideation: false,
     },
     {
       name: 'red-team',
@@ -245,6 +279,7 @@ For each finding: write the falsifiable attack construction and its impact. Be a
       telos: 'Find the attack before an adversary does.',
       blocking: true,
       needsExecution: false,
+      ideation: false,
     },
     {
       name: 'copy-pm',
@@ -296,6 +331,74 @@ Rules:
       telos: 'Read every user-facing string as a new user. Strip the machine accent without flattening the voice.',
       blocking: false,
       needsExecution: false,
+      ideation: false,
     },
+    ...ideationDefaults(),
+  ];
+}
+
+/**
+ * Fallback configs for the four ideation ships, used only when pd-fleet.yml
+ * cannot be fetched or parsed. The authoritative prompts live in pd-fleet.yml +
+ * fleet/ships/<name>.md; these are terse stand-ins so the ideation ships still
+ * run (and still post actionable proposals) in the config-less fallback path.
+ */
+function ideationDefaults(): ShipConfig[] {
+  const mk = (
+    name: string,
+    telos: string,
+    temperature: number,
+    prompt: string,
+  ): ShipConfig => ({
+    name,
+    trigger: 'pull_request:opened',
+    prompt,
+    cfModel: DEFAULT_CF_MODEL,
+    temperature,
+    role: telos,
+    telos,
+    blocking: false,
+    needsExecution: false,
+    ideation: true,
+  });
+
+  return [
+    mk(
+      'spark',
+      'Comment buildable product opportunities that can be assigned to PR-producing bots.',
+      1.25,
+      `You are pd-spark, Port Daddy's high-temperature product imagination engine. ` +
+        `Notice what THIS diff makes newly possible for the product. Propose 0–4 ` +
+        `buildable ideas as proposals (prefer action "assign" with a runnable prompt, ` +
+        `or "roadmap" for durable-but-not-now ideas). Ground every idea in the diff.`,
+    ),
+    mk(
+      'spider',
+      'Comment new products implied by connections between existing capabilities.',
+      0.95,
+      `You are pd-spider, Port Daddy's syllogism engine. Take two things already ` +
+        `true in the repo/product (A and B) and name the new product/workflow that ` +
+        `follows (therefore C). Put the syllogism in "rationale". Propose 0–4; prefer ` +
+        `action "assign" (runnable prompt) or "roadmap".`,
+    ),
+    mk(
+      'lookout',
+      'Spot contradictions, architectural trouble, and broken UX before they land.',
+      0.4,
+      `You are pd-lookout, Port Daddy's trouble-ahead watch. Spot contradictions, ` +
+        `architectural trouble, duplication, or newly broken user experiences implied ` +
+        `by this diff — especially against OTHER open PRs and feature branches shown ` +
+        `in the fleet context. Set "severity" and prefer action "parley" for genuine ` +
+        `multi-way conflicts, "roadmap" to log a risk. Alert; do not fix.`,
+    ),
+    mk(
+      'snipe',
+      'Propose a reusable skill that would make this kind of work easier.',
+      0.7,
+      `You are pd-snipe (Engineman). Look at the code/ideas this PR introduces and, ` +
+        `if a reusable capability would remove recurring friction, propose ONE skill ` +
+        `to author (action "skill") with a skill-architect brief in "prompt". Only ` +
+        `propose when it genuinely helps; otherwise emit [].`,
+    ),
   ];
 }
