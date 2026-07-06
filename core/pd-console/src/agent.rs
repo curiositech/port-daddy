@@ -671,6 +671,17 @@ impl DaemonClient {
         self.tube_send(coord_channel, frame_text, "coord").await
     }
 
+    /// Broadcast a **region-claim awareness** frame (P3 slice 1) up a file's
+    /// **coordination** channel — the live presence-as-claims lane. `frame_text` is
+    /// [`crate::editor_claims::encode_claim_frame`] (a Loro awareness blob). Rides the
+    /// SAME isolated coordination channel as [`send_coord_signal`](Self::send_coord_signal)
+    /// (never the edit lane), stamped `sender = "claim"` so a poller can tell claim
+    /// awareness from a coord signal without decoding. This is the LIVE view; the
+    /// DURABLE twin is [`claim_region`](Self::claim_region).
+    pub async fn broadcast_claim(&self, coord_channel: &str, frame_text: &str) -> Result<()> {
+        self.tube_send(coord_channel, frame_text, "claim").await
+    }
+
     /// Mirror an editor's local SELECTION into the durable claims table — the
     /// stronger, persistent "I am working here" signal that outlives the ephemeral
     /// cursor lane. This REUSES the exact endpoint `pd session files add` /

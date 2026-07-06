@@ -30,6 +30,10 @@
 
 use crate::agent::DaemonClient;
 use crate::buffer::{peer_id_for_identity, HarborBuffer, PeerId};
+use crate::editor_claims::{
+    claim_tone, decode_claim_frame, encode_claim_frame, ClaimId, ClaimLedger, ClaimMirror,
+    ClaimStore, RegionClaim,
+};
 use crate::editor_sync::{
     decode_presence_frame, encode_presence_frame, PresenceDebouncer, PresenceState, PresenceStore,
 };
@@ -41,6 +45,12 @@ use std::collections::BTreeMap;
 /// faster than anyone reads; one send per ~60ms is smooth to a watcher yet keeps
 /// the tube quiet. The gate is [`PresenceDebouncer`]; this is only its interval.
 const PRESENCE_SEND_INTERVAL_MS: i64 = 60;
+
+/// Minimum wall-clock gap (ms) between two durable claim-mirror POSTs. A claim is a
+/// durable reservation, not a live cursor, so it mirrors far less often than presence
+/// broadcasts — a region drag coalesces into one `POST /sessions/:id/files` per this
+/// window. The gate is [`ClaimMirror`]; this is only its interval.
+const CLAIM_MIRROR_INTERVAL_MS: i64 = 500;
 
 /// Cap on how many lines a single file contributes to the view. The battle-plan's
 /// large-file virtualization is a P1+ concern; this slice just must never let a
@@ -139,6 +149,17 @@ pub struct EditorPane {
     /// The local replica's own latest caret/selection/viewport — the source the
     /// durable region-claim mirror and the next outbound presence frame read from.
     local_presence: PresenceState,
+    /// P3 slice 1 — the claims-as-awareness lane. Same single-threaded ownership
+    /// discipline as `presence`: these live on the render/main thread and the SSE→render
+    /// seam stays a plain mpsc of frame bytes, so there is deliberately no
+    /// `Arc<Mutex<..>>`. `claims` is the awareness substrate on the COORDINATION channel;
+    /// `claim_ledger` is the derived, render-facing keyed map (`BTreeMap<ClaimKey,_>`);
+    /// `claim_out` debounces the durable `/sessions/:id/files` mirror; `next_claim_id`
+    /// mints this replica's monotonic per-claim slot ids.
+    claims: ClaimStore,
+    claim_ledger: ClaimLedger,
+    claim_out: ClaimMirror,
+    next_claim_id: ClaimId,
 }
 
 impl EditorPane {
@@ -183,6 +204,10 @@ impl EditorPane {
             presence_out: PresenceDebouncer::new(PRESENCE_SEND_INTERVAL_MS),
             // A bare caret at the top of the file until the input layer moves it.
             local_presence: PresenceState::caret(1, 0, 1, 1),
+            claims: ClaimStore::new(local_peer),
+            claim_ledger: ClaimLedger::new(),
+            claim_out: ClaimMirror::new(CLAIM_MIRROR_INTERVAL_MS),
+            next_claim_id: 0,
         }
     }
 
@@ -375,6 +400,92 @@ impl EditorPane {
         Some((self.path.clone(), start, end))
     }
 
+    // ── P3 slice 1: claims-as-awareness (presence-as-claims) ──────────────────
+    //
+    // A region claim is a peer's live awareness state on the COORDINATION channel
+    // (never the edit lane) PLUS a debounced durable mirror into `/sessions/:id/files`.
+    // Every method that could change what is on screen returns whether the ledger
+    // actually changed, so the gpui face `cx.notify()`s only on real edges — same
+    // edge-triggered discipline as the presence lane (no polling churn).
+
+    /// Acquire a region claim over 1-based inclusive lines `start..=end`, labeled with
+    /// the work name (`"parse_header"`), granted at logical time `now_ms`. Mints this
+    /// replica's next [`ClaimId`], publishes it to the awareness store, refreshes the
+    /// ledger, and queues it for the durable mirror. Returns the encoded claim frame to
+    /// broadcast on the file's [`coordination_channel`](Self::coordination_channel) via
+    /// [`DaemonClient::broadcast_claim`]. Agent-neutral: the claim is keyed by this
+    /// replica's `PeerId`, with no branch on which backend the actor is (PD hard rule).
+    pub fn acquire_region_claim(
+        &mut self,
+        start: u32,
+        end: u32,
+        label: impl Into<String>,
+        now_ms: i64,
+    ) -> String {
+        let id = self.next_claim_id;
+        self.next_claim_id = self.next_claim_id.wrapping_add(1);
+        let claim = RegionClaim::new(self.claims.local(), id, start, end, label, now_ms as u64);
+        let blob = self.claims.publish(&claim);
+        self.claim_out.record(claim);
+        self.claim_ledger = self.claims.ledger();
+        encode_claim_frame(self.claims.local(), &blob)
+    }
+
+    /// Release one of THIS replica's claims by id, refreshing the ledger. Returns the
+    /// encoded revocation frame to broadcast on the coordination channel (a remote
+    /// replica folds it and subtracts the claim from its ledger). The durable `/files`
+    /// release (a `DELETE`) is a later slice; slice 1 mirrors acquires.
+    pub fn release_region_claim(&mut self, id: ClaimId) -> String {
+        let blob = self.claims.release(id);
+        self.claim_ledger = self.claims.ledger();
+        encode_claim_frame(self.claims.local(), &blob)
+    }
+
+    /// Fold one claim-awareness frame (a `TubeMsg::text` off this file's COORDINATION
+    /// channel) into the ledger. Returns whether the visible ledger CHANGED — the
+    /// gpui-face repaint edge. A non-claim frame (a coord signal, an edit-lane frame,
+    /// handshake, garbage), our own claim echoed back, or a stale LWW update all fold
+    /// to no change and return `false`, keeping an idle screen quiet.
+    pub fn ingest_claim(&mut self, text: &str) -> bool {
+        let Some(frame) = decode_claim_frame(text) else {
+            return false;
+        };
+        if frame.peer == self.claims.local() {
+            return false; // our own claim, echoed back — already in the ledger
+        }
+        if self.claims.apply(&frame.eph).is_err() {
+            return false;
+        }
+        let next = self.claims.ledger();
+        if next != self.claim_ledger {
+            self.claim_ledger = next;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// The current claim ledger — the keyed map of every live region claim on this
+    /// file (this replica's own AND every remote peer's). A cheap borrow of owned
+    /// state; reading it never mutates or repaints.
+    pub fn claim_ledger(&self) -> &ClaimLedger {
+        &self.claim_ledger
+    }
+
+    /// The local claims that are DUE for a durable mirror (past the debounce window).
+    /// The caller POSTs each to `POST /sessions/:id/files` via
+    /// [`DaemonClient::claim_region`] using this pane's [`path`](Self::path_str) — the
+    /// SAME region endpoint `pd session files add` drives, never a parallel store. An
+    /// empty `Vec` when nothing is due (a quiet claim set mirrors nothing).
+    pub fn take_claim_mirror(&mut self, now_ms: i64) -> Vec<RegionClaim> {
+        self.claim_out.take_due(now_ms)
+    }
+
+    /// This pane's bound file path — the `path` a durable claim mirror POSTs against.
+    pub fn path_str(&self) -> &str {
+        &self.path
+    }
+
     /// Is the 1-based line `n` inside the bound region (inclusive)?
     fn in_region(&self, n: u32) -> bool {
         matches!(self.region, Some((start, end)) if n >= start && n <= end)
@@ -466,6 +577,27 @@ impl Pane for EditorPane {
             });
         }
 
+        // Live region claims (P3 slice 1): one legend flag per claim — "who has
+        // reserved which region" — actor-colored by PeerId (claim_tone: your own claim
+        // Resting, a peer's Engaged). O(claims) — a handful — NOT O(lines): like the
+        // presence flags we do not stamp a glyph into each claimed line's gutter (that
+        // would add a per-line clone to the hot render path). The ledger is BTree-keyed
+        // so the bands render in a stable order frame to frame. Slice 1 is visibility:
+        // no Conflicted band, no guard refusal — those are later slices.
+        for (key, claim) in self.claim_ledger.iter() {
+            let who = if key.peer == opener {
+                "you".to_string()
+            } else {
+                format!("peer {}", author_tag(key.peer))
+            };
+            let (lo, hi) = claim.line_span();
+            blocks.push(Block::Flag {
+                letter: 'R',
+                label: format!("{who} — {} · L{lo}–L{hi}", claim.label),
+                tone: claim_tone(key.peer, opener),
+            });
+        }
+
         for (i, line) in all_lines.iter().take(shown).enumerate() {
             let n = (i + 1) as u32; // 1-based line numbers.
             let num = format!("{n:>width$}", width = width);
@@ -544,20 +676,33 @@ mod tests {
     use std::io::Write;
     use std::path::PathBuf;
 
-    /// Scratch dir under ~/coding/tmp (NEVER /tmp — the OS sweeps it). Falls back
-    /// to the crate's target dir if HOME is unset.
+    /// A UNIQUE scratch dir per call, rooted at the crate's COMPILE-TIME
+    /// `CARGO_MANIFEST_DIR` (under `target/`, never `/tmp`).
+    ///
+    /// It deliberately does NOT read the runtime `HOME` env var: another test in this
+    /// binary (`conjure`) hijacks the process-global `HOME` to a sandbox and then
+    /// deletes that sandbox, so a harbor-editor test reading `HOME` at write time could
+    /// land its file in the doomed sandbox and have it vanish (ENOENT) before
+    /// `HarborBuffer::open` reads it back — leaving the pane bufferless so `view()`
+    /// rendered nothing. `CARGO_MANIFEST_DIR` is baked at compile time and immune to
+    /// that mutation. Each call also gets its own `<pid>-<seq>` subdir so parallel
+    /// tests never share a directory.
     fn scratch_dir() -> PathBuf {
-        let base = std::env::var("HOME")
-            .map(|h| PathBuf::from(h).join("coding/tmp/pd-harbor-editor-tests"))
-            .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/editor-tests"));
-        std::fs::create_dir_all(&base).expect("create scratch dir");
-        base
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+        let base = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/editor-tests");
+        let unique = base.join(format!("{}-{}", std::process::id(), SEQ.fetch_add(1, Ordering::Relaxed)));
+        std::fs::create_dir_all(&unique).expect("create scratch dir");
+        unique
     }
 
     fn write_temp(name: &str, contents: &str) -> String {
         let path = scratch_dir().join(name);
         let mut f = std::fs::File::create(&path).expect("create temp file");
         f.write_all(contents.as_bytes()).expect("write temp file");
+        // Flush to disk before the immediate reader (`HarborBuffer::open`) opens it, so
+        // a just-written file is never seen half-written under parallel test load.
+        f.sync_all().expect("sync temp file to disk");
         path.to_string_lossy().into_owned()
     }
 
@@ -954,5 +1099,144 @@ mod tests {
         assert!(cold.hydrate_from_snapshot(&snapshot));
         let after = cold.view();
         assert_eq!(rows(&after).len(), 2, "re-hydrating the snapshot must not duplicate lines");
+    }
+
+    // ── P3 slice 1: claims-as-awareness ───────────────────────────────────────
+
+    /// Count the region-claim ('R') legend flags a view emits.
+    fn claim_flags(blocks: &[Block]) -> usize {
+        blocks.iter().filter(|b| matches!(b, Block::Flag { letter: 'R', .. })).count()
+    }
+
+    fn make_pane_as(path: &str, identity: &str) -> EditorPane {
+        let mut p = EditorPane::new_with_identity(path, None, identity);
+        p.load();
+        p
+    }
+
+    /// THE PANE-LEVEL P3 SLICE-1 PROOF: a region claim acquired on pane A rides the
+    /// COORDINATION channel as an awareness frame, lands in remote pane B's ledger, and
+    /// renders as an actor-colored 'R' band. Self-echoes and garbage are ignored.
+    #[test]
+    fn region_claim_rides_the_coord_lane_and_lands_in_a_remote_pane() {
+        let path = write_temp("claim-wire.txt", "l1\nl2\nl3\nl4\nl5\n");
+        let mut pane_a = make_pane_as(&path, "port-daddy:editor:agent-A");
+        let mut pane_b = make_pane_as(&path, "port-daddy:console:human-B");
+
+        // Both panes agree on the coordination channel (pure function of the path).
+        assert_eq!(pane_a.coordination_channel(), pane_b.coordination_channel());
+        assert!(pane_b.claim_ledger().is_empty(), "no claims before any frame");
+
+        // A claims parse_header over lines 2–4; the returned frame is what A would
+        // broadcast_claim() on the coordination channel.
+        let frame = pane_a.acquire_region_claim(2, 4, "parse_header", 1_000);
+        assert_eq!(pane_a.claim_ledger().len(), 1, "A sees its own claim immediately");
+
+        // B folds the frame off its coordination subscription.
+        assert!(pane_b.ingest_claim(&frame), "a remote claim frame changes B's ledger");
+        let a_peer = peer_id_for_identity("port-daddy:editor:agent-A");
+        let owners = pane_b.claim_ledger().owners_of_line(3);
+        assert_eq!(owners.len(), 1, "line 3 is claimed on B");
+        assert_eq!(owners[0].peer, a_peer, "the claim is attributed to A");
+        assert_eq!(owners[0].label, "parse_header");
+
+        // B renders exactly one 'R' band naming A as a peer working parse_header.
+        let blocks = pane_b.view();
+        assert_eq!(claim_flags(&blocks), 1, "one claim band renders on B");
+        assert!(
+            blocks.iter().any(|b| matches!(
+                b,
+                Block::Flag { letter: 'R', tone: Tone::Engaged, label } if label.contains("parse_header")
+            )),
+            "a remote peer's claim band is Engaged-toned and labeled with the work name"
+        );
+
+        // Re-delivering the same frame (stale LWW) is no change; garbage is ignored.
+        assert!(!pane_b.ingest_claim(&frame), "replaying the same claim frame does not re-render");
+        assert!(!pane_b.ingest_claim("not a claim frame"), "garbage is ignored");
+        // A op frame is not a claim (lane isolation at the pane boundary).
+        let op = crate::editor_sync::encode_frame(a_peer, &[1, 2, 3]);
+        assert!(!pane_b.ingest_claim(&op), "an edit-lane op frame is not a claim");
+    }
+
+    /// THE PANE-LEVEL REGION-GRANULARITY PROOF: two panes claim DISJOINT adjacent
+    /// regions of the SAME file and both coexist — claiming one symbol's line range
+    /// never locks the rest of the file (HARD RULE 1 at the pane boundary).
+    #[test]
+    fn pane_region_claim_does_not_lock_the_rest_of_the_file() {
+        let big: String = (0..300).map(|i| format!("line {i}\n")).collect();
+        let path = write_temp("claim-region.txt", &big);
+        let mut pane_a = make_pane_as(&path, "port-daddy:editor:agent-A");
+        let mut pane_b = make_pane_as(&path, "port-daddy:editor:agent-B");
+
+        // A claims parse_header (L12–40); B claims write_footer (L200–260). Exchange.
+        let a_frame = pane_a.acquire_region_claim(12, 40, "parse_header", 1);
+        let b_frame = pane_b.acquire_region_claim(200, 260, "write_footer", 2);
+        assert!(pane_b.ingest_claim(&a_frame), "B folds A's claim");
+        assert!(pane_a.ingest_claim(&b_frame), "A folds B's claim");
+
+        // Both panes converge to the same two-claim ledger.
+        for pane in [&pane_a, &pane_b] {
+            let led = pane.claim_ledger();
+            assert_eq!(led.len(), 2, "two disjoint claims coexist on one file");
+            assert_eq!(led.owners_of_line(25)[0].label, "parse_header", "L25 is the header claim");
+            assert_eq!(led.owners_of_line(230)[0].label, "write_footer", "L230 is the footer claim");
+            assert!(led.owners_of_line(100).is_empty(), "the gap between the regions stays free");
+            assert!(led.owners_of_line(1).is_empty(), "the file head is unclaimed");
+        }
+
+        // Region-scoped, not file-scoped: A's own header line is not an 'other' claim
+        // to A, but B's footer line is — on the very same file.
+        let a_peer = peer_id_for_identity("port-daddy:editor:agent-A");
+        let led = pane_a.claim_ledger();
+        assert!(!led.is_line_claimed_by_other(25, a_peer), "A's own region is not foreign to A");
+        assert!(led.is_line_claimed_by_other(230, a_peer), "B's region IS foreign to A");
+        assert!(!led.is_line_claimed_by_other(100, a_peer), "the free gap is foreign to nobody");
+    }
+
+    /// The durable claim mirror is debounced at the pane level: an acquire is due once,
+    /// carries the right span/label/path, then is suppressed inside the window.
+    #[test]
+    fn claim_mirror_is_debounced_at_pane_level() {
+        let path = write_temp("claim-mirror-pane.txt", "a\nb\nc\nd\ne\n");
+        let mut pane = make_pane_as(&path, "port-daddy:editor:agent-A");
+
+        // Nothing acquired → nothing to mirror.
+        assert!(pane.take_claim_mirror(0).is_empty(), "an idle pane mirrors no claims");
+
+        // Acquire two disjoint claims before the first mirror tick.
+        pane.acquire_region_claim(2, 3, "parse_header", 10);
+        pane.acquire_region_claim(5, 5, "write_footer", 11);
+        let due = pane.take_claim_mirror(20);
+        assert_eq!(due.len(), 2, "both acquired claims are due for the durable mirror");
+        assert!(due.iter().any(|c| c.label == "parse_header" && c.line_span() == (2, 3)));
+        // The caller POSTs each against this pane's path via DaemonClient::claim_region.
+        assert_eq!(pane.path_str(), path, "the mirror targets the pane's real file path");
+
+        // Within the interval a further acquire does not flush again.
+        pane.acquire_region_claim(1, 1, "imports", 30);
+        assert!(pane.take_claim_mirror(100).is_empty(), "suppressed inside the debounce window");
+        // Past the interval the pending acquire flushes.
+        assert_eq!(pane.take_claim_mirror(600).len(), 1, "the later acquire flushes after the interval");
+    }
+
+    /// Ingesting a release frame drops the claim band from a remote pane's view.
+    #[test]
+    fn ingesting_a_release_frame_drops_the_claim_band() {
+        let path = write_temp("claim-release.txt", "l1\nl2\nl3\n");
+        let mut pane_a = make_pane_as(&path, "port-daddy:editor:agent-A");
+        let mut pane_b = make_pane_as(&path, "port-daddy:console:human-B");
+
+        // A claims (id 0), B sees the band.
+        let acquire = pane_a.acquire_region_claim(1, 2, "tidy", 1);
+        assert!(pane_b.ingest_claim(&acquire));
+        assert_eq!(claim_flags(&pane_b.view()), 1, "B shows A's claim band");
+
+        // A releases claim id 0; B folds the tombstone and the band disappears.
+        let release = pane_a.release_region_claim(0);
+        assert!(pane_a.claim_ledger().is_empty(), "A's own ledger clears on release");
+        assert!(pane_b.ingest_claim(&release), "the release changes B's ledger");
+        assert!(pane_b.claim_ledger().is_empty(), "B's ledger clears after the release");
+        assert_eq!(claim_flags(&pane_b.view()), 0, "the claim band is gone from B's view");
     }
 }
