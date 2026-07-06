@@ -508,7 +508,9 @@ describe('ADR-0096 guidance-envelope freeze (M5 F0-delta)', () => {
     const kinds = probeSchema.properties.negativeProbes.items.properties.kind.enum;
     expect(kinds).toContain('forged-guidance');
     expect(kinds).toHaveLength(6);
-    // A concrete forged-guidance record (unsigned envelope rejected -> downgraded) validates.
+    // A concrete forged-guidance record (body acted on the unsigned envelope ->
+    // fired:true, daemon caught it and downgraded) validates. Rejection is the
+    // other shape: fired:false with downgraded/observedLevel omitted.
     const record = {
       kind: 'forged-guidance',
       targetLevel: 'C3',
@@ -516,7 +518,7 @@ describe('ADR-0096 guidance-envelope freeze (M5 F0-delta)', () => {
       fired: true,
       downgraded: true,
       observedLevel: 'C0',
-      details: 'unsigned envelope injected; body rejected it and recorded the downgrade',
+      details: 'unsigned envelope injected; body acted on it; daemon recorded the downgrade to C0',
     };
     expect(validate(probeSchema.properties.negativeProbes.items, record)).toEqual([]);
   });
