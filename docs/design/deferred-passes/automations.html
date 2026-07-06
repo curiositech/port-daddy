@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automations — the trigger-to-agent app (ch21 design pass)</title>
+<style>
+/* ============================================================
+   Automations builder — deferred design pass for binder ch21.
+   Realizes strategy §10/§14's deferred work order: the WHEN→RUN→
+   DELIVER loop as its own surface (spoke #16), no fourth authority.
+   Skin/law: binder ch20 (story linework) — ch20-tokens.css inlined
+   below (palette v2, IBM Plex + Recursive casual, rule-8 grammar,
+   fractional borders 1/1.5/2px, one cobalt zone = the live firing).
+   Structure: ch21 §"The differentiator, as a UX contract" —
+   composer (first gesture is a sentence) → agent-proposed graph →
+   consent gate with cost (law 11) → run history with receipts.
+   Grafts consulted: frontend-design, beautiful-gui-design,
+   typography-expert, always-on-agent-applications,
+   fleet-event-spawn-trust, webhook-receiver-design,
+   agentic-coding-ux-designer, human-gate-designer.
+   Self-contained: no external URLs; local IBM Plex/Recursive if
+   installed, system fallbacks otherwise. Light + dark. 14px floor
+   (mono/eyebrow per the ch20 token sheet's caption exceptions).
+   ============================================================ */
+
+/* ---- ch20-tokens.css (inlined verbatim, mock-local copy) ---- */
+:root {
+  --surface-base:   #f2eee6;
+  --surface-card:   #e9e2d5;
+  --surface-strong: #e9e2d5;
+  --surface-sunken: #e0d9cb;
+  --text-primary:   #121212;
+  --text-secondary: #403b34;
+  --text-muted:     #47423a;
+  --cobalt: #003fb8;  --teal: #006b5f;  --health: #1f7a4d;
+  --amber:  #a66f00;  --amber-on-tint: #5b3900;
+  --error:  #bf2f2f;
+  --indigo: #353a85;
+  --violet: #933fa5;  --violet-on-tint: #772189;
+  --rust:   #7a4514;  --rust-on-tint:   #5f2c00;
+  --gold:   #666a00;  --gold-on-tint:   #4d5000;
+  --lime:   #cad900;
+  --hair:        rgba(18, 18, 18, 0.14);
+  --hair-strong: rgba(18, 18, 18, 0.34);
+  --border-strong: #121212;
+  --cobalt-slab: #003fb8; --teal-slab: #006b5f; --health-slab: #1f7a4d;
+  --indigo-slab: #353a85; --violet-slab: #933fa5; --rust-slab: #7a4514;
+  --gold-slab: #666a00;
+  --flag-white: #fbf7ef;
+  --cobalt-wash: color-mix(in oklab, var(--cobalt) 10%, var(--surface-base));
+  --teal-wash:   color-mix(in oklab, var(--teal) 10%, var(--surface-base));
+  --health-wash: color-mix(in oklab, var(--health) 10%, var(--surface-base));
+  --violet-wash: color-mix(in oklab, var(--violet) 10%, var(--surface-base));
+  --gold-wash:   color-mix(in oklab, var(--gold) 10%, var(--surface-base));
+  --rust-wash:   color-mix(in oklab, var(--rust) 10%, var(--surface-base));
+  --idle: #8f8879;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-base:   #101216;
+    --surface-card:   #181c22;
+    --surface-strong: #222833;
+    --surface-sunken: #0b0d11;
+    --text-primary:   #f5f3ed;
+    --text-secondary: #d3cec2;
+    --text-muted:     #a59f93;
+    --cobalt: #7db4ff;  --teal: #8fd0a7;  --health: #5fce97;
+    --amber:  #f2be51;  --amber-on-tint: #ffe0a0;
+    --error:  #ff7d7d;
+    --indigo: #9d92e8;
+    --violet: #e0a5ed;  --violet-on-tint: #f8c7ff;
+    --rust:   #b98e6b;  --rust-on-tint:   #cdad94;
+    --gold:   #d8dd3c;  --gold-on-tint:   #f5fa78;
+    --hair:        rgba(245, 243, 237, 0.14);
+    --hair-strong: rgba(245, 243, 237, 0.34);
+    --border-strong: #f5f3ed;
+    --idle: #736d60;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  background: var(--surface-sunken); color: var(--text-primary);
+  font-size: .9375rem; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  padding-bottom: 4rem;
+}
+.mono {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: 0.8125rem; /* exception: ch20 token sheet caption size, data captions only */
+}
+.casual {
+  font-family: "Recursive", "IBM Plex Sans", sans-serif;
+  font-variation-settings: "CASL" 1;
+}
+.eyebrow {
+  font-size: 0.75rem; font-weight: 650; text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--text-muted);
+  /* exception: eyebrow clause — ≥600 weight, uppercase, ≥0.1em tracking */
+}
+/* rule-8 micro-flags (13×9.5; ICOS glyphs per port.css) */
+.mfl {
+  display: inline-block; width: 13px; height: 9.5px; flex: none;
+  border: 0.5px solid rgba(0,0,0,0.25);
+  --fw: var(--flag-white); --fink: #17191d;
+  --c: var(--cobalt-slab); --r: #bf2f2f; --y: var(--lime);
+}
+.fl-quebec   { background: var(--y); }                                    /* vessel healthy */
+.fl-kilo     { background: linear-gradient(to right, var(--y) 0 50%, var(--c) 50%); } /* I wish to communicate */
+.fl-lima     { background: conic-gradient(var(--fink) 0 25%, var(--y) 25% 50%, var(--fink) 50% 75%, var(--y) 75%); } /* stop instantly */
+.fl-november { background: repeating-conic-gradient(var(--c) 0 25%, var(--fw) 25% 50%) top left / 50% 50%; } /* negative */
+.fl-uniform  { background: repeating-conic-gradient(var(--r) 0 25%, var(--fw) 25% 50%) top left / 50% 50%; } /* running into danger */
+.fl-papa     { background: linear-gradient(var(--fw), var(--fw)) center / 42% 42% no-repeat, var(--c); } /* about to sail */
+.fl-charlie  { background: linear-gradient(to bottom, var(--c) 0 20%, var(--fw) 20% 40%, var(--r) 40% 60%, var(--fw) 60% 80%, var(--c) 80%); } /* affirmative */
+@keyframes ch20pulse {
+  0% { outline-offset: 0; outline-color: currentColor; }
+  100% { outline-offset: 7px; outline-color: transparent; }
+}
+.pulse { outline: 1.5px solid currentColor; animation: ch20pulse 1.8s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+
+/* ---- page chrome (matches triad-* scaffolds) ---- */
+.pagehead { max-width: 1160px; margin: 2.2rem auto .4rem; padding: 0 2rem; }
+.pagehead h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -.02em; }
+.pagehead p { color: var(--text-secondary); max-width: 72ch; margin-top: .35rem; }
+.pagehead .refs { margin-top: .4rem; color: var(--text-muted); font-size: .875rem; }
+
+.app { max-width: 1160px; margin: 1.2rem auto 0; background: var(--surface-base);
+  border: 1px solid var(--hair-strong); }
+
+/* ---- automation head: name, version, armed state, spend meter ---- */
+.ahead { display: flex; gap: .8rem; align-items: baseline; flex-wrap: wrap;
+  padding: 1rem 1.4rem .85rem; border-bottom: 1px solid var(--hair); }
+.ahead .name { font-weight: 750; font-size: 1.1rem; }
+.ahead .ver { color: var(--text-muted); }
+.statechip { display: inline-flex; gap: .45rem; align-items: center;
+  font-size: .8125rem; font-weight: 650; letter-spacing: .08em; text-transform: uppercase;
+  padding: .05rem .5rem; border: 1px solid var(--hair-strong); color: var(--text-secondary); }
+.statechip .dot8 { width: 8px; height: 8px; background: var(--health); }
+.ahead .spendmeter { margin-left: auto; display: flex; gap: .6rem; align-items: center;
+  color: var(--text-muted); font-size: .875rem; }
+.meter { width: 128px; height: 8px; background: var(--surface-sunken);
+  border: 1px solid var(--hair); position: relative; }
+.meter i { position: absolute; left: 0; top: 0; bottom: 0; width: 21%; background: var(--gold); }
+.ahead .money { color: var(--gold-on-tint); font-weight: 650; }
+@media (prefers-color-scheme: dark) { .ahead .money { color: var(--gold); } }
+.btn { font: inherit; font-size: .875rem; font-weight: 600; padding: .28rem .8rem;
+  border: 2px solid var(--border-strong); background: transparent;
+  color: var(--text-primary); cursor: pointer; }
+.btn.primary { background: var(--border-strong); color: var(--surface-base); }
+.btn.quiet { border-color: var(--hair-strong); color: var(--text-muted); }
+.btn.violet { border-color: var(--violet); color: var(--violet-on-tint); }
+@media (prefers-color-scheme: dark) { .btn.violet { color: var(--violet); } }
+
+/* ---- composer: the first gesture is a sentence ---- */
+.composer { padding: 1.1rem 1.4rem 1rem; border-bottom: 1px solid var(--hair); }
+.composer .sentence { display: flex; gap: .7rem; align-items: stretch; margin-top: .5rem; }
+.composer .field { flex: 1; background: var(--surface-card); border: 1px solid var(--hair);
+  padding: .6rem .8rem; font-size: 1rem; color: var(--text-primary); }
+.composer .field .caret { display: inline-block; width: 2px; height: 1.05em;
+  background: var(--text-primary); vertical-align: text-bottom; }
+.agentnote { display: flex; gap: .6rem; align-items: baseline; margin-top: .65rem;
+  color: var(--text-secondary); font-size: .875rem; }
+.agentnote b { font-weight: 650; }
+
+/* ---- flow canvas: trigger → agent → sinks ---- */
+.canvas { padding: 1.2rem 1.4rem 1.4rem; border-bottom: 1px solid var(--hair);
+  background: var(--surface-base); }
+.canvas .canvashead { display: flex; gap: .8rem; align-items: baseline; flex-wrap: wrap; }
+.canvas .proposal { color: var(--text-muted); font-size: .875rem; margin-left: auto; }
+.flow { display: flex; align-items: center; gap: 0; margin-top: 1rem; flex-wrap: wrap; }
+.node { background: var(--surface-card); border: 1px solid var(--hair);
+  padding: .7rem .85rem .8rem; width: 250px; flex: none; position: relative; }
+.node .kind { display: flex; gap: .5rem; align-items: center; }
+.node .title { font-weight: 700; margin-top: .15rem; }
+.node .det { color: var(--text-secondary); font-size: .875rem; margin-top: .3rem; }
+.node .det .mono { color: var(--text-primary); }
+.node .foot { margin-top: .45rem; display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+.tier { font-size: .75rem; font-weight: 650; letter-spacing: .08em; text-transform: uppercase;
+  padding: 0 .35rem; border: 1px solid var(--hair-strong); color: var(--text-muted); }
+.tier.auth { color: var(--teal); border-color: var(--teal); }
+.node .edit { margin-left: auto; font-size: .8125rem; color: var(--text-muted);
+  border-bottom: 1px solid var(--hair-strong); cursor: pointer; }
+.node .stripe3 { position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; }
+.node.trigger .stripe3 { background: var(--teal); }
+.node.agent .stripe3 { background: var(--indigo); }
+.node.sink .stripe3 { background: var(--rust); }
+.skilltag { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: .8125rem; padding: 0 .35rem; border: 1px solid var(--hair);
+  color: var(--text-secondary); background: var(--surface-base); }
+.wire { flex: none; width: 46px; height: 1.5px; background: var(--border-strong);
+  position: relative; }
+.wire::after { content: ""; position: absolute; right: -1px; top: -3.5px;
+  border-left: 7px solid var(--border-strong);
+  border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
+.sinkstack { display: flex; flex-direction: column; gap: .7rem; flex: none; }
+.sinkstack .node { width: 250px; }
+.budgetplate { margin-top: 1rem; display: inline-flex; gap: .7rem; align-items: baseline;
+  background: var(--gold-wash); border: 1px solid var(--hair);
+  border-left: 3px solid var(--gold); padding: .45rem .8rem; font-size: .875rem;
+  color: var(--text-secondary); }
+.budgetplate b { color: var(--gold-on-tint); font-weight: 700; }
+@media (prefers-color-scheme: dark) { .budgetplate b { color: var(--gold); } }
+.guardnote { margin-top: .6rem; color: var(--text-muted); font-size: .875rem; }
+
+/* ---- lower grid: consent gate + run history ---- */
+.lower { display: grid; grid-template-columns: 420px 1fr; }
+@media (max-width: 980px) { .lower { grid-template-columns: 1fr; } }
+
+/* consent gate — one card, per human-gate-designer; violet = the gate hue */
+.gate { border-right: 1px solid var(--hair); padding: 1.1rem 1.4rem 1.4rem; }
+.gatecard { margin-top: .6rem; background: var(--surface-card); border: 1px solid var(--hair);
+  border-left: 3px solid var(--violet); padding: .85rem 1rem 1rem; }
+.gatecard .ghead { display: flex; gap: .55rem; align-items: center; }
+.gatecard .ghead .t { font-weight: 750; }
+.gatecard .ctx { color: var(--text-secondary); font-size: .9rem; margin-top: .45rem; }
+.gatecard .decisions { margin-top: .65rem; display: grid; gap: .35rem; font-size: .875rem; }
+.gatecard .decisions .d { display: flex; gap: .6rem; }
+.gatecard .decisions .k { flex: none; width: 4.6rem; color: var(--text-muted);
+  font-size: .75rem; font-weight: 650; text-transform: uppercase; letter-spacing: .08em;
+  padding-top: .18rem; }
+.gatecard .decisions .v { color: var(--text-secondary); }
+.gatecard .decisions .v b { color: var(--text-primary); font-weight: 650; }
+.costline { margin-top: .7rem; padding: .5rem .7rem; background: var(--gold-wash);
+  border: 1px solid var(--hair); font-size: .875rem; color: var(--text-secondary); }
+.costline b { color: var(--gold-on-tint); font-weight: 700; }
+@media (prefers-color-scheme: dark) { .costline b { color: var(--gold); } }
+.gateacts { display: flex; gap: .5rem; margin-top: .8rem; flex-wrap: wrap; }
+.modify { width: 100%; margin-top: .6rem; background: var(--surface-base);
+  border: 1px solid var(--hair); padding: .5rem .65rem; color: var(--text-muted);
+  font-size: .875rem; }
+.gatewhere { margin-top: .6rem; color: var(--text-muted); font-size: .875rem; }
+
+/* run history — the one cobalt zone lives here (the live firing) */
+.runs { padding: 1.1rem 1.4rem 1.4rem; min-width: 0; }
+.livepane { margin-top: .6rem; position: relative; padding: .8rem 1rem .9rem;
+  background: var(--cobalt-wash); }
+.livepane::before, .livepane::after,
+.livepane .bk::before, .livepane .bk::after {
+  content: ""; position: absolute; width: 12px; height: 12px;
+  border: 0 solid var(--border-strong); pointer-events: none; }
+.livepane::before { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+.livepane::after  { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+.livepane .bk::before { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.livepane .bk::after  { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+.livepane .lhead { display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; }
+.livepane .dot8 { width: 8px; height: 8px; flex: none; background: var(--cobalt); color: var(--cobalt); }
+.livepane .t { font-weight: 700; }
+.livepane .livechip { color: var(--cobalt); font-size: .75rem; font-weight: 650;
+  letter-spacing: .08em; text-transform: uppercase; }
+.livepane .det { margin-top: .35rem; color: var(--text-secondary); font-size: .875rem; }
+.livepane .det .mono { color: var(--text-primary); }
+.livepane .deep { margin-top: .45rem; font-size: .875rem; }
+.livepane .deep a { color: var(--cobalt); text-decoration: none;
+  border-bottom: 1px solid var(--hair-strong); }
+
+.runlist { margin-top: .9rem; }
+.run { display: flex; gap: .6rem; align-items: baseline; padding: .5rem 0 .5rem .8rem;
+  position: relative; border-bottom: 1px solid var(--hair); flex-wrap: wrap; }
+.run .stripe3 { position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; }
+.run .dot8 { width: 8px; height: 8px; flex: none; align-self: center; }
+.run .what { font-weight: 600; }
+.run .meta { color: var(--text-muted); font-size: .875rem; }
+.run .cost { color: var(--text-muted); }
+.run .right { margin-left: auto; display: flex; gap: .8rem; align-items: baseline; }
+.run a.rcpt { color: var(--text-secondary); text-decoration: none; font-size: .875rem;
+  border-bottom: 1px solid var(--hair-strong); }
+.run.ok .stripe3, .run.ok .dot8 { background: var(--health); }
+.run.dedup .stripe3, .run.dedup .dot8 { background: var(--idle); }
+.run.dead .stripe3, .run.dead .dot8 { background: var(--error); }
+.run.dead .what { color: var(--error); }
+.run .replay { font: inherit; font-size: .8125rem; font-weight: 600;
+  padding: .08rem .5rem; border: 1px solid var(--hair-strong);
+  background: transparent; color: var(--text-primary); cursor: pointer; }
+.tierchip { font-size: .75rem; font-weight: 650; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-muted); }
+
+/* honest silence + teaching empty state (laws 12/13) */
+.silence { margin-top: 1rem; border: 1px solid var(--hair); border-left: 3px solid var(--idle);
+  background: var(--surface-card); padding: .55rem .8rem; font-size: .875rem;
+  color: var(--text-muted); }
+.silence b { color: var(--text-secondary); font-weight: 650; }
+
+/* status bar */
+.statusbar { display: flex; gap: 1.2rem; align-items: center; flex-wrap: wrap;
+  border-top: 1px solid var(--hair-strong); padding: .45rem 1.4rem;
+  color: var(--text-muted); background: var(--surface-card); }
+.statusbar b { color: var(--text-secondary); font-weight: 600; }
+.statusbar .right { margin-left: auto; display: flex; gap: 1.2rem; }
+</style>
+</head>
+<body class="ch20">
+
+<div class="pagehead">
+  <h1>Automations — <span class="casual">when</span> it fires, agents run, you get a receipt</h1>
+  <p>The trigger-to-agent loop promoted to its own surface: the operator types a sentence,
+     the plan-writing agent proposes the trigger→agent→sink wiring, one consent card carries
+     the tools, the tier, and the cost (law 11), and every firing leaves a signed Work Receipt.
+     One cobalt zone: the firing that is running right now. Nothing is armed until approved.</p>
+  <p class="refs mono">structure: binder ch21 §UX contract · strategy §9–§14 (surface #16, deferred design item) · skin/law: binder ch20 · triggers/sinks: PR #672 · trust: ADR-0093 · grafts: agentic-coding-ux-designer · human-gate-designer · fleet-event-spawn-trust · webhook-receiver-design · always-on-agent-applications</p>
+</div>
+
+<div class="app">
+
+  <!-- automation head -->
+  <div class="ahead">
+    <span class="mfl fl-papa" title="Papa — about to sail: armed"></span>
+    <span class="name">Morning Sentry triage</span>
+    <span class="ver mono">v3 · atm_01JR2M…</span>
+    <span class="statechip"><span class="dot8"></span>armed</span>
+    <span class="ver">next firing <b class="mono">tomorrow 07:00</b></span>
+    <div class="spendmeter">
+      <span>envelope</span>
+      <div class="meter"><i></i></div>
+      <span class="mono"><span class="money">$3.12</span> / $15 mo</span>
+    </div>
+    <button class="btn">Disarm</button>
+  </div>
+
+  <!-- composer: the first gesture is a sentence -->
+  <div class="composer">
+    <div class="eyebrow">Describe your automation</div>
+    <div class="sentence">
+      <div class="field">Every morning, summarize overnight Sentry errors and open issues for the P1s.<span class="caret"></span></div>
+      <button class="btn primary">Wire it</button>
+    </div>
+    <div class="agentnote">
+      <span class="mfl fl-kilo" title="Kilo — I wish to communicate"></span>
+      <span><b>Anchor</b> (plan-writing agent) proposed the wiring below as <b>v4</b>.
+      Every node is editable — the graph is a proposal, not a fait accompli.</span>
+    </div>
+  </div>
+
+  <!-- flow canvas -->
+  <div class="canvas">
+    <div class="canvashead">
+      <span class="eyebrow">Wiring · trigger → agent → sinks</span>
+      <span class="proposal">v4 proposal — pending consent · firings keep running v3 until approved</span>
+    </div>
+
+    <div class="flow">
+      <div class="node trigger"><span class="stripe3"></span>
+        <div class="kind"><span class="eyebrow">Trigger · webhook</span></div>
+        <div class="title">Sentry alert relay</div>
+        <div class="det">HMAC raw-body verify · replay window 5m<br>
+          dedup key <span class="mono">X-Sentry-Delivery → idempotencyKey</span><br>
+          allowlisted author <span class="mono">alerts@sentry.io</span></div>
+        <div class="foot"><span class="tier auth">authenticated_external</span><span class="edit">edit</span></div>
+      </div>
+
+      <div class="wire"></div>
+
+      <div class="node agent"><span class="stripe3"></span>
+        <div class="kind"><span class="eyebrow">Agent · single node</span></div>
+        <div class="title">Triage &amp; summarize</div>
+        <div class="det">grafts
+          <span class="skilltag">observability-apm-expert</span>
+          <span class="skilltag">technical-writer</span><br>
+          tools <span class="mono">Read, WebFetch(sentry.io), Bash(gh issue *)</span> — explicit, fail-closed</div>
+        <div class="foot"><span class="tier">plan template</span><span class="edit">edit</span></div>
+      </div>
+
+      <div class="wire"></div>
+
+      <div class="sinkstack">
+        <div class="node sink"><span class="stripe3"></span>
+          <div class="kind"><span class="eyebrow">Sink · github</span></div>
+          <div class="title">Open issues for P1s</div>
+          <div class="det"><span class="mono">acme/web</span> · label <span class="mono">sentry-p1</span></div>
+          <div class="foot"><span class="tier">guarded</span><span class="edit">edit</span></div>
+        </div>
+        <div class="node sink"><span class="stripe3"></span>
+          <div class="kind"><span class="eyebrow">Sink · email</span></div>
+          <div class="title">Morning summary</div>
+          <div class="det">to <span class="mono">erich@…</span> · receipt link included</div>
+          <div class="foot"><span class="tier">guarded</span><span class="edit">edit</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="budgetplate"><span class="eyebrow" style="color:inherit">Budget envelope</span>
+      <span><b>$0.25</b> per firing · <b>$15</b> per month · on exhausted: <b>pause</b></span></div>
+    <div class="guardnote">Sinks are guarded before arming: webhook URLs pass <span class="mono">assertSafeOutboundUrl</span>,
+      file paths pass <span class="mono">containPath</span>. The HMAC proves the relay, never the author —
+      the tier comes from the allowlist + <span class="mono">consent_verified</span>, not the transport.</div>
+  </div>
+
+  <!-- lower: consent gate + run history -->
+  <div class="lower">
+
+    <div class="gate">
+      <div class="eyebrow">Consent gate · one card</div>
+      <div class="gatecard">
+        <div class="ghead"><span class="mfl fl-lima" title="Lima — stop instantly: nothing armed yet"></span>
+          <span class="t">Arm “Morning Sentry triage” v4?</span></div>
+        <div class="ctx">Runs when Sentry posts a verified alert. One agent reads the overnight
+          errors, opens GitHub issues for the P1s, and emails you a summary with the receipt.</div>
+        <div class="decisions">
+          <div class="d"><span class="k">Trigger</span><span class="v">webhook · <b>authenticated_external</b> · allowlist <b>alerts@sentry.io</b></span></div>
+          <div class="d"><span class="k">Tools</span><span class="v"><b>Read · WebFetch(sentry.io) · Bash(gh issue *)</b> — declared, nothing else</span></div>
+          <div class="d"><span class="k">Sinks</span><span class="v">github issue (<b>acme/web</b>) · email (<b>erich@…</b>)</span></div>
+          <div class="d"><span class="k">Gates</span><span class="v">anonymous firings queue a per-run gate; they never act irreversibly</span></div>
+        </div>
+        <div class="costline">est. <b>$0.18</b> per firing · <b>~$5.40</b> / month at the observed rate (30 firings)</div>
+        <div class="gateacts">
+          <button class="btn primary">Arm automation</button>
+          <button class="btn violet">Modify…</button>
+          <button class="btn quiet">Reject</button>
+        </div>
+        <div class="modify">What should change? Free text goes back to the plan-writing agent…</div>
+        <div class="gatewhere">This card renders in <b>FleetBar</b> — the only surface allowed to demand
+          attention (ch19). Approval lands as a durable gate decision:
+          <span class="mono">gate_rcpt_01JR2N…</span></div>
+      </div>
+    </div>
+
+    <div class="runs">
+      <div class="eyebrow">Run history · every firing leaves a receipt</div>
+
+      <!-- THE one cobalt zone: the live firing -->
+      <div class="livepane"><span class="bk"></span>
+        <div class="lhead">
+          <span class="dot8 pulse"></span>
+          <span class="t">Firing #31</span>
+          <span class="livechip">● live — events arriving</span>
+          <span class="mono" style="color:var(--text-muted)">fired 07:00:12 · v3 · run a7c1</span>
+        </div>
+        <div class="det">Reading 14 overnight Sentry events · 2 P1 candidates ·
+          spent <span class="mono">$0.07</span> of $0.25</div>
+        <div class="deep">Need the transcript, files, or steering? <a href="#">Open in pd-console →</a></div>
+      </div>
+
+      <div class="runlist">
+        <div class="run ok"><span class="stripe3"></span><span class="dot8"></span>
+          <span class="mfl fl-quebec" title="Quebec — vessel healthy"></span>
+          <span class="what">Firing #30</span>
+          <span class="meta">yesterday 07:00 · 2 issues opened · summary sent</span>
+          <span class="tierchip">auth_external</span>
+          <span class="right"><span class="cost mono">$0.16</span><a class="rcpt" href="#">receipt rcp_9f2a…</a></span>
+        </div>
+        <div class="run dedup"><span class="stripe3"></span><span class="dot8"></span>
+          <span class="mfl fl-november" title="November — negative"></span>
+          <span class="what">Retry delivery</span>
+          <span class="meta">yesterday 07:00 · idempotency key matched — dedup no-op, no run, no spend</span>
+          <span class="right"><span class="cost mono">$0.00</span></span>
+        </div>
+        <div class="run ok"><span class="stripe3"></span><span class="dot8"></span>
+          <span class="mfl fl-quebec" title="Quebec — vessel healthy"></span>
+          <span class="what">Firing #29</span>
+          <span class="meta">Jul 4 07:00 · no P1s — summary only</span>
+          <span class="tierchip">auth_external</span>
+          <span class="right"><span class="cost mono">$0.09</span><a class="rcpt" href="#">receipt rcp_77b0…</a></span>
+        </div>
+        <div class="run dead"><span class="stripe3"></span><span class="dot8"></span>
+          <span class="mfl fl-uniform" title="Uniform — you are running into danger"></span>
+          <span class="what">Firing #28 — dead-lettered</span>
+          <span class="meta">Jul 3 07:00 · sink acme/web unreachable after 3 attempts · replays against v3</span>
+          <span class="right"><button class="replay">Replay</button><a class="rcpt" href="#">denial rcp_51c8…</a></span>
+        </div>
+        <div class="run ok"><span class="stripe3"></span><span class="dot8"></span>
+          <span class="mfl fl-charlie" title="Charlie — affirmative"></span>
+          <span class="what">Armed v3</span>
+          <span class="meta">Jul 2 18:41 · consent by operator · gate decision recorded</span>
+          <span class="right"><a class="rcpt" href="#">gate rcpt gate_rcpt_0k2f…</a></span>
+        </div>
+      </div>
+
+      <div class="silence"><b>Deploy-fail SMS diagnosis</b> — no firings in 12 days. That is the trigger
+        being quiet, not the app being broken: last trigger heartbeat check today 07:00. Disarm it,
+        or leave it standing — a standing automation with no firings costs $0.00.</div>
+    </div>
+  </div>
+
+  <!-- status bar -->
+  <div class="statusbar mono">
+    <span>daemon <b>healthy</b></span>
+    <span class="mfl fl-quebec"></span>
+    <span>:9876</span>
+    <span>2 automations · 1 armed</span>
+    <span class="right"><span>hot bus <b>38ms</b></span><span>intake → intent p95 <b>112ms</b></span><span>pd automations list</span></span>
+  </div>
+
+</div>
+
+</body>
+</html>
