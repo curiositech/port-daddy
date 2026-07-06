@@ -1467,8 +1467,9 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
 
     // First-value metric: time to first OFFICIAL Agent Node. Seals once. The
     // Agent Node ledger route is the F0-canonical GET /agent-nodes (binder
-    // ch09); until the C1 ledger lands the daemon 404s and we say so honestly
-    // instead of inventing a number.
+    // ch09), served for real by routes/agent-harbor.ts over C1's projections
+    // (wave3/routes). Older daemons without that route still 404 and we say
+    // so honestly instead of inventing a number.
     let fvRecord = loadFirstValueRecord();
     if (fvRecord.setupCompletedAt && fvRecord.timeToFirstOfficialAgentNodeMs === null && daemonRunning) {
       try {
@@ -1482,7 +1483,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
             fvRecord = updated;
           }
         }
-      } catch { /* ledger endpoint not live yet (C1) — report honestly below */ }
+      } catch { /* running daemon predates routes/agent-harbor.ts — report honestly below */ }
     }
     if (fvRecord.timeToFirstOfficialAgentNodeMs !== null) {
       check('Harbor: first-value metric', true,
