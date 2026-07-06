@@ -412,8 +412,17 @@ pub enum SurfaceAction {
 /// (`DaemonClient::subscribe_agent`) and pumping envelopes back via `on_stream`.
 #[derive(Debug, Clone)]
 pub enum Subscription {
-    /// Subscribe to one agent's live feed (`GET /agents/:id/stream`).
+    /// Subscribe to one agent's live feed (`GET /agents/:id/stream`). Yields typed
+    /// `StreamEnvelope`s folded via [`Pane::on_stream`].
     Agent { agent_id: String },
+    /// Subscribe to one file's collaborative op stream on a per-file tube channel
+    /// (`GET /msg/:channel/subscribe`) — the Harbor Editor's LAN-multiplayer
+    /// transport (P2 slice 1). `channel` is `editor_sync::channel_for_path(path)`.
+    /// The same declare-intent → main.rs opens the SSE → drain-and-fold pattern the
+    /// `Agent` subscription uses, but the frames are Loro op frames
+    /// (`editor_sync::decode_frame`) folded into the surface's buffer rather than
+    /// agent transcript envelopes. Carries no cursors/presence yet (slice 2+).
+    Editor { channel: String },
 }
 
 /// What every pane implements. Object-safe (the registry holds `Box<dyn Pane>`):

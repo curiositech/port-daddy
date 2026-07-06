@@ -30,7 +30,7 @@
 
 use crate::agent::DaemonClient;
 use crate::buffer::{HarborBuffer, PeerId};
-use crate::pane::{Block, Pane, Tone};
+use crate::pane::{Block, Pane, Subscription, Tone};
 use anyhow::Result;
 
 /// Cap on how many lines a single file contributes to the view. The battle-plan's
@@ -101,6 +101,11 @@ pub struct EditorPane {
     buffer: Option<HarborBuffer>,
     truncated: bool,
     error: Option<String>,
+    /// The per-file tube channel this editor's op stream rides on (P2 slice 1),
+    /// derived once from `path` via [`crate::editor_sync::channel_for_path`]. Two
+    /// replicas opening the same file land on the same channel and exchange Loro op
+    /// frames over it.
+    channel: String,
 }
 
 impl EditorPane {
@@ -119,13 +124,19 @@ impl EditorPane {
         region: Option<(u32, u32)>,
         identity: impl Into<String>,
     ) -> Self {
+        let path = path.into();
+        // Derive the sync channel once at construction — it is a pure function of
+        // the path, so it is stable for the pane's whole life (and matches every
+        // other replica that opens the same file).
+        let channel = crate::editor_sync::channel_for_path(&path);
         Self {
-            path: path.into(),
+            path,
             region,
             identity: identity.into(),
             buffer: None,
             truncated: false,
             error: None,
+            channel,
         }
     }
 
@@ -151,6 +162,34 @@ impl EditorPane {
     /// with their own authorship.
     pub fn buffer(&self) -> Option<&HarborBuffer> {
         self.buffer.as_ref()
+    }
+
+    /// The per-file tube channel this editor's op stream rides on. Callers open the
+    /// live receiver with `DaemonClient::subscribe_channel(pane.channel())` and hand
+    /// each `TubeMsg::text` back to [`ingest_frame`](Self::ingest_frame).
+    pub fn channel(&self) -> &str {
+        &self.channel
+    }
+
+    /// Fold one Loro op frame (a `TubeMsg::text` off this file's channel) into the
+    /// buffer — the "land in the buffer" end of the P2 slice-1 transport. Decodes
+    /// via [`crate::editor_sync::decode_frame`]; a non-frame (handshake, heartbeat,
+    /// garbage) or a frame arriving before the buffer is loaded is ignored. A frame
+    /// authored by THIS replica (its own ops echoed back over the tube) is skipped —
+    /// re-importing them is idempotent, but skipping avoids needless work, mirroring
+    /// the operator-chat loop that drops its own echoed turns. Returns whether a
+    /// remote op actually landed.
+    pub fn ingest_frame(&mut self, text: &str) -> bool {
+        let Some(frame) = crate::editor_sync::decode_frame(text) else {
+            return false;
+        };
+        let Some(buffer) = self.buffer.as_ref() else {
+            return false;
+        };
+        if frame.peer == buffer.local_peer() {
+            return false; // our own ops, echoed back — nothing to fold
+        }
+        crate::editor_sync::apply_frame(buffer, &frame).is_ok()
     }
 
     /// Is the 1-based line `n` inside the bound region (inclusive)?
@@ -272,6 +311,19 @@ impl Pane for EditorPane {
             }
             Ok(())
         })
+    }
+
+    /// Declare this editor's live intent: watch the file's op-stream channel so a
+    /// second replica's Loro edits arrive over the tube (P2 slice 1). Same
+    /// declare-intent contract the `AgentTranscript` lane uses — main.rs opens the
+    /// SSE (`DaemonClient::subscribe_channel`) and drains frames back through
+    /// [`ingest_frame`](Self::ingest_frame). Only once a real buffer is open: an
+    /// errored / not-yet-loaded pane has nothing to fold remote ops into, so it
+    /// subscribes to nothing (poll-only).
+    fn subscription(&self) -> Option<Subscription> {
+        self.buffer
+            .as_ref()
+            .map(|_| Subscription::Editor { channel: self.channel.clone() })
     }
 }
 
@@ -432,5 +484,73 @@ mod tests {
         assert!(matches!(author_tone(Some(opener), opener), Tone::Resting));
         assert!(matches!(author_tone(Some(agent), opener), Tone::Engaged));
         assert!(matches!(author_tone(None, opener), Tone::Default));
+    }
+
+    /// A loaded editor declares its intent to watch the file's op-stream channel;
+    /// an errored/empty pane subscribes to nothing (no buffer to fold ops into).
+    #[test]
+    fn subscription_targets_the_files_channel_once_loaded() {
+        let path = write_temp("sub.txt", "hello\n");
+        let pane = make_pane(&path, None);
+        match pane.subscription() {
+            Some(Subscription::Editor { channel }) => {
+                assert_eq!(channel, crate::editor_sync::channel_for_path(&path));
+                assert_eq!(channel, pane.channel());
+            }
+            other => panic!("a loaded editor must subscribe to its file channel, got {other:?}"),
+        }
+        // An unreadable file → no buffer → nothing to fold into → no subscription.
+        let errored = make_pane("/nonexistent/does/not/exist.rs", None);
+        assert!(errored.subscription().is_none());
+    }
+
+    /// THE PANE-LEVEL SLICE-1 PROOF: a second replica's Loro op frame, delivered as
+    /// a tube message's text, lands in this pane's buffer and renders as an
+    /// agent-authored line. Self-echoes and garbage are ignored.
+    #[test]
+    fn remote_op_frame_rides_the_tube_and_lands_in_the_pane_buffer() {
+        let path = write_temp("wire-pane.txt", "human line\n");
+        let mut pane = make_pane(&path, None);
+        let opener = pane.buffer().expect("buffer loaded").local_peer();
+
+        // A second replica (agent) joins from the opener's state, adds a line, and
+        // its ops become a tube frame — the exact string that would arrive on the
+        // pane's channel subscription.
+        let agent_id = "port-daddy:editor:agent-wire";
+        let agent = HarborBuffer::empty(agent_id);
+        agent
+            .apply_remote_ops(&pane.buffer().unwrap().export_ops())
+            .expect("agent imports opener state");
+        agent.append_line("agent added over the wire");
+        let frame = crate::editor_sync::encode_frame(agent.local_peer(), &agent.export_ops());
+
+        // The pane folds the frame off its channel — the transport landing.
+        assert!(pane.ingest_frame(&frame), "a remote op frame must land in the buffer");
+
+        // The pane now renders the agent's line with agent authorship.
+        let blocks = pane.view();
+        let r = rows(&blocks);
+        assert_eq!(r.len(), 2, "human line + wired-in agent line");
+        assert_eq!(r[1][1], "agent added over the wire");
+        let agent_tag = author_tag(peer_id_for_identity(agent_id));
+        assert!(
+            r[1][0].contains(&agent_tag),
+            "the wired-in line carries the agent's author tag"
+        );
+        assert!(
+            blocks.iter().any(|b| matches!(
+                b,
+                Block::Flag { tone: Tone::Engaged, label, .. } if label.contains("agent")
+            )),
+            "the agent authorship legend flag renders once a remote op lands"
+        );
+
+        // A frame authored by THIS replica (its own ops echoed back) is a no-op,
+        // and a non-frame is skipped — neither corrupts the buffer.
+        let self_frame =
+            crate::editor_sync::encode_frame(opener, &pane.buffer().unwrap().export_ops());
+        assert!(!pane.ingest_frame(&self_frame), "our own echoed ops must not re-fold");
+        assert!(!pane.ingest_frame("not a frame at all"), "garbage is ignored");
+        assert_eq!(rows(&pane.view()).len(), 2, "buffer unchanged by self-echo/garbage");
     }
 }

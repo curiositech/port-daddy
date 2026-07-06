@@ -239,6 +239,32 @@ pub struct TubeMsg {
     pub text: String,
 }
 
+impl TubeMsg {
+    /// Parse one message from a `GET /msg/:channel/subscribe` SSE `data:` object.
+    ///
+    /// The daemon (routes/messaging.ts → lib/messaging.ts) pushes each published
+    /// message as `{ id, channel, payload, contentType, sender, createdAt }`, where
+    /// `payload` is a bare string or `{text|content:...}` (a `tube_send` wraps its
+    /// text as `{text:...}`). Returns `None` for the first `event: connected`
+    /// handshake (`{channel:...}`, no `payload`) and any `event: timeout` frame, so
+    /// the caller simply skips those — mirroring [`StreamEnvelope::from_value`]'s
+    /// tolerance so a schema drift can never kill the channel lane.
+    pub fn from_value(v: &serde_json::Value) -> Option<TubeMsg> {
+        // The handshake/timeout frames carry no `payload`; that is the signal this
+        // is not a real message (an actual empty payload is rejected daemon-side).
+        let payload = v.get("payload")?;
+        Some(TubeMsg {
+            id: v.get("id").and_then(|i| i.as_u64()).unwrap_or(0),
+            sender: v
+                .get("sender")
+                .and_then(|s| s.as_str())
+                .unwrap_or("?")
+                .to_string(),
+            text: extract_text(Some(payload)),
+        })
+    }
+}
+
 /// Per-spawn options that ride alongside the four positional `spawn` args.
 ///
 /// Today this carries exactly one knob — `inject_squid_hooks` — but it is a
@@ -932,6 +958,79 @@ impl DaemonClient {
         });
         rx
     }
+
+    /// Open the live SSE feed for a pub/sub tube channel
+    /// (`GET /msg/:channel/subscribe`) and yield each published [`TubeMsg`] on an
+    /// mpsc channel. This is the Harbor Editor's LAN-multiplayer receive path (P2
+    /// slice 1): the per-file channel is [`crate::editor_sync::channel_for_path`],
+    /// and each `TubeMsg::text` is a Loro op frame the caller folds into a buffer
+    /// via [`crate::editor_sync::decode_frame`] + `apply_frame`.
+    ///
+    /// Structurally identical to [`subscribe_agent`](Self::subscribe_agent) — same
+    /// resumable, self-healing loop (capped backoff + `Last-Event-ID` resume), same
+    /// `SseParser`, same "receiver dropped → stop" contract — differing only in the
+    /// URL and that it parses the messaging frame shape (`TubeMsg::from_value`)
+    /// instead of the agent envelope. The frames are handed over a
+    /// `tokio::sync::mpsc` channel (NOT a shared `Arc<Mutex<_>>`): the background
+    /// task owns the HTTP body, the render loop drains via `try_recv` — the one
+    /// safe hand-off across the SSE→render seam.
+    pub fn subscribe_channel(&self, channel: &str) -> tokio::sync::mpsc::Receiver<TubeMsg> {
+        let (tx, rx) = tokio::sync::mpsc::channel::<TubeMsg>(256);
+        let url = format!("{}/msg/{channel}/subscribe", self.base);
+        let http = self.http.clone();
+        tokio::spawn(async move {
+            use futures_util::StreamExt;
+            use tokio::time::{sleep, Duration};
+            let mut last_id: Option<String> = None;
+            let mut backoff = Duration::from_millis(500);
+            const MAX_BACKOFF: Duration = Duration::from_secs(10);
+            loop {
+                let mut req = http.get(&url);
+                if let Some(id) = &last_id {
+                    req = req.header("Last-Event-ID", id.as_str());
+                }
+                let resp = match req.send().await {
+                    Ok(r) if r.status().is_success() => r,
+                    // A 4xx (invalid channel) is permanent: nothing will ever
+                    // stream, so stop rather than spin against it.
+                    Ok(_) => return,
+                    Err(_) => {
+                        sleep(backoff).await;
+                        backoff = (backoff * 2).min(MAX_BACKOFF);
+                        continue;
+                    }
+                };
+                backoff = Duration::from_millis(500); // reset on a healthy connect
+                let mut parser = SseParser::new();
+                let mut body = resp.bytes_stream();
+                while let Some(chunk) = body.next().await {
+                    let bytes = match chunk {
+                        Ok(b) => b,
+                        Err(_) => break, // stream error — fall through to reconnect
+                    };
+                    let text = String::from_utf8_lossy(&bytes);
+                    for data in parser.feed(&text) {
+                        if let Some(id) = parser.last_id() {
+                            last_id = Some(id.to_string());
+                        }
+                        let val: serde_json::Value = match serde_json::from_str(&data) {
+                            Ok(v) => v,
+                            Err(_) => continue, // skip a malformed frame, keep streaming
+                        };
+                        if let Some(msg) = TubeMsg::from_value(&val) {
+                            if tx.send(msg).await.is_err() {
+                                return; // receiver dropped (pane closed/retargeted)
+                            }
+                        }
+                    }
+                }
+                // EOF/error without the receiver dropping: reconnect with backoff.
+                sleep(backoff).await;
+                backoff = (backoff * 2).min(MAX_BACKOFF);
+            }
+        });
+        rx
+    }
 }
 
 /// Pull readable text from a stream-envelope `body` (or any payload value):
@@ -1419,5 +1518,34 @@ mod tests {
             envs[0].body.get("text").and_then(|t| t.as_str()),
             Some("control.interrupt")
         );
+    }
+
+    // ── Tube channel messages (GET /msg/:channel/subscribe) ───────────────────
+
+    #[test]
+    fn tube_msg_parses_messaging_frame_and_skips_handshake() {
+        // The `event: connected` handshake carries no `payload` → skipped.
+        assert!(
+            TubeMsg::from_value(&serde_json::json!({ "channel": "harbor-editor:abc" })).is_none()
+        );
+        // A published message: a `tube_send` wraps its text as `{text:...}`; the
+        // parser pulls the readable text and the sender through.
+        let m = TubeMsg::from_value(&serde_json::json!({
+            "id": 7,
+            "channel": "harbor-editor:abc",
+            "payload": { "text": "{\"v\":1,\"kind\":\"loro.update\"}" },
+            "sender": "port-daddy:editor:agent-A",
+            "createdAt": 1781561557841i64,
+        }))
+        .expect("a real message parses");
+        assert_eq!(m.id, 7);
+        assert_eq!(m.sender, "port-daddy:editor:agent-A");
+        assert_eq!(m.text, "{\"v\":1,\"kind\":\"loro.update\"}");
+        // A bare-string payload is also accepted (defaulted id/sender tolerated).
+        let bare = TubeMsg::from_value(&serde_json::json!({ "payload": "hello" }))
+            .expect("bare-string payload parses");
+        assert_eq!(bare.text, "hello");
+        assert_eq!(bare.id, 0);
+        assert_eq!(bare.sender, "?");
     }
 }
