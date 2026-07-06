@@ -364,3 +364,65 @@ describe('delivery id validation', () => {
     expect(d1.runCalls).toBe(0);
   });
 });
+
+describe('Workers AI cost/token/model telemetry on fleet_runs', () => {
+  it('accumulates tokens, derives cost, and records the model on the run header', async () => {
+    // Ship resolves to a PRICED Workers AI model (@cf/openai/gpt-oss-120b:
+    // $0.35/1M in, $0.75/1M out). One priced map call at 100 in / 20 out.
+    state.files.set(
+      'main:pd-fleet.yml',
+      fleetYaml([{ name: 'code-reviewer', blocking: true, model: '@cf/openai/gpt-oss-120b' }]),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
+      usage: { prompt_tokens: 100, completion_tokens: 20 },
+    });
+    const d1 = memoryD1();
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(d1.runs).toHaveLength(1);
+    const run = d1.runs[0];
+    expect(run.inputTokens).toBe(100);
+    expect(run.outputTokens).toBe(20);
+    expect(run.neurons).toBe(120); // the long-reserved "total AI token spend" column
+    expect(run.modelsCsv).toBe('@cf/openai/gpt-oss-120b');
+    // 100/1e6*0.35 + 20/1e6*0.75 = 0.00005
+    expect(run.costUsd).toBeCloseTo(0.00005, 8);
+  });
+
+  it('records tokens but null cost when the model has no known rate', async () => {
+    // The default fixture model (@cf/qwen/qwen2.5-coder-32b-instruct) is not in
+    // the pricing table — tokens still recorded, cost honestly null (never guessed).
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    const d1 = memoryD1();
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }));
+
+    const run = d1.runs[0];
+    expect(run.neurons).toBe(120);
+    expect(run.costUsd).toBeNull();
+    expect(run.modelsCsv).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+  });
+
+  it('tolerates a Workers AI response with no usage block (tokens 0, cost null)', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' }, usage: null });
+    const d1 = memoryD1();
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }));
+
+    const run = d1.runs[0];
+    expect(run.inputTokens).toBe(0);
+    expect(run.outputTokens).toBe(0);
+    expect(run.neurons).toBe(0);
+    expect(run.costUsd).toBeNull();
+  });
+});

@@ -15,6 +15,7 @@ import { describe, it, expect } from 'vitest';
 import {
   handleFleetActivity,
   handleFleetRun,
+  handleFleetStats,
   handleFleetHealth,
   handleFleetPause,
 } from '../src/fleet-observability.js';
@@ -99,7 +100,11 @@ const RUN_NEW = {
   head_sha: 'abcdef1234567890',
   conclusion: 'success',
   ships_csv: 'linter,qa',
-  neurons: null,
+  neurons: 1200,
+  input_tokens: 1000,
+  output_tokens: 200,
+  cost_usd: 0.0005,
+  models_csv: '@cf/openai/gpt-oss-120b',
   ms: 45000,
   created_at: 1719432100,
 };
@@ -112,7 +117,11 @@ const RUN_OLD = {
   head_sha: '0123456789abcdef',
   conclusion: 'failure',
   ships_csv: 'linter',
-  neurons: null,
+  neurons: 300,
+  input_tokens: 250,
+  output_tokens: 50,
+  cost_usd: null, // unpriced model — cost honestly null, tokens still recorded
+  models_csv: '@cf/qwen/qwen2.5-coder-32b-instruct',
   ms: 12000,
   created_at: 1719431000,
 };
@@ -325,5 +334,44 @@ describe('handleFleetPause + handleFleetHealth', () => {
     expect(health.paused).toBe(false);
     expect(health.lastRunAgeSec).not.toBeNull();
     expect(health.lastRunAgeSec!).toBeGreaterThanOrEqual(30);
+  });
+});
+
+// ── GET /v1/fleet/stats ───────────────────────────────────────────────────────
+
+describe('fleet observability — stats aggregation', () => {
+  function statsEnv() {
+    return makeEnv({
+      db: makeMockD1({
+        onAll: (q) => (/FROM fleet_runs/i.test(q) ? [RUN_NEW, RUN_OLD] : []),
+      }),
+    });
+  }
+
+  it('rejects a missing operator token (401)', async () => {
+    const res = await handleFleetStats(req('/v1/fleet/stats', 'GET', null), statsEnv());
+    expect(res.status).toBe(401);
+  });
+
+  it('aggregates cost/tokens/models across runs; unpriced cost stays out of the total', async () => {
+    const res = await handleFleetStats(req('/v1/fleet/stats', 'GET', OPERATOR), statsEnv());
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+
+    expect(body.totals.runs).toBe(2);
+    // Only RUN_NEW is priced ($0.0005); RUN_OLD's null cost is excluded, not guessed.
+    expect(body.totals.costUsd).toBeCloseTo(0.0005, 8);
+    expect(body.totals.inputTokens).toBe(1250);
+    expect(body.totals.outputTokens).toBe(250);
+    expect(body.totals.totalTokens).toBe(1500);
+
+    expect(body.byConclusion).toEqual({ success: 1, failure: 1 });
+    expect(body.distinctPrsReviewed).toBe(2);
+
+    expect(body.byRepo).toHaveLength(1);
+    expect(body.byRepo[0]).toMatchObject({ repo: 'curiositech/port-daddy', prs: 2, runs: 2 });
+
+    const models = body.byModel.map((m: any) => m.model).sort();
+    expect(models).toEqual(['@cf/openai/gpt-oss-120b', '@cf/qwen/qwen2.5-coder-32b-instruct']);
   });
 });

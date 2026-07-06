@@ -42,6 +42,7 @@ import {
   type ShipResult,
   type Verdict,
 } from './verdict.js';
+import { UsageMeter, type WorkersAiUsage } from './usage.js';
 
 // ---------------------------------------------------------------------------
 
@@ -175,20 +176,40 @@ async function recordRunStart(
 }
 
 /**
- * Stamp the final conclusion + wall-clock elapsed onto the fleet_runs row.
- * Best-effort: a write failure NEVER changes the gate (the check run is already
- * the authoritative surface on GitHub).
+ * Stamp the final conclusion + wall-clock elapsed onto the fleet_runs row, plus
+ * the run's Workers AI cost/token/model telemetry from the {@link UsageMeter}
+ * (input/output tokens, `neurons` = total tokens, derived USD cost, and the
+ * distinct models used). Best-effort: a write failure NEVER changes the gate
+ * (the check run is already the authoritative surface on GitHub). Cost/token
+ * columns are written on EVERY terminal path — including an early kill-switch
+ * neutral — so partial cost survives an abort (binder ch18 C2 gate).
  */
 async function recordRunEnd(
   env: ExecutorEnv,
   runId: string,
   conclusion: string,
   startMs: number,
+  usage: UsageMeter,
 ): Promise<void> {
   if (!env.DB) return;
+  const u = usage.summary();
   try {
-    await env.DB.prepare(`UPDATE fleet_runs SET conclusion = ?, ms = ? WHERE id = ?`)
-      .bind(conclusion, Date.now() - startMs, runId)
+    await env.DB.prepare(
+      `UPDATE fleet_runs
+          SET conclusion = ?, ms = ?, input_tokens = ?, output_tokens = ?,
+              neurons = ?, cost_usd = ?, models_csv = ?
+        WHERE id = ?`,
+    )
+      .bind(
+        conclusion,
+        Date.now() - startMs,
+        u.inputTokens,
+        u.outputTokens,
+        u.totalTokens,
+        u.costUsd,
+        u.modelsCsv || null,
+        runId,
+      )
       .run();
   } catch (err) {
     console.error(`[fleet-executor] fleet_runs update failed run=${runId}: ${String(err)}`);
@@ -240,6 +261,9 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   const runId = `run:${deliveryId}`;
   const startMs = Date.now();
   const transcript = new Transcript(env.DB, runId);
+  // Accumulates Workers AI token/cost telemetry across every ship's MAP+REDUCE
+  // calls; drained onto the fleet_runs row at every terminal path below.
+  const usage = new UsageMeter();
 
   // --- Token (KV-cached; remint once on 401) -------------------------------
   let token: string;
@@ -344,10 +368,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         pausedBeforeShip: ship.name,
       });
       await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token);
-      await recordRunEnd(env, runId, 'neutral', startMs);
+      await recordRunEnd(env, runId, 'neutral', startMs, usage);
       return;
     }
-    results.push(await runShip(ship, prCtx, token, env, branch, transcript));
+    results.push(await runShip(ship, prCtx, token, env, branch, transcript, usage));
   }
 
   // --- Conclusion (verdict logic is REAL; see verdict.ts) ------------------
@@ -372,11 +396,17 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token);
 
   // --- Transcript: check completion + final run header (best-effort) --------
+  const finalUsage = usage.summary();
   await transcript.step('check-completed', null, `Check concluded: ${conclusion}`, {
     checkRunId,
     conclusion,
+    inputTokens: finalUsage.inputTokens,
+    outputTokens: finalUsage.outputTokens,
+    neurons: finalUsage.totalTokens,
+    costUsd: finalUsage.costUsd,
+    models: finalUsage.modelsCsv ? finalUsage.modelsCsv.split(',') : [],
   });
-  await recordRunEnd(env, runId, conclusion, startMs);
+  await recordRunEnd(env, runId, conclusion, startMs, usage);
 }
 
 // ---------------------------------------------------------------------------
@@ -405,6 +435,7 @@ async function runShip(
   env: ExecutorEnv,
   branch: string,
   transcript: Transcript,
+  usage: UsageMeter,
 ): Promise<ShipResult> {
   try {
     // ZERO-TRUST: ship contract is read from the trusted branch, NEVER PR head.
@@ -433,26 +464,32 @@ async function runShip(
       const res = (await env.AI.run(
         ship.cfModel as Parameters<typeof env.AI.run>[0],
         request,
-      )) as { response?: string };
+      )) as { response?: string; usage?: WorkersAiUsage };
       partials.push((res.response ?? '').trim());
+      const callUsage = usage.record(ship.cfModel, res.usage);
 
-      // Transcript: one row per MAP chunk (best-effort).
+      // Transcript: one row per MAP chunk (best-effort), now carrying the
+      // per-call Workers AI token spend + the model that produced it.
       await transcript.step('map-chunk', ship.name, `MAP chunk ${i + 1}/${chunks.length}`, {
         chunkIndex: i,
         chunkCount: chunks.length,
         outputLength: partials[i]?.length ?? 0,
+        model: ship.cfModel,
+        inputTokens: callUsage.inputTokens,
+        outputTokens: callUsage.outputTokens,
       });
     }
 
     // --- REDUCE: manager merges the partials (only when fan-out > 1) --------
     const output =
-      chunks.length === 1 ? partials[0] ?? '' : await reduceFindings(ship, partials, env);
+      chunks.length === 1 ? partials[0] ?? '' : await reduceFindings(ship, partials, env, usage);
 
     // Transcript: the REDUCE step exists only on a multi-chunk fan-out.
     if (chunks.length > 1) {
       await transcript.step('reduce', ship.name, `REDUCE pd-${ship.name}`, {
         chunkCount: chunks.length,
         outputLength: output.length,
+        model: ship.cfModel,
       });
     }
 
@@ -568,6 +605,7 @@ async function reduceFindings(
   ship: ShipConfig,
   partials: string[],
   env: ExecutorEnv,
+  usage: UsageMeter,
 ): Promise<string> {
   const managerSystem =
     `You are the fleet REDUCE manager for ship pd-${ship.name}. You receive ` +
@@ -592,7 +630,8 @@ async function reduceFindings(
   const res = (await env.AI.run(
     ship.cfModel as Parameters<typeof env.AI.run>[0],
     request,
-  )) as { response?: string };
+  )) as { response?: string; usage?: WorkersAiUsage };
+  usage.record(ship.cfModel, res.usage);
 
   return (res.response ?? '').trim();
 }

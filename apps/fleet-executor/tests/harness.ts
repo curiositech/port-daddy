@@ -234,6 +234,12 @@ export interface CapturedRun {
   createdAt: unknown;
   conclusion: string;
   ms: number;
+  // Cost/token telemetry stamped by the finalize UPDATE (null until finalized).
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  neurons?: number | null;
+  costUsd?: number | null;
+  modelsCsv?: string | null;
 }
 
 /** Captured fleet_run_steps row. */
@@ -293,6 +299,11 @@ export function memoryD1(): D1Capture {
             createdAt: args[7],
             conclusion: 'pending',
             ms: 0,
+            inputTokens: null,
+            outputTokens: null,
+            neurons: null,
+            costUsd: null,
+            modelsCsv: null,
           });
         } else if (/INTO fleet_run_steps/i.test(sql)) {
           cap.steps.push({
@@ -304,10 +315,18 @@ export function memoryD1(): D1Capture {
             detail: args[5],
           });
         } else if (/UPDATE fleet_runs/i.test(sql)) {
-          const row = runsById.get(String(args[2]));
+          // The finalize UPDATE binds the WHERE id LAST:
+          //   SET conclusion=?, ms=?, input_tokens=?, output_tokens=?,
+          //       neurons=?, cost_usd=?, models_csv=? WHERE id=?
+          const row = runsById.get(String(args[args.length - 1]));
           if (row) {
             row.conclusion = String(args[0]);
             row.ms = Number(args[1]);
+            row.inputTokens = args[2] == null ? null : Number(args[2]);
+            row.outputTokens = args[3] == null ? null : Number(args[3]);
+            row.neurons = args[4] == null ? null : Number(args[4]);
+            row.costUsd = args[5] == null ? null : Number(args[5]);
+            row.modelsCsv = args[6] == null ? null : String(args[6]);
           }
         }
         return { success: true, meta: {} };
@@ -349,8 +368,15 @@ export function aiStub(opts: {
   managerOutput?: string | Record<string, string>;
   throwForShip?: string;
   fleetParser?: string;
+  /** Per-call Workers AI usage returned on every run() (default: 100 in / 20 out). */
+  usage?: { prompt_tokens: number; completion_tokens: number } | null;
 }): AiStub {
   const calls: AiStub['calls'] = [];
+  // Workers AI returns a `usage` block on every call; default to a fixed split
+  // so cost/token telemetry tests can assert on it. `usage: null` omits it (to
+  // exercise the missing-usage tolerance path).
+  const usage = opts.usage === undefined ? { prompt_tokens: 100, completion_tokens: 20 } : opts.usage;
+  const withUsage = (response: string) => (usage ? { response, usage } : { response });
 
   const matchShip = (sys: string): string | null => {
     for (const ship of Object.keys(opts.perShip)) {
@@ -373,16 +399,16 @@ export function aiStub(opts: {
       const mgr = opts.managerOutput;
       const out =
         typeof mgr === 'string' ? mgr : ship && mgr ? mgr[ship] : undefined;
-      return { response: out ?? (ship ? opts.perShip[ship] : 'merged\n\nFLEET-VERDICT: PASS') };
+      return withUsage(out ?? (ship ? opts.perShip[ship] : 'merged\n\nFLEET-VERDICT: PASS'));
     }
 
     // --- MAP call ---
     calls.push({ model, phase: 'map', ship, temperature: args.temperature });
     if (ship) {
       if (opts.throwForShip === ship) throw new Error('AI exploded');
-      return { response: opts.perShip[ship] };
+      return withUsage(opts.perShip[ship]);
     }
-    return { response: 'no match\n\nFLEET-VERDICT: PASS' };
+    return withUsage('no match\n\nFLEET-VERDICT: PASS');
   };
 
   const ai = { run: vi.fn(run) } as unknown as Ai;

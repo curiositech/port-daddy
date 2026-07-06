@@ -390,6 +390,10 @@ export interface FleetRunRow {
   conclusion: string;
   ships_csv: string;
   neurons: number | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  cost_usd: number | null;
+  models_csv: string | null;
   ms: number;
   created_at: number;
 }
@@ -444,17 +448,50 @@ export async function insertFleetRun(
   ).run();
 }
 
-/** Patch the run header with its final conclusion + elapsed wall time. */
+/**
+ * Patch the run header with its final conclusion + elapsed wall time, plus the
+ * Workers AI cost/token/model telemetry when known. Each telemetry column is
+ * COALESCEd so a partial finalize never nulls a previously-recorded value.
+ * (The production writer is apps/fleet-executor's inline SQL; this is the
+ * canonical helper for any relay-side ingest path.)
+ */
 export async function finalizeFleetRun(
   db: D1Database,
   id: string,
   conclusion: string,
   ms: number,
-  neurons?: number | null
+  telemetry?: {
+    neurons?: number | null;
+    inputTokens?: number | null;
+    outputTokens?: number | null;
+    costUsd?: number | null;
+    modelsCsv?: string | null;
+  } | number | null
 ): Promise<void> {
+  // Back-compat: a bare `neurons` number/null is still accepted positionally.
+  const t =
+    telemetry == null || typeof telemetry === 'number'
+      ? { neurons: telemetry ?? null }
+      : telemetry;
   await db.prepare(
-    'UPDATE fleet_runs SET conclusion = ?, ms = ?, neurons = COALESCE(?, neurons) WHERE id = ?'
-  ).bind(conclusion, ms, neurons ?? null, id).run();
+    `UPDATE fleet_runs
+        SET conclusion = ?, ms = ?,
+            neurons = COALESCE(?, neurons),
+            input_tokens = COALESCE(?, input_tokens),
+            output_tokens = COALESCE(?, output_tokens),
+            cost_usd = COALESCE(?, cost_usd),
+            models_csv = COALESCE(?, models_csv)
+      WHERE id = ?`
+  ).bind(
+    conclusion,
+    ms,
+    t.neurons ?? null,
+    t.inputTokens ?? null,
+    t.outputTokens ?? null,
+    t.costUsd ?? null,
+    t.modelsCsv ?? null,
+    id,
+  ).run();
 }
 
 /** Append one immutable transcript step. PK (run_id, seq) dedupes retries. */
@@ -497,7 +534,8 @@ export async function listFleetRuns(
 ): Promise<FleetRunRow[]> {
   const rows = await db.prepare(`
     SELECT id, delivery_id, repo_full_name, pr_number, pr_url, head_sha,
-           conclusion, ships_csv, neurons, ms, created_at
+           conclusion, ships_csv, neurons, input_tokens, output_tokens,
+           cost_usd, models_csv, ms, created_at
     FROM fleet_runs
     ORDER BY created_at DESC
     LIMIT ?
@@ -512,7 +550,8 @@ export async function getFleetRunWithSteps(
 ): Promise<{ run: FleetRunRow; steps: FleetRunStepRow[] } | null> {
   const run = await db.prepare(`
     SELECT id, delivery_id, repo_full_name, pr_number, pr_url, head_sha,
-           conclusion, ships_csv, neurons, ms, created_at
+           conclusion, ships_csv, neurons, input_tokens, output_tokens,
+           cost_usd, models_csv, ms, created_at
     FROM fleet_runs WHERE id = ?
   `).bind(runId).first<FleetRunRow>();
   if (!run) return null;
@@ -525,6 +564,29 @@ export async function getFleetRunWithSteps(
   `).bind(runId).all<FleetRunStepRow>();
 
   return { run, steps: steps.results };
+}
+
+/**
+ * Fetch fleet runs for aggregate stats: the most recent `cap` runs no older than
+ * `sinceSec` (0 = all time). Bounded so a busy fleet never unspools the whole
+ * table into memory. Aggregation (totals, by-repo, by-model) happens in the
+ * handler since models_csv is a multi-value column SQLite can't GROUP on.
+ */
+export async function fleetRunsForStats(
+  db: D1Database,
+  sinceSec = 0,
+  cap = 1000
+): Promise<FleetRunRow[]> {
+  const rows = await db.prepare(`
+    SELECT id, delivery_id, repo_full_name, pr_number, pr_url, head_sha,
+           conclusion, ships_csv, neurons, input_tokens, output_tokens,
+           cost_usd, models_csv, ms, created_at
+    FROM fleet_runs
+    WHERE created_at >= ?
+    ORDER BY created_at DESC
+    LIMIT ?
+  `).bind(sinceSec, cap).all<FleetRunRow>();
+  return rows.results;
 }
 
 /** unix-seconds timestamp of the most recent run, or null when none exist. */

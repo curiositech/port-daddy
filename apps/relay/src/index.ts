@@ -15,6 +15,7 @@
  *   POST /v1/fleet/pause                       (operator; toggle fleet kill switch)
  *   GET  /v1/fleet/activity                    (operator; recent fleet runs)
  *   GET  /v1/fleet/health                      (operator; paused flag + last-run age)
+ *   GET  /v1/fleet/stats                       (operator; PR-review cost/token/model aggregates)
  *   GET  /v1/fleet/runs/:id                    (operator; one run + transcript)
  *   POST /v1/exchange                        (OIDC → PD card)
  *   POST /v1/revoke
@@ -53,6 +54,7 @@ import {
 import {
   handleFleetActivity,
   handleFleetRun,
+  handleFleetStats,
   handleFleetHealth,
   handleFleetPause,
 } from './fleet-observability.js';
@@ -137,6 +139,9 @@ export default {
     }
     else if (pathname === '/v1/fleet/health' && method === 'GET') {
       response = await handleFleetHealth(request, env);
+    }
+    else if (pathname === '/v1/fleet/stats' && method === 'GET') {
+      response = await handleFleetStats(request, env);
     }
     else if (pathname.startsWith('/v1/fleet/runs/') && method === 'GET') {
       const runId = decodeURIComponent(pathname.slice('/v1/fleet/runs/'.length));

@@ -125,7 +125,11 @@ CREATE TABLE IF NOT EXISTS fleet_runs (
   head_sha           TEXT    NOT NULL,            -- commit SHA
   conclusion         TEXT    NOT NULL,            -- 'success'|'failure'|'neutral'|'cancelled'|'pending'
   ships_csv          TEXT    NOT NULL,            -- comma-separated ship names that ran
-  neurons            INTEGER,                     -- reserved (Phase D): total AI token spend
+  neurons            INTEGER,                     -- total AI token spend (input+output) across all ships
+  input_tokens       INTEGER,                     -- summed Workers AI prompt tokens
+  output_tokens      INTEGER,                     -- summed Workers AI completion tokens
+  cost_usd           REAL,                        -- derived USD cost; NULL when no model priced
+  models_csv         TEXT,                        -- distinct Workers AI model ids used
   ms                 INTEGER NOT NULL,            -- wall-clock elapsed milliseconds
   created_at         INTEGER NOT NULL DEFAULT (unixepoch())
 );
