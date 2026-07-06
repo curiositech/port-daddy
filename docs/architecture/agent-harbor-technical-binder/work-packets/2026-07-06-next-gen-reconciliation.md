@@ -146,7 +146,7 @@ surprise the next reconciler.
 
 - Run the ADR renumbering sweep (12 numbers collide across 27 files, incl. the 0090 triple) — blocks unambiguous citation of any bare ADR-#, self-diagnosed twice in-repo and fixed zero times — depends on: an assigned owner, no code work required.
 - Fix Giant Squid Harness ADR cross-references (0051 still claims "no ADR-0091 exists"; pd-adr-090 cites a nonexistent "092") — three ADRs disagree on the harness's canonical number, confusing every future citation — depends on: doc-only edit; PR #545 (ADR-0091) already merged.
-- Reconcile roadmap-item counts (135 committed snapshot vs 37 live-DB vs 13 harbor-scoped, 53 scattered .db files found) — no roadmap total is trustworthy until this lands, undermining all prioritization — depends on: ADR-0090 database-distribution-and-sync plus ADR-0044 dark-launch resolver.
+- Reconcile roadmap-item counts (135 committed snapshot vs 37 live-DB vs 13 harbor-scoped, 53 scattered .db files found; figures from the 2026-07-06 roadmap ground-truth survey — live `pd doctor` plus direct SQLite reads of the active Cellar registry, point-in-time) — no roadmap total is trustworthy until this lands, undermining all prioritization — depends on: ADR-0090 database-distribution-and-sync plus ADR-0044 dark-launch resolver.
 - Fix `roadmap upsert`'s default harbor tag, which currently falls back to a per-worktree scratch harbor instead of canonical `port-daddy` — root cause of live-DB fragmentation across 24 harbor tags — depends on: the roadmap-count diagnosis above being accepted.
 - Fix the `parseCronInterval()` day-of-week/day-of-month gap — weekly ships (e.g. tenderfoot) silently degrade to ~10min/hourly polling, burning spawn budget unnoticed — depends on: new unit tests covering weekly/monthly cron shapes in fleet-engine.ts.
 - Repair two phantom-trigger ships — documentarian's missing `scripts/promote-stable.sh` producer, and developer-onboarding-sentinel's `schedule:daily` misrouted as a literal pub/sub channel — neither can fire automatically today — depends on: a routing fix in `lib/fleet/io-dispatch.ts`'s LEGACY_TRIGGER_KINDS. <!-- cite-exempt: scripts/promote-stable.sh does not exist yet — that is the bug -->
@@ -157,11 +157,26 @@ surprise the next reconciler.
 - Unify the three divergent GitHub-output code paths (`github-output.ts` with zero real importers, `outputs/github.ts`, `harbor-pilot.ts`) — the "known consumers" list matches neither the code nor the YAML's own prompt citations — depends on: a `fleet-ast.ts` consumer audit.
 - Enforce or remove the `daily_cap_usd` per-ship field — it is unenforced decoration today, since only the shared $8.50/day fleet pool and global spawn-rate caps are real, which misleads anyone reading `pd-fleet.yml` — depends on: cost-tracking hookup in `fleet-engine.ts`.
 
+### Harbor editor track (operator-ordered 2026-07-06; sequenced per ch05's own build order)
+
+The premortem on this packet correctly flagged that the backlog above had zero
+items for the gap list's own sharpest finding. Filled per direct operator order:
+
+- Finish P1 live keystroke editing — `editor_pane.rs`'s own comment says "Still read-only on screen: there is NO live keystroke editing in this slice"; the CRDT merge algebra is proven but nobody can type — depends on: GPUI text-input wiring into `buffer.rs` (the unmet half of P1's exit criterion).
+- Land P2 LAN multiplayer over the daemon bus (`Subscription::Editor`, Loro Protocol over tube SSE, ephemeral cursors mirrored into durable claims, `/blob` snapshots + immutable-note op-log) — in flight on branch `harbor-editor/p2-lan-multiplayer` as of 2026-07-06 — depends on: P1 live editing for a real two-human demo.
+- Build P3 agents-as-peers + claims (`claim_region`/`release_region`/`coordination_preflight` as agent-neutral MCP tools; `Conflicted`-band on predict-at-claim-acquire; first-granted-non-revoked wins; guard refusals never name a bypass) — the differentiating wedge vs Zed — depends on: P2.
+- Build P3.5 salvage + provenance (dead-replica op-log replay onto an advanced doc, claim inheritance, property tests on Loro replay convergence — not a happy-path demo) — the headline demo, structurally impossible in Zed's ephemeral-session model — depends on: P3 plus the P1 property-test harness.
+- Build P4 shared harbor + capability enforcement (`SyncTransport` trait formalized, Ed25519 card-gated join, out-of-cap Loro ops rejected at daemon ingress, `Gated`-tone refusal UX) — depends on: P3.5.
+- Build P5 remote topology + living-harbor viz — gated honestly: the `gpui-shaders` and `sound-design-and-audio` sibling skills do not exist on disk yet, so P5 ships the Vello-prototype path and silent audio, or those skills get built first — depends on: P4.
+- Fix the per-render allocation churn at `editor_pane.rs:234` (`line.text.clone()` for every visible line on every frame) — hot-path String clones violate the viewport-diff discipline P1's own quality gate required; lines should be cheap handles (`Arc<str>`/`Cow`) invalidated per-delta — depends on: nothing; ready now.
+- Specify the claim-ledger and presence data structures before P3 builds them (slotmap/generational keys for the claim pool, interned file symbols not `String` keys, run-length authorship spans, mpsc channel ownership for the SSE-to-render seam — never `Arc<Mutex<HashMap>>`) — the battle plan is silent on in-memory structure choices and that silence breeds the naive default — depends on: nothing; a doc section plus a review gate.
+- Establish a regular daemon+console release cadence — fix #676 (Bun 1.2.21 segfault crash-loop), unpin the operator machine from 3.23.0, and cut daemon/console/FleetBar versions on a regular beat rather than on crisis — depends on: #676 root-cause fix; `release.yml` already gates the trio together.
+
 ## Gap List: What "Finished" Actually Requires
 
 ### Shipped
 - Rust kernel macaroon/custody enforcement (`pd-anchor`) is live-wired into the TS daemon via `koffi`/`dlopen`, not a parallel demo.
-- pd-console the app (not just its design) ships real daemon-write mutations, a signed v3.24.1 release artifact, and a visual-proof harness.
+- pd-console the app (not just its design) ships real daemon-write mutations, a signed v3.24.1 release artifact, and a visual-proof harness — with the honest caveat the premortem demanded: issue #676 (Bun 1.2.21 segfault crash-loop) is still open and the operator's production daemon is pinned at 3.23.0, so "shipped" describes the artifact, not yet stable operation.
 - FleetBar is signed, notarized, and now release-gating — a release aborts if FleetBar fails to build.
 - Harbor editor P0/P1 proves the CRDT merge algebra correct (Loro, byte-identical multi-replica merge, per-line authorship).
 
