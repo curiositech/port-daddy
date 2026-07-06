@@ -21,6 +21,12 @@
 #
 #   4. Deploy:
 #        wrangler deploy
+#
+# CI auto-deploy: pushes to `main` under apps/fleet-executor/** are deployed by
+# .github/workflows/deploy-fleet-executor.yml. Because this real wrangler.toml is
+# gitignored, that workflow reconstructs it from the FLEET_EXECUTOR_WRANGLER_TOML
+# repo secret. After editing your local wrangler.toml, refresh the secret:
+#        gh secret set FLEET_EXECUTOR_WRANGLER_TOML < apps/fleet-executor/wrangler.toml
 
 name = "fleet-executor"
 main = "src/index.ts"
