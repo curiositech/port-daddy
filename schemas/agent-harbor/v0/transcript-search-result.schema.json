@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/transcript-search-result.schema.json",
+  "title": "TranscriptSearchResult",
+  "description": "The response to a TranscriptSearchQuery (joined by queryId). CITATION RULE (ADR-0097, normative): every hit — and the synthesized answer, when present — carries citations back to transcript events, files, or claims with minItems 1. A search result is NEVER a bare answer: the M6 gate is search 'how did we deploy X' and get CITED results (ch07). Snippets are convenience copies; the citation is the truth. BUDGET RULE: the result echoes the query's configured budget next to actual usage and an explicit truncated flag, making 'memory retrieval never exceeds configured budget' auditable per response. FRESHNESS: results are a projection over the ledger; the freshness envelope (stale/lastLedgerSeq/headSeq) follows the C-routes convention — stale results are labeled, never hidden, and never authorize anything. Citation cross-field enforcement is runtime, per the compaction-packet pattern.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.transcript-search-result.v0" },
+    "queryId": { "type": "string", "minLength": 1, "description": "Joins back to the TranscriptSearchQuery." },
+    "completedAt": { "type": "string", "minLength": 1 },
+    "engine": {
+      "type": "object",
+      "description": "What actually ran, for reproducibility and semantic-drift audits.",
+      "properties": {
+        "mode": { "enum": ["hybrid", "semantic", "lexical"] },
+        "embeddingModel": { "type": ["string", "null"], "description": "Versioned embedder id used for the dense leg, when semantic/hybrid." },
+        "fusion": { "enum": ["rrf", null] },
+        "reranked": { "type": "boolean" }
+      },
+      "required": ["mode"]
+    },
+    "budget": {
+      "type": "object",
+      "description": "Configured budget vs actual usage — the auditable form of the M6 budget gate.",
+      "properties": {
+        "configured": {
+          "type": "object",
+          "properties": {
+            "maxResults": { "type": "integer", "minimum": 1 },
+            "maxContextTokens": { "type": ["integer", "null"], "minimum": 1 }
+          },
+          "required": ["maxResults"]
+        },
+        "used": {
+          "type": "object",
+          "properties": {
+            "results": { "type": "integer", "minimum": 0 },
+            "contextTokensEstimate": { "type": ["integer", "null"], "minimum": 0 }
+          },
+          "required": ["results"]
+        },
+        "truncated": { "type": "boolean", "description": "True when more matches existed than the budget allowed. Truncation is data, not silence." }
+      },
+      "required": ["configured", "used", "truncated"]
+    },
+    "hits": {
+      "type": "array",
+      "description": "Ranked matches. May be empty (an honest miss); each present hit must be cited.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rank": { "type": "integer", "minimum": 1 },
+          "score": { "type": "number", "minimum": 0 },
+          "source": { "enum": ["transcript-events", "notes", "files", "diffs", "prs", "outcomes", "memory-episodes", "receipts"] },
+          "snippet": { "type": ["string", "null"], "description": "Convenience excerpt, budget-weighted and redaction-filtered. Never the authority — the citation is." },
+          "agentNodeId": { "type": ["string", "null"], "description": "Join key when the hit is agent-scoped." },
+          "sessionId": { "type": ["string", "null"] },
+          "runId": { "type": ["string", "null"] },
+          "occurredAt": { "type": ["string", "null"] },
+          "citations": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": { "enum": ["transcript-event", "file", "claim"] },
+                "transcriptEventId": { "type": "string", "minLength": 1 },
+                "span": { "type": "object", "properties": { "start": { "type": "integer", "minimum": 0 }, "end": { "type": "integer", "minimum": 0 } } },
+                "fileRef": { "type": "string", "minLength": 1 },
+                "claimRef": { "type": "string", "minLength": 1 },
+                "sessionId": { "type": "string", "minLength": 1 }
+              },
+              "required": ["kind"]
+            }
+          }
+        },
+        "required": ["rank", "source", "citations"]
+      }
+    },
+    "answer": {
+      "type": "object",
+      "description": "Optional synthesized answer over the hits. When present it must carry its own citations (minItems 1) — the never-a-bare-answer rule applies to synthesis hardest of all.",
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "citations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": { "enum": ["transcript-event", "file", "claim"] },
+              "transcriptEventId": { "type": "string", "minLength": 1 },
+              "span": { "type": "object", "properties": { "start": { "type": "integer", "minimum": 0 }, "end": { "type": "integer", "minimum": 0 } } },
+              "fileRef": { "type": "string", "minLength": 1 },
+              "claimRef": { "type": "string", "minLength": 1 },
+              "sessionId": { "type": "string", "minLength": 1 }
+            },
+            "required": ["kind"]
+          }
+        }
+      },
+      "required": ["text", "citations"]
+    },
+    "projection": {
+      "type": "object",
+      "description": "Freshness envelope (C-routes convention): stale projections are labeled, never hidden, and never used for command authorization.",
+      "properties": {
+        "stale": { "type": "boolean" },
+        "lastLedgerSeq": { "type": ["integer", "null"], "minimum": 0 },
+        "headSeq": { "type": ["integer", "null"], "minimum": 0 }
+      },
+      "required": ["stale"]
+    }
+  },
+  "required": ["schema", "queryId", "completedAt", "engine", "budget", "hits"],
+  "additionalProperties": true
+}

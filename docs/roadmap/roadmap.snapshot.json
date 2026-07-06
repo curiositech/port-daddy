@@ -2,7 +2,7 @@
   "generatedAt": 1783315035961,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 131,
+  "count": 133,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -663,6 +663,11 @@
       "slug": "visual-task-agent-intake",
       "status": "now",
       "summaryMd": "FleetBar/Fleet Control Center visual task intake should let operators send annotated screenshots or page context to agents without exposing dispatch/worker internals."
+    },
+    {
+      "slug": "adr-0097-m6-context-memory-search-contracts",
+      "status": "now",
+      "summaryMd": "M6 F0-delta: freeze CompactionPacket, MemoryEpisode, TranscriptSearchQuery/Result, read-only BlackboardItem v0 contracts (ADR-0097, binder ch04/ch07 M6)"
     }
   ]
 }
