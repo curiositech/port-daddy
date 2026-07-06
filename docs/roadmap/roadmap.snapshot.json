@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1783288096248,
+  "generatedAt": 1783301546497,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 131,
+  "count": 130,
   "items": [
     {
       "slug": "active-agent-roster",
@@ -385,6 +385,11 @@
       "summaryMd": "Agent Harbor C8 \u2014 setup and doctor remediation (binder ch18 Work Order C8)"
     },
     {
+      "slug": "agent-harbor-daemon-routes",
+      "status": "backlog",
+      "summaryMd": "feat(agent-harbor): C-routes daemon HTTP layer \u2014 ch09 read API over C1 projections (closes I0 Contradiction 1)"
+    },
+    {
       "slug": "agent-harbor-f0-contract-freeze",
       "status": "now",
       "summaryMd": "Agent Harbor v0 contract freeze \u2014 ADR-0095 + 11 schemas + fixture tests (binder ch18 Work Order F0)"
@@ -493,11 +498,6 @@
       "slug": "fleet-hitl-proposal-queue",
       "status": "backlog",
       "summaryMd": "Add fleet HITL proposal queue"
-    },
-    {
-      "slug": "fleetbar-developer-id-signing",
-      "status": "backlog",
-      "summaryMd": "fix(release): Developer ID sign + notarize FleetBar.app (stop shipping a Gatekeeper-quarantined app)"
     },
     {
       "slug": "fleetbar-developer-id-signing",
@@ -643,11 +643,6 @@
       "slug": "surface-triad-redesign",
       "status": "backlog",
       "summaryMd": "design: surface-triad redesign + portdaddy.dev accounts/login + remote harbor co-op"
-    },
-    {
-      "slug": "visual-evidence-doctrine",
-      "status": "backlog",
-      "summaryMd": "docs(skill): visual-evidence doctrine \u2014 non-interruptive screenshot capture for every agent"
     },
     {
       "slug": "visual-evidence-doctrine",
