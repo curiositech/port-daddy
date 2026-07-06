@@ -2,7 +2,7 @@
   "generatedAt": 1783315035961,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 134,
+  "count": 135,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -668,6 +668,11 @@
       "slug": "adr-0097-m6-context-memory-search-contracts",
       "status": "now",
       "summaryMd": "M6 F0-delta: freeze CompactionPacket, MemoryEpisode, TranscriptSearchQuery/Result, read-only BlackboardItem v0 contracts (ADR-0097, binder ch04/ch07 M6)"
+    },
+    {
+      "slug": "adr-0097-phase-2-transcript-search",
+      "status": "now",
+      "summaryMd": "M6 phase 2: hybrid (BM25 + shared MiniLM, RRF) transcript search over the C1 event ledger returning budget-audited, always-cited TranscriptSearchResult objects; pd memory search CLI (ADR-0097, binder ch04/ch07 M6 gate lines 3-4)"
     },
     {
       "slug": "adr-0097-phase-1-compaction-chain",
