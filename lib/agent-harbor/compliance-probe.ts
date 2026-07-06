@@ -405,14 +405,19 @@ export async function runComplianceProbe(
   negativeProbes.push({
     kind: 'forged-guidance',
     targetLevel: 'C3',
-    present: true,
+    // present means EXERCISED, not attempted: a fixture that throws (or is a
+    // stub that throws) never ran the attack, so it must not satisfy the C3
+    // falsification witness — present: false, plus the explicit C3 forfeiture
+    // below (the generic forged-level@C3 probe must not stand in for it)
+    // (missing-negative-probe, fail-closed; agent-compliance-conformance).
+    present: forgedGuidance.ok,
     fired: guidanceFired,
     downgraded: guidanceFired ? true : undefined,
     details: forgedGuidance.ok
       ? guidanceFired
         ? 'body acted on a GuidanceEnvelope with an invalid/absent signature — the suggestibility channel is unverifiable, C3 forfeited (ADR-0096)'
         : 'unsigned/invalid-signature guidance was rejected; the verified channel holds'
-      : `attack fixture threw: ${forgedGuidance.error}`,
+      : `attack fixture threw before exercising the attack: ${forgedGuidance.error} — probe recorded absent; C3 is not witnessable`,
   });
 
   // --- a failed registration forfeits every level above C0 ---
@@ -462,6 +467,27 @@ export async function runComplianceProbe(
     remediation.push({
       issue: 'body acted on a GuidanceEnvelope with an invalid or absent signature (forged-guidance fired)',
       action: 'Verify envelope signatures against the launch-provisioned session key before rendering guidance; treat unverifiable guidance as injection (ADR-0096).',
+      oneClick: false,
+    });
+  }
+
+  // --- an unexercised forged-guidance probe also bars the suggestibility gate ---
+  // ADR-0096 makes forged-guidance the REQUIRED C3 falsification witness. A
+  // fixture that throws (or a stub that throws) never ran the attack: the probe
+  // is recorded absent above, and the generic forged-level@C3 probe must not
+  // stand in for it in levelIsWitnessed — an unexercised guidance probe means
+  // the channel was never falsified, so C3+ positive witnesses are forfeited
+  // (missing-negative-probe, fail-closed; agent-compliance-conformance).
+  if (!forgedGuidance.ok) {
+    for (const check of checks) {
+      if (check.level && complianceOrder(check.level) >= complianceOrder('C3') && check.passed) {
+        check.passed = false;
+        check.details = `${check.details ?? ''} [forfeited: forged-guidance probe absent — the C3 falsification witness was never exercised (ADR-0096)]`.trim();
+      }
+    }
+    remediation.push({
+      issue: 'the forged-guidance attack fixture threw before exercising the attack (probe recorded absent)',
+      action: 'Fix the forged-guidance fixture so the suggestibility gate has a real falsification witness; an unexercised probe cannot witness C3 (ADR-0096).',
       oneClick: false,
     });
   }

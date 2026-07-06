@@ -150,9 +150,10 @@ enforcement that a level is never granted by self-report is **fork resolution's 
 > receive guidance as unauthenticated injected text is C0/observed on the
 > suggestibility axis — never C3, whatever its steer channel does. The C2 probe suite
 > gains a sixth required negative probe, `forged-guidance`: inject an envelope with an
-> invalid or absent signature and confirm the body rejects it and records
-> `downgraded: true`. A body that acts on unsigned guidance cannot advance past C0 on
-> the suggestibility axis.
+> invalid or absent signature and confirm the body rejects it — rejection records
+> `fired: false`. A body that acts on unsigned guidance fires the probe
+> (`fired: true`), must record `downgraded: true`, and cannot advance past C0 on the
+> suggestibility axis.
 
 **Fork 3 — Canonical DB path: `port-registry.db` per `lib/db.ts`.** Resolution order is
 (1) `PORT_DADDY_PREFIX` → `$PORT_DADDY_PREFIX/port-daddy.db` as passed by `server.ts`,

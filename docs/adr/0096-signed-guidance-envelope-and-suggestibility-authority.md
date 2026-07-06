@@ -169,8 +169,9 @@ Amend ADR-0095's C3 definition: **C3-Suggestible requires a verifiable guidance
 channel.** The C2 probe suite gains a sixth negative probe:
 
 - `forged-guidance`: inject a `GuidanceEnvelope` with an invalid/absent signature
-  and confirm the body rejects it and records `downgraded:true`. A body that
-  acts on unsigned guidance cannot advance past C0 on the suggestibility axis.
+  and confirm the body rejects it — rejection records `fired:false`. A body that
+  acts on unsigned guidance fires the probe (`fired:true`), must record
+  `downgraded:true`, and cannot advance past C0 on the suggestibility axis.
 
 This makes the signing requirement falsifiable and daemon-witnessed, consistent
 with F0's "levels are witnessed, not claimed."

@@ -33,7 +33,7 @@
       "description": "Proves *operator* intent, not just daemon authorship (ADR-0096 mechanism 3). loopback = solo local operator (the daemon acts as the operator's agent); macaroon = team/remote — the attenuated macaroon chain (ADR-0053 lineage) is mandatory so a teammate's guidance is scoped and auditable.",
       "properties": {
         "mode": { "enum": ["loopback", "macaroon"] },
-        "authorityRef": { "type": ["string", "null"], "description": "The attenuated macaroon id, when mode=macaroon." },
+        "authorityRef": { "type": ["string", "null"], "description": "The attenuated macaroon id. NORMATIVELY REQUIRED (non-null) when mode=macaroon: the frozen F0 keyword subset (type/properties/required/enum/const/additionalProperties/items/min-max, per compliance-invariants.mjs) cannot express a conditional requirement, so the cross-field rule is enforced at runtime — envelope assembly refuses macaroon-mode without an authorityRef, the same normative-module pattern as the witnessing invariant." },
         "operatorAction": { "enum": ["fleetbar-gate-approval", "pd-cli", "console-click", "daemon-policy", null] }
       },
       "required": ["mode"]
