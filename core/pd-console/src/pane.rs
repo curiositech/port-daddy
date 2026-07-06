@@ -419,9 +419,10 @@ pub enum Subscription {
     /// (`GET /msg/:channel/subscribe`) — the Harbor Editor's LAN-multiplayer
     /// transport (P2 slice 1). `channel` is `editor_sync::channel_for_path(path)`.
     /// The same declare-intent → main.rs opens the SSE → drain-and-fold pattern the
-    /// `Agent` subscription uses, but the frames are Loro op frames
-    /// (`editor_sync::decode_frame`) folded into the surface's buffer rather than
-    /// agent transcript envelopes. Carries no cursors/presence yet (slice 2+).
+    /// `Agent` subscription uses. The single channel now carries BOTH lanes: durable
+    /// Loro op frames (`editor_sync::decode_frame` → the buffer) and slice-2 lossy
+    /// presence frames (`editor_sync::decode_presence_frame` → the remote-cursor
+    /// pool), routed by frame kind so the two never cross.
     Editor { channel: String },
 }
 

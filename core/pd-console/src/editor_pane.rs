@@ -29,9 +29,18 @@
 //! resolved from `Tone`.
 
 use crate::agent::DaemonClient;
-use crate::buffer::{HarborBuffer, PeerId};
+use crate::buffer::{peer_id_for_identity, HarborBuffer, PeerId};
+use crate::editor_sync::{
+    decode_presence_frame, encode_presence_frame, PresenceDebouncer, PresenceState, PresenceStore,
+};
 use crate::pane::{Block, Pane, Subscription, Tone};
 use anyhow::Result;
+use std::collections::BTreeMap;
+
+/// Minimum wall-clock gap (ms) between two presence broadcasts. Caret moves fire
+/// faster than anyone reads; one send per ~60ms is smooth to a watcher yet keeps
+/// the tube quiet. The gate is [`PresenceDebouncer`]; this is only its interval.
+const PRESENCE_SEND_INTERVAL_MS: i64 = 60;
 
 /// Cap on how many lines a single file contributes to the view. The battle-plan's
 /// large-file virtualization is a P1+ concern; this slice just must never let a
@@ -104,8 +113,25 @@ pub struct EditorPane {
     /// The per-file tube channel this editor's op stream rides on (P2 slice 1),
     /// derived once from `path` via [`crate::editor_sync::channel_for_path`]. Two
     /// replicas opening the same file land on the same channel and exchange Loro op
-    /// frames over it.
+    /// frames over it. Presence (slice 2) rides this SAME channel under a distinct
+    /// frame kind.
     channel: String,
+    /// P2 slice 2 — the ephemeral presence lane. All three fields are **owned by
+    /// this pane and touched only on the render/main thread** (in the gpui face,
+    /// via `cx`). The SSE→render seam stays a plain mpsc of frame bytes (as slice 1
+    /// established); nothing here is shared across threads, so there is deliberately
+    /// no `Arc<Mutex<..>>`.
+    ///
+    /// `presence` is the LWW substrate (Loro `EphemeralStore`); `remote` is the
+    /// derived, render-facing pool keyed by the `Copy` `PeerId` scalar (a plain
+    /// `BTreeMap`, not a slotmap — the PeerId is already the stable handle); and
+    /// `presence_out` debounces the local caret's outbound frames.
+    presence: PresenceStore,
+    remote: BTreeMap<PeerId, PresenceState>,
+    presence_out: PresenceDebouncer,
+    /// The local replica's own latest caret/selection/viewport — the source the
+    /// durable region-claim mirror and the next outbound presence frame read from.
+    local_presence: PresenceState,
 }
 
 impl EditorPane {
@@ -125,18 +151,28 @@ impl EditorPane {
         identity: impl Into<String>,
     ) -> Self {
         let path = path.into();
+        let identity = identity.into();
         // Derive the sync channel once at construction — it is a pure function of
         // the path, so it is stable for the pane's whole life (and matches every
         // other replica that opens the same file).
         let channel = crate::editor_sync::channel_for_path(&path);
+        // Mint the local replica id from the identity directly (same FNV-1a as the
+        // buffer) so presence has a stable local PeerId even before a file loads —
+        // the presence lane does not depend on the buffer being open.
+        let local_peer = peer_id_for_identity(&identity);
         Self {
             path,
             region,
-            identity: identity.into(),
+            identity,
             buffer: None,
             truncated: false,
             error: None,
             channel,
+            presence: PresenceStore::new(local_peer),
+            remote: BTreeMap::new(),
+            presence_out: PresenceDebouncer::new(PRESENCE_SEND_INTERVAL_MS),
+            // A bare caret at the top of the file until the input layer moves it.
+            local_presence: PresenceState::caret(1, 0, 1, 1),
         }
     }
 
@@ -190,6 +226,103 @@ impl EditorPane {
             return false; // our own ops, echoed back — nothing to fold
         }
         crate::editor_sync::apply_frame(buffer, &frame).is_ok()
+    }
+
+    // ── P2 slice 2: presence lane ─────────────────────────────────────────────
+    //
+    // The whole lane is edge-triggered: every method that could change what is on
+    // screen returns `true`/`Some` EXACTLY when something changed, and `false`/
+    // `None` when nothing did. The gpui face calls `cx.notify()` only on those
+    // edges, so a quiet file with live remote cursors schedules zero repaints — no
+    // window-wide `repeat()` animation, no polling churn. (Proven by
+    // `idle_screen_does_not_rerender_with_multiple_remote_cursors`.)
+
+    /// Update where the LOCAL caret/selection/viewport is and queue it for a
+    /// debounced broadcast. This is the injection point for the (not-yet-built)
+    /// keystroke input layer, mirroring how `HarborBuffer::insert_authored` is the
+    /// injection point for edits. Recording is cheap and does not itself send or
+    /// repaint — [`take_presence_broadcast`](Self::take_presence_broadcast) does.
+    pub fn set_local_presence(&mut self, state: PresenceState) {
+        self.local_presence = state;
+        self.presence_out.record(state);
+    }
+
+    /// The local caret's current presence (what a broadcast / region-claim reads).
+    pub fn local_presence(&self) -> PresenceState {
+        self.local_presence
+    }
+
+    /// If a local move is due (past the debounce interval), publish it to the
+    /// store and return the encoded presence frame text for the caller to
+    /// `DaemonClient::send_presence` up this file's [`channel`](Self::channel).
+    /// `None` when nothing is due — an idle caret sends nothing.
+    pub fn take_presence_broadcast(&mut self, now_ms: i64) -> Option<String> {
+        let state = self.presence_out.take_due(now_ms)?;
+        let blob = self.presence.publish(state);
+        Some(encode_presence_frame(self.presence.local(), &blob))
+    }
+
+    /// Fold one presence frame (a `TubeMsg::text` off this file's channel) into the
+    /// remote-cursor pool. Returns whether the visible pool actually CHANGED — i.e.
+    /// whether the gpui face should `cx.notify()`. A non-presence frame (an op
+    /// frame, handshake, garbage), our own presence echoed back, or a stale
+    /// (older-timestamp LWW) update all fold to **no change** and return `false`,
+    /// which is what keeps an idle screen from re-rendering.
+    pub fn ingest_presence(&mut self, text: &str) -> bool {
+        let Some(frame) = decode_presence_frame(text) else {
+            return false;
+        };
+        if frame.peer == self.presence.local() {
+            return false; // our own presence, echoed back — nothing to pool
+        }
+        if self.presence.apply(&frame.eph).is_err() {
+            return false;
+        }
+        self.sync_remote_pool()
+    }
+
+    /// Drop remote cursors whose presence has aged past the timeout. Returns
+    /// whether anyone was actually removed (a repaint edge); before the timeout it
+    /// removes nobody and returns `false`, so the idle tick that calls this stays
+    /// silent. The caller runs it on its normal refresh cadence.
+    pub fn expire_presence(&mut self) -> bool {
+        self.presence.expire();
+        self.sync_remote_pool()
+    }
+
+    /// The current pool of remote cursors, keyed by their `Copy` `PeerId`. A cheap
+    /// borrow of owned state — reading it never mutates and never repaints.
+    pub fn remote_cursors(&self) -> &BTreeMap<PeerId, PresenceState> {
+        &self.remote
+    }
+
+    /// Rebuild the cached render pool from the store and report whether it changed.
+    /// The one place `self.remote` is written; every presence mutation funnels
+    /// through here so the change signal is computed in exactly one spot.
+    fn sync_remote_pool(&mut self) -> bool {
+        let next = self.presence.remote_cursors();
+        if next != self.remote {
+            self.remote = next;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// The durable claims-table mirror for the LOCAL selection: the `(path, start,
+    /// end)` line-region this replica has selected, or `None` for a bare caret.
+    ///
+    /// Presence is ephemeral and lossy; a real multi-line *selection* is a stronger
+    /// signal — "I am working here" — that belongs in the durable claims table.
+    /// The caller feeds this to [`crate::agent::DaemonClient::claim_region`], which
+    /// POSTs a region to the SAME `POST /sessions/:id/files` endpoint `pd session
+    /// files add` uses — we REUSE the claims store, never fork a parallel one.
+    pub fn region_claim(&self) -> Option<(String, u32, u32)> {
+        if !self.local_presence.has_selection() {
+            return None;
+        }
+        let (start, end) = self.local_presence.selection_line_span();
+        Some((self.path.clone(), start, end))
     }
 
     /// Is the 1-based line `n` inside the bound region (inclusive)?
@@ -253,6 +386,32 @@ impl Pane for EditorPane {
             blocks.push(Block::Flag {
                 letter: 'A',
                 label: "agent replica (merged ops)".into(),
+                tone: Tone::Engaged,
+            });
+        }
+
+        // Live presence: one legend flag per REMOTE cursor (slice 2). This is
+        // O(remote peers) — a handful — NOT O(lines): we deliberately do not stamp a
+        // glyph into each visible line's gutter (that would add a per-line clone to
+        // the hot render path). `self.remote` is BTree-ordered, so the flags render
+        // in a stable order frame to frame (no flicker). The gpui face animates each
+        // caret's glide as an opacity/offset transition on its own leaf element; the
+        // Blocks here are the render-agnostic, TUI-visible shadow of that.
+        for (peer, state) in &self.remote {
+            let (sel_lo, sel_hi) = state.selection_line_span();
+            let where_ = if state.has_selection() {
+                format!("sel L{sel_lo}–L{sel_hi}")
+            } else {
+                format!("caret L{}", state.cursor_line)
+            };
+            blocks.push(Block::Flag {
+                letter: 'C',
+                label: format!(
+                    "peer {} · {where_} · view L{}–L{}",
+                    author_tag(*peer),
+                    state.top_line,
+                    state.bottom_line
+                ),
                 tone: Tone::Engaged,
             });
         }
@@ -552,5 +711,154 @@ mod tests {
         assert!(!pane.ingest_frame(&self_frame), "our own echoed ops must not re-fold");
         assert!(!pane.ingest_frame("not a frame at all"), "garbage is ignored");
         assert_eq!(rows(&pane.view()).len(), 2, "buffer unchanged by self-echo/garbage");
+    }
+
+    // ── P2 slice 2: presence lane ─────────────────────────────────────────────
+
+    /// Count how many presence ('C') legend flags a view emits — how many remote
+    /// cursors are on screen.
+    fn cursor_flags(blocks: &[Block]) -> usize {
+        blocks
+            .iter()
+            .filter(|b| matches!(b, Block::Flag { letter: 'C', .. }))
+            .count()
+    }
+
+    /// Encode a presence frame from a distinct remote replica, the exact string
+    /// that would arrive on this pane's channel subscription.
+    fn remote_presence_frame(identity: &str, state: PresenceState) -> String {
+        let peer = peer_id_for_identity(identity);
+        let store = PresenceStore::new(peer);
+        encode_presence_frame(peer, &store.publish(state))
+    }
+
+    /// A remote replica's cursor rides the tube-shaped presence frame, lands in the
+    /// pane's pool keyed by its PeerId, and renders as a presence legend flag.
+    #[test]
+    fn remote_presence_frame_pools_and_renders() {
+        let path = write_temp("presence-pane.txt", "l1\nl2\nl3\nl4\n");
+        let mut pane = make_pane(&path, None);
+        assert!(pane.remote_cursors().is_empty(), "no remote cursors before any frame");
+
+        let a = "port-daddy:editor:agent-A";
+        let b = "port-daddy:editor:agent-B";
+        let frame_a = remote_presence_frame(a, PresenceState::caret(2, 0, 1, 4));
+        let frame_b = remote_presence_frame(
+            b,
+            PresenceState { cursor_line: 3, cursor_col: 1, anchor_line: 4, anchor_col: 0, top_line: 1, bottom_line: 4 },
+        );
+
+        assert!(pane.ingest_presence(&frame_a), "A's cursor is a real change");
+        assert!(pane.ingest_presence(&frame_b), "B's cursor is a real change");
+
+        let pool = pane.remote_cursors();
+        assert_eq!(pool.len(), 2, "both remote cursors pooled");
+        assert_eq!(pool.get(&peer_id_for_identity(a)).map(|s| s.cursor_line), Some(2));
+        assert_eq!(cursor_flags(&pane.view()), 2, "two presence legend flags render");
+
+        // A non-presence frame (an op frame) and garbage are ignored by the lane.
+        let op = crate::editor_sync::encode_frame(peer_id_for_identity(a), &[1, 2, 3]);
+        assert!(!pane.ingest_presence(&op), "an op frame is not presence");
+        assert!(!pane.ingest_presence("not a frame"), "garbage is ignored");
+    }
+
+    /// The local caret's outbound presence is debounced: a burst of moves flushes
+    /// at most once per interval, and the frame carries THIS replica's PeerId.
+    #[test]
+    fn local_presence_broadcast_is_debounced() {
+        let path = write_temp("presence-out.txt", "hello\n");
+        let mut pane = make_pane(&path, None);
+        let local = peer_id_for_identity("port-daddy:console:operator");
+
+        // Nothing moved yet → nothing to broadcast.
+        assert!(pane.take_presence_broadcast(0).is_none());
+
+        // A burst of caret moves before the first tick coalesces to the latest.
+        pane.set_local_presence(PresenceState::caret(1, 0, 1, 1));
+        pane.set_local_presence(PresenceState::caret(1, 3, 1, 1));
+        let frame = pane.take_presence_broadcast(1_000).expect("a due move broadcasts");
+        let decoded = decode_presence_frame(&frame).expect("the broadcast is a presence frame");
+        assert_eq!(decoded.peer, local, "the frame is attributed to THIS replica");
+
+        // Within the interval, a further move does not flush again.
+        pane.set_local_presence(PresenceState::caret(1, 4, 1, 1));
+        assert!(pane.take_presence_broadcast(1_020).is_none(), "suppressed inside the debounce window");
+        // Past the interval it flushes.
+        assert!(pane.take_presence_broadcast(1_500).is_some(), "flushes after the interval");
+    }
+
+    /// A real multi-line local selection mirrors into a durable region claim; a
+    /// bare caret does not (nothing durable to record).
+    #[test]
+    fn local_selection_mirrors_to_a_durable_region_claim() {
+        let path = write_temp("claim-mirror.txt", "a\nb\nc\nd\ne\n");
+        let mut pane = make_pane(&path, None);
+
+        // A bare caret → no region claim.
+        pane.set_local_presence(PresenceState::caret(2, 0, 1, 5));
+        assert_eq!(pane.region_claim(), None, "a caret is not a durable claim");
+
+        // Select lines 2..=4 (drag upward: caret above anchor) → a region claim
+        // spanning 2..4, mirrored against the file's real path.
+        pane.set_local_presence(PresenceState {
+            cursor_line: 2, cursor_col: 0, anchor_line: 4, anchor_col: 1, top_line: 1, bottom_line: 5,
+        });
+        assert_eq!(
+            pane.region_claim(),
+            Some((path.clone(), 2, 4)),
+            "a selection mirrors to a (path, startLine, endLine) region claim"
+        );
+    }
+
+    /// THE P2 SLICE-2 GATE — an idle screen with 2+ remote cursors must schedule
+    /// ZERO re-renders. We drive ~4 seconds of 60fps idle ticks with two remote
+    /// cursors established and assert that every repaint-gating call
+    /// (`ingest_presence`/`take_presence_broadcast`/`expire_presence`) reports NO
+    /// change, and that pure reads (`view`/`remote_cursors`) never mutate. This is
+    /// the machine-checked proof behind "no per-peer window-wide `repeat()`": the
+    /// gpui face notifies only on the change edges this test holds at zero.
+    #[test]
+    fn idle_screen_does_not_rerender_with_multiple_remote_cursors() {
+        let path = write_temp("presence-idle.txt", "l1\nl2\nl3\nl4\nl5\n");
+        let mut pane = make_pane(&path, None);
+
+        // Establish two remote cursors — two genuine repaint edges.
+        let a = "port-daddy:editor:agent-A";
+        let b = "port-daddy:editor:agent-B";
+        let store_a = PresenceStore::new(peer_id_for_identity(a));
+        let store_b = PresenceStore::new(peer_id_for_identity(b));
+        let frame_a = encode_presence_frame(store_a.local(), &store_a.publish(PresenceState::caret(2, 0, 1, 5)));
+        let frame_b = encode_presence_frame(store_b.local(), &store_b.publish(PresenceState::caret(4, 1, 1, 5)));
+        assert!(pane.ingest_presence(&frame_a), "A's first cursor repaints once");
+        assert!(pane.ingest_presence(&frame_b), "B's first cursor repaints once");
+        assert_eq!(pane.remote_cursors().len(), 2, "two cursors are on screen");
+
+        // Idle: nothing changes. Count every repaint-worthy edge over 240 ticks.
+        let mut repaints = 0usize;
+        for tick in 0..240i64 {
+            let now = 1_000 + tick * 16; // ~60fps
+            // Pure reads must never mutate or repaint on their own.
+            let _ = pane.view();
+            let _ = pane.remote_cursors();
+            // Re-delivering the SAME frames (stale LWW) folds to no change.
+            if pane.ingest_presence(&frame_a) { repaints += 1; }
+            if pane.ingest_presence(&frame_b) { repaints += 1; }
+            // No local movement → nothing to broadcast.
+            if pane.take_presence_broadcast(now).is_some() { repaints += 1; }
+            // Expiry before the timeout removes nobody.
+            if pane.expire_presence() { repaints += 1; }
+        }
+        assert_eq!(repaints, 0, "an idle screen with 2+ remote cursors must not re-render");
+        assert_eq!(pane.remote_cursors().len(), 2, "both cursors still present after idle");
+
+        // The gate is not vacuous: a GENUINE new remote cursor repaints exactly
+        // once (a new PeerId is unambiguously a pool change, independent of clock
+        // resolution), and replaying that same frame does not.
+        let c = "port-daddy:editor:agent-C";
+        let store_c = PresenceStore::new(peer_id_for_identity(c));
+        let frame_c = encode_presence_frame(store_c.local(), &store_c.publish(PresenceState::caret(5, 2, 1, 5)));
+        assert!(pane.ingest_presence(&frame_c), "a genuine new cursor re-renders once");
+        assert!(!pane.ingest_presence(&frame_c), "replaying that same frame does not re-render");
+        assert_eq!(pane.remote_cursors().len(), 3, "the new cursor joined the pool");
     }
 }

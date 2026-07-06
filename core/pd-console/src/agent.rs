@@ -579,6 +579,47 @@ impl DaemonClient {
         Ok(())
     }
 
+    /// Broadcast one Harbor Editor **presence** frame (slice 2) up a file's tube
+    /// channel. Same wire as [`tube_send`](Self::tube_send) — presence rides the
+    /// SAME per-file channel as the op stream — but stamped with a distinct
+    /// `sender` so a receiver's own-echo filter and any log reader can tell the
+    /// lossy cursor lane apart from operator/agent chatter. `frame_text` is what
+    /// [`crate::editor_pane::EditorPane::take_presence_broadcast`] returns.
+    pub async fn send_presence(&self, channel: &str, frame_text: &str) -> Result<()> {
+        self.tube_send(channel, frame_text, "presence").await
+    }
+
+    /// Mirror an editor's local SELECTION into the durable claims table — the
+    /// stronger, persistent "I am working here" signal that outlives the ephemeral
+    /// cursor lane. This REUSES the exact endpoint `pd session files add` /
+    /// `POST /sessions/:id/files` drives (a region reservation), rather than
+    /// inventing a parallel presence store: the claim shows up in `/files`, the
+    /// claims pane, and conflict prediction like any other region claim.
+    ///
+    /// `start_line`/`end_line` are 1-based inclusive (the route's `startLine`/
+    /// `endLine` contract). `agent_id` attributes the claim to the acting replica's
+    /// PD identity. A 4xx/5xx (unknown session, conflict without force) surfaces as
+    /// an error rather than a silent no-op.
+    pub async fn claim_region(
+        &self,
+        session_id: &str,
+        path: &str,
+        start_line: u32,
+        end_line: u32,
+        agent_id: &str,
+    ) -> Result<()> {
+        let body = region_claim_body(path, start_line, end_line, agent_id);
+        let resp = self
+            .http
+            .post(format!("{}/sessions/{session_id}/files", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /sessions/:id/files")?;
+        ensure_success(resp, "claim_region").await?;
+        Ok(())
+    }
+
     /// Pull replies after `cursor`. Returns (new_cursor, messages).
     pub async fn tube_poll(&self, channel: &str, cursor: u64) -> Result<(u64, Vec<TubeMsg>)> {
         let resp = self
@@ -1038,6 +1079,28 @@ impl DaemonClient {
 /// `agent.tube` frames into a line without re-implementing the shape walk.
 pub fn body_text(body: &serde_json::Value) -> String {
     extract_text(Some(body))
+}
+
+/// Build the `POST /sessions/:id/files` body that mirrors an editor selection into
+/// a durable region claim. Kept as a pure function so the shape is a checked
+/// contract (in `region_claim_body_matches_the_sessions_files_region_schema`)
+/// against the route's `regions: [{ path, startLine, endLine }]` schema (1-based
+/// inclusive lines) without needing a live daemon. `agentId` attributes the claim
+/// to the acting replica.
+///
+/// `allow(dead_code)`: its caller [`DaemonClient::claim_region`] is a `pub` method
+/// (exempt from the lint) that is not yet invoked from `main.rs` — the same
+/// not-yet-live status the slice-1 receive path had. The test exercises it.
+#[allow(dead_code)]
+fn region_claim_body(path: &str, start_line: u32, end_line: u32, agent_id: &str) -> serde_json::Value {
+    serde_json::json!({
+        "regions": [{
+            "path": path,
+            "startLine": start_line,
+            "endLine": end_line,
+        }],
+        "agentId": agent_id,
+    })
 }
 
 /// A payload may be a string, `{text:...}`, or `{content:...}` — pull readable text.
@@ -1547,5 +1610,28 @@ mod tests {
         assert_eq!(bare.text, "hello");
         assert_eq!(bare.id, 0);
         assert_eq!(bare.sender, "?");
+    }
+
+    /// The selection→claim mirror body matches the real `POST /sessions/:id/files`
+    /// region schema (`regions: [{ path, startLine, endLine }]`, 1-based inclusive)
+    /// so it reuses the durable claims table rather than a parallel presence store.
+    #[test]
+    fn region_claim_body_matches_the_sessions_files_region_schema() {
+        let body = region_claim_body("core/pd-console/src/editor_pane.rs", 12, 20, "port-daddy:editor:agent-A");
+        let regions = body.get("regions").and_then(|r| r.as_array()).expect("regions array");
+        assert_eq!(regions.len(), 1, "one region per selection mirror");
+        let region = &regions[0];
+        assert_eq!(region.get("path").and_then(|p| p.as_str()), Some("core/pd-console/src/editor_pane.rs"));
+        // The route requires startLine >= 1 and endLine >= startLine.
+        assert_eq!(region.get("startLine").and_then(|n| n.as_u64()), Some(12));
+        assert_eq!(region.get("endLine").and_then(|n| n.as_u64()), Some(20));
+        assert!(region.get("startLine").and_then(|n| n.as_u64()).unwrap() >= 1, "startLine is 1-based");
+        assert!(
+            region.get("endLine").and_then(|n| n.as_u64()).unwrap()
+                >= region.get("startLine").and_then(|n| n.as_u64()).unwrap(),
+            "endLine >= startLine (the route's contract)"
+        );
+        // The claim is attributed to the acting replica's PD identity.
+        assert_eq!(body.get("agentId").and_then(|a| a.as_str()), Some("port-daddy:editor:agent-A"));
     }
 }
