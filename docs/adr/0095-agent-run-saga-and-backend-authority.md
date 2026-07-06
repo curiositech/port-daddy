@@ -306,6 +306,7 @@ Recorded here per the F0 revision so they are not lost; neither blocks the freez
 | C3 | agent-harbor-c3-operator-control-panel | backlog | agent-harbor-f0-contract-freeze | Operator control panel: Agent Node roster and detail view in pd-console |
 | C5 | agent-harbor-c5-governance-tool-gates | backlog | agent-harbor-f0-contract-freeze | Governance and tool gates: destructive-git blocking + human approval before risky actions |
 | C8 | agent-harbor-c8-setup-doctor-remediation | backlog | agent-harbor-f0-contract-freeze | Setup and doctor remediation: installable, repairable harness without command walls |
+| C-routes | agent-harbor-daemon-routes | now | agent-harbor-c1-event-ledger | Daemon HTTP route layer (binder ch09 read API over C1's projections: roster, detail join, SSE/paged transcript timeline, files, costs, receipt verification, compliance). Closes I0 Contradiction 1 — the route triangle C3/C8 assumed but no chain owned |
 
 ## Consequences
 
