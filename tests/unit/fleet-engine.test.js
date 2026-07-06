@@ -1884,3 +1884,31 @@ test('skillGraft failure fails open: the spawn still proceeds with the unmodifie
   );
   errSpy.mockRestore();
 });
+
+test('skillGraft that stalls never blocks a spawn: the budget elapses and the ship spawns un-grafted', async () => {
+  // craft() that never settles — stands in for the one-time cold cost on a
+  // first spawn (a full skills/ scan, or a MiniLM model load/download when the
+  // semantic tier is on). The awaited-before-spawn enrichment must be bounded
+  // so it can never hold the spawn hostage (Copilot review finding).
+  const craft = jest.fn().mockReturnValue(new Promise(() => {}));
+  const config = makeConfig({ skillGraft: true });
+  const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft }, skillGraftBudgetMs: 5 });
+  const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+  // Fake timers are active (global beforeEach). Kick off the run WITHOUT
+  // awaiting — it's parked on the never-settling craft() — then advance the
+  // clock past the 5ms budget so the timer fires and the race falls open.
+  const run = runner.hailAgent('test-agent', { source: 'manual' });
+  await jest.advanceTimersByTimeAsync(10);
+  await run;
+
+  expect(craft).toHaveBeenCalledWith('Do something');
+  const spawnCall = global.fetch.mock.calls.find(c => String(c[0]).includes('/spawn'));
+  expect(spawnCall).toBeDefined();
+  const body = JSON.parse(spawnCall[1].body);
+  expect(body.task).toBe('Do something'); // un-grafted — budget elapsed, spawn never blocked
+  expect(errSpy).toHaveBeenCalledWith(
+    expect.stringContaining('skill-graft exceeded 5ms for agent "test-agent"'),
+  );
+  errSpy.mockRestore();
+});

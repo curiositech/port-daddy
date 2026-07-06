@@ -624,6 +624,27 @@ describe('renderSkillGraftContext', () => {
     // one-liner appears, but its (nonexistent) body never does.
     expect(text.indexOf('Full body content.')).toBeGreaterThan(text.indexOf('duckdb-analytics'));
   });
+
+  test('labels BM25-only entries as a lexical match instead of a misleading similarity 0.00', () => {
+    const text = renderSkillGraftContext({
+      query: 'hybrid retrieval',
+      scannedCount: 42,
+      roots: [],
+      // similarity 0 == the semantic tier didn't score this entry (whole
+      // lexical-only tier, or a hybrid entry BM25 surfaced but semantic didn't).
+      shortlist: [
+        { id: 'duckdb-analytics', description: 'Analytical SQL over parquet', category: 'Data', tags: [], similarity: 0 },
+        { id: 'rag-retrieval-pattern-design', description: 'RAG chunking and hybrid search', category: 'AI', tags: [], similarity: 0.83 },
+      ],
+      top: [],
+      semanticTier: 'lexical-only',
+    });
+
+    expect(text).toContain('duckdb-analytics (lexical match)');
+    expect(text).not.toContain('similarity 0.00');
+    // A genuinely scored entry still shows its real similarity.
+    expect(text).toContain('rag-retrieval-pattern-design (similarity 0.83)');
+  });
 });
 
 // ─── Real skills/ directory, mock embedder (Jest-safe) ─────────────────────

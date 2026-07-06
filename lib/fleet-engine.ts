@@ -746,7 +746,27 @@ export interface FleetRunnerOptions {
    * inject a narrow fake here to avoid the real embedder and filesystem scan.
    */
   skillGraft?: Pick<SkillGraftIndex, 'craft'>;
+  /**
+   * Hard latency bound (ms) on the advisory skill-graft enrichment that runs
+   * on the live spawn path. If `craft()` hasn't produced context within this
+   * budget, the ship spawns on the un-grafted task (fail-open). Defaults to
+   * {@link DEFAULT_SKILL_GRAFT_SPAWN_BUDGET_MS}; tests override it to prove the
+   * bound without waiting seconds.
+   */
+  skillGraftBudgetMs?: number;
 }
+
+/**
+ * Default ceiling for how long the first skill-graft `craft()` on a live spawn
+ * path may take before we give up and spawn without enrichment. The first call
+ * in a process pays a one-time cost — a full skills/ catalog scan, plus a local
+ * MiniLM model load/download when the semantic tier is configured — and this
+ * enrichment is strictly advisory, so it must never hold a spawn hostage.
+ */
+const DEFAULT_SKILL_GRAFT_SPAWN_BUDGET_MS = 8_000;
+
+/** Unambiguous race sentinel: the skill-graft budget elapsed before craft(). */
+const SKILL_GRAFT_TIMED_OUT: unique symbol = Symbol('skill-graft-timeout');
 
 export function createFleetRunner(config: FleetConfig, projectDir: string, options?: FleetRunnerOptions) {
   const running = new Map<string, RunningAgent>();
@@ -772,6 +792,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   // opted-in ships never touches the embedder or the skill catalog. Tests
   // inject `options.skillGraft` directly to avoid the real embedder/fs scan.
   let skillGraftIndex: Pick<SkillGraftIndex, 'craft'> | undefined = options?.skillGraft;
+  const skillGraftBudgetMs = options?.skillGraftBudgetMs ?? DEFAULT_SKILL_GRAFT_SPAWN_BUDGET_MS;
   function getSkillGraftIndex(): Pick<SkillGraftIndex, 'craft'> {
     if (!skillGraftIndex) {
       // Resolve a real request-shape LLM backend for Tool2Vec's
@@ -1767,20 +1788,42 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
   /**
    * Append a windags-pattern "relevant skills" section to `task` using
-   * lib/skill-graft.ts, keyed on the ship's own task text as the query. Never
-   * throws and never blocks a spawn: a skill-graft failure (embedder error,
-   * unreadable skills/ dir, etc.) logs and falls back to the unmodified task,
-   * the same fail-open posture the rest of this engine uses for advisory
-   * enrichment (see emitSemanticAliasTuples/observeSemanticAliases below).
+   * lib/skill-graft.ts, keyed on the ship's own task text as the query.
+   *
+   * This runs on the live spawn path (`buildAgentTask` awaits it before the
+   * ship starts), and the FIRST call in a process pays a one-time cost — a full
+   * skills/ catalog scan, plus a local MiniLM model load/download when the
+   * semantic tier is configured. Because the enrichment is strictly advisory it
+   * is both fail-open AND time-boxed, so it can never fail *or* stall a spawn:
+   *   - never *fails* a spawn: any skill-graft error (embedder failure,
+   *     unreadable skills/ dir, etc.) logs and returns the unmodified task; and
+   *   - never *stalls* a spawn: if `craft()` hasn't produced context within
+   *     `skillGraftBudgetMs`, the ship spawns on the un-grafted task and the
+   *     enrichment is skipped for that run (the timer is `unref`'d so it never
+   *     keeps the process alive on its own).
+   * Same fail-open posture the rest of this engine uses for advisory enrichment
+   * (see emitSemanticAliasTuples/observeSemanticAliases below), now with an
+   * explicit latency bound so advisory enrichment can't hold a spawn hostage.
    */
   async function appendSkillGraftContext(agent: FleetAgent, task: string): Promise<string> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      const result = await getSkillGraftIndex().craft(task);
+      const budget = new Promise<typeof SKILL_GRAFT_TIMED_OUT>((resolve) => {
+        timer = setTimeout(() => resolve(SKILL_GRAFT_TIMED_OUT), skillGraftBudgetMs);
+        timer.unref?.();
+      });
+      const result = await Promise.race([getSkillGraftIndex().craft(task), budget]);
+      if (result === SKILL_GRAFT_TIMED_OUT) {
+        console.error(`[Fleet] skill-graft exceeded ${skillGraftBudgetMs}ms for agent "${agent.name}" (spawning without it)`);
+        return task;
+      }
       const rendered = renderSkillGraftContext(result);
       return rendered ? `${task}\n\n${rendered}` : task;
     } catch (err) {
       console.error(`[Fleet] skill-graft failed for agent "${agent.name}" (continuing without it):`, (err as Error).message);
       return task;
+    } finally {
+      if (timer) clearTimeout(timer);
     }
   }
 

@@ -488,7 +488,17 @@ export function renderSkillGraftContext(result: SkillGraftResult): string {
     `Relevant skills (${result.shortlist.length} of ${result.scannedCount} scanned):`,
   ];
   for (const entry of result.shortlist) {
-    lines.push(`- ${entry.id} (similarity ${entry.similarity.toFixed(2)}): ${truncate(entry.description, 160)}`);
+    // Only entries the semantic tier actually scored carry a meaningful
+    // similarity. A BM25-only match — the whole 'lexical-only' tier (no
+    // centroids / no generator), or a single entry the semantic list didn't
+    // surface in an otherwise 'hybrid' result — has similarity 0, which reads
+    // as "zero relevance" when it really means "ranked lexically, not
+    // semantically". Label those honestly instead of printing a misleading
+    // `similarity 0.00` (Copilot review finding).
+    const relevance = entry.similarity > 0
+      ? `similarity ${entry.similarity.toFixed(2)}`
+      : 'lexical match';
+    lines.push(`- ${entry.id} (${relevance}): ${truncate(entry.description, 160)}`);
   }
 
   if (result.top.length > 0) {
