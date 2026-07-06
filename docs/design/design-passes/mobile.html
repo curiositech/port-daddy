@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Port Daddy Mobile — observe &amp; steer from your phone</title>
+<style>
+/* ============================================================
+   Port Daddy Mobile — design pass (strategy §9, wedge: mobile
+   tunneling). The remote observe/steer surface: interrupt or
+   approve a long-running agent from your phone.
+   Skin/law: binder ch20 (palette v2 luminous-dark + cream-light,
+   IBM Plex + Recursive casual, rule-8 grammar, 1/1.5/2px linework,
+   one color zone per view, 14px floor).
+   Motion: v4-mockup easing tokens; one 14s consent story told
+   across three phones at once. prefers-reduced-motion freezes
+   to the ask-moment still.
+   Fonts: Plex stacks fall back to SF/system — on-device the app
+   honors Dynamic Type anyway. No external URLs; self-contained.
+   ============================================================ */
+:root {
+  /* surfaces (light) */
+  --surface-base:   #f2eee6;
+  --surface-card:   #e9e2d5;
+  --surface-strong: #e9e2d5;
+  --surface-sunken: #e0d9cb;
+  /* ink */
+  --text-primary:   #121212;
+  --text-secondary: #403b34;
+  --text-muted:     #47423a;
+  /* hue = layer (accents, never chrome) */
+  --cobalt: #003fb8;  --teal: #006b5f;  --health: #1f7a4d;
+  --amber:  #a66f00;  --error: #bf2f2f;
+  --violet: #933fa5;  --gold:  #666a00;
+  --idle:   #8f8879;  --lime:  #cad900;
+  /* structure is ink */
+  --hair:        rgba(18, 18, 18, 0.14);
+  --hair-strong: rgba(18, 18, 18, 0.34);
+  --border-strong: #121212;
+  --flag-white: #fbf7ef;
+  --cobalt-slab: #003fb8;
+  --shadow: 0 18px 44px rgba(18,18,18,0.16), 0 3px 10px rgba(18,18,18,0.10);
+  /* motion (v4-mockup tokens) */
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-quick:  cubic-bezier(0.4, 0, 0.2, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-base:   #181c22;
+    --surface-card:   #222833;
+    --surface-strong: #222833;
+    --surface-sunken: #101216;
+    --text-primary:   #f5f3ed;
+    --text-secondary: #d3cec2;
+    --text-muted:     #a59f93;
+    --cobalt: #7db4ff;  --teal: #8fd0a7;  --health: #5fce97;
+    --amber:  #f2be51;  --error: #ff7d7d;
+    --violet: #e0a5ed;  --gold:  #d8dd3c;
+    --idle:   #736d60;  --lime:  #d8dd3c;
+    --hair:        rgba(245, 243, 237, 0.14);
+    --hair-strong: rgba(245, 243, 237, 0.34);
+    --border-strong: #f5f3ed;
+    --shadow: 0 18px 44px rgba(0,0,0,0.5), 0 3px 10px rgba(0,0,0,0.4);
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  background: var(--surface-sunken); color: var(--text-primary);
+  font-size: 0.9375rem; line-height: 1.55; -webkit-font-smoothing: antialiased;
+  padding-bottom: 4rem; overflow-x: hidden;
+}
+.mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums slashed-zero; font-size: 0.8125rem; }
+.casual { font-family: "Recursive", "IBM Plex Sans", -apple-system, sans-serif;
+  font-variation-settings: "CASL" 1; }
+.eyebrow { font-size: 0.75rem; /* exception: eyebrow ≥600 uppercase tracked */
+  font-weight: 650; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--text-muted); }
+
+/* rule-8 micro-flags (ICOS glyphs) */
+.mfl { display: inline-block; width: 13px; height: 9.5px; flex: none;
+  border: 0.5px solid rgba(0,0,0,0.25);
+  --fw: var(--flag-white); --fink: #17191d; --c: var(--cobalt-slab); --r: #bf2f2f; --y: var(--lime); }
+.fl-quebec   { background: var(--y); }                                     /* vessel healthy */
+.fl-kilo     { background: linear-gradient(to right, var(--y) 0 50%, var(--c) 50%); } /* I wish to communicate */
+.fl-lima     { background: conic-gradient(var(--fink) 0 25%, var(--y) 25% 50%, var(--fink) 50% 75%, var(--y) 75%); } /* stop instantly */
+.fl-november { background: repeating-conic-gradient(var(--c) 0 25%, var(--fw) 25% 50%) top left / 50% 50%; } /* negative */
+.fl-papa     { background: linear-gradient(var(--fw), var(--fw)) center / 42% 42% no-repeat, var(--c); } /* about to sail */
+
+/* ---------------- page head ---------------- */
+.pagehead { max-width: 1280px; margin: 2.4rem auto 0.4rem; padding: 0 2rem; }
+.pagehead h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; }
+.pagehead p { color: var(--text-secondary); max-width: 72ch; margin-top: 0.35rem; }
+.pagehead .refs { margin-top: 0.4rem; color: var(--text-muted); font-size: 0.875rem; }
+
+/* ---------------- deck ---------------- */
+.deck { display: flex; flex-wrap: wrap; gap: 2.2rem; justify-content: center;
+  align-items: flex-start; padding: 2.2rem 1.5rem 0; max-width: 1420px; margin: 0 auto; }
+.slot { flex: none; width: 306px; }
+.face-label { text-align: center; margin-top: 0.9rem; line-height: 1.5; }
+
+/* ---------------- iPhone frame ---------------- */
+.phone {
+  width: 302px; height: 668px;
+  border: 2px solid var(--border-strong); border-radius: 46px;
+  background: var(--border-strong); padding: 5px;
+  box-shadow: var(--shadow);
+  animation: phoneRise 640ms var(--ease-spring) both;
+}
+.slot:nth-child(1) .phone { animation-delay: 0ms; }
+.slot:nth-child(2) .phone { animation-delay: 90ms; }
+.slot:nth-child(3) .phone { animation-delay: 180ms; }
+.slot:nth-child(4) .phone { animation-delay: 270ms; }
+@keyframes phoneRise {
+  0% { opacity: 0; transform: translateY(18px); }
+  70% { transform: translateY(-2px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.screen {
+  width: 100%; height: 100%; border-radius: 40px; overflow: hidden;
+  background: var(--surface-base); position: relative;
+  display: flex; flex-direction: column;
+}
+.island { position: absolute; top: 9px; left: 50%; transform: translateX(-50%);
+  width: 86px; height: 24px; border-radius: 12px; background: #121212;
+  border: 1px solid rgba(245,243,237,0.12); z-index: 30; }
+.statusrow { display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 24px 2px; height: 40px; flex: none; }
+.statusrow .time { font-weight: 650; font-size: 0.875rem; }
+.statusrow svg { display: block; color: var(--text-primary); }
+.homebar { flex: none; height: 20px; display: flex; align-items: center; justify-content: center; }
+.homebar i { display: block; width: 108px; height: 4px; border-radius: 2px;
+  background: var(--text-primary); opacity: 0.55; }
+
+/* one color zone per view */
+.z-cobalt { --zone: var(--cobalt); }
+.z-violet { --zone: var(--violet); }
+.z-teal   { --zone: var(--teal); }
+
+.body { flex: 1; min-height: 0; display: flex; flex-direction: column;
+  padding: 4px 16px 0; overflow: hidden; }
+
+/* ---------------- shared atoms ---------------- */
+.dot8 { width: 8px; height: 8px; flex: none; background: currentColor; }
+@keyframes ch20pulse {
+  0% { outline-offset: 0; outline-color: currentColor; }
+  100% { outline-offset: 7px; outline-color: transparent; }
+}
+.pulse { outline: 1.5px solid currentColor; animation: ch20pulse 1.8s ease-out infinite; }
+.lvl { font-size: 0.75rem; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 0 0.35rem; border: 1px solid var(--hair-strong); color: var(--text-muted); }
+.lvl.c4 { color: var(--zone, var(--cobalt)); border-color: var(--zone, var(--cobalt)); }
+.btn { font: inherit; font-size: 0.9375rem; font-weight: 650; min-height: 48px;
+  border: 2px solid var(--border-strong); background: transparent; color: var(--text-primary);
+  cursor: pointer; padding: 0 1rem; width: 100%;
+  transition: transform 160ms var(--ease-spring), background 120ms var(--ease-quick),
+              box-shadow 160ms var(--ease-quick); }
+.btn:hover { box-shadow: 0 3px 0 0 var(--hair-strong); transform: translateY(-1px); }
+.btn:active { transform: translateY(0) scale(0.98); box-shadow: none; }
+.btn.primary { background: var(--border-strong); color: var(--surface-base); }
+.btn.quiet { border-color: var(--hair-strong); color: var(--text-muted); font-weight: 600;
+  min-height: 44px; }
+
+/* ============================================================
+   SCREEN 1 — HOME: do-this-next rail + fleet glance
+   ============================================================ */
+.apphead { display: flex; align-items: center; gap: 0.55rem; padding: 5px 4px 7px; }
+.apphead .t { font-weight: 800; font-size: 1.15rem; letter-spacing: -0.015em; }
+.apphead .chip { margin-left: auto; display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.8125rem; font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums; color: var(--text-muted);
+  border: 1px solid var(--hair); padding: 2px 8px; background: var(--surface-card); }
+.apphead .chip .dot8 { color: var(--health); }
+
+.sechead { display: flex; align-items: baseline; gap: 0.5rem; margin: 4px 4px 5px; }
+.sechead .n { margin-left: auto; color: var(--text-muted); font-size: 0.8125rem; }
+
+.donext { display: flex; flex-direction: column; gap: 6px; }
+.dcard { position: relative; display: flex; align-items: center; gap: 0.6rem;
+  background: var(--surface-card); border: 1px solid var(--hair);
+  padding: 5px 12px 5px 14px; min-height: 44px;
+  animation: settleIn 460ms var(--ease-spring) both;
+  transition: transform 200ms var(--ease-spring), box-shadow 160ms var(--ease-quick); }
+.dcard:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(18,18,18,0.10); }
+.dcard:nth-child(1) { animation-delay: 340ms; }
+.dcard:nth-child(2) { animation-delay: 420ms; }
+.dcard:nth-child(3) { animation-delay: 500ms; }
+@keyframes settleIn {
+  0% { opacity: 0; transform: translateY(9px); }
+  70% { transform: translateY(-1px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.dcard .stripe { position: absolute; left: 0; top: 5px; bottom: 5px; width: 3px; background: var(--gold); }
+.dcard.hot .stripe { background: var(--violet); }
+.dcard > div:not(.go) { min-width: 0; flex: 1; }
+.dcard .tt { font-weight: 650; font-size: 0.875rem; line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dcard .mm { color: var(--text-muted); font-size: 0.8125rem; line-height: 1.35;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dcard .go { margin-left: auto; color: var(--text-muted); flex: none;
+  transition: transform 200ms var(--ease-spring), color 120ms; }
+.dcard:hover .go { transform: translateX(3px); color: var(--text-primary); }
+
+/* fleet rows — the six-state grammar */
+.fleet { display: flex; flex-direction: column; margin-top: 2px; }
+.frow { position: relative; display: flex; align-items: center; gap: 0.55rem;
+  padding: 4px 6px 4px 13px; min-height: 38px; border-top: 1px solid var(--hair); }
+.frow .stripe { position: absolute; left: 0; top: 5px; bottom: 5px; width: 3px; background: currentColor; }
+.frow .nm { font-weight: 650; font-size: 0.875rem; color: var(--text-primary); }
+.frow .st { color: var(--text-muted); font-size: 0.8125rem; line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.frow .bd { min-width: 0; flex: 1; }
+.frow .age { margin-left: auto; flex: none; color: var(--text-muted); }
+.s-run  { color: var(--cobalt); }
+.s-done { color: var(--health); }
+.s-need { color: var(--violet); }
+.s-err  { color: var(--error); }
+.s-paus { color: var(--amber); }
+.s-idle { color: var(--idle); }
+
+/* the swap slot: Cartographer flips running <-> needs-you with the story */
+.swapslot { position: relative; min-height: 38px; }
+.swapslot .frow { position: absolute; inset: 0; border-top: 1px solid var(--hair); }
+.swapslot .v-run  { opacity: 0; animation: homeRun 14s var(--ease-quick) infinite; }
+.swapslot .v-need { opacity: 1; animation: homeNeed 14s var(--ease-quick) infinite; }
+@keyframes homeNeed {
+  0%, 26% { opacity: 1; } 30%, 93% { opacity: 0; } 97%, 100% { opacity: 1; }
+}
+@keyframes homeRun {
+  0%, 26% { opacity: 0; } 30%, 93% { opacity: 1; } 97%, 100% { opacity: 0; }
+}
+
+/* tab bar */
+.tabbar { flex: none; display: flex; border-top: 1px solid var(--hair-strong);
+  background: var(--surface-card); padding: 6px 8px 2px; }
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  color: var(--text-muted); font-size: 0.75rem; /* exception: tab label 650 tracked */
+  font-weight: 650; letter-spacing: 0.04em; padding: 4px 0; cursor: pointer;
+  transition: color 140ms var(--ease-quick); }
+.tab svg { display: block; }
+.tab:hover { color: var(--text-secondary); }
+.tab.on { color: var(--zone, var(--cobalt)); }
+
+/* ============================================================
+   SCREEN 2 — AGENT DETAIL: live tail + big controls
+   ============================================================ */
+.navrow { display: flex; align-items: center; gap: 0.55rem; padding: 8px 4px 4px; }
+.navrow .back { color: var(--text-muted); font-weight: 650; font-size: 0.875rem;
+  display: flex; align-items: center; gap: 2px; cursor: pointer; transition: color 120ms; }
+.navrow .back svg { transition: transform 200ms var(--ease-spring); }
+.navrow .back:hover { color: var(--text-primary); }
+.navrow .back:hover svg { transform: translateX(-3px); }
+.navrow .nm { font-weight: 750; font-size: 1.05rem; }
+.liveline { display: flex; align-items: center; gap: 0.45rem; padding: 0 4px 6px;
+  color: var(--zone); font-size: 0.75rem; /* exception: eyebrow-weight live badge */
+  font-weight: 650; letter-spacing: 0.1em; text-transform: uppercase; }
+.liveline .dot8 { color: var(--zone); }
+.facts { display: flex; gap: 0.9rem; flex-wrap: wrap; padding: 0 4px 8px;
+  color: var(--text-muted); font-size: 0.8125rem; }
+.facts b { color: var(--text-secondary); font-weight: 600; }
+.facts b.money { color: var(--gold); }
+
+/* brackets: the one live panel (12px L-ticks, 1.5px) */
+.tail { position: relative; flex: 1; min-height: 0; background: var(--surface-card);
+  border: 1px solid var(--hair); padding: 12px 12px; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: flex-end; }
+.tail::before, .tail::after, .tail .bk::before, .tail .bk::after {
+  content: ""; position: absolute; width: 12px; height: 12px;
+  border: 0 solid var(--border-strong); pointer-events: none; z-index: 5; }
+.tail::before { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+.tail::after  { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+.tail .bk::before { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.tail .bk::after  { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+
+.tailfade { position: absolute; top: 1px; left: 1px; right: 1px; height: 30px; z-index: 4;
+  background: linear-gradient(var(--surface-card), transparent); pointer-events: none; }
+.ev { display: block; flex: none; padding: 5px 0;
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums slashed-zero; font-size: 0.8125rem; line-height: 1.5;
+  overflow: hidden; }
+.ev .hd { display: flex; gap: 0.6rem; align-items: baseline; }
+.ev .ts { color: var(--text-muted); flex: none; }
+.ev .kind { flex: none; font-size: 0.75rem; /* exception: 650 uppercase tracked */
+  font-weight: 650; letter-spacing: 0.07em; text-transform: uppercase; }
+.ev .tx { color: var(--text-secondary); overflow-wrap: break-word; margin-top: 1px; }
+.ev .tx b { color: var(--text-primary); font-weight: 600; }
+.ev.k-agent .kind { color: var(--cobalt); }
+.ev.k-tool  .kind { color: var(--amber); }
+.ev.k-deny  .kind { color: var(--error); }
+.ev.k-deny { border-left: 3px solid var(--error); padding-left: 0.55rem; }
+.ev.k-ok    .kind { color: var(--health); }
+/* the line that arrives after the phone-approval (synced to the 14s story) */
+.ev.arrives { animation: lineIn 14s var(--ease-spring) infinite; }
+@keyframes lineIn {
+  0%, 34% { opacity: 0; transform: translateY(8px); max-height: 0; padding-top: 0; padding-bottom: 0; }
+  36% { opacity: 0; transform: translateY(8px); max-height: 5rem; padding-top: 5px; padding-bottom: 5px; }
+  39% { opacity: 1; transform: translateY(-1px); }
+  41%, 92% { opacity: 1; transform: translateY(0); max-height: 5rem; padding-top: 5px; padding-bottom: 5px; }
+  96%, 100% { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; }
+}
+.cursor { display: inline-block; width: 7px; height: 13px; background: var(--cobalt);
+  vertical-align: text-bottom; animation: blink 1.1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+.controls { flex: none; padding: 10px 0 6px; display: flex; flex-direction: column; gap: 8px; }
+.controls .pair2 { display: flex; gap: 8px; }
+.ctlnote { color: var(--text-muted); font-size: 0.8125rem; text-align: center; padding-bottom: 2px; }
+.ctlnote b { color: var(--zone); font-weight: 650; }
+
+/* ============================================================
+   SCREEN 3 — CONSENT GATE: push → approve → receipt
+   ============================================================ */
+.push {
+  position: absolute; top: 42px; left: 10px; right: 10px; z-index: 25;
+  background: var(--surface-card); border: 1px solid var(--hair-strong);
+  border-radius: 18px; padding: 10px 12px; display: flex; gap: 0.6rem;
+  box-shadow: 0 10px 28px rgba(18,18,18,0.22);
+  transform: translateY(0); opacity: 1;  /* reduced-motion still: shown */
+  animation: pushIn 14s var(--ease-spring) infinite;
+}
+@keyframes pushIn {
+  0% { transform: translateY(-140%); opacity: 0; }
+  2.6% { transform: translateY(5%); opacity: 1; }
+  4.2% { transform: translateY(0); }
+  22% { transform: translateY(0); opacity: 1; }
+  25.5%, 100% { transform: translateY(-140%); opacity: 0; }
+}
+.push .glyph { flex: none; width: 30px; height: 30px; background: var(--cobalt-slab);
+  color: var(--flag-white); display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.875rem; border-radius: 7px; letter-spacing: 0.02em; }
+.push .pt { font-weight: 650; font-size: 0.875rem; line-height: 1.3; display: flex; gap: 0.5rem; }
+.push .pt .when { margin-left: auto; color: var(--text-muted); font-weight: 500; font-size: 0.8125rem; }
+.push .pb { color: var(--text-secondary); font-size: 0.8125rem; line-height: 1.4; }
+.push .pb .mono { font-size: 0.8125rem; }
+.push .pbody { min-width: 0; flex: 1; }
+
+.gatehead { padding: 8px 4px 2px; display: flex; align-items: baseline; gap: 0.5rem; }
+.gatehead .eyebrow { white-space: nowrap; flex: none; }
+.gatehead .who { margin-left: auto; color: var(--text-muted); font-size: 0.8125rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.gcontext { padding: 0 4px 8px; color: var(--text-secondary); font-size: 0.875rem; }
+.gcontext b { font-weight: 650; }
+
+.gatezone { position: relative; flex: 1; min-height: 0; }
+.gpending { display: flex; flex-direction: column; gap: 9px;
+  opacity: 1; animation: pendIn 14s var(--ease-quick) infinite; }
+@keyframes pendIn {
+  0%, 24% { opacity: 1; transform: translateY(0); }
+  28%, 92% { opacity: 0; transform: translateY(-6px); visibility: hidden; }
+  97%, 100% { opacity: 1; transform: translateY(0); }
+}
+.action { border: 1px solid var(--hair); border-left: 3px solid var(--violet);
+  background: var(--surface-card); padding: 9px 12px; }
+.action .al { color: var(--violet); font-size: 0.75rem; /* exception: 650 uppercase tracked */
+  font-weight: 650; letter-spacing: 0.1em; text-transform: uppercase; }
+.action .cmd { margin-top: 3px; font-size: 0.8125rem; color: var(--text-primary); word-break: break-all; }
+.action .why { margin-top: 5px; color: var(--text-secondary); font-size: 0.8125rem; line-height: 1.45; }
+.costrow { display: flex; gap: 0.5rem; align-items: baseline; justify-content: space-between;
+  padding: 2px 2px; color: var(--text-muted); font-size: 0.8125rem; }
+.costrow b { color: var(--gold); font-weight: 650;
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.gbtns { display: flex; flex-direction: column; gap: 8px; }
+.gbtns .pair2 { display: flex; gap: 8px; }
+.btn.approve { animation: pressFlash 14s var(--ease-quick) infinite; }
+@keyframes pressFlash {
+  0%, 21% { transform: scale(1); box-shadow: none; }
+  22.5% { transform: scale(0.965); box-shadow: 0 0 0 5px color-mix(in oklab, var(--violet) 35%, transparent); }
+  24.5%, 100% { transform: scale(1); box-shadow: none; }
+}
+
+.receipt { position: absolute; inset: 0; display: flex; flex-direction: column;
+  justify-content: center; gap: 9px;
+  opacity: 0; animation: rcptIn 14s var(--ease-spring) infinite; }
+@keyframes rcptIn {
+  0%, 26% { opacity: 0; transform: translateY(16px); visibility: hidden; }
+  27% { visibility: visible; opacity: 0; transform: translateY(16px); }
+  31% { opacity: 1; transform: translateY(-3px); }
+  33%, 90% { opacity: 1; transform: translateY(0); }
+  94%, 100% { opacity: 0; transform: translateY(10px); visibility: hidden; }
+}
+.rcard { border: 1px solid var(--hair); border-left: 3px solid var(--health);
+  background: var(--surface-card); padding: 11px 13px; }
+.rcard .rl { color: var(--health); font-weight: 750; font-size: 1rem;
+  display: flex; align-items: center; gap: 0.5rem; }
+.rcard .rl .tick { flex: none; width: 18px; height: 18px; border: 2px solid var(--health);
+  border-radius: 50%; position: relative; }
+.rcard .rl .tick::after { content: ""; position: absolute; left: 4px; top: 1px;
+  width: 5px; height: 9px; border: 0 solid var(--health);
+  border-right-width: 2px; border-bottom-width: 2px; transform: rotate(42deg); }
+.rcard .rmeta { margin-top: 5px; color: var(--text-secondary); font-size: 0.8125rem; line-height: 1.55; }
+.rcard .rmeta .mono { color: var(--text-primary); }
+.rnote { color: var(--text-muted); font-size: 0.8125rem; line-height: 1.45; padding: 0 2px; }
+
+.earlier { flex: none; padding: 8px 0 8px; }
+.erow { display: flex; gap: 0.55rem; align-items: baseline; border: 1px solid var(--hair);
+  border-left: 3px solid var(--error); background: var(--surface-card);
+  padding: 7px 11px; margin-top: 5px; font-size: 0.8125rem; color: var(--text-muted);
+  min-width: 0; }
+.erow b { color: var(--error); font-weight: 650; flex: none; }
+.erow .cmd { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.erow .rid { flex: none; }
+
+/* ============================================================
+   SCREEN 4 — PAIRING: QR / 4-digit
+   ============================================================ */
+.pairhead { padding: 10px 4px 2px; }
+.pairhead .t { font-weight: 800; font-size: 1.15rem; letter-spacing: -0.015em; }
+.pairhead .s { color: var(--text-secondary); font-size: 0.875rem; margin-top: 2px; }
+.qrpanel { position: relative; margin: 8px 0 0; background: var(--surface-card);
+  border: 1px solid var(--hair); padding: 12px; display: flex; justify-content: center; }
+.qrpanel::before, .qrpanel::after, .qrpanel .bk::before, .qrpanel .bk::after {
+  content: ""; position: absolute; width: 12px; height: 12px;
+  border: 0 solid var(--border-strong); pointer-events: none; }
+.qrpanel::before { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+.qrpanel::after  { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+.qrpanel .bk::before { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.qrpanel .bk::after  { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+.qrpanel svg { width: 128px; height: 128px; color: var(--text-primary); }
+.qrscan { position: absolute; left: 14px; right: 14px; height: 2px;
+  background: var(--zone); opacity: 0.75; top: 14px;
+  animation: scan 3.2s var(--ease-quick) infinite alternate; }
+@keyframes scan { 0% { top: 15px; } 100% { top: 137px; } }
+.orrule { display: flex; align-items: center; gap: 0.7rem; margin: 10px 0 7px;
+  color: var(--text-muted); font-size: 0.75rem; /* exception: 650 uppercase tracked */
+  font-weight: 650; letter-spacing: 0.12em; text-transform: uppercase; }
+.orrule::before, .orrule::after { content: ""; flex: 1; border-top: 1px solid var(--hair-strong); }
+.digits { display: flex; gap: 8px; justify-content: center; }
+.digits .d { width: 48px; height: 54px; border: 1.5px solid var(--hair-strong);
+  background: var(--surface-card); display: flex; align-items: center; justify-content: center;
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: 1.5rem; font-weight: 650; color: var(--zone); }
+.expiry { text-align: center; color: var(--text-muted); font-size: 0.8125rem; margin-top: 5px; }
+.chip-daemon { display: flex; align-items: center; gap: 0.55rem; padding: 8px 12px;
+  background: var(--surface-card); border: 1px solid var(--hair); font-size: 0.875rem;
+  margin-top: 10px; }
+.chip-daemon .d { width: 8px; height: 8px; flex: none; background: var(--amber); }
+.chip-daemon .detail { color: var(--text-muted); margin-left: auto; font-size: 0.8125rem; }
+.pairsec { color: var(--text-muted); font-size: 0.8125rem; line-height: 1.45; margin-top: 8px; padding: 0 2px; }
+.pairsec .mono { color: var(--text-secondary); }
+.pairbtn { margin-top: auto; padding: 8px 0 4px; }
+.pairbtn .btn { min-height: 46px; }
+
+/* ---------------- footer / motion notes ---------------- */
+.notes { max-width: 1280px; margin: 2.6rem auto 0; padding: 0 2rem;
+  display: flex; gap: 1.4rem; flex-wrap: wrap; color: var(--text-muted); font-size: 0.875rem; }
+.notes .k { color: var(--text-secondary); font-weight: 650; }
+.notes hr.rule-mid { border: 0; border-top: 1px solid var(--hair-strong); width: 64px; margin: 0 0 0.8rem; }
+
+/* ---------------- reduced motion: freeze to the ask-moment still ---------------- */
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+  /* still = push arrived, gate pending, home shows needs-you, no receipt */
+  .push { transform: translateY(0); opacity: 1; }
+  .gpending { opacity: 1; }
+  .receipt { opacity: 0; visibility: hidden; }
+  .swapslot .v-need { opacity: 1; } .swapslot .v-run { opacity: 0; }
+  .ev.arrives { display: none; }
+  .cursor { opacity: 1; }
+  .qrscan { display: none; }
+  .phone { opacity: 1; transform: none; }
+  .dcard { opacity: 1; transform: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="pagehead">
+  <h1>Port Daddy Mobile — your fleet, <span class="casual">reachable</span> from your pocket</h1>
+  <p>The remote observe/steer surface. The daemon tunnels to the phone; the phone answers with
+     signed decisions. Left to right: home with the do-this-next rail and the six-state fleet
+     glance; a live agent with a transcript tail and thumb-size controls; a consent gate arriving
+     as a push — approve with the cost in view; and pairing by QR or 4-digit code.
+     One 14-second story runs across three phones at once: the push lands, the operator approves,
+     the gate seals into a receipt, and the agent's transcript picks up the approved action.</p>
+  <p class="refs mono">strategy §9 · wedge: mobile tunneling · skin/law: binder ch20 · state: rule-8 · motion: v4 easing tokens · gates: consent-before-side-effects</p>
+</div>
+
+<div class="deck">
+
+  <!-- ============================== PHONE 1 · HOME ============================== -->
+  <div class="slot">
+    <div class="phone"><div class="screen z-cobalt">
+      <span class="island"></span>
+      <div class="statusrow">
+        <span class="time mono">21:47</span>
+        <svg width="46" height="12" viewBox="0 0 46 12" fill="currentColor" aria-hidden="true">
+          <rect x="0" y="7" width="2.5" height="5"/><rect x="4" y="5" width="2.5" height="7"/>
+          <rect x="8" y="3" width="2.5" height="9"/><rect x="12" y="1" width="2.5" height="11"/>
+          <path d="M20 6.2a7 7 0 0 1 9 0l-1.4 1.7a4.8 4.8 0 0 0-6.2 0z"/><circle cx="24.5" cy="10.4" r="1.5"/>
+          <rect x="33" y="2.5" width="11" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1"/>
+          <rect x="34.5" y="4" width="6.5" height="4" rx="1"/><rect x="44.6" y="4.7" width="1.4" height="2.6" rx="0.7"/>
+        </svg>
+      </div>
+      <div class="body">
+        <div class="apphead">
+          <span class="t">Port Daddy</span>
+          <span class="chip"><span class="dot8"></span><span class="mfl fl-quebec"></span>41ms</span>
+        </div>
+
+        <div class="sechead"><span class="eyebrow">Do this next</span></div>
+        <div class="donext">
+          <div class="dcard hot">
+            <span class="stripe"></span>
+            <div><div class="tt">Approve force-push</div>
+              <div class="mm">Cartographer · consent gate · est $0.08</div></div>
+            <svg class="go" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 3l4 4-4 4"/></svg>
+          </div>
+          <div class="dcard">
+            <span class="stripe"></span>
+            <div><div class="tt">Unblock Approver — PR #91</div>
+              <div class="mm">waiting on you · 4m</div></div>
+            <svg class="go" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 3l4 4-4 4"/></svg>
+          </div>
+          <div class="dcard">
+            <span class="stripe"></span>
+            <div><div class="tt">Restart Spark</div>
+              <div class="mm">workers-ai auth expired · 23s ago</div></div>
+            <svg class="go" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 3l4 4-4 4"/></svg>
+          </div>
+        </div>
+
+        <div class="sechead"><span class="eyebrow">Fleet</span><span class="n mono">6 · $1.84 today</span></div>
+        <div class="fleet">
+          <div class="swapslot">
+            <div class="frow s-run v-run">
+              <span class="stripe"></span><span class="dot8 pulse"></span><span class="mfl" style="background:var(--cobalt-slab)"></span>
+              <div class="bd"><span class="nm">Cartographer</span>
+                <div class="st">Indexing src/ · 412/1,840</div></div>
+              <span class="age mono">2m14s</span>
+            </div>
+            <div class="frow s-need v-need">
+              <span class="stripe"></span><span class="dot8"></span><span class="mfl fl-kilo"></span>
+              <div class="bd"><span class="nm">Cartographer</span>
+                <div class="st">Consent gate — push</div></div>
+              <span class="age mono">now</span>
+            </div>
+          </div>
+          <div class="frow s-done">
+            <span class="stripe"></span><span class="dot8"></span><span class="mfl fl-quebec"></span>
+            <div class="bd"><span class="nm">QA</span>
+              <div class="st">Done · 14/14 passed · codex</div></div>
+            <span class="age mono">8s</span>
+          </div>
+          <div class="frow s-need">
+            <span class="stripe"></span><span class="dot8"></span><span class="mfl fl-kilo"></span>
+            <div class="bd"><span class="nm">Approver</span>
+              <div class="st">Needs you · PR #91</div></div>
+            <span class="age mono">4m</span>
+          </div>
+          <div class="frow s-err">
+            <span class="stripe"></span><span class="dot8"></span><span class="mfl fl-november"></span>
+            <div class="bd"><span class="nm">Spark</span>
+              <div class="st">Error · workers-ai 401</div></div>
+            <span class="age mono">23s</span>
+          </div>
+          <div class="frow s-paus">
+            <span class="stripe"></span><span class="dot8"></span><span class="mfl fl-lima"></span>
+            <div class="bd"><span class="nm">Sweeper</span>
+              <div class="st">Paused mid-task · resume?</div></div>
+            <span class="age mono">11m</span>
+          </div>
+          <div class="frow s-idle">
+            <span class="stripe"></span><span class="dot8"></span><span class="mfl fl-quebec" style="opacity:.5"></span>
+            <div class="bd"><span class="nm">Documentarian</span>
+              <div class="st">Idle · last run 28m ago</div></div>
+            <span class="age mono">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="4" cy="4.5" r="1.6"/><path d="M8 4.5h7"/><circle cx="4" cy="9" r="1.6"/><path d="M8 9h7"/><circle cx="4" cy="13.5" r="1.6"/><path d="M8 13.5h7"/></svg>
+          Fleet</div>
+        <div class="tab">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 3.5l5 5.5-5 5.5M10 3.5l5 5.5-5 5.5"/></svg>
+          Next</div>
+        <div class="tab">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3.5" y="2.5" width="11" height="13"/><path d="M6 6h6M6 9h6M6 12h4"/></svg>
+          Receipts</div>
+        <div class="tab">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2.5" y="2.5" width="5" height="5"/><rect x="10.5" y="2.5" width="5" height="5"/><rect x="2.5" y="10.5" width="5" height="5"/><path d="M10.5 10.5h2v2h-2zM13.5 13.5h2v2h-2z"/></svg>
+          Pair</div>
+      </div>
+      <div class="homebar"><i></i></div>
+    </div></div>
+    <div class="face-label eyebrow">Home · do-this-next + six-state fleet glance</div>
+  </div>
+
+  <!-- ============================== PHONE 2 · AGENT DETAIL ============================== -->
+  <div class="slot">
+    <div class="phone"><div class="screen z-cobalt">
+      <span class="island"></span>
+      <div class="statusrow">
+        <span class="time mono">21:47</span>
+        <svg width="46" height="12" viewBox="0 0 46 12" fill="currentColor" aria-hidden="true">
+          <rect x="0" y="7" width="2.5" height="5"/><rect x="4" y="5" width="2.5" height="7"/>
+          <rect x="8" y="3" width="2.5" height="9"/><rect x="12" y="1" width="2.5" height="11"/>
+          <path d="M20 6.2a7 7 0 0 1 9 0l-1.4 1.7a4.8 4.8 0 0 0-6.2 0z"/><circle cx="24.5" cy="10.4" r="1.5"/>
+          <rect x="33" y="2.5" width="11" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1"/>
+          <rect x="34.5" y="4" width="6.5" height="4" rx="1"/><rect x="44.6" y="4.7" width="1.4" height="2.6" rx="0.7"/>
+        </svg>
+      </div>
+      <div class="body">
+        <div class="navrow">
+          <span class="back"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 3L5 7l4 4"/></svg>Fleet</span>
+          <span class="nm">Cartographer</span>
+          <span class="lvl c4">C4</span>
+        </div>
+        <div class="liveline"><span class="dot8 pulse"></span>live — events arriving</div>
+        <div class="facts">
+          <span>body <b>Claude Code</b></span>
+          <span>tier <b>mid</b></span>
+          <span>ctx <b class="mono">61%</b></span>
+          <span>cost <b class="mono money">$0.04</b></span>
+        </div>
+
+        <div class="tail"><span class="bk"></span><span class="tailfade"></span>
+          <div class="ev k-tool"><div class="hd"><span class="ts">21:46:05</span><span class="kind">tool</span></div>
+            <div class="tx">read_file <b>src/routes/feedback.ts</b> → 284 lines</div></div>
+          <div class="ev k-deny"><div class="hd"><span class="ts">21:47:31</span><span class="kind">denied</span></div>
+            <div class="tx">shell <b>git checkout -- src/</b> — blocked · recorded → receipt</div></div>
+          <div class="ev k-agent"><div class="hd"><span class="ts">21:48:02</span><span class="kind">agent</span></div>
+            <div class="tx">412/1,840 indexed. Rebuilt branch needs a force-push — asking the operator.</div></div>
+          <div class="ev k-ok arrives"><div class="hd"><span class="ts">21:48:12</span><span class="kind">tool</span></div>
+            <div class="tx">git push --force-with-lease → <b>ok</b> · approved from phone</div></div>
+          <div class="ev k-agent"><div class="hd"><span class="ts">21:48:13</span><span class="kind">agent</span></div>
+            <div class="tx">Resuming index at src/lib/ <span class="cursor"></span></div></div>
+        </div>
+
+        <div class="controls">
+          <button class="btn primary">Steer — send guidance</button>
+          <div class="pair2">
+            <button class="btn">Pause</button>
+            <button class="btn">Interrupt</button>
+          </div>
+          <div class="ctlnote">controls enabled — this agent is <b>controllable (C4)</b></div>
+        </div>
+      </div>
+      <div class="homebar"><i></i></div>
+    </div></div>
+    <div class="face-label eyebrow">Agent detail · live tail + thumb-size controls</div>
+  </div>
+
+  <!-- ============================== PHONE 3 · CONSENT GATE ============================== -->
+  <div class="slot">
+    <div class="phone"><div class="screen z-violet">
+      <span class="island"></span>
+
+      <!-- the push notification (spring in, dwell, dismiss on approve) -->
+      <div class="push">
+        <span class="glyph">pd</span>
+        <div class="pbody">
+          <div class="pt">Consent needed <span class="when">now</span></div>
+          <div class="pb">Cartographer wants <span class="mono">git push --force-with-lease</span> · est $0.08 · rewrites remote</div>
+        </div>
+      </div>
+
+      <div class="statusrow">
+        <span class="time mono">21:48</span>
+        <svg width="46" height="12" viewBox="0 0 46 12" fill="currentColor" aria-hidden="true">
+          <rect x="0" y="7" width="2.5" height="5"/><rect x="4" y="5" width="2.5" height="7"/>
+          <rect x="8" y="3" width="2.5" height="9"/><rect x="12" y="1" width="2.5" height="11"/>
+          <path d="M20 6.2a7 7 0 0 1 9 0l-1.4 1.7a4.8 4.8 0 0 0-6.2 0z"/><circle cx="24.5" cy="10.4" r="1.5"/>
+          <rect x="33" y="2.5" width="11" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1"/>
+          <rect x="34.5" y="4" width="6.5" height="4" rx="1"/><rect x="44.6" y="4.7" width="1.4" height="2.6" rx="0.7"/>
+        </svg>
+      </div>
+      <div class="body">
+        <div style="height:100px; flex:none"></div><!-- headroom reserved for the push banner -->
+        <div class="gatehead"><span class="eyebrow" style="color:var(--violet)">Consent gate</span>
+          <span class="who mono">gate g_7f21 · Cartographer</span></div>
+        <div class="gcontext"><b>Cartographer</b>, 2m14s in, indexing src/.
+          Blocked until you decide.</div>
+
+        <div class="gatezone">
+          <!-- pending: the ask -->
+          <div class="gpending">
+            <div class="action">
+              <div class="al">Requested action</div>
+              <div class="cmd mono">git push origin symbol-index --force-with-lease</div>
+              <div class="why">Gated: rewrites the remote branch. The agent cannot undo this on its own.</div>
+            </div>
+            <div class="costrow">
+              <span>spent <b>$0.04</b></span>
+              <span>est. remaining <b>$0.08</b></span>
+              <span>budget <b>$0.50</b></span>
+            </div>
+            <div class="gbtns">
+              <button class="btn primary approve">Approve</button>
+              <div class="pair2">
+                <button class="btn">Deny</button>
+                <button class="btn quiet">Modify…</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- resolved: the receipt -->
+          <div class="receipt">
+            <div class="rcard">
+              <div class="rl"><span class="tick"></span>Approved</div>
+              <div class="rmeta">21:48:12 · applied in <span class="mono">87ms</span> over the tunnel<br>
+                sealed → <span class="mono">rcpt_9f2c41</span> · signed by this device</div>
+            </div>
+            <div class="rnote">Every decision becomes evidence — approvals and denials both seal into the receipt chain.</div>
+          </div>
+        </div>
+
+        <div class="earlier">
+          <span class="eyebrow">Earlier today</span>
+          <div class="erow"><b>Denied</b><span class="cmd mono">git checkout -- src/</span>
+            <span class="rid mono">rcpt_8b11d0</span></div>
+        </div>
+      </div>
+      <div class="homebar"><i></i></div>
+    </div></div>
+    <div class="face-label eyebrow">Consent gate · push → approve → receipt</div>
+  </div>
+
+  <!-- ============================== PHONE 4 · PAIRING ============================== -->
+  <div class="slot">
+    <div class="phone"><div class="screen z-teal">
+      <span class="island"></span>
+      <div class="statusrow">
+        <span class="time mono">21:45</span>
+        <svg width="46" height="12" viewBox="0 0 46 12" fill="currentColor" aria-hidden="true">
+          <rect x="0" y="7" width="2.5" height="5"/><rect x="4" y="5" width="2.5" height="7"/>
+          <rect x="8" y="3" width="2.5" height="9"/><rect x="12" y="1" width="2.5" height="11"/>
+          <path d="M20 6.2a7 7 0 0 1 9 0l-1.4 1.7a4.8 4.8 0 0 0-6.2 0z"/><circle cx="24.5" cy="10.4" r="1.5"/>
+          <rect x="33" y="2.5" width="11" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="1"/>
+          <rect x="34.5" y="4" width="6.5" height="4" rx="1"/><rect x="44.6" y="4.7" width="1.4" height="2.6" rx="0.7"/>
+        </svg>
+      </div>
+      <div class="body">
+        <div class="pairhead">
+          <div class="t">Pair this device</div>
+          <div class="s">Point at the QR your Mac is showing — <span class="mono">pd pair --qr</span></div>
+        </div>
+
+        <div class="qrpanel"><span class="bk"></span>
+          <svg viewBox="0 0 21 21" shape-rendering="crispEdges" aria-label="pairing QR code">
+            <g fill="currentColor">
+              <path d="M0 0h7v7H0zM1 1v5h5V1z" fill-rule="evenodd"/><rect x="2" y="2" width="3" height="3"/>
+              <path d="M14 0h7v7h-7zM15 1v5h5V1z" fill-rule="evenodd"/><rect x="16" y="2" width="3" height="3"/>
+              <path d="M0 14h7v7H0zM1 15v5h5v-5z" fill-rule="evenodd"/><rect x="2" y="16" width="3" height="3"/>
+              <path d="M9 0h1v1H9zM11 0h1v1h-1zM8 1h1v1H8zM10 1h2v1h-2zM9 2h1v2H9zM11 2h1v1h-1zM12 3h1v1h-1zM8 3h1v1H8zM10 4h2v1h-2zM9 5h1v1H9zM12 5h1v1h-1zM8 6h1v1H8zM10 6h1v1h-1zM12 6h1v1h-1z"/>
+              <path d="M0 8h1v1H0zM2 8h2v1H2zM5 8h1v1H5zM7 8h1v1H7zM9 8h1v1H9zM12 8h2v1h-2zM15 8h1v1h-1zM17 8h2v1h-2zM20 8h1v1h-1zM1 9h1v1H1zM4 9h1v1H4zM6 9h1v1H6zM8 9h2v1H8zM11 9h1v1h-1zM14 9h1v1h-1zM16 9h1v1h-1zM19 9h1v1h-1zM0 10h2v1H0zM3 10h1v1H3zM5 10h1v1H5zM7 10h1v1H7zM10 10h2v1h-2zM13 10h1v1h-1zM15 10h2v1h-2zM18 10h1v1h-1zM20 10h1v1h-1zM2 11h1v1H2zM4 11h2v1H4zM8 11h1v1H8zM10 11h1v1h-1zM12 11h1v1h-1zM14 11h1v1h-1zM17 11h1v1h-1zM19 11h1v1h-1zM0 12h1v1H0zM3 12h1v1H3zM6 12h2v1H6zM9 12h1v1H9zM11 12h2v1h-2zM15 12h1v1h-1zM18 12h2v1h-2z"/>
+              <path d="M9 14h1v1H9zM11 14h2v1h-2zM14 14h1v1h-1zM16 14h1v1h-1zM19 14h2v1h-2zM8 15h1v1H8zM10 15h1v1h-1zM13 15h1v1h-1zM15 15h1v1h-1zM18 15h1v1h-1zM9 16h2v1H9zM12 16h1v1h-1zM14 16h2v1h-2zM17 16h1v1h-1zM20 16h1v1h-1zM8 17h1v1H8zM11 17h1v1h-1zM13 17h1v1h-1zM16 17h2v1h-2zM19 17h1v1h-1zM9 18h1v1H9zM12 18h2v1h-2zM15 18h1v1h-1zM18 18h1v1h-1zM20 18h1v1h-1zM8 19h2v1H8zM11 19h1v1h-1zM14 19h1v1h-1zM16 19h1v1h-1zM19 19h1v1h-1zM10 20h1v1h-1zM12 20h1v1h-1zM15 20h2v1h-2zM18 20h1v1h-1z"/>
+            </g>
+          </svg>
+          <span class="qrscan"></span>
+        </div>
+
+        <div class="orrule">or enter the code</div>
+        <div class="digits"><span class="d">7</span><span class="d">3</span><span class="d">1</span><span class="d">4</span></div>
+        <div class="expiry mono">code expires in 90s</div>
+
+        <div class="chip-daemon"><span class="d"></span><span class="mfl fl-kilo"></span>Daemon found — unpaired
+          <span class="detail mono">erichs-m4.local</span></div>
+
+        <div class="pairsec">Pairing mints a device key — every remote approval is signed with it
+          and sealed into the receipt.</div>
+
+        <div class="pairbtn"><button class="btn primary">Pair with code</button></div>
+      </div>
+      <div class="homebar"><i></i></div>
+    </div></div>
+    <div class="face-label eyebrow">Pairing · QR or 4-digit, key minted on device</div>
+  </div>
+
+</div>
+
+<div class="notes">
+  <div style="flex-basis:100%"><hr class="rule-mid"><span class="eyebrow">Motion notes</span></div>
+  <span><span class="k">--ease-spring</span> cubic-bezier(0.22, 1, 0.36, 1) — push arrival, receipt, reveals</span>
+  <span><span class="k">--ease-quick</span> cubic-bezier(0.4, 0, 0.2, 1) — hovers, fades, presses</span>
+  <span><span class="k">14s story</span> — push in → approve press → receipt seals → transcript resumes → home row settles</span>
+  <span><span class="k">pulse</span> only on in-flight dots (rule-8)</span>
+  <span><span class="k">reduced motion</span> freezes to the ask-moment still</span>
+</div>
+
+</body>
+</html>
