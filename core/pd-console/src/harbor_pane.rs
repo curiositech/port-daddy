@@ -528,6 +528,80 @@ impl ControlRow {
     }
 }
 
+// ── Blackboard read model (M6, read-only — binder ch05; ADR-0097 §5) ────────
+
+/// One card from `GET /blackboard` — a tolerant reader over the frozen
+/// `blackboard-item.schema.json` shape (the M6 contract). READ-ONLY by
+/// design: ch05 defers blackboard write/parley semantics to Milestone 8, so
+/// this struct carries no ack/parley/mutation affordances and the pane never
+/// POSTs to the board.
+#[derive(Debug, Clone, Default)]
+pub struct BlackboardCard {
+    pub item_id: String,
+    /// Open string (tolerant reading): active-claim, contested-file,
+    /// transcript-episode, work-receipt, do-not-duplicate, …
+    pub kind: String,
+    pub title: String,
+    pub detail: String,
+    pub severity: String,
+    pub status: String,
+    pub posted_at: String,
+    pub session_id: Option<String>,
+    pub agent_node_id: Option<String>,
+    /// Who the projection derived the card from (`assertedBy.kind`) —
+    /// provenance of the underlying fact, not a write permission.
+    pub asserted_by: String,
+    /// Citation count — the DIGEST-WITH-ZOOM guarantee (the frozen schema's
+    /// minItems 1 means a rendered card always has a zoom path to the ledger).
+    pub citations: usize,
+    /// Freshness label from the card's own `projection.stale` — stale cards
+    /// are labeled, never hidden.
+    pub stale: bool,
+}
+
+impl BlackboardCard {
+    /// Tolerant reader over the frozen BlackboardItem shape. Canonical names
+    /// only (`itemId`, `postedAt`, `assertedBy`, `detail` — never the
+    /// superseded ch03 `body`; ADR-0097 drift lock).
+    pub fn from_value(v: &Value) -> Self {
+        let asserted_by = v
+            .get("assertedBy")
+            .map(|a| s(a, "kind"))
+            .unwrap_or_default();
+        let stale = v
+            .get("projection")
+            .and_then(|p| p.get("stale"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        Self {
+            item_id: s(v, "itemId"),
+            kind: s(v, "kind"),
+            title: s(v, "title"),
+            detail: s(v, "detail"),
+            severity: s(v, "severity"),
+            status: s(v, "status"),
+            posted_at: s(v, "postedAt"),
+            session_id: opt_s(v, "sessionId"),
+            agent_node_id: opt_s(v, "agentNodeId"),
+            asserted_by,
+            citations: arr(v, "citations").len(),
+            stale,
+        }
+    }
+
+    /// Severity → tone: conflicts read as warnings, never as chrome. Unknown
+    /// severities render calm (`Default`) — an unparseable severity must never
+    /// paint a false alarm.
+    pub fn tone(&self) -> Tone {
+        match self.severity.as_str() {
+            "critical" => Tone::Alarm,
+            "high" => Tone::Conflicted,
+            "warning" => Tone::Gated,
+            _ => Tone::Default,
+        }
+    }
+}
+
 // ── The pane ─────────────────────────────────────────────────────────────────
 
 pub struct HarborPane {
@@ -540,9 +614,17 @@ pub struct HarborPane {
     files: Vec<FileTouch>,
     cost: CostSummary,
     controls: Vec<ControlRow>,
+    /// The harbor-wide read-only blackboard (M6): claims, conflicts, recent
+    /// compaction/receipt events. Not per-node — it renders even when the
+    /// roster is empty.
+    blackboard: Vec<BlackboardCard>,
+    /// Invalid assertions the daemon dropped (`droppedInvalid`) — a bad
+    /// asserter is visible, never silently absorbed.
+    blackboard_dropped: u64,
     roster_error: Option<String>,
     transcript_error: Option<String>,
     control_error: Option<String>,
+    blackboard_error: Option<String>,
     /// Outcome flash of the last issued control (verb, message).
     last_control: Option<(String, String)>,
     /// Monotonic salt for idempotency keys.
@@ -559,9 +641,12 @@ impl Default for HarborPane {
             files: Vec::new(),
             cost: CostSummary::default(),
             controls: Vec::new(),
+            blackboard: Vec::new(),
+            blackboard_dropped: 0,
             roster_error: None,
             transcript_error: None,
             control_error: None,
+            blackboard_error: None,
             last_control: None,
             command_seq: 0,
         }
@@ -862,6 +947,99 @@ impl HarborPane {
         self.selected = self.selected.min(self.nodes.len().saturating_sub(1));
     }
 
+    /// Apply a fetched `GET /blackboard` envelope (tolerant: bare array or
+    /// `{data, droppedInvalid, projection}`).
+    pub fn apply_blackboard(&mut self, data: &Value) {
+        let list: Vec<Value> = match data {
+            Value::Array(a) => a.clone(),
+            _ => arr(data, "data").to_vec(),
+        };
+        self.blackboard = list.iter().map(BlackboardCard::from_value).collect();
+        self.blackboard_dropped = data
+            .get("droppedInvalid")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        self.blackboard_error = None;
+    }
+
+    /// The read-only blackboard section (M6). Never blank: error, empty, and
+    /// populated states all render honestly. Cards are lenses, not chat —
+    /// each shows its kind, severity tone, citation count (the zoom path),
+    /// and read-model status.
+    fn blackboard_blocks(&self) -> Vec<Block> {
+        let mut blocks = vec![Block::Header("Blackboard — read-only (M6)".into())];
+        if let Some(err) = &self.blackboard_error {
+            blocks.push(Block::WrappedText {
+                text: format!("blackboard unavailable: {err}"),
+                tone: Tone::Gated,
+            });
+            return blocks;
+        }
+        if self.blackboard.is_empty() {
+            blocks.push(Block::WrappedText {
+                text: "board is clear — no active claims, conflicts, or recent \
+                       compaction/receipt events"
+                    .into(),
+                tone: Tone::Resting,
+            });
+            return blocks;
+        }
+        if self.blackboard_dropped > 0 {
+            blocks.push(Block::WrappedText {
+                text: format!(
+                    "{} asserted item(s) failed contract validation and were dropped \
+                     by the daemon — inspect the asserting Longshoreman",
+                    self.blackboard_dropped
+                ),
+                tone: Tone::Conflicted,
+            });
+        }
+        for card in self.blackboard.iter().take(12) {
+            let status = if card.status == "active" {
+                String::new()
+            } else {
+                format!(" [{}]", card.status)
+            };
+            let stale = if card.stale { " [stale]" } else { "" };
+            let stamp = if card.posted_at.is_empty() {
+                String::new()
+            } else {
+                format!("{} · ", card.posted_at)
+            };
+            blocks.push(Block::TranscriptLine {
+                text: format!(
+                    "{}{} · {}{}{} · {} citation(s) · via {}",
+                    stamp,
+                    card.kind,
+                    trunc(&card.title, 100),
+                    status,
+                    stale,
+                    card.citations,
+                    if card.asserted_by.is_empty() { "?" } else { card.asserted_by.as_str() },
+                ),
+                tone: card.tone(),
+            });
+            // Conflicts and worse get their detail rendered inline — stakes-
+            // proportional visibility (a warning the operator must scroll for
+            // is a warning missed); info housekeeping stays one line.
+            if matches!(card.severity.as_str(), "warning" | "high" | "critical")
+                && !card.detail.is_empty()
+            {
+                blocks.push(Block::WrappedText {
+                    text: trunc(&card.detail, 240),
+                    tone: card.tone(),
+                });
+            }
+        }
+        if self.blackboard.len() > 12 {
+            blocks.push(Block::WrappedText {
+                text: format!("… {} more card(s) on the board", self.blackboard.len() - 12),
+                tone: Tone::Resting,
+            });
+        }
+        blocks
+    }
+
     /// Apply fetched transcript events (tolerant: bare array or `{events}`).
     pub fn apply_events(&mut self, data: &Value) {
         let list: Vec<Value> = match data {
@@ -910,10 +1088,17 @@ impl Pane for HarborPane {
                     .into(),
                 tone: Tone::Resting,
             });
+            // The blackboard is harbor-wide, not per-node: contested files and
+            // live claims can exist before any Agent Node registers, so the
+            // board renders even over an empty roster.
+            blocks.push(Block::Gap);
+            blocks.extend(self.blackboard_blocks());
             return blocks;
         }
 
         blocks.extend(self.roster_blocks());
+        blocks.push(Block::Gap);
+        blocks.extend(self.blackboard_blocks());
         blocks.push(Block::Gap);
         if let Some(node) = self.selected_node() {
             let node = node.clone();
@@ -957,6 +1142,37 @@ impl Pane for HarborPane {
                         Ok(data) => {
                             self.roster_error = None;
                             self.apply_roster(&data);
+                        }
+                    }
+                }
+            }
+
+            // 1.5. Blackboard: GET /blackboard (M6 read-only board, binder
+            //      ch05; ADR-0097 §5). Harbor-wide — fetched regardless of
+            //      node selection, GET only (writes are M8).
+            let url = format!("{}/blackboard?limit=50", daemon.base());
+            match daemon.http_client().get(&url).send().await {
+                Err(e) => {
+                    self.blackboard_error = Some(format!("daemon unreachable: {e}"));
+                }
+                Ok(resp) => {
+                    let status = resp.status();
+                    if status.as_u16() == 404 {
+                        self.blackboard_error = Some(
+                            "GET /blackboard → 404 — this daemon predates the M6 \
+                             read-only blackboard (ADR-0097 phase 4). Remediation: \
+                             upgrade the daemon (`pd doctor`)"
+                                .into(),
+                        );
+                    } else if !status.is_success() {
+                        self.blackboard_error = Some(format!("GET /blackboard → {status}"));
+                    } else {
+                        match resp.json::<Value>().await {
+                            Err(e) => {
+                                self.blackboard_error =
+                                    Some(format!("bad blackboard response: {e}"));
+                            }
+                            Ok(data) => self.apply_blackboard(&data),
                         }
                     }
                 }
@@ -1663,6 +1879,79 @@ mod tests {
         ));
         pane.nodes[0].status = "complete".into();
         assert!(pane.subscription().is_none(), "historical nodes are never live-followed");
+    }
+
+    // ── Blackboard read query (M6, read-only — binder ch05; ADR-0097 §5) ──
+
+    #[test]
+    fn parses_the_frozen_blackboard_item_fixture_with_canonical_names() {
+        let v = fixture("blackboard-item.json");
+        let card = BlackboardCard::from_value(&v);
+        // Canonical M6 names — itemId/postedAt/assertedBy/detail, never the
+        // superseded ch03 `body` (ADR-0097 drift lock).
+        assert!(!card.item_id.is_empty(), "itemId must parse");
+        assert!(!card.kind.is_empty());
+        assert!(!card.title.is_empty());
+        assert!(!card.posted_at.is_empty(), "postedAt must parse");
+        assert!(!card.asserted_by.is_empty(), "assertedBy.kind must parse");
+        // The frozen schema's citations minItems 1: the zoom path exists.
+        assert!(card.citations >= 1, "a card without citations is a loose chat, not a board");
+        assert!(!card.stale, "the fixture's projection is fresh");
+    }
+
+    #[test]
+    fn severity_maps_to_tone_and_unknown_severity_never_alarms() {
+        let mut card = BlackboardCard::default();
+        card.severity = "critical".into();
+        assert!(matches!(card.tone(), Tone::Alarm));
+        card.severity = "high".into();
+        assert!(matches!(card.tone(), Tone::Conflicted));
+        card.severity = "warning".into();
+        assert!(matches!(card.tone(), Tone::Gated));
+        card.severity = "someFutureSeverity".into();
+        assert!(matches!(card.tone(), Tone::Default), "unknown severity renders calm");
+    }
+
+    #[test]
+    fn applies_a_blackboard_envelope_and_surfaces_dropped_assertions() {
+        let mut pane = HarborPane::new();
+        pane.apply_blackboard(&json!({
+            "data": [fixture("blackboard-item.json")],
+            "droppedInvalid": 2,
+            "projection": { "name": "blackboard", "stale": false }
+        }));
+        assert_eq!(pane.blackboard.len(), 1);
+        assert_eq!(pane.blackboard_dropped, 2);
+        let blocks = pane.blackboard_blocks();
+        // The dropped count is rendered — a bad asserter is visible.
+        assert!(blocks.iter().any(|b| matches!(
+            b,
+            Block::WrappedText { text, .. } if text.contains("2 asserted item(s)")
+        )));
+        // The card itself renders with its citation count (the zoom path).
+        assert!(blocks.iter().any(|b| matches!(
+            b,
+            Block::TranscriptLine { text, .. } if text.contains("citation(s)")
+        )));
+    }
+
+    #[test]
+    fn blackboard_renders_even_over_an_empty_roster_and_errors_are_honest() {
+        let mut pane = HarborPane::new();
+        // Empty roster, populated board: the board is harbor-wide.
+        pane.apply_blackboard(&json!({ "data": [fixture("blackboard-item.json")] }));
+        let blocks = pane.view();
+        assert!(blocks.iter().any(|b| matches!(
+            b,
+            Block::Header(text) if text.contains("Blackboard — read-only")
+        )));
+        // A fetch failure is an honest rendered state, never a blank section.
+        pane.blackboard_error = Some("GET /blackboard → 404".into());
+        let blocks = pane.blackboard_blocks();
+        assert!(blocks.iter().any(|b| matches!(
+            b,
+            Block::WrappedText { text, .. } if text.contains("blackboard unavailable")
+        )));
     }
 
     /// Minimal block_on for the no-yield futures in these tests (gated mutate
