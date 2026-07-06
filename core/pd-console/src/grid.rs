@@ -50,7 +50,7 @@ pub const NAV: &[NavItem] = &[
     NavItem { id: "daemons",  label: "Daemons",  icon: "icons/nav/daemons.svg",  key: "e" },
     NavItem { id: "cloud-fleet", label: "Cloud Fleet", icon: "icons/nav/cloud-fleet.svg", key: "f" },
     NavItem { id: "active-agents", label: "Agents", icon: "icons/nav/agents.svg", key: "a" },
-    NavItem { id: "harbor",   label: "Harbor",   icon: "icons/nav/harbor.svg",   key: "A" },
+    NavItem { id: "harbor",   label: "Harbor",   icon: "icons/nav/harbor.svg",   key: "r" },
 ];
 
 /// Canonical slot → pane-id map: the single source of truth the producer thread
@@ -104,6 +104,15 @@ mod tests {
         for nav in NAV {
             assert!(ids.insert(nav.id), "duplicate grid id: '{}'", nav.id);
             assert!(keys.insert(nav.key), "duplicate leader key '{}' (tile '{}')", nav.key, nav.id);
+            // The launcher lowercases the operator's query (`surface_for_query`),
+            // so an uppercase key is unreachable — and shadows its lowercase twin.
+            assert_eq!(
+                nav.key,
+                nav.key.to_lowercase(),
+                "leader key '{}' (tile '{}') must be lowercase — launcher queries are lowercased",
+                nav.key,
+                nav.id,
+            );
         }
     }
 

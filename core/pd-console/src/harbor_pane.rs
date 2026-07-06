@@ -196,10 +196,14 @@ impl NodeRowData {
         (claimed, None)
     }
 
-    /// LIVE means daemon-proved liveness: an active status AND a bound body or
-    /// session (a session row alone is never "live" — ADR-0095 §3).
+    /// LIVE means daemon-proved liveness: an active status AND daemon-side
+    /// evidence of a running body — a bound body id, a heartbeat, or transcript
+    /// events. A session row alone is never "live" (ADR-0095 §3).
     pub fn is_live(&self) -> bool {
-        self.status == "active" && (self.body_id.is_some() || self.session_id.is_some())
+        self.status == "active"
+            && (self.body_id.is_some()
+                || !self.last_heartbeat_at.is_empty()
+                || !self.last_event_at.is_empty())
     }
 
     /// Historical = the run is over; the transcript is a replay artifact.
@@ -573,9 +577,11 @@ impl HarborPane {
         self.nodes.get(self.selected)
     }
 
-    /// Epoch-ms + per-pane counter: unique per issued command, stable on retry
-    /// of the same click (the daemon treats duplicates as no-ops — F0
-    /// "idempotency everywhere").
+    /// Epoch-ms + per-pane counter: a fresh key is minted once per issued
+    /// command (per click) and embedded in the POST body, so transport-level
+    /// retries of that one POST carry the same key and dedupe daemon-side (F0
+    /// "idempotency everywhere"). Two separate clicks are two distinct intents
+    /// and deliberately get distinct keys.
     fn idempotency_key(&mut self, verb: &str, node_id: &str) -> String {
         self.command_seq += 1;
         let ms = std::time::SystemTime::now()
@@ -724,6 +730,15 @@ impl HarborPane {
                 tone: Tone::Gated,
             });
         } else {
+            // A refresh failure after a prior success must stay visible: render
+            // the error banner above the last-known data instead of silently
+            // presenting stale rows as current (honest-state acceptance gate).
+            if let Some(err) = &self.transcript_error {
+                blocks.push(Block::WrappedText {
+                    text: format!("transcript refresh failed — showing last-known data: {err}"),
+                    tone: Tone::Gated,
+                });
+            }
             if !self.transcript.is_empty() {
                 blocks.push(Block::Header("historical transcript — replay".into()));
                 for row in &self.transcript {
@@ -1413,6 +1428,51 @@ mod tests {
         assert!(
             headers.iter().any(|h| h.contains("live — events arriving")),
             "live section labeled: {headers:?}"
+        );
+    }
+
+    #[test]
+    fn session_row_alone_is_never_live() {
+        // ADR-0095 §3: "LIVE" requires a heartbeat or transcript events,
+        // never a session row alone.
+        let mut node = c4_node();
+        node.body_id = None;
+        node.last_heartbeat_at = String::new();
+        node.last_event_at = String::new();
+        assert!(node.session_id.is_some() && node.status == "active");
+        assert!(!node.is_live(), "active + session-only must not render LIVE");
+        node.last_heartbeat_at = "2026-07-05T00:00:00Z".into();
+        assert!(node.is_live(), "a heartbeat is daemon-proved liveness evidence");
+    }
+
+    #[test]
+    fn transcript_fetch_error_stays_visible_over_last_known_data() {
+        // A refresh failure after a prior success must not silently present
+        // stale rows as current (honest-state acceptance gate).
+        let mut pane = HarborPane::new();
+        pane.nodes = vec![c4_node()];
+        pane.apply_events(&json!({ "events": [{
+            "eventId": "ev-1", "sessionId": "sess-1", "agentNodeId": "an-1",
+            "sequence": 1, "occurredAt": "2026-07-05T00:00:00Z", "schemaVersion": 1,
+            "kind": "assistant_message", "payloadJson": { "text": "old row" }
+        }]}));
+        pane.transcript_error = Some("GET /sessions/sess-1/events → 502".into());
+        let blocks = pane.view();
+        assert!(
+            blocks.iter().any(|b| matches!(
+                b,
+                Block::WrappedText { text, tone: Tone::Gated }
+                    if text.contains("transcript refresh failed")
+                        && text.contains("502")
+            )),
+            "stale-data error banner must render above last-known transcript"
+        );
+        assert!(
+            blocks.iter().any(|b| matches!(
+                b,
+                Block::Header(t) if t.contains("historical transcript")
+            )),
+            "last-known transcript still renders under its replay header"
         );
     }
 
