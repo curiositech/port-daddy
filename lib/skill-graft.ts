@@ -75,7 +75,7 @@
 
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { cosineSimilarity, createLocalEmbedder, defaultTransformersCacheDir } from './semantic-resolver.js';
+import { createLocalEmbedder, defaultTransformersCacheDir } from './semantic-resolver.js';
 import {
   loadSkillCatalog,
   type SkillEmbedder,
