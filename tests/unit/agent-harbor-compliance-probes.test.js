@@ -7,7 +7,8 @@
  *   3. model tier and provider-specific model name are both visible;
  *   4. partial cost survives abort or failed body start.
  *
- * Plus: the five negative probes are present-and-executable for every adapter
+ * Plus: the six negative probes (forged-guidance per ADR-0096) are
+ * present-and-executable for every adapter
  * fixture (compliant/weak/broken/malicious), every emitted object validates
  * against the frozen F0 v0 schemas, and every probe result satisfies the
  * ADR-0095 §8 witnessing invariant (compliance-invariants.mjs is the normative
@@ -166,7 +167,7 @@ describe('model-tier policy (ch18 C2 gate: tier AND resolved name visible)', () 
 // ---------------------------------------------------------------------------
 
 describe('conformance probe engine over every adapter × profile', () => {
-  it('emits schema-valid, witness-valid results with all five negative probes present', async () => {
+  it('emits schema-valid, witness-valid results with all six negative probes present', async () => {
     for (const kind of ADAPTER_KINDS) {
       for (const profile of FIXTURE_PROFILES) {
         const result = await probeFixture(kind, profile);
@@ -177,7 +178,7 @@ describe('conformance probe engine over every adapter × profile', () => {
         expect(witness.violations).toEqual([]);
         expect(witness.valid).toBe(true);
 
-        // The five required negative probe kinds are all present and executable.
+        // The six required negative probe kinds are all present and executable.
         const kinds = new Set(result.negativeProbes.map((p) => p.kind));
         for (const required of NEGATIVE_PROBE_KINDS) expect(kinds.has(required)).toBe(true);
 
@@ -564,6 +565,7 @@ describe('probe → AgentNode linkage', () => {
       'forged-heartbeat',
       'forged-level',
       'observed-to-controlled',
+      'forged-guidance',
     ].sort());
   });
 });

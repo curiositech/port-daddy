@@ -1,5 +1,6 @@
 /**
- * Agent Harbor v0 contract freeze tests (ADR-0095, binder ch18 Work Order F0).
+ * Agent Harbor v0 contract freeze tests (ADR-0095, binder ch18 Work Order F0;
+ * extended by the ADR-0096 M5 F0-delta: GuidanceEnvelope + forged-guidance).
  *
  * Locks three things:
  *   1. Every schema in schemas/agent-harbor/v0/ parses and COMPILES — the
@@ -45,6 +46,7 @@ const SCHEMA_NAMES = [
   'context-envelope',
   'skill-graft',
   'work-receipt',
+  'guidance-envelope',
 ];
 
 // ---------------------------------------------------------------------------
@@ -184,7 +186,7 @@ function loadFixture(name) {
 // ---------------------------------------------------------------------------
 
 describe('agent-harbor v0 schema package', () => {
-  it('ships exactly the eleven frozen contracts (plus fixtures)', () => {
+  it('ships exactly the twelve frozen contracts (plus fixtures) — eleven from F0 plus the ADR-0096 GuidanceEnvelope', () => {
     const files = readdirSync(schemaDir).filter((f) => f.endsWith('.schema.json')).sort();
     expect(files).toEqual(SCHEMA_NAMES.map((n) => `${n}.schema.json`).sort());
   });
@@ -433,5 +435,108 @@ describe('ADR-0095 §8 compliance witnessing invariant', () => {
     const node = { ...loadFixture('agent-node') };
     delete node.complianceProbeId;
     expect(checkNodeWitnessing(node, loadFixture('compliance-probe-result')).valid).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 4. ADR-0096 M5 F0-delta: the GuidanceEnvelope freeze and the sixth negative
+//    probe. Verified guidance is the only operator-authority channel; the
+//    contract must make an unsigned envelope unrepresentable and a forged one
+//    falsifiable.
+// ---------------------------------------------------------------------------
+
+describe('ADR-0096 guidance-envelope freeze (M5 F0-delta)', () => {
+  const schema = loadSchema('guidance-envelope');
+
+  it('the signed binding tuple and the authority/sig blocks are required — no unsigned guidance is schema-valid', () => {
+    for (const field of ['schema', 'envelopeId', 'agentNodeId', 'sessionId', 'turnSequence', 'issuedAt', 'notAfter', 'nonce', 'items', 'authority', 'sig']) {
+      expect(schema.required).toContain(field);
+    }
+    expect(schema.properties.sig.required).toEqual(['alg', 'keyId', 'value']);
+    expect(schema.properties.authority.required).toContain('mode');
+    // An envelope with no sig block fails validation.
+    const unsigned = { ...loadFixture('guidance-envelope') };
+    delete unsigned.sig;
+    expect(validate(schema, unsigned).some((e) => e.includes('sig'))).toBe(true);
+  });
+
+  it('freezes the authority modes, operator actions, and signature algorithms per the ADR-0096 sketch', () => {
+    expect(schema.properties.authority.properties.mode.enum).toEqual(['loopback', 'macaroon']);
+    expect(schema.properties.authority.properties.operatorAction.enum).toEqual([
+      'fleetbar-gate-approval', 'pd-cli', 'console-click', 'daemon-policy', null,
+    ]);
+    expect(schema.properties.sig.properties.alg.enum).toEqual(['hmac-sha256', 'ed25519']);
+  });
+
+  it('tolerant reader on unknown item kinds: kind is an open string and a future kind validates', () => {
+    // No enum on items[].kind — an old body must not silently discard a new
+    // guidance kind (it renders it as unrecognized-but-verified instead).
+    expect(schema.properties.items.items.properties.kind.enum).toBeUndefined();
+    const fixture = loadFixture('guidance-envelope');
+    const extended = { ...fixture, items: [...fixture.items, { kind: 'x-future-guidance-kind', ref: 'x_1' }] };
+    expect(validate(schema, extended)).toEqual([]);
+  });
+
+  it('replay-binding fields are constrained: turnSequence is a non-negative integer and nonce/notAfter are non-empty', () => {
+    const fixture = loadFixture('guidance-envelope');
+    expect(validate(schema, { ...fixture, turnSequence: -1 }).some((e) => e.includes('turnSequence'))).toBe(true);
+    expect(validate(schema, { ...fixture, turnSequence: 1.5 }).some((e) => e.includes('turnSequence'))).toBe(true);
+    expect(validate(schema, { ...fixture, nonce: '' }).some((e) => e.includes('nonce'))).toBe(true);
+    expect(validate(schema, { ...fixture, notAfter: '' }).some((e) => e.includes('notAfter'))).toBe(true);
+  });
+
+  it('drift lock: the GuidanceEnvelope is not the ContextEnvelope and superseded ch03 names must not reappear', () => {
+    const props = schema.properties;
+    // ContextEnvelope is context-pressure accounting with zero authority
+    // fields (ADR-0096 context); its fields must not leak into this contract.
+    for (const foreign of ['windowTokens', 'usedTokensEstimate', 'pressure', 'contextRefs', 'compactionNeeded']) {
+      expect(props).not.toHaveProperty(foreign);
+    }
+    // Superseded ch03 names (fork 1) must not reappear on any new contract.
+    for (const superseded of ['agentId', 'body', 'blobRefs', 'redaction', 'retention']) {
+      expect(props).not.toHaveProperty(superseded);
+    }
+    // And ContextEnvelope stays authority-free in the other direction.
+    const contextProps = loadSchema('context-envelope').properties;
+    for (const authorityField of ['sig', 'authority', 'nonce']) {
+      expect(contextProps).not.toHaveProperty(authorityField);
+    }
+  });
+
+  it('the sixth negative probe forged-guidance is frozen into the compliance surface at the C3 gate', () => {
+    const probeSchema = loadSchema('compliance-probe-result');
+    const kinds = probeSchema.properties.negativeProbes.items.properties.kind.enum;
+    expect(kinds).toContain('forged-guidance');
+    expect(kinds).toHaveLength(6);
+    // A concrete forged-guidance record (unsigned envelope rejected -> downgraded) validates.
+    const record = {
+      kind: 'forged-guidance',
+      targetLevel: 'C3',
+      present: true,
+      fired: true,
+      downgraded: true,
+      observedLevel: 'C0',
+      details: 'unsigned envelope injected; body rejected it and recorded the downgrade',
+    };
+    expect(validate(probeSchema.properties.negativeProbes.items, record)).toEqual([]);
+  });
+
+  it('witnessing: forged-guidance can witness C3, and a fired-but-not-downgraded forged-guidance is a violation', () => {
+    const probe = buildWitnessedProbe('C3');
+    // Swap the generic C3 forged-level probe for the ADR-0096 specialized one.
+    probe.negativeProbes = probe.negativeProbes.filter((n) => n.targetLevel !== 'C3');
+    probe.negativeProbes.push({
+      kind: 'forged-guidance', targetLevel: 'C3', present: true, fired: true, downgraded: true, observedLevel: 'C2',
+    });
+    expect(witnessedComplianceLevel(probe)).toBe('C3');
+    expect(checkProbeWitnessing(probe).valid).toBe(true);
+
+    // A body that acted on unsigned guidance without a recorded downgrade is
+    // the no-downgrade-on-forgery worst case: proof the injection works.
+    const bad = probe.negativeProbes.find((n) => n.kind === 'forged-guidance');
+    bad.downgraded = false;
+    expect(checkProbeWitnessing(probe).valid).toBe(false);
+    expect(checkProbeWitnessing(probe).violations.join(' ')).toMatch(/forged-guidance.*no-downgrade-on-forgery/);
+    expect(witnessedComplianceLevel(probe)).toBe('C2');
   });
 });

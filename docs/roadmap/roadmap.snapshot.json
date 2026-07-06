@@ -365,6 +365,11 @@
       "summaryMd": "ADR-0092 first local L2 slice: PreToolUse edit-moment suggestibility dial enforces coordinate-before-you-cut before cloud federation."
     },
     {
+      "slug": "adr-0096-signed-guidance-envelope",
+      "status": "now",
+      "summaryMd": "M5 turn-start suggestibility: signed GuidanceEnvelope channel, forged-guidance probe, ProVerif-gated C3 (ADR-0096, binder ch18 M5)"
+    },
+    {
       "slug": "agent-harbor-c1-event-ledger",
       "status": "backlog",
       "summaryMd": "Agent Harbor C1 \u2014 event ledger and projections (binder ch18 Work Order C1)"
