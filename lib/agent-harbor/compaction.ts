@@ -486,7 +486,10 @@ export function buildCompactionPacket(db: DatabaseInstance, input: BuildPacketIn
   const extractedCommands = extractCommandsRun(rows);
   const excerptCount = Math.max(0, input.excerptCount ?? 5);
   const excerptMaxChars = Math.max(1, input.excerptMaxChars ?? 240);
-  const transcriptExcerpts = rows.slice(-excerptCount).map((row) => ({
+  // slice(-0) === slice(0) would include the WHOLE transcript — the exact
+  // opposite of "no excerpts" — so 0 must short-circuit to an empty lens set.
+  const excerptRows = excerptCount === 0 ? [] : rows.slice(-excerptCount);
+  const transcriptExcerpts = excerptRows.map((row) => ({
     citation: { kind: 'transcript-event' as const, transcriptEventId: row.event_id },
     excerpt: excerptFromRow(row, excerptMaxChars),
   }));

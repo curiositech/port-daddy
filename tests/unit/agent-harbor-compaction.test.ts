@@ -328,6 +328,12 @@ describe('agent-harbor M6 Longshoreman compactor', () => {
     expect(sessionChainHeadHash(db, SESSION)).toBe(after[after.length - 1].content_hash);
   });
 
+  it('excerptCount: 0 means ZERO excerpts, never the whole transcript (slice(-0) regression)', () => {
+    const { packet } = buildCompactionPacket(db, packetInput({ excerptCount: 0 }));
+    expect(packet.transcriptExcerpts).toEqual([]);
+    expect(packet.validator.passed).toBe(true);
+  });
+
   it('derives the trigger from a ContextEnvelope when one is given (M6 gate: force threshold, see packet)', () => {
     const envelope = buildContextEnvelope({
       agentNodeId: NODE,
