@@ -55,6 +55,13 @@ breaking changes; Deprecation/Sunset discipline), and `sqlite-durable-agent-stat
 Fixture instances live in `schemas/agent-harbor/v0/fixtures/` and are validated by
 `tests/unit/agent-harbor-contracts.test.js`.
 
+> **Amended 2026-07-06 (ADR-0096, M5 F0-delta).** A twelfth contract,
+> `guidance-envelope.schema.json` (GuidanceEnvelope — the signed turn-start guidance
+> channel), is additive to this package. It is a different object from ContextEnvelope
+> (which remains pure context-pressure accounting with zero authority fields). See
+> ADR-0096 for the key-establishment, signature-binding, operator-authority
+> (macaroon), and anti-replay design.
+
 ### 2. The Agent Run Saga
 
 One agent run is a saga over the Work Plan state machine (binder ch14 + the
@@ -135,6 +142,18 @@ negative probe (instantiated once per level via `targetLevel`), so C1, C3, C5, a
 each falsifiable, not only the gateway levels the four specialized probes cover. The
 enforcement that a level is never granted by self-report is **fork resolution's teeth in
 §8**, not prose alone.
+
+> **Amended 2026-07-06 (ADR-0096): C3 Suggestible REQUIRES a verifiable guidance
+> channel.** A body earns C3 only when turn-start guidance arrives as a signed
+> `GuidanceEnvelope` (guidance-envelope.schema.json) the harness verifies against its
+> launch-provisioned session key before bytes reach the model. A body that can only
+> receive guidance as unauthenticated injected text is C0/observed on the
+> suggestibility axis — never C3, whatever its steer channel does. The C2 probe suite
+> gains a sixth required negative probe, `forged-guidance`: inject an envelope with an
+> invalid or absent signature and confirm the body rejects it — rejection records
+> `fired: false`. A body that acts on unsigned guidance fires the probe
+> (`fired: true`), must record `downgraded: true`, and cannot advance past C0 on the
+> suggestibility axis.
 
 **Fork 3 — Canonical DB path: `port-registry.db` per `lib/db.ts`.** Resolution order is
 (1) `PORT_DADDY_PREFIX` → `$PORT_DADDY_PREFIX/port-daddy.db` as passed by `server.ts`,
@@ -272,6 +291,9 @@ Rust `pd-console`, external custom agents — MUST implement this identical pred
   have a negative probe" gap. The four specialized probes (`direct-mcp-bypass`,
   `disabled-hook-after-launch`, `forged-heartbeat`, `observed-to-controlled`) are
   additional targeted attacks on the governance and liveness gates, not the only witnesses.
+  *Amended 2026-07-06 (ADR-0096):* `forged-guidance` joins them as the fifth specialized
+  probe, targeting the C3 suggestibility gate — an unsigned or invalid-signature
+  `GuidanceEnvelope` must be rejected and record `downgraded: true`.
 
 ## Open questions (minor, non-blocking)
 

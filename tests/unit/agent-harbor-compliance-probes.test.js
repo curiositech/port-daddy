@@ -7,7 +7,8 @@
  *   3. model tier and provider-specific model name are both visible;
  *   4. partial cost survives abort or failed body start.
  *
- * Plus: the five negative probes are present-and-executable for every adapter
+ * Plus: the six negative probes (forged-guidance per ADR-0096) are
+ * present-and-executable for every adapter
  * fixture (compliant/weak/broken/malicious), every emitted object validates
  * against the frozen F0 v0 schemas, and every probe result satisfies the
  * ADR-0095 §8 witnessing invariant (compliance-invariants.mjs is the normative
@@ -166,7 +167,7 @@ describe('model-tier policy (ch18 C2 gate: tier AND resolved name visible)', () 
 // ---------------------------------------------------------------------------
 
 describe('conformance probe engine over every adapter × profile', () => {
-  it('emits schema-valid, witness-valid results with all five negative probes present', async () => {
+  it('emits schema-valid, witness-valid results with all six negative probes present', async () => {
     for (const kind of ADAPTER_KINDS) {
       for (const profile of FIXTURE_PROFILES) {
         const result = await probeFixture(kind, profile);
@@ -177,7 +178,7 @@ describe('conformance probe engine over every adapter × profile', () => {
         expect(witness.violations).toEqual([]);
         expect(witness.valid).toBe(true);
 
-        // The five required negative probe kinds are all present and executable.
+        // The six required negative probe kinds are all present and executable.
         const kinds = new Set(result.negativeProbes.map((p) => p.kind));
         for (const required of NEGATIVE_PROBE_KINDS) expect(kinds.has(required)).toBe(true);
 
@@ -556,6 +557,37 @@ describe('probe → AgentNode linkage', () => {
     expect(verdict.violations.join(' ')).toMatch(/exceeds linked probe witnessedLevel/);
   });
 
+  it('a throwing forged-guidance fixture is recorded ABSENT and bars C3 (present means exercised, not attempted)', async () => {
+    // A stub that throws never ran the attack. If it were recorded
+    // present: true, fired: false it would satisfy the C3 falsification
+    // witness like a blocked attack — fail-open for adapters that never
+    // execute the probe (missing-negative-probe). The engine must record it
+    // absent AND forfeit C3+, since the generic forged-level@C3 probe must
+    // not stand in for the required ADR-0096 witness.
+    const target = makeAdapterFixture('claude-code', 'compliant');
+    target.attemptForgedGuidance = async () => {
+      throw new Error('stubbed fixture: forged-guidance not implemented');
+    };
+    const result = await runComplianceProbe(target, { agentNodeId: 'anode_test_stubbed_guidance' });
+
+    const guidance = result.negativeProbes.find((p) => p.kind === 'forged-guidance');
+    expect(guidance.present).toBe(false);
+    expect(guidance.fired).toBe(false);
+    expect(guidance.details).toMatch(/threw before exercising/);
+
+    // C3 is not witnessable: compliant claude-code otherwise reaches C6.
+    expect(complianceOrder(result.witnessedLevel)).toBeLessThan(complianceOrder('C3'));
+    expect(result.complianceLevel).toBe(result.witnessedLevel);
+    const c3 = result.checks.find((c) => c.level === 'C3');
+    expect(c3.passed).toBe(false);
+    expect(c3.details).toMatch(/forged-guidance probe absent/);
+    expect(result.remediation.some((r) => r.issue.includes('forged-guidance'))).toBe(true);
+
+    // Still schema-valid and witness-valid: absence is honest, not a violation.
+    expectSchemaValid('compliance-probe-result', result);
+    expect(checkProbeWitnessing(result).valid).toBe(true);
+  });
+
   it('the frozen ladder is the only ladder: engine constants match the schema enum', () => {
     expect([...COMPLIANCE_LADDER]).toEqual(['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6']);
     expect([...NEGATIVE_PROBE_KINDS].sort()).toEqual([
@@ -564,6 +596,7 @@ describe('probe → AgentNode linkage', () => {
       'forged-heartbeat',
       'forged-level',
       'observed-to-controlled',
+      'forged-guidance',
     ].sort());
   });
 });

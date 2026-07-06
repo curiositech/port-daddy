@@ -1,9 +1,14 @@
 {
-  "generatedAt": 1783301546497,
+  "generatedAt": 1783315035961,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 130,
+  "count": 131,
   "items": [
+    {
+      "slug": "accountability-wedge-launch-assets",
+      "status": "now",
+      "summaryMd": "Wedge 1 launch assets from the GTM strategy (\u00a76): Show HN post + founder note, and the portdaddy.dev /accountability launch page (hero, before/after, compliance ladder, git-guard demo, install CTA). Spawned by distribution-dogfood-gtm-strategy."
+    },
     {
       "slug": "active-agent-roster",
       "status": "backlog",
@@ -358,6 +363,11 @@
       "slug": "adr-0092-l2-local-edit-gate",
       "status": "now",
       "summaryMd": "ADR-0092 first local L2 slice: PreToolUse edit-moment suggestibility dial enforces coordinate-before-you-cut before cloud federation."
+    },
+    {
+      "slug": "adr-0096-signed-guidance-envelope",
+      "status": "now",
+      "summaryMd": "M5 turn-start suggestibility: signed GuidanceEnvelope channel, forged-guidance probe, ProVerif-gated C3 (ADR-0096, binder ch18 M5)"
     },
     {
       "slug": "agent-harbor-c1-event-ledger",
