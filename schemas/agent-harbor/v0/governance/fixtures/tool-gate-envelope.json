@@ -1,0 +1,23 @@
+{
+  "schema": "pd.agent-harbor.tool-gate-envelope.v0",
+  "envelopeId": "tge_01JZC50000000000000000001",
+  "phase": "pre-tool",
+  "actionName": "git reset --hard",
+  "command": "git reset --hard HEAD~1",
+  "category": "git",
+  "tier": "block",
+  "verdict": "deny",
+  "decision": "denied",
+  "reason": "git reset --hard is block-tier: destroys uncommitted working-tree state irrecoverably",
+  "gateIntegrity": "enforced",
+  "agentNodeId": "agent_node_01JZC5FIXTURE",
+  "sessionId": "session_01JZC5FIXTURE",
+  "bodyId": "body_01JZC5FIXTURE",
+  "runId": "run_01JZC5FIXTURE",
+  "toolCallId": "toolu_01JZC5FIXTURE",
+  "idempotencyKey": "session_01JZC5FIXTURE:toolu_01JZC5FIXTURE:pre-tool",
+  "transcriptEventIds": ["evt_01JZC5PREFLIGHT", "evt_01JZC5DENIED"],
+  "denialReceiptId": "dnl_01JZC50000000000000000001",
+  "humanGateId": null,
+  "occurredAt": "2026-07-05T12:00:00.000Z"
+}

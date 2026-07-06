@@ -1103,6 +1103,22 @@
         "sdk": true
       }
     },
+    "work": {
+      "description": "Work Intent command family (ADR-0095): adapter conformance probes and capability matrix (binder ch18 Work Order C2)",
+      "cli": [
+        "work"
+      ],
+      "sdk": [],
+      "routes": [],
+      "mcp": [],
+      "completions": [
+        "work"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
     "cockpit": {
       "description": "App-Native Development Cockpit \u2014 read roadmap/recovery markdown into typed mission cards with live coordination cross-ref",
       "cli": [

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/governance/human-gate-payload.schema.json",
+  "title": "HumanGatePayload",
+  "description": "What a human reviewer sees before deciding an approve-tier action (binder ch18 C5; human-gate-designer). Gate BEFORE the action for irreversible effects. blastRadius MUST be computed from the actual command/target (a real git status --porcelain or filesystem preview), never restated from the agent's own claim — the whole point of the gate is that the agent's self-report is not trusted. Options always include modify (binary approve/reject is an anti-pattern). The decision routes back as an approval_result TranscriptEvent and, when denied, a DenialReceipt.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.human-gate-payload.v0" },
+    "gateId": { "type": "string", "minLength": 1 },
+    "envelopeId": { "type": "string", "description": "The pre-tool ToolGateEnvelope (decision: held) this gate belongs to." },
+    "actionName": { "type": "string", "minLength": 1 },
+    "command": { "type": ["string", "null"] },
+    "category": { "enum": ["git", "filesystem", "network", "shell", "github"] },
+    "requestedBy": { "type": "string", "minLength": 1, "description": "Agent node / session id that attempted the action." },
+    "context": { "type": "string", "description": "Why the agent believes this is necessary, verbatim — shown as claim, not truth." },
+    "blastRadius": {
+      "type": "object",
+      "description": "Computed, not asserted. What would actually be affected if this ran.",
+      "properties": {
+        "computedBy": { "type": "string", "minLength": 1, "description": "The read-only probe that produced the preview, e.g. \"git status --porcelain\"." },
+        "preview": { "type": "array", "items": { "type": "string" }, "description": "Concrete affected paths/refs/hosts, truncated." },
+        "truncated": { "type": "boolean" },
+        "summary": { "type": "string" }
+      },
+      "required": ["computedBy", "summary"]
+    },
+    "options": { "type": "array", "items": { "enum": ["approve", "reject", "modify"] }, "minItems": 3, "description": "Always all three: approve, reject, modify." },
+    "costSoFarUsd": { "type": ["number", "null"] },
+    "agentNodeId": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": "string", "minLength": 1 },
+    "toolCallId": { "type": "string" },
+    "occurredAt": { "type": "string", "minLength": 1 },
+    "expiresAt": { "type": ["string", "null"], "description": "A gate that never expires is a hung agent; expiry resolves as reject (fail closed)." }
+  },
+  "required": ["schema", "gateId", "actionName", "category", "requestedBy", "context", "blastRadius", "options", "agentNodeId", "sessionId", "occurredAt"],
+  "additionalProperties": true
+}

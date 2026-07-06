@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/governance/denial-receipt.schema.json",
+  "title": "DenialReceipt",
+  "description": "The durable, machine-readable record of one gate denial (binder ch18 C5; a specialized single-decision instance of the broader WorkReceipt, per agent-work-receipt-designer). Three fields are load-bearing: sideEffectFree must be PROVEN by a negative fixture, not asserted; safeAlternative must be a concrete runnable next step for block-tier denials (a bare denial teaches agents to route around the gate); transcriptEventId must reference a real TranscriptEvent — a receipt that exists only in a log nobody sees is a silent denial. Denials fold into the sealed WorkReceipt as high-severity governance risks so they are visible in the trust object.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.denial-receipt.v0" },
+    "kind": { "const": "denial-receipt" },
+    "receiptId": { "type": "string", "minLength": 1 },
+    "envelopeId": { "type": "string", "minLength": 1, "description": "The ToolGateEnvelope this denial belongs to. Required — a receipt that cannot be joined back to its envelope (and thus its tool call) is unauditable evidence." },
+    "actionName": { "type": "string", "minLength": 1 },
+    "command": { "type": ["string", "null"] },
+    "category": { "enum": ["git", "filesystem", "network", "shell", "github"] },
+    "tier": { "enum": ["block", "approve"], "description": "Only gated tiers can be denied; an allow-tier action never produces a denial receipt." },
+    "decision": { "enum": ["denied", "held"] },
+    "reason": { "type": "string", "minLength": 1 },
+    "safeAlternative": { "type": ["string", "null"], "description": "Concrete, runnable alternative. Required (non-null, non-empty) for block-tier denials — enforced by governance-invariants.mjs." },
+    "sideEffectFree": { "type": "boolean", "description": "True only when a negative fixture proved the denied action produced zero side effects. Asserting this without a fixture is the blocked-action-has-side-effects finding." },
+    "transcriptEventId": { "type": "string", "minLength": 1, "description": "The tool_denied (or approval_request) TranscriptEvent that makes this denial visible." },
+    "agentNodeId": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": "string", "minLength": 1 },
+    "bodyId": { "type": ["string", "null"] },
+    "runId": { "type": ["string", "null"] },
+    "toolCallId": { "type": "string" },
+    "occurredAt": { "type": "string", "minLength": 1 }
+  },
+  "required": ["schema", "kind", "receiptId", "envelopeId", "actionName", "category", "tier", "decision", "reason", "sideEffectFree", "transcriptEventId", "agentNodeId", "sessionId", "occurredAt"],
+  "additionalProperties": true
+}

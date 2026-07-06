@@ -92,6 +92,8 @@ import {
   handleHistory,
   // Spawn + Watch
   handleSpawn, handleSpawned, handleWatch, handleSortie,
+  // Work Intent family (ADR-0095): pd work probe / matrix (binder ch18 C2)
+  handleWork,
   // Transcripts
   handleTranscripts,
   // Dispatch (renamed from nightshift per ADR-0035) + morning summary +
@@ -1349,7 +1351,7 @@ const ALL_COMMANDS: string[] = [
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
-  'spawn', 'spawned', 'watch', 'transcripts', 'transcript', 'relay',
+  'spawn', 'spawned', 'watch', 'work', 'transcripts', 'transcript', 'relay',
   'harbor', 'harbors', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'memory', 'ideas',
   'quorum', 'parley',
   'feedback',
@@ -2996,6 +2998,12 @@ export async function main(): Promise<void> {
       // Spawn — AI agent launcher
       case 'spawn':
         await handleSpawn(positional, options);
+        break;
+
+      // Work Intent family (ADR-0095 fork 4). First landing: pd work probe —
+      // adapter conformance probes per binder ch18 Work Order C2.
+      case 'work':
+        await handleWork(positional, options);
         break;
 
       case 'spawned':
