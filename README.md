@@ -315,7 +315,7 @@ The full verb surface, grouped by what you're trying to do. One-liners; run `pd 
 
 **Messaging** — `pub`/`publish`, `sub`/`subscribe`/`listen`, `broadcast`, `channels`, `tube`, `inbox`, `message`, `quorum`, `parley`
 
-**Locks & shared memory** — `lock`, `unlock`, `locks`, `with-lock`, `tuple`, `pheromone`/`ph`, `graph`, `memory`, `semantic`, `embed`, `harbors`, `harbor`
+**Locks & shared memory** — `lock`, `unlock`, `locks`, `with-lock`, `tuple`, `pheromone`/`ph`, `graph`, `memory`, `semantic`, `embed`, `skill-graft`, `harbors`, `harbor`
 
 **Spawning & delegation** — `spawn`, `spawned`, `agent`, `sortie`, `dispatch` (né `nightshift`), `review`, `fleet`, `harbormaster`/`hm`, `cockpit`, `backend`, `squid`, `transcripts`/`transcript`, `benchmark`, `coast-guard`/`cg`, `wallet`, `bond`, `popper`, `shipwright`
 
@@ -428,6 +428,7 @@ pd memory tiers                                           # Core / Recall / Arch
 pd embed status                                           # shared local embedder (MiniLM) state
 pd embed text "salvage a dead agent's session"            # embed ad-hoc text
 pd embed prefetch                                         # one-time ~27 MB model download
+pd skill-graft "write tests for a flaky fleet trigger"    # preview the local skill guidance a fleet ship would receive
 ```
 
 Search across Port Daddy is **hybrid** — BM25 plus one shared local embedding model (`Xenova/all-MiniLM-L6-v2`, prefetched at install per ADR-0061). `pd memory tiers` prints the three-tier vocabulary overlay (Core/Recall/Archival) over the same SQLite substrate.
