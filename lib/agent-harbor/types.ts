@@ -70,13 +70,14 @@ export const CONTROL_STATUSES = [
 ] as const;
 export type ControlStatus = (typeof CONTROL_STATUSES)[number];
 
-/** The five required negative probe kinds (compliance-probe-result.schema.json). */
+/** The six required negative probe kinds (compliance-probe-result.schema.json; forged-guidance per ADR-0096). */
 export const NEGATIVE_PROBE_KINDS = [
   'forged-level',
   'direct-mcp-bypass',
   'disabled-hook-after-launch',
   'forged-heartbeat',
   'observed-to-controlled',
+  'forged-guidance',
 ] as const;
 export type NegativeProbeKind = (typeof NEGATIVE_PROBE_KINDS)[number];
 

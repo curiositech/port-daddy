@@ -3,7 +3,7 @@
  * C2: "fixtures for compliant, weak, broken, and malicious adapters").
  *
  * Each fixture implements the same ProbeTarget seam a real adapter will, so
- * the probe suite exercises real code paths — the five negative probes run as
+ * the probe suite exercises real code paths — the six negative probes run as
  * actual attack attempts against these fixtures, not as documentation
  * (skill: agent-compliance-conformance — a documented risk with no wired
  * fixture is a checkbox, not evidence; skill: sandboxed-adversarial-test-harness
@@ -11,14 +11,14 @@
  *
  * Profiles:
  *  - compliant: earns everything up to the adapter's mechanical ceiling and
- *    BLOCKS all five attacks (present, not fired).
+ *    BLOCKS all six attacks (present, not fired).
  *  - weak: registers and transcripts (C1) but its gateway leaks — the
  *    direct-mcp-bypass fires and governance is forfeited.
  *  - broken: transcript emission throws, hooks are missing; ends C0 run-log
  *    with remediation, an honest downgraded mode rather than a lie.
  *  - malicious: claims C6, transmits forged level claims, forges heartbeats,
- *    bypasses the gateway, and accepts ungranted controls — every attack
- *    fires, every one must be caught and downgraded.
+ *    bypasses the gateway, accepts ungranted controls, and acts on unsigned
+ *    guidance — every attack fires, every one must be caught and downgraded.
  */
 
 import type { AdapterDescriptor, ProbeTarget } from './compliance-probe.js';
@@ -82,12 +82,13 @@ class CompliantFixture implements ProbeTarget {
     const ok = ceilingReaches(this.kind, 'C6');
     return { checkpointed: ok, successorResumed: ok };
   }
-  // All five attacks are exercised and BLOCKED at the adapter boundary.
+  // All six attacks are exercised and BLOCKED at the adapter boundary.
   async attemptForgedLevel() { return { forgeAccepted: false }; }
   async attemptDirectMcpBypass() { return { bypassSucceeded: false }; }
   async attemptDisableHookAfterLaunch() { return { hooksStillAttested: false }; }
   async attemptForgedHeartbeat() { return { heartbeatAcceptedWithoutNonce: false }; }
   async attemptObservedToControlled() { return { controlAccepted: false }; }
+  async attemptForgedGuidance() { return { forgedGuidanceActedOn: false }; }
 }
 
 class WeakFixture implements ProbeTarget {
@@ -119,6 +120,7 @@ class WeakFixture implements ProbeTarget {
   async attemptDisableHookAfterLaunch() { return { hooksStillAttested: false }; }
   async attemptForgedHeartbeat() { return { heartbeatAcceptedWithoutNonce: false }; }
   async attemptObservedToControlled() { return { controlAccepted: false }; }
+  async attemptForgedGuidance() { return { forgedGuidanceActedOn: false }; }
 }
 
 class BrokenFixture implements ProbeTarget {
@@ -151,6 +153,7 @@ class BrokenFixture implements ProbeTarget {
   async attemptDisableHookAfterLaunch() { return { hooksStillAttested: false }; }
   async attemptForgedHeartbeat() { return { heartbeatAcceptedWithoutNonce: false }; }
   async attemptObservedToControlled() { return { controlAccepted: false }; }
+  async attemptForgedGuidance() { return { forgedGuidanceActedOn: false }; }
 }
 
 class MaliciousFixture implements ProbeTarget {
@@ -176,12 +179,14 @@ class MaliciousFixture implements ProbeTarget {
   async honorPause() { return { paused: true, resumedCleanly: true }; }
   async cooperateOnClaims() { return { claimsRespected: true, parleyAnswered: true }; }
   async checkpointAndResume() { return { checkpointed: true, successorResumed: true }; }
-  // Every attack fires: the adapter happily forges, bypasses, and accepts.
+  // Every attack fires: the adapter happily forges, bypasses, and accepts —
+  // including acting on operator-authority text nobody signed (ADR-0096).
   async attemptForgedLevel() { return { forgeAccepted: true }; }
   async attemptDirectMcpBypass() { return { bypassSucceeded: true }; }
   async attemptDisableHookAfterLaunch() { return { hooksStillAttested: true }; }
   async attemptForgedHeartbeat() { return { heartbeatAcceptedWithoutNonce: true }; }
   async attemptObservedToControlled() { return { controlAccepted: true }; }
+  async attemptForgedGuidance() { return { forgedGuidanceActedOn: true }; }
 }
 
 export function makeAdapterFixture(

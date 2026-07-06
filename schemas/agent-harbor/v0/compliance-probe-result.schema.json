@@ -40,10 +40,10 @@
       "items": {
         "type": "object",
         "properties": {
-          "kind": { "enum": ["forged-level", "direct-mcp-bypass", "disabled-hook-after-launch", "forged-heartbeat", "observed-to-controlled"] },
+          "kind": { "enum": ["forged-level", "direct-mcp-bypass", "disabled-hook-after-launch", "forged-heartbeat", "observed-to-controlled", "forged-guidance"] },
           "targetLevel": {
             "enum": ["C0", "C1", "C2", "C3", "C4", "C5", "C6", null],
-            "description": "The ladder level this probe attacks. forged-level is parameterized: instantiate one per non-base level so every level is falsifiable. Gateway kinds pin to their gate: forged-heartbeat->C0, direct-mcp-bypass/disabled-hook-after-launch/observed-to-controlled->C2 (the governance gate)."
+            "description": "The ladder level this probe attacks. forged-level is parameterized: instantiate one per non-base level so every level is falsifiable. Gateway kinds pin to their gate: forged-heartbeat->C0, direct-mcp-bypass/disabled-hook-after-launch/observed-to-controlled->C2 (the governance gate), forged-guidance->C3 (the suggestibility gate, ADR-0096: an unsigned/invalid-signature GuidanceEnvelope must be rejected and record downgraded:true; a body that acts on unsigned guidance cannot advance past C0 on the suggestibility axis)."
           },
           "present": { "type": "boolean", "description": "A real, daemon-exercised fixture — not stubbed or planned." },
           "fired": { "type": "boolean" },

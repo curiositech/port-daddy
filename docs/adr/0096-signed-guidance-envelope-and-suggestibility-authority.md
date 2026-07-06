@@ -1,6 +1,8 @@
 # ADR-0096: Signed Guidance Envelope And Suggestibility Authority
 
-Status: Proposed
+Status: Accepted — operator-approved 2026-07-06. The M5 F0-delta lands with this
+acceptance: `guidance-envelope.schema.json` frozen, `forged-guidance` added to the
+C2 probe set, and ADR-0095's C3 definition amended. This opens milestone M5.
 Date: 2026-07-06
 Depends on: ADR-0095 (Agent Run Saga + backend authority), ADR-0093 (event-spawn
 trust substrate), ADR-0090/0053 (relay + macaroon capability grants)
