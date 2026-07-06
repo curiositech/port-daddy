@@ -1571,6 +1571,26 @@ _pd_cmd_harbors() {
     '(-j --json)'{-j,--json}'[JSON output]'
 }
 
+_pd_cmd_harbor_ledger() {
+  local -a hl_subcmds hl_projections
+  hl_subcmds=(
+    'status:projection freshness and stale labeling'
+    'project:catch projections up to the ledger head'
+    'rebuild:rebuild projection(s) from scratch by replaying the event ledger'
+  )
+  hl_projections=(
+    'roster' 'transcript-timeline' 'files-touched' 'costs' 'compliance' 'work-receipts'
+  )
+  _arguments \
+    '1:subcommand:->subcmd' \
+    '2:projection:->projection' \
+    '(-j --json)'{-j,--json}'[JSON output]'
+  case "$state" in
+    subcmd) _describe 'harbor-ledger subcommand' hl_subcmds ;;
+    projection) _describe 'projection' hl_projections ;;
+  esac
+}
+
 _pd_cmd_tuple() {
   local -a tuple_subcmds
   tuple_subcmds=(
@@ -2236,6 +2256,8 @@ _port_daddy() {
     'harbor:create, enter, leave, show, or destroy a harbor'
     'whois:semantic skill-router — rank agents by capability × freshness'
     'harbors:list all active harbors'
+    # Agent Harbor event ledger + projections (binder ch18 C1, ADR-0095)
+    'harbor-ledger:Agent Harbor event ledger projections — status, project, rebuild'
     # Tuple space
     'tuple:Linda-style tuple space (out, rd, in, scan, count)'
     # Semantic graph + episodic memory
@@ -2399,6 +2421,7 @@ _port_daddy() {
         watch)                  _pd_cmd_watch ;;
         harbor)                 _pd_cmd_harbor ;;
         harbors)                _pd_cmd_harbors ;;
+        harbor-ledger)          _pd_cmd_harbor_ledger ;;
         tuple)                  _pd_cmd_tuple ;;
         say)                    _pd_cmd_say ;;
         look)                   _pd_cmd_look ;;

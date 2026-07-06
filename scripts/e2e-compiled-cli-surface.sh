@@ -93,6 +93,7 @@ cli() {
       PORT_DADDY_PREFIX="$SCRATCH" \
       PORT_DADDY_SOCK="$SOCK" \
       PORT_DADDY_SNAPSHOT_ROOT="$SNAP_ROOT" \
+      PORT_DADDY_DB="$SCRATCH/registry.db" \
       "$BIN" "$@" )
 }
 
@@ -381,6 +382,38 @@ run_ok  "tuple rd"           tuple    -- tuple rd '["e2e",null,null]'
 # dns add (needs --port) -> list -> rm
 run_ok  "dns add"            dns      -- dns add e2e-surface.local 127.0.0.1 --port 3999
 run_ok  "dns rm"             dns      -- dns rm e2e-surface.local
+
+# --------------------------------------------------------------------------
+# Agent Harbor event ledger (binder ch18 C1; ADR-0095): direct-DB CLI through
+# the lib/db.ts chokepoint. cli() pins PORT_DADDY_DB to the SCRATCH registry,
+# so status reads and project/rebuild rewrite ONLY the disposable projection
+# tables in the scratch DB — the append-only harbor_events log is never
+# mutated (BEFORE UPDATE/DELETE triggers enforce that in the schema itself).
+# --------------------------------------------------------------------------
+run_read "harbor-ledger status"  harbor-ledger -- harbor-ledger status
+run_ok   "harbor-ledger project" harbor-ledger -- harbor-ledger project
+run_ok   "harbor-ledger rebuild" harbor-ledger -- harbor-ledger rebuild
+# status --json must parse and report all six projections with fresh/stale
+# labeling (stale views may display but never authorize commands).
+__hl_out="$(cli harbor-ledger status --json 2>&1 || true)"
+if printf '%s' "$__hl_out" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+projs = d.get("projections")
+assert isinstance(projs, list) and len(projs) == 6, "six projections"
+names = {p.get("projection") for p in projs}
+assert names == {"roster", "transcript-timeline", "files-touched", "costs", "compliance", "work-receipts"}, names
+for p in projs:
+    assert isinstance(p.get("stale"), bool), "stale label"
+    assert isinstance(p.get("lastLedgerSeq"), (int, float)), "checkpoint"
+    assert isinstance(p.get("headSeq"), (int, float)), "head"
+sys.exit(0)
+' 2>/dev/null; then
+  pass "harbor-ledger status --json (parses; 6 projections; stale labels)"
+else
+  fail "harbor-ledger status --json" "not a valid projection status report: $(printf '%s' "$__hl_out" | head -c 200)"
+fi
+covered harbor-ledger
 
 echo
 echo "=== DANGEROUS / lifecycle (NOT executed — subform or explicit SKIP) ==="
