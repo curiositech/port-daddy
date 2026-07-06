@@ -175,6 +175,24 @@ describe('per-area judgments', () => {
     expect(card.repair.command).toBe('port-daddy install');
   });
 
+  test('supervision assessment detail + repair pass through verbatim (bootout/kickstart, not a blanket install)', () => {
+    // Duplicate supervisors: the right repair is bootout, not port-daddy install.
+    const card = assessDaemon({
+      reachable: true,
+      version: '3.24.1',
+      supervised: false,
+      supervisionDetail: '2 supervisors loaded (homebrew.mxcl.port-daddy, com.portdaddy.daemon) — duplicate KeepAlive jobs race the listener',
+      supervisionRepair: {
+        command: 'launchctl bootout gui/$(id -u)/com.portdaddy.daemon',
+        description: 'Unloads the duplicate supervisor so exactly one KeepAlive job owns the daemon.',
+      },
+    });
+    expect(card.severity).toBe('warn');
+    expect(card.detail).toContain('duplicate KeepAlive jobs');
+    expect(card.repair.command).toBe('launchctl bootout gui/$(id -u)/com.portdaddy.daemon');
+    expect(card.repair.command).not.toBe('port-daddy install');
+  });
+
   test('supervised reachable daemon is ok', () => {
     const card = assessDaemon({ reachable: true, version: '3.24.1', supervised: true });
     expect(card.status).toBe('ok');
@@ -227,11 +245,23 @@ describe('per-area judgments', () => {
     expect(card.status).toBe('ok');
   });
 
-  test('missing worktree root repairs with a single mkdir', () => {
+  test('missing worktree root repairs with a single mkdir (path shell-quoted)', () => {
     const card = assessWorktreeRoot({ path: '/x/coding/tmp', exists: false, writable: false });
-    expect(card.repair.command).toBe('mkdir -p /x/coding/tmp');
+    expect(card.repair.command).toBe("mkdir -p '/x/coding/tmp'");
     // Never recommend the OS-purged /tmp root itself as the worktree home.
     expect(card.repair.command).not.toMatch(/(^|\s)\/(private\/)?tmp\b/);
+  });
+
+  test('repair commands quote user-configurable paths (spaces + injection stay inert)', () => {
+    const spaced = assessWorktreeRoot({ path: '/x/My Code/tmp', exists: false, writable: false });
+    expect(spaced.repair.command).toBe("mkdir -p '/x/My Code/tmp'");
+
+    // A hostile PORT_DADDY_WORKTREE_ROOT must not become command injection.
+    const hostile = assessWorktreeRoot({ path: '/x; rm -rf $HOME', exists: true, writable: false });
+    expect(hostile.repair.command).toBe("chmod u+rwx '/x; rm -rf $HOME'");
+
+    const transcript = assessTranscriptPath({ path: "/x/it's here.db", exists: true, writable: false });
+    expect(transcript.repair.command).toBe("chmod u+rw '/x/it'\\''s here.db'");
   });
 
   test('relay: unpaired is ok+disabled, paired is synced, configured-but-down warns', () => {
@@ -246,6 +276,9 @@ describe('per-area judgments', () => {
     const down = assessRelayPairing({ relayUrl: 'wss://relay.example', connected: false });
     expect(down.severity).toBe('warn');
     expect(down.repair.command).toBe('pd relay status');
+    // Configured-but-disconnected is still a PAIRED (opt-in) posture — the
+    // channel is down, not switched off; 'disabled' would contradict the detail.
+    expect(down.syncState).toBe('synced');
   });
 
   test('cli/daemon version skew repairs with a restart; feed staleness with pd upgrade', () => {
@@ -271,7 +304,10 @@ describe('transparent hook inventory (ch18 output)', () => {
       expect(hook.displayName).toMatch(/Port Daddy/);
       expect(hook.displayName).toMatch(/\(local\)/);
       expect(hook.description.length).toBeGreaterThan(20);
-      expect(hook.privacy).toMatch(/not/i); // every privacy note states a negative guarantee
+      // Every privacy note states a negative guarantee, in whatever phrasing
+      // (not / never / doesn't / stays local / nothing leaves) — assert the
+      // family, not one literal word, so copy edits don't break the gate.
+      expect(hook.privacy).toMatch(/\b(not|never|no|doesn'?t|stays? local|nothing leaves)\b/i);
     }
   });
 });

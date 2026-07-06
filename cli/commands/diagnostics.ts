@@ -556,6 +556,13 @@ export interface SupervisionAssessment {
   severity: Severity;
   detail: string;
   hint?: string;
+  /**
+   * Structured single-command remediation for the specific failure (bootout a
+   * duplicate, kickstart a stopped job, install a missing supervisor). The
+   * Agent Harbor daemon card consumes this so its one repair is the right
+   * repair, not a blanket `port-daddy install`.
+   */
+  repair?: { command: string; description: string };
 }
 
 /**
@@ -588,12 +595,14 @@ export function assessSupervisionIntegrity(input: {
         severity: 'warn',
         detail: 'Daemon is reachable but NO launchd supervisor owns it — it will not be resurrected if it dies',
         hint: 'Run: port-daddy install   (installs the launchd supervisor)',
+        repair: { command: 'port-daddy install', description: 'Installs the launchd supervisor for the running daemon.' },
       };
     }
     return {
       severity: 'critical',
       detail: 'No launchd supervisor is loaded and the daemon is not reachable',
       hint: 'Run: port-daddy install   then: port-daddy start',
+      repair: { command: 'port-daddy install', description: 'Installs the launchd supervisor, then start the daemon with port-daddy start.' },
     };
   }
 
@@ -602,6 +611,10 @@ export function assessSupervisionIntegrity(input: {
       severity: 'warn',
       detail: `${loaded.length} supervisors loaded (${loaded.map((s) => s.label).join(', ')}) — duplicate KeepAlive jobs race the listener`,
       hint: `Keep exactly one. Unload the duplicate: launchctl bootout gui/$(id -u)/${loaded[1].label}`,
+      repair: {
+        command: `launchctl bootout gui/$(id -u)/${loaded[1].label}`,
+        description: 'Unloads the duplicate supervisor so exactly one KeepAlive job owns the daemon.',
+      },
     };
   }
 
@@ -616,12 +629,17 @@ export function assessSupervisionIntegrity(input: {
       severity: 'warn',
       detail: `${one.label} is loaded but its process is not running — the daemon is currently UNSUPERVISED (reachable now, but won't be resurrected)`,
       hint: `Re-kick the supervisor: launchctl kickstart -k gui/$(id -u)/${one.label}`,
+      repair: {
+        command: `launchctl kickstart -k gui/$(id -u)/${one.label}`,
+        description: 'Re-kicks the loaded supervisor so the daemon is resurrected if it dies.',
+      },
     };
   }
   return {
     severity: 'critical',
     detail: `${one.label} is loaded but not running, and the daemon is not reachable — this is how the daemon silently dies`,
     hint: `Run: port-daddy start   (or: launchctl kickstart -k gui/$(id -u)/${one.label})`,
+    repair: { command: 'port-daddy start', description: 'Starts the daemon under the already-loaded supervisor.' },
   };
 }
 
@@ -969,6 +987,11 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   // Captured for the Agent Harbor readiness section (C8): null = not assessed
   // (non-darwin), true = exactly-one-supervisor-running, false = anything else.
   let daemonSupervisedForHarbor: boolean | null = null;
+  // The assessment's own words + structured repair, so the Harbor daemon card
+  // recommends the RIGHT fix (bootout a duplicate / kickstart a stopped job)
+  // instead of collapsing every non-ok state into `port-daddy install`.
+  let daemonSupervisionDetailForHarbor: string | null = null;
+  let daemonSupervisionRepairForHarbor: { command: string; description: string } | null = null;
   try {
     if (process.platform === 'darwin') {
       const supervision = assessSupervisionIntegrity({
@@ -976,6 +999,10 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
         daemonReachable: daemonRunning,
       });
       daemonSupervisedForHarbor = supervision.severity === 'ok';
+      if (supervision.severity !== 'ok') {
+        daemonSupervisionDetailForHarbor = supervision.detail;
+        daemonSupervisionRepairForHarbor = supervision.repair ?? null;
+      }
       recordAssessment('Supervision integrity', supervision);
     } else if (process.platform === 'linux') {
       const homedir = (await import('node:os')).homedir();
@@ -1452,6 +1479,8 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
       daemonReachable: daemonRunning,
       daemonVersion: daemonRunning && daemonData ? String(daemonData.version ?? '') || null : null,
       daemonSupervised: daemonSupervisedForHarbor,
+      daemonSupervisionDetail: daemonSupervisionDetailForHarbor,
+      daemonSupervisionRepair: daemonSupervisionRepairForHarbor,
       hookDiagnoses: hookDiagnosesForHarbor,
       mcp: mcpFactsForHarbor,
       cliVersion,

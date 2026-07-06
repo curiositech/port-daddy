@@ -229,6 +229,14 @@ export interface DaemonFacts {
   version?: string | null;
   /** From the external supervision-integrity check (PR #607 precedent). */
   supervised?: boolean | null;
+  /**
+   * The supervision assessment's own words when it is not ok — e.g. duplicate
+   * supervisors racing the listener, or loaded-but-stopped. Passing these
+   * through keeps the harbor card's ONE repair the RIGHT repair instead of
+   * collapsing every non-ok state into "re-install the supervisor".
+   */
+  supervisionDetail?: string | null;
+  supervisionRepair?: { command: string; description: string } | null;
 }
 
 export interface AppFacts {
@@ -289,6 +297,17 @@ export interface HarborFacts {
   versions: VersionFacts;
 }
 
+/**
+ * POSIX single-quote escaping for paths embedded in repair commands. Repair
+ * commands are shown to humans and may be executed by a one-click surface
+ * later — an unquoted path with spaces breaks, and an adversarial value
+ * (e.g. via PORT_DADDY_WORKTREE_ROOT) would otherwise be an injection vector.
+ * Single quotes are inert in POSIX shells (no $/backtick expansion).
+ */
+export function shellQuotePath(p: string): string {
+  return `'${p.replace(/'/g, `'\\''`)}'`;
+}
+
 // ─── Per-area assessors (each returns exactly one card) ──────────────────────
 
 export function assessDaemon(f: DaemonFacts): RemediationCard {
@@ -300,9 +319,16 @@ export function assessDaemon(f: DaemonFacts): RemediationCard {
   if (f.supervised === false) {
     // KeepAlive cannot verify its own absence (macos-launchd-supervision):
     // reachable-now but unsupervised means nothing resurrects it after a crash.
+    // When the supervision-integrity assessment named the precise failure
+    // (duplicate supervisors → bootout, loaded-but-stopped → kickstart), carry
+    // its words and its repair verbatim so the one repair is the right one.
     return issueCard('daemon', 'drifted', 'warn',
-      `Daemon v${f.version ?? '?'} is reachable but NOT supervised — it will not be resurrected if it dies.`,
-      { command: 'port-daddy install', description: 'Re-installs the launchd supervisor for the running daemon.', oneClick: true });
+      f.supervisionDetail
+        ? `Daemon v${f.version ?? '?'} is reachable but supervision is unhealthy: ${f.supervisionDetail}.`
+        : `Daemon v${f.version ?? '?'} is reachable but NOT supervised — it will not be resurrected if it dies.`,
+      f.supervisionRepair
+        ? { ...f.supervisionRepair, oneClick: false }
+        : { command: 'port-daddy install', description: 'Re-installs the launchd supervisor for the running daemon.', oneClick: true });
   }
   return okCard('daemon', `Daemon v${f.version ?? '?'} reachable${f.supervised ? ' and supervised' : ''}.`);
 }
@@ -357,7 +383,7 @@ export function assessTranscriptPath(f: TranscriptPathFacts): RemediationCard {
   }
   return issueCard('transcript-path', 'error', 'critical',
     `Transcript path ${f.path} exists but is not writable — new transcript events cannot be saved.`,
-    { command: `chmod u+rw ${f.path}`, description: 'Restores write permission on the transcript store.', oneClick: false });
+    { command: `chmod u+rw ${shellQuotePath(f.path)}`, description: 'Restores write permission on the transcript store.', oneClick: false });
 }
 
 export function assessKeychain(f: KeychainFacts): RemediationCard {
@@ -401,11 +427,11 @@ export function assessWorktreeRoot(f: WorktreeRootFacts): RemediationCard {
   if (!f.exists) {
     return issueCard('worktree-root', 'missing', 'warn',
       `Worktree root ${f.path} does not exist — isolated agent spawns have nowhere durable to check out.`,
-      { command: `mkdir -p ${f.path}`, description: 'Creates the durable worktree root (macOS purges /tmp; this path survives).', oneClick: true });
+      { command: `mkdir -p ${shellQuotePath(f.path)}`, description: 'Creates the durable worktree root (macOS purges /tmp; this path survives).', oneClick: true });
   }
   return issueCard('worktree-root', 'error', 'critical',
     `Worktree root ${f.path} exists but is not writable — worktree spawns will fail.`,
-    { command: `chmod u+rwx ${f.path}`, description: 'Restores write permission on the worktree root.', oneClick: false });
+    { command: `chmod u+rwx ${shellQuotePath(f.path)}`, description: 'Restores write permission on the worktree root.', oneClick: false });
 }
 
 export function assessRelayPairing(f: RelayFacts): RemediationCard {
@@ -416,10 +442,13 @@ export function assessRelayPairing(f: RelayFacts): RemediationCard {
       'disabled');
   }
   if (f.connected === false) {
+    // Configured-but-disconnected is still a PAIRED posture: the operator has
+    // opted this area into syncing, the channel is just down. Rendering it
+    // 'disabled' would contradict the detail text and misstate where data goes.
     return issueCard('relay-pairing', 'drifted', 'warn',
       `Relay configured (${f.relayUrl}) but not connected — remote visibility is silently stale.`,
       { command: 'pd relay status', description: 'Shows the live relay connection state and the exact failure.', oneClick: false },
-      'disabled');
+      'synced');
   }
   return okCard('relay-pairing', `Paired with ${f.relayUrl} — this area syncs.`, 'synced');
 }

@@ -85,6 +85,9 @@ export interface HarborFactSeed {
   daemonVersion: string | null;
   /** From the supervision-integrity assessment; null = not assessed (non-darwin). */
   daemonSupervised: boolean | null;
+  /** The assessment's specific failure text + repair when it is not ok. */
+  daemonSupervisionDetail?: string | null;
+  daemonSupervisionRepair?: { command: string; description: string } | null;
   hookDiagnoses: SquidProviderHookDiagnosis[];
   mcp: McpFacts;
   cliVersion: string;
@@ -105,6 +108,8 @@ export async function gatherHarborFacts(seed: HarborFactSeed): Promise<HarborFac
       reachable: seed.daemonReachable,
       version: seed.daemonVersion,
       supervised: seed.daemonSupervised,
+      supervisionDetail: seed.daemonSupervisionDetail ?? null,
+      supervisionRepair: seed.daemonSupervisionRepair ?? null,
     },
     app: {
       platform: platform(),
