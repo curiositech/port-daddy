@@ -87,6 +87,42 @@ pub enum Block {
     /// must read in full (a daemon rejection, a stack of blocked reasons). The
     /// renderer wraps it; it never ellipsizes. (HCD: bridge the Gulf of Evaluation.)
     WrappedText { text: String, tone: Tone },
+    /// A clickable roster row for a conjoined roster/detail surface (binder ch18
+    /// work order C3). Selecting a row is a [`SurfaceAction::SelectRow`] — the
+    /// operator never types an id. `live` marks daemon-proved liveness (heartbeat
+    /// or transcript events, never a session row alone — ADR-0095 §3); renderers
+    /// must paint live and historical rows visually distinct.
+    NodeRow {
+        /// Roster index this row occupies — the SelectRow payload.
+        index: usize,
+        selected: bool,
+        live: bool,
+        /// ICS maritime signal-flag letter for the node's state.
+        flag: char,
+        name: String,
+        /// Compliance badge text (e.g. "controllable" for C4).
+        badge: String,
+        badge_tone: Tone,
+        /// One-line status meta (provider · tier · doing).
+        meta: String,
+        /// Last-activity age, display-ready.
+        age: String,
+        tone: Tone,
+    },
+    /// A clickable operator control (steer/pause/interrupt/checkpoint/…),
+    /// compliance-gated at emit time: `enabled: false` MUST carry
+    /// `why_disabled` — a false affordance or a silently dead button is the
+    /// anti-pattern (agent-control-command-contract: honest `unsupported`
+    /// beats a no-op). Clicking dispatches [`SurfaceAction::Control`].
+    ControlButton {
+        /// The control verb — a ControlCommand `kind` (or "open").
+        verb: String,
+        label: String,
+        enabled: bool,
+        why_disabled: Option<String>,
+        /// Paint as the primary action.
+        primary: bool,
+    },
 }
 
 /// Severity of an [`Alert`] — drives tone + ordering on the HITL surface.
@@ -356,6 +392,19 @@ pub enum SurfaceAction {
     /// to the deterministic steering channel `agent:<id>`; the merged stream
     /// then echoes it back as `agent.tube`.
     OperatorTurn { turn: OperatorTurn },
+    /// Select a roster row by index (click / keyboard) on a conjoined
+    /// roster/detail surface. Selection retargets the detail pane; it is a UI
+    /// act, not a daemon control, so it needs no compliance gate.
+    SelectRow { index: usize },
+    /// Issue a control verb against the surface's selected node — POSTs a
+    /// ControlCommand (F0 `control-command.schema.json`) to the daemon, which is
+    /// the sole authorizer (stale projections never authorize; ADR-0095 §3).
+    /// `argument` carries verb-specific payload text (a steer message, a
+    /// checkpoint reason).
+    Control {
+        verb: String,
+        argument: Option<String>,
+    },
 }
 
 /// What a surface wants to watch live, instead of (or alongside) 2s polling.

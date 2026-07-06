@@ -1,0 +1,33 @@
+{
+  "schema": "pd.agent-harbor.agent-node.v0",
+  "agentNodeId": "agent_node_01JZFIX0001",
+  "identity": "port-daddy:contrib:auth-test-fix",
+  "displayName": "Auth Test Fixer",
+  "class": "voyager",
+  "role": "implementer",
+  "authority": "local",
+  "complianceLevel": "C2",
+  "complianceProbeId": "probe_01JZFIX0001",
+  "transcriptFidelity": "T4",
+  "officialMode": "official",
+  "status": "active",
+  "planId": "work_plan_01JZFIX0001",
+  "intentId": "work_intent_01JZFIX0001",
+  "harborId": "harbor_local",
+  "currentSessionId": "session_01JZFIX0001",
+  "currentBodyId": "body_01JZFIX0001",
+  "currentRunId": "agent_run_01JZFIX0001",
+  "workspace": {
+    "repo": "/Users/me/coding/port-daddy",
+    "worktree": "/Users/me/coding/tmp/port-daddy-auth-fix",
+    "branch": "pd/auth-test-fix",
+    "lane": "local",
+    "isolation": "linked-worktree"
+  },
+  "memoryScopeId": "memscope_default",
+  "policyId": "policy_default",
+  "articlesSignature": "sig:daemon-issued-fixture",
+  "createdAt": "2026-07-05T12:00:06.000Z",
+  "lastHeartbeatAt": "2026-07-05T12:05:00.000Z",
+  "lastEventAt": "2026-07-05T12:05:01.000Z"
+}

@@ -1,0 +1,15 @@
+{
+  "branchCommit": "3eddaac786392638390350f868643331bab4e3f0",
+  "isControlPanelPr": true,
+  "statesCovered": ["active", "historical", "blocked", "stale", "gate", "interrupt"],
+  "auditResult": { "pass": false, "score": 88, "finding": "control-panel-state-coverage-incomplete: receipt — declared honestly; WorkReceipt rendering is not in this C3 slice and ships with the receipt-sealing chain" },
+  "artifacts": [
+    { "file": "capture-real-roster-404.txt", "manifest": { "daemonPort": 9876, "runId": "none-pre-C1", "transcriptHeadHash": "9dcb19e3725df3a5", "agentNodeId": "none-roster-404", "commit": "3eddaac786392638390350f868643331bab4e3f0", "sourceLabel": "real" } },
+    { "file": "capture-fixture-roster-detail.txt", "manifest": { "daemonPort": 3103, "runId": "run-cart-1", "transcriptHeadHash": "eb32ce2cba157414", "agentNodeId": "an-cartographer-01", "commit": "3eddaac786392638390350f868643331bab4e3f0", "sourceLabel": "fixture" } },
+    { "file": "capture-fixture-selfreport-gate.txt", "manifest": { "daemonPort": 3103, "runId": "none", "transcriptHeadHash": "bc74781eeb48599c", "agentNodeId": "an-docs-03", "commit": "3eddaac786392638390350f868643331bab4e3f0", "sourceLabel": "fixture" } },
+    { "file": "capture-fixture-observed-gate.txt", "manifest": { "daemonPort": 3103, "runId": "none", "transcriptHeadHash": "bac94ce0c69a1c9d", "agentNodeId": "an-spark-02", "commit": "3eddaac786392638390350f868643331bab4e3f0", "sourceLabel": "fixture" } },
+    { "file": "capture-fixture-controls.txt", "manifest": { "daemonPort": 3103, "runId": "run-cart-1", "transcriptHeadHash": "c1079b7be57eb372", "agentNodeId": "an-cartographer-01", "commit": "3eddaac786392638390350f868643331bab4e3f0", "sourceLabel": "fixture" } },
+    { "file": "capture-fixture-stale-gate.txt", "manifest": { "daemonPort": 3103, "runId": "none", "transcriptHeadHash": "5407c1061ba120aa", "agentNodeId": "an-qa-05", "commit": "3eddaac786392638390350f868643331bab4e3f0", "sourceLabel": "fixture" } },
+    { "file": "capture-fixture-blocked.txt", "manifest": { "daemonPort": 3103, "runId": "none", "transcriptHeadHash": "e9b28c181106c480", "agentNodeId": "an-approver-04", "commit": "3eddaac786392638390350f868643331bab4e3f0", "sourceLabel": "fixture" } }
+  ]
+}

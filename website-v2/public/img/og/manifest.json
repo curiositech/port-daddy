@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-29T03:58:43.181Z",
+  "generatedAt": "2026-07-06T04:53:27.904Z",
   "generator": "website-v2/scripts/generate-og-cards.mjs",
   "renderer": "website-v2/scripts/render-og-cards.py",
   "siteName": "Port Daddy",
@@ -9,6 +9,15 @@
     "height": 630
   },
   "routes": [
+    {
+      "image": "/img/og/accountability.jpg",
+      "route": "/accountability",
+      "title": "See What Your Agents Actually Did - Port Daddy",
+      "description": "Turn every coding-agent run into a witnessed transcript, an exact cost, a daemon-proven compliance level, and a receipt — with destructive git denied at the pre-tool gate before it fires.",
+      "section": "product",
+      "sectionLabel": "Accountability",
+      "sourceImage": "/img/generated/coordination-guard.jpg"
+    },
     {
       "image": "/img/og/agents-templates.jpg",
       "route": "/agents/templates",
@@ -275,24 +284,6 @@
       "route": "/docs/cli/agent-register",
       "title": "pd agent register - Port Daddy",
       "description": "Reference for pd agent register, including Port Daddy syntax, what the command does, and when to use it.",
-      "section": "docs",
-      "sectionLabel": "Docs",
-      "sourceImage": "/img/generated/control-plane-og.jpg"
-    },
-    {
-      "image": "/img/og/docs-cli-agent-run.jpg",
-      "route": "/docs/cli/agent-run",
-      "title": "pd agent run <task> - Port Daddy",
-      "description": "Reference for pd agent run <task>, including Port Daddy syntax, what the command does, and when to use it.",
-      "section": "docs",
-      "sectionLabel": "Docs",
-      "sourceImage": "/img/generated/control-plane-og.jpg"
-    },
-    {
-      "image": "/img/og/docs-cli-agent.jpg",
-      "route": "/docs/cli/agent",
-      "title": "pd agent \"task\" - Port Daddy",
-      "description": "Reference for pd agent \"task\", including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -1094,24 +1085,6 @@
       "route": "/docs/cli/snapshots",
       "title": "pd snapshots <command> - Port Daddy",
       "description": "Reference for pd snapshots <command>, including Port Daddy syntax, what the command does, and when to use it.",
-      "section": "docs",
-      "sectionLabel": "Docs",
-      "sourceImage": "/img/generated/control-plane-og.jpg"
-    },
-    {
-      "image": "/img/og/docs-cli-sortie-list-status-logs.jpg",
-      "route": "/docs/cli/sortie-list-status-logs",
-      "title": "pd sortie list|status|logs - Port Daddy",
-      "description": "Reference for pd sortie list|status|logs, including Port Daddy syntax, what the command does, and when to use it.",
-      "section": "docs",
-      "sectionLabel": "Docs",
-      "sourceImage": "/img/generated/control-plane-og.jpg"
-    },
-    {
-      "image": "/img/og/docs-cli-sortie.jpg",
-      "route": "/docs/cli/sortie",
-      "title": "pd sortie <goal> - Port Daddy",
-      "description": "Reference for pd sortie <goal>, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -2326,7 +2299,7 @@
       "image": "/img/og/mac-preview.jpg",
       "route": "/mac-preview",
       "title": "Mac Preview - Port Daddy",
-      "description": "See what the FleetBar Mac preview downloads, how to verify it, how to open it, and how it exposes Fleet Control Center, Shipwright, resources, sorties, backend readiness, and agent communication.",
+      "description": "See what the FleetBar Mac preview downloads, how to verify it, how to open it, and how it exposes Fleet Control Center, Shipwright, resources, spawned runs, backend readiness, and agent communication.",
       "section": "product",
       "sectionLabel": "FleetBar",
       "sourceImage": "/img/generated/fleetbar-install.jpg"
@@ -2357,6 +2330,15 @@
       "section": "product",
       "sectionLabel": "pd tube",
       "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/scout.jpg",
+      "route": "/scout",
+      "title": "Port Daddy Scout - Port Daddy",
+      "description": "Capture any ordinary Chrome page as a Port Daddy visual task: screenshot, selected region, DOM clues for project apps, local issue creation, and optional spawn-backed follow-up work.",
+      "section": "product",
+      "sectionLabel": "Scout",
+      "sourceImage": "/img/generated/scout-extension-popup.png"
     },
     {
       "image": "/img/og/security.jpg",

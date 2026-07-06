@@ -161,6 +161,28 @@ if command -v pd >/dev/null 2>&1; then
 fi
 
 # ---------------------------------------------------------------------------
+# 7. README freshness guard
+# ---------------------------------------------------------------------------
+# >>> README Freshness Guard
+# The README rotted from v3.13 to v3.24 because nothing at commit time asked
+# whether a surface change was reflected in it. This gate blocks a commit that
+# stages changes to README-documented surfaces (CLI verb registry, MCP tools,
+# OpenAPI contract, fleet topology, new cli/commands/ files) without staging a
+# README.md update alongside. Agents: update the affected README section, then
+# `git add README.md`. Genuinely internal change? PD_README_OK=1 git commit …
+# Fail-open when node or the script is absent (old branches must not hard-fail).
+README_GUARD="$(git rev-parse --show-toplevel)/scripts/check-readme-freshness.mjs"
+if command -v node >/dev/null 2>&1 && [[ -f "$README_GUARD" ]]; then
+  node "$README_GUARD" --staged
+  README_GUARD_RC=$?
+  # exit 1 = README update required; exit 2 = could not determine (fail-open)
+  if (( README_GUARD_RC == 1 )); then
+    fail "operator-facing surface changed without a README.md update (see above)."
+  fi
+fi
+# <<< README Freshness Guard
+
+# ---------------------------------------------------------------------------
 # Result
 # ---------------------------------------------------------------------------
 if (( ERRORS > 0 )); then

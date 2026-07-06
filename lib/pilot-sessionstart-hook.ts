@@ -66,6 +66,45 @@ export interface PilotHookInstallResult {
  * moved script path gets rewritten in place. Any other SessionStart hooks
  * (e.g. `pd attention`) are preserved untouched.
  */
+/**
+ * Remove the Pilot SessionStart hook from <projectDir>/.claude/settings.json.
+ * Matches by hook filename, so only our entry is dropped; other SessionStart
+ * hooks are preserved untouched.
+ */
+export function uninstallPilotSessionStartHook(projectDir: string): PilotHookInstallResult {
+  const settingsPath = join(projectDir, '.claude', 'settings.json');
+  if (!existsSync(settingsPath)) {
+    return { changed: false, settingsPath, command: null, reason: 'no settings' };
+  }
+  let settings: ClaudeSettings;
+  try {
+    settings = JSON.parse(readFileSync(settingsPath, 'utf8')) as ClaudeSettings;
+  } catch {
+    return { changed: false, settingsPath, command: null, reason: 'settings.json is not valid JSON — skipping' };
+  }
+  const sessionStart = settings.hooks?.SessionStart;
+  if (!Array.isArray(sessionStart)) {
+    return { changed: false, settingsPath, command: null, reason: 'no SessionStart hooks' };
+  }
+  let changed = false;
+  const kept: ClaudeHookGroup[] = [];
+  for (const group of sessionStart) {
+    const hooks = (group.hooks ?? []).filter((entry) => {
+      const ours = typeof entry.command === 'string' && entry.command.includes(HOOK_FILENAME);
+      if (ours) changed = true;
+      return !ours;
+    });
+    if (hooks.length > 0) kept.push({ ...group, hooks });
+  }
+  if (!changed) {
+    return { changed: false, settingsPath, command: null, reason: 'not registered' };
+  }
+  if (kept.length > 0) settings.hooks!.SessionStart = kept;
+  else delete settings.hooks!.SessionStart;
+  writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
+  return { changed: true, settingsPath, command: null, reason: 'removed' };
+}
+
 export function installPilotSessionStartHook(options: {
   projectDir: string;
   projectRoot: string;

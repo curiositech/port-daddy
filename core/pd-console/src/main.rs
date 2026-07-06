@@ -28,6 +28,7 @@ mod dispatch_pane;
 mod editor_pane;
 mod fleet_pane;
 mod grid;
+mod harbor_pane;
 mod health_pane;
 mod inbox_pane;
 mod lane_pane;
@@ -64,6 +65,7 @@ use conductor_pane::ConductorPane;
 use daemon_pane::DaemonPane;
 use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
+use harbor_pane::HarborPane;
 use health_pane::HealthPane;
 use inbox_pane::InboxPane;
 use lane_pane::LanePane;
@@ -388,6 +390,7 @@ fn main() {
                 let mut daemons    = DaemonPane::new();         // 22 — daemon picker (ADR-0084)
                 let mut cloud_fleet = CloudFleetPane::new();    // 23 — remote relay observability (Phase C)
                 let mut live_agents = ActiveAgentsPane::new();  // 24 — harness roster
+                let mut harbor     = HarborPane::new();         // 25 — Agent Node roster+detail (ch18 C3)
 
                 // Pin the producer slots to the canonical grid map. If a pane is
                 // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
@@ -401,6 +404,7 @@ fn main() {
                         suggest.id(), memory.id(), prs.id(), health.id(), coast.id(),
                         dispatch.id(), lane.id(), ledger.id(), lineage.id(), substrate.id(),
                         parley.id(), conductor.id(), daemons.id(), cloud_fleet.id(), live_agents.id(),
+                        harbor.id(),
                     ],
                     grid::SLOT_PANE_IDS,
                     "producer slot order drifted from grid::SLOT_PANE_IDS",
@@ -411,6 +415,11 @@ fn main() {
                 // so the view updates at the 2s cadence with the freshest frames.
                 // (A finer cadence is a follow-up; this proves the live pipeline.)
                 let mut lane_stream: Option<(String, tokio::sync::mpsc::Receiver<agent::StreamEnvelope>)> = None;
+
+                // The Harbor pane's live SSE stream — same pattern as the lane:
+                // (re)opened whenever the selected live node changes; drained
+                // each loop into the pane's live tail.
+                let mut harbor_stream: Option<(String, tokio::sync::mpsc::Receiver<agent::StreamEnvelope>)> = None;
 
                 // Operator chat transport state: (channel, cursor). `None` until the
                 // first turn binds a responder on the stable `console-chat` channel.
@@ -925,6 +934,48 @@ fn main() {
                                     }
                                 }
                             }
+                            // Harbor roster click: select a node (ch18 C3).
+                            // Selection is a UI act; it never fails loudly.
+                            app::ControlMsg::HarborSelect { index } => {
+                                if let Err(e) = harbor
+                                    .mutate(&client, SurfaceAction::SelectRow { index })
+                                    .await
+                                {
+                                    let _ = alert_tx.send(pane::Alert::error(
+                                        "harbor select failed",
+                                        e.to_string(),
+                                    ));
+                                }
+                            }
+                            // Harbor control verb: the pane gate-checks, then
+                            // POSTs the F0 ControlCommand; the daemon is the
+                            // sole authorizer. Refusals surface in FULL as
+                            // HITL alerts (why-disabled / daemon denial).
+                            app::ControlMsg::HarborControl { verb, argument } => {
+                                match harbor
+                                    .mutate(
+                                        &client,
+                                        SurfaceAction::Control {
+                                            verb: verb.clone(),
+                                            argument,
+                                        },
+                                    )
+                                    .await
+                                {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            format!("{verb} queued"),
+                                            "watch the node's control history for the acknowledgement",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            format!("{verb} refused"),
+                                            e.to_string(),
+                                        ));
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -954,6 +1005,7 @@ fn main() {
                     let _ = daemons.refresh(&client).await;
                     let _ = cloud_fleet.refresh(&client).await;
                     let _ = live_agents.refresh(&client).await;
+                    let _ = harbor.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -974,6 +1026,27 @@ fn main() {
                     if let Some((_, rx)) = lane_stream.as_mut() {
                         while let Ok(env) = rx.try_recv() {
                             lane.on_stream(&env);
+                        }
+                    }
+
+                    // (Re)subscribe + drain the Harbor's live follow of its
+                    // selected node (only while daemon-proved live).
+                    match harbor.subscription() {
+                        Some(pane::Subscription::Agent { agent_id }) => {
+                            let reopen = match &harbor_stream {
+                                Some((cur, _)) => cur != &agent_id,
+                                None => true,
+                            };
+                            if reopen {
+                                let rx = client.subscribe_agent(&agent_id);
+                                harbor_stream = Some((agent_id, rx));
+                            }
+                        }
+                        None => harbor_stream = None,
+                    }
+                    if let Some((_, rx)) = harbor_stream.as_mut() {
+                        while let Ok(env) = rx.try_recv() {
+                            harbor.on_stream(&env);
                         }
                     }
 
@@ -1023,6 +1096,7 @@ fn main() {
                         (22, daemons.view()),
                         (23, cloud_fleet.view()),
                         (24, live_agents.view()),
+                        (25, harbor.view()),
                     ];
 
                     if tx.send((all, dispatch.head())).is_err() {

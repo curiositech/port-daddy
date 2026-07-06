@@ -150,8 +150,8 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
       # package-fleetbar.sh bundles the CLI payload via scripts/build-single-binary.mjs,
-      # which shells out to bun. Keep this job aligned with build-binaries and
-      # publish-npm so recovery reruns do not fail after the Swift build succeeds.
+      # which shells out to bun. Keep this job aligned with build-binaries so
+      # recovery reruns do not fail after the Swift build succeeds.
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -160,9 +160,70 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Package FleetBar app
+      - name: Package + sign + notarize FleetBar.app
+        # Same Developer ID path the daemon (#447) and pd-console use — same APPLE_*
+        # secrets. No-ops to ad-hoc if the cert secret is absent so the build never
+        # breaks; the guard below makes ad-hoc a hard failure on a real signed run.
+        env:
+          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+          APPLE_NOTARY_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARY_KEY_P8_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_KEY_ISSUER: ${{ secrets.APPLE_NOTARY_KEY_ISSUER }}
         run: |
+          set -euo pipefail
+          export PORT_DADDY_SKIP_NOTARIZE=1
+          if [ -n "${APPLE_CERT_P12_BASE64:-}" ]; then
+            KEYCHAIN="$RUNNER_TEMP/pd-signing.keychain-db"
+            KCPASS="$(openssl rand -hex 24)"
+            security create-keychain -p "$KCPASS" "$KEYCHAIN"
+            security set-keychain-settings -lut 21600 "$KEYCHAIN"
+            security unlock-keychain -p "$KCPASS" "$KEYCHAIN"
+            echo "$APPLE_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+            security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple: -k "$KCPASS" "$KEYCHAIN" >/dev/null
+            security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+            export PORT_DADDY_SIGN_IDENTITY="Developer ID Application: Curiositech LLC (P5H9P59X2M)"
+            export PORT_DADDY_NOTARY_KEYCHAIN="$KEYCHAIN"
+            if [ -n "${APPLE_NOTARY_KEY_P8_BASE64:-}" ]; then
+              echo "$APPLE_NOTARY_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+              if xcrun notarytool store-credentials pd-notary \
+                   --key "$RUNNER_TEMP/notary.p8" --key-id "$APPLE_NOTARY_KEY_ID" \
+                   --issuer "$APPLE_NOTARY_KEY_ISSUER" --keychain "$KEYCHAIN"; then
+                unset PORT_DADDY_SKIP_NOTARIZE
+                export PORT_DADDY_NOTARY_PROFILE=pd-notary
+              else
+                echo "::warning::notary creds failed validation — signing FleetBar.app only."
+              fi
+            fi
+          else
+            echo "::warning::APPLE_CERT_P12_BASE64 unset — FleetBar.app ships unsigned."
+          fi
           scripts/package-fleetbar.sh dist/fleetbar
+          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary.p8" 2>/dev/null || true
+          if [ -n "${APPLE_CERT_P12_BASE64:-}" ]; then
+            security delete-keychain "$KEYCHAIN" || true
+          fi
+
+      - name: Signature guard — reject ad-hoc when signing was configured
+        # The "ensure it's signed from now on" lever: if the Developer ID cert
+        # secret is present, the produced .app MUST carry a Developer ID signature.
+        # Without this, a future regression silently reverts to an unsigned,
+        # Gatekeeper-quarantined .app (the v3.21.0 state this PR fixes).
+        if: ${{ secrets.APPLE_CERT_P12_BASE64 != '' }}
+        run: |
+          set -euo pipefail
+          zip="$(ls dist/fleetbar/PortDaddy-FleetBar-macOS-*.zip | head -n1)"
+          work="$RUNNER_TEMP/fleetbar-verify"; rm -rf "$work"; mkdir -p "$work"
+          ditto -x -k "$zip" "$work"
+          app="$work/FleetBar.app"
+          codesign --verify --strict --verbose=2 "$app"
+          auth="$(codesign -dvv "$app" 2>&1 | grep '^Authority=' | head -n1 || true)"
+          echo "FleetBar.app $auth"
+          if ! printf '%s' "$auth" | grep -q 'Developer ID Application'; then
+            echo "::error::FleetBar.app is NOT Developer ID signed (got: ${auth:-adhoc/none}). Refusing to ship a Gatekeeper-quarantined app."
+            exit 1
+          fi
 
       - name: Upload FleetBar preview to release
         uses: softprops/action-gh-release@v2
@@ -329,48 +390,12 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           files: dist/latest.json
 
-  publish-npm:
-    # Run on real release events and on operator-triggered workflow_dispatch.
-    # workflow_dispatch is privileged (repo-write required), so this isn't a
-    # broadening of who can publish — it's a recovery path for releases where
-    # the original `release: published` run failed partway through (e.g. the
-    # bun-missing-in-publish-npm regression that wedged v3.14.1 + v3.15.0).
-    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
-
-      - name: Use Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: 'https://registry.npmjs.org'
-
-      # npm publish runs prepublishOnly which calls build:daemon:dist, which
-      # shells out to `bun` to compile the standalone daemon binary that ships
-      # in the npm tarball. v3.14.1's release run failed here with
-      # `Error: bun --version failed` because the ubuntu-latest runner doesn't
-      # ship with bun. Mirror the bun setup that build-binaries uses above.
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.2.21
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
-        run: npm test
-
-      - name: Publish to npm
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  # publish-npm was RETIRED 2026-07-04 (operator decision): brew + the release
+  # binaries + latest.json cover every supported install path, the npm token
+  # had been dead since 3.15.0 (every publish 404'd), and the perpetually red
+  # job trained everyone to ignore release failures. The manual companion
+  # .github/workflows/publish.yml remains if npm distribution is ever revived;
+  # the registry package should be `npm deprecate`d when a working token exists.
 
   # Roll the brew tap ONLY for a real, non-prerelease published Release. A
   # prerelease (vX.Y.Z-rc.N) builds + signs binaries but must NEVER roll the tap —
@@ -386,8 +411,7 @@ jobs:
     # preview failed to build. This reverses the prior "binaries-only" gate — that
     # let FleetBar rot silently across releases. The tradeoff is deliberate: a
     # flaky FleetBar build now blocks the release, which forces FleetBar to be
-    # FIXED rather than bypassed. publish-npm stays non-gating (it's a separate
-    # distribution channel, not part of the daemon+GUI bundle).
+    # FIXED rather than bypassed.
     needs: [build-binaries, build-fleetbar-preview]
     if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && github.event_name == 'release' && github.event.release.prerelease == false
     steps:

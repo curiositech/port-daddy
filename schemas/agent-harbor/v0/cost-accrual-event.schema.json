@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/cost-accrual-event.schema.json",
+  "title": "CostAccrualEvent",
+  "description": "Append-only cost fact (binder ch09 cost_events; ch18 C2 gate: partial cost survives abort or failed body start). Emitted at start, stream, abort, failure, and finalization. Unknown values stay null, never guessed. Budget cap, partial cost, and failure cost must survive daemon restart.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.cost-accrual-event.v0" },
+    "costEventId": { "type": "string", "minLength": 1 },
+    "agentNodeId": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": ["string", "null"] },
+    "runId": { "type": ["string", "null"] },
+    "provider": { "type": "string" },
+    "modelTier": { "enum": ["fast", "mid", "strong", "local", "custom", null] },
+    "modelName": { "type": ["string", "null"] },
+    "meter": { "enum": ["tokens", "seconds", "storage", "relay", "custom"] },
+    "phase": { "enum": ["start", "stream", "abort", "failure", "finalization"] },
+    "quantity": { "type": "number", "minimum": 0 },
+    "unit": { "type": "string", "description": "e.g. input-tokens, output-tokens, cache-read-tokens, wall-seconds, bytes." },
+    "estimatedCostUsd": { "type": ["number", "null"], "minimum": 0 },
+    "actualCostUsd": { "type": ["number", "null"], "minimum": 0 },
+    "budgetId": { "type": ["string", "null"] },
+    "budgetAction": { "enum": ["none", "warning", "pause", "kill", null], "description": "Set when this accrual crossed a budget threshold." },
+    "idempotencyKey": { "type": "string" },
+    "occurredAt": { "type": "string", "minLength": 1 }
+  },
+  "required": ["schema", "costEventId", "agentNodeId", "meter", "phase", "quantity", "occurredAt"],
+  "additionalProperties": true
+}

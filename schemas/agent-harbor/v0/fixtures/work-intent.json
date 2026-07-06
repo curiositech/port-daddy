@@ -1,0 +1,34 @@
+{
+  "schema": "pd.agent-harbor.work-intent.v0",
+  "intentId": "work_intent_01JZFIX0001",
+  "idempotencyKey": "port-daddy:f0/v0-contract-freeze:cli:fixture-1",
+  "source": {
+    "kind": "compat",
+    "legacyVerb": "spawn",
+    "surface": "pd spawn",
+    "actorId": "operator:erich",
+    "worktree": "/Users/me/coding/port-daddy",
+    "branch": "f0/v0-contract-freeze"
+  },
+  "goal": {
+    "text": "fix the flaky auth tests",
+    "contextRefs": [
+      { "kind": "file", "path": "tests/unit/auth.test.ts" },
+      { "kind": "pr", "number": 123 }
+    ]
+  },
+  "constraints": {
+    "placement": "local-only",
+    "maxCostUsd": 5,
+    "deadlineMs": 5400000,
+    "parallelism": "planner-decides",
+    "reviewRequired": true,
+    "destructiveActions": "human-approval",
+    "modelTier": "mid"
+  },
+  "startPolicy": "immediate",
+  "attachExisting": false,
+  "operator": "erich",
+  "status": "captured",
+  "createdAt": "2026-07-05T12:00:00.000Z"
+}
