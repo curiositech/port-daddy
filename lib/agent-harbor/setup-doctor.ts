@@ -411,7 +411,13 @@ export function assessProviderKeys(facts: ProviderKeyFact[]): RemediationCard {
       `${launchable.length}/${facts.length} backend(s) launchable (${launchable.map((f) => f.backend).join(', ')}).`);
   }
   const first = facts.find((f) => f.nextStep);
-  return issueCard('provider-keys', 'missing', 'critical',
+  // WARN, not CRITICAL: zero launchable backends is an incomplete-setup state
+  // (a fresh machine or bare CI runner before `claude`/`codex` exist), not a
+  // broken Port Daddy installation. `pd doctor`'s exit code gates CI builds on
+  // CRITICAL (scripts/ci-doctor-gate.sh), and a healthy daemon must not fail
+  // that gate because no AI backend is installed yet. The card still names the
+  // consequence and the one repair.
+  return issueCard('provider-keys', 'missing', 'warn',
     `0/${facts.length} backends launchable — the fleet will arm but every spawn is policy-blocked.`,
     {
       command: first?.nextStep ?? 'pd backend list',

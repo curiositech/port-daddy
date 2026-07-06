@@ -234,9 +234,13 @@ describe('per-area judgments', () => {
     expect(assessKeychain({ platform: 'darwin', available: true }).status).toBe('ok');
   });
 
-  test('zero launchable backends is critical with the first concrete credential step', () => {
+  test('zero launchable backends is a WARN (setup-incomplete, not broken) with the first concrete credential step', () => {
     const card = assessProviderKeys(brokenFacts().providerKeys);
-    expect(card.severity).toBe('critical');
+    // WARN, not CRITICAL: a fresh machine / bare CI runner with no AI backend
+    // installed is an incomplete setup, and `pd doctor`'s exit code gates CI
+    // builds on CRITICAL (scripts/ci-doctor-gate.sh) — a healthy daemon must
+    // not fail that gate for a missing optional backend.
+    expect(card.severity).toBe('warn');
     expect(card.repair.command).toBe('claude');
   });
 
