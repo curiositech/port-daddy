@@ -299,7 +299,7 @@ describe('C5 governance schema package', () => {
     expect(() => assertEnvelope(loadGovFixture('tool-gate-envelope'))).not.toThrow();
   });
 
-  it('the frozen F0 contract package is untouched by this slice (eleven from F0 + the ADR-0096 GuidanceEnvelope + the five ADR-0097 M6 contracts)', () => {
+  it('the frozen contract package count is locked at seventeen (eleven F0 + ADR-0096 GuidanceEnvelope + five ADR-0097 M6 contracts) — governance adds only governance/ schemas', () => {
     const files = readdirSync(schemaDir).filter((f) => f.endsWith('.schema.json'));
     expect(files.length).toBe(17);
   });

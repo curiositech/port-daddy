@@ -113,6 +113,6 @@
       "required": ["stale"]
     }
   },
-  "required": ["schema", "queryId", "completedAt", "engine", "budget", "hits"],
+  "required": ["schema", "queryId", "completedAt", "engine", "budget", "hits", "projection"],
   "additionalProperties": true
 }

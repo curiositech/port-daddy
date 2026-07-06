@@ -74,6 +74,6 @@
       "required": ["stale"]
     }
   },
-  "required": ["schema", "itemId", "kind", "title", "status", "postedAt", "assertedBy", "citations"],
+  "required": ["schema", "itemId", "kind", "title", "status", "postedAt", "assertedBy", "citations", "projection"],
   "additionalProperties": true
 }

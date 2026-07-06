@@ -186,6 +186,20 @@ change to these five shapes requires a `schemas/agent-harbor/v1/` directory and
 a Deprecation/Sunset plan per `api-versioning-strategy`. This ADR is additive to
 the ADR-0095 package exactly as ADR-0096 was.
 
+## Implementation Matrix
+
+<!-- ADR-0043: one row per phase; slugs are the stable join keys into
+     roadmap_items. Phase 0 ships with this ADR's PR; phases 1–4 are the M6
+     implementation chains that build against the frozen contracts. -->
+
+| Phase | Roadmap slug | Status | Depends on | Description |
+|-------|--------------|--------|------------|-------------|
+| 0 | adr-0097-m6-context-memory-search-contracts | now | ADR-0095, ADR-0096 | This freeze: five v0 schemas, fixtures, contract tests (ships with this ADR's PR). |
+| 1 | adr-0097-phase-1-compaction-chain | later | Phase 0 | Context-pressure wiring + Longshoreman compactor: ContextEnvelope thresholds trigger a validated CompactionPacket; successor resume verifies `sourceTranscript` against the session hash chain (M6 gate lines 1–2). |
+| 2 | adr-0097-phase-2-transcript-search | later | Phase 0 | Hybrid search service over events/notes/files/PRs/outcomes honoring query budgets and returning cited results (M6 gate lines 3–4). |
+| 3 | adr-0097-phase-3-episode-extraction | later | Phase 0 | Longshoreman episode/graph-fact extraction with bi-temporal validity, supersession closure, and distilled-source tombstones. |
+| 4 | adr-0097-phase-4-blackboard-projection | later | Phases 1–3 | Read-only blackboard projection over ledger + memory facts, rendered as cards/badges/search/timeline (write/parley semantics stay M8). |
+
 ## Consequences
 
 - **Positive:** the M6 chains (context-pressure tracker, Longshoreman compactor,

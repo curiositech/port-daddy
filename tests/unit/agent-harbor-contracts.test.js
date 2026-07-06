@@ -1,7 +1,7 @@
 /**
- * Agent Harbor v0 contract freeze tests (ADR-0095, binder ch18 Work Order F0;
- * extended by the ADR-0096 M5 F0-delta: GuidanceEnvelope + forged-guidance;
- * extended by the ADR-0097 M6 F0-delta: CompactionPacket, MemoryEpisode,
+ * Agent Harbor v0 contract freeze tests — ADR-0095 (binder ch18 Work Order F0),
+ * extended by the ADR-0096 M5 F0-delta (GuidanceEnvelope + forged-guidance) and
+ * the ADR-0097 M6 F0-delta (CompactionPacket, MemoryEpisode,
  * TranscriptSearchQuery/Result, and the read-only BlackboardItem).
  *
  * Locks three things:
@@ -744,12 +744,18 @@ describe('ADR-0097 M6 context/memory/search contracts (F0-delta)', () => {
     expect(validate(schema, loose).some((e) => e.includes('citations'))).toBe(true);
   });
 
-  it('search result and blackboard carry the C-routes freshness envelope — stale projections are labeled, never hidden', () => {
+  it('search result and blackboard REQUIRE the C-routes freshness envelope — stale projections are labeled, never hidden', () => {
     for (const name of ['transcript-search-result', 'blackboard-item']) {
-      const projection = loadSchema(name).properties.projection;
+      const schema = loadSchema(name);
+      // Both objects ARE projections, so the envelope is required, not optional.
+      expect(schema.required).toContain('projection');
+      const projection = schema.properties.projection;
       expect(projection.required).toContain('stale');
       expect(projection.properties).toHaveProperty('lastLedgerSeq');
       expect(projection.properties).toHaveProperty('headSeq');
+      const unlabeled = { ...loadFixture(name) };
+      delete unlabeled.projection;
+      expect(validate(schema, unlabeled).some((e) => e.includes('projection'))).toBe(true);
     }
   });
 });
