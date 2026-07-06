@@ -135,6 +135,8 @@ _port_daddy() {
     harbormaster hm
     # Harbors (named permission namespaces)
     harbor harbors whois
+    # Agent Harbor event ledger + projections (binder ch18 C1, ADR-0095)
+    harbor-ledger
     # Tuple space
     tuple
     # Semantic graph + episodic memory
@@ -1718,6 +1720,25 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     harbors)
       _pd_opts '--json'
+      ;;
+
+    # -----------------------------------------------------------------------
+    # harbor-ledger  status|project|rebuild  [projection]  [--json]
+    # -----------------------------------------------------------------------
+    harbor-ledger)
+      local hl_subcmd="${words[2]:-}"
+      case "$hl_subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "status project rebuild" -- "$cur") )
+          ;;
+        project|rebuild)
+          COMPREPLY=( $(compgen -W "roster transcript-timeline files-touched costs compliance work-receipts --json" -- "$cur") )
+          ;;
+        status)
+          _pd_opts '--json'
+          ;;
+        *) _pd_opts '--json' ;;
+      esac
       ;;
 
     # -----------------------------------------------------------------------
