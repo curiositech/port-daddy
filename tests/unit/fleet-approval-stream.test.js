@@ -17,7 +17,7 @@ import { jest } from '@jest/globals';
 import Fastify from 'fastify';
 import WebSocket from 'ws';
 
-const { FleetApprovalStream, getSharedApprovalStream, setSharedApprovalStream } =
+const { FleetApprovalStream, getSharedApprovalStream, setSharedApprovalStream, MAX_PENDING_APPROVALS } =
   await import('../../lib/fleet/approval-stream.js');
 const { fleetApprovalsPlugin } = await import('../../routes/fleet-approvals.js');
 
@@ -141,6 +141,23 @@ describe('FleetApprovalStream', () => {
     const outcome = await s.decide({ type: 'human_decision', id: 'ghost', decision: 'reject' }, 'op');
     expect(outcome.type).toBe('error');
     expect(outcome.message).toMatch(/unknown/);
+  });
+
+  test('griefing cap: refuses new gates past MAX_PENDING_APPROVALS (distinct-content flood cannot grow unbounded)', () => {
+    const s = new FleetApprovalStream();
+    const errors = [];
+    s.subscribe((e) => { if (e.type === 'error') errors.push(e); });
+    // Distinct content each time defeats fingerprint dedup — the flood case.
+    let accepted = 0;
+    for (let i = 0; i < MAX_PENDING_APPROVALS + 25; i += 1) {
+      const ok = s.enqueue(proposal({ id: `flood-${i}`, context: { source: 'trigger', messageContent: `distinct-${i}` } }));
+      if (ok) accepted += 1;
+    }
+    expect(accepted).toBe(MAX_PENDING_APPROVALS);
+    expect(s.list()).toHaveLength(MAX_PENDING_APPROVALS);
+    // Saturation is surfaced, not silent — and warned once, not per-reject.
+    expect(errors.length).toBe(1);
+    expect(errors[0].message).toMatch(/queue full/);
   });
 
   test('content fingerprint dedup: a retried delivery with a fresh uuid does not stack a second gate', () => {

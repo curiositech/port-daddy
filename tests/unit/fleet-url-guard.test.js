@@ -48,6 +48,30 @@ describe('isBlockedHost — SSRF-class targets', () => {
   }
 });
 
+describe('IPv4-mapped IPv6 — the form url.hostname actually yields (regression: metadata bypass)', () => {
+  // Node normalizes http://[::ffff:169.254.169.254]/ to hostname
+  // "[::ffff:a9fe:a9fe]" (hex hextets). A dotted-only mapped decoder let this
+  // reach cloud metadata. Every encoding of a blocked v4 must be refused.
+  const mappedBlocked = [
+    'http://[::ffff:169.254.169.254]/latest/meta-data/', // dotted metadata
+    'http://[::ffff:a9fe:a9fe]/',                          // hex-hextet metadata
+    'http://[::ffff:7f00:1]/',                             // hex loopback 127.0.0.1
+    'http://[::ffff:10.0.0.1]/',                           // dotted private
+    'http://[::ffff:a00:1]/',                              // hex private 10.0.0.1
+    'http://[::ffff:c0a8:1]/',                             // hex 192.168.0.1
+    'http://[::1]/',                                        // ipv6 loopback
+  ];
+  for (const u of mappedBlocked) {
+    it(`refuses ${u}`, () => {
+      expect(() => assertSafeOutboundUrl(u)).toThrow(SsrfBlockedError);
+    });
+  }
+
+  it('does NOT false-flag a legitimate public IPv6 (Cloudflare DNS)', () => {
+    expect(() => assertSafeOutboundUrl('http://[2606:4700:4700::1111]/')).not.toThrow();
+  });
+});
+
 describe('assertSafeOutboundUrl — the guard webhook.ts calls', () => {
   // ATTACK: cloud-metadata exfiltration
   test('defeats metadata-exfil: blocks 169.254.169.254', () => {
