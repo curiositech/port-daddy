@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chart — Orchestration Surface (ch22 mockup)</title>
+<style>
+/* ============================================================
+   ch22 orchestration surface mockup — deferred design pass.
+   Renders binder ch22 (Chart / opinions / adversarial review /
+   output evaluation) as the Fleet Control Center projection.
+   Skin/law: binder ch20 story linework — tokens inlined verbatim
+   from docs/design/fleetbar-mockups/ch20-tokens.css (palette v2,
+   IBM Plex + Recursive casual, rule-8 grammar, fractional borders,
+   one color zone: cobalt on the running wave). Light + dark.
+   Self-contained: no external URLs; font stacks fall back to system.
+   Skill lenses grafted for this pass: frontend-design,
+   beautiful-gui-design, typography-expert, dag-runtime,
+   windags-architect, dag-quality, skill-grader, reactflow-expert,
+   agentic-coding-ux-designer.
+   ============================================================ */
+
+/* ---- ch20 token sheet (inlined) ---- */
+:root {
+  --surface-base:   #f2eee6;
+  --surface-card:   #e9e2d5;
+  --surface-strong: #e9e2d5;
+  --surface-sunken: #e0d9cb;
+  --text-primary:   #121212;
+  --text-secondary: #403b34;
+  --text-muted:     #47423a;
+  --cobalt: #003fb8;  --teal: #006b5f;  --health: #1f7a4d;
+  --amber:  #a66f00;  --amber-on-tint: #5b3900;
+  --error:  #bf2f2f;
+  --indigo: #353a85;
+  --violet: #933fa5;  --violet-on-tint: #772189;
+  --rust:   #7a4514;  --rust-on-tint:   #5f2c00;
+  --gold:   #666a00;  --gold-on-tint:   #4d5000;
+  --lime:   #cad900;
+  --idle:   #8f8879;
+  --hair:        rgba(18, 18, 18, 0.14);
+  --hair-strong: rgba(18, 18, 18, 0.34);
+  --border-strong: #121212;
+  --cobalt-slab: #003fb8;
+  --flag-white: #fbf7ef;
+  --cobalt-wash: color-mix(in oklab, var(--cobalt) 10%, var(--surface-base));
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-base:   #101216;
+    --surface-card:   #181c22;
+    --surface-strong: #222833;
+    --surface-sunken: #0b0d11;
+    --text-primary:   #f5f3ed;
+    --text-secondary: #d3cec2;
+    --text-muted:     #a59f93;
+    --cobalt: #7db4ff;  --teal: #8fd0a7;  --health: #5fce97;
+    --amber:  #f2be51;  --amber-on-tint: #ffe0a0;
+    --error:  #ff7d7d;
+    --indigo: #9d92e8;
+    --violet: #e0a5ed;  --violet-on-tint: #f8c7ff;
+    --rust:   #b98e6b;  --rust-on-tint:   #cdad94;
+    --gold:   #d8dd3c;  --gold-on-tint:   #f5fa78;
+    --idle:   #736d60;
+    --hair:        rgba(245, 243, 237, 0.14);
+    --hair-strong: rgba(245, 243, 237, 0.34);
+    --border-strong: #f5f3ed;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  background: var(--surface-sunken); color: var(--text-primary);
+  font-size: .9375rem; line-height: 1.55; -webkit-font-smoothing: antialiased;
+  padding-bottom: 4rem;
+}
+.mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums slashed-zero; font-size: .8125rem; }
+.casual { font-family: "Recursive", "IBM Plex Sans", sans-serif;
+  font-variation-settings: "CASL" 1; }
+.eyebrow { font-size: .75rem; font-weight: 650; text-transform: uppercase;
+  letter-spacing: .12em; color: var(--text-muted); }
+
+/* rule-8 micro-flags (ICOS corpus, ch20 rule 8) */
+.mfl { display: inline-block; width: 13px; height: 9.5px; flex: none;
+  border: .5px solid rgba(0,0,0,.25);
+  --fw: var(--flag-white); --fink: #17191d; --c: var(--cobalt-slab); --r: #bf2f2f; --y: var(--lime); }
+.fl-quebec   { background: var(--y); }                                    /* vessel healthy */
+.fl-foxtrot  { background: linear-gradient(var(--r), var(--r)) center / 42% 42% no-repeat, var(--fw); } /* communicate with me — awaiting human */
+.fl-november { background: repeating-conic-gradient(var(--c) 0 25%, var(--fw) 25% 50%) top left / 50% 50%; } /* negative */
+.fl-uniform  { background: repeating-conic-gradient(var(--r) 0 25%, var(--fw) 25% 50%) top left / 50% 50%; } /* running into danger */
+
+@keyframes ch20pulse {
+  0% { outline-offset: 0; outline-color: currentColor; }
+  100% { outline-offset: 7px; outline-color: transparent; }
+}
+.pulse { outline: 1.5px solid currentColor; animation: ch20pulse 1.8s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+
+/* ---- page frame ---- */
+.pagehead { max-width: 1240px; margin: 2.2rem auto .6rem; padding: 0 2rem; }
+.pagehead h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -.02em; }
+.pagehead p { color: var(--text-secondary); max-width: 72ch; margin-top: .35rem; }
+.pagehead .refs { margin-top: .4rem; color: var(--text-muted); font-size: .875rem; }
+
+.app { max-width: 1240px; margin: 1.2rem auto 0; background: var(--surface-base);
+  border: 1px solid var(--hair-strong); }
+
+/* plan header */
+.phead { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap;
+  padding: .9rem 1.4rem .8rem; border-bottom: 1px solid var(--hair); }
+.phead .t { font-weight: 750; font-size: 1.05rem; }
+.phead .state { color: var(--cobalt); font-weight: 650; font-size: .875rem;
+  display: inline-flex; gap: .45rem; align-items: center; }
+.phead .state .dot8 { width: 8px; height: 8px; background: currentColor; }
+.phead .facts { display: flex; gap: 1.1rem; flex-wrap: wrap; margin-left: auto;
+  color: var(--text-muted); font-size: .875rem; }
+.phead .facts b { color: var(--text-secondary); font-weight: 600; }
+.phead .facts b.money { color: var(--gold); }
+
+/* main grid: chart + opinion rail */
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 336px; }
+
+/* ---- the Chart: THE live pane — brackets on live panels only ---- */
+.chartpane { position: relative; padding: 1rem 1.1rem 1.2rem; border-right: 1px solid var(--hair); min-width: 0; }
+.chartpane::before, .chartpane::after, .chartpane .bk::before, .chartpane .bk::after {
+  content: ""; position: absolute; width: 12px; height: 12px;
+  border: 0 solid var(--border-strong); pointer-events: none; z-index: 6; }
+.chartpane::before { top: 4px; left: 4px; border-top-width: 1.5px; border-left-width: 1.5px; }
+.chartpane::after  { top: 4px; right: 4px; border-top-width: 1.5px; border-right-width: 1.5px; }
+.chartpane .bk::before { bottom: 4px; left: 4px; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.chartpane .bk::after  { bottom: 4px; right: 4px; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+.chartpane .head { display: flex; align-items: baseline; gap: .7rem; padding: 0 .2rem .6rem; }
+.chartpane .head .t { font-weight: 750; }
+.chartpane .head .live { color: var(--cobalt); font-size: .75rem; font-weight: 650;
+  text-transform: uppercase; letter-spacing: .12em; }
+.chartpane .head .hint { margin-left: auto; color: var(--text-muted); font-size: .875rem; }
+
+.chartwrap { overflow-x: auto; }
+.canvas { position: relative; width: 848px; height: 720px; margin: 0 auto; }
+.canvas svg.edges { position: absolute; inset: 0; width: 100%; height: 100%; }
+.edge { fill: none; stroke: var(--hair-strong); stroke-width: 1.5; }
+.edge.hot { stroke: var(--cobalt); }
+.edge.dashed { stroke-dasharray: 5 4; }
+
+/* wave labels */
+.wlab { position: absolute; left: 8px; width: 100px; }
+.wlab .n { font-size: .75rem; font-weight: 650; text-transform: uppercase;
+  letter-spacing: .12em; color: var(--text-muted); }
+.wlab .s { color: var(--text-muted); font-size: .8125rem; margin-top: .1rem; }
+.wlab.on .n, .wlab.on .s { color: var(--cobalt); }
+
+/* the one cobalt zone: the running wave */
+.wavezone { position: absolute; left: 108px; top: 164px; width: 728px; height: 156px;
+  background: var(--cobalt-wash); border: 1.5px solid var(--cobalt); z-index: 0; }
+.wavezone .tag { position: absolute; top: -11px; right: 10px;
+  background: var(--cobalt-slab); color: var(--flag-white);
+  font-size: .75rem; font-weight: 650; text-transform: uppercase; letter-spacing: .1em;
+  padding: .05rem .5rem; }
+
+/* node cards */
+.node { position: absolute; width: 240px; background: var(--surface-card);
+  border: 1px solid var(--hair); padding: .5rem .65rem .55rem .8rem; z-index: 2; }
+.node .stripe { position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; }
+.node .nrow { display: flex; gap: .5rem; align-items: center; }
+.node .nrow .dot { width: 8px; height: 8px; flex: none; background: currentColor; }
+.node .nrow .name { font-weight: 650; font-size: .875rem; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.node .nrow .mfl { margin-left: auto; }
+.node .meta { color: var(--text-muted); font-size: .8125rem; margin-top: .1rem;
+  display: flex; gap: .6rem; white-space: nowrap; }
+.node .meta > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.node .meta .cap { margin-left: auto; color: var(--gold); flex: none; }
+.node .grafts { display: flex; gap: .3rem; flex-wrap: wrap; margin-top: .35rem; }
+.sg { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: .8125rem; color: var(--text-secondary);
+  border: 1px solid var(--hair-strong); padding: 0 .35rem; }
+.node.run { color: var(--cobalt); } .node.run .stripe { background: var(--cobalt); }
+.node.done { color: var(--health); } .node.done .stripe { background: var(--health); }
+.node.queued { color: var(--idle); } .node.queued .stripe { background: var(--idle); }
+.node.reviewer { color: var(--violet); } .node.reviewer .stripe { background: var(--violet); }
+.node.gate { color: var(--amber); } .node.gate .stripe { background: var(--amber); }
+.node .name, .node .meta { color: var(--text-primary); }
+.node .meta { color: var(--text-muted); }
+.node.hollow { background: transparent; border: 1.5px dashed var(--hair-strong); }
+.node.hollow .name { color: var(--text-muted); font-style: italic; }
+.node .resolveby { color: var(--text-muted); font-size: .8125rem; margin-top: .35rem; }
+.node .resolveby b { color: var(--text-secondary); font-weight: 600; }
+.kindtag { font-size: .75rem; font-weight: 650; letter-spacing: .08em; text-transform: uppercase;
+  padding: 0 .35rem; border: 1px solid currentColor; }
+
+/* ---- opinion rail ---- */
+.rail { padding: 1rem 1.1rem 1.2rem; background: var(--surface-base); }
+.rail .head { display: flex; align-items: baseline; gap: .6rem; padding-bottom: .2rem; }
+.rail .head .t { font-weight: 750; }
+.rail .sub { color: var(--text-muted); font-size: .875rem; margin-bottom: .7rem; }
+.op { background: var(--surface-card); border: 1px solid var(--hair);
+  padding: .6rem .75rem .65rem; margin-top: .6rem; position: relative; }
+.op .stripe { position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; background: var(--hair-strong); }
+.op .kind { display: flex; gap: .5rem; align-items: baseline; }
+.op .kind .k { font-size: .75rem; font-weight: 650; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text-secondary); }
+.op .kind .conf { margin-left: auto; color: var(--text-muted); }
+.op .arg { margin-top: .3rem; color: var(--text-secondary); font-size: .875rem; }
+.op .cf { margin-top: .35rem; font-size: .875rem; color: var(--text-muted); }
+.op .cf b { font-size: .75rem; font-weight: 650; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-muted); }
+.op .acts { margin-top: .5rem; display: flex; gap: .5rem; align-items: center; }
+.op.overruled .stripe { background: var(--rust); }
+.op.overruled .ruling { margin-top: .5rem; font-size: .875rem; color: var(--rust-on-tint, var(--rust)); }
+.op.overruled .ruling b { font-weight: 650; }
+.btn { font: inherit; font-size: .875rem; font-weight: 600; padding: .22rem .7rem;
+  border: 2px solid var(--border-strong); background: transparent; color: var(--text-primary); cursor: pointer; }
+.btn.primary { background: var(--border-strong); color: var(--surface-base); }
+.btn.quiet { border-color: var(--hair-strong); color: var(--text-muted); }
+.rail .depth { margin-top: .8rem; color: var(--text-muted); font-size: .875rem;
+  border-top: 1px solid var(--hair); padding-top: .6rem; }
+.rail .depth b { color: var(--text-secondary); font-weight: 600; }
+
+/* ---- lower band: findings + evaluation ---- */
+.lower { border-top: 1px solid var(--hair-strong); }
+.lower .bandhead { padding: .8rem 1.4rem 0; }
+.panelgrid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+@media (max-width: 980px) {
+  .main, .panelgrid { grid-template-columns: 1fr; }
+  .chartpane { border-right: 0; }
+  .findings { border-right: 0 !important; }
+}
+
+/* findings board */
+.findings { padding: .9rem 1.4rem 1.2rem; border-right: 1px solid var(--hair); min-width: 0; }
+.findings .head { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; }
+.findings .head .t { font-weight: 750; }
+.findings .head .blocked { display: inline-flex; gap: .45rem; align-items: center;
+  color: var(--error); font-size: .875rem; font-weight: 650; margin-left: auto; }
+.findings .econ { color: var(--text-muted); font-size: .875rem; margin-top: .25rem; }
+.finding { border: 1px solid var(--hair); background: var(--surface-card);
+  padding: .55rem .75rem .6rem; margin-top: .6rem; position: relative; }
+.finding .stripe { position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; }
+.finding .row1 { display: flex; gap: .55rem; align-items: baseline; flex-wrap: wrap; }
+.verdict { font-size: .75rem; font-weight: 650; letter-spacing: .08em; text-transform: uppercase;
+  padding: 0 .4rem; border: 1px solid currentColor; }
+.finding.confirmed { color: var(--error); } .finding.confirmed .stripe { background: var(--error); }
+.finding.plausible { color: var(--amber); } .finding.plausible .stripe { background: var(--amber); }
+.finding.refuted { color: var(--idle); } .finding.refuted .stripe { background: var(--idle); }
+.finding .sev { color: var(--text-muted); font-size: .8125rem; }
+.finding .claim { color: var(--text-primary); font-size: .9375rem; margin-top: .25rem; }
+.finding.refuted .claim { color: var(--text-muted); }
+.finding .pin { color: var(--text-muted); font-size: .8125rem; margin-top: .25rem; }
+.finding .votes { display: flex; gap: .9rem; margin-top: .3rem; color: var(--text-muted);
+  font-size: .8125rem; flex-wrap: wrap; }
+.finding .votes b { color: var(--text-secondary); font-weight: 600; }
+.finding .disp { display: flex; gap: .5rem; align-items: center; margin-top: .5rem; flex-wrap: wrap; }
+.finding .disp .note { color: var(--text-muted); font-size: .8125rem; }
+
+/* evaluation strip */
+.evals { padding: .9rem 1.4rem 1.2rem; min-width: 0; }
+.evals .head { display: flex; align-items: baseline; gap: .7rem; }
+.evals .head .t { font-weight: 750; }
+.evals .sub { color: var(--text-muted); font-size: .875rem; margin-top: .1rem; }
+.erow { border: 1px solid var(--hair); background: var(--surface-card);
+  padding: .5rem .75rem .55rem; margin-top: .6rem; }
+.erow .r1 { display: flex; gap: .7rem; align-items: baseline; flex-wrap: wrap; }
+.erow .nn { font-weight: 650; font-size: .875rem; }
+.erow .it { color: var(--text-muted); font-size: .8125rem; }
+.erow .decision { margin-left: auto; font-size: .75rem; font-weight: 650;
+  letter-spacing: .08em; text-transform: uppercase; padding: 0 .4rem; border: 1px solid currentColor; }
+.erow .decision.accept { color: var(--health); }
+.erow .decision.iterate { color: var(--amber); }
+.erow .decision.retry { color: var(--cobalt); }
+.erow .r2 { display: flex; gap: 1rem; align-items: center; margin-top: .35rem;
+  color: var(--text-muted); font-size: .8125rem; flex-wrap: wrap; }
+.scorebar { display: inline-block; width: 84px; height: 8px; background: var(--surface-sunken);
+  border: 1px solid var(--hair); vertical-align: middle; position: relative; }
+.scorebar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--health); }
+.scorebar.mid i { background: var(--amber); }
+.erow .halluc { color: var(--error); }
+.erow .fb { margin-top: .35rem; color: var(--text-muted); font-size: .8125rem; }
+.erow .fb b { color: var(--text-secondary); font-weight: 600; }
+.evals .legend { margin-top: .7rem; color: var(--text-muted); font-size: .8125rem; }
+.evals .controls { display: flex; gap: .5rem; margin-top: .55rem; align-items: center; flex-wrap: wrap; }
+
+/* status bar */
+.statusbar { display: flex; gap: 1.2rem; align-items: center; flex-wrap: wrap;
+  border-top: 1px solid var(--hair-strong); padding: .45rem 1.4rem;
+  color: var(--text-muted); background: var(--surface-strong); }
+.statusbar .right { margin-left: auto; display: flex; gap: 1.2rem; }
+.statusbar b { color: var(--text-secondary); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="pagehead">
+  <h1>Chart — orchestration made <span class="casual">visible</span> and opinionated</h1>
+  <p>The Fleet Control Center projection of binder ch22: the plan graph rendered wave by
+     wave from the frozen WorkPlan v0 (waves derived from dependencies, never stored),
+     every node naming its grafted skills and budget; a rail where the plan argues its
+     choices with counterfactuals and takes overrules as durable revisions; a findings
+     board where independent skeptics gate acceptance; and the between-node evaluation
+     ledger that decides iterate-or-stop honestly. One cobalt zone: the running wave.</p>
+  <p class="refs mono">law: binder ch20 (story linework) · structure: binder ch22 capabilities 1–4 · contracts: work-plan v0 + plan-opinion / plan-revision / review-finding / evaluation-record (proposed) · strategy §9 §13–14 · grafts: frontend-design · beautiful-gui-design · typography-expert · dag-runtime · windags-architect · dag-quality · skill-grader · reactflow-expert · agentic-coding-ux-designer</p>
+</div>
+
+<div class="app">
+
+  <!-- plan header: consent-moment honesty (ch20 law 11) carried into run -->
+  <div class="phead">
+    <span class="t">Cut checkout p95 below 300&thinsp;ms</span>
+    <span class="state"><span class="dot8 pulse"></span>running · wave 2 of 5</span>
+    <div class="facts mono">
+      <span>plan <b>wp_01JQ9K…</b></span>
+      <span>nodes <b>7</b></span>
+      <span>revisions <b>2 of 3</b></span>
+      <span>est <b class="money">$3.20</b> · spent <b class="money">$1.12</b></span>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- ============ the Chart: live pane, bracketed ============ -->
+    <div class="chartpane"><span class="bk"></span>
+      <div class="head">
+        <span class="t">Chart</span>
+        <span class="live">● live — deltas arriving</span>
+        <span class="hint">layout re-runs on topology change only · state rides the hot bus</span>
+      </div>
+
+      <div class="chartwrap">
+      <div class="canvas">
+
+        <!-- the one cobalt zone: the running wave -->
+        <div class="wavezone"><span class="tag">▶ running · $0.61 accruing</span></div>
+
+        <svg class="edges" viewBox="0 0 848 720" aria-hidden="true">
+          <path class="edge hot" d="M420 150 C 420 172, 240 160, 240 186"/>
+          <path class="edge hot" d="M420 150 C 420 172, 600 160, 600 186"/>
+          <path class="edge" d="M240 300 C 240 318, 280 314, 280 334"/>
+          <path class="edge" d="M600 300 C 600 318, 300 314, 300 334"/>
+          <path class="edge dashed" d="M600 300 C 600 318, 580 314, 580 334"/>
+          <path class="edge" d="M280 450 C 280 466, 420 462, 420 482"/>
+          <path class="edge dashed" d="M580 408 C 580 440, 424 452, 424 482"/>
+          <path class="edge" d="M420 598 L 420 630"/>
+        </svg>
+
+        <!-- wave labels -->
+        <div class="wlab" style="top:60px"><div class="n">wave 1</div><div class="s mono">done · 1m12s</div></div>
+        <div class="wlab on" style="top:214px"><div class="n">wave 2</div><div class="s mono">running · 2m14s</div></div>
+        <div class="wlab" style="top:360px"><div class="n">wave 3</div><div class="s mono">queued</div></div>
+        <div class="wlab" style="top:508px"><div class="n">wave 4</div><div class="s mono">review</div></div>
+        <div class="wlab" style="top:642px"><div class="n">wave 5</div><div class="s mono">gate</div></div>
+
+        <!-- wave 1 -->
+        <div class="node done" style="left:300px; top:28px">
+          <span class="stripe"></span>
+          <div class="nrow"><span class="dot"></span><span class="name">Profile the hot path</span><span class="mfl fl-quebec"></span></div>
+          <div class="meta"><span>claude · mid · 1m12s</span><span class="cap mono">$0.31</span></div>
+          <div class="grafts"><span class="sg">performance-profiler</span><span class="sg">postgres-explain-analyzer</span></div>
+        </div>
+
+        <!-- wave 2: running (inside the cobalt zone) -->
+        <div class="node run" style="left:120px; top:176px">
+          <span class="stripe"></span>
+          <div class="nrow"><span class="dot pulse"></span><span class="name">Rewrite the orders query</span></div>
+          <div class="meta"><span>claude · strong · 2m14s</span><span class="cap mono">$0.40</span></div>
+          <div class="grafts"><span class="sg">postgres-explain-analyzer</span><span class="sg">drizzle-migrations</span></div>
+        </div>
+        <div class="node run" style="left:480px; top:176px">
+          <span class="stripe"></span>
+          <div class="nrow"><span class="dot pulse"></span><span class="name">Quote cache layer</span></div>
+          <div class="meta"><span>codex · fast · 1m48s</span><span class="cap mono">$0.25</span></div>
+          <div class="grafts"><span class="sg">redis-patterns-expert</span><span class="sg">caching-strategies</span></div>
+        </div>
+
+        <!-- wave 3: queued + a visibly hollow placeholder (hypertree rule) -->
+        <div class="node queued" style="left:160px; top:324px">
+          <span class="stripe"></span>
+          <div class="nrow"><span class="dot"></span><span class="name">Regression + load proof</span></div>
+          <div class="meta"><span>queued · fast</span><span class="cap mono">$0.30</span></div>
+          <div class="grafts"><span class="sg">playwright-e2e-tester</span><span class="sg">test-automation-expert</span></div>
+        </div>
+        <div class="node queued hollow" style="left:460px; top:324px">
+          <span class="stripe"></span>
+          <div class="nrow"><span class="dot" style="background:transparent; border:1.5px dashed currentColor"></span><span class="name">Placeholder — cache tuning?</span></div>
+          <div class="resolveby"><b>resolves when</b> quote-cache hit-rate evidence lands (wave 2)</div>
+        </div>
+
+        <!-- wave 4: the skeptic -->
+        <div class="node queued reviewer" style="left:300px; top:472px">
+          <span class="stripe"></span>
+          <div class="nrow"><span class="dot"></span><span class="name">Skeptic review</span><span class="kindtag">reviewer</span></div>
+          <div class="meta"><span>isolated from worker</span><span class="cap mono">$0.62</span></div>
+          <div class="grafts"><span class="sg">redteam-review</span><span class="sg">code-review-checklist</span></div>
+        </div>
+
+        <!-- wave 5: the human gate -->
+        <div class="node queued gate" style="left:300px; top:630px">
+          <span class="stripe"></span>
+          <div class="nrow"><span class="dot"></span><span class="name">Operator consent</span><span class="mfl fl-foxtrot"></span></div>
+          <div class="meta"><span>merge to main · C5 · flies Foxtrot</span></div>
+        </div>
+
+      </div>
+      </div>
+    </div>
+
+    <!-- ============ opinion rail: the plan argues its choices ============ -->
+    <div class="rail">
+      <div class="head"><span class="t">Why this shape</span></div>
+      <div class="sub">Every reversible decision carries its argument and its counterfactual.
+        An opinion without a counterfactual renders as low-confidence.</div>
+
+      <div class="op">
+        <span class="stripe"></span>
+        <div class="kind"><span class="k">parallelize</span><span class="conf mono">confidence 0.86</span></div>
+        <div class="arg">Orders query and quote cache share no files and no symbols
+          (coupling: none); both read wave-1 profile evidence only.</div>
+        <div class="cf"><b>counterfactual</b> — serial adds ~14 min for zero conflict reduction.</div>
+        <div class="acts"><button class="btn">Overrule → serialize</button></div>
+      </div>
+
+      <div class="op">
+        <span class="stripe"></span>
+        <div class="kind"><span class="k">human-gate</span><span class="conf mono">confidence 0.97</span></div>
+        <div class="arg">The merge node pushes to a shared branch; destructive-action
+          policy requires consent (C5). Estimated blast radius: 3 open PRs.</div>
+        <div class="cf"><b>counterfactual</b> — skipping the gate saves one interruption;
+          an unwitnessed merge cannot be waived after the fact.</div>
+        <div class="acts"><button class="btn">Overrule → remove gate</button></div>
+      </div>
+
+      <div class="op">
+        <span class="stripe"></span>
+        <div class="kind"><span class="k">skill-graft</span><span class="conf mono">confidence 0.78</span></div>
+        <div class="arg">Grafted <span class="mono">postgres-explain-analyzer</span> over the
+          generic SQL skill: the intent names query latency, and outcome attribution
+          favors it 7:2 on this repo.</div>
+        <div class="cf"><b>counterfactual</b> — the generic skill wins on breadth,
+          loses on this repo's history.</div>
+        <div class="acts"><button class="btn">Overrule → re-skill</button></div>
+      </div>
+
+      <div class="op overruled">
+        <span class="stripe"></span>
+        <div class="kind"><span class="k">model-tier</span><span class="conf mono">confidence 0.64</span></div>
+        <div class="arg">Strong tier on the query rewrite, fast tier on the cache
+          scaffold: pay for reasoning where a wrong choice cascades.</div>
+        <div class="ruling"><b>Overruled by operator</b> — strong tier on both ·
+          <span class="mono">rev_02</span> · recorded to the receipt and to attribution.</div>
+      </div>
+
+      <div class="depth">Steering budget: <b>2 of 3 revisions</b> used before an
+        operator gate is required. Overrules are training signal — a rejected
+        topology loses confidence.</div>
+    </div>
+  </div>
+
+  <!-- ============ lower band: review + evaluation ============ -->
+  <div class="lower">
+    <div class="bandhead eyebrow">Later in this run — after wave 4, the plan blocks in review-ready</div>
+    <div class="panelgrid">
+
+      <!-- findings board -->
+      <div class="findings">
+        <div class="head">
+          <span class="t">Adversarial review — findings board</span>
+          <span class="blocked"><span class="mfl fl-foxtrot"></span>review-ready · blocked</span>
+        </div>
+        <div class="econ">Skeptic pass ran: expected downstream waste
+          <span class="mono">$4.10</span> &gt; review cost <span class="mono">$0.62</span> —
+          the threshold is a plan contract you can see and change.</div>
+
+        <div class="finding confirmed">
+          <span class="stripe"></span>
+          <div class="row1"><span class="verdict">confirmed</span><span class="sev">severity high</span>
+            <span class="sev mono" style="margin-left:auto">rf_071</span></div>
+          <div class="claim">Receipt cites benchmark <span class="mono">docs/perf/orders_bench.md</span> —
+            the file does not exist in the repo.</div>
+          <div class="pin">pinned to receipt claim #3 · reproduced by skeptic</div>
+          <div class="votes"><span>skeptic A <b class="mono">0.94</b></span>
+            <span>skeptic B <b class="mono">0.89</b></span>
+            <span>judge <b class="mono">0.91</b></span></div>
+          <div class="disp"><button class="btn primary">Fix required</button>
+            <button class="btn quiet">Waive…</button>
+            <span class="note">a waiver is a durable decision on the receipt</span></div>
+        </div>
+
+        <div class="finding plausible">
+          <span class="stripe"></span>
+          <div class="row1"><span class="verdict">plausible</span><span class="sev">severity medium</span>
+            <span class="sev mono" style="margin-left:auto">rf_072</span></div>
+          <div class="claim">Cache invalidation race when two quote updates land in the
+            same tick — argued from the lock order, not reproduced.</div>
+          <div class="pin">pinned to <span class="mono">lib/quote-cache.ts:114</span></div>
+          <div class="votes"><span>skeptic A <b class="mono">0.61</b></span>
+            <span>skeptic B <b class="mono">0.44</b></span>
+            <span>judge <b class="mono">0.55</b></span></div>
+          <div class="disp"><button class="btn">Reproduce</button>
+            <button class="btn quiet">Waive…</button></div>
+        </div>
+
+        <div class="finding refuted">
+          <span class="stripe"></span>
+          <div class="row1"><span class="verdict">refuted-by-review</span>
+            <span class="sev mono" style="margin-left:auto">rf_073</span></div>
+          <div class="claim">Claimed N+1 on <span class="mono">listOrders</span> —
+            counter-evidence: the query is batched at <span class="mono">lib/db.ts:88</span>.
+            The skeptic's claim died under counter-evidence.</div>
+          <div class="disp"><span class="note">no action — recorded; silence is not acceptance,
+            refutation is</span></div>
+        </div>
+      </div>
+
+      <!-- evaluation strip -->
+      <div class="evals">
+        <div class="head"><span class="t">Output evaluation — the gate between waves</span></div>
+        <div class="sub">Every node output is schema-checked, scored, and hallucination-checked
+          before downstream nodes consume it.</div>
+
+        <div class="erow">
+          <div class="r1"><span class="nn">Profile the hot path</span><span class="it mono">iteration 1</span>
+            <span class="decision accept">accept</span></div>
+          <div class="r2"><span>schema <b style="color:var(--health)">✓</b></span>
+            <span class="scorebar"><i style="width:88%"></i></span><span class="mono">0.88</span>
+            <span>hallucination: none</span></div>
+        </div>
+
+        <div class="erow">
+          <div class="r1"><span class="nn">Rewrite the orders query</span><span class="it mono">iteration 1</span>
+            <span class="decision retry">retry · schema</span></div>
+          <div class="r2"><span>schema <b style="color:var(--error)">✗</b>
+            <span class="mono">missing migrationPlan</span></span>
+            <span>retry 1 of 2 — with the specific error, not a blind rerun</span></div>
+        </div>
+
+        <div class="erow">
+          <div class="r1"><span class="nn">Quote cache layer</span><span class="it mono">iteration 2</span>
+            <span class="decision iterate">iterate</span></div>
+          <div class="r2"><span>schema <b style="color:var(--health)">✓</b></span>
+            <span class="scorebar mid"><i style="width:65%"></i></span><span class="mono">0.65</span>
+            <span class="halluc">1 fabricated reference</span>
+            <span>convergence: improving <span class="mono">0.51 → 0.65</span></span></div>
+          <div class="fb"><b>feedback</b> — signed, witnessed guidance at next turn start:
+            keep the eviction policy (strength); fix the fabricated benchmark citation;
+            add the missing invalidation test.</div>
+        </div>
+
+        <div class="legend mono">accept ≥ 0.80 · iterate &lt; 0.80 while iterations remain ·
+          escalate &lt; 0.50 at max, or &lt; 0.30 first-attempt · plateau accepts best ·
+          degradation reverts · oscillation halts</div>
+        <div class="controls">
+          <button class="btn primary">Accept best</button>
+          <button class="btn">Iterate again</button>
+          <button class="btn">Stop → escalate</button>
+          <span class="note eyebrow" style="letter-spacing:.08em">scores feed attribution</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- status bar: daemon truth -->
+    <div class="statusbar mono">
+      <span>daemon <b>healthy</b></span>
+      <span class="mfl fl-quebec"></span>
+      <span>:9876</span>
+      <span>plan state <b>running</b></span>
+      <span style="color:var(--gold)">$1.12 this plan</span>
+      <span class="right"><span>hot bus <b>41ms</b></span><span>waves derived, Kahn-validated</span></span>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
