@@ -573,18 +573,44 @@ export function ledgerHeadSeq(db: DatabaseInstance): number {
 /**
  * Verify the per-session transcript hash chain. Returns the broken link if
  * any (tamper evidence), else null.
+ *
+ * Pages through the WHOLE session via the `afterSeq` cursor — a fixed read
+ * limit would silently skip the tail of a long session and report "intact"
+ * for a chain it never inspected.
  */
 export function verifySessionChain(
   db: DatabaseInstance,
   sessionId: string,
 ): { brokenAtEventId: string; expectedPrev: string | null; actualPrev: string | null } | null {
-  const rows = readEvents(db, { streamType: 'transcript-event', sessionId, limit: 100_000 });
+  const PAGE = 10_000;
+  let afterSeq = 0;
   let expectedPrev: string | null = null;
-  for (const row of rows) {
-    if (row.prev_hash !== expectedPrev) {
-      return { brokenAtEventId: row.event_id, expectedPrev, actualPrev: row.prev_hash };
+  for (;;) {
+    const rows = readEvents(db, { streamType: 'transcript-event', sessionId, afterSeq, limit: PAGE });
+    for (const row of rows) {
+      if (row.prev_hash !== expectedPrev) {
+        return { brokenAtEventId: row.event_id, expectedPrev, actualPrev: row.prev_hash };
+      }
+      expectedPrev = row.content_hash;
     }
-    expectedPrev = row.content_hash;
+    if (rows.length < PAGE) return null;
+    afterSeq = rows[rows.length - 1].ledger_seq;
   }
-  return null;
+}
+
+/**
+ * Content hash of the LAST transcript event in a session's chain (the chain
+ * head), or null when the session has no transcript events. Single indexed
+ * row read — never loads the whole session.
+ */
+export function sessionChainHeadHash(db: DatabaseInstance, sessionId: string): string | null {
+  ensureEventLedgerSchema(db);
+  const row = db
+    .prepare(
+      `SELECT content_hash FROM harbor_events
+       WHERE stream_type = 'transcript-event' AND session_id = ?
+       ORDER BY ledger_seq DESC LIMIT 1`,
+    )
+    .get(sessionId) as { content_hash: string | null } | undefined;
+  return row?.content_hash ?? null;
 }

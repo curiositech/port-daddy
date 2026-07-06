@@ -1395,12 +1395,12 @@
       "sdk": [],
       "routes": [
         "GET /agent-nodes",
-        "GET /agent-nodes/:id",
-        "GET /agent-nodes/:id/files",
-        "GET /sessions/:id/events",
+        "GET /agent-nodes/:param",
+        "GET /agent-nodes/:param/files",
+        "GET /sessions/:param/events",
         "GET /costs",
-        "GET /receipts/:id",
-        "GET /compliance/:agentNodeId"
+        "GET /receipts/:param",
+        "GET /compliance/:param"
       ],
       "completions": [
         "harbor-ledger"
@@ -1409,7 +1409,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "C1 ledger + projections library; read-model HTTP routes served by routes/agent-harbor.ts (wave3/routes, binder ch18 I0)"
+      "_note": "C1 shipped the CLI + library slice; the C-routes wave added the daemon read API (routes/agent-harbor.ts) serving C1's projections"
     },
     "bonds": {
       "description": "Bond escrow state machine \u2014 daemon escrows money before spawn, refunds on clean exit, slashes on violation. Enforcement half of the cost-tracker/bonds split.",
