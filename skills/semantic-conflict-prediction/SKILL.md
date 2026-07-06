@@ -8,11 +8,14 @@ description: >
   time, not merge time. The key insight: git's textual merge is necessary but not
   sufficient. Two changes can merge cleanly and break the program. This skill covers
   tree-sitter fundamentals, symbol-level claims, dependency graph construction,
-  conflict prediction algorithms, and integration with Port Daddy or similar
-  coordination daemons. NOT FOR: textual merge conflict resolution (use git skills),
-  linting or formatting (use static analysis tools), runtime verification of
-  invariants (use runtime-verification-for-agents), or general multi-agent
-  orchestration (use multi-agent-coordination).
+  conflict prediction algorithms, integration with Port Daddy or similar
+  coordination daemons, an optional LLM-verification tier for ambiguous predictions,
+  and the multi-agent-swarm-execution (MASE) coordination-protocol failure modes
+  (context thrashing, cascading hallucinations) that sit above pure AST diffing.
+  NOT FOR: textual merge conflict resolution (use git skills), linting or
+  formatting (use static analysis tools), runtime verification of invariants (use
+  runtime-verification-for-agents), or general multi-agent orchestration (use
+  multi-agent-coordination).
 category: Formal Methods & Verification
 tags:
   - tree-sitter
@@ -46,7 +49,7 @@ metadata:
 
 # Semantic Conflict Prediction
 
-**Version:** 1.0
+**Version:** 1.1
 **Domain:** Static Analysis, Agent Coordination, Conflict Prevention
 **Lineage:** Port Daddy file claims (advisory), multi-agent-coordination (git worktrees), runtime-verification-for-agents (Arbiter pattern)
 
@@ -752,6 +755,124 @@ function predictConflicts(
 
 ---
 
+## 2026 Research Extensions: LLM-Verification and Diff-Correction
+
+Two 2026 papers were surveyed against this skill's existing algorithm. **Both
+turned out to be topic mismatches against their originally hypothesized framing**
+-- flagged honestly here rather than stretched to fit, because neither actually
+proposes an AST-diffing extension or a change-intent classifier. They are still
+useful, for narrower reasons than first assumed. Full digests, numbers, and
+citations: `references/2026-agentic-conflict-research.md`.
+
+**HalluJudge (arXiv 2601.19072, FSE'26 Industry Track)** is a reference-free
+LLM-judge for detecting whether an LLM-generated code review comment is actually
+grounded in its code context -- not a merge-conflict paper. Its pattern is still
+portable: this skill's `scoreConfidence()` (see § Confidence Scoring) already
+produces a graded, not binary, verdict with pure static-analysis arithmetic and no
+LLM layer at all. HalluJudge's escalating-strategy design (cheap direct judgment up
+to Tree-of-Thoughts) is a template for an **optional second-pass verifier on the
+mid-confidence band** (e.g. `0.2 < confidence < 0.8`): ask a cheap LLM judge "is
+this flagged conflict grounded in real behavioral overlap, or a false positive
+from the static graph?" before surfacing it as a warning. Their reported numbers
+(F1 0.85, $0.009/assessment) are a usable cost/accuracy target for deciding
+whether that tier is worth adding at your claim volume -- it is not free, and for
+low-claim-volume repos the existing pure-heuristic scoring is probably sufficient.
+
+**Interactive diff optimization (arXiv 2409.13590, SCAM 2024)** studies correcting
+nonoptimal GumTree-family AST diffs via single-point human/agent feedback rather
+than change-intent classification (it proposes no intent taxonomy). Its empirical
+finding -- 92% of nonoptimal diffs fixable with fewer than four point corrections,
+across 23 real GitHub projects -- is independent support for a design choice this
+skill already makes: incremental, targeted graph updates (§ Building the Graph
+Incrementally) beat full project re-analysis (§ Performance Characteristics,
+"Performance anti-pattern" callouts). It does not license adding an intent
+classifier to this skill; that capability is not established by this paper.
+
+**Net effect on this skill's architecture:** no change to the core tree-sitter /
+symbol-claim / dependency-graph pipeline. One optional addition worth prototyping:
+an LLM-verification tier gated to the mid-confidence band, sized against
+HalluJudge's cost numbers, validated against actual agent/reviewer agreement (not
+synthetic conflict-injection tests) the way HalluJudge validated against real
+developer preference.
+
+---
+
+## Beyond Single-Prediction: MASE Coordination-Layer Failure Modes
+
+Everything above this section predicts conflicts from a **snapshot** of two claim
+sets against one dependency graph. It says nothing about failures that happen
+*between* agents over time, even when every individual claim is honest and the
+graph is accurate. Multi-agent-swarm-execution (MASE) research names two such
+failure modes and a family of solutions that sit one layer above this skill's
+scope -- in `multi-agent-coordination` and `agentic-patterns` territory, not
+replacing this skill's algorithm. Full framework catalog:
+`references/2026-agentic-conflict-research.md`.
+
+**Context Thrashing:** Agent A invalidates Agent B's RAG snapshot or working
+context mid-task -- B keeps reasoning over context A has already made stale.
+Invisible to symbol claims: A's claim can be perfectly scoped and B's claim can be
+perfectly scoped, and the failure still happens because B's *understanding*, not
+B's *edit surface*, went stale.
+
+**Cascading Hallucinations:** Agent B treats Agent A's already-committed logic as
+verified ground truth and builds on it, propagating A's error forward instead of
+catching it at the source. This is an epistemic-trust failure, not a merge
+conflict -- git and this skill's dependency graph both see a clean, dependency-
+consistent history.
+
+**Emerging solution patterns** (MetaGPT, ChatDev, AgentCoder, SWE-agent swarm
+extensions):
+
+1. **Hierarchical Orchestration / Manager Pattern** -- a Lead Architect decomposes
+   the backlog into orthogonal tasks *before* code is written: intent
+   de-duplication pre-assignment, structurally upstream of this skill's post-hoc
+   symbol-claim diffing.
+2. **Semantic-lock broadcast** -- an agent announces `{"intent": "...", "target_graph": [...]}`
+   before starting; other agents wait or negotiate before touching that graph.
+   Richer than a symbol claim because it carries *purpose*, not just coordinates.
+3. **Continuous Semantic Integration / Micro-CI** -- agents pull other agents'
+   pending intents into their own context and simulate a merge against their own
+   in-progress diff continuously, not only at PR time.
+
+**Where this skill stops and the coordination layer starts:** this skill answers
+"do these two claims conflict, given the graph as it exists right now." It does
+not answer "is Agent B still reasoning from a valid picture of the world" or "did
+the backlog get decomposed to avoid overlap in the first place." Those are
+`multi-agent-coordination` and `agentic-patterns` questions. Load this skill for
+the prediction algorithm; load those for the surrounding protocol.
+
+---
+
+## Port Daddy Integration: Cross-PR Watch and the Two Proposed Extensions
+
+Port Daddy already has a **working instance** of the "watch other agents' pending
+work, not just your own diff" pattern: the **Lookout** ideation ship (PR #721,
+open). Lookout reasons across *other* open PRs and recent branches
+(`fetchOpenPullRequests`, `listRecentBranches`, `renderFleetContext` in
+`apps/fleet-executor/src/github.ts`) and posts an advisory `pd parley call`
+proposal when it spots contradiction, architecture trouble, or a cross-PR issue.
+It is explicitly **advisory** -- ideation ships never gate a merge or post inline
+review comments, so a malformed output can't destabilize the check. This is a real
+implementation of the MASE "watch for overlap across concurrent work" idea above.
+**Do not duplicate it** -- extend it.
+
+Two operator-proposed extensions were evaluated against this existing ship (full
+tradeoff writeup: `references/2026-agentic-conflict-research.md`):
+
+| Proposal | What it adds over Lookout today | Cost | Latency | False-positive risk | Verdict |
+|---|---|---|---|---|---|
+| **(a) Longshoreman semantic-cloud-proximity broadcast** | Watches *topical/semantic* proximity between concurrently active work, not just literal file/PR overlap -- "these two agents are both touching auth-adjacent code with zero shared symbols" | Low: one embedding + nearest-neighbor search per PR/branch event; reuses the dependency graph as one input, no new tree-sitter work | Async on PR-open/branch-push; never blocks a claim | Highest of the two -- must be embeddings/cosine-similarity or a cheap LLM classifier over free-text intent, never keyword matching (see this skill's `agentic-patterns` sibling on avoiding keyword NLP); treat as advisory nudge only | New capability, genuinely not covered by Lookout or this skill today. See the companion agent proposal, `docs/architecture/agent-harbor-technical-binder/work-packets/semantic-intent-sentinel-agent-proposal.md`. |
+| **(b) Continuous pre-emptive merge simulation / Micro-CI** | Actually builds/type-checks a scratch merge of currently-claimed worktrees on a schedule, not just reasoning over diffs in prose | Highest: real build+test cycle, roughly linear if run as one scratch-integration-branch build rather than pairwise | Seconds-to-minutes per run; must be scheduled/batched, never synchronous per-claim | Lower in one sense (a real build failure is a real signal) but inherits ordinary CI flakiness across N in-flight branches | Valuable, but this is an extension of Lookout's existing job (give it a build step against a scratch integration branch), not a new agent role. Independently named by the MASE research as "Continuous Semantic Integration" -- convergent with the operator's proposal, which is itself a signal it's worth building. |
+
+**Recommendation:** build (a) as a new, narrowly-scoped agent (see the work-packet
+proposal) because it is a genuinely new signal Lookout does not compute today.
+Treat (b) as a roadmap item for `apps/fleet-executor`'s existing Lookout
+implementation rather than a new agent -- it is the same ship with a heavier,
+scheduled job attached, and building it as a second agent would duplicate
+Lookout's PR/branch-context plumbing for no architectural benefit.
+
+---
+
 ## Integration with Port Daddy
 
 Port Daddy currently supports file-level claims (`POST /sessions/:id/files`). Symbol-level claims extend this with richer semantics.
@@ -1218,3 +1339,8 @@ Agent says "I will modify createRoutes in server.ts"
 - **Rice's theorem:** undecidability of non-trivial semantic properties of programs (why perfect static analysis is impossible)
 - **Binkley & Harman (2004):** "A Survey of Empirical Results on Program Slicing" -- dependency analysis foundations
 - **Horwitz, Reps & Binkley (1990):** "Interprocedural Slicing Using Dependence Graphs" -- the formal basis for cross-function dependency tracking
+- **Tantithamthavorn, Lin, Thongtanunam, Charoenwet, Jeong, Wu (2026):** "HalluJudge: A Reference-Free Hallucination Detection for Context Misalignment in Code Review Automation," arXiv 2601.19072, FSE'26 Industry Track -- LLM-verification-tier pattern, see § 2026 Research Extensions
+- **Yagi & Hayashi (2024):** "Toward Interactive Optimization of Source Code Differences: An Empirical Study of Its Performance," SCAM 2024, arXiv 2409.13590 -- diff-correction empirical study, see § 2026 Research Extensions
+- **MASE/agentic-collaboration research synthesis (2026):** frameworks MetaGPT, ChatDev, AgentCoder, SWE-bench/SWE-agent swarm extensions -- see § Beyond Single-Prediction and `references/2026-agentic-conflict-research.md`
+- **Port Daddy PR #721 (Lookout ship):** working cross-PR-watch instantiation, see § Port Daddy Integration
+- **`references/INDEX.md`:** load before `references/2026-agentic-conflict-research.md` if you only need the summary sections above -- the reference file carries full paper digests, the MASE framework catalog, and the detailed cost/latency/false-positive tradeoff writeup
