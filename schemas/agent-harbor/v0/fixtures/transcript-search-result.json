@@ -4,7 +4,7 @@
   "completedAt": "2026-07-06T15:00:01.200Z",
   "engine": {
     "mode": "hybrid",
-    "embeddingModel": "minilm-l6-v2",
+    "embeddingModel": "Xenova/all-MiniLM-L6-v2",
     "fusion": "rrf",
     "reranked": true
   },
