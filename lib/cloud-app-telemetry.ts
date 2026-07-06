@@ -83,6 +83,10 @@ export interface CloudAppTelemetrySummary {
     commentEvents: number;
     errorEvents: number;
     costUsd: number;
+    inputTokens: number;
+    outputTokens: number;
+    cachedInputTokens: number;
+    totalTokens: number;
     estimatedCostEvents: number;
     unknownCostEvents: number;
   };
@@ -101,6 +105,8 @@ export interface CloudAppTelemetrySummary {
     findings: number;
     errors: number;
     costUsd: number;
+    inputTokens: number;
+    outputTokens: number;
     lastSeen: number;
   }>;
   byBackend: Array<{
@@ -108,6 +114,8 @@ export interface CloudAppTelemetrySummary {
     model: string | null;
     events: number;
     costUsd: number;
+    inputTokens: number;
+    outputTokens: number;
     estimatedCostEvents: number;
   }>;
   recent: CloudAppTelemetryEvent[];
@@ -536,6 +544,9 @@ export function createCloudAppTelemetry(db: Database, deps: CloudAppTelemetryDep
         SUM(CASE WHEN comment_url IS NOT NULL OR ship IS NOT NULL THEN 1 ELSE 0 END) AS comment_events,
         SUM(CASE WHEN status IN ('error', 'failed') OR conclusion IN ('failure', 'timed_out', 'cancelled') THEN 1 ELSE 0 END) AS error_events,
         COALESCE(SUM(cost_usd), 0) AS cost_usd,
+        COALESCE(SUM(input_tokens), 0) AS input_tokens,
+        COALESCE(SUM(output_tokens), 0) AS output_tokens,
+        COALESCE(SUM(cached_input_tokens), 0) AS cached_input_tokens,
         SUM(CASE WHEN cost_is_estimate = 1 THEN 1 ELSE 0 END) AS estimated_cost_events,
         SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unknown_cost_events
       FROM cloud_app_telemetry_events
@@ -548,6 +559,9 @@ export function createCloudAppTelemetry(db: Database, deps: CloudAppTelemetryDep
       comment_events: number;
       error_events: number;
       cost_usd: number;
+      input_tokens: number;
+      output_tokens: number;
+      cached_input_tokens: number;
       estimated_cost_events: number;
       unknown_cost_events: number;
     };
@@ -575,6 +589,8 @@ export function createCloudAppTelemetry(db: Database, deps: CloudAppTelemetryDep
              SUM(CASE WHEN status = 'findings' THEN 1 ELSE 0 END) AS findings,
              SUM(CASE WHEN status IN ('error', 'failed') THEN 1 ELSE 0 END) AS errors,
              COALESCE(SUM(cost_usd), 0) AS cost_usd,
+             COALESCE(SUM(input_tokens), 0) AS input_tokens,
+             COALESCE(SUM(output_tokens), 0) AS output_tokens,
              MAX(ts) AS last_seen
       FROM cloud_app_telemetry_events
       WHERE ts >= ? AND ship IS NOT NULL
@@ -588,6 +604,8 @@ export function createCloudAppTelemetry(db: Database, deps: CloudAppTelemetryDep
       findings: number;
       errors: number;
       cost_usd: number;
+      input_tokens: number;
+      output_tokens: number;
       last_seen: number;
     }>;
 
@@ -595,6 +613,8 @@ export function createCloudAppTelemetry(db: Database, deps: CloudAppTelemetryDep
       SELECT COALESCE(backend, 'unknown') AS backend, model,
              COUNT(*) AS events,
              COALESCE(SUM(cost_usd), 0) AS cost_usd,
+             COALESCE(SUM(input_tokens), 0) AS input_tokens,
+             COALESCE(SUM(output_tokens), 0) AS output_tokens,
              SUM(CASE WHEN cost_is_estimate = 1 THEN 1 ELSE 0 END) AS estimated_cost_events
       FROM cloud_app_telemetry_events
       WHERE ts >= ?
@@ -606,6 +626,8 @@ export function createCloudAppTelemetry(db: Database, deps: CloudAppTelemetryDep
       model: string | null;
       events: number;
       cost_usd: number;
+      input_tokens: number;
+      output_tokens: number;
       estimated_cost_events: number;
     }>;
 
@@ -621,6 +643,10 @@ export function createCloudAppTelemetry(db: Database, deps: CloudAppTelemetryDep
         commentEvents: totals.comment_events ?? 0,
         errorEvents: totals.error_events ?? 0,
         costUsd: +Number(totals.cost_usd ?? 0).toFixed(6),
+        inputTokens: totals.input_tokens ?? 0,
+        outputTokens: totals.output_tokens ?? 0,
+        cachedInputTokens: totals.cached_input_tokens ?? 0,
+        totalTokens: (totals.input_tokens ?? 0) + (totals.output_tokens ?? 0),
         estimatedCostEvents: totals.estimated_cost_events ?? 0,
         unknownCostEvents: totals.unknown_cost_events ?? 0,
       },
@@ -639,6 +665,8 @@ export function createCloudAppTelemetry(db: Database, deps: CloudAppTelemetryDep
         findings: row.findings ?? 0,
         errors: row.errors ?? 0,
         costUsd: +Number(row.cost_usd ?? 0).toFixed(6),
+        inputTokens: row.input_tokens ?? 0,
+        outputTokens: row.output_tokens ?? 0,
         lastSeen: row.last_seen,
       })),
       byBackend: byBackend.map((row) => ({
@@ -646,6 +674,8 @@ export function createCloudAppTelemetry(db: Database, deps: CloudAppTelemetryDep
         model: row.model,
         events: row.events,
         costUsd: +Number(row.cost_usd ?? 0).toFixed(6),
+        inputTokens: row.input_tokens ?? 0,
+        outputTokens: row.output_tokens ?? 0,
         estimatedCostEvents: row.estimated_cost_events ?? 0,
       })),
       recent: recent(limit, since),
