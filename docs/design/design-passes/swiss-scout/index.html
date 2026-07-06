@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scout — Swiss Maritime pass v2</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600;700&family=Recursive:CASL,wght@1,600..800&display=swap">
+<style>
+/* ============================================================
+   Swiss-Modern Maritime — shared token system (revised per operator)
+   A genuine reconsideration, not a reskin of ch20 — WITH THREE
+   OPERATOR CORRECTIONS baked in after the first pass:
+   1. KEEP THE SPINNING RADAR WORDMARK (website-v2 SpinningWordmark.tsx
+      / pd-console's equivalent). It is NOT replaced. The flag hoist
+      below is a SECONDARY, complementary editorial motif — used in
+      section dividers, footers, and "signature" moments — never as
+      the primary logo lockup. Every surface build must render the
+      existing spinning mark in its header/primary position.
+   2. TYPE IS IBM PLEX + RECURSIVE, not Helvetica/Arial. Swiss-modern's
+      "one family carries the page" principle is kept; the family
+      itself is the product's own established system (matches every
+      other ch20 surface + the binder), not a generic Swiss default.
+   3. NOT NEOBRUTALIST. Dialed back from the first pass: hairline
+      rules (1/1.5px), not thick 3-4px black-outlined blocks. Swiss
+      restraint means generous whitespace and quiet structure — it is
+      the OPPOSITE of neobrutalism's loud borders and hard shadows.
+      Flag glyphs get a thin 1px edge, not a heavy frame.
+   Retained from the first pass:
+   - ONE accent (signal red), not hue-per-layer ("Accent Sprawl" is
+     the named Swiss failure mode this replaces).
+   - Flags are DENOTATIVE and RARE: exactly the 9 glyphs verified
+     against Pub. 102, used large and sparingly, never as scattered
+     iconography chips.
+   - Grid is Müller-Brockmann: strict columns, flush-left, generous
+     margins, asymmetric-but-measured.
+   - Papa + Delta spell P·D (secondary motif, see correction 1) — the
+     real maritime convention of a vessel hoisting its call sign in
+     individual letter flags; not a manufactured coincidence.
+   ============================================================ */
+:root {
+  --paper:     #F7F5EF;   /* chart paper, not ch20's cream-dashboard */
+  --paper-2:   #EFEBE0;
+  --ink:       #14130F;
+  --ink-2:     #4B473C;
+  --ink-3:     #8C8574;
+  --line:      rgba(20,19,15,0.14);
+  --line-2:    rgba(20,19,15,0.30);
+  --rule:      #14130F;   /* structural rules are always ink, never accent */
+
+  --accent:    #C81E1E;   /* THE one accent — signal red (flag Bravo's hue) */
+  --accent-ink:#FBEDEC;   /* text-on-accent */
+  --ensign:    #1B3A6B;   /* structural blue — masts/rules/flag devices only, never state */
+
+  /* the 9 verified flag glyphs — colors as literally specified */
+  --fl-y:      #F5C518;   /* signal yellow */
+  --fl-b:      #1B3A6B;   /* signal blue (ensign) */
+  --fl-r:      #C81E1E;   /* signal red */
+  --fl-k:      #14130F;   /* flag black */
+  --fl-w:      #FBF8F0;   /* flag white */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper:   #101114;
+    --paper-2: #17181C;
+    --ink:     #EDEAE0;
+    --ink-2:   #B9B3A4;
+    --ink-3:   #726C5E;
+    --line:    rgba(237,234,224,0.14);
+    --line-2:  rgba(237,234,224,0.30);
+    --rule:    #EDEAE0;
+    --accent:  #FF5A4E;   /* signal red, lit for dark ground */
+    --accent-ink:#1A0B0A;
+    --ensign:  #6F97D6;
+    --fl-y:#F5C518; --fl-b:#6F97D6; --fl-r:#FF5A4E; --fl-k:#0A0A08; --fl-w:#EDEAE0;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#101114; --paper-2:#17181C; --ink:#EDEAE0; --ink-2:#B9B3A4; --ink-3:#726C5E;
+  --line:rgba(237,234,224,0.14); --line-2:rgba(237,234,224,0.30); --rule:#EDEAE0;
+  --accent:#FF5A4E; --accent-ink:#1A0B0A; --ensign:#6F97D6;
+  --fl-y:#F5C518; --fl-b:#6F97D6; --fl-r:#FF5A4E; --fl-k:#0A0A08; --fl-w:#EDEAE0;
+}
+:root[data-theme="light"] {
+  --paper:#F7F5EF; --paper-2:#EFEBE0; --ink:#14130F; --ink-2:#4B473C; --ink-3:#8C8574;
+  --line:rgba(20,19,15,0.14); --line-2:rgba(20,19,15,0.30); --rule:#14130F;
+  --accent:#C81E1E; --accent-ink:#FBEDEC; --ensign:#1B3A6B;
+  --fl-y:#F5C518; --fl-b:#1B3A6B; --fl-r:#C81E1E; --fl-k:#14130F; --fl-w:#FBF8F0;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body.swiss-maritime {
+  background:var(--paper); color:var(--ink);
+  font-family: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  font-feature-settings:"kern" 1, "liga" 1;
+  -webkit-font-smoothing:antialiased;
+}
+.sm-mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.sm-casual { font-family: "Recursive", "IBM Plex Sans", sans-serif; font-variation-settings: "CASL" 1; }
+
+/* strict Müller-Brockmann column grid: 12 col desktop / 4 tablet / 2 mobile */
+.sm-grid {
+  display:grid; grid-template-columns:repeat(12,1fr); gap:clamp(1rem,2vw,1.75rem);
+  max-width:1400px; margin:0 auto; padding:0 clamp(1.25rem,4vw,3rem);
+}
+@media (max-width:900px){ .sm-grid{ grid-template-columns:repeat(4,1fr);} }
+@media (max-width:520px){ .sm-grid{ grid-template-columns:repeat(2,1fr);} }
+
+/* the lettered/numbered index system */
+.sm-idx { font-family:"IBM Plex Mono", ui-monospace, monospace; font-weight:700; font-size:0.8125rem;
+  letter-spacing:0.02em; color:var(--ink-3); }
+
+/* structural rule — a quiet hairline, never accent, never a "card border" */
+.sm-rule { border:0; border-top:1px solid var(--line-2); }
+.sm-hair { border:0; border-top:1px solid var(--line); }
+
+/* the ONE accent, used exactly once per view */
+.sm-accent-block { background:var(--accent); color:var(--accent-ink); }
+.sm-accent-text { color:var(--accent); }
+
+/* ---- the 9 verified flag glyphs (real Pub. 102 designs) ----
+   Meanings verified: python3 icos_lookup.py code <letter>, 2026-07-06.
+   P = about to proceed to sea / all aboard.  D = keep clear, maneuvering
+   with difficulty.  Q = vessel healthy, free pratique.  K = I wish to
+   communicate with you.  L = stop your vessel instantly.  N = negative.
+   U = you are running into danger.  C = affirmative (yes).
+   F = I am disabled, communicate with me. */
+.sm-flag { display:inline-block; flex:none; border:1px solid var(--line-2); }
+.sm-flag.sz-sm { width:22px; height:16px; }
+.sm-flag.sz-md { width:48px; height:34px; }
+.sm-flag.sz-lg { width:120px; height:86px; border-width:1.5px; }
+.sm-flag.sz-xl { width:220px; height:158px; border-width:1.5px; }
+
+.fl-P { background:var(--fl-b); position:relative; }
+.fl-P::after { content:""; position:absolute; left:22%; right:22%; top:22%; bottom:22%; background:var(--fl-w); }
+.fl-D { background:linear-gradient(to bottom, var(--fl-y) 0 30%, var(--fl-b) 30% 70%, var(--fl-y) 70%); }
+.fl-Q { background:var(--fl-y); }
+.fl-K { background:linear-gradient(to right, var(--fl-y) 0 50%, var(--fl-b) 50%); }
+.fl-L { background:
+  linear-gradient(to right, var(--fl-k) 0 50%, var(--fl-y) 50%) top left / 50% 50% no-repeat,
+  linear-gradient(to right, var(--fl-y) 0 50%, var(--fl-k) 50%) top right / 50% 50% no-repeat,
+  linear-gradient(to right, var(--fl-y) 0 50%, var(--fl-k) 50%) bottom left / 50% 50% no-repeat,
+  linear-gradient(to right, var(--fl-k) 0 50%, var(--fl-y) 50%) bottom right / 50% 50% no-repeat; }
+.fl-N { background:
+  linear-gradient(var(--fl-b),var(--fl-b)) top left / 50% 50% no-repeat,
+  linear-gradient(var(--fl-w),var(--fl-w)) top right / 50% 50% no-repeat,
+  linear-gradient(var(--fl-w),var(--fl-w)) bottom left / 50% 50% no-repeat,
+  linear-gradient(var(--fl-b),var(--fl-b)) bottom right / 50% 50% no-repeat; }
+.fl-U { background:
+  linear-gradient(var(--fl-r),var(--fl-r)) top left / 50% 50% no-repeat,
+  linear-gradient(var(--fl-w),var(--fl-w)) top right / 50% 50% no-repeat,
+  linear-gradient(var(--fl-w),var(--fl-w)) bottom left / 50% 50% no-repeat,
+  linear-gradient(var(--fl-r),var(--fl-r)) bottom right / 50% 50% no-repeat; }
+.fl-C { background:linear-gradient(to bottom,
+  var(--fl-b) 0 20%, var(--fl-w) 20% 40%, var(--fl-r) 40% 60%, var(--fl-w) 60% 80%, var(--fl-b) 80%); }
+.fl-F { background:var(--fl-w); position:relative; }
+.fl-F::after { content:""; position:absolute; left:22%; right:22%; top:22%; bottom:22%; background:var(--fl-r); }
+
+/* the masthead device: Papa + Delta hoist, spelling P·D */
+.sm-mark { display:inline-flex; align-items:center; gap:0.5rem; }
+.sm-mark .sm-mark-label { font-weight:800; letter-spacing:-0.01em; }
+
+/* ============================================================
+   Page-local styles — Scout popup, design pass v2
+   ============================================================ */
+
+/* ---------- the radar wordmark (PRIMARY mark, correction 1) ----------
+   Faithful simplification of website-v2 SpinningWordmark.tsx: same
+   chart rings + crosshairs, same p·d glyph geometry (stems + bowls,
+   stroke 14 on a 300 viewBox), same amber intersection. Exactly two
+   animations: a slow radar-sweep rotate and a slow glyph colour
+   shift (ensign ↔ ink), frozen under prefers-reduced-motion. */
+.radar-sweep { transform-origin:150px 150px; animation:radar-spin 12s linear infinite; }
+@keyframes radar-spin { to { transform:rotate(360deg); } }
+.radar-glyph { stroke:var(--ensign); animation:radar-shift 12s ease-in-out infinite; }
+@keyframes radar-shift {
+  0%,38%  { stroke:var(--ensign); }
+  50%,88% { stroke:var(--ink); }
+  100%    { stroke:var(--ensign); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .radar-sweep, .radar-glyph { animation:none; }
+}
+
+/* ---------- page scaffold ---------- */
+.page-head { padding:clamp(2.5rem,6vw,4.5rem) 0 2rem; }
+.page-head h1 {
+  font-size:clamp(1.75rem,3.4vw,2.75rem); font-weight:700;
+  letter-spacing:-0.02em; line-height:1.08; text-wrap:balance; max-width:22ch;
+}
+.eyebrow {
+  /* exception: eyebrow at 12px — weight 700, uppercase, tracking 0.12em */
+  font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:0.75rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:0.12em; color:var(--ink-3);
+}
+.page-main { padding:2.5rem 0 4rem; }
+.col-popup { grid-column:1 / span 5; }
+.col-notes { grid-column:7 / span 5; }
+@media (max-width:900px){
+  .col-popup { grid-column:1 / -1; }
+  .col-notes { grid-column:1 / -1; margin-top:2.5rem; }
+}
+
+.note { padding:1.1rem 0 1.35rem; border-top:1px solid var(--line); }
+.note p { font-size:0.875rem; line-height:1.6; color:var(--ink-2); max-width:52ch; margin-top:0.4rem; }
+.note .note-t { font-weight:600; font-size:0.9375rem; letter-spacing:-0.005em; }
+
+.page-foot { border-top:1px solid var(--line-2); padding:1.75rem 0 3rem; }
+.hoist { display:flex; align-items:center; gap:0.6rem; }
+.hoist .cap { font-size:0.8125rem; color:var(--ink-3); }
+
+/* ---------- the popup itself ---------- */
+.popup {
+  width:380px; max-width:100%;
+  background:var(--paper); border:1px solid var(--line-2);
+}
+.popup-head { display:flex; align-items:center; gap:0.75rem; padding:1rem 1.25rem 0.9rem; }
+.popup-head .mark svg { display:block; width:44px; height:44px; }
+.popup-id { flex:1 1 auto; min-width:0; }
+.popup-id .brand {
+  /* exception: eyebrow at 12px — weight 700, uppercase, tracking 0.14em */
+  font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:0.75rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:0.14em; color:var(--ink-3);
+}
+.popup-id .surface {
+  font-family:"Recursive","IBM Plex Sans",sans-serif;
+  font-variation-settings:"CASL" 1; font-weight:700;
+  font-size:1.375rem; line-height:1.15; letter-spacing:-0.01em;
+}
+.popup-status { text-align:right; font-size:0.8125rem; color:var(--ink-3); line-height:1.5; }
+.popup-status .up { color:var(--ink-2); font-weight:600; }
+
+.sect { padding:0.9rem 1.25rem 1.15rem; border-top:1px solid var(--line); }
+.sect-head { display:flex; align-items:baseline; gap:0.55rem; margin-bottom:0.75rem; }
+.sect-head .lbl {
+  /* exception: eyebrow at 12px — weight 700, uppercase, tracking 0.12em */
+  font-size:0.75rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:0.12em; color:var(--ink-2);
+}
+.sect-head .hint { margin-left:auto; font-size:0.8125rem; color:var(--ink-3); }
+
+.btn-row { display:flex; gap:6px; }
+.btn {
+  appearance:none; font:inherit; font-size:0.875rem; font-weight:500;
+  color:var(--ink); background:transparent;
+  border:1px solid var(--line-2); border-radius:0;
+  min-height:44px; padding:0 0.75rem; flex:1 1 0;
+  display:inline-flex; align-items:center; justify-content:center; gap:0.4rem;
+  cursor:pointer; transition:border-color 120ms ease, background 120ms ease;
+}
+.btn:hover { border-color:var(--rule); }
+.btn:focus-visible { outline:2px solid var(--ensign); outline-offset:1px; }
+.btn[aria-pressed="true"] { background:var(--paper-2); border-color:var(--rule); }
+.btn .kbd { font-family:"IBM Plex Mono",monospace; font-size:0.8125rem; color:var(--ink-3); }
+
+.annotate-note {
+  width:100%; font:inherit; font-size:0.875rem; color:var(--ink);
+  background:transparent; border:0; border-bottom:1px solid var(--line-2);
+  padding:0.55rem 0 0.5rem; margin-top:0.7rem; resize:none;
+}
+.annotate-note::placeholder { color:var(--ink-3); opacity:1; }
+.annotate-note:focus { outline:none; border-bottom-color:var(--rule); }
+.flag-cap { display:flex; align-items:center; gap:0.6rem; margin-top:0.85rem; }
+.flag-cap .cap { font-size:0.8125rem; line-height:1.45; color:var(--ink-3); max-width:34ch; }
+.flag-cap .cap b { color:var(--ink-2); font-weight:600; }
+
+.dest { display:flex; align-items:center; justify-content:space-between; gap:0.75rem;
+  appearance:none; font:inherit; width:100%; background:transparent; color:var(--ink); border-radius:0;
+  min-height:44px; border:1px solid var(--line-2); padding:0 0.75rem; margin-bottom:0.75rem;
+  cursor:pointer; transition:border-color 120ms ease; }
+.dest:focus-visible { outline:2px solid var(--ensign); outline-offset:1px; }
+.dest:hover { border-color:var(--rule); }
+.dest .to { font-family:"IBM Plex Mono",monospace; font-size:0.8125rem; font-weight:600;
+  color:var(--ink-2); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.dest .chev { color:var(--ink-3); font-size:0.8125rem; flex:none; }
+
+.btn-send {
+  appearance:none; font:inherit; width:100%;
+  font-size:0.9375rem; font-weight:600; letter-spacing:0.01em;
+  background:var(--accent); color:var(--accent-ink);
+  border:0; border-radius:0; min-height:48px; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center; gap:0.5rem;
+  transition:filter 120ms ease;
+}
+.btn-send:hover { filter:brightness(0.94); }
+.btn-send:focus-visible { outline:2px solid var(--rule); outline-offset:2px; }
+.btn-copy {
+  appearance:none; font:inherit; background:none; border:0; cursor:pointer;
+  display:block; margin:0.65rem auto 0; min-height:44px; padding:0 0.75rem;
+  font-size:0.875rem; font-weight:500; color:var(--ink-2);
+  text-decoration:underline; text-decoration-color:var(--line-2); text-underline-offset:3px;
+}
+.btn-copy:hover { text-decoration-color:var(--rule); }
+
+.popup-foot { display:flex; align-items:center; gap:0.6rem;
+  border-top:1px solid var(--line); padding:0.8rem 1.25rem 0.9rem; }
+.popup-foot .cap { font-size:0.8125rem; color:var(--ink-3); }
+.popup-foot .ver { margin-left:auto; font-family:"IBM Plex Mono",monospace;
+  font-size:0.8125rem; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body class="swiss-maritime">
+
+<header class="page-head">
+  <div class="sm-grid">
+    <div style="grid-column:1/-1;">
+      <p class="eyebrow">Design pass v2 · Swiss Maritime · Scout</p>
+      <h1 style="margin-top:0.6rem;">Scout — browser extension popup, 380&nbsp;px</h1>
+      <p style="margin-top:0.75rem; font-size:0.9375rem; color:var(--ink-2); max-width:58ch; line-height:1.6;">
+        Capture the page, annotate what broke, send it to the harbor.
+        The spinning radar wordmark leads; the signal flags stay denotative and rare.
+      </p>
+    </div>
+  </div>
+</header>
+
+<main class="page-main">
+  <div class="sm-grid">
+
+    <!-- ============ THE POPUP ============ -->
+    <div class="col-popup">
+      <section class="popup" aria-label="Scout extension popup">
+
+        <!-- header: the product's real mark, simplified -->
+        <div class="popup-head">
+          <span class="mark" aria-hidden="true">
+            <svg viewBox="0 0 300 300" role="img" aria-label="Port Daddy radar wordmark">
+              <!-- static chart: rings + crosshairs (from SpinningWordmark.tsx) -->
+              <g stroke="var(--line-2)" stroke-width="3" fill="none">
+                <circle cx="150" cy="150" r="45"/>
+                <circle cx="150" cy="150" r="90"/>
+                <circle cx="150" cy="150" r="135"/>
+                <line x1="15" y1="150" x2="285" y2="150" stroke-dasharray="6 8"/>
+                <line x1="150" y1="15" x2="150" y2="285" stroke-dasharray="6 8"/>
+              </g>
+              <!-- animation 1: the radar sweep — dashed ring + bearing ticks, slow rotate -->
+              <g class="radar-sweep">
+                <circle cx="150" cy="150" r="125" fill="none" stroke="var(--ensign)"
+                        stroke-width="4" stroke-dasharray="2 14" stroke-linecap="round" opacity="0.75"/>
+                <line x1="145" y1="25" x2="155" y2="25" stroke="var(--ensign)" stroke-width="6"/>
+                <line x1="145" y1="275" x2="155" y2="275" stroke="var(--ensign)" stroke-width="6"/>
+                <line x1="25" y1="145" x2="25" y2="155" stroke="var(--ensign)" stroke-width="6"/>
+                <line x1="275" y1="145" x2="275" y2="155" stroke="var(--ensign)" stroke-width="6"/>
+              </g>
+              <!-- the p·d glyph — exact geometry of the real mark; animation 2: colour shift -->
+              <g class="radar-glyph" stroke-width="16" stroke-linecap="butt" fill="none">
+                <line x1="110" y1="110" x2="110" y2="210"/>
+                <circle cx="135" cy="135" r="25"/>
+                <line x1="190" y1="190" x2="190" y2="90"/>
+                <circle cx="165" cy="165" r="25"/>
+              </g>
+              <circle cx="150" cy="150" r="5" fill="none" stroke="var(--ink-3)" stroke-width="3"/>
+            </svg>
+          </span>
+          <div class="popup-id">
+            <p class="brand">Port Daddy</p>
+            <p class="surface sm-casual">Scout</p>
+          </div>
+          <div class="popup-status sm-mono">
+            <span class="up">moored</span><br>harbor :9876
+          </div>
+        </div>
+
+        <!-- A. capture -->
+        <div class="sect">
+          <div class="sect-head">
+            <span class="sm-idx">A</span>
+            <span class="lbl">Capture</span>
+            <span class="hint sm-mono">⌘⇧S</span>
+          </div>
+          <div class="btn-row">
+            <button class="btn" type="button">Full page</button>
+            <button class="btn" type="button" aria-pressed="true">Visible</button>
+            <button class="btn" type="button">Selection</button>
+          </div>
+        </div>
+
+        <!-- B. annotate -->
+        <div class="sect">
+          <div class="sect-head">
+            <span class="sm-idx">B</span>
+            <span class="lbl">Annotate</span>
+          </div>
+          <div class="btn-row">
+            <button class="btn" type="button">Note</button>
+            <button class="btn" type="button">Arrow</button>
+            <button class="btn" type="button">Redact</button>
+          </div>
+          <textarea class="annotate-note" rows="2"
+            placeholder="What broke here? One line for the harbor log."></textarea>
+          <div class="flag-cap">
+            <span class="sm-flag sz-md fl-F" role="img" aria-label="Signal flag Foxtrot"></span>
+            <p class="cap"><b>F · Foxtrot</b> — “I am disabled; communicate with me.” The page is the disabled vessel; Scout carries the signal.</p>
+          </div>
+        </div>
+
+        <!-- C. send -->
+        <div class="sect">
+          <div class="sect-head">
+            <span class="sm-idx">C</span>
+            <span class="lbl">Send</span>
+          </div>
+          <button class="dest" type="button" aria-label="Choose destination session">
+            <span class="to">port-daddy : console : main</span>
+            <span class="chev">▾</span>
+          </button>
+          <button class="btn-send" type="button">Send to harbor</button>
+          <button class="btn-copy" type="button">Copy capture link</button>
+        </div>
+
+        <!-- footer: the P·D hoist — SECONDARY signature placement -->
+        <div class="popup-foot">
+          <span class="sm-mark" aria-label="Call sign P D hoisted as Papa and Delta">
+            <span class="sm-flag sz-sm fl-P" role="img" aria-label="Papa"></span>
+            <span class="sm-flag sz-sm fl-D" role="img" aria-label="Delta"></span>
+          </span>
+          <span class="cap">P·D under call sign</span>
+          <span class="ver">v0.4.2</span>
+        </div>
+
+      </section>
+    </div>
+
+    <!-- ============ SPEC NOTES ============ -->
+    <aside class="col-notes" aria-label="Design notes">
+      <p class="eyebrow" style="margin-bottom:0.9rem;">Notes for the record</p>
+
+      <div class="note">
+        <span class="sm-idx">01</span>
+        <p class="note-t" style="margin-top:0.35rem;">The radar wordmark stays primary.</p>
+        <p>The header mark is the product’s existing spinning p·d — same ring chart, same
+        stem-and-bowl glyph geometry — reduced to two quiet animations: a 12s sweep
+        rotation and an ensign-to-ink colour shift. Both freeze under reduced motion.
+        The Papa·Delta hoist is demoted to the footer, where a vessel would fly its call sign.</p>
+      </div>
+
+      <div class="note">
+        <span class="sm-idx">02</span>
+        <p class="note-t" style="margin-top:0.35rem;">IBM Plex does the hierarchy; Recursive says one word.</p>
+        <p>Plex Sans carries labels and body, Plex Mono carries ports, shortcuts, and the
+        destination identity in tabular figures. Recursive casual appears exactly once —
+        the surface name, “Scout.” No Helvetica anywhere.</p>
+      </div>
+
+      <div class="note">
+        <span class="sm-idx">03</span>
+        <p class="note-t" style="margin-top:0.35rem;">One accent, hairline structure.</p>
+        <p>Signal red is spent on a single element: <em>Send to harbor</em>. Everything else
+        is ink on chart paper with 1px rules — capture, annotate, and send read as one
+        column separated by hairlines, not boxed cards. Foxtrot is the only flag in the
+        working surface, at its verified Pub.&nbsp;102 meaning.</p>
+      </div>
+    </aside>
+
+  </div>
+</main>
+
+<footer class="page-foot">
+  <div class="sm-grid">
+    <div class="hoist" style="grid-column:1/-1;">
+      <span class="eyebrow">Swiss Maritime · pass v2 · 2026-07-06</span>
+      <span class="cap" style="margin-left:auto;">tokens: swiss-maritime-tokens.css</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
