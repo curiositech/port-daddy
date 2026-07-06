@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skill &amp; Agent Leasing — Remote Harbor (design pass)</title>
+<style>
+/* ============================================================
+   Leasing + Remote Harbor design pass — the money surface.
+   Beats: 01 BROWSE catalog → 02 LEASE (BYOK) → 03 RUN SEALED
+   (data-blind remote harbor) → 04 SETTLE (receipt + earnings).
+   Skin/law: binder ch20 (palette v2 luminous-dark + cream-light,
+   IBM Plex + Recursive casual, rule-8 micro-flags, fractional
+   borders 1/1.5/2px, one color zone per view — l3-economy AMBER
+   per ADR-0048 story palette). Motion tokens from v4-mockup.
+   Strategy: operator-vision-2026-07-05 §2/§3 · ch02 remote
+   harbors + ch06 billing · trust object: Work Receipt.
+   Self-contained; no external URLs. Fonts fall back gracefully.
+   ============================================================ */
+:root {
+  --paper: #f2eee6; --paper-raised: #e9e2d5; --paper-deep: #e0d9cb;
+  --ink: #121212; --ink-soft: #403b34; --ink-mute: #47423a;
+  --amber: #a66f00; --amber-on-tint: #5b3900;
+  --health: #1f7a4d; --err: #bf2f2f; --cobalt: #003fb8;
+  --lime: #cad900;
+  --hair: rgba(18,18,18,.14); --hair-strong: rgba(18,18,18,.34);
+  --bracket: #121212; --flag-white: #fbf7ef;
+  --amber-slab: #a66f00; --health-slab: #1f7a4d;
+  --amber-wash: color-mix(in oklab, #a66f00 10%, var(--paper));
+  --health-wash: color-mix(in oklab, #1f7a4d 10%, var(--paper));
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-quick:  cubic-bezier(0.4, 0, 0.2, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #181c22; --paper-raised: #222833; --paper-deep: #101216;
+    --ink: #f5f3ed; --ink-soft: #d3cec2; --ink-mute: #a59f93;
+    --amber: #f2be51; --amber-on-tint: #ffe0a0;
+    --health: #5fce97; --err: #ff7d7d; --cobalt: #7db4ff;
+    --lime: #d8dd3c;
+    --hair: rgba(245,243,237,.14); --hair-strong: rgba(245,243,237,.34);
+    --bracket: #f5f3ed;
+    --amber-wash: color-mix(in oklab, #f2be51 12%, var(--paper));
+    --health-wash: color-mix(in oklab, #5fce97 12%, var(--paper));
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  background: var(--paper-deep); color: var(--ink);
+  font-size: .9375rem; line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 4.5rem; overflow-x: hidden;
+}
+.mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums slashed-zero; font-size: .8125rem; }
+.casual { font-family: "Recursive", "IBM Plex Sans", sans-serif;
+  font-variation-settings: "CASL" 1; }
+/* exception: eyebrow ≥600 weight, uppercase, tracked ≥0.1em */
+.eyebrow { font-size: .75rem; font-weight: 650; text-transform: uppercase;
+  letter-spacing: .12em; color: var(--ink-mute); }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 2rem; }
+
+/* ---- rule-8 micro-flags (ICOS, per ch20 token sheet) ---- */
+.mfl { display: inline-block; width: 13px; height: 9.5px; flex: none;
+  border: .5px solid rgba(0,0,0,.25);
+  --fw: var(--flag-white); --fink: #17191d; --c: var(--cobalt); --r: #bf2f2f; --y: var(--lime); }
+.fl-quebec  { background: var(--y); }                                       /* vessel healthy */
+.fl-kilo    { background: linear-gradient(to right, var(--y) 0 50%, var(--c) 50%); } /* I wish to communicate */
+.fl-papa    { background: linear-gradient(var(--fw), var(--fw)) center / 42% 42% no-repeat, var(--c); } /* about to sail */
+.fl-charlie { background: linear-gradient(to bottom, var(--c) 0 20%, var(--fw) 20% 40%, var(--r) 40% 60%, var(--fw) 60% 80%, var(--c) 80%); } /* affirmative */
+.fl-delta   { background: linear-gradient(to bottom, var(--y) 0 25%, var(--c) 25% 75%, var(--y) 75%); } /* keep clear: maneuvering */
+
+/* ---- pagehead ---- */
+.pagehead { max-width: 1120px; margin: 2.4rem auto .6rem; padding: 0 2rem; }
+.pagehead h1 { font-size: clamp(1.5rem, 3.2vw, 2rem); font-weight: 800;
+  letter-spacing: -.02em; line-height: 1.2; max-width: 30ch; }
+.pagehead h1 .casual { color: var(--amber); font-weight: 780; }
+.pagehead .lede { color: var(--ink-soft); max-width: 72ch; margin-top: .55rem; }
+.pagehead .refs { margin-top: .5rem; color: var(--ink-mute); font-size: .8125rem; }
+
+/* ---- beat rail (a real sequence, so numbers carry meaning) ---- */
+.rail { display: flex; gap: 2px; margin: 1.6rem 0 2rem; flex-wrap: wrap; }
+.beat-tab { flex: 1 1 160px; display: flex; align-items: center; gap: .55rem;
+  padding: .55rem .8rem; background: var(--paper-raised);
+  border: 1px solid var(--hair); border-top: 2px solid transparent;
+  font-weight: 600; color: var(--ink-mute); cursor: pointer; user-select: none;
+  transition: color 160ms var(--ease-quick), border-color 160ms var(--ease-quick),
+    background 160ms var(--ease-quick), transform 220ms var(--ease-spring); }
+.beat-tab:hover { transform: translateY(-2px); color: var(--ink); }
+.beat-tab .n { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: .8125rem; font-weight: 700; color: var(--ink-mute); }
+.beat-tab .fill { display: block; height: 2px; background: var(--amber);
+  width: 0; position: absolute; left: 0; top: -2px; }
+.beat-tab { position: relative; }
+body[data-phase="browse"] .beat-tab[data-p="browse"],
+body[data-phase="lease"]  .beat-tab[data-p="lease"],
+body[data-phase="run"]    .beat-tab[data-p="run"],
+body[data-phase="settle"] .beat-tab[data-p="settle"] {
+  color: var(--ink); border-top-color: var(--amber); background: var(--paper); }
+body[data-phase="browse"] .beat-tab[data-p="browse"] .n,
+body[data-phase="lease"]  .beat-tab[data-p="lease"] .n,
+body[data-phase="run"]    .beat-tab[data-p="run"] .n,
+body[data-phase="settle"] .beat-tab[data-p="settle"] .n { color: var(--amber); }
+
+/* ---- beats dim/lift with the loop ---- */
+.beat { transition: opacity 420ms var(--ease-quick); }
+.beat.dim { opacity: .5; }
+.sect-head { display: flex; align-items: baseline; gap: .7rem; margin: 0 0 .8rem; }
+.sect-head .t { font-weight: 750; font-size: 1.05rem; letter-spacing: -.01em; }
+.sect-head .rule { flex: 1; border: 0; border-top: 1px solid var(--hair-strong); }
+
+/* ---- 01 catalog ---- */
+.catalog { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: .9rem; }
+.lcard { background: var(--paper); border: 1px solid var(--hair); padding: .9rem 1rem 1rem;
+  position: relative; opacity: 0; transform: translateY(14px);
+  animation: settleIn 520ms var(--ease-spring) forwards;
+  transition: transform 220ms var(--ease-spring), border-color 160ms var(--ease-quick); }
+.lcard:nth-child(1) { animation-delay: 60ms; } .lcard:nth-child(2) { animation-delay: 140ms; }
+.lcard:nth-child(3) { animation-delay: 220ms; } .lcard:nth-child(4) { animation-delay: 300ms; }
+.lcard:nth-child(5) { animation-delay: 380ms; } .lcard:nth-child(6) { animation-delay: 460ms; }
+@keyframes settleIn { to { opacity: 1; transform: none; } }
+.lcard:hover { transform: translateY(-3px); border-color: var(--hair-strong); }
+.lcard .kind { display: flex; align-items: center; gap: .5rem; }
+.lcard .kind .k { font-size: .8125rem; font-weight: 650; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink-mute); }
+.grade { margin-left: auto; font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: .8125rem; font-weight: 700; padding: .02rem .45rem;
+  background: var(--amber-slab); color: var(--flag-white); }
+.grade.low { background: transparent; color: var(--ink-mute); border: 1px solid var(--hair-strong); }
+.lcard .nm { font-weight: 750; font-size: 1rem; margin-top: .35rem; letter-spacing: -.01em; }
+.lcard .by { color: var(--ink-mute); font-size: .875rem; }
+.proof { display: flex; align-items: center; gap: .45rem; margin-top: .55rem;
+  color: var(--ink-soft); font-size: .875rem; }
+.proof svg { flex: none; color: var(--health); }
+.lcard .fee { margin-top: .55rem; display: flex; align-items: baseline; gap: .35rem; }
+.lcard .fee b { font-size: 1.15rem; font-weight: 750; }
+.lcard .fee span { color: var(--ink-mute); font-size: .875rem; }
+/* the demo pick */
+body[data-phase="lease"] .lcard.pick, body[data-phase="run"] .lcard.pick,
+body[data-phase="settle"] .lcard.pick, .lcard.pick.hot {
+  border-color: var(--amber); box-shadow: inset 0 0 0 1px var(--amber); }
+.lcard.pick::after { content: "selected"; position: absolute; top: -1px; right: -1px;
+  font-size: .75rem; font-weight: 650; letter-spacing: .1em; text-transform: uppercase;
+  background: var(--amber-slab); color: var(--flag-white); padding: .05rem .5rem;
+  opacity: 0; transition: opacity 200ms var(--ease-quick); }
+body:not([data-phase="browse"]) .lcard.pick::after, .lcard.pick.hot::after { opacity: 1; }
+
+/* ---- 02 lease panel (bracketed live panel) ---- */
+.twoup { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: 1.4rem; align-items: start; }
+.panel { background: var(--paper); position: relative; padding: 18px; }
+.panel::before, .panel::after, .panel .bk::before, .panel .bk::after {
+  content: ""; position: absolute; width: 12px; height: 12px;
+  border: 0 solid var(--bracket); pointer-events: none; }
+.panel::before { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+.panel::after { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+.panel .bk::before { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.panel .bk::after { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+.panel-head { display: flex; align-items: baseline; gap: .55rem; }
+.panel-head .t { font-weight: 750; }
+.rule-mid { border: 0; border-top: 1px solid var(--hair-strong); width: 64px; margin: 12px 0 10px; }
+.term { display: flex; gap: .7rem; padding: .55rem 0; border-bottom: 1px solid var(--hair); }
+.term:last-of-type { border-bottom: 0; }
+.term svg { flex: none; margin-top: .2rem; color: var(--amber); }
+.term .tt { font-weight: 650; }
+.term p { color: var(--ink-soft); font-size: .9rem; line-height: 1.5; }
+.byok { border-left: 3px solid var(--amber); background: var(--amber-wash);
+  padding: .6rem .8rem; margin-top: .7rem; font-size: .9rem; color: var(--ink-soft); }
+.byok b { color: var(--amber-on-tint); }
+@media (prefers-color-scheme: dark) { .byok b { color: var(--amber-on-tint); } }
+.lease-acts { display: flex; align-items: center; gap: .7rem; margin-top: .9rem; }
+.btn { font: inherit; font-size: .9rem; font-weight: 650; padding: .38rem .95rem;
+  border: 2px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer;
+  transition: transform 220ms var(--ease-spring), background 140ms var(--ease-quick),
+    color 140ms var(--ease-quick); }
+.btn.primary { background: var(--ink); color: var(--paper); }
+.btn.primary:hover { transform: translateY(-2px); }
+.leased-chip { display: inline-flex; align-items: center; gap: .5rem; font-weight: 650;
+  color: var(--health); opacity: 0; transform: translateX(-8px);
+  transition: opacity 260ms var(--ease-quick), transform 340ms var(--ease-spring); }
+body[data-phase="run"] .leased-chip, body[data-phase="settle"] .leased-chip,
+body[data-phase="lease"].lease-late .leased-chip { opacity: 1; transform: none; }
+.manifest { border: 1px solid var(--hair); background: var(--paper-raised); padding: .7rem .85rem; }
+.manifest .row { display: flex; justify-content: space-between; gap: 1rem;
+  padding: .3rem 0; border-bottom: 1px solid var(--hair); font-size: .875rem; }
+.manifest .row:last-child { border-bottom: 0; }
+.manifest .row .v { color: var(--ink-soft); text-align: right; }
+
+/* ---- 03 the sealed harbor (centerpiece) ---- */
+.harbor { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.35fr) minmax(0,1fr);
+  gap: 0; align-items: stretch; }
+.hcol { background: var(--paper); border: 1px solid var(--hair); padding: .9rem 1rem 1.1rem;
+  position: relative; min-width: 0; }
+.hcol .who { display: flex; align-items: center; gap: .5rem; }
+.hcol .who .t { font-weight: 750; letter-spacing: -.01em; }
+.hcol .who .d8 { width: 8px; height: 8px; flex: none; background: var(--health); }
+.assets { display: flex; flex-direction: column; gap: 6px; margin-top: .7rem; }
+.asset { display: flex; align-items: center; gap: .55rem; padding: .4rem .6rem;
+  background: var(--paper-raised); border: 1px solid var(--hair); font-size: .875rem; }
+.asset svg { flex: none; color: var(--ink-mute); }
+.asset .a-note { margin-left: auto; color: var(--ink-mute); font-size: .8125rem;
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+.stays { display: inline-flex; align-items: center; gap: .45rem; margin-top: .75rem;
+  font-size: .8125rem; font-weight: 650; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--health); }
+.stays .tick { width: 8px; height: 8px; background: var(--health); flex: none; }
+/* boundary walls: 2px enclosure lines the data never crosses */
+.hcol.you { border-right: 2px solid var(--bracket); }
+.hcol.supplier { border-left: 2px solid var(--bracket); }
+.bound-label { position: absolute; top: -1.35rem; font-size: .75rem; font-weight: 650;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); white-space: nowrap; }
+.hcol.you .bound-label { right: -0.5rem; transform: translateX(50%); }
+.hcol.supplier .bound-label { left: -0.5rem; transform: translateX(-50%); }
+
+/* sealed middle */
+.hcol.seal { background: var(--amber-wash); border: 0; padding: 1rem 1.2rem 1.15rem; }
+.hcol.seal .panelwrap { position: relative; padding: 14px 12px 12px; }
+.hcol.seal .panelwrap::before, .hcol.seal .panelwrap::after,
+.hcol.seal .bk2::before, .hcol.seal .bk2::after {
+  content: ""; position: absolute; width: 12px; height: 12px;
+  border: 0 solid var(--bracket); pointer-events: none; }
+.hcol.seal .panelwrap::before { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+.hcol.seal .panelwrap::after { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; }
+.hcol.seal .bk2::before { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+.hcol.seal .bk2::after { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+.sealhead { display: flex; align-items: center; gap: .55rem; }
+.sealhead .t { font-weight: 750; }
+.sealhead svg { color: var(--amber); flex: none; }
+/* lock shackle closes when the run arms */
+.lock-shackle { transition: transform 420ms var(--ease-spring); transform-origin: 50% 100%;
+  transform: translateY(-2.5px); }
+body[data-phase="run"] .lock-shackle, body[data-phase="settle"] .lock-shackle { transform: translateY(0); }
+.attest { margin-top: .3rem; color: var(--ink-mute); font-size: .8125rem;
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+/* inbound lanes */
+.lanes { margin-top: .85rem; display: flex; flex-direction: column; gap: .55rem; }
+.lane { position: relative; }
+.lane .lab { font-size: .8125rem; color: var(--ink-soft); display: flex; gap: .45rem; align-items: center; }
+.lane .track { position: relative; height: 2px; margin-top: .3rem;
+  background: repeating-linear-gradient(to right, var(--hair-strong) 0 6px, transparent 6px 12px); }
+.lane .dot { position: absolute; top: -3px; width: 8px; height: 8px; background: var(--amber);
+  left: 0; opacity: 0; }
+body[data-phase="run"] .lane.inL .dot { animation: laneL 1.4s var(--ease-quick) .2s infinite; }
+body[data-phase="run"] .lane.inR .dot { animation: laneR 1.4s var(--ease-quick) .9s infinite; }
+@keyframes laneL { 0% { left: 0; opacity: 0; } 12% { opacity: 1; }
+  82% { opacity: 1; } 100% { left: calc(100% - 8px); opacity: 0; } }
+@keyframes laneR { 0% { left: calc(100% - 8px); opacity: 0; } 12% { opacity: 1; }
+  82% { opacity: 1; } 100% { left: 0; opacity: 0; } }
+/* the running agent: pulse ONLY in flight */
+.runchip { display: flex; align-items: center; gap: .6rem; margin-top: .9rem;
+  background: var(--paper); border: 1px solid var(--hair); padding: .5rem .7rem; }
+.runchip .d8 { width: 8px; height: 8px; flex: none; background: var(--ink-mute); color: var(--amber); }
+body[data-phase="run"] .runchip .d8 { background: var(--amber);
+  outline: 1.5px solid currentColor; animation: ch20pulse 1.8s ease-out infinite; }
+body[data-phase="settle"] .runchip .d8 { background: var(--health); }
+@keyframes ch20pulse { 0% { outline-offset: 0; outline-color: currentColor; }
+  100% { outline-offset: 7px; outline-color: transparent; } }
+.runchip .st { font-weight: 650; }
+.runchip .ph { margin-left: auto; color: var(--ink-mute); font-size: .8125rem;
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+.noegress { display: flex; align-items: center; gap: .5rem; margin-top: .6rem;
+  font-size: .8125rem; font-weight: 650; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--amber-on-tint); }
+@media (prefers-color-scheme: dark) { .noegress { color: var(--amber); } }
+/* receipt slot: prints out of the seal like a ticket */
+.slot { margin: 2px auto 0; width: min(420px, 92%); position: relative; }
+.slot .lip { height: 6px; background: var(--bracket); position: relative; z-index: 3; }
+.slot .chute { overflow: hidden; padding: 0 6px 8px; position: relative; }
+.slot .ghost { position: absolute; inset: 8px 12px 14px; border: 1px dashed var(--hair-strong);
+  display: flex; align-items: center; justify-content: center; z-index: 0; }
+.slot .ghost span { font-size: .75rem; font-weight: 650; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-mute); }
+.receipt { z-index: 1; }
+.receipt { background: var(--paper); border: 1px solid var(--hair-strong);
+  border-top: 0; padding: .75rem .9rem .7rem; position: relative;
+  transform: translateY(-104%); transition: transform 900ms var(--ease-spring); }
+.receipt::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 7px;
+  background: linear-gradient(-45deg, var(--paper-deep) 5px, transparent 0) 0 0 / 14px 14px repeat-x,
+    linear-gradient(45deg, var(--paper-deep) 5px, transparent 0) 7px 0 / 14px 14px repeat-x; }
+body[data-phase="settle"] .receipt, body.receipt-out .receipt { transform: translateY(0); }
+.receipt .rhead { display: flex; align-items: baseline; gap: .6rem; }
+.receipt .rhead .rt { font-weight: 750; font-size: .9rem; letter-spacing: .04em; }
+.receipt .rhead .rn { margin-left: auto; color: var(--amber); font-weight: 700; }
+.receipt .row { display: flex; gap: 1rem; justify-content: space-between;
+  padding: .22rem 0; border-bottom: 1px solid var(--hair); font-size: .8125rem; }
+.receipt .row:last-of-type { border-bottom: 0; }
+.receipt .row .k { color: var(--ink-mute); flex: none; }
+.receipt .row .v { text-align: right; color: var(--ink-soft); min-width: 0; overflow-wrap: anywhere; }
+.receipt .row .v.ok { color: var(--health); font-weight: 650; }
+.receipt .signed { display: flex; align-items: center; gap: .45rem; margin-top: .45rem;
+  font-size: .8125rem; font-weight: 650; color: var(--health); }
+
+/* ---- 04 settlement ---- */
+.settle-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: .9rem; }
+.ledger { background: var(--paper); border: 1px solid var(--hair); padding: .8rem 1rem .95rem; }
+.ledger .lh { display: flex; align-items: center; gap: .5rem; }
+.ledger .lh .t { font-weight: 750; }
+.ledger .lh .side { margin-left: auto; font-size: .75rem; font-weight: 650;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink-mute); }
+.ledger .line { display: flex; justify-content: space-between; gap: 1rem;
+  padding: .35rem 0; border-bottom: 1px solid var(--hair); font-size: .875rem; }
+.ledger .line:last-of-type { border-bottom: 0; }
+.ledger .line .k { color: var(--ink-soft); }
+.earn { display: flex; align-items: baseline; gap: .55rem; margin: .35rem 0 .15rem; }
+.earn .amt { font-size: 1.6rem; font-weight: 800; letter-spacing: -.02em; color: var(--amber); }
+.earn .rn { color: var(--ink-mute); }
+body[data-phase="settle"] .earn .amt { animation: earnPop 620ms var(--ease-spring); }
+@keyframes earnPop { 0% { opacity: 0; transform: translateY(10px) scale(.92); }
+  60% { transform: translateY(-2px) scale(1.04); } 100% { opacity: 1; transform: none; } }
+.total { margin-top: .4rem; color: var(--ink-soft); font-size: .875rem; }
+.total b { color: var(--ink); }
+.escrow-note { margin-top: 1rem; border-left: 3px solid var(--amber);
+  background: var(--amber-wash); padding: .6rem .85rem; font-size: .9rem; color: var(--ink-soft); }
+
+/* honesty footer */
+.honest { margin-top: 2.2rem; border-top: 1px solid var(--hair-strong); padding-top: .8rem;
+  color: var(--ink-mute); font-size: .875rem; max-width: 78ch; }
+
+section.beat { margin-top: 2.4rem; }
+#beat-run { margin-top: 3rem; }
+
+@media (max-width: 900px) {
+  .catalog { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .twoup, .harbor, .settle-grid { grid-template-columns: minmax(0,1fr); }
+  .hcol.you { border-right: 1px solid var(--hair); border-bottom: 2px solid var(--bracket); }
+  .hcol.supplier { border-left: 1px solid var(--hair); border-top: 2px solid var(--bracket); }
+  .bound-label { display: none; }
+}
+@media (max-width: 560px) { .catalog { grid-template-columns: minmax(0,1fr); } }
+
+/* ---- reduced motion: freeze to a legible still ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .lcard { opacity: 1; transform: none; }
+  .receipt { transform: none; }
+  .leased-chip { opacity: 1; transform: none; }
+  .beat.dim { opacity: 1; }
+  .lane .dot { opacity: 1; left: calc(50% - 4px); }
+}
+</style>
+</head>
+<body data-phase="browse">
+
+<div class="pagehead">
+  <div class="eyebrow">Port Daddy · Skill &amp; Agent Leasing · Remote Harbor</div>
+  <h1>Lease your best agent. Their data stays theirs. Your craft stays yours. <span class="casual">Nobody gets screwed.</span></h1>
+  <p class="lede">Browse receipt-proven skills and agents, lease one on your own Claude&nbsp;Max,
+     and run it inside a sealed remote harbor: your data never leaves your side, the author's
+     skill IP never leaves theirs, and a signed Work Receipt settles the difference.</p>
+  <p class="refs mono">strategy: operator-vision-2026-07-05 §2/§3 · substrate: ch02 remote harbors + ch06 billing ·
+     trust object: Work Receipt · skin/law: binder ch20 · zone: l3-economy amber (ADR-0048)</p>
+
+  <div class="rail" role="tablist" aria-label="Demo beats">
+    <div class="beat-tab" data-p="browse"><span class="n">01</span><span class="mfl fl-kilo"></span>Browse</div>
+    <div class="beat-tab" data-p="lease"><span class="n">02</span><span class="mfl fl-papa"></span>Lease</div>
+    <div class="beat-tab" data-p="run"><span class="n">03</span><span class="mfl fl-delta"></span>Run sealed</div>
+    <div class="beat-tab" data-p="settle"><span class="n">04</span><span class="mfl fl-charlie"></span>Settle</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ================= 01 BROWSE ================= -->
+  <section class="beat" id="beat-browse">
+    <div class="sect-head"><span class="eyebrow">01 · Browse</span>
+      <span class="t">The catalog — graded by guilds, proven by receipts</span><hr class="rule"></div>
+    <div class="catalog">
+      <div class="lcard">
+        <div class="kind"><span class="mfl fl-quebec"></span><span class="k">agent</span><span class="grade" title="guild grade">AA</span></div>
+        <div class="nm">refactor-surgeon</div><div class="by">by @meridian</div>
+        <div class="proof"><svg width="13" height="15" viewBox="0 0 13 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 1h10v12l-1.6-1.2L8.3 13l-1.8-1.2L4.7 13l-1.6-1.2L1.5 13z"/></svg>312 runs · 98% pass · receipts on file</div>
+        <div class="fee"><b>$0.55</b><span>/ run access fee</span></div>
+      </div>
+      <div class="lcard pick">
+        <div class="kind"><span class="mfl fl-quebec"></span><span class="k">orchestrator</span><span class="grade">A</span></div>
+        <div class="nm">adversarial-qa fleet</div><div class="by">by @tugboat-ann</div>
+        <div class="proof"><svg width="13" height="15" viewBox="0 0 13 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 1h10v12l-1.6-1.2L8.3 13l-1.8-1.2L4.7 13l-1.6-1.2L1.5 13z"/></svg>47 runs · 96% pass · receipts on file</div>
+        <div class="fee"><b>$0.40</b><span>/ run access fee</span></div>
+      </div>
+      <div class="lcard">
+        <div class="kind"><span class="mfl fl-quebec"></span><span class="k">skill</span><span class="grade">AA</span></div>
+        <div class="nm">postgres-explain-whisperer</div><div class="by">by @quayside</div>
+        <div class="proof"><svg width="13" height="15" viewBox="0 0 13 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 1h10v12l-1.6-1.2L8.3 13l-1.8-1.2L4.7 13l-1.6-1.2L1.5 13z"/></svg>1,204 runs · 97% pass · receipts on file</div>
+        <div class="fee"><b>$0.12</b><span>/ run access fee</span></div>
+      </div>
+      <div class="lcard">
+        <div class="kind"><span class="mfl fl-quebec"></span><span class="k">agent</span><span class="grade low">BBB</span></div>
+        <div class="nm">loro-crdt-migrator</div><div class="by">by @harborlight</div>
+        <div class="proof"><svg width="13" height="15" viewBox="0 0 13 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 1h10v12l-1.6-1.2L8.3 13l-1.8-1.2L4.7 13l-1.6-1.2L1.5 13z"/></svg>18 runs · 89% pass · receipts on file</div>
+        <div class="fee"><b>$0.30</b><span>/ run access fee</span></div>
+      </div>
+      <div class="lcard">
+        <div class="kind"><span class="mfl fl-quebec"></span><span class="k">skill</span><span class="grade">A</span></div>
+        <div class="nm">latex-whitepaper-engine</div><div class="by">by @erich</div>
+        <div class="proof"><svg width="13" height="15" viewBox="0 0 13 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 1h10v12l-1.6-1.2L8.3 13l-1.8-1.2L4.7 13l-1.6-1.2L1.5 13z"/></svg>86 runs · 94% pass · receipts on file</div>
+        <div class="fee"><b>$0.25</b><span>/ run access fee</span></div>
+      </div>
+      <div class="lcard">
+        <div class="kind"><span class="mfl fl-quebec"></span><span class="k">agent</span><span class="grade">A</span></div>
+        <div class="nm">spider-dedupe scout</div><div class="by">by @meridian</div>
+        <div class="proof"><svg width="13" height="15" viewBox="0 0 13 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 1h10v12l-1.6-1.2L8.3 13l-1.8-1.2L4.7 13l-1.6-1.2L1.5 13z"/></svg>203 runs · 95% pass · receipts on file</div>
+        <div class="fee"><b>$0.35</b><span>/ run access fee</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 02 LEASE ================= -->
+  <section class="beat" id="beat-lease">
+    <div class="sect-head"><span class="eyebrow">02 · Lease</span>
+      <span class="t">Your keys, your tokens — the author gets the access fee</span><hr class="rule"></div>
+    <div class="twoup">
+      <div class="panel"><span class="bk"></span>
+        <div class="panel-head"><span class="eyebrow">Lease</span><span class="t">adversarial-qa fleet</span>
+          <span class="grade" style="margin-left:auto">A</span></div>
+        <hr class="rule-mid">
+        <div class="term">
+          <svg width="14" height="16" viewBox="0 0 14 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="6.5" width="11" height="8"/><path d="M4 6.5V4a3 3 0 0 1 6 0v2.5"/></svg>
+          <div><div class="tt">Data-blind execution</div>
+          <p>Runs in a sealed remote harbor. No egress. @tugboat-ann never sees your repo, your prompts, or your diffs.</p></div>
+        </div>
+        <div class="term">
+          <svg width="14" height="16" viewBox="0 0 14 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="8" r="5.5"/><path d="M7 4.5V8l2.3 2.3"/></svg>
+          <div><div class="tt">IP-blind for you, too</div>
+          <p>You never see the skill source. You see its manifest, its guild grade, and every receipt it has ever produced.</p></div>
+        </div>
+        <div class="term">
+          <svg width="14" height="16" viewBox="0 0 14 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h10v11.5l-1.6-1.2-1.7 1.2-1.7-1.2-1.7 1.2L3.6 12.3 2 13.5z"/><path d="M4.5 5.5h5M4.5 8h5"/></svg>
+          <div><div class="tt">Receipt-gated settlement</div>
+          <p>The access fee escrows in the bond ledger and releases only against a signed Work Receipt. No receipt, no fee.</p></div>
+        </div>
+        <div class="byok"><b>BYOK:</b> runs on your own Claude&nbsp;Max — you pay your own tokens,
+          the author gets the access fee. $0.40 per armed run, nothing while it idles.</div>
+        <div class="lease-acts">
+          <button class="btn primary" id="leaseBtn">Lease · $0.40/run</button>
+          <span class="leased-chip"><span class="mfl fl-charlie"></span>Leased — capability token issued</span>
+        </div>
+      </div>
+      <div>
+        <div class="eyebrow" style="margin-bottom:.45rem">What you can inspect</div>
+        <div class="manifest mono">
+          <div class="row"><span>manifest</span><span class="v">pd.lease.skill-manifest.v1</span></div>
+          <div class="row"><span>capability scope</span><span class="v">worktree-only · no network · 30 min</span></div>
+          <div class="row"><span>guild grade</span><span class="v">A · Harbor Underwriters, 2026-06</span></div>
+          <div class="row"><span>receipts</span><span class="v">47 on file · newest 2h ago</span></div>
+          <div class="row"><span>pass rate</span><span class="v">96% · artifact-backed</span></div>
+          <div class="row"><span>escrow</span><span class="v">bond ledger · conservation-checked</span></div>
+        </div>
+        <div class="escrow-note">The grade is a <b>guild</b> rating — neutral red-teamers scoring
+          receipts, not the author scoring themselves. Agentic Moody's, not a star widget.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 03 RUN SEALED ================= -->
+  <section class="beat" id="beat-run">
+    <div class="sect-head"><span class="eyebrow">03 · Run sealed</span>
+      <span class="t">The data-blind remote harbor</span><hr class="rule"></div>
+    <div class="harbor">
+
+      <div class="hcol you">
+        <span class="bound-label">tenancy boundary</span>
+        <div class="who"><span class="d8"></span><span class="t">Your harbor</span></div>
+        <div class="assets">
+          <div class="asset"><svg width="13" height="15" viewBox="0 0 13 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 2.5h4l1.5 2h4.5v8h-10z"/></svg>repo · acme-web<span class="a-note">private</span></div>
+          <div class="asset"><svg width="13" height="15" viewBox="0 0 13 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h9v11H2z"/><path d="M4 5h5M4 7.5h5M4 10h3"/></svg>prompts &amp; context<span class="a-note">private</span></div>
+          <div class="asset"><svg width="13" height="15" viewBox="0 0 13 15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="6" r="3"/><path d="M7.5 8.5 12 13M10 11l1.5-1.5"/></svg>Claude Max key<span class="a-note">your tokens</span></div>
+        </div>
+        <div class="stays"><span class="tick"></span>Data stays here</div>
+      </div>
+
+      <div class="hcol seal">
+        <div class="panelwrap"><span class="bk2"></span>
+          <div class="sealhead">
+            <svg width="15" height="17" viewBox="0 0 14 16" fill="none" stroke="currentColor" stroke-width="1.6">
+              <rect x="1.5" y="7" width="11" height="7.5"/>
+              <path class="lock-shackle" d="M4 7V4.5a3 3 0 0 1 6 0V7"/>
+            </svg>
+            <span class="t">Sealed harbor</span>
+            <span class="mono" style="margin-left:auto; color:var(--ink-mute)">rh_04ax</span>
+          </div>
+          <div class="attest">no egress · attested runtime · macaroon-scoped caps</div>
+          <div class="lanes">
+            <div class="lane inL">
+              <div class="lab"><span class="mfl fl-papa"></span>in: capability token + task envelope <span class="mono" style="color:var(--ink-mute)">← you</span></div>
+              <div class="track"><span class="dot"></span></div>
+            </div>
+            <div class="lane inR">
+              <div class="lab"><span class="mfl fl-papa"></span>in: skill manifest, sealed <span class="mono" style="color:var(--ink-mute)">supplier →</span></div>
+              <div class="track"><span class="dot"></span></div>
+            </div>
+          </div>
+          <div class="runchip">
+            <span class="d8"></span><span class="st">adversarial-qa fleet</span>
+            <span class="ph" id="runPhase">idle</span>
+          </div>
+          <div class="noegress">
+            <svg width="12" height="14" viewBox="0 0 14 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="6.5" width="11" height="8"/><path d="M4 6.5V4a3 3 0 0 1 6 0v2.5"/></svg>
+            only the receipt leaves the seal
+          </div>
+        </div>
+        <div class="slot">
+          <div class="lip"></div>
+          <div class="chute">
+            <div class="ghost" aria-hidden="true"><span>work receipt prints here</span></div>
+            <div class="receipt">
+              <div class="rhead"><span class="mfl fl-charlie"></span><span class="rt mono">WORK RECEIPT</span>
+                <span class="rn mono" id="receiptNo">#4821</span></div>
+              <div class="row mono"><span class="k">intent</span><span class="v">adversarial QA · acme-web checkout</span></div>
+              <div class="row mono"><span class="k">validation</span><span class="v ok">exit 0 · 34 tests · artifacts attached</span></div>
+              <div class="row mono"><span class="k">spend</span><span class="v">your tokens · 41k in / 9k out</span></div>
+              <div class="row mono"><span class="k">provenance</span><span class="v">sha256:9f3a…c2 · run rh_04ax</span></div>
+              <div class="signed">
+                <svg width="12" height="14" viewBox="0 0 13 15" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1.5 7.5 5 11l6.5-8"/></svg>
+                signed by harbor authority
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hcol supplier">
+        <span class="bound-label">tenancy boundary</span>
+        <div class="who"><span class="d8"></span><span class="t">@tugboat-ann</span></div>
+        <div class="assets">
+          <div class="asset"><svg width="13" height="15" viewBox="0 0 13 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h9v11H2z"/><path d="M4.5 5 6 6.5 4.5 8M7 8.5h2"/></svg>skill source<span class="a-note">sealed</span></div>
+          <div class="asset"><svg width="13" height="15" viewBox="0 0 13 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 12.5v-4M6.5 12.5V5M10.5 12.5V8.5"/></svg>eval playbooks<span class="a-note">sealed</span></div>
+          <div class="asset"><svg width="13" height="15" viewBox="0 0 13 15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="7.5" r="5"/><path d="M6.5 2.5v10M1.5 7.5h10"/></svg>orchestration graph<span class="a-note">sealed</span></div>
+        </div>
+        <div class="stays"><span class="tick"></span>IP stays here</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= 04 SETTLE ================= -->
+  <section class="beat" id="beat-settle">
+    <div class="sect-head"><span class="eyebrow">04 · Settle</span>
+      <span class="t">One receipt, two ledgers</span><hr class="rule"></div>
+    <div class="settle-grid">
+      <div class="ledger">
+        <div class="lh"><span class="mfl fl-quebec"></span><span class="t">You</span><span class="side">buyer side</span></div>
+        <div class="line"><span class="k">escrow</span><span class="mono">$0.40 released against receipt <span id="receiptNo2">#4821</span></span></div>
+        <div class="line"><span class="k">tokens</span><span class="mono">41k in / 9k out · billed to your key</span></div>
+        <div class="line"><span class="k">evidence</span><span class="mono">receipt + artifacts in your ledger</span></div>
+      </div>
+      <div class="ledger">
+        <div class="lh"><span class="mfl fl-charlie"></span><span class="t">@tugboat-ann</span><span class="side">supplier side</span></div>
+        <div class="earn"><span class="amt" id="earnAmt">+$0.40</span><span class="rn mono">receipt <span id="receiptNo3">#4821</span></span></div>
+        <div class="total">Season to date <b id="seasonTotal">$128.80</b> · <span id="seasonCount">322</span> receipts · grade A holding</div>
+      </div>
+    </div>
+    <div class="escrow-note" style="max-width:64ch">Conservation invariant: every cent that leaves
+      escrow lands in exactly one ledger, and the receipt is the only key that opens it.
+      Built today in <span class="mono">lib/bonds.ts</span>; the market on top is the vision this page sells.</div>
+  </section>
+
+  <p class="honest">Design exploration, not a shipped surface. The bond ledger with escrow, slashing,
+     and a property-tested conservation invariant exists (<span class="mono">lib/bonds.ts</span>);
+     remote-harbor tenancy and the catalog are vision with named binder homes (ch02, ch06, ch18).
+     Ch00 parks the marketplace until local Agent Node truth exists — this page is what it builds toward.</p>
+
+</div>
+
+<script>
+(function () {
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var body = document.body;
+  var beats = { browse: 'beat-browse', lease: 'beat-lease', run: 'beat-run', settle: 'beat-settle' };
+  var order = ['browse', 'lease', 'run', 'settle'];
+  var durs = { browse: 3000, lease: 3200, run: 5200, settle: 3600 };
+  var runPhase = document.getElementById('runPhase');
+  var receiptNos = [document.getElementById('receiptNo'), document.getElementById('receiptNo2'), document.getElementById('receiptNo3')];
+  var seasonTotal = document.getElementById('seasonTotal');
+  var seasonCount = document.getElementById('seasonCount');
+  var rn = 4821, total = 128.80, count = 322;
+  var timer = null, sub = [];
+
+  function setDim(phase) {
+    order.forEach(function (p) {
+      var el = document.getElementById(beats[p]);
+      if (el) el.classList.toggle('dim', p !== phase);
+    });
+  }
+  function clearSubs() { sub.forEach(clearTimeout); sub = []; }
+
+  function enter(phase) {
+    body.setAttribute('data-phase', phase);
+    setDim(phase);
+    clearSubs();
+    if (phase === 'browse') { runPhase.textContent = 'idle'; }
+    if (phase === 'lease') {
+      body.classList.remove('lease-late');
+      sub.push(setTimeout(function () { body.classList.add('lease-late'); }, 1400));
+      runPhase.textContent = 'leased';
+    }
+    if (phase === 'run') {
+      runPhase.textContent = 'arming';
+      sub.push(setTimeout(function () { runPhase.textContent = 'running'; }, 1200));
+      sub.push(setTimeout(function () { runPhase.textContent = 'writing receipt'; }, 3600));
+    }
+    if (phase === 'settle') {
+      runPhase.textContent = 'receipt signed';
+      rn += 1; count += 1; total = Math.round((total + 0.40) * 100) / 100;
+      receiptNos.forEach(function (el) { el.textContent = '#' + rn; });
+      seasonTotal.textContent = '$' + total.toFixed(2);
+      seasonCount.textContent = String(count);
+    }
+  }
+
+  function loop(i) {
+    var phase = order[i % order.length];
+    enter(phase);
+    timer = setTimeout(function () { loop(i + 1); }, durs[phase]);
+  }
+
+  // beat-rail click jumps the loop
+  document.querySelectorAll('.beat-tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      if (reduced) return;
+      clearTimeout(timer); clearSubs();
+      var i = order.indexOf(tab.getAttribute('data-p'));
+      loop(i);
+    });
+  });
+
+  document.getElementById('leaseBtn').addEventListener('click', function () {
+    if (reduced) return;
+    clearTimeout(timer); clearSubs();
+    loop(order.indexOf('run'));
+  });
+
+  if (reduced) {
+    // freeze to the richest legible still: sealed run with receipt out
+    body.setAttribute('data-phase', 'run');
+    body.classList.add('receipt-out', 'lease-late');
+    setDim(null); // nothing dimmed
+    runPhase.textContent = 'running';
+  } else {
+    loop(0);
+  }
+})();
+</script>
+
+</body>
+</html>
