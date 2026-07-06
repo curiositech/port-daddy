@@ -51,6 +51,8 @@
 #[path = "../editor_claims.rs"]  mod editor_claims;
 #[allow(dead_code)]
 #[path = "../editor_sync.rs"]    mod editor_sync;
+#[allow(dead_code)]
+#[path = "../editor_wedge.rs"]   mod editor_wedge;
 // maritime's gpui FlagBadge is now #[cfg(feature = "gpui")]-gated, so the pure
 // Flag/flag_for_state compile here and the fleet pane renders in the REPL too.
 #[path = "../fleet_pane.rs"]     mod fleet_pane;

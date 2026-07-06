@@ -28,6 +28,7 @@ mod dispatch_pane;
 mod editor_claims;
 mod editor_pane;
 mod editor_sync;
+mod editor_wedge;
 mod fleet_pane;
 mod grid;
 mod harbor_pane;

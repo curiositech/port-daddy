@@ -713,6 +713,29 @@ impl DaemonClient {
         Ok(())
     }
 
+    /// Predict conflicts between two claim sets — the Harbor Editor P3 **wedge**
+    /// (conflict prediction *before a byte is written*). REUSES the daemon's existing
+    /// `POST /conflicts/predict` (routes/symbols.ts) and its claim-type matrix rather
+    /// than re-deriving conflict logic in Rust: `body` is
+    /// [`crate::editor_wedge::predict_request_body`] (`{ claimsA, claimsB }`), and the
+    /// caller folds the JSON back through [`crate::editor_wedge::parse_predict_response`]
+    /// into a `ConflictReport`. Returns the raw response Value so the tolerant parser
+    /// owns both the full-tally and empty-early-return shapes. A 4xx/5xx surfaces as an
+    /// error (the parser then reads it as quiet — the render band fails open; the
+    /// durable commit gate is the fail-closed seam).
+    pub async fn predict_conflicts(&self, body: &serde_json::Value) -> Result<serde_json::Value> {
+        let resp = self
+            .http
+            .post(format!("{}/conflicts/predict", self.base))
+            .json(body)
+            .send()
+            .await
+            .context("POST /conflicts/predict")?;
+        let resp = ensure_success(resp, "predict_conflicts").await?;
+        let v: serde_json::Value = resp.json().await.context("conflicts/predict response")?;
+        Ok(v)
+    }
+
     /// Pull replies after `cursor`. Returns (new_cursor, messages).
     pub async fn tube_poll(&self, channel: &str, cursor: u64) -> Result<(u64, Vec<TubeMsg>)> {
         let resp = self

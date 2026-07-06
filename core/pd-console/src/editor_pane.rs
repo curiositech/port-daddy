@@ -37,6 +37,10 @@ use crate::editor_claims::{
 use crate::editor_sync::{
     decode_presence_frame, encode_presence_frame, PresenceDebouncer, PresenceState, PresenceStore,
 };
+use crate::editor_wedge::{
+    parse_predict_response, predict_request_body, ClaimKind, GatedRegion, GuardBand, GuardVerdict,
+    PdNudge, SymbolClaim, WedgeProbe,
+};
 use crate::pane::{Block, Pane, Subscription, Tone};
 use anyhow::Result;
 use std::collections::BTreeMap;
@@ -51,6 +55,14 @@ const PRESENCE_SEND_INTERVAL_MS: i64 = 60;
 /// broadcasts — a region drag coalesces into one `POST /sessions/:id/files` per this
 /// window. The gate is [`ClaimMirror`]; this is only its interval.
 const CLAIM_MIRROR_INTERVAL_MS: i64 = 500;
+
+/// Minimum wall-clock gap (ms) between two conflict-prediction probes (P3 slice 2, the
+/// wedge). A `conflicts/predict` round-trip is far heavier than a claim mirror, and
+/// firing it per keystroke would both stall the edit loop and over-warn until actors
+/// ignore the band — so the probe is armed only on a claim-acquire / region-enter edge
+/// and coalesced to at most one call per this window. The gate is [`WedgeProbe`]; this
+/// is only its interval.
+const WEDGE_PROBE_INTERVAL_MS: i64 = 400;
 
 /// Cap on how many lines a single file contributes to the view. The battle-plan's
 /// large-file virtualization is a P1+ concern; this slice just must never let a
@@ -160,6 +172,17 @@ pub struct EditorPane {
     claim_ledger: ClaimLedger,
     claim_out: ClaimMirror,
     next_claim_id: ClaimId,
+    /// P3 slice 2 — the wedge. `wedge_probe` is the debounce gate that arms on a
+    /// claim-acquire / region-enter edge (never per-keystroke) and, when due, yields the
+    /// `conflicts/predict` request body; `wedge_inflight` remembers the single intent
+    /// that probe was for (one at a time — the debounce guarantees it) so the async
+    /// report folds back onto the right region/symbol; `guard_band` is the live
+    /// [`Tone::Conflicted`] one-shot band raised when the daemon predicts a blocking
+    /// conflict, or `None` when the region is clear. Same single-threaded ownership as
+    /// the claim/presence lanes — no `Arc<Mutex<..>>`.
+    wedge_probe: WedgeProbe,
+    wedge_inflight: Option<RegionClaim>,
+    guard_band: Option<GuardBand>,
 }
 
 impl EditorPane {
@@ -208,6 +231,9 @@ impl EditorPane {
             claim_ledger: ClaimLedger::new(),
             claim_out: ClaimMirror::new(CLAIM_MIRROR_INTERVAL_MS),
             next_claim_id: 0,
+            wedge_probe: WedgeProbe::new(WEDGE_PROBE_INTERVAL_MS),
+            wedge_inflight: None,
+            guard_band: None,
         }
     }
 
@@ -426,9 +452,25 @@ impl EditorPane {
         self.next_claim_id = self.next_claim_id.wrapping_add(1);
         let claim = RegionClaim::new(self.claims.local(), id, start, end, label, now_ms as u64);
         let blob = self.claims.publish(&claim);
+        // Arm the wedge on this coordination EDGE (a claim-acquire) — debounced, so a
+        // fast re-acquire coalesces (HARD RULE 2). A caret move / keystroke never reaches
+        // here, which is what keeps the probe off the per-keystroke path.
+        self.wedge_probe.arm(claim.clone());
         self.claim_out.record(claim);
         self.claim_ledger = self.claims.ledger();
         encode_claim_frame(self.claims.local(), &blob)
+    }
+
+    /// Arm the wedge on a **region-enter** edge (the caret crossing INTO a new region),
+    /// without acquiring a claim — the second coordination edge the wedge fires on
+    /// (HARD RULE 2). The input layer calls this when the caret's region changes, NOT on
+    /// every keystroke inside the same region. Debounced through the same [`WedgeProbe`]
+    /// as acquire, so entering and re-entering collapses to one probe per window.
+    pub fn enter_region(&mut self, start: u32, end: u32, label: impl Into<String>, now_ms: i64) {
+        // A synthetic local intent (no claim id minted — an enter is not an acquire): it
+        // carries the region + work label the predict call needs, keyed to this replica.
+        let intent = RegionClaim::new(self.claims.local(), self.next_claim_id, start, end, label, now_ms as u64);
+        self.wedge_probe.arm(intent);
     }
 
     /// Release one of THIS replica's claims by id, refreshing the ledger. Returns the
@@ -484,6 +526,114 @@ impl EditorPane {
     /// This pane's bound file path — the `path` a durable claim mirror POSTs against.
     pub fn path_str(&self) -> &str {
         &self.path
+    }
+
+    // ── P3 slice 2: the wedge (conflict prediction before a byte is written) ───
+
+    /// If a wedge probe is DUE (past the debounce window since the last one), build the
+    /// `POST /conflicts/predict` request body and mark the intent in-flight. `claimsA`
+    /// is the local intended edit (modify the region's symbol); `claimsB` is every OTHER
+    /// live actor's claim on this file (never our own — you do not conflict with
+    /// yourself). `None` when no edge is armed or we are inside the window — so an idle
+    /// editor and a keystroke burst both produce zero predict traffic (HARD RULE 2). The
+    /// caller POSTs the body via [`crate::agent::DaemonClient::predict_conflicts`] and
+    /// folds the response back through [`apply_conflict_report`](Self::apply_conflict_report).
+    pub fn take_wedge_probe(&mut self, now_ms: i64) -> Option<serde_json::Value> {
+        let intent = self.wedge_probe.take_due(now_ms)?;
+        let a = [SymbolClaim::from_region(&self.path, &intent, ClaimKind::Modify)];
+        let me = self.claims.local();
+        let b: Vec<SymbolClaim> = self
+            .claim_ledger
+            .iter()
+            .filter(|(k, _)| k.peer != me)
+            .map(|(_, c)| SymbolClaim::from_region(&self.path, c, ClaimKind::Modify))
+            .collect();
+        let body = predict_request_body(&a, &b);
+        self.wedge_inflight = Some(intent);
+        Some(body)
+    }
+
+    /// Fold a `conflicts/predict` response onto the in-flight probe intent. When the
+    /// daemon reports a `blocking` conflict, raise a [`Tone::Conflicted`] one-shot guard
+    /// band over the intended region — NOT a silent merge; the caller also surfaces the
+    /// [`blocking_nudge`](Self::blocking_nudge). When it reports clear, drop any band we
+    /// were showing. Returns whether the visible band CHANGED (the gpui repaint edge):
+    /// re-confirming the SAME conflict does not restart the pulse or repaint (so a
+    /// re-probe never re-throbs — HARD RULE 3). `None` in flight ⇒ no change.
+    pub fn apply_conflict_report(&mut self, resp: &serde_json::Value, now_ms: i64) -> bool {
+        let Some(intent) = self.wedge_inflight.take() else {
+            return false;
+        };
+        let report = parse_predict_response(resp);
+        if report.is_blocking() {
+            let region = intent.line_span();
+            let already = self
+                .guard_band
+                .as_ref()
+                .map(|b| (b.symbol.as_str(), b.region))
+                == Some((intent.label.as_str(), region));
+            if already {
+                return false; // same conflict already banded — don't restart the pulse
+            }
+            self.guard_band = Some(GuardBand::raised(intent.label.clone(), region, report, now_ms));
+            true
+        } else {
+            let had = self.guard_band.is_some();
+            self.guard_band = None;
+            had
+        }
+    }
+
+    /// The live conflict guard band, if one is raised. A cheap borrow; the gpui face
+    /// reads [`GuardBand::emphasis`] each frame of the ONE-SHOT pulse, then holds it
+    /// static. `None` when the intended region is conflict-free.
+    pub fn guard_band(&self) -> Option<&GuardBand> {
+        self.guard_band.as_ref()
+    }
+
+    /// The operator **pd-nudge** for the live conflict band, if any — the "you are about
+    /// to edit into a predicted conflict" note the caller surfaces alongside the band
+    /// (never a silent merge). `None` when no band is up.
+    pub fn blocking_nudge(&self) -> Option<PdNudge> {
+        self.guard_band
+            .as_ref()
+            .map(|b| PdNudge::blocking(&b.symbol, b.report))
+    }
+
+    /// The guard's verdict for editing 1-based line `n` — HARD RULE 6/7's pure core.
+    /// `Gated` when the FIRST-GRANTED, non-revoked owner of the line is ANOTHER live
+    /// actor (the contender negotiates or moves; the refusal names only sanctioned
+    /// actions, never a bypass); `Clear` when the line is free or held only by this
+    /// replica. This is what a later commit gate consults; slice 2 uses it to render the
+    /// contender's [`Tone::Gated`] chip.
+    pub fn guard_verdict_for_line(&self, n: u32) -> GuardVerdict {
+        let me = self.claims.local();
+        match self.claim_ledger.first_granted_owner_of_line(n) {
+            Some(owner) if owner.peer != me => GuardVerdict::Gated(GatedRegion {
+                owner_label: format!("peer {}", author_tag(owner.peer)),
+                symbol: owner.label.clone(),
+                region: owner.line_span(),
+            }),
+            _ => GuardVerdict::Clear,
+        }
+    }
+
+    /// The commit gate (HARD RULE 7): the verdict for committing an edit spanning 1-based
+    /// inclusive lines `start..=end`. `Gated` at the FIRST line held by another live
+    /// actor's claim (the commit is refused with a typed, bypass-free note — the actor
+    /// requests handoff / parleys / moves); `Clear` when every edited line is free or held
+    /// only by this replica. This is the `pd guard check --staged` equivalent for the
+    /// editor: it consults the SAME first-granted-wins ledger the live chip does, so the
+    /// on-screen guard and the commit refusal can never disagree. Pure + region-scoped —
+    /// an edit adjacent to (but outside) another's claim is never refused.
+    pub fn commit_verdict(&self, start: u32, end: u32) -> GuardVerdict {
+        for n in start.min(end)..=start.max(end) {
+            let verdict = self.guard_verdict_for_line(n);
+            if verdict.is_gated() {
+                return verdict;
+            }
+        }
+        GuardVerdict::Clear
     }
 
     /// Is the 1-based line `n` inside the bound region (inclusive)?
@@ -596,6 +746,36 @@ impl Pane for EditorPane {
                 label: format!("{who} — {} · L{lo}–L{hi}", claim.label),
                 tone: claim_tone(key.peer, opener),
             });
+        }
+
+        // P3 slice 2 — the WEDGE. If the daemon predicted a BLOCKING conflict for the
+        // region this replica is acquiring/entering, render a Tone::Conflicted guard
+        // band (the one-shot pulse lives in the gpui face; the render-agnostic shadow is
+        // this never-truncated band) plus its pd-nudge — surfaced, never silently merged.
+        if let Some(band) = &self.guard_band {
+            let (lo, hi) = band.region;
+            blocks.push(Block::WrappedText {
+                text: format!(
+                    "⚠ predicted conflict — ‘{}’ (L{lo}–L{hi}): {} blocking",
+                    band.symbol, band.report.blocking
+                ),
+                tone: band.tone(), // Tone::Conflicted
+            });
+            if let Some(nudge) = self.blocking_nudge() {
+                blocks.push(Block::WrappedText { text: nudge.detail, tone: nudge.tone });
+            }
+        }
+
+        // Contender signal (HARD RULE 6): if the LOCAL caret sits inside a region held
+        // by another live claim, render a Tone::Gated chip — "claimed by <owner>" —
+        // offering handoff/parley/move. The first-granted claim wins; the contender
+        // negotiates or moves. The refusal wording names no bypass.
+        if let GuardVerdict::Gated(gated) = self.guard_verdict_for_line(self.local_presence.cursor_line) {
+            blocks.push(Block::Chip {
+                label: gated.nudge().headline,
+                tone: gated.tone(), // Tone::Gated
+            });
+            blocks.push(Block::WrappedText { text: gated.message(), tone: Tone::Gated });
         }
 
         for (i, line) in all_lines.iter().take(shown).enumerate() {
@@ -1238,5 +1418,175 @@ mod tests {
         assert!(pane_b.ingest_claim(&release), "the release changes B's ledger");
         assert!(pane_b.claim_ledger().is_empty(), "B's ledger clears after the release");
         assert_eq!(claim_flags(&pane_b.view()), 0, "the claim band is gone from B's view");
+    }
+
+    // ── P3 slice 2: the wedge (conflict prediction before a byte is written) ───
+
+    const BYPASS: [&str; 5] = ["--force", "--no-verify", "--allow", "bypass", "override"];
+
+    /// THE PANE-LEVEL HARD-RULE-2 PROOF: the wedge fires on a claim-ACQUIRE edge and
+    /// NOT on caret moves (keystrokes). A burst of `set_local_presence` (the stand-in
+    /// for typing) arms nothing; an `acquire_region_claim` arms exactly one probe whose
+    /// body carries the acquired symbol as a `modify` claim against the file path.
+    #[test]
+    fn wedge_probe_fires_on_acquire_not_on_caret_moves() {
+        let path = write_temp("wedge-probe.txt", "l1\nl2\nl3\nl4\nl5\n");
+        let mut pane = make_pane_as(&path, "port-daddy:editor:agent-A");
+
+        // 50 caret moves (keystrokes): none arms a predict — the machine-checked
+        // "debounced, never per-keystroke" at the pane boundary.
+        for col in 0..50u32 {
+            pane.set_local_presence(PresenceState::caret(2, col, 1, 5));
+            assert!(pane.take_wedge_probe(1_000 + col as i64).is_none(), "a caret move never arms a predict");
+        }
+
+        // A claim-acquire IS a coordination edge → exactly one due probe.
+        pane.acquire_region_claim(2, 4, "parse_header", 2_000);
+        let body = pane.take_wedge_probe(3_000).expect("an acquire arms a due probe");
+        assert_eq!(body["claimsA"][0]["symbolPath"], "parse_header");
+        assert_eq!(body["claimsA"][0]["type"], "modify", "the intended edit is a modify claim");
+        assert_eq!(body["claimsA"][0]["filePath"], path);
+        assert_eq!(body["claimsB"].as_array().unwrap().len(), 0, "no other live claims yet");
+
+        // Nothing newly armed → no further predict (quiet).
+        assert!(pane.take_wedge_probe(3_100).is_none(), "no new edge → no predict");
+    }
+
+    /// A remote actor's live claim shows up in `claimsB` — the wedge predicts the local
+    /// intent against the OTHER actors' claims, never its own.
+    #[test]
+    fn wedge_probe_body_carries_other_actors_claims_as_claimsB() {
+        let path = write_temp("wedge-b.txt", "l1\nl2\nl3\nl4\nl5\n");
+        let mut pane = make_pane_as(&path, "port-daddy:editor:agent-A");
+
+        // A remote actor B claims parse_header (L2–4); A folds it in.
+        let mut other = make_pane_as(&path, "port-daddy:console:human-B");
+        let b_frame = other.acquire_region_claim(2, 4, "parse_header", 500);
+        assert!(pane.ingest_claim(&b_frame));
+
+        // A now acquires the SAME symbol — the wedge probes A's modify against B's claim.
+        pane.acquire_region_claim(2, 4, "parse_header", 1_000);
+        let body = pane.take_wedge_probe(1_500).expect("probe due");
+        let claims_b = body["claimsB"].as_array().unwrap();
+        assert_eq!(claims_b.len(), 1, "B's live claim is the contended set");
+        assert_eq!(claims_b[0]["symbolPath"], "parse_header");
+        // A's own claim is NOT in claimsB (you do not conflict with yourself).
+        assert_eq!(body["claimsA"].as_array().unwrap().len(), 1);
+    }
+
+    /// THE PANE-LEVEL WEDGE PROOF: a daemon `blocking` prediction raises a
+    /// Tone::Conflicted band + a bypass-free pd-nudge (surfaced, NOT merged); re-
+    /// confirming the SAME conflict does not repaint (no pulse restart — HARD RULE 3);
+    /// a later CLEAR prediction drops the band.
+    #[test]
+    fn blocking_predict_raises_a_conflicted_band_and_nudge_then_clears() {
+        let path = write_temp("wedge-band.txt", "l1\nl2\nl3\nl4\nl5\n");
+        let mut pane = make_pane_as(&path, "port-daddy:editor:agent-A");
+
+        pane.acquire_region_claim(2, 4, "parse_header", 1_000);
+        let _ = pane.take_wedge_probe(1_400).expect("probe due");
+
+        let blocking = serde_json::json!({
+            "success": true, "count": 1, "blocking": 1, "warnings": 0, "info": 0,
+            "conflicts": [{ "severity": "blocking" }],
+        });
+        assert!(pane.apply_conflict_report(&blocking, 1_500), "a blocking report raises the band");
+        assert!(pane.guard_band().is_some());
+
+        // A Tone::Conflicted band + a bypass-free nudge render.
+        let blocks = pane.view();
+        assert!(
+            blocks.iter().any(|b| matches!(b, Block::WrappedText { tone: Tone::Conflicted, text } if text.contains("parse_header"))),
+            "a Conflicted guard band renders in the view"
+        );
+        let nudge = pane.blocking_nudge().expect("a pd-nudge accompanies the band");
+        assert_eq!(nudge.tone, Tone::Conflicted);
+        for tok in BYPASS {
+            assert!(!nudge.detail.to_lowercase().contains(tok), "the blocking nudge advertises no bypass (‘{tok}’)");
+        }
+
+        // Re-confirming the SAME conflict does not repaint (the pulse is not restarted).
+        pane.acquire_region_claim(2, 4, "parse_header", 2_000);
+        let _ = pane.take_wedge_probe(2_400).expect("probe due again");
+        assert!(!pane.apply_conflict_report(&blocking, 2_500), "re-confirming the same conflict does not repaint");
+
+        // A later CLEAR predict (moving to a conflict-free region) drops the band.
+        pane.acquire_region_claim(7, 8, "write_footer", 3_000);
+        let _ = pane.take_wedge_probe(3_400).expect("probe due");
+        let clear = serde_json::json!({ "success": true, "count": 0, "conflicts": [] });
+        assert!(pane.apply_conflict_report(&clear, 3_500), "a clear predict drops the band");
+        assert!(pane.guard_band().is_none(), "no band once the region is clear");
+    }
+
+    /// THE PANE-LEVEL HARD-RULE-6 PROOF: a contender whose caret sits INSIDE another
+    /// actor's live claim gets a Tone::Gated chip + a typed refusal that names
+    /// negotiation (handoff / parley / move) and NEVER a bypass. The first-granted owner
+    /// is never gated on its own region.
+    #[test]
+    fn contender_inside_anothers_claim_gets_a_gated_chip_no_bypass() {
+        let path = write_temp("wedge-gated.txt", "l1\nl2\nl3\nl4\nl5\n");
+        let mut pane_a = make_pane_as(&path, "port-daddy:editor:agent-A");
+        let mut pane_b = make_pane_as(&path, "port-daddy:console:human-B");
+
+        // A claims L2–4 (parse_header); B folds it in.
+        let frame = pane_a.acquire_region_claim(2, 4, "parse_header", 1_000);
+        assert!(pane_b.ingest_claim(&frame));
+
+        // B's caret sits at L3 — inside A's live claim. B is the contender.
+        pane_b.set_local_presence(PresenceState::caret(3, 0, 1, 5));
+        assert!(pane_b.guard_verdict_for_line(3).is_gated(), "L3 is held by A's first-granted claim");
+
+        let blocks = pane_b.view();
+        assert!(
+            blocks.iter().any(|b| matches!(b, Block::Chip { tone: Tone::Gated, .. })),
+            "a Gated contender chip renders on B"
+        );
+        let gated_msg = blocks
+            .iter()
+            .find_map(|b| match b {
+                Block::WrappedText { tone: Tone::Gated, text } => Some(text.clone()),
+                _ => None,
+            })
+            .expect("a gated refusal renders");
+        assert!(gated_msg.contains("handoff") && gated_msg.contains("parley"), "the refusal names negotiation");
+        for tok in BYPASS {
+            assert!(!gated_msg.to_lowercase().contains(tok), "the gated refusal names no bypass (‘{tok}’)");
+        }
+
+        // The OWNER is never gated on its own region (HARD RULE 6: first-granted wins).
+        pane_a.set_local_presence(PresenceState::caret(3, 0, 1, 5));
+        assert!(!pane_a.guard_verdict_for_line(3).is_gated(), "the owner is never gated on its own region");
+    }
+
+    /// THE COMMIT GATE (HARD RULE 7): committing an edit that overlaps another live
+    /// actor's claimed region is REFUSED with a typed, bypass-free verdict; an edit in a
+    /// disjoint adjacent region of the same file commits clear (region-scoped, never a
+    /// whole-file lock).
+    #[test]
+    fn commit_gate_refuses_edits_overlapping_a_live_claim_but_not_adjacent_ones() {
+        let big: String = (0..300).map(|i| format!("line {i}\n")).collect();
+        let path = write_temp("wedge-commit.txt", &big);
+        let mut pane_a = make_pane_as(&path, "port-daddy:editor:agent-A");
+        let mut pane_b = make_pane_as(&path, "port-daddy:console:human-B");
+
+        // A holds parse_header (L12–40); B folds it in.
+        let frame = pane_a.acquire_region_claim(12, 40, "parse_header", 1_000);
+        assert!(pane_b.ingest_claim(&frame));
+
+        // B tries to commit an edit overlapping A's region → refused, bypass-free.
+        let verdict = pane_b.commit_verdict(30, 45);
+        assert!(verdict.is_gated(), "a commit overlapping A's live claim is refused");
+        if let GuardVerdict::Gated(g) = &verdict {
+            let msg = g.message();
+            assert!(msg.contains("handoff") && msg.contains("parse_header"));
+            for tok in BYPASS {
+                assert!(!msg.to_lowercase().contains(tok), "the commit refusal names no bypass (‘{tok}’)");
+            }
+        }
+
+        // B committing a DISJOINT adjacent region (L200–260) of the same file is clear.
+        assert!(!pane_b.commit_verdict(200, 260).is_gated(), "an adjacent region commits clear (region-scoped)");
+        // A committing its OWN region is clear (first-granted owner is A).
+        assert!(!pane_a.commit_verdict(12, 40).is_gated(), "the owner commits its own region clear");
     }
 }
