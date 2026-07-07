@@ -101,9 +101,34 @@ export function describeResponseShape(res: unknown): string {
   const keys = Object.keys(o);
   // Surface a couple of high-signal fields if present (error text, output arity).
   const hints: string[] = [];
-  if (typeof o.errors !== 'undefined') hints.push(`errors=${JSON.stringify(o.errors).slice(0, 120)}`);
-  if (typeof o.error !== 'undefined') hints.push(`error=${JSON.stringify(o.error).slice(0, 120)}`);
+  if (typeof o.errors !== 'undefined') hints.push(`errors=${safeErrorHint(o.errors)}`);
+  if (typeof o.error !== 'undefined') hints.push(`error=${safeErrorHint(o.error)}`);
   if (Array.isArray(o.output)) hints.push(`output.len=${o.output.length}`);
   if (Array.isArray(o.choices)) hints.push(`choices.len=${o.choices.length}`);
   return `keys=[${keys.join(',')}]${hints.length ? ' ' + hints.join(' ') : ''}`;
+}
+
+/**
+ * Pull a short, human-legible message out of an unknown error value WITHOUT
+ * JSON.stringify — which can throw on BigInt / circular refs. This runs inside
+ * the already-degraded empty-response diagnostic path, so a throw here would
+ * crash the very diagnostic we need. Never throws; caps length.
+ */
+function safeErrorHint(value: unknown): string {
+  try {
+    if (typeof value === 'string') return value.slice(0, 120);
+    if (Array.isArray(value)) {
+      const first = value[0] as { message?: unknown } | undefined;
+      if (first && typeof first === 'object' && typeof first.message !== 'undefined') {
+        return String(first.message).slice(0, 120);
+      }
+      return `len=${value.length}`;
+    }
+    if (value && typeof value === 'object' && typeof (value as { message?: unknown }).message !== 'undefined') {
+      return String((value as { message?: unknown }).message).slice(0, 120);
+    }
+    return String(value).slice(0, 120);
+  } catch {
+    return '<unstringifiable>';
+  }
 }

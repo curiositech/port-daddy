@@ -72,4 +72,14 @@ describe('describeResponseShape — compact diagnostics for an empty/odd respons
     expect(describeResponseShape(undefined)).toBe('undefined');
     expect(describeResponseShape(42)).toBe('number');
   });
+
+  it('never throws on error values JSON.stringify would choke on (BigInt, circular)', () => {
+    // The diagnostic runs in the already-degraded empty-response path; a throw
+    // here would crash the very diagnostic we need. safeErrorHint avoids stringify.
+    expect(() => describeResponseShape({ error: 10n })).not.toThrow();
+    expect(describeResponseShape({ error: 10n })).toContain('error=10');
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    expect(() => describeResponseShape({ errors: circular })).not.toThrow();
+  });
 });
