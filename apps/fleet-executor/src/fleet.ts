@@ -67,13 +67,21 @@ function deriveIdeation(name: string, agentClass: unknown): boolean {
 // account — the fleet_run_steps transcript showed outputLength:0 for every MAP
 // chunk of every ship pinned to them, so all those ships silently produced no
 // findings/proposals → no comment → PASS. The whole fleet went dark. Only
-// `@cf/qwen/qwen2.5-coder-32b-instruct` returned real output. Until those ids
-// are confirmed working again, the qwen coder model is the default, and
-// {@link resolveCfModel} remaps any known-empty/unknown id onto it. (This is
-// the same class of failure the older github-app-receiver guarded against.)
-const WORKING_CF_MODEL = '@cf/qwen/qwen2.5-coder-32b-instruct'; // proven to return output
-const DEFAULT_CF_MODEL = WORKING_CF_MODEL;
-const CODER_CF_MODEL = WORKING_CF_MODEL;
+// `@cf/qwen/qwen2.5-coder-32b-instruct` returned real output.
+//
+// COST CANARY (2026-07-07): `qwen2.5-coder` is the PRICIEST qwen
+// ($0.66/$1.00 per M tok); `qwen3-30b-a3b-fp8` is ~13× cheaper input / ~3×
+// cheaper output ($0.051/$0.335) — see the Cloudflare pricing page. We move the
+// GENERAL/advisory default to qwen3-30b (a Qwen-family model, so very likely
+// returns output like its sibling), but keep the PROVEN qwen2.5-coder as both the
+// code-reviewer model AND the {@link resolveCfModel} guard fallback — so a
+// blocking reviewer and any unknown pin never go dark. This is a canary, not a
+// blind flip: advisory ships move now (a silent advisory ship is low-harm — no
+// false-green gate); once the transcript confirms qwen3-30b returns non-zero
+// output, a one-line follow-up flips CODER_CF_MODEL too.
+const WORKING_CF_MODEL = '@cf/qwen/qwen2.5-coder-32b-instruct'; // proven; guard fallback
+const DEFAULT_CF_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8'; // cheap; general/advisory ships
+const CODER_CF_MODEL = '@cf/qwen/qwen2.5-coder-32b-instruct'; // proven; code-reviewer (canary holdout)
 
 // Models allowed to reach ai.run verbatim. An id outside this set is remapped to
 // WORKING_CF_MODEL rather than passed through, because an empty-returning (or
@@ -143,20 +151,31 @@ function coerceTemperature(value: unknown): number | null {
 }
 
 /**
+ * Blocking gate-keepers that stay on the PROVEN coder model during the qwen3-30b
+ * cost canary — a ship whose objection can fail the merge must not risk going
+ * dark on an unverified model. Everything else (advisory reviewers + ideation)
+ * moves to the cheap default.
+ */
+function staysOnProvenCoder(name: string): boolean {
+  return name.includes('reviewer') || name === 'red-team';
+}
+
+/**
  * Derive the Cloudflare Workers AI model for a ship:
- *   1. the first `fallbacks[].model` that starts with `@cf/`, else
- *   2. a name-based default (coder model for *reviewer* ships, general otherwise).
+ *   1. Honor the first `@cf/` fallback IF it is known-good (returns real output).
+ *   2. Otherwise (an empty/unknown pin like gpt-oss-120b / kimi-k2.7-code, or no
+ *      `@cf/` pin) → a name-based default: the proven coder model for blocking
+ *      gate-keepers, the cheap {@link DEFAULT_CF_MODEL} (qwen3-30b) for everyone
+ *      else. This is the cost canary — see the model-constant note above.
  */
 function deriveCfModel(agent: RawAgent, name: string): string {
   for (const fb of agent.fallbacks ?? []) {
     if (typeof fb?.model === 'string' && fb.model.startsWith('@cf/')) {
-      // Guard the pinned id: a pd-fleet.yml pin of an empty-returning model
-      // (gpt-oss-120b / kimi-k2.7-code today) is remapped to a working one so
-      // the ship still produces output.
-      return resolveCfModel(fb.model);
+      if (KNOWN_GOOD_CF_MODELS.has(fb.model)) return fb.model; // explicit, verified pin
+      break; // first @cf pin is empty/unknown → fall through to the name default
     }
   }
-  return name.includes('reviewer') ? CODER_CF_MODEL : DEFAULT_CF_MODEL;
+  return staysOnProvenCoder(name) ? CODER_CF_MODEL : DEFAULT_CF_MODEL;
 }
 
 function deriveNeedsExecution(name: string, allowedTools: unknown): boolean {
