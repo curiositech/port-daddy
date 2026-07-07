@@ -360,6 +360,28 @@ export function renderFleetContext(openPRs: OpenPR[], branches: string[]): strin
 // ---------------------------------------------------------------------------
 // Commenting
 
+/** GitHub rejects issue-comment bodies longer than this (422). */
+const GITHUB_COMMENT_MAX = 65536;
+
+/**
+ * Cap a comment body to GitHub's hard limit. A body that would 422 is truncated
+ * with a marker, and the ship's machine tag is re-appended so edit-in-place
+ * (which locates the comment by that tag) still works. Belt-and-suspenders: the
+ * renderers already bound their output, but a pathological findings set (or the
+ * raw-output fallback on a malformed block) must never fail the POST outright.
+ */
+function capBody(body: string, tag: string): string {
+  if (body.length <= GITHUB_COMMENT_MAX) return body;
+  const marker = `\n\n…truncated (exceeded GitHub's ${GITHUB_COMMENT_MAX}-char limit)\n\n${tag}`;
+  // Pathological: a marker (dominated by `tag`) at/over the limit would make the
+  // slice length <= 0 and could drop the edit-in-place tag. Fall back to a hard
+  // slice that still preserves the tag at the very end.
+  if (marker.length >= GITHUB_COMMENT_MAX) {
+    return body.slice(0, Math.max(0, GITHUB_COMMENT_MAX - tag.length - 1)) + '\n' + tag;
+  }
+  return body.slice(0, GITHUB_COMMENT_MAX - marker.length) + marker;
+}
+
 export async function postShipComment(
   owner: string,
   repo: string,
@@ -372,7 +394,10 @@ export async function postShipComment(
   if (!body.trim()) return;
 
   const tag = `<!-- pd-ship:${shipHandle} -->`;
-  const commentBody = `**[pd-${shipHandle}]** ${shipRole}\n\n${body}\n\n${tag}`;
+  const commentBody = capBody(
+    `**[pd-${shipHandle}]** ${shipRole}\n\n${body}\n\n${tag}`,
+    tag,
+  );
 
   // Look for an existing comment with our tag to edit in place (idempotent on
   // retry: the same deliveryId re-running edits, never duplicates).

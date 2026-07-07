@@ -18,6 +18,7 @@
  */
 
 import type { Severity } from './verdict.js';
+import { htmlCommentSafeJson } from './machine-block.js';
 
 // ---------------------------------------------------------------------------
 
@@ -322,7 +323,7 @@ export function renderProposalComment(proposals: Proposal[], ctx: ProposalRender
   // roadmap-kind proposals without re-parsing the prose. Forward-compatible with
   // the receiver's `pd-ideas-json` convention.
   const machine =
-    `\n\n<!-- pd-proposals-json\n${JSON.stringify(
+    `\n\n<!-- pd-proposals-json\n${htmlCommentSafeJson(
       proposals.map((p, i) => ({ n: i + 1, ...p })),
     )}\n-->`;
 
