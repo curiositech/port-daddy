@@ -1732,6 +1732,13 @@ pub struct ConsoleView {
     /// submits, Escape cancels.
     command: Option<CommandLine>,
     pane_blocks: Vec<Vec<Block>>,
+    /// The producer's LIVE Harbor Editor blocks (P3 wire stage 2): `(bound_path,
+    /// view())` folded from the background edit-sync + coordination lanes — presence
+    /// cursors, region claims, and the wedge conflict/gate bands. `None` until an editor
+    /// surface opens. `blocks_for_surface` prefers these (when the bound path matches)
+    /// over a cold synchronous load, so the running window shows the LIVE wedge — not a
+    /// static file re-read that never saw the collaboration lanes.
+    editor_blocks: Option<(String, Vec<Block>)>,
     daemon_url: String,
     /// Provider→tier→model map, loaded from config (not compiled-in), so the
     /// Spawn picker resolves models that can change without a rebuild.
@@ -1855,6 +1862,7 @@ impl ConsoleView {
             leader_armed: false,
             command: None,
             pane_blocks,
+            editor_blocks: None,
             daemon_url,
             catalog: ModelCatalog::load(),
             focus_handle: cx.focus_handle(),
@@ -1962,6 +1970,17 @@ impl ConsoleView {
         // read is bounded by EditorPane's line cap, so this synchronous load can't
         // wedge the render; P2+ swaps the local read for a daemon/blob fetch.
         if let SurfaceKind::Editor { path, region } = surface {
+            // WIRE STAGE 2 — prefer the producer's LIVE editor pane: the background lane
+            // folds presence cursors, region claims, and wedge conflict/gate bands into
+            // it, and pushes its `view()` here on each edge. Use it only when its bound
+            // path matches this surface (guards a mid-rebind race to another file). When
+            // no editor is open yet — or the live snapshot is for a different file — fall
+            // back to a cold synchronous read so the file content still renders honestly.
+            if let Some((live_path, blocks)) = &self.editor_blocks {
+                if live_path == path {
+                    return blocks.clone();
+                }
+            }
             let identity = crate::editor_pane::resolve_operator_identity();
             let mut pane =
                 crate::editor_pane::EditorPane::new_with_identity(path.clone(), *region, identity);
@@ -2977,6 +2996,13 @@ impl ConsoleView {
             }
         }
         self.dispatch_head = dispatch_head;
+    }
+
+    /// Store the producer's latest LIVE editor blocks (P3 wire stage 2). The producer
+    /// sends only on a real fold edge (a bound-file change, a folded op/presence/claim,
+    /// or a cursor expiry), so the editor surface repaints on change, never on idle.
+    pub fn set_editor_blocks(&mut self, blocks: (String, Vec<Block>)) {
+        self.editor_blocks = Some(blocks);
     }
 
     /// The launch splash — a centered brand lockup (spinning radar mark + "Port Daddy") shown

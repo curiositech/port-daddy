@@ -715,6 +715,71 @@ impl Pane for EditorPane {
         let shown = total.min(MAX_LINES);
         let width = gutter_width(total);
 
+        // ── Conflicts float ABOVE the awareness housekeeping ──────────────────
+        // The wedge's urgent, actionable signals (a predicted-conflict band, a gated
+        // contender chip, the commit-gate verdict) render FIRST — before the authorship
+        // legend, presence cursors, and claim bands — so the operator sees "you cannot
+        // safely write here" at the top of the surface, never buried under the steady
+        // awareness flags (beautiful-gui-design: the loudest concern leads). Both faces
+        // paint these; the wedge state itself is folded on the producer thread, so this
+        // stays a pure, IO-free read of already-resolved state.
+
+        // P3 slice 2 — the WEDGE. If the daemon predicted a BLOCKING conflict for the
+        // region this replica is acquiring/entering, render a Tone::Conflicted guard
+        // band (the one-shot pulse lives in the gpui face; the render-agnostic shadow is
+        // this never-truncated band) plus its pd-nudge — surfaced, never silently merged.
+        if let Some(band) = &self.guard_band {
+            let (lo, hi) = band.region;
+            blocks.push(Block::WrappedText {
+                text: format!(
+                    "⚠ predicted conflict — ‘{}’ (L{lo}–L{hi}): {} blocking",
+                    band.symbol, band.report.blocking
+                ),
+                tone: band.tone(), // Tone::Conflicted
+            });
+            if let Some(nudge) = self.blocking_nudge() {
+                blocks.push(Block::WrappedText { text: nudge.detail, tone: nudge.tone });
+            }
+        }
+
+        // Contender signal (HARD RULE 6): if the LOCAL caret sits inside a region held
+        // by another live claim, render a Tone::Gated chip — "claimed by <owner>" —
+        // offering handoff/parley/move. The first-granted claim wins; the contender
+        // negotiates or moves. The refusal wording names no bypass.
+        if let GuardVerdict::Gated(gated) = self.guard_verdict_for_line(self.local_presence.cursor_line) {
+            blocks.push(Block::Chip {
+                label: gated.nudge().headline,
+                tone: gated.tone(), // Tone::Gated
+            });
+            blocks.push(Block::WrappedText { text: gated.message(), tone: Tone::Gated });
+        }
+
+        // The COMMIT-GATE verdict as a Block (HARD RULE 7, the on-screen `pd guard check
+        // --staged` for the live selection). When the operator has a real multi-line
+        // selection — an explicit "I am about to edit here" intent — surface whether that
+        // whole span could be committed: `Gated` names the contended owner with the same
+        // bypass-free refusal the daemon gate uses, `Clear` confirms the span is free. A
+        // bare caret emits nothing here (the caret chip above already covers one line), so
+        // this never adds noise when there is no staged region.
+        if self.local_presence.has_selection() {
+            let (lo, hi) = self.local_presence.selection_line_span();
+            match self.commit_verdict(lo, hi) {
+                GuardVerdict::Gated(g) => {
+                    blocks.push(Block::Chip {
+                        label: format!("commit gate: gated by {} · L{lo}–L{hi}", g.owner_label),
+                        tone: Tone::Gated,
+                    });
+                    blocks.push(Block::WrappedText { text: g.message(), tone: Tone::Gated });
+                }
+                GuardVerdict::Clear => {
+                    blocks.push(Block::Chip {
+                        label: format!("commit gate: clear · L{lo}–L{hi}"),
+                        tone: Tone::Landed,
+                    });
+                }
+            }
+        }
+
         // Legend: which tag is the operator vs an agent replica. Rendered as a
         // tone-bearing Flag so the authorship vocabulary is visible at a glance and
         // color carries meaning (Resting = you/opener, Engaged = an agent peer).
@@ -784,36 +849,6 @@ impl Pane for EditorPane {
                 label: format!("{who} — {} · L{lo}–L{hi}", claim.label),
                 tone: claim_tone(key.peer, opener),
             });
-        }
-
-        // P3 slice 2 — the WEDGE. If the daemon predicted a BLOCKING conflict for the
-        // region this replica is acquiring/entering, render a Tone::Conflicted guard
-        // band (the one-shot pulse lives in the gpui face; the render-agnostic shadow is
-        // this never-truncated band) plus its pd-nudge — surfaced, never silently merged.
-        if let Some(band) = &self.guard_band {
-            let (lo, hi) = band.region;
-            blocks.push(Block::WrappedText {
-                text: format!(
-                    "⚠ predicted conflict — ‘{}’ (L{lo}–L{hi}): {} blocking",
-                    band.symbol, band.report.blocking
-                ),
-                tone: band.tone(), // Tone::Conflicted
-            });
-            if let Some(nudge) = self.blocking_nudge() {
-                blocks.push(Block::WrappedText { text: nudge.detail, tone: nudge.tone });
-            }
-        }
-
-        // Contender signal (HARD RULE 6): if the LOCAL caret sits inside a region held
-        // by another live claim, render a Tone::Gated chip — "claimed by <owner>" —
-        // offering handoff/parley/move. The first-granted claim wins; the contender
-        // negotiates or moves. The refusal wording names no bypass.
-        if let GuardVerdict::Gated(gated) = self.guard_verdict_for_line(self.local_presence.cursor_line) {
-            blocks.push(Block::Chip {
-                label: gated.nudge().headline,
-                tone: gated.tone(), // Tone::Gated
-            });
-            blocks.push(Block::WrappedText { text: gated.message(), tone: Tone::Gated });
         }
 
         for (i, line) in all_lines.iter().take(shown).enumerate() {
@@ -1743,5 +1778,114 @@ mod tests {
         assert!(pane_z.staged_commit_gate(&[(100, 150)]).is_clear(), "the free gap commits clear (region-scoped)");
         // A staging into its OWN region clears (first-granted owner).
         assert!(pane_a.staged_commit_gate(&[(12, 40)]).is_clear(), "the owner commits its own region clear");
+    }
+
+    // ── WIRE STAGE 2: the headless-repl render proof ──────────────────────────
+
+    /// THE WIRE-STAGE-2 RENDER PROOF — the whole wedge, driven through the SAME
+    /// producer seams the running app (and the `:edit` repl drain) use, renders as
+    /// Blocks with the urgent conflict signals ABOVE the steady awareness housekeeping.
+    ///
+    /// We open an editor surface, then inject — via [`Pane::on_edit_frame`] /
+    /// [`Pane::on_coord_frame`], the exact fold hooks `drain_active_subscription` calls —
+    /// a remote presence cursor (edit-sync lane), a remote region claim (coordination
+    /// lane), and a daemon-predicted BLOCKING conflict (the wedge probe → report path).
+    /// Then we assert `view()` emits, IN ORDER: a `Tone::Conflicted` predicted-conflict
+    /// band, a `Tone::Gated` contender chip, the commit-gate verdict Block — all BEFORE
+    /// the first awareness `Flag` (authorship legend / presence 'C' / claim 'R'). No gpui
+    /// feature is touched, so this is the Linux-CI-safe twin of the gpui face's render.
+    #[test]
+    fn wired_editor_surface_renders_wedge_with_conflicts_above_housekeeping() {
+        let body: String = (0..25).map(|i| format!("line {i}\n")).collect();
+        let path = write_temp("wire-stage2.txt", &body);
+        let mut pane = make_pane_as(&path, "port-daddy:editor:agent-local");
+
+        // (1) Coordination lane: a REMOTE actor B claims parse_header (L10–20), granted
+        // first (t=100) so B is the first-granted owner and the local replica is the
+        // contender. Delivered through the producer's coord fold hook.
+        let mut actor_b = make_pane_as(&path, "port-daddy:console:human-B");
+        let b_claim = actor_b.acquire_region_claim(10, 20, "parse_header", 100);
+        Pane::on_coord_frame(&mut pane, &b_claim);
+        assert_eq!(pane.claim_ledger().len(), 1, "B's claim landed off the coordination lane");
+
+        // (2) Edit-sync lane: a DIFFERENT remote actor C's live cursor, delivered through
+        // the producer's edit fold hook (presence rides the multiplexed edit lane).
+        let c_cursor = remote_presence_frame(
+            "port-daddy:editor:agent-C",
+            PresenceState::caret(5, 0, 1, 25),
+        );
+        Pane::on_edit_frame(&mut pane, &c_cursor);
+        assert_eq!(pane.remote_cursors().len(), 1, "C's cursor pooled off the edit-sync lane");
+
+        // (3) The local operator selects L12–18 — inside B's claim — an explicit
+        // "about to edit here" intent that both gates the caret and the commit span.
+        pane.set_local_presence(PresenceState {
+            cursor_line: 12, cursor_col: 0, anchor_line: 18, anchor_col: 1, top_line: 1, bottom_line: 25,
+        });
+
+        // (4) The wedge: the local replica acquires the SAME symbol; the probe fires on
+        // that acquire edge and the daemon predicts a BLOCKING conflict → a band is raised.
+        pane.acquire_region_claim(10, 20, "parse_header", 200);
+        let _ = pane.take_wedge_probe(300).expect("the acquire armed a due probe");
+        let blocking = serde_json::json!({
+            "success": true, "count": 1, "blocking": 1, "warnings": 0, "info": 0,
+            "conflicts": [{ "severity": "blocking" }],
+        });
+        assert!(pane.apply_conflict_report(&blocking, 400), "the blocking prediction raised the band");
+
+        // ── The render assertions ─────────────────────────────────────────────
+        let blocks = pane.view();
+
+        // The predicted-conflict band (Tone::Conflicted), naming the contended symbol.
+        let conflicted_idx = blocks
+            .iter()
+            .position(|b| matches!(b, Block::WrappedText { tone: Tone::Conflicted, text } if text.contains("parse_header")))
+            .expect("a Tone::Conflicted predicted-conflict band renders");
+
+        // A Tone::Gated contender chip (the caret sits inside B's first-granted region).
+        assert!(
+            blocks.iter().any(|b| matches!(b, Block::Chip { tone: Tone::Gated, .. })),
+            "a Tone::Gated contender chip renders"
+        );
+
+        // The commit-gate verdict Block for the selection — GATED by B, bypass-free.
+        let commit_chip = blocks
+            .iter()
+            .find_map(|b| match b {
+                Block::Chip { tone: Tone::Gated, label } if label.contains("commit gate") => Some(label.clone()),
+                _ => None,
+            })
+            .expect("the commit-gate verdict renders as a Block for the staged selection");
+        assert!(commit_chip.contains("gated by"), "the commit-gate Block names the contended owner");
+
+        // Housekeeping awareness is present: a presence 'C' flag AND a claim 'R' flag.
+        let first_flag_idx = blocks
+            .iter()
+            .position(|b| matches!(b, Block::Flag { .. }))
+            .expect("awareness legend/presence/claim flags render as housekeeping");
+        assert_eq!(cursor_flags(&blocks), 1, "C's presence flag renders");
+        assert!(claim_flags(&blocks) >= 1, "the claim band(s) render");
+
+        // THE ORDERING INVARIANT: every conflict signal is ABOVE the first awareness
+        // Flag — the loudest concern leads, never buried under steady housekeeping.
+        assert!(
+            conflicted_idx < first_flag_idx,
+            "the predicted-conflict band must render ABOVE the awareness housekeeping flags"
+        );
+        for (i, b) in blocks.iter().enumerate() {
+            if matches!(b, Block::Chip { tone: Tone::Gated, .. } | Block::WrappedText { tone: Tone::Gated, .. }) {
+                assert!(i < first_flag_idx, "gated conflict Blocks render above the housekeeping flags");
+            }
+        }
+
+        // No refusal on screen advertises a bypass (HARD RULE 5) — scan every Gated text.
+        for b in &blocks {
+            if let Block::WrappedText { tone: Tone::Gated, text } = b {
+                let lower = text.to_lowercase();
+                for tok in BYPASS {
+                    assert!(!lower.contains(tok), "an on-screen refusal must name no bypass (‘{tok}’): {text}");
+                }
+            }
+        }
     }
 }

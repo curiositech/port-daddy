@@ -352,6 +352,11 @@ fn main() {
         // executor) and pushes replies/errors back here for the foreground to fold
         // into the chat transcript. Real daemon traffic, never a fake.
         let (chat_tx, chat_rx) = mpsc::channel::<chat::ChatUpdate>();
+        // The Harbor Editor's LIVE blocks (P3 wire stage 2): the producer folds the
+        // edit-sync + coordination lanes into its persistent EditorPane, then pushes
+        // `(bound_path, view())` here on each fold edge for the foreground to surface on
+        // the Editor surface — the wedge finally shows in the RUNNING window.
+        let (editor_tx, editor_rx) = mpsc::channel::<(String, Vec<pane::Block>)>();
         let url = daemon_url.clone();
         std::thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
@@ -1098,6 +1103,11 @@ fn main() {
                     // each tick ages out a peer that went quiet. view() rendering is
                     // unchanged here; surfacing these Blocks is wire stage 2.
                     if let Some(ed) = editor.as_mut() {
+                        // Edge-triggered: `editor_dirty` becomes true only when the bound
+                        // file (re)binds or a real frame folds a change, so wire stage 2
+                        // pushes view() to the foreground on a paint EDGE — an idle editor
+                        // with live cursors sends nothing (the P2 discipline, carried here).
+                        let mut editor_dirty = false;
                         match ed.subscription() {
                             Some(pane::Subscription::Editor { channel, coord_channel }) => {
                                 let reopen = match &editor_stream {
@@ -1108,6 +1118,7 @@ fn main() {
                                     let edit_rx = client.subscribe_channel(&channel);
                                     let coord_rx = client.subscribe_channel(&coord_channel);
                                     editor_stream = Some((channel, edit_rx, coord_rx));
+                                    editor_dirty = true; // a freshly (re)bound file paints once
                                 }
                             }
                             // A not-yet-loaded / errored editor pane has no buffer to fold
@@ -1115,14 +1126,22 @@ fn main() {
                             _ => editor_stream = None,
                         }
                         if let Some((_, edit_rx, coord_rx)) = editor_stream.as_mut() {
+                            // The bool-returning inherent folds report the change edge the
+                            // trait hooks discard; OR it into `editor_dirty` so a folded op /
+                            // presence cursor / region claim triggers exactly one repaint.
                             while let Ok(msg) = edit_rx.try_recv() {
-                                ed.on_edit_frame(&msg.text);
+                                editor_dirty |= ed.ingest_edit_channel(&msg.text);
                             }
                             while let Ok(msg) = coord_rx.try_recv() {
-                                ed.on_coord_frame(&msg.text);
+                                editor_dirty |= ed.ingest_claim(&msg.text);
                             }
                         }
-                        ed.expire_presence();
+                        editor_dirty |= ed.expire_presence();
+                        // Surface the folded pane on the edge — presence cursors, claim
+                        // bands, and the wedge conflict/gate Blocks now flow to the window.
+                        if editor_dirty {
+                            let _ = editor_tx.send((ed.path_str().to_string(), ed.view()));
+                        }
                     }
 
                     // Poll the operator-chat channel for replies down the tube. Only
@@ -1222,6 +1241,18 @@ fn main() {
                         let _ = async_cx.update(|app| {
                             let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
                                 view.apply_chat_update(update.clone());
+                                cx.notify();
+                            });
+                        });
+                    }
+                    // Drain the Harbor Editor bus (P3 wire stage 2): the producer's live
+                    // pane blocks — presence cursors, region claims, wedge conflict/gate
+                    // bands — folded into the Editor surface so the running window paints
+                    // the collaboration state, not a cold file re-read.
+                    while let Ok(editor_blocks) = editor_rx.try_recv() {
+                        let _ = async_cx.update(|app| {
+                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                                view.set_editor_blocks(editor_blocks.clone());
                                 cx.notify();
                             });
                         });
