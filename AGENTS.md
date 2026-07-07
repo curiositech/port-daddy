@@ -146,6 +146,17 @@ checklist. These extend (don't repeat) `## Port Daddy First`, `## Skill maintena
 is part of every slice`, `## Operator UX Expectations`, and `## Writing Technical
 Documents`.
 
+- **Never assert a competitor/platform claim without researching and citing it
+  (operator directive, VERY IMPORTANT).** Before you state what a competitor or
+  external platform can or can't do — a Cloudflare/OpenAI/GitHub feature,
+  a model's price, an API's shape — research it against the live source and
+  include the citation URL. Do not answer from memory or stale receiver code; both
+  go out of date. Two real misses this rule exists to prevent: claiming Workers AI
+  "has no prompt caching" (it does — prefix caching, per
+  <https://developers.cloudflare.com/workers-ai/features/prompt-caching/>), and
+  quoting `@cf/qwen/qwen2.5-coder-32b` at "$0.09" when the
+  [pricing page](https://developers.cloudflare.com/workers-ai/platform/pricing/)
+  says $0.66/$1.00. If you can't cite it, say you're unsure and go look.
 - **Coordinate, and pay rent.** Work in a clean linked worktree off
   `origin/main` (§ Create / Update / Land), never the operator's main checkout.
   `pd begin --identity … --lifecycle durable` → scope `pd note` → `pd session

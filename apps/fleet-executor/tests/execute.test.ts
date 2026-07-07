@@ -54,6 +54,22 @@ const REVIEWER_PLUS_QA_YAML = fleetYaml([
   { name: 'qa', blocking: false },
 ]);
 
+/**
+ * A reviewer-ship output carrying a REAL findings block, so it renders to a
+ * posted comment. Reviewer ships with no findings now render to silence (the
+ * red-team `[]` fix), so tests that assert a comment WAS posted must give the
+ * ship something to find.
+ */
+function reviewWithFinding(verdict: 'PASS' | 'BLOCK' = 'PASS', body = 'finding'): string {
+  return [
+    '```json',
+    JSON.stringify([{ path: 'src/a.ts', line: 1, severity: 'MEDIUM', body }]),
+    '```',
+    '',
+    `FLEET-VERDICT: ${verdict}`,
+  ].join('\n');
+}
+
 /** Seed a KV cache hit so the orchestrator never mints (avoids real crypto). */
 function seedToken(kv: KVNamespace, installationId: number): void {
   void (kv as KVNamespace).put(
@@ -147,7 +163,7 @@ describe('blocking-ship verdict → check conclusion', () => {
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({
-      perShip: { 'code-reviewer': 'x', 'qa': 'gaps\n\nFLEET-VERDICT: PASS' },
+      perShip: { 'code-reviewer': 'x', 'qa': reviewWithFinding('PASS', 'gap') },
       throwForShip: 'code-reviewer',
     }).ai;
 
@@ -335,8 +351,8 @@ describe('non-blocking ship semantics', () => {
     seedToken(kv, 42);
     const ai = aiStub({
       perShip: {
-        'code-reviewer': 'clean\n\nFLEET-VERDICT: PASS',
-        'qa': 'missing tests\n\nFLEET-VERDICT: BLOCK',
+        'code-reviewer': reviewWithFinding('PASS', 'clean-ish nit'),
+        'qa': reviewWithFinding('BLOCK', 'missing tests'),
       },
     }).ai;
 
@@ -374,7 +390,7 @@ describe('idempotent re-run', () => {
     const kv = memoryKV();
     seedToken(kv, 42);
     const mkAi = () =>
-      aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } }).ai;
+      aiStub({ perShip: { 'code-reviewer': reviewWithFinding('PASS') } }).ai;
 
     const job = makeJob();
     await executeFleet(job, makeEnv({ FLEET_TOKENS: kv, AI: mkAi() }));
@@ -578,7 +594,7 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     seedToken(kv, 42);
     const ai = aiStub({
       perShip: {
-        'code-reviewer': 'HIGH bug\n\nFLEET-VERDICT: BLOCK',
+        'code-reviewer': reviewWithFinding('BLOCK', 'HIGH bug'),
         spider: '```json\n' + JSON.stringify([
           { title: 'Adjacent work', rationale: 'why', evidence: ['x'], action: 'roadmap' },
         ]) + '\n```\nFLEET-VERDICT: PASS',
