@@ -2052,14 +2052,14 @@ _port_daddy() {
       esac
       ;;
 
-    # parley call|respond|resolve|list|show|fit
+    # parley call|propose|critique|revise|agree|refuse|say|respond|resolve|list|show|fit
     parley)
       local subcmd="${words[2]:-}"
       case "$subcmd" in
         call)
           _pd_opts '--surface --with --parties --reason --ttl-ms --round-limit --harbor --as --json --quiet'
           ;;
-        respond)
+        respond|propose|critique|revise|agree|refuse|say)
           _pd_opts '--id --parley --performative --content --proposal --evidence --as --party --json --quiet'
           ;;
         resolve)
@@ -2075,7 +2075,7 @@ _port_daddy() {
           if [[ "$cur" == -* ]]; then
             _pd_opts '--json --quiet'
           else
-            COMPREPLY=( $(compgen -W "call respond resolve list show fit help" -- "$cur") )
+            COMPREPLY=( $(compgen -W "call propose critique revise agree refuse say respond resolve list show fit help" -- "$cur") )
           fi
           ;;
       esac

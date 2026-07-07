@@ -2000,7 +2000,7 @@
       }
     },
     "parley": {
-      "description": "Tuple-backed forced reconciliation primitive for overlapping agents. `pd parley fit` evaluates whether a task deserves multi-agent decomposition; `pd parley call/respond/resolve/list/show` records a bounded SUMMONED\u2192CONVENED\u2192COLLAPSED|ESCALATED|VOIDED dialogue around a contested surface.",
+      "description": "Tuple-backed forced reconciliation primitive for overlapping agents. `pd parley fit` evaluates whether a task deserves multi-agent decomposition; `pd parley call/respond/resolve/list/show` records a bounded SUMMONED→CONVENED→COLLAPSED|ESCALATED|VOIDED dialogue around a contested surface. Turn verbs (`pd parley propose/critique/revise/agree/refuse/say <id> <content>`) are respond sugar with identity inferred from the active session; every turn fans out to the other participants’ inboxes (pd attention), and `pd parley show` records a read receipt so the seen list shows who is behind.",
       "cli": [
         "parley"
       ],
