@@ -189,6 +189,11 @@ Work Receipt:
   the story-linework design constitution — palette v2, IBM Plex + Recursive,
   fractional linework, one color zone per view, the rule-8 state grammar, and
   the normative surface mocks in `docs/design/story-linework/apps.html`.
+- [21 Automations: The Trigger-To-Agent App](./21-automations.md):
+  the event-trigger automation loop as its own surface: plain-English wiring
+  written by agents, trigger→plan→sink graphs gated at consent, Work Receipts
+  per firing, the standing `Automation` record over F0 v0 contracts, inherited
+  trust/receiver discipline, the gallery shape, and proof gates IT-019..IT-022.
 - [24 Cross-Platform And The Windows Track](./24-crossplatform.md):
   Windows as a named gate, not an omission: what is platform-neutral now
   (daemon/CLI/SDK/Scout/GitHub-App/web) versus the port (native surfaces,
