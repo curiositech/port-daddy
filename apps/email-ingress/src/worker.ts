@@ -23,7 +23,7 @@ import PostalMime from 'postal-mime';
 import { createMimeMessage } from 'mimetext';
 import { EmailMessage } from 'cloudflare:email';
 import { buildInboundEnvelope, postWithRetry, signBody, verifySignature } from './envelope.js';
-import { dlqDepth, replayDlq, stashEnvelope, type KVLike } from './dlq.js';
+import { dlqDepth, replayDlq, stashEnvelope, DLQ_ALERT_THRESHOLD, type KVLike } from './dlq.js';
 
 export interface EmailIngressEnv {
   /** Daemon (or tunnel) base URL for inbound envelope delivery. */
@@ -133,6 +133,13 @@ export default {
         if (result.scanned > 0) {
           console.log(`dlq replay: ${result.delivered} delivered, ${result.kept} kept of ${result.scanned}`);
         }
+        // Alert (not just observe): a backlog this deep after a replay pass
+        // means the daemon has been unreachable long enough to warrant a look.
+        // No PII — a count only. Surfaces the same signal /healthz `dlqAlert`
+        // exposes, so an external monitor OR the Worker log both catch it.
+        if (result.kept >= DLQ_ALERT_THRESHOLD) {
+          console.error(`dlq ALERT: ${result.kept} envelopes undelivered after replay (>= ${DLQ_ALERT_THRESHOLD}); daemon likely unreachable`);
+        }
       }),
     );
   },
@@ -150,6 +157,9 @@ export default {
         inbound: Boolean(env.PD_FORWARD_URL && env.PD_EMAIL_INBOUND_SECRET),
         outbound: Boolean(env.SEND_EMAIL && env.PD_EMAIL_WORKER_SECRET && env.PD_EMAIL_FROM),
         dlqDepth: dlq,
+        // Monitor hook: an external health check can page on this without
+        // needing to know the threshold. Null-safe when the DLQ is unbound.
+        dlqAlert: dlq !== null && dlq >= DLQ_ALERT_THRESHOLD,
       });
     }
 
