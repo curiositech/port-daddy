@@ -11,16 +11,21 @@ and must clear an operator approval gate before it can spawn — see ADR-0093. R
 ## 0. One-time: deploy the email-ingress Worker (only if you use email)
 
 The Worker deploys under **OAuth wrangler**, not a repo API token (the repo token lacks the
-Email Routing binding scope). From `apps/email-ingress/`:
+Email Routing binding scope). **`cd` into the Worker dir first** — running `wrangler deploy`
+from the repo root makes wrangler misdetect the repo as a static site and fail on `npx hugo`.
+Keep the `cd` in the command so it can't run from the wrong place:
 
 ```bash
-env -u CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID=1f7b49a13841037a867d879bd01af641 \
+cd apps/email-ingress && \
+  env -u CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID=1f7b49a13841037a867d879bd01af641 \
   npx wrangler@4.107.0 deploy
 ```
 
-Bind a KV namespace named `ENVELOPE_DLQ` (dead-letter durability) in `wrangler.toml` before
-deploying — without it, envelopes that fail to reach the daemon during an outage are lost
-instead of replayed. Confirm health after deploy:
+`apps/email-ingress/wrangler.toml` (gitignored, account-scoped) must exist with a real
+`account_id` and a bound KV namespace named `ENVELOPE_DLQ` (dead-letter durability) — copy it
+from `wrangler.toml.example` and fill both if it's missing; without the KV binding, envelopes
+that fail to reach the daemon during an outage are lost instead of replayed. Confirm health
+after deploy:
 
 ```bash
 curl -s https://<your-worker>.workers.dev/healthz | jq
