@@ -3218,14 +3218,14 @@ const TOOLS = [
       type: 'object' as const,
       properties: {
         session_id: { type: 'string', description: 'Session ID' },
+        agent_id: { type: 'string', description: 'Acting agent identity (required — the daemon authorizes the claim on it)' },
         path: { type: 'string', description: 'File path the region lives in' },
         start_line: { type: 'number', description: 'First claimed line, 1-based inclusive' },
         end_line: { type: 'number', description: 'Last claimed line, 1-based inclusive' },
         symbol: { type: 'string', description: 'The work symbol/label for this region (e.g. "parse_header")' },
         symbol_path: { type: 'string', description: 'Optional canonical tree-sitter symbol path' },
-        kind: { type: 'string', enum: ['read', 'modify'], description: 'Claim intent (default modify)' },
       },
-      required: ['session_id', 'path', 'start_line', 'end_line', 'symbol'],
+      required: ['session_id', 'agent_id', 'path', 'start_line', 'end_line', 'symbol'],
     },
   },
   {
@@ -3237,12 +3237,13 @@ const TOOLS = [
       type: 'object' as const,
       properties: {
         session_id: { type: 'string', description: 'Session ID' },
+        agent_id: { type: 'string', description: 'Acting agent identity (required — the daemon authorizes the release on it)' },
         path: { type: 'string', description: 'File path the region lives in' },
         start_line: { type: 'number', description: 'First claimed line, 1-based inclusive' },
         end_line: { type: 'number', description: 'Last claimed line, 1-based inclusive' },
         symbol_path: { type: 'string', description: 'Optional canonical tree-sitter symbol path' },
       },
-      required: ['session_id', 'path', 'start_line', 'end_line'],
+      required: ['session_id', 'agent_id', 'path', 'start_line', 'end_line'],
     },
   },
 ];

@@ -205,7 +205,13 @@ export interface ClaimRegionArgs {
   end_line: number;
   symbol: string;
   symbol_path?: string;
-  kind?: 'read' | 'modify';
+  /**
+   * The acting agent identity — REQUIRED. `POST /sessions/:id/files` authorizes the
+   * mutation on `agentId` (body or `x-agent-id` header) and rejects a missing one with
+   * `SESSION_AGENT_REQUIRED`; the MCP transport has no header seam, so it is forwarded in
+   * the body. Opaque + agent-neutral: any backend's identity string, never inspected.
+   */
+  agent_id: string;
 }
 
 /** Tool args for `release_region` — releasing one previously claimed region. */
@@ -215,6 +221,8 @@ export interface ReleaseRegionArgs {
   start_line: number;
   end_line: number;
   symbol_path?: string;
+  /** The acting agent identity — REQUIRED, same reason as {@link ClaimRegionArgs.agent_id}. */
+  agent_id: string;
 }
 
 /** The `{ sessionId, body }` a `claim_region` maps to on `POST /sessions/:id/files`. */
@@ -235,6 +243,7 @@ export function claimRegionRequest(args: ClaimRegionArgs): RegionRequest {
   return {
     sessionId: args.session_id,
     body: {
+      agentId: args.agent_id,
       regions: [
         {
           path: args.path,
@@ -253,6 +262,7 @@ export function releaseRegionRequest(args: ReleaseRegionArgs): RegionRequest {
   return {
     sessionId: args.session_id,
     body: {
+      agentId: args.agent_id,
       regions: [
         {
           path: args.path,

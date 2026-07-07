@@ -75,21 +75,25 @@ describe('the MCP claim tools carry no Claude-specific branch (HARD RULE 4)', ()
     }
   });
 
-  test('request builders are identity-blind — a Claude, a Codex, and a human get byte-identical bodies', () => {
+  test('request builders are identity-blind — the region payload never depends on the backend, and the agent id is forwarded verbatim', () => {
     const base = { path: 'core/pd-console/src/mux.rs', start_line: 12, end_line: 40, symbol: 'parse_header' };
-    // Only the session_id (an opaque string) differs; the backend must never change the body.
-    const asClaude = claimRegionRequest({ session_id: 'claude-agent-1', ...base });
-    const asCodex = claimRegionRequest({ session_id: 'codex-agent-1', ...base });
-    const asHuman = claimRegionRequest({ session_id: 'human-alice', ...base });
-    // The bodies (region payloads) are identical across backends; only sessionId varies.
-    expect(asCodex.body).toEqual(asClaude.body);
-    expect(asHuman.body).toEqual(asClaude.body);
-    expect(asClaude.sessionId).toBe('claude-agent-1');
-    expect(asCodex.sessionId).toBe('codex-agent-1');
-    // Release is likewise identity-blind.
-    const relA = releaseRegionRequest({ session_id: 'claude-x', ...base });
-    const relB = releaseRegionRequest({ session_id: 'codex-x', ...base });
-    expect(relB.body).toEqual(relA.body);
+    // The agent_id is an OPAQUE identity: it is forwarded verbatim (the daemon authorizes
+    // on it), never inspected to fork behaviour. So the REGION payload must be identical
+    // across backends, and agentId must equal exactly what was passed.
+    const asClaude = claimRegionRequest({ session_id: 's1', agent_id: 'claude-agent-1', ...base });
+    const asCodex = claimRegionRequest({ session_id: 's1', agent_id: 'codex-agent-1', ...base });
+    const asHuman = claimRegionRequest({ session_id: 's1', agent_id: 'human-alice', ...base });
+    expect(asCodex.body.regions).toEqual(asClaude.body.regions); // region payload backend-independent
+    expect(asHuman.body.regions).toEqual(asClaude.body.regions);
+    expect(asClaude.body.agentId).toBe('claude-agent-1'); // forwarded verbatim, not transformed
+    expect(asCodex.body.agentId).toBe('codex-agent-1');
+    expect(asHuman.body.agentId).toBe('human-alice');
+    // Release is likewise identity-blind and forwards the agent id.
+    const relClaude = releaseRegionRequest({ session_id: 's1', agent_id: 'claude-x', ...base });
+    const relCodex = releaseRegionRequest({ session_id: 's1', agent_id: 'codex-x', ...base });
+    expect(relCodex.body.regions).toEqual(relClaude.body.regions);
+    expect(relClaude.body.agentId).toBe('claude-x');
+    expect(relCodex.body.agentId).toBe('codex-x');
   });
 
   test('the region preflight verdict does not depend on the contender’s backend', () => {
