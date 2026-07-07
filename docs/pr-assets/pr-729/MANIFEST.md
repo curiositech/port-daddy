@@ -4,6 +4,13 @@ Provenance manifest for the Harbor Editor **wedge** artifacts, per the
 `agent-visual-evidence-manifest` skill. Every artifact below carries the six
 required fields and an **honest** `sourceLabel`.
 
+> **Two SHAs, on purpose.** Each artifact's `commit` field is
+> `8a0f4ead9` — the **code under review** whose wedge these pixels depict (PR #729
+> HEAD). The image/webm bytes are hosted in a **pure-additive** commit
+> `8e948fdec` on top of `8a0f4ead9` (it only adds `docs/pr-assets/` + one
+> `examples/` harness; the wedge surface is byte-identical at both), so the raw
+> URLs pin to `8e948fdec` — the commit where the files actually exist.
+
 ## What these artifacts show
 
 The in-editor wedge (P2 presence + P3 region-claim bands / conflict guard /
@@ -68,7 +75,7 @@ State is seeded **in-process** — no daemon, no network — hence `sourceLabel:
 ## Artifact 1 — `wedge-editor-face.png` (still)
 
 - File: `docs/pr-assets/pr-729/wedge-editor-face.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/8a0f4ead90e6a5e15d78b3263274a419581e0bde/docs/pr-assets/pr-729/wedge-editor-face.png`
+  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/8e948fdec45ad3a0c9884cd1f8c9c834fa1eac73/docs/pr-assets/pr-729/wedge-editor-face.png`
 - Daemon port: `none` — in-process fixture seed; the harness starts no daemon and opens no socket
 - Run id: `n/a (fixture)` — no live agent run; state seeded deterministically by `examples/wedge_render_proof.rs`
 - Transcript head hash: `n/a (fixture)` — no transcript; the seed is a fixed in-process sequence, not an event stream
@@ -79,7 +86,7 @@ State is seeded **in-process** — no daemon, no network — hence `sourceLabel:
 ## Artifact 2 — `wedge-editor-face.webm` (motion — the harness painting the surface)
 
 - File: `docs/pr-assets/pr-729/wedge-editor-face.webm`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/8a0f4ead90e6a5e15d78b3263274a419581e0bde/docs/pr-assets/pr-729/wedge-editor-face.webm`
+  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/8e948fdec45ad3a0c9884cd1f8c9c834fa1eac73/docs/pr-assets/pr-729/wedge-editor-face.webm`
 - Daemon port: `none` — in-process fixture seed; no daemon
 - Run id: `n/a (fixture)` — no live run; deterministic in-process seed
 - Transcript head hash: `n/a (fixture)` — no transcript event stream
