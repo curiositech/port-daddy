@@ -2,25 +2,125 @@ import SwiftUI
 
 // MARK: - BackendStatusRow
 //
-// Compact single-line indicator that lives near the top of the FleetBar
-// popover. The marketing value of the cli-tube backends only becomes real
-// when the operator can see "FREE — Claude Max" instead of "running."
+// Dropdown indicator near the top of the FleetBar popover. The row shows the
+// active backend, today's spend, and the armed spawn-rate forecast; clicking
+// it opens a menu that switches the forced CLI backend (the same
+// ~/.port-daddy-cli-backend file `pd backend use` writes) and breaks the
+// forecast down by model. Ramification of switching here: EVERY fleet spawn
+// — regardless of each agent's configured backend — routes through the
+// selected CLI from the next spawn onward (the spawner re-reads the file per
+// spawn; no daemon restart). A PD_USE_CLI_BACKEND env var on the daemon wins
+// over the file, so the menu warns when that override is active.
 //
 // Renders nothing while the store hasn't loaded once, so the row doesn't
 // blink in for a frame on cold launch.
 
 struct BackendStatusRow: View {
     @ObservedObject var store: BackendStore
+    @State private var lastAction: String?
 
     var body: some View {
         if !store.loadedOnce {
             EmptyView()
-        } else if let headline = store.headlineBackend {
-            statusRow(headline)
         } else {
-            noBackendRow
+            VStack(alignment: .leading, spacing: 0) {
+                Menu {
+                    menuContent
+                } label: {
+                    if let headline = store.headlineBackend {
+                        statusRow(headline)
+                    } else {
+                        noBackendRow
+                    }
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .buttonStyle(.plain)
+
+                if let lastAction {
+                    Text(lastAction)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, Fleet.Space.l)
+                        .padding(.bottom, Fleet.Space.s)
+                }
+            }
+            .background(Fleet.Chrome.panel)
         }
     }
+
+    // MARK: Menu
+
+    @ViewBuilder
+    private var menuContent: some View {
+        if let env = store.pdUseCliBackendEnv, !env.isEmpty {
+            Text("PD_USE_CLI_BACKEND=\(env) is set in the daemon env — it overrides any selection made here.")
+        }
+
+        Section("Route every spawn through") {
+            ForEach(store.rankedForPicker.filter { $0.pdUseCliBackendValue != nil }) { entry in
+                Button {
+                    select(entry)
+                } label: {
+                    if store.forcedCliBackend == entry.id {
+                        Label("\(entry.name) — active", systemImage: "checkmark")
+                    } else {
+                        Text(menuTitle(entry))
+                    }
+                }
+                .disabled(!entry.isReady)
+            }
+            Button {
+                clearSelection()
+            } label: {
+                Label("No forced backend — use each agent's pd-fleet.yml", systemImage: "arrow.uturn.backward")
+            }
+        }
+
+        Section("Armed rate (scheduled fleets)") {
+            if let totals = store.forecast?.totals, !totals.byModel.isEmpty {
+                ForEach(totals.byModel.prefix(6)) { rate in
+                    Text(String(format: "%.1f/hr — %@ (%@)", rate.perHour, rate.model, rate.backend))
+                }
+                Text(String(format: "Total ≈ %.1f scheduled calls/hr", totals.scheduledPerHour))
+            } else {
+                Text("No scheduled agents armed")
+            }
+        }
+
+        if let observed = store.forecast?.observed {
+            Section("Observed") {
+                Text(String(format: "%.0f spawns last hour · %.1f/hr avg over 24h", observed.lastHour, observed.last24hPerHour))
+                if let byModel = observed.byModelLast24h, !byModel.isEmpty {
+                    ForEach(byModel.prefix(4)) { row in
+                        Text(String(format: "%.0f in 24h — %@", row.count, row.value))
+                    }
+                }
+            }
+        }
+    }
+
+    private func menuTitle(_ entry: BackendEntry) -> String {
+        var title = entry.name
+        if entry.isFree { title += "  ·  FREE" }
+        if !entry.isReady { title += "  ·  not installed" }
+        return title
+    }
+
+    private func select(_ entry: BackendEntry) {
+        guard let envValue = entry.pdUseCliBackendValue else { return }
+        BackendCLIPersistence.write(envValue)
+        lastAction = "Every spawn now routes through \(entry.name) (from the next spawn)."
+        Task { await store.refresh() }
+    }
+
+    private func clearSelection() {
+        BackendCLIPersistence.clear()
+        lastAction = "Forced backend cleared — agents use their pd-fleet.yml backends."
+        Task { await store.refresh() }
+    }
+
+    // MARK: Row label
 
     private func statusRow(_ entry: BackendEntry) -> some View {
         HStack(alignment: .center, spacing: Fleet.Space.s) {
@@ -35,9 +135,21 @@ struct BackendStatusRow: View {
                     .textCase(.uppercase)
                     .kerning(0.6)
 
-                Text(entry.name)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.primary)
+                HStack(spacing: 4) {
+                    Text(entry.name)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
+
+                if let forecastLine = store.forecastSummaryLine {
+                    Text(forecastLine + (store.forecastTopModelLine.map { " · \($0)" } ?? ""))
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: Fleet.Space.s)
@@ -56,7 +168,7 @@ struct BackendStatusRow: View {
         }
         .padding(.horizontal, Fleet.Space.l)
         .padding(.vertical, Fleet.Space.m)
-        .background(Fleet.Chrome.panel)
+        .contentShape(Rectangle())
     }
 
     private var noBackendRow: some View {
@@ -71,7 +183,7 @@ struct BackendStatusRow: View {
         }
         .padding(.horizontal, Fleet.Space.l)
         .padding(.vertical, Fleet.Space.m)
-        .background(Fleet.Chrome.panel)
+        .contentShape(Rectangle())
     }
 
     private var spendLabel: String {
@@ -178,13 +290,13 @@ struct BackendPicker: View {
             return
         }
         writePersistence(envValue)
-        lastAction = "Wrote PD_USE_CLI_BACKEND=\(envValue) to ~/.port-daddy-cli-backend. Restart the daemon to apply."
+        lastAction = "Wrote PD_USE_CLI_BACKEND=\(envValue) to ~/.port-daddy-cli-backend. Applies from the next spawn."
         Task { await store.refresh() }
     }
 
     private func clearSelection() {
         clearPersistence()
-        lastAction = "Cleared ~/.port-daddy-cli-backend. Restart the daemon to apply."
+        lastAction = "Cleared ~/.port-daddy-cli-backend. Applies from the next spawn."
         Task { await store.refresh() }
     }
 
