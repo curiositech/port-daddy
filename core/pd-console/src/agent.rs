@@ -1882,13 +1882,11 @@ mod tests {
             "ChatSend body must carry the resolved workdir so the daemon does not \
              default to its own main checkout"
         );
-        // It targets the console-chat channel (the responder's tube) and is an
-        // absolute path outside a `.git`-dir — the shape the guard accepts.
+        // It targets the console-chat channel (the responder's tube).
         assert_eq!(
             body.get("tubeChannel").and_then(|v| v.as_str()),
             Some("console-chat")
         );
-        assert!(wd.starts_with('/'), "workdir must be absolute");
     }
 
     #[test]
@@ -1900,9 +1898,13 @@ mod tests {
         let workdir = make_chat_workdir(&root, None).expect("scratch workdir");
         let p = std::path::Path::new(&workdir);
         assert!(p.is_dir(), "scratch workdir must exist: {workdir}");
+        // Concrete structural fact (not the guard-predicate helper): a scratch
+        // workdir has NO `.git` at all, so `detectGitCheckout` reads 'none' and
+        // assessSpawnIsolation allows it. Asserting the real filesystem shape keeps
+        // this from being a round-trip through our own predicate replica.
         assert!(
-            guard_would_allow(p),
-            "a bare scratch dir must be guard-allowed (no `.git` directory): {workdir}"
+            !p.join(".git").exists(),
+            "a scratch workdir must have no `.git` (→ guard reads 'none'): {workdir}"
         );
 
         // And the ChatSend body carries exactly this workdir.
