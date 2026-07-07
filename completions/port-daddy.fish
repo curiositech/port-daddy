@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'takeover' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' 'send' 'sent' \
-    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'work' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'harbor-ledger' 'tuple' 'graph' 'embed' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
+    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'work' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'harbor-ledger' 'tuple' 'graph' 'embed' 'skill-graft' 'skillgraft' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
     'say' 'look' 'sitrep' 'whois' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
@@ -173,6 +173,8 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a history -d 'View recent project activity'
     complete -c $prog -n __pd_needs_command -a graph -d 'Inspect semantic graph edges and stats'
     complete -c $prog -n __pd_needs_command -a embed -d 'Shared local embedding model: status, prefetch, embed text'
+    complete -c $prog -n __pd_needs_command -a skill-graft -d 'Query and warm the native local skill-graft index'
+    complete -c $prog -n __pd_needs_command -a skillgraft -d 'Alias for skill-graft'
     complete -c $prog -n __pd_needs_command -a memory -d 'Inspect episodic memory entries and stats'
     complete -c $prog -n __pd_needs_command -a ideas -d 'Search ideas, notes, tuples, and repo markdown'
     complete -c $prog -n __pd_needs_command -a roadmap -d 'Show and write the roadmap_items DB-of-record'
@@ -889,6 +891,14 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command embed; and __fish_seen_subcommand_from status" -s j -l json -d 'Output JSON'
     complete -c $prog -n "__pd_using_command embed; and __fish_seen_subcommand_from text stdin" -l offline -d 'Exit 3 instead of downloading when model not cached'
 
+    # skill-graft
+    complete -c $prog -n "__pd_using_command skill-graft; or __pd_using_command skillgraft" -x -a 'query warm reference'
+    complete -c $prog -n "__pd_using_command skill-graft; or __pd_using_command skillgraft" -l root -r -d 'Override the skill root'
+    complete -c $prog -n "__pd_using_command skill-graft; or __pd_using_command skillgraft" -s j -l json -d 'Output JSON'
+    complete -c $prog -n "__pd_using_command skill-graft; or __pd_using_command skillgraft; and __fish_seen_subcommand_from query" -l shortlist-limit -x -d 'BM25 shortlist size'
+    complete -c $prog -n "__pd_using_command skill-graft; or __pd_using_command skillgraft; and __fish_seen_subcommand_from query" -l top-limit -x -d 'Number of skills to return'
+    complete -c $prog -n "__pd_using_command skill-graft; or __pd_using_command skillgraft; and __fish_seen_subcommand_from query" -l body-chars -x -d 'Maximum body chars per skill'
+
     # graph
     complete -c $prog -n "__pd_using_command graph" -x -a 'edges stats help'
     complete -c $prog -n "__pd_using_command graph" -l dir -r -d 'Project directory filter'
@@ -966,7 +976,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command roadmap" -s q -l quiet -d 'Agent-readable section:slug output'
 
     # parley
-    complete -c $prog -n "__pd_using_command parley; and not __fish_seen_subcommand_from call respond resolve list show fit" -a "call respond resolve list show fit" -d 'parley subcommand'
+    complete -c $prog -n "__pd_using_command parley; and not __fish_seen_subcommand_from call propose critique revise agree refuse say respond resolve list show fit" -a "call propose critique revise agree refuse say respond resolve list show fit" -d 'parley subcommand'
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from call" -l surface -x -d 'Contested path, symbol, or surface'
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from call" -l with -x -d 'Comma-separated parties'
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from call" -l parties -x -d 'Comma-separated parties'
@@ -982,8 +992,8 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from resolve" -l decision -x -d 'Outcome decision'
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from resolve" -l reason -x -d 'Outcome reason'
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from resolve" -l dissenters -x -d 'Comma-separated dissenters'
-    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from respond resolve show" -l id -x -d 'Parley id'
-    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from respond resolve show" -l parley -x -d 'Parley id'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from respond propose critique revise agree refuse say resolve show" -l id -x -d 'Parley id'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from respond propose critique revise agree refuse say resolve show" -l parley -x -d 'Parley id'
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from list" -l status -x -a 'SUMMONED CONVENED COLLAPSED ESCALATED VOIDED' -d 'Status filter'
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from list" -l limit -x -d 'Max rows'
     complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from fit" -l shape -x -a 'breadth_first depth_first mixed' -d 'Reasoning shape'

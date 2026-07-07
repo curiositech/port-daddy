@@ -22,7 +22,8 @@ import {
 } from '../src/fleet-control.js';
 import type { Env } from '../src/types.js';
 
-const OPERATOR = 'super-secret-operator-token';
+// >= 32 chars: operatorOnly() fail-closes (500 MISCONFIGURED) below the minimum.
+const OPERATOR = 'super-secret-operator-token-32bytes-min';
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 

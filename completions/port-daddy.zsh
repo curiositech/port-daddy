@@ -1853,6 +1853,49 @@ _pd_cmd_embed() {
   esac
 }
 
+_pd_cmd_skill_graft() {
+  local -a skill_graft_subcmds
+  skill_graft_subcmds=(
+    'query:rank skills for an operator task'
+    'warm:refresh the local skill-graft index'
+    'reference:read an allowlisted skill reference'
+  )
+
+  local state
+  _arguments -C '1:subcommand:->subcommand' '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'skill-graft subcommand' skill_graft_subcmds
+      ;;
+    args)
+      case "${words[2]}" in
+        query)
+          _arguments \
+            '--root[override the skill root]:path:_files -/' \
+            '--shortlist-limit[BM25 shortlist size]:count:' \
+            '--top-limit[number of skills to return]:count:' \
+            '--body-chars[maximum body chars per skill]:count:' \
+            '(-j --json)'{-j,--json}'[output JSON]'
+          ;;
+        warm)
+          _arguments \
+            '--root[override the skill root]:path:_files -/' \
+            '(-j --json)'{-j,--json}'[output JSON]'
+          ;;
+        reference)
+          _arguments \
+            '--root[override the skill root]:path:_files -/' \
+            '(-j --json)'{-j,--json}'[output JSON]'
+          ;;
+        *)
+          _describe 'skill-graft subcommand' skill_graft_subcmds
+          ;;
+      esac
+      ;;
+  esac
+}
+
 _pd_cmd_graph() {
   local -a graph_subcmds
   graph_subcmds=(
@@ -2037,7 +2080,7 @@ _pd_cmd_roadmap() {
 
 _pd_cmd_parley() {
   _arguments \
-    '1:subcommand:(call respond resolve list show fit)' \
+    '1:subcommand:(call propose critique revise agree refuse say respond resolve list show fit)' \
     '2:parley id or surface:' \
     '--surface[contested path, symbol, or surface]:surface:' \
     '--with[comma-separated parties]:parties:' \
@@ -2262,6 +2305,8 @@ _port_daddy() {
     'tuple:Linda-style tuple space (out, rd, in, scan, count)'
     # Semantic graph + episodic memory
     'embed:shared local embedding model — status, prefetch, embed text'
+    'skill-graft:query and warm the native local skill-graft index'
+    'skillgraft:alias for skill-graft'
     'graph:inspect semantic graph edges and stats'
     'memory:inspect episodic memory entries and stats'
     'ideas:search the canonical ideas trove and local residue'
@@ -2432,6 +2477,7 @@ _port_daddy() {
         wallet)                 _pd_cmd_wallet ;;
         bond)                   _pd_cmd_bond ;;
         embed)                  _pd_cmd_embed ;;
+        skill-graft|skillgraft) _pd_cmd_skill_graft ;;
         graph)                  _pd_cmd_graph ;;
         memory)                 _pd_cmd_memory ;;
         ideas)                  _pd_cmd_ideas ;;
