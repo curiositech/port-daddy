@@ -194,6 +194,11 @@ Work Receipt:
   written by agents, trigger→plan→sink graphs gated at consent, Work Receipts
   per firing, the standing `Automation` record over F0 v0 contracts, inherited
   trust/receiver discipline, the gallery shape, and proof gates IT-019..IT-022.
+- [23 Onboarding And Cold Start](./23-onboarding.md):
+  killing the blank-fleet cold start — the Shipwright first-run (repo survey →
+  starter fleet → one confirm each → a receipt within ~5 minutes) and the
+  do-this-next rail at the entry of every surface, on F0 v0 contracts, with
+  ethical-engagement laws and gates IT-23A..IT-23D.
 - [24 Cross-Platform And The Windows Track](./24-crossplatform.md):
   Windows as a named gate, not an omission: what is platform-neutral now
   (daemon/CLI/SDK/Scout/GitHub-App/web) versus the port (native surfaces,
