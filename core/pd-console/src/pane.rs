@@ -412,8 +412,25 @@ pub enum SurfaceAction {
 /// (`DaemonClient::subscribe_agent`) and pumping envelopes back via `on_stream`.
 #[derive(Debug, Clone)]
 pub enum Subscription {
-    /// Subscribe to one agent's live feed (`GET /agents/:id/stream`).
+    /// Subscribe to one agent's live feed (`GET /agents/:id/stream`). Yields typed
+    /// `StreamEnvelope`s folded via [`Pane::on_stream`].
     Agent { agent_id: String },
+    /// Subscribe to one file's collaborative streams. The Harbor Editor's
+    /// LAN-multiplayer transport (P2). `channel` is
+    /// `editor_sync::channel_for_path(path)` — the **edit-sync lane**, carrying
+    /// durable Loro op frames (`decode_frame` → the buffer), slice-2 lossy presence
+    /// frames (`decode_presence_frame` → the remote-cursor pool), and slice-3
+    /// snapshot refs (`decode_snapshot_frame`), routed by frame kind so they never
+    /// cross. `coord_channel` is `editor_sync::coordination_channel_for_path(path)` —
+    /// the **coordination control plane** (claims / guard / conflict-predict),
+    /// deliberately a SEPARATE tube channel so a keystroke burst on the edit lane
+    /// cannot starve coordination latency (P2 slice 3 isolation, ref-03 §3). The
+    /// intended wiring is ONE SSE per channel — two independent `mpsc`s, which IS the
+    /// isolation — but like slice 1's receive path this is declared here and NOT yet
+    /// consumed in main.rs (which currently treats an `Editor` intent as "nothing to
+    /// follow"); the editor surface will drive both subscriptions when the keystroke
+    /// input layer lands.
+    Editor { channel: String, coord_channel: String },
 }
 
 /// What every pane implements. Object-safe (the registry holds `Box<dyn Pane>`):
