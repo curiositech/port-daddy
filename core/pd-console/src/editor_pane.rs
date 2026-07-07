@@ -299,6 +299,19 @@ impl EditorPane {
         crate::editor_sync::apply_frame(buffer, &frame).is_ok()
     }
 
+    /// Fold one raw message off this file's **edit-sync** channel — the single
+    /// entry the producer/refresh loop drains onto. The edit lane multiplexes
+    /// durable Loro op frames and lossy presence frames under distinct frame kinds,
+    /// so we try the op fold first, then presence: `decode_frame` and
+    /// `decode_presence_frame` are mutually exclusive, and `||` short-circuits, so a
+    /// frame is folded by exactly one path (our own echoes / garbage fold to no
+    /// change through both). Returns whether the visible state CHANGED — the
+    /// producer `cx.notify()`s only on that edge, preserving the edge-triggered
+    /// discipline of the two folds it composes.
+    pub fn ingest_edit_channel(&mut self, text: &str) -> bool {
+        self.ingest_frame(text) || self.ingest_presence(text)
+    }
+
     // ── P2 slice 3: durability (snapshot ⇄ /blob) ─────────────────────────────
 
     /// Export the buffer's current state as a compacted **snapshot** blob for the
@@ -872,6 +885,21 @@ impl Pane for EditorPane {
             coord_channel: self.coord_channel.clone(),
         })
     }
+
+    /// Producer-thread fold for an edit-sync-lane message: op OR presence, via
+    /// [`ingest_edit_channel`](Self::ingest_edit_channel). The `bool` edge is
+    /// dropped here — the producer already `cx.notify()`s each drained batch — but
+    /// the fold itself stays edge-clean so a later per-edge notify is a drop-in.
+    fn on_edit_frame(&mut self, text: &str) {
+        self.ingest_edit_channel(text);
+    }
+
+    /// Producer-thread fold for a coordination-lane message: a region claim, via
+    /// [`ingest_claim`](Self::ingest_claim). Isolated from the edit lane exactly as
+    /// the two `Subscription::Editor` channels are (ref-03 §3).
+    fn on_coord_frame(&mut self, text: &str) {
+        self.ingest_claim(text);
+    }
 }
 
 #[cfg(test)]
@@ -1165,6 +1193,74 @@ mod tests {
         let op = crate::editor_sync::encode_frame(peer_id_for_identity(a), &[1, 2, 3]);
         assert!(!pane.ingest_presence(&op), "an op frame is not presence");
         assert!(!pane.ingest_presence("not a frame"), "garbage is ignored");
+    }
+
+    /// WIRE STAGE 1 — the producer/refresh loop drains an editor's edit-sync channel
+    /// through ONE fold, [`EditorPane::ingest_edit_channel`], which must accept BOTH
+    /// durable op frames AND lossy presence frames off that single multiplexed lane
+    /// (and ignore garbage), reporting the change edge each time. This is the fold the
+    /// gpui producer and the repl both call per drained edit-lane message.
+    #[test]
+    fn ingest_edit_channel_folds_both_ops_and_presence() {
+        let path = write_temp("edit-lane.txt", "human line\n");
+        let mut pane = make_pane(&path, None);
+
+        // (1) A remote op frame off the lane lands in the buffer.
+        let agent_id = "port-daddy:editor:agent-edit";
+        let agent = HarborBuffer::empty(agent_id);
+        agent
+            .apply_remote_ops(&pane.buffer().unwrap().export_ops())
+            .expect("agent imports opener state");
+        agent.append_line("agent line over the wire");
+        let op = crate::editor_sync::encode_frame(agent.local_peer(), &agent.export_ops());
+        assert!(pane.ingest_edit_channel(&op), "an op frame folds and changes the buffer");
+        assert_eq!(rows(&pane.view()).len(), 2, "the agent line landed via the edit lane");
+
+        // (2) A presence frame off the SAME lane pools a remote cursor.
+        let cursor = remote_presence_frame(
+            "port-daddy:editor:agent-cur",
+            PresenceState::caret(1, 0, 1, 1),
+        );
+        assert!(
+            pane.ingest_edit_channel(&cursor),
+            "a presence frame folds and pools a cursor off the same lane"
+        );
+        assert_eq!(pane.remote_cursors().len(), 1, "the remote cursor pooled");
+
+        // (3) Garbage folds to no change.
+        assert!(!pane.ingest_edit_channel("not a frame at all"), "garbage is ignored");
+    }
+
+    /// WIRE STAGE 1 — the two [`Pane`] fold hooks the producer/repl drain invokes on a
+    /// `dyn Pane` route to the correct isolated lane: `on_edit_frame` → the edit-sync
+    /// lane (ops + presence), `on_coord_frame` → the coordination lane (region claims).
+    /// This is the render-agnostic seam both faces share.
+    #[test]
+    fn pane_fold_hooks_route_edit_and_coord_frames() {
+        let path = write_temp("fold-hooks.txt", "l1\nl2\nl3\nl4\nl5\n");
+        let mut pane = make_pane(&path, None);
+
+        // on_edit_frame folds a presence frame (edit-sync lane) into the cursor pool.
+        let cursor = remote_presence_frame(
+            "port-daddy:editor:peer-cur",
+            PresenceState::caret(2, 0, 1, 5),
+        );
+        Pane::on_edit_frame(&mut pane, &cursor);
+        assert_eq!(pane.remote_cursors().len(), 1, "on_edit_frame pooled the remote cursor");
+
+        // on_coord_frame folds a DIFFERENT replica's claim (coordination lane) into the
+        // ledger — a distinct identity so it is not skipped as our own echoed claim.
+        let mut remote =
+            EditorPane::new_with_identity(&path, None, "port-daddy:editor:peer-claim");
+        remote.load();
+        let claim = remote.acquire_region_claim(2, 4, "parse_header", 1_000);
+        let before = pane.claim_ledger().iter().count();
+        Pane::on_coord_frame(&mut pane, &claim);
+        assert_eq!(
+            pane.claim_ledger().iter().count(),
+            before + 1,
+            "on_coord_frame folded the remote claim into the ledger"
+        );
     }
 
     /// The local caret's outbound presence is debounced: a burst of moves flushes

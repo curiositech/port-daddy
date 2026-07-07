@@ -16,6 +16,8 @@
 //!   :harbor control <verb> [arg]
 //!                             issue a compliance-gated control (steer/pause/
 //!                             interrupt/checkpoint/successor/retire)
+//!   :edit <path>              open the Harbor Editor on a file and drain its
+//!                             live edit-sync + coordination channels (P3)
 //!   <text>                    send a turn to the active agent (over tube)
 //!   :quit
 //!
@@ -116,7 +118,7 @@ fn banner(style: &TermStyle, daemon_url: &str) {
         "{}  {}",
         rail("└"),
         style.paint(
-            ":harness <backend> <prompt> · :new <backend> <prompt> · :agents · :switch <n> · :lane · :lane-message <text> · :harbor · :quit",
+            ":harness <backend> <prompt> · :new <backend> <prompt> · :agents · :switch <n> · :lane · :lane-message <text> · :harbor · :edit <path> · :quit",
             Sem::Muted
         )
     );
@@ -124,26 +126,61 @@ fn banner(style: &TermStyle, daemon_url: &str) {
 }
 
 async fn drain_active_subscription(reg: &mut PaneRegistry, mgr: &AgentManager, window: Duration) {
-    let Some(Subscription::Agent { agent_id }) = reg.active().and_then(|p| p.subscription()) else {
-        return;
-    };
-
-    let active = reg.active;
-    let mut rx = mgr.daemon().subscribe_agent(&agent_id);
-    let deadline = tokio::time::Instant::now() + window;
-    loop {
-        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
-        if remaining.is_zero() {
-            break;
-        }
-        match tokio::time::timeout(remaining, rx.recv()).await {
-            Ok(Some(env)) => {
-                if let Some(p) = reg.panes.get_mut(active) {
-                    p.on_stream(&env);
+    match reg.active().and_then(|p| p.subscription()) {
+        Some(Subscription::Agent { agent_id }) => {
+            let active = reg.active;
+            let mut rx = mgr.daemon().subscribe_agent(&agent_id);
+            let deadline = tokio::time::Instant::now() + window;
+            loop {
+                let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+                if remaining.is_zero() {
+                    break;
+                }
+                match tokio::time::timeout(remaining, rx.recv()).await {
+                    Ok(Some(env)) => {
+                        if let Some(p) = reg.panes.get_mut(active) {
+                            p.on_stream(&env);
+                        }
+                    }
+                    Ok(None) | Err(_) => break,
                 }
             }
-            Ok(None) | Err(_) => break,
         }
+        // The Harbor Editor lane (P3 wire stage 1) — the headless twin of the gpui
+        // producer's editor drain. Follow the file's TWO isolated channels: the
+        // edit-sync lane (durable Loro ops + lossy presence → `on_edit_frame`) and the
+        // coordination lane (region claims → `on_coord_frame`). One `subscribe_channel`
+        // per channel is the isolation; a single `window` deadline bounds the drain, and
+        // either channel closing ends it — mirroring the Agent arm's `None => break`.
+        Some(Subscription::Editor { channel, coord_channel }) => {
+            let active = reg.active;
+            let mut edit_rx = mgr.daemon().subscribe_channel(&channel);
+            let mut coord_rx = mgr.daemon().subscribe_channel(&coord_channel);
+            let sleep = tokio::time::sleep(window);
+            tokio::pin!(sleep);
+            loop {
+                tokio::select! {
+                    _ = &mut sleep => break,
+                    m = edit_rx.recv() => match m {
+                        Some(msg) => {
+                            if let Some(p) = reg.panes.get_mut(active) {
+                                p.on_edit_frame(&msg.text);
+                            }
+                        }
+                        None => break,
+                    },
+                    m = coord_rx.recv() => match m {
+                        Some(msg) => {
+                            if let Some(p) = reg.panes.get_mut(active) {
+                                p.on_coord_frame(&msg.text);
+                            }
+                        }
+                        None => break,
+                    },
+                }
+            }
+        }
+        None => {}
     }
 }
 
@@ -194,6 +231,35 @@ async fn main() -> Result<()> {
             if let Err(e) = reg.refresh_active(mgr.daemon()).await {
                 err(&style, &format!("refresh failed: {e}"));
             }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
+        } else if let Some(path) = line
+            .strip_prefix(":edit ")
+            .map(str::trim)
+            .filter(|p| !p.is_empty())
+        {
+            // The Harbor Editor surface (P3 wire stage 1). Bind a real EditorPane to the
+            // file, load its Loro buffer, then drain its live edit-sync + coordination
+            // channels exactly as `:lane` drains an agent stream — the headless proof
+            // that the editor lane is wired end to end (the same `drain_active_subscription`
+            // path the gpui producer runs). Reuse the single "editor" slot so repeated
+            // `:edit`s rebind rather than pile up panes.
+            let pane = editor_pane::EditorPane::new(path.to_string(), None);
+            match reg.panes.iter().position(|p| p.id() == "editor") {
+                Some(pos) => {
+                    reg.panes[pos] = Box::new(pane);
+                    reg.active = pos;
+                }
+                None => {
+                    reg.register(Box::new(pane));
+                    reg.active = reg.panes.len() - 1;
+                }
+            }
+            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            drain_active_subscription(&mut reg, &mgr, Duration::from_millis(1_200)).await;
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }

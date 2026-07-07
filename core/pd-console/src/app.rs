@@ -176,6 +176,17 @@ pub enum ControlMsg {
         verb: String,
         argument: Option<String>,
     },
+    /// Bind the producer's live Harbor Editor lane to a file (P3 wire stage 1). Sent
+    /// when the operator opens an `Editor` surface (FileTree click / `:edit <path>`).
+    /// The producer constructs a persistent [`crate::editor_pane::EditorPane`] on this
+    /// path, loads its Loro buffer, and follows its [`Subscription::Editor`] — draining
+    /// doc-op + presence frames off the edit-sync channel and claim frames off the
+    /// coordination channel into the pane, the same way the Lane/Harbor lanes follow an
+    /// agent stream. `region` carries the optional highlighted line span.
+    OpenEditor {
+        path: String,
+        region: Option<(u32, u32)>,
+    },
 }
 
 /// A flattened, transport-ready spawn request for one Conjure node — the wire
@@ -2368,6 +2379,17 @@ impl ConsoleView {
         if cmd.kind == CmdKind::AddPane {
             match surface_for_query(&text) {
                 Some(surface) => {
+                    // Opening an Editor surface also binds the producer's live editor
+                    // lane to the file (wire stage 1) — read `path`/`region` before
+                    // `split` moves the surface.
+                    if let SurfaceKind::Editor { path, region } = &surface {
+                        if let Some(tx) = &self.control_tx {
+                            let _ = tx.send(ControlMsg::OpenEditor {
+                                path: path.clone(),
+                                region: *region,
+                            });
+                        }
+                    }
                     self.ws_mut().split(Dir::Row, surface);
                     self.control_flash = Some(format!("added pane: {text}"));
                 }
@@ -5407,11 +5429,19 @@ fn render_filetree_row(
                 // Descend: rebind the FileTree root to this directory.
                 this.ws_mut().bind_entity(Some(path.clone()));
             } else {
-                // Open the file in the Harbor Editor surface.
+                // Open the file in the Harbor Editor surface, and bind the producer's
+                // live editor lane to it (wire stage 1) so the buffer follows remote
+                // ops / presence / claims.
                 this.ws_mut().swap_surface(SurfaceKind::Editor {
                     path: path.clone(),
                     region: None,
                 });
+                if let Some(tx) = &this.control_tx {
+                    let _ = tx.send(ControlMsg::OpenEditor {
+                        path: path.clone(),
+                        region: None,
+                    });
+                }
             }
             cx.notify();
         }))
