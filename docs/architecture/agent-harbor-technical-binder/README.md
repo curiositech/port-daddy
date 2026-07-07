@@ -186,14 +186,25 @@ Work Receipt:
   labor, the hot/durable bus with latency budgets, the enforced-MCP broker
   collapse to five tools, and proof gates IT-015..IT-018.
 - [20 Design System: Story Linework](./20-design-system-story-linework.md):
-  palette v2 on the ADR-0048 stack, fractional linework, Vignelli blocking,
-  signal-flag state chips, the cut-paper art style, content honesty laws, and
-  the phased image overhaul.
+  the story-linework design constitution — palette v2, IBM Plex + Recursive,
+  fractional linework, one color zone per view, the rule-8 state grammar, and
+  the normative surface mocks in `docs/design/story-linework/apps.html`.
+- [21 Automations: The Trigger-To-Agent App](./21-automations.md):
+  the event-trigger automation loop as its own surface: plain-English wiring
+  written by agents, trigger→plan→sink graphs gated at consent, Work Receipts
+  per firing, the standing `Automation` record over F0 v0 contracts, inherited
+  trust/receiver discipline, the gallery shape, and proof gates IT-019..IT-022.
 - [23 Onboarding And Cold Start](./23-onboarding.md):
   killing the blank-fleet cold start — the Shipwright first-run (repo survey →
   starter fleet → one confirm each → a receipt within ~5 minutes) and the
   do-this-next rail at the entry of every surface, on F0 v0 contracts, with
   ethical-engagement laws and gates IT-23A..IT-23D.
+- [24 Cross-Platform And The Windows Track](./24-crossplatform.md):
+  Windows as a named gate, not an omission: what is platform-neutral now
+  (daemon/CLI/SDK/Scout/GitHub-App/web) versus the port (native surfaces,
+  named-pipe IPC with DACLs, AppContainer/Job Object containment,
+  MSI + Authenticode), the W1/W2 gates sequenced against M3 and M10, and
+  proof gates IT-24A..IT-24D.
 
 ## Architecture in one diagram
 
