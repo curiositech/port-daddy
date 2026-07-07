@@ -239,6 +239,32 @@ pub struct TubeMsg {
     pub text: String,
 }
 
+impl TubeMsg {
+    /// Parse one message from a `GET /msg/:channel/subscribe` SSE `data:` object.
+    ///
+    /// The daemon (routes/messaging.ts → lib/messaging.ts) pushes each published
+    /// message as `{ id, channel, payload, contentType, sender, createdAt }`, where
+    /// `payload` is a bare string or `{text|content:...}` (a `tube_send` wraps its
+    /// text as `{text:...}`). Returns `None` for the first `event: connected`
+    /// handshake (`{channel:...}`, no `payload`) and any `event: timeout` frame, so
+    /// the caller simply skips those — mirroring [`StreamEnvelope::from_value`]'s
+    /// tolerance so a schema drift can never kill the channel lane.
+    pub fn from_value(v: &serde_json::Value) -> Option<TubeMsg> {
+        // The handshake/timeout frames carry no `payload`; that is the signal this
+        // is not a real message (an actual empty payload is rejected daemon-side).
+        let payload = v.get("payload")?;
+        Some(TubeMsg {
+            id: v.get("id").and_then(|i| i.as_u64()).unwrap_or(0),
+            sender: v
+                .get("sender")
+                .and_then(|s| s.as_str())
+                .unwrap_or("?")
+                .to_string(),
+            text: extract_text(Some(payload)),
+        })
+    }
+}
+
 /// Per-spawn options that ride alongside the four positional `spawn` args.
 ///
 /// Today this carries exactly one knob — `inject_squid_hooks` — but it is a
@@ -442,6 +468,19 @@ async fn ensure_success(resp: reqwest::Response, op: &str) -> Result<reqwest::Re
     }
 }
 
+/// Whether an SSE (re)connect that came back with `status` should be RETRIED
+/// (transient) rather than abandoned (permanent). A `429 Too Many Requests` — the
+/// messaging route's connection-limit, which ships a `Retry-After` (routes/messaging.ts) —
+/// and any `5xx` (the daemon restarting, e.g. a freshness self-heal) are transient:
+/// backing off and reconnecting recovers the lane. Any other non-2xx (a `400`
+/// invalid channel, a `404` unknown agent) is permanent — retrying it just spins.
+/// Pure + unit-tested so the reconnect policy is a checked contract, not folklore
+/// buried in a match arm (the bug: treating *every* non-2xx as permanent killed the
+/// live lane forever on a transient blip).
+fn sse_status_is_retryable(status: reqwest::StatusCode) -> bool {
+    status == reqwest::StatusCode::TOO_MANY_REQUESTS || status.is_server_error()
+}
+
 impl DaemonClient {
     pub fn discover() -> Result<Self> {
         // Resolution order, highest priority first:
@@ -550,6 +589,116 @@ impl DaemonClient {
         // A non-2xx (invalid channel, guard rejection, rate limit) must not be
         // reported to the operator as a delivered message.
         ensure_success(resp, "tube_send").await?;
+        Ok(())
+    }
+
+    /// Broadcast one Harbor Editor **presence** frame (slice 2) up a file's tube
+    /// channel. Same wire as [`tube_send`](Self::tube_send) — presence rides the
+    /// SAME per-file channel as the op stream — but stamped with a distinct
+    /// `sender` so a receiver's own-echo filter and any log reader can tell the
+    /// lossy cursor lane apart from operator/agent chatter. `frame_text` is what
+    /// [`crate::editor_pane::EditorPane::take_presence_broadcast`] returns.
+    pub async fn send_presence(&self, channel: &str, frame_text: &str) -> Result<()> {
+        self.tube_send(channel, frame_text, "presence").await
+    }
+
+    // ── Harbor Editor P2 slice 3: durability + channel isolation ──────────────
+
+    /// Store a doc **snapshot** in the daemon's content-addressed `/blob` store and
+    /// return its content address (`sha256(body)` hex). REUSES routes/blob.ts as-is:
+    /// `POST /blob` with the raw bytes takes the body, hashes it server-side, and
+    /// returns `{ blob: { id, size, ... } }` — so the returned `id` IS the content
+    /// address (no client-side crypto dep). `bytes` is [`crate::buffer::HarborBuffer::export_snapshot`].
+    /// The id then rides an [`crate::editor_sync::encode_snapshot_frame`] up the edit
+    /// lane so a behind peer can fetch it.
+    pub async fn put_blob(&self, bytes: Vec<u8>) -> Result<String> {
+        let resp = self
+            .http
+            .post(format!("{}/blob", self.base))
+            // A non-JSON content-type routes to blob.ts's wildcard raw-body parser,
+            // which preserves the exact bytes (a JSON content-type would re-encode).
+            .header("content-type", "application/octet-stream")
+            .body(bytes)
+            .send()
+            .await
+            .context("POST /blob")?;
+        let resp = ensure_success(resp, "put_blob").await?;
+        let v: serde_json::Value = resp.json().await.context("blob put response")?;
+        parse_blob_id(&v).ok_or_else(|| anyhow!("POST /blob returned no blob id: {v}"))
+    }
+
+    /// Fetch a snapshot blob back by its content address (`GET /blob/:id`). Returns
+    /// the raw bytes for [`crate::buffer::HarborBuffer::apply_remote_ops`] to import.
+    /// A 404 (blob evicted) surfaces as an error rather than empty bytes.
+    pub async fn get_blob(&self, id: &str) -> Result<Vec<u8>> {
+        let resp = self
+            .http
+            .get(format!("{}/blob/{id}", self.base))
+            .send()
+            .await
+            .context("GET /blob/:id")?;
+        let resp = ensure_success(resp, "get_blob").await?;
+        let bytes = resp.bytes().await.context("blob body")?;
+        Ok(bytes.to_vec())
+    }
+
+    /// Broadcast a snapshot **reference** frame up a file's EDIT-lane channel
+    /// ([`crate::editor_sync::channel_for_path`]). Same wire as [`tube_send`](Self::tube_send),
+    /// stamped `sender = "snapshot"` so a log reader can tell the durability lane
+    /// apart. `frame_text` is [`crate::editor_sync::encode_snapshot_frame`].
+    pub async fn broadcast_snapshot_ref(&self, channel: &str, frame_text: &str) -> Result<()> {
+        self.tube_send(channel, frame_text, "snapshot").await
+    }
+
+    /// Append one op-log delta to the durable, immutable op-log via `POST /notes`
+    /// (REUSING [`add_note`](Self::add_note) — notes are write-once, exactly what a
+    /// replayable audit log needs). `note_content` is
+    /// [`crate::editor_sync::encode_oplog_note`]. Isolation note: this is a `/notes`
+    /// write, wholly off BOTH tube lanes — the durable log never competes with live
+    /// doc-ops or coordination for tube bandwidth.
+    pub async fn log_oplog_delta(&self, note_content: &str) -> Result<()> {
+        self.add_note(note_content).await
+    }
+
+    /// Send a coordination-control-plane signal (claim acquire/release, conflict
+    /// predicted) up a file's **coordination** channel
+    /// ([`crate::editor_sync::coordination_channel_for_path`]) — a SEPARATE tube
+    /// channel from the edit lane, so a keystroke burst on the edit channel cannot
+    /// starve this latency-sensitive lane (the ref-03 §3 isolation contract; proven
+    /// structurally by `editor_sync::LaneQueues`). `frame_text` is
+    /// [`crate::editor_sync::encode_coord_frame`]; stamped `sender = "coord"`.
+    pub async fn send_coord_signal(&self, coord_channel: &str, frame_text: &str) -> Result<()> {
+        self.tube_send(coord_channel, frame_text, "coord").await
+    }
+
+    /// Mirror an editor's local SELECTION into the durable claims table — the
+    /// stronger, persistent "I am working here" signal that outlives the ephemeral
+    /// cursor lane. This REUSES the exact endpoint `pd session files add` /
+    /// `POST /sessions/:id/files` drives (a region reservation), rather than
+    /// inventing a parallel presence store: the claim shows up in `/files`, the
+    /// claims pane, and conflict prediction like any other region claim.
+    ///
+    /// `start_line`/`end_line` are 1-based inclusive (the route's `startLine`/
+    /// `endLine` contract). `agent_id` attributes the claim to the acting replica's
+    /// PD identity. A 4xx/5xx (unknown session, conflict without force) surfaces as
+    /// an error rather than a silent no-op.
+    pub async fn claim_region(
+        &self,
+        session_id: &str,
+        path: &str,
+        start_line: u32,
+        end_line: u32,
+        agent_id: &str,
+    ) -> Result<()> {
+        let body = region_claim_body(path, start_line, end_line, agent_id);
+        let resp = self
+            .http
+            .post(format!("{}/sessions/{session_id}/files", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /sessions/:id/files")?;
+        ensure_success(resp, "claim_region").await?;
         Ok(())
     }
 
@@ -884,8 +1033,16 @@ impl DaemonClient {
                 }
                 let resp = match req.send().await {
                     Ok(r) if r.status().is_success() => r,
-                    // 404 = unknown agent: nothing will ever stream, so stop
-                    // (don't spin reconnecting against a permanent error).
+                    // A 429 (rate-limit Retry-After) or 5xx (daemon restarting) is
+                    // TRANSIENT — back off and retry so a momentary hiccup can't
+                    // kill the live lane forever.
+                    Ok(r) if sse_status_is_retryable(r.status()) => {
+                        sleep(backoff).await;
+                        backoff = (backoff * 2).min(MAX_BACKOFF);
+                        continue;
+                    }
+                    // Any other 4xx (404 = unknown agent) is permanent: nothing will
+                    // ever stream, so stop (don't spin against a permanent error).
                     Ok(_) => return,
                     Err(_) => {
                         // Connection failure — back off and retry (daemon may be
@@ -932,6 +1089,87 @@ impl DaemonClient {
         });
         rx
     }
+
+    /// Open the live SSE feed for a pub/sub tube channel
+    /// (`GET /msg/:channel/subscribe`) and yield each published [`TubeMsg`] on an
+    /// mpsc channel. This is the Harbor Editor's LAN-multiplayer receive path (P2
+    /// slice 1): the per-file channel is [`crate::editor_sync::channel_for_path`],
+    /// and each `TubeMsg::text` is a Loro op frame the caller folds into a buffer
+    /// via [`crate::editor_sync::decode_frame`] + `apply_frame`.
+    ///
+    /// Structurally identical to [`subscribe_agent`](Self::subscribe_agent) — same
+    /// resumable, self-healing loop (capped backoff + `Last-Event-ID` resume), same
+    /// `SseParser`, same "receiver dropped → stop" contract — differing only in the
+    /// URL and that it parses the messaging frame shape (`TubeMsg::from_value`)
+    /// instead of the agent envelope. The frames are handed over a
+    /// `tokio::sync::mpsc` channel (NOT a shared `Arc<Mutex<_>>`): the background
+    /// task owns the HTTP body, the render loop drains via `try_recv` — the one
+    /// safe hand-off across the SSE→render seam.
+    pub fn subscribe_channel(&self, channel: &str) -> tokio::sync::mpsc::Receiver<TubeMsg> {
+        let (tx, rx) = tokio::sync::mpsc::channel::<TubeMsg>(256);
+        let url = format!("{}/msg/{channel}/subscribe", self.base);
+        let http = self.http.clone();
+        tokio::spawn(async move {
+            use futures_util::StreamExt;
+            use tokio::time::{sleep, Duration};
+            let mut last_id: Option<String> = None;
+            let mut backoff = Duration::from_millis(500);
+            const MAX_BACKOFF: Duration = Duration::from_secs(10);
+            loop {
+                let mut req = http.get(&url);
+                if let Some(id) = &last_id {
+                    req = req.header("Last-Event-ID", id.as_str());
+                }
+                let resp = match req.send().await {
+                    Ok(r) if r.status().is_success() => r,
+                    // A 429 (connection-limit Retry-After) or 5xx (daemon restarting)
+                    // is TRANSIENT — back off and retry so a momentary rate-limit or
+                    // server hiccup can't kill the editor lane forever.
+                    Ok(r) if sse_status_is_retryable(r.status()) => {
+                        sleep(backoff).await;
+                        backoff = (backoff * 2).min(MAX_BACKOFF);
+                        continue;
+                    }
+                    // Any other 4xx (invalid channel) is permanent: nothing will
+                    // ever stream, so stop rather than spin against it.
+                    Ok(_) => return,
+                    Err(_) => {
+                        sleep(backoff).await;
+                        backoff = (backoff * 2).min(MAX_BACKOFF);
+                        continue;
+                    }
+                };
+                backoff = Duration::from_millis(500); // reset on a healthy connect
+                let mut parser = SseParser::new();
+                let mut body = resp.bytes_stream();
+                while let Some(chunk) = body.next().await {
+                    let bytes = match chunk {
+                        Ok(b) => b,
+                        Err(_) => break, // stream error — fall through to reconnect
+                    };
+                    let text = String::from_utf8_lossy(&bytes);
+                    for data in parser.feed(&text) {
+                        if let Some(id) = parser.last_id() {
+                            last_id = Some(id.to_string());
+                        }
+                        let val: serde_json::Value = match serde_json::from_str(&data) {
+                            Ok(v) => v,
+                            Err(_) => continue, // skip a malformed frame, keep streaming
+                        };
+                        if let Some(msg) = TubeMsg::from_value(&val) {
+                            if tx.send(msg).await.is_err() {
+                                return; // receiver dropped (pane closed/retargeted)
+                            }
+                        }
+                    }
+                }
+                // EOF/error without the receiver dropping: reconnect with backoff.
+                sleep(backoff).await;
+                backoff = (backoff * 2).min(MAX_BACKOFF);
+            }
+        });
+        rx
+    }
 }
 
 /// Pull readable text from a stream-envelope `body` (or any payload value):
@@ -939,6 +1177,45 @@ impl DaemonClient {
 /// `agent.tube` frames into a line without re-implementing the shape walk.
 pub fn body_text(body: &serde_json::Value) -> String {
     extract_text(Some(body))
+}
+
+/// Build the `POST /sessions/:id/files` body that mirrors an editor selection into
+/// a durable region claim. Kept as a pure function so the shape is a checked
+/// contract (in `region_claim_body_matches_the_sessions_files_region_schema`)
+/// against the route's `regions: [{ path, startLine, endLine }]` schema (1-based
+/// inclusive lines) without needing a live daemon. `agentId` attributes the claim
+/// to the acting replica.
+///
+/// `allow(dead_code)`: its caller [`DaemonClient::claim_region`] is a `pub` method
+/// (exempt from the lint) that is not yet invoked from `main.rs` — the same
+/// not-yet-live status the slice-1 receive path had. The test exercises it.
+#[allow(dead_code)]
+fn region_claim_body(path: &str, start_line: u32, end_line: u32, agent_id: &str) -> serde_json::Value {
+    serde_json::json!({
+        "regions": [{
+            "path": path,
+            "startLine": start_line,
+            "endLine": end_line,
+        }],
+        "agentId": agent_id,
+    })
+}
+
+/// Pull the content-addressed blob id out of a `POST /blob` response
+/// (`{ success, blob: { id, size, ... } }`, per routes/blob.ts). Kept pure so the
+/// response shape is a checked contract (see `parse_blob_id_reads_the_blob_stat_id`)
+/// without a live daemon. Tolerates a bare `{ id }` too, but never invents an id.
+///
+/// `allow(dead_code)`: its caller [`DaemonClient::put_blob`] is a `pub` method
+/// (exempt from the lint) that is not yet invoked from `main.rs` — the same
+/// not-yet-live status the slice-1 receive path had. The test exercises it.
+#[allow(dead_code)]
+fn parse_blob_id(v: &serde_json::Value) -> Option<String> {
+    v.get("blob")
+        .and_then(|b| b.get("id"))
+        .or_else(|| v.get("id"))
+        .and_then(|id| id.as_str())
+        .map(String::from)
 }
 
 /// A payload may be a string, `{text:...}`, or `{content:...}` — pull readable text.
@@ -1419,5 +1696,89 @@ mod tests {
             envs[0].body.get("text").and_then(|t| t.as_str()),
             Some("control.interrupt")
         );
+    }
+
+    // ── Tube channel messages (GET /msg/:channel/subscribe) ───────────────────
+
+    #[test]
+    fn tube_msg_parses_messaging_frame_and_skips_handshake() {
+        // The `event: connected` handshake carries no `payload` → skipped.
+        assert!(
+            TubeMsg::from_value(&serde_json::json!({ "channel": "harbor-editor:abc" })).is_none()
+        );
+        // A published message: a `tube_send` wraps its text as `{text:...}`; the
+        // parser pulls the readable text and the sender through.
+        let m = TubeMsg::from_value(&serde_json::json!({
+            "id": 7,
+            "channel": "harbor-editor:abc",
+            "payload": { "text": "{\"v\":1,\"kind\":\"loro.update\"}" },
+            "sender": "port-daddy:editor:agent-A",
+            "createdAt": 1781561557841i64,
+        }))
+        .expect("a real message parses");
+        assert_eq!(m.id, 7);
+        assert_eq!(m.sender, "port-daddy:editor:agent-A");
+        assert_eq!(m.text, "{\"v\":1,\"kind\":\"loro.update\"}");
+        // A bare-string payload is also accepted (defaulted id/sender tolerated).
+        let bare = TubeMsg::from_value(&serde_json::json!({ "payload": "hello" }))
+            .expect("bare-string payload parses");
+        assert_eq!(bare.text, "hello");
+        assert_eq!(bare.id, 0);
+        assert_eq!(bare.sender, "?");
+    }
+
+    /// The selection→claim mirror body matches the real `POST /sessions/:id/files`
+    /// region schema (`regions: [{ path, startLine, endLine }]`, 1-based inclusive)
+    /// so it reuses the durable claims table rather than a parallel presence store.
+    #[test]
+    fn region_claim_body_matches_the_sessions_files_region_schema() {
+        let body = region_claim_body("core/pd-console/src/editor_pane.rs", 12, 20, "port-daddy:editor:agent-A");
+        let regions = body.get("regions").and_then(|r| r.as_array()).expect("regions array");
+        assert_eq!(regions.len(), 1, "one region per selection mirror");
+        let region = &regions[0];
+        assert_eq!(region.get("path").and_then(|p| p.as_str()), Some("core/pd-console/src/editor_pane.rs"));
+        // The route requires startLine >= 1 and endLine >= startLine.
+        assert_eq!(region.get("startLine").and_then(|n| n.as_u64()), Some(12));
+        assert_eq!(region.get("endLine").and_then(|n| n.as_u64()), Some(20));
+        assert!(region.get("startLine").and_then(|n| n.as_u64()).unwrap() >= 1, "startLine is 1-based");
+        assert!(
+            region.get("endLine").and_then(|n| n.as_u64()).unwrap()
+                >= region.get("startLine").and_then(|n| n.as_u64()).unwrap(),
+            "endLine >= startLine (the route's contract)"
+        );
+        // The claim is attributed to the acting replica's PD identity.
+        assert_eq!(body.get("agentId").and_then(|a| a.as_str()), Some("port-daddy:editor:agent-A"));
+    }
+
+    /// `put_blob` reads the content address out of routes/blob.ts's response shape
+    /// (`{ success, blob: { id, ... } }`) — the P2 slice-3 durability contract.
+    #[test]
+    fn parse_blob_id_reads_the_blob_stat_id() {
+        let id = "e".repeat(64);
+        let ok = serde_json::json!({ "success": true, "blob": { "id": id, "size": 128 } });
+        assert_eq!(parse_blob_id(&ok).as_deref(), Some(id.as_str()), "reads blob.id (the sha256 content address)");
+        // A bare {id} is tolerated; a body with no id yields None (never invented).
+        assert_eq!(parse_blob_id(&serde_json::json!({ "id": "abc" })).as_deref(), Some("abc"));
+        assert_eq!(parse_blob_id(&serde_json::json!({ "success": false, "error": "boom" })), None);
+        assert_eq!(parse_blob_id(&serde_json::json!({ "blob": { "size": 1 } })), None);
+    }
+
+    /// The SSE reconnect policy is a checked contract: a 429 (connection-limit
+    /// Retry-After) and any 5xx (daemon restarting) are transient and MUST be
+    /// retried so a blip can't kill the live lane forever; any other 4xx is
+    /// permanent and MUST stop (retrying would spin). Guards the editor + agent
+    /// receive lanes' recovery.
+    #[test]
+    fn sse_retry_policy_retries_429_and_5xx_but_stops_on_other_4xx() {
+        use reqwest::StatusCode;
+        // Transient → retry.
+        assert!(sse_status_is_retryable(StatusCode::TOO_MANY_REQUESTS), "429 Retry-After is transient");
+        assert!(sse_status_is_retryable(StatusCode::INTERNAL_SERVER_ERROR), "500 is transient");
+        assert!(sse_status_is_retryable(StatusCode::BAD_GATEWAY), "502 (daemon restart) is transient");
+        assert!(sse_status_is_retryable(StatusCode::SERVICE_UNAVAILABLE), "503 is transient");
+        // Permanent → stop.
+        assert!(!sse_status_is_retryable(StatusCode::BAD_REQUEST), "400 invalid channel is permanent");
+        assert!(!sse_status_is_retryable(StatusCode::FORBIDDEN), "403 is permanent");
+        assert!(!sse_status_is_retryable(StatusCode::NOT_FOUND), "404 unknown agent is permanent");
     }
 }

@@ -104,9 +104,9 @@ export const parleyPlugin: FastifyPluginAsync<{ deps: ParleyDeps }> = async (fas
       evidenceRefs: asStringArray(body.evidenceRefs) ?? [],
     };
     try {
-      const turn = parley.respond(input);
+      const { turn, notified, notifyFailures } = parley.respond(input);
       const status = parley.get(parleyId);
-      return { success: true, turn, status };
+      return { success: true, turn, notified, notifyFailures, status };
     } catch (error) {
       reply.code(400);
       return { success: false, error: error instanceof Error ? error.message : 'respond failed' };
@@ -162,11 +162,24 @@ export const parleyPlugin: FastifyPluginAsync<{ deps: ParleyDeps }> = async (fas
       reply.code(400);
       return { success: false, error: 'parley id required in path' };
     }
+    // Reading is seeing: `?as=<participant>` records a read receipt before the
+    // summary is built, so the returned receipts already reflect this read.
+    // Unknown parties are ignored rather than rejected — the read still works.
+    const as = asString((request.query as Record<string, unknown>).as);
+    let receiptRecorded = false;
+    if (as) {
+      try {
+        parley.markSeen({ parleyId, party: as });
+        receiptRecorded = true;
+      } catch {
+        receiptRecorded = false;
+      }
+    }
     const summary = parley.get(parleyId);
     if (!summary) {
       reply.code(404);
       return { success: false, error: `parley '${parleyId}' not found` };
     }
-    return { success: true, summary };
+    return { success: true, summary, receiptRecorded };
   });
 };

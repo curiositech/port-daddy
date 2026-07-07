@@ -10,7 +10,8 @@ let db;
 beforeEach(async () => {
   db = createTestDb();
   const tuples = createTupleSpace(db);
-  const parley = createParley({ tuples, now: () => 1_700_000_000_000 });
+  const agentInbox = { send: () => ({ success: true }) };
+  const parley = createParley({ tuples, agentInbox, now: () => 1_700_000_000_000 });
   app = Fastify();
   await app.register(parleyPlugin, { deps: { parley } });
   await app.ready();
@@ -96,4 +97,43 @@ test('validates required call fields', async () => {
     payload: { surface: 'x' },
   });
   expect(res.statusCode).toBe(400);
+});
+
+test('POST /parley/respond reports turn delivery', async () => {
+  const p = await callParley();
+  const res = await app.inject({
+    method: 'POST',
+    url: '/parley/respond',
+    payload: { parleyId: p.parleyId, party: 'agent-a', performative: 'propose', content: 'ship A' },
+  });
+  expect(res.statusCode).toBe(200);
+  const body = JSON.parse(res.body);
+  expect(body.notified).toEqual(['agent-b', 'operator']);
+  expect(body.notifyFailures).toEqual([]);
+});
+
+test('GET /parley/:id?as=<party> records a read receipt', async () => {
+  const p = await callParley();
+  await app.inject({
+    method: 'POST',
+    url: '/parley/respond',
+    payload: { parleyId: p.parleyId, party: 'agent-a', performative: 'propose', content: 'ship A' },
+  });
+
+  const res = await app.inject({ method: 'GET', url: `/parley/${p.parleyId}?as=agent-b` });
+  expect(res.statusCode).toBe(200);
+  const body = JSON.parse(res.body);
+  expect(body.receiptRecorded).toBe(true);
+  const receipt = body.summary.receipts.find((r) => r.party === 'agent-b');
+  expect(receipt.lastSeenAt).toBe(1_700_000_000_000);
+  expect(receipt.unseenTurns).toBe(0);
+});
+
+test('GET /parley/:id with an unknown ?as= does not record a receipt', async () => {
+  const p = await callParley();
+  const res = await app.inject({ method: 'GET', url: `/parley/${p.parleyId}?as=stranger` });
+  expect(res.statusCode).toBe(200);
+  const body = JSON.parse(res.body);
+  expect(body.receiptRecorded).toBe(false);
+  expect(body.summary.receipts.map((r) => r.party)).toEqual(['agent-a', 'agent-b', 'operator']);
 });

@@ -4743,6 +4743,7 @@ name = "pd-console"
 version = "3.24.1"
 dependencies = [
  "anyhow",
+ "base64",
  "dirs 5.0.1",
  "futures-util",
  "gpui",

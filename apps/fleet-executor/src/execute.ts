@@ -26,6 +26,9 @@ import {
   invalidateInstallationToken,
   fetchPRContext,
   fetchRepoFile,
+  fetchOpenPullRequests,
+  listRecentBranches,
+  renderFleetContext,
   postShipComment,
   createReview,
   createCheckRun,
@@ -42,6 +45,12 @@ import {
   type ShipResult,
   type Verdict,
 } from './verdict.js';
+import {
+  parseProposals,
+  renderProposalComment,
+  ideationOutputContract,
+} from './proposals.js';
+import { extractAiText, describeResponseShape } from './ai-response.js';
 
 // ---------------------------------------------------------------------------
 
@@ -419,10 +428,23 @@ async function runShip(
     const systemPrompt = buildSystemPrompt(ship, contract);
     const chunks = chunkDiff(prCtx.diff);
 
+    // Lookout's tools: cross-PR / cross-branch awareness. Fetched once per run and
+    // injected into every MAP chunk so it can spot contradictions and duplication
+    // against OTHER open PRs and feature branches. Best-effort (helpers return []
+    // on failure) — Lookout degrades to single-PR reasoning, never crashes.
+    let fleetContext = '';
+    if (ship.name === 'lookout') {
+      const [openPRs, branches] = await Promise.all([
+        fetchOpenPullRequests(prCtx.owner, prCtx.repo, token, prCtx.prNumber),
+        listRecentBranches(prCtx.owner, prCtx.repo, token),
+      ]);
+      fleetContext = renderFleetContext(openPRs, branches);
+    }
+
     // --- MAP: one ship call per diff chunk ---------------------------------
     const partials: string[] = [];
     for (let i = 0; i < chunks.length; i++) {
-      const userMessage = buildUserMessage(prCtx, chunks[i], i, chunks.length);
+      const userMessage = buildUserMessage(prCtx, chunks[i], i, chunks.length, fleetContext);
       const request = {
         messages: [
           { role: 'system', content: systemPrompt },
@@ -430,17 +452,30 @@ async function runShip(
         ],
         ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
       };
-      const res = (await env.AI.run(
-        ship.cfModel as Parameters<typeof env.AI.run>[0],
-        request,
-      )) as { response?: string };
-      partials.push((res.response ?? '').trim());
+      const res = await env.AI.run(ship.cfModel as Parameters<typeof env.AI.run>[0], request);
+      const { text, shape } = extractAiText(res);
+      partials.push(text);
 
-      // Transcript: one row per MAP chunk (best-effort).
+      // Diagnose the silent-blank case: an empty result makes a ship post nothing
+      // and resolve PASS. Log the model + response shape so an empty-returning
+      // model (gpt-oss Responses API mismatch, an outage, an error object) is
+      // legible instead of a mystery green check. (2026-07-07 blackout postmortem.)
+      if (!text) {
+        console.warn(
+          `[fleet-executor] pd-${ship.name} MAP chunk ${i + 1}/${chunks.length} EMPTY on ` +
+            `${ship.cfModel}: ${describeResponseShape(res)}`,
+        );
+      }
+
+      // Transcript: one row per MAP chunk (best-effort). `shape` records which
+      // envelope produced the text; `responseShape` is only stamped on an empty
+      // result so a future blackout is diagnosable from D1 alone.
       await transcript.step('map-chunk', ship.name, `MAP chunk ${i + 1}/${chunks.length}`, {
         chunkIndex: i,
         chunkCount: chunks.length,
-        outputLength: partials[i]?.length ?? 0,
+        outputLength: text.length,
+        shape,
+        ...(text ? {} : { responseShape: describeResponseShape(res) }),
       });
     }
 
@@ -454,6 +489,52 @@ async function runShip(
         chunkCount: chunks.length,
         outputLength: output.length,
       });
+    }
+
+    // --- IDEATION ships: proposals, not findings ---------------------------
+    // spark / spider / lookout / snipe propose forward work. Parse the validated
+    // Proposal schema and render it into REAL actionable Port Daddy syntax. These
+    // ships are always advisory: they NEVER gate a merge and NEVER contribute
+    // inline review comments, so a malformed block just falls back to the raw
+    // model output — it can't destabilize the check.
+    if (ship.ideation) {
+      const proposals = parseProposals(output);
+      const rendered =
+        proposals && proposals.length > 0
+          ? renderProposalComment(proposals, {
+              owner: prCtx.owner,
+              repo: prCtx.repo,
+              prNumber: prCtx.prNumber,
+              shipName: ship.name,
+            })
+          : '';
+      // When proposals parse to a real set → post the actionable render. When the
+      // ship proposed nothing (empty array) → silence. When the block was
+      // malformed (null) → post the raw output so the model's prose isn't lost.
+      const body = rendered || (proposals === null ? output : '');
+
+      await transcript.step('ship-verdict', ship.name, `pd-${ship.name}: PASS (ideation)`, {
+        proposals: proposals ?? 'malformed',
+        posted: !!body.trim(),
+      });
+
+      await postShipComment(
+        prCtx.owner,
+        prCtx.repo,
+        prCtx.prNumber,
+        ship.name,
+        ship.role,
+        body,
+        token,
+      );
+
+      return {
+        ship: ship.name,
+        blocking: false,
+        verdict: 'PASS',
+        errored: false,
+        findings: [],
+      };
     }
 
     // Parse the structured findings block. `null` => malformed JSON => the ship
@@ -569,11 +650,12 @@ async function reduceFindings(
   partials: string[],
   env: ExecutorEnv,
 ): Promise<string> {
+  const mergeVerb = ship.ideation ? 'proposals' : 'findings';
   const managerSystem =
     `You are the fleet REDUCE manager for ship pd-${ship.name}. You receive ` +
     `several partial reviews of different chunks of one PR diff. Merge them into ` +
-    `a SINGLE review of the whole PR. Deduplicate findings.\n\n` +
-    buildOutputContract() +
+    `a SINGLE review of the whole PR. Deduplicate ${mergeVerb}.\n\n` +
+    (ship.ideation ? ideationOutputContract() : buildOutputContract()) +
     (ship.blocking
       ? '\n\nThis ship is BLOCKING: emit FLEET-VERDICT: BLOCK if any partial raised a HIGH finding or objected; otherwise FLEET-VERDICT: PASS.'
       : '\n\nThis ship is ADVISORY: still emit exactly one FLEET-VERDICT line.');
@@ -589,12 +671,14 @@ async function reduceFindings(
     ],
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
-  const res = (await env.AI.run(
-    ship.cfModel as Parameters<typeof env.AI.run>[0],
-    request,
-  )) as { response?: string };
-
-  return (res.response ?? '').trim();
+  const res = await env.AI.run(ship.cfModel as Parameters<typeof env.AI.run>[0], request);
+  const { text } = extractAiText(res);
+  if (!text) {
+    console.warn(
+      `[fleet-executor] pd-${ship.name} REDUCE EMPTY on ${ship.cfModel}: ${describeResponseShape(res)}`,
+    );
+  }
+  return text;
 }
 
 function buildSummary(results: ShipResult[], conclusion: string): string {
@@ -649,8 +733,10 @@ function buildSystemPrompt(ship: ShipConfig, contract: string | null): string {
     'You are running as a Cloudflare Worker with no filesystem or shell access. ' +
       'You may be shown ONE CHUNK of a larger PR diff at a time — review only the ' +
       'chunk in front of you; a manager will merge the chunks. Analyze the diff ' +
-      'and report findings only. If you find nothing worth noting, say so briefly.\n\n' +
-      buildOutputContract(),
+      'and report ' +
+      (ship.ideation ? 'proposals' : 'findings') +
+      ' only. If you have nothing worth noting, say so briefly.\n\n' +
+      (ship.ideation ? ideationOutputContract() : buildOutputContract()),
   );
 
   return parts.join('\n\n');
@@ -661,6 +747,7 @@ function buildUserMessage(
   diffChunk: string,
   chunkIndex: number,
   chunkCount: number,
+  fleetContext = '',
 ): string {
   const fileList = prCtx.files
     .map(f => `- ${f.filename} (+${f.additions}/-${f.deletions})`)
@@ -669,13 +756,15 @@ function buildUserMessage(
   const chunkNote =
     chunkCount > 1 ? ` (chunk ${chunkIndex + 1} of ${chunkCount})` : '';
 
+  const contextBlock = fleetContext ? `\n\n${fleetContext}` : '';
+
   return `# PR #${prCtx.prNumber}: ${prCtx.title}
 
 ## Changed files
 ${fileList || '(none)'}
 
 ## PR description
-${prCtx.body || '(none)'}
+${prCtx.body || '(none)'}${contextBlock}
 
 ## Diff${chunkNote}
 \`\`\`diff

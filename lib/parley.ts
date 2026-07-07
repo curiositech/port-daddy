@@ -50,6 +50,12 @@ export interface ParleyOutcome {
   at: number;
 }
 
+export interface ParleyReceipt {
+  party: string;
+  lastSeenAt: number | null;
+  unseenTurns: number;
+}
+
 export interface ParleySummary {
   parley: ParleyRecord;
   status: ParleyStatus;
@@ -57,6 +63,7 @@ export interface ParleySummary {
   outcome: ParleyOutcome | null;
   respondedParties: string[];
   missingParties: string[];
+  receipts: ParleyReceipt[];
   expired: boolean;
   risks: string[];
 }
@@ -79,6 +86,19 @@ export interface RespondParleyInput {
   content: string;
   proposalId?: string | null;
   evidenceRefs?: string[];
+}
+
+export interface RespondParleyResult {
+  turn: ParleyTurn;
+  notified: string[];
+  notifyFailures: string[];
+}
+
+export interface MarkSeenInput {
+  parleyId: string;
+  party: string;
+  /** Watermark: turns at or before this timestamp count as seen. Defaults to now. */
+  throughAt?: number;
 }
 
 export interface ResolveParleyInput {
@@ -220,6 +240,23 @@ export function createParley(deps: ParleyDeps) {
       .sort((a, b) => a.at - b.at);
   }
 
+  function participants(parley: ParleyRecord): string[] {
+    return uniqueNonEmpty([...parley.parties, parley.calledBy]);
+  }
+
+  function getSeenMap(parleyId: string, harbor?: string): Map<string, number> {
+    const rows = tuples.rd(['parley:seen', parleyId, '*', '*'], { harbor, limit: 1000 });
+    const seen = new Map<string, number>();
+    for (const row of rows) {
+      const party = row.fields[2];
+      const data = row.fields[3] as { throughAt?: number } | null;
+      if (typeof party !== 'string' || !data || typeof data.throughAt !== 'number') continue;
+      const prior = seen.get(party);
+      if (prior === undefined || data.throughAt > prior) seen.set(party, data.throughAt);
+    }
+    return seen;
+  }
+
   function getOutcome(parleyId: string, harbor?: string): ParleyOutcome | null {
     const rows = tuples.rd(['parley:outcome', parleyId, '*'], { harbor, limit: 1 });
     const data = rows[0]?.fields[2];
@@ -253,6 +290,14 @@ export function createParley(deps: ParleyDeps) {
   function summarize(parley: ParleyRecord): ParleySummary {
     const turns = getTurns(parley.parleyId, parley.harbor);
     const outcome = getOutcome(parley.parleyId, parley.harbor);
+    const seenMap = getSeenMap(parley.parleyId, parley.harbor);
+    const receipts: ParleyReceipt[] = participants(parley).map((party) => {
+      const lastSeenAt = seenMap.get(party) ?? null;
+      const unseenTurns = turns.filter((turn) => (
+        turn.party !== party && (lastSeenAt === null || turn.at > lastSeenAt)
+      )).length;
+      return { party, lastSeenAt, unseenTurns };
+    });
     const responded = new Set<string>();
     for (const turn of turns) responded.add(turn.party);
     const respondedParties = parley.parties.filter((party) => responded.has(party));
@@ -281,6 +326,7 @@ export function createParley(deps: ParleyDeps) {
       outcome,
       respondedParties,
       missingParties,
+      receipts,
       expired,
       risks,
     };
@@ -304,7 +350,7 @@ export function createParley(deps: ParleyDeps) {
     return summaries;
   }
 
-  function respond(input: RespondParleyInput): ParleyTurn {
+  function respond(input: RespondParleyInput): RespondParleyResult {
     const parleyId = input.parleyId?.trim();
     if (!parleyId) throw new Error('parley.respond: parleyId is required');
     const summary = get(parleyId);
@@ -350,7 +396,68 @@ export function createParley(deps: ParleyDeps) {
       harbor: summary.parley.harbor,
       writtenBy: party,
     });
-    return turn;
+
+    // Fan the turn out to every other participant (parties + the summoner) so
+    // nobody has to poll `show` to learn a new turn exists. Unlike call(),
+    // delivery failure is non-fatal here: the turn is already durable in the
+    // tuple space, so failures are reported to the responder instead of thrown.
+    const notified: string[] = [];
+    const notifyFailures: string[] = [];
+    if (agentInbox) {
+      for (const recipient of participants(summary.parley)) {
+        if (recipient === party) continue;
+        const result = agentInbox.send(recipient, {
+          kind: 'parley_turn',
+          parleyId,
+          surface: summary.parley.surface,
+          channel: summary.parley.channel,
+          party,
+          performative: turn.performative,
+          content: turn.content,
+          proposalId: turn.proposalId,
+          evidenceRefs: turn.evidenceRefs,
+          at: turn.at,
+        }, {
+          from: party,
+          type: 'parley_turn',
+          contentType: 'json',
+          signal: 'parley_turn',
+        });
+        if (result.success) notified.push(recipient);
+        else notifyFailures.push(`${recipient}: ${result.error ?? 'send failed'}`);
+      }
+    }
+    return { turn, notified, notifyFailures };
+  }
+
+  function markSeen(input: MarkSeenInput): ParleyReceipt {
+    const parleyId = input.parleyId?.trim();
+    if (!parleyId) throw new Error('parley.markSeen: parleyId is required');
+    const parley = findOpened(parleyId);
+    if (!parley) throw new Error(`parley.markSeen: parley '${parleyId}' not found`);
+    const party = input.party?.trim();
+    if (!party) throw new Error('parley.markSeen: party is required');
+    if (!participants(parley).includes(party)) {
+      throw new Error(`parley.markSeen: '${party}' is not part of parley '${parleyId}'`);
+    }
+    const throughAt = input.throughAt ?? now();
+    if (!Number.isFinite(throughAt)) throw new Error('parley.markSeen: throughAt must be a timestamp');
+    // Only write when the watermark actually advances: repeated `show` polling
+    // must not grow the tuple space, and a bounded row count keeps every
+    // receipt inside getSeenMap's scan window. Retention matches outcomes.
+    const current = getSeenMap(parleyId, parley.harbor).get(party);
+    if (current === undefined || throughAt > current) {
+      tuples.out(['parley:seen', parleyId, party, { throughAt, at: now() }], {
+        harbor: parley.harbor,
+        writtenBy: party,
+        ttlMs: OUTCOME_TTL_MS,
+      });
+    }
+    const effective = current !== undefined && current > throughAt ? current : throughAt;
+    const unseenTurns = getTurns(parleyId, parley.harbor).filter((turn) => (
+      turn.party !== party && turn.at > effective
+    )).length;
+    return { party, lastSeenAt: effective, unseenTurns };
   }
 
   function resolve(input: ResolveParleyInput): ParleyOutcome {
@@ -387,6 +494,7 @@ export function createParley(deps: ParleyDeps) {
     call,
     respond,
     resolve,
+    markSeen,
     get,
     list,
   };

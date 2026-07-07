@@ -268,6 +268,8 @@ run_read "metrics"           metrics     -- metrics
 run_read "config"            config      -- config
 run_read "graph"             graph       -- graph
 run_read "embed status"      embed       -- embed status
+run_read "skill-graft help"  skill-graft -- skill-graft --help
+run_read "skillgraft help"   skillgraft  -- skillgraft --help
 run_read "snapshots list"    snapshots   -- snapshots list
 run_read "snapshot list"     snapshot    -- snapshot list
 run_read "tuple scan"        tuple       -- tuple scan

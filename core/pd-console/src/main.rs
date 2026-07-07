@@ -26,6 +26,7 @@ mod conjure;
 mod daemon_pane;
 mod dispatch_pane;
 mod editor_pane;
+mod editor_sync;
 mod fleet_pane;
 mod grid;
 mod harbor_pane;
@@ -1042,7 +1043,11 @@ fn main() {
                                 harbor_stream = Some((agent_id, rx));
                             }
                         }
-                        None => harbor_stream = None,
+                        // The Harbor pane only ever follows an agent stream. The
+                        // Editor's per-file op-stream subscription (P2 slice 1) is
+                        // driven by the editor surface itself, not here — so an
+                        // Editor intent on this pane means "nothing to follow".
+                        Some(pane::Subscription::Editor { .. }) | None => harbor_stream = None,
                     }
                     if let Some((_, rx)) = harbor_stream.as_mut() {
                         while let Ok(env) = rx.try_recv() {

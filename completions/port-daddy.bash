@@ -140,7 +140,7 @@ _port_daddy() {
     # Tuple space
     tuple
     # Semantic graph + episodic memory
-    graph memory ideas
+    graph memory ideas skill-graft skillgraft
     # Shared local embedder (ADR-0061)
     embed
     # Cartographer roadmap projection
@@ -1916,6 +1916,28 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
+    # skill-graft  query|warm|reference  [options]
+    # -----------------------------------------------------------------------
+    skill-graft|skillgraft)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "query warm reference" -- "$cur") )
+          ;;
+        query)
+          _pd_opts '--root --shortlist-limit --top-limit --body-chars --json'
+          ;;
+        warm)
+          _pd_opts '--root --json'
+          ;;
+        reference)
+          _pd_opts '--root --json'
+          ;;
+        *) _pd_opts '' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
     # graph  edges|stats  [options]
     # -----------------------------------------------------------------------
     graph)
@@ -2030,14 +2052,14 @@ _port_daddy() {
       esac
       ;;
 
-    # parley call|respond|resolve|list|show|fit
+    # parley call|propose|critique|revise|agree|refuse|say|respond|resolve|list|show|fit
     parley)
       local subcmd="${words[2]:-}"
       case "$subcmd" in
         call)
           _pd_opts '--surface --with --parties --reason --ttl-ms --round-limit --harbor --as --json --quiet'
           ;;
-        respond)
+        respond|propose|critique|revise|agree|refuse|say)
           _pd_opts '--id --parley --performative --content --proposal --evidence --as --party --json --quiet'
           ;;
         resolve)
@@ -2053,7 +2075,7 @@ _port_daddy() {
           if [[ "$cur" == -* ]]; then
             _pd_opts '--json --quiet'
           else
-            COMPREPLY=( $(compgen -W "call respond resolve list show fit help" -- "$cur") )
+            COMPREPLY=( $(compgen -W "call propose critique revise agree refuse say respond resolve list show fit help" -- "$cur") )
           fi
           ;;
       esac
