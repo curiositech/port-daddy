@@ -536,9 +536,11 @@ fn main() {
                                         // recovery path below.
                                         let bind_error: Option<String> =
                                             match agent::resolve_console_chat_workdir() {
-                                                Err(wd_err) => {
-                                                    Some(format!("couldn't create a chat worktree: {wd_err}"))
-                                                }
+                                                // ChatWorkdirError already carries a full,
+                                                // actionable "couldn't create …" message (and
+                                                // names a worktree OR a scratch dir), so surface
+                                                // it verbatim — no redundant re-prefix.
+                                                Err(wd_err) => Some(wd_err.to_string()),
                                                 Ok(workdir) => {
                                                     let opts = agent::SpawnOpts {
                                                         workdir: Some(workdir),

@@ -1379,7 +1379,12 @@ fn make_chat_workdir(
         }
     }
 
-    // Scratch dir (read-only posture; `detectGitCheckout` reads 'none').
+    // Scratch dir (read-only posture; `detectGitCheckout` reads 'none'). Wipe
+    // `dest` first: a `git worktree add` that failed AFTER creating the target
+    // could leave a partial `.git` behind, and a stale checkout there would make
+    // the guard misread the posture — defeating the isolation fix on the error
+    // path. A clean, empty dir guarantees 'none'. (Ignore a not-found error.)
+    let _ = std::fs::remove_dir_all(&dest);
     std::fs::create_dir_all(&dest).map_err(|e| {
         ChatWorkdirError(format!(
             "couldn't create a chat workdir at {}: {e}. Set PD_CONSOLE_WORKDIR to an \
@@ -1433,7 +1438,13 @@ pub fn build_spawn_body(
     // let a bare spawn default to the daemon's own main checkout and bounce.
     if let Some(wd) = opts.workdir.as_deref().filter(|w| !w.trim().is_empty()) {
         body["workdir"] = serde_json::json!(wd);
-    } else if let Ok(wd) = std::env::var("PD_CONSOLE_WORKDIR") {
+    } else if let Some(wd) = std::env::var("PD_CONSOLE_WORKDIR")
+        .ok()
+        .filter(|w| !w.trim().is_empty())
+    {
+        // Same non-empty guard as the opts branch: a set-but-blank env var must NOT
+        // emit an empty `workdir` (routes/spawn.ts rejects it, and it would surface
+        // as a confusing daemon error rather than the clean default posture).
         body["workdir"] = serde_json::json!(wd);
     }
     // Giant Squid Harness opt-in (ADR-0091): only emit the flag when set, so a
