@@ -50,6 +50,7 @@ import {
   renderProposalComment,
   ideationOutputContract,
 } from './proposals.js';
+import { extractAiText, describeResponseShape } from './ai-response.js';
 
 // ---------------------------------------------------------------------------
 
@@ -451,17 +452,30 @@ async function runShip(
         ],
         ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
       };
-      const res = (await env.AI.run(
-        ship.cfModel as Parameters<typeof env.AI.run>[0],
-        request,
-      )) as { response?: string };
-      partials.push((res.response ?? '').trim());
+      const res = await env.AI.run(ship.cfModel as Parameters<typeof env.AI.run>[0], request);
+      const { text, shape } = extractAiText(res);
+      partials.push(text);
 
-      // Transcript: one row per MAP chunk (best-effort).
+      // Diagnose the silent-blank case: an empty result makes a ship post nothing
+      // and resolve PASS. Log the model + response shape so an empty-returning
+      // model (gpt-oss Responses API mismatch, an outage, an error object) is
+      // legible instead of a mystery green check. (2026-07-07 blackout postmortem.)
+      if (!text) {
+        console.warn(
+          `[fleet-executor] pd-${ship.name} MAP chunk ${i + 1}/${chunks.length} EMPTY on ` +
+            `${ship.cfModel}: ${describeResponseShape(res)}`,
+        );
+      }
+
+      // Transcript: one row per MAP chunk (best-effort). `shape` records which
+      // envelope produced the text; `responseShape` is only stamped on an empty
+      // result so a future blackout is diagnosable from D1 alone.
       await transcript.step('map-chunk', ship.name, `MAP chunk ${i + 1}/${chunks.length}`, {
         chunkIndex: i,
         chunkCount: chunks.length,
-        outputLength: partials[i]?.length ?? 0,
+        outputLength: text.length,
+        shape,
+        ...(text ? {} : { responseShape: describeResponseShape(res) }),
       });
     }
 
@@ -657,12 +671,14 @@ async function reduceFindings(
     ],
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
-  const res = (await env.AI.run(
-    ship.cfModel as Parameters<typeof env.AI.run>[0],
-    request,
-  )) as { response?: string };
-
-  return (res.response ?? '').trim();
+  const res = await env.AI.run(ship.cfModel as Parameters<typeof env.AI.run>[0], request);
+  const { text } = extractAiText(res);
+  if (!text) {
+    console.warn(
+      `[fleet-executor] pd-${ship.name} REDUCE EMPTY on ${ship.cfModel}: ${describeResponseShape(res)}`,
+    );
+  }
+  return text;
 }
 
 function buildSummary(results: ShipResult[], conclusion: string): string {
