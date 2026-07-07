@@ -70,6 +70,18 @@ describe('renderFindingsComment', () => {
     expect(query).not.toContain('<thing>');
   });
 
+  it('the hidden machine block survives model text containing "-->" (no early comment termination)', () => {
+    const out = renderFindingsComment([f({ body: 'evil --> <!-- injected' })], CTX);
+    const block = out.slice(out.indexOf('<!-- pd-findings-json'));
+    // The raw comment body must not contain a literal terminator before its end.
+    const inner = block.replace(/^<!-- pd-findings-json\n/, '').replace(/\n-->$/, '');
+    expect(inner).not.toContain('-->');
+    expect(inner).not.toContain('<!--');
+    // And it still round-trips to the original text through JSON.parse.
+    const parsed = JSON.parse(inner) as Array<{ body: string }>;
+    expect(parsed[0].body).toBe('evil --> <!-- injected');
+  });
+
   it('is deterministic — same input, byte-identical output (idempotent edit-in-place)', () => {
     const findings = [f({ severity: 'HIGH', body: 'a' }), f({ severity: 'LOW', body: 'b' })];
     expect(renderFindingsComment(findings, CTX)).toBe(renderFindingsComment(findings, CTX));

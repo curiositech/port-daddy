@@ -594,10 +594,15 @@ async function runShip(
     );
 
     // Transcript: the per-ship issue comment was posted (or intentionally
-    // skipped when a clean ship rendered to silence).
-    await transcript.step('review-posted', ship.name, `Posted review for pd-${ship.name}`, {
-      posted: !!reviewerBody.trim(),
-    });
+    // skipped when a clean ship rendered to silence). Keep the message honest —
+    // a silent ship must not log "Posted review".
+    const posted = !!reviewerBody.trim();
+    await transcript.step(
+      'review-posted',
+      ship.name,
+      posted ? `Posted review for pd-${ship.name}` : `pd-${ship.name}: clean — nothing to post`,
+      { posted },
+    );
 
     if (findings === null) {
       return {

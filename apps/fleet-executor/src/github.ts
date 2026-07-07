@@ -373,6 +373,12 @@ const GITHUB_COMMENT_MAX = 65536;
 function capBody(body: string, tag: string): string {
   if (body.length <= GITHUB_COMMENT_MAX) return body;
   const marker = `\n\n…truncated (exceeded GitHub's ${GITHUB_COMMENT_MAX}-char limit)\n\n${tag}`;
+  // Pathological: a marker (dominated by `tag`) at/over the limit would make the
+  // slice length <= 0 and could drop the edit-in-place tag. Fall back to a hard
+  // slice that still preserves the tag at the very end.
+  if (marker.length >= GITHUB_COMMENT_MAX) {
+    return body.slice(0, Math.max(0, GITHUB_COMMENT_MAX - tag.length - 1)) + '\n' + tag;
+  }
   return body.slice(0, GITHUB_COMMENT_MAX - marker.length) + marker;
 }
 

@@ -18,6 +18,10 @@
  */
 
 import type { Finding, Severity } from './verdict.js';
+import { htmlCommentSafeJson } from './machine-block.js';
+
+/** Cap model text baked into a prefilled-issue URL so the GET URL stays sane. */
+const ISSUE_URL_BODY_LIMIT = 1200;
 
 export interface FindingsRenderCtx {
   owner: string;
@@ -51,7 +55,7 @@ function issueUrl(f: Finding, ctx: FindingsRenderCtx): string {
   const body = encodeURIComponent(
     `**Source:** pd-${ctx.shipName} on PR #${ctx.prNumber} (HIGH finding)\n\n` +
       `**Location:** \`${f.path}:${f.line}\`\n\n` +
-      `${f.body}\n\n` +
+      `${f.body.slice(0, ISSUE_URL_BODY_LIMIT)}\n\n` +
       `*Auto-surfaced by Port Daddy Fleet.*`,
   );
   return (
@@ -91,8 +95,9 @@ export function renderFindingsComment(findings: Finding[], ctx: FindingsRenderCt
 
   // Hidden machine block so a future bulk-triage handler can re-materialize the
   // findings without re-parsing the prose. Mirrors proposals.ts's
-  // `pd-proposals-json` convention.
-  const machine = `\n\n<!-- pd-findings-json\n${JSON.stringify(findings)}\n-->`;
+  // `pd-proposals-json` convention. Model-provided text is comment-safe-escaped
+  // so a body containing `-->` can't terminate the HTML comment early.
+  const machine = `\n\n<!-- pd-findings-json\n${htmlCommentSafeJson(findings)}\n-->`;
 
   const footer =
     '\n\n---\n' +
