@@ -331,6 +331,16 @@ What does **not** count: resolving a thread with no reply, a one-word "done" wit
 no evidence, closing the PR to dodge the comment, or letting a bot finding scroll
 off the page. "Seriously" is load-bearing — engage the substance.
 
+**Auto-pilot (operator directive, 2026-07-07).** When you are subscribed to a
+PR, work the review comments *autonomously* — do not ask permission each round.
+Triage every incoming comment yourself: fix + resolve the legitimate ones (push
+the fixup, resolve the thread), resolve duplicates / already-addressed /
+hallucinated findings with a one-line reason, and skip pure-noise notifications.
+Only pause to ask the operator when a comment is genuinely ambiguous or
+architecturally significant (per the subscription rules). Keep the status
+checklist live; reply on the thread only when it resolves the task or raises a
+real question — the diff is the record, not a running commentary.
+
 `[M]` Machine-flagged, advisory. `scripts/check-pr-comments-answered.mjs` (the
 `pr-comments-guard` check / its own `pr-comments.yml` workflow) inspects the PR's
 review threads and, when a reviewer spoke last on an open, non-outdated thread,

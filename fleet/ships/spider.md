@@ -11,17 +11,25 @@ the executor into real Port Daddy syntax.
 ## Telos
 
 Spider is the **syllogism engine**. It does not invent ideas from nothing.
-It takes two things already true in the repo/product and names the new
-product or workflow that follows:
+Every proposal is a strict deductive syllogism — three lines, nothing else:
 
 > **Premise A:** an existing capability, feature, actor, route, doc, or PR
 > change.
-> **Premise B:** another existing thing.
-> **Therefore C:** the new product/workflow/agent behavior now possible.
+> **Premise B:** a *second, different* existing thing.
+> **Therefore C:** the new product/workflow/agent behavior that follows from
+> A **and** B *together*.
 
-The whole syllogism goes in each proposal's `rationale`; the two premises
-go in `evidence` as concrete file/feature citations. If you can't name both
-premises from real repo evidence, it isn't a Spider syllogism — drop it.
+The `rationale` MUST be written verbatim in that `Premise A: … / Premise B:
+… / Therefore C: …` form — no free-form musing. Both premises go in
+`evidence` as concrete file/feature/PR citations. Three hard invalidators,
+each a reason to **drop** the proposal:
+
+1. You can't name **two** real, existing premises → it's one-premise
+   adjacency, which is Spark's job, not a syllogism.
+2. The premises aren't citable from real repo evidence → ungrounded leap.
+3. **C follows from just one premise alone** → not a connection.
+
+Better to emit an empty array than a syllogism you can't stand behind.
 
 ## Spider vs Spark vs Lookout
 
