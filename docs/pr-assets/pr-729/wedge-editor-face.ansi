@@ -1,0 +1,39 @@
+[1m pd-console — Harbor Editor (repl face) · PR #729 wedge · port-daddy:editor:agent-local[0m
+[90m one pane, two faces — the gpui window paints these same Blocks[0m
+
+
+  [1m[38;2;227;181;109medit wire.rs[0m[0m [38;2;102;99;94m──────────────────────────────────[0m[0m
+  [38;2;220;140;133m⚠ predicted conflict — ‘parse_header’ (L10–L20): 1 blocking[0m[0m
+  [38;2;220;140;133mthe daemon predicts 1 blocking conflict(s) if you edit ‘parse_header’ now — request a handoff, open a parley, pick anothe…[0m
+  [38;2;220;140;133m✗[0m [38;2;220;140;133m‘parse_header’ is claimed by peer 7e[0m[0m
+  [38;2;220;140;133mregion ‘parse_header’ is held by peer 7e's live claim — request a handoff, open a parley, pick another region.[0m[0m
+  [38;2;220;140;133m✗[0m [38;2;220;140;133mcommit gate: gated by peer 7e · L12–L18[0m[0m
+  [38;2;220;140;133mregion ‘parse_header’ is held by peer 7e's live claim — request a handoff, open a parley, pick another region.[0m[0m
+  [38;2;102;99;94m⚑H[0m [38;2;102;99;94moperator e5 (opener)[0m[0m
+  [38;2;128;176;222m⚑C[0m [38;2;128;176;222mpeer 07 · caret L5 · view L1–L25[0m[0m
+  [38;2;102;99;94m⚑R[0m [38;2;102;99;94myou — parse_header · L10–L20[0m[0m
+  [38;2;128;176;222m⚑R[0m [38;2;128;176;222mpeer 7e — parse_header · L10–L20[0m[0m
+  [38;2;227;181;109m  1 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194m// harbor/src/wire.rs — frame header codec                     [0m[0m
+  [38;2;227;181;109m  2 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194muse crate::codec::{Frame, HEADER_BYTES};                       [0m[0m
+  [38;2;227;181;109m  3 ··[0m [38;2;102;99;94m│[0m [38;2;206;202;194m                                                               [0m[0m
+  [38;2;227;181;109m  4 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194mpub struct Header {                                            [0m[0m
+  [38;2;227;181;109m  5 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194m    pub len: u32,                                              [0m[0m
+  [38;2;227;181;109m  6 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194m    pub kind: u8,                                              [0m[0m
+  [38;2;227;181;109m  7 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194m    pub flags: u16,                                            [0m[0m
+  [38;2;227;181;109m  8 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194m}                                                              [0m[0m
+  [38;2;227;181;109m  9 ··[0m [38;2;102;99;94m│[0m [38;2;206;202;194m                                                               [0m[0m
+  [38;2;227;181;109m 10 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194mpub fn parse_header(buf: &[u8]) -> Option<Header> {            [0m[0m
+  [38;2;227;181;109m 11 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194m    if buf.len() < HEADER_BYTES {                              [0m[0m
+  [38;2;227;181;109m 12 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194m        return None;                                           [0m[0m
+  [38;2;227;181;109m 13 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194m    }                                                          [0m[0m
+  [38;2;227;181;109m 14 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194m    let len = u32::from_be_bytes(buf[0..4].try_into().ok()?);  [0m[0m
+  [38;2;227;181;109m 15 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194m    let kind = buf[4];                                         [0m[0m
+  [38;2;227;181;109m 16 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194m    let flags = u16::from_be_bytes(buf[5..7].try_into().ok()?);[0m[0m
+  [38;2;227;181;109m 17 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194m    Some(Header { len, kind, flags })                          [0m[0m
+  [38;2;227;181;109m 18 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194m}                                                              [0m[0m
+  [38;2;227;181;109m 19 ··[0m [38;2;102;99;94m│[0m [38;2;206;202;194m                                                               [0m[0m
+  [38;2;227;181;109m 20 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194mpub fn frame_len(h: &Header) -> usize {                        [0m[0m
+  [38;2;227;181;109m 21 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194m    h.len as usize + HEADER_BYTES                              [0m[0m
+  [38;2;227;181;109m 22 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194m}                                                              [0m[0m
+  [38;2;227;181;109m 23 ··[0m [38;2;102;99;94m│[0m [38;2;206;202;194m                                                               [0m[0m
+  [38;2;227;181;109m 24 e5[0m [38;2;102;99;94m│[0m [38;2;206;202;194m// TODO: zero-copy header view over the ring buffer.           [0m[0m
