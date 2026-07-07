@@ -244,8 +244,15 @@ async fn main() -> Result<()> {
             // channels exactly as `:lane` drains an agent stream — the headless proof
             // that the editor lane is wired end to end (the same `drain_active_subscription`
             // path the gpui producer runs). Reuse the single "editor" slot so repeated
-            // `:edit`s rebind rather than pile up panes.
-            let pane = editor_pane::EditorPane::new(path.to_string(), None);
+            // `:edit`s rebind rather than pile up panes. Key the local Loro replica to
+            // the operator's LIVE `pd whoami` identity (same as the GPUI producer's
+            // OpenEditor), so authorship + claims agree across the two faces — never the
+            // DEFAULT_IDENTITY fallback (Copilot #729).
+            let pane = editor_pane::EditorPane::new_with_identity(
+                path.to_string(),
+                None,
+                editor_pane::resolve_operator_identity(),
+            );
             match reg.panes.iter().position(|p| p.id() == "editor") {
                 Some(pos) => {
                     reg.panes[pos] = Box::new(pane);
