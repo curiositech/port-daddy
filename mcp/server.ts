@@ -722,11 +722,13 @@ const TOOLS = [
   {
     name: 'get_parley',
     description:
-      '[Parley] Fetch a parley summary, including turns, missing parties, and outcome. Usage: get_parley({id: "..."})',
+      '[Parley] Fetch a parley summary, including turns, read receipts, missing parties, and outcome. ' +
+      'Pass "as" with your agent id to record your read receipt. Usage: get_parley({id: "...", as: "agent-a"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
         id: { type: 'string', description: 'Parley id' },
+        as: { type: 'string', description: 'Your agent/session id — records a read receipt (optional)' },
       },
       required: ['id'],
     },
@@ -3509,7 +3511,8 @@ async function handleTool(
     }
 
     case 'get_parley': {
-      res = await GET(`/parley/${encodeURIComponent(args.id as string)}`);
+      const as = typeof args.as === 'string' && args.as.trim() ? `?as=${encodeURIComponent(args.as.trim())}` : '';
+      res = await GET(`/parley/${encodeURIComponent(args.id as string)}${as}`);
       break;
     }
 

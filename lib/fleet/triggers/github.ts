@@ -29,6 +29,10 @@ interface GitHubWebhookPayload {
   issue?: { number: number; html_url: string; title: string; user?: { login?: string } };
   sender?: { login: string };
   repository?: { full_name: string };
+  /** Per-event origin proof, set by the receiver route ONLY when GitHub's
+   *  origin HMAC verified the raw payload. Absent/false for forwarded events
+   *  whose origin wasn't re-proven. The ONLY thing that may raise consent. */
+  __originVerified?: boolean;
 }
 
 export interface GitHubTriggerSourceDeps {
@@ -76,7 +80,16 @@ export class GitHubTriggerSource implements TriggerSource {
               payload.repository?.full_name,
             sender: payload.sender?.login,
             subject: payload.pull_request?.title ?? payload.issue?.title,
-            consent_verified: true,
+            // GitHub is an EXTERNAL trigger kind (ADR-0093). consent_verified
+            // must reflect CONTENT-AUTHOR verification of THIS event, never the
+            // fact that a github webhook arrived — hardcoding `true` was the
+            // "relay laundering" shape (fleet-event-spawn-trust anti-pattern #1):
+            // a forwarded event (leaked forward token, or non-strict origin
+            // mode) can carry a spoofed `sender.login`, and pairing that with an
+            // operator allowlist would silently escalate an anonymous author to
+            // AUTHENTICATED_EXTERNAL. Fail closed to false unless the receiver
+            // re-proved GitHub's origin HMAC for THIS event.
+            consent_verified: payload.__originVerified === true,
           },
         };
         emit(event);

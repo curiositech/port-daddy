@@ -50,12 +50,23 @@ import {
   renderProposalComment,
   ideationOutputContract,
 } from './proposals.js';
+import { extractAiText, describeResponseShape } from './ai-response.js';
+import { renderFindingsComment } from './findings-render.js';
 
 // ---------------------------------------------------------------------------
 
 /** Per-chunk diff budget for the MAP fan-out (chars). */
 const MAP_CHUNK_CHAR_LIMIT = 12_000;
 const CHECK_NAME = 'Port Daddy Fleet';
+
+/**
+ * Output-token cap for every ship AI call (MAP + REDUCE). Without an explicit
+ * cap the model hits a small provider default and its findings JSON is truncated
+ * mid-string — the 2026-07-07 mobile screenshots showed every reviewer comment
+ * ending in an unterminated `"`. A findings/proposals array is small; this is
+ * generous headroom while still bounding cost per call.
+ */
+const MAX_OUTPUT_TOKENS = 2048;
 
 /**
  * Kill-switch flag key in the relay's CONTROL_KV namespace (the relay writes it
@@ -449,19 +460,33 @@ async function runShip(
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage },
         ],
+        max_tokens: MAX_OUTPUT_TOKENS,
         ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
       };
-      const res = (await env.AI.run(
-        ship.cfModel as Parameters<typeof env.AI.run>[0],
-        request,
-      )) as { response?: string };
-      partials.push((res.response ?? '').trim());
+      const res = await env.AI.run(ship.cfModel as Parameters<typeof env.AI.run>[0], request);
+      const { text, shape } = extractAiText(res);
+      partials.push(text);
 
-      // Transcript: one row per MAP chunk (best-effort).
+      // Diagnose the silent-blank case: an empty result makes a ship post nothing
+      // and resolve PASS. Log the model + response shape so an empty-returning
+      // model (gpt-oss Responses API mismatch, an outage, an error object) is
+      // legible instead of a mystery green check. (2026-07-07 blackout postmortem.)
+      if (!text) {
+        console.warn(
+          `[fleet-executor] pd-${ship.name} MAP chunk ${i + 1}/${chunks.length} EMPTY on ` +
+            `${ship.cfModel}: ${describeResponseShape(res)}`,
+        );
+      }
+
+      // Transcript: one row per MAP chunk (best-effort). `shape` records which
+      // envelope produced the text; `responseShape` is only stamped on an empty
+      // result so a future blackout is diagnosable from D1 alone.
       await transcript.step('map-chunk', ship.name, `MAP chunk ${i + 1}/${chunks.length}`, {
         chunkIndex: i,
         chunkCount: chunks.length,
-        outputLength: partials[i]?.length ?? 0,
+        outputLength: text.length,
+        shape,
+        ...(text ? {} : { responseShape: describeResponseShape(res) }),
       });
     }
 
@@ -541,22 +566,43 @@ async function runShip(
       findings === null ? { error: 'failed to parse findings' } : findings,
     );
 
-    // Post the ship's full output (edit-in-place => idempotent on retry). This
-    // is the backward-compatible history surface; inline review is primary.
+    // Render the findings into clean, actionable markdown (edit-in-place =>
+    // idempotent on retry). When a ship parsed a real findings set → post the
+    // render. When it found nothing (empty array) → post nothing (silence: this
+    // is why red-team stops spamming a bare `[]`). When the block was malformed
+    // (null → errored above) we still surface the raw output so the model's prose
+    // isn't lost. NEVER post the raw fenced JSON — it truncates on mobile and is
+    // not actionable (2026-07-07 screenshots).
+    const reviewerBody =
+      findings === null
+        ? output
+        : renderFindingsComment(findings, {
+            owner: prCtx.owner,
+            repo: prCtx.repo,
+            prNumber: prCtx.prNumber,
+            shipName: ship.name,
+          });
+
     await postShipComment(
       prCtx.owner,
       prCtx.repo,
       prCtx.prNumber,
       ship.name,
       ship.role,
-      output,
+      reviewerBody,
       token,
     );
 
-    // Transcript: the per-ship issue comment was posted.
-    await transcript.step('review-posted', ship.name, `Posted review for pd-${ship.name}`, {
-      posted: true,
-    });
+    // Transcript: the per-ship issue comment was posted (or intentionally
+    // skipped when a clean ship rendered to silence). Keep the message honest —
+    // a silent ship must not log "Posted review".
+    const posted = !!reviewerBody.trim();
+    await transcript.step(
+      'review-posted',
+      ship.name,
+      posted ? `Posted review for pd-${ship.name}` : `pd-${ship.name}: clean — nothing to post`,
+      { posted },
+    );
 
     if (findings === null) {
       return {
@@ -655,14 +701,17 @@ async function reduceFindings(
       { role: 'system', content: managerSystem },
       { role: 'user', content: userMessage },
     ],
+    max_tokens: MAX_OUTPUT_TOKENS,
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
-  const res = (await env.AI.run(
-    ship.cfModel as Parameters<typeof env.AI.run>[0],
-    request,
-  )) as { response?: string };
-
-  return (res.response ?? '').trim();
+  const res = await env.AI.run(ship.cfModel as Parameters<typeof env.AI.run>[0], request);
+  const { text } = extractAiText(res);
+  if (!text) {
+    console.warn(
+      `[fleet-executor] pd-${ship.name} REDUCE EMPTY on ${ship.cfModel}: ${describeResponseShape(res)}`,
+    );
+  }
+  return text;
 }
 
 function buildSummary(results: ShipResult[], conclusion: string): string {

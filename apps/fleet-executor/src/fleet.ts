@@ -61,11 +61,40 @@ function deriveIdeation(name: string, agentClass: unknown): boolean {
 }
 
 // Default Cloudflare AI model per ship if not declared in fallbacks.
-// Upgraded from qwen-30B/32B: the small models produced speculative, noisy
-// reviews ("potential tautology", "consider a JSDoc"). These are the strongest
-// reasoning + code models on Workers AI (no external API key, stays edge-native).
-const DEFAULT_CF_MODEL = '@cf/openai/gpt-oss-120b';        // reasoning reviewers
-const CODER_CF_MODEL = '@cf/moonshotai/kimi-k2.7-code';    // code-specialized (1T, 262k ctx)
+//
+// HARD LESSON (2026-07-07): `@cf/openai/gpt-oss-120b` and
+// `@cf/moonshotai/kimi-k2.7-code` return EMPTY responses on this Workers AI
+// account — the fleet_run_steps transcript showed outputLength:0 for every MAP
+// chunk of every ship pinned to them, so all those ships silently produced no
+// findings/proposals → no comment → PASS. The whole fleet went dark. Only
+// `@cf/qwen/qwen2.5-coder-32b-instruct` returned real output. Until those ids
+// are confirmed working again, the qwen coder model is the default, and
+// {@link resolveCfModel} remaps any known-empty/unknown id onto it. (This is
+// the same class of failure the older github-app-receiver guarded against.)
+const WORKING_CF_MODEL = '@cf/qwen/qwen2.5-coder-32b-instruct'; // proven to return output
+const DEFAULT_CF_MODEL = WORKING_CF_MODEL;
+const CODER_CF_MODEL = WORKING_CF_MODEL;
+
+// Models allowed to reach ai.run verbatim. An id outside this set is remapped to
+// WORKING_CF_MODEL rather than passed through, because an empty-returning (or
+// nonexistent) Workers AI id does NOT error — it yields a blank response, which
+// the parser reads as "clean", silencing the ship. gpt-oss-120b and
+// kimi-k2.7-code are DELIBERATELY excluded: they are empty on this account today.
+// Add an id here only once it's verified to return output.
+const KNOWN_GOOD_CF_MODELS: ReadonlySet<string> = new Set([
+  '@cf/qwen/qwen2.5-coder-32b-instruct',
+  '@cf/qwen/qwen3-30b-a3b-fp8',
+]);
+
+/**
+ * Guard a requested Cloudflare model id: pass through a known-good one, else
+ * remap to {@link WORKING_CF_MODEL}. Exported for the unit tests that pin this
+ * behavior — the fleet must never again go dark because a pinned model id
+ * silently returns nothing.
+ */
+export function resolveCfModel(requested: string): string {
+  return KNOWN_GOOD_CF_MODELS.has(requested) ? requested : WORKING_CF_MODEL;
+}
 
 // Tools that require local execution (can't run in a Worker). Matches any
 // Bash(...) tool whose command is NOT `gh` (gh runs fine against the API).
@@ -120,7 +149,12 @@ function coerceTemperature(value: unknown): number | null {
  */
 function deriveCfModel(agent: RawAgent, name: string): string {
   for (const fb of agent.fallbacks ?? []) {
-    if (typeof fb?.model === 'string' && fb.model.startsWith('@cf/')) return fb.model;
+    if (typeof fb?.model === 'string' && fb.model.startsWith('@cf/')) {
+      // Guard the pinned id: a pd-fleet.yml pin of an empty-returning model
+      // (gpt-oss-120b / kimi-k2.7-code today) is remapped to a working one so
+      // the ship still produces output.
+      return resolveCfModel(fb.model);
+    }
   }
   return name.includes('reviewer') ? CODER_CF_MODEL : DEFAULT_CF_MODEL;
 }
