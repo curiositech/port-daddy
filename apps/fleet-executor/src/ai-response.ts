@@ -63,10 +63,14 @@ export function extractAiText(res: unknown): ExtractedText {
       const it = item as Record<string, unknown>;
       if (Array.isArray(it.content)) {
         for (const c of it.content) {
-          if (c && typeof c === 'object') parts.push(firstString((c as Record<string, unknown>).text));
+          if (c && typeof c === 'object') {
+            const t = firstString((c as Record<string, unknown>).text);
+            if (t) parts.push(t);
+          }
         }
       } else {
-        parts.push(firstString(it.text));
+        const t = firstString(it.text);
+        if (t) parts.push(t);
       }
     }
     const text = parts.join('').trim();
@@ -79,7 +83,10 @@ export function extractAiText(res: unknown): ExtractedText {
     for (const ch of o.choices) {
       if (!ch || typeof ch !== 'object') continue;
       const msg = (ch as Record<string, unknown>).message;
-      if (msg && typeof msg === 'object') parts.push(firstString((msg as Record<string, unknown>).content));
+      if (msg && typeof msg === 'object') {
+        const t = firstString((msg as Record<string, unknown>).content);
+        if (t) parts.push(t);
+      }
     }
     const text = parts.join('').trim();
     if (text) return { text, shape: 'chat-completions' };

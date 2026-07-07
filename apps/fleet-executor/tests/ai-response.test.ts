@@ -2,15 +2,21 @@ import { describe, it, expect } from 'vitest';
 import { extractAiText, describeResponseShape } from '../src/ai-response.js';
 
 describe('extractAiText — reads every Workers AI / OpenAI response envelope', () => {
-  it('standard Workers AI text generation: { response }', () => {
-    expect(extractAiText({ response: '  hello  ' })).toEqual({ text: 'hello', shape: 'response' });
+  it('standard Workers AI text generation: { response } — and it trims surrounding whitespace', () => {
+    const out = extractAiText({ response: '\n  hello world  \n' });
+    // The function does real work: the returned text is NOT the raw input — the
+    // surrounding whitespace is stripped, and the envelope is labelled.
+    expect(out.text).toBe('hello world');
+    expect(out.text).not.toBe('\n  hello world  \n');
+    expect(out.shape).toBe('response');
   });
 
-  it('OpenAI Responses API convenience aggregate: { output_text }', () => {
-    expect(extractAiText({ output_text: 'from output_text' })).toEqual({
-      text: 'from output_text',
-      shape: 'output_text',
-    });
+  it('OpenAI Responses API convenience aggregate: { output_text } is read only when `response` is absent', () => {
+    // Assert the SELECTION behaviour, not an echo: output_text wins here because
+    // there's no `response`, and the shape label reflects which field was used.
+    const out = extractAiText({ output_text: 'from output_text', usage: { tokens: 3 } });
+    expect(out.text).toBe('from output_text');
+    expect(out.shape).toBe('output_text');
   });
 
   it('OpenAI Responses API structured output[] (the gpt-oss-120b shape that blanked the fleet)', () => {
