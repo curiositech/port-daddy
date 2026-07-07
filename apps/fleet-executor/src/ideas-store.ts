@@ -55,7 +55,7 @@ export type IssueOpener = (
   labels: string[],
 ) => Promise<{ number: number; url: string }>;
 
-export type CaptureOutcome = 'tracked-new' | 'duplicate' | 'already-tracked' | 'skipped' | 'error';
+export type CaptureOutcome = 'tracked-new' | 'duplicate' | 'already-tracked' | 'error';
 
 export interface CaptureResult {
   slug: string;
@@ -88,6 +88,27 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 /** The text an idea is embedded from — title + rationale, the semantic payload. */
 export function ideaText(p: Pick<Proposal, 'title' | 'rationale'>): string {
   return `${p.title}\n\n${p.rationale}`.trim();
+}
+
+/** FNV-1a 32-bit hash → 8-char hex. Stable, synchronous, no crypto needed. */
+function contentHash(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+/**
+ * The store key for a proposal. Content-addressed: the human-readable title slug
+ * PLUS a hash of the full semantic payload. Two DIFFERENT ideas that happen to
+ * share a title (or collide after slug truncation) get DIFFERENT keys, so the
+ * exact-idempotency check can't drop a genuinely novel idea; re-capturing the
+ * SAME idea yields the SAME key (idempotent).
+ */
+export function ideaSlug(p: Pick<Proposal, 'title' | 'rationale'>): string {
+  return `${slugify(p.title)}-${contentHash(ideaText(p))}`;
 }
 
 /**
@@ -192,11 +213,23 @@ export function renderIdeaIssueBody(p: Proposal, ctx: IdeaCtx): string {
  * per-proposal failure is caught and reported as `outcome: 'error'` — capture
  * NEVER throws, so it can't destabilize an advisory ideation ship.
  *
- * Per proposal:
- *   1. exact slug already in the store → `already-tracked` (idempotent no-op).
+ * Per proposal (key = content-addressed {@link ideaSlug}):
+ *   1. that exact idea already stored → `already-tracked` (idempotent no-op).
  *   2. embed; cosine ≥ 0.92 against a canonical idea → `duplicate` (record the
  *      link, open no new issue).
- *   3. otherwise novel → open a `fleet-idea` issue, store the row → `tracked-new`.
+ *   3. otherwise NOVEL → **reserve the D1 row first**, THEN open the issue, THEN
+ *      finalize the row with its number/url → `tracked-new`.
+ *
+ * Two durability guarantees the reviewer (Copilot, #736) pushed for:
+ *   - **Nothing is lost even without an embedding.** If Workers AI returns an
+ *     empty vector (outage / envelope change), the idea is still reserved and an
+ *     issue is still opened — it just doesn't participate in dedup (stored with
+ *     `embedding_json = '[]'`, which never cosine-matches).
+ *   - **No double-filing under retry/crash.** The canonical row is RESERVED
+ *     (`INSERT OR IGNORE`, status `opening-issue`) before the issue is opened; a
+ *     retry whose reserve is ignored is treated as `already-tracked` and opens no
+ *     second issue. A crash after reserve but before the issue leaves the idea
+ *     durably in D1 (not lost), pending a later issue — never a duplicate.
  */
 export async function captureProposals(opts: {
   db: D1Database;
@@ -210,38 +243,60 @@ export async function captureProposals(opts: {
   const results: CaptureResult[] = [];
 
   for (const p of proposals) {
-    const slug = slugify(p.title);
+    const slug = ideaSlug(p);
     try {
+      // 1. Exact idempotency — this precise idea (title + payload) already stored.
       if (await slugExists(db, slug)) {
         results.push({ slug, outcome: 'already-tracked' });
         continue;
       }
 
+      // 2. Embed (may be empty on a Workers AI outage — we degrade, never drop).
       const vector = await embed(ideaText(p));
-      if (!vector.length) {
-        results.push({ slug, outcome: 'skipped' });
+
+      // 3. Semantic duplicate — only meaningful when we actually have a vector.
+      if (vector.length) {
+        const dup = await findDuplicate(db, vector);
+        if (dup) {
+          await db
+            .prepare(
+              `INSERT OR IGNORE INTO fleet_ideas
+                 (slug, title, rationale, evidence_json, action, ship, owner, repo, pr_number,
+                  embedding_json, duplicate_of, status, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'duplicate', ?)`,
+            )
+            .bind(
+              slug, p.title, p.rationale, JSON.stringify(p.evidence), p.action, ctx.shipName,
+              ctx.owner, ctx.repo, ctx.prNumber, JSON.stringify(vector), dup.slug, now,
+            )
+            .run();
+          results.push({ slug, outcome: 'duplicate', duplicateOf: dup.slug, issueUrl: dup.issueUrl ?? undefined });
+          continue;
+        }
+      }
+
+      // 4. Novel (or un-embeddable) → RESERVE the canonical row FIRST, no issue yet.
+      const reserve = await db
+        .prepare(
+          `INSERT OR IGNORE INTO fleet_ideas
+             (slug, title, rationale, evidence_json, action, ship, owner, repo, pr_number,
+              embedding_json, status, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'opening-issue', ?)`,
+        )
+        .bind(
+          slug, p.title, p.rationale, JSON.stringify(p.evidence), p.action, ctx.shipName,
+          ctx.owner, ctx.repo, ctx.prNumber, JSON.stringify(vector), now,
+        )
+        .run();
+      // Reserve ignored ⇒ another delivery already owns this slug ⇒ don't double-file.
+      if ((reserve.meta?.changes ?? 0) === 0) {
+        results.push({ slug, outcome: 'already-tracked' });
         continue;
       }
 
-      const dup = await findDuplicate(db, vector);
-      if (dup) {
-        await db
-          .prepare(
-            `INSERT OR IGNORE INTO fleet_ideas
-               (slug, title, rationale, evidence_json, action, ship, owner, repo, pr_number,
-                embedding_json, duplicate_of, status, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'duplicate', ?)`,
-          )
-          .bind(
-            slug, p.title, p.rationale, JSON.stringify(p.evidence), p.action, ctx.shipName,
-            ctx.owner, ctx.repo, ctx.prNumber, JSON.stringify(vector), dup.slug, now,
-          )
-          .run();
-        results.push({ slug, outcome: 'duplicate', duplicateOf: dup.slug, issueUrl: dup.issueUrl ?? undefined });
-        continue;
-      }
-
-      // Novel → open the issue, then record the canonical row.
+      // 5. We own the reservation → open the issue, then finalize the row. If the
+      //    issue-open throws, the reservation STAYS (idea durable, not lost) and
+      //    the outcome is `error` — a retry sees the slug and never re-files.
       const issue = await openIssue(
         `[fleet-idea] ${p.title}`,
         renderIdeaIssueBody(p, ctx),
@@ -249,19 +304,15 @@ export async function captureProposals(opts: {
       );
       await db
         .prepare(
-          `INSERT OR IGNORE INTO fleet_ideas
-             (slug, title, rationale, evidence_json, action, ship, owner, repo, pr_number,
-              embedding_json, issue_number, issue_url, status, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'tracked', ?)`,
+          `UPDATE fleet_ideas SET issue_number = ?, issue_url = ?, status = 'tracked' WHERE slug = ?`,
         )
-        .bind(
-          slug, p.title, p.rationale, JSON.stringify(p.evidence), p.action, ctx.shipName,
-          ctx.owner, ctx.repo, ctx.prNumber, JSON.stringify(vector), issue.number, issue.url, now,
-        )
+        .bind(issue.number, issue.url, slug)
         .run();
       results.push({ slug, outcome: 'tracked-new', issueUrl: issue.url });
     } catch (err) {
-      console.error(`[fleet-executor] idea capture failed slug=${slug}: ${String(err)}`);
+      console.error(
+        `[fleet-executor] idea capture failed slug=${slug} title="${p.title}": ${String(err)}`,
+      );
       results.push({ slug, outcome: 'error' });
     }
   }

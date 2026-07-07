@@ -3,6 +3,7 @@ import {
   captureProposals,
   cosineSimilarity,
   ideaText,
+  ideaSlug,
   renderIdeaIssueBody,
   DEDUP_THRESHOLD,
   type IdeaCtx,
@@ -11,13 +12,16 @@ import type { Proposal } from '../src/proposals.js';
 
 // ---------------------------------------------------------------------------
 // A purpose-built in-memory D1 recognizing exactly the statements ideas-store
-// issues. Not a general SQL engine — just enough to exercise the capture logic.
+// issues (INSERT OR IGNORE reserve/dup rows, UPDATE to finalize, slug lookup,
+// canonical scan). Not a general SQL engine. `run()` returns `meta.changes` so
+// the reserve-first idempotency path is exercised faithfully.
 
 interface Row {
   slug: string;
   embedding_json: string;
   issue_url: string | null;
   duplicate_of: string | null;
+  status: string;
 }
 
 function fakeD1(): D1Database & { rows: Row[] } {
@@ -32,19 +36,29 @@ function fakeD1(): D1Database & { rows: Row[] } {
           return stmt;
         },
         async run() {
-          if (/INSERT OR IGNORE INTO fleet_ideas/.test(sql)) {
+          let changes = 0;
+          if (/UPDATE fleet_ideas SET issue_number/.test(sql)) {
+            const row = rows.find(r => r.slug === (bound[2] as string));
+            if (row) {
+              row.issue_url = bound[1] as string;
+              row.status = 'tracked';
+              changes = 1;
+            }
+          } else if (/INSERT OR IGNORE INTO fleet_ideas/.test(sql)) {
             const slug = bound[0] as string;
             if (!rows.find(r => r.slug === slug)) {
-              const isNovel = /issue_number, issue_url/.test(sql);
+              const isDup = /duplicate_of, status/.test(sql);
               rows.push({
                 slug,
                 embedding_json: bound[9] as string,
-                issue_url: isNovel ? (bound[11] as string) : null,
-                duplicate_of: isNovel ? null : (bound[10] as string),
+                issue_url: null,
+                duplicate_of: isDup ? (bound[10] as string) : null,
+                status: isDup ? 'duplicate' : 'opening-issue',
               });
+              changes = 1;
             }
           }
-          return { success: true } as unknown;
+          return { success: true, meta: { changes } } as unknown;
         },
         async all() {
           if (/duplicate_of IS NULL/.test(sql)) {
@@ -80,8 +94,8 @@ const prop = (over: Partial<Proposal>): Proposal => ({
   ...over,
 });
 
-// A deterministic embedder: vectors chosen so cosine relationships are known.
-//   "roster"-family text → near [1,0,0]; "cost"-family → [0,1,0].
+// Deterministic embedder: vectors chosen so cosine relationships are known.
+//   "roster"/"parley" text → near [1,0,0]; "cost"/"billing" → [0,1,0].
 const embed = async (text: string): Promise<number[]> => {
   if (/roster|parley/i.test(text)) return [1, 0, 0.01];
   if (/cost|billing/i.test(text)) return [0, 1, 0];
@@ -92,14 +106,27 @@ describe('cosineSimilarity + threshold', () => {
   it('DEDUP_THRESHOLD matches ADR-0085 (0.92)', () => {
     expect(DEDUP_THRESHOLD).toBe(0.92);
   });
-  it('scores near-parallel vectors above the dedup threshold and orthogonal below', () => {
+  it('guards empty / mismatched-length vectors, and scores parallel vs orthogonal', () => {
+    expect(cosineSimilarity([], [])).toBe(0);
+    expect(cosineSimilarity([1, 0], [1, 0, 0])).toBe(0);
     expect(cosineSimilarity([1, 0, 0], [1, 0, 0.01])).toBeGreaterThan(DEDUP_THRESHOLD);
     expect(cosineSimilarity([1, 0, 0], [0, 1, 0])).toBeLessThan(DEDUP_THRESHOLD);
   });
 });
 
-describe('captureProposals — D1 semantic dedup + auto-issue', () => {
-  it('opens an issue and stores a row for a NOVEL proposal', async () => {
+describe('ideaSlug — content-addressed key', () => {
+  it('same title + payload → same slug (idempotent)', () => {
+    expect(ideaSlug(prop({}))).toBe(ideaSlug(prop({})));
+  });
+  it('SAME title, DIFFERENT payload → DIFFERENT slug (no false-drop)', () => {
+    const a = ideaSlug({ title: 'Same title', rationale: 'one thing' });
+    const b = ideaSlug({ title: 'Same title', rationale: 'a completely different thing' });
+    expect(a).not.toBe(b);
+  });
+});
+
+describe('captureProposals — D1 semantic dedup + reserve-first auto-issue', () => {
+  it('opens an issue and stores a finalized row for a NOVEL proposal', async () => {
     const db = fakeD1();
     const openIssue = vi.fn(async () => ({ number: 7, url: 'https://gh/issues/7' }));
     const [r] = await captureProposals({ db, proposals: [prop({})], ctx: CTX, embed, openIssue, now: 1 });
@@ -107,17 +134,19 @@ describe('captureProposals — D1 semantic dedup + auto-issue', () => {
     expect(r.issueUrl).toBe('https://gh/issues/7');
     expect(openIssue).toHaveBeenCalledOnce();
     expect(db.rows).toHaveLength(1);
+    expect(db.rows[0].issue_url).toBe('https://gh/issues/7'); // finalized via UPDATE
+    expect(db.rows[0].status).toBe('tracked');
   });
 
   it('a semantically-near proposal (cosine ≥ 0.92, different slug) is a DUPLICATE — no new issue', async () => {
     const db = fakeD1();
     const openIssue = vi.fn(async () => ({ number: 7, url: 'https://gh/issues/7' }));
     await captureProposals({ db, proposals: [prop({})], ctx: CTX, embed, openIssue, now: 1 });
-    // Different title (→ different slug) but same roster/parley semantics.
+    const firstSlug = db.rows[0].slug;
     const near = prop({ title: 'Roster-driven parley party selection' });
     const [r] = await captureProposals({ db, proposals: [near], ctx: CTX, embed, openIssue, now: 2 });
     expect(r.outcome).toBe('duplicate');
-    expect(r.duplicateOf).toBe('auto-pick-parley-parties-from-the-roster');
+    expect(r.duplicateOf).toBe(firstSlug);
     expect(openIssue).toHaveBeenCalledOnce(); // still only the first issue
   });
 
@@ -141,23 +170,28 @@ describe('captureProposals — D1 semantic dedup + auto-issue', () => {
     expect(openIssue).toHaveBeenCalledOnce();
   });
 
-  it('an empty embedding → skipped (degrade to no-dedup, never throw)', async () => {
+  it('NOTHING IS LOST on an empty embedding — captured anyway, just without dedup', async () => {
+    // The Copilot fix: a Workers AI outage (empty vector) must not drop the idea.
     const db = fakeD1();
     const openIssue = vi.fn(async () => ({ number: 7, url: 'https://gh/issues/7' }));
     const blindEmbed = async () => [];
     const [r] = await captureProposals({ db, proposals: [prop({})], ctx: CTX, embed: blindEmbed, openIssue, now: 1 });
-    expect(r.outcome).toBe('skipped');
-    expect(openIssue).not.toHaveBeenCalled();
+    expect(r.outcome).toBe('tracked-new');
+    expect(openIssue).toHaveBeenCalledOnce();
+    expect(db.rows[0].embedding_json).toBe('[]'); // stored un-dedupable, not lost
   });
 
-  it('an issue-open failure is caught per-proposal as error — capture never throws', async () => {
+  it('issue-open failure AFTER reserve keeps the row (idea not lost) and reports error — never double-files', async () => {
     const db = fakeD1();
     const openIssue = vi.fn(async () => {
       throw new Error('GitHub 503');
     });
-    const results = await captureProposals({ db, proposals: [prop({})], ctx: CTX, embed, openIssue, now: 1 });
-    expect(results[0].outcome).toBe('error');
-    expect(db.rows).toHaveLength(0);
+    const [r] = await captureProposals({ db, proposals: [prop({})], ctx: CTX, embed, openIssue, now: 1 });
+    expect(r.outcome).toBe('error');
+    // The reservation persists — the idea is durably in D1, pending an issue.
+    expect(db.rows).toHaveLength(1);
+    expect(db.rows[0].status).toBe('opening-issue');
+    expect(db.rows[0].issue_url).toBeNull();
   });
 });
 
