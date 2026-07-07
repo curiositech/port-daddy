@@ -67,7 +67,11 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(spider!.blocking).toBe(false);
     expect(spider!.needsExecution).toBe(false);
     expect(spider!.temperature).toBe(0.95);
-    expect(spider!.prompt).toContain('syllogism engine');
+    // Spider's prompt was sharpened to a STRUCTURAL syllogism: the rationale must
+    // be written verbatim as Premise A / Premise B / Therefore C.
+    expect(spider!.prompt).toContain('SYLLOGISM engine');
+    expect(spider!.prompt).toContain('Premise A');
+    expect(spider!.prompt).toContain('Therefore C');
   });
 
   it('the four ideation ships (spark, spider, lookout, snipe) all parse as advisory ideation', () => {

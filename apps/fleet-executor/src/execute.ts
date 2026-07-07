@@ -34,6 +34,7 @@ import {
   createCheckRun,
   completeCheckRun,
   findFleetCheckRun,
+  createIssue,
   type PRContext,
   type ReviewComment,
 } from './github.js';
@@ -52,6 +53,13 @@ import {
 } from './proposals.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
 import { renderFindingsComment } from './findings-render.js';
+import {
+  captureProposals,
+  ensureIdeasTable,
+  EMBED_MODEL,
+  type IdeaCtx,
+} from './ideas-store.js';
+import type { Proposal } from './proposals.js';
 
 // ---------------------------------------------------------------------------
 
@@ -539,6 +547,19 @@ async function runShip(
         token,
       );
 
+      // Durably capture the proposals (D1 + semantic dedup + auto-issue) so a
+      // Spark/Spider idea doesn't evaporate when the PR scrolls away. Best-effort:
+      // it NEVER throws or changes the advisory PASS.
+      if (proposals && proposals.length > 0) {
+        await captureIdeas(
+          proposals,
+          { owner: prCtx.owner, repo: prCtx.repo, prNumber: prCtx.prNumber, shipName: ship.name },
+          env,
+          token,
+          transcript,
+        );
+      }
+
       return {
         ship: ship.name,
         blocking: false,
@@ -634,6 +655,56 @@ async function runShip(
       errored: true,
       findings: [],
     };
+  }
+}
+
+/**
+ * Embed a string to a vector via Workers AI (bge). Returns [] on any unexpected
+ * envelope so the caller (best-effort capture) degrades to "no dedup" rather
+ * than throwing.
+ */
+async function embedText(ai: Ai, text: string): Promise<number[]> {
+  const res = await ai.run(EMBED_MODEL as Parameters<typeof ai.run>[0], { text: [text] });
+  const data = (res as { data?: unknown }).data;
+  if (Array.isArray(data) && Array.isArray(data[0])) return data[0] as number[];
+  return [];
+}
+
+/**
+ * Durably capture an ideation ship's proposals into the relay D1 idea store,
+ * semantic-deduped, opening a `fleet-idea` GitHub issue for each novel one.
+ * Best-effort: a missing DB binding (unit tests / unconfigured) skips capture
+ * entirely, and any failure is swallowed — it can NEVER change the advisory PASS.
+ */
+async function captureIdeas(
+  proposals: Proposal[],
+  ctx: IdeaCtx,
+  env: ExecutorEnv,
+  token: string,
+  transcript: Transcript,
+): Promise<void> {
+  if (!env.DB) return; // no store bound → comment-only fallback (still posted above)
+  try {
+    await ensureIdeasTable(env.DB);
+    const results = await captureProposals({
+      db: env.DB,
+      proposals,
+      ctx,
+      embed: text => embedText(env.AI, text),
+      openIssue: (title, body, labels) =>
+        createIssue(ctx.owner, ctx.repo, title, body, labels, token),
+      now: nowSec(),
+    });
+    const created = results.filter(r => r.outcome === 'tracked-new').length;
+    const dupes = results.filter(r => r.outcome === 'duplicate' || r.outcome === 'already-tracked').length;
+    await transcript.step(
+      'ideas-captured',
+      ctx.shipName,
+      `pd-${ctx.shipName}: ${created} new idea(s), ${dupes} already tracked`,
+      { results },
+    );
+  } catch (err) {
+    console.error(`[fleet-executor] captureIdeas failed pd-${ctx.shipName}: ${String(err)}`);
   }
 }
 
