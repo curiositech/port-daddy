@@ -30,6 +30,13 @@ on:
       - 'website-v2/scripts/check-whitepaper-metadata.ts'
       - 'website-v2/package.json'
       - '.github/workflows/whitepaper-metadata.yml'
+  # Merge queue: run UNCONDITIONALLY on the queued group (no path filter).
+  # A path-filtered workflow produces no check context when the paths don't
+  # match, so if this is marked a required check, a queued PR that doesn't
+  # touch the whitepaper paths would hang the merge queue forever waiting for
+  # a context that never appears. Running on every merge_group keeps it
+  # queue-safe; the check is fast and passes when metadata is already in sync.
+  merge_group:
 
 jobs:
   whitepaper-metadata-drift:
