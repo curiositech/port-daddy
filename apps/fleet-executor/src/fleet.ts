@@ -31,14 +31,70 @@ export interface ShipConfig {
   blocking: boolean;
   /** When true, ship needs execution (bash/write) — dispatch to GHA instead */
   needsExecution: boolean;
+  /**
+   * When true, this is an IDEATION ship (spark, spider, lookout, snipe): it
+   * proposes forward work via the {@link Proposal} schema and its comment is
+   * rendered into real actionable Port Daddy syntax, rather than raising
+   * file:line findings. Ideation ships are ALWAYS advisory (never blocking) and
+   * never gate a merge. Derived from a `class: ideation` field in pd-fleet.yml
+   * OR from membership in {@link IDEATION_SHIPS} (belt-and-suspenders so a ship
+   * that forgets the field still gets the ideation contract).
+   */
+  ideation: boolean;
+}
+
+/**
+ * Ships that are ideation-class by identity, regardless of whether pd-fleet.yml
+ * declares `class: ideation`. These four always propose forward work and are
+ * always advisory. A repo can add more via `class: ideation` on its own ships.
+ */
+export const IDEATION_SHIPS: ReadonlySet<string> = new Set([
+  'spark',
+  'spider',
+  'lookout',
+  'snipe',
+]);
+
+function deriveIdeation(name: string, agentClass: unknown): boolean {
+  if (IDEATION_SHIPS.has(name)) return true;
+  return agentClass === 'ideation';
 }
 
 // Default Cloudflare AI model per ship if not declared in fallbacks.
-// Upgraded from qwen-30B/32B: the small models produced speculative, noisy
-// reviews ("potential tautology", "consider a JSDoc"). These are the strongest
-// reasoning + code models on Workers AI (no external API key, stays edge-native).
-const DEFAULT_CF_MODEL = '@cf/openai/gpt-oss-120b';        // reasoning reviewers
-const CODER_CF_MODEL = '@cf/moonshotai/kimi-k2.7-code';    // code-specialized (1T, 262k ctx)
+//
+// HARD LESSON (2026-07-07): `@cf/openai/gpt-oss-120b` and
+// `@cf/moonshotai/kimi-k2.7-code` return EMPTY responses on this Workers AI
+// account — the fleet_run_steps transcript showed outputLength:0 for every MAP
+// chunk of every ship pinned to them, so all those ships silently produced no
+// findings/proposals → no comment → PASS. The whole fleet went dark. Only
+// `@cf/qwen/qwen2.5-coder-32b-instruct` returned real output. Until those ids
+// are confirmed working again, the qwen coder model is the default, and
+// {@link resolveCfModel} remaps any known-empty/unknown id onto it. (This is
+// the same class of failure the older github-app-receiver guarded against.)
+const WORKING_CF_MODEL = '@cf/qwen/qwen2.5-coder-32b-instruct'; // proven to return output
+const DEFAULT_CF_MODEL = WORKING_CF_MODEL;
+const CODER_CF_MODEL = WORKING_CF_MODEL;
+
+// Models allowed to reach ai.run verbatim. An id outside this set is remapped to
+// WORKING_CF_MODEL rather than passed through, because an empty-returning (or
+// nonexistent) Workers AI id does NOT error — it yields a blank response, which
+// the parser reads as "clean", silencing the ship. gpt-oss-120b and
+// kimi-k2.7-code are DELIBERATELY excluded: they are empty on this account today.
+// Add an id here only once it's verified to return output.
+const KNOWN_GOOD_CF_MODELS: ReadonlySet<string> = new Set([
+  '@cf/qwen/qwen2.5-coder-32b-instruct',
+  '@cf/qwen/qwen3-30b-a3b-fp8',
+]);
+
+/**
+ * Guard a requested Cloudflare model id: pass through a known-good one, else
+ * remap to {@link WORKING_CF_MODEL}. Exported for the unit tests that pin this
+ * behavior — the fleet must never again go dark because a pinned model id
+ * silently returns nothing.
+ */
+export function resolveCfModel(requested: string): string {
+  return KNOWN_GOOD_CF_MODELS.has(requested) ? requested : WORKING_CF_MODEL;
+}
 
 // Tools that require local execution (can't run in a Worker). Matches any
 // Bash(...) tool whose command is NOT `gh` (gh runs fine against the API).
@@ -68,6 +124,7 @@ interface RawAgent {
   role?: string;
   temperature?: unknown;
   blocking?: unknown;
+  class?: unknown;
 }
 
 /**
@@ -92,7 +149,12 @@ function coerceTemperature(value: unknown): number | null {
  */
 function deriveCfModel(agent: RawAgent, name: string): string {
   for (const fb of agent.fallbacks ?? []) {
-    if (typeof fb?.model === 'string' && fb.model.startsWith('@cf/')) return fb.model;
+    if (typeof fb?.model === 'string' && fb.model.startsWith('@cf/')) {
+      // Guard the pinned id: a pd-fleet.yml pin of an empty-returning model
+      // (gpt-oss-120b / kimi-k2.7-code today) is remapped to a working one so
+      // the ship still produces output.
+      return resolveCfModel(fb.model);
+    }
   }
   return name.includes('reviewer') ? CODER_CF_MODEL : DEFAULT_CF_MODEL;
 }
@@ -147,6 +209,7 @@ export function parseFleetShips(fleetYaml: string, trigger: string): ShipConfig[
 
     const telos = typeof agent.telos === 'string' ? agent.telos : '';
     const role = telos || (typeof agent.role === 'string' ? agent.role : '') || `${name} ship`;
+    const ideation = deriveIdeation(name, agent.class);
 
     ships.push({
       name,
@@ -156,8 +219,11 @@ export function parseFleetShips(fleetYaml: string, trigger: string): ShipConfig[
       temperature: coerceTemperature(agent.temperature),
       role,
       telos,
-      blocking: coerceBlocking(agent.blocking),
+      // Ideation ships are advisory by definition — they can never gate a merge,
+      // even if pd-fleet.yml mistakenly sets `blocking: true` on one.
+      blocking: ideation ? false : coerceBlocking(agent.blocking),
       needsExecution: deriveNeedsExecution(name, agent.allowedTools),
+      ideation,
     });
   }
 
@@ -199,6 +265,7 @@ Be direct. Cite specific lines. Flag ADR violations if you see them.`,
       telos: 'Catch the bugs the diff would otherwise ship; cite ADRs.',
       blocking: true,
       needsExecution: false,
+      ideation: false,
     },
     {
       name: 'qa',
@@ -222,6 +289,7 @@ Output:
       telos: 'Find the edge cases.',
       blocking: false,
       needsExecution: false,
+      ideation: false,
     },
     {
       name: 'red-team',
@@ -245,6 +313,7 @@ For each finding: write the falsifiable attack construction and its impact. Be a
       telos: 'Find the attack before an adversary does.',
       blocking: true,
       needsExecution: false,
+      ideation: false,
     },
     {
       name: 'copy-pm',
@@ -296,6 +365,74 @@ Rules:
       telos: 'Read every user-facing string as a new user. Strip the machine accent without flattening the voice.',
       blocking: false,
       needsExecution: false,
+      ideation: false,
     },
+    ...ideationDefaults(),
+  ];
+}
+
+/**
+ * Fallback configs for the four ideation ships, used only when pd-fleet.yml
+ * cannot be fetched or parsed. The authoritative prompts live in pd-fleet.yml +
+ * fleet/ships/<name>.md; these are terse stand-ins so the ideation ships still
+ * run (and still post actionable proposals) in the config-less fallback path.
+ */
+function ideationDefaults(): ShipConfig[] {
+  const mk = (
+    name: string,
+    telos: string,
+    temperature: number,
+    prompt: string,
+  ): ShipConfig => ({
+    name,
+    trigger: 'pull_request:opened',
+    prompt,
+    cfModel: DEFAULT_CF_MODEL,
+    temperature,
+    role: telos,
+    telos,
+    blocking: false,
+    needsExecution: false,
+    ideation: true,
+  });
+
+  return [
+    mk(
+      'spark',
+      'Comment buildable product opportunities that can be assigned to PR-producing bots.',
+      1.25,
+      `You are pd-spark, Port Daddy's high-temperature product imagination engine. ` +
+        `Notice what THIS diff makes newly possible for the product. Propose 0–4 ` +
+        `buildable ideas as proposals (prefer action "assign" with a runnable prompt, ` +
+        `or "roadmap" for durable-but-not-now ideas). Ground every idea in the diff.`,
+    ),
+    mk(
+      'spider',
+      'Comment new products implied by connections between existing capabilities.',
+      0.95,
+      `You are pd-spider, Port Daddy's syllogism engine. Take two things already ` +
+        `true in the repo/product (A and B) and name the new product/workflow that ` +
+        `follows (therefore C). Put the syllogism in "rationale". Propose 0–4; prefer ` +
+        `action "assign" (runnable prompt) or "roadmap".`,
+    ),
+    mk(
+      'lookout',
+      'Spot contradictions, architectural trouble, and broken UX before they land.',
+      0.4,
+      `You are pd-lookout, Port Daddy's trouble-ahead watch. Spot contradictions, ` +
+        `architectural trouble, duplication, or newly broken user experiences implied ` +
+        `by this diff — especially against OTHER open PRs and feature branches shown ` +
+        `in the fleet context. Set "severity" and prefer action "parley" for genuine ` +
+        `multi-way conflicts, "roadmap" to log a risk. Alert; do not fix.`,
+    ),
+    mk(
+      'snipe',
+      'Propose a reusable skill that would make this kind of work easier.',
+      0.7,
+      `You are pd-snipe (Engineman). Look at the code/ideas this PR introduces and, ` +
+        `if a reusable capability would remove recurring friction, propose ONE skill ` +
+        `to author (action "skill") with a skill-architect brief in "prompt". Only ` +
+        `propose when it genuinely helps; otherwise emit [].`,
+    ),
   ];
 }

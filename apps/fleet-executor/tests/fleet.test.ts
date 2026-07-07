@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { parseFleetShips, defaultPRShips } from '../src/fleet.js';
+import { parseFleetShips, defaultPRShips, resolveCfModel } from '../src/fleet.js';
 
 // The REAL pd-fleet.yml at the repo root (apps/fleet-executor/tests → ../../..).
 const REAL_YAML = readFileSync(
@@ -70,11 +70,56 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(spider!.prompt).toContain('syllogism engine');
   });
 
-  it('derives cfModel from the first @cf/ fallback entry', () => {
+  it('the four ideation ships (spark, spider, lookout, snipe) all parse as advisory ideation', () => {
+    for (const name of ['spark', 'spider', 'lookout', 'snipe']) {
+      const ship = ships!.find(s => s.name === name);
+      expect(ship, `${name} should be present in pull_request:opened ships`).toBeDefined();
+      expect(ship!.ideation, `${name} should be ideation`).toBe(true);
+      expect(ship!.blocking, `${name} must never block`).toBe(false);
+      expect(ship!.needsExecution).toBe(false);
+    }
+  });
+
+  it('reviewer ships are NOT ideation (they raise findings, not proposals)', () => {
     const reviewer = ships!.find(s => s.name === 'code-reviewer');
-    expect(reviewer!.cfModel).toBe('@cf/moonshotai/kimi-k2.7-code');
+    expect(reviewer!.ideation).toBe(false);
+  });
+
+  it('lookout carries the trouble-ahead telos and cross-branch awareness in its prompt', () => {
+    const lookout = ships!.find(s => s.name === 'lookout');
+    expect(lookout).toBeDefined();
+    expect(lookout!.prompt).toContain('trouble-ahead');
+    expect(lookout!.prompt.toLowerCase()).toContain('branch');
+  });
+
+  it('derives cfModel from the first @cf/ fallback, remapping the empty-returning ids', () => {
+    // deriveCfModel takes a ship's FIRST `@cf/` fallback, then resolveCfModel
+    // guards it. code-reviewer pins kimi-k2.7-code and qa pins gpt-oss-120b —
+    // both return EMPTY on this Workers AI account (2026-07-07 transcript:
+    // outputLength 0 for every chunk), which silently blanks the ship — so both
+    // are remapped to the qwen coder model that actually returns output.
+    const reviewer = ships!.find(s => s.name === 'code-reviewer');
+    expect(reviewer!.cfModel).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
     const qa = ships!.find(s => s.name === 'qa');
-    expect(qa!.cfModel).toBe('@cf/openai/gpt-oss-120b');
+    expect(qa!.cfModel).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+  });
+});
+
+describe('resolveCfModel — the empty-model guard', () => {
+  it('passes through a known-good qwen model', () => {
+    expect(resolveCfModel('@cf/qwen/qwen2.5-coder-32b-instruct')).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+    expect(resolveCfModel('@cf/qwen/qwen3-30b-a3b-fp8')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+  });
+
+  it('remaps the empty-returning ids that silenced the whole fleet', () => {
+    // These returned outputLength:0 for every ship on this account — the exact
+    // regression this guard exists to prevent recurring.
+    expect(resolveCfModel('@cf/openai/gpt-oss-120b')).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+    expect(resolveCfModel('@cf/moonshotai/kimi-k2.7-code')).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+  });
+
+  it('remaps any unrecognized id (an unknown id yields a blank response, not an error)', () => {
+    expect(resolveCfModel('@cf/some/nonexistent-model')).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
   });
 });
 
@@ -96,7 +141,7 @@ describe('parseFleetShips — model derivation + blocking coercion', () => {
       ),
       'pull_request:opened',
     );
-    expect(ships![0].cfModel).toBe('@cf/moonshotai/kimi-k2.7-code');
+    expect(ships![0].cfModel).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
   });
 
   it('falls back to the general model for non-reviewer ships with no @cf/ fallback', () => {
@@ -108,7 +153,7 @@ describe('parseFleetShips — model derivation + blocking coercion', () => {
       ),
       'pull_request:opened',
     );
-    expect(ships![0].cfModel).toBe('@cf/openai/gpt-oss-120b');
+    expect(ships![0].cfModel).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
   });
 
   it('coerces blocking: only a real true / "true" opts into the gate', () => {

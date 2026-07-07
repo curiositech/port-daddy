@@ -77,6 +77,16 @@ function clientIp(request: Request): string {
 // Exported so the fleet control-plane handlers (fleet-control.ts) reuse the
 // exact same gate rather than re-implementing the token comparison.
 export function operatorOnly(request: Request, env: Env): Response | null {
+  // Fail-closed: a missing or too-short operator token means the deployment is
+  // misconfigured. Reject every request rather than silently comparing against
+  // an empty/undefined secret (which would let a blank token through).
+  if (!env.RELAY_OPERATOR_TOKEN || env.RELAY_OPERATOR_TOKEN.length < 32) {
+    return err(
+      'MISCONFIGURED',
+      'RELAY_OPERATOR_TOKEN is not configured or shorter than the 32-character minimum',
+      500
+    );
+  }
   const auth = request.headers.get('Authorization');
   const token = auth?.replace(/^Bearer\s+/i, '') ?? '';
   if (!timingSafeEqual(token, env.RELAY_OPERATOR_TOKEN)) {
@@ -266,6 +276,12 @@ export async function handleSubscribe(
   env: Env,
   sessionId: string
 ): Promise<Response> {
+  // SSRF guard: sessionId is interpolated into the Durable Object fetch URL
+  // below. Validate its shape before it touches any query or URL so a crafted
+  // value cannot inject extra path/query segments into the DO request.
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(sessionId)) {
+    return err('INVALID_SESSION', 'Invalid session_id format', 400);
+  }
   const session = await env.DB.prepare(
     'SELECT * FROM sessions WHERE session_id = ?'
   ).bind(sessionId).first<{
@@ -329,7 +345,7 @@ export async function handleSubscribe(
         await writer.write(enc.encode(`data: ${JSON.stringify(msg)}\n\n`));
       }
       // Pipe the DO live stream into the remainder
-      const doUrl = `http://do/${doKey}?action=subscribe&session_id=${sessionId}&from_seq=${fromSeq}`;
+      const doUrl = `http://do/${encodeURIComponent(doKey)}?action=subscribe&session_id=${encodeURIComponent(sessionId)}&from_seq=${encodeURIComponent(fromSeq)}`;
       const doResp = await stub.fetch(doUrl);
       if (!doResp.ok || !doResp.body) {
         throw new Error(`DO subscribe failed with status ${doResp.status}`);
@@ -358,7 +374,7 @@ export async function handleSubscribe(
     });
   }
 
-  const doUrl = `http://do/${doKey}?action=subscribe&session_id=${sessionId}&from_seq=${fromSeq}`;
+  const doUrl = `http://do/${encodeURIComponent(doKey)}?action=subscribe&session_id=${encodeURIComponent(sessionId)}&from_seq=${encodeURIComponent(fromSeq)}`;
   return stub.fetch(doUrl);
 }
 

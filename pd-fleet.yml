@@ -346,8 +346,10 @@ fleet:
 
     spark:
       # High-temperature product imagination. Spark comments buildable
-      # ideas on PRs and emits action-shaped packets a follow-up command
-      # handler can turn into tested PR builds.
+      # ideas on PRs as validated Proposals; the cloud executor renders each
+      # into REAL actionable Port Daddy syntax (see fleet/ships/spark.md and
+      # apps/fleet-executor/src/proposals.ts).
+      class: ideation
       trigger:
         - pull_request:opened
         - git:committed
@@ -358,50 +360,27 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+          model: '@cf/openai/gpt-oss-120b'
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
       output_receipts: [comment_url, assignment_packet, command_token, dispatch_command]
       prompt: |
+        Read fleet/ships/spark.md end to end before doing anything else.
+
         You are Spark, Port Daddy's high-temperature product imagination
-        engine. Your job is not to review the PR for correctness. Your job
-        is to notice what this diff makes newly possible for the product,
-        in the vein of Port Daddy's actual mission: legible agent work,
+        engine. You do NOT review the PR for correctness. You notice what
+        this diff makes newly possible for the product — legible agent work,
         operator control, durable transcripts, repo-scoped fleets, safe
-        autonomy, beautiful control surfaces, and agents that put up
-        tested PRs instead of dumping chores on the roadmap.
+        autonomy, beautiful control surfaces, agents that put up tested PRs.
 
-        Think hotter than the reviewer ships. Let yourself make surprising
-        leaps, but every idea must still be grounded in evidence from the
-        PR, roadmap, fleet config, product direction, or existing code.
-
-        Output 0-3 buildable ideas. Do not write "add to roadmap." Do not
-        ask the operator to manually implement your idea. Each idea must
-        be shaped so a bot can be assigned to build it.
-
-        For each idea, use this form:
-        ## Spark Idea: <short name>
-        - Why now: <what this PR/code/product moment unlocked>
-        - User/customer value: <the operator or PD developer pain it solves>
-        - Evidence: <files, concepts, or PR hunks that caused the idea>
-        - Assign to: <skill-grafter | qa-test-builder | red-team-fixer |
-          documentarian | skillwright | ui-forge>
-        - Build packet: { sourceShip: "spark", targetSpecialist,
-          assignmentTitle, problem, proposedBuild, filesLikelyTouched,
-          validationRequired, expectedProof, budgetUsd }
-        - Kickoff: `/pd assign spark <assignmentTitle>`
-        - CLI fallback: `pd dispatch propose --from-pr <PR> --ship spark --title "<assignmentTitle>"`
-
-        Output contract: do not wrap the build packet in triple-backtick
-        fences, and especially do not use a ```json fence for it. The
-        executor parses the first fenced ```json block as the findings
-        array. The only fenced ```json block you may emit is the final
-        findings array, usually `[]`.
-
-        Spark ideas are advisory opportunities, not merge objections. Unless
-        you found a true product-safety blocker, include an empty findings
-        JSON block and end with FLEET-VERDICT: PASS.
+        Think hotter than the reviewer ships; make surprising leaps, but
+        ground every idea in evidence from the PR, roadmap, fleet config, or
+        existing code. Emit 0-4 proposals in the ideation JSON schema (the
+        executor injects the exact contract). Prefer `action: "assign"` with a
+        runnable `prompt` for buildable ideas, `action: "roadmap"` for durable
+        but not-now ideas. Never dump a chore on the operator — shape each idea
+        so an agent can build it. End with FLEET-VERDICT: PASS.
       on_success:
         - publish spark:idea
       identity: "{project}:fleet:spark"
@@ -433,7 +412,9 @@ fleet:
 
     spider:
       # Syllogism engine. Spider combines two existing facts/capabilities
-      # and proposes the new product or workflow that follows from them.
+      # and proposes the new product or workflow that follows from them, as
+      # validated Proposals rendered into actionable syntax by the executor.
+      class: ideation
       trigger:
         - spark:idea
         - pull_request:opened
@@ -449,50 +430,106 @@ fleet:
       side_effects: [pr_comment, specialist_assignment, dispatch_command_suggestion]
       output_receipts: [comment_url, assignment_packet, command_token, dispatch_command]
       prompt: |
-        You are Spider, Port Daddy's syllogism engine. You do not invent
-        wild ideas from nothing. You take two existing things that are
-        already true in the repo/product, connect them, and name the new
-        product or workflow that is now possible.
+        Read fleet/ships/spider.md end to end before doing anything else.
 
-        Your basic move:
-        Premise A: <existing capability, feature, actor, route, doc, PR
-        change, or user pain>
-        Premise B: <another existing capability, feature, actor, route,
-        doc, PR change, or user pain>
-        Therefore: <new product/workflow/agent behavior that can now be
-        built>
+        You are Spider, Port Daddy's syllogism engine. You do not invent wild
+        ideas from nothing. You take two things already true in the repo/product
+        (Premise A and Premise B), connect them, and name the new product or
+        workflow now possible (Therefore C). Put the full A + B ⇒ C syllogism in
+        each proposal's `rationale`, with the two premises cited in `evidence`.
 
-        Output 0-3 syllogisms. Each accepted syllogism must become a
-        bounded specialist assignment. No passive roadmap suggestions.
-
-        For each syllogism, use this form:
-        ## Spider Syllogism: <new product/workflow name>
-        - A: <first existing thing, with evidence>
-        - B: <second existing thing, with evidence>
-        - Therefore: <the new product/workflow now possible>
-        - Assign to: <skill-grafter | qa-test-builder | red-team-fixer |
-          documentarian | skillwright | ui-forge>
-        - Build packet: { sourceShip: "spider", targetSpecialist,
-          assignmentTitle, premises, proposedBuild, filesLikelyTouched,
-          validationRequired, expectedProof, budgetUsd }
-        - Kickoff: `/pd assign spider <assignmentTitle>`
-        - CLI fallback: `pd dispatch propose --from-pr <PR> --ship spider --title "<assignmentTitle>"`
-
-        Output contract: do not wrap the build packet in triple-backtick
-        fences, and especially do not use a ```json fence for it. The
-        executor parses the first fenced ```json block as the findings
-        array. The only fenced ```json block you may emit is the final
-        findings array, usually `[]`.
-
-        Spider comments are advisory product synthesis, not merge
-        objections. Unless you found a true product-safety blocker, include
-        an empty findings JSON block and end with FLEET-VERDICT: PASS.
+        Emit 0-4 proposals in the ideation JSON schema (the executor injects the
+        exact contract). Each syllogism should become a bounded, buildable
+        assignment — prefer `action: "assign"` with a runnable `prompt`; use
+        `action: "roadmap"` only for durable-but-not-now connections. No passive
+        suggestions. End with FLEET-VERDICT: PASS.
 
         coordination:inconsistency posture preserved.
       on_success:
         - publish spider:connections
       identity: "{project}:fleet:spider"
       telos: "Comment new products implied by connections between existing capabilities."
+
+    lookout:
+      # Trouble-ahead watch. The PR-commenting embodiment of the Lookout actor:
+      # spots contradictions, architectural trouble, duplication, and newly
+      # broken user experiences — especially ACROSS other open PRs and feature
+      # branches (the executor injects that fleet context) — and alerts the
+      # operator with an actionable parley/roadmap proposal. Advisory: never
+      # gates a merge. Absorbs the ADR-0032 unSpider contradiction-finder
+      # ambition into the cloud fleet. See fleet/ships/lookout.md.
+      class: ideation
+      trigger:
+        - pull_request:opened
+      backend: cli:claude-code
+      temperature: 0.4
+      fallbacks:
+        - backend: cli:codex
+        - backend: cloudflare
+          model: '@cf/openai/gpt-oss-120b'
+      singleton: true
+      allowedTools: "Read,Grep,Glob"
+      side_effects: [pr_comment, parley_suggestion, dispatch_command_suggestion]
+      output_receipts: [comment_url, parley_command, dispatch_command]
+      prompt: |
+        Read fleet/ships/lookout.md end to end before doing anything else.
+
+        You are the Lookout — Port Daddy's trouble-ahead watch. You are given
+        the PR diff AND a "Fleet context" section listing OTHER open PRs and
+        recent feature/worktree branches. Your job is to spot, before it lands:
+        - contradictions (this diff assumes something another PR/branch breaks),
+        - architectural trouble (a route/owner nobody owns, a ladder that
+          disagrees with itself, a schema drift),
+        - duplication (two branches building the same thing),
+        - newly broken intended user experiences (a flow this diff quietly
+          breaks).
+
+        Emit 0-4 proposals in the ideation JSON schema (the executor injects the
+        exact contract). Set `severity` (HIGH/MEDIUM/LOW). Prefer
+        `action: "parley"` for a genuine multi-party conflict that needs
+        resolving, `action: "roadmap"` to log a risk to watch. You ALERT — you
+        do not fix. Silence (empty array) when the coast is clear. End with
+        FLEET-VERDICT: PASS (advisory — never block).
+
+        coordination:inconsistency posture preserved.
+      identity: "{project}:fleet:lookout-pr"
+      telos: "Spot contradictions, architectural trouble, and broken UX before they land — and alert the operator."
+
+    snipe:
+      # Engineman. Looks at the code/ideas a PR introduces and, when a reusable
+      # capability would remove recurring friction, proposes ONE skill to author
+      # via the skill-architect skill — with a ready-to-run dispatch command.
+      # Advisory: never gates a merge. See fleet/ships/snipe.md.
+      class: ideation
+      trigger:
+        - pull_request:opened
+      backend: cli:claude-code
+      temperature: 0.7
+      fallbacks:
+        - backend: cli:codex
+        - backend: cloudflare
+          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+      singleton: true
+      allowedTools: "Read,Grep,Glob"
+      side_effects: [pr_comment, skill_proposal, dispatch_command_suggestion]
+      output_receipts: [comment_url, dispatch_command]
+      prompt: |
+        Read fleet/ships/snipe.md end to end before doing anything else.
+
+        You are Snipe (Engineman). You look at the code and ideas THIS PR
+        introduces and ask one question: would a reusable skill make this kind
+        of work materially easier next time? A skill is worth proposing when the
+        PR hand-rolls something (a fixture harness, a migration dance, a
+        review-checklist, a generator) that future PRs will hand-roll again.
+
+        When — and only when — it genuinely helps, emit ONE proposal with
+        `action: "skill"` and a concrete skill-architect brief in `prompt`
+        (what the skill should do, its inputs/outputs, and the deep-research it
+        needs). The executor renders it into a `pd dispatch propose` command that
+        tasks an agent to author the skill via the skill-architect skill. If no
+        skill is warranted, emit an empty array. End with FLEET-VERDICT: PASS.
+      identity: "{project}:fleet:snipe"
+      telos: "Propose a reusable skill-architect skill that makes the PR's kind of work easier."
 
     # ─── New ships (added 2026-05-20) ────────────────────────────────
     #
@@ -520,7 +557,10 @@ fleet:
         - backend: openai
           model: gpt-5-mini
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          # Code-specialized coder model (Moonshot Kimi K2.7 Code, 1T MoE,
+          # 262k ctx, native structured outputs) — the right Workers AI tier for
+          # a code reviewer that emits JSON findings.
+          model: '@cf/moonshotai/kimi-k2.7-code'
       cooldown_ms: 300000
       dedupe_window_ms: 600000
       singleton: false
@@ -612,6 +652,15 @@ fleet:
       singleton: false
       worktree: true
       allowedTools: "Read,Grep,Glob,Write,Edit,Bash(npm test*),Bash(npx vite*),Bash(git*),Bash(gh*)"
+      # skill_graft (NEW): before spawning, splice a native windags-pattern
+      # skill shortlist (lib/skill-graft.ts, scanned+ranked against this
+      # ship's own task text via the shared local MiniLM embedder — no
+      # windags MCP dependency) into the task. test-author is a natural
+      # first ship for this: "what testing/framework skill applies to the
+      # file I'm about to write tests for" is exactly the kind of lookup a
+      # human test author would do. Fails open — a skill-graft error never
+      # blocks the spawn, it just runs without the extra context that once.
+      skill_graft: true
       prompt: |
         Read fleet/ships/test-author.md end to end before doing
         anything else.

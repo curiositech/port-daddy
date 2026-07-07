@@ -38,6 +38,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { DatabaseInstance } from '../lib/sqlite-runtime.js';
+import { getBlackboard } from '../lib/agent-harbor/blackboard.js';
 import { sessionChainHeadHash, verifySessionChain } from '../lib/agent-harbor/event-ledger.js';
 import {
   ensureProjectionSchema,
@@ -429,6 +430,47 @@ export const agentHarborPlugin: FastifyPluginAsync<AgentHarborPluginOpts> = asyn
       };
     } catch (error) {
       return fail(reply, 'receipt', error);
+    }
+  });
+
+  // ── GET /blackboard — the READ-ONLY M6 blackboard (binder ch05; ADR-0097 §5) ──
+  //
+  // One legible read surface over BlackboardItem cards: explicit Longshoreman
+  // assertions from the ledger, active claims, contested-file conflict
+  // warnings, and recent compaction/receipt events. GET only, deliberately:
+  // ch05 defers blackboard write/parley semantics to Milestone 8, so this
+  // route family gains no POST/PUT/DELETE for the blackboard — a write
+  // attempt 404s because no write route exists, which is the honest answer.
+  //
+  // `?refresh` is accepted-and-ignored (tolerant reader): the blackboard reads
+  // the ledger head directly at request time, so there is no projection
+  // checkpoint to catch up — the envelope says exactly that.
+  fastify.get('/blackboard', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const query = request.query as Record<string, unknown>;
+      const board = getBlackboard(db, {
+        ...(typeof query.kind === 'string' && query.kind ? { kind: query.kind } : {}),
+        ...(typeof query.sessionId === 'string' && query.sessionId ? { sessionId: query.sessionId } : {}),
+        ...(typeof query.agentNodeId === 'string' && query.agentNodeId
+          ? { agentNodeId: query.agentNodeId }
+          : {}),
+        limit: boundedLimit(query.limit, 100, 500),
+      });
+      return {
+        data: board.items,
+        // A misbehaving asserter is visible, never silently absorbed.
+        droppedInvalid: board.droppedInvalid,
+        generatedAt: board.generatedAt,
+        projection: {
+          name: 'blackboard',
+          // Read-at-head view: no materialized checkpoint exists to go stale.
+          stale: false,
+          lastLedgerSeq: board.headSeq,
+          headSeq: board.headSeq,
+        },
+      };
+    } catch (error) {
+      return fail(reply, 'blackboard', error);
     }
   });
 

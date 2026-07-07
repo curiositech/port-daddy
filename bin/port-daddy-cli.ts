@@ -110,6 +110,7 @@ import {
   handleGraph, handleIdeas,
   // Shared local embedder (ADR-0061)
   handleEmbed,
+  handleSkillGraft,
   handleRoadmap,
   // Durable commitments (ADR-0041)
   handleCommit, handleObligations,
@@ -209,7 +210,7 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'advise', 'preflight', 'compass', 'guard',
   'metrics', 'health', 'dashboard',
   'bench', 'benchmark', 'demo', 'tuple', 'sortie', 'roadmap',
-  'secret', 'secrets'
+  'secret', 'secrets', 'skill-graft'
 ]);
 
 /**
@@ -640,6 +641,7 @@ export const HELP_TOPIC_ALIASES: Record<string, string> = {
   pub: 'messaging', publish: 'messaging', broadcast: 'messaging',
   sub: 'messaging', subscribe: 'messaging', listen: 'messaging',
   channels: 'messaging', wait: 'messaging',
+  skillgraft: 'skill-graft',
 };
 
 /**
@@ -706,13 +708,14 @@ function buildHelp(): string {
     `  ${G}pd memory tiers${Z}          ${tag('silent')} Core/Recall/Archival mapping with live counts`,
     `  ${G}pd ideas search${Z} "text"   ${tag('silent')} Search ideas, notes, tuples, and repo markdown`,
     `  ${G}pd roadmap${Z}               ${tag('silent')} Show Cartographer's current roadmap projection`,
+    `  ${G}pd skill-graft${Z} "task"     ${tag('silent')} Preview native skill guidance for fleet ships`,
     `  ${G}pd secret list${Z}           ${tag('silent')} Manage keychain-backed provider credentials`,
     `  ${G}pd daemon list${Z}           ${tag('silent')} Inspect named sidecar daemon profiles`,
     '',
     `${A}Permission tiers:${Z}`,
     TIER_LEGEND,
     '',
-    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, secret, daemon, tutorial${Z}`,
+    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, skill-graft, secret, daemon, tutorial${Z}`,
     `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
   );
 
@@ -1268,6 +1271,30 @@ Examples:
   pd roadmap touch swarm-coordination --note "Phase 0 parley implementation"
   pd roadmap ack 5a8e37de --as cartographer --into coordination-guard`,
 
+  'skill-graft': `Skill Graft — Native local skill guidance for fleet ships
+
+Commands:
+  skill-graft "<task>"           Shorthand for query
+  skill-graft query "<task>"     Rank local skills and render bounded guidance
+    --root <path>                Project root to scan (default: cwd)
+    --shortlist-limit <n>        Number of cheap matches to show
+    --top-limit <n>              Number of full SKILL.md bodies to include
+    --body-chars <n>             Hard cap per inlined SKILL.md body
+    --json                       Emit the structured SkillGraftResult
+
+  skill-graft warm               Rescan skills and precompute Tool2Vec centroids when explicitly configured
+  skill-graft reference <id> <path>
+                                 Read one file from inside a skill directory
+
+This is the same lib/skill-graft.ts index used by lib/fleet-engine.ts when a
+pd-fleet.yml ship opts into skill_graft: true. Query is safe on a cold cache:
+it scans local skills and ranks via BM25 until Tool2Vec centroids are warmed.
+
+Examples:
+  pd skill-graft "write tests for a flaky fleet trigger"
+  pd skill-graft warm --json
+  pd skill-graft reference rag-retrieval-pattern-design scripts/audit.mjs`,
+
   secret: `Managed Secrets \u2014 keychain-backed provider credentials
 
 The store is the OS keychain (macOS Keychain), encrypted at rest and
@@ -1352,7 +1379,7 @@ const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'work', 'transcripts', 'transcript', 'relay',
-  'harbor', 'harbors', 'harbor-ledger', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'memory', 'ideas',
+  'harbor', 'harbors', 'harbor-ledger', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'skill-graft', 'skillgraft', 'memory', 'ideas',
   'quorum', 'parley',
   'feedback',
   'commit', 'obligations',
@@ -3182,6 +3209,13 @@ export async function main(): Promise<void> {
       // matching code shell out here instead of standing up their own model.
       case 'embed':
         await handleEmbed(positional, options);
+        break;
+
+      // Native local skill grafting for fleet ships: inspect/warm the same
+      // lib/skill-graft.ts index used by skill_graft: true in pd-fleet.yml.
+      case 'skill-graft':
+      case 'skillgraft':
+        await handleSkillGraft(positional, options);
         break;
 
       case 'memory':

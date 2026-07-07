@@ -40,6 +40,18 @@ jest.unstable_mockModule('../../lib/fleet-engine.js', () => ({
   findFleetConfigPath: mockFindFleetConfigPath,
   loadFleetConfig: mockLoadFleetConfig,
   validateTopology: mockValidateTopology,
+  // routes/fleet.js transitively imports these via lib/spawn-forecast.ts for
+  // GET /fleet/forecast. This suite doesn't exercise that route, so
+  // passthrough stubs are enough to satisfy the ESM module link.
+  parseCronInterval: (cron) => {
+    const match = /^\*\/(\d+) \* \* \* \*$/.exec(cron ?? '');
+    return match ? Number(match[1]) * 60_000 : 10 * 60_000;
+  },
+  resolveFleetAgentRuntime: (agent) => ({
+    backend: agent?.backend ?? null,
+    model: agent?.model ?? null,
+    modelTier: agent?.modelTier,
+  }),
 }));
 
 jest.unstable_mockModule('../../lib/backend-readiness.js', () => ({

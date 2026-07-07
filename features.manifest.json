@@ -1261,6 +1261,7 @@
         "POST /fleet/resume",
         "GET /fleet/tree/:param",
         "GET /fleet/sources",
+        "GET /fleet/forecast",
         "POST /webhooks/fleet/:param",
         "GET /webhooks/fleet",
         "GET /fleet/approvals",
@@ -1400,6 +1401,7 @@
         "GET /sessions/:param/events",
         "GET /costs",
         "GET /receipts/:param",
+        "GET /blackboard",
         "GET /compliance/:param"
       ],
       "completions": [
@@ -1692,6 +1694,24 @@
         "sdk": false
       }
     },
+    "skill_graft": {
+      "description": "Native local skill-graft index and operator inspection surface. Fleet ships call lib/skill-graft.ts through lib/fleet-engine.ts; `pd skill-graft` lets agents query, warm, and read guarded references from the same index.",
+      "module": "lib/skill-graft.ts",
+      "cli": [
+        "skill-graft",
+        "skillgraft"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "skill-graft",
+        "skillgraft"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
     "memory": {
       "description": "Episodic memory entries and aggregate memory stats promoted from sessions and spawned runs",
       "cli": [
@@ -1981,7 +2001,7 @@
       }
     },
     "parley": {
-      "description": "Tuple-backed forced reconciliation primitive for overlapping agents. `pd parley fit` evaluates whether a task deserves multi-agent decomposition; `pd parley call/respond/resolve/list/show` records a bounded SUMMONED\u2192CONVENED\u2192COLLAPSED|ESCALATED|VOIDED dialogue around a contested surface.",
+      "description": "Tuple-backed forced reconciliation primitive for overlapping agents. `pd parley fit` evaluates whether a task deserves multi-agent decomposition; `pd parley call/respond/resolve/list/show` records a bounded SUMMONED→CONVENED→COLLAPSED|ESCALATED|VOIDED dialogue around a contested surface. Turn verbs (`pd parley propose/critique/revise/agree/refuse/say <id> <content>`) are respond sugar with identity inferred from the active session; every turn fans out to the other participants’ inboxes (pd attention), and `pd parley show` records a read receipt so the seen list shows who is behind.",
       "cli": [
         "parley"
       ],
