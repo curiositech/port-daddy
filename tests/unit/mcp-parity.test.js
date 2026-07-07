@@ -91,6 +91,8 @@ const TOOL_FEATURE_MAP = {
   'list_notes': 'notes',
   'claim_files': 'sessions',
   'claim_symbols': 'sessions',
+  'claim_region': 'sessions',   // Harbor editor P3: region-scoped claim
+  'release_region': 'sessions', // Harbor editor P3: region-scoped release
 
   // Locks
   'acquire_lock': 'locks',

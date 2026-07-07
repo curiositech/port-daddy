@@ -34,6 +34,7 @@ use crate::editor_claims::{
     claim_tone, decode_claim_frame, encode_claim_frame, ClaimId, ClaimLedger, ClaimMirror,
     ClaimStore, RegionClaim,
 };
+use crate::editor_commit_gate::{check_staged_regions, CommitGateVerdict};
 use crate::editor_sync::{
     decode_presence_frame, encode_presence_frame, PresenceDebouncer, PresenceState, PresenceStore,
 };
@@ -634,6 +635,30 @@ impl EditorPane {
             }
         }
         GuardVerdict::Clear
+    }
+
+    /// The **staged commit gate** (P3 slice 3, the `pd guard check --staged` equivalent
+    /// for a multi-hunk commit). Delegates to [`check_staged_regions`] over the pane's
+    /// live claim ledger: refuses when ANY staged hunk reaches into a region whose
+    /// first-granted, non-revoked owner is another LIVE actor, returning one typed,
+    /// bypass-free [`GatedRegion`] per contended owner (HARD RULE 5/6/7). Region-scoped —
+    /// a hunk adjacent to (but outside) another's claim clears (HARD RULE 1).
+    ///
+    /// Liveness comes from the ledger itself: it is rebuilt from the coordination-lane
+    /// awareness store, which expires a dead actor's claim after `CLAIM_TIMEOUT_MS`, so a
+    /// claim present here is from a live-enough actor (the `is_live` predicate is `true`;
+    /// the injected-liveness path is the durable/daemon MCP gate's, not the pane's). The
+    /// owner label reuses the same `peer <tag>` composition as the live guard chip, so the
+    /// on-screen chip and the commit refusal can never name an owner differently.
+    pub fn staged_commit_gate(&self, hunks: &[(u32, u32)]) -> CommitGateVerdict {
+        let me = self.claims.local();
+        check_staged_regions(
+            &self.claim_ledger,
+            hunks,
+            me,
+            |_peer| true,
+            |peer| format!("peer {}", author_tag(peer)),
+        )
     }
 
     /// Is the 1-based line `n` inside the bound region (inclusive)?
@@ -1588,5 +1613,39 @@ mod tests {
         assert!(!pane_b.commit_verdict(200, 260).is_gated(), "an adjacent region commits clear (region-scoped)");
         // A committing its OWN region is clear (first-granted owner is A).
         assert!(!pane_a.commit_verdict(12, 40).is_gated(), "the owner commits its own region clear");
+    }
+
+    /// P3 SLICE-3 WIRING PROOF — the pane's multi-hunk `staged_commit_gate` delegates to
+    /// the commit-gate module over the pane's live ledger: a staged commit whose hunks
+    /// cross TWO live owners' regions is refused with one bypass-free refusal per owner,
+    /// while a staged set landing only in free/own regions clears.
+    #[test]
+    fn staged_commit_gate_wires_the_pane_ledger_to_the_module() {
+        let big: String = (0..300).map(|i| format!("line {i}\n")).collect();
+        let path = write_temp("wedge-staged.txt", &big);
+        let mut pane_a = make_pane_as(&path, "port-daddy:editor:agent-A");
+        let mut pane_b = make_pane_as(&path, "port-daddy:console:human-B");
+        let mut pane_z = make_pane_as(&path, "port-daddy:editor:agent-Z");
+
+        // A holds parse_header (L12–40); B holds write_footer (L200–260). Z folds both in.
+        let fa = pane_a.acquire_region_claim(12, 40, "parse_header", 1_000);
+        let fb = pane_b.acquire_region_claim(200, 260, "write_footer", 1_001);
+        assert!(pane_z.ingest_claim(&fa) && pane_z.ingest_claim(&fb));
+
+        // Z stages two hunks, one inside EACH owner's region → refused, one per owner.
+        let verdict = pane_z.staged_commit_gate(&[(30, 35), (205, 210)]);
+        assert!(verdict.is_refused(), "staged hunks inside two live regions are refused");
+        assert_eq!(verdict.refusals().len(), 2, "one bypass-free refusal per contended owner");
+        let msg = verdict.refusal_message().expect("a refused commit has a message");
+        let lower = msg.to_lowercase();
+        assert!(msg.contains("parse_header") && msg.contains("write_footer"));
+        for tok in BYPASS {
+            assert!(!lower.contains(tok), "the staged-commit refusal names no bypass (‘{tok}’)");
+        }
+
+        // Z staging only in the free gap (L100–150) between the two claims clears.
+        assert!(pane_z.staged_commit_gate(&[(100, 150)]).is_clear(), "the free gap commits clear (region-scoped)");
+        // A staging into its OWN region clears (first-granted owner).
+        assert!(pane_a.staged_commit_gate(&[(12, 40)]).is_clear(), "the owner commits its own region clear");
     }
 }

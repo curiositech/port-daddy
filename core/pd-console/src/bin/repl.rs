@@ -50,6 +50,8 @@
 #[allow(dead_code)]
 #[path = "../editor_claims.rs"]  mod editor_claims;
 #[allow(dead_code)]
+#[path = "../editor_commit_gate.rs"] mod editor_commit_gate;
+#[allow(dead_code)]
 #[path = "../editor_sync.rs"]    mod editor_sync;
 #[allow(dead_code)]
 #[path = "../editor_wedge.rs"]   mod editor_wedge;
