@@ -1,7 +1,7 @@
 # 22 Orchestration Surface: DAG Visualization, Execution Opinions, Adversarial Review, Output Evaluation
 
 Status: architecture chapter. This chapter realizes the deferred design work
-order named in `docs/strategy/2026-07-06-distribution-dogfood-and-go-to-market.md`
+order named in `docs/strategy/2026-07-06-distribution-dogfood-and-go-to-market.md` <!-- cite-exempt: strategy doc lives on the strategy/distribution-and-dogfood branch (PR #707), not yet shipped to main -->
 §13/§14 ("the orchestration-visualization surface"). It is contract-first and
 target-state; nothing here is shipped until the proof gates below pass.
 
@@ -153,7 +153,7 @@ operator could reasonably reverse:
 | Decision kind | Example rendered opinion |
 | --- | --- |
 | `parallelize` | "research and scaffold share no files and no symbols (coupling: none); running them serially adds ~14 min for zero conflict reduction" |
-| `serialize` | "both nodes write `lib/router.ts`; the conflict forecaster rates overlap high — serial with a claim handoff beats a parley mid-run" |
+| `serialize` | "both nodes write `lib/ipc-router.ts`; the conflict forecaster rates overlap high — serial with a claim handoff beats a parley mid-run" |
 | `human-gate` | "this node force-pushes to a shared branch; destructive-action policy requires consent (C5), estimated blast radius: 3 open PRs" |
 | `topology` | "chain over dag-workgroup: review independence is low — each step consumes the previous diff, so parallel drafts would merge-conflict by construction" |
 | `skill-graft` | "grafted `postgres-explain-analyzer` over the generic SQL skill: the intent names query latency, and outcome attribution favors it 7:2 on this repo" |
