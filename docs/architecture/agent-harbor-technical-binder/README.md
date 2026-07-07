@@ -194,6 +194,11 @@ Work Receipt:
   written by agents, trigger→plan→sink graphs gated at consent, Work Receipts
   per firing, the standing `Automation` record over F0 v0 contracts, inherited
   trust/receiver discipline, the gallery shape, and proof gates IT-019..IT-022.
+- [22 Orchestration Surface](./22-orchestration.md):
+  the Chart (steerable DAG/hypertree plan visualization), argued execution
+  opinions with durable overrules, automated I0-style adversarial review,
+  and agentic output evaluation feeding the ratings/guild layer; proof gates
+  IT-019..IT-022.
 - [23 Onboarding And Cold Start](./23-onboarding.md):
   killing the blank-fleet cold start — the Shipwright first-run (repo survey →
   starter fleet → one confirm each → a receipt within ~5 minutes) and the
