@@ -899,6 +899,7 @@
       "description": "Project-local agent intelligence (.portdaddy/ briefing)",
       "cli": [
         "briefing",
+        "brief",
         "history"
       ],
       "sdk": [
@@ -911,6 +912,7 @@
       ],
       "completions": [
         "briefing",
+        "brief",
         "history"
       ],
       "docs": {

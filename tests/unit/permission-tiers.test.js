@@ -62,7 +62,7 @@ const SLUG_VERB_OVERRIDES = {
   webhooks: ['webhook', 'webhooks'],
   projects: ['scan', 'projects', 'p'],
   orchestration: ['up', 'down'],
-  briefing: ['briefing', 'history'],
+  briefing: ['briefing', 'brief', 'history'],
   integration: ['integration'],
   sugar: ['begin', 'done', 'whoami', 'with-lock'],
   spawn: ['spawn', 'spawned', 'watch'],

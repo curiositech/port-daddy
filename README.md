@@ -25,7 +25,7 @@
 While individual agents are brilliant, **coordination** is the bottleneck. Port Daddy provides the missing primitives: atomic port assignment, sessions with append-only notes, advisory file/symbol claims, distributed locks, pub/sub messaging, budget-bonded spawning, and automatic salvage.
 
 ```bash
-# Start working (registers agent + claims port + starts session)
+# Start working (registers agent, starts session, fetches brief + attention)
 pd begin "Building the auth layer" --identity myapp:api --lifecycle durable
 
 # Log progress, coordinate with other agents
@@ -181,6 +181,8 @@ pd begin "Fix flaky auth tests" --identity myapp:api --lifecycle durable
 
 The same requirement applies to `pd session start` and the MCP `begin_session` tool.
 
+On success, `pd begin` also fetches the current project brief and attention queue for the new agent. Use `--skip-brief`, `--skip-attention`, or `--skip-startup` for scripts that only want the raw session setup.
+
 ### The loop
 
 ```bash
@@ -253,7 +255,7 @@ Every `pd` command is classified by how much shared state it touches. The tier i
 
 | Tier | What it means | Examples |
 |---|---|---|
-| `silent` | Read-only. Safe to run anywhere. | `pd status`, `pd whoami`, `pd notes`, `pd briefing`, `pd sessions`, `pd actors`, `pd find`, `pd look`, `pd periscope`, `pd doctor` |
+| `silent` | Read-only. Safe to run anywhere. | `pd status`, `pd whoami`, `pd notes`, `pd briefing`/`pd brief`, `pd sessions`, `pd actors`, `pd find`, `pd look`, `pd periscope`, `pd doctor` |
 | `notify` | Mutates your own state. Reversible. | `pd note`, `pd begin`, `pd done`, `pd claim`, `pd lock`, `pd takeover`, `pd backup`, `pd cut`, `pd backend` |
 | `approval` | Affects other agents. No data loss. | `pd pub`, `pd spawn`, `pd sortie`, `pd up`, `pd dispatch`, `pd parley`, `pd squid`, `pd harbor create` |
 | `destructive` | Releases someone else's resources or removes records. Prompts. | `pd restore`, `pd salvage claim`, `pd fleet panic`, `pd unlock --force` (full list below) |
@@ -384,7 +386,7 @@ pd inbox watch --agent CAPTAIN                     # stream your inbox live (SSE
 pd inbox send CAPTAIN "Course corrected." --sender "PILOT"
 pd integration ready myapp:api                     # signal the API is up
 pd wait myapp:api                                  # block until a service is healthy
-pd attention                                       # session-start mailbox aggregator
+pd attention                                       # re-check mailbox after pd begin
 pd nudge                                           # list pending suggestibility nudges
 ```
 

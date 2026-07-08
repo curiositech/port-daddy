@@ -263,6 +263,17 @@ describe('CLI Integration Tests', () => {
     });
   });
 
+  describe('Briefing Command', () => {
+    test('pd brief aliases pd briefing', () => {
+      const result = runCli(['brief', '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(data.success).toBe(true);
+      expect(data.briefing).toBeDefined();
+    });
+  });
+
   describe('Sugar Recovery Commands', () => {
     test('done succeeds over IPC when the session is active but the agent registry entry is gone', async () => {
       const slot = `stale-done-${Date.now()}`;
@@ -926,6 +937,46 @@ describe('CLI Integration Tests', () => {
       expect(data.identity).toBe('test:cli:flags');
 
       // Cleanup
+      runCli(['done', '--agent', data.agentId]);
+    });
+
+    test('pd begin includes collapsed startup brief and attention context', () => {
+      const result = runCli([
+        'begin',
+        '--purpose', 'Collapsed startup context test',
+        '--identity', 'test:cli:startup-collapse',
+        '--lifecycle', 'durable',
+        '--json',
+      ]);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(data.success).toBe(true);
+      expect(data.startup).toBeDefined();
+      expect(data.startup.briefing).toBeDefined();
+      expect(data.startup.briefing.success).toBe(true);
+      expect(data.startup.attention).toBeDefined();
+      expect(data.startup.attention.success).toBe(true);
+      expect(data.startup.attention.agentId).toBe(data.agentId);
+
+      runCli(['done', '--agent', data.agentId]);
+    });
+
+    test('pd begin --skip-startup preserves lean JSON output', () => {
+      const result = runCli([
+        'begin',
+        '--purpose', 'Skipped startup context test',
+        '--identity', 'test:cli:startup-skip',
+        '--lifecycle', 'durable',
+        '--skip-startup',
+        '--json',
+      ]);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(data.success).toBe(true);
+      expect(data.startup).toBeUndefined();
+
       runCli(['done', '--agent', data.agentId]);
     });
 

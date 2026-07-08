@@ -152,7 +152,7 @@ remembers to ask.
 
 ## What's still missing
 
-`pd attention` does not auto-fire at the end of `pd begin`, which means the SessionStart hook runs before any agent identity exists, errors, and the hook swallows the error to keep things quiet. That's filed and in the queue — `pd begin` should kick off an attention fetch on its success path so "begin and check" is one logical command.
+`pd begin` now kicks off the startup check on its success path: it writes the active identity, fetches the current brief, and runs `pd attention` for that agent. The separate commands still exist for re-checks, but "begin and check" is one logical command.
 
 The `--json` output does not yet have a `schemaVersion` field. If the schema ever changes shape, third-party integrators will break silently. Cheap to add, in the queue.
 

@@ -672,7 +672,7 @@ function buildHelp(): string {
     `${A}Get started:${Z}`,
     `  ${G}pd setup${Z}                  ${tag('notify')} Install daemon, MCP, FleetBar, hooks, Guard`,
     `  ${G}pd hooks install${Z}          ${tag('notify')} Wire coordination into claude/codex/gemini/agy (per-project, daemon-gated)`,
-    `  ${G}pd begin${Z} "purpose" --lifecycle durable  ${tag('notify')} I'll set up your agent + session`,
+    `  ${G}pd begin${Z} "purpose" --lifecycle durable  ${tag('notify')} Start session + brief + attention`,
     `  ${G}pd done${Z} "summary"        ${tag('notify')} Finish up — I'll clean everything`,
     `  ${G}pd whoami${Z}                ${tag('silent')} See your current context`,
     `  ${G}pd attention${Z}             ${tag('notify')} What other agents queued for you (run first thing!)`,
@@ -1086,10 +1086,13 @@ Sugar commands combine multiple steps into single commands.
 They manage agent registration, sessions, and local context together.
 
 Commands:
-  begin "purpose"          Register agent + start session atomically
+  begin "purpose"          Register agent + start session, then fetch brief + attention
                            Writes context to .portdaddy/current.json
     --lifecycle <mode>     Required: durable for work contexts, ephemeral for heartbeat-bound process sessions
     --allow-main-worktree  Explicitly allow an integration session in the main worktree
+    --skip-brief           Do not fetch startup briefing after begin
+    --skip-attention       Do not fetch startup attention after begin
+    --skip-startup         Do not fetch any startup context after begin
 
   done "summary"           End session + unregister agent atomically
                            Cleans up .portdaddy/current.json
@@ -1110,6 +1113,7 @@ Aliases:
 
 Examples:
   pd begin "Building auth module" --lifecycle durable
+  pd begin "Scripted setup" --lifecycle ephemeral --skip-startup
   pd note "Login endpoint done"
   pd done "Auth module complete"
   pd done --self-salvage --telos-verdict not-fulfilled --doable yes --why-stopped "Tests still red" --next-plan "Fix parser fixture and rerun npm test"
@@ -1376,7 +1380,7 @@ const ALL_COMMANDS: string[] = [
   'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'benchmark', 'look', 'sitrep', 'roadmap',
   'advise', 'preflight', 'compass', 'guard', 'hooks',
   'salvage', 'resurrection', 'changelog', 'tunnel',
-  'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
+  'services', 'dns', 'briefing', 'brief', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'work', 'transcripts', 'transcript', 'relay',
   'harbor', 'harbors', 'harbor-ledger', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'skill-graft', 'skillgraft', 'memory', 'ideas',
@@ -2879,6 +2883,7 @@ export async function main(): Promise<void> {
         await handleDns(positional[0], positional.slice(1), options);
         break;
 
+      case 'brief':
       case 'briefing':
         await handleBriefing(options);
         break;

@@ -96,7 +96,7 @@ set -l __pd_commands \
     'pub' 'publish' 'broadcast' 'sub' 'subscribe' 'listen' 'tube' 'wait' 'lock' 'unlock' 'locks' \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'takeover' 'note' 'notes' \
-    'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' 'send' 'sent' \
+    'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'brief' 'history' 'inbox' 'send' 'sent' \
     'begin' 'b' 'done' 'whoami' 'w' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'work' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'harbor-ledger' 'tuple' 'graph' 'embed' 'skill-graft' 'skillgraft' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
     'say' 'look' 'sitrep' 'whois' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
@@ -170,6 +170,7 @@ for prog in port-daddy pd
 
     # Briefing & History
     complete -c $prog -n __pd_needs_command -a briefing -d 'Generate .portdaddy/ project briefing'
+    complete -c $prog -n __pd_needs_command -a brief -d 'Generate .portdaddy/ project briefing'
     complete -c $prog -n __pd_needs_command -a history -d 'View recent project activity'
     complete -c $prog -n __pd_needs_command -a graph -d 'Inspect semantic graph edges and stats'
     complete -c $prog -n __pd_needs_command -a embed -d 'Shared local embedding model: status, prefetch, embed text'
@@ -765,6 +766,9 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command briefing" -l full -d 'Full sync with archives and activity.log'
     complete -c $prog -n "__pd_using_command briefing" -l project -d 'Override project detection' -x
     complete -c $prog -n "__pd_using_command briefing" -l dir -d 'Target directory' -r
+    complete -c $prog -n "__pd_using_command brief" -l full -d 'Full sync with archives and activity.log'
+    complete -c $prog -n "__pd_using_command brief" -l project -d 'Override project detection' -x
+    complete -c $prog -n "__pd_using_command brief" -l dir -d 'Target directory' -r
 
     # history
     complete -c $prog -n "__pd_using_command history" -l limit -d 'Max entries' -x
@@ -815,12 +819,22 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command begin" -s t -l type -d 'Agent type' -x -a 'worker orchestrator monitor'
     complete -c $prog -n "__pd_using_command begin" -l files -d 'Files to claim' -r
     complete -c $prog -n "__pd_using_command begin" -s f -l force -d 'Force file claims even if already claimed'
+    complete -c $prog -n "__pd_using_command begin" -l lifecycle -d 'Session lifecycle' -x -a 'durable ephemeral'
+    complete -c $prog -n "__pd_using_command begin" -l allow-main-worktree -d 'Allow main worktree session'
+    complete -c $prog -n "__pd_using_command begin" -l skip-brief -d 'Skip startup briefing'
+    complete -c $prog -n "__pd_using_command begin" -l skip-attention -d 'Skip startup attention'
+    complete -c $prog -n "__pd_using_command begin" -l skip-startup -d 'Skip all startup context'
     complete -c $prog -n "__pd_using_command b" -s P -l purpose -d 'What you are working on' -x
     complete -c $prog -n "__pd_using_command b" -s i -l identity -d 'Semantic identity (project:stack:context)' -x
     complete -c $prog -n "__pd_using_command b" -s a -l agent -d 'Agent ID (auto-generated if omitted)' -x
     complete -c $prog -n "__pd_using_command b" -s t -l type -d 'Agent type' -x -a 'worker orchestrator monitor'
     complete -c $prog -n "__pd_using_command b" -l files -d 'Files to claim' -r
     complete -c $prog -n "__pd_using_command b" -s f -l force -d 'Force file claims even if already claimed'
+    complete -c $prog -n "__pd_using_command b" -l lifecycle -d 'Session lifecycle' -x -a 'durable ephemeral'
+    complete -c $prog -n "__pd_using_command b" -l allow-main-worktree -d 'Allow main worktree session'
+    complete -c $prog -n "__pd_using_command b" -l skip-brief -d 'Skip startup briefing'
+    complete -c $prog -n "__pd_using_command b" -l skip-attention -d 'Skip startup attention'
+    complete -c $prog -n "__pd_using_command b" -l skip-startup -d 'Skip all startup context'
 
     # done
     complete -c $prog -n "__pd_using_command done" -s n -l note -d 'Final note' -x

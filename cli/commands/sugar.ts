@@ -23,6 +23,12 @@ import {
 
 type BeginLifecycle = 'durable' | 'ephemeral';
 
+interface BeginStartupContext {
+  briefing?: unknown;
+  attention?: unknown;
+  errors?: Array<{ command: 'brief' | 'attention'; error: string }>;
+}
+
 type BeginLifecycleResolution =
   | { success: true; lifecycle: BeginLifecycle; durable: boolean }
   | { success: false; error: string };
@@ -53,6 +59,75 @@ function printBeginUsage(): void {
   console.error('Usage: pd begin <purpose> --lifecycle durable|ephemeral [--purpose "text"] [-P "text"]');
   console.error('       pd begin --identity ID --agent AGENT_ID --files f1 f2... --lifecycle durable|ephemeral');
   console.error('       pd begin                                 # interactive (TTY only)');
+}
+
+function shouldCollectStartupContext(options: CLIOptions): boolean {
+  if (options['skip-startup'] === true || options.skipStartup === true) return false;
+  if (isQuiet(options)) return false;
+  if (process.env.PD_EMIT_EXPORTS === '1') return false;
+  return true;
+}
+
+function countItems(value: unknown, key: string): number {
+  if (!value || typeof value !== 'object') return 0;
+  const record = value as Record<string, unknown>;
+  const nested = record.briefing && typeof record.briefing === 'object'
+    ? record.briefing as Record<string, unknown>
+    : record;
+  const items = nested[key];
+  return Array.isArray(items) ? items.length : 0;
+}
+
+function summarizeStartupBriefing(briefing: unknown): string {
+  const activeSessions = countItems(briefing, 'activeSessions');
+  const fileClaims = countItems(briefing, 'fileClaims');
+  const salvage = countItems(briefing, 'salvageQueue');
+  return `${activeSessions} active session(s), ${fileClaims} file claim(s), ${salvage} salvage item(s)`;
+}
+
+function summarizeStartupAttention(attention: unknown): string {
+  if (!attention || typeof attention !== 'object') return 'unavailable';
+  const counts = (attention as { counts?: { total?: number; inbox?: number; channels?: number } }).counts;
+  if (!counts) return '0 item(s)';
+  return `${counts.total ?? 0} item(s): inbox=${counts.inbox ?? 0}, channels=${counts.channels ?? 0}`;
+}
+
+async function collectBeginStartupContext(agentId: string, options: CLIOptions): Promise<BeginStartupContext> {
+  const startup: BeginStartupContext = {};
+  const errors: BeginStartupContext['errors'] = [];
+
+  if (options['skip-brief'] !== true && options.skipBrief !== true) {
+    try {
+      const projectRoot = encodeURIComponent(process.cwd());
+      const res: PdFetchResponse = await pdFetch(`/briefing/auto?projectRoot=${projectRoot}`);
+      const data = await res.json();
+      if (res.ok) {
+        startup.briefing = data;
+      } else {
+        errors.push({ command: 'brief', error: String((data as { error?: unknown }).error || 'brief failed') });
+      }
+    } catch (err) {
+      errors.push({ command: 'brief', error: (err as Error).message });
+    }
+  }
+
+  if (options['skip-attention'] !== true && options.skipAttention !== true) {
+    try {
+      const params = new URLSearchParams({ agentId });
+      const res: PdFetchResponse = await pdFetch(`/attention?${params}`, { transport: 'tcp' });
+      const data = await res.json();
+      if (res.ok) {
+        startup.attention = data;
+      } else {
+        errors.push({ command: 'attention', error: String((data as { error?: unknown }).error || 'attention failed') });
+      }
+    } catch (err) {
+      errors.push({ command: 'attention', error: (err as Error).message });
+    }
+  }
+
+  if (errors.length > 0) startup.errors = errors;
+  return startup;
 }
 
 // =============================================================================
@@ -168,6 +243,13 @@ export async function handleBegin(
     startedAt: Date.now(),
   });
 
+  if (shouldCollectStartupContext(options)) {
+    const startup = await collectBeginStartupContext(data.agentId as string, options);
+    if (Object.keys(startup).length > 0) {
+      (data as Record<string, unknown>).startup = startup;
+    }
+  }
+
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
     return;
@@ -235,6 +317,14 @@ export async function handleBegin(
   if (data.approvalsHint) {
     console.error('');
     ui.warn(String(data.approvalsHint));
+  }
+  const startup = (data as { startup?: BeginStartupContext }).startup;
+  if (startup) {
+    if (startup.briefing) console.error(`  Brief: ${summarizeStartupBriefing(startup.briefing)}`);
+    if (startup.attention) console.error(`  Attention: ${summarizeStartupAttention(startup.attention)}`);
+    if (startup.errors && startup.errors.length > 0) {
+      console.error(`  Startup: ${startup.errors.map((err) => `${err.command} failed: ${err.error}`).join('; ')}`);
+    }
   }
 }
 

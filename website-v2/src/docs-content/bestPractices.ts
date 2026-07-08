@@ -10,10 +10,10 @@ export const bestPracticesSection: DocsContentSection = {
       slug: 'operator-loop',
       title: 'Daily Work Loop',
       summary:
-        'Run pd briefing before touching a coordinated repo, launch AI sessions through pd spawn, and close every session with pd done.',
+        'Run pd begin before touching a coordinated repo, launch AI sessions through pd spawn, and close every session with pd done.',
       truth: 'source-backed',
       goals: [
-        'Start every session with pd status, pd briefing, and pd salvage.',
+        'Start every session with pd begin; it now folds the startup brief and attention pass into the session anchor.',
         'Use pd spawn instead of raw claude -p so coordination is automatic.',
         'Close sessions with pd done — dangling agents become salvage-queue noise.',
       ],
@@ -23,17 +23,17 @@ export const bestPracticesSection: DocsContentSection = {
           title: 'Run the loop before the repo gets noisy',
           paragraphs: [
             'The work loop solves the actual failures that ruin multi-agent work: stale runtime assumptions, invisible ownership, repeated archaeology, and ambiguous handoffs.',
-            '**Run `pd status`, `pd briefing`, and `pd salvage` before touching a coordinated repo.** Local shell work without a session anchor is invisible work — other agents cannot route around your slice.',
+            '**Run `pd begin` before touching a coordinated repo.** Local shell work without a session anchor is invisible work — other agents cannot route around your slice, and `pd begin` now includes the startup brief and attention pass.',
           ],
         },
         {
           type: 'command',
           title: 'The entry sequence',
-          command: 'pd status\npd briefing\npd salvage --project myapp',
+          command: 'pd begin "Work the current slice" --identity myapp:api --lifecycle durable\npd salvage --project myapp',
           output:
             'Port Daddy is running\nSUCCESS: Briefing generated: .portdaddy/briefing.md\n2 dead agent(s) in myapp. Run: pd salvage --project myapp',
           notes: [
-            'pd briefing reads live sessions, notes, file claims, and recent activity across the fleet. If you skip it, you are flying blind.',
+            'The startup brief reads live sessions, notes, file claims, and recent activity across the fleet. If you skip it, you are flying blind.',
             'pd salvage shows abandoned work. Check it before starting — you may be about to redo something an interrupted agent already completed.',
           ],
         },
@@ -85,7 +85,7 @@ export const bestPracticesSection: DocsContentSection = {
         {
           type: 'checklist',
           items: [
-            'pd status + pd briefing + pd salvage before any coordinated work.',
+            'pd begin + pd salvage before any coordinated work.',
             'pd spawn for every AI session — never raw claude -p.',
             'pd note with scope before edits, result before pd done.',
             'pd done when work finishes — not just closing the terminal.',

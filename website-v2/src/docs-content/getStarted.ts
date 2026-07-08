@@ -94,7 +94,7 @@ export const getStartedSection: DocsContentSection = {
         {
           type: 'command',
           title: 'Basic status check',
-          command: 'pd status\npd briefing\npd salvage',
+          command: 'pd status\npd brief\npd salvage',
           notes: [
             'Use these commands before digging through a busy repo.',
             'Briefing and salvage show current context and abandoned work.',
@@ -157,7 +157,7 @@ export const getStartedSection: DocsContentSection = {
           type: 'paragraph',
           title: 'Complete the first real loop',
           paragraphs: [
-            'The fastest way to feel Port Daddy doing real work is the session loop: start with `pd begin`, leave a note, confirm context with `pd whoami`, and close with `pd done`.',
+            'The fastest way to feel Port Daddy doing real work is the session loop: start with `pd begin`, which now includes the startup brief and attention pass, leave a note, confirm context with `pd whoami`, and close with `pd done`.',
             'This gives the work a name, a purpose, a note trail, and a clean ending. That is the basic shape other agents and future you can understand later.',
           ],
         },

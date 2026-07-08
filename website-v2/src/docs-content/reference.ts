@@ -30,7 +30,7 @@ export const referenceSection: DocsContentSection = {
           type: 'command',
           title: 'Daily loop plus newer specialist surfaces',
           command:
-            'pd status\npd briefing\npd begin "Fix auth bug" --identity myapp:api --lifecycle durable\npd note "JWT validation passing"\npd tube ui:clicks\npd guard check --staged\npd actor lookout --message "release-surface drift fixed"\npd done "Docs updated"',
+            'pd status\npd begin "Fix auth bug" --identity myapp:api --lifecycle durable\npd note "JWT validation passing"\npd tube ui:clicks\npd guard check --staged\npd actor lookout --message "release-surface drift fixed"\npd done "Docs updated"',
           notes: [
             'The everyday loop remains first-class.',
             '`pd tube`, actor mailboxes, guard, roadmap, ideas, wallet, bond, and feedback commands now appear in the CLI reference instead of being source-only knowledge.',

@@ -104,7 +104,7 @@ _port_daddy() {
     # Sugar (compound commands)
     begin b done whoami w attention nudge with-lock n u d learn tutorial
     # Briefing & History
-    briefing history
+    briefing brief history
     # Consolidated read/write (3.8.4)
     say look sitrep pheromone ph advise preflight compass guard snapshots snapshot backup restore attest shipwright
     # Host-safety posture audit (ADR-0088)
@@ -1314,9 +1314,9 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
-    # briefing  [--full] [--json] [--project NAME] [--dir PATH]
+    # briefing/brief  [--full] [--json] [--project NAME] [--dir PATH]
     # -----------------------------------------------------------------------
-    briefing)
+    briefing|brief)
       case "$prev" in
         --project|--dir)
           COMPREPLY=()  # Free-form
@@ -1370,7 +1370,7 @@ _port_daddy() {
           COMPREPLY=( $(compgen -f -- "$cur") )
           ;;
         *)
-          _pd_opts '--purpose -P --identity -i --agent -a --type -t --files --force'
+          _pd_opts '--purpose -P --identity -i --agent -a --type -t --files --force --lifecycle --allow-main-worktree --skip-brief --skip-attention --skip-startup'
           ;;
       esac
       ;;

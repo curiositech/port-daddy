@@ -1233,6 +1233,10 @@ _pd_cmd_briefing() {
     '(-h --help)'{-h,--help}'[show help]'
 }
 
+_pd_cmd_brief() {
+  _pd_cmd_briefing "$@"
+}
+
 _pd_cmd_begin() {
   _arguments \
     '(-P --purpose)'{-P,--purpose}'[what you are working on]:purpose:' \
@@ -1241,6 +1245,11 @@ _pd_cmd_begin() {
     '(-t --type)'{-t,--type}'[agent type]:type:(worker orchestrator monitor)' \
     '--files[files to claim]:file:_files' \
     '(-f --force)'{-f,--force}'[force file claims even if already claimed]' \
+    '--lifecycle[session lifecycle]:lifecycle:(durable ephemeral)' \
+    '--allow-main-worktree[allow main worktree session]' \
+    '--skip-brief[skip startup briefing]' \
+    '--skip-attention[skip startup attention]' \
+    '--skip-startup[skip all startup context]' \
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]' \
@@ -2242,6 +2251,7 @@ _port_daddy() {
     'tutorial:interactive tutorial (alias for learn)'
     # Briefing & History
     'briefing:generate .portdaddy/ project briefing'
+    'brief:generate .portdaddy/ project briefing'
     'history:view recent project activity'
     # Consolidated read/write (3.8.4)
     'say:write a finding (note) with optional fan-out to tuple/pheromone/broadcast'
@@ -2446,6 +2456,7 @@ _port_daddy() {
         who-owns)               _pd_cmd_who_owns ;;
         integration)            _pd_cmd_integration ;;
         briefing)               _pd_cmd_briefing ;;
+        brief)                  _pd_cmd_brief ;;
         history)                _pd_cmd_history ;;
         begin|b)                _pd_cmd_begin ;;
         done)                   _pd_cmd_done ;;

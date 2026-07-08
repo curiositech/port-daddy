@@ -24,6 +24,9 @@ export interface CLIOptions {
   // Session flags
   type?: string;
   lifecycle?: string;
+  skipStartup?: boolean;
+  skipBrief?: boolean;
+  skipAttention?: boolean;
 
   // Lock flags
   owner?: string;
