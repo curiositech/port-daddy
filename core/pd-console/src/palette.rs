@@ -60,6 +60,14 @@ pub struct Theme {
     pub flag_uniform: u32,
     pub flag_november: u32,
     pub flag_lima: u32,
+    // Code syntax roles (the Harbor editor's CodeBuffer face). Same contract
+    // as every other role: meaning lives in `SyntaxKind`, the hex lives HERE
+    // once per mode — panes never carry a color.
+    pub syn_keyword: u32,
+    pub syn_type: u32,
+    pub syn_string: u32,
+    pub syn_comment: u32,
+    pub syn_number: u32,
 }
 
 /// LIGHT — website paper/cobalt/kelp plus coral heat and amber warning.
@@ -88,6 +96,11 @@ const LIGHT: Theme = Theme {
     flag_uniform: 0x8c540e,
     flag_november: 0xaa432e,
     flag_lima: 0x6f675a,
+    syn_keyword: 0x003fb8,
+    syn_type: 0x8c540e,
+    syn_string: 0x006b5f,
+    syn_comment: 0x6f675a,
+    syn_number: 0xaa432e,
 };
 
 /// DARK — website dark cobalt/kelp plus coral heat and amber warning.
@@ -116,6 +129,11 @@ const DARK: Theme = Theme {
     flag_uniform: 0xf2be51,
     flag_november: 0xff9c85,
     flag_lima: 0xa59f93,
+    syn_keyword: 0x7db4ff,
+    syn_type: 0xf2be51,
+    syn_string: 0x8fd0a7,
+    syn_comment: 0xa59f93,
+    syn_number: 0xff9c85,
 };
 
 impl Theme {
@@ -139,6 +157,21 @@ impl Theme {
             // CRITICAL daemon health → the distress red (distinct from the
             // crimson `gated`/`conflict` warning tone).
             Tone::Alarm => self.mayday,
+        }
+    }
+
+    /// Syntax color for a [`crate::pane::SyntaxKind`] code run — resolved
+    /// here (the theme layer) so retheme/light-mode is free and no pane or
+    /// renderer ever carries an inline hex.
+    pub fn syntax(&self, kind: crate::pane::SyntaxKind) -> u32 {
+        use crate::pane::SyntaxKind as K;
+        match kind {
+            K::Plain => self.ink2,
+            K::Keyword => self.syn_keyword,
+            K::Type => self.syn_type,
+            K::Str => self.syn_string,
+            K::Comment => self.syn_comment,
+            K::Number => self.syn_number,
         }
     }
 

@@ -204,6 +204,15 @@ impl HarborBuffer {
         self.text.to_string()
     }
 
+    /// A cheap, comparable stamp of the buffer's current CRDT state (the
+    /// encoded state version vector). Equal stamps ⇒ identical content, so the
+    /// editor pane rebuilds its tokenized render cache ONLY when this changes —
+    /// including changes applied through a shared `&HarborBuffer` (interior
+    /// mutability) that the pane never saw as a method call.
+    pub fn change_stamp(&self) -> Vec<u8> {
+        self.doc.state_vv().encode()
+    }
+
     /// Derive per-line views with authorship.
     ///
     /// ## Attribution approach (honest)

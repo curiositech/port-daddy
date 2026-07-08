@@ -42,9 +42,10 @@ use crate::editor_wedge::{
     parse_predict_response, predict_request_body, ClaimKind, GatedRegion, GuardBand, GuardVerdict,
     PdNudge, SymbolClaim, WedgeProbe,
 };
-use crate::pane::{Block, Pane, Subscription, Tone};
+use crate::pane::{Block, CodeBand, CodeLine, Pane, Subscription, Tone};
 use anyhow::Result;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 /// Minimum wall-clock gap (ms) between two presence broadcasts. Caret moves fire
 /// faster than anyone reads; one send per ~60ms is smooth to a watcher yet keeps
@@ -122,6 +123,20 @@ pub fn author_tone(author: Option<PeerId>, opener: PeerId) -> Tone {
     }
 }
 
+/// The pre-tokenized render cache behind [`Block::CodeBuffer`]. Rebuilt ONLY
+/// when the buffer's CRDT [`HarborBuffer::change_stamp`] moves — a render pass
+/// on an unchanged buffer is an `Arc` refcount bump, never a re-lex or a
+/// per-line `String` clone (the old `Block::Row(text.clone())`-per-line path
+/// cloned the whole file every view).
+struct CodeCache {
+    stamp: Vec<u8>,
+    lines: Arc<[CodeLine]>,
+    gutter_cols: u8,
+    /// A real second author exists among the shown lines.
+    show_authors: bool,
+    total: usize,
+}
+
 /// The Harbor Editor surface, backed by a Loro buffer. State: `path`/`region` are
 /// the bound entity + the P3 claim seam; `identity` is the PD identity the local
 /// replica opens under; `buffer` is the live Loro doc (`None` until loaded or on
@@ -184,6 +199,11 @@ pub struct EditorPane {
     wedge_probe: WedgeProbe,
     wedge_inflight: Option<RegionClaim>,
     guard_band: Option<GuardBand>,
+    /// Tokenized-line render cache (see [`CodeCache`]). `RefCell` because the
+    /// buffer has interior mutability (remote ops land through `&HarborBuffer`),
+    /// so the staleness check must run inside `view(&self)`; the cell is only
+    /// ever borrowed inside that single-threaded render call.
+    code: std::cell::RefCell<Option<CodeCache>>,
 }
 
 impl EditorPane {
@@ -235,6 +255,7 @@ impl EditorPane {
             wedge_probe: WedgeProbe::new(WEDGE_PROBE_INTERVAL_MS),
             wedge_inflight: None,
             guard_band: None,
+            code: std::cell::RefCell::new(None),
         }
     }
 
@@ -244,6 +265,10 @@ impl EditorPane {
     pub fn load(&mut self) {
         self.buffer = None;
         self.truncated = false;
+        // Drop the render cache: a re-load may read DIFFERENT disk content that
+        // happens to produce an equal-length op stream (an equal CRDT stamp), so
+        // the stamp alone cannot be trusted across a reopen.
+        self.code.replace(None);
         match HarborBuffer::open(&self.path, self.identity.clone()) {
             Ok(buf) => {
                 self.buffer = Some(buf);
@@ -661,9 +686,45 @@ impl EditorPane {
         )
     }
 
-    /// Is the 1-based line `n` inside the bound region (inclusive)?
-    fn in_region(&self, n: u32) -> bool {
-        matches!(self.region, Some((start, end)) if n >= start && n <= end)
+    /// The tokenized code snapshot for the current buffer, rebuilding the cache
+    /// ONLY when the CRDT stamp moved (covers every mutation path, including
+    /// remote ops applied through a shared `&HarborBuffer`). The unchanged path
+    /// is a stamp compare + `Arc` clone — no re-lex, no per-line `String` clone.
+    /// Returns `(lines, gutter_cols, show_authors, total_line_count)`.
+    fn code_snapshot(&self, buffer: &HarborBuffer) -> (Arc<[CodeLine]>, u8, bool, usize) {
+        let stamp = buffer.change_stamp();
+        let mut slot = self.code.borrow_mut();
+        if slot.as_ref().map_or(true, |c| c.stamp != stamp) {
+            let lang = crate::syntax::lang_for_path(&self.path);
+            let opener = buffer.local_peer();
+            let all = buffer.lines();
+            let total = all.len();
+            let show_authors = all
+                .iter()
+                .take(MAX_LINES)
+                .any(|l| matches!(l.author_peer, Some(p) if p != opener));
+            let lines: Arc<[CodeLine]> = all
+                .into_iter()
+                .take(MAX_LINES)
+                .enumerate()
+                .map(|(i, l)| CodeLine {
+                    number: (i + 1) as u32,
+                    author_tag: l.author_peer.map(author_tag),
+                    author_tone: author_tone(l.author_peer, opener),
+                    runs: crate::syntax::highlight_line(&l.text, lang),
+                    text: l.text,
+                })
+                .collect();
+            *slot = Some(CodeCache {
+                stamp,
+                lines,
+                gutter_cols: gutter_width(total) as u8,
+                show_authors,
+                total,
+            });
+        }
+        let c = slot.as_ref().expect("cache ensured above");
+        (c.lines.clone(), c.gutter_cols, c.show_authors, c.total)
     }
 }
 
@@ -697,10 +758,9 @@ impl Pane for EditorPane {
         };
 
         let opener = buffer.local_peer();
-        let all_lines = buffer.lines();
-        let total = all_lines.len();
-        let shown = total.min(MAX_LINES);
-        let width = gutter_width(total);
+        // The tokenized snapshot: an Arc clone on the unchanged path — the old
+        // path re-cloned every line's String into a Block::Row per view().
+        let (lines, gutter_cols, show_authors, total) = self.code_snapshot(buffer);
 
         // Legend: which tag is the operator vs an agent replica. Rendered as a
         // tone-bearing Flag so the authorship vocabulary is visible at a glance and
@@ -711,14 +771,7 @@ impl Pane for EditorPane {
             tone: Tone::Resting,
         });
 
-        let mut saw_agent = false;
-        for line in all_lines.iter().take(shown) {
-            if matches!(line.author_peer, Some(p) if p != opener) {
-                saw_agent = true;
-                break;
-            }
-        }
-        if saw_agent {
+        if show_authors {
             blocks.push(Block::Flag {
                 letter: 'A',
                 label: "agent replica (merged ops)".into(),
@@ -803,21 +856,24 @@ impl Pane for EditorPane {
             blocks.push(Block::WrappedText { text: gated.message(), tone: Tone::Gated });
         }
 
-        for (i, line) in all_lines.iter().take(shown).enumerate() {
-            let n = (i + 1) as u32; // 1-based line numbers.
-            let num = format!("{n:>width$}", width = width);
-            // Authorship marker: the short author tag, prefixed with a region
-            // marker chip when this line is inside the bound region. Both faces
-            // paint this same gutter cell; the GPUI face additionally tones the
-            // cell via author_tone(line.author_peer, opener).
-            let tag = match line.author_peer {
-                Some(p) => author_tag(p),
-                None => "··".into(),
-            };
-            let region_mark = if self.in_region(n) { "▍" } else { " " };
-            let gutter = format!("{region_mark}{num} {tag}");
-            blocks.push(Block::Row(vec![gutter, line.text.clone()]));
+        // The code itself: ONE CodeBuffer block — a tight monospace surface the
+        // GPUI face virtualizes with uniform_list, never per-line Row cards.
+        // Highlight bands paint BEHIND the text: the bound region, every live
+        // claim (actor-toned), and the conflict wedge LAST so it wins where
+        // bands overlap (renderers take the last covering band per line).
+        let mut bands: Vec<CodeBand> = Vec::new();
+        if let Some((start, end)) = self.region {
+            bands.push(CodeBand { start, end, tone: Tone::Accent });
         }
+        for (key, claim) in self.claim_ledger.iter() {
+            let (start, end) = claim.line_span();
+            bands.push(CodeBand { start, end, tone: claim_tone(key.peer, opener) });
+        }
+        if let Some(band) = &self.guard_band {
+            let (start, end) = band.region;
+            bands.push(CodeBand { start, end, tone: band.tone() });
+        }
+        blocks.push(Block::CodeBuffer { lines, gutter_cols, bands, show_authors });
 
         if total > MAX_LINES {
             blocks.push(Block::Gap);
@@ -840,6 +896,9 @@ impl Pane for EditorPane {
         Box::pin(async move {
             let path = self.path.clone();
             let identity = self.identity.clone();
+            // Same reopen hazard as `load()`: never trust the old cache across
+            // a fresh disk read.
+            self.code.replace(None);
             let opened = tokio::task::spawn_blocking(move || HarborBuffer::open(&path, identity))
                 .await
                 .map_err(|e| anyhow::anyhow!("editor load task panicked: {e}"))?;
@@ -917,15 +976,32 @@ mod tests {
         p
     }
 
-    fn row_count(blocks: &[Block]) -> usize {
-        blocks.iter().filter(|b| matches!(b, Block::Row(_))).count()
+    /// The single CodeBuffer block a populated view emits (lines, bands,
+    /// show_authors). Code renders as ONE tight block now — never Row cards.
+    fn code_buffer(blocks: &[Block]) -> Option<(Arc<[CodeLine]>, Vec<CodeBand>, bool)> {
+        blocks.iter().find_map(|b| match b {
+            Block::CodeBuffer { lines, bands, show_authors, .. } => {
+                Some((lines.clone(), bands.clone(), *show_authors))
+            }
+            _ => None,
+        })
     }
 
-    fn rows(blocks: &[Block]) -> Vec<&Vec<String>> {
-        blocks
-            .iter()
-            .filter_map(|b| if let Block::Row(c) = b { Some(c) } else { None })
-            .collect()
+    /// The code lines of a view (empty when no CodeBuffer rendered).
+    fn rows(blocks: &[Block]) -> Vec<CodeLine> {
+        code_buffer(blocks).map(|(l, _, _)| l.to_vec()).unwrap_or_default()
+    }
+
+    fn row_count(blocks: &[Block]) -> usize {
+        rows(blocks).len()
+    }
+
+    /// No code line may ever ride the legacy Block::Row card path.
+    fn assert_no_row_cards(blocks: &[Block]) {
+        assert!(
+            !blocks.iter().any(|b| matches!(b, Block::Row(_))),
+            "editor views must not emit Block::Row cards for code lines"
+        );
     }
 
     #[test]
@@ -935,14 +1011,18 @@ mod tests {
         let blocks = pane.view();
 
         assert!(matches!(&blocks[0], Block::Header(h) if h == "edit known.txt"));
-        assert_eq!(row_count(&blocks), 3, "three content lines → three rows");
+        assert_eq!(row_count(&blocks), 3, "three content lines → three code lines");
+        assert_no_row_cards(&blocks);
 
         let r = rows(&blocks);
-        // Gutter cell holds the 1-based number; content cell holds the text.
-        assert!(r[0][0].contains('1'));
-        assert_eq!(r[0][1], "alpha");
-        assert!(r[1][0].contains('2'));
-        assert_eq!(r[2][1], "charlie");
+        // Line numbers are 1-based and always present; text is the raw line.
+        assert_eq!(r[0].number, 1);
+        assert_eq!(r[0].text, "alpha");
+        assert_eq!(r[1].number, 2);
+        assert_eq!(r[2].text, "charlie");
+        // A single-author, unclaimed file shows NO author-tag noise.
+        let (_, _, show_authors) = code_buffer(&blocks).expect("a code buffer renders");
+        assert!(!show_authors, "one author ⇒ no per-line author tags");
     }
 
     #[test]
@@ -962,11 +1042,13 @@ mod tests {
         let path = write_temp("region.txt", "l1\nl2\nl3\nl4\nl5\n");
         let pane = make_pane(&path, Some((2, 4)));
         let blocks = pane.view();
-        let r = rows(&blocks);
-        assert_eq!(r.len(), 5);
-        // The region marker "▍" prefixes only lines 2,3,4 (indices 1,2,3).
-        let marked: Vec<bool> = r.iter().map(|c| c[0].starts_with('▍')).collect();
-        assert_eq!(marked, vec![false, true, true, true, false]);
+        let (lines, bands, _) = code_buffer(&blocks).expect("a code buffer renders");
+        assert_eq!(lines.len(), 5);
+        // The bound region is a BACKGROUND band behind lines 2..=4 — not
+        // per-line gutter chrome.
+        let region = bands.iter().find(|b| b.tone == Tone::Accent).expect("region band");
+        let covered: Vec<bool> = (1..=5).map(|n| region.covers(n)).collect();
+        assert_eq!(covered, vec![false, true, true, true, false]);
     }
 
     #[test]
@@ -980,6 +1062,77 @@ mod tests {
             .iter()
             .any(|b| matches!(b, Block::Chip { label, .. } if label.contains("truncated")));
         assert!(has_trunc, "a truncation chip is appended when the cap is hit");
+    }
+
+    /// THE NO-RECLONE PROOF: two view() calls on an unchanged buffer hand back
+    /// the SAME Arc (a refcount bump — zero re-lex, zero per-line String clone);
+    /// a real remote op lands a NEW Arc with the new line tokenized.
+    #[test]
+    fn unchanged_buffer_reuses_the_same_code_arc_across_views() {
+        let path = write_temp("cache.rs", "pub fn go() {}\nlet x = 1;\n");
+        let mut pane = make_pane(&path, None);
+        let (a1, _, _) = code_buffer(&pane.view()).expect("code buffer");
+        let (a2, _, _) = code_buffer(&pane.view()).expect("code buffer");
+        assert!(Arc::ptr_eq(&a1, &a2), "an idle buffer re-renders from the SAME Arc");
+
+        // A merged remote op is a REAL change: the cache rebuilds exactly once.
+        let agent = HarborBuffer::empty("port-daddy:editor:agent-cache");
+        agent.apply_remote_ops(&pane.buffer().unwrap().export_ops()).unwrap();
+        agent.append_line("let y = 2;");
+        let frame = crate::editor_sync::encode_frame(agent.local_peer(), &agent.export_ops());
+        assert!(pane.ingest_frame(&frame));
+        let (a3, _, _) = code_buffer(&pane.view()).expect("code buffer");
+        assert!(!Arc::ptr_eq(&a1, &a3), "a landed remote op rebuilds the cache");
+        assert_eq!(a3.len(), 3, "the new line is in the rebuilt cache");
+        let (a4, _, _) = code_buffer(&pane.view()).expect("code buffer");
+        assert!(Arc::ptr_eq(&a3, &a4), "and the rebuilt cache is reused thereafter");
+    }
+
+    /// A Rust file's lines carry syntax runs (keyword/type/string classified)
+    /// that exactly cover each line's text.
+    #[test]
+    fn code_lines_carry_syntax_runs_for_rust() {
+        use crate::pane::SyntaxKind;
+        let path = write_temp("syn.rs", "pub fn go(n: u32) -> String { \"hi\" }\n");
+        let pane = make_pane(&path, None);
+        let r = rows(&pane.view());
+        assert_eq!(r.len(), 1);
+        let covered: u32 = r[0].runs.iter().map(|(len, _)| len).sum();
+        assert_eq!(covered as usize, r[0].text.len(), "runs exactly cover the line");
+        let kinds: Vec<SyntaxKind> = r[0].runs.iter().map(|(_, k)| *k).collect();
+        assert!(kinds.contains(&SyntaxKind::Keyword), "pub/fn classify as keywords");
+        assert!(kinds.contains(&SyntaxKind::Type), "u32/String classify as types");
+        assert!(kinds.contains(&SyntaxKind::Str), "the literal classifies as a string");
+    }
+
+    /// Claims and the conflict wedge render as BACKGROUND bands on the code
+    /// buffer (the wedge last, so it wins overlaps) — not per-line chrome.
+    #[test]
+    fn claims_and_wedge_render_as_background_bands() {
+        let path = write_temp("bands.txt", "l1\nl2\nl3\nl4\nl5\n");
+        let mut pane = make_pane_as(&path, "port-daddy:editor:agent-A");
+
+        // A remote actor's claim lands → one actor-toned band over L2–4.
+        let mut other = make_pane_as(&path, "port-daddy:console:human-B");
+        let frame = other.acquire_region_claim(2, 4, "parse_header", 500);
+        assert!(pane.ingest_claim(&frame));
+        let (_, bands, _) = code_buffer(&pane.view()).expect("code buffer");
+        assert!(
+            bands.iter().any(|b| b.covers(3) && b.tone == Tone::Engaged),
+            "a remote claim is an Engaged background band: {bands:?}"
+        );
+
+        // A blocking predict raises the Conflicted wedge band LAST (it wins).
+        pane.acquire_region_claim(2, 4, "parse_header", 1_000);
+        let _ = pane.take_wedge_probe(1_400).expect("probe due");
+        let blocking = serde_json::json!({
+            "success": true, "count": 1, "blocking": 1, "warnings": 0, "info": 0,
+            "conflicts": [{ "severity": "blocking" }],
+        });
+        assert!(pane.apply_conflict_report(&blocking, 1_500));
+        let (_, bands, _) = code_buffer(&pane.view()).expect("code buffer");
+        let last_covering = bands.iter().rev().find(|b| b.covers(3)).expect("a band covers L3");
+        assert_eq!(last_covering.tone, Tone::Conflicted, "the wedge band wins overlaps");
     }
 
     #[test]
@@ -1025,14 +1178,17 @@ mod tests {
         assert!(resting_flag, "operator authorship legend flag (Resting) must render");
         assert!(engaged_flag, "agent authorship legend flag (Engaged) must render once an agent line merges");
 
-        // The two lines carry different gutter author tags.
-        let r = rows(&blocks);
-        assert_eq!(r.len(), 2, "human line + merged agent line");
+        // The two lines carry different gutter author tags, and a REAL second
+        // author flips show_authors on (the only time tags render).
+        let (lines, _, show_authors) = code_buffer(&blocks).expect("a code buffer renders");
+        assert!(show_authors, "a merged agent line makes author tags visible");
+        assert_eq!(lines.len(), 2, "human line + merged agent line");
         let human_tag = author_tag(opener);
         let agent_tag = author_tag(peer_id_for_identity(agent_id));
-        assert!(r[0][0].contains(&human_tag), "line 0 gutter carries the operator's author tag");
-        assert!(r[1][0].contains(&agent_tag), "line 1 gutter carries the agent's author tag");
-        assert_eq!(r[1][1], "agent added this");
+        assert_eq!(lines[0].author_tag.as_deref(), Some(human_tag.as_str()));
+        assert_eq!(lines[1].author_tag.as_deref(), Some(agent_tag.as_str()));
+        assert_ne!(human_tag, agent_tag, "distinct replicas carry distinct tags");
+        assert_eq!(lines[1].text, "agent added this");
     }
 
     /// The author→Tone mapping is the checked contract behind the gutter color:
@@ -1095,10 +1251,11 @@ mod tests {
         let blocks = pane.view();
         let r = rows(&blocks);
         assert_eq!(r.len(), 2, "human line + wired-in agent line");
-        assert_eq!(r[1][1], "agent added over the wire");
+        assert_eq!(r[1].text, "agent added over the wire");
         let agent_tag = author_tag(peer_id_for_identity(agent_id));
-        assert!(
-            r[1][0].contains(&agent_tag),
+        assert_eq!(
+            r[1].author_tag.as_deref(),
+            Some(agent_tag.as_str()),
             "the wired-in line carries the agent's author tag"
         );
         assert!(
@@ -1296,9 +1453,13 @@ mod tests {
         let blocks = cold.view();
         let r = rows(&blocks);
         assert_eq!(r.len(), 2, "operator + agent lines survived to the cold replica via /blob");
-        assert_eq!(r[1][1], "agent added before the crash");
+        assert_eq!(r[1].text, "agent added before the crash");
         let agent_tag = author_tag(peer_id_for_identity(agent_id));
-        assert!(r[1][0].contains(&agent_tag), "the agent's line keeps the agent's author tag after salvage");
+        assert_eq!(
+            r[1].author_tag.as_deref(),
+            Some(agent_tag.as_str()),
+            "the agent's line keeps the agent's author tag after salvage"
+        );
 
         // Hydrating the same snapshot again is idempotent (double-consume safety).
         assert!(cold.hydrate_from_snapshot(&snapshot));

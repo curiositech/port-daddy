@@ -43,7 +43,57 @@ impl Tone {
 }
 
 /// The render-agnostic primitives a pane emits. Both renderers paint these.
-#[derive(Debug, Clone)]
+/// The syntax class of one code-line run — the render-agnostic vocabulary the
+/// Harbor editor's tokenizer (`syntax.rs`) emits. Like [`Tone`], this is
+/// *meaning*: each face resolves it to a color in its own theme layer
+/// (`palette.rs` for GPUI, `theme.rs` for the REPL) — never inline hex.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SyntaxKind {
+    Plain,
+    Keyword,
+    Type,
+    Str,
+    Comment,
+    Number,
+}
+
+/// One pre-tokenized line of a [`Block::CodeBuffer`]. Built ONCE per buffer
+/// change (load / merged remote op), then shared by `Arc` — a render pass
+/// never re-clones or re-lexes line text.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CodeLine {
+    /// 1-based line number (always shown in the gutter).
+    pub number: u32,
+    /// Short author tag for the gutter — `Some` ONLY when it carries signal:
+    /// a real second author exists in the buffer, or the line sits inside a
+    /// claimed/bound region. A single-author file shows no tag noise.
+    pub author_tag: Option<String>,
+    /// Tone for the author tag (opener = Resting, agent peer = Engaged).
+    pub author_tone: Tone,
+    /// The line's text (no trailing newline).
+    pub text: String,
+    /// Consecutive `(byte_len, kind)` syntax runs exactly covering `text`.
+    pub runs: Vec<(u32, SyntaxKind)>,
+}
+
+/// A background highlight band behind a span of code lines (1-based,
+/// inclusive): claim regions, the conflict wedge, the bound region. Renderers
+/// paint it as a full-width wash BEHIND the text — never per-line card chrome.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CodeBand {
+    pub start: u32,
+    pub end: u32,
+    pub tone: Tone,
+}
+
+impl CodeBand {
+    /// Does this band cover 1-based line `n`?
+    pub fn covers(&self, n: u32) -> bool {
+        n >= self.start.min(self.end) && n <= self.start.max(self.end)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Block {
     Header(String),
     KeyVal(String, String),
@@ -122,6 +172,24 @@ pub enum Block {
         why_disabled: Option<String>,
         /// Paint as the primary action.
         primary: bool,
+    },
+    /// A code buffer rendered as ONE tight monospace surface: fixed line
+    /// height, a thin gutter column, per-run syntax color — never per-line
+    /// cards ([`Block::Row`] is table/control chrome; code must not ride it).
+    /// `lines` is `Arc`-shared so emitting this block per view() is a
+    /// refcount bump, not a buffer clone; the GPUI face virtualizes it with
+    /// `uniform_list` (only visible lines are painted).
+    CodeBuffer {
+        lines: std::sync::Arc<[CodeLine]>,
+        /// Digit width of the line-number column (max line count's digits).
+        gutter_cols: u8,
+        /// Background bands (claims / wedge / bound region), O(claims).
+        bands: Vec<CodeBand>,
+        /// Gutter author-tag visibility: `true` only when a REAL second
+        /// author exists in the buffer. Renderers paint a line's tag when
+        /// `show_authors` OR a band covers the line — a single-author,
+        /// unclaimed file shows line numbers only (no "fc fc fc" noise).
+        show_authors: bool,
     },
 }
 

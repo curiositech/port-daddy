@@ -77,6 +77,7 @@
 #[path = "../substrate_pane.rs"] mod substrate_pane;
 #[path = "../parley_pane.rs"]    mod parley_pane;
 #[path = "../suggest_pane.rs"]   mod suggest_pane;
+#[path = "../syntax.rs"]         mod syntax;
 #[path = "../term.rs"]           mod term;
 #[path = "../theme.rs"]          mod theme;
 #[path = "../util.rs"]           mod util;

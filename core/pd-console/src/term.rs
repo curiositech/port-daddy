@@ -368,6 +368,50 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                     out.push_str(&format!("  {}\n", line.join(&format!(" {sep} "))));
                 }
             }
+            Block::CodeBuffer { lines, gutter_cols, bands, show_authors } => {
+                // Tight code face: `<band bar><line number> <tag?> <text runs>`,
+                // one terminal line per code line. Bands paint a colored left
+                // bar (the TUI shadow of the GPUI background wash); the LAST
+                // covering band wins. Author tags render only when a second
+                // author exists or a band covers the line.
+                let width = *gutter_cols as usize;
+                for line in lines.iter() {
+                    let band = bands.iter().rev().find(|b| b.covers(line.number));
+                    let bar = match band {
+                        Some(b) => style.paint("▏", b.tone.sem()),
+                        None => " ".to_string(),
+                    };
+                    let num = style.paint(&format!("{:>width$}", line.number), Sem::Muted);
+                    let tag = if *show_authors || band.is_some() {
+                        match &line.author_tag {
+                            Some(t) => format!(" {}", style.paint(t, line.author_tone.sem())),
+                            None => "   ".to_string(),
+                        }
+                    } else {
+                        String::new()
+                    };
+                    let mut text = String::new();
+                    let mut at = 0usize;
+                    for (len, kind) in &line.runs {
+                        let end = (at + *len as usize).min(line.text.len());
+                        let sem = match kind {
+                            crate::pane::SyntaxKind::Plain => Sem::Ink,
+                            crate::pane::SyntaxKind::Keyword => Sem::Accent,
+                            crate::pane::SyntaxKind::Type => Sem::Engaged,
+                            crate::pane::SyntaxKind::Str => Sem::Landed,
+                            crate::pane::SyntaxKind::Comment => Sem::Muted,
+                            crate::pane::SyntaxKind::Number => Sem::Gated,
+                        };
+                        text.push_str(&style.paint(&line.text[at..end], sem));
+                        at = end;
+                    }
+                    if at < line.text.len() {
+                        text.push_str(&style.paint(&line.text[at..], Sem::Ink));
+                    }
+                    out.push_str(&format!(" {bar}{num}{tag}  {text}\n"));
+                }
+                i += 1;
+            }
             Block::ChatTurn { speaker, text, tone } => {
                 let sem = tone.sem();
                 let label = if speaker.trim().is_empty() {

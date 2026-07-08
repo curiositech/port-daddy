@@ -84,7 +84,7 @@ fn parse_dispatches(v: &serde_json::Value) -> (Vec<DispatchEntry>, u32) {
 /// The head-of-queue dispatch the operator reviews next, surfaced to the GPUI
 /// view so it can render an interactive review gate (Approve / Reject / Cancel)
 /// with the agent's intention + stop-conditions legible (human-gate-designer).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DispatchHead {
     pub id: String,
     pub goal: String,
