@@ -1020,9 +1020,16 @@ mod tests {
         assert_eq!(r[0].text, "alpha");
         assert_eq!(r[1].number, 2);
         assert_eq!(r[2].text, "charlie");
-        // A single-author, unclaimed file shows NO author-tag noise.
-        let (_, _, show_authors) = code_buffer(&blocks).expect("a code buffer renders");
-        assert!(!show_authors, "one author ⇒ no per-line author tags");
+        // The author column is ALWAYS present (operator ruling 2026-07-07):
+        // a single-author file's lines all carry the opener's tag, Resting-
+        // toned; show_authors stays false as the "no second author" hint.
+        let (lines, _, show_authors) = code_buffer(&blocks).expect("a code buffer renders");
+        assert!(!show_authors, "one author ⇒ no agent legend flag");
+        assert!(lines.iter().all(|l| l.author_tag.is_some()), "every line carries its author tag");
+        assert!(
+            lines.iter().all(|l| matches!(l.author_tone, Tone::Resting)),
+            "opener-authored lines tone Resting"
+        );
     }
 
     #[test]

@@ -1190,18 +1190,12 @@ fn render_code_buffer(
 ) -> AnyElement {
     let t = current_theme();
     let count = lines.len();
-    // Reserve the author-tag column uniformly for the WHOLE buffer (never per
-    // line) so text columns align: it exists when a second author is present
-    // or any band could reveal a tag.
-    let show_tag_col = show_authors || !bands.is_empty();
     let list = uniform_list(
         SharedString::from(format!("code-{pane_id}")),
         count,
         move |range: std::ops::Range<usize>, _window, _cx| {
             range
-                .map(|ix| {
-                    render_code_line(&lines[ix], gutter_cols, &bands, show_tag_col, show_authors)
-                })
+                .map(|ix| render_code_line(&lines[ix], gutter_cols, &bands))
                 .collect::<Vec<_>>()
         },
     )
@@ -1230,8 +1224,6 @@ fn render_code_line(
     line: &crate::pane::CodeLine,
     gutter_cols: u8,
     bands: &[crate::pane::CodeBand],
-    show_tag_col: bool,
-    show_authors: bool,
 ) -> AnyElement {
     let t = current_theme();
     // Last covering band wins (the pane pushes the conflict wedge last).
@@ -1277,22 +1269,16 @@ fn render_code_line(
                 .text_color(rgb(t.muted))
                 .child(num),
         )
-        // Author tag — the column is reserved buffer-wide; a tag paints only
-        // when it carries signal (second author, or the line is banded).
-        .when(show_tag_col, |d| {
-            // The tag paints only when it carries signal: a real second
-            // author in the buffer, or this line sits under a claim band.
-            let visible = line.author_tag.is_some() && (show_authors || band.is_some());
-            d.child(
-                div()
-                    .w(px(2.0 * tokens::CODE_CH + 6.0))
-                    .flex_shrink_0()
-                    .text_color(rgb(t.tone(&line.author_tone)))
-                    .when(visible, |d| {
-                        d.child(line.author_tag.clone().unwrap_or_default())
-                    }),
-            )
-        })
+        // Author column — ALWAYS visible (per-line authorship is the Harbor
+        // editor's point): a tight monospace tag, toned by author — operator
+        // lines subtle (Resting), agent lines distinct (Engaged).
+        .child(
+            div()
+                .w(px(2.0 * tokens::CODE_CH + 6.0))
+                .flex_shrink_0()
+                .text_color(rgb(t.tone(&line.author_tone)))
+                .when_some(line.author_tag.clone(), |d, tag| d.child(tag)),
+        )
         .child(
             StyledText::new(SharedString::from(line.text.clone())).with_highlights(highlights),
         )
@@ -1306,8 +1292,7 @@ fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
         // a plain tight stack, capped so an unvirtualized context can't wedge.
         // The editor surface never takes this path — render_leaf routes its
         // CodeBuffer through render_code_buffer (uniform_list).
-        Block::CodeBuffer { lines, gutter_cols, bands, show_authors } => {
-            let show_tag_col = show_authors || !bands.is_empty();
+        Block::CodeBuffer { lines, gutter_cols, bands, .. } => {
             div()
                 .flex()
                 .flex_col()
@@ -1315,9 +1300,12 @@ fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
                 .text_size(px(tokens::TEXT_BODY))
                 .text_color(rgb(t.ink2))
                 .bg(rgb(t.sunken))
-                .children(lines.iter().take(500).map(|line| {
-                    render_code_line(line, gutter_cols, &bands, show_tag_col, show_authors)
-                }))
+                .children(
+                    lines
+                        .iter()
+                        .take(500)
+                        .map(|line| render_code_line(line, gutter_cols, &bands)),
+                )
                 .into_any_element()
         }
         Block::Header(text) => div()
@@ -2070,6 +2058,25 @@ impl ConsoleView {
                 let mut pane =
                     crate::editor_pane::EditorPane::new_with_identity(path, region, identity);
                 pane.load();
+                // Demo seam (env-gated, never on by default): merge a second
+                // Loro replica's lines into the opened buffer so the author
+                // column visibly differentiates operator vs agent authorship.
+                // This exercises the REAL CRDT merge path — the same
+                // apply_remote_ops a live agent peer rides — on a demo copy of
+                // the buffer only; the file on disk is never written.
+                if std::env::var("PD_CONSOLE_DEMO_AUTHORS").is_ok() {
+                    if let Some(buf) = pane.buffer() {
+                        let agent =
+                            crate::buffer::HarborBuffer::empty("port-daddy:editor:demo-agent");
+                        if agent.apply_remote_ops(&buf.export_ops()).is_ok() {
+                            agent.insert_authored(
+                                0,
+                                "// [agent replica] merged these two lines over the tube —\n// [agent replica] note the distinct author tag + tone in the gutter.\n",
+                            );
+                            let _ = buf.apply_remote_ops(&agent.export_ops());
+                        }
+                    }
+                }
                 self.editors.insert(
                     key,
                     EditorSurfaceState { pane, scroll: UniformListScrollHandle::new() },

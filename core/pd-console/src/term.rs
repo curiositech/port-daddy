@@ -368,12 +368,12 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                     out.push_str(&format!("  {}\n", line.join(&format!(" {sep} "))));
                 }
             }
-            Block::CodeBuffer { lines, gutter_cols, bands, show_authors } => {
-                // Tight code face: `<band bar><line number> <tag?> <text runs>`,
-                // one terminal line per code line. Bands paint a colored left
-                // bar (the TUI shadow of the GPUI background wash); the LAST
-                // covering band wins. Author tags render only when a second
-                // author exists or a band covers the line.
+            Block::CodeBuffer { lines, gutter_cols, bands, .. } => {
+                // Tight code face: `<band bar><line number> <author tag> <text
+                // runs>`, one terminal line per code line. Bands paint a
+                // colored left bar (the TUI shadow of the GPUI background
+                // wash); the LAST covering band wins. The author column is
+                // ALWAYS visible — operator lines subtle, agent lines Engaged.
                 let width = *gutter_cols as usize;
                 for line in lines.iter() {
                     let band = bands.iter().rev().find(|b| b.covers(line.number));
@@ -382,13 +382,9 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                         None => " ".to_string(),
                     };
                     let num = style.paint(&format!("{:>width$}", line.number), Sem::Muted);
-                    let tag = if *show_authors || band.is_some() {
-                        match &line.author_tag {
-                            Some(t) => format!(" {}", style.paint(t, line.author_tone.sem())),
-                            None => "   ".to_string(),
-                        }
-                    } else {
-                        String::new()
+                    let tag = match &line.author_tag {
+                        Some(t) => format!(" {}", style.paint(t, line.author_tone.sem())),
+                        None => "   ".to_string(),
                     };
                     let mut text = String::new();
                     let mut at = 0usize;

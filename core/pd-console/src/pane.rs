@@ -185,10 +185,10 @@ pub enum Block {
         gutter_cols: u8,
         /// Background bands (claims / wedge / bound region), O(claims).
         bands: Vec<CodeBand>,
-        /// Gutter author-tag visibility: `true` only when a REAL second
-        /// author exists in the buffer. Renderers paint a line's tag when
-        /// `show_authors` OR a band covers the line — a single-author,
-        /// unclaimed file shows line numbers only (no "fc fc fc" noise).
+        /// `true` when a REAL second author exists in the buffer. The author
+        /// column itself is ALWAYS visible (operator ruling 2026-07-07:
+        /// per-line authorship is the Harbor editor's point) — renderers use
+        /// this as a legend hint (e.g. show the agent legend flag).
         show_authors: bool,
     },
 }
