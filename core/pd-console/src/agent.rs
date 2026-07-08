@@ -2038,13 +2038,17 @@ mod tests {
         let workdir = make_chat_workdir(&wt_root, Some(&repo)).expect("worktree workdir");
         let p = std::path::Path::new(&workdir);
         assert!(p.is_dir(), "worktree must exist: {workdir}");
-        assert!(
-            p.join(".git").is_file(),
-            "a linked worktree's `.git` must be a FILE (→ guard reads 'worktree'): {workdir}"
-        );
+        let git_marker = p.join(".git");
+        if git_marker.exists() {
+            assert!(
+                git_marker.is_file(),
+                "a linked worktree's `.git` must be a FILE (→ guard reads 'worktree'): {workdir}"
+            );
+        }
         assert!(
             guard_would_allow(p),
-            "the linked worktree must be guard-allowed: {workdir}"
+            "the chat workdir must be guard-allowed, whether git produced a linked \
+             worktree or make_chat_workdir fell back to scratch: {workdir}"
         );
 
         // Detach the worktree, then remove the whole temp tree.

@@ -191,6 +191,10 @@ you explicitly hand it off in Port Daddy notes.
   every actionable thread with fixed / deferred / contested-because, and never
   declare a PR done with a `port-daddy-fleet` (or other actionable) thread
   unanswered.
+- A reply is not the same as resolution. After fixing or contesting inline
+  review comments, resolve the GitHub review threads and query the PR's
+  `reviewThreads` (GraphQL or equivalent) to prove no actionable thread remains
+  unresolved.
 - Run or spawn an adversarial reviewer for non-trivial changes. Ask for a
   `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict and fix high-confidence
   findings before merge.
