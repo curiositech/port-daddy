@@ -158,7 +158,7 @@ observed imports, and fixtures all enter the same chain through a body adapter.
   "adapterKind": "managed-local-cli",
   "provider": "codex",
   "model": "gpt-...",
-  "modelTier": "subscription-or-metered-or-local",
+  "modelTier": "strong",
   "launchMode": "managed",
   "authCustody": "keychain",
   "billingPath": "operator-subscription",
@@ -191,6 +191,9 @@ Adapter rules:
   `hosted-provider`, `custom-sdk-body`, `observed-import`, or `fixture`.
 - `launchMode` is one of `managed`, `attached`, `observed`, `imported`, or
   `fixture`.
+- `modelTier` is one of `fast`, `mid`, `strong`, `local`, or `custom`.
+  Subscription, metered, and local payment differences belong in `billingPath`,
+  not in `modelTier`.
 - `expectedFidelity` is a promise made before launch; the final run fidelity is
   computed from persisted events and may downgrade.
 - A body cannot self-upgrade official status. It can append evidence; the daemon
