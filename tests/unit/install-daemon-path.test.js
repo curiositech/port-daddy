@@ -44,10 +44,25 @@ describe('daemon installer service PATH', () => {
     expect(writeIdx).toBeGreaterThan(guardIdx);
   });
 
-  test('sets a ThrottleInterval on the generated daemon plist', () => {
+  // Extracts the body of a top-level `function <name>(` declaration up to
+  // the next top-level `function` keyword, so assertions can be scoped to
+  // ONE plist generator instead of matching anywhere in the file. Needed
+  // because generateBosunPlist() already contains an identical
+  // `<key>ThrottleInterval</key>`/`<integer>15</integer>` pair — a
+  // whole-file substring check would pass even if generatePlist() itself
+  // never got one (caught by Copilot review on PR #879).
+  function extractFunctionBody(source, name) {
+    const start = source.indexOf(`function ${name}(`);
+    if (start === -1) throw new Error(`could not find function ${name} in install-daemon.ts`);
+    const nextFn = source.indexOf('\nfunction ', start + 1);
+    return nextFn === -1 ? source.slice(start) : source.slice(start, nextFn);
+  }
+
+  test('sets a ThrottleInterval on the generated DAEMON plist specifically (not just anywhere in the file)', () => {
     const source = readFileSync(join(process.cwd(), 'install-daemon.ts'), 'utf8');
-    expect(source).toContain('<key>ThrottleInterval</key>');
-    expect(source).toContain('<integer>15</integer>');
+    const generatePlistBody = extractFunctionBody(source, 'generatePlist');
+    expect(generatePlistBody).toContain('<key>ThrottleInterval</key>');
+    expect(generatePlistBody).toContain('<integer>15</integer>');
   });
 
   // 2026-07-08 (issue #676 investigation): experimental, clearly-labeled

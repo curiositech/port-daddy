@@ -36,7 +36,8 @@ import {
   saveWatcherPidRegistry,
   sweepStaleWatcherPids,
   watcherPidKey,
-  pidIsAlive,
+  toExecSnippet,
+  getCommandLineForPid,
 } from './watcher-pid-registry.js';
 
 /**
@@ -1384,13 +1385,19 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     });
     watchProc.unref();
 
-    // Record this child's PID so a FUTURE boot of this daemon (after a crash
-    // that never ran stopRunningRecord()) can find and kill it instead of
-    // leaving it orphaned indefinitely — see watcher-pid-registry.ts.
+    // Record this child's PID (+ an exec-command fragment used to confirm
+    // identity before a future kill, guarding against PID recycling — see
+    // watcher-pid-registry.ts) so a FUTURE boot of this daemon (after a
+    // crash that never ran stopRunningRecord()) can find and kill it instead
+    // of leaving it orphaned indefinitely.
     if (watchProc.pid) {
       try {
         const registry = loadWatcherPidRegistry(WATCHER_PID_FILE);
-        registry[watcherPidKey(project, watcher.name)] = { pid: watchProc.pid, startedAt: Date.now() };
+        registry[watcherPidKey(project, watcher.name)] = {
+          pid: watchProc.pid,
+          startedAt: Date.now(),
+          execSnippet: toExecSnippet(watcher.exec),
+        };
         saveWatcherPidRegistry(WATCHER_PID_FILE, registry);
       } catch {
         // Best-effort — a registry write failure must not block the watcher.
@@ -2310,22 +2317,41 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
    * a PREVIOUS, ungraceful exit (segfault, SIGKILL) before starting fresh
    * ones. A graceful shutdown already reaps these via stopRunningRecord(); this
    * sweep exists for the case that didn't run one. See watcher-pid-registry.ts.
+   *
+   * Only kills a PID whose LIVE command line still matches the exec fragment
+   * recorded when it was spawned (sweepStaleWatcherPids' identity check) —
+   * without that, a PID the OS recycled onto an unrelated process since the
+   * watcher child died would get `process.kill(-pid, 'SIGTERM')`'d, taking
+   * out a stranger's process group (Copilot review on PR #879). Entries that
+   * can't be confirmed are reported, not killed.
    */
   function sweepOrphanedWatcherChildren(): void {
     try {
       const registry = loadWatcherPidRegistry(WATCHER_PID_FILE);
-      const { registry: swept, killed } = sweepStaleWatcherPids(registry, project, pidIsAlive, (pid) => {
-        try {
-          process.kill(-pid, 'SIGTERM'); // detached spawn -> own process group
-        } catch {
-          try { process.kill(pid, 'SIGTERM'); } catch { /* already dead */ }
-        }
-      });
+      const { registry: swept, killed, unconfirmed } = sweepStaleWatcherPids(
+        registry,
+        project,
+        getCommandLineForPid,
+        (pid) => {
+          try {
+            process.kill(-pid, 'SIGTERM'); // detached spawn -> own process group
+          } catch {
+            try { process.kill(pid, 'SIGTERM'); } catch { /* already dead */ }
+          }
+        },
+      );
       saveWatcherPidRegistry(WATCHER_PID_FILE, swept);
       if (killed.length > 0) {
         console.error(
           `[Fleet] Swept ${killed.length} orphaned watcher child(ren) from a previous ungraceful exit: ` +
           killed.map((k) => `${k.key} (pid ${k.pid})`).join(', '),
+        );
+      }
+      if (unconfirmed.length > 0) {
+        console.error(
+          `[Fleet] ${unconfirmed.length} watcher-pid registry entr(y/ies) had a live PID whose command line no ` +
+          `longer matches the recorded watcher — likely PID reuse by an unrelated process, so NOT killed: ` +
+          unconfirmed.map((u) => `${u.key} (pid ${u.pid})`).join(', '),
         );
       }
     } catch (err) {

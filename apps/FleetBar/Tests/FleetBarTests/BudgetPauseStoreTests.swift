@@ -77,6 +77,24 @@ final class BudgetPauseStoreTests: XCTestCase {
         XCTAssertTrue(body.contains("resolvedTask?.cancel()"), "deinit must cancel resolvedTask")
     }
 
+    /// Source-level guard (Copilot review, PR #879): stop() cancels the
+    /// subscribe Tasks but cancellation can unwind a Task without ever
+    /// reaching subscribe()'s `catch` block that sets `isConnected = false`
+    /// — so stop() itself must set it explicitly, or the UI can get stuck
+    /// showing "connected" after a stop().
+    func testStopSetsIsConnectedFalseInSource() throws {
+        let source = try budgetPauseStoreSource()
+        guard let stopRange = source.range(of: "func stop() {") else {
+            return XCTFail("could not locate stop() in BudgetPauseStore.swift")
+        }
+        let afterStop = source[stopRange.upperBound...]
+        guard let closingBrace = afterStop.range(of: "\n    }") else {
+            return XCTFail("could not locate end of stop() in BudgetPauseStore.swift")
+        }
+        let body = afterStop[..<closingBrace.lowerBound]
+        XCTAssertTrue(body.contains("isConnected = false"), "stop() must explicitly set isConnected = false, not rely on Task cancellation reaching the catch block")
+    }
+
     private func budgetPauseStoreSource() throws -> String {
         let thisFile = URL(fileURLWithPath: #filePath)
         let sourcePath = thisFile

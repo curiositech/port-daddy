@@ -82,6 +82,13 @@ final class BudgetPauseStore: ObservableObject {
         resolvedTask?.cancel()
         pendingTask = nil
         resolvedTask = nil
+        // Cancellation can unwind a Task without ever reaching the `catch`
+        // block in subscribe() that sets isConnected = false (Task.cancel()
+        // just marks cancelled; the loop's `while !Task.isCancelled` check or
+        // an in-flight await noticing cancellation is what actually exits
+        // it, and that exit path does not necessarily throw). Set it
+        // explicitly here so the UI never reads "connected" after stop().
+        isConnected = false
     }
 
     // Safety net for the case `stop()` is never called at all before this

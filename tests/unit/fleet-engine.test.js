@@ -53,6 +53,12 @@ jest.unstable_mockModule('node:child_process', () => ({
   // The fleet engine transitively imports the I/O registry; the macOS
   // notification sink (lib/fleet/outputs/notify-macos.ts) uses execFile.
   execFile: jest.fn((_cmd, _args, cb) => { if (typeof cb === 'function') cb(null, '', ''); }),
+  // watcher-pid-registry.ts's getCommandLineForPid() uses spawnSync (`ps`)
+  // to confirm a watcher child's identity before killing it. Return a
+  // not-found shape by default — no test in this file exercises the
+  // orphaned-watcher sweep's `ps` call directly (that's covered in
+  // watcher-pid-registry.test.js), so this only needs to not throw.
+  spawnSync: jest.fn(() => ({ status: 1, stdout: '', stderr: '' })),
 }));
 
 // yaml must be available for fleet-engine to import.
