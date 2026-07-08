@@ -309,6 +309,21 @@ Protocol:
 ## Current Execution Status
 
 - N0 is active in `session-agent-harbor-runtime-refactor-dag-execution-d0a1044b59d6`.
-- N1 is implemented in this branch as the contract/diagram/binder slice and is
-  ready for commit after the focused validation suite is re-run.
-- N2, N3, N4, and N5 are the next parallel dispatch wave once N1 is committed.
+- N1 is committed as `feat(agent-harbor): freeze runtime gateway contract`.
+- N2 is implemented as a pure Surface Gateway helper plus read-only capability
+  route at `GET /agent-harbor/surface-gateway/capabilities`. The helper
+  validates schema shape, authority, noun/operation drift, idempotency, and
+  hot/cool bus classification.
+- N3 returned `SHIP-AFTER-FIX`: `pd-console` should decode `/status.daemon.berth`,
+  store active berth identity, render label/port/authority, and stop treating
+  URL equality alone as active daemon truth. Its safe follow-up patch should be
+  limited to berth/status plumbing in `agent.rs`, `main.rs`, `app.rs`, and
+  `daemon_pane.rs`.
+- N4 returned `SHIP-AFTER-FIX`: FleetBar needs a shared `ActiveDaemonContext`
+  so `FleetStore`, substores, menu bar, and Control Center render and call the
+  same active daemon after in-memory rebind. It must preserve `pd use` as
+  per-shell/per-process state and clear secret reveal state on daemon switch.
+- N5 returned `SHIP-AFTER-FIX`: the supervisor plan is sound only if release and
+  install paths explicitly make `pd-supervisor` the single launchd artifact,
+  with Bosun and freshness demoted to internal modules and a durable restart
+  ledger preventing duplicate side effects.

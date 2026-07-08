@@ -15,6 +15,8 @@
  *   - GET /receipts/:id verifies the per-session hash chain and the receipt's
  *     committed transcript head against the ledger;
  *   - GET /compliance/:agentNodeId exposes daemon-witnessed compliance;
+ *   - GET /agent-harbor/surface-gateway/capabilities exposes the shared
+ *     command/query/event contract discovery projection;
  *   - tolerant reader: unknown payload fields and unknown query params never
  *     break a response.
  */
@@ -107,6 +109,35 @@ describe('agent-harbor routes', () => {
   afterEach(async () => {
     await app.close();
     closeDatabase(db);
+  });
+
+  describe('GET /agent-harbor/surface-gateway/capabilities', () => {
+    test('exposes the shared surface gateway contract projection', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/agent-harbor/surface-gateway/capabilities',
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body).toMatchObject({
+        schema: 'pd.agent-harbor.surface-gateway.capability-projection.v0',
+        routeIntegration: {
+          mounted: true,
+          path: '/agent-harbor/surface-gateway/capabilities',
+        },
+        idempotency: {
+          command: 'explicit-key-required',
+          query: 'not-required',
+          event: 'explicit-key-or-derived-envelope-key',
+        },
+      });
+      expect(body.surfaces).toEqual(['pd-console', 'fleetbar', 'scout', 'cli', 'mcp']);
+      expect(body.modes).toEqual(['command', 'query', 'event']);
+      expect(body.nouns).toContain('WorkIntent');
+      expect(body.nouns).toContain('AgentRun');
+      expect(body.nouns).toContain('ControlCommand');
+      expect(body.busTargets).toEqual(['hot-bus', 'cool-bus']);
+    });
   });
 
   describe('GET /agent-nodes (roster)', () => {
