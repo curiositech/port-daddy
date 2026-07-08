@@ -70,15 +70,27 @@ export class WebhookOutputSink implements OutputSink {
 
     // Explicit timeout — an unresponsive receiver must fail the dispatch,
     // never hang it (no infinite waits on any outbound call).
+    //
+    // redirect:'manual' is load-bearing SSRF defense, not a nicety:
+    // assertSafeOutboundUrl above validates only the LITERAL recipient. With
+    // the default redirect:'follow', a recipient that passes the guard
+    // (https://attacker.example/r) could 302 to http://169.254.169.254/... or
+    // http://127.0.0.1:6379/... and undici would follow to the internal HOST,
+    // fully bypassing the guard (host-controlling SSRF). Manual mode returns
+    // the 3xx unfollowed; the !res.ok check below then refuses it.
     const res = await fetch(payload.recipient, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
+      redirect: 'manual',
       signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
     });
 
     if (!res.ok) {
-      throw new Error(`webhook dispatch to ${payload.recipient} returned HTTP ${res.status}`);
+      const kind = res.status >= 300 && res.status < 400
+        ? `refused redirect (HTTP ${res.status}) — a redirect target is not re-validated against the SSRF guard`
+        : `returned HTTP ${res.status}`;
+      throw new Error(`webhook dispatch to ${payload.recipient} ${kind}`);
     }
 
     return {
