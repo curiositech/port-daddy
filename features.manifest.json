@@ -1395,6 +1395,7 @@
       ],
       "sdk": [],
       "routes": [
+        "GET /agent-harbor/surface-gateway/capabilities",
         "GET /agent-nodes",
         "GET /agent-nodes/:param",
         "GET /agent-nodes/:param/files",

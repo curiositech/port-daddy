@@ -51,6 +51,7 @@ import {
   projectPending,
   type ProjectionName,
 } from '../lib/agent-harbor/projections.js';
+import { surfaceGatewayCapabilityProjection } from '../lib/agent-harbor/surface-gateway.js';
 
 interface AgentHarborRouteDeps {
   db: DatabaseInstance;
@@ -153,6 +154,17 @@ export const agentHarborPlugin: FastifyPluginAsync<AgentHarborPluginOpts> = asyn
     reply.code(500);
     return { error: 'internal server error', code: 'AGENT_HARBOR_INTERNAL' };
   }
+
+  // ── GET /agent-harbor/surface-gateway/capabilities ──
+  //
+  // Read-only discovery for the one command/query/event envelope family.
+  // This does not dispatch commands; it tells native surfaces, CLI, MCP, and
+  // tests which v0 nouns, modes, authority checks, and bus targets the daemon
+  // expects before the mutating gateway ingress route lands.
+  fastify.get(
+    '/agent-harbor/surface-gateway/capabilities',
+    async () => surfaceGatewayCapabilityProjection({ mounted: true }),
+  );
 
   // ── GET /agent-nodes — the roster projection (binder ch09 agent registry) ──
   fastify.get('/agent-nodes', async (request: FastifyRequest, reply: FastifyReply) => {
