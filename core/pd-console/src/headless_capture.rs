@@ -61,6 +61,15 @@ impl Canvas {
         Self { w, h, px }
     }
 
+    /// Read a pixel (clamped). Used by the tone→pixel regression tests.
+    #[inline]
+    pub fn pixel(&self, x: usize, y: usize) -> (u8, u8, u8) {
+        let x = x.min(self.w.saturating_sub(1));
+        let y = y.min(self.h.saturating_sub(1));
+        let o = (y * self.w + x) * 3;
+        (self.px[o], self.px[o + 1], self.px[o + 2])
+    }
+
     #[inline]
     pub fn put(&mut self, x: usize, y: usize, c: (u8, u8, u8)) {
         if x >= self.w || y >= self.h {
@@ -653,23 +662,51 @@ mod geom_tests {
         assert!(png.len() > 60, "png suspiciously small: {}", png.len());
     }
 
-    /// Renders the real Block model and writes a PNG under the crate's artifacts
-    /// dir. Running `cargo test --bin pd-console-repl` (the cheap non-gpui gate)
-    /// produces a real, inspectable image — no window, no display, no gpui build.
+    /// Regression: each semantic `Tone` must resolve to its real theme color in the
+    /// RENDERED PIXELS (Tone → theme OKLCH → sRGB → chip fill). Guards silent theme
+    /// or tone-mapping drift — the pixels are the contract, not just the enum.
     #[test]
-    fn writes_a_real_console_png() {
-        let blocks = sample_console_blocks();
-        let canvas = render_blocks(&blocks, &DARK, 960);
-        assert!(canvas.w == 960 && canvas.h > 400, "canvas {}x{}", canvas.w, canvas.h);
-        let png = canvas.to_png();
-        assert_eq!(&png[0..8], &[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]);
+    fn tone_resolves_to_expected_pixels() {
+        for (tone, oklch) in [
+            (Tone::Alarm, DARK.alarm),
+            (Tone::Accent, DARK.accent),
+            (Tone::Landed, DARK.landed),
+            (Tone::Engaged, DARK.engaged),
+        ] {
+            let c = render_blocks(&[Block::Chip { label: "x".into(), tone }], &DARK, 200);
+            // A point inside the chip fill, left of where the label text starts.
+            let px = c.pixel(PAD + 2, HEADER_H + PAD + 10);
+            assert_eq!(px, to_rgb(oklch), "chip fill for {tone:?} != theme color");
+        }
+    }
 
-        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/artifacts/gpui");
-        std::fs::create_dir_all(&dir).expect("mkdir artifacts");
-        let out = dir.join("headless-capture-sample.png");
-        std::fs::write(&out, &png).expect("write png");
-        let meta = std::fs::metadata(&out).expect("stat png");
-        assert!(meta.len() > 5_000, "png too small on disk: {} bytes", meta.len());
-        eprintln!("wrote {} ({} bytes)", out.display(), meta.len());
+    /// Regression: the full sample renders every `Block` variant without panic and
+    /// paints real, non-background pixels (a blank canvas would mean nothing drew).
+    #[test]
+    fn sample_renders_every_variant_non_blank() {
+        let c = render_blocks(&sample_console_blocks(), &DARK, 960);
+        assert!(c.w == 960 && c.h > 400, "canvas {}x{}", c.w, c.h);
+        // The amber accent underline under the title bar sits at a stable coordinate.
+        assert_eq!(c.pixel(10, HEADER_H), to_rgb(DARK.accent), "accent underline missing");
+        let bg = to_rgb(DARK.bg);
+        let painted = (0..c.h)
+            .step_by(7)
+            .flat_map(|y| (0..c.w).step_by(7).map(move |x| (x, y)))
+            .filter(|&(x, y)| c.pixel(x, y) != bg)
+            .count();
+        assert!(painted > 500, "too few painted pixels: {painted}");
+    }
+
+    /// On-demand viewable artifact: `--headless-capture` and the proof script write
+    /// a real PNG. This writes to `target/` (git-ignored) so the suite never commits
+    /// a binary; encoder validity is asserted, not committed bytes.
+    #[test]
+    fn capture_writes_a_valid_png_to_target() {
+        let out = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../target/headless-capture-sample.png");
+        let n = capture_to_path(out.to_str().unwrap()).expect("write png");
+        assert!(n > 5_000, "png too small: {n} bytes");
+        let bytes = std::fs::read(&out).expect("read back");
+        assert_eq!(&bytes[0..8], &[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]);
     }
 }

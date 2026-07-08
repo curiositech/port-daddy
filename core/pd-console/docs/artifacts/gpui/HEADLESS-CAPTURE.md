@@ -90,12 +90,28 @@ This is a faithful **third face** of the one-pane model ("one pane, two faces" �
 three: GPUI Metal, ratatui, and this offscreen raster). It is watermarked in-image
 and labeled everywhere so it is **never mistaken for a Metal framebuffer capture**.
 
-## Provenance of `headless-capture-sample.png`
+The raster also earns its keep as a **CI regression check**: `tone_resolves_to_expected_pixels`
+asserts each `Tone` lands its real theme color in the rendered pixels (Tone → OKLCH →
+sRGB → chip fill), catching silent theme/tone drift the enum alone cannot.
 
-- Renderer: `render_blocks(sample_console_blocks(), &theme::DARK, 960)` → `to_png()`.
-- Source: `src/headless_capture.rs`, a deterministic offline `Block` tree (no daemon,
-  no network). Not a screenshot of the GPUI app.
-- Reproduce (no gpui build, seconds):
-  `cargo test --bin pd-console-repl headless_capture` **or**
-  `core/pd-console/scripts/proof/headless-capture.sh`.
-- The bottom red band in the image states its own provenance.
+## Reproducing the PNG (not committed — regenerated on demand)
+
+The sample PNG is **not** committed (a 2.4 MB uncompressed still is git bloat). Regenerate
+it anytime, no gpui build, seconds, no window/display/TCC:
+
+- `core/pd-console/scripts/proof/headless-capture.sh [out.png]`, or
+- `pd-console --headless-capture <out.png>` (the gpui bin), or
+- `cargo test --bin pd-console-repl headless_capture` → writes `core/target/headless-capture-sample.png` (git-ignored).
+
+The image is `render_blocks(sample_console_blocks(), &theme::DARK, 960)` — a deterministic
+offline `Block` tree, **not** a screenshot of the GPUI app; its bottom red band states so.
+
+## Corroboration: nobody renders GPUI headlessly — they snapshot the model
+
+duxweb/codux (a GPUI terminal) has the same problem and the same answer: its
+`crates/codux-terminal-core/src/headless_screen.rs` is **not** a GPUI/pixel capture — it
+snapshots the alacritty **terminal cell grid** (text, fg/bg, styles → an ANSI-repaint
+string + cell array), the semantic layer *below* GPUI. That is exactly this module's move
+(snapshot the render-agnostic `Block` model) and pd-console's existing ratatui face. The
+practical answer to "headless GPUI" is: don't rasterize GPUI headlessly — capture the
+model the GUI is built from.
