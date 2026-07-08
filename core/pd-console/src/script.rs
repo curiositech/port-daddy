@@ -13,6 +13,7 @@
 //!   {"cmd":"focus","pane":"galaxy"}
 //!   {"cmd":"state","pane":"galaxy"}
 //!   {"cmd":"galaxy","windowHours":720,"minTokens":64}
+//!   {"cmd":"galaxy","project":"port-daddy"}
 //!   {"cmd":"rebind","url":"http://127.0.0.1:9899"}
 //!   {"cmd":"alerts"}
 //!
@@ -48,6 +49,7 @@ pub enum ScriptRequest {
         window_hours: Option<u32>,
         min_tokens: Option<u32>,
         cluster: Option<bool>,
+        project: Option<Option<String>>,
     },
     Rebind {
         url: String,
@@ -93,13 +95,21 @@ pub fn parse_request(line: &str) -> Result<ScriptRequest, String> {
             let window_hours = optional_positive_u32(&v, "windowHours")?;
             let min_tokens = optional_positive_u32(&v, "minTokens")?;
             let cluster = v.get("cluster").and_then(Value::as_bool);
-            if window_hours.is_none() && min_tokens.is_none() && cluster.is_none() {
-                return Err("galaxy needs windowHours, minTokens, and/or cluster".to_string());
+            let project = optional_project(&v)?;
+            if window_hours.is_none()
+                && min_tokens.is_none()
+                && cluster.is_none()
+                && project.is_none()
+            {
+                return Err(
+                    "galaxy needs windowHours, minTokens, cluster, and/or project".to_string(),
+                );
             }
             Ok(ScriptRequest::Galaxy {
                 window_hours,
                 min_tokens,
                 cluster,
+                project,
             })
         }
         "rebind" => {
@@ -133,6 +143,23 @@ fn optional_positive_u32(v: &Value, field: &str) -> Result<Option<u32>, String> 
         return Err(format!("{field} must fit in u32"));
     }
     Ok(Some(n as u32))
+}
+
+fn optional_project(v: &Value) -> Result<Option<Option<String>>, String> {
+    let Some(raw) = v.get("project") else {
+        return Ok(None);
+    };
+    if raw.is_null() {
+        return Ok(Some(None));
+    }
+    let Some(s) = raw.as_str() else {
+        return Err("project must be a string or null".to_string());
+    };
+    let trimmed = s.trim();
+    if trimmed.is_empty() || matches!(trimmed, "*" | "all" | "all repos" | "all projects") {
+        return Ok(Some(None));
+    }
+    Ok(Some(Some(trimmed.to_string())))
 }
 
 /// Serialize a pane [`Block`] to JSON. Faithful but flat: scripting callers
@@ -311,7 +338,8 @@ mod tests {
             Ok(ScriptRequest::Galaxy {
                 window_hours: Some(720),
                 min_tokens: None,
-                cluster: None
+                cluster: None,
+                project: None,
             })
         );
         assert_eq!(
@@ -319,7 +347,8 @@ mod tests {
             Ok(ScriptRequest::Galaxy {
                 window_hours: None,
                 min_tokens: Some(64),
-                cluster: None
+                cluster: None,
+                project: None,
             })
         );
         assert_eq!(
@@ -327,7 +356,26 @@ mod tests {
             Ok(ScriptRequest::Galaxy {
                 window_hours: None,
                 min_tokens: None,
-                cluster: Some(false)
+                cluster: Some(false),
+                project: None,
+            })
+        );
+        assert_eq!(
+            parse_request(r#"{"cmd":"galaxy","project":"port-daddy"}"#),
+            Ok(ScriptRequest::Galaxy {
+                window_hours: None,
+                min_tokens: None,
+                cluster: None,
+                project: Some(Some("port-daddy".into())),
+            })
+        );
+        assert_eq!(
+            parse_request(r#"{"cmd":"galaxy","project":null}"#),
+            Ok(ScriptRequest::Galaxy {
+                window_hours: None,
+                min_tokens: None,
+                cluster: None,
+                project: Some(None),
             })
         );
         assert_eq!(
@@ -354,7 +402,7 @@ mod tests {
         );
         assert_eq!(
             parse_request(r#"{"cmd":"galaxy"}"#).unwrap_err(),
-            "galaxy needs windowHours, minTokens, and/or cluster"
+            "galaxy needs windowHours, minTokens, cluster, and/or project"
         );
         assert!(parse_request(r#"{"cmd":"warp"}"#)
             .unwrap_err()
@@ -374,6 +422,10 @@ mod tests {
         assert_eq!(
             parse_request(r#"{"cmd":"galaxy","windowHours":"24"}"#).unwrap_err(),
             "windowHours must be a positive integer"
+        );
+        assert_eq!(
+            parse_request(r#"{"cmd":"galaxy","project":42}"#).unwrap_err(),
+            "project must be a string or null"
         );
     }
 

@@ -518,19 +518,88 @@ fn format_turn_text(text: &str, epoch_ms: i64) -> String {
 }
 
 /// The header window-hours cycle the canvas chip and the `galaxy`
-/// control-socket command share: `24 → 72 → 168 → 720 → 24`. A current value
-/// off the cycle (a scripted arbitrary hour count) advances to the next
-/// stop greater than it, wrapping to the first stop past the top.
+/// control-socket command share. A current value off the cycle (a scripted
+/// arbitrary hour count) advances to the next stop greater than it, wrapping
+/// to the first stop past the top.
 pub fn next_window_hours(current: u32) -> u32 {
-    const STOPS: [u32; 4] = [24, 72, 168, 720];
-    match STOPS.iter().position(|&stop| stop == current) {
-        Some(i) => STOPS[(i + 1) % STOPS.len()],
-        None => STOPS
+    match WINDOW_CHOICES.iter().position(|&stop| stop == current) {
+        Some(i) => WINDOW_CHOICES[(i + 1) % WINDOW_CHOICES.len()],
+        None => WINDOW_CHOICES
             .iter()
             .copied()
             .find(|&stop| stop > current)
-            .unwrap_or(STOPS[0]),
+            .unwrap_or(WINDOW_CHOICES[0]),
     }
+}
+
+/// Preset query windows shown by the native dropdown. Kept in the gpui-free
+/// pane module so the REPL tests pin the UI and scriptable contract together.
+pub const WINDOW_CHOICES: [u32; 6] = [1, 6, 24, 72, 168, 720];
+
+pub fn window_label(hours: u32) -> String {
+    match hours {
+        1 => "1h".into(),
+        6 => "6h".into(),
+        24 => "24h".into(),
+        72 => "3d".into(),
+        168 => "7d".into(),
+        720 => "30d".into(),
+        h if h % 24 == 0 => format!("{}d", h / 24),
+        h => format!("{h}h"),
+    }
+}
+
+fn encode_query_component(value: &str) -> String {
+    let mut out = String::new();
+    for b in value.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                out.push(b as char)
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
+pub fn default_project_from_env() -> Option<String> {
+    std::env::var("PD_CONSOLE_PROJECT")
+        .ok()
+        .and_then(|p| {
+            let trimmed = p.trim();
+            (!trimmed.is_empty()).then(|| trimmed.to_string())
+        })
+        .or_else(|| {
+            std::env::var("PD_CONSOLE_WORKDIR")
+                .ok()
+                .and_then(|wd| project_from_workdir(&wd))
+        })
+}
+
+fn project_from_workdir(workdir: &str) -> Option<String> {
+    let remote = std::process::Command::new("git")
+        .args(["-C", workdir, "remote", "get-url", "origin"])
+        .output()
+        .ok()
+        .and_then(|out| out.status.success().then_some(out.stdout))
+        .and_then(|stdout| String::from_utf8(stdout).ok())
+        .and_then(|url| project_from_remote_url(url.trim()));
+    remote.or_else(|| {
+        std::path::Path::new(workdir)
+            .file_name()
+            .map(|name| name.to_string_lossy().trim().to_string())
+            .filter(|name| !name.is_empty())
+    })
+}
+
+fn project_from_remote_url(url: &str) -> Option<String> {
+    let repo = url
+        .trim_end_matches('/')
+        .rsplit(['/', ':'])
+        .next()?
+        .trim_end_matches(".git")
+        .trim();
+    (!repo.is_empty()).then(|| repo.to_string())
 }
 
 /// Parse a whole `GET /galaxy/session/:id` response body (tolerates being
@@ -860,6 +929,9 @@ pub struct GalaxySnapshot {
     /// response still carries (defensive against a daemon that hasn't wired
     /// `cluster=false` all the way through yet).
     pub cluster: bool,
+    /// Active project/repo filter, wired to `/galaxy/map?project=...`.
+    /// `None` means "all repos" rather than an implicit unknown filter.
+    pub project: Option<String>,
 }
 
 pub struct GalaxyPane {
@@ -876,6 +948,9 @@ pub struct GalaxyPane {
     /// the daemon's k-means clustering by omitting the param entirely;
     /// `false` sends `cluster=false` on the wire.
     cluster: bool,
+    /// Optional project/repo filter. The daemon calls this `project`; the UI
+    /// labels it repo because that is the operator-facing mental model.
+    project: Option<String>,
 }
 
 impl Default for GalaxyPane {
@@ -888,6 +963,7 @@ impl Default for GalaxyPane {
             window_hours: 24,
             min_tokens: None,
             cluster: true,
+            project: None,
         }
     }
 }
@@ -908,6 +984,13 @@ impl GalaxyPane {
         }
     }
 
+    pub fn set_project(&mut self, project: Option<String>) {
+        self.project = project.and_then(|p| {
+            let trimmed = p.trim();
+            (!trimmed.is_empty()).then(|| trimmed.to_string())
+        });
+    }
+
     /// Toggle daemon-side clustering (the canvas header chip / a scripted
     /// `cluster` param). A separate setter from [`Self::set_params`] so the
     /// existing 2-arg wire contract (window/minTokens) never has to change
@@ -920,14 +1003,17 @@ impl GalaxyPane {
     /// the scripted-params → wire-request contract without HTTP. `cluster` is
     /// omitted when `true` (the daemon default); `cluster=false` is explicit.
     pub fn query(&self) -> String {
-        let mut q = match self.min_tokens {
-            Some(m) => format!("windowHours={}&minTokens={}", self.window_hours, m),
-            None => format!("windowHours={}", self.window_hours),
-        };
-        if !self.cluster {
-            q.push_str("&cluster=false");
+        let mut parts = vec![format!("windowHours={}", self.window_hours)];
+        if let Some(m) = self.min_tokens {
+            parts.push(format!("minTokens={m}"));
         }
-        q
+        if let Some(project) = self.project.as_deref() {
+            parts.push(format!("project={}", encode_query_component(project)));
+        }
+        if !self.cluster {
+            parts.push("cluster=false".into());
+        }
+        parts.join("&")
     }
 
     /// The frame the producer ships to the view each refresh.
@@ -939,6 +1025,7 @@ impl GalaxyPane {
             last_error: self.last_error.clone(),
             window_hours: self.window_hours,
             cluster: self.cluster,
+            project: self.project.clone(),
         }
     }
 }
@@ -1473,19 +1560,62 @@ mod tests {
     }
 
     #[test]
-    fn next_window_hours_cycles_the_4_stop_contract() {
+    fn project_filter_extends_the_wire_query_when_selected() {
+        let mut pane = GalaxyPane::new();
+        assert_eq!(pane.snapshot().project, None);
+
+        pane.set_project(Some("port daddy/tools".into()));
+        assert_eq!(pane.query(), "windowHours=24&project=port%20daddy%2Ftools");
+        assert_eq!(pane.snapshot().project.as_deref(), Some("port daddy/tools"));
+
+        pane.set_cluster(false);
+        assert_eq!(
+            pane.query(),
+            "windowHours=24&project=port%20daddy%2Ftools&cluster=false"
+        );
+
+        pane.set_project(Some("  ".into()));
+        assert_eq!(pane.query(), "windowHours=24&cluster=false");
+    }
+
+    #[test]
+    fn next_window_hours_cycles_the_dropdown_contract() {
+        assert_eq!(next_window_hours(1), 6);
+        assert_eq!(next_window_hours(6), 24);
         assert_eq!(next_window_hours(24), 72);
         assert_eq!(next_window_hours(72), 168);
         assert_eq!(next_window_hours(168), 720);
-        assert_eq!(next_window_hours(720), 24, "wraps back to the first stop");
+        assert_eq!(next_window_hours(720), 1, "wraps back to the first stop");
         // Off-cycle values (a scripted arbitrary hour count) advance to the
         // next stop greater than them, never getting stuck.
         assert_eq!(next_window_hours(48), 72);
-        assert_eq!(next_window_hours(1), 24);
+        assert_eq!(next_window_hours(2), 6);
         assert_eq!(
             next_window_hours(1000),
-            24,
+            1,
             "past the top stop wraps to the first"
+        );
+    }
+
+    #[test]
+    fn window_label_formats_hour_and_day_presets() {
+        assert_eq!(window_label(1), "1h");
+        assert_eq!(window_label(72), "3d");
+        assert_eq!(window_label(168), "7d");
+        assert_eq!(window_label(720), "30d");
+        assert_eq!(window_label(48), "2d");
+        assert_eq!(window_label(5), "5h");
+    }
+
+    #[test]
+    fn project_from_remote_url_extracts_repo_name() {
+        assert_eq!(
+            project_from_remote_url("https://github.com/curiositech/port-daddy.git").as_deref(),
+            Some("port-daddy")
+        );
+        assert_eq!(
+            project_from_remote_url("git@github.com:curiositech/workgroup-ai.git").as_deref(),
+            Some("workgroup-ai")
         );
     }
 

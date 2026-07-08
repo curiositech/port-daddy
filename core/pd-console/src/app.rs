@@ -138,6 +138,10 @@ pub enum ControlMsg {
     GalaxyCluster {
         enabled: bool,
     },
+    /// Scope the galaxy map to one project/repo, or clear back to all repos.
+    GalaxyProject {
+        project: Option<String>,
+    },
     /// Add an operator note: `POST /notes` with `{ content }`.
     AddNote {
         content: String,
@@ -1683,7 +1687,12 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
             .text_size(px(tokens::TEXT_BODY))
             .child(format!("{name} — {meta}"))
             .into_any_element(),
-        Block::ControlButton { label, enabled, why_disabled, .. } => div()
+        Block::ControlButton {
+            label,
+            enabled,
+            why_disabled,
+            ..
+        } => div()
             .mx(px(tokens::SPACE_3))
             .my(px(2.0))
             .text_color(rgb(t.muted))
@@ -1855,6 +1864,10 @@ pub struct ConsoleView {
     /// The daemon's real failure fetching a detail — shown in the drawer slot,
     /// never swallowed.
     pub(crate) galaxy_detail_error: Option<String>,
+    /// Dropdown state for the native Galaxy time-window selector.
+    pub(crate) galaxy_window_menu_open: bool,
+    /// Dropdown state for the native Galaxy repo/project selector.
+    pub(crate) galaxy_project_menu_open: bool,
 }
 
 impl ConsoleView {
@@ -1957,6 +1970,8 @@ impl ConsoleView {
             galaxy_bounds: Rc::new(RefCell::new(None)),
             galaxy_detail: None,
             galaxy_detail_error: None,
+            galaxy_window_menu_open: false,
+            galaxy_project_menu_open: false,
         }
     }
 
@@ -2677,17 +2692,15 @@ impl ConsoleView {
             }
             CmdKind::HarborSteer => {
                 if text.trim().is_empty() {
-                    self.control_flash =
-                        Some("steer needs a message — nothing was sent".into());
+                    self.control_flash = Some("steer needs a message — nothing was sent".into());
                     return;
                 }
                 let _ = tx.send(ControlMsg::HarborControl {
                     verb: "steer".into(),
                     argument: Some(text),
                 });
-                self.control_flash = Some(
-                    "steer queued — watch the node's transcript for the guidance turn".into(),
-                );
+                self.control_flash =
+                    Some("steer queued — watch the node's transcript for the guidance turn".into());
             }
             // AddPane, Conjure, UseDaemon, and Verb are handled locally above
             // (early return) — never reach here.
@@ -3168,6 +3181,7 @@ impl ConsoleView {
                             "size": c.size,
                         })).collect::<Vec<_>>(),
                         "selected": self.galaxy_selected.iter().cloned().collect::<Vec<_>>(),
+                        "project": self.galaxy.project.clone(),
                         "viewport": {
                             "zoom": self.galaxy_viewport.zoom,
                             "panX": self.galaxy_viewport.pan_x,
@@ -3181,6 +3195,7 @@ impl ConsoleView {
                 window_hours,
                 min_tokens,
                 cluster,
+                project,
             } => match &self.control_tx {
                 Some(tx) => {
                     if window_hours.is_some() || min_tokens.is_some() {
@@ -3192,12 +3207,21 @@ impl ConsoleView {
                     if let Some(enabled) = cluster {
                         let _ = tx.send(ControlMsg::GalaxyCluster { enabled });
                     }
+                    if let Some(project) = project.clone() {
+                        self.galaxy_selected.clear();
+                        self.galaxy_hover = None;
+                        self.galaxy_detail = None;
+                        self.galaxy_detail_error = None;
+                        self.galaxy_viewport.reset();
+                        let _ = tx.send(ControlMsg::GalaxyProject { project });
+                    }
                     json!({
                         "ok": true,
                         "note": "params applied on the next 2s refresh",
                         "windowHours": window_hours,
                         "minTokens": min_tokens,
                         "cluster": cluster,
+                        "project": project,
                     })
                 }
                 None => {
@@ -3221,24 +3245,75 @@ impl ConsoleView {
         }
     }
 
-    /// Cycle the galaxy window through the 4-stop contract (24→72→168→720h);
-    /// the canvas's window chip calls this.
-    pub(crate) fn cycle_galaxy_window(&mut self) {
-        let next = crate::galaxy_pane::next_window_hours(self.galaxy.window_hours);
-        if let Some(tx) = &self.control_tx {
-            let _ = tx.send(ControlMsg::GalaxyParams {
-                window_hours: Some(next),
-                min_tokens: None,
-            });
-        }
-    }
-
     /// Toggle daemon-side clustering; the canvas's cluster chip calls this.
     pub(crate) fn toggle_galaxy_cluster(&mut self) {
         let next = !self.galaxy.cluster;
         if let Some(tx) = &self.control_tx {
             let _ = tx.send(ControlMsg::GalaxyCluster { enabled: next });
         }
+    }
+
+    pub(crate) fn toggle_galaxy_window_menu(&mut self) {
+        self.galaxy_window_menu_open = !self.galaxy_window_menu_open;
+        if self.galaxy_window_menu_open {
+            self.galaxy_project_menu_open = false;
+        }
+    }
+
+    pub(crate) fn set_galaxy_window(&mut self, hours: u32) {
+        self.galaxy_window_menu_open = false;
+        if let Some(tx) = &self.control_tx {
+            let _ = tx.send(ControlMsg::GalaxyParams {
+                window_hours: Some(hours),
+                min_tokens: None,
+            });
+        }
+    }
+
+    pub(crate) fn toggle_galaxy_project_menu(&mut self) {
+        self.galaxy_project_menu_open = !self.galaxy_project_menu_open;
+        if self.galaxy_project_menu_open {
+            self.galaxy_window_menu_open = false;
+        }
+    }
+
+    pub(crate) fn set_galaxy_project(&mut self, project: Option<String>) {
+        self.galaxy_project_menu_open = false;
+        self.galaxy_selected.clear();
+        self.galaxy_hover = None;
+        self.galaxy_detail = None;
+        self.galaxy_detail_error = None;
+        self.galaxy_viewport.reset();
+        if let Some(tx) = &self.control_tx {
+            let _ = tx.send(ControlMsg::GalaxyProject { project });
+        }
+    }
+
+    pub(crate) fn galaxy_project_choices(&self) -> Vec<Option<String>> {
+        let mut choices = vec![None];
+        if let Some(project) = self.galaxy.project.clone() {
+            choices.push(Some(project));
+        }
+        for point in &self.galaxy.points {
+            if let Some(project) = point.project.as_ref().filter(|p| !p.trim().is_empty()) {
+                if !choices
+                    .iter()
+                    .any(|choice| choice.as_deref() == Some(project.as_str()))
+                {
+                    choices.push(Some(project.clone()));
+                }
+            }
+        }
+        choices
+    }
+
+    fn console_repo_label(&self) -> String {
+        self.galaxy
+            .project
+            .clone()
+            .or_else(|| std::env::var("PD_CONSOLE_PROJECT").ok())
+            .or_else(crate::galaxy_pane::default_project_from_env)
+            .unwrap_or_else(|| "all repos".into())
     }
 
     pub(crate) fn begin_galaxy_pan(&mut self, position: Point<Pixels>) {
@@ -5625,7 +5700,9 @@ fn render_harbor_node_row(
         .border_1()
         .border_color(rgb(if selected { t.accent } else { t.line }))
         .bg(rgb(if selected { t.raised } else { t.panel }))
-        .when(selected, |s| s.shadow(motion::glow(t.accent, 0.25, 10.0, 0.0)))
+        .when(selected, |s| {
+            s.shadow(motion::glow(t.accent, 0.25, 10.0, 0.0))
+        })
         .cursor_pointer()
         .hover(|s| {
             let t = current_theme();
@@ -6021,6 +6098,7 @@ impl Render for ConsoleView {
         let command = self.command.clone();
         let lit = armed || command.is_some();
         let pane_count = self.ws().pane_count();
+        let repo_label = self.console_repo_label();
         let zoomed = self.zoomed();
         // Tab bar data (index, name, is-active).
         let tabs: Vec<(usize, String, bool)> = self
@@ -6443,7 +6521,7 @@ impl Render for ConsoleView {
                             .text_size(px(13.0))
                             .font_family("IBM Plex Mono")
                             .child(format!(
-                                "daemon {daemon_url}  ·  {pane_count} panes  ·  Ctrl-A → space launcher · n new-job · i insert-pane · | split  ·  {}",
+                                "daemon {daemon_url}  ·  repo {repo_label}  ·  {pane_count} panes  ·  Ctrl-A → space launcher · n new-job · i insert-pane · | split  ·  {}",
                                 build_stamp()
                             ))
                             .into_any_element()

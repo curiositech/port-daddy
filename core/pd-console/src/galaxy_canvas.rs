@@ -121,6 +121,162 @@ fn camera_toolbar(view: &ConsoleView, t: &Theme, cx: &mut Context<ConsoleView>) 
         .into_any_element()
 }
 
+fn dropdown_button(
+    id: impl Into<ElementId>,
+    label: String,
+    selected: bool,
+    t: &Theme,
+) -> Stateful<Div> {
+    div()
+        .id(id)
+        .px(px(tokens::SPACE_2))
+        .py(px(3.0))
+        .rounded(px(tokens::RADIUS_SM))
+        .border_1()
+        .border_color(rgb(if selected { t.accent } else { t.line }))
+        .bg(if selected {
+            wash(t.accent, 0x20)
+        } else {
+            wash(t.raised, 0xe8)
+        })
+        .cursor_pointer()
+        .text_size(px(tokens::TEXT_BODY))
+        .font_weight(FontWeight::SEMIBOLD)
+        .text_color(rgb(if selected { t.accent_ink } else { t.ink2 }))
+        .hover(|s| {
+            let t = current_theme();
+            s.border_color(rgb(t.accent)).text_color(rgb(t.accent_ink))
+        })
+        .child(label)
+}
+
+fn menu_shell(t: &Theme) -> Div {
+    div()
+        .absolute()
+        .top(px(30.0))
+        .left(px(0.0))
+        .min_w(px(142.0))
+        .p(px(tokens::SPACE_1))
+        .rounded(px(tokens::RADIUS_MD))
+        .border_1()
+        .border_color(rgb(t.line))
+        .bg(rgb(t.panel))
+        .shadow(motion::glow(t.accent, 0.20, 18.0, 0.0))
+        .flex()
+        .flex_col()
+        .gap(px(2.0))
+        .occlude()
+}
+
+fn window_dropdown(
+    current: u32,
+    open: bool,
+    t: &Theme,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let mut group = div().relative().child(
+        dropdown_button(
+            "galaxy-window-chip",
+            format!("window {} v", gp::window_label(current)),
+            true,
+            t,
+        )
+        .on_click(cx.listener(|this, _ev, _window, cx| {
+            this.toggle_galaxy_window_menu();
+            crate::audio::play(crate::audio::Cue::Tick);
+            cx.notify();
+        })),
+    );
+
+    if open {
+        let mut menu = menu_shell(t);
+        for hours in gp::WINDOW_CHOICES {
+            let selected = hours == current;
+            menu = menu.child(
+                dropdown_button(
+                    SharedString::from(format!("galaxy-window-option-{hours}")),
+                    gp::window_label(hours),
+                    selected,
+                    t,
+                )
+                .w_full()
+                .justify_start()
+                .on_click(cx.listener(move |this, _ev, _window, cx| {
+                    this.set_galaxy_window(hours);
+                    crate::audio::play(crate::audio::Cue::Tick);
+                    cx.notify();
+                })),
+            );
+        }
+        group = group.child(menu);
+    }
+
+    group.into_any_element()
+}
+
+fn project_label(project: Option<&str>) -> String {
+    match project {
+        Some(project) if !project.trim().is_empty() => crate::util::trunc(project, 24),
+        _ => "all repos".into(),
+    }
+}
+
+fn project_dropdown(
+    active: Option<&str>,
+    open: bool,
+    mut choices: Vec<Option<String>>,
+    t: &Theme,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    if !choices.iter().any(|choice| choice.as_deref() == active) {
+        choices.push(active.map(str::to_string));
+    }
+
+    let mut group = div().relative().child(
+        dropdown_button(
+            "galaxy-project-chip",
+            format!("repo {} v", project_label(active)),
+            active.is_some(),
+            t,
+        )
+        .on_click(cx.listener(|this, _ev, _window, cx| {
+            this.toggle_galaxy_project_menu();
+            crate::audio::play(crate::audio::Cue::Tick);
+            cx.notify();
+        })),
+    );
+
+    if open {
+        let mut menu = menu_shell(t).min_w(px(170.0));
+        for choice in choices {
+            let selected = choice.as_deref() == active;
+            let label = project_label(choice.as_deref());
+            let id_tail = choice
+                .as_deref()
+                .unwrap_or("all")
+                .replace(|c: char| !c.is_ascii_alphanumeric(), "-");
+            menu = menu.child(
+                dropdown_button(
+                    SharedString::from(format!("galaxy-project-option-{id_tail}")),
+                    label,
+                    selected,
+                    t,
+                )
+                .w_full()
+                .justify_start()
+                .on_click(cx.listener(move |this, _ev, _window, cx| {
+                    this.set_galaxy_project(choice.clone());
+                    crate::audio::play(crate::audio::Cue::Tick);
+                    cx.notify();
+                })),
+            );
+        }
+        group = group.child(menu);
+    }
+
+    group.into_any_element()
+}
+
 /// Render the whole Galaxy surface body: eyebrow + meta, the interactive map,
 /// the hover readout strip, the selection/parley bar, and the detail drawer.
 pub(crate) fn render_galaxy(
@@ -164,9 +320,9 @@ pub(crate) fn render_galaxy(
                 .text_size(px(tokens::TEXT_EYEBROW))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(rgb(t.accent_ink))
-                .child("\u{2693} SESSION GALAXY \u{00b7} EMBEDDING MAP OF RECENT AGENT SESSIONS"),
+                .child("SESSION GALAXY \u{00b7} EMBEDDING MAP OF RECENT AGENT SESSIONS"),
         )
-        .child(meta_row(snapshot, &base_meta, &computed_meta, &t, cx));
+        .child(meta_row(view, snapshot, &base_meta, &computed_meta, &t, cx));
 
     if let Some(err) = &snapshot.last_error {
         root = root.child(
@@ -217,7 +373,12 @@ pub(crate) fn render_galaxy(
             .into_any_element();
     }
 
-    root = root
+    let left = div()
+        .flex_1()
+        .min_w(px(0.0))
+        .flex()
+        .flex_col()
+        .gap(px(tokens::SPACE_2))
         .child(galaxy_map(view, pane_id, &t, cx))
         .child(hover_strip(
             hover_point,
@@ -227,35 +388,30 @@ pub(crate) fn render_galaxy(
         ))
         .child(selection_bar(selected_count, &parties, &t, cx));
 
-    if let Some(reason) = &view.galaxy_detail_error {
-        root = root.child(
-            div()
-                .px(px(tokens::SPACE_3))
-                .py(px(tokens::SPACE_2))
-                .rounded(px(tokens::RADIUS_MD))
-                .border_1()
-                .border_color(rgb(t.gated))
-                .bg(wash(t.gated, 0x1c))
-                .text_size(px(tokens::TEXT_BODY))
-                .text_color(rgb(t.gated))
-                .child(format!("session detail failed: {reason}")),
-        );
-    }
-    if let Some(detail) = &view.galaxy_detail {
-        root = root.child(detail_drawer(pane_id, detail, &t, cx));
-    }
+    root = root.child(
+        div()
+            .flex()
+            .items_start()
+            .gap(px(tokens::SPACE_3))
+            .child(left)
+            .child(transcript_panel(
+                pane_id,
+                view.galaxy_detail.as_ref(),
+                view.galaxy_detail_error.as_deref(),
+                &t,
+                cx,
+            )),
+    );
 
     root.into_any_element()
 }
 
-/// The header's meta line: static session/cluster counts + two clickable
-/// chips — "window Nh" cycles the query window (24→72→168→720→24, the SAME
-/// `ControlMsg::GalaxyParams` path the control socket's `galaxy` command
-/// uses) and "clustering on/off" toggles daemon-side k-means (`cluster=false`
-/// on the wire). Both chips call NEW `pub(crate)` hooks on `ConsoleView`
-/// (`cycle_galaxy_window` / `toggle_galaxy_cluster`) — see this crate's
-/// gpui-rust-console skill graft notes for why the hook lives in app.rs.
+/// The header's meta line: static session/cluster counts plus dropdowns for
+/// time window and repo. These controls use the same `ControlMsg` path as the
+/// control socket's `galaxy` command, so scripted and clicked state stay in
+/// lockstep.
 fn meta_row(
+    view: &ConsoleView,
     snapshot: &gp::GalaxySnapshot,
     base_meta: &str,
     computed_meta: &str,
@@ -275,20 +431,24 @@ fn meta_row(
                 .text_color(rgb(t.muted))
                 .child("  \u{00b7}  ".to_string()),
         )
+        .child(window_dropdown(
+            snapshot.window_hours,
+            view.galaxy_window_menu_open,
+            t,
+            cx,
+        ))
         .child(
             div()
-                .id("galaxy-window-chip")
-                .cursor_pointer()
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(rgb(t.accent_ink))
-                .hover(|s| s.text_color(rgb(current_theme().accent)))
-                .child(format!("window {}h \u{25be}", snapshot.window_hours))
-                .on_click(cx.listener(|this, _ev, _window, cx| {
-                    this.cycle_galaxy_window();
-                    crate::audio::play(crate::audio::Cue::Tick);
-                    cx.notify();
-                })),
+                .text_color(rgb(t.muted))
+                .child("  \u{00b7}  ".to_string()),
         )
+        .child(project_dropdown(
+            snapshot.project.as_deref(),
+            view.galaxy_project_menu_open,
+            view.galaxy_project_choices(),
+            t,
+            cx,
+        ))
         .child(
             div()
                 .text_color(rgb(t.muted))
@@ -766,21 +926,119 @@ fn selection_bar(
     bar.into_any_element()
 }
 
-/// The session-detail drawer: the parsed `GET /galaxy/session/:id` payload
+/// Right-side transcript panel: the parsed `GET /galaxy/session/:id` payload
 /// rendered through the shared Block renderer inside its own stable-id scroll
 /// region (long transcripts scroll independently instead of clipping).
-fn detail_drawer(
+fn transcript_panel(
     pane_id: PaneId,
-    detail: &gp::GalaxyDetail,
+    detail: Option<&gp::GalaxyDetail>,
+    error: Option<&str>,
     t: &Theme,
     cx: &mut Context<ConsoleView>,
 ) -> AnyElement {
+    let mut panel = div()
+        .w(px(380.0))
+        .min_w(px(320.0))
+        .flex_shrink_0()
+        .h(px(554.0))
+        .rounded(px(tokens::RADIUS_LG))
+        .border_1()
+        .border_color(rgb(t.line))
+        .bg(rgb(t.panel))
+        .flex()
+        .flex_col();
+
+    panel = panel.child(
+        div()
+            .flex()
+            .items_center()
+            .px(px(tokens::SPACE_3))
+            .py(px(tokens::SPACE_2))
+            .border_b_1()
+            .border_color(rgb(t.line))
+            .child(
+                div()
+                    .flex_1()
+                    .text_size(px(tokens::TEXT_BODY_LG))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(rgb(t.accent_ink))
+                    .child("transcript"),
+            )
+            .child(
+                div()
+                    .id("galaxy-detail-close")
+                    .px(px(tokens::SPACE_2))
+                    .py(px(2.0))
+                    .rounded(px(tokens::RADIUS_MD))
+                    .cursor_pointer()
+                    .text_size(px(tokens::TEXT_CAPTION))
+                    .text_color(rgb(t.muted))
+                    .hover(|s| {
+                        let t = current_theme();
+                        s.text_color(rgb(t.ink)).bg(rgb(t.raised))
+                    })
+                    .child("\u{2715} close")
+                    .on_click(cx.listener(|this, _ev, _window, cx| {
+                        this.galaxy_detail = None;
+                        this.galaxy_detail_error = None;
+                        cx.notify();
+                    })),
+            ),
+    );
+
+    if let Some(reason) = error {
+        return panel
+            .child(
+                div()
+                    .m(px(tokens::SPACE_3))
+                    .px(px(tokens::SPACE_3))
+                    .py(px(tokens::SPACE_2))
+                    .rounded(px(tokens::RADIUS_MD))
+                    .border_1()
+                    .border_color(rgb(t.gated))
+                    .bg(wash(t.gated, 0x1c))
+                    .text_size(px(tokens::TEXT_BODY))
+                    .text_color(rgb(t.gated))
+                    .child(format!("session detail failed: {reason}")),
+            )
+            .into_any_element();
+    }
+
+    let Some(detail) = detail else {
+        return panel
+            .child(
+                div()
+                    .flex_1()
+                    .px(px(tokens::SPACE_4))
+                    .flex()
+                    .flex_col()
+                    .items_center()
+                    .justify_center()
+                    .gap(px(tokens::SPACE_2))
+                    .text_align(TextAlign::Center)
+                    .child(
+                        div()
+                            .text_size(px(tokens::TEXT_BODY_LG))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(rgb(t.ink))
+                            .child("Select a point"),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(tokens::TEXT_BODY))
+                            .text_color(rgb(t.muted))
+                            .child("Transcript detail appears here without moving the map."),
+                    ),
+            )
+            .into_any_element();
+    };
+
     let blocks = gp::detail_blocks(detail);
     // Every block goes through the shared `render_block` EXCEPT this pane's
     // `"file"`-labeled ArtifactRef rows: those get a bespoke clickable row
     // that opens the Harbor Editor surface, since the shared renderer has no
     // click affordance for ArtifactRef (and other panes' PR/commit refs must
-    // stay inert — this is intentionally scoped to just the galaxy drawer).
+    // stay inert — this is intentionally scoped to just the galaxy panel).
     let rendered: Vec<AnyElement> = blocks
         .into_iter()
         .map(|b| match b {
@@ -790,54 +1048,12 @@ fn detail_drawer(
             other => render_block(other, FlagMotion::default()).into_any_element(),
         })
         .collect();
-    div()
-        .rounded(px(tokens::RADIUS_LG))
-        .border_1()
-        .border_color(rgb(t.line))
-        .bg(rgb(t.panel))
-        .flex()
-        .flex_col()
-        // Drawer header: title + close.
-        .child(
-            div()
-                .flex()
-                .items_center()
-                .px(px(tokens::SPACE_3))
-                .py(px(tokens::SPACE_2))
-                .border_b_1()
-                .border_color(rgb(t.line))
-                .child(
-                    div()
-                        .flex_1()
-                        .text_size(px(tokens::TEXT_BODY_LG))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(rgb(t.accent_ink))
-                        .child("session detail"),
-                )
-                .child(
-                    div()
-                        .id("galaxy-detail-close")
-                        .px(px(tokens::SPACE_2))
-                        .py(px(2.0))
-                        .rounded(px(tokens::RADIUS_MD))
-                        .cursor_pointer()
-                        .text_size(px(tokens::TEXT_CAPTION))
-                        .text_color(rgb(t.muted))
-                        .hover(|s| {
-                            let t = current_theme();
-                            s.text_color(rgb(t.ink)).bg(rgb(t.raised))
-                        })
-                        .child("\u{2715} close")
-                        .on_click(cx.listener(|this, _ev, _window, cx| {
-                            this.galaxy_detail = None;
-                            cx.notify();
-                        })),
-                ),
-        )
+
+    panel
         .child(
             div()
                 .id(SharedString::from(format!("galaxy-detail-{pane_id}")))
-                .max_h(px(380.0))
+                .flex_1()
                 .overflow_y_scroll()
                 .flex()
                 .flex_col()

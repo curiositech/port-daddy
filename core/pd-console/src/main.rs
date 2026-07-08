@@ -450,6 +450,9 @@ fn main() {
                 let mut live_agents = ActiveAgentsPane::new();  // 24 — harness roster
                 let mut harbor     = HarborPane::new();         // 25 — Agent Node roster+detail (ch18 C3)
                 let mut galaxy      = GalaxyPane::new();        // 26 — session galaxy (embedding map)
+                if let Some(project) = galaxy_pane::default_project_from_env() {
+                    galaxy.set_project(Some(project));
+                }
 
                 // Pin the producer slots to the canonical grid map. If a pane is
                 // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
@@ -903,6 +906,9 @@ fn main() {
                             }
                             app::ControlMsg::GalaxyCluster { enabled } => {
                                 galaxy.set_cluster(enabled);
+                            }
+                            app::ControlMsg::GalaxyProject { project } => {
+                                galaxy.set_project(project);
                             }
                             // Add an operator note (POST /notes).
                             app::ControlMsg::AddNote { content } => {

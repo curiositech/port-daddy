@@ -11,7 +11,7 @@ Usage:
     console-ctl.py [--sock PATH] panes
     console-ctl.py [--sock PATH] focus <pane>
     console-ctl.py [--sock PATH] state [pane]
-    console-ctl.py [--sock PATH] galaxy [--window-hours N] [--min-tokens N]
+    console-ctl.py [--sock PATH] galaxy [--window-hours N] [--min-tokens N] [--project NAME|--all-projects]
     console-ctl.py [--sock PATH] rebind <url>
     console-ctl.py [--sock PATH] alerts
     console-ctl.py [--sock PATH] raw '<json>'
@@ -64,6 +64,9 @@ def main() -> int:
     p_galaxy.add_argument("--min-tokens", type=int)
     p_galaxy.add_argument("--cluster", dest="cluster", action="store_true", default=None)
     p_galaxy.add_argument("--no-cluster", dest="cluster", action="store_false")
+    project_group = p_galaxy.add_mutually_exclusive_group()
+    project_group.add_argument("--project")
+    project_group.add_argument("--all-projects", action="store_true")
     p_rebind = sub.add_parser("rebind")
     p_rebind.add_argument("url")
     sub.add_parser("alerts")
@@ -85,6 +88,10 @@ def main() -> int:
             payload["minTokens"] = args.min_tokens
         if args.cluster is not None:
             payload["cluster"] = args.cluster
+        if args.project is not None:
+            payload["project"] = args.project
+        if args.all_projects:
+            payload["project"] = None
     elif args.cmd == "rebind":
         payload = {"cmd": "rebind", "url": args.url}
     elif args.cmd == "raw":
