@@ -35,12 +35,8 @@ pub const NAV: &[NavItem] = &[
     NavItem { id: "dispatch", label: "Dispatch", icon: "icons/nav/dispatch.svg", key: "d" },
     NavItem { id: "lane",     label: "Lane",     icon: "icons/nav/lane.svg",     key: "l" },
     NavItem { id: "ledger",   label: "Cost",     icon: "icons/nav/ledger.svg",   key: "b" },
-    NavItem { id: "lineage",  label: "Lineage",  icon: "icons/nav/lineage.svg",  key: "g" },
-    NavItem { id: "substrate",label: "Substrate",icon: "icons/nav/substrate.svg",key: "y" },
     NavItem { id: "conductor",label: "Conductor",icon: "icons/nav/conductor.svg",key: "k" },
     NavItem { id: "daemons",  label: "Daemons",  icon: "icons/nav/daemons.svg",  key: "e" },
-    NavItem { id: "cloud-fleet", label: "Cloud Fleet", icon: "icons/nav/cloud-fleet.svg", key: "f" },
-    NavItem { id: "active-agents", label: "Agents", icon: "icons/nav/agents.svg", key: "a" },
     NavItem { id: "harbor",   label: "Harbor",   icon: "icons/nav/harbor.svg",   key: "r" },
 ];
 
@@ -51,10 +47,9 @@ pub const NAV: &[NavItem] = &[
 /// `grid_is_one_to_one_with_pane_slots` (below) pins it to [`NAV`]. Add a pane
 /// here, in [`NAV`], and in the producer — or the gate turns red. Order is
 /// load-bearing (slot index == NAV index == producer index).
-pub const SLOT_PANE_IDS: [&str; 17] = [
+pub const SLOT_PANE_IDS: [&str; 13] = [
     "fleet", "sorties", "claims", "planner", "activity", "sessions", "health",
-    "dispatch", "lane", "ledger", "lineage", "substrate", "conductor", "daemons",
-    "cloud-fleet", "active-agents", "harbor",
+    "dispatch", "lane", "ledger", "conductor", "daemons", "harbor",
 ];
 
 // ── Launcher-grid 1:1 invariants ────────────────────────────────────────────

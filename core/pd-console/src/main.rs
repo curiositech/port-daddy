@@ -8,7 +8,6 @@
 //! Run:  cargo run --bin pd-console
 //! REPL: cargo run --bin pd-console-repl
 
-mod active_agents_pane;
 mod activity_pane;
 mod agent;
 mod app;
@@ -18,7 +17,6 @@ mod buffer;
 mod chat;
 mod claims_pane;
 mod cli_args;
-mod cloud_fleet_pane;
 mod conductor_pane;
 mod conjure;
 mod daemon_pane;
@@ -34,27 +32,22 @@ mod harbor_pane;
 mod health_pane;
 mod lane_pane;
 mod ledger_pane;
-mod lineage_pane;
 mod maritime;
 mod mux;
 mod palette;
 mod pane;
 mod planner_pane;
-mod roadmap_pane;
 mod sessions_pane;
 mod sortie_pane;
-mod substrate_pane;
 mod term;
 mod theme;
 mod tokens;
 mod util;
 
-use active_agents_pane::ActiveAgentsPane;
 use activity_pane::ActivityPane;
 use agent::DaemonClient;
 use app::ConsoleView;
 use claims_pane::ClaimsPane;
-use cloud_fleet_pane::CloudFleetPane;
 use conductor_pane::ConductorPane;
 use daemon_pane::DaemonPane;
 use dispatch_pane::DispatchQueuePane;
@@ -63,14 +56,10 @@ use harbor_pane::HarborPane;
 use health_pane::HealthPane;
 use lane_pane::LanePane;
 use ledger_pane::LedgerPane;
-use lineage_pane::LineagePane;
 use pane::{OperatorTurn, Pane, SurfaceAction};
 use planner_pane::PlannerPane;
-#[allow(unused_imports)]
-use roadmap_pane::RoadmapPane;
 use sessions_pane::SessionsPane;
 use sortie_pane::SortiePane;
-use substrate_pane::SubstratePane;
 
 use cli_args::{parse_console_args, resolve_display_selector};
 use gpui::*;
@@ -363,13 +352,9 @@ fn main() {
                 let mut dispatch   = DispatchQueuePane::new(); // 7
                 let mut lane       = LanePane::new();          // 8 — the LIVE one
                 let mut ledger     = LedgerPane::new();        // 9 — the money
-                let mut lineage    = LineagePane::new();       // 10 — RCP-14 argument graph
-                let mut substrate  = SubstratePane::new();     // 11 — RCP-7a/12 pheromone substrate
-                let mut conductor  = ConductorPane::new();     // 12 — Fleet Conductor (ADR-0060)
-                let mut daemons    = DaemonPane::new();         // 13 — daemon picker (ADR-0084)
-                let mut cloud_fleet = CloudFleetPane::new();    // 14 — remote relay observability (Phase C)
-                let mut live_agents = ActiveAgentsPane::new();  // 15 — harness roster
-                let mut harbor     = HarborPane::new();         // 16 — Agent Node roster+detail (ch18 C3)
+                let mut conductor  = ConductorPane::new();     // 10 — Fleet Conductor (ADR-0060)
+                let mut daemons    = DaemonPane::new();         // 11 — daemon picker (ADR-0084)
+                let mut harbor     = HarborPane::new();         // 12 — Agent Node roster+detail (ch18 C3)
 
                 // Pin the producer slots to the canonical grid map. If a pane is
                 // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
@@ -380,8 +365,7 @@ fn main() {
                     [
                         fleet.id(), sorties.id(), claims.id(), roadmap.id(), activity.id(),
                         sessions.id(), health.id(), dispatch.id(), lane.id(), ledger.id(),
-                        lineage.id(), substrate.id(), conductor.id(), daemons.id(), cloud_fleet.id(),
-                        live_agents.id(), harbor.id(),
+                        conductor.id(), daemons.id(), harbor.id(),
                     ],
                     grid::SLOT_PANE_IDS,
                     "producer slot order drifted from grid::SLOT_PANE_IDS",
@@ -967,12 +951,8 @@ fn main() {
                     let _ = dispatch.refresh(&client).await;
                     let _ = lane.refresh(&client).await;
                     let _ = ledger.refresh(&client).await;
-                    let _ = lineage.refresh(&client).await;
-                    let _ = substrate.refresh(&client).await;
                     let _ = conductor.refresh(&client).await;
                     let _ = daemons.refresh(&client).await;
-                    let _ = cloud_fleet.refresh(&client).await;
-                    let _ = live_agents.refresh(&client).await;
                     let _ = harbor.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
@@ -1053,13 +1033,9 @@ fn main() {
                         (7,  dispatch.view()),
                         (8,  lane.view()),
                         (9,  ledger.view()),
-                        (10, lineage.view()),
-                        (11, substrate.view()),
-                        (12, conductor.view()),
-                        (13, daemons.view()),
-                        (14, cloud_fleet.view()),
-                        (15, live_agents.view()),
-                        (16, harbor.view()),
+                        (10, conductor.view()),
+                        (11, daemons.view()),
+                        (12, harbor.view()),
                     ];
 
                     if tx.send((all, dispatch.head())).is_err() {

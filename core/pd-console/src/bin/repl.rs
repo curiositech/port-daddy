@@ -23,7 +23,6 @@
 //! iterm2" — at the engine layer, runnable today.
 
 #[path = "../activity_pane.rs"]  mod activity_pane;
-#[path = "../active_agents_pane.rs"] mod active_agents_pane;
 #[path = "../agent.rs"]          mod agent;
 // Audio is GUI-only at runtime, but its synth/mute logic is pure and unit-tested
 // here (the headless repl is the test gate; the GPUI bin can't be `--test`-built).
@@ -38,8 +37,6 @@
 #[path = "../chat.rs"]           mod chat;
 #[path = "../daemon_pane.rs"]    mod daemon_pane; // daemon picker surface (tests)
 #[path = "../claims_pane.rs"]    mod claims_pane;
-// cloud_fleet_pane is GPUI-free (no maritime/gpui), so it compiles in this bin.
-#[path = "../cloud_fleet_pane.rs"] mod cloud_fleet_pane;
 #[allow(dead_code)]
 #[path = "../conjure.rs"]        mod conjure;
 #[path = "../dispatch_pane.rs"]  mod dispatch_pane;
@@ -63,26 +60,20 @@
 #[path = "../lane_pane.rs"]      mod lane_pane;
 #[allow(dead_code)]
 #[path = "../mux.rs"]            mod mux;
-#[path = "../lineage_pane.rs"]   mod lineage_pane;
 #[path = "../pane.rs"]           mod pane;
 #[path = "../planner_pane.rs"]   mod planner_pane;
-#[path = "../roadmap_pane.rs"]   mod roadmap_pane;
 #[path = "../sessions_pane.rs"]  mod sessions_pane;
-#[path = "../substrate_pane.rs"] mod substrate_pane;
 #[path = "../term.rs"]           mod term;
 #[path = "../theme.rs"]          mod theme;
 #[path = "../util.rs"]           mod util;
 
 use agent::{AgentManager, Backend};
-use active_agents_pane::ActiveAgentsPane;
 use anyhow::Result;
 use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
 use harbor_pane::HarborPane;
 use lane_pane::LanePane;
-use lineage_pane::LineagePane;
 use pane::{OperatorTurn, PaneRegistry, Subscription, SurfaceAction};
-use substrate_pane::SubstratePane;
 use std::io::{self, Write};
 use std::time::Duration;
 use term::{ColorMode, Sem, TermStyle};
@@ -155,9 +146,6 @@ async fn main() -> Result<()> {
     reg.register(Box::new(DispatchQueuePane::new()));
     reg.register(Box::new(FleetPane::new()));
     reg.register(Box::new(LanePane::new()));
-    reg.register(Box::new(LineagePane::new()));
-    reg.register(Box::new(SubstratePane::new()));
-    reg.register(Box::new(ActiveAgentsPane::new()));
     reg.register(Box::new(HarborPane::new()));
 
     let ok = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✓", Sem::Landed));
@@ -268,34 +256,6 @@ async fn main() -> Result<()> {
                     Ok(()) => ok(&style, &format!("{verb} queued — watch the control history")),
                     Err(e) => err(&style, &format!("{verb} refused: {e}")),
                 }
-            }
-            if let Some(p) = reg.active() {
-                print!("{}", term::render_blocks(&p.view(), &style));
-            }
-        } else if line == ":lineage" {
-            // RCP-14 discourse argument graph for PD_LINEAGE_CHANNEL (default
-            // "discourse"). Refresh + render one tick of the lineage surface.
-            reg.active = reg.panes.iter().position(|p| p.id() == "lineage").unwrap_or(0);
-            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
-                err(&style, &format!("refresh failed: {e}"));
-            }
-            if let Some(p) = reg.active() {
-                print!("{}", term::render_blocks(&p.view(), &style));
-            }
-        } else if line == ":substrate" {
-            // RCP-7a/12 pheromone substrate — coverage + active signals (raw →
-            // effective). Refresh + render one tick of the substrate surface.
-            reg.active = reg.panes.iter().position(|p| p.id() == "substrate").unwrap_or(0);
-            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
-                err(&style, &format!("refresh failed: {e}"));
-            }
-            if let Some(p) = reg.active() {
-                print!("{}", term::render_blocks(&p.view(), &style));
-            }
-        } else if line == ":roster" || line == ":live-agents" {
-            reg.active = reg.panes.iter().position(|p| p.id() == "active-agents").unwrap_or(0);
-            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
-                err(&style, &format!("refresh failed: {e}"));
             }
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
