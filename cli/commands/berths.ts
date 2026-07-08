@@ -14,10 +14,9 @@
  * berths are recorded in `~/.port-daddy/dev-daemons.json`.
  */
 
-import { existsSync, mkdirSync, writeFileSync, rmSync, readdirSync } from 'node:fs';
+import { existsSync, rmSync, readdirSync } from 'node:fs';
 import { join, resolve, isAbsolute, basename } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
-import { PD_HOME } from '../../shared/paths.js';
 import { DEFAULT_DAEMON_PORT } from '../../shared/daemon-discovery.js';
 import {
   BERTH_COLORS,
@@ -26,8 +25,10 @@ import {
   DEV_LATEST_PORT,
   classifyBerth,
   describeVerdict,
+  pruneDaemonBerthRegistry,
   resolveBerthTargetUrl,
   shouldReap,
+  writeDaemonBerthRegistry,
   type BerthTier,
   type BerthVerdict,
   type DevDaemonRecord,
@@ -50,22 +51,12 @@ import type { CLIOptions } from '../types.js';
 // <root>/dist/... when bundled. The binary build script lives at the repo root.
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 
-/** Registry of running dev/codebase berths. The stable brew berth is never here. */
-const REGISTRY_FILE = join(PD_HOME, 'dev-daemons.json');
-
+// Registry read/write/prune now lives in shared/daemon-berths.ts (the
+// daemon itself writes here too, at boot — see registerDaemonBerth). These
+// are thin local aliases so the ~10 call sites below don't need renaming.
 const readRegistry = readDevDaemonRegistry;
-
-function writeRegistry(records: DevDaemonRecord[]): void {
-  mkdirSync(PD_HOME, { recursive: true, mode: 0o700 });
-  writeFileSync(REGISTRY_FILE, `${JSON.stringify(records, null, 2)}\n`, { mode: 0o600 });
-}
-
-/** Prune records whose pid is gone. Returns the live set (and persists it). */
-function pruneRegistry(): DevDaemonRecord[] {
-  const live = readRegistry().filter((r) => isProcessRunning(r.pid));
-  writeRegistry(live);
-  return live;
-}
+const writeRegistry = writeDaemonBerthRegistry;
+const pruneRegistry = pruneDaemonBerthRegistry;
 
 // ---------------------------------------------------------------------------
 // Garbage collection — reap dead / orphaned / idle berths and free their state
