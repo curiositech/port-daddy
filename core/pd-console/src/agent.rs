@@ -239,6 +239,32 @@ pub struct TubeMsg {
     pub text: String,
 }
 
+impl TubeMsg {
+    /// Parse one message from a `GET /msg/:channel/subscribe` SSE `data:` object.
+    ///
+    /// The daemon (routes/messaging.ts → lib/messaging.ts) pushes each published
+    /// message as `{ id, channel, payload, contentType, sender, createdAt }`, where
+    /// `payload` is a bare string or `{text|content:...}` (a `tube_send` wraps its
+    /// text as `{text:...}`). Returns `None` for the first `event: connected`
+    /// handshake (`{channel:...}`, no `payload`) and any `event: timeout` frame, so
+    /// the caller simply skips those — mirroring [`StreamEnvelope::from_value`]'s
+    /// tolerance so a schema drift can never kill the channel lane.
+    pub fn from_value(v: &serde_json::Value) -> Option<TubeMsg> {
+        // The handshake/timeout frames carry no `payload`; that is the signal this
+        // is not a real message (an actual empty payload is rejected daemon-side).
+        let payload = v.get("payload")?;
+        Some(TubeMsg {
+            id: v.get("id").and_then(|i| i.as_u64()).unwrap_or(0),
+            sender: v
+                .get("sender")
+                .and_then(|s| s.as_str())
+                .unwrap_or("?")
+                .to_string(),
+            text: extract_text(Some(payload)),
+        })
+    }
+}
+
 /// Per-spawn options that ride alongside the four positional `spawn` args.
 ///
 /// Today this carries exactly one knob — `inject_squid_hooks` — but it is a
@@ -255,10 +281,18 @@ pub struct TubeMsg {
 /// pheromone hooks inside Claude Code's own loop (Claude Max Prime). codex /
 /// gemini remain validate-then-add: their squid adapters throw, so the flag is a
 /// no-op there until those adapters are written.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct SpawnOpts {
     /// Inject the Giant Squid pd-hook tentacles for this spawn (default false).
     pub inject_squid_hooks: bool,
+    /// Explicit workdir for this spawn. When `Some`, [`build_spawn_body`] emits it
+    /// as the `workdir` field verbatim (overriding the `PD_CONSOLE_WORKDIR` env
+    /// fallback). The console-chat responder sets this to a dedicated ephemeral
+    /// worktree (see [`resolve_console_chat_workdir`]) so the daemon's main-checkout
+    /// isolation guard (`assessSpawnIsolation`) is SATISFIED, not bypassed — a bare
+    /// spawn used to omit workdir and bounce off that guard, so no responder ever
+    /// bound and the operator chat stayed silent.
+    pub workdir: Option<String>,
 }
 
 impl SpawnOpts {
@@ -268,6 +302,7 @@ impl SpawnOpts {
     pub fn squid() -> Self {
         SpawnOpts {
             inject_squid_hooks: true,
+            ..Default::default()
         }
     }
 }
@@ -442,6 +477,19 @@ async fn ensure_success(resp: reqwest::Response, op: &str) -> Result<reqwest::Re
     }
 }
 
+/// Whether an SSE (re)connect that came back with `status` should be RETRIED
+/// (transient) rather than abandoned (permanent). A `429 Too Many Requests` — the
+/// messaging route's connection-limit, which ships a `Retry-After` (routes/messaging.ts) —
+/// and any `5xx` (the daemon restarting, e.g. a freshness self-heal) are transient:
+/// backing off and reconnecting recovers the lane. Any other non-2xx (a `400`
+/// invalid channel, a `404` unknown agent) is permanent — retrying it just spins.
+/// Pure + unit-tested so the reconnect policy is a checked contract, not folklore
+/// buried in a match arm (the bug: treating *every* non-2xx as permanent killed the
+/// live lane forever on a transient blip).
+fn sse_status_is_retryable(status: reqwest::StatusCode) -> bool {
+    status == reqwest::StatusCode::TOO_MANY_REQUESTS || status.is_server_error()
+}
+
 impl DaemonClient {
     pub fn discover() -> Result<Self> {
         // Resolution order, highest priority first:
@@ -481,10 +529,23 @@ impl DaemonClient {
 
     /// Construct a client against an already-resolved base URL (e.g. the value
     /// `discover().base()` returned, handed to a background refresh thread).
+    ///
+    /// Timeouts are load-bearing: the producer thread awaits ~26 pane
+    /// refreshes SERIALLY per 2s cycle, and `update_panes` (which dismisses
+    /// the launch splash) only fires after a full cycle. With reqwest's
+    /// default (no timeout), a single blackholed endpoint wedged the console
+    /// on "connecting…" forever. Bounded here, a hung endpoint costs one
+    /// pane's refresh ("daemon unreachable: … timed out"), never the console.
+    /// The Lane's SSE stream shares this client — `subscribe_agent` overrides
+    /// the total deadline per-request, so only connect_timeout governs it.
     pub fn new(base: String) -> Self {
         Self {
             base: base.trim_end_matches('/').to_string(),
-            http: reqwest::Client::new(),
+            http: reqwest::Client::builder()
+                .connect_timeout(std::time::Duration::from_secs(3))
+                .timeout(std::time::Duration::from_secs(15))
+                .build()
+                .expect("reqwest client with static config cannot fail to build"),
         }
     }
 
@@ -551,6 +612,150 @@ impl DaemonClient {
         // reported to the operator as a delivered message.
         ensure_success(resp, "tube_send").await?;
         Ok(())
+    }
+
+    /// Broadcast one Harbor Editor **presence** frame (slice 2) up a file's tube
+    /// channel. Same wire as [`tube_send`](Self::tube_send) — presence rides the
+    /// SAME per-file channel as the op stream — but stamped with a distinct
+    /// `sender` so a receiver's own-echo filter and any log reader can tell the
+    /// lossy cursor lane apart from operator/agent chatter. `frame_text` is what
+    /// [`crate::editor_pane::EditorPane::take_presence_broadcast`] returns.
+    pub async fn send_presence(&self, channel: &str, frame_text: &str) -> Result<()> {
+        self.tube_send(channel, frame_text, "presence").await
+    }
+
+    // ── Harbor Editor P2 slice 3: durability + channel isolation ──────────────
+
+    /// Store a doc **snapshot** in the daemon's content-addressed `/blob` store and
+    /// return its content address (`sha256(body)` hex). REUSES routes/blob.ts as-is:
+    /// `POST /blob` with the raw bytes takes the body, hashes it server-side, and
+    /// returns `{ blob: { id, size, ... } }` — so the returned `id` IS the content
+    /// address (no client-side crypto dep). `bytes` is [`crate::buffer::HarborBuffer::export_snapshot`].
+    /// The id then rides an [`crate::editor_sync::encode_snapshot_frame`] up the edit
+    /// lane so a behind peer can fetch it.
+    pub async fn put_blob(&self, bytes: Vec<u8>) -> Result<String> {
+        let resp = self
+            .http
+            .post(format!("{}/blob", self.base))
+            // A non-JSON content-type routes to blob.ts's wildcard raw-body parser,
+            // which preserves the exact bytes (a JSON content-type would re-encode).
+            .header("content-type", "application/octet-stream")
+            .body(bytes)
+            .send()
+            .await
+            .context("POST /blob")?;
+        let resp = ensure_success(resp, "put_blob").await?;
+        let v: serde_json::Value = resp.json().await.context("blob put response")?;
+        parse_blob_id(&v).ok_or_else(|| anyhow!("POST /blob returned no blob id: {v}"))
+    }
+
+    /// Fetch a snapshot blob back by its content address (`GET /blob/:id`). Returns
+    /// the raw bytes for [`crate::buffer::HarborBuffer::apply_remote_ops`] to import.
+    /// A 404 (blob evicted) surfaces as an error rather than empty bytes.
+    pub async fn get_blob(&self, id: &str) -> Result<Vec<u8>> {
+        let resp = self
+            .http
+            .get(format!("{}/blob/{id}", self.base))
+            .send()
+            .await
+            .context("GET /blob/:id")?;
+        let resp = ensure_success(resp, "get_blob").await?;
+        let bytes = resp.bytes().await.context("blob body")?;
+        Ok(bytes.to_vec())
+    }
+
+    /// Broadcast a snapshot **reference** frame up a file's EDIT-lane channel
+    /// ([`crate::editor_sync::channel_for_path`]). Same wire as [`tube_send`](Self::tube_send),
+    /// stamped `sender = "snapshot"` so a log reader can tell the durability lane
+    /// apart. `frame_text` is [`crate::editor_sync::encode_snapshot_frame`].
+    pub async fn broadcast_snapshot_ref(&self, channel: &str, frame_text: &str) -> Result<()> {
+        self.tube_send(channel, frame_text, "snapshot").await
+    }
+
+    /// Append one op-log delta to the durable, immutable op-log via `POST /notes`
+    /// (REUSING [`add_note`](Self::add_note) — notes are write-once, exactly what a
+    /// replayable audit log needs). `note_content` is
+    /// [`crate::editor_sync::encode_oplog_note`]. Isolation note: this is a `/notes`
+    /// write, wholly off BOTH tube lanes — the durable log never competes with live
+    /// doc-ops or coordination for tube bandwidth.
+    pub async fn log_oplog_delta(&self, note_content: &str) -> Result<()> {
+        self.add_note(note_content).await
+    }
+
+    /// Send a coordination-control-plane signal (claim acquire/release, conflict
+    /// predicted) up a file's **coordination** channel
+    /// ([`crate::editor_sync::coordination_channel_for_path`]) — a SEPARATE tube
+    /// channel from the edit lane, so a keystroke burst on the edit channel cannot
+    /// starve this latency-sensitive lane (the ref-03 §3 isolation contract; proven
+    /// structurally by `editor_sync::LaneQueues`). `frame_text` is
+    /// [`crate::editor_sync::encode_coord_frame`]; stamped `sender = "coord"`.
+    pub async fn send_coord_signal(&self, coord_channel: &str, frame_text: &str) -> Result<()> {
+        self.tube_send(coord_channel, frame_text, "coord").await
+    }
+
+    /// Broadcast a **region-claim awareness** frame (P3 slice 1) up a file's
+    /// **coordination** channel — the live presence-as-claims lane. `frame_text` is
+    /// [`crate::editor_claims::encode_claim_frame`] (a Loro awareness blob). Rides the
+    /// SAME isolated coordination channel as [`send_coord_signal`](Self::send_coord_signal)
+    /// (never the edit lane), stamped `sender = "claim"` so a poller can tell claim
+    /// awareness from a coord signal without decoding. This is the LIVE view; the
+    /// DURABLE twin is [`claim_region`](Self::claim_region).
+    pub async fn broadcast_claim(&self, coord_channel: &str, frame_text: &str) -> Result<()> {
+        self.tube_send(coord_channel, frame_text, "claim").await
+    }
+
+    /// Mirror an editor's local SELECTION into the durable claims table — the
+    /// stronger, persistent "I am working here" signal that outlives the ephemeral
+    /// cursor lane. This REUSES the exact endpoint `pd session files add` /
+    /// `POST /sessions/:id/files` drives (a region reservation), rather than
+    /// inventing a parallel presence store: the claim shows up in `/files`, the
+    /// claims pane, and conflict prediction like any other region claim.
+    ///
+    /// `start_line`/`end_line` are 1-based inclusive (the route's `startLine`/
+    /// `endLine` contract). `agent_id` attributes the claim to the acting replica's
+    /// PD identity. A 4xx/5xx (unknown session, conflict without force) surfaces as
+    /// an error rather than a silent no-op.
+    pub async fn claim_region(
+        &self,
+        session_id: &str,
+        path: &str,
+        start_line: u32,
+        end_line: u32,
+        agent_id: &str,
+    ) -> Result<()> {
+        let body = region_claim_body(path, start_line, end_line, agent_id);
+        let resp = self
+            .http
+            .post(format!("{}/sessions/{session_id}/files", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /sessions/:id/files")?;
+        ensure_success(resp, "claim_region").await?;
+        Ok(())
+    }
+
+    /// Predict conflicts between two claim sets — the Harbor Editor P3 **wedge**
+    /// (conflict prediction *before a byte is written*). REUSES the daemon's existing
+    /// `POST /conflicts/predict` (routes/symbols.ts) and its claim-type matrix rather
+    /// than re-deriving conflict logic in Rust: `body` is
+    /// [`crate::editor_wedge::predict_request_body`] (`{ claimsA, claimsB }`), and the
+    /// caller folds the JSON back through [`crate::editor_wedge::parse_predict_response`]
+    /// into a `ConflictReport`. Returns the raw response Value so the tolerant parser
+    /// owns both the full-tally and empty-early-return shapes. A 4xx/5xx surfaces as an
+    /// error (the parser then reads it as quiet — the render band fails open; the
+    /// durable commit gate is the fail-closed seam).
+    pub async fn predict_conflicts(&self, body: &serde_json::Value) -> Result<serde_json::Value> {
+        let resp = self
+            .http
+            .post(format!("{}/conflicts/predict", self.base))
+            .json(body)
+            .send()
+            .await
+            .context("POST /conflicts/predict")?;
+        let resp = ensure_success(resp, "predict_conflicts").await?;
+        let v: serde_json::Value = resp.json().await.context("conflicts/predict response")?;
+        Ok(v)
     }
 
     /// Pull replies after `cursor`. Returns (new_cursor, messages).
@@ -673,6 +878,39 @@ impl DaemonClient {
             .context("POST /notes")?;
         ensure_success(resp, "add_note").await?;
         Ok(())
+    }
+
+    /// Convene an operator parley: `POST /parley/call`. `parties` are AGENT ids
+    /// (`fleet_transcripts.spawned_agent_id` — never transcript/session ids;
+    /// parley DMs each party via its agent inbox) and the daemon 400s below 2
+    /// distinct ids, so callers gate the affordance client-side too. Returns the
+    /// parsed body so the caller can surface `parley.parleyId` / `channel`; a
+    /// non-2xx surfaces the daemon's rejection verbatim through
+    /// [`ensure_success`] (the alert bus shows it, never a silent swallow).
+    pub async fn call_parley(
+        &self,
+        surface: &str,
+        reason: &str,
+        called_by: &str,
+        parties: &[String],
+    ) -> Result<serde_json::Value> {
+        let body = serde_json::json!({
+            "surface": surface,
+            "reason": reason,
+            "calledBy": called_by,
+            "parties": parties,
+            "trigger": "operator",
+        });
+        let resp = self
+            .http
+            .post(format!("{}/parley/call", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /parley/call")?;
+        let resp = ensure_success(resp, "parley call").await?;
+        let v: serde_json::Value = resp.json().await.context("parley call response")?;
+        Ok(v)
     }
 
     /// Begin a coordination session: `POST /sugar/begin`. The daemon REQUIRES a
@@ -878,14 +1116,25 @@ impl DaemonClient {
             let mut backoff = Duration::from_millis(500);
             const MAX_BACKOFF: Duration = Duration::from_secs(10);
             loop {
-                let mut req = http.get(&url);
+                // Long-lived SSE: override the client's 15s total-request
+                // deadline (which exists to keep pane refreshes from wedging
+                // the console) — only connect_timeout should govern a stream.
+                let mut req = http.get(&url).timeout(Duration::from_secs(60 * 60 * 24));
                 if let Some(id) = &last_id {
                     req = req.header("Last-Event-ID", id.as_str());
                 }
                 let resp = match req.send().await {
                     Ok(r) if r.status().is_success() => r,
-                    // 404 = unknown agent: nothing will ever stream, so stop
-                    // (don't spin reconnecting against a permanent error).
+                    // A 429 (rate-limit Retry-After) or 5xx (daemon restarting) is
+                    // TRANSIENT — back off and retry so a momentary hiccup can't
+                    // kill the live lane forever.
+                    Ok(r) if sse_status_is_retryable(r.status()) => {
+                        sleep(backoff).await;
+                        backoff = (backoff * 2).min(MAX_BACKOFF);
+                        continue;
+                    }
+                    // Any other 4xx (404 = unknown agent) is permanent: nothing will
+                    // ever stream, so stop (don't spin against a permanent error).
                     Ok(_) => return,
                     Err(_) => {
                         // Connection failure — back off and retry (daemon may be
@@ -932,6 +1181,87 @@ impl DaemonClient {
         });
         rx
     }
+
+    /// Open the live SSE feed for a pub/sub tube channel
+    /// (`GET /msg/:channel/subscribe`) and yield each published [`TubeMsg`] on an
+    /// mpsc channel. This is the Harbor Editor's LAN-multiplayer receive path (P2
+    /// slice 1): the per-file channel is [`crate::editor_sync::channel_for_path`],
+    /// and each `TubeMsg::text` is a Loro op frame the caller folds into a buffer
+    /// via [`crate::editor_sync::decode_frame`] + `apply_frame`.
+    ///
+    /// Structurally identical to [`subscribe_agent`](Self::subscribe_agent) — same
+    /// resumable, self-healing loop (capped backoff + `Last-Event-ID` resume), same
+    /// `SseParser`, same "receiver dropped → stop" contract — differing only in the
+    /// URL and that it parses the messaging frame shape (`TubeMsg::from_value`)
+    /// instead of the agent envelope. The frames are handed over a
+    /// `tokio::sync::mpsc` channel (NOT a shared `Arc<Mutex<_>>`): the background
+    /// task owns the HTTP body, the render loop drains via `try_recv` — the one
+    /// safe hand-off across the SSE→render seam.
+    pub fn subscribe_channel(&self, channel: &str) -> tokio::sync::mpsc::Receiver<TubeMsg> {
+        let (tx, rx) = tokio::sync::mpsc::channel::<TubeMsg>(256);
+        let url = format!("{}/msg/{channel}/subscribe", self.base);
+        let http = self.http.clone();
+        tokio::spawn(async move {
+            use futures_util::StreamExt;
+            use tokio::time::{sleep, Duration};
+            let mut last_id: Option<String> = None;
+            let mut backoff = Duration::from_millis(500);
+            const MAX_BACKOFF: Duration = Duration::from_secs(10);
+            loop {
+                let mut req = http.get(&url);
+                if let Some(id) = &last_id {
+                    req = req.header("Last-Event-ID", id.as_str());
+                }
+                let resp = match req.send().await {
+                    Ok(r) if r.status().is_success() => r,
+                    // A 429 (connection-limit Retry-After) or 5xx (daemon restarting)
+                    // is TRANSIENT — back off and retry so a momentary rate-limit or
+                    // server hiccup can't kill the editor lane forever.
+                    Ok(r) if sse_status_is_retryable(r.status()) => {
+                        sleep(backoff).await;
+                        backoff = (backoff * 2).min(MAX_BACKOFF);
+                        continue;
+                    }
+                    // Any other 4xx (invalid channel) is permanent: nothing will
+                    // ever stream, so stop rather than spin against it.
+                    Ok(_) => return,
+                    Err(_) => {
+                        sleep(backoff).await;
+                        backoff = (backoff * 2).min(MAX_BACKOFF);
+                        continue;
+                    }
+                };
+                backoff = Duration::from_millis(500); // reset on a healthy connect
+                let mut parser = SseParser::new();
+                let mut body = resp.bytes_stream();
+                while let Some(chunk) = body.next().await {
+                    let bytes = match chunk {
+                        Ok(b) => b,
+                        Err(_) => break, // stream error — fall through to reconnect
+                    };
+                    let text = String::from_utf8_lossy(&bytes);
+                    for data in parser.feed(&text) {
+                        if let Some(id) = parser.last_id() {
+                            last_id = Some(id.to_string());
+                        }
+                        let val: serde_json::Value = match serde_json::from_str(&data) {
+                            Ok(v) => v,
+                            Err(_) => continue, // skip a malformed frame, keep streaming
+                        };
+                        if let Some(msg) = TubeMsg::from_value(&val) {
+                            if tx.send(msg).await.is_err() {
+                                return; // receiver dropped (pane closed/retargeted)
+                            }
+                        }
+                    }
+                }
+                // EOF/error without the receiver dropping: reconnect with backoff.
+                sleep(backoff).await;
+                backoff = (backoff * 2).min(MAX_BACKOFF);
+            }
+        });
+        rx
+    }
 }
 
 /// Pull readable text from a stream-envelope `body` (or any payload value):
@@ -939,6 +1269,45 @@ impl DaemonClient {
 /// `agent.tube` frames into a line without re-implementing the shape walk.
 pub fn body_text(body: &serde_json::Value) -> String {
     extract_text(Some(body))
+}
+
+/// Build the `POST /sessions/:id/files` body that mirrors an editor selection into
+/// a durable region claim. Kept as a pure function so the shape is a checked
+/// contract (in `region_claim_body_matches_the_sessions_files_region_schema`)
+/// against the route's `regions: [{ path, startLine, endLine }]` schema (1-based
+/// inclusive lines) without needing a live daemon. `agentId` attributes the claim
+/// to the acting replica.
+///
+/// `allow(dead_code)`: its caller [`DaemonClient::claim_region`] is a `pub` method
+/// (exempt from the lint) that is not yet invoked from `main.rs` — the same
+/// not-yet-live status the slice-1 receive path had. The test exercises it.
+#[allow(dead_code)]
+fn region_claim_body(path: &str, start_line: u32, end_line: u32, agent_id: &str) -> serde_json::Value {
+    serde_json::json!({
+        "regions": [{
+            "path": path,
+            "startLine": start_line,
+            "endLine": end_line,
+        }],
+        "agentId": agent_id,
+    })
+}
+
+/// Pull the content-addressed blob id out of a `POST /blob` response
+/// (`{ success, blob: { id, size, ... } }`, per routes/blob.ts). Kept pure so the
+/// response shape is a checked contract (see `parse_blob_id_reads_the_blob_stat_id`)
+/// without a live daemon. Tolerates a bare `{ id }` too, but never invents an id.
+///
+/// `allow(dead_code)`: its caller [`DaemonClient::put_blob`] is a `pub` method
+/// (exempt from the lint) that is not yet invoked from `main.rs` — the same
+/// not-yet-live status the slice-1 receive path had. The test exercises it.
+#[allow(dead_code)]
+fn parse_blob_id(v: &serde_json::Value) -> Option<String> {
+    v.get("blob")
+        .and_then(|b| b.get("id"))
+        .or_else(|| v.get("id"))
+        .and_then(|id| id.as_str())
+        .map(String::from)
 }
 
 /// A payload may be a string, `{text:...}`, or `{content:...}` — pull readable text.
@@ -963,6 +1332,150 @@ pub struct SpawnOutcome {
     pub status: String,
     pub output: Option<String>,
     pub error: Option<String>,
+}
+
+/// Error resolving a workdir for the console-chat responder. Its message is shown
+/// VERBATIM in the chat pane, so it must name an ACTIONABLE cause (which directory,
+/// which IO failure) instead of collapsing into a bare "spawn refused".
+#[derive(Debug)]
+pub struct ChatWorkdirError(pub String);
+
+impl std::fmt::Display for ChatWorkdirError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+impl std::error::Error for ChatWorkdirError {}
+
+/// The git repo the console is running in, if any (`git rev-parse --show-toplevel`).
+/// Returns `None` when the console is launched outside a checkout (the production
+/// case — an installed binary), which is not an error: the responder then gets a
+/// plain scratch dir instead of a linked worktree.
+fn git_toplevel() -> Option<std::path::PathBuf> {
+    let out = std::process::Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let path = String::from_utf8(out.stdout).ok()?.trim().to_string();
+    if path.is_empty() {
+        None
+    } else {
+        Some(std::path::PathBuf::from(path))
+    }
+}
+
+/// Resolve the workdir the console-chat responder should run in, GUARANTEEING a
+/// path the daemon's isolation guard (`assessSpawnIsolation`, lib/spawner.ts)
+/// accepts — i.e. never a repository main checkout. Before this existed, a bare
+/// `POST /spawn` omitted `workdir`, the daemon defaulted it to its own main
+/// checkout, the guard blocked it, and NO responder ever bound → the operator chat
+/// was silent. This makes the guard SATISFIED, not bypassed (we never touch the
+/// `PD_SPAWN_ISOLATION_OFF` escape hatch).
+///
+/// Precedence:
+///   1. `PD_CONSOLE_WORKDIR`, if set & non-empty — honour the operator override.
+///   2. A dedicated ephemeral **git worktree** under `~/coding/tmp/pd-console-chat/<id>`,
+///      detached off the console's own repo HEAD. A linked worktree's `.git` is a
+///      FILE, so `detectGitCheckout` reads 'worktree' (allowed) and any file the
+///      responder writes stays isolated & disposable.
+///   3. When the console is NOT inside a git repo (nothing to check out) or the
+///      worktree add fails, a plain **scratch directory** at the same path. With no
+///      `.git` the guard reads 'none' (allowed) — the read-only posture the guard
+///      legitimately exempts. A conversational responder writes nothing to a repo;
+///      if the operator asks it to, writes land in this disposable dir, never a
+///      shared checkout (the exact clobber the guard exists to prevent).
+///
+/// Only a genuine filesystem failure (can't create the dir at all) is fatal; it
+/// returns a [`ChatWorkdirError`] the caller renders as an actionable chat error.
+///
+/// NEVER `/tmp` — macOS purges it on a timer and reboot. Always `~/coding/tmp`.
+pub fn resolve_console_chat_workdir() -> std::result::Result<String, ChatWorkdirError> {
+    // 1. Operator override wins.
+    if let Ok(wd) = std::env::var("PD_CONSOLE_WORKDIR") {
+        if !wd.trim().is_empty() {
+            return Ok(wd);
+        }
+    }
+
+    let home = dirs::home_dir().ok_or_else(|| {
+        ChatWorkdirError(
+            "cannot resolve $HOME to place a chat worktree; set PD_CONSOLE_WORKDIR \
+             to an existing worktree instead"
+                .into(),
+        )
+    })?;
+    let root = home.join("coding/tmp/pd-console-chat");
+    make_chat_workdir(&root, git_toplevel().as_deref())
+}
+
+/// Create a dedicated, NON-main workdir under `root`: a linked git worktree off
+/// `base_repo` when one is given (`.git` is a FILE → `detectGitCheckout` reads
+/// 'worktree'), else a plain scratch dir (no `.git` → reads 'none'). Either way
+/// `assessSpawnIsolation` accepts it. Pure w.r.t. env, so unit tests drive it with
+/// a temp repo + temp root and NO live daemon. The sole production caller roots it
+/// under `~/coding/tmp` — NEVER `/tmp` (macOS purges that).
+fn make_chat_workdir(
+    root: &std::path::Path,
+    base_repo: Option<&std::path::Path>,
+) -> std::result::Result<String, ChatWorkdirError> {
+    // Per-responder id: pid + a nanosecond stamp. Unique enough for one operator's
+    // console; avoids colliding with a stale directory from a prior run.
+    let id = format!(
+        "{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    );
+    let dest = root.join(&id);
+
+    // Prefer a real linked worktree off the base repo, when we have one.
+    if let Some(repo) = base_repo {
+        std::fs::create_dir_all(root).map_err(|e| {
+            ChatWorkdirError(format!(
+                "couldn't create the chat-worktree root {}: {e}. Set \
+                 PD_CONSOLE_WORKDIR to an existing worktree, or ensure ~/coding/tmp \
+                 is writable.",
+                root.display()
+            ))
+        })?;
+        // `--detach` off HEAD: an isolated checkout with NO new branch (throwaway
+        // conversational worktree — no branch pollution, no re-run name collision,
+        // and no rebase/commit replay, so the coordination-guard pre-commit hook
+        // never fires here).
+        let out = std::process::Command::new("git")
+            .current_dir(repo)
+            .args(["worktree", "add", "--detach"])
+            .arg(&dest)
+            .arg("HEAD")
+            .output();
+        if let Ok(o) = out {
+            if o.status.success() {
+                return Ok(dest.to_string_lossy().into_owned());
+            }
+            // else: bare repo / locked index / etc. Fall through to the scratch
+            // posture, which still binds a responder and keeps writes isolated.
+        }
+    }
+
+    // Scratch dir (read-only posture; `detectGitCheckout` reads 'none'). Wipe
+    // `dest` first: a `git worktree add` that failed AFTER creating the target
+    // could leave a partial `.git` behind, and a stale checkout there would make
+    // the guard misread the posture — defeating the isolation fix on the error
+    // path. A clean, empty dir guarantees 'none'. (Ignore a not-found error.)
+    let _ = std::fs::remove_dir_all(&dest);
+    std::fs::create_dir_all(&dest).map_err(|e| {
+        ChatWorkdirError(format!(
+            "couldn't create a chat workdir at {}: {e}. Set PD_CONSOLE_WORKDIR to an \
+             existing worktree, or ensure ~/coding/tmp is writable.",
+            dest.display()
+        ))
+    })?;
+    Ok(dest.to_string_lossy().into_owned())
 }
 
 /// Build the `POST /spawn` request body. Factored out of [`DaemonClient::spawn`]
@@ -1001,8 +1514,20 @@ pub fn build_spawn_body(
         body["model"] = serde_json::json!(m);
     }
     // Worktree isolation: the daemon refuses to run an agent in a main
-    // checkout. Pass an operator-provided worktree.
-    if let Ok(wd) = std::env::var("PD_CONSOLE_WORKDIR") {
+    // checkout (`assessSpawnIsolation` in lib/spawner.ts). An explicit
+    // `opts.workdir` wins (the console-chat responder resolves its own dedicated
+    // ephemeral worktree — see `resolve_console_chat_workdir`); otherwise fall
+    // back to the operator-provided `PD_CONSOLE_WORKDIR`. Emitting NEITHER is what
+    // let a bare spawn default to the daemon's own main checkout and bounce.
+    if let Some(wd) = opts.workdir.as_deref().filter(|w| !w.trim().is_empty()) {
+        body["workdir"] = serde_json::json!(wd);
+    } else if let Some(wd) = std::env::var("PD_CONSOLE_WORKDIR")
+        .ok()
+        .filter(|w| !w.trim().is_empty())
+    {
+        // Same non-empty guard as the opts branch: a set-but-blank env var must NOT
+        // emit an empty `workdir` (routes/spawn.ts rejects it, and it would surface
+        // as a confusing daemon error rather than the clean default posture).
         body["workdir"] = serde_json::json!(wd);
     }
     // Giant Squid Harness opt-in (ADR-0091): only emit the flag when set, so a
@@ -1382,6 +1907,158 @@ mod tests {
         assert!(!SpawnOpts::default().inject_squid_hooks);
     }
 
+    // ── Console-chat responder workdir (the silent-chat fix) ──────────────────
+    //
+    // The bug: the ChatSend spawn omitted `workdir`, so the daemon defaulted it to
+    // its own MAIN checkout and `assessSpawnIsolation` (lib/spawner.ts) blocked the
+    // spawn — no responder ever bound, the operator chat stayed silent. The fix
+    // gives the responder a dedicated, NON-main workdir. These tests prove the
+    // ChatSend body now carries such a workdir — no live daemon needed.
+    //
+    // We mirror the guard's OWN predicate here: `detectGitCheckout` reads a `.git`
+    // DIRECTORY as 'main' (blocked) and a `.git` FILE (linked worktree) or NO `.git`
+    // as 'worktree'/'none' (allowed). So "assessSpawnIsolation returns allowed" ==
+    // "the workdir's `.git` is not a directory".
+
+    /// A unique scratch root under ~/coding/tmp (NEVER /tmp — macOS purges it).
+    fn chat_test_scratch(tag: &str) -> std::path::PathBuf {
+        let base = dirs::home_dir()
+            .expect("home dir")
+            .join("coding/tmp/pd-console-chat-tests");
+        let uniq = format!(
+            "{tag}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        );
+        base.join(uniq)
+    }
+
+    /// True when `assessSpawnIsolation` would ACCEPT this workdir: its `.git` (if any)
+    /// is NOT a directory. (A bare non-git dir has none → 'none'; a linked worktree
+    /// has a `.git` FILE → 'worktree'. Only a `.git` dir is a blocked main checkout.)
+    fn guard_would_allow(workdir: &std::path::Path) -> bool {
+        !workdir.join(".git").is_dir()
+    }
+
+    #[test]
+    fn chat_send_body_carries_explicit_workdir_over_env() {
+        // The console resolves a dedicated workdir and passes it via SpawnOpts. The
+        // body must emit it VERBATIM as `workdir`, and it must win over any ambient
+        // PD_CONSOLE_WORKDIR (opts is the console's resolved decision).
+        let wd = "/Users/agent/coding/tmp/pd-console-chat/12345-678";
+        let body = build_spawn_body(
+            Backend::ClaudeCli,
+            "what does this function do?",
+            "console-chat",
+            None,
+            SpawnOpts {
+                workdir: Some(wd.to_string()),
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            body.get("workdir").and_then(|v| v.as_str()),
+            Some(wd),
+            "ChatSend body must carry the resolved workdir so the daemon does not \
+             default to its own main checkout"
+        );
+        // It targets the console-chat channel (the responder's tube).
+        assert_eq!(
+            body.get("tubeChannel").and_then(|v| v.as_str()),
+            Some("console-chat")
+        );
+    }
+
+    #[test]
+    fn make_chat_workdir_scratch_posture_is_guard_allowed() {
+        // No base repo → the read-only scratch posture: a plain dir with no `.git`.
+        // `detectGitCheckout` reads 'none' → assessSpawnIsolation ALLOWS it, and it
+        // is NOT the daemon's main checkout. Fully hermetic (no git invoked).
+        let root = chat_test_scratch("scratch");
+        let workdir = make_chat_workdir(&root, None).expect("scratch workdir");
+        let p = std::path::Path::new(&workdir);
+        assert!(p.is_dir(), "scratch workdir must exist: {workdir}");
+        // Concrete structural fact (not the guard-predicate helper): a scratch
+        // workdir has NO `.git` at all, so `detectGitCheckout` reads 'none' and
+        // assessSpawnIsolation allows it. Asserting the real filesystem shape keeps
+        // this from being a round-trip through our own predicate replica.
+        assert!(
+            !p.join(".git").exists(),
+            "a scratch workdir must have no `.git` (→ guard reads 'none'): {workdir}"
+        );
+
+        // And the ChatSend body carries exactly this workdir.
+        let body = build_spawn_body(
+            Backend::ClaudeCli,
+            "hi",
+            "console-chat",
+            None,
+            SpawnOpts {
+                workdir: Some(workdir.clone()),
+                ..Default::default()
+            },
+        );
+        assert_eq!(body.get("workdir").and_then(|v| v.as_str()), Some(workdir.as_str()));
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn make_chat_workdir_prefers_a_linked_worktree() {
+        // With a base repo, the responder gets a real linked git worktree — `.git`
+        // is a FILE, so `detectGitCheckout` reads 'worktree' (allowed), and any file
+        // the responder writes stays isolated. Requires `git` (the repo's baseline).
+        let root = chat_test_scratch("wt");
+        let repo = root.join("repo");
+        std::fs::create_dir_all(&repo).expect("mk repo dir");
+
+        let git = |args: &[&str]| {
+            std::process::Command::new("git")
+                .current_dir(&repo)
+                .args(args)
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false)
+        };
+        let ready = git(&["init", "-q"])
+            && git(&["config", "user.email", "t@t.t"])
+            && git(&["config", "user.name", "t"])
+            && git(&["commit", "--allow-empty", "-q", "-m", "seed"]);
+        if !ready {
+            // git unavailable/misconfigured: don't assert on a preferred-path we
+            // could not set up. The scratch posture (tested above) still binds.
+            let _ = std::fs::remove_dir_all(&root);
+            return;
+        }
+
+        let wt_root = root.join("wt");
+        let workdir = make_chat_workdir(&wt_root, Some(&repo)).expect("worktree workdir");
+        let p = std::path::Path::new(&workdir);
+        assert!(p.is_dir(), "worktree must exist: {workdir}");
+        let git_marker = p.join(".git");
+        if git_marker.exists() {
+            assert!(
+                git_marker.is_file(),
+                "a linked worktree's `.git` must be a FILE (→ guard reads 'worktree'): {workdir}"
+            );
+        }
+        assert!(
+            guard_would_allow(p),
+            "the chat workdir must be guard-allowed, whether git produced a linked \
+             worktree or make_chat_workdir fell back to scratch: {workdir}"
+        );
+
+        // Detach the worktree, then remove the whole temp tree.
+        let _ = std::process::Command::new("git")
+            .current_dir(&repo)
+            .args(["worktree", "remove", "--force", &workdir])
+            .output();
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
     #[test]
     fn sse_parser_captures_sticky_last_event_id() {
         let mut p = SseParser::new();
@@ -1419,5 +2096,89 @@ mod tests {
             envs[0].body.get("text").and_then(|t| t.as_str()),
             Some("control.interrupt")
         );
+    }
+
+    // ── Tube channel messages (GET /msg/:channel/subscribe) ───────────────────
+
+    #[test]
+    fn tube_msg_parses_messaging_frame_and_skips_handshake() {
+        // The `event: connected` handshake carries no `payload` → skipped.
+        assert!(
+            TubeMsg::from_value(&serde_json::json!({ "channel": "harbor-editor:abc" })).is_none()
+        );
+        // A published message: a `tube_send` wraps its text as `{text:...}`; the
+        // parser pulls the readable text and the sender through.
+        let m = TubeMsg::from_value(&serde_json::json!({
+            "id": 7,
+            "channel": "harbor-editor:abc",
+            "payload": { "text": "{\"v\":1,\"kind\":\"loro.update\"}" },
+            "sender": "port-daddy:editor:agent-A",
+            "createdAt": 1781561557841i64,
+        }))
+        .expect("a real message parses");
+        assert_eq!(m.id, 7);
+        assert_eq!(m.sender, "port-daddy:editor:agent-A");
+        assert_eq!(m.text, "{\"v\":1,\"kind\":\"loro.update\"}");
+        // A bare-string payload is also accepted (defaulted id/sender tolerated).
+        let bare = TubeMsg::from_value(&serde_json::json!({ "payload": "hello" }))
+            .expect("bare-string payload parses");
+        assert_eq!(bare.text, "hello");
+        assert_eq!(bare.id, 0);
+        assert_eq!(bare.sender, "?");
+    }
+
+    /// The selection→claim mirror body matches the real `POST /sessions/:id/files`
+    /// region schema (`regions: [{ path, startLine, endLine }]`, 1-based inclusive)
+    /// so it reuses the durable claims table rather than a parallel presence store.
+    #[test]
+    fn region_claim_body_matches_the_sessions_files_region_schema() {
+        let body = region_claim_body("core/pd-console/src/editor_pane.rs", 12, 20, "port-daddy:editor:agent-A");
+        let regions = body.get("regions").and_then(|r| r.as_array()).expect("regions array");
+        assert_eq!(regions.len(), 1, "one region per selection mirror");
+        let region = &regions[0];
+        assert_eq!(region.get("path").and_then(|p| p.as_str()), Some("core/pd-console/src/editor_pane.rs"));
+        // The route requires startLine >= 1 and endLine >= startLine.
+        assert_eq!(region.get("startLine").and_then(|n| n.as_u64()), Some(12));
+        assert_eq!(region.get("endLine").and_then(|n| n.as_u64()), Some(20));
+        assert!(region.get("startLine").and_then(|n| n.as_u64()).unwrap() >= 1, "startLine is 1-based");
+        assert!(
+            region.get("endLine").and_then(|n| n.as_u64()).unwrap()
+                >= region.get("startLine").and_then(|n| n.as_u64()).unwrap(),
+            "endLine >= startLine (the route's contract)"
+        );
+        // The claim is attributed to the acting replica's PD identity.
+        assert_eq!(body.get("agentId").and_then(|a| a.as_str()), Some("port-daddy:editor:agent-A"));
+    }
+
+    /// `put_blob` reads the content address out of routes/blob.ts's response shape
+    /// (`{ success, blob: { id, ... } }`) — the P2 slice-3 durability contract.
+    #[test]
+    fn parse_blob_id_reads_the_blob_stat_id() {
+        let id = "e".repeat(64);
+        let ok = serde_json::json!({ "success": true, "blob": { "id": id, "size": 128 } });
+        assert_eq!(parse_blob_id(&ok).as_deref(), Some(id.as_str()), "reads blob.id (the sha256 content address)");
+        // A bare {id} is tolerated; a body with no id yields None (never invented).
+        assert_eq!(parse_blob_id(&serde_json::json!({ "id": "abc" })).as_deref(), Some("abc"));
+        assert_eq!(parse_blob_id(&serde_json::json!({ "success": false, "error": "boom" })), None);
+        assert_eq!(parse_blob_id(&serde_json::json!({ "blob": { "size": 1 } })), None);
+    }
+
+    /// The SSE reconnect policy is a checked contract: a 429 (connection-limit
+    /// Retry-After) and any 5xx (daemon restarting) are transient and MUST be
+    /// retried so a blip can't kill the live lane forever; any other 4xx is
+    /// permanent and MUST stop (retrying would spin). Guards the editor + agent
+    /// receive lanes' recovery.
+    #[test]
+    fn sse_retry_policy_retries_429_and_5xx_but_stops_on_other_4xx() {
+        use reqwest::StatusCode;
+        // Transient → retry.
+        assert!(sse_status_is_retryable(StatusCode::TOO_MANY_REQUESTS), "429 Retry-After is transient");
+        assert!(sse_status_is_retryable(StatusCode::INTERNAL_SERVER_ERROR), "500 is transient");
+        assert!(sse_status_is_retryable(StatusCode::BAD_GATEWAY), "502 (daemon restart) is transient");
+        assert!(sse_status_is_retryable(StatusCode::SERVICE_UNAVAILABLE), "503 is transient");
+        // Permanent → stop.
+        assert!(!sse_status_is_retryable(StatusCode::BAD_REQUEST), "400 invalid channel is permanent");
+        assert!(!sse_status_is_retryable(StatusCode::FORBIDDEN), "403 is permanent");
+        assert!(!sse_status_is_retryable(StatusCode::NOT_FOUND), "404 unknown agent is permanent");
     }
 }

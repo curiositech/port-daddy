@@ -1,26 +1,25 @@
 /**
- * Per-run Workers AI usage accounting for the cloud fleet.
+ * Per-run Workers AI usage accounting for the cloud fleet — the RELAY sink.
  *
- * Every MAP and REDUCE `env.AI.run(...)` call returns a `usage` block. The
- * {@link UsageMeter} sums those tokens per model across a whole fleet run so the
- * run header (`fleet_runs`) can record real token + cost telemetry: `neurons`
- * (its long-reserved "total AI token spend" column), the input/output split, the
- * derived USD cost, and the distinct models used.
+ * The executor already extracts each ship's token usage into a ShipMetrics
+ * (see execute.ts `accumulateUsage` / `extractWorkersAiUsage`) and emits it to
+ * the DAEMON via `emitCloudTelemetry` (the FleetBar/`/metrics/cost` path). This
+ * meter is the second, RELAY sink: after each ship completes, its per-ship
+ * totals are folded in here, and at run end the summary is written onto the
+ * relay's `fleet_runs` row (`input_tokens`/`output_tokens`/`neurons`/`cost_usd`/
+ * `models_csv`). That makes cost/tokens/model durable on the Cloudflare relay
+ * fabric — the pd-console / `/v1/fleet/*` Cloud Fleet surface — not only on the
+ * daemon.
  *
- * Cost is summed per model at that model's rate (see {@link costForModel}), so a
- * fleet that mixes models prices each correctly. A model with no known rate
- * contributes tokens but not cost; `costUsd` is `null` only when NO model in the
- * run is priced (partial cost survives, matching the cost-accrual contract).
+ * One extraction, two sinks: we do NOT re-read `res.usage` here — we accept the
+ * already-extracted per-ship counts, so the relay and daemon figures agree.
+ *
+ * Cost is summed per model at that model's rate ({@link costForModel}); a model
+ * with no known rate contributes tokens but not cost, and `costUsd` is null only
+ * when NO model in the run is priced (partial cost survives).
  */
 
 import { costForModel } from './pricing.js';
-
-/** The subset of the Workers AI response `usage` block we consume. */
-export interface WorkersAiUsage {
-  prompt_tokens?: number;
-  completion_tokens?: number;
-  total_tokens?: number;
-}
 
 /** Finalized per-run usage summary written onto the fleet_runs row. */
 export interface RunUsageSummary {
@@ -36,28 +35,23 @@ export interface RunUsageSummary {
   modelsCsv: string;
 }
 
-/** One call's recorded token split (returned so callers can log it per step). */
-export interface CallUsage {
-  inputTokens: number;
-  outputTokens: number;
-}
-
 export class UsageMeter {
   private readonly perModel = new Map<string, { in: number; out: number }>();
 
   /**
-   * Record one Workers AI call against a model. Tolerates an absent/partial
-   * `usage` block (best-effort: a missing count is 0, never a guess). Returns
-   * the per-call split so the caller can attach it to a transcript step.
+   * Fold one ship's already-extracted token totals (its ShipMetrics, covering
+   * that ship's MAP + REDUCE calls) into the run under the model it ran on.
+   * Tolerates negatives/NaN defensively (a bad count is clamped to 0, never a
+   * guess).
    */
-  record(model: string, usage: WorkersAiUsage | undefined): CallUsage {
-    const inputTokens = Math.max(0, Math.round(Number(usage?.prompt_tokens ?? 0)) || 0);
-    const outputTokens = Math.max(0, Math.round(Number(usage?.completion_tokens ?? 0)) || 0);
+  add(model: string, inputTokens: number, outputTokens: number): void {
+    const inTok = Math.max(0, Math.round(Number(inputTokens) || 0));
+    const outTok = Math.max(0, Math.round(Number(outputTokens) || 0));
+    if (!model) return;
     const cur = this.perModel.get(model) ?? { in: 0, out: 0 };
-    cur.in += inputTokens;
-    cur.out += outputTokens;
+    cur.in += inTok;
+    cur.out += outTok;
     this.perModel.set(model, cur);
-    return { inputTokens, outputTokens };
   }
 
   /** Finalize the run's usage into the row-writable summary. */

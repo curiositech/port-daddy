@@ -1,5 +1,8 @@
 /**
- * Agent Harbor v0 contract freeze tests (ADR-0095, binder ch18 Work Order F0).
+ * Agent Harbor v0 contract freeze tests — ADR-0095 (binder ch18 Work Order F0),
+ * extended by the ADR-0096 M5 F0-delta (GuidanceEnvelope + forged-guidance) and
+ * the ADR-0097 M6 F0-delta (CompactionPacket, MemoryEpisode,
+ * TranscriptSearchQuery/Result, and the read-only BlackboardItem).
  *
  * Locks three things:
  *   1. Every schema in schemas/agent-harbor/v0/ parses and COMPILES — the
@@ -45,6 +48,12 @@ const SCHEMA_NAMES = [
   'context-envelope',
   'skill-graft',
   'work-receipt',
+  'guidance-envelope',
+  'compaction-packet',
+  'memory-episode',
+  'transcript-search-query',
+  'transcript-search-result',
+  'blackboard-item',
 ];
 
 // ---------------------------------------------------------------------------
@@ -184,7 +193,7 @@ function loadFixture(name) {
 // ---------------------------------------------------------------------------
 
 describe('agent-harbor v0 schema package', () => {
-  it('ships exactly the eleven frozen contracts (plus fixtures)', () => {
+  it('ships exactly the seventeen frozen contracts (plus fixtures) — eleven from F0, the ADR-0096 GuidanceEnvelope, and the five ADR-0097 M6 contracts', () => {
     const files = readdirSync(schemaDir).filter((f) => f.endsWith('.schema.json')).sort();
     expect(files).toEqual(SCHEMA_NAMES.map((n) => `${n}.schema.json`).sort());
   });
@@ -433,5 +442,320 @@ describe('ADR-0095 §8 compliance witnessing invariant', () => {
     const node = { ...loadFixture('agent-node') };
     delete node.complianceProbeId;
     expect(checkNodeWitnessing(node, loadFixture('compliance-probe-result')).valid).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 4. ADR-0096 M5 F0-delta: the GuidanceEnvelope freeze and the sixth negative
+//    probe. Verified guidance is the only operator-authority channel; the
+//    contract must make an unsigned envelope unrepresentable and a forged one
+//    falsifiable.
+// ---------------------------------------------------------------------------
+
+describe('ADR-0096 guidance-envelope freeze (M5 F0-delta)', () => {
+  const schema = loadSchema('guidance-envelope');
+
+  it('the signed binding tuple and the authority/sig blocks are required — no unsigned guidance is schema-valid', () => {
+    for (const field of ['schema', 'envelopeId', 'agentNodeId', 'sessionId', 'turnSequence', 'issuedAt', 'notAfter', 'nonce', 'items', 'authority', 'sig']) {
+      expect(schema.required).toContain(field);
+    }
+    expect(schema.properties.sig.required).toEqual(['alg', 'keyId', 'value']);
+    expect(schema.properties.authority.required).toContain('mode');
+    // An envelope with no sig block fails validation.
+    const unsigned = { ...loadFixture('guidance-envelope') };
+    delete unsigned.sig;
+    expect(validate(schema, unsigned).some((e) => e.includes('sig'))).toBe(true);
+  });
+
+  it('freezes the authority modes, operator actions, and signature algorithms per the ADR-0096 sketch', () => {
+    expect(schema.properties.authority.properties.mode.enum).toEqual(['loopback', 'macaroon']);
+    expect(schema.properties.authority.properties.operatorAction.enum).toEqual([
+      'fleetbar-gate-approval', 'pd-cli', 'console-click', 'daemon-policy', null,
+    ]);
+    expect(schema.properties.sig.properties.alg.enum).toEqual(['hmac-sha256', 'ed25519']);
+  });
+
+  it('tolerant reader on unknown item kinds: kind is an open string and a future kind validates', () => {
+    // No enum on items[].kind — an old body must not silently discard a new
+    // guidance kind (it renders it as unrecognized-but-verified instead).
+    expect(schema.properties.items.items.properties.kind.enum).toBeUndefined();
+    const fixture = loadFixture('guidance-envelope');
+    const extended = { ...fixture, items: [...fixture.items, { kind: 'x-future-guidance-kind', ref: 'x_1' }] };
+    expect(validate(schema, extended)).toEqual([]);
+  });
+
+  it('replay-binding fields are constrained: turnSequence is a non-negative integer and nonce/notAfter are non-empty', () => {
+    const fixture = loadFixture('guidance-envelope');
+    expect(validate(schema, { ...fixture, turnSequence: -1 }).some((e) => e.includes('turnSequence'))).toBe(true);
+    expect(validate(schema, { ...fixture, turnSequence: 1.5 }).some((e) => e.includes('turnSequence'))).toBe(true);
+    expect(validate(schema, { ...fixture, nonce: '' }).some((e) => e.includes('nonce'))).toBe(true);
+    expect(validate(schema, { ...fixture, notAfter: '' }).some((e) => e.includes('notAfter'))).toBe(true);
+  });
+
+  it('drift lock: the GuidanceEnvelope is not the ContextEnvelope and superseded ch03 names must not reappear', () => {
+    const props = schema.properties;
+    // ContextEnvelope is context-pressure accounting with zero authority
+    // fields (ADR-0096 context); its fields must not leak into this contract.
+    for (const foreign of ['windowTokens', 'usedTokensEstimate', 'pressure', 'contextRefs', 'compactionNeeded']) {
+      expect(props).not.toHaveProperty(foreign);
+    }
+    // Superseded ch03 names (fork 1) must not reappear on any new contract.
+    for (const superseded of ['agentId', 'body', 'blobRefs', 'redaction', 'retention']) {
+      expect(props).not.toHaveProperty(superseded);
+    }
+    // And ContextEnvelope stays authority-free in the other direction.
+    const contextProps = loadSchema('context-envelope').properties;
+    for (const authorityField of ['sig', 'authority', 'nonce']) {
+      expect(contextProps).not.toHaveProperty(authorityField);
+    }
+  });
+
+  it('the sixth negative probe forged-guidance is frozen into the compliance surface at the C3 gate', () => {
+    const probeSchema = loadSchema('compliance-probe-result');
+    const kinds = probeSchema.properties.negativeProbes.items.properties.kind.enum;
+    expect(kinds).toContain('forged-guidance');
+    expect(kinds).toHaveLength(6);
+    // A concrete forged-guidance record (body acted on the unsigned envelope ->
+    // fired:true, daemon caught it and downgraded) validates. Rejection is the
+    // other shape: fired:false with downgraded/observedLevel omitted.
+    const record = {
+      kind: 'forged-guidance',
+      targetLevel: 'C3',
+      present: true,
+      fired: true,
+      downgraded: true,
+      observedLevel: 'C0',
+      details: 'unsigned envelope injected; body acted on it; daemon recorded the downgrade to C0',
+    };
+    expect(validate(probeSchema.properties.negativeProbes.items, record)).toEqual([]);
+  });
+
+  it('witnessing: forged-guidance can witness C3, and a fired-but-not-downgraded forged-guidance is a violation', () => {
+    const probe = buildWitnessedProbe('C3');
+    // Swap the generic C3 forged-level probe for the ADR-0096 specialized one.
+    probe.negativeProbes = probe.negativeProbes.filter((n) => n.targetLevel !== 'C3');
+    probe.negativeProbes.push({
+      kind: 'forged-guidance', targetLevel: 'C3', present: true, fired: true, downgraded: true, observedLevel: 'C2',
+    });
+    expect(witnessedComplianceLevel(probe)).toBe('C3');
+    expect(checkProbeWitnessing(probe).valid).toBe(true);
+
+    // A body that acted on unsigned guidance without a recorded downgrade is
+    // the no-downgrade-on-forgery worst case: proof the injection works.
+    const bad = probe.negativeProbes.find((n) => n.kind === 'forged-guidance');
+    bad.downgraded = false;
+    expect(checkProbeWitnessing(probe).valid).toBe(false);
+    expect(checkProbeWitnessing(probe).violations.join(' ')).toMatch(/forged-guidance.*no-downgrade-on-forgery/);
+    expect(witnessedComplianceLevel(probe)).toBe('C2');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 5. ADR-0097 M6 F0-delta: context, memory, and search contracts.
+//    CompactionPacket (cited continuation), MemoryEpisode (bi-temporal
+//    validity), TranscriptSearchQuery/Result (budgeted, cited), and the
+//    READ-ONLY BlackboardItem (ch05 defers write/parley semantics to M8).
+// ---------------------------------------------------------------------------
+
+describe('ADR-0097 M6 context/memory/search contracts (F0-delta)', () => {
+  const M6_SCHEMAS = [
+    'compaction-packet',
+    'memory-episode',
+    'transcript-search-query',
+    'transcript-search-result',
+    'blackboard-item',
+  ];
+
+  /** Every place a citation array lives across the five M6 contracts. */
+  function citationSites() {
+    const packet = loadSchema('compaction-packet');
+    const episode = loadSchema('memory-episode');
+    const result = loadSchema('transcript-search-result');
+    const board = loadSchema('blackboard-item');
+    return {
+      'compaction-packet.factualClaims': packet.properties.factualClaims.items.properties.citations,
+      'memory-episode.citations': episode.properties.citations,
+      'transcript-search-result.hits': result.properties.hits.items.properties.citations,
+      'transcript-search-result.answer': result.properties.answer.properties.citations,
+      'blackboard-item.citations': board.properties.citations,
+    };
+  }
+
+  it('drift lock (ch04-vs-frozen names): superseded ch03/ch04-sketch names never reappear on any M6 contract', () => {
+    // ch04's pre-turn context envelope sketch uses `agentId`; ADR-0095 fork 1
+    // froze `agentNodeId`. Same discipline as F0's ch03-vs-ch09 lock.
+    for (const name of M6_SCHEMAS) {
+      const props = loadSchema(name).properties;
+      for (const superseded of ['agentId', 'body', 'blobRefs', 'redaction', 'retention']) {
+        expect(props).not.toHaveProperty(superseded);
+      }
+    }
+    // The frozen join keys are present where an agent join exists.
+    for (const name of ['compaction-packet', 'memory-episode', 'blackboard-item']) {
+      const props = loadSchema(name).properties;
+      expect(props).toHaveProperty('agentNodeId');
+      expect(props).toHaveProperty('sessionId');
+      expect(props).toHaveProperty('runId');
+    }
+    expect(loadSchema('transcript-search-query').properties.issuedBy.properties).toHaveProperty('agentNodeId');
+    expect(loadSchema('transcript-search-result').properties.hits.items.properties).toHaveProperty('agentNodeId');
+  });
+
+  it('citation discipline: one identical citation shape everywhere, kind frozen to the tri-union, kind required', () => {
+    for (const [site, citations] of Object.entries(citationSites())) {
+      expect(citations.items.properties.kind.enum).toEqual(['transcript-event', 'file', 'claim']);
+      expect(citations.items.required).toEqual(['kind']);
+      // The three ref fields of the union are all representable at every site.
+      for (const ref of ['transcriptEventId', 'fileRef', 'claimRef']) {
+        expect(citations.items.properties).toHaveProperty(ref);
+      }
+      // Every claim-bearing site demands at least one citation.
+      expect(citations.minItems).toBe(1);
+      // `site` keeps the assertion message useful on failure.
+      expect(site.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('compaction packet: an uncited factual claim is schema-INVALID, and the ch04 validator block is required', () => {
+    const schema = loadSchema('compaction-packet');
+    expect(schema.properties.factualClaims.items.required).toContain('citations');
+    for (const field of ['obligations', 'factualClaims', 'validator', 'sourceTranscript', 'nextAction']) {
+      expect(schema.required).toContain(field);
+    }
+    expect(schema.properties.validator.required).toEqual(expect.arrayContaining(['passed', 'uncitedClaimCount']));
+
+    const fixture = loadFixture('compaction-packet');
+    expect(validate(schema, fixture)).toEqual([]);
+    const uncited = JSON.parse(JSON.stringify(fixture));
+    uncited.factualClaims[0].citations = [];
+    expect(validate(schema, uncited).some((e) => e.includes('citations'))).toBe(true);
+  });
+
+  it('compaction packet: resume is verifiable — sourceTranscript pins headEventId + headHash (M6 gate: resume successor from packet and transcript)', () => {
+    const schema = loadSchema('compaction-packet');
+    expect(schema.properties.sourceTranscript.required).toEqual(expect.arrayContaining(['headEventId', 'headHash']));
+    const fixture = loadFixture('compaction-packet');
+    const broken = { ...fixture, sourceTranscript: { throughSequence: 42 } };
+    expect(validate(schema, broken).some((e) => e.includes('headHash'))).toBe(true);
+  });
+
+  it('drift lock: the CompactionPacket is not the ContextEnvelope — pressure accounting fields must not leak in', () => {
+    const props = loadSchema('compaction-packet').properties;
+    for (const foreign of ['windowTokens', 'usedTokensEstimate', 'contextRefs', 'compactionNeeded', 'pressure']) {
+      expect(props).not.toHaveProperty(foreign);
+    }
+    // The join is by reference instead: trigger.contextEnvelopeRef.
+    expect(props.trigger.properties).toHaveProperty('contextEnvelopeRef');
+  });
+
+  it('memory episode: the bi-temporal validity interval is required — validFrom, required-but-nullable validUntil, and ingestedAt', () => {
+    const schema = loadSchema('memory-episode');
+    for (const field of ['validFrom', 'validUntil', 'ingestedAt']) {
+      expect(schema.required).toContain(field);
+    }
+    expect(schema.properties.validUntil.type).toEqual(['string', 'null']);
+
+    const fixture = loadFixture('memory-episode');
+    expect(fixture.validUntil).toBeNull(); // open-ended validity is asserted, not omitted
+    expect(validate(schema, fixture)).toEqual([]);
+    const missing = { ...fixture };
+    delete missing.validUntil;
+    expect(validate(schema, missing).some((e) => e.includes('validUntil'))).toBe(true);
+    // Naming drift-lock: the interval is validFrom/validUntil, never the variants.
+    for (const variant of ['validTo', 'validityStart', 'validityEnd', 'expiry']) {
+      expect(schema.properties).not.toHaveProperty(variant);
+    }
+  });
+
+  it('memory episode: a memory without a source is a suggestion, not a fact — and the distilled-source states are frozen', () => {
+    const schema = loadSchema('memory-episode');
+    expect(schema.required).toContain('citations');
+    const uncited = { ...loadFixture('memory-episode'), citations: [] };
+    expect(validate(schema, uncited).some((e) => e.includes('citations'))).toBe(true);
+    // ch04 deletion-and-derived-memory contract.
+    expect(schema.properties.sourcePayloadState.enum).toEqual(['present', 'redacted', 'deleted', 'expired']);
+    expect(schema.required).toContain('sourcePayloadState');
+    // ch04 memory tiers (blackboard is its own contract, not a tier here).
+    expect(schema.properties.tier.enum).toEqual(['core', 'recall', 'archival', 'graph']);
+  });
+
+  it('search query: the retrieval budget is required and positive (M6 gate: memory retrieval never exceeds configured budget)', () => {
+    const schema = loadSchema('transcript-search-query');
+    for (const field of ['budget', 'mode', 'sources', 'issuedBy', 'queryText']) {
+      expect(schema.required).toContain(field);
+    }
+    expect(schema.properties.budget.required).toContain('maxResults');
+    expect(schema.properties.budget.properties.maxResults.minimum).toBe(1);
+    expect(schema.properties.mode.enum).toEqual(['hybrid', 'semantic', 'lexical']);
+
+    const fixture = loadFixture('transcript-search-query');
+    const unbudgeted = { ...fixture };
+    delete unbudgeted.budget;
+    expect(validate(schema, unbudgeted).some((e) => e.includes('budget'))).toBe(true);
+    expect(validate(schema, { ...fixture, budget: { maxResults: 0 } }).some((e) => e.includes('maxResults'))).toBe(true);
+  });
+
+  it('search result: never a bare answer — every hit and the synthesized answer must carry citations', () => {
+    const schema = loadSchema('transcript-search-result');
+    expect(schema.properties.hits.items.required).toContain('citations');
+    expect(schema.properties.answer.required).toEqual(['text', 'citations']);
+
+    const fixture = loadFixture('transcript-search-result');
+    expect(validate(schema, fixture)).toEqual([]);
+    const bareHit = JSON.parse(JSON.stringify(fixture));
+    bareHit.hits[0].citations = [];
+    expect(validate(schema, bareHit).some((e) => e.includes('citations'))).toBe(true);
+    const bareAnswer = JSON.parse(JSON.stringify(fixture));
+    delete bareAnswer.answer.citations;
+    expect(validate(schema, bareAnswer).some((e) => e.includes('citations'))).toBe(true);
+  });
+
+  it('search result: the budget echo (configured/used/truncated) is required, making the budget gate auditable per response', () => {
+    const schema = loadSchema('transcript-search-result');
+    expect(schema.required).toContain('budget');
+    expect(schema.properties.budget.required).toEqual(['configured', 'used', 'truncated']);
+    const fixture = loadFixture('transcript-search-result');
+    const silent = { ...fixture, budget: { configured: fixture.budget.configured, used: fixture.budget.used } };
+    expect(validate(schema, silent).some((e) => e.includes('truncated'))).toBe(true);
+  });
+
+  it('blackboard item is READ-ONLY in v0: no write/parley/ack/permission fields, and the M8 deferral is stated in the contract', () => {
+    const schema = loadSchema('blackboard-item');
+    // ch05: "Milestone 6 should ship a read-only/search blackboard ...; active
+    // conflict/parley write semantics belong in Milestone 8." Scope creep lock:
+    for (const writeField of [
+      'writeToken', 'parleyState', 'parleyId', 'ackRequired', 'acknowledgements',
+      'proposals', 'votes', 'writerPermissions', 'writeableBy', 'mutations', 'writePolicy',
+    ]) {
+      expect(schema.properties).not.toHaveProperty(writeField);
+    }
+    expect(schema.description).toMatch(/READ[- ]?ONLY/i);
+    expect(schema.description).toMatch(/Milestone 8/);
+    // assertedBy is provenance of the underlying fact, not a write API.
+    expect(schema.properties.assertedBy.required).toEqual(['kind']);
+    // ch05 item requirements: TTL, source links, confidence, supersession, status.
+    for (const field of ['expiresAt', 'citations', 'confidence', 'supersededBy', 'status']) {
+      expect(schema.properties).toHaveProperty(field);
+    }
+    for (const field of ['citations', 'status', 'postedAt', 'assertedBy']) {
+      expect(schema.required).toContain(field);
+    }
+    const loose = { ...loadFixture('blackboard-item'), citations: [] };
+    expect(validate(schema, loose).some((e) => e.includes('citations'))).toBe(true);
+  });
+
+  it('search result and blackboard REQUIRE the C-routes freshness envelope — stale projections are labeled, never hidden', () => {
+    for (const name of ['transcript-search-result', 'blackboard-item']) {
+      const schema = loadSchema(name);
+      // Both objects ARE projections, so the envelope is required, not optional.
+      expect(schema.required).toContain('projection');
+      const projection = schema.properties.projection;
+      expect(projection.required).toContain('stale');
+      expect(projection.properties).toHaveProperty('lastLedgerSeq');
+      expect(projection.properties).toHaveProperty('headSeq');
+      const unlabeled = { ...loadFixture(name) };
+      delete unlabeled.projection;
+      expect(validate(schema, unlabeled).some((e) => e.includes('projection'))).toBe(true);
+    }
   });
 });

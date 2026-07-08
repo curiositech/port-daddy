@@ -26,9 +26,13 @@
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
 import { executeFleet } from './execute.js';
+import { handleDlqJob } from './dlq.js';
 
 export type { ExecutorEnv, FleetRunJob } from './env.js';
 export { executeFleet } from './execute.js';
+
+/** The dead-letter queue name (must match `dead_letter_queue` in wrangler.toml). */
+const DLQ_QUEUE_NAME = 'fleet-runs-dlq';
 
 export default {
   async queue(
@@ -36,6 +40,18 @@ export default {
     env: ExecutorEnv,
     _ctx: ExecutionContext,
   ): Promise<void> {
+    // DLQ path: a job that exhausted retries on the main queue lands here. Its
+    // 'Port Daddy Fleet' check is stuck in_progress — complete it as failure so a
+    // lost blocking job can never leave a green/absent gate. Always ack (the
+    // message already exhausted retries; re-queuing it would loop).
+    if (batch.queue === DLQ_QUEUE_NAME) {
+      for (const message of batch.messages) {
+        await handleDlqJob(message.body, env);
+        message.ack();
+      }
+      return;
+    }
+
     for (const message of batch.messages) {
       try {
         await executeFleet(message.body, env);

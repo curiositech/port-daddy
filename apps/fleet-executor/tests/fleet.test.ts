@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { parseFleetShips, defaultPRShips } from '../src/fleet.js';
+import { parseFleetShips, defaultPRShips, resolveCfModel } from '../src/fleet.js';
 
 // The REAL pd-fleet.yml at the repo root (apps/fleet-executor/tests → ../../..).
 const REAL_YAML = readFileSync(
@@ -67,28 +67,67 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(spider!.blocking).toBe(false);
     expect(spider!.needsExecution).toBe(false);
     expect(spider!.temperature).toBe(0.95);
-    expect(spider!.prompt).toContain('syllogism engine');
+    // Spider's prompt was sharpened to a STRUCTURAL syllogism: the rationale must
+    // be written verbatim as Premise A / Premise B / Therefore C.
+    expect(spider!.prompt).toContain('SYLLOGISM engine');
+    expect(spider!.prompt).toContain('Premise A');
+    expect(spider!.prompt).toContain('Therefore C');
   });
 
-  it("derives cfModel from a cloudflare fallback's power tier", () => {
-    // code-reviewer + qa both declare `- backend: cloudflare / modelTier: mid`.
-    // Ships never pin a concrete @cf id (operator directive 2026-07-06); the
-    // executor resolves the power tier through the registry-mirrored tier map
-    // (src/models.ts), and `mid` → balanced → the general Workers AI reviewer.
-    // (Before the tier migration this assertion read kimi-k2.7-code and was
-    // already stale against the real pd-fleet.yml, which carried an @cf/openai
-    // cloudflare fallback for code-reviewer.)
+  it('the four ideation ships (spark, spider, lookout, snipe) all parse as advisory ideation', () => {
+    for (const name of ['spark', 'spider', 'lookout', 'snipe']) {
+      const ship = ships!.find(s => s.name === name);
+      expect(ship, `${name} should be present in pull_request:opened ships`).toBeDefined();
+      expect(ship!.ideation, `${name} should be ideation`).toBe(true);
+      expect(ship!.blocking, `${name} must never block`).toBe(false);
+      expect(ship!.needsExecution).toBe(false);
+    }
+  });
+
+  it('reviewer ships are NOT ideation (they raise findings, not proposals)', () => {
+    const reviewer = ships!.find(s => s.name === 'code-reviewer');
+    expect(reviewer!.ideation).toBe(false);
+  });
+
+  it('lookout carries the trouble-ahead telos and cross-branch awareness in its prompt', () => {
+    const lookout = ships!.find(s => s.name === 'lookout');
+    expect(lookout).toBeDefined();
+    expect(lookout!.prompt).toContain('trouble-ahead');
+    expect(lookout!.prompt.toLowerCase()).toContain('branch');
+  });
+
+  it('routes the expensive gpt-oss-120b to the CODE REVIEW BOT only; everything else cheap qwen3-30b', () => {
+    // Operator directive: gpt-oss-120b is pricey — review bot only, nothing else.
+    //   - code-reviewer (pins kimi, not honored) → CODER = gpt-oss-120b.
+    //   - qa / red-team (pin gpt-oss, not honored) → the cheap default qwen3-30b.
     const reviewer = ships!.find(s => s.name === 'code-reviewer');
     expect(reviewer!.cfModel).toBe('@cf/openai/gpt-oss-120b');
     const qa = ships!.find(s => s.name === 'qa');
-    expect(qa!.cfModel).toBe('@cf/openai/gpt-oss-120b');
+    expect(qa!.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    const redTeam = ships!.find(s => s.name === 'red-team');
+    expect(redTeam!.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+  });
+});
+
+describe('resolveCfModel — the empty-model guard', () => {
+  it('passes through the honored cheap model', () => {
+    expect(resolveCfModel('@cf/qwen/qwen3-30b-a3b-fp8')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+  });
+
+  it('remaps any non-honored id (gpt-oss/kimi/qwen-coder/unknown) to the cheap fallback', () => {
+    // gpt-oss reaches the review bot by ROLE, never by pin — so a bare pin of it
+    // (or any other id) is remapped to the cheap model, never the pricey one.
+    expect(resolveCfModel('@cf/openai/gpt-oss-120b')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(resolveCfModel('@cf/moonshotai/kimi-k2.7-code')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(resolveCfModel('@cf/qwen/qwen2.5-coder-32b-instruct')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(resolveCfModel('@cf/some/nonexistent-model')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
   });
 });
 
 describe('parseFleetShips — model derivation + blocking coercion', () => {
   const yaml = (body: string) => `fleet:\n  agents:\n${body}\n`;
 
-  it('falls back to the coder model for reviewer-named ships with no @cf/ fallback', () => {
+  it('routes reviewer-named ships (the review bot) to gpt-oss-120b when they have no honored @cf/ pin', () => {
     const ships = parseFleetShips(
       yaml(
         [
@@ -103,10 +142,10 @@ describe('parseFleetShips — model derivation + blocking coercion', () => {
       ),
       'pull_request:opened',
     );
-    expect(ships![0].cfModel).toBe('@cf/moonshotai/kimi-k2.7-code');
+    expect(ships![0].cfModel).toBe('@cf/openai/gpt-oss-120b');
   });
 
-  it('falls back to the general model for non-reviewer ships with no @cf/ fallback', () => {
+  it('falls back to the cheap general model (qwen3-30b) for non-reviewer ships with no @cf/ fallback', () => {
     const ships = parseFleetShips(
       yaml(
         ['    sniffer:', '      trigger: pull_request:opened', '      prompt: |', '        sniff.'].join(
@@ -115,7 +154,7 @@ describe('parseFleetShips — model derivation + blocking coercion', () => {
       ),
       'pull_request:opened',
     );
-    expect(ships![0].cfModel).toBe('@cf/openai/gpt-oss-120b');
+    expect(ships![0].cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
   });
 
   it('coerces blocking: only a real true / "true" opts into the gate', () => {

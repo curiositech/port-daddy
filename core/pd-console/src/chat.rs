@@ -31,11 +31,19 @@ pub struct ChatMsg {
 impl ChatMsg {
     /// The operator's own turn (optimistically shown the instant Send fires).
     pub fn mine(text: impl Into<String>) -> Self {
-        Self { sender: "operator".into(), text: text.into(), mine: true }
+        Self {
+            sender: "operator".into(),
+            text: text.into(),
+            mine: true,
+        }
     }
     /// A reply from the bound agent, carrying the tube sender id.
     pub fn agent(sender: impl Into<String>, text: impl Into<String>) -> Self {
-        Self { sender: sender.into(), text: text.into(), mine: false }
+        Self {
+            sender: sender.into(),
+            text: text.into(),
+            mine: false,
+        }
     }
 }
 
@@ -212,8 +220,14 @@ mod tests {
         assert!(log.messages[0].mine);
         assert!(!log.messages[1].mine);
         let text = joined(&log.blocks());
-        assert!(text.contains("you: what's the roadmap status?"), "missing operator turn: {text}");
-        assert!(text.contains("claude-cli: Phase 3 is the hottest lane."), "missing reply: {text}");
+        assert!(
+            text.contains("you: what's the roadmap status?"),
+            "missing operator turn: {text}"
+        );
+        assert!(
+            text.contains("claude-cli: Phase 3 is the hottest lane."),
+            "missing reply: {text}"
+        );
     }
 
     #[test]

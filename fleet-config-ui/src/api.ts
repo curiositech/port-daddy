@@ -46,6 +46,9 @@ import type {
   SetupRunResult,
   ActiveAgentRoster,
   DispatchProposal,
+  GalaxyMapResponse,
+  GalaxyParleyCallRequest,
+  GalaxySessionDetailResponse,
 } from './types';
 
 const CANONICAL_PREFERRED_DAEMON_URL = 'http://127.0.0.1:9876';
@@ -289,6 +292,7 @@ function pathCategory(path: string): string {
   if (p.startsWith('/projects')) return 'projects';
   if (p.startsWith('/locks')) return 'locks';
   if (p.startsWith('/services') || p.startsWith('/claim') || p.startsWith('/release')) return 'ports';
+  if (p.startsWith('/galaxy')) return 'galaxy';
   return 'other';
 }
 
@@ -1065,6 +1069,37 @@ export async function fetchSortiePreflight(opts: {
     identity: opts.identity,
     budgetUsd: opts.budgetUsd,
   });
+}
+
+// ─── Session galaxy ───────────────────────────────────────────────────────────
+
+export async function fetchGalaxyMap(opts: {
+  windowHours?: number;
+  tailTokens?: number;
+  minTokens?: number;
+  limit?: number;
+  project?: string;
+  // Additive: omitted (or true) preserves default clustered behavior for
+  // daemons that predate cluster=false support. Only send the param when
+  // explicitly disabling clustering.
+  cluster?: boolean;
+} = {}): Promise<GalaxyMapResponse> {
+  const params = new URLSearchParams();
+  if (typeof opts.windowHours === 'number') params.set('windowHours', String(opts.windowHours));
+  if (typeof opts.tailTokens === 'number') params.set('tailTokens', String(opts.tailTokens));
+  if (typeof opts.minTokens === 'number') params.set('minTokens', String(opts.minTokens));
+  if (typeof opts.limit === 'number') params.set('limit', String(opts.limit));
+  if (opts.project) params.set('project', opts.project);
+  if (opts.cluster === false) params.set('cluster', 'false');
+  return get(`/galaxy/map${params.toString() ? `?${params}` : ''}`);
+}
+
+export async function fetchGalaxySessionDetail(id: string): Promise<GalaxySessionDetailResponse> {
+  return get(`/galaxy/session/${encodeURIComponent(id)}`);
+}
+
+export async function callGalaxyParley(body: GalaxyParleyCallRequest): Promise<{ success: boolean; parley?: unknown; error?: string }> {
+  return post('/parley/call', body);
 }
 
 // ─── SSE ──────────────────────────────────────────────────────────────────────

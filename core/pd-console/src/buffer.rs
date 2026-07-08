@@ -93,7 +93,12 @@ impl HarborBuffer {
     /// span, which is exactly the per-line attribution contract we want.
     fn author_styles() -> StyleConfigMap {
         let mut styles = StyleConfigMap::new();
-        styles.insert(AUTHOR_MARK.into(), StyleConfig { expand: ExpandType::None });
+        styles.insert(
+            AUTHOR_MARK.into(),
+            StyleConfig {
+                expand: ExpandType::None,
+            },
+        );
         styles
     }
 
@@ -105,10 +110,16 @@ impl HarborBuffer {
         let local_peer = peer_id_for_identity(&identity);
         let doc = LoroDoc::new();
         // PeerID set must precede any op so the first edit is attributed correctly.
-        doc.set_peer_id(local_peer).expect("set_peer_id on a fresh doc");
+        doc.set_peer_id(local_peer)
+            .expect("set_peer_id on a fresh doc");
         doc.config_text_style(Self::author_styles());
         let text = doc.get_text(TEXT_CONTAINER);
-        Self { doc, text, local_peer, identity }
+        Self {
+            doc,
+            text,
+            local_peer,
+            identity,
+        }
     }
 
     /// Open a file from local disk into a Loro buffer under `identity`'s replica.
@@ -124,7 +135,9 @@ impl HarborBuffer {
         let contents = std::fs::read_to_string(path)?;
         let buf = Self::empty(identity);
         if !contents.is_empty() {
-            buf.text.insert(0, &contents).expect("seed insert into fresh LoroText");
+            buf.text
+                .insert(0, &contents)
+                .expect("seed insert into fresh LoroText");
             let len = buf.text.len_unicode();
             buf.text
                 .mark(0..len, AUTHOR_MARK, buf.local_peer as i64)
@@ -152,7 +165,11 @@ impl HarborBuffer {
         self.text.insert(pos, s).expect("insert authored span");
         let inserted_len = s.chars().count();
         self.text
-            .mark(pos..(pos + inserted_len), AUTHOR_MARK, self.local_peer as i64)
+            .mark(
+                pos..(pos + inserted_len),
+                AUTHOR_MARK,
+                self.local_peer as i64,
+            )
             .expect("mark authored span");
         self.doc.commit();
     }
@@ -171,7 +188,24 @@ impl HarborBuffer {
     /// peer needs to merge (battle-plan §3: "a SECOND replica's ops can merge in").
     pub fn export_ops(&self) -> Vec<u8> {
         self.doc.commit();
-        self.doc.export(ExportMode::all_updates()).expect("export updates")
+        self.doc
+            .export(ExportMode::all_updates())
+            .expect("export updates")
+    }
+
+    /// Export a **compacted full-state snapshot** of this buffer — the durability
+    /// primitive for P2 slice 3. Where [`export_ops`](Self::export_ops) is the
+    /// unbounded update *log*, this is Loro's `ExportMode::Snapshot`: the current
+    /// state + history folded into one blob a fresh (or reconnecting/salvaging)
+    /// replica imports via [`apply_remote_ops`](Self::apply_remote_ops) to
+    /// reconstruct the doc in one shot — no full-history replay. This is the byte
+    /// stream that rides to the content-addressed `/blob` store (build-coop-ide-gpui
+    /// ref 03 §3: "doc snapshots → content-addressed `/blob` … the salvage
+    /// substrate"), so a peer that missed the live op stream catches up from
+    /// snapshot+recent-deltas instead of the whole log.
+    pub fn export_snapshot(&self) -> Vec<u8> {
+        self.doc.commit();
+        self.doc.export(ExportMode::snapshot()).expect("export snapshot")
     }
 
     /// Import another replica's exported ops, merging them into this buffer. This
@@ -234,7 +268,10 @@ impl HarborBuffer {
         }
         // Trailing content without a final newline is still a line.
         if line_started || !current_text.is_empty() {
-            lines.push(LineView { text: current_text, author_peer: current_author });
+            lines.push(LineView {
+                text: current_text,
+                author_peer: current_author,
+            });
         }
         lines
     }
@@ -292,7 +329,11 @@ mod tests {
             peer_id_for_identity(agent),
             "distinct actors must be distinct replicas"
         );
-        assert_ne!(peer_id_for_identity(human), u64::MAX, "must dodge the reserved sentinel");
+        assert_ne!(
+            peer_id_for_identity(human),
+            u64::MAX,
+            "must dodge the reserved sentinel"
+        );
     }
 
     /// Opening a real file seeds the buffer and attributes every initial line to
@@ -336,7 +377,10 @@ mod tests {
         let agent_id = "port-daddy:editor:agent-A";
         let human_peer = peer_id_for_identity(human_id);
         let agent_peer = peer_id_for_identity(agent_id);
-        assert_ne!(human_peer, agent_peer, "the two actors are distinct replicas");
+        assert_ne!(
+            human_peer, agent_peer,
+            "the two actors are distinct replicas"
+        );
 
         // Replica A — the operator opens the file.
         let replica_a = HarborBuffer::open(path.to_str().unwrap(), human_id).unwrap();
@@ -355,10 +399,22 @@ mod tests {
 
         // A now sees both contributions, each correctly attributed.
         let lines = replica_a.lines();
-        assert_eq!(lines.len(), 3, "two human lines + one agent line after merge");
+        assert_eq!(
+            lines.len(),
+            3,
+            "two human lines + one agent line after merge"
+        );
         assert_eq!(lines[0].text, "human line one");
-        assert_eq!(lines[0].author_peer, Some(human_peer), "human authored line 0");
-        assert_eq!(lines[1].author_peer, Some(human_peer), "human authored line 1");
+        assert_eq!(
+            lines[0].author_peer,
+            Some(human_peer),
+            "human authored line 0"
+        );
+        assert_eq!(
+            lines[1].author_peer,
+            Some(human_peer),
+            "human authored line 1"
+        );
         assert_eq!(lines[2].text, "agent refactored parse_header");
         assert_eq!(
             lines[2].author_peer,
@@ -385,17 +441,61 @@ mod tests {
         let ops = a.export_ops();
         b.apply_remote_ops(&ops).unwrap();
         b.apply_remote_ops(&ops).unwrap(); // replay the same delta
-        assert_eq!(b.lines().len(), 1, "re-importing identical ops must not duplicate the line");
+        assert_eq!(
+            b.lines().len(),
+            1,
+            "re-importing identical ops must not duplicate the line"
+        );
     }
 
-    /// Scratch dir under ~/coding/tmp (NEVER /tmp — the OS sweeps it).
+    /// P2 slice 3 durability: a compacted snapshot reconstructs the whole buffer —
+    /// content AND per-line authorship — in one import, exactly what a reconnecting
+    /// or salvaging replica does after fetching the snapshot blob from `/blob`.
+    #[test]
+    fn snapshot_reconstructs_content_and_authorship() {
+        let human_id = "port-daddy:console:human";
+        let agent_id = "port-daddy:editor:agent-A";
+        let human_peer = peer_id_for_identity(human_id);
+        let agent_peer = peer_id_for_identity(agent_id);
+
+        // A two-replica doc: the operator's seed line + an agent's merged line.
+        let a = HarborBuffer::empty(human_id);
+        a.append_line("human line");
+        let agent = HarborBuffer::empty(agent_id);
+        agent.apply_remote_ops(&a.export_ops()).unwrap();
+        agent.append_line("agent line");
+        a.apply_remote_ops(&agent.export_ops()).unwrap();
+
+        // Snapshot the live doc, then rebuild a cold replica from ONLY that blob.
+        let snapshot = a.export_snapshot();
+        let restored = HarborBuffer::empty("port-daddy:console:successor");
+        restored
+            .apply_remote_ops(&snapshot)
+            .expect("a snapshot blob imports like any Loro export");
+
+        assert_eq!(restored.to_string(), a.to_string(), "snapshot restores exact bytes");
+        let lines = restored.lines();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0].author_peer, Some(human_peer), "authorship survives the snapshot");
+        assert_eq!(lines[1].author_peer, Some(agent_peer), "the agent's line stays the agent's");
+
+        // Re-importing the snapshot is idempotent (double-consume safety).
+        restored.apply_remote_ops(&snapshot).unwrap();
+        assert_eq!(restored.lines().len(), 2, "re-applying the snapshot must not duplicate lines");
+    }
+
+    /// A UNIQUE scratch dir per call, rooted at the COMPILE-TIME `CARGO_MANIFEST_DIR`
+    /// (under `target/`, never `/tmp`). It does NOT read the runtime `HOME`: another
+    /// test in this binary (`conjure`) hijacks the process-global `HOME` to a sandbox it
+    /// then deletes, which would make a file written under `HOME` vanish before it is
+    /// read back. `CARGO_MANIFEST_DIR` is immune; the `<pid>-<seq>` subdir keeps
+    /// parallel tests isolated.
     fn scratch_dir() -> std::path::PathBuf {
-        let base = std::env::var("HOME")
-            .map(|h| std::path::PathBuf::from(h).join("coding/tmp/pd-harbor-buffer-tests"))
-            .unwrap_or_else(|_| {
-                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/buffer-tests")
-            });
-        std::fs::create_dir_all(&base).expect("create scratch dir");
-        base
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+        let base = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/buffer-tests");
+        let unique = base.join(format!("{}-{}", std::process::id(), SEQ.fetch_add(1, Ordering::Relaxed)));
+        std::fs::create_dir_all(&unique).expect("create scratch dir");
+        unique
     }
 }

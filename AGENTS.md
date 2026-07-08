@@ -146,6 +146,17 @@ checklist. These extend (don't repeat) `## Port Daddy First`, `## Skill maintena
 is part of every slice`, `## Operator UX Expectations`, and `## Writing Technical
 Documents`.
 
+- **Never assert a competitor/platform claim without researching and citing it
+  (operator directive, VERY IMPORTANT).** Before you state what a competitor or
+  external platform can or can't do — a Cloudflare/OpenAI/GitHub feature,
+  a model's price, an API's shape — research it against the live source and
+  include the citation URL. Do not answer from memory or stale receiver code; both
+  go out of date. Two real misses this rule exists to prevent: claiming Workers AI
+  "has no prompt caching" (it does — prefix caching, per
+  <https://developers.cloudflare.com/workers-ai/features/prompt-caching/>), and
+  quoting `@cf/qwen/qwen2.5-coder-32b` at "$0.09" when the
+  [pricing page](https://developers.cloudflare.com/workers-ai/platform/pricing/)
+  says $0.66/$1.00. If you can't cite it, say you're unsure and go look.
 - **Coordinate, and pay rent.** Work in a clean linked worktree off
   `origin/main` (§ Create / Update / Land), never the operator's main checkout.
   `pd begin --identity … --lifecycle durable` → scope `pd note` → `pd session
@@ -319,6 +330,16 @@ means one of:
 What does **not** count: resolving a thread with no reply, a one-word "done" with
 no evidence, closing the PR to dodge the comment, or letting a bot finding scroll
 off the page. "Seriously" is load-bearing — engage the substance.
+
+**Auto-pilot (operator directive, 2026-07-07).** When you are subscribed to a
+PR, work the review comments *autonomously* — do not ask permission each round.
+Triage every incoming comment yourself: fix + resolve the legitimate ones (push
+the fixup, resolve the thread), resolve duplicates / already-addressed /
+hallucinated findings with a one-line reason, and skip pure-noise notifications.
+Only pause to ask the operator when a comment is genuinely ambiguous or
+architecturally significant (per the subscription rules). Keep the status
+checklist live; reply on the thread only when it resolves the task or raises a
+real question — the diff is the record, not a running commentary.
 
 `[M]` Machine-flagged, advisory. `scripts/check-pr-comments-answered.mjs` (the
 `pr-comments-guard` check / its own `pr-comments.yml` workflow) inspects the PR's
@@ -577,8 +598,15 @@ These bite every contributor session; they are not theoretical.
   - Ollama: `qwen2.5-coder:7b` / `llama3.1:8b` / `qwen2.5-coder:14b`
   - Aider: `gpt-4.1-mini` / `gpt-4.1` / `gpt-5`
   - Custom: `custom-low` / `custom-mid` / `custom-high`, forwarded to wrapper commands via env
-- `fleet-config-ui` is the real control plane surface.
-- `public/fleet-ui` is the built artifact served by the daemon.
+- `fleet-config-ui` is deprecated. Do not add new operator features, demo
+  surfaces, tabs, or agent-control-plane UI there. The one sanctioned exception is
+  the **Galaxy** surface (`SessionGalaxyPanel`), the Fleet UI face of the four-surface
+  session-embedding map; it also renders natively in Fleet Control Center, so the
+  fleet-config-ui tab is a transitional compatibility surface, not a net-new one.
+- Fleet Control Center in `apps/FleetBar/FleetBar` is the real operator control
+  plane surface.
+- `public/fleet-ui` is a legacy built artifact served by the daemon for
+  compatibility while old webview surfaces are folded into Fleet Control Center.
 - FleetBar should open the real control plane, not a shadow dashboard with reduced functionality.
 - FleetBar is the top-level navigator when embedded. The embedded control plane must receive `?embed=fleetbar` and hide duplicate in-app surface tabs.
 - FleetBar embed detection should not rely on query params alone. The WebView must identify itself too, so a dropped query string does not resurrect duplicate chrome.

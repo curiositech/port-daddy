@@ -1,9 +1,14 @@
 {
-  "generatedAt": 1783301546497,
+  "generatedAt": 1783315035961,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 130,
+  "count": 142,
   "items": [
+    {
+      "slug": "accountability-wedge-launch-assets",
+      "status": "now",
+      "summaryMd": "Wedge 1 launch assets from the GTM strategy (\u00a76): Show HN post + founder note, and the portdaddy.dev /accountability launch page (hero, before/after, compliance ladder, git-guard demo, install CTA). Spawned by distribution-dogfood-gtm-strategy."
+    },
     {
       "slug": "active-agent-roster",
       "status": "backlog",
@@ -62,7 +67,7 @@
     {
       "slug": "adr-0043-phase-1-adr-sync-wiring",
       "status": "now",
-      "summaryMd": "ADR-0043 partial: lib/adr-matrix.ts parser shipped (Phase 0); Phase 1 missing \u2014 no cli/commands/adr.ts, no POST /adr/sync."
+      "summaryMd": "ADR-0043 partial: lib/adr-matrix.ts parser shipped (Phase 0); Phase 1 missing — no cli/commands/adr.ts, no POST /adr/sync."
     },
     {
       "slug": "adr-0043-phase-1-daemon-route-and-cli",
@@ -142,7 +147,7 @@
     {
       "slug": "adr-0045-phase-6-watchdog-and-signed-attestation",
       "status": "now",
-      "summaryMd": "Continuous watchdog (PASS->FAIL -> pheromone+notify+FleetBar red); sign clean reports with actor identity (ADR-0040) \u2014 non-repudiable green"
+      "summaryMd": "Continuous watchdog (PASS->FAIL -> pheromone+notify+FleetBar red); sign clean reports with actor identity (ADR-0040) — non-repudiable green"
     },
     {
       "slug": "adr-0046-phase-0-conversation-multiplex-shell",
@@ -227,7 +232,7 @@
     {
       "slug": "adr-0048-phase-2-L2-readsurfaces",
       "status": "now",
-      "summaryMd": "L2 SPINE: the read-surfaces \u2014 suggestibility briefings (agent read), Attention Queue (operator read), resurrection-with-memory (successor read), discovery/pd whois index. Done when tuples/pheromones/memories are READ in >=3 surfaces."
+      "summaryMd": "L2 SPINE: the read-surfaces — suggestibility briefings (agent read), Attention Queue (operator read), resurrection-with-memory (successor read), discovery/pd whois index. Done when tuples/pheromones/memories are READ in >=3 surfaces."
     },
     {
       "slug": "adr-0048-phase-3-L2-legibility-digest",
@@ -307,7 +312,7 @@
     {
       "slug": "adr-0050-phase-7-compulsion",
       "status": "backlog",
-      "summaryMd": "feat(coast-guard): rent\u2192slash advisory-only \u2014 pure policy + breach ledger (ADR-0050 ph7)"
+      "summaryMd": "feat(coast-guard): rent→slash advisory-only — pure policy + breach ledger (ADR-0050 ph7)"
     },
     {
       "slug": "adr-0052-phase-3a-coordination-bench-v1",
@@ -360,6 +365,11 @@
       "summaryMd": "ADR-0092 first local L2 slice: PreToolUse edit-moment suggestibility dial enforces coordinate-before-you-cut before cloud federation."
     },
     {
+      "slug": "adr-0096-signed-guidance-envelope",
+      "status": "now",
+      "summaryMd": "M5 turn-start suggestibility: signed GuidanceEnvelope channel, forged-guidance probe, ProVerif-gated C3 (ADR-0096, binder ch18 M5)"
+    },
+    {
       "slug": "agent-harbor-c1-event-ledger",
       "status": "backlog",
       "summaryMd": "Agent Harbor C1 \u2014 event ledger and projections (binder ch18 Work Order C1)"
@@ -402,7 +412,7 @@
     {
       "slug": "app-lane-auto-refresh",
       "status": "backlog",
-      "summaryMd": "feat(dist): app-lane auto-refresh \u2014 main/tap watcher, FleetBar lanes, date-sorted dev bundles"
+      "summaryMd": "feat(dist): app-lane auto-refresh — main/tap watcher, FleetBar lanes, date-sorted dev bundles"
     },
     {
       "slug": "ast-a0-intra-file-call-edges",
@@ -412,7 +422,7 @@
     {
       "slug": "ast-a1-1-cross-file-resolution",
       "status": "merge",
-      "summaryMd": "A1.1 cross-file import resolution \u2014 KEYSTONE. PR #576: resolveImportSpecifier (filesystem-verified relative+baseUrl; externals stay raw). Unblocks ast-a1-3/a2-1/a3-1. Follow-ups: tsconfig paths globs, Python module resolution."
+      "summaryMd": "A1.1 cross-file import resolution — KEYSTONE. PR #576: resolveImportSpecifier (filesystem-verified relative+baseUrl; externals stay raw). Unblocks ast-a1-3/a2-1/a3-1. Follow-ups: tsconfig paths globs, Python module resolution."
     },
     {
       "slug": "ast-a1-2-references-edges",
@@ -517,12 +527,12 @@
     {
       "slug": "harbor-editor",
       "status": "now",
-      "summaryMd": "Harbor Editor \u2014 cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
+      "summaryMd": "Harbor Editor — cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
     },
     {
       "slug": "io-wiring",
       "status": "now",
-      "summaryMd": "Wire the pluggable trigger/output registry into the fleet engine so fleet agents can fire on and emit to file, webhook, notify, email, SMS, iMessage and calendar \u2014 not just singular trigger:/schedule:. Phased: io-wiring-phase-1..5."
+      "summaryMd": "Wire the pluggable trigger/output registry into the fleet engine so fleet agents can fire on and emit to file, webhook, notify, email, SMS, iMessage and calendar — not just singular trigger:/schedule:. Phased: io-wiring-phase-1..5."
     },
     {
       "slug": "io-wiring-phase-1-registry-engine",
@@ -567,7 +577,7 @@
     {
       "slug": "pd-safe-scan",
       "status": "backlog",
-      "summaryMd": "feat(safe): pd safe \u2014 the AI sniffer (Phase A read-only posture scan + Phase B secret corral, ADR-0088)"
+      "summaryMd": "feat(safe): pd safe — the AI sniffer (Phase A read-only posture scan + Phase B secret corral, ADR-0088)"
     },
     {
       "slug": "pd-session-coordination-hardening",
@@ -587,7 +597,7 @@
     {
       "slug": "roadmap-link-gate",
       "status": "now",
-      "summaryMd": "Non-blocking CI gate: every PR declares its roadmap item (committed snapshot + label\u2192human-approval fallback + loud-on-broken). Daemon is the only writer; CI reads the mirror."
+      "summaryMd": "Non-blocking CI gate: every PR declares its roadmap item (committed snapshot + label→human-approval fallback + loud-on-broken). Daemon is the only writer; CI reads the mirror."
     },
     {
       "slug": "seeded-daemon-fleet-console-lanes",
@@ -653,6 +663,56 @@
       "slug": "visual-task-agent-intake",
       "status": "now",
       "summaryMd": "FleetBar/Fleet Control Center visual task intake should let operators send annotated screenshots or page context to agents without exposing dispatch/worker internals."
+    },
+    {
+      "slug": "adr-0097-m6-context-memory-search-contracts",
+      "status": "now",
+      "summaryMd": "M6 F0-delta: freeze CompactionPacket, MemoryEpisode, TranscriptSearchQuery/Result, read-only BlackboardItem v0 contracts (ADR-0097, binder ch04/ch07 M6)"
+    },
+    {
+      "slug": "adr-0097-phase-2-transcript-search",
+      "status": "now",
+      "summaryMd": "M6 phase 2: hybrid (BM25 + shared MiniLM, RRF) transcript search over the C1 event ledger returning budget-audited, always-cited TranscriptSearchResult objects; pd memory search CLI (ADR-0097, binder ch04/ch07 M6 gate lines 3-4)"
+    },
+    {
+      "slug": "adr-0097-phase-1-compaction-chain",
+      "status": "now",
+      "summaryMd": "M6 phase 1: context-pressure tracking (ch04 thresholds over the F0 ContextEnvelope) + Longshoreman compactor emitting validated cited CompactionPackets; successor resume verifies sourceTranscript against the session hash chain (ADR-0097 Implementation Matrix)"
+    },
+    {
+      "slug": "adr-0097-phase-3-episode-extraction",
+      "status": "now",
+      "summaryMd": "M6 phase 3: episode/graph-fact extraction with bi-temporal validity, supersession closure, distilled-source tombstones, and budget-capped task-conditioned recall (ADR-0097 Implementation Matrix phase 3)"
+    },
+    {
+      "slug": "gpui-symbols-icon-integration",
+      "status": "backlog",
+      "summaryMd": "Integrate AprilNEA/gpui-symbols (native SF Symbols, type-safe Icon + define_icons!, crates.io gpui 0.2.2 exact) to replace pd-console's no-icons/emoji-ban gap. Surface: pd-console (all panes/badges). From the 2026-07-08 awesome-gpui survey (docs/design/2026-07-08-gpui-ecosystem-steals.md)."
+    },
+    {
+      "slug": "mutation-policy-hitl-gate",
+      "status": "backlog",
+      "summaryMd": "DBFlux-style mutation policies (read-only / approval-required + chunked cancellable execution) as a human-in-the-loop gate for agents mutating shared state. Surface: pd-console controls + Harbor governance. Source: 0xErwin1/dbflux (2026-07-08 awesome-gpui survey)."
+    },
+    {
+      "slug": "gpui-flow-fleet-dag-canvas",
+      "status": "backlog",
+      "summaryMd": "Fleet DAG canvas via pacifio/gpui-flow (bezier edges, drag-connect, box-select, viewport-culled at 1000 nodes, minimap; node_renderer returns any GPUI element). Copy-not-depend (git-pin trap). Surface: pd-console fleet view + Harbor. From the 2026-07-08 awesome-gpui survey."
+    },
+    {
+      "slug": "harbor-replicaid-agent-branch-clock",
+      "status": "backlog",
+      "summaryMd": "Adopt zed crates/text+clock ReplicaId model reserving LOCAL/REMOTE_SERVER/AGENT/LOCAL_BRANCH constants as Harbor's agent-as-peer OT/CRDT clock foundation. Surface: Harbor editor. Source: zed-industries/zed (2026-07-08 awesome-gpui survey)."
+    },
+    {
+      "slug": "gpui-px-metrics-charts",
+      "status": "backlog",
+      "summaryMd": "Health/metrics charts via pierreaubert/gpui-toolkit gpui-px (Plotly-express scatter/line/bar/heatmap, Viridis scales). Copy (zed git tag v1.9.0). Surface: pd-console health/metrics panes. From the 2026-07-08 awesome-gpui survey."
+    },
+    {
+      "slug": "gpui-component-0-5-x-dependability-verify",
+      "status": "backlog",
+      "summaryMd": "Verify whether gpui-component published 0.5.x (crates.io) safely pins registry gpui 0.2.2 vs the main-branch git-pin trap; decides copy-vs-depend for the pd tube text-input (blocks it). Surface: pd-console pd-tube cockpit input. Source: longbridge/gpui-component (2026-07-08 awesome-gpui survey)."
     }
   ]
 }

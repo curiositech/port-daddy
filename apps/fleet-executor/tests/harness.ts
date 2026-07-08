@@ -36,6 +36,10 @@ export interface GitHubState {
   }>;
   /** Override the PR diff body. Defaults to a single-file one-hunk diff. */
   prDiff?: string;
+  /** Other open PRs returned by the list endpoint (Lookout's cross-PR tool). */
+  openPRs: Array<{ number: number; title: string; draft?: boolean; head?: { ref: string }; base?: { ref: string } }>;
+  /** Branch names returned by the branches endpoint (Lookout's branch tool). */
+  branches: Array<{ name: string }>;
   /** if set, the first N installation-token mints return 401-ish failure. */
   failTokenMintTimes: number;
   /** if set, the first N contents fetches of pd-fleet.yml return 401. */
@@ -58,6 +62,8 @@ export function freshState(): GitHubState {
     completed: [],
     reviews: [],
     prDiff: undefined,
+    openPRs: [],
+    branches: [],
     failTokenMintTimes: 0,
     failConfig401: 0,
     failCreateCheckRun: 0,
@@ -122,6 +128,14 @@ export function installGitHubFetch(state: GitHubState): void {
       return json({ encoding: 'base64', content: btoa(fileBody) });
     }
 
+    // --- list open PRs (Lookout cross-PR tool) ---
+    if (/\/pulls\?/.test(url) && method === 'GET') {
+      return json(state.openPRs);
+    }
+    // --- list branches (Lookout branch tool) ---
+    if (/\/branches\?/.test(url) && method === 'GET') {
+      return json(state.branches);
+    }
     // --- PR files ---
     if (/\/pulls\/\d+\/files/.test(url)) {
       return json([{ filename: 'src/x.ts', status: 'modified', additions: 3, deletions: 1 }]);

@@ -258,7 +258,129 @@ export async function fetchRepoFile(
 }
 
 // ---------------------------------------------------------------------------
+// Fleet-context helpers (Lookout's tools: cross-PR / cross-branch awareness)
+
+export interface OpenPR {
+  number: number;
+  title: string;
+  headRef: string;
+  baseRef: string;
+  draft: boolean;
+}
+
+/**
+ * List the repo's currently-open PRs (excluding `excludeNumber`, the PR under
+ * review). Lookout uses this to spot cross-PR contradictions and duplication —
+ * two branches building the same thing, or one PR that breaks another's
+ * assumption. Best-effort: a failure returns [] (Lookout just loses that
+ * context, never crashes the run).
+ */
+export async function fetchOpenPullRequests(
+  owner: string,
+  repo: string,
+  token: string,
+  excludeNumber: number,
+  limit = 30,
+): Promise<OpenPR[]> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls?state=open&per_page=${Math.min(limit, 100)}&sort=updated&direction=desc`,
+      { headers: ghHeaders(token) },
+    );
+    if (!res.ok) return [];
+    const body = (await res.json()) as Array<{
+      number: number;
+      title: string;
+      draft?: boolean;
+      head?: { ref?: string };
+      base?: { ref?: string };
+    }>;
+    return body
+      .filter(p => p.number !== excludeNumber)
+      .map(p => ({
+        number: p.number,
+        title: p.title ?? '',
+        headRef: p.head?.ref ?? '',
+        baseRef: p.base?.ref ?? '',
+        draft: p.draft === true,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * List recently-updated branches (feature branches + worktree branches). Lookout
+ * uses this to notice work-in-flight that isn't a PR yet. Best-effort: [] on
+ * failure.
+ */
+export async function listRecentBranches(
+  owner: string,
+  repo: string,
+  token: string,
+  limit = 40,
+): Promise<string[]> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/branches?per_page=${Math.min(limit, 100)}`,
+      { headers: ghHeaders(token) },
+    );
+    if (!res.ok) return [];
+    const body = (await res.json()) as Array<{ name?: string }>;
+    return body.map(b => b.name ?? '').filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Build the "fleet context" block Lookout is given in its user message: the
+ * other open PRs and recent feature/worktree branches. Rendered as compact
+ * markdown so the model can reason about cross-PR contradiction and duplication.
+ * Returns '' when there is nothing to report.
+ */
+export function renderFleetContext(openPRs: OpenPR[], branches: string[]): string {
+  if (openPRs.length === 0 && branches.length === 0) return '';
+  const parts: string[] = ['## Fleet context (other work in flight)'];
+  if (openPRs.length) {
+    parts.push('### Other open PRs');
+    parts.push(
+      openPRs
+        .map(p => `- #${p.number}${p.draft ? ' (draft)' : ''}: ${p.title} [${p.headRef} → ${p.baseRef}]`)
+        .join('\n'),
+    );
+  }
+  if (branches.length) {
+    parts.push('### Recent branches');
+    parts.push(branches.map(b => `- ${b}`).join('\n'));
+  }
+  return parts.join('\n');
+}
+
+// ---------------------------------------------------------------------------
 // Commenting
+
+/** GitHub rejects issue-comment bodies longer than this (422). */
+const GITHUB_COMMENT_MAX = 65536;
+
+/**
+ * Cap a comment body to GitHub's hard limit. A body that would 422 is truncated
+ * with a marker, and the ship's machine tag is re-appended so edit-in-place
+ * (which locates the comment by that tag) still works. Belt-and-suspenders: the
+ * renderers already bound their output, but a pathological findings set (or the
+ * raw-output fallback on a malformed block) must never fail the POST outright.
+ */
+function capBody(body: string, tag: string): string {
+  if (body.length <= GITHUB_COMMENT_MAX) return body;
+  const marker = `\n\n…truncated (exceeded GitHub's ${GITHUB_COMMENT_MAX}-char limit)\n\n${tag}`;
+  // Pathological: a marker (dominated by `tag`) at/over the limit would make the
+  // slice length <= 0 and could drop the edit-in-place tag. Fall back to a hard
+  // slice that still preserves the tag at the very end.
+  if (marker.length >= GITHUB_COMMENT_MAX) {
+    return body.slice(0, Math.max(0, GITHUB_COMMENT_MAX - tag.length - 1)) + '\n' + tag;
+  }
+  return body.slice(0, GITHUB_COMMENT_MAX - marker.length) + marker;
+}
 
 export async function postShipComment(
   owner: string,
@@ -272,7 +394,10 @@ export async function postShipComment(
   if (!body.trim()) return;
 
   const tag = `<!-- pd-ship:${shipHandle} -->`;
-  const commentBody = `**[pd-${shipHandle}]** ${shipRole}\n\n${body}\n\n${tag}`;
+  const commentBody = capBody(
+    `**[pd-${shipHandle}]** ${shipRole}\n\n${body}\n\n${tag}`,
+    tag,
+  );
 
   // Look for an existing comment with our tag to edit in place (idempotent on
   // retry: the same deliveryId re-running edits, never duplicates).
@@ -315,6 +440,36 @@ async function findExistingComment(
   const tag = `<!-- pd-ship:${shipHandle} -->`;
   const match = comments.find(c => c.body.includes(tag));
   return match?.id ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Issues (fleet idea capture)
+
+/**
+ * Open a GitHub issue and return its number + html url. Used to durably capture
+ * a novel (semantic-deduped) fleet idea so a Spark/Spider proposal doesn't
+ * evaporate when the PR scrolls away. Labels are created on demand by GitHub if
+ * they don't exist. Throws on a non-2xx so the caller's best-effort capture path
+ * records an `error` rather than silently losing the idea.
+ */
+export async function createIssue(
+  owner: string,
+  repo: string,
+  title: string,
+  body: string,
+  labels: string[],
+  token: string,
+): Promise<{ number: number; url: string }> {
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
+    method: 'POST',
+    headers: ghHeaders(token),
+    body: JSON.stringify({ title, body, labels }),
+  });
+  if (!res.ok) {
+    throw new Error(`createIssue failed ${res.status}: ${await res.text()}`);
+  }
+  const j = (await res.json()) as { number: number; html_url: string };
+  return { number: j.number, url: j.html_url };
 }
 
 // ---------------------------------------------------------------------------

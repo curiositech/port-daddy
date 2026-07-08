@@ -1,11 +1,13 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, CheckCircle2, FileCog, Gauge, ShieldCheck, ShipWheel, Sun, Moon, Play, RefreshCw, Square, Users, WalletCards, Wifi } from 'lucide-react';
 import { AllProjectsList } from './components/ProjectPicker';
 import ProjectPicker from './components/ProjectPicker';
 import AgentCard from './components/AgentCard';
 import AgentConfigPanel from './components/AgentConfigPanel';
-import FlowGraph from './components/FlowGraph';
+// Lazy: FlowGraph is the sole @xyflow/react importer — splitting it keeps
+// the graph engine out of the initial webview chunk (measured: 1056 kB → see PR).
+const FlowGraph = lazy(() => import('./components/FlowGraph'));
 import ChannelLog, { type ChannelEvent } from './components/ChannelLog';
 import DMPanel from './components/DMPanel';
 import SortiePanel from './components/SortiePanel';
@@ -26,6 +28,7 @@ import VisualTaskPanel from './components/VisualTaskPanel';
 import EventsRegistryPanel from './components/EventsRegistryPanel';
 import { MetricsPanel } from './components/MetricsPanel';
 import CloudFleetPanel from './components/CloudFleetPanel';
+import SessionGalaxyPanel from './components/SessionGalaxyPanel';
 import ShipwrightPanel from './shipwright/ShipwrightPanel';
 import OperatorStatePanel from './components/OperatorStatePanel';
 import ApprovalsPanel from './components/ApprovalsPanel';
@@ -68,8 +71,8 @@ import type {
   TopologyValidation,
 } from './types';
 
-type MainTab = 'Operator' | 'Flow' | 'Roadmap' | 'Agents' | 'Visual' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'TubeBrowser' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Metrics' | 'CloudFleet' | 'Dispatch' | 'CoastGuard' | 'Cockpit' | 'Shipwright' | 'YAML';
-type ControlSurface = 'operator' | 'flow' | 'roadmap' | 'agents' | 'visual' | 'resources' | 'activity' | 'channels' | 'tube' | 'tubebrowser' | 'events' | 'inbox' | 'sorties' | 'memory' | 'metrics' | 'cloudfleet' | 'dispatch' | 'coastguard' | 'cockpit' | 'shipwright' | 'yaml';
+type MainTab = 'Operator' | 'Flow' | 'Roadmap' | 'Agents' | 'Visual' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'TubeBrowser' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Metrics' | 'CloudFleet' | 'Galaxy' | 'Dispatch' | 'CoastGuard' | 'Cockpit' | 'Shipwright' | 'YAML';
+type ControlSurface = 'operator' | 'flow' | 'roadmap' | 'agents' | 'visual' | 'resources' | 'activity' | 'channels' | 'tube' | 'tubebrowser' | 'events' | 'inbox' | 'sorties' | 'memory' | 'metrics' | 'cloudfleet' | 'galaxy' | 'dispatch' | 'coastguard' | 'cockpit' | 'shipwright' | 'yaml';
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined';
@@ -88,6 +91,7 @@ function normalizeSurface(value: string | null): ControlSurface {
     case 'memory':
     case 'metrics':
     case 'cloudfleet':
+    case 'galaxy':
     case 'dispatch':
     case 'coastguard':
     case 'cockpit':
@@ -138,6 +142,8 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
       return 'Metrics';
     case 'cloudfleet':
       return 'CloudFleet';
+    case 'galaxy':
+      return 'Galaxy';
     case 'dispatch':
       return 'Dispatch';
     case 'coastguard':
@@ -169,6 +175,7 @@ function mainTabToSurface(activeTab: MainTab): ControlSurface {
   if (activeTab === 'Memory') return 'memory';
   if (activeTab === 'Metrics') return 'metrics';
   if (activeTab === 'CloudFleet') return 'cloudfleet';
+  if (activeTab === 'Galaxy') return 'galaxy';
   if (activeTab === 'Dispatch') return 'dispatch';
   if (activeTab === 'CoastGuard') return 'coastguard';
   if (activeTab === 'Cockpit') return 'cockpit';
@@ -1485,10 +1492,10 @@ export default function App() {
     (!!fleet.status && !fleet.error) ||
     (!!operatorStateHook.state && !operatorStateHook.error);
 
-  const surfaceTabs: MainTab[] = ['Operator', 'Flow', 'Roadmap', 'Agents', 'Visual', 'Resources', 'Activity', 'Channels', 'Tube', 'TubeBrowser', 'Events', 'Inbox', 'Sorties', 'Memory', 'Metrics', 'CloudFleet', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright', 'YAML'];
+  const surfaceTabs: MainTab[] = ['Operator', 'Flow', 'Roadmap', 'Agents', 'Visual', 'Resources', 'Activity', 'Channels', 'Tube', 'TubeBrowser', 'Events', 'Inbox', 'Sorties', 'Memory', 'Metrics', 'CloudFleet', 'Galaxy', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright', 'YAML'];
   // Visual task intake can start from a screenshot before the operator picks a repo.
   // It still attaches a project when FleetBar opens it from a project context.
-  const allProjectSurfaceTabs: MainTab[] = ['Operator', 'Flow', 'Visual', 'Metrics', 'CloudFleet', 'TubeBrowser', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright'];
+  const allProjectSurfaceTabs: MainTab[] = ['Operator', 'Flow', 'Visual', 'Metrics', 'CloudFleet', 'Galaxy', 'TubeBrowser', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
   const visibleSurfaceTabs = selectedProjectId ? surfaceTabs : allProjectSurfaceTabs;
   const handleProjectRefresh = useCallback(() => {
@@ -1635,6 +1642,10 @@ export default function App() {
                 </div>
               )}
             </motion.div>
+          ) : activeTab === 'Galaxy' ? (
+            <motion.div key="galaxy-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
+              <SessionGalaxyPanel key={`${daemonUrl}:all:galaxy`} project={null} theme={theme} />
+            </motion.div>
           ) : activeTab === 'TubeBrowser' ? (
             <motion.div key="tubebrowser-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
               <TubeMessagePanel />
@@ -1744,15 +1755,17 @@ export default function App() {
                       </div>
                       <div className="flex-1 min-h-0 overflow-hidden">
                         {fleetConfig ? (
-                          <FlowGraph
-                            config={fleetConfig}
-                            topology={topology}
-                            theme={theme}
-                            selectedAgent={selectedAgent}
-                            selectedChannel={selectedChannel}
-                            onAgentSelect={focusAgent}
-                            onChannelSelect={focusChannel}
-                          />
+                          <Suspense fallback={<div className="flex items-center justify-center h-full opacity-20" style={{ color: 'var(--pd-text)' }}>Loading graph...</div>}>
+                            <FlowGraph
+                              config={fleetConfig}
+                              topology={topology}
+                              theme={theme}
+                              selectedAgent={selectedAgent}
+                              selectedChannel={selectedChannel}
+                              onAgentSelect={focusAgent}
+                              onChannelSelect={focusChannel}
+                            />
+                          </Suspense>
                         ) : (
                           <div className="flex items-center justify-center h-full opacity-20" style={{ color: 'var(--pd-text)' }}>Loading config...</div>
                         )}
@@ -2007,6 +2020,13 @@ export default function App() {
                     )}
                     {activeTab === 'CloudFleet' && (
                       <CloudFleetPanel theme={theme} embedded={embedded} daemonUrl={daemonUrl} />
+                    )}
+                    {activeTab === 'Galaxy' && (
+                      <SessionGalaxyPanel
+                        key={`${daemonUrl}:${selectedProjectId}:galaxy`}
+                        project={selectedProjectName ?? null}
+                        theme={theme}
+                      />
                     )}
                     {activeTab === 'TubeBrowser' && (
                       <TubeMessagePanel />

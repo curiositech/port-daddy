@@ -35,16 +35,27 @@ pub struct NotesPane {
 }
 
 impl Default for NotesPane {
-    fn default() -> Self { Self { notes: Vec::new(), last_error: None } }
+    fn default() -> Self {
+        Self {
+            notes: Vec::new(),
+            last_error: None,
+        }
+    }
 }
 
 impl NotesPane {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 }
 
 impl Pane for NotesPane {
-    fn id(&self) -> &str { "memory" }
-    fn title(&self) -> String { "Memory".into() }
+    fn id(&self) -> &str {
+        "memory"
+    }
+    fn title(&self) -> String {
+        "Memory".into()
+    }
 
     fn view(&self) -> Vec<Block> {
         let mut blocks = vec![Block::Header("Session Notes".into())];
@@ -55,13 +66,20 @@ impl Pane for NotesPane {
         }
 
         if self.notes.is_empty() {
-            blocks.push(Block::KeyVal("status".into(), "no notes — pd note \"...\" to add one".into()));
+            blocks.push(Block::KeyVal(
+                "status".into(),
+                "no notes — pd note \"...\" to add one".into(),
+            ));
         } else {
             blocks.push(Block::KeyVal("total".into(), self.notes.len().to_string()));
             blocks.push(Block::Gap);
 
             for note in &self.notes {
-                let ntype = if note.note_type.is_empty() { "note".to_string() } else { note.note_type.clone() };
+                let ntype = if note.note_type.is_empty() {
+                    "note".to_string()
+                } else {
+                    note.note_type.clone()
+                };
                 let tone = match ntype.as_str() {
                     "feat" | "fix" | "result" | "handoff" => Tone::Landed,
                     "scope" | "begin" => Tone::Engaged,
@@ -97,7 +115,10 @@ impl Pane for NotesPane {
                     Err(e) => self.last_error = Some(format!("bad response: {e}")),
                     Ok(data) => {
                         self.last_error = None;
-                        self.notes = arr(&data, "notes").iter().map(NoteEntry::from_value).collect();
+                        self.notes = arr(&data, "notes")
+                            .iter()
+                            .map(NoteEntry::from_value)
+                            .collect();
                     }
                 },
             }
@@ -135,8 +156,18 @@ mod tests {
     fn view_notes() {
         let mut p = NotesPane::default();
         p.notes = vec![
-            NoteEntry { content: "Scope: app.rs".into(), agent_id: "a1".into(), note_type: "scope".into(), created_at_ms: 0 },
-            NoteEntry { content: "Result: green".into(), agent_id: "a1".into(), note_type: "result".into(), created_at_ms: 0 },
+            NoteEntry {
+                content: "Scope: app.rs".into(),
+                agent_id: "a1".into(),
+                note_type: "scope".into(),
+                created_at_ms: 0,
+            },
+            NoteEntry {
+                content: "Result: green".into(),
+                agent_id: "a1".into(),
+                note_type: "result".into(),
+                created_at_ms: 0,
+            },
         ];
         let b = p.view();
         let rows = b.iter().filter(|blk| matches!(blk, Block::Row(_))).count();

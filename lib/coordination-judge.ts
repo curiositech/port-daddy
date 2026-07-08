@@ -158,10 +158,15 @@ function parseVerdict(text: string): { intervene: boolean; reason: string } | nu
 }
 
 /**
- * Wrap a raw transport as an adapter. Only used when a caller passes
- * `transport` (back-compat) instead of a pre-built `client`.
+ * Wrap a raw transport as an adapter. Originally judge-only (the back-compat
+ * path for a caller that passes `transport` instead of a pre-built
+ * `client`); exported because it's the exact same bridge any other
+ * request-shape actor needs to turn a `resolveLLMBackend()` result into a
+ * `createLLMClient()`-compatible adapter — e.g. `lib/skill-graft.ts`'s
+ * Tool2Vec synthetic-query generation, wired the same way in
+ * `lib/fleet-engine.ts`.
  */
-function transportToAdapter(transport: LLMTransport): LLMAdapter {
+export function transportToAdapter(transport: LLMTransport): LLMAdapter {
   return async ({ prompt, model, signal }) => transport.complete({ prompt, model, signal: signal! });
 }
 

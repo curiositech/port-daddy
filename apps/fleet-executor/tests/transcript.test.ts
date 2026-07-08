@@ -393,24 +393,35 @@ describe('Workers AI cost/token/model telemetry on fleet_runs', () => {
     expect(run.costUsd).toBeCloseTo(0.00005, 8);
   });
 
-  it('records tokens but null cost when the model has no known rate', async () => {
-    // The default fixture model (@cf/qwen/qwen2.5-coder-32b-instruct) is not in
-    // the pricing table — tokens still recorded, cost honestly null (never guessed).
+  it('the review bot cost is derived from its ROLE model, not the pd-fleet pin', async () => {
+    // REVIEWER_YAML pins @cf/qwen/qwen2.5-coder-32b-instruct, but a ship never
+    // reaches the expensive tier by pin: the code-review bot is routed to
+    // gpt-oss-120b by ROLE (deriveCfModel / isReviewBot), and the pin is ignored.
+    // So the recorded model + cost track the role model, not the YAML pin — the
+    // relay's fleet_runs row agrees with what actually ran.
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
-    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' },
+      usage: { prompt_tokens: 100, completion_tokens: 20 },
+    });
     const d1 = memoryD1();
 
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }));
 
     const run = d1.runs[0];
     expect(run.neurons).toBe(120);
-    expect(run.costUsd).toBeNull();
-    expect(run.modelsCsv).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+    expect(run.modelsCsv).toBe('@cf/openai/gpt-oss-120b');
+    // 100/1e6*0.35 + 20/1e6*0.75 = 0.00005
+    expect(run.costUsd).toBeCloseTo(0.00005, 8);
   });
 
-  it('tolerates a Workers AI response with no usage block (tokens 0, cost null)', async () => {
+  it('tolerates a Workers AI response with no usage block (tokens 0, cost 0)', async () => {
+    // No usage block → zero tokens accrue. The run still ran on a priced model
+    // (gpt-oss-120b by role), so cost is a real 0 (zero tokens × any rate), not a
+    // crash and not a guess. Cost is null only when NO model in the run is priced
+    // (see the mixed/unpriced unit coverage in usage.test.ts).
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -423,6 +434,6 @@ describe('Workers AI cost/token/model telemetry on fleet_runs', () => {
     expect(run.inputTokens).toBe(0);
     expect(run.outputTokens).toBe(0);
     expect(run.neurons).toBe(0);
-    expect(run.costUsd).toBeNull();
+    expect(run.costUsd).toBe(0);
   });
 });

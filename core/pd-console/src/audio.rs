@@ -182,7 +182,7 @@ fn synth(cue: Cue, jitter: f32) -> Vec<f32> {
                 break;
             }
             let t = i as f32 / len.max(1) as f32; // 0..1 across the voice
-            // Amplitude envelope: linear attack, exponential decay/release.
+                                                  // Amplitude envelope: linear attack, exponential decay/release.
             let env = if i < attack {
                 i as f32 / attack as f32
             } else {
@@ -224,9 +224,24 @@ fn voices_for(cue: Cue, j: f32) -> Vec<Voice> {
     // A sine + a quiet octave + a faint fifth → warmth without buzz.
     let rich = |f: f32| -> Vec<Partial> {
         vec![
-            Partial { f0: f * j, f1: f * j, amp: 1.0, wave: Wave::Sine },
-            Partial { f0: f * 2.0 * j, f1: f * 2.0 * j, amp: 0.18, wave: Wave::Sine },
-            Partial { f0: f * 1.5 * j, f1: f * 1.5 * j, amp: 0.10, wave: Wave::Triangle },
+            Partial {
+                f0: f * j,
+                f1: f * j,
+                amp: 1.0,
+                wave: Wave::Sine,
+            },
+            Partial {
+                f0: f * 2.0 * j,
+                f1: f * 2.0 * j,
+                amp: 0.18,
+                wave: Wave::Sine,
+            },
+            Partial {
+                f0: f * 1.5 * j,
+                f1: f * 1.5 * j,
+                amp: 0.10,
+                wave: Wave::Triangle,
+            },
         ]
     };
 
@@ -259,19 +274,39 @@ fn voices_for(cue: Cue, j: f32) -> Vec<Voice> {
                 start_s: 0.0,
                 dur_s: 0.26,
                 gain: 0.26,
-                partials: vec![Partial { f0: 392.0 * j, f1: 784.0 * j, amp: 1.0, wave: Wave::Triangle }],
+                partials: vec![Partial {
+                    f0: 392.0 * j,
+                    f1: 784.0 * j,
+                    amp: 1.0,
+                    wave: Wave::Triangle,
+                }],
             },
             Voice {
                 start_s: 0.04,
                 dur_s: 0.22,
                 gain: 0.10,
-                partials: vec![Partial { f0: 588.0 * j, f1: 1176.0 * j, amp: 1.0, wave: Wave::Sine }],
+                partials: vec![Partial {
+                    f0: 588.0 * j,
+                    f1: 1176.0 * j,
+                    amp: 1.0,
+                    wave: Wave::Sine,
+                }],
             },
         ],
         // Bright two-note rise.
         Cue::Confirm => vec![
-            Voice { start_s: 0.0, dur_s: 0.12, gain: 0.22, partials: rich(587.33) },
-            Voice { start_s: 0.09, dur_s: 0.18, gain: 0.24, partials: rich(880.0) },
+            Voice {
+                start_s: 0.0,
+                dur_s: 0.12,
+                gain: 0.22,
+                partials: rich(587.33),
+            },
+            Voice {
+                start_s: 0.09,
+                dur_s: 0.18,
+                gain: 0.24,
+                partials: rich(880.0),
+            },
         ],
         // A single soft warm mid note — a reply arriving (distinct from Confirm's rise).
         Cue::Receive => vec![Voice {
@@ -281,35 +316,56 @@ fn voices_for(cue: Cue, j: f32) -> Vec<Voice> {
             partials: rich(659.25),
         }],
         // Low, firm descending "stop" with a little triangle edge — a wall.
-        Cue::Gate => vec![
-            Voice {
-                start_s: 0.0,
-                dur_s: 0.30,
-                gain: 0.24,
-                partials: vec![
-                    Partial { f0: 330.0 * j, f1: 294.0 * j, amp: 1.0, wave: Wave::Triangle },
-                    Partial { f0: 165.0 * j, f1: 147.0 * j, amp: 0.30, wave: Wave::Sine },
-                ],
-            },
-        ],
+        Cue::Gate => vec![Voice {
+            start_s: 0.0,
+            dur_s: 0.30,
+            gain: 0.24,
+            partials: vec![
+                Partial {
+                    f0: 330.0 * j,
+                    f1: 294.0 * j,
+                    amp: 1.0,
+                    wave: Wave::Triangle,
+                },
+                Partial {
+                    f0: 165.0 * j,
+                    f1: 147.0 * j,
+                    amp: 0.30,
+                    wave: Wave::Sine,
+                },
+            ],
+        }],
         // Failure: lower, grittier descending tone.
-        Cue::Error => vec![
-            Voice {
-                start_s: 0.0,
-                dur_s: 0.34,
-                gain: 0.22,
-                partials: vec![
-                    Partial { f0: 392.0 * j, f1: 196.0 * j, amp: 1.0, wave: Wave::Triangle },
-                    Partial { f0: 196.0 * j, f1: 98.0 * j, amp: 0.22, wave: Wave::Square },
-                ],
-            },
-        ],
+        Cue::Error => vec![Voice {
+            start_s: 0.0,
+            dur_s: 0.34,
+            gain: 0.22,
+            partials: vec![
+                Partial {
+                    f0: 392.0 * j,
+                    f1: 196.0 * j,
+                    amp: 1.0,
+                    wave: Wave::Triangle,
+                },
+                Partial {
+                    f0: 196.0 * j,
+                    f1: 98.0 * j,
+                    amp: 0.22,
+                    wave: Wave::Square,
+                },
+            ],
+        }],
         // Dry crisp click.
         Cue::Toggle => vec![Voice {
             start_s: 0.0,
             dur_s: 0.05,
             gain: 0.16,
-            partials: vec![Partial { f0: 760.0 * j, f1: 760.0 * j, amp: 1.0, wave: Wave::Square }],
+            partials: vec![Partial {
+                f0: 760.0 * j,
+                f1: 760.0 * j,
+                amp: 1.0,
+                wave: Wave::Square,
+            }],
         }],
         // Near-silent transition tick.
         Cue::Tick => vec![Voice {
@@ -346,7 +402,10 @@ fn with_sink(f: impl FnOnce(&OutputStreamHandle)) {
         let mut cell = cell.borrow_mut();
         if matches!(*cell, AudioCell::Uninit) {
             *cell = match OutputStream::try_default() {
-                Ok((stream, handle)) => AudioCell::Live { _stream: stream, handle },
+                Ok((stream, handle)) => AudioCell::Live {
+                    _stream: stream,
+                    handle,
+                },
                 Err(_) => AudioCell::Dead,
             };
         }

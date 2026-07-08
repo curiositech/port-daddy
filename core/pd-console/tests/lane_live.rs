@@ -84,8 +84,16 @@ async fn subscribe_agent_streams_typed_envelopes_over_a_socket() {
     // The `connected` handshake yields no envelope; the four typed frames do.
     assert_eq!(
         kinds,
-        vec!["agent.status", "agent.transcript", "agent.transcript", "agent.tube"],
+        vec![
+            "agent.status",
+            "agent.transcript",
+            "agent.transcript",
+            "agent.tube"
+        ],
         "typed envelopes arrive in order off the live socket",
     );
-    assert!(saw_control, "the closed-loop control.interrupt frame reached the channel");
+    assert!(
+        saw_control,
+        "the closed-loop control.interrupt frame reached the channel"
+    );
 }

@@ -88,6 +88,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   ideas: 'silent',
   graph: 'silent',
   embed: 'notify', // worst case: `embed prefetch` downloads ~27 MB into the shared cache; reads/embeds are silent
+  'skill-graft': 'notify', // worst case: `skill-graft warm` refreshes the local graft cache; reads are silent
+  skillgraft: 'notify',    // alias of skill-graft
   memory: 'silent',
   'who-owns': 'silent',
   harbors: 'silent',
@@ -221,6 +223,17 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'embed stdin': 'silent',
   'embed prefetch': 'notify',
 
+  // skill-graft: query/reference are read-only; warm refreshes the shared local
+  // skill index and may call the configured graft backend when enabled.
+  'skill-graft': 'silent',         // default subcommand = query
+  'skill-graft query': 'silent',
+  'skill-graft reference': 'silent',
+  'skill-graft warm': 'notify',
+  'skillgraft': 'silent',
+  'skillgraft query': 'silent',
+  'skillgraft reference': 'silent',
+  'skillgraft warm': 'notify',
+
   // salvage: list is read-only, mutations are destructive
   'salvage': 'silent',              // default subcommand = listing
   'salvage triage': 'silent',
@@ -301,6 +314,13 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'parley call': 'approval',
   'parley respond': 'approval',
   'parley resolve': 'approval',
+  // turn verbs are respond sugar — same tier
+  'parley propose': 'approval',
+  'parley critique': 'approval',
+  'parley revise': 'approval',
+  'parley agree': 'approval',
+  'parley refuse': 'approval',
+  'parley say': 'approval',
 
   // roadmap: default/list/show are reads; upsert/touch/promote mutate the roadmap DB-of-record
   'roadmap upsert': 'notify',

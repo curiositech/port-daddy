@@ -79,10 +79,24 @@ export interface ApprovalActions {
 
 type Listener = (event: ApprovalServerEvent) => void;
 
+/**
+ * Hard cap on undecided proposals (griefing defense — cryptoeconomic
+ * Attack Class 2). Inbound triggers are near-free to the sender (mail an
+ * address, POST an unsecured webhook channel) and every external one lands
+ * here as an approval. Content-fingerprint dedup + TTL expiry collapse
+ * *identical* floods, but a sender who VARIES the body each time defeats
+ * dedup and would grow this Map without bound — memory exhaustion plus
+ * operator-attention burial. When full we refuse new enqueues (fail-closed:
+ * the trigger can fire again once the operator drains the queue; dropping a
+ * flood beats OOMing the daemon). Matches PR #648's MAX_PENDING_FLEET_PROPOSALS.
+ */
+export const MAX_PENDING_APPROVALS = 200;
+
 export class FleetApprovalStream {
   private readonly pending = new Map<string, PendingApproval>();
   private readonly listeners = new Set<Listener>();
   private actions: ApprovalActions | null = null;
+  private capWarned = false;
 
   /** The daemon injects what approve/reject DO. Without it, decisions are
    *  refused (fail-closed) — the stream never invents its own spawn path. */
@@ -97,15 +111,42 @@ export class FleetApprovalStream {
    * on the next restart after its twin was decided.
    */
   enqueue(proposal: PendingApproval): boolean {
-    if (this.pending.has(proposal.id)) return false; // replay-safe by id
+    if (this.pending.has(proposal.id)) return false; // replay-safe by id (O(1))
+
+    // Griefing cap (Attack Class 2) — checked BEFORE the O(n) fingerprint dedup
+    // scan below, and this ordering is load-bearing, not cosmetic. Refuse past
+    // the ceiling in O(1) rather than let a distinct-content flood exhaust
+    // memory / bury the operator. If the cap were checked *after* the dedup
+    // scan, then once the queue is full every *rejected* flood enqueue would
+    // still hash the newcomer plus all ~MAX_PENDING_APPROVALS pending proposals
+    // (SHA-1 each) before refusing — the cap meant to blunt the flood would
+    // itself become an O(n)-per-request CPU-amplification vector (Copilot
+    // review finding). Fail-closed: the trigger can fire again once the
+    // operator drains the queue; dropping a flood beats OOMing (or pinning the
+    // CPU of) the daemon. Warn once per saturation episode so it's visible.
+    if (this.pending.size >= MAX_PENDING_APPROVALS) {
+      if (!this.capWarned) {
+        this.capWarned = true;
+        this.broadcast({
+          type: 'error',
+          message: `approval queue full (${MAX_PENDING_APPROVALS}); refusing new spawn gates until drained — possible inbound flood`,
+        });
+      }
+      return false;
+    }
+    this.capWarned = false;
+
     // Content-level idempotency: a retried delivery that slipped past the
     // trigger-layer dedup (daemon restart cleared it, different transport)
     // arrives with a FRESH uuid but identical substance. One inbound event
-    // must never stack two human gates.
+    // must never stack two human gates. Bounded by the cap check above, so
+    // this scan is at most MAX_PENDING_APPROVALS-1 hashes and only runs when
+    // the queue has headroom — never on the flood-rejection path.
     const fingerprint = proposalFingerprint(proposal);
     for (const existing of this.pending.values()) {
       if (proposalFingerprint(existing) === fingerprint) return false;
     }
+
     this.pending.set(proposal.id, proposal);
     this.broadcast({ type: 'human_gate_waiting', proposal });
     return true;
