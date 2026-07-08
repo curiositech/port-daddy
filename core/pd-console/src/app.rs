@@ -1838,9 +1838,14 @@ pub struct ConsoleView {
     pub(crate) galaxy_selected: HashSet<String>,
     /// The point under the cursor (drives the fixed hover readout strip).
     pub(crate) galaxy_hover: Option<String>,
+    /// Camera for the normalized Galaxy world: edge padding, zoom, and pan.
+    pub(crate) galaxy_viewport: crate::galaxy_pane::GalaxyViewport,
     /// In-flight rectangle select: (anchor, current) in WINDOW pixels. The root
     /// mouse handlers own the update/complete arms (divider-drag pattern).
     pub(crate) galaxy_drag: Option<(Point<Pixels>, Point<Pixels>)>,
+    /// In-flight pan gesture: last pointer position in WINDOW pixels. Right or
+    /// middle drag moves the map without colliding with left-drag marquee.
+    pub(crate) galaxy_pan: Option<Point<Pixels>>,
     /// The map's laid-out bounds, captured by a canvas prepaint each frame (the
     /// split_bounds pattern; one frame stale is fine at the 500ms drain cadence)
     /// so drag/hover pixel positions convert to normalized map coords.
@@ -1946,7 +1951,9 @@ impl ConsoleView {
             galaxy: crate::galaxy_pane::GalaxySnapshot::default(),
             galaxy_selected: HashSet::new(),
             galaxy_hover: None,
+            galaxy_viewport: crate::galaxy_pane::GalaxyViewport::default(),
             galaxy_drag: None,
+            galaxy_pan: None,
             galaxy_bounds: Rc::new(RefCell::new(None)),
             galaxy_detail: None,
             galaxy_detail_error: None,
@@ -3161,6 +3168,11 @@ impl ConsoleView {
                             "size": c.size,
                         })).collect::<Vec<_>>(),
                         "selected": self.galaxy_selected.iter().cloned().collect::<Vec<_>>(),
+                        "viewport": {
+                            "zoom": self.galaxy_viewport.zoom,
+                            "panX": self.galaxy_viewport.pan_x,
+                            "panY": self.galaxy_viewport.pan_y,
+                        },
                     });
                 }
                 out
@@ -3227,6 +3239,67 @@ impl ConsoleView {
         if let Some(tx) = &self.control_tx {
             let _ = tx.send(ControlMsg::GalaxyCluster { enabled: next });
         }
+    }
+
+    pub(crate) fn begin_galaxy_pan(&mut self, position: Point<Pixels>) {
+        self.galaxy_pan = Some(position);
+        self.galaxy_drag = None;
+    }
+
+    pub(crate) fn end_galaxy_pan(&mut self) {
+        self.galaxy_pan = None;
+    }
+
+    pub(crate) fn galaxy_pan_to(&mut self, position: Point<Pixels>) {
+        let Some(last) = self.galaxy_pan else {
+            self.galaxy_pan = Some(position);
+            return;
+        };
+        let bounds = *self.galaxy_bounds.borrow();
+        if let Some(b) = bounds {
+            self.galaxy_viewport.pan_by_screen_delta(
+                f32::from(position.x) - f32::from(last.x),
+                f32::from(position.y) - f32::from(last.y),
+                f32::from(b.size.width),
+                f32::from(b.size.height),
+            );
+            self.galaxy_hover = None;
+        }
+        self.galaxy_pan = Some(position);
+    }
+
+    pub(crate) fn galaxy_zoom_at_position(&mut self, position: Point<Pixels>, factor: f32) {
+        let anchor = {
+            let bounds = *self.galaxy_bounds.borrow();
+            bounds
+                .map(|b| {
+                    let w = f32::from(b.size.width).max(1.0);
+                    let h = f32::from(b.size.height).max(1.0);
+                    (
+                        (f32::from(position.x) - f32::from(b.origin.x)) / w,
+                        (f32::from(position.y) - f32::from(b.origin.y)) / h,
+                    )
+                })
+                .unwrap_or((0.5, 0.5))
+        };
+        self.galaxy_viewport
+            .zoom_at(factor, anchor.0.clamp(0.0, 1.0), anchor.1.clamp(0.0, 1.0));
+        self.galaxy_hover = None;
+    }
+
+    pub(crate) fn galaxy_zoom_center(&mut self, factor: f32) {
+        self.galaxy_viewport.zoom_at(factor, 0.5, 0.5);
+        self.galaxy_hover = None;
+    }
+
+    pub(crate) fn galaxy_fit_view(&mut self) {
+        self.galaxy_viewport.fit_points(&self.galaxy.points);
+        self.galaxy_hover = None;
+    }
+
+    pub(crate) fn galaxy_reset_view(&mut self) {
+        self.galaxy_viewport.reset();
+        self.galaxy_hover = None;
     }
 
     /// Open a galaxy-detail file row in the Editor surface (read-only host).
@@ -6009,6 +6082,21 @@ impl Render for ConsoleView {
                         cx.notify();
                     }
                 }
+                // Galaxy camera pan: right/middle drag keeps moving even if the
+                // pointer leaves the map child. Left drag remains marquee.
+                if this.galaxy_pan.is_some() {
+                    if matches!(
+                        ev.pressed_button,
+                        Some(MouseButton::Right) | Some(MouseButton::Middle)
+                    ) {
+                        this.galaxy_pan_to(ev.position);
+                        cx.notify();
+                        return;
+                    }
+                    this.end_galaxy_pan();
+                    cx.notify();
+                    return;
+                }
                 // Galaxy marquee: while a rectangle-select is live, track the far
                 // corner; auto-cancel when Left is no longer held (same
                 // bulletproof-release rule as the divider drag above).
@@ -6044,12 +6132,20 @@ impl Render for ConsoleView {
                         let travelled = (f32::from(end.x) - f32::from(start.x)).abs() > 4.0
                             || (f32::from(end.y) - f32::from(start.y)).abs() > 4.0;
                         if travelled {
+                            let start_x = (f32::from(start.x) - ox) / w;
+                            let start_y = (f32::from(start.y) - oy) / h;
+                            let end_x = (f32::from(end.x) - ox) / w;
+                            let end_y = (f32::from(end.y) - oy) / h;
+                            let (world_start_x, world_start_y) =
+                                this.galaxy_viewport.view_to_world(start_x, start_y);
+                            let (world_end_x, world_end_y) =
+                                this.galaxy_viewport.view_to_world(end_x, end_y);
                             let hits = crate::galaxy_pane::rect_hits(
                                 &this.galaxy.points,
-                                (f32::from(start.x) - ox) / w,
-                                (f32::from(start.y) - oy) / h,
-                                (f32::from(end.x) - ox) / w,
-                                (f32::from(end.y) - oy) / h,
+                                world_start_x,
+                                world_start_y,
+                                world_end_x,
+                                world_end_y,
                             );
                             if !hits.is_empty() {
                                 crate::audio::play(crate::audio::Cue::Tick);
@@ -6059,6 +6155,16 @@ impl Render for ConsoleView {
                             }
                         }
                     }
+                    cx.notify();
+                }
+            }))
+            .on_mouse_up(MouseButton::Right, cx.listener(|this, _ev: &MouseUpEvent, _window, cx| {
+                if this.galaxy_pan.take().is_some() {
+                    cx.notify();
+                }
+            }))
+            .on_mouse_up(MouseButton::Middle, cx.listener(|this, _ev: &MouseUpEvent, _window, cx| {
+                if this.galaxy_pan.take().is_some() {
                     cx.notify();
                 }
             }))
