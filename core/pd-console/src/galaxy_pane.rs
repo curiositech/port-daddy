@@ -155,6 +155,133 @@ pub fn cluster_tone(cluster_id: usize) -> Tone {
 
 // ── Pure geometry (the canvas delegates here so the REPL bin tests it) ───────
 
+/// View camera for the normalized daemon layout. The daemon still owns the
+/// [0, 1] embedding coordinates; this camera only decides how that world is
+/// framed inside the GPUI canvas.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GalaxyViewport {
+    /// Scale applied to the normalized map world. `1.0` shows the whole world
+    /// with [`Self::EDGE_PAD`] around it; larger values zoom in.
+    pub zoom: f32,
+    /// Normalized world coordinate at the left edge of the visible data window.
+    pub pan_x: f32,
+    /// Normalized world coordinate at the top edge of the visible data window.
+    pub pan_y: f32,
+}
+
+impl Default for GalaxyViewport {
+    fn default() -> Self {
+        Self {
+            zoom: 1.0,
+            pan_x: 0.0,
+            pan_y: 0.0,
+        }
+    }
+}
+
+impl GalaxyViewport {
+    /// Permanent visual breathing room around the daemon's normalized layout.
+    pub const EDGE_PAD: f32 = 0.08;
+    pub const MIN_ZOOM: f32 = 1.0;
+    pub const MAX_ZOOM: f32 = 8.0;
+
+    fn content_span() -> f32 {
+        1.0 - (Self::EDGE_PAD * 2.0)
+    }
+
+    fn visible_world_span(&self) -> f32 {
+        (1.0 / self.zoom.max(Self::MIN_ZOOM)).min(1.0)
+    }
+
+    fn clamp_pan(&mut self) {
+        self.zoom = self.zoom.clamp(Self::MIN_ZOOM, Self::MAX_ZOOM);
+        let visible = self.visible_world_span();
+        if visible >= 1.0 {
+            self.pan_x = 0.0;
+            self.pan_y = 0.0;
+        } else {
+            let max_pan = 1.0 - visible;
+            self.pan_x = self.pan_x.clamp(0.0, max_pan);
+            self.pan_y = self.pan_y.clamp(0.0, max_pan);
+        }
+    }
+
+    pub fn reset(&mut self) {
+        *self = Self::default();
+    }
+
+    /// Convert normalized world coordinates into relative canvas coordinates.
+    pub fn world_to_view(&self, x: f32, y: f32) -> (f32, f32) {
+        let span = Self::content_span() * self.zoom.max(Self::MIN_ZOOM);
+        (
+            Self::EDGE_PAD + ((x - self.pan_x) * span),
+            Self::EDGE_PAD + ((y - self.pan_y) * span),
+        )
+    }
+
+    /// Convert relative canvas coordinates back into normalized world coords.
+    pub fn view_to_world(&self, x: f32, y: f32) -> (f32, f32) {
+        let span = Self::content_span() * self.zoom.max(Self::MIN_ZOOM);
+        (
+            ((x - Self::EDGE_PAD) / span) + self.pan_x,
+            ((y - Self::EDGE_PAD) / span) + self.pan_y,
+        )
+    }
+
+    /// Zoom around a relative canvas anchor, preserving the world point under
+    /// the cursor/buttons as closely as the map bounds allow.
+    pub fn zoom_at(&mut self, factor: f32, anchor_x: f32, anchor_y: f32) {
+        let factor = factor.clamp(0.25, 4.0);
+        let anchor_x = anchor_x.clamp(0.0, 1.0);
+        let anchor_y = anchor_y.clamp(0.0, 1.0);
+        let before = self.view_to_world(anchor_x, anchor_y);
+        self.zoom = (self.zoom * factor).clamp(Self::MIN_ZOOM, Self::MAX_ZOOM);
+        let after = self.view_to_world(anchor_x, anchor_y);
+        self.pan_x += before.0 - after.0;
+        self.pan_y += before.1 - after.1;
+        self.clamp_pan();
+    }
+
+    /// Drag the map like a grabbable surface. Positive screen deltas move
+    /// content in the same direction as the pointer.
+    pub fn pan_by_screen_delta(&mut self, dx_px: f32, dy_px: f32, w_px: f32, h_px: f32) {
+        let scale = Self::content_span() * self.zoom.max(Self::MIN_ZOOM);
+        self.pan_x -= dx_px / w_px.max(1.0) / scale;
+        self.pan_y -= dy_px / h_px.max(1.0) / scale;
+        self.clamp_pan();
+    }
+
+    /// Fit the current points while keeping the same edge breathing room.
+    pub fn fit_points(&mut self, points: &[GalaxyPoint]) {
+        if points.is_empty() {
+            self.reset();
+            return;
+        }
+
+        let (mut min_x, mut max_x) = (1.0_f32, 0.0_f32);
+        let (mut min_y, mut max_y) = (1.0_f32, 0.0_f32);
+        for p in points {
+            min_x = min_x.min(p.x);
+            max_x = max_x.max(p.x);
+            min_y = min_y.min(p.y);
+            max_y = max_y.max(p.y);
+        }
+
+        let range_x = (max_x - min_x).max(0.04);
+        let range_y = (max_y - min_y).max(0.04);
+        let desired_visible_x = (range_x + 0.16).min(1.0);
+        let desired_visible_y = (range_y + 0.16).min(1.0);
+        self.zoom = (1.0 / desired_visible_x)
+            .min(1.0 / desired_visible_y)
+            .clamp(Self::MIN_ZOOM, Self::MAX_ZOOM);
+
+        let visible = self.visible_world_span();
+        self.pan_x = ((min_x + max_x) * 0.5) - (visible * 0.5);
+        self.pan_y = ((min_y + max_y) * 0.5) - (visible * 0.5);
+        self.clamp_pan();
+    }
+}
+
 /// Point ids inside the (inclusive) rectangle in NORMALIZED map space. Corners
 /// may arrive in any order (a drag can travel up-left); they are re-sorted here.
 pub fn rect_hits(points: &[GalaxyPoint], x0: f32, y0: f32, x1: f32, y1: f32) -> Vec<String> {
@@ -965,6 +1092,13 @@ mod tests {
         ids.iter().map(|s| s.to_string()).collect()
     }
 
+    fn assert_close(left: f32, right: f32) {
+        assert!(
+            (left - right).abs() < 1e-5,
+            "expected {left} to be close to {right}"
+        );
+    }
+
     #[test]
     fn parses_the_map_response() {
         let (points, clusters, computed_at) = from_value(&map_fixture());
@@ -1042,6 +1176,69 @@ mod tests {
         twin[2].y = 0.30; // tr-1 at (0.10,0.20), tr-3 at (0.10,0.30); probe midway
         let tie = nearest_point(&twin, 0.10, 0.25, 0.10).expect("a tie hit");
         assert_eq!(tie.id, "tr-1");
+    }
+
+    #[test]
+    fn viewport_default_gives_points_edge_room() {
+        let viewport = GalaxyViewport::default();
+        let (left, top) = viewport.world_to_view(0.0, 0.0);
+        let (right, bottom) = viewport.world_to_view(1.0, 1.0);
+
+        assert_close(left, GalaxyViewport::EDGE_PAD);
+        assert_close(top, GalaxyViewport::EDGE_PAD);
+        assert_close(right, 1.0 - GalaxyViewport::EDGE_PAD);
+        assert_close(bottom, 1.0 - GalaxyViewport::EDGE_PAD);
+
+        let world = viewport.view_to_world(right, bottom);
+        assert_close(world.0, 1.0);
+        assert_close(world.1, 1.0);
+    }
+
+    #[test]
+    fn viewport_zoom_preserves_anchor_world_point() {
+        let mut viewport = GalaxyViewport::default();
+        let before = viewport.view_to_world(0.40, 0.65);
+
+        viewport.zoom_at(2.0, 0.40, 0.65);
+
+        let after = viewport.view_to_world(0.40, 0.65);
+        assert_close(before.0, after.0);
+        assert_close(before.1, after.1);
+        assert!(viewport.zoom > 1.0);
+    }
+
+    #[test]
+    fn viewport_pan_moves_content_with_the_pointer_and_clamps() {
+        let mut viewport = GalaxyViewport::default();
+        viewport.zoom_at(3.0, 0.5, 0.5);
+        let original = viewport.pan_x;
+
+        viewport.pan_by_screen_delta(120.0, 0.0, 600.0, 400.0);
+        assert!(
+            viewport.pan_x < original,
+            "dragging right moves content right"
+        );
+
+        viewport.pan_by_screen_delta(-10_000.0, -10_000.0, 600.0, 400.0);
+        let max_pan = 1.0 - (1.0 / viewport.zoom);
+        assert!(viewport.pan_x <= max_pan && viewport.pan_y <= max_pan);
+        assert!(viewport.pan_x >= 0.0 && viewport.pan_y >= 0.0);
+    }
+
+    #[test]
+    fn viewport_fit_points_zooms_dense_clusters_without_losing_padding() {
+        let (points, _, _) = from_value(&map_fixture());
+        let dense = vec![points[0].clone(), points[2].clone()];
+        let mut viewport = GalaxyViewport::default();
+
+        viewport.fit_points(&dense);
+
+        assert!(viewport.zoom > 1.0);
+        for point in dense {
+            let (x, y) = viewport.world_to_view(point.x, point.y);
+            assert!(x > GalaxyViewport::EDGE_PAD && x < 1.0 - GalaxyViewport::EDGE_PAD);
+            assert!(y > GalaxyViewport::EDGE_PAD && y < 1.0 - GalaxyViewport::EDGE_PAD);
+        }
     }
 
     #[test]

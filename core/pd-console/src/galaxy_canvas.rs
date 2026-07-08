@@ -36,6 +36,91 @@ fn wash(color: u32, alpha: u8) -> Rgba {
     rgba((color << 8) | alpha as u32)
 }
 
+fn camera_button(id: &'static str, label: &'static str, t: &Theme) -> Stateful<Div> {
+    div()
+        .id(id)
+        .min_w(px(28.0))
+        .h(px(26.0))
+        .px(px(7.0))
+        .rounded(px(tokens::RADIUS_SM))
+        .border_1()
+        .border_color(rgb(t.line))
+        .bg(wash(t.raised, 0xe8))
+        .flex()
+        .items_center()
+        .justify_center()
+        .text_size(px(tokens::TEXT_BODY))
+        .font_weight(FontWeight::SEMIBOLD)
+        .text_color(rgb(t.ink))
+        .cursor_pointer()
+        .hover(|s| {
+            let t = current_theme();
+            s.border_color(rgb(t.accent)).bg(rgb(t.panel))
+        })
+        .child(label)
+}
+
+fn camera_toolbar(view: &ConsoleView, t: &Theme, cx: &mut Context<ConsoleView>) -> AnyElement {
+    div()
+        .absolute()
+        .top(px(tokens::SPACE_2))
+        .right(px(tokens::SPACE_2))
+        .px(px(tokens::SPACE_1))
+        .py(px(tokens::SPACE_1))
+        .rounded(px(tokens::RADIUS_MD))
+        .border_1()
+        .border_color(rgb(t.line))
+        .bg(wash(t.bg, 0xf0))
+        .flex()
+        .items_center()
+        .gap(px(tokens::SPACE_1))
+        .occlude()
+        .child(
+            div()
+                .min_w(px(44.0))
+                .text_align(TextAlign::Center)
+                .text_size(px(tokens::TEXT_CAPTION))
+                .font_family("IBM Plex Mono")
+                .text_color(rgb(t.muted))
+                .child(format!("{:.0}%", view.galaxy_viewport.zoom * 100.0)),
+        )
+        .child(
+            camera_button("galaxy-zoom-out", "-", t).on_click(cx.listener(
+                |this, _ev, _window, cx| {
+                    this.galaxy_zoom_center(1.0 / 1.22);
+                    crate::audio::play(crate::audio::Cue::Tick);
+                    cx.notify();
+                },
+            )),
+        )
+        .child(
+            camera_button("galaxy-zoom-in", "+", t).on_click(cx.listener(
+                |this, _ev, _window, cx| {
+                    this.galaxy_zoom_center(1.22);
+                    crate::audio::play(crate::audio::Cue::Tick);
+                    cx.notify();
+                },
+            )),
+        )
+        .child(camera_button("galaxy-fit", "Fit", t).on_click(cx.listener(
+            |this, _ev, _window, cx| {
+                this.galaxy_fit_view();
+                crate::audio::play(crate::audio::Cue::Tick);
+                cx.notify();
+            },
+        )))
+        .child(
+            camera_button("galaxy-reset", "Reset", t).on_click(cx.listener(
+                |this, _ev, _window, cx| {
+                    this.galaxy_reset_view();
+                    crate::audio::play(crate::audio::Cue::Tick);
+                    cx.notify();
+                },
+            )),
+        )
+        .into_any_element()
+}
+
 /// Render the whole Galaxy surface body: eyebrow + meta, the interactive map,
 /// the hover readout strip, the selection/parley bar, and the detail drawer.
 pub(crate) fn render_galaxy(
@@ -245,6 +330,7 @@ fn galaxy_map(
     cx: &mut Context<ConsoleView>,
 ) -> AnyElement {
     let bounds_cell = view.galaxy_bounds.clone();
+    let viewport = view.galaxy_viewport;
     let mut map = div()
         .id(SharedString::from(format!("galaxy-map-{pane_id}")))
         .relative()
@@ -276,20 +362,52 @@ fn galaxy_map(
                 cx.notify();
             }),
         )
+        .on_mouse_down(
+            MouseButton::Right,
+            cx.listener(|this, ev: &MouseDownEvent, _window, cx| {
+                this.begin_galaxy_pan(ev.position);
+                cx.stop_propagation();
+                cx.notify();
+            }),
+        )
+        .on_mouse_down(
+            MouseButton::Middle,
+            cx.listener(|this, ev: &MouseDownEvent, _window, cx| {
+                this.begin_galaxy_pan(ev.position);
+                cx.stop_propagation();
+                cx.notify();
+            }),
+        )
+        .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, _window, cx| {
+            let dy = match ev.delta {
+                ScrollDelta::Pixels(p) => f32::from(p.y),
+                ScrollDelta::Lines(p) => p.y * 18.0,
+            };
+            if dy.abs() < 0.01 {
+                return;
+            }
+            let factor = if dy < 0.0 { 1.14 } else { 1.0 / 1.14 };
+            this.galaxy_zoom_at_position(ev.position, factor);
+            cx.stop_propagation();
+            cx.notify();
+        }))
         // Hover readout: the nearest point within ~3.5% of normalized map space
         // (pure math in galaxy_pane, so the REPL bin gates it).
         .on_mouse_move(cx.listener(|this, ev: &MouseMoveEvent, _window, cx| {
-            if this.galaxy_drag.is_some() {
-                return; // the root handler owns the live marquee
+            if this.galaxy_drag.is_some() || this.galaxy_pan.is_some() {
+                return; // the root handler owns live marquee/pan updates
             }
             let Some(b) = *this.galaxy_bounds.borrow() else {
                 return;
             };
-            let nx = (f32::from(ev.position.x) - f32::from(b.origin.x))
+            let vx = (f32::from(ev.position.x) - f32::from(b.origin.x))
                 / f32::from(b.size.width).max(1.0);
-            let ny = (f32::from(ev.position.y) - f32::from(b.origin.y))
+            let vy = (f32::from(ev.position.y) - f32::from(b.origin.y))
                 / f32::from(b.size.height).max(1.0);
-            let hover = gp::nearest_point(&this.galaxy.points, nx, ny, 0.035).map(|p| p.id.clone());
+            let (nx, ny) = this.galaxy_viewport.view_to_world(vx, vy);
+            let radius = 0.035 / this.galaxy_viewport.zoom.max(1.0);
+            let hover =
+                gp::nearest_point(&this.galaxy.points, nx, ny, radius).map(|p| p.id.clone());
             if hover != this.galaxy_hover {
                 this.galaxy_hover = hover;
                 cx.notify();
@@ -302,11 +420,12 @@ fn galaxy_map(
     if view.galaxy.cluster {
         for cluster in &view.galaxy.clusters {
             let color = cluster_color(t, cluster.id);
+            let (x, y) = viewport.world_to_view(cluster.cx, cluster.cy);
             map = map.child(
                 div()
                     .absolute()
-                    .left(relative(cluster.cx))
-                    .top(relative(cluster.cy))
+                    .left(relative(x))
+                    .top(relative(y))
                     .ml(px(8.0))
                     .mt(px(-8.0))
                     .text_size(px(tokens::TEXT_CAPTION))
@@ -330,12 +449,13 @@ fn galaxy_map(
         let is_hovered = view.galaxy_hover.as_deref() == Some(point_data.id.as_str());
         let size = if is_selected || is_hovered { 13.0 } else { 9.0 };
         let pid = point_data.id.clone();
+        let (x, y) = viewport.world_to_view(point_data.x, point_data.y);
         map = map.child(
             div()
                 .id(SharedString::from(format!("galaxy-pt-{}", point_data.id)))
                 .absolute()
-                .left(relative(point_data.x))
-                .top(relative(point_data.y))
+                .left(relative(x))
+                .top(relative(y))
                 .ml(px(-size / 2.0))
                 .mt(px(-size / 2.0))
                 .w(px(size))
@@ -376,6 +496,8 @@ fn galaxy_map(
                 ),
         );
     }
+
+    map = map.child(camera_toolbar(view, t, cx));
 
     // The live marquee overlay (theme accent at low alpha). NOT occluded — an
     // occluding overlay under the cursor would block the ROOT's mouse-move
