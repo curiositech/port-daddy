@@ -60,6 +60,7 @@ import {
   type IdeaCtx,
 } from './ideas-store.js';
 import type { Proposal } from './proposals.js';
+import { decideShipGate, isDocsOnly } from './gates.js';
 
 // ---------------------------------------------------------------------------
 
@@ -75,6 +76,18 @@ const CHECK_NAME = 'Port Daddy Fleet';
  * generous headroom while still bounding cost per call.
  */
 const MAX_OUTPUT_TOKENS = 2048;
+
+/**
+ * Workers AI call options: a stable per-ship `x-session-affinity` key so the
+ * ship's large, identical system-prompt prefix (its contract + output format,
+ * repeated across every MAP chunk of a PR and across PRs) routes to the same
+ * model instance and hits the prefix cache — cached input tokens bill lower.
+ * Keyed per ship (not per run) to maximize hits on the shared prefix.
+ * (Cloudflare Workers AI prompt caching, `extraHeaders` binding option.)
+ */
+function aiOptions(shipName: string): { extraHeaders: Record<string, string> } {
+  return { extraHeaders: { 'x-session-affinity': `pd-fleet-${shipName}` } };
+}
 
 /**
  * Kill-switch flag key in the relay's CONTROL_KV namespace (the relay writes it
@@ -356,6 +369,12 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // Each ship is a map-reduce over the diff: MAP one call per diff chunk, then
   // REDUCE via a manager call that merges the structured findings and computes
   // the FLEET-VERDICT.
+  // Deterministic ship gating (cost): a ship whose surface the diff doesn't touch
+  // is skipped BEFORE any AI spend; reviewer ships skip docs-only diffs while
+  // ideation ships run on them. Computed once per run from the PR's changed files.
+  const changedPaths = prCtx.files.map(f => f.filename).filter(Boolean);
+  const docsOnly = isDocsOnly(changedPaths);
+
   const results: ShipResult[] = [];
   for (const ship of cloudShips) {
     // Re-check the operator kill switch before each ship. The start-of-job
@@ -374,6 +393,21 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       await recordRunEnd(env, runId, 'neutral', startMs);
       return;
     }
+
+    // Surface gate: skip a ship with nothing to say on this diff, spending no AI.
+    // A gated-out ship resolves PASS (advisory-clean) and posts nothing — a
+    // gated-out BLOCKING ship (red-team off its security surface) correctly does
+    // not block, matching its own "exit clean" contract.
+    const gate = decideShipGate(ship, changedPaths, docsOnly);
+    if (!gate.run) {
+      await transcript.step('ship-skipped', ship.name, `pd-${ship.name}: skipped — ${gate.reason}`, {
+        reason: gate.reason,
+        changedPathCount: changedPaths.length,
+      });
+      results.push({ ship: ship.name, blocking: ship.blocking, verdict: 'PASS', errored: false, findings: [] });
+      continue;
+    }
+
     results.push(await runShip(ship, prCtx, token, env, branch, transcript));
   }
 
@@ -471,7 +505,11 @@ async function runShip(
         max_tokens: MAX_OUTPUT_TOKENS,
         ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
       };
-      const res = await env.AI.run(ship.cfModel as Parameters<typeof env.AI.run>[0], request);
+      const res = await env.AI.run(
+        ship.cfModel as Parameters<typeof env.AI.run>[0],
+        request,
+        aiOptions(ship.name),
+      );
       const { text, shape } = extractAiText(res);
       partials.push(text);
 
@@ -775,7 +813,11 @@ async function reduceFindings(
     max_tokens: MAX_OUTPUT_TOKENS,
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
-  const res = await env.AI.run(ship.cfModel as Parameters<typeof env.AI.run>[0], request);
+  const res = await env.AI.run(
+    ship.cfModel as Parameters<typeof env.AI.run>[0],
+    request,
+    aiOptions(ship.name),
+  );
   const { text } = extractAiText(res);
   if (!text) {
     console.warn(
