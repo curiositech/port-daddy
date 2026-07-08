@@ -2011,7 +2011,7 @@ export default function App() {
                     )}
                     {activeTab === 'Galaxy' && (
                       <SessionGalaxyPanel
-                        key={`${daemonUrl}:${selectedProjectId ?? 'all'}:galaxy`}
+                        key={`${daemonUrl}:${selectedProjectId}:galaxy`}
                         project={selectedProjectName ?? null}
                         theme={theme}
                       />
