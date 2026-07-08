@@ -598,8 +598,12 @@ These bite every contributor session; they are not theoretical.
   - Ollama: `qwen2.5-coder:7b` / `llama3.1:8b` / `qwen2.5-coder:14b`
   - Aider: `gpt-4.1-mini` / `gpt-4.1` / `gpt-5`
   - Custom: `custom-low` / `custom-mid` / `custom-high`, forwarded to wrapper commands via env
-- `fleet-config-ui` is the real control plane surface.
-- `public/fleet-ui` is the built artifact served by the daemon.
+- `fleet-config-ui` is deprecated. Do not add new operator features, demo
+  surfaces, tabs, or agent-control-plane UI there.
+- Fleet Control Center in `apps/FleetBar/FleetBar` is the real operator control
+  plane surface.
+- `public/fleet-ui` is a legacy built artifact served by the daemon for
+  compatibility while old webview surfaces are folded into Fleet Control Center.
 - FleetBar should open the real control plane, not a shadow dashboard with reduced functionality.
 - FleetBar is the top-level navigator when embedded. The embedded control plane must receive `?embed=fleetbar` and hide duplicate in-app surface tabs.
 - FleetBar embed detection should not rely on query params alone. The WebView must identify itself too, so a dropped query string does not resurrect duplicate chrome.
