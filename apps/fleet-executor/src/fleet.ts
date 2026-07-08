@@ -69,9 +69,10 @@ function deriveIdeation(name: string, agentClass: unknown): boolean {
 // findings/proposals → no comment → PASS. The whole fleet went dark. Only
 // `@cf/qwen/qwen2.5-coder-32b-instruct` returned real output.
 //
-// COST CANARY (2026-07-07): `qwen2.5-coder` is the PRICIEST qwen
-// ($0.66/$1.00 per M tok); `qwen3-30b-a3b-fp8` is ~13× cheaper input / ~3×
-// cheaper output ($0.051/$0.335) — see the Cloudflare pricing page. We move the
+// COST CANARY (2026-07-07): `qwen2.5-coder` is the PRICIEST qwen; per the
+// Cloudflare Workers AI pricing page on 2026-07-07 ($0.66/$1.00 per M tok vs
+// qwen3-30b-a3b-fp8's $0.051/$0.335 — dated numbers, verify the live page as
+// they drift), qwen3-30b is ~13× cheaper input / ~3× cheaper output. We move the
 // GENERAL/advisory default to qwen3-30b (a Qwen-family model, so very likely
 // returns output like its sibling), but keep the PROVEN qwen2.5-coder as both the
 // code-reviewer model AND the {@link resolveCfModel} guard fallback — so a

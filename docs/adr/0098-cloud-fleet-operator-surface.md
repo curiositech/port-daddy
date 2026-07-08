@@ -79,6 +79,17 @@ pd-console), CLI (emergency lane), and API. MCP is one adapter, not the truth.
 model-router seam; the executor resolves per-ship. Model-agnostic by config, on
 Cloudflare.
 
+## Implementation Matrix
+
+<!-- ADR-0043: one row per phase; `pd adr sync 0098` upserts these into roadmap_items. -->
+
+| Phase | Roadmap slug | Status | Depends on | Description |
+|-------|--------------|--------|------------|-------------|
+| 0 | adr-0098-phase-0-cost-canary | now | — | qwen3-30b canary + deterministic surface gates + docs-only routing + prompt caching (this PR) |
+| 1 | adr-0098-phase-1-failure-telemetry | now | 0 | Emit cloud telemetry (cost + failure events) into D1 + the missing `fleet-runs-dlq` consumer; relights FleetBar cost |
+| 2 | adr-0098-phase-2-hitl-queue | now | 1 | FleetBar (ambient) top-of-stack operator queue + pd-console (deep) evidence; one shared approve/deny/dispatch/dismiss envelope |
+| 3 | adr-0098-phase-3-fleetbot-pr-authorship | now | 2 | GitHub App bot identity authors gated, draft-first PRs; merges gated behind operator approval (closes the critical) |
+
 ## Consequences
 
 - The critical gate closes only when the HITL queue + gated fleetbot PRs ship.
