@@ -11,6 +11,7 @@ final class FleetPopoverTests: XCTestCase {
             [
                 "operator",
                 "flow",
+                "cloudfleet",
                 "backend",
                 "roadmap",
                 "proposals",
@@ -33,6 +34,7 @@ final class FleetPopoverTests: XCTestCase {
             [
                 "Operator",
                 "Flow",
+                "Cloud Fleet",
                 "Backend",
                 "Roadmap",
                 "Proposals",
@@ -53,16 +55,16 @@ final class FleetPopoverTests: XCTestCase {
     }
 
     /// Native surfaces render via SwiftUI inside FleetBar; web surfaces are
-    /// loaded through the embedded `/fleet-ui/` webview. Nightshift, Backend,
-    /// Proposals, and Galaxy are fully native — the loop must work even when the
-    /// web bundle is stale or offline. Everything else is web. Pinning the exact
+    /// loaded through the embedded `/fleet-ui/` webview. Cloud Fleet, Backend,
+    /// Proposals, Nightshift, and Galaxy are fully native — the loop must work
+    /// even when the web bundle is stale or offline. Everything else is web. Pinning the exact
     /// native set catches an accidental opt-in (or opt-out) when surfaces are
     /// added.
-    func testNativeSurfacesAreBackendNightshiftProposalsAndGalaxy() {
+    func testNativeSurfacesAreCloudFleetBackendNightshiftProposalsAndGalaxy() {
         let nativeRaws = FleetControlSurface.allCases.filter(\.isNative).map(\.rawValue)
-        XCTAssertEqual(nativeRaws, ["backend", "proposals", "nightshift", "galaxy"])
+        XCTAssertEqual(nativeRaws, ["cloudfleet", "backend", "proposals", "nightshift", "galaxy"])
 
-        let nativeSet: Set<FleetControlSurface> = [.backend, .proposals, .nightshift, .galaxy]
+        let nativeSet: Set<FleetControlSurface> = [.cloudfleet, .backend, .proposals, .nightshift, .galaxy]
         for surface in FleetControlSurface.allCases where !nativeSet.contains(surface) {
             XCTAssertFalse(surface.isNative, "Expected \(surface.rawValue) to be a web surface")
         }
@@ -70,23 +72,48 @@ final class FleetPopoverTests: XCTestCase {
 
     func testConsoleLauncherSectionExposesVisualTaskAction() throws {
         var openedControlCenter = false
+        var openedCloudFleet = false
         var openedVisualTask = false
 
         let section = ConsoleLauncherSection(
             berths: [],
             activeDaemonURL: nil,
             openControlCenter: { openedControlCenter = true },
+            openCloudFleet: { openedCloudFleet = true },
             openVisualTask: { openedVisualTask = true }
         )
 
         let inspected = try section.inspect()
         XCTAssertNoThrow(try inspected.find(button: "Fleet Control Center"))
+        let cloudFleetButton = try inspected.find(button: "Cloud Fleet")
+        try cloudFleetButton.tap()
+        XCTAssertTrue(openedCloudFleet, "Cloud Fleet should open its own native control surface")
+        XCTAssertFalse(openedControlCenter, "Tapping Cloud Fleet should not fall through to the default Flow route")
 
         let visualButton = try inspected.find(button: "Send Visual Task")
         try visualButton.tap()
 
         XCTAssertTrue(openedVisualTask, "Visual Task should route through the native FleetBar tools section")
         XCTAssertFalse(openedControlCenter, "Tapping Visual Task should not open the default Flow route")
+    }
+
+    func testPopoverScrollContentContainsNativeCloudFleetSurface() throws {
+        let store = FleetStore(autoStart: false)
+        store.rebind(to: "https://active-berth.example")
+        store.isDaemonRunning = true
+        store.projects = []
+
+        let inspected = try FleetPopover(
+            store: store,
+            costStore: CostStore(autoStart: false),
+            backendStore: BackendStore(autoStart: false)
+        ).inspect()
+
+        let cloudFleetTitle = try inspected.find(text: "Cloud Fleet")
+        let cloudFleetPath = String(describing: cloudFleetTitle.pathToRoot)
+        XCTAssertTrue(cloudFleetPath.contains("scrollView"), cloudFleetPath)
+        XCTAssertNoThrow(try inspected.find(text: "https://active-berth.example"))
+        XCTAssertNoThrow(try inspected.find(text: "writes require approval"))
     }
 
     func testFooterControlsStayOutsideScrollView() throws {
