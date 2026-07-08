@@ -65,7 +65,9 @@ fn adr_number_of(slug: &str, summary: &str, notes: &str) -> Option<String> {
 
 /// `adr-0048-phase-…` / `adr48-…` → "0048".
 fn leading_adr(slug: &str) -> Option<String> {
-    let rest = slug.strip_prefix("adr-").or_else(|| slug.strip_prefix("adr"))?;
+    let rest = slug
+        .strip_prefix("adr-")
+        .or_else(|| slug.strip_prefix("adr"))?;
     let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
     pad4(&digits)
 }
@@ -82,7 +84,10 @@ fn token_adr(hay: &str) -> Option<String> {
         if j < bytes.len() && matches!(bytes[j], b'-' | b':' | b' ') {
             j += 1;
         }
-        let digits: String = lower[j..].chars().take_while(|c| c.is_ascii_digit()).collect();
+        let digits: String = lower[j..]
+            .chars()
+            .take_while(|c| c.is_ascii_digit())
+            .collect();
         if let Some(n) = pad4(&digits) {
             return Some(n);
         }
@@ -175,7 +180,11 @@ impl PlannerPane {
             };
             by_id
                 .entry(id.clone())
-                .or_insert_with(|| Epic { id, title, tasks: Vec::new() })
+                .or_insert_with(|| Epic {
+                    id,
+                    title,
+                    tasks: Vec::new(),
+                })
                 .tasks
                 .push(idx);
         }
@@ -242,10 +251,18 @@ impl Pane for PlannerPane {
         blocks.push(Block::KeyVal("tasks".into(), task_total.to_string()));
         blocks.push(Block::Chip {
             label: format!("{now_n} now · {task_total} tasks · {} epics", epics.len()),
-            tone: if now_n > 0 { Tone::Engaged } else { Tone::Resting },
+            tone: if now_n > 0 {
+                Tone::Engaged
+            } else {
+                Tone::Resting
+            },
         });
         // Who's working on what: tasks under an active claim + distinct claimers.
-        let claimed_n = self.items.iter().filter(|i| self.claims.contains_key(&i.slug)).count();
+        let claimed_n = self
+            .items
+            .iter()
+            .filter(|i| self.claims.contains_key(&i.slug))
+            .count();
         if claimed_n > 0 {
             let agents: std::collections::HashSet<&String> = self.claims.values().collect();
             blocks.push(Block::Chip {
@@ -257,7 +274,11 @@ impl Pane for PlannerPane {
         // Flags banner (reported, never auto-fixed — mirrors the HTML board).
         let dups = self.duplicate_slugs();
         let harbors = self.harbor_split();
-        let unsorted = epics.iter().find(|e| e.id == "unsorted").map(|e| e.tasks.len()).unwrap_or(0);
+        let unsorted = epics
+            .iter()
+            .find(|e| e.id == "unsorted")
+            .map(|e| e.tasks.len())
+            .unwrap_or(0);
         if !dups.is_empty() || harbors.len() > 1 || unsorted > 0 {
             blocks.push(Block::Gap);
             blocks.push(Block::Header("flagged — not auto-fixed".into()));
@@ -268,11 +289,21 @@ impl Pane for PlannerPane {
                 });
             }
             if harbors.len() > 1 {
-                let txt = harbors.iter().map(|(h, n)| format!("{h} ({n})")).collect::<Vec<_>>().join(", ");
-                blocks.push(Block::Chip { label: format!("harbor split: {txt}"), tone: Tone::Gated });
+                let txt = harbors
+                    .iter()
+                    .map(|(h, n)| format!("{h} ({n})"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                blocks.push(Block::Chip {
+                    label: format!("harbor split: {txt}"),
+                    tone: Tone::Gated,
+                });
             }
             if unsorted > 0 {
-                blocks.push(Block::Chip { label: format!("{unsorted} unsorted (no ADR)"), tone: Tone::Gated });
+                blocks.push(Block::Chip {
+                    label: format!("{unsorted} unsorted (no ADR)"),
+                    tone: Tone::Gated,
+                });
             }
         }
 
@@ -280,26 +311,45 @@ impl Pane for PlannerPane {
         // (GET /agents). This answers "what agents are working on what" directly.
         if !self.agents.is_empty() {
             blocks.push(Block::Gap);
-            blocks.push(Block::Header(format!("fleet — {} agent(s) working", self.agents.len())));
+            blocks.push(Block::Header(format!(
+                "fleet — {} agent(s) working",
+                self.agents.len()
+            )));
             for (identity, purpose, status) in self.agents.iter().take(12) {
                 blocks.push(Block::Row(vec![trunc(identity, 34), trunc(purpose, 46)]));
-                blocks.push(Block::Chip { label: status.clone(), tone: status_tone(status) });
+                blocks.push(Block::Chip {
+                    label: status.clone(),
+                    tone: status_tone(status),
+                });
             }
             if self.agents.len() > 12 {
-                blocks.push(Block::KeyVal("…".into(), format!("+{} more agents", self.agents.len() - 12)));
+                blocks.push(Block::KeyVal(
+                    "…".into(),
+                    format!("+{} more agents", self.agents.len() - 12),
+                ));
             }
         }
 
         // The tree: epic header, then a row per task with status + priority + deps.
         for epic in &epics {
             blocks.push(Block::Gap);
-            blocks.push(Block::Header(format!("{} · {} task(s)", epic.title, epic.tasks.len())));
+            blocks.push(Block::Header(format!(
+                "{} · {} task(s)",
+                epic.title,
+                epic.tasks.len()
+            )));
             for &idx in &epic.tasks {
                 let it = &self.items[idx];
                 let p = priority_for_status(&it.status);
-                let dep_note = if it.deps.is_empty() { String::new() } else { format!("⛓{}", it.deps.len()) };
+                let dep_note = if it.deps.is_empty() {
+                    String::new()
+                } else {
+                    format!("⛓{}", it.deps.len())
+                };
                 let claimed = self.claims.get(&it.slug);
-                let claim_col = claimed.map(|b| format!("◆ {}", trunc(b, 24))).unwrap_or_default();
+                let claim_col = claimed
+                    .map(|b| format!("◆ {}", trunc(b, 24)))
+                    .unwrap_or_default();
                 blocks.push(Block::Row(vec![
                     trunc(&it.slug, 38),
                     it.status.clone(),
@@ -310,9 +360,15 @@ impl Pane for PlannerPane {
                 // Status chip; and when an agent holds the live claim, surface it
                 // (the "who's working on this task" axis) in the Engaged tone.
                 if let Some(by) = claimed {
-                    blocks.push(Block::Chip { label: format!("working: {}", trunc(by, 30)), tone: Tone::Engaged });
+                    blocks.push(Block::Chip {
+                        label: format!("working: {}", trunc(by, 30)),
+                        tone: Tone::Engaged,
+                    });
                 } else {
-                    blocks.push(Block::Chip { label: it.status.clone(), tone: status_tone(&it.status) });
+                    blocks.push(Block::Chip {
+                        label: it.status.clone(),
+                        tone: status_tone(&it.status),
+                    });
                 }
             }
         }
@@ -334,14 +390,18 @@ impl Pane for PlannerPane {
                     Err(e) => self.last_error = Some(format!("bad response: {e}")),
                     Ok(data) => {
                         self.last_error = None;
-                        self.items = arr(&data, "items").iter().map(PlannerItem::from_value).collect();
+                        self.items = arr(&data, "items")
+                            .iter()
+                            .map(PlannerItem::from_value)
+                            .collect();
                         // Who's working on what: active roadmap claims (releasedAt null).
                         self.claims.clear();
                         let curl = format!("{}/cartographer/roadmap-claims", daemon.base());
                         if let Ok(cr) = daemon.http_client().get(&curl).send().await {
                             if let Ok(cv) = cr.json::<Value>().await {
                                 for c in arr(&cv, "claims") {
-                                    let active = matches!(c.get("releasedAt"), None | Some(Value::Null));
+                                    let active =
+                                        matches!(c.get("releasedAt"), None | Some(Value::Null));
                                     let slug = s(c, "slug");
                                     let by = s(c, "claimedBy");
                                     if active && !slug.is_empty() && !by.is_empty() {
@@ -358,7 +418,11 @@ impl Pane for PlannerPane {
                                 for a in arr(&av, "agents") {
                                     let identity = s(a, "identity");
                                     if !identity.is_empty() {
-                                        self.agents.push((identity, s(a, "purpose"), s(a, "status")));
+                                        self.agents.push((
+                                            identity,
+                                            s(a, "purpose"),
+                                            s(a, "status"),
+                                        ));
                                     }
                                 }
                             }
@@ -385,19 +449,31 @@ mod tests {
 
     #[test]
     fn adr_from_slug() {
-        assert_eq!(adr_number_of("adr-0048-phase-0-ratify", "", ""), Some("0048".into()));
+        assert_eq!(
+            adr_number_of("adr-0048-phase-0-ratify", "", ""),
+            Some("0048".into())
+        );
         assert_eq!(adr_number_of("adr-50-phase-1", "", ""), Some("0050".into()));
     }
 
     #[test]
     fn adr_from_summary_token() {
-        assert_eq!(adr_number_of("planner-scheduler-kernel", "ADR-0086 Phase 1a", ""), Some("0086".into()));
-        assert_eq!(adr_number_of("x", "", "adr:0043 phase 1"), Some("0043".into()));
+        assert_eq!(
+            adr_number_of("planner-scheduler-kernel", "ADR-0086 Phase 1a", ""),
+            Some("0086".into())
+        );
+        assert_eq!(
+            adr_number_of("x", "", "adr:0043 phase 1"),
+            Some("0043".into())
+        );
     }
 
     #[test]
     fn adr_none_when_absent() {
-        assert_eq!(adr_number_of("mcp-parity-no-copouts", "no identifier here", ""), None);
+        assert_eq!(
+            adr_number_of("mcp-parity-no-copouts", "no identifier here", ""),
+            None
+        );
     }
 
     #[test]
@@ -412,7 +488,9 @@ mod tests {
         let p = PlannerPane::default();
         let b = p.view();
         assert!(matches!(&b[0], Block::Header(h) if h == "Planner"));
-        assert!(b.iter().any(|blk| matches!(blk, Block::KeyVal(k, _) if k == "status")));
+        assert!(b
+            .iter()
+            .any(|blk| matches!(blk, Block::KeyVal(k, _) if k == "status")));
     }
 
     #[test]
@@ -420,7 +498,9 @@ mod tests {
         let mut p = PlannerPane::default();
         p.last_error = Some("conn refused".into());
         let b = p.view();
-        assert!(b.iter().any(|blk| matches!(blk, Block::KeyVal(k, _) if k == "error")));
+        assert!(b
+            .iter()
+            .any(|blk| matches!(blk, Block::KeyVal(k, _) if k == "error")));
     }
 
     #[test]
@@ -429,7 +509,11 @@ mod tests {
         p.items = vec![
             item("adr-0048-phase-0-ratify", "now", "ratify"),
             item("adr-0048-phase-1-proto", "now", "protocol"),
-            item("planner-scheduler-kernel", "now", "ADR-0086 Phase 1a kernel"),
+            item(
+                "planner-scheduler-kernel",
+                "now",
+                "ADR-0086 Phase 1a kernel",
+            ),
             item("a-loose-idea", "backlog", "no adr token"),
         ];
         let epics = p.epics();
@@ -437,7 +521,7 @@ mod tests {
         assert!(ids.contains(&"adr-0048"));
         assert!(ids.contains(&"adr-0086"));
         assert_eq!(ids.last(), Some(&"unsorted")); // unsorted sorts last
-        // ADR-0048 epic has both its phases.
+                                                   // ADR-0048 epic has both its phases.
         let e48 = epics.iter().find(|e| e.id == "adr-0048").unwrap();
         assert_eq!(e48.tasks.len(), 2);
     }
@@ -459,15 +543,26 @@ mod tests {
     #[test]
     fn view_annotates_claimed_tasks_with_working_agent() {
         let mut p = PlannerPane::default();
-        p.items = vec![item("adr-0048-phase-0", "now", "x"), item("adr-0048-phase-1", "now", "y")];
-        p.claims.insert("adr-0048-phase-0".into(), "agent-foo".into());
+        p.items = vec![
+            item("adr-0048-phase-0", "now", "x"),
+            item("adr-0048-phase-1", "now", "y"),
+        ];
+        p.claims
+            .insert("adr-0048-phase-0".into(), "agent-foo".into());
         let b = p.view();
         // the claimed task shows its working agent
-        assert!(b.iter().any(|blk| matches!(blk, Block::Chip { label, .. } if label.contains("working: agent-foo"))));
+        assert!(b.iter().any(
+            |blk| matches!(blk, Block::Chip { label, .. } if label.contains("working: agent-foo"))
+        ));
         // and a summary chip reports how many agents are working
-        assert!(b.iter().any(|blk| matches!(blk, Block::Chip { label, .. } if label.contains("agent(s) working"))));
+        assert!(b.iter().any(
+            |blk| matches!(blk, Block::Chip { label, .. } if label.contains("agent(s) working"))
+        ));
         // an unclaimed task keeps a plain status chip (no working: prefix)
-        let working_chips = b.iter().filter(|blk| matches!(blk, Block::Chip { label, .. } if label.starts_with("working:"))).count();
+        let working_chips = b
+            .iter()
+            .filter(|blk| matches!(blk, Block::Chip { label, .. } if label.starts_with("working:")))
+            .count();
         assert_eq!(working_chips, 1);
     }
 
@@ -476,11 +571,21 @@ mod tests {
         let mut p = PlannerPane::default();
         p.items = vec![item("adr-0048-phase-0", "now", "x")];
         p.agents = vec![
-            ("port-daddy:roadmap-delete".into(), "roadmap delete verb + harbor fix".into(), "ready".into()),
-            ("port-daddy:release-3211".into(), "Cut 3.21.1".into(), "ready".into()),
+            (
+                "port-daddy:roadmap-delete".into(),
+                "roadmap delete verb + harbor fix".into(),
+                "ready".into(),
+            ),
+            (
+                "port-daddy:release-3211".into(),
+                "Cut 3.21.1".into(),
+                "ready".into(),
+            ),
         ];
         let b = p.view();
-        assert!(b.iter().any(|blk| matches!(blk, Block::Header(h) if h.contains("fleet") && h.contains("2 agent"))));
+        assert!(b.iter().any(
+            |blk| matches!(blk, Block::Header(h) if h.contains("fleet") && h.contains("2 agent"))
+        ));
         assert!(b.iter().any(|blk| matches!(blk, Block::Row(c) if c.iter().any(|x| x.contains("roadmap delete verb")))));
     }
 }

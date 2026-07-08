@@ -529,10 +529,23 @@ impl DaemonClient {
 
     /// Construct a client against an already-resolved base URL (e.g. the value
     /// `discover().base()` returned, handed to a background refresh thread).
+    ///
+    /// Timeouts are load-bearing: the producer thread awaits ~26 pane
+    /// refreshes SERIALLY per 2s cycle, and `update_panes` (which dismisses
+    /// the launch splash) only fires after a full cycle. With reqwest's
+    /// default (no timeout), a single blackholed endpoint wedged the console
+    /// on "connecting…" forever. Bounded here, a hung endpoint costs one
+    /// pane's refresh ("daemon unreachable: … timed out"), never the console.
+    /// The Lane's SSE stream shares this client — `subscribe_agent` overrides
+    /// the total deadline per-request, so only connect_timeout governs it.
     pub fn new(base: String) -> Self {
         Self {
             base: base.trim_end_matches('/').to_string(),
-            http: reqwest::Client::new(),
+            http: reqwest::Client::builder()
+                .connect_timeout(std::time::Duration::from_secs(3))
+                .timeout(std::time::Duration::from_secs(15))
+                .build()
+                .expect("reqwest client with static config cannot fail to build"),
         }
     }
 
@@ -867,6 +880,39 @@ impl DaemonClient {
         Ok(())
     }
 
+    /// Convene an operator parley: `POST /parley/call`. `parties` are AGENT ids
+    /// (`fleet_transcripts.spawned_agent_id` — never transcript/session ids;
+    /// parley DMs each party via its agent inbox) and the daemon 400s below 2
+    /// distinct ids, so callers gate the affordance client-side too. Returns the
+    /// parsed body so the caller can surface `parley.parleyId` / `channel`; a
+    /// non-2xx surfaces the daemon's rejection verbatim through
+    /// [`ensure_success`] (the alert bus shows it, never a silent swallow).
+    pub async fn call_parley(
+        &self,
+        surface: &str,
+        reason: &str,
+        called_by: &str,
+        parties: &[String],
+    ) -> Result<serde_json::Value> {
+        let body = serde_json::json!({
+            "surface": surface,
+            "reason": reason,
+            "calledBy": called_by,
+            "parties": parties,
+            "trigger": "operator",
+        });
+        let resp = self
+            .http
+            .post(format!("{}/parley/call", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /parley/call")?;
+        let resp = ensure_success(resp, "parley call").await?;
+        let v: serde_json::Value = resp.json().await.context("parley call response")?;
+        Ok(v)
+    }
+
     /// Begin a coordination session: `POST /sugar/begin`. The daemon REQUIRES a
     /// non-empty `purpose` and an explicit `lifecycle` (`durable`|`ephemeral`) —
     /// omit either and it 400s. We default `lifecycle` to `durable` (ordinary
@@ -1070,7 +1116,10 @@ impl DaemonClient {
             let mut backoff = Duration::from_millis(500);
             const MAX_BACKOFF: Duration = Duration::from_secs(10);
             loop {
-                let mut req = http.get(&url);
+                // Long-lived SSE: override the client's 15s total-request
+                // deadline (which exists to keep pane refreshes from wedging
+                // the console) — only connect_timeout should govern a stream.
+                let mut req = http.get(&url).timeout(Duration::from_secs(60 * 60 * 24));
                 if let Some(id) = &last_id {
                     req = req.header("Last-Event-ID", id.as_str());
                 }

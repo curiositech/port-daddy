@@ -59,6 +59,8 @@ describe('classifyTrigger', () => {
   it('leaves pd/git/github/schedule kinds on the legacy channel path (no double-dispatch)', () => {
     expect(classifyTrigger('git:committed').kind).toBe('legacy-channel');
     expect(classifyTrigger('pd:note-added').kind).toBe('legacy-channel');
+    // GitHub stays legacy-routed for compatibility, but fleet-engine applies
+    // the ADR-0093 external trust gate before the legacy callback can spawn.
     expect(classifyTrigger('github:pull_request').kind).toBe('legacy-channel');
     expect(classifyTrigger('schedule:tick').kind).toBe('legacy-channel');
   });

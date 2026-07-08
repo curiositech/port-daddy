@@ -270,7 +270,12 @@ pub fn scoped_context(dag: &PredictedDag, wave_index: usize, _node: &PredictedNo
         + compressed_waves.len() as u32 * COMPRESSED_TOKENS_PER_WAVE
         + WHITEBOARD_TOKENS;
 
-    NodeContext { full_deps, compressed_waves, whiteboard, est_budget_tokens }
+    NodeContext {
+        full_deps,
+        compressed_waves,
+        whiteboard,
+        est_budget_tokens,
+    }
 }
 
 /// Render a [`PredictedDag`] into the console's render-agnostic [`Block`]s — the
@@ -282,7 +287,11 @@ pub fn blocks_for_conjure(dag: &PredictedDag) -> Vec<Block> {
     let mut blocks = Vec::new();
 
     // Title.
-    let title = if dag.title.is_empty() { "Conjure \u{2014} predicted DAG".to_string() } else { dag.title.clone() };
+    let title = if dag.title.is_empty() {
+        "Conjure \u{2014} predicted DAG".to_string()
+    } else {
+        dag.title.clone()
+    };
     blocks.push(Block::Header(title));
 
     // Classification + confidence (one KeyVal carrying both, the planner header).
@@ -293,19 +302,32 @@ pub fn blocks_for_conjure(dag: &PredictedDag) -> Vec<Block> {
     };
     blocks.push(Block::KeyVal(
         "classification".into(),
-        format!("{classification} \u{00b7} {:.0}% confidence", dag.confidence * 100.0),
+        format!(
+            "{classification} \u{00b7} {:.0}% confidence",
+            dag.confidence * 100.0
+        ),
     ));
 
     // A halt reason (if the planner refused) reads in full — the operator must see it.
     if let Some(reason) = &dag.halt_reason {
-        blocks.push(Block::WrappedText { text: format!("halt: {reason}"), tone: Tone::Gated });
+        blocks.push(Block::WrappedText {
+            text: format!("halt: {reason}"),
+            tone: Tone::Gated,
+        });
     }
 
     // Per wave.
     for (wave_index, wave) in dag.waves.iter().enumerate() {
         blocks.push(Block::Gap);
-        let parallel = if wave.parallelizable { " \u{00b7} \u{2225}" } else { "" };
-        blocks.push(Block::Header(format!("Wave {}{parallel}", wave.wave_number)));
+        let parallel = if wave.parallelizable {
+            " \u{00b7} \u{2225}"
+        } else {
+            ""
+        };
+        blocks.push(Block::Header(format!(
+            "Wave {}{parallel}",
+            wave.wave_number
+        )));
 
         // Per node.
         for node in &wave.nodes {
@@ -315,7 +337,10 @@ pub fn blocks_for_conjure(dag: &PredictedDag) -> Vec<Block> {
                 tone: commitment_tone(&node.commitment_level),
             });
             // Role.
-            blocks.push(Block::KeyVal("  role".into(), node.role_description.clone()));
+            blocks.push(Block::KeyVal(
+                "  role".into(),
+                node.role_description.clone(),
+            ));
             // Model / cost / time — vendor-agnostic tier string.
             blocks.push(Block::KeyVal(
                 "  model".into(),
@@ -360,17 +385,26 @@ fn inspector_blocks(dag: &PredictedDag, wave_index: usize, node: &PredictedNode)
 
     // Contracts — only when the node actually carries them.
     if !node.input_contract.trim().is_empty() {
-        blocks.push(Block::KeyVal("  \u{22a2} in".into(), node.input_contract.clone()));
+        blocks.push(Block::KeyVal(
+            "  \u{22a2} in".into(),
+            node.input_contract.clone(),
+        ));
     }
     if !node.output_contract.trim().is_empty() {
-        blocks.push(Block::KeyVal("  \u{22a3} out".into(), node.output_contract.clone()));
+        blocks.push(Block::KeyVal(
+            "  \u{22a3} out".into(),
+            node.output_contract.clone(),
+        ));
     }
 
     // The scoped slice, computed from the DAG structure.
     let ctx = scoped_context(dag, wave_index, node);
 
     // A faint sub-section label so the partition reads as a group.
-    blocks.push(Block::WrappedText { text: "  context \u{2014} scoped slice".into(), tone: Tone::Resting });
+    blocks.push(Block::WrappedText {
+        text: "  context \u{2014} scoped slice".into(),
+        tone: Tone::Resting,
+    });
 
     // FULL: direct-dependency outputs (prior wave), verbatim.
     let full = if ctx.full_deps.is_empty() {
@@ -819,7 +853,8 @@ mod tests {
     #[test]
     fn parse_tolerates_missing_optional_fields() {
         // Only the title is present; everything else defaults — no error.
-        let dag = parse(r#"{ "title": "bare" }"#).expect("missing optionals must default, not error");
+        let dag =
+            parse(r#"{ "title": "bare" }"#).expect("missing optionals must default, not error");
         assert_eq!(dag.title, "bare");
         assert_eq!(dag.problem_classification, "");
         assert_eq!(dag.confidence, 0.0);
@@ -832,7 +867,10 @@ mod tests {
         // The empty (populated-but-no-waves) case still renders cleanly.
         let dag = PredictedDag::default();
         let blocks = blocks_for_conjure(&dag);
-        assert!(!blocks.is_empty(), "even an empty DAG renders its header line");
+        assert!(
+            !blocks.is_empty(),
+            "even an empty DAG renders its header line"
+        );
         assert!(
             blocks.iter().any(|b| matches!(b, Block::Header(_))),
             "must emit a title Header"
@@ -860,14 +898,20 @@ mod tests {
         // Each node emits >= 1 chip (the skill chip); gated nodes emit a 2nd.
         let node_count: usize = dag.waves.iter().map(|w| w.nodes.len()).sum();
         assert!(node_count >= 3, "the fixture is a real multi-node DAG");
-        let chip_count = blocks.iter().filter(|b| matches!(b, Block::Chip { .. })).count();
+        let chip_count = blocks
+            .iter()
+            .filter(|b| matches!(b, Block::Chip { .. }))
+            .count();
         assert!(
             chip_count >= node_count,
             "at least one chip per node (got {chip_count} chips for {node_count} nodes)"
         );
 
         // A header per wave (plus the title) — proves the wave structure renders.
-        let header_count = blocks.iter().filter(|b| matches!(b, Block::Header(_))).count();
+        let header_count = blocks
+            .iter()
+            .filter(|b| matches!(b, Block::Header(_)))
+            .count();
         assert_eq!(
             header_count,
             1 + dag.waves.len(),
@@ -875,9 +919,14 @@ mod tests {
         );
 
         // The gated node (wave 3) emits a "needs you" gate chip.
-        let has_gate_chip = blocks.iter().any(|b| matches!(b, Block::Chip { label, tone }
-            if label.contains("needs you") && *tone == Tone::Gated));
-        assert!(has_gate_chip, "the HITL-gated node must surface a gate chip");
+        let has_gate_chip = blocks.iter().any(|b| {
+            matches!(b, Block::Chip { label, tone }
+            if label.contains("needs you") && *tone == Tone::Gated)
+        });
+        assert!(
+            has_gate_chip,
+            "the HITL-gated node must surface a gate chip"
+        );
     }
 
     #[test]
@@ -885,12 +934,19 @@ mod tests {
         let dag = fixture();
         let blocks = blocks_for_conjure(&dag);
         // Wave 2 is parallelizable in the fixture — its header carries the ∥ mark.
-        let has_parallel_marker = blocks.iter().any(|b| matches!(b, Block::Header(t)
-            if t.starts_with("Wave 2") && t.contains('\u{2225}')));
-        assert!(has_parallel_marker, "a parallelizable wave header must carry the ∥ mark");
+        let has_parallel_marker = blocks.iter().any(|b| {
+            matches!(b, Block::Header(t)
+            if t.starts_with("Wave 2") && t.contains('\u{2225}'))
+        });
+        assert!(
+            has_parallel_marker,
+            "a parallelizable wave header must carry the ∥ mark"
+        );
         // Wave 1 is sequential — its header has no ∥.
-        let wave1_plain = blocks.iter().any(|b| matches!(b, Block::Header(t)
-            if t == "Wave 1"));
+        let wave1_plain = blocks.iter().any(|b| {
+            matches!(b, Block::Header(t)
+            if t == "Wave 1")
+        });
         assert!(wave1_plain, "a sequential wave header carries no ∥ mark");
     }
 
@@ -922,7 +978,10 @@ mod tests {
         let back_nodes: usize = back.waves.iter().map(|w| w.nodes.len()).sum();
         assert_eq!(back_nodes, orig_nodes, "no nodes lost in the round-trip");
         // A field on a deep node survives verbatim (the vendor-agnostic tier).
-        assert_eq!(back.waves[1].nodes[0].model_tier, dag.waves[1].nodes[0].model_tier);
+        assert_eq!(
+            back.waves[1].nodes[0].model_tier,
+            dag.waves[1].nodes[0].model_tier
+        );
         assert_eq!(
             back.waves[2].nodes[0].ask_user_before_proceeding,
             dag.waves[2].nodes[0].ask_user_before_proceeding,
@@ -934,9 +993,15 @@ mod tests {
     fn from_prompt_titles_the_dag_with_the_operator_intent() {
         // The prompt visibly drives the rendered DAG: the title header echoes it.
         let dag = from_prompt("  Add a retry budget to the dispatcher  ");
-        assert_eq!(dag.title, "Add a retry budget to the dispatcher", "trimmed prompt becomes the title");
+        assert_eq!(
+            dag.title, "Add a retry budget to the dispatcher",
+            "trimmed prompt becomes the title"
+        );
         // It's a real, renderable multi-wave DAG (the fixture topology), not empty.
-        assert!(dag.waves.len() >= 3, "a prompt-derived DAG carries the real wave structure");
+        assert!(
+            dag.waves.len() >= 3,
+            "a prompt-derived DAG carries the real wave structure"
+        );
         let blocks = blocks_for_conjure(&dag);
         match &blocks[0] {
             Block::Header(t) => assert_eq!(t, "Add a retry budget to the dispatcher"),
@@ -952,7 +1017,11 @@ mod tests {
     fn from_prompt_empty_keeps_the_fixture_title() {
         // An empty/whitespace prompt must not blank the title — keep the fixture's.
         let dag = from_prompt("   ");
-        assert_eq!(dag.title, fixture().title, "empty prompt falls back to the fixture title");
+        assert_eq!(
+            dag.title,
+            fixture().title,
+            "empty prompt falls back to the fixture title"
+        );
         assert!(!dag.waves.is_empty());
     }
 
@@ -1013,18 +1082,30 @@ mod tests {
             ]
         }"#;
         let dag = parse(json).expect("a windags next_move payload parses");
-        assert_eq!(dag.title, "Wire the Conjure prompt box to the Vello renderer");
+        assert_eq!(
+            dag.title,
+            "Wire the Conjure prompt box to the Vello renderer"
+        );
         assert_eq!(dag.problem_classification, "well-structured");
         assert_eq!(dag.waves.len(), 2);
         assert!(dag.waves[1].parallelizable);
         // The vendor-agnostic tier survives (gemini, not coerced to a Claude tier).
         assert_eq!(dag.waves[1].nodes[0].model_tier, "gemini");
-        assert!(dag.waves[1].nodes[0].ask_user_before_proceeding, "the HITL gate parsed");
+        assert!(
+            dag.waves[1].nodes[0].ask_user_before_proceeding,
+            "the HITL gate parsed"
+        );
         // It renders to blocks (title header + a chip per node) without panicking.
         let blocks = blocks_for_conjure(&dag);
         let node_count: usize = dag.waves.iter().map(|w| w.nodes.len()).sum();
-        let chip_count = blocks.iter().filter(|b| matches!(b, Block::Chip { .. })).count();
-        assert!(chip_count >= node_count, "at least one chip per parsed node");
+        let chip_count = blocks
+            .iter()
+            .filter(|b| matches!(b, Block::Chip { .. }))
+            .count();
+        assert!(
+            chip_count >= node_count,
+            "at least one chip per parsed node"
+        );
     }
 
     #[test]
@@ -1035,7 +1116,10 @@ mod tests {
         let node = &dag.waves[0].nodes[0];
         let ctx = scoped_context(&dag, 0, node);
         assert_eq!(ctx.full_deps, vec![OPERATOR_PROMPT_DEP.to_string()]);
-        assert!(ctx.compressed_waves.is_empty(), "wave-0 has nothing earlier to compress");
+        assert!(
+            ctx.compressed_waves.is_empty(),
+            "wave-0 has nothing earlier to compress"
+        );
         // The whiteboard commons are always present.
         assert!(ctx.whiteboard.contains(&"tech_stack".to_string()));
     }
@@ -1049,8 +1133,14 @@ mod tests {
         let ctx = scoped_context(&dag, 2, node);
 
         let wave1_ids: Vec<String> = dag.waves[1].nodes.iter().map(|n| n.id.clone()).collect();
-        assert_eq!(ctx.full_deps, wave1_ids, "deps = the immediately-preceding wave's nodes");
-        assert!(!ctx.full_deps.is_empty(), "the fixture's wave 1 has nodes to depend on");
+        assert_eq!(
+            ctx.full_deps, wave1_ids,
+            "deps = the immediately-preceding wave's nodes"
+        );
+        assert!(
+            !ctx.full_deps.is_empty(),
+            "the fixture's wave 1 has nodes to depend on"
+        );
 
         // Wave 0 is the only wave strictly before the dep wave (wave 1).
         assert_eq!(ctx.compressed_waves, vec![dag.waves[0].wave_number]);
@@ -1065,7 +1155,10 @@ mod tests {
         let ctx = scoped_context(&dag, 1, node);
         let wave0_ids: Vec<String> = dag.waves[0].nodes.iter().map(|n| n.id.clone()).collect();
         assert_eq!(ctx.full_deps, wave0_ids);
-        assert!(ctx.compressed_waves.is_empty(), "wave-1's dep wave is 0; nothing earlier");
+        assert!(
+            ctx.compressed_waves.is_empty(),
+            "wave-1's dep wave is 0; nothing earlier"
+        );
     }
 
     #[test]
@@ -1076,8 +1169,14 @@ mod tests {
         let b0 = scoped_context(&dag, 0, &dag.waves[0].nodes[0]).est_budget_tokens;
         let b1 = scoped_context(&dag, 1, &dag.waves[1].nodes[0]).est_budget_tokens;
         let b2 = scoped_context(&dag, 2, &dag.waves[2].nodes[0]).est_budget_tokens;
-        assert!(b1 >= b0, "wave 1 deps the full prior wave; >= the prompt-only budget");
-        assert!(b2 > b1, "wave 2 adds a compressed summary on top of its deps");
+        assert!(
+            b1 >= b0,
+            "wave 1 deps the full prior wave; >= the prompt-only budget"
+        );
+        assert!(
+            b2 > b1,
+            "wave 2 adds a compressed summary on top of its deps"
+        );
 
         // Directly: more direct deps ⇒ bigger full slice ⇒ bigger budget.
         let mut wide = PredictedDag::default();
@@ -1085,21 +1184,36 @@ mod tests {
             wave_number: 0,
             parallelizable: true,
             nodes: vec![
-                PredictedNode { id: "a".into(), ..Default::default() },
-                PredictedNode { id: "b".into(), ..Default::default() },
-                PredictedNode { id: "c".into(), ..Default::default() },
+                PredictedNode {
+                    id: "a".into(),
+                    ..Default::default()
+                },
+                PredictedNode {
+                    id: "b".into(),
+                    ..Default::default()
+                },
+                PredictedNode {
+                    id: "c".into(),
+                    ..Default::default()
+                },
             ],
         });
         wide.waves.push(PredictedWave {
             wave_number: 1,
             parallelizable: false,
-            nodes: vec![PredictedNode { id: "sink".into(), ..Default::default() }],
+            nodes: vec![PredictedNode {
+                id: "sink".into(),
+                ..Default::default()
+            }],
         });
         let three_dep_budget = scoped_context(&wide, 1, &wide.waves[1].nodes[0]).est_budget_tokens;
         // The wave-0 (prompt-only, 1 dep) node has a smaller budget than the
         // wave-1 node that depends on three upstream nodes.
         let one_dep_budget = scoped_context(&wide, 0, &wide.waves[0].nodes[0]).est_budget_tokens;
-        assert!(three_dep_budget > one_dep_budget, "more deps ⇒ larger token budget");
+        assert!(
+            three_dep_budget > one_dep_budget,
+            "more deps ⇒ larger token budget"
+        );
     }
 
     #[test]
@@ -1109,28 +1223,54 @@ mod tests {
         let dag = fixture();
         let blocks = blocks_for_conjure(&dag);
 
-        let has_full = blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("full")));
-        let has_compressed =
-            blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("compressed")));
-        let has_shared =
-            blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("shared")));
-        let has_budget =
-            blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("budget")));
-        assert!(has_full, "a node must surface the FULL (deps) partition marker");
-        assert!(has_compressed, "a node must surface the COMPRESSED partition marker");
-        assert!(has_shared, "a node must surface the SHARED (whiteboard) partition marker");
-        assert!(has_budget, "a node must surface the BUDGET partition marker");
+        let has_full = blocks
+            .iter()
+            .any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("full")));
+        let has_compressed = blocks
+            .iter()
+            .any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("compressed")));
+        let has_shared = blocks
+            .iter()
+            .any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("shared")));
+        let has_budget = blocks
+            .iter()
+            .any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("budget")));
+        assert!(
+            has_full,
+            "a node must surface the FULL (deps) partition marker"
+        );
+        assert!(
+            has_compressed,
+            "a node must surface the COMPRESSED partition marker"
+        );
+        assert!(
+            has_shared,
+            "a node must surface the SHARED (whiteboard) partition marker"
+        );
+        assert!(
+            has_budget,
+            "a node must surface the BUDGET partition marker"
+        );
 
         // The budget marker carries the pruning legend + a token estimate.
-        let budget_reads_pruned = blocks.iter().any(|b| matches!(b, Block::KeyVal(k, v)
-            if k.contains("budget") && v.contains("pruned") && v.contains("tok")));
-        assert!(budget_reads_pruned, "the budget marker reads '~Nk tok · rest pruned'");
+        let budget_reads_pruned = blocks.iter().any(|b| {
+            matches!(b, Block::KeyVal(k, v)
+            if k.contains("budget") && v.contains("pruned") && v.contains("tok"))
+        });
+        assert!(
+            budget_reads_pruned,
+            "the budget marker reads '~Nk tok · rest pruned'"
+        );
 
         // The contracts render as KeyVals carrying the fixture's contract text.
-        let has_in_contract = blocks.iter().any(|b| matches!(b, Block::KeyVal(_, v)
-            if v.contains("Repo layout")));
-        let has_out_contract = blocks.iter().any(|b| matches!(b, Block::KeyVal(_, v)
-            if v.contains("provider-settings contract sketch")));
+        let has_in_contract = blocks.iter().any(|b| {
+            matches!(b, Block::KeyVal(_, v)
+            if v.contains("Repo layout"))
+        });
+        let has_out_contract = blocks.iter().any(|b| {
+            matches!(b, Block::KeyVal(_, v)
+            if v.contains("provider-settings contract sketch"))
+        });
         assert!(has_in_contract, "the input_contract renders as a KeyVal");
         assert!(has_out_contract, "the output_contract renders as a KeyVal");
     }
@@ -1142,14 +1282,24 @@ mod tests {
         let dag = fixture();
         let blocks = blocks_for_conjure(&dag);
         let wave1_first = dag.waves[1].nodes[0].id.clone();
-        let names_a_dep = blocks.iter().any(|b| matches!(b, Block::KeyVal(k, v)
-            if k.contains("full") && v.contains(&wave1_first)));
-        assert!(names_a_dep, "the FULL marker names the prior-wave dep ids (e.g. {wave1_first})");
+        let names_a_dep = blocks.iter().any(|b| {
+            matches!(b, Block::KeyVal(k, v)
+            if k.contains("full") && v.contains(&wave1_first))
+        });
+        assert!(
+            names_a_dep,
+            "the FULL marker names the prior-wave dep ids (e.g. {wave1_first})"
+        );
 
         // And a wave-0 node's FULL marker names the operator prompt sentinel.
-        let names_prompt = blocks.iter().any(|b| matches!(b, Block::KeyVal(k, v)
-            if k.contains("full") && v.contains(OPERATOR_PROMPT_DEP)));
-        assert!(names_prompt, "a wave-0 node's FULL marker is the operator prompt");
+        let names_prompt = blocks.iter().any(|b| {
+            matches!(b, Block::KeyVal(k, v)
+            if k.contains("full") && v.contains(OPERATOR_PROMPT_DEP))
+        });
+        assert!(
+            names_prompt,
+            "a wave-0 node's FULL marker is the operator prompt"
+        );
     }
 
     #[test]
@@ -1168,12 +1318,18 @@ mod tests {
             }],
         });
         let blocks = blocks_for_conjure(&dag);
-        let has_in = blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("in")));
-        let has_out = blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("out")));
+        let has_in = blocks
+            .iter()
+            .any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("in")));
+        let has_out = blocks
+            .iter()
+            .any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("out")));
         assert!(!has_in, "no input_contract ⇒ no in KeyVal");
         assert!(!has_out, "no output_contract ⇒ no out KeyVal");
         // The context slice still renders.
-        assert!(blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("budget"))));
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("budget"))));
     }
 
     #[test]
@@ -1193,9 +1349,14 @@ mod tests {
             }],
         });
         let blocks = blocks_for_conjure(&dag);
-        let has_gemini = blocks.iter().any(|b| matches!(b, Block::KeyVal(k, v)
-            if k.contains("model") && v.contains("gemini")));
-        assert!(has_gemini, "model_tier renders generically (gemini, not just claude)");
+        let has_gemini = blocks.iter().any(|b| {
+            matches!(b, Block::KeyVal(k, v)
+            if k.contains("model") && v.contains("gemini"))
+        });
+        assert!(
+            has_gemini,
+            "model_tier renders generically (gemini, not just claude)"
+        );
     }
 
     // ── DISPATCH ──────────────────────────────────────────────────────────────
@@ -1219,7 +1380,9 @@ mod tests {
         assert_eq!(req.skill_id, "beautiful-gui-design");
         // The goal contains the role_description AND the rationale.
         assert!(req.goal.contains("Build the provider-settings panel"));
-        assert!(req.goal.contains("The flow needs a real, accessible surface"));
+        assert!(req
+            .goal
+            .contains("The flow needs a real, accessible surface"));
         // The node id is carried for the dispatched-note / alert.
         assert_eq!(req.node_id, "build-panel");
     }
@@ -1236,7 +1399,10 @@ mod tests {
         };
         let req = dispatch_request_for(&node);
         assert_eq!(req.backend, Backend::ClaudeCli, "opus → Claude Code");
-        assert_eq!(req.goal, "Survey the codebase", "no why ⇒ goal is just the role");
+        assert_eq!(
+            req.goal, "Survey the codebase",
+            "no why ⇒ goal is just the role"
+        );
     }
 
     #[test]
@@ -1249,7 +1415,11 @@ mod tests {
         assert!(gated >= 1, "the fixture has at least one HITL-gated node");
 
         let targets = dispatch_targets(&dag);
-        assert_eq!(targets.len(), total - gated, "dispatch-all skips the gated node(s)");
+        assert_eq!(
+            targets.len(),
+            total - gated,
+            "dispatch-all skips the gated node(s)"
+        );
 
         // None of the produced requests come from a gated node id.
         let gated_ids: Vec<String> = dag
@@ -1275,12 +1445,25 @@ mod tests {
         let mut dag = fixture();
         dag.waves[0].nodes[0].model_tier = "gemini".into();
         let backends: Vec<Backend> = dispatch_targets(&dag).iter().map(|r| r.backend).collect();
-        assert!(backends.contains(&Backend::Gemini), "a gemini node routes to Gemini");
-        assert!(backends.contains(&Backend::ClaudeCli), "the claude-tier nodes route to Claude Code");
+        assert!(
+            backends.contains(&Backend::Gemini),
+            "a gemini node routes to Gemini"
+        );
+        assert!(
+            backends.contains(&Backend::ClaudeCli),
+            "the claude-tier nodes route to Claude Code"
+        );
         // Genuinely multi-vendor: at least two distinct backends in the dispatch set.
         let distinct = backends.iter().filter(|&&b| b == Backend::Gemini).count() >= 1
-            && backends.iter().filter(|&&b| b == Backend::ClaudeCli).count() >= 1;
-        assert!(distinct, "dispatch spans Gemini AND Claude Code — multi-vendor");
+            && backends
+                .iter()
+                .filter(|&&b| b == Backend::ClaudeCli)
+                .count()
+                >= 1;
+        assert!(
+            distinct,
+            "dispatch spans Gemini AND Claude Code — multi-vendor"
+        );
     }
 
     // ── LIVE GENERATION (claude:cli) — pure-helper tests ────────────────────────
@@ -1291,26 +1474,44 @@ mod tests {
         // ~/.cargo/bin (for `cargo`) and ~/.local/bin (for `claude`) even when the
         // process inherited a bare PATH.
         let path = augmented_path();
-        assert!(path.contains(".cargo/bin"), "PATH must include ~/.cargo/bin (cargo): {path}");
-        assert!(path.contains(".local/bin"), "PATH must include ~/.local/bin (claude): {path}");
+        assert!(
+            path.contains(".cargo/bin"),
+            "PATH must include ~/.cargo/bin (cargo): {path}"
+        );
+        assert!(
+            path.contains(".local/bin"),
+            "PATH must include ~/.local/bin (claude): {path}"
+        );
         // The system bins are present too, so basic tooling resolves.
         assert!(path.contains("/usr/bin"), "PATH must include /usr/bin");
         // It is a colon-joined, non-empty list.
-        assert!(path.split(':').count() >= 4, "PATH should carry several dirs: {path}");
+        assert!(
+            path.split(':').count() >= 4,
+            "PATH should carry several dirs: {path}"
+        );
     }
 
     #[test]
     fn dag_gen_prompt_is_non_empty_and_embeds_the_intent_and_schema() {
         let p = dag_gen_prompt("  Add a retry budget to the dispatcher  ");
-        assert!(!p.trim().is_empty(), "the generation prompt must be non-empty");
+        assert!(
+            !p.trim().is_empty(),
+            "the generation prompt must be non-empty"
+        );
         // The operator intent is woven in (trimmed).
-        assert!(p.contains("Add a retry budget to the dispatcher"), "prompt embeds the intent");
+        assert!(
+            p.contains("Add a retry budget to the dispatcher"),
+            "prompt embeds the intent"
+        );
         // It pins the serde schema keys so claude emits the right shape.
         assert!(p.contains("problem_classification"));
         assert!(p.contains("ask_user_before_proceeding"));
         assert!(p.contains("model_tier"));
         // It demands raw JSON (no fences).
-        assert!(p.to_lowercase().contains("json only") || p.to_lowercase().contains("only a single json"));
+        assert!(
+            p.to_lowercase().contains("json only")
+                || p.to_lowercase().contains("only a single json")
+        );
     }
 
     #[test]
@@ -1361,10 +1562,14 @@ mod tests {
         let _ = std::fs::create_dir_all(&scratch);
         let prev_home = std::env::var("HOME").ok();
         // SAFETY: single-threaded test; we restore HOME immediately after.
-        unsafe { std::env::set_var("HOME", &scratch); }
+        unsafe {
+            std::env::set_var("HOME", &scratch);
+        }
         // Also blank PATH so the bare `claude` name can't resolve to a real install.
         let prev_path = std::env::var("PATH").ok();
-        unsafe { std::env::set_var("PATH", ""); }
+        unsafe {
+            std::env::set_var("PATH", "");
+        }
 
         let dag = generate_dag_via_cli("Add a retry budget to the dispatcher")
             .expect("generation must never error — it falls back to the fixture");
@@ -1374,8 +1579,14 @@ mod tests {
 
         // Restore the environment.
         unsafe {
-            match prev_home { Some(h) => std::env::set_var("HOME", h), None => std::env::remove_var("HOME") }
-            match prev_path { Some(p) => std::env::set_var("PATH", p), None => std::env::remove_var("PATH") }
+            match prev_home {
+                Some(h) => std::env::set_var("HOME", h),
+                None => std::env::remove_var("HOME"),
+            }
+            match prev_path {
+                Some(p) => std::env::set_var("PATH", p),
+                None => std::env::remove_var("PATH"),
+            }
         }
         let _ = std::fs::remove_dir_all(&scratch);
     }

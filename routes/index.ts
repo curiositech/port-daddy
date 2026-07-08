@@ -71,6 +71,7 @@ import { budgetPlugin } from './budget.js';
 import { advisorPlugin } from './advisor.js';
 import { quorumPlugin } from './quorum.js';
 import { parleyPlugin } from './parley.js';
+import { galaxyPlugin } from './galaxy.js';
 import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
 import { roadmapPlugin } from './roadmap.js';
@@ -287,6 +288,12 @@ export async function registerAllRoutes(
   // Parley — manual forced-reconciliation core for contested agent work.
   if ((deps as any).parley) {
     await fastify.register(parleyPlugin, { deps } as any);
+  }
+
+  // Session Galaxy — 2-D embedding map of recent agent sessions (MiniLM tail
+  // embeddings, seeded t-SNE, MI-labeled clusters) with click-through detail.
+  if ((deps as any).galaxy) {
+    await fastify.register(galaxyPlugin, { deps } as any);
   }
 
   // Feedback — central agentic-feedback primitive (tuple-backed).

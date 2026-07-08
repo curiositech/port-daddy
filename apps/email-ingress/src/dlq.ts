@@ -42,6 +42,32 @@ const DLQ_PREFIX = 'dlq:';
 const DLQ_TTL_SECONDS = 7 * 24 * 60 * 60; // matches the daemon-side tuple TTL
 /** Per-cron-run bound. Not a silent cap: leftovers persist for later runs. */
 const REPLAY_BATCH = 50;
+/** Backlog depth that flips /healthz `dlqAlert` and emits a cron warning — a
+ *  DLQ this deep means the daemon has been unreachable long enough that the
+ *  operator should look, not a transient blip. Well below the 7d TTL horizon. */
+export const DLQ_ALERT_THRESHOLD = 100;
+
+/**
+ * Redact a delivery id for LOGGING (never for the KV key — that must stay the
+ * exact, stable dedup key). A Message-ID is an opaque token, safe to log; but
+ * the `email:<from>:<date>` fallback (used when a message lacks a Message-ID)
+ * embeds the sender's address — PII we must not write to Workers logs. Replace
+ * only that form with a stable opaque correlation tag (FNV-1a, not a security
+ * hash — just enough to group repeated failures of the same message).
+ */
+export function redactDeliveryId(deliveryId: string): string {
+  if (!deliveryId.startsWith('email:')) return deliveryId; // opaque Message-ID
+  let h = 0x811c9dc5;
+  for (let i = 0; i < deliveryId.length; i++) {
+    h ^= deliveryId.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return `email:#${(h >>> 0).toString(16).padStart(8, '0')}`;
+}
+
+export function dlqAlertActive(depth: number | null): boolean {
+  return depth !== null && depth >= DLQ_ALERT_THRESHOLD;
+}
 
 export async function stashEnvelope(
   kv: KVLike,
@@ -124,7 +150,7 @@ export async function replayDlq(
       kept += 1;
       record.attempts += 1;
       await kv.put(name, JSON.stringify(record), { expirationTtl: DLQ_TTL_SECONDS });
-      log(`dlq: replay failed for ${record.deliveryId} (attempt ${record.attempts}): ${result.error}`);
+      log(`dlq: replay failed for ${redactDeliveryId(record.deliveryId)} (attempt ${record.attempts}): ${result.error}`);
     }
   }
 
