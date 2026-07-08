@@ -50,7 +50,7 @@ ADRs follow the [MADR format](https://adr.github.io/madr/) (Markdown Architectur
 | [0089](0089-durable-security-forensics-journal.md) | Durable security-forensics journal — security events survive the 7-day prune | Accepted | 2026-06 |
 | [0090](0090-the-harbor.md) | The Harbor — one helm for human+agent fleets (North Star; extends ADR-0048) | Proposed | 2026-06 |
 | [0090](0090-database-distribution-and-sync.md) | Database Distribution & Sync Architecture for Port Daddy | Proposed | 2026-06 |
-| [0096](0096-cloudflare-code-writing-remote-harbor-and-operator-coedit.md) | Cloudflare Code-Writing Remote Harbor and Operator-Joinable Co-Edit (deferred Harbor Authority ADR; design fold) | Proposed | 2026-07 |
+| [0099](0099-cloudflare-code-writing-remote-harbor-and-operator-coedit.md) | Cloudflare Code-Writing Remote Harbor and Operator-Joinable Co-Edit (deferred Harbor Authority ADR; design fold) | Proposed | 2026-07 |
 
 ## How to Read These
 

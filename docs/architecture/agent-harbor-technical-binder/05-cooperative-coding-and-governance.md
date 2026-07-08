@@ -34,8 +34,8 @@ Harbor co-edit:
   slice is a read-only remote mirror — the operator watches the remote agent's
   buffer with claims and the semantic-conflict band (the ch20 "Harbor remote
   view") — before any operator writes cross the wire. Design + proof gates:
-  `docs/adr/0096-cloudflare-code-writing-remote-harbor-and-operator-coedit.md`
-  (ADR-0096); sequenced as ch18 Work Order C10. The editable-buffer half is C6
+  `docs/adr/0099-cloudflare-code-writing-remote-harbor-and-operator-coedit.md`
+  (ADR-0099); sequenced as ch18 Work Order C10. The editable-buffer half is C6
   (Harbor Editor remote transport) and stays on the ch18 Not-now fence until local
   Agent Node governance is visibly working.
 
@@ -186,7 +186,7 @@ The Harbor Editor should follow the existing battle plan:
 4. Add agents as peers with claims rendered in the buffer.
 5. Add salvage and provenance.
 6. Add remote harbor topology and visual polish. The first remote target is the
-   read-only mirror of a Cloudflare code-writing remote body (ADR-0096 Phase A);
+   read-only mirror of a Cloudflare code-writing remote body (ADR-0099 Phase A);
    editable remote transport is the last step, not the first.
 
 Do not start with transport or 3D water. The hard risk is the editable buffer
