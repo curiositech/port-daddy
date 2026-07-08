@@ -185,7 +185,7 @@ ship-blocker (plaintext PII) is refuted by making E2E non-optional.
 Route fleet email ingress through the Relay, E2E-encrypted and
 capability-scoped. Concretely:
 
-1. **`apps/relay/src/email-ingress.ts`** — mirror `github-webhook.ts`:
+1. **`apps/relay/src/email-ingress.ts`** (proposed) — mirror `github-webhook.ts`:
    - Authenticate the Worker at the edge (HMAC over the raw request).
    - **Rate-limit** per source (new gate).
    - The publisher-side ciphertext is produced by the **Worker**, not the relay

@@ -21,11 +21,11 @@ cd apps/email-ingress && \
   npx wrangler@4.107.0 deploy
 ```
 
-`apps/email-ingress/wrangler.toml` (gitignored, account-scoped) must exist with a real
-`account_id` and a bound KV namespace named `ENVELOPE_DLQ` (dead-letter durability) — copy it
-from `wrangler.toml.example` and fill both if it's missing; without the KV binding, envelopes
-that fail to reach the daemon during an outage are lost instead of replayed. Confirm health
-after deploy:
+The local wrangler config (gitignored, account-scoped) must exist with a real `account_id`
+and a bound KV namespace named `ENVELOPE_DLQ` (dead-letter durability) — copy it from
+`apps/email-ingress/wrangler.toml.example` and fill both if it's missing; without the KV
+binding, envelopes that fail to reach the daemon during an outage are lost instead of replayed.
+Confirm health after deploy:
 
 ```bash
 curl -s https://<your-worker>.workers.dev/healthz | jq
