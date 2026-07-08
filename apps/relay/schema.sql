@@ -144,3 +144,34 @@ CREATE TABLE IF NOT EXISTS fleet_run_steps (
   PRIMARY KEY (run_id, seq)
 );
 CREATE INDEX IF NOT EXISTS fleet_run_steps_run_idx ON fleet_run_steps (run_id);
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Fleet idea tracking (ADR-0085 semantic dedup; fleet-executor ideas-store.ts)
+--
+-- Ideation ships (spark, spider, lookout, snipe) capture proposals here instead
+-- of a markdown file: one canonical row per novel idea, keyed by a content-
+-- addressed `slug`, carrying its embedding for cosine dedup (>= 0.92 => a
+-- `duplicate_of` back-reference rather than a new GitHub issue). The
+-- fleet-executor creates this at runtime via ensureIdeasTable() (CREATE TABLE IF
+-- NOT EXISTS); this block is the committed, canonical schema-of-record so the
+-- shared relay DB shape stays documented alongside fleet_runs / fleet_run_steps.
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS fleet_ideas (
+  slug           TEXT    PRIMARY KEY,            -- slugify(title)-contentHash(idea) (content-addressed idempotency key)
+  title          TEXT    NOT NULL,               -- proposal headline
+  rationale      TEXT    NOT NULL,               -- why it matters (the syllogism / argument)
+  evidence_json  TEXT,                           -- JSON array of supporting evidence, if any
+  action         TEXT    NOT NULL,               -- the runnable command / next step the proposal renders
+  ship           TEXT    NOT NULL,               -- originating ideation ship (spark|spider|lookout|snipe)
+  owner          TEXT,                            -- repo owner at capture time
+  repo           TEXT,                            -- repo name at capture time
+  pr_number      INTEGER,                         -- PR that surfaced the idea
+  embedding_json TEXT    NOT NULL,               -- JSON float[] embedding (cosine dedup vector)
+  issue_number   INTEGER,                         -- GitHub issue number once tracked
+  issue_url      TEXT,                            -- GitHub issue URL once tracked
+  duplicate_of   TEXT,                            -- canonical slug if this was deduped (NULL => canonical)
+  status         TEXT    NOT NULL DEFAULT 'tracked',
+  created_at     INTEGER NOT NULL
+);
+-- Dedup scan reads only canonical rows (duplicate_of IS NULL); index that predicate.
+CREATE INDEX IF NOT EXISTS fleet_ideas_canonical_idx ON fleet_ideas (duplicate_of);

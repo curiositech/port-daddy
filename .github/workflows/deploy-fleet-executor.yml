@@ -23,9 +23,15 @@ name: Deploy fleet-executor (Cloudflare Worker)
 #                                         --repo curiositech/port-daddy --app actions \
 #                                         < apps/fleet-executor/wrangler.toml
 #
-# The Worker's runtime secret GITHUB_APP_PRIVATE_KEY is set out-of-band via
-# `wrangler secret put` and is PRESERVED across `wrangler deploy` — this
-# workflow never touches it.
+# The Worker's runtime secrets are set out-of-band via `wrangler secret put`
+# and are PRESERVED across `wrangler deploy` — this workflow never touches them:
+#   - GITHUB_APP_PRIVATE_KEY     PEM signing key for the GitHub App.
+#   - PORT_DADDY_TELEMETRY_TOKEN Bearer token for POST /telemetry/cloud-app
+#                                (cost + failure events back to the daemon /
+#                                FleetBar). OPTIONAL: unset ⇒ the executor runs
+#                                identically and emits nothing. The sink URL
+#                                itself (PORT_DADDY_TELEMETRY_URL) is a plaintext
+#                                [vars] entry inside FLEET_EXECUTOR_WRANGLER_TOML.
 
 on:
   push:
