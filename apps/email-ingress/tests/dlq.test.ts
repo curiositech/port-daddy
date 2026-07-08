@@ -4,7 +4,7 @@
 // dropped loudly. The daemon's delivery-id dedup makes replays safe.
 
 import { describe, expect, test } from 'vitest';
-import { stashEnvelope, replayDlq, dlqDepth, redactDeliveryId, DLQ_ALERT_THRESHOLD, type KVLike } from '../src/dlq.js';
+import { stashEnvelope, replayDlq, dlqDepth, redactDeliveryId, dlqAlertActive, DLQ_ALERT_THRESHOLD, type KVLike } from '../src/dlq.js';
 import { verifySignature } from '../src/envelope.js';
 
 function fakeKV(): KVLike & { store: Map<string, string> } {
@@ -82,11 +82,18 @@ describe('envelope DLQ', () => {
     const line = logs.join(' ');
     expect(line).not.toContain('alice@victim.example'); // no PII in logs
     expect(line).toContain(redactDeliveryId(piiId));    // stable correlation tag instead
-    // The redactor is deterministic and non-reversible for the PII form,
-    // and a pass-through for opaque Message-IDs.
+    // The redactor is deterministic for the PII form and a pass-through for
+    // opaque Message-IDs.
     expect(redactDeliveryId(piiId)).toMatch(/^email:#[0-9a-f]{8}$/);
     expect(redactDeliveryId(piiId)).toBe(redactDeliveryId(piiId));
     expect(redactDeliveryId('<abc123@mail.example>')).toBe('<abc123@mail.example>');
     expect(DLQ_ALERT_THRESHOLD).toBeGreaterThan(0);
+  });
+
+  test('dlqAlertActive keys off full backlog depth, not replay batch kept count', () => {
+    expect(dlqAlertActive(null)).toBe(false);
+    expect(dlqAlertActive(DLQ_ALERT_THRESHOLD - 1)).toBe(false);
+    expect(dlqAlertActive(DLQ_ALERT_THRESHOLD)).toBe(true);
+    expect(dlqAlertActive(DLQ_ALERT_THRESHOLD + 50)).toBe(true);
   });
 });

@@ -52,8 +52,8 @@ export const DLQ_ALERT_THRESHOLD = 100;
  * exact, stable dedup key). A Message-ID is an opaque token, safe to log; but
  * the `email:<from>:<date>` fallback (used when a message lacks a Message-ID)
  * embeds the sender's address — PII we must not write to Workers logs. Replace
- * only that form with a stable, non-reversible correlation tag (FNV-1a, not a
- * security hash — just enough to group repeated failures of the same message).
+ * only that form with a stable opaque correlation tag (FNV-1a, not a security
+ * hash — just enough to group repeated failures of the same message).
  */
 export function redactDeliveryId(deliveryId: string): string {
   if (!deliveryId.startsWith('email:')) return deliveryId; // opaque Message-ID
@@ -63,6 +63,10 @@ export function redactDeliveryId(deliveryId: string): string {
     h = Math.imul(h, 0x01000193);
   }
   return `email:#${(h >>> 0).toString(16).padStart(8, '0')}`;
+}
+
+export function dlqAlertActive(depth: number | null): boolean {
+  return depth !== null && depth >= DLQ_ALERT_THRESHOLD;
 }
 
 export async function stashEnvelope(
