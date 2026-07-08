@@ -92,6 +92,10 @@ describe('Agent Harbor Surface Gateway runtime helper', () => {
       capabilityDecision: undefined,
       payload: {
         eventId: 'evt_01JZFIX0042',
+        sessionId: 'session_01JZFIX0001',
+        agentNodeId: 'agent_node_01JZFIX0001',
+        sequence: 42,
+        occurredAt: '2026-07-05T12:04:01.000Z',
         schemaVersion: 1,
         kind: 'tool_result',
       },
@@ -210,6 +214,30 @@ describe('Agent Harbor Surface Gateway runtime helper', () => {
     }));
     expect(admitted.ok).toBe(false);
     expect(admitted.errors.join(' ')).toMatch(/stable payload identifier/);
+  });
+
+  it('validates canonical event payloads by noun even without a schema discriminator', () => {
+    const admitted = validateSurfaceGatewayEnvelope(gateway({
+      envelopeId: 'surface_gateway_event_malformed_payload',
+      surface: 'scout',
+      direction: 'daemon-to-surface',
+      mode: 'event',
+      noun: 'TranscriptEvent',
+      operation: 'transcript-event.appended',
+      issuedBy: 'daemon:local',
+      idempotencyKey: null,
+      capabilityDecision: undefined,
+      payload: {
+        eventId: 'evt_01JZFIX0042',
+        schemaVersion: 1,
+        kind: 'tool_result',
+      },
+    }));
+    expect(admitted.ok).toBe(false);
+    expect(admitted.errors.join(' ')).toMatch(/payload transcript-event: .*sessionId/);
+    expect(admitted.errors.join(' ')).toMatch(/payload transcript-event: .*agentNodeId/);
+    expect(admitted.errors.join(' ')).toMatch(/payload transcript-event: .*sequence/);
+    expect(admitted.errors.join(' ')).toMatch(/payload transcript-event: .*occurredAt/);
   });
 
   it('rejects noun and operation drift that would fork routing semantics', () => {

@@ -403,6 +403,10 @@ describe('Agent Harbor native Surface Gateway contract', () => {
       }),
       payload: {
         eventId: 'evt_01JZFIX0042',
+        sessionId: 'session_01JZFIX0001',
+        agentNodeId: 'agent_node_01JZFIX0001',
+        sequence: 42,
+        occurredAt: '2026-07-05T12:04:01.000Z',
         schemaVersion: 1,
         kind: 'tool_result',
       },

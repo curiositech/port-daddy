@@ -290,12 +290,14 @@ function payloadSchemaName(envelope: SurfaceGatewayEnvelope): string | null {
 }
 
 function validatePayload(envelope: SurfaceGatewayEnvelope, allowMissingSchema: boolean): string[] {
-  const schemaName = payloadSchemaName(envelope);
+  const declaredSchemaName = payloadSchemaName(envelope);
+  const expected = nounOperationPrefix(envelope.noun);
+  const schemaName =
+    declaredSchemaName ?? (envelope.mode === 'command' || envelope.mode === 'event' ? expected : null);
   if (!schemaName) return [];
   const errors: string[] = [];
-  const expected = nounOperationPrefix(envelope.noun);
-  if (schemaName !== expected) {
-    errors.push(`payload schema "${schemaName}" must match envelope noun schema "${expected}"`);
+  if (declaredSchemaName && declaredSchemaName !== expected) {
+    errors.push(`payload schema "${declaredSchemaName}" must match envelope noun schema "${expected}"`);
   }
   const result = validateAgainstSchema(schemaName, envelope.payload);
   if (result.skipped && !allowMissingSchema) {
