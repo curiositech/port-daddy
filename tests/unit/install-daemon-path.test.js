@@ -54,8 +54,12 @@ describe('daemon installer service PATH', () => {
   function extractFunctionBody(source, name) {
     const start = source.indexOf(`function ${name}(`);
     if (start === -1) throw new Error(`could not find function ${name} in install-daemon.ts`);
-    const nextFn = source.indexOf('\nfunction ', start + 1);
-    return nextFn === -1 ? source.slice(start) : source.slice(start, nextFn);
+    // Match the next top-level function boundary whether it's declared
+    // `function ` or `export function ` (some plist generators are exported
+    // for direct testing — see generateBosunPlist/jscSafeModeEnvXml).
+    const rest = source.slice(start + 1);
+    const nextMatch = rest.match(/\n(?:export )?function /);
+    return nextMatch ? source.slice(start, start + 1 + nextMatch.index) : source.slice(start);
   }
 
   test('sets a ThrottleInterval on the generated DAEMON plist specifically (not just anywhere in the file)', () => {
@@ -90,6 +94,51 @@ describe('daemon installer service PATH', () => {
     test('the plist template actually interpolates jscSafeModeEnvXml() into EnvironmentVariables', () => {
       const source = readFileSync(join(process.cwd(), 'install-daemon.ts'), 'utf8');
       expect(source).toContain('${jscSafeModeEnvXml()}');
+    });
+  });
+
+  // 2026-07-08 (issue #676 investigation, coordinator-directed follow-up):
+  // core/pd-bosun already implements exactly the "detect a stale heartbeat,
+  // force `launchctl kickstart` within seconds" circuit breaker a daemon
+  // exposed to native crashes needs (5s poll / 30s staleness threshold by
+  // default). But generateBosunPlist() never told Bosun WHICH launchd label
+  // to kickstart, so it always defaulted to `com.portdaddy.daemon` — a label
+  // that does not exist under a Homebrew-managed install. installMacOS()'s
+  // own brew-detected branch installs Bosun as a complementary watcher
+  // specifically for that case, so Bosun's restart action was silently
+  // targeting a job that was never there: an already-built safety net that
+  // was a no-op on exactly the machine (a brew install) it was meant to help.
+  describe('Bosun watchdog targets the daemon launchd label that is actually supervising it', () => {
+    test('generateBosunPlist sets PORT_DADDY_BOSUN_DAEMON_LABEL to whatever label is passed in', async () => {
+      const mod = await import('../../install-daemon.js');
+      const brewPlist = mod.generateBosunPlist(mod.BREW_DAEMON_LABEL);
+      expect(brewPlist).toContain('<key>PORT_DADDY_BOSUN_DAEMON_LABEL</key>');
+      expect(brewPlist).toContain('<string>homebrew.mxcl.port-daddy</string>');
+
+      const selfInstalledPlist = mod.generateBosunPlist(mod.PLIST_LABEL);
+      expect(selfInstalledPlist).toContain('<string>com.portdaddy.daemon</string>');
+      expect(selfInstalledPlist).not.toContain('homebrew.mxcl.port-daddy');
+    });
+
+    test('the brew-detected branch in installMacOS passes BREW_DAEMON_LABEL to installBosunMacOS', () => {
+      const source = readFileSync(join(process.cwd(), 'install-daemon.ts'), 'utf8');
+      const guardIdx = source.indexOf('if (brewDaemonServiceLoaded())');
+      expect(guardIdx).toBeGreaterThan(-1);
+      // Scope to the brew-detected branch's body specifically (up to its
+      // closing brace, i.e. the next `stopExistingCanonicalDaemon()` call
+      // that begins the non-brew path) so this can't pass by matching the
+      // OTHER call site's argument instead.
+      const nonBrewPathIdx = source.indexOf('stopExistingCanonicalDaemon()', guardIdx);
+      const brewBranchBody = source.slice(guardIdx, nonBrewPathIdx);
+      expect(brewBranchBody).toContain('installBosunMacOS(BREW_DAEMON_LABEL)');
+    });
+
+    test('the non-brew (self-installed) path passes PLIST_LABEL to installBosunMacOS, not BREW_DAEMON_LABEL', () => {
+      const source = readFileSync(join(process.cwd(), 'install-daemon.ts'), 'utf8');
+      const nonBrewPathIdx = source.indexOf('stopExistingCanonicalDaemon()');
+      expect(nonBrewPathIdx).toBeGreaterThan(-1);
+      const restOfFunction = source.slice(nonBrewPathIdx);
+      expect(restOfFunction).toContain('installBosunMacOS(PLIST_LABEL)');
     });
   });
 });

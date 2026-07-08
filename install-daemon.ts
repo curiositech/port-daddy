@@ -38,14 +38,14 @@ const DARWIN_OPERATOR_TOOL_PATHS = [
 const SYSTEM_TOOL_PATHS = ['/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin'];
 
 // macOS paths
-const PLIST_LABEL: string = 'com.portdaddy.daemon';
+export const PLIST_LABEL: string = 'com.portdaddy.daemon';
 const BOSUN_PLIST_LABEL: string = 'com.portdaddy.bosun';
 // The Homebrew `brew services` launchd job that already supervises the daemon
 // (KeepAlive=true). If this is loaded, our own com.portdaddy.daemon plist would
 // be a SECOND, competing supervisor for the same :daemon-port listener — that
 // duplicate is exactly what docs/operations/daemon-and-supervision.md flags as
 // the recurring failure mode. Detect it and refuse to create the duplicate.
-const BREW_DAEMON_LABEL: string = 'homebrew.mxcl.port-daddy';
+export const BREW_DAEMON_LABEL: string = 'homebrew.mxcl.port-daddy';
 const LAUNCH_AGENTS: string = join(homedir(), 'Library', 'LaunchAgents');
 const PLIST_PATH: string = join(LAUNCH_AGENTS, `${PLIST_LABEL}.plist`);
 const BOSUN_PLIST_PATH: string = join(LAUNCH_AGENTS, `${BOSUN_PLIST_LABEL}.plist`);
@@ -262,7 +262,28 @@ export function jscSafeModeEnvXml(): string {
         <string>0</string>`;
 }
 
-function generateBosunPlist(): string {
+/**
+ * @param daemonLabel the launchd label Bosun should `launchctl kickstart -k`
+ * when the daemon's heartbeat goes stale (see core/pd-bosun/src/main.rs
+ * DEFAULT_DAEMON_LABEL). MUST match whichever job actually supervises the
+ * daemon on this machine — `com.portdaddy.daemon` for a self-installed
+ * LaunchAgent, or `homebrew.mxcl.port-daddy` under `brew services`.
+ *
+ * 2026-07-08 (issue #676 investigation): this used to be unparameterized,
+ * always defaulting Bosun to `com.portdaddy.daemon` regardless of which
+ * supervisor was actually in charge. `installMacOS()`'s brew-detected branch
+ * already installs Bosun as a complementary watcher alongside a
+ * brew-supervised daemon (see the comment there), but Bosun's own restart
+ * action (`launchctl kickstart -k com.portdaddy.daemon`) was targeting a
+ * launchd label that doesn't exist under a brew install — so on the
+ * operator's actual production machine, Bosun's stale-heartbeat circuit
+ * breaker was silently a no-op the entire time. This is the real,
+ * already-built "detect a wedge, force-restart within seconds" mechanism the
+ * daemon's Bun-crash exposure needs (5s poll / 30s staleness threshold by
+ * default, see core/pd-bosun) — it just needed correct wiring, not a new
+ * mechanism.
+ */
+export function generateBosunPlist(daemonLabel: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -300,6 +321,8 @@ function generateBosunPlist(): string {
         <string>${servicePath(dirname(BOSUN_BINARY_PATH), dirname(NODE_PATH))}</string>
         <key>PORT_DADDY_DB</key>
         <string>${join(homedir(), '.port-daddy', 'port-registry.db')}</string>
+        <key>PORT_DADDY_BOSUN_DAEMON_LABEL</key>
+        <string>${daemonLabel}</string>
     </dict>
 </dict>
 </plist>`;
@@ -403,7 +426,12 @@ function loadLaunchAgent(label: string, plistPath: string): boolean {
   return true;
 }
 
-function installBosunMacOS(): boolean {
+/**
+ * @param daemonLabel which launchd job actually supervises the daemon on
+ * this machine — pass BREW_DAEMON_LABEL when brew-managed, PLIST_LABEL
+ * otherwise. See generateBosunPlist() for why this must be correct.
+ */
+function installBosunMacOS(daemonLabel: string): boolean {
   if (!existsSync(BOSUN_BINARY_PATH)) {
     console.log(`  Bosun not installed: pd-bosun binary missing at ${BOSUN_BINARY_PATH}`);
     console.log('  Build it with: npm run build:bosun:dist');
@@ -414,8 +442,8 @@ function installBosunMacOS(): boolean {
     runCommand('launchctl', ['unload', BOSUN_PLIST_PATH]);
   }
 
-  writeFileSync(BOSUN_PLIST_PATH, generateBosunPlist());
-  console.log(`  Wrote ${BOSUN_PLIST_PATH}`);
+  writeFileSync(BOSUN_PLIST_PATH, generateBosunPlist(daemonLabel));
+  console.log(`  Wrote ${BOSUN_PLIST_PATH} (watching ${daemonLabel})`);
   return loadLaunchAgent(BOSUN_PLIST_LABEL, BOSUN_PLIST_PATH);
 }
 
@@ -450,7 +478,7 @@ function installMacOS(daemon: DaemonLaunchCommand): boolean {
         console.log(`  Removed redundant ${PLIST_PATH}`);
       } catch { /* leave it if something still owns it */ }
     }
-    return installBosunMacOS() && installFreshnessMacOS();
+    return installBosunMacOS(BREW_DAEMON_LABEL) && installFreshnessMacOS();
   }
 
   stopExistingCanonicalDaemon();
@@ -464,7 +492,7 @@ function installMacOS(daemon: DaemonLaunchCommand): boolean {
   writeFileSync(PLIST_PATH, generatePlist(daemon));
   console.log(`  Wrote ${PLIST_PATH}`);
 
-  return loadLaunchAgent(PLIST_LABEL, PLIST_PATH) && installBosunMacOS() && installFreshnessMacOS();
+  return loadLaunchAgent(PLIST_LABEL, PLIST_PATH) && installBosunMacOS(PLIST_LABEL) && installFreshnessMacOS();
 }
 
 function uninstallMacOS(): boolean {
