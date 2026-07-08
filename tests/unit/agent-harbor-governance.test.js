@@ -64,6 +64,29 @@ const govDir = join(schemaDir, 'governance');
 const govFixtureDir = join(govDir, 'fixtures');
 
 const GOV_SCHEMAS = ['tool-gate-envelope', 'human-gate-payload', 'denial-receipt'];
+const TOP_LEVEL_AGENT_HARBOR_SCHEMAS = [
+  'agent-node',
+  'agent-run',
+  'berth-target',
+  'blackboard-item',
+  'body',
+  'capability-decision',
+  'compaction-packet',
+  'compliance-probe-result',
+  'context-envelope',
+  'control-command',
+  'cost-accrual-event',
+  'guidance-envelope',
+  'memory-episode',
+  'skill-graft',
+  'surface-gateway',
+  'transcript-event',
+  'transcript-search-query',
+  'transcript-search-result',
+  'work-intent',
+  'work-plan',
+  'work-receipt',
+];
 
 // ---------------------------------------------------------------------------
 // Minimal fail-closed validator — same subset as agent-harbor-contracts.test.js
@@ -299,9 +322,9 @@ describe('C5 governance schema package', () => {
     expect(() => assertEnvelope(loadGovFixture('tool-gate-envelope'))).not.toThrow();
   });
 
-  it('the frozen contract package count is locked at seventeen (eleven F0 + ADR-0096 GuidanceEnvelope + five ADR-0097 M6 contracts) — governance adds only governance/ schemas', () => {
-    const files = readdirSync(schemaDir).filter((f) => f.endsWith('.schema.json'));
-    expect(files.length).toBe(17);
+  it('the top-level frozen contract package is explicitly inventoried — governance adds only governance/ schemas', () => {
+    const files = readdirSync(schemaDir).filter((f) => f.endsWith('.schema.json')).sort();
+    expect(files).toEqual(TOP_LEVEL_AGENT_HARBOR_SCHEMAS.map((n) => `${n}.schema.json`).sort());
   });
 });
 

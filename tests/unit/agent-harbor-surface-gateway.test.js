@@ -250,6 +250,14 @@ describe('Agent Harbor Surface Gateway runtime helper', () => {
   });
 
   it('rejects authority domains and surfaces outside the frozen schema', () => {
+    const badSurface = validateSurfaceGatewayEnvelope(gateway({
+      surface: 'fleetbar-private-api',
+      issuedBy: 'fleetbar-private-api:operator:erich',
+      capabilityDecision: decision({ surface: 'fleetbar-private-api' }),
+    }));
+    expect(badSurface.ok).toBe(false);
+    expect(badSurface.errors.join(' ')).toMatch(/surface|enum|not one of/);
+
     const badDomain = gateway({
       berthTarget: {
         ...gateway().berthTarget,

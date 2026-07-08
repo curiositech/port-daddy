@@ -2,7 +2,7 @@
   "generatedAt": 1783315035961,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 142,
+  "count": 143,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -403,6 +403,11 @@
       "slug": "agent-harbor-f0-contract-freeze",
       "status": "now",
       "summaryMd": "Agent Harbor v0 contract freeze \u2014 ADR-0095 + 11 schemas + fixture tests (binder ch18 Work Order F0)"
+    },
+    {
+      "slug": "agent-harbor-runtime-refactor-contract-dag",
+      "status": "backlog",
+      "summaryMd": "Agent Harbor runtime refactor contract and gateway"
     },
     {
       "slug": "agent-harness-installer-roster",
