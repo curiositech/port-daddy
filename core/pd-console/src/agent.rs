@@ -281,10 +281,18 @@ impl TubeMsg {
 /// pheromone hooks inside Claude Code's own loop (Claude Max Prime). codex /
 /// gemini remain validate-then-add: their squid adapters throw, so the flag is a
 /// no-op there until those adapters are written.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct SpawnOpts {
     /// Inject the Giant Squid pd-hook tentacles for this spawn (default false).
     pub inject_squid_hooks: bool,
+    /// Explicit workdir for this spawn. When `Some`, [`build_spawn_body`] emits it
+    /// as the `workdir` field verbatim (overriding the `PD_CONSOLE_WORKDIR` env
+    /// fallback). The console-chat responder sets this to a dedicated ephemeral
+    /// worktree (see [`resolve_console_chat_workdir`]) so the daemon's main-checkout
+    /// isolation guard (`assessSpawnIsolation`) is SATISFIED, not bypassed — a bare
+    /// spawn used to omit workdir and bounce off that guard, so no responder ever
+    /// bound and the operator chat stayed silent.
+    pub workdir: Option<String>,
 }
 
 impl SpawnOpts {
@@ -294,6 +302,7 @@ impl SpawnOpts {
     pub fn squid() -> Self {
         SpawnOpts {
             inject_squid_hooks: true,
+            ..Default::default()
         }
     }
 }
@@ -1276,6 +1285,150 @@ pub struct SpawnOutcome {
     pub error: Option<String>,
 }
 
+/// Error resolving a workdir for the console-chat responder. Its message is shown
+/// VERBATIM in the chat pane, so it must name an ACTIONABLE cause (which directory,
+/// which IO failure) instead of collapsing into a bare "spawn refused".
+#[derive(Debug)]
+pub struct ChatWorkdirError(pub String);
+
+impl std::fmt::Display for ChatWorkdirError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+impl std::error::Error for ChatWorkdirError {}
+
+/// The git repo the console is running in, if any (`git rev-parse --show-toplevel`).
+/// Returns `None` when the console is launched outside a checkout (the production
+/// case — an installed binary), which is not an error: the responder then gets a
+/// plain scratch dir instead of a linked worktree.
+fn git_toplevel() -> Option<std::path::PathBuf> {
+    let out = std::process::Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let path = String::from_utf8(out.stdout).ok()?.trim().to_string();
+    if path.is_empty() {
+        None
+    } else {
+        Some(std::path::PathBuf::from(path))
+    }
+}
+
+/// Resolve the workdir the console-chat responder should run in, GUARANTEEING a
+/// path the daemon's isolation guard (`assessSpawnIsolation`, lib/spawner.ts)
+/// accepts — i.e. never a repository main checkout. Before this existed, a bare
+/// `POST /spawn` omitted `workdir`, the daemon defaulted it to its own main
+/// checkout, the guard blocked it, and NO responder ever bound → the operator chat
+/// was silent. This makes the guard SATISFIED, not bypassed (we never touch the
+/// `PD_SPAWN_ISOLATION_OFF` escape hatch).
+///
+/// Precedence:
+///   1. `PD_CONSOLE_WORKDIR`, if set & non-empty — honour the operator override.
+///   2. A dedicated ephemeral **git worktree** under `~/coding/tmp/pd-console-chat/<id>`,
+///      detached off the console's own repo HEAD. A linked worktree's `.git` is a
+///      FILE, so `detectGitCheckout` reads 'worktree' (allowed) and any file the
+///      responder writes stays isolated & disposable.
+///   3. When the console is NOT inside a git repo (nothing to check out) or the
+///      worktree add fails, a plain **scratch directory** at the same path. With no
+///      `.git` the guard reads 'none' (allowed) — the read-only posture the guard
+///      legitimately exempts. A conversational responder writes nothing to a repo;
+///      if the operator asks it to, writes land in this disposable dir, never a
+///      shared checkout (the exact clobber the guard exists to prevent).
+///
+/// Only a genuine filesystem failure (can't create the dir at all) is fatal; it
+/// returns a [`ChatWorkdirError`] the caller renders as an actionable chat error.
+///
+/// NEVER `/tmp` — macOS purges it on a timer and reboot. Always `~/coding/tmp`.
+pub fn resolve_console_chat_workdir() -> std::result::Result<String, ChatWorkdirError> {
+    // 1. Operator override wins.
+    if let Ok(wd) = std::env::var("PD_CONSOLE_WORKDIR") {
+        if !wd.trim().is_empty() {
+            return Ok(wd);
+        }
+    }
+
+    let home = dirs::home_dir().ok_or_else(|| {
+        ChatWorkdirError(
+            "cannot resolve $HOME to place a chat worktree; set PD_CONSOLE_WORKDIR \
+             to an existing worktree instead"
+                .into(),
+        )
+    })?;
+    let root = home.join("coding/tmp/pd-console-chat");
+    make_chat_workdir(&root, git_toplevel().as_deref())
+}
+
+/// Create a dedicated, NON-main workdir under `root`: a linked git worktree off
+/// `base_repo` when one is given (`.git` is a FILE → `detectGitCheckout` reads
+/// 'worktree'), else a plain scratch dir (no `.git` → reads 'none'). Either way
+/// `assessSpawnIsolation` accepts it. Pure w.r.t. env, so unit tests drive it with
+/// a temp repo + temp root and NO live daemon. The sole production caller roots it
+/// under `~/coding/tmp` — NEVER `/tmp` (macOS purges that).
+fn make_chat_workdir(
+    root: &std::path::Path,
+    base_repo: Option<&std::path::Path>,
+) -> std::result::Result<String, ChatWorkdirError> {
+    // Per-responder id: pid + a nanosecond stamp. Unique enough for one operator's
+    // console; avoids colliding with a stale directory from a prior run.
+    let id = format!(
+        "{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    );
+    let dest = root.join(&id);
+
+    // Prefer a real linked worktree off the base repo, when we have one.
+    if let Some(repo) = base_repo {
+        std::fs::create_dir_all(root).map_err(|e| {
+            ChatWorkdirError(format!(
+                "couldn't create the chat-worktree root {}: {e}. Set \
+                 PD_CONSOLE_WORKDIR to an existing worktree, or ensure ~/coding/tmp \
+                 is writable.",
+                root.display()
+            ))
+        })?;
+        // `--detach` off HEAD: an isolated checkout with NO new branch (throwaway
+        // conversational worktree — no branch pollution, no re-run name collision,
+        // and no rebase/commit replay, so the coordination-guard pre-commit hook
+        // never fires here).
+        let out = std::process::Command::new("git")
+            .current_dir(repo)
+            .args(["worktree", "add", "--detach"])
+            .arg(&dest)
+            .arg("HEAD")
+            .output();
+        if let Ok(o) = out {
+            if o.status.success() {
+                return Ok(dest.to_string_lossy().into_owned());
+            }
+            // else: bare repo / locked index / etc. Fall through to the scratch
+            // posture, which still binds a responder and keeps writes isolated.
+        }
+    }
+
+    // Scratch dir (read-only posture; `detectGitCheckout` reads 'none'). Wipe
+    // `dest` first: a `git worktree add` that failed AFTER creating the target
+    // could leave a partial `.git` behind, and a stale checkout there would make
+    // the guard misread the posture — defeating the isolation fix on the error
+    // path. A clean, empty dir guarantees 'none'. (Ignore a not-found error.)
+    let _ = std::fs::remove_dir_all(&dest);
+    std::fs::create_dir_all(&dest).map_err(|e| {
+        ChatWorkdirError(format!(
+            "couldn't create a chat workdir at {}: {e}. Set PD_CONSOLE_WORKDIR to an \
+             existing worktree, or ensure ~/coding/tmp is writable.",
+            dest.display()
+        ))
+    })?;
+    Ok(dest.to_string_lossy().into_owned())
+}
+
 /// Build the `POST /spawn` request body. Factored out of [`DaemonClient::spawn`]
 /// as a PURE function (env reads aside) so the wire shape is unit-testable without
 /// a live daemon — the proof that a conjure dispatch carries `injectSquidHooks`.
@@ -1312,8 +1465,20 @@ pub fn build_spawn_body(
         body["model"] = serde_json::json!(m);
     }
     // Worktree isolation: the daemon refuses to run an agent in a main
-    // checkout. Pass an operator-provided worktree.
-    if let Ok(wd) = std::env::var("PD_CONSOLE_WORKDIR") {
+    // checkout (`assessSpawnIsolation` in lib/spawner.ts). An explicit
+    // `opts.workdir` wins (the console-chat responder resolves its own dedicated
+    // ephemeral worktree — see `resolve_console_chat_workdir`); otherwise fall
+    // back to the operator-provided `PD_CONSOLE_WORKDIR`. Emitting NEITHER is what
+    // let a bare spawn default to the daemon's own main checkout and bounce.
+    if let Some(wd) = opts.workdir.as_deref().filter(|w| !w.trim().is_empty()) {
+        body["workdir"] = serde_json::json!(wd);
+    } else if let Some(wd) = std::env::var("PD_CONSOLE_WORKDIR")
+        .ok()
+        .filter(|w| !w.trim().is_empty())
+    {
+        // Same non-empty guard as the opts branch: a set-but-blank env var must NOT
+        // emit an empty `workdir` (routes/spawn.ts rejects it, and it would surface
+        // as a confusing daemon error rather than the clean default posture).
         body["workdir"] = serde_json::json!(wd);
     }
     // Giant Squid Harness opt-in (ADR-0091): only emit the flag when set, so a
@@ -1691,6 +1856,154 @@ mod tests {
         // SpawnOpts::squid is the one true source of the true flag.
         assert!(SpawnOpts::squid().inject_squid_hooks);
         assert!(!SpawnOpts::default().inject_squid_hooks);
+    }
+
+    // ── Console-chat responder workdir (the silent-chat fix) ──────────────────
+    //
+    // The bug: the ChatSend spawn omitted `workdir`, so the daemon defaulted it to
+    // its own MAIN checkout and `assessSpawnIsolation` (lib/spawner.ts) blocked the
+    // spawn — no responder ever bound, the operator chat stayed silent. The fix
+    // gives the responder a dedicated, NON-main workdir. These tests prove the
+    // ChatSend body now carries such a workdir — no live daemon needed.
+    //
+    // We mirror the guard's OWN predicate here: `detectGitCheckout` reads a `.git`
+    // DIRECTORY as 'main' (blocked) and a `.git` FILE (linked worktree) or NO `.git`
+    // as 'worktree'/'none' (allowed). So "assessSpawnIsolation returns allowed" ==
+    // "the workdir's `.git` is not a directory".
+
+    /// A unique scratch root under ~/coding/tmp (NEVER /tmp — macOS purges it).
+    fn chat_test_scratch(tag: &str) -> std::path::PathBuf {
+        let base = dirs::home_dir()
+            .expect("home dir")
+            .join("coding/tmp/pd-console-chat-tests");
+        let uniq = format!(
+            "{tag}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        );
+        base.join(uniq)
+    }
+
+    /// True when `assessSpawnIsolation` would ACCEPT this workdir: its `.git` (if any)
+    /// is NOT a directory. (A bare non-git dir has none → 'none'; a linked worktree
+    /// has a `.git` FILE → 'worktree'. Only a `.git` dir is a blocked main checkout.)
+    fn guard_would_allow(workdir: &std::path::Path) -> bool {
+        !workdir.join(".git").is_dir()
+    }
+
+    #[test]
+    fn chat_send_body_carries_explicit_workdir_over_env() {
+        // The console resolves a dedicated workdir and passes it via SpawnOpts. The
+        // body must emit it VERBATIM as `workdir`, and it must win over any ambient
+        // PD_CONSOLE_WORKDIR (opts is the console's resolved decision).
+        let wd = "/Users/agent/coding/tmp/pd-console-chat/12345-678";
+        let body = build_spawn_body(
+            Backend::ClaudeCli,
+            "what does this function do?",
+            "console-chat",
+            None,
+            SpawnOpts {
+                workdir: Some(wd.to_string()),
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            body.get("workdir").and_then(|v| v.as_str()),
+            Some(wd),
+            "ChatSend body must carry the resolved workdir so the daemon does not \
+             default to its own main checkout"
+        );
+        // It targets the console-chat channel (the responder's tube).
+        assert_eq!(
+            body.get("tubeChannel").and_then(|v| v.as_str()),
+            Some("console-chat")
+        );
+    }
+
+    #[test]
+    fn make_chat_workdir_scratch_posture_is_guard_allowed() {
+        // No base repo → the read-only scratch posture: a plain dir with no `.git`.
+        // `detectGitCheckout` reads 'none' → assessSpawnIsolation ALLOWS it, and it
+        // is NOT the daemon's main checkout. Fully hermetic (no git invoked).
+        let root = chat_test_scratch("scratch");
+        let workdir = make_chat_workdir(&root, None).expect("scratch workdir");
+        let p = std::path::Path::new(&workdir);
+        assert!(p.is_dir(), "scratch workdir must exist: {workdir}");
+        // Concrete structural fact (not the guard-predicate helper): a scratch
+        // workdir has NO `.git` at all, so `detectGitCheckout` reads 'none' and
+        // assessSpawnIsolation allows it. Asserting the real filesystem shape keeps
+        // this from being a round-trip through our own predicate replica.
+        assert!(
+            !p.join(".git").exists(),
+            "a scratch workdir must have no `.git` (→ guard reads 'none'): {workdir}"
+        );
+
+        // And the ChatSend body carries exactly this workdir.
+        let body = build_spawn_body(
+            Backend::ClaudeCli,
+            "hi",
+            "console-chat",
+            None,
+            SpawnOpts {
+                workdir: Some(workdir.clone()),
+                ..Default::default()
+            },
+        );
+        assert_eq!(body.get("workdir").and_then(|v| v.as_str()), Some(workdir.as_str()));
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn make_chat_workdir_prefers_a_linked_worktree() {
+        // With a base repo, the responder gets a real linked git worktree — `.git`
+        // is a FILE, so `detectGitCheckout` reads 'worktree' (allowed), and any file
+        // the responder writes stays isolated. Requires `git` (the repo's baseline).
+        let root = chat_test_scratch("wt");
+        let repo = root.join("repo");
+        std::fs::create_dir_all(&repo).expect("mk repo dir");
+
+        let git = |args: &[&str]| {
+            std::process::Command::new("git")
+                .current_dir(&repo)
+                .args(args)
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false)
+        };
+        let ready = git(&["init", "-q"])
+            && git(&["config", "user.email", "t@t.t"])
+            && git(&["config", "user.name", "t"])
+            && git(&["commit", "--allow-empty", "-q", "-m", "seed"]);
+        if !ready {
+            // git unavailable/misconfigured: don't assert on a preferred-path we
+            // could not set up. The scratch posture (tested above) still binds.
+            let _ = std::fs::remove_dir_all(&root);
+            return;
+        }
+
+        let wt_root = root.join("wt");
+        let workdir = make_chat_workdir(&wt_root, Some(&repo)).expect("worktree workdir");
+        let p = std::path::Path::new(&workdir);
+        assert!(p.is_dir(), "worktree must exist: {workdir}");
+        assert!(
+            p.join(".git").is_file(),
+            "a linked worktree's `.git` must be a FILE (→ guard reads 'worktree'): {workdir}"
+        );
+        assert!(
+            guard_would_allow(p),
+            "the linked worktree must be guard-allowed: {workdir}"
+        );
+
+        // Detach the worktree, then remove the whole temp tree.
+        let _ = std::process::Command::new("git")
+            .current_dir(&repo)
+            .args(["worktree", "remove", "--force", &workdir])
+            .output();
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
