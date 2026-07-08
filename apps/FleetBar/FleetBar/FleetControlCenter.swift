@@ -6,7 +6,7 @@ struct FleetControlCenter: View {
     @ObservedObject var dispatchStore: DispatchStore
     @ObservedObject var proposalStore: FleetProposalStore
     @ObservedObject var backendStore: BackendStore
-    @ObservedObject var cloudFleetStore: CloudFleetStore = CloudFleetStore()
+    @StateObject private var cloudFleetStore = CloudFleetStore()
 
     @AppStorage(FleetControlRoute.surfaceKey) private var selectedSurfaceRaw = FleetControlSurface.flow.rawValue
     @AppStorage(FleetControlRoute.projectKey) private var selectedProjectStorage = ""
