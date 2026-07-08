@@ -480,6 +480,11 @@
       "summaryMd": "A4.1 (optional) Wire tree-sitter-go / tree-sitter-rust + extraction (symbols, imports, intra-file calls). Done when a Go and Rust file parse with symbols + call edges."
     },
     {
+      "slug": "binder-aor-reconciliation-2026-07-06",
+      "status": "backlog",
+      "summaryMd": "feat(fleetbar): add native Cloud Fleet surface"
+    },
+    {
       "slug": "cloudflare-agent-telemetry-unified-reporting",
       "status": "now",
       "summaryMd": "Cloudflare/GitHub App remote agent telemetry appears in the same fleet, agent, and spend reports as local agents."
