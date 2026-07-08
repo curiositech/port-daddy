@@ -149,20 +149,24 @@ function coerceTemperature(value: unknown): number | null {
 
 /**
  * The code review bot(s) — the ONLY ships that get the expensive-but-capable
- * {@link CODER_CF_MODEL} (gpt-oss-120b). Matches any `*-reviewer` ship; every
- * other ship (red-team, qa, ideation, …) runs on the cheap default.
+ * {@link CODER_CF_MODEL} (gpt-oss-120b). SUFFIX match (`*reviewer`), not
+ * substring: a substring match on the *expensive* side is a budget leak (a ship
+ * named e.g. `non-reviewer-audit` must NOT route onto the pricey model). Matches
+ * `code-reviewer`, `my-reviewer`; excludes `reviewer-adjacent`, `qa`, red-team.
  */
 function isReviewBot(name: string): boolean {
-  return name.includes('reviewer');
+  return name.endsWith('reviewer');
 }
 
 /**
  * Derive the Cloudflare Workers AI model for a ship:
  *   1. Honor the first `@cf/` fallback IF it is in {@link KNOWN_GOOD_CF_MODELS}
- *      (verified to return output — gpt-oss included, via extractAiText).
- *   2. Otherwise (a pin outside that set, e.g. kimi-k2.7-code, or no `@cf/` pin)
- *      → a name-based default: {@link CODER_CF_MODEL} for blocking gate-keepers,
- *      {@link DEFAULT_CF_MODEL} otherwise.
+ *      — which is ONLY the cheap qwen3-30b, so a pin can never reach the pricey
+ *      model.
+ *   2. Otherwise (any other pin, e.g. gpt-oss / kimi / qwen-coder, or no `@cf/`
+ *      pin) → a name-based default: {@link CODER_CF_MODEL} (gpt-oss-120b) for the
+ *      code-review bot per {@link isReviewBot}, {@link DEFAULT_CF_MODEL} (cheap
+ *      qwen3-30b) for every other ship.
  */
 function deriveCfModel(agent: RawAgent, name: string): string {
   for (const fb of agent.fallbacks ?? []) {
