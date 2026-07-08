@@ -62,38 +62,34 @@ function deriveIdeation(name: string, agentClass: unknown): boolean {
 
 // Default Cloudflare AI model per ship if not declared in fallbacks.
 //
-// HARD LESSON (2026-07-07): `@cf/openai/gpt-oss-120b` and
-// `@cf/moonshotai/kimi-k2.7-code` return EMPTY responses on this Workers AI
-// account — the fleet_run_steps transcript showed outputLength:0 for every MAP
-// chunk of every ship pinned to them, so all those ships silently produced no
-// findings/proposals → no comment → PASS. The whole fleet went dark. Only
-// `@cf/qwen/qwen2.5-coder-32b-instruct` returned real output.
+// THE "BLACKOUT" WAS A PARSING BUG, NOT AN EMPTY MODEL (corrected 2026-07-08).
+// `@cf/openai/gpt-oss-120b` speaks the OpenAI **Responses API** — its generated
+// text arrives under `output[].content[].text` / `output_text`, NOT `response`.
+// The 2026-07-07 outage was the executor reading only `res.response` (empty for
+// that shape), which {@link extractAiText} (ai-response.ts, #731) now reads
+// correctly. gpt-oss-120b returns real output; treating it as "empty" and
+// remapping it to qwen was a stale reaction to a bug already fixed — and it
+// steered the fleet onto the PRICIER qwen2.5-coder ($0.66/$1.00) when gpt-oss-120b
+// is both MORE capable (120B) AND CHEAPER ($0.35/$0.75). (Prices per the
+// Cloudflare pricing page on 2026-07-08; verify the live page as they drift.)
 //
-// COST CANARY (2026-07-07): `qwen2.5-coder` is the PRICIEST qwen; per the
-// Cloudflare Workers AI pricing page on 2026-07-07 ($0.66/$1.00 per M tok vs
-// qwen3-30b-a3b-fp8's $0.051/$0.335 — dated numbers, verify the live page as
-// they drift), qwen3-30b is ~13× cheaper input / ~3× cheaper output. We move the
-// GENERAL/advisory default to qwen3-30b (a Qwen-family model, so very likely
-// returns output like its sibling), but keep the PROVEN qwen2.5-coder as both the
-// code-reviewer model AND the {@link resolveCfModel} guard fallback — so a
-// blocking reviewer and any unknown pin never go dark. This is a canary, not a
-// blind flip: advisory ships move now (a silent advisory ship is low-harm — no
-// false-green gate); once the transcript confirms qwen3-30b returns non-zero
-// output, a one-line follow-up flips CODER_CF_MODEL too.
-const WORKING_CF_MODEL = '@cf/qwen/qwen2.5-coder-32b-instruct'; // proven; guard fallback
-const DEFAULT_CF_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8'; // cheap; general/advisory ships
-const CODER_CF_MODEL = '@cf/qwen/qwen2.5-coder-32b-instruct'; // proven; code-reviewer (canary holdout)
+// gpt-oss-120b works but is PRICEY ($0.35/$0.75 per M tok) — reserve it for the
+// one ship where quality most earns the cost: the CODE REVIEW BOT. Every other
+// ship runs on the cheap qwen3-30b ($0.051/$0.335). Operator directive: "super
+// expensive — only use it for the review bot, nothing else."
+const REVIEW_BOT_CF_MODEL = '@cf/openai/gpt-oss-120b'; // code review bot ONLY
+const CHEAP_CF_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8'; // every other ship
+const WORKING_CF_MODEL = CHEAP_CF_MODEL; // guard fallback: cheap + verified working
+const DEFAULT_CF_MODEL = CHEAP_CF_MODEL; // every ship except the review bot
+const CODER_CF_MODEL = REVIEW_BOT_CF_MODEL; // the code review bot only
 
-// Models allowed to reach ai.run verbatim. An id outside this set is remapped to
-// WORKING_CF_MODEL rather than passed through, because an empty-returning (or
-// nonexistent) Workers AI id does NOT error — it yields a blank response, which
-// the parser reads as "clean", silencing the ship. gpt-oss-120b and
-// kimi-k2.7-code are DELIBERATELY excluded: they are empty on this account today.
-// Add an id here only once it's verified to return output.
-const KNOWN_GOOD_CF_MODELS: ReadonlySet<string> = new Set([
-  '@cf/qwen/qwen2.5-coder-32b-instruct',
-  '@cf/qwen/qwen3-30b-a3b-fp8',
-]);
+// Cloudflare model ids the executor honors as an explicit ship pin. Only the
+// cheap model is honorable — the review bot gets gpt-oss by ROLE (below), not by
+// pin, so no other ship can accidentally pin its way onto the expensive model. An
+// id OUTSIDE this set is remapped to {@link WORKING_CF_MODEL} (the cheap model),
+// because a nonexistent Workers AI id doesn't error — it yields a blank response
+// the parser reads as "clean", silencing the ship.
+const KNOWN_GOOD_CF_MODELS: ReadonlySet<string> = new Set(['@cf/qwen/qwen3-30b-a3b-fp8']);
 
 /**
  * Guard a requested Cloudflare model id: pass through a known-good one, else
@@ -152,31 +148,30 @@ function coerceTemperature(value: unknown): number | null {
 }
 
 /**
- * Blocking gate-keepers that stay on the PROVEN coder model during the qwen3-30b
- * cost canary — a ship whose objection can fail the merge must not risk going
- * dark on an unverified model. Everything else (advisory reviewers + ideation)
- * moves to the cheap default.
+ * The code review bot(s) — the ONLY ships that get the expensive-but-capable
+ * {@link CODER_CF_MODEL} (gpt-oss-120b). Matches any `*-reviewer` ship; every
+ * other ship (red-team, qa, ideation, …) runs on the cheap default.
  */
-function staysOnProvenCoder(name: string): boolean {
-  return name.includes('reviewer') || name === 'red-team';
+function isReviewBot(name: string): boolean {
+  return name.includes('reviewer');
 }
 
 /**
  * Derive the Cloudflare Workers AI model for a ship:
- *   1. Honor the first `@cf/` fallback IF it is known-good (returns real output).
- *   2. Otherwise (an empty/unknown pin like gpt-oss-120b / kimi-k2.7-code, or no
- *      `@cf/` pin) → a name-based default: the proven coder model for blocking
- *      gate-keepers, the cheap {@link DEFAULT_CF_MODEL} (qwen3-30b) for everyone
- *      else. This is the cost canary — see the model-constant note above.
+ *   1. Honor the first `@cf/` fallback IF it is in {@link KNOWN_GOOD_CF_MODELS}
+ *      (verified to return output — gpt-oss included, via extractAiText).
+ *   2. Otherwise (a pin outside that set, e.g. kimi-k2.7-code, or no `@cf/` pin)
+ *      → a name-based default: {@link CODER_CF_MODEL} for blocking gate-keepers,
+ *      {@link DEFAULT_CF_MODEL} otherwise.
  */
 function deriveCfModel(agent: RawAgent, name: string): string {
   for (const fb of agent.fallbacks ?? []) {
     if (typeof fb?.model === 'string' && fb.model.startsWith('@cf/')) {
       if (KNOWN_GOOD_CF_MODELS.has(fb.model)) return fb.model; // explicit, verified pin
-      break; // first @cf pin is empty/unknown → fall through to the name default
+      break; // pin outside the honored set → fall through to the name default
     }
   }
-  return staysOnProvenCoder(name) ? CODER_CF_MODEL : DEFAULT_CF_MODEL;
+  return isReviewBot(name) ? CODER_CF_MODEL : DEFAULT_CF_MODEL;
 }
 
 function deriveNeedsExecution(name: string, allowedTools: unknown): boolean {
