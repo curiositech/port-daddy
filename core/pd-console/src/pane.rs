@@ -64,9 +64,11 @@ pub enum SyntaxKind {
 pub struct CodeLine {
     /// 1-based line number (always shown in the gutter).
     pub number: u32,
-    /// Short author tag for the gutter — `Some` ONLY when it carries signal:
-    /// a real second author exists in the buffer, or the line sits inside a
-    /// claimed/bound region. A single-author file shows no tag noise.
+    /// Short author tag for the gutter's ALWAYS-VISIBLE author column
+    /// (operator ruling 2026-07-07: per-line authorship is the Harbor
+    /// editor's point). `Some` for every attributed line; `None` only when
+    /// the buffer has no authorship info for the line. Renderers tone it by
+    /// [`author_tone`](CodeLine::author_tone) — opener subtle, agent distinct.
     pub author_tag: Option<String>,
     /// Tone for the author tag (opener = Resting, agent peer = Engaged).
     pub author_tone: Tone,

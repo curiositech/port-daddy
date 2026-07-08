@@ -1185,7 +1185,6 @@ fn render_code_buffer(
     lines: std::sync::Arc<[crate::pane::CodeLine]>,
     gutter_cols: u8,
     bands: Vec<crate::pane::CodeBand>,
-    show_authors: bool,
     scroll: Option<UniformListScrollHandle>,
 ) -> AnyElement {
     let t = current_theme();
@@ -3530,13 +3529,15 @@ impl ConsoleView {
                         let mut code: Option<AnyElement> = None;
                         for blk in blocks {
                             match blk {
-                                Block::CodeBuffer { lines, gutter_cols, bands, show_authors } => {
+                                // `show_authors` is a legend hint (the agent
+                                // flag in the head blocks) — the author column
+                                // itself always renders per line.
+                                Block::CodeBuffer { lines, gutter_cols, bands, .. } => {
                                     code = Some(render_code_buffer(
                                         id,
                                         lines,
                                         gutter_cols,
                                         bands,
-                                        show_authors,
                                         editor_scroll.clone(),
                                     ));
                                 }

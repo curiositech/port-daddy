@@ -35,8 +35,10 @@ pub enum Lang {
 
 /// Detect the language family from a path's extension (lowercased).
 pub fn lang_for_path(path: &str) -> Lang {
+    // Split on both separators — Windows-style `\` paths are handled the same
+    // way the editor title's basename split does it.
     let ext = path
-        .rsplit('/')
+        .rsplit(['/', '\\'])
         .next()
         .and_then(|base| base.rsplit_once('.').map(|(_, e)| e))
         .unwrap_or("");
@@ -176,11 +178,13 @@ pub fn highlight_line(text: &str, lang: Lang) -> Vec<(u32, SyntaxKind)> {
         // a closing quote nearby — treat a `'x'`-style char literal as a string
         // and a lone `'` as plain.)
         if b == b'"' || b == b'`' || b == b'\'' {
+            // In RUST a single-quoted span must LOOK like a char literal, or
+            // the tick is a lifetime and stays plain (two lifetimes on one
+            // line would otherwise pair into a phantom string). Every other
+            // family single-quotes ordinary strings ('hello'), so no gate.
+            let rust_lifetime_guard = b == b'\'' && lang == Lang::Rust;
             match scan_string(bytes, i) {
-                // A single-quoted span must LOOK like a char literal, or the
-                // tick is a lifetime/apostrophe and stays plain (two lifetimes
-                // on one line would otherwise pair into a phantom string).
-                Some(end) if b != b'\'' || plausible_char_literal(bytes, i, end) => {
+                Some(end) if !rust_lifetime_guard || plausible_char_literal(bytes, i, end) => {
                     push(end - i, SyntaxKind::Str, &mut runs);
                     i = end;
                     continue;
@@ -299,6 +303,19 @@ mod tests {
         assert_eq!(find("0xff"), Some(SyntaxKind::Number));
         assert_eq!(find("1_000"), Some(SyntaxKind::Number));
         assert_eq!(find("# note"), Some(SyntaxKind::Comment));
+    }
+
+    /// The Rust lifetime guard must NOT leak into other languages: ordinary
+    /// single-quoted strings in Python/TS/shell highlight as strings.
+    #[test]
+    fn single_quoted_strings_highlight_outside_rust() {
+        for lang in [Lang::Python, Lang::Ts, Lang::Shell] {
+            let got = kinds("x = 'hello world'", lang);
+            assert!(
+                got.iter().any(|(s, k)| s == "'hello world'" && *k == SyntaxKind::Str),
+                "single-quoted string must be a Str in {lang:?}: {got:?}"
+            );
+        }
     }
 
     #[test]
