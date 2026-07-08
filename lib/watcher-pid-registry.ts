@@ -110,12 +110,41 @@ export interface SweepResult {
 }
 
 /**
+ * Confirms a live command line is actually a `pd watch <channel> --exec
+ * <execSnippet>` invocation, not just any process that happens to contain
+ * the exec fragment as a substring.
+ *
+ * A bare `cmdline.includes(execSnippet)` check (the original implementation)
+ * is too loose for short or generic exec strings — e.g. an execSnippet of
+ * `"say hi"` could false-positive-match some unrelated process whose own
+ * arguments happen to contain that text, especially after PID reuse (Copilot
+ * review on PR #879). Requiring the invocation shape too (`watch` as a
+ * token, `--exec` as a flag, AND the snippet appearing after `--exec`) makes
+ * a coincidental substring match far less likely without needing to know
+ * the exact `pd`/`port-daddy` binary path (which varies: dev checkout,
+ * Homebrew keg, `bun build --compile` output, etc).
+ */
+export function looksLikeWatchExecInvocation(cmdline: string, execSnippet: string): boolean {
+  const execFlagIdx = cmdline.indexOf('--exec');
+  if (execFlagIdx === -1) return false;
+  // The snippet must appear AFTER the --exec flag (it's that flag's own
+  // argument), not merely somewhere earlier in the command line.
+  const afterExecFlag = cmdline.slice(execFlagIdx + '--exec'.length);
+  if (!afterExecFlag.includes(execSnippet)) return false;
+  // `watch` must appear as a whole token before --exec (the subcommand),
+  // not as a substring of some other word.
+  const beforeExecFlag = cmdline.slice(0, execFlagIdx);
+  return /(^|\s)watch(\s|$)/.test(beforeExecFlag);
+}
+
+/**
  * Pure over its injected `getCommandLine`/`kill` collaborators so it is unit
  * testable without touching real PIDs or shelling out to `ps`.
  *
  * Kills a registry entry only when BOTH: (1) its key belongs to `project`,
  * and (2) `getCommandLine(pid)` returns a live command line that actually
- * contains the entry's stored `execSnippet` — confirming the PID still
+ * looks like the `pd watch --exec <execSnippet>` invocation recorded at
+ * spawn time (see looksLikeWatchExecInvocation) — confirming the PID still
  * refers to the same watcher child, not some unrelated process the OS
  * recycled that PID onto since the original child died. `getCommandLine`
  * returning `null` means the PID is already dead (nothing to kill); a
@@ -158,7 +187,7 @@ export function sweepStaleWatcherPids(
       // Already dead — nothing to kill, nothing to warn about.
       continue;
     }
-    if (entry.execSnippet && cmdline.includes(entry.execSnippet)) {
+    if (entry.execSnippet && looksLikeWatchExecInvocation(cmdline, entry.execSnippet)) {
       kill(entry.pid);
       killed.push({ key, pid: entry.pid });
     } else {

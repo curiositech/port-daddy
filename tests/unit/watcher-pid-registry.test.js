@@ -24,7 +24,34 @@ import {
   loadWatcherPidRegistry,
   saveWatcherPidRegistry,
   sweepStaleWatcherPids,
+  looksLikeWatchExecInvocation,
 } from '../../lib/watcher-pid-registry.js';
+
+describe('looksLikeWatchExecInvocation', () => {
+  test('matches a real pd watch --exec invocation', () => {
+    expect(looksLikeWatchExecInvocation('/opt/homebrew/bin/pd watch demo:channel --exec say hi', 'say hi')).toBe(true);
+  });
+
+  test('rejects an unrelated process that merely contains the snippet as text', () => {
+    expect(looksLikeWatchExecInvocation('some-chat-bot --greeting "say hi" --port 4242', 'say hi')).toBe(false);
+  });
+
+  test('rejects a command line with --exec but no watch token', () => {
+    expect(looksLikeWatchExecInvocation('some-other-tool --exec "say hi"', 'say hi')).toBe(false);
+  });
+
+  test('rejects a command line with a watch token but no --exec flag', () => {
+    expect(looksLikeWatchExecInvocation('fswatch --event Created say hi', 'say hi')).toBe(false);
+  });
+
+  test('rejects when the snippet appears before --exec, not as its argument', () => {
+    expect(looksLikeWatchExecInvocation('pd watch "say hi" --exec notify', 'say hi')).toBe(false);
+  });
+
+  test('does not treat "watch" as a substring of another word (e.g. "rewatcher")', () => {
+    expect(looksLikeWatchExecInvocation('rewatcher-daemon --exec say hi', 'say hi')).toBe(false);
+  });
+});
 
 describe('watcherPidKey', () => {
   test('is stable and scoped by project + watcher name', () => {
@@ -171,7 +198,7 @@ describe('sweepStaleWatcherPids', () => {
     const result = sweepStaleWatcherPids(
       registry,
       'demo',
-      () => 'a', // matches demo:notify's snippet
+      () => 'pd watch some:channel --exec "a"', // matches demo:notify's snippet
       (pid) => killedPids.push(pid),
     );
     expect(killedPids).toEqual([1]);
@@ -183,9 +210,30 @@ describe('sweepStaleWatcherPids', () => {
     // literal "demo:" prefix (with the separator), not a bare substring.
     const registry = { 'demo-extended:watch': { pid: 9, startedAt: 1, execSnippet: 'x' } };
     const killedPids = [];
-    const result = sweepStaleWatcherPids(registry, 'demo', () => 'x', (pid) => killedPids.push(pid));
+    const result = sweepStaleWatcherPids(registry, 'demo', () => 'pd watch c --exec "x"', (pid) => killedPids.push(pid));
     expect(killedPids).toEqual([]);
     expect(result.registry).toEqual(registry);
+  });
+
+  // The core defense against a coincidental substring match (2nd Copilot
+  // review round, PR #879): a bare `cmdline.includes(execSnippet)` check
+  // could false-positive-match an unrelated process whose OWN arguments
+  // happen to contain the same short/generic text as the recorded snippet —
+  // especially likely after PID reuse, since the new process has nothing to
+  // do with watchers at all.
+  test('does NOT kill a live PID whose command line coincidentally contains the exec snippet but is not a watch --exec invocation', () => {
+    const registry = { 'demo:notify': { pid: 4242, startedAt: 1, execSnippet: 'say hi' } };
+    const killCalls = [];
+    const result = sweepStaleWatcherPids(
+      registry,
+      'demo',
+      // An unrelated process whose arguments happen to contain "say hi" as
+      // plain text, but is NOT a `pd watch ... --exec ...` invocation.
+      () => 'some-unrelated-chat-bot --greeting "say hi" --port 4242',
+      (pid) => killCalls.push(pid),
+    );
+    expect(killCalls).toEqual([]);
+    expect(result.unconfirmed).toEqual([{ key: 'demo:notify', pid: 4242 }]);
   });
 
   test('empty registry sweeps cleanly with no kills', () => {
