@@ -80,6 +80,9 @@
 #[path = "../term.rs"]           mod term;
 #[path = "../theme.rs"]          mod theme;
 #[path = "../util.rs"]           mod util;
+// Offscreen Block→PNG raster (agent-safe, no display/TCC/gpui). Included here so the
+// headless capture + its PNG-encoder tests run on the cheap non-gpui gate too.
+#[path = "../headless_capture.rs"] mod headless_capture;
 
 use agent::{AgentManager, Backend};
 use active_agents_pane::ActiveAgentsPane;
