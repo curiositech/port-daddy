@@ -354,10 +354,9 @@ export async function registerAllRoutes(
   }
 
   // Harbormaster status HTTP surface — FleetBar polls this read-only view
-  // instead of shelling out to `pd harbormaster status`.
-  if ((deps as { db?: unknown }).db) {
-    await fastify.register(harbormasterPlugin, { deps } as any);
-  }
+  // instead of shelling out to `pd harbormaster status`. Self-degrades when
+  // stripped daemon modes do not provide a DB.
+  await fastify.register(harbormasterPlugin, { deps } as any);
 
   // Fleet HITL proposals — cloud ships can propose work, but only these
   // operator-gated routes may turn a proposal into a dispatch.

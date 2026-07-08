@@ -572,6 +572,25 @@ describe('macOS DiagnosticReports crash detection', () => {
     }
   });
 
+  test('readRecentMacDiagnosticCrashReports reports DiagnosticReports scan errors', () => {
+    const home = mkdtempSync(join(tmpdir(), 'pd-doctor-home-'));
+    const notADirectory = join(home, 'DiagnosticReports');
+    const previous = process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR;
+    try {
+      writeFileSync(notADirectory, 'this is a file, not a directory');
+      process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR = notADirectory;
+
+      const result = readRecentMacDiagnosticCrashReports();
+
+      expect(result.count).toBe(0);
+      expect(result.readError).toContain('DiagnosticReports');
+    } finally {
+      if (previous === undefined) delete process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR;
+      else process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR = previous;
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
   test('parseMacDiagnosticReport marks launchd-owned port-daddy reports as daemon-like Bun/JSC crashes', () => {
     const report = parseMacDiagnosticReport('/tmp/port-daddy.ips', daemonCrashReport());
     expect(report.daemonLike).toBe(true);

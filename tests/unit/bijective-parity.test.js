@@ -351,6 +351,9 @@ describe('Test Group 3: API -> CLI Parity', () => {
     // registered in routes/index.ts (popperPlugin), so it shows up as a route
     // category; `pd popper <status|next|pop|enable|disable>` is its CLI surface.
     popper: ['popper'],
+    // harbormaster: serialized merge-owner actor status API. `pd harbormaster`
+    // and `pd hm` are the CLI surfaces for status, queue, start, and stop.
+    harbormaster: ['harbormaster', 'hm'],
     // transcripts: ship-run records surface. routes/transcripts.ts is the
     // operator-facing read/delete API; `pd transcripts <list|show|cost|delete>`
     // is its CLI surface.

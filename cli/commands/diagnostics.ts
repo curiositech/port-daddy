@@ -883,6 +883,11 @@ export interface RecentMacDiagnosticCrashReports {
   readError?: string;
 }
 
+export interface CandidateMacDiagnosticReportPathsResult {
+  paths: string[];
+  readError?: string;
+}
+
 export interface MacDiagnosticCrashReportAssessment {
   severity: Severity;
   detail: string;
@@ -890,15 +895,15 @@ export interface MacDiagnosticCrashReportAssessment {
   crashCount: number;
 }
 
-export function candidateMacDiagnosticReportPaths(
+export function candidateMacDiagnosticReportPathsWithStatus(
   home = homedir(),
   nowMs = Date.now(),
   maxAgeMs = MAC_DIAGNOSTIC_REPORT_MAX_AGE_MS,
-): string[] {
+): CandidateMacDiagnosticReportPathsResult {
   const reportDir = process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR || join(home, 'Library', 'Logs', 'DiagnosticReports');
-  if (!existsSync(reportDir)) return [];
+  if (!existsSync(reportDir)) return { paths: [] };
   try {
-    return readdirSync(reportDir)
+    const paths = readdirSync(reportDir)
       .filter((name) => MAC_DIAGNOSTIC_REPORT_NAME.test(name))
       .map((name) => {
         const path = join(reportDir, name);
@@ -908,9 +913,21 @@ export function candidateMacDiagnosticReportPaths(
       .filter((entry) => entry.ageMs >= 0 && entry.ageMs <= maxAgeMs)
       .sort((a, b) => b.mtimeMs - a.mtimeMs)
       .map((entry) => entry.path);
-  } catch {
-    return [];
+    return { paths };
+  } catch (err) {
+    return {
+      paths: [],
+      readError: `${reportDir}: ${(err as Error).message}`,
+    };
   }
+}
+
+export function candidateMacDiagnosticReportPaths(
+  home = homedir(),
+  nowMs = Date.now(),
+  maxAgeMs = MAC_DIAGNOSTIC_REPORT_MAX_AGE_MS,
+): string[] {
+  return candidateMacDiagnosticReportPathsWithStatus(home, nowMs, maxAgeMs).paths;
 }
 
 export function parseMacDiagnosticReport(path: string, text: string): MacDiagnosticCrashReport {
@@ -961,9 +978,19 @@ export function parseMacDiagnosticReport(path: string, text: string): MacDiagnos
 }
 
 export function readRecentMacDiagnosticCrashReports(
-  paths: string[] = candidateMacDiagnosticReportPaths(),
+  paths?: string[],
   maxBytes = MAC_DIAGNOSTIC_REPORT_MAX_BYTES,
 ): RecentMacDiagnosticCrashReports {
+  let candidateReadError: string | undefined;
+  if (paths === undefined) {
+    const candidates = candidateMacDiagnosticReportPathsWithStatus();
+    paths = candidates.paths;
+    candidateReadError = candidates.readError;
+  }
+  if (candidateReadError) {
+    return { count: 0, reports: [], readError: candidateReadError };
+  }
+
   const reports: MacDiagnosticCrashReport[] = [];
   for (const path of paths) {
     if (!existsSync(path)) continue;
