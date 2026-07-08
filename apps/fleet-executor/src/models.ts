@@ -9,10 +9,11 @@
  * executor needs.
  *
  * KEEP IN SYNC with lib/model-registry-data.ts `backends.cloudflare`. The
- * drift-guard test tests/unit/fleet-executor-registry-sync.test.js fails CI if
- * this map and the registry disagree, so a stale mirror cannot silently ship a
- * phantom model id (the failure mode that killed the fleet on 2026-07-03, when
- * every ship pinned a non-existent `@cf/...` id and `ai.run()` hung forever).
+ * drift-guard test tests/unit/fleet-ship-definitions.test.js ("cloud executor
+ * cloudflare tier mirror matches the registry") fails CI if this map and the
+ * registry disagree, so a stale mirror cannot silently ship a phantom model id
+ * (the failure mode that killed the fleet on 2026-07-03, when every ship
+ * pinned a non-existent `@cf/...` id and `ai.run()` hung forever).
  */
 
 /** Mirror of lib/model-registry-data.ts `backends.cloudflare` (capability → id). */

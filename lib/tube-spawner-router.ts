@@ -66,6 +66,7 @@ const DEFAULT_ALLOWED_BACKENDS: ReadonlyArray<SpawnSpec['backend']> = [
 const KNOWN_BACKENDS: ReadonlyArray<SpawnSpec['backend']> = [
   'ollama',
   'claude',
+  'anthropic',
   'claude-cli',
   'gemini',
   'cloudflare',

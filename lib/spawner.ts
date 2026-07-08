@@ -100,7 +100,7 @@ function loadDotenvOnce(): Record<string, string> {
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'lmstudio' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'deepseek' | 'xai' | 'cli:claude-code' | 'cli:codex' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
+  backend: 'ollama' | 'lmstudio' | 'claude' | 'anthropic' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'deepseek' | 'xai' | 'cli:claude-code' | 'cli:codex' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
   name?: string;        // human-readable display name
   model?: string;
   // Power tier: legacy low/mid/high aliases + the model-registry capabilities
@@ -1135,6 +1135,7 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   ollama: 'llama3.1:8b',  // local ollama model name, not an API id
   lmstudio: DEFAULT_LMSTUDIO_MODEL,  // LM Studio serves whatever model is loaded
   claude: resolveModel({ backend: 'claude', capability: 'cheap' }),
+  anthropic: resolveModel({ backend: 'anthropic', capability: 'cheap' }),
   'claude-cli': 'claude-cli',  // claude CLI manages its own model
   gemini: resolveModel({ backend: 'gemini', capability: 'cheap' }),
   cloudflare: resolveModel({ backend: 'cloudflare', capability: 'cheap' }),
@@ -1858,6 +1859,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           case 'ollama':    result = await runOllama(spec, model); break;
           case 'lmstudio':  result = await runLmStudio(spec, model); break;
           case 'claude':    result = await runClaude(spec, model); break;
+          case 'anthropic': result = await runClaude(spec, model); break;
           case 'gemini':    result = await runGemini(spec, model); break;
           case 'cloudflare': result = await runCloudflare(spec, model); break;
           case 'openai':    result = await runOpenAI(spec, model); break;

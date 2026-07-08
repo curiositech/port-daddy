@@ -141,6 +141,14 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     models: ['claude-haiku-4-5', 'claude-sonnet-4-6', 'claude-opus-4-8'],
   },
   {
+    id: 'anthropic',
+    name: 'Anthropic SDK',
+    costModel: 'metered',
+    framing: 'Metered API — pennies per spawn',
+    description: 'Alias for the Claude SDK backend. Uses @anthropic-ai/sdk and ANTHROPIC_API_KEY.',
+    models: ['claude-haiku-4-5', 'claude-sonnet-4-6', 'claude-opus-4-8'],
+  },
+  {
     id: 'gemini',
     name: 'Google Gemini',
     costModel: 'metered',

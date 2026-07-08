@@ -191,6 +191,7 @@ export async function assessBackendReadiness(
     }
 
     case 'claude':
+    case 'anthropic':
       if (!packageInstalled('@anthropic-ai/sdk')) {
         return applyTelemetryPolicy({
           backend,

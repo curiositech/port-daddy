@@ -107,6 +107,19 @@ describe('backend readiness', () => {
     expect(readiness.setupCommand).toContain('ANTHROPIC_API_KEY=<paste-value>');
   });
 
+  test('treats anthropic as a Claude SDK readiness alias', async () => {
+    secretValues.set('ANTHROPIC_API_KEY', 'sk-test');
+
+    const readiness = await assessBackendReadiness('anthropic');
+
+    expect(readiness).toMatchObject({
+      backend: 'anthropic',
+      status: 'ready',
+      credentialKeys: ['ANTHROPIC_API_KEY'],
+    });
+    expect(readiness.summary).toContain('ANTHROPIC_API_KEY present');
+  });
+
   test('reports Gemini needs_setup when no API key is present (REST adapter, no SDK required)', async () => {
     const readiness = await assessBackendReadiness('gemini');
 

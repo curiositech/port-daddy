@@ -1280,6 +1280,19 @@ describe('spawn — claude backend', () => {
     expect(result.status).toBe('failed');
     expect(result.error).toBeTruthy();
   });
+
+  test('anthropic backend alias uses the Claude SDK path', async () => {
+    const spawner = createSpawner();
+
+    const result = await spawner.spawn({
+      backend: 'anthropic',
+      task: 'test',
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.error).toContain('@anthropic-ai/sdk');
+    expect(result.error).not.toContain('Unknown backend');
+  });
 });
 
 // =============================================================================

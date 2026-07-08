@@ -931,6 +931,18 @@ export function isFleetConfigFile(file: string): boolean {
   return /\.ya?ml$/i.test(base) && /fleet/i.test(base);
 }
 
+/**
+ * Read the staged blob for a file via `git show :path`. Unlike `gitText`, this
+ * distinguishes "git show failed" (unstaged, bad ref, renamed) from "staged
+ * content is legitimately an empty file" — both collapse to `''` in `gitText`,
+ * and conflating them let `readFleetConfigContents` silently fall back to a
+ * stale working-tree fleet config when the real staged blob was just empty.
+ */
+function gitShowStaged(file: string, cwd: string): { ok: boolean; content: string } {
+  const result = spawnSync('git', ['show', `:${file}`], { cwd, encoding: 'utf8' });
+  return { ok: result.status === 0, content: result.status === 0 ? result.stdout : '' };
+}
+
 /** Read staged (or working-tree) content for each fleet config, best-effort. */
 function readFleetConfigContents(
   files: string[],
@@ -941,9 +953,12 @@ function readFleetConfigContents(
   for (const file of files) {
     let content: string | null = null;
     if (preferStaged) {
-      // `git show :path` yields the staged blob. Empty output ⇒ fall through.
-      const staged = gitText(['show', `:${file}`], root);
-      if (staged && staged.trim().length > 0) content = staged;
+      // Fall through to the working tree only when `git show` genuinely
+      // failed — a real (possibly empty) staged blob is validated as-is, so
+      // an empty staged fleet config can't hide behind stale working-tree
+      // content.
+      const staged = gitShowStaged(file, root);
+      if (staged.ok) content = staged.content;
     }
     if (content === null) {
       const abs = isAbsolute(file) ? file : join(root, file);

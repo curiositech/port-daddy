@@ -165,6 +165,10 @@ describe('backend-catalog', () => {
       'claude-sonnet-4-6',
       'claude-opus-4-8',
     ]);
+
+    const anthropic = getBackendCatalogEntry('anthropic');
+    expect(anthropic.models).toEqual(claude.models);
+    expect(anthropic.description).toMatch(/Alias for the Claude SDK backend/);
   });
 
   test('cli:claude-code model list uses current undated model ids', () => {

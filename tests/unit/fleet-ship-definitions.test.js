@@ -16,9 +16,7 @@ import { join } from 'node:path';
 
 const ROOT = join(import.meta.dirname, '..', '..');
 
-const { validateFleetShipDefinitions, fleetShipDefinitionErrors } = await import(
-  '../../lib/fleet-validate.js'
-);
+const { fleetShipDefinitionErrors } = await import('../../lib/fleet-validate.js');
 
 // Every fleet config that ships in the repo must be clean.
 const SHIPPED_CONFIGS = [

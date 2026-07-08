@@ -23,7 +23,7 @@ interface SpawnRouteDeps {
   };
 }
 
-const VALID_BACKENDS = new Set(['ollama', 'lmstudio', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'openai', 'groq', 'deepseek', 'xai', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok']);
+const VALID_BACKENDS = new Set(['ollama', 'lmstudio', 'claude', 'anthropic', 'claude-cli', 'gemini', 'cloudflare', 'openai', 'groq', 'deepseek', 'xai', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok']);
 
 
 // ==========================================================================
@@ -88,7 +88,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       if (!backend || typeof backend !== 'string') {
         reply.code(400); return {
           success: false,
-          error: 'backend is required. Valid values: ollama, claude, claude-cli, gemini, cloudflare, codex, aider, custom',
+          error: 'backend is required. Valid values: ollama, claude, anthropic, claude-cli, gemini, cloudflare, codex, aider, custom',
           code: 'VALIDATION_ERROR',
         };
       }

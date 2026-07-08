@@ -108,7 +108,7 @@ export default function CloudFleetPanel({ theme: _theme, embedded: _embedded, da
       </div>
 
       {error ? (
-        <div className="flex items-center gap-2 m-4 px-3 py-2 rounded text-xs"
+        <div className="flex items-center gap-2 m-4 px-3 py-2 rounded text-sm"
           style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)', color: 'var(--pd-text)' }}>
           <AlertTriangle size={13} style={{ color: 'var(--pd-accent)' }} />
           <span>Could not reach cloud fleet telemetry: {error}</span>
@@ -126,7 +126,7 @@ export default function CloudFleetPanel({ theme: _theme, embedded: _embedded, da
           </div>
 
           {empty ? (
-            <div className="text-xs px-3 py-6 text-center rounded"
+            <div className="text-sm px-3 py-6 text-center rounded"
               style={{ color: 'var(--pd-dim)', border: '1px dashed var(--pd-border)' }}>
               No cloud fleet activity in the window yet. When the Cloudflare fleet reviews a PR,
               its cost, tokens, model, and verdict appear here.
@@ -141,7 +141,7 @@ export default function CloudFleetPanel({ theme: _theme, embedded: _embedded, da
               </h3>
               <div className="flex flex-col gap-1">
                 {data.byShip.map((s) => (
-                  <div key={s.ship} className="grid grid-cols-12 items-center gap-2 px-3 py-1.5 rounded text-xs"
+                  <div key={s.ship} className="grid grid-cols-12 items-center gap-2 px-3 py-1.5 rounded text-sm"
                     style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)' }}>
                     <span className="col-span-3 font-semibold truncate" style={{ color: 'var(--pd-text)' }}>pd-{s.ship}</span>
                     <span className="col-span-4 tabular-nums" style={{ color: 'var(--pd-dim)' }}>
@@ -169,7 +169,7 @@ export default function CloudFleetPanel({ theme: _theme, embedded: _embedded, da
               </h3>
               <div className="flex flex-col gap-1">
                 {data.byBackend.map((b, i) => (
-                  <div key={`${b.backend}:${b.model}:${i}`} className="grid grid-cols-12 items-center gap-2 px-3 py-1.5 rounded text-xs"
+                  <div key={`${b.backend}:${b.model}:${i}`} className="grid grid-cols-12 items-center gap-2 px-3 py-1.5 rounded text-sm"
                     style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)' }}>
                     <span className="col-span-6 font-mono truncate" style={{ color: 'var(--pd-text)' }}>{b.model ?? b.backend}</span>
                     <span className="col-span-3 tabular-nums text-right" style={{ color: 'var(--pd-dim)' }}>{b.events} calls</span>
@@ -188,7 +188,7 @@ export default function CloudFleetPanel({ theme: _theme, embedded: _embedded, da
               </h3>
               <div className="flex flex-col gap-1">
                 {data.byRepo.map((r, i) => (
-                  <div key={`${r.owner}/${r.repo}:${i}`} className="grid grid-cols-12 items-center gap-2 px-3 py-1.5 rounded text-xs"
+                  <div key={`${r.owner}/${r.repo}:${i}`} className="grid grid-cols-12 items-center gap-2 px-3 py-1.5 rounded text-sm"
                     style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)' }}>
                     <span className="col-span-7 truncate" style={{ color: 'var(--pd-text)' }}>
                       {r.owner ? `${r.owner}/` : ''}{r.repo ?? '—'}
@@ -203,7 +203,7 @@ export default function CloudFleetPanel({ theme: _theme, embedded: _embedded, da
         </div>
       ) : (
         !error ? (
-          <div className="text-xs p-4" style={{ color: 'var(--pd-dim)' }}>Loading cloud fleet telemetry…</div>
+          <div className="text-sm p-4" style={{ color: 'var(--pd-dim)' }}>Loading cloud fleet telemetry…</div>
         ) : null
       )}
     </div>
