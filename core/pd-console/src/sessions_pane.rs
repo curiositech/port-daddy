@@ -40,7 +40,10 @@ pub struct SessionsPane {
 
 impl Default for SessionsPane {
     fn default() -> Self {
-        Self { sessions: Vec::new(), last_error: None }
+        Self {
+            sessions: Vec::new(),
+            last_error: None,
+        }
     }
 }
 
@@ -51,8 +54,12 @@ impl SessionsPane {
 }
 
 impl Pane for SessionsPane {
-    fn id(&self) -> &str { "sessions" }
-    fn title(&self) -> String { "Sessions".into() }
+    fn id(&self) -> &str {
+        "sessions"
+    }
+    fn title(&self) -> String {
+        "Sessions".into()
+    }
 
     fn view(&self) -> Vec<Block> {
         let mut blocks = vec![Block::Header("Sessions".into())];
@@ -62,15 +69,26 @@ impl Pane for SessionsPane {
             return blocks;
         }
 
-        let active = self.sessions.iter().filter(|x| x.status == "active").count();
+        let active = self
+            .sessions
+            .iter()
+            .filter(|x| x.status == "active")
+            .count();
         blocks.push(Block::KeyVal("active".into(), active.to_string()));
 
         if self.sessions.is_empty() {
-            blocks.push(Block::KeyVal("status".into(), "no sessions — pd begin to start one".into()));
+            blocks.push(Block::KeyVal(
+                "status".into(),
+                "no sessions — pd begin to start one".into(),
+            ));
         } else {
             blocks.push(Block::Gap);
             for sess in &self.sessions {
-                let tone = if sess.status == "active" { Tone::Engaged } else { Tone::Resting };
+                let tone = if sess.status == "active" {
+                    Tone::Engaged
+                } else {
+                    Tone::Resting
+                };
                 let name = if sess.purpose.is_empty() {
                     trunc(&sess.id, 24)
                 } else {
@@ -91,8 +109,15 @@ impl Pane for SessionsPane {
 
         blocks.push(Block::Gap);
         blocks.push(Block::Chip {
-            label: format!("{active} active session{}", if active == 1 { "" } else { "s" }),
-            tone: if active > 0 { Tone::Engaged } else { Tone::Resting },
+            label: format!(
+                "{active} active session{}",
+                if active == 1 { "" } else { "s" }
+            ),
+            tone: if active > 0 {
+                Tone::Engaged
+            } else {
+                Tone::Resting
+            },
         });
         blocks
     }
@@ -112,7 +137,10 @@ impl Pane for SessionsPane {
                     Err(e) => self.last_error = Some(format!("bad response: {e}")),
                     Ok(data) => {
                         self.last_error = None;
-                        self.sessions = arr(&data, "sessions").iter().map(SessionEntry::from_value).collect();
+                        self.sessions = arr(&data, "sessions")
+                            .iter()
+                            .map(SessionEntry::from_value)
+                            .collect();
                     }
                 },
             }

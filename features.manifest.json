@@ -1751,6 +1751,20 @@
         "semantic_resolve"
       ]
     },
+    "session_galaxy": {
+      "description": "2D embedding galaxy of recent agent sessions: MiniLM tail embeddings, seeded t-SNE, k-means clusters with MI term labels; click-through detail and parley initiation.",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /galaxy/map",
+        "GET /galaxy/session/:id"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "advisor": {
       "description": "Deterministic coordination advisor for preflight suggestions across sessions, claims, symbols, salvage, channels, tuples, and locks",
       "cli": [

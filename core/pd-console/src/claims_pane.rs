@@ -45,16 +45,27 @@ pub struct ClaimsPane {
 }
 
 impl Default for ClaimsPane {
-    fn default() -> Self { Self { claims: Vec::new(), last_error: None } }
+    fn default() -> Self {
+        Self {
+            claims: Vec::new(),
+            last_error: None,
+        }
+    }
 }
 
 impl ClaimsPane {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 }
 
 impl Pane for ClaimsPane {
-    fn id(&self) -> &str { "claims" }
-    fn title(&self) -> String { "Claims".into() }
+    fn id(&self) -> &str {
+        "claims"
+    }
+    fn title(&self) -> String {
+        "Claims".into()
+    }
 
     fn view(&self) -> Vec<Block> {
         let mut blocks = vec![Block::Header("File & Symbol Claims".into())];
@@ -71,7 +82,11 @@ impl Pane for ClaimsPane {
             blocks.push(Block::Gap);
 
             for claim in &self.claims {
-                let kind = if claim.symbol.is_empty() { "file" } else { "symbol" };
+                let kind = if claim.symbol.is_empty() {
+                    "file"
+                } else {
+                    "symbol"
+                };
                 blocks.push(Block::Row(vec![
                     age_short(claim.claimed_at_ms),
                     kind.to_string(),
@@ -83,8 +98,16 @@ impl Pane for ClaimsPane {
 
         blocks.push(Block::Gap);
         blocks.push(Block::Chip {
-            label: format!("{} claim{}", self.claims.len(), if self.claims.len() == 1 { "" } else { "s" }),
-            tone: if self.claims.is_empty() { Tone::Resting } else { Tone::Engaged },
+            label: format!(
+                "{} claim{}",
+                self.claims.len(),
+                if self.claims.len() == 1 { "" } else { "s" }
+            ),
+            tone: if self.claims.is_empty() {
+                Tone::Resting
+            } else {
+                Tone::Engaged
+            },
         });
         blocks
     }
@@ -104,7 +127,10 @@ impl Pane for ClaimsPane {
                     Err(e) => self.last_error = Some(format!("bad response: {e}")),
                     Ok(data) => {
                         self.last_error = None;
-                        self.claims = arr(&data, "claims").iter().map(ClaimEntry::from_value).collect();
+                        self.claims = arr(&data, "claims")
+                            .iter()
+                            .map(ClaimEntry::from_value)
+                            .collect();
                     }
                 },
             }

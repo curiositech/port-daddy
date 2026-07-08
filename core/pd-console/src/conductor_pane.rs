@@ -78,7 +78,11 @@ pub struct ConductorPane {
 
 impl Default for ConductorPane {
     fn default() -> Self {
-        Self { launches: Vec::new(), last_error: None, wired: true }
+        Self {
+            launches: Vec::new(),
+            last_error: None,
+            wired: true,
+        }
     }
 }
 
@@ -119,7 +123,10 @@ impl Pane for ConductorPane {
             return blocks;
         }
         if self.launches.is_empty() {
-            blocks.push(Block::Chip { label: "no launches — fleet idle".into(), tone: Tone::Resting });
+            blocks.push(Block::Chip {
+                label: "no launches — fleet idle".into(),
+                tone: Tone::Resting,
+            });
             blocks.push(Block::KeyVal(
                 "control".into(),
                 "pd fleet halt|pause|resume <root> · tree <root>".into(),
@@ -141,8 +148,11 @@ impl Pane for ConductorPane {
         let mut halted = 0usize;
 
         for root in &roots {
-            let mut kids: Vec<&LaunchEntry> =
-                self.launches.iter().filter(|l| &l.root_id == root).collect();
+            let mut kids: Vec<&LaunchEntry> = self
+                .launches
+                .iter()
+                .filter(|l| &l.root_id == root)
+                .collect();
             kids.sort_by_key(|l| (l.depth, l.created_at));
 
             blocks.push(Block::Gap);
@@ -166,15 +176,26 @@ impl Pane for ConductorPane {
                     total_cost += c;
                 }
                 let indent = "  ".repeat((l.depth.max(0) as usize) + 1);
-                let label = if l.goal.is_empty() { trunc(&l.id, 28) } else { trunc(&l.goal, 40) };
+                let label = if l.goal.is_empty() {
+                    trunc(&l.id, 28)
+                } else {
+                    trunc(&l.goal, 40)
+                };
                 blocks.push(Block::Row(vec![
                     format!("{indent}{glyph}"),
                     label,
                     l.backend.clone(),
                     l.source.clone(),
-                    format!("bond {} · cost {}", Self::money(l.bond_usd), Self::money(l.cost_usd)),
+                    format!(
+                        "bond {} · cost {}",
+                        Self::money(l.bond_usd),
+                        Self::money(l.cost_usd)
+                    ),
                 ]));
-                blocks.push(Block::Chip { label: l.state.clone(), tone });
+                blocks.push(Block::Chip {
+                    label: l.state.clone(),
+                    tone,
+                });
                 if !l.refused_reason.is_empty() {
                     blocks.push(Block::KeyVal(
                         format!("{indent}refused"),
@@ -185,7 +206,11 @@ impl Pane for ConductorPane {
         }
 
         blocks.push(Block::Gap);
-        let tone = if active > 0 { Tone::Engaged } else { Tone::Resting };
+        let tone = if active > 0 {
+            Tone::Engaged
+        } else {
+            Tone::Resting
+        };
         blocks.push(Block::Chip {
             label: format!(
                 "{} active · {} root(s) · {} halted · ${:.2} spent",
@@ -223,8 +248,10 @@ impl Pane for ConductorPane {
                         Ok(data) => {
                             self.wired = true;
                             self.last_error = None;
-                            self.launches =
-                                arr(&data, "launches").iter().map(LaunchEntry::from_value).collect();
+                            self.launches = arr(&data, "launches")
+                                .iter()
+                                .map(LaunchEntry::from_value)
+                                .collect();
                         }
                     }
                 }
@@ -259,23 +286,32 @@ mod tests {
     #[test]
     fn parses_and_groups() {
         let mut p = ConductorPane::new();
-        p.launches = arr(&sample(), "launches").iter().map(LaunchEntry::from_value).collect();
+        p.launches = arr(&sample(), "launches")
+            .iter()
+            .map(LaunchEntry::from_value)
+            .collect();
         assert_eq!(p.launches.len(), 3);
         assert_eq!(p.launches[0].state, "running");
         assert_eq!(p.launches[0].cost_usd, Some(0.11));
         let blocks = p.view();
         assert!(matches!(&blocks[0], Block::Header(h) if h == "Conductor — Fleet Lineage"));
         // a refused launch surfaces its reason
-        assert!(blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("refused"))));
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("refused"))));
         // footer chip reports active count (running = 1 active; settled/refused terminal)
-        assert!(blocks.iter().any(|b| matches!(b, Block::Chip { label, .. } if label.contains("1 active"))));
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::Chip { label, .. } if label.contains("1 active"))));
     }
 
     #[test]
     fn empty_is_idle() {
         let p = ConductorPane::new();
         let blocks = p.view();
-        assert!(blocks.iter().any(|b| matches!(b, Block::Chip { label, .. } if label.contains("idle"))));
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::Chip { label, .. } if label.contains("idle"))));
     }
 
     #[test]
@@ -283,6 +319,8 @@ mod tests {
         let mut p = ConductorPane::new();
         p.wired = false;
         let blocks = p.view();
-        assert!(blocks.iter().any(|b| matches!(b, Block::KeyVal(_, v) if v.contains("not wired"))));
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::KeyVal(_, v) if v.contains("not wired"))));
     }
 }

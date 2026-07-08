@@ -54,7 +54,9 @@ impl DispatchEntry {
         Some(Self {
             id,
             goal: s("goal").unwrap_or_default(),
-            state: s("state").or_else(|| s("status")).unwrap_or_else(|| "unknown".into()),
+            state: s("state")
+                .or_else(|| s("status"))
+                .unwrap_or_else(|| "unknown".into()),
             budget_usd: f("budgetUsd").or_else(|| f("budget_usd")),
             cost_usd: f("costUsd").or_else(|| f("cost_usd")),
             created_at: v
@@ -107,7 +109,11 @@ pub struct DispatchQueuePane {
 
 impl Default for DispatchQueuePane {
     fn default() -> Self {
-        Self { dispatches: Vec::new(), count: 0, last_error: None }
+        Self {
+            dispatches: Vec::new(),
+            count: 0,
+            last_error: None,
+        }
     }
 }
 
@@ -147,10 +153,16 @@ impl Pane for DispatchQueuePane {
             return blocks;
         }
 
-        blocks.push(Block::KeyVal("pending review".into(), self.count.to_string()));
+        blocks.push(Block::KeyVal(
+            "pending review".into(),
+            self.count.to_string(),
+        ));
 
         if self.dispatches.is_empty() {
-            blocks.push(Block::KeyVal("status".into(), "no dispatches awaiting review".into()));
+            blocks.push(Block::KeyVal(
+                "status".into(),
+                "no dispatches awaiting review".into(),
+            ));
         } else {
             for d in &self.dispatches {
                 // Truncate by CHARACTER, never byte index: `&s[..n]` panics when
@@ -175,8 +187,15 @@ impl Pane for DispatchQueuePane {
         }
 
         let chip_label = format!("{} awaiting review", self.count);
-        let chip_tone = if self.count == 0 { Tone::Resting } else { Tone::Engaged };
-        blocks.push(Block::Chip { label: chip_label, tone: chip_tone });
+        let chip_tone = if self.count == 0 {
+            Tone::Resting
+        } else {
+            Tone::Engaged
+        };
+        blocks.push(Block::Chip {
+            label: chip_label,
+            tone: chip_tone,
+        });
 
         blocks
     }
@@ -187,11 +206,7 @@ impl Pane for DispatchQueuePane {
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async move {
             let url = format!("{}/dispatches?state=review_pending&limit=50", daemon.base());
-            let result = daemon
-                .http_client()
-                .get(&url)
-                .send()
-                .await;
+            let result = daemon.http_client().get(&url).send().await;
 
             match result {
                 Err(e) => {
@@ -233,7 +248,11 @@ mod tests {
 
     /// Helper: build a DispatchQueuePane with pre-loaded data (no daemon needed).
     fn make_pane(dispatches: Vec<DispatchEntry>, count: u32) -> DispatchQueuePane {
-        DispatchQueuePane { dispatches, count, last_error: None }
+        DispatchQueuePane {
+            dispatches,
+            count,
+            last_error: None,
+        }
     }
 
     #[test]
@@ -271,7 +290,11 @@ mod tests {
         let pane = make_pane(vec![], 0);
         let blocks = pane.view();
         // Must have Header + KeyVal(pending=0) + status KeyVal + Chip
-        assert!(blocks.len() >= 3, "need at least 3 blocks for empty queue, got {}", blocks.len());
+        assert!(
+            blocks.len() >= 3,
+            "need at least 3 blocks for empty queue, got {}",
+            blocks.len()
+        );
         match &blocks[0] {
             Block::Header(h) => assert_eq!(h, "Dispatch Queue"),
             _ => panic!("first block must be Header"),
@@ -321,7 +344,11 @@ mod tests {
             // id_short ≤ 8 chars
             assert!(cells[0].len() <= 8, "id_short too long: {}", cells[0]);
             // goal truncated to ≤51 (50 + ellipsis char)
-            assert!(cells[1].chars().count() <= 51, "goal too long: {}", cells[1]);
+            assert!(
+                cells[1].chars().count() <= 51,
+                "goal too long: {}",
+                cells[1]
+            );
             // state is as provided
             assert_eq!(cells[2], "review_pending");
             // cost formatted
@@ -397,8 +424,7 @@ mod tests {
     /// Missing `count` falls back to parsed length; missing array → empty.
     #[test]
     fn parse_dispatches_missing_fields() {
-        let (entries, count) =
-            parse_dispatches(&serde_json::json!({"dispatches": [{"id": "x"}]}));
+        let (entries, count) = parse_dispatches(&serde_json::json!({"dispatches": [{"id": "x"}]}));
         assert_eq!((entries.len(), count), (1, 1));
         let (entries, count) = parse_dispatches(&serde_json::json!({"ok": true}));
         assert_eq!((entries.len(), count), (0, 0));

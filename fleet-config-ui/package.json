@@ -1,6 +1,7 @@
 {
   "name": "fleet-config-ui",
   "private": true,
+  "description": "DEPRECATED legacy /fleet-ui compatibility bundle. New operator UI belongs in apps/FleetBar/FleetBar Fleet Control Center.",
   "version": "0.0.0",
   "type": "module",
   "scripts": {

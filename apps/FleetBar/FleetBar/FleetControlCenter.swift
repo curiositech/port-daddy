@@ -559,6 +559,13 @@ struct FleetControlCenter: View {
             FleetControlBackendSection(store: backendStore)
                 .padding(.horizontal, Fleet.Space.l)
                 .padding(.vertical, Fleet.Space.m)
+        case .galaxy:
+            FleetControlGalaxySection(
+                daemonURL: store.daemonURL,
+                project: selectedProject?.name ?? selectedProjectId
+            )
+            .padding(.horizontal, Fleet.Space.l)
+            .padding(.vertical, Fleet.Space.m)
         default:
             // Fallback should never trigger — every native case must be wired.
             embeddedSurfaceContent

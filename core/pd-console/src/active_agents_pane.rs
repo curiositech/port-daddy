@@ -49,7 +49,11 @@ impl ActiveAgentEntry {
                     None
                 } else {
                     let symbol = s(claim, "symbolPath");
-                    Some(if symbol.is_empty() { file } else { format!("{file}#{symbol}") })
+                    Some(if symbol.is_empty() {
+                        file
+                    } else {
+                        format!("{file}#{symbol}")
+                    })
                 }
             })
             .take(4)
@@ -79,7 +83,11 @@ pub struct ActiveAgentsPane {
 
 impl Default for ActiveAgentsPane {
     fn default() -> Self {
-        Self { agents: Vec::new(), generated_at_ms: 0, last_error: None }
+        Self {
+            agents: Vec::new(),
+            generated_at_ms: 0,
+            last_error: None,
+        }
     }
 }
 
@@ -108,17 +116,27 @@ impl Pane for ActiveAgentsPane {
 
         blocks.push(Block::KeyVal("live".into(), self.agents.len().to_string()));
         if self.generated_at_ms > 0 {
-            blocks.push(Block::KeyVal("refreshed".into(), age_short(self.generated_at_ms)));
+            blocks.push(Block::KeyVal(
+                "refreshed".into(),
+                age_short(self.generated_at_ms),
+            ));
         }
 
         if self.agents.is_empty() {
-            blocks.push(Block::KeyVal("status".into(), "no active harnessed agents".into()));
+            blocks.push(Block::KeyVal(
+                "status".into(),
+                "no active harnessed agents".into(),
+            ));
             return blocks;
         }
 
         blocks.push(Block::Gap);
         for agent in &self.agents {
-            let tone = if agent.liveness == "alive" { Tone::Engaged } else { Tone::Gated };
+            let tone = if agent.liveness == "alive" {
+                Tone::Engaged
+            } else {
+                Tone::Gated
+            };
             blocks.push(Block::Chip {
                 label: format!("{} - {}", trunc(&agent.label, 28), agent.liveness),
                 tone,
@@ -127,33 +145,69 @@ impl Pane for ActiveAgentsPane {
                 "  harness".into(),
                 format!(
                     "{}{}",
-                    if agent.harness.is_empty() { "unknown" } else { &agent.harness },
-                    if agent.backend.is_empty() { String::new() } else { format!(" / {}", agent.backend) }
+                    if agent.harness.is_empty() {
+                        "unknown"
+                    } else {
+                        &agent.harness
+                    },
+                    if agent.backend.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" / {}", agent.backend)
+                    }
                 ),
             ));
             blocks.push(Block::KeyVal(
                 "  worktree".into(),
                 format!(
                     "{}{}",
-                    if agent.worktree.is_empty() { "unknown".to_string() } else { trunc(&agent.worktree, 48) },
-                    if agent.branch.is_empty() { String::new() } else { format!(" @ {}", trunc(&agent.branch, 20)) }
+                    if agent.worktree.is_empty() {
+                        "unknown".to_string()
+                    } else {
+                        trunc(&agent.worktree, 48)
+                    },
+                    if agent.branch.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" @ {}", trunc(&agent.branch, 20))
+                    }
                 ),
             ));
             blocks.push(Block::KeyVal(
                 "  doing".into(),
-                if agent.purpose.is_empty() { "no purpose recorded".into() } else { trunc(&agent.purpose, 72) },
+                if agent.purpose.is_empty() {
+                    "no purpose recorded".into()
+                } else {
+                    trunc(&agent.purpose, 72)
+                },
             ));
             blocks.push(Block::KeyVal(
                 "  touching".into(),
-                if agent.touched.is_empty() { "no active file claims".into() } else { trunc(&agent.touched.join(", "), 92) },
+                if agent.touched.is_empty() {
+                    "no active file claims".into()
+                } else {
+                    trunc(&agent.touched.join(", "), 92)
+                },
             ));
-            blocks.push(Block::KeyVal("  stream".into(), format!("pd agent stream {}", agent.id)));
-            blocks.push(Block::KeyVal("  steer".into(), format!("pd agent interrupt {} --reason ...", agent.id)));
+            blocks.push(Block::KeyVal(
+                "  stream".into(),
+                format!("pd agent stream {}", agent.id),
+            ));
+            blocks.push(Block::KeyVal(
+                "  steer".into(),
+                format!("pd agent interrupt {} --reason ...", agent.id),
+            ));
             if !agent.session_id.is_empty() {
-                blocks.push(Block::KeyVal("  takeover".into(), format!("pd session takeover {}", agent.session_id)));
+                blocks.push(Block::KeyVal(
+                    "  takeover".into(),
+                    format!("pd session takeover {}", agent.session_id),
+                ));
             }
             if agent.last_heartbeat_ms > 0 {
-                blocks.push(Block::KeyVal("  heartbeat".into(), age_short(agent.last_heartbeat_ms)));
+                blocks.push(Block::KeyVal(
+                    "  heartbeat".into(),
+                    age_short(agent.last_heartbeat_ms),
+                ));
             }
         }
 
@@ -183,7 +237,10 @@ impl Pane for ActiveAgentsPane {
                         Ok(data) => {
                             self.last_error = None;
                             self.generated_at_ms = n(&data, "generatedAt");
-                            self.agents = arr(&data, "agents").iter().map(ActiveAgentEntry::from_value).collect();
+                            self.agents = arr(&data, "agents")
+                                .iter()
+                                .map(ActiveAgentEntry::from_value)
+                                .collect();
                         }
                     }
                 }

@@ -1220,6 +1220,138 @@ export interface OperatorState {
   roadmap?: RoadmapItem[];
 }
 
+// ─── Session galaxy ───────────────────────────────────────────────────────────
+// Mirrors the daemon GALAXY API CONTRACT (routes/galaxy.ts). Plain interfaces,
+// no runtime validation — consumers unwrap defensively (`data.points ?? []`)
+// because contract drift against an older daemon fails silently.
+
+export interface GalaxyPoint {
+  id: string;                  // fleet_transcripts.id — pass to GET /galaxy/session/:id
+  sessionId: string | null;    // fleet_transcripts.session_id (often null for fleet ships)
+  agentId: string;             // fleet_transcripts.spawned_agent_id — THE parley party id
+  ship: string | null;
+  project: string | null;
+  identity: string | null;
+  purpose: string | null;
+  status: 'running' | 'completed' | 'failed' | 'killed';
+  startedAt: number;
+  endedAt: number | null;
+  tailTokens: number;          // estimated tokens actually embedded (chars/4)
+  x: number;                   // t-SNE coord min-max normalized to [0, 1]
+  y: number;                   // [0, 1]
+  clusterId: number;           // 0..k-1, reindexed by size desc (0 = biggest); always 0 when cluster=false
+  snippet: string;             // first 140 chars of the embedded tail (secret-redacted)
+  prNumber: number | null;
+}
+
+export interface GalaxyCluster {
+  id: number;                  // matches GalaxyPoint.clusterId
+  label: string;               // top 2-3 MI terms joined with ' · '
+  terms: Array<{ term: string; mi: number }>;
+  size: number;
+  centroid: [number, number];  // in normalized [0,1] map space
+}
+
+export interface GalaxyMapResponse {
+  success: true;
+  computedAt: number;
+  // `cluster` is optional/additive: daemon echoes the effective clustering mode
+  // back in params; absent on older daemons, in which case treat as clustered.
+  params: { windowHours: number; tailTokens: number; minTokens: number; limit: number; project: string | null; cluster?: boolean };
+  points: GalaxyPoint[];
+  // With cluster=false the daemon returns clusters: [] and every point carries
+  // clusterId 0 — render defensively rather than assuming clusters.length > 0.
+  clusters: GalaxyCluster[];
+  stats: {
+    sessionCount: number;
+    embeddedNow: number;
+    cacheHits: number;
+    embeddingCacheHits?: number;
+    responseCacheHits?: number;
+    elapsedMs: number;
+  };
+}
+
+export type GalaxyTranscriptRole = 'system' | 'user' | 'assistant' | 'tool' | 'thinking';
+
+export interface GalaxyTranscriptMessage {
+  role: GalaxyTranscriptRole;
+  content: string;
+  // Guaranteed epoch-ms by the daemon going forward, but parsed defensively
+  // (older transcripts / partial replays may omit it).
+  timestamp?: number | null;
+  tool_calls?: Array<{ name: string; args: unknown; result?: unknown }>;
+}
+
+export interface GalaxyTranscriptOutput {
+  type: string;                // 'pr-comment' | 'issue' | 'draft-pr' | 'commit' | 'noop' | 'message' | 'other'
+  url?: string;
+  summary: string;
+}
+
+// Full lib/transcripts.ts TranscriptEntry shape as serialized by the detail route.
+export interface GalaxyTranscriptEntry {
+  id: string;
+  ship: string;
+  session_id: string | null;
+  spawned_agent_id: string;
+  pr_number?: number | null;
+  issue_number?: number | null;
+  trigger: string;
+  backend: string;
+  model: string;
+  status: 'running' | 'completed' | 'failed' | 'killed';
+  started_at: number;
+  ended_at?: number | null;
+  cost_usd?: number | null;
+  tokens_in?: number | null;
+  tokens_out?: number | null;
+  messages: GalaxyTranscriptMessage[];
+  outputs: GalaxyTranscriptOutput[];
+  error?: string | null;
+  project?: string | null;
+  identity?: string | null;
+}
+
+export interface GalaxySessionDetail {
+  transcript: GalaxyTranscriptEntry;
+  session: {
+    id: string; purpose: string; status: string; phase: string | null;
+    agentId: string | null; identityProject: string | null;
+    createdAt: number; updatedAt: number; completedAt: number | null;
+  } | null;
+  // Additive: top-level session bounds guaranteed by the daemon lane going
+  // forward. Fall back to transcript.started_at/ended_at when absent (older
+  // daemons / partial data) — see resolveSessionTimes in SessionGalaxyPanel.
+  startedAt?: number | null;
+  endedAt?: number | null;
+  notes: Array<{ id: string; content: string; type: string; createdAt: number }>;
+  files: Array<{
+    filePath: string; startLine: number | null; endLine: number | null;
+    symbol: string | null; claimedAt: number; releasedAt: number | null;
+    // Additive: absolute path on the machine that ran the session, when the
+    // daemon can resolve one. Repo-relative filePath is always present and is
+    // what gets copied to the clipboard; absolutePath (when present) upgrades
+    // the entry to a vscode://file/ deep link.
+    absolutePath?: string | null;
+  }>;
+  toolUses: Array<{ name: string; args: unknown; at: number }>;
+  prs: Array<{ prNumber: number | null; url: string | null; type: string; summary: string }>;
+}
+
+export interface GalaxySessionDetailResponse {
+  success: true;
+  detail: GalaxySessionDetail;
+}
+
+export interface GalaxyParleyCallRequest {
+  surface: string;      // `galaxy:${top selection-cluster terms, kebab-joined, <=64 chars}`
+  reason: string;
+  calledBy: 'operator';
+  parties: string[];    // deduped GalaxyPoint.agentId values; MUST be >= 2 distinct ids
+  trigger: 'operator';
+}
+
 // ─── Agent color palette ──────────────────────────────────────────────────────
 
 export const AGENT_COLORS: Record<string, string> = {

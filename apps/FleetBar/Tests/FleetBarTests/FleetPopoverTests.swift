@@ -25,6 +25,7 @@ final class FleetPopoverTests: XCTestCase {
                 "memory",
                 "shipwright",
                 "yaml",
+                "galaxy",
             ]
         )
         XCTAssertEqual(
@@ -46,21 +47,22 @@ final class FleetPopoverTests: XCTestCase {
                 "Memory",
                 "Shipwright",
                 "YAML",
+                "Galaxy",
             ]
         )
     }
 
     /// Native surfaces render via SwiftUI inside FleetBar; web surfaces are
     /// loaded through the embedded `/fleet-ui/` webview. Nightshift, Backend,
-    /// and Proposals are fully native — the loop must work even when the web
-    /// bundle is stale or offline. Everything else is web. Pinning the exact
+    /// Proposals, and Galaxy are fully native — the loop must work even when the
+    /// web bundle is stale or offline. Everything else is web. Pinning the exact
     /// native set catches an accidental opt-in (or opt-out) when surfaces are
     /// added.
-    func testNativeSurfacesAreBackendNightshiftAndProposals() {
+    func testNativeSurfacesAreBackendNightshiftProposalsAndGalaxy() {
         let nativeRaws = FleetControlSurface.allCases.filter(\.isNative).map(\.rawValue)
-        XCTAssertEqual(nativeRaws, ["backend", "proposals", "nightshift"])
+        XCTAssertEqual(nativeRaws, ["backend", "proposals", "nightshift", "galaxy"])
 
-        let nativeSet: Set<FleetControlSurface> = [.backend, .proposals, .nightshift]
+        let nativeSet: Set<FleetControlSurface> = [.backend, .proposals, .nightshift, .galaxy]
         for surface in FleetControlSurface.allCases where !nativeSet.contains(surface) {
             XCTAssertFalse(surface.isNative, "Expected \(surface.rawValue) to be a web surface")
         }

@@ -20,6 +20,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
     case memory
     case shipwright
     case yaml
+    case galaxy
 
     var id: String { rawValue }
 
@@ -41,6 +42,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         case .memory: return "Memory"
         case .shipwright: return "Shipwright"
         case .yaml: return "YAML"
+        case .galaxy: return "Galaxy"
         }
     }
 
@@ -62,16 +64,17 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         case .memory: return "square.stack.3d.up"
         case .shipwright: return "hammer"
         case .yaml: return "curlybraces"
+        case .galaxy: return "circle.hexagongrid"
         }
     }
 
     /// Whether this surface is rendered by a native SwiftUI view instead of
     /// embedded into the `/fleet-ui/` webview. Native surfaces opt in here:
-    /// Nightshift, Backend, and Proposals have app-owned state/actions, so
+    /// Nightshift, Backend, Proposals, and Galaxy have app-owned state/actions, so
     /// routing them through the browser would mean an extra trip + duplicate state.
     var isNative: Bool {
         switch self {
-        case .nightshift, .backend, .proposals: return true
+        case .nightshift, .backend, .proposals, .galaxy: return true
         default: return false
         }
     }
