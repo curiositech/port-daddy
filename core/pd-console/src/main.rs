@@ -35,6 +35,7 @@ mod galaxy_canvas;
 mod galaxy_pane;
 mod grid;
 mod harbor_pane;
+mod headless_capture;
 mod health_pane;
 mod inbox_pane;
 mod lane_pane;
@@ -228,6 +229,35 @@ fn main() {
     if std::env::args().any(|a| a == "--version" || a == "-V") {
         println!("{BUILD_STAMP}");
         return;
+    }
+
+    // `--headless-capture <path>` renders the render-agnostic Block model to an
+    // offscreen PNG with no window, no display, and no Screen-Recording (TCC)
+    // permission — agent-safe visual proof. It intentionally runs BEFORE window +
+    // daemon init and returns without ever calling `Application::new()`. This is
+    // the Block model, NOT the GPUI/Metal framebuffer: gpui 0.2.2 exposes no
+    // offscreen Metal readback (see docs/artifacts/gpui/HEADLESS-CAPTURE.md).
+    {
+        let args: Vec<String> = std::env::args().collect();
+        if let Some(i) = args.iter().position(|a| a == "--headless-capture") {
+            // Fall back to the default when the next token is another flag (or
+            // absent) rather than silently writing to a path like `--list-displays`.
+            let out = args
+                .get(i + 1)
+                .map(String::as_str)
+                .filter(|a| !a.starts_with('-'))
+                .unwrap_or("headless-capture.png");
+            match headless_capture::capture_to_path(out) {
+                Ok(bytes) => {
+                    println!("pd-console headless-capture -> {out} ({bytes} bytes, no window/display/TCC)");
+                    return;
+                }
+                Err(e) => {
+                    eprintln!("pd-console headless-capture failed: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
     }
 
     // Seed light/dark from PD_CONSOLE_THEME before the window opens (default dark).
