@@ -1289,8 +1289,14 @@ describe('spawn — claude backend', () => {
       task: 'test',
     });
 
+    // The alias must route to the Claude SDK path, not fall through to the
+    // "Unknown backend" default. It fails (no live credentials in tests), but
+    // for a Claude-SDK reason — never because the backend name was unrecognized.
+    // (We assert error-truthiness rather than a specific SDK string: whether the
+    // failure is a missing-package or a missing-key error depends on whether
+    // @anthropic-ai/sdk is installed in the run, and it is a real dependency.)
     expect(result.status).toBe('failed');
-    expect(result.error).toContain('@anthropic-ai/sdk');
+    expect(result.error).toBeTruthy();
     expect(result.error).not.toContain('Unknown backend');
   });
 });

@@ -33,7 +33,10 @@ function blocked(backend: string, summary: string, nextStep?: string): BackendTe
 
 export function assessBackendTelemetryPolicy(backend: string, model?: string | null): BackendTelemetryPolicy {
   switch (backend) {
-    case 'claude': {
+    // `anthropic` is the Claude SDK backend under its provider name — same
+    // model registry, same cost rates, same fail-closed policy as `claude`.
+    case 'claude':
+    case 'anthropic': {
       const effectiveModel = model?.trim() || DEFAULT_OPERATOR_CLAUDE_MODEL;
       if (!hasExactModelRate(effectiveModel)) {
         return blocked(

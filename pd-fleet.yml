@@ -544,7 +544,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/openai/gpt-oss-120b'
+          modelTier: code
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, parley_suggestion, dispatch_command_suggestion]
@@ -586,7 +586,7 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: cloudflare
-          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+          modelTier: mid
       singleton: true
       allowedTools: "Read,Grep,Glob"
       side_effects: [pr_comment, skill_proposal, dispatch_command_suggestion]
