@@ -1,4 +1,4 @@
-# ADR-0095 — Email ingress over the Relay (E2E-encrypted, capability-scoped)
+# ADR-0099 — Email ingress over the Relay (E2E-encrypted, capability-scoped)
 
 - **Status:** Proposed
 - **Date:** 2026-07-06
@@ -65,7 +65,7 @@ Adversary catalog is unchanged (A1–A6). What the new surface touches:
 
 | Invariant | Effect | How preserved |
 |---|---|---|
-| **I1** relay never sees plaintext | **at risk** | Worker E2E-encrypts the envelope to the daemon's subscriber key (`crypto.ts` / note-encryption envelope). Relay stores + routes **ciphertext**; sees only metadata (channel, seq, ts, sender-domain for routing). |
+| **I1** relay never sees plaintext | **at risk** | Worker E2E-encrypts the envelope with a Worker-to-daemon pre-shared symmetric envelope key (`lib/note-encryption.ts`). Relay stores + routes **ciphertext**; sees only metadata (channel, seq, ts, sender-domain for routing). |
 | **I2** subscribers detect equivocation | preserved | Email events join the per-channel Merkle hash chain the GitHub path already builds; the daemon verifies against the publisher key. |
 | **I3** stolen card bounded + revocable | preserved | The Worker publishes under a capability scoped to `cap=publish, aud=email-inbound, exp`; revocable. A leaked Worker secret can only publish forged email events on one channel, time-bounded (bounds A4). |
 | **I4** attenuation only contracts | preserved | The Worker's capability is a strict attenuation of the operator's publish right; it cannot widen. |
@@ -75,9 +75,10 @@ Adversary catalog is unchanged (A1–A6). What the new surface touches:
 - **Metadata leak.** The relay necessarily sees channel + timing + whatever
   routing metadata we expose. Keep routing metadata minimal (sender *domain*
   only if a filter needs it; never full address in cleartext metadata).
-- **Worker key custody.** The Worker holds a publish capability + the daemon's
-  encryption public key. Public key is not secret; the capability is — store as
-  a `wrangler secret`, rotate on the card's `exp`.
+- **Worker key custody.** The Worker holds a publish capability plus a symmetric
+  envelope key shared only with the daemon. Store both as `wrangler secret`s;
+  rotate the capability on the card's `exp` and rotate the envelope key
+  out-of-band with daemon coordination.
 - **Capability grammar gap (audit finding — `macaroon-capability-credentials`).**
   The `cap=publish, aud=email-inbound` scoping this ADR describes is NOT yet
   expressible: the canonical macaroon caveat grammar (`core/kernel/pd-anchor/
@@ -94,22 +95,22 @@ Adversary catalog is unchanged (A1–A6). What the new surface touches:
   model — so the `aud`/`cap` first-party restriction, once added, is enforced
   by the checker grammar but not yet formally proven. No "verified" language
   goes near the email path until §6's ProVerif extension lands.
-- **E2E primitive is SYMMETRIC — the "encrypt to the subscriber key" framing
+- **E2E primitive is SYMMETRIC — the earlier asymmetric-key framing
   is imprecise (crypto-review finding).** The reused envelope
   (`lib/note-encryption.ts`) is **AES-256-GCM with a shared 256-bit key**, and
   `apps/relay/src/crypto.ts` provides only Ed25519 signing + hashing — there is
   **no asymmetric encrypt-to-public-key primitive** in the code this ADR
   proposes to reuse. So I1 ("relay never sees plaintext") is deliverable, but
   ONLY via a **Worker↔daemon pre-shared symmetric key that the relay never
-  holds** — not by encrypting "to the daemon's subscriber *public* key" as
-  §3/§5 imply. This makes **Worker key establishment + rotation the crux**: the
+  holds** — not by using a daemon public-key encryption primitive. This makes
+  **Worker key establishment + rotation the crux**: the
   Worker must hold a symmetric envelope key (a `wrangler secret`), distinct from
   the publish capability, rotated out-of-band; the relay must never receive it.
   The alternative — a real asymmetric primitive (libsodium sealed-box /
   X25519-ECDH→AES-GCM) — would be **new crypto**, contradicting the "no new
   crypto" constraint (§4 Pragmatic). §5 must pick one explicitly before build;
-  as written the two claims ("reuse symmetric note-encryption" + "encrypt to
-  subscriber key" + "no new crypto") cannot all hold.
+  as written the earlier trio of claims ("reuse symmetric note-encryption" +
+  "public-key-style delivery" + "no new crypto") could not all hold.
 
 **Griefing (cryptoeconomic-protocol-security Attack Class 2 — the one economic
 lens that applies to an unbonded system):** email/webhook ingress has
@@ -192,9 +193,10 @@ capability-scoped. Concretely:
      — the relay receives and stores `ciphertext` only (I1), computes the
      per-channel chain (I2), fans out on `email-inbound`.
 2. **`apps/email-ingress` Worker** — before publishing, **E2E-encrypt** the
-   envelope to the daemon's subscriber key using the note-encryption envelope;
-   publish ciphertext to the relay's publish endpoint (capability-scoped card)
-   instead of `PD_FORWARD_URL`. Keep the KV dead-letter + fallback-forward.
+   envelope with the Worker-to-daemon symmetric envelope key using the existing
+   note-encryption envelope; publish ciphertext to the relay's publish endpoint
+   (capability-scoped card) instead of `PD_FORWARD_URL`. Keep the KV
+   dead-letter + fallback-forward.
 3. **Daemon bridge** — on a relay-delivered `email-inbound` event: **decrypt**,
    then feed the *existing* fleet email trigger via the same receiver seam the
    local POST uses today (no trigger-logic change). Every event still passes the
@@ -213,10 +215,10 @@ MIME, per-address fleets, Float Plans, daemon↔daemon state sync.
   leaves ciphertext to the relay. One proven fabric for all inbound (git, email,
   future SMS). Trigger logic untouched (transport swap only). Reversible to
   fallback-forward + DLQ.
-- **Negative / cost:** the Worker must hold a scoped publish capability + the
-  daemon's public key (custody + rotation). Metadata is visible to the relay
-  (minimized, not eliminated). A daemon-side decrypt bridge is new code on the
-  hot path.
+- **Negative / cost:** the Worker must hold a scoped publish capability + a
+  symmetric envelope key shared with the daemon (custody + rotation). Metadata
+  is visible to the relay (minimized, not eliminated). A daemon-side decrypt
+  bridge is new code on the hot path.
 - **Backlog (crypto touched → ProVerif):** extend the symbolic model to cover
   the email publisher path (it's structurally the GitHub path, so the delta is
   small) before any "formally verified" language goes near email.
@@ -240,3 +242,18 @@ MIME, per-address fleets, Float Plans, daemon↔daemon state sync.
 - [x] No Float Plans on the critical path.
 - [x] No daemon↔daemon state sync (Part XVII trap).
 - [ ] ProVerif extension filed to backlog (do before "verified" marketing).
+
+---
+
+## 8. Implementation Matrix
+
+This ADR remains **Proposed**. The matrix is included so the proposed work is
+trackable without implying that PR #735 ships the relay email path.
+
+| Phase | Roadmap slug | Status | Depends on | Description |
+|---|---|---|---|---|
+| 0 | adr-0099-email-ingress-relay-design-cleanup | now | PR #735 | Renumber the ADR, state the symmetric envelope constraint, and keep the design fail-closed. No runtime behavior changes. |
+| 1 | email-ingress-relay-capability-grammar | blocked | ADR-0094, macaroon grammar byte-parity vectors | Add or replace `cap` / `aud` scoping so the Worker publish card can be verified instead of failing closed. |
+| 2 | email-ingress-relay-worker-publisher | blocked | Phase 1, Worker-to-daemon envelope-key rotation plan | Publish encrypted email envelopes to Relay with minimal cleartext metadata and rate limiting. |
+| 3 | email-ingress-relay-daemon-bridge | blocked | Phase 2, ADR-0093 trust gate | Decrypt relay-delivered email events and feed the existing fleet email trigger through the same approval gate. |
+| 4 | email-ingress-relay-operator-surface | blocked | Phase 3, FleetBar/dashboard credential surfaces | Show email ingress as relay-backed, tunnel-legacy, or paused; expose rotation/readiness without operator CLI work. |

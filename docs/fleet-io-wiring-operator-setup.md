@@ -54,15 +54,15 @@ pd fleet consent grant --sink email --tier high     # add a --recipient allowlis
 
 ---
 
-## 2. Email IN — trigger fleets on inbound mail  ·  **PARTIAL — see ADR-0095**
+## 2. Email IN — trigger fleets on inbound mail  ·  **PARTIAL — see ADR-0099**
 
 Today's shipped path: the deployed Worker POSTs an HMAC-signed envelope to the daemon's
 `/webhooks/fleet/email-inbound` receiver. That requires the daemon to be **reachable from
 Cloudflare** — i.e. a tunnel. **You rejected exposing the daemon over a tunnel** (loopback =
 operator trust; a public `:9876` is a wholesale auth-bypass), so email-IN is **paused
-pending ADR-0095** (email ingress over the Relay's outbound-dial fabric — no inbound port).
+pending ADR-0099** (email ingress over the Relay's outbound-dial fabric — no inbound port).
 
-Env vars the receiver path uses (for when ADR-0095 lands or if you accept a tunnel):
+Env vars the receiver path uses (for when ADR-0099 lands or if you accept a tunnel):
 `PD_FORWARD_URL` (daemon receiver base), `PD_EMAIL_INBOUND_SECRET` (HMAC),
 `PD_EMAIL_INBOUND_CHANNEL` (default `email-inbound`), `PD_FALLBACK_FORWARD` (DLQ fallback).
 
