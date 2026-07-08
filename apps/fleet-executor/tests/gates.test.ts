@@ -1,0 +1,68 @@
+import { describe, it, expect } from 'vitest';
+import { isDocsOnly, decideShipGate } from '../src/gates.js';
+import type { ShipConfig } from '../src/fleet.js';
+
+const ship = (over: Partial<ShipConfig>): ShipConfig => ({
+  name: 'code-reviewer',
+  trigger: 'pull_request:opened',
+  prompt: 'p',
+  cfModel: '@cf/qwen/qwen3-30b-a3b-fp8',
+  temperature: null,
+  role: 'r',
+  telos: 't',
+  blocking: false,
+  needsExecution: false,
+  ideation: false,
+  ...over,
+});
+
+describe('isDocsOnly', () => {
+  it('true when every changed path is prose (md/mdx or under docs/)', () => {
+    expect(isDocsOnly(['docs/plans/x.md', 'AGENTS.md', 'fleet/ships/spider.md'])).toBe(true);
+    expect(isDocsOnly(['docs/adr/0099-thing.md'])).toBe(true);
+  });
+  it('false when any code file changed (a code+docs diff is not docs-only)', () => {
+    expect(isDocsOnly(['docs/x.md', 'src/a.ts'])).toBe(false);
+    expect(isDocsOnly(['README.md', 'apps/fleet-executor/src/gates.ts'])).toBe(false);
+    expect(isDocsOnly(['pd-fleet.yml'])).toBe(false); // yaml is config/code, not prose
+  });
+  it('false for an empty diff', () => {
+    expect(isDocsOnly([])).toBe(false);
+  });
+});
+
+describe('decideShipGate', () => {
+  const CODE = ['apps/fleet-executor/src/execute.ts'];
+  const SECURITY = ['lib/auth/session.ts'];
+  const TESTS = ['apps/fleet-executor/tests/foo.test.ts'];
+
+  it('ideation ships ALWAYS run — including on a docs-only diff', () => {
+    const spark = ship({ name: 'spark', ideation: true });
+    expect(decideShipGate(spark, ['docs/plan.md'], true).run).toBe(true);
+    expect(decideShipGate(spark, CODE, false).run).toBe(true);
+  });
+
+  it('reviewer ships SKIP a docs-only diff (nothing to review for correctness)', () => {
+    const g = decideShipGate(ship({ name: 'code-reviewer' }), ['docs/plan.md'], true);
+    expect(g.run).toBe(false);
+    expect(g.reason).toMatch(/docs-only/);
+  });
+
+  it('red-team runs ONLY when the diff touches its security surface', () => {
+    const rt = ship({ name: 'red-team', blocking: true });
+    expect(decideShipGate(rt, SECURITY, false).run).toBe(true);
+    const off = decideShipGate(rt, CODE, false);
+    expect(off.run).toBe(false);
+    expect(off.reason).toMatch(/surface not touched/);
+  });
+
+  it('tautology-sniffer runs only when the diff touches test files', () => {
+    expect(decideShipGate(ship({ name: 'tautology-sniffer' }), TESTS, false).run).toBe(true);
+    expect(decideShipGate(ship({ name: 'tautology-sniffer' }), CODE, false).run).toBe(false);
+  });
+
+  it('an ungated reviewer (code-reviewer, qa) runs on any code diff', () => {
+    expect(decideShipGate(ship({ name: 'code-reviewer' }), CODE, false).run).toBe(true);
+    expect(decideShipGate(ship({ name: 'qa' }), CODE, false).run).toBe(true);
+  });
+});

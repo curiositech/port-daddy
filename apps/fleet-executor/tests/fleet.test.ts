@@ -67,7 +67,11 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(spider!.blocking).toBe(false);
     expect(spider!.needsExecution).toBe(false);
     expect(spider!.temperature).toBe(0.95);
-    expect(spider!.prompt).toContain('syllogism engine');
+    // Spider's prompt was sharpened to a STRUCTURAL syllogism: the rationale must
+    // be written verbatim as Premise A / Premise B / Therefore C.
+    expect(spider!.prompt).toContain('SYLLOGISM engine');
+    expect(spider!.prompt).toContain('Premise A');
+    expect(spider!.prompt).toContain('Therefore C');
   });
 
   it('the four ideation ships (spark, spider, lookout, snipe) all parse as advisory ideation', () => {
@@ -92,16 +96,18 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(lookout!.prompt.toLowerCase()).toContain('branch');
   });
 
-  it('derives cfModel from the first @cf/ fallback, remapping the empty-returning ids', () => {
-    // deriveCfModel takes a ship's FIRST `@cf/` fallback, then resolveCfModel
-    // guards it. code-reviewer pins kimi-k2.7-code and qa pins gpt-oss-120b —
-    // both return EMPTY on this Workers AI account (2026-07-07 transcript:
-    // outputLength 0 for every chunk), which silently blanks the ship — so both
-    // are remapped to the qwen coder model that actually returns output.
+  it('derives cfModel with the cost canary: proven coder for gate-keepers, cheap qwen3-30b for advisory', () => {
+    // code-reviewer pins kimi-k2.7-code and qa pins gpt-oss-120b — both empty on
+    // this account and NOT known-good, so each falls to its name default:
+    //   - code-reviewer is a blocking gate-keeper → the PROVEN qwen2.5-coder.
+    //   - qa is advisory → the cheap qwen3-30b (canary).
     const reviewer = ships!.find(s => s.name === 'code-reviewer');
     expect(reviewer!.cfModel).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
     const qa = ships!.find(s => s.name === 'qa');
-    expect(qa!.cfModel).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+    expect(qa!.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    // red-team is a blocking gate-keeper → proven coder too.
+    const redTeam = ships!.find(s => s.name === 'red-team');
+    expect(redTeam!.cfModel).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
   });
 });
 
@@ -144,7 +150,7 @@ describe('parseFleetShips — model derivation + blocking coercion', () => {
     expect(ships![0].cfModel).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
   });
 
-  it('falls back to the general model for non-reviewer ships with no @cf/ fallback', () => {
+  it('falls back to the cheap general model (qwen3-30b) for non-reviewer ships with no @cf/ fallback', () => {
     const ships = parseFleetShips(
       yaml(
         ['    sniffer:', '      trigger: pull_request:opened', '      prompt: |', '        sniff.'].join(
@@ -153,7 +159,7 @@ describe('parseFleetShips — model derivation + blocking coercion', () => {
       ),
       'pull_request:opened',
     );
-    expect(ships![0].cfModel).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+    expect(ships![0].cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
   });
 
   it('coerces blocking: only a real true / "true" opts into the gate', () => {

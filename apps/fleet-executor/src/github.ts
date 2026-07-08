@@ -443,6 +443,36 @@ async function findExistingComment(
 }
 
 // ---------------------------------------------------------------------------
+// Issues (fleet idea capture)
+
+/**
+ * Open a GitHub issue and return its number + html url. Used to durably capture
+ * a novel (semantic-deduped) fleet idea so a Spark/Spider proposal doesn't
+ * evaporate when the PR scrolls away. Labels are created on demand by GitHub if
+ * they don't exist. Throws on a non-2xx so the caller's best-effort capture path
+ * records an `error` rather than silently losing the idea.
+ */
+export async function createIssue(
+  owner: string,
+  repo: string,
+  title: string,
+  body: string,
+  labels: string[],
+  token: string,
+): Promise<{ number: number; url: string }> {
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
+    method: 'POST',
+    headers: ghHeaders(token),
+    body: JSON.stringify({ title, body, labels }),
+  });
+  if (!res.ok) {
+    throw new Error(`createIssue failed ${res.status}: ${await res.text()}`);
+  }
+  const j = (await res.json()) as { number: number; html_url: string };
+  return { number: j.number, url: j.html_url };
+}
+
+// ---------------------------------------------------------------------------
 // Reviews (inline comments)
 
 export interface ReviewComment {

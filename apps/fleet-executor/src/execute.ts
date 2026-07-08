@@ -34,6 +34,7 @@ import {
   createCheckRun,
   completeCheckRun,
   findFleetCheckRun,
+  createIssue,
   type PRContext,
   type ReviewComment,
 } from './github.js';
@@ -52,6 +53,14 @@ import {
 } from './proposals.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
 import { renderFindingsComment } from './findings-render.js';
+import {
+  captureProposals,
+  ensureIdeasTable,
+  EMBED_MODEL,
+  type IdeaCtx,
+} from './ideas-store.js';
+import type { Proposal } from './proposals.js';
+import { decideShipGate, isDocsOnly } from './gates.js';
 
 // ---------------------------------------------------------------------------
 
@@ -67,6 +76,18 @@ const CHECK_NAME = 'Port Daddy Fleet';
  * generous headroom while still bounding cost per call.
  */
 const MAX_OUTPUT_TOKENS = 2048;
+
+/**
+ * Workers AI call options: a stable per-ship `x-session-affinity` key so the
+ * ship's large, identical system-prompt prefix (its contract + output format,
+ * repeated across every MAP chunk of a PR and across PRs) routes to the same
+ * model instance and hits the prefix cache — cached input tokens bill lower.
+ * Keyed per ship (not per run) to maximize hits on the shared prefix.
+ * (Cloudflare Workers AI prompt caching, `extraHeaders` binding option.)
+ */
+function aiOptions(shipName: string): { extraHeaders: Record<string, string> } {
+  return { extraHeaders: { 'x-session-affinity': `pd-fleet-${shipName}` } };
+}
 
 /**
  * Kill-switch flag key in the relay's CONTROL_KV namespace (the relay writes it
@@ -348,6 +369,12 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // Each ship is a map-reduce over the diff: MAP one call per diff chunk, then
   // REDUCE via a manager call that merges the structured findings and computes
   // the FLEET-VERDICT.
+  // Deterministic ship gating (cost): a ship whose surface the diff doesn't touch
+  // is skipped BEFORE any AI spend; reviewer ships skip docs-only diffs while
+  // ideation ships run on them. Computed once per run from the PR's changed files.
+  const changedPaths = prCtx.files.map(f => f.filename).filter(Boolean);
+  const docsOnly = isDocsOnly(changedPaths);
+
   const results: ShipResult[] = [];
   for (const ship of cloudShips) {
     // Re-check the operator kill switch before each ship. The start-of-job
@@ -366,6 +393,21 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       await recordRunEnd(env, runId, 'neutral', startMs);
       return;
     }
+
+    // Surface gate: skip a ship with nothing to say on this diff, spending no AI.
+    // A gated-out ship resolves PASS (advisory-clean) and posts nothing — a
+    // gated-out BLOCKING ship (red-team off its security surface) correctly does
+    // not block, matching its own "exit clean" contract.
+    const gate = decideShipGate(ship, changedPaths, docsOnly);
+    if (!gate.run) {
+      await transcript.step('ship-skipped', ship.name, `pd-${ship.name}: skipped — ${gate.reason}`, {
+        reason: gate.reason,
+        changedPathCount: changedPaths.length,
+      });
+      results.push({ ship: ship.name, blocking: ship.blocking, verdict: 'PASS', errored: false, findings: [] });
+      continue;
+    }
+
     results.push(await runShip(ship, prCtx, token, env, branch, transcript));
   }
 
@@ -463,7 +505,11 @@ async function runShip(
         max_tokens: MAX_OUTPUT_TOKENS,
         ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
       };
-      const res = await env.AI.run(ship.cfModel as Parameters<typeof env.AI.run>[0], request);
+      const res = await env.AI.run(
+        ship.cfModel as Parameters<typeof env.AI.run>[0],
+        request,
+        aiOptions(ship.name),
+      );
       const { text, shape } = extractAiText(res);
       partials.push(text);
 
@@ -538,6 +584,19 @@ async function runShip(
         body,
         token,
       );
+
+      // Durably capture the proposals (D1 + semantic dedup + auto-issue) so a
+      // Spark/Spider idea doesn't evaporate when the PR scrolls away. Best-effort:
+      // it NEVER throws or changes the advisory PASS.
+      if (proposals && proposals.length > 0) {
+        await captureIdeas(
+          proposals,
+          { owner: prCtx.owner, repo: prCtx.repo, prNumber: prCtx.prNumber, shipName: ship.name },
+          env,
+          token,
+          transcript,
+        );
+      }
 
       return {
         ship: ship.name,
@@ -638,6 +697,56 @@ async function runShip(
 }
 
 /**
+ * Embed a string to a vector via Workers AI (bge). Returns [] on any unexpected
+ * envelope so the caller (best-effort capture) degrades to "no dedup" rather
+ * than throwing.
+ */
+async function embedText(ai: Ai, text: string): Promise<number[]> {
+  const res = await ai.run(EMBED_MODEL as Parameters<typeof ai.run>[0], { text: [text] });
+  const data = (res as { data?: unknown }).data;
+  if (Array.isArray(data) && Array.isArray(data[0])) return data[0] as number[];
+  return [];
+}
+
+/**
+ * Durably capture an ideation ship's proposals into the relay D1 idea store,
+ * semantic-deduped, opening a `fleet-idea` GitHub issue for each novel one.
+ * Best-effort: a missing DB binding (unit tests / unconfigured) skips capture
+ * entirely, and any failure is swallowed — it can NEVER change the advisory PASS.
+ */
+async function captureIdeas(
+  proposals: Proposal[],
+  ctx: IdeaCtx,
+  env: ExecutorEnv,
+  token: string,
+  transcript: Transcript,
+): Promise<void> {
+  if (!env.DB) return; // no store bound → comment-only fallback (still posted above)
+  try {
+    await ensureIdeasTable(env.DB);
+    const results = await captureProposals({
+      db: env.DB,
+      proposals,
+      ctx,
+      embed: text => embedText(env.AI, text),
+      openIssue: (title, body, labels) =>
+        createIssue(ctx.owner, ctx.repo, title, body, labels, token),
+      now: nowSec(),
+    });
+    const created = results.filter(r => r.outcome === 'tracked-new').length;
+    const dupes = results.filter(r => r.outcome === 'duplicate' || r.outcome === 'already-tracked').length;
+    await transcript.step(
+      'ideas-captured',
+      ctx.shipName,
+      `pd-${ctx.shipName}: ${created} new idea(s), ${dupes} already tracked`,
+      { results },
+    );
+  } catch (err) {
+    console.error(`[fleet-executor] captureIdeas failed pd-${ctx.shipName}: ${String(err)}`);
+  }
+}
+
+/**
  * Split a unified diff into chunks aligned on `diff --git` file boundaries,
  * each under {@link MAP_CHUNK_CHAR_LIMIT}. A single file larger than the budget
  * is hard-split. Always returns at least one chunk (possibly empty-string).
@@ -704,7 +813,11 @@ async function reduceFindings(
     max_tokens: MAX_OUTPUT_TOKENS,
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
-  const res = await env.AI.run(ship.cfModel as Parameters<typeof env.AI.run>[0], request);
+  const res = await env.AI.run(
+    ship.cfModel as Parameters<typeof env.AI.run>[0],
+    request,
+    aiOptions(ship.name),
+  );
   const { text } = extractAiText(res);
   if (!text) {
     console.warn(
