@@ -66,14 +66,23 @@ teardown() {
   local safe; safe="$(sanitize "$raw")"
   local runroot="$HOME/coding/tmp/dev-triple-$safe"
   [ -d "$runroot" ] || { c_warn "no run dir at $runroot — nothing to tear down (already down?)"; exit 0; }
-  # shellcheck disable=SC1091
-  [ -f "$runroot/triple.env" ] && source "$runroot/triple.env"
+  # Parse ONLY the keys we need from triple.env — never `source` it. It sits at a
+  # predictable ~/coding/tmp path, so executing it as shell would be arbitrary code
+  # execution if tampered. `up` writes DAEMON_PID bare and the *_APP paths quoted.
+  local DAEMON_PID="" CONSOLE_APP="" FLEETBAR_APP=""
+  if [ -f "$runroot/triple.env" ]; then
+    DAEMON_PID="$(sed -n 's/^DAEMON_PID=//p'    "$runroot/triple.env" | head -1 | tr -cd '0-9')"
+    CONSOLE_APP="$(sed -n 's/^CONSOLE_APP=//p'   "$runroot/triple.env" | head -1 | sed 's/^"//; s/"$//')"
+    FLEETBAR_APP="$(sed -n 's/^FLEETBAR_APP=//p' "$runroot/triple.env" | head -1 | sed 's/^"//; s/"$//')"
+  fi
 
   c_info "tearing down triple '$safe'"
-  # 1. Restore the console daemon-URL switch to its pre-run state.
+  # 1. Restore the console daemon-URL switch to its pre-run state. Idempotent:
+  #    COPY the backup back (keep it) so a second `down`, or `down` used as a
+  #    safety check, still restores the operator's original pin instead of losing it.
   if [ -f "$runroot/console-daemon.url.bak" ]; then
-    mv -f "$runroot/console-daemon.url.bak" "$HOME/.port-daddy/console-daemon.url"
-    c_ok "restored ~/.port-daddy/console-daemon.url (original contents)"
+    cp -f "$runroot/console-daemon.url.bak" "$HOME/.port-daddy/console-daemon.url"
+    c_ok "restored ~/.port-daddy/console-daemon.url (original contents; backup kept — down is idempotent)"
   else
     rm -f "$HOME/.port-daddy/console-daemon.url"
     c_ok "removed ~/.port-daddy/console-daemon.url (there was no original)"
@@ -267,14 +276,32 @@ fi
 printf '%s\n' "$DAEMON_URL" > "$CONSOLE_URL_FILE"
 c_ok "wired pd-console: wrote $DAEMON_URL → $CONSOLE_URL_FILE"
 
-# ── 7. Verify each surface is actually pointed at the fresh port. ──────────────
+# Undo the console-daemon.url wiring — used by the hard-fail abort paths below so a
+# failed run never leaves the operator's console pointed at a killed fresh daemon.
+restore_console_url() {
+  if [ -f "$RUNROOT/console-daemon.url.bak" ]; then
+    cp -f "$RUNROOT/console-daemon.url.bak" "$CONSOLE_URL_FILE"
+  else
+    rm -f "$CONSOLE_URL_FILE"
+  fi
+}
+
+# ── 7. Verify each surface is actually pointed at the fresh port. A mismatch or an
+#       unhealthy daemon here is a HARD failure: printing "TRIPLE UP" while a surface
+#       is wired elsewhere (or the daemon is down) is a false success. Abort + undo.
 WROTE="$(tr -d '[:space:]' < "$CONSOLE_URL_FILE")"
 if [ "$WROTE" = "$DAEMON_URL" ]; then
   c_ok "verify pd-console config: console-daemon.url == $DAEMON_URL"
 else
-  c_err "verify pd-console config MISMATCH: file has '$WROTE', expected '$DAEMON_URL'"
+  c_err "verify pd-console config MISMATCH: file has '$WROTE', expected '$DAEMON_URL' (raced or rewritten). Aborting."
+  restore_console_url; kill "$DAEMON_PID" 2>/dev/null || true; exit 1
 fi
-curl -fsS "$DAEMON_URL/health" >/dev/null 2>&1 && c_ok "verify daemon /health: OK on :$DAEMON_PORT" || c_err "verify daemon /health FAILED"
+if curl -fsS "$DAEMON_URL/health" >/dev/null 2>&1; then
+  c_ok "verify daemon /health: OK on :$DAEMON_PORT"
+else
+  c_err "verify daemon /health FAILED on :$DAEMON_PORT — daemon unhealthy. Aborting."
+  restore_console_url; kill "$DAEMON_PID" 2>/dev/null || true; exit 1
+fi
 
 # ── 8. Open the surfaces (unless suppressed). ──────────────────────────────────
 FLEETBAR_RUN_PID=""
