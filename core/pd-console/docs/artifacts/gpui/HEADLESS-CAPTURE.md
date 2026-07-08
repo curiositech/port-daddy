@@ -1,7 +1,7 @@
 # Headless offscreen capture for pd-console
 
 **Problem it solves.** Capturing pd-console's pixels for visual proof was blocked
-here: `scripts/proof/capture-proof.sh` renders the real GPUI window onto a
+here: `core/pd-console/scripts/proof/capture-proof.sh` renders the real GPUI window onto a
 **BetterDisplay virtual monitor** and grabs it with `screencapture` /
 ScreenCaptureKit — which needs **Screen-Recording (TCC) permission** and a
 **virtual display**. A headless agent shell has neither, and creating a virtual
@@ -97,5 +97,5 @@ and labeled everywhere so it is **never mistaken for a Metal framebuffer capture
   no network). Not a screenshot of the GPUI app.
 - Reproduce (no gpui build, seconds):
   `cargo test --bin pd-console-repl headless_capture` **or**
-  `scripts/proof/headless-capture.sh`.
+  `core/pd-console/scripts/proof/headless-capture.sh`.
 - The bottom red band in the image states its own provenance.
