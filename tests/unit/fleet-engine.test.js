@@ -17,14 +17,16 @@ import { parse as realYamlParse, parseDocument as realParseDocument, LineCounter
 
 const mockExistsSync = jest.fn();
 const mockReadFileSync = jest.fn();
+const mockWriteFileSync = jest.fn();
+const mockMkdirSync = jest.fn();
 
 jest.unstable_mockModule('node:fs', () => ({
   existsSync: mockExistsSync,
   readFileSync: mockReadFileSync,
-  writeFileSync: jest.fn(),
+  writeFileSync: mockWriteFileSync,
   appendFileSync: jest.fn(),
   unlinkSync: jest.fn(),
-  mkdirSync: jest.fn(),
+  mkdirSync: mockMkdirSync,
   chmodSync: jest.fn(),
   // The fleet engine now transitively imports the pluggable I/O registry
   // (lib/fleet/io-dispatch.ts), whose file trigger uses fs.watch. The
@@ -763,6 +765,32 @@ test('YAML watcher fallback invokes Port Daddy from the installed runtime, not t
   expect(args).toEqual(['watch', physicalChannel, '--exec', 'echo "$PD_MESSAGE_CONTENT"']);
   expect(args).not.toContain('tsx');
   expect(args.join(' ')).not.toContain('/tmp/plain-ruby-repo/bin/port-daddy-cli.ts');
+});
+
+// 4th Copilot review round, PR #879: sweepOrphanedWatcherChildren() used to
+// call saveWatcherPidRegistry() unconditionally on every startAll(), which
+// meant every test (and every real fleet boot) that never spawned an
+// external watcher child would still mkdirSync + writeFileSync an
+// empty/unchanged ~/.port-daddy/watcher-pids.json as a pure side effect.
+// mockExistsSync defaults to `undefined` (falsy) for this project's config
+// file paths in most tests, so loadWatcherPidRegistry sees "no file" (an
+// empty registry) here -- exactly the no-op case the guard exists for.
+test('startAll() does not write the watcher-pid registry when there is nothing to sweep', async () => {
+  const config = makeConfig({ trigger: 'git:committed' });
+  const runner = createFleetRunner(config, '/tmp/plain-ruby-repo');
+
+  runner.startAll();
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(mockWriteFileSync).not.toHaveBeenCalledWith(
+    expect.stringContaining('watcher-pids.json'),
+    expect.anything(),
+  );
+  expect(mockMkdirSync).not.toHaveBeenCalledWith(
+    expect.stringContaining('.port-daddy'),
+    expect.anything(),
+  );
 });
 
 test('runner can deploy a subset by pausing unselected agents', async () => {

@@ -2328,6 +2328,18 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   function sweepOrphanedWatcherChildren(): void {
     try {
       const registry = loadWatcherPidRegistry(WATCHER_PID_FILE);
+      // Nothing to do (and nothing to persist) if this project has no
+      // entries at all — this is the common case (a fresh install, a test
+      // run, or a project whose watchers have never hit the external-spawn
+      // fallback). Without this guard, saveWatcherPidRegistry() would
+      // mkdirSync + writeFileSync an empty/unchanged registry on EVERY
+      // fleet boot, including from unit tests that call startAll() — a
+      // pure side effect against ~/.port-daddy/watcher-pids.json with
+      // nothing gained (Copilot review on PR #879).
+      const prefix = `${project}:`;
+      const hasProjectEntries = Object.keys(registry).some((key) => key.startsWith(prefix));
+      if (!hasProjectEntries) return;
+
       const { registry: swept, killed, unconfirmed } = sweepStaleWatcherPids(
         registry,
         project,

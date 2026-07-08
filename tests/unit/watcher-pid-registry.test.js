@@ -51,6 +51,21 @@ describe('looksLikeWatchExecInvocation', () => {
   test('does not treat "watch" as a substring of another word (e.g. "rewatcher")', () => {
     expect(looksLikeWatchExecInvocation('rewatcher-daemon --exec say hi', 'say hi')).toBe(false);
   });
+
+  // 3rd Copilot review round, PR #879: indexOf('--exec') also matched
+  // prefixes like --execute / --exec-path, silently weakening the
+  // "must have --exec as a real flag" guarantee this function exists to add.
+  test('does not treat "--execute" as matching the "--exec" flag', () => {
+    expect(looksLikeWatchExecInvocation('some-tool watch --execute say hi', 'say hi')).toBe(false);
+  });
+
+  test('does not treat "--exec-path" as matching the "--exec" flag', () => {
+    expect(looksLikeWatchExecInvocation('some-tool watch --exec-path say hi', 'say hi')).toBe(false);
+  });
+
+  test('still matches when --exec is immediately followed by the snippet with no other text between', () => {
+    expect(looksLikeWatchExecInvocation('pd watch chan --exec say hi', 'say hi')).toBe(true);
+  });
 });
 
 describe('watcherPidKey', () => {

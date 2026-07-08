@@ -110,6 +110,15 @@ export interface SweepResult {
 }
 
 /**
+ * Matches `--exec` as a whole flag token — preceded by start-of-string or
+ * whitespace, followed by end-of-string or whitespace — so it cannot match
+ * a PREFIX like `--execute` or `--exec-path` (2nd Copilot review round,
+ * PR #879: `indexOf('--exec')` matched those too, silently weakening the
+ * "must have --exec as a real flag" guarantee this function exists to add).
+ */
+const EXEC_FLAG_TOKEN_RE = /(^|\s)--exec(\s|$)/;
+
+/**
  * Confirms a live command line is actually a `pd watch <channel> --exec
  * <execSnippet>` invocation, not just any process that happens to contain
  * the exec fragment as a substring.
@@ -119,21 +128,25 @@ export interface SweepResult {
  * `"say hi"` could false-positive-match some unrelated process whose own
  * arguments happen to contain that text, especially after PID reuse (Copilot
  * review on PR #879). Requiring the invocation shape too (`watch` as a
- * token, `--exec` as a flag, AND the snippet appearing after `--exec`) makes
- * a coincidental substring match far less likely without needing to know
- * the exact `pd`/`port-daddy` binary path (which varies: dev checkout,
- * Homebrew keg, `bun build --compile` output, etc).
+ * token, `--exec` as an EXACT flag token — not a prefix like `--execute` —
+ * AND the snippet appearing after `--exec`) makes a coincidental substring
+ * match far less likely without needing to know the exact `pd`/`port-daddy`
+ * binary path (which varies: dev checkout, Homebrew keg, `bun build
+ * --compile` output, etc).
  */
 export function looksLikeWatchExecInvocation(cmdline: string, execSnippet: string): boolean {
-  const execFlagIdx = cmdline.indexOf('--exec');
-  if (execFlagIdx === -1) return false;
+  const execFlagMatch = EXEC_FLAG_TOKEN_RE.exec(cmdline);
+  if (!execFlagMatch) return false;
+  // match.index is where the captured leading char (or start-of-string)
+  // begins; skip past it to land exactly at the start of "--exec" itself.
+  const execFlagStart = execFlagMatch.index + execFlagMatch[1].length;
   // The snippet must appear AFTER the --exec flag (it's that flag's own
   // argument), not merely somewhere earlier in the command line.
-  const afterExecFlag = cmdline.slice(execFlagIdx + '--exec'.length);
+  const afterExecFlag = cmdline.slice(execFlagStart + '--exec'.length);
   if (!afterExecFlag.includes(execSnippet)) return false;
   // `watch` must appear as a whole token before --exec (the subcommand),
   // not as a substring of some other word.
-  const beforeExecFlag = cmdline.slice(0, execFlagIdx);
+  const beforeExecFlag = cmdline.slice(0, execFlagStart);
   return /(^|\s)watch(\s|$)/.test(beforeExecFlag);
 }
 
