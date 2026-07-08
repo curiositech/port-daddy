@@ -39,7 +39,8 @@ struct SortieEntry {
 
 /// First string value among `keys`, owned. Missing/null/non-string → None.
 fn vstr(v: &serde_json::Value, keys: &[&str]) -> Option<String> {
-    keys.iter().find_map(|k| v.get(k).and_then(|x| x.as_str()).map(str::to_string))
+    keys.iter()
+        .find_map(|k| v.get(k).and_then(|x| x.as_str()).map(str::to_string))
 }
 
 /// First numeric value among `keys` as u64 (accepts integer or float ms).
@@ -62,7 +63,9 @@ impl SortieEntry {
             goal: vstr(v, &["goal"]).unwrap_or_default(),
             state: vstr(v, &["status", "state"]).unwrap_or_else(|| "unknown".into()),
             backend: vstr(v, &["backend"]).unwrap_or_default(),
-            cost_usd: ["costUsd", "cost_usd"].iter().find_map(|k| v.get(*k).and_then(|x| x.as_f64())),
+            cost_usd: ["costUsd", "cost_usd"]
+                .iter()
+                .find_map(|k| v.get(*k).and_then(|x| x.as_f64())),
             started_at: vu64(v, &["startedAt", "started_at", "createdAt", "created_at"]),
             ended_at: vu64(v, &["endedAt", "ended_at", "completedAt", "completed_at"]),
             error: vstr(v, &["error"]),
@@ -166,7 +169,11 @@ pub struct SortiePane {
 
 impl SortiePane {
     pub fn new() -> Self {
-        Self { sorties: Vec::new(), last_error: None, now_ms: 0 }
+        Self {
+            sorties: Vec::new(),
+            last_error: None,
+            now_ms: 0,
+        }
     }
 
     fn current_ms() -> u64 {
@@ -194,9 +201,21 @@ impl Pane for SortiePane {
             return blocks;
         }
 
-        let needs_input: Vec<_> = self.sorties.iter().filter(|s| s.bucket() == Bucket::NeedsInput).collect();
-        let working: Vec<_> = self.sorties.iter().filter(|s| s.bucket() == Bucket::Working).collect();
-        let done: Vec<_> = self.sorties.iter().filter(|s| s.bucket() == Bucket::Done).collect();
+        let needs_input: Vec<_> = self
+            .sorties
+            .iter()
+            .filter(|s| s.bucket() == Bucket::NeedsInput)
+            .collect();
+        let working: Vec<_> = self
+            .sorties
+            .iter()
+            .filter(|s| s.bucket() == Bucket::Working)
+            .collect();
+        let done: Vec<_> = self
+            .sorties
+            .iter()
+            .filter(|s| s.bucket() == Bucket::Done)
+            .collect();
 
         let total = self.sorties.len();
         let running_count = working.len();
@@ -221,7 +240,10 @@ impl Pane for SortiePane {
                     elapsed,
                     detail.chars().take(40).collect(),
                 ]));
-                blocks.push(Block::Chip { label: "needs input".into(), tone: s.tone() });
+                blocks.push(Block::Chip {
+                    label: "needs input".into(),
+                    tone: s.tone(),
+                });
             }
             blocks.push(Block::Gap);
         }
@@ -261,7 +283,10 @@ impl Pane for SortiePane {
         }
 
         if self.sorties.is_empty() {
-            blocks.push(Block::KeyVal("status".into(), "no sorties yet — :new <backend> <goal>".into()));
+            blocks.push(Block::KeyVal(
+                "status".into(),
+                "no sorties yet — :new <backend> <goal>".into(),
+            ));
         }
 
         blocks.push(Block::Gap);
@@ -398,18 +423,31 @@ mod tests {
     fn view_empty_shows_idle() {
         let pane = SortiePane::new();
         let blocks = pane.view();
-        assert!(blocks.iter().any(|b| matches!(b, Block::Header(h) if h.contains("Sortie"))));
-        assert!(blocks.iter().any(|b| matches!(b, Block::Chip { label, .. } if label == "idle")));
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::Header(h) if h.contains("Sortie"))));
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::Chip { label, .. } if label == "idle")));
     }
 
     #[test]
     fn working_sortie_shows_in_working_section() {
         let mut pane = SortiePane::new();
         pane.now_ms = 60_000;
-        pane.sorties = vec![make_entry("abc123def456", "running", "refactor auth middleware", Some(0))];
+        pane.sorties = vec![make_entry(
+            "abc123def456",
+            "running",
+            "refactor auth middleware",
+            Some(0),
+        )];
         let blocks = pane.view();
-        let has_working_header = blocks.iter().any(|b| matches!(b, Block::Header(h) if h.contains("Working")));
-        let has_row = blocks.iter().any(|b| matches!(b, Block::Row(cells) if cells.iter().any(|c| c.contains("refactor"))));
+        let has_working_header = blocks
+            .iter()
+            .any(|b| matches!(b, Block::Header(h) if h.contains("Working")));
+        let has_row = blocks.iter().any(
+            |b| matches!(b, Block::Row(cells) if cells.iter().any(|c| c.contains("refactor"))),
+        );
         assert!(has_working_header);
         assert!(has_row);
     }
@@ -424,8 +462,12 @@ mod tests {
         ];
         let blocks = pane.view();
         // "Needs Input" header should appear before "Working" header.
-        let ni_pos = blocks.iter().position(|b| matches!(b, Block::Header(h) if h.contains("Needs Input")));
-        let wk_pos = blocks.iter().position(|b| matches!(b, Block::Header(h) if h.contains("Working")));
+        let ni_pos = blocks
+            .iter()
+            .position(|b| matches!(b, Block::Header(h) if h.contains("Needs Input")));
+        let wk_pos = blocks
+            .iter()
+            .position(|b| matches!(b, Block::Header(h) if h.contains("Working")));
         assert!(ni_pos.is_some());
         assert!(wk_pos.is_some());
         assert!(ni_pos.unwrap() < wk_pos.unwrap());
@@ -436,7 +478,10 @@ mod tests {
         let long_goal = "a".repeat(80);
         let entry = make_entry("x", "running", &long_goal, None);
         let trunc = entry.goal_trunc();
-        assert!(trunc.chars().count() <= 60, "truncated goal must be ≤60 chars");
+        assert!(
+            trunc.chars().count() <= 60,
+            "truncated goal must be ≤60 chars"
+        );
         assert!(trunc.ends_with('…'));
     }
 
@@ -454,7 +499,9 @@ mod tests {
         e.error = Some("timeout".into());
         pane.sorties = vec![e];
         let blocks = pane.view();
-        let has_recent = blocks.iter().any(|b| matches!(b, Block::Header(h) if h.contains("Recent")));
+        let has_recent = blocks
+            .iter()
+            .any(|b| matches!(b, Block::Header(h) if h.contains("Recent")));
         assert!(has_recent);
     }
 
@@ -463,7 +510,9 @@ mod tests {
         let mut pane = SortiePane::new();
         pane.last_error = Some("connection refused".into());
         let blocks = pane.view();
-        assert!(blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k == "error")));
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::KeyVal(k, _) if k == "error")));
         // Should only have Header + error KV — no sortie rows.
         assert_eq!(blocks.len(), 2);
     }

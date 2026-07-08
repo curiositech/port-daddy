@@ -41,6 +41,7 @@ struct FleetPopover: View {
     @StateObject private var budgetStore = BudgetPauseStore()
     @StateObject private var approvalStore = SpawnApprovalStore()
     @StateObject private var berthStore = BerthStore()
+    @StateObject private var cloudFleetStore = CloudFleetStore()
     @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
     @State private var appeared = false
     @State private var showingSettings = false
@@ -128,6 +129,7 @@ struct FleetPopover: View {
                 berths: berthStore.berths,
                 activeDaemonURL: store.daemonURL,
                 openControlCenter: { openControlPlane(.flow) },
+                openCloudFleet: { openControlPlane(.cloudfleet) },
                 openVisualTask: { openControlPlane(.visual) }
             )
             Divider().opacity(0.5)
@@ -144,6 +146,13 @@ struct FleetPopover: View {
                 Divider().opacity(0.5)
             }
             if store.isDaemonRunning {
+                CloudFleetSection(
+                    store: cloudFleetStore,
+                    localProjects: store.projects,
+                    localDaemonURL: store.daemonURL,
+                    compact: true
+                )
+                Divider().opacity(0.5)
                 consoleStatusSection
                 Divider().opacity(0.5)
                 CostDashboard(store: costStore)

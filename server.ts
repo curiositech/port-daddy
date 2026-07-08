@@ -112,7 +112,8 @@ import { createRoadmapPop } from './lib/roadmap-pop.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
-import { createSemanticResolver, defaultTransformersCacheDir } from './lib/semantic-resolver.js';
+import { createLocalEmbedder, createSemanticResolver, defaultTransformersCacheDir } from './lib/semantic-resolver.js';
+import { createGalaxy } from './lib/galaxy.js';
 import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
@@ -583,6 +584,18 @@ const contextTracker = createContextWindowTracker(db);
 const transcriptArchive =
   process.env.PD_TRANSCRIPT_ARCHIVE === 'off' ? undefined : createJsonlTranscriptArchive();
 const transcripts = createTranscripts(db, { archiveSink: transcriptArchive });
+
+// Session Galaxy — 2-D embedding map of recent agent sessions over
+// fleet_transcripts. createLocalEmbedder gives the batch embed(texts[])
+// interface the semanticResolver singleton lacks (its .embed is single-text);
+// both share the on-disk model cache (~/.port-daddy/transformers-cache,
+// ADR-0061 — never omit cacheDir, the built-in default is cwd-relative), so no
+// second model download. The pipeline is lazy: the first /galaxy/map call may
+// take seconds while MiniLM loads; the 30s per-param-tuple response cache in
+// lib/galaxy.ts makes the steady state cheap.
+const galaxyEmbedder = createLocalEmbedder({ cacheDir: defaultTransformersCacheDir() });
+const galaxy = createGalaxy({ db, transcripts, sessions, embedder: galaxyEmbedder });
+
 const spawner = createSpawner({
   costTracker, counters, bonds, harbors, transcripts,
   enforceTelemetryPolicy: true,
@@ -1291,7 +1304,7 @@ await registerAllRoutes(
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, cloudAppTelemetry, counters, metricsRegistry,
     contextTracker,
     custodian, operatorPermissions,
-    quorum, parley, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
+    quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     commitments, obligationMonitor, suggestions,
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,

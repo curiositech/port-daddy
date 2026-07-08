@@ -386,11 +386,14 @@ describe('Test Group 3: API -> CLI Parity', () => {
   // cloudapptelemetry: inbound GitHub App / Cloudflare Worker telemetry ingestion + read API;
   // surfaced through fleet/agents/observability reporting, not a dedicated `pd` command.
   // sorties: legacy HTTP record compatibility for old spawned-run rows; new CLI launch is `pd spawn`.
+  // galaxy: session-galaxy embedding map (GET /galaxy/map + /galaxy/session/:id, routes/galaxy.ts).
+  // A visualization surface consumed by fleet-ui, pd-console, and the FleetBar webview —
+  // a 2-D scatter of MiniLM/t-SNE points is not terminal-shaped, so no `pd galaxy` CLI by design.
   // (relay is NOT API-only: it has the `pd relay` CLI, mapped in ROUTE_TO_CLI_MAP above.)
   // fleetwebhooks: inbound fleet webhook receiver (POST /webhooks/fleet/:channel),
   // driven by external senders / the email-ingress Worker, never by a `pd`
   // command — API-only by design. See routes/fleet-webhooks.ts.
-  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian', 'cloudapptelemetry', 'visualtasks', 'sorties', 'fleetwebhooks']);
+  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian', 'cloudapptelemetry', 'visualtasks', 'sorties', 'galaxy', 'fleetwebhooks']);
 
   test('all route modules have at least one corresponding CLI command', () => {
     const missingCoverage = [];

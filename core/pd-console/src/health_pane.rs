@@ -16,7 +16,13 @@ fn fmt_uptime(secs: i64) -> String {
     let h = secs / 3600;
     let m = (secs % 3600) / 60;
     let sec = secs % 60;
-    if h > 0 { format!("{h}h {m}m") } else if m > 0 { format!("{m}m {sec}s") } else { format!("{sec}s") }
+    if h > 0 {
+        format!("{h}h {m}m")
+    } else if m > 0 {
+        format!("{m}m {sec}s")
+    } else {
+        format!("{sec}s")
+    }
 }
 
 /// The shared three-tier severity the daemon reports (lib/health-severity.ts).
@@ -62,23 +68,37 @@ pub struct HealthPane {
 }
 
 impl Default for HealthPane {
-    fn default() -> Self { Self { data: None, last_error: None } }
+    fn default() -> Self {
+        Self {
+            data: None,
+            last_error: None,
+        }
+    }
 }
 
 impl HealthPane {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 }
 
 impl Pane for HealthPane {
-    fn id(&self) -> &str { "health" }
-    fn title(&self) -> String { "Health".into() }
+    fn id(&self) -> &str {
+        "health"
+    }
+    fn title(&self) -> String {
+        "Health".into()
+    }
 
     fn view(&self) -> Vec<Block> {
         let mut blocks = vec![Block::Header("Daemon Health".into())];
 
         if let Some(err) = &self.last_error {
             // Unreachable daemon is the loudest state: a CRITICAL alarm banner.
-            blocks.push(Block::Chip { label: "✗ DAEMON UNREACHABLE".into(), tone: Tone::Alarm });
+            blocks.push(Block::Chip {
+                label: "✗ DAEMON UNREACHABLE".into(),
+                tone: Tone::Alarm,
+            });
             blocks.push(Block::KeyVal("error".into(), err.clone()));
             return blocks;
         };
@@ -111,27 +131,51 @@ impl Pane for HealthPane {
         });
         blocks.push(Block::Gap);
         blocks.push(Block::KeyVal("version".into(), s(h, "version")));
-        blocks.push(Block::KeyVal("uptime".into(), fmt_uptime(n(h, "uptime_seconds"))));
+        blocks.push(Block::KeyVal(
+            "uptime".into(),
+            fmt_uptime(n(h, "uptime_seconds")),
+        ));
         blocks.push(Block::KeyVal("pid".into(), n(h, "pid").to_string()));
-        blocks.push(Block::KeyVal("active ports".into(), n(h, "active_ports").to_string()));
+        blocks.push(Block::KeyVal(
+            "active ports".into(),
+            n(h, "active_ports").to_string(),
+        ));
 
         if let Some(fleet) = h.get("fleet") {
             blocks.push(Block::Gap);
             blocks.push(Block::Header("Fleet".into()));
             let running = b(fleet, "running");
             blocks.push(Block::Chip {
-                label: if running { "fleet daemon running".into() } else { "fleet daemon stopped".into() },
-                tone: if running { Tone::Engaged } else { Tone::Resting },
+                label: if running {
+                    "fleet daemon running".into()
+                } else {
+                    "fleet daemon stopped".into()
+                },
+                tone: if running {
+                    Tone::Engaged
+                } else {
+                    Tone::Resting
+                },
             });
-            blocks.push(Block::KeyVal("projects".into(), n(fleet, "projects").to_string()));
-            blocks.push(Block::KeyVal("agents".into(), n(fleet, "agents").to_string()));
+            blocks.push(Block::KeyVal(
+                "projects".into(),
+                n(fleet, "projects").to_string(),
+            ));
+            blocks.push(Block::KeyVal(
+                "agents".into(),
+                n(fleet, "agents").to_string(),
+            ));
         }
 
         if let Some(routes) = h.get("routes") {
             blocks.push(Block::Gap);
             blocks.push(Block::Header("Routes".into()));
             let ok = b(routes, "ok");
-            let missing = routes.get("missing").and_then(|m| m.as_array()).map(|a| a.len()).unwrap_or(0);
+            let missing = routes
+                .get("missing")
+                .and_then(|m| m.as_array())
+                .map(|a| a.len())
+                .unwrap_or(0);
             blocks.push(Block::Chip {
                 label: format!("{} checked / {} missing", n(routes, "checked"), missing),
                 // A daemon 404'ing its own critical routes is a CRITICAL state.
@@ -206,11 +250,22 @@ mod tests {
             "runtime": {"state": "nominal", "degraded": false}
         }));
         let blocks = p.view();
-        let chips = blocks.iter().filter(|b| matches!(b, Block::Chip { .. })).count();
+        let chips = blocks
+            .iter()
+            .filter(|b| matches!(b, Block::Chip { .. }))
+            .count();
         assert!(chips >= 3, "expected status, fleet, routes, runtime chips");
         // A nominal daemon shows NO alarm tone anywhere.
-        assert!(!blocks.iter().any(|b| matches!(b, Block::Chip { tone: Tone::Alarm, .. })),
-            "ok daemon must not show an alarm tone");
+        assert!(
+            !blocks.iter().any(|b| matches!(
+                b,
+                Block::Chip {
+                    tone: Tone::Alarm,
+                    ..
+                }
+            )),
+            "ok daemon must not show an alarm tone"
+        );
     }
 
     #[test]
@@ -219,8 +274,16 @@ mod tests {
         p.last_error = Some("timeout".into());
         let b = p.view();
         // Unreachable daemon is a CRITICAL alarm, not a soft warning.
-        assert!(b.iter().any(|blk| matches!(blk, Block::Chip { tone: Tone::Alarm, .. })),
-            "unreachable daemon must raise an alarm tone");
+        assert!(
+            b.iter().any(|blk| matches!(
+                blk,
+                Block::Chip {
+                    tone: Tone::Alarm,
+                    ..
+                }
+            )),
+            "unreachable daemon must raise an alarm tone"
+        );
     }
 
     #[test]
@@ -234,10 +297,28 @@ mod tests {
             "runtime": {"state": "degraded", "degraded": true}
         }));
         let blocks = p.view();
-        let alarms = blocks.iter().filter(|b| matches!(b, Block::Chip { tone: Tone::Alarm, .. })).count();
-        assert!(alarms >= 2, "critical daemon must show the alarm banner AND an alarm status chip");
-        assert!(blocks.iter().any(|b| matches!(b, Block::Chip { label, .. } if label.contains("CRITICAL"))),
-            "critical banner must be present");
+        let alarms = blocks
+            .iter()
+            .filter(|b| {
+                matches!(
+                    b,
+                    Block::Chip {
+                        tone: Tone::Alarm,
+                        ..
+                    }
+                )
+            })
+            .count();
+        assert!(
+            alarms >= 2,
+            "critical daemon must show the alarm banner AND an alarm status chip"
+        );
+        assert!(
+            blocks
+                .iter()
+                .any(|b| matches!(b, Block::Chip { label, .. } if label.contains("CRITICAL"))),
+            "critical banner must be present"
+        );
     }
 
     #[test]
@@ -253,14 +334,23 @@ mod tests {
         let blocks = p.view();
         assert!(blocks.iter().any(|b| matches!(b, Block::Chip { label, tone: Tone::Gated } if label.contains("DEGRADED"))),
             "warn must show a degraded banner");
-        assert!(!blocks.iter().any(|b| matches!(b, Block::Chip { tone: Tone::Alarm, .. })),
-            "warn must not escalate to an alarm tone");
+        assert!(
+            !blocks.iter().any(|b| matches!(
+                b,
+                Block::Chip {
+                    tone: Tone::Alarm,
+                    ..
+                }
+            )),
+            "warn must not escalate to an alarm tone"
+        );
     }
 
     #[test]
     fn read_severity_derives_when_field_absent() {
         // Older daemon without the severity field: derive from routes.
-        let degraded = json!({"status": "degraded", "routes": {"ok": false, "missing": [{}], "checked": 5}});
+        let degraded =
+            json!({"status": "degraded", "routes": {"ok": false, "missing": [{}], "checked": 5}});
         assert_eq!(read_severity(&degraded), "critical");
         let warn = json!({"status": "ok", "routes": {"ok": true}, "runtime": {"degraded": true}});
         assert_eq!(read_severity(&warn), "warn");

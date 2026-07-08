@@ -28,13 +28,22 @@ struct Edge {
 
 impl Edge {
     fn from_value(v: &Value) -> Self {
-        Self { from: n(v, "from"), to: n(v, "to"), sender: s(v, "sender") }
+        Self {
+            from: n(v, "from"),
+            to: n(v, "to"),
+            sender: s(v, "sender"),
+        }
     }
     fn label(&self) -> String {
         if self.sender.is_empty() {
             format!("#{} → #{}", self.from, self.to)
         } else {
-            format!("#{} → #{} ({})", self.from, self.to, trunc(&self.sender, 24))
+            format!(
+                "#{} → #{} ({})",
+                self.from,
+                self.to,
+                trunc(&self.sender, 24)
+            )
         }
     }
 }
@@ -81,7 +90,12 @@ impl Default for ParleyPane {
             .ok()
             .filter(|c| !c.trim().is_empty())
             .unwrap_or_else(|| DEFAULT_CHANNEL.to_string());
-        Self { channel, decision: ParleyDecision::default(), contradictions: Vec::new(), last_error: None }
+        Self {
+            channel,
+            decision: ParleyDecision::default(),
+            contradictions: Vec::new(),
+            last_error: None,
+        }
     }
 }
 
@@ -100,7 +114,10 @@ impl Pane for ParleyPane {
     }
 
     fn view(&self) -> Vec<Block> {
-        let mut blocks = vec![Block::Header(format!("Parley — convene? — {}", self.channel))];
+        let mut blocks = vec![Block::Header(format!(
+            "Parley — convene? — {}",
+            self.channel
+        ))];
 
         if let Some(err) = &self.last_error {
             blocks.push(Block::KeyVal("error".into(), err.clone()));
@@ -111,21 +128,39 @@ impl Pane for ParleyPane {
         // The headline decision as a prominent chip.
         if d.convene {
             blocks.push(Block::Chip {
-                label: format!("CONVENE · {}", if d.shape.is_empty() { "debate-with-judge" } else { &d.shape }),
+                label: format!(
+                    "CONVENE · {}",
+                    if d.shape.is_empty() {
+                        "debate-with-judge"
+                    } else {
+                        &d.shape
+                    }
+                ),
                 tone: Tone::Accent,
             });
         } else {
-            blocks.push(Block::Chip { label: "hold — let parallel work continue".into(), tone: Tone::Landed });
+            blocks.push(Block::Chip {
+                label: "hold — let parallel work continue".into(),
+                tone: Tone::Landed,
+            });
         }
         blocks.push(Block::KeyVal("why".into(), d.reason.clone()));
 
         // The economics that drove it (RCP-2a: expected waste vs parley cost).
         blocks.push(Block::Gap);
         blocks.push(Block::Header("Signal-Detection (RCP-2a)".into()));
-        blocks.push(Block::KeyVal("unresolved contradictions".into(), d.unresolved.to_string()));
+        blocks.push(Block::KeyVal(
+            "unresolved contradictions".into(),
+            d.unresolved.to_string(),
+        ));
         blocks.push(Block::KeyVal(
             "expected waste vs cost".into(),
-            format!("{:.2} vs {:.2}  (margin {:+.2})", d.expected_waste, d.cost(), d.margin),
+            format!(
+                "{:.2} vs {:.2}  (margin {:+.2})",
+                d.expected_waste,
+                d.cost(),
+                d.margin
+            ),
         ));
 
         // The contradiction edges — what a parley would actually reconcile.
@@ -133,11 +168,17 @@ impl Pane for ParleyPane {
             blocks.push(Block::Gap);
             blocks.push(Block::Header("Unresolved contradictions".into()));
             for e in &self.contradictions {
-                blocks.push(Block::Chip { label: e.label(), tone: Tone::Conflicted });
+                blocks.push(Block::Chip {
+                    label: e.label(),
+                    tone: Tone::Conflicted,
+                });
             }
         } else {
             blocks.push(Block::Gap);
-            blocks.push(Block::KeyVal("status".into(), "no unresolved contradictions on this channel".into()));
+            blocks.push(Block::KeyVal(
+                "status".into(),
+                "no unresolved contradictions on this channel".into(),
+            ));
         }
 
         blocks
@@ -160,7 +201,11 @@ impl Pane for ParleyPane {
                     Ok(data) => {
                         if data.get("ok") == Some(&Value::Bool(false)) {
                             let msg = s(&data, "error");
-                            self.last_error = Some(if msg.is_empty() { "daemon returned ok=false".into() } else { msg });
+                            self.last_error = Some(if msg.is_empty() {
+                                "daemon returned ok=false".into()
+                            } else {
+                                msg
+                            });
                             self.decision = ParleyDecision::default();
                             self.contradictions.clear();
                         } else {
@@ -170,10 +215,11 @@ impl Pane for ParleyPane {
                                 .map(ParleyDecision::from_value)
                                 .unwrap_or_default();
                             let digest = data.get("digest").cloned().unwrap_or(Value::Null);
-                            self.contradictions = crate::util::arr(&digest, "unresolvedContradictions")
-                                .iter()
-                                .map(Edge::from_value)
-                                .collect();
+                            self.contradictions =
+                                crate::util::arr(&digest, "unresolvedContradictions")
+                                    .iter()
+                                    .map(Edge::from_value)
+                                    .collect();
                         }
                     }
                 },
@@ -210,9 +256,15 @@ mod tests {
     }
 
     fn parse(data: &Value) -> (ParleyDecision, Vec<Edge>) {
-        let decision = data.get("parley").map(ParleyDecision::from_value).unwrap_or_default();
+        let decision = data
+            .get("parley")
+            .map(ParleyDecision::from_value)
+            .unwrap_or_default();
         let digest = data.get("digest").cloned().unwrap_or(Value::Null);
-        let edges = crate::util::arr(&digest, "unresolvedContradictions").iter().map(Edge::from_value).collect();
+        let edges = crate::util::arr(&digest, "unresolvedContradictions")
+            .iter()
+            .map(Edge::from_value)
+            .collect();
         (decision, edges)
     }
 
@@ -244,10 +296,22 @@ mod tests {
     #[test]
     fn view_shows_hold_when_not_convening() {
         let mut pane = ParleyPane::new();
-        pane.decision = ParleyDecision { convene: false, reason: "no unresolved contradictions".into(), ..Default::default() };
+        pane.decision = ParleyDecision {
+            convene: false,
+            reason: "no unresolved contradictions".into(),
+            ..Default::default()
+        };
         let blocks = pane.view();
-        assert!(blocks.iter().any(|b| matches!(b, Block::Chip { tone: Tone::Landed, label } if label.contains("hold"))));
-        assert!(!blocks.iter().any(|b| matches!(b, Block::Chip { tone: Tone::Accent, .. })));
+        assert!(blocks.iter().any(
+            |b| matches!(b, Block::Chip { tone: Tone::Landed, label } if label.contains("hold"))
+        ));
+        assert!(!blocks.iter().any(|b| matches!(
+            b,
+            Block::Chip {
+                tone: Tone::Accent,
+                ..
+            }
+        )));
     }
 
     #[test]
@@ -255,7 +319,9 @@ mod tests {
         let mut pane = ParleyPane::new();
         pane.last_error = Some("daemon unreachable".into());
         let blocks = pane.view();
-        assert!(blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k == "error")));
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::KeyVal(k, _) if k == "error")));
         assert!(!blocks.iter().any(|b| matches!(b, Block::Chip { .. })));
     }
 

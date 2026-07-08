@@ -6,6 +6,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
     /// Control Center must never bury.
     case `operator`
     case flow
+    case cloudfleet
     case backend
     case roadmap
     case proposals
@@ -20,6 +21,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
     case memory
     case shipwright
     case yaml
+    case galaxy
 
     var id: String { rawValue }
 
@@ -27,6 +29,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         switch self {
         case .operator: return "Operator"
         case .flow: return "Flow"
+        case .cloudfleet: return "Cloud Fleet"
         case .backend: return "Backend"
         case .roadmap: return "Roadmap"
         case .proposals: return "Proposals"
@@ -41,6 +44,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         case .memory: return "Memory"
         case .shipwright: return "Shipwright"
         case .yaml: return "YAML"
+        case .galaxy: return "Galaxy"
         }
     }
 
@@ -48,6 +52,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         switch self {
         case .operator: return "checklist"
         case .flow: return "point.3.connected.trianglepath.dotted"
+        case .cloudfleet: return "cloud"
         case .backend: return "rectangle.stack.badge.person.crop"
         case .roadmap: return "map"
         case .proposals: return "person.crop.circle.badge.questionmark"
@@ -62,16 +67,17 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         case .memory: return "square.stack.3d.up"
         case .shipwright: return "hammer"
         case .yaml: return "curlybraces"
+        case .galaxy: return "circle.hexagongrid"
         }
     }
 
     /// Whether this surface is rendered by a native SwiftUI view instead of
     /// embedded into the `/fleet-ui/` webview. Native surfaces opt in here:
-    /// Nightshift, Backend, and Proposals have app-owned state/actions, so
+    /// Nightshift, Backend, Proposals, and Galaxy have app-owned state/actions, so
     /// routing them through the browser would mean an extra trip + duplicate state.
     var isNative: Bool {
         switch self {
-        case .nightshift, .backend, .proposals: return true
+        case .cloudfleet, .nightshift, .backend, .proposals, .galaxy: return true
         default: return false
         }
     }
