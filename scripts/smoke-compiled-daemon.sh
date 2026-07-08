@@ -113,6 +113,13 @@ assert_200 "/roadmap/items?status=all" || fail=1
 assert_200 "/roadmap/items?status=now" || fail=1
 assert_200 "/roadmap/items?limit=5" || fail=1
 assert_200 "/secrets" || fail=1
+# FleetBar-polled daemon surfaces must not 404 in the packaged binary. These
+# caught live drift where route registration/order bugs were hidden by source
+# tests and only showed up in operator logs.
+assert_200 "/fleet/forecast" || fail=1
+assert_200 "/fleet-proposals" || fail=1
+assert_200 "/popper/status" || fail=1
+assert_200 "/harbormaster/status" || fail=1
 # /relay/config is the relay surface (ADR-0049). It shipped DEAD on three
 # layers (plugin never registered; the `config` table it reads was never
 # created; the exchange key lookup hit a non-existent table). Asserting 200

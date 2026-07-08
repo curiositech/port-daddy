@@ -5,7 +5,7 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, readFileSync, readdirSync, accessSync, constants, openSync, closeSync, readSync, fstatSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, accessSync, constants, openSync, closeSync, readSync, fstatSync, statSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { spawnSync, spawn } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
@@ -683,6 +683,12 @@ export function gatherLaunchdSupervisors(
  * Check all — whichever exists first is the live log.
  */
 export function candidateDaemonLogPaths(home = homedir(), distributionRoot?: string): string[] {
+  if (process.env.PORT_DADDY_DAEMON_LOG_PATHS) {
+    return process.env.PORT_DADDY_DAEMON_LOG_PATHS
+      .split(':')
+      .map((path) => path.trim())
+      .filter(Boolean);
+  }
   const paths = [
     '/opt/homebrew/var/log/port-daddy.log',
     '/usr/local/var/log/port-daddy.log', // Intel Homebrew prefix
@@ -827,6 +833,200 @@ export function assessCrashSignature(
     detail: `${crashCount} Bun native-crash banners found in the recent daemon log${where} — the daemon is crash-looping`,
     hint,
     crashCount,
+  };
+}
+
+const MAC_DIAGNOSTIC_REPORT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const MAC_DIAGNOSTIC_REPORT_MAX_BYTES = 768 * 1024;
+const MAC_DIAGNOSTIC_REPORT_NAME = /^port-daddy(?:-daemon)?-\d{4}-\d{2}-\d{2}-.+\.ips$/;
+
+function recordValue(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function stringValue(record: Record<string, unknown> | null, key: string): string | undefined {
+  const value = record?.[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function regexField(text: string, key: string): string | undefined {
+  const match = new RegExp(`"${key}"\\s*:\\s*"([^"]+)"`).exec(text);
+  return match?.[1];
+}
+
+function diagnosticThreadNames(parsed: Record<string, unknown> | null, text: string): string[] {
+  const threads = parsed?.threads;
+  if (Array.isArray(threads)) {
+    return threads
+      .map((thread) => stringValue(recordValue(thread), 'name'))
+      .filter((name): name is string => Boolean(name));
+  }
+  return Array.from(text.matchAll(/"name"\s*:\s*"([^"]+)"/g), (match) => match[1]);
+}
+
+export interface MacDiagnosticCrashReport {
+  path: string;
+  procName?: string;
+  procPath?: string;
+  coalitionName?: string;
+  exceptionType?: string;
+  exceptionSignal?: string;
+  terminationIndicator?: string;
+  threadNames: string[];
+  daemonLike: boolean;
+  suspectedBunJsc: boolean;
+}
+
+export interface RecentMacDiagnosticCrashReports {
+  count: number;
+  reports: MacDiagnosticCrashReport[];
+  readError?: string;
+}
+
+export interface MacDiagnosticCrashReportAssessment {
+  severity: Severity;
+  detail: string;
+  hint?: string;
+  crashCount: number;
+}
+
+export function candidateMacDiagnosticReportPaths(
+  home = homedir(),
+  nowMs = Date.now(),
+  maxAgeMs = MAC_DIAGNOSTIC_REPORT_MAX_AGE_MS,
+): string[] {
+  const reportDir = process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR || join(home, 'Library', 'Logs', 'DiagnosticReports');
+  if (!existsSync(reportDir)) return [];
+  try {
+    return readdirSync(reportDir)
+      .filter((name) => MAC_DIAGNOSTIC_REPORT_NAME.test(name))
+      .map((name) => {
+        const path = join(reportDir, name);
+        const stat = statSync(path);
+        return { path, mtimeMs: stat.mtimeMs, ageMs: nowMs - stat.mtimeMs };
+      })
+      .filter((entry) => entry.ageMs >= 0 && entry.ageMs <= maxAgeMs)
+      .sort((a, b) => b.mtimeMs - a.mtimeMs)
+      .map((entry) => entry.path);
+  } catch {
+    return [];
+  }
+}
+
+export function parseMacDiagnosticReport(path: string, text: string): MacDiagnosticCrashReport {
+  let parsed: Record<string, unknown> | null = null;
+  try {
+    parsed = recordValue(JSON.parse(text));
+  } catch {
+    parsed = null;
+  }
+
+  const exception = recordValue(parsed?.exception);
+  const termination = recordValue(parsed?.termination);
+  const procName = stringValue(parsed, 'procName') ?? regexField(text, 'procName');
+  const procPath = stringValue(parsed, 'procPath') ?? regexField(text, 'procPath');
+  const coalitionName = stringValue(parsed, 'coalitionName') ?? regexField(text, 'coalitionName');
+  const exceptionType = stringValue(exception, 'type') ?? regexField(text, 'type');
+  const exceptionSignal = stringValue(exception, 'signal') ?? regexField(text, 'signal');
+  const terminationIndicator = stringValue(termination, 'indicator') ?? regexField(text, 'indicator');
+  const threadNames = diagnosticThreadNames(parsed, text);
+  const signatureText = [
+    procName,
+    procPath,
+    coalitionName,
+    exceptionType,
+    exceptionSignal,
+    terminationIndicator,
+    ...threadNames,
+  ].filter(Boolean).join(' ');
+  const daemonLike =
+    procName === 'port-daddy-daemon' ||
+    coalitionName === 'homebrew.mxcl.port-daddy' ||
+    coalitionName === 'com.portdaddy.daemon' ||
+    /\/port-daddy-daemon$/.test(procPath ?? '') ||
+    (procName === 'port-daddy' && /portdaddy|port-daddy/i.test(coalitionName ?? ''));
+
+  return {
+    path,
+    procName,
+    procPath,
+    coalitionName,
+    exceptionType,
+    exceptionSignal,
+    terminationIndicator,
+    threadNames,
+    daemonLike,
+    suspectedBunJsc: /\b(Bun|JavaScriptCore|JSC|MarkedBlock|SlotVisitor|Heap Helper|libpas|WTF)\b/i.test(signatureText),
+  };
+}
+
+export function readRecentMacDiagnosticCrashReports(
+  paths: string[] = candidateMacDiagnosticReportPaths(),
+  maxBytes = MAC_DIAGNOSTIC_REPORT_MAX_BYTES,
+): RecentMacDiagnosticCrashReports {
+  const reports: MacDiagnosticCrashReport[] = [];
+  for (const path of paths) {
+    if (!existsSync(path)) continue;
+    let fd: number | undefined;
+    try {
+      fd = openSync(path, 'r');
+      const { size } = fstatSync(fd);
+      const bytesToRead = Math.min(size, maxBytes);
+      const buf = Buffer.alloc(bytesToRead);
+      if (bytesToRead > 0) readSync(fd, buf, 0, bytesToRead, 0);
+      const report = parseMacDiagnosticReport(path, buf.toString('utf8'));
+      if (report.daemonLike) reports.push(report);
+    } catch (err) {
+      return { count: reports.length, reports, readError: `${path}: ${(err as Error).message}` };
+    } finally {
+      if (fd !== undefined) {
+        try {
+          closeSync(fd);
+        } catch {
+          /* best-effort close */
+        }
+      }
+    }
+  }
+  return { count: reports.length, reports };
+}
+
+export function assessMacDiagnosticCrashReports(input: RecentMacDiagnosticCrashReports): MacDiagnosticCrashReportAssessment {
+  const { count, reports, readError } = input;
+  if (readError) {
+    return {
+      severity: 'warn',
+      detail: `Could not read macOS DiagnosticReports while checking daemon native crashes (${readError}) — unknown, not confirmed healthy`,
+      hint: 'Fix DiagnosticReports permissions/ownership so pd doctor can inspect native crash records.',
+      crashCount: count,
+    };
+  }
+  if (count === 0) {
+    return {
+      severity: 'ok',
+      detail: 'No recent macOS daemon crash reports found in ~/Library/Logs/DiagnosticReports',
+      crashCount: count,
+    };
+  }
+
+  const latest = reports[0];
+  const bunJscCount = reports.filter((report) => report.suspectedBunJsc).length;
+  const latestShape = [
+    latest?.exceptionType,
+    latest?.exceptionSignal,
+    latest?.terminationIndicator,
+  ].filter(Boolean).join('/') || 'unknown crash shape';
+  const detail =
+    `${count} recent macOS daemon crash report${count === 1 ? '' : 's'} found; latest=${latest?.path ?? 'unknown'} (${latestShape})` +
+    (bunJscCount > 0 ? `; ${bunJscCount} mention Bun/JSC worker threads` : '');
+  const hint =
+    'Inspect the newest .ips report, then run the compiled-daemon smoke and soak gates before promoting a daemon build. ' +
+    'Launchd may respawn through these crashes without preserving the Bun banner in the daemon log tail.';
+  return {
+    severity: count === 1 ? 'warn' : 'critical',
+    detail,
+    hint,
+    crashCount: count,
   };
 }
 
@@ -1250,6 +1450,24 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
       severity: 'warn',
       detail: `Could not check daemon log for crash signatures: ${(err as Error).message}`,
     });
+  }
+
+  // -------------------------------------------------------------------------
+  // 8d. macOS DiagnosticReports — native crashes can be recorded as `.ips`
+  //     reports even after the daemon log tail rotates past the Bun banner.
+  //     Treat these as runtime truth too; this is the source the operator
+  //     pointed us at under ~/Library/Logs.
+  // -------------------------------------------------------------------------
+  if (process.platform === 'darwin') {
+    try {
+      const reports = readRecentMacDiagnosticCrashReports(candidateMacDiagnosticReportPaths(homedir()));
+      recordAssessment('macOS crash reports', assessMacDiagnosticCrashReports(reports));
+    } catch (err: unknown) {
+      recordAssessment('macOS crash reports', {
+        severity: 'warn',
+        detail: `Could not inspect macOS DiagnosticReports for daemon crashes: ${(err as Error).message}`,
+      });
+    }
   }
 
   // -------------------------------------------------------------------------

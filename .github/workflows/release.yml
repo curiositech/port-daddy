@@ -50,6 +50,12 @@ jobs:
         run: |
           node scripts/build-single-binary.mjs --target=${{ matrix.target }} --outfile=dist/pd
 
+      - name: Build dedicated daemon binary
+        run: npm run build:daemon:dist
+
+      - name: Smoke dedicated daemon binary
+        run: bash scripts/smoke-compiled-daemon.sh
+
       # Sign the macOS daemon + launcher with the Curiositech LLC (P5H9P59X2M)
       # Developer ID, reusing scripts/sign-and-notarize.mjs — the same proven path
       # FleetBar uses (ADR-0057 phase dist-ci-signing-secrets; closes ADR-0028's

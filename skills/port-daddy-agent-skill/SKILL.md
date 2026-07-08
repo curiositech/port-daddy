@@ -372,6 +372,69 @@ ambiguous handoffs, and local green checks that do not match the installed app.
   enforced claims, run `pd guard install --mode enforce` or leave an explicit
   blocker note with the exact failure.
 
+## Daemon Architecture Model
+
+Treat the daemon as the local single-writer control plane. Stable, dev-latest,
+and branch berths may all run at once, but they do not share a SQLite file and
+they are not interchangeable evidence. Future remote/market harbors should be
+explicitly federated: a cloud harbor can own a global event ledger, leases, and
+market policy while each local daemon owns its machine-local ports, processes,
+files, credentials, and UI proof.
+
+```mermaid
+flowchart TB
+  Operator["Operator<br/>FleetBar + Fleet Control Center"]
+  CLI["Agent CLI / MCP / SDK"]
+  Stable["Stable daemon berth<br/>launchd: homebrew.mxcl.port-daddy<br/>127.0.0.1:9876"]
+  StableDB[("Stable SQLite WAL DB<br/>/opt/homebrew/var/port-daddy/port-registry.db")]
+  Logs["Runtime evidence<br/>/opt/homebrew/var/log/port-daddy.log<br/>macOS DiagnosticReports .ips<br/>pd doctor / attest"]
+  Bosun["Bosun watchdog<br/>heartbeat + PID liveness"]
+  DevLatest["Dev-latest berth<br/>isolated port + DB"]
+  Branch["Branch/codebase berth<br/>isolated port + DB"]
+  Routes["Daemon routes<br/>health, fleet, sessions, dispatches,<br/>harbors, usage, secrets, relay"]
+  Workers["Spawned agents + jobs<br/>Coast Guard sandbox<br/>dispatch queue / popper / harbormaster"]
+  LocalState["Machine-local authority<br/>ports, PIDs, sockets, keychain,<br/>workspace files, FleetBar proof"]
+  Relay["Relay / tube fabric<br/>cross-machine pub/sub"]
+  CloudHarbor["Planned remote harbor authority<br/>event log, leases, policy,<br/>market trust, durable sync"]
+  OtherMachine["Other user machines<br/>their own local daemon + DB"]
+
+  Operator --> Stable
+  CLI --> Stable
+  Stable --> StableDB
+  Stable --> Routes
+  Stable --> Logs
+  Bosun --> Stable
+  DevLatest -. per-shell PORT_DADDY_URL .-> CLI
+  Branch -. per-shell PORT_DADDY_URL .-> CLI
+  DevLatest --> Routes
+  Branch --> Routes
+  Routes --> Workers
+  Stable --> LocalState
+  Workers --> LocalState
+  Stable --> Relay
+  DevLatest --> Relay
+  Branch --> Relay
+  Relay --> CloudHarbor
+  OtherMachine --> Relay
+  OtherMachine --> CloudHarbor
+  CloudHarbor -. sync, leases, receipts .-> Stable
+```
+
+Authority rules:
+
+- A local daemon is authoritative for its own machine. Never assume another
+  machine has the same DB state unless a named harbor sync/lease protocol says
+  so and exposes read-back evidence.
+- Stable Homebrew (`:9876`) is the operator's canonical local runtime. Dev
+  berths are proof for a branch, not proof that FleetBar's stable surface is
+  fixed.
+- Cross-machine coordination should sync durable events, receipts, leases, and
+  replayable intent through a harbor/relay ledger. Do not pretend SQLite files
+  merge peer-to-peer.
+- Release proof must include source tests, the compiled daemon binary, launchd
+  supervision, smoke routes, soak/shadow workload, `pd doctor`, and visible
+  FleetBar/Fleet Control Center truth.
+
 ## FleetBar And Console Proof
 
 FleetBar is the native Mac entry point. Fleet Control Center is the full
