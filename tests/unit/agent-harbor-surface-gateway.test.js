@@ -142,6 +142,100 @@ describe('Agent Harbor Surface Gateway runtime helper', () => {
     expect(denied.errors.join(' ')).toMatch(/decision="deny"|not dispatchable/);
   });
 
+  it('rejects command authority that is not berth-granted or evidence-bound', () => {
+    const noCommandGrant = validateSurfaceGatewayEnvelope(gateway({
+      berthTarget: {
+        ...gateway().berthTarget,
+        authority: {
+          ...gateway().berthTarget.authority,
+          canCommand: false,
+        },
+      },
+    }));
+    expect(noCommandGrant.ok).toBe(false);
+    expect(noCommandGrant.errors.join(' ')).toMatch(/canCommand=true/);
+
+    const wrongBerthEvidence = validateSurfaceGatewayEnvelope(gateway({
+      capabilityDecision: decision({
+        evidence: {
+          controlCommandId: 'ctl_01JZFIX0001',
+          berthTargetId: 'berth_target_other',
+        },
+      }),
+    }));
+    expect(wrongBerthEvidence.ok).toBe(false);
+    expect(wrongBerthEvidence.errors.join(' ')).toMatch(/evidence\.berthTargetId/);
+
+    const wrongCommandEvidence = validateSurfaceGatewayEnvelope(gateway({
+      capabilityDecision: decision({
+        evidence: {
+          controlCommandId: 'ctl_other',
+          berthTargetId: 'berth_target_stable',
+        },
+      }),
+    }));
+    expect(wrongCommandEvidence.ok).toBe(false);
+    expect(wrongCommandEvidence.errors.join(' ')).toMatch(/evidence\.controlCommandId/);
+
+    const futureDecision = validateSurfaceGatewayEnvelope(gateway({
+      capabilityDecision: decision({ issuedAt: '2026-07-05T12:04:01.000Z' }),
+    }));
+    expect(futureDecision.ok).toBe(false);
+    expect(futureDecision.errors.join(' ')).toMatch(/cannot be issued after/);
+  });
+
+  it('rejects query and event envelopes when berth authority does not grant that lane', () => {
+    const queryWithoutGrant = validateSurfaceGatewayEnvelope(gateway({
+      envelopeId: 'surface_gateway_query_no_grant',
+      surface: 'pd-console',
+      mode: 'query',
+      noun: 'AgentRun',
+      operation: 'agent-run.list',
+      issuedBy: 'pd-console:operator:erich',
+      idempotencyKey: null,
+      payload: { filters: { status: 'running' } },
+      berthTarget: {
+        ...gateway().berthTarget,
+        authority: {
+          ...gateway().berthTarget.authority,
+          canQuery: false,
+        },
+      },
+    }));
+    expect(queryWithoutGrant.ok).toBe(false);
+    expect(queryWithoutGrant.errors.join(' ')).toMatch(/canQuery=true/);
+
+    const eventWithoutGrant = validateSurfaceGatewayEnvelope(gateway({
+      envelopeId: 'surface_gateway_event_no_subscribe_grant',
+      surface: 'scout',
+      direction: 'daemon-to-surface',
+      mode: 'event',
+      noun: 'TranscriptEvent',
+      operation: 'transcript-event.appended',
+      issuedBy: 'daemon:local',
+      idempotencyKey: null,
+      capabilityDecision: undefined,
+      payload: {
+        eventId: 'evt_01JZFIX0042',
+        sessionId: 'session_01JZFIX0001',
+        agentNodeId: 'agent_node_01JZFIX0001',
+        sequence: 42,
+        occurredAt: '2026-07-05T12:04:01.000Z',
+        schemaVersion: 1,
+        kind: 'tool_result',
+      },
+      berthTarget: {
+        ...gateway().berthTarget,
+        authority: {
+          ...gateway().berthTarget.authority,
+          canSubscribeEvents: false,
+        },
+      },
+    }));
+    expect(eventWithoutGrant.ok).toBe(false);
+    expect(eventWithoutGrant.errors.join(' ')).toMatch(/canSubscribeEvents=true/);
+  });
+
   it('rejects summary-only or unbound command capability decisions', () => {
     const summaryOnly = validateSurfaceGatewayEnvelope(gateway({
       capabilityDecision: {

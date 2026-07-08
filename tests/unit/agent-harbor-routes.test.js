@@ -132,11 +132,27 @@ describe('agent-harbor routes', () => {
         },
       });
       expect(body.surfaces).toEqual(['pd-console', 'fleetbar', 'scout', 'cli', 'mcp']);
+      expect(body.directions).toEqual(['surface-to-daemon', 'daemon-to-surface', 'surface-local']);
       expect(body.modes).toEqual(['command', 'query', 'event']);
-      expect(body.nouns).toContain('WorkIntent');
-      expect(body.nouns).toContain('AgentRun');
-      expect(body.nouns).toContain('ControlCommand');
+      expect(body.nouns).toEqual([
+        'WorkIntent',
+        'WorkPlan',
+        'AgentNode',
+        'AgentRun',
+        'Body',
+        'ControlCommand',
+        'TranscriptEvent',
+        'CapabilityDecision',
+        'WorkReceipt',
+        'BerthTarget',
+      ]);
+      for (const legacy of ['Spawn', 'Dispatch', 'Sortie', 'Nightshift']) {
+        expect(body.nouns).not.toContain(legacy);
+      }
       expect(body.busTargets).toEqual(['hot-bus', 'cool-bus']);
+      expect(body.authority.command).toEqual(['canCommand', 'freshProjection', 'allowDecision']);
+      expect(body.authority.query).toEqual(['canQuery']);
+      expect(body.authority.daemonToSurfaceEvent).toEqual(['canSubscribeEvents']);
     });
   });
 
