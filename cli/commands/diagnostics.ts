@@ -673,6 +673,115 @@ export function gatherLaunchdSupervisors(
 }
 
 /**
+ * Candidate daemon log paths, in priority order. `brew services` writes to
+ * the keg-relative `var/log/port-daddy.log` (the operator's actual layout,
+ * `/opt/homebrew/var/log/port-daddy.log`); a manually-installed LaunchAgent
+ * (`port-daddy install`, see install-daemon.ts LOG_PATH) writes next to the
+ * resource dir instead. Check both — whichever exists is the live log.
+ */
+export function candidateDaemonLogPaths(home = homedir()): string[] {
+  return [
+    '/opt/homebrew/var/log/port-daddy.log',
+    '/usr/local/var/log/port-daddy.log', // Intel Homebrew prefix
+    join(home, '.port-daddy', 'port-daddy.log'),
+  ];
+}
+
+/**
+ * Bun's native crash banner is two fixed lines that always appear together —
+ * "panic(<thread>): <reason>" followed by "oh no: Bun has crashed." — for
+ * ANY native Bun panic, not just segfaults (see issue #676). Count the panic
+ * banner, not the "Segmentation fault" detail line, so an unrelated Bun panic
+ * shape still trips this check instead of silently passing.
+ */
+const BUN_PANIC_MARKER = /oh no: Bun has crashed\. This indicates a bug in Bun, not your code\./g;
+
+/** Pure: how many Bun native-crash banners appear in a slice of log text. */
+export function countBunCrashSignatures(logText: string): number {
+  return (logText.match(BUN_PANIC_MARKER) || []).length;
+}
+
+/**
+ * Reads the tail of whichever candidate daemon log exists and counts Bun
+ * native-crash banners. Bounded to the last `maxBytes` so a long-lived,
+ * never-rotated log can't make this check slow — 512KB comfortably covers
+ * many restart cycles of this daemon's log verbosity.
+ */
+export function readRecentBunCrashCount(
+  paths: string[] = candidateDaemonLogPaths(),
+  maxBytes = 512 * 1024,
+): { count: number; logPath: string | null } {
+  for (const p of paths) {
+    if (!existsSync(p)) continue;
+    try {
+      const full = readFileSync(p, 'utf8');
+      const tail = full.length > maxBytes ? full.slice(-maxBytes) : full;
+      return { count: countBunCrashSignatures(tail), logPath: p };
+    } catch {
+      continue;
+    }
+  }
+  return { count: 0, logPath: null };
+}
+
+export interface CrashSignatureAssessment {
+  severity: Severity;
+  detail: string;
+  hint?: string;
+  crashCount: number;
+}
+
+/**
+ * Pure severity judgment over a Bun native-crash count found in the daemon
+ * log tail. Separated from the file read so it is unit-testable without
+ * touching disk.
+ *
+ * Context (2026-07-07, see issue #676): the compiled daemon binary segfaults
+ * intermittently under Bun 1.2.21 (JSC GC crash family — `MarkedBlock::sweep`
+ * / `SlotVisitor::drain` — reproduced across many Bun versions in upstream
+ * reports, not unique to this build). It is STATE- and LOAD-dependent: it
+ * needs production-scale memory pressure and concurrent connections to
+ * trigger, so idle soak tests do not catch it. Pinning to an older
+ * port-daddy release does NOT fix it — 3.23.0 and 3.24.x compile against the
+ * identical pinned `bun-version: 1.2.21` toolchain (pinned since 2026-06-01,
+ * before either release existed), and both have been observed to crash under
+ * load. There is no in-repo fix for a native Bun panic; this check exists so
+ * the operator sees the crash-loop instead of `brew services` silently
+ * respawning through it forever.
+ *
+ * ```ts
+ * assessCrashSignature({ crashCount: 0 }).severity   // => 'ok'
+ * assessCrashSignature({ crashCount: 1 }).severity   // => 'warn'
+ * assessCrashSignature({ crashCount: 3 }).severity   // => 'critical'
+ * ```
+ */
+export function assessCrashSignature(input: { crashCount: number; logPath?: string | null }): CrashSignatureAssessment {
+  const { crashCount, logPath } = input;
+  const where = logPath ? ` (${logPath})` : '';
+  if (crashCount === 0) {
+    return { severity: 'ok', detail: `No Bun native-crash signatures found in the recent daemon log${where}`, crashCount };
+  }
+  const hint =
+    'This is a known upstream Bun 1.2.21 native-crash family (JSC GC under load — see issue #676), not a port-daddy regression. ' +
+    'Downgrading port-daddy does NOT fix it: 3.23.0 and 3.24.x compile against the same pinned Bun toolchain. ' +
+    'Track upstream (oven-sh/bun) and issue #676; consider filing a fresh bun.report link if one is not already attached.';
+  if (crashCount === 1) {
+    return {
+      severity: 'warn',
+      detail: `1 Bun native-crash banner found in the recent daemon log${where} — the daemon restarted after a native crash`,
+      hint,
+      crashCount,
+    };
+  }
+  return {
+    severity: 'critical',
+    detail: `${crashCount} Bun native-crash banners found in the recent daemon log${where} — the daemon is crash-looping`,
+    hint,
+    crashCount,
+  };
+}
+
+/**
  * Resolve the Bosun watchdog binary (`core/pd-bosun`). Prefers the release
  * artifact under `dist/`, falls back to the source-tree release build. Mirrors
  * the daemon-side `resolveBosunBinaryStatus` in routes/info.ts.
@@ -1073,6 +1182,24 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     }
   } catch (err: unknown) {
     check('Bosun watchdog', false, `Error: ${(err as Error).message}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // 8c. Bun native-crash signature — launchd's KeepAlive respawns silently
+  //     through a native Bun panic (segfault) with no escalation of its own
+  //     (see issue #676: Bun 1.2.21 JSC-GC crash family, state/load-dependent,
+  //     NOT fixed by pinning an older port-daddy release). Surface it loudly
+  //     instead of letting the operator discover a crash-loop by accident.
+  // -------------------------------------------------------------------------
+  try {
+    const { count, logPath } = readRecentBunCrashCount();
+    recordAssessment('Bun crash signature', assessCrashSignature({ crashCount: count, logPath }));
+  } catch (err: unknown) {
+    // Best-effort: a log-read failure is not itself a health signal.
+    recordAssessment('Bun crash signature', {
+      severity: 'ok',
+      detail: `Could not check daemon log for crash signatures: ${(err as Error).message}`,
+    });
   }
 
   // -------------------------------------------------------------------------

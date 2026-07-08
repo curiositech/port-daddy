@@ -189,6 +189,18 @@ ${programArguments}
         <false/>
     </dict>
 
+    <!--
+      ThrottleInterval — matches the Bosun watchdog plist below. Without it,
+      launchd's built-in default (10s) is the only floor between respawns.
+      This is NOT a fix for the Bun 1.2.21 native-crash family the daemon can
+      hit under load (issue #676) — that crash needs minutes of production
+      state to trigger, so 15s does nothing to the crash itself. It is a
+      cheap safety net against a *fast* boot-time crash loop (e.g. a bad
+      binary that dies in <1s) burning CPU/log space with rapid restarts.
+    -->
+    <key>ThrottleInterval</key>
+    <integer>15</integer>
+
     <key>StandardOutPath</key>
     <string>${LOG_PATH}</string>
 

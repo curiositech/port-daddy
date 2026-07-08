@@ -11,6 +11,10 @@ import {
   assessSupervisionIntegrity,
   resolveBosunBinary,
   scanRegistryDbFiles,
+  countBunCrashSignatures,
+  assessCrashSignature,
+  readRecentBunCrashCount,
+  candidateDaemonLogPaths,
 } from '../../cli/commands/diagnostics.js';
 
 describe('plistTargetsLegacyDaemon', () => {
@@ -315,6 +319,84 @@ describe('assessSupervisionIntegrity', () => {
     });
     expect(a.severity).toBe('warn');
     expect(a.detail).toContain('2 supervisors');
+  });
+});
+
+describe('countBunCrashSignatures / assessCrashSignature', () => {
+  // 2026-07-07 investigation (issue #676): the compiled daemon segfaults
+  // under Bun 1.2.21 (JSC GC crash family) under production-scale load.
+  // Pinning to an older port-daddy release does NOT fix it — 3.23.0 and
+  // 3.24.x compile against the identical pinned Bun toolchain, and both
+  // were reproduced crashing under a concurrent-connection burst. This
+  // check exists so `pd doctor` surfaces the crash-loop instead of staying
+  // silent while launchd respawns through it.
+  const CRASH_BANNER =
+    'panic(main thread): Segmentation fault at address 0x0\n' +
+    'oh no: Bun has crashed. This indicates a bug in Bun, not your code.\n';
+
+  test('countBunCrashSignatures is 0 for a clean log', () => {
+    expect(countBunCrashSignatures('daemon booted\nhealth ok\n')).toBe(0);
+  });
+
+  test('countBunCrashSignatures counts one banner per crash', () => {
+    expect(countBunCrashSignatures(CRASH_BANNER)).toBe(1);
+    expect(countBunCrashSignatures(CRASH_BANNER + 'booted again\n' + CRASH_BANNER)).toBe(2);
+  });
+
+  test('assessCrashSignature: zero crashes is ok', () => {
+    const a = assessCrashSignature({ crashCount: 0 });
+    expect(a.severity).toBe('ok');
+  });
+
+  test('assessCrashSignature: one crash is a warning naming issue #676', () => {
+    const a = assessCrashSignature({ crashCount: 1, logPath: '/opt/homebrew/var/log/port-daddy.log' });
+    expect(a.severity).toBe('warn');
+    expect(a.detail).toContain('/opt/homebrew/var/log/port-daddy.log');
+    expect(a.hint).toContain('#676');
+  });
+
+  test('assessCrashSignature: multiple crashes is CRITICAL (crash-looping)', () => {
+    const a = assessCrashSignature({ crashCount: 4 });
+    expect(a.severity).toBe('critical');
+    expect(a.detail).toContain('crash-looping');
+  });
+
+  test('assessCrashSignature hint says downgrading does not fix it', () => {
+    const a = assessCrashSignature({ crashCount: 2 });
+    expect(a.hint).toMatch(/does NOT fix/i);
+  });
+});
+
+describe('readRecentBunCrashCount', () => {
+  test('returns zero + null logPath when no candidate log exists', () => {
+    const r = readRecentBunCrashCount(['/nonexistent/path/one.log', '/nonexistent/path/two.log']);
+    expect(r.count).toBe(0);
+    expect(r.logPath).toBeNull();
+  });
+
+  test('reads the first existing candidate and counts its crash banners', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-crashlog-'));
+    try {
+      const logPath = join(dir, 'port-daddy.log');
+      writeFileSync(
+        logPath,
+        'boot ok\n' +
+          'panic(main thread): Segmentation fault at address 0x0\n' +
+          'oh no: Bun has crashed. This indicates a bug in Bun, not your code.\n',
+      );
+      const r = readRecentBunCrashCount(['/nonexistent/first.log', logPath]);
+      expect(r.count).toBe(1);
+      expect(r.logPath).toBe(logPath);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('candidateDaemonLogPaths', () => {
+  test('includes the brew keg-relative log path the operator actually hits', () => {
+    const paths = candidateDaemonLogPaths('/Users/someone');
+    expect(paths).toContain('/opt/homebrew/var/log/port-daddy.log');
   });
 });
 
