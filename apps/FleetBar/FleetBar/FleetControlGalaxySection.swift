@@ -674,7 +674,7 @@ struct GalaxyParleyReceipt: Decodable {
 
 #Preview("Fleet Control Galaxy") {
     FleetControlGalaxySection(
-        daemonURL: "http://127.0.0.1:9876",
+        daemonURL: DaemonLocation.resolveBaseURL(),
         project: "port-daddy"
     )
     .frame(width: 1120, height: 720)
