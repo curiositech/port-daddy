@@ -439,14 +439,18 @@ mod tests {
         assert_eq!(restored.lines().len(), 2, "re-applying the snapshot must not duplicate lines");
     }
 
-    /// Scratch dir under ~/coding/tmp (NEVER /tmp — the OS sweeps it).
+    /// A UNIQUE scratch dir per call, rooted at the COMPILE-TIME `CARGO_MANIFEST_DIR`
+    /// (under `target/`, never `/tmp`). It does NOT read the runtime `HOME`: another
+    /// test in this binary (`conjure`) hijacks the process-global `HOME` to a sandbox it
+    /// then deletes, which would make a file written under `HOME` vanish before it is
+    /// read back. `CARGO_MANIFEST_DIR` is immune; the `<pid>-<seq>` subdir keeps
+    /// parallel tests isolated.
     fn scratch_dir() -> std::path::PathBuf {
-        let base = std::env::var("HOME")
-            .map(|h| std::path::PathBuf::from(h).join("coding/tmp/pd-harbor-buffer-tests"))
-            .unwrap_or_else(|_| {
-                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/buffer-tests")
-            });
-        std::fs::create_dir_all(&base).expect("create scratch dir");
-        base
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+        let base = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/buffer-tests");
+        let unique = base.join(format!("{}-{}", std::process::id(), SEQ.fetch_add(1, Ordering::Relaxed)));
+        std::fs::create_dir_all(&unique).expect("create scratch dir");
+        unique
     }
 }

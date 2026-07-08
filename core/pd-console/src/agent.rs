@@ -671,6 +671,17 @@ impl DaemonClient {
         self.tube_send(coord_channel, frame_text, "coord").await
     }
 
+    /// Broadcast a **region-claim awareness** frame (P3 slice 1) up a file's
+    /// **coordination** channel — the live presence-as-claims lane. `frame_text` is
+    /// [`crate::editor_claims::encode_claim_frame`] (a Loro awareness blob). Rides the
+    /// SAME isolated coordination channel as [`send_coord_signal`](Self::send_coord_signal)
+    /// (never the edit lane), stamped `sender = "claim"` so a poller can tell claim
+    /// awareness from a coord signal without decoding. This is the LIVE view; the
+    /// DURABLE twin is [`claim_region`](Self::claim_region).
+    pub async fn broadcast_claim(&self, coord_channel: &str, frame_text: &str) -> Result<()> {
+        self.tube_send(coord_channel, frame_text, "claim").await
+    }
+
     /// Mirror an editor's local SELECTION into the durable claims table — the
     /// stronger, persistent "I am working here" signal that outlives the ephemeral
     /// cursor lane. This REUSES the exact endpoint `pd session files add` /
@@ -700,6 +711,29 @@ impl DaemonClient {
             .context("POST /sessions/:id/files")?;
         ensure_success(resp, "claim_region").await?;
         Ok(())
+    }
+
+    /// Predict conflicts between two claim sets — the Harbor Editor P3 **wedge**
+    /// (conflict prediction *before a byte is written*). REUSES the daemon's existing
+    /// `POST /conflicts/predict` (routes/symbols.ts) and its claim-type matrix rather
+    /// than re-deriving conflict logic in Rust: `body` is
+    /// [`crate::editor_wedge::predict_request_body`] (`{ claimsA, claimsB }`), and the
+    /// caller folds the JSON back through [`crate::editor_wedge::parse_predict_response`]
+    /// into a `ConflictReport`. Returns the raw response Value so the tolerant parser
+    /// owns both the full-tally and empty-early-return shapes. A 4xx/5xx surfaces as an
+    /// error (the parser then reads it as quiet — the render band fails open; the
+    /// durable commit gate is the fail-closed seam).
+    pub async fn predict_conflicts(&self, body: &serde_json::Value) -> Result<serde_json::Value> {
+        let resp = self
+            .http
+            .post(format!("{}/conflicts/predict", self.base))
+            .json(body)
+            .send()
+            .await
+            .context("POST /conflicts/predict")?;
+        let resp = ensure_success(resp, "predict_conflicts").await?;
+        let v: serde_json::Value = resp.json().await.context("conflicts/predict response")?;
+        Ok(v)
     }
 
     /// Pull replies after `cursor`. Returns (new_cursor, messages).

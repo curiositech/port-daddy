@@ -31,6 +31,12 @@ import {
 import * as http from 'node:http';
 import * as net from 'node:net';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
+import {
+  claimRegionRequest,
+  releaseRegionRequest,
+  type ClaimRegionArgs,
+  type ReleaseRegionArgs,
+} from '../lib/editor-claims-mcp.js';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -171,7 +177,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'sessions': {
     description: 'Detailed session management (start, end, phases, file claims)',
-    tools: ['start_session', 'end_session', 'get_session', 'delete_session', 'list_sessions', 'set_session_phase', 'claim_files', 'claim_symbols', 'release_files', 'list_file_claims', 'who_owns_file'],
+    tools: ['start_session', 'end_session', 'get_session', 'delete_session', 'list_sessions', 'set_session_phase', 'claim_files', 'claim_symbols', 'release_files', 'list_file_claims', 'who_owns_file', 'claim_region', 'release_region'],
   },
   'notes': {
     description: 'Add and list session notes',
@@ -3200,6 +3206,48 @@ const TOOLS = [
       required: ['pattern_id', 'decision'],
     },
   },
+
+  // ── Harbor Editor region claims (P3 slice 3) — agent-neutral, on the same surface ──
+  {
+    name: 'claim_region',
+    description:
+      '[Standard] Claim a REGION (a 1-based inclusive line span) of one file for the active session — ' +
+      'the editor-coordination primitive. Region-scoped, never a whole-file lock: two actors edit adjacent ' +
+      'regions of one file concurrently. First-class for every backend (agent-neutral). On contention the ' +
+      'first-granted live claim wins; a contender is refused with a typed note offering handoff / parley / ' +
+      'another region — never a bypass.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        session_id: { type: 'string', description: 'Session ID' },
+        agent_id: { type: 'string', description: 'Acting agent identity (required — the daemon authorizes the claim on it)' },
+        path: { type: 'string', description: 'File path the region lives in' },
+        start_line: { type: 'number', description: 'First claimed line, 1-based inclusive' },
+        end_line: { type: 'number', description: 'Last claimed line, 1-based inclusive' },
+        symbol: { type: 'string', description: 'The work symbol/label for this region (e.g. "parse_header")' },
+        symbol_path: { type: 'string', description: 'Optional canonical tree-sitter symbol path' },
+      },
+      required: ['session_id', 'agent_id', 'path', 'start_line', 'end_line', 'symbol'],
+    },
+  },
+  {
+    name: 'release_region',
+    description:
+      '[Standard] Release a previously claimed region of a file for the active session. Agent-neutral; ' +
+      'releasing frees the span for any actor to claim next.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        session_id: { type: 'string', description: 'Session ID' },
+        agent_id: { type: 'string', description: 'Acting agent identity (required — the daemon authorizes the release on it)' },
+        path: { type: 'string', description: 'File path the region lives in' },
+        start_line: { type: 'number', description: 'First claimed line, 1-based inclusive' },
+        end_line: { type: 'number', description: 'Last claimed line, 1-based inclusive' },
+        symbol_path: { type: 'string', description: 'Optional canonical tree-sitter symbol path' },
+      },
+      required: ['session_id', 'agent_id', 'path', 'start_line', 'end_line'],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -3731,6 +3779,19 @@ async function handleTool(
         files: args.files ?? [],
         regions: args.regions,
       });
+      break;
+    }
+
+    // ── Harbor Editor region claims (P3 slice 3) — agent-neutral ─────
+    case 'claim_region': {
+      const { sessionId, body } = claimRegionRequest(args as unknown as ClaimRegionArgs);
+      res = await POST(`/sessions/${encodeURIComponent(sessionId)}/files`, body);
+      break;
+    }
+
+    case 'release_region': {
+      const { sessionId, body } = releaseRegionRequest(args as unknown as ReleaseRegionArgs);
+      res = await DELETE(`/sessions/${encodeURIComponent(sessionId)}/files`, body);
       break;
     }
 
