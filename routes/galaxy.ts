@@ -22,8 +22,21 @@ function asString(value: unknown): string | undefined {
 }
 
 function asPositiveInt(value: unknown): number | undefined {
-  const n = typeof value === 'number' ? value : typeof value === 'string' ? Number.parseInt(value, 10) : NaN;
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
+  // Strict: a present-but-unparsable numeric param must be rejected (→ 400), per the
+  // contract above. `Number.parseInt` is deliberately NOT used — it silently accepts
+  // partial/non-integer input ("1.5" → 1, "12abc" → 12), which would drift defaults and
+  // cache keys. Strings must be a canonical base-10 positive integer; numbers must be a
+  // positive integer (no floats, no NaN/Infinity).
+  let n: number;
+  if (typeof value === 'number') {
+    n = value;
+  } else if (typeof value === 'string') {
+    if (!/^\d+$/.test(value.trim())) return undefined;
+    n = Number(value.trim());
+  } else {
+    return undefined;
+  }
+  return Number.isInteger(n) && n > 0 ? n : undefined;
 }
 
 /** True when a query param was supplied at all (empty string counts as absent). */
