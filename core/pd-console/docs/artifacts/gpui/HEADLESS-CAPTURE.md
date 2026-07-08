@@ -101,7 +101,7 @@ it anytime, no gpui build, seconds, no window/display/TCC:
 
 - `core/pd-console/scripts/proof/headless-capture.sh [out.png]`, or
 - `pd-console --headless-capture <out.png>` (the gpui bin), or
-- `cargo test --bin pd-console-repl headless_capture` → writes `core/target/headless-capture-sample.png` (git-ignored).
+- `cargo test --bin pd-console-repl headless_capture` → writes `core/target/headless-capture-sample.png` (git-ignored). <!-- cite-exempt: git-ignored generated artifact under core/target/, regenerated on demand, intentionally never committed (§ "not committed — regenerated on demand" above) -->
 
 The image is `render_blocks(sample_console_blocks(), &theme::DARK, 960)` — a deterministic
 offline `Block` tree, **not** a screenshot of the GPUI app; its bottom red band states so.

@@ -290,7 +290,10 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
                     if i > 0 {
                         c.fill_rect(cx, y + 4, 1, ROW_H - 8, muted); // separator
                     }
-                    draw_text(&mut c, cx + 8, y + 9, 2, cell, ink2);
+                    // First column is the accent/label column in the GPUI + TUI
+                    // renderers; keep it brighter here so emphasis reads the same.
+                    let col = if i == 0 { ink } else { ink2 };
+                    draw_text(&mut c, cx + 8, y + 9, 2, cell, col);
                 }
                 y += ROW_H;
             }
@@ -385,8 +388,9 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
             Block::ArtifactRef { label, path, tone, .. } | Block::ImageArtifact { label, path, tone, .. } => {
                 c.fill_rect(x0, y, inner, ROW_H, panel);
                 c.fill_rect(x0, y + 4, ROW_H - 8, ROW_H - 8, to_rgb(t.landed)); // thumb
-                c.stroke_rect(x0, y + 4, ROW_H - 8, ROW_H - 8, ink);
-                let _ = tone;
+                // Tone colors the marker border (matching the console/TUI renderers),
+                // so the artifact's semantic state is not lost in the raster.
+                c.stroke_rect(x0, y + 4, ROW_H - 8, ROW_H - 8, tone_rgb(*tone, t));
                 draw_text(&mut c, x0 + ROW_H + 4, y + 6, 2, label, ink);
                 draw_text(&mut c, x0 + ROW_H + 4, y + 20, 1, path, muted);
                 y += ROW_H;

@@ -22,10 +22,16 @@ command -v cargo >/dev/null 2>&1 || { echo "✗ cargo not found" >&2; exit 1; }
 
 # Render + write via the module's test on the CHEAP non-gpui gate (no Metal build,
 # seconds). The test writes the deterministic sample to $DEFAULT.
+# Remove any stale sample first so a prior run's PNG can't mask a failing test below.
+rm -f "$DEFAULT"
 echo "▸ rendering Block model offscreen (non-gpui, no display/TCC)…"
+# Pipe to grep for pretty output but assert on cargo's OWN exit status (PIPESTATUS[0]),
+# so a failing test is never swallowed by grep's exit code or a bare `|| true`.
 ( cd "$ROOT" && cargo test --bin pd-console-repl \
     headless_capture::geom_tests::writes_a_real_console_png -- --nocapture ) \
   | grep -E "wrote |test result" || true
+test_status=${PIPESTATUS[0]}
+[[ "$test_status" -eq 0 ]] || { echo "✗ cargo test failed (exit $test_status)" >&2; exit 1; }
 
 [[ -s "$DEFAULT" ]] || { echo "✗ no PNG produced at $DEFAULT" >&2; exit 1; }
 

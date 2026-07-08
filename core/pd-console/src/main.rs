@@ -236,7 +236,13 @@ fn main() {
     {
         let args: Vec<String> = std::env::args().collect();
         if let Some(i) = args.iter().position(|a| a == "--headless-capture") {
-            let out = args.get(i + 1).map(String::as_str).unwrap_or("headless-capture.png");
+            // Fall back to the default when the next token is another flag (or
+            // absent) rather than silently writing to a path like `--list-displays`.
+            let out = args
+                .get(i + 1)
+                .map(String::as_str)
+                .filter(|a| !a.starts_with('-'))
+                .unwrap_or("headless-capture.png");
             match headless_capture::capture_to_path(out) {
                 Ok(bytes) => {
                     println!("pd-console headless-capture -> {out} ({bytes} bytes, no window/display/TCC)");
