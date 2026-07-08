@@ -25,11 +25,16 @@ mod conductor_pane;
 mod conjure;
 mod daemon_pane;
 mod dispatch_pane;
+mod editor_claims;
+mod editor_commit_gate;
 mod editor_pane;
+mod editor_sync;
+mod editor_wedge;
 mod fleet_pane;
 mod galaxy_canvas;
 mod galaxy_pane;
 mod grid;
+mod harbor_pane;
 mod health_pane;
 mod inbox_pane;
 mod lane_pane;
@@ -68,6 +73,7 @@ use daemon_pane::DaemonPane;
 use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
 use galaxy_pane::GalaxyPane;
+use harbor_pane::HarborPane;
 use health_pane::HealthPane;
 use inbox_pane::InboxPane;
 use lane_pane::LanePane;
@@ -412,7 +418,8 @@ fn main() {
                 let mut daemons    = DaemonPane::new();         // 22 — daemon picker (ADR-0084)
                 let mut cloud_fleet = CloudFleetPane::new();    // 23 — remote relay observability (Phase C)
                 let mut live_agents = ActiveAgentsPane::new();  // 24 — harness roster
-                let mut galaxy      = GalaxyPane::new();        // 25 — session galaxy (embedding map)
+                let mut harbor     = HarborPane::new();         // 25 — Agent Node roster+detail (ch18 C3)
+                let mut galaxy      = GalaxyPane::new();        // 26 — session galaxy (embedding map)
 
                 // Pin the producer slots to the canonical grid map. If a pane is
                 // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
@@ -426,6 +433,7 @@ fn main() {
                         suggest.id(), memory.id(), prs.id(), health.id(), coast.id(),
                         dispatch.id(), lane.id(), ledger.id(), lineage.id(), substrate.id(),
                         parley.id(), conductor.id(), daemons.id(), cloud_fleet.id(), live_agents.id(),
+                        harbor.id(),
                         galaxy.id(),
                     ],
                     grid::SLOT_PANE_IDS,
@@ -437,6 +445,11 @@ fn main() {
                 // so the view updates at the 2s cadence with the freshest frames.
                 // (A finer cadence is a follow-up; this proves the live pipeline.)
                 let mut lane_stream: Option<(String, tokio::sync::mpsc::Receiver<agent::StreamEnvelope>)> = None;
+
+                // The Harbor pane's live SSE stream — same pattern as the lane:
+                // (re)opened whenever the selected live node changes; drained
+                // each loop into the pane's live tail.
+                let mut harbor_stream: Option<(String, tokio::sync::mpsc::Receiver<agent::StreamEnvelope>)> = None;
 
                 // Operator chat transport state: (channel, cursor). `None` until the
                 // first turn binds a responder on the stable `console-chat` channel.
@@ -540,59 +553,100 @@ fn main() {
                                         }
                                     }
                                     None => {
-                                        match client
-                                            .spawn(
-                                                agent::Backend::ClaudeCli,
-                                                &text,
-                                                &channel,
-                                                None,
-                                                agent::SpawnOpts::default(),
-                                            )
-                                            .await
-                                        {
-                                            Ok(outcome) => {
-                                                chat = Some((channel.clone(), 0));
-                                                // One-shot inline backends (ollama) reply
-                                                // in the spawn response, not on the tube.
-                                                if let Some(out) =
-                                                    outcome.output.filter(|t| !t.trim().is_empty())
-                                                {
-                                                    let _ = chat_tx.send(chat::ChatUpdate::Reply(
-                                                        chat::ChatMsg::agent("claude-cli", out),
-                                                    ));
+                                        // Bind a responder. FIRST resolve a dedicated
+                                        // workdir so the daemon's main-checkout isolation
+                                        // guard (assessSpawnIsolation) is SATISFIED — a bare
+                                        // spawn omitted workdir, defaulted to the daemon's own
+                                        // main checkout, and bounced, so NO responder ever
+                                        // bound and the chat stayed silent. `bind_error` is
+                                        // `Some(reason)` when we couldn't bind (worktree
+                                        // creation failed, or the spawn itself failed for
+                                        // budget/binary/daemon reasons); it drives ONE shared
+                                        // recovery path below.
+                                        let bind_error: Option<String> =
+                                            match agent::resolve_console_chat_workdir() {
+                                                // ChatWorkdirError already carries a full,
+                                                // actionable "couldn't create …" message (and
+                                                // names a worktree OR a scratch dir), so surface
+                                                // it verbatim — no redundant re-prefix.
+                                                Err(wd_err) => Some(wd_err.to_string()),
+                                                Ok(workdir) => {
+                                                    let opts = agent::SpawnOpts {
+                                                        workdir: Some(workdir),
+                                                        ..Default::default()
+                                                    };
+                                                    match client
+                                                        .spawn(
+                                                            agent::Backend::ClaudeCli,
+                                                            &text,
+                                                            &channel,
+                                                            None,
+                                                            opts,
+                                                        )
+                                                        .await
+                                                    {
+                                                        Ok(outcome) => {
+                                                            chat = Some((channel.clone(), 0));
+                                                            // One-shot inline backends (ollama)
+                                                            // reply in the spawn response, not
+                                                            // on the tube.
+                                                            if let Some(out) = outcome
+                                                                .output
+                                                                .filter(|t| !t.trim().is_empty())
+                                                            {
+                                                                let _ = chat_tx.send(
+                                                                    chat::ChatUpdate::Reply(
+                                                                        chat::ChatMsg::agent(
+                                                                            "claude-cli",
+                                                                            out,
+                                                                        ),
+                                                                    ),
+                                                                );
+                                                            }
+                                                            if let Some(err) = outcome.error {
+                                                                let _ = chat_tx.send(
+                                                                    chat::ChatUpdate::Error(format!(
+                                                                        "chat responder blocked: {err}"
+                                                                    )),
+                                                                );
+                                                            }
+                                                            None
+                                                        }
+                                                        // workdir is valid now, so a spawn
+                                                        // failure is budget / claude binary /
+                                                        // daemon — `e` carries the daemon's
+                                                        // SPECIFIC reason (ensure_success
+                                                        // forwards the response body). Surface
+                                                        // it; don't relabel it "spawn refused".
+                                                        Err(e) => Some(format!("no responder bound: {e}")),
+                                                    }
                                                 }
-                                                if let Some(err) = outcome.error {
+                                            };
+
+                                        // One shared recovery: if we couldn't bind, still
+                                        // round-trip the turn onto the channel so it isn't
+                                        // lost — and surface the SPECIFIC reason (never swallow
+                                        // the send: "stop swallowing errors").
+                                        if let Some(reason) = bind_error {
+                                            match client
+                                                .tube_send(&channel, &text, "operator")
+                                                .await
+                                            {
+                                                Ok(_) => {
+                                                    // Message is on the channel; poll for a
+                                                    // responder that may join later.
+                                                    chat = Some((channel, 0));
                                                     let _ = chat_tx.send(chat::ChatUpdate::Error(
-                                                        format!("chat responder blocked: {err}"),
+                                                        format!("{reason} — your message is on the channel; replies appear if a responder joins"),
                                                     ));
                                                 }
-                                            }
-                                            Err(e) => {
-                                                // No responder bound. Still try to round-trip
-                                                // the turn onto the real channel so it isn't
-                                                // lost — but surface WHICHEVER failure happened
-                                                // (never swallow the send: "stop swallowing
-                                                // errors").
-                                                match client
-                                                    .tube_send(&channel, &text, "operator")
-                                                    .await
-                                                {
-                                                    Ok(_) => {
-                                                        // Message is on the channel; poll for a
-                                                        // responder that may join later.
-                                                        chat = Some((channel, 0));
-                                                        let _ = chat_tx.send(chat::ChatUpdate::Error(
-                                                            format!("no responder bound (spawn refused): {e} — your message is on the channel; replies appear if one joins"),
-                                                        ));
-                                                    }
-                                                    Err(send_err) => {
-                                                        // Daemon fully unreachable: be honest the
-                                                        // message did NOT land; leave chat unbound
-                                                        // so the next turn retries the spawn.
-                                                        let _ = chat_tx.send(chat::ChatUpdate::Error(
-                                                            format!("message not delivered — spawn refused ({e}) and channel send failed ({send_err}); is the daemon up?"),
-                                                        ));
-                                                    }
+                                                Err(send_err) => {
+                                                    // Daemon fully unreachable: be honest the
+                                                    // message did NOT land; leave chat unbound
+                                                    // so the next turn retries the spawn.
+                                                    let _ = chat_tx.send(chat::ChatUpdate::Error(
+                                                        format!("{reason}; and the channel send also failed ({send_err}); is the daemon up?"),
+                                                    ));
                                                 }
                                             }
                                         }
@@ -1034,6 +1088,48 @@ fn main() {
                                     }
                                 }
                             }
+                            // Harbor roster click: select a node (ch18 C3).
+                            // Selection is a UI act; it never fails loudly.
+                            app::ControlMsg::HarborSelect { index } => {
+                                if let Err(e) = harbor
+                                    .mutate(&client, SurfaceAction::SelectRow { index })
+                                    .await
+                                {
+                                    let _ = alert_tx.send(pane::Alert::error(
+                                        "harbor select failed",
+                                        e.to_string(),
+                                    ));
+                                }
+                            }
+                            // Harbor control verb: the pane gate-checks, then
+                            // POSTs the F0 ControlCommand; the daemon is the
+                            // sole authorizer. Refusals surface in FULL as
+                            // HITL alerts (why-disabled / daemon denial).
+                            app::ControlMsg::HarborControl { verb, argument } => {
+                                match harbor
+                                    .mutate(
+                                        &client,
+                                        SurfaceAction::Control {
+                                            verb: verb.clone(),
+                                            argument,
+                                        },
+                                    )
+                                    .await
+                                {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            format!("{verb} queued"),
+                                            "watch the node's control history for the acknowledgement",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            format!("{verb} refused"),
+                                            e.to_string(),
+                                        ));
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -1063,6 +1159,7 @@ fn main() {
                     let _ = daemons.refresh(&client).await;
                     let _ = cloud_fleet.refresh(&client).await;
                     let _ = live_agents.refresh(&client).await;
+                    let _ = harbor.refresh(&client).await;
                     let _ = galaxy.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
@@ -1084,6 +1181,31 @@ fn main() {
                     if let Some((_, rx)) = lane_stream.as_mut() {
                         while let Ok(env) = rx.try_recv() {
                             lane.on_stream(&env);
+                        }
+                    }
+
+                    // (Re)subscribe + drain the Harbor's live follow of its
+                    // selected node (only while daemon-proved live).
+                    match harbor.subscription() {
+                        Some(pane::Subscription::Agent { agent_id }) => {
+                            let reopen = match &harbor_stream {
+                                Some((cur, _)) => cur != &agent_id,
+                                None => true,
+                            };
+                            if reopen {
+                                let rx = client.subscribe_agent(&agent_id);
+                                harbor_stream = Some((agent_id, rx));
+                            }
+                        }
+                        // The Harbor pane only ever follows an agent stream. The
+                        // Editor's per-file op-stream subscription (P2 slice 1) is
+                        // driven by the editor surface itself, not here — so an
+                        // Editor intent on this pane means "nothing to follow".
+                        Some(pane::Subscription::Editor { .. }) | None => harbor_stream = None,
+                    }
+                    if let Some((_, rx)) = harbor_stream.as_mut() {
+                        while let Ok(env) = rx.try_recv() {
+                            harbor.on_stream(&env);
                         }
                     }
 
@@ -1133,7 +1255,8 @@ fn main() {
                         (22, daemons.view()),
                         (23, cloud_fleet.view()),
                         (24, live_agents.view()),
-                        (25, galaxy.view()),
+                        (25, harbor.view()),
+                        (26, galaxy.view()),
                     ];
 
                     if tx.send((all, dispatch.head(), galaxy.snapshot())).is_err() {

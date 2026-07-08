@@ -112,7 +112,7 @@ _port_daddy() {
     # Agent Inbox
     inbox send sent
     # AI Agent Spawner + Watch
-    spawn spawned sortie watch
+    spawn spawned work sortie watch
     # Fleet ship-run transcripts
     transcripts transcript
     # Cloud relay — zero-trust event fabric (ADR-0049)
@@ -135,10 +135,12 @@ _port_daddy() {
     harbormaster hm
     # Harbors (named permission namespaces)
     harbor harbors whois
+    # Agent Harbor event ledger + projections (binder ch18 C1, ADR-0095)
+    harbor-ledger
     # Tuple space
     tuple
     # Semantic graph + episodic memory
-    graph memory ideas
+    graph memory ideas skill-graft skillgraft
     # Shared local embedder (ADR-0061)
     embed
     # Cartographer roadmap projection
@@ -156,7 +158,7 @@ _port_daddy() {
     # Orchestration
     up down
     # Benchmarking, Demos & Fleet
-    bench benchmark demo fleet backend squid relay
+    bench benchmark demo fleet backend squid hooks relay
     # Project (+ alias)
     scan s projects p doctor diagnose hints
     # Project onboarding
@@ -1554,6 +1556,36 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
+    # work  probe [--adapter K] [--profile P] | matrix  — conformance probes
+    # (ADR-0095 Work Intent family; binder ch18 Work Order C2)
+    # -----------------------------------------------------------------------
+    work)
+      local work_sub="${words[2]:-}"
+      case "$prev" in
+        work)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "probe matrix help" -- "$cur") )
+          ;;
+        --adapter)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "claude-code codex-cli cloudflare ollama lmstudio custom-stdio custom-http" -- "$cur") )
+          ;;
+        --profile)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "compliant weak broken malicious" -- "$cur") )
+          ;;
+        *)
+          # --adapter/--profile are probe-only flags; matrix/help take only --json.
+          if [[ "$work_sub" == probe ]]; then
+            _pd_opts '--adapter --profile --json'
+          else
+            _pd_opts '--json'
+          fi
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
     # cockpit  missions  [--project --status --limit --json]
     # -----------------------------------------------------------------------
     cockpit)
@@ -1688,6 +1720,25 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     harbors)
       _pd_opts '--json'
+      ;;
+
+    # -----------------------------------------------------------------------
+    # harbor-ledger  status|project|rebuild  [projection]  [--json]
+    # -----------------------------------------------------------------------
+    harbor-ledger)
+      local hl_subcmd="${words[2]:-}"
+      case "$hl_subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "status project rebuild" -- "$cur") )
+          ;;
+        project|rebuild)
+          COMPREPLY=( $(compgen -W "roster transcript-timeline files-touched costs compliance work-receipts --json" -- "$cur") )
+          ;;
+        status)
+          _pd_opts '--json'
+          ;;
+        *) _pd_opts '--json' ;;
+      esac
       ;;
 
     # -----------------------------------------------------------------------
@@ -1865,6 +1916,28 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
+    # skill-graft  query|warm|reference  [options]
+    # -----------------------------------------------------------------------
+    skill-graft|skillgraft)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "query warm reference" -- "$cur") )
+          ;;
+        query)
+          _pd_opts '--root --shortlist-limit --top-limit --body-chars --json'
+          ;;
+        warm)
+          _pd_opts '--root --json'
+          ;;
+        reference)
+          _pd_opts '--root --json'
+          ;;
+        *) _pd_opts '' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
     # graph  edges|stats  [options]
     # -----------------------------------------------------------------------
     graph)
@@ -1979,14 +2052,14 @@ _port_daddy() {
       esac
       ;;
 
-    # parley call|respond|resolve|list|show|fit
+    # parley call|propose|critique|revise|agree|refuse|say|respond|resolve|list|show|fit
     parley)
       local subcmd="${words[2]:-}"
       case "$subcmd" in
         call)
           _pd_opts '--surface --with --parties --reason --ttl-ms --round-limit --harbor --as --json --quiet'
           ;;
-        respond)
+        respond|propose|critique|revise|agree|refuse|say)
           _pd_opts '--id --parley --performative --content --proposal --evidence --as --party --json --quiet'
           ;;
         resolve)
@@ -2002,7 +2075,7 @@ _port_daddy() {
           if [[ "$cur" == -* ]]; then
             _pd_opts '--json --quiet'
           else
-            COMPREPLY=( $(compgen -W "call respond resolve list show fit help" -- "$cur") )
+            COMPREPLY=( $(compgen -W "call propose critique revise agree refuse say respond resolve list show fit help" -- "$cur") )
           fi
           ;;
       esac

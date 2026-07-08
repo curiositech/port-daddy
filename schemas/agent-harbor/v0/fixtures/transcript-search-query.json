@@ -1,0 +1,26 @@
+{
+  "schema": "pd.agent-harbor.transcript-search-query.v0",
+  "queryId": "tsq_01JZM6FIX0001",
+  "issuedAt": "2026-07-06T15:00:00.000Z",
+  "issuedBy": { "kind": "operator", "agentNodeId": null, "sessionId": null },
+  "queryText": "how did we deploy the email ingress worker",
+  "mode": "hybrid",
+  "scope": {
+    "harborId": "harbor_local_default",
+    "projectId": "port-daddy",
+    "repoRef": "curiositech/port-daddy",
+    "agentNodeIds": [],
+    "sessionIds": [],
+    "eventKinds": ["shell_command", "tool_result", "commit_created"],
+    "occurredAfter": "2026-06-01T00:00:00.000Z",
+    "occurredBefore": null
+  },
+  "sources": ["transcript-events", "notes", "prs", "memory-episodes"],
+  "budget": {
+    "maxResults": 10,
+    "maxContextTokens": 4000,
+    "maxLatencyMs": 2000
+  },
+  "retrievalHints": { "fusion": "rrf", "rerank": true, "recencyWeight": 0.3 },
+  "visibilityCeiling": "operator"
+}

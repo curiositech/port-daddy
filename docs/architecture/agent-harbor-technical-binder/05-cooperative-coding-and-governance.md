@@ -256,6 +256,12 @@ facts; active conflict/parley write semantics belong in Milestone 8.
 
 ## Simulation sandbox
 
+Implementation vehicle: **Coordination-Bench**, ADR-0052 phases 3a/3b
+(`docs/adr/0052-trajectory-export-and-rl-loop.md`, Amendment 1). Bench-v1
+covers the fast seeded hazards on the ephemeral daemon; bench-v2 carries the
+org-config sweeps, the counterpart-agent spectrum, and the defection-pricing
+metric described below. Do not build a second sandbox.
+
 Port Daddy should build a coordination sandbox to evaluate agent organization:
 
 - many identical agents versus heterogeneous roles;

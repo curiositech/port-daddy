@@ -39,6 +39,7 @@ struct FleetPopover: View {
     @ObservedObject var secretsStore: SecretsStore
     @ObservedObject var backendStore: BackendStore
     @StateObject private var budgetStore = BudgetPauseStore()
+    @StateObject private var approvalStore = SpawnApprovalStore()
     @StateObject private var berthStore = BerthStore()
     @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
     @State private var appeared = false
@@ -95,13 +96,20 @@ struct FleetPopover: View {
         .onAppear {
             withAnimation(.smooth(duration: 0.4)) { appeared = true }
             budgetStore.start()
+            approvalStore.start()
         }
-        .onDisappear { budgetStore.stop() }
+        .onDisappear {
+            budgetStore.stop()
+            approvalStore.stop()
+        }
     }
 
     @ViewBuilder
     private var popoverContent: some View {
         VStack(spacing: 0) {
+            // HITL first: spawns held by the trust gate lead everything else
+            // in the dropdown (ADR-0093 — a pending human gate is unmissable).
+            SpawnApprovalSection(store: approvalStore)
             if store.versionSkew.needsAttention {
                 versionSkewBanner(store.versionSkew)
                 Divider().opacity(0.5)
@@ -812,7 +820,13 @@ struct FleetPopover: View {
                 versionLine: "app \(app)  →  daemon \(daemon)",
                 primaryLabel: "Download FleetBar \(daemon)",
                 primaryAction: { NSWorkspace.shared.open(FleetVersion.downloadPageURL) },
-                footnote: "Unsigned build — the download page lists the checksum to verify."
+                // A Developer-ID-signed build means the release pipeline signs +
+                // notarizes every artifact, so the download needs no manual
+                // checksum ritual — Gatekeeper verifies it. Only unsigned/ad-hoc
+                // builds keep the caveat.
+                footnote: FleetVersion.isSignedBuild
+                    ? "Signed & notarized — Gatekeeper verifies the download automatically."
+                    : "Unsigned build — the download page lists the checksum to verify."
             )
 
         case let .daemonBehindApp(app, daemon):

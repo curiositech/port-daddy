@@ -1,6 +1,6 @@
 # Parley: Converging Three Redesign Lineages into One Design
 
-**Convened:** 2026-07-05 by the operator · **Status:** positions argued, converged design proposed, operator decides.
+**Convened:** 2026-07-05 by the operator · **Status:** verdicts RULED by the operator 2026-07-05 — dark substrate = palette v2 near-black `#101216`; flag map = work states (H/F/B/V/D/Y/M/Q); display face = Plex + Recursive (settled). Punch list executing; converged renders in `mockups-ch20/`.
 **Parties:**
 - **A — FleetBar lineage** (`docs/design/fleetbar-mockups/`: interactive-mockup, research-report, fleetbar-technical-spec): paper/ink/cobalt, fractional borders, stripe+dot six-state, 380pt popover contract.
 - **B — Triad package** (PR #671, `docs/design/2026-07-05-surface-redesign/` + console v12/feelpass): hard-2px flat neobrutalism, cobalt/mustard two rooms, full ICS flag grammar, Big Shoulders + Recursive, seven surface mockups incl. login/account/coop-harbor.

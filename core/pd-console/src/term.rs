@@ -494,6 +494,61 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                 out.push_str(&format!("  {}\n", style.paint(text, tone.sem())));
                 i += 1;
             }
+            Block::NodeRow {
+                selected,
+                live,
+                flag,
+                name,
+                badge,
+                badge_tone,
+                meta,
+                age,
+                tone,
+                ..
+            } => {
+                // TUI face of the clickable roster row: selection caret, flag
+                // letter, live marker (● live vs ○ historical), name, badge,
+                // meta, age. Live and historical stay visually distinct.
+                let sem = tone.sem();
+                out.push_str(&format!(
+                    "  {}{} {} {} {}  {}  {}\n",
+                    style.paint(if *selected { "▸" } else { " " }, Sem::Accent),
+                    style.paint(&format!("⚑{flag}"), sem),
+                    style.paint(if *live { "●" } else { "○" }, sem),
+                    style.bold_paint(name, if *selected { Sem::Accent } else { Sem::Ink }),
+                    style.paint(&format!("[{badge}]"), badge_tone.sem()),
+                    style.paint(meta, Sem::Muted),
+                    style.paint(age, Sem::Muted),
+                ));
+                i += 1;
+            }
+            Block::ControlButton {
+                label,
+                enabled,
+                why_disabled,
+                primary,
+                ..
+            } => {
+                // TUI face of a control: an honest disabled state names its
+                // exact cause — never a silently dead affordance.
+                if *enabled {
+                    let sem = if *primary { Sem::Accent } else { Sem::Ink };
+                    out.push_str(&format!(
+                        "  {}\n",
+                        style.bold_paint(&format!("[ {label} ]"), sem)
+                    ));
+                } else {
+                    out.push_str(&format!(
+                        "  {} {}\n",
+                        style.paint(&format!("( {label} )"), Sem::Resting),
+                        style.paint(
+                            why_disabled.as_deref().unwrap_or("unavailable"),
+                            Sem::Muted
+                        ),
+                    ));
+                }
+                i += 1;
+            }
         }
     }
     // Reflow: truncate each emitted line to the terminal width (TTY only; pipes

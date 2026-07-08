@@ -41,6 +41,24 @@ em-phrases. Illustration is the cut-paper harbor style. The token file's
 9. Pulse rings animate only while work is in flight; `prefers-reduced-motion` freezes to a still.
 10. Generated imagery is wordless (labels as blank paper strips) and palette-locked.
 
+Content honesty laws, absorbed from the triad package's spec set
+(`docs/design/2026-07-05-surface-redesign/`, parley punch item 6) — these govern
+copy and state rendering, not skin, and bind every surface equally:
+
+11. Cost appears at the consent moment and nowhere else: every gate card carries
+    its estimated cost line ("est. $0.14 to run the merge sortie"); no ambient
+    per-agent cost anxiety in rosters.
+12. Empty states teach: every empty region names what is missing and offers the
+    next action ("No mission cards parsed — add (UNCOMMITTED)/(BLOCKED) tags to
+    UNIFIED-ROADMAP.md, or import from the Cartographer"), never a bare zero.
+13. Truth chips are honest: LIVE renders only with stream evidence or a recent
+    heartbeat and says so ("live — events arriving"); remote panes past their
+    freshness window carry a stale chip ("showing cached truth — last sync 47s");
+    a disconnected daemon chip states the remediation on its face.
+14. Unknowns become remediation prompts, never debug rows: "no purpose recorded —
+    nudge the agent to declare scope" with a Nudge control, never
+    `worktree: unknown` as an operator-facing line.
+
 ## The cut-paper art style (blessed 2026-07-04)
 
 Handcrafted cut-paper diorama, macro, shallow depth of field; layered matte
@@ -78,6 +96,31 @@ the live pane, X-ray on gates, hot-bus latency in the status bar. Control
 Center: budget as a gold block, Papa empty states, micro-flag activity rail.
 CLI: box-glyph corner ticks, half-block stripes, reverse-video zones,
 voice-procedure chips; `NO_COLOR`/`!isTTY`/`--json` strip to plain.
+
+Adopted 2026-07-04 (parley punch item 5; normative mocks in
+`docs/design/2026-07-05-surface-redesign/mockups-ch20/` <!-- cite-exempt: lands with PR #691 -->, fork rulings recorded
+there): FleetBar's gate queue is **state-dependent** — it does not render when
+empty; when armed it renders above the intent composer as the view's one color
+zone. Four more surfaces join the set:
+
+- **Scout** (browser intake wedge): evidence hero with gold region economics,
+  the three honest daemon-chip states (online / degraded / offline with its
+  remediation on the face), a closed annotation taxonomy, and the routed-shape
+  confirmation showing the Work Intent id. Intake only; deep-links to console.
+- **Login** (storefront): the trust model in one screen — local-first honesty
+  well, OIDC primary, the 4-digit pairing ritual under a Quebec masthead
+  (pratique: requesting permission to enter), no-custodial-keys truths, one
+  cobalt knockout slab.
+- **Account** (storefront): keyring / receipt drawer / consent ledger — violet
+  edges identity artifacts only, gold marks money (receipts, the plan's
+  gold-slab price plate, caps "enforced by YOUR daemon, mirrored here"),
+  Kilo masthead on device pairing, error hue reserved for revoke/delete.
+- **Harbor remote view** (storefront sibling of the co-edit dream): the same
+  dark buffer mirrored read-only with claims as line-range stripes and the
+  hatched semantic-conflict forecast band; radio-voice parley chips
+  (SÉCURITÉ teal, PAN PAN amber-on-tint); a salvage tide-line; the durable
+  ledger tail; stale-truth chips for remote devices; Victor flying over the
+  contested range because its meaning is literally true.
 
 ## Image overhaul plan (phased, each phase one PR)
 

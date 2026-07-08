@@ -89,6 +89,31 @@ describe('parseShipFindings', () => {
     expect(parseShipFindings(fenced('[{"path":"a"}]'))).toBeNull();
     expect(parseShipFindings(fenced('[{"path":"a","line":"NaN","body":"x"}]'))).toBeNull();
   });
+
+  it('dedupes identical findings (path|line|body) — the 2026-07-07 line-68/86 duplicate', () => {
+    // A single-chunk diff skips the REDUCE manager, so its "deduplicate" prompt
+    // never runs. The same finding emitted twice must reach the operator once.
+    const out = fenced(
+      '[' +
+        '{"path":"src/a.ts","line":68,"severity":"MEDIUM","body":"loop off-by-one"},' +
+        '{"path":"src/a.ts","line":68,"severity":"MEDIUM","body":"loop off-by-one"}' +
+        ']',
+    );
+    expect(parseShipFindings(out)).toEqual([
+      { path: 'src/a.ts', line: 68, severity: 'MEDIUM', body: 'loop off-by-one' },
+    ]);
+  });
+
+  it('keeps findings that differ only by line or body (not over-dedup)', () => {
+    const out = fenced(
+      '[' +
+        '{"path":"a","line":1,"severity":"LOW","body":"x"},' +
+        '{"path":"a","line":2,"severity":"LOW","body":"x"},' +
+        '{"path":"a","line":1,"severity":"LOW","body":"y"}' +
+        ']',
+    );
+    expect(parseShipFindings(out)).toHaveLength(3);
+  });
 });
 
 describe('aggregateConclusion', () => {

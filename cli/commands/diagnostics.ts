@@ -5,7 +5,7 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, readFileSync, readdirSync, accessSync, constants } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, accessSync, constants, openSync, closeSync, readSync, fstatSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { spawnSync, spawn } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
@@ -48,6 +48,15 @@ import { DEFAULT_SEMANTIC_MODEL_ID, defaultTransformersCacheDir } from '../../li
 import { isStdinInteractive, isStdoutInteractive } from '../utils/tty.js';
 import { createPlatforms } from './mcp-install.js';
 import * as ui from '../utils/ui.js';
+import {
+  assessHarborReadiness,
+  computeFirstValue,
+  formatDurationMs,
+  loadFirstValueRecord,
+  saveFirstValueRecord,
+  type AgentNodeV0,
+} from '../../lib/agent-harbor/setup-doctor.js';
+import { gatherHarborFacts } from '../utils/harbor-facts.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
@@ -547,6 +556,13 @@ export interface SupervisionAssessment {
   severity: Severity;
   detail: string;
   hint?: string;
+  /**
+   * Structured single-command remediation for the specific failure (bootout a
+   * duplicate, kickstart a stopped job, install a missing supervisor). The
+   * Agent Harbor daemon card consumes this so its one repair is the right
+   * repair, not a blanket `port-daddy install`.
+   */
+  repair?: { command: string; description: string };
 }
 
 /**
@@ -579,12 +595,14 @@ export function assessSupervisionIntegrity(input: {
         severity: 'warn',
         detail: 'Daemon is reachable but NO launchd supervisor owns it — it will not be resurrected if it dies',
         hint: 'Run: port-daddy install   (installs the launchd supervisor)',
+        repair: { command: 'port-daddy install', description: 'Installs the launchd supervisor for the running daemon.' },
       };
     }
     return {
       severity: 'critical',
       detail: 'No launchd supervisor is loaded and the daemon is not reachable',
       hint: 'Run: port-daddy install   then: port-daddy start',
+      repair: { command: 'port-daddy install', description: 'Installs the launchd supervisor, then start the daemon with port-daddy start.' },
     };
   }
 
@@ -593,6 +611,10 @@ export function assessSupervisionIntegrity(input: {
       severity: 'warn',
       detail: `${loaded.length} supervisors loaded (${loaded.map((s) => s.label).join(', ')}) — duplicate KeepAlive jobs race the listener`,
       hint: `Keep exactly one. Unload the duplicate: launchctl bootout gui/$(id -u)/${loaded[1].label}`,
+      repair: {
+        command: `launchctl bootout gui/$(id -u)/${loaded[1].label}`,
+        description: 'Unloads the duplicate supervisor so exactly one KeepAlive job owns the daemon.',
+      },
     };
   }
 
@@ -607,12 +629,17 @@ export function assessSupervisionIntegrity(input: {
       severity: 'warn',
       detail: `${one.label} is loaded but its process is not running — the daemon is currently UNSUPERVISED (reachable now, but won't be resurrected)`,
       hint: `Re-kick the supervisor: launchctl kickstart -k gui/$(id -u)/${one.label}`,
+      repair: {
+        command: `launchctl kickstart -k gui/$(id -u)/${one.label}`,
+        description: 'Re-kicks the loaded supervisor so the daemon is resurrected if it dies.',
+      },
     };
   }
   return {
     severity: 'critical',
     detail: `${one.label} is loaded but not running, and the daemon is not reachable — this is how the daemon silently dies`,
     hint: `Run: port-daddy start   (or: launchctl kickstart -k gui/$(id -u)/${one.label})`,
+    repair: { command: 'port-daddy start', description: 'Starts the daemon under the already-loaded supervisor.' },
   };
 }
 
@@ -643,6 +670,164 @@ export function gatherLaunchdSupervisors(
       return { label, loaded: false, running: false, pid: null };
     }
   });
+}
+
+/**
+ * Candidate daemon log paths, in priority order. `brew services` writes to
+ * the keg-relative `var/log/port-daddy.log` (the operator's actual layout,
+ * `/opt/homebrew/var/log/port-daddy.log`); a manually-installed LaunchAgent
+ * (`port-daddy install`, see install-daemon.ts LOG_PATH) writes to
+ * `<distribution root>/port-daddy.log` instead — pass `distributionRoot`
+ * (callers already compute this as `libDir` elsewhere in this file) so that
+ * shape is actually checked too, not just the Homebrew/`~/.port-daddy` ones.
+ * Check all — whichever exists first is the live log.
+ */
+export function candidateDaemonLogPaths(home = homedir(), distributionRoot?: string): string[] {
+  const paths = [
+    '/opt/homebrew/var/log/port-daddy.log',
+    '/usr/local/var/log/port-daddy.log', // Intel Homebrew prefix
+    join(home, '.port-daddy', 'port-daddy.log'),
+  ];
+  if (distributionRoot) paths.push(join(distributionRoot, 'port-daddy.log'));
+  return paths;
+}
+
+/**
+ * Bun's native crash banner is two fixed lines that always appear together —
+ * "panic(<thread>): <reason>" followed by "oh no: Bun has crashed." — for
+ * ANY native Bun panic, not just segfaults (see issue #676). Count the panic
+ * banner, not the "Segmentation fault" detail line, so an unrelated Bun panic
+ * shape still trips this check instead of silently passing.
+ */
+const BUN_PANIC_MARKER = /oh no: Bun has crashed\. This indicates a bug in Bun, not your code\./g;
+
+/** Pure: how many Bun native-crash banners appear in a slice of log text. */
+export function countBunCrashSignatures(logText: string): number {
+  return (logText.match(BUN_PANIC_MARKER) || []).length;
+}
+
+export interface RecentBunCrashCheck {
+  count: number;
+  logPath: string | null;
+  /**
+   * Set when a candidate log EXISTED but could not be read (permissions,
+   * transient I/O error, etc). Distinct from "no candidate log exists" —
+   * doctor must treat this as unknown, never as a silent 'ok'.
+   */
+  readError?: string;
+}
+
+/**
+ * Reads the tail of whichever candidate daemon log exists and counts Bun
+ * native-crash banners. Bounded to the last `maxBytes` via an actual seek +
+ * bounded read (not a full-file read-then-slice) so a long-lived,
+ * never-rotated multi-GB log can't make this check slow or memory-spiky —
+ * 512KB comfortably covers many restart cycles of this daemon's log
+ * verbosity.
+ */
+export function readRecentBunCrashCount(
+  paths: string[] = candidateDaemonLogPaths(),
+  maxBytes = 512 * 1024,
+): RecentBunCrashCheck {
+  for (const p of paths) {
+    if (!existsSync(p)) continue;
+    let fd: number | undefined;
+    try {
+      fd = openSync(p, 'r');
+      const { size } = fstatSync(fd);
+      const bytesToRead = Math.min(size, maxBytes);
+      const start = size - bytesToRead;
+      const buf = Buffer.alloc(bytesToRead);
+      if (bytesToRead > 0) readSync(fd, buf, 0, bytesToRead, start);
+      return { count: countBunCrashSignatures(buf.toString('utf8')), logPath: p };
+    } catch (err) {
+      // The path existed (existsSync passed) but reading it failed — report
+      // this distinctly from "no log found" so the caller does not read it
+      // as a clean bill of health.
+      return { count: 0, logPath: null, readError: `${p}: ${(err as Error).message}` };
+    } finally {
+      if (fd !== undefined) {
+        try {
+          closeSync(fd);
+        } catch {
+          /* best-effort close */
+        }
+      }
+    }
+  }
+  return { count: 0, logPath: null };
+}
+
+export interface CrashSignatureAssessment {
+  severity: Severity;
+  detail: string;
+  hint?: string;
+  crashCount: number;
+}
+
+/**
+ * Pure severity judgment over a Bun native-crash count found in the daemon
+ * log tail. Separated from the file read so it is unit-testable without
+ * touching disk.
+ *
+ * Context (2026-07-07, see issue #676): the compiled daemon binary segfaults
+ * intermittently under Bun 1.2.21 (JSC GC crash family — `MarkedBlock::sweep`
+ * / `SlotVisitor::drain` — reproduced across many Bun versions in upstream
+ * reports, not unique to this build). It is STATE- and LOAD-dependent: it
+ * needs production-scale memory pressure and concurrent connections to
+ * trigger, so idle soak tests do not catch it. Pinning to an older
+ * port-daddy release does NOT fix it — 3.23.0 and 3.24.x compile against the
+ * identical pinned `bun-version: 1.2.21` toolchain (pinned since 2026-06-01,
+ * before either release existed), and both have been observed to crash under
+ * load. There is no in-repo fix for a native Bun panic; this check exists so
+ * the operator sees the crash-loop instead of `brew services` silently
+ * respawning through it forever.
+ *
+ * ```ts
+ * assessCrashSignature({ crashCount: 0 }).severity   // => 'ok'
+ * assessCrashSignature({ crashCount: 1 }).severity   // => 'warn'
+ * assessCrashSignature({ crashCount: 3 }).severity   // => 'critical'
+ * assessCrashSignature({ crashCount: 0, readError: 'EACCES' }).severity   // => 'warn'
+ * ```
+ */
+export function assessCrashSignature(
+  input: { crashCount: number; logPath?: string | null; readError?: string },
+): CrashSignatureAssessment {
+  const { crashCount, logPath, readError } = input;
+  const where = logPath ? ` (${logPath})` : '';
+  // A log that exists but couldn't be read is an UNKNOWN result, not a clean
+  // bill of health — reporting 'ok' here would let a permissions problem
+  // (or any other read failure) silently mask a real crash-loop underneath
+  // it. Never let "couldn't check" read as "checked, healthy".
+  if (readError) {
+    return {
+      severity: 'warn',
+      detail: `Could not read the daemon log to check for Bun crash signatures (${readError}) — unknown, not confirmed healthy`,
+      hint: 'Fix the log file permissions/ownership so pd doctor can check for Bun native-crash banners (see issue #676).',
+      crashCount: 0,
+    };
+  }
+  if (crashCount === 0) {
+    return { severity: 'ok', detail: `No Bun native-crash signatures found in the recent daemon log${where}`, crashCount };
+  }
+  const hint =
+    'This is a known upstream Bun 1.2.21 native-crash family (JSC GC under load — see issue #676), not a port-daddy regression. ' +
+    'Downgrading port-daddy does NOT fix it: 3.23.0 and 3.24.x compile against the same pinned Bun toolchain. ' +
+    'Track upstream (oven-sh/bun) and issue #676; consider filing a fresh bun.report link if one is not already attached.';
+  if (crashCount === 1) {
+    return {
+      severity: 'warn',
+      detail: `1 Bun native-crash banner found in the recent daemon log${where} — the daemon restarted after a native crash`,
+      hint,
+      crashCount,
+    };
+  }
+  return {
+    severity: 'critical',
+    detail: `${crashCount} Bun native-crash banners found in the recent daemon log${where} — the daemon is crash-looping`,
+    hint,
+    crashCount,
+  };
 }
 
 /**
@@ -957,12 +1142,26 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   //    removed `com.portdaddy.daemon` label and was blind to every
   //    brew-supervised install.
   // -------------------------------------------------------------------------
+  // Captured for the Agent Harbor readiness section (C8): null = not assessed
+  // (non-darwin), true = exactly-one-supervisor-running, false = anything else.
+  let daemonSupervisedForHarbor: boolean | null = null;
+  // The assessment's own words + structured repair, so the Harbor daemon card
+  // recommends the RIGHT fix (bootout a duplicate / kickstart a stopped job)
+  // instead of collapsing every non-ok state into `port-daddy install`.
+  let daemonSupervisionDetailForHarbor: string | null = null;
+  let daemonSupervisionRepairForHarbor: { command: string; description: string } | null = null;
   try {
     if (process.platform === 'darwin') {
-      recordAssessment('Supervision integrity', assessSupervisionIntegrity({
+      const supervision = assessSupervisionIntegrity({
         supervisors: gatherLaunchdSupervisors(),
         daemonReachable: daemonRunning,
-      }));
+      });
+      daemonSupervisedForHarbor = supervision.severity === 'ok';
+      if (supervision.severity !== 'ok') {
+        daemonSupervisionDetailForHarbor = supervision.detail;
+        daemonSupervisionRepairForHarbor = supervision.repair ?? null;
+      }
+      recordAssessment('Supervision integrity', supervision);
     } else if (process.platform === 'linux') {
       const homedir = (await import('node:os')).homedir();
       const unitPath: string = join(homedir, '.config', 'systemd', 'user', 'port-daddy.service');
@@ -1032,6 +1231,25 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     }
   } catch (err: unknown) {
     check('Bosun watchdog', false, `Error: ${(err as Error).message}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // 8c. Bun native-crash signature — launchd's KeepAlive respawns silently
+  //     through a native Bun panic (segfault) with no escalation of its own
+  //     (see issue #676: Bun 1.2.21 JSC-GC crash family, state/load-dependent,
+  //     NOT fixed by pinning an older port-daddy release). Surface it loudly
+  //     instead of letting the operator discover a crash-loop by accident.
+  // -------------------------------------------------------------------------
+  try {
+    const { count, logPath, readError } = readRecentBunCrashCount(candidateDaemonLogPaths(homedir(), libDir));
+    recordAssessment('Bun crash signature', assessCrashSignature({ crashCount: count, logPath, readError }));
+  } catch (err: unknown) {
+    // An unexpected throw here is itself an unknown, not a clean bill of
+    // health — never let a failed check read as 'ok' (see PR #879 review).
+    recordAssessment('Bun crash signature', {
+      severity: 'warn',
+      detail: `Could not check daemon log for crash signatures: ${(err as Error).message}`,
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -1357,8 +1575,17 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   // Agent CLIs are right to show users installed hooks. This section makes that
   // disclosure auditable: the names are plain language, the privacy boundary is
   // explicit, and a user who removed hooks/skills/MCP gets a direct repair path.
+  // Retained for the Agent Harbor readiness section (C8) so the harbor cards
+  // judge the SAME probes this section printed — never a second opinion.
+  let mcpFactsForHarbor: { configured: boolean; detail: string } = {
+    configured: false,
+    detail: 'Agent runtime wiring could not be probed',
+  };
+  let hookDiagnosesForHarbor: ReturnType<typeof diagnoseSquidHookInstall> = [];
+
   try {
     const runtime = diagnoseAgentRuntimeInstall(homedir());
+    mcpFactsForHarbor = { configured: runtime.mcpConfigured, detail: runtime.mcpDetail };
     check('Agent MCP wiring', runtime.mcpConfigured, runtime.mcpDetail, runtime.mcpHint);
     check('Agent Port Daddy skill', runtime.skillInstalled, runtime.skillDetail, runtime.skillHint);
   } catch (err: unknown) {
@@ -1367,6 +1594,7 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
 
   try {
     const hookChecks = diagnoseSquidHookInstall(process.cwd());
+    hookDiagnosesForHarbor = hookChecks;
     const okHooks = hookChecks.filter((result) => result.ok);
     if (okHooks.length === hookChecks.length) {
       check('Agent lifecycle hooks', true, `${okHooks.length} provider hook contract(s) installed with visible privacy metadata`);
@@ -1408,6 +1636,73 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     }
   } catch (err: unknown) {
     check('Local embedding model', false, `Error: ${(err as Error).message}`, 'Run: pd embed prefetch');
+  }
+
+  // -------------------------------------------------------------------------
+  // 16. Agent Harbor readiness (binder ch18 Work Order C8, ADR-0095)
+  // -------------------------------------------------------------------------
+  // Ten areas, one RemediationCard each, ONE repair per detected issue. Cards
+  // are judged by the pure core in lib/agent-harbor/setup-doctor.ts from facts
+  // gathered here — including the facts this doctor already computed above
+  // (daemon reachability, supervision, hooks, MCP), so the harbor view can
+  // never disagree with the checks the operator just read. Every card names
+  // its sync posture: local-only / syncs (opt-in) / disabled.
+  try {
+    const pkgPathForVersion = join(libDir, 'package.json');
+    const cliVersion: string = existsSync(pkgPathForVersion)
+      ? (JSON.parse(readFileSync(pkgPathForVersion, 'utf8')) as { version?: string }).version ?? 'unknown'
+      : process.env.PORT_DADDY_PACKAGE_VERSION || 'unknown';
+    const facts = await gatherHarborFacts({
+      daemonReachable: daemonRunning,
+      daemonVersion: daemonRunning && daemonData ? String(daemonData.version ?? '') || null : null,
+      daemonSupervised: daemonSupervisedForHarbor,
+      daemonSupervisionDetail: daemonSupervisionDetailForHarbor,
+      daemonSupervisionRepair: daemonSupervisionRepairForHarbor,
+      hookDiagnoses: hookDiagnosesForHarbor,
+      mcp: mcpFactsForHarbor,
+      cliVersion,
+    });
+    const cards = assessHarborReadiness(facts);
+    for (const card of cards) {
+      recordAssessment(`Harbor: ${card.title} [${card.syncState === 'local' ? 'local-only' : card.syncState === 'synced' ? 'syncs (opt-in)' : 'disabled'}]`, {
+        severity: card.severity,
+        detail: card.detail,
+        hint: card.repair ? `Run: ${card.repair.command}   (${card.repair.description})` : undefined,
+      });
+    }
+
+    // First-value metric: time to first OFFICIAL Agent Node. Seals once. The
+    // Agent Node ledger route is the F0-canonical GET /agent-nodes (binder
+    // ch09), served for real by routes/agent-harbor.ts over C1's projections
+    // (wave3/routes). Older daemons without that route still 404 and we say
+    // so honestly instead of inventing a number.
+    let fvRecord = loadFirstValueRecord();
+    if (fvRecord.setupCompletedAt && fvRecord.timeToFirstOfficialAgentNodeMs === null && daemonRunning) {
+      try {
+        const nodesRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agent-nodes`);
+        if (nodesRes.ok) {
+          const payload = await nodesRes.json() as { nodes?: AgentNodeV0[] } | AgentNodeV0[];
+          const nodes = Array.isArray(payload) ? payload : (payload.nodes ?? []);
+          const updated = computeFirstValue(fvRecord, nodes);
+          if (updated.timeToFirstOfficialAgentNodeMs !== null) {
+            saveFirstValueRecord(updated);
+            fvRecord = updated;
+          }
+        }
+      } catch { /* running daemon predates routes/agent-harbor.ts — report honestly below */ }
+    }
+    if (fvRecord.timeToFirstOfficialAgentNodeMs !== null) {
+      check('Harbor: first-value metric', true,
+        `Time to first official Agent Node: ${formatDurationMs(fvRecord.timeToFirstOfficialAgentNodeMs)} (setup ${fvRecord.setupCompletedAt} → node ${fvRecord.firstOfficialAgentNodeAt})`);
+    } else if (fvRecord.setupCompletedAt) {
+      check('Harbor: first-value metric', true,
+        `Not yet measured — setup completed ${fvRecord.setupCompletedAt}; no official (daemon-witnessed) Agent Node observed yet.`);
+    } else {
+      check('Harbor: first-value metric', true,
+        'Not yet measured — run the default install path (pd setup) to start the clock.');
+    }
+  } catch (err: unknown) {
+    check('Harbor readiness', false, `Error: ${(err as Error).message}`, 'Run: pd setup');
   }
 
   // -------------------------------------------------------------------------

@@ -30,6 +30,7 @@ import { MetricsPanel } from './components/MetricsPanel';
 import SessionGalaxyPanel from './components/SessionGalaxyPanel';
 import ShipwrightPanel from './shipwright/ShipwrightPanel';
 import OperatorStatePanel from './components/OperatorStatePanel';
+import ApprovalsPanel from './components/ApprovalsPanel';
 import { useOperatorState } from './hooks/useOperatorState';
 import { extractMentionedPaths } from './fileMentions';
 import {
@@ -1611,6 +1612,7 @@ export default function App() {
             </motion.div>
           ) : activeTab === 'Operator' ? (
             <motion.div key="operator-global" className="flex-1 overflow-y-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
+              <ApprovalsPanel />
               {operatorStateHook.state ? (
                 <OperatorStatePanel
                   operatorState={operatorStateHook.state}
@@ -1873,6 +1875,7 @@ export default function App() {
                   <div className="flex-1 min-h-0 overflow-hidden">
                     {activeTab === 'Operator' && (
                       <div className="h-full overflow-y-auto">
+                        <ApprovalsPanel />
                         {operatorStateHook.state ? (
                           <OperatorStatePanel
                             operatorState={operatorStateHook.state}

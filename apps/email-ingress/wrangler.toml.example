@@ -1,0 +1,64 @@
+# Cloudflare Worker — fleet email ingress + outbound sender.
+#
+# Copy this file to `wrangler.toml` and fill account-scoped values before
+# deploy. `wrangler.toml` is gitignored; set secrets with `wrangler secret put`.
+#
+# INBOUND (Email Routing → fleet trigger):
+#   1. Deploy this worker: `npm run deploy`
+#   2. Cloudflare dashboard → your zone → Email → Email Routing →
+#      Routing rules: route an address (e.g. fleet@portdaddy.dev) — or the
+#      catch-all — to this Worker. (Zone-scoped; needs dashboard or a token
+#      with Email Routing:Edit.)
+#   3. `wrangler secret put PD_EMAIL_INBOUND_SECRET` — any strong random
+#      string; set the SAME value in the daemon's env so the fleet email
+#      trigger can verify envelope HMACs.
+#   4. Set PD_FORWARD_URL below to the daemon's public/tunnel base URL.
+#   5. In pd-fleet.yml: `triggers: [ "email:received(from:@yourteam.com)" ]`
+#
+# OUTBOUND (fleet email sink → send_email):
+#   1. `wrangler secret put PD_EMAIL_WORKER_SECRET` — shared with the daemon
+#      (PD_EMAIL_WORKER_SECRET) so /send requests are HMAC-authenticated.
+#   2. Set PD_EMAIL_FROM to an address on this zone's domain.
+#   3. Destination addresses MUST be verified Email Routing destinations —
+#      Cloudflare enforces this (structural recipient allowlist).
+#   4. Daemon env: PD_EMAIL_WORKER_URL=https://<this-worker>.workers.dev
+#
+# Secrets:
+#   PD_EMAIL_INBOUND_SECRET — HMAC key for inbound envelopes (worker → daemon)
+#   PD_EMAIL_WORKER_SECRET  — HMAC key for /send requests (daemon → worker)
+
+name = "pd-email-ingress"
+main = "src/worker.ts"
+compatibility_date = "2026-05-01"
+# mimetext (outbound MIME construction) uses Node builtins.
+compatibility_flags = ["nodejs_compat"]
+# With an Account API Token, also export CLOUDFLARE_ACCOUNT_ID when deploying.
+# account_id = "REPLACE_WITH_YOUR_ACCOUNT_ID"
+
+# send_email binding — must sit ABOVE [vars] (a table array after [vars]
+# would be parsed as a var).
+[[send_email]]
+name = "SEND_EMAIL"
+
+[vars]
+# Daemon (or tunnel) base URL the worker POSTs inbound envelopes to.
+PD_FORWARD_URL = "https://REPLACE-WITH-YOUR-TUNNEL-OR-HOST"
+# Receiver channel; must match the fleet trigger's channel filter (default email-inbound).
+PD_EMAIL_INBOUND_CHANNEL = "email-inbound"
+# From address for outbound /send (must be on this zone's domain).
+PD_EMAIL_FROM = "fleet@REPLACE-WITH-YOUR-DOMAIN"
+# Optional: always forward a copy of inbound mail to a verified destination
+# so no message is ever lost when the daemon is unreachable.
+# PD_FALLBACK_FORWARD = "you@example.com"
+
+# Dead-letter store for inbound envelopes the daemon couldn't take;
+# the cron below replays them (re-signed) until delivered or 7d TTL.
+[[kv_namespaces]]
+binding = "ENVELOPE_DLQ"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[observability]
+enabled = true

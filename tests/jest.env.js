@@ -24,3 +24,14 @@ process.env.PD_TEST = '1';
 // (tests/unit/spawner-isolation-guard.test.js) delete this and pass explicit env
 // args, so they still exercise the live guard.
 process.env.PD_SPAWN_ISOLATION_OFF = '1';
+
+// A persisted FleetBar CLI-backend selection (~/.port-daddy-cli-backend) must
+// never leak into tests. detectForcedCliBackend() falls back to that dotfile,
+// which force-routes EVERY spawner.spawn() through cli:<tool> — on a machine
+// where the operator picked codex, the spawner-coast-guard suite watched its
+// `custom` backend spec spawn `codex` instead of the sandbox-wrapped command
+// under test (70 failures that never reproduce in CI, where no dotfile exists).
+// 'none' is the explicit off-switch: env wins over the dotfile. Tests that
+// exercise the override itself set their own PD_USE_CLI_BACKEND / pass an
+// explicit persistedPath, so this default doesn't blunt them.
+process.env.PD_USE_CLI_BACKEND = 'none';

@@ -29,6 +29,7 @@ export * from './nudge.js';
 export * from './tutorial.js';
 export * from './inbox.js';
 export * from './spawn.js';
+export * from './work.js';
 export * from './transcripts.js';
 export * from './sortie.js';
 export * from './harbors.js';
@@ -74,3 +75,4 @@ export * from './backend.js';
 
 export * from './cut.js';
 export * from './embed.js';
+export * from './skill-graft.js';

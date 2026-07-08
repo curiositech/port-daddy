@@ -26,11 +26,15 @@ import {
   invalidateInstallationToken,
   fetchPRContext,
   fetchRepoFile,
+  fetchOpenPullRequests,
+  listRecentBranches,
+  renderFleetContext,
   postShipComment,
   createReview,
   createCheckRun,
   completeCheckRun,
   findFleetCheckRun,
+  createIssue,
   type PRContext,
   type ReviewComment,
 } from './github.js';
@@ -42,12 +46,128 @@ import {
   type ShipResult,
   type Verdict,
 } from './verdict.js';
+import {
+  parseProposals,
+  renderProposalComment,
+  ideationOutputContract,
+} from './proposals.js';
+import { extractAiText, describeResponseShape } from './ai-response.js';
+import { renderFindingsComment } from './findings-render.js';
+import {
+  captureProposals,
+  ensureIdeasTable,
+  EMBED_MODEL,
+  type IdeaCtx,
+} from './ideas-store.js';
+import type { Proposal } from './proposals.js';
+import { decideShipGate, isDocsOnly } from './gates.js';
+import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 
 // ---------------------------------------------------------------------------
 
 /** Per-chunk diff budget for the MAP fan-out (chars). */
 const MAP_CHUNK_CHAR_LIMIT = 12_000;
-const CHECK_NAME = 'Port Daddy Fleet';
+/** The umbrella check-run name. Exported so the DLQ handler targets the same run. */
+export const CHECK_NAME = 'Port Daddy Fleet';
+
+/**
+ * Output-token cap for every ship AI call (MAP + REDUCE). Without an explicit
+ * cap the model hits a small provider default and its findings JSON is truncated
+ * mid-string — the 2026-07-07 mobile screenshots showed every reviewer comment
+ * ending in an unterminated `"`. A findings/proposals array is small; this is
+ * generous headroom while still bounding cost per call.
+ */
+const MAX_OUTPUT_TOKENS = 2048;
+
+/**
+ * Workers AI call options: a stable per-ship `x-session-affinity` key so the
+ * ship's large, identical system-prompt prefix (its contract + output format,
+ * repeated across every MAP chunk of a PR and across PRs) routes to the same
+ * model instance and hits the prefix cache — cached input tokens bill lower.
+ * Keyed per ship (not per run) to maximize hits on the shared prefix.
+ * (Cloudflare Workers AI prompt caching, `extraHeaders` binding option.)
+ */
+function aiOptions(shipName: string): { extraHeaders: Record<string, string> } {
+  return { extraHeaders: { 'x-session-affinity': `pd-fleet-${shipName}` } };
+}
+
+/**
+ * Per-ship cost + failure metrics, accumulated across a ship's MAP + REDUCE
+ * calls, then emitted as ONE cloud-telemetry event. Restores FleetBar cost
+ * tracking (input/output/cached tokens → daemon cost derivation) AND records
+ * failures (an errored or blacked-out ship → an operator-visible error event).
+ */
+interface ShipMetrics {
+  inputTokens: number;
+  outputTokens: number;
+  cachedInputTokens: number;
+  /** ai.run calls made (0 = the ship was gated out or never reached the model). */
+  calls: number;
+  /** True if every ai.run returned empty text — the silent-blackout signal. */
+  allEmpty: boolean;
+}
+
+function newShipMetrics(): ShipMetrics {
+  return { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, calls: 0, allEmpty: true };
+}
+
+/** Fold one ai.run result's usage + emptiness into a ship's running metrics. */
+function accumulateUsage(metrics: ShipMetrics, res: unknown, text: string): void {
+  const u = extractWorkersAiUsage(res);
+  metrics.inputTokens += u.inputTokens ?? 0;
+  metrics.outputTokens += u.outputTokens ?? 0;
+  metrics.cachedInputTokens += u.cachedInputTokens ?? 0;
+  metrics.calls += 1;
+  if (text) metrics.allEmpty = false;
+}
+
+/**
+ * Emit one best-effort cloud-telemetry event for a ship's run. Never throws.
+ * `status`/`conclusion` drive the daemon's errorEvents aggregation; token counts
+ * drive cost. A ship that ran but produced only empty output (the 2026-07-07
+ * blackout) is flagged `status: 'error'` so a silent green check still surfaces.
+ */
+async function emitShipTelemetry(
+  env: ExecutorEnv,
+  job: FleetRunJob,
+  prCtx: PRContext,
+  ship: ShipConfig,
+  result: ShipResult,
+  metrics: ShipMetrics,
+  checkRunId: number,
+  shipStartMs: number,
+): Promise<void> {
+  try {
+    const blackout = metrics.calls > 0 && metrics.allEmpty;
+    const errored = result.errored || blackout;
+    await emitCloudTelemetry(
+      {
+        deliveryId: job.deliveryId,
+        event: 'ship-run',
+        action: job.action,
+        owner: prCtx.owner,
+        repo: prCtx.repo,
+        prNumber: prCtx.prNumber,
+        sha: prCtx.headSha,
+        ship: ship.name,
+        role: ship.role,
+        status: errored ? 'error' : 'ok',
+        conclusion: errored ? 'failure' : result.verdict === 'BLOCK' ? 'failure' : 'success',
+        backend: 'cloudflare',
+        model: ship.cfModel,
+        durationMs: Date.now() - shipStartMs,
+        inputTokens: metrics.inputTokens,
+        cachedInputTokens: metrics.cachedInputTokens,
+        outputTokens: metrics.outputTokens,
+        checkRunId: checkRunId || null,
+        ...(blackout ? { metadata: { blackout: true } } : {}),
+      },
+      env,
+    );
+  } catch (err) {
+    console.error(`[fleet-executor] emitShipTelemetry failed pd-${ship.name}: ${String(err)}`);
+  }
+}
 
 /**
  * Kill-switch flag key in the relay's CONTROL_KV namespace (the relay writes it
@@ -329,8 +449,18 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // Each ship is a map-reduce over the diff: MAP one call per diff chunk, then
   // REDUCE via a manager call that merges the structured findings and computes
   // the FLEET-VERDICT.
+  // Deterministic ship gating (cost): a ship whose surface the diff doesn't touch
+  // is skipped BEFORE any AI spend; reviewer ships skip docs-only diffs while
+  // ideation ships run on them. Computed once per run from the PR's changed files.
+  const changedPaths = prCtx.files.map(f => f.filename).filter(Boolean);
+  const docsOnly = isDocsOnly(changedPaths);
+
   const results: ShipResult[] = [];
   for (const ship of cloudShips) {
+    // Per-ship wall-clock start: durationMs must reflect THIS ship's work
+    // (including its gate/skip decision), not the cumulative run time — else
+    // later ships report inflated durations that fold in every earlier ship.
+    const shipStartMs = Date.now();
     // Re-check the operator kill switch before each ship. The start-of-job
     // check prevents any setup work while paused; this second gate closes the
     // TOCTOU gap where the operator pauses after the GitHub check is created
@@ -347,7 +477,28 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       await recordRunEnd(env, runId, 'neutral', startMs);
       return;
     }
-    results.push(await runShip(ship, prCtx, token, env, branch, transcript));
+
+    // Surface gate: skip a ship with nothing to say on this diff, spending no AI.
+    // A gated-out ship resolves PASS (advisory-clean) and posts nothing — a
+    // gated-out BLOCKING ship (red-team off its security surface) correctly does
+    // not block, matching its own "exit clean" contract.
+    const gate = decideShipGate(ship, changedPaths, docsOnly);
+    if (!gate.run) {
+      await transcript.step('ship-skipped', ship.name, `pd-${ship.name}: skipped — ${gate.reason}`, {
+        reason: gate.reason,
+        changedPathCount: changedPaths.length,
+      });
+      const skipped: ShipResult = { ship: ship.name, blocking: ship.blocking, verdict: 'PASS', errored: false, findings: [] };
+      results.push(skipped);
+      // Telemetry for a gated ship: zero AI spend, status ok (calls=0 ⇒ not a blackout).
+      await emitShipTelemetry(env, job, prCtx, ship, skipped, newShipMetrics(), checkRunId, shipStartMs);
+      continue;
+    }
+
+    const metrics = newShipMetrics();
+    const result = await runShip(ship, prCtx, token, env, branch, transcript, metrics);
+    results.push(result);
+    await emitShipTelemetry(env, job, prCtx, ship, result, metrics, checkRunId, shipStartMs);
   }
 
   // --- Conclusion (verdict logic is REAL; see verdict.ts) ------------------
@@ -405,6 +556,7 @@ async function runShip(
   env: ExecutorEnv,
   branch: string,
   transcript: Transcript,
+  metrics: ShipMetrics,
 ): Promise<ShipResult> {
   try {
     // ZERO-TRUST: ship contract is read from the trusted branch, NEVER PR head.
@@ -419,34 +571,66 @@ async function runShip(
     const systemPrompt = buildSystemPrompt(ship, contract);
     const chunks = chunkDiff(prCtx.diff);
 
+    // Lookout's tools: cross-PR / cross-branch awareness. Fetched once per run and
+    // injected into every MAP chunk so it can spot contradictions and duplication
+    // against OTHER open PRs and feature branches. Best-effort (helpers return []
+    // on failure) — Lookout degrades to single-PR reasoning, never crashes.
+    let fleetContext = '';
+    if (ship.name === 'lookout') {
+      const [openPRs, branches] = await Promise.all([
+        fetchOpenPullRequests(prCtx.owner, prCtx.repo, token, prCtx.prNumber),
+        listRecentBranches(prCtx.owner, prCtx.repo, token),
+      ]);
+      fleetContext = renderFleetContext(openPRs, branches);
+    }
+
     // --- MAP: one ship call per diff chunk ---------------------------------
     const partials: string[] = [];
     for (let i = 0; i < chunks.length; i++) {
-      const userMessage = buildUserMessage(prCtx, chunks[i], i, chunks.length);
+      const userMessage = buildUserMessage(prCtx, chunks[i], i, chunks.length, fleetContext);
       const request = {
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage },
         ],
+        max_tokens: MAX_OUTPUT_TOKENS,
         ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
       };
-      const res = (await env.AI.run(
+      const res = await env.AI.run(
         ship.cfModel as Parameters<typeof env.AI.run>[0],
         request,
-      )) as { response?: string };
-      partials.push((res.response ?? '').trim());
+        aiOptions(ship.name),
+      );
+      const { text, shape } = extractAiText(res);
+      accumulateUsage(metrics, res, text);
+      partials.push(text);
 
-      // Transcript: one row per MAP chunk (best-effort).
+      // Diagnose the silent-blank case: an empty result makes a ship post nothing
+      // and resolve PASS. Log the model + response shape so an empty-returning
+      // model (gpt-oss Responses API mismatch, an outage, an error object) is
+      // legible instead of a mystery green check. (2026-07-07 blackout postmortem.)
+      if (!text) {
+        console.warn(
+          `[fleet-executor] pd-${ship.name} MAP chunk ${i + 1}/${chunks.length} EMPTY on ` +
+            `${ship.cfModel}: ${describeResponseShape(res)}`,
+        );
+      }
+
+      // Transcript: one row per MAP chunk (best-effort). `shape` records which
+      // envelope produced the text; `responseShape` is only stamped on an empty
+      // result so a future blackout is diagnosable from D1 alone.
       await transcript.step('map-chunk', ship.name, `MAP chunk ${i + 1}/${chunks.length}`, {
         chunkIndex: i,
         chunkCount: chunks.length,
-        outputLength: partials[i]?.length ?? 0,
+        outputLength: text.length,
+        shape,
+        ...(text ? {} : { responseShape: describeResponseShape(res) }),
       });
     }
 
     // --- REDUCE: manager merges the partials (only when fan-out > 1) --------
     const output =
-      chunks.length === 1 ? partials[0] ?? '' : await reduceFindings(ship, partials, env);
+      chunks.length === 1 ? partials[0] ?? '' : await reduceFindings(ship, partials, env, metrics);
 
     // Transcript: the REDUCE step exists only on a multi-chunk fan-out.
     if (chunks.length > 1) {
@@ -454,6 +638,65 @@ async function runShip(
         chunkCount: chunks.length,
         outputLength: output.length,
       });
+    }
+
+    // --- IDEATION ships: proposals, not findings ---------------------------
+    // spark / spider / lookout / snipe propose forward work. Parse the validated
+    // Proposal schema and render it into REAL actionable Port Daddy syntax. These
+    // ships are always advisory: they NEVER gate a merge and NEVER contribute
+    // inline review comments, so a malformed block just falls back to the raw
+    // model output — it can't destabilize the check.
+    if (ship.ideation) {
+      const proposals = parseProposals(output);
+      const rendered =
+        proposals && proposals.length > 0
+          ? renderProposalComment(proposals, {
+              owner: prCtx.owner,
+              repo: prCtx.repo,
+              prNumber: prCtx.prNumber,
+              shipName: ship.name,
+            })
+          : '';
+      // When proposals parse to a real set → post the actionable render. When the
+      // ship proposed nothing (empty array) → silence. When the block was
+      // malformed (null) → post the raw output so the model's prose isn't lost.
+      const body = rendered || (proposals === null ? output : '');
+
+      await transcript.step('ship-verdict', ship.name, `pd-${ship.name}: PASS (ideation)`, {
+        proposals: proposals ?? 'malformed',
+        posted: !!body.trim(),
+      });
+
+      await postShipComment(
+        prCtx.owner,
+        prCtx.repo,
+        prCtx.prNumber,
+        ship.name,
+        ship.role,
+        body,
+        token,
+      );
+
+      // Durably capture the proposals (D1 + semantic dedup + auto-issue) so a
+      // Spark/Spider idea doesn't evaporate when the PR scrolls away. Best-effort:
+      // it NEVER throws or changes the advisory PASS.
+      if (proposals && proposals.length > 0) {
+        await captureIdeas(
+          proposals,
+          { owner: prCtx.owner, repo: prCtx.repo, prNumber: prCtx.prNumber, shipName: ship.name },
+          env,
+          token,
+          transcript,
+        );
+      }
+
+      return {
+        ship: ship.name,
+        blocking: false,
+        verdict: 'PASS',
+        errored: false,
+        findings: [],
+      };
     }
 
     // Parse the structured findings block. `null` => malformed JSON => the ship
@@ -474,22 +717,43 @@ async function runShip(
       findings === null ? { error: 'failed to parse findings' } : findings,
     );
 
-    // Post the ship's full output (edit-in-place => idempotent on retry). This
-    // is the backward-compatible history surface; inline review is primary.
+    // Render the findings into clean, actionable markdown (edit-in-place =>
+    // idempotent on retry). When a ship parsed a real findings set → post the
+    // render. When it found nothing (empty array) → post nothing (silence: this
+    // is why red-team stops spamming a bare `[]`). When the block was malformed
+    // (null → errored above) we still surface the raw output so the model's prose
+    // isn't lost. NEVER post the raw fenced JSON — it truncates on mobile and is
+    // not actionable (2026-07-07 screenshots).
+    const reviewerBody =
+      findings === null
+        ? output
+        : renderFindingsComment(findings, {
+            owner: prCtx.owner,
+            repo: prCtx.repo,
+            prNumber: prCtx.prNumber,
+            shipName: ship.name,
+          });
+
     await postShipComment(
       prCtx.owner,
       prCtx.repo,
       prCtx.prNumber,
       ship.name,
       ship.role,
-      output,
+      reviewerBody,
       token,
     );
 
-    // Transcript: the per-ship issue comment was posted.
-    await transcript.step('review-posted', ship.name, `Posted review for pd-${ship.name}`, {
-      posted: true,
-    });
+    // Transcript: the per-ship issue comment was posted (or intentionally
+    // skipped when a clean ship rendered to silence). Keep the message honest —
+    // a silent ship must not log "Posted review".
+    const posted = !!reviewerBody.trim();
+    await transcript.step(
+      'review-posted',
+      ship.name,
+      posted ? `Posted review for pd-${ship.name}` : `pd-${ship.name}: clean — nothing to post`,
+      { posted },
+    );
 
     if (findings === null) {
       return {
@@ -521,6 +785,56 @@ async function runShip(
       errored: true,
       findings: [],
     };
+  }
+}
+
+/**
+ * Embed a string to a vector via Workers AI (bge). Returns [] on any unexpected
+ * envelope so the caller (best-effort capture) degrades to "no dedup" rather
+ * than throwing.
+ */
+async function embedText(ai: Ai, text: string): Promise<number[]> {
+  const res = await ai.run(EMBED_MODEL as Parameters<typeof ai.run>[0], { text: [text] });
+  const data = (res as { data?: unknown }).data;
+  if (Array.isArray(data) && Array.isArray(data[0])) return data[0] as number[];
+  return [];
+}
+
+/**
+ * Durably capture an ideation ship's proposals into the relay D1 idea store,
+ * semantic-deduped, opening a `fleet-idea` GitHub issue for each novel one.
+ * Best-effort: a missing DB binding (unit tests / unconfigured) skips capture
+ * entirely, and any failure is swallowed — it can NEVER change the advisory PASS.
+ */
+async function captureIdeas(
+  proposals: Proposal[],
+  ctx: IdeaCtx,
+  env: ExecutorEnv,
+  token: string,
+  transcript: Transcript,
+): Promise<void> {
+  if (!env.DB) return; // no store bound → comment-only fallback (still posted above)
+  try {
+    await ensureIdeasTable(env.DB);
+    const results = await captureProposals({
+      db: env.DB,
+      proposals,
+      ctx,
+      embed: text => embedText(env.AI, text),
+      openIssue: (title, body, labels) =>
+        createIssue(ctx.owner, ctx.repo, title, body, labels, token),
+      now: nowSec(),
+    });
+    const created = results.filter(r => r.outcome === 'tracked-new').length;
+    const dupes = results.filter(r => r.outcome === 'duplicate' || r.outcome === 'already-tracked').length;
+    await transcript.step(
+      'ideas-captured',
+      ctx.shipName,
+      `pd-${ctx.shipName}: ${created} new idea(s), ${dupes} already tracked`,
+      { results },
+    );
+  } catch (err) {
+    console.error(`[fleet-executor] captureIdeas failed pd-${ctx.shipName}: ${String(err)}`);
   }
 }
 
@@ -568,12 +882,14 @@ async function reduceFindings(
   ship: ShipConfig,
   partials: string[],
   env: ExecutorEnv,
+  metrics: ShipMetrics,
 ): Promise<string> {
+  const mergeVerb = ship.ideation ? 'proposals' : 'findings';
   const managerSystem =
     `You are the fleet REDUCE manager for ship pd-${ship.name}. You receive ` +
     `several partial reviews of different chunks of one PR diff. Merge them into ` +
-    `a SINGLE review of the whole PR. Deduplicate findings.\n\n` +
-    buildOutputContract() +
+    `a SINGLE review of the whole PR. Deduplicate ${mergeVerb}.\n\n` +
+    (ship.ideation ? ideationOutputContract() : buildOutputContract()) +
     (ship.blocking
       ? '\n\nThis ship is BLOCKING: emit FLEET-VERDICT: BLOCK if any partial raised a HIGH finding or objected; otherwise FLEET-VERDICT: PASS.'
       : '\n\nThis ship is ADVISORY: still emit exactly one FLEET-VERDICT line.');
@@ -587,14 +903,22 @@ async function reduceFindings(
       { role: 'system', content: managerSystem },
       { role: 'user', content: userMessage },
     ],
+    max_tokens: MAX_OUTPUT_TOKENS,
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
-  const res = (await env.AI.run(
+  const res = await env.AI.run(
     ship.cfModel as Parameters<typeof env.AI.run>[0],
     request,
-  )) as { response?: string };
-
-  return (res.response ?? '').trim();
+    aiOptions(ship.name),
+  );
+  const { text } = extractAiText(res);
+  accumulateUsage(metrics, res, text);
+  if (!text) {
+    console.warn(
+      `[fleet-executor] pd-${ship.name} REDUCE EMPTY on ${ship.cfModel}: ${describeResponseShape(res)}`,
+    );
+  }
+  return text;
 }
 
 function buildSummary(results: ShipResult[], conclusion: string): string {
@@ -649,8 +973,10 @@ function buildSystemPrompt(ship: ShipConfig, contract: string | null): string {
     'You are running as a Cloudflare Worker with no filesystem or shell access. ' +
       'You may be shown ONE CHUNK of a larger PR diff at a time — review only the ' +
       'chunk in front of you; a manager will merge the chunks. Analyze the diff ' +
-      'and report findings only. If you find nothing worth noting, say so briefly.\n\n' +
-      buildOutputContract(),
+      'and report ' +
+      (ship.ideation ? 'proposals' : 'findings') +
+      ' only. If you have nothing worth noting, say so briefly.\n\n' +
+      (ship.ideation ? ideationOutputContract() : buildOutputContract()),
   );
 
   return parts.join('\n\n');
@@ -661,6 +987,7 @@ function buildUserMessage(
   diffChunk: string,
   chunkIndex: number,
   chunkCount: number,
+  fleetContext = '',
 ): string {
   const fileList = prCtx.files
     .map(f => `- ${f.filename} (+${f.additions}/-${f.deletions})`)
@@ -669,13 +996,15 @@ function buildUserMessage(
   const chunkNote =
     chunkCount > 1 ? ` (chunk ${chunkIndex + 1} of ${chunkCount})` : '';
 
+  const contextBlock = fleetContext ? `\n\n${fleetContext}` : '';
+
   return `# PR #${prCtx.prNumber}: ${prCtx.title}
 
 ## Changed files
 ${fileList || '(none)'}
 
 ## PR description
-${prCtx.body || '(none)'}
+${prCtx.body || '(none)'}${contextBlock}
 
 ## Diff${chunkNote}
 \`\`\`diff

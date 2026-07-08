@@ -91,6 +91,8 @@ const TOOL_FEATURE_MAP = {
   'list_notes': 'notes',
   'claim_files': 'sessions',
   'claim_symbols': 'sessions',
+  'claim_region': 'sessions',   // Harbor editor P3: region-scoped claim
+  'release_region': 'sessions', // Harbor editor P3: region-scoped release
 
   // Locks
   'acquire_lock': 'locks',
@@ -321,9 +323,11 @@ const MCP_EXEMPT_FEATURES = new Set([
   'popper',         // PR #181 autonomous roadmap-to-dispatch task puller. Operator-driven: `pd popper status/next/pop/enable/disable` + the FleetBar Nightshift surface (HTTP). The popper runs daemon-side on a timer; an MCP tool would invert that (the model deciding to pop work mid-turn). CLI/HTTP-only, MCP wrapper deferred.
   'recovery',       // PR #65 magic-link account recovery. API-only single-use token issue/consume consumed by out-of-band recovery flows (proofs/bonded/recovery/magic-link.pv). Intentionally NO MCP surface — an agent must not be able to mint or consume account-recovery tokens.
   'dispatch',       // PR #163 operator queue for autonomous feature dev (ADR-0035). Operator-driven: `pd dispatch/nightshift/review/morning` + POST/GET /dispatches over the daemon queue. Workers are spawned by the daemon, not by an agent calling a tool mid-turn; accept/reject is a human/operator decision. CLI/HTTP-only, MCP wrapper deferred (same posture as popper).
+  'fleet_hitl_proposals', // Operator HITL queue for fleet ship ideas. Ships submit inert proposals over HTTP; approve/reject happens in FleetBar/pd-console and approval hands off to dispatch. No MCP tool should let an agent approve its own proposal.
   'transcripts',    // Fleet ship-run records. Operator-facing read/delete surface (`pd transcripts`, routes/transcripts.ts) consumed by the FleetBar/dashboard ship-run views. Read-only telemetry browsing, not an agent-driving tool; MCP wrapper deferred.
   'relay',          // Cloud relay config/status (ADR-0049). CLI `pd relay url/status/exchange` + HTTP daemon routes for relay config. Relay exchange is an operator/CI token operation; agents use the relay channel directly, not a tool that calls /relay/exchange. MCP wrapper deferred.
   'session_galaxy', // 2-D embedding map of recent agent sessions (routes/galaxy.ts: GET /galaxy/map + /galaxy/session/:id). An operator visualization surface consumed by fleet-ui, pd-console, and the FleetBar webview — cross-session t-SNE scatter data is for human eyes, not an agent-driving tool (an agent inspecting peers uses the sessions/transcripts/parley surfaces directly). MCP wrapper deferred indefinitely.
+  'harbor-ledger',  // Agent Harbor read API (routes/agent-harbor.ts, C-routes wave). Read-only projection views consumed by the pd-console roster/detail panes (C3) and doctor (C8), plus a long-lived SSE transcript tail — streams are not MCP-shaped (same posture as agent_cockpit). Agents already write to the ledger via `pd harbor-ledger`; an MCP read wrapper is deferred until an agent-facing consumer exists.
   'agent_cockpit',  // "Watch + Grab the Wheel" Phase 0. GET /agents/:id/stream is a long-lived SSE feed consumed by the operator console — streams are not MCP-shaped (MCP is request/response, not a held-open subscription; an MCP-driving agent would already use the in-process messaging.subscribe / transcripts.subscribe primitives this route merges). POST /agents/:id/interrupt is the operator grabbing the wheel from a console (same human-decision posture as dispatch accept/reject); a cooperating agent that wants to steer a peer publishes the same control.interrupt envelope onto the `agent:<id>` channel via the existing messaging surface. MCP wrapper deferred.
 ]);
 

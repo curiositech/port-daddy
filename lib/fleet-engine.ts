@@ -7,7 +7,7 @@
  * Design: ADR-0019 (Declarative Fleet Configuration)
  */
 
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { DEFAULT_OPERATOR_CLAUDE_MODEL, DEFAULT_OPERATOR_CODEX_MODEL } from './backend-telemetry-policy.js';
@@ -24,8 +24,28 @@ import type { SemanticResolver } from './semantic-resolver.js';
 import type { Tuple, TupleSpace } from './tuples.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { buildPortDaddyShellCommand, resolvePortDaddyInvocation } from './port-daddy-command.js';
-import { resolveRawBackendName } from './llm-backend-resolver.js';
-import { IoDispatch, type DispatchOutputResult } from './fleet/io-dispatch.js';
+import { resolveRawBackendName, resolveLLMBackend } from './llm-backend-resolver.js';
+import { createLLMClient } from './llm-call.js';
+import { transportToAdapter } from './coordination-judge.js';
+import { IoDispatch, type DispatchOutputResult, type IoDispatchDeps } from './fleet/io-dispatch.js';
+import { evaluateTrustGate, type TrustPolicy, type TrustTier } from './fleet/trust.js';
+import { createSkillGraftIndex, renderSkillGraftContext, type SkillGraftIndex } from './skill-graft.js';
+import { PD_HOME } from '../shared/paths.js';
+import {
+  loadWatcherPidRegistry,
+  saveWatcherPidRegistry,
+  sweepStaleWatcherPids,
+  watcherPidKey,
+  toExecSnippet,
+  getCommandLineForPid,
+} from './watcher-pid-registry.js';
+
+/**
+ * Durable sidecar tracking external `pd watch --exec` children spawned by
+ * `startWatcher()`'s fallback path (see watcher-pid-registry.ts). Overridable
+ * via env for tests so they never touch the real ~/.port-daddy directory.
+ */
+const WATCHER_PID_FILE = process.env.PD_WATCHER_PID_FILE || join(PD_HOME, 'watcher-pids.json');
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -65,6 +85,14 @@ export interface FleetAgent {
   identity?: string;
   timeout?: number;
   allowedTools?: string;
+  /** Opt-in: splice a windags-pattern skill shortlist (lib/skill-graft.ts)
+   *  into this ship's task text before it spawns. `astToConfig()` (the YAML
+   *  path, i.e. every real pd-fleet.yml ship) always normalizes this to a
+   *  concrete boolean, defaulting to `false`; the `?:` here only matters for
+   *  hand-constructed `FleetConfig`s (e.g. tests) that omit the field
+   *  entirely. Either way, falsy means existing ships are byte-for-byte
+   *  unaffected. */
+  skillGraft?: boolean;
   fallbacks?: FleetRuntimeTarget[];
   cooldownMs?: number;
   dedupeWindowMs?: number;
@@ -94,9 +122,24 @@ export interface FleetConfig {
   name: string;
   harbor?: string;
   limits?: FleetLimits;
+  /** Operator-configured trust policy for the event→spawn gate (ADR-0093). */
+  trust?: FleetTrustConfig;
   agents: FleetAgent[];
   watchers: FleetWatcher[];
   channels: Record<string, { description: string; consumers?: string[]; externalProducer?: string | boolean }>;
+}
+
+/**
+ * Fleet-level trust policy (pd-fleet.yml `trust:` block, ADR-0093 §4).
+ * `allowlistedAuthors` names content authors (email address, GH login, phone
+ * number) whose VERIFIED identity upgrades an external trigger from
+ * ANONYMOUS_EXTERNAL to AUTHENTICATED_EXTERNAL. The allowlist alone never
+ * upgrades anyone — the trigger source must also set
+ * `metadata.consent_verified` after a content-level author verification
+ * (transport HMAC does not count).
+ */
+export interface FleetTrustConfig {
+  allowlistedAuthors?: string[];
 }
 
 export interface FleetRuntimeDefaults {
@@ -640,12 +683,35 @@ function getFleetDaemonUrl(): string {
 // ─── Lifecycle Events ──────────────────────────────────────────────────────
 
 export interface FleetEvent {
-  type: 'agent_started' | 'agent_completed' | 'agent_failed' | 'agent_paused' | 'agent_resumed' | 'watcher_started' | 'watcher_triggered' | 'fleet_started' | 'fleet_stopped';
+  type: 'agent_started' | 'agent_completed' | 'agent_failed' | 'agent_paused' | 'agent_resumed' | 'watcher_started' | 'watcher_triggered' | 'fleet_started' | 'fleet_stopped' | 'trust_gate_refused' | 'trust_gate_queued';
   agent?: string;
   identity?: string;
   project?: string;
   timestamp: number;
   details?: Record<string, unknown>;
+}
+
+/**
+ * A spawn the trust gate held for operator approval (ADR-0093 L2). The
+ * runner hands this to `options.enqueueForApproval`; the daemon wires that
+ * to its HITL proposal queue. Without an injected queue the runner refuses
+ * the spawn outright (fail-closed) — approval-required work is never
+ * silently auto-run.
+ */
+export interface FleetApprovalProposal {
+  /** Unique proposal id — the handle approve/reject decisions reference. */
+  id: string;
+  project: string;
+  agent: string;
+  /** The raw trigger spec string that fired (e.g. `webhook:deploy-hook`). */
+  trigger: string;
+  tier: TrustTier;
+  reason: string;
+  /** The tier's safe tool set — what the spawn would be limited to. */
+  safeTools: string[];
+  /** The engine run context; pass to `hailAgent(name, context)` on approval. */
+  context: FleetRunContext;
+  timestamp: number;
 }
 
 export type FleetEventCallback = (event: FleetEvent) => void;
@@ -670,7 +736,53 @@ export interface FleetRunnerOptions {
    * docs/shipwright/FLEETCONTROL-HARDENING.md §5.
    */
   acquirePermit?: () => Promise<() => void>;
+  /**
+   * Inbound webhook receiver registration (I/O wiring Phase 2). The daemon
+   * owns the HTTP surface; it injects this so `webhook:<channel>` triggers
+   * can register handlers with the receiver route. Absent (tests, bare CLI
+   * runners) the webhook trigger source registers into a no-op and never
+   * fires — honest inertness, not an error.
+   */
+  registerWebhookHandler?: IoDispatchDeps['registerWebhookHandler'];
+  /**
+   * L2 approval seam (ADR-0093). Called when the trust gate demands operator
+   * approval for a trigger-fired spawn (any external provenance). The daemon
+   * wires this to its HITL proposal queue. When absent the runner REFUSES
+   * the spawn (fail-closed) and emits `trust_gate_refused` — it never runs
+   * approval-required work unattended.
+   */
+  enqueueForApproval?: (proposal: FleetApprovalProposal) => void | Promise<void>;
+  /**
+   * Native, local skill-injection index (lib/skill-graft.ts) for ships that
+   * set `skill_graft: true`. When omitted, the runner lazily constructs a
+   * real one (real local MiniLM embedder + this repo's skills/ directory,
+   * BM25 + Tool2Vec hybrid ranking — see that module for why it's not just
+   * cosine-vs-description) the first time an opted-in agent actually
+   * spawns — so a fleet with no opted-in ships never pays for it. Tests
+   * inject a narrow fake here to avoid the real embedder and filesystem scan.
+   */
+  skillGraft?: Pick<SkillGraftIndex, 'craft'>;
+  /**
+   * Hard latency bound (ms) on the advisory skill-graft enrichment that runs
+   * on the live spawn path. If `craft()` hasn't produced context within this
+   * budget, the ship spawns on the un-grafted task (fail-open). Defaults to
+   * {@link DEFAULT_SKILL_GRAFT_SPAWN_BUDGET_MS}; tests override it to prove the
+   * bound without waiting seconds.
+   */
+  skillGraftBudgetMs?: number;
 }
+
+/**
+ * Default ceiling for how long the first skill-graft `craft()` on a live spawn
+ * path may take before we give up and spawn without enrichment. The first call
+ * in a process pays a one-time cost — a full skills/ catalog scan, plus a local
+ * MiniLM model load/download when the semantic tier is configured — and this
+ * enrichment is strictly advisory, so it must never hold a spawn hostage.
+ */
+const DEFAULT_SKILL_GRAFT_SPAWN_BUDGET_MS = 8_000;
+
+/** Unambiguous race sentinel: the skill-graft budget elapsed before craft(). */
+const SKILL_GRAFT_TIMED_OUT: unique symbol = Symbol('skill-graft-timeout');
 
 export function createFleetRunner(config: FleetConfig, projectDir: string, options?: FleetRunnerOptions) {
   const running = new Map<string, RunningAgent>();
@@ -690,6 +802,57 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   const tupleHarbor = config.harbor || `${project}:fleet`;
   const FLEET_TUPLE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+  // ─── Skill Graft (opt-in per-ship context injection) ─────────────────────
+  // Only ever constructed if some agent actually sets `skill_graft: true` in
+  // pd-fleet.yml AND that agent runs — a bare `createFleetRunner()` with no
+  // opted-in ships never touches the embedder or the skill catalog. Tests
+  // inject `options.skillGraft` directly to avoid the real embedder/fs scan.
+  let skillGraftIndex: Pick<SkillGraftIndex, 'craft'> | undefined = options?.skillGraft;
+  const skillGraftBudgetMs = options?.skillGraftBudgetMs ?? DEFAULT_SKILL_GRAFT_SPAWN_BUDGET_MS;
+  function getSkillGraftIndex(): Pick<SkillGraftIndex, 'craft'> {
+    if (!skillGraftIndex) {
+      // Resolve a real request-shape LLM backend for Tool2Vec's
+      // synthetic-query generation, same convention lib/coordination-judge.ts
+      // uses (lib/llm-backend-resolver.ts + createLLMClient) — but
+      // deliberately MORE conservative than the judge's own resolution:
+      //
+      // 1. Only `cloudflare`/`ollama` count as usable. `resolveLLMBackend()`
+      //    still returns a non-null result for `claude`/`codex`/`custom`
+      //    (a `notSupportedTransport` that always fails at call time) — if
+      //    we treated that as "configured," every centroid build would
+      //    silently fail, the centroidStore would exist for nothing, and
+      //    craft() would misreport `semanticTier: 'hybrid'` (Copilot review
+      //    finding on this fix's own diff).
+      // 2. Only an EXPLICIT `PD_SKILL_GRAFT_BACKEND` pin (source ===
+      //    'actor-env') counts — NOT an inherited `PD_FLEET_DEFAULT_BACKEND`.
+      //    Tool2Vec centroid generation is a heavier, less-obviously-
+      //    anticipated cost than the judge's per-request completions (a
+      //    burst of LLM calls across the whole skill catalog the first time
+      //    `refresh()` runs); an operator enabling `skill_graft: true` on a
+      //    ship should opt into that cost explicitly, not inherit it from an
+      //    unrelated judge/fleet-default configuration.
+      //
+      // When neither holds, `createSkillGraftIndex` gets no llmClient and
+      // craft() gracefully degrades to BM25-only ranking (never reintroduces
+      // the vocabulary-mismatch bug as a silent "fallback").
+      const resolved = resolveLLMBackend({ actor: 'skill-graft' });
+      const usable = resolved
+        && resolved.source === 'actor-env'
+        && (resolved.backend === 'cloudflare' || resolved.backend === 'ollama')
+        ? resolved
+        : null;
+      const llmClient = usable
+        ? createLLMClient({ adapter: transportToAdapter(usable.transport), model: usable.model, timeoutMs: 15_000 })
+        : undefined;
+      skillGraftIndex = createSkillGraftIndex({
+        projectRoot: projectDir,
+        llmClient,
+        llmModel: usable?.model,
+      });
+    }
+    return skillGraftIndex;
+  }
+
   function resolveChannel(channel: string): string {
     return resolveFleetChannel(channel, projectDir, project);
   }
@@ -707,7 +870,19 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     // a no-op scheduleCron keeps the CronTriggerSource registerable for the
     // future designer/health-board surfaces without double-firing.
     scheduleCron: () => () => {},
+    // Phase 2: the daemon injects its inbound receiver so webhook:<channel>
+    // triggers fire for real; absent, the source registers into a no-op.
+    registerWebhookHandler: options?.registerWebhookHandler,
   });
+
+  // ─── Trust gate (ADR-0093 L1) ─────────────────────────────────────────────
+  // Every registry-trigger fire passes through evaluateTrustGate BEFORE
+  // requestAgentRun. The policy's author allowlist comes from the fleet
+  // config's `trust:` block; it only upgrades an external event when the
+  // trigger source ALSO verified the content author (consent_verified).
+  const trustPolicy: TrustPolicy = {
+    allowlistedAuthors: config.trust?.allowlistedAuthors ?? [],
+  };
 
   /** True if the agent has any event trigger (singular, plural, or tuple). */
   function agentIsTriggered(agent: FleetAgent): boolean {
@@ -979,6 +1154,86 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         .startTrigger(raw, (event) => {
           // Late-firing watchers must not wake a stopped runner.
           if (stopped || !running.has(agent.name)) return;
+
+          // ── Trust gate (ADR-0093 §4.3): classify provenance and validate
+          // the ship's tools against the tier's safe set BEFORE any spawn.
+          // This is the L1 boundary between an inbound event and an agent
+          // holding tools — the hard dependency of every untrusted-ingress
+          // phase (webhook receiver, inbound email/SMS).
+          const gate = evaluateTrustGate({
+            event,
+            allowedTools: agent.allowedTools,
+            policy: trustPolicy,
+          });
+          if (!gate.allowed) {
+            emit({
+              type: 'trust_gate_refused',
+              agent: agent.name,
+              project,
+              timestamp: Date.now(),
+              details: {
+                trigger: raw,
+                tier: gate.tier,
+                reason: gate.reason,
+                offendingTools: gate.offendingTools,
+              },
+            });
+            console.error(
+              `[Fleet] Trust gate REFUSED trigger "${raw}" for agent "${agent.name}" ` +
+              `(tier ${gate.tier}): ${gate.reason}`,
+            );
+            return; // never spawn; reason only, never how-to-bypass
+          }
+          if (gate.requiresApproval) {
+            const proposal: FleetApprovalProposal = {
+              id: randomUUID(),
+              project,
+              agent: agent.name,
+              trigger: raw,
+              tier: gate.tier,
+              reason: gate.reason,
+              safeTools: gate.safeTools,
+              context: contextFromTriggerEvent(event),
+              timestamp: Date.now(),
+            };
+            const enqueue = options?.enqueueForApproval;
+            if (!enqueue) {
+              // Fail closed: approval-required work is never auto-run just
+              // because no approval queue happens to be wired.
+              emit({
+                type: 'trust_gate_refused',
+                agent: agent.name,
+                project,
+                timestamp: Date.now(),
+                details: {
+                  trigger: raw,
+                  tier: gate.tier,
+                  reason: 'requires operator approval and no approval queue is wired (fail-closed)',
+                },
+              });
+              console.error(
+                `[Fleet] Trust gate REFUSED trigger "${raw}" for agent "${agent.name}" ` +
+                `(tier ${gate.tier}): requires operator approval and no approval queue is wired`,
+              );
+              return;
+            }
+            emit({
+              type: 'trust_gate_queued',
+              agent: agent.name,
+              project,
+              timestamp: Date.now(),
+              details: { trigger: raw, tier: gate.tier, safeTools: gate.safeTools },
+            });
+            // async wrapper so a SYNCHRONOUSLY throwing enqueue is captured
+            // too — a broken queue must not crash the trigger handler.
+            void (async () => enqueue(proposal))().catch((err: Error) => {
+              console.error(
+                `[Fleet] Approval enqueue failed for agent "${agent.name}" trigger "${raw}":`,
+                err.message,
+              );
+            });
+            return;
+          }
           void requestAgentRun(agent, contextFromTriggerEvent(event));
         })
         .then((result) => {
@@ -1129,6 +1384,34 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       detached: true,
     });
     watchProc.unref();
+
+    // Record this child's PID (+ an exec-command fragment used to confirm
+    // identity before a future kill, guarding against PID recycling — see
+    // watcher-pid-registry.ts) so a FUTURE boot of this daemon (after a
+    // crash that never ran stopRunningRecord()) can find and kill it instead
+    // of leaving it orphaned indefinitely.
+    if (watchProc.pid) {
+      try {
+        const registry = loadWatcherPidRegistry(WATCHER_PID_FILE);
+        registry[watcherPidKey(project, watcher.name)] = {
+          pid: watchProc.pid,
+          startedAt: Date.now(),
+          execSnippet: toExecSnippet(watcher.exec),
+        };
+        saveWatcherPidRegistry(WATCHER_PID_FILE, registry);
+      } catch {
+        // Best-effort — a registry write failure must not block the watcher.
+      }
+    }
+    watchProc.on('exit', () => {
+      try {
+        const registry = loadWatcherPidRegistry(WATCHER_PID_FILE);
+        delete registry[watcherPidKey(project, watcher.name)];
+        saveWatcherPidRegistry(WATCHER_PID_FILE, registry);
+      } catch {
+        // Best-effort cleanup only.
+      }
+    });
 
     running.set(watcher.name, {
       name: watcher.name,
@@ -1506,30 +1789,86 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       .slice(0, 32);
   }
 
-  function buildAgentTask(agent: FleetAgent, context?: FleetRunContext): string {
+  /**
+   * Returns a plain `string` synchronously whenever `agent.skillGraft` is not
+   * set — i.e. for every ship today, byte-for-byte identical to this
+   * function's pre-skill-graft behavior, with ZERO extra microtask ticks.
+   * That matters: several existing tests assert exact scheduling/backoff/
+   * singleton timing by counting `await Promise.resolve()` ticks, and
+   * unconditionally making this function `async` (even with no internal
+   * `await`) shifts those counts by one tick per the spec's Promise
+   * resolution semantics — it broke two such tests during development.
+   * Returning `Promise<string>` only on the opt-in path keeps the fast path
+   * perfectly synchronous; see the call site below for how it's consumed
+   * without forcing an `await` on the common case either.
+   */
+  function buildAgentTask(agent: FleetAgent, context?: FleetRunContext): string | Promise<string> {
     const basePrompt = agent.prompt.trim();
-    if (!context) return basePrompt;
+    const messageText = context ? (context.messageContent ?? serializeMessage(context.message)).trim() : '';
 
-    const messageText = (context.messageContent ?? serializeMessage(context.message)).trim();
-    if (!messageText) return basePrompt;
+    let task = basePrompt;
+    if (context && messageText) {
+      const lines = [
+        basePrompt,
+        '',
+        'Trigger context:',
+        `- source: ${context.source || 'trigger'}`,
+        context.channel ? `- channel: ${context.channel}` : null,
+        context.from ? `- sender: ${context.from}` : null,
+        context.tupleHarbor ? `- tuple harbor: ${context.tupleHarbor}` : null,
+        context.tuplePattern ? `- tuple pattern: ${JSON.stringify(context.tuplePattern)}` : null,
+        context.tuple ? `- tuple id: ${context.tuple.id}` : null,
+        '- message:',
+        messageText,
+        '',
+        'Take one bounded pass in response to this trigger. Use only your configured channels and stop after this pass.',
+      ].filter((line): line is string => !!line);
+      task = lines.join('\n');
+    }
 
-    const lines = [
-      basePrompt,
-      '',
-      'Trigger context:',
-      `- source: ${context.source || 'trigger'}`,
-      context.channel ? `- channel: ${context.channel}` : null,
-      context.from ? `- sender: ${context.from}` : null,
-      context.tupleHarbor ? `- tuple harbor: ${context.tupleHarbor}` : null,
-      context.tuplePattern ? `- tuple pattern: ${JSON.stringify(context.tuplePattern)}` : null,
-      context.tuple ? `- tuple id: ${context.tuple.id}` : null,
-      '- message:',
-      messageText,
-      '',
-      'Take one bounded pass in response to this trigger. Use only your configured channels and stop after this pass.',
-    ].filter((line): line is string => !!line);
+    if (!agent.skillGraft) return task;
+    return appendSkillGraftContext(agent, task);
+  }
 
-    return lines.join('\n');
+  /**
+   * Append a windags-pattern "relevant skills" section to `task` using
+   * lib/skill-graft.ts, keyed on the ship's own task text as the query.
+   *
+   * This runs on the live spawn path (`buildAgentTask` awaits it before the
+   * ship starts), and the FIRST call in a process pays a one-time cost — a full
+   * skills/ catalog scan, plus a local MiniLM model load/download when the
+   * semantic tier is configured. Because the enrichment is strictly advisory it
+   * is both fail-open AND time-boxed, so it can never fail *or* stall a spawn:
+   *   - never *fails* a spawn: any skill-graft error (embedder failure,
+   *     unreadable skills/ dir, etc.) logs and returns the unmodified task; and
+   *   - never *stalls* a spawn: if `craft()` hasn't produced context within
+   *     `skillGraftBudgetMs`, the ship spawns on the un-grafted task and the
+   *     enrichment is skipped for that run (the timer is `unref`'d so it never
+   *     keeps the process alive on its own).
+   * Same fail-open posture the rest of this engine uses for advisory enrichment
+   * (see emitSemanticAliasTuples/observeSemanticAliases below), now with an
+   * explicit latency bound so advisory enrichment can't hold a spawn hostage.
+   */
+  async function appendSkillGraftContext(agent: FleetAgent, task: string): Promise<string> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const budget = new Promise<typeof SKILL_GRAFT_TIMED_OUT>((resolve) => {
+        timer = setTimeout(() => resolve(SKILL_GRAFT_TIMED_OUT), skillGraftBudgetMs);
+        timer.unref?.();
+      });
+      const result = await Promise.race([getSkillGraftIndex().craft(task), budget]);
+      if (result === SKILL_GRAFT_TIMED_OUT) {
+        console.error(`[Fleet] skill-graft exceeded ${skillGraftBudgetMs}ms for agent "${agent.name}" (spawning without it)`);
+        return task;
+      }
+      const rendered = renderSkillGraftContext(result);
+      return rendered ? `${task}\n\n${rendered}` : task;
+    } catch (err) {
+      console.error(`[Fleet] skill-graft failed for agent "${agent.name}" (continuing without it):`, (err as Error).message);
+      return task;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   function mergePendingContext(existing: FleetRunContext | undefined, incoming: FleetRunContext): FleetRunContext {
@@ -1699,7 +2038,11 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
     try {
       const attemptErrors: SpawnAttemptFailure[] = [];
-      const task = buildAgentTask(agent, context);
+      // Only await when skill-graft actually returned a Promise (agent.skillGraft
+      // is set) — see buildAgentTask's doc comment for why the fast path must
+      // stay perfectly synchronous.
+      const taskResult = buildAgentTask(agent, context);
+      const task = typeof taskResult === 'string' ? taskResult : await taskResult;
       emitSemanticAliasTuples(agent, task, context);
       observeSemanticAliases(agent, task, context, now);
 
@@ -1969,7 +2312,68 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     console.error(`[Fleet] Auto-respawn watcher active for: ${respawnAgents.map(a => a.name).join(', ')}`);
   }
 
+  /**
+   * Kill + drop any `pd watch --exec` children this project left behind from
+   * a PREVIOUS, ungraceful exit (segfault, SIGKILL) before starting fresh
+   * ones. A graceful shutdown already reaps these via stopRunningRecord(); this
+   * sweep exists for the case that didn't run one. See watcher-pid-registry.ts.
+   *
+   * Only kills a PID whose LIVE command line still matches the exec fragment
+   * recorded when it was spawned (sweepStaleWatcherPids' identity check) —
+   * without that, a PID the OS recycled onto an unrelated process since the
+   * watcher child died would get `process.kill(-pid, 'SIGTERM')`'d, taking
+   * out a stranger's process group (Copilot review on PR #879). Entries that
+   * can't be confirmed are reported, not killed.
+   */
+  function sweepOrphanedWatcherChildren(): void {
+    try {
+      const registry = loadWatcherPidRegistry(WATCHER_PID_FILE);
+      // Nothing to do (and nothing to persist) if this project has no
+      // entries at all — this is the common case (a fresh install, a test
+      // run, or a project whose watchers have never hit the external-spawn
+      // fallback). Without this guard, saveWatcherPidRegistry() would
+      // mkdirSync + writeFileSync an empty/unchanged registry on EVERY
+      // fleet boot, including from unit tests that call startAll() — a
+      // pure side effect against ~/.port-daddy/watcher-pids.json with
+      // nothing gained (Copilot review on PR #879).
+      const prefix = `${project}:`;
+      const hasProjectEntries = Object.keys(registry).some((key) => key.startsWith(prefix));
+      if (!hasProjectEntries) return;
+
+      const { registry: swept, killed, unconfirmed } = sweepStaleWatcherPids(
+        registry,
+        project,
+        getCommandLineForPid,
+        (pid) => {
+          try {
+            process.kill(-pid, 'SIGTERM'); // detached spawn -> own process group
+          } catch {
+            try { process.kill(pid, 'SIGTERM'); } catch { /* already dead */ }
+          }
+        },
+      );
+      saveWatcherPidRegistry(WATCHER_PID_FILE, swept);
+      if (killed.length > 0) {
+        console.error(
+          `[Fleet] Swept ${killed.length} orphaned watcher child(ren) from a previous ungraceful exit: ` +
+          killed.map((k) => `${k.key} (pid ${k.pid})`).join(', '),
+        );
+      }
+      if (unconfirmed.length > 0) {
+        console.error(
+          `[Fleet] ${unconfirmed.length} watcher-pid registry entr(y/ies) had a live PID whose command line no ` +
+          `longer matches the recorded watcher — likely PID reuse by an unrelated process, so NOT killed: ` +
+          unconfirmed.map((u) => `${u.key} (pid ${u.pid})`).join(', '),
+        );
+      }
+    } catch (err) {
+      // Best-effort — a sweep failure must never block fleet boot.
+      console.error('[Fleet] Orphaned-watcher sweep failed (non-fatal):', (err as Error).message);
+    }
+  }
+
   function startAll(): void {
+    sweepOrphanedWatcherChildren();
     // Create the fleet harbor first, then start agents
     ensureHarbor().then(() => {
       for (const agent of config.agents) {
@@ -2150,7 +2554,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
 // ─── Cron Helpers ───────────────────────────────────────────────────────────
 
-function parseCronInterval(cron: string): number {
+export function parseCronInterval(cron: string): number {
   const MIN_INTERVAL = 60000;  // 1 minute minimum — prevents runaway agents
   const DEFAULT_INTERVAL = 600000;  // 10 minutes
 

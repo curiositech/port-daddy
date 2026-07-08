@@ -1,0 +1,73 @@
+{
+  "schema": "pd.agent-harbor.work-receipt.v0",
+  "receiptId": "receipt_01JZFIX0001",
+  "agentNodeId": "agent_node_01JZFIX0001",
+  "sessionId": "session_01JZFIX0001",
+  "runId": "agent_run_01JZFIX0001",
+  "harborId": "harbor_local",
+  "identity": {
+    "agent": "port-daddy:contrib:auth-test-fix",
+    "backend": "codex-cli",
+    "provider": "openai",
+    "modelTier": "mid",
+    "modelName": "gpt-5.2-codex",
+    "sessionId": "session_01JZFIX0001",
+    "worktree": "/Users/me/coding/tmp/port-daddy-auth-fix",
+    "operator": "erich"
+  },
+  "intent": {
+    "goal": "fix the flaky auth tests",
+    "scope": "tests/unit/auth.test.ts only",
+    "nonGoals": ["refactoring the auth module", "touching routes/agents.ts"],
+    "stopCondition": "focused test passes 20 consecutive runs"
+  },
+  "risks": [
+    { "severity": "high", "summary": "Fake-timer teardown change could mask a real race in production code.", "checkFirst": true },
+    { "severity": "low", "summary": "Test name changed; CI dashboards keyed on the old name go stale." }
+  ],
+  "validation": {
+    "artifactBacked": true,
+    "tests": [
+      { "name": "npm test -- tests/unit/auth.test.ts", "passed": true, "exitCode": 0, "artifactPath": "blob:stdout_01JZFIX0007" }
+    ],
+    "manualVerification": null
+  },
+  "actions": {
+    "commands": [
+      { "command": "npm test -- tests/unit/auth.test.ts", "exitCode": 0 }
+    ],
+    "toolCallCounts": { "bash": 6, "edit": 3, "read": 9 },
+    "filesChanged": ["tests/unit/auth.test.ts"],
+    "diffSummary": "1 file changed: replaced real timers with jest.useFakeTimers and awaited teardown."
+  },
+  "contextUsed": {
+    "filesRead": ["tests/unit/auth.test.ts", "lib/auth.ts"],
+    "rulesConsulted": ["AGENTS.md"],
+    "skillGrafts": ["vitest-testing-patterns"],
+    "memoryEpisodes": ["memep_flaky_timers"]
+  },
+  "rollback": {
+    "checkpoint": "fbf5bda76",
+    "method": "git revert of the single commit",
+    "verified": true
+  },
+  "spend": {
+    "tokens": 48200,
+    "costUsd": 0.61,
+    "wallClockMs": 412000,
+    "budgetCapUsd": 3
+  },
+  "provenance": {
+    "transcriptHeadHash": "sha256:bbbb",
+    "diffHash": "sha256:dddd",
+    "filesHash": "sha256:eeee",
+    "receiptBodyHash": "sha256:ffff",
+    "signature": null,
+    "replayCommand": "pd receipts verify receipt_01JZFIX0001"
+  },
+  "strength": "strong",
+  "prRefs": ["pr:702"],
+  "verificationStatus": "verified",
+  "createdAt": "2026-07-05T12:10:00.000Z",
+  "verifiedAt": "2026-07-05T12:10:05.000Z"
+}

@@ -17,6 +17,20 @@ jest.unstable_mockModule('node:fs', () => ({
   statSync: mockStatSync,
   unlinkSync: jest.fn(),
   writeFileSync: mockWriteFileSync,
+  // routes/fleet.ts now imports the I/O registry (GET /fleet/sources), whose
+  // file trigger references fs.watch at module-link time; email/notify sinks
+  // pull appendFileSync via the consent gate.
+  watch: jest.fn(() => ({ close: jest.fn() })),
+  appendFileSync: jest.fn(),
+}));
+
+jest.unstable_mockModule('node:child_process', () => ({
+  spawn: jest.fn(),
+  execSync: jest.fn(() => ''),
+  execFileSync: jest.fn(),
+  // notify-macos sink + EventKit bridge, transitively imported by the
+  // I/O registry the routes now reference.
+  execFile: jest.fn((_cmd, _args, cb) => { if (typeof cb === 'function') cb(null, '', ''); }),
 }));
 
 jest.unstable_mockModule('../../lib/fleet-engine.js', () => ({
@@ -26,6 +40,18 @@ jest.unstable_mockModule('../../lib/fleet-engine.js', () => ({
   findFleetConfigPath: mockFindFleetConfigPath,
   loadFleetConfig: mockLoadFleetConfig,
   validateTopology: mockValidateTopology,
+  // routes/fleet.js transitively imports these via lib/spawn-forecast.ts for
+  // GET /fleet/forecast. This suite doesn't exercise that route, so
+  // passthrough stubs are enough to satisfy the ESM module link.
+  parseCronInterval: (cron) => {
+    const match = /^\*\/(\d+) \* \* \* \*$/.exec(cron ?? '');
+    return match ? Number(match[1]) * 60_000 : 10 * 60_000;
+  },
+  resolveFleetAgentRuntime: (agent) => ({
+    backend: agent?.backend ?? null,
+    model: agent?.model ?? null,
+    modelTier: agent?.modelTier,
+  }),
 }));
 
 jest.unstable_mockModule('../../lib/backend-readiness.js', () => ({

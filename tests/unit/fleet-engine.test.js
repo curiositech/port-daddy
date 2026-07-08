@@ -17,19 +17,32 @@ import { parse as realYamlParse, parseDocument as realParseDocument, LineCounter
 
 const mockExistsSync = jest.fn();
 const mockReadFileSync = jest.fn();
+const mockWriteFileSync = jest.fn();
+const mockMkdirSync = jest.fn();
 
 jest.unstable_mockModule('node:fs', () => ({
   existsSync: mockExistsSync,
   readFileSync: mockReadFileSync,
-  writeFileSync: jest.fn(),
+  writeFileSync: mockWriteFileSync,
   appendFileSync: jest.fn(),
   unlinkSync: jest.fn(),
-  mkdirSync: jest.fn(),
+  mkdirSync: mockMkdirSync,
   chmodSync: jest.fn(),
   // The fleet engine now transitively imports the pluggable I/O registry
   // (lib/fleet/io-dispatch.ts), whose file trigger uses fs.watch. The
   // wholesale node:fs mock must surface it or module link fails.
   watch: jest.fn(() => ({ close: jest.fn() })),
+  // …and the calendar channel's EventKit bridge (lib/fleet/calendar-
+  // eventkit.ts) stats the helper source/binary at module-eval time.
+  statSync: jest.fn(() => ({ mtimeMs: 0 })),
+  // …and lib/skill-graft.ts transitively imports lib/shipwright/skill-index.ts,
+  // whose catalog walker calls readdirSync. Some tests below DO set
+  // `skill_graft: true` on an agent, but every one of them injects a fake
+  // `options.skillGraft` (see "Skill Graft wiring" tests), so the real
+  // createSkillGraftIndex()/loadSkillCatalog() path — the thing that would
+  // actually call readdirSync — is never reached. This stub only needs to
+  // exist so ESM module linking succeeds for lib/skill-graft.ts's import.
+  readdirSync: jest.fn(() => []),
 }));
 
 const mockSpawn = jest.fn();
@@ -42,6 +55,12 @@ jest.unstable_mockModule('node:child_process', () => ({
   // The fleet engine transitively imports the I/O registry; the macOS
   // notification sink (lib/fleet/outputs/notify-macos.ts) uses execFile.
   execFile: jest.fn((_cmd, _args, cb) => { if (typeof cb === 'function') cb(null, '', ''); }),
+  // watcher-pid-registry.ts's getCommandLineForPid() uses spawnSync (`ps`)
+  // to confirm a watcher child's identity before killing it. Return a
+  // not-found shape by default — no test in this file exercises the
+  // orphaned-watcher sweep's `ps` call directly (that's covered in
+  // watcher-pid-registry.test.js), so this only needs to not throw.
+  spawnSync: jest.fn(() => ({ status: 1, stdout: '', stderr: '' })),
 }));
 
 // yaml must be available for fleet-engine to import.
@@ -746,6 +765,32 @@ test('YAML watcher fallback invokes Port Daddy from the installed runtime, not t
   expect(args).toEqual(['watch', physicalChannel, '--exec', 'echo "$PD_MESSAGE_CONTENT"']);
   expect(args).not.toContain('tsx');
   expect(args.join(' ')).not.toContain('/tmp/plain-ruby-repo/bin/port-daddy-cli.ts');
+});
+
+// 4th Copilot review round, PR #879: sweepOrphanedWatcherChildren() used to
+// call saveWatcherPidRegistry() unconditionally on every startAll(), which
+// meant every test (and every real fleet boot) that never spawned an
+// external watcher child would still mkdirSync + writeFileSync an
+// empty/unchanged ~/.port-daddy/watcher-pids.json as a pure side effect.
+// mockExistsSync defaults to `undefined` (falsy) for this project's config
+// file paths in most tests, so loadWatcherPidRegistry sees "no file" (an
+// empty registry) here -- exactly the no-op case the guard exists for.
+test('startAll() does not write the watcher-pid registry when there is nothing to sweep', async () => {
+  const config = makeConfig({ trigger: 'git:committed' });
+  const runner = createFleetRunner(config, '/tmp/plain-ruby-repo');
+
+  runner.startAll();
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(mockWriteFileSync).not.toHaveBeenCalledWith(
+    expect.stringContaining('watcher-pids.json'),
+    expect.anything(),
+  );
+  expect(mockMkdirSync).not.toHaveBeenCalledWith(
+    expect.stringContaining('.port-daddy'),
+    expect.anything(),
+  );
 });
 
 test('runner can deploy a subset by pausing unselected agents', async () => {
@@ -1804,4 +1849,100 @@ test('trimMessage at exactly maxChars returns message unchanged', async () => {
   // Task should contain the full prompt without truncation marker
   expect(body.task).not.toContain('[truncated');
   expect(body.task.length).toBeGreaterThanOrEqual(4000);
+});
+
+// ─── Skill Graft wiring (opt-in per-ship context injection, lib/skill-graft.ts) ──
+
+test('skillGraft: true splices the injected skill-graft context into the task', async () => {
+  const craft = jest.fn().mockResolvedValue({
+    query: 'Do something',
+    scannedCount: 42,
+    roots: [],
+    shortlist: [
+      { id: 'rag-retrieval-pattern-design', description: 'RAG chunking and hybrid search', category: 'AI', tags: [], similarity: 0.9 },
+    ],
+    top: [],
+  });
+  const config = makeConfig({ skillGraft: true });
+  const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft } });
+
+  await runner.hailAgent('test-agent', { source: 'manual' });
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(craft).toHaveBeenCalledWith('Do something');
+  const spawnCall = global.fetch.mock.calls.find(c => String(c[0]).includes('/spawn'));
+  expect(spawnCall).toBeDefined();
+  const body = JSON.parse(spawnCall[1].body);
+  expect(body.task).toContain('Do something');
+  expect(body.task).toContain('rag-retrieval-pattern-design');
+  expect(body.task).toContain('42 scanned');
+});
+
+test('agents without skillGraft never call the injected index (fast path unaffected)', async () => {
+  const craft = jest.fn();
+  const config = makeConfig(); // skillGraft is undefined/falsy by default
+  const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft } });
+
+  await runner.hailAgent('test-agent', { source: 'manual' });
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(craft).not.toHaveBeenCalled();
+  const spawnCall = global.fetch.mock.calls.find(c => String(c[0]).includes('/spawn'));
+  expect(spawnCall).toBeDefined();
+  const body = JSON.parse(spawnCall[1].body);
+  expect(body.task).toBe('Do something');
+});
+
+test('skillGraft failure fails open: the spawn still proceeds with the unmodified task', async () => {
+  const craft = jest.fn().mockRejectedValue(new Error('embedder unavailable'));
+  const config = makeConfig({ skillGraft: true });
+  const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft } });
+  const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+  await runner.hailAgent('test-agent', { source: 'manual' });
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+
+  const spawnCall = global.fetch.mock.calls.find(c => String(c[0]).includes('/spawn'));
+  expect(spawnCall).toBeDefined();
+  const body = JSON.parse(spawnCall[1].body);
+  expect(body.task).toBe('Do something'); // unmodified — failed open, never blocked the spawn
+  expect(errSpy).toHaveBeenCalledWith(
+    expect.stringContaining('skill-graft failed for agent "test-agent"'),
+    expect.stringContaining('embedder unavailable'),
+  );
+  errSpy.mockRestore();
+});
+
+test('skillGraft that stalls never blocks a spawn: the budget elapses and the ship spawns un-grafted', async () => {
+  // craft() that never settles — stands in for the one-time cold cost on a
+  // first spawn (a full skills/ scan, or a MiniLM model load/download when the
+  // semantic tier is on). The awaited-before-spawn enrichment must be bounded
+  // so it can never hold the spawn hostage (Copilot review finding).
+  const craft = jest.fn().mockReturnValue(new Promise(() => {}));
+  const config = makeConfig({ skillGraft: true });
+  const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft }, skillGraftBudgetMs: 5 });
+  const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+  // Fake timers are active (global beforeEach). Kick off the run WITHOUT
+  // awaiting — it's parked on the never-settling craft() — then advance the
+  // clock past the 5ms budget so the timer fires and the race falls open.
+  const run = runner.hailAgent('test-agent', { source: 'manual' });
+  await jest.advanceTimersByTimeAsync(10);
+  await run;
+
+  expect(craft).toHaveBeenCalledWith('Do something');
+  const spawnCall = global.fetch.mock.calls.find(c => String(c[0]).includes('/spawn'));
+  expect(spawnCall).toBeDefined();
+  const body = JSON.parse(spawnCall[1].body);
+  expect(body.task).toBe('Do something'); // un-grafted — budget elapsed, spawn never blocked
+  expect(errSpy).toHaveBeenCalledWith(
+    expect.stringContaining('skill-graft exceeded 5ms for agent "test-agent"'),
+  );
+  errSpy.mockRestore();
 });

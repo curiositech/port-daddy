@@ -19,9 +19,13 @@ import { locksPlugin } from './locks.js';
 import { agentsPlugin } from './agents.js';
 import { agentCockpitPlugin } from './agent-cockpit.js';
 import { agentRosterPlugin } from './agent-roster.js';
+import { agentHarborPlugin } from './agent-harbor.js';
 import { activityPlugin } from './activity.js';
 import { webhooksPlugin } from './webhooks.js';
 import { githubWebhookPlugin } from './github-webhook.js';
+import { fleetWebhooksPlugin } from './fleet-webhooks.js';
+import { fleetApprovalsPlugin } from './fleet-approvals.js';
+import { fleetPushPlugin } from './fleet-push.js';
 import { relayPlugin } from './relay.js';
 import { configPlugin } from './config.js';
 import { projectsPlugin } from './projects.js';
@@ -80,6 +84,7 @@ import { cockpitPlugin } from './cockpit.js';
 import { popperPlugin } from './popper.js';
 import { dispatchesPlugin } from './dispatches.js';
 import { visualTasksPlugin } from './visual-tasks.js';
+import { fleetHitlProposalsPlugin } from './fleet-hitl-proposals.js';
 import { setupPlugin } from './setup.js';
 import { secretsPlugin } from './secrets.js';
 import { contextRoutes as contextPlugin } from './context.js';
@@ -115,6 +120,12 @@ export async function registerAllRoutes(
   await fastify.register(agentsPlugin, { deps } as any);
   await fastify.register(agentRosterPlugin, { deps } as any);
 
+  // Agent Harbor read API (binder ch09; work order C-routes). Serves C1's
+  // projections over HTTP: GET /agent-nodes (+detail/files), paged+SSE
+  // GET /sessions/:id/events, /costs, /receipts/:id verify, /compliance/:id.
+  // Read-only; stale projections are labeled in the envelope, never hidden.
+  await fastify.register(agentHarborPlugin, { deps } as any);
+
   // Agent Cockpit — "Watch + Grab the Wheel" Phase 0. Additive: GET
   // /agents/:id/stream (merged SSE) + POST /agents/:id/interrupt (soft steer).
   // Registers AFTER agentsPlugin so its specific /agents/:id/stream path is
@@ -125,6 +136,12 @@ export async function registerAllRoutes(
   await fastify.register(activityPlugin, { deps } as any);
   await fastify.register(webhooksPlugin, { deps } as any);
   await fastify.register(githubWebhookPlugin, { deps } as any);
+  // Fleet inbound webhook receiver (I/O wiring Phase 2, trust-gated).
+  await fastify.register(fleetWebhooksPlugin, { deps } as any);
+  // Trust-gate approval loop: WebSocket stream + REST decisions (ADR-0093 L2).
+  await fastify.register(fleetApprovalsPlugin, { deps } as any);
+  // Web Push (VAPID) so approval gates reach the operator's devices.
+  await fastify.register(fleetPushPlugin, { deps } as any);
 
   // Relay — daemon-side federation management (ADR-0049). Was SHIPPED-DEAD:
   // routes/relay.ts defined GET/POST /relay/config, /relay/status and
@@ -334,6 +351,12 @@ export async function registerAllRoutes(
   // accept/reject/cancel buttons. Requires `dispatchQueue` in deps.
   if ((deps as { dispatchQueue?: unknown }).dispatchQueue) {
     await fastify.register(dispatchesPlugin, { deps } as any);
+  }
+
+  // Fleet HITL proposals — cloud ships can propose work, but only these
+  // operator-gated routes may turn a proposal into a dispatch.
+  if ((deps as { db?: unknown }).db || (deps as { fleetProposals?: unknown }).fleetProposals) {
+    await fastify.register(fleetHitlProposalsPlugin, { deps } as any);
   }
 
   // Visual task issue intake — browser/FleetBar POST /visual-tasks. This is

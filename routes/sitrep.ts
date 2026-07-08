@@ -104,11 +104,24 @@ export const sitrepPlugin: FastifyPluginAsync<{ deps: SitrepDeps }> = async (fas
 
     const spawnedAgents = spawner ? spawner.list() : [];
 
+    // Held trust-gate approvals lead the sitrep: a pending human gate is
+    // the single most actionable item an operator/agent can see.
+    let approvals: Array<{ id: string; agent: string; trigger: string; tier: string; project: string; timestamp: number }> = [];
+    try {
+      const { getSharedApprovalStream } = await import('../lib/fleet/approval-stream.js');
+      approvals = getSharedApprovalStream().list().map((p) => ({
+        id: p.id, agent: p.agent, trigger: p.trigger, tier: p.tier, project: p.project, timestamp: p.timestamp,
+      }));
+    } catch {
+      // advisory; sitrep must not fail on this
+    }
+
     const summary =
       `Last ${sinceMinutes}m: ${activity.length} events, ` +
       `${notes.length} notes, ${salvageQueue.length} dead ` +
       `agent${salvageQueue.length === 1 ? '' : 's'}, ` +
-      `${spawnedAgents.length} spawned agent${spawnedAgents.length === 1 ? '' : 's'}`;
+      `${spawnedAgents.length} spawned agent${spawnedAgents.length === 1 ? '' : 's'}` +
+      (approvals.length > 0 ? `, ${approvals.length} APPROVAL${approvals.length === 1 ? '' : 'S'} WAITING` : '');
 
     return {
       success: true,
@@ -119,6 +132,7 @@ export const sitrepPlugin: FastifyPluginAsync<{ deps: SitrepDeps }> = async (fas
       notes,
       salvage_queue: salvageQueue,
       spawned_agents: spawnedAgents,
+      approvals,
     };
   });
 };

@@ -1,0 +1,97 @@
+name: Deploy fleet-executor (Cloudflare Worker)
+
+# Why this workflow exists:
+#   apps/fleet-executor is the LIVE cloud fleet bot (the Cloudflare Queues
+#   consumer that posts PR review + ideation-ship comments). It had no deploy
+#   automation, so merging a change to main left the OLD Worker running until
+#   someone remembered to `wrangler deploy` by hand. This workflow deploys it on
+#   every push to main that touches the app, so main == what's live.
+#
+# Config the Worker needs (the real wrangler.toml is gitignored — see
+# `.gitignore` line "apps/*/wrangler.toml" — because it carries the
+# account-scoped KV/D1 ids and the GitHub App id; only wrangler.toml.example is
+# committed). CI reconstructs it from a secret at deploy time.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   - CLOUDFLARE_API_TOKEN            already used by deploy-website-v2; a token
+#                                     with Workers Scripts:Edit on this account.
+#   - CLOUDFLARE_ACCOUNT_ID           already used by deploy-website-v2.
+#   - FLEET_EXECUTOR_WRANGLER_TOML    the app's REAL wrangler.toml, verbatim.
+#                                     Set it once from a machine that has the
+#                                     working config:
+#                                       gh secret set FLEET_EXECUTOR_WRANGLER_TOML \
+#                                         --repo curiositech/port-daddy --app actions \
+#                                         < apps/fleet-executor/wrangler.toml
+#
+# The Worker's runtime secrets are set out-of-band via `wrangler secret put`
+# and are PRESERVED across `wrangler deploy` — this workflow never touches them:
+#   - GITHUB_APP_PRIVATE_KEY     PEM signing key for the GitHub App.
+#   - PORT_DADDY_TELEMETRY_TOKEN Bearer token for POST /telemetry/cloud-app
+#                                (cost + failure events back to the daemon /
+#                                FleetBar). OPTIONAL: unset ⇒ the executor runs
+#                                identically and emits nothing. The sink URL
+#                                itself (PORT_DADDY_TELEMETRY_URL) is a plaintext
+#                                [vars] entry inside FLEET_EXECUTOR_WRANGLER_TOML.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/fleet-executor/**'
+      - '.github/workflows/deploy-fleet-executor.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Serialize deploys so two rapid pushes can't race the same Worker.
+  group: deploy-fleet-executor
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Never run from a fork; the secrets only exist on the canonical repo.
+    if: github.repository == 'curiositech/port-daddy'
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/fleet-executor
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/fleet-executor/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Materialize gitignored wrangler.toml from secret
+        env:
+          WRANGLER_TOML: ${{ secrets.FLEET_EXECUTOR_WRANGLER_TOML }}
+        run: |
+          set -euo pipefail
+          if [ -z "${WRANGLER_TOML:-}" ]; then
+            echo "::error::FLEET_EXECUTOR_WRANGLER_TOML is not set. The real wrangler.toml is gitignored (KV/D1/account ids), so CI needs it as a secret. From a machine with the working config run:  gh secret set FLEET_EXECUTOR_WRANGLER_TOML --repo curiositech/port-daddy --app actions < apps/fleet-executor/wrangler.toml"
+            exit 1
+          fi
+          printf '%s' "$WRANGLER_TOML" > wrangler.toml
+          echo "Wrote wrangler.toml ($(wc -c < wrangler.toml) bytes)."
+
+      # Don't ship a red build. main is already tested by ci.yml, but a deploy
+      # that skips its own gate can push a broken Worker if the two ever drift.
+      - name: Typecheck
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Test
+        run: npx vitest run
+
+      - name: Deploy Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy

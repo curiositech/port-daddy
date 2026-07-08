@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/control-command.schema.json",
+  "title": "ControlCommand",
+  "description": "A daemon-queued control against an Agent Node (binder ch09 control_commands). Each control is a separate, capability-specific promise — steer, interrupt, pause, kill, checkpoint, fork are individually probed. Commands are separate records from transcript events but render into the timeline. Stale projections must never authorize a command.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.control-command.v0" },
+    "commandId": { "type": "string", "minLength": 1 },
+    "agentNodeId": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": ["string", "null"] },
+    "runId": { "type": ["string", "null"] },
+    "kind": { "enum": ["pause", "interrupt", "steer", "checkpoint", "resume", "retire", "fork", "kill"] },
+    "payload": { "type": "object", "description": "Kind-specific payload, e.g. steer message text or checkpoint reason." },
+    "requestedBy": { "type": "string", "minLength": 1, "description": "Operator or agent id that issued the command." },
+    "status": {
+      "enum": ["queued", "delivered", "acknowledged", "failed", "expired", "unsupported"],
+      "description": "Capability-specific truth from daemon records. unsupported is an honest state, not a silent no-op."
+    },
+    "denialReason": { "type": ["string", "null"] },
+    "idempotencyKey": { "type": "string" },
+    "createdAt": { "type": "string", "minLength": 1 },
+    "deliveredAt": { "type": ["string", "null"] },
+    "acknowledgedAt": { "type": ["string", "null"] },
+    "expiresAt": { "type": ["string", "null"] }
+  },
+  "required": ["schema", "commandId", "agentNodeId", "kind", "requestedBy", "status", "createdAt"],
+  "additionalProperties": true
+}

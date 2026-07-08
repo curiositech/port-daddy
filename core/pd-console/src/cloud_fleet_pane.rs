@@ -58,6 +58,30 @@ struct ShipPrompt {
     role: String,
 }
 
+/// One local HITL proposal packet awaiting operator approval.
+#[derive(Debug, Clone)]
+struct FleetProposal {
+    id: String,
+    title: String,
+    source_ship: String,
+    target_specialist: String,
+    repo: String,
+    pr_number: i64,
+}
+
+impl FleetProposal {
+    fn from_value(v: &Value) -> Self {
+        Self {
+            id: s(v, "id"),
+            title: s(v, "title"),
+            source_ship: s(v, "sourceShip"),
+            target_specialist: s(v, "targetSpecialist"),
+            repo: s(v, "repoFullName"),
+            pr_number: n(v, "prNumber"),
+        }
+    }
+}
+
 /// Conclusion → display tone (color resolves at paint time).
 fn conclusion_tone(conclusion: &str) -> Tone {
     match conclusion {
@@ -73,10 +97,12 @@ pub struct CloudFleetPane {
     relay_token: String,
     ships: Vec<ShipPrompt>,
     activity: Vec<FleetRun>,
+    pending_proposals: Vec<FleetProposal>,
     paused: bool,
     last_run_age_sec: Option<i64>,
     dlq_depth: Option<i64>,
     last_error: Option<String>,
+    proposal_error: Option<String>,
 }
 
 impl Default for CloudFleetPane {
@@ -86,10 +112,12 @@ impl Default for CloudFleetPane {
             relay_token: std::env::var("PD_CONSOLE_RELAY_TOKEN").unwrap_or_default(),
             ships: Vec::new(),
             activity: Vec::new(),
+            pending_proposals: Vec::new(),
             paused: false,
             last_run_age_sec: None,
             dlq_depth: None,
             last_error: None,
+            proposal_error: None,
         }
     }
 }
@@ -107,6 +135,38 @@ impl CloudFleetPane {
     /// anything in it — both warrant the operator's attention.
     fn alarmed(&self) -> bool {
         self.paused || self.dlq_depth.map(|d| d > 0).unwrap_or(false)
+    }
+
+    fn push_pending_proposals(&self, blocks: &mut Vec<Block>) {
+        blocks.push(Block::Gap);
+        blocks.push(Block::Header("Pending Proposals".into()));
+        if let Some(err) = &self.proposal_error {
+            blocks.push(Block::KeyVal("error".into(), err.clone()));
+            return;
+        }
+        if self.pending_proposals.is_empty() {
+            blocks.push(Block::KeyVal("status".into(), "no ship proposals awaiting approval".into()));
+            return;
+        }
+        for proposal in self.pending_proposals.iter().take(10) {
+            let source = if proposal.repo.is_empty() {
+                proposal.source_ship.clone()
+            } else if proposal.pr_number > 0 {
+                format!("{} · {} PR #{}", proposal.source_ship, proposal.repo, proposal.pr_number)
+            } else {
+                format!("{} · {}", proposal.source_ship, proposal.repo)
+            };
+            blocks.push(Block::Row(vec![
+                trunc(&proposal.id, 8),
+                trunc(&proposal.title, 44),
+                trunc(&source, 34),
+                trunc(&proposal.target_specialist, 22),
+            ]));
+            blocks.push(Block::Chip {
+                label: format!("{} → approve/reject in FleetBar", trunc(&proposal.title, 72)),
+                tone: Tone::Gated,
+            });
+        }
     }
 }
 
@@ -153,6 +213,7 @@ impl Pane for CloudFleetPane {
                 "status".into(),
                 "not configured — set PD_CONSOLE_RELAY_URL / PD_CONSOLE_RELAY_TOKEN".into(),
             ));
+            self.push_pending_proposals(&mut blocks);
             return blocks;
         }
 
@@ -162,6 +223,7 @@ impl Pane for CloudFleetPane {
                 label: "relay unreachable".into(),
                 tone: Tone::Gated,
             });
+            self.push_pending_proposals(&mut blocks);
             return blocks;
         }
 
@@ -197,6 +259,9 @@ impl Pane for CloudFleetPane {
                 },
             ));
         }
+
+        // ── Local HITL proposals ──────────────────────────────────────────────
+        self.push_pending_proposals(&mut blocks);
 
         // ── Recent runs (transitions / exceptions) ─────────────────────────────
         blocks.push(Block::Gap);
@@ -258,6 +323,27 @@ impl Pane for CloudFleetPane {
         daemon: &'a DaemonClient,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async move {
+            // Local proposal queue: always try it, even when the remote relay is
+            // not configured. These packets live in the daemon DB and power the
+            // Rust/FleetBar HITL surfaces.
+            match fetch_json(
+                daemon,
+                &format!("{}/fleet-proposals?status=pending&limit=10", daemon.base()),
+                "",
+            ).await {
+                Err(e) => {
+                    self.proposal_error = Some(e);
+                    self.pending_proposals.clear();
+                }
+                Ok(data) => {
+                    self.proposal_error = None;
+                    self.pending_proposals = arr(&data, "proposals")
+                        .iter()
+                        .map(FleetProposal::from_value)
+                        .collect();
+                }
+            }
+
             // Unconfigured → no-op; view() shows the actionable hint instead.
             if !self.is_configured() {
                 return Ok(());
@@ -443,6 +529,14 @@ mod tests {
             name: "linter".into(),
             role: "style + lint review".into(),
         }];
+        p.pending_proposals = vec![FleetProposal {
+            id: "proposal-abc123".into(),
+            title: "Assign a UI expert to the shader console".into(),
+            source_ship: "spark".into(),
+            target_specialist: "ui-expert".into(),
+            repo: "curiositech/port-daddy".into(),
+            pr_number: 642,
+        }];
         let blocks = p.view();
         // A row per run + a colored verdict chip.
         assert!(blocks
@@ -454,6 +548,33 @@ mod tests {
         // The ship prompt is listed read-only.
         assert!(blocks.iter().any(|b| matches!(
             b, Block::KeyVal(k, v) if k.contains("linter") && v.contains("lint")
+        )));
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::Row(cells) if cells.iter().any(|c| c.contains("UI expert"))
+        )));
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::Chip { label, tone: Tone::Gated } if label.contains("approve/reject")
+        )));
+    }
+
+    #[test]
+    fn unconfigured_still_renders_local_proposals() {
+        let mut p = CloudFleetPane::default();
+        p.relay_url = String::new();
+        p.pending_proposals = vec![FleetProposal {
+            id: "proposal-1".into(),
+            title: "Spider combines docs and SDK into a build".into(),
+            source_ship: "spider".into(),
+            target_specialist: "documentarian".into(),
+            repo: String::new(),
+            pr_number: 0,
+        }];
+        let blocks = p.view();
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::Header(h) if h == "Pending Proposals"
+        )));
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::Row(cells) if cells.iter().any(|c| c.contains("Spider"))
         )));
     }
 }

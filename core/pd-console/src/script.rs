@@ -23,6 +23,7 @@
 //! error to the caller instead of hanging the socket.
 
 use std::io::{BufRead, BufReader, Write};
+use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::UnixListener;
 use std::sync::mpsc;
 use std::time::Duration;
@@ -89,11 +90,8 @@ pub fn parse_request(line: &str) -> Result<ScriptRequest, String> {
                 .map(|s| s.trim().to_string()),
         }),
         "galaxy" => {
-            let window_hours = v
-                .get("windowHours")
-                .and_then(Value::as_u64)
-                .map(|n| n as u32);
-            let min_tokens = v.get("minTokens").and_then(Value::as_u64).map(|n| n as u32);
+            let window_hours = optional_positive_u32(&v, "windowHours")?;
+            let min_tokens = optional_positive_u32(&v, "minTokens")?;
             let cluster = v.get("cluster").and_then(Value::as_bool);
             if window_hours.is_none() && min_tokens.is_none() && cluster.is_none() {
                 return Err("galaxy needs windowHours, minTokens, and/or cluster".to_string());
@@ -119,6 +117,22 @@ pub fn parse_request(line: &str) -> Result<ScriptRequest, String> {
             "unknown cmd \"{other}\" (try ping/panes/focus/state/galaxy/rebind/alerts)"
         )),
     }
+}
+
+fn optional_positive_u32(v: &Value, field: &str) -> Result<Option<u32>, String> {
+    let Some(raw) = v.get(field) else {
+        return Ok(None);
+    };
+    let Some(n) = raw.as_u64() else {
+        return Err(format!("{field} must be a positive integer"));
+    };
+    if n == 0 {
+        return Err(format!("{field} must be greater than 0"));
+    }
+    if n > u32::MAX as u64 {
+        return Err(format!("{field} must fit in u32"));
+    }
+    Ok(Some(n as u32))
 }
 
 /// Serialize a pane [`Block`] to JSON. Faithful but flat: scripting callers
@@ -150,6 +164,41 @@ pub fn block_to_json(block: &Block) -> Value {
         Block::Spark(values) => json!({"type": "spark", "values": values}),
         Block::Gap => json!({"type": "gap"}),
         Block::WrappedText { text, .. } => json!({"type": "text", "text": text}),
+        Block::NodeRow {
+            index,
+            selected,
+            live,
+            flag,
+            name,
+            badge,
+            meta,
+            age,
+            ..
+        } => json!({
+            "type": "nodeRow",
+            "index": index,
+            "selected": selected,
+            "live": live,
+            "flag": flag.to_string(),
+            "name": name,
+            "badge": badge,
+            "meta": meta,
+            "age": age,
+        }),
+        Block::ControlButton {
+            verb,
+            label,
+            enabled,
+            why_disabled,
+            primary,
+        } => json!({
+            "type": "control",
+            "verb": verb,
+            "label": label,
+            "enabled": enabled,
+            "whyDisabled": why_disabled,
+            "primary": primary,
+        }),
     }
 }
 
@@ -175,6 +224,11 @@ pub fn start_server(sock_path: String, tx: mpsc::Sender<ScriptEnvelope>) {
                 return;
             }
         };
+        if let Err(e) = std::fs::set_permissions(&sock_path, std::fs::Permissions::from_mode(0o600))
+        {
+            eprintln!("pd-console: control socket chmod failed at {sock_path}: {e}");
+            return;
+        }
         eprintln!("pd-console: control socket listening at {sock_path}");
         for stream in listener.incoming() {
             let Ok(stream) = stream else { continue };
@@ -308,6 +362,22 @@ mod tests {
     }
 
     #[test]
+    fn rejects_invalid_galaxy_numbers() {
+        assert_eq!(
+            parse_request(r#"{"cmd":"galaxy","windowHours":0}"#).unwrap_err(),
+            "windowHours must be greater than 0"
+        );
+        assert_eq!(
+            parse_request(r#"{"cmd":"galaxy","minTokens":4294967296}"#).unwrap_err(),
+            "minTokens must fit in u32"
+        );
+        assert_eq!(
+            parse_request(r#"{"cmd":"galaxy","windowHours":"24"}"#).unwrap_err(),
+            "windowHours must be a positive integer"
+        );
+    }
+
+    #[test]
     fn blocks_serialize_flat_and_faithful() {
         let blocks = vec![
             Block::Header("Session Galaxy".into()),
@@ -317,12 +387,37 @@ mod tests {
                 tone: Tone::Engaged,
             },
             Block::Gap,
+            Block::NodeRow {
+                index: 2,
+                selected: true,
+                live: false,
+                flag: 'S',
+                name: "agent-spark".into(),
+                badge: "observable".into(),
+                badge_tone: Tone::Gated,
+                meta: "codex · high · waiting".into(),
+                age: "4m".into(),
+                tone: Tone::Gated,
+            },
+            Block::ControlButton {
+                verb: "pause".into(),
+                label: "Pause".into(),
+                enabled: false,
+                why_disabled: Some("missing provider token".into()),
+                primary: true,
+            },
         ];
         let out: Vec<Value> = blocks.iter().map(block_to_json).collect();
         assert_eq!(out[0]["type"], "header");
         assert_eq!(out[1]["value"], "18");
         assert_eq!(out[2]["label"], "agent · bash — 12 session(s)");
         assert_eq!(out[3]["type"], "gap");
+        assert_eq!(out[4]["type"], "nodeRow");
+        assert_eq!(out[4]["name"], "agent-spark");
+        assert_eq!(out[4]["flag"], "S");
+        assert_eq!(out[5]["type"], "control");
+        assert_eq!(out[5]["enabled"], false);
+        assert_eq!(out[5]["whyDisabled"], "missing provider token");
     }
 
     #[test]
@@ -368,6 +463,8 @@ mod tests {
         }
         let stream =
             stream.unwrap_or_else(|| panic!("control socket never came up at {sock}: {last_err}"));
+        let mode = std::fs::metadata(&sock).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
         let mut writer = stream.try_clone().unwrap();
         let mut reader = BufReader::new(stream);
 

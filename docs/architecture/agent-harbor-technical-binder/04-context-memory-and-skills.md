@@ -16,7 +16,10 @@ for:
 - memory extraction;
 - skill creation;
 - accountability;
-- training data curation if the user explicitly opts in later.
+- training data curation if the user explicitly opts in later (the
+  trajectory-export pipeline of ADR-0052 consumes this substrate; its Episode
+  schema is a join over the ch. 09 event schema, and this opt-in plus the
+  distilled-source contract below govern any dataset derived from it).
 
 Notes remain valuable, but they become human and machine summaries on top of the
 raw event trail. We should stop destroying notes. Notes are append-only memory

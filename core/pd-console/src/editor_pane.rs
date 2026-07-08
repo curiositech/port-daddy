@@ -29,9 +29,41 @@
 //! resolved from `Tone`.
 
 use crate::agent::DaemonClient;
-use crate::buffer::{HarborBuffer, PeerId};
-use crate::pane::{Block, Pane, Tone};
+use crate::buffer::{peer_id_for_identity, HarborBuffer, PeerId};
+use crate::editor_claims::{
+    claim_tone, decode_claim_frame, encode_claim_frame, ClaimId, ClaimLedger, ClaimMirror,
+    ClaimStore, RegionClaim,
+};
+use crate::editor_commit_gate::{check_staged_regions, CommitGateVerdict};
+use crate::editor_sync::{
+    decode_presence_frame, encode_presence_frame, PresenceDebouncer, PresenceState, PresenceStore,
+};
+use crate::editor_wedge::{
+    parse_predict_response, predict_request_body, ClaimKind, GatedRegion, GuardBand, GuardVerdict,
+    PdNudge, SymbolClaim, WedgeProbe,
+};
+use crate::pane::{Block, Pane, Subscription, Tone};
 use anyhow::Result;
+use std::collections::BTreeMap;
+
+/// Minimum wall-clock gap (ms) between two presence broadcasts. Caret moves fire
+/// faster than anyone reads; one send per ~60ms is smooth to a watcher yet keeps
+/// the tube quiet. The gate is [`PresenceDebouncer`]; this is only its interval.
+const PRESENCE_SEND_INTERVAL_MS: i64 = 60;
+
+/// Minimum wall-clock gap (ms) between two durable claim-mirror POSTs. A claim is a
+/// durable reservation, not a live cursor, so it mirrors far less often than presence
+/// broadcasts — a region drag coalesces into one `POST /sessions/:id/files` per this
+/// window. The gate is [`ClaimMirror`]; this is only its interval.
+const CLAIM_MIRROR_INTERVAL_MS: i64 = 500;
+
+/// Minimum wall-clock gap (ms) between two conflict-prediction probes (P3 slice 2, the
+/// wedge). A `conflicts/predict` round-trip is far heavier than a claim mirror, and
+/// firing it per keystroke would both stall the edit loop and over-warn until actors
+/// ignore the band — so the probe is armed only on a claim-acquire / region-enter edge
+/// and coalesced to at most one call per this window. The gate is [`WedgeProbe`]; this
+/// is only its interval.
+const WEDGE_PROBE_INTERVAL_MS: i64 = 400;
 
 /// Cap on how many lines a single file contributes to the view. The battle-plan's
 /// large-file virtualization is a P1+ concern; this slice just must never let a
@@ -109,6 +141,57 @@ pub struct EditorPane {
     buffer: Option<HarborBuffer>,
     truncated: bool,
     error: Option<String>,
+    /// The per-file **edit-sync** tube channel this editor's op stream rides on (P2
+    /// slice 1), derived once from `path` via [`crate::editor_sync::channel_for_path`].
+    /// Two replicas opening the same file land on the same channel and exchange Loro
+    /// op frames over it. Presence (slice 2) and snapshot refs (slice 3) ride this
+    /// SAME channel under distinct frame kinds.
+    channel: String,
+    /// The per-file **coordination** tube channel (P2 slice 3), derived from `path`
+    /// via [`crate::editor_sync::coordination_channel_for_path`]. Deliberately a
+    /// SEPARATE channel from `channel` so claims / guard / conflict-predict signals
+    /// never share a queue with the high-frequency doc-op lane — a keystroke burst
+    /// cannot starve coordination (ref-03 §3 isolation). Derived once; stable for the
+    /// pane's life.
+    coord_channel: String,
+    /// P2 slice 2 — the ephemeral presence lane. All three fields are **owned by
+    /// this pane and touched only on the render/main thread** (in the gpui face,
+    /// via `cx`). The SSE→render seam stays a plain mpsc of frame bytes (as slice 1
+    /// established); nothing here is shared across threads, so there is deliberately
+    /// no `Arc<Mutex<..>>`.
+    ///
+    /// `presence` is the LWW substrate (Loro `EphemeralStore`); `remote` is the
+    /// derived, render-facing pool keyed by the `Copy` `PeerId` scalar (a plain
+    /// `BTreeMap`, not a slotmap — the PeerId is already the stable handle); and
+    /// `presence_out` debounces the local caret's outbound frames.
+    presence: PresenceStore,
+    remote: BTreeMap<PeerId, PresenceState>,
+    presence_out: PresenceDebouncer,
+    /// The local replica's own latest caret/selection/viewport — the source the
+    /// durable region-claim mirror and the next outbound presence frame read from.
+    local_presence: PresenceState,
+    /// P3 slice 1 — the claims-as-awareness lane. Same single-threaded ownership
+    /// discipline as `presence`: these live on the render/main thread and the SSE→render
+    /// seam stays a plain mpsc of frame bytes, so there is deliberately no
+    /// `Arc<Mutex<..>>`. `claims` is the awareness substrate on the COORDINATION channel;
+    /// `claim_ledger` is the derived, render-facing keyed map (`BTreeMap<ClaimKey,_>`);
+    /// `claim_out` debounces the durable `/sessions/:id/files` mirror; `next_claim_id`
+    /// mints this replica's monotonic per-claim slot ids.
+    claims: ClaimStore,
+    claim_ledger: ClaimLedger,
+    claim_out: ClaimMirror,
+    next_claim_id: ClaimId,
+    /// P3 slice 2 — the wedge. `wedge_probe` is the debounce gate that arms on a
+    /// claim-acquire / region-enter edge (never per-keystroke) and, when due, yields the
+    /// `conflicts/predict` request body; `wedge_inflight` remembers the single intent
+    /// that probe was for (one at a time — the debounce guarantees it) so the async
+    /// report folds back onto the right region/symbol; `guard_band` is the live
+    /// [`Tone::Conflicted`] one-shot band raised when the daemon predicts a blocking
+    /// conflict, or `None` when the region is clear. Same single-threaded ownership as
+    /// the claim/presence lanes — no `Arc<Mutex<..>>`.
+    wedge_probe: WedgeProbe,
+    wedge_inflight: Option<RegionClaim>,
+    guard_band: Option<GuardBand>,
 }
 
 impl EditorPane {
@@ -127,13 +210,39 @@ impl EditorPane {
         region: Option<(u32, u32)>,
         identity: impl Into<String>,
     ) -> Self {
+        let path = path.into();
+        let identity = identity.into();
+        // Derive both per-file channels once at construction — each is a pure
+        // function of the path, so both are stable for the pane's whole life (and
+        // match every other replica that opens the same file). The edit-sync lane and
+        // the coordination lane are DISTINCT channels (slice-3 isolation).
+        let channel = crate::editor_sync::channel_for_path(&path);
+        let coord_channel = crate::editor_sync::coordination_channel_for_path(&path);
+        // Mint the local replica id from the identity directly (same FNV-1a as the
+        // buffer) so presence has a stable local PeerId even before a file loads —
+        // the presence lane does not depend on the buffer being open.
+        let local_peer = peer_id_for_identity(&identity);
         Self {
-            path: path.into(),
+            path,
             region,
-            identity: identity.into(),
+            identity,
             buffer: None,
             truncated: false,
             error: None,
+            channel,
+            coord_channel,
+            presence: PresenceStore::new(local_peer),
+            remote: BTreeMap::new(),
+            presence_out: PresenceDebouncer::new(PRESENCE_SEND_INTERVAL_MS),
+            // A bare caret at the top of the file until the input layer moves it.
+            local_presence: PresenceState::caret(1, 0, 1, 1),
+            claims: ClaimStore::new(local_peer),
+            claim_ledger: ClaimLedger::new(),
+            claim_out: ClaimMirror::new(CLAIM_MIRROR_INTERVAL_MS),
+            next_claim_id: 0,
+            wedge_probe: WedgeProbe::new(WEDGE_PROBE_INTERVAL_MS),
+            wedge_inflight: None,
+            guard_band: None,
         }
     }
 
@@ -159,6 +268,405 @@ impl EditorPane {
     /// with their own authorship.
     pub fn buffer(&self) -> Option<&HarborBuffer> {
         self.buffer.as_ref()
+    }
+
+    /// The per-file tube channel this editor's op stream rides on. Callers open the
+    /// live receiver with `DaemonClient::subscribe_channel(pane.channel())` and hand
+    /// each `TubeMsg::text` back to [`ingest_frame`](Self::ingest_frame).
+    pub fn channel(&self) -> &str {
+        &self.channel
+    }
+
+    /// The per-file **coordination** channel (P2 slice 3) — the isolated control
+    /// plane for claims / guard / conflict-predict. Callers open a SEPARATE live
+    /// receiver with `DaemonClient::subscribe_channel(pane.coordination_channel())`
+    /// (its own `mpsc`, distinct from the edit lane's) and send signals with
+    /// `DaemonClient::send_coord_signal`. Always distinct from [`channel`](Self::channel).
+    pub fn coordination_channel(&self) -> &str {
+        &self.coord_channel
+    }
+
+    /// Fold one Loro op frame (a `TubeMsg::text` off this file's channel) into the
+    /// buffer — the "land in the buffer" end of the P2 slice-1 transport. Decodes
+    /// via [`crate::editor_sync::decode_frame`]; a non-frame (handshake, heartbeat,
+    /// garbage) or a frame arriving before the buffer is loaded is ignored. A frame
+    /// authored by THIS replica (its own ops echoed back over the tube) is skipped —
+    /// re-importing them is idempotent, but skipping avoids needless work, mirroring
+    /// the operator-chat loop that drops its own echoed turns. Returns whether a
+    /// remote op actually landed.
+    pub fn ingest_frame(&mut self, text: &str) -> bool {
+        let Some(frame) = crate::editor_sync::decode_frame(text) else {
+            return false;
+        };
+        let Some(buffer) = self.buffer.as_ref() else {
+            return false;
+        };
+        if frame.peer == buffer.local_peer() {
+            return false; // our own ops, echoed back — nothing to fold
+        }
+        crate::editor_sync::apply_frame(buffer, &frame).is_ok()
+    }
+
+    // ── P2 slice 3: durability (snapshot ⇄ /blob) ─────────────────────────────
+
+    /// Export the buffer's current state as a compacted **snapshot** blob for the
+    /// content-addressed `/blob` store — the durability primitive. `None` until a
+    /// buffer is loaded. The caller POSTs these bytes with
+    /// `DaemonClient::put_blob`, then broadcasts the returned id via
+    /// `encode_snapshot_frame` + `broadcast_snapshot_ref` on [`channel`](Self::channel)
+    /// so a behind peer can catch up from snapshot+recent-deltas.
+    pub fn snapshot_blob(&self) -> Option<Vec<u8>> {
+        self.buffer.as_ref().map(|b| b.export_snapshot())
+    }
+
+    /// Hydrate this pane's buffer from a snapshot blob fetched from `/blob` — the
+    /// reconnect / salvage path (the "a buffer that survives reconnect" case slice 1
+    /// deferred). Imports the snapshot into the live buffer (or opens a fresh replica
+    /// under this pane's identity if none is loaded), merging CRDT-clean with
+    /// authorship intact. Returns whether the snapshot applied. Idempotent: importing
+    /// a snapshot the buffer already contains is a no-op.
+    pub fn hydrate_from_snapshot(&mut self, snapshot: &[u8]) -> bool {
+        let buffer = self
+            .buffer
+            .get_or_insert_with(|| HarborBuffer::empty(self.identity.clone()));
+        match buffer.apply_remote_ops(snapshot) {
+            Ok(()) => {
+                self.error = None;
+                true
+            }
+            Err(_) => false,
+        }
+    }
+
+    // ── P2 slice 2: presence lane ─────────────────────────────────────────────
+    //
+    // The whole lane is edge-triggered: every method that could change what is on
+    // screen returns `true`/`Some` EXACTLY when something changed, and `false`/
+    // `None` when nothing did. The gpui face calls `cx.notify()` only on those
+    // edges, so a quiet file with live remote cursors schedules zero repaints — no
+    // window-wide `repeat()` animation, no polling churn. (Proven by
+    // `idle_screen_does_not_rerender_with_multiple_remote_cursors`.)
+
+    /// Update where the LOCAL caret/selection/viewport is and queue it for a
+    /// debounced broadcast. This is the injection point for the (not-yet-built)
+    /// keystroke input layer, mirroring how `HarborBuffer::insert_authored` is the
+    /// injection point for edits. Recording is cheap and does not itself send or
+    /// repaint — [`take_presence_broadcast`](Self::take_presence_broadcast) does.
+    pub fn set_local_presence(&mut self, state: PresenceState) {
+        self.local_presence = state;
+        self.presence_out.record(state);
+    }
+
+    /// The local caret's current presence (what a broadcast / region-claim reads).
+    pub fn local_presence(&self) -> PresenceState {
+        self.local_presence
+    }
+
+    /// If a local move is due (past the debounce interval), publish it to the
+    /// store and return the encoded presence frame text for the caller to
+    /// `DaemonClient::send_presence` up this file's [`channel`](Self::channel).
+    /// `None` when nothing is due — an idle caret sends nothing.
+    pub fn take_presence_broadcast(&mut self, now_ms: i64) -> Option<String> {
+        let state = self.presence_out.take_due(now_ms)?;
+        let blob = self.presence.publish(state);
+        Some(encode_presence_frame(self.presence.local(), &blob))
+    }
+
+    /// Fold one presence frame (a `TubeMsg::text` off this file's channel) into the
+    /// remote-cursor pool. Returns whether the visible pool actually CHANGED — i.e.
+    /// whether the gpui face should `cx.notify()`. A non-presence frame (an op
+    /// frame, handshake, garbage), our own presence echoed back, or a stale
+    /// (older-timestamp LWW) update all fold to **no change** and return `false`,
+    /// which is what keeps an idle screen from re-rendering.
+    pub fn ingest_presence(&mut self, text: &str) -> bool {
+        let Some(frame) = decode_presence_frame(text) else {
+            return false;
+        };
+        if frame.peer == self.presence.local() {
+            return false; // our own presence, echoed back — nothing to pool
+        }
+        if self.presence.apply(&frame.eph).is_err() {
+            return false;
+        }
+        self.sync_remote_pool()
+    }
+
+    /// Drop remote cursors whose presence has aged past the timeout. Returns
+    /// whether anyone was actually removed (a repaint edge); before the timeout it
+    /// removes nobody and returns `false`, so the idle tick that calls this stays
+    /// silent. The caller runs it on its normal refresh cadence.
+    pub fn expire_presence(&mut self) -> bool {
+        self.presence.expire();
+        self.sync_remote_pool()
+    }
+
+    /// The current pool of remote cursors, keyed by their `Copy` `PeerId`. A cheap
+    /// borrow of owned state — reading it never mutates and never repaints.
+    pub fn remote_cursors(&self) -> &BTreeMap<PeerId, PresenceState> {
+        &self.remote
+    }
+
+    /// Rebuild the cached render pool from the store and report whether it changed.
+    /// The one place `self.remote` is written; every presence mutation funnels
+    /// through here so the change signal is computed in exactly one spot.
+    fn sync_remote_pool(&mut self) -> bool {
+        let next = self.presence.remote_cursors();
+        if next != self.remote {
+            self.remote = next;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// The durable claims-table mirror for the LOCAL selection: the `(path, start,
+    /// end)` line-region this replica has selected, or `None` for a bare caret.
+    ///
+    /// Presence is ephemeral and lossy; a real multi-line *selection* is a stronger
+    /// signal — "I am working here" — that belongs in the durable claims table.
+    /// The caller feeds this to [`crate::agent::DaemonClient::claim_region`], which
+    /// POSTs a region to the SAME `POST /sessions/:id/files` endpoint `pd session
+    /// files add` uses — we REUSE the claims store, never fork a parallel one.
+    pub fn region_claim(&self) -> Option<(String, u32, u32)> {
+        if !self.local_presence.has_selection() {
+            return None;
+        }
+        let (start, end) = self.local_presence.selection_line_span();
+        Some((self.path.clone(), start, end))
+    }
+
+    // ── P3 slice 1: claims-as-awareness (presence-as-claims) ──────────────────
+    //
+    // A region claim is a peer's live awareness state on the COORDINATION channel
+    // (never the edit lane) PLUS a debounced durable mirror into `/sessions/:id/files`.
+    // Every method that could change what is on screen returns whether the ledger
+    // actually changed, so the gpui face `cx.notify()`s only on real edges — same
+    // edge-triggered discipline as the presence lane (no polling churn).
+
+    /// Acquire a region claim over 1-based inclusive lines `start..=end`, labeled with
+    /// the work name (`"parse_header"`), granted at logical time `now_ms`. Mints this
+    /// replica's next [`ClaimId`], publishes it to the awareness store, refreshes the
+    /// ledger, and queues it for the durable mirror. Returns the encoded claim frame to
+    /// broadcast on the file's [`coordination_channel`](Self::coordination_channel) via
+    /// [`DaemonClient::broadcast_claim`]. Agent-neutral: the claim is keyed by this
+    /// replica's `PeerId`, with no branch on which backend the actor is (PD hard rule).
+    pub fn acquire_region_claim(
+        &mut self,
+        start: u32,
+        end: u32,
+        label: impl Into<String>,
+        now_ms: i64,
+    ) -> String {
+        let id = self.next_claim_id;
+        self.next_claim_id = self.next_claim_id.wrapping_add(1);
+        let claim = RegionClaim::new(self.claims.local(), id, start, end, label, now_ms as u64);
+        let blob = self.claims.publish(&claim);
+        // Arm the wedge on this coordination EDGE (a claim-acquire) — debounced, so a
+        // fast re-acquire coalesces (HARD RULE 2). A caret move / keystroke never reaches
+        // here, which is what keeps the probe off the per-keystroke path.
+        self.wedge_probe.arm(claim.clone());
+        self.claim_out.record(claim);
+        self.claim_ledger = self.claims.ledger();
+        encode_claim_frame(self.claims.local(), &blob)
+    }
+
+    /// Arm the wedge on a **region-enter** edge (the caret crossing INTO a new region),
+    /// without acquiring a claim — the second coordination edge the wedge fires on
+    /// (HARD RULE 2). The input layer calls this when the caret's region changes, NOT on
+    /// every keystroke inside the same region. Debounced through the same [`WedgeProbe`]
+    /// as acquire, so entering and re-entering collapses to one probe per window.
+    pub fn enter_region(&mut self, start: u32, end: u32, label: impl Into<String>, now_ms: i64) {
+        // A synthetic local intent (no claim id minted — an enter is not an acquire): it
+        // carries the region + work label the predict call needs, keyed to this replica.
+        let intent = RegionClaim::new(self.claims.local(), self.next_claim_id, start, end, label, now_ms as u64);
+        self.wedge_probe.arm(intent);
+    }
+
+    /// Release one of THIS replica's claims by id, refreshing the ledger. Returns the
+    /// encoded revocation frame to broadcast on the coordination channel (a remote
+    /// replica folds it and subtracts the claim from its ledger). The durable `/files`
+    /// release (a `DELETE`) is a later slice; slice 1 mirrors acquires.
+    pub fn release_region_claim(&mut self, id: ClaimId) -> String {
+        let blob = self.claims.release(id);
+        self.claim_ledger = self.claims.ledger();
+        encode_claim_frame(self.claims.local(), &blob)
+    }
+
+    /// Fold one claim-awareness frame (a `TubeMsg::text` off this file's COORDINATION
+    /// channel) into the ledger. Returns whether the visible ledger CHANGED — the
+    /// gpui-face repaint edge. A non-claim frame (a coord signal, an edit-lane frame,
+    /// handshake, garbage), our own claim echoed back, or a stale LWW update all fold
+    /// to no change and return `false`, keeping an idle screen quiet.
+    pub fn ingest_claim(&mut self, text: &str) -> bool {
+        let Some(frame) = decode_claim_frame(text) else {
+            return false;
+        };
+        if frame.peer == self.claims.local() {
+            return false; // our own claim, echoed back — already in the ledger
+        }
+        if self.claims.apply(&frame.eph).is_err() {
+            return false;
+        }
+        let next = self.claims.ledger();
+        if next != self.claim_ledger {
+            self.claim_ledger = next;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// The current claim ledger — the keyed map of every live region claim on this
+    /// file (this replica's own AND every remote peer's). A cheap borrow of owned
+    /// state; reading it never mutates or repaints.
+    pub fn claim_ledger(&self) -> &ClaimLedger {
+        &self.claim_ledger
+    }
+
+    /// The local claims that are DUE for a durable mirror (past the debounce window).
+    /// The caller POSTs each to `POST /sessions/:id/files` via
+    /// [`DaemonClient::claim_region`] using this pane's [`path`](Self::path_str) — the
+    /// SAME region endpoint `pd session files add` drives, never a parallel store. An
+    /// empty `Vec` when nothing is due (a quiet claim set mirrors nothing).
+    pub fn take_claim_mirror(&mut self, now_ms: i64) -> Vec<RegionClaim> {
+        self.claim_out.take_due(now_ms)
+    }
+
+    /// This pane's bound file path — the `path` a durable claim mirror POSTs against.
+    pub fn path_str(&self) -> &str {
+        &self.path
+    }
+
+    // ── P3 slice 2: the wedge (conflict prediction before a byte is written) ───
+
+    /// If a wedge probe is DUE (past the debounce window since the last one), build the
+    /// `POST /conflicts/predict` request body and mark the intent in-flight. `claimsA`
+    /// is the local intended edit (modify the region's symbol); `claimsB` is every OTHER
+    /// live actor's claim on this file (never our own — you do not conflict with
+    /// yourself). `None` when no edge is armed or we are inside the window — so an idle
+    /// editor and a keystroke burst both produce zero predict traffic (HARD RULE 2). The
+    /// caller POSTs the body via [`crate::agent::DaemonClient::predict_conflicts`] and
+    /// folds the response back through [`apply_conflict_report`](Self::apply_conflict_report).
+    pub fn take_wedge_probe(&mut self, now_ms: i64) -> Option<serde_json::Value> {
+        let intent = self.wedge_probe.take_due(now_ms)?;
+        let a = [SymbolClaim::from_region(&self.path, &intent, ClaimKind::Modify)];
+        let me = self.claims.local();
+        let b: Vec<SymbolClaim> = self
+            .claim_ledger
+            .iter()
+            .filter(|(k, _)| k.peer != me)
+            .map(|(_, c)| SymbolClaim::from_region(&self.path, c, ClaimKind::Modify))
+            .collect();
+        let body = predict_request_body(&a, &b);
+        self.wedge_inflight = Some(intent);
+        Some(body)
+    }
+
+    /// Fold a `conflicts/predict` response onto the in-flight probe intent. When the
+    /// daemon reports a `blocking` conflict, raise a [`Tone::Conflicted`] one-shot guard
+    /// band over the intended region — NOT a silent merge; the caller also surfaces the
+    /// [`blocking_nudge`](Self::blocking_nudge). When it reports clear, drop any band we
+    /// were showing. Returns whether the visible band CHANGED (the gpui repaint edge):
+    /// re-confirming the SAME conflict does not restart the pulse or repaint (so a
+    /// re-probe never re-throbs — HARD RULE 3). `None` in flight ⇒ no change.
+    pub fn apply_conflict_report(&mut self, resp: &serde_json::Value, now_ms: i64) -> bool {
+        let Some(intent) = self.wedge_inflight.take() else {
+            return false;
+        };
+        let report = parse_predict_response(resp);
+        if report.is_blocking() {
+            let region = intent.line_span();
+            let already = self
+                .guard_band
+                .as_ref()
+                .map(|b| (b.symbol.as_str(), b.region))
+                == Some((intent.label.as_str(), region));
+            if already {
+                return false; // same conflict already banded — don't restart the pulse
+            }
+            self.guard_band = Some(GuardBand::raised(intent.label.clone(), region, report, now_ms));
+            true
+        } else {
+            let had = self.guard_band.is_some();
+            self.guard_band = None;
+            had
+        }
+    }
+
+    /// The live conflict guard band, if one is raised. A cheap borrow; the gpui face
+    /// reads [`GuardBand::emphasis`] each frame of the ONE-SHOT pulse, then holds it
+    /// static. `None` when the intended region is conflict-free.
+    pub fn guard_band(&self) -> Option<&GuardBand> {
+        self.guard_band.as_ref()
+    }
+
+    /// The operator **pd-nudge** for the live conflict band, if any — the "you are about
+    /// to edit into a predicted conflict" note the caller surfaces alongside the band
+    /// (never a silent merge). `None` when no band is up.
+    pub fn blocking_nudge(&self) -> Option<PdNudge> {
+        self.guard_band
+            .as_ref()
+            .map(|b| PdNudge::blocking(&b.symbol, b.report))
+    }
+
+    /// The guard's verdict for editing 1-based line `n` — HARD RULE 6/7's pure core.
+    /// `Gated` when the FIRST-GRANTED, non-revoked owner of the line is ANOTHER live
+    /// actor (the contender negotiates or moves; the refusal names only sanctioned
+    /// actions, never a bypass); `Clear` when the line is free or held only by this
+    /// replica. This is what a later commit gate consults; slice 2 uses it to render the
+    /// contender's [`Tone::Gated`] chip.
+    pub fn guard_verdict_for_line(&self, n: u32) -> GuardVerdict {
+        let me = self.claims.local();
+        match self.claim_ledger.first_granted_owner_of_line(n) {
+            Some(owner) if owner.peer != me => GuardVerdict::Gated(GatedRegion {
+                owner_label: format!("peer {}", author_tag(owner.peer)),
+                symbol: owner.label.clone(),
+                region: owner.line_span(),
+            }),
+            _ => GuardVerdict::Clear,
+        }
+    }
+
+    /// The commit gate (HARD RULE 7): the verdict for committing an edit spanning 1-based
+    /// inclusive lines `start..=end`. `Gated` at the FIRST line held by another live
+    /// actor's claim (the commit is refused with a typed, bypass-free note — the actor
+    /// requests handoff / parleys / moves); `Clear` when every edited line is free or held
+    /// only by this replica. This is the `pd guard check --staged` equivalent for the
+    /// editor: it consults the SAME first-granted-wins ledger the live chip does, so the
+    /// on-screen guard and the commit refusal can never disagree. Pure + region-scoped —
+    /// an edit adjacent to (but outside) another's claim is never refused.
+    pub fn commit_verdict(&self, start: u32, end: u32) -> GuardVerdict {
+        for n in start.min(end)..=start.max(end) {
+            let verdict = self.guard_verdict_for_line(n);
+            if verdict.is_gated() {
+                return verdict;
+            }
+        }
+        GuardVerdict::Clear
+    }
+
+    /// The **staged commit gate** (P3 slice 3, the `pd guard check --staged` equivalent
+    /// for a multi-hunk commit). Delegates to [`check_staged_regions`] over the pane's
+    /// live claim ledger: refuses when ANY staged hunk reaches into a region whose
+    /// first-granted, non-revoked owner is another LIVE actor, returning one typed,
+    /// bypass-free [`GatedRegion`] per contended owner (HARD RULE 5/6/7). Region-scoped —
+    /// a hunk adjacent to (but outside) another's claim clears (HARD RULE 1).
+    ///
+    /// Liveness comes from the ledger itself: it is rebuilt from the coordination-lane
+    /// awareness store, which expires a dead actor's claim after `CLAIM_TIMEOUT_MS`, so a
+    /// claim present here is from a live-enough actor (the `is_live` predicate is `true`;
+    /// the injected-liveness path is the durable/daemon MCP gate's, not the pane's). The
+    /// owner label reuses the same `peer <tag>` composition as the live guard chip, so the
+    /// on-screen chip and the commit refusal can never name an owner differently.
+    pub fn staged_commit_gate(&self, hunks: &[(u32, u32)]) -> CommitGateVerdict {
+        let me = self.claims.local();
+        check_staged_regions(
+            &self.claim_ledger,
+            hunks,
+            me,
+            |_peer| true,
+            |peer| format!("peer {}", author_tag(peer)),
+        )
     }
 
     /// Is the 1-based line `n` inside the bound region (inclusive)?
@@ -226,6 +734,83 @@ impl Pane for EditorPane {
             });
         }
 
+        // Live presence: one legend flag per REMOTE cursor (slice 2). This is
+        // O(remote peers) — a handful — NOT O(lines): we deliberately do not stamp a
+        // glyph into each visible line's gutter (that would add a per-line clone to
+        // the hot render path). `self.remote` is BTree-ordered, so the flags render
+        // in a stable order frame to frame (no flicker). The gpui face animates each
+        // caret's glide as an opacity/offset transition on its own leaf element; the
+        // Blocks here are the render-agnostic, TUI-visible shadow of that.
+        for (peer, state) in &self.remote {
+            let (sel_lo, sel_hi) = state.selection_line_span();
+            let where_ = if state.has_selection() {
+                format!("sel L{sel_lo}–L{sel_hi}")
+            } else {
+                format!("caret L{}", state.cursor_line)
+            };
+            blocks.push(Block::Flag {
+                letter: 'C',
+                label: format!(
+                    "peer {} · {where_} · view L{}–L{}",
+                    author_tag(*peer),
+                    state.top_line,
+                    state.bottom_line
+                ),
+                tone: Tone::Engaged,
+            });
+        }
+
+        // Live region claims (P3 slice 1): one legend flag per claim — "who has
+        // reserved which region" — actor-colored by PeerId (claim_tone: your own claim
+        // Resting, a peer's Engaged). O(claims) — a handful — NOT O(lines): like the
+        // presence flags we do not stamp a glyph into each claimed line's gutter (that
+        // would add a per-line clone to the hot render path). The ledger is BTree-keyed
+        // so the bands render in a stable order frame to frame. Slice 1 is visibility:
+        // no Conflicted band, no guard refusal — those are later slices.
+        for (key, claim) in self.claim_ledger.iter() {
+            let who = if key.peer == opener {
+                "you".to_string()
+            } else {
+                format!("peer {}", author_tag(key.peer))
+            };
+            let (lo, hi) = claim.line_span();
+            blocks.push(Block::Flag {
+                letter: 'R',
+                label: format!("{who} — {} · L{lo}–L{hi}", claim.label),
+                tone: claim_tone(key.peer, opener),
+            });
+        }
+
+        // P3 slice 2 — the WEDGE. If the daemon predicted a BLOCKING conflict for the
+        // region this replica is acquiring/entering, render a Tone::Conflicted guard
+        // band (the one-shot pulse lives in the gpui face; the render-agnostic shadow is
+        // this never-truncated band) plus its pd-nudge — surfaced, never silently merged.
+        if let Some(band) = &self.guard_band {
+            let (lo, hi) = band.region;
+            blocks.push(Block::WrappedText {
+                text: format!(
+                    "⚠ predicted conflict — ‘{}’ (L{lo}–L{hi}): {} blocking",
+                    band.symbol, band.report.blocking
+                ),
+                tone: band.tone(), // Tone::Conflicted
+            });
+            if let Some(nudge) = self.blocking_nudge() {
+                blocks.push(Block::WrappedText { text: nudge.detail, tone: nudge.tone });
+            }
+        }
+
+        // Contender signal (HARD RULE 6): if the LOCAL caret sits inside a region held
+        // by another live claim, render a Tone::Gated chip — "claimed by <owner>" —
+        // offering handoff/parley/move. The first-granted claim wins; the contender
+        // negotiates or moves. The refusal wording names no bypass.
+        if let GuardVerdict::Gated(gated) = self.guard_verdict_for_line(self.local_presence.cursor_line) {
+            blocks.push(Block::Chip {
+                label: gated.nudge().headline,
+                tone: gated.tone(), // Tone::Gated
+            });
+            blocks.push(Block::WrappedText { text: gated.message(), tone: Tone::Gated });
+        }
+
         for (i, line) in all_lines.iter().take(shown).enumerate() {
             let n = (i + 1) as u32; // 1-based line numbers.
             let num = format!("{n:>width$}", width = width);
@@ -281,6 +866,20 @@ impl Pane for EditorPane {
             Ok(())
         })
     }
+
+    /// Declare this editor's live intent: watch the file's op-stream channel so a
+    /// second replica's Loro edits arrive over the tube (P2 slice 1). Same
+    /// declare-intent contract the `AgentTranscript` lane uses — main.rs opens the
+    /// SSE (`DaemonClient::subscribe_channel`) and drains frames back through
+    /// [`ingest_frame`](Self::ingest_frame). Only once a real buffer is open: an
+    /// errored / not-yet-loaded pane has nothing to fold remote ops into, so it
+    /// subscribes to nothing (poll-only).
+    fn subscription(&self) -> Option<Subscription> {
+        self.buffer.as_ref().map(|_| Subscription::Editor {
+            channel: self.channel.clone(),
+            coord_channel: self.coord_channel.clone(),
+        })
+    }
 }
 
 #[cfg(test)]
@@ -290,22 +889,33 @@ mod tests {
     use std::io::Write;
     use std::path::PathBuf;
 
-    /// Scratch dir under ~/coding/tmp (NEVER /tmp — the OS sweeps it). Falls back
-    /// to the crate's target dir if HOME is unset.
+    /// A UNIQUE scratch dir per call, rooted at the crate's COMPILE-TIME
+    /// `CARGO_MANIFEST_DIR` (under `target/`, never `/tmp`).
+    ///
+    /// It deliberately does NOT read the runtime `HOME` env var: another test in this
+    /// binary (`conjure`) hijacks the process-global `HOME` to a sandbox and then
+    /// deletes that sandbox, so a harbor-editor test reading `HOME` at write time could
+    /// land its file in the doomed sandbox and have it vanish (ENOENT) before
+    /// `HarborBuffer::open` reads it back — leaving the pane bufferless so `view()`
+    /// rendered nothing. `CARGO_MANIFEST_DIR` is baked at compile time and immune to
+    /// that mutation. Each call also gets its own `<pid>-<seq>` subdir so parallel
+    /// tests never share a directory.
     fn scratch_dir() -> PathBuf {
-        let base = std::env::var("HOME")
-            .map(|h| PathBuf::from(h).join("coding/tmp/pd-harbor-editor-tests"))
-            .unwrap_or_else(|_| {
-                PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/editor-tests")
-            });
-        std::fs::create_dir_all(&base).expect("create scratch dir");
-        base
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+        let base = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/editor-tests");
+        let unique = base.join(format!("{}-{}", std::process::id(), SEQ.fetch_add(1, Ordering::Relaxed)));
+        std::fs::create_dir_all(&unique).expect("create scratch dir");
+        unique
     }
 
     fn write_temp(name: &str, contents: &str) -> String {
         let path = scratch_dir().join(name);
         let mut f = std::fs::File::create(&path).expect("create temp file");
         f.write_all(contents.as_bytes()).expect("write temp file");
+        // Flush to disk before the immediate reader (`HarborBuffer::open`) opens it, so
+        // a just-written file is never seen half-written under parallel test load.
+        f.sync_all().expect("sync temp file to disk");
         path.to_string_lossy().into_owned()
     }
 
@@ -466,5 +1076,608 @@ mod tests {
         assert!(matches!(author_tone(Some(opener), opener), Tone::Resting));
         assert!(matches!(author_tone(Some(agent), opener), Tone::Engaged));
         assert!(matches!(author_tone(None, opener), Tone::Default));
+    }
+
+    /// A loaded editor declares its intent to watch the file's op-stream channel;
+    /// an errored/empty pane subscribes to nothing (no buffer to fold ops into).
+    #[test]
+    fn subscription_targets_the_files_channel_once_loaded() {
+        let path = write_temp("sub.txt", "hello\n");
+        let pane = make_pane(&path, None);
+        match pane.subscription() {
+            Some(Subscription::Editor { channel, coord_channel }) => {
+                assert_eq!(channel, crate::editor_sync::channel_for_path(&path));
+                assert_eq!(channel, pane.channel());
+                // Slice-3 isolation: the coordination lane is a SEPARATE channel.
+                assert_eq!(coord_channel, crate::editor_sync::coordination_channel_for_path(&path));
+                assert_eq!(coord_channel, pane.coordination_channel());
+                assert_ne!(channel, coord_channel, "edit-sync and coordination ride distinct channels");
+            }
+            other => panic!("a loaded editor must subscribe to its file channel, got {other:?}"),
+        }
+        // An unreadable file → no buffer → nothing to fold into → no subscription.
+        let errored = make_pane("/nonexistent/does/not/exist.rs", None);
+        assert!(errored.subscription().is_none());
+    }
+
+    /// THE PANE-LEVEL SLICE-1 PROOF: a second replica's Loro op frame, delivered as
+    /// a tube message's text, lands in this pane's buffer and renders as an
+    /// agent-authored line. Self-echoes and garbage are ignored.
+    #[test]
+    fn remote_op_frame_rides_the_tube_and_lands_in_the_pane_buffer() {
+        let path = write_temp("wire-pane.txt", "human line\n");
+        let mut pane = make_pane(&path, None);
+        let opener = pane.buffer().expect("buffer loaded").local_peer();
+
+        // A second replica (agent) joins from the opener's state, adds a line, and
+        // its ops become a tube frame — the exact string that would arrive on the
+        // pane's channel subscription.
+        let agent_id = "port-daddy:editor:agent-wire";
+        let agent = HarborBuffer::empty(agent_id);
+        agent
+            .apply_remote_ops(&pane.buffer().unwrap().export_ops())
+            .expect("agent imports opener state");
+        agent.append_line("agent added over the wire");
+        let frame = crate::editor_sync::encode_frame(agent.local_peer(), &agent.export_ops());
+
+        // The pane folds the frame off its channel — the transport landing.
+        assert!(pane.ingest_frame(&frame), "a remote op frame must land in the buffer");
+
+        // The pane now renders the agent's line with agent authorship.
+        let blocks = pane.view();
+        let r = rows(&blocks);
+        assert_eq!(r.len(), 2, "human line + wired-in agent line");
+        assert_eq!(r[1][1], "agent added over the wire");
+        let agent_tag = author_tag(peer_id_for_identity(agent_id));
+        assert!(
+            r[1][0].contains(&agent_tag),
+            "the wired-in line carries the agent's author tag"
+        );
+        assert!(
+            blocks.iter().any(|b| matches!(
+                b,
+                Block::Flag { tone: Tone::Engaged, label, .. } if label.contains("agent")
+            )),
+            "the agent authorship legend flag renders once a remote op lands"
+        );
+
+        // A frame authored by THIS replica (its own ops echoed back) is a no-op,
+        // and a non-frame is skipped — neither corrupts the buffer.
+        let self_frame =
+            crate::editor_sync::encode_frame(opener, &pane.buffer().unwrap().export_ops());
+        assert!(!pane.ingest_frame(&self_frame), "our own echoed ops must not re-fold");
+        assert!(!pane.ingest_frame("not a frame at all"), "garbage is ignored");
+        assert_eq!(rows(&pane.view()).len(), 2, "buffer unchanged by self-echo/garbage");
+    }
+
+    // ── P2 slice 2: presence lane ─────────────────────────────────────────────
+
+    /// Count how many presence ('C') legend flags a view emits — how many remote
+    /// cursors are on screen.
+    fn cursor_flags(blocks: &[Block]) -> usize {
+        blocks
+            .iter()
+            .filter(|b| matches!(b, Block::Flag { letter: 'C', .. }))
+            .count()
+    }
+
+    /// Encode a presence frame from a distinct remote replica, the exact string
+    /// that would arrive on this pane's channel subscription.
+    fn remote_presence_frame(identity: &str, state: PresenceState) -> String {
+        let peer = peer_id_for_identity(identity);
+        let store = PresenceStore::new(peer);
+        encode_presence_frame(peer, &store.publish(state))
+    }
+
+    /// A remote replica's cursor rides the tube-shaped presence frame, lands in the
+    /// pane's pool keyed by its PeerId, and renders as a presence legend flag.
+    #[test]
+    fn remote_presence_frame_pools_and_renders() {
+        let path = write_temp("presence-pane.txt", "l1\nl2\nl3\nl4\n");
+        let mut pane = make_pane(&path, None);
+        assert!(pane.remote_cursors().is_empty(), "no remote cursors before any frame");
+
+        let a = "port-daddy:editor:agent-A";
+        let b = "port-daddy:editor:agent-B";
+        let frame_a = remote_presence_frame(a, PresenceState::caret(2, 0, 1, 4));
+        let frame_b = remote_presence_frame(
+            b,
+            PresenceState { cursor_line: 3, cursor_col: 1, anchor_line: 4, anchor_col: 0, top_line: 1, bottom_line: 4 },
+        );
+
+        assert!(pane.ingest_presence(&frame_a), "A's cursor is a real change");
+        assert!(pane.ingest_presence(&frame_b), "B's cursor is a real change");
+
+        let pool = pane.remote_cursors();
+        assert_eq!(pool.len(), 2, "both remote cursors pooled");
+        assert_eq!(pool.get(&peer_id_for_identity(a)).map(|s| s.cursor_line), Some(2));
+        assert_eq!(cursor_flags(&pane.view()), 2, "two presence legend flags render");
+
+        // A non-presence frame (an op frame) and garbage are ignored by the lane.
+        let op = crate::editor_sync::encode_frame(peer_id_for_identity(a), &[1, 2, 3]);
+        assert!(!pane.ingest_presence(&op), "an op frame is not presence");
+        assert!(!pane.ingest_presence("not a frame"), "garbage is ignored");
+    }
+
+    /// The local caret's outbound presence is debounced: a burst of moves flushes
+    /// at most once per interval, and the frame carries THIS replica's PeerId.
+    #[test]
+    fn local_presence_broadcast_is_debounced() {
+        let path = write_temp("presence-out.txt", "hello\n");
+        let mut pane = make_pane(&path, None);
+        let local = peer_id_for_identity("port-daddy:console:operator");
+
+        // Nothing moved yet → nothing to broadcast.
+        assert!(pane.take_presence_broadcast(0).is_none());
+
+        // A burst of caret moves before the first tick coalesces to the latest.
+        pane.set_local_presence(PresenceState::caret(1, 0, 1, 1));
+        pane.set_local_presence(PresenceState::caret(1, 3, 1, 1));
+        let frame = pane.take_presence_broadcast(1_000).expect("a due move broadcasts");
+        let decoded = decode_presence_frame(&frame).expect("the broadcast is a presence frame");
+        assert_eq!(decoded.peer, local, "the frame is attributed to THIS replica");
+
+        // Within the interval, a further move does not flush again.
+        pane.set_local_presence(PresenceState::caret(1, 4, 1, 1));
+        assert!(pane.take_presence_broadcast(1_020).is_none(), "suppressed inside the debounce window");
+        // Past the interval it flushes.
+        assert!(pane.take_presence_broadcast(1_500).is_some(), "flushes after the interval");
+    }
+
+    /// A real multi-line local selection mirrors into a durable region claim; a
+    /// bare caret does not (nothing durable to record).
+    #[test]
+    fn local_selection_mirrors_to_a_durable_region_claim() {
+        let path = write_temp("claim-mirror.txt", "a\nb\nc\nd\ne\n");
+        let mut pane = make_pane(&path, None);
+
+        // A bare caret → no region claim.
+        pane.set_local_presence(PresenceState::caret(2, 0, 1, 5));
+        assert_eq!(pane.region_claim(), None, "a caret is not a durable claim");
+
+        // Select lines 2..=4 (drag upward: caret above anchor) → a region claim
+        // spanning 2..4, mirrored against the file's real path.
+        pane.set_local_presence(PresenceState {
+            cursor_line: 2, cursor_col: 0, anchor_line: 4, anchor_col: 1, top_line: 1, bottom_line: 5,
+        });
+        assert_eq!(
+            pane.region_claim(),
+            Some((path.clone(), 2, 4)),
+            "a selection mirrors to a (path, startLine, endLine) region claim"
+        );
+    }
+
+    /// THE P2 SLICE-2 GATE — an idle screen with 2+ remote cursors must schedule
+    /// ZERO re-renders. We drive ~4 seconds of 60fps idle ticks with two remote
+    /// cursors established and assert that every repaint-gating call
+    /// (`ingest_presence`/`take_presence_broadcast`/`expire_presence`) reports NO
+    /// change, and that pure reads (`view`/`remote_cursors`) never mutate. This is
+    /// the machine-checked proof behind "no per-peer window-wide `repeat()`": the
+    /// gpui face notifies only on the change edges this test holds at zero.
+    #[test]
+    fn idle_screen_does_not_rerender_with_multiple_remote_cursors() {
+        let path = write_temp("presence-idle.txt", "l1\nl2\nl3\nl4\nl5\n");
+        let mut pane = make_pane(&path, None);
+
+        // Establish two remote cursors — two genuine repaint edges.
+        let a = "port-daddy:editor:agent-A";
+        let b = "port-daddy:editor:agent-B";
+        let store_a = PresenceStore::new(peer_id_for_identity(a));
+        let store_b = PresenceStore::new(peer_id_for_identity(b));
+        let frame_a = encode_presence_frame(store_a.local(), &store_a.publish(PresenceState::caret(2, 0, 1, 5)));
+        let frame_b = encode_presence_frame(store_b.local(), &store_b.publish(PresenceState::caret(4, 1, 1, 5)));
+        assert!(pane.ingest_presence(&frame_a), "A's first cursor repaints once");
+        assert!(pane.ingest_presence(&frame_b), "B's first cursor repaints once");
+        assert_eq!(pane.remote_cursors().len(), 2, "two cursors are on screen");
+
+        // Idle: nothing changes. Count every repaint-worthy edge over 240 ticks.
+        let mut repaints = 0usize;
+        for tick in 0..240i64 {
+            let now = 1_000 + tick * 16; // ~60fps
+            // Pure reads must never mutate or repaint on their own.
+            let _ = pane.view();
+            let _ = pane.remote_cursors();
+            // Re-delivering the SAME frames (stale LWW) folds to no change.
+            if pane.ingest_presence(&frame_a) { repaints += 1; }
+            if pane.ingest_presence(&frame_b) { repaints += 1; }
+            // No local movement → nothing to broadcast.
+            if pane.take_presence_broadcast(now).is_some() { repaints += 1; }
+            // Expiry before the timeout removes nobody.
+            if pane.expire_presence() { repaints += 1; }
+        }
+        assert_eq!(repaints, 0, "an idle screen with 2+ remote cursors must not re-render");
+        assert_eq!(pane.remote_cursors().len(), 2, "both cursors still present after idle");
+
+        // The gate is not vacuous: a GENUINE new remote cursor repaints exactly
+        // once (a new PeerId is unambiguously a pool change, independent of clock
+        // resolution), and replaying that same frame does not.
+        let c = "port-daddy:editor:agent-C";
+        let store_c = PresenceStore::new(peer_id_for_identity(c));
+        let frame_c = encode_presence_frame(store_c.local(), &store_c.publish(PresenceState::caret(5, 2, 1, 5)));
+        assert!(pane.ingest_presence(&frame_c), "a genuine new cursor re-renders once");
+        assert!(!pane.ingest_presence(&frame_c), "replaying that same frame does not re-render");
+        assert_eq!(pane.remote_cursors().len(), 3, "the new cursor joined the pool");
+    }
+
+    // ── P2 slice 3: durability + isolation ────────────────────────────────────
+
+    /// THE PANE-LEVEL SLICE-3 DURABILITY PROOF: a pane exports its buffer as a
+    /// snapshot blob (the bytes that would land in `/blob`); a COLD pane — a
+    /// reconnecting/salvaging replica that never saw the live op stream — hydrates
+    /// from ONLY that blob and renders the same content, with authorship intact.
+    #[test]
+    fn cold_pane_hydrates_from_a_snapshot_blob() {
+        // A live editor with an operator line + a merged agent line.
+        let path = write_temp("snapshot-src.txt", "operator seed\n");
+        let live = make_pane(&path, None);
+        let agent_id = "port-daddy:editor:agent-snap";
+        let agent = HarborBuffer::empty(agent_id);
+        agent.apply_remote_ops(&live.buffer().unwrap().export_ops()).unwrap();
+        agent.append_line("agent added before the crash");
+        live.buffer().unwrap().apply_remote_ops(&agent.export_ops()).unwrap();
+
+        // Export the snapshot blob — content-addressed durability.
+        let snapshot = live.snapshot_blob().expect("a loaded pane snapshots");
+
+        // A cold successor pane (no file on disk) hydrates from ONLY the blob.
+        let mut cold = EditorPane::new_with_identity(&path, None, "port-daddy:console:successor");
+        assert!(cold.buffer().is_none(), "cold pane has no buffer before hydrate");
+        assert!(cold.hydrate_from_snapshot(&snapshot), "the snapshot blob hydrates the cold pane");
+
+        // It renders both lines, each attributed to its original author.
+        let blocks = cold.view();
+        let r = rows(&blocks);
+        assert_eq!(r.len(), 2, "operator + agent lines survived to the cold replica via /blob");
+        assert_eq!(r[1][1], "agent added before the crash");
+        let agent_tag = author_tag(peer_id_for_identity(agent_id));
+        assert!(r[1][0].contains(&agent_tag), "the agent's line keeps the agent's author tag after salvage");
+
+        // Hydrating the same snapshot again is idempotent (double-consume safety).
+        assert!(cold.hydrate_from_snapshot(&snapshot));
+        let after = cold.view();
+        assert_eq!(rows(&after).len(), 2, "re-hydrating the snapshot must not duplicate lines");
+    }
+
+    // ── P3 slice 1: claims-as-awareness ───────────────────────────────────────
+
+    /// Count the region-claim ('R') legend flags a view emits.
+    fn claim_flags(blocks: &[Block]) -> usize {
+        blocks.iter().filter(|b| matches!(b, Block::Flag { letter: 'R', .. })).count()
+    }
+
+    fn make_pane_as(path: &str, identity: &str) -> EditorPane {
+        let mut p = EditorPane::new_with_identity(path, None, identity);
+        p.load();
+        p
+    }
+
+    /// THE PANE-LEVEL P3 SLICE-1 PROOF: a region claim acquired on pane A rides the
+    /// COORDINATION channel as an awareness frame, lands in remote pane B's ledger, and
+    /// renders as an actor-colored 'R' band. Self-echoes and garbage are ignored.
+    #[test]
+    fn region_claim_rides_the_coord_lane_and_lands_in_a_remote_pane() {
+        let path = write_temp("claim-wire.txt", "l1\nl2\nl3\nl4\nl5\n");
+        let mut pane_a = make_pane_as(&path, "port-daddy:editor:agent-A");
+        let mut pane_b = make_pane_as(&path, "port-daddy:console:human-B");
+
+        // Both panes agree on the coordination channel (pure function of the path).
+        assert_eq!(pane_a.coordination_channel(), pane_b.coordination_channel());
+        assert!(pane_b.claim_ledger().is_empty(), "no claims before any frame");
+
+        // A claims parse_header over lines 2–4; the returned frame is what A would
+        // broadcast_claim() on the coordination channel.
+        let frame = pane_a.acquire_region_claim(2, 4, "parse_header", 1_000);
+        assert_eq!(pane_a.claim_ledger().len(), 1, "A sees its own claim immediately");
+
+        // B folds the frame off its coordination subscription.
+        assert!(pane_b.ingest_claim(&frame), "a remote claim frame changes B's ledger");
+        let a_peer = peer_id_for_identity("port-daddy:editor:agent-A");
+        let owners = pane_b.claim_ledger().owners_of_line(3);
+        assert_eq!(owners.len(), 1, "line 3 is claimed on B");
+        assert_eq!(owners[0].peer, a_peer, "the claim is attributed to A");
+        assert_eq!(owners[0].label, "parse_header");
+
+        // B renders exactly one 'R' band naming A as a peer working parse_header.
+        let blocks = pane_b.view();
+        assert_eq!(claim_flags(&blocks), 1, "one claim band renders on B");
+        assert!(
+            blocks.iter().any(|b| matches!(
+                b,
+                Block::Flag { letter: 'R', tone: Tone::Engaged, label } if label.contains("parse_header")
+            )),
+            "a remote peer's claim band is Engaged-toned and labeled with the work name"
+        );
+
+        // Re-delivering the same frame (stale LWW) is no change; garbage is ignored.
+        assert!(!pane_b.ingest_claim(&frame), "replaying the same claim frame does not re-render");
+        assert!(!pane_b.ingest_claim("not a claim frame"), "garbage is ignored");
+        // A op frame is not a claim (lane isolation at the pane boundary).
+        let op = crate::editor_sync::encode_frame(a_peer, &[1, 2, 3]);
+        assert!(!pane_b.ingest_claim(&op), "an edit-lane op frame is not a claim");
+    }
+
+    /// THE PANE-LEVEL REGION-GRANULARITY PROOF: two panes claim DISJOINT adjacent
+    /// regions of the SAME file and both coexist — claiming one symbol's line range
+    /// never locks the rest of the file (HARD RULE 1 at the pane boundary).
+    #[test]
+    fn pane_region_claim_does_not_lock_the_rest_of_the_file() {
+        let big: String = (0..300).map(|i| format!("line {i}\n")).collect();
+        let path = write_temp("claim-region.txt", &big);
+        let mut pane_a = make_pane_as(&path, "port-daddy:editor:agent-A");
+        let mut pane_b = make_pane_as(&path, "port-daddy:editor:agent-B");
+
+        // A claims parse_header (L12–40); B claims write_footer (L200–260). Exchange.
+        let a_frame = pane_a.acquire_region_claim(12, 40, "parse_header", 1);
+        let b_frame = pane_b.acquire_region_claim(200, 260, "write_footer", 2);
+        assert!(pane_b.ingest_claim(&a_frame), "B folds A's claim");
+        assert!(pane_a.ingest_claim(&b_frame), "A folds B's claim");
+
+        // Both panes converge to the same two-claim ledger.
+        for pane in [&pane_a, &pane_b] {
+            let led = pane.claim_ledger();
+            assert_eq!(led.len(), 2, "two disjoint claims coexist on one file");
+            assert_eq!(led.owners_of_line(25)[0].label, "parse_header", "L25 is the header claim");
+            assert_eq!(led.owners_of_line(230)[0].label, "write_footer", "L230 is the footer claim");
+            assert!(led.owners_of_line(100).is_empty(), "the gap between the regions stays free");
+            assert!(led.owners_of_line(1).is_empty(), "the file head is unclaimed");
+        }
+
+        // Region-scoped, not file-scoped: A's own header line is not an 'other' claim
+        // to A, but B's footer line is — on the very same file.
+        let a_peer = peer_id_for_identity("port-daddy:editor:agent-A");
+        let led = pane_a.claim_ledger();
+        assert!(!led.is_line_claimed_by_other(25, a_peer), "A's own region is not foreign to A");
+        assert!(led.is_line_claimed_by_other(230, a_peer), "B's region IS foreign to A");
+        assert!(!led.is_line_claimed_by_other(100, a_peer), "the free gap is foreign to nobody");
+    }
+
+    /// The durable claim mirror is debounced at the pane level: an acquire is due once,
+    /// carries the right span/label/path, then is suppressed inside the window.
+    #[test]
+    fn claim_mirror_is_debounced_at_pane_level() {
+        let path = write_temp("claim-mirror-pane.txt", "a\nb\nc\nd\ne\n");
+        let mut pane = make_pane_as(&path, "port-daddy:editor:agent-A");
+
+        // Nothing acquired → nothing to mirror.
+        assert!(pane.take_claim_mirror(0).is_empty(), "an idle pane mirrors no claims");
+
+        // Acquire two disjoint claims before the first mirror tick.
+        pane.acquire_region_claim(2, 3, "parse_header", 10);
+        pane.acquire_region_claim(5, 5, "write_footer", 11);
+        let due = pane.take_claim_mirror(20);
+        assert_eq!(due.len(), 2, "both acquired claims are due for the durable mirror");
+        assert!(due.iter().any(|c| c.label == "parse_header" && c.line_span() == (2, 3)));
+        // The caller POSTs each against this pane's path via DaemonClient::claim_region.
+        assert_eq!(pane.path_str(), path, "the mirror targets the pane's real file path");
+
+        // Within the interval a further acquire does not flush again.
+        pane.acquire_region_claim(1, 1, "imports", 30);
+        assert!(pane.take_claim_mirror(100).is_empty(), "suppressed inside the debounce window");
+        // Past the interval the pending acquire flushes.
+        assert_eq!(pane.take_claim_mirror(600).len(), 1, "the later acquire flushes after the interval");
+    }
+
+    /// Ingesting a release frame drops the claim band from a remote pane's view.
+    #[test]
+    fn ingesting_a_release_frame_drops_the_claim_band() {
+        let path = write_temp("claim-release.txt", "l1\nl2\nl3\n");
+        let mut pane_a = make_pane_as(&path, "port-daddy:editor:agent-A");
+        let mut pane_b = make_pane_as(&path, "port-daddy:console:human-B");
+
+        // A claims (id 0), B sees the band.
+        let acquire = pane_a.acquire_region_claim(1, 2, "tidy", 1);
+        assert!(pane_b.ingest_claim(&acquire));
+        assert_eq!(claim_flags(&pane_b.view()), 1, "B shows A's claim band");
+
+        // A releases claim id 0; B folds the tombstone and the band disappears.
+        let release = pane_a.release_region_claim(0);
+        assert!(pane_a.claim_ledger().is_empty(), "A's own ledger clears on release");
+        assert!(pane_b.ingest_claim(&release), "the release changes B's ledger");
+        assert!(pane_b.claim_ledger().is_empty(), "B's ledger clears after the release");
+        assert_eq!(claim_flags(&pane_b.view()), 0, "the claim band is gone from B's view");
+    }
+
+    // ── P3 slice 2: the wedge (conflict prediction before a byte is written) ───
+
+    const BYPASS: [&str; 5] = ["--force", "--no-verify", "--allow", "bypass", "override"];
+
+    /// THE PANE-LEVEL HARD-RULE-2 PROOF: the wedge fires on a claim-ACQUIRE edge and
+    /// NOT on caret moves (keystrokes). A burst of `set_local_presence` (the stand-in
+    /// for typing) arms nothing; an `acquire_region_claim` arms exactly one probe whose
+    /// body carries the acquired symbol as a `modify` claim against the file path.
+    #[test]
+    fn wedge_probe_fires_on_acquire_not_on_caret_moves() {
+        let path = write_temp("wedge-probe.txt", "l1\nl2\nl3\nl4\nl5\n");
+        let mut pane = make_pane_as(&path, "port-daddy:editor:agent-A");
+
+        // 50 caret moves (keystrokes): none arms a predict — the machine-checked
+        // "debounced, never per-keystroke" at the pane boundary.
+        for col in 0..50u32 {
+            pane.set_local_presence(PresenceState::caret(2, col, 1, 5));
+            assert!(pane.take_wedge_probe(1_000 + col as i64).is_none(), "a caret move never arms a predict");
+        }
+
+        // A claim-acquire IS a coordination edge → exactly one due probe.
+        pane.acquire_region_claim(2, 4, "parse_header", 2_000);
+        let body = pane.take_wedge_probe(3_000).expect("an acquire arms a due probe");
+        assert_eq!(body["claimsA"][0]["symbolPath"], "parse_header");
+        assert_eq!(body["claimsA"][0]["type"], "modify", "the intended edit is a modify claim");
+        assert_eq!(body["claimsA"][0]["filePath"], path);
+        assert_eq!(body["claimsB"].as_array().unwrap().len(), 0, "no other live claims yet");
+
+        // Nothing newly armed → no further predict (quiet).
+        assert!(pane.take_wedge_probe(3_100).is_none(), "no new edge → no predict");
+    }
+
+    /// A remote actor's live claim shows up in `claimsB` — the wedge predicts the local
+    /// intent against the OTHER actors' claims, never its own.
+    #[test]
+    fn wedge_probe_body_carries_other_actors_claims_as_claimsB() {
+        let path = write_temp("wedge-b.txt", "l1\nl2\nl3\nl4\nl5\n");
+        let mut pane = make_pane_as(&path, "port-daddy:editor:agent-A");
+
+        // A remote actor B claims parse_header (L2–4); A folds it in.
+        let mut other = make_pane_as(&path, "port-daddy:console:human-B");
+        let b_frame = other.acquire_region_claim(2, 4, "parse_header", 500);
+        assert!(pane.ingest_claim(&b_frame));
+
+        // A now acquires the SAME symbol — the wedge probes A's modify against B's claim.
+        pane.acquire_region_claim(2, 4, "parse_header", 1_000);
+        let body = pane.take_wedge_probe(1_500).expect("probe due");
+        let claims_b = body["claimsB"].as_array().unwrap();
+        assert_eq!(claims_b.len(), 1, "B's live claim is the contended set");
+        assert_eq!(claims_b[0]["symbolPath"], "parse_header");
+        // A's own claim is NOT in claimsB (you do not conflict with yourself).
+        assert_eq!(body["claimsA"].as_array().unwrap().len(), 1);
+    }
+
+    /// THE PANE-LEVEL WEDGE PROOF: a daemon `blocking` prediction raises a
+    /// Tone::Conflicted band + a bypass-free pd-nudge (surfaced, NOT merged); re-
+    /// confirming the SAME conflict does not repaint (no pulse restart — HARD RULE 3);
+    /// a later CLEAR prediction drops the band.
+    #[test]
+    fn blocking_predict_raises_a_conflicted_band_and_nudge_then_clears() {
+        let path = write_temp("wedge-band.txt", "l1\nl2\nl3\nl4\nl5\n");
+        let mut pane = make_pane_as(&path, "port-daddy:editor:agent-A");
+
+        pane.acquire_region_claim(2, 4, "parse_header", 1_000);
+        let _ = pane.take_wedge_probe(1_400).expect("probe due");
+
+        let blocking = serde_json::json!({
+            "success": true, "count": 1, "blocking": 1, "warnings": 0, "info": 0,
+            "conflicts": [{ "severity": "blocking" }],
+        });
+        assert!(pane.apply_conflict_report(&blocking, 1_500), "a blocking report raises the band");
+        assert!(pane.guard_band().is_some());
+
+        // A Tone::Conflicted band + a bypass-free nudge render.
+        let blocks = pane.view();
+        assert!(
+            blocks.iter().any(|b| matches!(b, Block::WrappedText { tone: Tone::Conflicted, text } if text.contains("parse_header"))),
+            "a Conflicted guard band renders in the view"
+        );
+        let nudge = pane.blocking_nudge().expect("a pd-nudge accompanies the band");
+        assert_eq!(nudge.tone, Tone::Conflicted);
+        for tok in BYPASS {
+            assert!(!nudge.detail.to_lowercase().contains(tok), "the blocking nudge advertises no bypass (‘{tok}’)");
+        }
+
+        // Re-confirming the SAME conflict does not repaint (the pulse is not restarted).
+        pane.acquire_region_claim(2, 4, "parse_header", 2_000);
+        let _ = pane.take_wedge_probe(2_400).expect("probe due again");
+        assert!(!pane.apply_conflict_report(&blocking, 2_500), "re-confirming the same conflict does not repaint");
+
+        // A later CLEAR predict (moving to a conflict-free region) drops the band.
+        pane.acquire_region_claim(7, 8, "write_footer", 3_000);
+        let _ = pane.take_wedge_probe(3_400).expect("probe due");
+        let clear = serde_json::json!({ "success": true, "count": 0, "conflicts": [] });
+        assert!(pane.apply_conflict_report(&clear, 3_500), "a clear predict drops the band");
+        assert!(pane.guard_band().is_none(), "no band once the region is clear");
+    }
+
+    /// THE PANE-LEVEL HARD-RULE-6 PROOF: a contender whose caret sits INSIDE another
+    /// actor's live claim gets a Tone::Gated chip + a typed refusal that names
+    /// negotiation (handoff / parley / move) and NEVER a bypass. The first-granted owner
+    /// is never gated on its own region.
+    #[test]
+    fn contender_inside_anothers_claim_gets_a_gated_chip_no_bypass() {
+        let path = write_temp("wedge-gated.txt", "l1\nl2\nl3\nl4\nl5\n");
+        let mut pane_a = make_pane_as(&path, "port-daddy:editor:agent-A");
+        let mut pane_b = make_pane_as(&path, "port-daddy:console:human-B");
+
+        // A claims L2–4 (parse_header); B folds it in.
+        let frame = pane_a.acquire_region_claim(2, 4, "parse_header", 1_000);
+        assert!(pane_b.ingest_claim(&frame));
+
+        // B's caret sits at L3 — inside A's live claim. B is the contender.
+        pane_b.set_local_presence(PresenceState::caret(3, 0, 1, 5));
+        assert!(pane_b.guard_verdict_for_line(3).is_gated(), "L3 is held by A's first-granted claim");
+
+        let blocks = pane_b.view();
+        assert!(
+            blocks.iter().any(|b| matches!(b, Block::Chip { tone: Tone::Gated, .. })),
+            "a Gated contender chip renders on B"
+        );
+        let gated_msg = blocks
+            .iter()
+            .find_map(|b| match b {
+                Block::WrappedText { tone: Tone::Gated, text } => Some(text.clone()),
+                _ => None,
+            })
+            .expect("a gated refusal renders");
+        assert!(gated_msg.contains("handoff") && gated_msg.contains("parley"), "the refusal names negotiation");
+        for tok in BYPASS {
+            assert!(!gated_msg.to_lowercase().contains(tok), "the gated refusal names no bypass (‘{tok}’)");
+        }
+
+        // The OWNER is never gated on its own region (HARD RULE 6: first-granted wins).
+        pane_a.set_local_presence(PresenceState::caret(3, 0, 1, 5));
+        assert!(!pane_a.guard_verdict_for_line(3).is_gated(), "the owner is never gated on its own region");
+    }
+
+    /// THE COMMIT GATE (HARD RULE 7): committing an edit that overlaps another live
+    /// actor's claimed region is REFUSED with a typed, bypass-free verdict; an edit in a
+    /// disjoint adjacent region of the same file commits clear (region-scoped, never a
+    /// whole-file lock).
+    #[test]
+    fn commit_gate_refuses_edits_overlapping_a_live_claim_but_not_adjacent_ones() {
+        let big: String = (0..300).map(|i| format!("line {i}\n")).collect();
+        let path = write_temp("wedge-commit.txt", &big);
+        let mut pane_a = make_pane_as(&path, "port-daddy:editor:agent-A");
+        let mut pane_b = make_pane_as(&path, "port-daddy:console:human-B");
+
+        // A holds parse_header (L12–40); B folds it in.
+        let frame = pane_a.acquire_region_claim(12, 40, "parse_header", 1_000);
+        assert!(pane_b.ingest_claim(&frame));
+
+        // B tries to commit an edit overlapping A's region → refused, bypass-free.
+        let verdict = pane_b.commit_verdict(30, 45);
+        assert!(verdict.is_gated(), "a commit overlapping A's live claim is refused");
+        if let GuardVerdict::Gated(g) = &verdict {
+            let msg = g.message();
+            assert!(msg.contains("handoff") && msg.contains("parse_header"));
+            for tok in BYPASS {
+                assert!(!msg.to_lowercase().contains(tok), "the commit refusal names no bypass (‘{tok}’)");
+            }
+        }
+
+        // B committing a DISJOINT adjacent region (L200–260) of the same file is clear.
+        assert!(!pane_b.commit_verdict(200, 260).is_gated(), "an adjacent region commits clear (region-scoped)");
+        // A committing its OWN region is clear (first-granted owner is A).
+        assert!(!pane_a.commit_verdict(12, 40).is_gated(), "the owner commits its own region clear");
+    }
+
+    /// P3 SLICE-3 WIRING PROOF — the pane's multi-hunk `staged_commit_gate` delegates to
+    /// the commit-gate module over the pane's live ledger: a staged commit whose hunks
+    /// cross TWO live owners' regions is refused with one bypass-free refusal per owner,
+    /// while a staged set landing only in free/own regions clears.
+    #[test]
+    fn staged_commit_gate_wires_the_pane_ledger_to_the_module() {
+        let big: String = (0..300).map(|i| format!("line {i}\n")).collect();
+        let path = write_temp("wedge-staged.txt", &big);
+        let mut pane_a = make_pane_as(&path, "port-daddy:editor:agent-A");
+        let mut pane_b = make_pane_as(&path, "port-daddy:console:human-B");
+        let mut pane_z = make_pane_as(&path, "port-daddy:editor:agent-Z");
+
+        // A holds parse_header (L12–40); B holds write_footer (L200–260). Z folds both in.
+        let fa = pane_a.acquire_region_claim(12, 40, "parse_header", 1_000);
+        let fb = pane_b.acquire_region_claim(200, 260, "write_footer", 1_001);
+        assert!(pane_z.ingest_claim(&fa) && pane_z.ingest_claim(&fb));
+
+        // Z stages two hunks, one inside EACH owner's region → refused, one per owner.
+        let verdict = pane_z.staged_commit_gate(&[(30, 35), (205, 210)]);
+        assert!(verdict.is_refused(), "staged hunks inside two live regions are refused");
+        assert_eq!(verdict.refusals().len(), 2, "one bypass-free refusal per contended owner");
+        let msg = verdict.refusal_message().expect("a refused commit has a message");
+        let lower = msg.to_lowercase();
+        assert!(msg.contains("parse_header") && msg.contains("write_footer"));
+        for tok in BYPASS {
+            assert!(!lower.contains(tok), "the staged-commit refusal names no bypass (‘{tok}’)");
+        }
+
+        // Z staging only in the free gap (L100–150) between the two claims clears.
+        assert!(pane_z.staged_commit_gate(&[(100, 150)]).is_clear(), "the free gap commits clear (region-scoped)");
+        // A staging into its OWN region clears (first-granted owner).
+        assert!(pane_a.staged_commit_gate(&[(12, 40)]).is_clear(), "the owner commits its own region clear");
     }
 }

@@ -255,6 +255,12 @@ const productRoutes: SiteMetadata[] = [
     { ogSourceImage: OG_SOURCE_IMAGES.fleetbarInstall, ogSectionLabel: 'FleetBar' },
   ),
   metadata(
+    '/accountability',
+    'See What Your Agents Actually Did',
+    'Turn every coding-agent run into a witnessed transcript, an exact cost, a daemon-proven compliance level, and a receipt — with destructive git denied at the pre-tool gate before it fires.',
+    { ogSourceImage: OG_SOURCE_IMAGES.coordinationGuard, ogSectionLabel: 'Accountability' },
+  ),
+  metadata(
     '/scout',
     'Port Daddy Scout',
     'Capture any ordinary Chrome page as a Port Daddy visual task: screenshot, selected region, DOM clues for project apps, local issue creation, and optional spawn-backed follow-up work.',

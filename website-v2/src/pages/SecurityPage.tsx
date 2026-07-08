@@ -9,6 +9,7 @@ import {
   PanelEyebrow,
   PanelTitle,
 } from '@/components/site/primitives'
+import { useTheme } from '@/lib/theme-context'
 import { AnchorFourPhases } from '@/components/library/AnchorFourPhases'
 import { AnchorCapabilityAttenuation } from '@/components/library/AnchorCapabilityAttenuation'
 import { AnchorRevocationGossip } from '@/components/library/AnchorRevocationGossip'
@@ -37,32 +38,57 @@ function ClosesPill({ children }: { children: React.ReactNode }) {
 }
 
 export default function SecurityPage() {
+  const { theme } = useTheme()
+  // Theme-aware hero illustration in the "PR that reviews itself" line-art voice:
+  // a row of harbor gatekeepers checking each agent's signed capability card and
+  // turning away a forged one — the page's thesis rendered as a picture.
+  const heroArt =
+    theme === 'dark'
+      ? '/img/generated/security/hero-dark.webp'
+      : '/img/generated/security/hero-light.webp'
   return (
     <div className="bg-[var(--surface-base)]">
       <main id="main-content">
         {/* ── Section hero — lead with the fear, not the formalism ── */}
         <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
           <PageContainer width="wide">
-            <div className="space-y-[var(--space-4)]">
-              <BracketLabel>The security model</BracketLabel>
-              <PanelTitle as="h1" size="display" className="max-w-[22ch]">
-                An agent you never authorized just edited your code. What stops that?
-              </PanelTitle>
-              <PanelBody className="max-w-[58ch] text-[length:var(--type-panel-body-size)]">
-                You hand six agents a task and walk away. One of them dies halfway
-                through a refactor and leaves the file in a state no test covers.
-                Another claims write access to a module it was never granted. A
-                third is impersonating an agent you <em>did</em> trust, because it
-                got hold of a token. None of these are exotic. They are Tuesday for
-                anyone running a swarm.
-              </PanelBody>
-              <PanelBody className="max-w-[58ch] text-[length:var(--type-panel-body-size)]">
-                Port Daddy&rsquo;s answer is not &ldquo;be careful.&rdquo; It is a
-                small set of rules that make each of those failures impossible to
-                express &mdash; and where it matters most, those rules are checked
-                by a machine, not asserted in a blog post. Here is how each one
-                closes.
-              </PanelBody>
+            <div className="grid items-center gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.52fr)_minmax(0,0.48fr)] lg:gap-[var(--space-7)]">
+              <div className="space-y-[var(--space-4)]">
+                <BracketLabel>The security model</BracketLabel>
+                <PanelTitle as="h1" size="display" className="max-w-[22ch]">
+                  An agent you never authorized just edited your code. What stops that?
+                </PanelTitle>
+                <PanelBody className="max-w-[52ch] text-[length:var(--type-panel-body-size)]">
+                  You hand six agents a task and walk away. One of them dies halfway
+                  through a refactor and leaves the file in a state no test covers.
+                  Another claims write access to a module it was never granted. A
+                  third is impersonating an agent you <em>did</em> trust, because it
+                  got hold of a token. None of this is exotic &mdash; it&rsquo;s the
+                  ordinary failure surface of running a swarm.
+                </PanelBody>
+                <PanelBody className="max-w-[52ch] text-[length:var(--type-panel-body-size)]">
+                  Port Daddy&rsquo;s answer isn&rsquo;t to ask the agents to behave.
+                  It&rsquo;s a small set of rules that make each of those failures
+                  impossible to even express, and the ones that matter most get
+                  checked by a machine instead of asserted in a blog post. Here&rsquo;s
+                  how each one closes.
+                </PanelBody>
+              </div>
+
+              <figure className="m-0">
+                <img
+                  src={heroArt}
+                  alt="A row of harbor gatekeepers at a customs counter, each inspecting a small signed capability card held up by a hooded coding agent; at the far gate one gatekeeper raises a hand and turns away an agent whose card is crossed out and forged."
+                  width={1376}
+                  height={768}
+                  loading="eager"
+                  decoding="async"
+                  className="w-full border-2 border-[var(--border-strong)]"
+                />
+                <figcaption className="mt-[var(--space-3)] max-w-none font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+                  Every action carries a signed card that says what it may do. Checked at every door, unforgeable, and only ever granting less than the card it came from.
+                </figcaption>
+              </figure>
             </div>
           </PageContainer>
         </section>

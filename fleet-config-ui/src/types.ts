@@ -1262,7 +1262,14 @@ export interface GalaxyMapResponse {
   // With cluster=false the daemon returns clusters: [] and every point carries
   // clusterId 0 — render defensively rather than assuming clusters.length > 0.
   clusters: GalaxyCluster[];
-  stats: { sessionCount: number; embeddedNow: number; cacheHits: number; elapsedMs: number };
+  stats: {
+    sessionCount: number;
+    embeddedNow: number;
+    cacheHits: number;
+    embeddingCacheHits?: number;
+    responseCacheHits?: number;
+    elapsedMs: number;
+  };
 }
 
 export type GalaxyTranscriptRole = 'system' | 'user' | 'assistant' | 'tool' | 'thinking';

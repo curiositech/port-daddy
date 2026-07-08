@@ -103,6 +103,40 @@ function ipv4Blocked(ip: number): boolean {
   return false;
 }
 
+/**
+ * Extract the embedded IPv4 (as a 32-bit int) from an IPv4-mapped/compat IPv6
+ * literal, or null. Handles BOTH the dotted-decimal tail (`::ffff:169.254.169.254`)
+ * AND the hex-hextet tail Node normalizes to (`::ffff:a9fe:a9fe`, `::ffff:a00:1`,
+ * `::ffff:7f00:1`) — the latter is what `url.hostname` actually yields, and the
+ * form the previous dotted-only regex let slip past (SSRF metadata bypass).
+ */
+function mappedIpv4(host: string): number | null {
+  const m = /^(?:::ffff:|::)([0-9a-f.:]+)$/i.exec(host);
+  if (!m) return null;
+  const tail = m[1];
+  if (tail.includes('.')) {
+    // ::ffff:169.254.169.254  (and ::ffff:d.d:d.d style mixes end in dotted)
+    const dotted = tail.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+    return dotted ? parseIpv4Maybe(dotted[1]) : null;
+  }
+  // Hex-hextet tail carrying the low 32 bits: one or two groups.
+  const groups = tail.split(':').filter((g) => g.length > 0);
+  if (groups.length === 0 || groups.length > 2) return null;
+  let low32: number;
+  if (groups.length === 2) {
+    const hi = parseInt(groups[0], 16);
+    const lo = parseInt(groups[1], 16);
+    if (!Number.isInteger(hi) || !Number.isInteger(lo) || hi > 0xffff || lo > 0xffff) return null;
+    low32 = ((hi << 16) | lo) >>> 0;
+  } else {
+    // A single group after `::` fills only the lowest 16 bits (e.g. ::ffff:1).
+    const lo = parseInt(groups[0], 16);
+    if (!Number.isInteger(lo) || lo > 0xffff) return null;
+    low32 = lo >>> 0;
+  }
+  return low32;
+}
+
 /** Block dangerous IPv6 literals (loopback, unspecified, link-local, ULA, and
  *  IPv4-mapped/compat that wrap a blocked v4). Host arrives WITHOUT brackets. */
 function ipv6Blocked(host: string): boolean {
@@ -111,12 +145,9 @@ function ipv6Blocked(host: string): boolean {
   if (h.startsWith('fe80')) return true;          // link-local
   if (h.startsWith('fc') || h.startsWith('fd')) return true; // ULA fc00::/7
   if (h.startsWith('ff')) return true;            // multicast
-  // IPv4-mapped / -compat: ::ffff:169.254.169.254 , ::ffff:7f00:1 , etc.
-  const mapped = h.match(/(?:::ffff:)?(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
-  if (mapped) {
-    const v4 = parseIpv4Maybe(mapped[1]);
-    if (v4 !== null && ipv4Blocked(v4)) return true;
-  }
+  // IPv4-mapped / -compat (dotted OR hex-hextet, incl. Node's normalized form).
+  const v4 = mappedIpv4(h);
+  if (v4 !== null && ipv4Blocked(v4)) return true;
   return false;
 }
 
@@ -128,8 +159,11 @@ export function isBlockedHost(rawHost: string): boolean {
   if (host.startsWith('[') && host.endsWith(']')) {
     return ipv6Blocked(host.slice(1, -1));
   }
-  if (host.includes(':') && !host.includes('.')) {
-    // Bare IPv6 without brackets (shouldn't happen via URL, but be safe).
+  if (host.includes(':')) {
+    // Bare IPv6 — url.hostname strips the brackets, and IPv4-MAPPED forms
+    // (::ffff:169.254.169.254) legitimately contain dots, so ANY ':' here is
+    // IPv6 (the port is not part of url.hostname). A prior `!includes('.')`
+    // guard let the bracketed mapped-metadata form slip past — SSRF bypass.
     return ipv6Blocked(host);
   }
   // Obvious loopback names.

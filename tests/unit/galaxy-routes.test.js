@@ -226,6 +226,8 @@ describe('galaxy routes', () => {
     expect(body.stats.sessionCount).toBe(5);
     expect(body.stats.embeddedNow).toBe(5);
     expect(body.stats.cacheHits).toBe(0);
+    expect(body.stats.embeddingCacheHits).toBe(0);
+    expect(body.stats.responseCacheHits).toBe(0);
 
     for (const point of body.points) {
       expect(point.x).toBeGreaterThanOrEqual(0);
@@ -294,7 +296,9 @@ describe('galaxy routes', () => {
     expect(embedder.embedCalls).toBe(callsAfterFirst); // no new embed work
     const firstBody = JSON.parse(first.body);
     const secondBody = JSON.parse(second.body);
-    expect(secondBody.stats.cacheHits).toBeGreaterThan(0);
+    expect(secondBody.stats.cacheHits).toBe(firstBody.stats.cacheHits);
+    expect(secondBody.stats.embeddingCacheHits).toBe(firstBody.stats.embeddingCacheHits);
+    expect(secondBody.stats.responseCacheHits).toBe(1);
     expect(secondBody.computedAt).toBe(firstBody.computedAt);
     expect(secondBody.points).toEqual(firstBody.points);
     expect(secondBody.clusters).toEqual(firstBody.clusters);
@@ -312,6 +316,8 @@ describe('galaxy routes', () => {
     const second = JSON.parse((await app2.inject({ method: 'GET', url: '/galaxy/map' })).body);
 
     expect(second.stats.cacheHits).toBe(5);
+    expect(second.stats.embeddingCacheHits).toBe(5);
+    expect(second.stats.responseCacheHits).toBe(0);
     expect(second.stats.embeddedNow).toBe(0);
     expect(second.points).toEqual(first.points);
     expect(second.clusters).toEqual(first.clusters);
@@ -380,6 +386,8 @@ describe('galaxy routes', () => {
     const a = JSON.parse((await app.inject({ method: 'GET', url: '/galaxy/map' })).body);
     expect(a.params.cluster).toBe(true);
     expect(a.stats.cacheHits).toBe(0);
+    expect(a.stats.embeddingCacheHits).toBe(0);
+    expect(a.stats.responseCacheHits).toBe(0);
     expect(a.stats.embeddedNow).toBe(5);
     expect(a.clusters.length).toBeGreaterThan(0);
 
@@ -393,6 +401,8 @@ describe('galaxy routes', () => {
     expect(b.points.every((p) => p.clusterId === 0)).toBe(true);
     expect(b.stats.embeddedNow).toBe(0);
     expect(b.stats.cacheHits).toBe(5);
+    expect(b.stats.embeddingCacheHits).toBe(5);
+    expect(b.stats.responseCacheHits).toBe(0);
     // Positions are still computed — only clustering/labeling is skipped.
     for (const point of b.points) {
       expect(point.x).toBeGreaterThanOrEqual(0);
@@ -401,15 +411,20 @@ describe('galaxy routes', () => {
       expect(point.y).toBeLessThanOrEqual(1);
     }
 
-    // Repeating cluster=false hits ITS OWN cache entry (cacheHits = b's + 1).
+    // Repeating cluster=false hits ITS OWN response cache entry without
+    // pretending that an embedding cache hit happened.
     const c = JSON.parse((await app.inject({ method: 'GET', url: '/galaxy/map?cluster=false' })).body);
-    expect(c.stats.cacheHits).toBe(b.stats.cacheHits + 1);
+    expect(c.stats.cacheHits).toBe(b.stats.cacheHits);
+    expect(c.stats.embeddingCacheHits).toBe(b.stats.embeddingCacheHits);
+    expect(c.stats.responseCacheHits).toBe(1);
     expect(c.clusters).toEqual([]);
 
     // Repeating the default (cluster=true) call hits A's cache entry, not
     // B/C's — proving the two param tuples own distinct cache slots.
     const d = JSON.parse((await app.inject({ method: 'GET', url: '/galaxy/map' })).body);
-    expect(d.stats.cacheHits).toBe(a.stats.cacheHits + 1);
+    expect(d.stats.cacheHits).toBe(a.stats.cacheHits);
+    expect(d.stats.embeddingCacheHits).toBe(a.stats.embeddingCacheHits);
+    expect(d.stats.responseCacheHits).toBe(1);
     expect(d.clusters.length).toBeGreaterThan(0);
   });
 

@@ -108,7 +108,15 @@ export interface GalaxyMapResponse {
   };
   points: GalaxyPoint[];
   clusters: GalaxyCluster[];
-  stats: { sessionCount: number; embeddedNow: number; cacheHits: number; elapsedMs: number };
+  stats: {
+    sessionCount: number;
+    embeddedNow: number;
+    /** Legacy alias for embeddingCacheHits; kept so older clients do not drift. */
+    cacheHits: number;
+    embeddingCacheHits: number;
+    responseCacheHits: number;
+    elapsedMs: number;
+  };
 }
 
 export interface GalaxySessionDetail {
@@ -201,7 +209,8 @@ export function createGalaxy(deps: GalaxyDeps): GalaxyModule {
       dims INTEGER NOT NULL,
       vector BLOB NOT NULL,
       created_at INTEGER NOT NULL,
-      PRIMARY KEY (transcript_id, tail_hash, model_id)
+      PRIMARY KEY (transcript_id, tail_hash, model_id),
+      FOREIGN KEY (transcript_id) REFERENCES fleet_transcripts(id) ON DELETE CASCADE
     )
   `).run();
 
@@ -327,7 +336,10 @@ export function createGalaxy(deps: GalaxyDeps): GalaxyModule {
     if (cached && startedAt - cached.at < MAP_CACHE_TTL_MS) {
       return {
         ...cached.response,
-        stats: { ...cached.response.stats, cacheHits: cached.response.stats.cacheHits + 1 },
+        stats: {
+          ...cached.response.stats,
+          responseCacheHits: (cached.response.stats.responseCacheHits ?? 0) + 1,
+        },
       };
     }
 
@@ -357,7 +369,7 @@ export function createGalaxy(deps: GalaxyDeps): GalaxyModule {
     }
 
     // (3) Embedding cache lookup + batch embed of misses.
-    let cacheHits = 0;
+    let embeddingCacheHits = 0;
     let embeddedNow = 0;
     const vectors: Array<number[] | null> = new Array(entries.length).fill(null);
     const misses: Array<{ index: number; hash: string; chunks: string[] }> = [];
@@ -369,7 +381,7 @@ export function createGalaxy(deps: GalaxyDeps): GalaxyModule {
         | undefined;
       if (row) {
         vectors[i] = bufferToVector(row.vector, row.dims);
-        cacheHits += 1;
+        embeddingCacheHits += 1;
       } else {
         misses.push({ index: i, hash, chunks: chunkTail(tail) });
       }
@@ -501,7 +513,9 @@ export function createGalaxy(deps: GalaxyDeps): GalaxyModule {
       stats: {
         sessionCount: points.length,
         embeddedNow,
-        cacheHits,
+        cacheHits: embeddingCacheHits,
+        embeddingCacheHits,
+        responseCacheHits: 0,
         elapsedMs: computedAt - startedAt,
       },
     };

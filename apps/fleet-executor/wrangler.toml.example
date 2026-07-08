@@ -21,6 +21,12 @@
 #
 #   4. Deploy:
 #        wrangler deploy
+#
+# CI auto-deploy: pushes to `main` under apps/fleet-executor/** are deployed by
+# .github/workflows/deploy-fleet-executor.yml. Because this real wrangler.toml is
+# gitignored, that workflow reconstructs it from the FLEET_EXECUTOR_WRANGLER_TOML
+# repo secret. After editing your local wrangler.toml, refresh the secret:
+#        gh secret set FLEET_EXECUTOR_WRANGLER_TOML --repo curiositech/port-daddy --app actions < apps/fleet-executor/wrangler.toml
 
 name = "fleet-executor"
 main = "src/index.ts"
@@ -70,6 +76,16 @@ max_batch_timeout = 30
 max_retries = 3
 dead_letter_queue = "fleet-runs-dlq"
 
+# DLQ consumer — the same Worker handles it (index.ts routes on batch.queue).
+# A dead-lettered job's 'Port Daddy Fleet' check is completed as 'failure' so a
+# lost blocking job never leaves a stuck in_progress gate. No further DLQ (a
+# message here already exhausted retries); low retries since the handler acks.
+[[queues.consumers]]
+queue = "fleet-runs-dlq"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 1
+
 # ---------------------------------------------------------------------------
 # Plaintext vars. GITHUB_APP_PRIVATE_KEY is a *secret*, set out-of-band:
 #   echo "123456" | wrangler secret put GITHUB_APP_ID        # (or var, below)
@@ -79,8 +95,17 @@ dead_letter_queue = "fleet-runs-dlq"
 [vars]
 GITHUB_APP_ID = "REPLACE_WITH_YOUR_GITHUB_APP_ID"
 DEFAULT_BRANCH = "main"
+# Cloud telemetry sink — the daemon (or its public tunnel) that ingests per-ship
+# cost + failure events at POST /telemetry/cloud-app. This is what relights
+# FleetBar's cost panel and surfaces cloud ship failures. OPTIONAL and DISABLED
+# by default: an empty string ⇒ emitCloudTelemetry no-ops (no fetch per ship), so
+# copying this template verbatim never points ships at a bogus host. Fill it in
+# ONLY once you have a real sink URL, e.g. "https://your-tunnel/telemetry/cloud-app".
+PORT_DADDY_TELEMETRY_URL = ""
 
 # ---------------------------------------------------------------------------
 # Secrets (documented; set via `wrangler secret put`, never committed):
-#   GITHUB_APP_PRIVATE_KEY   PEM-encoded GitHub App private key
-#   GITHUB_APP_ID            (may be a secret instead of a var if preferred)
+#   GITHUB_APP_PRIVATE_KEY     PEM-encoded GitHub App private key
+#   GITHUB_APP_ID              (may be a secret instead of a var if preferred)
+#   PORT_DADDY_TELEMETRY_TOKEN Bearer token for POST /telemetry/cloud-app
+#                              (matches the daemon's PD_CLOUD_APP_TELEMETRY_TOKEN)

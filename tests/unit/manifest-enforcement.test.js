@@ -582,6 +582,12 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'list_file_claims': 'file_claims',
       'who_owns_file': 'file_claims',
 
+      // Editor region claims (#728 — harbor-editor P3). claim_region/release_region
+      // add/remove region-scoped claims via the same POST/DELETE /sessions/:id/files
+      // routes as claim_files/release_files, so they map to the 'sessions' feature.
+      'claim_region': 'sessions',
+      'release_region': 'sessions',
+
       // Integration Signals
       'integration_ready': 'integration_signals',
       'integration_needs': 'integration_signals',

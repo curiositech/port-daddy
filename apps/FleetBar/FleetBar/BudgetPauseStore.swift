@@ -58,7 +58,20 @@ final class BudgetPauseStore: ObservableObject {
         self.baseURL = baseURL ?? DaemonLocation.resolveBaseURL()
     }
 
+    // 2026-07-08 (issue #676 investigation): `start()` used to assign fresh
+    // subscribe() tasks straight into pendingTask/resolvedTask with no guard.
+    // FleetPopover's onAppear calls start() every time the popover is shown,
+    // and if onAppear ever fires twice without a matching onDisappear in
+    // between (observed AppKit/SwiftUI popover-content quirk — a re-shown
+    // popover's content view can re-fire onAppear without a preceding
+    // onDisappear), the previous Task references were silently overwritten.
+    // An unstructured `Task { }` is NOT cancelled just because its handle is
+    // dropped — it keeps running (and its SSE connection stays open)
+    // forever, with no way left to reach it. Each missed teardown leaked two
+    // permanent connections to the daemon. stop() first makes start() safe
+    // to call any number of times in a row.
     func start() {
+        stop()
         Task { await refresh() }
         pendingTask = subscribe(channel: "budget:pending")
         resolvedTask = subscribe(channel: "budget:resolved")
@@ -69,6 +82,24 @@ final class BudgetPauseStore: ObservableObject {
         resolvedTask?.cancel()
         pendingTask = nil
         resolvedTask = nil
+        // Cancellation can unwind a Task without ever reaching the `catch`
+        // block in subscribe() that sets isConnected = false (Task.cancel()
+        // just marks cancelled; the loop's `while !Task.isCancelled` check or
+        // an in-flight await noticing cancellation is what actually exits
+        // it, and that exit path does not necessarily throw). Set it
+        // explicitly here so the UI never reads "connected" after stop().
+        isConnected = false
+    }
+
+    // Safety net for the case `stop()` is never called at all before this
+    // object deallocates (e.g. a view-identity change that recreates the
+    // @StateObject without SwiftUI ever running onDisappear first). Mirrors
+    // FleetStore's existing `deinit { sseTask?.cancel() }` pattern — without
+    // this, a missed stop() leaked the same way a missed cancel-before-start
+    // did above.
+    deinit {
+        pendingTask?.cancel()
+        resolvedTask?.cancel()
     }
 
     /// One-shot fetch. Sets pendingKills to authoritative server list.
