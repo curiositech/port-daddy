@@ -24,7 +24,6 @@
 
 #[path = "../activity_pane.rs"]  mod activity_pane;
 #[path = "../active_agents_pane.rs"] mod active_agents_pane;
-#[path = "../adrs_pane.rs"]      mod adrs_pane;
 #[path = "../agent.rs"]          mod agent;
 // Audio is GUI-only at runtime, but its synth/mute logic is pure and unit-tested
 // here (the headless repl is the test gate; the GPUI bin can't be `--test`-built).
@@ -41,7 +40,6 @@
 #[path = "../claims_pane.rs"]    mod claims_pane;
 // cloud_fleet_pane is GPUI-free (no maritime/gpui), so it compiles in this bin.
 #[path = "../cloud_fleet_pane.rs"] mod cloud_fleet_pane;
-#[path = "../cockpit_pane.rs"]   mod cockpit_pane;
 #[allow(dead_code)]
 #[path = "../conjure.rs"]        mod conjure;
 #[path = "../dispatch_pane.rs"]  mod dispatch_pane;
@@ -62,21 +60,15 @@
 #[path = "../harbor_pane.rs"]    mod harbor_pane; // Agent Node roster+detail (ch18 C3)
 #[path = "../maritime.rs"]       mod maritime;
 #[path = "../health_pane.rs"]    mod health_pane;
-#[path = "../inbox_pane.rs"]     mod inbox_pane;
 #[path = "../lane_pane.rs"]      mod lane_pane;
 #[allow(dead_code)]
 #[path = "../mux.rs"]            mod mux;
 #[path = "../lineage_pane.rs"]   mod lineage_pane;
-#[path = "../notes_pane.rs"]     mod notes_pane;
 #[path = "../pane.rs"]           mod pane;
-#[path = "../peek_pane.rs"]      mod peek_pane;
 #[path = "../planner_pane.rs"]   mod planner_pane;
-#[path = "../prs_pane.rs"]       mod prs_pane;
 #[path = "../roadmap_pane.rs"]   mod roadmap_pane;
 #[path = "../sessions_pane.rs"]  mod sessions_pane;
 #[path = "../substrate_pane.rs"] mod substrate_pane;
-#[path = "../parley_pane.rs"]    mod parley_pane;
-#[path = "../suggest_pane.rs"]   mod suggest_pane;
 #[path = "../term.rs"]           mod term;
 #[path = "../theme.rs"]          mod theme;
 #[path = "../util.rs"]           mod util;
@@ -91,7 +83,6 @@ use lane_pane::LanePane;
 use lineage_pane::LineagePane;
 use pane::{OperatorTurn, PaneRegistry, Subscription, SurfaceAction};
 use substrate_pane::SubstratePane;
-use parley_pane::ParleyPane;
 use std::io::{self, Write};
 use std::time::Duration;
 use term::{ColorMode, Sem, TermStyle};
@@ -166,7 +157,6 @@ async fn main() -> Result<()> {
     reg.register(Box::new(LanePane::new()));
     reg.register(Box::new(LineagePane::new()));
     reg.register(Box::new(SubstratePane::new()));
-    reg.register(Box::new(ParleyPane::new()));
     reg.register(Box::new(ActiveAgentsPane::new()));
     reg.register(Box::new(HarborPane::new()));
 
@@ -296,15 +286,6 @@ async fn main() -> Result<()> {
             // RCP-7a/12 pheromone substrate — coverage + active signals (raw →
             // effective). Refresh + render one tick of the substrate surface.
             reg.active = reg.panes.iter().position(|p| p.id() == "substrate").unwrap_or(0);
-            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
-                err(&style, &format!("refresh failed: {e}"));
-            }
-            if let Some(p) = reg.active() {
-                print!("{}", term::render_blocks(&p.view(), &style));
-            }
-        } else if line == ":parley" {
-            // RCP-2a convene decision over the channel's unresolved contradictions.
-            reg.active = reg.panes.iter().position(|p| p.id() == "parley").unwrap_or(0);
             if let Err(e) = reg.refresh_active(mgr.daemon()).await {
                 err(&style, &format!("refresh failed: {e}"));
             }

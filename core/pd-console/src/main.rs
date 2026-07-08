@@ -10,7 +10,6 @@
 
 mod active_agents_pane;
 mod activity_pane;
-mod adrs_pane;
 mod agent;
 mod app;
 mod audio;
@@ -20,7 +19,6 @@ mod chat;
 mod claims_pane;
 mod cli_args;
 mod cloud_fleet_pane;
-mod cockpit_pane;
 mod conductor_pane;
 mod conjure;
 mod daemon_pane;
@@ -34,24 +32,18 @@ mod fleet_pane;
 mod grid;
 mod harbor_pane;
 mod health_pane;
-mod inbox_pane;
 mod lane_pane;
 mod ledger_pane;
 mod lineage_pane;
 mod maritime;
 mod mux;
-mod notes_pane;
 mod palette;
 mod pane;
-mod parley_pane;
-mod peek_pane;
 mod planner_pane;
-mod prs_pane;
 mod roadmap_pane;
 mod sessions_pane;
 mod sortie_pane;
 mod substrate_pane;
-mod suggest_pane;
 mod term;
 mod theme;
 mod tokens;
@@ -59,34 +51,26 @@ mod util;
 
 use active_agents_pane::ActiveAgentsPane;
 use activity_pane::ActivityPane;
-use adrs_pane::AdrsPane;
 use agent::DaemonClient;
 use app::ConsoleView;
 use claims_pane::ClaimsPane;
 use cloud_fleet_pane::CloudFleetPane;
-use cockpit_pane::CockpitPane;
 use conductor_pane::ConductorPane;
 use daemon_pane::DaemonPane;
 use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
 use harbor_pane::HarborPane;
 use health_pane::HealthPane;
-use inbox_pane::InboxPane;
 use lane_pane::LanePane;
 use ledger_pane::LedgerPane;
 use lineage_pane::LineagePane;
-use notes_pane::NotesPane;
-use pane::{CoastGuardPane, OperatorTurn, Pane, SurfaceAction};
-use parley_pane::ParleyPane;
-use peek_pane::PeekPane;
+use pane::{OperatorTurn, Pane, SurfaceAction};
 use planner_pane::PlannerPane;
-use prs_pane::PrsPane;
 #[allow(unused_imports)]
 use roadmap_pane::RoadmapPane;
 use sessions_pane::SessionsPane;
 use sortie_pane::SortiePane;
 use substrate_pane::SubstratePane;
-use suggest_pane::SuggestPane;
 
 use cli_args::{parse_console_args, resolve_display_selector};
 use gpui::*;
@@ -370,31 +354,22 @@ fn main() {
                 // queue (GET /dispatches?state=review_pending) is its own slot 15 so both
                 // operator surfaces survive; folding them lost the at-a-glance view.
                 let mut fleet      = FleetPane::new();         // 0
-                let mut cockpit    = CockpitPane::new();       // 1
-                let mut sorties    = SortiePane::new();        // 2
-                let mut claims     = ClaimsPane::new();        // 3
-                let mut peek       = PeekPane::new();          // 4
-                let mut roadmap    = PlannerPane::new();       // 5 (Planner — replaces Roadmap; ADR-0086)
-                let mut adrs       = AdrsPane::new();          // 6
-                let mut activity   = ActivityPane::new();      // 7
-                let mut sessions   = SessionsPane::new();      // 8
-                let mut inbox      = InboxPane::new();         // 9
-                let mut suggest    = SuggestPane::new();       // 10
-                let mut memory     = NotesPane::new();         // 11
-                let mut prs        = PrsPane::new();           // 12
-                let mut health     = HealthPane::new();        // 13
-                let mut coast      = CoastGuardPane::default();// 14
-                let mut dispatch   = DispatchQueuePane::new(); // 15
-                let mut lane       = LanePane::new();          // 16 — the LIVE one
-                let mut ledger     = LedgerPane::new();        // 17 — the money
-                let mut lineage    = LineagePane::new();       // 18 — RCP-14 argument graph
-                let mut substrate  = SubstratePane::new();     // 19 — RCP-7a/12 pheromone substrate
-                let mut parley     = ParleyPane::new();        // 20 — RCP-2a convene decision
-                let mut conductor  = ConductorPane::new();     // 21 — Fleet Conductor (ADR-0060)
-                let mut daemons    = DaemonPane::new();         // 22 — daemon picker (ADR-0084)
-                let mut cloud_fleet = CloudFleetPane::new();    // 23 — remote relay observability (Phase C)
-                let mut live_agents = ActiveAgentsPane::new();  // 24 — harness roster
-                let mut harbor     = HarborPane::new();         // 25 — Agent Node roster+detail (ch18 C3)
+                let mut sorties    = SortiePane::new();        // 1
+                let mut claims     = ClaimsPane::new();        // 2
+                let mut roadmap    = PlannerPane::new();       // 3 (Planner — replaces Roadmap; ADR-0086)
+                let mut activity   = ActivityPane::new();      // 4
+                let mut sessions   = SessionsPane::new();      // 5
+                let mut health     = HealthPane::new();        // 6
+                let mut dispatch   = DispatchQueuePane::new(); // 7
+                let mut lane       = LanePane::new();          // 8 — the LIVE one
+                let mut ledger     = LedgerPane::new();        // 9 — the money
+                let mut lineage    = LineagePane::new();       // 10 — RCP-14 argument graph
+                let mut substrate  = SubstratePane::new();     // 11 — RCP-7a/12 pheromone substrate
+                let mut conductor  = ConductorPane::new();     // 12 — Fleet Conductor (ADR-0060)
+                let mut daemons    = DaemonPane::new();         // 13 — daemon picker (ADR-0084)
+                let mut cloud_fleet = CloudFleetPane::new();    // 14 — remote relay observability (Phase C)
+                let mut live_agents = ActiveAgentsPane::new();  // 15 — harness roster
+                let mut harbor     = HarborPane::new();         // 16 — Agent Node roster+detail (ch18 C3)
 
                 // Pin the producer slots to the canonical grid map. If a pane is
                 // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
@@ -403,12 +378,10 @@ fn main() {
                 // launcher grid can never silently drift from the real panes.
                 debug_assert_eq!(
                     [
-                        fleet.id(), cockpit.id(), sorties.id(), claims.id(), peek.id(),
-                        roadmap.id(), adrs.id(), activity.id(), sessions.id(), inbox.id(),
-                        suggest.id(), memory.id(), prs.id(), health.id(), coast.id(),
-                        dispatch.id(), lane.id(), ledger.id(), lineage.id(), substrate.id(),
-                        parley.id(), conductor.id(), daemons.id(), cloud_fleet.id(), live_agents.id(),
-                        harbor.id(),
+                        fleet.id(), sorties.id(), claims.id(), roadmap.id(), activity.id(),
+                        sessions.id(), health.id(), dispatch.id(), lane.id(), ledger.id(),
+                        lineage.id(), substrate.id(), conductor.id(), daemons.id(), cloud_fleet.id(),
+                        live_agents.id(), harbor.id(),
                     ],
                     grid::SLOT_PANE_IDS,
                     "producer slot order drifted from grid::SLOT_PANE_IDS",
@@ -985,26 +958,17 @@ fn main() {
 
                     // Refresh all in parallel-ish — sequential is fine at 2s cadence
                     let _ = fleet.refresh(&client).await;
-                    let _ = cockpit.refresh(&client).await;
                     let _ = sorties.refresh(&client).await;
                     let _ = claims.refresh(&client).await;
-                    let _ = peek.refresh(&client).await;
                     let _ = roadmap.refresh(&client).await;
-                    let _ = adrs.refresh(&client).await;
                     let _ = activity.refresh(&client).await;
                     let _ = sessions.refresh(&client).await;
-                    let _ = inbox.refresh(&client).await;
-                    let _ = suggest.refresh(&client).await;
-                    let _ = memory.refresh(&client).await;
-                    let _ = prs.refresh(&client).await;
                     let _ = health.refresh(&client).await;
-                    let _ = coast.refresh(&client).await;
                     let _ = dispatch.refresh(&client).await;
                     let _ = lane.refresh(&client).await;
                     let _ = ledger.refresh(&client).await;
                     let _ = lineage.refresh(&client).await;
                     let _ = substrate.refresh(&client).await;
-                    let _ = parley.refresh(&client).await;
                     let _ = conductor.refresh(&client).await;
                     let _ = daemons.refresh(&client).await;
                     let _ = cloud_fleet.refresh(&client).await;
@@ -1080,31 +1044,22 @@ fn main() {
 
                     let all = vec![
                         (0,  fleet.view()),
-                        (1,  cockpit.view()),
-                        (2,  sorties.view()),
-                        (3,  claims.view()),
-                        (4,  peek.view()),
-                        (5,  roadmap.view()),
-                        (6,  adrs.view()),
-                        (7,  activity.view()),
-                        (8,  sessions.view()),
-                        (9,  inbox.view()),
-                        (10, suggest.view()),
-                        (11, memory.view()),
-                        (12, prs.view()),
-                        (13, health.view()),
-                        (14, coast.view()),
-                        (15, dispatch.view()),
-                        (16, lane.view()),
-                        (17, ledger.view()),
-                        (18, lineage.view()),
-                        (19, substrate.view()),
-                        (20, parley.view()),
-                        (21, conductor.view()),
-                        (22, daemons.view()),
-                        (23, cloud_fleet.view()),
-                        (24, live_agents.view()),
-                        (25, harbor.view()),
+                        (1,  sorties.view()),
+                        (2,  claims.view()),
+                        (3,  roadmap.view()),
+                        (4,  activity.view()),
+                        (5,  sessions.view()),
+                        (6,  health.view()),
+                        (7,  dispatch.view()),
+                        (8,  lane.view()),
+                        (9,  ledger.view()),
+                        (10, lineage.view()),
+                        (11, substrate.view()),
+                        (12, conductor.view()),
+                        (13, daemons.view()),
+                        (14, cloud_fleet.view()),
+                        (15, live_agents.view()),
+                        (16, harbor.view()),
                     ];
 
                     if tx.send((all, dispatch.head())).is_err() {

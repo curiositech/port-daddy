@@ -568,51 +568,27 @@ mod operator_turn_tests {
     }
 }
 
-/// STUB for the Coast Guard lane to fill — the shape to impl against.
-/// (They own the data: a new GET /coast-guard/status the console never re-implements.)
-pub struct CoastGuardPane {
-    sandboxes: u32,
-    egress_capped: bool,
-}
-
-impl Default for CoastGuardPane {
-    fn default() -> Self {
-        Self { sandboxes: 0, egress_capped: false }
-    }
-}
-
-impl Pane for CoastGuardPane {
-    fn id(&self) -> &str {
-        "coast-guard"
-    }
-    fn title(&self) -> String {
-        "Coast Guard".into()
-    }
-    fn view(&self) -> Vec<Block> {
-        vec![
-            Block::Header("Coast Guard".into()),
-            Block::KeyVal("sandboxes".into(), self.sandboxes.to_string()),
-            Block::Chip {
-                label: if self.egress_capped { "egress capped" } else { "egress open" }.into(),
-                tone: if self.egress_capped { Tone::Landed } else { Tone::Gated },
-            },
-        ]
-    }
-    fn refresh<'a>(
-        &'a mut self,
-        _daemon: &'a DaemonClient,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
-        Box::pin(async move {
-            // Coast Guard lane: hit GET /coast-guard/status here and fill these fields.
-            // self.sandboxes = ...; self.egress_capped = ...;
-            Ok(())
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Minimal read-only surface fixture: every non-required trait method keeps
+    /// its default (no subscription, no-op mutate) — proves the object-safe
+    /// registry and the read-only defaults without a production pane.
+    struct ProbePane;
+    impl Pane for ProbePane {
+        fn id(&self) -> &str { "probe" }
+        fn title(&self) -> String { "Probe".into() }
+        fn view(&self) -> Vec<Block> {
+            vec![Block::Header("Probe".into()), Block::KeyVal("k".into(), "v".into())]
+        }
+        fn refresh<'a>(
+            &'a mut self,
+            _daemon: &'a DaemonClient,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+            Box::pin(async { Ok(()) })
+        }
+    }
 
     #[test]
     fn alert_carries_full_detail_and_maps_to_tone() {
@@ -631,9 +607,9 @@ mod tests {
     #[test]
     fn pane_is_object_safe_and_emits_blocks() {
         let mut reg = PaneRegistry::default();
-        reg.register(Box::new(CoastGuardPane::default()));
+        reg.register(Box::new(ProbePane));
         let p = reg.active().expect("active pane");
-        assert_eq!(p.id(), "coast-guard");
+        assert_eq!(p.id(), "probe");
         assert!(!p.view().is_empty());
     }
 
@@ -641,8 +617,8 @@ mod tests {
     fn read_only_surface_defaults_to_no_subscription_and_noop_mutate() {
         // The default Surface contract: a read-only pane subscribes to nothing
         // and ignores mutations without erroring.
-        let coast = CoastGuardPane::default();
-        assert!(coast.subscription().is_none());
+        let probe = ProbePane;
+        assert!(probe.subscription().is_none());
     }
 
     /// A minimal surface that records the actions/envelopes it receives — proves

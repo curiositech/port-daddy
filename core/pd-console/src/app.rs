@@ -487,11 +487,6 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
         "hitl" => return Some(SurfaceKind::Hitl),
         "plan" => return Some(SurfaceKind::Conjure),
         "roadmap" => return Some(SurfaceKind::Roadmap),
-        "coast" => {
-            return Some(SurfaceKind::Panel {
-                nav: "coast-guard".to_string(),
-            });
-        }
         _ => {}
     }
     launcher_items()
