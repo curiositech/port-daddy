@@ -61,12 +61,14 @@ import {
 } from './ideas-store.js';
 import type { Proposal } from './proposals.js';
 import { decideShipGate, isDocsOnly } from './gates.js';
+import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 
 // ---------------------------------------------------------------------------
 
 /** Per-chunk diff budget for the MAP fan-out (chars). */
 const MAP_CHUNK_CHAR_LIMIT = 12_000;
-const CHECK_NAME = 'Port Daddy Fleet';
+/** The umbrella check-run name. Exported so the DLQ handler targets the same run. */
+export const CHECK_NAME = 'Port Daddy Fleet';
 
 /**
  * Output-token cap for every ship AI call (MAP + REDUCE). Without an explicit
@@ -87,6 +89,84 @@ const MAX_OUTPUT_TOKENS = 2048;
  */
 function aiOptions(shipName: string): { extraHeaders: Record<string, string> } {
   return { extraHeaders: { 'x-session-affinity': `pd-fleet-${shipName}` } };
+}
+
+/**
+ * Per-ship cost + failure metrics, accumulated across a ship's MAP + REDUCE
+ * calls, then emitted as ONE cloud-telemetry event. Restores FleetBar cost
+ * tracking (input/output/cached tokens → daemon cost derivation) AND records
+ * failures (an errored or blacked-out ship → an operator-visible error event).
+ */
+interface ShipMetrics {
+  inputTokens: number;
+  outputTokens: number;
+  cachedInputTokens: number;
+  /** ai.run calls made (0 = the ship was gated out or never reached the model). */
+  calls: number;
+  /** True if every ai.run returned empty text — the silent-blackout signal. */
+  allEmpty: boolean;
+}
+
+function newShipMetrics(): ShipMetrics {
+  return { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, calls: 0, allEmpty: true };
+}
+
+/** Fold one ai.run result's usage + emptiness into a ship's running metrics. */
+function accumulateUsage(metrics: ShipMetrics, res: unknown, text: string): void {
+  const u = extractWorkersAiUsage(res);
+  metrics.inputTokens += u.inputTokens ?? 0;
+  metrics.outputTokens += u.outputTokens ?? 0;
+  metrics.cachedInputTokens += u.cachedInputTokens ?? 0;
+  metrics.calls += 1;
+  if (text) metrics.allEmpty = false;
+}
+
+/**
+ * Emit one best-effort cloud-telemetry event for a ship's run. Never throws.
+ * `status`/`conclusion` drive the daemon's errorEvents aggregation; token counts
+ * drive cost. A ship that ran but produced only empty output (the 2026-07-07
+ * blackout) is flagged `status: 'error'` so a silent green check still surfaces.
+ */
+async function emitShipTelemetry(
+  env: ExecutorEnv,
+  job: FleetRunJob,
+  prCtx: PRContext,
+  ship: ShipConfig,
+  result: ShipResult,
+  metrics: ShipMetrics,
+  checkRunId: number,
+  shipStartMs: number,
+): Promise<void> {
+  try {
+    const blackout = metrics.calls > 0 && metrics.allEmpty;
+    const errored = result.errored || blackout;
+    await emitCloudTelemetry(
+      {
+        deliveryId: job.deliveryId,
+        event: 'ship-run',
+        action: job.action,
+        owner: prCtx.owner,
+        repo: prCtx.repo,
+        prNumber: prCtx.prNumber,
+        sha: prCtx.headSha,
+        ship: ship.name,
+        role: ship.role,
+        status: errored ? 'error' : 'ok',
+        conclusion: errored ? 'failure' : result.verdict === 'BLOCK' ? 'failure' : 'success',
+        backend: 'cloudflare',
+        model: ship.cfModel,
+        durationMs: Date.now() - shipStartMs,
+        inputTokens: metrics.inputTokens,
+        cachedInputTokens: metrics.cachedInputTokens,
+        outputTokens: metrics.outputTokens,
+        checkRunId: checkRunId || null,
+        ...(blackout ? { metadata: { blackout: true } } : {}),
+      },
+      env,
+    );
+  } catch (err) {
+    console.error(`[fleet-executor] emitShipTelemetry failed pd-${ship.name}: ${String(err)}`);
+  }
 }
 
 /**
@@ -377,6 +457,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
 
   const results: ShipResult[] = [];
   for (const ship of cloudShips) {
+    // Per-ship wall-clock start: durationMs must reflect THIS ship's work
+    // (including its gate/skip decision), not the cumulative run time — else
+    // later ships report inflated durations that fold in every earlier ship.
+    const shipStartMs = Date.now();
     // Re-check the operator kill switch before each ship. The start-of-job
     // check prevents any setup work while paused; this second gate closes the
     // TOCTOU gap where the operator pauses after the GitHub check is created
@@ -404,11 +488,17 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         reason: gate.reason,
         changedPathCount: changedPaths.length,
       });
-      results.push({ ship: ship.name, blocking: ship.blocking, verdict: 'PASS', errored: false, findings: [] });
+      const skipped: ShipResult = { ship: ship.name, blocking: ship.blocking, verdict: 'PASS', errored: false, findings: [] };
+      results.push(skipped);
+      // Telemetry for a gated ship: zero AI spend, status ok (calls=0 ⇒ not a blackout).
+      await emitShipTelemetry(env, job, prCtx, ship, skipped, newShipMetrics(), checkRunId, shipStartMs);
       continue;
     }
 
-    results.push(await runShip(ship, prCtx, token, env, branch, transcript));
+    const metrics = newShipMetrics();
+    const result = await runShip(ship, prCtx, token, env, branch, transcript, metrics);
+    results.push(result);
+    await emitShipTelemetry(env, job, prCtx, ship, result, metrics, checkRunId, shipStartMs);
   }
 
   // --- Conclusion (verdict logic is REAL; see verdict.ts) ------------------
@@ -466,6 +556,7 @@ async function runShip(
   env: ExecutorEnv,
   branch: string,
   transcript: Transcript,
+  metrics: ShipMetrics,
 ): Promise<ShipResult> {
   try {
     // ZERO-TRUST: ship contract is read from the trusted branch, NEVER PR head.
@@ -511,6 +602,7 @@ async function runShip(
         aiOptions(ship.name),
       );
       const { text, shape } = extractAiText(res);
+      accumulateUsage(metrics, res, text);
       partials.push(text);
 
       // Diagnose the silent-blank case: an empty result makes a ship post nothing
@@ -538,7 +630,7 @@ async function runShip(
 
     // --- REDUCE: manager merges the partials (only when fan-out > 1) --------
     const output =
-      chunks.length === 1 ? partials[0] ?? '' : await reduceFindings(ship, partials, env);
+      chunks.length === 1 ? partials[0] ?? '' : await reduceFindings(ship, partials, env, metrics);
 
     // Transcript: the REDUCE step exists only on a multi-chunk fan-out.
     if (chunks.length > 1) {
@@ -790,6 +882,7 @@ async function reduceFindings(
   ship: ShipConfig,
   partials: string[],
   env: ExecutorEnv,
+  metrics: ShipMetrics,
 ): Promise<string> {
   const mergeVerb = ship.ideation ? 'proposals' : 'findings';
   const managerSystem =
@@ -819,6 +912,7 @@ async function reduceFindings(
     aiOptions(ship.name),
   );
   const { text } = extractAiText(res);
+  accumulateUsage(metrics, res, text);
   if (!text) {
     console.warn(
       `[fleet-executor] pd-${ship.name} REDUCE EMPTY on ${ship.cfModel}: ${describeResponseShape(res)}`,

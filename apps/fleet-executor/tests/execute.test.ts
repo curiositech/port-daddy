@@ -610,3 +610,85 @@ describe('ideation ships — schema-validated, actionable, non-gating', () => {
     expect(bodies.some(b => b.includes('pd-ship:code-reviewer'))).toBe(true);
   });
 });
+
+describe('cloud telemetry emission (cost + failure surface)', () => {
+  const SINK = 'https://sink.example/telemetry/cloud-app';
+
+  /**
+   * Wrap the installed GitHub fetch so telemetry POSTs are captured here and
+   * everything else falls through to the harness. Returns the captured payloads.
+   */
+  function captureTelemetry(): unknown[] {
+    const posted: unknown[] = [];
+    const ghFetch = globalThis.fetch;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes('/telemetry/cloud-app')) {
+          posted.push(JSON.parse(init?.body as string));
+          return new Response(null, { status: 202 });
+        }
+        return ghFetch(input as RequestInfo, init);
+      }) as unknown as typeof fetch,
+    );
+    return posted;
+  }
+
+  it('emits one ship-run event per ship with usage tokens on the success path', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'looks ok\n\nFLEET-VERDICT: PASS' },
+    }).ai;
+    // The stub returns { response }; give it a usage envelope so tokens flow.
+    (ai.run as ReturnType<typeof vi.fn>).mockImplementation(async () => ({
+      response: 'looks ok\n\nFLEET-VERDICT: PASS',
+      usage: { prompt_tokens: 500, completion_tokens: 42 },
+    }));
+    const posted = captureTelemetry();
+
+    await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai, PORT_DADDY_TELEMETRY_URL: SINK }),
+    );
+
+    const shipRuns = posted.filter(
+      (p): p is Record<string, unknown> =>
+        !!p && typeof p === 'object' && (p as Record<string, unknown>).event === 'ship-run',
+    );
+    expect(shipRuns).toHaveLength(1);
+    expect(shipRuns[0]).toMatchObject({
+      ship: 'code-reviewer',
+      status: 'ok',
+      conclusion: 'success',
+      backend: 'cloudflare',
+      inputTokens: 500,
+      outputTokens: 42,
+    });
+  });
+
+  it('flags a blacked-out ship (ran but all-empty output) as status:error / conclusion:failure', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': '' } }).ai;
+    (ai.run as ReturnType<typeof vi.fn>).mockImplementation(async () => ({
+      response: '',
+      usage: { prompt_tokens: 500, completion_tokens: 0 },
+    }));
+    const posted = captureTelemetry();
+
+    await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai, PORT_DADDY_TELEMETRY_URL: SINK }),
+    );
+
+    const shipRun = posted.find(
+      (p): p is Record<string, unknown> =>
+        !!p && typeof p === 'object' && (p as Record<string, unknown>).event === 'ship-run',
+    );
+    expect(shipRun).toMatchObject({ status: 'error', conclusion: 'failure' });
+    expect((shipRun as { metadata?: { blackout?: boolean } }).metadata?.blackout).toBe(true);
+  });
+});
