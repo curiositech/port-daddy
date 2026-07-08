@@ -884,6 +884,151 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     allowlistedAuthors: config.trust?.allowlistedAuthors ?? [],
   };
 
+  function isGithubLegacyTrigger(raw: string): boolean {
+    const trigger = raw.trim().toLowerCase();
+    return trigger.startsWith('github:') || trigger.startsWith('global:github:');
+  }
+
+  function trustEventFromGithubMessage(channel: string, message: unknown): {
+    source: 'github';
+    type: string;
+    timestamp: number;
+    payload: unknown;
+    metadata: { sender?: string; subject?: string; correlation_id?: string; consent_verified?: boolean };
+  } {
+    const envelope = (message && typeof message === 'object') ? message as Record<string, unknown> : {};
+    const payload = (envelope.payload && typeof envelope.payload === 'object')
+      ? envelope.payload as Record<string, unknown>
+      : envelope;
+    const repository = (envelope.repository && typeof envelope.repository === 'object')
+      ? envelope.repository as Record<string, unknown>
+      : (payload.repository && typeof payload.repository === 'object')
+        ? payload.repository as Record<string, unknown>
+        : null;
+    const sender = typeof envelope.sender === 'string'
+      ? envelope.sender
+      : (payload.sender && typeof payload.sender === 'object' && typeof (payload.sender as Record<string, unknown>).login === 'string')
+        ? (payload.sender as Record<string, string>).login
+        : undefined;
+    const pullRequest = (payload.pull_request && typeof payload.pull_request === 'object')
+      ? payload.pull_request as Record<string, unknown>
+      : null;
+    const issue = (payload.issue && typeof payload.issue === 'object')
+      ? payload.issue as Record<string, unknown>
+      : null;
+    const action = typeof envelope.action === 'string'
+      ? envelope.action
+      : typeof payload.action === 'string'
+        ? payload.action
+        : undefined;
+    const eventType = typeof envelope.event === 'string'
+      ? envelope.event
+      : channel.replace(/^global:/i, '').replace(/^github:webhook:/i, '').replace(/^github:/i, '') || 'webhook';
+    const correlation = typeof pullRequest?.html_url === 'string'
+      ? pullRequest.html_url
+      : typeof issue?.html_url === 'string'
+        ? issue.html_url
+        : typeof repository?.full_name === 'string'
+          ? repository.full_name
+          : undefined;
+
+    return {
+      source: 'github',
+      type: action ? `${eventType}:${action}` : eventType,
+      timestamp: Date.now(),
+      payload: message,
+      metadata: {
+        correlation_id: correlation,
+        sender,
+        subject: typeof pullRequest?.title === 'string'
+          ? pullRequest.title
+          : typeof issue?.title === 'string'
+            ? issue.title
+            : undefined,
+        consent_verified: envelope.__originVerified === true || payload.__originVerified === true,
+      },
+    };
+  }
+
+  function handleTrustGatedTrigger(agent: FleetAgent, trigger: string, event: Parameters<typeof evaluateTrustGate>[0]['event'], context: FleetRunContext): void {
+    const gate = evaluateTrustGate({
+      event,
+      allowedTools: agent.allowedTools,
+      policy: trustPolicy,
+    });
+    if (!gate.allowed) {
+      emit({
+        type: 'trust_gate_refused',
+        agent: agent.name,
+        project,
+        timestamp: Date.now(),
+        details: {
+          trigger,
+          tier: gate.tier,
+          reason: gate.reason,
+          offendingTools: gate.offendingTools,
+        },
+      });
+      console.error(
+        `[Fleet] Trust gate REFUSED trigger "${trigger}" for agent "${agent.name}" ` +
+        `(tier ${gate.tier}): ${gate.reason}`,
+      );
+      return; // never spawn; reason only, never how-to-bypass
+    }
+    if (gate.requiresApproval) {
+      const proposal: FleetApprovalProposal = {
+        id: randomUUID(),
+        project,
+        agent: agent.name,
+        trigger,
+        tier: gate.tier,
+        reason: gate.reason,
+        safeTools: gate.safeTools,
+        context,
+        timestamp: Date.now(),
+      };
+      const enqueue = options?.enqueueForApproval;
+      if (!enqueue) {
+        // Fail closed: approval-required work is never auto-run just
+        // because no approval queue happens to be wired.
+        emit({
+          type: 'trust_gate_refused',
+          agent: agent.name,
+          project,
+          timestamp: Date.now(),
+          details: {
+            trigger,
+            tier: gate.tier,
+            reason: 'requires operator approval and no approval queue is wired (fail-closed)',
+          },
+        });
+        console.error(
+          `[Fleet] Trust gate REFUSED trigger "${trigger}" for agent "${agent.name}" ` +
+          `(tier ${gate.tier}): requires operator approval and no approval queue is wired`,
+        );
+        return;
+      }
+      emit({
+        type: 'trust_gate_queued',
+        agent: agent.name,
+        project,
+        timestamp: Date.now(),
+        details: { trigger, tier: gate.tier, safeTools: gate.safeTools },
+      });
+      // async wrapper so a SYNCHRONOUSLY throwing enqueue is captured
+      // too — a broken queue must not crash the trigger handler.
+      void (async () => enqueue(proposal))().catch((err: Error) => {
+        console.error(
+          `[Fleet] Approval enqueue failed for agent "${agent.name}" trigger "${trigger}":`,
+          err.message,
+        );
+      });
+      return;
+    }
+
+    void requestAgentRun(agent, context);
+  }
+
   /** True if the agent has any event trigger (singular, plural, or tuple). */
   function agentIsTriggered(agent: FleetAgent): boolean {
     return Boolean(agent.trigger || (agent.triggers && agent.triggers.length > 0) || agent.triggerTuple);
@@ -1160,81 +1305,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
           // This is the L1 boundary between an inbound event and an agent
           // holding tools — the hard dependency of every untrusted-ingress
           // phase (webhook receiver, inbound email/SMS).
-          const gate = evaluateTrustGate({
-            event,
-            allowedTools: agent.allowedTools,
-            policy: trustPolicy,
-          });
-          if (!gate.allowed) {
-            emit({
-              type: 'trust_gate_refused',
-              agent: agent.name,
-              project,
-              timestamp: Date.now(),
-              details: {
-                trigger: raw,
-                tier: gate.tier,
-                reason: gate.reason,
-                offendingTools: gate.offendingTools,
-              },
-            });
-            console.error(
-              `[Fleet] Trust gate REFUSED trigger "${raw}" for agent "${agent.name}" ` +
-              `(tier ${gate.tier}): ${gate.reason}`,
-            );
-            return; // never spawn; reason only, never how-to-bypass
-          }
-          if (gate.requiresApproval) {
-            const proposal: FleetApprovalProposal = {
-              id: randomUUID(),
-              project,
-              agent: agent.name,
-              trigger: raw,
-              tier: gate.tier,
-              reason: gate.reason,
-              safeTools: gate.safeTools,
-              context: contextFromTriggerEvent(event),
-              timestamp: Date.now(),
-            };
-            const enqueue = options?.enqueueForApproval;
-            if (!enqueue) {
-              // Fail closed: approval-required work is never auto-run just
-              // because no approval queue happens to be wired.
-              emit({
-                type: 'trust_gate_refused',
-                agent: agent.name,
-                project,
-                timestamp: Date.now(),
-                details: {
-                  trigger: raw,
-                  tier: gate.tier,
-                  reason: 'requires operator approval and no approval queue is wired (fail-closed)',
-                },
-              });
-              console.error(
-                `[Fleet] Trust gate REFUSED trigger "${raw}" for agent "${agent.name}" ` +
-                `(tier ${gate.tier}): requires operator approval and no approval queue is wired`,
-              );
-              return;
-            }
-            emit({
-              type: 'trust_gate_queued',
-              agent: agent.name,
-              project,
-              timestamp: Date.now(),
-              details: { trigger: raw, tier: gate.tier, safeTools: gate.safeTools },
-            });
-            // async wrapper so a SYNCHRONOUSLY throwing enqueue is captured
-            // too — a broken queue must not crash the trigger handler.
-            void (async () => enqueue(proposal))().catch((err: Error) => {
-              console.error(
-                `[Fleet] Approval enqueue failed for agent "${agent.name}" trigger "${raw}":`,
-                err.message,
-              );
-            });
-            return;
-          }
-          void requestAgentRun(agent, contextFromTriggerEvent(event));
+          handleTrustGatedTrigger(agent, raw, event, contextFromTriggerEvent(event));
         })
         .then((result) => {
           // The runner (or this agent) may have been torn down while the
@@ -1271,11 +1342,26 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       const physicalTriggerChannel = resolveChannel(legacyTrigger);
       // Prefer in-process subscriptions so trigger payload survives into the spawned task.
       const unsubscribe = options?.messaging?.subscribe(physicalTriggerChannel, (message: unknown) => {
-        void requestAgentRun(agent, contextFromMessage(legacyTrigger, message));
+        const context = contextFromMessage(legacyTrigger, message);
+        if (isGithubLegacyTrigger(legacyTrigger)) {
+          handleTrustGatedTrigger(
+            agent,
+            legacyTrigger,
+            trustEventFromGithubMessage(legacyTrigger, message),
+            context,
+          );
+          return;
+        }
+        void requestAgentRun(agent, context);
       });
 
       if (unsubscribe) {
         cleanupHandles.push(unsubscribe);
+      } else if (isGithubLegacyTrigger(legacyTrigger)) {
+        console.error(
+          `[Fleet] Trigger "${legacyTrigger}" for agent "${agent.name}" not started: ` +
+          'github triggers require in-process messaging so the trust gate can inspect the payload before spawning',
+        );
       } else {
         // Fallback for standalone CLI/testing contexts.
         const invocation = resolvePortDaddyInvocation();

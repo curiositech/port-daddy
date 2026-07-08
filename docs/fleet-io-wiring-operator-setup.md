@@ -4,7 +4,7 @@
 **Status of surfaces:** live vs. pending is called out per section — nothing here is aspirational.
 **Trust model:** every *external* event (webhook/email/calendar/github) is `ANONYMOUS_EXTERNAL`
 and must clear an operator approval gate before it can spawn — see ADR-0093. Read the
-**Security caveats** at the bottom before you arm `github:` triggers.
+**Security caveats** at the bottom before arming any external trigger.
 
 ---
 
@@ -88,15 +88,18 @@ Consent for calendar **writes**: `pd fleet consent grant --sink calendar --tier 
 
 ---
 
-## 4. GitHub — trigger on PR/issue webhooks  ·  **LIVE (but see caveat #1)**
+## 4. GitHub — trigger on PR/issue webhooks  ·  **LIVE**
 
 Configure webhook auth (at least one):
 - `PD_GITHUB_FORWARD_TOKEN` — bearer the CF forwarder presents, **or**
 - `PD_GITHUB_WEBHOOK_SECRET` — GitHub's HMAC secret (origin verification), **or**
 - `PD_GITHUB_WEBHOOK_ALLOW_UNAUTH=1` — explicit opt-out (do **not** use in production).
 
-Subscribe in `pd-fleet.yml` with the `global:` prefix, e.g.
-`trigger: global:github:webhook:pull_request`.
+Subscribe in `pd-fleet.yml` with the `global:` prefix for repo-wide listeners, e.g.
+`trigger: global:github:webhook:pull_request`, or a bare `github:webhook:*`
+trigger for project-scoped repo routing. GitHub remains on the legacy channel
+subscription path for compatibility, but the fleet engine now classifies that
+legacy message as `github` provenance and runs ADR-0093 before any spawn.
 
 ---
 
@@ -119,15 +122,13 @@ on FleetBar (menu-bar dropdown), the Control Center → Operator surface, and pd
 
 ## Security caveats — read before arming external triggers
 
-1. **`github:` triggers are NOT yet operator-approval-gated (open finding).** Registry
+1. **`github:` triggers are approval-gated even on the legacy channel path.** Registry
    triggers (`file`/`webhook`/`email`/`calendar`) pass through `evaluateTrustGate` before
-   spawning. `github:*` is still dispatched on the engine's **legacy channel path**, which
-   calls `requestAgentRun` **without** the trust gate. An anonymous PR/issue comment on a
-   repo whose fleet listens on `github:webhook:*` can spawn the agent with attacker-authored
-   content and the ship's full tool set, **with no approval prompt**. Until this is fixed
-   (route github through the gated registry, or gate the legacy external path), only arm
-   `github:` triggers on **trusted, private** repos, and give those agents a **minimal
-   `allowedTools`** set. Tracked as the top finding in the io-wiring security review.
+   spawning. `github:*` still subscribes through the engine's legacy channel path to avoid
+   double-dispatching existing fleets, but that callback now builds a GitHub provenance
+   event and runs the same gate before `requestAgentRun`. If the runner cannot inspect
+   GitHub messages in-process, it refuses to arm the trigger instead of falling back to
+   `pd watch --exec`.
 2. **Transport auth ≠ content trust.** A valid HMAC proves the *relay* holds the secret, not
    that the *author* is trusted. `consent_verified` is only ever raised by content-level
    author verification (email DMARC pass under an author allowlist), never by a webhook
