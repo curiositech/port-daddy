@@ -39,13 +39,40 @@
     },
     "capabilityDecision": {
       "type": "object",
-      "description": "Embedded CapabilityDecision summary; validate full decision records against capability-decision.schema.json when persisted.",
+      "description": "Embedded full CapabilityDecision. Commands must bind this decision to the same surface, operation, capability, authority evidence, and envelope issue time before dispatch.",
       "properties": {
+        "schema": { "const": "pd.agent-harbor.capability-decision.v0" },
         "decisionId": { "type": "string", "minLength": 1 },
+        "agentNodeId": { "type": ["string", "null"] },
+        "runId": { "type": ["string", "null"] },
+        "bodyId": { "type": ["string", "null"] },
+        "surface": { "enum": ["pd-console", "fleetbar", "scout", "cli", "mcp", "daemon", "operator"] },
+        "operation": { "type": "string", "minLength": 1 },
+        "capability": { "enum": ["work-intent", "work-plan", "agent-node", "agent-run", "body", "control-command", "transcript-event", "capability-decision", "work-receipt", "berth-target", "surface-gateway"] },
         "decision": { "enum": ["allow", "deny", "degrade", "unsupported", "requires-approval"] },
-        "reason": { "type": "string", "minLength": 1 }
+        "authority": {
+          "type": "object",
+          "properties": {
+            "domain": { "enum": ["daemon-registry", "operator-selection", "policy", "lease", "read-only-import"] },
+            "decidedBy": { "type": "string", "minLength": 1 },
+            "leaseId": { "type": ["string", "null"] }
+          },
+          "required": ["domain", "decidedBy"]
+        },
+        "reason": { "type": "string", "minLength": 1 },
+        "evidence": {
+          "type": "object",
+          "properties": {
+            "probeId": { "type": ["string", "null"] },
+            "controlCommandId": { "type": ["string", "null"] },
+            "berthTargetId": { "type": ["string", "null"] },
+            "transcriptEventId": { "type": ["string", "null"] }
+          }
+        },
+        "issuedAt": { "type": "string", "minLength": 1 },
+        "expiresAt": { "type": ["string", "null"] }
       },
-      "required": ["decisionId", "decision", "reason"]
+      "required": ["schema", "decisionId", "surface", "operation", "capability", "decision", "authority", "reason", "issuedAt"]
     },
     "payload": { "type": "object", "description": "Noun-specific payload. Existing noun schemas remain canonical for persisted noun records." },
     "projection": {

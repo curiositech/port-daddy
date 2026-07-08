@@ -437,7 +437,7 @@ export interface SurfaceGatewayEnvelope {
   issuedAt: string;
   idempotencyKey?: string | null;
   berthTarget: SurfaceGatewayBerthTargetSummary;
-  capabilityDecision?: Pick<CapabilityDecision, 'decisionId' | 'decision' | 'reason'>;
+  capabilityDecision?: CapabilityDecision;
   payload: Record<string, unknown>;
   projection: SurfaceGatewayProjection;
   [key: string]: unknown;

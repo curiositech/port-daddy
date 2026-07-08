@@ -25,6 +25,13 @@ function gateway(overrides = {}) {
   };
 }
 
+function decision(overrides = {}) {
+  return {
+    ...fixture('surface-gateway').capabilityDecision,
+    ...overrides,
+  };
+}
+
 describe('Agent Harbor Surface Gateway runtime helper', () => {
   it('admits the frozen FleetBar command fixture and classifies control through the hot bus', () => {
     const envelope = gateway();
@@ -72,7 +79,7 @@ describe('Agent Harbor Surface Gateway runtime helper', () => {
     });
   });
 
-  it('derives an envelope-scoped idempotency key for daemon event delivery', () => {
+  it('derives a payload-scoped idempotency key for daemon event delivery', () => {
     const envelope = gateway({
       envelopeId: 'surface_gateway_event_01JZFIX0001',
       surface: 'scout',
@@ -82,6 +89,7 @@ describe('Agent Harbor Surface Gateway runtime helper', () => {
       operation: 'transcript-event.appended',
       issuedBy: 'daemon:local',
       idempotencyKey: null,
+      capabilityDecision: undefined,
       payload: {
         eventId: 'evt_01JZFIX0042',
         schemaVersion: 1,
@@ -93,9 +101,13 @@ describe('Agent Harbor Surface Gateway runtime helper', () => {
     expect(validateSurfaceGatewayEnvelope(envelope).ok).toBe(true);
     expect(normalizeSurfaceGatewayIdempotency(envelope)).toEqual({
       required: false,
-      key: 'surface-gateway:scout:event:TranscriptEvent:transcript-event.appended:surface_gateway_event_01JZFIX0001',
-      source: 'derived-envelope',
+      key: 'surface-gateway:scout:event:TranscriptEvent:transcript-event.appended:eventId:evt_01JZFIX0042',
+      source: 'derived-payload',
     });
+    expect(normalizeSurfaceGatewayIdempotency({
+      ...envelope,
+      envelopeId: 'surface_gateway_event_retry_01JZFIX0002',
+    })).toEqual(normalizeSurfaceGatewayIdempotency(envelope));
     expect(routeSurfaceGatewayEnvelope(envelope)).toMatchObject({
       target: 'cool-bus',
       requiresDurableRecord: true,
@@ -116,14 +128,88 @@ describe('Agent Harbor Surface Gateway runtime helper', () => {
     expect(stale.errors.join(' ')).toMatch(/stale projection/);
 
     const denied = validateSurfaceGatewayEnvelope(gateway({
-      capabilityDecision: {
+      capabilityDecision: decision({
         decisionId: 'cap_decision_denied',
         decision: 'deny',
         reason: 'operator lease is not active',
-      },
+      }),
     }));
     expect(denied.ok).toBe(false);
     expect(denied.errors.join(' ')).toMatch(/decision="deny"|not dispatchable/);
+  });
+
+  it('rejects summary-only or unbound command capability decisions', () => {
+    const summaryOnly = validateSurfaceGatewayEnvelope(gateway({
+      capabilityDecision: {
+        decisionId: 'cap_decision_summary_only',
+        decision: 'allow',
+        reason: 'old summary shape should not authorize commands',
+      },
+    }));
+    expect(summaryOnly.ok).toBe(false);
+    expect(summaryOnly.errors.join(' ')).toMatch(/capabilityDecision|surface|required|schema/);
+
+    const wrongSurface = validateSurfaceGatewayEnvelope(gateway({
+      capabilityDecision: decision({ surface: 'pd-console' }),
+    }));
+    expect(wrongSurface.ok).toBe(false);
+    expect(wrongSurface.errors.join(' ')).toMatch(/surface "pd-console" must match envelope surface "fleetbar"/);
+
+    const wrongOperation = validateSurfaceGatewayEnvelope(gateway({
+      capabilityDecision: decision({ operation: 'control-command.kill' }),
+    }));
+    expect(wrongOperation.ok).toBe(false);
+    expect(wrongOperation.errors.join(' ')).toMatch(/operation "control-command.kill" must match envelope operation/);
+
+    const expired = validateSurfaceGatewayEnvelope(gateway({
+      capabilityDecision: decision({ expiresAt: '2026-07-05T12:03:59.000Z' }),
+    }));
+    expect(expired.ok).toBe(false);
+    expect(expired.errors.join(' ')).toMatch(/expiresAt must be after envelope\.issuedAt/);
+  });
+
+  it('validates canonical payload schemas before dispatch', () => {
+    const missingRequiredControlFields = validateSurfaceGatewayEnvelope(gateway({
+      payload: {
+        schema: 'pd.agent-harbor.control-command.v0',
+        commandId: 'ctl_01JZFIX0001',
+        agentNodeId: 'agent_node_01JZFIX0001',
+        kind: 'steer',
+      },
+    }));
+    expect(missingRequiredControlFields.ok).toBe(false);
+    expect(missingRequiredControlFields.errors.join(' ')).toMatch(/payload control-command: .*requestedBy/);
+    expect(missingRequiredControlFields.errors.join(' ')).toMatch(/payload control-command: .*status/);
+    expect(missingRequiredControlFields.errors.join(' ')).toMatch(/payload control-command: .*createdAt/);
+
+    const wrongPayloadSchema = validateSurfaceGatewayEnvelope(gateway({
+      payload: {
+        schema: 'pd.agent-harbor.agent-run.v0',
+        runId: 'run_01JZFIX0001',
+      },
+    }));
+    expect(wrongPayloadSchema.ok).toBe(false);
+    expect(wrongPayloadSchema.errors.join(' ')).toMatch(/must match envelope noun schema "control-command"/);
+  });
+
+  it('rejects durable events without explicit or payload-stable idempotency', () => {
+    const admitted = validateSurfaceGatewayEnvelope(gateway({
+      envelopeId: 'surface_gateway_event_missing_payload_id',
+      surface: 'scout',
+      direction: 'daemon-to-surface',
+      mode: 'event',
+      noun: 'TranscriptEvent',
+      operation: 'transcript-event.appended',
+      issuedBy: 'daemon:local',
+      idempotencyKey: null,
+      capabilityDecision: undefined,
+      payload: {
+        schemaVersion: 1,
+        kind: 'tool_result',
+      },
+    }));
+    expect(admitted.ok).toBe(false);
+    expect(admitted.errors.join(' ')).toMatch(/stable payload identifier/);
   });
 
   it('rejects noun and operation drift that would fork routing semantics', () => {

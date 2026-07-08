@@ -327,3 +327,8 @@ Protocol:
   install paths explicitly make `pd-supervisor` the single launchd artifact,
   with Bosun and freshness demoted to internal modules and a durable restart
   ledger preventing duplicate side effects.
+- R1 returned `SHIP-AFTER-FIX` on the N1/N2 contract/gateway slice and the
+  fixes are applied: command envelopes now require a full bound
+  `CapabilityDecision`, canonical payloads validate against their noun schemas
+  before dispatch, and durable event idempotency derives from stable payload IDs
+  rather than envelope IDs.

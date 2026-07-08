@@ -23,15 +23,40 @@
     }
   },
   "capabilityDecision": {
+    "schema": "pd.agent-harbor.capability-decision.v0",
     "decisionId": "cap_decision_01JZFIX0001",
+    "agentNodeId": "agent_node_01JZFIX0001",
+    "runId": null,
+    "bodyId": null,
+    "surface": "fleetbar",
+    "operation": "control-command.steer",
+    "capability": "control-command",
     "decision": "allow",
-    "reason": "Active lease permits steer for this agent node."
+    "authority": {
+      "domain": "lease",
+      "decidedBy": "daemon:local",
+      "leaseId": "lease_01JZFIX0001"
+    },
+    "reason": "Active lease permits steer for this agent node.",
+    "evidence": {
+      "controlCommandId": "ctl_01JZFIX0001",
+      "berthTargetId": "berth_target_stable"
+    },
+    "issuedAt": "2026-07-05T12:03:30.000Z",
+    "expiresAt": "2026-07-05T12:09:00.000Z"
   },
   "payload": {
     "schema": "pd.agent-harbor.control-command.v0",
     "commandId": "ctl_01JZFIX0001",
     "agentNodeId": "agent_node_01JZFIX0001",
-    "kind": "steer"
+    "kind": "steer",
+    "payload": {
+      "message": "Please steer back to the contract migration."
+    },
+    "requestedBy": "fleetbar:operator:erich",
+    "status": "queued",
+    "idempotencyKey": "fleetbar:ctl_01JZFIX0001",
+    "createdAt": "2026-07-05T12:04:00.000Z"
   },
   "projection": {
     "stale": false,

@@ -128,7 +128,7 @@ describe('agent-harbor routes', () => {
         idempotency: {
           command: 'explicit-key-required',
           query: 'not-required',
-          event: 'explicit-key-or-derived-envelope-key',
+          event: 'explicit-key-or-derived-payload-key',
         },
       });
       expect(body.surfaces).toEqual(['pd-console', 'fleetbar', 'scout', 'cli', 'mcp']);

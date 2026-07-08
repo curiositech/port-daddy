@@ -19,8 +19,9 @@ export type SurfaceGatewayBusTarget = (typeof SURFACE_GATEWAY_BUS_TARGETS)[numbe
 
 export type SurfaceGatewayIdempotencySource =
   | 'explicit'
-  | 'derived-envelope'
-  | 'not-required';
+  | 'derived-payload'
+  | 'not-required'
+  | 'missing-payload-id';
 
 export interface SurfaceGatewayIdempotency {
   required: boolean;
@@ -73,7 +74,7 @@ export interface SurfaceGatewayCapabilityProjection {
   idempotency: {
     command: 'explicit-key-required';
     query: 'not-required';
-    event: 'explicit-key-or-derived-envelope-key';
+    event: 'explicit-key-or-derived-payload-key';
   };
   authority: {
     command: readonly ['canCommand', 'freshProjection', 'allowDecision'];
@@ -95,6 +96,29 @@ function idempotencyRequirement(envelope: SurfaceGatewayEnvelope): boolean {
   return envelope.mode === 'command';
 }
 
+function payloadStableId(envelope: SurfaceGatewayEnvelope): string | null {
+  const payload = envelope.payload;
+  if (!isRecord(payload)) return null;
+  const candidatesByNoun: Partial<Record<SurfaceGatewayNoun, string[]>> = {
+    WorkIntent: ['intentId', 'workIntentId'],
+    WorkPlan: ['planId', 'workPlanId'],
+    AgentNode: ['agentNodeId'],
+    AgentRun: ['runId'],
+    Body: ['bodyId'],
+    ControlCommand: ['commandId'],
+    TranscriptEvent: ['eventId'],
+    CapabilityDecision: ['decisionId'],
+    WorkReceipt: ['receiptId'],
+    BerthTarget: ['targetId'],
+  };
+  const candidates = candidatesByNoun[envelope.noun] ?? [];
+  for (const key of candidates) {
+    const value = payload[key];
+    if (typeof value === 'string' && value.trim().length > 0) return `${key}:${value.trim()}`;
+  }
+  return null;
+}
+
 export function normalizeSurfaceGatewayIdempotency(
   envelope: SurfaceGatewayEnvelope,
 ): SurfaceGatewayIdempotency {
@@ -114,17 +138,26 @@ export function normalizeSurfaceGatewayIdempotency(
     return { required: false, key: null, source: 'not-required' };
   }
 
+  const stablePayloadId = payloadStableId(envelope);
+  if (stablePayloadId) {
+    return {
+      required,
+      key: [
+        'surface-gateway',
+        envelope.surface,
+        envelope.mode,
+        envelope.noun,
+        envelope.operation,
+        stablePayloadId,
+      ].join(':'),
+      source: 'derived-payload',
+    };
+  }
+
   return {
     required,
-    key: [
-      'surface-gateway',
-      envelope.surface,
-      envelope.mode,
-      envelope.noun,
-      envelope.operation,
-      envelope.envelopeId,
-    ].join(':'),
-    source: 'derived-envelope',
+    key: null,
+    source: 'missing-payload-id',
   };
 }
 
@@ -166,7 +199,8 @@ export function routeSurfaceGatewayEnvelope(
 function validateAuthority(envelope: SurfaceGatewayEnvelope): string[] {
   const errors: string[] = [];
   const authority = envelope.berthTarget.authority;
-  const decision = envelope.capabilityDecision?.decision;
+  const capabilityDecision = envelope.capabilityDecision;
+  const decision = capabilityDecision?.decision;
 
   if (envelope.mode === 'command') {
     if (!authority.canCommand) {
@@ -175,10 +209,49 @@ function validateAuthority(envelope: SurfaceGatewayEnvelope): string[] {
     if (envelope.projection.stale) {
       errors.push('command envelope cannot be authorized from a stale projection');
     }
-    if (!envelope.capabilityDecision) {
-      errors.push('command envelope requires an allow CapabilityDecision summary');
+    if (!capabilityDecision) {
+      errors.push('command envelope requires a full allow CapabilityDecision');
     } else if (decision !== 'allow') {
       errors.push(`command envelope requires capabilityDecision.decision="allow", got "${decision}"`);
+    } else {
+      const expectedCapability = nounOperationPrefix(envelope.noun);
+      if (capabilityDecision.surface !== envelope.surface) {
+        errors.push(
+          `command CapabilityDecision surface "${capabilityDecision.surface}" must match envelope surface "${envelope.surface}"`,
+        );
+      }
+      if (capabilityDecision.operation !== envelope.operation) {
+        errors.push(
+          `command CapabilityDecision operation "${capabilityDecision.operation}" must match envelope operation "${envelope.operation}"`,
+        );
+      }
+      if (capabilityDecision.capability !== expectedCapability) {
+        errors.push(
+          `command CapabilityDecision capability "${capabilityDecision.capability}" must match noun capability "${expectedCapability}"`,
+        );
+      }
+      if (capabilityDecision.evidence?.berthTargetId !== envelope.berthTarget.targetId) {
+        errors.push(
+          `command CapabilityDecision evidence.berthTargetId must match berthTarget.targetId "${envelope.berthTarget.targetId}"`,
+        );
+      }
+      if (envelope.noun === 'ControlCommand') {
+        const commandId = isRecord(envelope.payload) ? envelope.payload.commandId : null;
+        if (typeof commandId === 'string' && capabilityDecision.evidence?.controlCommandId !== commandId) {
+          errors.push(`command CapabilityDecision evidence.controlCommandId must match payload.commandId "${commandId}"`);
+        }
+      }
+      const decisionIssuedAt = Date.parse(capabilityDecision.issuedAt);
+      const envelopeIssuedAt = Date.parse(envelope.issuedAt);
+      if (Number.isFinite(decisionIssuedAt) && Number.isFinite(envelopeIssuedAt) && decisionIssuedAt > envelopeIssuedAt) {
+        errors.push('command CapabilityDecision cannot be issued after the envelope it authorizes');
+      }
+      if (capabilityDecision.expiresAt) {
+        const expiresAt = Date.parse(capabilityDecision.expiresAt);
+        if (Number.isFinite(expiresAt) && Number.isFinite(envelopeIssuedAt) && expiresAt <= envelopeIssuedAt) {
+          errors.push('command CapabilityDecision expiresAt must be after envelope.issuedAt');
+        }
+      }
     }
   }
 
@@ -209,6 +282,29 @@ function validateOperationPrefix(envelope: SurfaceGatewayEnvelope): string[] {
     : [`operation "${envelope.operation}" must start with "${prefix}" for noun ${envelope.noun}`];
 }
 
+function payloadSchemaName(envelope: SurfaceGatewayEnvelope): string | null {
+  const payload = envelope.payload;
+  if (!isRecord(payload) || typeof payload.schema !== 'string') return null;
+  const match = /^pd\.agent-harbor\.([a-z0-9-]+)\.v0$/.exec(payload.schema);
+  return match ? match[1] : null;
+}
+
+function validatePayload(envelope: SurfaceGatewayEnvelope, allowMissingSchema: boolean): string[] {
+  const schemaName = payloadSchemaName(envelope);
+  if (!schemaName) return [];
+  const errors: string[] = [];
+  const expected = nounOperationPrefix(envelope.noun);
+  if (schemaName !== expected) {
+    errors.push(`payload schema "${schemaName}" must match envelope noun schema "${expected}"`);
+  }
+  const result = validateAgainstSchema(schemaName, envelope.payload);
+  if (result.skipped && !allowMissingSchema) {
+    errors.push(`payload schema ${schemaName}.schema.json not found; gateway admission fails closed`);
+  }
+  errors.push(...result.errors.map((error) => `payload ${schemaName}: ${error}`));
+  return errors;
+}
+
 export function validateSurfaceGatewayEnvelope(
   candidate: unknown,
   opts: SurfaceGatewayValidationOptions = {},
@@ -228,6 +324,7 @@ export function validateSurfaceGatewayEnvelope(
 
   const envelope = candidate as SurfaceGatewayEnvelope;
   errors.push(...validateOperationPrefix(envelope));
+  errors.push(...validatePayload(envelope, Boolean(opts.allowMissingSchema)));
   errors.push(...validateAuthority(envelope));
 
   const idempotency = normalizeSurfaceGatewayIdempotency(envelope);
@@ -236,6 +333,9 @@ export function validateSurfaceGatewayEnvelope(
   }
   if (idempotency.required && idempotency.source !== 'explicit') {
     errors.push('command envelope requires an explicit idempotencyKey');
+  }
+  if (envelope.mode === 'event' && !idempotency.key) {
+    errors.push('event envelope requires an explicit idempotencyKey or a stable payload identifier');
   }
 
   if (errors.length > 0) {
@@ -272,7 +372,7 @@ export function surfaceGatewayCapabilityProjection(
     idempotency: {
       command: 'explicit-key-required',
       query: 'not-required',
-      event: 'explicit-key-or-derived-envelope-key',
+      event: 'explicit-key-or-derived-payload-key',
     },
     authority: {
       command: ['canCommand', 'freshProjection', 'allowDecision'],

@@ -306,6 +306,13 @@ describe('Agent Harbor native Surface Gateway contract', () => {
     };
   }
 
+  function capabilityDecision(overrides) {
+    return {
+      ...loadFixture('surface-gateway').capabilityDecision,
+      ...overrides,
+    };
+  }
+
   it('freezes the shared surface set for pd-console, FleetBar, Scout, CLI, and MCP', () => {
     expect(gatewaySchema.properties.surface.enum).toEqual(['pd-console', 'fleetbar', 'scout', 'cli', 'mcp']);
     expect([...SURFACE_GATEWAY_SURFACES]).toEqual(gatewaySchema.properties.surface.enum);
@@ -351,11 +358,16 @@ describe('Agent Harbor native Surface Gateway contract', () => {
       operation: 'agent-run.list',
       issuedBy: 'pd-console:operator:erich',
       idempotencyKey: null,
-      capabilityDecision: {
+      capabilityDecision: capabilityDecision({
         decisionId: 'cap_decision_query_01JZFIX0001',
-        decision: 'allow',
+        surface: 'pd-console',
+        operation: 'agent-run.list',
+        capability: 'agent-run',
         reason: 'Query allowed against selected berth.',
-      },
+        evidence: {
+          berthTargetId: 'berth_target_stable',
+        },
+      }),
       payload: {
         filters: { status: 'running' },
       },
@@ -378,11 +390,17 @@ describe('Agent Harbor native Surface Gateway contract', () => {
       operation: 'transcript-event.appended',
       issuedBy: 'daemon:local',
       idempotencyKey: null,
-      capabilityDecision: {
+      capabilityDecision: capabilityDecision({
         decisionId: 'cap_decision_event_01JZFIX0001',
-        decision: 'allow',
+        surface: 'scout',
+        operation: 'transcript-event.appended',
+        capability: 'transcript-event',
         reason: 'Subscribed surface may receive transcript event projection.',
-      },
+        evidence: {
+          berthTargetId: 'berth_target_stable',
+          transcriptEventId: 'evt_01JZFIX0042',
+        },
+      }),
       payload: {
         eventId: 'evt_01JZFIX0042',
         schemaVersion: 1,
@@ -406,6 +424,14 @@ describe('Agent Harbor native Surface Gateway contract', () => {
       'canQuery',
       'canSubscribeEvents',
     ]);
+    expect(gatewaySchema.properties.capabilityDecision.required).toEqual(expect.arrayContaining([
+      'schema',
+      'surface',
+      'operation',
+      'capability',
+      'authority',
+      'issuedAt',
+    ]));
     expect(gatewaySchema.properties.projection.required).toContain('stale');
 
     const missingTarget = { ...loadFixture('surface-gateway') };
