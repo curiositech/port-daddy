@@ -484,59 +484,100 @@ fn main() {
                                         }
                                     }
                                     None => {
-                                        match client
-                                            .spawn(
-                                                agent::Backend::ClaudeCli,
-                                                &text,
-                                                &channel,
-                                                None,
-                                                agent::SpawnOpts::default(),
-                                            )
-                                            .await
-                                        {
-                                            Ok(outcome) => {
-                                                chat = Some((channel.clone(), 0));
-                                                // One-shot inline backends (ollama) reply
-                                                // in the spawn response, not on the tube.
-                                                if let Some(out) =
-                                                    outcome.output.filter(|t| !t.trim().is_empty())
-                                                {
-                                                    let _ = chat_tx.send(chat::ChatUpdate::Reply(
-                                                        chat::ChatMsg::agent("claude-cli", out),
-                                                    ));
+                                        // Bind a responder. FIRST resolve a dedicated
+                                        // workdir so the daemon's main-checkout isolation
+                                        // guard (assessSpawnIsolation) is SATISFIED — a bare
+                                        // spawn omitted workdir, defaulted to the daemon's own
+                                        // main checkout, and bounced, so NO responder ever
+                                        // bound and the chat stayed silent. `bind_error` is
+                                        // `Some(reason)` when we couldn't bind (worktree
+                                        // creation failed, or the spawn itself failed for
+                                        // budget/binary/daemon reasons); it drives ONE shared
+                                        // recovery path below.
+                                        let bind_error: Option<String> =
+                                            match agent::resolve_console_chat_workdir() {
+                                                // ChatWorkdirError already carries a full,
+                                                // actionable "couldn't create …" message (and
+                                                // names a worktree OR a scratch dir), so surface
+                                                // it verbatim — no redundant re-prefix.
+                                                Err(wd_err) => Some(wd_err.to_string()),
+                                                Ok(workdir) => {
+                                                    let opts = agent::SpawnOpts {
+                                                        workdir: Some(workdir),
+                                                        ..Default::default()
+                                                    };
+                                                    match client
+                                                        .spawn(
+                                                            agent::Backend::ClaudeCli,
+                                                            &text,
+                                                            &channel,
+                                                            None,
+                                                            opts,
+                                                        )
+                                                        .await
+                                                    {
+                                                        Ok(outcome) => {
+                                                            chat = Some((channel.clone(), 0));
+                                                            // One-shot inline backends (ollama)
+                                                            // reply in the spawn response, not
+                                                            // on the tube.
+                                                            if let Some(out) = outcome
+                                                                .output
+                                                                .filter(|t| !t.trim().is_empty())
+                                                            {
+                                                                let _ = chat_tx.send(
+                                                                    chat::ChatUpdate::Reply(
+                                                                        chat::ChatMsg::agent(
+                                                                            "claude-cli",
+                                                                            out,
+                                                                        ),
+                                                                    ),
+                                                                );
+                                                            }
+                                                            if let Some(err) = outcome.error {
+                                                                let _ = chat_tx.send(
+                                                                    chat::ChatUpdate::Error(format!(
+                                                                        "chat responder blocked: {err}"
+                                                                    )),
+                                                                );
+                                                            }
+                                                            None
+                                                        }
+                                                        // workdir is valid now, so a spawn
+                                                        // failure is budget / claude binary /
+                                                        // daemon — `e` carries the daemon's
+                                                        // SPECIFIC reason (ensure_success
+                                                        // forwards the response body). Surface
+                                                        // it; don't relabel it "spawn refused".
+                                                        Err(e) => Some(format!("no responder bound: {e}")),
+                                                    }
                                                 }
-                                                if let Some(err) = outcome.error {
+                                            };
+
+                                        // One shared recovery: if we couldn't bind, still
+                                        // round-trip the turn onto the channel so it isn't
+                                        // lost — and surface the SPECIFIC reason (never swallow
+                                        // the send: "stop swallowing errors").
+                                        if let Some(reason) = bind_error {
+                                            match client
+                                                .tube_send(&channel, &text, "operator")
+                                                .await
+                                            {
+                                                Ok(_) => {
+                                                    // Message is on the channel; poll for a
+                                                    // responder that may join later.
+                                                    chat = Some((channel, 0));
                                                     let _ = chat_tx.send(chat::ChatUpdate::Error(
-                                                        format!("chat responder blocked: {err}"),
+                                                        format!("{reason} — your message is on the channel; replies appear if a responder joins"),
                                                     ));
                                                 }
-                                            }
-                                            Err(e) => {
-                                                // No responder bound. Still try to round-trip
-                                                // the turn onto the real channel so it isn't
-                                                // lost — but surface WHICHEVER failure happened
-                                                // (never swallow the send: "stop swallowing
-                                                // errors").
-                                                match client
-                                                    .tube_send(&channel, &text, "operator")
-                                                    .await
-                                                {
-                                                    Ok(_) => {
-                                                        // Message is on the channel; poll for a
-                                                        // responder that may join later.
-                                                        chat = Some((channel, 0));
-                                                        let _ = chat_tx.send(chat::ChatUpdate::Error(
-                                                            format!("no responder bound (spawn refused): {e} — your message is on the channel; replies appear if one joins"),
-                                                        ));
-                                                    }
-                                                    Err(send_err) => {
-                                                        // Daemon fully unreachable: be honest the
-                                                        // message did NOT land; leave chat unbound
-                                                        // so the next turn retries the spawn.
-                                                        let _ = chat_tx.send(chat::ChatUpdate::Error(
-                                                            format!("message not delivered — spawn refused ({e}) and channel send failed ({send_err}); is the daemon up?"),
-                                                        ));
-                                                    }
+                                                Err(send_err) => {
+                                                    // Daemon fully unreachable: be honest the
+                                                    // message did NOT land; leave chat unbound
+                                                    // so the next turn retries the spawn.
+                                                    let _ = chat_tx.send(chat::ChatUpdate::Error(
+                                                        format!("{reason}; and the channel send also failed ({send_err}); is the daemon up?"),
+                                                    ));
                                                 }
                                             }
                                         }
