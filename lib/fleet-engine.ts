@@ -30,6 +30,21 @@ import { transportToAdapter } from './coordination-judge.js';
 import { IoDispatch, type DispatchOutputResult, type IoDispatchDeps } from './fleet/io-dispatch.js';
 import { evaluateTrustGate, type TrustPolicy, type TrustTier } from './fleet/trust.js';
 import { createSkillGraftIndex, renderSkillGraftContext, type SkillGraftIndex } from './skill-graft.js';
+import { PD_HOME } from '../shared/paths.js';
+import {
+  loadWatcherPidRegistry,
+  saveWatcherPidRegistry,
+  sweepStaleWatcherPids,
+  watcherPidKey,
+  pidIsAlive,
+} from './watcher-pid-registry.js';
+
+/**
+ * Durable sidecar tracking external `pd watch --exec` children spawned by
+ * `startWatcher()`'s fallback path (see watcher-pid-registry.ts). Overridable
+ * via env for tests so they never touch the real ~/.port-daddy directory.
+ */
+const WATCHER_PID_FILE = process.env.PD_WATCHER_PID_FILE || join(PD_HOME, 'watcher-pids.json');
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -1369,6 +1384,28 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     });
     watchProc.unref();
 
+    // Record this child's PID so a FUTURE boot of this daemon (after a crash
+    // that never ran stopRunningRecord()) can find and kill it instead of
+    // leaving it orphaned indefinitely — see watcher-pid-registry.ts.
+    if (watchProc.pid) {
+      try {
+        const registry = loadWatcherPidRegistry(WATCHER_PID_FILE);
+        registry[watcherPidKey(project, watcher.name)] = { pid: watchProc.pid, startedAt: Date.now() };
+        saveWatcherPidRegistry(WATCHER_PID_FILE, registry);
+      } catch {
+        // Best-effort — a registry write failure must not block the watcher.
+      }
+    }
+    watchProc.on('exit', () => {
+      try {
+        const registry = loadWatcherPidRegistry(WATCHER_PID_FILE);
+        delete registry[watcherPidKey(project, watcher.name)];
+        saveWatcherPidRegistry(WATCHER_PID_FILE, registry);
+      } catch {
+        // Best-effort cleanup only.
+      }
+    });
+
     running.set(watcher.name, {
       name: watcher.name,
       type: 'watcher',
@@ -2268,7 +2305,37 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     console.error(`[Fleet] Auto-respawn watcher active for: ${respawnAgents.map(a => a.name).join(', ')}`);
   }
 
+  /**
+   * Kill + drop any `pd watch --exec` children this project left behind from
+   * a PREVIOUS, ungraceful exit (segfault, SIGKILL) before starting fresh
+   * ones. A graceful shutdown already reaps these via stopRunningRecord(); this
+   * sweep exists for the case that didn't run one. See watcher-pid-registry.ts.
+   */
+  function sweepOrphanedWatcherChildren(): void {
+    try {
+      const registry = loadWatcherPidRegistry(WATCHER_PID_FILE);
+      const { registry: swept, killed } = sweepStaleWatcherPids(registry, project, pidIsAlive, (pid) => {
+        try {
+          process.kill(-pid, 'SIGTERM'); // detached spawn -> own process group
+        } catch {
+          try { process.kill(pid, 'SIGTERM'); } catch { /* already dead */ }
+        }
+      });
+      saveWatcherPidRegistry(WATCHER_PID_FILE, swept);
+      if (killed.length > 0) {
+        console.error(
+          `[Fleet] Swept ${killed.length} orphaned watcher child(ren) from a previous ungraceful exit: ` +
+          killed.map((k) => `${k.key} (pid ${k.pid})`).join(', '),
+        );
+      }
+    } catch (err) {
+      // Best-effort — a sweep failure must never block fleet boot.
+      console.error('[Fleet] Orphaned-watcher sweep failed (non-fatal):', (err as Error).message);
+    }
+  }
+
   function startAll(): void {
+    sweepOrphanedWatcherChildren();
     // Create the fleet harbor first, then start agents
     ensureHarbor().then(() => {
       for (const agent of config.agents) {

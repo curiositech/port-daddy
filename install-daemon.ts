@@ -218,9 +218,48 @@ ${programArguments}
         <string>${__dirname}</string>
         <key>PORT_DADDY_DB</key>
         <string>${join(homedir(), '.port-daddy', 'port-registry.db')}</string>
+${jscSafeModeEnvXml()}
     </dict>
 </dict>
 </plist>`;
+}
+
+/**
+ * EXPERIMENTAL, UNVALIDATED mitigation for the Bun 1.2.21 native-crash family
+ * (issue #676: JSC GC segfault under concurrent-connection load —
+ * `MarkedBlock::Handle::sweep` / `SlotVisitor::drain` / `LocalAllocator::
+ * tryAllocateIn`, reproduced across many Bun versions through the current
+ * latest). Both `useConcurrentGC` and `useConcurrentJIT` are real, documented
+ * JavaScriptCore Options (WebKit's OptionsList.h; default `true` on both) that
+ * move GC marking/sweeping and DFG/FTL JIT compilation onto background
+ * threads running concurrently with the mutator (JS execution) thread. The
+ * observed crash traces are IN that exact concurrent GC machinery, so forcing
+ * both to run synchronously on the main thread instead removes the specific
+ * background-thread/mutator race the crash signatures point at.
+ *
+ * HONEST SCOPE: this is a mechanistically-reasoned hypothesis, not a
+ * confirmed fix. The crash is state/load-dependent and needs production-scale
+ * memory pressure to trigger (see scripts/soak-binary.sh) — nobody, including
+ * this change's author, has been able to reproduce it in a clean sandbox to
+ * prove these settings prevent it. What IS validated: the compiled binary
+ * boots cleanly with these env vars set (no "unknown option" warning), serves
+ * requests correctly, and survives a 50-held-connection + concurrent-burst
+ * load pattern mirroring the 2026-07-07 incident without any functional
+ * regression. The trade-off is real and unavoidable: disabling concurrent
+ * GC/JIT trades some throughput/latency for removing an entire class of
+ * concurrency bug — for a coordination daemon that otherwise crashes and
+ * takes minutes to recover, that trade is likely worth it, but it has not
+ * been measured under real production load.
+ *
+ * Set PORT_DADDY_JSC_SAFE_MODE=0 before `port-daddy install` to opt out
+ * (requires reinstalling the LaunchAgent to take effect).
+ */
+export function jscSafeModeEnvXml(): string {
+  if (process.env.PORT_DADDY_JSC_SAFE_MODE === '0') return '';
+  return `        <key>BUN_JSC_useConcurrentGC</key>
+        <string>0</string>
+        <key>BUN_JSC_useConcurrentJIT</key>
+        <string>0</string>`;
 }
 
 function generateBosunPlist(): string {

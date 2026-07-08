@@ -43,4 +43,38 @@ describe('daemon installer service PATH', () => {
     expect(guardIdx).toBeGreaterThan(-1);
     expect(writeIdx).toBeGreaterThan(guardIdx);
   });
+
+  test('sets a ThrottleInterval on the generated daemon plist', () => {
+    const source = readFileSync(join(process.cwd(), 'install-daemon.ts'), 'utf8');
+    expect(source).toContain('<key>ThrottleInterval</key>');
+    expect(source).toContain('<integer>15</integer>');
+  });
+
+  // 2026-07-08 (issue #676 investigation): experimental, clearly-labeled
+  // mitigation for the Bun 1.2.21 JSC-GC crash family — see jscSafeModeEnvXml
+  // in install-daemon.ts for the full reasoning and honest-scope caveat.
+  describe('JSC concurrent GC/JIT safe-mode env vars', () => {
+    test('generatePlist wires BUN_JSC_useConcurrentGC/JIT=0 by default', async () => {
+      delete process.env.PORT_DADDY_JSC_SAFE_MODE;
+      const mod = await import('../../install-daemon.js');
+      expect(mod.jscSafeModeEnvXml()).toContain('BUN_JSC_useConcurrentGC');
+      expect(mod.jscSafeModeEnvXml()).toContain('BUN_JSC_useConcurrentJIT');
+      expect(mod.jscSafeModeEnvXml()).toContain('<string>0</string>');
+    });
+
+    test('PORT_DADDY_JSC_SAFE_MODE=0 opts out and emits nothing', async () => {
+      process.env.PORT_DADDY_JSC_SAFE_MODE = '0';
+      try {
+        const mod = await import('../../install-daemon.js');
+        expect(mod.jscSafeModeEnvXml()).toBe('');
+      } finally {
+        delete process.env.PORT_DADDY_JSC_SAFE_MODE;
+      }
+    });
+
+    test('the plist template actually interpolates jscSafeModeEnvXml() into EnvironmentVariables', () => {
+      const source = readFileSync(join(process.cwd(), 'install-daemon.ts'), 'utf8');
+      expect(source).toContain('${jscSafeModeEnvXml()}');
+    });
+  });
 });
