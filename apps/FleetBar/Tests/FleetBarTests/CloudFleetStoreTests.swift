@@ -87,15 +87,17 @@ final class CloudFleetStoreTests: XCTestCase {
     }
 
     func testCloudFleetSectionLabelsLocalCloudAndWritePolicy() throws {
+        let localDaemonURL = DaemonLocation.resolveBaseURL()
         let inspected = try CloudFleetSection(
             store: CloudFleetStore(autoStart: false),
             localProjects: [],
-            localDaemonURL: "http://127.0.0.1:9876",
+            localDaemonURL: localDaemonURL,
             compact: true
         ).inspect()
 
         XCTAssertNoThrow(try inspected.find(text: "Cloud Fleet"))
         XCTAssertNoThrow(try inspected.find(text: "LOCAL"))
+        XCTAssertNoThrow(try inspected.find(text: localDaemonURL))
         XCTAssertNoThrow(try inspected.find(text: "CLOUD"))
         XCTAssertNoThrow(try inspected.find(text: "WRITE POLICY"))
         XCTAssertNoThrow(try inspected.find(text: "approval gated"))

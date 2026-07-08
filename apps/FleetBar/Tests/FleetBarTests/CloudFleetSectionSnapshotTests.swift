@@ -32,7 +32,7 @@ final class CloudFleetSectionSnapshotTests: XCTestCase {
         let view = CloudFleetSection(
             store: store,
             localProjects: Self.localProjects,
-            localDaemonURL: "http://127.0.0.1:9876",
+            localDaemonURL: DaemonLocation.resolveBaseURL(),
             compact: false
         )
         .frame(width: 1120, height: 760)
