@@ -2,7 +2,7 @@
   "generatedAt": 1783315035961,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 142,
+  "count": 143,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -573,6 +573,11 @@
       "slug": "parley-sugar-fanout-receipts",
       "status": "backlog",
       "summaryMd": "Parley usability: turns fan out to participants' inboxes (parley_turn via pd attention), per-party read receipts with unseen counts, and CLI sugar verbs (propose/critique/revise/agree/refuse/say) with identity inferred from the active session."
+    },
+    {
+      "slug": "pd-console-cull-and-defects",
+      "status": "now",
+      "summaryMd": "pd-console operator-surface hygiene: cull 14 dead/thin/redundant panes (26 registered to 13) while preserving the NAV == SLOT_PANE_IDS == producer == view 1:1 invariant, and fix five operator-named defects (remove emoji-as-icons, make the health banner and status chip a single source of truth, expand 'rig' jargon into labeled fields, serialize ship configs on GET /fleet, and list the checked routes in the health pane)."
     },
     {
       "slug": "pd-safe-scan",
