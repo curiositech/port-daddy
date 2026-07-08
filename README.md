@@ -13,7 +13,7 @@
   <a href="https://npmjs.com/package/port-daddy"><img src="https://img.shields.io/npm/v/port-daddy.svg?logo=npm&color=3AADAD" alt="npm version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-FSL--1.1--MIT-blue?color=3AADAD" alt="license"></a>
   <a href="https://github.com/curiositech/port-daddy"><img src="https://img.shields.io/badge/tests-7,300%2B%20passing-brightgreen?logo=jest&color=3AADAD" alt="tests"></a>
-  <a href="skills/port-daddy-agent-skill"><img src="https://img.shields.io/badge/MCP%20tools-179-blueviolet?color=3AADAD" alt="MCP tools"></a>
+  <a href="skills/port-daddy-agent-skill"><img src="https://img.shields.io/badge/MCP%20tools-180-blueviolet?color=3AADAD" alt="MCP tools"></a>
 </p>
 
 ---
@@ -773,7 +773,7 @@ Visual feedback loop (the `visual_tasks` feature): FleetBar and the `apps/pd-sco
 
 ## 🤖 MCP Server & Agent Skill
 
-The MCP server exposes **179 tools** across the whole surface — session lifecycle (`begin_session` with the same required `lifecycle` enum, `end_session_full`), ports, notes, locks, messaging, salvage, actors, inboxes, webhooks, DNS, tunnels, sorties, tuples, pheromones, roadmap, commitments, parleys, symbols/conflict prediction, region-scoped editor claims (`claim_region`/`release_region`, agent-neutral), fleet control (bonds/wallets/panic), semantic graph/memory, and discovery (`pd_discover`) — plus **6 resources** (`port-daddy://skill`, `://services`, `://sessions`, `://agents`, `://locks`, `://tunnels`).
+The MCP server exposes **180 tools** across the whole surface — session lifecycle (`begin_session` with the same required `lifecycle` enum, `end_session_full`), ports, notes, locks, messaging, salvage, actors, inboxes, webhooks, DNS, tunnels, sorties, tuples, pheromones, roadmap, commitments, parleys, symbols/conflict prediction, region-scoped editor claims (`claim_region`/`release_region`, agent-neutral), fleet control (bonds/wallets/panic), semantic graph/memory, harbormaster status, and discovery (`pd_discover`) — plus **6 resources** (`port-daddy://skill`, `://services`, `://sessions`, `://agents`, `://locks`, `://tunnels`).
 
 ```bash
 pd mcp install          # auto-detect Claude Code, Claude Desktop, Cursor, Windsurf,

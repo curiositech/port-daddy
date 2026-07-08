@@ -31,6 +31,7 @@ const TOOL_FEATURE_MAP = {
   // Host-safety posture audit (ADR-0088 Phase A) — read-only
   'safe_scan': 'safe',
   'relay_status': 'relay',
+  'harbormaster_status': 'harbormaster',
 
   // Harbors (permission namespaces) — #199 cop-out conversion
   'list_harbors': 'harbors',
