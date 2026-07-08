@@ -1,0 +1,41 @@
+{
+  "schema": "pd.agent-harbor.surface-gateway.v0",
+  "envelopeId": "surface_gateway_01JZFIX0001",
+  "correlationId": "corr_01JZFIX0001",
+  "surface": "fleetbar",
+  "direction": "surface-to-daemon",
+  "mode": "command",
+  "noun": "ControlCommand",
+  "operation": "control-command.steer",
+  "issuedBy": "fleetbar:operator:erich",
+  "issuedAt": "2026-07-05T12:04:00.000Z",
+  "idempotencyKey": "fleetbar:ctl_01JZFIX0001",
+  "berthTarget": {
+    "targetId": "berth_target_stable",
+    "tier": "stable",
+    "label": "stable",
+    "canonical": true,
+    "authority": {
+      "domain": "canonical-local",
+      "canCommand": true,
+      "canQuery": true,
+      "canSubscribeEvents": true
+    }
+  },
+  "capabilityDecision": {
+    "decisionId": "cap_decision_01JZFIX0001",
+    "decision": "allow",
+    "reason": "Active lease permits steer for this agent node."
+  },
+  "payload": {
+    "schema": "pd.agent-harbor.control-command.v0",
+    "commandId": "ctl_01JZFIX0001",
+    "agentNodeId": "agent_node_01JZFIX0001",
+    "kind": "steer"
+  },
+  "projection": {
+    "stale": false,
+    "lastLedgerSeq": 42,
+    "headSeq": 42
+  }
+}

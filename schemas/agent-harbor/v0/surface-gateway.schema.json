@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/surface-gateway.schema.json",
+  "title": "SurfaceGatewayEnvelope",
+  "description": "The shared native Surface Gateway envelope for pd-console, FleetBar, Scout, CLI, and MCP. It freezes command/query/event shape for Agent Harbor nouns without pretending launch paths have migrated; routing remains an implementation detail outside this contract.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.surface-gateway.v0" },
+    "envelopeId": { "type": "string", "minLength": 1 },
+    "correlationId": { "type": ["string", "null"] },
+    "surface": { "enum": ["pd-console", "fleetbar", "scout", "cli", "mcp"] },
+    "direction": { "enum": ["surface-to-daemon", "daemon-to-surface", "surface-local"] },
+    "mode": { "enum": ["command", "query", "event"] },
+    "noun": { "enum": ["WorkIntent", "WorkPlan", "AgentNode", "AgentRun", "Body", "ControlCommand", "TranscriptEvent", "CapabilityDecision", "WorkReceipt", "BerthTarget"] },
+    "operation": { "type": "string", "minLength": 1 },
+    "issuedBy": { "type": "string", "minLength": 1 },
+    "issuedAt": { "type": "string", "minLength": 1 },
+    "idempotencyKey": { "type": ["string", "null"] },
+    "berthTarget": {
+      "type": "object",
+      "description": "Embedded BerthTarget summary; validate full target records against berth-target.schema.json when persisted.",
+      "properties": {
+        "targetId": { "type": "string", "minLength": 1 },
+        "tier": { "enum": ["stable", "dev-latest", "codebase", "remote"] },
+        "label": { "type": "string" },
+        "canonical": { "type": "boolean" },
+        "authority": {
+          "type": "object",
+          "properties": {
+            "domain": { "enum": ["canonical-local", "dev-lane", "worktree-lane", "remote-harbor", "read-only-import"] },
+            "canCommand": { "type": "boolean" },
+            "canQuery": { "type": "boolean" },
+            "canSubscribeEvents": { "type": "boolean" }
+          },
+          "required": ["domain", "canCommand", "canQuery", "canSubscribeEvents"]
+        }
+      },
+      "required": ["targetId", "tier", "label", "canonical", "authority"]
+    },
+    "capabilityDecision": {
+      "type": "object",
+      "description": "Embedded CapabilityDecision summary; validate full decision records against capability-decision.schema.json when persisted.",
+      "properties": {
+        "decisionId": { "type": "string", "minLength": 1 },
+        "decision": { "enum": ["allow", "deny", "degrade", "unsupported", "requires-approval"] },
+        "reason": { "type": "string", "minLength": 1 }
+      },
+      "required": ["decisionId", "decision", "reason"]
+    },
+    "payload": { "type": "object", "description": "Noun-specific payload. Existing noun schemas remain canonical for persisted noun records." },
+    "projection": {
+      "type": "object",
+      "description": "Read-model freshness label for query/event projections. A stale projection can be displayed but must not authorize commands.",
+      "properties": {
+        "stale": { "type": "boolean" },
+        "lastLedgerSeq": { "type": ["number", "null"], "minimum": 0 },
+        "headSeq": { "type": ["number", "null"], "minimum": 0 }
+      },
+      "required": ["stale"]
+    }
+  },
+  "required": ["schema", "envelopeId", "surface", "direction", "mode", "noun", "operation", "issuedBy", "issuedAt", "berthTarget", "payload", "projection"],
+  "additionalProperties": true
+}
