@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, chmodSync } from 'node:fs';
 import { tmpdir, platform } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -365,6 +365,23 @@ describe('countBunCrashSignatures / assessCrashSignature', () => {
     const a = assessCrashSignature({ crashCount: 2 });
     expect(a.hint).toMatch(/does NOT fix/i);
   });
+
+  // PR #879 review (copilot-pull-request-reviewer): a log-read failure was
+  // reported as severity 'ok', which lets a permissions problem mask a real
+  // crash-loop underneath it. "Unknown" must never read as "healthy".
+  test('assessCrashSignature: a read error is WARN, never ok', () => {
+    const a = assessCrashSignature({ crashCount: 0, readError: '/opt/homebrew/var/log/port-daddy.log: EACCES' });
+    expect(a.severity).toBe('warn');
+    expect(a.detail).toContain('EACCES');
+    expect(a.detail).not.toMatch(/no bun native-crash signatures/i);
+  });
+
+  test('assessCrashSignature: a read error wins even if crashCount is set to something nonzero', () => {
+    // Defensive: readError must always be checked first regardless of what
+    // crashCount the caller happened to pass alongside it.
+    const a = assessCrashSignature({ crashCount: 3, readError: 'boom' });
+    expect(a.severity).toBe('warn');
+  });
 });
 
 describe('readRecentBunCrashCount', () => {
@@ -372,6 +389,7 @@ describe('readRecentBunCrashCount', () => {
     const r = readRecentBunCrashCount(['/nonexistent/path/one.log', '/nonexistent/path/two.log']);
     expect(r.count).toBe(0);
     expect(r.logPath).toBeNull();
+    expect(r.readError).toBeUndefined();
   });
 
   test('reads the first existing candidate and counts its crash banners', () => {
@@ -391,12 +409,74 @@ describe('readRecentBunCrashCount', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  // PR #879 review: the original implementation did a full readFileSync then
+  // sliced the tail in memory — expensive and memory-spiky against a large,
+  // never-rotated log. Verify the bounded seek+read actually only sees the
+  // TAIL of a file bigger than maxBytes (a crash banner near the head must
+  // NOT be counted once it has scrolled out of the retained window).
+  test('is bounded to the tail of a large log via seek, not a full read', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-crashlog-bounded-'));
+    try {
+      const logPath = join(dir, 'port-daddy.log');
+      const headBanner =
+        'panic(main thread): Segmentation fault at address 0x0\n' +
+        'oh no: Bun has crashed. This indicates a bug in Bun, not your code.\n';
+      const padding = 'x'.repeat(1024).repeat(200); // ~200KB of filler
+      const tailBanner =
+        'panic(main thread): Segmentation fault at address 0x1\n' +
+        'oh no: Bun has crashed. This indicates a bug in Bun, not your code.\n';
+      writeFileSync(logPath, headBanner + padding + tailBanner);
+
+      // maxBytes smaller than the head banner + padding — the head banner
+      // must have scrolled out of the retained tail window.
+      const r = readRecentBunCrashCount([logPath], 1024);
+      expect(r.count).toBe(1);
+      expect(r.logPath).toBe(logPath);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('reports readError (not a silent skip) when a candidate exists but cannot be read', () => {
+    // Skip entirely when running as root (or a sandboxed CI uid-0 runner) —
+    // chmod 0o000 does not block root's own reads, so the precondition this
+    // test relies on would not hold.
+    if (typeof process.getuid === 'function' && process.getuid() === 0) return;
+    const dir = mkdtempSync(join(tmpdir(), 'pd-crashlog-unreadable-'));
+    const logPath = join(dir, 'port-daddy.log');
+    try {
+      writeFileSync(logPath, 'boot ok\n');
+      chmodSync(logPath, 0o000);
+      const r = readRecentBunCrashCount([logPath]);
+      expect(r.logPath).toBeNull();
+      expect(r.readError).toBeTruthy();
+      expect(r.readError).toContain(logPath);
+    } finally {
+      chmodSync(logPath, 0o644);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('candidateDaemonLogPaths', () => {
   test('includes the brew keg-relative log path the operator actually hits', () => {
     const paths = candidateDaemonLogPaths('/Users/someone');
     expect(paths).toContain('/opt/homebrew/var/log/port-daddy.log');
+  });
+
+  // PR #879 review (copilot-pull-request-reviewer): the JSDoc claimed this
+  // covered the `port-daddy install` LaunchAgent's log location, but the
+  // implementation never actually included it — a non-Homebrew install could
+  // crash-loop and pd doctor would never see the banner.
+  test('includes the distribution-root log path install-daemon.ts actually writes to', () => {
+    const paths = candidateDaemonLogPaths('/Users/someone', '/opt/homebrew/opt/port-daddy/libexec');
+    expect(paths).toContain('/opt/homebrew/opt/port-daddy/libexec/port-daddy.log');
+  });
+
+  test('omits the distribution-root path when none is supplied', () => {
+    const paths = candidateDaemonLogPaths('/Users/someone');
+    expect(paths.some((p) => p.endsWith('libexec/port-daddy.log'))).toBe(false);
   });
 });
 

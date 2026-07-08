@@ -5,7 +5,7 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, readFileSync, readdirSync, accessSync, constants } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, accessSync, constants, openSync, closeSync, readSync, fstatSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { spawnSync, spawn } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
@@ -676,15 +676,20 @@ export function gatherLaunchdSupervisors(
  * Candidate daemon log paths, in priority order. `brew services` writes to
  * the keg-relative `var/log/port-daddy.log` (the operator's actual layout,
  * `/opt/homebrew/var/log/port-daddy.log`); a manually-installed LaunchAgent
- * (`port-daddy install`, see install-daemon.ts LOG_PATH) writes next to the
- * resource dir instead. Check both — whichever exists is the live log.
+ * (`port-daddy install`, see install-daemon.ts LOG_PATH) writes to
+ * `<distribution root>/port-daddy.log` instead — pass `distributionRoot`
+ * (callers already compute this as `libDir` elsewhere in this file) so that
+ * shape is actually checked too, not just the Homebrew/`~/.port-daddy` ones.
+ * Check all — whichever exists first is the live log.
  */
-export function candidateDaemonLogPaths(home = homedir()): string[] {
-  return [
+export function candidateDaemonLogPaths(home = homedir(), distributionRoot?: string): string[] {
+  const paths = [
     '/opt/homebrew/var/log/port-daddy.log',
     '/usr/local/var/log/port-daddy.log', // Intel Homebrew prefix
     join(home, '.port-daddy', 'port-daddy.log'),
   ];
+  if (distributionRoot) paths.push(join(distributionRoot, 'port-daddy.log'));
+  return paths;
 }
 
 /**
@@ -701,24 +706,53 @@ export function countBunCrashSignatures(logText: string): number {
   return (logText.match(BUN_PANIC_MARKER) || []).length;
 }
 
+export interface RecentBunCrashCheck {
+  count: number;
+  logPath: string | null;
+  /**
+   * Set when a candidate log EXISTED but could not be read (permissions,
+   * transient I/O error, etc). Distinct from "no candidate log exists" —
+   * doctor must treat this as unknown, never as a silent 'ok'.
+   */
+  readError?: string;
+}
+
 /**
  * Reads the tail of whichever candidate daemon log exists and counts Bun
- * native-crash banners. Bounded to the last `maxBytes` so a long-lived,
- * never-rotated log can't make this check slow — 512KB comfortably covers
- * many restart cycles of this daemon's log verbosity.
+ * native-crash banners. Bounded to the last `maxBytes` via an actual seek +
+ * bounded read (not a full-file read-then-slice) so a long-lived,
+ * never-rotated multi-GB log can't make this check slow or memory-spiky —
+ * 512KB comfortably covers many restart cycles of this daemon's log
+ * verbosity.
  */
 export function readRecentBunCrashCount(
   paths: string[] = candidateDaemonLogPaths(),
   maxBytes = 512 * 1024,
-): { count: number; logPath: string | null } {
+): RecentBunCrashCheck {
   for (const p of paths) {
     if (!existsSync(p)) continue;
+    let fd: number | undefined;
     try {
-      const full = readFileSync(p, 'utf8');
-      const tail = full.length > maxBytes ? full.slice(-maxBytes) : full;
-      return { count: countBunCrashSignatures(tail), logPath: p };
-    } catch {
-      continue;
+      fd = openSync(p, 'r');
+      const { size } = fstatSync(fd);
+      const bytesToRead = Math.min(size, maxBytes);
+      const start = size - bytesToRead;
+      const buf = Buffer.alloc(bytesToRead);
+      if (bytesToRead > 0) readSync(fd, buf, 0, bytesToRead, start);
+      return { count: countBunCrashSignatures(buf.toString('utf8')), logPath: p };
+    } catch (err) {
+      // The path existed (existsSync passed) but reading it failed — report
+      // this distinctly from "no log found" so the caller does not read it
+      // as a clean bill of health.
+      return { count: 0, logPath: null, readError: `${p}: ${(err as Error).message}` };
+    } finally {
+      if (fd !== undefined) {
+        try {
+          closeSync(fd);
+        } catch {
+          /* best-effort close */
+        }
+      }
     }
   }
   return { count: 0, logPath: null };
@@ -753,11 +787,26 @@ export interface CrashSignatureAssessment {
  * assessCrashSignature({ crashCount: 0 }).severity   // => 'ok'
  * assessCrashSignature({ crashCount: 1 }).severity   // => 'warn'
  * assessCrashSignature({ crashCount: 3 }).severity   // => 'critical'
+ * assessCrashSignature({ crashCount: 0, readError: 'EACCES' }).severity   // => 'warn'
  * ```
  */
-export function assessCrashSignature(input: { crashCount: number; logPath?: string | null }): CrashSignatureAssessment {
-  const { crashCount, logPath } = input;
+export function assessCrashSignature(
+  input: { crashCount: number; logPath?: string | null; readError?: string },
+): CrashSignatureAssessment {
+  const { crashCount, logPath, readError } = input;
   const where = logPath ? ` (${logPath})` : '';
+  // A log that exists but couldn't be read is an UNKNOWN result, not a clean
+  // bill of health — reporting 'ok' here would let a permissions problem
+  // (or any other read failure) silently mask a real crash-loop underneath
+  // it. Never let "couldn't check" read as "checked, healthy".
+  if (readError) {
+    return {
+      severity: 'warn',
+      detail: `Could not read the daemon log to check for Bun crash signatures (${readError}) — unknown, not confirmed healthy`,
+      hint: 'Fix the log file permissions/ownership so pd doctor can check for Bun native-crash banners (see issue #676).',
+      crashCount: 0,
+    };
+  }
   if (crashCount === 0) {
     return { severity: 'ok', detail: `No Bun native-crash signatures found in the recent daemon log${where}`, crashCount };
   }
@@ -1192,12 +1241,13 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   //     instead of letting the operator discover a crash-loop by accident.
   // -------------------------------------------------------------------------
   try {
-    const { count, logPath } = readRecentBunCrashCount();
-    recordAssessment('Bun crash signature', assessCrashSignature({ crashCount: count, logPath }));
+    const { count, logPath, readError } = readRecentBunCrashCount(candidateDaemonLogPaths(homedir(), libDir));
+    recordAssessment('Bun crash signature', assessCrashSignature({ crashCount: count, logPath, readError }));
   } catch (err: unknown) {
-    // Best-effort: a log-read failure is not itself a health signal.
+    // An unexpected throw here is itself an unknown, not a clean bill of
+    // health — never let a failed check read as 'ok' (see PR #879 review).
     recordAssessment('Bun crash signature', {
-      severity: 'ok',
+      severity: 'warn',
       detail: `Could not check daemon log for crash signatures: ${(err as Error).message}`,
     });
   }
