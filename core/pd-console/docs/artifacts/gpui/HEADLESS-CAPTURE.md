@@ -108,10 +108,15 @@ offline `Block` tree, **not** a screenshot of the GPUI app; its bottom red band 
 
 ## Corroboration: nobody renders GPUI headlessly — they snapshot the model
 
-duxweb/codux (a GPUI terminal) has the same problem and the same answer: its
-`crates/codux-terminal-core/src/headless_screen.rs` is **not** a GPUI/pixel capture — it
+duxweb/codux (a P2P "control plane for AI coding CLIs") has the same problem and the same
+answer at an *architectural* scale. Its headless terminal core (see the repo's
+`codux-terminal-core` crate, `headless_screen.rs`) is **not** a GPUI/pixel capture — it
 snapshots the alacritty **terminal cell grid** (text, fg/bg, styles → an ANSI-repaint
-string + cell array), the semantic layer *below* GPUI. That is exactly this module's move
-(snapshot the render-agnostic `Block` model) and pd-console's existing ratatui face. The
-practical answer to "headless GPUI" is: don't rasterize GPUI headlessly — capture the
-model the GUI is built from.
+string + cell array), the semantic layer *below* GPUI, and ships it over an E2E-encrypted
+Iroh P2P/relay transport to thin peer clients (a GPUI desktop app, a Flutter phone app, a
+headless host agent). No client rasterizes GPUI offscreen; each renders the serialized
+semantic state locally. That is exactly this module's move (snapshot the render-agnostic
+`Block` model) and pd-console's existing ratatui face — and it is a shipped blueprint for
+Harbor's "governed core + N thin renderer clients." The practical answer to "headless
+GPUI" is: don't rasterize GPUI headlessly — serialize the model the GUI is built from and
+render it wherever you need.
