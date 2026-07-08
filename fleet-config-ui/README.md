@@ -25,4 +25,10 @@ Not allowed:
 - new demo surfaces
 - new agent-control-plane UI
 
+The one sanctioned exception is **Galaxy** (`SessionGalaxyPanel`), shipped here as the
+Fleet UI face of the four-surface session-embedding map (daemon + Fleet UI + pd-console +
+FleetBar). It also renders natively in Fleet Control Center; the fleet-config-ui tab is a
+transitional compatibility surface, not a new net product surface. The rule above bars
+adding *further* net-new surfaces beyond it.
+
 If a feature needs to be visible to the operator, put it in Fleet Control Center.

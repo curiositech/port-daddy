@@ -599,7 +599,10 @@ These bite every contributor session; they are not theoretical.
   - Aider: `gpt-4.1-mini` / `gpt-4.1` / `gpt-5`
   - Custom: `custom-low` / `custom-mid` / `custom-high`, forwarded to wrapper commands via env
 - `fleet-config-ui` is deprecated. Do not add new operator features, demo
-  surfaces, tabs, or agent-control-plane UI there.
+  surfaces, tabs, or agent-control-plane UI there. The one sanctioned exception is
+  the **Galaxy** surface (`SessionGalaxyPanel`), the Fleet UI face of the four-surface
+  session-embedding map; it also renders natively in Fleet Control Center, so the
+  fleet-config-ui tab is a transitional compatibility surface, not a net-new one.
 - Fleet Control Center in `apps/FleetBar/FleetBar` is the real operator control
   plane surface.
 - `public/fleet-ui` is a legacy built artifact served by the daemon for
