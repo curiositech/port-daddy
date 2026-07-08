@@ -33,6 +33,10 @@ jest.unstable_mockModule('node:child_process', () => ({
   execSync: mockExecSync,
   execFileSync: jest.fn(),
   execFile: jest.fn((_cmd, _args, cb) => { if (typeof cb === 'function') cb(null, '', ''); }),
+  // lib/fleet-engine.ts transitively imports lib/watcher-pid-registry.ts,
+  // whose getCommandLineForPid() uses spawnSync (`ps`) to confirm a watcher
+  // child's identity before killing it.
+  spawnSync: jest.fn(() => ({ status: 1, stdout: '', stderr: '' })),
 }));
 
 const { createFleetRunner } = await import('../../lib/fleet-engine.js');

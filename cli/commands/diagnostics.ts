@@ -5,7 +5,7 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, readFileSync, readdirSync, accessSync, constants } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, accessSync, constants, openSync, closeSync, readSync, fstatSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { spawnSync, spawn } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
@@ -673,6 +673,164 @@ export function gatherLaunchdSupervisors(
 }
 
 /**
+ * Candidate daemon log paths, in priority order. `brew services` writes to
+ * the keg-relative `var/log/port-daddy.log` (the operator's actual layout,
+ * `/opt/homebrew/var/log/port-daddy.log`); a manually-installed LaunchAgent
+ * (`port-daddy install`, see install-daemon.ts LOG_PATH) writes to
+ * `<distribution root>/port-daddy.log` instead — pass `distributionRoot`
+ * (callers already compute this as `libDir` elsewhere in this file) so that
+ * shape is actually checked too, not just the Homebrew/`~/.port-daddy` ones.
+ * Check all — whichever exists first is the live log.
+ */
+export function candidateDaemonLogPaths(home = homedir(), distributionRoot?: string): string[] {
+  const paths = [
+    '/opt/homebrew/var/log/port-daddy.log',
+    '/usr/local/var/log/port-daddy.log', // Intel Homebrew prefix
+    join(home, '.port-daddy', 'port-daddy.log'),
+  ];
+  if (distributionRoot) paths.push(join(distributionRoot, 'port-daddy.log'));
+  return paths;
+}
+
+/**
+ * Bun's native crash banner is two fixed lines that always appear together —
+ * "panic(<thread>): <reason>" followed by "oh no: Bun has crashed." — for
+ * ANY native Bun panic, not just segfaults (see issue #676). Count the panic
+ * banner, not the "Segmentation fault" detail line, so an unrelated Bun panic
+ * shape still trips this check instead of silently passing.
+ */
+const BUN_PANIC_MARKER = /oh no: Bun has crashed\. This indicates a bug in Bun, not your code\./g;
+
+/** Pure: how many Bun native-crash banners appear in a slice of log text. */
+export function countBunCrashSignatures(logText: string): number {
+  return (logText.match(BUN_PANIC_MARKER) || []).length;
+}
+
+export interface RecentBunCrashCheck {
+  count: number;
+  logPath: string | null;
+  /**
+   * Set when a candidate log EXISTED but could not be read (permissions,
+   * transient I/O error, etc). Distinct from "no candidate log exists" —
+   * doctor must treat this as unknown, never as a silent 'ok'.
+   */
+  readError?: string;
+}
+
+/**
+ * Reads the tail of whichever candidate daemon log exists and counts Bun
+ * native-crash banners. Bounded to the last `maxBytes` via an actual seek +
+ * bounded read (not a full-file read-then-slice) so a long-lived,
+ * never-rotated multi-GB log can't make this check slow or memory-spiky —
+ * 512KB comfortably covers many restart cycles of this daemon's log
+ * verbosity.
+ */
+export function readRecentBunCrashCount(
+  paths: string[] = candidateDaemonLogPaths(),
+  maxBytes = 512 * 1024,
+): RecentBunCrashCheck {
+  for (const p of paths) {
+    if (!existsSync(p)) continue;
+    let fd: number | undefined;
+    try {
+      fd = openSync(p, 'r');
+      const { size } = fstatSync(fd);
+      const bytesToRead = Math.min(size, maxBytes);
+      const start = size - bytesToRead;
+      const buf = Buffer.alloc(bytesToRead);
+      if (bytesToRead > 0) readSync(fd, buf, 0, bytesToRead, start);
+      return { count: countBunCrashSignatures(buf.toString('utf8')), logPath: p };
+    } catch (err) {
+      // The path existed (existsSync passed) but reading it failed — report
+      // this distinctly from "no log found" so the caller does not read it
+      // as a clean bill of health.
+      return { count: 0, logPath: null, readError: `${p}: ${(err as Error).message}` };
+    } finally {
+      if (fd !== undefined) {
+        try {
+          closeSync(fd);
+        } catch {
+          /* best-effort close */
+        }
+      }
+    }
+  }
+  return { count: 0, logPath: null };
+}
+
+export interface CrashSignatureAssessment {
+  severity: Severity;
+  detail: string;
+  hint?: string;
+  crashCount: number;
+}
+
+/**
+ * Pure severity judgment over a Bun native-crash count found in the daemon
+ * log tail. Separated from the file read so it is unit-testable without
+ * touching disk.
+ *
+ * Context (2026-07-07, see issue #676): the compiled daemon binary segfaults
+ * intermittently under Bun 1.2.21 (JSC GC crash family — `MarkedBlock::sweep`
+ * / `SlotVisitor::drain` — reproduced across many Bun versions in upstream
+ * reports, not unique to this build). It is STATE- and LOAD-dependent: it
+ * needs production-scale memory pressure and concurrent connections to
+ * trigger, so idle soak tests do not catch it. Pinning to an older
+ * port-daddy release does NOT fix it — 3.23.0 and 3.24.x compile against the
+ * identical pinned `bun-version: 1.2.21` toolchain (pinned since 2026-06-01,
+ * before either release existed), and both have been observed to crash under
+ * load. There is no in-repo fix for a native Bun panic; this check exists so
+ * the operator sees the crash-loop instead of `brew services` silently
+ * respawning through it forever.
+ *
+ * ```ts
+ * assessCrashSignature({ crashCount: 0 }).severity   // => 'ok'
+ * assessCrashSignature({ crashCount: 1 }).severity   // => 'warn'
+ * assessCrashSignature({ crashCount: 3 }).severity   // => 'critical'
+ * assessCrashSignature({ crashCount: 0, readError: 'EACCES' }).severity   // => 'warn'
+ * ```
+ */
+export function assessCrashSignature(
+  input: { crashCount: number; logPath?: string | null; readError?: string },
+): CrashSignatureAssessment {
+  const { crashCount, logPath, readError } = input;
+  const where = logPath ? ` (${logPath})` : '';
+  // A log that exists but couldn't be read is an UNKNOWN result, not a clean
+  // bill of health — reporting 'ok' here would let a permissions problem
+  // (or any other read failure) silently mask a real crash-loop underneath
+  // it. Never let "couldn't check" read as "checked, healthy".
+  if (readError) {
+    return {
+      severity: 'warn',
+      detail: `Could not read the daemon log to check for Bun crash signatures (${readError}) — unknown, not confirmed healthy`,
+      hint: 'Fix the log file permissions/ownership so pd doctor can check for Bun native-crash banners (see issue #676).',
+      crashCount: 0,
+    };
+  }
+  if (crashCount === 0) {
+    return { severity: 'ok', detail: `No Bun native-crash signatures found in the recent daemon log${where}`, crashCount };
+  }
+  const hint =
+    'This is a known upstream Bun 1.2.21 native-crash family (JSC GC under load — see issue #676), not a port-daddy regression. ' +
+    'Downgrading port-daddy does NOT fix it: 3.23.0 and 3.24.x compile against the same pinned Bun toolchain. ' +
+    'Track upstream (oven-sh/bun) and issue #676; consider filing a fresh bun.report link if one is not already attached.';
+  if (crashCount === 1) {
+    return {
+      severity: 'warn',
+      detail: `1 Bun native-crash banner found in the recent daemon log${where} — the daemon restarted after a native crash`,
+      hint,
+      crashCount,
+    };
+  }
+  return {
+    severity: 'critical',
+    detail: `${crashCount} Bun native-crash banners found in the recent daemon log${where} — the daemon is crash-looping`,
+    hint,
+    crashCount,
+  };
+}
+
+/**
  * Resolve the Bosun watchdog binary (`core/pd-bosun`). Prefers the release
  * artifact under `dist/`, falls back to the source-tree release build. Mirrors
  * the daemon-side `resolveBosunBinaryStatus` in routes/info.ts.
@@ -1073,6 +1231,25 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     }
   } catch (err: unknown) {
     check('Bosun watchdog', false, `Error: ${(err as Error).message}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // 8c. Bun native-crash signature — launchd's KeepAlive respawns silently
+  //     through a native Bun panic (segfault) with no escalation of its own
+  //     (see issue #676: Bun 1.2.21 JSC-GC crash family, state/load-dependent,
+  //     NOT fixed by pinning an older port-daddy release). Surface it loudly
+  //     instead of letting the operator discover a crash-loop by accident.
+  // -------------------------------------------------------------------------
+  try {
+    const { count, logPath, readError } = readRecentBunCrashCount(candidateDaemonLogPaths(homedir(), libDir));
+    recordAssessment('Bun crash signature', assessCrashSignature({ crashCount: count, logPath, readError }));
+  } catch (err: unknown) {
+    // An unexpected throw here is itself an unknown, not a clean bill of
+    // health — never let a failed check read as 'ok' (see PR #879 review).
+    recordAssessment('Bun crash signature', {
+      severity: 'warn',
+      detail: `Could not check daemon log for crash signatures: ${(err as Error).message}`,
+    });
   }
 
   // -------------------------------------------------------------------------
