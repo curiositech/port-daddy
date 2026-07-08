@@ -100,7 +100,7 @@ impl SortieEntry {
 
     fn status_glyph(&self) -> &'static str {
         match self.bucket() {
-            Bucket::NeedsInput => "⏸",
+            Bucket::NeedsInput => "◔",
             Bucket::Working => "●",
             Bucket::Done => match self.state.as_str() {
                 "failed" | "error" => "✗",
@@ -210,7 +210,7 @@ impl Pane for SortiePane {
 
         // Needs-input first — highest priority for the operator.
         if !needs_input.is_empty() {
-            blocks.push(Block::Header("⏸  Needs Input".into()));
+            blocks.push(Block::Header("Needs Input".into()));
             for s in &needs_input {
                 let elapsed = s.elapsed_label(self.now_ms);
                 let detail = s.error.as_deref().unwrap_or("waiting on operator");

@@ -4500,7 +4500,7 @@ fn command_bar_btn(
 fn theme_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
     let theme = current_theme();
     let (icon, label) = match theme.mode {
-        ThemeMode::Dark => ("☀", "Light"),
+        ThemeMode::Dark => ("◑", "Light"),
         ThemeMode::Light => ("◐", "Dark"),
     };
     div()

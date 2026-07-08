@@ -2322,6 +2322,12 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     // field below is new; existing consumers that read name/status/etc. are unaffected.
     trigger?: string; schedule?: string; backend: string; modelTier?: string;
     maxRespawns: number; consecutiveFailures: number; backoffUntil?: number; lifecycle: string;
+    // Full ship config for the pd-console fleet detail view — the operator asked
+    // "why can't I see the ship configs". Additive; all sourced from the parsed
+    // FleetAgent. `dailyBudgetUsd` is the fleet-level cost ceiling governing this
+    // ship. `prompt` can be long — clients truncate for display.
+    model?: string; prompt?: string; identity?: string; allowedTools?: string;
+    singleton?: boolean; worktree?: boolean; cooldownMs?: number; dailyBudgetUsd?: number;
   }> {
     const now = Date.now();
     return config.agents.map((agent) => {
@@ -2379,6 +2385,15 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         consecutiveFailures,
         backoffUntil,
         lifecycle,
+        // Full config for the operator's ship-detail view (all real fields).
+        model: agent.model,
+        prompt: agent.prompt,
+        identity: agent.identity,
+        allowedTools: agent.allowedTools,
+        singleton: agent.singleton,
+        worktree: agent.worktree,
+        cooldownMs: agent.cooldownMs,
+        dailyBudgetUsd: config.limits?.budgetUsdPerDay,
       };
     });
   }

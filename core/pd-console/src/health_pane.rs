@@ -56,6 +56,17 @@ fn severity_tone(sev: &str) -> Tone {
     }
 }
 
+/// Human status word for a severity — the ONE label the banner and the status
+/// chip both derive from, so the pane can never show a "DEGRADED" banner beside
+/// a contradictory "status: ok" chip again.
+fn severity_label(sev: &str) -> &'static str {
+    match sev {
+        "critical" => "critical",
+        "warn" => "degraded",
+        _ => "healthy",
+    }
+}
+
 pub struct HealthPane {
     data: Option<Value>,
     last_error: Option<String>,
@@ -78,7 +89,7 @@ impl Pane for HealthPane {
 
         if let Some(err) = &self.last_error {
             // Unreachable daemon is the loudest state: a CRITICAL alarm banner.
-            blocks.push(Block::Chip { label: "✗ DAEMON UNREACHABLE".into(), tone: Tone::Alarm });
+            blocks.push(Block::Chip { label: "DAEMON UNREACHABLE".into(), tone: Tone::Alarm });
             blocks.push(Block::KeyVal("error".into(), err.clone()));
             return blocks;
         };
@@ -95,20 +106,27 @@ impl Pane for HealthPane {
         // visibly changes, it does not silently stay green.
         match severity {
             "critical" => blocks.push(Block::Chip {
-                label: "✗ DAEMON CRITICAL — core health failing".into(),
+                label: "DAEMON CRITICAL — core health failing".into(),
                 tone: Tone::Alarm,
             }),
             "warn" => blocks.push(Block::Chip {
-                label: "⚠ DAEMON DEGRADED".into(),
+                label: "DAEMON DEGRADED".into(),
                 tone: Tone::Gated,
             }),
             _ => {}
         }
 
+        // ONE source of truth: the derived severity drives BOTH the banner above
+        // and this status chip, so they can never contradict (the old bug showed
+        // a red "DEGRADED" banner next to a "status: ok" chip). The raw
+        // daemon-reported string is surfaced separately, only when it disagrees.
         blocks.push(Block::Chip {
-            label: format!("status: {status} ({severity})"),
+            label: format!("status: {}", severity_label(severity)),
             tone: severity_tone(severity),
         });
+        if severity != "ok" && status != severity_label(severity) {
+            blocks.push(Block::KeyVal("daemon reports".into(), status.clone()));
+        }
         blocks.push(Block::Gap);
         blocks.push(Block::KeyVal("version".into(), s(h, "version")));
         blocks.push(Block::KeyVal("uptime".into(), fmt_uptime(n(h, "uptime_seconds"))));
@@ -131,12 +149,33 @@ impl Pane for HealthPane {
             blocks.push(Block::Gap);
             blocks.push(Block::Header("Routes".into()));
             let ok = b(routes, "ok");
-            let missing = routes.get("missing").and_then(|m| m.as_array()).map(|a| a.len()).unwrap_or(0);
+            let missing_arr = routes
+                .get("missing")
+                .and_then(|m| m.as_array())
+                .cloned()
+                .unwrap_or_default();
             blocks.push(Block::Chip {
-                label: format!("{} checked / {} missing", n(routes, "checked"), missing),
+                label: format!("{} checked / {} missing", n(routes, "checked"), missing_arr.len()),
                 // A daemon 404'ing its own critical routes is a CRITICAL state.
                 tone: if ok { Tone::Landed } else { Tone::Alarm },
             });
+            // List the actual routes, not just a count — the operator asked
+            // "which 11?". Each checked route is a row marked ok / MISSING.
+            let is_missing =
+                |method: &str, url: &str| missing_arr.iter().any(|m| s(m, "method") == method && s(m, "url") == url);
+            if let Some(checked) = routes.get("checkedRoutes").and_then(|c| c.as_array()) {
+                for r in checked {
+                    let method = s(r, "method");
+                    let url = s(r, "url");
+                    let mark = if is_missing(&method, &url) { "MISSING" } else { "ok" };
+                    blocks.push(Block::Row(vec![mark.into(), method, url]));
+                }
+            } else {
+                // Older daemon without checkedRoutes: at least name the missing ones.
+                for m in &missing_arr {
+                    blocks.push(Block::Row(vec!["MISSING".into(), s(m, "method"), s(m, "url")]));
+                }
+            }
         }
 
         if let Some(rt) = h.get("runtime") {
@@ -255,6 +294,53 @@ mod tests {
             "warn must show a degraded banner");
         assert!(!blocks.iter().any(|b| matches!(b, Block::Chip { tone: Tone::Alarm, .. })),
             "warn must not escalate to an alarm tone");
+    }
+
+    #[test]
+    fn view_lists_checked_route_names_not_just_a_count() {
+        let mut p = HealthPane::default();
+        p.data = Some(json!({
+            "status": "ok", "severity": "ok", "version": "3.25.0",
+            "uptime_seconds": 10, "active_ports": 1, "pid": 1,
+            "routes": {"ok": true, "missing": [], "checked": 2,
+                "checkedRoutes": [
+                    {"method": "GET", "url": "/health"},
+                    {"method": "POST", "url": "/claim"}
+                ]},
+        }));
+        let blocks = p.view();
+        // Each checked route is listed by path, not hidden behind "2 checked".
+        assert!(
+            blocks.iter().any(|b| matches!(b, Block::Row(cells) if cells.iter().any(|c| c == "/health"))),
+            "checked route /health must be listed"
+        );
+        assert!(
+            blocks.iter().any(|b| matches!(b, Block::Row(cells) if cells.iter().any(|c| c == "/claim"))),
+            "checked route /claim must be listed"
+        );
+    }
+
+    #[test]
+    fn view_status_chip_agrees_with_severity_banner() {
+        // Regression: warn severity must NOT render "status: ok" beside a
+        // "DEGRADED" banner. Both derive from severity now.
+        let mut p = HealthPane::default();
+        p.data = Some(json!({
+            "status": "ok", "severity": "warn", "version": "3.25.0",
+            "uptime_seconds": 10, "active_ports": 1, "pid": 1,
+            "routes": {"ok": true, "missing": [], "checked": 1},
+            "runtime": {"state": "degraded", "degraded": true}
+        }));
+        let blocks = p.view();
+        // The status chip reads "degraded", never "ok", when severity is warn.
+        assert!(
+            blocks.iter().any(|b| matches!(b, Block::Chip { label, .. } if label == "status: degraded")),
+            "status chip must say degraded, agreeing with the banner"
+        );
+        assert!(
+            !blocks.iter().any(|b| matches!(b, Block::Chip { label, .. } if label.contains("status: ok"))),
+            "status chip must not contradict the DEGRADED banner with 'ok'"
+        );
     }
 
     #[test]

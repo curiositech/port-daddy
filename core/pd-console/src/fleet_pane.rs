@@ -13,7 +13,7 @@
 use crate::agent::DaemonClient;
 use crate::maritime::flag_for_state;
 use crate::pane::{Block, Pane, Tone};
-use crate::util::{arr, n, s, trunc};
+use crate::util::{arr, b, n, s, trunc};
 use anyhow::Result;
 use serde_json::Value;
 
@@ -34,6 +34,20 @@ pub struct ShipEntry {
     pub consecutive_failures: i64,
     pub max_respawns: i64,
     pub queue_depth: i64,
+    // ── Full config (the operator's ship-detail view; GET /fleet P2) ──
+    /// Pinned model id (empty when the ship uses a tier instead).
+    pub model: String,
+    /// The ship's actual task/instructions.
+    pub prompt: String,
+    /// Coordination identity ("{project}:fleet:<name>").
+    pub identity: String,
+    /// Tool allowlist string.
+    pub allowed_tools: String,
+    pub singleton: bool,
+    pub worktree: bool,
+    pub cooldown_ms: i64,
+    /// Fleet-level daily cost ceiling that governs this ship (USD/day).
+    pub daily_budget_usd: f64,
 }
 
 impl ShipEntry {
@@ -63,6 +77,14 @@ impl ShipEntry {
             consecutive_failures: n(v, "consecutiveFailures"),
             max_respawns: n(v, "maxRespawns"),
             queue_depth: n(v, "queueDepth"),
+            model: s(v, "model"),
+            prompt: s(v, "prompt"),
+            identity: s(v, "identity"),
+            allowed_tools: s(v, "allowedTools"),
+            singleton: b(v, "singleton"),
+            worktree: b(v, "worktree"),
+            cooldown_ms: n(v, "cooldownMs"),
+            daily_budget_usd: v.get("dailyBudgetUsd").and_then(|x| x.as_f64()).unwrap_or(0.0),
         }
     }
 
@@ -78,6 +100,19 @@ fn lifecycle_tone(lifecycle: &str) -> Tone {
         "dry-dock" | "drydock" => Tone::Conflicted,
         "cooldown" | "failing" | "queued" => Tone::Gated,
         _ => Tone::Resting,
+    }
+}
+
+/// Human cooldown like "30m" / "2h" / "1500ms" for the ship config view.
+fn fmt_cooldown(ms: i64) -> String {
+    if ms >= 3_600_000 {
+        format!("{}h", ms / 3_600_000)
+    } else if ms >= 60_000 {
+        format!("{}m", ms / 60_000)
+    } else if ms >= 1_000 {
+        format!("{}s", ms / 1_000)
+    } else {
+        format!("{ms}ms")
     }
 }
 
@@ -194,7 +229,7 @@ impl Pane for FleetPane {
         blocks.push(Block::KeyVal("sailing".into(), sailing.to_string()));
         if drydock > 0 {
             // Dry-dock means retries are exhausted — surface it as an escalation line.
-            blocks.push(Block::KeyVal("⚓ dry-dock".into(), format!("{drydock} — needs operator")));
+            blocks.push(Block::KeyVal("dry-dock".into(), format!("{drydock} — needs operator")));
         }
         blocks.push(Block::Gap);
 
@@ -211,12 +246,54 @@ impl Pane for FleetPane {
                 tone: lifecycle_tone(&sh.lifecycle),
             });
 
-            // Detail line: tier · backend · what it answers to.
-            let tier = if sh.tier.is_empty() { "—".to_string() } else { sh.tier.clone() };
+            // Full ship config as distinct labeled fields. ("rig" was meaningless
+            // jargon; the operator asked "why can't I see the ship configs".)
+            blocks.push(Block::KeyVal("  backend".into(), sh.backend.clone()));
+            let model = if !sh.model.is_empty() {
+                sh.model.clone()
+            } else if !sh.tier.is_empty() {
+                format!("{} tier", sh.tier)
+            } else {
+                "default".into()
+            };
+            blocks.push(Block::KeyVal("  model".into(), model));
+            let trig_label = if sh.kind.is_empty() { "trigger".to_string() } else { format!("{} trigger", sh.kind) };
             blocks.push(Block::KeyVal(
-                "  rig".into(),
-                format!("{tier} · {} · {}", sh.backend, trunc(&sh.on, 28)),
+                format!("  {trig_label}"),
+                if sh.on.is_empty() { "manual".into() } else { sh.on.clone() },
             ));
+            if sh.cooldown_ms > 0 {
+                blocks.push(Block::KeyVal("  cooldown".into(), fmt_cooldown(sh.cooldown_ms)));
+            }
+            if sh.daily_budget_usd > 0.0 {
+                blocks.push(Block::KeyVal("  cost cap".into(), format!("${:.2}/day (fleet)", sh.daily_budget_usd)));
+            }
+            if !sh.allowed_tools.is_empty() {
+                blocks.push(Block::KeyVal("  tools".into(), trunc(&sh.allowed_tools, 56)));
+            }
+            let mut flags: Vec<&str> = Vec::new();
+            if sh.singleton {
+                flags.push("singleton");
+            }
+            if sh.worktree {
+                flags.push("worktree");
+            }
+            if !flags.is_empty() {
+                blocks.push(Block::KeyVal("  flags".into(), flags.join(" · ")));
+            }
+            if !sh.identity.is_empty() {
+                blocks.push(Block::KeyVal("  identity".into(), sh.identity.clone()));
+            }
+            if !sh.prompt.is_empty() {
+                // The prompt is the ship's real instructions — show a wrapped
+                // preview so the config is genuinely visible, not hidden behind a
+                // row that looks clickable but does nothing.
+                let preview: String = sh.prompt.split_whitespace().collect::<Vec<_>>().join(" ");
+                blocks.push(Block::WrappedText {
+                    text: format!("prompt: {}", trunc(&preview, 240)),
+                    tone: Tone::Resting,
+                });
+            }
 
             // Retry budget — only worth showing once a ship has stumbled.
             if sh.consecutive_failures > 0 {
@@ -331,6 +408,14 @@ mod tests {
                 consecutive_failures: 0,
                 max_respawns: 3,
                 queue_depth: 0,
+                model: String::new(),
+                prompt: "Simplify recently changed files without changing behavior.".into(),
+                identity: "port-daddy:fleet:simplifier".into(),
+                allowed_tools: "Read,Grep,Edit".into(),
+                singleton: true,
+                worktree: true,
+                cooldown_ms: 900_000,
+                daily_budget_usd: 8.5,
             },
             ShipEntry {
                 project: "port-daddy".into(),
@@ -343,6 +428,14 @@ mod tests {
                 consecutive_failures: 3,
                 max_respawns: 3,
                 queue_depth: 0,
+                model: String::new(),
+                prompt: String::new(),
+                identity: String::new(),
+                allowed_tools: String::new(),
+                singleton: false,
+                worktree: false,
+                cooldown_ms: 0,
+                daily_budget_usd: 0.0,
             },
         ];
         p
@@ -361,6 +454,9 @@ mod tests {
         assert_eq!(sh.lifecycle, "armed"); // falls back to status when lifecycle null
         assert_eq!(sh.on, "0 9 * * *"); // schedule used when no trigger
         assert_eq!(sh.tier, ""); // null tier → empty
+        assert_eq!(sh.prompt, ""); // config fields tolerate absence
+        assert!(!sh.singleton);
+        assert_eq!(sh.cooldown_ms, 0);
     }
 
     #[test]
@@ -404,5 +500,38 @@ mod tests {
             b, Block::Flag { label, tone, .. }
             if label.contains("qa-adversary") && matches!(tone, Tone::Conflicted)
         )));
+    }
+
+    #[test]
+    fn view_shows_full_ship_config_not_rig_jargon() {
+        let p = populated();
+        let blocks = p.view();
+        // "rig" jargon is gone; config shows as distinct labeled fields.
+        assert!(
+            !blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k.trim() == "rig")),
+            "the meaningless 'rig' row must be gone"
+        );
+        assert!(
+            blocks.iter().any(|b| matches!(b, Block::KeyVal(k, v) if k == "  backend" && v == "claude-cli")),
+            "backend must be its own labeled field"
+        );
+        assert!(
+            blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k == "  model")),
+            "model must be its own labeled field"
+        );
+        assert!(
+            blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("trigger"))),
+            "trigger must be its own labeled field"
+        );
+        // The ship's actual prompt is visible — the operator's core ask.
+        assert!(
+            blocks.iter().any(|b| matches!(b, Block::WrappedText { text, .. } if text.contains("Simplify"))),
+            "the ship's prompt must be shown"
+        );
+        // The fleet cost cap is surfaced.
+        assert!(
+            blocks.iter().any(|b| matches!(b, Block::KeyVal(k, v) if k == "  cost cap" && v.contains("8.50"))),
+            "cost cap must be shown"
+        );
     }
 }

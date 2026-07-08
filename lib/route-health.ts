@@ -25,6 +25,10 @@ export interface RouteHealth {
   missing: RouteRef[];
   /** how many routes were checked. */
   checked: number;
+  /** the full list of critical routes that were checked (method + path), so a
+   *  client (pd-console Health pane) can show WHICH routes were verified, not
+   *  just a bare count like "11 checked / 0 missing". */
+  checkedRoutes: RouteRef[];
 }
 
 /**
@@ -58,7 +62,7 @@ export function assessRouteHealth(
   routes: RouteRef[] = CRITICAL_ROUTES,
 ): RouteHealth {
   const missing = routes.filter((r) => !isRegistered(r.method, r.url));
-  return { ok: missing.length === 0, missing, checked: routes.length };
+  return { ok: missing.length === 0, missing, checked: routes.length, checkedRoutes: routes };
 }
 
 /**

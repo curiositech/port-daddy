@@ -297,7 +297,7 @@ impl Pane for PlannerPane {
             for &idx in &epic.tasks {
                 let it = &self.items[idx];
                 let p = priority_for_status(&it.status);
-                let dep_note = if it.deps.is_empty() { String::new() } else { format!("⛓{}", it.deps.len()) };
+                let dep_note = if it.deps.is_empty() { String::new() } else { format!("deps {}", it.deps.len()) };
                 let claimed = self.claims.get(&it.slug);
                 let claim_col = claimed.map(|b| format!("◆ {}", trunc(b, 24))).unwrap_or_default();
                 blocks.push(Block::Row(vec![
