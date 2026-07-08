@@ -135,7 +135,7 @@ async function emitShipTelemetry(
   result: ShipResult,
   metrics: ShipMetrics,
   checkRunId: number,
-  startMs: number,
+  shipStartMs: number,
 ): Promise<void> {
   try {
     const blackout = metrics.calls > 0 && metrics.allEmpty;
@@ -155,7 +155,7 @@ async function emitShipTelemetry(
         conclusion: errored ? 'failure' : result.verdict === 'BLOCK' ? 'failure' : 'success',
         backend: 'cloudflare',
         model: ship.cfModel,
-        durationMs: Date.now() - startMs,
+        durationMs: Date.now() - shipStartMs,
         inputTokens: metrics.inputTokens,
         cachedInputTokens: metrics.cachedInputTokens,
         outputTokens: metrics.outputTokens,
@@ -457,6 +457,10 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
 
   const results: ShipResult[] = [];
   for (const ship of cloudShips) {
+    // Per-ship wall-clock start: durationMs must reflect THIS ship's work
+    // (including its gate/skip decision), not the cumulative run time — else
+    // later ships report inflated durations that fold in every earlier ship.
+    const shipStartMs = Date.now();
     // Re-check the operator kill switch before each ship. The start-of-job
     // check prevents any setup work while paused; this second gate closes the
     // TOCTOU gap where the operator pauses after the GitHub check is created
@@ -487,14 +491,14 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       const skipped: ShipResult = { ship: ship.name, blocking: ship.blocking, verdict: 'PASS', errored: false, findings: [] };
       results.push(skipped);
       // Telemetry for a gated ship: zero AI spend, status ok (calls=0 ⇒ not a blackout).
-      await emitShipTelemetry(env, job, prCtx, ship, skipped, newShipMetrics(), checkRunId, startMs);
+      await emitShipTelemetry(env, job, prCtx, ship, skipped, newShipMetrics(), checkRunId, shipStartMs);
       continue;
     }
 
     const metrics = newShipMetrics();
     const result = await runShip(ship, prCtx, token, env, branch, transcript, metrics);
     results.push(result);
-    await emitShipTelemetry(env, job, prCtx, ship, result, metrics, checkRunId, startMs);
+    await emitShipTelemetry(env, job, prCtx, ship, result, metrics, checkRunId, shipStartMs);
   }
 
   // --- Conclusion (verdict logic is REAL; see verdict.ts) ------------------

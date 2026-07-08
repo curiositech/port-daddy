@@ -97,9 +97,11 @@ GITHUB_APP_ID = "REPLACE_WITH_YOUR_GITHUB_APP_ID"
 DEFAULT_BRANCH = "main"
 # Cloud telemetry sink — the daemon (or its public tunnel) that ingests per-ship
 # cost + failure events at POST /telemetry/cloud-app. This is what relights
-# FleetBar's cost panel and surfaces cloud ship failures. OPTIONAL: unset ⇒ the
-# executor runs identically but emits nothing (emitCloudTelemetry no-ops).
-PORT_DADDY_TELEMETRY_URL = "REPLACE_WITH_YOUR_TELEMETRY_URL_OR_LEAVE_UNSET"
+# FleetBar's cost panel and surfaces cloud ship failures. OPTIONAL and DISABLED
+# by default: an empty string ⇒ emitCloudTelemetry no-ops (no fetch per ship), so
+# copying this template verbatim never points ships at a bogus host. Fill it in
+# ONLY once you have a real sink URL, e.g. "https://your-tunnel/telemetry/cloud-app".
+PORT_DADDY_TELEMETRY_URL = ""
 
 # ---------------------------------------------------------------------------
 # Secrets (documented; set via `wrangler secret put`, never committed):
