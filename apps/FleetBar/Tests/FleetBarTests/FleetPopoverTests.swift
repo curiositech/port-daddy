@@ -97,6 +97,25 @@ final class FleetPopoverTests: XCTestCase {
         XCTAssertFalse(openedControlCenter, "Tapping Visual Task should not open the default Flow route")
     }
 
+    func testPopoverScrollContentContainsNativeCloudFleetSurface() throws {
+        let store = FleetStore(autoStart: false)
+        store.rebind(to: "https://active-berth.example")
+        store.isDaemonRunning = true
+        store.projects = []
+
+        let inspected = try FleetPopover(
+            store: store,
+            costStore: CostStore(autoStart: false),
+            backendStore: BackendStore(autoStart: false)
+        ).inspect()
+
+        let cloudFleetTitle = try inspected.find(text: "Cloud Fleet")
+        let cloudFleetPath = String(describing: cloudFleetTitle.pathToRoot)
+        XCTAssertTrue(cloudFleetPath.contains("scrollView"), cloudFleetPath)
+        XCTAssertNoThrow(try inspected.find(text: "https://active-berth.example"))
+        XCTAssertNoThrow(try inspected.find(text: "writes require approval"))
+    }
+
     func testFooterControlsStayOutsideScrollView() throws {
         let store = FleetStore(autoStart: false)
         store.isDaemonRunning = true

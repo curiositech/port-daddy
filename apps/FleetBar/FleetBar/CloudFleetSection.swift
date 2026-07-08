@@ -19,7 +19,10 @@ struct CloudFleetSection: View {
         }
         .padding(compact ? Fleet.Space.l : Fleet.Space.xl)
         .background(Fleet.Chrome.panel)
-        .task { await store.refresh() }
+        .task(id: localDaemonURL ?? "") {
+            store.rebind(baseURL: localDaemonURL)
+            await store.refresh()
+        }
     }
 
     private var header: some View {
@@ -63,8 +66,8 @@ struct CloudFleetSection: View {
                 color: store.routeMissing ? Fleet.Color.failure : Fleet.Color.active
             )
             scopeChip(
-                title: "Write policy",
-                value: "approval gated",
+                title: "Safety",
+                value: "writes require approval",
                 icon: "hand.raised.fill",
                 color: Fleet.Color.warning
             )

@@ -12,9 +12,7 @@ final class CloudFleetSectionSnapshotTests: XCTestCase {
 
     func testRenderCloudFleetSectionSnapshotWhenRequested() async throws {
         let env = ProcessInfo.processInfo.environment
-        guard let output = env["FLEETBAR_CLOUD_FLEET_SNAPSHOT_OUT"], !output.isEmpty else {
-            throw XCTSkip("Set FLEETBAR_CLOUD_FLEET_SNAPSHOT_OUT to render the Cloud Fleet visual artifact.")
-        }
+        let output = env["FLEETBAR_CLOUD_FLEET_SNAPSHOT_OUT"]
 
         StubURLProtocol.handler = { request in
             XCTAssertEqual(request.url?.path, "/telemetry/cloud-app")
@@ -23,7 +21,7 @@ final class CloudFleetSectionSnapshotTests: XCTestCase {
 
         let store = CloudFleetStore(
             autoStart: false,
-            baseURL: "https://cloudfleet.snapshot",
+            baseURL: DaemonLocation.resolveBaseURL(),
             session: StubURLProtocol.makeSession()
         )
         await store.refresh()
@@ -52,9 +50,21 @@ final class CloudFleetSectionSnapshotTests: XCTestCase {
             return
         }
 
-        let url = URL(fileURLWithPath: output)
-        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try data.write(to: url)
+        XCTAssertGreaterThan(data.count, 50_000, "Cloud Fleet snapshot should render real UI, not a blank placeholder.")
+
+        if let output, !output.isEmpty {
+            let url = URL(fileURLWithPath: output)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try data.write(to: url)
+        } else {
+            let artifactURL = URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .appendingPathComponent("docs/artifacts/cloud-fleet/fleetbar-cloud-fleet.png")
+            let artifactData = try Data(contentsOf: artifactURL)
+            XCTAssertGreaterThan(artifactData.count, 50_000, "Committed Cloud Fleet proof artifact should exist and be non-empty.")
+        }
     }
 
     private static var localProjects: [FleetProject] {

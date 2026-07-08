@@ -86,7 +86,7 @@ final class CloudFleetStoreTests: XCTestCase {
         XCTAssertEqual(decoded.recent.first?.repoDisplay, "curiositech/port-daddy")
     }
 
-    func testCloudFleetSectionLabelsLocalCloudAndWritePolicy() throws {
+    func testCloudFleetSectionLabelsLocalCloudAndSafetyCopy() throws {
         let localDaemonURL = DaemonLocation.resolveBaseURL()
         let inspected = try CloudFleetSection(
             store: CloudFleetStore(autoStart: false),
@@ -99,7 +99,55 @@ final class CloudFleetStoreTests: XCTestCase {
         XCTAssertNoThrow(try inspected.find(text: "LOCAL"))
         XCTAssertNoThrow(try inspected.find(text: localDaemonURL))
         XCTAssertNoThrow(try inspected.find(text: "CLOUD"))
-        XCTAssertNoThrow(try inspected.find(text: "WRITE POLICY"))
-        XCTAssertNoThrow(try inspected.find(text: "approval gated"))
+        XCTAssertNoThrow(try inspected.find(text: "SAFETY"))
+        XCTAssertNoThrow(try inspected.find(text: "writes require approval"))
     }
+
+    func testCloudFleetStoreRefreshFollowsReboundDaemonURL() async throws {
+        var requestedHosts: [String] = []
+        StubURLProtocol.handler = { request in
+            requestedHosts.append(request.url?.host ?? "")
+            XCTAssertEqual(request.url?.path, "/telemetry/cloud-app")
+            return StubURLProtocol.Stub(status: 200, body: Self.emptyCloudFleetFixture)
+        }
+
+        let store = CloudFleetStore(
+            autoStart: false,
+            baseURL: "https://first-daemon.example",
+            session: StubURLProtocol.makeSession()
+        )
+
+        await store.refresh()
+        store.rebind(baseURL: "https://feature-berth.example")
+        await store.refresh()
+
+        XCTAssertEqual(
+            requestedHosts.filter { $0.hasSuffix(".example") },
+            ["first-daemon.example", "feature-berth.example"]
+        )
+        XCTAssertEqual(store.resolvedBaseURL, "https://feature-berth.example")
+    }
+
+    private static let emptyCloudFleetFixture = """
+    {
+      "success": true,
+      "generatedAt": 1777328400000,
+      "since": 1777242000000,
+      "totals": {
+        "events": 0,
+        "uniqueDeliveries": 0,
+        "shipEvents": 0,
+        "checkRunEvents": 0,
+        "commentEvents": 0,
+        "errorEvents": 0,
+        "costUsd": 0,
+        "estimatedCostEvents": 0,
+        "unknownCostEvents": 0
+      },
+      "byRepo": [],
+      "byShip": [],
+      "byBackend": [],
+      "recent": []
+    }
+    """.data(using: .utf8)!
 }

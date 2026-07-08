@@ -102,7 +102,7 @@ final class CloudFleetStore: ObservableObject {
     @Published private(set) var isRefreshing = false
     @Published private(set) var routeMissing = false
 
-    private let baseURL: String
+    private var baseURL: String
     private nonisolated(unsafe) var refreshTimer: Timer?
     private let session: URLSession
 
@@ -126,6 +126,21 @@ final class CloudFleetStore: ObservableObject {
 
     var hasCloudActivity: Bool {
         (summary?.totals.events ?? 0) > 0
+    }
+
+    var resolvedBaseURL: String {
+        baseURL
+    }
+
+    func rebind(baseURL nextBaseURL: String?) {
+        let next = nextBaseURL ?? DaemonLocation.resolveBaseURL()
+        guard next != baseURL else { return }
+
+        baseURL = next
+        summary = nil
+        lastRefresh = nil
+        lastError = nil
+        routeMissing = false
     }
 
     func refresh() async {
