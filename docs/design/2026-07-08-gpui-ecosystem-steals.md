@@ -3,9 +3,11 @@
 **Date:** 2026-07-08 · **Provenance:** a full sweep of all 73 entries in
 [zed-industries/awesome-gpui](https://github.com/zed-industries/awesome-gpui), mined for
 product / tech / idea inspiration for two efforts: **pd-console** (the GPU-native operator
-console on GPUI 0.2.2, "one pane, two faces": panes emit render-agnostic `Block`/`Tone`
-primitives painted by a GPUI/Metal renderer and a headless ratatui renderer) and the
-**Harbor editor** (planned cooperative GPUI IDE — Loro CRDT buffers, regional claims,
+console on GPUI 0.2.2, "one pane, two faces": panes emit render-agnostic
+[`Block`/`Tone`](../../core/pd-console/src/pane.rs) primitives painted by a GPUI/Metal
+renderer and a headless ratatui renderer) and the **Harbor editor** (planned cooperative
+GPUI IDE — [Loro](https://loro.dev/docs) CRDT buffers, where CRDT means
+conflict-free replicated data type for mergeable collaborative state; regional claims;
 agent-as-peer governance living in the daemon; console is the reference renderer; cloud
 agents first-class; VS Code / web / phone are future renderer clients).
 
@@ -21,7 +23,8 @@ Star counts and gpui versions are point-in-time (2026-07-08) and flagged where u
 in one binary without moving pd-console onto that same (fast-drifting) zed rev. So each
 candidate is one of:
 
-- **REGISTRY-0.2.2-SAFE** — real crates.io `0.2.2`; can be a normal dependency today.
+- **REGISTRY-0.2.2-SAFE** — no git-patch identity trap observed; still verify the
+  published semver range unifies to pd-console's exact registry `gpui 0.2.2` before depending.
 - **GIT-PATCH-TRAP** — pins gpui to a zed git rev; **copy the source in, don't depend.**
 
 | Repo | gpui status | verdict |
@@ -49,7 +52,7 @@ candidate is one of:
    serializing semantic state and repainting on thin renderers — field-wide validation of
    pd-console's Block/Tone "two faces" and Harbor's daemon-governance thesis. Keep the
    operator's rule; don't chase offscreen GPUI pixels. (See §9; full write-up in the
-   sibling headless-capture finding, PR #881.)
+   sibling headless-capture finding, [PR #881](https://github.com/curiositech/port-daddy/pull/881).)
 2. **longbridge/gpui-component is the de-facto standard kit** (~12k★; used by onetcli,
    pgui, zedis, pawse, sukusho, based, DBFlux) — but the `main`-branch git-pin makes it
    copy-not-depend unless the published 0.5.x proves registry-safe (§8).
