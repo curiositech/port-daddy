@@ -96,43 +96,38 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
     expect(lookout!.prompt.toLowerCase()).toContain('branch');
   });
 
-  it('derives cfModel with the cost canary: proven coder for gate-keepers, cheap qwen3-30b for advisory', () => {
-    // code-reviewer pins kimi-k2.7-code and qa pins gpt-oss-120b — both empty on
-    // this account and NOT known-good, so each falls to its name default:
-    //   - code-reviewer is a blocking gate-keeper → the PROVEN qwen2.5-coder.
-    //   - qa is advisory → the cheap qwen3-30b (canary).
+  it('routes the expensive gpt-oss-120b to the CODE REVIEW BOT only; everything else cheap qwen3-30b', () => {
+    // Operator directive: gpt-oss-120b is pricey — review bot only, nothing else.
+    //   - code-reviewer (pins kimi, not honored) → CODER = gpt-oss-120b.
+    //   - qa / red-team (pin gpt-oss, not honored) → the cheap default qwen3-30b.
     const reviewer = ships!.find(s => s.name === 'code-reviewer');
-    expect(reviewer!.cfModel).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+    expect(reviewer!.cfModel).toBe('@cf/openai/gpt-oss-120b');
     const qa = ships!.find(s => s.name === 'qa');
     expect(qa!.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
-    // red-team is a blocking gate-keeper → proven coder too.
     const redTeam = ships!.find(s => s.name === 'red-team');
-    expect(redTeam!.cfModel).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+    expect(redTeam!.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
   });
 });
 
 describe('resolveCfModel — the empty-model guard', () => {
-  it('passes through a known-good qwen model', () => {
-    expect(resolveCfModel('@cf/qwen/qwen2.5-coder-32b-instruct')).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+  it('passes through the honored cheap model', () => {
     expect(resolveCfModel('@cf/qwen/qwen3-30b-a3b-fp8')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
   });
 
-  it('remaps the empty-returning ids that silenced the whole fleet', () => {
-    // These returned outputLength:0 for every ship on this account — the exact
-    // regression this guard exists to prevent recurring.
-    expect(resolveCfModel('@cf/openai/gpt-oss-120b')).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
-    expect(resolveCfModel('@cf/moonshotai/kimi-k2.7-code')).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
-  });
-
-  it('remaps any unrecognized id (an unknown id yields a blank response, not an error)', () => {
-    expect(resolveCfModel('@cf/some/nonexistent-model')).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+  it('remaps any non-honored id (gpt-oss/kimi/qwen-coder/unknown) to the cheap fallback', () => {
+    // gpt-oss reaches the review bot by ROLE, never by pin — so a bare pin of it
+    // (or any other id) is remapped to the cheap model, never the pricey one.
+    expect(resolveCfModel('@cf/openai/gpt-oss-120b')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(resolveCfModel('@cf/moonshotai/kimi-k2.7-code')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(resolveCfModel('@cf/qwen/qwen2.5-coder-32b-instruct')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(resolveCfModel('@cf/some/nonexistent-model')).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
   });
 });
 
 describe('parseFleetShips — model derivation + blocking coercion', () => {
   const yaml = (body: string) => `fleet:\n  agents:\n${body}\n`;
 
-  it('falls back to the coder model for reviewer-named ships with no @cf/ fallback', () => {
+  it('routes reviewer-named ships (the review bot) to gpt-oss-120b when they have no honored @cf/ pin', () => {
     const ships = parseFleetShips(
       yaml(
         [
@@ -147,7 +142,7 @@ describe('parseFleetShips — model derivation + blocking coercion', () => {
       ),
       'pull_request:opened',
     );
-    expect(ships![0].cfModel).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+    expect(ships![0].cfModel).toBe('@cf/openai/gpt-oss-120b');
   });
 
   it('falls back to the cheap general model (qwen3-30b) for non-reviewer ships with no @cf/ fallback', () => {
