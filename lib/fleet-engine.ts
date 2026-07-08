@@ -2492,7 +2492,12 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         lifecycle,
         // Full config for the operator's ship-detail view (all real fields).
         model: agent.model,
-        prompt: agent.prompt,
+        // /fleet is a hot poll path and clients render only a short preview, so cap
+        // the serialized prompt (still far beyond any preview) to keep it bounded.
+        prompt:
+          agent.prompt && agent.prompt.length > 2000
+            ? agent.prompt.slice(0, 2000) + '…'
+            : agent.prompt,
         identity: agent.identity,
         allowedTools: agent.allowedTools,
         singleton: agent.singleton,

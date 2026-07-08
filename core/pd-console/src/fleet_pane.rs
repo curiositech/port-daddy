@@ -288,7 +288,18 @@ impl Pane for FleetPane {
                 // The prompt is the ship's real instructions — show a wrapped
                 // preview so the config is genuinely visible, not hidden behind a
                 // row that looks clickable but does nothing.
-                let preview: String = sh.prompt.split_whitespace().collect::<Vec<_>>().join(" ");
+                // Normalize whitespace into a BOUNDED preview without collecting the
+                // whole prompt every render tick (ship prompts can be long).
+                let mut preview = String::with_capacity(248);
+                for word in sh.prompt.split_whitespace() {
+                    if !preview.is_empty() {
+                        preview.push(' ');
+                    }
+                    preview.push_str(word);
+                    if preview.len() >= 240 {
+                        break;
+                    }
+                }
                 blocks.push(Block::WrappedText {
                     text: format!("prompt: {}", trunc(&preview, 240)),
                     tone: Tone::Resting,
