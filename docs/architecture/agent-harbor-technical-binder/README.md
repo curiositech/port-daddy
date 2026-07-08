@@ -211,6 +211,13 @@ Work Receipt:
   MSI + Authenticode), the W1/W2 gates sequenced against M3 and M10, and
   proof gates IT-24A..IT-24D.
 
+Current build-start work packets:
+
+- [Cross-LLM Single-Agent Run Build Plan](./work-packets/cross-llm-single-agent-run-build-plan.md):
+  the concrete slice plan for turning provider-neutral `AgentBody` and
+  single-run `AgentRun` rendering into schemas, ledger/projection support,
+  adapter fixtures, routes, `pd-console` UI, and receipt/proof gates.
+
 ## Architecture in one diagram
 
 ```mermaid
