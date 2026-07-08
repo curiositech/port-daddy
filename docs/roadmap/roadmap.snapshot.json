@@ -2,7 +2,7 @@
   "generatedAt": 1783315035961,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 136,
+  "count": 137,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -683,6 +683,11 @@
       "slug": "adr-0097-phase-3-episode-extraction",
       "status": "now",
       "summaryMd": "M6 phase 3: episode/graph-fact extraction with bi-temporal validity, supersession closure, distilled-source tombstones, and budget-capped task-conditioned recall (ADR-0097 Implementation Matrix phase 3)"
+    },
+    {
+      "slug": "feat-harbor-editor-fast",
+      "status": "now",
+      "summaryMd": "Rebuild the Harbor editor into a real editor surface: Block::CodeBuffer (Arc-shared pre-tokenized lines), uniform_list virtualization, syntax highlighting, claim/wedge bands as background, always-visible author column, notify-on-change. PR #883."
     }
   ]
 }
