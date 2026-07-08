@@ -41,10 +41,18 @@ const MODEL_RATES: Array<[string, ModelRate]> = [
   ['@cf/moonshotai/kimi-k2.6',                  { input: 0.950, cachedInput: 0.160, output: 4.000, label: 'Kimi K2.6 (phantom Workers AI id — never existed, retired 2026-07 #654; row kept so historical cost events still price)' }],
   ['@cf/moonshotai/kimi-k2.5',                  { input: 0.600, cachedInput: 0.100, output: 3.000, label: 'Kimi K2.5 (phantom Workers AI id — never existed, retired 2026-07 #654; row kept so historical cost events still price)' }],
   ['@cf/zai-org/glm-4.7-flash',                 { input: 0.060, output: 0.400, label: 'Cloudflare Workers AI GLM-4.7-Flash' }],
+  // qwen2.5-coder-32b: the 2026-07-07 blackout hotfix pinned every ship to this,
+  // the PRICIEST qwen ($0.66/$1.00 — src pricing page). No longer a default (ships
+  // fell back to qwen3-30b, ~13x cheaper input), but still pinnable, so a
+  // historical/pinned cost event must price. See wrangler KNOWN_GOOD_CF_MODELS.
+  ['@cf/qwen/qwen2.5-coder-32b-instruct',       { input: 0.660, output: 1.000, label: 'Cloudflare Workers AI Qwen2.5 Coder 32B Instruct' }],
   ['@cf/qwen/qwen3-30b-a3b-fp8',                { input: 0.051, output: 0.335, label: 'Cloudflare Workers AI Qwen3 30B A3B FP8' }],
   ['@cf/nvidia/nemotron-3-120b-a12b',           { input: 0.500, output: 1.500, label: 'Cloudflare Workers AI Nemotron 3 120B A12B' }],
   ['@cf/meta/llama-4-scout-17b-16e-instruct',   { input: 0.270, output: 0.850, label: 'Cloudflare Workers AI Llama 4 Scout 17B 16E Instruct' }],
   ['@cf/openai/gpt-oss-120b',                   { input: 0.350, output: 0.750, label: 'Cloudflare Workers AI GPT-OSS 120B' }],
+  // gpt-oss-20b: the cheaper review-bot candidate ($0.20/$0.30 — src pricing page).
+  // Priced ahead of any switch so cost tracking lights up immediately if adopted.
+  ['@cf/openai/gpt-oss-20b',                    { input: 0.200, output: 0.300, label: 'Cloudflare Workers AI GPT-OSS 20B' }],
   // Legacy exact rates retained for explicit older configs, not recommended tiers.
   ['@cf/meta/llama-3.1-8b-instruct',          { input: 0.282, output: 0.827, label: 'Cloudflare Workers AI Llama 3.1 8B Instruct' }],
   ['@cf/meta/llama-3.3-70b-instruct-fp8-fast', { input: 0.293, output: 2.253, label: 'Cloudflare Workers AI Llama 3.3 70B FP8 Fast' }],
