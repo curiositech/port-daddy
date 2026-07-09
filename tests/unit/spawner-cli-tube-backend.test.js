@@ -43,20 +43,22 @@ const {
 // `stdout` may be a string (emitted as one chunk) or an array of strings
 // (emitted as SEPARATE chunks) so line-buffering across chunk boundaries can be
 // exercised — stdout in real life arrives in arbitrary chunks.
-function fakeChild({ stdout = '', stderr = '', exitCode = 0, error = null, delay = 0 } = {}) {
+function fakeChild({ stdout = '', stderr = '', exitCode = 0, error = null, delay = 0, neverClose = false } = {}) {
   const ee = new EventEmitter();
   const stdoutChunks = Array.isArray(stdout) ? stdout : [stdout];
   ee.stdout = Readable.from(stdoutChunks);
   ee.stderr = Readable.from([stderr]);
   ee.kill = jest.fn();
   ee.pid = 4242;
-  setTimeout(() => {
-    if (error) {
-      ee.emit('error', error);
-    } else {
-      ee.emit('close', exitCode);
-    }
-  }, delay);
+  if (!neverClose) {
+    setTimeout(() => {
+      if (error) {
+        ee.emit('error', error);
+      } else {
+        ee.emit('close', exitCode);
+      }
+    }, delay);
+  }
   return ee;
 }
 
@@ -475,6 +477,42 @@ describe('spawnViaCliTube — failure paths', () => {
     expect(res.error).toContain('Something else broke');
   });
 
+  test('agy non-zero exit includes stdout-only error text', async () => {
+    mockSpawn.mockReturnValue(fakeChild({
+      stdout: 'Error: timeout waiting for response\n',
+      stderr: '',
+      exitCode: 1,
+    }));
+    const res = await spawnViaCliTube({ cli: 'agy', prompt: 'hi' });
+    expect(res.error).toContain('agy exited with code 1');
+    expect(res.error).toContain('timeout waiting for response');
+  });
+
+  test('agy exit 0 with no output is a failed adapter result', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: '', stderr: '', exitCode: 0 }));
+    const res = await spawnViaCliTube({ cli: 'agy', prompt: 'hi' });
+    expect(res.exitCode).toBe(0);
+    expect(res.output).toBe('');
+    expect(res.error).toBe(
+      'agy produced no stdout or stderr in print mode. Run `agy --print "hello"` once interactively to confirm authentication.',
+    );
+    expect(res.error).toContain('agy --print "hello"');
+  });
+
+  test('long stdout-only error detail is bounded with a truncation marker', async () => {
+    mockSpawn.mockReturnValue(fakeChild({
+      stdout: `${'a'.repeat(300)}${'b'.repeat(1200)}`,
+      stderr: '',
+      exitCode: 1,
+    }));
+    const res = await spawnViaCliTube({ cli: 'agy', prompt: 'hi' });
+    expect(res.error).toContain('agy exited with code 1');
+    expect(res.error).toContain('[truncated 300 chars]');
+    const detail = res.error.split('[truncated 300 chars] ')[1];
+    expect(detail).toHaveLength(1200);
+    expect(detail).toBe('b'.repeat(1200));
+  });
+
   test('onChild callback receives the spawned child', async () => {
     let captured;
     mockSpawn.mockReturnValue(fakeChild({ stdout: 'hi', exitCode: 0 }));
@@ -485,6 +523,52 @@ describe('spawnViaCliTube — failure paths', () => {
     });
     expect(captured).toBeDefined();
     expect(captured.pid).toBe(4242);
+  });
+
+  test('timeout resolves if child exits nonzero after SIGTERM but before SIGKILL', async () => {
+    jest.useFakeTimers();
+    try {
+      const child = fakeChild({ stdout: 'late failure', exitCode: 1, delay: 15 });
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
+      await jest.advanceTimersByTimeAsync(10);
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+      await jest.advanceTimersByTimeAsync(5);
+
+      const res = await resultPromise;
+      expect(child.kill).not.toHaveBeenCalledWith('SIGKILL');
+      expect(res.exitCode).toBe(1);
+      expect(res.output).toBe('late failure');
+      expect(res.error).toContain('agy timed out after 10ms');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('timeout resolves even when the child never emits close', async () => {
+    jest.useFakeTimers();
+    try {
+      const child = fakeChild({ stdout: 'partial output', neverClose: true });
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
+      // Step 1: reach the parent watchdog timeout, which sends SIGTERM.
+      await jest.advanceTimersByTimeAsync(10);
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+      // Step 2: exhaust TIMEOUT_KILL_GRACE_MS so the backend escalates to SIGKILL.
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+      // Step 3: exhaust the final forced-settle delay for children that never close.
+      await jest.advanceTimersByTimeAsync(1000);
+
+      const res = await resultPromise;
+      expect(res.exitCode).toBe(-1);
+      expect(res.output).toBe('partial output');
+      expect(res.error).toContain('agy timed out after 10ms');
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 
