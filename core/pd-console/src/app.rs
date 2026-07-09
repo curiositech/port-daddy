@@ -1291,12 +1291,14 @@ fn render_code_line(
     // Per-run color highlights over one text element; Plain runs inherit the
     // container's ink2 so only colored spans carry a HighlightStyle.
     let mut highlights: Vec<(std::ops::Range<usize>, HighlightStyle)> = Vec::new();
+    let text_len = line.text.len();
     let mut at = 0usize;
     for (len, kind) in &line.runs {
-        let end = at + *len as usize;
-        if !matches!(kind, crate::pane::SyntaxKind::Plain) {
+        let start = at.min(text_len);
+        let end = at.saturating_add(*len as usize).min(text_len);
+        if !matches!(kind, crate::pane::SyntaxKind::Plain) && start < end {
             highlights.push((
-                at..end.min(line.text.len()),
+                start..end,
                 HighlightStyle {
                     color: Some(rgb(t.syntax(*kind)).into()),
                     ..Default::default()
@@ -1304,7 +1306,11 @@ fn render_code_line(
             ));
         }
         at = end;
+        if at >= text_len {
+            break;
+        }
     }
+    let author_tag = line.author_tag.clone();
 
     div()
         .h(px(tokens::CODE_LINE_H))
@@ -1338,9 +1344,9 @@ fn render_code_line(
                 .w(px(2.0 * tokens::CODE_CH + 6.0))
                 .flex_shrink_0()
                 .text_color(rgb(t.tone(&line.author_tone)))
-                .when_some(line.author_tag.clone(), |d, tag| d.child(tag)),
+                .when_some(author_tag, |d, tag| d.child(SharedString::new(tag))),
         )
-        .child(StyledText::new(SharedString::from(line.text.clone())).with_highlights(highlights))
+        .child(StyledText::new(SharedString::new(line.text.clone())).with_highlights(highlights))
         .into_any_element()
 }
 

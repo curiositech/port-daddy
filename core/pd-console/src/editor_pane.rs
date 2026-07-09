@@ -731,12 +731,15 @@ impl EditorPane {
                 .into_iter()
                 .take(MAX_LINES)
                 .enumerate()
-                .map(|(i, l)| CodeLine {
-                    number: (i + 1) as u32,
-                    author_tag: l.author_peer.map(author_tag),
-                    author_tone: author_tone(l.author_peer, opener),
-                    runs: crate::syntax::highlight_line(&l.text, lang),
-                    text: l.text,
+                .map(|(i, l)| {
+                    let runs = crate::syntax::highlight_line(&l.text, lang);
+                    CodeLine {
+                        number: (i + 1) as u32,
+                        author_tag: l.author_peer.map(|peer| Arc::<str>::from(author_tag(peer))),
+                        author_tone: author_tone(l.author_peer, opener),
+                        runs,
+                        text: Arc::<str>::from(l.text),
+                    }
                 })
                 .collect();
             *slot = Some(CodeCache {
@@ -1079,9 +1082,9 @@ mod tests {
         let r = rows(&blocks);
         // Line numbers are 1-based and always present; text is the raw line.
         assert_eq!(r[0].number, 1);
-        assert_eq!(r[0].text, "alpha");
+        assert_eq!(r[0].text.as_ref(), "alpha");
         assert_eq!(r[1].number, 2);
-        assert_eq!(r[2].text, "charlie");
+        assert_eq!(r[2].text.as_ref(), "charlie");
         // The author column is ALWAYS present (operator ruling 2026-07-07):
         // a single-author file's lines all carry the opener's tag, Resting-
         // toned; show_authors stays false as the "no second author" hint.
@@ -1319,7 +1322,7 @@ mod tests {
             human_tag, agent_tag,
             "distinct replicas carry distinct tags"
         );
-        assert_eq!(lines[1].text, "agent added this");
+        assert_eq!(lines[1].text.as_ref(), "agent added this");
     }
 
     /// The author→Tone mapping is the checked contract behind the gutter color:
@@ -1394,7 +1397,7 @@ mod tests {
         let blocks = pane.view();
         let r = rows(&blocks);
         assert_eq!(r.len(), 2, "human line + wired-in agent line");
-        assert_eq!(r[1].text, "agent added over the wire");
+        assert_eq!(r[1].text.as_ref(), "agent added over the wire");
         let agent_tag = author_tag(peer_id_for_identity(agent_id));
         assert_eq!(
             r[1].author_tag.as_deref(),
@@ -1700,7 +1703,7 @@ mod tests {
             2,
             "operator + agent lines survived to the cold replica via /blob"
         );
-        assert_eq!(r[1].text, "agent added before the crash");
+        assert_eq!(r[1].text.as_ref(), "agent added before the crash");
         let agent_tag = author_tag(peer_id_for_identity(agent_id));
         assert_eq!(
             r[1].author_tag.as_deref(),

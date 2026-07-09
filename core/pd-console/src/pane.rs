@@ -10,6 +10,7 @@
 use crate::agent::DaemonClient;
 use crate::theme::Oklch;
 use anyhow::Result;
+use std::sync::Arc;
 
 /// Semantic tone — color = MEANING only (resolved to theme OKLCH by the renderer).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,11 +70,11 @@ pub struct CodeLine {
     /// editor's point). `Some` for every attributed line; `None` only when
     /// the buffer has no authorship info for the line. Renderers tone it by
     /// [`author_tone`](CodeLine::author_tone) — opener subtle, agent distinct.
-    pub author_tag: Option<String>,
+    pub author_tag: Option<Arc<str>>,
     /// Tone for the author tag (opener = Resting, agent peer = Engaged).
     pub author_tone: Tone,
     /// The line's text (no trailing newline).
-    pub text: String,
+    pub text: Arc<str>,
     /// Consecutive `(byte_len, kind)` syntax runs exactly covering `text`.
     pub runs: Vec<(u32, SyntaxKind)>,
 }

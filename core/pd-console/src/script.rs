@@ -219,7 +219,7 @@ pub fn block_to_json(block: &Block) -> Value {
                 "number": line.number,
                 "authorTag": line.author_tag.as_deref(),
                 "authorTone": format!("{:?}", line.author_tone),
-                "text": &line.text,
+                "text": line.text.as_ref(),
                 "runs": line.runs.iter().map(|(len, kind)| json!({
                     "len": len,
                     "kind": format!("{:?}", kind),
