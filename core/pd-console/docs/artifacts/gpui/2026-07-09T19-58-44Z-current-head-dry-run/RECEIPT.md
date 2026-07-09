@@ -2,36 +2,31 @@
 {
   "schema": "pd-console.visual-proof.v1",
   "artifactKind": "receipt",
-  "captureCommit": "fc235d5016bfd1c325013b0c472aacc7e585b073",
-  "captureCommitShort": "fc235d501",
+  "captureCommit": "0bf4ee31c315df3b629aa6c56aa1a74132b3bf73",
+  "captureCommitShort": "0bf4ee31c",
   "captureCommitPolicy": "documented-capture-commit",
-  "artifactStatus": "historical-non-current-real-capture",
   "proofScope": "exact-window-harness-only",
   "providerTranscriptE2E": false,
-  "dryRun": false
+  "dryRun": true
 }
 -->
 
 # pd-console visual proof receipt
 
 Artifact dir:
-`core/pd-console/docs/artifacts/gpui/2026-07-09T19-40-00Z-exact-window-fallback-smoke`
-
-Historical status: this is a real exact-window fallback capture from commit
-`fc235d501`, retained as historical visual evidence. It is not claimed as fresh
-provider/transcript E2E proof for the current PR head.
+`core/pd-console/docs/artifacts/gpui/2026-07-09T19-58-44Z-current-head-dry-run`
 
 ## Context
 
 - Branch: `codex/pd-console-visual-proof-lane`
-- Commit: `fc235d501`
+- Commit: `0bf4ee31c`
 - Daemon URL: `http://127.0.0.1:9876`
-- Display selector: `104115ce-748a-4d96-afa9-170076c0e4b4`
+- Display selector: `proof-display-current-head-dry-run`
 - Source binary: `/Users/erichowens/coding/tmp/port-daddy-pd-console-visual-proof-lane/core/pd-console/../target/release/pd-console`
 - Proof launch binary: `/Users/erichowens/coding/tmp/port-daddy-pd-console-visual-proof-lane/core/pd-console/../target/proof/pd-console-proof`
 - Quartz owner name: `pd-console-proof`
-- Video mode: `screencapture`
-- Settle delay: `8s`
+- Video mode: `auto`
+- Settle delay: `3s`
 
 ## Safety Contract
 
@@ -54,18 +49,18 @@ Supporting evidence:
 - `MANIFEST.md`
 - `RECEIPT.md`
 - `video-frames/frame-*.png`
+- `recorder.log`
 
 ## Window IDs
 
-- `pane=lane pid=19245 window=53748`
-- `pane=lane-video pid=21412 window=53773`
+- `pane=lane pid=<pid> window=<windowid>`
 
 ## Commands
 
 Launch proof-owned window:
 
 ```sh
-PORT_DADDY_URL=http://127.0.0.1:9876 "/Users/erichowens/coding/tmp/port-daddy-pd-console-visual-proof-lane/core/pd-console/../target/proof/pd-console-proof" --pane "<pane>" --display "104115ce-748a-4d96-afa9-170076c0e4b4"
+PORT_DADDY_URL=http://127.0.0.1:9876 "/Users/erichowens/coding/tmp/port-daddy-pd-console-visual-proof-lane/core/pd-console/../target/proof/pd-console-proof" --pane "<pane>" --display "proof-display-current-head-dry-run"
 ```
 
 Exact-window still capture:
@@ -93,12 +88,13 @@ Best-effort ScreenCaptureKit path:
 
 ## Method
 
-- ScreenCaptureKit: skipped by PD_PROOF_VIDEO_MODE=screencapture
-- Exact-window fallback: captured 4 window-only frames (4 unique hashes)
-- Accepted video method: screencapture-window-frames
+- ScreenCaptureKit: not attempted in dry-run
+- Exact-window fallback: planned first-class exact-window fallback
+- Accepted video method: dry-run
 
 ## Limitations
 
+- Dry-run receipt only; no GPUI window, screenshot, or video was captured.
 - Requires a logged-in macOS GUI session for real GPUI capture.
 - Requires Screen Recording permission for window-only `screencapture` and ScreenCaptureKit.
 - Requires a virtual display for non-intrusive proof unless `PD_PROOF_ALLOW_PRIMARY=1` is explicitly set for local debugging.

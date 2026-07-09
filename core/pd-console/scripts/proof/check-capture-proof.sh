@@ -7,7 +7,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 HARNESS="$ROOT/scripts/proof/capture-proof.sh"
 VERIFY="$ROOT/scripts/proof/verify-artifacts.mjs"
-SAMPLE_DIR="${PD_PROOF_SAMPLE_DIR:-$ROOT/docs/artifacts/gpui/2026-07-09T19-40-00Z-exact-window-fallback-smoke}"
+DEFAULT_SAMPLE_DIRS="$ROOT/docs/artifacts/gpui/2026-07-09T19-40-00Z-exact-window-fallback-smoke $ROOT/docs/artifacts/gpui/2026-07-09T19-58-44Z-current-head-dry-run"
+SAMPLE_DIRS="${PD_PROOF_SAMPLE_DIRS:-${PD_PROOF_SAMPLE_DIR:-$DEFAULT_SAMPLE_DIRS}}"
 TMP_ROOT="${TMPDIR:-/tmp}"
 OUT="$(mktemp -d "$TMP_ROOT/pd-console-proof-check.XXXXXX")"
 trap 'rm -rf "$OUT"' EXIT
@@ -53,6 +54,7 @@ assert_contains "$OUT/MANIFEST.md" "RECEIPT.md"
 assert_contains "$OUT/MANIFEST.md" "proof-window-fallback.mp4"
 
 node "$VERIFY" "$OUT"
-node "$VERIFY" "$SAMPLE_DIR"
+# shellcheck disable=SC2086 # sample dirs are repo-controlled paths without spaces
+node "$VERIFY" $SAMPLE_DIRS
 
 echo "proof-check: ok"

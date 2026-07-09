@@ -2,25 +2,21 @@
 {
   "schema": "pd-console.visual-proof.v1",
   "artifactKind": "manifest",
-  "captureCommit": "fc235d5016bfd1c325013b0c472aacc7e585b073",
-  "captureCommitShort": "fc235d501",
+  "captureCommit": "0bf4ee31c315df3b629aa6c56aa1a74132b3bf73",
+  "captureCommitShort": "0bf4ee31c",
   "captureCommitPolicy": "documented-capture-commit",
-  "artifactStatus": "historical-non-current-real-capture",
   "proofScope": "exact-window-harness-only",
   "providerTranscriptE2E": false,
-  "dryRun": false
+  "dryRun": true
 }
 -->
 
-# pd-console visual proof - 2026-07-09T19-40-00Z-exact-window-fallback-smoke
+# pd-console visual proof - 2026-07-09T19-58-44Z-current-head-dry-run
 
 Branch: `codex/pd-console-visual-proof-lane`
-Commit: `fc235d501`
-Display selector: `104115ce-748a-4d96-afa9-170076c0e4b4`
+Commit: `0bf4ee31c`
+Display selector: `proof-display-current-head-dry-run`
 Capture owner: proof-owned pd-console window filtered by launched PID.
-
-Historical status: real exact-window fallback capture from commit `fc235d501`;
-not current-head provider/transcript E2E proof.
 
 ## Receipt
 

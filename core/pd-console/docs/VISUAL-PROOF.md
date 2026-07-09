@@ -77,6 +77,14 @@ Run the deterministic receipt smoke before trusting the harness:
 make -C core/pd-console proof-check
 ```
 
+`proof-check` verifies more than receipt vocabulary. It runs a dry-run capture,
+parses the machine-readable `pd-console-proof-metadata` JSON block in each
+`RECEIPT.md` and `MANIFEST.md`, and checks committed artifact bundles for a
+current HEAD commit or an explicitly documented capture commit. Real sample
+bundles may be retained as historical proof when a headless/no-GUI context
+cannot refresh them, but they must say so in metadata and must not claim
+provider/transcript end-to-end coverage.
+
 Tunables (env):
 
 | Var | Default | Meaning |
@@ -95,6 +103,11 @@ Tunables (env):
 Paste `MANIFEST.md` into the PR and keep `RECEIPT.md` with the artifact bundle.
 The receipt records the display selector, launched proof binary, window IDs,
 exact commands, video method, and limitations.
+
+When `PD_PROOF_DISPLAY` is set explicitly, the harness prevalidates the selector
+against `pd-console --list-displays` and fails with `OPERATOR-INTERVENTION.md`
+if it is missing or resolves to the primary display. It must never rely on
+pd-console's display fallback for proof capture.
 
 ## CI note
 
