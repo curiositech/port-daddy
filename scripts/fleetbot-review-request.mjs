@@ -111,7 +111,8 @@ export function classifyFleetbotSignal(snapshot = {}, config = {}) {
   }
 
   const labelNames = lowerSet(namesFrom(snapshot.labels))
-  const commentBodies = (Array.isArray(snapshot.comments) ? snapshot.comments : []).map(bodyText)
+  const comments = Array.isArray(snapshot.comments) ? snapshot.comments : []
+  const commentBodies = comments.map(bodyText)
   const requestUsers = lowerSet(namesFrom(snapshot.requestedReviewers?.users, 'login'))
   const requestTeams = lowerSet(namesFrom(snapshot.requestedReviewers?.teams, 'slug'))
   const checkNames = lowerSet(namesFrom(snapshot.checkRuns))
@@ -126,20 +127,17 @@ export function classifyFleetbotSignal(snapshot = {}, config = {}) {
     configuredTeams.length > 0 && configuredTeams.some((slug) => requestTeams.has(slug))
   const hasLabel = labelNames.has(FLEETBOT_LABEL)
   const hasStickyComment = commentBodies.some((body) => body.includes(FLEETBOT_COMMENT_MARKER))
-  const hasShipComment = commentBodies.some((body) => FLEETBOT_SHIP_COMMENT_RE.test(body))
+  const hasShipComment = comments.some((comment) => {
+    const login = authorLogin(comment)
+    return FLEETBOT_REVIEW_AUTHOR_RE.test(login) && FLEETBOT_SHIP_COMMENT_RE.test(bodyText(comment))
+  })
   const hasFleetCheck = checkNames.has(FLEETBOT_CHECK_NAME.toLowerCase())
   const hasFleetReview = reviews.some((review) => {
     const login = authorLogin(review)
-    const body = bodyText(review)
-    return (
-      FLEETBOT_REVIEW_AUTHOR_RE.test(login) ||
-      body.includes(FLEETBOT_COMMENT_MARKER) ||
-      body.includes(FLEETBOT_CHECK_NAME) ||
-      FLEETBOT_SHIP_COMMENT_RE.test(body)
-    )
+    return FLEETBOT_REVIEW_AUTHOR_RE.test(login)
   })
 
-  const requestTracked = hasLabel || hasStickyComment || directUserRequested || directTeamRequested
+  const requestTracked = (hasLabel && hasStickyComment) || directUserRequested || directTeamRequested
   const reviewObserved = hasFleetCheck || hasShipComment || hasFleetReview
   const ok = requestTracked || reviewObserved
 

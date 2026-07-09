@@ -47,6 +47,22 @@ test('fallback label plus sticky comment satisfies Fleetbot request tracking', (
   assert.equal(state.signals.hasStickyComment, true)
 })
 
+test('fallback tracking requires the label and sticky comment together', () => {
+  const labelOnly = classifyFleetbotSignal({
+    labels: [{ name: FLEETBOT_LABEL }],
+    comments: [],
+  })
+  assert.equal(labelOnly.ok, false)
+  assert.equal(labelOnly.requestTracked, false)
+
+  const commentOnly = classifyFleetbotSignal({
+    labels: [],
+    comments: [{ body: FLEETBOT_COMMENT_MARKER, user: { login: 'github-actions[bot]' } }],
+  })
+  assert.equal(commentOnly.ok, false)
+  assert.equal(commentOnly.requestTracked, false)
+})
+
 test('configured requestable user or team counts only when that exact target is requested', () => {
   const missing = classifyFleetbotSignal(
     { requestedReviewers: { users: [{ login: 'someone-else' }], teams: [] } },
@@ -75,13 +91,24 @@ test('Fleetbot check run, ship comment, or review satisfies already-spoken PRs',
     true,
   )
   assert.equal(
-    classifyFleetbotSignal({ comments: [{ body: '<!-- pd-ship:code-reviewer -->' }] }).ok,
+    classifyFleetbotSignal({
+      comments: [{ body: '<!-- pd-ship:code-reviewer -->', user: { login: 'pd-code-reviewer[bot]' } }],
+    }).ok,
     true,
   )
   assert.equal(
     classifyFleetbotSignal({ reviews: [{ user: { login: 'port-daddy-fleet[bot]' }, body: 'Review.' }] }).ok,
     true,
   )
+})
+
+test('ship comment markers require a Fleetbot author', () => {
+  const state = classifyFleetbotSignal({
+    comments: [{ body: '<!-- pd-ship:code-reviewer -->', user: { login: 'random-reviewer' } }],
+  })
+  assert.equal(state.ok, false)
+  assert.equal(state.reviewObserved, false)
+  assert.equal(state.signals.hasShipComment, false)
 })
 
 test('draft PRs skip until ready_for_review', () => {
