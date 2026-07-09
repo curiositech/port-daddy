@@ -27,12 +27,18 @@ import type {
   DispatchState,
   ProposeDispatchInput,
   ListDispatchesOptions,
+  Dispatch,
 } from '../lib/dispatch/queue.js';
 import type { DispatchWorker } from '../lib/dispatch/worker.js';
+import {
+  WorkIntentMaterializationError,
+  type WorkIntentService,
+} from '../lib/agent-harbor/work-intent-service.js';
 
 interface DispatchesRouteDeps {
   deps: {
     dispatchQueue: DispatchQueue;
+    workIntentService?: WorkIntentService;
     /**
      * Daemon-side worker draining the queue. Absent when PD_DISPATCH_WORKER=false
      * (the operator runs dispatches foreground instead). The worker-status + run
@@ -48,25 +54,91 @@ const dispatchesPlugin: FastifyPluginAsync<DispatchesRouteDeps> = async (
 ) => {
   const { dispatchQueue, dispatchWorker } = deps;
 
+  function idempotencyKey(req: FastifyRequest, body: Record<string, unknown>): string | undefined {
+    const header = req.headers['idempotency-key'];
+    if (typeof header === 'string' && header.trim()) return header.trim();
+    if (Array.isArray(header) && typeof header[0] === 'string' && header[0].trim()) {
+      return header[0].trim();
+    }
+    return typeof body.idempotencyKey === 'string' && body.idempotencyKey.trim()
+      ? body.idempotencyKey.trim()
+      : undefined;
+  }
+
+  function missingWorkIntentService(reply: FastifyReply) {
+    return reply.code(503).send({
+      ok: false,
+      error: 'WorkIntent dispatch intake is unavailable; refusing compatibility dispatch side effect',
+    });
+  }
+
+  function ensureDispatchIntent(dispatch: Dispatch, reply: FastifyReply): true | FastifyReply {
+    if (!deps.workIntentService) {
+      return missingWorkIntentService(reply);
+    }
+    try {
+      deps.workIntentService.ensureDispatchIntent(dispatch);
+      return true;
+    } catch (err) {
+      return reply.code(409).send({
+        ok: false,
+        error:
+          'dispatch side effect refused because WorkIntent import failed: ' +
+          (err instanceof Error ? err.message : String(err)),
+        dispatch,
+      });
+    }
+  }
+
   // POST /dispatches — propose
   fastify.post(
     '/dispatches',
     async (req: FastifyRequest, reply: FastifyReply) => {
-      const body = (req.body ?? {}) as Partial<ProposeDispatchInput>;
+      const body = (req.body ?? {}) as Partial<ProposeDispatchInput> & { idempotencyKey?: string };
       if (!body.goal || typeof body.goal !== 'string') {
         return reply.code(400).send({ ok: false, error: "missing 'goal' string" });
       }
+      if (!deps.workIntentService) {
+        return missingWorkIntentService(reply);
+      }
       try {
-        const dispatch = dispatchQueue.propose({
+        const result = deps.workIntentService.captureDispatch({
           goal: body.goal,
           requestedBy: body.requestedBy ?? 'operator',
           mergePolicy: body.mergePolicy ?? 'review',
           baseBranch: body.baseBranch ?? 'main',
           targetActorId: body.targetActorId,
           reviewerActorId: body.reviewerActorId,
+          backend: body.backend,
+          budgetUsd: body.budgetUsd,
+          timeoutMs: body.timeoutMs,
+          tags: body.tags,
+          idempotencyKey: idempotencyKey(req, body as Record<string, unknown>),
+        }, dispatchQueue);
+        return reply.code(result.append.duplicate ? 200 : 201).send({
+          ok: true,
+          dispatch: result.dispatch,
+          workIntent: {
+            intentId: result.intent.intentId,
+            idempotencyKey: result.intent.idempotencyKey,
+            duplicate: result.append.duplicate,
+          },
         });
-        return reply.code(201).send({ ok: true, dispatch });
       } catch (err) {
+        if (err instanceof WorkIntentMaterializationError) {
+          return reply.code(500).send({
+            ok: false,
+            error:
+              'WorkIntent captured but dispatch projection materialization failed; no spawn was started. ' +
+              err.message,
+            phase: 'dispatch_projection_materialization',
+            workIntent: {
+              intentId: err.intent.intentId,
+              idempotencyKey: err.intent.idempotencyKey,
+              duplicate: err.append.duplicate,
+            },
+          });
+        }
         return reply.code(400).send({
           ok: false,
           error: err instanceof Error ? err.message : String(err),
@@ -146,6 +218,8 @@ const dispatchesPlugin: FastifyPluginAsync<DispatchesRouteDeps> = async (
           dispatch,
         });
       }
+      const ensured = ensureDispatchIntent(dispatch, reply);
+      if (ensured !== true) return ensured;
       let launched = 0;
       try {
         launched = await dispatchWorker.poll();
@@ -168,6 +242,10 @@ const dispatchesPlugin: FastifyPluginAsync<DispatchesRouteDeps> = async (
     '/dispatches/:id/accept',
     async (req, reply) => {
       try {
+        const existing = dispatchQueue.get(req.params.id);
+        if (!existing) throw new Error(`accept: dispatch ${req.params.id} not found`);
+        const ensured = ensureDispatchIntent(existing, reply);
+        if (ensured !== true) return ensured;
         const body = req.body ?? {};
         const dispatch = dispatchQueue.accept({
           id: req.params.id,
@@ -195,6 +273,10 @@ const dispatchesPlugin: FastifyPluginAsync<DispatchesRouteDeps> = async (
         });
       }
       try {
+        const existing = dispatchQueue.get(req.params.id);
+        if (!existing) throw new Error(`reject: dispatch ${req.params.id} not found`);
+        const ensured = ensureDispatchIntent(existing, reply);
+        if (ensured !== true) return ensured;
         const dispatch = dispatchQueue.reject({
           id: req.params.id,
           reason: body.reason.trim(),
@@ -214,6 +296,10 @@ const dispatchesPlugin: FastifyPluginAsync<DispatchesRouteDeps> = async (
     '/dispatches/:id/cancel',
     async (req, reply) => {
       try {
+        const existing = dispatchQueue.get(req.params.id);
+        if (!existing) throw new Error(`cancel: dispatch ${req.params.id} not found`);
+        const ensured = ensureDispatchIntent(existing, reply);
+        if (ensured !== true) return ensured;
         const dispatch = dispatchQueue.cancel(req.params.id, req.body?.reason);
         return reply.send({ ok: true, dispatch });
       } catch (err) {

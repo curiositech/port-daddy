@@ -68,6 +68,7 @@ import { createConductor } from './lib/fleet/conductor.js';
 import { createDispatchQueue } from './lib/dispatch/queue.js';
 import { createDispatchWorker } from './lib/dispatch/worker.js';
 import { createConductorSpawnAdapter } from './lib/dispatch/conductor-adapter.js';
+import { createWorkIntentService } from './lib/agent-harbor/work-intent-service.js';
 import {
   gitWorktreeAdd,
   gitPushBranch,
@@ -752,6 +753,7 @@ if (FLEET_GLOBAL_CEILING_USD == null) {
 // (intentToSpawnSpec) and the spawner — wired with `tubeClient: messaging` above —
 // publishes the cli-tube exchange there, so `pd tube dispatch:<id>` still works.
 const dispatchQueue = createDispatchQueue({ db });
+const workIntentService = createWorkIntentService({ db });
 const DISPATCH_WORKER_ENABLED = process.env.PD_DISPATCH_WORKER !== 'false';
 const _dispatchConcurrency = parseInt(process.env.PD_DISPATCH_CONCURRENCY ?? '2', 10);
 const DISPATCH_CONCURRENCY = Number.isFinite(_dispatchConcurrency) && _dispatchConcurrency >= 1
@@ -1305,7 +1307,7 @@ await registerAllRoutes(
     routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
-    harbors, sorties, conductor, dispatchQueue, dispatchWorker, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
+    harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, cloudAppTelemetry, counters, metricsRegistry,
     contextTracker,
     custodian, operatorPermissions,

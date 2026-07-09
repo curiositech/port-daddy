@@ -31,7 +31,6 @@ import {
   runNext,
   type DispatchBackend,
 } from '../../lib/dispatch/runner.js';
-import { defaultSpawnAdapter } from '../../lib/dispatch/spawn-adapter.js';
 import { describeState, stateGlyph } from '../../lib/dispatch/state-machine.js';
 
 import type { CLIOptions } from '../types.js';
@@ -141,6 +140,43 @@ function printDispatchDetail(d: Dispatch): void {
   if (d.producedAt) console.log(`  producedAt:     ${new Date(d.producedAt).toISOString()}`);
   if (d.reviewedAt) console.log(`  reviewedAt:     ${new Date(d.reviewedAt).toISOString()}`);
   if (d.settledAt) console.log(`  settledAt:      ${new Date(d.settledAt).toISOString()}`);
+}
+
+async function readResponseJson(res: Awaited<ReturnType<typeof pdFetch>>): Promise<Record<string, unknown>> {
+  try {
+    return await res.json();
+  } catch {
+    return {};
+  }
+}
+
+async function runDispatchViaDaemon(id: string): Promise<Record<string, unknown>> {
+  if (!(await isDaemonRunning())) {
+    throw new Error(
+      'daemon unavailable; refusing local dispatch --really-run fallback. ' +
+      'Start the daemon from FleetBar or retry when Port Daddy is healthy.',
+    );
+  }
+  const res = await pdFetch(`/dispatches/${encodeURIComponent(id)}/run`, { method: 'POST' });
+  const payload = await readResponseJson(res);
+  if (!res.ok) {
+    const error = typeof payload.error === 'string'
+      ? payload.error
+      : `daemon returned HTTP ${res.status ?? 'unknown'}`;
+    throw new Error(error);
+  }
+  return payload;
+}
+
+function printDaemonRunResult(payload: Record<string, unknown>): void {
+  const launched = typeof payload.launchedThisTick === 'number'
+    ? payload.launchedThisTick
+    : 0;
+  ui.success('Dispatch queued for daemon-side execution.');
+  console.log(`  launched_this_tick: ${launched}`);
+  if (typeof payload.message === 'string') {
+    console.log(`  message: ${payload.message}`);
+  }
 }
 
 export async function handleDispatch(args: string[], options: CLIOptions): Promise<void> {
@@ -343,10 +379,33 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
     const rest = args.slice(1);
     const wantsNext = rest.includes('--next') || !!options.next;
     if (wantsNext) {
+      if (!dryRun) {
+        const next = [...queue.list({ state: 'proposed' })]
+          .sort((a, b) => a.createdAt - b.createdAt)[0];
+        if (!next) {
+          if (isJson(options)) {
+            console.log(JSON.stringify({ result: null, message: 'queue is empty' }, null, 2));
+          } else {
+            console.log('No proposed dispatches to run.');
+          }
+          return;
+        }
+        try {
+          const result = await runDispatchViaDaemon(next.id);
+          if (isJson(options)) {
+            console.log(JSON.stringify(result, null, 2));
+          } else {
+            printDaemonRunResult(result);
+          }
+          return;
+        } catch (err) {
+          ui.error(`Dispatch daemon run failed: ${err instanceof Error ? err.message : String(err)}`);
+          process.exit(1);
+        }
+      }
       const result = await runNext(queue, {
         dryRun,
         backend: parseBackend(options.backend),
-        spawnAdapter: dryRun ? undefined : defaultSpawnAdapter,
       });
       if (!result) {
         if (isJson(options)) {
@@ -383,46 +442,27 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
     const plan = planRunFor(d, {
       backend: parseBackend(options.backend),
     });
-    if (isJson(options)) {
+    if (isJson(options) && dryRun) {
       console.log(JSON.stringify({ plan, dryRun }, null, 2));
       return;
     }
-    printPlan(plan, dryRun);
+    if (!isJson(options)) printPlan(plan, dryRun);
     if (!dryRun) {
-      // Really-run path for a specific dispatch ID: use runNext-equivalent
-      // semantics but for the targeted dispatch.
       if (d.state !== 'proposed') {
         ui.error(`Dispatch ${id} is in state '${d.state}'; only 'proposed' dispatches can be run.`);
         process.exit(1);
       }
-      console.log('');
-      console.log('Running dispatch (this may take a while)...');
-      let runResult;
       try {
-        runResult = await runNext(queue, {
-          dryRun: false,
-          backend: parseBackend(options.backend),
-          spawnAdapter: defaultSpawnAdapter,
-        });
-      } catch (err) {
-        ui.error(`Dispatch run failed: ${err instanceof Error ? err.message : String(err)}`);
-        process.exit(1);
-      }
-      if (!runResult) {
-        ui.error('Queue was empty when run was attempted (dispatch may have been cancelled).');
-        process.exit(1);
-      }
-      console.log('');
-      if (runResult.result) {
-        const r = runResult.result;
-        if (r.state === 'settled') {
-          ui.success(`Dispatch complete.`);
+        const result = await runDispatchViaDaemon(id);
+        if (isJson(options)) {
+          console.log(JSON.stringify({ plan, dryRun, daemon: result }, null, 2));
         } else {
-          ui.warn(`Dispatch ended with state: ${r.state}`);
+          console.log('');
+          printDaemonRunResult(result);
         }
-        if (r.errorMessage) console.log(`  error:    ${r.errorMessage}`);
-        if (r.costUsd != null) console.log(`  cost:     $${r.costUsd.toFixed(2)}`);
-        if (r.resultArtifact) console.log(`  PR:       ${r.resultArtifact}`);
+      } catch (err) {
+        ui.error(`Dispatch daemon run failed: ${err instanceof Error ? err.message : String(err)}`);
+        process.exit(1);
       }
     }
     return;
