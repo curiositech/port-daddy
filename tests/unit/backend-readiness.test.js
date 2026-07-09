@@ -232,7 +232,7 @@ describe('backend readiness', () => {
   });
 
   test('keeps codex probe details and allows launch when exact telemetry is available', async () => {
-    const cli = installCli('codex');
+    installCli('codex');
 
     const readiness = await assessBackendReadiness('codex');
 

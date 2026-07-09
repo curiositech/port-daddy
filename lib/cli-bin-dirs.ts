@@ -11,8 +11,9 @@
  * time, and vice versa.
  *
  * Operators whose CLI lives somewhere unusual set PD_CLI_BIN_DIRS
- * (colon-separated) instead of touching launchd's PATH. Computed per-call
- * so the override is honored at runtime (and testable).
+ * (PATH-delimiter-separated: ':' on POSIX, ';' on Windows) instead of touching
+ * launchd's PATH. Computed per-call so the override is honored at runtime
+ * (and testable).
  */
 
 import { delimiter, isAbsolute, join } from 'node:path';
@@ -124,7 +125,7 @@ export function resolveCliBinary(
 
 function findExecutableOnPath(command: string, basePath = process.env.PATH || ''): string | null {
   const expanded = expandHome(command);
-  if (expanded.includes('/') || isAbsolute(expanded)) {
+  if (expanded.includes('/') || expanded.includes('\\') || isAbsolute(expanded)) {
     return isExecutableFile(expanded) ? expanded : null;
   }
 

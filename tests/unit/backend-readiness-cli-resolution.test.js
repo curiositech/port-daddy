@@ -142,4 +142,24 @@ describe('backend-readiness commandExists CLI resolution', () => {
     expect(resolution.warning).toContain('PD_CLI_CLAUDE_CODE_BIN=claude-beta');
     expect(resolution.warning).toContain(`using discovered claude at ${stub}`);
   });
+
+  test('treats Windows-style relative overrides as paths, not bare commands', () => {
+    const overrideDir = join(dir, 'override-bin');
+    const stub = join(overrideDir, 'bin\\claude');
+    mkdirSync(overrideDir, { recursive: true });
+    writeFileSync(stub, '#!/bin/sh\necho slashy\n');
+    chmodSync(stub, 0o755);
+    process.env.PD_CLI_BIN_DIRS = overrideDir;
+    process.env.PD_CLI_CLAUDE_CODE_BIN = 'bin\\claude';
+
+    const resolution = resolveCliBinary('claude', { envOverride: 'PD_CLI_CLAUDE_CODE_BIN' });
+
+    expect(resolution).toMatchObject({
+      found: false,
+      command: 'bin\\claude',
+      source: 'unresolved',
+      override: 'bin\\claude',
+    });
+    expect(resolution.warning).toContain('no claude binary was found');
+  });
 });
