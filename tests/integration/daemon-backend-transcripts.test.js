@@ -7,6 +7,7 @@ import {
   actualExecutionBackend,
   assertNoSilentBackendOverride,
   assertTranscriptReadback,
+  createScratchSpawnWorktree,
   seedProjectBudget,
   withFakeOpenAICompatibleServer,
   writeFakeClaudeBinary,
@@ -37,6 +38,7 @@ function spawnBody(backend, overrides = {}) {
 describe('daemon backend transcript E2E smoke', () => {
   test('fails before launch when stale PD_CLI_CLAUDE_CODE_BIN has no discoverable claude fallback', async () => {
     const tmp = mkdtempSync(join(tmpdir(), 'pd-stale-claude-'));
+    const spawnWorktree = createScratchSpawnWorktree(tmp);
     const staleClaude = join(tmp, 'missing', 'claude');
     const daemon = await startEphemeralDaemon({
       startupTimeout: 45000,
@@ -50,7 +52,7 @@ describe('daemon backend transcript E2E smoke', () => {
     try {
       const res = await daemon.request('/spawn', {
         method: 'POST',
-        body: spawnBody('cli:claude-code', { model: 'sonnet' }),
+        body: spawnBody('cli:claude-code', { model: 'sonnet', workdir: spawnWorktree.workdir }),
         timeout: 70000,
       });
 
@@ -65,12 +67,14 @@ describe('daemon backend transcript E2E smoke', () => {
       expect(existsSync(staleClaude)).toBe(false);
     } finally {
       await daemon.cleanup();
+      spawnWorktree.cleanup();
       rmSync(tmp, { recursive: true, force: true });
     }
   }, 60000);
 
   test('launches cli:claude-code through /spawn with stale override and fallback via PD_CLI_BIN_DIRS', async () => {
     const tmp = mkdtempSync(join(tmpdir(), 'pd-fake-claude-'));
+    const spawnWorktree = createScratchSpawnWorktree(tmp);
     const staleClaude = join(tmp, 'stale-home', '.local', 'bin', 'claude');
     const fakeBinDir = join(tmp, 'nvm', 'versions', 'node', 'v22.17.1', 'bin');
     const fakeClaude = join(fakeBinDir, 'claude');
@@ -87,7 +91,7 @@ describe('daemon backend transcript E2E smoke', () => {
       await seedProjectBudget(daemon, 'port-daddy');
       const res = await daemon.request('/spawn', {
         method: 'POST',
-        body: spawnBody('cli:claude-code', { model: 'sonnet' }),
+        body: spawnBody('cli:claude-code', { model: 'sonnet', workdir: spawnWorktree.workdir }),
         timeout: 70000,
       });
 
@@ -107,11 +111,14 @@ describe('daemon backend transcript E2E smoke', () => {
       expect(existsSync(staleClaude)).toBe(false);
     } finally {
       await daemon.cleanup();
+      spawnWorktree.cleanup();
       rmSync(tmp, { recursive: true, force: true });
     }
   }, 60000);
 
   test('launches an OpenAI-compatible fake service through /spawn and reads back transcript plus budget compliance', async () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'pd-openai-workdir-'));
+    const spawnWorktree = createScratchSpawnWorktree(tmp);
     const openai = await withFakeOpenAICompatibleServer('pd-openai-smoke');
     const daemonEnv = {
       PATH: LAUNCHD_RESTRICTED_PATH,
@@ -126,7 +133,7 @@ describe('daemon backend transcript E2E smoke', () => {
       await seedProjectBudget(daemon, 'port-daddy');
       const res = await daemon.request('/spawn', {
         method: 'POST',
-        body: spawnBody('openai', { model: 'gpt-5-nano', maxTokens: 20 }),
+        body: spawnBody('openai', { model: 'gpt-5-nano', maxTokens: 20, workdir: spawnWorktree.workdir }),
         timeout: 70000,
       });
 
@@ -145,6 +152,8 @@ describe('daemon backend transcript E2E smoke', () => {
     } finally {
       await daemon.cleanup();
       await openai.close();
+      spawnWorktree.cleanup();
+      rmSync(tmp, { recursive: true, force: true });
     }
   }, 60000);
 

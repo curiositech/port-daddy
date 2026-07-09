@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { chmodSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -70,6 +71,21 @@ export function assertTranscriptReadback({ requestedBackend, actualExecutionBack
       );
     }
   }
+}
+
+export function createScratchSpawnWorktree(root, name = 'spawn-worktree') {
+  const workdir = join(root, name);
+  execFileSync('git', ['worktree', 'add', '--detach', workdir, 'HEAD'], { stdio: 'ignore' });
+  return {
+    workdir,
+    cleanup() {
+      try {
+        execFileSync('git', ['worktree', 'remove', '--force', workdir], { stdio: 'ignore' });
+      } catch {
+        rmSync(workdir, { recursive: true, force: true });
+      }
+    },
+  };
 }
 
 export async function seedProjectBudget(daemon, project = 'port-daddy', { balanceUsd = 5, budgetUsdPerDay = 5 } = {}) {
@@ -187,7 +203,7 @@ async function pollLatestTranscript(daemon, requestedBackend, startedAt, timeout
   throw new Error(`timed out waiting for ${requestedBackend} transcript after spawn request timeout; last list=${lastList?.text || 'none'}`);
 }
 
-async function runSpawnRow({ daemon, requestedBackend, body, budgetUsd, env, requestTimeoutMs }) {
+async function runSpawnRow({ daemon, requestedBackend, body, budgetUsd, env, workdir, requestTimeoutMs }) {
   const classified = assertNoSilentBackendOverride({ requestedBackend, budgetUsd }, env);
   await seedProjectBudget(daemon, 'port-daddy');
   const startedAt = Date.now();
@@ -197,6 +213,7 @@ async function runSpawnRow({ daemon, requestedBackend, body, budgetUsd, env, req
     task: `Reply with exactly: ${requestedBackend}-daemon-transcript-smoke`,
     budgetUsd,
     timeout: 60000,
+    workdir,
     ...body,
   };
   let res = null;
@@ -237,6 +254,7 @@ async function runSpawnRow({ daemon, requestedBackend, body, budgetUsd, env, req
 
 async function runCiSafeSmoke() {
   const tmp = mkdtempSync(join(tmpdir(), 'pd-backend-transcript-smoke-'));
+  const spawnWorktree = createScratchSpawnWorktree(tmp);
   const staleClaude = join(tmp, 'stale-home', '.local', 'bin', 'claude');
   const fakeClaude = join(tmp, 'bin', 'claude');
   writeFakeClaudeBinary(fakeClaude);
@@ -258,6 +276,7 @@ async function runCiSafeSmoke() {
         budgetUsd: 0.01,
         body: { model: 'sonnet' },
         env,
+        workdir: spawnWorktree.workdir,
       }),
       await runSpawnRow({
         daemon,
@@ -265,11 +284,13 @@ async function runCiSafeSmoke() {
         budgetUsd: 0.01,
         body: { model: 'gpt-5-nano', maxTokens: 20 },
         env,
+        workdir: spawnWorktree.workdir,
       }),
     ];
   } finally {
     await daemon.cleanup();
     await openai.close();
+    spawnWorktree.cleanup();
     rmSync(tmp, { recursive: true, force: true });
   }
 }
@@ -290,6 +311,8 @@ function liveRowsFromEnv() {
 
 async function runLiveSmoke() {
   const env = { ...process.env };
+  const tmp = mkdtempSync(join(tmpdir(), 'pd-backend-transcript-live-'));
+  const spawnWorktree = createScratchSpawnWorktree(tmp);
   const daemon = await startEphemeralDaemon({ env, startupTimeout: 45000 });
   const rows = [];
   try {
@@ -304,11 +327,14 @@ async function runLiveSmoke() {
         budgetUsd: Number(process.env.PD_BACKEND_TRANSCRIPT_BUDGET_USD || '0.05'),
         body: row.body,
         env,
+        workdir: spawnWorktree.workdir,
       }));
     }
     return rows;
   } finally {
     await daemon.cleanup();
+    spawnWorktree.cleanup();
+    rmSync(tmp, { recursive: true, force: true });
   }
 }
 
