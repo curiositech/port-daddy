@@ -35,6 +35,12 @@ import { calculateRuntimeCodeHash } from '../../shared/code-hash.js';
 import { PD_HOME } from '../../shared/paths.js';
 import { type Severity, worstSeverity } from '../../lib/health-severity.js';
 import {
+  DAEMON_OUTER_SUPERVISOR_LABELS,
+  assessOuterSupervisorIntegrity,
+  type OuterSupervisor,
+  type SupervisorIntegrityAssessment,
+} from '../../lib/pd-supervisor.js';
+import {
   daemonBinaryPath,
   isBunVirtualPath,
   resolveDistributionRoot,
@@ -538,32 +544,11 @@ export function readPlistAsXml(plistPath: string): string {
 // =============================================================================
 
 /** The launchd labels that legitimately supervise the Port Daddy daemon. */
-export const DAEMON_SUPERVISOR_LABELS = [
-  'homebrew.mxcl.port-daddy',
-  'com.portdaddy.daemon',
-] as const;
+export const DAEMON_SUPERVISOR_LABELS = DAEMON_OUTER_SUPERVISOR_LABELS;
 
-export interface LaunchdSupervisor {
-  label: string;
-  /** launchctl knows this job (status 0). */
-  loaded: boolean;
-  /** the job currently has a live PID. */
-  running: boolean;
-  pid: number | null;
-}
+export type LaunchdSupervisor = OuterSupervisor;
 
-export interface SupervisionAssessment {
-  severity: Severity;
-  detail: string;
-  hint?: string;
-  /**
-   * Structured single-command remediation for the specific failure (bootout a
-   * duplicate, kickstart a stopped job, install a missing supervisor). The
-   * Agent Harbor daemon card consumes this so its one repair is the right
-   * repair, not a blanket `port-daddy install`.
-   */
-  repair?: { command: string; description: string };
-}
+export type SupervisionAssessment = SupervisorIntegrityAssessment;
 
 /**
  * Pure severity judgment over the launchd supervisor set + daemon reachability.
@@ -581,66 +566,7 @@ export function assessSupervisionIntegrity(input: {
   daemonReachable: boolean;
   platform?: NodeJS.Platform;
 }): SupervisionAssessment {
-  const plat = input.platform ?? process.platform;
-  if (plat !== 'darwin') {
-    return { severity: 'ok', detail: `Supervision integrity is a macOS-only check (skipped on ${plat})` };
-  }
-
-  const loaded = input.supervisors.filter((s) => s.loaded);
-  const running = loaded.filter((s) => s.running);
-
-  if (loaded.length === 0) {
-    if (input.daemonReachable) {
-      return {
-        severity: 'warn',
-        detail: 'Daemon is reachable but NO launchd supervisor owns it — it will not be resurrected if it dies',
-        hint: 'Run: port-daddy install   (installs the launchd supervisor)',
-        repair: { command: 'port-daddy install', description: 'Installs the launchd supervisor for the running daemon.' },
-      };
-    }
-    return {
-      severity: 'critical',
-      detail: 'No launchd supervisor is loaded and the daemon is not reachable',
-      hint: 'Run: port-daddy install   then: port-daddy start',
-      repair: { command: 'port-daddy install', description: 'Installs the launchd supervisor, then start the daemon with port-daddy start.' },
-    };
-  }
-
-  if (loaded.length >= 2) {
-    return {
-      severity: 'warn',
-      detail: `${loaded.length} supervisors loaded (${loaded.map((s) => s.label).join(', ')}) — duplicate KeepAlive jobs race the listener`,
-      hint: `Keep exactly one. Unload the duplicate: launchctl bootout gui/$(id -u)/${loaded[1].label}`,
-      repair: {
-        command: `launchctl bootout gui/$(id -u)/${loaded[1].label}`,
-        description: 'Unloads the duplicate supervisor so exactly one KeepAlive job owns the daemon.',
-      },
-    };
-  }
-
-  // Exactly one supervisor loaded.
-  const one = loaded[0];
-  if (running.length >= 1) {
-    return { severity: 'ok', detail: `${one.label} is loaded and running (PID ${one.pid})` };
-  }
-  // Loaded but not running — the unsupervised-drift precursor.
-  if (input.daemonReachable) {
-    return {
-      severity: 'warn',
-      detail: `${one.label} is loaded but its process is not running — the daemon is currently UNSUPERVISED (reachable now, but won't be resurrected)`,
-      hint: `Re-kick the supervisor: launchctl kickstart -k gui/$(id -u)/${one.label}`,
-      repair: {
-        command: `launchctl kickstart -k gui/$(id -u)/${one.label}`,
-        description: 'Re-kicks the loaded supervisor so the daemon is resurrected if it dies.',
-      },
-    };
-  }
-  return {
-    severity: 'critical',
-    detail: `${one.label} is loaded but not running, and the daemon is not reachable — this is how the daemon silently dies`,
-    hint: `Run: port-daddy start   (or: launchctl kickstart -k gui/$(id -u)/${one.label})`,
-    repair: { command: 'port-daddy start', description: 'Starts the daemon under the already-loaded supervisor.' },
-  };
+  return assessOuterSupervisorIntegrity(input);
 }
 
 /**
