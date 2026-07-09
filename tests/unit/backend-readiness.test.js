@@ -1,4 +1,7 @@
 import { jest } from '@jest/globals';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const mockSpawnSync = jest.fn();
 const installedPackages = new Set(['@anthropic-ai/sdk', '@google/generative-ai']);
@@ -29,12 +32,17 @@ describe('backend readiness', () => {
   const originalGeminiKey = process.env.GEMINI_API_KEY;
   const originalCfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
   const originalCfApiToken = process.env.CLOUDFLARE_API_TOKEN;
+  const originalHome = process.env.HOME;
+  const originalPath = process.env.PATH;
+  const originalCliBinDirs = process.env.PD_CLI_BIN_DIRS;
+  let fakeHome;
   // The cli:* readiness tests `delete process.env.PD_CLI_*_BIN`; capture and
   // restore them around the suite so a developer with these set locally gets a
   // hermetic run and no state leaks into later tests.
   const CLI_BIN_ENV_KEYS = [
     'PD_CLI_CLAUDE_CODE_BIN',
     'PD_CLI_CODEX_BIN',
+    'PD_CLI_AGY_BIN',
     'PD_CLI_GEMINI_BIN',
     'PD_CLI_GROQ_BIN',
     'PD_CLI_GROK_BIN',
@@ -50,10 +58,18 @@ describe('backend readiness', () => {
     delete process.env.GEMINI_API_KEY;
     delete process.env.CLOUDFLARE_ACCOUNT_ID;
     delete process.env.CLOUDFLARE_API_TOKEN;
+    fakeHome = mkdtempSync(join(tmpdir(), 'pd-readiness-home-'));
+    process.env.HOME = fakeHome;
+    process.env.PATH = '/usr/bin:/bin';
+    delete process.env.PD_CLI_BIN_DIRS;
     for (const key of CLI_BIN_ENV_KEYS) delete process.env[key];
     global.fetch = jest.fn(async () => {
       throw new Error('offline');
     });
+  });
+
+  afterEach(() => {
+    try { rmSync(fakeHome, { recursive: true, force: true }); } catch { /* noop */ }
   });
 
   afterAll(() => {
@@ -69,11 +85,28 @@ describe('backend readiness', () => {
     if (originalCfApiToken === undefined) delete process.env.CLOUDFLARE_API_TOKEN;
     else process.env.CLOUDFLARE_API_TOKEN = originalCfApiToken;
 
+    if (originalHome === undefined) delete process.env.HOME;
+    else process.env.HOME = originalHome;
+
+    if (originalPath === undefined) delete process.env.PATH;
+    else process.env.PATH = originalPath;
+
+    if (originalCliBinDirs === undefined) delete process.env.PD_CLI_BIN_DIRS;
+    else process.env.PD_CLI_BIN_DIRS = originalCliBinDirs;
+
     for (const key of CLI_BIN_ENV_KEYS) {
       if (originalCliBins[key] === undefined) delete process.env[key];
       else process.env[key] = originalCliBins[key];
     }
   });
+
+  function installCli(name, dir = join(fakeHome, '.local', 'bin')) {
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, name);
+    writeFileSync(file, '#!/bin/sh\necho ok\n');
+    chmodSync(file, 0o755);
+    return file;
+  }
 
   test('reports Claude SDK backend as ready when ANTHROPIC_API_KEY is present and the model has an exact rate', async () => {
     secretValues.set('ANTHROPIC_API_KEY', 'sk-test');
@@ -169,13 +202,8 @@ describe('backend readiness', () => {
   });
 
   test('keeps claude-cli probe details when binary is missing and stamps the fail-closed telemetry summary', async () => {
-    mockSpawnSync.mockReturnValue({ status: 1 });
-
     const readiness = await assessBackendReadiness('claude-cli', { model: 'unknown-rateless-model-9999' });
 
-    expect(mockSpawnSync).toHaveBeenCalledWith('which', ['claude'], expect.objectContaining({
-      encoding: 'utf-8',
-    }));
     expect(readiness).toMatchObject({
       backend: 'claude-cli',
       status: 'needs_setup',
@@ -185,40 +213,45 @@ describe('backend readiness', () => {
     // (lib/backend-telemetry-policy.ts `claude-cli` case), claude-cli is
     // fail-closed only when the model has no cost-rate entry — and the policy
     // summary names that precise reason rather than the generic default phrase.
-    expect(readiness.summary).toContain('Claude CLI binary not found');
+    expect(readiness.summary).toContain('Claude CLI binary "claude" not found');
     expect(readiness.summary).toContain('has no cost rate entry');
     expect(readiness.setupCommand).toBe('claude');
   });
 
+  test('missing cli summary includes stale override and explicit missing binary fact', async () => {
+    const stale = join(fakeHome, '.local', 'bin', 'claude');
+    process.env.PD_CLI_CLAUDE_CODE_BIN = stale;
+
+    const readiness = await assessBackendReadiness('cli:claude-code');
+
+    expect(readiness).toMatchObject({
+      backend: 'cli:claude-code',
+      status: 'needs_setup',
+    });
+    expect(readiness.summary).toContain(`Claude Code CLI binary "${stale}" not found`);
+    expect(readiness.summary).toContain(`Configured PD_CLI_CLAUDE_CODE_BIN=${stale} is not executable`);
+    expect(readiness.summary).toContain('no claude binary was found');
+  });
+
   test('marks claude-cli launchableUnverified when the binary is found', async () => {
-    mockSpawnSync.mockImplementation((command, args) => ({
-      status: command === 'which' && args[0] === 'claude' ? 0 : 1,
-    }));
+    const cli = installCli('claude', join(fakeHome, '.nvm', 'versions', 'node', 'v22.17.1', 'bin'));
 
     const readiness = await assessBackendReadiness('claude-cli');
 
-    expect(mockSpawnSync).toHaveBeenCalledWith('which', ['claude'], expect.objectContaining({
-      encoding: 'utf-8',
-    }));
     expect(readiness).toMatchObject({
       backend: 'claude-cli',
       status: 'manual_check',
       launchableUnverified: true,
     });
-    expect(readiness.summary).toContain('Claude CLI binary found');
+    expect(readiness.summary).toContain(`Claude CLI binary found at ${cli}`);
     expect(readiness.setupCommand).toBe('claude');
   });
 
   test('keeps codex probe details and allows launch when exact telemetry is available', async () => {
-    mockSpawnSync.mockImplementation((command, args) => ({
-      status: command === 'which' && args[0] === 'codex' ? 0 : 1,
-    }));
+    installCli('codex');
 
     const readiness = await assessBackendReadiness('codex');
 
-    expect(mockSpawnSync).toHaveBeenCalledWith('which', ['codex'], expect.objectContaining({
-      encoding: 'utf-8',
-    }));
     expect(readiness).toMatchObject({
       backend: 'codex',
       status: 'manual_check',
@@ -233,9 +266,7 @@ describe('backend readiness', () => {
   });
 
   test('blocks codex models without exact cost rates', async () => {
-    mockSpawnSync.mockImplementation((command, args) => ({
-      status: command === 'which' && args[0] === 'codex' ? 0 : 1,
-    }));
+    installCli('codex');
 
     const readiness = await assessBackendReadiness('codex', {
       model: 'gpt-mystery-model',
@@ -250,21 +281,14 @@ describe('backend readiness', () => {
   });
 
   test.each([
+    ['cli:agy', 'agy', 'PD_CLI_AGY_BIN'],
     ['cli:gemini', 'gemini', 'PD_CLI_GEMINI_BIN'],
     ['cli:groq', 'groq', 'PD_CLI_GROQ_BIN'],
     ['cli:grok', 'grok', 'PD_CLI_GROK_BIN'],
-  ])('%s reports needs_setup when the binary is missing, manual_check when found', async (backend, bin, envKey) => {
+  ])('%s reports manual_check when the resolver finds its executable', async (backend, bin, envKey) => {
     delete process.env[envKey];
 
-    mockSpawnSync.mockReturnValue({ status: 1 });
-    const missing = await assessBackendReadiness(backend);
-    expect(mockSpawnSync).toHaveBeenCalledWith('which', [bin], expect.objectContaining({ encoding: 'utf-8' }));
-    expect(missing).toMatchObject({ backend, status: 'needs_setup' });
-    expect(missing.summary).toContain('not found');
-
-    mockSpawnSync.mockImplementation((command, args) => ({
-      status: command === 'which' && args[0] === bin ? 0 : 1,
-    }));
+    installCli(bin);
     const found = await assessBackendReadiness(backend);
     expect(found).toMatchObject({ backend, status: 'manual_check' });
     expect(found.nextStep).toContain(`PD_USE_CLI_BACKEND=${bin}`);
@@ -278,36 +302,64 @@ describe('backend readiness', () => {
   ])('%s is launchableUnverified when its binary is found, blocked when missing', async (backend, bin, envKey) => {
     delete process.env[envKey];
 
-    mockSpawnSync.mockReturnValue({ status: 1 });
     const missing = await assessBackendReadiness(backend);
     expect(missing).toMatchObject({ backend, status: 'needs_setup' });
     expect(missing.launchableUnverified).not.toBe(true);
 
-    mockSpawnSync.mockImplementation((command, args) => ({
-      status: command === 'which' && args[0] === bin ? 0 : 1,
-    }));
+    installCli(bin);
     const found = await assessBackendReadiness(backend);
     expect(found).toMatchObject({ backend, status: 'manual_check', launchableUnverified: true });
   });
 
-  test('cli:gemini honors the PD_CLI_GEMINI_BIN binary override', async () => {
-    process.env.PD_CLI_GEMINI_BIN = 'gemini-beta';
+  test.each([
+    ['cli:agy', 'agy-beta', 'PD_CLI_AGY_BIN'],
+    ['cli:gemini', 'gemini-beta', 'PD_CLI_GEMINI_BIN'],
+  ])('%s honors its binary override env var', async (backend, overrideName, envKey) => {
+    const cli = installCli(overrideName);
+    process.env[envKey] = cli;
     try {
-      mockSpawnSync.mockImplementation((command, args) => ({
-        status: command === 'which' && args[0] === 'gemini-beta' ? 0 : 1,
-      }));
-      const readiness = await assessBackendReadiness('cli:gemini');
-      expect(mockSpawnSync).toHaveBeenCalledWith('which', ['gemini-beta'], expect.anything());
+      const readiness = await assessBackendReadiness(backend);
       expect(readiness.status).toBe('manual_check');
+      expect(readiness.summary).toContain(cli);
     } finally {
-      delete process.env.PD_CLI_GEMINI_BIN;
+      delete process.env[envKey];
     }
   });
 
+  test('cli:claude-code falls back from a stale explicit path to a discovered user-dir claude', async () => {
+    const stale = join(fakeHome, '.local', 'bin', 'claude');
+    const discovered = installCli('claude', join(fakeHome, '.nvm', 'versions', 'node', 'v22.17.1', 'bin'));
+    process.env.PD_CLI_CLAUDE_CODE_BIN = stale;
+
+    const readiness = await assessBackendReadiness('cli:claude-code');
+
+    expect(readiness).toMatchObject({
+      backend: 'cli:claude-code',
+      status: 'manual_check',
+      launchableUnverified: true,
+    });
+    expect(readiness.summary).toContain(`Claude Code CLI binary found at ${discovered}`);
+    expect(readiness.summary).toContain(`Configured PD_CLI_CLAUDE_CODE_BIN=${stale} is not executable`);
+  });
+
+  test('cli:codex falls back from a stale explicit path instead of copy-paste blocking early', async () => {
+    const stale = join(fakeHome, '.missing', 'codex');
+    const discovered = installCli('codex');
+    process.env.PD_CLI_CODEX_BIN = stale;
+
+    const readiness = await assessBackendReadiness('cli:codex');
+
+    expect(readiness).toMatchObject({
+      backend: 'cli:codex',
+      status: 'manual_check',
+      launchableUnverified: true,
+    });
+    expect(readiness.summary).toContain(`Codex CLI binary found at ${discovered}`);
+    expect(readiness.summary).toContain(`Configured PD_CLI_CODEX_BIN=${stale} is not executable`);
+  });
+
   test('keeps ollama probe details while still blocking launch under telemetry policy', async () => {
-    mockSpawnSync.mockImplementation((command, args) => ({
-      status: command === 'which' && args[0] === 'ollama' ? 0 : 1,
-    }));
+    installCli('ollama');
 
     const readiness = await assessBackendReadiness('ollama');
 
@@ -322,7 +374,6 @@ describe('backend readiness', () => {
     // hardcoded-blocked text.
     expect(readiness.summary).toContain('Ollama model is required');
     expect(readiness.setupCommand).toBe('ollama serve');
-    expect(mockSpawnSync).toHaveBeenCalled();
     expect(global.fetch).toHaveBeenCalled();
   });
 });

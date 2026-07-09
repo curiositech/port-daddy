@@ -10,8 +10,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
-import { DEFAULT_OPERATOR_CLAUDE_MODEL, DEFAULT_OPERATOR_CODEX_MODEL } from './backend-telemetry-policy.js';
-import { resolveModel } from './model-registry.js';
 import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import { get as httpGet } from 'node:http';
 import { parse as parseYaml } from 'yaml';
@@ -24,7 +22,7 @@ import type { SemanticResolver } from './semantic-resolver.js';
 import type { Tuple, TupleSpace } from './tuples.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { buildPortDaddyShellCommand, resolvePortDaddyInvocation } from './port-daddy-command.js';
-import { resolveRawBackendName, resolveLLMBackend } from './llm-backend-resolver.js';
+import { resolveLLMBackend } from './llm-backend-resolver.js';
 import { createLLMClient } from './llm-call.js';
 import { transportToAdapter } from './coordination-judge.js';
 import { IoDispatch, type DispatchOutputResult, type IoDispatchDeps } from './fleet/io-dispatch.js';
@@ -39,6 +37,24 @@ import {
   toExecSnippet,
   getCommandLineForPid,
 } from './watcher-pid-registry.js';
+import {
+  cleanEnvValue,
+  parseModelTier,
+  parseYamlModelTier,
+  resolveFleetAgentRuntime,
+  type FleetModelTier,
+  type FleetRuntimeTarget,
+  type ResolvedFleetAgentRuntime,
+} from './fleet-runtime.js';
+export {
+  BUILTIN_MODEL_TIERS,
+  getFleetRuntimeDefaults,
+  resolveFleetAgentRuntime,
+  type FleetModelTier,
+  type FleetRuntimeDefaults,
+  type FleetRuntimeTarget,
+  type ResolvedFleetAgentRuntime,
+} from './fleet-runtime.js';
 
 /**
  * Durable sidecar tracking external `pd watch --exec` children spawned by
@@ -140,28 +156,6 @@ export interface FleetConfig {
  */
 export interface FleetTrustConfig {
   allowlistedAuthors?: string[];
-}
-
-export interface FleetRuntimeDefaults {
-  backend?: string;
-  model?: string;
-}
-
-export type FleetModelTier = 'low' | 'mid' | 'high';
-
-export interface FleetRuntimeTarget {
-  backend?: string;
-  model?: string;
-  modelTier?: FleetModelTier;
-}
-
-export interface ResolvedFleetAgentRuntime {
-  backend: string | null;
-  model?: string;
-  modelTier?: FleetModelTier;
-  backendSource: 'agent' | 'env' | 'missing';
-  modelSource: 'agent' | 'tier' | 'env' | 'unset';
-  warnings: string[];
 }
 
 export interface FleetRunContext {
@@ -325,43 +319,6 @@ function getTemplateVars(projectDir: string, projectName?: string, includeGitVar
 // ─── Fleet Config Loader ────────────────────────────────────────────────────
 
 const FLEET_CONFIG_NAMES = ['pd-fleet.yml', 'pd-fleet.yaml', '.portdaddy/fleet.yml', '.portdaddy/fleet.yaml'];
-const MODEL_TIERS = new Set<FleetModelTier>(['low', 'mid', 'high']);
-
-// API-backed backends derive their low/mid/high tiers from the declarative
-// registry (lib/model-registry-data.ts) via resolveModel — NO hardcoded model
-// IDs here (operator directive 2026-06-15; see lib/model-registry.ts + ADR-0057).
-// The map shape is preserved for back-compat with routes/fleet.ts importers.
-const REGISTRY_TIER_BACKENDS = ['claude', 'codex', 'gemini', 'openai', 'groq', 'cloudflare', 'aider'] as const;
-
-// Genuinely-special forms the registry does NOT govern: claude-cli takes the
-// CLI's short aliases (`--model sonnet`), ollama takes LOCAL model names, custom
-// is a placeholder triple. These are stable CLI/local identifiers, not churning
-// API model IDs, so they stay literal (and are allowlisted in the
-// no-hardcoded-model-ids guard).
-const SPECIAL_FORM_MODEL_TIERS: Record<string, Record<FleetModelTier, string>> = {
-  'claude-cli': { low: 'haiku', mid: 'sonnet', high: 'opus' },
-  ollama: { low: 'qwen2.5-coder:7b', mid: 'llama3.1:8b', high: 'qwen2.5-coder:14b' },
-  custom: { low: 'custom-low', mid: 'custom-mid', high: 'custom-high' },
-};
-
-function tierMapFromRegistry(backend: string): Record<FleetModelTier, string> {
-  return {
-    low: resolveModel({ backend, tier: 'low' }),
-    mid: resolveModel({ backend, tier: 'mid' }),
-    high: resolveModel({ backend, tier: 'high' }),
-  };
-}
-
-export const BUILTIN_MODEL_TIERS: Partial<Record<string, Record<FleetModelTier, string>>> = {
-  ...Object.fromEntries(REGISTRY_TIER_BACKENDS.map((b) => [b, tierMapFromRegistry(b)])),
-  ...SPECIAL_FORM_MODEL_TIERS,
-};
-
-function cleanEnvValue(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
-}
-
 function normalizeBudgetUsdPerDay(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value > 0
     ? value
@@ -380,39 +337,6 @@ function normalizeBackoffMultiplier(value: unknown): number | undefined {
     : undefined;
 }
 
-function parseModelTier(value: string | undefined): FleetModelTier | undefined {
-  const normalized = cleanEnvValue(value)?.toLowerCase() as FleetModelTier | undefined;
-  return normalized && MODEL_TIERS.has(normalized) ? normalized : undefined;
-}
-
-function parseYamlModelTier(value: { model_tier?: string; modelTier?: string } | undefined): FleetModelTier | undefined {
-  return parseModelTier(value?.model_tier) || parseModelTier(value?.modelTier);
-}
-
-function normalizeBackendEnvKey(backend: string): string {
-  return backend.replace(/[^a-zA-Z0-9]+/g, '_').toUpperCase();
-}
-
-function resolveTierModel(backend: string, modelTier: FleetModelTier): string | undefined {
-  const envKey = `PD_MODEL_TIER_${normalizeBackendEnvKey(backend)}_${modelTier.toUpperCase()}`;
-  const legacyEnvKey = `PORT_DADDY_MODEL_TIER_${normalizeBackendEnvKey(backend)}_${modelTier.toUpperCase()}`;
-  return cleanEnvValue(process.env[envKey])
-    || cleanEnvValue(process.env[legacyEnvKey])
-    || BUILTIN_MODEL_TIERS[backend]?.[modelTier];
-}
-
-export function getFleetRuntimeDefaults(): FleetRuntimeDefaults {
-  // Backend name comes from the unified resolver in lib/llm-backend-resolver.ts
-  // — same env cascade every actor uses. Spawn-shape needs the raw form so it
-  // can distinguish "claude" (SDK) from "claude-cli" (CLI subprocess).
-  const { raw } = resolveRawBackendName();
-  return {
-    backend: raw ?? undefined,
-    model: cleanEnvValue(process.env.PD_FLEET_DEFAULT_MODEL)
-      || cleanEnvValue(process.env.PORT_DADDY_FLEET_DEFAULT_MODEL),
-  };
-}
-
 function mergeRuntimeTarget(agent: Pick<FleetAgent, 'backend' | 'model' | 'modelTier'>, override?: FleetRuntimeTarget): FleetRuntimeTarget {
   const overrideBackend = cleanEnvValue(override?.backend);
   const baseBackend = cleanEnvValue(agent.backend);
@@ -421,51 +345,6 @@ function mergeRuntimeTarget(agent: Pick<FleetAgent, 'backend' | 'model' | 'model
     backend: overrideBackend || baseBackend,
     model: cleanEnvValue(override?.model) || (sameBackend ? cleanEnvValue(agent.model) : undefined),
     modelTier: parseModelTier(override?.modelTier) || (sameBackend ? parseModelTier(agent.modelTier) : undefined),
-  };
-}
-
-export function resolveFleetAgentRuntime(agent: Pick<FleetAgent, 'backend' | 'model' | 'modelTier'> | FleetRuntimeTarget): ResolvedFleetAgentRuntime {
-  const defaults = getFleetRuntimeDefaults();
-  const explicitBackend = cleanEnvValue(agent.backend);
-  const explicitModel = cleanEnvValue(agent.model);
-  const explicitModelTier = parseModelTier(agent.modelTier);
-  const backend = explicitBackend || defaults.backend || null;
-  const tierModel = backend && explicitModelTier ? resolveTierModel(backend, explicitModelTier) : undefined;
-  let model = explicitModel || tierModel || defaults.model;
-
-  // A local-CLI backend with no real model resolves its model to the backend's
-  // own bare name ("cli:claude-code" → "claude-code"). That placeholder has no
-  // cost-rate entry, so pricing falls back to an estimate and the exact-telemetry
-  // gate blocks the launch — and the CLI itself rejects it ("model not
-  // supported"). Substitute the rate-backed operator default so the CLI
-  // invocation and the cost calculation agree on a real, priceable model.
-  const CLI_MODEL_PLACEHOLDERS = new Set(['claude-code', 'codex', 'gemini', 'groq', 'grok']);
-  if (backend && (!model || CLI_MODEL_PLACEHOLDERS.has(model))) {
-    if (backend === 'cli:claude-code' || backend === 'claude-cli' || backend === 'claude') {
-      model = DEFAULT_OPERATOR_CLAUDE_MODEL;
-    } else if (backend === 'cli:codex' || backend === 'codex') {
-      model = DEFAULT_OPERATOR_CODEX_MODEL;
-    }
-  }
-
-  const warnings: string[] = [];
-
-  if (!backend) {
-    warnings.push('missing backend; set agent.backend or PD_FLEET_DEFAULT_BACKEND');
-  }
-  if (backend && explicitModelTier && !tierModel) {
-    warnings.push(`no model mapping for ${backend}/${explicitModelTier}; set model explicitly or define PD_MODEL_TIER_${normalizeBackendEnvKey(backend)}_${explicitModelTier.toUpperCase()}`);
-  } else if (backend === 'claude-cli' && !model) {
-    warnings.push('model not pinned; claude-cli will use its local default');
-  }
-
-  return {
-    backend,
-    model,
-    modelTier: explicitModelTier,
-    backendSource: explicitBackend ? 'agent' : defaults.backend ? 'env' : 'missing',
-    modelSource: explicitModel ? 'agent' : tierModel ? 'tier' : defaults.model ? 'env' : 'unset',
-    warnings,
   };
 }
 
@@ -884,6 +763,151 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     allowlistedAuthors: config.trust?.allowlistedAuthors ?? [],
   };
 
+  function isGithubLegacyTrigger(raw: string): boolean {
+    const trigger = raw.trim().toLowerCase();
+    return trigger.startsWith('github:') || trigger.startsWith('global:github:');
+  }
+
+  function trustEventFromGithubMessage(channel: string, message: unknown): {
+    source: 'github';
+    type: string;
+    timestamp: number;
+    payload: unknown;
+    metadata: { sender?: string; subject?: string; correlation_id?: string; consent_verified?: boolean };
+  } {
+    const envelope = (message && typeof message === 'object') ? message as Record<string, unknown> : {};
+    const payload = (envelope.payload && typeof envelope.payload === 'object')
+      ? envelope.payload as Record<string, unknown>
+      : envelope;
+    const repository = (envelope.repository && typeof envelope.repository === 'object')
+      ? envelope.repository as Record<string, unknown>
+      : (payload.repository && typeof payload.repository === 'object')
+        ? payload.repository as Record<string, unknown>
+        : null;
+    const sender = typeof envelope.sender === 'string'
+      ? envelope.sender
+      : (payload.sender && typeof payload.sender === 'object' && typeof (payload.sender as Record<string, unknown>).login === 'string')
+        ? (payload.sender as Record<string, string>).login
+        : undefined;
+    const pullRequest = (payload.pull_request && typeof payload.pull_request === 'object')
+      ? payload.pull_request as Record<string, unknown>
+      : null;
+    const issue = (payload.issue && typeof payload.issue === 'object')
+      ? payload.issue as Record<string, unknown>
+      : null;
+    const action = typeof envelope.action === 'string'
+      ? envelope.action
+      : typeof payload.action === 'string'
+        ? payload.action
+        : undefined;
+    const eventType = typeof envelope.event === 'string'
+      ? envelope.event
+      : channel.replace(/^global:/i, '').replace(/^github:webhook:/i, '').replace(/^github:/i, '') || 'webhook';
+    const correlation = typeof pullRequest?.html_url === 'string'
+      ? pullRequest.html_url
+      : typeof issue?.html_url === 'string'
+        ? issue.html_url
+        : typeof repository?.full_name === 'string'
+          ? repository.full_name
+          : undefined;
+
+    return {
+      source: 'github',
+      type: action ? `${eventType}:${action}` : eventType,
+      timestamp: Date.now(),
+      payload: message,
+      metadata: {
+        correlation_id: correlation,
+        sender,
+        subject: typeof pullRequest?.title === 'string'
+          ? pullRequest.title
+          : typeof issue?.title === 'string'
+            ? issue.title
+            : undefined,
+        consent_verified: envelope.__originVerified === true || payload.__originVerified === true,
+      },
+    };
+  }
+
+  function handleTrustGatedTrigger(agent: FleetAgent, trigger: string, event: Parameters<typeof evaluateTrustGate>[0]['event'], context: FleetRunContext): void {
+    const gate = evaluateTrustGate({
+      event,
+      allowedTools: agent.allowedTools,
+      policy: trustPolicy,
+    });
+    if (!gate.allowed) {
+      emit({
+        type: 'trust_gate_refused',
+        agent: agent.name,
+        project,
+        timestamp: Date.now(),
+        details: {
+          trigger,
+          tier: gate.tier,
+          reason: gate.reason,
+          offendingTools: gate.offendingTools,
+        },
+      });
+      console.error(
+        `[Fleet] Trust gate REFUSED trigger "${trigger}" for agent "${agent.name}" ` +
+        `(tier ${gate.tier}): ${gate.reason}`,
+      );
+      return; // never spawn; reason only, never how-to-bypass
+    }
+    if (gate.requiresApproval) {
+      const proposal: FleetApprovalProposal = {
+        id: randomUUID(),
+        project,
+        agent: agent.name,
+        trigger,
+        tier: gate.tier,
+        reason: gate.reason,
+        safeTools: gate.safeTools,
+        context,
+        timestamp: Date.now(),
+      };
+      const enqueue = options?.enqueueForApproval;
+      if (!enqueue) {
+        // Fail closed: approval-required work is never auto-run just
+        // because no approval queue happens to be wired.
+        emit({
+          type: 'trust_gate_refused',
+          agent: agent.name,
+          project,
+          timestamp: Date.now(),
+          details: {
+            trigger,
+            tier: gate.tier,
+            reason: 'requires operator approval and no approval queue is wired (fail-closed)',
+          },
+        });
+        console.error(
+          `[Fleet] Trust gate REFUSED trigger "${trigger}" for agent "${agent.name}" ` +
+          `(tier ${gate.tier}): requires operator approval and no approval queue is wired`,
+        );
+        return;
+      }
+      emit({
+        type: 'trust_gate_queued',
+        agent: agent.name,
+        project,
+        timestamp: Date.now(),
+        details: { trigger, tier: gate.tier, safeTools: gate.safeTools },
+      });
+      // async wrapper so a SYNCHRONOUSLY throwing enqueue is captured
+      // too — a broken queue must not crash the trigger handler.
+      void (async () => enqueue(proposal))().catch((err: Error) => {
+        console.error(
+          `[Fleet] Approval enqueue failed for agent "${agent.name}" trigger "${trigger}":`,
+          err.message,
+        );
+      });
+      return;
+    }
+
+    void requestAgentRun(agent, context);
+  }
+
   /** True if the agent has any event trigger (singular, plural, or tuple). */
   function agentIsTriggered(agent: FleetAgent): boolean {
     return Boolean(agent.trigger || (agent.triggers && agent.triggers.length > 0) || agent.triggerTuple);
@@ -1160,81 +1184,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
           // This is the L1 boundary between an inbound event and an agent
           // holding tools — the hard dependency of every untrusted-ingress
           // phase (webhook receiver, inbound email/SMS).
-          const gate = evaluateTrustGate({
-            event,
-            allowedTools: agent.allowedTools,
-            policy: trustPolicy,
-          });
-          if (!gate.allowed) {
-            emit({
-              type: 'trust_gate_refused',
-              agent: agent.name,
-              project,
-              timestamp: Date.now(),
-              details: {
-                trigger: raw,
-                tier: gate.tier,
-                reason: gate.reason,
-                offendingTools: gate.offendingTools,
-              },
-            });
-            console.error(
-              `[Fleet] Trust gate REFUSED trigger "${raw}" for agent "${agent.name}" ` +
-              `(tier ${gate.tier}): ${gate.reason}`,
-            );
-            return; // never spawn; reason only, never how-to-bypass
-          }
-          if (gate.requiresApproval) {
-            const proposal: FleetApprovalProposal = {
-              id: randomUUID(),
-              project,
-              agent: agent.name,
-              trigger: raw,
-              tier: gate.tier,
-              reason: gate.reason,
-              safeTools: gate.safeTools,
-              context: contextFromTriggerEvent(event),
-              timestamp: Date.now(),
-            };
-            const enqueue = options?.enqueueForApproval;
-            if (!enqueue) {
-              // Fail closed: approval-required work is never auto-run just
-              // because no approval queue happens to be wired.
-              emit({
-                type: 'trust_gate_refused',
-                agent: agent.name,
-                project,
-                timestamp: Date.now(),
-                details: {
-                  trigger: raw,
-                  tier: gate.tier,
-                  reason: 'requires operator approval and no approval queue is wired (fail-closed)',
-                },
-              });
-              console.error(
-                `[Fleet] Trust gate REFUSED trigger "${raw}" for agent "${agent.name}" ` +
-                `(tier ${gate.tier}): requires operator approval and no approval queue is wired`,
-              );
-              return;
-            }
-            emit({
-              type: 'trust_gate_queued',
-              agent: agent.name,
-              project,
-              timestamp: Date.now(),
-              details: { trigger: raw, tier: gate.tier, safeTools: gate.safeTools },
-            });
-            // async wrapper so a SYNCHRONOUSLY throwing enqueue is captured
-            // too — a broken queue must not crash the trigger handler.
-            void (async () => enqueue(proposal))().catch((err: Error) => {
-              console.error(
-                `[Fleet] Approval enqueue failed for agent "${agent.name}" trigger "${raw}":`,
-                err.message,
-              );
-            });
-            return;
-          }
-          void requestAgentRun(agent, contextFromTriggerEvent(event));
+          handleTrustGatedTrigger(agent, raw, event, contextFromTriggerEvent(event));
         })
         .then((result) => {
           // The runner (or this agent) may have been torn down while the
@@ -1271,11 +1221,26 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       const physicalTriggerChannel = resolveChannel(legacyTrigger);
       // Prefer in-process subscriptions so trigger payload survives into the spawned task.
       const unsubscribe = options?.messaging?.subscribe(physicalTriggerChannel, (message: unknown) => {
-        void requestAgentRun(agent, contextFromMessage(legacyTrigger, message));
+        const context = contextFromMessage(legacyTrigger, message);
+        if (isGithubLegacyTrigger(legacyTrigger)) {
+          handleTrustGatedTrigger(
+            agent,
+            legacyTrigger,
+            trustEventFromGithubMessage(legacyTrigger, message),
+            context,
+          );
+          return;
+        }
+        void requestAgentRun(agent, context);
       });
 
       if (unsubscribe) {
         cleanupHandles.push(unsubscribe);
+      } else if (isGithubLegacyTrigger(legacyTrigger)) {
+        console.error(
+          `[Fleet] Trigger "${legacyTrigger}" for agent "${agent.name}" not started: ` +
+          'github triggers require in-process messaging so the trust gate can inspect the payload before spawning',
+        );
       } else {
         // Fallback for standalone CLI/testing contexts.
         const invocation = resolvePortDaddyInvocation();

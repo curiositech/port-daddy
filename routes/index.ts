@@ -71,6 +71,7 @@ import { budgetPlugin } from './budget.js';
 import { advisorPlugin } from './advisor.js';
 import { quorumPlugin } from './quorum.js';
 import { parleyPlugin } from './parley.js';
+import { galaxyPlugin } from './galaxy.js';
 import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
 import { roadmapPlugin } from './roadmap.js';
@@ -82,6 +83,7 @@ import { testHooksPlugin } from './test-hooks.js';
 import { cockpitPlugin } from './cockpit.js';
 import { popperPlugin } from './popper.js';
 import { dispatchesPlugin } from './dispatches.js';
+import { harbormasterPlugin } from './harbormaster.js';
 import { visualTasksPlugin } from './visual-tasks.js';
 import { fleetHitlProposalsPlugin } from './fleet-hitl-proposals.js';
 import { setupPlugin } from './setup.js';
@@ -289,6 +291,12 @@ export async function registerAllRoutes(
     await fastify.register(parleyPlugin, { deps } as any);
   }
 
+  // Session Galaxy — 2-D embedding map of recent agent sessions (MiniLM tail
+  // embeddings, seeded t-SNE, MI-labeled clusters) with click-through detail.
+  if ((deps as any).galaxy) {
+    await fastify.register(galaxyPlugin, { deps } as any);
+  }
+
   // Feedback — central agentic-feedback primitive (tuple-backed).
   // Mounts when the feedback dep is present (depends on tuple space).
   if ((deps as any).feedback) {
@@ -335,16 +343,20 @@ export async function registerAllRoutes(
   await fastify.register(cockpitPlugin, { deps } as any);
 
   // Roadmap popper HTTP surface — operator's pd popper CLI + FleetBar
-  // Nightshift status banner. Conditional on deps.popper being supplied.
-  if ((deps as { popper?: unknown }).popper) {
-    await fastify.register(popperPlugin, { deps } as any);
-  }
+  // Nightshift status banner. Self-degrades instead of 404ing when the
+  // popper body is not configured in a stripped daemon mode.
+  await fastify.register(popperPlugin, { deps } as any);
 
   // Dispatch queue HTTP surface — operator's POST /dispatches +
   // accept/reject/cancel buttons. Requires `dispatchQueue` in deps.
   if ((deps as { dispatchQueue?: unknown }).dispatchQueue) {
     await fastify.register(dispatchesPlugin, { deps } as any);
   }
+
+  // Harbormaster status HTTP surface — FleetBar polls this read-only view
+  // instead of shelling out to `pd harbormaster status`. Self-degrades when
+  // stripped daemon modes do not provide a DB.
+  await fastify.register(harbormasterPlugin, { deps } as any);
 
   // Fleet HITL proposals — cloud ships can propose work, but only these
   // operator-gated routes may turn a proposal into a dispatch.

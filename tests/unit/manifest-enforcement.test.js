@@ -513,6 +513,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'attest': 'attest',
       'safe_scan': 'safe',
       'relay_status': 'relay',
+      'harbormaster_status': 'harbormaster',
       // #199 cop-out conversion → real MCP tools
       'list_harbors': 'harbors',
       'get_harbor': 'harbors',

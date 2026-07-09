@@ -54,6 +54,13 @@ pub const TEXT_BODY: f32 = 14.0;
 pub const TEXT_BODY_LG: f32 = 15.0;
 /// 17px — pane / section header.
 pub const TEXT_HEADER: f32 = 17.0;
+/// 19px — the Harbor editor's fixed code line height (14px mono body + tight
+/// leading). Every code line is EXACTLY this tall — the uniform_list
+/// virtualization contract (measure item 0, multiply).
+pub const CODE_LINE_H: f32 = 19.0;
+/// ~one monospace character advance at `TEXT_BODY` (IBM Plex Mono @14px ≈
+/// 8.4px). Used to size the editor gutter columns without shaping text first.
+pub const CODE_CH: f32 = 8.5;
 /// 20px — title.
 pub const TEXT_TITLE: f32 = 20.0;
 

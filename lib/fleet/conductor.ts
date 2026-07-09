@@ -118,6 +118,8 @@ export interface LaunchIntent {
 
   // safety envelope —
   capabilities?: string[];
+  /** Per-launch hard cap enforced by the spawner against final telemetry. */
+  budgetUsd?: number;
   bondUsd?: number;
   /** Shared ceiling for the whole subtree under rootId. Required for roots. */
   lineageCeilingUsd?: number;
@@ -182,7 +184,7 @@ export interface Launch {
 export interface ConductorSpawner {
   spawn(spec: Record<string, unknown>): Promise<{
     agentId: string;
-    status: 'running' | 'completed' | 'failed' | 'killed';
+    status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
     output: string | null;
     error: string | null;
     [k: string]: unknown;
@@ -769,6 +771,7 @@ export function createConductor(deps: ConductorDeps) {
     if (intent.allowedTools != null) spec.allowedTools = intent.allowedTools;
     if (intent.timeoutMs != null) spec.timeout = intent.timeoutMs;
     if (intent.maxTokens != null) spec.maxTokens = intent.maxTokens;
+    if (intent.budgetUsd != null) spec.budgetUsd = intent.budgetUsd;
     if (intent.bondUsd != null) spec.bondUsd = intent.bondUsd;
     if (intent.harborName != null) spec.harborName = intent.harborName;
     // ALWAYS forward the ADMITTED launch's effective caps (inherited / floored /

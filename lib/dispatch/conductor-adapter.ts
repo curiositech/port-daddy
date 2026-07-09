@@ -67,6 +67,7 @@ export function planToLaunchIntent(plan: RunnerPlan): LaunchIntent {
     // ceiling before admission. Ceiling = the SAME budget because a dispatch is
     // its OWN lineage root (source:'dispatch' is a root-minting source), so the
     // whole subtree it heads is bounded by exactly the budget the operator set.
+    budgetUsd: plan.budgetUsd,
     bondUsd: plan.budgetUsd,
     lineageCeilingUsd: plan.budgetUsd,
     timeoutMs: plan.timeoutMs,

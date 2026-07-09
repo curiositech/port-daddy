@@ -21,6 +21,7 @@ import {
   type FleetProposalStore,
 } from '../lib/fleet-hitl-proposals.js';
 import type { DispatchQueue } from '../lib/dispatch/queue.js';
+import type { WorkIntentService } from '../lib/agent-harbor/work-intent-service.js';
 import type Database from 'better-sqlite3';
 
 interface FleetHitlProposalRouteDeps {
@@ -28,6 +29,7 @@ interface FleetHitlProposalRouteDeps {
     db?: Database.Database;
     fleetProposals?: FleetProposalStore;
     dispatchQueue?: DispatchQueue;
+    workIntentService?: WorkIntentService;
     now?: () => number;
   };
 }
@@ -140,9 +142,22 @@ export const fleetHitlProposalsPlugin: FastifyPluginAsync<FleetHitlProposalRoute
     async (request, reply) => {
       const store = requireStore(deps, reply);
       if (!store) return;
+      const body = request.body ?? {};
+      const shouldDispatch = body.dispatch !== false;
+      if (shouldDispatch && !deps.dispatchQueue) {
+        return reply.code(503).send({
+          success: false,
+          error: 'dispatch queue not wired; refusing proposal approval that would dispatch work',
+        });
+      }
+      if (shouldDispatch && !deps.workIntentService) {
+        return reply.code(503).send({
+          success: false,
+          error: 'WorkIntent dispatch intake is unavailable; refusing proposal approval that would dispatch work',
+        });
+      }
       let proposal: FleetProposal;
       try {
-        const body = request.body ?? {};
         proposal = store.approve({
           id: request.params.id,
           decidedBy: body.decidedBy,
@@ -155,7 +170,6 @@ export const fleetHitlProposalsPlugin: FastifyPluginAsync<FleetHitlProposalRoute
         });
       }
       let dispatch = null;
-      const shouldDispatch = (request.body ?? {}).dispatch !== false;
       // Idempotency guard (fleet review HIGH): store.approve() returns an
       // already-dispatched proposal untouched, so without this check a retry /
       // double-click / concurrent approve would call dispatchQueue.propose()
@@ -172,15 +186,8 @@ export const fleetHitlProposalsPlugin: FastifyPluginAsync<FleetHitlProposalRoute
         });
       }
       if (shouldDispatch) {
-        if (!deps.dispatchQueue) {
-          return reply.code(503).send({
-            success: false,
-            error: 'dispatch queue not wired; proposal approved but no specialist was assigned',
-            proposal,
-          });
-        }
         try {
-          dispatch = deps.dispatchQueue.propose({
+          const captured = deps.workIntentService!.captureDispatch({
             goal: proposal.dispatchGoal ?? buildFleetProposalDispatchGoal(proposal),
             tags: ['fleet-proposal', proposal.sourceShip],
             requestedBy: `fleet-proposal:${proposal.sourceShip}`,
@@ -189,7 +196,9 @@ export const fleetHitlProposalsPlugin: FastifyPluginAsync<FleetHitlProposalRoute
             baseBranch: proposal.baseBranch,
             budgetUsd: proposal.budgetUsd ?? undefined,
             mergePolicy: 'review',
-          });
+            idempotencyKey: `fleet-proposal:${proposal.id}:dispatch`,
+          }, deps.dispatchQueue!);
+          dispatch = captured.dispatch;
           proposal = store.markDispatched({ id: proposal.id, dispatchId: dispatch.id });
         } catch (err) {
           // Approval persisted but the dispatch handoff failed. Surface the

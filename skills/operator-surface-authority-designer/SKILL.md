@@ -90,7 +90,8 @@ flowchart TD
 4. **Check daemon enforceability.** A surface may render a control only if the daemon can actually back the decision it represents (acceptance criterion 6). If the daemon can't enforce it yet, the control doesn't ship yet either.
 5. **Pick the bus subscription.** `intake` and `deep` capabilities subscribe to the cool bus (Work Intents and transcript events are cool-bus objects); `ambient` capabilities may legitimately mix hot and cool. See `references/hot-bus-cool-bus-subscription-contract.md`.
 6. **Confirm no surface owns runtime state.** Every surface renders daemon truth and submits commands through the same envelopes — a locally-cached, treated-as-authoritative slice of state on any surface is a defect, not a performance optimization.
-7. **Audit before you build, and again before you ship.** Run `scripts/surface_authority_audit.mjs` against the spec at design time, and again against the shipped reality.
+7. **Confirm adapter boundaries.** Native surfaces do not shell out to CLI or MCP internally. Scout, FleetBar, pd-console, CLI, and MCP all enter through the shared daemon contract / Surface Gateway path; CLI and MCP are automation adapters, not hidden implementation dependencies for the operator surfaces.
+8. **Audit before you build, and again before you ship.** Run `scripts/surface_authority_audit.mjs` against the spec at design time, and again against the shipped reality.
 
 ## Output Contract
 
@@ -120,6 +121,12 @@ Use `scripts/surface_authority_audit.mjs` to score a spec matching `schemas/surf
 **Novice**: Render the approve/deny control immediately because the UI is ready, wire it to the daemon "in a follow-up," and let a surface cache its own roster copy "for snappiness" while the wiring lands.
 **Expert**: No surface may render a control the daemon cannot enforce, and no surface owns runtime state — both break the guarantee that all three surfaces render the same daemon truth and degrade identically when the daemon dies. A capability's bus subscription must match its distance too: `intake`/`deep` capabilities are durable cool-bus objects (Work Intents, transcript events), not ephemeral hot-bus chatter.
 **Detection**: `surface_authority_audit.mjs` fires `unenforceable-control-rendered` (critical) when `daemonEnforceable` is false, `surface-owns-runtime-state` (critical) when `surfacesOwnRuntimeState` is true, and `bus-distance-mismatch` (critical) when an `intake`/`deep` capability's `busSubscription` isn't `cool`.
+
+### Native Surface Calls The Automation Adapter
+
+**Novice**: Have FleetBar or pd-console run `pd ...` or call MCP tools internally because the command already exists and the UI needs the same behavior.
+**Expert**: CLI and MCP are automation adapters for agents, CI, scripts, emergency repair, and integrations. Native operator surfaces use the shared daemon contract / Surface Gateway path directly so operator truth, automation truth, and policy enforcement stay one thing.
+**Detection**: Surface specs or implementation notes mention FleetBar, Scout, or pd-console invoking CLI/MCP as their internal path instead of submitting the shared command/query/event envelope.
 
 ## References
 

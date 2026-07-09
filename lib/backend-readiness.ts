@@ -1,4 +1,3 @@
-import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
@@ -45,17 +44,21 @@ const require = createRequire(import.meta.url);
 // gate and the actual spawn resolve binaries against the SAME locations —
 // otherwise readiness can say "binary exists" while the spawn fails under
 // launchd's bare PATH.
-import { cliBinDirs } from './cli-bin-dirs.js';
-export { cliBinDirs };
+import { cliBinDirs, resolveCliBinary, type CliBinaryResolution } from './cli-bin-dirs.js';
+export { cliBinDirs, resolveCliBinary };
 
 export function commandExists(command: string): boolean {
-  const augmentedPath = [process.env.PATH || '', ...cliBinDirs()].filter(Boolean).join(':');
-  const result = spawnSync('which', [command], {
-    stdio: ['ignore', 'pipe', 'ignore'],
-    encoding: 'utf-8',
-    env: { ...process.env, PATH: augmentedPath },
-  });
-  return (result.status ?? 1) === 0;
+  return resolveCliBinary(command).found;
+}
+
+function cliSummary(label: string, resolution: CliBinaryResolution, suffix: string): string {
+  const base = `${label} binary found at ${resolution.command}; ${suffix}`;
+  return resolution.warning ? `${base}. ${resolution.warning}` : base;
+}
+
+function cliMissingSummary(label: string, resolution: CliBinaryResolution): string {
+  const base = `${label} binary "${resolution.command}" not found`;
+  return resolution.warning ? `${base}. ${resolution.warning}` : base;
 }
 
 function packageInstalled(specifier: string): boolean {
@@ -143,11 +146,12 @@ export async function assessBackendReadiness(
 
   switch (backend) {
     case 'claude-cli': {
-      if (!commandExists('claude')) {
+      const resolution = resolveCliBinary('claude', { envOverride: 'PD_CLI_CLAUDE_CODE_BIN' });
+      if (!resolution.found) {
         return applyTelemetryPolicy({
           backend,
           status: 'needs_setup',
-          summary: 'Claude CLI binary not found',
+          summary: cliMissingSummary('Claude CLI', resolution),
           nextStep: 'Install the Claude CLI, then run it interactively once to establish login.',
           setupCommand: 'claude',
         }, telemetryPolicy);
@@ -160,7 +164,7 @@ export async function assessBackendReadiness(
         // Without this flag preflight refused every claude-cli launch through
         // the daemon ("no launchable backend").
         launchableUnverified: true,
-        summary: 'Claude CLI binary found; login cannot be verified non-interactively',
+        summary: cliSummary('Claude CLI', resolution, 'login cannot be verified non-interactively'),
         nextStep: 'Run `claude` once interactively if needed. In sandboxed runners, approve an unsandboxed Port Daddy/Claude command path first.',
         setupCommand: 'claude',
       }, telemetryPolicy);
@@ -360,12 +364,12 @@ export async function assessBackendReadiness(
     }
 
     case 'cli:claude-code': {
-      const bin = process.env.PD_CLI_CLAUDE_CODE_BIN || 'claude';
-      if (!commandExists(bin)) {
+      const resolution = resolveCliBinary('claude', { envOverride: 'PD_CLI_CLAUDE_CODE_BIN' });
+      if (!resolution.found) {
         return applyTelemetryPolicy({
           backend,
           status: 'needs_setup',
-          summary: `Claude Code CLI binary "${bin}" not found`,
+          summary: cliMissingSummary('Claude Code CLI', resolution),
           nextStep: 'Install Claude Code (https://claude.com/code) and run `claude setup-token` once to authenticate.',
           setupCommand: 'brew install claude  # or: curl -fsSL https://claude.ai/install.sh | sh',
         }, telemetryPolicy);
@@ -374,19 +378,19 @@ export async function assessBackendReadiness(
         backend,
         status: 'manual_check',
         launchableUnverified: true,
-        summary: 'Claude Code CLI binary found; auth cannot be verified non-interactively',
+        summary: cliSummary('Claude Code CLI', resolution, 'auth cannot be verified non-interactively'),
         nextStep: 'Run `claude -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=claude-code forces all spawns through this CLI.',
         setupCommand: 'claude -p "hello"',
       }, telemetryPolicy);
     }
 
     case 'cli:codex': {
-      const bin = process.env.PD_CLI_CODEX_BIN || 'codex';
-      if (!commandExists(bin)) {
+      const resolution = resolveCliBinary('codex', { envOverride: 'PD_CLI_CODEX_BIN' });
+      if (!resolution.found) {
         return applyTelemetryPolicy({
           backend,
           status: 'needs_setup',
-          summary: `Codex CLI binary "${bin}" not found`,
+          summary: cliMissingSummary('Codex CLI', resolution),
           nextStep: 'Install the Codex CLI and authenticate before using this backend.',
           setupCommand: 'codex --help',
         }, telemetryPolicy);
@@ -395,19 +399,40 @@ export async function assessBackendReadiness(
         backend,
         status: 'manual_check',
         launchableUnverified: true,
-        summary: 'Codex CLI binary found; auth cannot be verified non-interactively',
+        summary: cliSummary('Codex CLI', resolution, 'auth cannot be verified non-interactively'),
         nextStep: 'Run `codex exec "hello"` once to confirm auth. PD_USE_CLI_BACKEND=codex forces all spawns through this CLI.',
         setupCommand: 'codex exec "hello"',
       }, telemetryPolicy);
     }
 
-    case 'cli:gemini': {
-      const bin = process.env.PD_CLI_GEMINI_BIN || 'gemini';
-      if (!commandExists(bin)) {
+    case 'cli:agy': {
+      const resolution = resolveCliBinary('agy', { envOverride: 'PD_CLI_AGY_BIN' });
+      if (!resolution.found) {
         return applyTelemetryPolicy({
           backend,
           status: 'needs_setup',
-          summary: `Gemini CLI binary "${bin}" not found`,
+          summary: cliMissingSummary('Antigravity agy CLI', resolution),
+          nextStep: 'Install the agy CLI and authenticate before using this backend.',
+          setupCommand: 'agy --help',
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'manual_check',
+        launchableUnverified: true,
+        summary: cliSummary('Antigravity agy CLI', resolution, 'auth cannot be verified non-interactively'),
+        nextStep: 'Run `agy --print "hello"` once to confirm auth. PD_USE_CLI_BACKEND=agy forces all spawns through this CLI.',
+        setupCommand: 'agy --print "hello"',
+      }, telemetryPolicy);
+    }
+
+    case 'cli:gemini': {
+      const resolution = resolveCliBinary('gemini', { envOverride: 'PD_CLI_GEMINI_BIN' });
+      if (!resolution.found) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'needs_setup',
+          summary: cliMissingSummary('Gemini CLI', resolution),
           nextStep: 'Install the Gemini CLI (npm install -g @google/gemini-cli) and run `gemini` once to authenticate.',
           setupCommand: 'npm install -g @google/gemini-cli',
         }, telemetryPolicy);
@@ -416,19 +441,19 @@ export async function assessBackendReadiness(
         backend,
         status: 'manual_check',
         launchableUnverified: true,
-        summary: 'Gemini CLI binary found; auth cannot be verified non-interactively',
+        summary: cliSummary('Gemini CLI', resolution, 'auth cannot be verified non-interactively'),
         nextStep: 'Run `gemini -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=gemini forces all spawns through this CLI.',
         setupCommand: 'gemini -p "hello"',
       }, telemetryPolicy);
     }
 
     case 'cli:groq': {
-      const bin = process.env.PD_CLI_GROQ_BIN || 'groq';
-      if (!commandExists(bin)) {
+      const resolution = resolveCliBinary('groq', { envOverride: 'PD_CLI_GROQ_BIN' });
+      if (!resolution.found) {
         return applyTelemetryPolicy({
           backend,
           status: 'needs_setup',
-          summary: `Groq CLI binary "${bin}" not found`,
+          summary: cliMissingSummary('Groq CLI', resolution),
           nextStep: 'Install the Groq Code CLI (npm install -g groq-code-cli) and run `groq` once to authenticate.',
           setupCommand: 'npm install -g groq-code-cli',
         }, telemetryPolicy);
@@ -437,19 +462,19 @@ export async function assessBackendReadiness(
         backend,
         status: 'manual_check',
         launchableUnverified: true,
-        summary: 'Groq CLI binary found; auth cannot be verified non-interactively',
+        summary: cliSummary('Groq CLI', resolution, 'auth cannot be verified non-interactively'),
         nextStep: 'Run `groq -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=groq forces all spawns through this CLI.',
         setupCommand: 'groq -p "hello"',
       }, telemetryPolicy);
     }
 
     case 'cli:grok': {
-      const bin = process.env.PD_CLI_GROK_BIN || 'grok';
-      if (!commandExists(bin)) {
+      const resolution = resolveCliBinary('grok', { envOverride: 'PD_CLI_GROK_BIN' });
+      if (!resolution.found) {
         return applyTelemetryPolicy({
           backend,
           status: 'needs_setup',
-          summary: `Grok CLI binary "${bin}" not found`,
+          summary: cliMissingSummary('Grok CLI', resolution),
           nextStep: 'Install the Grok CLI (npm install -g @vibe-kit/grok-cli) and authenticate before using this backend.',
           setupCommand: 'npm install -g @vibe-kit/grok-cli',
         }, telemetryPolicy);
@@ -458,7 +483,7 @@ export async function assessBackendReadiness(
         backend,
         status: 'manual_check',
         launchableUnverified: true,
-        summary: 'Grok CLI binary found; auth cannot be verified non-interactively',
+        summary: cliSummary('Grok CLI', resolution, 'auth cannot be verified non-interactively'),
         nextStep: 'Run `grok -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=grok forces all spawns through this CLI.',
         setupCommand: 'grok -p "hello"',
       }, telemetryPolicy);

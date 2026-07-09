@@ -27,7 +27,17 @@ Read this binder as a layered source of truth, not as a pile of equal notes:
    is the chain decomposition rationale behind the launch board.
 6. [16 Binder Architect Of Record](./16-binder-architect-of-record.md) owns
    contradictions, coverage gaps, and drift across the binder.
-7. Implementation truth must eventually move from prose into ADRs, schemas,
+7. [25 Agent Harbor Runtime Refactor Alignment](./25-agent-harbor-runtime-refactor-alignment.md)
+   is the current gateway/kernel/supervisor/account-harbor execution shape for
+   the runtime-refactor branch.
+8. [26 Agent Harbor Runtime Refactor Agent DAG](./26-agent-harbor-runtime-refactor-agent-dag.md)
+   is the skillful-agent launch graph, blackboard, review plan, and release
+   proof plan for executing chapter 25.
+9. [Destructive Daemon Runtime Refactor](./work-packets/destructive-daemon-runtime-refactor.md)
+   is the Wave 2 Lane A work packet that binds ADR-0100 to implementation
+   lanes: no quiet aliases, one Surface Gateway, `harbor_events` as cold ledger,
+   `pd-supervisor` as duty boundary, and local/cloud authority labels.
+10. Implementation truth must eventually move from prose into ADRs, schemas,
    tests, events, and runtime projections. A section is not "real" until the
    matching proof gate passes.
 
@@ -210,42 +220,57 @@ Work Receipt:
   named-pipe IPC with DACLs, AppContainer/Job Object containment,
   MSI + Authenticode), the W1/W2 gates sequenced against M3 and M10, and
   proof gates IT-24A..IT-24D.
+- [25 Agent Harbor Runtime Refactor Alignment](./25-agent-harbor-runtime-refactor-alignment.md):
+  the implementation alignment slice for one command/query/event contract,
+  Surface Gateway, `pd-console` centrality, hot/cool buses, Local Runtime
+  Kernel, `pd-supervisor` with Bosun inside, Harbor sync, account harbor, and
+  remote harbor authority.
+- [26 Agent Harbor Runtime Refactor Agent DAG](./26-agent-harbor-runtime-refactor-agent-dag.md):
+  the executable skillful-agent DAG for the runtime refactor: node prompts,
+  dependency order, blackboard keys, skeptical review nodes, smoke/shadow test
+  gates, and release responsibilities.
+- [Work packet: Destructive Daemon Runtime Refactor](./work-packets/destructive-daemon-runtime-refactor.md):
+  the Wave 2 Lane A authority packet for implementation lanes: destructive
+  legacy entry disposition, local/cloud authority, `harbor_events`, Surface
+  Gateway, WorkIntent migration, `pd-supervisor`, native proof, and RC/Homebrew
+  gates.
 
 ## Architecture in one diagram
 
 ```mermaid
 flowchart LR
-  Operator["Operator"] --> Console["pd-console / Harbor app"]
-  Operator --> FleetBar["FleetBar"]
-  Operator --> Mobile["Mobile observer/control"]
-  Operator --> CLI["pd CLI"]
-  Operator --> IDE["VS Code / editor plugin"]
+  subgraph Surfaces["Operator and agent entry points"]
+    PDConsole["pd-console"]
+    FleetBar["FleetBar"]
+    Scout["Scout"]
+    CLI["CLI"]
+    MCPBroker["MCP broker"]
+  end
 
-  Console --> Daemon["Local Port Daddy daemon"]
-  FleetBar --> Daemon
-  CLI --> Daemon
-  IDE --> Daemon
-  Mobile --> Relay["Relay / account pairing"]
-  Relay --> Daemon
+  PDConsole --> SurfaceGateway["Surface Gateway"]
+  FleetBar --> SurfaceGateway
+  Scout --> SurfaceGateway
+  CLI --> SurfaceGateway
+  MCPBroker --> SurfaceGateway
 
-  Daemon --> Nodes["Agent Nodes"]
-  Nodes --> Claude["Claude Code body"]
-  Nodes --> Codex["Codex CLI body"]
-  Nodes --> Cloudflare["Cloudflare Worker body"]
-  Nodes --> Ollama["Ollama / LM Studio body"]
-  Nodes --> Custom["Custom agent API body"]
+  SurfaceGateway --> Contract["Command / Query / Event contract"]
+  Contract --> HotBus["Hot bus"]
+  Contract --> CoolBus["Cool bus"]
 
-  Daemon --> Ledger["append-only ledger"]
-  Daemon --> Transcripts["transcript store"]
-  Daemon --> Memory["episodic memory"]
-  Daemon --> Claims["claims / conflicts"]
-  Daemon --> HarborEditor["Loro Harbor Editor"]
-  Daemon --> Policy["Articles / guard / budget"]
+  HotBus --> Kernel["Local Runtime Kernel"]
+  CoolBus --> Kernel
+  Kernel --> WorkIntent["WorkIntent -> WorkPlan -> AgentNode -> AgentRun"]
 
-  Policy --> Nodes
-  Transcripts --> Memory
-  Memory --> Nodes
-  Claims --> HarborEditor
+  Kernel --> DaemonLease
+  subgraph Supervisor["pd-supervisor"]
+    Bosun["Bosun watchdog"]
+    DaemonLease["daemon process lease"]
+    Bosun --> DaemonLease
+  end
+
+  Kernel <--> HarborSync["Harbor sync"]
+  HarborSync <--> AccountHarbor["portdaddy.dev account harbor"]
+  AccountHarbor <--> RemoteAuthority["remote harbor authority"]
 ```
 
 ## What is already real versus target

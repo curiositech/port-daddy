@@ -3,6 +3,9 @@ pub struct ConsoleCliArgs {
     pub initial_pane: Option<String>,
     pub display_selector: Option<String>,
     pub list_displays: bool,
+    /// Path for the scripting control socket (`--control-sock`), else the
+    /// `PD_CONSOLE_CONTROL_SOCK` env var.
+    pub control_sock: Option<String>,
 }
 
 pub fn parse_console_args<I, S>(args: I) -> ConsoleCliArgs
@@ -15,6 +18,11 @@ where
         initial_pane: value_after(&args, "--pane"),
         display_selector: value_after(&args, "--display"),
         list_displays: args.iter().any(|a| a == "--list-displays"),
+        control_sock: value_after(&args, "--control-sock").or_else(|| {
+            std::env::var("PD_CONSOLE_CONTROL_SOCK")
+                .ok()
+                .filter(|s| !s.trim().is_empty())
+        }),
     }
 }
 

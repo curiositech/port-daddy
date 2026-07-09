@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/berth-target.schema.json",
+  "title": "BerthTarget",
+  "description": "The resolved daemon/runtime lane a native or agent surface is addressing. BerthTarget freezes the authority boundary: FleetBar, pd-console, Scout, CLI, and MCP carry a resolved target, but only the daemon registry, operator selection, policy, or lease can authorize it.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.berth-target.v0" },
+    "targetId": { "type": "string", "minLength": 1 },
+    "tier": { "enum": ["stable", "dev-latest", "codebase", "remote"] },
+    "label": { "type": "string", "minLength": 1 },
+    "url": { "type": ["string", "null"] },
+    "port": { "type": ["number", "null"], "minimum": 0 },
+    "sourceDir": { "type": ["string", "null"] },
+    "gitBranch": { "type": ["string", "null"] },
+    "gitRev": { "type": ["string", "null"] },
+    "canonical": { "type": "boolean", "description": "True only for the stable canonical berth. Dev and codebase lanes must not silently promote themselves." },
+    "resolution": {
+      "type": "object",
+      "properties": {
+        "state": { "enum": ["resolved", "unresolved", "stale"] },
+        "source": { "enum": ["daemon-registry", "operator-selection", "surface-default", "explicit-url", "import"] },
+        "resolvedAt": { "type": ["string", "null"] },
+        "staleReason": { "type": ["string", "null"] }
+      },
+      "required": ["state", "source"]
+    },
+    "authority": {
+      "type": "object",
+      "properties": {
+        "domain": { "enum": ["canonical-local", "dev-lane", "worktree-lane", "remote-harbor", "read-only-import"] },
+        "grantedBy": { "enum": ["daemon-registry", "operator-selection", "policy", "lease", "read-only-import"] },
+        "canCommand": { "type": "boolean" },
+        "canQuery": { "type": "boolean" },
+        "canSubscribeEvents": { "type": "boolean" },
+        "reason": { "type": "string" }
+      },
+      "required": ["domain", "grantedBy", "canCommand", "canQuery", "canSubscribeEvents"]
+    },
+    "createdAt": { "type": "string", "minLength": 1 }
+  },
+  "required": ["schema", "targetId", "tier", "label", "canonical", "resolution", "authority", "createdAt"],
+  "additionalProperties": true
+}

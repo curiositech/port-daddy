@@ -34,7 +34,13 @@ fn tone_for_type(t: &str) -> Tone {
     match t {
         x if x.contains("error") || x.contains("fail") || x.contains("reject") => Tone::Gated,
         x if x.contains("done") || x.contains("complete") || x.contains("release") => Tone::Landed,
-        x if x.contains("claim") || x.contains("begin") || x.contains("spawn") || x.contains("start") => Tone::Engaged,
+        x if x.contains("claim")
+            || x.contains("begin")
+            || x.contains("spawn")
+            || x.contains("start") =>
+        {
+            Tone::Engaged
+        }
         _ => Tone::Default,
     }
 }
@@ -46,17 +52,26 @@ pub struct ActivityPane {
 
 impl Default for ActivityPane {
     fn default() -> Self {
-        Self { entries: Vec::new(), last_error: None }
+        Self {
+            entries: Vec::new(),
+            last_error: None,
+        }
     }
 }
 
 impl ActivityPane {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 }
 
 impl Pane for ActivityPane {
-    fn id(&self) -> &str { "activity" }
-    fn title(&self) -> String { "Activity".into() }
+    fn id(&self) -> &str {
+        "activity"
+    }
+    fn title(&self) -> String {
+        "Activity".into()
+    }
 
     fn view(&self) -> Vec<Block> {
         let mut blocks = vec![Block::Header("Activity Feed".into())];
@@ -81,7 +96,10 @@ impl Pane for ActivityPane {
         }
 
         blocks.push(Block::Gap);
-        blocks.push(Block::KeyVal("events shown".into(), self.entries.len().min(30).to_string()));
+        blocks.push(Block::KeyVal(
+            "events shown".into(),
+            self.entries.len().min(30).to_string(),
+        ));
         blocks
     }
 
@@ -100,7 +118,10 @@ impl Pane for ActivityPane {
                     Err(e) => self.last_error = Some(format!("bad response: {e}")),
                     Ok(data) => {
                         self.last_error = None;
-                        self.entries = arr(&data, "entries").iter().map(ActivityEntry::from_value).collect();
+                        self.entries = arr(&data, "entries")
+                            .iter()
+                            .map(ActivityEntry::from_value)
+                            .collect();
                     }
                 },
             }

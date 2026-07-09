@@ -21,6 +21,7 @@
  */
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
+import { TRANSCRIPT_EMERGENCY_EVENT } from '../../../lib/transcript-emergency-constants.js';
 import {
   getInstallationTokenCached,
   invalidateInstallationToken,
@@ -62,6 +63,8 @@ import {
 import type { Proposal } from './proposals.js';
 import { decideShipGate, isDocsOnly } from './gates.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
+
+const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 
 // ---------------------------------------------------------------------------
 
@@ -236,6 +239,7 @@ class Transcript {
   constructor(
     private readonly db: D1Database | undefined,
     readonly runId: string,
+    private readonly onWriteFailure?: (failure: TranscriptWriteFailure) => Promise<void>,
   ) {}
 
   async step(kind: string, ship: string | null, title: string, detail: unknown): Promise<void> {
@@ -250,11 +254,92 @@ class Transcript {
         .bind(this.runId, seq, kind, ship, title, detail == null ? null : JSON.stringify(detail), nowSec())
         .run();
     } catch (err) {
+      const error = String(err);
       console.error(
-        `[fleet-executor] transcript step failed run=${this.runId} seq=${seq}: ${String(err)}`,
+        `[fleet-executor] transcript step failed run=${this.runId} seq=${seq}: ${error}`,
       );
+      this.reportWriteFailure({ runId: this.runId, seq, kind, ship, title, error });
     }
   }
+
+  private reportWriteFailure(failure: TranscriptWriteFailure): void {
+    if (!this.onWriteFailure) return;
+    let telemetry: Promise<void>;
+    try {
+      telemetry = this.onWriteFailure(failure);
+    } catch (telemetryErr) {
+      console.error(`[fleet-executor] transcript failure telemetry failed run=${this.runId}: ${String(telemetryErr)}`);
+      return;
+    }
+    void withTranscriptFailureTelemetryTimeout(telemetry, failure.runId).catch((telemetryErr) => {
+      console.error(`[fleet-executor] transcript failure telemetry failed run=${failure.runId}: ${String(telemetryErr)}`);
+    });
+  }
+}
+
+interface TranscriptWriteFailure {
+  runId: string;
+  seq: number;
+  kind: string;
+  ship: string | null;
+  title: string;
+  error: string;
+}
+
+function withTranscriptFailureTelemetryTimeout(
+  telemetry: Promise<void>,
+  runId: string,
+): Promise<void> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<void>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`transcript failure telemetry timed out after ${TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS}ms for ${runId}`));
+    }, TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS);
+    (timer as unknown as { unref?: () => void }).unref?.();
+  });
+  telemetry.then(
+    () => clearTimeout(timer),
+    () => clearTimeout(timer),
+  );
+  return Promise.race([telemetry, timeout]);
+}
+
+async function emitTranscriptWriteFailureTelemetry(
+  env: ExecutorEnv,
+  job: FleetRunJob,
+  failure: TranscriptWriteFailure,
+): Promise<void> {
+  const [owner, repo] = (job.repoFullName || '').split('/');
+  const prPayload = (job.payloadMinimal.pull_request as Record<string, unknown>) ?? {};
+  const head = prPayload.head && typeof prPayload.head === 'object'
+    ? prPayload.head as Record<string, unknown>
+    : {};
+  await emitCloudTelemetry(
+    {
+      deliveryId: job.deliveryId,
+      event: TRANSCRIPT_EMERGENCY_EVENT.WRITE_FAILED,
+      action: job.action,
+      owner: owner || null,
+      repo: repo || null,
+      prNumber: job.prNumber ?? null,
+      sha: typeof head.sha === 'string' ? head.sha : null,
+      ship: failure.ship,
+      status: 'error',
+      conclusion: 'failure',
+      backend: 'cloudflare',
+      model: null,
+      metadata: {
+        transcriptWriteFailure: true,
+        table: 'fleet_run_steps',
+        runId: failure.runId,
+        seq: failure.seq,
+        kind: failure.kind,
+        title: failure.title,
+        error: failure.error,
+      },
+    },
+    env,
+  );
 }
 
 /**
@@ -315,10 +400,12 @@ async function recordRunEnd(
   }
 }
 
-/** The trigger we currently dispatch (pull_request opened/synchronize). */
+const REVIEWABLE_PR_ACTIONS = new Set(['opened', 'synchronize', 'reopened', 'ready_for_review']);
+
+/** The fleet trigger used by reviewable pull_request deliveries. */
 function triggerFor(job: FleetRunJob): string | null {
   if (job.eventType !== 'pull_request') return null;
-  if (job.action !== 'opened' && job.action !== 'synchronize') return null;
+  if (!job.action || !REVIEWABLE_PR_ACTIONS.has(job.action)) return null;
   return 'pull_request:opened';
 }
 
@@ -359,7 +446,9 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // own audit row + transcript (INSERT OR REPLACE) instead of duplicating.
   const runId = `run:${deliveryId}`;
   const startMs = Date.now();
-  const transcript = new Transcript(env.DB, runId);
+  const transcript = new Transcript(env.DB, runId, (failure) =>
+    emitTranscriptWriteFailureTelemetry(env, job, failure)
+  );
 
   // --- Token (KV-cached; remint once on 401) -------------------------------
   let token: string;

@@ -257,6 +257,8 @@ struct ConsoleLauncherSection: View {
     let activeDaemonURL: String?
     /// Opens the in-app Fleet Control Center window.
     let openControlCenter: () -> Void
+    /// Opens the Fleet Control Center directly to the Cloud Fleet surface.
+    let openCloudFleet: () -> Void
     /// Opens the Fleet Control Center directly to visual task intake.
     let openVisualTask: () -> Void
 
@@ -287,6 +289,15 @@ struct ConsoleLauncherSection: View {
                 action: openControlCenter
             )
             .help("Open the Fleet Control Center window")
+
+            toolAction(
+                title: "Cloud Fleet",
+                subtitle: "Local daemon + remote runs",
+                systemImage: "cloud",
+                color: Fleet.Color.active,
+                action: openCloudFleet
+            )
+            .help("Open Cloud Fleet local and remote activity")
 
             toolAction(
                 title: "Send Visual Task",

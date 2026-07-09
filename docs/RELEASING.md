@@ -47,11 +47,15 @@ npx tsx scripts/sync-version.ts              # syncs EVERY version surface
 $EDITOR CHANGELOG.md
 
 # E. Validate locally
-bun install
-bun run build:bin                                          # → dist/pd-binary
-./dist/pd-binary --version                                 # reports 3.15.0
-bun run build:bin:all                                      # darwin-arm64 + linux-x64
-npm test -- tests/unit/distribution-freshness.test.js      # 51/51
+npm ci
+npm run check:version-drift
+npm test -- --runTestsByPath tests/unit/distribution-freshness.test.js
+npm run build:daemon:dist                                  # → dist/daemon/port-daddy-daemon
+bash scripts/smoke-compiled-daemon.sh
+npm run build:bin                                          # → dist/port-daddy
+node scripts/build-single-binary.mjs --outfile=dist/pd     # release workflow shape
+./dist/port-daddy --version                                # reports 3.15.0
+SOAK_SECONDS=180 SOAK_PORT=19876 bash scripts/soak-binary.sh dist/port-daddy
 
 # F. PR
 pd guard check --staged
@@ -74,11 +78,10 @@ gh release create v3.15.0 --generate-notes --title "v3.15.0 — <headline>"
 # I. Babysit the binary build
 gh run watch $(gh run list --workflow=release.yml --limit 1 --json databaseId --jq '.[0].databaseId')
 #
-# Confirm three binaries land on the release:
+# Confirm the daemon/CLI binaries land on the release:
 #   pd-darwin-arm64.tar.gz
-#   pd-darwin-x64.tar.gz
 #   pd-linux-x64.tar.gz
-# plus the FleetBar preview .zip.
+# plus the FleetBar preview .zip and pd-console artifact.
 
 # J. Brew tap rolls automatically via release.yml → update-homebrew job.
 #    If it failed (e.g. after a manual workflow_dispatch re-run), dispatch it:
@@ -93,7 +96,9 @@ pd release release-publish
 # K. Verify users can actually upgrade
 brew update && brew upgrade port-daddy
 brew services restart port-daddy
-pd status                                                  # reports 3.15.0
+/opt/homebrew/bin/pd --version                            # reports 3.15.0
+/opt/homebrew/bin/pd status                               # daemon reports 3.15.0
+/opt/homebrew/bin/pd doctor --json                        # supervision + crash checks are not critical
 
 # L. Close
 pd note "Result: v3.15.0 cut. Validation: <release URL>. Brew: <tap PR URL>."
@@ -192,30 +197,36 @@ pd session files add <files...>
 # C. Develop and run unit tests in source mode (fast)
 npm test -- tests/unit/<area>.test.js
 
-# D. Smoke-test the BINARY — the binary is what users hit, not tsx server.ts
-bun install                                          # if not already
-bun run build:bin                                    # → dist/pd-binary (~60 MB Mach-O arm64)
+# D. Smoke-test the binaries — these are what users hit, not tsx server.ts
+npm ci                                               # if not already
+npm run build:daemon:dist                            # → dist/daemon/port-daddy-daemon
+bash scripts/smoke-compiled-daemon.sh
+npm run build:bin                                    # → dist/port-daddy
 
 # Isolated test daemon on a claimed port so you don't clobber the canonical one
 PORT=$(pd claim port-daddy-feat-foo-test -q)
-PORT_DADDY_PORT=$PORT ./dist/pd-binary daemon start --foreground &
+SCRATCH=$(mktemp -d)
+PORT_DADDY_PORT=$PORT \
+  PORT_DADDY_DB="$SCRATCH/registry.db" \
+  PORT_DADDY_PREFIX="$SCRATCH" \
+  ./dist/daemon/port-daddy-daemon &
 TEST_DAEMON_PID=$!
 
 curl -sf "http://localhost:$PORT/your/new/route" | jq .
-./dist/pd-binary --daemon "http://localhost:$PORT" <new-subcommand>
+PORT_DADDY_URL="http://localhost:$PORT" ./dist/port-daddy <new-subcommand>
 
 # Tear down
 kill $TEST_DAEMON_PID
+rm -rf "$SCRATCH"
 pd release port-daddy-feat-foo-test
 
-# E. If you need to test launchd / canonical-daemon behavior, swap briefly:
-pd note "Hot-swapping canonical daemon for binary smoke-test (~5 min)"
-launchctl stop com.portdaddy.daemon
-./dist/pd-binary daemon start --foreground &        # NOT through launchd
-# ... test ...
-kill %1
-launchctl start com.portdaddy.daemon
-pd note "Canonical daemon restored"
+# E. If you need launchd behavior, use a dev berth or a disposable LaunchAgent.
+# Do not hot-swap the stable Homebrew daemon for feature work.
+pd dev up --from "$(git branch --show-current)" --label feat-foo
+eval "$(pd use feat-foo)"
+pd status
+eval "$(pd use stable)"
+pd dev down feat-foo
 
 # F. Standard PR flow
 pd guard check --staged

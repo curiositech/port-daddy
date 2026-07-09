@@ -9,6 +9,7 @@
 #   make shots      → capture window screenshots (needs Screen Recording perm)
 #   make proof      → off-screen visual proof: per-pane stills + a video clip
 #   make proof-setup→ one-time virtual-display + permission setup (interactive)
+#   make headless-capture → Block-model PNG, NO window/display/TCC (agent-safe)
 #   make displays   → list the displays pd-console can target (for --display)
 #   make test       → cargo test (the panes/decoders)
 #   make check      → cargo check, no gpui (the Linux/CI path)
@@ -19,7 +20,7 @@
 .DEFAULT_GOAL := run
 DEVBUILD ?= harness-roster
 
-.PHONY: run dev install devapp repl shots proof proof-setup displays test check help
+.PHONY: run dev install devapp repl shots proof proof-setup headless-capture displays test check help
 
 run: ## Build (release) and launch the native window
 	cargo run --release --features gpui --bin pd-console
@@ -44,6 +45,9 @@ proof: ## Off-screen visual proof — per-pane stills + a video clip on a virtua
 
 proof-setup: ## One-time setup: create a virtual display + grant Screen Recording (interactive)
 	./scripts/proof/setup-virtual-display.sh
+
+headless-capture: ## Offscreen Block-model PNG — no window/display/TCC (agent-safe). Optional OUT=<path>
+	./scripts/proof/headless-capture.sh $(OUT)
 
 displays: ## List the displays pd-console can target (use the index/uuid with --display)
 	cargo run --release --features gpui --bin pd-console -- --list-displays

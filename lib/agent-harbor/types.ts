@@ -35,6 +35,18 @@ export type ModelTier = (typeof MODEL_TIERS)[number];
 export const LAUNCH_MODES = ['native', 'hooked', 'proxy', 'observed', 'unmanaged'] as const;
 export type LaunchMode = (typeof LAUNCH_MODES)[number];
 
+export const BODY_KINDS = [
+  'claude-code',
+  'codex-cli',
+  'cloudflare',
+  'ollama',
+  'lmstudio',
+  'custom-stdio',
+  'custom-http',
+  'human',
+] as const;
+export type BodyKind = (typeof BODY_KINDS)[number];
+
 /** Honest downgraded modes per agent-node.schema.json officialMode. */
 export const OFFICIAL_MODES = [
   'official',
@@ -109,6 +121,96 @@ export type GuidanceOperatorAction = (typeof GUIDANCE_OPERATOR_ACTIONS)[number];
 
 export const GUIDANCE_SIG_ALGS = ['hmac-sha256', 'ed25519'] as const;
 export type GuidanceSigAlg = (typeof GUIDANCE_SIG_ALGS)[number];
+
+export const SURFACE_GATEWAY_SURFACES = ['pd-console', 'fleetbar', 'scout', 'cli', 'mcp'] as const;
+export type SurfaceGatewaySurface = (typeof SURFACE_GATEWAY_SURFACES)[number];
+
+export const SURFACE_GATEWAY_DIRECTIONS = ['surface-to-daemon', 'daemon-to-surface', 'surface-local'] as const;
+export type SurfaceGatewayDirection = (typeof SURFACE_GATEWAY_DIRECTIONS)[number];
+
+export const SURFACE_GATEWAY_MODES = ['command', 'query', 'event'] as const;
+export type SurfaceGatewayMode = (typeof SURFACE_GATEWAY_MODES)[number];
+
+export const SURFACE_GATEWAY_NOUNS = [
+  'WorkIntent',
+  'WorkPlan',
+  'AgentNode',
+  'AgentRun',
+  'Body',
+  'ControlCommand',
+  'TranscriptEvent',
+  'CapabilityDecision',
+  'WorkReceipt',
+  'BerthTarget',
+] as const;
+export type SurfaceGatewayNoun = (typeof SURFACE_GATEWAY_NOUNS)[number];
+
+export const CAPABILITY_DECISIONS = ['allow', 'deny', 'degrade', 'unsupported', 'requires-approval'] as const;
+export type CapabilityDecisionVerdict = (typeof CAPABILITY_DECISIONS)[number];
+
+export const CAPABILITY_DECISION_DOMAINS = [
+  'daemon-registry',
+  'operator-selection',
+  'policy',
+  'lease',
+  'read-only-import',
+] as const;
+export type CapabilityDecisionDomain = (typeof CAPABILITY_DECISION_DOMAINS)[number];
+
+export const CAPABILITY_DECISION_SURFACES = [
+  ...SURFACE_GATEWAY_SURFACES,
+  'daemon',
+  'operator',
+] as const;
+export type CapabilityDecisionSurface = (typeof CAPABILITY_DECISION_SURFACES)[number];
+
+export const CAPABILITY_NAMES = [
+  'work-intent',
+  'work-plan',
+  'agent-node',
+  'agent-run',
+  'body',
+  'control-command',
+  'transcript-event',
+  'capability-decision',
+  'work-receipt',
+  'berth-target',
+  'surface-gateway',
+] as const;
+export type CapabilityName = (typeof CAPABILITY_NAMES)[number];
+
+export const BERTH_TARGET_TIERS = ['stable', 'dev-latest', 'codebase', 'remote'] as const;
+export type BerthTargetTier = (typeof BERTH_TARGET_TIERS)[number];
+
+export const BERTH_AUTHORITY_DOMAINS = [
+  'canonical-local',
+  'dev-lane',
+  'worktree-lane',
+  'remote-harbor',
+  'read-only-import',
+] as const;
+export type BerthAuthorityDomain = (typeof BERTH_AUTHORITY_DOMAINS)[number];
+
+export const BERTH_AUTHORITY_GRANTS = [
+  'daemon-registry',
+  'operator-selection',
+  'policy',
+  'lease',
+  'read-only-import',
+] as const;
+export type BerthAuthorityGrant = (typeof BERTH_AUTHORITY_GRANTS)[number];
+
+export const BERTH_RESOLUTION_STATES = ['resolved', 'unresolved', 'stale'] as const;
+export type BerthResolutionState = (typeof BERTH_RESOLUTION_STATES)[number];
+
+export const BERTH_RESOLUTION_SOURCES = [
+  'daemon-registry',
+  'operator-selection',
+  'surface-default',
+  'explicit-url',
+  'import',
+] as const;
+export type BerthResolutionSource = (typeof BERTH_RESOLUTION_SOURCES)[number];
 
 export const COST_PHASES = ['start', 'stream', 'abort', 'failure', 'finalization'] as const;
 export type CostPhase = (typeof COST_PHASES)[number];
@@ -190,6 +292,27 @@ export interface AgentNodeView {
   [key: string]: unknown;
 }
 
+export interface Body {
+  schema: 'pd.agent-harbor.body.v0';
+  bodyId: string;
+  agentNodeId: string;
+  runId?: string | null;
+  kind: BodyKind;
+  provider: string;
+  modelTier: ModelTier;
+  modelName?: string | null;
+  launchMode: LaunchMode;
+  adapterVersion?: string | null;
+  pid?: number | null;
+  remoteEndpoint?: string | null;
+  status: 'planned' | 'attaching' | 'attached' | 'running' | 'paused' | 'stopped' | 'failed' | 'orphaned' | 'observed';
+  attachedAt?: string | null;
+  detachedAt?: string | null;
+  transcriptId?: string | null;
+  authorityRef?: string | null;
+  [key: string]: unknown;
+}
+
 export interface ControlCommand {
   schema: 'pd.agent-harbor.control-command.v0';
   commandId: string;
@@ -206,6 +329,117 @@ export interface ControlCommand {
   deliveredAt?: string | null;
   acknowledgedAt?: string | null;
   expiresAt?: string | null;
+  [key: string]: unknown;
+}
+
+export interface CapabilityDecisionAuthority {
+  domain: CapabilityDecisionDomain;
+  decidedBy: string;
+  leaseId?: string | null;
+  [key: string]: unknown;
+}
+
+export interface CapabilityDecisionEvidence {
+  probeId?: string | null;
+  controlCommandId?: string | null;
+  berthTargetId?: string | null;
+  transcriptEventId?: string | null;
+  [key: string]: unknown;
+}
+
+export interface CapabilityDecision {
+  schema: 'pd.agent-harbor.capability-decision.v0';
+  decisionId: string;
+  agentNodeId?: string | null;
+  runId?: string | null;
+  bodyId?: string | null;
+  surface: CapabilityDecisionSurface;
+  operation: string;
+  capability: CapabilityName;
+  decision: CapabilityDecisionVerdict;
+  authority: CapabilityDecisionAuthority;
+  reason: string;
+  evidence?: CapabilityDecisionEvidence;
+  issuedAt: string;
+  expiresAt?: string | null;
+  [key: string]: unknown;
+}
+
+export interface BerthTargetAuthority {
+  domain: BerthAuthorityDomain;
+  grantedBy: BerthAuthorityGrant;
+  canCommand: boolean;
+  canQuery: boolean;
+  canSubscribeEvents: boolean;
+  reason?: string;
+  [key: string]: unknown;
+}
+
+export interface BerthTargetResolution {
+  state: BerthResolutionState;
+  source: BerthResolutionSource;
+  resolvedAt?: string | null;
+  staleReason?: string | null;
+  [key: string]: unknown;
+}
+
+export interface BerthTarget {
+  schema: 'pd.agent-harbor.berth-target.v0';
+  targetId: string;
+  tier: BerthTargetTier;
+  label: string;
+  url?: string | null;
+  port?: number | null;
+  sourceDir?: string | null;
+  gitBranch?: string | null;
+  gitRev?: string | null;
+  canonical: boolean;
+  resolution: BerthTargetResolution;
+  authority: BerthTargetAuthority;
+  createdAt: string;
+  [key: string]: unknown;
+}
+
+export interface SurfaceGatewayProjection {
+  stale: boolean;
+  lastLedgerSeq?: number | null;
+  headSeq?: number | null;
+  [key: string]: unknown;
+}
+
+export interface SurfaceGatewayBerthAuthoritySummary {
+  domain: BerthAuthorityDomain;
+  canCommand: boolean;
+  canQuery: boolean;
+  canSubscribeEvents: boolean;
+  [key: string]: unknown;
+}
+
+export interface SurfaceGatewayBerthTargetSummary {
+  targetId: string;
+  tier: BerthTargetTier;
+  label: string;
+  canonical: boolean;
+  authority: SurfaceGatewayBerthAuthoritySummary;
+  [key: string]: unknown;
+}
+
+export interface SurfaceGatewayEnvelope {
+  schema: 'pd.agent-harbor.surface-gateway.v0';
+  envelopeId: string;
+  correlationId?: string | null;
+  surface: SurfaceGatewaySurface;
+  direction: SurfaceGatewayDirection;
+  mode: SurfaceGatewayMode;
+  noun: SurfaceGatewayNoun;
+  operation: string;
+  issuedBy: string;
+  issuedAt: string;
+  idempotencyKey?: string | null;
+  berthTarget: SurfaceGatewayBerthTargetSummary;
+  capabilityDecision?: CapabilityDecision;
+  payload: Record<string, unknown>;
+  projection: SurfaceGatewayProjection;
   [key: string]: unknown;
 }
 

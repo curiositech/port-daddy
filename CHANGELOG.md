@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.24.2] - 2026-07-09
+
+### Fixed
+- **Daemon backend launches now resolve agent CLIs correctly and prove transcript capture before release (#1066).** The daemon no longer loses `claude`/`agy` resolution when launched under Homebrew/launchd-style PATHs, `cli:agy` is covered as a first-class backend, and the daemon transcript smoke is hard-gated with readback evidence so missing launch transcripts block CI instead of reaching users.
+
 ### Changed
 - **README rewritten against the live v3.24 surface.** The front-door doc had rotted at v3.13: it never mentioned `pd setup`, `pd parley`, `pd dispatch`/`pd review`, `pd safe`, `pd secret` corralling, `pd cut`, daemon berths (`pd dev`/`pd use`), `pd embed`, `pd attention`/`pd nudge`, `pd transcripts`, or the harness lanes; it still advertised the retired web dashboard as "The Dashboard (HUD)"; its OpenAPI stats (96 paths/125 ops) and test badge (3,700+) were stale; and it never said `pd begin --lifecycle` is mandatory. The rewrite documents the three sanctioned operator surfaces (FleetBar, Control Center, pd-console), adds a complete Command Index grouped by task, refreshes the destructive-command list from `cli/permission-tiers.ts`, and states verified numbers (178 MCP tools + 6 resources, 115 API paths / 146 operations, 7,300+ test cases).
 

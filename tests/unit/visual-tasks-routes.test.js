@@ -10,6 +10,8 @@ import { createAgentInbox } from '../../lib/agent-inbox.js';
 import { createBlobStore } from '../../lib/blob.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 import { createDaemonCorsOptions } from '../../lib/daemon-cors.js';
+import { createWorkIntentService } from '../../lib/agent-harbor/work-intent-service.js';
+import { readEvents } from '../../lib/agent-harbor/event-ledger.js';
 
 const { visualTasksPlugin } = await import('../../routes/visual-tasks.js');
 const { createVisualTaskIntake, VisualTaskDependencyError } = await import('../../lib/visual-task-intake.js');
@@ -28,6 +30,7 @@ async function buildApp(overrides = {}, pluginOpts = {}) {
   const messaging = createMessaging(db);
   const agentInbox = createAgentInbox(db);
   const dispatchQueue = createDispatchQueue({ db, now: () => 1_700_000_000_000 });
+  const workIntentService = createWorkIntentService({ db, now: () => new Date(1_700_000_000_000) });
   const dir = mkdtempSync(join(tmpdir(), 'pd-visual-task-blobs-'));
   tempDirs.push(dir);
   const blobs = createBlobStore({ dir });
@@ -44,6 +47,7 @@ async function buildApp(overrides = {}, pluginOpts = {}) {
       messaging,
       agentInbox,
       dispatchQueue,
+      workIntentService,
       blobs,
       dispatchWorker,
       fleetDaemon,
@@ -53,7 +57,7 @@ async function buildApp(overrides = {}, pluginOpts = {}) {
     ...pluginOpts,
   });
   await app.ready();
-  return { app, messaging, agentInbox, dispatchQueue, blobs, dispatchWorker, fleetDaemon };
+  return { app, db, messaging, agentInbox, dispatchQueue, blobs, dispatchWorker, fleetDaemon };
 }
 
 afterEach(() => {
@@ -64,7 +68,7 @@ afterEach(() => {
 
 describe('visual task routes', () => {
   test('POST /visual-tasks opens a visual issue from a Chrome extension payload', async () => {
-    const { app, messaging, agentInbox, dispatchQueue, blobs, dispatchWorker, fleetDaemon } = await buildApp();
+    const { app, db, messaging, agentInbox, dispatchQueue, blobs, dispatchWorker, fleetDaemon } = await buildApp();
 
     const res = await app.inject({
       method: 'POST',
@@ -154,6 +158,9 @@ describe('visual task routes', () => {
     expect(dispatches[0].goal).toContain('Screenshot: /blob/');
     expect(dispatches[0].goal).toContain('/repo/src/CheckoutButton.tsx:42:7');
     expect(dispatches[0].targetActorId).toBe('qa');
+    const events = readEvents(db, { streamType: 'work-intent' });
+    expect(events).toHaveLength(1);
+    expect(JSON.parse(events[0].payload_json).compat.dispatchId).toBe(dispatches[0].id);
     expect(dispatchWorker.poll).toHaveBeenCalledTimes(1);
 
     await app.close();
@@ -236,6 +243,27 @@ describe('visual task routes', () => {
     expect(body.issue.kind).toBe('visual-feedback-only');
     expect(body.channel.name).toBe('visual-feedback');
     expect(body.workItem).toBeUndefined();
+
+    await app.close();
+  });
+
+  test('POST /visual-tasks fails before work-item side effects when WorkIntent intake is unavailable', async () => {
+    const { app, dispatchQueue, messaging } = await buildApp({ workIntentService: undefined });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/visual-tasks',
+      payload: {
+        source: 'chrome-extension',
+        description: 'This should not open a dispatch without WorkIntent.',
+        routing: { openIssue: true, assignee: 'review-queue' },
+      },
+    });
+
+    expect(res.statusCode).toBe(503);
+    expect(res.json().code).toBe('WORK_INTENT_UNAVAILABLE');
+    expect(dispatchQueue.list({ state: 'all' })).toHaveLength(0);
+    expect(messaging.getMessages('visual-feedback', { limit: 5 }).count).toBe(0);
 
     await app.close();
   });
@@ -379,7 +407,7 @@ describe('visual task routes', () => {
 
   test('POST /visual-tasks maps dispatch queue failures to 500 DISPATCH_QUEUE_FAILED', async () => {
     const failingQueue = {
-      propose: () => { throw new Error('dispatch table missing'); },
+      materializeProjection: () => { throw new Error('dispatch table missing'); },
       list: () => [],
     };
     const { app } = await buildApp({ dispatchQueue: failingQueue });

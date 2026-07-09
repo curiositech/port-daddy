@@ -1075,7 +1075,7 @@
       }
     },
     "spawn": {
-      "description": "Spawn AI runs (Ollama, Claude, Gemini, Aider) with Port Daddy coordination",
+      "description": "Spawn AI runs (Ollama, Claude, Gemini, Aider) with Port Daddy coordination and post-run hard budgetUsd cap enforcement from exact telemetry",
       "cli": [
         "spawn",
         "spawned"
@@ -1186,7 +1186,9 @@
         "hm"
       ],
       "sdk": [],
-      "routes": [],
+      "routes": [
+        "GET /harbormaster/status"
+      ],
       "completions": [
         "harbormaster",
         "hm"
@@ -1194,7 +1196,10 @@
       "docs": {
         "readme": false,
         "sdk": false
-      }
+      },
+      "mcp": [
+        "harbormaster_status"
+      ]
     },
     "sorties": {
       "description": "One-shot multi-agent missions (pd sortie run/list/status/logs) plus HTTP record compatibility for historical spawned runs",
@@ -1395,6 +1400,7 @@
       ],
       "sdk": [],
       "routes": [
+        "GET /agent-harbor/surface-gateway/capabilities",
         "GET /agent-nodes",
         "GET /agent-nodes/:param",
         "GET /agent-nodes/:param/files",
@@ -1750,6 +1756,20 @@
         "semantic_search",
         "semantic_resolve"
       ]
+    },
+    "session_galaxy": {
+      "description": "2D embedding galaxy of recent agent sessions: MiniLM tail embeddings, seeded t-SNE, k-means clusters with MI term labels; click-through detail and parley initiation.",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /galaxy/map",
+        "GET /galaxy/session/:id"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
     },
     "advisor": {
       "description": "Deterministic coordination advisor for preflight suggestions across sessions, claims, symbols, salvage, channels, tuples, and locks",
@@ -2306,6 +2326,8 @@
       "sdk": [],
       "routes": [
         "GET /transcripts",
+        "GET /transcripts/compliance",
+        "GET /transcripts/emergency",
         "GET /transcripts/cost",
         "GET /transcripts/stream",
         "GET /transcripts/:id",

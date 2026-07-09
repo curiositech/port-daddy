@@ -38,6 +38,7 @@ pub const NAV: &[NavItem] = &[
     NavItem { id: "conductor",label: "Conductor",icon: "icons/nav/conductor.svg",key: "k" },
     NavItem { id: "daemons",  label: "Daemons",  icon: "icons/nav/daemons.svg",  key: "e" },
     NavItem { id: "harbor",   label: "Harbor",   icon: "icons/nav/harbor.svg",   key: "r" },
+    NavItem { id: "sextant",  label: "Sextant",  icon: "icons/nav/galaxy.svg",   key: "x" },
 ];
 
 /// Canonical slot → pane-id map: the single source of truth the producer thread
@@ -47,9 +48,9 @@ pub const NAV: &[NavItem] = &[
 /// `grid_is_one_to_one_with_pane_slots` (below) pins it to [`NAV`]. Add a pane
 /// here, in [`NAV`], and in the producer — or the gate turns red. Order is
 /// load-bearing (slot index == NAV index == producer index).
-pub const SLOT_PANE_IDS: [&str; 13] = [
+pub const SLOT_PANE_IDS: [&str; 14] = [
     "fleet", "sorties", "claims", "planner", "activity", "sessions", "health",
-    "dispatch", "lane", "ledger", "conductor", "daemons", "harbor",
+    "dispatch", "lane", "ledger", "conductor", "daemons", "harbor", "sextant",
 ];
 
 // ── Launcher-grid 1:1 invariants ────────────────────────────────────────────
@@ -88,7 +89,12 @@ mod tests {
         let mut keys = HashSet::new();
         for nav in NAV {
             assert!(ids.insert(nav.id), "duplicate grid id: '{}'", nav.id);
-            assert!(keys.insert(nav.key), "duplicate leader key '{}' (tile '{}')", nav.key, nav.id);
+            assert!(
+                keys.insert(nav.key),
+                "duplicate leader key '{}' (tile '{}')",
+                nav.key,
+                nav.id
+            );
             // The launcher lowercases the operator's query (`surface_for_query`),
             // so an uppercase key is unreachable — and shadows its lowercase twin.
             assert_eq!(
