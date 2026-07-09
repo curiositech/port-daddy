@@ -699,9 +699,11 @@ pd doctor    # Three-tier health check (see Installation)
 pd attest    # Invariant self-report
 pd diagnose  # Deeper diagnostics
 curl http://127.0.0.1:9876/status   # Full daemon report incl. recent activity and spend
+curl http://127.0.0.1:9876/transcripts/compliance  # Transcript backend matrix + live stalled/missing-run HITL issues
 ```
 
 `launchctl` is the canonical supervisor on macOS; Bosun is the optional non-agent watchdog fed by a filesystem heartbeat.
+`GET /status` and `GET /health` now fold transcript-flow health into `runtime.transcripts`, and surface critical live-run gaps (stalled live stream, missing final transcript) as HITL-tagged runtime reasons.
 
 ### Daemon berths (ADR-0084)
 

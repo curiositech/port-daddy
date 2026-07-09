@@ -3,6 +3,7 @@
  *
  * Read paths:
  *   GET    /transcripts                List recent (filter: ship, pr, since, limit, status)
+ *   GET    /transcripts/compliance     Backend matrix + live transcript-flow health
  *   GET    /transcripts/cost           Cost rollup (?since=ms&until=ms)
  *   GET    /transcripts/stream         SSE — live tail of start/update/end events
  *   GET    /transcripts/:id            Full transcript with messages + outputs
@@ -22,9 +23,18 @@ import type {
   TranscriptOutput,
   TranscriptFilter,
 } from '../lib/transcripts.js';
+import {
+  assessTranscriptRun,
+  buildTranscriptComplianceReport,
+  findLatestTranscriptForAgent,
+  type TranscriptTrackedRun,
+} from '../lib/transcript-compliance.js';
 
 interface TranscriptRouteDeps {
   transcripts?: Transcripts;
+  spawner?: {
+    list(): TranscriptTrackedRun[];
+  };
   metrics: { errors: number };
   logger: {
     info(msg: string, meta?: Record<string, unknown>): void;
@@ -41,11 +51,23 @@ export const transcriptsPlugin: FastifyPluginAsync<{ deps: TranscriptRouteDeps }
   fastify,
   opts,
 ) => {
-  const { transcripts, metrics, logger } = opts.deps;
+  const { transcripts, spawner, metrics, logger } = opts.deps;
 
   function notWired(reply: FastifyReply): unknown {
     reply.code(501);
     return { success: false, error: 'transcripts module not wired into this daemon' };
+  }
+
+  function complianceReport(stallAfterMs?: number) {
+    if (!transcripts) return null;
+    const runs = (spawner?.list() || []).map((run) =>
+      assessTranscriptRun(
+        run,
+        findLatestTranscriptForAgent(transcripts, run.agentId),
+        { now: Date.now(), stallAfterMs },
+      ),
+    );
+    return buildTranscriptComplianceReport(runs, { stallAfterMs });
   }
 
   // ── GET /transcripts ─────────────────────────────────────────────────────
@@ -78,6 +100,26 @@ export const transcriptsPlugin: FastifyPluginAsync<{ deps: TranscriptRouteDeps }
     } catch (error) {
       metrics.errors++;
       logger.error('transcripts_list_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: 'internal server error' };
+    }
+  });
+
+  // ── GET /transcripts/compliance ──────────────────────────────────────────
+  fastify.get('/transcripts/compliance', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!transcripts) return notWired(reply);
+    try {
+      const q = (request.query as Record<string, string>) || {};
+      const stallAfterMs = q.stallAfterMs ? Number.parseInt(q.stallAfterMs, 10) : undefined;
+      if (q.stallAfterMs && !Number.isFinite(stallAfterMs)) {
+        reply.code(400);
+        return { success: false, error: 'stallAfterMs must be epoch milliseconds' };
+      }
+      const report = complianceReport(stallAfterMs);
+      return { success: true, ...(report || buildTranscriptComplianceReport([])) };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('transcripts_compliance_error', { error: (error as Error).message });
       reply.code(500);
       return { success: false, error: 'internal server error' };
     }

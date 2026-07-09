@@ -15,11 +15,12 @@ async function buildApp(deps) {
   return app;
 }
 
-function makeDeps(transcripts) {
+function makeDeps(transcripts, extra = {}) {
   return {
     transcripts,
     metrics: { errors: 0 },
     logger: { info: () => {}, error: () => {} },
+    ...extra,
   };
 }
 
@@ -55,6 +56,62 @@ describe('routes/transcripts', () => {
     const body = JSON.parse(res.body);
     expect(body.count).toBe(1);
     expect(body.transcripts[0].ship).toBe('qa');
+  });
+
+  it('GET /transcripts/compliance returns the backend matrix even with no live runs', async () => {
+    const res = await app.inject({ method: 'GET', url: '/transcripts/compliance' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.success).toBe(true);
+    expect(body.matrix).toEqual(expect.arrayContaining([
+      expect.objectContaining({ backend: 'cloudflare', support: 'supported' }),
+      expect.objectContaining({ backend: 'agy', support: 'missing' }),
+    ]));
+    expect(body.summary.flow.running).toBe(0);
+  });
+
+  it('GET /transcripts/compliance reports stalled live runs as HITL issues', async () => {
+    await app.close();
+    const startedAt = Date.now() - 10_000;
+    const id = transcripts.start({
+      ship: 'spawn:cli:codex',
+      spawned_agent_id: 'spawned-stalled-route',
+      trigger: 'manual',
+      backend: 'cli:codex',
+      model: 'codex-cli',
+      started_at: startedAt,
+    });
+    transcripts.appendMessage(id, {
+      role: 'assistant',
+      content: 'stale delta',
+      timestamp: startedAt,
+    });
+    app = await buildApp(makeDeps(transcripts, {
+      spawner: {
+        list() {
+          return [{
+            agentId: 'spawned-stalled-route',
+            backend: 'cli:codex',
+            status: 'running',
+            startedAt,
+            completedAt: null,
+          }];
+        },
+      },
+    }));
+
+    const res = await app.inject({ method: 'GET', url: '/transcripts/compliance?stallAfterMs=1' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.degraded).toBe(true);
+    expect(body.hitlEmergency).toBe(true);
+    expect(body.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: 'transcript_flow_stalled',
+        agentId: 'spawned-stalled-route',
+        requiresHitl: true,
+      }),
+    ]));
   });
 
   it('GET /transcripts/:id returns 404 for unknown id', async () => {
