@@ -21,6 +21,7 @@
  */
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
+import { TRANSCRIPT_EMERGENCY_EVENT } from '../../../lib/transcript-emergency-constants.js';
 import {
   getInstallationTokenCached,
   invalidateInstallationToken,
@@ -63,7 +64,6 @@ import type { Proposal } from './proposals.js';
 import { decideShipGate, isDocsOnly } from './gates.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 
-export const FLEET_TRANSCRIPT_WRITE_FAILED_EVENT = 'transcript-write-failed' as const;
 const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 
 // ---------------------------------------------------------------------------
@@ -317,7 +317,7 @@ async function emitTranscriptWriteFailureTelemetry(
   await emitCloudTelemetry(
     {
       deliveryId: job.deliveryId,
-      event: FLEET_TRANSCRIPT_WRITE_FAILED_EVENT,
+      event: TRANSCRIPT_EMERGENCY_EVENT.WRITE_FAILED,
       action: job.action,
       owner: owner || null,
       repo: repo || null,

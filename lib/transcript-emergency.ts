@@ -1,4 +1,5 @@
 import type { CloudAppTelemetryEvent } from './cloud-app-telemetry.js';
+import { TRANSCRIPT_EMERGENCY_EVENT } from './transcript-emergency-constants.js';
 import {
   assessTranscriptRun,
   buildTranscriptComplianceReport,
@@ -7,6 +8,11 @@ import {
   type TranscriptTrackedRun,
 } from './transcript-compliance.js';
 import type { Transcripts } from './transcripts.js';
+export {
+  TRANSCRIPT_EMERGENCY_EVENT,
+  TRANSCRIPT_EMERGENCY_EVENTS,
+  type TranscriptEmergencyEvent,
+} from './transcript-emergency-constants.js';
 
 export const TRANSCRIPT_EMERGENCY_KIND = {
   LOCAL_SPAWNER: 'local_spawner',
@@ -40,13 +46,6 @@ export const TRANSCRIPT_EMERGENCY_ISSUE_CODE = {
 } as const;
 export type TranscriptEmergencyIssueCode = typeof TRANSCRIPT_EMERGENCY_ISSUE_CODE[keyof typeof TRANSCRIPT_EMERGENCY_ISSUE_CODE];
 export const TRANSCRIPT_EMERGENCY_ISSUE_CODES = Object.values(TRANSCRIPT_EMERGENCY_ISSUE_CODE) as readonly TranscriptEmergencyIssueCode[];
-
-export const TRANSCRIPT_EMERGENCY_EVENT = {
-  WRITE_FAILED: 'transcript-write-failed',
-  WRITE_FAILED_LEGACY: 'transcript_write_failed',
-} as const;
-export type TranscriptEmergencyEvent = typeof TRANSCRIPT_EMERGENCY_EVENT[keyof typeof TRANSCRIPT_EMERGENCY_EVENT];
-export const TRANSCRIPT_EMERGENCY_EVENTS = Object.values(TRANSCRIPT_EMERGENCY_EVENT) as readonly TranscriptEmergencyEvent[];
 
 export interface TranscriptEmergencyIssue {
   code: TranscriptEmergencyIssueCode;

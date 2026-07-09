@@ -13,7 +13,8 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import handler from '../src/index.js';
-import { executeFleet, FLEET_TRANSCRIPT_WRITE_FAILED_EVENT } from '../src/execute.js';
+import { TRANSCRIPT_EMERGENCY_EVENT } from '../../../lib/transcript-emergency-constants.js';
+import { executeFleet } from '../src/execute.js';
 import {
   freshState,
   installGitHubFetch,
@@ -320,7 +321,7 @@ describe('transcript is best-effort (never changes the gate)', () => {
         url: 'https://telemetry.example/ingest',
         body: expect.objectContaining({
           source: 'fleet-executor',
-          event: FLEET_TRANSCRIPT_WRITE_FAILED_EVENT,
+          event: TRANSCRIPT_EMERGENCY_EVENT.WRITE_FAILED,
           status: 'error',
           backend: 'cloudflare',
           metadata: expect.objectContaining({
@@ -349,7 +350,7 @@ describe('transcript is best-effort (never changes the gate)', () => {
           const payload = typeof init?.body === 'string'
             ? JSON.parse(init.body) as { event?: string }
             : {};
-          if (payload.event === FLEET_TRANSCRIPT_WRITE_FAILED_EVENT) {
+          if (payload.event === TRANSCRIPT_EMERGENCY_EVENT.WRITE_FAILED) {
             telemetryCalls += 1;
             resolve();
             return new Promise<Response>(() => {});
