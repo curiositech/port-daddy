@@ -32,6 +32,56 @@ function decision(overrides = {}) {
   };
 }
 
+function queryEnvelope(overrides = {}) {
+  return gateway({
+    envelopeId: 'surface_gateway_query_01JZFIX0001',
+    surface: 'pd-console',
+    mode: 'query',
+    noun: 'AgentRun',
+    operation: 'agent-run.list',
+    issuedBy: 'pd-console:operator:erich',
+    idempotencyKey: null,
+    capabilityDecision: decision({
+      decisionId: 'cap_decision_query_01JZFIX0001',
+      surface: 'pd-console',
+      operation: 'agent-run.list',
+      capability: 'agent-run',
+      reason: 'Query allowed against selected berth.',
+      evidence: {
+        berthTargetId: 'berth_target_stable',
+      },
+    }),
+    payload: { filters: { status: 'running' } },
+    projection: { stale: false, lastLedgerSeq: 42, headSeq: 42 },
+    ...overrides,
+  });
+}
+
+function daemonTranscriptEvent(overrides = {}) {
+  return gateway({
+    envelopeId: 'surface_gateway_event_01JZFIX0001',
+    surface: 'scout',
+    direction: 'daemon-to-surface',
+    mode: 'event',
+    noun: 'TranscriptEvent',
+    operation: 'transcript-event.appended',
+    issuedBy: 'daemon:local',
+    idempotencyKey: null,
+    capabilityDecision: undefined,
+    payload: {
+      eventId: 'evt_01JZFIX0042',
+      sessionId: 'session_01JZFIX0001',
+      agentNodeId: 'agent_node_01JZFIX0001',
+      sequence: 42,
+      occurredAt: '2026-07-05T12:04:01.000Z',
+      schemaVersion: 1,
+      kind: 'tool_result',
+    },
+    projection: { stale: false, lastLedgerSeq: 43, headSeq: 43 },
+    ...overrides,
+  });
+}
+
 describe('Agent Harbor Surface Gateway runtime helper', () => {
   it('admits the frozen FleetBar command fixture and classifies control through the hot bus', () => {
     const envelope = gateway();
@@ -53,17 +103,7 @@ describe('Agent Harbor Surface Gateway runtime helper', () => {
   });
 
   it('keeps query envelopes on the cool projection path and does not require idempotency', () => {
-    const envelope = gateway({
-      envelopeId: 'surface_gateway_query_01JZFIX0001',
-      surface: 'pd-console',
-      mode: 'query',
-      noun: 'AgentRun',
-      operation: 'agent-run.list',
-      issuedBy: 'pd-console:operator:erich',
-      idempotencyKey: null,
-      payload: { filters: { status: 'running' } },
-      projection: { stale: false, lastLedgerSeq: 42, headSeq: 42 },
-    });
+    const envelope = queryEnvelope();
 
     const admitted = validateSurfaceGatewayEnvelope(envelope);
     expect(admitted.ok).toBe(true);
@@ -79,28 +119,20 @@ describe('Agent Harbor Surface Gateway runtime helper', () => {
     });
   });
 
-  it('derives a payload-scoped idempotency key for daemon event delivery', () => {
-    const envelope = gateway({
-      envelopeId: 'surface_gateway_event_01JZFIX0001',
-      surface: 'scout',
-      direction: 'daemon-to-surface',
-      mode: 'event',
-      noun: 'TranscriptEvent',
-      operation: 'transcript-event.appended',
-      issuedBy: 'daemon:local',
-      idempotencyKey: null,
-      capabilityDecision: undefined,
-      payload: {
-        eventId: 'evt_01JZFIX0042',
-        sessionId: 'session_01JZFIX0001',
-        agentNodeId: 'agent_node_01JZFIX0001',
-        sequence: 42,
-        occurredAt: '2026-07-05T12:04:01.000Z',
-        schemaVersion: 1,
-        kind: 'tool_result',
-      },
-      projection: { stale: false, lastLedgerSeq: 43, headSeq: 43 },
+  it('normalizes explicit command idempotency keys without deriving hidden command keys', () => {
+    const envelope = gateway({ idempotencyKey: '  fleetbar:ctl_01JZFIX0001  ' });
+    const admitted = validateSurfaceGatewayEnvelope(envelope);
+
+    expect(admitted.ok).toBe(true);
+    expect(admitted.idempotency).toEqual({
+      required: true,
+      key: 'fleetbar:ctl_01JZFIX0001',
+      source: 'explicit',
     });
+  });
+
+  it('derives a payload-scoped idempotency key for daemon event delivery', () => {
+    const envelope = daemonTranscriptEvent();
 
     expect(validateSurfaceGatewayEnvelope(envelope).ok).toBe(true);
     expect(normalizeSurfaceGatewayIdempotency(envelope)).toEqual({
@@ -122,6 +154,30 @@ describe('Agent Harbor Surface Gateway runtime helper', () => {
     const admitted = validateSurfaceGatewayEnvelope(gateway({ idempotencyKey: null }));
     expect(admitted.ok).toBe(false);
     expect(admitted.errors.join(' ')).toMatch(/explicit idempotencyKey/);
+  });
+
+  it('rejects top-level hot/cool routing overrides instead of accepting mixed semantics', () => {
+    const commandAsCool = validateSurfaceGatewayEnvelope(gateway({ busTarget: 'cool-bus' }));
+    expect(commandAsCool.ok).toBe(false);
+    expect(commandAsCool.errors.join(' ')).toMatch(/busTarget; hot\/cool routing is derived/);
+
+    const queryAsHot = validateSurfaceGatewayEnvelope(queryEnvelope({ routeFamily: 'hot-bus' }));
+    expect(queryAsHot.ok).toBe(false);
+    expect(queryAsHot.errors.join(' ')).toMatch(/routeFamily; hot\/cool routing is derived/);
+  });
+
+  it('rejects envelopes whose issuer does not match the surface identity', () => {
+    const wrongSurfaceIssuer = validateSurfaceGatewayEnvelope(gateway({
+      issuedBy: 'pd-console:operator:erich',
+    }));
+    expect(wrongSurfaceIssuer.ok).toBe(false);
+    expect(wrongSurfaceIssuer.errors.join(' ')).toMatch(/issuedBy "pd-console:operator:erich" must start with "fleetbar:"/);
+
+    const wrongDaemonIssuer = validateSurfaceGatewayEnvelope(daemonTranscriptEvent({
+      issuedBy: 'scout:operator:erich',
+    }));
+    expect(wrongDaemonIssuer.ok).toBe(false);
+    expect(wrongDaemonIssuer.errors.join(' ')).toMatch(/must start with "daemon:"/);
   });
 
   it('rejects stale or denied command authority before dispatch', () => {
@@ -184,16 +240,40 @@ describe('Agent Harbor Surface Gateway runtime helper', () => {
     expect(futureDecision.errors.join(' ')).toMatch(/cannot be issued after/);
   });
 
+  it('rejects invalid berth targets that would let a surface promote or command the wrong lane', () => {
+    const nonStableCanonical = validateSurfaceGatewayEnvelope(gateway({
+      berthTarget: {
+        ...gateway().berthTarget,
+        tier: 'codebase',
+        canonical: true,
+        authority: {
+          ...gateway().berthTarget.authority,
+          domain: 'worktree-lane',
+        },
+      },
+    }));
+    expect(nonStableCanonical.ok).toBe(false);
+    expect(nonStableCanonical.errors.join(' ')).toMatch(/canonical=true is only valid for stable targets/);
+
+    const readOnlyCommandGrant = validateSurfaceGatewayEnvelope(gateway({
+      berthTarget: {
+        ...gateway().berthTarget,
+        tier: 'remote',
+        canonical: false,
+        authority: {
+          ...gateway().berthTarget.authority,
+          domain: 'read-only-import',
+          canCommand: true,
+        },
+      },
+    }));
+    expect(readOnlyCommandGrant.ok).toBe(false);
+    expect(readOnlyCommandGrant.errors.join(' ')).toMatch(/read-only-import berth targets cannot grant canCommand=true/);
+  });
+
   it('rejects query and event envelopes when berth authority does not grant that lane', () => {
-    const queryWithoutGrant = validateSurfaceGatewayEnvelope(gateway({
+    const queryWithoutGrant = validateSurfaceGatewayEnvelope(queryEnvelope({
       envelopeId: 'surface_gateway_query_no_grant',
-      surface: 'pd-console',
-      mode: 'query',
-      noun: 'AgentRun',
-      operation: 'agent-run.list',
-      issuedBy: 'pd-console:operator:erich',
-      idempotencyKey: null,
-      payload: { filters: { status: 'running' } },
       berthTarget: {
         ...gateway().berthTarget,
         authority: {
@@ -205,25 +285,8 @@ describe('Agent Harbor Surface Gateway runtime helper', () => {
     expect(queryWithoutGrant.ok).toBe(false);
     expect(queryWithoutGrant.errors.join(' ')).toMatch(/canQuery=true/);
 
-    const eventWithoutGrant = validateSurfaceGatewayEnvelope(gateway({
+    const eventWithoutGrant = validateSurfaceGatewayEnvelope(daemonTranscriptEvent({
       envelopeId: 'surface_gateway_event_no_subscribe_grant',
-      surface: 'scout',
-      direction: 'daemon-to-surface',
-      mode: 'event',
-      noun: 'TranscriptEvent',
-      operation: 'transcript-event.appended',
-      issuedBy: 'daemon:local',
-      idempotencyKey: null,
-      capabilityDecision: undefined,
-      payload: {
-        eventId: 'evt_01JZFIX0042',
-        sessionId: 'session_01JZFIX0001',
-        agentNodeId: 'agent_node_01JZFIX0001',
-        sequence: 42,
-        occurredAt: '2026-07-05T12:04:01.000Z',
-        schemaVersion: 1,
-        kind: 'tool_result',
-      },
       berthTarget: {
         ...gateway().berthTarget,
         authority: {
@@ -234,6 +297,40 @@ describe('Agent Harbor Surface Gateway runtime helper', () => {
     }));
     expect(eventWithoutGrant.ok).toBe(false);
     expect(eventWithoutGrant.errors.join(' ')).toMatch(/canSubscribeEvents=true/);
+  });
+
+  it('rejects capability decisions that leak across query or event surfaces', () => {
+    const queryLeak = validateSurfaceGatewayEnvelope(queryEnvelope({
+      capabilityDecision: decision({
+        decisionId: 'cap_decision_query_leak',
+        surface: 'fleetbar',
+        operation: 'agent-run.list',
+        capability: 'control-command',
+        reason: 'A FleetBar control grant must not authorize a pd-console query.',
+        evidence: {
+          berthTargetId: 'berth_target_stable',
+        },
+      }),
+    }));
+    expect(queryLeak.ok).toBe(false);
+    expect(queryLeak.errors.join(' ')).toMatch(/surface "fleetbar" must match envelope surface "pd-console"/);
+    expect(queryLeak.errors.join(' ')).toMatch(/capability "control-command" must match noun capability "agent-run"/);
+
+    const eventLeak = validateSurfaceGatewayEnvelope(daemonTranscriptEvent({
+      capabilityDecision: decision({
+        decisionId: 'cap_decision_event_leak',
+        surface: 'scout',
+        operation: 'transcript-event.appended',
+        capability: 'transcript-event',
+        reason: 'Subscribed surface may receive transcript event projection.',
+        evidence: {
+          berthTargetId: 'berth_target_stable',
+          transcriptEventId: 'evt_other',
+        },
+      }),
+    }));
+    expect(eventLeak.ok).toBe(false);
+    expect(eventLeak.errors.join(' ')).toMatch(/evidence\.transcriptEventId/);
   });
 
   it('rejects summary-only or unbound command capability decisions', () => {
@@ -311,16 +408,8 @@ describe('Agent Harbor Surface Gateway runtime helper', () => {
   });
 
   it('validates canonical event payloads by noun even without a schema discriminator', () => {
-    const admitted = validateSurfaceGatewayEnvelope(gateway({
+    const admitted = validateSurfaceGatewayEnvelope(daemonTranscriptEvent({
       envelopeId: 'surface_gateway_event_malformed_payload',
-      surface: 'scout',
-      direction: 'daemon-to-surface',
-      mode: 'event',
-      noun: 'TranscriptEvent',
-      operation: 'transcript-event.appended',
-      issuedBy: 'daemon:local',
-      idempotencyKey: null,
-      capabilityDecision: undefined,
       payload: {
         eventId: 'evt_01JZFIX0042',
         schemaVersion: 1,
@@ -379,5 +468,27 @@ describe('Agent Harbor Surface Gateway runtime helper', () => {
     expect(projection.nouns).toContain('ControlCommand');
     expect(projection.busTargets).toEqual(['hot-bus', 'cool-bus']);
     expect(projection.authority.command).toEqual(['canCommand', 'freshProjection', 'allowDecision']);
+  });
+
+  it('does not leak mutable capability projection arrays across callers', () => {
+    const projection = surfaceGatewayCapabilityProjection();
+    expect(Object.isFrozen(projection)).toBe(true);
+    expect(Object.isFrozen(projection.nouns)).toBe(true);
+    expect(Object.isFrozen(projection.authority.command)).toBe(true);
+
+    try {
+      projection.nouns.push('Spawn');
+    } catch {
+      // Frozen arrays throw in strict mode; either way, mutation must not land.
+    }
+    try {
+      projection.authority.command.push('legacyRoute');
+    } catch {
+      // Same as above.
+    }
+
+    expect(projection.nouns).not.toContain('Spawn');
+    expect(projection.authority.command).toEqual(['canCommand', 'freshProjection', 'allowDecision']);
+    expect(surfaceGatewayCapabilityProjection().nouns).not.toContain('Spawn');
   });
 });

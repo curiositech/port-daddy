@@ -84,8 +84,28 @@ export interface SurfaceGatewayCapabilityProjection {
   };
 }
 
+const SURFACE_GATEWAY_ROUTE_OVERRIDE_FIELDS = [
+  'bus',
+  'busTarget',
+  'compatRoute',
+  'legacyRoute',
+  'legacyVerb',
+  'route',
+  'routeDecision',
+  'routeFamily',
+  'routeTarget',
+] as const;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function frozenList<T extends readonly unknown[]>(values: T): Readonly<T> {
+  return Object.freeze([...values]) as unknown as Readonly<T>;
+}
+
+function frozenRecord<T extends object>(value: T): T {
+  return Object.freeze(value) as T;
 }
 
 function nounOperationPrefix(noun: SurfaceGatewayNoun): string {
@@ -196,6 +216,113 @@ export function routeSurfaceGatewayEnvelope(
   };
 }
 
+function validateNoRoutingOverrides(candidate: Record<string, unknown>): string[] {
+  const errors: string[] = [];
+  for (const field of SURFACE_GATEWAY_ROUTE_OVERRIDE_FIELDS) {
+    if (candidate[field] !== undefined) {
+      errors.push(
+        `surface gateway envelope cannot provide top-level ${field}; hot/cool routing is derived by the daemon`,
+      );
+    }
+  }
+  return errors;
+}
+
+function validateSurfaceIdentity(envelope: SurfaceGatewayEnvelope): string[] {
+  const expectedPrefix = envelope.direction === 'daemon-to-surface'
+    ? 'daemon:'
+    : `${envelope.surface}:`;
+  return envelope.issuedBy.startsWith(expectedPrefix)
+    ? []
+    : [
+        `issuedBy "${envelope.issuedBy}" must start with "${expectedPrefix}" for ${envelope.direction} ${envelope.surface} envelopes`,
+      ];
+}
+
+function validateBerthTarget(envelope: SurfaceGatewayEnvelope): string[] {
+  const errors: string[] = [];
+  const { tier, canonical, authority } = envelope.berthTarget;
+
+  if (canonical && tier !== 'stable') {
+    errors.push(`berthTarget canonical=true is only valid for stable targets, got tier "${tier}"`);
+  }
+  if (tier === 'stable' && !canonical) {
+    errors.push('stable berthTarget must be canonical=true');
+  }
+
+  if (authority.domain === 'canonical-local' && (tier !== 'stable' || !canonical)) {
+    errors.push('canonical-local berth authority requires a stable canonical target');
+  }
+  if (authority.domain === 'dev-lane' && tier !== 'dev-latest') {
+    errors.push(`dev-lane berth authority requires tier "dev-latest", got "${tier}"`);
+  }
+  if (authority.domain === 'worktree-lane' && tier !== 'codebase') {
+    errors.push(`worktree-lane berth authority requires tier "codebase", got "${tier}"`);
+  }
+  if (authority.domain === 'remote-harbor' && tier !== 'remote') {
+    errors.push(`remote-harbor berth authority requires tier "remote", got "${tier}"`);
+  }
+  if (authority.domain === 'read-only-import' && authority.canCommand) {
+    errors.push('read-only-import berth targets cannot grant canCommand=true');
+  }
+
+  return errors;
+}
+
+function validateCapabilityDecisionBinding(envelope: SurfaceGatewayEnvelope): string[] {
+  const capabilityDecision = envelope.capabilityDecision;
+  if (!capabilityDecision) return [];
+
+  const errors: string[] = [];
+  const expectedCapability = nounOperationPrefix(envelope.noun);
+
+  if (capabilityDecision.surface !== envelope.surface) {
+    errors.push(
+      `CapabilityDecision surface "${capabilityDecision.surface}" must match envelope surface "${envelope.surface}"`,
+    );
+  }
+  if (capabilityDecision.operation !== envelope.operation) {
+    errors.push(
+      `CapabilityDecision operation "${capabilityDecision.operation}" must match envelope operation "${envelope.operation}"`,
+    );
+  }
+  if (capabilityDecision.capability !== expectedCapability) {
+    errors.push(
+      `CapabilityDecision capability "${capabilityDecision.capability}" must match noun capability "${expectedCapability}"`,
+    );
+  }
+  if (capabilityDecision.evidence?.berthTargetId !== envelope.berthTarget.targetId) {
+    errors.push(
+      `CapabilityDecision evidence.berthTargetId must match berthTarget.targetId "${envelope.berthTarget.targetId}"`,
+    );
+  }
+  if (envelope.noun === 'ControlCommand') {
+    const commandId = isRecord(envelope.payload) ? envelope.payload.commandId : null;
+    if (typeof commandId === 'string' && capabilityDecision.evidence?.controlCommandId !== commandId) {
+      errors.push(`CapabilityDecision evidence.controlCommandId must match payload.commandId "${commandId}"`);
+    }
+  }
+  if (envelope.noun === 'TranscriptEvent') {
+    const eventId = isRecord(envelope.payload) ? envelope.payload.eventId : null;
+    if (typeof eventId === 'string' && capabilityDecision.evidence?.transcriptEventId !== eventId) {
+      errors.push(`CapabilityDecision evidence.transcriptEventId must match payload.eventId "${eventId}"`);
+    }
+  }
+  const decisionIssuedAt = Date.parse(capabilityDecision.issuedAt);
+  const envelopeIssuedAt = Date.parse(envelope.issuedAt);
+  if (Number.isFinite(decisionIssuedAt) && Number.isFinite(envelopeIssuedAt) && decisionIssuedAt > envelopeIssuedAt) {
+    errors.push('CapabilityDecision cannot be issued after the envelope it authorizes');
+  }
+  if (capabilityDecision.expiresAt) {
+    const expiresAt = Date.parse(capabilityDecision.expiresAt);
+    if (Number.isFinite(expiresAt) && Number.isFinite(envelopeIssuedAt) && expiresAt <= envelopeIssuedAt) {
+      errors.push('CapabilityDecision expiresAt must be after envelope.issuedAt');
+    }
+  }
+
+  return errors;
+}
+
 function validateAuthority(envelope: SurfaceGatewayEnvelope): string[] {
   const errors: string[] = [];
   const authority = envelope.berthTarget.authority;
@@ -213,45 +340,6 @@ function validateAuthority(envelope: SurfaceGatewayEnvelope): string[] {
       errors.push('command envelope requires a full allow CapabilityDecision');
     } else if (decision !== 'allow') {
       errors.push(`command envelope requires capabilityDecision.decision="allow", got "${decision}"`);
-    } else {
-      const expectedCapability = nounOperationPrefix(envelope.noun);
-      if (capabilityDecision.surface !== envelope.surface) {
-        errors.push(
-          `command CapabilityDecision surface "${capabilityDecision.surface}" must match envelope surface "${envelope.surface}"`,
-        );
-      }
-      if (capabilityDecision.operation !== envelope.operation) {
-        errors.push(
-          `command CapabilityDecision operation "${capabilityDecision.operation}" must match envelope operation "${envelope.operation}"`,
-        );
-      }
-      if (capabilityDecision.capability !== expectedCapability) {
-        errors.push(
-          `command CapabilityDecision capability "${capabilityDecision.capability}" must match noun capability "${expectedCapability}"`,
-        );
-      }
-      if (capabilityDecision.evidence?.berthTargetId !== envelope.berthTarget.targetId) {
-        errors.push(
-          `command CapabilityDecision evidence.berthTargetId must match berthTarget.targetId "${envelope.berthTarget.targetId}"`,
-        );
-      }
-      if (envelope.noun === 'ControlCommand') {
-        const commandId = isRecord(envelope.payload) ? envelope.payload.commandId : null;
-        if (typeof commandId === 'string' && capabilityDecision.evidence?.controlCommandId !== commandId) {
-          errors.push(`command CapabilityDecision evidence.controlCommandId must match payload.commandId "${commandId}"`);
-        }
-      }
-      const decisionIssuedAt = Date.parse(capabilityDecision.issuedAt);
-      const envelopeIssuedAt = Date.parse(envelope.issuedAt);
-      if (Number.isFinite(decisionIssuedAt) && Number.isFinite(envelopeIssuedAt) && decisionIssuedAt > envelopeIssuedAt) {
-        errors.push('command CapabilityDecision cannot be issued after the envelope it authorizes');
-      }
-      if (capabilityDecision.expiresAt) {
-        const expiresAt = Date.parse(capabilityDecision.expiresAt);
-        if (Number.isFinite(expiresAt) && Number.isFinite(envelopeIssuedAt) && expiresAt <= envelopeIssuedAt) {
-          errors.push('command CapabilityDecision expiresAt must be after envelope.issuedAt');
-        }
-      }
     }
   }
 
@@ -325,8 +413,12 @@ export function validateSurfaceGatewayEnvelope(
   }
 
   const envelope = candidate as SurfaceGatewayEnvelope;
+  errors.push(...validateNoRoutingOverrides(candidate));
+  errors.push(...validateSurfaceIdentity(envelope));
   errors.push(...validateOperationPrefix(envelope));
+  errors.push(...validateBerthTarget(envelope));
   errors.push(...validatePayload(envelope, Boolean(opts.allowMissingSchema)));
+  errors.push(...validateCapabilityDecisionBinding(envelope));
   errors.push(...validateAuthority(envelope));
 
   const idempotency = normalizeSurfaceGatewayIdempotency(envelope);
@@ -360,27 +452,28 @@ export function isSurfaceGatewayEnvelope(candidate: unknown): candidate is Surfa
 export function surfaceGatewayCapabilityProjection(
   opts: { mounted?: boolean } = {},
 ): SurfaceGatewayCapabilityProjection {
-  return {
+  const projection: SurfaceGatewayCapabilityProjection = {
     schema: 'pd.agent-harbor.surface-gateway.capability-projection.v0',
-    surfaces: SURFACE_GATEWAY_SURFACES,
-    directions: SURFACE_GATEWAY_DIRECTIONS,
-    modes: SURFACE_GATEWAY_MODES,
-    nouns: SURFACE_GATEWAY_NOUNS,
-    busTargets: SURFACE_GATEWAY_BUS_TARGETS,
-    routeIntegration: {
+    surfaces: frozenList(SURFACE_GATEWAY_SURFACES),
+    directions: frozenList(SURFACE_GATEWAY_DIRECTIONS),
+    modes: frozenList(SURFACE_GATEWAY_MODES),
+    nouns: frozenList(SURFACE_GATEWAY_NOUNS),
+    busTargets: frozenList(SURFACE_GATEWAY_BUS_TARGETS),
+    routeIntegration: frozenRecord({
       mounted: Boolean(opts.mounted),
       path: '/agent-harbor/surface-gateway/capabilities',
-    },
-    idempotency: {
+    }),
+    idempotency: frozenRecord({
       command: 'explicit-key-required',
       query: 'not-required',
       event: 'explicit-key-or-derived-payload-key',
-    },
-    authority: {
-      command: ['canCommand', 'freshProjection', 'allowDecision'],
-      query: ['canQuery'],
-      daemonToSurfaceEvent: ['canSubscribeEvents'],
-      surfaceToDaemonEvent: ['canCommand'],
-    },
+    }),
+    authority: frozenRecord({
+      command: frozenList(['canCommand', 'freshProjection', 'allowDecision'] as const),
+      query: frozenList(['canQuery'] as const),
+      daemonToSurfaceEvent: frozenList(['canSubscribeEvents'] as const),
+      surfaceToDaemonEvent: frozenList(['canCommand'] as const),
+    }),
   };
+  return frozenRecord(projection);
 }
