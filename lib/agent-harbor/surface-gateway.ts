@@ -262,6 +262,9 @@ function validateBerthTarget(envelope: SurfaceGatewayEnvelope): string[] {
   if (authority.domain === 'remote-harbor' && tier !== 'remote') {
     errors.push(`remote-harbor berth authority requires tier "remote", got "${tier}"`);
   }
+  if (authority.domain === 'read-only-import' && tier !== 'remote') {
+    errors.push(`read-only-import berth authority requires tier "remote", got "${tier}"`);
+  }
   if (authority.domain === 'read-only-import' && authority.canCommand) {
     errors.push('read-only-import berth targets cannot grant canCommand=true');
   }

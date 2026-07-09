@@ -269,6 +269,23 @@ describe('Agent Harbor Surface Gateway runtime helper', () => {
     }));
     expect(readOnlyCommandGrant.ok).toBe(false);
     expect(readOnlyCommandGrant.errors.join(' ')).toMatch(/read-only-import berth targets cannot grant canCommand=true/);
+
+    const readOnlyCodebaseTarget = validateSurfaceGatewayEnvelope(gateway({
+      berthTarget: {
+        ...gateway().berthTarget,
+        tier: 'codebase',
+        canonical: false,
+        authority: {
+          ...gateway().berthTarget.authority,
+          domain: 'read-only-import',
+          canCommand: false,
+          canQuery: true,
+          canSubscribeEvents: true,
+        },
+      },
+    }));
+    expect(readOnlyCodebaseTarget.ok).toBe(false);
+    expect(readOnlyCodebaseTarget.errors.join(' ')).toMatch(/read-only-import berth authority requires tier "remote"/);
   });
 
   it('rejects query and event envelopes when berth authority does not grant that lane', () => {
