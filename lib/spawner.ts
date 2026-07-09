@@ -1120,7 +1120,9 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
   // parse below. Without it the CLI prints plain prose and we get no token
   // counts — the gap that previously fail-closed every claude-cli launch.
   const args = ['-p', '--output-format', 'json', spec.task];
-  if (spec.model) {
+  // `claude-cli` is the DEFAULT_MODELS sentinel for "the CLI manages its own
+  // default model"; it is runtime provenance, not a concrete Claude model id.
+  if (spec.model && spec.model !== 'claude-cli') {
     args.push('--model', spec.model);
   }
   if (spec.allowedTools) {

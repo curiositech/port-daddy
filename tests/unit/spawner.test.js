@@ -1380,7 +1380,7 @@ describe('spawn — claude-cli backend', () => {
     expect(result.output).toContain('Claude output here');
     expect(result.backend).toBe('claude-cli');
     expect(cpSpawn).toHaveBeenCalledWith(
-      'claude',
+      expect.stringMatching(/(?:^|[/\\])claude$/),
       ['-p', '--output-format', 'json', 'Write a hello world program'],
       expect.objectContaining({
         timeout: 300000,
@@ -1494,8 +1494,8 @@ describe('spawn — claude-cli backend', () => {
     });
 
     expect(result.status).toBe('failed');
-    // After runChild refactor (0df9155), error uses opts.cmd ('claude') not 'claude CLI'
-    expect(result.error).toContain('Failed to start claude');
+    // The CLI resolver may pass either the bare command or a discovered path.
+    expect(result.error).toMatch(/Failed to start (?:.*[/\\])?claude/);
     expect(result.error).toContain('ENOENT');
   });
 
