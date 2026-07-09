@@ -113,7 +113,7 @@ export const transcriptsPlugin: FastifyPluginAsync<{ deps: TranscriptRouteDeps }
       const stallAfterMs = q.stallAfterMs ? Number.parseInt(q.stallAfterMs, 10) : undefined;
       if (q.stallAfterMs && !Number.isFinite(stallAfterMs)) {
         reply.code(400);
-        return { success: false, error: 'stallAfterMs must be epoch milliseconds' };
+        return { success: false, error: 'stallAfterMs must be a duration in milliseconds' };
       }
       const report = complianceReport(stallAfterMs);
       return { success: true, ...(report || buildTranscriptComplianceReport([])) };

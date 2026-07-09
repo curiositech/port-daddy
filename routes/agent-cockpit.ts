@@ -35,6 +35,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { validateAgentId } from '../shared/validators.js';
 import { assessTranscriptEntry } from '../lib/transcript-compliance.js';
+import type { TranscriptEntry } from '../lib/transcripts.js';
 import {
   canOpenConnection,
   trackConnection,
@@ -77,10 +78,7 @@ interface AgentCockpitAgents {
   get(id: string): { success: boolean; agent?: Record<string, unknown>; error?: string };
 }
 
-interface AgentCockpitTranscriptEntry extends Record<string, unknown> {
-  id?: string;
-  spawned_agent_id?: string;
-}
+type AgentCockpitTranscriptEntry = TranscriptEntry;
 
 interface AgentCockpitTranscripts {
   subscribe(listener: (event: { type: 'start' | 'update' | 'end'; entry: AgentCockpitTranscriptEntry }) => void): () => void;
@@ -364,7 +362,7 @@ function transcriptEnvelopeBody(
   return {
     type,
     entry,
-    compliance: assessTranscriptEntry(entry as never),
+    compliance: assessTranscriptEntry(entry),
   };
 }
 
