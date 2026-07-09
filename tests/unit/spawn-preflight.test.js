@@ -276,18 +276,18 @@ describe('assessSpawnPreflight', () => {
 
     expect(mockResolveFleetAgentRuntime).toHaveBeenCalledWith({
       backend: 'cli:claude-code',
-      model: undefined,
+      model: 'claude-cli',
       modelTier: undefined,
     });
-    expect(mockAssessBackendReadiness).toHaveBeenCalledWith('cli:claude-code', { model: 'claude-code' });
+    expect(mockAssessBackendReadiness).toHaveBeenCalledWith('cli:claude-code', { model: 'claude-cli' });
     expect(result.launchReady).toBe(false);
     expect(result.attempts[0]).toMatchObject({
       backend: 'cli:claude-code',
-      model: 'claude-code',
+      model: 'claude-cli',
       backendSource: 'env',
       readinessStatus: 'needs_setup',
     });
-    expect(result.blockedReasons.join('\n')).toContain('cli:claude-code:claude-code — needs_setup: Claude Code CLI binary not found');
+    expect(result.blockedReasons.join('\n')).toContain('cli:claude-code:claude-cli — needs_setup: Claude Code CLI binary not found');
     expect(result.warnings.join('\n')).toContain('PD_USE_CLI_BACKEND forces cli:claude-code');
   });
 

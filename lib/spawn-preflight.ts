@@ -12,6 +12,14 @@ export const LOCAL_EXECUTION_BACKENDS = new Set(['claude-cli', 'codex', 'ollama'
 
 const LOCAL_EXECUTION_NOTE = 'Local CLI backends and Port Daddy socket/IPC operations may need unsandboxed approval in restricted runners.';
 
+const FORCED_CLI_BACKEND_MODELS: Record<string, string | undefined> = {
+  'cli:claude-code': 'claude-cli',
+  'cli:codex': 'codex-cli',
+  'cli:gemini': 'gemini-cli',
+  'cli:groq': 'groq-cli',
+  'cli:grok': 'grok-cli',
+};
+
 export interface SpawnPreflightInput {
   backend?: string | null;
   model?: string | null;
@@ -119,6 +127,18 @@ function uniqueWarnings(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))];
 }
 
+function forcedRuntimeTarget(target: FleetRuntimeTarget): FleetRuntimeTarget {
+  const effective = resolveEffectiveSpawnBackend(target.backend);
+  if (!effective.forced || effective.backend === target.backend) {
+    return target;
+  }
+  return {
+    backend: effective.backend || undefined,
+    model: effective.backend ? FORCED_CLI_BACKEND_MODELS[effective.backend] : undefined,
+    modelTier: undefined,
+  };
+}
+
 export async function assessSpawnPreflight(
   input: SpawnPreflightInput,
   deps: { costTracker?: CostTracker } = {},
@@ -126,9 +146,7 @@ export async function assessSpawnPreflight(
   const attempts = await Promise.all(
     buildAttemptTargets(input).map(async (target, index): Promise<SpawnPreflightAttempt> => {
       const effective = resolveEffectiveSpawnBackend(target.backend);
-      const targetForRuntime = effective.forced && effective.backend !== target.backend
-        ? { backend: effective.backend || undefined, model: undefined, modelTier: undefined }
-        : target;
+      const targetForRuntime = forcedRuntimeTarget(target);
       const runtime = resolveFleetAgentRuntime(targetForRuntime);
       const telemetryPolicy = runtime.backend
         ? assessBackendTelemetryPolicy(runtime.backend, runtime.model ?? null)
