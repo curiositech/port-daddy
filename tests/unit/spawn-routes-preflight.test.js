@@ -170,6 +170,34 @@ describe('spawn routes preflight', () => {
     await app.close();
   });
 
+  test('POST /spawn drops non-finite parsed budgetUsd instead of forwarding a cap', async () => {
+    const { app, spawner, register } = buildApp();
+    await register();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      payload: {
+        backend: 'claude-cli',
+        identity: 'port-daddy:repo:cli',
+        task: 'review the diff',
+        budgetUsd: 'Infinity',
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(mockAssessSpawnPreflight).toHaveBeenCalledWith(expect.objectContaining({
+      backend: 'claude-cli',
+      identity: 'port-daddy:repo:cli',
+    }), expect.any(Object));
+    expect(mockAssessSpawnPreflight.mock.calls.at(-1)[0].budgetUsd).toBeUndefined();
+    expect(spawner.spawn).toHaveBeenCalledWith(expect.not.objectContaining({
+      budgetUsd: expect.anything(),
+    }));
+
+    await app.close();
+  });
+
   test('POST /spawn accepts cli:agy and does not synthesize a model', async () => {
     mockAssessSpawnPreflight.mockResolvedValueOnce({
       launchReady: true,

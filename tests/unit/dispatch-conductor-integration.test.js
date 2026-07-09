@@ -184,6 +184,24 @@ describe('dispatch-shaped intent through the REAL conductor — review publish',
     expect(spawner.spawn.mock.calls[0][0].budgetUsd).toBe(4);
   });
 
+  test('an operator launch may omit budgetUsd without synthesizing a hard cap', async () => {
+    const spawner = makeImmediateSpawner();
+    const { conductor } = makeRealConductor({ spawner });
+    conductor.setGlobalCeiling(100);
+
+    const res = await conductor.launch({
+      goal: 'manual operator launch',
+      backend: 'claude',
+      source: 'operator',
+      worktree: 'inherit',
+      lineageCeilingUsd: 100,
+    });
+
+    expect(res.admitted).toBe(true);
+    expect(spawner.spawn).toHaveBeenCalledTimes(1);
+    expect(spawner.spawn.mock.calls[0][0].budgetUsd).toBeUndefined();
+  });
+
   test('a dispatch never spawns on a main checkout (I2 holds for the dispatch shape)', async () => {
     const spawner = makeImmediateSpawner();
     // mintWorktree returns a MAIN checkout → the NO_SPAWN_ON_MAIN gate must catch it.

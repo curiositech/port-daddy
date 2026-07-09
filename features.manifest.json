@@ -1075,7 +1075,7 @@
       }
     },
     "spawn": {
-      "description": "Spawn AI runs (Ollama, Claude, Gemini, Aider) with Port Daddy coordination",
+      "description": "Spawn AI runs (Ollama, Claude, Gemini, Aider) with Port Daddy coordination and post-run hard budgetUsd cap enforcement from exact telemetry",
       "cli": [
         "spawn",
         "spawned"
