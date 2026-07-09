@@ -333,13 +333,18 @@ export async function spawnViaCliTube(
   // Binary override is OPERATOR-scoped: read PD_CLI_*_BIN from process.env
   // only, never from per-spawn opts.env/spec.env — a caller-supplied env
   // must not be able to redirect which executable runs.
+  // Empty or malformed PATH is acceptable here: cliBinarySearchPath filters
+  // blank entries and appends PD_CLI_BIN_DIRS plus the standard user CLI dirs.
   const operatorPath = process.env.PATH ?? '';
   const resolution = resolveCliBinary(DEFAULT_BINARIES[cli], {
     envOverride: BINARY_ENV_OVERRIDE[cli],
     basePath: operatorPath,
   });
-  const binary = resolution.command;
-  if (!resolution.found) {
+  const fallbackToDefaultCommand = cli === 'claude-code'
+    && !resolution.found
+    && isPathLikeCliOverride(resolution.override);
+  const binary = fallbackToDefaultCommand ? DEFAULT_BINARIES[cli] : resolution.command;
+  if (!resolution.found && !fallbackToDefaultCommand) {
     const reason = resolution.warning || `${DEFAULT_BINARIES[cli]} binary was not found in PATH or standard user CLI dirs.`;
     return {
       output: '',
@@ -354,7 +359,7 @@ export async function spawnViaCliTube(
   // The binary command itself comes from the same resolver readiness uses:
   // an executable operator override wins, a stale override falls back to the
   // discovered default, and per-spawn opts.env cannot redirect executable choice.
-  const basePath = (opts.env?.PATH as string | undefined) ?? operatorPath;
+  const basePath = fallbackToDefaultCommand ? operatorPath : ((opts.env?.PATH as string | undefined) ?? operatorPath);
   const augmentedPath = cliBinarySearchPath(basePath);
   const env = {
     ...process.env,
@@ -543,6 +548,10 @@ export async function spawnViaCliTube(
     durationMs,
     rawStdout,
   };
+}
+
+function isPathLikeCliOverride(value: string | undefined): boolean {
+  return !!value && (value.startsWith('~') || value.includes('/') || value.includes('\\'));
 }
 
 function signalCliChildProcess(child: ChildProcess, signal: NodeJS.Signals): void {
