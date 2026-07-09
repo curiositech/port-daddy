@@ -13,6 +13,7 @@ import { jest } from '@jest/globals';
 import Fastify from 'fastify';
 import { createTestDb } from '../setup-unit.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
+import { createWorkIntentService } from '../../lib/agent-harbor/work-intent-service.js';
 
 const { dispatchesPlugin } = await import('../../routes/dispatches.js');
 
@@ -37,8 +38,9 @@ async function buildApp({ withWorker = true } = {}) {
   const app = Fastify();
   const db = createTestDb();
   const dispatchQueue = createDispatchQueue({ db });
+  const workIntentService = createWorkIntentService({ db });
   const worker = withWorker ? fakeWorker() : undefined;
-  await app.register(dispatchesPlugin, { deps: { dispatchQueue, dispatchWorker: worker } });
+  await app.register(dispatchesPlugin, { deps: { dispatchQueue, dispatchWorker: worker, workIntentService } });
   await app.ready();
   return { app, dispatchQueue, worker };
 }

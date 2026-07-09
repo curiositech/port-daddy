@@ -141,6 +141,13 @@ export interface ProposeDispatchInput {
   requestedBy?: string;
 }
 
+export interface MaterializeDispatchProjectionInput extends ProposeDispatchInput {
+  /** Stable projection id derived from the WorkIntent append. */
+  id: string;
+  /** Preserve WorkIntent capture time in the compatibility row when available. */
+  createdAt?: number;
+}
+
 export interface ListDispatchesOptions {
   state?: DispatchState | 'all' | 'open' | 'terminal' | 'awaiting_review';
   limit?: number;
@@ -636,31 +643,39 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
   `);
 
   function propose(input: ProposeDispatchInput): Dispatch {
+    return materializeProjection({ ...input, id: randomUUID() });
+  }
+
+  function materializeProjection(input: MaterializeDispatchProjectionInput): Dispatch {
+    if (!input.id || typeof input.id !== 'string') {
+      throw new Error('materializeProjection: id is required');
+    }
     if (!input.goal || typeof input.goal !== 'string') {
-      throw new Error('propose: goal text is required');
+      throw new Error('materializeProjection: goal text is required');
     }
     const goalText = input.goal.trim();
     if (goalText.length === 0) {
-      throw new Error('propose: goal text cannot be empty');
+      throw new Error('materializeProjection: goal text cannot be empty');
     }
     if (goalText.length > 4000) {
-      throw new Error('propose: goal text cannot exceed 4000 chars');
+      throw new Error('materializeProjection: goal text cannot exceed 4000 chars');
     }
     if (input.budgetUsd !== undefined && (input.budgetUsd <= 0 || !Number.isFinite(input.budgetUsd))) {
-      throw new Error('propose: budgetUsd must be a positive number');
+      throw new Error('materializeProjection: budgetUsd must be a positive number');
     }
     if (input.timeoutMs !== undefined && (input.timeoutMs <= 0 || !Number.isFinite(input.timeoutMs))) {
-      throw new Error('propose: timeoutMs must be a positive number');
+      throw new Error('materializeProjection: timeoutMs must be a positive number');
     }
     const mergePolicy: MergePolicy = input.mergePolicy ?? 'review';
     if (mergePolicy === 'auto') {
       throw new Error(
-        "propose: merge_policy 'auto' requires harbormaster (PR #141); not yet implemented. " +
+        "materializeProjection: merge_policy 'auto' requires harbormaster (PR #141); not yet implemented. " +
           "Use 'review' (default) or 'never'.",
       );
     }
-    const at = now();
-    const id = randomUUID();
+    const existing = selectByIdStmt.get(input.id);
+    if (existing) return rowToDispatch(existing);
+    const at = input.createdAt ?? now();
     const slug = deriveSlug(goalText);
     const tags = Array.isArray(input.tags)
       ? input.tags.filter((t): t is string => typeof t === 'string' && t.length > 0).slice(0, 16)
@@ -668,7 +683,7 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     const state: DispatchState = input.autoClaim ? 'claimed' : 'proposed';
     const baseBranch = (input.baseBranch && input.baseBranch.trim()) || 'main';
     insertStmt.run(
-      id,
+      input.id,
       slug,
       goalText,
       JSON.stringify(tags),
@@ -684,8 +699,8 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
       at,
       input.autoClaim ? at : null,
     );
-    const row = selectByIdStmt.get(id);
-    if (!row) throw new Error(`propose: failed to insert dispatch ${id}`);
+    const row = selectByIdStmt.get(input.id);
+    if (!row) throw new Error(`materializeProjection: failed to insert dispatch ${input.id}`);
     return rowToDispatch(row);
   }
 
@@ -946,6 +961,7 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
 
   return {
     propose,
+    materializeProjection,
     get,
     list,
     claim,

@@ -2,7 +2,7 @@
   "generatedAt": 1783315035961,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 143,
+  "count": 144,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -673,6 +673,11 @@
       "slug": "visual-task-agent-intake",
       "status": "now",
       "summaryMd": "FleetBar/Fleet Control Center visual task intake should let operators send annotated screenshots or page context to agents without exposing dispatch/worker internals."
+    },
+    {
+      "slug": "workintent-dispatch-intake",
+      "status": "backlog",
+      "summaryMd": "WorkIntent-first dispatch intake runtime blocker follow-up for PR #895"
     },
     {
       "slug": "adr-0097-m6-context-memory-search-contracts",

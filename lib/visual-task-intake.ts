@@ -1,6 +1,7 @@
 import type { BlobStat, BlobStore } from './blob.js';
 import type { Dispatch, DispatchQueue } from './dispatch/queue.js';
 import type { DispatchWorker } from './dispatch/worker.js';
+import type { WorkIntentService } from './agent-harbor/work-intent-service.js';
 
 export type VisualTaskKind = 'fix' | 'bug' | 'nit' | 'feedback' | 'question';
 export type VisualTaskSource = 'chrome-extension' | 'fleet-ui' | 'api';
@@ -148,6 +149,7 @@ export interface VisualTaskIntakeDeps {
   agentInbox?: AgentInboxLike;
   dispatchQueue?: DispatchQueue;
   dispatchWorker?: DispatchWorker;
+  workIntentService?: WorkIntentService;
   blobs?: BlobStore;
   fleetDaemon?: FleetDaemonLike;
   now?: () => number;
@@ -354,6 +356,13 @@ export function createVisualTaskIntake(deps: VisualTaskIntakeDeps) {
   async function submit(input: VisualTaskSubmission): Promise<VisualTaskIntakeResult> {
     const task = normalizeTask(input, now());
     validateTask(task);
+    const shouldOpenIssue = task.routing?.openIssue !== false;
+    if (shouldOpenIssue && deps.dispatchQueue && !deps.workIntentService) {
+      throw new VisualTaskDependencyError(
+        'WorkIntent dispatch intake is unavailable; refusing visual-task work item side effect',
+        'WORK_INTENT_UNAVAILABLE',
+      );
+    }
 
     let screenshot: VisualTaskIntakeResult['screenshot'];
     if (task.image?.dataUrl && !deps.blobs) {
@@ -452,19 +461,20 @@ export function createVisualTaskIntake(deps: VisualTaskIntakeDeps) {
       }
     }
 
-    const shouldOpenIssue = task.routing?.openIssue !== false;
     let workItem: Dispatch | undefined;
     let agentStart: VisualTaskIntakeResult['agentStart'];
     if (shouldOpenIssue && deps.dispatchQueue) {
       const dispatchTarget = assignee === 'local-agent' ? targetAgent : assignee === 'cloud-fleet' ? 'cloud-fleet' : null;
       try {
-        workItem = deps.dispatchQueue.propose({
+        const captured = deps.workIntentService!.captureDispatch({
           goal: workItemGoal(task, channelName, channelMessageId, screenshot?.url),
           requestedBy: `${task.source ?? 'visual-task'}-visual`,
           mergePolicy: 'review',
           baseBranch: 'main',
           targetActorId: dispatchTarget ?? undefined,
-        });
+          idempotencyKey: `visual-task:${task.id}:dispatch`,
+        }, deps.dispatchQueue);
+        workItem = captured.dispatch;
       } catch (err) {
         throw new VisualTaskInternalError(
           `could not open work item for visual task: ${err instanceof Error ? err.message : String(err)}`,

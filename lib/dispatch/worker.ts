@@ -37,6 +37,7 @@ import {
 import { defaultSpawnAdapter, reapWorktree } from './spawn-adapter.js';
 import type { TubeClientLike } from '../spawner/backends/cli-tube.js';
 import type { DispatchQueue, Dispatch } from './queue.js';
+import type { WorkIntentService } from '../agent-harbor/work-intent-service.js';
 
 export interface DispatchWorkerLogger {
   info(msg: string, meta?: Record<string, unknown>): void;
@@ -84,6 +85,8 @@ export interface DispatchWorkerOptions {
    * path the sortie spawner uses.
    */
   costFn?: DispatchCostFn;
+  /** WorkIntent ledger gate. Proposed rows are imported/refused before claim/spawn. */
+  workIntentService?: WorkIntentService;
 }
 
 export interface DispatchWorkerStatus {
@@ -115,6 +118,7 @@ export class DispatchWorker {
   private readonly model: string | undefined;
   private readonly tubeClient: TubeClientLike | undefined;
   private readonly costFn: DispatchCostFn | undefined;
+  private readonly workIntentService: WorkIntentService | undefined;
 
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
@@ -139,6 +143,7 @@ export class DispatchWorker {
     this.model = opts.model;
     this.tubeClient = opts.tubeClient;
     this.costFn = opts.costFn;
+    this.workIntentService = opts.workIntentService;
   }
 
   /**
@@ -238,6 +243,19 @@ export class DispatchWorker {
     // Peek the next proposed to derive its worktree path/branch for the claim.
     const peeked = this.queue.list({ state: 'proposed', limit: 1 })[0];
     if (!peeked) return null;
+    if (!this.workIntentService) {
+      this.logger.error('dispatch_worker_missing_work_intent_service', { dispatchId: peeked.id });
+      return null;
+    }
+    try {
+      this.workIntentService.ensureDispatchIntent(peeked);
+    } catch (err) {
+      this.logger.error('dispatch_worker_work_intent_import_failed', {
+        dispatchId: peeked.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return null;
+    }
     const worktreePath = deriveWorktreePath(peeked.id);
     // deriveBranchName is what planRunFor uses; mirror it here for the claim row.
     const branch = `dispatch/${peeked.slug}-${peeked.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'noid'}`;
