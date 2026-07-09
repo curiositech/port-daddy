@@ -2592,11 +2592,16 @@ impl ConsoleView {
     /// control plane (an isolated test view) the surface is honest about being
     /// view-only rather than pretending to send.
     fn submit_chat(&mut self) {
-        let text = self.chat_input.trim().to_string();
-        if text.is_empty() {
-            return;
+        if self.send_chat_turn(self.chat_input.clone()) {
+            self.chat_input.clear();
         }
-        self.chat_input.clear();
+    }
+
+    fn send_chat_turn(&mut self, text: impl Into<String>) -> bool {
+        let text = text.into().trim().to_string();
+        if text.is_empty() {
+            return false;
+        }
         // Optimistic: the operator's turn appears the instant they press Enter.
         self.chat.push_mine(text.clone());
         crate::audio::play(crate::audio::Cue::Confirm);
@@ -2609,6 +2614,7 @@ impl ConsoleView {
                     .set_error("no control plane — chat is view-only in this build");
             }
         }
+        true
     }
 
     /// Fold one transport push into the chat transcript: a real reply down the tube
@@ -3510,6 +3516,21 @@ impl ConsoleView {
                     json!({"ok": false, "error": "no control channel (view constructed without one)"})
                 }
             },
+            ScriptRequest::Chat { text } => {
+                let control_plane = self.control_tx.is_some();
+                if self.send_chat_turn(text.clone()) {
+                    json!({
+                        "ok": true,
+                        "chat": {
+                            "sent": true,
+                            "text": text,
+                            "controlPlane": control_plane,
+                        },
+                    })
+                } else {
+                    json!({"ok": false, "error": "chat needs non-empty \"text\""})
+                }
+            }
             ScriptRequest::Rebind { url } => match &self.control_tx {
                 Some(tx) => {
                     let _ = tx.send(ControlMsg::RebindDaemon { url: url.clone() });
