@@ -495,10 +495,10 @@ The numbered flow above is the *review contract*. This subsection is the
 - **Land.** Merge in dependency order: base PR before dependent PR, and
   *rebase the dependent after each merge* — mergeability can flip from
   MERGEABLE to CONFLICTING the instant the base lands. Use the protected
-  flow: `gh pr merge <n> --auto --match-head-commit <sha>` when the merge
-  queue is active, and let branch protection choose the merge strategy. Do
-  not add `--squash`, `--merge`, `--rebase`, or `--admin` as routine agent
-  flow. A human maintainer can make an explicit, documented emergency bypass;
+  flow: `gh pr merge <n> --auto` when the merge queue is active, and let
+  branch protection choose the merge strategy. Do not add `--squash`,
+  `--merge`, `--rebase`, or `--admin` as routine agent flow. A human
+  maintainer can make an explicit, documented emergency bypass;
   an agent cannot use admin to skip a real required gate. Cloudflare Pages may
   be external/advisory, but prove that from branch protection and record the
   evidence before treating it as non-blocking.

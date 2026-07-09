@@ -304,9 +304,9 @@ Land every HIGH adversarial finding as a named fixup commit. Get `npx tsc
 
 **Land.** Merge in dependency order: base before dependent, and rebase the
 dependent after *each* merge — mergeability can flip MERGEABLE → CONFLICTING
-the moment the base lands. Use the protected flow: `gh pr merge <n> --auto
---match-head-commit <sha>` when the merge queue is active, and let branch
-protection choose the merge strategy. Do not add `--squash`, `--merge`,
+the moment the base lands. Use the protected flow: `gh pr merge <n> --auto`
+when the merge queue is active, and let branch protection choose the merge
+strategy. Do not add `--squash`, `--merge`,
 `--rebase`, or `--admin` as routine agent flow. A human maintainer may make an
 explicit, documented emergency bypass; an agent does not admin-skip a real
 required gate. Cloudflare Pages may be external/advisory, but prove that from
@@ -509,9 +509,9 @@ re-asking them is the failure mode this section exists to kill.
    are first-class reviews: fix-and-reply, or dismiss-with-reason against
    origin/main. A PR with unanswered threads is not "ready".
 5. **Land in dependency order**, base before dependent, rebasing the
-   dependent after each merge. Use `gh pr merge <n> --auto
-   --match-head-commit <sha>` for merge-queue repos and let the protected
-   branch choose strategy. Admin bypass is not a routine agent landing path.
+   dependent after each merge. Use `gh pr merge <n> --auto` for merge-queue
+   repos and let the protected branch choose strategy. Admin bypass is not a
+   routine agent landing path.
 6. **Clean up**: delete only worktrees whose branch is merged AND whose
    `git status --porcelain` is clean. Never touch the main checkout.
 7. **Close the ledger**: `pd note "Result: ... Validation: ... Remaining: ..."`,
