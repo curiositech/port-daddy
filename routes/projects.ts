@@ -158,11 +158,14 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
 
     function foldTranscriptEmergency(readiness: ProjectReadiness): ProjectReadiness {
       if (!transcriptEmergency?.hitlEmergency) return readiness;
+      const emergencyNextAction = 'Open /transcripts/emergency and restore transcript flow before launching more agents.';
       return {
         ...readiness,
         transcriptEmergency,
         operatorSummary: `Transcript emergency: ${transcriptEmergency.summary.hitl} HITL issue${transcriptEmergency.summary.hitl === 1 ? '' : 's'} need attention. ${readiness.operatorSummary}`,
-        operatorNextAction: 'Open /transcripts/emergency and restore transcript flow before launching more agents.',
+        operatorNextAction: readiness.operatorNextAction
+          ? `${readiness.operatorNextAction} ${emergencyNextAction}`
+          : emergencyNextAction,
       };
     }
 

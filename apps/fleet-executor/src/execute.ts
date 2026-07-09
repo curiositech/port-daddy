@@ -64,6 +64,7 @@ import { decideShipGate, isDocsOnly } from './gates.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 
 export const FLEET_TRANSCRIPT_WRITE_FAILED_EVENT = 'transcript-write-failed' as const;
+const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 
 // ---------------------------------------------------------------------------
 
@@ -238,14 +239,7 @@ class Transcript {
   constructor(
     private readonly db: D1Database | undefined,
     readonly runId: string,
-    private readonly onWriteFailure?: (failure: {
-      runId: string;
-      seq: number;
-      kind: string;
-      ship: string | null;
-      title: string;
-      error: string;
-    }) => Promise<void>,
+    private readonly onWriteFailure?: (failure: TranscriptWriteFailure) => Promise<void>,
   ) {}
 
   async step(kind: string, ship: string | null, title: string, detail: unknown): Promise<void> {
@@ -264,28 +258,56 @@ class Transcript {
       console.error(
         `[fleet-executor] transcript step failed run=${this.runId} seq=${seq}: ${error}`,
       );
-      if (this.onWriteFailure) {
-        try {
-          await this.onWriteFailure({ runId: this.runId, seq, kind, ship, title, error });
-        } catch (telemetryErr) {
-          console.error(`[fleet-executor] transcript failure telemetry failed run=${this.runId}: ${String(telemetryErr)}`);
-        }
-      }
+      this.reportWriteFailure({ runId: this.runId, seq, kind, ship, title, error });
     }
   }
+
+  private reportWriteFailure(failure: TranscriptWriteFailure): void {
+    if (!this.onWriteFailure) return;
+    let telemetry: Promise<void>;
+    try {
+      telemetry = this.onWriteFailure(failure);
+    } catch (telemetryErr) {
+      console.error(`[fleet-executor] transcript failure telemetry failed run=${this.runId}: ${String(telemetryErr)}`);
+      return;
+    }
+    void withTranscriptFailureTelemetryTimeout(telemetry, failure.runId).catch((telemetryErr) => {
+      console.error(`[fleet-executor] transcript failure telemetry failed run=${failure.runId}: ${String(telemetryErr)}`);
+    });
+  }
+}
+
+interface TranscriptWriteFailure {
+  runId: string;
+  seq: number;
+  kind: string;
+  ship: string | null;
+  title: string;
+  error: string;
+}
+
+function withTranscriptFailureTelemetryTimeout(
+  telemetry: Promise<void>,
+  runId: string,
+): Promise<void> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<void>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`transcript failure telemetry timed out after ${TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS}ms for ${runId}`));
+    }, TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS);
+    (timer as unknown as { unref?: () => void }).unref?.();
+  });
+  telemetry.then(
+    () => clearTimeout(timer),
+    () => clearTimeout(timer),
+  );
+  return Promise.race([telemetry, timeout]);
 }
 
 async function emitTranscriptWriteFailureTelemetry(
   env: ExecutorEnv,
   job: FleetRunJob,
-  failure: {
-    runId: string;
-    seq: number;
-    kind: string;
-    ship: string | null;
-    title: string;
-    error: string;
-  },
+  failure: TranscriptWriteFailure,
 ): Promise<void> {
   const [owner, repo] = (job.repoFullName || '').split('/');
   const prPayload = (job.payloadMinimal.pull_request as Record<string, unknown>) ?? {};

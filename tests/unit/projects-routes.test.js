@@ -188,7 +188,7 @@ describe('projects routes', () => {
     await app.close();
   });
 
-  test('GET /projects folds transcript emergency into operator summary and next action', async () => {
+  test('GET /projects preserves remediation next action when folding transcript emergency', async () => {
     const db = createTestDb();
     const transcripts = createTranscripts(db);
     const startedAt = Date.now() - 120_000;
@@ -208,7 +208,6 @@ describe('projects routes', () => {
 
     mockLoadFleetConfig.mockReturnValue({
       name: 'alpha',
-      limits: { budgetUsdPerDay: 5 },
       agents: [{ name: 'spark' }],
       watchers: [],
       channels: {},
@@ -265,9 +264,15 @@ describe('projects routes', () => {
     const body = res.json();
 
     expect(res.statusCode).toBe(200);
+    expect(body.projects[0]).toMatchObject({
+      operatorState: 'blocked',
+      fleetConfigStatus: 'missing_budget',
+      remediation: { action: 'set_budget' },
+    });
     expect(body.projects[0].transcriptEmergency.hitlEmergency).toBe(true);
     expect(body.projects[0].operatorSummary).toContain('Transcript emergency');
     expect(body.projects[0].operatorNextAction).toContain('/transcripts/emergency');
+    expect(body.projects[0].operatorNextAction).toContain('Set a positive daily budget');
 
     await app.close();
     db.close();

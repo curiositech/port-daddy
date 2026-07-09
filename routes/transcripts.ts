@@ -136,13 +136,23 @@ export const transcriptsPlugin: FastifyPluginAsync<{ deps: TranscriptRouteDeps }
     if (!transcripts) return notWired(reply);
     try {
       const q = (request.query as Record<string, string>) || {};
+      const stallAfterMs = parseTranscriptEmergencyPositiveIntQuery(q.stallAfterMs);
+      if (q.stallAfterMs !== undefined && stallAfterMs === undefined) {
+        reply.code(400);
+        return { success: false, error: 'stallAfterMs must be a positive integer duration in milliseconds' };
+      }
+      const cloudSinceMs = parseTranscriptEmergencyPositiveIntQuery(q.since);
+      if (q.since !== undefined && cloudSinceMs === undefined) {
+        reply.code(400);
+        return { success: false, error: 'since must be a positive integer duration in milliseconds' };
+      }
       const report = buildTranscriptEmergencyFromSources({
         transcripts,
         spawner,
         cloudAppTelemetry: opts.deps.cloudAppTelemetry,
       }, {
-        stallAfterMs: parseTranscriptEmergencyPositiveIntQuery(q.stallAfterMs),
-        cloudSinceMs: parseTranscriptEmergencyPositiveIntQuery(q.since),
+        stallAfterMs,
+        cloudSinceMs,
       });
       return { success: true, ...report };
     } catch (error) {

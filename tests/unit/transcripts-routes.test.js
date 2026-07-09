@@ -168,6 +168,28 @@ describe('routes/transcripts', () => {
     ]));
   });
 
+  it('GET /transcripts/emergency rejects invalid stallAfterMs instead of ignoring it', async () => {
+    const res = await app.inject({ method: 'GET', url: '/transcripts/emergency?stallAfterMs=not-a-number' });
+    const body = JSON.parse(res.body);
+
+    expect(res.statusCode).toBe(400);
+    expect(body).toEqual({
+      success: false,
+      error: 'stallAfterMs must be a positive integer duration in milliseconds',
+    });
+  });
+
+  it('GET /transcripts/emergency rejects invalid since instead of ignoring it', async () => {
+    const res = await app.inject({ method: 'GET', url: '/transcripts/emergency?since=0' });
+    const body = JSON.parse(res.body);
+
+    expect(res.statusCode).toBe(400);
+    expect(body).toEqual({
+      success: false,
+      error: 'since must be a positive integer duration in milliseconds',
+    });
+  });
+
   it('GET /transcripts/:id returns 404 for unknown id', async () => {
     const res = await app.inject({ method: 'GET', url: '/transcripts/tx_does_not_exist' });
     expect(res.statusCode).toBe(404);
