@@ -17,9 +17,10 @@
  * (default `https://api.openai.com/v1`).
  *
  * Native OpenAI reasoning models (o-series, gpt-5) use the Responses API
- * (`/responses`) with `max_output_tokens`. OpenAI-compatible providers that
- * explicitly override the base URL (Groq, DeepSeek, LM Studio, etc.) keep the
- * Chat Completions path because that is the compatibility contract they serve.
+ * (`/responses`) with `max_output_tokens`. OpenAI-compatible providers and
+ * explicit base URL redirects (tests, proxies, Azure, Groq, DeepSeek, LM Studio,
+ * etc.) keep the Chat Completions path because that is the compatibility
+ * contract they serve.
  */
 
 import { getSecret } from '../../secret-env.js';
@@ -27,9 +28,8 @@ import type { LLMCompletionRequest, LLMCompletionResult } from '../../llm-call.j
 
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
 
-/** Models that route via the responses/reasoning path. They accept
- *  `max_completion_tokens` and ignore `max_tokens`. The Chat Completions
- *  endpoint still accepts them; we just need to send the right field. */
+/** Models that use Responses API on native OpenAI, or `max_completion_tokens`
+ *  when an OpenAI-compatible Chat Completions endpoint is explicitly selected. */
 const REASONING_MODEL_PREFIXES = ['o1', 'o3', 'o4', 'gpt-5'];
 
 function isReasoningModel(model: string): boolean {
@@ -178,7 +178,8 @@ export const openaiAdapter = async (
   };
   if (organization) headers['OpenAI-Organization'] = organization;
 
-  const useResponsesApi = isReasoningModel(req.model) && !override.baseUrl;
+  const hasExplicitBaseUrl = Boolean(override.baseUrl || e.OPENAI_BASE_URL);
+  const useResponsesApi = isReasoningModel(req.model) && !hasExplicitBaseUrl;
   const body: Record<string, unknown> = useResponsesApi
     ? {
       model: req.model,

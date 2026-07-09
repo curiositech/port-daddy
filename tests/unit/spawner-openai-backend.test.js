@@ -106,14 +106,20 @@ describe('openaiAdapter — happy path', () => {
       json: async () => ({
         id: 'resp_nested',
         output: [
+          null,
           { type: 'reasoning', summary: [{ text: 'private reasoning summary should not be transcript text' }] },
+          { type: 'message' },
           {
             type: 'message',
             content: [
+              123,
+              false,
+              { type: 'output_text', text: null },
               { type: 'output_text', text: 'nested ' },
               { type: 'output_text', text: 'answer' },
             ],
           },
+          { type: 'message', content: { text: 'not an array, ignore me' } },
         ],
         usage: {
           input_tokens: 100,
@@ -127,6 +133,34 @@ describe('openaiAdapter — happy path', () => {
     expect(result.ok).toBe(true);
     expect(result.text).toBe('nested answer');
     expect(result.cachedInputTokens).toBe(75);
+  });
+
+  test('extracts valid choice content while ignoring malformed content parts', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true, status: 200,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: [
+                99,
+                true,
+                { text: 123 },
+                { output_text: null },
+                { output_text: 'choice ' },
+                { text: 'text' },
+              ],
+            },
+          },
+          { message: {} },
+          { text: 42 },
+        ],
+      }),
+      text: async () => '',
+    }));
+    const result = await openaiAdapter({ prompt: 'say hi', model: 'gpt-5-mini' });
+    expect(result.ok).toBe(true);
+    expect(result.text).toBe('choice text');
   });
 
   test('captures cached_tokens when present', async () => {
@@ -215,11 +249,16 @@ describe('openaiAdapter — request shape', () => {
     expect(url).toBe('https://my-proxy.test/v1/chat/completions');
   });
 
-  test('uses OPENAI_BASE_URL with Responses API for native GPT-5 models', async () => {
+  test('uses OPENAI_BASE_URL as an OpenAI-compatible chat route for GPT-5 models', async () => {
     process.env.OPENAI_BASE_URL = 'https://my-proxy.test/v1/';
-    await openaiAdapter({ prompt: 'hi', model: 'gpt-5-nano' });
-    const [url] = global.fetch.mock.calls[0];
-    expect(url).toBe('https://my-proxy.test/v1/responses');
+    await openaiAdapter({ prompt: 'hi', model: 'gpt-5-nano', maxTokens: 64 });
+    const [url, init] = global.fetch.mock.calls[0];
+    const body = JSON.parse(init.body);
+    expect(url).toBe('https://my-proxy.test/v1/chat/completions');
+    expect(body.messages).toEqual([{ role: 'user', content: 'hi' }]);
+    expect(body.max_completion_tokens).toBe(64);
+    expect(body.max_output_tokens).toBeUndefined();
+    expect(body.max_tokens).toBeUndefined();
   });
 
   test('forwards OpenAI-Organization header when OPENAI_ORG_ID is set', async () => {
@@ -264,6 +303,56 @@ describe('openaiAdapter — failure paths', () => {
     const result = await openaiAdapter({ prompt: 'hi', model: 'gpt-5-mini' });
     expect(result.ok).toBe(false);
     expect(result.error).toContain('no text response');
+  });
+
+  test('malformed Responses output and choices return the explicit no-text error', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true, status: 200,
+      json: async () => ({
+        id: 'resp_malformed',
+        output: [
+          null,
+          17,
+          { type: 'message' },
+          { type: 'message', content: { text: 'not a supported content object' } },
+          {
+            type: 'message',
+            content: [
+              undefined,
+              false,
+              { text: 123 },
+              { output_text: null },
+              { unexpected: 'object' },
+            ],
+          },
+          { type: 'tool_call', content: 'not transcript text' },
+        ],
+        choices: [
+          { message: {} },
+          { message: { content: [{ text: 456 }, { output_text: null }, { unexpected: 'object' }] } },
+          { text: 99 },
+        ],
+      }),
+      text: async () => '',
+    }));
+    const result = await openaiAdapter({ prompt: 'hi', model: 'gpt-5-nano' });
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('OpenAI returned no text response');
+  });
+
+  test('malformed incomplete reason falls back to the generic no-text error', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true, status: 200,
+      json: async () => ({
+        status: 'incomplete',
+        incomplete_details: { reason: 404 },
+        output: [],
+      }),
+      text: async () => '',
+    }));
+    const result = await openaiAdapter({ prompt: 'hi', model: 'gpt-5-nano' });
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('OpenAI returned no text response');
   });
 });
 
