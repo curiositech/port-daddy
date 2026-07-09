@@ -42,29 +42,38 @@ beforeEach(() => {
 
 afterEach(() => {
   try {
-    const pidFile = join(tempDir, 'survivor.pid');
-    if (existsSync(pidFile)) {
-      killPid(Number(readFileSync(pidFile, 'utf8')));
+    for (const fileName of ['parent.pid', 'survivor.pid']) {
+      const pidFile = join(tempDir, fileName);
+      if (existsSync(pidFile)) {
+        killPid(Number(readFileSync(pidFile, 'utf8')));
+      }
     }
   } catch { /* best effort cleanup */ }
   rmSync(tempDir, { recursive: true, force: true });
 });
 
 describe('cli-tube real timeout lifecycle', () => {
-  test('does not finalize a timed-out run while an inherited-stdio descendant is still alive', async () => {
-    const pidFile = join(tempDir, 'survivor.pid');
+  test('does not finalize a timed-out run until the CLI parent and inherited-stdio descendant are dead', async () => {
+    const parentPidFile = join(tempDir, 'parent.pid');
+    const survivorPidFile = join(tempDir, 'survivor.pid');
 
     const res = await spawnViaCliTube({
       cli: 'agy',
       prompt: 'hold open inherited stdout',
       timeoutMs: 250,
-      env: { PD_SURVIVOR_PID_FILE: pidFile },
+      env: {
+        PD_PARENT_PID_FILE: parentPidFile,
+        PD_SURVIVOR_PID_FILE: survivorPidFile,
+      },
     });
 
     expect(res.error).toContain('agy timed out after 250ms');
-    expect(existsSync(pidFile)).toBe(true);
-    const survivorPid = Number(readFileSync(pidFile, 'utf8'));
-    expect(await isPidAlive(survivorPid)).toBe(false);
+    expect(existsSync(parentPidFile)).toBe(true);
+    expect(existsSync(survivorPidFile)).toBe(true);
+    const parentPid = Number(readFileSync(parentPidFile, 'utf8'));
+    const survivorPid = Number(readFileSync(survivorPidFile, 'utf8'));
+    await expectPidDead(parentPid);
+    await expectPidDead(survivorPid);
   });
 });
 
@@ -76,12 +85,14 @@ function installEscapingAgy(dir) {
 const { spawn } = require('node:child_process');
 const { writeFileSync } = require('node:fs');
 
+const parentPidFile = process.env.PD_PARENT_PID_FILE;
 const pidFile = process.env.PD_SURVIVOR_PID_FILE;
-if (!pidFile) {
-  console.error('missing PD_SURVIVOR_PID_FILE');
+if (!parentPidFile || !pidFile) {
+  console.error('missing PID file env');
   process.exit(2);
 }
 
+writeFileSync(parentPidFile, String(process.pid));
 console.log('parent emitted before timeout');
 process.on('SIGTERM', () => {});
 
@@ -106,6 +117,14 @@ async function isPidAlive(pid) {
   } catch {
     return false;
   }
+}
+
+async function expectPidDead(pid) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (!(await isPidAlive(pid))) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  expect(await isPidAlive(pid)).toBe(false);
 }
 
 function killPid(pid) {

@@ -23,6 +23,7 @@ import { delimiter, join } from 'node:path';
 import { PassThrough, Readable } from 'node:stream';
 
 const mockSpawn = jest.fn();
+const mockExecFileSync = jest.fn();
 const originalHome = process.env.HOME;
 const originalPath = process.env.PATH;
 const originalCliBinDirs = process.env.PD_CLI_BIN_DIRS;
@@ -30,6 +31,7 @@ let fakeHome;
 
 jest.unstable_mockModule('node:child_process', () => ({
   spawn: mockSpawn,
+  execFileSync: mockExecFileSync,
 }));
 
 const {
@@ -45,13 +47,13 @@ const {
 // `stdout` may be a string (emitted as one chunk) or an array of strings
 // (emitted as SEPARATE chunks) so line-buffering across chunk boundaries can be
 // exercised — stdout in real life arrives in arbitrary chunks.
-function fakeChild({ stdout = '', stderr = '', exitCode = 0, error = null, delay = 0, neverClose = false } = {}) {
+function fakeChild({ stdout = '', stderr = '', exitCode = 0, error = null, delay = 0, neverClose = false, pid = 4242 } = {}) {
   const ee = new EventEmitter();
   const stdoutChunks = Array.isArray(stdout) ? stdout : [stdout];
   ee.stdout = Readable.from(stdoutChunks);
   ee.stderr = Readable.from([stderr]);
   ee.kill = jest.fn();
-  ee.pid = 4242;
+  ee.pid = pid;
   if (!neverClose) {
     setTimeout(() => {
       if (error) {
@@ -65,7 +67,9 @@ function fakeChild({ stdout = '', stderr = '', exitCode = 0, error = null, delay
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  mockSpawn.mockReset();
+  mockExecFileSync.mockReset();
+  mockExecFileSync.mockReturnValue('');
   fakeHome = mkdtempSync(join(tmpdir(), 'pd-cli-tube-home-'));
   process.env.HOME = fakeHome;
   process.env.PATH = '/usr/bin:/bin';
@@ -238,51 +242,85 @@ describe('buildArgs', () => {
 });
 
 describe('CLI tube provider registry contract', () => {
-  test('every declared CLI tool has one spec with an argv builder and operator guidance', () => {
-    expect(Array.isArray(CLI_TUBE_TOOLS)).toBe(true);
-    expect(CLI_TUBE_TOOLS).toEqual(['claude-code', 'codex', 'agy', 'gemini', 'groq', 'grok']);
+  test('declared CLI tools are backed by nonempty provider metadata and unique ids', () => {
+    expect(new Set(CLI_TUBE_TOOLS).size).toBe(CLI_TUBE_TOOLS.length);
     expect(Object.keys(CLI_TUBE_PROVIDER_SPECS).sort()).toEqual([...CLI_TUBE_TOOLS].sort());
 
     for (const tool of CLI_TUBE_TOOLS) {
       const spec = CLI_TUBE_PROVIDER_SPECS[tool];
       expect(spec.id).toBe(tool);
-      expect(spec.defaultBinary).toEqual(expect.any(String));
+      expect(spec.defaultBinary).toEqual(expect.stringMatching(/\S/));
       expect(spec.binaryEnvOverride).toMatch(/^PD_CLI_[A-Z0-9_]+_BIN$/);
-      expect(spec.authNextStep).toEqual(expect.any(String));
-      expect(spec.argStyle.kind).toEqual(expect.any(String));
+      expect(spec.authNextStep).toEqual(expect.stringMatching(/\S/));
+      expect(spec.argStyle.kind).toEqual(expect.stringMatching(/\S/));
       expect(spec.modelPolicy).toBeDefined();
       expect(typeof spec.buildArgs).toBe('function');
-      expect(buildArgs(tool, 'registry smoke').args).toEqual(spec.buildArgs({
-        prompt: 'registry smoke',
-        outputPath: undefined,
-        model: undefined,
-        permissionMode: undefined,
-        codexConfig: undefined,
-        timeoutMs: undefined,
-      }).args);
+    }
+  });
+});
+
+describe('spawnViaCliTube — provider policy behavior', () => {
+  test.each(CLI_TUBE_TOOLS)('%s auth failures include provider-specific next-step guidance', async (cli) => {
+    mockSpawn.mockReturnValue(fakeChild({
+      stdout: '',
+      stderr: 'Error: not authenticated. Please log in.',
+      exitCode: 1,
+    }));
+    const res = await spawnViaCliTube({ cli, prompt: 'hi' });
+    expect(res.error).toContain('authentication failed');
+    expect(res.error).toContain(CLI_TUBE_PROVIDER_SPECS[cli].authNextStep);
+  });
+
+  test.each([
+    ['claude-code', 'claude-cli', '--model', 'sonnet'],
+    ['codex', 'codex-cli', null, null],
+    ['agy', 'agy-default', null, null],
+    ['gemini', 'gemini-2.5-pro', '--model', 'gemini-2.5-pro'],
+  ])('%s model policy affects the actual spawned argv for %s', async (cli, requestedModel, expectedFlag, expectedValue) => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    await spawnViaCliTube({ cli, prompt: 'hi', model: requestedModel });
+    const args = mockSpawn.mock.calls[0][1];
+    expect(args[args.length - 1]).toBe('hi');
+    if (expectedFlag) {
+      const idx = args.indexOf(expectedFlag);
+      expect(idx).toBeGreaterThan(-1);
+      expect(args[idx + 1]).toBe(expectedValue);
+    } else {
+      expect(args).not.toContain('--model');
+      expect(args).not.toContain(requestedModel);
     }
   });
 
-  test('provider specs own model placeholder behavior instead of a shared string fallback list', () => {
-    expect(CLI_TUBE_PROVIDER_SPECS['claude-code'].modelPolicy).toMatchObject({
-      extraPlaceholderModels: ['claude-cli', 'codex'],
-      placeholderFallback: 'sonnet',
+  test('codex alone passes --output-last-message and prefers that file over stdout', async () => {
+    mockSpawn.mockImplementation((_binary, args) => {
+      const outputFlagIndex = args.indexOf('--output-last-message');
+      expect(outputFlagIndex).toBeGreaterThan(-1);
+      writeFileSync(args[outputFlagIndex + 1], 'final answer from file\n');
+      return fakeChild({ stdout: '{"type":"event"}\n', exitCode: 0 });
     });
-    expect(CLI_TUBE_PROVIDER_SPECS.codex.modelPolicy).toMatchObject({
-      extraPlaceholderModels: ['codex-cli'],
-    });
-    expect(CLI_TUBE_PROVIDER_SPECS.agy.modelPolicy).toMatchObject({
-      extraPlaceholderModels: ['agy-cli', 'agy-default'],
-    });
-    expect(CLI_TUBE_PROVIDER_SPECS.gemini.modelPolicy).toEqual({});
+
+    const res = await spawnViaCliTube({ cli: 'codex', prompt: 'do thing' });
+
+    expect(res.exitCode).toBe(0);
+    expect(res.rawStdout).toBe('{"type":"event"}\n');
+    expect(res.output).toBe('final answer from file');
   });
 
-  test('agy is the only provider whose empty successful stdout is classified as failure', () => {
-    expect(CLI_TUBE_PROVIDER_SPECS.agy.emptySuccess).toBe('fail');
-    for (const tool of CLI_TUBE_TOOLS.filter((candidate) => candidate !== 'agy')) {
-      expect(CLI_TUBE_PROVIDER_SPECS[tool].emptySuccess).not.toBe('fail');
-    }
-  });
+  test.each(CLI_TUBE_TOOLS.filter((tool) => tool !== 'codex'))(
+    '%s does not receive codex last-message output capture',
+    async (cli) => {
+      mockSpawn.mockImplementation((_binary, args) => {
+        expect(args).not.toContain('--output-last-message');
+        return fakeChild({ stdout: 'stdout answer', exitCode: 0 });
+      });
+
+      const res = await spawnViaCliTube({ cli, prompt: 'hi' });
+
+      expect(res.exitCode).toBe(0);
+      expect(res.output).toBe('stdout answer');
+      expect(res.error).toBeNull();
+    },
+  );
 });
 
 describe('spawnViaCliTube — onStreamLine (live per-line buffering)', () => {
@@ -561,6 +599,7 @@ describe('spawnViaCliTube — failure paths', () => {
     expect(res.exitCode).toBe(127);
     expect(res.error).toContain('grok CLI binary unavailable');
     expect(res.error).toContain('PD_CLI_GROK_BIN');
+    expect(res.error).toContain('GROK_API_KEY / XAI_API_KEY');
   });
 
   test('auth failure in stderr surfaces actionable next-step', async () => {
@@ -611,6 +650,14 @@ describe('spawnViaCliTube — failure paths', () => {
     mockSpawn.mockReturnValue(fakeChild({ stdout: '', stderr: '', exitCode: 0 }));
     const res = await spawnViaCliTube({ cli, prompt: 'hi' });
     expect(res.exitCode).toBe(0);
+    expect(res.error).toBeNull();
+  });
+
+  test.each(['claude-code', 'codex', 'gemini', 'groq', 'grok'])('%s empty success is not contaminated by agy no-output policy', async (cli) => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: '', stderr: '', exitCode: 0 }));
+    const res = await spawnViaCliTube({ cli, prompt: 'hi' });
+    expect(res.exitCode).toBe(0);
+    expect(res.output).toBe('');
     expect(res.error).toBeNull();
   });
 
@@ -754,7 +801,53 @@ describe('spawnViaCliTube — failure paths', () => {
       expect(res.rawStdout).toBe('line before timeout\n');
       expect(res.error).toContain('agy timed out after 10ms');
       expect(res.error).toContain('process tree did not close after SIGKILL; transcript may be incomplete');
+      expect(child.stdout.listenerCount('data')).toBe(0);
+      expect(child.stderr.listenerCount('data')).toBe(0);
     } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('timeout root-pid fallback is explicit when process tree collection fails', async () => {
+    jest.useFakeTimers();
+    const processKill = jest.spyOn(process, 'kill').mockImplementation(() => true);
+    try {
+      mockExecFileSync.mockImplementation(() => { throw new Error('ps unavailable'); });
+      const child = fakeChild({ neverClose: true, pid: 5151 });
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      const stdoutDestroy = jest.spyOn(child.stdout, 'destroy');
+      const stderrDestroy = jest.spyOn(child.stderr, 'destroy');
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
+      child.stdout.write('before ps failure\n');
+
+      await jest.advanceTimersByTimeAsync(10);
+      expect(processKill).toHaveBeenCalledWith(-5151, 'SIGTERM');
+      expect(processKill).toHaveBeenCalledWith(5151, 'SIGTERM');
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(processKill).toHaveBeenCalledWith(-5151, 'SIGKILL');
+      expect(processKill).toHaveBeenCalledWith(5151, 'SIGKILL');
+      expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+      expect(mockExecFileSync).toHaveBeenCalledWith(
+        'ps',
+        ['-axo', 'pid=,ppid='],
+        expect.objectContaining({ maxBuffer: 1024 * 1024 }),
+      );
+
+      await jest.advanceTimersByTimeAsync(1000);
+      const res = await resultPromise;
+      expect(res.exitCode).toBe(-1);
+      expect(res.rawStdout).toBe('before ps failure\n');
+      expect(res.error).toContain('process tree did not close after SIGKILL; transcript may be incomplete');
+      expect(res.error).toContain('process tree collection unavailable: ps unavailable');
+      expect(stdoutDestroy).not.toHaveBeenCalled();
+      expect(stderrDestroy).not.toHaveBeenCalled();
+    } finally {
+      processKill.mockRestore();
       jest.useRealTimers();
     }
   });

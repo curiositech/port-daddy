@@ -48,6 +48,7 @@ import {
   getCliTubeProviderSpec,
   normalizeCodexConfigOverrides,
   waitForCliChildProcess,
+  type CliChildWaitResult,
   type CliTubePermissionMode,
   type CliTubeProviderSpec,
   type CliTubeTool,
@@ -223,7 +224,7 @@ export async function spawnViaCliTube(
     return {
       output: '',
       exitCode: 127,
-      error: `${cli} CLI binary unavailable: ${reason}`,
+      error: `${cli} CLI binary unavailable: ${reason} ${provider.authNextStep}`,
       tube: null,
       durationMs: 0,
       rawStdout: '',
@@ -309,18 +310,29 @@ export async function spawnViaCliTube(
     }
   }
 
-  child.stdout?.on('data', (d: Buffer) => {
+  const onStdoutData = (d: Buffer): void => {
     const text = d.toString();
     stdoutChunks.push(text);
     pumpStdout(text);
-  });
-  child.stderr?.on('data', (d: Buffer) => stderrChunks.push(d.toString()));
+  };
+  const onStderrData = (d: Buffer): void => {
+    stderrChunks.push(d.toString());
+  };
 
-  const result = await waitForCliChildProcess(child, {
-    timeoutMs,
-    killGraceMs: TIMEOUT_KILL_GRACE_MS,
-    killCloseDeadlineMs: TIMEOUT_KILL_CLOSE_DEADLINE_MS,
-  });
+  child.stdout?.on('data', onStdoutData);
+  child.stderr?.on('data', onStderrData);
+
+  let result: CliChildWaitResult;
+  try {
+    result = await waitForCliChildProcess(child, {
+      timeoutMs,
+      killGraceMs: TIMEOUT_KILL_GRACE_MS,
+      killCloseDeadlineMs: TIMEOUT_KILL_CLOSE_DEADLINE_MS,
+    });
+  } finally {
+    child.stdout?.off('data', onStdoutData);
+    child.stderr?.off('data', onStderrData);
+  }
 
   // Flush any trailing partial line (a final JSONL line without a terminating
   // newline) so the last event is still delivered live.

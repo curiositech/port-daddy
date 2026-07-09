@@ -1,9 +1,6 @@
 import * as childProcess from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
 
-export const CLI_TUBE_TOOLS = ['claude-code', 'codex', 'agy', 'gemini', 'groq', 'grok'] as const;
-export type CliTubeTool = typeof CLI_TUBE_TOOLS[number];
-
 export type CliTubePermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions';
 
 export interface CliTubeBuildArgsInput {
@@ -39,7 +36,7 @@ export interface CliTubeModelPolicy {
   placeholderFallback?: string;
 }
 
-interface CliTubeProviderSpecBase<TTool extends CliTubeTool = CliTubeTool> {
+interface CliTubeProviderSpecBase<TTool extends string = string> {
   id: TTool;
   defaultBinary: string;
   binaryEnvOverride: `PD_CLI_${string}_BIN`;
@@ -55,13 +52,16 @@ type EmptySuccessPolicy =
   | { emptySuccess: 'allow'; emptySuccessError?: never }
   | { emptySuccess: 'fail'; emptySuccessError: string };
 
-type CliTubeProviderDefinition<TTool extends CliTubeTool = CliTubeTool> =
+type CliTubeProviderDefinition<TTool extends string = string> =
   CliTubeProviderSpecBase<TTool> & EmptySuccessPolicy;
 
-export type CliTubeProviderSpec<TTool extends CliTubeTool = CliTubeTool> =
+export type CliTubeProviderSpec<TTool extends string = string> =
   CliTubeProviderDefinition<TTool> & {
     buildArgs: (input: CliTubeBuildArgsInput) => CliTubeBuildArgsResult;
   };
+
+type CliTubeProviderDefinitionInput =
+  Omit<CliTubeProviderSpecBase<string>, 'id'> & EmptySuccessPolicy;
 
 const CODEX_CONFIG_KEY = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;
 const MAX_CODEX_CONFIG_OVERRIDES = 32;
@@ -89,19 +89,24 @@ export function normalizeCodexConfigOverrides(configs: readonly string[] | undef
   return normalized;
 }
 
-function defineCliTubeProvider<TTool extends CliTubeTool>(
-  definition: CliTubeProviderDefinition<TTool>,
-): CliTubeProviderSpec<TTool> {
-  const spec: CliTubeProviderSpec<TTool> = {
-    ...definition,
-    buildArgs: (input) => buildCliTubeArgsFromSpec(spec, input),
-  };
-  return spec;
+function defineCliTubeProviderRegistry<const TDefinitions extends Record<string, CliTubeProviderDefinitionInput>>(
+  definitions: TDefinitions,
+): { [TTool in Extract<keyof TDefinitions, string>]: CliTubeProviderSpec<TTool> } {
+  const specs = {} as { [TTool in Extract<keyof TDefinitions, string>]: CliTubeProviderSpec<TTool> };
+  for (const id of Object.keys(definitions) as Array<Extract<keyof TDefinitions, string>>) {
+    const definition = definitions[id];
+    const spec: CliTubeProviderSpec<typeof id> = {
+      id,
+      ...definition,
+      buildArgs: (input) => buildCliTubeArgsFromSpec(spec, input),
+    };
+    specs[id] = spec;
+  }
+  return specs;
 }
 
-export const CLI_TUBE_PROVIDER_SPECS: { [TTool in CliTubeTool]: CliTubeProviderSpec<TTool> } = {
-  'claude-code': defineCliTubeProvider({
-    id: 'claude-code',
+export const CLI_TUBE_PROVIDER_SPECS = defineCliTubeProviderRegistry({
+  'claude-code': {
     defaultBinary: 'claude',
     binaryEnvOverride: 'PD_CLI_CLAUDE_CODE_BIN',
     authNextStep: 'Run `claude setup-token` or `claude auth` to authenticate.',
@@ -113,9 +118,8 @@ export const CLI_TUBE_PROVIDER_SPECS: { [TTool in CliTubeTool]: CliTubeProviderS
     stripEnvKeys: ['ANTHROPIC_API_KEY'],
     stalePathOverrideFallback: 'default-command',
     emptySuccess: 'allow',
-  }),
-  codex: defineCliTubeProvider({
-    id: 'codex',
+  },
+  codex: {
     defaultBinary: 'codex',
     binaryEnvOverride: 'PD_CLI_CODEX_BIN',
     authNextStep: 'Set OPENAI_API_KEY in ~/.codex/config or `codex auth login`.',
@@ -125,9 +129,8 @@ export const CLI_TUBE_PROVIDER_SPECS: { [TTool in CliTubeTool]: CliTubeProviderS
     },
     outputCapture: 'last-message-file',
     emptySuccess: 'allow',
-  }),
-  agy: defineCliTubeProvider({
-    id: 'agy',
+  },
+  agy: {
     defaultBinary: 'agy',
     binaryEnvOverride: 'PD_CLI_AGY_BIN',
     authNextStep: 'Run `agy --print "hello"` once interactively to confirm authentication.',
@@ -137,35 +140,35 @@ export const CLI_TUBE_PROVIDER_SPECS: { [TTool in CliTubeTool]: CliTubeProviderS
     },
     emptySuccess: 'fail',
     emptySuccessError: 'agy produced no stdout or stderr in print mode.',
-  }),
-  gemini: defineCliTubeProvider({
-    id: 'gemini',
+  },
+  gemini: {
     defaultBinary: 'gemini',
     binaryEnvOverride: 'PD_CLI_GEMINI_BIN',
     authNextStep: 'Run `gemini` once interactively to sign in, or set GEMINI_API_KEY.',
     argStyle: { kind: 'prompt-flag' },
     modelPolicy: {},
     emptySuccess: 'allow',
-  }),
-  groq: defineCliTubeProvider({
-    id: 'groq',
+  },
+  groq: {
     defaultBinary: 'groq',
     binaryEnvOverride: 'PD_CLI_GROQ_BIN',
     authNextStep: 'Run `groq` once interactively to sign in, or set GROQ_API_KEY.',
     argStyle: { kind: 'prompt-flag' },
     modelPolicy: {},
     emptySuccess: 'allow',
-  }),
-  grok: defineCliTubeProvider({
-    id: 'grok',
+  },
+  grok: {
     defaultBinary: 'grok',
     binaryEnvOverride: 'PD_CLI_GROK_BIN',
     authNextStep: 'Run `grok` once interactively to sign in, or set GROK_API_KEY / XAI_API_KEY.',
     argStyle: { kind: 'prompt-flag' },
     modelPolicy: {},
     emptySuccess: 'allow',
-  }),
-};
+  },
+});
+
+export type CliTubeTool = Extract<keyof typeof CLI_TUBE_PROVIDER_SPECS, string>;
+export const CLI_TUBE_TOOLS = Object.keys(CLI_TUBE_PROVIDER_SPECS) as CliTubeTool[];
 
 export function getCliTubeProviderSpec<TTool extends CliTubeTool>(
   tool: TTool,
@@ -258,6 +261,11 @@ export interface CliChildWaitResult {
   spawnErr: string | null;
 }
 
+interface ProcessTreeSnapshot {
+  pids: number[];
+  warning: string | null;
+}
+
 interface WaitForCliChildOptions {
   timeoutMs: number;
   killGraceMs: number;
@@ -272,8 +280,13 @@ export function waitForCliChildProcess(
     let settled = false;
     let timedOut = false;
     let knownTreePids: number[] = [];
+    let processTreeWarning: string | null = null;
     let forceKillTimer: ReturnType<typeof setTimeout> | null = null;
     let killCloseDeadlineTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const rememberProcessTreeWarning = (warning: string | null): void => {
+      if (!processTreeWarning && warning) processTreeWarning = warning;
+    };
 
     const settle = (code: number, spawnErr: string | null = null): void => {
       if (settled) return;
@@ -286,16 +299,21 @@ export function waitForCliChildProcess(
 
     const timer = setTimeout(() => {
       timedOut = true;
-      knownTreePids = collectProcessTreePids(child.pid);
+      const initialTree = collectProcessTreePids(child.pid);
+      knownTreePids = initialTree.pids;
+      rememberProcessTreeWarning(initialTree.warning);
       signalCliProcessTree(child, 'SIGTERM', knownTreePids);
       forceKillTimer = setTimeout(() => {
+        const postGraceTree = collectProcessTreePids(child.pid);
+        rememberProcessTreeWarning(postGraceTree.warning);
         knownTreePids = dedupePids([
           ...knownTreePids,
-          ...collectProcessTreePids(child.pid),
+          ...postGraceTree.pids,
         ]);
         signalCliProcessTree(child, 'SIGKILL', knownTreePids);
         killCloseDeadlineTimer = setTimeout(() => {
-          settle(-1, 'process tree did not close after SIGKILL; transcript may be incomplete');
+          const warningSuffix = processTreeWarning ? ` (${processTreeWarning})` : '';
+          settle(-1, `process tree did not close after SIGKILL; transcript may be incomplete${warningSuffix}`);
         }, opts.killCloseDeadlineMs);
         killCloseDeadlineTimer.unref?.();
       }, opts.killGraceMs);
@@ -339,13 +357,14 @@ function signalCliProcessTree(
   }
 }
 
-function collectProcessTreePids(rootPid: number | undefined): number[] {
-  if (typeof rootPid !== 'number' || rootPid <= 0) return [];
+function collectProcessTreePids(rootPid: number | undefined): ProcessTreeSnapshot {
+  if (typeof rootPid !== 'number' || rootPid <= 0) return { pids: [], warning: null };
   const descendants = new Map<number, number[]>();
   try {
     const output = childProcess.execFileSync('ps', ['-axo', 'pid=,ppid='], {
       encoding: 'utf8',
       timeout: 1_000,
+      maxBuffer: 1024 * 1024,
       stdio: ['ignore', 'pipe', 'ignore'],
     });
     for (const line of output.split('\n')) {
@@ -357,8 +376,11 @@ function collectProcessTreePids(rootPid: number | undefined): number[] {
       children.push(pid);
       descendants.set(ppid, children);
     }
-  } catch {
-    return [rootPid];
+  } catch (err) {
+    return {
+      pids: [rootPid],
+      warning: `process tree collection unavailable: ${formatProcessTreeError(err)}`,
+    };
   }
 
   const tree = [rootPid];
@@ -367,9 +389,14 @@ function collectProcessTreePids(rootPid: number | undefined): number[] {
       if (!tree.includes(childPid)) tree.push(childPid);
     }
   }
-  return tree;
+  return { pids: tree, warning: null };
 }
 
 function dedupePids(values: readonly number[]): number[] {
   return [...new Set(values.filter((value) => Number.isInteger(value) && value > 0))];
+}
+
+function formatProcessTreeError(err: unknown): string {
+  if (err instanceof Error && err.message) return err.message;
+  return String(err);
 }
