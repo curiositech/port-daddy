@@ -2,7 +2,7 @@
   "generatedAt": 1783315035961,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 144,
+  "count": 146,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -398,6 +398,11 @@
       "slug": "agent-harbor-daemon-routes",
       "status": "backlog",
       "summaryMd": "feat(agent-harbor): C-routes daemon HTTP layer \u2014 ch09 read API over C1 projections (closes I0 Contradiction 1)"
+    },
+    {
+      "slug": "agent-harbor-docs-skill-collision-hygiene",
+      "status": "now",
+      "summaryMd": "Docs/skills collision hygiene for the destructive Agent Harbor runtime refactor: remove stale merge/admin guidance, align public/internal skills with ADR-0100 target architecture, and encode manager-wave PR accounting."
     },
     {
       "slug": "agent-harbor-f0-contract-freeze",
