@@ -43,6 +43,7 @@ import { priceBond, classifyScope, scopeTierWritePolicy, pricedBondLogLines } fr
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
 import { detectForcedCliBackend } from './backend-catalog.js';
+import { cliBinarySearchPath, resolveCliBinary } from './cli-bin-dirs.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
 // The daemon runs via launchd which has no shell env. Spawned agents need
@@ -1106,14 +1107,16 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
   const { ANTHROPIC_API_KEY: _dropped, ...dotenvSafe } = loadDotenvOnce();
   const { ANTHROPIC_API_KEY: _droppedEnv, ...processEnvSafe } = process.env;
 
-  // Ensure ~/.local/bin is in PATH for claude binary discovery
-  const homeBin = join(process.env.HOME || '', '.local', 'bin');
+  // Resolve through the same operator-scoped path logic as readiness and
+  // cli:claude-code. A stale PD_CLI_CLAUDE_CODE_BIN must not strand the
+  // launchd daemon when a standard user-install `claude` is discoverable.
+  const resolution = resolveCliBinary('claude', { envOverride: 'PD_CLI_CLAUDE_CODE_BIN' });
   const currentPath = process.env.PATH || '';
-  const augmentedPath = currentPath.includes('.local/bin') ? currentPath : `${homeBin}:${currentPath}`;
+  const augmentedPath = cliBinarySearchPath(currentPath);
 
   const res = await runConfinedChild({
     spec,
-    cmd: 'claude',
+    cmd: resolution.command,
     args,
     env: { ...processEnvSafe, ...dotenvSafe, ...(spec.env || {}), PATH: augmentedPath },
     timeout: spec.timeout,

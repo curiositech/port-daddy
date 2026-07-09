@@ -38,7 +38,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { cliBinDirs } from '../../cli-bin-dirs.js';
+import { cliBinarySearchPath, resolveCliBinary } from '../../cli-bin-dirs.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -312,12 +312,14 @@ export async function spawnViaCliTube(
   // Binary override is OPERATOR-scoped: read PD_CLI_*_BIN from process.env
   // only, never from per-spawn opts.env/spec.env — a caller-supplied env
   // must not be able to redirect which executable runs.
-  const binary = process.env[BINARY_ENV_OVERRIDE[cli]] || DEFAULT_BINARIES[cli];
-  // Augment PATH with the same per-user install dirs backend-readiness
-  // checks, so a binary the readiness gate found is also findable at spawn
-  // time under launchd's bare PATH.
+  const resolution = resolveCliBinary(DEFAULT_BINARIES[cli], { envOverride: BINARY_ENV_OVERRIDE[cli] });
+  const binary = resolution.command;
+  // Augment PATH with the same per-user install dirs backend-readiness checks.
+  // The binary command itself comes from the same resolver readiness uses:
+  // an executable operator override wins, a stale override falls back to the
+  // discovered default, and per-spawn opts.env cannot redirect executable choice.
   const basePath = (opts.env?.PATH as string | undefined) ?? process.env.PATH ?? '';
-  const augmentedPath = [basePath, ...cliBinDirs()].filter(Boolean).join(':');
+  const augmentedPath = cliBinarySearchPath(basePath);
   const env = {
     ...process.env,
     ...(opts.env || {}),
