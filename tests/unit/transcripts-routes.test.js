@@ -6,6 +6,10 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import Fastify from 'fastify';
 import { createTestDb } from '../setup-unit.js';
 import { createTranscripts } from '../../lib/transcripts.js';
+import {
+  TRANSCRIPT_EMERGENCY_KIND,
+  TRANSCRIPT_EMERGENCY_STATE,
+} from '../../lib/transcript-emergency.js';
 import { transcriptsPlugin } from '../../routes/transcripts.js';
 
 async function buildApp(deps) {
@@ -115,6 +119,50 @@ describe('routes/transcripts', () => {
       expect.objectContaining({
         code: 'transcript_flow_stalled',
         agentId: 'spawned-stalled-route',
+        requiresHitl: true,
+      }),
+    ]));
+  });
+
+  it('GET /transcripts/emergency returns HITL emergency records for stalled transcript flow', async () => {
+    await app.close();
+    const startedAt = Date.now() - 10_000;
+    const id = transcripts.start({
+      ship: 'spawn:cli:codex',
+      spawned_agent_id: 'spawned-emergency-route',
+      trigger: 'manual',
+      backend: 'cli:codex',
+      model: 'codex-cli',
+      started_at: startedAt,
+    });
+    transcripts.appendMessage(id, {
+      role: 'assistant',
+      content: 'stale delta',
+      timestamp: startedAt,
+    });
+    app = await buildApp(makeDeps(transcripts, {
+      spawner: {
+        list() {
+          return [{
+            agentId: 'spawned-emergency-route',
+            backend: 'cli:codex',
+            status: 'running',
+            startedAt,
+            completedAt: null,
+          }];
+        },
+      },
+    }));
+
+    const res = await app.inject({ method: 'GET', url: '/transcripts/emergency?stallAfterMs=1' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.success).toBe(true);
+    expect(body.hitlEmergency).toBe(true);
+    expect(body.records).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        kind: TRANSCRIPT_EMERGENCY_KIND.LOCAL_SPAWNER,
+        state: TRANSCRIPT_EMERGENCY_STATE.EMERGENCY,
         requiresHitl: true,
       }),
     ]));

@@ -13,7 +13,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import handler from '../src/index.js';
-import { executeFleet } from '../src/execute.js';
+import { executeFleet, FLEET_TRANSCRIPT_WRITE_FAILED_EVENT } from '../src/execute.js';
 import {
   freshState,
   installGitHubFetch,
@@ -298,7 +298,13 @@ describe('transcript is best-effort (never changes the gate)', () => {
 
     // Must NOT throw — a transcript-write failure cannot fail the job.
     await expect(
-      executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db })),
+      executeFleet(makeJob(), makeEnv({
+        FLEET_TOKENS: kv,
+        CONTROL_KV: kv,
+        AI: ai.ai,
+        DB: d1.db,
+        PORT_DADDY_TELEMETRY_URL: 'https://telemetry.example/ingest',
+      })),
     ).resolves.toBeUndefined();
 
     // The gate still concluded correctly (blocking BLOCK ⇒ failure).
@@ -308,6 +314,22 @@ describe('transcript is best-effort (never changes the gate)', () => {
     expect(d1.runCalls).toBeGreaterThan(0);
     expect(d1.runs).toHaveLength(0);
     expect(d1.steps).toHaveLength(0);
+    expect(state.records).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        method: 'POST',
+        url: 'https://telemetry.example/ingest',
+        body: expect.objectContaining({
+          source: 'fleet-executor',
+          event: FLEET_TRANSCRIPT_WRITE_FAILED_EVENT,
+          status: 'error',
+          backend: 'cloudflare',
+          metadata: expect.objectContaining({
+            runId: 'run:delivery-abc',
+            error: expect.stringContaining('D1 unavailable'),
+          }),
+        }),
+      }),
+    ]));
   });
 
   it('queue acks a completed run even when every transcript D1 write fails', async () => {

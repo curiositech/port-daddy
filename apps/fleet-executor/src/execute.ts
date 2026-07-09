@@ -63,6 +63,8 @@ import type { Proposal } from './proposals.js';
 import { decideShipGate, isDocsOnly } from './gates.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 
+export const FLEET_TRANSCRIPT_WRITE_FAILED_EVENT = 'transcript-write-failed' as const;
+
 // ---------------------------------------------------------------------------
 
 /** Per-chunk diff budget for the MAP fan-out (chars). */
@@ -236,6 +238,14 @@ class Transcript {
   constructor(
     private readonly db: D1Database | undefined,
     readonly runId: string,
+    private readonly onWriteFailure?: (failure: {
+      runId: string;
+      seq: number;
+      kind: string;
+      ship: string | null;
+      title: string;
+      error: string;
+    }) => Promise<void>,
   ) {}
 
   async step(kind: string, ship: string | null, title: string, detail: unknown): Promise<void> {
@@ -250,11 +260,64 @@ class Transcript {
         .bind(this.runId, seq, kind, ship, title, detail == null ? null : JSON.stringify(detail), nowSec())
         .run();
     } catch (err) {
+      const error = String(err);
       console.error(
-        `[fleet-executor] transcript step failed run=${this.runId} seq=${seq}: ${String(err)}`,
+        `[fleet-executor] transcript step failed run=${this.runId} seq=${seq}: ${error}`,
       );
+      if (this.onWriteFailure) {
+        try {
+          await this.onWriteFailure({ runId: this.runId, seq, kind, ship, title, error });
+        } catch (telemetryErr) {
+          console.error(`[fleet-executor] transcript failure telemetry failed run=${this.runId}: ${String(telemetryErr)}`);
+        }
+      }
     }
   }
+}
+
+async function emitTranscriptWriteFailureTelemetry(
+  env: ExecutorEnv,
+  job: FleetRunJob,
+  failure: {
+    runId: string;
+    seq: number;
+    kind: string;
+    ship: string | null;
+    title: string;
+    error: string;
+  },
+): Promise<void> {
+  const [owner, repo] = (job.repoFullName || '').split('/');
+  const prPayload = (job.payloadMinimal.pull_request as Record<string, unknown>) ?? {};
+  const head = prPayload.head && typeof prPayload.head === 'object'
+    ? prPayload.head as Record<string, unknown>
+    : {};
+  await emitCloudTelemetry(
+    {
+      deliveryId: job.deliveryId,
+      event: FLEET_TRANSCRIPT_WRITE_FAILED_EVENT,
+      action: job.action,
+      owner: owner || null,
+      repo: repo || null,
+      prNumber: job.prNumber ?? null,
+      sha: typeof head.sha === 'string' ? head.sha : null,
+      ship: failure.ship,
+      status: 'error',
+      conclusion: 'failure',
+      backend: 'cloudflare',
+      model: null,
+      metadata: {
+        transcriptWriteFailure: true,
+        table: 'fleet_run_steps',
+        runId: failure.runId,
+        seq: failure.seq,
+        kind: failure.kind,
+        title: failure.title,
+        error: failure.error,
+      },
+    },
+    env,
+  );
 }
 
 /**
@@ -361,7 +424,9 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // own audit row + transcript (INSERT OR REPLACE) instead of duplicating.
   const runId = `run:${deliveryId}`;
   const startMs = Date.now();
-  const transcript = new Transcript(env.DB, runId);
+  const transcript = new Transcript(env.DB, runId, (failure) =>
+    emitTranscriptWriteFailureTelemetry(env, job, failure)
+  );
 
   // --- Token (KV-cached; remint once on 401) -------------------------------
   let token: string;
