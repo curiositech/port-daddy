@@ -146,6 +146,8 @@ describe('spawner hard budget cap edges', () => {
     ['zero', 0],
     ['negative', -0.01],
     ['non-number', '0.01'],
+    ['nan', NaN],
+    ['unparseable-string', 'abc'],
   ])('non-positive or non-number budgetUsd (%s) does not create a hard cap', async (_label, budgetUsd) => {
     const ship = `budget-invalid-${_label}`;
     const spawner = createSpawner({

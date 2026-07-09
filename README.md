@@ -625,7 +625,7 @@ Port Daddy escrows virtual USD before each agent spawn and can stop live spawns 
 
 **Budget breach is pause-and-ask, not cliff SIGTERM** (the `budget_guard` feature). At 100% of daily budget, Port Daddy posts a *pending kill* with a 60-second grace window and broadcasts on `budget:pending`. The operator can `raise` (credit the wallet, agent keeps running), `kill` (SIGTERM now), or `grace` (extend, up to twice). The backstop SIGTERM fires at expiry. `pd wallet pending` lists; `pd wallet raise --agent <id> --usd 5` resolves.
 
-Per-launch `budgetUsd` on `pd spawn` / `POST /spawn` is stricter: once exact spawn telemetry is recorded, a run whose final `telemetry.costUsd` exceeds that cap is finalized as `over_budget` with the transcript and cost preserved for readback.
+Per-launch positive finite `budgetUsd` on `pd spawn` / `POST /spawn` is stricter: once exact spawn telemetry is recorded, a run whose final `telemetry.costUsd` exceeds that cap is finalized as `over_budget` with the transcript and cost preserved for readback.
 
 **Fleet Conductor cost gates (ADR-0060).** Every sortie and reactive spawn routes through one `conductor.launch` chokepoint that reserves against a global ceiling and a per-subtree lineage ceiling *before* admission:
 

@@ -170,7 +170,30 @@ describe('spawn routes preflight', () => {
     await app.close();
   });
 
-  test('POST /spawn drops non-finite parsed budgetUsd instead of forwarding a cap', async () => {
+  test('POST /spawn parses numeric string budgetUsd before forwarding the cap', async () => {
+    const { app, spawner, register } = buildApp();
+    await register();
+
+    await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      payload: {
+        backend: 'claude-cli',
+        identity: 'port-daddy:repo:cli',
+        task: 'review the diff',
+        budgetUsd: '0.75',
+      },
+    });
+
+    expect(mockAssessSpawnPreflight.mock.calls.at(-1)[0].budgetUsd).toBe(0.75);
+    expect(spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
+      budgetUsd: 0.75,
+    }));
+
+    await app.close();
+  });
+
+  test.each(['Infinity', 'abc'])('POST /spawn drops invalid parsed budgetUsd %s instead of forwarding a cap', async (budgetUsd) => {
     const { app, spawner, register } = buildApp();
     await register();
 
@@ -181,7 +204,7 @@ describe('spawn routes preflight', () => {
         backend: 'claude-cli',
         identity: 'port-daddy:repo:cli',
         task: 'review the diff',
-        budgetUsd: 'Infinity',
+        budgetUsd,
       },
     });
 
