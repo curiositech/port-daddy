@@ -249,7 +249,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         status: result.status,
       });
 
-      return { success: true, ...result };
+      return { success: result.status === 'completed', ...result };
     } catch (error) {
       metrics.errors++;
       logger.error('spawn_error', { error: (error as Error).message });
