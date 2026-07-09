@@ -2,8 +2,8 @@
 {
   "schema": "pd-console.visual-proof.v1",
   "artifactKind": "manifest",
-  "captureCommit": "0bf4ee31c315df3b629aa6c56aa1a74132b3bf73",
-  "captureCommitShort": "0bf4ee31c",
+  "captureCommit": "8c7a904b4cdedbabfc78f36bd25e5c3f3fca4c18",
+  "captureCommitShort": "8c7a904b4",
   "captureCommitPolicy": "documented-capture-commit",
   "proofScope": "exact-window-harness-only",
   "providerTranscriptE2E": false,
@@ -14,7 +14,7 @@
 # pd-console visual proof - 2026-07-09T19-58-44Z-current-head-dry-run
 
 Branch: `codex/pd-console-visual-proof-lane`
-Commit: `0bf4ee31c`
+Commit: `8c7a904b4`
 Display selector: `proof-display-current-head-dry-run`
 Capture owner: proof-owned pd-console window filtered by launched PID.
 

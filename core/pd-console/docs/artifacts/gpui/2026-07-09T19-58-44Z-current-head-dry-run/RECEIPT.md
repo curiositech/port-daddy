@@ -2,8 +2,8 @@
 {
   "schema": "pd-console.visual-proof.v1",
   "artifactKind": "receipt",
-  "captureCommit": "0bf4ee31c315df3b629aa6c56aa1a74132b3bf73",
-  "captureCommitShort": "0bf4ee31c",
+  "captureCommit": "8c7a904b4cdedbabfc78f36bd25e5c3f3fca4c18",
+  "captureCommitShort": "8c7a904b4",
   "captureCommitPolicy": "documented-capture-commit",
   "proofScope": "exact-window-harness-only",
   "providerTranscriptE2E": false,
@@ -19,7 +19,7 @@ Artifact dir:
 ## Context
 
 - Branch: `codex/pd-console-visual-proof-lane`
-- Commit: `0bf4ee31c`
+- Commit: `8c7a904b4`
 - Daemon URL: `<daemon-url-from-port-daddy-discovery>`
 - Display selector: `proof-display-current-head-dry-run`
 - Source binary: `${REPO_ROOT}/core/pd-console/../target/release/pd-console`

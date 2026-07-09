@@ -81,9 +81,11 @@ make -C core/pd-console proof-check
 parses the machine-readable `pd-console-proof-metadata` JSON block in each
 `RECEIPT.md` and `MANIFEST.md`, and checks committed artifact bundles for a
 current HEAD commit or an explicitly documented capture commit. Real sample
-bundles may be retained as historical proof when a headless/no-GUI context
-cannot refresh them, but they must say so in metadata and must not claim
-provider/transcript end-to-end coverage.
+bundles must also carry decodable/dimensioned PNG/video artifacts plus concrete
+PID-filtered Window ID receipt evidence; intervention bundles must say capture
+stopped before any broad/full-screen fallback. Historical proof may be retained
+when a headless/no-GUI context cannot refresh it, but it must say so in metadata
+and must not claim provider/transcript end-to-end coverage.
 
 Tunables (env):
 
