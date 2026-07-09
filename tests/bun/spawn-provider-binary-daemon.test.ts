@@ -219,6 +219,24 @@ function spawnBody(provider: ProviderCase, workdir: string) {
   };
 }
 
+async function injectProviderSpawn(
+  harness: Harness,
+  provider: ProviderCase,
+  workdir: string,
+) {
+  const spawnRequest = harness.app.inject({
+    method: 'POST',
+    url: '/spawn',
+    payload: spawnBody(provider, workdir),
+  });
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`${provider.backend} provider child/stdio did not settle before the daemon smoke deadline`));
+    }, 4_000);
+  });
+  return Promise.race([spawnRequest, timeout]);
+}
+
 function transcriptFor(harness: Harness, backend: ProviderCase['backend'], agentId: string) {
   const row = harness.transcripts
     .listTranscripts({ ship: `spawn:${backend}` })
@@ -255,11 +273,7 @@ describe('daemon /spawn provider binary launch path', () => {
       setDaemonCliEnv(env);
 
       for (const provider of PROVIDERS) {
-        const response = await harness.app.inject({
-          method: 'POST',
-          url: '/spawn',
-          payload: spawnBody(provider, workdir),
-        });
+        const response = await injectProviderSpawn(harness, provider, workdir);
 
         expect(response.statusCode).toBe(200);
         const body = response.json();
@@ -310,11 +324,7 @@ describe('daemon /spawn provider binary launch path', () => {
       setDaemonCliEnv(env);
 
       for (const provider of PROVIDERS) {
-        const response = await harness.app.inject({
-          method: 'POST',
-          url: '/spawn',
-          payload: spawnBody(provider, workdir),
-        });
+        const response = await injectProviderSpawn(harness, provider, workdir);
 
         expect(response.statusCode).toBe(200);
         const body = response.json();

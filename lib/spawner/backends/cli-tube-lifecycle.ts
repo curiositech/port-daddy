@@ -40,6 +40,8 @@ export function waitForCliChildProcess(
     let timedOut = false;
     let knownTreePids: number[] = [];
     let processTreeWarning: string | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let processTreePollTimer: ReturnType<typeof setInterval> | null = null;
     let forceKillTimer: ReturnType<typeof setTimeout> | null = null;
     let killCloseDeadlineTimer: ReturnType<typeof setTimeout> | null = null;
     const knownStdioProcTargets = collectChildStdioProcTargets(child);
@@ -50,6 +52,7 @@ export function waitForCliChildProcess(
     };
     const rememberStdioIdentities = (): void => {
       for (const target of collectChildStdioProcTargets(child)) knownStdioProcTargets.add(target);
+      if (!needsLsofStdioDiscovery(knownStdioProcTargets)) return;
       const peerSnapshot = collectChildStdioPeerIds(child);
       for (const peerId of peerSnapshot.peerIds) knownStdioPeerIds.add(peerId);
       rememberProcessTreeWarning(peerSnapshot.warning);
@@ -69,22 +72,32 @@ export function waitForCliChildProcess(
       knownTreePids = dedupePids([...knownTreePids, ...tree.pids]);
     };
 
-    rememberStdioIdentities();
-    rememberProcessTree();
-    const processTreePollTimer = setInterval(rememberProcessTree, PROCESS_TREE_POLL_MS);
-    processTreePollTimer.unref?.();
-
     const settle = (code: number, spawnErr: string | null = null): void => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
-      clearInterval(processTreePollTimer);
+      if (timer) clearTimeout(timer);
+      if (processTreePollTimer) clearInterval(processTreePollTimer);
       if (forceKillTimer) clearTimeout(forceKillTimer);
       if (killCloseDeadlineTimer) clearTimeout(killCloseDeadlineTimer);
       resolve({ code, timedOut, spawnErr });
     };
 
-    const timer = setTimeout(() => {
+    child.on('exit', () => {
+      rememberProcessTree(timedOut);
+    });
+    child.on('close', (code) => {
+      settle(typeof code === 'number' ? code : -1);
+    });
+    child.on('error', (err) => {
+      settle(-1, err.message);
+    });
+
+    rememberStdioIdentities();
+    rememberProcessTree();
+    processTreePollTimer = setInterval(rememberProcessTree, PROCESS_TREE_POLL_MS);
+    processTreePollTimer.unref?.();
+
+    timer = setTimeout(() => {
       timedOut = true;
       rememberProcessTree(true);
       signalCliProcessTree(child, 'SIGTERM', knownTreePids);
@@ -100,16 +113,6 @@ export function waitForCliChildProcess(
       forceKillTimer.unref?.();
     }, opts.timeoutMs);
     timer.unref?.();
-
-    child.on('exit', () => {
-      rememberProcessTree(true);
-    });
-    child.on('close', (code) => {
-      settle(typeof code === 'number' ? code : -1);
-    });
-    child.on('error', (err) => {
-      settle(-1, err.message);
-    });
   });
 }
 
@@ -187,10 +190,9 @@ function collectStdioHolderPids(
   knownProcTargets = new Set<string>(),
   knownPeerIds = new Set<string>(),
 ): ProcessTreeSnapshot {
-  return mergeProcessSnapshots(
-    collectProcFdHolderPids(child, knownProcTargets),
-    collectLsofStdioHolderPids(child, knownPeerIds),
-  );
+  const procSnapshot = collectProcFdHolderPids(child, knownProcTargets);
+  if (!needsLsofStdioDiscovery(knownProcTargets)) return procSnapshot;
+  return mergeProcessSnapshots(procSnapshot, collectLsofStdioHolderPids(child, knownPeerIds));
 }
 
 function collectProcFdHolderPids(child: ChildProcess, knownProcTargets = new Set<string>()): ProcessTreeSnapshot {
@@ -227,6 +229,10 @@ function collectChildStdioProcTargets(child: ChildProcess): Set<string> {
     if (target) targets.add(target);
   }
   return targets;
+}
+
+function needsLsofStdioDiscovery(knownProcTargets: ReadonlySet<string>): boolean {
+  return knownProcTargets.size === 0 || !fs.existsSync('/proc');
 }
 
 function collectLsofStdioHolderPids(child: ChildProcess, knownPeerIds = new Set<string>()): ProcessTreeSnapshot {

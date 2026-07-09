@@ -296,10 +296,52 @@ Exit: `0`
 
 Output: empty.
 
+## Bun Provider Smoke RED/GREEN
+
+CI RED on head `45d6f3fb2805ded2beb9829fbe87667426e6188d`, job `86221482924`:
+
+```text
+tests/bun/spawn-provider-binary-daemon.test.ts
+error: Test "invokes daemon-resolved Claude and Codex provider binaries and persists transcript output" timed out after 5000ms
+error: Test "failed Claude and Codex provider binary launches are not wrapped as successful daemon responses" timed out after 5000ms
+Logs reached backend=cli:claude-code, Coast Guard warning, and bond pricing before hanging.
+```
+
+Why this was expected RED:
+
+- The provider binary route exercises the real daemon `/spawn` path through `createSpawner()`, `spawnViaCliTube()`, and transcript persistence.
+- The hang showed normal fast provider exits could still wait on inherited-stdio/lsof lifecycle work before honest close finalization on Linux/Bun.
+
+GREEN after the lifecycle fix:
+
+```sh
+bun test tests/bun/spawn-provider-binary-daemon.test.ts
+```
+
+```text
+2 pass
+0 fail
+58 expect() calls
+Ran 2 tests across 1 file. [1204.00ms]
+```
+
+```sh
+bun test tests/bun/
+```
+
+```text
+82 pass
+1 skip
+0 fail
+315 expect() calls
+Ran 83 tests across 16 files. [3.45s]
+```
+
 ## Why These Tests Are Not Tautologies
 
 - The real-child test uses real OS processes and inherited stdout/stderr. It fails if cli-tube reports completion before both the CLI parent and its inherited-stdio descendant are dead.
 - The Noether real-child regression makes the CLI parent exit before timeout, which means parent-process-tree lookup alone cannot find the detached inherited-stdio survivor. It fails unless lifecycle finalization kills the actual holder of the stdout/stderr pipes.
+- The Bun provider smoke test goes through the real Fastify `/spawn` route with hermetic provider binaries; it fails if a successful or failed provider child leaves the daemon waiting on stdio/lifecycle finalization.
 - The hard-deadline tests keep stdout/stderr pipes open, force the child never to emit `close`, and assert a failed timeout result without stream destruction or leaked `data` listeners.
 - The process-tree fallback test forces `ps` to fail, verifies the bounded `maxBuffer` call shape, checks root-pid `SIGTERM`/`SIGKILL` fallback signaling, and requires the final error to disclose the fallback.
 - The provider behavior tests run through `spawnViaCliTube`, not just registry shape: provider auth guidance appears in runtime auth failures, placeholder model policy changes actual argv, Codex alone uses `--output-last-message`, non-Codex providers do not receive the output path, binary preflight returns exit 127 without spawning, and agy empty-success failure does not contaminate claude-code/codex/gemini/groq/grok.
