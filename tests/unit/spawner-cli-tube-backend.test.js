@@ -19,7 +19,7 @@ import { jest } from '@jest/globals';
 import { EventEmitter } from 'node:events';
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 import { Readable } from 'node:stream';
 
 const mockSpawn = jest.fn();
@@ -372,6 +372,25 @@ describe('spawnViaCliTube — claude-code happy path', () => {
     await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
     const [binary] = mockSpawn.mock.calls[0];
     expect(binary).toBe(discovered);
+  });
+
+  test('falls back from stale PD_CLI_CLAUDE_CODE_BIN to claude in PD_CLI_BIN_DIRS', async () => {
+    rmSync(join(fakeHome, '.local', 'bin', 'claude'), { force: true });
+    const cliBinDir = join(fakeHome, 'operator-cli-bin');
+    const discovered = installCli('claude', cliBinDir);
+    process.env.PD_CLI_CLAUDE_CODE_BIN = join(fakeHome, 'old', 'missing', 'claude');
+    process.env.PD_CLI_BIN_DIRS = cliBinDir;
+
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      env: { PATH: '/usr/bin:/bin', PD_CLI_CLAUDE_CODE_BIN: '/attacker/claude' },
+    });
+
+    const [binary,, options] = mockSpawn.mock.calls[0];
+    expect(binary).toBe(discovered);
+    expect(options.env.PATH.split(delimiter)).toContain(cliBinDir);
   });
 
   test('returns the generated tube channel name', async () => {
