@@ -44,6 +44,9 @@ metadata:
   execution began — standing parley checkpoints convert that intent into a concrete gate.
 - Long-horizon DAGs (3+ waves, estimated_total_minutes > 20) where assumptions embedded in wave N+1
   can be falsified by wave N outputs before expensive work begins.
+- Manager-led implementation waves where multiple agents may have opened,
+  updated, merged, or superseded PRs. Pair the parley with `session-pr-audit`
+  before the next wave so plan truth and GitHub/accounting truth move together.
 
 NOT for:
 - Single-wave DAGs or tasks where all subtasks are `COMMITTED` and premortem returned `PROCEED` —
@@ -211,6 +214,9 @@ Key invariants:
   returns false and the checkpoint is skipped entirely).
 - `ESCALATE_TO_HUMAN` + a surviving high-severity risk halts the executor and surfaces a human gate.
   This maps to the premortem `recommendation` semantics in `meta-dag-predict.ts` lines 542-550.
+- Parley decides whether the next wave should run; `session-pr-audit` decides
+  whether the completed wave's code is accounted for. Run both before a manager
+  launches the next implementation wave.
 
 ## Key References
 

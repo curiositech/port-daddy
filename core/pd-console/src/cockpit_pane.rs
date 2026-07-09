@@ -38,16 +38,27 @@ pub struct CockpitPane {
 }
 
 impl Default for CockpitPane {
-    fn default() -> Self { Self { convs: Vec::new(), last_error: None } }
+    fn default() -> Self {
+        Self {
+            convs: Vec::new(),
+            last_error: None,
+        }
+    }
 }
 
 impl CockpitPane {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 }
 
 impl Pane for CockpitPane {
-    fn id(&self) -> &str { "cockpit" }
-    fn title(&self) -> String { "Cockpit".into() }
+    fn id(&self) -> &str {
+        "cockpit"
+    }
+    fn title(&self) -> String {
+        "Cockpit".into()
+    }
 
     fn view(&self) -> Vec<Block> {
         let mut blocks = vec![Block::Header("Cockpit — Live Agents".into())];
@@ -58,16 +69,31 @@ impl Pane for CockpitPane {
         }
 
         if self.convs.is_empty() {
-            blocks.push(Block::KeyVal("status".into(), "no live agents — pd spawn or pd-console-repl :new".into()));
+            blocks.push(Block::KeyVal(
+                "status".into(),
+                "no live agents — pd spawn or pd-console-repl :new".into(),
+            ));
         } else {
             blocks.push(Block::KeyVal("live".into(), self.convs.len().to_string()));
             blocks.push(Block::Gap);
 
             for c in &self.convs {
-                let label = if c.name.is_empty() { trunc(&c.id, 20) } else { trunc(&c.name, 32) };
+                let label = if c.name.is_empty() {
+                    trunc(&c.id, 20)
+                } else {
+                    trunc(&c.name, 32)
+                };
                 blocks.push(Block::Chip {
-                    label: format!("{label}  [{}]  {}", c.backend, age_short(c.last_heartbeat_ms)),
-                    tone: if c.active { Tone::Engaged } else { Tone::Resting },
+                    label: format!(
+                        "{label}  [{}]  {}",
+                        c.backend,
+                        age_short(c.last_heartbeat_ms)
+                    ),
+                    tone: if c.active {
+                        Tone::Engaged
+                    } else {
+                        Tone::Resting
+                    },
                 });
                 if !c.purpose.is_empty() {
                     blocks.push(Block::KeyVal("purpose".into(), trunc(&c.purpose, 60)));

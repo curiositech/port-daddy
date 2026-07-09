@@ -7,16 +7,16 @@
 //! `#[cfg(test)] mod tests` inside `ledger_pane.rs` compiles and runs as part of
 //! this lightweight integration target.
 
-#[path = "../src/theme.rs"]
-mod theme;
 #[path = "../src/agent.rs"]
 mod agent;
-#[path = "../src/util.rs"]
-mod util;
-#[path = "../src/pane.rs"]
-mod pane;
 #[path = "../src/ledger_pane.rs"]
 mod ledger_pane;
+#[path = "../src/pane.rs"]
+mod pane;
+#[path = "../src/theme.rs"]
+mod theme;
+#[path = "../src/util.rs"]
+mod util;
 
 // A trivial probe so this file has at least one direct test; the substance is
 // the re-hosted `ledger_pane::tests` module above.

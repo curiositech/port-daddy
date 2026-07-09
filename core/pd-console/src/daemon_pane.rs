@@ -75,7 +75,11 @@ impl Pane for DaemonPane {
             blocks.push(Block::Flag {
                 letter: b.tier.chars().next().unwrap_or('?').to_ascii_uppercase(),
                 label,
-                tone: if active { Tone::Accent } else { Self::tone_for(&b.tier) },
+                tone: if active {
+                    Tone::Accent
+                } else {
+                    Self::tone_for(&b.tier)
+                },
             });
         }
         blocks.push(Block::Gap);
@@ -115,8 +119,18 @@ mod tests {
 
     fn sample_berths() -> Vec<Berth> {
         vec![
-            Berth { label: "stable".into(), tier: "stable".into(), port: STABLE_PORT, canonical: true },
-            Berth { label: "dev-latest".into(), tier: "dev-latest".into(), port: 9886, canonical: false },
+            Berth {
+                label: "stable".into(),
+                tier: "stable".into(),
+                port: STABLE_PORT,
+                canonical: true,
+            },
+            Berth {
+                label: "dev-latest".into(),
+                tier: "dev-latest".into(),
+                port: 9886,
+                canonical: false,
+            },
         ]
     }
 
@@ -131,7 +145,11 @@ mod tests {
     #[test]
     fn populated_state_lists_every_berth_as_a_flag() {
         let pane = pane_with(sample_berths(), "");
-        let flags = pane.view().into_iter().filter(|b| matches!(b, Block::Flag { .. })).count();
+        let flags = pane
+            .view()
+            .into_iter()
+            .filter(|b| matches!(b, Block::Flag { .. }))
+            .count();
         assert_eq!(flags, 2);
     }
 
@@ -147,8 +165,12 @@ mod tests {
             })
             .collect();
         // dev-latest is active; stable is not.
-        assert!(labels.iter().any(|l| l.contains("dev-latest") && l.contains("active")));
-        assert!(labels.iter().any(|l| l.contains("stable") && !l.contains("active")));
+        assert!(labels
+            .iter()
+            .any(|l| l.contains("dev-latest") && l.contains("active")));
+        assert!(labels
+            .iter()
+            .any(|l| l.contains("stable") && !l.contains("active")));
     }
 
     #[test]

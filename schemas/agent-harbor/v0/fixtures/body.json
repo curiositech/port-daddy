@@ -1,0 +1,19 @@
+{
+  "schema": "pd.agent-harbor.body.v0",
+  "bodyId": "body_01JZFIX0001",
+  "agentNodeId": "agent_node_01JZFIX0001",
+  "runId": "agent_run_01JZFIX0001",
+  "kind": "codex-cli",
+  "provider": "openai",
+  "modelTier": "mid",
+  "modelName": "gpt-5.2-codex",
+  "launchMode": "native",
+  "adapterVersion": "0.1.0",
+  "pid": 43210,
+  "remoteEndpoint": null,
+  "status": "running",
+  "attachedAt": "2026-07-05T12:00:07.000Z",
+  "detachedAt": null,
+  "transcriptId": "tx_01JZFIX0001",
+  "authorityRef": "lease_01JZFIX0001"
+}

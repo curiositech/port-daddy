@@ -33,6 +33,10 @@ jest.unstable_mockModule('node:child_process', () => ({
   execSync: mockExecSync,
   execFileSync: jest.fn(),
   execFile: jest.fn((_cmd, _args, cb) => { if (typeof cb === 'function') cb(null, '', ''); }),
+  // lib/fleet-engine.ts transitively imports lib/watcher-pid-registry.ts,
+  // whose getCommandLineForPid() uses spawnSync (`ps`) to confirm a watcher
+  // child's identity before killing it.
+  spawnSync: jest.fn(() => ({ status: 1, stdout: '', stderr: '' })),
 }));
 
 const { createFleetRunner } = await import('../../lib/fleet-engine.js');
@@ -70,6 +74,25 @@ function makeReceiver() {
     registerHandler: (channel, handler) => {
       handlers.set(channel, handler);
       return () => handlers.delete(channel);
+    },
+  };
+}
+
+function makeMessageBus() {
+  const handlers = new Map();
+  return {
+    handlers,
+    handlerFor: (suffix) => {
+      for (const [channel, handler] of handlers) {
+        if (channel.endsWith(suffix)) return handler;
+      }
+      return undefined;
+    },
+    messaging: {
+      subscribe: jest.fn((channel, handler) => {
+        handlers.set(channel, handler);
+        return () => handlers.delete(channel);
+      }),
     },
   };
 }
@@ -248,6 +271,116 @@ describe('approval queue (L2 seam)', () => {
     );
     expect(mockSpawn).not.toHaveBeenCalled();
     expect(global.fetch).not.toHaveBeenCalled();
+
+    runner.stopAll();
+    await runner.whenTriggersReady();
+  });
+});
+
+// ─── GitHub legacy channel path must still pass through the gate ─────────────
+
+describe('github legacy channel trust gate (PR #735 bypass)', () => {
+  test('github:* channel trigger for a Bash-holding agent is refused, never spawned', async () => {
+    const bus = makeMessageBus();
+    const { runner, events } = await startRunner(
+      makeConfig({
+        triggers: ['github:webhook:pull_request'],
+        allowedTools: 'Read,Bash(gh*)',
+      }),
+      { messaging: bus.messaging },
+    );
+
+    const handler = bus.handlerFor('github:webhook:pull_request');
+    expect(handler).toBeDefined();
+
+    handler({
+      event: 'pull_request',
+      action: 'opened',
+      sender: 'attacker',
+      payload: {
+        sender: { login: 'attacker' },
+        pull_request: { title: 'please run gh', html_url: 'https://github.test/o/r/pull/1' },
+      },
+    });
+
+    const refusal = events.find((e) => e.type === 'trust_gate_refused');
+    expect(refusal).toBeDefined();
+    expect(refusal.agent).toBe('hook-agent');
+    expect(refusal.details.trigger).toBe('github:webhook:pull_request');
+    expect(refusal.details.tier).toBe('ANONYMOUS_EXTERNAL');
+    expect(refusal.details.offendingTools).toContain('bash');
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
+
+    runner.stopAll();
+    await runner.whenTriggersReady();
+  });
+
+  test('safe-tool github:* channel trigger is queued for approval, not spawned', async () => {
+    const bus = makeMessageBus();
+    const proposals = [];
+    const { runner, events } = await startRunner(
+      makeConfig({
+        triggers: ['github:webhook:pull_request'],
+        allowedTools: 'Read,Grep,Glob',
+      }),
+      {
+        messaging: bus.messaging,
+        enqueueForApproval: (p) => { proposals.push(p); },
+      },
+    );
+
+    bus.handlerFor('github:webhook:pull_request')({
+      event: 'pull_request',
+      action: 'opened',
+      sender: 'maintainer',
+      payload: {
+        sender: { login: 'maintainer' },
+        pull_request: { title: 'look at this', html_url: 'https://github.test/o/r/pull/2' },
+      },
+    });
+
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0]).toEqual(expect.objectContaining({
+      project: 'trust-fleet',
+      agent: 'hook-agent',
+      trigger: 'github:webhook:pull_request',
+      tier: 'ANONYMOUS_EXTERNAL',
+    }));
+    expect(proposals[0].context).toEqual(expect.objectContaining({
+      source: 'trigger',
+      channel: 'github:webhook:pull_request',
+      from: 'maintainer',
+    }));
+    expect(events.find((e) => e.type === 'trust_gate_queued')).toBeDefined();
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
+
+    runner.stopAll();
+    await runner.whenTriggersReady();
+  });
+
+  test('non-GitHub legacy channel triggers keep the existing spawn path', async () => {
+    const bus = makeMessageBus();
+    const { runner } = await startRunner(
+      makeConfig({
+        triggers: ['git:committed'],
+        allowedTools: undefined,
+      }),
+      { messaging: bus.messaging },
+    );
+
+    bus.handlerFor('git:committed')({
+      payload: 'local commit',
+      sender: 'post-commit-hook',
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/\/spawn$/),
+      expect.objectContaining({ method: 'POST' }),
+    );
 
     runner.stopAll();
     await runner.whenTriggersReady();

@@ -80,15 +80,15 @@ impl Sem {
     /// 16-color fallback — semantic ANSI, readable on light AND dark themes.
     fn ansi16(self) -> &'static str {
         match self {
-            Sem::Ink => "39",     // default foreground
+            Sem::Ink => "39", // default foreground
             Sem::Ink2 => "39",
             Sem::Muted => "90",   // bright black
             Sem::Accent => "33",  // yellow (amber)
             Sem::Engaged => "34", // blue
             Sem::Gated => "31",   // red
             Sem::Resting => "90",
-            Sem::Landed => "32",  // green
-            Sem::Alarm => "91",   // bright red — louder than gated's 31
+            Sem::Landed => "32", // green
+            Sem::Alarm => "91",  // bright red — louder than gated's 31
         }
     }
 }
@@ -130,7 +130,10 @@ pub struct TermStyle {
 
 impl TermStyle {
     pub fn detect(theme: &'static Theme) -> Self {
-        Self { mode: ColorMode::detect(), theme }
+        Self {
+            mode: ColorMode::detect(),
+            theme,
+        }
     }
 
     pub fn with_mode(mode: ColorMode, theme: &'static Theme) -> Self {
@@ -368,7 +371,56 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                     out.push_str(&format!("  {}\n", line.join(&format!(" {sep} "))));
                 }
             }
-            Block::ChatTurn { speaker, text, tone } => {
+            Block::CodeBuffer {
+                lines,
+                gutter_cols,
+                bands,
+                ..
+            } => {
+                // Tight code face: `<band bar><line number> <author tag> <text
+                // runs>`, one terminal line per code line. Bands paint a
+                // colored left bar (the TUI shadow of the GPUI background
+                // wash); the LAST covering band wins. The author column is
+                // ALWAYS visible — operator lines subtle, agent lines Engaged.
+                let width = *gutter_cols as usize;
+                for line in lines.iter() {
+                    let band = bands.iter().rev().find(|b| b.covers(line.number));
+                    let bar = match band {
+                        Some(b) => style.paint("▏", b.tone.sem()),
+                        None => " ".to_string(),
+                    };
+                    let num = style.paint(&format!("{:>width$}", line.number), Sem::Muted);
+                    let tag = match &line.author_tag {
+                        Some(t) => format!(" {}", style.paint(t, line.author_tone.sem())),
+                        None => "   ".to_string(),
+                    };
+                    let mut text = String::new();
+                    let mut at = 0usize;
+                    for (len, kind) in &line.runs {
+                        let end = (at + *len as usize).min(line.text.len());
+                        let sem = match kind {
+                            crate::pane::SyntaxKind::Plain => Sem::Ink,
+                            crate::pane::SyntaxKind::Keyword => Sem::Accent,
+                            crate::pane::SyntaxKind::Type => Sem::Engaged,
+                            crate::pane::SyntaxKind::Str => Sem::Landed,
+                            crate::pane::SyntaxKind::Comment => Sem::Muted,
+                            crate::pane::SyntaxKind::Number => Sem::Gated,
+                        };
+                        text.push_str(&style.paint(&line.text[at..end], sem));
+                        at = end;
+                    }
+                    if at < line.text.len() {
+                        text.push_str(&style.paint(&line.text[at..], Sem::Ink));
+                    }
+                    out.push_str(&format!(" {bar}{num}{tag}  {text}\n"));
+                }
+                i += 1;
+            }
+            Block::ChatTurn {
+                speaker,
+                text,
+                tone,
+            } => {
                 let sem = tone.sem();
                 let label = if speaker.trim().is_empty() {
                     "agent".to_string()
@@ -457,7 +509,11 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                 ));
                 i += 1;
             }
-            Block::Flag { letter, label, tone } => {
+            Block::Flag {
+                letter,
+                label,
+                tone,
+            } => {
                 // TUI hoist: a bracketed signal letter painted in the flag tone,
                 // then the label. (The GPU face draws the colored square.)
                 let sem = tone.sem();
@@ -530,10 +586,7 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                     out.push_str(&format!(
                         "  {} {}\n",
                         style.paint(&format!("( {label} )"), Sem::Resting),
-                        style.paint(
-                            why_disabled.as_deref().unwrap_or("unavailable"),
-                            Sem::Muted
-                        ),
+                        style.paint(why_disabled.as_deref().unwrap_or("unavailable"), Sem::Muted),
                     ));
                 }
                 i += 1;
@@ -567,7 +620,10 @@ mod tests {
         let blocks = vec![
             Block::Header("Fleet".into()),
             Block::KeyVal("total".into(), "3".into()),
-            Block::Chip { label: "ok".into(), tone: Tone::Landed },
+            Block::Chip {
+                label: "ok".into(),
+                tone: Tone::Landed,
+            },
         ];
         let out = render_blocks(&blocks, &s);
         assert!(!out.contains('\x1b'), "plain mode leaked ANSI: {out:?}");
@@ -601,7 +657,7 @@ mod tests {
     #[test]
     fn ansi16_uses_semantic_codes() {
         let s = TermStyle::with_mode(ColorMode::Ansi16, &DARK);
-        assert!(s.paint("e", Sem::Gated).starts_with("\x1b[31m"));   // red = error
+        assert!(s.paint("e", Sem::Gated).starts_with("\x1b[31m")); // red = error
         assert!(s.paint("ok", Sem::Landed).starts_with("\x1b[32m")); // green = success
     }
 
@@ -648,7 +704,7 @@ mod tests {
         assert_eq!(display_width("a日b"), 4); // 1 + 2 + 1
         assert_eq!(char_width('🚀'), 2); // emoji is wide
         assert_eq!(char_width('\u{0301}'), 0); // combining acute accent
-        // "e" + combining acute renders as one column.
+                                               // "e" + combining acute renders as one column.
         assert_eq!(display_width("e\u{0301}"), 1);
     }
 

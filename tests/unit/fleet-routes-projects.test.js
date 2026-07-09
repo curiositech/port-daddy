@@ -40,6 +40,18 @@ jest.unstable_mockModule('../../lib/fleet-engine.js', () => ({
   findFleetConfigPath: mockFindFleetConfigPath,
   loadFleetConfig: mockLoadFleetConfig,
   validateTopology: mockValidateTopology,
+  // routes/fleet.js transitively imports these via lib/spawn-forecast.ts for
+  // GET /fleet/forecast. This suite doesn't exercise that route, so
+  // passthrough stubs are enough to satisfy the ESM module link.
+  parseCronInterval: (cron) => {
+    const match = /^\*\/(\d+) \* \* \* \*$/.exec(cron ?? '');
+    return match ? Number(match[1]) * 60_000 : 10 * 60_000;
+  },
+  resolveFleetAgentRuntime: (agent) => ({
+    backend: agent?.backend ?? null,
+    model: agent?.model ?? null,
+    modelTier: agent?.modelTier,
+  }),
 }));
 
 jest.unstable_mockModule('../../lib/backend-readiness.js', () => ({
@@ -56,6 +68,47 @@ describe('fleet routes project resolution', () => {
     jest.clearAllMocks();
     mockExistsSync.mockReturnValue(false);
     mockStatSync.mockReturnValue({ isDirectory: () => false });
+  });
+
+  test('GET /fleet/forecast is not shadowed by GET /fleet/:project', async () => {
+    const getProject = jest.fn(() => null);
+    const app = Fastify();
+    await app.register(fleetPlugin, {
+      deps: {
+        fleetDaemon: {
+          getStatus() {
+            return {
+              running: true,
+              startedAt: Date.now(),
+              fleets: [],
+              totalAgents: 0,
+              totalWatchers: 0,
+            };
+          },
+        },
+        projects: {
+          get: getProject,
+          getByPath() {
+            return null;
+          },
+        },
+        messaging: {
+          subscribe() {
+            return null;
+          },
+        },
+      },
+    });
+
+    const res = await app.inject({ method: 'GET', url: '/fleet/forecast' });
+    const body = res.json();
+
+    expect(res.statusCode).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.observed).toBeNull();
+    expect(getProject).not.toHaveBeenCalledWith('forecast');
+
+    await app.close();
   });
 
   test('GET /fleet/config/:project resolves a registered stopped project by id', async () => {

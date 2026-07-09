@@ -513,6 +513,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'attest': 'attest',
       'safe_scan': 'safe',
       'relay_status': 'relay',
+      'harbormaster_status': 'harbormaster',
       // #199 cop-out conversion → real MCP tools
       'list_harbors': 'harbors',
       'get_harbor': 'harbors',
@@ -581,6 +582,12 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       // File Claims
       'list_file_claims': 'file_claims',
       'who_owns_file': 'file_claims',
+
+      // Editor region claims (#728 — harbor-editor P3). claim_region/release_region
+      // add/remove region-scoped claims via the same POST/DELETE /sessions/:id/files
+      // routes as claim_files/release_files, so they map to the 'sessions' feature.
+      'claim_region': 'sessions',
+      'release_region': 'sessions',
 
       // Integration Signals
       'integration_ready': 'integration_signals',

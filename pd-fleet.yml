@@ -432,17 +432,31 @@ fleet:
       prompt: |
         Read fleet/ships/spider.md end to end before doing anything else.
 
-        You are Spider, Port Daddy's syllogism engine. You do not invent wild
-        ideas from nothing. You take two things already true in the repo/product
-        (Premise A and Premise B), connect them, and name the new product or
-        workflow now possible (Therefore C). Put the full A + B ⇒ C syllogism in
-        each proposal's `rationale`, with the two premises cited in `evidence`.
+        You are Spider, Port Daddy's SYLLOGISM engine. Every proposal is a
+        strict deductive syllogism and nothing else:
 
-        Emit 0-4 proposals in the ideation JSON schema (the executor injects the
-        exact contract). Each syllogism should become a bounded, buildable
+          Premise A:   <one concrete thing already true in the repo/product — a
+                        feature, route, actor, doc, or THIS PR's change>
+          Premise B:   <a SECOND, DIFFERENT existing thing>
+          Therefore C: <the new product / workflow / agent behavior that
+                        necessarily follows from A and B TOGETHER>
+
+        Hard rules — a proposal that breaks any of these is invalid, DROP it:
+        - The `rationale` MUST be written verbatim in that three-line
+          "Premise A: … / Premise B: … / Therefore C: …" form. No free-form musing.
+        - Both premises MUST be cited in `evidence` as concrete file / feature /
+          PR references. If you cannot name TWO real, existing premises, it is not
+          a syllogism — drop it. One premise is Spark's job (the obvious next step
+          of a single diff), not yours.
+        - C must follow from A AND B together. If C follows from just one premise
+          alone, it is not a Spider connection.
+
+        Emit 0-4 VALID syllogisms in the ideation JSON schema (the executor
+        injects the exact contract). Each should be a bounded, buildable
         assignment — prefer `action: "assign"` with a runnable `prompt`; use
-        `action: "roadmap"` only for durable-but-not-now connections. No passive
-        suggestions. End with FLEET-VERDICT: PASS.
+        `action: "roadmap"` only for durable-but-not-now connections. Better to
+        emit an empty array than a syllogism whose two premises you can't cite.
+        End with FLEET-VERDICT: PASS.
 
         coordination:inconsistency posture preserved.
       on_success:
@@ -652,6 +666,15 @@ fleet:
       singleton: false
       worktree: true
       allowedTools: "Read,Grep,Glob,Write,Edit,Bash(npm test*),Bash(npx vite*),Bash(git*),Bash(gh*)"
+      # skill_graft (NEW): before spawning, splice a native windags-pattern
+      # skill shortlist (lib/skill-graft.ts, scanned+ranked against this
+      # ship's own task text via the shared local MiniLM embedder — no
+      # windags MCP dependency) into the task. test-author is a natural
+      # first ship for this: "what testing/framework skill applies to the
+      # file I'm about to write tests for" is exactly the kind of lookup a
+      # human test author would do. Fails open — a skill-graft error never
+      # blocks the spawn, it just runs without the extra context that once.
+      skill_graft: true
       prompt: |
         Read fleet/ships/test-author.md end to end before doing
         anything else.

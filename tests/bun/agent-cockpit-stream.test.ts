@@ -167,8 +167,8 @@ function seedTranscript(h: Harness, agentId: string): string {
     ship: 'test-ship',
     spawned_agent_id: agentId,
     trigger: 'manual',
-    backend: 'test',
-    model: 'test-model',
+    backend: 'cli:codex',
+    model: 'codex-cli',
   });
 }
 
@@ -260,6 +260,11 @@ describe('GET /agents/:id/stream — merged live feed', () => {
     expect((status!.body as Record<string, unknown>).event).toBe('registered');
     expect((tube!.body as Record<string, unknown>).body).toBe('hello cockpit');
     expect((transcript!.body as Record<string, unknown>).type).toBe('update');
+    expect((transcript!.body as Record<string, unknown>).compliance).toEqual(expect.objectContaining({
+      backend: 'cli:codex',
+      captureMode: 'live_stream',
+      flowState: 'supported',
+    }));
   });
 
   test('sends current agent + latest transcript snapshots immediately on connect', async () => {
@@ -294,12 +299,17 @@ describe('GET /agents/:id/stream — merged live feed', () => {
 
     const transcriptBody = transcript!.body as {
       type?: string;
+      compliance?: Record<string, unknown>;
       entry?: {
         messages?: Array<{ content?: string; tool_calls?: Array<{ name?: string }> }>;
         outputs?: Array<{ summary?: string; type?: string }>;
       };
     };
     expect(transcriptBody.type).toBe('snapshot');
+    expect(transcriptBody.compliance).toEqual(expect.objectContaining({
+      backend: 'cli:codex',
+      flowState: 'supported',
+    }));
     expect(transcriptBody.entry?.messages?.some((m) => m.content === 'snapshot already has transcript data')).toBe(true);
     expect(transcriptBody.entry?.messages?.some((m) => m.tool_calls?.some((tc) => tc.name === 'Read'))).toBe(true);
     expect(transcriptBody.entry?.outputs?.some((o) => o.type === 'draft-pr' && o.summary === 'draft PR proof artifact')).toBe(true);

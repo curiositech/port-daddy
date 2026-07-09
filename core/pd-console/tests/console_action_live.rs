@@ -33,7 +33,9 @@ fn spawn_mock(n: usize, reply_body: &'static str) -> (String, mpsc::Receiver<Cap
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
         for _ in 0..n {
-            let Ok((mut sock, _)) = listener.accept() else { break };
+            let Ok((mut sock, _)) = listener.accept() else {
+                break;
+            };
             let mut buf = [0u8; 4096];
             let read = sock.read(&mut buf).unwrap_or(0);
             let req = String::from_utf8_lossy(&buf[..read]).to_string();
@@ -75,7 +77,11 @@ async fn dispatch_accept_posts_to_accept_endpoint() {
     assert_eq!(got.method, "POST");
     assert_eq!(got.path, "/dispatches/disp-123/accept");
     // Accept carries no reason → empty JSON object body.
-    assert!(got.body.trim() == "{}" || got.body.trim().is_empty(), "accept body: {:?}", got.body);
+    assert!(
+        got.body.trim() == "{}" || got.body.trim().is_empty(),
+        "accept body: {:?}",
+        got.body
+    );
 }
 
 #[tokio::test]
@@ -105,7 +111,12 @@ async fn cost_metrics_fetch_parses_totals_and_projects() {
     let (base, rx) = spawn_mock(1, payload);
     let client = DaemonClient::new(base);
     let url = format!("{}/metrics/cost", client.base());
-    let resp = client.http_client().get(&url).send().await.expect("GET cost");
+    let resp = client
+        .http_client()
+        .get(&url)
+        .send()
+        .await
+        .expect("GET cost");
     let json: serde_json::Value = resp.json().await.expect("parse cost json");
 
     let got = rx.recv().expect("recorded");

@@ -68,6 +68,7 @@ import { createConductor } from './lib/fleet/conductor.js';
 import { createDispatchQueue } from './lib/dispatch/queue.js';
 import { createDispatchWorker } from './lib/dispatch/worker.js';
 import { createConductorSpawnAdapter } from './lib/dispatch/conductor-adapter.js';
+import { createWorkIntentService } from './lib/agent-harbor/work-intent-service.js';
 import {
   gitWorktreeAdd,
   gitPushBranch,
@@ -112,7 +113,8 @@ import { createRoadmapPop } from './lib/roadmap-pop.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
-import { createSemanticResolver, defaultTransformersCacheDir } from './lib/semantic-resolver.js';
+import { createLocalEmbedder, createSemanticResolver, defaultTransformersCacheDir } from './lib/semantic-resolver.js';
+import { createGalaxy } from './lib/galaxy.js';
 import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
@@ -124,7 +126,12 @@ import { registerAllRoutes } from './routes/index.js';
 // Shared utilities
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
 import { LOOPBACK_TCP_HOST, DEFAULT_DAEMON_PORT } from './shared/daemon-discovery.js';
-import { resolveDaemonBerthIdentity, type DaemonBerthIdentity } from './shared/daemon-berths.js';
+import {
+  resolveDaemonBerthIdentity,
+  registerDaemonBerth,
+  deregisterDaemonBerth,
+  type DaemonBerthIdentity,
+} from './shared/daemon-berths.js';
 import { calculateRuntimeCodeHash } from './shared/code-hash.js';
 import { snapshotRunningBinary, detectDrift, type BinaryDriftSnapshot } from './lib/binary-drift-detector.js';
 import { resolveDistributionRoot } from './shared/daemon-binary.js';
@@ -179,7 +186,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.24.1';
+const EMBEDDED_PACKAGE_VERSION: string = '3.24.2';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -583,6 +590,18 @@ const contextTracker = createContextWindowTracker(db);
 const transcriptArchive =
   process.env.PD_TRANSCRIPT_ARCHIVE === 'off' ? undefined : createJsonlTranscriptArchive();
 const transcripts = createTranscripts(db, { archiveSink: transcriptArchive });
+
+// Session Galaxy — 2-D embedding map of recent agent sessions over
+// fleet_transcripts. createLocalEmbedder gives the batch embed(texts[])
+// interface the semanticResolver singleton lacks (its .embed is single-text);
+// both share the on-disk model cache (~/.port-daddy/transformers-cache,
+// ADR-0061 — never omit cacheDir, the built-in default is cwd-relative), so no
+// second model download. The pipeline is lazy: the first /galaxy/map call may
+// take seconds while MiniLM loads; the 30s per-param-tuple response cache in
+// lib/galaxy.ts makes the steady state cheap.
+const galaxyEmbedder = createLocalEmbedder({ cacheDir: defaultTransformersCacheDir() });
+const galaxy = createGalaxy({ db, transcripts, sessions, embedder: galaxyEmbedder });
+
 const spawner = createSpawner({
   costTracker, counters, bonds, harbors, transcripts,
   enforceTelemetryPolicy: true,
@@ -734,6 +753,7 @@ if (FLEET_GLOBAL_CEILING_USD == null) {
 // (intentToSpawnSpec) and the spawner — wired with `tubeClient: messaging` above —
 // publishes the cli-tube exchange there, so `pd tube dispatch:<id>` still works.
 const dispatchQueue = createDispatchQueue({ db });
+const workIntentService = createWorkIntentService({ db });
 const DISPATCH_WORKER_ENABLED = process.env.PD_DISPATCH_WORKER !== 'false';
 const _dispatchConcurrency = parseInt(process.env.PD_DISPATCH_CONCURRENCY ?? '2', 10);
 const DISPATCH_CONCURRENCY = Number.isFinite(_dispatchConcurrency) && _dispatchConcurrency >= 1
@@ -751,6 +771,7 @@ const dispatchWorker = DISPATCH_WORKER_ENABLED
       logger,
       maxConcurrency: DISPATCH_CONCURRENCY,
       pollIntervalMs: DISPATCH_POLL_MS,
+      workIntentService,
       model: DISPATCH_MODEL,
       // THE INJECTION POINT: spawn every dispatch through the Conductor.
       spawnAdapter: createConductorSpawnAdapter(conductor),
@@ -1287,11 +1308,11 @@ await registerAllRoutes(
     routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
-    harbors, sorties, conductor, dispatchQueue, dispatchWorker, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
+    harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, cloudAppTelemetry, counters, metricsRegistry,
     contextTracker,
     custodian, operatorPermissions,
-    quorum, parley, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
+    quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     commitments, obligationMonitor, suggestions,
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,
@@ -1394,6 +1415,13 @@ setInterval(() => {
 
 function shutdown(signal: string): void {
   logger.info('shutdown_initiated', { signal });
+  // Remove this berth's own registry entry on a clean stop, so it doesn't
+  // linger as a stale record until the next prune pass notices the dead pid.
+  if (DAEMON_BERTH.tier !== 'stable') {
+    deregisterDaemonBerth(process.pid, {
+      onError: (error) => logger.warn('daemon_berth_deregister_failed', { error: error.message }),
+    });
+  }
   try {
     activityLog.log(ActivityType.DAEMON_STOP, {
       details: `Port Daddy stopped (${signal})`,
@@ -1627,6 +1655,16 @@ sockServer.listen(SOCK_PATH, async () => {
       tcpServer.on('listening', () => {
         try { writeFileSync(PORT_FILE, String(tryPort), { mode: 0o644 }); } catch {}
         logger.info('tcp_started', { port: tryPort, host: tcpHost, version: VERSION });
+        // Self-register this berth (ADR-0084) so FleetBar's berth picker can
+        // see it regardless of how this daemon was launched — registration
+        // no longer depends on going through `pd dev up`. A no-op for the
+        // stable tier (see registerDaemonBerth's own doc comment). tryPort is
+        // the port actually bound, which can differ from DAEMON_BERTH.port
+        // if the originally-requested port was busy and the retry loop above
+        // moved on — register the real one.
+        registerDaemonBerth({ ...DAEMON_BERTH, port: tryPort }, process.pid, {
+          onError: (err) => logger.warn('daemon_berth_registration_failed', { error: err.message }),
+        });
         // Surface binary drift on the boot path so an operator running
         // `tail -f port-daddy.log` after `brew upgrade` sees it immediately.
         // The check is cheap (one hash) and the snapshot is already taken.

@@ -43,6 +43,8 @@ mod editor_wedge;
 mod editor_commit_gate;
 #[path = "../src/editor_pane.rs"]
 mod editor_pane;
+#[path = "../src/syntax.rs"]
+mod syntax;
 
 use editor_pane::EditorPane;
 use editor_sync::PresenceState;
@@ -101,7 +103,7 @@ fn main() {
         EditorPane::new_with_identity(&path, None, "port-daddy:console:human-B");
     actor_b.load();
     let b_claim = actor_b.acquire_region_claim(10, 20, "parse_header", 100);
-    Pane::on_coord_frame(&mut pane, &b_claim);
+    pane.ingest_claim(&b_claim);
     assert_eq!(pane.claim_ledger().len(), 1, "B's claim landed off the coord lane");
 
     // (2) Edit-sync lane — a DIFFERENT remote actor C's live caret, emitted as the real
@@ -113,7 +115,7 @@ fn main() {
     let c_cursor = actor_c
         .take_presence_broadcast(100_000)
         .expect("C's caret move is due → a real presence frame");
-    Pane::on_edit_frame(&mut pane, &c_cursor);
+    pane.ingest_presence(&c_cursor);
     assert_eq!(pane.remote_cursors().len(), 1, "C's cursor pooled off the edit lane");
 
     // (3) The local operator selects L12–18 — inside B's claim: an explicit intent that

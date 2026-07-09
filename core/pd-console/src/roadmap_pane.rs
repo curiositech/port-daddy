@@ -45,16 +45,27 @@ pub struct RoadmapPane {
 }
 
 impl Default for RoadmapPane {
-    fn default() -> Self { Self { items: Vec::new(), last_error: None } }
+    fn default() -> Self {
+        Self {
+            items: Vec::new(),
+            last_error: None,
+        }
+    }
 }
 
 impl RoadmapPane {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 }
 
 impl Pane for RoadmapPane {
-    fn id(&self) -> &str { "roadmap" }
-    fn title(&self) -> String { "Roadmap".into() }
+    fn id(&self) -> &str {
+        "roadmap"
+    }
+    fn title(&self) -> String {
+        "Roadmap".into()
+    }
 
     fn view(&self) -> Vec<Block> {
         let mut blocks = vec![Block::Header("Roadmap".into())];
@@ -93,16 +104,15 @@ impl Pane for RoadmapPane {
             }
             blocks.push(Block::Gap);
         }
-        let other: Vec<_> = self.items.iter()
+        let other: Vec<_> = self
+            .items
+            .iter()
             .filter(|i| !STATUS_ORDER.contains(&i.status.as_str()))
             .collect();
         if !other.is_empty() {
             blocks.push(Block::Header("other".into()));
             for item in other {
-                blocks.push(Block::Row(vec![
-                    trunc(&item.slug, 32),
-                    item.status.clone(),
-                ]));
+                blocks.push(Block::Row(vec![trunc(&item.slug, 32), item.status.clone()]));
                 shown += 1;
             }
             blocks.push(Block::Gap);
@@ -111,8 +121,17 @@ impl Pane for RoadmapPane {
 
         let now_n = count_for("now");
         blocks.push(Block::Chip {
-            label: format!("{} now · {}/{} done", now_n, count_for("done"), self.items.len()),
-            tone: if now_n > 0 { Tone::Engaged } else { Tone::Resting },
+            label: format!(
+                "{} now · {}/{} done",
+                now_n,
+                count_for("done"),
+                self.items.len()
+            ),
+            tone: if now_n > 0 {
+                Tone::Engaged
+            } else {
+                Tone::Resting
+            },
         });
         blocks
     }
@@ -132,7 +151,10 @@ impl Pane for RoadmapPane {
                     Err(e) => self.last_error = Some(format!("bad response: {e}")),
                     Ok(data) => {
                         self.last_error = None;
-                        self.items = arr(&data, "items").iter().map(RoadmapItem::from_value).collect();
+                        self.items = arr(&data, "items")
+                            .iter()
+                            .map(RoadmapItem::from_value)
+                            .collect();
                     }
                 },
             }
@@ -177,8 +199,16 @@ mod tests {
     fn view_groups_by_status() {
         let mut p = RoadmapPane::default();
         p.items = vec![
-            RoadmapItem { slug: "thing-a".into(), summary: "Build A".into(), status: "now".into() },
-            RoadmapItem { slug: "thing-b".into(), summary: "Build B".into(), status: "later".into() },
+            RoadmapItem {
+                slug: "thing-a".into(),
+                summary: "Build A".into(),
+                status: "now".into(),
+            },
+            RoadmapItem {
+                slug: "thing-b".into(),
+                summary: "Build B".into(),
+                status: "later".into(),
+            },
         ];
         let b = p.view();
         let rows = b.iter().filter(|blk| matches!(blk, Block::Row(_))).count();

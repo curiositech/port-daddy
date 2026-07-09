@@ -240,8 +240,8 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['cockpit_missions_list'],
   },
   'system': {
-    description: 'Daemon status, version, metrics, config, and launch hints',
-    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status'],
+    description: 'Daemon status, version, metrics, config, launch hints, relay, and harbormaster liveness',
+    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status', 'harbormaster_status'],
   },
   'tuples': {
     description: 'Shared tuple space for swarm coordination — write, read, take, scan, count',
@@ -442,6 +442,17 @@ const TOOLS = [
       'connected to the cloud relay, its session, last handshake, and which channels ' +
       'are accepted — so an agent can tell if cross-machine pub/sub is live before ' +
       'relying on it. Read-only. Usage: relay_status()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'harbormaster_status',
+    description:
+      '[System] Harbormaster actor status (ADR-0037). Returns the read-only merge-owner ' +
+      'body liveness, schema readiness, and queue summary from GET /harbormaster/status. ' +
+      'Does not start, stop, or merge anything. Usage: harbormaster_status()',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -722,11 +733,13 @@ const TOOLS = [
   {
     name: 'get_parley',
     description:
-      '[Parley] Fetch a parley summary, including turns, missing parties, and outcome. Usage: get_parley({id: "..."})',
+      '[Parley] Fetch a parley summary, including turns, read receipts, missing parties, and outcome. ' +
+      'Pass "as" with your agent id to record your read receipt. Usage: get_parley({id: "...", as: "agent-a"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
         id: { type: 'string', description: 'Parley id' },
+        as: { type: 'string', description: 'Your agent/session id — records a read receipt (optional)' },
       },
       required: ['id'],
     },
@@ -2799,7 +2812,7 @@ const TOOLS = [
         task: { type: 'string', description: 'What the agent should do' },
         identity: { type: 'string', description: 'Semantic identity (e.g. "myapp:fleet:custom-agent")' },
         budget_usd: { type: 'number', description: 'Required spend ceiling for this launch in USD' },
-        backend: { type: 'string', description: 'LLM backend: cloudflare, claude, claude-cli, gemini, codex, aider, custom, or another setup-ready backend' },
+        backend: { type: 'string', description: 'LLM backend: cloudflare, claude, claude-cli, gemini, codex, cli:claude-code, cli:codex, cli:agy, aider, custom, or another setup-ready backend' },
         model: { type: 'string', description: 'Optional explicit model override' },
         model_tier: { type: 'string', description: 'Optional model tier shortcut: low, mid, or high' },
         purpose: { type: 'string', description: 'Optional short human-readable label for the run' },
@@ -3345,6 +3358,11 @@ async function handleTool(
       break;
     }
 
+    case 'harbormaster_status': {
+      res = await GET('/harbormaster/status');
+      break;
+    }
+
     // ── Harbors ─────────────────────────────────────────────────────
     case 'list_harbors': {
       res = await GET('/harbors');
@@ -3509,7 +3527,8 @@ async function handleTool(
     }
 
     case 'get_parley': {
-      res = await GET(`/parley/${encodeURIComponent(args.id as string)}`);
+      const as = typeof args.as === 'string' && args.as.trim() ? `?as=${encodeURIComponent(args.as.trim())}` : '';
+      res = await GET(`/parley/${encodeURIComponent(args.id as string)}${as}`);
       break;
     }
 
@@ -4884,7 +4903,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.24.1',
+    version: '3.24.2',
   },
   {
     capabilities: {

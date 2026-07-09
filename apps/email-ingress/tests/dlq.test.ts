@@ -4,7 +4,7 @@
 // dropped loudly. The daemon's delivery-id dedup makes replays safe.
 
 import { describe, expect, test } from 'vitest';
-import { stashEnvelope, replayDlq, dlqDepth, type KVLike } from '../src/dlq.js';
+import { stashEnvelope, replayDlq, dlqDepth, redactDeliveryId, dlqAlertActive, DLQ_ALERT_THRESHOLD, type KVLike } from '../src/dlq.js';
 import { verifySignature } from '../src/envelope.js';
 
 function fakeKV(): KVLike & { store: Map<string, string> } {
@@ -67,5 +67,33 @@ describe('envelope DLQ', () => {
     expect(result.scanned).toBe(1);
     expect(await dlqDepth(kv)).toBe(0);
     expect(logs.join(' ')).toMatch(/unparseable/);
+  });
+
+  // The `email:<from>:<date>` fallback delivery id (used when a message lacks a
+  // Message-ID) embeds the sender address — PII that must never reach Workers
+  // logs. Message-IDs are opaque tokens and pass through unredacted.
+  test('replay-failure logs redact the PII fallback delivery id, not opaque Message-IDs', async () => {
+    const kv = fakeKV();
+    const piiId = 'email:alice@victim.example:2026-07-07T00:00:00Z';
+    await stashEnvelope(kv, { channel: 'email-inbound', body: '{"x":1}', deliveryId: piiId, attempts: 3 });
+    const logs: string[] = [];
+    const downDaemon = (async () => new Response('nope', { status: 503 })) as unknown as typeof fetch;
+    await replayDlq(kv, downDaemon, 'https://t', 's', (m) => logs.push(m));
+    const line = logs.join(' ');
+    expect(line).not.toContain('alice@victim.example'); // no PII in logs
+    expect(line).toContain(redactDeliveryId(piiId));    // stable correlation tag instead
+    // The redactor is deterministic for the PII form and a pass-through for
+    // opaque Message-IDs.
+    expect(redactDeliveryId(piiId)).toMatch(/^email:#[0-9a-f]{8}$/);
+    expect(redactDeliveryId(piiId)).toBe(redactDeliveryId(piiId));
+    expect(redactDeliveryId('<abc123@mail.example>')).toBe('<abc123@mail.example>');
+    expect(DLQ_ALERT_THRESHOLD).toBeGreaterThan(0);
+  });
+
+  test('dlqAlertActive keys off full backlog depth, not replay batch kept count', () => {
+    expect(dlqAlertActive(null)).toBe(false);
+    expect(dlqAlertActive(DLQ_ALERT_THRESHOLD - 1)).toBe(false);
+    expect(dlqAlertActive(DLQ_ALERT_THRESHOLD)).toBe(true);
+    expect(dlqAlertActive(DLQ_ALERT_THRESHOLD + 50)).toBe(true);
   });
 });

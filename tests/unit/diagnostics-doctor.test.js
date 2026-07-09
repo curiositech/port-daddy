@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, chmodSync, utimesSync } from 'node:fs';
 import { tmpdir, platform } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -11,6 +11,14 @@ import {
   assessSupervisionIntegrity,
   resolveBosunBinary,
   scanRegistryDbFiles,
+  countBunCrashSignatures,
+  assessCrashSignature,
+  readRecentBunCrashCount,
+  candidateDaemonLogPaths,
+  candidateMacDiagnosticReportPaths,
+  parseMacDiagnosticReport,
+  readRecentMacDiagnosticCrashReports,
+  assessMacDiagnosticCrashReports,
 } from '../../cli/commands/diagnostics.js';
 
 describe('plistTargetsLegacyDaemon', () => {
@@ -315,6 +323,321 @@ describe('assessSupervisionIntegrity', () => {
     });
     expect(a.severity).toBe('warn');
     expect(a.detail).toContain('2 supervisors');
+  });
+});
+
+describe('countBunCrashSignatures / assessCrashSignature', () => {
+  // 2026-07-07 investigation (issue #676): the compiled daemon segfaults
+  // under Bun 1.2.21 (JSC GC crash family) under production-scale load.
+  // Pinning to an older port-daddy release does NOT fix it — 3.23.0 and
+  // 3.24.x compile against the identical pinned Bun toolchain, and both
+  // were reproduced crashing under a concurrent-connection burst. This
+  // check exists so `pd doctor` surfaces the crash-loop instead of staying
+  // silent while launchd respawns through it.
+  const CRASH_BANNER =
+    'panic(main thread): Segmentation fault at address 0x0\n' +
+    'oh no: Bun has crashed. This indicates a bug in Bun, not your code.\n';
+
+  test('countBunCrashSignatures is 0 for a clean log', () => {
+    expect(countBunCrashSignatures('daemon booted\nhealth ok\n')).toBe(0);
+  });
+
+  test('countBunCrashSignatures counts one banner per crash', () => {
+    expect(countBunCrashSignatures(CRASH_BANNER)).toBe(1);
+    expect(countBunCrashSignatures(CRASH_BANNER + 'booted again\n' + CRASH_BANNER)).toBe(2);
+  });
+
+  test('assessCrashSignature: zero crashes is ok', () => {
+    const a = assessCrashSignature({ crashCount: 0 });
+    expect(a.severity).toBe('ok');
+  });
+
+  test('assessCrashSignature: one crash is a warning naming issue #676', () => {
+    const a = assessCrashSignature({ crashCount: 1, logPath: '/opt/homebrew/var/log/port-daddy.log' });
+    expect(a.severity).toBe('warn');
+    expect(a.detail).toContain('/opt/homebrew/var/log/port-daddy.log');
+    expect(a.hint).toContain('#676');
+  });
+
+  test('assessCrashSignature: multiple crashes is CRITICAL (crash-looping)', () => {
+    const a = assessCrashSignature({ crashCount: 4 });
+    expect(a.severity).toBe('critical');
+    expect(a.detail).toContain('crash-looping');
+  });
+
+  test('assessCrashSignature hint says downgrading does not fix it', () => {
+    const a = assessCrashSignature({ crashCount: 2 });
+    expect(a.hint).toMatch(/does NOT fix/i);
+  });
+
+  // PR #879 review (copilot-pull-request-reviewer): a log-read failure was
+  // reported as severity 'ok', which lets a permissions problem mask a real
+  // crash-loop underneath it. "Unknown" must never read as "healthy".
+  test('assessCrashSignature: a read error is WARN, never ok', () => {
+    const a = assessCrashSignature({ crashCount: 0, readError: '/opt/homebrew/var/log/port-daddy.log: EACCES' });
+    expect(a.severity).toBe('warn');
+    expect(a.detail).toContain('EACCES');
+    expect(a.detail).not.toMatch(/no bun native-crash signatures/i);
+  });
+
+  test('assessCrashSignature: a read error wins even if crashCount is set to something nonzero', () => {
+    // Defensive: readError must always be checked first regardless of what
+    // crashCount the caller happened to pass alongside it.
+    const a = assessCrashSignature({ crashCount: 3, readError: 'boom' });
+    expect(a.severity).toBe('warn');
+  });
+});
+
+describe('readRecentBunCrashCount', () => {
+  test('returns zero + null logPath when no candidate log exists', () => {
+    const r = readRecentBunCrashCount(['/nonexistent/path/one.log', '/nonexistent/path/two.log']);
+    expect(r.count).toBe(0);
+    expect(r.logPath).toBeNull();
+    expect(r.readError).toBeUndefined();
+  });
+
+  test('reads the first existing candidate and counts its crash banners', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-crashlog-'));
+    try {
+      const logPath = join(dir, 'port-daddy.log');
+      writeFileSync(
+        logPath,
+        'boot ok\n' +
+          'panic(main thread): Segmentation fault at address 0x0\n' +
+          'oh no: Bun has crashed. This indicates a bug in Bun, not your code.\n',
+      );
+      const r = readRecentBunCrashCount(['/nonexistent/first.log', logPath]);
+      expect(r.count).toBe(1);
+      expect(r.logPath).toBe(logPath);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // PR #879 review: the original implementation did a full readFileSync then
+  // sliced the tail in memory — expensive and memory-spiky against a large,
+  // never-rotated log. Verify the bounded seek+read actually only sees the
+  // TAIL of a file bigger than maxBytes (a crash banner near the head must
+  // NOT be counted once it has scrolled out of the retained window).
+  test('is bounded to the tail of a large log via seek, not a full read', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-crashlog-bounded-'));
+    try {
+      const logPath = join(dir, 'port-daddy.log');
+      const headBanner =
+        'panic(main thread): Segmentation fault at address 0x0\n' +
+        'oh no: Bun has crashed. This indicates a bug in Bun, not your code.\n';
+      const padding = 'x'.repeat(1024).repeat(200); // ~200KB of filler
+      const tailBanner =
+        'panic(main thread): Segmentation fault at address 0x1\n' +
+        'oh no: Bun has crashed. This indicates a bug in Bun, not your code.\n';
+      writeFileSync(logPath, headBanner + padding + tailBanner);
+
+      // maxBytes smaller than the head banner + padding — the head banner
+      // must have scrolled out of the retained tail window.
+      const r = readRecentBunCrashCount([logPath], 1024);
+      expect(r.count).toBe(1);
+      expect(r.logPath).toBe(logPath);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('reports readError (not a silent skip) when a candidate exists but cannot be read', () => {
+    // Skip entirely when running as root (or a sandboxed CI uid-0 runner) —
+    // chmod 0o000 does not block root's own reads, so the precondition this
+    // test relies on would not hold.
+    if (typeof process.getuid === 'function' && process.getuid() === 0) return;
+    const dir = mkdtempSync(join(tmpdir(), 'pd-crashlog-unreadable-'));
+    const logPath = join(dir, 'port-daddy.log');
+    try {
+      writeFileSync(logPath, 'boot ok\n');
+      chmodSync(logPath, 0o000);
+      const r = readRecentBunCrashCount([logPath]);
+      expect(r.logPath).toBeNull();
+      expect(r.readError).toBeTruthy();
+      expect(r.readError).toContain(logPath);
+    } finally {
+      chmodSync(logPath, 0o644);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('candidateDaemonLogPaths', () => {
+  test('honors PORT_DADDY_DAEMON_LOG_PATHS for hermetic doctor gates', () => {
+    const previous = process.env.PORT_DADDY_DAEMON_LOG_PATHS;
+    try {
+      process.env.PORT_DADDY_DAEMON_LOG_PATHS = '/tmp/a.log:/tmp/b.log';
+      expect(candidateDaemonLogPaths('/Users/someone')).toEqual(['/tmp/a.log', '/tmp/b.log']);
+    } finally {
+      if (previous === undefined) delete process.env.PORT_DADDY_DAEMON_LOG_PATHS;
+      else process.env.PORT_DADDY_DAEMON_LOG_PATHS = previous;
+    }
+  });
+
+  test('includes the brew keg-relative log path the operator actually hits', () => {
+    const paths = candidateDaemonLogPaths('/Users/someone');
+    expect(paths).toContain('/opt/homebrew/var/log/port-daddy.log');
+  });
+
+  // PR #879 review (copilot-pull-request-reviewer): the JSDoc claimed this
+  // covered the `port-daddy install` LaunchAgent's log location, but the
+  // implementation never actually included it — a non-Homebrew install could
+  // crash-loop and pd doctor would never see the banner.
+  test('includes the distribution-root log path install-daemon.ts actually writes to', () => {
+    const paths = candidateDaemonLogPaths('/Users/someone', '/opt/homebrew/opt/port-daddy/libexec');
+    expect(paths).toContain('/opt/homebrew/opt/port-daddy/libexec/port-daddy.log');
+  });
+
+  test('omits the distribution-root path when none is supplied', () => {
+    const paths = candidateDaemonLogPaths('/Users/someone');
+    expect(paths.some((p) => p.endsWith('libexec/port-daddy.log'))).toBe(false);
+  });
+});
+
+describe('macOS DiagnosticReports crash detection', () => {
+  function makeHomeWithReports() {
+    const home = mkdtempSync(join(tmpdir(), 'pd-diag-home-'));
+    const reportDir = join(home, 'Library', 'Logs', 'DiagnosticReports');
+    mkdirSync(reportDir, { recursive: true });
+    return { home, reportDir };
+  }
+
+  function daemonCrashReport(overrides = {}) {
+    return JSON.stringify({
+      procName: 'port-daddy',
+      procPath: '/opt/homebrew/Cellar/port-daddy/3.24.1/bin/port-daddy',
+      coalitionName: 'homebrew.mxcl.port-daddy',
+      exception: { type: 'EXC_BREAKPOINT', signal: 'SIGTRAP' },
+      termination: { indicator: 'Trace/BPT trap: 5' },
+      threads: [
+        { name: 'JavaScriptCore libpas scavenger' },
+        { name: 'Bun Pool' },
+      ],
+      ...overrides,
+    });
+  }
+
+  test('candidateMacDiagnosticReportPaths finds recent port-daddy .ips reports and sorts newest first', () => {
+    const { home, reportDir } = makeHomeWithReports();
+    try {
+      const old = join(reportDir, 'port-daddy-2026-07-01-010101.ips');
+      const newer = join(reportDir, 'port-daddy-daemon-2026-07-08-020202.ips');
+      writeFileSync(old, daemonCrashReport());
+      writeFileSync(newer, daemonCrashReport({ procName: 'port-daddy-daemon' }));
+      writeFileSync(join(reportDir, 'unrelated-2026-07-08.ips'), daemonCrashReport());
+
+      const oldTime = new Date('2026-07-01T01:01:01Z');
+      const newerTime = new Date('2026-07-08T02:02:02Z');
+      utimesSync(old, oldTime, oldTime);
+      utimesSync(newer, newerTime, newerTime);
+
+      const paths = candidateMacDiagnosticReportPaths(home, Date.parse('2026-07-08T03:00:00Z'), 10 * 24 * 60 * 60 * 1000);
+      expect(paths).toEqual([newer, old]);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('candidateMacDiagnosticReportPaths honors PORT_DADDY_DIAGNOSTIC_REPORT_DIR', () => {
+    const { home, reportDir } = makeHomeWithReports();
+    const previous = process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR;
+    try {
+      const report = join(reportDir, 'port-daddy-2026-07-08-010101.ips');
+      writeFileSync(report, daemonCrashReport());
+      const reportTime = new Date('2026-07-08T01:01:01Z');
+      utimesSync(report, reportTime, reportTime);
+      process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR = reportDir;
+      const paths = candidateMacDiagnosticReportPaths('/Users/not-this-home', Date.parse('2026-07-08T03:00:00Z'));
+      expect(paths).toEqual([report]);
+    } finally {
+      if (previous === undefined) delete process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR;
+      else process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR = previous;
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('candidateMacDiagnosticReportPaths filters reports outside the age window', () => {
+    const { home, reportDir } = makeHomeWithReports();
+    try {
+      const stale = join(reportDir, 'port-daddy-2026-06-01-010101.ips');
+      writeFileSync(stale, daemonCrashReport());
+      const staleTime = new Date('2026-06-01T01:01:01Z');
+      utimesSync(stale, staleTime, staleTime);
+
+      const paths = candidateMacDiagnosticReportPaths(home, Date.parse('2026-07-08T03:00:00Z'), 24 * 60 * 60 * 1000);
+      expect(paths).toEqual([]);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('readRecentMacDiagnosticCrashReports reports DiagnosticReports scan errors', () => {
+    const home = mkdtempSync(join(tmpdir(), 'pd-doctor-home-'));
+    const notADirectory = join(home, 'DiagnosticReports');
+    const previous = process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR;
+    try {
+      writeFileSync(notADirectory, 'this is a file, not a directory');
+      process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR = notADirectory;
+
+      const result = readRecentMacDiagnosticCrashReports();
+
+      expect(result.count).toBe(0);
+      expect(result.readError).toContain('DiagnosticReports');
+    } finally {
+      if (previous === undefined) delete process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR;
+      else process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR = previous;
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('parseMacDiagnosticReport marks launchd-owned port-daddy reports as daemon-like Bun/JSC crashes', () => {
+    const report = parseMacDiagnosticReport('/tmp/port-daddy.ips', daemonCrashReport());
+    expect(report.daemonLike).toBe(true);
+    expect(report.suspectedBunJsc).toBe(true);
+    expect(report.exceptionType).toBe('EXC_BREAKPOINT');
+    expect(report.exceptionSignal).toBe('SIGTRAP');
+    expect(report.threadNames).toContain('JavaScriptCore libpas scavenger');
+  });
+
+  test('readRecentMacDiagnosticCrashReports ignores non-daemon process reports', () => {
+    const { home, reportDir } = makeHomeWithReports();
+    try {
+      const daemonReport = join(reportDir, 'port-daddy-2026-07-08-010101.ips');
+      const cliReport = join(reportDir, 'port-daddy-2026-07-08-020202.ips');
+      writeFileSync(daemonReport, daemonCrashReport());
+      writeFileSync(cliReport, daemonCrashReport({
+        procName: 'port-daddy',
+        procPath: '/Users/me/bin/port-daddy',
+        coalitionName: 'com.apple.Terminal',
+        threads: [{ name: 'main thread' }],
+      }));
+
+      const result = readRecentMacDiagnosticCrashReports([cliReport, daemonReport]);
+      expect(result.count).toBe(1);
+      expect(result.reports[0].path).toBe(daemonReport);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('assessMacDiagnosticCrashReports escalates repeated daemon crash reports to critical', () => {
+    const report = parseMacDiagnosticReport('/tmp/port-daddy.ips', daemonCrashReport());
+    const a = assessMacDiagnosticCrashReports({ count: 2, reports: [report, report] });
+    expect(a.severity).toBe('critical');
+    expect(a.detail).toContain('2 recent macOS daemon crash reports');
+    expect(a.detail).toContain('Bun/JSC');
+  });
+
+  test('assessMacDiagnosticCrashReports treats DiagnosticReports read errors as warn, not ok', () => {
+    const a = assessMacDiagnosticCrashReports({ count: 0, reports: [], readError: '/path/report.ips: EACCES' });
+    expect(a.severity).toBe('warn');
+    expect(a.detail).toContain('EACCES');
+  });
+
+  test('assessMacDiagnosticCrashReports reports no recent crashes as ok', () => {
+    const a = assessMacDiagnosticCrashReports({ count: 0, reports: [] });
+    expect(a.severity).toBe('ok');
   });
 });
 

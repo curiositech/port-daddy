@@ -87,6 +87,12 @@ Lifecycle: `pd setup` offers the one-time ~27 MB download (cancellable); `pd doc
   - publish scope, assumptions, touched files/symbols, validation, blockers, and handoffs through `pd note`
   - use claims/regions for edit intent, tuples for machine-readable facts, scoped channels for event notifications, and actor inboxes for durable role ownership
   - use pheromones/file heat for contention signals, not ordinary progress narration
+- **Target: durable role ledgers augment notes.** Notes remain immutable evidence;
+  role ledgers are curated projections that future intelligent briefings can read
+  for codebase context, operator preferences/interaction style, current
+  coordination truth, and cross-repo tactics. Keep authority explicit: local-only
+  facts stay local unless sync is enabled; operator preference entries need
+  provenance, redaction, account/team scope, and staleness metadata.
 - Coordination means thinking about each other's goals, not merely avoiding file collisions. If another session's assumptions, API shape, release surface, runtime state, or product goal changes what you are doing, tell that agent or the relevant durable actor and adjust your plan.
 - Escalate to the user only for material inconsistencies:
   - two active sessions appear to own or mutate the same scarce surface
@@ -146,6 +152,17 @@ checklist. These extend (don't repeat) `## Port Daddy First`, `## Skill maintena
 is part of every slice`, `## Operator UX Expectations`, and `## Writing Technical
 Documents`.
 
+- **Never assert a competitor/platform claim without researching and citing it
+  (operator directive, VERY IMPORTANT).** Before you state what a competitor or
+  external platform can or can't do — a Cloudflare/OpenAI/GitHub feature,
+  a model's price, an API's shape — research it against the live source and
+  include the citation URL. Do not answer from memory or stale receiver code; both
+  go out of date. Two real misses this rule exists to prevent: claiming Workers AI
+  "has no prompt caching" (it does — prefix caching, per
+  <https://developers.cloudflare.com/workers-ai/features/prompt-caching/>), and
+  quoting `@cf/qwen/qwen2.5-coder-32b` at "$0.09" when the
+  [pricing page](https://developers.cloudflare.com/workers-ai/platform/pricing/)
+  says $0.66/$1.00. If you can't cite it, say you're unsure and go look.
 - **Coordinate, and pay rent.** Work in a clean linked worktree off
   `origin/main` (§ Create / Update / Land), never the operator's main checkout.
   `pd begin --identity … --lifecycle durable` → scope `pd note` → `pd session
@@ -205,6 +222,14 @@ Documents`.
   them through PD's own fabric — `pd agent` / `pd sortie` / `pd dispatch` and the
   tube → spawner router (conductor) — never a raw side-channel, so the work is
   registered, sandboxed (Coast Guard), budgeted, and salvageable.
+- **Managers orchestrate; workers author PRs.** A manager lane should not become
+  an unregistered solo contributor. Delegate implementation edits, PR body
+  drafting, and PR authoring to worker sessions; the manager reads returned
+  artifacts, checks evidence, steel-mans the strongest case against shipping,
+  retunes roles by round, and decides whether the work advances.
+- **Keep durable roles briefing-ready.** When a Pilot or named role maintains a
+  ledger, treat it as a curated projection over notes, not a replacement for
+  notes. Privacy, authority, and staleness metadata travel with the entry.
 - **Keep the README current.** When a slice changes a surface an operator or
   contributor reads about, update `README.md` in the same PR — a stale README is a
   caught lie just like a stale citation. This is now enforced at commit time:
@@ -319,6 +344,16 @@ means one of:
 What does **not** count: resolving a thread with no reply, a one-word "done" with
 no evidence, closing the PR to dodge the comment, or letting a bot finding scroll
 off the page. "Seriously" is load-bearing — engage the substance.
+
+**Auto-pilot (operator directive, 2026-07-07).** When you are subscribed to a
+PR, work the review comments *autonomously* — do not ask permission each round.
+Triage every incoming comment yourself: fix + resolve the legitimate ones (push
+the fixup, resolve the thread), resolve duplicates / already-addressed /
+hallucinated findings with a one-line reason, and skip pure-noise notifications.
+Only pause to ask the operator when a comment is genuinely ambiguous or
+architecturally significant (per the subscription rules). Keep the status
+checklist live; reply on the thread only when it resolves the task or raises a
+real question — the diff is the record, not a running commentary.
 
 `[M]` Machine-flagged, advisory. `scripts/check-pr-comments-answered.mjs` (the
 `pr-comments-guard` check / its own `pr-comments.yml` workflow) inspects the PR's
@@ -459,13 +494,14 @@ The numbered flow above is the *review contract*. This subsection is the
   green. Rebase onto the latest `origin/main`, resolving conflicts. Push.
 - **Land.** Merge in dependency order: base PR before dependent PR, and
   *rebase the dependent after each merge* — mergeability can flip from
-  MERGEABLE to CONFLICTING the instant the base lands. `gh pr merge <n>
-  --squash --admin`. **`--admin` is correct here** because it bypasses both
-  the BEHIND/up-to-date branch gate and the Cloudflare Pages check. The
-  Cloudflare Pages check is an **external gate** (it lives in the Pages
-  build pipeline, not the repo's CI) that always reports failure on PRs and
-  is *never* a merge blocker — see the `## Website And Public Content`
-  notes on the `port-daddy` Pages project.
+  MERGEABLE to CONFLICTING the instant the base lands. Use the protected
+  flow: `gh pr merge <n> --auto` when the merge queue is active, and let
+  branch protection choose the merge strategy. Do not add `--squash`,
+  `--merge`, `--rebase`, or `--admin` as routine agent flow. A human
+  maintainer can make an explicit, documented emergency bypass;
+  an agent cannot use admin to skip a real required gate. Cloudflare Pages may
+  be external/advisory, but prove that from branch protection and record the
+  evidence before treating it as non-blocking.
 - **Cleanup.** Delete a worktree ONLY when its branch is merged AND `git -C
   <wt> status --porcelain` is clean. Never delete a worktree that still has
   uncommitted work. Never `git reset` or otherwise clobber the main
@@ -577,8 +613,29 @@ These bite every contributor session; they are not theoretical.
   - Ollama: `qwen2.5-coder:7b` / `llama3.1:8b` / `qwen2.5-coder:14b`
   - Aider: `gpt-4.1-mini` / `gpt-4.1` / `gpt-5`
   - Custom: `custom-low` / `custom-mid` / `custom-high`, forwarded to wrapper commands via env
-- `fleet-config-ui` is the real control plane surface.
-- `public/fleet-ui` is the built artifact served by the daemon.
+- `fleet-config-ui` is deprecated. Do not add new operator features, demo
+  surfaces, tabs, or agent-control-plane UI there. The one sanctioned exception is
+  the **Galaxy** surface (`SessionGalaxyPanel`), the Fleet UI face of the four-surface
+  session-embedding map; it also renders natively in Fleet Control Center, so the
+  fleet-config-ui tab is a transitional compatibility surface, not a net-new one.
+- Fleet Control Center in `apps/FleetBar/FleetBar` is the real operator control
+  plane surface.
+- `public/fleet-ui` is a legacy built artifact served by the daemon for
+  compatibility while old webview surfaces are folded into Fleet Control Center.
+- Agent Harbor runtime-refactor target truth lives in
+  `docs/adr/0100-destructive-daemon-runtime-authority.md`: `pd-console` is the
+  deep proof surface, FleetBar is ambient consent/status/re-entry, Scout is
+  evidence-backed intake, and CLI/MCP are automation adapters. Native surfaces do
+  not call CLI or MCP internally; they use the shared daemon contract / Surface
+  Gateway path.
+- `pd use` is per-shell/per-process berth context. It emits environment for the
+  current shell or launched process; it is not a global daemon switch. Native
+  surfaces must show the active berth/codebase/dev lane they are actually
+  connected to, not infer state from an unrelated shell.
+- Do not preserve legacy route/verb/MCP bridges as long-lived product surface
+  when WorkIntent plus Surface Gateway owns the family. Keep any old path as a
+  temporary internal adapter with a deletion plan, or fail closed with a
+  migration message.
 - FleetBar should open the real control plane, not a shadow dashboard with reduced functionality.
 - FleetBar is the top-level navigator when embedded. The embedded control plane must receive `?embed=fleetbar` and hide duplicate in-app surface tabs.
 - FleetBar embed detection should not rely on query params alone. The WebView must identify itself too, so a dropped query string does not resurrect duplicate chrome.

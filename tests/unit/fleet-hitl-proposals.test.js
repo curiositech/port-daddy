@@ -8,6 +8,8 @@ import {
   MAX_PENDING_FLEET_PROPOSALS,
 } from '../../lib/fleet-hitl-proposals.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
+import { createWorkIntentService } from '../../lib/agent-harbor/work-intent-service.js';
+import { readEvents } from '../../lib/agent-harbor/event-ledger.js';
 
 const { fleetHitlProposalsPlugin } = await import('../../routes/fleet-hitl-proposals.js');
 
@@ -33,10 +35,12 @@ async function buildApp() {
   const app = Fastify();
   const db = createTestDb();
   const dispatchQueue = createDispatchQueue({ db, now: () => 1_800_000_000_000 });
+  const workIntentService = createWorkIntentService({ db, now: () => new Date(1_800_000_000_000) });
   await app.register(fleetHitlProposalsPlugin, {
     deps: {
       db,
       dispatchQueue,
+      workIntentService,
       now: () => 1_800_000_000_000,
     },
   });
@@ -158,6 +162,44 @@ describe('fleet HITL proposals', () => {
     expect(dispatches[0].requestedBy).toBe('fleet-proposal:spark');
     expect(dispatches[0].targetActorId).toBe('skill-grafted-bot');
     expect(dispatches[0].mergePolicy).toBe('review');
+    const events = readEvents(db, { streamType: 'work-intent' });
+    expect(events).toHaveLength(1);
+    expect(JSON.parse(events[0].payload_json).compat.dispatchId).toBe(body.dispatch.id);
+
+    await app.close();
+    db.close();
+  });
+
+  test('approve fails before side effects when WorkIntent dispatch intake is unavailable', async () => {
+    const app = Fastify();
+    const db = createTestDb();
+    const dispatchQueue = createDispatchQueue({ db, now: () => 1_800_000_000_000 });
+    await app.register(fleetHitlProposalsPlugin, {
+      deps: {
+        db,
+        dispatchQueue,
+        now: () => 1_800_000_000_000,
+      },
+    });
+    await app.ready();
+    const create = await app.inject({
+      method: 'POST',
+      url: '/fleet-proposals',
+      payload: sampleProposal({ targetSpecialist: 'skill-grafted-bot' }),
+    });
+    const id = create.json().proposal.id;
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/fleet-proposals/${id}/approve`,
+      payload: { decidedBy: 'fleetbar' },
+    });
+
+    expect(res.statusCode).toBe(503);
+    expect(res.json().error).toMatch(/WorkIntent dispatch intake is unavailable/i);
+    expect(dispatchQueue.list({ state: 'all' })).toHaveLength(0);
+    const stillPending = await app.inject({ method: 'GET', url: `/fleet-proposals/${id}` });
+    expect(stillPending.json().proposal.status).toBe('pending');
 
     await app.close();
     db.close();

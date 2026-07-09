@@ -6,6 +6,7 @@ struct FleetControlCenter: View {
     @ObservedObject var dispatchStore: DispatchStore
     @ObservedObject var proposalStore: FleetProposalStore
     @ObservedObject var backendStore: BackendStore
+    @StateObject private var cloudFleetStore = CloudFleetStore()
 
     @AppStorage(FleetControlRoute.surfaceKey) private var selectedSurfaceRaw = FleetControlSurface.flow.rawValue
     @AppStorage(FleetControlRoute.projectKey) private var selectedProjectStorage = ""
@@ -550,6 +551,15 @@ struct FleetControlCenter: View {
         switch selectedSurface {
         case .proposals:
             FleetProposalSection(store: proposalStore)
+        case .cloudfleet:
+            ScrollView {
+                CloudFleetSection(
+                    store: cloudFleetStore,
+                    localProjects: store.projects,
+                    localDaemonURL: store.daemonURL,
+                    compact: false
+                )
+            }
         case .nightshift:
             FleetControlNightshiftSection(store: dispatchStore)
         case .backend:
@@ -559,6 +569,13 @@ struct FleetControlCenter: View {
             FleetControlBackendSection(store: backendStore)
                 .padding(.horizontal, Fleet.Space.l)
                 .padding(.vertical, Fleet.Space.m)
+        case .galaxy:
+            FleetControlGalaxySection(
+                daemonURL: store.daemonURL,
+                project: selectedProject?.name ?? selectedProjectId
+            )
+            .padding(.horizontal, Fleet.Space.l)
+            .padding(.vertical, Fleet.Space.m)
         default:
             // Fallback should never trigger — every native case must be wired.
             embeddedSurfaceContent
@@ -841,6 +858,7 @@ struct FleetControlCenter: View {
         await costStore.refresh()
         await dispatchStore.refresh()
         await backendStore.refresh()
+        await cloudFleetStore.refresh()
         syncProjectSelection()
     }
 

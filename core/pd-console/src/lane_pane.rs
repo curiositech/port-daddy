@@ -166,9 +166,10 @@ impl LanePane {
             let path = display_artifact_path(&attachment.path)
                 .unwrap_or_else(|| attachment.path.trim().to_string());
             let (label, preview) = match attachment.kind {
-                OperatorAttachmentKind::File => {
-                    ("file attachment".to_string(), "attached file / open in current worktree")
-                }
+                OperatorAttachmentKind::File => (
+                    "file attachment".to_string(),
+                    "attached file / open in current worktree",
+                ),
                 OperatorAttachmentKind::Photo => (
                     "photo attachment".to_string(),
                     "attached photo / open in current worktree",
@@ -583,7 +584,12 @@ impl LanePane {
                 .and_then(|s| s.as_str())
                 .unwrap_or("agent")
                 .to_string();
-            self.fold_tube_body(format!("channel:{channel}:{id}"), sender, &body, Tone::Default);
+            self.fold_tube_body(
+                format!("channel:{channel}:{id}"),
+                sender,
+                &body,
+                Tone::Default,
+            );
         }
     }
 
@@ -904,7 +910,10 @@ async fn fetch_image_artifact(daemon: &DaemonClient, path: &str) -> Option<Strin
         .get(reqwest::header::CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
         .map(str::to_string);
-    if content_type.as_deref().is_some_and(|ct| !content_type_is_image(Some(ct))) {
+    if content_type
+        .as_deref()
+        .is_some_and(|ct| !content_type_is_image(Some(ct)))
+    {
         return None;
     }
     if content_type.is_none() && !is_image_reference(path, None) {
@@ -1576,14 +1585,14 @@ mod tests {
         );
         let blocks = lane.view();
         assert!(blocks.iter().any(|block| matches!(
-            block,
-            Block::ImageArtifact { label, path, preview, image_path, tone: Tone::Accent }
-                if label.contains("visual task screenshot")
-                    && path == &format!("/blob/{}", "a".repeat(64))
-                    && preview.as_deref().unwrap_or("").contains("region viewport 20,30 220x80")
-                    && preview.as_deref().unwrap_or("").contains("payload visual-feedback")
-                    && image_path.is_none()
-            )));
+        block,
+        Block::ImageArtifact { label, path, preview, image_path, tone: Tone::Accent }
+            if label.contains("visual task screenshot")
+                && path == &format!("/blob/{}", "a".repeat(64))
+                && preview.as_deref().unwrap_or("").contains("region viewport 20,30 220x80")
+                && preview.as_deref().unwrap_or("").contains("payload visual-feedback")
+                && image_path.is_none()
+        )));
     }
 
     #[test]
@@ -1712,21 +1721,15 @@ mod tests {
         lane.push_operator_turn(&turn);
 
         let turns = chat_turns(&lane);
-        assert!(turns
-            .iter()
-            .any(|(speaker, text, tone)| speaker == "you"
-                && text == "Please inspect this"
-                && *tone == Tone::Accent));
-        assert!(turns
-            .iter()
-            .any(|(speaker, text, tone)| speaker == "skill"
-                && text.contains("native-app-designer")
-                && *tone == Tone::Engaged));
-        assert!(turns
-            .iter()
-            .any(|(speaker, text, tone)| speaker == "tool"
-                && text.contains("cargo check")
-                && *tone == Tone::Engaged));
+        assert!(turns.iter().any(|(speaker, text, tone)| speaker == "you"
+            && text == "Please inspect this"
+            && *tone == Tone::Accent));
+        assert!(turns.iter().any(|(speaker, text, tone)| speaker == "skill"
+            && text.contains("native-app-designer")
+            && *tone == Tone::Engaged));
+        assert!(turns.iter().any(|(speaker, text, tone)| speaker == "tool"
+            && text.contains("cargo check")
+            && *tone == Tone::Engaged));
         assert_eq!(
             artifact_paths(&lane),
             vec![

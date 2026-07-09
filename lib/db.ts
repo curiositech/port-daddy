@@ -401,8 +401,10 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
     );
   }
 
-  // NORMAL sync is safe in WAL mode — WAL already guarantees crash safety,
-  // and NORMAL avoids the full fsync on every commit that FULL requires.
+  // WAL + NORMAL keeps process-crash consistency while avoiding a full fsync
+  // on every commit. It is not a power-loss durability guarantee; surfaces
+  // that need stronger durability must add explicit checkpoint/fsync policy
+  // or opt into FULL with a measured latency budget.
   db.pragma('synchronous = NORMAL');
 
   // Checkpoint every 200 pages instead of the default 1000.

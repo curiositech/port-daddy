@@ -1,0 +1,66 @@
+{
+  "schema": "pd.agent-harbor.surface-gateway.v0",
+  "envelopeId": "surface_gateway_01JZFIX0001",
+  "correlationId": "corr_01JZFIX0001",
+  "surface": "fleetbar",
+  "direction": "surface-to-daemon",
+  "mode": "command",
+  "noun": "ControlCommand",
+  "operation": "control-command.steer",
+  "issuedBy": "fleetbar:operator:erich",
+  "issuedAt": "2026-07-05T12:04:00.000Z",
+  "idempotencyKey": "fleetbar:ctl_01JZFIX0001",
+  "berthTarget": {
+    "targetId": "berth_target_stable",
+    "tier": "stable",
+    "label": "stable",
+    "canonical": true,
+    "authority": {
+      "domain": "canonical-local",
+      "canCommand": true,
+      "canQuery": true,
+      "canSubscribeEvents": true
+    }
+  },
+  "capabilityDecision": {
+    "schema": "pd.agent-harbor.capability-decision.v0",
+    "decisionId": "cap_decision_01JZFIX0001",
+    "agentNodeId": "agent_node_01JZFIX0001",
+    "runId": null,
+    "bodyId": null,
+    "surface": "fleetbar",
+    "operation": "control-command.steer",
+    "capability": "control-command",
+    "decision": "allow",
+    "authority": {
+      "domain": "lease",
+      "decidedBy": "daemon:local",
+      "leaseId": "lease_01JZFIX0001"
+    },
+    "reason": "Active lease permits steer for this agent node.",
+    "evidence": {
+      "controlCommandId": "ctl_01JZFIX0001",
+      "berthTargetId": "berth_target_stable"
+    },
+    "issuedAt": "2026-07-05T12:03:30.000Z",
+    "expiresAt": "2026-07-05T12:09:00.000Z"
+  },
+  "payload": {
+    "schema": "pd.agent-harbor.control-command.v0",
+    "commandId": "ctl_01JZFIX0001",
+    "agentNodeId": "agent_node_01JZFIX0001",
+    "kind": "steer",
+    "payload": {
+      "message": "Please steer back to the contract migration."
+    },
+    "requestedBy": "fleetbar:operator:erich",
+    "status": "queued",
+    "idempotencyKey": "fleetbar:ctl_01JZFIX0001",
+    "createdAt": "2026-07-05T12:04:00.000Z"
+  },
+  "projection": {
+    "stale": false,
+    "lastLedgerSeq": 42,
+    "headSeq": 42
+  }
+}

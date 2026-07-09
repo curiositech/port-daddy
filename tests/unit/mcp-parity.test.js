@@ -31,6 +31,7 @@ const TOOL_FEATURE_MAP = {
   // Host-safety posture audit (ADR-0088 Phase A) — read-only
   'safe_scan': 'safe',
   'relay_status': 'relay',
+  'harbormaster_status': 'harbormaster',
 
   // Harbors (permission namespaces) — #199 cop-out conversion
   'list_harbors': 'harbors',
@@ -326,6 +327,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'fleet_hitl_proposals', // Operator HITL queue for fleet ship ideas. Ships submit inert proposals over HTTP; approve/reject happens in FleetBar/pd-console and approval hands off to dispatch. No MCP tool should let an agent approve its own proposal.
   'transcripts',    // Fleet ship-run records. Operator-facing read/delete surface (`pd transcripts`, routes/transcripts.ts) consumed by the FleetBar/dashboard ship-run views. Read-only telemetry browsing, not an agent-driving tool; MCP wrapper deferred.
   'relay',          // Cloud relay config/status (ADR-0049). CLI `pd relay url/status/exchange` + HTTP daemon routes for relay config. Relay exchange is an operator/CI token operation; agents use the relay channel directly, not a tool that calls /relay/exchange. MCP wrapper deferred.
+  'session_galaxy', // 2-D embedding map of recent agent sessions (routes/galaxy.ts: GET /galaxy/map + /galaxy/session/:id). An operator visualization surface consumed by fleet-ui, pd-console, and the FleetBar webview — cross-session t-SNE scatter data is for human eyes, not an agent-driving tool (an agent inspecting peers uses the sessions/transcripts/parley surfaces directly). MCP wrapper deferred indefinitely.
   'harbor-ledger',  // Agent Harbor read API (routes/agent-harbor.ts, C-routes wave). Read-only projection views consumed by the pd-console roster/detail panes (C3) and doctor (C8), plus a long-lived SSE transcript tail — streams are not MCP-shaped (same posture as agent_cockpit). Agents already write to the ledger via `pd harbor-ledger`; an MCP read wrapper is deferred until an agent-facing consumer exists.
   'agent_cockpit',  // "Watch + Grab the Wheel" Phase 0. GET /agents/:id/stream is a long-lived SSE feed consumed by the operator console — streams are not MCP-shaped (MCP is request/response, not a held-open subscription; an MCP-driving agent would already use the in-process messaging.subscribe / transcripts.subscribe primitives this route merges). POST /agents/:id/interrupt is the operator grabbing the wheel from a console (same human-decision posture as dispatch accept/reject); a cooperating agent that wants to steer a peer publishes the same control.interrupt envelope onto the `agent:<id>` channel via the existing messaging surface. MCP wrapper deferred.
 ]);

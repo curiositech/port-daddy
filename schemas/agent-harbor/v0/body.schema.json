@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/body.schema.json",
+  "title": "Body",
+  "description": "The concrete adapter/process attached to an AgentNode for one AgentRun. A Body is replaceable runtime machinery: it can be native, hooked, proxied, observed, or unmanaged, but it never owns the durable node identity or self-upgrades authority.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.body.v0" },
+    "bodyId": { "type": "string", "minLength": 1 },
+    "agentNodeId": { "type": "string", "minLength": 1 },
+    "runId": { "type": ["string", "null"] },
+    "kind": { "enum": ["claude-code", "codex-cli", "cloudflare", "ollama", "lmstudio", "custom-stdio", "custom-http", "human"] },
+    "provider": { "type": "string", "minLength": 1 },
+    "modelTier": { "enum": ["fast", "mid", "strong", "local", "custom"] },
+    "modelName": { "type": ["string", "null"] },
+    "launchMode": { "enum": ["native", "hooked", "proxy", "observed", "unmanaged"] },
+    "adapterVersion": { "type": ["string", "null"] },
+    "pid": { "type": ["number", "null"] },
+    "remoteEndpoint": { "type": ["string", "null"] },
+    "status": { "enum": ["planned", "attaching", "attached", "running", "paused", "stopped", "failed", "orphaned", "observed"] },
+    "attachedAt": { "type": ["string", "null"] },
+    "detachedAt": { "type": ["string", "null"] },
+    "transcriptId": { "type": ["string", "null"], "description": "Non-null before the first model turn for official runs." },
+    "authorityRef": { "type": ["string", "null"], "description": "Capability lease or launch-provisioned authority reference. Null means no extra authority is claimed." }
+  },
+  "required": ["schema", "bodyId", "agentNodeId", "kind", "provider", "modelTier", "launchMode", "status"],
+  "additionalProperties": true
+}

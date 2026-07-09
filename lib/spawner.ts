@@ -42,7 +42,9 @@ import { coastGuardStatus } from './coast-guard.js';
 import { priceBond, classifyScope, scopeTierWritePolicy, pricedBondLogLines } from './bond-pricing.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
-import { detectForcedCliBackend } from './backend-catalog.js';
+import { detectForcedCliBackend, resolveEffectiveSpawnBackend } from './backend-catalog.js';
+import { cliBinarySearchPath, resolveCliBinary } from './cli-bin-dirs.js';
+import { resolveFleetAgentRuntime, type FleetModelTier } from './fleet-runtime.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
 // The daemon runs via launchd which has no shell env. Spawned agents need
@@ -99,14 +101,23 @@ function loadDotenvOnce(): Record<string, string> {
 // Types
 // =============================================================================
 
+export type BackendOverrideSource = 'none' | 'env' | 'persisted' | 'preflight';
+
 export interface SpawnSpec {
-  backend: 'ollama' | 'lmstudio' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'deepseek' | 'xai' | 'cli:claude-code' | 'cli:codex' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
+  backend: 'ollama' | 'lmstudio' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'deepseek' | 'xai' | 'cli:claude-code' | 'cli:codex' | 'cli:agy' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
   name?: string;        // human-readable display name
   model?: string;
+  /** Requested backend before an operator/preflight override selected the runtime backend. */
+  requestedBackend?: SpawnSpec['backend'];
+  /** Requested model before an operator/preflight override selected the runtime model. */
+  requestedModel?: string;
+  /** Where a backend override came from, when the route/preflight layer already resolved it. */
+  backendOverrideSource?: BackendOverrideSource;
   modelTier?: 'low' | 'mid' | 'high';
   identity?: string;   // PD semantic identity: project:stack:context
   purpose?: string;    // human-readable task description
   task: string;        // the prompt / task
+  budgetUsd?: number; // per-launch hard spend cap; enforced after exact telemetry is recorded
   bondUsd?: number;    // per-spawn bond; slashed on misbehavior, refunded on clean exit
   harborName?: string; // optional override for bond-admission harbor
   files?: string[];    // for aider backend
@@ -178,7 +189,12 @@ export interface SpawnResult {
   name?: string;
   backend: SpawnSpec['backend'];
   model: string;
-  status: 'running' | 'completed' | 'failed' | 'killed';
+  requestedBackend?: SpawnSpec['backend'];
+  effectiveBackend?: SpawnSpec['backend'];
+  requestedModel?: string;
+  effectiveModel?: string;
+  backendOverrideSource?: BackendOverrideSource;
+  status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
   output: string | null;
   error: string | null;
   telemetry: SpawnTelemetry | null;
@@ -202,7 +218,12 @@ export interface SpawnedAgent {
   name: string;
   backend: SpawnSpec['backend'];
   model: string;
-  status: 'running' | 'completed' | 'failed' | 'killed';
+  requestedBackend?: SpawnSpec['backend'];
+  effectiveBackend?: SpawnSpec['backend'];
+  requestedModel?: string;
+  effectiveModel?: string;
+  backendOverrideSource?: BackendOverrideSource;
+  status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
   identity: string | null;
   purpose: string | null;
   startedAt: number;
@@ -221,6 +242,14 @@ interface AgentRecord extends SpawnedAgent {
   childProcess: ChildProcess | null;
   bondId?: number | null;
   bondUsd?: number;
+}
+
+export interface ResolvedSpawnRuntime {
+  requestedBackend: SpawnSpec['backend'];
+  effectiveBackend: SpawnSpec['backend'];
+  requestedModel: string;
+  effectiveModel: string;
+  backendOverrideSource: BackendOverrideSource;
 }
 
 interface SpawnerDeps {
@@ -533,6 +562,13 @@ interface BackendRunContext {
   tubeChannel?: string;
 }
 
+const DEFAULT_BACKEND_TIMEOUT_MS = 5 * 60 * 1000;
+
+function backendAbortSignal(spec: SpawnSpec): AbortSignal {
+  const timeoutMs = spec.timeout && spec.timeout > 0 ? spec.timeout : DEFAULT_BACKEND_TIMEOUT_MS;
+  return AbortSignal.timeout(timeoutMs);
+}
+
 interface CodexUsage {
   inputTokens?: number;
   cachedInputTokens?: number;
@@ -547,7 +583,7 @@ async function runOllama(spec: SpawnSpec, model: string): Promise<BackendRunResu
   const result = await ollamaAdapter({
     prompt: spec.task,
     model,
-    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+    signal: backendAbortSignal(spec),
   });
   return adaptLLMResult(result);
 }
@@ -606,7 +642,7 @@ async function runGemini(spec: SpawnSpec, model: string): Promise<BackendRunResu
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+    signal: backendAbortSignal(spec),
   });
   const adapted = adaptLLMResult(result);
   // Full-depth capture: reconstruct thinking / functionCall / text turns from
@@ -623,7 +659,7 @@ async function runGroq(spec: SpawnSpec, model: string): Promise<BackendRunResult
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+    signal: backendAbortSignal(spec),
   });
   return adaptLLMResult(result);
 }
@@ -633,7 +669,7 @@ async function runLmStudio(spec: SpawnSpec, model: string): Promise<BackendRunRe
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+    signal: backendAbortSignal(spec),
   });
   return adaptLLMResult(result);
 }
@@ -643,7 +679,7 @@ async function runDeepseek(spec: SpawnSpec, model: string): Promise<BackendRunRe
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+    signal: backendAbortSignal(spec),
   });
   return adaptLLMResult(result);
 }
@@ -653,7 +689,7 @@ async function runXai(spec: SpawnSpec, model: string): Promise<BackendRunResult>
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+    signal: backendAbortSignal(spec),
   });
   return adaptLLMResult(result);
 }
@@ -663,7 +699,7 @@ async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRun
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+    signal: backendAbortSignal(spec),
   });
   const adapted = adaptLLMResult(result);
   // Full-depth capture: reconstruct reasoning / tool_calls / message turns
@@ -680,7 +716,7 @@ async function runOpenAI(spec: SpawnSpec, model: string): Promise<BackendRunResu
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+    signal: backendAbortSignal(spec),
   });
   return adaptLLMResult(result);
 }
@@ -751,10 +787,9 @@ async function runCliTube(
     tubeClient: context?.tubeClient,
   });
 
-  // Full-depth capture from the raw event stream. Both wrapped CLIs emit
-  // structured JSONL: codex → `--json` (reasoning/command/message items),
-  // claude-code → `stream-json` (thinking/tool_use/tool_result/text blocks).
   if (cli === 'codex') {
+    // Codex `--json` gives us full-depth capture from the raw event stream:
+    // reasoning/command/message items plus a terminal usage event.
     // Codex `--json` emits a terminal `turn.completed` carrying exact usage.
     // The tube path previously dropped it (only the legacy runCodexCli parsed
     // it), so every `cli:codex` spawn returned no tokens and fail-closed the
@@ -779,29 +814,44 @@ async function runCliTube(
           }),
     };
   }
-  // claude-code: raw stdout is the stream-json; recover the final answer from
-  // the terminal `result` line (falling back to raw if absent), parse the stream
-  // into thinking / tool / assistant turns, and recover the exact token usage the
-  // CLI reported on that same `result` line (previously dropped → fail-closed).
-  const finalAnswer = extractClaudeCodeFinal(result.rawStdout || '');
-  const ccu = extractClaudeCodeUsage(result.rawStdout || '');
-  const ccExact = typeof ccu.inputTokens === 'number' && ccu.inputTokens > 0
-    && typeof ccu.outputTokens === 'number' && ccu.outputTokens > 0;
+  if (cli === 'claude-code') {
+    // claude-code: raw stdout is the stream-json; recover the final answer from
+    // the terminal `result` line (falling back to raw if absent), parse the
+    // stream into thinking / tool / assistant turns, and recover the exact token
+    // usage the CLI reported on that same `result` line (previously dropped →
+    // fail-closed).
+    const finalAnswer = extractClaudeCodeFinal(result.rawStdout || '');
+    const ccu = extractClaudeCodeUsage(result.rawStdout || '');
+    const ccExact = typeof ccu.inputTokens === 'number' && ccu.inputTokens > 0
+      && typeof ccu.outputTokens === 'number' && ccu.outputTokens > 0;
+    return {
+      output: finalAnswer ?? result.output,
+      error: result.error,
+      transcript: parseClaudeCodeTranscript(result.rawStdout || ''),
+      ...(ccExact
+        ? {
+            inputTokens: ccu.inputTokens,
+            outputTokens: ccu.outputTokens,
+            ...(typeof ccu.cachedInputTokens === 'number' ? { cachedInputTokens: ccu.cachedInputTokens } : {}),
+          }
+        : {
+            inputTokens: estimateTokensFromText(spec.task),
+            outputTokens: estimateTokensFromText(finalAnswer ?? result.output ?? ''),
+            estimatedTelemetry: true,
+          }),
+    };
+  }
+
+  // agy/gemini/groq/grok currently provide a final stdout/stderr answer through
+  // cli-tube, not a documented JSONL stream. Keep the transcript honest: the
+  // outer spawner has already recorded the user prompt and will append one final
+  // assistant/output turn from `output`.
   return {
-    output: finalAnswer ?? result.output,
+    output: result.output,
     error: result.error,
-    transcript: parseClaudeCodeTranscript(result.rawStdout || ''),
-    ...(ccExact
-      ? {
-          inputTokens: ccu.inputTokens,
-          outputTokens: ccu.outputTokens,
-          ...(typeof ccu.cachedInputTokens === 'number' ? { cachedInputTokens: ccu.cachedInputTokens } : {}),
-        }
-      : {
-          inputTokens: estimateTokensFromText(spec.task),
-          outputTokens: estimateTokensFromText(finalAnswer ?? result.output ?? ''),
-          estimatedTelemetry: true,
-        }),
+    inputTokens: estimateTokensFromText(spec.task),
+    outputTokens: estimateTokensFromText(result.output || ''),
+    estimatedTelemetry: true,
   };
 }
 
@@ -1015,26 +1065,6 @@ function runCustom(spec: SpawnSpec, context?: BackendRunContext): Promise<Backen
   }));
 }
 
-/**
- * CLI backend override. `PD_USE_CLI_BACKEND` wins, then the persisted
- * FleetBar/CLI selection in ~/.port-daddy-cli-backend. Accepted values:
- * `claude-code` (or `claude`), `codex`, `gemini`, `groq`, `grok`.
- * When set, every spawn — regardless of `spec.backend` — routes through the
- * matching `cli:<tool>` backend. Empty / unset / unrecognized values disable
- * the env override but still fall through to the persisted selection.
- * `PD_USE_CLI_BACKEND=none` (or off/disabled/0/false) hard-disables the
- * override INCLUDING the persisted fallback — the only per-process escape
- * hatch from an operator's ~/.port-daddy-cli-backend (tests rely on this;
- * see tests/jest.env.js).
- *
- * This is the operator-level "I already pay for a CLI subscription, use
- * my unmetered CLI for everything" knob. Documented in
- * `docs/fleet/backend-costs.md`.
- */
-function resolveCliBackendOverride(): SpawnSpec['backend'] | null {
-  return detectForcedCliBackend() as SpawnSpec['backend'] | null;
-}
-
 /** Rough token estimate (~4 chars/token) — the labelled best-guess fallback. */
 function estimateTokensFromText(text: string): number {
   return Math.max(1, Math.ceil((text || '').length / 4));
@@ -1091,7 +1121,9 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
   // parse below. Without it the CLI prints plain prose and we get no token
   // counts — the gap that previously fail-closed every claude-cli launch.
   const args = ['-p', '--output-format', 'json', spec.task];
-  if (spec.model) {
+  // `claude-cli` is the DEFAULT_MODELS sentinel for "the CLI manages its own
+  // default model"; it is runtime provenance, not a concrete Claude model id.
+  if (spec.model && spec.model !== 'claude-cli') {
     args.push('--model', spec.model);
   }
   if (spec.allowedTools) {
@@ -1106,14 +1138,16 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
   const { ANTHROPIC_API_KEY: _dropped, ...dotenvSafe } = loadDotenvOnce();
   const { ANTHROPIC_API_KEY: _droppedEnv, ...processEnvSafe } = process.env;
 
-  // Ensure ~/.local/bin is in PATH for claude binary discovery
-  const homeBin = join(process.env.HOME || '', '.local', 'bin');
+  // Resolve through the same operator-scoped path logic as readiness and
+  // cli:claude-code. A stale PD_CLI_CLAUDE_CODE_BIN must not strand the
+  // launchd daemon when a standard user-install `claude` is discoverable.
+  const resolution = resolveCliBinary('claude', { envOverride: 'PD_CLI_CLAUDE_CODE_BIN' });
   const currentPath = process.env.PATH || '';
-  const augmentedPath = currentPath.includes('.local/bin') ? currentPath : `${homeBin}:${currentPath}`;
+  const augmentedPath = cliBinarySearchPath(currentPath);
 
   const res = await runConfinedChild({
     spec,
-    cmd: 'claude',
+    cmd: resolution.command,
     args,
     env: { ...processEnvSafe, ...dotenvSafe, ...(spec.env || {}), PATH: augmentedPath },
     timeout: spec.timeout,
@@ -1142,6 +1176,7 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   codex: resolveModel({ backend: 'codex', capability: 'cheap' }),
   'cli:claude-code': 'claude-cli',  // local claude CLI manages its own model
   'cli:codex': 'codex-cli',          // local codex CLI manages its own model
+  'cli:agy': 'agy-cli',              // local agy CLI manages its own model
   'cli:gemini': 'gemini-cli',        // local gemini CLI manages its own model
   'cli:groq': 'groq-cli',            // local groq CLI manages its own model
   'cli:grok': 'grok-cli',            // local grok CLI manages its own model
@@ -1150,6 +1185,86 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
 };
 // Mark default-timeout knobs referenced elsewhere
 void DEFAULT_OPENAI_TIMEOUT_MS;
+
+const FLAT_RATE_CLI_TUBE_BACKENDS = new Set<SpawnSpec['backend']>([
+  'cli:claude-code',
+  'cli:codex',
+  'cli:agy',
+  'cli:gemini',
+  'cli:groq',
+  'cli:grok',
+]);
+
+function allowsFlatRateEstimatedTelemetry(backend: SpawnSpec['backend']): boolean {
+  return FLAT_RATE_CLI_TUBE_BACKENDS.has(backend);
+}
+
+function backendOverrideSource(
+  requestedBackend: SpawnSpec['backend'],
+  effectiveBackend: SpawnSpec['backend'],
+): BackendOverrideSource {
+  if (requestedBackend === effectiveBackend) return 'none';
+  const forcedFromEnv = detectForcedCliBackend(process.env, { persistedPath: null });
+  return forcedFromEnv === effectiveBackend ? 'env' : 'persisted';
+}
+
+function isFleetModelTier(value: unknown): value is FleetModelTier {
+  return value === 'low' || value === 'mid' || value === 'high';
+}
+
+function resolveRequestedRuntimeModel(
+  requestedBackend: SpawnSpec['backend'],
+  explicitModel?: string,
+  modelTier?: SpawnSpec['modelTier'],
+): string {
+  const model = explicitModel?.trim();
+  if (model) return model;
+  if (isFleetModelTier(modelTier)) {
+    return resolveFleetAgentRuntime({ backend: requestedBackend, modelTier }).model
+      ?? DEFAULT_MODELS[requestedBackend];
+  }
+  return DEFAULT_MODELS[requestedBackend];
+}
+
+export function resolveSpawnRuntime(spec: SpawnSpec): ResolvedSpawnRuntime {
+  const requestedBackend = spec.requestedBackend ?? spec.backend;
+
+  // /spawn preflight may already have resolved the runnable backend/model. In
+  // that case `spec.backend` is the effective runtime and the requested fields
+  // preserve provenance from the original request.
+  if (spec.requestedBackend && spec.requestedBackend !== spec.backend) {
+    const requestedModel = resolveRequestedRuntimeModel(
+      requestedBackend,
+      spec.requestedModel,
+      spec.modelTier,
+    );
+    return {
+      requestedBackend,
+      effectiveBackend: spec.backend,
+      requestedModel,
+      effectiveModel: spec.model ?? DEFAULT_MODELS[spec.backend],
+      backendOverrideSource: spec.backendOverrideSource ?? 'preflight',
+    };
+  }
+
+  const requestedModel = resolveRequestedRuntimeModel(
+    requestedBackend,
+    spec.requestedModel ?? spec.model,
+    spec.modelTier,
+  );
+  const resolved = resolveEffectiveSpawnBackend(spec.backend);
+  const effectiveBackend = (resolved.backend ?? spec.backend) as SpawnSpec['backend'];
+  return {
+    requestedBackend,
+    effectiveBackend,
+    requestedModel,
+    effectiveModel: effectiveBackend === requestedBackend
+      ? requestedModel
+      : DEFAULT_MODELS[effectiveBackend],
+    backendOverrideSource: spec.backendOverrideSource
+      ?? backendOverrideSource(requestedBackend, effectiveBackend),
+  };
+}
 
 // =============================================================================
 // Worktree isolation guard (layer 2)
@@ -1216,6 +1331,26 @@ export function assessSpawnIsolation(
   };
 }
 
+function normalizeHardBudgetUsd(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function normalizeTelemetryCostUsd(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function formatUsd(value: number): string {
+  return `$${value.toFixed(6).replace(/0+$/, '').replace(/\.$/, '')}`;
+}
+
+function hardBudgetCapError(spec: SpawnSpec, telemetry: SpawnTelemetry | null): string | null {
+  const budgetUsd = normalizeHardBudgetUsd(spec.budgetUsd);
+  if (budgetUsd == null || !telemetry) return null;
+  const costUsd = normalizeTelemetryCostUsd(telemetry.costUsd);
+  if (costUsd == null || costUsd <= budgetUsd) return null;
+  return `exceeded hard budget cap: telemetry cost ${formatUsd(costUsd)} > budget ${formatUsd(budgetUsd)}`;
+}
+
 // =============================================================================
 // Module factory
 // =============================================================================
@@ -1265,19 +1400,24 @@ export function createSpawner(deps: SpawnerDeps = {}) {
   /** Open the transcript row and record the opening system/user turns.
    *  Returns the id, or null only when recording is disabled (no module +
    *  not enforced). Throws under enforcement if the recorder is broken. */
-  function txStart(spec: SpawnSpec, agentId: string, model: string, startedAt: number): string | null {
+  function txStart(spec: SpawnSpec, runtime: ResolvedSpawnRuntime, agentId: string, startedAt: number): string | null {
     if (!transcripts) return null;
     let id: string | null = null;
     recordOrThrow('start', () => {
-      const ship = spec.ship || `spawn:${spec.backend}`;
+      const ship = spec.ship || `spawn:${runtime.effectiveBackend}`;
       const trigger = spec.trigger || 'manual';
       const projectName = getProjectName(spec.identity);
       id = transcripts.start({
         ship,
         spawned_agent_id: agentId,
         trigger,
-        backend: spec.backend,
-        model,
+        backend: runtime.effectiveBackend,
+        model: runtime.effectiveModel,
+        requested_backend: runtime.requestedBackend,
+        effective_backend: runtime.effectiveBackend,
+        requested_model: runtime.requestedModel,
+        effective_model: runtime.effectiveModel,
+        backend_override_source: runtime.backendOverrideSource,
         started_at: startedAt,
         pr_number: spec.prNumber ?? null,
         issue_number: spec.issueNumber ?? null,
@@ -1345,7 +1485,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
   function txFinalize(
     transcriptId: string | null,
-    status: 'completed' | 'failed' | 'killed',
+    status: 'completed' | 'failed' | 'killed' | 'over_budget',
     endedAt: number,
     telemetry: SpawnTelemetry | null,
     error: string | null,
@@ -1425,12 +1565,12 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     return projectName || undefined;
   }
 
-  function metricDims(spec: SpawnSpec, model: string): Record<string, string> {
+  function metricDims(backend: SpawnSpec['backend'], model: string, identity?: string | null): Record<string, string> {
     const dims: Record<string, string> = {
-      backend: spec.backend,
+      backend,
       model,
     };
-    const projectName = getProjectName(spec.identity);
+    const projectName = getProjectName(identity ?? undefined);
     if (projectName) dims.project = projectName;
     return dims;
   }
@@ -1444,12 +1584,18 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     // Hard global limit — never exceed MAX_CONCURRENT_RUNNING processes
     const running = [...agents.values()].filter(a => a.status === 'running').length;
-    const model = spec.model || DEFAULT_MODELS[spec.backend];
-    const dims = metricDims(spec, model);
+    const runtime = resolveSpawnRuntime(spec);
+    const model = runtime.effectiveModel;
+    const dims = metricDims(runtime.effectiveBackend, runtime.effectiveModel, spec.identity);
     const blockedResult = (error: string): SpawnResult => ({
       agentId: 'blocked',
-      backend: spec.backend,
-      model,
+      backend: runtime.effectiveBackend,
+      model: runtime.effectiveModel,
+      requestedBackend: runtime.requestedBackend,
+      effectiveBackend: runtime.effectiveBackend,
+      requestedModel: runtime.requestedModel,
+      effectiveModel: runtime.effectiveModel,
+      backendOverrideSource: runtime.backendOverrideSource,
       status: 'failed',
       output: null,
       error,
@@ -1496,7 +1642,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         return blockedResult('Spawn blocked: cost tracker unavailable under fail-closed telemetry policy.');
       }
 
-      const telemetryPolicy = assessBackendTelemetryPolicy(spec.backend, model);
+      const telemetryPolicy = assessBackendTelemetryPolicy(runtime.effectiveBackend, runtime.effectiveModel);
       if (!telemetryPolicy.launchAllowed) {
         counters?.bump('spawn.blocked', dims);
         return blockedResult(`Spawn blocked: ${telemetryPolicy.summary}`);
@@ -1517,7 +1663,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const effectiveCaps =
       spec.capabilities && spec.capabilities.length > 0
         ? spec.capabilities
-        : ['spawn:agent', `backend:${spec.backend}`];
+        : ['spawn:agent', `backend:${runtime.effectiveBackend}`];
     // NOTE: the priced scope tier → OS write policy mapping
     // (scopeTierWritePolicy) is applied per-backend-exec in runConfinedChild,
     // which derives the SAME tier from these caps. Keeping the derivation there
@@ -1526,7 +1672,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       name: spec.name,
       purpose: spec.purpose,
       identity: spec.identity,
-      backend: spec.backend,
+      backend: runtime.effectiveBackend,
       fallback: agentId,
     });
     counters?.bump('spawn.started', dims);
@@ -1577,7 +1723,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       bondUsd = spec.bondUsd;
       console.log(
         `[spawner] bond: caller-supplied fixed bond $${bondUsd.toFixed(4)} ` +
-          `(scope-proportional pricer bypassed) — agent=${agentId} backend=${spec.backend}`,
+          `(scope-proportional pricer bypassed) — agent=${agentId} backend=${runtime.effectiveBackend}`,
       );
     } else {
       const priced = priceBond({
@@ -1611,7 +1757,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       const lines = pricedBondLogLines(priced.breakdown, {
         bondUsd,
         agentId,
-        backend: spec.backend,
+        backend: runtime.effectiveBackend,
       });
       console.log(lines.info);
       for (const n of lines.notices) console.log(n);
@@ -1663,7 +1809,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       if (harborEnvelope && typeof harbors.assertWithinEnvelope === 'function') {
         const verdict = harbors.assertWithinEnvelope(harborName, agentId, {
           kind: 'backend',
-          name: spec.backend,
+          name: runtime.effectiveBackend,
         });
         if (!verdict.allowed) {
           counters?.bump('spawn.blocked', dims);
@@ -1687,7 +1833,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         const receipt = bonds.escrow({
           project: projectName,
           agentId,
-          archetype: spec.backend,
+          archetype: runtime.effectiveBackend,
           bondUsd,
           harborName: enteredHarborName ?? harborName,
         });
@@ -1716,8 +1862,13 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const record: AgentRecord = {
       agentId,
       name: displayName,
-      backend: spec.backend,
-      model,
+      backend: runtime.effectiveBackend,
+      model: runtime.effectiveModel,
+      requestedBackend: runtime.requestedBackend,
+      effectiveBackend: runtime.effectiveBackend,
+      requestedModel: runtime.requestedModel,
+      effectiveModel: runtime.effectiveModel,
+      backendOverrideSource: runtime.backendOverrideSource,
       status: 'running',
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
@@ -1738,7 +1889,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     let transcriptId: string | null = null;
     let transcriptStartError: string | null = null;
     try {
-      transcriptId = txStart(spec, agentId, model, startedAt);
+      transcriptId = txStart(spec, runtime, agentId, startedAt);
     } catch (err) {
       transcriptStartError = (err as Error).message;
     }
@@ -1788,7 +1939,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       await pdCoordinate(`/agents/${agentId}/heartbeat`, {
         pid,
         status: 'busy',
-        progress: `Running ${spec.backend} via Port Daddy spawner`,
+        progress: `Running ${runtime.effectiveBackend} via Port Daddy spawner`,
       }, { pid });
     }, 30000);
     record.heartbeatInterval.unref?.();
@@ -1798,6 +1949,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     let telemetry: SpawnTelemetry | null = null;
     let coastGuardReceipt: CoastGuardReceipt | null = null;
     let structuredTurns: StructuredTurn[] | null = null;
+    let budgetOverrunError: string | null = null;
     // Set by the backend's live onTranscriptDelta sink (cli-tube streaming).
     // When true, the conversation is ALREADY persisted turn-by-turn, so the
     // end-of-run path skips the batched re-append to avoid duplicating it.
@@ -1812,11 +1964,16 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           `Spawn refused: ${transcriptStartError}. A backend must not run unless its conversation is recorded.`,
         );
       }
-      const override = runnerOverrides[spec.backend];
+      const executionSpec: SpawnSpec = {
+        ...spec,
+        backend: runtime.effectiveBackend,
+        model: runtime.effectiveModel,
+      };
+      const override = runnerOverrides[runtime.effectiveBackend];
       let result: BackendRunResult;
 
       if (override) {
-        result = await override(spec, model);
+        result = await override(executionSpec, runtime.effectiveModel);
       } else {
         const childContext: BackendRunContext = {
           onChildProcess: (child) => {
@@ -1826,7 +1983,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
               void pdCoordinate(`/agents/${agentId}/heartbeat`, {
                 pid,
                 status: 'busy',
-                progress: `Running ${spec.backend} child process`,
+                progress: `Running ${runtime.effectiveBackend} child process`,
               }, { pid });
             }
           },
@@ -1846,32 +2003,28 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           tubeClient,
           tubeChannel: spec.tubeChannel,
         };
-        // Global env override: PD_USE_CLI_BACKEND=claude-code|codex forces
-        // every spawn through the local CLI tube, regardless of yml config.
-        // This is the "I have Claude Max, use that for everything" knob.
-        const cliOverride = resolveCliBackendOverride();
-        const effectiveBackend = cliOverride ?? spec.backend;
-        switch (effectiveBackend) {
-          case 'ollama':    result = await runOllama(spec, model); break;
-          case 'lmstudio':  result = await runLmStudio(spec, model); break;
-          case 'claude':    result = await runClaude(spec, model); break;
-          case 'gemini':    result = await runGemini(spec, model); break;
-          case 'cloudflare': result = await runCloudflare(spec, model); break;
-          case 'openai':    result = await runOpenAI(spec, model); break;
-          case 'groq':      result = await runGroq(spec, model); break;
-          case 'deepseek':  result = await runDeepseek(spec, model); break;
-          case 'xai':       result = await runXai(spec, model); break;
-          case 'codex':     result = await runCodexCli(spec, model, childContext); break;
-          case 'claude-cli': result = await runClaudeCli(spec, childContext); break;
-          case 'cli:claude-code': result = await runCliTube(spec, 'claude-code', childContext); break;
-          case 'cli:codex':       result = await runCliTube(spec, 'codex', childContext); break;
-          case 'cli:gemini':      result = await runCliTube(spec, 'gemini', childContext); break;
-          case 'cli:groq':        result = await runCliTube(spec, 'groq', childContext); break;
-          case 'cli:grok':        result = await runCliTube(spec, 'grok', childContext); break;
-          case 'aider':     result = await runAider(spec, model, childContext); break;
-          case 'custom':    result = await runCustom(spec, childContext); break;
+        switch (runtime.effectiveBackend) {
+          case 'ollama':    result = await runOllama(executionSpec, runtime.effectiveModel); break;
+          case 'lmstudio':  result = await runLmStudio(executionSpec, runtime.effectiveModel); break;
+          case 'claude':    result = await runClaude(executionSpec, runtime.effectiveModel); break;
+          case 'gemini':    result = await runGemini(executionSpec, runtime.effectiveModel); break;
+          case 'cloudflare': result = await runCloudflare(executionSpec, runtime.effectiveModel); break;
+          case 'openai':    result = await runOpenAI(executionSpec, runtime.effectiveModel); break;
+          case 'groq':      result = await runGroq(executionSpec, runtime.effectiveModel); break;
+          case 'deepseek':  result = await runDeepseek(executionSpec, runtime.effectiveModel); break;
+          case 'xai':       result = await runXai(executionSpec, runtime.effectiveModel); break;
+          case 'codex':     result = await runCodexCli(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'claude-cli': result = await runClaudeCli(executionSpec, childContext); break;
+          case 'cli:claude-code': result = await runCliTube(executionSpec, 'claude-code', childContext); break;
+          case 'cli:codex':       result = await runCliTube(executionSpec, 'codex', childContext); break;
+          case 'cli:agy':         result = await runCliTube(executionSpec, 'agy', childContext); break;
+          case 'cli:gemini':      result = await runCliTube(executionSpec, 'gemini', childContext); break;
+          case 'cli:groq':        result = await runCliTube(executionSpec, 'groq', childContext); break;
+          case 'cli:grok':        result = await runCliTube(executionSpec, 'grok', childContext); break;
+          case 'aider':     result = await runAider(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'custom':    result = await runCustom(executionSpec, childContext); break;
           default:
-            result = { output: '', error: `Unknown backend: ${String(effectiveBackend)}` };
+            result = { output: '', error: `Unknown backend: ${String(runtime.effectiveBackend)}` };
         }
       }
 
@@ -1890,25 +2043,26 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         const outputTokens = result.outputTokens;
 
         if (inputTokens === undefined || outputTokens === undefined) {
-          error = `Exact telemetry required, but ${spec.backend} did not return token counts.`;
+          error = `Exact telemetry required, but ${runtime.effectiveBackend} did not return token counts.`;
           output = null;
         } else if (!costTracker) {
           error = 'Exact telemetry required, but cost tracker is unavailable.';
           output = null;
         } else {
           const computed = cachedInputTokens === undefined
-            ? costTracker.computeCost(spec.backend, model, inputTokens, outputTokens)
-            : costTracker.computeCost(spec.backend, model, inputTokens, outputTokens, cachedInputTokens);
-          if (computed.isEstimate) {
-            error = `Exact telemetry required, but ${spec.backend} cost calculation fell back to an estimate.`;
+            ? costTracker.computeCost(runtime.effectiveBackend, runtime.effectiveModel, inputTokens, outputTokens)
+            : costTracker.computeCost(runtime.effectiveBackend, runtime.effectiveModel, inputTokens, outputTokens, cachedInputTokens);
+          const allowFlatRateEstimate = allowsFlatRateEstimatedTelemetry(runtime.effectiveBackend);
+          if (computed.isEstimate && !allowFlatRateEstimate) {
+            error = `Exact telemetry required, but ${runtime.effectiveBackend} cost calculation fell back to an estimate.`;
             output = null;
           } else if (computed.costUsd <= 0) {
-            error = `Exact telemetry required, but ${spec.backend} produced a non-positive cost.`;
+            error = `Exact telemetry required, but ${runtime.effectiveBackend} produced a non-positive cost.`;
             output = null;
           } else {
             const recorded = costTracker.record({
-              backend: spec.backend,
-              model,
+              backend: runtime.effectiveBackend,
+              model: runtime.effectiveModel,
               projectName,
               projectDir: spec.workdir ? resolve(spec.workdir) : undefined,
               identity: spec.identity,
@@ -1918,21 +2072,26 @@ export function createSpawner(deps: SpawnerDeps = {}) {
               outputTokens,
             });
 
-            if (!recorded || recorded.isEstimate || recorded.costUsd <= 0) {
-              error = `Exact telemetry required, but ${spec.backend} telemetry could not be persisted as an exact nonzero cost record.`;
+            const recordedCostUsd = normalizeTelemetryCostUsd(recorded?.costUsd);
+            if (!recorded || (recorded.isEstimate && !allowFlatRateEstimate) || recordedCostUsd == null || recordedCostUsd <= 0) {
+              error = `Exact telemetry required, but ${runtime.effectiveBackend} telemetry could not be persisted as an exact nonzero cost record.`;
               output = null;
             } else {
               telemetry = {
                 inputTokens,
                 ...(cachedInputTokens === undefined ? {} : { cachedInputTokens }),
                 outputTokens,
-                costUsd: recorded.costUsd,
+                costUsd: recordedCostUsd,
                 // Honest label: 'estimated' when token counts were a best-guess
                 // (backend didn't report usage), 'exact' when it did. The cost
                 // RATE is exact either way (gated above), so spend is priced at
                 // the real rate against guessed tokens — never silently 'exact'.
                 rateMode: result.estimatedTelemetry ? 'estimated' : 'exact',
               };
+              budgetOverrunError = hardBudgetCapError(spec, telemetry);
+              if (budgetOverrunError) {
+                error = budgetOverrunError;
+              }
             }
           }
         }
@@ -1948,7 +2107,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       output = null;
     }
     const completedAt = record.completedAt ?? Date.now();
-    let status: SpawnResult['status'] = wasKilled ? 'killed' : error ? 'failed' : 'completed';
+    let status: SpawnResult['status'] = wasKilled ? 'killed' : budgetOverrunError ? 'over_budget' : error ? 'failed' : 'completed';
 
     record.status = status;
     record.completedAt = completedAt;
@@ -2010,8 +2169,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         const summary = error
           ? `failed: ${error.slice(0, 160)}`
           : turnCount > 0
-            ? `${spec.backend}: ${turnCount} turns, ${(output || '').length} chars`
-            : `${spec.backend} returned ${(output || '').length} chars`;
+            ? `${runtime.effectiveBackend}: ${turnCount} turns, ${(output || '').length} chars`
+            : `${runtime.effectiveBackend} returned ${(output || '').length} chars`;
         txOutput(transcriptId, {
           type: error ? 'noop' : 'message',
           summary,
@@ -2065,8 +2224,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     }
     if (!enforceTelemetryPolicy) {
       costTracker?.record({
-        backend: spec.backend,
-        model,
+        backend: runtime.effectiveBackend,
+        model: runtime.effectiveModel,
         projectName,
         projectDir: spec.workdir ? resolve(spec.workdir) : undefined,
         identity: spec.identity,
@@ -2077,8 +2236,13 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     return {
       agentId,
       name: displayName,
-      backend: spec.backend,
-      model,
+      backend: runtime.effectiveBackend,
+      model: runtime.effectiveModel,
+      requestedBackend: runtime.requestedBackend,
+      effectiveBackend: runtime.effectiveBackend,
+      requestedModel: runtime.requestedModel,
+      effectiveModel: runtime.effectiveModel,
+      backendOverrideSource: runtime.backendOverrideSource,
       status,
       output,
       error,
@@ -2099,6 +2263,11 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       name: r.name,
       backend: r.backend,
       model: r.model,
+      requestedBackend: r.requestedBackend,
+      effectiveBackend: r.effectiveBackend,
+      requestedModel: r.requestedModel,
+      effectiveModel: r.effectiveModel,
+      backendOverrideSource: r.backendOverrideSource,
       status: r.status,
       identity: r.identity,
       purpose: r.purpose,
@@ -2131,7 +2300,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     record.status = 'killed';
     record.completedAt = Date.now();
-    counters?.bump('spawn.killed', metricDims({ backend: record.backend, task: '', identity: record.identity || undefined }, record.model));
+    counters?.bump('spawn.killed', metricDims(record.backend, record.model, record.identity));
 
     // Kill is an intervention, not a clean exit — slash the bond so the
     // commons pool captures the cost of the decision. Panic path calls

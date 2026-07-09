@@ -79,6 +79,45 @@ describe('attention.compose', () => {
     });
   });
 
+  test('parley turns are fanned out through inbox and surface in attention', () => {
+    const { db, attention, inbox } = setup();
+    const tuples = createTupleSpace(db);
+    const parley = createParley({ tuples, agentInbox: inbox, now: () => 1_700_000_000_000 });
+
+    const opened = parley.call({
+      surface: 'lib/sessions.ts',
+      reason: 'overlapping ownership',
+      parties: ['agent-x', 'agent-y'],
+      calledBy: 'operator',
+    });
+    // Drain the summons so only the turn remains.
+    attention.compose('agent-x');
+
+    parley.respond({
+      parleyId: opened.parleyId,
+      party: 'agent-y',
+      performative: 'propose',
+      content: 'take sessions.ts, cede locks.ts',
+    });
+
+    const result = attention.compose('agent-x', { peek: true });
+    expect(result.counts.inbox).toBe(1);
+    expect(result.items[0]).toMatchObject({
+      source: 'inbox',
+      agentId: 'agent-x',
+      from: 'agent-y',
+      type: 'parley_turn',
+      contentType: 'json',
+    });
+    expect(result.items[0].content).toMatchObject({
+      kind: 'parley_turn',
+      parleyId: opened.parleyId,
+      party: 'agent-y',
+      performative: 'propose',
+      content: 'take sessions.ts, cede locks.ts',
+    });
+  });
+
   test('peek does NOT mark inbox read', () => {
     const { attention, inbox } = setup();
     inbox.send('agent-x', 'hello', { from: 'agent-a' });

@@ -6,7 +6,9 @@
  * idempotency key for the whole pipeline.
  */
 
-export interface ExecutorEnv {
+import type { PortDaddyTelemetryEnv } from './telemetry.js';
+
+export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   /** GitHub App id (var or secret). */
   GITHUB_APP_ID: string;
   /** GitHub App private key, PEM-encoded (secret). */

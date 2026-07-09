@@ -10,6 +10,7 @@
 use crate::agent::DaemonClient;
 use crate::theme::Oklch;
 use anyhow::Result;
+use std::sync::Arc;
 
 /// Semantic tone — color = MEANING only (resolved to theme OKLCH by the renderer).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -43,7 +44,59 @@ impl Tone {
 }
 
 /// The render-agnostic primitives a pane emits. Both renderers paint these.
-#[derive(Debug, Clone)]
+/// The syntax class of one code-line run — the render-agnostic vocabulary the
+/// Harbor editor's tokenizer (`syntax.rs`) emits. Like [`Tone`], this is
+/// *meaning*: each face resolves it to a color in its own theme layer
+/// (`palette.rs` for GPUI, `theme.rs` for the REPL) — never inline hex.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SyntaxKind {
+    Plain,
+    Keyword,
+    Type,
+    Str,
+    Comment,
+    Number,
+}
+
+/// One pre-tokenized line of a [`Block::CodeBuffer`]. Built ONCE per buffer
+/// change (load / merged remote op), then shared by `Arc` — a render pass
+/// never re-clones or re-lexes line text.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CodeLine {
+    /// 1-based line number (always shown in the gutter).
+    pub number: u32,
+    /// Short author tag for the gutter's ALWAYS-VISIBLE author column
+    /// (operator ruling 2026-07-07: per-line authorship is the Harbor
+    /// editor's point). `Some` for every attributed line; `None` only when
+    /// the buffer has no authorship info for the line. Renderers tone it by
+    /// [`author_tone`](CodeLine::author_tone) — opener subtle, agent distinct.
+    pub author_tag: Option<Arc<str>>,
+    /// Tone for the author tag (opener = Resting, agent peer = Engaged).
+    pub author_tone: Tone,
+    /// The line's text (no trailing newline).
+    pub text: Arc<str>,
+    /// Consecutive `(byte_len, kind)` syntax runs exactly covering `text`.
+    pub runs: Vec<(u32, SyntaxKind)>,
+}
+
+/// A background highlight band behind a span of code lines (1-based,
+/// inclusive): claim regions, the conflict wedge, the bound region. Renderers
+/// paint it as a full-width wash BEHIND the text — never per-line card chrome.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CodeBand {
+    pub start: u32,
+    pub end: u32,
+    pub tone: Tone,
+}
+
+impl CodeBand {
+    /// Does this band cover 1-based line `n`?
+    pub fn covers(&self, n: u32) -> bool {
+        n >= self.start.min(self.end) && n <= self.start.max(self.end)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Block {
     Header(String),
     KeyVal(String, String),
@@ -51,11 +104,18 @@ pub enum Block {
     /// A conversation turn from a live agent work session. This is the primary
     /// shape for Lane transcript content: who spoke, what they said, and the
     /// semantic tone. Renderers should treat it as chat, not table/control UI.
-    ChatTurn { speaker: String, text: String, tone: Tone },
+    ChatTurn {
+        speaker: String,
+        text: String,
+        tone: Tone,
+    },
     /// A conversational/event-stream line. Unlike [`Block::Row`], this is not
     /// tabular or clickable chrome; renderers should paint it as readable log
     /// typography with a small semantic marker.
-    TranscriptLine { text: String, tone: Tone },
+    TranscriptLine {
+        text: String,
+        tone: Tone,
+    },
     /// A file or generated artifact referenced by a transcript. The path should
     /// be display-ready for the current developer environment, preferably
     /// relative to the active worktree so it can be found in the file tree.
@@ -76,17 +136,27 @@ pub enum Block {
         image_path: Option<String>,
         tone: Tone,
     },
-    Chip { label: String, tone: Tone },
+    Chip {
+        label: String,
+        tone: Tone,
+    },
     /// A maritime ICS signal flag: a colored square bearing the single letter,
     /// followed by a label (e.g. the agent identity + state). The console paints
     /// the square in the flag's semantic tone — a real flag, not `[A]` text.
-    Flag { letter: char, label: String, tone: Tone },
+    Flag {
+        letter: char,
+        label: String,
+        tone: Tone,
+    },
     Spark(Vec<f32>),
     Gap,
     /// Full, wrapped, never-truncated text — for alert/HITL detail the operator
     /// must read in full (a daemon rejection, a stack of blocked reasons). The
     /// renderer wraps it; it never ellipsizes. (HCD: bridge the Gulf of Evaluation.)
-    WrappedText { text: String, tone: Tone },
+    WrappedText {
+        text: String,
+        tone: Tone,
+    },
     /// A clickable roster row for a conjoined roster/detail surface (binder ch18
     /// work order C3). Selecting a row is a [`SurfaceAction::SelectRow`] — the
     /// operator never types an id. `live` marks daemon-proved liveness (heartbeat
@@ -122,6 +192,24 @@ pub enum Block {
         why_disabled: Option<String>,
         /// Paint as the primary action.
         primary: bool,
+    },
+    /// A code buffer rendered as ONE tight monospace surface: fixed line
+    /// height, a thin gutter column, per-run syntax color — never per-line
+    /// cards ([`Block::Row`] is table/control chrome; code must not ride it).
+    /// `lines` is `Arc`-shared so emitting this block per view() is a
+    /// refcount bump, not a buffer clone; the GPUI face virtualizes it with
+    /// `uniform_list` (only visible lines are painted).
+    CodeBuffer {
+        lines: std::sync::Arc<[CodeLine]>,
+        /// Digit width of the line-number column (max line count's digits).
+        gutter_cols: u8,
+        /// Background bands (claims / wedge / bound region), O(claims).
+        bands: Vec<CodeBand>,
+        /// `true` when a REAL second author exists in the buffer. The author
+        /// column itself is ALWAYS visible (operator ruling 2026-07-07:
+        /// per-line authorship is the Harbor editor's point) — renderers use
+        /// this as a legend hint (e.g. show the agent legend flag).
+        show_authors: bool,
     },
 }
 
@@ -171,7 +259,12 @@ impl Alert {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
             .unwrap_or(0);
-        Self { level, title: title.into(), detail: detail.into(), ts }
+        Self {
+            level,
+            title: title.into(),
+            detail: detail.into(),
+            ts,
+        }
     }
     pub fn error(title: impl Into<String>, detail: impl Into<String>) -> Self {
         Self::new(AlertLevel::Error, title, detail)
@@ -231,7 +324,9 @@ impl OperatorTurn {
             }
             if let Some(path) = line_directive(line, &["@file ", "file "]) {
                 push_attachment(&mut turn, OperatorAttachmentKind::File, path);
-            } else if let Some(path) = line_directive(line, &["@photo ", "photo ", "@image ", "image "]) {
+            } else if let Some(path) =
+                line_directive(line, &["@photo ", "photo ", "@image ", "image "])
+            {
                 push_attachment(&mut turn, OperatorAttachmentKind::Photo, path);
             } else if let Some(skill) = line_directive(line, &["@skill ", "skill ", "#skill "]) {
                 push_unique(&mut turn.skills, skill);
@@ -267,7 +362,11 @@ impl OperatorTurn {
         if !self.attachments.is_empty() {
             let mut lines = vec!["Attachments:".to_string()];
             for attachment in &self.attachments {
-                lines.push(format!("- {}: {}", attachment.kind.label(), attachment.path));
+                lines.push(format!(
+                    "- {}: {}",
+                    attachment.kind.label(),
+                    attachment.path
+                ));
             }
             sections.push(lines.join("\n"));
         }
@@ -308,13 +407,23 @@ impl OperatorTurn {
             let (head, tail) = split_trailing_punctuation(word);
             if let Some(path) = marker_value(head, &["@file:", "@file="]) {
                 push_attachment(self, OperatorAttachmentKind::File, path);
-            } else if let Some(path) = marker_value(head, &["@photo:", "@photo=", "@image:", "@image="]) {
+            } else if let Some(path) =
+                marker_value(head, &["@photo:", "@photo=", "@image:", "@image="])
+            {
                 push_attachment(self, OperatorAttachmentKind::Photo, path);
             } else if let Some(path) = head.strip_prefix('@').filter(|p| looks_pathish(p)) {
                 push_attachment(self, OperatorAttachmentKind::File, path);
-            } else if let Some(skill) = marker_value(head, &["skill:", "skill=", "#skill:", "#skill=", "@skill:", "@skill="]) {
+            } else if let Some(skill) = marker_value(
+                head,
+                &[
+                    "skill:", "skill=", "#skill:", "#skill=", "@skill:", "@skill=",
+                ],
+            ) {
                 push_unique(&mut self.skills, skill);
-            } else if let Some(tool) = marker_value(head, &["tool:", "tool=", "/tool:", "/tool=", "@tool:", "@tool="]) {
+            } else if let Some(tool) = marker_value(
+                head,
+                &["tool:", "tool=", "/tool:", "/tool=", "@tool:", "@tool="],
+            ) {
                 push_unique(&mut self.tools, tool);
             } else {
                 words.push(format!("{head}{tail}"));
@@ -430,7 +539,10 @@ pub enum Subscription {
     /// consumed in main.rs (which currently treats an `Editor` intent as "nothing to
     /// follow"); the editor surface will drive both subscriptions when the keystroke
     /// input layer lands.
-    Editor { channel: String, coord_channel: String },
+    Editor {
+        channel: String,
+        coord_channel: String,
+    },
 }
 
 /// What every pane implements. Object-safe (the registry holds `Box<dyn Pane>`):
@@ -549,10 +661,7 @@ mod operator_turn_tests {
         assert_eq!(turn.text, "Review this");
         assert_eq!(turn.attachments.len(), 1);
         assert_eq!(turn.attachments[0].kind, OperatorAttachmentKind::File);
-        assert_eq!(
-            turn.attachments[0].path,
-            "core/pd-console/src/lane_pane.rs"
-        );
+        assert_eq!(turn.attachments[0].path, "core/pd-console/src/lane_pane.rs");
         assert_eq!(turn.skills, vec!["cse-design-process"]);
         assert_eq!(turn.tools, vec!["apply_patch"]);
     }
@@ -594,7 +703,10 @@ pub struct CoastGuardPane {
 
 impl Default for CoastGuardPane {
     fn default() -> Self {
-        Self { sandboxes: 0, egress_capped: false }
+        Self {
+            sandboxes: 0,
+            egress_capped: false,
+        }
     }
 }
 
@@ -610,8 +722,17 @@ impl Pane for CoastGuardPane {
             Block::Header("Coast Guard".into()),
             Block::KeyVal("sandboxes".into(), self.sandboxes.to_string()),
             Block::Chip {
-                label: if self.egress_capped { "egress capped" } else { "egress open" }.into(),
-                tone: if self.egress_capped { Tone::Landed } else { Tone::Gated },
+                label: if self.egress_capped {
+                    "egress capped"
+                } else {
+                    "egress open"
+                }
+                .into(),
+                tone: if self.egress_capped {
+                    Tone::Landed
+                } else {
+                    Tone::Gated
+                },
             },
         ]
     }
@@ -633,7 +754,10 @@ mod tests {
 
     #[test]
     fn alert_carries_full_detail_and_maps_to_tone() {
-        let a = Alert::error("spawn rejected (claude-cli)", "login cannot be verified non-interactively");
+        let a = Alert::error(
+            "spawn rejected (claude-cli)",
+            "login cannot be verified non-interactively",
+        );
         assert_eq!(a.level, AlertLevel::Error);
         // Detail is preserved in full — never truncated at the source.
         assert!(a.detail.contains("non-interactively"));
@@ -678,26 +802,29 @@ mod tests {
             "Recording".into()
         }
         fn view(&self) -> Vec<Block> {
-            vec![Block::KeyVal("actions".into(), self.actions.len().to_string())]
+            vec![Block::KeyVal(
+                "actions".into(),
+                self.actions.len().to_string(),
+            )]
         }
         fn refresh<'a>(
             &'a mut self,
             _daemon: &'a DaemonClient,
-        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>>
-        {
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
             Box::pin(async { Ok(()) })
         }
         fn mutate<'a>(
             &'a mut self,
             _daemon: &'a DaemonClient,
             action: SurfaceAction,
-        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>>
-        {
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
             self.actions.push(action);
             Box::pin(async { Ok(()) })
         }
         fn subscription(&self) -> Option<Subscription> {
-            Some(Subscription::Agent { agent_id: self.watching.clone() })
+            Some(Subscription::Agent {
+                agent_id: self.watching.clone(),
+            })
         }
         fn on_stream(&mut self, _env: &crate::agent::StreamEnvelope) {
             self.envelopes += 1;
@@ -723,7 +850,9 @@ mod tests {
         // A real DaemonClient isn't needed: RecordingSurface ignores it. But
         // mutate takes &DaemonClient, so build a cheap one against a dummy base
         // (bound to a local so it outlives the borrow the future holds).
-        let action = SurfaceAction::Interrupt { reason: Some("operator stop".into()) };
+        let action = SurfaceAction::Interrupt {
+            reason: Some("operator stop".into()),
+        };
         let daemon = DaemonClient::new("http://127.0.0.1:1".into());
         let fut = reg.panes[0].mutate(&daemon, action);
         futures_block_on(fut).expect("mutate ok");

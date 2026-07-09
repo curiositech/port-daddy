@@ -191,6 +191,10 @@ you explicitly hand it off in Port Daddy notes.
   every actionable thread with fixed / deferred / contested-because, and never
   declare a PR done with a `port-daddy-fleet` (or other actionable) thread
   unanswered.
+- A reply is not the same as resolution. After fixing or contesting inline
+  review comments, resolve the GitHub review threads and query the PR's
+  `reviewThreads` (GraphQL or equivalent) to prove no actionable thread remains
+  unresolved.
 - Run or spawn an adversarial reviewer for non-trivial changes. Ask for a
   `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict and fix high-confidence
   findings before merge.
@@ -368,12 +372,89 @@ ambiguous handoffs, and local green checks that do not match the installed app.
   enforced claims, run `pd guard install --mode enforce` or leave an explicit
   blocker note with the exact failure.
 
+## Daemon Architecture Model
+
+Treat the daemon as the local single-writer control plane. Stable, dev-latest,
+and branch berths may all run at once, but they do not share a SQLite file and
+they are not interchangeable evidence.
+
+The Agent Harbor runtime refactor target (ADR-0100) is intentionally
+destructive: one Surface Gateway owns official command, query, and event
+envelopes; WorkIntent is the launch-shaped runtime primitive; old routes,
+verbs, and MCP tools survive only as temporary migration adapters or fail-closed
+messages once the gateway path owns the behavior. Do not document this target
+as shipped unless the current branch and live daemon prove it.
+
+```mermaid
+flowchart TB
+  PDConsole["pd-console<br/>deep proof surface"]
+  FleetBar["FleetBar<br/>ambient consent + re-entry"]
+  Scout["Scout<br/>evidence-backed intake"]
+  CLI["CLI / SDK<br/>automation adapter"]
+  MCP["MCP<br/>agent capability adapter"]
+  SurfaceGateway["Surface Gateway<br/>command / query / event envelopes"]
+  HotBus["Hot bus<br/>presence, steering, stream cursors"]
+  CoolBus["Cool bus<br/>WorkIntent, transcripts, claims,<br/>control commands, receipts"]
+  Kernel["Local Runtime Kernel<br/>single-writer machine authority"]
+  Work["WorkIntent -> WorkPlan -> AgentNode -> AgentRun"]
+  Supervisor["pd-supervisor<br/>Bosun inside"]
+  StableDB[("Local berth SQLite WAL DB<br/>not shared across machines")]
+  LocalState["Machine-local authority<br/>ports, PIDs, sockets, keychain,<br/>workspace files, UI proof"]
+  AccountHarbor["Optional cloud account harbor<br/>sync, leases, receipts, ordering"]
+  Remote["Other machines<br/>their own daemon + DB"]
+
+  PDConsole <--> SurfaceGateway
+  FleetBar --> SurfaceGateway
+  Scout --> SurfaceGateway
+  CLI --> SurfaceGateway
+  MCP --> SurfaceGateway
+  SurfaceGateway --> HotBus
+  SurfaceGateway --> CoolBus
+  HotBus --> Kernel
+  CoolBus --> Kernel
+  Kernel --> Work
+  Kernel --> Supervisor
+  Kernel --> StableDB
+  Kernel --> LocalState
+  Kernel -. optional durable sync .-> AccountHarbor
+  Remote -. sync, leases, receipts .-> AccountHarbor
+```
+
+Authority rules:
+
+- `pd-console` is the deep proof surface; FleetBar grants ambient consent,
+  status, and re-entry; Scout captures evidence-backed Work Intents.
+- Native surfaces do not call CLI or MCP internally. FleetBar, pd-console,
+  Scout, CLI, SDK, and MCP are adapters into the same daemon contract / Surface
+  Gateway path; CLI and MCP are for agents, scripts, CI, emergency repair, and
+  integrations.
+- `pd use` is per-shell/per-process berth context. It does not switch the global
+  daemon. Native surfaces must show the active berth/codebase/dev lane they are
+  actually connected to.
+- A local daemon is authoritative for its own machine. Never assume another
+  machine has the same DB state unless a named harbor sync/lease protocol says
+  so and exposes read-back evidence.
+- Stable Homebrew (`:9876`) is the operator's canonical local runtime. Dev
+  berths are proof for a branch, not proof that FleetBar's stable surface is
+  fixed.
+- Cross-machine coordination should sync durable events, receipts, leases, and
+  replayable intent through a harbor/relay ledger. Do not pretend SQLite files
+  merge peer-to-peer or share a writable registry across machines.
+- When WorkIntent and Surface Gateway own a behavior, delete the older route,
+  CLI verb, or MCP tool; or keep it only as a short-lived internal adapter that
+  writes legacy provenance into the new envelope and has an explicit deletion
+  plan. No long-lived bridge architecture.
+- Release proof must include source tests, the compiled daemon binary, launchd
+  supervision, smoke routes, soak/shadow workload, `pd doctor`, and visible
+  pd-console plus FleetBar truth.
+
 ## FleetBar And Console Proof
 
-FleetBar is the native Mac entry point. Fleet Control Center is the full
-console. Use them when the task touches agents, readiness, launches, Shipwright,
-resources, spawned runs, or operator-visible coordination. Deeper guidance lives in
-`references/fleetbar-and-console.md` (loaded via the bundled assets map below).
+FleetBar is the native Mac ambient entry point. pd-console is the deep proof
+surface for full runtime truth. Use them when the task touches agents,
+readiness, launches, Shipwright, resources, spawned runs, or operator-visible
+coordination. Deeper guidance lives in `references/fleetbar-and-console.md`
+(loaded via the bundled assets map below).
 
 ## Bundled Assets — Load On Demand
 

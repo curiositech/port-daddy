@@ -44,7 +44,10 @@ pub enum SurfaceKind {
     /// optional 1-based inclusive `(start, end)` line span to scroll to / mark
     /// (the seam P1 authorship color and P3 claim bands paint into). P0 has no
     /// buffer, no CRDT, no networking — it reads the file and renders it.
-    Editor { path: String, region: Option<(u32, u32)> },
+    Editor {
+        path: String,
+        region: Option<(u32, u32)>,
+    },
     /// Daemon health / runtime state.
     DaemonHealth,
     /// All running fleet agents at a glance.
@@ -78,7 +81,11 @@ impl SurfaceKind {
             SurfaceKind::FileTree { root: Some(r) } => format!("files {r}"),
             SurfaceKind::FileTree { root: None } => "files".into(),
             SurfaceKind::Editor { path, .. } => {
-                let base = path.rsplit(['/', '\\']).next().filter(|s| !s.is_empty()).unwrap_or(path);
+                let base = path
+                    .rsplit(['/', '\\'])
+                    .next()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or(path);
                 format!("edit {base}")
             }
             SurfaceKind::DaemonHealth => "daemon".into(),
@@ -136,9 +143,9 @@ impl Node {
     fn find_surface_mut(&mut self, target: PaneId) -> Option<&mut SurfaceKind> {
         match self {
             Node::Leaf { id, surface } => (*id == target).then_some(surface),
-            Node::Split { children, .. } => {
-                children.iter_mut().find_map(|c| c.node.find_surface_mut(target))
-            }
+            Node::Split { children, .. } => children
+                .iter_mut()
+                .find_map(|c| c.node.find_surface_mut(target)),
         }
     }
 }
@@ -207,8 +214,14 @@ impl Workspace {
                 self.root = Node::Split {
                     dir,
                     children: vec![
-                        Child { weight: 1.0, node: old },
-                        Child { weight: 1.0, node: Node::leaf(new_id, surface) },
+                        Child {
+                            weight: 1.0,
+                            node: old,
+                        },
+                        Child {
+                            weight: 1.0,
+                            node: Node::leaf(new_id, surface),
+                        },
                     ],
                 };
                 self.focused = new_id;
@@ -232,7 +245,11 @@ impl Workspace {
         }
         // Pick the focus successor before we mutate the tree.
         let idx = leaves.iter().position(|&l| l == self.focused).unwrap_or(0);
-        let successor = leaves[if idx + 1 < leaves.len() { idx + 1 } else { idx - 1 }];
+        let successor = leaves[if idx + 1 < leaves.len() {
+            idx + 1
+        } else {
+            idx - 1
+        }];
 
         let target = self.focused;
         remove_leaf(&mut self.root, target);
@@ -333,22 +350,48 @@ pub fn default_operator_workspace(initial: Option<SurfaceKind>) -> Workspace {
 // ── Recursive tree surgery (free fns keep the borrow checker happy) ──────────
 
 /// Replace the focused leaf with a split, or append to a same-orientation parent.
-fn split_in(node: &mut Node, target: PaneId, dir: Dir, new_id: PaneId, surface: SurfaceKind) -> bool {
-    if let Node::Split { dir: sdir, children } = node {
+fn split_in(
+    node: &mut Node,
+    target: PaneId,
+    dir: Dir,
+    new_id: PaneId,
+    surface: SurfaceKind,
+) -> bool {
+    if let Node::Split {
+        dir: sdir,
+        children,
+    } = node
+    {
         // Does this split directly contain the focused leaf?
-        if let Some(pos) = children.iter().position(|c| matches!(&c.node, Node::Leaf { id, .. } if *id == target)) {
+        if let Some(pos) = children
+            .iter()
+            .position(|c| matches!(&c.node, Node::Leaf { id, .. } if *id == target))
+        {
             if *sdir == dir {
                 // Same orientation → append as an even sibling.
                 let avg = children.iter().map(|c| c.weight).sum::<f32>() / children.len() as f32;
-                children.insert(pos + 1, Child { weight: avg, node: Node::leaf(new_id, surface) });
+                children.insert(
+                    pos + 1,
+                    Child {
+                        weight: avg,
+                        node: Node::leaf(new_id, surface),
+                    },
+                );
             } else {
                 // Cross orientation → wrap that one child in a nested split.
-                let old = std::mem::replace(&mut children[pos].node, Node::leaf(0, SurfaceKind::Roadmap));
+                let old =
+                    std::mem::replace(&mut children[pos].node, Node::leaf(0, SurfaceKind::Roadmap));
                 children[pos].node = Node::Split {
                     dir,
                     children: vec![
-                        Child { weight: 1.0, node: old },
-                        Child { weight: 1.0, node: Node::leaf(new_id, surface) },
+                        Child {
+                            weight: 1.0,
+                            node: old,
+                        },
+                        Child {
+                            weight: 1.0,
+                            node: Node::leaf(new_id, surface),
+                        },
                     ],
                 };
             }
@@ -407,7 +450,11 @@ fn resize_leaf(node: &mut Node, target: PaneId, delta: f32) -> bool {
             if children.len() < 2 {
                 return false;
             }
-            let neighbor = if pos + 1 < children.len() { pos + 1 } else { pos - 1 };
+            let neighbor = if pos + 1 < children.len() {
+                pos + 1
+            } else {
+                pos - 1
+            };
             let shift = children[pos].weight * delta;
             children[pos].weight = (children[pos].weight + shift).max(0.05);
             children[neighbor].weight = (children[neighbor].weight - shift).max(0.05);
@@ -454,7 +501,12 @@ fn resize_pair_in(node: &mut Node, path: &[usize], left: usize, target: f32) -> 
 impl fmt::Display for Workspace {
     /// Compact ASCII rendering of the tree, for debugging and tests.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn go(node: &Node, focused: PaneId, depth: usize, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn go(
+            node: &Node,
+            focused: PaneId,
+            depth: usize,
+            f: &mut fmt::Formatter<'_>,
+        ) -> fmt::Result {
             let pad = "  ".repeat(depth);
             match node {
                 Node::Leaf { id, surface } => {
@@ -462,7 +514,10 @@ impl fmt::Display for Workspace {
                     writeln!(f, "{pad}{mark}[{id}] {}", surface.label())
                 }
                 Node::Split { dir, children } => {
-                    let d = match dir { Dir::Row => "ROW", Dir::Col => "COL" };
+                    let d = match dir {
+                        Dir::Row => "ROW",
+                        Dir::Col => "COL",
+                    };
                     writeln!(f, "{pad}{d}")?;
                     for c in children {
                         go(&c.node, focused, depth + 1, f)?;
@@ -480,7 +535,9 @@ mod tests {
     use super::*;
 
     fn agent(id: &str) -> SurfaceKind {
-        SurfaceKind::AgentTranscript { agent_id: Some(id.into()) }
+        SurfaceKind::AgentTranscript {
+            agent_id: Some(id.into()),
+        }
     }
 
     #[test]
@@ -506,7 +563,10 @@ mod tests {
         ws.split(Dir::Row, agent("a2"));
         // A single ROW split with three children — no nesting.
         match &ws.root {
-            Node::Split { dir: Dir::Row, children } => assert_eq!(children.len(), 3),
+            Node::Split {
+                dir: Dir::Row,
+                children,
+            } => assert_eq!(children.len(), 3),
             other => panic!("expected a flat 3-way row, got {other:?}"),
         }
         assert_eq!(ws.pane_count(), 3);
@@ -518,9 +578,15 @@ mod tests {
         ws.split(Dir::Row, agent("a1")); // now ROW[roadmap, a1], focus a1
         ws.split(Dir::Col, agent("a2")); // split a1 vertically → nested COL
         match &ws.root {
-            Node::Split { dir: Dir::Row, children } => {
+            Node::Split {
+                dir: Dir::Row,
+                children,
+            } => {
                 assert_eq!(children.len(), 2);
-                assert!(matches!(children[1].node, Node::Split { dir: Dir::Col, .. }));
+                assert!(matches!(
+                    children[1].node,
+                    Node::Split { dir: Dir::Col, .. }
+                ));
             }
             other => panic!("expected nested col under row, got {other:?}"),
         }
@@ -568,7 +634,10 @@ mod tests {
     fn default_operator_workspace_with_initial_opens_single_experience() {
         let ws = default_operator_workspace(Some(SurfaceKind::AgentTranscript { agent_id: None }));
         assert_eq!(ws.pane_count(), 1);
-        assert!(matches!(ws.focused_surface(), SurfaceKind::AgentTranscript { agent_id: None }));
+        assert!(matches!(
+            ws.focused_surface(),
+            SurfaceKind::AgentTranscript { agent_id: None }
+        ));
     }
 
     #[test]
@@ -587,15 +656,24 @@ mod tests {
         ws.bind_entity(Some("a2".into()));
         assert_eq!(ws.focused_surface(), &agent("a2"));
         ws.bind_entity(None);
-        assert_eq!(ws.focused_surface(), &SurfaceKind::AgentTranscript { agent_id: None });
+        assert_eq!(
+            ws.focused_surface(),
+            &SurfaceKind::AgentTranscript { agent_id: None }
+        );
     }
 
     #[test]
     fn editor_label_is_basename_only() {
-        let e = SurfaceKind::Editor { path: "core/pd-console/src/mux.rs".into(), region: None };
+        let e = SurfaceKind::Editor {
+            path: "core/pd-console/src/mux.rs".into(),
+            region: None,
+        };
         assert_eq!(e.label(), "edit mux.rs");
         // A bare filename (no separators) labels as itself.
-        let bare = SurfaceKind::Editor { path: "README.md".into(), region: Some((3, 9)) };
+        let bare = SurfaceKind::Editor {
+            path: "README.md".into(),
+            region: Some((3, 9)),
+        };
         assert_eq!(bare.label(), "edit README.md");
     }
 
@@ -608,7 +686,10 @@ mod tests {
         ws.bind_entity(Some("b.txt".into()));
         assert_eq!(
             ws.focused_surface(),
-            &SurfaceKind::Editor { path: "b.txt".into(), region: None },
+            &SurfaceKind::Editor {
+                path: "b.txt".into(),
+                region: None
+            },
             "rebinding the path resets the region — a different file's spans are unrelated",
         );
     }
@@ -655,18 +736,30 @@ mod tests {
     fn resize_pair_moves_the_boundary_and_clamps() {
         let mut ws = Workspace::new(SurfaceKind::Roadmap);
         ws.split(Dir::Row, agent("a1")); // ROW[roadmap, a1], weights 1,1 (total 2)
-        // Move the boundary to 0.25 of total → left weight 0.5, right 1.5.
+                                         // Move the boundary to 0.25 of total → left weight 0.5, right 1.5.
         assert!(ws.resize_pair(&[], 0, 0.25));
         if let Node::Split { children, .. } = &ws.root {
-            assert!((children[0].weight - 0.5).abs() < 1e-4, "left {}", children[0].weight);
-            assert!((children[1].weight - 1.5).abs() < 1e-4, "right {}", children[1].weight);
+            assert!(
+                (children[0].weight - 0.5).abs() < 1e-4,
+                "left {}",
+                children[0].weight
+            );
+            assert!(
+                (children[1].weight - 1.5).abs() < 1e-4,
+                "right {}",
+                children[1].weight
+            );
         } else {
             panic!("expected a split");
         }
         // Clamp: target 0 pins the left child to the 0.05 floor (no zero panes).
         ws.resize_pair(&[], 0, 0.0);
         if let Node::Split { children, .. } = &ws.root {
-            assert!((children[0].weight - 0.05).abs() < 1e-4, "clamped {}", children[0].weight);
+            assert!(
+                (children[0].weight - 0.05).abs() < 1e-4,
+                "clamped {}",
+                children[0].weight
+            );
         }
         // Out-of-range boundary index is a no-op.
         assert!(!ws.resize_pair(&[], 5, 0.5));

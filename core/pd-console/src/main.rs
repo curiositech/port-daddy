@@ -31,8 +31,11 @@ mod editor_pane;
 mod editor_sync;
 mod editor_wedge;
 mod fleet_pane;
+mod galaxy_canvas;
+mod galaxy_pane;
 mod grid;
 mod harbor_pane;
+mod headless_capture;
 mod health_pane;
 mod inbox_pane;
 mod lane_pane;
@@ -48,10 +51,12 @@ mod peek_pane;
 mod planner_pane;
 mod prs_pane;
 mod roadmap_pane;
+mod script;
 mod sessions_pane;
 mod sortie_pane;
 mod substrate_pane;
 mod suggest_pane;
+mod syntax;
 mod term;
 mod theme;
 mod tokens;
@@ -69,6 +74,7 @@ use conductor_pane::ConductorPane;
 use daemon_pane::DaemonPane;
 use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
+use galaxy_pane::GalaxyPane;
 use harbor_pane::HarborPane;
 use health_pane::HealthPane;
 use inbox_pane::InboxPane;
@@ -226,6 +232,35 @@ fn main() {
         return;
     }
 
+    // `--headless-capture <path>` renders the render-agnostic Block model to an
+    // offscreen PNG with no window, no display, and no Screen-Recording (TCC)
+    // permission — agent-safe visual proof. It intentionally runs BEFORE window +
+    // daemon init and returns without ever calling `Application::new()`. This is
+    // the Block model, NOT the GPUI/Metal framebuffer: gpui 0.2.2 exposes no
+    // offscreen Metal readback (see docs/artifacts/gpui/HEADLESS-CAPTURE.md).
+    {
+        let args: Vec<String> = std::env::args().collect();
+        if let Some(i) = args.iter().position(|a| a == "--headless-capture") {
+            // Fall back to the default when the next token is another flag (or
+            // absent) rather than silently writing to a path like `--list-displays`.
+            let out = args
+                .get(i + 1)
+                .map(String::as_str)
+                .filter(|a| !a.starts_with('-'))
+                .unwrap_or("headless-capture.png");
+            match headless_capture::capture_to_path(out) {
+                Ok(bytes) => {
+                    println!("pd-console headless-capture -> {out} ({bytes} bytes, no window/display/TCC)");
+                    return;
+                }
+                Err(e) => {
+                    eprintln!("pd-console headless-capture failed: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+    }
+
     // Seed light/dark from PD_CONSOLE_THEME before the window opens (default dark).
     app::init_theme_from_env();
 
@@ -238,6 +273,7 @@ fn main() {
 
     let cli_args = parse_console_args(std::env::args());
     let initial_pane = cli_args.initial_pane.clone();
+    let control_sock = cli_args.control_sock.clone();
 
     // `--display <selector>` opens the window on a specific display instead of the
     // primary one. `selector` is a 0-based index into the display list (see
@@ -334,9 +370,16 @@ fn main() {
         //  7=Activity  8=Sessions  9=Inbox  10=Suggest  11=Memory  12=PRs
         //  13=Health  14=CoastGuard  15=Dispatch  16=Lane  17=Ledger  18=Lineage
         //  19=Substrate  20=Parley  21=Conductor  22=Daemons  23=Cloud Fleet
-        //  24=Active Agents
-        let (tx, rx) =
-            mpsc::channel::<(Vec<(usize, Vec<pane::Block>)>, Option<dispatch_pane::DispatchHead>)>();
+        //  24=Active Agents  25=Harbor  26=Sextant
+        //
+        // The tuple also carries Sextant's typed snapshot (points + clusters)
+        // alongside the render-agnostic blocks, so the bespoke canvas draws the
+        // REAL map data instead of re-parsing display text (DispatchHead precedent).
+        let (tx, rx) = mpsc::channel::<(
+            Vec<(usize, Vec<pane::Block>)>,
+            Option<dispatch_pane::DispatchHead>,
+            galaxy_pane::GalaxySnapshot,
+        )>();
         // Alert bus: the bg thread captures the daemon's REAL rejection from any
         // operator action and pushes it here instead of swallowing it (`let _ =`).
         // The fg drains it alongside pane updates — the keystone that turns
@@ -357,6 +400,18 @@ fn main() {
         // `(bound_path, view())` here on each fold edge for the foreground to surface on
         // the Editor surface — the wedge finally shows in the RUNNING window.
         let (editor_tx, editor_rx) = mpsc::channel::<(String, Vec<pane::Block>)>();
+        // Sextant bus: the bg thread owns the GET /galaxy/session/:id round-trip
+        // for a clicked point and streams the parsed detail (or the daemon's real
+        // failure) back to the view's drawer. Mirrors the conjure bus: a small
+        // dedicated channel, drained in the same 500ms foreground task.
+        let (galaxy_tx, galaxy_rx) = mpsc::channel::<app::GalaxyUpdate>();
+        // Scripting bus: the control-socket thread parses newline-JSON commands
+        // and parks each one here with a reply slot; the 500ms foreground task
+        // answers with full ConsoleView access (`--control-sock` / env).
+        let (script_tx, script_rx) = mpsc::channel::<script::ScriptEnvelope>();
+        if let Some(sock) = control_sock.clone() {
+            script::start_server(sock, script_tx);
+        }
         let url = daemon_url.clone();
         std::thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
@@ -400,6 +455,7 @@ fn main() {
                 let mut cloud_fleet = CloudFleetPane::new();    // 23 — remote relay observability (Phase C)
                 let mut live_agents = ActiveAgentsPane::new();  // 24 — harness roster
                 let mut harbor     = HarborPane::new();         // 25 — Agent Node roster+detail (ch18 C3)
+                let mut galaxy      = GalaxyPane::new();        // 26 — Sextant embedding map
 
                 // Pin the producer slots to the canonical grid map. If a pane is
                 // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
@@ -414,6 +470,7 @@ fn main() {
                         dispatch.id(), lane.id(), ledger.id(), lineage.id(), substrate.id(),
                         parley.id(), conductor.id(), daemons.id(), cloud_fleet.id(), live_agents.id(),
                         harbor.id(),
+                        galaxy.id(),
                     ],
                     grid::SLOT_PANE_IDS,
                     "producer slot order drifted from grid::SLOT_PANE_IDS",
@@ -546,59 +603,100 @@ fn main() {
                                         }
                                     }
                                     None => {
-                                        match client
-                                            .spawn(
-                                                agent::Backend::ClaudeCli,
-                                                &text,
-                                                &channel,
-                                                None,
-                                                agent::SpawnOpts::default(),
-                                            )
-                                            .await
-                                        {
-                                            Ok(outcome) => {
-                                                chat = Some((channel.clone(), 0));
-                                                // One-shot inline backends (ollama) reply
-                                                // in the spawn response, not on the tube.
-                                                if let Some(out) =
-                                                    outcome.output.filter(|t| !t.trim().is_empty())
-                                                {
-                                                    let _ = chat_tx.send(chat::ChatUpdate::Reply(
-                                                        chat::ChatMsg::agent("claude-cli", out),
-                                                    ));
+                                        // Bind a responder. FIRST resolve a dedicated
+                                        // workdir so the daemon's main-checkout isolation
+                                        // guard (assessSpawnIsolation) is SATISFIED — a bare
+                                        // spawn omitted workdir, defaulted to the daemon's own
+                                        // main checkout, and bounced, so NO responder ever
+                                        // bound and the chat stayed silent. `bind_error` is
+                                        // `Some(reason)` when we couldn't bind (worktree
+                                        // creation failed, or the spawn itself failed for
+                                        // budget/binary/daemon reasons); it drives ONE shared
+                                        // recovery path below.
+                                        let bind_error: Option<String> =
+                                            match agent::resolve_console_chat_workdir() {
+                                                // ChatWorkdirError already carries a full,
+                                                // actionable "couldn't create …" message (and
+                                                // names a worktree OR a scratch dir), so surface
+                                                // it verbatim — no redundant re-prefix.
+                                                Err(wd_err) => Some(wd_err.to_string()),
+                                                Ok(workdir) => {
+                                                    let opts = agent::SpawnOpts {
+                                                        workdir: Some(workdir),
+                                                        ..Default::default()
+                                                    };
+                                                    match client
+                                                        .spawn(
+                                                            agent::Backend::ClaudeCli,
+                                                            &text,
+                                                            &channel,
+                                                            None,
+                                                            opts,
+                                                        )
+                                                        .await
+                                                    {
+                                                        Ok(outcome) => {
+                                                            chat = Some((channel.clone(), 0));
+                                                            // One-shot inline backends (ollama)
+                                                            // reply in the spawn response, not
+                                                            // on the tube.
+                                                            if let Some(out) = outcome
+                                                                .output
+                                                                .filter(|t| !t.trim().is_empty())
+                                                            {
+                                                                let _ = chat_tx.send(
+                                                                    chat::ChatUpdate::Reply(
+                                                                        chat::ChatMsg::agent(
+                                                                            "claude-cli",
+                                                                            out,
+                                                                        ),
+                                                                    ),
+                                                                );
+                                                            }
+                                                            if let Some(err) = outcome.error {
+                                                                let _ = chat_tx.send(
+                                                                    chat::ChatUpdate::Error(format!(
+                                                                        "chat responder blocked: {err}"
+                                                                    )),
+                                                                );
+                                                            }
+                                                            None
+                                                        }
+                                                        // workdir is valid now, so a spawn
+                                                        // failure is budget / claude binary /
+                                                        // daemon — `e` carries the daemon's
+                                                        // SPECIFIC reason (ensure_success
+                                                        // forwards the response body). Surface
+                                                        // it; don't relabel it "spawn refused".
+                                                        Err(e) => Some(format!("no responder bound: {e}")),
+                                                    }
                                                 }
-                                                if let Some(err) = outcome.error {
+                                            };
+
+                                        // One shared recovery: if we couldn't bind, still
+                                        // round-trip the turn onto the channel so it isn't
+                                        // lost — and surface the SPECIFIC reason (never swallow
+                                        // the send: "stop swallowing errors").
+                                        if let Some(reason) = bind_error {
+                                            match client
+                                                .tube_send(&channel, &text, "operator")
+                                                .await
+                                            {
+                                                Ok(_) => {
+                                                    // Message is on the channel; poll for a
+                                                    // responder that may join later.
+                                                    chat = Some((channel, 0));
                                                     let _ = chat_tx.send(chat::ChatUpdate::Error(
-                                                        format!("chat responder blocked: {err}"),
+                                                        format!("{reason} — your message is on the channel; replies appear if a responder joins"),
                                                     ));
                                                 }
-                                            }
-                                            Err(e) => {
-                                                // No responder bound. Still try to round-trip
-                                                // the turn onto the real channel so it isn't
-                                                // lost — but surface WHICHEVER failure happened
-                                                // (never swallow the send: "stop swallowing
-                                                // errors").
-                                                match client
-                                                    .tube_send(&channel, &text, "operator")
-                                                    .await
-                                                {
-                                                    Ok(_) => {
-                                                        // Message is on the channel; poll for a
-                                                        // responder that may join later.
-                                                        chat = Some((channel, 0));
-                                                        let _ = chat_tx.send(chat::ChatUpdate::Error(
-                                                            format!("no responder bound (spawn refused): {e} — your message is on the channel; replies appear if one joins"),
-                                                        ));
-                                                    }
-                                                    Err(send_err) => {
-                                                        // Daemon fully unreachable: be honest the
-                                                        // message did NOT land; leave chat unbound
-                                                        // so the next turn retries the spawn.
-                                                        let _ = chat_tx.send(chat::ChatUpdate::Error(
-                                                            format!("message not delivered — spawn refused ({e}) and channel send failed ({send_err}); is the daemon up?"),
-                                                        ));
-                                                    }
+                                                Err(send_err) => {
+                                                    // Daemon fully unreachable: be honest the
+                                                    // message did NOT land; leave chat unbound
+                                                    // so the next turn retries the spawn.
+                                                    let _ = chat_tx.send(chat::ChatUpdate::Error(
+                                                        format!("{reason}; and the channel send also failed ({send_err}); is the daemon up?"),
+                                                    ));
                                                 }
                                             }
                                         }
@@ -819,6 +917,14 @@ fn main() {
                                 editor_stream = None; // and the editor's edit/coord streams
                                 chat = None; // re-bind chat on the new daemon's channel
                             }
+                            // Steer the Sextant pane's query; the next 2s refresh
+                            // fetches with the new window/floor.
+                            app::ControlMsg::GalaxyParams { window_hours, min_tokens } => {
+                                galaxy.set_params(window_hours, min_tokens);
+                            }
+                            app::ControlMsg::GalaxyCluster { enabled } => {
+                                galaxy.set_cluster(enabled);
+                            }
                             // Add an operator note (POST /notes).
                             app::ControlMsg::AddNote { content } => {
                                 match client.add_note(&content).await {
@@ -958,6 +1064,82 @@ fn main() {
                                     }
                                 }
                             }
+                            // Convene a parley from a Sextant selection (POST
+                            // /parley/call). Parties are agent ids the view
+                            // already deduped/gated at >=2; a daemon rejection
+                            // (400 body) surfaces VERBATIM on the alert bus.
+                            app::ControlMsg::GalaxyParley { surface, reason, parties } => {
+                                match client.call_parley(&surface, &reason, "operator", &parties).await {
+                                    Ok(v) => {
+                                        let parley = v.get("parley").cloned().unwrap_or_default();
+                                        let parley_id = parley
+                                            .get("parleyId")
+                                            .and_then(|x| x.as_str())
+                                            .unwrap_or("?")
+                                            .to_string();
+                                        let channel = parley
+                                            .get("channel")
+                                            .and_then(|x| x.as_str())
+                                            .unwrap_or("?")
+                                            .to_string();
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            "parley convened",
+                                            format!(
+                                                "parley {parley_id} on channel {channel} · {} parties · surface {surface}",
+                                                parties.len()
+                                            ),
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "parley call failed",
+                                            e.to_string(),
+                                        ));
+                                    }
+                                }
+                            }
+                            // Fetch one Sextant session's full detail through the
+                            // internal daemon API (GET /galaxy/session/:id) and push
+                            // the parsed result — or the real failure — down the
+                            // dedicated Sextant bus.
+                            app::ControlMsg::GalaxyDetail { transcript_id } => {
+                                let url =
+                                    format!("{}/galaxy/session/{transcript_id}", client.base());
+                                match client.http_client().get(&url).send().await {
+                                    Err(e) => {
+                                        let _ = galaxy_tx.send(app::GalaxyUpdate::DetailError(
+                                            format!("daemon unreachable: {e}"),
+                                        ));
+                                    }
+                                    Ok(resp) => {
+                                        let status = resp.status();
+                                        if !status.is_success() {
+                                            let body = resp.text().await.unwrap_or_default();
+                                            let _ = galaxy_tx.send(app::GalaxyUpdate::DetailError(
+                                                format!(
+                                                    "GET /galaxy/session/{transcript_id} -> {status}: {}",
+                                                    body.trim()
+                                                ),
+                                            ));
+                                        } else {
+                                            match resp.json::<serde_json::Value>().await {
+                                                Err(e) => {
+                                                    let _ = galaxy_tx.send(
+                                                        app::GalaxyUpdate::DetailError(format!(
+                                                            "bad response: {e}"
+                                                        )),
+                                                    );
+                                                }
+                                                Ok(v) => {
+                                                    let _ = galaxy_tx.send(app::GalaxyUpdate::Detail(
+                                                        galaxy_pane::detail_from_value(&v),
+                                                    ));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             // Harbor roster click: select a node (ch18 C3).
                             // Selection is a UI act; it never fails loudly.
                             app::ControlMsg::HarborSelect { index } => {
@@ -1044,6 +1226,7 @@ fn main() {
                     let _ = cloud_fleet.refresh(&client).await;
                     let _ = live_agents.refresh(&client).await;
                     let _ = harbor.refresh(&client).await;
+                    let _ = galaxy.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -1130,7 +1313,13 @@ fn main() {
                             // trait hooks discard; OR it into `editor_dirty` so a folded op /
                             // presence cursor / region claim triggers exactly one repaint.
                             while let Ok(msg) = edit_rx.try_recv() {
-                                editor_dirty |= ed.ingest_edit_channel(&msg.text);
+                                // The edit-sync lane multiplexes durable Loro op
+                                // frames and lossy presence frames under distinct
+                                // frame kinds (`ingest_frame` / `ingest_presence`
+                                // are mutually exclusive); `||` short-circuits so a
+                                // frame folds through exactly one path.
+                                editor_dirty |=
+                                    ed.ingest_frame(&msg.text) || ed.ingest_presence(&msg.text);
                             }
                             while let Ok(msg) = coord_rx.try_recv() {
                                 editor_dirty |= ed.ingest_claim(&msg.text);
@@ -1191,9 +1380,10 @@ fn main() {
                         (23, cloud_fleet.view()),
                         (24, live_agents.view()),
                         (25, harbor.view()),
+                        (26, galaxy.view()),
                     ];
 
-                    if tx.send((all, dispatch.head())).is_err() {
+                    if tx.send((all, dispatch.head(), galaxy.snapshot())).is_err() {
                         break; // window closed
                     }
                 }
@@ -1207,11 +1397,18 @@ fn main() {
             .spawn(async move {
                 loop {
                     bg.timer(Duration::from_millis(500)).await;
-                    while let Ok((panes, dispatch_head)) = rx.try_recv() {
+                    while let Ok((panes, dispatch_head, galaxy_snapshot)) = rx.try_recv() {
                         let _ = async_cx.update(|app| {
                             let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
-                                view.update_panes(panes.clone(), dispatch_head.clone());
-                                cx.notify();
+                                // Notify ONLY when a pane actually changed — an
+                                // idle 2s refresh cycle schedules zero repaints.
+                                if view.update_panes(
+                                    panes.clone(),
+                                    dispatch_head.clone(),
+                                    galaxy_snapshot.clone(),
+                                ) {
+                                    cx.notify();
+                                }
                             });
                         });
                     }
@@ -1253,6 +1450,29 @@ fn main() {
                         let _ = async_cx.update(|app| {
                             let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
                                 view.set_editor_blocks(editor_blocks.clone());
+                                cx.notify();
+                            });
+                        });
+                    }
+                    // Drain the Sextant bus: a clicked session's parsed detail
+                    // (or the daemon's real failure) into the drawer state.
+                    while let Ok(update) = galaxy_rx.try_recv() {
+                        let _ = async_cx.update(|app| {
+                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                                view.apply_galaxy_update(update.clone());
+                                cx.notify();
+                            });
+                        });
+                    }
+                    // Drain the scripting bus: answer each control-socket
+                    // command from the view, on the foreground, and post the
+                    // JSON reply back to the waiting socket thread.
+                    while let Ok(envelope) = script_rx.try_recv() {
+                        let script::ScriptEnvelope { request, reply } = envelope;
+                        let _ = async_cx.update(|app| {
+                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                                let response = view.handle_script(request.clone());
+                                let _ = reply.send(response);
                                 cx.notify();
                             });
                         });
