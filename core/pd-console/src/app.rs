@@ -185,7 +185,7 @@ pub enum ControlMsg {
         reason: String,
         parties: Vec<String>,
     },
-    /// Fetch one galaxy session's full detail: `GET /galaxy/session/:id`
+    /// Fetch one Sextant session's full detail through `GET /galaxy/session/:id`
     /// (`:id` = the transcript id from a clicked point). The parsed
     /// [`crate::galaxy_pane::GalaxyDetail`] returns on the dedicated Sextant bus
     /// (mirroring the conjure bus), drained into the view's detail drawer.
@@ -546,6 +546,17 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
         .into_iter()
         .find(|n| n.key == q || n.id.starts_with(&q) || n.label.to_lowercase().starts_with(&q))
         .map(|n| surface_for_launcher_id(n.id))
+}
+
+fn retired_galaxy_pane_reply(pane: &str) -> Option<serde_json::Value> {
+    if pane.trim().eq_ignore_ascii_case("galaxy") {
+        Some(serde_json::json!({
+            "ok": false,
+            "error": "pane galaxy was renamed to sextant; use pane=sextant.",
+        }))
+    } else {
+        None
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -3120,23 +3131,32 @@ impl ConsoleView {
                 "panes": NAV.iter().map(|n| n.id).collect::<Vec<_>>(),
                 "focused": self.ws().focused_surface().label(),
             }),
-            ScriptRequest::Focus { pane } => match surface_for_query(&pane) {
-                Some(surface) => {
-                    self.ws_mut().swap_surface(surface);
-                    json!({"ok": true, "focused": self.ws().focused_surface().label()})
+            ScriptRequest::Focus { pane } => {
+                if let Some(reply) = retired_galaxy_pane_reply(&pane) {
+                    reply
+                } else {
+                    match surface_for_query(&pane) {
+                        Some(surface) => {
+                            self.ws_mut().swap_surface(surface);
+                            json!({"ok": true, "focused": self.ws().focused_surface().label()})
+                        }
+                        None => json!({
+                            "ok": false,
+                            "error": format!("unknown pane \"{pane}\""),
+                            "panes": NAV.iter().map(|n| n.id).collect::<Vec<_>>(),
+                        }),
+                    }
                 }
-                None => json!({
-                    "ok": false,
-                    "error": format!("unknown pane \"{pane}\""),
-                    "panes": NAV.iter().map(|n| n.id).collect::<Vec<_>>(),
-                }),
-            },
+            }
             ScriptRequest::State { pane } => {
                 let target = pane.unwrap_or_else(|| {
                     nav_id_for_surface(self.ws().focused_surface())
                         .unwrap_or("fleet")
                         .to_string()
                 });
+                if let Some(reply) = retired_galaxy_pane_reply(&target) {
+                    return reply;
+                }
                 let Some(idx) = NAV.iter().position(|n| n.id == target) else {
                     return json!({
                         "ok": false,
@@ -6480,6 +6500,18 @@ mod add_pane_tests {
             Some(SurfaceKind::Panel { nav }) => assert_eq!(nav, "ledger"),
             other => panic!("key 'b' should map to the ledger panel, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn retired_galaxy_pane_gets_migration_guidance() {
+        let reply = retired_galaxy_pane_reply(" galaxy ").expect("retired pane reply");
+
+        assert_eq!(reply["ok"], false);
+        assert_eq!(
+            reply["error"],
+            "pane galaxy was renamed to sextant; use pane=sextant."
+        );
+        assert!(retired_galaxy_pane_reply("sextant").is_none());
     }
 
     #[test]

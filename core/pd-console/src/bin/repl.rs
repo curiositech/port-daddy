@@ -191,6 +191,14 @@ async fn drain_active_subscription(reg: &mut PaneRegistry, mgr: &AgentManager, w
     }
 }
 
+fn retired_repl_command_guidance(line: &str) -> Option<&'static str> {
+    if line.trim() == ":galaxy" {
+        Some("Galaxy was renamed to Sextant; use :sextant.")
+    } else {
+        None
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let style = TermStyle::detect(&theme::DARK);
@@ -231,7 +239,9 @@ async fn main() -> Result<()> {
             continue;
         }
 
-        if line == ":quit" || line == ":q" {
+        if let Some(message) = retired_repl_command_guidance(&line) {
+            err(&style, message);
+        } else if line == ":quit" || line == ":q" {
             break;
         } else if line == ":dispatch" {
             // Refresh the dispatch pane then render it.
@@ -611,4 +621,23 @@ async fn main() -> Result<()> {
     }
     println!("{}", style.paint("out.", Sem::Muted));
     Ok(())
+}
+
+#[cfg(test)]
+mod repl_migration_tests {
+    use super::*;
+
+    #[test]
+    fn retired_galaxy_command_points_to_sextant() {
+        assert_eq!(
+            retired_repl_command_guidance(":galaxy"),
+            Some("Galaxy was renamed to Sextant; use :sextant.")
+        );
+        assert_eq!(
+            retired_repl_command_guidance(" :galaxy "),
+            Some("Galaxy was renamed to Sextant; use :sextant.")
+        );
+        assert_eq!(retired_repl_command_guidance(":sextant"), None);
+        assert_eq!(retired_repl_command_guidance("galaxy"), None);
+    }
 }

@@ -517,9 +517,9 @@ fn format_turn_text(text: &str, epoch_ms: i64) -> String {
     }
 }
 
-/// The header window-hours cycle the canvas chip and the `sextant`
-/// control-socket command share: `24 → 72 → 168 → 720 → 24`. A current value
-/// off the cycle (a scripted arbitrary hour count) advances to the next
+/// The window-hours cycle shared by the inline Sextant window controls and the
+/// `sextant` control-socket command: `24 → 72 → 168 → 720 → 24`. A current
+/// value off the cycle (a scripted arbitrary hour count) advances to the next
 /// stop greater than it, wrapping to the first stop past the top.
 pub fn next_window_hours(current: u32) -> u32 {
     const STOPS: [u32; 4] = [24, 72, 168, 720];

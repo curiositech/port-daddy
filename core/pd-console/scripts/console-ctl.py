@@ -12,6 +12,7 @@ Usage:
     console-ctl.py [--sock PATH] focus <pane>
     console-ctl.py [--sock PATH] state [pane]
     console-ctl.py [--sock PATH] sextant [--window-hours N] [--min-tokens N] [--cluster | --no-cluster]
+    console-ctl.py [--sock PATH] galaxy ...  # retired; use sextant
     console-ctl.py [--sock PATH] rebind <url>
     console-ctl.py [--sock PATH] alerts
     console-ctl.py [--sock PATH] raw '<json>'
@@ -59,6 +60,11 @@ def main() -> int:
     p_focus.add_argument("pane")
     p_state = sub.add_parser("state")
     p_state.add_argument("pane", nargs="?")
+    p_galaxy = sub.add_parser("galaxy")
+    p_galaxy.add_argument("--window-hours", type=int)
+    p_galaxy.add_argument("--min-tokens", type=int)
+    p_galaxy.add_argument("--cluster", dest="cluster", action="store_true", default=None)
+    p_galaxy.add_argument("--no-cluster", dest="cluster", action="store_false")
     p_sextant = sub.add_parser("sextant")
     p_sextant.add_argument("--window-hours", type=int)
     p_sextant.add_argument("--min-tokens", type=int)
@@ -70,6 +76,10 @@ def main() -> int:
     p_raw = sub.add_parser("raw")
     p_raw.add_argument("json")
     args = ap.parse_args()
+
+    if args.cmd == "galaxy":
+        print("Galaxy was renamed to Sextant; use `console-ctl.py sextant`.", file=sys.stderr)
+        return 2
 
     if args.cmd == "focus":
         payload = {"cmd": "focus", "pane": args.pane}

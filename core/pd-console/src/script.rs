@@ -89,6 +89,7 @@ pub fn parse_request(line: &str) -> Result<ScriptRequest, String> {
                 .filter(|s| !s.trim().is_empty())
                 .map(|s| s.trim().to_string()),
         }),
+        "galaxy" => Err("Galaxy was renamed to Sextant; use cmd=sextant.".to_string()),
         "sextant" => {
             let window_hours = optional_positive_u32(&v, "windowHours")?;
             let min_tokens = optional_positive_u32(&v, "minTokens")?;
@@ -359,6 +360,14 @@ mod tests {
         assert!(parse_request(r#"{"cmd":"warp"}"#)
             .unwrap_err()
             .starts_with("unknown cmd"));
+    }
+
+    #[test]
+    fn rejects_retired_galaxy_command_with_migration_guidance() {
+        assert_eq!(
+            parse_request(r#"{"cmd":"galaxy","windowHours":720}"#).unwrap_err(),
+            "Galaxy was renamed to Sextant; use cmd=sextant."
+        );
     }
 
     #[test]
