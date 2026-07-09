@@ -57,7 +57,8 @@ function cliSummary(label: string, resolution: CliBinaryResolution, suffix: stri
 }
 
 function cliMissingSummary(label: string, resolution: CliBinaryResolution): string {
-  return resolution.warning || `${label} binary "${resolution.command}" not found`;
+  const base = `${label} binary "${resolution.command}" not found`;
+  return resolution.warning ? `${base}. ${resolution.warning}` : base;
 }
 
 function packageInstalled(specifier: string): boolean {

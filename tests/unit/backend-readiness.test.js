@@ -217,6 +217,21 @@ describe('backend readiness', () => {
     expect(readiness.setupCommand).toBe('claude');
   });
 
+  test('missing cli summary includes stale override and explicit missing binary fact', async () => {
+    const stale = join(fakeHome, '.local', 'bin', 'claude');
+    process.env.PD_CLI_CLAUDE_CODE_BIN = stale;
+
+    const readiness = await assessBackendReadiness('cli:claude-code');
+
+    expect(readiness).toMatchObject({
+      backend: 'cli:claude-code',
+      status: 'needs_setup',
+    });
+    expect(readiness.summary).toContain(`Claude Code CLI binary "${stale}" not found`);
+    expect(readiness.summary).toContain(`Configured PD_CLI_CLAUDE_CODE_BIN=${stale} is not executable`);
+    expect(readiness.summary).toContain('no claude binary was found');
+  });
+
   test('marks claude-cli launchableUnverified when the binary is found', async () => {
     const cli = installCli('claude', join(fakeHome, '.nvm', 'versions', 'node', 'v22.17.1', 'bin'));
 
