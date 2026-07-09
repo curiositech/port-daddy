@@ -42,7 +42,7 @@ import { coastGuardStatus } from './coast-guard.js';
 import { priceBond, classifyScope, scopeTierWritePolicy, pricedBondLogLines } from './bond-pricing.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
-import { resolveEffectiveSpawnBackend } from './backend-catalog.js';
+import { detectForcedCliBackend, resolveEffectiveSpawnBackend } from './backend-catalog.js';
 import { cliBinarySearchPath, resolveCliBinary } from './cli-bin-dirs.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
@@ -100,10 +100,18 @@ function loadDotenvOnce(): Record<string, string> {
 // Types
 // =============================================================================
 
+export type BackendOverrideSource = 'none' | 'env' | 'persisted' | 'preflight';
+
 export interface SpawnSpec {
   backend: 'ollama' | 'lmstudio' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'deepseek' | 'xai' | 'cli:claude-code' | 'cli:codex' | 'cli:agy' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
   name?: string;        // human-readable display name
   model?: string;
+  /** Requested backend before an operator/preflight override selected the runtime backend. */
+  requestedBackend?: SpawnSpec['backend'];
+  /** Requested model before an operator/preflight override selected the runtime model. */
+  requestedModel?: string;
+  /** Where a backend override came from, when the route/preflight layer already resolved it. */
+  backendOverrideSource?: BackendOverrideSource;
   modelTier?: 'low' | 'mid' | 'high';
   identity?: string;   // PD semantic identity: project:stack:context
   purpose?: string;    // human-readable task description
@@ -180,6 +188,11 @@ export interface SpawnResult {
   name?: string;
   backend: SpawnSpec['backend'];
   model: string;
+  requestedBackend?: SpawnSpec['backend'];
+  effectiveBackend?: SpawnSpec['backend'];
+  requestedModel?: string;
+  effectiveModel?: string;
+  backendOverrideSource?: BackendOverrideSource;
   status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
   output: string | null;
   error: string | null;
@@ -204,6 +217,11 @@ export interface SpawnedAgent {
   name: string;
   backend: SpawnSpec['backend'];
   model: string;
+  requestedBackend?: SpawnSpec['backend'];
+  effectiveBackend?: SpawnSpec['backend'];
+  requestedModel?: string;
+  effectiveModel?: string;
+  backendOverrideSource?: BackendOverrideSource;
   status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
   identity: string | null;
   purpose: string | null;
@@ -223,6 +241,14 @@ interface AgentRecord extends SpawnedAgent {
   childProcess: ChildProcess | null;
   bondId?: number | null;
   bondUsd?: number;
+}
+
+export interface ResolvedSpawnRuntime {
+  requestedBackend: SpawnSpec['backend'];
+  effectiveBackend: SpawnSpec['backend'];
+  requestedModel: string;
+  effectiveModel: string;
+  backendOverrideSource: BackendOverrideSource;
 }
 
 interface SpawnerDeps {
@@ -1170,6 +1196,47 @@ function allowsFlatRateEstimatedTelemetry(backend: SpawnSpec['backend']): boolea
   return FLAT_RATE_CLI_TUBE_BACKENDS.has(backend);
 }
 
+function backendOverrideSource(
+  requestedBackend: SpawnSpec['backend'],
+  effectiveBackend: SpawnSpec['backend'],
+): BackendOverrideSource {
+  if (requestedBackend === effectiveBackend) return 'none';
+  const forcedFromEnv = detectForcedCliBackend(process.env, { persistedPath: null });
+  return forcedFromEnv === effectiveBackend ? 'env' : 'persisted';
+}
+
+export function resolveSpawnRuntime(spec: SpawnSpec): ResolvedSpawnRuntime {
+  const requestedBackend = spec.requestedBackend ?? spec.backend;
+
+  // /spawn preflight may already have resolved the runnable backend/model. In
+  // that case `spec.backend` is the effective runtime and the requested fields
+  // preserve provenance from the original request.
+  if (spec.requestedBackend && spec.requestedBackend !== spec.backend) {
+    const requestedModel = spec.requestedModel ?? DEFAULT_MODELS[requestedBackend];
+    return {
+      requestedBackend,
+      effectiveBackend: spec.backend,
+      requestedModel,
+      effectiveModel: spec.model ?? DEFAULT_MODELS[spec.backend],
+      backendOverrideSource: spec.backendOverrideSource ?? 'preflight',
+    };
+  }
+
+  const requestedModel = spec.requestedModel ?? spec.model ?? DEFAULT_MODELS[requestedBackend];
+  const resolved = resolveEffectiveSpawnBackend(spec.backend);
+  const effectiveBackend = (resolved.backend ?? spec.backend) as SpawnSpec['backend'];
+  return {
+    requestedBackend,
+    effectiveBackend,
+    requestedModel,
+    effectiveModel: effectiveBackend === requestedBackend
+      ? requestedModel
+      : DEFAULT_MODELS[effectiveBackend],
+    backendOverrideSource: spec.backendOverrideSource
+      ?? backendOverrideSource(requestedBackend, effectiveBackend),
+  };
+}
+
 // =============================================================================
 // Worktree isolation guard (layer 2)
 // =============================================================================
@@ -1304,19 +1371,24 @@ export function createSpawner(deps: SpawnerDeps = {}) {
   /** Open the transcript row and record the opening system/user turns.
    *  Returns the id, or null only when recording is disabled (no module +
    *  not enforced). Throws under enforcement if the recorder is broken. */
-  function txStart(spec: SpawnSpec, agentId: string, model: string, startedAt: number): string | null {
+  function txStart(spec: SpawnSpec, runtime: ResolvedSpawnRuntime, agentId: string, startedAt: number): string | null {
     if (!transcripts) return null;
     let id: string | null = null;
     recordOrThrow('start', () => {
-      const ship = spec.ship || `spawn:${spec.backend}`;
+      const ship = spec.ship || `spawn:${runtime.effectiveBackend}`;
       const trigger = spec.trigger || 'manual';
       const projectName = getProjectName(spec.identity);
       id = transcripts.start({
         ship,
         spawned_agent_id: agentId,
         trigger,
-        backend: spec.backend,
-        model,
+        backend: runtime.effectiveBackend,
+        model: runtime.effectiveModel,
+        requested_backend: runtime.requestedBackend,
+        effective_backend: runtime.effectiveBackend,
+        requested_model: runtime.requestedModel,
+        effective_model: runtime.effectiveModel,
+        backend_override_source: runtime.backendOverrideSource,
         started_at: startedAt,
         pr_number: spec.prNumber ?? null,
         issue_number: spec.issueNumber ?? null,
@@ -1464,12 +1536,12 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     return projectName || undefined;
   }
 
-  function metricDims(spec: SpawnSpec, model: string): Record<string, string> {
+  function metricDims(backend: SpawnSpec['backend'], model: string, identity?: string | null): Record<string, string> {
     const dims: Record<string, string> = {
-      backend: spec.backend,
+      backend,
       model,
     };
-    const projectName = getProjectName(spec.identity);
+    const projectName = getProjectName(identity ?? undefined);
     if (projectName) dims.project = projectName;
     return dims;
   }
@@ -1483,12 +1555,18 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     // Hard global limit — never exceed MAX_CONCURRENT_RUNNING processes
     const running = [...agents.values()].filter(a => a.status === 'running').length;
-    const model = spec.model || DEFAULT_MODELS[spec.backend];
-    const dims = metricDims(spec, model);
+    const runtime = resolveSpawnRuntime(spec);
+    const model = runtime.effectiveModel;
+    const dims = metricDims(runtime.effectiveBackend, runtime.effectiveModel, spec.identity);
     const blockedResult = (error: string): SpawnResult => ({
       agentId: 'blocked',
-      backend: spec.backend,
-      model,
+      backend: runtime.effectiveBackend,
+      model: runtime.effectiveModel,
+      requestedBackend: runtime.requestedBackend,
+      effectiveBackend: runtime.effectiveBackend,
+      requestedModel: runtime.requestedModel,
+      effectiveModel: runtime.effectiveModel,
+      backendOverrideSource: runtime.backendOverrideSource,
       status: 'failed',
       output: null,
       error,
@@ -1535,7 +1613,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         return blockedResult('Spawn blocked: cost tracker unavailable under fail-closed telemetry policy.');
       }
 
-      const telemetryPolicy = assessBackendTelemetryPolicy(spec.backend, model);
+      const telemetryPolicy = assessBackendTelemetryPolicy(runtime.effectiveBackend, runtime.effectiveModel);
       if (!telemetryPolicy.launchAllowed) {
         counters?.bump('spawn.blocked', dims);
         return blockedResult(`Spawn blocked: ${telemetryPolicy.summary}`);
@@ -1556,7 +1634,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const effectiveCaps =
       spec.capabilities && spec.capabilities.length > 0
         ? spec.capabilities
-        : ['spawn:agent', `backend:${spec.backend}`];
+        : ['spawn:agent', `backend:${runtime.effectiveBackend}`];
     // NOTE: the priced scope tier → OS write policy mapping
     // (scopeTierWritePolicy) is applied per-backend-exec in runConfinedChild,
     // which derives the SAME tier from these caps. Keeping the derivation there
@@ -1565,7 +1643,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       name: spec.name,
       purpose: spec.purpose,
       identity: spec.identity,
-      backend: spec.backend,
+      backend: runtime.effectiveBackend,
       fallback: agentId,
     });
     counters?.bump('spawn.started', dims);
@@ -1616,7 +1694,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       bondUsd = spec.bondUsd;
       console.log(
         `[spawner] bond: caller-supplied fixed bond $${bondUsd.toFixed(4)} ` +
-          `(scope-proportional pricer bypassed) — agent=${agentId} backend=${spec.backend}`,
+          `(scope-proportional pricer bypassed) — agent=${agentId} backend=${runtime.effectiveBackend}`,
       );
     } else {
       const priced = priceBond({
@@ -1650,7 +1728,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       const lines = pricedBondLogLines(priced.breakdown, {
         bondUsd,
         agentId,
-        backend: spec.backend,
+        backend: runtime.effectiveBackend,
       });
       console.log(lines.info);
       for (const n of lines.notices) console.log(n);
@@ -1702,7 +1780,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       if (harborEnvelope && typeof harbors.assertWithinEnvelope === 'function') {
         const verdict = harbors.assertWithinEnvelope(harborName, agentId, {
           kind: 'backend',
-          name: spec.backend,
+          name: runtime.effectiveBackend,
         });
         if (!verdict.allowed) {
           counters?.bump('spawn.blocked', dims);
@@ -1726,7 +1804,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         const receipt = bonds.escrow({
           project: projectName,
           agentId,
-          archetype: spec.backend,
+          archetype: runtime.effectiveBackend,
           bondUsd,
           harborName: enteredHarborName ?? harborName,
         });
@@ -1755,8 +1833,13 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const record: AgentRecord = {
       agentId,
       name: displayName,
-      backend: spec.backend,
-      model,
+      backend: runtime.effectiveBackend,
+      model: runtime.effectiveModel,
+      requestedBackend: runtime.requestedBackend,
+      effectiveBackend: runtime.effectiveBackend,
+      requestedModel: runtime.requestedModel,
+      effectiveModel: runtime.effectiveModel,
+      backendOverrideSource: runtime.backendOverrideSource,
       status: 'running',
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
@@ -1777,7 +1860,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     let transcriptId: string | null = null;
     let transcriptStartError: string | null = null;
     try {
-      transcriptId = txStart(spec, agentId, model, startedAt);
+      transcriptId = txStart(spec, runtime, agentId, startedAt);
     } catch (err) {
       transcriptStartError = (err as Error).message;
     }
@@ -1827,7 +1910,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       await pdCoordinate(`/agents/${agentId}/heartbeat`, {
         pid,
         status: 'busy',
-        progress: `Running ${spec.backend} via Port Daddy spawner`,
+        progress: `Running ${runtime.effectiveBackend} via Port Daddy spawner`,
       }, { pid });
     }, 30000);
     record.heartbeatInterval.unref?.();
@@ -1852,11 +1935,16 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           `Spawn refused: ${transcriptStartError}. A backend must not run unless its conversation is recorded.`,
         );
       }
-      const override = runnerOverrides[spec.backend];
+      const executionSpec: SpawnSpec = {
+        ...spec,
+        backend: runtime.effectiveBackend,
+        model: runtime.effectiveModel,
+      };
+      const override = runnerOverrides[runtime.effectiveBackend];
       let result: BackendRunResult;
 
       if (override) {
-        result = await override(spec, model);
+        result = await override(executionSpec, runtime.effectiveModel);
       } else {
         const childContext: BackendRunContext = {
           onChildProcess: (child) => {
@@ -1866,7 +1954,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
               void pdCoordinate(`/agents/${agentId}/heartbeat`, {
                 pid,
                 status: 'busy',
-                progress: `Running ${spec.backend} child process`,
+                progress: `Running ${runtime.effectiveBackend} child process`,
               }, { pid });
             }
           },
@@ -1886,32 +1974,28 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           tubeClient,
           tubeChannel: spec.tubeChannel,
         };
-        // Global env override: PD_USE_CLI_BACKEND=<local agent CLI> forces
-        // every spawn through the local CLI tube, regardless of yml config.
-        // This is the "use my authenticated local CLI for everything" knob.
-        const effectiveBackend = resolveEffectiveSpawnBackend(spec.backend).backend as SpawnSpec['backend'];
-        switch (effectiveBackend) {
-          case 'ollama':    result = await runOllama(spec, model); break;
-          case 'lmstudio':  result = await runLmStudio(spec, model); break;
-          case 'claude':    result = await runClaude(spec, model); break;
-          case 'gemini':    result = await runGemini(spec, model); break;
-          case 'cloudflare': result = await runCloudflare(spec, model); break;
-          case 'openai':    result = await runOpenAI(spec, model); break;
-          case 'groq':      result = await runGroq(spec, model); break;
-          case 'deepseek':  result = await runDeepseek(spec, model); break;
-          case 'xai':       result = await runXai(spec, model); break;
-          case 'codex':     result = await runCodexCli(spec, model, childContext); break;
-          case 'claude-cli': result = await runClaudeCli(spec, childContext); break;
-          case 'cli:claude-code': result = await runCliTube(spec, 'claude-code', childContext); break;
-          case 'cli:codex':       result = await runCliTube(spec, 'codex', childContext); break;
-          case 'cli:agy':         result = await runCliTube(spec, 'agy', childContext); break;
-          case 'cli:gemini':      result = await runCliTube(spec, 'gemini', childContext); break;
-          case 'cli:groq':        result = await runCliTube(spec, 'groq', childContext); break;
-          case 'cli:grok':        result = await runCliTube(spec, 'grok', childContext); break;
-          case 'aider':     result = await runAider(spec, model, childContext); break;
-          case 'custom':    result = await runCustom(spec, childContext); break;
+        switch (runtime.effectiveBackend) {
+          case 'ollama':    result = await runOllama(executionSpec, runtime.effectiveModel); break;
+          case 'lmstudio':  result = await runLmStudio(executionSpec, runtime.effectiveModel); break;
+          case 'claude':    result = await runClaude(executionSpec, runtime.effectiveModel); break;
+          case 'gemini':    result = await runGemini(executionSpec, runtime.effectiveModel); break;
+          case 'cloudflare': result = await runCloudflare(executionSpec, runtime.effectiveModel); break;
+          case 'openai':    result = await runOpenAI(executionSpec, runtime.effectiveModel); break;
+          case 'groq':      result = await runGroq(executionSpec, runtime.effectiveModel); break;
+          case 'deepseek':  result = await runDeepseek(executionSpec, runtime.effectiveModel); break;
+          case 'xai':       result = await runXai(executionSpec, runtime.effectiveModel); break;
+          case 'codex':     result = await runCodexCli(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'claude-cli': result = await runClaudeCli(executionSpec, childContext); break;
+          case 'cli:claude-code': result = await runCliTube(executionSpec, 'claude-code', childContext); break;
+          case 'cli:codex':       result = await runCliTube(executionSpec, 'codex', childContext); break;
+          case 'cli:agy':         result = await runCliTube(executionSpec, 'agy', childContext); break;
+          case 'cli:gemini':      result = await runCliTube(executionSpec, 'gemini', childContext); break;
+          case 'cli:groq':        result = await runCliTube(executionSpec, 'groq', childContext); break;
+          case 'cli:grok':        result = await runCliTube(executionSpec, 'grok', childContext); break;
+          case 'aider':     result = await runAider(executionSpec, runtime.effectiveModel, childContext); break;
+          case 'custom':    result = await runCustom(executionSpec, childContext); break;
           default:
-            result = { output: '', error: `Unknown backend: ${String(effectiveBackend)}` };
+            result = { output: '', error: `Unknown backend: ${String(runtime.effectiveBackend)}` };
         }
       }
 
@@ -1930,26 +2014,26 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         const outputTokens = result.outputTokens;
 
         if (inputTokens === undefined || outputTokens === undefined) {
-          error = `Exact telemetry required, but ${spec.backend} did not return token counts.`;
+          error = `Exact telemetry required, but ${runtime.effectiveBackend} did not return token counts.`;
           output = null;
         } else if (!costTracker) {
           error = 'Exact telemetry required, but cost tracker is unavailable.';
           output = null;
         } else {
           const computed = cachedInputTokens === undefined
-            ? costTracker.computeCost(spec.backend, model, inputTokens, outputTokens)
-            : costTracker.computeCost(spec.backend, model, inputTokens, outputTokens, cachedInputTokens);
-          const allowFlatRateEstimate = allowsFlatRateEstimatedTelemetry(spec.backend);
+            ? costTracker.computeCost(runtime.effectiveBackend, runtime.effectiveModel, inputTokens, outputTokens)
+            : costTracker.computeCost(runtime.effectiveBackend, runtime.effectiveModel, inputTokens, outputTokens, cachedInputTokens);
+          const allowFlatRateEstimate = allowsFlatRateEstimatedTelemetry(runtime.effectiveBackend);
           if (computed.isEstimate && !allowFlatRateEstimate) {
-            error = `Exact telemetry required, but ${spec.backend} cost calculation fell back to an estimate.`;
+            error = `Exact telemetry required, but ${runtime.effectiveBackend} cost calculation fell back to an estimate.`;
             output = null;
           } else if (computed.costUsd <= 0) {
-            error = `Exact telemetry required, but ${spec.backend} produced a non-positive cost.`;
+            error = `Exact telemetry required, but ${runtime.effectiveBackend} produced a non-positive cost.`;
             output = null;
           } else {
             const recorded = costTracker.record({
-              backend: spec.backend,
-              model,
+              backend: runtime.effectiveBackend,
+              model: runtime.effectiveModel,
               projectName,
               projectDir: spec.workdir ? resolve(spec.workdir) : undefined,
               identity: spec.identity,
@@ -1961,7 +2045,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
             const recordedCostUsd = normalizeTelemetryCostUsd(recorded?.costUsd);
             if (!recorded || (recorded.isEstimate && !allowFlatRateEstimate) || recordedCostUsd == null || recordedCostUsd <= 0) {
-              error = `Exact telemetry required, but ${spec.backend} telemetry could not be persisted as an exact nonzero cost record.`;
+              error = `Exact telemetry required, but ${runtime.effectiveBackend} telemetry could not be persisted as an exact nonzero cost record.`;
               output = null;
             } else {
               telemetry = {
@@ -2056,8 +2140,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         const summary = error
           ? `failed: ${error.slice(0, 160)}`
           : turnCount > 0
-            ? `${spec.backend}: ${turnCount} turns, ${(output || '').length} chars`
-            : `${spec.backend} returned ${(output || '').length} chars`;
+            ? `${runtime.effectiveBackend}: ${turnCount} turns, ${(output || '').length} chars`
+            : `${runtime.effectiveBackend} returned ${(output || '').length} chars`;
         txOutput(transcriptId, {
           type: error ? 'noop' : 'message',
           summary,
@@ -2111,8 +2195,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     }
     if (!enforceTelemetryPolicy) {
       costTracker?.record({
-        backend: spec.backend,
-        model,
+        backend: runtime.effectiveBackend,
+        model: runtime.effectiveModel,
         projectName,
         projectDir: spec.workdir ? resolve(spec.workdir) : undefined,
         identity: spec.identity,
@@ -2123,8 +2207,13 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     return {
       agentId,
       name: displayName,
-      backend: spec.backend,
-      model,
+      backend: runtime.effectiveBackend,
+      model: runtime.effectiveModel,
+      requestedBackend: runtime.requestedBackend,
+      effectiveBackend: runtime.effectiveBackend,
+      requestedModel: runtime.requestedModel,
+      effectiveModel: runtime.effectiveModel,
+      backendOverrideSource: runtime.backendOverrideSource,
       status,
       output,
       error,
@@ -2145,6 +2234,11 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       name: r.name,
       backend: r.backend,
       model: r.model,
+      requestedBackend: r.requestedBackend,
+      effectiveBackend: r.effectiveBackend,
+      requestedModel: r.requestedModel,
+      effectiveModel: r.effectiveModel,
+      backendOverrideSource: r.backendOverrideSource,
       status: r.status,
       identity: r.identity,
       purpose: r.purpose,
@@ -2177,7 +2271,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     record.status = 'killed';
     record.completedAt = Date.now();
-    counters?.bump('spawn.killed', metricDims({ backend: record.backend, task: '', identity: record.identity || undefined }, record.model));
+    counters?.bump('spawn.killed', metricDims(record.backend, record.model, record.identity));
 
     // Kill is an intervention, not a clean exit — slash the bond so the
     // commons pool captures the cost of the decision. Panic path calls

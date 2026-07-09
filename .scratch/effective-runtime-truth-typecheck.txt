@@ -1,0 +1,8 @@
+# command
+PATH=/Users/erichowens/.nvm/versions/node/v22.17.1/bin:$PATH npm run typecheck
+
+# output
+
+> port-daddy@3.24.2 typecheck
+> tsc --noEmit
+

@@ -1,0 +1,156 @@
+# temp worktree
+Preparing worktree (detached HEAD 65f2ea03e)
+Updating files:  32% (2922/9103)Updating files:  33% (3004/9103)Updating files:  34% (3096/9103)Updating files:  35% (3187/9103)Updating files:  36% (3278/9103)Updating files:  37% (3369/9103)Updating files:  38% (3460/9103)Updating files:  39% (3551/9103)Updating files:  40% (3642/9103)Updating files:  41% (3733/9103)Updating files:  42% (3824/9103)Updating files:  43% (3915/9103)Updating files:  44% (4006/9103)Updating files:  45% (4097/9103)Updating files:  46% (4188/9103)Updating files:  47% (4279/9103)Updating files:  48% (4370/9103)Updating files:  49% (4461/9103)Updating files:  50% (4552/9103)Updating files:  51% (4643/9103)Updating files:  52% (4734/9103)Updating files:  53% (4825/9103)Updating files:  54% (4916/9103)Updating files:  55% (5007/9103)Updating files:  56% (5098/9103)Updating files:  57% (5189/9103)Updating files:  58% (5280/9103)Updating files:  59% (5371/9103)Updating files:  60% (5462/9103)Updating files:  61% (5553/9103)Updating files:  62% (5644/9103)Updating files:  63% (5735/9103)Updating files:  64% (5826/9103)Updating files:  65% (5917/9103)Updating files:  66% (6008/9103)Updating files:  67% (6100/9103)Updating files:  68% (6191/9103)Updating files:  69% (6282/9103)Updating files:  70% (6373/9103)Updating files:  71% (6464/9103)Updating files:  72% (6555/9103)Updating files:  73% (6646/9103)Updating files:  74% (6737/9103)Updating files:  75% (6828/9103)Updating files:  76% (6919/9103)Updating files:  77% (7010/9103)Updating files:  78% (7101/9103)Updating files:  79% (7192/9103)Updating files:  80% (7283/9103)Updating files:  81% (7374/9103)Updating files:  82% (7465/9103)Updating files:  83% (7556/9103)Updating files:  83% (7579/9103)Updating files:  84% (7647/9103)Updating files:  85% (7738/9103)Updating files:  86% (7829/9103)Updating files:  87% (7920/9103)Updating files:  88% (8011/9103)Updating files:  89% (8102/9103)Updating files:  90% (8193/9103)Updating files:  91% (8284/9103)Updating files:  92% (8375/9103)Updating files:  93% (8466/9103)Updating files:  94% (8557/9103)Updating files:  95% (8648/9103)Updating files:  96% (8739/9103)Updating files:  97% (8830/9103)Updating files:  98% (8921/9103)Updating files:  99% (9012/9103)Updating files: 100% (9103/9103)Updating files: 100% (9103/9103), done.
+HEAD is now at 65f2ea03e fix(spawner): finalize Cloudflare backend timeouts (#1186)
+
+# command
+NODE_PATH=/Users/erichowens/coding/port-daddy/node_modules /usr/local/bin/node --experimental-vm-modules /Users/erichowens/coding/port-daddy/node_modules/jest/bin/jest.js --rootDir . tests/unit/spawner-runtime-truth.test.js --runInBand
+
+# output
+(node:12996) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+  console.log
+    [spawner] bond priced $0.2500 — tier=full base=$0.0100 ×scope=25 ×dur=1 ×rep=1 floor=$0.2500 agent=spawned-04de14fda092 backend=openai
+
+      at Object.log [as spawn] (lib/spawner.ts:1634:15)
+
+  console.log
+    [spawner] bond scope advisory — priced tier=full exceeds the Coast Guard's enforced containment tier=read on this machine; the bond underwrites a blast radius the runtime does not yet structurally prevent (pricing ahead of containment — known advisory gap, deterrence sound) agent=spawned-04de14fda092 backend=openai
+
+      at Object.log [as spawn] (lib/spawner.ts:1635:46)
+
+  console.log
+    [spawner] bond priced $0.2500 — tier=full base=$0.0100 ×scope=25 ×dur=1 ×rep=1 floor=$0.2500 agent=spawned-78a9d2318c79 backend=openai
+
+      at Object.log [as spawn] (lib/spawner.ts:1634:15)
+
+  console.log
+    [spawner] bond scope advisory — priced tier=full exceeds the Coast Guard's enforced containment tier=read on this machine; the bond underwrites a blast radius the runtime does not yet structurally prevent (pricing ahead of containment — known advisory gap, deterrence sound) agent=spawned-78a9d2318c79 backend=openai
+
+      at Object.log [as spawn] (lib/spawner.ts:1635:46)
+
+  console.log
+    [spawner] bond priced $0.2500 — tier=full base=$0.0100 ×scope=25 ×dur=1 ×rep=1 floor=$0.2500 agent=spawned-0cb007a645cb backend=cli:codex
+
+      at Object.log [as spawn] (lib/spawner.ts:1634:15)
+
+  console.log
+    [spawner] bond scope advisory — priced tier=full exceeds the Coast Guard's enforced containment tier=read on this machine; the bond underwrites a blast radius the runtime does not yet structurally prevent (pricing ahead of containment — known advisory gap, deterrence sound) agent=spawned-0cb007a645cb backend=cli:codex
+
+      at Object.log [as spawn] (lib/spawner.ts:1635:46)
+
+FAIL unit tests/unit/spawner-runtime-truth.test.js
+  spawner effective runtime truth
+    ✕ forced CLI backend records the effective runtime while preserving requested provenance (24 ms)
+    ✕ no forced override keeps requested and effective runtime identical without bogus provenance noise (5 ms)
+    ✕ POST /spawn persists effective runtime truth readable through transcript routes (43 ms)
+
+  ● spawner effective runtime truth › forced CLI backend records the effective runtime while preserving requested provenance
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: ObjectContaining {"cli": "codex", "model": "codex-cli"}
+    Received: {"cli": "codex", "cwd": undefined, "env": {}, "model": "gpt-5-mini", "onChild": [Function onChildProcess], "onStreamLine": [Function anonymous], "permissionMode": undefined, "prompt": "say exactly hello", "timeoutMs": undefined, "tube": undefined, "tubeClient": undefined}
+
+    Number of calls: 1
+
+      131 |     });
+      132 |
+    > 133 |     expect(mockSpawnViaCliTube).toHaveBeenCalledWith(expect.objectContaining({
+          |                                 ^
+      134 |       cli: 'codex',
+      135 |       model: 'codex-cli',
+      136 |     }));
+
+      at Object.<anonymous> (tests/unit/spawner-runtime-truth.test.js:133:33)
+
+  ● spawner effective runtime truth › no forced override keeps requested and effective runtime identical without bogus provenance noise
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  6
+    + Received  + 15
+
+    - ObjectContaining {
+    + Object {
+    +   "agentId": "spawned-78a9d2318c79",
+        "backend": "openai",
+    -   "backendOverrideSource": "none",
+    -   "effectiveBackend": "openai",
+    -   "effectiveModel": "gpt-5-mini",
+    +   "coastGuard": null,
+    +   "completedAt": 1783621376721,
+    +   "error": null,
+        "model": "gpt-5-mini",
+    -   "requestedBackend": "openai",
+    -   "requestedModel": "gpt-5-mini",
+    +   "name": "Test Runtime Truth",
+    +   "output": "openai actually ran",
+    +   "startedAt": 1783621376720,
+    +   "status": "completed",
+    +   "telemetry": Object {
+    +     "costUsd": 0.001,
+    +     "inputTokens": 12,
+    +     "outputTokens": 4,
+    +     "rateMode": "exact",
+    +   },
+      }
+
+      199 |
+      200 |     expect(mockSpawnViaCliTube).not.toHaveBeenCalled();
+    > 201 |     expect(result).toEqual(expect.objectContaining({
+          |                    ^
+      202 |       backend: 'openai',
+      203 |       model: 'gpt-5-mini',
+      204 |       requestedBackend: 'openai',
+
+      at Object.<anonymous> (tests/unit/spawner-runtime-truth.test.js:201:20)
+
+  ● spawner effective runtime truth › POST /spawn persists effective runtime truth readable through transcript routes
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  6
+    + Received  + 16
+
+    - ObjectContaining {
+    + Object {
+    +   "agentId": "spawned-0cb007a645cb",
+        "backend": "cli:codex",
+    -   "backendOverrideSource": "env",
+    -   "effectiveBackend": "cli:codex",
+    -   "effectiveModel": "codex-cli",
+    -   "requestedBackend": "openai",
+    -   "requestedModel": "gpt-5-mini",
+    +   "coastGuard": null,
+    +   "completedAt": 1783621376763,
+    +   "error": null,
+    +   "model": "codex-cli",
+    +   "name": "Test Route Runtime Truth",
+    +   "output": "codex actually ran",
+    +   "startedAt": 1783621376762,
+    +   "status": "completed",
+        "success": true,
+    +   "telemetry": Object {
+    +     "costUsd": 0.001,
+    +     "inputTokens": 4,
+    +     "outputTokens": 5,
+    +     "rateMode": "estimated",
+    +   },
+      }
+
+      273 |       });
+      274 |       expect(spawnRes.statusCode).toBe(200);
+    > 275 |       expect(spawnRes.json()).toEqual(expect.objectContaining({
+          |                               ^
+      276 |         success: true,
+      277 |         backend: 'cli:codex',
+      278 |         requestedBackend: 'openai',
+
+      at Object.<anonymous> (tests/unit/spawner-runtime-truth.test.js:275:31)
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 3 total
+Snapshots:   0 total
+Time:        0.248 s
+Ran all test suites matching tests/unit/spawner-runtime-truth.test.js.

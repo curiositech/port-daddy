@@ -1,0 +1,46 @@
+# command
+NODE_PATH=/Users/erichowens/coding/port-daddy/node_modules /usr/local/bin/node --experimental-vm-modules /Users/erichowens/coding/port-daddy/node_modules/jest/bin/jest.js --rootDir . tests/unit/spawner-runtime-truth.test.js tests/unit/transcripts.test.js --runInBand
+
+# output
+(node:17434) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS unit tests/unit/spawner-runtime-truth.test.js
+  ● Console
+
+    console.log
+      [spawner] bond priced $0.2500 — tier=full base=$0.0100 ×scope=25 ×dur=1 ×rep=1 floor=$0.2500 agent=spawned-249613c9b69a backend=cli:codex
+
+      at Object.log [as spawn] (lib/spawner.ts:1712:15)
+
+    console.log
+      [spawner] bond scope advisory — priced tier=full exceeds the Coast Guard's enforced containment tier=read on this machine; the bond underwrites a blast radius the runtime does not yet structurally prevent (pricing ahead of containment — known advisory gap, deterrence sound) agent=spawned-249613c9b69a backend=cli:codex
+
+      at Object.log [as spawn] (lib/spawner.ts:1713:46)
+
+    console.log
+      [spawner] bond priced $0.2500 — tier=full base=$0.0100 ×scope=25 ×dur=1 ×rep=1 floor=$0.2500 agent=spawned-2b1eb25c4146 backend=openai
+
+      at Object.log [as spawn] (lib/spawner.ts:1712:15)
+
+    console.log
+      [spawner] bond scope advisory — priced tier=full exceeds the Coast Guard's enforced containment tier=read on this machine; the bond underwrites a blast radius the runtime does not yet structurally prevent (pricing ahead of containment — known advisory gap, deterrence sound) agent=spawned-2b1eb25c4146 backend=openai
+
+      at Object.log [as spawn] (lib/spawner.ts:1713:46)
+
+    console.log
+      [spawner] bond priced $0.2500 — tier=full base=$0.0100 ×scope=25 ×dur=1 ×rep=1 floor=$0.2500 agent=spawned-aae51b4690f3 backend=cli:codex
+
+      at Object.log [as spawn] (lib/spawner.ts:1712:15)
+
+    console.log
+      [spawner] bond scope advisory — priced tier=full exceeds the Coast Guard's enforced containment tier=read on this machine; the bond underwrites a blast radius the runtime does not yet structurally prevent (pricing ahead of containment — known advisory gap, deterrence sound) agent=spawned-aae51b4690f3 backend=cli:codex
+
+      at Object.log [as spawn] (lib/spawner.ts:1713:46)
+
+PASS unit tests/unit/transcripts.test.js
+
+Test Suites: 2 passed, 2 total
+Tests:       35 passed, 35 total
+Snapshots:   0 total
+Time:        0.308 s, estimated 1 s
+Ran all test suites matching tests/unit/spawner-runtime-truth.test.js|tests/unit/transcripts.test.js.
