@@ -68,10 +68,11 @@ beforeEach(() => {
   delete process.env.PD_CLI_BIN_DIRS;
   delete process.env.PD_CLI_CLAUDE_CODE_BIN;
   delete process.env.PD_CLI_CODEX_BIN;
+  delete process.env.PD_CLI_AGY_BIN;
   delete process.env.PD_CLI_GEMINI_BIN;
   delete process.env.PD_CLI_GROQ_BIN;
   delete process.env.PD_CLI_GROK_BIN;
-  for (const bin of ['claude', 'codex', 'gemini', 'groq', 'grok']) {
+  for (const bin of ['claude', 'codex', 'agy', 'gemini', 'groq', 'grok']) {
     installCli(bin);
   }
 });
@@ -142,6 +143,32 @@ describe('buildArgs', () => {
     const { args } = buildArgs('claude-code', 'hi', undefined, 'claude-haiku-4-5-20251001');
     const idx = args.indexOf('--model');
     expect(args[idx + 1]).toBe('claude-haiku-4-5-20251001');
+  });
+
+  test('agy uses --print with no model flag by default', () => {
+    const { args, stdin } = buildArgs('agy', 'hello agy');
+    expect(stdin).toBeNull();
+    expect(args).toEqual(['--print', 'hello agy']);
+  });
+
+  test.each(['agy-cli', 'agy-default', 'agy', 'default', 'cli'])(
+    'agy drops placeholder/sentinel model %s instead of forwarding --model',
+    (sentinel) => {
+      const { args } = buildArgs('agy', 'hi', undefined, sentinel);
+      expect(args).toEqual(['--print', 'hi']);
+      expect(args).not.toContain('--model');
+      expect(args).not.toContain(sentinel);
+    },
+  );
+
+  test('agy forwards an explicit real model string and print timeout', () => {
+    const { args } = buildArgs('agy', 'hi', undefined, 'real-agy-model', undefined, undefined, 1234);
+    expect(args).toEqual([
+      '--print',
+      '--model', 'real-agy-model',
+      '--print-timeout', '2s',
+      'hi',
+    ]);
   });
 
   test('codex uses exec + workspace-write sandbox', () => {
@@ -257,8 +284,9 @@ describe('spawnViaCliTube — onStreamLine (live per-line buffering)', () => {
   });
 });
 
-describe('spawnViaCliTube — gemini/groq/grok binaries + overrides', () => {
+describe('spawnViaCliTube — agy/gemini/groq/grok binaries + overrides', () => {
   test.each([
+    ['agy', 'agy', 'PD_CLI_AGY_BIN'],
     ['gemini', 'gemini', 'PD_CLI_GEMINI_BIN'],
     ['groq', 'groq', 'PD_CLI_GROQ_BIN'],
     ['grok', 'grok', 'PD_CLI_GROK_BIN'],
@@ -281,6 +309,13 @@ describe('spawnViaCliTube — gemini/groq/grok binaries + overrides', () => {
     const res = await spawnViaCliTube({ cli: 'gemini', prompt: 'hi' });
     expect(res.error).toMatch(/authentication failed/i);
     expect(res.error).toMatch(/GEMINI_API_KEY/);
+  });
+
+  test('agy maps auth-flavored stderr to agy-specific guidance', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stderr: 'Error: not authenticated', exitCode: 1 }));
+    const res = await spawnViaCliTube({ cli: 'agy', prompt: 'hi' });
+    expect(res.error).toMatch(/authentication failed/i);
+    expect(res.error).toMatch(/agy --print "hello"/);
   });
 
   test('grok ENOENT maps to install guidance', async () => {

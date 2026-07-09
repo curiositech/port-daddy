@@ -138,6 +138,16 @@ const TRANSCRIPT_BACKEND_PROFILES: readonly TranscriptBackendProfile[] = [
     notes: 'Streams Codex JSON events live and records structured turns plus final transcript.',
   },
   {
+    backend: 'cli:agy',
+    displayName: 'Antigravity (agy CLI)',
+    family: 'cli-tube',
+    support: 'degraded',
+    captureMode: 'final_only',
+    liveHeartbeatExpected: false,
+    finalTranscriptExpected: true,
+    notes: 'CLI-tube wiring records the user prompt plus final stdout/stderr only; no structured agy stream is documented yet.',
+  },
+  {
     backend: 'cli:gemini',
     displayName: 'Gemini CLI',
     family: 'google',
@@ -266,16 +276,6 @@ const TRANSCRIPT_BACKEND_PROFILES: readonly TranscriptBackendProfile[] = [
     liveHeartbeatExpected: false,
     finalTranscriptExpected: true,
     notes: 'Records final shell stdout/stderr only; no structured transcript parser is wired.',
-  },
-  {
-    backend: 'agy',
-    displayName: 'Antigravity (agy)',
-    family: 'metadata-only',
-    support: 'missing',
-    captureMode: 'metadata_only',
-    liveHeartbeatExpected: false,
-    finalTranscriptExpected: false,
-    notes: 'Squid hook metadata exists, but Port Daddy does not yet ship an agy spawn/transcript adapter.',
   },
 ];
 

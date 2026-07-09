@@ -65,7 +65,13 @@ describe('routes/transcripts', () => {
     expect(body.success).toBe(true);
     expect(body.matrix).toEqual(expect.arrayContaining([
       expect.objectContaining({ backend: 'cloudflare', support: 'supported' }),
-      expect.objectContaining({ backend: 'agy', support: 'missing' }),
+      expect.objectContaining({
+        backend: 'cli:agy',
+        support: 'degraded',
+        captureMode: 'final_only',
+        liveHeartbeatExpected: false,
+        finalTranscriptExpected: true,
+      }),
     ]));
     expect(body.summary.flow.running).toBe(0);
   });

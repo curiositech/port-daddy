@@ -289,6 +289,62 @@ describe('assessSpawnPreflight', () => {
     expect(result.warnings.join('\n')).toContain('PD_USE_CLI_BACKEND forces cli:claude-code');
   });
 
+  test('preflights forced cli:agy without inventing a default model', async () => {
+    process.env.PD_USE_CLI_BACKEND = 'agy';
+    mockResolveFleetAgentRuntime.mockImplementation((target) => ({
+      backend: target.backend,
+      model: target.model ?? null,
+      modelTier: target.modelTier,
+      backendSource: 'agent',
+      modelSource: target.model ? 'agent' : 'unset',
+      warnings: [],
+    }));
+    mockAssessBackendReadiness.mockImplementation(async (backend, opts) => ({
+      backend,
+      status: backend === 'cli:agy' ? 'manual_check' : 'ready',
+      launchableUnverified: backend === 'cli:agy',
+      summary: backend === 'cli:agy'
+        ? `Antigravity agy CLI binary found; model=${opts?.model ?? 'unset'}`
+        : 'requested backend was ready',
+      nextStep: backend === 'cli:agy' ? 'Run `agy --print "hello"` once.' : undefined,
+    }));
+
+    const result = await assessSpawnPreflight({
+      backend: 'openai',
+      model: 'gpt-5-mini',
+      identity: 'port-daddy:fleet:test-hunter',
+      budgetUsd: 0.75,
+    }, {
+      costTracker: {
+        budgetStatus: jest.fn(() => ({
+          project: 'port-daddy',
+          budgetUsdPerDay: 0.75,
+          spentUsd: 0,
+          remainingUsd: 0.75,
+          percentUsed: 0,
+          overBudget: false,
+        })),
+      },
+    });
+
+    expect(mockResolveFleetAgentRuntime).toHaveBeenCalledWith({
+      backend: 'cli:agy',
+      model: undefined,
+      modelTier: undefined,
+    });
+    expect(mockAssessBackendReadiness).toHaveBeenCalledWith('cli:agy', { model: null });
+    expect(result.launchReady).toBe(true);
+    expect(result.attempts[0]).toMatchObject({
+      backend: 'cli:agy',
+      model: null,
+      backendSource: 'env',
+      readinessStatus: 'manual_check',
+      readinessLaunchableUnverified: true,
+    });
+    expect(result.warnings.join('\n')).toContain('PD_USE_CLI_BACKEND forces cli:agy');
+    expect(result.warnings.join('\n')).toContain('agy --print "hello"');
+  });
+
   test('blocks manual-check runtimes until readiness is proven', async () => {
     mockAssessBackendReadiness.mockResolvedValue({
       backend: 'codex',

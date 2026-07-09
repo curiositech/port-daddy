@@ -16,6 +16,7 @@ describe('backend-catalog', () => {
   test('includes the cli-tube backends introduced in PR #109', () => {
     expect(KNOWN_BACKEND_IDS.has('cli:claude-code')).toBe(true);
     expect(KNOWN_BACKEND_IDS.has('cli:codex')).toBe(true);
+    expect(KNOWN_BACKEND_IDS.has('cli:agy')).toBe(true);
   });
 
   test('cli-tube entries advertise the free-via-subscription framing', () => {
@@ -32,6 +33,15 @@ describe('backend-catalog', () => {
     expect(codex.framing).toMatch(/ChatGPT Pro/i);
     expect(codex.pdUseCliBackendValue).toBe('codex');
     expect(codex.recommended).toBe(true);
+
+    const agy = getBackendCatalogEntry('cli:agy');
+    expect(agy).toBeDefined();
+    expect(agy.costModel).toBe('subscription');
+    expect(agy.framing).toMatch(/agy/i);
+    expect(agy.pdUseCliBackendValue).toBe('agy');
+    // Do not advertise a synthetic default model. The agy CLI should receive
+    // no --model flag unless the operator explicitly picks a real agy model id.
+    expect(agy.models).toEqual([]);
   });
 
   test('all entries expose a non-empty framing string', () => {
@@ -56,6 +66,8 @@ describe('backend-catalog', () => {
       'cli:claude-code',
     );
     expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'CODEX' })).toBe('cli:codex');
+    expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'agy' })).toBe('cli:agy');
+    expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'antigravity' })).toBe('cli:agy');
     expect(detectForcedCliBackend({})).toBeNull();
     expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: '' })).toBeNull();
     expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'bogus' })).toBeNull();
@@ -156,6 +168,7 @@ describe('backend-catalog', () => {
     expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'gemini' })).toBe('cli:gemini');
     expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'GROQ' })).toBe('cli:groq');
     expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'grok' })).toBe('cli:grok');
+    expect(detectForcedCliBackendValue({ PD_USE_CLI_BACKEND: 'Antigravity' })).toBe('agy');
   });
 
   test('claude SDK ladder uses current undated model ids', () => {

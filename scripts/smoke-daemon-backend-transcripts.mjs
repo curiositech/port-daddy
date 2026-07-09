@@ -12,6 +12,8 @@ const FORCED_CLI_BACKENDS = new Map([
   ['claude', 'cli:claude-code'],
   ['claude-code', 'cli:claude-code'],
   ['codex', 'cli:codex'],
+  ['agy', 'cli:agy'],
+  ['antigravity', 'cli:agy'],
   ['gemini', 'cli:gemini'],
   ['groq', 'cli:groq'],
   ['grok', 'cli:grok'],
@@ -142,6 +144,12 @@ export function writeFakeCodexBinary(binPath, finalText = 'pd-codex-smoke') {
   chmodSync(binPath, 0o755);
 }
 
+export function writeFakeAgyBinary(binPath, finalText = 'pd-agy-smoke') {
+  mkdirSync(join(binPath, '..'), { recursive: true });
+  writeFileSync(binPath, `#!/bin/sh\nprintf '%s\\n' '${finalText}'\n`);
+  chmodSync(binPath, 0o755);
+}
+
 export async function withFakeOpenAICompatibleServer(text = 'pd-openai-smoke') {
   const requests = [];
   const server = createServer(async (req, res) => {
@@ -257,12 +265,15 @@ async function runCiSafeSmoke() {
   const spawnWorktree = createScratchSpawnWorktree(tmp);
   const staleClaude = join(tmp, 'stale-home', '.local', 'bin', 'claude');
   const fakeClaude = join(tmp, 'bin', 'claude');
+  const fakeAgy = join(tmp, 'bin', 'agy');
   writeFakeClaudeBinary(fakeClaude);
+  writeFakeAgyBinary(fakeAgy);
   const openai = await withFakeOpenAICompatibleServer();
   const env = {
     PATH: LAUNCHD_RESTRICTED_PATH,
     PD_USE_CLI_BACKEND: 'none',
     PD_CLI_CLAUDE_CODE_BIN: staleClaude,
+    PD_CLI_AGY_BIN: fakeAgy,
     PD_CLI_BIN_DIRS: join(fakeClaude, '..'),
     OPENAI_API_KEY: 'sk-fake-smoke',
     OPENAI_BASE_URL: openai.baseUrl,
@@ -275,6 +286,14 @@ async function runCiSafeSmoke() {
         requestedBackend: 'cli:claude-code',
         budgetUsd: 0.01,
         body: { model: 'sonnet' },
+        env,
+        workdir: spawnWorktree.workdir,
+      }),
+      await runSpawnRow({
+        daemon,
+        requestedBackend: 'cli:agy',
+        budgetUsd: 0.01,
+        body: {},
         env,
         workdir: spawnWorktree.workdir,
       }),
@@ -300,7 +319,10 @@ function liveRowsFromEnv() {
   if (process.env.PD_LIVE_CLI_CLAUDE_CODE === '1') rows.push({ requestedBackend: 'cli:claude-code', body: { model: process.env.PD_LIVE_CLAUDE_MODEL || 'sonnet' } });
   if (process.env.PD_LIVE_CLI_CODEX === '1') rows.push({ requestedBackend: 'cli:codex', body: { model: 'codex-cli' } });
   if (process.env.PD_LIVE_CLI_GEMINI === '1') rows.push({ requestedBackend: 'cli:gemini', body: {} });
-  if (process.env.PD_LIVE_AGY === '1') rows.push({ requestedBackend: 'agy', body: {}, expected: 'unsupported-on-current-branch' });
+  if (process.env.PD_LIVE_AGY === '1') rows.push({
+    requestedBackend: 'cli:agy',
+    body: process.env.PD_LIVE_AGY_MODEL ? { model: process.env.PD_LIVE_AGY_MODEL } : {},
+  });
   if (process.env.PD_LIVE_OLLAMA === '1') rows.push({ requestedBackend: 'ollama', body: { model: process.env.OLLAMA_MODEL || 'llama3.1:8b' } });
   if (process.env.PD_LIVE_OPENAI === '1') rows.push({ requestedBackend: 'openai', body: { model: process.env.OPENAI_MODEL || 'gpt-5-nano', maxTokens: 20 } });
   if (process.env.PD_LIVE_GROQ === '1') rows.push({ requestedBackend: 'groq', body: { model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile', maxTokens: 20 } });
@@ -317,10 +339,6 @@ async function runLiveSmoke() {
   const rows = [];
   try {
     for (const row of liveRowsFromEnv()) {
-      if (row.expected === 'unsupported-on-current-branch') {
-        rows.push({ requestedBackend: row.requestedBackend, actualExecutionBackend: 'unsupported', status: 'skipped', note: 'agy backend is not accepted by /spawn on this branch' });
-        continue;
-      }
       rows.push(await runSpawnRow({
         daemon,
         requestedBackend: row.requestedBackend,

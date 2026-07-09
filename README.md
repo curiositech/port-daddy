@@ -511,7 +511,7 @@ Quiet mode (`-q`) prints raw output to stdout and exits non-zero on failure — 
 
 **Key flags:** `--backend`, `--model`, `--tier`, `--identity`, `--purpose`, `--budget`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`
 
-**Backends in source:** `claude` (SDK), `claude-cli`, `codex`, `gemini`, `cloudflare` (Workers AI), `ollama`, `aider`, `custom`. Operator-facing launches are **fail-closed on telemetry**: Port Daddy rejects a launch unless it can attach exact token counts, an exact nonzero rate, and a persisted exact cost record to the completed run. Today that means the Claude SDK backend with an exact-rate model entry is the live launchable path; treat other backends as blocked until they reach telemetry parity. `pd backend` switches the active provider/model configuration; `pd benchmark run` compares backends with real (paid) calls.
+**Backends in source:** `claude` (SDK), `claude-cli`, `codex`, `gemini`, `cloudflare` (Workers AI), `openai`, `groq`, `deepseek`, `xai`, `ollama`, `aider`, `custom`, and CLI-tube backends `cli:claude-code`, `cli:codex`, `cli:agy`, `cli:gemini`, `cli:groq`, `cli:grok`. Operator-facing launches are **fail-closed on telemetry**: metered API backends need exact token counts, an exact nonzero rate, and a persisted exact cost record. CLI-tube backends ride the operator's authenticated local CLI and record a flat session estimate; `cli:agy` captures the user prompt plus final stdout/stderr only until agy exposes a documented stream. `pd backend` switches the active provider/model configuration; `pd benchmark run` compares backends with real (paid) calls.
 
 ### 🛡️ The Coast Guard (ADR-0050) — confinement is the default
 
