@@ -8,6 +8,14 @@ const mockQueue = {
   cancel: jest.fn(),
   propose: jest.fn(),
 };
+const mockWorkIntentService = {
+  captureDispatch: jest.fn(({ goal }, queue) => {
+    const dispatch = { id: 'dispatch-1', slug: 'dispatch-one', goal, state: 'proposed' };
+    queue.propose?.();
+    return { dispatch, intent: { intentId: 'work_intent_dispatch_1' }, append: { duplicate: false } };
+  }),
+  ensureDispatchIntent: jest.fn(),
+};
 const mockRunNext = jest.fn();
 const mockPlanRunFor = jest.fn(() => ({
   dispatch: {
@@ -38,6 +46,10 @@ jest.unstable_mockModule('../../lib/db.js', () => ({
 
 jest.unstable_mockModule('../../lib/dispatch/queue.js', () => ({
   createDispatchQueue: jest.fn(() => mockQueue),
+}));
+
+jest.unstable_mockModule('../../lib/agent-harbor/work-intent-service.js', () => ({
+  createWorkIntentService: jest.fn(() => mockWorkIntentService),
 }));
 
 jest.unstable_mockModule('../../lib/dispatch/runner.js', () => ({

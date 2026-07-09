@@ -31,6 +31,7 @@ import {
   runNext,
   type DispatchBackend,
 } from '../../lib/dispatch/runner.js';
+import { createWorkIntentService } from '../../lib/agent-harbor/work-intent-service.js';
 import { describeState, stateGlyph } from '../../lib/dispatch/state-machine.js';
 
 import type { CLIOptions } from '../types.js';
@@ -185,6 +186,7 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
 
   const db = initDatabase();
   const queue = createDispatchQueue({ db });
+  const workIntentService = createWorkIntentService({ db });
 
   // -- propose ----------------------------------------------------------
   if (subcommand === 'propose') {
@@ -198,7 +200,7 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
     );
     let dispatch: Dispatch;
     try {
-      dispatch = queue.propose({
+      const result = workIntentService.captureDispatch({
         goal: goalText,
         tags: parseTags(options.tags),
         backend: parseBackend(options.backend),
@@ -215,7 +217,8 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
         targetActorId: typeof options.to === 'string' ? options.to : undefined,
         reviewerActorId: typeof options.reviewer === 'string' ? options.reviewer : undefined,
         mergePolicy: requestedMerge,
-      });
+      }, queue);
+      dispatch = result.dispatch;
     } catch (err) {
       ui.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
@@ -354,6 +357,8 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
     const reason = typeof options.reason === 'string' ? options.reason : undefined;
     let d: Dispatch;
     try {
+      const existing = queue.get(id);
+      if (existing) workIntentService.ensureDispatchIntent(existing);
       d = queue.cancel(id, reason);
     } catch (err) {
       ui.error(err instanceof Error ? err.message : String(err));

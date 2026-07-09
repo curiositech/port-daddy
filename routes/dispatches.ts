@@ -90,6 +90,13 @@ const dispatchesPlugin: FastifyPluginAsync<DispatchesRouteDeps> = async (
     }
   }
 
+  function isProjectionValidationError(message: string): boolean {
+    return message.includes('goal text') ||
+      message.includes('budgetUsd must be a positive number') ||
+      message.includes('timeoutMs must be a positive number') ||
+      message.includes("merge_policy 'auto'");
+  }
+
   // POST /dispatches — propose
   fastify.post(
     '/dispatches',
@@ -126,7 +133,8 @@ const dispatchesPlugin: FastifyPluginAsync<DispatchesRouteDeps> = async (
         });
       } catch (err) {
         if (err instanceof WorkIntentMaterializationError) {
-          return reply.code(500).send({
+          const statusCode = isProjectionValidationError(err.message) ? 400 : 500;
+          return reply.code(statusCode).send({
             ok: false,
             error:
               'WorkIntent captured but dispatch projection materialization failed; no spawn was started. ' +
@@ -139,7 +147,7 @@ const dispatchesPlugin: FastifyPluginAsync<DispatchesRouteDeps> = async (
             },
           });
         }
-        return reply.code(400).send({
+        return reply.code(500).send({
           ok: false,
           error: err instanceof Error ? err.message : String(err),
         });

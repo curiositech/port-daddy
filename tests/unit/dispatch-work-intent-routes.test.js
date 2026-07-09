@@ -14,7 +14,7 @@ function worker() {
   };
 }
 
-async function buildApp() {
+async function buildApp(overrides = {}) {
   const app = Fastify();
   const db = createTestDb();
   const dispatchQueue = createDispatchQueue({ db, now: () => 1_820_000_000_000 });
@@ -23,7 +23,9 @@ async function buildApp() {
     now: () => new Date('2026-07-09T02:40:00.000Z'),
   });
   const dispatchWorker = worker();
-  await app.register(dispatchesPlugin, { deps: { dispatchQueue, dispatchWorker, workIntentService } });
+  await app.register(dispatchesPlugin, {
+    deps: { dispatchQueue, dispatchWorker, workIntentService, ...overrides },
+  });
   await app.ready();
   return { app, db, dispatchQueue, dispatchWorker };
 }
@@ -86,6 +88,41 @@ describe('dispatch routes WorkIntent contract', () => {
     const intent = JSON.parse(events[0].payload_json);
     expect(intent.compat.dispatchId).toBe(legacy.id);
     expect(intent.attachExisting).toBe(true);
+    await app.close();
+  });
+
+  test('POST /dispatches maps projection validation failures to HTTP 400', async () => {
+    const { app, db, dispatchQueue } = await buildApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/dispatches',
+      payload: {
+        goal: 'invalid projection budget',
+        budgetUsd: -1,
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(/budgetUsd must be a positive number/);
+    expect(dispatchQueue.list({ state: 'all' })).toHaveLength(0);
+    expect(readEvents(db, { streamType: 'work-intent' })).toHaveLength(1);
+    await app.close();
+  });
+
+  test('POST /dispatches maps WorkIntent/internal failures to HTTP 500', async () => {
+    const failingWorkIntentService = {
+      captureDispatch: () => { throw new Error('ledger write failed'); },
+      ensureDispatchIntent: () => { throw new Error('unused'); },
+    };
+    const { app } = await buildApp({ workIntentService: failingWorkIntentService });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/dispatches',
+      payload: { goal: 'append should fail internally' },
+    });
+
+    expect(res.statusCode).toBe(500);
+    expect(res.json().error).toMatch(/ledger write failed/);
     await app.close();
   });
 });

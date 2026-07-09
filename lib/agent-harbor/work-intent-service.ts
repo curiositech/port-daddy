@@ -39,6 +39,18 @@ export interface WorkIntentPayload extends HarborPayload {
     legacyState?: string;
     projection?: 'dispatches';
     requestIdempotencyKey?: string;
+    dispatchProjection?: {
+      tags?: string[];
+      backend?: DispatchBackend;
+      budgetUsd?: number;
+      timeoutMs?: number;
+      baseBranch?: string;
+      autoClaim?: boolean;
+      targetActorId?: string;
+      reviewerActorId?: string;
+      mergePolicy?: MergePolicy;
+      requestedBy?: string;
+    };
   };
 }
 
@@ -68,6 +80,7 @@ export interface CaptureDispatchInput {
   mergePolicy?: MergePolicy;
   requestedBy?: string;
   idempotencyKey?: string;
+  autoClaim?: boolean;
 }
 
 export interface CaptureResult {
@@ -161,8 +174,28 @@ function readIntentByEventId(db: DatabaseInstance, eventId: string): WorkIntentP
   return JSON.parse(row.payload_json) as WorkIntentPayload;
 }
 
+function readIntentByEventIdIfExists(db: DatabaseInstance, eventId: string): WorkIntentPayload | null {
+  const row = db
+    .prepare("SELECT payload_json FROM harbor_events WHERE stream_type = 'work-intent' AND event_id = ?")
+    .get(eventId) as { payload_json: string } | undefined;
+  if (!row) return null;
+  return JSON.parse(row.payload_json) as WorkIntentPayload;
+}
+
+function candidateIntentIdsForDispatchId(dispatchId: string): string[] {
+  const ids = [legacyIntentIdForDispatch(dispatchId)];
+  if (dispatchId.startsWith('dispatch_')) {
+    ids.unshift(`work_intent_${dispatchId.replace(/^dispatch_/, '')}`);
+  }
+  return [...new Set(ids)];
+}
+
 function findIntentByDispatchId(db: DatabaseInstance, dispatchId: string): WorkIntentPayload | null {
   ensureEventLedgerSchema(db);
+  for (const eventId of candidateIntentIdsForDispatchId(dispatchId)) {
+    const payload = readIntentByEventIdIfExists(db, eventId);
+    if (payload?.compat?.dispatchId === dispatchId) return payload;
+  }
   const rows = db
     .prepare("SELECT payload_json FROM harbor_events WHERE stream_type = 'work-intent' ORDER BY ledger_seq ASC")
     .all() as Array<{ payload_json: string }>;
@@ -175,6 +208,28 @@ function findIntentByDispatchId(db: DatabaseInstance, dispatchId: string): WorkI
     }
   }
   return null;
+}
+
+function materializeDispatchProjectionFromIntent(
+  intent: WorkIntentPayload,
+  queue: DispatchQueue,
+): Dispatch {
+  const projection = intent.compat?.dispatchProjection;
+  return queue.materializeProjection({
+    id: intent.compat?.dispatchId ?? dispatchIdForWorkIntent(intent.intentId),
+    goal: intent.goal.text,
+    tags: projection?.tags,
+    backend: projection?.backend,
+    budgetUsd: projection?.budgetUsd,
+    timeoutMs: projection?.timeoutMs,
+    baseBranch: projection?.baseBranch,
+    autoClaim: projection?.autoClaim,
+    targetActorId: projection?.targetActorId,
+    reviewerActorId: projection?.reviewerActorId,
+    mergePolicy: projection?.mergePolicy,
+    requestedBy: projection?.requestedBy ?? intent.operator,
+    createdAt: millisFromIso(intent.createdAt),
+  });
 }
 
 export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntentService {
@@ -224,24 +279,23 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
         dispatchId,
         projection: 'dispatches',
         requestIdempotencyKey: input.idempotencyKey,
+        dispatchProjection: {
+          tags: input.tags,
+          backend: input.backend,
+          budgetUsd: input.budgetUsd,
+          timeoutMs: input.timeoutMs,
+          baseBranch: input.baseBranch,
+          autoClaim: input.autoClaim,
+          targetActorId: input.targetActorId,
+          reviewerActorId: input.reviewerActorId,
+          mergePolicy: input.mergePolicy,
+          requestedBy: input.requestedBy,
+        },
       },
     });
     let dispatch: Dispatch;
     try {
-      dispatch = queue.materializeProjection({
-        id: dispatchId,
-        goal: captured.intent.goal.text,
-        tags: input.tags,
-        backend: input.backend,
-        budgetUsd: input.budgetUsd,
-        timeoutMs: input.timeoutMs,
-        baseBranch: input.baseBranch,
-        targetActorId: input.targetActorId,
-        reviewerActorId: input.reviewerActorId,
-        mergePolicy: input.mergePolicy,
-        requestedBy: input.requestedBy,
-        createdAt: millisFromIso(captured.intent.createdAt),
-      });
+      dispatch = materializeDispatchProjectionFromIntent(captured.intent, queue);
     } catch (err) {
       throw new WorkIntentMaterializationError(
         err instanceof Error ? err.message : String(err),

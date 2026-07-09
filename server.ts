@@ -771,6 +771,7 @@ const dispatchWorker = DISPATCH_WORKER_ENABLED
       logger,
       maxConcurrency: DISPATCH_CONCURRENCY,
       pollIntervalMs: DISPATCH_POLL_MS,
+      workIntentService,
       model: DISPATCH_MODEL,
       // THE INJECTION POINT: spawn every dispatch through the Conductor.
       spawnAdapter: createConductorSpawnAdapter(conductor),
