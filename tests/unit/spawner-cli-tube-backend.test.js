@@ -249,6 +249,8 @@ describe('CLI tube provider registry contract', () => {
       expect(spec.defaultBinary).toEqual(expect.any(String));
       expect(spec.binaryEnvOverride).toMatch(/^PD_CLI_[A-Z0-9_]+_BIN$/);
       expect(spec.authNextStep).toEqual(expect.any(String));
+      expect(spec.argStyle.kind).toEqual(expect.any(String));
+      expect(spec.modelPolicy).toBeDefined();
       expect(typeof spec.buildArgs).toBe('function');
       expect(buildArgs(tool, 'registry smoke').args).toEqual(spec.buildArgs({
         prompt: 'registry smoke',
@@ -259,6 +261,20 @@ describe('CLI tube provider registry contract', () => {
         timeoutMs: undefined,
       }).args);
     }
+  });
+
+  test('provider specs own model placeholder behavior instead of a shared string fallback list', () => {
+    expect(CLI_TUBE_PROVIDER_SPECS['claude-code'].modelPolicy).toMatchObject({
+      extraPlaceholderModels: ['claude-cli', 'codex'],
+      placeholderFallback: 'sonnet',
+    });
+    expect(CLI_TUBE_PROVIDER_SPECS.codex.modelPolicy).toMatchObject({
+      extraPlaceholderModels: ['codex-cli'],
+    });
+    expect(CLI_TUBE_PROVIDER_SPECS.agy.modelPolicy).toMatchObject({
+      extraPlaceholderModels: ['agy-cli', 'agy-default'],
+    });
+    expect(CLI_TUBE_PROVIDER_SPECS.gemini.modelPolicy).toEqual({});
   });
 
   test('agy is the only provider whose empty successful stdout is classified as failure', () => {
@@ -692,7 +708,7 @@ describe('spawnViaCliTube — failure paths', () => {
       expect(child.kill).toHaveBeenCalledWith('SIGTERM');
       await jest.advanceTimersByTimeAsync(5000);
       expect(child.kill).toHaveBeenCalledWith('SIGKILL');
-      await jest.advanceTimersByTimeAsync(1000);
+      await jest.advanceTimersByTimeAsync(999);
       await Promise.resolve();
 
       expect(settled).toBe(false);
@@ -703,6 +719,41 @@ describe('spawnViaCliTube — failure paths', () => {
       const res = await resultPromise;
       expect(res.rawStdout).toBe('partial transcript line\n');
       expect(res.error).toContain('agy timed out after 10ms');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('timeout hard-deadline resolves failed if SIGKILL never produces close, without destroying streams', async () => {
+    jest.useFakeTimers();
+    try {
+      const child = fakeChild({ neverClose: true });
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      const stdoutDestroy = jest.spyOn(child.stdout, 'destroy');
+      const stderrDestroy = jest.spyOn(child.stderr, 'destroy');
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
+      let settled = false;
+      resultPromise.finally(() => { settled = true; });
+      child.stdout.write('line before timeout\n');
+
+      await jest.advanceTimersByTimeAsync(10);
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+      await jest.advanceTimersByTimeAsync(1000);
+      await Promise.resolve();
+
+      expect(settled).toBe(true);
+      expect(stdoutDestroy).not.toHaveBeenCalled();
+      expect(stderrDestroy).not.toHaveBeenCalled();
+      const res = await resultPromise;
+      expect(res.exitCode).toBe(-1);
+      expect(res.rawStdout).toBe('line before timeout\n');
+      expect(res.error).toContain('agy timed out after 10ms');
+      expect(res.error).toContain('process tree did not close after SIGKILL; transcript may be incomplete');
     } finally {
       jest.useRealTimers();
     }

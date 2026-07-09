@@ -20,12 +20,32 @@ export interface CliTubeBuildArgsResult {
   stdin: string | null;
 }
 
+export type CliTubeArgStyle =
+  | { kind: 'claude-stream-json' }
+  | { kind: 'codex-exec-json' }
+  | { kind: 'print'; timeoutFlag: '--print-timeout' }
+  | { kind: 'prompt-flag' };
+
+export interface CliTubeModelPolicy {
+  /**
+   * Extra sentinels that mean "let this CLI/provider choose", in addition to
+   * the provider id itself plus the generic `default`/`cli` sentinels.
+   */
+  extraPlaceholderModels?: readonly string[];
+  /**
+   * Optional concrete fallback when a placeholder must still become a real
+   * model argument for that provider.
+   */
+  placeholderFallback?: string;
+}
+
 interface CliTubeProviderSpecBase<TTool extends CliTubeTool = CliTubeTool> {
   id: TTool;
   defaultBinary: string;
   binaryEnvOverride: `PD_CLI_${string}_BIN`;
   authNextStep: string;
-  buildArgs: (input: CliTubeBuildArgsInput) => CliTubeBuildArgsResult;
+  argStyle: CliTubeArgStyle;
+  modelPolicy?: CliTubeModelPolicy;
   stripEnvKeys?: readonly string[];
   stalePathOverrideFallback?: 'default-command';
   outputCapture?: 'last-message-file';
@@ -35,23 +55,13 @@ type EmptySuccessPolicy =
   | { emptySuccess: 'allow'; emptySuccessError?: never }
   | { emptySuccess: 'fail'; emptySuccessError: string };
 
-export type CliTubeProviderSpec<TTool extends CliTubeTool = CliTubeTool> =
+type CliTubeProviderDefinition<TTool extends CliTubeTool = CliTubeTool> =
   CliTubeProviderSpecBase<TTool> & EmptySuccessPolicy;
 
-const PLACEHOLDER_MODELS = new Set([
-  'claude-code',
-  'codex',
-  'agy',
-  'gemini',
-  'groq',
-  'grok',
-  'claude-cli',
-  'codex-cli',
-  'agy-cli',
-  'agy-default',
-  'default',
-  'cli',
-]);
+export type CliTubeProviderSpec<TTool extends CliTubeTool = CliTubeTool> =
+  CliTubeProviderDefinition<TTool> & {
+    buildArgs: (input: CliTubeBuildArgsInput) => CliTubeBuildArgsResult;
+  };
 
 const CODEX_CONFIG_KEY = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;
 const MAX_CODEX_CONFIG_OVERRIDES = 32;
@@ -79,110 +89,82 @@ export function normalizeCodexConfigOverrides(configs: readonly string[] | undef
   return normalized;
 }
 
-function effectiveModel(model: string | undefined, placeholderFallback?: string): string | undefined {
-  if (model && !PLACEHOLDER_MODELS.has(model)) return model;
-  return placeholderFallback;
-}
-
-function buildClaudeArgs(input: CliTubeBuildArgsInput): CliTubeBuildArgsResult {
-  const args = ['-p', '--output-format', 'stream-json', '--verbose'];
-  const model = effectiveModel(input.model, 'sonnet');
-  if (model) args.push('--model', model);
-  if (input.permissionMode) args.push('--permission-mode', input.permissionMode);
-  args.push(input.prompt);
-  return { args, stdin: null };
-}
-
-function buildCodexArgs(input: CliTubeBuildArgsInput): CliTubeBuildArgsResult {
-  const args = [
-    'exec',
-    '--skip-git-repo-check',
-    '--full-auto',
-    '--sandbox', 'workspace-write',
-    '--json',
-  ];
-  if (input.outputPath) args.push('--output-last-message', input.outputPath);
-  const model = effectiveModel(input.model);
-  if (model) args.push('--model', model);
-  for (const config of normalizeCodexConfigOverrides(input.codexConfig)) {
-    args.push('-c', config);
-  }
-  args.push(input.prompt);
-  return { args, stdin: null };
-}
-
-function buildAgyArgs(input: CliTubeBuildArgsInput): CliTubeBuildArgsResult {
-  const args = ['--print'];
-  const model = effectiveModel(input.model);
-  if (model) args.push('--model', model);
-  if (input.timeoutMs && Number.isFinite(input.timeoutMs) && input.timeoutMs > 0) {
-    args.push('--print-timeout', `${Math.max(1, Math.ceil(input.timeoutMs / 1000))}s`);
-  }
-  args.push(input.prompt);
-  return { args, stdin: null };
-}
-
-function buildPromptFlagArgs(input: CliTubeBuildArgsInput): CliTubeBuildArgsResult {
-  const args = ['-p'];
-  const model = effectiveModel(input.model);
-  if (model) args.push('--model', model);
-  args.push(input.prompt);
-  return { args, stdin: null };
+function defineCliTubeProvider<TTool extends CliTubeTool>(
+  definition: CliTubeProviderDefinition<TTool>,
+): CliTubeProviderSpec<TTool> {
+  const spec: CliTubeProviderSpec<TTool> = {
+    ...definition,
+    buildArgs: (input) => buildCliTubeArgsFromSpec(spec, input),
+  };
+  return spec;
 }
 
 export const CLI_TUBE_PROVIDER_SPECS: { [TTool in CliTubeTool]: CliTubeProviderSpec<TTool> } = {
-  'claude-code': {
+  'claude-code': defineCliTubeProvider({
     id: 'claude-code',
     defaultBinary: 'claude',
     binaryEnvOverride: 'PD_CLI_CLAUDE_CODE_BIN',
     authNextStep: 'Run `claude setup-token` or `claude auth` to authenticate.',
-    buildArgs: buildClaudeArgs,
+    argStyle: { kind: 'claude-stream-json' },
+    modelPolicy: {
+      extraPlaceholderModels: ['claude-cli', 'codex'],
+      placeholderFallback: 'sonnet',
+    },
     stripEnvKeys: ['ANTHROPIC_API_KEY'],
     stalePathOverrideFallback: 'default-command',
     emptySuccess: 'allow',
-  },
-  codex: {
+  }),
+  codex: defineCliTubeProvider({
     id: 'codex',
     defaultBinary: 'codex',
     binaryEnvOverride: 'PD_CLI_CODEX_BIN',
     authNextStep: 'Set OPENAI_API_KEY in ~/.codex/config or `codex auth login`.',
-    buildArgs: buildCodexArgs,
+    argStyle: { kind: 'codex-exec-json' },
+    modelPolicy: {
+      extraPlaceholderModels: ['codex-cli'],
+    },
     outputCapture: 'last-message-file',
     emptySuccess: 'allow',
-  },
-  agy: {
+  }),
+  agy: defineCliTubeProvider({
     id: 'agy',
     defaultBinary: 'agy',
     binaryEnvOverride: 'PD_CLI_AGY_BIN',
     authNextStep: 'Run `agy --print "hello"` once interactively to confirm authentication.',
-    buildArgs: buildAgyArgs,
+    argStyle: { kind: 'print', timeoutFlag: '--print-timeout' },
+    modelPolicy: {
+      extraPlaceholderModels: ['agy-cli', 'agy-default'],
+    },
     emptySuccess: 'fail',
     emptySuccessError: 'agy produced no stdout or stderr in print mode.',
-  },
-  gemini: {
+  }),
+  gemini: defineCliTubeProvider({
     id: 'gemini',
     defaultBinary: 'gemini',
     binaryEnvOverride: 'PD_CLI_GEMINI_BIN',
     authNextStep: 'Run `gemini` once interactively to sign in, or set GEMINI_API_KEY.',
-    buildArgs: buildPromptFlagArgs,
+    argStyle: { kind: 'prompt-flag' },
+    modelPolicy: {},
     emptySuccess: 'allow',
-  },
-  groq: {
+  }),
+  groq: defineCliTubeProvider({
     id: 'groq',
     defaultBinary: 'groq',
     binaryEnvOverride: 'PD_CLI_GROQ_BIN',
     authNextStep: 'Run `groq` once interactively to sign in, or set GROQ_API_KEY.',
-    buildArgs: buildPromptFlagArgs,
+    argStyle: { kind: 'prompt-flag' },
+    modelPolicy: {},
     emptySuccess: 'allow',
-  },
-  grok: {
+  }),
+  grok: defineCliTubeProvider({
     id: 'grok',
     defaultBinary: 'grok',
     binaryEnvOverride: 'PD_CLI_GROK_BIN',
     authNextStep: 'Run `grok` once interactively to sign in, or set GROK_API_KEY / XAI_API_KEY.',
-    buildArgs: buildPromptFlagArgs,
+    argStyle: { kind: 'prompt-flag' },
+    modelPolicy: {},
     emptySuccess: 'allow',
-  },
+  }),
 };
 
 export function getCliTubeProviderSpec<TTool extends CliTubeTool>(
@@ -202,6 +184,74 @@ export function buildCliTubeArgs(
   return getCliTubeProviderSpec(tool).buildArgs(input);
 }
 
+function buildCliTubeArgsFromSpec(
+  spec: CliTubeProviderSpec,
+  input: CliTubeBuildArgsInput,
+): CliTubeBuildArgsResult {
+  switch (spec.argStyle.kind) {
+    case 'claude-stream-json': {
+      const args = ['-p', '--output-format', 'stream-json', '--verbose'];
+      pushModelArg(args, spec, input.model);
+      if (input.permissionMode) args.push('--permission-mode', input.permissionMode);
+      args.push(input.prompt);
+      return { args, stdin: null };
+    }
+    case 'codex-exec-json': {
+      const args = [
+        'exec',
+        '--skip-git-repo-check',
+        '--full-auto',
+        '--sandbox', 'workspace-write',
+        '--json',
+      ];
+      if (input.outputPath) args.push('--output-last-message', input.outputPath);
+      pushModelArg(args, spec, input.model);
+      for (const config of normalizeCodexConfigOverrides(input.codexConfig)) {
+        args.push('-c', config);
+      }
+      args.push(input.prompt);
+      return { args, stdin: null };
+    }
+    case 'print': {
+      const args = ['--print'];
+      pushModelArg(args, spec, input.model);
+      if (input.timeoutMs && Number.isFinite(input.timeoutMs) && input.timeoutMs > 0) {
+        args.push(spec.argStyle.timeoutFlag, `${Math.max(1, Math.ceil(input.timeoutMs / 1000))}s`);
+      }
+      args.push(input.prompt);
+      return { args, stdin: null };
+    }
+    case 'prompt-flag': {
+      const args = ['-p'];
+      pushModelArg(args, spec, input.model);
+      args.push(input.prompt);
+      return { args, stdin: null };
+    }
+    default: {
+      const exhaustive: never = spec.argStyle;
+      throw new Error(`Unhandled CLI tube arg style ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}
+
+function pushModelArg(args: string[], spec: CliTubeProviderSpec, requestedModel: string | undefined): void {
+  const model = resolveCliTubeModel(spec, requestedModel);
+  if (model) args.push('--model', model);
+}
+
+function resolveCliTubeModel(spec: CliTubeProviderSpec, requestedModel: string | undefined): string | undefined {
+  const policy = spec.modelPolicy;
+  if (!policy) return requestedModel;
+  const placeholders = new Set([
+    spec.id,
+    'default',
+    'cli',
+    ...(policy.extraPlaceholderModels ?? []),
+  ]);
+  if (requestedModel && !placeholders.has(requestedModel)) return requestedModel;
+  return policy.placeholderFallback;
+}
+
 export interface CliChildWaitResult {
   code: number;
   timedOut: boolean;
@@ -211,6 +261,7 @@ export interface CliChildWaitResult {
 interface WaitForCliChildOptions {
   timeoutMs: number;
   killGraceMs: number;
+  killCloseDeadlineMs: number;
 }
 
 export function waitForCliChildProcess(
@@ -222,12 +273,14 @@ export function waitForCliChildProcess(
     let timedOut = false;
     let knownTreePids: number[] = [];
     let forceKillTimer: ReturnType<typeof setTimeout> | null = null;
+    let killCloseDeadlineTimer: ReturnType<typeof setTimeout> | null = null;
 
     const settle = (code: number, spawnErr: string | null = null): void => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       if (forceKillTimer) clearTimeout(forceKillTimer);
+      if (killCloseDeadlineTimer) clearTimeout(killCloseDeadlineTimer);
       resolve({ code, timedOut, spawnErr });
     };
 
@@ -241,6 +294,10 @@ export function waitForCliChildProcess(
           ...collectProcessTreePids(child.pid),
         ]);
         signalCliProcessTree(child, 'SIGKILL', knownTreePids);
+        killCloseDeadlineTimer = setTimeout(() => {
+          settle(-1, 'process tree did not close after SIGKILL; transcript may be incomplete');
+        }, opts.killCloseDeadlineMs);
+        killCloseDeadlineTimer.unref?.();
       }, opts.killGraceMs);
       forceKillTimer.unref?.();
     }, opts.timeoutMs);

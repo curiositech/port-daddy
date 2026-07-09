@@ -152,6 +152,7 @@ export interface TubeClientLike {
 
 const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
 const TIMEOUT_KILL_GRACE_MS = 5_000;
+const TIMEOUT_KILL_CLOSE_DEADLINE_MS = 1_000;
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -318,6 +319,7 @@ export async function spawnViaCliTube(
   const result = await waitForCliChildProcess(child, {
     timeoutMs,
     killGraceMs: TIMEOUT_KILL_GRACE_MS,
+    killCloseDeadlineMs: TIMEOUT_KILL_CLOSE_DEADLINE_MS,
   });
 
   // Flush any trailing partial line (a final JSONL line without a terminating
@@ -346,6 +348,8 @@ export async function spawnViaCliTube(
   if (result.spawnErr) {
     if (result.spawnErr.includes('ENOENT') || result.spawnErr.includes('not found')) {
       error = `${cli} binary "${binary}" not found on PATH. Install it and retry. ${provider.authNextStep}`;
+    } else if (result.timedOut) {
+      error = `${cli} timed out after ${timeoutMs}ms: ${result.spawnErr}`;
     } else {
       error = `Failed to spawn ${binary}: ${result.spawnErr}`;
     }
