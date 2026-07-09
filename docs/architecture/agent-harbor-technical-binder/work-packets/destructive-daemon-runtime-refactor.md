@@ -3,7 +3,7 @@
 Status: Wave 2 Lane A authority work packet.
 
 Scope: downstream implementation authority for the destructive daemon/runtime
-refactor. This packet turns ADR-0099 and binder chapters 25/26 into work packets
+refactor. This packet turns ADR-0100 and binder chapters 25/26 into work packets
 for code lanes. It does not edit runtime code.
 
 ## Mission
@@ -24,7 +24,7 @@ or route. The goal is to remove split authority.
 
 ## Required Reading
 
-- [ADR-0099 Destructive Daemon Runtime Authority](../../../adr/0099-destructive-daemon-runtime-authority.md)
+- [ADR-0100 Destructive Daemon Runtime Authority](../../../adr/0100-destructive-daemon-runtime-authority.md)
 - [ADR-0096 Signed Guidance Envelope And Suggestibility Authority](../../../adr/0096-signed-guidance-envelope-and-suggestibility-authority.md)
 - [25 Agent Harbor Runtime Refactor Alignment](../25-agent-harbor-runtime-refactor-alignment.md)
 - [26 Agent Harbor Runtime Refactor Agent DAG](../26-agent-harbor-runtime-refactor-agent-dag.md)
@@ -53,7 +53,7 @@ tool grant, or cool/cold ledger event.
 
 ## Normative Diagram
 
-Keep this diagram aligned with ADR-0099. The ADR is the authority if the two
+Keep this diagram aligned with ADR-0100. The ADR is the authority if the two
 drift.
 
 ```mermaid

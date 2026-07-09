@@ -1,4 +1,4 @@
-# ADR-0099: Destructive Daemon Runtime Authority
+# ADR-0100: Destructive Daemon Runtime Authority
 
 ## Status
 
@@ -15,7 +15,8 @@ sync architecture), and the Agent Harbor binder chapters
 and [26](../architecture/agent-harbor-technical-binder/26-agent-harbor-runtime-refactor-agent-dag.md).
 
 Blocks: destructive daemon/runtime implementation lanes that delete or fail
-closed legacy route, CLI, MCP, hot-stream, supervisor, and sync paths.
+closed legacy routes, CLI verbs, MCP tools, hot-stream paths, supervisor
+paths, and sync paths.
 
 ## Context
 
@@ -271,13 +272,13 @@ not releasable until all gates below pass.
 
 | Phase | Roadmap slug | Status | Depends on | Description |
 |-------|--------------|--------|------------|-------------|
-| 0 | adr-0099-destructive-daemon-runtime-authority | now | ADR-0095, ADR-0096, binder ch25/ch26 | This ADR and the Wave 2 Lane A binder work packet define the normative authority, deletion policy, local/cloud boundary, supervisor boundary, and proof gates. |
-| 1 | adr-0099-phase-1-surface-gateway-freeze | later | Phase 0 | Freeze the Surface Gateway command/query/event contract and route discovery so all official surfaces share one authority boundary. |
-| 2 | adr-0099-phase-2-workintent-migration | later | Phase 1 | Move old launch families to WorkIntent source metadata or fail-closed migration errors; no quiet aliases. |
-| 3 | adr-0099-phase-3-hot-cold-ledger-unification | later | Phase 1 | Make `harbor_events` the canonical cold ledger and unify hot streams as ephemeral projections. |
-| 4 | adr-0099-phase-4-supervisor-consolidation | later | Phase 0 | Establish `pd-supervisor` as duty boundary while preserving launchd as OS supervisor and Bosun as implementation/history until proof gates pass. |
-| 5 | adr-0099-phase-5-account-harbor-boundary | later | Phase 0 | Add account/device/team/cloud authority records without treating relay harbor-card auth as human account auth or enabling project sync by default. |
-| 6 | adr-0099-phase-6-rc-homebrew-proof | later | Phases 1-5 | Run seeded restart, shadow replay, native FleetBar + `pd-console`, RC, and Homebrew proof gates before release. |
+| 0 | adr-0100-destructive-daemon-runtime-authority | now | ADR-0095, ADR-0096, binder ch25/ch26 | This ADR and the Wave 2 Lane A binder work packet define the normative authority, deletion policy, local/cloud boundary, supervisor boundary, and proof gates. |
+| 1 | adr-0100-phase-1-surface-gateway-freeze | later | Phase 0 | Freeze the Surface Gateway command/query/event contract and route discovery so all official surfaces share one authority boundary. |
+| 2 | adr-0100-phase-2-workintent-migration | later | Phase 1 | Move old launch families to WorkIntent source metadata or fail-closed migration errors; no quiet aliases. |
+| 3 | adr-0100-phase-3-hot-cold-ledger-unification | later | Phase 1 | Make `harbor_events` the canonical cold ledger and unify hot streams as ephemeral projections. |
+| 4 | adr-0100-phase-4-supervisor-consolidation | later | Phase 0 | Establish `pd-supervisor` as duty boundary while preserving launchd as OS supervisor and Bosun as implementation/history until proof gates pass. |
+| 5 | adr-0100-phase-5-account-harbor-boundary | later | Phase 0 | Add account/device/team/cloud authority records without treating relay harbor-card auth as human account auth or enabling project sync by default. |
+| 6 | adr-0100-phase-6-rc-homebrew-proof | later | Phases 1-5 | Run seeded restart, shadow replay, native FleetBar + `pd-console`, RC, and Homebrew proof gates before release. |
 
 ## Consequences
 

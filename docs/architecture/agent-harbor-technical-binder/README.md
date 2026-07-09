@@ -34,7 +34,7 @@ Read this binder as a layered source of truth, not as a pile of equal notes:
    is the skillful-agent launch graph, blackboard, review plan, and release
    proof plan for executing chapter 25.
 9. [Destructive Daemon Runtime Refactor](./work-packets/destructive-daemon-runtime-refactor.md)
-   is the Wave 2 Lane A work packet that binds ADR-0099 to implementation
+   is the Wave 2 Lane A work packet that binds ADR-0100 to implementation
    lanes: no quiet aliases, one Surface Gateway, `harbor_events` as cold ledger,
    `pd-supervisor` as duty boundary, and local/cloud authority labels.
 10. Implementation truth must eventually move from prose into ADRs, schemas,
