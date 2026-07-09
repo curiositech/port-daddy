@@ -178,7 +178,7 @@ describe('daemon backend transcript E2E smoke', () => {
       const res = await daemon.request('/spawn', {
         method: 'POST',
         body: spawnBody('openai', { model: 'gpt-5-nano', maxTokens: 20, workdir: spawnWorktree.workdir }),
-        timeout: 30000,
+        timeout: 70000,
       });
 
       expect(res.ok).toBe(true);
@@ -199,7 +199,7 @@ describe('daemon backend transcript E2E smoke', () => {
       spawnWorktree.cleanup();
       rmSync(tmp, { recursive: true, force: true });
     }
-  }, 60000);
+  }, 90000);
 
   test('smoke matrix refuses a silent requested-vs-actual backend mismatch from PD_USE_CLI_BACKEND', () => {
     const env = { PD_USE_CLI_BACKEND: 'codex' };
@@ -235,6 +235,13 @@ describe('daemon backend transcript E2E smoke', () => {
         {},
         { persistedPath },
       )).toThrow(/backend mismatch: requested openai, actual cli:codex via .*\.port-daddy-cli-backend=codex/);
+
+      expect(actualExecutionBackend('openai', { PD_USE_CLI_BACKEND: 'agy' }, { persistedPath })).toBe('cli:agy');
+      expect(() => assertNoSilentBackendOverride(
+        { requestedBackend: 'openai' },
+        { PD_USE_CLI_BACKEND: 'agy' },
+        { persistedPath },
+      )).toThrow(/backend mismatch: requested openai, actual cli:agy via PD_USE_CLI_BACKEND=agy/);
       expect(actualExecutionBackend('openai', { PD_USE_CLI_BACKEND: 'none' }, { persistedPath })).toBe('openai');
     } finally {
       rmSync(tmp, { recursive: true, force: true });
