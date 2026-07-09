@@ -92,7 +92,10 @@ impl ShipEntry {
             singleton: b(v, "singleton"),
             worktree: b(v, "worktree"),
             cooldown_ms: n(v, "cooldownMs"),
-            daily_budget_usd: v.get("dailyBudgetUsd").and_then(|x| x.as_f64()).unwrap_or(0.0),
+            daily_budget_usd: v
+                .get("dailyBudgetUsd")
+                .and_then(|x| x.as_f64())
+                .unwrap_or(0.0),
         }
     }
 
@@ -245,7 +248,10 @@ impl Pane for FleetPane {
         blocks.push(Block::KeyVal("sailing".into(), sailing.to_string()));
         if drydock > 0 {
             // Dry-dock means retries are exhausted — surface it as an escalation line.
-            blocks.push(Block::KeyVal("dry-dock".into(), format!("{drydock} — needs operator")));
+            blocks.push(Block::KeyVal(
+                "dry-dock".into(),
+                format!("{drydock} — needs operator"),
+            ));
         }
         blocks.push(Block::Gap);
 
@@ -273,19 +279,36 @@ impl Pane for FleetPane {
                 "default".into()
             };
             blocks.push(Block::KeyVal("  model".into(), model));
-            let trig_label = if sh.kind.is_empty() { "trigger".to_string() } else { format!("{} trigger", sh.kind) };
+            let trig_label = if sh.kind.is_empty() {
+                "trigger".to_string()
+            } else {
+                format!("{} trigger", sh.kind)
+            };
             blocks.push(Block::KeyVal(
                 format!("  {trig_label}"),
-                if sh.on.is_empty() { "manual".into() } else { sh.on.clone() },
+                if sh.on.is_empty() {
+                    "manual".into()
+                } else {
+                    sh.on.clone()
+                },
             ));
             if sh.cooldown_ms > 0 {
-                blocks.push(Block::KeyVal("  cooldown".into(), fmt_cooldown(sh.cooldown_ms)));
+                blocks.push(Block::KeyVal(
+                    "  cooldown".into(),
+                    fmt_cooldown(sh.cooldown_ms),
+                ));
             }
             if sh.daily_budget_usd > 0.0 {
-                blocks.push(Block::KeyVal("  cost cap".into(), format!("${:.2}/day (fleet)", sh.daily_budget_usd)));
+                blocks.push(Block::KeyVal(
+                    "  cost cap".into(),
+                    format!("${:.2}/day (fleet)", sh.daily_budget_usd),
+                ));
             }
             if !sh.allowed_tools.is_empty() {
-                blocks.push(Block::KeyVal("  tools".into(), trunc(&sh.allowed_tools, 56)));
+                blocks.push(Block::KeyVal(
+                    "  tools".into(),
+                    trunc(&sh.allowed_tools, 56),
+                ));
             }
             let mut flags: Vec<&str> = Vec::new();
             if sh.singleton {
@@ -548,29 +571,41 @@ mod tests {
         let blocks = p.view();
         // "rig" jargon is gone; config shows as distinct labeled fields.
         assert!(
-            !blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k.trim() == "rig")),
+            !blocks
+                .iter()
+                .any(|b| matches!(b, Block::KeyVal(k, _) if k.trim() == "rig")),
             "the meaningless 'rig' row must be gone"
         );
         assert!(
-            blocks.iter().any(|b| matches!(b, Block::KeyVal(k, v) if k == "  backend" && v == "claude-cli")),
+            blocks
+                .iter()
+                .any(|b| matches!(b, Block::KeyVal(k, v) if k == "  backend" && v == "claude-cli")),
             "backend must be its own labeled field"
         );
         assert!(
-            blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k == "  model")),
+            blocks
+                .iter()
+                .any(|b| matches!(b, Block::KeyVal(k, _) if k == "  model")),
             "model must be its own labeled field"
         );
         assert!(
-            blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("trigger"))),
+            blocks
+                .iter()
+                .any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("trigger"))),
             "trigger must be its own labeled field"
         );
         // The ship's actual prompt is visible — the operator's core ask.
         assert!(
-            blocks.iter().any(|b| matches!(b, Block::WrappedText { text, .. } if text.contains("Simplify"))),
+            blocks
+                .iter()
+                .any(|b| matches!(b, Block::WrappedText { text, .. } if text.contains("Simplify"))),
             "the ship's prompt must be shown"
         );
         // The fleet cost cap is surfaced.
         assert!(
-            blocks.iter().any(|b| matches!(b, Block::KeyVal(k, v) if k == "  cost cap" && v.contains("8.50"))),
+            blocks.iter().any(
+                |b| matches!(b, Block::KeyVal(k, v) if k == "  cost cap" && v.contains("8.50"))
+            ),
             "cost cap must be shown"
         );
     }

@@ -25,20 +25,90 @@ pub struct NavItem {
 }
 
 pub const NAV: &[NavItem] = &[
-    NavItem { id: "fleet",    label: "Fleet",    icon: "icons/nav/fleet.svg",    key: "1" },
-    NavItem { id: "sorties",  label: "Sorties",  icon: "icons/nav/sorties.svg",  key: "3" },
-    NavItem { id: "claims",   label: "Claims",   icon: "icons/nav/claims.svg",   key: "4" },
-    NavItem { id: "planner",  label: "Planner",  icon: "icons/nav/roadmap.svg",  key: "6" },
-    NavItem { id: "activity", label: "Activity", icon: "icons/nav/activity.svg", key: "8" },
-    NavItem { id: "sessions", label: "Sessions", icon: "icons/nav/sessions.svg", key: "9" },
-    NavItem { id: "health",   label: "Health",   icon: "icons/nav/health.svg",   key: "h" },
-    NavItem { id: "dispatch", label: "Dispatch", icon: "icons/nav/dispatch.svg", key: "d" },
-    NavItem { id: "lane",     label: "Lane",     icon: "icons/nav/lane.svg",     key: "l" },
-    NavItem { id: "ledger",   label: "Cost",     icon: "icons/nav/ledger.svg",   key: "b" },
-    NavItem { id: "conductor",label: "Conductor",icon: "icons/nav/conductor.svg",key: "k" },
-    NavItem { id: "daemons",  label: "Daemons",  icon: "icons/nav/daemons.svg",  key: "e" },
-    NavItem { id: "harbor",   label: "Harbor",   icon: "icons/nav/harbor.svg",   key: "r" },
-    NavItem { id: "sextant",  label: "Sextant",  icon: "icons/nav/galaxy.svg",   key: "x" },
+    NavItem {
+        id: "fleet",
+        label: "Fleet",
+        icon: "icons/nav/fleet.svg",
+        key: "1",
+    },
+    NavItem {
+        id: "sorties",
+        label: "Sorties",
+        icon: "icons/nav/sorties.svg",
+        key: "3",
+    },
+    NavItem {
+        id: "claims",
+        label: "Claims",
+        icon: "icons/nav/claims.svg",
+        key: "4",
+    },
+    NavItem {
+        id: "planner",
+        label: "Planner",
+        icon: "icons/nav/roadmap.svg",
+        key: "6",
+    },
+    NavItem {
+        id: "activity",
+        label: "Activity",
+        icon: "icons/nav/activity.svg",
+        key: "8",
+    },
+    NavItem {
+        id: "sessions",
+        label: "Sessions",
+        icon: "icons/nav/sessions.svg",
+        key: "9",
+    },
+    NavItem {
+        id: "health",
+        label: "Health",
+        icon: "icons/nav/health.svg",
+        key: "h",
+    },
+    NavItem {
+        id: "dispatch",
+        label: "Dispatch",
+        icon: "icons/nav/dispatch.svg",
+        key: "d",
+    },
+    NavItem {
+        id: "lane",
+        label: "Lane",
+        icon: "icons/nav/lane.svg",
+        key: "l",
+    },
+    NavItem {
+        id: "ledger",
+        label: "Cost",
+        icon: "icons/nav/ledger.svg",
+        key: "b",
+    },
+    NavItem {
+        id: "conductor",
+        label: "Conductor",
+        icon: "icons/nav/conductor.svg",
+        key: "k",
+    },
+    NavItem {
+        id: "daemons",
+        label: "Daemons",
+        icon: "icons/nav/daemons.svg",
+        key: "e",
+    },
+    NavItem {
+        id: "harbor",
+        label: "Harbor",
+        icon: "icons/nav/harbor.svg",
+        key: "r",
+    },
+    NavItem {
+        id: "sextant",
+        label: "Sextant",
+        icon: "icons/nav/galaxy.svg",
+        key: "x",
+    },
 ];
 
 /// Canonical slot → pane-id map: the single source of truth the producer thread
@@ -49,8 +119,20 @@ pub const NAV: &[NavItem] = &[
 /// here, in [`NAV`], and in the producer — or the gate turns red. Order is
 /// load-bearing (slot index == NAV index == producer index).
 pub const SLOT_PANE_IDS: [&str; 14] = [
-    "fleet", "sorties", "claims", "planner", "activity", "sessions", "health",
-    "dispatch", "lane", "ledger", "conductor", "daemons", "harbor", "sextant",
+    "fleet",
+    "sorties",
+    "claims",
+    "planner",
+    "activity",
+    "sessions",
+    "health",
+    "dispatch",
+    "lane",
+    "ledger",
+    "conductor",
+    "daemons",
+    "harbor",
+    "sextant",
 ];
 
 // ── Launcher-grid 1:1 invariants ────────────────────────────────────────────

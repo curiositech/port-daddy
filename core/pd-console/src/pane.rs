@@ -686,10 +686,17 @@ mod tests {
     /// registry and the read-only defaults without a production pane.
     struct ProbePane;
     impl Pane for ProbePane {
-        fn id(&self) -> &str { "probe" }
-        fn title(&self) -> String { "Probe".into() }
+        fn id(&self) -> &str {
+            "probe"
+        }
+        fn title(&self) -> String {
+            "Probe".into()
+        }
         fn view(&self) -> Vec<Block> {
-            vec![Block::Header("Probe".into()), Block::KeyVal("k".into(), "v".into())]
+            vec![
+                Block::Header("Probe".into()),
+                Block::KeyVal("k".into(), "v".into()),
+            ]
         }
         fn refresh<'a>(
             &'a mut self,

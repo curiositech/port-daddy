@@ -106,7 +106,10 @@ impl Pane for HealthPane {
 
         if let Some(err) = &self.last_error {
             // Unreachable daemon is the loudest state: a CRITICAL alarm banner.
-            blocks.push(Block::Chip { label: "DAEMON UNREACHABLE".into(), tone: Tone::Alarm });
+            blocks.push(Block::Chip {
+                label: "DAEMON UNREACHABLE".into(),
+                tone: Tone::Alarm,
+            });
             blocks.push(Block::KeyVal("error".into(), err.clone()));
             return blocks;
         };
@@ -192,25 +195,40 @@ impl Pane for HealthPane {
                 .cloned()
                 .unwrap_or_default();
             blocks.push(Block::Chip {
-                label: format!("{} checked / {} missing", n(routes, "checked"), missing_arr.len()),
+                label: format!(
+                    "{} checked / {} missing",
+                    n(routes, "checked"),
+                    missing_arr.len()
+                ),
                 // A daemon 404'ing its own critical routes is a CRITICAL state.
                 tone: if ok { Tone::Landed } else { Tone::Alarm },
             });
             // List the actual routes, not just a count — the operator asked
             // "which 11?". Each checked route is a row marked ok / MISSING.
-            let is_missing =
-                |method: &str, url: &str| missing_arr.iter().any(|m| s(m, "method") == method && s(m, "url") == url);
+            let is_missing = |method: &str, url: &str| {
+                missing_arr
+                    .iter()
+                    .any(|m| s(m, "method") == method && s(m, "url") == url)
+            };
             if let Some(checked) = routes.get("checkedRoutes").and_then(|c| c.as_array()) {
                 for r in checked {
                     let method = s(r, "method");
                     let url = s(r, "url");
-                    let mark = if is_missing(&method, &url) { "MISSING" } else { "ok" };
+                    let mark = if is_missing(&method, &url) {
+                        "MISSING"
+                    } else {
+                        "ok"
+                    };
                     blocks.push(Block::Row(vec![mark.into(), method, url]));
                 }
             } else {
                 // Older daemon without checkedRoutes: at least name the missing ones.
                 for m in &missing_arr {
-                    blocks.push(Block::Row(vec!["MISSING".into(), s(m, "method"), s(m, "url")]));
+                    blocks.push(Block::Row(vec![
+                        "MISSING".into(),
+                        s(m, "method"),
+                        s(m, "url"),
+                    ]));
                 }
             }
         }
@@ -393,11 +411,15 @@ mod tests {
         let blocks = p.view();
         // Each checked route is listed by path, not hidden behind "2 checked".
         assert!(
-            blocks.iter().any(|b| matches!(b, Block::Row(cells) if cells.iter().any(|c| c == "/health"))),
+            blocks
+                .iter()
+                .any(|b| matches!(b, Block::Row(cells) if cells.iter().any(|c| c == "/health"))),
             "checked route /health must be listed"
         );
         assert!(
-            blocks.iter().any(|b| matches!(b, Block::Row(cells) if cells.iter().any(|c| c == "/claim"))),
+            blocks
+                .iter()
+                .any(|b| matches!(b, Block::Row(cells) if cells.iter().any(|c| c == "/claim"))),
             "checked route /claim must be listed"
         );
     }
@@ -416,11 +438,15 @@ mod tests {
         let blocks = p.view();
         // The status chip reads "degraded", never "ok", when severity is warn.
         assert!(
-            blocks.iter().any(|b| matches!(b, Block::Chip { label, .. } if label == "status: degraded")),
+            blocks
+                .iter()
+                .any(|b| matches!(b, Block::Chip { label, .. } if label == "status: degraded")),
             "status chip must say degraded, agreeing with the banner"
         );
         assert!(
-            !blocks.iter().any(|b| matches!(b, Block::Chip { label, .. } if label.contains("status: ok"))),
+            !blocks
+                .iter()
+                .any(|b| matches!(b, Block::Chip { label, .. } if label.contains("status: ok"))),
             "status chip must not contradict the DEGRADED banner with 'ok'"
         );
     }

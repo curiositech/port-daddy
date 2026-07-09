@@ -22,8 +22,10 @@
 //! This is the answer to "I want to talk to you from inside pd-console, not
 //! iterm2" — at the engine layer, runnable today.
 
-#[path = "../activity_pane.rs"]  mod activity_pane;
-#[path = "../agent.rs"]          mod agent;
+#[path = "../activity_pane.rs"]
+mod activity_pane;
+#[path = "../agent.rs"]
+mod agent;
 // Audio is GUI-only at runtime, but its synth/mute logic is pure and unit-tested
 // here (the headless repl is the test gate; the GPUI bin can't be `--test`-built).
 #[allow(dead_code)]
@@ -37,12 +39,15 @@ mod buffer;
 // The operator-chat MODEL is gpui-free (ChatMsg/ChatLog/ChatState) so the three
 // render states are unit-tested here, in the headless test gate.
 #[allow(dead_code)]
-#[path = "../chat.rs"]           mod chat;
-#[path = "../daemon_pane.rs"]    mod daemon_pane; // daemon picker surface (tests)
-#[path = "../claims_pane.rs"]    mod claims_pane;
+#[path = "../chat.rs"]
+mod chat;
+#[path = "../claims_pane.rs"]
+mod claims_pane;
 #[allow(dead_code)]
 #[path = "../conjure.rs"]
 mod conjure;
+#[path = "../daemon_pane.rs"]
+mod daemon_pane; // daemon picker surface (tests)
 #[path = "../dispatch_pane.rs"]
 mod dispatch_pane;
 #[allow(dead_code)]
@@ -62,30 +67,43 @@ mod editor_sync;
 mod editor_wedge;
 // maritime's gpui FlagBadge is now #[cfg(feature = "gpui")]-gated, so the pure
 // Flag/flag_for_state compile here and the fleet pane renders in the REPL too.
-#[path = "../fleet_pane.rs"]     mod fleet_pane;
+#[path = "../fleet_pane.rs"]
+mod fleet_pane;
 // Session-galaxy engine (parsing + hit-testing + selection math) — gpui-free by
 // design; its #[cfg(test)] suite runs HERE, in the rust-console CI gate. The
 // geometry helpers are canvas-only at runtime, hence the dead_code allow.
 #[path = "../galaxy_pane.rs"]
 mod galaxy_pane;
-#[path = "../grid.rs"]           mod grid; // launcher-grid data + 1:1 invariant tests
-#[path = "../harbor_pane.rs"]    mod harbor_pane; // Agent Node roster+detail (ch18 C3)
-#[path = "../maritime.rs"]       mod maritime;
-#[path = "../health_pane.rs"]    mod health_pane;
-#[path = "../lane_pane.rs"]      mod lane_pane;
+#[path = "../grid.rs"]
+mod grid; // launcher-grid data + 1:1 invariant tests
+#[path = "../harbor_pane.rs"]
+mod harbor_pane; // Agent Node roster+detail (ch18 C3)
+#[path = "../health_pane.rs"]
+mod health_pane;
+#[path = "../lane_pane.rs"]
+mod lane_pane;
+#[path = "../maritime.rs"]
+mod maritime;
 #[allow(dead_code)]
-#[path = "../mux.rs"]            mod mux;
-#[path = "../pane.rs"]           mod pane;
-#[path = "../planner_pane.rs"]   mod planner_pane;
+#[path = "../mux.rs"]
+mod mux;
+#[path = "../pane.rs"]
+mod pane;
+#[path = "../planner_pane.rs"]
+mod planner_pane;
 #[allow(dead_code)] // parse/serve are exercised by tests; the server runs only in the gpui bin
 #[path = "../script.rs"]
 mod script; // control-socket scripting (parse + serve tests)
-#[path = "../sessions_pane.rs"]  mod sessions_pane;
+#[path = "../sessions_pane.rs"]
+mod sessions_pane;
 #[path = "../syntax.rs"]
 mod syntax;
-#[path = "../term.rs"]           mod term;
-#[path = "../theme.rs"]          mod theme;
-#[path = "../util.rs"]           mod util;
+#[path = "../term.rs"]
+mod term;
+#[path = "../theme.rs"]
+mod theme;
+#[path = "../util.rs"]
+mod util;
 // Offscreen Block→PNG raster (agent-safe, no display/TCC/gpui). Included here so the
 // headless capture + its PNG-encoder tests run on the cheap non-gpui gate too.
 #[path = "../headless_capture.rs"]
