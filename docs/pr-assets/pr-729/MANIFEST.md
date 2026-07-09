@@ -46,8 +46,8 @@ Metal/`NSWindow` face.
 `core/pd-console/docs/recording-visual-artifacts.md` (shipped by the offscreen
 harness PRs #577/#595), the **gpui element tree cannot render windowless** —
 there is no headless/Method-A path for the shell, only for the Vello/wgpu proto
-surfaces. The windowed capture paths (`scripts/capture-gpui.sh`,
-`scripts/proof/capture-proof.sh`) need macOS Screen-Recording (TCC) permission,
+surfaces. The windowed capture paths (`core/pd-console/scripts/capture-gpui.sh`,
+`core/pd-console/scripts/proof/capture-proof.sh`) need macOS Screen-Recording (TCC) permission,
 which a headless agent shell is denied (`could not create image from display`).
 So the gpui window is genuinely not screenshot-capturable in this environment —
 the PR's `visual-exempt` note is correct about that. These artifacts do NOT
