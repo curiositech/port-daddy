@@ -1414,7 +1414,11 @@ function shutdown(signal: string): void {
   logger.info('shutdown_initiated', { signal });
   // Remove this berth's own registry entry on a clean stop, so it doesn't
   // linger as a stale record until the next prune pass notices the dead pid.
-  try { deregisterDaemonBerth(process.pid); } catch {}
+  if (DAEMON_BERTH.tier !== 'stable') {
+    deregisterDaemonBerth(process.pid, {
+      onError: (error) => logger.warn('daemon_berth_deregister_failed', { error: error.message }),
+    });
+  }
   try {
     activityLog.log(ActivityType.DAEMON_STOP, {
       details: `Port Daddy stopped (${signal})`,

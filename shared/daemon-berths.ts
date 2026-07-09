@@ -18,7 +18,7 @@
  * elsewhere — resolve through here.
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { chmodSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { DEFAULT_DAEMON_PORT } from './daemon-discovery.js';
 import { PD_HOME } from './paths.js';
@@ -276,7 +276,8 @@ function isPidAlive(pid: number | null | undefined): boolean {
   try {
     process.kill(pid, 0);
     return true;
-  } catch {
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'EPERM') return true;
     return false;
   }
 }
@@ -310,6 +311,7 @@ export function writeDaemonBerthRegistry(
 ): void {
   mkdirSync(dirname(registryFile), { recursive: true, mode: 0o700 });
   writeFileSync(registryFile, `${JSON.stringify(records, null, 2)}\n`, { mode: 0o600 });
+  try { chmodSync(registryFile, 0o600); } catch {}
 }
 
 /** Prune records whose pid is gone. Returns the live set (and persists it). */

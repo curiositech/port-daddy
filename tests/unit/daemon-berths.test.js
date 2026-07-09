@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from '@jest/globals';
-import { mkdtempSync, rmSync, existsSync } from 'node:fs';
+import { chmodSync, mkdtempSync, rmSync, existsSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -219,6 +219,12 @@ describe('Daemon berth registry (self-registration)', () => {
     writeDaemonBerthRegistry(records, file);
     expect(readDaemonBerthRegistry(file)).toEqual(records);
     expect(existsSync(file)).toBe(true);
+    if (process.platform !== 'win32') {
+      expect(statSync(file).mode & 0o777).toBe(0o600);
+      chmodSync(file, 0o644);
+      writeDaemonBerthRegistry(records, file);
+      expect(statSync(file).mode & 0o777).toBe(0o600);
+    }
   });
 
   test('registerDaemonBerth writes a live daemon self-registration', () => {
