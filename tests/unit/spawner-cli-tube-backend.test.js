@@ -857,8 +857,16 @@ describe('spawnViaCliTube — failure paths', () => {
     const processKill = jest.spyOn(process, 'kill').mockImplementation(() => true);
     try {
       const holderPid = 6161;
+      const holderDescendantPid = 7171;
       mockExecFileSync.mockImplementation((cmd, args) => {
-        if (cmd === 'ps') return ' 5151 1\n';
+        if (cmd === 'ps') {
+          return [
+            ' 5151 1',
+            ` ${holderPid} 1`,
+            ` ${holderDescendantPid} ${holderPid}`,
+            '',
+          ].join('\n');
+        }
         if (cmd === 'lsof') {
           throw Object.assign(new Error('spawnSync lsof ENOENT'), { code: 'ENOENT' });
         }
@@ -882,9 +890,11 @@ describe('spawnViaCliTube — failure paths', () => {
 
       await jest.advanceTimersByTimeAsync(10);
       expect(processKill).toHaveBeenCalledWith(holderPid, 'SIGTERM');
+      expect(processKill).toHaveBeenCalledWith(holderDescendantPid, 'SIGTERM');
 
       await jest.advanceTimersByTimeAsync(5000);
       expect(processKill).toHaveBeenCalledWith(holderPid, 'SIGKILL');
+      expect(processKill).toHaveBeenCalledWith(holderDescendantPid, 'SIGKILL');
 
       child.emit('close', -1);
       await resultPromise;

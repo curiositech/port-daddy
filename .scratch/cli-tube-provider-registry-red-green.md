@@ -119,11 +119,44 @@ Test Suites: 1 failed, 1 total
 Tests:       1 failed, 94 skipped, 95 total
 ```
 
+After the absolute-`lsof`/remembered-stdio fix, Ubuntu CI still failed the real-child parent-exits case at the survivor assertion:
+
+```text
+FAIL tests/unit/spawner-cli-tube-lifecycle-real-child.test.js (13.547 s)
+  cli-tube real timeout lifecycle › kills an inherited-stdio descendant even when the CLI parent exits before timeout
+
+Expected: false
+Received: true
+
+> 105 |     await expectPidDead(survivorPid);
+```
+
+That showed a second hole: lifecycle killed the discovered stdio holder/launcher, but did not snapshot the holder's child process tree before the holder died and its child orphaned. The unit regression was tightened before the second lifecycle fix:
+
+```sh
+npm test -- --runInBand tests/unit/spawner-cli-tube-backend.test.js -t "timeout discovers inherited stdio holders through known lsof paths when PATH omits lsof"
+```
+
+Exit: `1`
+
+```text
+FAIL unit tests/unit/spawner-cli-tube-backend.test.js
+  spawnViaCliTube — failure paths › timeout discovers inherited stdio holders through known lsof paths when PATH omits lsof
+
+Expected: 7171, "SIGTERM"
+Received
+       1: -5151, "SIGTERM"
+       2: 5151, "SIGTERM"
+       3: 6161, "SIGTERM"
+
+> 893 |       expect(processKill).toHaveBeenCalledWith(holderDescendantPid, 'SIGTERM');
+```
+
 ## Real-Child Process-Tree Shape
 
 The real-child test installs a fake `agy` binary. cli-tube launches that fake binary with `detached: true`, making the CLI parent its own process-group leader. The parent-alive case records its parent PID, then starts a survivor process with `detached: true` and `stdio: ['ignore', 'inherit', 'inherit']`. The parent-exits case starts a detached launcher, exits the CLI parent immediately, and the launcher creates the actual inherited-stdio survivor 50ms later. The test records parent, launcher, and survivor PIDs and asserts all of them are dead before finalization.
 
-Process-group signaling alone cannot kill these survivors because they move into separate process groups. The first real-child test keeps the parent alive long enough for process-tree collection to discover the descendant with `ps -axo pid=,ppid=`. The Noether regression makes the parent exit before the actual survivor exists, so the fix must use inherited-stdio holder discovery. On Linux, the helper now remembers `/proc/<self>/fd` targets while the child streams are still identifiable and scans `/proc/<pid>/fd` later even if the CLI parent has exited. On macOS, it resolves `lsof` through known absolute paths (`/usr/sbin/lsof`, `/sbin/lsof`, `/usr/bin/lsof`, `/bin/lsof`) independent of the sanitized child PATH. The survivor ignores `SIGTERM`, so the tests only go green if the shared lifecycle helper escalates and kills the actual descendant before finalization.
+Process-group signaling alone cannot kill these survivors because they move into separate process groups. The first real-child test keeps the parent alive long enough for process-tree collection to discover the descendant with `ps -axo pid=,ppid=`. The Noether regression makes the parent exit before the actual survivor exists, so the fix must use inherited-stdio holder discovery. On Linux, the helper now remembers `/proc/<self>/fd` targets while the child streams are still identifiable and scans `/proc/<pid>/fd` later even if the CLI parent has exited. On macOS, it resolves `lsof` through known absolute paths (`/usr/sbin/lsof`, `/sbin/lsof`, `/usr/bin/lsof`, `/bin/lsof`) independent of the sanitized child PATH. The helper also expands the process tree for any discovered stdio holder before signaling it, so a launcher child is captured before the launcher dies and the child orphans. The survivor ignores `SIGTERM`, so the tests only go green if the shared lifecycle helper escalates and kills the actual descendant before finalization.
 
 ## GREEN
 

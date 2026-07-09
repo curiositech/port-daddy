@@ -58,7 +58,11 @@ export function waitForCliChildProcess(
       const snapshots = [collectProcessTreePids(child.pid)];
       if (includeStdioHolders) {
         rememberStdioIdentities();
-        snapshots.push(collectStdioHolderPids(child, knownStdioProcTargets, knownStdioPeerIds));
+        const stdioHolders = collectStdioHolderPids(child, knownStdioProcTargets, knownStdioPeerIds);
+        snapshots.push(stdioHolders);
+        for (const holderPid of stdioHolders.pids) {
+          snapshots.push(collectProcessTreePids(holderPid));
+        }
       }
       const tree = mergeProcessSnapshots(...snapshots);
       rememberProcessTreeWarning(tree.warning);
