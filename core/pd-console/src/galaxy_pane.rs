@@ -1,4 +1,4 @@
-//! Session Galaxy pane — the 2D embedding map of recent agent sessions over
+//! Sextant pane — the 2D embedding map of recent agent sessions over
 //! `GET /galaxy/map`. The DAEMON precomputes everything expensive (MiniLM tail
 //! embeddings, seeded t-SNE coords normalized to [0,1], k-means clusters with
 //! MI term labels); this engine only fetches, parses, and answers geometry
@@ -364,7 +364,7 @@ fn kebab(text: &str) -> String {
 }
 
 /// The `surface` string for `POST /parley/call`, per the cross-lane contract:
-/// `galaxy:<top selection-cluster terms, kebab-joined, <=64 chars total>`.
+/// `sextant:<top selection-cluster terms, kebab-joined, <=64 chars total>`.
 pub fn parley_surface(
     points: &[GalaxyPoint],
     clusters: &[GalaxyCluster],
@@ -380,7 +380,7 @@ pub fn parley_surface(
         })
         .filter(|t| !t.is_empty())
         .unwrap_or_else(|| "selection".to_string());
-    let mut surface = format!("galaxy:{topic}");
+    let mut surface = format!("sextant:{topic}");
     if surface.len() > 64 {
         surface.truncate(64); // kebab() output is pure ASCII — safe to byte-cut
         while surface.ends_with('-') {
@@ -391,7 +391,7 @@ pub fn parley_surface(
 }
 
 /// The default operator reason when none is typed, per the contract:
-/// `Operator convened parley from session galaxy cluster "<label>" (<n> sessions)`.
+/// `Operator convened parley from Sextant cluster "<label>" (<n> sessions)`.
 pub fn default_reason(
     points: &[GalaxyPoint],
     clusters: &[GalaxyCluster],
@@ -402,7 +402,7 @@ pub fn default_reason(
         .map(|c| c.label.clone())
         .filter(|l| !l.is_empty())
         .unwrap_or_else(|| "mixed".to_string());
-    format!("Operator convened parley from session galaxy cluster \"{label}\" ({n_sel} sessions)")
+    format!("Operator convened parley from Sextant cluster \"{label}\" ({n_sel} sessions)")
 }
 
 // ── Session detail (GET /galaxy/session/:id) ─────────────────────────────────
@@ -517,7 +517,7 @@ fn format_turn_text(text: &str, epoch_ms: i64) -> String {
     }
 }
 
-/// The header window-hours cycle the canvas chip and the `galaxy`
+/// The header window-hours cycle the canvas chip and the `sextant`
 /// control-socket command share: `24 → 72 → 168 → 720 → 24`. A current value
 /// off the cycle (a scripted arbitrary hour count) advances to the next
 /// stop greater than it, wrapping to the first stop past the top.
@@ -842,7 +842,7 @@ pub fn detail_blocks(d: &GalaxyDetail) -> Vec<Block> {
 
 // ── The pane ─────────────────────────────────────────────────────────────────
 
-/// A cloneable frame of the galaxy the producer thread ships to the GPUI view
+/// A cloneable frame of the Sextant map the producer thread ships to the GPUI view
 /// each refresh (alongside the pane blocks), so the bespoke canvas renders the
 /// REAL points, not a re-parse of display text.
 #[derive(Debug, Clone, Default)]
@@ -867,7 +867,7 @@ pub struct GalaxyPane {
     pub clusters: Vec<GalaxyCluster>,
     pub computed_at: Option<i64>,
     last_error: Option<String>,
-    /// Query window in hours. Scriptable (control socket `galaxy` command);
+    /// Query window in hours. Scriptable (control socket `sextant` command);
     /// the daemon clamps its own bounds.
     window_hours: u32,
     /// Significance floor; `None` inherits the daemon default.
@@ -897,7 +897,7 @@ impl GalaxyPane {
         Self::default()
     }
 
-    /// Apply scripted query params (control socket `galaxy` command). Only the
+    /// Apply scripted query params (control socket `sextant` command). Only the
     /// provided fields change; the next 2s refresh picks them up.
     pub fn set_params(&mut self, window_hours: Option<u32>, min_tokens: Option<u32>) {
         if let Some(h) = window_hours {
@@ -945,15 +945,15 @@ impl GalaxyPane {
 
 impl Pane for GalaxyPane {
     fn id(&self) -> &str {
-        "galaxy"
+        "sextant"
     }
 
     fn title(&self) -> String {
-        "Galaxy".into()
+        "Sextant".into()
     }
 
     fn view(&self) -> Vec<Block> {
-        let mut blocks = vec![Block::Header("Session Galaxy".into())];
+        let mut blocks = vec![Block::Header("Sextant".into())];
 
         if let Some(err) = &self.last_error {
             blocks.push(Block::KeyVal("error".into(), err.clone()));
@@ -1259,16 +1259,16 @@ mod tests {
         // Cluster 0 holds 2 of 3 selected points → its terms drive the surface.
         assert_eq!(
             parley_surface(&points, &clusters, &sel),
-            "galaxy:sqlite-migration-wal"
+            "sextant:sqlite-migration-wal"
         );
         assert_eq!(
             default_reason(&points, &clusters, &sel),
-            "Operator convened parley from session galaxy cluster \"sqlite migration · wal\" (3 sessions)"
+            "Operator convened parley from Sextant cluster \"sqlite migration · wal\" (3 sessions)"
         );
         // Empty selection degrades honestly.
         assert_eq!(
             parley_surface(&points, &clusters, &HashSet::new()),
-            "galaxy:selection"
+            "sextant:selection"
         );
     }
 
@@ -1288,7 +1288,7 @@ mod tests {
             "surface too long: {} chars",
             surface.len()
         );
-        assert!(surface.starts_with("galaxy:"));
+        assert!(surface.starts_with("sextant:"));
         assert!(
             !surface.ends_with('-'),
             "never ends on a dangling dash: {surface}"
@@ -1418,6 +1418,9 @@ mod tests {
     #[test]
     fn pane_view_surfaces_errors_and_cluster_chips() {
         let mut pane = GalaxyPane::new();
+        assert_eq!(pane.title(), "Sextant");
+        assert!(matches!(pane.view().first(), Some(Block::Header(h)) if h == "Sextant"));
+
         pane.last_error = Some("daemon unreachable: connect refused".into());
         let blocks = pane.view();
         assert!(blocks.iter().any(
@@ -1448,6 +1451,10 @@ mod tests {
         assert_eq!(pane.query(), "windowHours=720&minTokens=64");
         pane.set_params(Some(0), None); // floor: never a zero-hour window
         assert_eq!(pane.query(), "windowHours=1&minTokens=64");
+        assert!(
+            !pane.query().contains("project="),
+            "Sextant is context-free; repo/berth selection belongs outside this pane"
+        );
     }
 
     #[test]

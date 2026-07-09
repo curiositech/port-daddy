@@ -387,13 +387,13 @@ async fn main() -> Result<()> {
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
-        } else if line == ":galaxy" {
-            // Session galaxy — the daemon's embedding map of recent sessions,
+        } else if line == ":sextant" {
+            // Sextant — the daemon's embedding map of recent sessions,
             // rendered headlessly (session count + cluster chips/terms).
             reg.active = reg
                 .panes
                 .iter()
-                .position(|p| p.id() == "galaxy")
+                .position(|p| p.id() == "sextant")
                 .unwrap_or(0);
             if let Err(e) = reg.refresh_active(mgr.daemon()).await {
                 err(&style, &format!("refresh failed: {e}"));
