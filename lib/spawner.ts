@@ -534,6 +534,12 @@ interface BackendRunContext {
   tubeChannel?: string;
 }
 
+const DEFAULT_BACKEND_TIMEOUT_MS = 5 * 60 * 1000;
+
+function backendAbortSignal(spec: SpawnSpec): AbortSignal {
+  return AbortSignal.timeout(spec.timeout ?? DEFAULT_BACKEND_TIMEOUT_MS);
+}
+
 interface CodexUsage {
   inputTokens?: number;
   cachedInputTokens?: number;
@@ -548,7 +554,7 @@ async function runOllama(spec: SpawnSpec, model: string): Promise<BackendRunResu
   const result = await ollamaAdapter({
     prompt: spec.task,
     model,
-    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+    signal: backendAbortSignal(spec),
   });
   return adaptLLMResult(result);
 }
@@ -607,7 +613,7 @@ async function runGemini(spec: SpawnSpec, model: string): Promise<BackendRunResu
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+    signal: backendAbortSignal(spec),
   });
   const adapted = adaptLLMResult(result);
   // Full-depth capture: reconstruct thinking / functionCall / text turns from
@@ -624,7 +630,7 @@ async function runGroq(spec: SpawnSpec, model: string): Promise<BackendRunResult
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+    signal: backendAbortSignal(spec),
   });
   return adaptLLMResult(result);
 }
@@ -634,7 +640,7 @@ async function runLmStudio(spec: SpawnSpec, model: string): Promise<BackendRunRe
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+    signal: backendAbortSignal(spec),
   });
   return adaptLLMResult(result);
 }
@@ -644,7 +650,7 @@ async function runDeepseek(spec: SpawnSpec, model: string): Promise<BackendRunRe
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+    signal: backendAbortSignal(spec),
   });
   return adaptLLMResult(result);
 }
@@ -654,7 +660,7 @@ async function runXai(spec: SpawnSpec, model: string): Promise<BackendRunResult>
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+    signal: backendAbortSignal(spec),
   });
   return adaptLLMResult(result);
 }
@@ -664,7 +670,7 @@ async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRun
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+    signal: backendAbortSignal(spec),
   });
   const adapted = adaptLLMResult(result);
   // Full-depth capture: reconstruct reasoning / tool_calls / message turns
@@ -681,7 +687,7 @@ async function runOpenAI(spec: SpawnSpec, model: string): Promise<BackendRunResu
     prompt: spec.task,
     model,
     maxTokens: spec.maxTokens,
-    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+    signal: backendAbortSignal(spec),
   });
   return adaptLLMResult(result);
 }
