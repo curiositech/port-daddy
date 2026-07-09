@@ -405,6 +405,27 @@ export async function assessBackendReadiness(
       }, telemetryPolicy);
     }
 
+    case 'cli:agy': {
+      const resolution = resolveCliBinary('agy', { envOverride: 'PD_CLI_AGY_BIN' });
+      if (!resolution.found) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'needs_setup',
+          summary: cliMissingSummary('Antigravity agy CLI', resolution),
+          nextStep: 'Install the agy CLI and authenticate before using this backend.',
+          setupCommand: 'agy --help',
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'manual_check',
+        launchableUnverified: true,
+        summary: cliSummary('Antigravity agy CLI', resolution, 'auth cannot be verified non-interactively'),
+        nextStep: 'Run `agy --print "hello"` once to confirm auth. PD_USE_CLI_BACKEND=agy forces all spawns through this CLI.',
+        setupCommand: 'agy --print "hello"',
+      }, telemetryPolicy);
+    }
+
     case 'cli:gemini': {
       const resolution = resolveCliBinary('gemini', { envOverride: 'PD_CLI_GEMINI_BIN' });
       if (!resolution.found) {

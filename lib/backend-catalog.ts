@@ -19,7 +19,7 @@ import { join } from 'node:path';
  *
  * Cost-model values:
  *   - `subscription` — flat-rate; user already pays a monthly fee
- *     (CLI tube backends: cli:claude-code, cli:codex)
+ *     (CLI tube backends: cli:claude-code, cli:codex, cli:agy)
  *   - `metered`      — pay-per-token API (claude, gemini, cloudflare, openai)
  *   - `local`        — runs on user's machine, no marginal cost
  *     (ollama, custom)
@@ -57,10 +57,10 @@ export interface BackendCatalogEntry {
   /**
    * If non-null, the env var the operator would set to force this backend
    * for every spawn regardless of pd-fleet.yml. The CLI-tube backends
-   * (`cli:claude-code`, `cli:codex`, `cli:gemini`, `cli:groq`, `cli:grok`)
+   * (`cli:claude-code`, `cli:codex`, `cli:agy`, `cli:gemini`, `cli:groq`, `cli:grok`)
    * honor this (via PD_USE_CLI_BACKEND).
    */
-  pdUseCliBackendValue?: 'claude-code' | 'codex' | 'gemini' | 'groq' | 'grok';
+  pdUseCliBackendValue?: 'claude-code' | 'codex' | 'agy' | 'gemini' | 'groq' | 'grok';
   /**
    * Show this prominently in the picker. Used to rank "free via subscription"
    * options ahead of metered ones in the FleetBar/dashboard picker.
@@ -91,6 +91,16 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     models: ['gpt-5', 'gpt-5-codex'],
     pdUseCliBackendValue: 'codex',
     recommended: true,
+  },
+  {
+    id: 'cli:agy',
+    name: 'Antigravity (agy CLI)',
+    costModel: 'subscription',
+    framing: 'Rides your local agy login',
+    description: "Drives your local `agy` binary as a child process. Auth and billing flow through the Antigravity CLI; Port Daddy captures the prompt and final stdout/stderr without claiming structured streaming.",
+    tagline: 'Antigravity CLI through your existing agy authentication',
+    models: [],
+    pdUseCliBackendValue: 'agy',
   },
   {
     id: 'cli:gemini',
@@ -268,6 +278,7 @@ function normalizeForcedCliBackend(raw: string | undefined | null): {
     return { id: 'cli:claude-code', value: 'claude-code' };
   }
   if (normalized === 'codex') return { id: 'cli:codex', value: 'codex' };
+  if (normalized === 'agy' || normalized === 'antigravity') return { id: 'cli:agy', value: 'agy' };
   if (normalized === 'gemini') return { id: 'cli:gemini', value: 'gemini' };
   if (normalized === 'groq') return { id: 'cli:groq', value: 'groq' };
   if (normalized === 'grok') return { id: 'cli:grok', value: 'grok' };

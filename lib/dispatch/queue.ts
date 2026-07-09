@@ -66,6 +66,7 @@ export type MergePolicy = 'review' | 'auto' | 'never';
 export type DispatchBackend =
   | 'cli:claude-code'
   | 'cli:codex'
+  | 'cli:agy'
   | 'cli:gemini'
   | 'cli:groq'
   | 'cli:grok';

@@ -10,6 +10,7 @@ import {
   createScratchSpawnWorktree,
   seedProjectBudget,
   withFakeOpenAICompatibleServer,
+  writeFakeAgyBinary,
   writeFakeClaudeBinary,
 } from '../../scripts/smoke-daemon-backend-transcripts.mjs';
 
@@ -116,6 +117,48 @@ describe('daemon backend transcript E2E smoke', () => {
     }
   }, 60000);
 
+  test('launches cli:agy through /spawn and records final stdout/stderr transcript only', async () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'pd-fake-agy-'));
+    const spawnWorktree = createScratchSpawnWorktree(tmp);
+    const fakeAgy = join(tmp, 'bin', 'agy');
+    writeFakeAgyBinary(fakeAgy, 'pd-agy-smoke');
+    const daemonEnv = {
+      PATH: LAUNCHD_RESTRICTED_PATH,
+      PD_USE_CLI_BACKEND: 'none',
+      PD_CLI_AGY_BIN: fakeAgy,
+    };
+    const daemon = await startEphemeralDaemon({ startupTimeout: 45000, env: daemonEnv });
+
+    try {
+      await seedProjectBudget(daemon, 'port-daddy');
+      const res = await daemon.request('/spawn', {
+        method: 'POST',
+        body: spawnBody('cli:agy', { workdir: spawnWorktree.workdir }),
+        timeout: 70000,
+      });
+
+      expect(res.ok).toBe(true);
+      const transcript = await getTranscriptForSpawn(daemon, 'cli:agy', res.data.agentId);
+      assertTranscriptReadback({
+        requestedBackend: 'cli:agy',
+        actualExecutionBackend: actualExecutionBackend('cli:agy', daemonEnv),
+        spawnResult: res.data,
+        transcript,
+        budgetUsd: 0.01,
+      });
+      const roles = transcript.messages.map((message) => message.role);
+      expect(roles).toEqual(expect.arrayContaining(['user', 'assistant']));
+      expect(roles).not.toContain('thinking');
+      expect(roles).not.toContain('tool');
+      expect(JSON.stringify(transcript.messages)).toContain('pd-agy-smoke');
+      expect(JSON.stringify(transcript.messages)).not.toContain('checking smoke request');
+    } finally {
+      await daemon.cleanup();
+      spawnWorktree.cleanup();
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  }, 60000);
+
   test('launches an OpenAI-compatible fake service through /spawn and reads back transcript plus budget compliance', async () => {
     const tmp = mkdtempSync(join(tmpdir(), 'pd-openai-workdir-'));
     const spawnWorktree = createScratchSpawnWorktree(tmp);
@@ -161,6 +204,7 @@ describe('daemon backend transcript E2E smoke', () => {
     const env = { PD_USE_CLI_BACKEND: 'codex' };
 
     expect(actualExecutionBackend('gemini', env)).toBe('cli:codex');
+    expect(actualExecutionBackend('openai', { PD_USE_CLI_BACKEND: 'agy' })).toBe('cli:agy');
     expect(() => assertNoSilentBackendOverride({ requestedBackend: 'gemini' }, env))
       .toThrow(/backend mismatch: requested gemini, actual cli:codex/);
     expect(() => assertNoSilentBackendOverride({ requestedBackend: 'cloudflare' }, env))

@@ -42,6 +42,7 @@ describe('backend readiness', () => {
   const CLI_BIN_ENV_KEYS = [
     'PD_CLI_CLAUDE_CODE_BIN',
     'PD_CLI_CODEX_BIN',
+    'PD_CLI_AGY_BIN',
     'PD_CLI_GEMINI_BIN',
     'PD_CLI_GROQ_BIN',
     'PD_CLI_GROK_BIN',
@@ -280,6 +281,7 @@ describe('backend readiness', () => {
   });
 
   test.each([
+    ['cli:agy', 'agy', 'PD_CLI_AGY_BIN'],
     ['cli:gemini', 'gemini', 'PD_CLI_GEMINI_BIN'],
     ['cli:groq', 'groq', 'PD_CLI_GROQ_BIN'],
     ['cli:grok', 'grok', 'PD_CLI_GROK_BIN'],
@@ -309,15 +311,18 @@ describe('backend readiness', () => {
     expect(found).toMatchObject({ backend, status: 'manual_check', launchableUnverified: true });
   });
 
-  test('cli:gemini honors the PD_CLI_GEMINI_BIN binary override', async () => {
-    const cli = installCli('gemini-beta');
-    process.env.PD_CLI_GEMINI_BIN = cli;
+  test.each([
+    ['cli:agy', 'agy-beta', 'PD_CLI_AGY_BIN'],
+    ['cli:gemini', 'gemini-beta', 'PD_CLI_GEMINI_BIN'],
+  ])('%s honors its binary override env var', async (backend, overrideName, envKey) => {
+    const cli = installCli(overrideName);
+    process.env[envKey] = cli;
     try {
-      const readiness = await assessBackendReadiness('cli:gemini');
+      const readiness = await assessBackendReadiness(backend);
       expect(readiness.status).toBe('manual_check');
       expect(readiness.summary).toContain(cli);
     } finally {
-      delete process.env.PD_CLI_GEMINI_BIN;
+      delete process.env[envKey];
     }
   });
 

@@ -101,7 +101,7 @@ function loadDotenvOnce(): Record<string, string> {
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'lmstudio' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'deepseek' | 'xai' | 'cli:claude-code' | 'cli:codex' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
+  backend: 'ollama' | 'lmstudio' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'deepseek' | 'xai' | 'cli:claude-code' | 'cli:codex' | 'cli:agy' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
   name?: string;        // human-readable display name
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';
@@ -752,10 +752,9 @@ async function runCliTube(
     tubeClient: context?.tubeClient,
   });
 
-  // Full-depth capture from the raw event stream. Both wrapped CLIs emit
-  // structured JSONL: codex → `--json` (reasoning/command/message items),
-  // claude-code → `stream-json` (thinking/tool_use/tool_result/text blocks).
   if (cli === 'codex') {
+    // Codex `--json` gives us full-depth capture from the raw event stream:
+    // reasoning/command/message items plus a terminal usage event.
     // Codex `--json` emits a terminal `turn.completed` carrying exact usage.
     // The tube path previously dropped it (only the legacy runCodexCli parsed
     // it), so every `cli:codex` spawn returned no tokens and fail-closed the
@@ -780,29 +779,44 @@ async function runCliTube(
           }),
     };
   }
-  // claude-code: raw stdout is the stream-json; recover the final answer from
-  // the terminal `result` line (falling back to raw if absent), parse the stream
-  // into thinking / tool / assistant turns, and recover the exact token usage the
-  // CLI reported on that same `result` line (previously dropped → fail-closed).
-  const finalAnswer = extractClaudeCodeFinal(result.rawStdout || '');
-  const ccu = extractClaudeCodeUsage(result.rawStdout || '');
-  const ccExact = typeof ccu.inputTokens === 'number' && ccu.inputTokens > 0
-    && typeof ccu.outputTokens === 'number' && ccu.outputTokens > 0;
+  if (cli === 'claude-code') {
+    // claude-code: raw stdout is the stream-json; recover the final answer from
+    // the terminal `result` line (falling back to raw if absent), parse the
+    // stream into thinking / tool / assistant turns, and recover the exact token
+    // usage the CLI reported on that same `result` line (previously dropped →
+    // fail-closed).
+    const finalAnswer = extractClaudeCodeFinal(result.rawStdout || '');
+    const ccu = extractClaudeCodeUsage(result.rawStdout || '');
+    const ccExact = typeof ccu.inputTokens === 'number' && ccu.inputTokens > 0
+      && typeof ccu.outputTokens === 'number' && ccu.outputTokens > 0;
+    return {
+      output: finalAnswer ?? result.output,
+      error: result.error,
+      transcript: parseClaudeCodeTranscript(result.rawStdout || ''),
+      ...(ccExact
+        ? {
+            inputTokens: ccu.inputTokens,
+            outputTokens: ccu.outputTokens,
+            ...(typeof ccu.cachedInputTokens === 'number' ? { cachedInputTokens: ccu.cachedInputTokens } : {}),
+          }
+        : {
+            inputTokens: estimateTokensFromText(spec.task),
+            outputTokens: estimateTokensFromText(finalAnswer ?? result.output ?? ''),
+            estimatedTelemetry: true,
+          }),
+    };
+  }
+
+  // agy/gemini/groq/grok currently provide a final stdout/stderr answer through
+  // cli-tube, not a documented JSONL stream. Keep the transcript honest: the
+  // outer spawner has already recorded the user prompt and will append one final
+  // assistant/output turn from `output`.
   return {
-    output: finalAnswer ?? result.output,
+    output: result.output,
     error: result.error,
-    transcript: parseClaudeCodeTranscript(result.rawStdout || ''),
-    ...(ccExact
-      ? {
-          inputTokens: ccu.inputTokens,
-          outputTokens: ccu.outputTokens,
-          ...(typeof ccu.cachedInputTokens === 'number' ? { cachedInputTokens: ccu.cachedInputTokens } : {}),
-        }
-      : {
-          inputTokens: estimateTokensFromText(spec.task),
-          outputTokens: estimateTokensFromText(finalAnswer ?? result.output ?? ''),
-          estimatedTelemetry: true,
-        }),
+    inputTokens: estimateTokensFromText(spec.task),
+    outputTokens: estimateTokensFromText(result.output || ''),
+    estimatedTelemetry: true,
   };
 }
 
@@ -1125,6 +1139,7 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   codex: resolveModel({ backend: 'codex', capability: 'cheap' }),
   'cli:claude-code': 'claude-cli',  // local claude CLI manages its own model
   'cli:codex': 'codex-cli',          // local codex CLI manages its own model
+  'cli:agy': 'agy-cli',              // local agy CLI manages its own model
   'cli:gemini': 'gemini-cli',        // local gemini CLI manages its own model
   'cli:groq': 'groq-cli',            // local groq CLI manages its own model
   'cli:grok': 'grok-cli',            // local grok CLI manages its own model
@@ -1133,6 +1148,19 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
 };
 // Mark default-timeout knobs referenced elsewhere
 void DEFAULT_OPENAI_TIMEOUT_MS;
+
+const FLAT_RATE_CLI_TUBE_BACKENDS = new Set<SpawnSpec['backend']>([
+  'cli:claude-code',
+  'cli:codex',
+  'cli:agy',
+  'cli:gemini',
+  'cli:groq',
+  'cli:grok',
+]);
+
+function allowsFlatRateEstimatedTelemetry(backend: SpawnSpec['backend']): boolean {
+  return FLAT_RATE_CLI_TUBE_BACKENDS.has(backend);
+}
 
 // =============================================================================
 // Worktree isolation guard (layer 2)
@@ -1829,9 +1857,9 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           tubeClient,
           tubeChannel: spec.tubeChannel,
         };
-        // Global env override: PD_USE_CLI_BACKEND=claude-code|codex forces
+        // Global env override: PD_USE_CLI_BACKEND=<local agent CLI> forces
         // every spawn through the local CLI tube, regardless of yml config.
-        // This is the "I have Claude Max, use that for everything" knob.
+        // This is the "use my authenticated local CLI for everything" knob.
         const effectiveBackend = resolveEffectiveSpawnBackend(spec.backend).backend as SpawnSpec['backend'];
         switch (effectiveBackend) {
           case 'ollama':    result = await runOllama(spec, model); break;
@@ -1847,6 +1875,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           case 'claude-cli': result = await runClaudeCli(spec, childContext); break;
           case 'cli:claude-code': result = await runCliTube(spec, 'claude-code', childContext); break;
           case 'cli:codex':       result = await runCliTube(spec, 'codex', childContext); break;
+          case 'cli:agy':         result = await runCliTube(spec, 'agy', childContext); break;
           case 'cli:gemini':      result = await runCliTube(spec, 'gemini', childContext); break;
           case 'cli:groq':        result = await runCliTube(spec, 'groq', childContext); break;
           case 'cli:grok':        result = await runCliTube(spec, 'grok', childContext); break;
@@ -1881,7 +1910,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           const computed = cachedInputTokens === undefined
             ? costTracker.computeCost(spec.backend, model, inputTokens, outputTokens)
             : costTracker.computeCost(spec.backend, model, inputTokens, outputTokens, cachedInputTokens);
-          if (computed.isEstimate) {
+          const allowFlatRateEstimate = allowsFlatRateEstimatedTelemetry(spec.backend);
+          if (computed.isEstimate && !allowFlatRateEstimate) {
             error = `Exact telemetry required, but ${spec.backend} cost calculation fell back to an estimate.`;
             output = null;
           } else if (computed.costUsd <= 0) {
@@ -1900,7 +1930,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
               outputTokens,
             });
 
-            if (!recorded || recorded.isEstimate || recorded.costUsd <= 0) {
+            if (!recorded || (recorded.isEstimate && !allowFlatRateEstimate) || recorded.costUsd <= 0) {
               error = `Exact telemetry required, but ${spec.backend} telemetry could not be persisted as an exact nonzero cost record.`;
               output = null;
             } else {

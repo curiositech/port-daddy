@@ -2812,7 +2812,7 @@ const TOOLS = [
         task: { type: 'string', description: 'What the agent should do' },
         identity: { type: 'string', description: 'Semantic identity (e.g. "myapp:fleet:custom-agent")' },
         budget_usd: { type: 'number', description: 'Required spend ceiling for this launch in USD' },
-        backend: { type: 'string', description: 'LLM backend: cloudflare, claude, claude-cli, gemini, codex, aider, custom, or another setup-ready backend' },
+        backend: { type: 'string', description: 'LLM backend: cloudflare, claude, claude-cli, gemini, codex, cli:claude-code, cli:codex, cli:agy, aider, custom, or another setup-ready backend' },
         model: { type: 'string', description: 'Optional explicit model override' },
         model_tier: { type: 'string', description: 'Optional model tier shortcut: low, mid, or high' },
         purpose: { type: 'string', description: 'Optional short human-readable label for the run' },

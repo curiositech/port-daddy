@@ -35,8 +35,8 @@ import { resolveModel } from './model-registry.js';
 // own Claude/Codex defaults independently of cli-tube. Readers should not
 // assume this file tracks cli-tube byte-for-byte outside the placeholder case.
 const PLACEHOLDER_MODELS = new Set([
-  'claude-code', 'codex', 'gemini', 'groq', 'grok',
-  'claude-cli', 'codex-cli', 'cli',
+  'claude-code', 'codex', 'agy', 'gemini', 'groq', 'grok',
+  'claude-cli', 'codex-cli', 'agy-cli', 'agy-default', 'cli',
 ]);
 
 const CLI_ACCOUNT_DEFAULT = 'CLI account default';
@@ -141,6 +141,7 @@ function modelBelongsToCli(model: string, cli: string): boolean {
   const m = model.toLowerCase();
   if (cli === 'cli:codex') return m.startsWith('gpt') || m.includes('codex') || m.startsWith('o');
   if (cli === 'cli:claude-code') return m.startsWith('claude') || ['sonnet', 'opus', 'haiku'].includes(m);
+  if (cli === 'cli:agy') return true; // agy owns its model names/account default.
   if (cli === 'cli:gemini') return m.startsWith('gemini');
   if (cli === 'cli:groq' || cli === 'cli:grok') return true; // routers accept many ids
   return true;

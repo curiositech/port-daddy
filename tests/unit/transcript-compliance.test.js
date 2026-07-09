@@ -128,4 +128,50 @@ describe('transcript compliance', () => {
     expect(report.hitlEmergency).toBe(true);
     expect(report.summary.flow.missing).toBe(1);
   });
+
+  test('treats cli:agy completed final-output transcripts as degraded but present', () => {
+    const now = 1_700_000_400_000;
+    const id = transcripts.start({
+      ship: 'spawn:cli:agy',
+      spawned_agent_id: 'spawned-agy-final',
+      trigger: 'manual',
+      backend: 'cli:agy',
+      model: 'agy-cli',
+      started_at: now - 10_000,
+    });
+    transcripts.appendMessage(id, {
+      role: 'user',
+      content: 'Reply with exactly: agy',
+      timestamp: now - 10_000,
+    });
+    transcripts.appendMessage(id, {
+      role: 'assistant',
+      content: 'agy',
+      timestamp: now,
+    });
+    transcripts.appendOutput(id, {
+      type: 'message',
+      summary: 'cli:agy returned 3 chars',
+      timestamp: now,
+    });
+    transcripts.finalize(id, { status: 'completed', cost_usd: 0.001 });
+
+    const run = assessTranscriptRun(
+      {
+        agentId: 'spawned-agy-final',
+        backend: 'cli:agy',
+        status: 'completed',
+        startedAt: now - 10_000,
+        completedAt: now,
+      },
+      transcripts.getTranscript(id),
+      { now },
+    );
+
+    expect(run.profileSupport).toBe('degraded');
+    expect(run.captureMode).toBe('final_only');
+    expect(run.liveHeartbeatExpected).toBe(false);
+    expect(run.flowState).toBe('supported');
+    expect(run.issue).toBeNull();
+  });
 });
