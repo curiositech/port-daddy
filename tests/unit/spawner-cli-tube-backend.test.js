@@ -20,9 +20,10 @@ import { EventEmitter } from 'node:events';
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
-import { Readable } from 'node:stream';
+import { PassThrough, Readable } from 'node:stream';
 
 const mockSpawn = jest.fn();
+const mockExecFileSync = jest.fn();
 const originalHome = process.env.HOME;
 const originalPath = process.env.PATH;
 const originalCliBinDirs = process.env.PD_CLI_BIN_DIRS;
@@ -30,6 +31,7 @@ let fakeHome;
 
 jest.unstable_mockModule('node:child_process', () => ({
   spawn: mockSpawn,
+  execFileSync: mockExecFileSync,
 }));
 
 const {
@@ -37,19 +39,21 @@ const {
   buildArgs,
   generateTubeChannel,
   createCliTubeBackend,
+  CLI_TUBE_PROVIDER_SPECS,
+  CLI_TUBE_TOOLS,
 } = await import('../../lib/spawner/backends/cli-tube.js');
 
 // Helper: build a fake ChildProcess that we can drive from the test.
 // `stdout` may be a string (emitted as one chunk) or an array of strings
 // (emitted as SEPARATE chunks) so line-buffering across chunk boundaries can be
 // exercised — stdout in real life arrives in arbitrary chunks.
-function fakeChild({ stdout = '', stderr = '', exitCode = 0, error = null, delay = 0, neverClose = false } = {}) {
+function fakeChild({ stdout = '', stderr = '', exitCode = 0, error = null, delay = 0, neverClose = false, pid = 4242 } = {}) {
   const ee = new EventEmitter();
   const stdoutChunks = Array.isArray(stdout) ? stdout : [stdout];
   ee.stdout = Readable.from(stdoutChunks);
   ee.stderr = Readable.from([stderr]);
   ee.kill = jest.fn();
-  ee.pid = 4242;
+  ee.pid = pid;
   if (!neverClose) {
     setTimeout(() => {
       if (error) {
@@ -63,7 +67,9 @@ function fakeChild({ stdout = '', stderr = '', exitCode = 0, error = null, delay
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  mockSpawn.mockReset();
+  mockExecFileSync.mockReset();
+  mockExecFileSync.mockReturnValue('');
   fakeHome = mkdtempSync(join(tmpdir(), 'pd-cli-tube-home-'));
   process.env.HOME = fakeHome;
   process.env.PATH = '/usr/bin:/bin';
@@ -233,6 +239,88 @@ describe('buildArgs', () => {
   test('throws on unknown tool', () => {
     expect(() => buildArgs('bogus-tool', 'hi')).toThrow(/unknown cli tool/);
   });
+});
+
+describe('CLI tube provider registry contract', () => {
+  test('declared CLI tools are backed by nonempty provider metadata and unique ids', () => {
+    expect(new Set(CLI_TUBE_TOOLS).size).toBe(CLI_TUBE_TOOLS.length);
+    expect(Object.keys(CLI_TUBE_PROVIDER_SPECS).sort()).toEqual([...CLI_TUBE_TOOLS].sort());
+
+    for (const tool of CLI_TUBE_TOOLS) {
+      const spec = CLI_TUBE_PROVIDER_SPECS[tool];
+      expect(spec.id).toBe(tool);
+      expect(spec.defaultBinary).toEqual(expect.stringMatching(/\S/));
+      expect(spec.binaryEnvOverride).toMatch(/^PD_CLI_[A-Z0-9_]+_BIN$/);
+      expect(spec.authNextStep).toEqual(expect.stringMatching(/\S/));
+      expect(spec.argStyle.kind).toEqual(expect.stringMatching(/\S/));
+      expect(spec.modelPolicy).toBeDefined();
+      expect(typeof spec.buildArgs).toBe('function');
+    }
+  });
+});
+
+describe('spawnViaCliTube — provider policy behavior', () => {
+  test.each(CLI_TUBE_TOOLS)('%s auth failures include provider-specific next-step guidance', async (cli) => {
+    mockSpawn.mockReturnValue(fakeChild({
+      stdout: '',
+      stderr: 'Error: not authenticated. Please log in.',
+      exitCode: 1,
+    }));
+    const res = await spawnViaCliTube({ cli, prompt: 'hi' });
+    expect(res.error).toContain('authentication failed');
+    expect(res.error).toContain(CLI_TUBE_PROVIDER_SPECS[cli].authNextStep);
+  });
+
+  test.each([
+    ['claude-code', 'claude-cli', '--model', 'sonnet'],
+    ['codex', 'codex-cli', null, null],
+    ['agy', 'agy-default', null, null],
+    ['gemini', 'gemini-2.5-pro', '--model', 'gemini-2.5-pro'],
+  ])('%s model policy affects the actual spawned argv for %s', async (cli, requestedModel, expectedFlag, expectedValue) => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    await spawnViaCliTube({ cli, prompt: 'hi', model: requestedModel });
+    const args = mockSpawn.mock.calls[0][1];
+    expect(args[args.length - 1]).toBe('hi');
+    if (expectedFlag) {
+      const idx = args.indexOf(expectedFlag);
+      expect(idx).toBeGreaterThan(-1);
+      expect(args[idx + 1]).toBe(expectedValue);
+    } else {
+      expect(args).not.toContain('--model');
+      expect(args).not.toContain(requestedModel);
+    }
+  });
+
+  test('codex alone passes --output-last-message and prefers that file over stdout', async () => {
+    mockSpawn.mockImplementation((_binary, args) => {
+      const outputFlagIndex = args.indexOf('--output-last-message');
+      expect(outputFlagIndex).toBeGreaterThan(-1);
+      writeFileSync(args[outputFlagIndex + 1], 'final answer from file\n');
+      return fakeChild({ stdout: '{"type":"event"}\n', exitCode: 0 });
+    });
+
+    const res = await spawnViaCliTube({ cli: 'codex', prompt: 'do thing' });
+
+    expect(res.exitCode).toBe(0);
+    expect(res.rawStdout).toBe('{"type":"event"}\n');
+    expect(res.output).toBe('final answer from file');
+  });
+
+  test.each(CLI_TUBE_TOOLS.filter((tool) => tool !== 'codex'))(
+    '%s does not receive codex last-message output capture',
+    async (cli) => {
+      mockSpawn.mockImplementation((_binary, args) => {
+        expect(args).not.toContain('--output-last-message');
+        return fakeChild({ stdout: 'stdout answer', exitCode: 0 });
+      });
+
+      const res = await spawnViaCliTube({ cli, prompt: 'hi' });
+
+      expect(res.exitCode).toBe(0);
+      expect(res.output).toBe('stdout answer');
+      expect(res.error).toBeNull();
+    },
+  );
 });
 
 describe('spawnViaCliTube — onStreamLine (live per-line buffering)', () => {
@@ -511,6 +599,20 @@ describe('spawnViaCliTube — failure paths', () => {
     expect(res.exitCode).toBe(127);
     expect(res.error).toContain('grok CLI binary unavailable');
     expect(res.error).toContain('PD_CLI_GROK_BIN');
+    expect(res.error).toContain('GROK_API_KEY / XAI_API_KEY');
+  });
+
+  test('unknown CLI tool fails gracefully before child execution', async () => {
+    const res = await spawnViaCliTube({ cli: 'cli:typo', prompt: 'hi' });
+
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(res.exitCode).toBe(127);
+    expect(res.output).toBe('');
+    expect(res.rawStdout).toBe('');
+    expect(res.tube).toBeNull();
+    expect(res.error).toContain('Unknown CLI tube tool "cli:typo"');
+    expect(res.error).toContain('Supported tools:');
+    expect(res.error).toContain('claude-code');
   });
 
   test('auth failure in stderr surfaces actionable next-step', async () => {
@@ -555,6 +657,21 @@ describe('spawnViaCliTube — failure paths', () => {
       'agy produced no stdout or stderr in print mode. Run `agy --print "hello"` once interactively to confirm authentication.',
     );
     expect(res.error).toContain('agy --print "hello"');
+  });
+
+  test.each(['claude-code', 'codex', 'gemini'])('%s exit 0 with no output remains successful (agy-only no-output policy)', async (cli) => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: '', stderr: '', exitCode: 0 }));
+    const res = await spawnViaCliTube({ cli, prompt: 'hi' });
+    expect(res.exitCode).toBe(0);
+    expect(res.error).toBeNull();
+  });
+
+  test.each(['claude-code', 'codex', 'gemini', 'groq', 'grok'])('%s empty success is not contaminated by agy no-output policy', async (cli) => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: '', stderr: '', exitCode: 0 }));
+    const res = await spawnViaCliTube({ cli, prompt: 'hi' });
+    expect(res.exitCode).toBe(0);
+    expect(res.output).toBe('');
+    expect(res.error).toBeNull();
   });
 
   test('long stdout-only error detail is bounded with a truncation marker', async () => {
@@ -604,27 +721,214 @@ describe('spawnViaCliTube — failure paths', () => {
     }
   });
 
-  test('timeout resolves even when the child never emits close', async () => {
+  test('timeout sends SIGKILL but waits for close before finalizing', async () => {
     jest.useFakeTimers();
     try {
       const child = fakeChild({ stdout: 'partial output', neverClose: true });
       mockSpawn.mockReturnValue(child);
 
       const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
+      let settled = false;
+      resultPromise.finally(() => { settled = true; });
       // Step 1: reach the parent watchdog timeout, which sends SIGTERM.
       await jest.advanceTimersByTimeAsync(10);
       expect(child.kill).toHaveBeenCalledWith('SIGTERM');
       // Step 2: exhaust TIMEOUT_KILL_GRACE_MS so the backend escalates to SIGKILL.
       await jest.advanceTimersByTimeAsync(5000);
       expect(child.kill).toHaveBeenCalledWith('SIGKILL');
-      // Step 3: exhaust the final forced-settle delay for children that never close.
-      await jest.advanceTimersByTimeAsync(1000);
+      await Promise.resolve();
+      expect(settled).toBe(false);
 
+      child.emit('close', -1);
       const res = await resultPromise;
       expect(res.exitCode).toBe(-1);
       expect(res.output).toBe('partial output');
       expect(res.error).toContain('agy timed out after 10ms');
     } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('timeout does not force-resolve by destroying streams before the child honestly closes', async () => {
+    jest.useFakeTimers();
+    try {
+      const child = fakeChild({ neverClose: true });
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      const stdoutDestroy = jest.spyOn(child.stdout, 'destroy');
+      const stderrDestroy = jest.spyOn(child.stderr, 'destroy');
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
+      let settled = false;
+      resultPromise.finally(() => { settled = true; });
+      child.stdout.write('partial transcript line\n');
+
+      await jest.advanceTimersByTimeAsync(10);
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+      await jest.advanceTimersByTimeAsync(999);
+      await Promise.resolve();
+
+      expect(settled).toBe(false);
+      expect(stdoutDestroy).not.toHaveBeenCalled();
+      expect(stderrDestroy).not.toHaveBeenCalled();
+
+      child.emit('close', -1);
+      const res = await resultPromise;
+      expect(res.rawStdout).toBe('partial transcript line\n');
+      expect(res.error).toContain('agy timed out after 10ms');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('timeout hard-deadline resolves failed if SIGKILL never produces close, without destroying streams', async () => {
+    jest.useFakeTimers();
+    try {
+      const child = fakeChild({ neverClose: true });
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      const stdoutDestroy = jest.spyOn(child.stdout, 'destroy');
+      const stderrDestroy = jest.spyOn(child.stderr, 'destroy');
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
+      let settled = false;
+      resultPromise.finally(() => { settled = true; });
+      child.stdout.write('line before timeout\n');
+
+      await jest.advanceTimersByTimeAsync(10);
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+      await jest.advanceTimersByTimeAsync(1000);
+      await Promise.resolve();
+
+      expect(settled).toBe(true);
+      expect(stdoutDestroy).not.toHaveBeenCalled();
+      expect(stderrDestroy).not.toHaveBeenCalled();
+      const res = await resultPromise;
+      expect(res.exitCode).toBe(-1);
+      expect(res.rawStdout).toBe('line before timeout\n');
+      expect(res.error).toContain('agy timed out after 10ms');
+      expect(res.error).toContain('process tree did not close after SIGKILL; transcript may be incomplete');
+      expect(child.stdout.listenerCount('data')).toBe(0);
+      expect(child.stderr.listenerCount('data')).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('timeout root-pid fallback is explicit when process tree collection fails', async () => {
+    jest.useFakeTimers();
+    const processKill = jest.spyOn(process, 'kill').mockImplementation(() => true);
+    try {
+      mockExecFileSync.mockImplementation(() => { throw new Error('ps unavailable'); });
+      const child = fakeChild({ neverClose: true, pid: 5151 });
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      const stdoutDestroy = jest.spyOn(child.stdout, 'destroy');
+      const stderrDestroy = jest.spyOn(child.stderr, 'destroy');
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
+      child.stdout.write('before ps failure\n');
+
+      await jest.advanceTimersByTimeAsync(10);
+      expect(processKill).toHaveBeenCalledWith(-5151, 'SIGTERM');
+      expect(processKill).toHaveBeenCalledWith(5151, 'SIGTERM');
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(processKill).toHaveBeenCalledWith(-5151, 'SIGKILL');
+      expect(processKill).toHaveBeenCalledWith(5151, 'SIGKILL');
+      expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+      expect(mockExecFileSync).toHaveBeenCalledWith(
+        'ps',
+        ['-axo', 'pid=,ppid='],
+        expect.objectContaining({ maxBuffer: 1024 * 1024 }),
+      );
+
+      await jest.advanceTimersByTimeAsync(1000);
+      const res = await resultPromise;
+      expect(res.exitCode).toBe(-1);
+      expect(res.rawStdout).toBe('before ps failure\n');
+      expect(res.error).toContain('process tree did not close after SIGKILL; transcript may be incomplete');
+      expect(res.error).toContain('process tree collection unavailable: ps unavailable');
+      expect(stdoutDestroy).not.toHaveBeenCalled();
+      expect(stderrDestroy).not.toHaveBeenCalled();
+    } finally {
+      processKill.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  test('timeout discovers inherited stdio holders through known lsof paths when PATH omits lsof', async () => {
+    jest.useFakeTimers();
+    const processKill = jest.spyOn(process, 'kill').mockImplementation(() => true);
+    try {
+      const childPid = 51515151;
+      const holderPid = 6161;
+      const holderDescendantPid = 7171;
+      mockExecFileSync.mockImplementation((cmd, args) => {
+        if (cmd === 'ps') {
+          return [
+            ` ${childPid} 1`,
+            ` ${holderPid} 1`,
+            ` ${holderDescendantPid} ${holderPid}`,
+            '',
+          ].join('\n');
+        }
+        if (cmd === 'lsof') {
+          throw Object.assign(new Error('spawnSync lsof ENOENT'), { code: 'ENOENT' });
+        }
+        if (String(cmd).endsWith('/lsof') && args.includes('-d12')) {
+          return `COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\nnode ${process.pid} user 12u  unix 0xaaa      0t0      ->0xbbb\n`;
+        }
+        if (String(cmd).endsWith('/lsof') && args.includes('-U')) {
+          return `COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\nnode ${holderPid} user 1u  unix 0xbbb      0t0      ->0xaaa\n`;
+        }
+        return '';
+      });
+
+      const child = fakeChild({ neverClose: true, pid: childPid });
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      Object.defineProperty(child.stdout, '_handle', { value: { fd: 12 }, configurable: true });
+      Object.defineProperty(child.stderr, '_handle', { value: { fd: 14 }, configurable: true });
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
+
+      await jest.advanceTimersByTimeAsync(10);
+      expect(mockExecFileSync).not.toHaveBeenCalledWith('lsof', expect.anything(), expect.anything());
+      expect(mockExecFileSync).toHaveBeenCalledWith(
+        '/usr/sbin/lsof',
+        expect.arrayContaining(['-nP', '-a', '-p', String(process.pid), '-d12']),
+        expect.objectContaining({ maxBuffer: 1024 * 1024 }),
+      );
+      expect(mockExecFileSync).toHaveBeenCalledWith(
+        '/usr/sbin/lsof',
+        expect.arrayContaining(['-nP', '-U']),
+        expect.objectContaining({ maxBuffer: 4 * 1024 * 1024 }),
+      );
+      expect(processKill).toHaveBeenCalledWith(holderPid, 'SIGTERM');
+      expect(processKill).toHaveBeenCalledWith(holderDescendantPid, 'SIGTERM');
+      expect(processKill).toHaveBeenCalledWith(-holderPid, 'SIGTERM');
+      expect(processKill).toHaveBeenCalledWith(-holderDescendantPid, 'SIGTERM');
+
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(processKill).toHaveBeenCalledWith(holderPid, 'SIGKILL');
+      expect(processKill).toHaveBeenCalledWith(holderDescendantPid, 'SIGKILL');
+      expect(processKill).toHaveBeenCalledWith(-holderPid, 'SIGKILL');
+      expect(processKill).toHaveBeenCalledWith(-holderDescendantPid, 'SIGKILL');
+
+      child.emit('close', -1);
+      await resultPromise;
+    } finally {
+      processKill.mockRestore();
       jest.useRealTimers();
     }
   });
