@@ -44,7 +44,11 @@ function installFetch(routes) {
     const href = String(url);
     const route = routes.find((candidate) => candidate.match(href));
     if (route) return route.reply(href, init);
-    return jsonResponse({ success: true });
+    const { hostname } = new URL(href);
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return jsonResponse({ success: true });
+    }
+    throw new Error(`Unexpected provider fetch: ${href}`);
   });
 }
 
