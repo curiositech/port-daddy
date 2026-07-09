@@ -6,6 +6,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 HARNESS="$ROOT/scripts/proof/capture-proof.sh"
+VERIFY="$ROOT/scripts/proof/verify-artifacts.mjs"
+SAMPLE_DIR="${PD_PROOF_SAMPLE_DIR:-$ROOT/docs/artifacts/gpui/2026-07-09T19-40-00Z-exact-window-fallback-smoke}"
 TMP_ROOT="${TMPDIR:-/tmp}"
 OUT="$(mktemp -d "$TMP_ROOT/pd-console-proof-check.XXXXXX")"
 trap 'rm -rf "$OUT"' EXIT
@@ -36,6 +38,7 @@ PD_PROOF_FPS=4 \
 
 [[ -s "$OUT/RECEIPT.md" ]] || fail "missing RECEIPT.md"
 [[ -s "$OUT/MANIFEST.md" ]] || fail "missing MANIFEST.md"
+[[ -f "$VERIFY" ]] || fail "missing verify-artifacts.mjs"
 
 assert_contains "$OUT/RECEIPT.md" "exact-window capture"
 assert_contains "$OUT/RECEIPT.md" 'screencapture -x -o -l"<windowid>"'
@@ -48,5 +51,8 @@ assert_contains "$OUT/RECEIPT.md" "proof-window-fallback.mp4"
 assert_contains "$OUT/RECEIPT.md" "proof-window-fallback.gif"
 assert_contains "$OUT/MANIFEST.md" "RECEIPT.md"
 assert_contains "$OUT/MANIFEST.md" "proof-window-fallback.mp4"
+
+node "$VERIFY" "$OUT"
+node "$VERIFY" "$SAMPLE_DIR"
 
 echo "proof-check: ok"

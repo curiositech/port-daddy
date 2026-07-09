@@ -69,6 +69,8 @@ FALLBACK_STATUS="not attempted"
 VIDEO_METHOD="not captured"
 WINDOW_LOG=()
 VIDEO_ARTIFACTS=()
+GIT_COMMIT_FULL="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
+GIT_COMMIT_SHORT="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -114,10 +116,11 @@ fail_intervention() {
 write_manifest() {
   mkdir -p "$OUT"
   {
+    write_metadata "manifest"
     echo "# pd-console visual proof - $STAMP"
     echo
     echo "Branch: \`$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')\`"
-    echo "Commit: \`$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo '?')\`"
+    echo "Commit: \`$GIT_COMMIT_SHORT\`"
     echo "Display selector: \`$DISPLAY_SEL\`"
     echo "Capture owner: proof-owned pd-console window filtered by launched PID."
     echo
@@ -152,6 +155,7 @@ write_manifest() {
 write_receipt() {
   mkdir -p "$OUT"
   {
+    write_metadata "receipt"
     echo "# pd-console visual proof receipt"
     echo
     echo "Artifact dir:"
@@ -160,7 +164,7 @@ write_receipt() {
     echo "## Context"
     echo
     echo "- Branch: \`$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')\`"
-    echo "- Commit: \`$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo '?')\`"
+    echo "- Commit: \`$GIT_COMMIT_SHORT\`"
     echo "- Daemon URL: \`$DAEMON_URL\`"
     echo "- Display selector: \`$DISPLAY_SEL\`"
     echo "- Source binary: \`$SOURCE_BIN\`"
@@ -257,6 +261,27 @@ write_receipt() {
   } > "$OUT/RECEIPT.md"
 }
 
+write_metadata() {
+  local kind="$1"
+  local dry_run_json="false"
+  [[ "$DRY_RUN" == "1" ]] && dry_run_json="true"
+  cat <<EOF
+<!-- pd-console-proof-metadata
+{
+  "schema": "pd-console.visual-proof.v1",
+  "artifactKind": "$kind",
+  "captureCommit": "$GIT_COMMIT_FULL",
+  "captureCommitShort": "$GIT_COMMIT_SHORT",
+  "captureCommitPolicy": "documented-capture-commit",
+  "proofScope": "exact-window-harness-only",
+  "providerTranscriptE2E": false,
+  "dryRun": $dry_run_json
+}
+-->
+
+EOF
+}
+
 if [[ "$DRY_RUN" == "1" ]]; then
   DISPLAY_SEL="${DISPLAY_SEL:-proof-display-dry-run}"
   SCK_STATUS="not attempted in dry-run"
@@ -298,8 +323,56 @@ list_displays() {
   "$BIN" --list-displays 2>/dev/null
 }
 
+display_line_matches_selector() {
+  local line="$1"
+  local selector="$2"
+  local idx uuid selector_lc uuid_lc
+  if [[ "$line" =~ \[([0-9]+)\] ]]; then
+    idx="${BASH_REMATCH[1]}"
+    [[ "$selector" == "$idx" ]] && return 0
+  fi
+  if [[ "$line" =~ uuid=([^[:space:]]+) ]]; then
+    uuid="${BASH_REMATCH[1]}"
+    selector_lc="$(printf '%s' "$selector" | tr '[:upper:]' '[:lower:]')"
+    uuid_lc="$(printf '%s' "$uuid" | tr '[:upper:]' '[:lower:]')"
+    [[ "$selector_lc" == "$uuid_lc" ]] && return 0
+  fi
+  return 1
+}
+
+display_line_is_primary() {
+  local line="$1"
+  local ox oy
+  if [[ "$line" =~ origin=\((-?[0-9]+),(-?[0-9]+)\) ]]; then
+    ox="${BASH_REMATCH[1]}"
+    oy="${BASH_REMATCH[2]}"
+    [[ "$ox" == "0" && "$oy" == "0" ]]
+    return
+  fi
+  return 1
+}
+
+validate_explicit_display() {
+  local selector="$1"
+  local listing line matched=""
+  listing="$(list_displays)"
+  echo "$listing" | sed 's/^/    /' >&2
+  while IFS= read -r line; do
+    if display_line_matches_selector "$line" "$selector"; then
+      matched="$line"
+      break
+    fi
+  done <<< "$listing"
+
+  [[ -n "$matched" ]] || fail_intervention "PD_PROOF_DISPLAY '$selector' was not found in pd-console --list-displays. Refusing to let pd-console fall back to the primary display."
+  if display_line_is_primary "$matched"; then
+    fail_intervention "PD_PROOF_DISPLAY '$selector' resolves to the primary display. Use a virtual display selector for non-intrusive proof."
+  fi
+}
+
 resolve_display() {
   if [[ -n "${PD_PROOF_DISPLAY:-}" ]]; then
+    validate_explicit_display "$PD_PROOF_DISPLAY"
     echo "$PD_PROOF_DISPLAY"
     return 0
   fi
