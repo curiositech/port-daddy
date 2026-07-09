@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1783587747423,
+  "generatedAt": 1783623173391,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 150,
+  "count": 151,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -528,6 +528,11 @@
       "slug": "codex-daemon-claude-bin-resolution",
       "status": "backlog",
       "summaryMd": "Fix daemon Claude CLI binary resolution"
+    },
+    {
+      "slug": "codex-effective-runtime-truth",
+      "status": "backlog",
+      "summaryMd": "fix(spawner): report effective runtime provenance"
     },
     {
       "slug": "codex-homepage-hero-followup",
