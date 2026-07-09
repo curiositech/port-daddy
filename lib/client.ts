@@ -3910,7 +3910,7 @@ interface ChangelogIdentitiesResponse {
 // Spawn types
 // =============================================================================
 
-type BackendOverrideSource = 'none' | 'env' | 'persisted' | 'preflight';
+export type BackendOverrideSource = 'none' | 'env' | 'persisted' | 'preflight';
 
 interface SpawnSpec {
   backend: 'ollama' | 'lmstudio' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'openai' | 'groq' | 'deepseek' | 'xai' | 'codex' | 'aider' | 'custom' | 'cli:claude-code' | 'cli:codex' | 'cli:agy' | 'cli:gemini' | 'cli:groq' | 'cli:grok';

@@ -4,11 +4,11 @@ import Fastify from 'fastify';
 const mockSpawnViaCliTube = jest.fn();
 const mockAssessSpawnPreflight = jest.fn();
 
-jest.unstable_mockModule('../../lib/spawner/backends/cli-tube.js', () => ({
+await jest.unstable_mockModule('../../lib/spawner/backends/cli-tube.js', () => ({
   spawnViaCliTube: mockSpawnViaCliTube,
 }));
 
-jest.unstable_mockModule('../../lib/spawn-preflight.js', () => ({
+await jest.unstable_mockModule('../../lib/spawn-preflight.js', () => ({
   assessSpawnPreflight: mockAssessSpawnPreflight,
 }));
 
