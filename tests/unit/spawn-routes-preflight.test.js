@@ -338,9 +338,60 @@ describe('spawn routes preflight', () => {
     expect(spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
       backend: 'cli:claude-code',
       model: 'sonnet',
+      requestedBackend: 'openai',
+      requestedModel: 'gpt-5-mini',
+      backendOverrideSource: 'env',
       identity: 'port-daddy:repo:cli',
       task: 'review the diff',
       budgetUsd: 0.75,
+    }));
+
+    await app.close();
+  });
+
+  test('POST /spawn preserves persisted forced-backend provenance from preflight', async () => {
+    mockAssessSpawnPreflight.mockResolvedValueOnce({
+      launchReady: true,
+      blockedReasons: [],
+      warnings: ['Persisted CLI backend selection forces cli:codex'],
+      attempts: [{
+        attempt: 1,
+        backend: 'cli:codex',
+        model: 'codex-cli',
+        modelTier: null,
+        backendSource: 'persisted',
+        modelSource: 'unset',
+        warnings: ['Persisted CLI backend selection forces cli:codex'],
+        readinessStatus: 'manual_check',
+        readinessLaunchableUnverified: true,
+        readinessSummary: 'Codex CLI binary found',
+      }],
+      projectName: 'port-daddy',
+      budget: null,
+      localExecutionLikely: true,
+      localExecutionNote: 'Local CLI backends may need unsandboxed approval.',
+    });
+    const { app, spawner, register } = buildApp();
+    await register();
+
+    await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      payload: {
+        backend: 'openai',
+        model: 'gpt-5-mini',
+        identity: 'port-daddy:repo:cli',
+        task: 'review the diff',
+        budgetUsd: 0.75,
+      },
+    });
+
+    expect(spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
+      backend: 'cli:codex',
+      model: 'codex-cli',
+      requestedBackend: 'openai',
+      requestedModel: 'gpt-5-mini',
+      backendOverrideSource: 'persisted',
     }));
 
     await app.close();

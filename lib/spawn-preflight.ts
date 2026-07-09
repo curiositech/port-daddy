@@ -40,7 +40,7 @@ export interface SpawnPreflightAttempt {
   backend: string | null;
   model: string | null;
   modelTier: FleetModelTier | null;
-  backendSource: 'agent' | 'env' | 'missing';
+  backendSource: 'agent' | 'env' | 'persisted' | 'missing';
   modelSource: 'agent' | 'tier' | 'env' | 'unset';
   warnings: string[];
   readinessStatus: BackendReadiness['status'];
@@ -133,6 +133,11 @@ export async function assessSpawnPreflight(
       const telemetryPolicy = runtime.backend
         ? assessBackendTelemetryPolicy(runtime.backend, runtime.model ?? null)
         : null;
+      const forcedWarning = effective.forced && effective.requestedBackend !== effective.backend
+        ? effective.forcedSource === 'persisted'
+          ? `Persisted CLI backend selection forces ${effective.backend}; requested backend ${effective.requestedBackend ?? 'none'} will be preflighted and spawned as ${effective.backend}.`
+          : `PD_USE_CLI_BACKEND forces ${effective.backend}; requested backend ${effective.requestedBackend ?? 'none'} will be preflighted and spawned as ${effective.backend}.`
+        : '';
       const readiness = runtime.backend
         ? await assessBackendReadiness(runtime.backend, { model: telemetryPolicy?.effectiveModel ?? runtime.model ?? null })
         : {
@@ -147,13 +152,11 @@ export async function assessSpawnPreflight(
         backend: runtime.backend,
         model: runtime.model ?? telemetryPolicy?.effectiveModel ?? null,
         modelTier: runtime.modelTier ?? null,
-        backendSource: effective.forced ? 'env' : runtime.backendSource,
+        backendSource: effective.forced ? effective.forcedSource ?? 'env' : runtime.backendSource,
         modelSource: runtime.modelSource,
         warnings: uniqueWarnings([
           ...runtime.warnings,
-          effective.forced && effective.requestedBackend !== effective.backend
-            ? `PD_USE_CLI_BACKEND forces ${effective.backend}; requested backend ${effective.requestedBackend ?? 'none'} will be preflighted and spawned as ${effective.backend}.`
-            : '',
+          forcedWarning,
         ]),
         readinessStatus: readiness.status,
         readinessLaunchableUnverified: readiness.launchableUnverified === true,

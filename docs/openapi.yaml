@@ -3863,7 +3863,7 @@ paths:
               properties:
                 backend:
                   type: string
-                  enum: [ollama, claude, claude-cli, gemini, cloudflare, codex, aider, custom, cli:claude-code, cli:codex, cli:agy, cli:gemini, cli:groq, cli:grok]
+                  enum: [ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, deepseek, xai, codex, aider, custom, cli:claude-code, cli:codex, cli:agy, cli:gemini, cli:groq, cli:grok]
                 model:
                   type: string
                   description: Model name (backend-specific)
@@ -3911,6 +3911,29 @@ paths:
                     type: string
                   backend:
                     type: string
+                    enum: [ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, deepseek, xai, codex, aider, custom, cli:claude-code, cli:codex, cli:agy, cli:gemini, cli:groq, cli:grok]
+                    description: Effective backend that actually ran after preflight and forced-backend resolution.
+                  model:
+                    type: string
+                    description: Effective model used for telemetry/cost/result provenance.
+                  requestedBackend:
+                    type: string
+                    enum: [ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, deepseek, xai, codex, aider, custom, cli:claude-code, cli:codex, cli:agy, cli:gemini, cli:groq, cli:grok]
+                    description: Backend requested by the caller before any forced-backend override.
+                  effectiveBackend:
+                    type: string
+                    enum: [ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, deepseek, xai, codex, aider, custom, cli:claude-code, cli:codex, cli:agy, cli:gemini, cli:groq, cli:grok]
+                    description: Backend that actually ran after preflight and forced-backend resolution.
+                  requestedModel:
+                    type: string
+                    description: Model requested by the caller before any forced-backend override.
+                  effectiveModel:
+                    type: string
+                    description: Model used by the effective runtime for telemetry/cost/result provenance.
+                  backendOverrideSource:
+                    type: string
+                    enum: [none, env, persisted, preflight]
+                    description: Source that selected a different effective backend, or none when requested/effective are identical.
                   status:
                     type: string
                     enum: [running, completed, failed, killed, over_budget]

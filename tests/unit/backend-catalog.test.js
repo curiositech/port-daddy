@@ -10,6 +10,7 @@ import {
   detectForcedCliBackendValue,
   getBackendCatalogEntry,
   recommendedBackendIds,
+  resolveEffectiveSpawnBackend,
 } from '../../lib/backend-catalog.js';
 
 describe('backend-catalog', () => {
@@ -110,6 +111,31 @@ describe('backend-catalog', () => {
       const env = { PD_USE_CLI_BACKEND: 'claude-code' };
       expect(detectForcedCliBackend(env, { persistedPath: path })).toBe('cli:claude-code');
       expect(detectForcedCliBackendValue(env, { persistedPath: path })).toBe('claude-code');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('resolveEffectiveSpawnBackend reports whether a forced backend came from env or persisted selection', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-backend-catalog-'));
+    const path = join(dir, 'selection');
+    try {
+      writeFileSync(path, 'codex\n');
+
+      expect(resolveEffectiveSpawnBackend('openai', {}, { persistedPath: path })).toMatchObject({
+        requestedBackend: 'openai',
+        backend: 'cli:codex',
+        forcedBackend: 'cli:codex',
+        forcedSource: 'persisted',
+        forced: true,
+      });
+      expect(resolveEffectiveSpawnBackend('openai', { PD_USE_CLI_BACKEND: 'agy' }, { persistedPath: path })).toMatchObject({
+        requestedBackend: 'openai',
+        backend: 'cli:agy',
+        forcedBackend: 'cli:agy',
+        forcedSource: 'env',
+        forced: true,
+      });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

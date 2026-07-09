@@ -27,7 +27,9 @@ const VALID_BACKENDS = new Set(['ollama', 'lmstudio', 'claude', 'claude-cli', 'g
 
 function backendOverrideSourceFromPreflight(source: unknown, forced: boolean): BackendOverrideSource {
   if (!forced) return 'none';
-  return source === 'env' ? 'env' : 'preflight';
+  if (source === 'env') return 'env';
+  if (source === 'persisted') return 'persisted';
+  return 'preflight';
 }
 
 // ==========================================================================
