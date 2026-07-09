@@ -702,6 +702,7 @@ pd attest    # Invariant self-report
 pd diagnose  # Deeper diagnostics
 curl http://127.0.0.1:9876/status   # Full daemon report incl. recent activity and spend
 curl http://127.0.0.1:9876/transcripts/compliance  # Transcript backend matrix + live stalled/missing-run HITL issues
+curl http://127.0.0.1:9876/transcripts/emergency   # HITL transcript emergency summary across local + cloud writers
 ```
 
 `launchctl` is the canonical supervisor on macOS; Bosun is the optional non-agent watchdog fed by a filesystem heartbeat.

@@ -2326,6 +2326,8 @@
       "sdk": [],
       "routes": [
         "GET /transcripts",
+        "GET /transcripts/compliance",
+        "GET /transcripts/emergency",
         "GET /transcripts/cost",
         "GET /transcripts/stream",
         "GET /transcripts/:id",
