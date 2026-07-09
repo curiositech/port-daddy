@@ -27,7 +27,8 @@ interface WaitForCliChildOptions {
 const PROCESS_TREE_POLL_MS = 100;
 const PROCESS_TREE_MAX_BUFFER = 1024 * 1024;
 const LSOF_MAX_BUFFER = 4 * 1024 * 1024;
-const LSOF_SEARCH_PATHS = ['/usr/sbin/lsof', '/sbin/lsof', '/usr/bin/lsof', '/bin/lsof'];
+const LSOF_SEARCH_DIRS = ['/usr/sbin', '/sbin', '/usr/bin', '/bin'];
+const LSOF_SEARCH_PATHS = LSOF_SEARCH_DIRS.map((dir) => `${dir}/lsof`);
 
 let cachedLsofPath: string | null = null;
 
@@ -265,7 +266,9 @@ function execLsof(
   args: string[],
   options: childProcess.ExecFileSyncOptionsWithStringEncoding,
 ): string {
-  const candidates = cachedLsofPath ? [cachedLsofPath] : LSOF_SEARCH_PATHS;
+  const candidates = cachedLsofPath
+    ? [cachedLsofPath, ...LSOF_SEARCH_PATHS.filter((candidate) => candidate !== cachedLsofPath)]
+    : LSOF_SEARCH_PATHS;
   let lastErr: unknown = null;
   for (const candidate of candidates) {
     try {
@@ -274,7 +277,7 @@ function execLsof(
       return output;
     } catch (err) {
       lastErr = err;
-      if (cachedLsofPath || !isExecutableLookupFailure(err)) throw err;
+      if (!isExecutableLookupFailure(err)) throw err;
     }
   }
   cachedLsofPath = null;

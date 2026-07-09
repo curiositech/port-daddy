@@ -81,6 +81,8 @@ describe('cli-tube real timeout lifecycle', () => {
     const launcherPidFile = join(tempDir, 'launcher.pid');
     const survivorPidFile = join(tempDir, 'survivor.pid');
 
+    expect(process.env.PATH).toBe('/usr/bin:/bin');
+
     const res = await spawnViaCliTube({
       cli: 'agy',
       prompt: 'spawn survivor then exit parent',

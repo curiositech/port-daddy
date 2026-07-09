@@ -903,6 +903,17 @@ describe('spawnViaCliTube — failure paths', () => {
       const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
 
       await jest.advanceTimersByTimeAsync(10);
+      expect(mockExecFileSync).not.toHaveBeenCalledWith('lsof', expect.anything(), expect.anything());
+      expect(mockExecFileSync).toHaveBeenCalledWith(
+        '/usr/sbin/lsof',
+        expect.arrayContaining(['-nP', '-a', '-p', String(process.pid), '-d12']),
+        expect.objectContaining({ maxBuffer: 1024 * 1024 }),
+      );
+      expect(mockExecFileSync).toHaveBeenCalledWith(
+        '/usr/sbin/lsof',
+        expect.arrayContaining(['-nP', '-U']),
+        expect.objectContaining({ maxBuffer: 4 * 1024 * 1024 }),
+      );
       expect(processKill).toHaveBeenCalledWith(holderPid, 'SIGTERM');
       expect(processKill).toHaveBeenCalledWith(holderDescendantPid, 'SIGTERM');
       expect(processKill).toHaveBeenCalledWith(-holderPid, 'SIGTERM');
