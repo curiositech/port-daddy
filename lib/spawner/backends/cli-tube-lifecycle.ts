@@ -222,12 +222,6 @@ function collectChildStdioProcTargets(child: ChildProcess): Set<string> {
       if (target) targets.add(target);
     }
   }
-  for (const stream of [child.stdout, child.stderr]) {
-    const fd = getStreamFd(stream);
-    if (fd === null) continue;
-    const target = safeReadLink(`/proc/${process.pid}/fd/${fd}`);
-    if (target) targets.add(target);
-  }
   return targets;
 }
 

@@ -869,12 +869,13 @@ describe('spawnViaCliTube — failure paths', () => {
     jest.useFakeTimers();
     const processKill = jest.spyOn(process, 'kill').mockImplementation(() => true);
     try {
+      const childPid = 51515151;
       const holderPid = 6161;
       const holderDescendantPid = 7171;
       mockExecFileSync.mockImplementation((cmd, args) => {
         if (cmd === 'ps') {
           return [
-            ' 5151 1',
+            ` ${childPid} 1`,
             ` ${holderPid} 1`,
             ` ${holderDescendantPid} ${holderPid}`,
             '',
@@ -892,7 +893,7 @@ describe('spawnViaCliTube — failure paths', () => {
         return '';
       });
 
-      const child = fakeChild({ neverClose: true, pid: 5151 });
+      const child = fakeChild({ neverClose: true, pid: childPid });
       child.stdout = new PassThrough();
       child.stderr = new PassThrough();
       Object.defineProperty(child.stdout, '_handle', { value: { fd: 12 }, configurable: true });
