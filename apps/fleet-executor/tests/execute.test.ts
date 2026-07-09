@@ -137,20 +137,23 @@ describe('pull_request action routing', () => {
     },
   );
 
-  it('skips non-reviewable pull_request actions without touching GitHub or AI', async () => {
-    const ai = aiStub({
-      perShip: { 'code-reviewer': 'should not run\n\nFLEET-VERDICT: PASS' },
-    });
+  it.each(['edited', null] as Array<string | null>)(
+    'skips non-reviewable pull_request action %s without touching GitHub or AI',
+    async action => {
+      const ai = aiStub({
+        perShip: { 'code-reviewer': 'should not run\n\nFLEET-VERDICT: PASS' },
+      });
 
-    await executeFleet(
-      makeJob({ action: 'edited', deliveryId: 'delivery-edited' }),
-      makeEnv({ AI: ai.ai }),
-    );
+      await executeFleet(
+        makeJob({ action, deliveryId: `delivery-${action ?? 'null'}` }),
+        makeEnv({ AI: ai.ai }),
+      );
 
-    expect(state.records).toHaveLength(0);
-    expect(state.checkRunsCreated).toBe(0);
-    expect(ai.calls).toHaveLength(0);
-  });
+      expect(state.records).toHaveLength(0);
+      expect(state.checkRunsCreated).toBe(0);
+      expect(ai.calls).toHaveLength(0);
+    },
+  );
 });
 
 describe('blocking-ship verdict → check conclusion', () => {
