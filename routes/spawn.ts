@@ -43,6 +43,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         : typeof body.budgetUsd === 'string' && body.budgetUsd.trim()
           ? parseFloat(body.budgetUsd)
           : undefined;
+      const parsedBudgetUsd = Number.isFinite(budgetUsd) ? budgetUsd : undefined;
 
       const preflight = await assessSpawnPreflight({
         backend: typeof body.backend === 'string' ? body.backend : undefined,
@@ -50,7 +51,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         modelTier: typeof body.modelTier === 'string' ? body.modelTier as FleetModelTier : undefined,
         fallbacks,
         identity: typeof body.identity === 'string' ? body.identity : undefined,
-        budgetUsd: Number.isFinite(budgetUsd) ? budgetUsd : undefined,
+        ...(parsedBudgetUsd === undefined ? {} : { budgetUsd: parsedBudgetUsd }),
       }, { costTracker });
 
       return { success: true, ...preflight };
@@ -171,12 +172,13 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         : typeof rawBudgetUsd === 'string' && rawBudgetUsd.trim()
           ? parseFloat(rawBudgetUsd)
           : undefined;
+      const validBudgetUsd = Number.isFinite(parsedBudgetUsd) ? parsedBudgetUsd : undefined;
       const preflight = await assessSpawnPreflight({
         backend,
         model,
         modelTier: typeof modelTier === 'string' ? modelTier as FleetModelTier : undefined,
         identity,
-        budgetUsd: Number.isFinite(parsedBudgetUsd) ? parsedBudgetUsd : undefined,
+        ...(validBudgetUsd === undefined ? {} : { budgetUsd: validBudgetUsd }),
       }, { costTracker });
 
       if (!preflight.launchReady) {
@@ -196,6 +198,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         backend: effectiveBackend as SpawnSpec['backend'],
         task: task.trim(),
       };
+      if (validBudgetUsd !== undefined) spec.budgetUsd = validBudgetUsd;
 
       if (!backendWasForced && model && typeof model === 'string') spec.model = model;
       else if (preflight.attempts[0]?.model) spec.model = preflight.attempts[0].model;

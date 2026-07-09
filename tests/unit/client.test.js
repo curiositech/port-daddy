@@ -757,6 +757,46 @@ describe('Tuples', () => {
 });
 
 // =============================================================================
+// Spawn
+// =============================================================================
+
+describe('Spawn', () => {
+  let pd;
+
+  beforeEach(() => {
+    pd = createClient({ agentId: 'spawn-client' });
+  });
+
+  test('spawn returns over_budget status without client-side coercion', async () => {
+    queueResponse({
+      success: true,
+      agentId: 'spawned-over-budget',
+      backend: 'claude',
+      model: 'claude-haiku-4-5',
+      status: 'over_budget',
+      output: 'finished',
+      error: 'exceeded hard budget cap: cost $0.15 > budget $0.05',
+      telemetry: {
+        costUsd: 0.154863,
+        isEstimate: false,
+      },
+    });
+
+    const result = await pd.spawn({
+      backend: 'claude',
+      task: 'finish expensively',
+      budgetUsd: 0.05,
+    });
+
+    expect(receivedRequests[0].url).toBe('/spawn');
+    expect(receivedRequests[0].method).toBe('POST');
+    expect(receivedRequests[0].body.budgetUsd).toBe(0.05);
+    expect(result.status).toBe('over_budget');
+    expect(result.telemetry.costUsd).toBeCloseTo(0.154863);
+  });
+});
+
+// =============================================================================
 // Agents
 // =============================================================================
 

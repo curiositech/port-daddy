@@ -108,6 +108,7 @@ export interface SpawnSpec {
   identity?: string;   // PD semantic identity: project:stack:context
   purpose?: string;    // human-readable task description
   task: string;        // the prompt / task
+  budgetUsd?: number; // per-launch hard spend cap; enforced after exact telemetry is recorded
   bondUsd?: number;    // per-spawn bond; slashed on misbehavior, refunded on clean exit
   harborName?: string; // optional override for bond-admission harbor
   files?: string[];    // for aider backend
@@ -179,7 +180,7 @@ export interface SpawnResult {
   name?: string;
   backend: SpawnSpec['backend'];
   model: string;
-  status: 'running' | 'completed' | 'failed' | 'killed';
+  status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
   output: string | null;
   error: string | null;
   telemetry: SpawnTelemetry | null;
@@ -203,7 +204,7 @@ export interface SpawnedAgent {
   name: string;
   backend: SpawnSpec['backend'];
   model: string;
-  status: 'running' | 'completed' | 'failed' | 'killed';
+  status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
   identity: string | null;
   purpose: string | null;
   startedAt: number;
@@ -1234,6 +1235,26 @@ export function assessSpawnIsolation(
   };
 }
 
+function normalizeHardBudgetUsd(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function normalizeTelemetryCostUsd(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function formatUsd(value: number): string {
+  return `$${value.toFixed(6).replace(/0+$/, '').replace(/\.$/, '')}`;
+}
+
+function hardBudgetCapError(spec: SpawnSpec, telemetry: SpawnTelemetry | null): string | null {
+  const budgetUsd = normalizeHardBudgetUsd(spec.budgetUsd);
+  if (budgetUsd == null || !telemetry) return null;
+  const costUsd = normalizeTelemetryCostUsd(telemetry.costUsd);
+  if (costUsd == null || costUsd <= budgetUsd) return null;
+  return `exceeded hard budget cap: telemetry cost ${formatUsd(costUsd)} > budget ${formatUsd(budgetUsd)}`;
+}
+
 // =============================================================================
 // Module factory
 // =============================================================================
@@ -1363,7 +1384,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
   function txFinalize(
     transcriptId: string | null,
-    status: 'completed' | 'failed' | 'killed',
+    status: 'completed' | 'failed' | 'killed' | 'over_budget',
     endedAt: number,
     telemetry: SpawnTelemetry | null,
     error: string | null,
@@ -1816,6 +1837,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     let telemetry: SpawnTelemetry | null = null;
     let coastGuardReceipt: CoastGuardReceipt | null = null;
     let structuredTurns: StructuredTurn[] | null = null;
+    let budgetOverrunError: string | null = null;
     // Set by the backend's live onTranscriptDelta sink (cli-tube streaming).
     // When true, the conversation is ALREADY persisted turn-by-turn, so the
     // end-of-run path skips the batched re-append to avoid duplicating it.
@@ -1937,7 +1959,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
               outputTokens,
             });
 
-            if (!recorded || (recorded.isEstimate && !allowFlatRateEstimate) || recorded.costUsd <= 0) {
+            const recordedCostUsd = normalizeTelemetryCostUsd(recorded?.costUsd);
+            if (!recorded || (recorded.isEstimate && !allowFlatRateEstimate) || recordedCostUsd == null || recordedCostUsd <= 0) {
               error = `Exact telemetry required, but ${spec.backend} telemetry could not be persisted as an exact nonzero cost record.`;
               output = null;
             } else {
@@ -1945,13 +1968,17 @@ export function createSpawner(deps: SpawnerDeps = {}) {
                 inputTokens,
                 ...(cachedInputTokens === undefined ? {} : { cachedInputTokens }),
                 outputTokens,
-                costUsd: recorded.costUsd,
+                costUsd: recordedCostUsd,
                 // Honest label: 'estimated' when token counts were a best-guess
                 // (backend didn't report usage), 'exact' when it did. The cost
                 // RATE is exact either way (gated above), so spend is priced at
                 // the real rate against guessed tokens — never silently 'exact'.
                 rateMode: result.estimatedTelemetry ? 'estimated' : 'exact',
               };
+              budgetOverrunError = hardBudgetCapError(spec, telemetry);
+              if (budgetOverrunError) {
+                error = budgetOverrunError;
+              }
             }
           }
         }
@@ -1967,7 +1994,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       output = null;
     }
     const completedAt = record.completedAt ?? Date.now();
-    let status: SpawnResult['status'] = wasKilled ? 'killed' : error ? 'failed' : 'completed';
+    let status: SpawnResult['status'] = wasKilled ? 'killed' : budgetOverrunError ? 'over_budget' : error ? 'failed' : 'completed';
 
     record.status = status;
     record.completedAt = completedAt;

@@ -164,7 +164,86 @@ describe('spawn routes preflight', () => {
       identity: 'port-daddy:repo:cli',
       model: 'claude-sonnet-4-5-20250929',
       task: 'review the diff',
+      budgetUsd: 0.75,
     }));
+
+    await app.close();
+  });
+
+  test('POST /spawn parses numeric string budgetUsd before forwarding the cap', async () => {
+    const { app, spawner, register } = buildApp();
+    await register();
+
+    await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      payload: {
+        backend: 'claude-cli',
+        identity: 'port-daddy:repo:cli',
+        task: 'review the diff',
+        budgetUsd: '0.75',
+      },
+    });
+
+    expect(mockAssessSpawnPreflight.mock.calls.at(-1)[0].budgetUsd).toBe(0.75);
+    expect(spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
+      budgetUsd: 0.75,
+    }));
+
+    await app.close();
+  });
+
+  test.each(['Infinity', 'abc'])('POST /spawn drops invalid parsed budgetUsd %s instead of forwarding a cap', async (budgetUsd) => {
+    const { app, spawner, register } = buildApp();
+    await register();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      payload: {
+        backend: 'claude-cli',
+        identity: 'port-daddy:repo:cli',
+        task: 'review the diff',
+        budgetUsd,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(mockAssessSpawnPreflight).toHaveBeenCalledWith(expect.objectContaining({
+      backend: 'claude-cli',
+      identity: 'port-daddy:repo:cli',
+    }), expect.any(Object));
+    expect(mockAssessSpawnPreflight.mock.calls.at(-1)[0].budgetUsd).toBeUndefined();
+    expect(spawner.spawn).toHaveBeenCalledWith(expect.not.objectContaining({
+      budgetUsd: expect.anything(),
+    }));
+
+    await app.close();
+  });
+
+  test.each([
+    ['null', null],
+    ['explicit undefined', undefined],
+  ])('POST /spawn treats budgetUsd %s as omitted', async (_label, budgetUsd) => {
+    const { app, spawner, register } = buildApp();
+    await register();
+
+    const payload = {
+      backend: 'claude-cli',
+      identity: 'port-daddy:repo:cli',
+      task: 'review the diff',
+      budgetUsd,
+    };
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      payload,
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(mockAssessSpawnPreflight.mock.calls.at(-1)[0]).not.toHaveProperty('budgetUsd');
+    expect(spawner.spawn.mock.calls.at(-1)[0]).not.toHaveProperty('budgetUsd');
 
     await app.close();
   });
@@ -211,6 +290,7 @@ describe('spawn routes preflight', () => {
       backend: 'cli:agy',
       identity: 'port-daddy:repo:cli',
       task: 'review the diff',
+      budgetUsd: 0.75,
     }));
     expect(spawner.spawn.mock.calls[0][0].model).toBeUndefined();
 
@@ -260,6 +340,7 @@ describe('spawn routes preflight', () => {
       model: 'sonnet',
       identity: 'port-daddy:repo:cli',
       task: 'review the diff',
+      budgetUsd: 0.75,
     }));
 
     await app.close();
