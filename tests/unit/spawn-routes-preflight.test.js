@@ -221,6 +221,33 @@ describe('spawn routes preflight', () => {
     await app.close();
   });
 
+  test.each([
+    ['null', null],
+    ['explicit undefined', undefined],
+  ])('POST /spawn treats budgetUsd %s as omitted', async (_label, budgetUsd) => {
+    const { app, spawner, register } = buildApp();
+    await register();
+
+    const payload = {
+      backend: 'claude-cli',
+      identity: 'port-daddy:repo:cli',
+      task: 'review the diff',
+      budgetUsd,
+    };
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      payload,
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(mockAssessSpawnPreflight.mock.calls.at(-1)[0]).not.toHaveProperty('budgetUsd');
+    expect(spawner.spawn.mock.calls.at(-1)[0]).not.toHaveProperty('budgetUsd');
+
+    await app.close();
+  });
+
   test('POST /spawn accepts cli:agy and does not synthesize a model', async () => {
     mockAssessSpawnPreflight.mockResolvedValueOnce({
       launchReady: true,

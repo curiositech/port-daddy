@@ -39,6 +39,27 @@ function exactCostTracker(costUsd) {
   };
 }
 
+function missingRecordedCostTracker(recordedPatch = {}) {
+  return {
+    computeCost: jest.fn(() => ({ costUsd: 0.02, isEstimate: false })),
+    record: jest.fn((opts) => ({
+      id: 'evt-budget-cap-missing-cost',
+      ts: 1,
+      backend: opts.backend,
+      model: opts.model,
+      projectName: opts.projectName ?? null,
+      projectDir: opts.projectDir ?? null,
+      identity: opts.identity ?? null,
+      spawnId: opts.spawnId ?? null,
+      inputTokens: opts.inputTokens ?? null,
+      cachedInputTokens: opts.cachedInputTokens ?? null,
+      outputTokens: opts.outputTokens ?? null,
+      isEstimate: false,
+      ...recordedPatch,
+    })),
+  };
+}
+
 describe('spawner hard budget cap edges', () => {
   let db;
   let transcripts;
@@ -138,6 +159,48 @@ describe('spawner hard budget cap edges', () => {
     expect(row.status).toBe('over_budget');
     expect(row.cost_usd).toBeCloseTo(1234.567891);
     expect(row.error).toBe(result.error);
+  });
+
+  test.each([
+    ['missing costUsd', {}],
+    ['undefined costUsd', { costUsd: undefined }],
+    ['nan costUsd', { costUsd: Number.NaN }],
+  ])('missing recorded telemetry cost (%s) finalizes failed, not over_budget', async (_label, recordedPatch) => {
+    const ship = `budget-missing-cost-${_label.replaceAll(' ', '-')}`;
+    const spawner = createSpawner({
+      transcripts,
+      costTracker: missingRecordedCostTracker(recordedPatch),
+      enforceTelemetryPolicy: true,
+      enforceTranscriptPolicy: true,
+      runnerOverrides: {
+        claude: async () => ({
+          output: 'The backend returned token counts but persistence omitted cost.',
+          error: null,
+          inputTokens: 800,
+          outputTokens: 120,
+        }),
+      },
+    });
+
+    const result = await spawner.spawn({
+      backend: 'claude',
+      model: 'claude-haiku-4-5',
+      identity: `port-daddy:test:${ship}`,
+      task: 'avoid crashing on missing persisted cost',
+      ship,
+      budgetUsd: 0.01,
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.status).not.toBe('over_budget');
+    expect(result.error).toMatch(/telemetry could not be persisted as an exact nonzero cost record/);
+    expect(result.telemetry).toBeNull();
+
+    const [row] = transcripts.listTranscripts({ ship });
+    expect(row.status).toBe('failed');
+    expect(row.status).not.toBe('over_budget');
+    expect(row.cost_usd).toBeNull();
+    expect(row.error).toMatch(/telemetry could not be persisted as an exact nonzero cost record/);
   });
 
   test.each([

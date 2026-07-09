@@ -1239,6 +1239,10 @@ function normalizeHardBudgetUsd(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
 }
 
+function normalizeTelemetryCostUsd(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 function formatUsd(value: number): string {
   return `$${value.toFixed(6).replace(/0+$/, '').replace(/\.$/, '')}`;
 }
@@ -1246,8 +1250,9 @@ function formatUsd(value: number): string {
 function hardBudgetCapError(spec: SpawnSpec, telemetry: SpawnTelemetry | null): string | null {
   const budgetUsd = normalizeHardBudgetUsd(spec.budgetUsd);
   if (budgetUsd == null || !telemetry) return null;
-  if (telemetry.costUsd <= budgetUsd) return null;
-  return `exceeded hard budget cap: telemetry cost ${formatUsd(telemetry.costUsd)} > budget ${formatUsd(budgetUsd)}`;
+  const costUsd = normalizeTelemetryCostUsd(telemetry.costUsd);
+  if (costUsd == null || costUsd <= budgetUsd) return null;
+  return `exceeded hard budget cap: telemetry cost ${formatUsd(costUsd)} > budget ${formatUsd(budgetUsd)}`;
 }
 
 // =============================================================================
@@ -1954,7 +1959,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
               outputTokens,
             });
 
-            if (!recorded || (recorded.isEstimate && !allowFlatRateEstimate) || recorded.costUsd <= 0) {
+            const recordedCostUsd = normalizeTelemetryCostUsd(recorded?.costUsd);
+            if (!recorded || (recorded.isEstimate && !allowFlatRateEstimate) || recordedCostUsd == null || recordedCostUsd <= 0) {
               error = `Exact telemetry required, but ${spec.backend} telemetry could not be persisted as an exact nonzero cost record.`;
               output = null;
             } else {
@@ -1962,7 +1968,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
                 inputTokens,
                 ...(cachedInputTokens === undefined ? {} : { cachedInputTokens }),
                 outputTokens,
-                costUsd: recorded.costUsd,
+                costUsd: recordedCostUsd,
                 // Honest label: 'estimated' when token counts were a best-guess
                 // (backend didn't report usage), 'exact' when it did. The cost
                 // RATE is exact either way (gated above), so spend is priced at
