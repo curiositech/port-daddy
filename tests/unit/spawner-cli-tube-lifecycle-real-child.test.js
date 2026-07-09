@@ -42,7 +42,7 @@ beforeEach(() => {
 
 afterEach(() => {
   try {
-    for (const fileName of ['parent.pid', 'survivor.pid']) {
+    for (const fileName of ['parent.pid', 'launcher.pid', 'survivor.pid']) {
       const pidFile = join(tempDir, fileName);
       if (existsSync(pidFile)) {
         killPid(Number(readFileSync(pidFile, 'utf8')));
@@ -78,6 +78,7 @@ describe('cli-tube real timeout lifecycle', () => {
 
   test('kills an inherited-stdio descendant even when the CLI parent exits before timeout', async () => {
     const parentPidFile = join(tempDir, 'parent.pid');
+    const launcherPidFile = join(tempDir, 'launcher.pid');
     const survivorPidFile = join(tempDir, 'survivor.pid');
 
     const res = await spawnViaCliTube({
@@ -86,6 +87,7 @@ describe('cli-tube real timeout lifecycle', () => {
       timeoutMs: 250,
       env: {
         PD_PARENT_PID_FILE: parentPidFile,
+        PD_LAUNCHER_PID_FILE: launcherPidFile,
         PD_SURVIVOR_PID_FILE: survivorPidFile,
         PD_PARENT_EXITS_IMMEDIATELY: '1',
       },
@@ -93,10 +95,13 @@ describe('cli-tube real timeout lifecycle', () => {
 
     expect(res.error).toContain('agy timed out after 250ms');
     expect(existsSync(parentPidFile)).toBe(true);
+    expect(existsSync(launcherPidFile)).toBe(true);
     expect(existsSync(survivorPidFile)).toBe(true);
     const parentPid = Number(readFileSync(parentPidFile, 'utf8'));
+    const launcherPid = Number(readFileSync(launcherPidFile, 'utf8'));
     const survivorPid = Number(readFileSync(survivorPidFile, 'utf8'));
     await expectPidDead(parentPid);
+    await expectPidDead(launcherPid);
     await expectPidDead(survivorPid);
   });
 });
@@ -120,16 +125,38 @@ writeFileSync(parentPidFile, String(process.pid));
 console.log('parent emitted before timeout');
 process.on('SIGTERM', () => {});
 
+if (process.env.PD_PARENT_EXITS_IMMEDIATELY === '1') {
+  const launcher = spawn(process.execPath, ['-e', \`
+const { spawn } = require('node:child_process');
+const { writeFileSync } = require('node:fs');
+const pidFile = process.env.PD_SURVIVOR_PID_FILE;
+setTimeout(() => {
+  const survivor = spawn(process.execPath, ['-e', "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);"], {
+    detached: true,
+    stdio: ['ignore', 'inherit', 'inherit'],
+  });
+  writeFileSync(pidFile, String(survivor.pid));
+  survivor.unref();
+}, 50);
+setTimeout(() => {}, 1000);
+\`], {
+    detached: true,
+    stdio: ['ignore', 'inherit', 'inherit'],
+    env: process.env,
+  });
+  if (process.env.PD_LAUNCHER_PID_FILE) {
+    writeFileSync(process.env.PD_LAUNCHER_PID_FILE, String(launcher.pid));
+  }
+  launcher.unref();
+  process.exit(0);
+}
+
 const survivor = spawn(process.execPath, ['-e', "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);"], {
   detached: true,
   stdio: ['ignore', 'inherit', 'inherit'],
 });
 writeFileSync(pidFile, String(survivor.pid));
 survivor.unref();
-
-if (process.env.PD_PARENT_EXITS_IMMEDIATELY === '1') {
-  process.exit(0);
-}
 
 setInterval(() => {}, 1000);
 `);

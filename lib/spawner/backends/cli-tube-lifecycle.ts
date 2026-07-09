@@ -13,6 +13,11 @@ interface ProcessTreeSnapshot {
   warning: string | null;
 }
 
+interface StdioPeerSnapshot {
+  peerIds: Set<string>;
+  warning: string | null;
+}
+
 interface WaitForCliChildOptions {
   timeoutMs: number;
   killGraceMs: number;
@@ -22,6 +27,9 @@ interface WaitForCliChildOptions {
 const PROCESS_TREE_POLL_MS = 100;
 const PROCESS_TREE_MAX_BUFFER = 1024 * 1024;
 const LSOF_MAX_BUFFER = 4 * 1024 * 1024;
+const LSOF_SEARCH_PATHS = ['/usr/sbin/lsof', '/sbin/lsof', '/usr/bin/lsof', '/bin/lsof'];
+
+let cachedLsofPath: string | null = null;
 
 export function waitForCliChildProcess(
   child: ChildProcess,
@@ -34,18 +42,30 @@ export function waitForCliChildProcess(
     let processTreeWarning: string | null = null;
     let forceKillTimer: ReturnType<typeof setTimeout> | null = null;
     let killCloseDeadlineTimer: ReturnType<typeof setTimeout> | null = null;
+    const knownStdioProcTargets = collectChildStdioProcTargets(child);
+    const knownStdioPeerIds = new Set<string>();
 
     const rememberProcessTreeWarning = (warning: string | null): void => {
       if (!processTreeWarning && warning) processTreeWarning = warning;
     };
+    const rememberStdioIdentities = (): void => {
+      for (const target of collectChildStdioProcTargets(child)) knownStdioProcTargets.add(target);
+      const peerSnapshot = collectChildStdioPeerIds(child);
+      for (const peerId of peerSnapshot.peerIds) knownStdioPeerIds.add(peerId);
+      rememberProcessTreeWarning(peerSnapshot.warning);
+    };
     const rememberProcessTree = (includeStdioHolders = false): void => {
       const snapshots = [collectProcessTreePids(child.pid)];
-      if (includeStdioHolders) snapshots.push(collectStdioHolderPids(child));
+      if (includeStdioHolders) {
+        rememberStdioIdentities();
+        snapshots.push(collectStdioHolderPids(child, knownStdioProcTargets, knownStdioPeerIds));
+      }
       const tree = mergeProcessSnapshots(...snapshots);
       rememberProcessTreeWarning(tree.warning);
       knownTreePids = dedupePids([...knownTreePids, ...tree.pids]);
     };
 
+    rememberStdioIdentities();
     rememberProcessTree();
     const processTreePollTimer = setInterval(rememberProcessTree, PROCESS_TREE_POLL_MS);
     processTreePollTimer.unref?.();
@@ -151,16 +171,20 @@ function collectProcessTreePids(rootPid: number | undefined): ProcessTreeSnapsho
   return { pids: tree, warning: null };
 }
 
-function collectStdioHolderPids(child: ChildProcess): ProcessTreeSnapshot {
+function collectStdioHolderPids(
+  child: ChildProcess,
+  knownProcTargets = new Set<string>(),
+  knownPeerIds = new Set<string>(),
+): ProcessTreeSnapshot {
   return mergeProcessSnapshots(
-    collectProcFdHolderPids(child),
-    collectLsofStdioHolderPids(child),
+    collectProcFdHolderPids(child, knownProcTargets),
+    collectLsofStdioHolderPids(child, knownPeerIds),
   );
 }
 
-function collectProcFdHolderPids(child: ChildProcess): ProcessTreeSnapshot {
+function collectProcFdHolderPids(child: ChildProcess, knownProcTargets = new Set<string>()): ProcessTreeSnapshot {
   if (!fs.existsSync('/proc')) return { pids: [], warning: null };
-  const targets = collectChildStdioProcTargets(child);
+  const targets = new Set([...knownProcTargets, ...collectChildStdioProcTargets(child)]);
   if (targets.size === 0) return { pids: [], warning: null };
   const pids: number[] = [];
   for (const entry of safeReadDir('/proc')) {
@@ -188,11 +212,12 @@ function collectChildStdioProcTargets(child: ChildProcess): Set<string> {
   return targets;
 }
 
-function collectLsofStdioHolderPids(child: ChildProcess): ProcessTreeSnapshot {
-  const peerIds = collectChildStdioPeerIds(child);
-  if (peerIds.size === 0) return { pids: [], warning: null };
+function collectLsofStdioHolderPids(child: ChildProcess, knownPeerIds = new Set<string>()): ProcessTreeSnapshot {
+  const peerSnapshot = collectChildStdioPeerIds(child);
+  const peerIds = new Set([...knownPeerIds, ...peerSnapshot.peerIds]);
+  if (peerIds.size === 0) return { pids: [], warning: peerSnapshot.warning };
   try {
-    const output = childProcess.execFileSync('lsof', ['-nP', '-U'], {
+    const output = execLsof(['-nP', '-U'], {
       encoding: 'utf8',
       timeout: 1_000,
       maxBuffer: LSOF_MAX_BUFFER,
@@ -219,6 +244,31 @@ function collectLsofStdioHolderPids(child: ChildProcess): ProcessTreeSnapshot {
   }
 }
 
+function execLsof(
+  args: string[],
+  options: childProcess.ExecFileSyncOptionsWithStringEncoding,
+): string {
+  const candidates = cachedLsofPath ? [cachedLsofPath] : LSOF_SEARCH_PATHS;
+  let lastErr: unknown = null;
+  for (const candidate of candidates) {
+    try {
+      const output = childProcess.execFileSync(candidate, args, options);
+      cachedLsofPath = candidate;
+      return output;
+    } catch (err) {
+      lastErr = err;
+      if (cachedLsofPath || !isExecutableLookupFailure(err)) throw err;
+    }
+  }
+  cachedLsofPath = null;
+  throw lastErr ?? new Error(`lsof unavailable in ${LSOF_SEARCH_PATHS.join(':')}`);
+}
+
+function isExecutableLookupFailure(err: unknown): boolean {
+  const code = (err as { code?: unknown } | null)?.code;
+  return code === 'ENOENT' || code === 'EACCES' || code === 'ENOTDIR';
+}
+
 function safeReadDir(path: string): string[] {
   try {
     return fs.readdirSync(path);
@@ -235,13 +285,14 @@ function safeReadLink(path: string): string | null {
   }
 }
 
-function collectChildStdioPeerIds(child: ChildProcess): Set<string> {
+function collectChildStdioPeerIds(child: ChildProcess): StdioPeerSnapshot {
   const peerIds = new Set<string>();
+  let warning: string | null = null;
   for (const stream of [child.stdout, child.stderr]) {
     const fd = getStreamFd(stream);
     if (fd === null) continue;
     try {
-      const output = childProcess.execFileSync('lsof', ['-nP', '-a', '-p', String(process.pid), `-d${fd}`], {
+      const output = execLsof(['-nP', '-a', '-p', String(process.pid), `-d${fd}`], {
         encoding: 'utf8',
         timeout: 1_000,
         maxBuffer: PROCESS_TREE_MAX_BUFFER,
@@ -251,11 +302,11 @@ function collectChildStdioPeerIds(child: ChildProcess): Set<string> {
         const entry = parseLsofUnixTableLine(line);
         if (entry?.peerEndpoint) peerIds.add(entry.peerEndpoint);
       }
-    } catch {
-      // The process-tree path remains authoritative when fd lookup is unavailable.
+    } catch (err) {
+      warning ??= `stdio peer collection unavailable: ${formatProcessTreeError(err)}`;
     }
   }
-  return peerIds;
+  return { peerIds, warning: peerIds.size === 0 ? warning : null };
 }
 
 function getStreamFd(stream: ChildProcess['stdout'] | ChildProcess['stderr']): number | null {

@@ -851,6 +851,48 @@ describe('spawnViaCliTube — failure paths', () => {
       jest.useRealTimers();
     }
   });
+
+  test('timeout discovers inherited stdio holders through known lsof paths when PATH omits lsof', async () => {
+    jest.useFakeTimers();
+    const processKill = jest.spyOn(process, 'kill').mockImplementation(() => true);
+    try {
+      const holderPid = 6161;
+      mockExecFileSync.mockImplementation((cmd, args) => {
+        if (cmd === 'ps') return ' 5151 1\n';
+        if (cmd === 'lsof') {
+          throw Object.assign(new Error('spawnSync lsof ENOENT'), { code: 'ENOENT' });
+        }
+        if (String(cmd).endsWith('/lsof') && args.includes('-d12')) {
+          return `COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\nnode ${process.pid} user 12u  unix 0xaaa      0t0      ->0xbbb\n`;
+        }
+        if (String(cmd).endsWith('/lsof') && args.includes('-U')) {
+          return `COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\nnode ${holderPid} user 1u  unix 0xbbb      0t0      ->0xaaa\n`;
+        }
+        return '';
+      });
+
+      const child = fakeChild({ neverClose: true, pid: 5151 });
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      Object.defineProperty(child.stdout, '_handle', { value: { fd: 12 }, configurable: true });
+      Object.defineProperty(child.stderr, '_handle', { value: { fd: 14 }, configurable: true });
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
+
+      await jest.advanceTimersByTimeAsync(10);
+      expect(processKill).toHaveBeenCalledWith(holderPid, 'SIGTERM');
+
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(processKill).toHaveBeenCalledWith(holderPid, 'SIGKILL');
+
+      child.emit('close', -1);
+      await resultPromise;
+    } finally {
+      processKill.mockRestore();
+      jest.useRealTimers();
+    }
+  });
 });
 
 describe('createCliTubeBackend', () => {

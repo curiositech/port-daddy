@@ -1,8 +1,8 @@
 # CLI Tube Provider Registry RED/GREEN Evidence
 
-Base for RED: `origin/main` at `fc235d501 fix(spawner): enforce hard backend budget caps (#1179)`.
+Base for latest RED/GREEN: `origin/main` at `db173faa9 test(spawn): cover provider binary daemon launches (#1379)`.
 
-Implementation branch for GREEN: `codex/cli-tube-provider-registry`, rebased onto `origin/main` `fc235d501`.
+Implementation branch for GREEN: `codex/cli-tube-provider-registry`, rebased onto `origin/main` `db173faa9`.
 
 ## RED
 
@@ -78,12 +78,21 @@ FAIL unit tests/unit/spawner-cli-tube-backend.test.js
 
 ## Noether Orphaned-Descendant RED
 
-Noether's DO-NOT-SHIP blocker identified a distinct lifecycle leak: the CLI parent can exit before the timeout while a detached inherited-stdio descendant keeps stdout/stderr open. This RED was run after adding only the new real-process regression to the #1334 branch, before lifecycle production changes.
+Noether's DO-NOT-SHIP blocker identified a distinct lifecycle leak: the CLI parent can exit before the timeout while a detached inherited-stdio descendant keeps stdout/stderr open. Ubuntu CI confirmed the parent-exits orphan case was still leaking before this fix:
+
+```text
+FAIL tests/unit/spawner-cli-tube-lifecycle-real-child.test.js
+cli-tube real timeout lifecycle › kills an inherited-stdio descendant even when the CLI parent exits before timeout
+Expected isPidAlive(pid) false, received true at line 155
+job 86210211135, run 29044664202
+```
+
+The local macOS real-child test passed even under `PATH=/usr/bin:/bin`, so the new local RED forces the exact missing-holder branch with mocked `lsof`: bare `lsof` is ENOENT, process-tree lookup only sees the root PID, and the inherited-stdio holder is visible only through a known absolute lsof path. This test was added before the resolver/lifecycle implementation.
 
 Command:
 
 ```sh
-PATH=/Users/erichowens/.nvm/versions/node/v22.17.1/bin:$PATH npm test -- --runInBand tests/unit/spawner-cli-tube-lifecycle-real-child.test.js
+npm test -- --runInBand tests/unit/spawner-cli-tube-backend.test.js -t "timeout discovers inherited stdio holders through known lsof paths when PATH omits lsof"
 ```
 
 Exit: `1`
@@ -92,64 +101,102 @@ Expected RED excerpt:
 
 ```text
 > port-daddy@3.24.2 test
-> node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand tests/unit/spawner-cli-tube-lifecycle-real-child.test.js
+> node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand tests/unit/spawner-cli-tube-backend.test.js -t timeout discovers inherited stdio holders through known lsof paths when PATH omits lsof
 
-FAIL unit tests/unit/spawner-cli-tube-lifecycle-real-child.test.js (12.994 s)
-  cli-tube real timeout lifecycle
-    ✓ does not finalize a timed-out run until the CLI parent and inherited-stdio descendant are dead (5460 ms)
-    ✕ kills an inherited-stdio descendant even when the CLI parent exits before timeout (7459 ms)
+FAIL unit tests/unit/spawner-cli-tube-backend.test.js
+  spawnViaCliTube — failure paths › timeout discovers inherited stdio holders through known lsof paths when PATH omits lsof
 
-  ● cli-tube real timeout lifecycle › kills an inherited-stdio descendant even when the CLI parent exits before timeout
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
 
-    expect(received).toBe(expected) // Object.is equality
+    Expected: 6161, "SIGTERM"
+    Received
+           1: -5151, "SIGTERM"
+           2: 5151, "SIGTERM"
 
-    Expected: false
-    Received: true
-
-      153 |     await new Promise((resolve) => setTimeout(resolve, 50));
-      154 |   }
-    > 155 |   expect(await isPidAlive(pid)).toBe(false);
-          |                                 ^
-      156 | }
+    > 884 |       expect(processKill).toHaveBeenCalledWith(holderPid, 'SIGTERM');
 
 Test Suites: 1 failed, 1 total
-Tests:       1 failed, 1 passed, 2 total
+Tests:       1 failed, 94 skipped, 95 total
 ```
 
 ## Real-Child Process-Tree Shape
 
-The real-child test installs a fake `agy` binary. cli-tube launches that fake binary with `detached: true`, making the CLI parent its own process-group leader. The fake CLI records its parent PID, then starts a survivor process with `detached: true` and `stdio: ['ignore', 'inherit', 'inherit']`. That survivor has its own process group, but it inherits cli-tube's stdout/stderr pipes, so Node should not honestly emit `close` until the survivor exits or those pipes close.
+The real-child test installs a fake `agy` binary. cli-tube launches that fake binary with `detached: true`, making the CLI parent its own process-group leader. The parent-alive case records its parent PID, then starts a survivor process with `detached: true` and `stdio: ['ignore', 'inherit', 'inherit']`. The parent-exits case starts a detached launcher, exits the CLI parent immediately, and the launcher creates the actual inherited-stdio survivor 50ms later. The test records parent, launcher, and survivor PIDs and asserts all of them are dead before finalization.
 
-Process-group signaling alone cannot kill this survivor because it moved into a separate process group. The first real-child test keeps the parent alive long enough for process-tree collection to discover the descendant with `ps -axo pid=,ppid=`. The Noether regression makes the parent exit immediately after spawning the survivor, so the fix also discovers processes that still hold the child stdout/stderr fds: `/proc/<pid>/fd` targets on Linux-style systems and unix-socket peer endpoints with `lsof -nP -U` on macOS-style systems. The survivor ignores `SIGTERM`, so both tests only go green if the shared lifecycle helper escalates and kills the actual descendant before finalization.
+Process-group signaling alone cannot kill these survivors because they move into separate process groups. The first real-child test keeps the parent alive long enough for process-tree collection to discover the descendant with `ps -axo pid=,ppid=`. The Noether regression makes the parent exit before the actual survivor exists, so the fix must use inherited-stdio holder discovery. On Linux, the helper now remembers `/proc/<self>/fd` targets while the child streams are still identifiable and scans `/proc/<pid>/fd` later even if the CLI parent has exited. On macOS, it resolves `lsof` through known absolute paths (`/usr/sbin/lsof`, `/sbin/lsof`, `/usr/bin/lsof`, `/bin/lsof`) independent of the sanitized child PATH. The survivor ignores `SIGTERM`, so the tests only go green if the shared lifecycle helper escalates and kills the actual descendant before finalization.
 
 ## GREEN
 
 Command:
 
 ```sh
-PATH=/Users/erichowens/.nvm/versions/node/v22.17.1/bin:$PATH npm test -- --runInBand tests/unit/spawner-cli-tube-backend.test.js tests/unit/spawner-cli-tube-lifecycle-real-child.test.js tests/unit/spawner-cli-agy-transcript.test.js tests/unit/spawner-cli-tube-observability.test.js tests/unit/cli-tube-backends-launch.test.js tests/unit/spawner-transcripts.test.js tests/unit/spawner-budget-cap.test.js tests/unit/spawn-routes-preflight.test.js tests/unit/spawn-status-contract.test.js
+npm test -- --runInBand tests/unit/spawner-cli-tube-backend.test.js -t "timeout discovers inherited stdio holders through known lsof paths when PATH omits lsof"
 ```
 
 Exit: `0`
 
 ```text
-Test Suites: 9 passed, 9 total
-Tests:       157 passed, 157 total
-Snapshots:   0 total
-Time:        20.727 s
+PASS unit tests/unit/spawner-cli-tube-backend.test.js
+  spawnViaCliTube — failure paths
+    ✓ timeout discovers inherited stdio holders through known lsof paths when PATH omits lsof (7 ms)
+Test Suites: 1 passed, 1 total
+Tests:       94 skipped, 1 passed, 95 total
 ```
 
 Command:
 
 ```sh
-PATH=/Users/erichowens/.nvm/versions/node/v22.17.1/bin:$PATH npm run typecheck -- --noEmit
+npm test -- --runInBand tests/unit/spawner-cli-tube-lifecycle-real-child.test.js
+```
+
+Exit: `0`
+
+```text
+PASS unit tests/unit/spawner-cli-tube-lifecycle-real-child.test.js (12.506 s)
+  cli-tube real timeout lifecycle
+    ✓ does not finalize a timed-out run until the CLI parent and inherited-stdio descendant are dead (6234 ms)
+    ✓ kills an inherited-stdio descendant even when the CLI parent exits before timeout (6229 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       2 passed, 2 total
+```
+
+Environment repair before the broader focused run:
+
+```sh
+npm rebuild better-sqlite3
+```
+
+```text
+rebuilt dependencies successfully
+```
+
+Command:
+
+```sh
+npm test -- --runInBand tests/unit/spawner-cli-tube-backend.test.js tests/unit/spawner-cli-tube-lifecycle-real-child.test.js tests/unit/spawner-cli-tube-observability.test.js tests/unit/cli-tube-backends-launch.test.js tests/unit/spawner-cli-agy-transcript.test.js tests/unit/spawner-transcripts.test.js tests/unit/spawner-live-transcripts.test.js tests/unit/spawner-budget-cap.test.js tests/unit/spawn-routes-preflight.test.js tests/unit/spawn-status-contract.test.js
+```
+
+Exit: `0`
+
+```text
+Test Suites: 1 skipped, 9 passed, 9 of 10 total
+Tests:       4 skipped, 158 passed, 162 total
+Snapshots:   0 total
+Time:        19.508 s
+```
+
+Command:
+
+```sh
+npm run typecheck
 ```
 
 Exit: `0`
 
 ```text
 > port-daddy@3.24.2 typecheck
-> tsc --noEmit --noEmit
+> tsc --noEmit
 ```
 
 Command:
