@@ -60,10 +60,15 @@ export function assertTranscriptReadback({ requestedBackend, actualExecutionBack
   if (outputs.length === 0) {
     throw new Error(`${requestedBackend} completed but transcript outputs are empty`);
   }
-  if (typeof transcript.cost_usd === 'number' && typeof budgetUsd === 'number' && transcript.cost_usd > budgetUsd) {
-    throw new Error(
-      `${requestedBackend} exceeded hard budget cap: recorded $${transcript.cost_usd} > requested $${budgetUsd}`,
-    );
+  if (typeof budgetUsd === 'number') {
+    if (!Number.isFinite(transcript.cost_usd)) {
+      throw new Error(`${requestedBackend} completed with budget $${budgetUsd} but transcript is missing numeric cost_usd`);
+    }
+    if (transcript.cost_usd > budgetUsd) {
+      throw new Error(
+        `${requestedBackend} exceeded hard budget cap: recorded $${transcript.cost_usd} > requested $${budgetUsd}`,
+      );
+    }
   }
 }
 
@@ -232,12 +237,14 @@ async function runSpawnRow({ daemon, requestedBackend, body, budgetUsd, env, req
 
 async function runCiSafeSmoke() {
   const tmp = mkdtempSync(join(tmpdir(), 'pd-backend-transcript-smoke-'));
+  const staleClaude = join(tmp, 'stale-home', '.local', 'bin', 'claude');
   const fakeClaude = join(tmp, 'bin', 'claude');
   writeFakeClaudeBinary(fakeClaude);
   const openai = await withFakeOpenAICompatibleServer();
   const env = {
     PATH: LAUNCHD_RESTRICTED_PATH,
     PD_USE_CLI_BACKEND: 'none',
+    PD_CLI_CLAUDE_CODE_BIN: staleClaude,
     PD_CLI_BIN_DIRS: join(fakeClaude, '..'),
     OPENAI_API_KEY: 'sk-fake-smoke',
     OPENAI_BASE_URL: openai.baseUrl,

@@ -69,14 +69,16 @@ describe('daemon backend transcript E2E smoke', () => {
     }
   }, 60000);
 
-  test('launches cli:claude-code through /spawn when fallback claude is discoverable via PD_CLI_BIN_DIRS', async () => {
+  test('launches cli:claude-code through /spawn with stale override and fallback via PD_CLI_BIN_DIRS', async () => {
     const tmp = mkdtempSync(join(tmpdir(), 'pd-fake-claude-'));
+    const staleClaude = join(tmp, 'stale-home', '.local', 'bin', 'claude');
     const fakeBinDir = join(tmp, 'nvm', 'versions', 'node', 'v22.17.1', 'bin');
     const fakeClaude = join(fakeBinDir, 'claude');
     writeFakeClaudeBinary(fakeClaude, 'pd-claude-smoke');
     const daemonEnv = {
       PATH: LAUNCHD_RESTRICTED_PATH,
       PD_USE_CLI_BACKEND: 'none',
+      PD_CLI_CLAUDE_CODE_BIN: staleClaude,
       PD_CLI_BIN_DIRS: fakeBinDir,
     };
     const daemon = await startEphemeralDaemon({ startupTimeout: 45000, env: daemonEnv });
@@ -102,6 +104,7 @@ describe('daemon backend transcript E2E smoke', () => {
         expect.arrayContaining(['user', 'thinking', 'assistant']),
       );
       expect(JSON.stringify(transcript.messages)).toContain('pd-claude-smoke');
+      expect(existsSync(staleClaude)).toBe(false);
     } finally {
       await daemon.cleanup();
       rmSync(tmp, { recursive: true, force: true });
@@ -113,6 +116,7 @@ describe('daemon backend transcript E2E smoke', () => {
     const daemonEnv = {
       PATH: LAUNCHD_RESTRICTED_PATH,
       PD_USE_CLI_BACKEND: 'none',
+      PD_CLI_CLAUDE_CODE_BIN: '',
       OPENAI_API_KEY: 'sk-fake-e2e',
       OPENAI_BASE_URL: openai.baseUrl,
     };
@@ -188,5 +192,19 @@ describe('daemon backend transcript E2E smoke', () => {
       },
       budgetUsd: 0.01,
     })).toThrow(/exceeded hard budget cap/);
+
+    expect(() => assertTranscriptReadback({
+      requestedBackend: 'cli:codex',
+      actualExecutionBackend: 'cli:codex',
+      spawnResult: { status: 'completed' },
+      transcript: {
+        messages: [
+          { role: 'user', content: 'Reply with exactly: pd-codex-smoke' },
+          { role: 'assistant', content: 'pd-codex-smoke' },
+        ],
+        outputs: [{ type: 'message', summary: 'cli:codex returned 14 chars' }],
+      },
+      budgetUsd: 0.01,
+    })).toThrow(/missing numeric cost_usd/);
   });
 });
