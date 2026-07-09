@@ -18,7 +18,10 @@
  * elsewhere — resolve through here.
  */
 
+import { chmodSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 import { DEFAULT_DAEMON_PORT } from './daemon-discovery.js';
+import { PD_HOME } from './paths.js';
 
 /** The three berth tiers. `stable` is the canonical default. */
 export type BerthTier = 'stable' | 'dev-latest' | 'codebase';
@@ -244,4 +247,140 @@ export function classifyBerth(
     if (now - lastAlive > ttlMs) return 'reap-idle';
   }
   return 'live';
+}
+
+// ---------------------------------------------------------------------------
+// Berth registry (~/.port-daddy/dev-daemons.json) — the SINGLE read/write path
+// ---------------------------------------------------------------------------
+//
+// Historically this file's read/write logic was duplicated across
+// `cli/commands/berths.ts` (the `pd dev up` launch path, which wrote the
+// registry from the CLI parent process after spawning the daemon) and
+// `cli/utils/berth-registry.ts` (a read-only copy for the global `--daemon`
+// resolver). That meant registration only ever happened for berths launched
+// via `pd dev up` — any daemon started another way (a raw binary invocation,
+// a test harness, a manually-run `bun run server.ts`) was invisible to
+// FleetBar's berth picker forever, no matter how long it ran, because nothing
+// ever wrote it into this file. `registerDaemonBerth`/`deregisterDaemonBerth`
+// below let the daemon register ITSELF at boot (see server.ts's
+// `tcpServer.on('listening', ...)` handler) and remove itself on clean
+// shutdown, so berth visibility no longer depends on which command launched
+// the process. `pd dev up` still writes eagerly too (so `pd dev up` prints a
+// correct berth summary immediately, before the daemon finishes its own boot
+// sequence) — both paths converge on the same file via the same functions.
+
+const BERTH_REGISTRY_FILE = join(PD_HOME, 'dev-daemons.json');
+
+function isPidAlive(pid: number | null | undefined): boolean {
+  if (!pid) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'EPERM') return true;
+    return false;
+  }
+}
+
+/**
+ * Read the recorded dev/codebase berths. Returns [] when missing or corrupt.
+ * `registryFile` defaults to the real `~/.port-daddy/dev-daemons.json` —
+ * override it in tests so they never touch the operator's actual registry.
+ */
+export function readDaemonBerthRegistry(registryFile: string = BERTH_REGISTRY_FILE): DevDaemonRecord[] {
+  try {
+    const raw = JSON.parse(readFileSync(registryFile, 'utf8'));
+    if (Array.isArray(raw)) return raw as DevDaemonRecord[];
+  } catch {
+    // Missing or corrupt — treat as empty.
+  }
+  return [];
+}
+
+/**
+ * Overwrite the entire registry with `records`. Exported (unlike a purely
+ * internal helper) because `pd dev down`/reap flows in `cli/commands/berths.ts`
+ * legitimately need to replace the whole list at once (e.g. "every berth
+ * except this one I'm tearing down") — a different shape than
+ * {@link registerDaemonBerth}/{@link deregisterDaemonBerth}'s single-record
+ * upsert/remove semantics.
+ */
+export function writeDaemonBerthRegistry(
+  records: DevDaemonRecord[],
+  registryFile: string = BERTH_REGISTRY_FILE,
+): void {
+  mkdirSync(dirname(registryFile), { recursive: true, mode: 0o700 });
+  writeFileSync(registryFile, `${JSON.stringify(records, null, 2)}\n`, { mode: 0o600 });
+  try { chmodSync(registryFile, 0o600); } catch {}
+}
+
+/** Prune records whose pid is gone. Returns the live set (and persists it). */
+export function pruneDaemonBerthRegistry(registryFile: string = BERTH_REGISTRY_FILE): DevDaemonRecord[] {
+  const live = readDaemonBerthRegistry(registryFile).filter((r) => isPidAlive(r.pid));
+  writeDaemonBerthRegistry(live, registryFile);
+  return live;
+}
+
+/**
+ * Register this daemon's own berth in the registry — called from server.ts's
+ * own boot sequence once it has actually bound its port, so registration
+ * covers every daemon regardless of how it was launched. A no-op for the
+ * `stable` tier: the stable (brew) berth is discovered by probing
+ * {@link DEFAULT_DAEMON_PORT} directly and is deliberately never recorded
+ * here (see {@link DevDaemonRecord}'s docstring) — registering it too would
+ * just be redundant clutter for FleetBar's berth list, not a bug fix.
+ *
+ * Fail-soft: registration is a visibility nicety, never a boot-blocking
+ * concern. Any error is swallowed (optionally reported via `opts.onError`)
+ * rather than thrown, so a corrupt/unwritable registry file can never crash
+ * daemon startup. Replaces any existing record with the same label OR the
+ * same port (covers a berth restarting under the same identity) before
+ * appending. `opts.registryFile` overrides the real path — tests only.
+ */
+export function registerDaemonBerth(
+  identity: DaemonBerthIdentity,
+  pid: number,
+  opts: { onError?: (error: Error) => void; registryFile?: string } = {},
+): void {
+  if (identity.tier === 'stable') return;
+  if (!identity.sourceDir) return; // nothing meaningful to register without a source dir
+  const registryFile = opts.registryFile ?? BERTH_REGISTRY_FILE;
+  try {
+    const records = pruneDaemonBerthRegistry(registryFile).filter(
+      (r) => r.label !== identity.label && r.port !== identity.port,
+    );
+    const record: DevDaemonRecord = {
+      label: identity.label,
+      tier: identity.tier,
+      port: identity.port,
+      sourceDir: identity.sourceDir,
+      pid,
+      gitRev: identity.gitRev,
+      color: identity.color,
+      startedAt: identity.builtAt ?? new Date().toISOString(),
+    };
+    records.push(record);
+    writeDaemonBerthRegistry(records, registryFile);
+  } catch (err) {
+    opts.onError?.(err as Error);
+  }
+}
+
+/**
+ * Remove this daemon's own record from the registry — called from server.ts's
+ * shutdown handler so a cleanly-stopped berth doesn't linger as a stale entry
+ * until the next `pruneDaemonBerthRegistry()` pass notices the dead pid.
+ * Fail-soft, same rationale as {@link registerDaemonBerth}.
+ */
+export function deregisterDaemonBerth(
+  pid: number,
+  opts: { onError?: (error: Error) => void; registryFile?: string } = {},
+): void {
+  const registryFile = opts.registryFile ?? BERTH_REGISTRY_FILE;
+  try {
+    const records = readDaemonBerthRegistry(registryFile).filter((r) => r.pid !== pid);
+    writeDaemonBerthRegistry(records, registryFile);
+  } catch (err) {
+    opts.onError?.(err as Error);
+  }
 }

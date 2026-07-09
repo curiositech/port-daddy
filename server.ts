@@ -125,7 +125,12 @@ import { registerAllRoutes } from './routes/index.js';
 // Shared utilities
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
 import { LOOPBACK_TCP_HOST, DEFAULT_DAEMON_PORT } from './shared/daemon-discovery.js';
-import { resolveDaemonBerthIdentity, type DaemonBerthIdentity } from './shared/daemon-berths.js';
+import {
+  resolveDaemonBerthIdentity,
+  registerDaemonBerth,
+  deregisterDaemonBerth,
+  type DaemonBerthIdentity,
+} from './shared/daemon-berths.js';
 import { calculateRuntimeCodeHash } from './shared/code-hash.js';
 import { snapshotRunningBinary, detectDrift, type BinaryDriftSnapshot } from './lib/binary-drift-detector.js';
 import { resolveDistributionRoot } from './shared/daemon-binary.js';
@@ -1407,6 +1412,13 @@ setInterval(() => {
 
 function shutdown(signal: string): void {
   logger.info('shutdown_initiated', { signal });
+  // Remove this berth's own registry entry on a clean stop, so it doesn't
+  // linger as a stale record until the next prune pass notices the dead pid.
+  if (DAEMON_BERTH.tier !== 'stable') {
+    deregisterDaemonBerth(process.pid, {
+      onError: (error) => logger.warn('daemon_berth_deregister_failed', { error: error.message }),
+    });
+  }
   try {
     activityLog.log(ActivityType.DAEMON_STOP, {
       details: `Port Daddy stopped (${signal})`,
@@ -1640,6 +1652,16 @@ sockServer.listen(SOCK_PATH, async () => {
       tcpServer.on('listening', () => {
         try { writeFileSync(PORT_FILE, String(tryPort), { mode: 0o644 }); } catch {}
         logger.info('tcp_started', { port: tryPort, host: tcpHost, version: VERSION });
+        // Self-register this berth (ADR-0084) so FleetBar's berth picker can
+        // see it regardless of how this daemon was launched — registration
+        // no longer depends on going through `pd dev up`. A no-op for the
+        // stable tier (see registerDaemonBerth's own doc comment). tryPort is
+        // the port actually bound, which can differ from DAEMON_BERTH.port
+        // if the originally-requested port was busy and the retry loop above
+        // moved on — register the real one.
+        registerDaemonBerth({ ...DAEMON_BERTH, port: tryPort }, process.pid, {
+          onError: (err) => logger.warn('daemon_berth_registration_failed', { error: err.message }),
+        });
         // Surface binary drift on the boot path so an operator running
         // `tail -f port-daddy.log` after `brew upgrade` sees it immediately.
         // The check is cheap (one hash) and the snapshot is already taken.
