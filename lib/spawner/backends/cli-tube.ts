@@ -206,7 +206,17 @@ export async function spawnViaCliTube(
   opts: CliTubeOptions,
 ): Promise<CliTubeResult> {
   const cli = opts.cli;
-  const provider = getCliTubeProviderSpec(cli);
+  const provider = (CLI_TUBE_PROVIDER_SPECS as Partial<Record<string, CliTubeProviderSpec<CliTubeTool>>>)[cli];
+  if (!provider) {
+    return {
+      output: '',
+      exitCode: 127,
+      error: `Unknown CLI tube tool "${String(cli)}". Supported tools: ${CLI_TUBE_TOOLS.join(', ')}.`,
+      tube: null,
+      durationMs: 0,
+      rawStdout: '',
+    };
+  }
   // Binary override is OPERATOR-scoped: read PD_CLI_*_BIN from process.env
   // only, never from per-spawn opts.env/spec.env — a caller-supplied env
   // must not be able to redirect which executable runs.
@@ -380,7 +390,8 @@ export async function spawnViaCliTube(
       error = `${cli} exited with code ${result.code}${detail ? `: ${detail}` : ''}`;
     }
   } else if (provider.emptySuccess === 'fail' && !rawStdout.trim() && !stderrText.trim()) {
-    error = `${provider.emptySuccessError} ${provider.authNextStep}`;
+    const emptySuccessError = provider.emptySuccessError ?? `${cli} produced no stdout or stderr.`;
+    error = `${emptySuccessError} ${provider.authNextStep}`;
   }
 
   // Optional: publish the result on the tube so subscribed observers

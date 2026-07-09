@@ -128,6 +128,13 @@ function signalCliProcessTree(
   }
   for (const targetPid of knownTreePids) {
     try {
+      // Detached survivors may have become process-group leaders by the time
+      // timeout cleanup runs. Signal their groups as well as the individual PIDs.
+      process.kill(-targetPid, signal);
+    } catch {
+      // Non-group-leaders and already-exited processes are covered below/best effort.
+    }
+    try {
       process.kill(targetPid, signal);
     } catch {
       // Best effort; another signal path may already have reaped it.
@@ -207,6 +214,12 @@ function collectProcFdHolderPids(child: ChildProcess, knownProcTargets = new Set
 
 function collectChildStdioProcTargets(child: ChildProcess): Set<string> {
   const targets = new Set<string>();
+  if (typeof child.pid === 'number' && child.pid > 0) {
+    for (const fd of [1, 2]) {
+      const target = safeReadLink(`/proc/${child.pid}/fd/${fd}`);
+      if (target) targets.add(target);
+    }
+  }
   for (const stream of [child.stdout, child.stderr]) {
     const fd = getStreamFd(stream);
     if (fd === null) continue;

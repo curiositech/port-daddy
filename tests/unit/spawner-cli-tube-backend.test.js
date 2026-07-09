@@ -602,6 +602,19 @@ describe('spawnViaCliTube — failure paths', () => {
     expect(res.error).toContain('GROK_API_KEY / XAI_API_KEY');
   });
 
+  test('unknown CLI tool fails gracefully before child execution', async () => {
+    const res = await spawnViaCliTube({ cli: 'cli:typo', prompt: 'hi' });
+
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(res.exitCode).toBe(127);
+    expect(res.output).toBe('');
+    expect(res.rawStdout).toBe('');
+    expect(res.tube).toBeNull();
+    expect(res.error).toContain('Unknown CLI tube tool "cli:typo"');
+    expect(res.error).toContain('Supported tools:');
+    expect(res.error).toContain('claude-code');
+  });
+
   test('auth failure in stderr surfaces actionable next-step', async () => {
     mockSpawn.mockReturnValue(fakeChild({
       stdout: '',
@@ -891,10 +904,14 @@ describe('spawnViaCliTube — failure paths', () => {
       await jest.advanceTimersByTimeAsync(10);
       expect(processKill).toHaveBeenCalledWith(holderPid, 'SIGTERM');
       expect(processKill).toHaveBeenCalledWith(holderDescendantPid, 'SIGTERM');
+      expect(processKill).toHaveBeenCalledWith(-holderPid, 'SIGTERM');
+      expect(processKill).toHaveBeenCalledWith(-holderDescendantPid, 'SIGTERM');
 
       await jest.advanceTimersByTimeAsync(5000);
       expect(processKill).toHaveBeenCalledWith(holderPid, 'SIGKILL');
       expect(processKill).toHaveBeenCalledWith(holderDescendantPid, 'SIGKILL');
+      expect(processKill).toHaveBeenCalledWith(-holderPid, 'SIGKILL');
+      expect(processKill).toHaveBeenCalledWith(-holderDescendantPid, 'SIGKILL');
 
       child.emit('close', -1);
       await resultPromise;
