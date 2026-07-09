@@ -3910,10 +3910,15 @@ interface ChangelogIdentitiesResponse {
 // Spawn types
 // =============================================================================
 
+export type BackendOverrideSource = 'none' | 'env' | 'persisted' | 'preflight';
+
 interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'openai' | 'groq' | 'codex' | 'aider' | 'custom' | 'cli:claude-code' | 'cli:codex' | 'cli:agy' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
+  backend: 'ollama' | 'lmstudio' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'openai' | 'groq' | 'deepseek' | 'xai' | 'codex' | 'aider' | 'custom' | 'cli:claude-code' | 'cli:codex' | 'cli:agy' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
   name?: string;
   model?: string;
+  requestedBackend?: SpawnSpec['backend'];
+  requestedModel?: string;
+  backendOverrideSource?: BackendOverrideSource;
   modelTier?: 'low' | 'mid' | 'high';
   identity: string;
   budgetUsd: number;
@@ -3933,6 +3938,11 @@ interface SpawnResult {
   name?: string;
   backend: SpawnSpec['backend'];
   model: string;
+  requestedBackend?: SpawnSpec['backend'];
+  effectiveBackend?: SpawnSpec['backend'];
+  requestedModel?: string;
+  effectiveModel?: string;
+  backendOverrideSource?: BackendOverrideSource;
   status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
   output: string | null;
   error: string | null;
@@ -3952,6 +3962,11 @@ interface SpawnedAgent {
   name?: string;
   backend: SpawnSpec['backend'];
   model: string;
+  requestedBackend?: SpawnSpec['backend'];
+  effectiveBackend?: SpawnSpec['backend'];
+  requestedModel?: string;
+  effectiveModel?: string;
+  backendOverrideSource?: BackendOverrideSource;
   status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
   identity: string | null;
   purpose: string | null;

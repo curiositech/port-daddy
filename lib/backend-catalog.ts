@@ -300,23 +300,24 @@ export function readPersistedCliBackendSelection(
 function detectForcedCliBackendMatch(
   env: NodeJS.ProcessEnv = process.env,
   options: { persistedPath?: string | null } = {},
-): { id: string; value: NonNullable<BackendCatalogEntry['pdUseCliBackendValue']> } | null {
+): { id: string; value: NonNullable<BackendCatalogEntry['pdUseCliBackendValue']>; source: 'env' | 'persisted' } | null {
   // PD_USE_CLI_BACKEND=none (off/disabled/0/false) hard-disables the override:
   // the persisted dotfile is NOT consulted. Without this, a process has no way
   // to escape an operator's ~/.port-daddy-cli-backend selection.
   if (isForcedCliBackendOff(env.PD_USE_CLI_BACKEND)) return null;
 
   const envMatch = normalizeForcedCliBackend(env.PD_USE_CLI_BACKEND);
-  if (envMatch) return envMatch;
+  if (envMatch) return { ...envMatch, source: 'env' };
 
   const hasExplicitPersistedPath = typeof options.persistedPath === 'string';
   const shouldReadDefaultPersistedPath = options.persistedPath === undefined && env === process.env;
   if (!hasExplicitPersistedPath && !shouldReadDefaultPersistedPath) return null;
   const persistedPath = hasExplicitPersistedPath ? options.persistedPath as string : CLI_BACKEND_SELECTION_PATH;
 
-  return normalizeForcedCliBackend(
+  const persistedMatch = normalizeForcedCliBackend(
     readPersistedCliBackendSelection(persistedPath),
   );
+  return persistedMatch ? { ...persistedMatch, source: 'persisted' } : null;
 }
 
 /**
@@ -341,6 +342,7 @@ export interface EffectiveSpawnBackend {
   requestedBackend: string | null;
   backend: string | null;
   forcedBackend: string | null;
+  forcedSource: 'env' | 'persisted' | null;
   forced: boolean;
 }
 
@@ -355,11 +357,12 @@ export function resolveEffectiveSpawnBackend(
   options: { persistedPath?: string | null } = {},
 ): EffectiveSpawnBackend {
   const requested = requestedBackend?.trim() || null;
-  const forced = detectForcedCliBackend(env, options);
+  const forced = detectForcedCliBackendMatch(env, options);
   return {
     requestedBackend: requested,
-    backend: forced ?? requested,
-    forcedBackend: forced,
+    backend: forced?.id ?? requested,
+    forcedBackend: forced?.id ?? null,
+    forcedSource: forced?.source ?? null,
     forced: !!forced,
   };
 }

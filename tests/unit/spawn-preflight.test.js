@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
 const mockAssessBackendReadiness = jest.fn();
 const mockResolveFleetAgentRuntime = jest.fn();
@@ -7,11 +8,12 @@ jest.unstable_mockModule('../../lib/backend-readiness.js', () => ({
   assessBackendReadiness: mockAssessBackendReadiness,
 }));
 
-jest.unstable_mockModule('../../lib/fleet-engine.js', () => ({
+jest.unstable_mockModule('../../lib/fleet-runtime.js', () => ({
   resolveFleetAgentRuntime: mockResolveFleetAgentRuntime,
 }));
 
 const { assessSpawnPreflight } = await import('../../lib/spawn-preflight.js');
+const { CLI_BACKEND_SELECTION_PATH } = await import('../../lib/backend-catalog.js');
 
 describe('assessSpawnPreflight', () => {
   let previousUseCliBackend;
@@ -274,19 +276,70 @@ describe('assessSpawnPreflight', () => {
 
     expect(mockResolveFleetAgentRuntime).toHaveBeenCalledWith({
       backend: 'cli:claude-code',
-      model: undefined,
+      model: 'claude-cli',
       modelTier: undefined,
     });
-    expect(mockAssessBackendReadiness).toHaveBeenCalledWith('cli:claude-code', { model: 'claude-code' });
+    expect(mockAssessBackendReadiness).toHaveBeenCalledWith('cli:claude-code', { model: 'claude-cli' });
     expect(result.launchReady).toBe(false);
     expect(result.attempts[0]).toMatchObject({
       backend: 'cli:claude-code',
-      model: 'claude-code',
+      model: 'claude-cli',
       backendSource: 'env',
       readinessStatus: 'needs_setup',
     });
-    expect(result.blockedReasons.join('\n')).toContain('cli:claude-code:claude-code — needs_setup: Claude Code CLI binary not found');
+    expect(result.blockedReasons.join('\n')).toContain('cli:claude-code:claude-cli — needs_setup: Claude Code CLI binary not found');
     expect(result.warnings.join('\n')).toContain('PD_USE_CLI_BACKEND forces cli:claude-code');
+  });
+
+  test('marks forced backend source as persisted when it comes from the saved CLI selection', async () => {
+    const hadDefault = existsSync(CLI_BACKEND_SELECTION_PATH);
+    const savedDefault = hadDefault ? readFileSync(CLI_BACKEND_SELECTION_PATH, 'utf-8') : null;
+    try {
+      delete process.env.PD_USE_CLI_BACKEND;
+      writeFileSync(CLI_BACKEND_SELECTION_PATH, 'codex\n');
+      mockResolveFleetAgentRuntime.mockImplementation((target) => ({
+        backend: target.backend,
+        model: target.model ?? null,
+        modelTier: target.modelTier,
+        backendSource: 'agent',
+        modelSource: target.model ? 'agent' : 'unset',
+        warnings: [],
+      }));
+      mockAssessBackendReadiness.mockResolvedValue({
+        backend: 'cli:codex',
+        status: 'manual_check',
+        launchableUnverified: true,
+        summary: 'Codex CLI binary found',
+      });
+
+      const result = await assessSpawnPreflight({
+        backend: 'openai',
+        model: 'gpt-5-mini',
+        identity: 'port-daddy:fleet:test-hunter',
+        budgetUsd: 0.75,
+      }, {
+        costTracker: {
+          budgetStatus: jest.fn(() => ({
+            project: 'port-daddy',
+            budgetUsdPerDay: 0.75,
+            spentUsd: 0,
+            remainingUsd: 0.75,
+            percentUsed: 0,
+            overBudget: false,
+          })),
+        },
+      });
+
+      expect(result.attempts[0]).toMatchObject({
+        backend: 'cli:codex',
+        backendSource: 'persisted',
+      });
+      expect(result.warnings.join('\n')).toContain('Persisted CLI backend selection forces cli:codex');
+      expect(result.warnings.join('\n')).not.toContain('PD_USE_CLI_BACKEND forces cli:codex');
+    } finally {
+      if (hadDefault) writeFileSync(CLI_BACKEND_SELECTION_PATH, savedDefault);
+      else rmSync(CLI_BACKEND_SELECTION_PATH, { force: true });
+    }
   });
 
   test('preflights forced cli:agy without inventing a default model', async () => {
