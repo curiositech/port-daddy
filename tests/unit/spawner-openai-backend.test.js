@@ -5,8 +5,8 @@
  *   - Missing API key path (no fetch call, returns ok:false)
  *   - Happy path (200, choices[0].message.content extracted)
  *   - HTTP error path (4xx → ok:false with status code)
- *   - Reasoning models (`gpt-5`, `o1`) get `max_completion_tokens`,
- *     not `max_tokens`
+ *   - Native reasoning models (`gpt-5`, `o1`) use the Responses API
+ *     and extract text from the newer output shape
  *   - `OPENAI_BASE_URL` override
  *
  * No network calls. Smoke tests against real OpenAI live in
@@ -83,6 +83,52 @@ describe('openaiAdapter — happy path', () => {
     expect(result.outputTokens).toBe(3);
   });
 
+  test('extracts response text from Responses API output_text without choices', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true, status: 200,
+      json: async () => ({
+        id: 'resp_test',
+        output_text: 'Hello from responses.',
+        usage: { input_tokens: 7, output_tokens: 4 },
+      }),
+      text: async () => '',
+    }));
+    const result = await openaiAdapter({ prompt: 'say hi', model: 'gpt-5-nano' });
+    expect(result.ok).toBe(true);
+    expect(result.text).toBe('Hello from responses.');
+    expect(result.inputTokens).toBe(7);
+    expect(result.outputTokens).toBe(4);
+  });
+
+  test('extracts nested Responses API message text after non-message output items', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true, status: 200,
+      json: async () => ({
+        id: 'resp_nested',
+        output: [
+          { type: 'reasoning', summary: [{ text: 'private reasoning summary should not be transcript text' }] },
+          {
+            type: 'message',
+            content: [
+              { type: 'output_text', text: 'nested ' },
+              { type: 'output_text', text: 'answer' },
+            ],
+          },
+        ],
+        usage: {
+          input_tokens: 100,
+          output_tokens: 12,
+          input_tokens_details: { cached_tokens: 75 },
+        },
+      }),
+      text: async () => '',
+    }));
+    const result = await openaiAdapter({ prompt: 'say hi', model: 'gpt-5-mini' });
+    expect(result.ok).toBe(true);
+    expect(result.text).toBe('nested answer');
+    expect(result.cachedInputTokens).toBe(75);
+  });
+
   test('captures cached_tokens when present', async () => {
     global.fetch = jest.fn(async () => ({
       ok: true, status: 200,
@@ -119,34 +165,61 @@ describe('openaiAdapter — request shape', () => {
     expect(body.max_completion_tokens).toBeUndefined();
   });
 
-  test('reasoning models (gpt-5) get max_completion_tokens, not max_tokens', async () => {
+  test('native reasoning models (gpt-5) use Responses API max_output_tokens', async () => {
     await openaiAdapter({ prompt: 'hi', model: 'gpt-5', maxTokens: 200 });
-    const [, init] = global.fetch.mock.calls[0];
+    const [url, init] = global.fetch.mock.calls[0];
     const body = JSON.parse(init.body);
-    expect(body.max_completion_tokens).toBe(200);
+    expect(url).toBe('https://api.openai.com/v1/responses');
+    expect(body.input).toEqual([{ role: 'user', content: 'hi' }]);
+    expect(body.reasoning).toEqual({ effort: 'minimal' });
+    expect(body.store).toBe(false);
+    expect(body.max_output_tokens).toBe(200);
+    expect(body.max_completion_tokens).toBeUndefined();
     expect(body.max_tokens).toBeUndefined();
   });
 
-  test('reasoning models (o-series) get max_completion_tokens', async () => {
+  test('native reasoning models (o-series) use Responses API max_output_tokens', async () => {
     await openaiAdapter({ prompt: 'hi', model: 'o3', maxTokens: 500 });
-    const [, init] = global.fetch.mock.calls[0];
+    const [url, init] = global.fetch.mock.calls[0];
     const body = JSON.parse(init.body);
-    expect(body.max_completion_tokens).toBe(500);
+    expect(url).toBe('https://api.openai.com/v1/responses');
+    expect(body.max_output_tokens).toBe(500);
+    expect(body.max_completion_tokens).toBeUndefined();
+    expect(body.max_tokens).toBeUndefined();
+  });
+
+  test('OpenAI-compatible override keeps reasoning-looking model on chat completions', async () => {
+    await openaiAdapter(
+      { prompt: 'hi', model: 'gpt-5', maxTokens: 200 },
+      { apiKey: 'sk-compatible', baseUrl: 'https://compatible.example/v1' },
+    );
+    const [url, init] = global.fetch.mock.calls[0];
+    const body = JSON.parse(init.body);
+    expect(url).toBe('https://compatible.example/v1/chat/completions');
+    expect(body.max_completion_tokens).toBe(200);
+    expect(body.max_output_tokens).toBeUndefined();
     expect(body.max_tokens).toBeUndefined();
   });
 
   test('uses OPENAI_BASE_URL when set', async () => {
     process.env.OPENAI_BASE_URL = 'https://my-proxy.test/v1';
-    await openaiAdapter({ prompt: 'hi', model: 'gpt-5-mini' });
+    await openaiAdapter({ prompt: 'hi', model: 'gpt-4o-mini' });
     const [url] = global.fetch.mock.calls[0];
     expect(url).toBe('https://my-proxy.test/v1/chat/completions');
   });
 
   test('strips trailing slash from base URL', async () => {
     process.env.OPENAI_BASE_URL = 'https://my-proxy.test/v1/';
-    await openaiAdapter({ prompt: 'hi', model: 'gpt-5-mini' });
+    await openaiAdapter({ prompt: 'hi', model: 'gpt-4o-mini' });
     const [url] = global.fetch.mock.calls[0];
     expect(url).toBe('https://my-proxy.test/v1/chat/completions');
+  });
+
+  test('uses OPENAI_BASE_URL with Responses API for native GPT-5 models', async () => {
+    process.env.OPENAI_BASE_URL = 'https://my-proxy.test/v1/';
+    await openaiAdapter({ prompt: 'hi', model: 'gpt-5-nano' });
+    const [url] = global.fetch.mock.calls[0];
+    expect(url).toBe('https://my-proxy.test/v1/responses');
   });
 
   test('forwards OpenAI-Organization header when OPENAI_ORG_ID is set', async () => {
