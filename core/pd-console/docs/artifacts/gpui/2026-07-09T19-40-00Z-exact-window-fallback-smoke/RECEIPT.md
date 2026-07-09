@@ -25,10 +25,10 @@ provider/transcript E2E proof for the current PR head.
 
 - Branch: `codex/pd-console-visual-proof-lane`
 - Commit: `fc235d501`
-- Daemon URL: `http://127.0.0.1:9876`
+- Daemon URL: `<daemon-url-from-port-daddy-discovery>`
 - Display selector: `104115ce-748a-4d96-afa9-170076c0e4b4`
-- Source binary: `/Users/erichowens/coding/tmp/port-daddy-pd-console-visual-proof-lane/core/pd-console/../target/release/pd-console`
-- Proof launch binary: `/Users/erichowens/coding/tmp/port-daddy-pd-console-visual-proof-lane/core/pd-console/../target/proof/pd-console-proof`
+- Source binary: `${REPO_ROOT}/core/pd-console/../target/release/pd-console`
+- Proof launch binary: `${REPO_ROOT}/core/pd-console/../target/proof/pd-console-proof`
 - Quartz owner name: `pd-console-proof`
 - Video mode: `screencapture`
 - Settle delay: `8s`
@@ -65,7 +65,7 @@ Supporting evidence:
 Launch proof-owned window:
 
 ```sh
-PORT_DADDY_URL=http://127.0.0.1:9876 "/Users/erichowens/coding/tmp/port-daddy-pd-console-visual-proof-lane/core/pd-console/../target/proof/pd-console-proof" --pane "<pane>" --display "104115ce-748a-4d96-afa9-170076c0e4b4"
+PORT_DADDY_URL="<daemon-url-from-port-daddy-discovery>" "${REPO_ROOT}/core/pd-console/../target/proof/pd-console-proof" --pane "<pane>" --display "104115ce-748a-4d96-afa9-170076c0e4b4"
 ```
 
 Exact-window still capture:

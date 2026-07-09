@@ -23,11 +23,11 @@ Capture owner: proof-owned pd-console window filtered by launched PID.
 - [RECEIPT.md](./RECEIPT.md)
 
 ## Panes
-- `lane` - [pane-lane.png](./pane-lane.png)
+- `lane` - [pane-lane.png](./pane-lane.png) (proposed dry-run placeholder; not generated)
 
 ## Video
-- [proof-window-fallback.mp4](./proof-window-fallback.mp4)
-- [proof-window-fallback.gif](./proof-window-fallback.gif)
+- [proof-window-fallback.mp4](./proof-window-fallback.mp4) (proposed dry-run placeholder; not generated)
+- [proof-window-fallback.gif](./proof-window-fallback.gif) (proposed dry-run placeholder; not generated)
 
 ## Safety
 

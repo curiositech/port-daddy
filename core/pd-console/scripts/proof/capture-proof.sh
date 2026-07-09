@@ -44,6 +44,7 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 fi
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"            # core/pd-console
+REPO_ROOT="$(git -C "$ROOT" rev-parse --show-toplevel 2>/dev/null || echo "$ROOT/../..")"
 TARGET="$ROOT/../target"                               # workspace target/
 SOURCE_BIN="${PD_PROOF_BIN:-$TARGET/release/pd-console}"
 LAUNCH_BIN="${PD_PROOF_LAUNCH_BIN:-$TARGET/proof/pd-console-proof}"
@@ -60,7 +61,7 @@ DURATION="${PD_PROOF_DURATION:-10}"
 FPS="${PD_PROOF_FPS:-30}"
 SETTLE="${PD_PROOF_SETTLE:-3}"
 VIDEO_MODE="${PD_PROOF_VIDEO_MODE:-auto}"
-DAEMON_URL="${PORT_DADDY_URL:-http://127.0.0.1:9876}"
+DAEMON_URL=""
 
 APP_PID=""
 DISPLAY_SEL="${PD_PROOF_DISPLAY:-}"
@@ -77,6 +78,52 @@ require_cmd() {
     echo "error: missing required command: $1" >&2
     exit 1
   fi
+}
+
+resolve_daemon_url() {
+  if [[ -n "${PORT_DADDY_URL:-}" ]]; then
+    printf '%s\n' "$PORT_DADDY_URL"
+    return 0
+  fi
+
+  local pd_home="${PORT_DADDY_HOME:-${HOME:-}/.port-daddy}"
+  local console_url_file="$pd_home/console-daemon.url"
+  local daemon_port_file="${PORT_DADDY_PORT_FILE:-$pd_home/daemon.port}"
+  local value=""
+
+  if [[ -r "$console_url_file" ]]; then
+    value="$(sed -n '1{s/[[:space:]]*$//;p;q;}' "$console_url_file")"
+    if [[ -n "$value" ]]; then
+      printf '%s\n' "$value"
+      return 0
+    fi
+  fi
+
+  if [[ -r "$daemon_port_file" ]]; then
+    value="$(sed -n 's/[^0-9].*$//; /^[0-9][0-9]*$/p; q' "$daemon_port_file")"
+    if [[ -n "$value" ]]; then
+      printf 'http://127.0.0.1:%s\n' "$value"
+      return 0
+    fi
+  fi
+}
+
+receipt_value() {
+  local value="$1"
+  local placeholder="$2"
+  [[ -n "$value" ]] && printf '%s\n' "$value" || printf '%s\n' "$placeholder"
+}
+
+receipt_path() {
+  local path="$1"
+  case "$path" in
+    "$REPO_ROOT"/*)
+      printf '${REPO_ROOT}/%s\n' "${path#"$REPO_ROOT"/}"
+      ;;
+    *)
+      printf '%s\n' "$path"
+      ;;
+  esac
 }
 
 append_window_log() {
@@ -130,7 +177,11 @@ write_manifest() {
     echo
     echo "## Panes"
     for p in $PANES; do
-      echo "- \`$p\` - [pane-$p.png](./pane-$p.png)"
+      if [[ "$DRY_RUN" == "1" ]]; then
+        echo "- \`$p\` - [pane-$p.png](./pane-$p.png) (proposed dry-run placeholder; not generated)"
+      else
+        echo "- \`$p\` - [pane-$p.png](./pane-$p.png)"
+      fi
     done
     echo
     echo "## Video"
@@ -141,8 +192,13 @@ write_manifest() {
       echo "- [proof.mov](./proof.mov)"
     fi
     if [[ " ${VIDEO_ARTIFACTS[*]} " == *" proof-window-fallback.mp4 "* ]]; then
-      echo "- [proof-window-fallback.mp4](./proof-window-fallback.mp4)"
-      echo "- [proof-window-fallback.gif](./proof-window-fallback.gif)"
+      if [[ "$DRY_RUN" == "1" ]]; then
+        echo "- [proof-window-fallback.mp4](./proof-window-fallback.mp4) (proposed dry-run placeholder; not generated)"
+        echo "- [proof-window-fallback.gif](./proof-window-fallback.gif) (proposed dry-run placeholder; not generated)"
+      else
+        echo "- [proof-window-fallback.mp4](./proof-window-fallback.mp4)"
+        echo "- [proof-window-fallback.gif](./proof-window-fallback.gif)"
+      fi
     fi
     echo
     echo "## Safety"
@@ -165,10 +221,10 @@ write_receipt() {
     echo
     echo "- Branch: \`$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')\`"
     echo "- Commit: \`$GIT_COMMIT_SHORT\`"
-    echo "- Daemon URL: \`$DAEMON_URL\`"
+    echo "- Daemon URL: \`$(receipt_value "$DAEMON_URL" "<daemon-url-from-port-daddy-discovery>")\`"
     echo "- Display selector: \`$DISPLAY_SEL\`"
-    echo "- Source binary: \`$SOURCE_BIN\`"
-    echo "- Proof launch binary: \`$BIN\`"
+    echo "- Source binary: \`$(receipt_path "$SOURCE_BIN")\`"
+    echo "- Proof launch binary: \`$(receipt_path "$BIN")\`"
     echo "- Quartz owner name: \`$OWNER_NAME\`"
     echo "- Video mode: \`$VIDEO_MODE\`"
     echo "- Settle delay: \`${SETTLE}s\`"
@@ -218,7 +274,7 @@ write_receipt() {
     echo "Launch proof-owned window:"
     echo
     echo '```sh'
-    echo "PORT_DADDY_URL=$DAEMON_URL \"$BIN\" --pane \"<pane>\" --display \"$DISPLAY_SEL\""
+    echo "PORT_DADDY_URL=\"$(receipt_value "$DAEMON_URL" "<daemon-url-from-port-daddy-discovery>")\" \"$(receipt_path "$BIN")\" --pane \"<pane>\" --display \"$DISPLAY_SEL\""
     echo '```'
     echo
     echo "Exact-window still capture:"
@@ -284,6 +340,7 @@ EOF
 
 if [[ "$DRY_RUN" == "1" ]]; then
   DISPLAY_SEL="${DISPLAY_SEL:-proof-display-dry-run}"
+  DAEMON_URL="$(resolve_daemon_url || true)"
   SCK_STATUS="not attempted in dry-run"
   FALLBACK_STATUS="planned first-class exact-window fallback"
   VIDEO_METHOD="dry-run"
@@ -302,6 +359,8 @@ mkdir -p "$OUT" "$TARGET/proof"
 require_cmd cargo
 require_cmd screencapture
 require_cmd xcrun
+DAEMON_URL="$(resolve_daemon_url || true)"
+[[ -n "$DAEMON_URL" ]] || fail_intervention "Could not resolve the Port Daddy daemon URL from PORT_DADDY_URL, ~/.port-daddy/console-daemon.url, or ~/.port-daddy/daemon.port."
 
 if [[ ! -x "$SOURCE_BIN" ]]; then
   echo "building release window (cargo build --release --features gpui)..."
