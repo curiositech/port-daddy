@@ -3933,7 +3933,7 @@ interface SpawnResult {
   name?: string;
   backend: SpawnSpec['backend'];
   model: string;
-  status: 'running' | 'completed' | 'failed' | 'killed';
+  status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
   output: string | null;
   error: string | null;
   telemetry: {
@@ -3952,7 +3952,7 @@ interface SpawnedAgent {
   name?: string;
   backend: SpawnSpec['backend'];
   model: string;
-  status: 'running' | 'completed' | 'failed' | 'killed';
+  status: 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
   identity: string | null;
   purpose: string | null;
   startedAt: number;

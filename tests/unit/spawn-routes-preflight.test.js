@@ -164,6 +164,7 @@ describe('spawn routes preflight', () => {
       identity: 'port-daddy:repo:cli',
       model: 'claude-sonnet-4-5-20250929',
       task: 'review the diff',
+      budgetUsd: 0.75,
     }));
 
     await app.close();
@@ -211,6 +212,7 @@ describe('spawn routes preflight', () => {
       backend: 'cli:agy',
       identity: 'port-daddy:repo:cli',
       task: 'review the diff',
+      budgetUsd: 0.75,
     }));
     expect(spawner.spawn.mock.calls[0][0].model).toBeUndefined();
 
@@ -260,6 +262,7 @@ describe('spawn routes preflight', () => {
       model: 'sonnet',
       identity: 'port-daddy:repo:cli',
       task: 'review the diff',
+      budgetUsd: 0.75,
     }));
 
     await app.close();

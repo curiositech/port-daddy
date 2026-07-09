@@ -32,6 +32,27 @@ const TEST_TELEMETRY_BYPASS = {
   reason: 'Spawner+transcripts integration test — exercises legacy non-metered path',
 };
 
+function exactCostTracker(costUsd) {
+  return {
+    computeCost: jest.fn(() => ({ costUsd, isEstimate: false })),
+    record: jest.fn((opts) => ({
+      id: 'evt-test',
+      ts: 1,
+      backend: opts.backend,
+      model: opts.model,
+      projectName: opts.projectName ?? null,
+      projectDir: opts.projectDir ?? null,
+      identity: opts.identity ?? null,
+      spawnId: opts.spawnId ?? null,
+      inputTokens: opts.inputTokens ?? null,
+      cachedInputTokens: opts.cachedInputTokens ?? null,
+      outputTokens: opts.outputTokens ?? null,
+      costUsd,
+      isEstimate: false,
+    })),
+  };
+}
+
 describe('spawner ↔ transcripts integration', () => {
   let db;
   let transcripts;
@@ -115,6 +136,87 @@ describe('spawner ↔ transcripts integration', () => {
     expect(tx.messages[2].content).toBe('Done — LGTM.');
     expect(tx.outputs).toHaveLength(1);
     expect(tx.outputs[0].type).toBe('message');
+  });
+
+  it('passes a completed backend when exact telemetry stays under budget', async () => {
+    const costTracker = exactCostTracker(0.0125);
+    const spawner = createSpawner({
+      transcripts,
+      costTracker,
+      enforceTelemetryPolicy: true,
+      enforceTranscriptPolicy: true,
+      runnerOverrides: {
+        claude: async () => ({
+          output: 'Done under budget.',
+          error: null,
+          inputTokens: 1000,
+          outputTokens: 200,
+        }),
+      },
+    });
+    const result = await spawner.spawn({
+      backend: 'claude',
+      model: 'claude-haiku-4-5',
+      identity: 'port-daddy:test:under-budget',
+      task: 'finish cheaply',
+      ship: 'budget-under',
+      budgetUsd: 0.02,
+    });
+
+    expect(result.status).toBe('completed');
+    expect(result.error).toBeNull();
+    expect(result.telemetry.costUsd).toBeCloseTo(0.0125);
+
+    const rows = transcripts.listTranscripts({ ship: 'budget-under' });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe('completed');
+    expect(rows[0].cost_usd).toBeCloseTo(0.0125);
+    const tx = transcripts.getTranscript(rows[0].id);
+    expect(tx.cost_usd).toBeCloseTo(0.0125);
+    expect(tx.messages.map((m) => m.content)).toContain('Done under budget.');
+  });
+
+  it('marks a completed backend over budget and preserves transcript telemetry', async () => {
+    const costTracker = exactCostTracker(0.154863);
+    const spawner = createSpawner({
+      transcripts,
+      costTracker,
+      enforceTelemetryPolicy: true,
+      enforceTranscriptPolicy: true,
+      runnerOverrides: {
+        claude: async () => ({
+          output: 'I finished the expensive work.',
+          error: null,
+          inputTokens: 10000,
+          outputTokens: 5000,
+        }),
+      },
+    });
+    const result = await spawner.spawn({
+      backend: 'claude',
+      model: 'claude-haiku-4-5',
+      identity: 'port-daddy:test:over-budget',
+      task: 'finish expensively',
+      ship: 'budget-over',
+      budgetUsd: 0.05,
+    });
+
+    expect(result.status).toBe('over_budget');
+    expect(result.error).toMatch(/exceeded hard budget cap/);
+    expect(result.telemetry.costUsd).toBeCloseTo(0.154863);
+
+    const rows = transcripts.listTranscripts({ ship: 'budget-over' });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe('over_budget');
+    expect(rows[0].cost_usd).toBeCloseTo(0.154863);
+    expect(rows[0].error).toMatch(/exceeded hard budget cap/);
+    const tx = transcripts.getTranscript(rows[0].id);
+    expect(tx.cost_usd).toBeCloseTo(0.154863);
+    expect(tx.messages.map((m) => m.content)).toEqual(expect.arrayContaining([
+      'I finished the expensive work.',
+      expect.stringMatching(/\[error\] exceeded hard budget cap/),
+    ]));
+    expect(tx.outputs[0].type).toBe('noop');
   });
 
   it('records error as assistant message and marks status=failed', async () => {

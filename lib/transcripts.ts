@@ -40,7 +40,7 @@ import type Database from 'better-sqlite3';
 // is visible, not just its final answer.
 export type TranscriptRole = 'system' | 'user' | 'assistant' | 'tool' | 'thinking';
 export type OutputType = 'pr-comment' | 'issue' | 'draft-pr' | 'commit' | 'noop' | 'message' | 'other';
-export type TranscriptStatus = 'running' | 'completed' | 'failed' | 'killed';
+export type TranscriptStatus = 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
 
 export interface TranscriptMessage {
   role: TranscriptRole;

@@ -66,7 +66,7 @@ function makeImmediateSpawner() {
 }
 
 /** Build a REAL dispatch-shaped LaunchIntent the way the production adapter does:
- *  propose → plan → planToLaunchIntent. budgetUsd flows to bond AND ceiling. */
+ *  propose → plan → planToLaunchIntent. budgetUsd flows to cap, bond, AND ceiling. */
 function dispatchIntent({ goal = 'ship the feature', budgetUsd = 5, baseBranch = 'main' } = {}) {
   const db = createTestDb();
   const queue = createDispatchQueue({ db });
@@ -111,7 +111,8 @@ describe('dispatch-shaped intent through the REAL conductor — admission gates'
     const intent = dispatchIntent({ budgetUsd: 6 });
     expect(intent.source).toBe('dispatch');
     expect(intent.worktree).toBe('create');
-    // The whole gate story hinges on bond===ceiling===budget for a dispatch root.
+    // Admission uses bond+ceiling; finalization uses budgetUsd as the hard cap.
+    expect(intent.budgetUsd).toBe(6);
     expect(intent.bondUsd).toBe(6);
     expect(intent.lineageCeilingUsd).toBe(6);
     expect(intent.mergePolicy).toBe('review');
@@ -180,6 +181,7 @@ describe('dispatch-shaped intent through the REAL conductor — review publish',
     // The spawn ran on the minted OFF-MAIN worktree, not a main checkout.
     expect(spawner.spawn).toHaveBeenCalledTimes(1);
     expect(spawner.spawn.mock.calls[0][0].workdir).not.toBe('/repo-main');
+    expect(spawner.spawn.mock.calls[0][0].budgetUsd).toBe(4);
   });
 
   test('a dispatch never spawns on a main checkout (I2 holds for the dispatch shape)', async () => {

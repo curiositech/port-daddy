@@ -3876,7 +3876,7 @@ paths:
                   description: Semantic identity for the spawned agent and project budget attribution
                 budgetUsd:
                   type: number
-                  description: Positive spend ceiling for this launch in USD
+                  description: Positive hard spend ceiling for this launch in USD; final telemetry over this cap returns status=over_budget with transcript telemetry preserved
                 purpose:
                   type: string
                 task:
@@ -3912,6 +3912,7 @@ paths:
                     type: string
                   status:
                     type: string
+                    enum: [running, completed, failed, killed, over_budget]
         '400':
           $ref: '#/components/responses/ValidationError'
         '500':

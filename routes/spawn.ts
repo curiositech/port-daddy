@@ -196,6 +196,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         backend: effectiveBackend as SpawnSpec['backend'],
         task: task.trim(),
       };
+      if (Number.isFinite(parsedBudgetUsd)) spec.budgetUsd = parsedBudgetUsd;
 
       if (!backendWasForced && model && typeof model === 'string') spec.model = model;
       else if (preflight.attempts[0]?.model) spec.model = preflight.attempts[0].model;
