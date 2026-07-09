@@ -1,13 +1,13 @@
 {
-  "generatedAt": 1783315035961,
+  "generatedAt": 1783587747423,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 146,
+  "count": 148,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
       "status": "now",
-      "summaryMd": "Wedge 1 launch assets from the GTM strategy (\u00a76): Show HN post + founder note, and the portdaddy.dev /accountability launch page (hero, before/after, compliance ladder, git-guard demo, install CTA). Spawned by distribution-dogfood-gtm-strategy."
+      "summaryMd": "Wedge 1 launch assets from the GTM strategy (§6): Show HN post + founder note, and the portdaddy.dev /accountability launch page (hero, before/after, compliance ladder, git-guard demo, install CTA). Spawned by distribution-dogfood-gtm-strategy."
     },
     {
       "slug": "active-agent-roster",
@@ -370,34 +370,54 @@
       "summaryMd": "M5 turn-start suggestibility: signed GuidanceEnvelope channel, forged-guidance probe, ProVerif-gated C3 (ADR-0096, binder ch18 M5)"
     },
     {
+      "slug": "adr-0097-m6-context-memory-search-contracts",
+      "status": "now",
+      "summaryMd": "M6 F0-delta: freeze CompactionPacket, MemoryEpisode, TranscriptSearchQuery/Result, read-only BlackboardItem v0 contracts (ADR-0097, binder ch04/ch07 M6)"
+    },
+    {
+      "slug": "adr-0097-phase-1-compaction-chain",
+      "status": "now",
+      "summaryMd": "M6 phase 1: context-pressure tracking (ch04 thresholds over the F0 ContextEnvelope) + Longshoreman compactor emitting validated cited CompactionPackets; successor resume verifies sourceTranscript against the session hash chain (ADR-0097 Implementation Matrix)"
+    },
+    {
+      "slug": "adr-0097-phase-2-transcript-search",
+      "status": "now",
+      "summaryMd": "M6 phase 2: hybrid (BM25 + shared MiniLM, RRF) transcript search over the C1 event ledger returning budget-audited, always-cited TranscriptSearchResult objects; pd memory search CLI (ADR-0097, binder ch04/ch07 M6 gate lines 3-4)"
+    },
+    {
+      "slug": "adr-0097-phase-3-episode-extraction",
+      "status": "now",
+      "summaryMd": "M6 phase 3: episode/graph-fact extraction with bi-temporal validity, supersession closure, distilled-source tombstones, and budget-capped task-conditioned recall (ADR-0097 Implementation Matrix phase 3)"
+    },
+    {
       "slug": "agent-harbor-c1-event-ledger",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C1 \u2014 event ledger and projections (binder ch18 Work Order C1)"
+      "summaryMd": "Agent Harbor C1 — event ledger and projections (binder ch18 Work Order C1)"
     },
     {
       "slug": "agent-harbor-c2-compliance-probes",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C2 \u2014 adapter compliance probes (binder ch18 Work Order C2)"
+      "summaryMd": "Agent Harbor C2 — adapter compliance probes (binder ch18 Work Order C2)"
     },
     {
       "slug": "agent-harbor-c3-operator-control-panel",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C3 \u2014 operator control panel (binder ch18 Work Order C3)"
+      "summaryMd": "Agent Harbor C3 — operator control panel (binder ch18 Work Order C3)"
     },
     {
       "slug": "agent-harbor-c5-governance-tool-gates",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C5 \u2014 governance and tool gates (binder ch18 Work Order C5)"
+      "summaryMd": "Agent Harbor C5 — governance and tool gates (binder ch18 Work Order C5)"
     },
     {
       "slug": "agent-harbor-c8-setup-doctor-remediation",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C8 \u2014 setup and doctor remediation (binder ch18 Work Order C8)"
+      "summaryMd": "Agent Harbor C8 — setup and doctor remediation (binder ch18 Work Order C8)"
     },
     {
       "slug": "agent-harbor-daemon-routes",
       "status": "backlog",
-      "summaryMd": "feat(agent-harbor): C-routes daemon HTTP layer \u2014 ch09 read API over C1 projections (closes I0 Contradiction 1)"
+      "summaryMd": "feat(agent-harbor): C-routes daemon HTTP layer — ch09 read API over C1 projections (closes I0 Contradiction 1)"
     },
     {
       "slug": "agent-harbor-docs-skill-collision-hygiene",
@@ -407,7 +427,7 @@
     {
       "slug": "agent-harbor-f0-contract-freeze",
       "status": "now",
-      "summaryMd": "Agent Harbor v0 contract freeze \u2014 ADR-0095 + 11 schemas + fixture tests (binder ch18 Work Order F0)"
+      "summaryMd": "Agent Harbor v0 contract freeze — ADR-0095 + 11 schemas + fixture tests (binder ch18 Work Order F0)"
     },
     {
       "slug": "agent-harbor-runtime-refactor-contract-dag",
@@ -515,6 +535,11 @@
       "summaryMd": "feat(fleet): backend dropdown in FleetBar popover + GET /fleet/forecast spawn-rate estimator"
     },
     {
+      "slug": "feat-harbor-editor-fast",
+      "status": "now",
+      "summaryMd": "Rebuild the Harbor editor into a real editor surface: Block::CodeBuffer (Arc-shared pre-tokenized lines), uniform_list virtualization, syntax highlighting, claim/wedge bands as background, always-visible author column, notify-on-change. PR #883."
+    },
+    {
       "slug": "feat-pd-console-operator-chat",
       "status": "backlog",
       "summaryMd": "feat(pd-console): operator chat surface (real tube transport + GPUI text input)"
@@ -540,9 +565,34 @@
       "summaryMd": "Build a Rust GPUI agent observatory after daemon endpoints exist: list daemon-launched harnessed sessions, distinguish fleet infrastructure agents from merchant task agents, stream persisted transcripts, show Port Daddy hook activity and operator-only fleet overlays, and allow jumping into a live harnessed agent REPL without losing auditability."
     },
     {
+      "slug": "gpui-component-0-5-x-dependability-verify",
+      "status": "backlog",
+      "summaryMd": "Verify whether gpui-component published 0.5.x (crates.io) safely pins registry gpui 0.2.2 vs the main-branch git-pin trap; decides copy-vs-depend for the pd tube text-input (blocks it). Surface: pd-console pd-tube cockpit input. Source: longbridge/gpui-component (2026-07-08 awesome-gpui survey)."
+    },
+    {
+      "slug": "gpui-flow-fleet-dag-canvas",
+      "status": "backlog",
+      "summaryMd": "Fleet DAG canvas via pacifio/gpui-flow (bezier edges, drag-connect, box-select, viewport-culled at 1000 nodes, minimap; node_renderer returns any GPUI element). Copy-not-depend (git-pin trap). Surface: pd-console fleet view + Harbor. From the 2026-07-08 awesome-gpui survey."
+    },
+    {
+      "slug": "gpui-px-metrics-charts",
+      "status": "backlog",
+      "summaryMd": "Health/metrics charts via pierreaubert/gpui-toolkit gpui-px (Plotly-express scatter/line/bar/heatmap, Viridis scales). Copy (zed git tag v1.9.0). Surface: pd-console health/metrics panes. From the 2026-07-08 awesome-gpui survey."
+    },
+    {
+      "slug": "gpui-symbols-icon-integration",
+      "status": "backlog",
+      "summaryMd": "Integrate AprilNEA/gpui-symbols (native SF Symbols, type-safe Icon + define_icons!, crates.io gpui 0.2.2 exact) to replace pd-console's no-icons/emoji-ban gap. Surface: pd-console (all panes/badges). From the 2026-07-08 awesome-gpui survey (docs/design/2026-07-08-gpui-ecosystem-steals.md)."
+    },
+    {
       "slug": "harbor-editor",
       "status": "now",
       "summaryMd": "Harbor Editor — cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
+    },
+    {
+      "slug": "harbor-replicaid-agent-branch-clock",
+      "status": "backlog",
+      "summaryMd": "Adopt zed crates/text+clock ReplicaId model reserving LOCAL/REMOTE_SERVER/AGENT/LOCAL_BRANCH constants as Harbor's agent-as-peer OT/CRDT clock foundation. Surface: Harbor editor. Source: zed-industries/zed (2026-07-08 awesome-gpui survey)."
     },
     {
       "slug": "io-wiring",
@@ -573,6 +623,11 @@
       "slug": "io-wiring-phase-5-imessage-calendar",
       "status": "backlog",
       "summaryMd": "PHASE 5: iMessage (macOS FDA) + Calendar (CalDAV / OAuth / EventKit). Platform-gated."
+    },
+    {
+      "slug": "mutation-policy-hitl-gate",
+      "status": "backlog",
+      "summaryMd": "DBFlux-style mutation policies (read-only / approval-required + chunked cancellable execution) as a human-in-the-loop gate for agents mutating shared state. Surface: pd-console controls + Harbor governance. Source: 0xErwin1/dbflux (2026-07-08 awesome-gpui survey)."
     },
     {
       "slug": "operator-surface-consolidation",
@@ -670,9 +725,14 @@
       "summaryMd": "design: surface-triad redesign + portdaddy.dev accounts/login + remote harbor co-op"
     },
     {
+      "slug": "transcript-compliance-hitl-health",
+      "status": "backlog",
+      "summaryMd": "Make transcript-flow compliance explicit across major backends and fail loud when live runs lose transcript truth. Add a backend support/degraded/missing matrix for Cloudflare, Claude/Claude CLI, Codex, Gemini, agy metadata-only, and OpenAI-compatible/custom paths; expose runtime transcript health in /transcripts/compliance plus /health and /status; raise HITL-tagged critical issues when a claimed-live run has no transcript heartbeat or no terminal transcript; cover present, stalled, and missing cases with focused tests."
+    },
+    {
       "slug": "visual-evidence-doctrine",
       "status": "backlog",
-      "summaryMd": "docs(skill): visual-evidence doctrine \u2014 non-interruptive screenshot capture for every agent"
+      "summaryMd": "docs(skill): visual-evidence doctrine — non-interruptive screenshot capture for every agent"
     },
     {
       "slug": "visual-task-agent-intake",
@@ -683,61 +743,6 @@
       "slug": "workintent-dispatch-intake",
       "status": "backlog",
       "summaryMd": "WorkIntent-first dispatch intake runtime blocker follow-up for PR #895"
-    },
-    {
-      "slug": "adr-0097-m6-context-memory-search-contracts",
-      "status": "now",
-      "summaryMd": "M6 F0-delta: freeze CompactionPacket, MemoryEpisode, TranscriptSearchQuery/Result, read-only BlackboardItem v0 contracts (ADR-0097, binder ch04/ch07 M6)"
-    },
-    {
-      "slug": "adr-0097-phase-2-transcript-search",
-      "status": "now",
-      "summaryMd": "M6 phase 2: hybrid (BM25 + shared MiniLM, RRF) transcript search over the C1 event ledger returning budget-audited, always-cited TranscriptSearchResult objects; pd memory search CLI (ADR-0097, binder ch04/ch07 M6 gate lines 3-4)"
-    },
-    {
-      "slug": "adr-0097-phase-1-compaction-chain",
-      "status": "now",
-      "summaryMd": "M6 phase 1: context-pressure tracking (ch04 thresholds over the F0 ContextEnvelope) + Longshoreman compactor emitting validated cited CompactionPackets; successor resume verifies sourceTranscript against the session hash chain (ADR-0097 Implementation Matrix)"
-    },
-    {
-      "slug": "adr-0097-phase-3-episode-extraction",
-      "status": "now",
-      "summaryMd": "M6 phase 3: episode/graph-fact extraction with bi-temporal validity, supersession closure, distilled-source tombstones, and budget-capped task-conditioned recall (ADR-0097 Implementation Matrix phase 3)"
-    },
-    {
-      "slug": "gpui-symbols-icon-integration",
-      "status": "backlog",
-      "summaryMd": "Integrate AprilNEA/gpui-symbols (native SF Symbols, type-safe Icon + define_icons!, crates.io gpui 0.2.2 exact) to replace pd-console's no-icons/emoji-ban gap. Surface: pd-console (all panes/badges). From the 2026-07-08 awesome-gpui survey (docs/design/2026-07-08-gpui-ecosystem-steals.md)."
-    },
-    {
-      "slug": "mutation-policy-hitl-gate",
-      "status": "backlog",
-      "summaryMd": "DBFlux-style mutation policies (read-only / approval-required + chunked cancellable execution) as a human-in-the-loop gate for agents mutating shared state. Surface: pd-console controls + Harbor governance. Source: 0xErwin1/dbflux (2026-07-08 awesome-gpui survey)."
-    },
-    {
-      "slug": "gpui-flow-fleet-dag-canvas",
-      "status": "backlog",
-      "summaryMd": "Fleet DAG canvas via pacifio/gpui-flow (bezier edges, drag-connect, box-select, viewport-culled at 1000 nodes, minimap; node_renderer returns any GPUI element). Copy-not-depend (git-pin trap). Surface: pd-console fleet view + Harbor. From the 2026-07-08 awesome-gpui survey."
-    },
-    {
-      "slug": "harbor-replicaid-agent-branch-clock",
-      "status": "backlog",
-      "summaryMd": "Adopt zed crates/text+clock ReplicaId model reserving LOCAL/REMOTE_SERVER/AGENT/LOCAL_BRANCH constants as Harbor's agent-as-peer OT/CRDT clock foundation. Surface: Harbor editor. Source: zed-industries/zed (2026-07-08 awesome-gpui survey)."
-    },
-    {
-      "slug": "gpui-px-metrics-charts",
-      "status": "backlog",
-      "summaryMd": "Health/metrics charts via pierreaubert/gpui-toolkit gpui-px (Plotly-express scatter/line/bar/heatmap, Viridis scales). Copy (zed git tag v1.9.0). Surface: pd-console health/metrics panes. From the 2026-07-08 awesome-gpui survey."
-    },
-    {
-      "slug": "gpui-component-0-5-x-dependability-verify",
-      "status": "backlog",
-      "summaryMd": "Verify whether gpui-component published 0.5.x (crates.io) safely pins registry gpui 0.2.2 vs the main-branch git-pin trap; decides copy-vs-depend for the pd tube text-input (blocks it). Surface: pd-console pd-tube cockpit input. Source: longbridge/gpui-component (2026-07-08 awesome-gpui survey)."
-    },
-    {
-      "slug": "feat-harbor-editor-fast",
-      "status": "now",
-      "summaryMd": "Rebuild the Harbor editor into a real editor surface: Block::CodeBuffer (Arc-shared pre-tokenized lines), uniform_list virtualization, syntax highlighting, claim/wedge bands as background, always-visible author column, notify-on-change. PR #883."
     }
   ]
 }
