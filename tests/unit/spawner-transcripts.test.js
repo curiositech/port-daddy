@@ -309,7 +309,7 @@ describe('spawner ↔ transcripts integration', () => {
     ]);
   });
 
-  it('treats zero Cloudflare timeout as the default instead of an immediate abort', async () => {
+  async function expectCloudflareDefaultTimeoutFallback(spawnOverrides, responseText) {
     process.env.CLOUDFLARE_ACCOUNT_ID = 'test-account';
     process.env.CLOUDFLARE_API_TOKEN = 'test-token';
     let cloudflareInit;
@@ -317,13 +317,21 @@ describe('spawner ↔ transcripts integration', () => {
       if (String(url).includes('/ai/run/@cf/zai-org/glm-4.7-flash')) {
         cloudflareInit = init;
         return new Promise((resolve, reject) => {
+          if (!init.signal) {
+            reject(new Error('Cloudflare request did not receive an AbortSignal'));
+            return;
+          }
+          if (init.signal.aborted) {
+            reject(init.signal.reason ?? new DOMException('Cloudflare request aborted', 'AbortError'));
+            return;
+          }
           init.signal.addEventListener('abort', () => {
             reject(init.signal.reason ?? new DOMException('Cloudflare request aborted', 'AbortError'));
           }, { once: true });
           setTimeout(() => {
             resolve(new Response(JSON.stringify({
               result: {
-                response: 'Cloudflare zero timeout used the default.',
+                response: responseText,
                 usage: { prompt_tokens: 4, completion_tokens: 3 },
               },
             }), { status: 200 }));
@@ -342,17 +350,38 @@ describe('spawner ↔ transcripts integration', () => {
     const result = await spawner.spawn({
       backend: 'cloudflare',
       model: '@cf/zai-org/glm-4.7-flash',
-      task: 'zero timeout should fall back',
-      timeout: 0,
+      task: responseText,
+      ...spawnOverrides,
     });
 
     expect(result.status).toBe('completed');
-    expect(result.output).toBe('Cloudflare zero timeout used the default.');
+    expect(result.output).toBe(responseText);
     expect(cloudflareInit.signal).toBeInstanceOf(AbortSignal);
     expect(cloudflareInit.signal.aborted).toBe(false);
     const rows = transcripts.listTranscripts({ ship: 'spawn:cloudflare' });
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe('completed');
+  }
+
+  it('treats missing Cloudflare timeout as the default instead of omitting abort handling', async () => {
+    await expectCloudflareDefaultTimeoutFallback(
+      {},
+      'Cloudflare missing timeout used the default.',
+    );
+  });
+
+  it('treats zero Cloudflare timeout as the default instead of an immediate abort', async () => {
+    await expectCloudflareDefaultTimeoutFallback(
+      { timeout: 0 },
+      'Cloudflare zero timeout used the default.',
+    );
+  });
+
+  it('treats negative Cloudflare timeout as the default instead of an immediate abort', async () => {
+    await expectCloudflareDefaultTimeoutFallback(
+      { timeout: -1000 },
+      'Cloudflare negative timeout used the default.',
+    );
   });
 
   it('finalizes a timed-out Cloudflare request as failed with an error transcript', async () => {
