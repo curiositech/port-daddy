@@ -19,7 +19,7 @@ import { jest } from '@jest/globals';
 import { EventEmitter } from 'node:events';
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 import { Readable } from 'node:stream';
 
 const mockSpawn = jest.fn();
@@ -372,6 +372,64 @@ describe('spawnViaCliTube — claude-code happy path', () => {
     await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
     const [binary] = mockSpawn.mock.calls[0];
     expect(binary).toBe(discovered);
+  });
+
+  test.each([
+    ['missing', (path) => path],
+    ['non-executable', (path) => {
+      mkdirSync(join(path, '..'), { recursive: true });
+      writeFileSync(path, '#!/bin/sh\necho stale\n');
+      return path;
+    }],
+  ])('falls back from %s PD_CLI_CLAUDE_CODE_BIN to claude in PD_CLI_BIN_DIRS', async (_label, makeOverride) => {
+    rmSync(join(fakeHome, '.local', 'bin', 'claude'), { force: true });
+    const cliBinDir = join(fakeHome, 'operator-cli-bin');
+    const discovered = installCli('claude', cliBinDir);
+    process.env.PD_CLI_CLAUDE_CODE_BIN = makeOverride(join(fakeHome, 'old', 'missing', 'claude'));
+    process.env.PD_CLI_BIN_DIRS = cliBinDir;
+
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      env: { PATH: '/usr/bin:/bin', PD_CLI_CLAUDE_CODE_BIN: '/attacker/claude' },
+    });
+
+    const [binary,, options] = mockSpawn.mock.calls[0];
+    expect(binary).toBe(discovered);
+    expect(options.env.PATH.split(delimiter)).toContain(cliBinDir);
+  });
+
+  test.each([
+    ['invalid', () => join(fakeHome, 'missing-cli-bin')],
+    ['empty', () => ''],
+  ])('stale PD_CLI_CLAUDE_CODE_BIN with %s PD_CLI_BIN_DIRS and empty PATH fails honestly', async (_label, makeCliBinDirs) => {
+    rmSync(join(fakeHome, '.local', 'bin', 'claude'), { force: true });
+    const stale = join(fakeHome, 'old', 'missing', 'claude');
+    const attackerBinDir = join(fakeHome, 'attacker-bin');
+    installCli('claude', attackerBinDir);
+    process.env.PATH = '';
+    process.env.PD_CLI_CLAUDE_CODE_BIN = stale;
+    process.env.PD_CLI_BIN_DIRS = makeCliBinDirs();
+
+    mockSpawn.mockReturnValue(fakeChild({
+      error: Object.assign(new Error('spawn claude ENOENT'), { code: 'ENOENT' }),
+    }));
+    const res = await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      env: { PATH: attackerBinDir },
+    });
+
+    expect(res.output).toBe('');
+    expect(res.exitCode).not.toBe(0);
+    expect(res.error).toMatch(/not found|unavailable/);
+    if (mockSpawn.mock.calls.length > 0) {
+      const [binary,, options] = mockSpawn.mock.calls[0];
+      expect(binary).not.toBe(stale);
+      expect(binary).not.toBe(join(attackerBinDir, 'claude'));
+      expect(options.env.PATH.split(delimiter)).not.toContain(attackerBinDir);
+    }
   });
 
   test('returns the generated tube channel name', async () => {
