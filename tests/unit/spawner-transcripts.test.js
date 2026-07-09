@@ -315,6 +315,10 @@ describe('spawner ↔ transcripts integration', () => {
     global.fetch = jest.fn((url, init = {}) => {
       if (String(url).includes('/ai/run/@cf/zai-org/glm-4.7-flash')) {
         return new Promise((resolve, reject) => {
+          if (init.signal.aborted) {
+            reject(init.signal.reason ?? new DOMException('Cloudflare request aborted', 'AbortError'));
+            return;
+          }
           init.signal.addEventListener('abort', () => {
             reject(init.signal.reason ?? new DOMException('Cloudflare request aborted', 'AbortError'));
           }, { once: true });

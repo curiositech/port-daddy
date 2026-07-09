@@ -537,7 +537,8 @@ interface BackendRunContext {
 const DEFAULT_BACKEND_TIMEOUT_MS = 5 * 60 * 1000;
 
 function backendAbortSignal(spec: SpawnSpec): AbortSignal {
-  return AbortSignal.timeout(spec.timeout ?? DEFAULT_BACKEND_TIMEOUT_MS);
+  const timeoutMs = spec.timeout && spec.timeout > 0 ? spec.timeout : DEFAULT_BACKEND_TIMEOUT_MS;
+  return AbortSignal.timeout(timeoutMs);
 }
 
 interface CodexUsage {
