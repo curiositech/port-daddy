@@ -10,7 +10,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { BackendOverrideSource, SpawnSpec, Spawner } from '../lib/spawner.js';
 import { assessSpawnPreflight } from '../lib/spawn-preflight.js';
 import type { CostTracker } from '../lib/cost-tracker.js';
-import { resolveFleetAgentRuntime, type FleetModelTier, type FleetRuntimeTarget } from '../lib/fleet-engine.js';
+import { resolveFleetAgentRuntime, type FleetModelTier, type FleetRuntimeTarget } from '../lib/fleet-runtime.js';
 import { validateChannel } from '../shared/validators.js';
 
 interface SpawnRouteDeps {

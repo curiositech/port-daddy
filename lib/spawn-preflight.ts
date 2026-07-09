@@ -6,7 +6,7 @@ import {
   resolveFleetAgentRuntime,
   type FleetModelTier,
   type FleetRuntimeTarget,
-} from './fleet-engine.js';
+} from './fleet-runtime.js';
 
 export const LOCAL_EXECUTION_BACKENDS = new Set(['claude-cli', 'codex', 'ollama', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:agy', 'cli:gemini', 'cli:groq', 'cli:grok']);
 

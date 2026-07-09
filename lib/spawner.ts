@@ -44,7 +44,7 @@ import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
 import { detectForcedCliBackend, resolveEffectiveSpawnBackend } from './backend-catalog.js';
 import { cliBinarySearchPath, resolveCliBinary } from './cli-bin-dirs.js';
-import { resolveFleetAgentRuntime, type FleetModelTier } from './fleet-engine.js';
+import { resolveFleetAgentRuntime, type FleetModelTier } from './fleet-runtime.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
 // The daemon runs via launchd which has no shell env. Spawned agents need

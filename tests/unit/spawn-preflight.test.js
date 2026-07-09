@@ -8,7 +8,7 @@ jest.unstable_mockModule('../../lib/backend-readiness.js', () => ({
   assessBackendReadiness: mockAssessBackendReadiness,
 }));
 
-jest.unstable_mockModule('../../lib/fleet-engine.js', () => ({
+jest.unstable_mockModule('../../lib/fleet-runtime.js', () => ({
   resolveFleetAgentRuntime: mockResolveFleetAgentRuntime,
 }));
 
