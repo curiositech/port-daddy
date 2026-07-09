@@ -1,8 +1,8 @@
 # CLI Tube Provider Registry RED/GREEN Evidence
 
-Base for latest RED/GREEN: `origin/main` at `db173faa9 test(spawn): cover provider binary daemon launches (#1379)`.
+Base for latest RED/GREEN: `origin/main` at `dcf422dea test(spawner): cover direct API provider transcripts (#1370)`.
 
-Implementation branch for GREEN: `codex/cli-tube-provider-registry`, rebased onto `origin/main` `db173faa9`.
+Implementation branch for GREEN: `codex/cli-tube-provider-registry`, rebased onto `origin/main` `dcf422dea`.
 
 ## RED
 
