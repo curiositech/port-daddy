@@ -174,7 +174,7 @@ export async function handleSpawn(
     process.exit(1);
   }
 
-  const failed = data.status === 'failed';
+  const failed = data.success === false || data.status === 'failed';
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
