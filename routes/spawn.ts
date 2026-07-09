@@ -10,7 +10,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { BackendOverrideSource, SpawnSpec, Spawner } from '../lib/spawner.js';
 import { assessSpawnPreflight } from '../lib/spawn-preflight.js';
 import type { CostTracker } from '../lib/cost-tracker.js';
-import type { FleetModelTier, FleetRuntimeTarget } from '../lib/fleet-engine.js';
+import { resolveFleetAgentRuntime, type FleetModelTier, type FleetRuntimeTarget } from '../lib/fleet-engine.js';
 import { validateChannel } from '../shared/validators.js';
 
 interface SpawnRouteDeps {
@@ -30,6 +30,20 @@ function backendOverrideSourceFromPreflight(source: unknown, forced: boolean): B
   if (source === 'env') return 'env';
   if (source === 'persisted') return 'persisted';
   return 'preflight';
+}
+
+function isFleetModelTier(value: unknown): value is FleetModelTier {
+  return value === 'low' || value === 'mid' || value === 'high';
+}
+
+function requestedModelFromRequest(
+  backend: string,
+  model: unknown,
+  modelTier: unknown,
+): string | undefined {
+  if (typeof model === 'string' && model.trim()) return model;
+  if (!isFleetModelTier(modelTier)) return undefined;
+  return resolveFleetAgentRuntime({ backend, modelTier }).model ?? undefined;
 }
 
 // ==========================================================================
@@ -207,7 +221,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       if (validBudgetUsd !== undefined) spec.budgetUsd = validBudgetUsd;
       if (backendWasForced) {
         spec.requestedBackend = backend as SpawnSpec['backend'];
-        spec.requestedModel = typeof model === 'string' && model.trim() ? model : undefined;
+        spec.requestedModel = requestedModelFromRequest(backend, model, modelTier);
         spec.backendOverrideSource = backendOverrideSourceFromPreflight(selectedAttempt?.backendSource, true);
       }
 

@@ -16,6 +16,7 @@ const { createSpawner } = await import('../../lib/spawner.js');
 const { createTranscripts } = await import('../../lib/transcripts.js');
 const { spawnPlugin } = await import('../../routes/spawn.js');
 const { transcriptsPlugin } = await import('../../routes/transcripts.js');
+const { resolveModel } = await import('../../lib/model-registry.js');
 const { createTestDb } = await import('../setup-unit.js');
 
 function makeCostTracker() {
@@ -170,6 +171,50 @@ describe('spawner effective runtime truth', () => {
     }));
     expect(tx.outputs[0].summary).toContain('cli:codex');
     expect(tx.outputs[0].summary).not.toContain('openai');
+  });
+
+  test('forced CLI backend preserves requested modelTier as the requested model', async () => {
+    process.env.PD_USE_CLI_BACKEND = 'codex';
+    const costTracker = makeCostTracker();
+    const spawner = createSpawner({
+      transcripts,
+      costTracker,
+      enforceTelemetryPolicy: true,
+      enforceTranscriptPolicy: true,
+    });
+    const requestedHighModel = resolveModel({ backend: 'claude', tier: 'high' });
+
+    const result = await spawner.spawn({
+      backend: 'claude',
+      modelTier: 'high',
+      task: 'say exactly hello',
+      identity: 'port-daddy:test:runtime-truth-tier',
+    });
+
+    expect(mockSpawnViaCliTube).toHaveBeenCalledWith(expect.objectContaining({
+      cli: 'codex',
+      model: 'codex-cli',
+    }));
+    expect(result).toEqual(expect.objectContaining({
+      backend: 'cli:codex',
+      model: 'codex-cli',
+      requestedBackend: 'claude',
+      effectiveBackend: 'cli:codex',
+      requestedModel: requestedHighModel,
+      effectiveModel: 'codex-cli',
+      backendOverrideSource: 'env',
+    }));
+
+    const tx = transcripts.getTranscript(transcripts.listTranscripts()[0].id);
+    expect(tx).toEqual(expect.objectContaining({
+      backend: 'cli:codex',
+      model: 'codex-cli',
+      requested_backend: 'claude',
+      effective_backend: 'cli:codex',
+      requested_model: requestedHighModel,
+      effective_model: 'codex-cli',
+      backend_override_source: 'env',
+    }));
   });
 
   test('no forced override keeps requested and effective runtime identical without bogus provenance noise', async () => {

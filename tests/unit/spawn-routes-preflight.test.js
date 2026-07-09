@@ -7,6 +7,7 @@ jest.unstable_mockModule('../../lib/spawn-preflight.js', () => ({
   assessSpawnPreflight: mockAssessSpawnPreflight,
 }));
 
+const { resolveModel } = await import('../../lib/model-registry.js');
 const { spawnPlugin } = await import('../../routes/spawn.js');
 
 function buildApp() {
@@ -344,6 +345,55 @@ describe('spawn routes preflight', () => {
       identity: 'port-daddy:repo:cli',
       task: 'review the diff',
       budgetUsd: 0.75,
+    }));
+
+    await app.close();
+  });
+
+  test('POST /spawn preserves requested modelTier provenance when backend is forced', async () => {
+    mockAssessSpawnPreflight.mockResolvedValueOnce({
+      launchReady: true,
+      blockedReasons: [],
+      warnings: ['PD_USE_CLI_BACKEND forces cli:codex'],
+      attempts: [{
+        attempt: 1,
+        backend: 'cli:codex',
+        model: 'codex-cli',
+        modelTier: null,
+        backendSource: 'env',
+        modelSource: 'unset',
+        warnings: ['PD_USE_CLI_BACKEND forces cli:codex'],
+        readinessStatus: 'manual_check',
+        readinessLaunchableUnverified: true,
+        readinessSummary: 'Codex CLI binary found',
+        readinessNextStep: 'Run codex once interactively.',
+      }],
+      projectName: 'port-daddy',
+      budget: null,
+      localExecutionLikely: true,
+      localExecutionNote: 'Local CLI backends may need unsandboxed approval.',
+    });
+    const { app, spawner, register } = buildApp();
+    await register();
+
+    await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      payload: {
+        backend: 'claude',
+        modelTier: 'high',
+        identity: 'port-daddy:repo:cli',
+        task: 'review the diff',
+        budgetUsd: 0.75,
+      },
+    });
+
+    expect(spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
+      backend: 'cli:codex',
+      model: 'codex-cli',
+      requestedBackend: 'claude',
+      requestedModel: resolveModel({ backend: 'claude', tier: 'high' }),
+      backendOverrideSource: 'env',
     }));
 
     await app.close();

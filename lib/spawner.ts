@@ -44,6 +44,7 @@ import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
 import { detectForcedCliBackend, resolveEffectiveSpawnBackend } from './backend-catalog.js';
 import { cliBinarySearchPath, resolveCliBinary } from './cli-bin-dirs.js';
+import { resolveFleetAgentRuntime, type FleetModelTier } from './fleet-engine.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
 // The daemon runs via launchd which has no shell env. Spawned agents need
@@ -1207,6 +1208,24 @@ function backendOverrideSource(
   return forcedFromEnv === effectiveBackend ? 'env' : 'persisted';
 }
 
+function isFleetModelTier(value: unknown): value is FleetModelTier {
+  return value === 'low' || value === 'mid' || value === 'high';
+}
+
+function resolveRequestedRuntimeModel(
+  requestedBackend: SpawnSpec['backend'],
+  explicitModel?: string,
+  modelTier?: SpawnSpec['modelTier'],
+): string {
+  const model = explicitModel?.trim();
+  if (model) return model;
+  if (isFleetModelTier(modelTier)) {
+    return resolveFleetAgentRuntime({ backend: requestedBackend, modelTier }).model
+      ?? DEFAULT_MODELS[requestedBackend];
+  }
+  return DEFAULT_MODELS[requestedBackend];
+}
+
 export function resolveSpawnRuntime(spec: SpawnSpec): ResolvedSpawnRuntime {
   const requestedBackend = spec.requestedBackend ?? spec.backend;
 
@@ -1214,7 +1233,11 @@ export function resolveSpawnRuntime(spec: SpawnSpec): ResolvedSpawnRuntime {
   // that case `spec.backend` is the effective runtime and the requested fields
   // preserve provenance from the original request.
   if (spec.requestedBackend && spec.requestedBackend !== spec.backend) {
-    const requestedModel = spec.requestedModel ?? DEFAULT_MODELS[requestedBackend];
+    const requestedModel = resolveRequestedRuntimeModel(
+      requestedBackend,
+      spec.requestedModel,
+      spec.modelTier,
+    );
     return {
       requestedBackend,
       effectiveBackend: spec.backend,
@@ -1224,7 +1247,11 @@ export function resolveSpawnRuntime(spec: SpawnSpec): ResolvedSpawnRuntime {
     };
   }
 
-  const requestedModel = spec.requestedModel ?? spec.model ?? DEFAULT_MODELS[requestedBackend];
+  const requestedModel = resolveRequestedRuntimeModel(
+    requestedBackend,
+    spec.requestedModel ?? spec.model,
+    spec.modelTier,
+  );
   const resolved = resolveEffectiveSpawnBackend(spec.backend);
   const effectiveBackend = (resolved.backend ?? spec.backend) as SpawnSpec['backend'];
   return {
