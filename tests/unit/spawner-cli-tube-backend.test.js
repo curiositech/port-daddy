@@ -493,8 +493,24 @@ describe('spawnViaCliTube — failure paths', () => {
     const res = await spawnViaCliTube({ cli: 'agy', prompt: 'hi' });
     expect(res.exitCode).toBe(0);
     expect(res.output).toBe('');
-    expect(res.error).toContain('agy produced no stdout or stderr in print mode');
+    expect(res.error).toBe(
+      'agy produced no stdout or stderr in print mode. Run `agy --print "hello"` once interactively to confirm authentication.',
+    );
     expect(res.error).toContain('agy --print "hello"');
+  });
+
+  test('long stdout-only error detail is bounded with a truncation marker', async () => {
+    mockSpawn.mockReturnValue(fakeChild({
+      stdout: `${'a'.repeat(300)}${'b'.repeat(1200)}`,
+      stderr: '',
+      exitCode: 1,
+    }));
+    const res = await spawnViaCliTube({ cli: 'agy', prompt: 'hi' });
+    expect(res.error).toContain('agy exited with code 1');
+    expect(res.error).toContain('[truncated 300 chars]');
+    const detail = res.error.split('[truncated 300 chars] ')[1];
+    expect(detail).toHaveLength(1200);
+    expect(detail).toBe('b'.repeat(1200));
   });
 
   test('onChild callback receives the spawned child', async () => {
@@ -509,16 +525,37 @@ describe('spawnViaCliTube — failure paths', () => {
     expect(captured.pid).toBe(4242);
   });
 
+  test('timeout resolves if child exits nonzero after SIGTERM but before SIGKILL', async () => {
+    jest.useFakeTimers();
+    const child = fakeChild({ stdout: 'late failure', exitCode: 1, delay: 15 });
+    mockSpawn.mockReturnValue(child);
+
+    const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
+    await jest.advanceTimersByTimeAsync(10);
+    expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+    await jest.advanceTimersByTimeAsync(5);
+
+    const res = await resultPromise;
+    expect(child.kill).not.toHaveBeenCalledWith('SIGKILL');
+    expect(res.exitCode).toBe(1);
+    expect(res.output).toBe('late failure');
+    expect(res.error).toContain('agy timed out after 10ms');
+    jest.useRealTimers();
+  });
+
   test('timeout resolves even when the child never emits close', async () => {
     jest.useFakeTimers();
     const child = fakeChild({ stdout: 'partial output', neverClose: true });
     mockSpawn.mockReturnValue(child);
 
     const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
+    // Step 1: reach the parent watchdog timeout, which sends SIGTERM.
     await jest.advanceTimersByTimeAsync(10);
     expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+    // Step 2: exhaust TIMEOUT_KILL_GRACE_MS so the backend escalates to SIGKILL.
     await jest.advanceTimersByTimeAsync(5000);
     expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+    // Step 3: exhaust the final forced-settle delay for children that never close.
     await jest.advanceTimersByTimeAsync(1000);
 
     const res = await resultPromise;
