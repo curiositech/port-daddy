@@ -87,6 +87,12 @@ Lifecycle: `pd setup` offers the one-time ~27 MB download (cancellable); `pd doc
   - publish scope, assumptions, touched files/symbols, validation, blockers, and handoffs through `pd note`
   - use claims/regions for edit intent, tuples for machine-readable facts, scoped channels for event notifications, and actor inboxes for durable role ownership
   - use pheromones/file heat for contention signals, not ordinary progress narration
+- **Target: durable role ledgers augment notes.** Notes remain immutable evidence;
+  role ledgers are curated projections that future intelligent briefings can read
+  for codebase context, operator preferences/interaction style, current
+  coordination truth, and cross-repo tactics. Keep authority explicit: local-only
+  facts stay local unless sync is enabled; operator preference entries need
+  provenance, redaction, account/team scope, and staleness metadata.
 - Coordination means thinking about each other's goals, not merely avoiding file collisions. If another session's assumptions, API shape, release surface, runtime state, or product goal changes what you are doing, tell that agent or the relevant durable actor and adjust your plan.
 - Escalate to the user only for material inconsistencies:
   - two active sessions appear to own or mutate the same scarce surface
@@ -221,6 +227,9 @@ Documents`.
   drafting, and PR authoring to worker sessions; the manager reads returned
   artifacts, checks evidence, steel-mans the strongest case against shipping,
   retunes roles by round, and decides whether the work advances.
+- **Keep durable roles briefing-ready.** When a Pilot or named role maintains a
+  ledger, treat it as a curated projection over notes, not a replacement for
+  notes. Privacy, authority, and staleness metadata travel with the entry.
 - **Keep the README current.** When a slice changes a surface an operator or
   contributor reads about, update `README.md` in the same PR — a stale README is a
   caught lie just like a stale citation. This is now enforced at commit time:

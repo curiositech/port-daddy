@@ -97,6 +97,11 @@ agent that does no edits and exists only to keep the shared state true:
   across the wave.
 - Owns the merge order: it fetches/rebases onto the canonical remote and lets
   green-and-reviewed claims land one at a time, never in a stale-state race.
+- Target behavior: keeps a durable role ledger as a curated projection over
+  immutable notes, so future briefings can surface codebase context, operator
+  preferences, live coordination truth, and cross-repo tactics. Preference and
+  tactic entries need provenance, redaction/sync posture, authority scope, and
+  staleness metadata; local-only facts stay local unless sync is enabled.
 - After each wave, runs the parley/session-PR-audit checkpoint before launching
   the next wave. Parley asks whether the next plan still fits the evidence;
   session PR audit asks whether every agent-authored branch is open, queued,

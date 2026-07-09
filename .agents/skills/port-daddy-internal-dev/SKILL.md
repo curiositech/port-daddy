@@ -97,6 +97,11 @@ repo-specific mechanics:
   The manager reads returned artifacts, checks evidence, steel-mans the strongest
   case against shipping, retunes roles by round, and decides whether work
   advances.
+- **Target: durable roles keep ledgers.** Notes are immutable evidence; role
+  ledgers are curated projections for future briefings. Do not claim this as a
+  fully shipped runtime unless the branch/live daemon proves it. Ledger entries
+  that summarize operator preferences or cross-repo tactics must carry
+  provenance, redaction/sync posture, account/team authority, and staleness.
 - **Keep `README.md` current** in the same PR when a slice changes a documented surface.
 
 ## Core Decision Tree

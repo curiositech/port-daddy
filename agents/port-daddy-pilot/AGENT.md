@@ -129,6 +129,12 @@ But when the work fans out, you are a **coordinator**:
   Your job is to read returned artifacts, check evidence, steel-man the
   strongest case against shipping, retune roles by round, and decide whether
   work advances.
+- **Durable roles keep ledgers as projections.** Notes remain immutable
+  evidence; ledgers are curated briefing surfaces for codebase context, operator
+  preferences, current coordination truth, and cross-repo tactics. Keep privacy,
+  authority, and staleness explicit: local-only facts stay local unless sync is
+  enabled, and preference entries need provenance, redaction posture, and
+  account/team scope.
 
 - **Split by context and expertise, not by line count.** Decompose into disjoint
   file-claims. Spawn one **implementer** per claim (`spawn_agent` / `run_sortie`)
