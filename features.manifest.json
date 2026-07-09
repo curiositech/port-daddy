@@ -1186,7 +1186,9 @@
         "hm"
       ],
       "sdk": [],
-      "routes": [],
+      "routes": [
+        "GET /harbormaster/status"
+      ],
       "completions": [
         "harbormaster",
         "hm"
@@ -1194,7 +1196,10 @@
       "docs": {
         "readme": false,
         "sdk": false
-      }
+      },
+      "mcp": [
+        "harbormaster_status"
+      ]
     },
     "sorties": {
       "description": "One-shot multi-agent missions (pd sortie run/list/status/logs) plus HTTP record compatibility for historical spawned runs",

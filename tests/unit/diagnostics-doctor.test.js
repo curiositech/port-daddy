@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync, chmodSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, chmodSync, utimesSync } from 'node:fs';
 import { tmpdir, platform } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -15,6 +15,10 @@ import {
   assessCrashSignature,
   readRecentBunCrashCount,
   candidateDaemonLogPaths,
+  candidateMacDiagnosticReportPaths,
+  parseMacDiagnosticReport,
+  readRecentMacDiagnosticCrashReports,
+  assessMacDiagnosticCrashReports,
 } from '../../cli/commands/diagnostics.js';
 
 describe('plistTargetsLegacyDaemon', () => {
@@ -460,6 +464,17 @@ describe('readRecentBunCrashCount', () => {
 });
 
 describe('candidateDaemonLogPaths', () => {
+  test('honors PORT_DADDY_DAEMON_LOG_PATHS for hermetic doctor gates', () => {
+    const previous = process.env.PORT_DADDY_DAEMON_LOG_PATHS;
+    try {
+      process.env.PORT_DADDY_DAEMON_LOG_PATHS = '/tmp/a.log:/tmp/b.log';
+      expect(candidateDaemonLogPaths('/Users/someone')).toEqual(['/tmp/a.log', '/tmp/b.log']);
+    } finally {
+      if (previous === undefined) delete process.env.PORT_DADDY_DAEMON_LOG_PATHS;
+      else process.env.PORT_DADDY_DAEMON_LOG_PATHS = previous;
+    }
+  });
+
   test('includes the brew keg-relative log path the operator actually hits', () => {
     const paths = candidateDaemonLogPaths('/Users/someone');
     expect(paths).toContain('/opt/homebrew/var/log/port-daddy.log');
@@ -477,6 +492,152 @@ describe('candidateDaemonLogPaths', () => {
   test('omits the distribution-root path when none is supplied', () => {
     const paths = candidateDaemonLogPaths('/Users/someone');
     expect(paths.some((p) => p.endsWith('libexec/port-daddy.log'))).toBe(false);
+  });
+});
+
+describe('macOS DiagnosticReports crash detection', () => {
+  function makeHomeWithReports() {
+    const home = mkdtempSync(join(tmpdir(), 'pd-diag-home-'));
+    const reportDir = join(home, 'Library', 'Logs', 'DiagnosticReports');
+    mkdirSync(reportDir, { recursive: true });
+    return { home, reportDir };
+  }
+
+  function daemonCrashReport(overrides = {}) {
+    return JSON.stringify({
+      procName: 'port-daddy',
+      procPath: '/opt/homebrew/Cellar/port-daddy/3.24.1/bin/port-daddy',
+      coalitionName: 'homebrew.mxcl.port-daddy',
+      exception: { type: 'EXC_BREAKPOINT', signal: 'SIGTRAP' },
+      termination: { indicator: 'Trace/BPT trap: 5' },
+      threads: [
+        { name: 'JavaScriptCore libpas scavenger' },
+        { name: 'Bun Pool' },
+      ],
+      ...overrides,
+    });
+  }
+
+  test('candidateMacDiagnosticReportPaths finds recent port-daddy .ips reports and sorts newest first', () => {
+    const { home, reportDir } = makeHomeWithReports();
+    try {
+      const old = join(reportDir, 'port-daddy-2026-07-01-010101.ips');
+      const newer = join(reportDir, 'port-daddy-daemon-2026-07-08-020202.ips');
+      writeFileSync(old, daemonCrashReport());
+      writeFileSync(newer, daemonCrashReport({ procName: 'port-daddy-daemon' }));
+      writeFileSync(join(reportDir, 'unrelated-2026-07-08.ips'), daemonCrashReport());
+
+      const oldTime = new Date('2026-07-01T01:01:01Z');
+      const newerTime = new Date('2026-07-08T02:02:02Z');
+      utimesSync(old, oldTime, oldTime);
+      utimesSync(newer, newerTime, newerTime);
+
+      const paths = candidateMacDiagnosticReportPaths(home, Date.parse('2026-07-08T03:00:00Z'), 10 * 24 * 60 * 60 * 1000);
+      expect(paths).toEqual([newer, old]);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('candidateMacDiagnosticReportPaths honors PORT_DADDY_DIAGNOSTIC_REPORT_DIR', () => {
+    const { home, reportDir } = makeHomeWithReports();
+    const previous = process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR;
+    try {
+      const report = join(reportDir, 'port-daddy-2026-07-08-010101.ips');
+      writeFileSync(report, daemonCrashReport());
+      const reportTime = new Date('2026-07-08T01:01:01Z');
+      utimesSync(report, reportTime, reportTime);
+      process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR = reportDir;
+      const paths = candidateMacDiagnosticReportPaths('/Users/not-this-home', Date.parse('2026-07-08T03:00:00Z'));
+      expect(paths).toEqual([report]);
+    } finally {
+      if (previous === undefined) delete process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR;
+      else process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR = previous;
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('candidateMacDiagnosticReportPaths filters reports outside the age window', () => {
+    const { home, reportDir } = makeHomeWithReports();
+    try {
+      const stale = join(reportDir, 'port-daddy-2026-06-01-010101.ips');
+      writeFileSync(stale, daemonCrashReport());
+      const staleTime = new Date('2026-06-01T01:01:01Z');
+      utimesSync(stale, staleTime, staleTime);
+
+      const paths = candidateMacDiagnosticReportPaths(home, Date.parse('2026-07-08T03:00:00Z'), 24 * 60 * 60 * 1000);
+      expect(paths).toEqual([]);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('readRecentMacDiagnosticCrashReports reports DiagnosticReports scan errors', () => {
+    const home = mkdtempSync(join(tmpdir(), 'pd-doctor-home-'));
+    const notADirectory = join(home, 'DiagnosticReports');
+    const previous = process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR;
+    try {
+      writeFileSync(notADirectory, 'this is a file, not a directory');
+      process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR = notADirectory;
+
+      const result = readRecentMacDiagnosticCrashReports();
+
+      expect(result.count).toBe(0);
+      expect(result.readError).toContain('DiagnosticReports');
+    } finally {
+      if (previous === undefined) delete process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR;
+      else process.env.PORT_DADDY_DIAGNOSTIC_REPORT_DIR = previous;
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('parseMacDiagnosticReport marks launchd-owned port-daddy reports as daemon-like Bun/JSC crashes', () => {
+    const report = parseMacDiagnosticReport('/tmp/port-daddy.ips', daemonCrashReport());
+    expect(report.daemonLike).toBe(true);
+    expect(report.suspectedBunJsc).toBe(true);
+    expect(report.exceptionType).toBe('EXC_BREAKPOINT');
+    expect(report.exceptionSignal).toBe('SIGTRAP');
+    expect(report.threadNames).toContain('JavaScriptCore libpas scavenger');
+  });
+
+  test('readRecentMacDiagnosticCrashReports ignores non-daemon process reports', () => {
+    const { home, reportDir } = makeHomeWithReports();
+    try {
+      const daemonReport = join(reportDir, 'port-daddy-2026-07-08-010101.ips');
+      const cliReport = join(reportDir, 'port-daddy-2026-07-08-020202.ips');
+      writeFileSync(daemonReport, daemonCrashReport());
+      writeFileSync(cliReport, daemonCrashReport({
+        procName: 'port-daddy',
+        procPath: '/Users/me/bin/port-daddy',
+        coalitionName: 'com.apple.Terminal',
+        threads: [{ name: 'main thread' }],
+      }));
+
+      const result = readRecentMacDiagnosticCrashReports([cliReport, daemonReport]);
+      expect(result.count).toBe(1);
+      expect(result.reports[0].path).toBe(daemonReport);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('assessMacDiagnosticCrashReports escalates repeated daemon crash reports to critical', () => {
+    const report = parseMacDiagnosticReport('/tmp/port-daddy.ips', daemonCrashReport());
+    const a = assessMacDiagnosticCrashReports({ count: 2, reports: [report, report] });
+    expect(a.severity).toBe('critical');
+    expect(a.detail).toContain('2 recent macOS daemon crash reports');
+    expect(a.detail).toContain('Bun/JSC');
+  });
+
+  test('assessMacDiagnosticCrashReports treats DiagnosticReports read errors as warn, not ok', () => {
+    const a = assessMacDiagnosticCrashReports({ count: 0, reports: [], readError: '/path/report.ips: EACCES' });
+    expect(a.severity).toBe('warn');
+    expect(a.detail).toContain('EACCES');
+  });
+
+  test('assessMacDiagnosticCrashReports reports no recent crashes as ok', () => {
+    const a = assessMacDiagnosticCrashReports({ count: 0, reports: [] });
+    expect(a.severity).toBe('ok');
   });
 });
 
