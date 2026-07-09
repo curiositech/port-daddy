@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
-import { chmodSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startEphemeralDaemon } from '../tests/helpers/ephemeral-daemon.js';
 
 export const LAUNCHD_RESTRICTED_PATH = '/usr/bin:/bin:/usr/sbin:/sbin';
+const DEFAULT_PERSISTED_CLI_BACKEND_PATH = join(homedir(), '.port-daddy-cli-backend');
 
 const FORCED_CLI_BACKENDS = new Map([
   ['claude', 'cli:claude-code'],
@@ -19,28 +20,72 @@ const FORCED_CLI_BACKENDS = new Map([
   ['grok', 'cli:grok'],
 ]);
 
-export function actualExecutionBackend(requestedBackend, env = process.env) {
-  const raw = String(env.PD_USE_CLI_BACKEND || '').trim().toLowerCase();
-  if (!raw || ['none', 'off', 'disabled', '0', 'false'].includes(raw)) {
-    return requestedBackend;
-  }
-  return FORCED_CLI_BACKENDS.get(raw) || requestedBackend;
+const FORCED_CLI_BACKEND_OFF_VALUES = new Set(['none', 'off', 'disabled', 'disable', '0', 'false']);
+
+function normalizeForcedCliBackend(raw) {
+  const value = String(raw || '').trim().toLowerCase();
+  return FORCED_CLI_BACKENDS.get(value) || null;
 }
 
-export function assertNoSilentBackendOverride(row, env = process.env) {
-  const actual = actualExecutionBackend(row.requestedBackend, env);
-  const mismatch = actual !== row.requestedBackend;
-  if (mismatch && env.PD_BACKEND_TRANSCRIPT_ALLOW_FORCED_OVERRIDE !== '1') {
+function readPersistedForcedCliBackend(path) {
+  try {
+    const raw = readFileSync(path, 'utf8').trim();
+    return raw ? { raw, backend: normalizeForcedCliBackend(raw) } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function classifyExecutionBackend(requestedBackend, env = process.env, options = {}) {
+  const raw = String(env.PD_USE_CLI_BACKEND || '').trim().toLowerCase();
+  if (raw && FORCED_CLI_BACKEND_OFF_VALUES.has(raw)) {
+    return { actualExecutionBackend: requestedBackend, backendMismatch: false, overrideLabel: '' };
+  }
+  if (raw) {
+    const actual = normalizeForcedCliBackend(raw) || requestedBackend;
+    return {
+      actualExecutionBackend: actual,
+      backendMismatch: actual !== requestedBackend,
+      overrideLabel: actual !== requestedBackend
+        ? `PD_USE_CLI_BACKEND=${env.PD_USE_CLI_BACKEND} (shell or ~/.port-daddy-env)`
+        : '',
+    };
+  }
+
+  const persistedPath = options.persistedPath === undefined
+    ? DEFAULT_PERSISTED_CLI_BACKEND_PATH
+    : options.persistedPath;
+  if (persistedPath) {
+    const persisted = readPersistedForcedCliBackend(persistedPath);
+    if (persisted?.backend) {
+      return {
+        actualExecutionBackend: persisted.backend,
+        backendMismatch: persisted.backend !== requestedBackend,
+        overrideLabel: persisted.backend !== requestedBackend
+          ? `${persistedPath}=${persisted.raw}`
+          : '',
+      };
+    }
+  }
+
+  return { actualExecutionBackend: requestedBackend, backendMismatch: false, overrideLabel: '' };
+}
+
+export function actualExecutionBackend(requestedBackend, env = process.env, options = {}) {
+  return classifyExecutionBackend(requestedBackend, env, options).actualExecutionBackend;
+}
+
+export function assertNoSilentBackendOverride(row, env = process.env, options = {}) {
+  const classified = classifyExecutionBackend(row.requestedBackend, env, options);
+  if (classified.backendMismatch && env.PD_BACKEND_TRANSCRIPT_ALLOW_FORCED_OVERRIDE !== '1') {
     throw new Error(
-      `backend mismatch: requested ${row.requestedBackend}, actual ${actual} via PD_USE_CLI_BACKEND=${env.PD_USE_CLI_BACKEND}. ` +
+      `backend mismatch: requested ${row.requestedBackend}, actual ${classified.actualExecutionBackend} via ${classified.overrideLabel}. ` +
       'Set PD_BACKEND_TRANSCRIPT_ALLOW_FORCED_OVERRIDE=1 only when the smoke table should explicitly cover the forced CLI path.',
     );
   }
   return {
     ...row,
-    actualExecutionBackend: actual,
-    backendMismatch: mismatch,
-    overrideLabel: mismatch ? `PD_USE_CLI_BACKEND=${env.PD_USE_CLI_BACKEND}` : '',
+    ...classified,
   };
 }
 
@@ -50,6 +95,12 @@ export function assertTranscriptReadback({ requestedBackend, actualExecutionBack
   }
   if (!transcript) {
     throw new Error(`${requestedBackend} produced no readable transcript row`);
+  }
+  const acceptableBackends = new Set([requestedBackend, actual].filter(Boolean));
+  if (transcript.backend && !acceptableBackends.has(transcript.backend)) {
+    throw new Error(
+      `${requestedBackend} completed through ${actual || requestedBackend} but transcript ${transcript.id || '<unknown>'} is for ${transcript.backend}`,
+    );
   }
   const messages = Array.isArray(transcript.messages) ? transcript.messages : [];
   const outputs = Array.isArray(transcript.outputs) ? transcript.outputs : [];
@@ -176,11 +227,23 @@ export async function withFakeOpenAICompatibleServer(text = 'pd-openai-smoke') {
   };
 }
 
-async function fetchTranscriptForSpawn(daemon, spawnResult, requestedBackend) {
-  const list = await daemon.request(`/transcripts?limit=50&ship=${encodeURIComponent(`spawn:${requestedBackend}`)}`);
-  if (!list.ok) throw new Error(`transcript list failed for ${requestedBackend}: ${list.text}`);
-  const row = list.data.transcripts?.find((candidate) => candidate.spawned_agent_id === spawnResult.agentId)
-    || list.data.transcripts?.find((candidate) => candidate.backend === requestedBackend);
+export async function fetchTranscriptForSpawn(daemon, spawnResult, requestedBackend, actualBackend = requestedBackend) {
+  const agentId = spawnResult?.agentId || spawnResult?.agent_id || spawnResult?.spawned_agent_id;
+  const byAgent = agentId
+    ? await daemon.request(`/transcripts?limit=50&agentId=${encodeURIComponent(agentId)}`)
+    : null;
+  if (byAgent && !byAgent.ok) throw new Error(`transcript agent lookup failed for ${requestedBackend}: ${byAgent.text}`);
+  let row = byAgent?.data.transcripts?.find((candidate) => candidate.spawned_agent_id === agentId) || null;
+  if (!row) {
+    const candidateBackends = [...new Set([spawnResult?.backend, actualBackend, requestedBackend].filter(Boolean))];
+    for (const backend of candidateBackends) {
+      const list = await daemon.request(`/transcripts?limit=50&ship=${encodeURIComponent(`spawn:${backend}`)}`);
+      if (!list.ok) throw new Error(`transcript list failed for ${backend}: ${list.text}`);
+      row = list.data.transcripts?.find((candidate) => candidate.spawned_agent_id === agentId)
+        || list.data.transcripts?.find((candidate) => candidate.backend === backend);
+      if (row) break;
+    }
+  }
   if (!row) return null;
   const full = await daemon.request(`/transcripts/${encodeURIComponent(row.id)}`);
   if (!full.ok) throw new Error(`transcript readback failed for ${requestedBackend}: ${full.text}`);
@@ -234,13 +297,13 @@ async function runSpawnRow({ daemon, requestedBackend, body, budgetUsd, env, wor
     });
   } catch (error) {
     if (!String(error?.message || error).includes('timed out')) throw error;
-    transcript = await pollLatestTranscript(daemon, requestedBackend, startedAt);
+    transcript = await pollLatestTranscript(daemon, classified.actualExecutionBackend, startedAt);
   }
   if (res && !res.ok) {
     throw new Error(`${requestedBackend} spawn route failed (${res.status}): ${res.text}`);
   }
   if (!transcript) {
-    transcript = await fetchTranscriptForSpawn(daemon, res.data, requestedBackend);
+    transcript = await fetchTranscriptForSpawn(daemon, res.data, requestedBackend, classified.actualExecutionBackend);
   }
   assertTranscriptReadback({
     requestedBackend,
@@ -333,6 +396,9 @@ function liveRowsFromEnv() {
 
 async function runLiveSmoke() {
   const env = { ...process.env };
+  if (env.PD_BACKEND_TRANSCRIPT_ALLOW_FORCED_OVERRIDE !== '1') {
+    env.PD_USE_CLI_BACKEND = 'none';
+  }
   const tmp = mkdtempSync(join(tmpdir(), 'pd-backend-transcript-live-'));
   const spawnWorktree = createScratchSpawnWorktree(tmp);
   const daemon = await startEphemeralDaemon({ env, startupTimeout: 45000 });

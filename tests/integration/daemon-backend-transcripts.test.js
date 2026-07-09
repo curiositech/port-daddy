@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startEphemeralDaemon } from '../helpers/ephemeral-daemon.js';
@@ -8,6 +8,7 @@ import {
   assertNoSilentBackendOverride,
   assertTranscriptReadback,
   createScratchSpawnWorktree,
+  fetchTranscriptForSpawn,
   seedProjectBudget,
   withFakeOpenAICompatibleServer,
   writeFakeAgyBinary,
@@ -177,7 +178,7 @@ describe('daemon backend transcript E2E smoke', () => {
       const res = await daemon.request('/spawn', {
         method: 'POST',
         body: spawnBody('openai', { model: 'gpt-5-nano', maxTokens: 20, workdir: spawnWorktree.workdir }),
-        timeout: 70000,
+        timeout: 30000,
       });
 
       expect(res.ok).toBe(true);
@@ -218,11 +219,71 @@ describe('daemon backend transcript E2E smoke', () => {
       requestedBackend: 'gemini',
       actualExecutionBackend: 'cli:codex',
       backendMismatch: true,
-      overrideLabel: 'PD_USE_CLI_BACKEND=codex',
+      overrideLabel: 'PD_USE_CLI_BACKEND=codex (shell or ~/.port-daddy-env)',
     });
   });
 
-  test('readback guard rejects completed-empty transcripts and budget overruns', () => {
+  test('smoke matrix refuses persisted backend override unless env disables it', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'pd-persisted-backend-'));
+    const persistedPath = join(tmp, '.port-daddy-cli-backend');
+    writeFileSync(persistedPath, 'codex\n');
+
+    try {
+      expect(actualExecutionBackend('openai', {}, { persistedPath })).toBe('cli:codex');
+      expect(() => assertNoSilentBackendOverride(
+        { requestedBackend: 'openai' },
+        {},
+        { persistedPath },
+      )).toThrow(/backend mismatch: requested openai, actual cli:codex via .*\.port-daddy-cli-backend=codex/);
+      expect(actualExecutionBackend('openai', { PD_USE_CLI_BACKEND: 'none' }, { persistedPath })).toBe('openai');
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test('transcript lookup falls back from requested ship to actual backend ship', async () => {
+    const transcript = {
+      id: 'tx-actual',
+      backend: 'cli:codex',
+      status: 'completed',
+      spawned_agent_id: 'agent-actual',
+      messages: [
+        { role: 'user', content: 'Reply with exactly: pd-codex-smoke' },
+        { role: 'assistant', content: 'pd-codex-smoke' },
+      ],
+      outputs: [{ type: 'message', summary: 'cli:codex returned 14 chars' }],
+      cost_usd: 0,
+    };
+    const calls = [];
+    const daemon = {
+      async request(path) {
+        calls.push(path);
+        if (path.includes('agentId=agent-actual')) return { ok: true, data: { transcripts: [] } };
+        if (path.includes('ship=spawn%3Aopenai')) return { ok: true, data: { transcripts: [] } };
+        if (path.includes('ship=spawn%3Acli%3Acodex')) {
+          return { ok: true, data: { transcripts: [{ id: transcript.id, backend: 'cli:codex', spawned_agent_id: 'agent-actual' }] } };
+        }
+        if (path === `/transcripts/${transcript.id}`) return { ok: true, data: { transcript } };
+        return { ok: false, text: `unexpected ${path}` };
+      },
+    };
+
+    await expect(fetchTranscriptForSpawn(
+      daemon,
+      { agentId: 'agent-actual' },
+      'openai',
+      'cli:codex',
+    )).resolves.toMatchObject({
+      id: 'tx-actual',
+      backend: 'cli:codex',
+      messages: expect.any(Array),
+      outputs: expect.any(Array),
+    });
+    expect(calls.join('\n')).toContain('agentId=agent-actual');
+    expect(calls.join('\n')).toContain('ship=spawn%3Acli%3Acodex');
+  });
+
+  test('readback guard rejects completed-empty transcripts, missing durable outputs, and budget overruns', () => {
     expect(() => assertTranscriptReadback({
       requestedBackend: 'cli:codex',
       actualExecutionBackend: 'cli:codex',
@@ -245,6 +306,21 @@ describe('daemon backend transcript E2E smoke', () => {
       },
       budgetUsd: 0.01,
     })).toThrow(/exceeded hard budget cap/);
+
+    expect(() => assertTranscriptReadback({
+      requestedBackend: 'cli:codex',
+      actualExecutionBackend: 'cli:codex',
+      spawnResult: { status: 'completed' },
+      transcript: {
+        messages: [
+          { role: 'user', content: 'Reply with exactly: pd-codex-smoke' },
+          { role: 'assistant', content: 'pd-codex-smoke' },
+        ],
+        outputs: [],
+        cost_usd: 0,
+      },
+      budgetUsd: 0.01,
+    })).toThrow(/transcript outputs are empty/);
 
     expect(() => assertTranscriptReadback({
       requestedBackend: 'cli:codex',
