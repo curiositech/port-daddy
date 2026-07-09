@@ -135,6 +135,7 @@ export interface TubeClientLike {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
+const TIMEOUT_KILL_GRACE_MS = 5_000;
 
 /**
  * The binary name used to invoke each tool. On this user's machine
@@ -386,7 +387,7 @@ export async function spawnViaCliTube(
   const child = spawnChild(binary, args, {
     cwd: opts.cwd || process.cwd(),
     env,
-    detached: false,
+    detached: true,
     shell: false,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -431,24 +432,36 @@ export async function spawnViaCliTube(
   const result = await new Promise<{ code: number; timedOut: boolean; spawnErr: string | null }>((resolve) => {
     let settled = false;
     let timedOut = false;
+    let forceKillTimer: ReturnType<typeof setTimeout> | null = null;
+    let forcedResolveTimer: ReturnType<typeof setTimeout> | null = null;
+    const settle = (code: number, spawnErr: string | null = null): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (forceKillTimer) clearTimeout(forceKillTimer);
+      if (forcedResolveTimer) clearTimeout(forcedResolveTimer);
+      resolve({ code, timedOut, spawnErr });
+    };
     const timer = setTimeout(() => {
       timedOut = true;
-      try { child.kill('SIGTERM'); } catch {}
-      setTimeout(() => { try { child.kill('SIGKILL'); } catch {} }, 5000).unref?.();
+      signalCliChildProcess(child, 'SIGTERM');
+      forceKillTimer = setTimeout(() => {
+        signalCliChildProcess(child, 'SIGKILL');
+        forcedResolveTimer = setTimeout(() => {
+          detachCliChildProcess(child);
+          settle(-1);
+        }, 1_000);
+        forcedResolveTimer.unref?.();
+      }, TIMEOUT_KILL_GRACE_MS);
+      forceKillTimer.unref?.();
     }, timeoutMs);
     timer.unref?.();
 
     child.on('close', (code) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve({ code: typeof code === 'number' ? code : -1, timedOut, spawnErr: null });
+      settle(typeof code === 'number' ? code : -1);
     });
     child.on('error', (err) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve({ code: -1, timedOut: false, spawnErr: err.message });
+      settle(-1, err.message);
     });
   });
 
@@ -482,14 +495,19 @@ export async function spawnViaCliTube(
       error = `Failed to spawn ${binary}: ${result.spawnErr}`;
     }
   } else if (result.timedOut) {
-    error = `${cli} timed out after ${timeoutMs}ms${stderrText ? `: ${stderrText.trim()}` : ''}`;
+    const detail = formatCliErrorDetail(stderrText || rawStdout);
+    error = `${cli} timed out after ${timeoutMs}ms${detail ? `: ${detail}` : ''}`;
   } else if (result.code !== 0) {
-    const stderrLc = stderrText.toLowerCase();
-    if (stderrLc.includes('unauthorized') || stderrLc.includes('not authenticated') || stderrLc.includes('please log in') || stderrLc.includes('api key')) {
-      error = `${cli} authentication failed. ${AUTH_NEXT_STEP[cli]} (stderr: ${stderrText.trim()})`;
+    const failureText = stderrText || rawStdout;
+    const failureLc = failureText.toLowerCase();
+    if (failureLc.includes('unauthorized') || failureLc.includes('not authenticated') || failureLc.includes('please log in') || failureLc.includes('api key')) {
+      error = `${cli} authentication failed. ${AUTH_NEXT_STEP[cli]} (${stderrText ? 'stderr' : 'stdout'}: ${formatCliErrorDetail(failureText)})`;
     } else {
-      error = `${cli} exited with code ${result.code}${stderrText ? `: ${stderrText.trim()}` : ''}`;
+      const detail = formatCliErrorDetail(failureText);
+      error = `${cli} exited with code ${result.code}${detail ? `: ${detail}` : ''}`;
     }
+  } else if (cli === 'agy' && !rawStdout.trim() && !stderrText.trim()) {
+    error = `agy produced no stdout or stderr in print mode. ${AUTH_NEXT_STEP.agy}`;
   }
 
   // Optional: publish the result on the tube so subscribed observers
@@ -521,6 +539,35 @@ export async function spawnViaCliTube(
     durationMs,
     rawStdout,
   };
+}
+
+function signalCliChildProcess(child: ChildProcess, signal: NodeJS.Signals): void {
+  const pid = child.pid;
+  if (typeof pid === 'number') {
+    try {
+      process.kill(-pid, signal);
+    } catch {
+      // Fall back for non-detached or mocked processes.
+    }
+  }
+  try {
+    child.kill(signal);
+  } catch {
+    // Best effort; timeout handling owns the final result.
+  }
+}
+
+function detachCliChildProcess(child: ChildProcess): void {
+  try { child.stdout?.destroy(); } catch {}
+  try { child.stderr?.destroy(); } catch {}
+  try { child.unref?.(); } catch {}
+}
+
+function formatCliErrorDetail(text: string): string {
+  const trimmed = text.trim();
+  const max = 1_200;
+  if (trimmed.length <= max) return trimmed;
+  return `[truncated ${trimmed.length - max} chars] ${trimmed.slice(-max)}`;
 }
 
 // ─── Convenience: factory bound to a specific CLI ────────────────────────────
