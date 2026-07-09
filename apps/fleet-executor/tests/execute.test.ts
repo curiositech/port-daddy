@@ -115,6 +115,44 @@ describe('zero-trust config + contract fetching', () => {
   });
 });
 
+describe('pull_request action routing', () => {
+  it.each(['opened', 'synchronize', 'reopened', 'ready_for_review'] as const)(
+    'runs the fleet for %s deliveries',
+    async action => {
+      state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+      const kv = memoryKV();
+      seedToken(kv, 42);
+      const ai = aiStub({
+        perShip: { 'code-reviewer': 'looks ok\n\nFLEET-VERDICT: PASS' },
+      });
+
+      await executeFleet(
+        makeJob({ action, deliveryId: `delivery-${action}` }),
+        makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }),
+      );
+
+      expect(state.checkRunsCreated).toBe(1);
+      expect(state.completed[0].conclusion).toBe('success');
+      expect(ai.calls.some(c => c.ship === 'code-reviewer')).toBe(true);
+    },
+  );
+
+  it('skips non-reviewable pull_request actions without touching GitHub or AI', async () => {
+    const ai = aiStub({
+      perShip: { 'code-reviewer': 'should not run\n\nFLEET-VERDICT: PASS' },
+    });
+
+    await executeFleet(
+      makeJob({ action: 'edited', deliveryId: 'delivery-edited' }),
+      makeEnv({ AI: ai.ai }),
+    );
+
+    expect(state.records).toHaveLength(0);
+    expect(state.checkRunsCreated).toBe(0);
+    expect(ai.calls).toHaveLength(0);
+  });
+});
+
 describe('blocking-ship verdict → check conclusion', () => {
   it('blocking ship emitting BLOCK => check conclusion failure', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
