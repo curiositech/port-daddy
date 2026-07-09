@@ -60,16 +60,20 @@ mod conjure;
 #[path = "../dispatch_pane.rs"]
 mod dispatch_pane;
 #[allow(dead_code)]
+#[path = "../editor_claims.rs"]
+mod editor_claims;
+#[allow(dead_code)]
+#[path = "../editor_commit_gate.rs"]
+mod editor_commit_gate;
+#[allow(dead_code)]
 #[path = "../editor_pane.rs"]
 mod editor_pane;
 #[allow(dead_code)]
-#[path = "../editor_claims.rs"]  mod editor_claims;
+#[path = "../editor_sync.rs"]
+mod editor_sync;
 #[allow(dead_code)]
-#[path = "../editor_commit_gate.rs"] mod editor_commit_gate;
-#[allow(dead_code)]
-#[path = "../editor_sync.rs"]    mod editor_sync;
-#[allow(dead_code)]
-#[path = "../editor_wedge.rs"]   mod editor_wedge;
+#[path = "../editor_wedge.rs"]
+mod editor_wedge;
 // maritime's gpui FlagBadge is now #[cfg(feature = "gpui")]-gated, so the pure
 // Flag/flag_for_state compile here and the fleet pane renders in the REPL too.
 #[path = "../fleet_pane.rs"]
@@ -77,17 +81,23 @@ mod fleet_pane;
 // Session-galaxy engine (parsing + hit-testing + selection math) — gpui-free by
 // design; its #[cfg(test)] suite runs HERE, in the rust-console CI gate. The
 // geometry helpers are canvas-only at runtime, hence the dead_code allow.
-#[path = "../grid.rs"]           mod grid; // launcher-grid data + 1:1 invariant tests
-#[path = "../harbor_pane.rs"]    mod harbor_pane; // Agent Node roster+detail (ch18 C3)
-#[path = "../maritime.rs"]       mod maritime;
-#[path = "../health_pane.rs"]    mod health_pane;
-#[path = "../inbox_pane.rs"]     mod inbox_pane;
-#[path = "../lane_pane.rs"]      mod lane_pane;
 #[allow(dead_code)]
 #[path = "../galaxy_pane.rs"]
 mod galaxy_pane;
+#[path = "../grid.rs"]
+mod grid; // launcher-grid data + 1:1 invariant tests
+#[path = "../harbor_pane.rs"]
+mod harbor_pane; // Agent Node roster+detail (ch18 C3)
+#[path = "../health_pane.rs"]
+mod health_pane;
+#[path = "../inbox_pane.rs"]
+mod inbox_pane;
+#[path = "../lane_pane.rs"]
+mod lane_pane;
 #[path = "../lineage_pane.rs"]
 mod lineage_pane;
+#[path = "../maritime.rs"]
+mod maritime;
 #[allow(dead_code)]
 #[path = "../mux.rs"]
 mod mux;
@@ -114,6 +124,8 @@ mod sessions_pane;
 mod substrate_pane;
 #[path = "../suggest_pane.rs"]
 mod suggest_pane;
+#[path = "../syntax.rs"]
+mod syntax;
 #[path = "../term.rs"]
 mod term;
 #[path = "../theme.rs"]
@@ -122,7 +134,8 @@ mod theme;
 mod util;
 // Offscreen Block→PNG raster (agent-safe, no display/TCC/gpui). Included here so the
 // headless capture + its PNG-encoder tests run on the cheap non-gpui gate too.
-#[path = "../headless_capture.rs"] mod headless_capture;
+#[path = "../headless_capture.rs"]
+mod headless_capture;
 
 use active_agents_pane::ActiveAgentsPane;
 use agent::{AgentManager, Backend};
@@ -319,7 +332,11 @@ async fn main() -> Result<()> {
             // headless tick: refresh, optionally select a row / issue a
             // compliance-gated control, then render. The GPUI face makes rows
             // and controls clickable; this face proves the same pane headless.
-            reg.active = reg.panes.iter().position(|p| p.id() == "harbor").unwrap_or(0);
+            reg.active = reg
+                .panes
+                .iter()
+                .position(|p| p.id() == "harbor")
+                .unwrap_or(0);
             if let Err(e) = reg.refresh_active(mgr.daemon()).await {
                 err(&style, &format!("refresh failed: {e}"));
             }
@@ -344,12 +361,25 @@ async fn main() -> Result<()> {
             } else if let Some(rest) = line.strip_prefix(":harbor control ") {
                 let mut parts = rest.trim().splitn(2, ' ');
                 let verb = parts.next().unwrap_or("").to_string();
-                let argument = parts.next().map(str::trim).filter(|a| !a.is_empty()).map(String::from);
+                let argument = parts
+                    .next()
+                    .map(str::trim)
+                    .filter(|a| !a.is_empty())
+                    .map(String::from);
                 match reg
-                    .mutate_active(mgr.daemon(), SurfaceAction::Control { verb: verb.clone(), argument })
+                    .mutate_active(
+                        mgr.daemon(),
+                        SurfaceAction::Control {
+                            verb: verb.clone(),
+                            argument,
+                        },
+                    )
                     .await
                 {
-                    Ok(()) => ok(&style, &format!("{verb} queued — watch the control history")),
+                    Ok(()) => ok(
+                        &style,
+                        &format!("{verb} queued — watch the control history"),
+                    ),
                     Err(e) => err(&style, &format!("{verb} refused: {e}")),
                 }
             }

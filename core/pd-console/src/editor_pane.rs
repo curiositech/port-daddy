@@ -42,9 +42,10 @@ use crate::editor_wedge::{
     parse_predict_response, predict_request_body, ClaimKind, GatedRegion, GuardBand, GuardVerdict,
     PdNudge, SymbolClaim, WedgeProbe,
 };
-use crate::pane::{Block, Pane, Subscription, Tone};
+use crate::pane::{Block, CodeBand, CodeLine, Pane, Subscription, Tone};
 use anyhow::Result;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 /// Minimum wall-clock gap (ms) between two presence broadcasts. Caret moves fire
 /// faster than anyone reads; one send per ~60ms is smooth to a watcher yet keeps
@@ -130,6 +131,20 @@ pub fn author_tone(author: Option<PeerId>, opener: PeerId) -> Tone {
     }
 }
 
+/// The pre-tokenized render cache behind [`Block::CodeBuffer`]. Rebuilt ONLY
+/// when the buffer's CRDT [`HarborBuffer::change_stamp`] moves — a render pass
+/// on an unchanged buffer is an `Arc` refcount bump, never a re-lex or a
+/// per-line `String` clone (the old `Block::Row(text.clone())`-per-line path
+/// cloned the whole file every view).
+struct CodeCache {
+    stamp: Vec<u8>,
+    lines: Arc<[CodeLine]>,
+    gutter_cols: u8,
+    /// A real second author exists among the shown lines.
+    show_authors: bool,
+    total: usize,
+}
+
 /// The Harbor Editor surface, backed by a Loro buffer. State: `path`/`region` are
 /// the bound entity + the P3 claim seam; `identity` is the PD identity the local
 /// replica opens under; `buffer` is the live Loro doc (`None` until loaded or on
@@ -192,6 +207,11 @@ pub struct EditorPane {
     wedge_probe: WedgeProbe,
     wedge_inflight: Option<RegionClaim>,
     guard_band: Option<GuardBand>,
+    /// Tokenized-line render cache (see [`CodeCache`]). `RefCell` because the
+    /// buffer has interior mutability (remote ops land through `&HarborBuffer`),
+    /// so the staleness check must run inside `view(&self)`; the cell is only
+    /// ever borrowed inside that single-threaded render call.
+    code: std::cell::RefCell<Option<CodeCache>>,
 }
 
 impl EditorPane {
@@ -243,6 +263,7 @@ impl EditorPane {
             wedge_probe: WedgeProbe::new(WEDGE_PROBE_INTERVAL_MS),
             wedge_inflight: None,
             guard_band: None,
+            code: std::cell::RefCell::new(None),
         }
     }
 
@@ -252,6 +273,10 @@ impl EditorPane {
     pub fn load(&mut self) {
         self.buffer = None;
         self.truncated = false;
+        // Drop the render cache: a re-load may read DIFFERENT disk content that
+        // happens to produce an equal-length op stream (an equal CRDT stamp), so
+        // the stamp alone cannot be trusted across a reopen.
+        self.code.replace(None);
         match HarborBuffer::open(&self.path, self.identity.clone()) {
             Ok(buf) => {
                 self.buffer = Some(buf);
@@ -478,7 +503,14 @@ impl EditorPane {
     pub fn enter_region(&mut self, start: u32, end: u32, label: impl Into<String>, now_ms: i64) {
         // A synthetic local intent (no claim id minted — an enter is not an acquire): it
         // carries the region + work label the predict call needs, keyed to this replica.
-        let intent = RegionClaim::new(self.claims.local(), self.next_claim_id, start, end, label, now_ms as u64);
+        let intent = RegionClaim::new(
+            self.claims.local(),
+            self.next_claim_id,
+            start,
+            end,
+            label,
+            now_ms as u64,
+        );
         self.wedge_probe.arm(intent);
     }
 
@@ -549,7 +581,11 @@ impl EditorPane {
     /// folds the response back through [`apply_conflict_report`](Self::apply_conflict_report).
     pub fn take_wedge_probe(&mut self, now_ms: i64) -> Option<serde_json::Value> {
         let intent = self.wedge_probe.take_due(now_ms)?;
-        let a = [SymbolClaim::from_region(&self.path, &intent, ClaimKind::Modify)];
+        let a = [SymbolClaim::from_region(
+            &self.path,
+            &intent,
+            ClaimKind::Modify,
+        )];
         let me = self.claims.local();
         let b: Vec<SymbolClaim> = self
             .claim_ledger
@@ -584,7 +620,12 @@ impl EditorPane {
             if already {
                 return false; // same conflict already banded — don't restart the pulse
             }
-            self.guard_band = Some(GuardBand::raised(intent.label.clone(), region, report, now_ms));
+            self.guard_band = Some(GuardBand::raised(
+                intent.label.clone(),
+                region,
+                report,
+                now_ms,
+            ));
             true
         } else {
             let had = self.guard_band.is_some();
@@ -669,9 +710,45 @@ impl EditorPane {
         )
     }
 
-    /// Is the 1-based line `n` inside the bound region (inclusive)?
-    fn in_region(&self, n: u32) -> bool {
-        matches!(self.region, Some((start, end)) if n >= start && n <= end)
+    /// The tokenized code snapshot for the current buffer, rebuilding the cache
+    /// ONLY when the CRDT stamp moved (covers every mutation path, including
+    /// remote ops applied through a shared `&HarborBuffer`). The unchanged path
+    /// is a stamp compare + `Arc` clone — no re-lex, no per-line `String` clone.
+    /// Returns `(lines, gutter_cols, show_authors, total_line_count)`.
+    fn code_snapshot(&self, buffer: &HarborBuffer) -> (Arc<[CodeLine]>, u8, bool, usize) {
+        let stamp = buffer.change_stamp();
+        let mut slot = self.code.borrow_mut();
+        if slot.as_ref().map_or(true, |c| c.stamp != stamp) {
+            let lang = crate::syntax::lang_for_path(&self.path);
+            let opener = buffer.local_peer();
+            let all = buffer.lines();
+            let total = all.len();
+            let show_authors = all
+                .iter()
+                .take(MAX_LINES)
+                .any(|l| matches!(l.author_peer, Some(p) if p != opener));
+            let lines: Arc<[CodeLine]> = all
+                .into_iter()
+                .take(MAX_LINES)
+                .enumerate()
+                .map(|(i, l)| CodeLine {
+                    number: (i + 1) as u32,
+                    author_tag: l.author_peer.map(author_tag),
+                    author_tone: author_tone(l.author_peer, opener),
+                    runs: crate::syntax::highlight_line(&l.text, lang),
+                    text: l.text,
+                })
+                .collect();
+            *slot = Some(CodeCache {
+                stamp,
+                lines,
+                gutter_cols: gutter_width(total) as u8,
+                show_authors,
+                total,
+            });
+        }
+        let c = slot.as_ref().expect("cache ensured above");
+        (c.lines.clone(), c.gutter_cols, c.show_authors, c.total)
     }
 }
 
@@ -705,10 +782,9 @@ impl Pane for EditorPane {
         };
 
         let opener = buffer.local_peer();
-        let all_lines = buffer.lines();
-        let total = all_lines.len();
-        let shown = total.min(MAX_LINES);
-        let width = gutter_width(total);
+        // The tokenized snapshot: an Arc clone on the unchanged path — the old
+        // path re-cloned every line's String into a Block::Row per view().
+        let (lines, gutter_cols, show_authors, total) = self.code_snapshot(buffer);
 
         // Legend: which tag is the operator vs an agent replica. Rendered as a
         // tone-bearing Flag so the authorship vocabulary is visible at a glance and
@@ -719,14 +795,7 @@ impl Pane for EditorPane {
             tone: Tone::Resting,
         });
 
-        let mut saw_agent = false;
-        for line in all_lines.iter().take(shown) {
-            if matches!(line.author_peer, Some(p) if p != opener) {
-                saw_agent = true;
-                break;
-            }
-        }
-        if saw_agent {
+        if show_authors {
             blocks.push(Block::Flag {
                 letter: 'A',
                 label: "agent replica (merged ops)".into(),
@@ -795,7 +864,10 @@ impl Pane for EditorPane {
                 tone: band.tone(), // Tone::Conflicted
             });
             if let Some(nudge) = self.blocking_nudge() {
-                blocks.push(Block::WrappedText { text: nudge.detail, tone: nudge.tone });
+                blocks.push(Block::WrappedText {
+                    text: nudge.detail,
+                    tone: nudge.tone,
+                });
             }
         }
 
@@ -803,29 +875,54 @@ impl Pane for EditorPane {
         // by another live claim, render a Tone::Gated chip — "claimed by <owner>" —
         // offering handoff/parley/move. The first-granted claim wins; the contender
         // negotiates or moves. The refusal wording names no bypass.
-        if let GuardVerdict::Gated(gated) = self.guard_verdict_for_line(self.local_presence.cursor_line) {
+        if let GuardVerdict::Gated(gated) =
+            self.guard_verdict_for_line(self.local_presence.cursor_line)
+        {
             blocks.push(Block::Chip {
                 label: gated.nudge().headline,
                 tone: gated.tone(), // Tone::Gated
             });
-            blocks.push(Block::WrappedText { text: gated.message(), tone: Tone::Gated });
+            blocks.push(Block::WrappedText {
+                text: gated.message(),
+                tone: Tone::Gated,
+            });
         }
 
-        for (i, line) in all_lines.iter().take(shown).enumerate() {
-            let n = (i + 1) as u32; // 1-based line numbers.
-            let num = format!("{n:>width$}", width = width);
-            // Authorship marker: the short author tag, prefixed with a region
-            // marker chip when this line is inside the bound region. Both faces
-            // paint this same gutter cell; the GPUI face additionally tones the
-            // cell via author_tone(line.author_peer, opener).
-            let tag = match line.author_peer {
-                Some(p) => author_tag(p),
-                None => "··".into(),
-            };
-            let region_mark = if self.in_region(n) { "▍" } else { " " };
-            let gutter = format!("{region_mark}{num} {tag}");
-            blocks.push(Block::Row(vec![gutter, line.text.clone()]));
+        // The code itself: ONE CodeBuffer block — a tight monospace surface the
+        // GPUI face virtualizes with uniform_list, never per-line Row cards.
+        // Highlight bands paint BEHIND the text: the bound region, every live
+        // claim (actor-toned), and the conflict wedge LAST so it wins where
+        // bands overlap (renderers take the last covering band per line).
+        let mut bands: Vec<CodeBand> = Vec::new();
+        if let Some((start, end)) = self.region {
+            bands.push(CodeBand {
+                start,
+                end,
+                tone: Tone::Accent,
+            });
         }
+        for (key, claim) in self.claim_ledger.iter() {
+            let (start, end) = claim.line_span();
+            bands.push(CodeBand {
+                start,
+                end,
+                tone: claim_tone(key.peer, opener),
+            });
+        }
+        if let Some(band) = &self.guard_band {
+            let (start, end) = band.region;
+            bands.push(CodeBand {
+                start,
+                end,
+                tone: band.tone(),
+            });
+        }
+        blocks.push(Block::CodeBuffer {
+            lines,
+            gutter_cols,
+            bands,
+            show_authors,
+        });
 
         if total > MAX_LINES {
             blocks.push(Block::Gap);
@@ -848,6 +945,9 @@ impl Pane for EditorPane {
         Box::pin(async move {
             let path = self.path.clone();
             let identity = self.identity.clone();
+            // Same reopen hazard as `load()`: never trust the old cache across
+            // a fresh disk read.
+            self.code.replace(None);
             let opened = tokio::task::spawn_blocking(move || HarborBuffer::open(&path, identity))
                 .await
                 .map_err(|e| anyhow::anyhow!("editor load task panicked: {e}"))?;
@@ -904,7 +1004,11 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         static SEQ: AtomicU64 = AtomicU64::new(0);
         let base = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/editor-tests");
-        let unique = base.join(format!("{}-{}", std::process::id(), SEQ.fetch_add(1, Ordering::Relaxed)));
+        let unique = base.join(format!(
+            "{}-{}",
+            std::process::id(),
+            SEQ.fetch_add(1, Ordering::Relaxed)
+        ));
         std::fs::create_dir_all(&unique).expect("create scratch dir");
         unique
     }
@@ -925,15 +1029,37 @@ mod tests {
         p
     }
 
-    fn row_count(blocks: &[Block]) -> usize {
-        blocks.iter().filter(|b| matches!(b, Block::Row(_))).count()
+    /// The single CodeBuffer block a populated view emits (lines, bands,
+    /// show_authors). Code renders as ONE tight block now — never Row cards.
+    fn code_buffer(blocks: &[Block]) -> Option<(Arc<[CodeLine]>, Vec<CodeBand>, bool)> {
+        blocks.iter().find_map(|b| match b {
+            Block::CodeBuffer {
+                lines,
+                bands,
+                show_authors,
+                ..
+            } => Some((lines.clone(), bands.clone(), *show_authors)),
+            _ => None,
+        })
     }
 
-    fn rows(blocks: &[Block]) -> Vec<&Vec<String>> {
-        blocks
-            .iter()
-            .filter_map(|b| if let Block::Row(c) = b { Some(c) } else { None })
-            .collect()
+    /// The code lines of a view (empty when no CodeBuffer rendered).
+    fn rows(blocks: &[Block]) -> Vec<CodeLine> {
+        code_buffer(blocks)
+            .map(|(l, _, _)| l.to_vec())
+            .unwrap_or_default()
+    }
+
+    fn row_count(blocks: &[Block]) -> usize {
+        rows(blocks).len()
+    }
+
+    /// No code line may ever ride the legacy Block::Row card path.
+    fn assert_no_row_cards(blocks: &[Block]) {
+        assert!(
+            !blocks.iter().any(|b| matches!(b, Block::Row(_))),
+            "editor views must not emit Block::Row cards for code lines"
+        );
     }
 
     #[test]
@@ -943,14 +1069,32 @@ mod tests {
         let blocks = pane.view();
 
         assert!(matches!(&blocks[0], Block::Header(h) if h == "edit known.txt"));
-        assert_eq!(row_count(&blocks), 3, "three content lines → three rows");
+        assert_eq!(
+            row_count(&blocks),
+            3,
+            "three content lines → three code lines"
+        );
+        assert_no_row_cards(&blocks);
 
         let r = rows(&blocks);
-        // Gutter cell holds the 1-based number; content cell holds the text.
-        assert!(r[0][0].contains('1'));
-        assert_eq!(r[0][1], "alpha");
-        assert!(r[1][0].contains('2'));
-        assert_eq!(r[2][1], "charlie");
+        // Line numbers are 1-based and always present; text is the raw line.
+        assert_eq!(r[0].number, 1);
+        assert_eq!(r[0].text, "alpha");
+        assert_eq!(r[1].number, 2);
+        assert_eq!(r[2].text, "charlie");
+        // The author column is ALWAYS present (operator ruling 2026-07-07):
+        // a single-author file's lines all carry the opener's tag, Resting-
+        // toned; show_authors stays false as the "no second author" hint.
+        let (lines, _, show_authors) = code_buffer(&blocks).expect("a code buffer renders");
+        assert!(!show_authors, "one author ⇒ no agent legend flag");
+        assert!(
+            lines.iter().all(|l| l.author_tag.is_some()),
+            "every line carries its author tag"
+        );
+        assert!(
+            lines.iter().all(|l| matches!(l.author_tone, Tone::Resting)),
+            "opener-authored lines tone Resting"
+        );
     }
 
     #[test]
@@ -977,11 +1121,16 @@ mod tests {
         let path = write_temp("region.txt", "l1\nl2\nl3\nl4\nl5\n");
         let pane = make_pane(&path, Some((2, 4)));
         let blocks = pane.view();
-        let r = rows(&blocks);
-        assert_eq!(r.len(), 5);
-        // The region marker "▍" prefixes only lines 2,3,4 (indices 1,2,3).
-        let marked: Vec<bool> = r.iter().map(|c| c[0].starts_with('▍')).collect();
-        assert_eq!(marked, vec![false, true, true, true, false]);
+        let (lines, bands, _) = code_buffer(&blocks).expect("a code buffer renders");
+        assert_eq!(lines.len(), 5);
+        // The bound region is a BACKGROUND band behind lines 2..=4 — not
+        // per-line gutter chrome.
+        let region = bands
+            .iter()
+            .find(|b| b.tone == Tone::Accent)
+            .expect("region band");
+        let covered: Vec<bool> = (1..=5).map(|n| region.covers(n)).collect();
+        assert_eq!(covered, vec![false, true, true, true, false]);
     }
 
     #[test]
@@ -999,6 +1148,109 @@ mod tests {
         assert!(
             has_trunc,
             "a truncation chip is appended when the cap is hit"
+        );
+    }
+
+    /// THE NO-RECLONE PROOF: two view() calls on an unchanged buffer hand back
+    /// the SAME Arc (a refcount bump — zero re-lex, zero per-line String clone);
+    /// a real remote op lands a NEW Arc with the new line tokenized.
+    #[test]
+    fn unchanged_buffer_reuses_the_same_code_arc_across_views() {
+        let path = write_temp("cache.rs", "pub fn go() {}\nlet x = 1;\n");
+        let mut pane = make_pane(&path, None);
+        let (a1, _, _) = code_buffer(&pane.view()).expect("code buffer");
+        let (a2, _, _) = code_buffer(&pane.view()).expect("code buffer");
+        assert!(
+            Arc::ptr_eq(&a1, &a2),
+            "an idle buffer re-renders from the SAME Arc"
+        );
+
+        // A merged remote op is a REAL change: the cache rebuilds exactly once.
+        let agent = HarborBuffer::empty("port-daddy:editor:agent-cache");
+        agent
+            .apply_remote_ops(&pane.buffer().unwrap().export_ops())
+            .unwrap();
+        agent.append_line("let y = 2;");
+        let frame = crate::editor_sync::encode_frame(agent.local_peer(), &agent.export_ops());
+        assert!(pane.ingest_frame(&frame));
+        let (a3, _, _) = code_buffer(&pane.view()).expect("code buffer");
+        assert!(
+            !Arc::ptr_eq(&a1, &a3),
+            "a landed remote op rebuilds the cache"
+        );
+        assert_eq!(a3.len(), 3, "the new line is in the rebuilt cache");
+        let (a4, _, _) = code_buffer(&pane.view()).expect("code buffer");
+        assert!(
+            Arc::ptr_eq(&a3, &a4),
+            "and the rebuilt cache is reused thereafter"
+        );
+    }
+
+    /// A Rust file's lines carry syntax runs (keyword/type/string classified)
+    /// that exactly cover each line's text.
+    #[test]
+    fn code_lines_carry_syntax_runs_for_rust() {
+        use crate::pane::SyntaxKind;
+        let path = write_temp("syn.rs", "pub fn go(n: u32) -> String { \"hi\" }\n");
+        let pane = make_pane(&path, None);
+        let r = rows(&pane.view());
+        assert_eq!(r.len(), 1);
+        let covered: u32 = r[0].runs.iter().map(|(len, _)| len).sum();
+        assert_eq!(
+            covered as usize,
+            r[0].text.len(),
+            "runs exactly cover the line"
+        );
+        let kinds: Vec<SyntaxKind> = r[0].runs.iter().map(|(_, k)| *k).collect();
+        assert!(
+            kinds.contains(&SyntaxKind::Keyword),
+            "pub/fn classify as keywords"
+        );
+        assert!(
+            kinds.contains(&SyntaxKind::Type),
+            "u32/String classify as types"
+        );
+        assert!(
+            kinds.contains(&SyntaxKind::Str),
+            "the literal classifies as a string"
+        );
+    }
+
+    /// Claims and the conflict wedge render as BACKGROUND bands on the code
+    /// buffer (the wedge last, so it wins overlaps) — not per-line chrome.
+    #[test]
+    fn claims_and_wedge_render_as_background_bands() {
+        let path = write_temp("bands.txt", "l1\nl2\nl3\nl4\nl5\n");
+        let mut pane = make_pane_as(&path, "port-daddy:editor:agent-A");
+
+        // A remote actor's claim lands → one actor-toned band over L2–4.
+        let mut other = make_pane_as(&path, "port-daddy:console:human-B");
+        let frame = other.acquire_region_claim(2, 4, "parse_header", 500);
+        assert!(pane.ingest_claim(&frame));
+        let (_, bands, _) = code_buffer(&pane.view()).expect("code buffer");
+        assert!(
+            bands.iter().any(|b| b.covers(3) && b.tone == Tone::Engaged),
+            "a remote claim is an Engaged background band: {bands:?}"
+        );
+
+        // A blocking predict raises the Conflicted wedge band LAST (it wins).
+        pane.acquire_region_claim(2, 4, "parse_header", 1_000);
+        let _ = pane.take_wedge_probe(1_400).expect("probe due");
+        let blocking = serde_json::json!({
+            "success": true, "count": 1, "blocking": 1, "warnings": 0, "info": 0,
+            "conflicts": [{ "severity": "blocking" }],
+        });
+        assert!(pane.apply_conflict_report(&blocking, 1_500));
+        let (_, bands, _) = code_buffer(&pane.view()).expect("code buffer");
+        let last_covering = bands
+            .iter()
+            .rev()
+            .find(|b| b.covers(3))
+            .expect("a band covers L3");
+        assert_eq!(
+            last_covering.tone,
+            Tone::Conflicted,
+            "the wedge band wins overlaps"
         );
     }
 
@@ -1051,20 +1303,23 @@ mod tests {
             "agent authorship legend flag (Engaged) must render once an agent line merges"
         );
 
-        // The two lines carry different gutter author tags.
-        let r = rows(&blocks);
-        assert_eq!(r.len(), 2, "human line + merged agent line");
+        // The two lines carry different gutter author tags, and a REAL second
+        // author flips show_authors on (the only time tags render).
+        let (lines, _, show_authors) = code_buffer(&blocks).expect("a code buffer renders");
+        assert!(
+            show_authors,
+            "a merged agent line makes author tags visible"
+        );
+        assert_eq!(lines.len(), 2, "human line + merged agent line");
         let human_tag = author_tag(opener);
         let agent_tag = author_tag(peer_id_for_identity(agent_id));
-        assert!(
-            r[0][0].contains(&human_tag),
-            "line 0 gutter carries the operator's author tag"
+        assert_eq!(lines[0].author_tag.as_deref(), Some(human_tag.as_str()));
+        assert_eq!(lines[1].author_tag.as_deref(), Some(agent_tag.as_str()));
+        assert_ne!(
+            human_tag, agent_tag,
+            "distinct replicas carry distinct tags"
         );
-        assert!(
-            r[1][0].contains(&agent_tag),
-            "line 1 gutter carries the agent's author tag"
-        );
-        assert_eq!(r[1][1], "agent added this");
+        assert_eq!(lines[1].text, "agent added this");
     }
 
     /// The author→Tone mapping is the checked contract behind the gutter color:
@@ -1085,13 +1340,22 @@ mod tests {
         let path = write_temp("sub.txt", "hello\n");
         let pane = make_pane(&path, None);
         match pane.subscription() {
-            Some(Subscription::Editor { channel, coord_channel }) => {
+            Some(Subscription::Editor {
+                channel,
+                coord_channel,
+            }) => {
                 assert_eq!(channel, crate::editor_sync::channel_for_path(&path));
                 assert_eq!(channel, pane.channel());
                 // Slice-3 isolation: the coordination lane is a SEPARATE channel.
-                assert_eq!(coord_channel, crate::editor_sync::coordination_channel_for_path(&path));
+                assert_eq!(
+                    coord_channel,
+                    crate::editor_sync::coordination_channel_for_path(&path)
+                );
                 assert_eq!(coord_channel, pane.coordination_channel());
-                assert_ne!(channel, coord_channel, "edit-sync and coordination ride distinct channels");
+                assert_ne!(
+                    channel, coord_channel,
+                    "edit-sync and coordination ride distinct channels"
+                );
             }
             other => panic!("a loaded editor must subscribe to its file channel, got {other:?}"),
         }
@@ -1121,16 +1385,20 @@ mod tests {
         let frame = crate::editor_sync::encode_frame(agent.local_peer(), &agent.export_ops());
 
         // The pane folds the frame off its channel — the transport landing.
-        assert!(pane.ingest_frame(&frame), "a remote op frame must land in the buffer");
+        assert!(
+            pane.ingest_frame(&frame),
+            "a remote op frame must land in the buffer"
+        );
 
         // The pane now renders the agent's line with agent authorship.
         let blocks = pane.view();
         let r = rows(&blocks);
         assert_eq!(r.len(), 2, "human line + wired-in agent line");
-        assert_eq!(r[1][1], "agent added over the wire");
+        assert_eq!(r[1].text, "agent added over the wire");
         let agent_tag = author_tag(peer_id_for_identity(agent_id));
-        assert!(
-            r[1][0].contains(&agent_tag),
+        assert_eq!(
+            r[1].author_tag.as_deref(),
+            Some(agent_tag.as_str()),
             "the wired-in line carries the agent's author tag"
         );
         assert!(
@@ -1145,9 +1413,19 @@ mod tests {
         // and a non-frame is skipped — neither corrupts the buffer.
         let self_frame =
             crate::editor_sync::encode_frame(opener, &pane.buffer().unwrap().export_ops());
-        assert!(!pane.ingest_frame(&self_frame), "our own echoed ops must not re-fold");
-        assert!(!pane.ingest_frame("not a frame at all"), "garbage is ignored");
-        assert_eq!(rows(&pane.view()).len(), 2, "buffer unchanged by self-echo/garbage");
+        assert!(
+            !pane.ingest_frame(&self_frame),
+            "our own echoed ops must not re-fold"
+        );
+        assert!(
+            !pane.ingest_frame("not a frame at all"),
+            "garbage is ignored"
+        );
+        assert_eq!(
+            rows(&pane.view()).len(),
+            2,
+            "buffer unchanged by self-echo/garbage"
+        );
     }
 
     // ── P2 slice 2: presence lane ─────────────────────────────────────────────
@@ -1175,23 +1453,46 @@ mod tests {
     fn remote_presence_frame_pools_and_renders() {
         let path = write_temp("presence-pane.txt", "l1\nl2\nl3\nl4\n");
         let mut pane = make_pane(&path, None);
-        assert!(pane.remote_cursors().is_empty(), "no remote cursors before any frame");
+        assert!(
+            pane.remote_cursors().is_empty(),
+            "no remote cursors before any frame"
+        );
 
         let a = "port-daddy:editor:agent-A";
         let b = "port-daddy:editor:agent-B";
         let frame_a = remote_presence_frame(a, PresenceState::caret(2, 0, 1, 4));
         let frame_b = remote_presence_frame(
             b,
-            PresenceState { cursor_line: 3, cursor_col: 1, anchor_line: 4, anchor_col: 0, top_line: 1, bottom_line: 4 },
+            PresenceState {
+                cursor_line: 3,
+                cursor_col: 1,
+                anchor_line: 4,
+                anchor_col: 0,
+                top_line: 1,
+                bottom_line: 4,
+            },
         );
 
-        assert!(pane.ingest_presence(&frame_a), "A's cursor is a real change");
-        assert!(pane.ingest_presence(&frame_b), "B's cursor is a real change");
+        assert!(
+            pane.ingest_presence(&frame_a),
+            "A's cursor is a real change"
+        );
+        assert!(
+            pane.ingest_presence(&frame_b),
+            "B's cursor is a real change"
+        );
 
         let pool = pane.remote_cursors();
         assert_eq!(pool.len(), 2, "both remote cursors pooled");
-        assert_eq!(pool.get(&peer_id_for_identity(a)).map(|s| s.cursor_line), Some(2));
-        assert_eq!(cursor_flags(&pane.view()), 2, "two presence legend flags render");
+        assert_eq!(
+            pool.get(&peer_id_for_identity(a)).map(|s| s.cursor_line),
+            Some(2)
+        );
+        assert_eq!(
+            cursor_flags(&pane.view()),
+            2,
+            "two presence legend flags render"
+        );
 
         // A non-presence frame (an op frame) and garbage are ignored by the lane.
         let op = crate::editor_sync::encode_frame(peer_id_for_identity(a), &[1, 2, 3]);
@@ -1213,15 +1514,26 @@ mod tests {
         // A burst of caret moves before the first tick coalesces to the latest.
         pane.set_local_presence(PresenceState::caret(1, 0, 1, 1));
         pane.set_local_presence(PresenceState::caret(1, 3, 1, 1));
-        let frame = pane.take_presence_broadcast(1_000).expect("a due move broadcasts");
+        let frame = pane
+            .take_presence_broadcast(1_000)
+            .expect("a due move broadcasts");
         let decoded = decode_presence_frame(&frame).expect("the broadcast is a presence frame");
-        assert_eq!(decoded.peer, local, "the frame is attributed to THIS replica");
+        assert_eq!(
+            decoded.peer, local,
+            "the frame is attributed to THIS replica"
+        );
 
         // Within the interval, a further move does not flush again.
         pane.set_local_presence(PresenceState::caret(1, 4, 1, 1));
-        assert!(pane.take_presence_broadcast(1_020).is_none(), "suppressed inside the debounce window");
+        assert!(
+            pane.take_presence_broadcast(1_020).is_none(),
+            "suppressed inside the debounce window"
+        );
         // Past the interval it flushes.
-        assert!(pane.take_presence_broadcast(1_500).is_some(), "flushes after the interval");
+        assert!(
+            pane.take_presence_broadcast(1_500).is_some(),
+            "flushes after the interval"
+        );
     }
 
     /// A real multi-line local selection mirrors into a durable region claim; a
@@ -1238,7 +1550,12 @@ mod tests {
         // Select lines 2..=4 (drag upward: caret above anchor) → a region claim
         // spanning 2..4, mirrored against the file's real path.
         pane.set_local_presence(PresenceState {
-            cursor_line: 2, cursor_col: 0, anchor_line: 4, anchor_col: 1, top_line: 1, bottom_line: 5,
+            cursor_line: 2,
+            cursor_col: 0,
+            anchor_line: 4,
+            anchor_col: 1,
+            top_line: 1,
+            bottom_line: 5,
         });
         assert_eq!(
             pane.region_claim(),
@@ -1264,39 +1581,79 @@ mod tests {
         let b = "port-daddy:editor:agent-B";
         let store_a = PresenceStore::new(peer_id_for_identity(a));
         let store_b = PresenceStore::new(peer_id_for_identity(b));
-        let frame_a = encode_presence_frame(store_a.local(), &store_a.publish(PresenceState::caret(2, 0, 1, 5)));
-        let frame_b = encode_presence_frame(store_b.local(), &store_b.publish(PresenceState::caret(4, 1, 1, 5)));
-        assert!(pane.ingest_presence(&frame_a), "A's first cursor repaints once");
-        assert!(pane.ingest_presence(&frame_b), "B's first cursor repaints once");
+        let frame_a = encode_presence_frame(
+            store_a.local(),
+            &store_a.publish(PresenceState::caret(2, 0, 1, 5)),
+        );
+        let frame_b = encode_presence_frame(
+            store_b.local(),
+            &store_b.publish(PresenceState::caret(4, 1, 1, 5)),
+        );
+        assert!(
+            pane.ingest_presence(&frame_a),
+            "A's first cursor repaints once"
+        );
+        assert!(
+            pane.ingest_presence(&frame_b),
+            "B's first cursor repaints once"
+        );
         assert_eq!(pane.remote_cursors().len(), 2, "two cursors are on screen");
 
         // Idle: nothing changes. Count every repaint-worthy edge over 240 ticks.
         let mut repaints = 0usize;
         for tick in 0..240i64 {
             let now = 1_000 + tick * 16; // ~60fps
-            // Pure reads must never mutate or repaint on their own.
+                                         // Pure reads must never mutate or repaint on their own.
             let _ = pane.view();
             let _ = pane.remote_cursors();
             // Re-delivering the SAME frames (stale LWW) folds to no change.
-            if pane.ingest_presence(&frame_a) { repaints += 1; }
-            if pane.ingest_presence(&frame_b) { repaints += 1; }
+            if pane.ingest_presence(&frame_a) {
+                repaints += 1;
+            }
+            if pane.ingest_presence(&frame_b) {
+                repaints += 1;
+            }
             // No local movement → nothing to broadcast.
-            if pane.take_presence_broadcast(now).is_some() { repaints += 1; }
+            if pane.take_presence_broadcast(now).is_some() {
+                repaints += 1;
+            }
             // Expiry before the timeout removes nobody.
-            if pane.expire_presence() { repaints += 1; }
+            if pane.expire_presence() {
+                repaints += 1;
+            }
         }
-        assert_eq!(repaints, 0, "an idle screen with 2+ remote cursors must not re-render");
-        assert_eq!(pane.remote_cursors().len(), 2, "both cursors still present after idle");
+        assert_eq!(
+            repaints, 0,
+            "an idle screen with 2+ remote cursors must not re-render"
+        );
+        assert_eq!(
+            pane.remote_cursors().len(),
+            2,
+            "both cursors still present after idle"
+        );
 
         // The gate is not vacuous: a GENUINE new remote cursor repaints exactly
         // once (a new PeerId is unambiguously a pool change, independent of clock
         // resolution), and replaying that same frame does not.
         let c = "port-daddy:editor:agent-C";
         let store_c = PresenceStore::new(peer_id_for_identity(c));
-        let frame_c = encode_presence_frame(store_c.local(), &store_c.publish(PresenceState::caret(5, 2, 1, 5)));
-        assert!(pane.ingest_presence(&frame_c), "a genuine new cursor re-renders once");
-        assert!(!pane.ingest_presence(&frame_c), "replaying that same frame does not re-render");
-        assert_eq!(pane.remote_cursors().len(), 3, "the new cursor joined the pool");
+        let frame_c = encode_presence_frame(
+            store_c.local(),
+            &store_c.publish(PresenceState::caret(5, 2, 1, 5)),
+        );
+        assert!(
+            pane.ingest_presence(&frame_c),
+            "a genuine new cursor re-renders once"
+        );
+        assert!(
+            !pane.ingest_presence(&frame_c),
+            "replaying that same frame does not re-render"
+        );
+        assert_eq!(
+            pane.remote_cursors().len(),
+            3,
+            "the new cursor joined the pool"
+        );
     }
 
     // ── P2 slice 3: durability + isolation ────────────────────────────────────
@@ -1312,37 +1669,63 @@ mod tests {
         let live = make_pane(&path, None);
         let agent_id = "port-daddy:editor:agent-snap";
         let agent = HarborBuffer::empty(agent_id);
-        agent.apply_remote_ops(&live.buffer().unwrap().export_ops()).unwrap();
+        agent
+            .apply_remote_ops(&live.buffer().unwrap().export_ops())
+            .unwrap();
         agent.append_line("agent added before the crash");
-        live.buffer().unwrap().apply_remote_ops(&agent.export_ops()).unwrap();
+        live.buffer()
+            .unwrap()
+            .apply_remote_ops(&agent.export_ops())
+            .unwrap();
 
         // Export the snapshot blob — content-addressed durability.
         let snapshot = live.snapshot_blob().expect("a loaded pane snapshots");
 
         // A cold successor pane (no file on disk) hydrates from ONLY the blob.
         let mut cold = EditorPane::new_with_identity(&path, None, "port-daddy:console:successor");
-        assert!(cold.buffer().is_none(), "cold pane has no buffer before hydrate");
-        assert!(cold.hydrate_from_snapshot(&snapshot), "the snapshot blob hydrates the cold pane");
+        assert!(
+            cold.buffer().is_none(),
+            "cold pane has no buffer before hydrate"
+        );
+        assert!(
+            cold.hydrate_from_snapshot(&snapshot),
+            "the snapshot blob hydrates the cold pane"
+        );
 
         // It renders both lines, each attributed to its original author.
         let blocks = cold.view();
         let r = rows(&blocks);
-        assert_eq!(r.len(), 2, "operator + agent lines survived to the cold replica via /blob");
-        assert_eq!(r[1][1], "agent added before the crash");
+        assert_eq!(
+            r.len(),
+            2,
+            "operator + agent lines survived to the cold replica via /blob"
+        );
+        assert_eq!(r[1].text, "agent added before the crash");
         let agent_tag = author_tag(peer_id_for_identity(agent_id));
-        assert!(r[1][0].contains(&agent_tag), "the agent's line keeps the agent's author tag after salvage");
+        assert_eq!(
+            r[1].author_tag.as_deref(),
+            Some(agent_tag.as_str()),
+            "the agent's line keeps the agent's author tag after salvage"
+        );
 
         // Hydrating the same snapshot again is idempotent (double-consume safety).
         assert!(cold.hydrate_from_snapshot(&snapshot));
         let after = cold.view();
-        assert_eq!(rows(&after).len(), 2, "re-hydrating the snapshot must not duplicate lines");
+        assert_eq!(
+            rows(&after).len(),
+            2,
+            "re-hydrating the snapshot must not duplicate lines"
+        );
     }
 
     // ── P3 slice 1: claims-as-awareness ───────────────────────────────────────
 
     /// Count the region-claim ('R') legend flags a view emits.
     fn claim_flags(blocks: &[Block]) -> usize {
-        blocks.iter().filter(|b| matches!(b, Block::Flag { letter: 'R', .. })).count()
+        blocks
+            .iter()
+            .filter(|b| matches!(b, Block::Flag { letter: 'R', .. }))
+            .count()
     }
 
     fn make_pane_as(path: &str, identity: &str) -> EditorPane {
@@ -1362,15 +1745,25 @@ mod tests {
 
         // Both panes agree on the coordination channel (pure function of the path).
         assert_eq!(pane_a.coordination_channel(), pane_b.coordination_channel());
-        assert!(pane_b.claim_ledger().is_empty(), "no claims before any frame");
+        assert!(
+            pane_b.claim_ledger().is_empty(),
+            "no claims before any frame"
+        );
 
         // A claims parse_header over lines 2–4; the returned frame is what A would
         // broadcast_claim() on the coordination channel.
         let frame = pane_a.acquire_region_claim(2, 4, "parse_header", 1_000);
-        assert_eq!(pane_a.claim_ledger().len(), 1, "A sees its own claim immediately");
+        assert_eq!(
+            pane_a.claim_ledger().len(),
+            1,
+            "A sees its own claim immediately"
+        );
 
         // B folds the frame off its coordination subscription.
-        assert!(pane_b.ingest_claim(&frame), "a remote claim frame changes B's ledger");
+        assert!(
+            pane_b.ingest_claim(&frame),
+            "a remote claim frame changes B's ledger"
+        );
         let a_peer = peer_id_for_identity("port-daddy:editor:agent-A");
         let owners = pane_b.claim_ledger().owners_of_line(3);
         assert_eq!(owners.len(), 1, "line 3 is claimed on B");
@@ -1389,11 +1782,20 @@ mod tests {
         );
 
         // Re-delivering the same frame (stale LWW) is no change; garbage is ignored.
-        assert!(!pane_b.ingest_claim(&frame), "replaying the same claim frame does not re-render");
-        assert!(!pane_b.ingest_claim("not a claim frame"), "garbage is ignored");
+        assert!(
+            !pane_b.ingest_claim(&frame),
+            "replaying the same claim frame does not re-render"
+        );
+        assert!(
+            !pane_b.ingest_claim("not a claim frame"),
+            "garbage is ignored"
+        );
         // A op frame is not a claim (lane isolation at the pane boundary).
         let op = crate::editor_sync::encode_frame(a_peer, &[1, 2, 3]);
-        assert!(!pane_b.ingest_claim(&op), "an edit-lane op frame is not a claim");
+        assert!(
+            !pane_b.ingest_claim(&op),
+            "an edit-lane op frame is not a claim"
+        );
     }
 
     /// THE PANE-LEVEL REGION-GRANULARITY PROOF: two panes claim DISJOINT adjacent
@@ -1416,19 +1818,42 @@ mod tests {
         for pane in [&pane_a, &pane_b] {
             let led = pane.claim_ledger();
             assert_eq!(led.len(), 2, "two disjoint claims coexist on one file");
-            assert_eq!(led.owners_of_line(25)[0].label, "parse_header", "L25 is the header claim");
-            assert_eq!(led.owners_of_line(230)[0].label, "write_footer", "L230 is the footer claim");
-            assert!(led.owners_of_line(100).is_empty(), "the gap between the regions stays free");
-            assert!(led.owners_of_line(1).is_empty(), "the file head is unclaimed");
+            assert_eq!(
+                led.owners_of_line(25)[0].label,
+                "parse_header",
+                "L25 is the header claim"
+            );
+            assert_eq!(
+                led.owners_of_line(230)[0].label,
+                "write_footer",
+                "L230 is the footer claim"
+            );
+            assert!(
+                led.owners_of_line(100).is_empty(),
+                "the gap between the regions stays free"
+            );
+            assert!(
+                led.owners_of_line(1).is_empty(),
+                "the file head is unclaimed"
+            );
         }
 
         // Region-scoped, not file-scoped: A's own header line is not an 'other' claim
         // to A, but B's footer line is — on the very same file.
         let a_peer = peer_id_for_identity("port-daddy:editor:agent-A");
         let led = pane_a.claim_ledger();
-        assert!(!led.is_line_claimed_by_other(25, a_peer), "A's own region is not foreign to A");
-        assert!(led.is_line_claimed_by_other(230, a_peer), "B's region IS foreign to A");
-        assert!(!led.is_line_claimed_by_other(100, a_peer), "the free gap is foreign to nobody");
+        assert!(
+            !led.is_line_claimed_by_other(25, a_peer),
+            "A's own region is not foreign to A"
+        );
+        assert!(
+            led.is_line_claimed_by_other(230, a_peer),
+            "B's region IS foreign to A"
+        );
+        assert!(
+            !led.is_line_claimed_by_other(100, a_peer),
+            "the free gap is foreign to nobody"
+        );
     }
 
     /// The durable claim mirror is debounced at the pane level: an acquire is due once,
@@ -1439,22 +1864,42 @@ mod tests {
         let mut pane = make_pane_as(&path, "port-daddy:editor:agent-A");
 
         // Nothing acquired → nothing to mirror.
-        assert!(pane.take_claim_mirror(0).is_empty(), "an idle pane mirrors no claims");
+        assert!(
+            pane.take_claim_mirror(0).is_empty(),
+            "an idle pane mirrors no claims"
+        );
 
         // Acquire two disjoint claims before the first mirror tick.
         pane.acquire_region_claim(2, 3, "parse_header", 10);
         pane.acquire_region_claim(5, 5, "write_footer", 11);
         let due = pane.take_claim_mirror(20);
-        assert_eq!(due.len(), 2, "both acquired claims are due for the durable mirror");
-        assert!(due.iter().any(|c| c.label == "parse_header" && c.line_span() == (2, 3)));
+        assert_eq!(
+            due.len(),
+            2,
+            "both acquired claims are due for the durable mirror"
+        );
+        assert!(due
+            .iter()
+            .any(|c| c.label == "parse_header" && c.line_span() == (2, 3)));
         // The caller POSTs each against this pane's path via DaemonClient::claim_region.
-        assert_eq!(pane.path_str(), path, "the mirror targets the pane's real file path");
+        assert_eq!(
+            pane.path_str(),
+            path,
+            "the mirror targets the pane's real file path"
+        );
 
         // Within the interval a further acquire does not flush again.
         pane.acquire_region_claim(1, 1, "imports", 30);
-        assert!(pane.take_claim_mirror(100).is_empty(), "suppressed inside the debounce window");
+        assert!(
+            pane.take_claim_mirror(100).is_empty(),
+            "suppressed inside the debounce window"
+        );
         // Past the interval the pending acquire flushes.
-        assert_eq!(pane.take_claim_mirror(600).len(), 1, "the later acquire flushes after the interval");
+        assert_eq!(
+            pane.take_claim_mirror(600).len(),
+            1,
+            "the later acquire flushes after the interval"
+        );
     }
 
     /// Ingesting a release frame drops the claim band from a remote pane's view.
@@ -1471,10 +1916,23 @@ mod tests {
 
         // A releases claim id 0; B folds the tombstone and the band disappears.
         let release = pane_a.release_region_claim(0);
-        assert!(pane_a.claim_ledger().is_empty(), "A's own ledger clears on release");
-        assert!(pane_b.ingest_claim(&release), "the release changes B's ledger");
-        assert!(pane_b.claim_ledger().is_empty(), "B's ledger clears after the release");
-        assert_eq!(claim_flags(&pane_b.view()), 0, "the claim band is gone from B's view");
+        assert!(
+            pane_a.claim_ledger().is_empty(),
+            "A's own ledger clears on release"
+        );
+        assert!(
+            pane_b.ingest_claim(&release),
+            "the release changes B's ledger"
+        );
+        assert!(
+            pane_b.claim_ledger().is_empty(),
+            "B's ledger clears after the release"
+        );
+        assert_eq!(
+            claim_flags(&pane_b.view()),
+            0,
+            "the claim band is gone from B's view"
+        );
     }
 
     // ── P3 slice 2: the wedge (conflict prediction before a byte is written) ───
@@ -1494,19 +1952,34 @@ mod tests {
         // "debounced, never per-keystroke" at the pane boundary.
         for col in 0..50u32 {
             pane.set_local_presence(PresenceState::caret(2, col, 1, 5));
-            assert!(pane.take_wedge_probe(1_000 + col as i64).is_none(), "a caret move never arms a predict");
+            assert!(
+                pane.take_wedge_probe(1_000 + col as i64).is_none(),
+                "a caret move never arms a predict"
+            );
         }
 
         // A claim-acquire IS a coordination edge → exactly one due probe.
         pane.acquire_region_claim(2, 4, "parse_header", 2_000);
-        let body = pane.take_wedge_probe(3_000).expect("an acquire arms a due probe");
+        let body = pane
+            .take_wedge_probe(3_000)
+            .expect("an acquire arms a due probe");
         assert_eq!(body["claimsA"][0]["symbolPath"], "parse_header");
-        assert_eq!(body["claimsA"][0]["type"], "modify", "the intended edit is a modify claim");
+        assert_eq!(
+            body["claimsA"][0]["type"], "modify",
+            "the intended edit is a modify claim"
+        );
         assert_eq!(body["claimsA"][0]["filePath"], path);
-        assert_eq!(body["claimsB"].as_array().unwrap().len(), 0, "no other live claims yet");
+        assert_eq!(
+            body["claimsB"].as_array().unwrap().len(),
+            0,
+            "no other live claims yet"
+        );
 
         // Nothing newly armed → no further predict (quiet).
-        assert!(pane.take_wedge_probe(3_100).is_none(), "no new edge → no predict");
+        assert!(
+            pane.take_wedge_probe(3_100).is_none(),
+            "no new edge → no predict"
+        );
     }
 
     /// A remote actor's live claim shows up in `claimsB` — the wedge predicts the local
@@ -1547,7 +2020,10 @@ mod tests {
             "success": true, "count": 1, "blocking": 1, "warnings": 0, "info": 0,
             "conflicts": [{ "severity": "blocking" }],
         });
-        assert!(pane.apply_conflict_report(&blocking, 1_500), "a blocking report raises the band");
+        assert!(
+            pane.apply_conflict_report(&blocking, 1_500),
+            "a blocking report raises the band"
+        );
         assert!(pane.guard_band().is_some());
 
         // A Tone::Conflicted band + a bypass-free nudge render.
@@ -1556,23 +2032,37 @@ mod tests {
             blocks.iter().any(|b| matches!(b, Block::WrappedText { tone: Tone::Conflicted, text } if text.contains("parse_header"))),
             "a Conflicted guard band renders in the view"
         );
-        let nudge = pane.blocking_nudge().expect("a pd-nudge accompanies the band");
+        let nudge = pane
+            .blocking_nudge()
+            .expect("a pd-nudge accompanies the band");
         assert_eq!(nudge.tone, Tone::Conflicted);
         for tok in BYPASS {
-            assert!(!nudge.detail.to_lowercase().contains(tok), "the blocking nudge advertises no bypass (‘{tok}’)");
+            assert!(
+                !nudge.detail.to_lowercase().contains(tok),
+                "the blocking nudge advertises no bypass (‘{tok}’)"
+            );
         }
 
         // Re-confirming the SAME conflict does not repaint (the pulse is not restarted).
         pane.acquire_region_claim(2, 4, "parse_header", 2_000);
         let _ = pane.take_wedge_probe(2_400).expect("probe due again");
-        assert!(!pane.apply_conflict_report(&blocking, 2_500), "re-confirming the same conflict does not repaint");
+        assert!(
+            !pane.apply_conflict_report(&blocking, 2_500),
+            "re-confirming the same conflict does not repaint"
+        );
 
         // A later CLEAR predict (moving to a conflict-free region) drops the band.
         pane.acquire_region_claim(7, 8, "write_footer", 3_000);
         let _ = pane.take_wedge_probe(3_400).expect("probe due");
         let clear = serde_json::json!({ "success": true, "count": 0, "conflicts": [] });
-        assert!(pane.apply_conflict_report(&clear, 3_500), "a clear predict drops the band");
-        assert!(pane.guard_band().is_none(), "no band once the region is clear");
+        assert!(
+            pane.apply_conflict_report(&clear, 3_500),
+            "a clear predict drops the band"
+        );
+        assert!(
+            pane.guard_band().is_none(),
+            "no band once the region is clear"
+        );
     }
 
     /// THE PANE-LEVEL HARD-RULE-6 PROOF: a contender whose caret sits INSIDE another
@@ -1591,28 +2081,49 @@ mod tests {
 
         // B's caret sits at L3 — inside A's live claim. B is the contender.
         pane_b.set_local_presence(PresenceState::caret(3, 0, 1, 5));
-        assert!(pane_b.guard_verdict_for_line(3).is_gated(), "L3 is held by A's first-granted claim");
+        assert!(
+            pane_b.guard_verdict_for_line(3).is_gated(),
+            "L3 is held by A's first-granted claim"
+        );
 
         let blocks = pane_b.view();
         assert!(
-            blocks.iter().any(|b| matches!(b, Block::Chip { tone: Tone::Gated, .. })),
+            blocks.iter().any(|b| matches!(
+                b,
+                Block::Chip {
+                    tone: Tone::Gated,
+                    ..
+                }
+            )),
             "a Gated contender chip renders on B"
         );
         let gated_msg = blocks
             .iter()
             .find_map(|b| match b {
-                Block::WrappedText { tone: Tone::Gated, text } => Some(text.clone()),
+                Block::WrappedText {
+                    tone: Tone::Gated,
+                    text,
+                } => Some(text.clone()),
                 _ => None,
             })
             .expect("a gated refusal renders");
-        assert!(gated_msg.contains("handoff") && gated_msg.contains("parley"), "the refusal names negotiation");
+        assert!(
+            gated_msg.contains("handoff") && gated_msg.contains("parley"),
+            "the refusal names negotiation"
+        );
         for tok in BYPASS {
-            assert!(!gated_msg.to_lowercase().contains(tok), "the gated refusal names no bypass (‘{tok}’)");
+            assert!(
+                !gated_msg.to_lowercase().contains(tok),
+                "the gated refusal names no bypass (‘{tok}’)"
+            );
         }
 
         // The OWNER is never gated on its own region (HARD RULE 6: first-granted wins).
         pane_a.set_local_presence(PresenceState::caret(3, 0, 1, 5));
-        assert!(!pane_a.guard_verdict_for_line(3).is_gated(), "the owner is never gated on its own region");
+        assert!(
+            !pane_a.guard_verdict_for_line(3).is_gated(),
+            "the owner is never gated on its own region"
+        );
     }
 
     /// THE COMMIT GATE (HARD RULE 7): committing an edit that overlaps another live
@@ -1632,19 +2143,31 @@ mod tests {
 
         // B tries to commit an edit overlapping A's region → refused, bypass-free.
         let verdict = pane_b.commit_verdict(30, 45);
-        assert!(verdict.is_gated(), "a commit overlapping A's live claim is refused");
+        assert!(
+            verdict.is_gated(),
+            "a commit overlapping A's live claim is refused"
+        );
         if let GuardVerdict::Gated(g) = &verdict {
             let msg = g.message();
             assert!(msg.contains("handoff") && msg.contains("parse_header"));
             for tok in BYPASS {
-                assert!(!msg.to_lowercase().contains(tok), "the commit refusal names no bypass (‘{tok}’)");
+                assert!(
+                    !msg.to_lowercase().contains(tok),
+                    "the commit refusal names no bypass (‘{tok}’)"
+                );
             }
         }
 
         // B committing a DISJOINT adjacent region (L200–260) of the same file is clear.
-        assert!(!pane_b.commit_verdict(200, 260).is_gated(), "an adjacent region commits clear (region-scoped)");
+        assert!(
+            !pane_b.commit_verdict(200, 260).is_gated(),
+            "an adjacent region commits clear (region-scoped)"
+        );
         // A committing its OWN region is clear (first-granted owner is A).
-        assert!(!pane_a.commit_verdict(12, 40).is_gated(), "the owner commits its own region clear");
+        assert!(
+            !pane_a.commit_verdict(12, 40).is_gated(),
+            "the owner commits its own region clear"
+        );
     }
 
     /// P3 SLICE-3 WIRING PROOF — the pane's multi-hunk `staged_commit_gate` delegates to
@@ -1666,18 +2189,36 @@ mod tests {
 
         // Z stages two hunks, one inside EACH owner's region → refused, one per owner.
         let verdict = pane_z.staged_commit_gate(&[(30, 35), (205, 210)]);
-        assert!(verdict.is_refused(), "staged hunks inside two live regions are refused");
-        assert_eq!(verdict.refusals().len(), 2, "one bypass-free refusal per contended owner");
-        let msg = verdict.refusal_message().expect("a refused commit has a message");
+        assert!(
+            verdict.is_refused(),
+            "staged hunks inside two live regions are refused"
+        );
+        assert_eq!(
+            verdict.refusals().len(),
+            2,
+            "one bypass-free refusal per contended owner"
+        );
+        let msg = verdict
+            .refusal_message()
+            .expect("a refused commit has a message");
         let lower = msg.to_lowercase();
         assert!(msg.contains("parse_header") && msg.contains("write_footer"));
         for tok in BYPASS {
-            assert!(!lower.contains(tok), "the staged-commit refusal names no bypass (‘{tok}’)");
+            assert!(
+                !lower.contains(tok),
+                "the staged-commit refusal names no bypass (‘{tok}’)"
+            );
         }
 
         // Z staging only in the free gap (L100–150) between the two claims clears.
-        assert!(pane_z.staged_commit_gate(&[(100, 150)]).is_clear(), "the free gap commits clear (region-scoped)");
+        assert!(
+            pane_z.staged_commit_gate(&[(100, 150)]).is_clear(),
+            "the free gap commits clear (region-scoped)"
+        );
         // A staging into its OWN region clears (first-granted owner).
-        assert!(pane_a.staged_commit_gate(&[(12, 40)]).is_clear(), "the owner commits its own region clear");
+        assert!(
+            pane_a.staged_commit_gate(&[(12, 40)]).is_clear(),
+            "the owner commits its own region clear"
+        );
     }
 }
