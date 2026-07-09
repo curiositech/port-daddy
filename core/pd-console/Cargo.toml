@@ -45,3 +45,6 @@ base64 = "0.22"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
+# P3.5 salvage foundation: property tests on Loro op-replay convergence
+# (tests/loro_replay_convergence.rs). Same pin as core/harbor-card-rs.
+proptest = "1.4"
