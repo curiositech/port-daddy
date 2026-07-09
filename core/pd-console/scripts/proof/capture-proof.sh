@@ -61,12 +61,12 @@ if [[ ! -x "$BIN" ]]; then
   echo "▸ building release window (cargo build --release --features gpui)…"
   ( cd "$ROOT" && cargo build --release --features gpui --bin pd-console )
 fi
-if [[ ! -x "$REC" ]]; then
+if [[ ! -x "$REC" || "$ROOT/scripts/proof/recorder.swift" -nt "$REC" ]]; then
   echo "▸ building ScreenCaptureKit recorder…"
   mkdir -p "$TARGET/proof"
   xcrun swiftc -O "$ROOT/scripts/proof/recorder.swift" -o "$REC"
 fi
-if [[ ! -x "$WINID" ]]; then
+if [[ ! -x "$WINID" || "$ROOT/scripts/proof/windowid.swift" -nt "$WINID" ]]; then
   echo "▸ building Quartz window-id helper…"
   mkdir -p "$TARGET/proof"
   xcrun swiftc -O "$ROOT/scripts/proof/windowid.swift" -o "$WINID"
@@ -122,7 +122,11 @@ echo "▸ virtual display selector: $DISPLAY_SEL"
 
 # ── pd-console window id on screen (Quartz; robust to z-order & which display) ────
 windowid() {
-  "$WINID" pd-console 2>/dev/null
+  if [[ -n "${APP_PID:-}" ]]; then
+    "$WINID" pd-console --pid "$APP_PID" 2>/dev/null
+  else
+    "$WINID" pd-console 2>/dev/null
+  fi
 }
 
 cleanup() {

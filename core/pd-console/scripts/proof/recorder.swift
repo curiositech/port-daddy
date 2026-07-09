@@ -14,6 +14,7 @@
 // Exit codes: 0 ok · 2 bad args · 3 target not found · 4 capture/permission error.
 
 import AVFoundation
+import AppKit
 import CoreMedia
 import Foundation
 import ScreenCaptureKit
@@ -133,6 +134,13 @@ final class Recorder: NSObject, SCStreamOutput, SCStreamDelegate {
 }
 
 guard #available(macOS 12.3, *) else { fail("requires macOS 12.3+", 4) }
+
+// ScreenCaptureKit asks WindowServer/CoreGraphics for shareable windows. In a
+// bare CLI process on some macOS builds, that path can abort with
+// CGS_REQUIRE_INIT before it returns a normal permission error. Initializing
+// AppKit as an accessory app gives CoreGraphics a GUI session without opening
+// or focusing any window.
+NSApplication.shared.setActivationPolicy(.accessory)
 
 // ── Resolve target via SCShareableContent ────────────────────────────────────────
 let ready = DispatchSemaphore(value: 0)

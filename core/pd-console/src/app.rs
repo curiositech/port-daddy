@@ -1235,9 +1235,147 @@ impl RenderOnce for WavingFlag {
     }
 }
 
+/// The Harbor editor's code surface: ONE `uniform_list` over pre-tokenized
+/// lines — only the visible window is painted, scroll state rides `scroll`.
+/// This replaces the per-line `Block::Row` card path (border + rounding +
+/// margins + hover per line — the "every line is a button" bug).
+fn render_code_buffer(
+    pane_id: PaneId,
+    lines: std::sync::Arc<[crate::pane::CodeLine]>,
+    gutter_cols: u8,
+    bands: Vec<crate::pane::CodeBand>,
+    scroll: Option<UniformListScrollHandle>,
+) -> AnyElement {
+    let t = current_theme();
+    let count = lines.len();
+    let list = uniform_list(
+        SharedString::from(format!("code-{pane_id}")),
+        count,
+        move |range: std::ops::Range<usize>, _window, _cx| {
+            range
+                .map(|ix| render_code_line(&lines[ix], gutter_cols, &bands))
+                .collect::<Vec<_>>()
+        },
+    )
+    .size_full();
+    let list = match scroll {
+        Some(handle) => list.track_scroll(handle),
+        None => list,
+    };
+    div()
+        .size_full()
+        .bg(rgb(t.sunken))
+        .font_family("IBM Plex Mono")
+        .text_size(px(tokens::TEXT_BODY))
+        .text_color(rgb(t.ink2))
+        .child(list)
+        .into_any_element()
+}
+
+/// One code line: fixed height, NO margin/border/rounding/hover — a thin
+/// always-reserved band rail, a line-number gutter, an optional author tag,
+/// and the text as ONE shaped element with per-run syntax highlights (the
+/// batched-runs technique — never a div per token). Claim/wedge bands paint
+/// as a full-width background wash BEHIND the text; adjacent banded lines
+/// merge into one continuous band because lines have zero vertical gap.
+fn render_code_line(
+    line: &crate::pane::CodeLine,
+    gutter_cols: u8,
+    bands: &[crate::pane::CodeBand],
+) -> AnyElement {
+    let t = current_theme();
+    // Last covering band wins (the pane pushes the conflict wedge last).
+    let band = bands.iter().rev().find(|b| b.covers(line.number));
+    let num = format!("{:>width$}", line.number, width = gutter_cols as usize);
+
+    // Per-run color highlights over one text element; Plain runs inherit the
+    // container's ink2 so only colored spans carry a HighlightStyle.
+    let mut highlights: Vec<(std::ops::Range<usize>, HighlightStyle)> = Vec::new();
+    let text_len = line.text.len();
+    let mut at = 0usize;
+    for (len, kind) in &line.runs {
+        let start = at.min(text_len);
+        let end = at.saturating_add(*len as usize).min(text_len);
+        if !matches!(kind, crate::pane::SyntaxKind::Plain) && start < end {
+            highlights.push((
+                start..end,
+                HighlightStyle {
+                    color: Some(rgb(t.syntax(*kind)).into()),
+                    ..Default::default()
+                },
+            ));
+        }
+        at = end;
+        if at >= text_len {
+            break;
+        }
+    }
+    let author_tag = line.author_tag.clone();
+
+    div()
+        .h(px(tokens::CODE_LINE_H))
+        .w_full()
+        .flex()
+        .items_center()
+        .when_some(band, |d, b| d.bg(tone_wash(t.tone(&b.tone), 0x2b)))
+        // 2px band rail — ALWAYS reserved so text never shifts when a band
+        // appears; colored only under a band.
+        .child(
+            div()
+                .w(px(2.0))
+                .h_full()
+                .flex_shrink_0()
+                .when_some(band, |d, b| d.bg(rgb(t.tone(&b.tone)))),
+        )
+        // Line number — always present, muted, right-aligned by mono padding.
+        .child(
+            div()
+                .pl(px(6.0))
+                .pr(px(8.0))
+                .flex_shrink_0()
+                .text_color(rgb(t.muted))
+                .child(num),
+        )
+        // Author column — ALWAYS visible (per-line authorship is the Harbor
+        // editor's point): a tight monospace tag, toned by author — operator
+        // lines subtle (Resting), agent lines distinct (Engaged).
+        .child(
+            div()
+                .w(px(2.0 * tokens::CODE_CH + 6.0))
+                .flex_shrink_0()
+                .text_color(rgb(t.tone(&line.author_tone)))
+                .when_some(author_tag, |d, tag| d.child(SharedString::new(tag))),
+        )
+        .child(StyledText::new(SharedString::new(line.text.clone())).with_highlights(highlights))
+        .into_any_element()
+}
+
 pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
     let t = current_theme();
     match block {
+        // Fallback for a CodeBuffer landing on a generic (non-editor) surface:
+        // a plain tight stack, capped so an unvirtualized context can't wedge.
+        // The editor surface never takes this path — render_leaf routes its
+        // CodeBuffer through render_code_buffer (uniform_list).
+        Block::CodeBuffer {
+            lines,
+            gutter_cols,
+            bands,
+            ..
+        } => div()
+            .flex()
+            .flex_col()
+            .font_family("IBM Plex Mono")
+            .text_size(px(tokens::TEXT_BODY))
+            .text_color(rgb(t.ink2))
+            .bg(rgb(t.sunken))
+            .children(
+                lines
+                    .iter()
+                    .take(500)
+                    .map(|line| render_code_line(line, gutter_cols, &bands)),
+            )
+            .into_any_element(),
         Block::Header(text) => div()
             .mx(px(tokens::SPACE_3))
             .mt(px(tokens::SPACE_3))
@@ -1694,7 +1832,12 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
             .text_size(px(tokens::TEXT_BODY))
             .child(format!("{name} — {meta}"))
             .into_any_element(),
-        Block::ControlButton { label, enabled, why_disabled, .. } => div()
+        Block::ControlButton {
+            label,
+            enabled,
+            why_disabled,
+            ..
+        } => div()
             .mx(px(tokens::SPACE_3))
             .my(px(2.0))
             .text_color(rgb(t.muted))
@@ -1866,6 +2009,80 @@ pub struct ConsoleView {
     /// The daemon's real failure fetching a detail — shown in the drawer slot,
     /// never swallowed.
     pub(crate) galaxy_detail_error: Option<String>,
+    /// Live Harbor-editor state, keyed by `editor_key(path, region)`. Created
+    /// ONCE per opened file by `ensure_editor_states` (render top, `&mut self`)
+    /// and read by `blocks_for_surface`. The OLD path constructed a fresh
+    /// `EditorPane` inside every render — a `pd whoami` subprocess + a full
+    /// disk read + a Loro doc build PER FRAME; this map is that fix.
+    editors: HashMap<String, EditorSurfaceState>,
+}
+
+/// One opened editor surface: the persistent pane (buffer + claims + wedge)
+/// and the `uniform_list` scroll handle its code view tracks.
+struct EditorSurfaceState {
+    pane: crate::editor_pane::EditorPane,
+    scroll: UniformListScrollHandle,
+}
+
+/// Stable map key for an Editor surface binding.
+fn editor_key(path: &str, region: Option<(u32, u32)>) -> String {
+    match region {
+        Some((s, e)) => format!("{path}:{s}-{e}"),
+        None => path.to_string(),
+    }
+}
+
+/// Collect every Editor surface binding under a pane-tree node.
+fn collect_editor_surfaces(node: &Node, out: &mut Vec<(String, String, Option<(u32, u32)>)>) {
+    match node {
+        Node::Leaf {
+            surface: SurfaceKind::Editor { path, region },
+            ..
+        } => {
+            out.push((editor_key(path, *region), path.clone(), *region));
+        }
+        Node::Leaf { .. } => {}
+        Node::Split { children, .. } => {
+            for child in children {
+                collect_editor_surfaces(&child.node, out);
+            }
+        }
+    }
+}
+
+fn same_galaxy_snapshot(
+    a: &crate::galaxy_pane::GalaxySnapshot,
+    b: &crate::galaxy_pane::GalaxySnapshot,
+) -> bool {
+    a.computed_at == b.computed_at
+        && a.last_error == b.last_error
+        && a.window_hours == b.window_hours
+        && a.cluster == b.cluster
+        && a.points.len() == b.points.len()
+        && a.clusters.len() == b.clusters.len()
+        && a.points.iter().zip(&b.points).all(|(left, right)| {
+            left.id == right.id
+                && left.session_id == right.session_id
+                && left.agent_id == right.agent_id
+                && left.ship == right.ship
+                && left.project == right.project
+                && left.purpose == right.purpose
+                && left.status == right.status
+                && left.x == right.x
+                && left.y == right.y
+                && left.cluster_id == right.cluster_id
+                && left.snippet == right.snippet
+                && left.pr_number == right.pr_number
+                && left.tail_tokens == right.tail_tokens
+        })
+        && a.clusters.iter().zip(&b.clusters).all(|(left, right)| {
+            left.id == right.id
+                && left.label == right.label
+                && left.terms == right.terms
+                && left.size == right.size
+                && left.cx == right.cx
+                && left.cy == right.cy
+        })
 }
 
 impl ConsoleView {
@@ -1968,6 +2185,54 @@ impl ConsoleView {
             galaxy_bounds: Rc::new(RefCell::new(None)),
             galaxy_detail: None,
             galaxy_detail_error: None,
+            editors: HashMap::new(),
+        }
+    }
+
+    /// Ensure a persistent [`EditorSurfaceState`] exists for every Editor
+    /// surface in every tab. Runs at the top of `render` (`&mut self`): opening
+    /// a file costs one `pd whoami` + one disk read ONCE, and every later frame
+    /// is a map lookup. States for closed files are retained (cheap, and they
+    /// keep claims/wedge state alive across a reopen within the session).
+    fn ensure_editor_states(&mut self) {
+        // Collect first: walking the tree borrows self.tabs immutably.
+        let mut wanted: Vec<(String, String, Option<(u32, u32)>)> = Vec::new();
+        for tab in &self.tabs {
+            collect_editor_surfaces(&tab.workspace.root, &mut wanted);
+        }
+        for (key, path, region) in wanted {
+            if !self.editors.contains_key(&key) {
+                let identity = crate::editor_pane::resolve_operator_identity();
+                let mut pane =
+                    crate::editor_pane::EditorPane::new_with_identity(path, region, identity);
+                pane.load();
+                // Demo seam (env-gated, never on by default): merge a second
+                // Loro replica's lines into the opened buffer so the author
+                // column visibly differentiates operator vs agent authorship.
+                // This exercises the REAL CRDT merge path — the same
+                // apply_remote_ops a live agent peer rides — on a demo copy of
+                // the buffer only; the file on disk is never written.
+                if std::env::var("PD_CONSOLE_DEMO_AUTHORS").is_ok() {
+                    if let Some(buf) = pane.buffer() {
+                        let agent =
+                            crate::buffer::HarborBuffer::empty("port-daddy:editor:demo-agent");
+                        if agent.apply_remote_ops(&buf.export_ops()).is_ok() {
+                            agent.insert_authored(
+                                0,
+                                "// [agent replica] merged these two lines over the tube —\n// [agent replica] note the distinct author tag + tone in the gutter.\n",
+                            );
+                            let _ = buf.apply_remote_ops(&agent.export_ops());
+                        }
+                    }
+                }
+                self.editors.insert(
+                    key,
+                    EditorSurfaceState {
+                        pane,
+                        scroll: UniformListScrollHandle::new(),
+                    },
+                );
+            }
         }
     }
 
@@ -2041,17 +2306,21 @@ impl ConsoleView {
         if matches!(surface, SurfaceKind::Conjure) {
             return crate::conjure::blocks_for_conjure(&self.conjure_dag);
         }
-        // The Harbor Editor surface backs the file with a Loro CRDT buffer (P1):
-        // the opener becomes a Loro replica keyed to the operator's PD identity,
-        // and each line renders with per-PeerID authorship in the gutter. The file
-        // read is bounded by EditorPane's line cap, so this synchronous load can't
-        // wedge the render; P2+ swaps the local read for a daemon/blob fetch.
+        // The Harbor Editor surface reads its PERSISTENT pane (buffer + claims
+        // + wedge), created once by `ensure_editor_states`. view() on an
+        // unchanged buffer is an Arc refcount bump (see EditorPane::code_snapshot)
+        // — the old path built a fresh EditorPane (a `pd whoami` subprocess + a
+        // full disk read + a Loro doc) inside EVERY render.
         if let SurfaceKind::Editor { path, region } = surface {
-            let identity = crate::editor_pane::resolve_operator_identity();
-            let mut pane =
-                crate::editor_pane::EditorPane::new_with_identity(path.clone(), *region, identity);
-            pane.load();
-            return pane.view();
+            return match self.editors.get(&editor_key(path, *region)) {
+                Some(state) => state.pane.view(),
+                // First frame before ensure_editor_states ran (shouldn't happen
+                // — render calls it first) or a headless caller: honest state.
+                None => vec![
+                    Block::Header(format!("edit {path}")),
+                    Block::KeyVal("status".into(), "opening…".into()),
+                ],
+            };
         }
         // The FileTree surface renders an interactive directory listing — but the
         // clickable rows are built in `render_leaf` (Blocks are non-interactive);
@@ -2688,17 +2957,15 @@ impl ConsoleView {
             }
             CmdKind::HarborSteer => {
                 if text.trim().is_empty() {
-                    self.control_flash =
-                        Some("steer needs a message — nothing was sent".into());
+                    self.control_flash = Some("steer needs a message — nothing was sent".into());
                     return;
                 }
                 let _ = tx.send(ControlMsg::HarborControl {
                     verb: "steer".into(),
                     argument: Some(text),
                 });
-                self.control_flash = Some(
-                    "steer queued — watch the node's transcript for the guidance turn".into(),
-                );
+                self.control_flash =
+                    Some("steer queued — watch the node's transcript for the guidance turn".into());
             }
             // AddPane, Conjure, UseDaemon, and Verb are handled locally above
             // (early return) — never reach here.
@@ -3080,34 +3347,53 @@ impl ConsoleView {
         }
     }
 
+    /// Fold a producer refresh into the view. Returns whether anything the
+    /// render reads actually CHANGED — the caller `cx.notify()`s ONLY on true,
+    /// so an idle console (every pane re-fetching identical state on the 2s
+    /// cycle) schedules ZERO repaints instead of a full-window repaint per tick.
     pub fn update_panes(
         &mut self,
         updates: Vec<(usize, Vec<Block>)>,
         dispatch_head: Option<DispatchHead>,
         galaxy: crate::galaxy_pane::GalaxySnapshot,
-    ) {
-        // First refresh dismisses the launch splash (idempotent thereafter).
-        if !self.booted {
-            self.booted = true;
-        }
+    ) -> bool {
+        // First refresh dismisses the launch splash (a real visual change).
+        let mut changed = !self.booted;
+        self.booted = true;
         for (idx, blocks) in updates {
             if let Some(slot) = self.pane_blocks.get_mut(idx) {
-                *slot = blocks;
+                if *slot != blocks {
+                    *slot = blocks;
+                    changed = true;
+                }
             }
         }
-        self.dispatch_head = dispatch_head;
+        if self.dispatch_head != dispatch_head {
+            self.dispatch_head = dispatch_head;
+            changed = true;
+        }
+
         // Fresh galaxy frame: prune selection/hover of points that slid out of
         // the map window, so a parley can never target a vanished session.
         let ids: HashSet<&str> = galaxy.points.iter().map(|p| p.id.as_str()).collect();
+        let selected_before = self.galaxy_selected.len();
         self.galaxy_selected.retain(|id| ids.contains(id.as_str()));
+        if self.galaxy_selected.len() != selected_before {
+            changed = true;
+        }
         if self
             .galaxy_hover
             .as_ref()
             .is_some_and(|h| !ids.contains(h.as_str()))
         {
             self.galaxy_hover = None;
+            changed = true;
         }
-        self.galaxy = galaxy;
+        if !same_galaxy_snapshot(&self.galaxy, &galaxy) {
+            self.galaxy = galaxy;
+            changed = true;
+        }
+        changed
     }
 
     /// Answer one scripting request (control socket, `--control-sock`). Runs
@@ -3485,6 +3771,16 @@ impl ConsoleView {
         let blocks = self.blocks_for_surface(surface);
         let motion = self.flag_motion; // Copy snapshot for this frame's flags.
         let is_agent = matches!(surface, SurfaceKind::AgentTranscript { .. });
+        // The Harbor editor renders its CodeBuffer through a virtualized
+        // uniform_list (its own scroll), never the generic page-scroll body.
+        let is_editor = matches!(surface, SurfaceKind::Editor { .. });
+        let editor_scroll = match surface {
+            SurfaceKind::Editor { path, region } => self
+                .editors
+                .get(&editor_key(path, *region))
+                .map(|s| s.scroll.clone()),
+            _ => None,
+        };
         // The dispatch surface (focused) gets the interactive review GATE.
         // The Daemons surface renders interactive picker buttons instead of plain
         // text blocks (built here so the on_click listeners can borrow cx).
@@ -3704,6 +4000,42 @@ impl ConsoleView {
                             b = b.child(render_filetree_row(id, entry, cx));
                         }
                         b
+                    }
+                    // Harbor editor: fixed header blocks (title/legend/claim
+                    // flags/nudges) + ONE flex_1 virtualized code surface. The
+                    // generic page-scroll `body` is deliberately NOT used —
+                    // the uniform_list owns the wheel and paints only the
+                    // visible line window.
+                    None if is_editor => {
+                        let mut head = div().flex().flex_col().flex_shrink_0();
+                        let mut code: Option<AnyElement> = None;
+                        for blk in blocks {
+                            match blk {
+                                // `show_authors` is a legend hint (the agent
+                                // flag in the head blocks) — the author column
+                                // itself always renders per line.
+                                Block::CodeBuffer { lines, gutter_cols, bands, .. } => {
+                                    code = Some(render_code_buffer(
+                                        id,
+                                        lines,
+                                        gutter_cols,
+                                        bands,
+                                        editor_scroll.clone(),
+                                    ));
+                                }
+                                other => head = head.child(render_block(other, motion)),
+                            }
+                        }
+                        div()
+                            .id(SharedString::from(format!("pane-body-editor-{id}")))
+                            .flex_1()
+                            .overflow_hidden()
+                            .flex()
+                            .flex_col()
+                            .child(head)
+                            .when_some(code, |b, c| {
+                                b.child(div().flex_1().overflow_hidden().child(c))
+                            })
                     }
                     None if is_daemons => body.children(daemon_rows),
                     // Sextant: the interactive embedding map (points, marquee,
@@ -5644,7 +5976,9 @@ fn render_harbor_node_row(
         .border_1()
         .border_color(rgb(if selected { t.accent } else { t.line }))
         .bg(rgb(if selected { t.raised } else { t.panel }))
-        .when(selected, |s| s.shadow(motion::glow(t.accent, 0.25, 10.0, 0.0)))
+        .when(selected, |s| {
+            s.shadow(motion::glow(t.accent, 0.25, 10.0, 0.0))
+        })
         .cursor_pointer()
         .hover(|s| {
             let t = current_theme();
@@ -6015,6 +6349,10 @@ fn render_nav_rail(active: Option<&str>, cx: &mut Context<ConsoleView>) -> impl 
 
 impl Render for ConsoleView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // Persistent editor state for every open Editor surface — created once
+        // per file here (the only `&mut self` point before the tree renders),
+        // NEVER inside render_leaf (the old per-frame construct + disk read).
+        self.ensure_editor_states();
         // ── Flag motion. Derive horizontal pole velocity from this frame's
         // viewport-width change (resize / pane reflow → left/right); scrolling
         // feeds vy via on_scroll_wheel. A width change kicks the settle loop,

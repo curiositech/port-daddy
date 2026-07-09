@@ -56,6 +56,7 @@ mod sessions_pane;
 mod sortie_pane;
 mod substrate_pane;
 mod suggest_pane;
+mod syntax;
 mod term;
 mod theme;
 mod tokens;
@@ -1307,12 +1308,15 @@ fn main() {
                     while let Ok((panes, dispatch_head, galaxy_snapshot)) = rx.try_recv() {
                         let _ = async_cx.update(|app| {
                             let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
-                                view.update_panes(
+                                // Notify ONLY when a pane actually changed — an
+                                // idle 2s refresh cycle schedules zero repaints.
+                                if view.update_panes(
                                     panes.clone(),
                                     dispatch_head.clone(),
                                     galaxy_snapshot.clone(),
-                                );
-                                cx.notify();
+                                ) {
+                                    cx.notify();
+                                }
                             });
                         });
                     }

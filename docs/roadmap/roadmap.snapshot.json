@@ -733,6 +733,11 @@
       "slug": "gpui-component-0-5-x-dependability-verify",
       "status": "backlog",
       "summaryMd": "Verify whether gpui-component published 0.5.x (crates.io) safely pins registry gpui 0.2.2 vs the main-branch git-pin trap; decides copy-vs-depend for the pd tube text-input (blocks it). Surface: pd-console pd-tube cockpit input. Source: longbridge/gpui-component (2026-07-08 awesome-gpui survey)."
+    },
+    {
+      "slug": "feat-harbor-editor-fast",
+      "status": "now",
+      "summaryMd": "Rebuild the Harbor editor into a real editor surface: Block::CodeBuffer (Arc-shared pre-tokenized lines), uniform_list virtualization, syntax highlighting, claim/wedge bands as background, always-visible author column, notify-on-change. PR #883."
     }
   ]
 }

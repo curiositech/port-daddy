@@ -2,7 +2,22 @@
 import CoreGraphics
 import Foundation
 
-let ownerName = CommandLine.arguments.dropFirst().first ?? "pd-console"
+var ownerName = "pd-console"
+var ownerPid: Int?
+
+var args = Array(CommandLine.arguments.dropFirst())
+while !args.isEmpty {
+    let arg = args.removeFirst()
+    if arg == "--pid" {
+        guard let value = args.first, let pid = Int(value) else {
+            exit(2)
+        }
+        args.removeFirst()
+        ownerPid = pid
+    } else {
+        ownerName = arg
+    }
+}
 let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
 
 guard let windows = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
@@ -15,6 +30,12 @@ var bestArea = 0.0
 for window in windows {
     guard let owner = window[kCGWindowOwnerName as String] as? String, owner == ownerName else {
         continue
+    }
+    if let ownerPid {
+        guard let pid = window[kCGWindowOwnerPID as String] as? NSNumber,
+              pid.intValue == ownerPid else {
+            continue
+        }
     }
     guard let number = window[kCGWindowNumber as String] as? NSNumber else {
         continue

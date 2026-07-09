@@ -205,7 +205,9 @@ impl HarborBuffer {
     /// snapshot+recent-deltas instead of the whole log.
     pub fn export_snapshot(&self) -> Vec<u8> {
         self.doc.commit();
-        self.doc.export(ExportMode::snapshot()).expect("export snapshot")
+        self.doc
+            .export(ExportMode::snapshot())
+            .expect("export snapshot")
     }
 
     /// Import another replica's exported ops, merging them into this buffer. This
@@ -221,6 +223,15 @@ impl HarborBuffer {
     /// The full text content (all lines, newlines intact).
     pub fn to_string(&self) -> String {
         self.text.to_string()
+    }
+
+    /// A cheap, comparable stamp of the buffer's current CRDT state (the
+    /// encoded state version vector). Equal stamps ⇒ identical content, so the
+    /// editor pane rebuilds its tokenized render cache ONLY when this changes —
+    /// including changes applied through a shared `&HarborBuffer` (interior
+    /// mutability) that the pane never saw as a method call.
+    pub fn change_stamp(&self) -> Vec<u8> {
+        self.doc.state_vv().encode()
     }
 
     /// Derive per-line views with authorship.
@@ -473,15 +484,31 @@ mod tests {
             .apply_remote_ops(&snapshot)
             .expect("a snapshot blob imports like any Loro export");
 
-        assert_eq!(restored.to_string(), a.to_string(), "snapshot restores exact bytes");
+        assert_eq!(
+            restored.to_string(),
+            a.to_string(),
+            "snapshot restores exact bytes"
+        );
         let lines = restored.lines();
         assert_eq!(lines.len(), 2);
-        assert_eq!(lines[0].author_peer, Some(human_peer), "authorship survives the snapshot");
-        assert_eq!(lines[1].author_peer, Some(agent_peer), "the agent's line stays the agent's");
+        assert_eq!(
+            lines[0].author_peer,
+            Some(human_peer),
+            "authorship survives the snapshot"
+        );
+        assert_eq!(
+            lines[1].author_peer,
+            Some(agent_peer),
+            "the agent's line stays the agent's"
+        );
 
         // Re-importing the snapshot is idempotent (double-consume safety).
         restored.apply_remote_ops(&snapshot).unwrap();
-        assert_eq!(restored.lines().len(), 2, "re-applying the snapshot must not duplicate lines");
+        assert_eq!(
+            restored.lines().len(),
+            2,
+            "re-applying the snapshot must not duplicate lines"
+        );
     }
 
     /// A UNIQUE scratch dir per call, rooted at the COMPILE-TIME `CARGO_MANIFEST_DIR`
@@ -494,7 +521,11 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         static SEQ: AtomicU64 = AtomicU64::new(0);
         let base = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/buffer-tests");
-        let unique = base.join(format!("{}-{}", std::process::id(), SEQ.fetch_add(1, Ordering::Relaxed)));
+        let unique = base.join(format!(
+            "{}-{}",
+            std::process::id(),
+            SEQ.fetch_add(1, Ordering::Relaxed)
+        ));
         std::fs::create_dir_all(&unique).expect("create scratch dir");
         unique
     }

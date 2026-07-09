@@ -200,6 +200,32 @@ pub fn block_to_json(block: &Block) -> Value {
             "whyDisabled": why_disabled,
             "primary": primary,
         }),
+        Block::CodeBuffer {
+            lines,
+            gutter_cols,
+            bands,
+            show_authors,
+        } => json!({
+            "type": "codeBuffer",
+            "lineCount": lines.len(),
+            "gutterCols": gutter_cols,
+            "showAuthors": show_authors,
+            "bands": bands.iter().map(|band| json!({
+                "start": band.start,
+                "end": band.end,
+                "tone": format!("{:?}", band.tone),
+            })).collect::<Vec<_>>(),
+            "lines": lines.iter().map(|line| json!({
+                "number": line.number,
+                "authorTag": line.author_tag.as_deref(),
+                "authorTone": format!("{:?}", line.author_tone),
+                "text": line.text.as_ref(),
+                "runs": line.runs.iter().map(|(len, kind)| json!({
+                    "len": len,
+                    "kind": format!("{:?}", kind),
+                })).collect::<Vec<_>>(),
+            })).collect::<Vec<_>>(),
+        }),
     }
 }
 
