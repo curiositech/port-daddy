@@ -309,6 +309,52 @@ describe('spawner ↔ transcripts integration', () => {
     ]);
   });
 
+  it('treats zero Cloudflare timeout as the default instead of an immediate abort', async () => {
+    process.env.CLOUDFLARE_ACCOUNT_ID = 'test-account';
+    process.env.CLOUDFLARE_API_TOKEN = 'test-token';
+    let cloudflareInit;
+    global.fetch = jest.fn((url, init = {}) => {
+      if (String(url).includes('/ai/run/@cf/zai-org/glm-4.7-flash')) {
+        cloudflareInit = init;
+        return new Promise((resolve, reject) => {
+          init.signal.addEventListener('abort', () => {
+            reject(init.signal.reason ?? new DOMException('Cloudflare request aborted', 'AbortError'));
+          }, { once: true });
+          setTimeout(() => {
+            resolve(new Response(JSON.stringify({
+              result: {
+                response: 'Cloudflare zero timeout used the default.',
+                usage: { prompt_tokens: 4, completion_tokens: 3 },
+              },
+            }), { status: 200 }));
+          }, 20);
+        });
+      }
+      return Promise.resolve(new Response(JSON.stringify({ success: true }), { status: 200 }));
+    });
+
+    const spawner = createSpawner({
+      transcripts,
+      enforceTelemetryPolicy: false,
+      enforceTranscriptPolicy: true,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+    });
+    const result = await spawner.spawn({
+      backend: 'cloudflare',
+      model: '@cf/zai-org/glm-4.7-flash',
+      task: 'zero timeout should fall back',
+      timeout: 0,
+    });
+
+    expect(result.status).toBe('completed');
+    expect(result.output).toBe('Cloudflare zero timeout used the default.');
+    expect(cloudflareInit.signal).toBeInstanceOf(AbortSignal);
+    expect(cloudflareInit.signal.aborted).toBe(false);
+    const rows = transcripts.listTranscripts({ ship: 'spawn:cloudflare' });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe('completed');
+  });
+
   it('finalizes a timed-out Cloudflare request as failed with an error transcript', async () => {
     process.env.CLOUDFLARE_ACCOUNT_ID = 'test-account';
     process.env.CLOUDFLARE_API_TOKEN = 'test-token';
@@ -341,11 +387,11 @@ describe('spawner ↔ transcripts integration', () => {
     });
 
     expect(result.status).toBe('failed');
-    expect(result.error).toMatch(/abort|timeout/i);
+    expect(result.error).toMatch(/TimeoutError|timeout/i);
     const rows = transcripts.listTranscripts({ ship: 'spawn:cloudflare' });
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe('failed');
-    expect(rows[0].error).toMatch(/abort|timeout/i);
+    expect(rows[0].error).toMatch(/TimeoutError|timeout/i);
 
     const tx = transcripts.getTranscript(rows[0].id);
     expect(tx.messages[0]).toEqual(expect.objectContaining({
@@ -354,10 +400,10 @@ describe('spawner ↔ transcripts integration', () => {
     }));
     expect(tx.messages.at(-1)).toEqual(expect.objectContaining({
       role: 'assistant',
-      content: expect.stringMatching(/\[error\].*(abort|timeout)/i),
+      content: expect.stringMatching(/\[error\].*(TimeoutError|timeout)/i),
     }));
     expect(tx.outputs).toEqual([
-      { type: 'noop', summary: expect.stringMatching(/^failed: .*?(abort|timeout)/i) },
+      { type: 'noop', summary: expect.stringMatching(/^failed: .*?(TimeoutError|timeout)/i) },
     ]);
   });
 });
