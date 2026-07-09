@@ -33,7 +33,11 @@ Read this binder as a layered source of truth, not as a pile of equal notes:
 8. [26 Agent Harbor Runtime Refactor Agent DAG](./26-agent-harbor-runtime-refactor-agent-dag.md)
    is the skillful-agent launch graph, blackboard, review plan, and release
    proof plan for executing chapter 25.
-9. Implementation truth must eventually move from prose into ADRs, schemas,
+9. [Destructive Daemon Runtime Refactor](./work-packets/destructive-daemon-runtime-refactor.md)
+   is the Wave 2 Lane A work packet that binds ADR-0099 to implementation
+   lanes: no quiet aliases, one Surface Gateway, `harbor_events` as cold ledger,
+   `pd-supervisor` as duty boundary, and local/cloud authority labels.
+10. Implementation truth must eventually move from prose into ADRs, schemas,
    tests, events, and runtime projections. A section is not "real" until the
    matching proof gate passes.
 
@@ -225,6 +229,11 @@ Work Receipt:
   the executable skillful-agent DAG for the runtime refactor: node prompts,
   dependency order, blackboard keys, skeptical review nodes, smoke/shadow test
   gates, and release responsibilities.
+- [Work packet: Destructive Daemon Runtime Refactor](./work-packets/destructive-daemon-runtime-refactor.md):
+  the Wave 2 Lane A authority packet for implementation lanes: destructive
+  legacy entry disposition, local/cloud authority, `harbor_events`, Surface
+  Gateway, WorkIntent migration, `pd-supervisor`, native proof, and RC/Homebrew
+  gates.
 
 ## Architecture in one diagram
 
