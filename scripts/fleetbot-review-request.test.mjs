@@ -104,6 +104,8 @@ test('config parsing is explicit and does not invent a requestable app reviewer'
 test('sticky comment records the fallback when no requestable target exists', () => {
   const body = buildStickyComment({ appSlug: 'port-daddy-fleet', reviewers: [], teamReviewers: [] })
   assert.match(body, /No requestable Fleetbot user\/team is configured/)
+  assert.match(body, /Required gate: `pr-requirements-guard` verifies this Fleetbot signal/)
+  assert.doesNotMatch(body, /Required review gate: `Port Daddy Fleet` check run/)
   assert.match(body, new RegExp(FLEETBOT_LABEL))
   assert.match(body, new RegExp(FLEETBOT_COMMENT_MARKER))
 })

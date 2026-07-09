@@ -181,10 +181,11 @@ export function buildStickyComment(config = {}, requestResult = {}) {
     `- Requestable users: ${reviewers}`,
     `- Requestable teams: ${teams}`,
     `- Tracking label: \`${FLEETBOT_LABEL}\``,
-    `- Required review gate: \`${FLEETBOT_CHECK_NAME}\` check run and Fleetbot review/comments`,
+    '- Required gate: `pr-requirements-guard` verifies this Fleetbot signal on non-draft PRs',
+    `- Accepted Fleetbot evidence: this label/comment, a configured reviewer/team request, the \`${FLEETBOT_CHECK_NAME}\` check run, or Fleetbot review/comments`,
     `- Direct request status: ${requestLine}`,
     '',
-    'GitHub review requests accept users and teams; the Port Daddy Fleet GitHub App itself is tracked through this label/comment plus its check run.',
+    'GitHub review requests accept users and teams; the Port Daddy Fleet GitHub App itself is tracked through this label/comment until a requestable user or team is configured.',
     '',
     FLEETBOT_COMMENT_MARKER,
   ].join('\n')
