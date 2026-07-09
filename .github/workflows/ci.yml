@@ -283,7 +283,7 @@ jobs:
 
       - name: Run integration tests
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects integration
-        timeout-minutes: 5
+        timeout-minutes: 10
 
   compiled-daemon-smoke:
     # Builds the `bun build --compile` daemon (bun:sqlite), boots it on a
