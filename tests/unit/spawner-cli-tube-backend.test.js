@@ -406,6 +406,18 @@ describe('spawnViaCliTube — failure paths', () => {
     expect(res.error).toContain('claude setup-token');
   });
 
+  test('unresolved CLI binary fails before child execution', async () => {
+    rmSync(join(fakeHome, '.local', 'bin', 'grok'), { force: true });
+    process.env.PD_CLI_GROK_BIN = join(fakeHome, 'missing', 'grok');
+
+    const res = await spawnViaCliTube({ cli: 'grok', prompt: 'hi' });
+
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(res.exitCode).toBe(127);
+    expect(res.error).toContain('grok CLI binary unavailable');
+    expect(res.error).toContain('PD_CLI_GROK_BIN');
+  });
+
   test('auth failure in stderr surfaces actionable next-step', async () => {
     mockSpawn.mockReturnValue(fakeChild({
       stdout: '',

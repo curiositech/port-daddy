@@ -189,15 +189,18 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         };
       }
 
+      const selectedAttempt = preflight.attempts[0];
+      const effectiveBackend = selectedAttempt?.backend || backend;
+      const backendWasForced = effectiveBackend !== backend;
       const spec: SpawnSpec = {
-        backend: backend as SpawnSpec['backend'],
+        backend: effectiveBackend as SpawnSpec['backend'],
         task: task.trim(),
       };
 
-      if (model && typeof model === 'string') spec.model = model;
+      if (!backendWasForced && model && typeof model === 'string') spec.model = model;
       else if (preflight.attempts[0]?.model) spec.model = preflight.attempts[0].model;
       if (name && typeof name === 'string') spec.name = name;
-      if (typeof modelTier === 'string') spec.modelTier = modelTier as FleetModelTier;
+      if (!backendWasForced && typeof modelTier === 'string') spec.modelTier = modelTier as FleetModelTier;
       else if (preflight.attempts[0]?.modelTier) spec.modelTier = preflight.attempts[0].modelTier as FleetModelTier;
       if (identity && typeof identity === 'string') spec.identity = identity;
       if (purpose && typeof purpose === 'string') spec.purpose = purpose;

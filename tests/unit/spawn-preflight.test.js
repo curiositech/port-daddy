@@ -14,8 +14,12 @@ jest.unstable_mockModule('../../lib/fleet-engine.js', () => ({
 const { assessSpawnPreflight } = await import('../../lib/spawn-preflight.js');
 
 describe('assessSpawnPreflight', () => {
+  let previousUseCliBackend;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    previousUseCliBackend = process.env.PD_USE_CLI_BACKEND;
+    process.env.PD_USE_CLI_BACKEND = 'none';
     mockResolveFleetAgentRuntime.mockReturnValue({
       backend: 'claude-cli',
       model: 'sonnet',
@@ -30,6 +34,11 @@ describe('assessSpawnPreflight', () => {
       summary: 'ready',
       nextStep: undefined,
     });
+  });
+
+  afterEach(() => {
+    if (previousUseCliBackend === undefined) delete process.env.PD_USE_CLI_BACKEND;
+    else process.env.PD_USE_CLI_BACKEND = previousUseCliBackend;
   });
 
   test('blocks launches without a semantic identity', async () => {
@@ -224,6 +233,60 @@ describe('assessSpawnPreflight', () => {
     expect(result.blockedReasons.join('\n')).toContain(
       'ollama:qwen2.5-coder:7b — needs_setup: Ollama is blocked until exact telemetry exists. Next: Use a Claude model with an exact nonzero rate.',
     );
+  });
+
+  test('preflights the forced CLI backend, not the requested backend', async () => {
+    process.env.PD_USE_CLI_BACKEND = 'claude-code';
+    mockResolveFleetAgentRuntime.mockImplementation((target) => ({
+      backend: target.backend,
+      model: target.model ?? null,
+      modelTier: target.modelTier,
+      backendSource: 'agent',
+      modelSource: target.model ? 'agent' : 'unset',
+      warnings: [],
+    }));
+    mockAssessBackendReadiness.mockImplementation(async (backend) => ({
+      backend,
+      status: backend === 'cli:claude-code' ? 'needs_setup' : 'ready',
+      summary: backend === 'cli:claude-code'
+        ? 'Claude Code CLI binary not found'
+        : 'requested backend was ready',
+      nextStep: backend === 'cli:claude-code' ? 'Install claude.' : undefined,
+    }));
+
+    const result = await assessSpawnPreflight({
+      backend: 'openai',
+      model: 'gpt-5-mini',
+      identity: 'port-daddy:fleet:test-hunter',
+      budgetUsd: 0.75,
+    }, {
+      costTracker: {
+        budgetStatus: jest.fn(() => ({
+          project: 'port-daddy',
+          budgetUsdPerDay: 0.75,
+          spentUsd: 0,
+          remainingUsd: 0.75,
+          percentUsed: 0,
+          overBudget: false,
+        })),
+      },
+    });
+
+    expect(mockResolveFleetAgentRuntime).toHaveBeenCalledWith({
+      backend: 'cli:claude-code',
+      model: undefined,
+      modelTier: undefined,
+    });
+    expect(mockAssessBackendReadiness).toHaveBeenCalledWith('cli:claude-code', { model: 'claude-code' });
+    expect(result.launchReady).toBe(false);
+    expect(result.attempts[0]).toMatchObject({
+      backend: 'cli:claude-code',
+      model: 'claude-code',
+      backendSource: 'env',
+      readinessStatus: 'needs_setup',
+    });
+    expect(result.blockedReasons.join('\n')).toContain('cli:claude-code:claude-code — needs_setup: Claude Code CLI binary not found');
+    expect(result.warnings.join('\n')).toContain('PD_USE_CLI_BACKEND forces cli:claude-code');
   });
 
   test('blocks manual-check runtimes until readiness is proven', async () => {

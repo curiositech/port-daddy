@@ -169,6 +169,54 @@ describe('spawn routes preflight', () => {
     await app.close();
   });
 
+  test('POST /spawn launches the effective backend selected by preflight', async () => {
+    mockAssessSpawnPreflight.mockResolvedValueOnce({
+      launchReady: true,
+      blockedReasons: [],
+      warnings: ['PD_USE_CLI_BACKEND forces cli:claude-code'],
+      attempts: [{
+        attempt: 1,
+        backend: 'cli:claude-code',
+        model: 'sonnet',
+        modelTier: null,
+        backendSource: 'env',
+        modelSource: 'unset',
+        warnings: ['PD_USE_CLI_BACKEND forces cli:claude-code'],
+        readinessStatus: 'manual_check',
+        readinessLaunchableUnverified: true,
+        readinessSummary: 'Claude Code CLI binary found',
+        readinessNextStep: 'Run claude once interactively.',
+      }],
+      projectName: 'port-daddy',
+      budget: null,
+      localExecutionLikely: true,
+      localExecutionNote: 'Local CLI backends may need unsandboxed approval.',
+    });
+    const { app, spawner, register } = buildApp();
+    await register();
+
+    await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      payload: {
+        backend: 'openai',
+        model: 'gpt-5-mini',
+        identity: 'port-daddy:repo:cli',
+        task: 'review the diff',
+        budgetUsd: 0.75,
+      },
+    });
+
+    expect(spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
+      backend: 'cli:claude-code',
+      model: 'sonnet',
+      identity: 'port-daddy:repo:cli',
+      task: 'review the diff',
+    }));
+
+    await app.close();
+  });
+
   // Giant Squid Harness (ADR-0091): the conjure-dispatch posture. The console's
   // ConjureDispatch arm sends `injectSquidHooks: true`, which the route must
   // plumb onto the spawner spec so runClaudeCli injects the pd-hook tentacles —

@@ -42,7 +42,7 @@ import { coastGuardStatus } from './coast-guard.js';
 import { priceBond, classifyScope, scopeTierWritePolicy, pricedBondLogLines } from './bond-pricing.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
-import { detectForcedCliBackend } from './backend-catalog.js';
+import { resolveEffectiveSpawnBackend } from './backend-catalog.js';
 import { cliBinarySearchPath, resolveCliBinary } from './cli-bin-dirs.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
@@ -1016,26 +1016,6 @@ function runCustom(spec: SpawnSpec, context?: BackendRunContext): Promise<Backen
   }));
 }
 
-/**
- * CLI backend override. `PD_USE_CLI_BACKEND` wins, then the persisted
- * FleetBar/CLI selection in ~/.port-daddy-cli-backend. Accepted values:
- * `claude-code` (or `claude`), `codex`, `gemini`, `groq`, `grok`.
- * When set, every spawn — regardless of `spec.backend` — routes through the
- * matching `cli:<tool>` backend. Empty / unset / unrecognized values disable
- * the env override but still fall through to the persisted selection.
- * `PD_USE_CLI_BACKEND=none` (or off/disabled/0/false) hard-disables the
- * override INCLUDING the persisted fallback — the only per-process escape
- * hatch from an operator's ~/.port-daddy-cli-backend (tests rely on this;
- * see tests/jest.env.js).
- *
- * This is the operator-level "I already pay for a CLI subscription, use
- * my unmetered CLI for everything" knob. Documented in
- * `docs/fleet/backend-costs.md`.
- */
-function resolveCliBackendOverride(): SpawnSpec['backend'] | null {
-  return detectForcedCliBackend() as SpawnSpec['backend'] | null;
-}
-
 /** Rough token estimate (~4 chars/token) — the labelled best-guess fallback. */
 function estimateTokensFromText(text: string): number {
   return Math.max(1, Math.ceil((text || '').length / 4));
@@ -1852,8 +1832,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         // Global env override: PD_USE_CLI_BACKEND=claude-code|codex forces
         // every spawn through the local CLI tube, regardless of yml config.
         // This is the "I have Claude Max, use that for everything" knob.
-        const cliOverride = resolveCliBackendOverride();
-        const effectiveBackend = cliOverride ?? spec.backend;
+        const effectiveBackend = resolveEffectiveSpawnBackend(spec.backend).backend as SpawnSpec['backend'];
         switch (effectiveBackend) {
           case 'ollama':    result = await runOllama(spec, model); break;
           case 'lmstudio':  result = await runLmStudio(spec, model); break;

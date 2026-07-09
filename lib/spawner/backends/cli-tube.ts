@@ -314,6 +314,17 @@ export async function spawnViaCliTube(
   // must not be able to redirect which executable runs.
   const resolution = resolveCliBinary(DEFAULT_BINARIES[cli], { envOverride: BINARY_ENV_OVERRIDE[cli] });
   const binary = resolution.command;
+  if (!resolution.found) {
+    const reason = resolution.warning || `${DEFAULT_BINARIES[cli]} binary was not found in PATH or standard user CLI dirs.`;
+    return {
+      output: '',
+      exitCode: 127,
+      error: `${cli} CLI binary unavailable: ${reason}`,
+      tube: null,
+      durationMs: 0,
+      rawStdout: '',
+    };
+  }
   // Augment PATH with the same per-user install dirs backend-readiness checks.
   // The binary command itself comes from the same resolver readiness uses:
   // an executable operator override wins, a stale override falls back to the

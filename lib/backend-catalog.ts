@@ -325,3 +325,30 @@ export function detectForcedCliBackendValue(
 ): string | null {
   return detectForcedCliBackendMatch(env, options)?.value ?? null;
 }
+
+export interface EffectiveSpawnBackend {
+  requestedBackend: string | null;
+  backend: string | null;
+  forcedBackend: string | null;
+  forced: boolean;
+}
+
+/**
+ * Operator-scoped backend override used by both /spawn preflight and the
+ * spawner's backend dispatch. Per-spawn env is intentionally not accepted here:
+ * a request body must not be able to redirect which local CLI executable runs.
+ */
+export function resolveEffectiveSpawnBackend(
+  requestedBackend: string | null | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+  options: { persistedPath?: string | null } = {},
+): EffectiveSpawnBackend {
+  const requested = requestedBackend?.trim() || null;
+  const forced = detectForcedCliBackend(env, options);
+  return {
+    requestedBackend: requested,
+    backend: forced ?? requested,
+    forcedBackend: forced,
+    forced: !!forced,
+  };
+}
