@@ -2,7 +2,7 @@
 //!
 //! A unix-socket, newline-JSON command surface so agents and shell scripts can
 //! drive a running pd-console instead of screenshot-and-pray: switch panes,
-//! read pane state as structured JSON, tune the galaxy query, rebind the
+//! read pane state as structured JSON, tune the Sextant query, rebind the
 //! daemon, and read the HITL alert log.
 //!
 //! Enable with `--control-sock <path>` or `PD_CONSOLE_CONTROL_SOCK=<path>`.
@@ -10,9 +10,9 @@
 //!
 //!   {"cmd":"ping"}
 //!   {"cmd":"panes"}
-//!   {"cmd":"focus","pane":"galaxy"}
-//!   {"cmd":"state","pane":"galaxy"}
-//!   {"cmd":"galaxy","windowHours":720,"minTokens":64}
+//!   {"cmd":"focus","pane":"sextant"}
+//!   {"cmd":"state","pane":"sextant"}
+//!   {"cmd":"sextant","windowHours":720,"minTokens":64}
 //!   {"cmd":"rebind","url":"http://127.0.0.1:9899"}
 //!   {"cmd":"alerts"}
 //!
@@ -89,12 +89,13 @@ pub fn parse_request(line: &str) -> Result<ScriptRequest, String> {
                 .filter(|s| !s.trim().is_empty())
                 .map(|s| s.trim().to_string()),
         }),
-        "galaxy" => {
+        "galaxy" => Err("Galaxy was renamed to Sextant; use cmd=sextant.".to_string()),
+        "sextant" => {
             let window_hours = optional_positive_u32(&v, "windowHours")?;
             let min_tokens = optional_positive_u32(&v, "minTokens")?;
             let cluster = v.get("cluster").and_then(Value::as_bool);
             if window_hours.is_none() && min_tokens.is_none() && cluster.is_none() {
-                return Err("galaxy needs windowHours, minTokens, and/or cluster".to_string());
+                return Err("sextant needs windowHours, minTokens, and/or cluster".to_string());
             }
             Ok(ScriptRequest::Galaxy {
                 window_hours,
@@ -114,7 +115,7 @@ pub fn parse_request(line: &str) -> Result<ScriptRequest, String> {
         }
         "alerts" => Ok(ScriptRequest::Alerts),
         other => Err(format!(
-            "unknown cmd \"{other}\" (try ping/panes/focus/state/galaxy/rebind/alerts)"
+            "unknown cmd \"{other}\" (try ping/panes/focus/state/sextant/rebind/alerts)"
         )),
     }
 }
@@ -291,9 +292,9 @@ mod tests {
             Ok(ScriptRequest::Panes)
         );
         assert_eq!(
-            parse_request(r#"{"cmd":"focus","pane":"galaxy"}"#),
+            parse_request(r#"{"cmd":"focus","pane":"sextant"}"#),
             Ok(ScriptRequest::Focus {
-                pane: "galaxy".into()
+                pane: "sextant".into()
             })
         );
         assert_eq!(
@@ -307,7 +308,7 @@ mod tests {
             })
         );
         assert_eq!(
-            parse_request(r#"{"cmd":"galaxy","windowHours":720}"#),
+            parse_request(r#"{"cmd":"sextant","windowHours":720}"#),
             Ok(ScriptRequest::Galaxy {
                 window_hours: Some(720),
                 min_tokens: None,
@@ -315,7 +316,7 @@ mod tests {
             })
         );
         assert_eq!(
-            parse_request(r#"{"cmd":"galaxy","minTokens":64}"#),
+            parse_request(r#"{"cmd":"sextant","minTokens":64}"#),
             Ok(ScriptRequest::Galaxy {
                 window_hours: None,
                 min_tokens: Some(64),
@@ -323,7 +324,7 @@ mod tests {
             })
         );
         assert_eq!(
-            parse_request(r#"{"cmd":"galaxy","cluster":false}"#),
+            parse_request(r#"{"cmd":"sextant","cluster":false}"#),
             Ok(ScriptRequest::Galaxy {
                 window_hours: None,
                 min_tokens: None,
@@ -353,8 +354,8 @@ mod tests {
             "focus needs \"pane\""
         );
         assert_eq!(
-            parse_request(r#"{"cmd":"galaxy"}"#).unwrap_err(),
-            "galaxy needs windowHours, minTokens, and/or cluster"
+            parse_request(r#"{"cmd":"sextant"}"#).unwrap_err(),
+            "sextant needs windowHours, minTokens, and/or cluster"
         );
         assert!(parse_request(r#"{"cmd":"warp"}"#)
             .unwrap_err()
@@ -362,17 +363,25 @@ mod tests {
     }
 
     #[test]
+    fn rejects_retired_galaxy_command_with_migration_guidance() {
+        assert_eq!(
+            parse_request(r#"{"cmd":"galaxy","windowHours":720}"#).unwrap_err(),
+            "Galaxy was renamed to Sextant; use cmd=sextant."
+        );
+    }
+
+    #[test]
     fn rejects_invalid_galaxy_numbers() {
         assert_eq!(
-            parse_request(r#"{"cmd":"galaxy","windowHours":0}"#).unwrap_err(),
+            parse_request(r#"{"cmd":"sextant","windowHours":0}"#).unwrap_err(),
             "windowHours must be greater than 0"
         );
         assert_eq!(
-            parse_request(r#"{"cmd":"galaxy","minTokens":4294967296}"#).unwrap_err(),
+            parse_request(r#"{"cmd":"sextant","minTokens":4294967296}"#).unwrap_err(),
             "minTokens must fit in u32"
         );
         assert_eq!(
-            parse_request(r#"{"cmd":"galaxy","windowHours":"24"}"#).unwrap_err(),
+            parse_request(r#"{"cmd":"sextant","windowHours":"24"}"#).unwrap_err(),
             "windowHours must be a positive integer"
         );
     }
@@ -380,7 +389,7 @@ mod tests {
     #[test]
     fn blocks_serialize_flat_and_faithful() {
         let blocks = vec![
-            Block::Header("Session Galaxy".into()),
+            Block::Header("Sextant".into()),
             Block::KeyVal("sessions".into(), "18".into()),
             Block::Chip {
                 label: "agent · bash — 12 session(s)".into(),

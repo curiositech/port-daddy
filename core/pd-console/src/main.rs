@@ -369,9 +369,9 @@ fn main() {
         //  7=Activity  8=Sessions  9=Inbox  10=Suggest  11=Memory  12=PRs
         //  13=Health  14=CoastGuard  15=Dispatch  16=Lane  17=Ledger  18=Lineage
         //  19=Substrate  20=Parley  21=Conductor  22=Daemons  23=Cloud Fleet
-        //  24=Active Agents  25=Galaxy
+        //  24=Active Agents  25=Harbor  26=Sextant
         //
-        // The tuple also carries the galaxy's typed snapshot (points + clusters)
+        // The tuple also carries Sextant's typed snapshot (points + clusters)
         // alongside the render-agnostic blocks, so the bespoke canvas draws the
         // REAL map data instead of re-parsing display text (DispatchHead precedent).
         let (tx, rx) = mpsc::channel::<(
@@ -394,7 +394,7 @@ fn main() {
         // executor) and pushes replies/errors back here for the foreground to fold
         // into the chat transcript. Real daemon traffic, never a fake.
         let (chat_tx, chat_rx) = mpsc::channel::<chat::ChatUpdate>();
-        // Galaxy bus: the bg thread owns the GET /galaxy/session/:id round-trip
+        // Sextant bus: the bg thread owns the GET /galaxy/session/:id round-trip
         // for a clicked point and streams the parsed detail (or the daemon's real
         // failure) back to the view's drawer. Mirrors the conjure bus: a small
         // dedicated channel, drained in the same 500ms foreground task.
@@ -449,7 +449,7 @@ fn main() {
                 let mut cloud_fleet = CloudFleetPane::new();    // 23 — remote relay observability (Phase C)
                 let mut live_agents = ActiveAgentsPane::new();  // 24 — harness roster
                 let mut harbor     = HarborPane::new();         // 25 — Agent Node roster+detail (ch18 C3)
-                let mut galaxy      = GalaxyPane::new();        // 26 — session galaxy (embedding map)
+                let mut galaxy      = GalaxyPane::new();        // 26 — Sextant embedding map
 
                 // Pin the producer slots to the canonical grid map. If a pane is
                 // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
@@ -896,7 +896,7 @@ fn main() {
                                 lane_stream = None; // drop the old daemon's SSE stream
                                 chat = None; // re-bind chat on the new daemon's channel
                             }
-                            // Steer the galaxy pane's query; the next 2s refresh
+                            // Steer the Sextant pane's query; the next 2s refresh
                             // fetches with the new window/floor.
                             app::ControlMsg::GalaxyParams { window_hours, min_tokens } => {
                                 galaxy.set_params(window_hours, min_tokens);
@@ -1043,7 +1043,7 @@ fn main() {
                                     }
                                 }
                             }
-                            // Convene a parley from a galaxy selection (POST
+                            // Convene a parley from a Sextant selection (POST
                             // /parley/call). Parties are agent ids the view
                             // already deduped/gated at >=2; a daemon rejection
                             // (400 body) surfaces VERBATIM on the alert bus.
@@ -1077,9 +1077,10 @@ fn main() {
                                     }
                                 }
                             }
-                            // Fetch one galaxy session's full detail (GET
-                            // /galaxy/session/:id) and push the parsed result —
-                            // or the real failure — down the dedicated galaxy bus.
+                            // Fetch one Sextant session's full detail through the
+                            // internal daemon API (GET /galaxy/session/:id) and push
+                            // the parsed result — or the real failure — down the
+                            // dedicated Sextant bus.
                             app::ControlMsg::GalaxyDetail { transcript_id } => {
                                 let url =
                                     format!("{}/galaxy/session/{transcript_id}", client.base());
@@ -1345,7 +1346,7 @@ fn main() {
                             });
                         });
                     }
-                    // Drain the galaxy bus: a clicked session's parsed detail
+                    // Drain the Sextant bus: a clicked session's parsed detail
                     // (or the daemon's real failure) into the drawer state.
                     while let Ok(update) = galaxy_rx.try_recv() {
                         let _ = async_cx.update(|app| {

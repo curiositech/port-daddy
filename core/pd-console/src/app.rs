@@ -126,14 +126,14 @@ pub enum ControlMsg {
     RebindDaemon {
         url: String,
     },
-    /// Steer the galaxy pane's query (control socket `galaxy` command): the
+    /// Steer the Sextant pane's query (control socket `sextant` command): the
     /// producer thread owns the pane, so params travel the same channel as
     /// every other operator mutation.
     GalaxyParams {
         window_hours: Option<u32>,
         min_tokens: Option<u32>,
     },
-    /// Toggle galaxy clustering (cluster=false skips k-means + MI labels
+    /// Toggle Sextant clustering (cluster=false skips k-means + MI labels
     /// daemon-side); same producer-owned channel as GalaxyParams.
     GalaxyCluster {
         enabled: bool,
@@ -175,7 +175,7 @@ pub enum ControlMsg {
     InterruptAgent {
         agent_id: String,
     },
-    /// Convene a parley from a session-galaxy selection: `POST /parley/call`.
+    /// Convene a parley from a Sextant selection: `POST /parley/call`.
     /// `parties` are DEDUPED AGENT ids (`fleet_transcripts.spawned_agent_id` —
     /// never transcript/session ids; parley DMs parties via agent inbox). The
     /// daemon 400s below 2 distinct ids; the UI disables the button first, and
@@ -185,9 +185,9 @@ pub enum ControlMsg {
         reason: String,
         parties: Vec<String>,
     },
-    /// Fetch one galaxy session's full detail: `GET /galaxy/session/:id`
+    /// Fetch one Sextant session's full detail through `GET /galaxy/session/:id`
     /// (`:id` = the transcript id from a clicked point). The parsed
-    /// [`crate::galaxy_pane::GalaxyDetail`] returns on the dedicated galaxy bus
+    /// [`crate::galaxy_pane::GalaxyDetail`] returns on the dedicated Sextant bus
     /// (mirroring the conjure bus), drained into the view's detail drawer.
     GalaxyDetail {
         transcript_id: String,
@@ -235,7 +235,7 @@ pub enum ConjureUpdate {
     Png(std::path::PathBuf),
 }
 
-/// A push from the background worker back to the view about the Galaxy surface:
+/// A push from the background worker back to the view about the Sextant surface:
 /// the parsed session detail for a clicked point, or the daemon's real failure
 /// (surfaced in the drawer, never swallowed). Rides its own small bus alongside
 /// the conjure/chat buses in `main.rs`.
@@ -304,7 +304,7 @@ pub enum CmdKind {
     Kill,
     /// Interrupt a specific agent. Buffer is the agent id. → `POST /agents/:id/interrupt`.
     InterruptAgent,
-    /// Convene a parley over the current galaxy selection. Buffer is the
+    /// Convene a parley over the current Sextant selection. Buffer is the
     /// operator's reason (empty = the contract's default reason); the parties/
     /// surface are computed from `ConsoleView::galaxy_selected` at submit time.
     /// → `POST /parley/call`.
@@ -548,6 +548,17 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
         .map(|n| surface_for_launcher_id(n.id))
 }
 
+fn retired_galaxy_pane_reply(pane: &str) -> Option<serde_json::Value> {
+    if pane.trim().eq_ignore_ascii_case("galaxy") {
+        Some(serde_json::json!({
+            "ok": false,
+            "error": "pane galaxy was renamed to sextant; use pane=sextant.",
+        }))
+    } else {
+        None
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 struct LauncherLayout {
     cols: usize,
@@ -744,7 +755,7 @@ fn launcher_tone(id: &str, t: &Theme) -> u32 {
         "fleet" | "cockpit" | "sorties" | "lane" | "peek" | "chat" | "files" => t.cobalt,
         "dispatch" | "conductor" | "parley" | "suggest" | "coast" | "coast-guard" | "claims"
         | "conjure" => t.accent,
-        "roadmap" | "planner" | "adrs" | "memory" | "lineage" | "substrate" | "galaxy" => t.landed,
+        "roadmap" | "planner" | "adrs" | "memory" | "lineage" | "substrate" | "sextant" => t.landed,
         _ => t.gated, // activity, sessions, inbox, prs, health, ledger
     }
 }
@@ -1827,7 +1838,7 @@ pub struct ConsoleView {
     /// so keydown pushes `key_char` here (case-preserving) the same way the command
     /// line does, and Enter submits a turn up the tube.
     chat_input: String,
-    // ── Session Galaxy state (rendered by `galaxy_canvas`; pub(crate) because
+    // ── Sextant state (rendered by `galaxy_canvas`; pub(crate) because
     // the bespoke canvas module reads them — the two-layer rule keeps all the
     // math in `galaxy_pane`, all the pixels there, and only state here). ──
     /// The latest map frame from the producer thread (points + clusters with
@@ -1838,7 +1849,7 @@ pub struct ConsoleView {
     pub(crate) galaxy_selected: HashSet<String>,
     /// The point under the cursor (drives the fixed hover readout strip).
     pub(crate) galaxy_hover: Option<String>,
-    /// Camera for the normalized Galaxy world: edge padding, zoom, and pan.
+    /// Camera for the normalized Sextant world: edge padding, zoom, and pan.
     pub(crate) galaxy_viewport: crate::galaxy_pane::GalaxyViewport,
     /// In-flight rectangle select: (anchor, current) in WINDOW pixels. The root
     /// mouse handlers own the update/complete arms (divider-drag pattern).
@@ -2444,7 +2455,7 @@ impl ConsoleView {
             return;
         }
         // Reject and Done may submit empty (Reject falls back to a default reason;
-        // Done's summary is optional; GalaxyParley falls back to the contract's
+        // Done's summary is optional; Sextant parley falls back to the contract's
         // default reason); every other verb needs text.
         if text.is_empty()
             && cmd.kind != CmdKind::DispatchReject
@@ -3120,23 +3131,32 @@ impl ConsoleView {
                 "panes": NAV.iter().map(|n| n.id).collect::<Vec<_>>(),
                 "focused": self.ws().focused_surface().label(),
             }),
-            ScriptRequest::Focus { pane } => match surface_for_query(&pane) {
-                Some(surface) => {
-                    self.ws_mut().swap_surface(surface);
-                    json!({"ok": true, "focused": self.ws().focused_surface().label()})
+            ScriptRequest::Focus { pane } => {
+                if let Some(reply) = retired_galaxy_pane_reply(&pane) {
+                    reply
+                } else {
+                    match surface_for_query(&pane) {
+                        Some(surface) => {
+                            self.ws_mut().swap_surface(surface);
+                            json!({"ok": true, "focused": self.ws().focused_surface().label()})
+                        }
+                        None => json!({
+                            "ok": false,
+                            "error": format!("unknown pane \"{pane}\""),
+                            "panes": NAV.iter().map(|n| n.id).collect::<Vec<_>>(),
+                        }),
+                    }
                 }
-                None => json!({
-                    "ok": false,
-                    "error": format!("unknown pane \"{pane}\""),
-                    "panes": NAV.iter().map(|n| n.id).collect::<Vec<_>>(),
-                }),
-            },
+            }
             ScriptRequest::State { pane } => {
                 let target = pane.unwrap_or_else(|| {
                     nav_id_for_surface(self.ws().focused_surface())
                         .unwrap_or("fleet")
                         .to_string()
                 });
+                if let Some(reply) = retired_galaxy_pane_reply(&target) {
+                    return reply;
+                }
                 let Some(idx) = NAV.iter().position(|n| n.id == target) else {
                     return json!({
                         "ok": false,
@@ -3150,8 +3170,8 @@ impl ConsoleView {
                     .map(|bs| bs.iter().map(block_to_json).collect::<Vec<_>>())
                     .unwrap_or_default();
                 let mut out = json!({"ok": true, "pane": target, "blocks": blocks});
-                if target == "galaxy" {
-                    out["galaxy"] = json!({
+                if target == "sextant" {
+                    out["sextant"] = json!({
                         "computedAt": self.galaxy.computed_at,
                         "error": self.galaxy.last_error,
                         "points": self.galaxy.points.iter().map(|p| json!({
@@ -3221,13 +3241,12 @@ impl ConsoleView {
         }
     }
 
-    /// Cycle the galaxy window through the 4-stop contract (24→72→168→720h);
-    /// the canvas's window chip calls this.
-    pub(crate) fn cycle_galaxy_window(&mut self) {
-        let next = crate::galaxy_pane::next_window_hours(self.galaxy.window_hours);
+    /// Set the Sextant window through the producer-owned channel used by the
+    /// control socket's `sextant` command.
+    pub(crate) fn set_galaxy_window(&mut self, hours: u32) {
         if let Some(tx) = &self.control_tx {
             let _ = tx.send(ControlMsg::GalaxyParams {
-                window_hours: Some(next),
+                window_hours: Some(hours),
                 min_tokens: None,
             });
         }
@@ -3480,10 +3499,10 @@ impl ConsoleView {
         // The Conjure surface (focused) gets the "Render graph" action bar — the
         // discoverable control that ships the live DAG to the Vello PNG renderer.
         let is_conjure = matches!(surface, SurfaceKind::Conjure);
-        // The Galaxy surface renders the bespoke interactive scatter canvas
+        // The Sextant surface renders the bespoke interactive scatter canvas
         // (galaxy_canvas.rs) instead of the generic Block list — the daemon
         // precomputed the layout; the canvas only places, hits, and selects.
-        let is_galaxy = nav_id_for_surface(surface) == Some("galaxy");
+        let is_sextant = nav_id_for_surface(surface) == Some("sextant");
         // The chat surface renders bespoke bubbles (from view state) + a focused
         // composer, NOT the generic Block list. Snapshot the transcript for this frame.
         let is_chat = matches!(surface, SurfaceKind::CartographerChat);
@@ -3687,9 +3706,9 @@ impl ConsoleView {
                         b
                     }
                     None if is_daemons => body.children(daemon_rows),
-                    // Galaxy: the interactive embedding map (points, marquee,
+                    // Sextant: the interactive embedding map (points, marquee,
                     // hover readout, selection bar, detail drawer).
-                    None if is_galaxy => {
+                    None if is_sextant => {
                         body.child(crate::galaxy_canvas::render_galaxy(self, id, cx))
                     }
                     // Chat: bespoke bubbles from view state (three states: empty
@@ -6082,7 +6101,7 @@ impl Render for ConsoleView {
                         cx.notify();
                     }
                 }
-                // Galaxy camera pan: right/middle drag keeps moving even if the
+                // Sextant camera pan: right/middle drag keeps moving even if the
                 // pointer leaves the map child. Left drag remains marquee.
                 if this.galaxy_pan.is_some() {
                     if matches!(
@@ -6097,7 +6116,7 @@ impl Render for ConsoleView {
                     cx.notify();
                     return;
                 }
-                // Galaxy marquee: while a rectangle-select is live, track the far
+                // Sextant marquee: while a rectangle-select is live, track the far
                 // corner; auto-cancel when Left is no longer held (same
                 // bulletproof-release rule as the divider drag above).
                 if this.galaxy_drag.is_some() {
@@ -6116,7 +6135,7 @@ impl Render for ConsoleView {
                 if this.dragging.take().is_some() {
                     cx.notify();
                 }
-                // Galaxy marquee release: convert the pixel rect to normalized
+                // Sextant marquee release: convert the pixel rect to normalized
                 // map coords via the captured bounds and UNION the hits into the
                 // selection (⌘-free additive sweep; the pure hit test lives in
                 // galaxy_pane so the REPL bin gates it).
@@ -6481,6 +6500,18 @@ mod add_pane_tests {
             Some(SurfaceKind::Panel { nav }) => assert_eq!(nav, "ledger"),
             other => panic!("key 'b' should map to the ledger panel, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn retired_galaxy_pane_gets_migration_guidance() {
+        let reply = retired_galaxy_pane_reply(" galaxy ").expect("retired pane reply");
+
+        assert_eq!(reply["ok"], false);
+        assert_eq!(
+            reply["error"],
+            "pane galaxy was renamed to sextant; use pane=sextant."
+        );
+        assert!(retired_galaxy_pane_reply("sextant").is_none());
     }
 
     #[test]

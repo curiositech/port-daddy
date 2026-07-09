@@ -51,7 +51,7 @@ pub const NAV: &[NavItem] = &[
     NavItem { id: "cloud-fleet", label: "Cloud Fleet", icon: "icons/nav/cloud-fleet.svg", key: "f" },
     NavItem { id: "active-agents", label: "Agents", icon: "icons/nav/agents.svg", key: "a" },
     NavItem { id: "harbor",   label: "Harbor",   icon: "icons/nav/harbor.svg",   key: "r" },
-    NavItem { id: "galaxy",   label: "Galaxy",   icon: "icons/nav/galaxy.svg",   key: "x" },
+    NavItem { id: "sextant",  label: "Sextant",  icon: "icons/nav/galaxy.svg",   key: "x" },
 ];
 
 /// Canonical slot → pane-id map: the single source of truth the producer thread
@@ -65,7 +65,7 @@ pub const SLOT_PANE_IDS: [&str; 27] = [
     "fleet", "cockpit", "sorties", "claims", "peek", "planner", "adrs",
     "activity", "sessions", "inbox", "suggest", "memory", "prs", "health",
     "coast-guard", "dispatch", "lane", "ledger", "lineage", "substrate", "parley",
-    "conductor", "daemons", "cloud-fleet", "active-agents", "harbor", "galaxy",
+    "conductor", "daemons", "cloud-fleet", "active-agents", "harbor", "sextant",
 ];
 
 // ── Launcher-grid 1:1 invariants ────────────────────────────────────────────
