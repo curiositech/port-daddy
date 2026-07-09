@@ -1,10 +1,11 @@
 /**
- * CLI-tube backend — wrap a local CLI tool (claude-code or codex) so it
+ * CLI-tube backend — wrap a local agent CLI tool so it
  * looks like any other spawner backend.
  *
  * Economic motivation:
  *   A Claude Max subscriber ($200/mo flat) already has unmetered
- *   claude-code on their machine. Same shape for ChatGPT Pro + codex.
+ *   claude-code on their machine. Same shape for ChatGPT Pro + codex or
+ *   other authenticated local agent CLIs such as agy.
  *   Routing fleet work through the local CLI means zero marginal cost
  *   for those operators — the daemon delegates to a process that
  *   doesn't bill per-token from this app's wallet.
@@ -17,8 +18,9 @@
  *   exchange in real time.
  *
  * What this is NOT:
- *   A reimplementation of the CLI. We don't parse claude-code's
- *   internal protocol or codex's session state — we just invoke them.
+ *   A reimplementation of the CLI. We don't parse private CLI state; we
+ *   invoke documented non-interactive surfaces and only parse streams that are
+ *   explicitly documented/verified.
  *
  * Auth caveats (documented for operators):
  *   - `claude-code` is the user's local Claude Code CLI; on this machine
@@ -28,7 +30,7 @@
  *   - `codex` is OpenAI's Codex CLI. Needs `OPENAI_API_KEY` or a
  *     ChatGPT Pro session. Same failure shape on missing auth.
  *
- * Both CLIs run with `OTEL_SDK_DISABLED=true` and inherit a sanitized
+ * Wrapped CLIs run with `OTEL_SDK_DISABLED=true` and inherit a sanitized
  * env (the spawner's existing dotenv loader handles credential
  * surfacing).
  */
@@ -38,11 +40,11 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { cliBinDirs } from '../../cli-bin-dirs.js';
+import { cliBinarySearchPath, resolveCliBinary } from '../../cli-bin-dirs.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type CliTubeTool = 'claude-code' | 'codex' | 'gemini' | 'groq' | 'grok';
+export type CliTubeTool = 'claude-code' | 'codex' | 'agy' | 'gemini' | 'groq' | 'grok';
 
 export interface CliTubeOptions {
   /** Which local CLI to drive. */
@@ -63,7 +65,7 @@ export interface CliTubeOptions {
   env?: Record<string, string | undefined>;
   /**
    * Optional model override. Forwarded to the CLI when supported
-   * (`--model` for claude-code, `--model` for codex).
+   * (`--model` for claude-code, codex, agy, and other compatible CLIs).
    */
   model?: string;
   /**
@@ -83,7 +85,7 @@ export interface CliTubeOptions {
   /** Hook for tests / observers to capture the underlying ChildProcess. */
   onChild?: (child: ChildProcess) => void;
   /**
-   * Live per-line hook. Both wrapped CLIs emit JSONL on stdout (claude-code
+   * Live per-line hook. Streaming CLI backends emit JSONL on stdout (claude-code
    * `stream-json`, codex `--json`); stdout arrives in arbitrary chunks that may
    * split a line or carry several. This hook is called ONCE per COMPLETE line
    * (newline-terminated) as it arrives — so the caller can map each event to a
@@ -138,11 +140,12 @@ const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
  * The binary name used to invoke each tool. On this user's machine
  * `claude-code` is installed as `claude` (per `claude install`). Code
  * paths that need a different binary name set `PD_CLI_CLAUDE_CODE_BIN`
- * / `PD_CLI_CODEX_BIN`.
+ * / `PD_CLI_CODEX_BIN` / the matching `PD_CLI_*_BIN`.
  */
 const DEFAULT_BINARIES: Record<CliTubeTool, string> = {
   'claude-code': 'claude',
   codex: 'codex',
+  agy: 'agy',
   gemini: 'gemini',
   groq: 'groq',
   grok: 'grok',
@@ -153,6 +156,7 @@ const DEFAULT_BINARIES: Record<CliTubeTool, string> = {
 const BINARY_ENV_OVERRIDE: Record<CliTubeTool, string> = {
   'claude-code': 'PD_CLI_CLAUDE_CODE_BIN',
   codex: 'PD_CLI_CODEX_BIN',
+  agy: 'PD_CLI_AGY_BIN',
   gemini: 'PD_CLI_GEMINI_BIN',
   groq: 'PD_CLI_GROQ_BIN',
   grok: 'PD_CLI_GROK_BIN',
@@ -164,6 +168,7 @@ const BINARY_ENV_OVERRIDE: Record<CliTubeTool, string> = {
 const AUTH_NEXT_STEP: Record<CliTubeTool, string> = {
   'claude-code': 'Run `claude setup-token` or `claude auth` to authenticate.',
   codex: 'Set OPENAI_API_KEY in ~/.codex/config or `codex auth login`.',
+  agy: 'Run `agy --print "hello"` once interactively to confirm authentication.',
   gemini: 'Run `gemini` once interactively to sign in, or set GEMINI_API_KEY.',
   groq: 'Run `groq` once interactively to sign in, or set GROQ_API_KEY.',
   grok: 'Run `grok` once interactively to sign in, or set GROK_API_KEY / XAI_API_KEY.',
@@ -191,6 +196,7 @@ export function buildArgs(
   model?: string,
   permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions',
   codexConfig?: string[],
+  timeoutMs?: number,
 ): { args: string[]; stdin: string | null } {
   // A model equal to the backend/CLI's own name is a placeholder that leaked
   // from default resolution (backend "cli:claude-code" → model "claude-code").
@@ -206,8 +212,8 @@ export function buildArgs(
   // `claude --model claude-cli` fails with "model may not exist" and every
   // sentinel-model spawn dies (the bug that made cli:claude-code look broken).
   const PLACEHOLDER_MODELS = new Set([
-    'claude-code', 'codex', 'gemini', 'groq', 'grok',
-    'claude-cli', 'codex-cli', 'cli',
+    'claude-code', 'codex', 'agy', 'gemini', 'groq', 'grok',
+    'claude-cli', 'codex-cli', 'agy-cli', 'agy-default', 'default', 'cli',
   ]);
   const CLI_DEFAULT_MODEL: Partial<Record<CliTubeTool, string>> = {
     'claude-code': 'sonnet', // a real Claude model the CLI + rate table both accept
@@ -249,6 +255,20 @@ export function buildArgs(
     if (effModel) args.push('--model', effModel);
     for (const config of normalizeCodexConfigOverrides(codexConfig)) {
       args.push('-c', config);
+    }
+    args.push(prompt);
+    return { args, stdin: null };
+  }
+
+  if (cli === 'agy') {
+    // `agy --print <prompt>` is the documented non-interactive surface. It
+    // prints a final response to stdout and currently has no JSONL stream, so
+    // Port Daddy records the prompt plus the final stdout/stderr transcript path
+    // instead of claiming structured streaming.
+    const args = ['--print'];
+    if (effModel) args.push('--model', effModel);
+    if (timeoutMs && Number.isFinite(timeoutMs) && timeoutMs > 0) {
+      args.push('--print-timeout', `${Math.max(1, Math.ceil(timeoutMs / 1000))}s`);
     }
     args.push(prompt);
     return { args, stdin: null };
@@ -312,12 +332,25 @@ export async function spawnViaCliTube(
   // Binary override is OPERATOR-scoped: read PD_CLI_*_BIN from process.env
   // only, never from per-spawn opts.env/spec.env — a caller-supplied env
   // must not be able to redirect which executable runs.
-  const binary = process.env[BINARY_ENV_OVERRIDE[cli]] || DEFAULT_BINARIES[cli];
-  // Augment PATH with the same per-user install dirs backend-readiness
-  // checks, so a binary the readiness gate found is also findable at spawn
-  // time under launchd's bare PATH.
+  const resolution = resolveCliBinary(DEFAULT_BINARIES[cli], { envOverride: BINARY_ENV_OVERRIDE[cli] });
+  const binary = resolution.command;
+  if (!resolution.found) {
+    const reason = resolution.warning || `${DEFAULT_BINARIES[cli]} binary was not found in PATH or standard user CLI dirs.`;
+    return {
+      output: '',
+      exitCode: 127,
+      error: `${cli} CLI binary unavailable: ${reason}`,
+      tube: null,
+      durationMs: 0,
+      rawStdout: '',
+    };
+  }
+  // Augment PATH with the same per-user install dirs backend-readiness checks.
+  // The binary command itself comes from the same resolver readiness uses:
+  // an executable operator override wins, a stale override falls back to the
+  // discovered default, and per-spawn opts.env cannot redirect executable choice.
   const basePath = (opts.env?.PATH as string | undefined) ?? process.env.PATH ?? '';
-  const augmentedPath = [basePath, ...cliBinDirs()].filter(Boolean).join(':');
+  const augmentedPath = cliBinarySearchPath(basePath);
   const env = {
     ...process.env,
     ...(opts.env || {}),
@@ -346,7 +379,7 @@ export async function spawnViaCliTube(
     outputPath = join(tempDir, 'last-message.txt');
   }
 
-  const { args } = buildArgs(cli, opts.prompt, outputPath, opts.model, opts.permissionMode, opts.codexConfig);
+  const { args } = buildArgs(cli, opts.prompt, outputPath, opts.model, opts.permissionMode, opts.codexConfig, timeoutMs);
 
   const startedAt = Date.now();
 

@@ -42,7 +42,8 @@ import { coastGuardStatus } from './coast-guard.js';
 import { priceBond, classifyScope, scopeTierWritePolicy, pricedBondLogLines } from './bond-pricing.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
-import { detectForcedCliBackend } from './backend-catalog.js';
+import { resolveEffectiveSpawnBackend } from './backend-catalog.js';
+import { cliBinarySearchPath, resolveCliBinary } from './cli-bin-dirs.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
 // The daemon runs via launchd which has no shell env. Spawned agents need
@@ -100,7 +101,7 @@ function loadDotenvOnce(): Record<string, string> {
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'lmstudio' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'deepseek' | 'xai' | 'cli:claude-code' | 'cli:codex' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
+  backend: 'ollama' | 'lmstudio' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'deepseek' | 'xai' | 'cli:claude-code' | 'cli:codex' | 'cli:agy' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
   name?: string;        // human-readable display name
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';
@@ -751,10 +752,9 @@ async function runCliTube(
     tubeClient: context?.tubeClient,
   });
 
-  // Full-depth capture from the raw event stream. Both wrapped CLIs emit
-  // structured JSONL: codex → `--json` (reasoning/command/message items),
-  // claude-code → `stream-json` (thinking/tool_use/tool_result/text blocks).
   if (cli === 'codex') {
+    // Codex `--json` gives us full-depth capture from the raw event stream:
+    // reasoning/command/message items plus a terminal usage event.
     // Codex `--json` emits a terminal `turn.completed` carrying exact usage.
     // The tube path previously dropped it (only the legacy runCodexCli parsed
     // it), so every `cli:codex` spawn returned no tokens and fail-closed the
@@ -779,29 +779,44 @@ async function runCliTube(
           }),
     };
   }
-  // claude-code: raw stdout is the stream-json; recover the final answer from
-  // the terminal `result` line (falling back to raw if absent), parse the stream
-  // into thinking / tool / assistant turns, and recover the exact token usage the
-  // CLI reported on that same `result` line (previously dropped → fail-closed).
-  const finalAnswer = extractClaudeCodeFinal(result.rawStdout || '');
-  const ccu = extractClaudeCodeUsage(result.rawStdout || '');
-  const ccExact = typeof ccu.inputTokens === 'number' && ccu.inputTokens > 0
-    && typeof ccu.outputTokens === 'number' && ccu.outputTokens > 0;
+  if (cli === 'claude-code') {
+    // claude-code: raw stdout is the stream-json; recover the final answer from
+    // the terminal `result` line (falling back to raw if absent), parse the
+    // stream into thinking / tool / assistant turns, and recover the exact token
+    // usage the CLI reported on that same `result` line (previously dropped →
+    // fail-closed).
+    const finalAnswer = extractClaudeCodeFinal(result.rawStdout || '');
+    const ccu = extractClaudeCodeUsage(result.rawStdout || '');
+    const ccExact = typeof ccu.inputTokens === 'number' && ccu.inputTokens > 0
+      && typeof ccu.outputTokens === 'number' && ccu.outputTokens > 0;
+    return {
+      output: finalAnswer ?? result.output,
+      error: result.error,
+      transcript: parseClaudeCodeTranscript(result.rawStdout || ''),
+      ...(ccExact
+        ? {
+            inputTokens: ccu.inputTokens,
+            outputTokens: ccu.outputTokens,
+            ...(typeof ccu.cachedInputTokens === 'number' ? { cachedInputTokens: ccu.cachedInputTokens } : {}),
+          }
+        : {
+            inputTokens: estimateTokensFromText(spec.task),
+            outputTokens: estimateTokensFromText(finalAnswer ?? result.output ?? ''),
+            estimatedTelemetry: true,
+          }),
+    };
+  }
+
+  // agy/gemini/groq/grok currently provide a final stdout/stderr answer through
+  // cli-tube, not a documented JSONL stream. Keep the transcript honest: the
+  // outer spawner has already recorded the user prompt and will append one final
+  // assistant/output turn from `output`.
   return {
-    output: finalAnswer ?? result.output,
+    output: result.output,
     error: result.error,
-    transcript: parseClaudeCodeTranscript(result.rawStdout || ''),
-    ...(ccExact
-      ? {
-          inputTokens: ccu.inputTokens,
-          outputTokens: ccu.outputTokens,
-          ...(typeof ccu.cachedInputTokens === 'number' ? { cachedInputTokens: ccu.cachedInputTokens } : {}),
-        }
-      : {
-          inputTokens: estimateTokensFromText(spec.task),
-          outputTokens: estimateTokensFromText(finalAnswer ?? result.output ?? ''),
-          estimatedTelemetry: true,
-        }),
+    inputTokens: estimateTokensFromText(spec.task),
+    outputTokens: estimateTokensFromText(result.output || ''),
+    estimatedTelemetry: true,
   };
 }
 
@@ -1015,26 +1030,6 @@ function runCustom(spec: SpawnSpec, context?: BackendRunContext): Promise<Backen
   }));
 }
 
-/**
- * CLI backend override. `PD_USE_CLI_BACKEND` wins, then the persisted
- * FleetBar/CLI selection in ~/.port-daddy-cli-backend. Accepted values:
- * `claude-code` (or `claude`), `codex`, `gemini`, `groq`, `grok`.
- * When set, every spawn — regardless of `spec.backend` — routes through the
- * matching `cli:<tool>` backend. Empty / unset / unrecognized values disable
- * the env override but still fall through to the persisted selection.
- * `PD_USE_CLI_BACKEND=none` (or off/disabled/0/false) hard-disables the
- * override INCLUDING the persisted fallback — the only per-process escape
- * hatch from an operator's ~/.port-daddy-cli-backend (tests rely on this;
- * see tests/jest.env.js).
- *
- * This is the operator-level "I already pay for a CLI subscription, use
- * my unmetered CLI for everything" knob. Documented in
- * `docs/fleet/backend-costs.md`.
- */
-function resolveCliBackendOverride(): SpawnSpec['backend'] | null {
-  return detectForcedCliBackend() as SpawnSpec['backend'] | null;
-}
-
 /** Rough token estimate (~4 chars/token) — the labelled best-guess fallback. */
 function estimateTokensFromText(text: string): number {
   return Math.max(1, Math.ceil((text || '').length / 4));
@@ -1106,14 +1101,16 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
   const { ANTHROPIC_API_KEY: _dropped, ...dotenvSafe } = loadDotenvOnce();
   const { ANTHROPIC_API_KEY: _droppedEnv, ...processEnvSafe } = process.env;
 
-  // Ensure ~/.local/bin is in PATH for claude binary discovery
-  const homeBin = join(process.env.HOME || '', '.local', 'bin');
+  // Resolve through the same operator-scoped path logic as readiness and
+  // cli:claude-code. A stale PD_CLI_CLAUDE_CODE_BIN must not strand the
+  // launchd daemon when a standard user-install `claude` is discoverable.
+  const resolution = resolveCliBinary('claude', { envOverride: 'PD_CLI_CLAUDE_CODE_BIN' });
   const currentPath = process.env.PATH || '';
-  const augmentedPath = currentPath.includes('.local/bin') ? currentPath : `${homeBin}:${currentPath}`;
+  const augmentedPath = cliBinarySearchPath(currentPath);
 
   const res = await runConfinedChild({
     spec,
-    cmd: 'claude',
+    cmd: resolution.command,
     args,
     env: { ...processEnvSafe, ...dotenvSafe, ...(spec.env || {}), PATH: augmentedPath },
     timeout: spec.timeout,
@@ -1142,6 +1139,7 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   codex: resolveModel({ backend: 'codex', capability: 'cheap' }),
   'cli:claude-code': 'claude-cli',  // local claude CLI manages its own model
   'cli:codex': 'codex-cli',          // local codex CLI manages its own model
+  'cli:agy': 'agy-cli',              // local agy CLI manages its own model
   'cli:gemini': 'gemini-cli',        // local gemini CLI manages its own model
   'cli:groq': 'groq-cli',            // local groq CLI manages its own model
   'cli:grok': 'grok-cli',            // local grok CLI manages its own model
@@ -1150,6 +1148,19 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
 };
 // Mark default-timeout knobs referenced elsewhere
 void DEFAULT_OPENAI_TIMEOUT_MS;
+
+const FLAT_RATE_CLI_TUBE_BACKENDS = new Set<SpawnSpec['backend']>([
+  'cli:claude-code',
+  'cli:codex',
+  'cli:agy',
+  'cli:gemini',
+  'cli:groq',
+  'cli:grok',
+]);
+
+function allowsFlatRateEstimatedTelemetry(backend: SpawnSpec['backend']): boolean {
+  return FLAT_RATE_CLI_TUBE_BACKENDS.has(backend);
+}
 
 // =============================================================================
 // Worktree isolation guard (layer 2)
@@ -1846,11 +1857,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           tubeClient,
           tubeChannel: spec.tubeChannel,
         };
-        // Global env override: PD_USE_CLI_BACKEND=claude-code|codex forces
+        // Global env override: PD_USE_CLI_BACKEND=<local agent CLI> forces
         // every spawn through the local CLI tube, regardless of yml config.
-        // This is the "I have Claude Max, use that for everything" knob.
-        const cliOverride = resolveCliBackendOverride();
-        const effectiveBackend = cliOverride ?? spec.backend;
+        // This is the "use my authenticated local CLI for everything" knob.
+        const effectiveBackend = resolveEffectiveSpawnBackend(spec.backend).backend as SpawnSpec['backend'];
         switch (effectiveBackend) {
           case 'ollama':    result = await runOllama(spec, model); break;
           case 'lmstudio':  result = await runLmStudio(spec, model); break;
@@ -1865,6 +1875,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           case 'claude-cli': result = await runClaudeCli(spec, childContext); break;
           case 'cli:claude-code': result = await runCliTube(spec, 'claude-code', childContext); break;
           case 'cli:codex':       result = await runCliTube(spec, 'codex', childContext); break;
+          case 'cli:agy':         result = await runCliTube(spec, 'agy', childContext); break;
           case 'cli:gemini':      result = await runCliTube(spec, 'gemini', childContext); break;
           case 'cli:groq':        result = await runCliTube(spec, 'groq', childContext); break;
           case 'cli:grok':        result = await runCliTube(spec, 'grok', childContext); break;
@@ -1899,7 +1910,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           const computed = cachedInputTokens === undefined
             ? costTracker.computeCost(spec.backend, model, inputTokens, outputTokens)
             : costTracker.computeCost(spec.backend, model, inputTokens, outputTokens, cachedInputTokens);
-          if (computed.isEstimate) {
+          const allowFlatRateEstimate = allowsFlatRateEstimatedTelemetry(spec.backend);
+          if (computed.isEstimate && !allowFlatRateEstimate) {
             error = `Exact telemetry required, but ${spec.backend} cost calculation fell back to an estimate.`;
             output = null;
           } else if (computed.costUsd <= 0) {
@@ -1918,7 +1930,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
               outputTokens,
             });
 
-            if (!recorded || recorded.isEstimate || recorded.costUsd <= 0) {
+            if (!recorded || (recorded.isEstimate && !allowFlatRateEstimate) || recorded.costUsd <= 0) {
               error = `Exact telemetry required, but ${spec.backend} telemetry could not be persisted as an exact nonzero cost record.`;
               output = null;
             } else {

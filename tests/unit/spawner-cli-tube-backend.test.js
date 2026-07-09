@@ -17,9 +17,16 @@
 
 import { jest } from '@jest/globals';
 import { EventEmitter } from 'node:events';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Readable } from 'node:stream';
 
 const mockSpawn = jest.fn();
+const originalHome = process.env.HOME;
+const originalPath = process.env.PATH;
+const originalCliBinDirs = process.env.PD_CLI_BIN_DIRS;
+let fakeHome;
 
 jest.unstable_mockModule('node:child_process', () => ({
   spawn: mockSpawn,
@@ -55,12 +62,41 @@ function fakeChild({ stdout = '', stderr = '', exitCode = 0, error = null, delay
 
 beforeEach(() => {
   jest.clearAllMocks();
+  fakeHome = mkdtempSync(join(tmpdir(), 'pd-cli-tube-home-'));
+  process.env.HOME = fakeHome;
+  process.env.PATH = '/usr/bin:/bin';
+  delete process.env.PD_CLI_BIN_DIRS;
   delete process.env.PD_CLI_CLAUDE_CODE_BIN;
   delete process.env.PD_CLI_CODEX_BIN;
+  delete process.env.PD_CLI_AGY_BIN;
   delete process.env.PD_CLI_GEMINI_BIN;
   delete process.env.PD_CLI_GROQ_BIN;
   delete process.env.PD_CLI_GROK_BIN;
+  for (const bin of ['claude', 'codex', 'agy', 'gemini', 'groq', 'grok']) {
+    installCli(bin);
+  }
 });
+
+afterEach(() => {
+  try { rmSync(fakeHome, { recursive: true, force: true }); } catch { /* noop */ }
+});
+
+afterAll(() => {
+  if (originalHome === undefined) delete process.env.HOME;
+  else process.env.HOME = originalHome;
+  if (originalPath === undefined) delete process.env.PATH;
+  else process.env.PATH = originalPath;
+  if (originalCliBinDirs === undefined) delete process.env.PD_CLI_BIN_DIRS;
+  else process.env.PD_CLI_BIN_DIRS = originalCliBinDirs;
+});
+
+function installCli(name, dir = join(fakeHome, '.local', 'bin')) {
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, name);
+  writeFileSync(file, '#!/bin/sh\necho ok\n');
+  chmodSync(file, 0o755);
+  return file;
+}
 
 describe('buildArgs', () => {
   test('claude-code uses -p + stream-json --verbose (full-depth capture)', () => {
@@ -107,6 +143,32 @@ describe('buildArgs', () => {
     const { args } = buildArgs('claude-code', 'hi', undefined, 'claude-haiku-4-5-20251001');
     const idx = args.indexOf('--model');
     expect(args[idx + 1]).toBe('claude-haiku-4-5-20251001');
+  });
+
+  test('agy uses --print with no model flag by default', () => {
+    const { args, stdin } = buildArgs('agy', 'hello agy');
+    expect(stdin).toBeNull();
+    expect(args).toEqual(['--print', 'hello agy']);
+  });
+
+  test.each(['agy-cli', 'agy-default', 'agy', 'default', 'cli'])(
+    'agy drops placeholder/sentinel model %s instead of forwarding --model',
+    (sentinel) => {
+      const { args } = buildArgs('agy', 'hi', undefined, sentinel);
+      expect(args).toEqual(['--print', 'hi']);
+      expect(args).not.toContain('--model');
+      expect(args).not.toContain(sentinel);
+    },
+  );
+
+  test('agy forwards an explicit real model string and print timeout', () => {
+    const { args } = buildArgs('agy', 'hi', undefined, 'real-agy-model', undefined, undefined, 1234);
+    expect(args).toEqual([
+      '--print',
+      '--model', 'real-agy-model',
+      '--print-timeout', '2s',
+      'hi',
+    ]);
   });
 
   test('codex uses exec + workspace-write sandbox', () => {
@@ -222,22 +284,24 @@ describe('spawnViaCliTube — onStreamLine (live per-line buffering)', () => {
   });
 });
 
-describe('spawnViaCliTube — gemini/groq/grok binaries + overrides', () => {
+describe('spawnViaCliTube — agy/gemini/groq/grok binaries + overrides', () => {
   test.each([
+    ['agy', 'agy', 'PD_CLI_AGY_BIN'],
     ['gemini', 'gemini', 'PD_CLI_GEMINI_BIN'],
     ['groq', 'groq', 'PD_CLI_GROQ_BIN'],
     ['grok', 'grok', 'PD_CLI_GROK_BIN'],
   ])('%s invokes the `%s` binary by default and honors %s', async (cli, bin, envKey) => {
     mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
     const res = await spawnViaCliTube({ cli, prompt: 'say hi' });
-    expect(mockSpawn.mock.calls[0][0]).toBe(bin);
+    expect(mockSpawn.mock.calls[0][0]).toBe(join(fakeHome, '.local', 'bin', bin));
     expect(res.tube).toMatch(new RegExp(`^cli:${cli}:`));
     expect(res.error).toBeNull();
 
-    process.env[envKey] = `/custom/path/${bin}-beta`;
+    const override = installCli(`${bin}-beta`, join(fakeHome, 'custom-bin'));
+    process.env[envKey] = override;
     mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
     await spawnViaCliTube({ cli, prompt: 'hi' });
-    expect(mockSpawn.mock.calls[1][0]).toBe(`/custom/path/${bin}-beta`);
+    expect(mockSpawn.mock.calls[1][0]).toBe(override);
   });
 
   test('gemini maps auth-flavored stderr to an actionable error', async () => {
@@ -245,6 +309,13 @@ describe('spawnViaCliTube — gemini/groq/grok binaries + overrides', () => {
     const res = await spawnViaCliTube({ cli: 'gemini', prompt: 'hi' });
     expect(res.error).toMatch(/authentication failed/i);
     expect(res.error).toMatch(/GEMINI_API_KEY/);
+  });
+
+  test('agy maps auth-flavored stderr to agy-specific guidance', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stderr: 'Error: not authenticated', exitCode: 1 }));
+    const res = await spawnViaCliTube({ cli: 'agy', prompt: 'hi' });
+    expect(res.error).toMatch(/authentication failed/i);
+    expect(res.error).toMatch(/agy --print "hello"/);
   });
 
   test('grok ENOENT maps to install guidance', async () => {
@@ -274,7 +345,7 @@ describe('spawnViaCliTube — claude-code happy path', () => {
     const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'say hi' });
     expect(mockSpawn).toHaveBeenCalledTimes(1);
     const [binary, args] = mockSpawn.mock.calls[0];
-    expect(binary).toBe('claude');
+    expect(binary).toBe(join(fakeHome, '.local', 'bin', 'claude'));
     expect(args).toContain('-p');
     expect(args[args.length - 1]).toBe('say hi');
     expect(res.output).toBe('Hello!');
@@ -283,11 +354,22 @@ describe('spawnViaCliTube — claude-code happy path', () => {
   });
 
   test('respects PD_CLI_CLAUDE_CODE_BIN env override', async () => {
-    process.env.PD_CLI_CLAUDE_CODE_BIN = '/custom/path/claude-beta';
+    const override = installCli('claude-beta', join(fakeHome, 'custom-bin'));
+    process.env.PD_CLI_CLAUDE_CODE_BIN = override;
     mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
     await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
     const [binary] = mockSpawn.mock.calls[0];
-    expect(binary).toBe('/custom/path/claude-beta');
+    expect(binary).toBe(override);
+  });
+
+  test('falls back from stale PD_CLI_CLAUDE_CODE_BIN to discovered claude', async () => {
+    const stale = join(fakeHome, '.missing', 'claude');
+    const discovered = join(fakeHome, '.local', 'bin', 'claude');
+    process.env.PD_CLI_CLAUDE_CODE_BIN = stale;
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+    const [binary] = mockSpawn.mock.calls[0];
+    expect(binary).toBe(discovered);
   });
 
   test('returns the generated tube channel name', async () => {
@@ -354,8 +436,21 @@ describe('spawnViaCliTube — failure paths', () => {
   test('ENOENT → "binary not found" error with auth hint', async () => {
     mockSpawn.mockReturnValue(fakeChild({ error: Object.assign(new Error('spawn claude ENOENT'), { code: 'ENOENT' }) }));
     const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
-    expect(res.error).toContain('binary "claude" not found');
+    expect(res.error).toContain('binary');
+    expect(res.error).toContain('not found');
     expect(res.error).toContain('claude setup-token');
+  });
+
+  test('unresolved CLI binary fails before child execution', async () => {
+    rmSync(join(fakeHome, '.local', 'bin', 'grok'), { force: true });
+    process.env.PD_CLI_GROK_BIN = join(fakeHome, 'missing', 'grok');
+
+    const res = await spawnViaCliTube({ cli: 'grok', prompt: 'hi' });
+
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(res.exitCode).toBe(127);
+    expect(res.error).toContain('grok CLI binary unavailable');
+    expect(res.error).toContain('PD_CLI_GROK_BIN');
   });
 
   test('auth failure in stderr surfaces actionable next-step', async () => {
@@ -399,7 +494,7 @@ describe('createCliTubeBackend', () => {
     const codex = createCliTubeBackend({ cli: 'codex' });
     const res = await codex({ prompt: 'hello' });
     const [binary, args] = mockSpawn.mock.calls[0];
-    expect(binary).toBe('codex');
+    expect(binary).toBe(join(fakeHome, '.local', 'bin', 'codex'));
     expect(args[0]).toBe('exec');
     expect(res.output).toBeTruthy();
   });
@@ -410,7 +505,7 @@ describe('spawnViaCliTube — codex shape', () => {
     mockSpawn.mockReturnValue(fakeChild({ stdout: '{"type":"log"}', exitCode: 0 }));
     const res = await spawnViaCliTube({ cli: 'codex', prompt: 'do thing' });
     const [binary, args] = mockSpawn.mock.calls[0];
-    expect(binary).toBe('codex');
+    expect(binary).toBe(join(fakeHome, '.local', 'bin', 'codex'));
     expect(args).toContain('--output-last-message');
     expect(res.exitCode).toBe(0);
     // The file won't exist in this test (no real codex), so output
@@ -427,7 +522,7 @@ describe('spawnViaCliTube — binary override scoping + PATH parity', () => {
       prompt: 'hi',
       env: { PD_CLI_GEMINI_BIN: '/attacker/controlled/binary' },
     });
-    expect(mockSpawn.mock.calls[0][0]).toBe('gemini');
+    expect(mockSpawn.mock.calls[0][0]).toBe(join(fakeHome, '.local', 'bin', 'gemini'));
   });
 
   test('child PATH is augmented with the per-user install dirs readiness checks', async () => {

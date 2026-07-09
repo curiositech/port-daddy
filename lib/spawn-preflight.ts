@@ -1,5 +1,6 @@
 import { assessBackendReadiness, type BackendReadiness } from './backend-readiness.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
+import { resolveEffectiveSpawnBackend } from './backend-catalog.js';
 import type { BudgetStatus, CostTracker } from './cost-tracker.js';
 import {
   resolveFleetAgentRuntime,
@@ -7,7 +8,7 @@ import {
   type FleetRuntimeTarget,
 } from './fleet-engine.js';
 
-export const LOCAL_EXECUTION_BACKENDS = new Set(['claude-cli', 'codex', 'ollama', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok']);
+export const LOCAL_EXECUTION_BACKENDS = new Set(['claude-cli', 'codex', 'ollama', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:agy', 'cli:gemini', 'cli:groq', 'cli:grok']);
 
 const LOCAL_EXECUTION_NOTE = 'Local CLI backends and Port Daddy socket/IPC operations may need unsandboxed approval in restricted runners.';
 
@@ -124,7 +125,11 @@ export async function assessSpawnPreflight(
 ): Promise<SpawnPreflightResult> {
   const attempts = await Promise.all(
     buildAttemptTargets(input).map(async (target, index): Promise<SpawnPreflightAttempt> => {
-      const runtime = resolveFleetAgentRuntime(target);
+      const effective = resolveEffectiveSpawnBackend(target.backend);
+      const targetForRuntime = effective.forced && effective.backend !== target.backend
+        ? { backend: effective.backend || undefined, model: undefined, modelTier: undefined }
+        : target;
+      const runtime = resolveFleetAgentRuntime(targetForRuntime);
       const telemetryPolicy = runtime.backend
         ? assessBackendTelemetryPolicy(runtime.backend, runtime.model ?? null)
         : null;
@@ -142,9 +147,14 @@ export async function assessSpawnPreflight(
         backend: runtime.backend,
         model: runtime.model ?? telemetryPolicy?.effectiveModel ?? null,
         modelTier: runtime.modelTier ?? null,
-        backendSource: runtime.backendSource,
+        backendSource: effective.forced ? 'env' : runtime.backendSource,
         modelSource: runtime.modelSource,
-        warnings: runtime.warnings,
+        warnings: uniqueWarnings([
+          ...runtime.warnings,
+          effective.forced && effective.requestedBackend !== effective.backend
+            ? `PD_USE_CLI_BACKEND forces ${effective.backend}; requested backend ${effective.requestedBackend ?? 'none'} will be preflighted and spawned as ${effective.backend}.`
+            : '',
+        ]),
         readinessStatus: readiness.status,
         readinessLaunchableUnverified: readiness.launchableUnverified === true,
         readinessSummary: readiness.summary,

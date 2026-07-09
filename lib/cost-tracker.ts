@@ -196,6 +196,7 @@ const SESSION_ESTIMATES_USD: Record<string, number> = {
   // count usage and a daily project budget can still rate-limit.
   'cli:claude-code': 0.001,
   'cli:codex':       0.001,
+  'cli:agy':         0.001,
   'cli:gemini':      0.001,
   'cli:groq':        0.001,
   'cli:grok':        0.001,
@@ -221,7 +222,7 @@ function estimateOpaqueSessionCost(backend: string, model: string): number {
 }
 
 function hasKnownPaidRemoteBackend(backend: string): boolean {
-  return ['claude', 'claude-cli', 'gemini', 'codex', 'aider', 'cloudflare', 'openai', 'groq', 'deepseek', 'xai', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok'].includes(backend);
+  return ['claude', 'claude-cli', 'gemini', 'codex', 'aider', 'cloudflare', 'openai', 'groq', 'deepseek', 'xai', 'cli:claude-code', 'cli:codex', 'cli:agy', 'cli:gemini', 'cli:groq', 'cli:grok'].includes(backend);
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────

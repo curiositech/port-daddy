@@ -439,12 +439,14 @@ export function resolveFleetAgentRuntime(agent: Pick<FleetAgent, 'backend' | 'mo
   // gate blocks the launch — and the CLI itself rejects it ("model not
   // supported"). Substitute the rate-backed operator default so the CLI
   // invocation and the cost calculation agree on a real, priceable model.
-  const CLI_MODEL_PLACEHOLDERS = new Set(['claude-code', 'codex', 'gemini', 'groq', 'grok']);
+  const CLI_MODEL_PLACEHOLDERS = new Set(['claude-code', 'codex', 'agy', 'agy-cli', 'agy-default', 'gemini', 'groq', 'grok']);
   if (backend && (!model || CLI_MODEL_PLACEHOLDERS.has(model))) {
     if (backend === 'cli:claude-code' || backend === 'claude-cli' || backend === 'claude') {
       model = DEFAULT_OPERATOR_CLAUDE_MODEL;
     } else if (backend === 'cli:codex' || backend === 'codex') {
       model = DEFAULT_OPERATOR_CODEX_MODEL;
+    } else if (backend.startsWith('cli:')) {
+      model = undefined;
     }
   }
 

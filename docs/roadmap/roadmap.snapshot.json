@@ -2,7 +2,7 @@
   "generatedAt": 1783587747423,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 148,
+  "count": 149,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -518,6 +518,11 @@
       "slug": "cloudflare-agent-telemetry-unified-reporting",
       "status": "now",
       "summaryMd": "Cloudflare/GitHub App remote agent telemetry appears in the same fleet, agent, and spend reports as local agents."
+    },
+    {
+      "slug": "codex-daemon-claude-bin-resolution",
+      "status": "backlog",
+      "summaryMd": "Fix daemon Claude CLI binary resolution"
     },
     {
       "slug": "codex-homepage-hero-followup",
