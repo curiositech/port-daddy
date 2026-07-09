@@ -711,10 +711,12 @@ Run tiered daemons side by side — a stable daemon for real work, a dev daemon 
 pd dev up          # start an isolated feature-branch dev daemon
 pd dev gc          # smart-reap stale dev berths (24h TTL)
 pd dev down        # stop a berth
-pd use <berth>     # emits a shell snippet to point your shell at a berth (eval it)
+pd use <berth>     # emits a shell snippet for this shell/process (eval it)
 ```
 
-FleetBar shows which berth you're on (stable / dev-latest / codebase chip).
+`pd use` is not a global daemon switch. It points the current shell or launched
+process at a berth; FleetBar, Control Center, and pd-console show the
+berth/codebase/dev lane they are actually connected to.
 
 ### Backup & restore (ADR-0037)
 
@@ -766,6 +768,12 @@ Port Daddy ships exactly **three** sanctioned operator surfaces (the legacy web 
 1. **FleetBar** (`apps/FleetBar/`) — the SwiftUI macOS menu-bar app. Daemon health at a glance, berth chip, cost dashboard, secrets pane, visual task intake, one-click "Open Operator Console". Auto-launched by the daemon.
 2. **Control Center** — FleetBar's window. Fleet graph, agents view (configured fleet agents, live registry, spawned runs, salvage ghosts, inbox traffic, sessions/notes, channels, claims), fleet config editing with topology validation.
 3. **pd-console** (`core/pd-console/`) — the GPU-native (gpui) operator console. Sidebar panes for Fleet, Sorties, Dispatch, Sessions, Health, Parley, Conductor, Substrate; a headless TUI build for terminals/CI; three build lanes (prod/latest/dev) with distinct bundle IDs and icons. Build via `make` / `make install`; the Homebrew cask ships `pd-console-prod.app`.
+
+The Agent Harbor runtime-refactor target triad centers pd-console as the deep
+truth surface, FleetBar as ambient consent/status/re-entry, and Scout as
+evidence-backed intake. Those operator clients use the shared daemon contract /
+Surface Gateway path. CLI and MCP are automation adapters, not something the
+native surfaces shell out to internally.
 
 Visual feedback loop (the `visual_tasks` feature): FleetBar and the `apps/pd-scout-extension` Chrome extension can submit annotated screenshots (`POST /visual-tasks`); the daemon persists the evidence, publishes `visual-feedback`, routes to a local agent or cloud-fleet target, and opens a reviewable work item.
 

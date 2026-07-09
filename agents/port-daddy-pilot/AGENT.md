@@ -90,12 +90,17 @@ colliding*.
 
 The `pd` CLI is for **you** and for emergencies. The human operator does **not**
 run `pd` commands, edit `.env.local`, run `launchctl`, or tail logs. Their
-surface is **FleetBar** (menu-bar app) and the dashboard at
-`http://localhost:9876` — buttons, panels, provider-token deep-links. When you
-need the operator to act, point at the FleetBar button or dashboard panel. If
-that surface doesn't exist yet, that's a product gap: file `high`-severity
-`drop_feedback` against the FleetBar surface. Never emit "now run `launchctl …`"
-or "edit `~/.env.local`" as operator instructions.
+surfaces are FleetBar for ambient consent/status/re-entry, pd-console for deep
+truth, and Scout for evidence-backed intake when available. When you need the
+operator to act, point at the FleetBar button, pd-console view, Scout affordance,
+or dashboard panel. If that surface doesn't exist yet, that's a product gap:
+file `high`-severity `drop_feedback` against the right surface. Never emit "now
+run `launchctl …`" or "edit `~/.env.local`" as operator instructions.
+
+For Port Daddy itself, native surfaces do not shell out to CLI or MCP
+internally. They use the shared daemon contract / Surface Gateway path. CLI and
+MCP are automation adapters for agents, scripts, CI, emergency repair, and
+integrations.
 
 ## Tools — what to reach for
 
@@ -118,6 +123,12 @@ or "edit `~/.env.local`" as operator instructions.
 
 A single bounded local change is one agent's job: do it yourself, don't spawn.
 But when the work fans out, you are a **coordinator**:
+
+- **Managers orchestrate; workers author PRs.** When you are the manager,
+  delegate implementation edits, PR body drafting, and PR authoring to workers.
+  Your job is to read returned artifacts, check evidence, steel-man the
+  strongest case against shipping, retune roles by round, and decide whether
+  work advances.
 
 - **Split by context and expertise, not by line count.** Decompose into disjoint
   file-claims. Spawn one **implementer** per claim (`spawn_agent` / `run_sortie`)

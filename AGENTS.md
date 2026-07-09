@@ -216,6 +216,11 @@ Documents`.
   them through PD's own fabric — `pd agent` / `pd sortie` / `pd dispatch` and the
   tube → spawner router (conductor) — never a raw side-channel, so the work is
   registered, sandboxed (Coast Guard), budgeted, and salvageable.
+- **Managers orchestrate; workers author PRs.** A manager lane should not become
+  an unregistered solo contributor. Delegate implementation edits, PR body
+  drafting, and PR authoring to worker sessions; the manager reads returned
+  artifacts, checks evidence, steel-mans the strongest case against shipping,
+  retunes roles by round, and decides whether the work advances.
 - **Keep the README current.** When a slice changes a surface an operator or
   contributor reads about, update `README.md` in the same PR — a stale README is a
   caught lie just like a stale citation. This is now enforced at commit time:
@@ -480,13 +485,14 @@ The numbered flow above is the *review contract*. This subsection is the
   green. Rebase onto the latest `origin/main`, resolving conflicts. Push.
 - **Land.** Merge in dependency order: base PR before dependent PR, and
   *rebase the dependent after each merge* — mergeability can flip from
-  MERGEABLE to CONFLICTING the instant the base lands. `gh pr merge <n>
-  --squash --admin`. **`--admin` is correct here** because it bypasses both
-  the BEHIND/up-to-date branch gate and the Cloudflare Pages check. The
-  Cloudflare Pages check is an **external gate** (it lives in the Pages
-  build pipeline, not the repo's CI) that always reports failure on PRs and
-  is *never* a merge blocker — see the `## Website And Public Content`
-  notes on the `port-daddy` Pages project.
+  MERGEABLE to CONFLICTING the instant the base lands. Use the protected
+  flow: `gh pr merge <n> --auto --match-head-commit <sha>` when the merge
+  queue is active, and let branch protection choose the merge strategy. Do
+  not add `--squash`, `--merge`, `--rebase`, or `--admin` as routine agent
+  flow. A human maintainer can make an explicit, documented emergency bypass;
+  an agent cannot use admin to skip a real required gate. Cloudflare Pages may
+  be external/advisory, but prove that from branch protection and record the
+  evidence before treating it as non-blocking.
 - **Cleanup.** Delete a worktree ONLY when its branch is merged AND `git -C
   <wt> status --porcelain` is clean. Never delete a worktree that still has
   uncommitted work. Never `git reset` or otherwise clobber the main
@@ -607,6 +613,20 @@ These bite every contributor session; they are not theoretical.
   plane surface.
 - `public/fleet-ui` is a legacy built artifact served by the daemon for
   compatibility while old webview surfaces are folded into Fleet Control Center.
+- Agent Harbor runtime-refactor target truth lives in
+  `docs/adr/0100-destructive-daemon-runtime-authority.md`: `pd-console` is the
+  deep proof surface, FleetBar is ambient consent/status/re-entry, Scout is
+  evidence-backed intake, and CLI/MCP are automation adapters. Native surfaces do
+  not call CLI or MCP internally; they use the shared daemon contract / Surface
+  Gateway path.
+- `pd use` is per-shell/per-process berth context. It emits environment for the
+  current shell or launched process; it is not a global daemon switch. Native
+  surfaces must show the active berth/codebase/dev lane they are actually
+  connected to, not infer state from an unrelated shell.
+- Do not preserve legacy route/verb/MCP bridges as long-lived product surface
+  when WorkIntent plus Surface Gateway owns the family. Keep any old path as a
+  temporary internal adapter with a deletion plan, or fail closed with a
+  migration message.
 - FleetBar should open the real control plane, not a shadow dashboard with reduced functionality.
 - FleetBar is the top-level navigator when embedded. The embedded control plane must receive `?embed=fleetbar` and hide duplicate in-app surface tabs.
 - FleetBar embed detection should not rely on query params alone. The WebView must identify itself too, so a dropped query string does not resurrect duplicate chrome.

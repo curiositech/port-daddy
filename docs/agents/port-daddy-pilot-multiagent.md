@@ -16,6 +16,12 @@ does **not** spawn. When the work fans out (audit, migration, hardening, a
 feature touching many files), the Pilot becomes a **coordinator** over three
 roles, defined in `agents/port-daddy-pilot/agent.config.json → multiagent`:
 
+As coordinator, the Pilot does not author implementation PRs directly. It
+delegates implementation edits, PR body drafting, and PR authoring to workers,
+then reads their artifacts, checks evidence, steel-mans the strongest case
+against shipping, retunes the roster by round, and decides whether the work can
+advance.
+
 | Role | Lifetime | Edits? | Job |
 | --- | --- | --- | --- |
 | **implementer** | per claim | yes | Owns one disjoint file-claim. Preflight → edit → validate → result note. |
@@ -91,6 +97,10 @@ agent that does no edits and exists only to keep the shared state true:
   across the wave.
 - Owns the merge order: it fetches/rebases onto the canonical remote and lets
   green-and-reviewed claims land one at a time, never in a stale-state race.
+- After each wave, runs the parley/session-PR-audit checkpoint before launching
+  the next wave. Parley asks whether the next plan still fits the evidence;
+  session PR audit asks whether every agent-authored branch is open, queued,
+  merged, or explicitly closed/superseded.
 
 ## Two transports, one persona
 

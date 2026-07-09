@@ -92,6 +92,11 @@ repo-specific mechanics:
   `windags_skill_graft`); until it lands, match by hand against `skills/`.
 - **Launch work through PD spawn** (`pd spawn`, SDK `spawn()`, or MCP `spawn`),
   never a raw side-channel — so the work is registered, sandboxed, budgeted, salvageable.
+- **Managers orchestrate; workers author PRs.** A manager lane delegates
+  implementation edits, PR body drafting, and PR authoring to worker sessions.
+  The manager reads returned artifacts, checks evidence, steel-mans the strongest
+  case against shipping, retunes roles by round, and decides whether work
+  advances.
 - **Keep `README.md` current** in the same PR when a slice changes a documented surface.
 
 ## Core Decision Tree
@@ -294,10 +299,13 @@ Land every HIGH adversarial finding as a named fixup commit. Get `npx tsc
 
 **Land.** Merge in dependency order: base before dependent, and rebase the
 dependent after *each* merge — mergeability can flip MERGEABLE → CONFLICTING
-the moment the base lands. `gh pr merge <n> --squash --admin`. `--admin` is
-correct: it bypasses the BEHIND/up-to-date gate AND the Cloudflare Pages
-check. Cloudflare Pages is an **external gate** (Pages build pipeline, not
-repo CI) that always fails on PRs and is never a merge blocker.
+the moment the base lands. Use the protected flow: `gh pr merge <n> --auto
+--match-head-commit <sha>` when the merge queue is active, and let branch
+protection choose the merge strategy. Do not add `--squash`, `--merge`,
+`--rebase`, or `--admin` as routine agent flow. A human maintainer may make an
+explicit, documented emergency bypass; an agent does not admin-skip a real
+required gate. Cloudflare Pages may be external/advisory, but prove that from
+branch protection and record the evidence before treating it as non-blocking.
 
 **Cleanup.** Delete a worktree only when its branch is merged AND `git -C
 <wt> status --porcelain` is clean. Never delete a worktree with uncommitted
@@ -490,13 +498,15 @@ re-asking them is the failure mode this section exists to kill.
    its gate condition is met.
 3. **Red required check = STOP and fix the root cause**, even when the debt
    is inherited from main. Never `--admin` over a real red. Cloudflare Pages
-   is the one external gate that is never a blocker.
+   may be external/advisory, but prove that from branch protection before
+   treating it as non-blocking.
 4. **Answer every review thread.** Copilot and claude-review inline comments
    are first-class reviews: fix-and-reply, or dismiss-with-reason against
    origin/main. A PR with unanswered threads is not "ready".
 5. **Land in dependency order**, base before dependent, rebasing the
-   dependent after each merge (`gh pr merge <n> --squash --admin` — `--admin`
-   here bypasses only the BEHIND gate and Pages, never a red required check).
+   dependent after each merge. Use `gh pr merge <n> --auto
+   --match-head-commit <sha>` for merge-queue repos and let the protected
+   branch choose strategy. Admin bypass is not a routine agent landing path.
 6. **Clean up**: delete only worktrees whose branch is merged AND whose
    `git status --porcelain` is clean. Never touch the main checkout.
 7. **Close the ledger**: `pd note "Result: ... Validation: ... Remaining: ..."`,
