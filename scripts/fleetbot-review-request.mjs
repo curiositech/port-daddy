@@ -297,16 +297,11 @@ function upsertStickyComment(owner, repo, number, comments, body) {
   const existing = (Array.isArray(comments) ? comments : []).find((comment) =>
     String(comment?.body ?? '').includes(FLEETBOT_COMMENT_MARKER),
   )
-  const payload = JSON.stringify({ body })
   if (existing?.id) {
-    gh(['api', '--method', 'PATCH', `repos/${owner}/${repo}/issues/comments/${existing.id}`, '--input', '-'], {
-      input: payload,
-    })
+    gh(['api', '--method', 'PATCH', `repos/${owner}/${repo}/issues/comments/${existing.id}`, '-f', `body=${body}`])
     return
   }
-  gh(['api', '--method', 'POST', `repos/${owner}/${repo}/issues/${number}/comments`, '--input', '-'], {
-    input: payload,
-  })
+  gh(['api', '--method', 'POST', `repos/${owner}/${repo}/issues/${number}/comments`, '-f', `body=${body}`])
 }
 
 function requestDirectReviewers(owner, repo, number, config) {
