@@ -157,6 +157,7 @@ export async function seedProjectBudget(daemon, project = 'port-daddy', { balanc
 
 export function writeFakeClaudeBinary(binPath, finalText = 'pd-claude-smoke') {
   mkdirSync(join(binPath, '..'), { recursive: true });
+  const marker = 'if [ -n "$PD_FAKE_CLAUDE_INVOKED_FILE" ]; then printf "binary=%s\\nargs=%s\\n" "$0" "$*" > "$PD_FAKE_CLAUDE_INVOKED_FILE"; fi';
   const lines = [
     { type: 'system', subtype: 'init' },
     { type: 'assistant', message: { content: [{ type: 'thinking', thinking: 'checking smoke request' }] } },
@@ -173,7 +174,7 @@ export function writeFakeClaudeBinary(binPath, finalText = 'pd-claude-smoke') {
       },
     },
   ].map((line) => JSON.stringify(line));
-  writeFileSync(binPath, `#!/bin/sh\n${lines.map((line) => `printf '%s\\n' '${line}'`).join('\n')}\n`);
+  writeFileSync(binPath, `#!/bin/sh\n${marker}\n${lines.map((line) => `printf '%s\\n' '${line}'`).join('\n')}\n`);
   chmodSync(binPath, 0o755);
 }
 

@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startEphemeralDaemon } from '../helpers/ephemeral-daemon.js';
@@ -74,18 +74,20 @@ describe('daemon backend transcript E2E smoke', () => {
     }
   }, 60000);
 
-  test('launches cli:claude-code through /spawn with stale override and fallback via PD_CLI_BIN_DIRS', async () => {
+  test('daemon /spawn launches cli:claude-code with stale PD_CLI_CLAUDE_CODE_BIN and PD_CLI_BIN_DIRS fallback', async () => {
     const tmp = mkdtempSync(join(tmpdir(), 'pd-fake-claude-'));
     const spawnWorktree = createScratchSpawnWorktree(tmp);
     const staleClaude = join(tmp, 'stale-home', '.local', 'bin', 'claude');
     const fakeBinDir = join(tmp, 'nvm', 'versions', 'node', 'v22.17.1', 'bin');
     const fakeClaude = join(fakeBinDir, 'claude');
+    const fakeClaudeInvoked = join(tmp, 'fake-claude-invoked.txt');
     writeFakeClaudeBinary(fakeClaude, 'pd-claude-smoke');
     const daemonEnv = {
       PATH: LAUNCHD_RESTRICTED_PATH,
       PD_USE_CLI_BACKEND: 'none',
       PD_CLI_CLAUDE_CODE_BIN: staleClaude,
       PD_CLI_BIN_DIRS: fakeBinDir,
+      PD_FAKE_CLAUDE_INVOKED_FILE: fakeClaudeInvoked,
     };
     const daemon = await startEphemeralDaemon({ startupTimeout: 45000, env: daemonEnv });
 
@@ -98,6 +100,9 @@ describe('daemon backend transcript E2E smoke', () => {
       });
 
       expect(res.ok).toBe(true);
+      expect(res.data.backend).toBe('cli:claude-code');
+      expect(res.data.agentId).toBeTruthy();
+      expect(res.data.status).toBe('completed');
       const transcript = await getTranscriptForSpawn(daemon, 'cli:claude-code', res.data.agentId);
       assertTranscriptReadback({
         requestedBackend: 'cli:claude-code',
@@ -106,10 +111,18 @@ describe('daemon backend transcript E2E smoke', () => {
         transcript,
         budgetUsd: 0.01,
       });
+      expect(transcript.backend).toBe('cli:claude-code');
+      expect(transcript.spawned_agent_id).toBe(res.data.agentId);
+      expect(['completed', 'failed']).toContain(transcript.status);
+      expect(transcript.status).toBe('completed');
       expect(transcript.messages.map((message) => message.role)).toEqual(
         expect.arrayContaining(['user', 'thinking', 'assistant']),
       );
       expect(JSON.stringify(transcript.messages)).toContain('pd-claude-smoke');
+      expect(transcript.outputs.length).toBeGreaterThan(0);
+      expect(JSON.stringify(transcript.outputs)).toContain('cli:claude-code');
+      expect(existsSync(fakeClaudeInvoked)).toBe(true);
+      expect(readFileSync(fakeClaudeInvoked, 'utf8')).toContain(fakeClaude);
       expect(existsSync(staleClaude)).toBe(false);
     } finally {
       await daemon.cleanup();
@@ -248,12 +261,24 @@ describe('daemon backend transcript E2E smoke', () => {
     }
   });
 
-  test('transcript lookup falls back from requested ship to actual backend ship', async () => {
+  test('transcript lookup uses real daemon transcript fixture for actual backend fallback', async () => {
+    const daemon = await startEphemeralDaemon({
+      startupTimeout: 45000,
+      env: {
+        PATH: LAUNCHD_RESTRICTED_PATH,
+        PD_USE_CLI_BACKEND: 'none',
+      },
+    });
     const transcript = {
-      id: 'tx-actual',
+      id: `tx-actual-${Date.now()}`,
+      ship: 'spawn:cli:codex',
+      trigger: 'spawn',
       backend: 'cli:codex',
+      model: 'codex-cli',
       status: 'completed',
       spawned_agent_id: 'agent-actual',
+      started_at: Date.now(),
+      ended_at: Date.now() + 1000,
       messages: [
         { role: 'user', content: 'Reply with exactly: pd-codex-smoke' },
         { role: 'assistant', content: 'pd-codex-smoke' },
@@ -261,34 +286,35 @@ describe('daemon backend transcript E2E smoke', () => {
       outputs: [{ type: 'message', summary: 'cli:codex returned 14 chars' }],
       cost_usd: 0,
     };
-    const calls = [];
-    const daemon = {
-      async request(path) {
-        calls.push(path);
-        if (path.includes('agentId=agent-actual')) return { ok: true, data: { transcripts: [] } };
-        if (path.includes('ship=spawn%3Aopenai')) return { ok: true, data: { transcripts: [] } };
-        if (path.includes('ship=spawn%3Acli%3Acodex')) {
-          return { ok: true, data: { transcripts: [{ id: transcript.id, backend: 'cli:codex', spawned_agent_id: 'agent-actual' }] } };
-        }
-        if (path === `/transcripts/${transcript.id}`) return { ok: true, data: { transcript } };
-        return { ok: false, text: `unexpected ${path}` };
-      },
-    };
 
-    await expect(fetchTranscriptForSpawn(
-      daemon,
-      { agentId: 'agent-actual' },
-      'openai',
-      'cli:codex',
-    )).resolves.toMatchObject({
-      id: 'tx-actual',
-      backend: 'cli:codex',
-      messages: expect.any(Array),
-      outputs: expect.any(Array),
-    });
-    expect(calls.join('\n')).toContain('agentId=agent-actual');
-    expect(calls.join('\n')).toContain('ship=spawn%3Acli%3Acodex');
-  });
+    try {
+      const seeded = await daemon.request('/transcripts', {
+        method: 'POST',
+        body: transcript,
+      });
+      expect(seeded.ok).toBe(true);
+
+      await expect(fetchTranscriptForSpawn(
+        daemon,
+        { status: 'completed' },
+        'openai',
+        'cli:codex',
+      )).resolves.toMatchObject({
+        id: transcript.id,
+        ship: 'spawn:cli:codex',
+        backend: 'cli:codex',
+        spawned_agent_id: 'agent-actual',
+        messages: expect.arrayContaining([
+          expect.objectContaining({ role: 'assistant', content: 'pd-codex-smoke' }),
+        ]),
+        outputs: expect.arrayContaining([
+          expect.objectContaining({ summary: 'cli:codex returned 14 chars' }),
+        ]),
+      });
+    } finally {
+      await daemon.cleanup();
+    }
+  }, 60000);
 
   test('readback guard rejects completed-empty transcripts, missing durable outputs, and budget overruns', () => {
     expect(() => assertTranscriptReadback({
