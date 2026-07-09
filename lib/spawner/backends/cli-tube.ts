@@ -45,7 +45,6 @@ import {
   buildCliTubeArgs,
   CLI_TUBE_PROVIDER_SPECS,
   CLI_TUBE_TOOLS,
-  getCliTubeProviderSpec,
   normalizeCodexConfigOverrides,
   type CliTubePermissionMode,
   type CliTubeProviderSpec,
