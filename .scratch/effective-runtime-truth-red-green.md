@@ -2,7 +2,11 @@
 
 Base before PR: `origin/main` at `65f2ea03e fix(spawner): finalize Cloudflare backend timeouts (#1186)`.
 
-This file is self-contained: each section below includes the exact command and output captured with `tee`. The raw output files are committed alongside this markdown as immutable review artifacts.
+This file is self-contained: each section below includes the exact command and output captured with `tee`. The raw tee files were removed from the branch so the PR keeps one review artifact instead of several large scratch logs.
+
+## Contract Surface Note
+
+This branch intentionally updates the narrow server/client surface that exists today: `lib/spawner.ts` is the authoritative runtime resolver/executor, `routes/spawn.ts` preserves request provenance when preflight has already selected an effective backend, `lib/transcripts.ts` stores/readbacks the runtime provenance columns, and `lib/client.ts` mirrors the public SDK result/list shape with backward-aware optional fields. I did not find a shared generated TypeScript contract for `SpawnSpec`/`SpawnResult` in this repo, and this PR should not invent one. Follow-up work should add a one-command generated spawn contract so `lib/spawner.ts`, `lib/client.ts`, HTTP/OpenAPI docs, MCP, and CLI consumers stop carrying manually duplicated runtime types.
 
 ## RED
 
@@ -10,7 +14,7 @@ Purpose: prove the new tests fail against pre-fix production code. I created a d
 
 Exit code: `1`
 
-Raw artifact: `.scratch/effective-runtime-truth-red.txt`
+Captured output:
 
 ```text
 # temp worktree
@@ -180,7 +184,7 @@ Purpose: prove the implementation fixes runtime truth and that old transcript DB
 
 Exit code: `0`
 
-Raw artifact: `.scratch/effective-runtime-truth-green-focused.txt`
+Captured output:
 
 ```text
 # command
@@ -262,7 +266,7 @@ Run `npm audit` for details.
 
 Exit code: `0`
 
-Raw artifact: `.scratch/effective-runtime-truth-typecheck.txt`
+Captured output:
 
 ```text
 # command
@@ -282,7 +286,7 @@ Purpose: preserve merged #1176/#1186 spawner transcript and Cloudflare/default t
 
 Exit code: `0`
 
-Raw artifact: `.scratch/effective-runtime-truth-green-adjacent.txt`
+Captured output:
 
 ```text
 # command
