@@ -75,6 +75,30 @@ describe('cli-tube real timeout lifecycle', () => {
     await expectPidDead(parentPid);
     await expectPidDead(survivorPid);
   });
+
+  test('kills an inherited-stdio descendant even when the CLI parent exits before timeout', async () => {
+    const parentPidFile = join(tempDir, 'parent.pid');
+    const survivorPidFile = join(tempDir, 'survivor.pid');
+
+    const res = await spawnViaCliTube({
+      cli: 'agy',
+      prompt: 'spawn survivor then exit parent',
+      timeoutMs: 250,
+      env: {
+        PD_PARENT_PID_FILE: parentPidFile,
+        PD_SURVIVOR_PID_FILE: survivorPidFile,
+        PD_PARENT_EXITS_IMMEDIATELY: '1',
+      },
+    });
+
+    expect(res.error).toContain('agy timed out after 250ms');
+    expect(existsSync(parentPidFile)).toBe(true);
+    expect(existsSync(survivorPidFile)).toBe(true);
+    const parentPid = Number(readFileSync(parentPidFile, 'utf8'));
+    const survivorPid = Number(readFileSync(survivorPidFile, 'utf8'));
+    await expectPidDead(parentPid);
+    await expectPidDead(survivorPid);
+  });
 });
 
 function installEscapingAgy(dir) {
@@ -102,6 +126,10 @@ const survivor = spawn(process.execPath, ['-e', "process.on('SIGTERM', () => {})
 });
 writeFileSync(pidFile, String(survivor.pid));
 survivor.unref();
+
+if (process.env.PD_PARENT_EXITS_IMMEDIATELY === '1') {
+  process.exit(0);
+}
 
 setInterval(() => {}, 1000);
 `);

@@ -47,12 +47,14 @@ import {
   CLI_TUBE_TOOLS,
   getCliTubeProviderSpec,
   normalizeCodexConfigOverrides,
-  waitForCliChildProcess,
-  type CliChildWaitResult,
   type CliTubePermissionMode,
   type CliTubeProviderSpec,
   type CliTubeTool,
 } from './cli-tube-provider-specs.js';
+import {
+  waitForCliChildProcess,
+  type CliChildWaitResult,
+} from './cli-tube-lifecycle.js';
 
 export {
   CLI_TUBE_PROVIDER_SPECS,
