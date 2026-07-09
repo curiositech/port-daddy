@@ -2,7 +2,7 @@
   "generatedAt": 1783587747423,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 149,
+  "count": 150,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -518,6 +518,11 @@
       "slug": "cloudflare-agent-telemetry-unified-reporting",
       "status": "now",
       "summaryMd": "Cloudflare/GitHub App remote agent telemetry appears in the same fleet, agent, and spend reports as local agents."
+    },
+    {
+      "slug": "codex-backend-live-transcripts-budget-hard-cap",
+      "status": "backlog",
+      "summaryMd": "Enforce per-launch spawned backend budgetUsd as a hard post-run cap after exact telemetry is recorded, preserving transcripts/costs while returning terminal over_budget for cap breaches."
     },
     {
       "slug": "codex-daemon-claude-bin-resolution",
