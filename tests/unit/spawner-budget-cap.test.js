@@ -104,6 +104,42 @@ describe('spawner hard budget cap edges', () => {
     expect(transcripts.getTranscript(row.id).messages.map((m) => m.content)).toContain('I used exactly the budget.');
   });
 
+  test('over-budget errors format decimal and large values while preserving telemetry', async () => {
+    const spawner = createSpawner({
+      transcripts,
+      costTracker: exactCostTracker(1234.567891),
+      enforceTelemetryPolicy: true,
+      enforceTranscriptPolicy: true,
+      runnerOverrides: {
+        claude: async () => ({
+          output: 'Large expensive run finished.',
+          error: null,
+          inputTokens: 9000000,
+          outputTokens: 1200000,
+        }),
+      },
+    });
+
+    const result = await spawner.spawn({
+      backend: 'claude',
+      model: 'claude-haiku-4-5',
+      identity: 'port-daddy:test:large-over-budget',
+      task: 'spend a lot',
+      ship: 'budget-large-over',
+      budgetUsd: 12.3456,
+    });
+
+    expect(result.status).toBe('over_budget');
+    expect(result.error).toContain('$1234.567891');
+    expect(result.error).toContain('$12.3456');
+    expect(result.telemetry.costUsd).toBeCloseTo(1234.567891);
+
+    const [row] = transcripts.listTranscripts({ ship: 'budget-large-over' });
+    expect(row.status).toBe('over_budget');
+    expect(row.cost_usd).toBeCloseTo(1234.567891);
+    expect(row.error).toBe(result.error);
+  });
+
   test.each([
     ['undefined', undefined],
     ['null', null],
