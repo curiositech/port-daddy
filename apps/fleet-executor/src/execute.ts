@@ -315,10 +315,12 @@ async function recordRunEnd(
   }
 }
 
-/** The trigger we currently dispatch (pull_request opened/synchronize). */
+const REVIEWABLE_PR_ACTIONS = new Set(['opened', 'synchronize', 'reopened', 'ready_for_review']);
+
+/** The fleet trigger used by reviewable pull_request deliveries. */
 function triggerFor(job: FleetRunJob): string | null {
   if (job.eventType !== 'pull_request') return null;
-  if (job.action !== 'opened' && job.action !== 'synchronize') return null;
+  if (!job.action || !REVIEWABLE_PR_ACTIONS.has(job.action)) return null;
   return 'pull_request:opened';
 }
 
