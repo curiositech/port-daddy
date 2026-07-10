@@ -40,7 +40,7 @@ runnable with `node`/`tsx`, no framework.
 - `milestone-cache.js` — exact-match LLM response cache, blockCount-invalidation,
   budget-safe, graceful (15/15). **← the caching substrate the mining LLM calls reuse.**
 - `ingest-scheduler.js` — background-ingest triage + LLM budget cap + kill switch (15/15).
-- `docs/phase-a-artifacts-design.md` — the Phase A design (both machines).
+- `~/.claude/wf-monitor/docs/phase-a-artifacts-design.md` — the Phase A design (both machines). <!-- cite-exempt: lives in the Beacon repo, not port-daddy -->
 - Drawer legibility batch shipped + pixel-verified.
 
 ---
