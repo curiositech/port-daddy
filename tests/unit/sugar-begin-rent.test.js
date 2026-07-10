@@ -10,7 +10,7 @@
  * stays lenient for programmatic callers (spawner, MCP) in v1.
  */
 
-import { createTestDb, createMockLogger } from '../setup-unit.js';
+import { createTestDb } from '../setup-unit.js';
 import { createAgents } from '../../lib/agents.js';
 import { createSessions } from '../../lib/sessions.js';
 import { createActivityLog } from '../../lib/activity.js';
