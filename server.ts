@@ -81,6 +81,7 @@ import { createJsonlForensicsArchive } from './lib/forensics-archive.js';
 import { createSemanticIndex } from './lib/semantic-index.js';
 import { createTupleSpace } from './lib/tuples.js';
 import { createBlobStore } from './lib/blob.js';
+import { createBootyStore } from './lib/booty.js';
 import { createNoteEncryption } from './lib/note-encryption.js';
 import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 import { createIpcServer } from './lib/ipc-server.js';
@@ -443,6 +444,7 @@ const graphEdges = createGraphEdges(db);
 const symbolIndex = createSymbolIndex(db, { graphEdges });
 const tuples = createTupleSpace(db);
 const blobs = createBlobStore();
+const booty = createBootyStore(db);
 const counters = createCounters(db);
 const metricsRegistry = createMetricsRegistry();
 const semanticResolver = createSemanticResolver(db, {
@@ -1308,7 +1310,7 @@ await registerAllRoutes(
     routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
-    harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
+    harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, booty, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, cloudAppTelemetry, counters, metricsRegistry,
     contextTracker,
     custodian, operatorPermissions,

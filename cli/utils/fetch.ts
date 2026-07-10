@@ -31,7 +31,7 @@ export interface PdFetchResponse {
 export interface FetchOptions {
   method?: string;
   headers?: Record<string, string | number>;
-  body?: string | null;
+  body?: string | Buffer | null;
   timeout?: number;
   transport?: 'auto' | 'tcp';
 }
