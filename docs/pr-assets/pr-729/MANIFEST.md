@@ -89,7 +89,7 @@ no network — hence `sourceLabel: fixture`.
 ## Artifact 1 — `wedge-editor-face.png` (still)
 
 - File: `docs/pr-assets/pr-729/wedge-editor-face.png`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/8e948fdec45ad3a0c9884cd1f8c9c834fa1eac73/docs/pr-assets/pr-729/wedge-editor-face.png`
+  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/9d37e7048ae5d5cb2d431af7ea1680391bebcde9/docs/pr-assets/pr-729/wedge-editor-face.png`
 - Daemon port: `none` — in-process fixture seed; the harness starts no daemon and opens no socket
 - Run id: `n/a (fixture)` — no live agent run; state seeded deterministically by `examples/wedge_render_proof.rs`
 - Transcript head hash: `n/a (fixture)` — no transcript; the seed is a fixed in-process sequence, not an event stream
@@ -100,7 +100,7 @@ no network — hence `sourceLabel: fixture`.
 ## Artifact 2 — `wedge-editor-face.webm` (motion — the harness painting the surface)
 
 - File: `docs/pr-assets/pr-729/wedge-editor-face.webm`
-  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/8e948fdec45ad3a0c9884cd1f8c9c834fa1eac73/docs/pr-assets/pr-729/wedge-editor-face.webm`
+  - raw: `https://raw.githubusercontent.com/curiositech/port-daddy/9d37e7048ae5d5cb2d431af7ea1680391bebcde9/docs/pr-assets/pr-729/wedge-editor-face.webm`
 - Daemon port: `none` — in-process fixture seed; no daemon
 - Run id: `n/a (fixture)` — no live run; deterministic in-process seed
 - Transcript head hash: `n/a (fixture)` — no transcript event stream
