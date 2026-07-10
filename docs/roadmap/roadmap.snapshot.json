@@ -2,7 +2,7 @@
   "generatedAt": 1783623173391,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 151,
+  "count": 152,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -513,6 +513,11 @@
       "slug": "binder-aor-reconciliation-2026-07-06",
       "status": "backlog",
       "summaryMd": "feat(fleetbar): add native Cloud Fleet surface"
+    },
+    {
+      "slug": "booty-artifact-harvest",
+      "status": "backlog",
+      "summaryMd": "feat(booty): S4a artifact harvest — provenance over the blob store"
     },
     {
       "slug": "cloudflare-agent-telemetry-unified-reporting",
