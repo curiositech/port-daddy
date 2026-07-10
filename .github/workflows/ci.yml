@@ -532,7 +532,9 @@ jobs:
           # CI runs on the main worktree by design (no linked worktrees in
           # actions/checkout). Pass --allow-main-worktree so the worktree
           # policy added in 47840169 doesn't refuse the integration session.
-          node bin/port-daddy-cli.js begin --identity ci:website:gifs --purpose "Regenerate website terminal GIFs" --lifecycle durable --allow-main-worktree
+          # Rent-at-claim (S3): CI recording sessions are maintenance work,
+          # not roadmap items — opt out with an explicit sidequest reason.
+          node bin/port-daddy-cli.js begin --identity ci:website:gifs --purpose "Regenerate website terminal GIFs" --lifecycle durable --allow-main-worktree --sidequest "CI website GIF regeneration"
 
       - name: Regenerate website terminal GIFs
         working-directory: website-v2
