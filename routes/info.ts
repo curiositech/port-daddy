@@ -88,6 +88,14 @@ interface InfoRouteDeps {
    * as the stable, canonical berth.
    */
   daemonBerth?: DaemonBerthIdentity;
+  /**
+   * State plane this daemon classified itself onto at boot (S1 —
+   * lib/state-plane.ts): 'prod' | 'dev-latest' | 'ephemeral:<label>'.
+   * Surfaced on `GET /version` and `GET /health` so CLIs and surfaces can
+   * warn before writing through a non-prod daemon. Optional so older route
+   * wirings stay compatible.
+   */
+  plane?: string;
   cleanupStale: () => unknown[];
   getSystemPorts: () => SystemPort[];
   fleetDaemon?: ReturnType<typeof createFleetDaemon>;
@@ -374,7 +382,10 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
       node_version: process.version,
       pid: process.pid,
       uptime: Math.floor(process.uptime()),
-      installDir: __dirname
+      installDir: __dirname,
+      // State plane (S1): which state this daemon mutates — prod / dev-latest
+      // / ephemeral:<label>. Absent on legacy wirings.
+      plane: deps.plane ?? undefined,
     };
   });
 
@@ -445,6 +456,9 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
       // Berth self-identity (ADR-0084). Always present: defaults to the stable,
       // canonical berth when PD_DAEMON_* env is unset.
       daemon: deps.daemonBerth ?? undefined,
+      // State plane (S1): prod / dev-latest / ephemeral:<label>. Same value as
+      // /version.plane; duplicated here so a single /health poll carries it.
+      plane: deps.plane ?? undefined,
       binaryDrift: binaryDrift ? {
         drifted: binaryDrift.drifted,
         runningHash: binaryDrift.runningHash,
