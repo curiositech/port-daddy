@@ -122,12 +122,30 @@ Every signal is structural:
   hit a Jaccard threshold (default 0.6). For Bash the signature is the
   normalized command; for file tools it's the `file_path`. Never a signal-word
   list.
-- **Harness-interrupt sentinel** — the harness's own machine-generated
-  `<tool_use_error>Cancelled: …</tool_use_error>` / "Interrupted by user"
-  envelope marks a call that never actually ran. Those are dropped so a
-  cancelled parallel-tool batch can't fabricate or inflate an arc. This matches
-  a fixed framework sentinel (the same class of signal as `is_error`), not
-  natural-language content.
+- **Harness-artifact sentinels** — many `is_error` results are agent-vs-HARNESS
+  friction, not the agent breaking through a real problem. These are dropped
+  (never counted as a failure a later success resolves). Each is a VERBATIM,
+  machine-emitted framework/tooling sentinel — the same class of structured
+  signal as `is_error`, **not** natural-language content. Filtered classes:
+  - `cancelled` — `<tool_use_error>Cancelled: …` / "Interrupted by user" /
+    aborted parallel-tool batch.
+  - `edit-policy` — "File has not been read yet. Read it first",
+    "String to replace not found in file", "File has been modified since read",
+    tool "File does not exist. Note: your current working directory …".
+  - `guard-block` — "Isolation guard:", "This session is now isolated in",
+    "Coordination Guard: ENFORCE", "No active session found",
+    "Port Daddy sessions refuse the main Git worktree",
+    "refused by Port Daddy coordination guard", "Already in a worktree session".
+  - `model-unavailable` — "… is temporarily unavailable, so auto mode cannot
+    determine the safety of &lt;Tool&gt;".
+  - `permission-denied` — "Permission for this action was denied by the Claude
+    Code auto mode classifier", "The user doesn't want to proceed with this tool
+    use", "This command requires approval", `<tool_use_error>Blocked:`.
+  - `tool-input-error` — `<tool_use_error>InputValidationError:`,
+    "No such tool available:".
+
+  A plain `Exit code 1` + traceback (a REAL command failure) matches none of
+  these and stays counted. See `classifyHarnessArtifact()` for the exact list.
 
 ## Output
 
@@ -155,15 +173,28 @@ command succeeded after prior failures — the breakthrough came from external
 state the agent changed between runs (fixed a file, installed a dep, a flaky
 test settling). `"invocation-changed"` names the tokens added/removed.
 
+## Honest yield
+
+Filtering the harness-artifact classes above is what makes the arc count
+trustworthy. On a 40-session slice of this machine: raw `is_error` results
+included **~89% harness friction** (read-first-before-edit walls, isolation /
+coordination-guard blocks, model-availability blips, permission gates). After
+filtering, `detect-eureka-arcs.js --limit 40 --count` reports **3 genuine arcs**
+(a Python build script that failed with a traceback then patched 36 slides; a
+vhs probe build that failed to parse then rendered; a `gh pr checks` exit-code
+flip). Before this filter the same slice reported 37 — almost all noise.
+
 ## Known limitations (honest)
 
-- **Model-availability blips** (`"…is temporarily unavailable, so auto mode
-  cannot determine the safety of Edit"`) are `is_error` results that are really
-  infra hiccups, not code failures. Round 1 does **not** filter this class
-  (only the unambiguous `<tool_use_error>` sentinel). It can inflate Edit
-  `failCount`. Round-2 refinement.
 - Similarity is lexical (token Jaccard). Semantically-equivalent commands with
   different wording won't cluster. Good enough for round 1's precision goal.
+- The sentinel list is curated from observed transcripts; a new harness message
+  class would need adding to `HARNESS_SENTINELS`. It is matched verbatim (fixed
+  framework strings), never inferred from prose.
+- `gh pr checks` / CI-poll exit-code flips are counted as arcs (a real exit-code
+  transition). They are genuine breakthroughs in the structural sense but may
+  not be *skill-adding* — that judgment is exactly what round-2's cheap-model
+  annotation decides.
 
 ## Round 2 — NOT built (stub-free TODO)
 
@@ -178,4 +209,3 @@ test settling). `"invocation-changed"` names the tokens added/removed.
    trace (what the agent tried, why it failed, what changed).
 3. **skill-architect drafting** — hand the L3 trace to `skill-architect` to
    draft a candidate SKILL.md.
-4. **Model-availability / infra-blip filter** (see limitations).
