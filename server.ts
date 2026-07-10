@@ -130,8 +130,10 @@ import {
   resolveDaemonBerthIdentity,
   registerDaemonBerth,
   deregisterDaemonBerth,
+  BERTH_ENV,
   type DaemonBerthIdentity,
 } from './shared/daemon-berths.js';
+import { classifyPlane, STATE_PLANE_ENV, type StatePlane } from './lib/state-plane.js';
 import { calculateRuntimeCodeHash } from './shared/code-hash.js';
 import { snapshotRunningBinary, detectDrift, type BinaryDriftSnapshot } from './lib/binary-drift-detector.js';
 import { resolveDistributionRoot } from './shared/daemon-binary.js';
@@ -337,14 +339,31 @@ const IS_DEV_MODE: boolean = !!PREFIX;
 const DB_PATH: string = resolveDbPath(PREFIX ? join(PREFIX, 'port-daddy.db') : undefined);
 const PORT: number = parseInt(process.env.PORT_DADDY_PORT as string, 10) || (IS_DEV_MODE ? 9877 : config.service.port);
 
+// State plane (S1): classify once at boot which state this daemon mutates —
+// 'prod' | 'dev-latest' | 'ephemeral:<label>'. Pure inference from the same
+// signals used above (PORT_DADDY_PLANE override > canonical prefix > the
+// dev-latest lane > ephemeral). Surfaced on /version, /health, the berth
+// registry, and the Bosun heartbeat file.
+const DAEMON_PLANE: StatePlane = classifyPlane({
+  prefixPath: PREFIX,
+  port: PORT,
+  profileName: process.env[BERTH_ENV.label]?.trim() || null,
+  envOverride: process.env[STATE_PLANE_ENV],
+});
+
 // Berth identity (ADR-0084): self-report which berth this daemon is. Defaults
 // to the stable, canonical berth when PD_DAEMON_* env is unset, so the existing
 // brew daemon transparently reports as `stable` with no launch change.
-const DAEMON_BERTH: DaemonBerthIdentity = resolveDaemonBerthIdentity({
-  env: process.env,
-  port: PORT,
-  gitSnapshot: snapshotDaemonGit(process.env.PD_DAEMON_SOURCE_DIR?.trim() || null),
-});
+const DAEMON_BERTH: DaemonBerthIdentity = {
+  ...resolveDaemonBerthIdentity({
+    env: process.env,
+    port: PORT,
+    gitSnapshot: snapshotDaemonGit(process.env.PD_DAEMON_SOURCE_DIR?.trim() || null),
+  }),
+  // Plane rides with the berth identity so `registerDaemonBerth` records it
+  // (shared/ cannot import lib/, so classification happens here, not there).
+  plane: DAEMON_PLANE,
+};
 
 import { DEFAULT_SOCK, DEFAULT_IPC, DEFAULT_PID_FILE, DEFAULT_PORT_FILE } from './shared/paths.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || (PREFIX ? join(PREFIX, 'port-daddy.sock') : DEFAULT_SOCK);
@@ -835,6 +854,7 @@ const mergeQueue = createMergeQueue(db, {
 const bosunHeartbeat = createBosunHeartbeat({
   heartbeatPath: HEARTBEAT_FILE,
   version: VERSION,
+  plane: DAEMON_PLANE,
   codeHash: CODE_HASH,
   startedAt: STARTED_AT,
   installDir: __dirname,
@@ -1319,6 +1339,7 @@ await registerAllRoutes(
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,
     daemonBerth: DAEMON_BERTH,
+    plane: DAEMON_PLANE,
     cleanupStale, getSystemPorts,
     // Relay (ADR-0049) connection status. The daemon does not yet start the
     // outbound RelayConnectionManager (lib/relay-client.ts), so this honestly

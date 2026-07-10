@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1783623173391,
+  "generatedAt": 1783666005813,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 151,
+  "count": 152,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -703,6 +703,11 @@
       "slug": "squid-contract-harness-daemon-boot-fix",
       "status": "backlog",
       "summaryMd": "feat(squid): harden bridge and document agent harness"
+    },
+    {
+      "slug": "state-plane-s1-daemon-plane-identity",
+      "status": "backlog",
+      "summaryMd": "S1 — Daemon state-plane identity: classifyPlane at boot, surfaced on /version, /health, berth registry, heartbeat, and CLI write banner"
     },
     {
       "slug": "suggest-b1-1-suggestions-table",

@@ -79,6 +79,13 @@ export interface DaemonBerthIdentity {
   builtAt: string | null;
   port: number;
   canonical: boolean;
+  /**
+   * State plane this daemon classified itself onto at boot (S1 —
+   * lib/state-plane.ts): 'prod' | 'dev-latest' | 'ephemeral:<label>'.
+   * Optional: set by server.ts after classification (shared/ must not import
+   * lib/, so the identity resolver cannot compute it here).
+   */
+  plane?: string;
 }
 
 function normalizeTier(raw: string | undefined): BerthTier {
@@ -191,6 +198,8 @@ export interface DevDaemonRecord {
   gitRev: string | null;
   color: string;
   startedAt: string;
+  /** State plane of the registered daemon (S1). Absent on legacy records. */
+  plane?: string;
 }
 
 /** Default idle window before a codebase berth is auto-reaped (24h). */
@@ -358,6 +367,9 @@ export function registerDaemonBerth(
       gitRev: identity.gitRev,
       color: identity.color,
       startedAt: identity.builtAt ?? new Date().toISOString(),
+      // State plane (S1) — spread conditionally so legacy records keep their
+      // exact JSON shape when no plane was classified.
+      ...(identity.plane ? { plane: identity.plane } : {}),
     };
     records.push(record);
     writeDaemonBerthRegistry(records, registryFile);
