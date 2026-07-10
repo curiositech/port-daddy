@@ -271,6 +271,50 @@ Remote interrupt race test:
 
 Local-only mode should not require an account. Hybrid and hosted modes do.
 
+## Daemon state-plane identity
+
+Status: shipped behind PR #1724, pending merge.
+
+Local daemons do not all carry the same authority. The machine runs three lanes:
+
+Stable plane (`prod`):
+  The canonical daemon on :9876 with the `~/.port-daddy` prefix. Its state is
+  the durable truth for the local harbor.
+
+Dev-latest plane (`dev-latest`):
+  The supervised development daemon on :9886 with its own prefix. Long-lived,
+  but its writes are not prod truth.
+
+Ephemeral plane (`ephemeral:<label>`):
+  Feature and test daemons on ports >= 9900, each with an isolated prefix.
+  Disposable by construction.
+
+Every daemon self-classifies its plane at boot (`lib/state-plane.ts`, will land
+with PR #1724): an explicit `PORT_DADDY_PLANE` override wins (unrecognized
+values are namespaced into `ephemeral:` so a typo can never masquerade as
+prod), then the canonical `~/.port-daddy` prefix resolves to `prod`, then the
+:9886/dev-latest lane, else `ephemeral:<label>`. The plane travels with the
+daemon's identity everywhere a client could be confused:
+
+- `GET /version` and `GET /health` carry a `plane` field (absent on legacy
+  daemons, so clients must treat missing as unknown, not prod);
+- the berth registry record and the Bosun heartbeat payload carry the plane;
+- the CLI prints a one-line stderr banner before the first mutating command in
+  a process when the target daemon is not on the prod plane. Read-only
+  commands never probe; failures stay silent; identity only, no write policy.
+
+Write policies, provenance envelopes, and quarantine are later slices. S1 is
+strictly "know which plane you are talking to."
+
+Known hazard — roadmap snapshot divergence:
+  The committed roadmap snapshot carries 151 items while the :9876 daemon's
+  roadmap export shows roughly 127-128 (the DB fragmentation/continuity bug).
+  A full snapshot export from the smaller side silently deletes live items.
+  Current mitigation is a surgical union: add new items, bump count and
+  timestamp, remove nothing. The planned fix is a single-authority export
+  whose output is stamped with the source daemon's plane header, so a
+  non-prod export can never overwrite the committed snapshot unnoticed.
+
 ## Daemon freshness and versioning
 
 Every client should show:

@@ -138,6 +138,39 @@ Blackboard memory:
   unresolved parleys, decisions waiting for operator, agents doing similar work,
   and "do not duplicate this" warnings.
 
+## Artifact harvest: booty
+
+Status: shipped behind PR #1723, pending merge.
+
+Archival memory owns artifacts, but until now nothing harvested them. Booty is
+the artifact-harvest layer: design workups, images, HTMLs, videos, and shaders
+produced during a session are deposited into the existing content-addressed
+blob store, with a provenance row per deposit. Bytes live in the blob store
+(`lib/blob.ts`); booty is only the provenance ledger
+(`lib/booty.ts`, will land with PR #1723). Each deposit records:
+
+```text
+{ hash, media_type, original_path, byte_size,
+  branch, worktree, session, agent_identity, roadmap_link, note }
+```
+
+Surfaces: `pd booty add <path...>` and `pd booty list`, plus `GET /booty` and
+`POST /booty`. Provenance is resolved from the active session context and git
+worktree, not typed by hand. Re-deposit of the same bytes on the same branch
+is idempotent; the same bytes on a different branch is a new provenance row.
+
+Doctrine:
+
+- artifacts are durable truth on ANY plane and any branch. A render produced
+  on an ephemeral daemon is still evidence and is never quarantined;
+- provenance travels with the artifact, always — who, where, which session,
+  which roadmap item;
+- "promote" is curation, not rescue: choosing which harvested artifacts to
+  surface, never a precondition for keeping them.
+
+Worktree-death sweep hooks, operator surfaces, and promote flows are
+follow-ups, not part of this slice.
+
 ## Retrieval policy
 
 Retrieval should depend on the task:

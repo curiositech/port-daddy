@@ -7,7 +7,7 @@
     {
       "slug": "accountability-wedge-launch-assets",
       "status": "now",
-      "summaryMd": "Wedge 1 launch assets from the GTM strategy (§6): Show HN post + founder note, and the portdaddy.dev /accountability launch page (hero, before/after, compliance ladder, git-guard demo, install CTA). Spawned by distribution-dogfood-gtm-strategy."
+      "summaryMd": "Wedge 1 launch assets from the GTM strategy (\u00a76): Show HN post + founder note, and the portdaddy.dev /accountability launch page (hero, before/after, compliance ladder, git-guard demo, install CTA). Spawned by distribution-dogfood-gtm-strategy."
     },
     {
       "slug": "active-agent-roster",
@@ -67,7 +67,7 @@
     {
       "slug": "adr-0043-phase-1-adr-sync-wiring",
       "status": "now",
-      "summaryMd": "ADR-0043 partial: lib/adr-matrix.ts parser shipped (Phase 0); Phase 1 missing — no cli/commands/adr.ts, no POST /adr/sync."
+      "summaryMd": "ADR-0043 partial: lib/adr-matrix.ts parser shipped (Phase 0); Phase 1 missing \u2014 no cli/commands/adr.ts, no POST /adr/sync."
     },
     {
       "slug": "adr-0043-phase-1-daemon-route-and-cli",
@@ -147,7 +147,7 @@
     {
       "slug": "adr-0045-phase-6-watchdog-and-signed-attestation",
       "status": "now",
-      "summaryMd": "Continuous watchdog (PASS->FAIL -> pheromone+notify+FleetBar red); sign clean reports with actor identity (ADR-0040) — non-repudiable green"
+      "summaryMd": "Continuous watchdog (PASS->FAIL -> pheromone+notify+FleetBar red); sign clean reports with actor identity (ADR-0040) \u2014 non-repudiable green"
     },
     {
       "slug": "adr-0046-phase-0-conversation-multiplex-shell",
@@ -232,7 +232,7 @@
     {
       "slug": "adr-0048-phase-2-L2-readsurfaces",
       "status": "now",
-      "summaryMd": "L2 SPINE: the read-surfaces — suggestibility briefings (agent read), Attention Queue (operator read), resurrection-with-memory (successor read), discovery/pd whois index. Done when tuples/pheromones/memories are READ in >=3 surfaces."
+      "summaryMd": "L2 SPINE: the read-surfaces \u2014 suggestibility briefings (agent read), Attention Queue (operator read), resurrection-with-memory (successor read), discovery/pd whois index. Done when tuples/pheromones/memories are READ in >=3 surfaces."
     },
     {
       "slug": "adr-0048-phase-3-L2-legibility-digest",
@@ -312,7 +312,7 @@
     {
       "slug": "adr-0050-phase-7-compulsion",
       "status": "backlog",
-      "summaryMd": "feat(coast-guard): rent→slash advisory-only — pure policy + breach ledger (ADR-0050 ph7)"
+      "summaryMd": "feat(coast-guard): rent\u2192slash advisory-only \u2014 pure policy + breach ledger (ADR-0050 ph7)"
     },
     {
       "slug": "adr-0052-phase-3a-coordination-bench-v1",
@@ -392,32 +392,32 @@
     {
       "slug": "agent-harbor-c1-event-ledger",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C1 — event ledger and projections (binder ch18 Work Order C1)"
+      "summaryMd": "Agent Harbor C1 \u2014 event ledger and projections (binder ch18 Work Order C1)"
     },
     {
       "slug": "agent-harbor-c2-compliance-probes",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C2 — adapter compliance probes (binder ch18 Work Order C2)"
+      "summaryMd": "Agent Harbor C2 \u2014 adapter compliance probes (binder ch18 Work Order C2)"
     },
     {
       "slug": "agent-harbor-c3-operator-control-panel",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C3 — operator control panel (binder ch18 Work Order C3)"
+      "summaryMd": "Agent Harbor C3 \u2014 operator control panel (binder ch18 Work Order C3)"
     },
     {
       "slug": "agent-harbor-c5-governance-tool-gates",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C5 — governance and tool gates (binder ch18 Work Order C5)"
+      "summaryMd": "Agent Harbor C5 \u2014 governance and tool gates (binder ch18 Work Order C5)"
     },
     {
       "slug": "agent-harbor-c8-setup-doctor-remediation",
       "status": "backlog",
-      "summaryMd": "Agent Harbor C8 — setup and doctor remediation (binder ch18 Work Order C8)"
+      "summaryMd": "Agent Harbor C8 \u2014 setup and doctor remediation (binder ch18 Work Order C8)"
     },
     {
       "slug": "agent-harbor-daemon-routes",
       "status": "backlog",
-      "summaryMd": "feat(agent-harbor): C-routes daemon HTTP layer — ch09 read API over C1 projections (closes I0 Contradiction 1)"
+      "summaryMd": "feat(agent-harbor): C-routes daemon HTTP layer \u2014 ch09 read API over C1 projections (closes I0 Contradiction 1)"
     },
     {
       "slug": "agent-harbor-docs-skill-collision-hygiene",
@@ -427,7 +427,7 @@
     {
       "slug": "agent-harbor-f0-contract-freeze",
       "status": "now",
-      "summaryMd": "Agent Harbor v0 contract freeze — ADR-0095 + 11 schemas + fixture tests (binder ch18 Work Order F0)"
+      "summaryMd": "Agent Harbor v0 contract freeze \u2014 ADR-0095 + 11 schemas + fixture tests (binder ch18 Work Order F0)"
     },
     {
       "slug": "agent-harbor-runtime-refactor-contract-dag",
@@ -442,7 +442,7 @@
     {
       "slug": "app-lane-auto-refresh",
       "status": "backlog",
-      "summaryMd": "feat(dist): app-lane auto-refresh — main/tap watcher, FleetBar lanes, date-sorted dev bundles"
+      "summaryMd": "feat(dist): app-lane auto-refresh \u2014 main/tap watcher, FleetBar lanes, date-sorted dev bundles"
     },
     {
       "slug": "ast-a0-intra-file-call-edges",
@@ -452,7 +452,7 @@
     {
       "slug": "ast-a1-1-cross-file-resolution",
       "status": "merge",
-      "summaryMd": "A1.1 cross-file import resolution — KEYSTONE. PR #576: resolveImportSpecifier (filesystem-verified relative+baseUrl; externals stay raw). Unblocks ast-a1-3/a2-1/a3-1. Follow-ups: tsconfig paths globs, Python module resolution."
+      "summaryMd": "A1.1 cross-file import resolution \u2014 KEYSTONE. PR #576: resolveImportSpecifier (filesystem-verified relative+baseUrl; externals stay raw). Unblocks ast-a1-3/a2-1/a3-1. Follow-ups: tsconfig paths globs, Python module resolution."
     },
     {
       "slug": "ast-a1-2-references-edges",
@@ -607,7 +607,7 @@
     {
       "slug": "harbor-editor",
       "status": "now",
-      "summaryMd": "Harbor Editor — cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
+      "summaryMd": "Harbor Editor \u2014 cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
     },
     {
       "slug": "harbor-replicaid-agent-branch-clock",
@@ -617,7 +617,7 @@
     {
       "slug": "io-wiring",
       "status": "now",
-      "summaryMd": "Wire the pluggable trigger/output registry into the fleet engine so fleet agents can fire on and emit to file, webhook, notify, email, SMS, iMessage and calendar — not just singular trigger:/schedule:. Phased: io-wiring-phase-1..5."
+      "summaryMd": "Wire the pluggable trigger/output registry into the fleet engine so fleet agents can fire on and emit to file, webhook, notify, email, SMS, iMessage and calendar \u2014 not just singular trigger:/schedule:. Phased: io-wiring-phase-1..5."
     },
     {
       "slug": "io-wiring-phase-1-registry-engine",
@@ -667,7 +667,7 @@
     {
       "slug": "pd-safe-scan",
       "status": "backlog",
-      "summaryMd": "feat(safe): pd safe — the AI sniffer (Phase A read-only posture scan + Phase B secret corral, ADR-0088)"
+      "summaryMd": "feat(safe): pd safe \u2014 the AI sniffer (Phase A read-only posture scan + Phase B secret corral, ADR-0088)"
     },
     {
       "slug": "pd-session-coordination-hardening",
@@ -692,7 +692,7 @@
     {
       "slug": "roadmap-link-gate",
       "status": "now",
-      "summaryMd": "Non-blocking CI gate: every PR declares its roadmap item (committed snapshot + label→human-approval fallback + loud-on-broken). Daemon is the only writer; CI reads the mirror."
+      "summaryMd": "Non-blocking CI gate: every PR declares its roadmap item (committed snapshot + label\u2192human-approval fallback + loud-on-broken). Daemon is the only writer; CI reads the mirror."
     },
     {
       "slug": "seeded-daemon-fleet-console-lanes",
@@ -762,7 +762,7 @@
     {
       "slug": "visual-evidence-doctrine",
       "status": "backlog",
-      "summaryMd": "docs(skill): visual-evidence doctrine — non-interruptive screenshot capture for every agent"
+      "summaryMd": "docs(skill): visual-evidence doctrine \u2014 non-interruptive screenshot capture for every agent"
     },
     {
       "slug": "visual-task-agent-intake",
@@ -773,6 +773,21 @@
       "slug": "workintent-dispatch-intake",
       "status": "backlog",
       "summaryMd": "WorkIntent-first dispatch intake runtime blocker follow-up for PR #895"
+    },
+    {
+      "slug": "state-plane-s1-daemon-plane-identity",
+      "status": "backlog",
+      "summaryMd": "Daemon self-classifies its state plane (prod|dev-latest|ephemeral:<label>) at boot; surfaced in /version, /health, berths, heartbeat, and a CLI stderr banner on non-prod mutating commands. PR #1724."
+    },
+    {
+      "slug": "rent-at-claim-begin-gate",
+      "status": "backlog",
+      "summaryMd": "pd begin requires a one-line rent: --roadmap <slug> | --sidequest reason | --roadmap-new title (draft genesis); persisted on the session; fail-closed non-TTY; PD_RENT_EXEMPT bounded list. PR #1729."
+    },
+    {
+      "slug": "booty-artifact-harvest",
+      "status": "backlog",
+      "summaryMd": "Artifact harvest into the content-addressed blob store with provenance (hash, media type, branch, worktree, session, roadmap link); pd booty add/list + /booty routes. PR #1723."
     }
   ]
 }
