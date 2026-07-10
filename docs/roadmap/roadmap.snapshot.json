@@ -2,7 +2,7 @@
   "generatedAt": 1783623173391,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 151,
+  "count": 152,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -673,6 +673,11 @@
       "slug": "pd-sortie-cli",
       "status": "backlog",
       "summaryMd": "Land the pd sortie CLI surface (one-shot multi-agent mission: run/list/status/logs) recovered from the April 2026 parked work; thin client over the existing daemon /sorties endpoints, aligned with ADR-0060 conductor consolidation."
+    },
+    {
+      "slug": "rent-at-claim-begin-gate",
+      "status": "now",
+      "summaryMd": "S3 rent-at-claim: pd begin requires a roadmap link (--roadmap), draft genesis (--roadmap-new), or an explicit sidequest opt-out (--sidequest); persisted on the session record and surfaced in whoami/listings."
     },
     {
       "slug": "roadmap-delete-verb-and-harbor-fix",

@@ -3797,6 +3797,9 @@ interface WhoamiSugarResponse {
   noteCount?: number;
   startedAt?: number;
   duration?: number;
+  // Rent-at-claim (S3): roadmap link / sidequest opt-out on the session record.
+  roadmapLink?: string | null;
+  sidequestReason?: string | null;
   hint?: string;
   localContext?: {
     agentId: string;

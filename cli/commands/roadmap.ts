@@ -373,6 +373,15 @@ async function handleRoadmapPop(args: string[], options: CLIOptions): Promise<vo
     const identity = readOption(options, 'identity') ?? defaultClaimedBy(options);
     if (identity) beginOptions.identity = identity;
     if (!beginOptions.lifecycle) beginOptions.lifecycle = 'durable';
+    // Rent-at-claim (S3): the popped slug IS the roadmap link — pass it
+    // through unless the caller already chose a rent flag explicitly.
+    if (
+      beginOptions.roadmap === undefined
+      && beginOptions.sidequest === undefined
+      && beginOptions['roadmap-new'] === undefined
+    ) {
+      beginOptions.roadmap = popped.entry.slug;
+    }
     try {
       await handleBegin(purpose, [], beginOptions);
     } catch (err) {

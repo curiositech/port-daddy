@@ -350,6 +350,24 @@ const TOOLS = [
           items: { type: 'string' },
           description: 'Files to claim for this session (advisory — shows conflicts to other agents)',
         },
+        roadmap: {
+          type: 'string',
+          description:
+            'Rent-at-claim: slug of an EXISTING roadmap item to link this session to. ' +
+            'Mutually exclusive with sidequest and roadmap_new.',
+        },
+        sidequest: {
+          type: 'string',
+          description:
+            'Rent-at-claim opt-out: one-line reason this work is off-roadmap (min 12 chars). ' +
+            'Mutually exclusive with roadmap and roadmap_new.',
+        },
+        roadmap_new: {
+          type: 'string',
+          description:
+            'Rent-at-claim genesis: title for a NEW draft roadmap item to create and link. ' +
+            'Mutually exclusive with roadmap and sidequest.',
+        },
       },
       required: ['purpose', 'lifecycle'],
     },
@@ -3290,6 +3308,11 @@ async function handleTool(
       if (args.agent_id) body.agentId = args.agent_id;
       if (args.type) body.type = args.type;
       if (args.files) body.files = args.files;
+      // Rent-at-claim (S3): optional in MCP for now — parity with the CLI
+      // gate is a follow-up once programmatic callers have migrated.
+      if (args.roadmap) body.roadmapLink = args.roadmap;
+      if (args.sidequest) body.sidequestReason = args.sidequest;
+      if (args.roadmap_new) body.roadmapNewTitle = args.roadmap_new;
       res = await POST('/sugar/begin', body);
 
       // Attach salvage context — check if any dead agents share this project

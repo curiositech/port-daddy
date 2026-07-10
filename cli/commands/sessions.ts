@@ -877,6 +877,7 @@ export async function handleSessions(options: CLIOptions): Promise<void> {
     createdAt: number;
     fileCount?: number;
     noteCount?: number;
+    metadata?: { roadmapLink?: string; sidequestReason?: string } | null;
   }>;
 
   if (sessions.length === 0) {
@@ -894,14 +895,21 @@ export async function handleSessions(options: CLIOptions): Promise<void> {
     console.log(`Showing sessions for worktree ${data.worktreeId} (use --all-worktrees for all)`);
     console.log('');
   }
-  console.log('ID              PURPOSE                    STATUS    FILES  NOTES  AGE');
-  console.log('─'.repeat(75));
+  console.log('ID              PURPOSE                    STATUS    FILES  NOTES  AGE      LINK');
+  console.log('─'.repeat(95));
 
   for (const s of sessions) {
     const age = formatAge(now - s.createdAt);
     const purposeStr = s.purpose.length > 26 ? s.purpose.slice(0, 23) + '...' : s.purpose.padEnd(26);
+    // Rent-at-claim (S3): show the roadmap link or the sidequest opt-out.
+    const meta = s.metadata && typeof s.metadata === 'object' ? s.metadata : null;
+    const link = typeof meta?.roadmapLink === 'string' && meta.roadmapLink
+      ? meta.roadmapLink
+      : typeof meta?.sidequestReason === 'string' && meta.sidequestReason
+        ? `sidequest: ${meta.sidequestReason.length > 32 ? meta.sidequestReason.slice(0, 29) + '...' : meta.sidequestReason}`
+        : '—';
     console.log(
-      `${s.id.padEnd(16)}${purposeStr} ${s.status.padEnd(10)}${String(s.fileCount || 0).padStart(5)}  ${String(s.noteCount || 0).padStart(5)}  ${age}`
+      `${s.id.padEnd(16)}${purposeStr} ${s.status.padEnd(10)}${String(s.fileCount || 0).padStart(5)}  ${String(s.noteCount || 0).padStart(5)}  ${age.padEnd(8)} ${link}`
     );
   }
 }

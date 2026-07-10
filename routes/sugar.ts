@@ -54,6 +54,9 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         allowMainWorktree,
         bypassCrowdedGate,
         lifecycle: rawLifecycle,
+        roadmapLink,
+        sidequestReason,
+        roadmapNewTitle,
       } = request.body as any;
 
       if (!purpose || typeof purpose !== 'string') {
@@ -89,6 +92,9 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         allowMainWorktree,
         bypassCrowdedGate,
         lifecycle,
+        roadmapLink,
+        sidequestReason,
+        roadmapNewTitle,
       });
 
       if (!result.success) {
@@ -96,6 +102,11 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
           || result.code === 'WORKTREE_REQUIRED'
           || result.code === 'MAIN_WORKTREE_SESSION_FORBIDDEN'
           || result.code === 'MAIN_WORKTREE_CROWDED'
+          || result.code === 'ROADMAP_RENT_CONFLICT'
+          || result.code === 'ROADMAP_SLUG_UNKNOWN'
+          || result.code === 'ROADMAP_TITLE_REQUIRED'
+          || result.code === 'SIDEQUEST_REASON_TOO_SHORT'
+          || result.code === 'ROADMAP_ITEMS_UNAVAILABLE'
           ? 400
           : 500;
         reply.code(status);
