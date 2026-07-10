@@ -6,8 +6,9 @@
  *   - sidequestReason: one-line opt-out reason (min 12 chars)
  *   - roadmapNewTitle: creates a draft roadmap item ('genesis-at-begin' provenance) and links it
  *
- * The rent GATE (refusing begin when none is given) is CLI-level — the daemon
- * stays lenient for programmatic callers (spawner, MCP) in v1.
+ * The rent GATE (refusing begin when none is given) is enforced in the pd CLI
+ * and the MCP begin_session tool — the daemon's raw HTTP surface stays lenient
+ * for direct programmatic callers in v1.
  */
 
 import { createTestDb } from '../setup-unit.js';
@@ -115,6 +116,43 @@ describe('sugar.begin rent-at-claim — draft item genesis', () => {
     expect(res.success).toBe(false);
     expect(res.code).toBe('ROADMAP_TITLE_REQUIRED');
   });
+
+  test('slug collision LINKS the existing item instead of clobbering it', () => {
+    const { sugar, roadmapItems } = setup();
+    // Existing item with a real status and a note — a naive upsert would
+    // downgrade status to backlog and wipe the notes.
+    roadmapItems.upsert({
+      slug: 'fleet-ui-cloud',
+      summaryMd: 'Cloud fleet UI',
+      status: 'now',
+      notes: [{ at: 1, by: 'cartographer', text: 'important provenance' }],
+    });
+    const res = sugar.begin({ ...base, roadmapNewTitle: 'Fleet UI Cloud' });
+    expect(res.success).toBe(true);
+    expect(res.roadmapLink).toBe('fleet-ui-cloud');
+    expect(res.roadmapExisting).toBe(true);
+    expect(res.roadmapCreated).toBeUndefined();
+
+    const item = roadmapItems.get('fleet-ui-cloud');
+    expect(item.status).toBe('now');
+    expect(item.summaryMd).toBe('Cloud fleet UI');
+    expect(item.notes.some((n) => n.text === 'important provenance')).toBe(true);
+    expect(item.notes.some((n) => n.text.includes('genesis-at-begin'))).toBe(false);
+  });
+
+  test('a begin that fails AFTER rent validation creates no orphan roadmap item', () => {
+    const { sugar, sessions, roadmapItems } = setup();
+    const origStart = sessions.start;
+    sessions.start = () => ({ success: false, error: 'induced failure' });
+    try {
+      const res = sugar.begin({ ...base, roadmapNewTitle: 'Never Materialized' });
+      expect(res.success).toBe(false);
+      expect(res.code).toBe('SESSION_START_FAILED');
+      expect(roadmapItems.slugExists('never-materialized')).toBe(false);
+    } finally {
+      sessions.start = origStart;
+    }
+  });
 });
 
 describe('sugar.begin rent-at-claim — validation matrix', () => {
@@ -173,6 +211,30 @@ describe('sugar.begin rent-at-claim — surfacing', () => {
     expect(second.roadmapLink).toBe('fleet-ui-cloud');
     const got = sessions.get(first.sessionId);
     expect(got.session.metadata.roadmapLink).toBe('fleet-ui-cloud');
+  });
+
+  test('resume switching rent MODE clears the old field (sidequest -> roadmap)', () => {
+    const { sugar, sessions } = setup();
+    const first = sugar.begin({ ...base, sidequestReason: 'starting as a sidequest first' });
+    const second = sugar.begin({ ...base, roadmapLink: 'fleet-ui-cloud' });
+    expect(second.resumed).toBe(true);
+    const got = sessions.get(first.sessionId);
+    expect(got.session.metadata.roadmapLink).toBe('fleet-ui-cloud');
+    expect(got.session.metadata.sidequestReason).toBeUndefined();
+    // whoami shows exactly one rent field, never both.
+    const who = sugar.whoami({ agentId: second.agentId });
+    expect(who.roadmapLink).toBe('fleet-ui-cloud');
+    expect(who.sidequestReason).toBeNull();
+  });
+
+  test('resume switching rent MODE clears the old field (roadmap -> sidequest)', () => {
+    const { sugar, sessions } = setup();
+    const first = sugar.begin({ ...base, roadmapLink: 'fleet-ui-cloud' });
+    const second = sugar.begin({ ...base, sidequestReason: 'now a sidequest instead' });
+    expect(second.resumed).toBe(true);
+    const got = sessions.get(first.sessionId);
+    expect(got.session.metadata.sidequestReason).toBe('now a sidequest instead');
+    expect(got.session.metadata.roadmapLink).toBeUndefined();
   });
 
   test('resume validates a bogus roadmap link instead of silently resuming', () => {

@@ -192,10 +192,10 @@ pd begin "…" --lifecycle durable --sidequest "one-off CI flake hunt"        # 
 ```
 
 - `--roadmap <slug>` is validated against the daemon's roadmap; unknown slugs get a did-you-mean list of the nearest slugs by prefix.
-- `--roadmap-new "<title>"` creates a draft roadmap item (provenance note `genesis-at-begin`) via the roadmap service and links it.
+- `--roadmap-new "<title>"` creates a draft roadmap item (provenance note `genesis-at-begin`) via the roadmap service and links it. If the slug already exists, the session links to the existing item instead of overwriting it.
 - `--sidequest "<reason>"` records why the work is off-roadmap.
 
-Without one of the three, non-TTY runs fail with the three options above; a TTY prompts interactively. The link or reason lands on the session record and shows up in `pd whoami` and `pd sessions`. `pd roadmap pop --begin` passes the popped slug through automatically. The MCP `begin_session` tool accepts the same fields (`roadmap`, `roadmap_new`, `sidequest`) as optional inputs.
+Without one of the three, non-TTY runs fail with the three options above; a TTY prompts interactively. The link or reason lands on the session record and shows up in `pd whoami` and `pd sessions`. `pd roadmap pop --begin` passes the popped slug through automatically. The MCP `begin_session` tool enforces the same gate: exactly one of `roadmap`, `roadmap_new`, or `sidequest` is required (`ROADMAP_RENT_REQUIRED` otherwise); only the daemon's raw HTTP surface stays lenient in v1.
 
 ### The loop
 

@@ -342,7 +342,12 @@ export async function handleBegin(
   console.error(`  Purpose: ${purpose}`);
   console.error(`  Lifecycle: ${lifecycle.lifecycle}`);
   if (data.roadmapLink) {
-    console.error(`  Roadmap: ${data.roadmapLink}${data.roadmapCreated ? ' (draft created)' : ''}`);
+    const suffix = data.roadmapCreated
+      ? ' (draft created)'
+      : data.roadmapExisting
+        ? ' (existing item — linked instead of creating a duplicate)'
+        : '';
+    console.error(`  Roadmap: ${data.roadmapLink}${suffix}`);
   }
   if (data.sidequestReason) console.error(`  Sidequest: ${data.sidequestReason}`);
   if (identity) console.error(`  Identity: ${identity}`);

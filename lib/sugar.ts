@@ -63,6 +63,8 @@ interface ActivityLogModule {
  */
 interface RoadmapItemsModule {
   list(options?: { harbor?: string; status?: 'all'; limit?: number }): Array<{ slug: string; harbor: string }>;
+  /** Exact existence check across all harbors — no list() cap involved. */
+  slugExists(slug: string): boolean;
   upsert(input: {
     slug: string;
     summaryMd: string;
@@ -273,9 +275,21 @@ export function createSugar(deps: SugarDeps) {
     // Rent-at-claim (S3): resolve the roadmap link / sidequest opt-out BEFORE
     // the resume decision so a bogus --roadmap slug fails loudly instead of
     // silently resuming. Enforcement (refusing when none is given) lives in
-    // the CLI — the daemon stays lenient for programmatic callers in v1.
+    // the pd CLI and the MCP begin_session tool — the daemon's raw HTTP
+    // surface stays lenient for direct programmatic callers in v1.
     // =========================================================================
-    const rent: { roadmapLink?: string; sidequestReason?: string; roadmapCreated?: boolean } = {};
+    const rent: {
+      roadmapLink?: string;
+      sidequestReason?: string;
+      roadmapCreated?: boolean;
+      roadmapExisting?: boolean;
+    } = {};
+    // Deferred --roadmap-new write. Validation happens up front (fail loudly
+    // before any other work), but the roadmap INSERT is deferred until the
+    // begin actually succeeds — a begin that dies at the crowded-worktree
+    // gate or at agent/session registration must not leave an orphan roadmap
+    // item behind (there is no rollback for it).
+    let pendingRoadmapNew: { slug: string; title: string; by: string; project?: string } | null = null;
     {
       const givenRentFields = [options.roadmapLink, options.sidequestReason, options.roadmapNewTitle]
         .filter((v) => v !== undefined && v !== null);
@@ -313,9 +327,12 @@ export function createSugar(deps: SugarDeps) {
         const requested = typeof options.roadmapLink === 'string' ? options.roadmapLink.trim() : '';
         // Validate across ALL harbors: items are created under project-scoped
         // harbors ('port-daddy', 'demo:fleet', 'fleet') by different writers,
-        // and a link to any of them is a real link.
-        const slugs = deps.roadmapItems.list({ status: 'all', limit: 5000 }).map((item) => item.slug);
-        if (!requested || !slugs.includes(requested)) {
+        // and a link to any of them is a real link. Existence is an exact
+        // indexed lookup (slugExists) — never a capped list() scan, which
+        // would reject valid slugs once the table outgrows the cap. The
+        // capped list feeds ONLY the did-you-mean suggestions.
+        if (!requested || !deps.roadmapItems.slugExists(requested)) {
+          const slugs = deps.roadmapItems.list({ status: 'all', limit: 5000 }).map((item) => item.slug);
           const didYouMean = nearestSlugsByPrefix(requested, slugs);
           return {
             success: false,
@@ -346,21 +363,38 @@ export function createSugar(deps: SugarDeps) {
           };
         }
         const by = options.agentId || 'pd-begin';
-        const item = deps.roadmapItems.upsert({
-          slug,
-          summaryMd: title,
-          status: 'backlog',
-          promotedByAgentId: by,
-          project: rentProject,
-          notes: [{ at: Date.now(), by, text: 'genesis-at-begin' }],
-        });
-        rent.roadmapLink = item.slug;
-        rent.roadmapCreated = true;
+        if (deps.roadmapItems.slugExists(slug)) {
+          // Slug collision: the item already exists (possibly in another
+          // harbor). LINK to it instead of upserting — an upsert here would
+          // silently rewrite the existing item's summary/status/notes from a
+          // begin() call that never intended an edit.
+          rent.roadmapLink = slug;
+          rent.roadmapExisting = true;
+        } else {
+          pendingRoadmapNew = { slug, title, by, project: rentProject };
+          rent.roadmapLink = slug;
+          rent.roadmapCreated = true;
+        }
       }
     }
     const rentMetadata: Record<string, unknown> = {};
     if (rent.roadmapLink) rentMetadata.roadmapLink = rent.roadmapLink;
     if (rent.sidequestReason) rentMetadata.sidequestReason = rent.sidequestReason;
+    // Materialize the deferred --roadmap-new item. Called ONLY on the two
+    // success paths (resume, fresh start) after the begin can no longer fail.
+    const materializePendingRoadmapNew = () => {
+      if (!pendingRoadmapNew || !deps.roadmapItems) return;
+      const { slug, title, by, project } = pendingRoadmapNew;
+      pendingRoadmapNew = null;
+      deps.roadmapItems.upsert({
+        slug,
+        summaryMd: title,
+        status: 'backlog',
+        promotedByAgentId: by,
+        project,
+        notes: [{ at: Date.now(), by, text: 'genesis-at-begin' }],
+      });
+    };
 
     // Idempotent resume. A re-begin for the SAME identity in the SAME worktree
     // must RESUME the existing active session, not fork a parallel one. Forking
@@ -443,12 +477,19 @@ export function createSugar(deps: SugarDeps) {
           }
           // Rent-at-claim: a fresh link/reason on re-begin updates the
           // resumed session's record (the link is session state, not call state).
+          // Switching rent MODE clears the other field — a session is either
+          // roadmap-linked or a sidequest, never ambiguously both.
           if (Object.keys(rentMetadata).length > 0) {
-            sessions.updateMetadata?.(resumedSessionId, rentMetadata);
+            materializePendingRoadmapNew();
+            const rentPatch: Record<string, unknown> = { ...rentMetadata };
+            if (rent.roadmapLink) rentPatch.sidequestReason = undefined;
+            if (rent.sidequestReason) rentPatch.roadmapLink = undefined;
+            sessions.updateMetadata?.(resumedSessionId, rentPatch);
           }
           if (rent.roadmapLink) resumed.roadmapLink = rent.roadmapLink;
           if (rent.sidequestReason) resumed.sidequestReason = rent.sidequestReason;
           if (rent.roadmapCreated) resumed.roadmapCreated = true;
+          if (rent.roadmapExisting) resumed.roadmapExisting = true;
           if (decision.warn === 'driven-elsewhere') {
             resumed.warn = 'Another live process is already driving this session; attaching anyway (worktree isolation is the real guard).';
           }
@@ -594,6 +635,9 @@ export function createSugar(deps: SugarDeps) {
       };
     }
 
+    // Begin succeeded — safe to materialize the deferred --roadmap-new item.
+    materializePendingRoadmapNew();
+
     // Build response
     const response: Record<string, unknown> = {
       success: true,
@@ -612,6 +656,7 @@ export function createSugar(deps: SugarDeps) {
     if (rent.roadmapLink) response.roadmapLink = rent.roadmapLink;
     if (rent.sidequestReason) response.sidequestReason = rent.sidequestReason;
     if (rent.roadmapCreated) response.roadmapCreated = true;
+    if (rent.roadmapExisting) response.roadmapExisting = true;
 
     // Include file claims if present
     if (sessionResult.files) {

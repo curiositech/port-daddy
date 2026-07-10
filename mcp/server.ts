@@ -318,7 +318,8 @@ const TOOLS = [
       '[Essential] Register agent + start session in one atomic step. Use this at the start of every ' +
       'coding session instead of calling register_agent and start_session separately. ' +
       'Returns agentId, sessionId, and a salvageHint if dead agents need attention. ' +
-      'Usage: begin_session({purpose: "Building auth system", identity: "myapp:api:main", lifecycle: "ephemeral"})',
+      'Rent-at-claim: exactly ONE of roadmap / roadmap_new / sidequest is REQUIRED. ' +
+      'Usage: begin_session({purpose: "Building auth system", identity: "myapp:api:main", lifecycle: "ephemeral", roadmap: "adr-0090-database-distribution"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -3308,11 +3309,33 @@ async function handleTool(
       if (args.agent_id) body.agentId = args.agent_id;
       if (args.type) body.type = args.type;
       if (args.files) body.files = args.files;
-      // Rent-at-claim (S3): optional in MCP for now — parity with the CLI
-      // gate is a follow-up once programmatic callers have migrated.
+      // Rent-at-claim (S3): the gate is enforced HERE, at the MCP boundary,
+      // with the same semantics as the pd CLI — agents are the dominant
+      // programmatic caller and must pay roadmap rent too. Only the daemon's
+      // raw HTTP surface stays lenient in v1 (documented in lib/sugar.ts).
       if (args.roadmap) body.roadmapLink = args.roadmap;
       if (args.sidequest) body.sidequestReason = args.sidequest;
       if (args.roadmap_new) body.roadmapNewTitle = args.roadmap_new;
+      if (!body.roadmapLink && !body.sidequestReason && !body.roadmapNewTitle) {
+        // Bounded env exemption (server-side env, operator-controlled) —
+        // mirrors cli/commands/sugar.ts resolveBeginRent.
+        const exempt = typeof process.env.PD_RENT_EXEMPT === 'string'
+          ? process.env.PD_RENT_EXEMPT.trim().toLowerCase()
+          : '';
+        if (exempt === 'hotfix' || exempt === 'chore') {
+          body.sidequestReason = `PD_RENT_EXEMPT: ${exempt}`;
+        } else {
+          return JSON.stringify({
+            success: false,
+            error:
+              'begin_session needs a roadmap link or an explicit opt-out. Pass exactly one:\n' +
+              '  roadmap: "<slug>"        link this session to an existing roadmap item\n' +
+              '  roadmap_new: "<title>"   create a draft roadmap item and link it\n' +
+              '  sidequest: "<reason>"    opt out with a one-line reason (min 12 chars)',
+            code: 'ROADMAP_RENT_REQUIRED',
+          }, null, 2);
+        }
+      }
       res = await POST('/sugar/begin', body);
 
       // Attach salvage context — check if any dead agents share this project
