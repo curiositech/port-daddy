@@ -396,6 +396,46 @@ describe('info routes runtime summary', () => {
   });
 });
 
+describe('daemon state plane (S1 — plane identity)', () => {
+  test('GET /version carries the plane when wired', async () => {
+    const app = Fastify();
+    await app.register(infoPlugin, { deps: buildDeps({ plane: 'dev-latest' }) });
+    const res = await app.inject({ method: 'GET', url: '/version' });
+    const body = res.json();
+    expect(res.statusCode).toBe(200);
+    expect(body.version).toBe('9.9.9');
+    expect(body.plane).toBe('dev-latest');
+    await app.close();
+  });
+
+  test('GET /health carries the plane when wired', async () => {
+    const app = Fastify();
+    await app.register(infoPlugin, { deps: buildDeps({ plane: 'ephemeral:pd-feat-x' }) });
+    const res = await app.inject({ method: 'GET', url: '/health' });
+    const body = res.json();
+    expect(res.statusCode).toBe(200);
+    expect(body.status).toBe('ok');
+    expect(body.plane).toBe('ephemeral:pd-feat-x');
+    await app.close();
+  });
+
+  test('prod plane rides through verbatim on both routes', async () => {
+    const app = Fastify();
+    await app.register(infoPlugin, { deps: buildDeps({ plane: 'prod' }) });
+    expect((await app.inject({ method: 'GET', url: '/version' })).json().plane).toBe('prod');
+    expect((await app.inject({ method: 'GET', url: '/health' })).json().plane).toBe('prod');
+    await app.close();
+  });
+
+  test('plane is omitted when not wired (legacy daemon)', async () => {
+    const app = Fastify();
+    await app.register(infoPlugin, { deps: buildDeps() });
+    expect((await app.inject({ method: 'GET', url: '/version' })).json().plane).toBeUndefined();
+    expect((await app.inject({ method: 'GET', url: '/health' })).json().plane).toBeUndefined();
+    await app.close();
+  });
+});
+
 describe('daemon berth self-identity (ADR-0084)', () => {
   const stableBerth = {
     tier: 'stable',

@@ -26,7 +26,7 @@ While individual agents are brilliant, **coordination** is the bottleneck. Port 
 
 ```bash
 # Start working (registers agent + claims port + starts session)
-pd begin "Building the auth layer" --identity myapp:api --lifecycle durable
+pd begin "Building the auth layer" --identity myapp:api --lifecycle durable --roadmap auth-layer
 
 # Log progress, coordinate with other agents
 pd note "JWT validation passing all tests"
@@ -171,7 +171,7 @@ Every unit of agent work is a **session**: begin, leave notes, claim files, fini
 ### `pd begin` requires an explicit lifecycle
 
 ```bash
-pd begin "Fix flaky auth tests" --identity myapp:api --lifecycle durable
+pd begin "Fix flaky auth tests" --identity myapp:api --lifecycle durable --sidequest "flaky-test triage"
 ```
 
 `--lifecycle` is **mandatory** and takes exactly two values:
@@ -181,10 +181,26 @@ pd begin "Fix flaky auth tests" --identity myapp:api --lifecycle durable
 
 The same requirement applies to `pd session start` and the MCP `begin_session` tool.
 
+### `pd begin` charges roadmap rent
+
+Every session must say where it sits on the roadmap — one line, at start, not at PR time. Pass exactly one of:
+
+```bash
+pd begin "…" --lifecycle durable --roadmap adr-0090-database-distribution   # link an existing item
+pd begin "…" --lifecycle durable --roadmap-new "Rent-at-claim gate"         # create a draft item and link it
+pd begin "…" --lifecycle durable --sidequest "one-off CI flake hunt"        # explicit opt-out (min 12 chars)
+```
+
+- `--roadmap <slug>` is validated against the daemon's roadmap; unknown slugs get a did-you-mean list of the nearest slugs by prefix.
+- `--roadmap-new "<title>"` creates a draft roadmap item (provenance note `genesis-at-begin`) via the roadmap service and links it. If the slug already exists, the session links to the existing item instead of overwriting it.
+- `--sidequest "<reason>"` records why the work is off-roadmap.
+
+Without one of the three, non-TTY runs fail with the three options above; a TTY prompts interactively. The link or reason lands on the session record and shows up in `pd whoami` and `pd sessions`. `pd roadmap pop --begin` passes the popped slug through automatically. The MCP `begin_session` tool enforces the same gate: exactly one of `roadmap`, `roadmap_new`, or `sidequest` is required (`ROADMAP_RENT_REQUIRED` otherwise); only the daemon's raw HTTP surface stays lenient in v1.
+
 ### The loop
 
 ```bash
-pd begin "…" --identity myapp:api --lifecycle durable
+pd begin "…" --identity myapp:api --lifecycle durable --roadmap <slug>
 pd note "Scope: lib/auth.ts. Assumptions: JWT lib stays. Validation: npm test"
 pd session files add lib/auth.ts        # advisory claim — announce edit intent
 pd add lib/auth.ts                      # claim-aware git add (refuses files held by others)
@@ -432,6 +448,17 @@ pd skill-graft "write tests for a flaky fleet trigger"    # preview the local sk
 ```
 
 Search across Port Daddy is **hybrid** — BM25 plus one shared local embedding model (`Xenova/all-MiniLM-L6-v2`, prefetched at install per ADR-0061). `pd memory tiers` prints the three-tier vocabulary overlay (Core/Recall/Archival) over the same SQLite substrate.
+
+### Artifact Harvest (Booty)
+
+Artifacts an agent produces (design workups, screenshots, HTML mocks, videos) are durable truth on any branch. `pd booty add` content-addresses files into the blob store and records a provenance row — branch and worktree from git, session and agent identity from the active pd session:
+
+```bash
+pd booty add designs/hero.png --roadmap state-plane --note "hero workup v2"
+pd booty list --branch claude/feature-x                    # what was harvested where, by whom
+```
+
+Re-depositing the same bytes on the same branch is idempotent; the same bytes on a different branch is a new provenance row. The daemon's blob store is authoritative for size and media type.
 
 ### The Arbiter (Runtime Invariant Enforcement)
 

@@ -1226,6 +1226,30 @@ describe('CLI Integration Tests', () => {
       expect(output).toContain('ephemeral');
     });
 
+    test('rent gate: pd begin without a roadmap link fails non-TTY with the 3-option message', () => {
+      const result = runCli(
+        ['begin', 'Rent gate test', '--lifecycle', 'durable'],
+        { env: { PD_RENT_EXEMPT: '' } },
+      );
+      expect(result.success).toBe(false);
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('--roadmap <slug>');
+      expect(output).toContain('--roadmap-new');
+      expect(output).toContain('--sidequest');
+      expect(output).not.toContain('PD_RENT_EXEMPT');
+    });
+
+    test('rent gate: --sidequest reason passes and lands on the session record', () => {
+      const result = runCli([
+        'begin', 'Rent sidequest test', '--lifecycle', 'durable',
+        '--sidequest', 'integration test opt-out reason', '--json',
+      ], { env: { PD_RENT_EXEMPT: '' } });
+      expect(result.success).toBe(true);
+      const data = JSON.parse(result.stdout);
+      expect(data.sidequestReason).toBe('integration test opt-out reason');
+      runCli(['done', '--agent', data.agentId, '--status', 'abandoned']);
+    });
+
     test('non-interactive mode shows usage when no args', () => {
       // Without TTY, CLI should show usage and fail (not hang waiting for input)
       // runCli spawns without a TTY, so canPrompt() returns false

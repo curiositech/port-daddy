@@ -1145,6 +1145,20 @@ export function createSessions(
     return next;
   }
 
+  /**
+   * Public metadata patch — shallow-merge `patch` into the session's metadata
+   * JSON. Used by sugar.begin's rent-at-claim resume path to stamp a roadmap
+   * link / sidequest reason onto an existing session record.
+   */
+  function updateMetadata(sessionId: string, patch: Record<string, unknown>) {
+    const row = stmts.getById.get(sessionId) as SessionRow | undefined;
+    if (!row) {
+      return { success: false, error: `Session ${sessionId} not found` };
+    }
+    const metadata = mergeMetadata(row, patch);
+    return { success: true, sessionId, metadata };
+  }
+
   function splitTransferClaims(files: SessionFileRow[]) {
     const wholeFiles: string[] = [];
     const regions: FileRegion[] = [];
@@ -2264,5 +2278,6 @@ export function createSessions(
     abandonOrphanedActive,
     setActivityLog,
     resurrect,
+    updateMetadata,
   };
 }

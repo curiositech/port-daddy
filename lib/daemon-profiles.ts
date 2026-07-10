@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PD_HOME } from '../shared/paths.js';
+import { STATE_PLANE_ENV } from './state-plane.js';
 
 export const DAEMON_PROFILE_DIRNAME = 'instances';
 export const RESERVED_DAEMON_PROFILES = new Set(['canonical', 'default', 'stable']);
@@ -150,6 +151,10 @@ export function buildDaemonProfileEnv(
     'PORT_DADDY_PID_FILE',
     'PORT_DADDY_PORT_FILE',
     'PORT_DADDY_HEARTBEAT_FILE',
+    // An inherited plane override (PORT_DADDY_PLANE) would poison the child
+    // daemon's state-plane classification — strip it so the berth self-classifies
+    // from its own prefix/port/profile signals (lib/state-plane.ts).
+    STATE_PLANE_ENV,
   ]) {
     delete env[key];
   }

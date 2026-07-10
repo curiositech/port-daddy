@@ -982,6 +982,7 @@
       "routes": [
         "POST /sugar/begin",
         "POST /sugar/done",
+        "POST /sugar/relink",
         "GET /sugar/whoami"
       ],
       "completions": [
@@ -1666,6 +1667,25 @@
         "sdk": false
       },
       "_note": "API-only \u2014 Phase 0 substrate. CLI/SDK surfaces follow in Phase 1."
+    },
+    "booty": {
+      "description": "Artifact harvest provenance over the content-addressed blob store (slice S4a). `pd booty add` content-addresses files via POST /blob and records provenance rows (branch, worktree, session, agent, roadmap link); `pd booty list` and GET /booty read them back.",
+      "module": "lib/booty.ts",
+      "cli": [
+        "booty"
+      ],
+      "sdk": [],
+      "routes": [
+        "POST /booty",
+        "GET /booty"
+      ],
+      "completions": [
+        "booty"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
     },
     "graph": {
       "description": "Semantic graph edges and aggregate graph stats for merge queue and symbol-index relationships",
