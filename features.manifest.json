@@ -982,6 +982,7 @@
       "routes": [
         "POST /sugar/begin",
         "POST /sugar/done",
+        "POST /sugar/relink",
         "GET /sugar/whoami"
       ],
       "completions": [

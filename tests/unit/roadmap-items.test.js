@@ -68,6 +68,37 @@ describe('upsert', () => {
     expect(item.status).toBe('backlog');
   });
 
+  test('notes are append-only across upserts — re-upsert merges, never wipes', () => {
+    roadmap.upsert({
+      slug: 'noted',
+      summaryMd: 'v1',
+      harbor: 'fleet',
+      notes: [{ at: 1, by: 'agent-a', text: 'first note' }],
+    });
+    const after = roadmap.upsert({
+      slug: 'noted',
+      summaryMd: 'v2',
+      harbor: 'fleet',
+      notes: [{ at: 2, by: 'agent-b', text: 'second note' }],
+    });
+    expect(after.notes.map((n) => n.text)).toEqual(['first note', 'second note']);
+    // Idempotent retry: replaying the same note does not duplicate it.
+    const retried = roadmap.upsert({
+      slug: 'noted',
+      summaryMd: 'v2',
+      harbor: 'fleet',
+      notes: [{ at: 2, by: 'agent-b', text: 'second note' }],
+    });
+    expect(retried.notes).toHaveLength(2);
+  });
+
+  test('slugExists is an exact any-harbor check', () => {
+    roadmap.upsert({ slug: 'exists-here', summaryMd: 'x', harbor: 'fleet' });
+    expect(roadmap.slugExists('exists-here')).toBe(true);
+    expect(roadmap.slugExists('exists-her')).toBe(false);
+    expect(roadmap.slugExists('nope')).toBe(false);
+  });
+
   test('preserves id and promotion provenance across upserts of the same slug', () => {
     const first = roadmap.upsert({
       slug: 'durable',

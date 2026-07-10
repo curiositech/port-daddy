@@ -675,6 +675,11 @@
       "summaryMd": "Land the pd sortie CLI surface (one-shot multi-agent mission: run/list/status/logs) recovered from the April 2026 parked work; thin client over the existing daemon /sorties endpoints, aligned with ADR-0060 conductor consolidation."
     },
     {
+      "slug": "rent-at-claim-begin-gate",
+      "status": "now",
+      "summaryMd": "S3 rent-at-claim: pd begin requires a roadmap link (--roadmap), draft genesis (--roadmap-new), or an explicit sidequest opt-out (--sidequest); persisted on the session record and surfaced in whoami/listings."
+    },
+    {
       "slug": "roadmap-delete-verb-and-harbor-fix",
       "status": "backlog",
       "summaryMd": "Shepherd PR #558: roadmap delete verb, DELETE route, and project-harbor default; takeover rebase after stale session release."
