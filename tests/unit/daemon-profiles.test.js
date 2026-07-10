@@ -59,6 +59,7 @@ describe('daemon profiles', () => {
         PORT_DADDY_SOCK: '/old/daemon.sock',
         PORT_DADDY_PORT_FILE: '/old/daemon.port',
         PORT_DADDY_PORT: '9999',
+        PORT_DADDY_PLANE: 'prod',
       },
       port: 9888,
     });
@@ -68,6 +69,9 @@ describe('daemon profiles', () => {
     expect(env.PORT_DADDY_DB).toBeUndefined();
     expect(env.PORT_DADDY_SOCK).toBeUndefined();
     expect(env.PORT_DADDY_PORT_FILE).toBeUndefined();
+    // An inherited plane override must never leak into a child berth — it
+    // would poison the new daemon's state-plane classification.
+    expect(env.PORT_DADDY_PLANE).toBeUndefined();
     expect(env.PORT_DADDY_PROFILE).toBe('dogfood');
     expect(env.PORT_DADDY_PREFIX).toBe(profile.runtimeDir);
     expect(env.PORT_DADDY_PORT).toBe('9888');

@@ -12,9 +12,12 @@
  *   - `ephemeral:<label>`  — any other berth (worktree/codebase/soak daemon);
  *                            state is disposable with the berth.
  *
- * Classification is a PURE function of injected signals — no env reads, no
- * filesystem probes — so it is exhaustively unit-testable
- * (tests/unit/state-plane.test.js) and can never block boot.
+ * Classification is a pure function of injected signals — no env reads — so it
+ * is exhaustively unit-testable (tests/unit/state-plane.test.js) and can never
+ * block boot. The one filesystem touch is a best-effort `realpathSync` when
+ * comparing the prefix against `~/.port-daddy`, so a symlinked prefix cannot
+ * hide the prod plane; it never throws (missing paths fall back to the
+ * string-resolved form).
  *
  * Precedence (first match wins):
  *   1. Explicit `PORT_DADDY_PLANE` override.
@@ -27,6 +30,7 @@
  * policies, and quarantine are S2/S3 territory and do not belong here.
  */
 
+import { realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { DEV_LATEST_PORT } from '../shared/daemon-berths.js';
@@ -60,6 +64,19 @@ function expandTilde(path: string, home: string): string {
 /** Trim trailing path separators without destroying the root path itself. */
 function stripTrailingSlashes(path: string): string {
   return path.length > 1 ? path.replace(/\/+$/, '') : path;
+}
+
+/**
+ * Best-effort symlink resolution. Missing paths (unit tests, not-yet-created
+ * prefixes) fall back to the input unchanged — this never throws, so it can
+ * never block boot.
+ */
+function tryRealpath(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
 }
 
 /**
@@ -103,6 +120,9 @@ export function classifyPlane(input: ClassifyPlaneInput): StatePlane {
   const resolvedPrefix = stripTrailingSlashes(resolve(expandTilde(rawPrefix, home)));
   const canonical = stripTrailingSlashes(resolve(join(home, '.port-daddy')));
   if (resolvedPrefix === canonical) return 'prod';
+  // Compare real filesystem identity too: a symlinked PORT_DADDY_PREFIX that
+  // points at ~/.port-daddy (or vice versa) is still the prod plane.
+  if (tryRealpath(resolvedPrefix) === tryRealpath(canonical)) return 'prod';
 
   // 3. The standing dev-latest lane.
   if (input.port === DEV_LATEST_PORT) return 'dev-latest';

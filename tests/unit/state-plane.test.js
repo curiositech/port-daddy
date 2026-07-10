@@ -1,13 +1,17 @@
 /**
  * State-plane classification (S1 — daemon plane identity).
  *
- * `classifyPlane` is a PURE function: every signal (prefix path, port,
- * profile name, env override, home dir) is injected, so these tests never
- * touch the real environment or filesystem.
+ * `classifyPlane` is a pure function of injected signals: every signal
+ * (prefix path, port, profile name, env override, home dir) is injected, so
+ * these tests never touch the real environment. The only filesystem behavior
+ * is the best-effort realpath used for symlinked-prefix identity, exercised
+ * below against a scratch fixture dir.
  */
-import { describe, expect, test } from '@jest/globals';
+import { afterAll, describe, expect, test } from '@jest/globals';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { classifyPlane, STATE_PLANE_ENV, isProdPlane } from '../../lib/state-plane.js';
 import { DEV_LATEST_PORT } from '../../shared/daemon-berths.js';
 
@@ -135,5 +139,48 @@ describe('isProdPlane', () => {
     expect(isProdPlane(undefined)).toBe(false);
     expect(isProdPlane(null)).toBe(false);
     expect(isProdPlane('')).toBe(false);
+  });
+});
+
+describe('classifyPlane — symlinked prefix identity (real filesystem)', () => {
+  // Fixtures live under tests/unit/.scratch/ (gitignored), never /tmp.
+  const SCRATCH_ROOT = join(dirname(fileURLToPath(import.meta.url)), '.scratch');
+  mkdirSync(SCRATCH_ROOT, { recursive: true });
+  const fixtureHome = mkdtempSync(join(SCRATCH_ROOT, 'plane-home-'));
+
+  afterAll(() => {
+    rmSync(fixtureHome, { recursive: true, force: true });
+  });
+
+  test('a symlinked PORT_DADDY_PREFIX pointing at ~/.port-daddy is prod', () => {
+    mkdirSync(join(fixtureHome, '.port-daddy'), { recursive: true });
+    const link = join(fixtureHome, 'pd-link');
+    symlinkSync(join(fixtureHome, '.port-daddy'), link);
+    expect(classifyPlane({ prefixPath: link, port: 4242, homeDir: fixtureHome })).toBe('prod');
+  });
+
+  test('~/.port-daddy itself being a symlink still matches its real target', () => {
+    const home = mkdtempSync(join(SCRATCH_ROOT, 'plane-home-'));
+    try {
+      const realStore = join(home, 'real-store');
+      mkdirSync(realStore, { recursive: true });
+      symlinkSync(realStore, join(home, '.port-daddy'));
+      expect(classifyPlane({ prefixPath: realStore, port: 4242, homeDir: home })).toBe('prod');
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('a symlink to a NON-canonical dir stays ephemeral', () => {
+    const other = join(fixtureHome, 'berth-7');
+    mkdirSync(other, { recursive: true });
+    const link = join(fixtureHome, 'berth-link');
+    symlinkSync(other, link);
+    expect(classifyPlane({ prefixPath: link, port: 4242, homeDir: fixtureHome })).toBe('ephemeral:berth-link');
+  });
+
+  test('nonexistent paths fall back to string comparison (never throws)', () => {
+    expect(classifyPlane({ prefixPath: join(fixtureHome, 'does-not-exist'), port: 4242, homeDir: fixtureHome }))
+      .toBe('ephemeral:does-not-exist');
   });
 });
