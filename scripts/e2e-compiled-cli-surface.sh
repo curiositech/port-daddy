@@ -348,8 +348,11 @@ run_ok  "lock $LOCK"         lock     -- lock "$LOCK"
 run_ok  "unlock $LOCK"       unlock   -- unlock "$LOCK"
 
 # begin -> whoami(active) -> note -> notes -> done
-# (--allow-main-worktree: CI runs on the main worktree)
-run_ok  "begin"              begin    -- begin e2e:surface:ci --lifecycle durable --allow-main-worktree
+# (--allow-main-worktree: CI runs on the main worktree; --sidequest: ADR
+# rent-at-claim (S3) requires --roadmap/--roadmap-new/--sidequest on every
+# `pd begin` — this is a surface probe, not roadmap-linked work, so it opts
+# out with an explicit reason, same pattern as the website-GIF CI job fix.)
+run_ok  "begin"              begin    -- begin e2e:surface:ci --lifecycle durable --allow-main-worktree --sidequest "compiled CLI surface E2E probe"
 run_ok  "note"               note     -- note "e2e cli-surface round-trip note"
 run_read "session (usage)"   session  -- session
 run_read "takeover (usage)"  takeover -- takeover
