@@ -190,7 +190,13 @@ export function createBootyStore(db: DatabaseInstance): BootyStore {
   }
 
   function list(opts: BootyListOptions = {}): BootyRow[] {
-    const limit = Math.max(1, Math.min(Number(opts.limit) || 50, 500));
+    // Respect an explicit limit of 0 (returns no rows); only fall back to the
+    // default of 50 when limit is absent or not a finite number.
+    const requested = Number(opts.limit);
+    const limit =
+      opts.limit === undefined || !Number.isFinite(requested)
+        ? 50
+        : Math.max(0, Math.min(Math.floor(requested), 500));
     const where: string[] = [];
     const params: unknown[] = [];
     if (typeof opts.branch === 'string' && opts.branch) {

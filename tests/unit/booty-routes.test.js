@@ -123,6 +123,23 @@ describe('booty routes', () => {
     expect(missing.statusCode).toBe(400);
   });
 
+  it('POST /booty ignores client-supplied byte_size/media_type in favor of blob-store truth', async () => {
+    const { stat, body } = deposit({ byte_size: 999999, media_type: 'text/evil' });
+    const res = await app.inject({ method: 'POST', url: '/booty', payload: body });
+    expect(res.statusCode).toBe(201);
+    const row = res.json().booty;
+    expect(row.byte_size).toBe(stat.size);
+    expect(row.media_type).toBe('image/png'); // the contentType the store recorded at put()
+  });
+
+  it('GET /booty respects an explicit limit=0', async () => {
+    const { body } = deposit();
+    await app.inject({ method: 'POST', url: '/booty', payload: body });
+    const res = await app.inject({ method: 'GET', url: '/booty?limit=0' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().booty).toHaveLength(0);
+  });
+
   it('GET /booty filters by branch and session', async () => {
     const a = deposit({ __bytes: 'one' });
     await app.inject({ method: 'POST', url: '/booty', payload: a.body });

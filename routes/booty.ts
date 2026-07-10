@@ -22,7 +22,7 @@ interface BootyRouteDeps {
   booty: BootyStore;
   blobs: {
     has(id: string): boolean;
-    stat(id: string): { size: number } | null;
+    stat(id: string): { size: number; contentType?: string } | null;
   };
   logger?: {
     info?(msg: string, meta?: Record<string, unknown>): void;
@@ -48,21 +48,22 @@ export const bootyPlugin: FastifyPluginAsync<{ deps: BootyRouteDeps }> = async (
       reply.code(400);
       return { success: false, error: 'original_path is required' };
     }
-    if (!blobs.has(blobHash)) {
+    // The blob store is authoritative for size and content type — never trust
+    // client-supplied byte_size/media_type for a blob the store can describe.
+    const stat = blobs.has(blobHash) ? blobs.stat(blobHash) : null;
+    if (!stat) {
       reply.code(404);
       return { success: false, error: 'blob not found in store — POST /blob first' };
     }
 
-    const stat = blobs.stat(blobHash);
-    const byteSize =
-      typeof body.byte_size === 'number' && Number.isFinite(body.byte_size)
-        ? body.byte_size
-        : stat?.size ?? 0;
+    const byteSize = stat.size;
+    const mediaType =
+      stat.contentType || (typeof body.media_type === 'string' ? body.media_type : undefined);
 
     try {
       const { row, deduped } = booty.add({
         blob_hash: blobHash,
-        media_type: typeof body.media_type === 'string' ? body.media_type : undefined,
+        media_type: mediaType,
         original_path: body.original_path,
         byte_size: byteSize,
         branch: typeof body.branch === 'string' ? body.branch : '',

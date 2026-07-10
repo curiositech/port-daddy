@@ -112,6 +112,13 @@ describe('booty store', () => {
     expect(booty.list({ limit: 1 })).toHaveLength(1);
   });
 
+  it('list respects an explicit limit of 0 and defaults to 50 when unset', () => {
+    booty.add(baseInput());
+    expect(booty.list({ limit: 0 })).toHaveLength(0);
+    expect(booty.list()).toHaveLength(1);
+    expect(booty.list({ limit: Number.NaN })).toHaveLength(1);
+  });
+
   it('nullable fields stay null when omitted', () => {
     const { row } = booty.add({
       blob_hash: HASH_B,

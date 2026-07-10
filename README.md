@@ -433,6 +433,17 @@ pd skill-graft "write tests for a flaky fleet trigger"    # preview the local sk
 
 Search across Port Daddy is **hybrid** — BM25 plus one shared local embedding model (`Xenova/all-MiniLM-L6-v2`, prefetched at install per ADR-0061). `pd memory tiers` prints the three-tier vocabulary overlay (Core/Recall/Archival) over the same SQLite substrate.
 
+### Artifact Harvest (Booty)
+
+Artifacts an agent produces (design workups, screenshots, HTML mocks, videos) are durable truth on any branch. `pd booty add` content-addresses files into the blob store and records a provenance row — branch and worktree from git, session and agent identity from the active pd session:
+
+```bash
+pd booty add designs/hero.png --roadmap state-plane --note "hero workup v2"
+pd booty list --branch claude/feature-x                    # what was harvested where, by whom
+```
+
+Re-depositing the same bytes on the same branch is idempotent; the same bytes on a different branch is a new provenance row. The daemon's blob store is authoritative for size and media type.
+
 ### The Arbiter (Runtime Invariant Enforcement)
 
 The Arbiter monitors every state transition against formally-derived invariants: PID squatting, capability escalation, note monotonicity, escrow positivity, lock-owner validity, heartbeat freshness.

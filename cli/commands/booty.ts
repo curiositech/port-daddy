@@ -99,14 +99,42 @@ async function handleAdd(paths: string[], options: CLIOptions): Promise<void> {
   const note = typeof options.note === 'string' ? options.note : null;
   const results: Array<{ path: string; booty: BootyRow; deduped: boolean }> = [];
 
+  // Earlier paths in a batch are durably persisted even if a later path
+  // fails, so a mid-batch failure must still surface everything that
+  // succeeded before exiting non-zero.
+  function emitResults(error?: { path: string; message: string }): void {
+    if (isJson(options)) {
+      const payload: Record<string, unknown> = { success: !error, results };
+      if (error) {
+        payload.error = error.message;
+        payload.failed_path = error.path;
+      }
+      console.log(JSON.stringify(payload, null, 2));
+    } else {
+      for (const { path, booty, deduped } of results) {
+        const marker = deduped ? ' (already harvested on this branch)' : '';
+        ui.success(`${booty.id}  ${booty.blob_hash.slice(0, 12)}  ${path}${marker}`);
+      }
+      if (error) {
+        ui.error(error.message);
+        if (results.length > 0) {
+          ui.error(`${results.length} artifact(s) were already harvested before the failure (listed above).`);
+        }
+      } else if (!isQuiet(options)) {
+        console.log(`${results.length} artifact(s) harvested on ${provenance.branch ?? '(no branch)'}`);
+      }
+    }
+    if (error) process.exit(1);
+  }
+
   for (const rawPath of paths) {
     const absPath = resolve(rawPath);
     let buf: Buffer;
     try {
       buf = readFileSync(absPath);
     } catch (err) {
-      ui.error(`Cannot read ${absPath}: ${(err as Error).message}`);
-      process.exit(1);
+      emitResults({ path: absPath, message: `Cannot read ${absPath}: ${(err as Error).message}` });
+      return;
     }
 
     const mediaType = mediaTypeForPath(absPath);
@@ -119,8 +147,11 @@ async function handleAdd(paths: string[], options: CLIOptions): Promise<void> {
     });
     const blobData = await blobRes.json();
     if (!blobRes.ok) {
-      ui.error((blobData.error as string) || `Failed to store blob for ${absPath}`);
-      process.exit(1);
+      emitResults({
+        path: absPath,
+        message: (blobData.error as string) || `Failed to store blob for ${absPath}`,
+      });
+      return;
     }
     const blob = blobData.blob as { id: string; size: number };
 
@@ -143,8 +174,11 @@ async function handleAdd(paths: string[], options: CLIOptions): Promise<void> {
     });
     const bootyData = await bootyRes.json();
     if (!bootyRes.ok) {
-      ui.error((bootyData.error as string) || `Failed to record booty for ${absPath}`);
-      process.exit(1);
+      emitResults({
+        path: absPath,
+        message: (bootyData.error as string) || `Failed to record booty for ${absPath}`,
+      });
+      return;
     }
     results.push({
       path: absPath,
@@ -153,18 +187,7 @@ async function handleAdd(paths: string[], options: CLIOptions): Promise<void> {
     });
   }
 
-  if (isJson(options)) {
-    console.log(JSON.stringify({ success: true, results }, null, 2));
-    return;
-  }
-
-  for (const { path, booty, deduped } of results) {
-    const marker = deduped ? ' (already harvested on this branch)' : '';
-    ui.success(`${booty.id}  ${booty.blob_hash.slice(0, 12)}  ${path}${marker}`);
-  }
-  if (!isQuiet(options)) {
-    console.log(`${results.length} artifact(s) harvested on ${provenance.branch ?? '(no branch)'}`);
-  }
+  emitResults();
 }
 
 async function handleList(options: CLIOptions): Promise<void> {
