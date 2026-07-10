@@ -813,7 +813,7 @@ const custodian = CUSTODIAN_ENABLED
       logger,
       episodicMemory: episodicMemory as any,
       messaging: messaging as any,
-      resurrection: resurrection as any,
+      resurrection,
       contextTracker: contextTracker as any,
       operatorPermissions,
       blobs: blobs as any,
