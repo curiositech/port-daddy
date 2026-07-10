@@ -515,6 +515,11 @@
       "summaryMd": "feat(fleetbar): add native Cloud Fleet surface"
     },
     {
+      "slug": "booty-artifact-harvest",
+      "status": "backlog",
+      "summaryMd": "feat(booty): S4a artifact harvest — provenance over the blob store"
+    },
+    {
       "slug": "cloudflare-agent-telemetry-unified-reporting",
       "status": "now",
       "summaryMd": "Cloudflare/GitHub App remote agent telemetry appears in the same fleet, agent, and spend reports as local agents."

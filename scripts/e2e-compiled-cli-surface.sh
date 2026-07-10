@@ -313,6 +313,14 @@ run_read "say (no session)"  say          -- say "e2e cli-surface say probe"
 run_read "attest"            attest       -- attest
 run_read "backend list"      backend      -- backend list
 run_read "squid (usage)"     squid        -- squid
+# S4a artifact harvest (booty): `pd booty list` is a pure GET /booty read.
+# The scratch daemon has no harvested artifacts, so the CLI prints a friendly
+# "No harvested artifacts yet" banner rather than empty output — that's real
+# non-empty output proving the compiled booty module loaded and ran. The
+# mutating subform (`booty add`) content-addresses real files into the blob
+# store and isn't exercised here; unit-tested in tests/unit/booty.test.js and
+# tests/unit/booty-routes.test.js.
+run_read "booty list"        booty        -- booty list
 run_read "backup list"       backup       -- backup list
 run_read "restore (usage)"   restore      -- restore
 run_read "popper status"     popper       -- popper status
