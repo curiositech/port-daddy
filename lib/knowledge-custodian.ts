@@ -36,14 +36,9 @@ interface CustodianDeps {
   messaging?: {
     publish(channel: string, payload: Record<string, unknown>): void;
   };
-  /** resurrection module for listing stale agents */
+  /** resurrection module — used here only to purge long-stale queue entries */
   resurrection?: {
-    getQueue(filter?: { status?: string }): Array<{
-      id: string;
-      agentId: string;
-      metadata?: Record<string, unknown>;
-    }>;
-    markDead(id: string): void;
+    cleanup(olderThan?: number): { cleaned: number };
   };
   /** context window tracker for pressure-level queries */
   contextTracker?: {
@@ -363,16 +358,16 @@ export class KnowledgeCustodian {
     // Archive expired episodes
     const archived = deps.episodicMemory.archiveExpired();
 
-    // Mark stale resurrection queue entries (pending > 30 days)
+    // Purge resurrection queue entries older than 30 days. This previously
+    // hand-rolled a filter+mark loop against a `getQueue`/`markDead` interface
+    // that never existed on the real resurrection module (lib/resurrection.ts
+    // exposes `cleanup`, not those two) — an `as any` cast at the server.ts
+    // wiring site hid the type mismatch, and the resulting TypeError crashed
+    // the whole daemon process the first time this 6-hourly duty fired after
+    // any entry aged past the threshold. `cleanup()` is the module's own
+    // purpose-built method for exactly this.
     if (deps.resurrection) {
-      const staleThreshold = Date.now() - 30 * 24 * 60 * 60 * 1000;
-      const pending = deps.resurrection.getQueue({ status: 'pending' });
-      for (const entry of pending) {
-        const detectedAt = entry.metadata?.detectedAt;
-        if (typeof detectedAt === 'number' && detectedAt < staleThreshold) {
-          deps.resurrection.markDead(entry.id);
-        }
-      }
+      deps.resurrection.cleanup(30 * 24 * 60 * 60 * 1000);
     }
 
     // Harvest + abandon sessions inactive > 7 days
