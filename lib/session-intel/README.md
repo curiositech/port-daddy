@@ -4,8 +4,7 @@ Mines **real** port-daddy multi-agent history for collaboration **hits & misses*
 and appends them to a permanent, append-only ledger that is both (a) training
 material and (b) the source of a ranked, actionable coordination-improvement list.
 
-Part of the **Session Intelligence** program (`docs/roadmap/session-intelligence-program.md`),
-workstream **WS-3**. Plain node-runnable CommonJS (`.js`) — no framework, no build.
+Part of the **Session Intelligence** program (`docs/roadmap/session-intelligence-program.md` — not yet shipped on this branch; lands via PR #1585) <!-- cite-exempt -->, workstream **WS-3**. Plain node-runnable CommonJS (`.js`) — no framework, no build.
 
 ## Hard rules baked in
 
