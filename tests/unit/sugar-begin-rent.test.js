@@ -245,3 +245,122 @@ describe('sugar.begin rent-at-claim — surfacing', () => {
     expect(second.code).toBe('ROADMAP_SLUG_UNKNOWN');
   });
 });
+
+// =============================================================================
+// Anti-Goodhart valve: sugar.relink — a wrong link is never sticky.
+// =============================================================================
+
+describe('sugar.relink — validation matrix', () => {
+  test('relink to a valid slug updates the active session and clears the sidequest', () => {
+    const { sugar, sessions } = setup();
+    const began = sugar.begin({ ...base, sidequestReason: 'picked a garbage reason to pass the gate' });
+    const res = sugar.relink({ agentId: began.agentId, roadmapLink: 'fleet-ui-cloud' });
+    expect(res.success).toBe(true);
+    expect(res.sessionId).toBe(began.sessionId);
+    expect(res.roadmapLink).toBe('fleet-ui-cloud');
+    expect(res.previousSidequestReason).toBe('picked a garbage reason to pass the gate');
+    expect(res.previousRoadmapLink).toBeNull();
+    const got = sessions.get(began.sessionId);
+    expect(got.session.metadata.roadmapLink).toBe('fleet-ui-cloud');
+    expect(got.session.metadata.sidequestReason).toBeUndefined();
+  });
+
+  test('relink to an unknown slug fails with did-you-mean prefix matches', () => {
+    const { sugar } = setup();
+    const began = sugar.begin({ ...base, sidequestReason: 'starting as a sidequest first' });
+    const res = sugar.relink({ agentId: began.agentId, roadmapLink: 'adr-0090-databse' });
+    expect(res.success).toBe(false);
+    expect(res.code).toBe('ROADMAP_SLUG_UNKNOWN');
+    expect(res.didYouMean).toContain('adr-0090-database-distribution');
+    expect(String(res.error)).toContain('adr-0090-database-distribution');
+  });
+
+  test('relink to a sidequest updates the session and clears the roadmap link', () => {
+    const { sugar, sessions } = setup();
+    const began = sugar.begin({ ...base, roadmapLink: 'fleet-ui-cloud' });
+    const res = sugar.relink({ agentId: began.agentId, sidequestReason: 'scope shrank to an off-roadmap spike' });
+    expect(res.success).toBe(true);
+    expect(res.sidequestReason).toBe('scope shrank to an off-roadmap spike');
+    expect(res.previousRoadmapLink).toBe('fleet-ui-cloud');
+    const got = sessions.get(began.sessionId);
+    expect(got.session.metadata.sidequestReason).toBe('scope shrank to an off-roadmap spike');
+    expect(got.session.metadata.roadmapLink).toBeUndefined();
+  });
+
+  test('relink sidequest under 12 chars is rejected', () => {
+    const { sugar } = setup();
+    const began = sugar.begin({ ...base, roadmapLink: 'fleet-ui-cloud' });
+    const res = sugar.relink({ agentId: began.agentId, sidequestReason: 'too short' });
+    expect(res.success).toBe(false);
+    expect(res.code).toBe('SIDEQUEST_REASON_TOO_SHORT');
+  });
+
+  test('relink with both fields at once conflicts', () => {
+    const { sugar } = setup();
+    const began = sugar.begin({ ...base, roadmapLink: 'fleet-ui-cloud' });
+    const res = sugar.relink({
+      agentId: began.agentId,
+      roadmapLink: 'adr-0090-db-tiering',
+      sidequestReason: 'also a sidequest somehow',
+    });
+    expect(res.success).toBe(false);
+    expect(res.code).toBe('ROADMAP_RENT_CONFLICT');
+  });
+
+  test('relink with neither field is rejected', () => {
+    const { sugar } = setup();
+    const began = sugar.begin({ ...base, roadmapLink: 'fleet-ui-cloud' });
+    const res = sugar.relink({ agentId: began.agentId });
+    expect(res.success).toBe(false);
+    expect(res.code).toBe('ROADMAP_RENT_REQUIRED');
+  });
+
+  test('relink with no active session fails with NO_ACTIVE_SESSION', () => {
+    const { sugar } = setup();
+    const res = sugar.relink({ agentId: 'agent-that-never-began', roadmapLink: 'fleet-ui-cloud' });
+    expect(res.success).toBe(false);
+    expect(res.code).toBe('NO_ACTIVE_SESSION');
+  });
+
+  test('relink roadmap without a roadmap service fails closed', () => {
+    const { sugar } = setup({ withRoadmap: false });
+    const began = sugar.begin({ ...base, sidequestReason: 'starting as a sidequest first' });
+    const res = sugar.relink({ agentId: began.agentId, roadmapLink: 'anything' });
+    expect(res.success).toBe(false);
+    expect(res.code).toBe('ROADMAP_ITEMS_UNAVAILABLE');
+  });
+});
+
+describe('sugar.relink — audit trail + surfacing', () => {
+  test('relink appends a session note recording old -> new', () => {
+    const { sugar, sessions } = setup();
+    const began = sugar.begin({ ...base, sidequestReason: 'picked a garbage reason to pass the gate' });
+    sugar.relink({ agentId: began.agentId, roadmapLink: 'fleet-ui-cloud' });
+    const notes = sessions.getNotes(began.sessionId);
+    const audit = (notes.notes || []).find((n) => n.type === 'relink');
+    expect(audit).toBeTruthy();
+    expect(audit.content).toContain('rent-relink');
+    expect(audit.content).toContain('sidequest:picked a garbage reason to pass the gate');
+    expect(audit.content).toContain('roadmap:fleet-ui-cloud');
+    expect(audit.content).toMatch(/->/);
+  });
+
+  test('whoami shows the updated link after relink', () => {
+    const { sugar } = setup();
+    const began = sugar.begin({ ...base, sidequestReason: 'picked a garbage reason to pass the gate' });
+    sugar.relink({ agentId: began.agentId, roadmapLink: 'fleet-ui-cloud' });
+    const who = sugar.whoami({ agentId: began.agentId });
+    expect(who.active).toBe(true);
+    expect(who.roadmapLink).toBe('fleet-ui-cloud');
+    expect(who.sidequestReason).toBeNull();
+  });
+
+  test('a failed relink leaves the original rent untouched', () => {
+    const { sugar, sessions } = setup();
+    const began = sugar.begin({ ...base, roadmapLink: 'fleet-ui-cloud' });
+    const res = sugar.relink({ agentId: began.agentId, roadmapLink: 'no-such-slug-anywhere' });
+    expect(res.success).toBe(false);
+    const got = sessions.get(began.sessionId);
+    expect(got.session.metadata.roadmapLink).toBe('fleet-ui-cloud');
+  });
+});

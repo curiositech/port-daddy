@@ -46,6 +46,8 @@ interface SessionsModule {
   resurrect?(sessionId: string): void;
   /** Shallow-merge a patch into the session's metadata JSON. Optional: older deps may not provide it. */
   updateMetadata?(sessionId: string, patch: Record<string, unknown>): Record<string, unknown>;
+  /** Append an immutable session note. Optional: older deps may not provide it. */
+  addNote?(sessionId: string, content: string, options?: Record<string, unknown>): Record<string, unknown>;
 }
 
 interface ActivityLogModule {
@@ -143,6 +145,20 @@ interface DoneOptions {
 interface WhoamiOptions {
   agentId?: string;
   sessionId?: string;
+}
+
+/**
+ * Anti-Goodhart valve for rent-at-claim: `relink` re-points the ACTIVE
+ * session's rent fields. A wrong link picked just to satisfy the begin gate
+ * must never be sticky — fixing it is one command, and the fix is audited.
+ */
+interface RelinkOptions {
+  agentId?: string;
+  sessionId?: string;
+  /** Link to an EXISTING roadmap item by slug (validated, did-you-mean on miss). */
+  roadmapLink?: string;
+  /** Opt out with a one-line reason (min 12 chars). */
+  sidequestReason?: string;
 }
 
 // Rent-at-claim (S3): the one-line cost of starting a session is either a
@@ -1018,5 +1034,172 @@ export function createSugar(deps: SugarDeps) {
     return (session.agentId as string) || null;
   }
 
-  return { begin, done, whoami };
+  /**
+   * Relink — update the ACTIVE session's rent-at-claim fields.
+   *
+   * Same validation as begin: an existing roadmap slug (with prefix
+   * did-you-mean) OR a sidequest reason (min 12 chars), mutually exclusive.
+   * Switching mode clears the other field — a session is either
+   * roadmap-linked or a sidequest, never ambiguously both. Every relink
+   * appends an audit note recording old -> new.
+   */
+  function relink(options: RelinkOptions) {
+    const { agentId } = options;
+    let { sessionId } = options;
+
+    // ------------------------------------------------------------------
+    // Validate the rent fields FIRST (same semantics as begin).
+    // ------------------------------------------------------------------
+    const given = [options.roadmapLink, options.sidequestReason]
+      .filter((v) => v !== undefined && v !== null);
+    if (given.length > 1) {
+      return {
+        success: false,
+        error: 'roadmapLink and sidequestReason are mutually exclusive — pass exactly one.',
+        code: 'ROADMAP_RENT_CONFLICT',
+      };
+    }
+    if (given.length === 0) {
+      return {
+        success: false,
+        error: 'relink needs a roadmap link or a sidequest reason — pass exactly one.',
+        code: 'ROADMAP_RENT_REQUIRED',
+      };
+    }
+
+    let newRoadmapLink: string | undefined;
+    let newSidequestReason: string | undefined;
+
+    if (options.sidequestReason !== undefined) {
+      const reason = typeof options.sidequestReason === 'string' ? options.sidequestReason.trim() : '';
+      if (reason.length < SIDEQUEST_REASON_MIN_CHARS) {
+        return {
+          success: false,
+          error: `sidequest reason must be at least ${SIDEQUEST_REASON_MIN_CHARS} characters — say what the work actually is.`,
+          code: 'SIDEQUEST_REASON_TOO_SHORT',
+        };
+      }
+      newSidequestReason = reason;
+    }
+
+    if (options.roadmapLink !== undefined) {
+      if (!deps.roadmapItems) {
+        return {
+          success: false,
+          error: 'roadmap linking requires the roadmap service, which is not available on this daemon.',
+          code: 'ROADMAP_ITEMS_UNAVAILABLE',
+        };
+      }
+      const requested = typeof options.roadmapLink === 'string' ? options.roadmapLink.trim() : '';
+      if (!requested || !deps.roadmapItems.slugExists(requested)) {
+        const slugs = deps.roadmapItems.list({ status: 'all', limit: 5000 }).map((item) => item.slug);
+        const didYouMean = nearestSlugsByPrefix(requested, slugs);
+        return {
+          success: false,
+          error: `Unknown roadmap slug "${requested}".`
+            + (didYouMean.length > 0 ? ` Did you mean: ${didYouMean.join(', ')}?` : ''),
+          code: 'ROADMAP_SLUG_UNKNOWN',
+          didYouMean,
+        };
+      }
+      newRoadmapLink = requested;
+    }
+
+    // ------------------------------------------------------------------
+    // Resolve the active session (same resolution order as done()).
+    // ------------------------------------------------------------------
+    if (!sessionId && agentId) {
+      const listResult = sessions.list({ agentId, status: 'active', allWorktrees: true });
+      const sessionsList = (listResult.sessions || []) as Array<{ id: string }>;
+      if (sessionsList.length > 0) sessionId = sessionsList[0].id;
+    }
+    if (!sessionId && !agentId) {
+      const listResult = sessions.list({ status: 'active', allWorktrees: true, limit: 1 });
+      const sessionsList = (listResult.sessions || []) as Array<{ id: string }>;
+      if (sessionsList.length > 0) sessionId = sessionsList[0].id;
+    }
+    if (!sessionId) {
+      return {
+        success: false,
+        error: 'No active session found — relink needs an active session (pd begin first).',
+        code: 'NO_ACTIVE_SESSION',
+      };
+    }
+
+    const sessionInfo = sessions.get(sessionId);
+    if (!sessionInfo.success || !sessionInfo.session) {
+      return {
+        success: false,
+        error: `Session ${sessionId} not found`,
+        code: 'NO_ACTIVE_SESSION',
+      };
+    }
+    const session = sessionInfo.session as Record<string, unknown>;
+
+    // Ownership: an explicit sessionId must belong to the calling agent.
+    if (agentId && options.sessionId && session.agentId && session.agentId !== agentId) {
+      return {
+        success: false,
+        error: `Session ${sessionId} belongs to agent ${session.agentId}, not ${agentId}`,
+        code: 'SESSION_OWNERSHIP_MISMATCH',
+      };
+    }
+
+    const meta = session.metadata && typeof session.metadata === 'object'
+      ? session.metadata as Record<string, unknown>
+      : null;
+    const previousRoadmapLink = typeof meta?.roadmapLink === 'string' ? meta.roadmapLink : null;
+    const previousSidequestReason = typeof meta?.sidequestReason === 'string' ? meta.sidequestReason : null;
+
+    // ------------------------------------------------------------------
+    // Apply: switching rent MODE clears the other field.
+    // ------------------------------------------------------------------
+    const patch: Record<string, unknown> = {};
+    if (newRoadmapLink) {
+      patch.roadmapLink = newRoadmapLink;
+      patch.sidequestReason = undefined;
+    }
+    if (newSidequestReason) {
+      patch.sidequestReason = newSidequestReason;
+      patch.roadmapLink = undefined;
+    }
+    sessions.updateMetadata?.(sessionId, patch);
+
+    // Audit trail: old -> new, as an immutable session note + activity event.
+    const describeRent = (link: string | null | undefined, reason: string | null | undefined) =>
+      link ? `roadmap:${link}` : reason ? `sidequest:${reason}` : 'none';
+    const oldDesc = describeRent(previousRoadmapLink, previousSidequestReason);
+    const newDesc = describeRent(newRoadmapLink, newSidequestReason);
+    sessions.addNote?.(sessionId, `rent-relink: ${oldDesc} -> ${newDesc}`, { type: 'relink' });
+
+    const identityProject = typeof session.identityProject === 'string' ? session.identityProject : null;
+    const effectiveAgentId = agentId || (typeof session.agentId === 'string' ? session.agentId : null);
+    activityLog.log('sugar_relink', {
+      agentId: effectiveAgentId,
+      targetId: sessionTarget(identityProject, sessionId),
+      details: `Agent ${effectiveAgentId || 'unknown'} relinked rent: ${oldDesc} -> ${newDesc}`,
+      metadata: {
+        sessionId,
+        agentId: effectiveAgentId || undefined,
+        identityProject: identityProject || undefined,
+        previousRoadmapLink: previousRoadmapLink || undefined,
+        previousSidequestReason: previousSidequestReason || undefined,
+        roadmapLink: newRoadmapLink || undefined,
+        sidequestReason: newSidequestReason || undefined,
+      } as unknown as Record<string, unknown>,
+    });
+
+    const response: Record<string, unknown> = {
+      success: true,
+      sessionId,
+      agentId: effectiveAgentId,
+      previousRoadmapLink,
+      previousSidequestReason,
+    };
+    if (newRoadmapLink) response.roadmapLink = newRoadmapLink;
+    if (newSidequestReason) response.sidequestReason = newSidequestReason;
+    return response;
+  }
+
+  return { begin, done, whoami, relink };
 }

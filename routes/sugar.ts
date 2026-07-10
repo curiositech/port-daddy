@@ -3,6 +3,7 @@
  *
  * POST /sugar/begin   - Register agent + start session atomically
  * POST /sugar/done    - End session + unregister agent
+ * POST /sugar/relink  - Update the active session's rent-at-claim fields
  * GET  /sugar/whoami  - Show current agent/session context
  */
 
@@ -13,6 +14,7 @@ interface SugarRouteDeps {
     begin(options: Record<string, unknown>): Record<string, unknown>;
     done(options: Record<string, unknown>): Record<string, unknown>;
     whoami(options: Record<string, unknown>): Record<string, unknown>;
+    relink(options: Record<string, unknown>): Record<string, unknown>;
   };
   metrics: { errors: number };
   logger: {
@@ -185,6 +187,45 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
     } catch (error) {
       metrics.errors++;
       logger.error('sugar_done_error', { error: (error as Error).message });
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+
+  // POST /sugar/relink — anti-Goodhart valve: rent-at-claim links are never sticky.
+  fastify.post('/sugar/relink', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { agentId, sessionId, roadmapLink, sidequestReason } = request.body as any;
+
+      const result = sugar.relink({ agentId, sessionId, roadmapLink, sidequestReason });
+
+      if (!result.success) {
+        const status = result.code === 'NO_ACTIVE_SESSION'
+          ? 404
+          : result.code === 'SESSION_OWNERSHIP_MISMATCH'
+            ? 409
+            : result.code === 'ROADMAP_RENT_CONFLICT'
+              || result.code === 'ROADMAP_RENT_REQUIRED'
+              || result.code === 'ROADMAP_SLUG_UNKNOWN'
+              || result.code === 'SIDEQUEST_REASON_TOO_SHORT'
+              || result.code === 'ROADMAP_ITEMS_UNAVAILABLE'
+              ? 400
+              : 500;
+        reply.code(status);
+        return result;
+      }
+
+      logger.info('sugar_relink', {
+        agentId: result.agentId,
+        sessionId: result.sessionId,
+        roadmapLink: result.roadmapLink,
+        sidequestReason: result.sidequestReason,
+      });
+
+      return result;
+    } catch (error) {
+      metrics.errors++;
+      logger.error('sugar_relink_error', { error: (error as Error).message });
       reply.code(500);
       return { error: 'internal server error' };
     }

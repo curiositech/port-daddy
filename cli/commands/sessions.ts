@@ -19,6 +19,7 @@ import {
   attachCliSessionWorktreePolicy,
   resolveCliSessionWorktreePolicy,
 } from '../utils/session-worktree-policy.js';
+import { resolveRelinkRent, formatRentReceipt, RELINK_GATE_MESSAGE } from './sugar.js';
 
 type SessionStartResult = Awaited<ReturnType<PortDaddy['startSession']>>;
 type SessionEndResult = Awaited<ReturnType<PortDaddy['endSession']>>;
@@ -210,7 +211,7 @@ export async function handleSession(
   useDirect = false
 ): Promise<void> {
   if (!subcommand) {
-    console.error('Usage: port-daddy session <start|end|done|abandon|takeover|rm|files|phase> [args]');
+    console.error('Usage: port-daddy session <start|end|done|abandon|takeover|rm|files|phase|relink> [args]');
     console.error('');
     console.error('Commands:');
     console.error('  start <purpose> [--files file1 file2...] [--agent AGENT_ID] [--force]');
@@ -222,6 +223,7 @@ export async function handleSession(
     console.error('  files add <paths...> [--session ID]  # Claim files in active session');
     console.error('  files rm <paths...> [--session ID]   # Release files in active session');
     console.error('  phase <id> <phase>    # Set session phase');
+    console.error('  relink --roadmap <slug> | --sidequest "<reason>"  # Fix the active session\'s roadmap rent');
     console.error('');
     console.error('Phases: planning, in_progress, testing, reviewing, completed, abandoned');
     process.exit(1);
@@ -248,6 +250,8 @@ export async function handleSession(
       return sessionFiles(rest, options);
     case 'phase':
       return sessionPhase(rest, options);
+    case 'relink':
+      return sessionRelink(options);
     default:
       console.error(`Unknown session command: ${subcommand}`);
       console.error('Run "port-daddy session" for usage');
@@ -625,6 +629,69 @@ async function sessionPhase(rest: string[], options: CLIOptions): Promise<void> 
   } else if (!isQuiet(options)) {
     ui.success(`Session ${sessionId}: ${data.previousPhase} → ${data.phase}`);
   }
+}
+
+/**
+ * `pd session relink --roadmap <slug> | --sidequest "<reason>"`
+ *
+ * Anti-Goodhart valve for rent-at-claim: fixes the ACTIVE session's roadmap
+ * link / sidequest opt-out. Same validation as pd begin (slug must exist,
+ * with did-you-mean; sidequest min 12 chars; mutually exclusive). The daemon
+ * records an old -> new audit note on the session.
+ */
+async function sessionRelink(options: CLIOptions): Promise<void> {
+  const rent = resolveRelinkRent(options);
+  if (!rent.ok) {
+    ui.error(rent.error || RELINK_GATE_MESSAGE);
+    process.exit(1);
+  }
+
+  const ctx = readCurrentContext();
+  const agentId = (typeof options.agent === 'string' ? options.agent : undefined) || ctx?.agentId;
+  const sessionId = (typeof options.session === 'string' ? options.session : undefined) || ctx?.sessionId;
+
+  const body: Record<string, unknown> = {};
+  if (agentId) body.agentId = agentId;
+  if (sessionId) body.sessionId = sessionId;
+  if (rent.roadmapLink) body.roadmapLink = rent.roadmapLink;
+  if (rent.sidequestReason) body.sidequestReason = rent.sidequestReason;
+
+  const res: PdFetchResponse = await pdFetch('/sugar/relink', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    ui.error((data.error as string) || 'Failed to relink session');
+    process.exit(1);
+  }
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  if (isQuiet(options)) {
+    console.log(data.sessionId);
+    return;
+  }
+
+  const oldDesc = data.previousRoadmapLink
+    ? `roadmap:${data.previousRoadmapLink}`
+    : data.previousSidequestReason
+      ? `sidequest:${data.previousSidequestReason}`
+      : 'none';
+  const newDesc = data.roadmapLink
+    ? `roadmap:${data.roadmapLink}`
+    : `sidequest:${data.sidequestReason}`;
+  ui.success(`Session ${data.sessionId} relinked: ${oldDesc} → ${newDesc}`);
+  const receipt = formatRentReceipt({
+    roadmapLink: data.roadmapLink as string | undefined,
+    sidequestReason: data.sidequestReason as string | undefined,
+  });
+  if (receipt) console.error(`  ${receipt}`);
 }
 
 /**

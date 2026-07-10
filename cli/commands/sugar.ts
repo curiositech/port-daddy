@@ -145,6 +145,71 @@ export function resolveBeginRent(
 }
 
 /**
+ * Anti-Goodhart valve: the relink message. Two options — relink never
+ * creates roadmap items (use pd begin --roadmap-new / pd roadmap for that).
+ */
+export const RELINK_GATE_MESSAGE = [
+  'pd session relink updates the ACTIVE session\'s roadmap rent. Pass exactly one:',
+  '  --roadmap <slug>              re-link to an existing roadmap item',
+  `  --sidequest "<reason>"        switch to an opt-out with a one-line reason (min ${SIDEQUEST_MIN_CHARS} chars)`,
+].join('\n');
+
+export interface RelinkRentResolution {
+  ok: boolean;
+  roadmapLink?: string;
+  sidequestReason?: string;
+  error?: string;
+}
+
+/**
+ * Pure resolver behind `pd session relink`. Same validation as begin, minus
+ * roadmap-new / env exemptions / prompting — relinking is always deliberate.
+ */
+export function resolveRelinkRent(
+  options: Pick<CLIOptions, 'roadmap' | 'sidequest'> & Record<string, unknown>,
+): RelinkRentResolution {
+  const roadmap = options.roadmap;
+  const sidequest = options.sidequest;
+
+  const given = [roadmap, sidequest].filter((v) => v !== undefined && v !== null);
+  if (given.length > 1) {
+    return { ok: false, error: '--roadmap and --sidequest are mutually exclusive — pass exactly one.' };
+  }
+
+  if (roadmap !== undefined) {
+    if (typeof roadmap !== 'string' || !roadmap.trim()) {
+      return { ok: false, error: '--roadmap requires a slug, e.g. --roadmap adr-0090-database-distribution' };
+    }
+    return { ok: true, roadmapLink: roadmap.trim() };
+  }
+
+  if (sidequest !== undefined) {
+    const reason = typeof sidequest === 'string' ? sidequest.trim() : '';
+    if (reason.length < SIDEQUEST_MIN_CHARS) {
+      return { ok: false, error: `--sidequest needs a real one-line reason (min ${SIDEQUEST_MIN_CHARS} chars) — say what the work actually is.` };
+    }
+    return { ok: true, sidequestReason: reason };
+  }
+
+  return { ok: false, error: RELINK_GATE_MESSAGE };
+}
+
+/**
+ * The rent receipt line. Printed after every successful rent payment
+ * (pd begin, pd session relink) so agents know a wrong link is not sticky —
+ * that's the anti-Goodhart valve that keeps slugs honest.
+ */
+export function formatRentReceipt(rent: { roadmapLink?: string | null; sidequestReason?: string | null }): string | null {
+  const target = rent.roadmapLink
+    ? rent.roadmapLink
+    : rent.sidequestReason
+      ? `sidequest: ${rent.sidequestReason}`
+      : null;
+  if (!target) return null;
+  return `rent paid -> ${target} (change anytime: pd session relink)`;
+}
+
+/**
  * TTY path: ask for the missing rent field. One line, three choices.
  */
 async function promptBeginRent(): Promise<BeginRentResolution> {
@@ -350,6 +415,12 @@ export async function handleBegin(
     console.error(`  Roadmap: ${data.roadmapLink}${suffix}`);
   }
   if (data.sidequestReason) console.error(`  Sidequest: ${data.sidequestReason}`);
+  // Rent receipt — a wrong link is never sticky (anti-Goodhart valve).
+  const rentReceipt = formatRentReceipt({
+    roadmapLink: data.roadmapLink as string | undefined,
+    sidequestReason: data.sidequestReason as string | undefined,
+  });
+  if (rentReceipt) console.error(`  ${rentReceipt}`);
   if (identity) console.error(`  Identity: ${identity}`);
   if (data.worktree && typeof data.worktree === 'object') {
     const worktree = data.worktree as { name?: string; branch?: string | null; id?: string };

@@ -7,7 +7,13 @@
  *     TTY → prompt; non-TTY → 3-option rent message (never names a bypass)
  */
 
-import { resolveBeginRent, RENT_GATE_MESSAGE } from '../../cli/commands/sugar.js';
+import {
+  resolveBeginRent,
+  resolveRelinkRent,
+  formatRentReceipt,
+  RENT_GATE_MESSAGE,
+  RELINK_GATE_MESSAGE,
+} from '../../cli/commands/sugar.js';
 
 const noEnv = {};
 
@@ -118,5 +124,73 @@ describe('resolveBeginRent — PD_RENT_EXEMPT', () => {
     expect(res.ok).toBe(true);
     expect(res.roadmapLink).toBe('x-slug');
     expect(res.sidequestReason).toBeUndefined();
+  });
+});
+
+// =============================================================================
+// Anti-Goodhart valve: pd session relink — a wrong link is never sticky.
+// =============================================================================
+
+describe('resolveRelinkRent — flag matrix', () => {
+  test('--roadmap <slug> resolves to a roadmap link', () => {
+    const res = resolveRelinkRent({ roadmap: 'adr-0090-database-distribution' });
+    expect(res.ok).toBe(true);
+    expect(res.roadmapLink).toBe('adr-0090-database-distribution');
+  });
+
+  test('--sidequest "<reason>" resolves to an opt-out reason', () => {
+    const res = resolveRelinkRent({ sidequest: 'scope shrank to an off-roadmap spike' });
+    expect(res.ok).toBe(true);
+    expect(res.sidequestReason).toBe('scope shrank to an off-roadmap spike');
+  });
+
+  test('--sidequest under 12 chars is rejected', () => {
+    const res = resolveRelinkRent({ sidequest: 'too short' });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/12/);
+  });
+
+  test('a valueless --roadmap flag is a usage error', () => {
+    const res = resolveRelinkRent({ roadmap: true });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/--roadmap/);
+  });
+
+  test('both flags at once are mutually exclusive', () => {
+    const res = resolveRelinkRent({ roadmap: 'x-slug', sidequest: 'also a sidequest somehow' });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/mutually exclusive/i);
+  });
+
+  test('neither flag fails with the 2-option relink message', () => {
+    const res = resolveRelinkRent({});
+    expect(res.ok).toBe(false);
+    expect(res.error).toBe(RELINK_GATE_MESSAGE);
+  });
+
+  test('relink message names exactly the two correct actions and no bypass', () => {
+    expect(RELINK_GATE_MESSAGE).toContain('--roadmap <slug>');
+    expect(RELINK_GATE_MESSAGE).toContain('--sidequest');
+    expect(RELINK_GATE_MESSAGE).not.toContain('--roadmap-new');
+    expect(RELINK_GATE_MESSAGE).not.toContain('PD_RENT_EXEMPT');
+    expect(RELINK_GATE_MESSAGE).not.toMatch(/--force|skip|bypass/i);
+  });
+});
+
+describe('formatRentReceipt — the anti-Goodhart receipt line', () => {
+  test('roadmap link receipt (exact snapshot)', () => {
+    expect(formatRentReceipt({ roadmapLink: 'adr-0090-database-distribution' })).toBe(
+      'rent paid -> adr-0090-database-distribution (change anytime: pd session relink)',
+    );
+  });
+
+  test('sidequest receipt (exact snapshot)', () => {
+    expect(formatRentReceipt({ sidequestReason: 'operator asked for a quick spike' })).toBe(
+      'rent paid -> sidequest: operator asked for a quick spike (change anytime: pd session relink)',
+    );
+  });
+
+  test('no rent paid means no receipt', () => {
+    expect(formatRentReceipt({})).toBeNull();
   });
 });
