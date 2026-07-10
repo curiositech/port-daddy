@@ -69,11 +69,20 @@ Proof: pixel screenshots in every artifact-state.
 Home: port-daddy. Proof: on real sessions, N detected arcs + M candidate skills, tests on the detector.
 
 ### WS-3 · Coordination training ledger  — *new headline*
-- Mine collaboration **hits & misses** from multi-agent sessions: successful
-  handoffs vs dropped ones, claim/lock conflicts, salvage recoveries, note
-  quality (did the scope-note prevent a collision?), duplicate-work incidents.
-- **Running ledger**: append-only store of `{observation, anecdote, excerpt,
-  verdict (hit/miss), suggested-change}` — the raw training material.
+- Mine collaboration **hits & misses** from **pd's STRUCTURED event log** — claim/
+  lock records + overlaps, salvage/dead-agent events, session lifecycle, note
+  TYPE fields (decision/blocker/handoff) + timestamps, duplicate-file-claim
+  incidents. NOT by scanning note body prose (that's exactly where the
+  no-keyword-NLP rule drifts). Any genuinely semantic judgment on note content
+  is a cheap-tier model call (reuse `milestone-cache`), never a signal-word list.
+- **Redact at INGEST, before the store.** The ledger is append-only and pd notes
+  are immutable, so a secret in a raw excerpt would persist permanently in an
+  unfixable store. Strip API keys / tokens / emails / absolute home paths / .env
+  values BEFORE writing; store redacted excerpts + content hash + block refs,
+  never raw bytes. A selftest must assert a planted fake secret never reaches the
+  store. (Independent review of #1585 flagged this as the program's top risk.)
+- **Running ledger**: append-only store of `{observation, redactedExcerpt, refs,
+  verdict (hit/miss), suggested-change}` — the training material.
 - **Suggestibility pipeline**: convert recurring misses into *actionable build
   items* for port-daddy's coordination (event-driven; background-job-orchestrator
   for the batch mining). Feeds the roadmap + this task list.
