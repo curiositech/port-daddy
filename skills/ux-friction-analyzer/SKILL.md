@@ -16,6 +16,8 @@ metadata:
     owners:
       - port-daddy
   pairs-with:
+    - skill: port-daddy-users
+      reason: Supplies the 24 concrete named personas whose journeys get simulated during a friction audit when the product being evaluated is Port Daddy itself.
     - skill: agentic-coding-ux-designer
       reason: Turns friction-audit findings into concrete AI-coding-agent product flows (prompt-to-diff, plan/apply/review, checkpoint rollback).
     - skill: human-gate-designer

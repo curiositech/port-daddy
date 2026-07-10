@@ -16,6 +16,8 @@ metadata:
     owners:
       - port-daddy
   pairs-with:
+    - skill: port-daddy-users
+      reason: Supplies the 24 concrete named personas (with segment, goals, friction tolerance, dealbreakers) that satisfy this skill's target-personas input when the product being evaluated is Port Daddy itself.
     - skill: agentic-coding-product-research
       reason: Supplies persona/audience research (user stories, unmet needs) this skill's per-persona desirability scoring depends on when the product is an agentic coding tool.
     - skill: agentic-coding-ux-designer
