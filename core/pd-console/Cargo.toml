@@ -17,6 +17,13 @@ name = "pd-console"
 path = "src/main.rs"
 required-features = ["gpui"]
 
+# The drawer unit target imports the native PTY implementation directly. Keep
+# it out of the headless/Linux test graph for the same reason as the GPUI bin.
+[[test]]
+name = "shell_drawer_unit"
+path = "tests/shell_drawer_unit.rs"
+required-features = ["gpui"]
+
 [features]
 # Pulls in the GPU shell. Off by default so the lib + repl compile fast on Linux.
 # `gpui` also pulls in `rodio` for the procedural UI sound layer (macOS CoreAudio),
