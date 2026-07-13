@@ -1416,7 +1416,7 @@
         "harbor-ledger"
       ],
       "docs": {
-        "readme": true,
+        "readme": false,
         "sdk": false
       },
       "_note": "C1 shipped the CLI + library slice; the C-routes wave added daemon projections plus the local Surface Gateway WorkIntent command/query ingress in routes/agent-harbor.ts"
