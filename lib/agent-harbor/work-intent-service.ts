@@ -14,6 +14,7 @@ import {
 } from './event-ledger.js';
 
 const WORK_INTENT_SCHEMA = 'pd.agent-harbor.work-intent.v0';
+const WORK_PLAN_SCHEMA = 'pd.agent-harbor.work-plan.v0';
 
 export interface WorkIntentPayload extends HarborPayload {
   schema: typeof WORK_INTENT_SCHEMA;
@@ -59,6 +60,7 @@ export interface CaptureWorkIntentInput {
   idempotencyKey: string;
   source: WorkIntentPayload['source'];
   goalText: string;
+  contextRefs?: Array<Record<string, unknown>>;
   constraints?: Record<string, unknown>;
   startPolicy?: WorkIntentPayload['startPolicy'];
   attachExisting?: boolean;
@@ -66,6 +68,32 @@ export interface CaptureWorkIntentInput {
   status?: WorkIntentPayload['status'];
   createdAt?: string;
   compat?: WorkIntentPayload['compat'];
+}
+
+export interface WorkPlanPayload extends HarborPayload {
+  schema: typeof WORK_PLAN_SCHEMA;
+  planId: string;
+  intentId: string;
+  idempotencyKey: string;
+  shape: 'unshaped';
+  state: 'intent-captured';
+  confidence: number;
+  evidence: string;
+  nodeSpecs: [];
+  placeholders: Array<{
+    placeholderId: string;
+    role: string;
+    uncertaintyReason: string;
+    resolutionTrigger: string;
+    evidenceNeeded: string[];
+  }>;
+  gates: Array<{
+    kind: 'human-approval';
+    reason: string;
+    status: 'pending';
+  }>;
+  requiresApproval: true;
+  createdAt: string;
 }
 
 export interface CaptureDispatchInput {
@@ -86,6 +114,16 @@ export interface CaptureDispatchInput {
 export interface CaptureResult {
   intent: WorkIntentPayload;
   append: AppendResult;
+}
+
+export interface WorkIntentSnapshot {
+  intent: WorkIntentPayload;
+  plan: WorkPlanPayload | null;
+}
+
+export interface CaptureWithInitialPlanResult extends CaptureResult {
+  plan: WorkPlanPayload;
+  planAppend: AppendResult;
 }
 
 export interface CaptureDispatchResult extends CaptureResult {
@@ -113,6 +151,9 @@ export class WorkIntentMaterializationError extends Error {
 
 export interface WorkIntentService {
   capture(input: CaptureWorkIntentInput): CaptureResult;
+  captureWithInitialPlan(input: CaptureWorkIntentInput): CaptureWithInitialPlanResult;
+  get(intentId: string): WorkIntentSnapshot | null;
+  list(limit?: number): WorkIntentSnapshot[];
   captureDispatch(input: CaptureDispatchInput, queue: DispatchQueue): CaptureDispatchResult;
   ensureDispatchIntent(dispatch: Dispatch): EnsureDispatchIntentResult;
 }
@@ -133,6 +174,10 @@ function idSafe(value: string): string {
 
 export function dispatchIdForWorkIntent(intentId: string): string {
   return `dispatch_${idSafe(intentId.replace(/^work_intent_/, ''))}`;
+}
+
+export function planIdForWorkIntent(intentId: string): string {
+  return `work_plan_${idSafe(intentId.replace(/^work_intent_/, ''))}`;
 }
 
 function legacyIntentIdForDispatch(dispatchId: string): string {
@@ -180,6 +225,53 @@ function readIntentByEventIdIfExists(db: DatabaseInstance, eventId: string): Wor
     .get(eventId) as { payload_json: string } | undefined;
   if (!row) return null;
   return JSON.parse(row.payload_json) as WorkIntentPayload;
+}
+
+function readPlanForIntent(db: DatabaseInstance, intentId: string): WorkPlanPayload | null {
+  const row = db
+    .prepare("SELECT payload_json FROM harbor_events WHERE stream_type = 'work-plan' AND event_id = ?")
+    .get(planIdForWorkIntent(intentId)) as { payload_json: string } | undefined;
+  if (!row) return null;
+  return JSON.parse(row.payload_json) as WorkPlanPayload;
+}
+
+function initialPlanForIntent(intent: WorkIntentPayload): WorkPlanPayload {
+  const planId = planIdForWorkIntent(intent.intentId);
+  return {
+    schema: WORK_PLAN_SCHEMA,
+    planId,
+    intentId: intent.intentId,
+    idempotencyKey: `initial-plan:${intent.idempotencyKey}`,
+    shape: 'unshaped',
+    state: 'intent-captured',
+    confidence: 0,
+    evidence:
+      'Intent is durable. The daemon has not shaped or materialized executable nodes yet; no provider or model has been selected.',
+    nodeSpecs: [],
+    placeholders: [
+      {
+        placeholderId: `placeholder_planner_${idSafe(intent.intentId)}`,
+        role: 'daemon work planner',
+        uncertaintyReason:
+          'The governed WorkPlanner -> AgentNode -> AgentRun materialization path is not available.',
+        resolutionTrigger: 'work-planner.available',
+        evidenceNeeded: [
+          'daemon-shaped WorkPlan',
+          'governed AgentNode materialization',
+          'Squid-managed Body attachment',
+        ],
+      },
+    ],
+    gates: [
+      {
+        kind: 'human-approval',
+        reason: 'Execution is unavailable until the daemon can prove the complete governed launch chain.',
+        status: 'pending',
+      },
+    ],
+    requiresApproval: true,
+    createdAt: intent.createdAt,
+  };
 }
 
 function candidateIntentIdsForDispatchId(dispatchId: string): string[] {
@@ -243,7 +335,10 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
       intentId: input.intentId ?? `work_intent_${idSafe(uuid())}`,
       idempotencyKey: input.idempotencyKey,
       source: input.source,
-      goal: { text: input.goalText },
+      goal: {
+        text: input.goalText,
+        ...(input.contextRefs?.length ? { contextRefs: input.contextRefs } : {}),
+      },
       constraints: input.constraints,
       startPolicy: input.startPolicy,
       attachExisting: input.attachExisting ?? false,
@@ -254,6 +349,40 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
     };
     const append = appendEvent(db, { streamType: 'work-intent', payload: intent });
     return { intent: readIntentByEventId(db, append.eventId), append };
+  }
+
+  function captureWithInitialPlan(input: CaptureWorkIntentInput): CaptureWithInitialPlanResult {
+    const txn = db.transaction((): CaptureWithInitialPlanResult => {
+      const captured = capture(input);
+      const candidatePlan = initialPlanForIntent(captured.intent);
+      const planAppend = appendEvent(db, { streamType: 'work-plan', payload: candidatePlan });
+      const plan = readPlanForIntent(db, captured.intent.intentId);
+      if (!plan) {
+        throw new Error(`initial WorkPlan ${candidatePlan.planId} was not persisted`);
+      }
+      return { ...captured, plan, planAppend };
+    });
+    return txn();
+  }
+
+  function get(intentId: string): WorkIntentSnapshot | null {
+    ensureEventLedgerSchema(db);
+    const intent = readIntentByEventIdIfExists(db, intentId);
+    return intent ? { intent, plan: readPlanForIntent(db, intent.intentId) } : null;
+  }
+
+  function list(limit = 100): WorkIntentSnapshot[] {
+    ensureEventLedgerSchema(db);
+    const boundedLimit = Math.min(Math.max(Math.trunc(limit) || 100, 1), 500);
+    const rows = db
+      .prepare(
+        "SELECT payload_json FROM harbor_events WHERE stream_type = 'work-intent' ORDER BY ledger_seq DESC LIMIT ?",
+      )
+      .all(boundedLimit) as Array<{ payload_json: string }>;
+    return rows.map((row) => {
+      const intent = JSON.parse(row.payload_json) as WorkIntentPayload;
+      return { intent, plan: readPlanForIntent(db, intent.intentId) };
+    });
   }
 
   function captureDispatch(input: CaptureDispatchInput, queue: DispatchQueue): CaptureDispatchResult {
@@ -340,5 +469,12 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
     return { ...captured, imported: true };
   }
 
-  return { capture, captureDispatch, ensureDispatchIntent };
+  return {
+    capture,
+    captureWithInitialPlan,
+    get,
+    list,
+    captureDispatch,
+    ensureDispatchIntent,
+  };
 }

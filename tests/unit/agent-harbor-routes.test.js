@@ -29,6 +29,7 @@ import { dirname, join } from 'node:path';
 import { initDatabase, closeDatabase } from '../../lib/db.js';
 import { appendEvent, readEvents } from '../../lib/agent-harbor/event-ledger.js';
 import { projectPending } from '../../lib/agent-harbor/projections.js';
+import { createWorkIntentService } from '../../lib/agent-harbor/work-intent-service.js';
 import { agentHarborPlugin } from '../../routes/agent-harbor.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -86,11 +87,57 @@ function buildApp(db, sse = {}) {
   const app = Fastify();
   const deps = {
     db,
+    workIntentService: createWorkIntentService({
+      db,
+      now: () => new Date('2026-07-12T18:00:00.000Z'),
+      uuid: () => 'route-test-uuid',
+    }),
     metrics: { errors: 0 },
     logger: { info: jest.fn(), error: jest.fn() },
   };
   app.register(agentHarborPlugin, { deps, sse });
   return { app, deps };
+}
+
+function gatewayEnvelope(overrides = {}) {
+  const idempotencyKey = overrides.idempotencyKey ?? 'pd-console:work:test-1';
+  return {
+    schema: 'pd.agent-harbor.surface-gateway.v0',
+    envelopeId: 'surface_gateway_pd_console_test_1',
+    correlationId: 'corr_pd_console_test_1',
+    surface: 'pd-console',
+    direction: 'surface-to-daemon',
+    mode: 'command',
+    noun: 'WorkIntent',
+    operation: 'work-intent.capture',
+    issuedBy: 'pd-console:operator:local',
+    issuedAt: '2026-07-12T17:59:59.000Z',
+    idempotencyKey,
+    payload: {
+      schema: 'pd.agent-harbor.work-intent.v0',
+      intentId: 'work_intent_pd_console_test_1',
+      idempotencyKey,
+      source: {
+        kind: 'console',
+        surface: 'pd-console',
+        actorId: 'operator:local',
+      },
+      goal: { text: 'Unify the operator work path' },
+      constraints: {
+        placement: 'local-only',
+        maxCostUsd: 10,
+        parallelism: 'planner-decides',
+        reviewRequired: true,
+        destructiveActions: 'human-approval',
+      },
+      startPolicy: 'queued',
+      attachExisting: false,
+      operator: 'operator:local',
+      status: 'captured',
+      createdAt: '2026-07-12T17:59:59.000Z',
+    },
+    ...overrides,
+  };
 }
 
 describe('agent-harbor routes', () => {
@@ -153,6 +200,139 @@ describe('agent-harbor routes', () => {
       expect(body.authority.command).toEqual(['canCommand', 'freshProjection', 'allowDecision']);
       expect(body.authority.query).toEqual(['canQuery']);
       expect(body.authority.daemonToSurfaceEvent).toEqual(['canSubscribeEvents']);
+    });
+  });
+
+  describe('POST /agent-harbor/surface-gateway (WorkIntent)', () => {
+    test('captures exactly one WorkIntent and initial WorkPlan, with no launch side effect', async () => {
+      const first = await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/surface-gateway',
+        payload: gatewayEnvelope(),
+      });
+      expect(first.statusCode).toBe(202);
+      expect(first.json()).toMatchObject({
+        schema: 'pd.agent-harbor.surface-gateway.command-receipt.v0',
+        status: 'accepted',
+        duplicate: false,
+        intent: {
+          intentId: 'work_intent_pd_console_test_1',
+          source: { kind: 'console', surface: 'pd-console' },
+        },
+        plan: {
+          planId: 'work_plan_pd_console_test_1',
+          intentId: 'work_intent_pd_console_test_1',
+          state: 'intent-captured',
+          shape: 'unshaped',
+          nodeSpecs: [],
+          requiresApproval: true,
+        },
+        nextAction: { code: 'WORK_PLANNER_REQUIRED' },
+      });
+
+      const second = await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/surface-gateway',
+        payload: gatewayEnvelope(),
+      });
+      expect(second.statusCode).toBe(200);
+      expect(second.json()).toMatchObject({ status: 'confirmed', duplicate: true });
+
+      expect(readEvents(db, { streamType: 'work-intent' })).toHaveLength(1);
+      expect(readEvents(db, { streamType: 'work-plan' })).toHaveLength(1);
+      expect(readEvents(db, { streamType: 'agent-node' })).toHaveLength(1); // seeded fixture only
+      expect(readEvents(db, { streamType: 'agent-run' })).toHaveLength(1); // seeded fixture only
+    });
+
+    test('queries the durable snapshot through the same gateway', async () => {
+      await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/surface-gateway',
+        payload: gatewayEnvelope(),
+      });
+      const query = gatewayEnvelope({
+        envelopeId: 'surface_gateway_pd_console_query_1',
+        mode: 'query',
+        operation: 'work-intent.get',
+        idempotencyKey: null,
+        payload: { intentId: 'work_intent_pd_console_test_1' },
+      });
+      const response = await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/surface-gateway',
+        payload: query,
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        schema: 'pd.agent-harbor.surface-gateway.query-result.v0',
+        data: {
+          intent: { intentId: 'work_intent_pd_console_test_1' },
+          plan: { planId: 'work_plan_pd_console_test_1', state: 'intent-captured' },
+        },
+      });
+    });
+
+    test('rejects legacy provenance and mismatched idempotency without writing', async () => {
+      const legacy = gatewayEnvelope();
+      legacy.payload.source = { kind: 'compat', legacyVerb: 'conjure', surface: 'pd-console' };
+      const legacyResponse = await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/surface-gateway',
+        payload: legacy,
+      });
+      expect(legacyResponse.statusCode).toBe(400);
+      expect(legacyResponse.json().code).toBe('WORK_INTENT_SOURCE_REJECTED');
+
+      const mismatch = gatewayEnvelope();
+      mismatch.payload.idempotencyKey = 'different-key';
+      const mismatchResponse = await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/surface-gateway',
+        payload: mismatch,
+      });
+      expect(mismatchResponse.statusCode).toBe(400);
+      expect(mismatchResponse.json().code).toBe('WORK_INTENT_IDEMPOTENCY_MISMATCH');
+      expect(readEvents(db, { streamType: 'work-intent' })).toHaveLength(0);
+      expect(readEvents(db, { streamType: 'work-plan' })).toHaveLength(0);
+    });
+
+    test('rejects provider selection from pd-console', async () => {
+      const request = gatewayEnvelope();
+      request.payload.provider = 'claude';
+      const response = await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/surface-gateway',
+        payload: request,
+      });
+      expect(response.statusCode).toBe(400);
+      expect(response.json().code).toBe('WORK_INTENT_PROVIDER_AUTHORITY_REJECTED');
+      expect(readEvents(db, { streamType: 'work-intent' })).toHaveLength(0);
+    });
+
+    test('rejects malformed payloads and frontend-authored runtime nodes', async () => {
+      const malformed = gatewayEnvelope();
+      malformed.payload.goal = { text: '   ' };
+      const malformedResponse = await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/surface-gateway',
+        payload: malformed,
+      });
+      expect(malformedResponse.statusCode).toBe(400);
+      expect(malformedResponse.json().code).toBe('WORK_INTENT_PAYLOAD_REJECTED');
+
+      const materialized = gatewayEnvelope();
+      materialized.payload.nodeSpecs = [{ nodeId: 'frontend-invented-node' }];
+      const materializedResponse = await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/surface-gateway',
+        payload: materialized,
+      });
+      expect(materializedResponse.statusCode).toBe(400);
+      expect(materializedResponse.json().code).toBe(
+        'WORK_INTENT_MATERIALIZATION_AUTHORITY_REJECTED',
+      );
+      expect(readEvents(db, { streamType: 'work-intent' })).toHaveLength(0);
+      expect(readEvents(db, { streamType: 'work-plan' })).toHaveLength(0);
     });
   });
 

@@ -54,6 +54,7 @@ loro = "1.13"
 # Already resolved in Cargo.lock (0.22.1, transitively via reqwest/rustls) — no new
 # fetch — promoted to a direct dep so the non-gpui repl/lib build compiles it.
 base64 = "0.22"
+time = { workspace = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }

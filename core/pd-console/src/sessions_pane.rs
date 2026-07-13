@@ -84,26 +84,32 @@ impl Pane for SessionsPane {
         } else {
             blocks.push(Block::Gap);
             for sess in &self.sessions {
-                let tone = if sess.status == "active" {
-                    Tone::Engaged
-                } else {
-                    Tone::Resting
+                let (letter, tone) = match sess.status.as_str() {
+                    "active" => ('K', Tone::Engaged),
+                    "completed" => ('C', Tone::Landed),
+                    "abandoned" => ('N', Tone::Gated),
+                    "failed" => ('V', Tone::Conflicted),
+                    _ => ('L', Tone::Resting),
                 };
                 let name = if sess.purpose.is_empty() {
                     trunc(&sess.id, 24)
                 } else {
                     trunc(&sess.purpose, 44)
                 };
-                blocks.push(Block::Row(vec![
-                    age_short(sess.created_at_ms),
-                    trunc(&sess.project, 14),
-                    sess.status.clone(),
-                    name,
-                ]));
+                blocks.push(Block::Flag {
+                    letter,
+                    tone,
+                    label: vec![
+                        age_short(sess.created_at_ms),
+                        trunc(&sess.project, 14),
+                        sess.status.clone(),
+                        name,
+                    ]
+                    .join("  /  "),
+                });
                 if !sess.worktree.is_empty() {
                     blocks.push(Block::KeyVal("worktree".into(), trunc(&sess.worktree, 24)));
                 }
-                let _ = tone;
             }
         }
 
@@ -187,7 +193,14 @@ mod tests {
             created_at_ms: 0,
         }];
         let blocks = pane.view();
-        assert!(blocks.iter().any(|b| matches!(b, Block::Row(_))));
+        assert!(blocks.iter().any(|b| matches!(
+            b,
+            Block::Flag {
+                letter: 'K',
+                tone: Tone::Engaged,
+                ..
+            }
+        )));
     }
 
     #[test]
