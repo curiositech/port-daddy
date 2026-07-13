@@ -53,6 +53,7 @@ mod prs_pane;
 mod roadmap_pane;
 mod script;
 mod sessions_pane;
+mod shell_drawer;
 mod sortie_pane;
 mod substrate_pane;
 mod suggest_pane;
@@ -326,6 +327,25 @@ fn main() {
         // ControlMsg to the background thread that owns the surfaces + daemon.
         let (control_tx, control_rx) = mpsc::channel::<app::ControlMsg>();
 
+        // The CLI drawer owns one real login-shell PTY for the lifetime of the
+        // window. Launch failure stays visible in the drawer; it never aborts the
+        // operator console or degrades into a fake command dispatcher.
+        let shell_cwd = shell_drawer::default_cwd();
+        let (shell, mut shell_rx) = match shell_drawer::ShellTerminal::spawn(shell_cwd.clone()) {
+            Ok(session) => session,
+            Err(error) => {
+                let message = format!(
+                    "Could not launch the CLI PTY: {error:#}. Set SHELL to a valid executable, then relaunch pd-console."
+                );
+                eprintln!("{message}");
+                let (_event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
+                (
+                    shell_drawer::ShellTerminal::disconnected(shell_cwd, message),
+                    event_rx,
+                )
+            }
+        };
+
         let bounds = Bounds::centered(chosen_display, size(px(1200.0), px(800.0)), cx);
 
         let window = cx
@@ -349,6 +369,7 @@ fn main() {
                             daemon_url.clone(),
                             initial_pane.clone(),
                             Some(control_tx),
+                            shell,
                             cx,
                         )
                     });
@@ -360,6 +381,24 @@ fn main() {
                 },
             )
             .expect("failed to open pd-console window");
+
+        // PTY output is latency-sensitive operator feedback, so it has its own
+        // event-driven foreground consumer rather than waiting for the 500ms
+        // daemon-pane refresh cadence below.
+        let shell_window = window;
+        let shell_async_cx = cx.to_async();
+        cx.foreground_executor()
+            .spawn(async move {
+                while let Some(event) = shell_rx.recv().await {
+                    let _ = shell_async_cx.update(|app| {
+                        let _ = shell_window.update(app, |view: &mut ConsoleView, _, cx| {
+                            view.apply_shell_event(event);
+                            cx.notify();
+                        });
+                    });
+                }
+            })
+            .detach();
 
         // ── Multi-pane refresh pipeline ───────────────────────────────────────
         // Producer: std thread with mini tokio runtime — refreshes all panes every 2s.

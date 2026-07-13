@@ -4,8 +4,8 @@
 //!   ┌─ sidebar 96px ─┬──────────── main pane ─────────────┐
 //!   │  pd             │  [pane header]                     │
 //!   │  ──────         │                                    │
-//!   │  ⚓ Fleet  1    │   active pane blocks               │
-//!   │  🧭 Cockpit 2   │                                    │
+//!   │  Fleet  1       │   active pane blocks               │
+//!   │  Cockpit 2      │                                    │
 //!   │  🚀 Sorties 3   │                                    │
 //!   │  ...            │                                    │
 //!   └────────────────┴─────────────────────────────────────┘
@@ -25,6 +25,9 @@ use crate::dispatch_pane::DispatchHead;
 use crate::mux::{default_operator_workspace, Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::palette::{Theme, ThemeMode};
 use crate::pane::{Alert, AlertLevel, Block, OperatorTurn, Pane, Tone};
+use crate::shell_drawer::{
+    terminal_key_bytes, ShellEvent, ShellStatus, ShellTerminal, TerminalColor,
+};
 use crate::tokens;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -1167,9 +1170,9 @@ struct WavingFlag {
 
 impl RenderOnce for WavingFlag {
     fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
-        const W: f32 = 46.0;
-        const H: f32 = 28.0;
-        const STRIPS: usize = 14;
+        const W: f32 = 26.0;
+        const H: f32 = 18.0;
+        const STRIPS: usize = 10;
         const LEAN: f32 = 0.40; // fly-edge trail per unit velocity
         const IDLE_DROOP: f32 = 0.12; // gentle hang at rest
         const RIPPLE_GAIN: f32 = 0.42; // ripple amplitude per unit speed
@@ -1239,7 +1242,7 @@ impl RenderOnce for WavingFlag {
                     .items_center()
                     .justify_center()
                     .text_color(rgb(0x0d141f))
-                    .text_size(px(14.0))
+                    .text_size(px(10.0))
                     .font_weight(FontWeight::BOLD)
                     .child(letter.to_string()),
             )
@@ -1388,58 +1391,42 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
             )
             .into_any_element(),
         Block::Header(text) => div()
-            .mx(px(tokens::SPACE_3))
-            .mt(px(tokens::SPACE_3))
-            .mb(px(tokens::SPACE_1))
-            .px(px(tokens::SPACE_3))
-            .py(px(tokens::SPACE_2))
-            .rounded(px(tokens::RADIUS_MD))
-            .border_1()
-            .border_color(rgb(t.line))
-            .bg(rgb(t.raised))
-            .shadow(motion::hard_offset(t.sunken, 0.0, 2.0))
+            .mx(px(16.0))
+            .mt(px(12.0))
+            .h(px(38.0))
             .flex()
             .items_center()
-            .gap(px(tokens::SPACE_2))
+            .border_b_1()
+            .border_color(rgb(t.line))
             .child(
                 div()
-                    .w(px(5.0))
-                    .h(px(18.0))
-                    .rounded(px(tokens::RADIUS_SM))
-                    .bg(rgb(t.accent)),
-            )
-            .child(
-                div()
-                    .text_color(rgb(t.ink))
-                    .text_size(px(tokens::TEXT_HEADER))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .child(text),
+                    .font_family("IBM Plex Mono")
+                    .text_color(rgb(t.muted))
+                    .text_size(px(12.0))
+                    .font_weight(FontWeight::BOLD)
+                    .child(text.to_ascii_uppercase()),
             )
             .into_any_element(),
         Block::KeyVal(key, val) => div()
             .flex()
-            .items_start()
-            .gap(px(tokens::SPACE_3))
-            .mx(px(tokens::SPACE_3))
-            .my(px(2.0))
-            .px(px(tokens::SPACE_3))
-            .py(px(tokens::SPACE_2))
-            .rounded(px(tokens::RADIUS_MD))
-            .border_1()
+            .items_center()
+            .h(px(42.0))
+            .mx(px(16.0))
+            .border_b_1()
             .border_color(rgb(t.line))
-            .bg(tone_wash(t.raised, 0xd8))
+            .bg(rgb(t.panel))
             .hover(|s| {
                 let t = current_theme();
-                s.border_color(rgb(t.accent))
-                    .bg(rgb(t.raised))
-                    .shadow(motion::glow(t.accent, 0.16, 10.0, 0.0))
+                s.bg(rgb(t.raised))
             })
+            .child(div().w(px(3.0)).h_full().flex_shrink_0().bg(rgb(t.accent)))
             .child(
                 div()
+                    .ml(px(11.0))
                     .text_color(rgb(t.muted))
-                    .text_size(px(tokens::TEXT_CAPTION))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .w(px(132.0))
+                    .text_size(px(12.0))
+                    .font_family("IBM Plex Mono")
+                    .w(px(150.0))
                     .flex_shrink_0()
                     .child(key),
             )
@@ -1454,25 +1441,28 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
         Block::Row(cells) => div()
             .flex()
             .items_center()
-            .gap(px(tokens::SPACE_3))
-            .mx(px(tokens::SPACE_3))
-            .my(px(2.0))
-            .px(px(tokens::SPACE_3))
-            .py(px(tokens::SPACE_2))
-            .rounded(px(tokens::RADIUS_MD))
-            .border_1()
+            .gap(px(12.0))
+            .mx(px(16.0))
+            .min_h(px(40.0))
+            .border_b_1()
             .border_color(rgb(t.line))
             .bg(rgb(t.panel))
             .hover(|s| {
                 let t = current_theme();
                 s.bg(rgb(t.raised))
-                    .border_color(rgb(t.accent))
-                    .shadow(motion::hard_offset(t.sunken, 0.0, 1.0))
             })
+            .child(
+                div()
+                    .w(px(3.0))
+                    .h_full()
+                    .min_h(px(32.0))
+                    .flex_shrink_0()
+                    .bg(rgb(t.accent)),
+            )
             .children(cells.into_iter().enumerate().map(|(i, cell)| {
                 div()
                     .text_color(rgb(if i == 0 {
-                        current_theme().accent_ink
+                        current_theme().ink
                     } else {
                         current_theme().ink2
                     }))
@@ -1503,7 +1493,6 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                 .max_w(px(680.0))
                 .flex()
                 .overflow_hidden()
-                .rounded(px(tokens::RADIUS_LG))
                 .border_1()
                 .border_color(rgb(if mine { t.accent } else { t.line }))
                 .bg(rgb(if mine { t.raised } else { t.panel }))
@@ -1607,12 +1596,10 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                         .gap(px(tokens::SPACE_2))
                         .child(
                             div()
-                                .rounded(px(tokens::RADIUS_SM))
-                                .border_1()
-                                .border_color(rgb(color_u32))
+                                .bg(rgb(color_u32))
                                 .px(px(tokens::SPACE_1))
                                 .py(px(1.0))
-                                .text_color(rgb(color_u32))
+                                .text_color(rgb(knockout_ink(color_u32)))
                                 .text_size(px(tokens::TEXT_CAPTION))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .child("ARTIFACT"),
@@ -1662,12 +1649,10 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                         .gap(px(tokens::SPACE_2))
                         .child(
                             div()
-                                .rounded(px(tokens::RADIUS_SM))
-                                .border_1()
-                                .border_color(rgb(color_u32))
+                                .bg(rgb(color_u32))
                                 .px(px(tokens::SPACE_1))
                                 .py(px(1.0))
-                                .text_color(rgb(color_u32))
+                                .text_color(rgb(knockout_ink(color_u32)))
                                 .text_size(px(tokens::TEXT_CAPTION))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .child("SCREENSHOT"),
@@ -1703,7 +1688,6 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                         .w(px(280.0))
                         .max_w_full()
                         .h(px(156.0))
-                        .rounded(px(tokens::RADIUS_SM))
                         .border_1()
                         .border_color(rgb(t.line))
                         .bg(rgb(t.bg))
@@ -1744,16 +1728,13 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
             div()
                 .mx(px(tokens::SPACE_3))
                 .my(px(tokens::SPACE_1))
-                .px(px(tokens::SPACE_3))
-                .py(px(tokens::SPACE_1))
-                .rounded(px(tokens::RADIUS_MD))
-                .border_1()
-                .border_color(color)
-                .bg(tone_wash(color_u32, 0x20))
-                .text_color(color)
+                .px(px(8.0))
+                .py(px(3.0))
+                .bg(color)
+                .text_color(rgb(knockout_ink(color_u32)))
+                .font_family("IBM Plex Mono")
                 .text_size(px(tokens::TEXT_CAPTION))
-                .font_weight(FontWeight::SEMIBOLD)
-                .shadow(motion::glow(color_u32, 0.10, 8.0, 0.0))
+                .font_weight(FontWeight::BOLD)
                 .child(label)
                 .into_any_element()
         }
@@ -1768,21 +1749,23 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
             div()
                 .flex()
                 .items_center()
-                .gap(px(tokens::SPACE_3))
-                .mx(px(tokens::SPACE_3))
-                .my(px(2.0))
-                .px(px(tokens::SPACE_3))
-                .py(px(tokens::SPACE_2))
-                .rounded(px(tokens::RADIUS_MD))
-                .border_1()
+                .gap(px(10.0))
+                .mx(px(16.0))
+                .min_h(px(38.0))
+                .border_b_1()
                 .border_color(rgb(t.line))
-                .bg(tone_wash(color, 0x16))
-                .shadow(motion::hard_offset(t.sunken, 0.0, 1.0))
+                .bg(rgb(t.panel))
+                .child(
+                    div()
+                        .w(px(3.0))
+                        .min_h(px(30.0))
+                        .h_full()
+                        .flex_shrink_0()
+                        .bg(rgb(color)),
+                )
                 .hover(|s| {
                     let t = current_theme();
-                    s.border_color(rgb(color))
-                        .bg(rgb(t.raised))
-                        .shadow(motion::glow(color, 0.18, 10.0, 0.0))
+                    s.bg(rgb(t.raised))
                 })
                 .child(WavingFlag {
                     letter,
@@ -1803,9 +1786,6 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
             .my(px(tokens::SPACE_1))
             .px(px(tokens::SPACE_3))
             .py(px(tokens::SPACE_2))
-            .rounded(px(tokens::RADIUS_MD))
-            .border_1()
-            .border_color(rgb(t.line))
             .bg(rgb(t.sunken))
             .text_color(rgb(t.landed))
             .text_size(px(tokens::TEXT_HEADER))
@@ -1821,14 +1801,12 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                 .my(px(tokens::SPACE_1))
                 .px(px(tokens::SPACE_3))
                 .py(px(tokens::SPACE_2))
-                .rounded(px(tokens::RADIUS_MD))
-                .border_1()
+                .border_l_2()
                 .border_color(rgb(color))
                 .bg(tone_wash(color, 0x18))
                 .text_color(rgb(color))
                 .text_size(px(tokens::TEXT_BODY))
                 .font_family("IBM Plex Mono")
-                .shadow(motion::glow(color, 0.14, 12.0, 0.0))
                 .child(text)
                 .into_any_element()
         }
@@ -1885,7 +1863,6 @@ impl RenderOnce for SidebarItem {
             .py(px(6.0))
             .mx(px(4.0))
             .my(px(1.0))
-            .rounded(px(6.0))
             .cursor_pointer()
             .when(self.active, |s| {
                 s.bg(rgb(current_theme().raised))
@@ -2033,6 +2010,11 @@ pub struct ConsoleView {
     /// `EditorPane` inside every render — a `pd whoami` subprocess + a full
     /// disk read + a Loro doc build PER FRAME; this map is that fix.
     editors: HashMap<String, EditorSurfaceState>,
+    /// Persistent native PTY terminal. The shell process outlives drawer
+    /// visibility so closing and reopening never destroys operator context.
+    shell: ShellTerminal,
+    /// Whether the PTY surface is currently raised over the pane tree.
+    shell_open: bool,
 }
 
 /// One opened editor surface: the persistent pane (buffer + claims + wedge)
@@ -2105,7 +2087,12 @@ fn same_galaxy_snapshot(
 
 impl ConsoleView {
     pub fn new(daemon_url: String, initial_pane: Option<String>, cx: &mut Context<Self>) -> Self {
-        Self::with_control(daemon_url, initial_pane, None, cx)
+        let cwd = crate::shell_drawer::default_cwd();
+        let shell = ShellTerminal::disconnected(
+            cwd,
+            "CLI drawer is unavailable in this isolated console view.",
+        );
+        Self::with_control(daemon_url, initial_pane, None, shell, cx)
     }
 
     /// Advance the flag wave one frame and keep ticking until it settles.
@@ -2143,6 +2130,7 @@ impl ConsoleView {
         daemon_url: String,
         initial_pane: Option<String>,
         control_tx: Option<mpsc::Sender<ControlMsg>>,
+        shell: ShellTerminal,
         cx: &mut Context<Self>,
     ) -> Self {
         // Initialize one slot per NAV entry with a "connecting…" placeholder
@@ -2205,6 +2193,8 @@ impl ConsoleView {
             galaxy_detail: None,
             galaxy_detail_error: None,
             editors: HashMap::new(),
+            shell,
+            shell_open: std::env::var("PD_CONSOLE_OPEN_CLI").is_ok(),
         }
     }
 
@@ -2483,6 +2473,9 @@ impl ConsoleView {
             "o" | "tab" => self.ws_mut().focus_next(),
             "O" => self.ws_mut().focus_prev(),
             // Double-prefix (Ctrl-A Ctrl-A) cycles focus — fast tmux idiom.
+            "a" if ctrl && self.shell_open => {
+                let _ = self.shell.send(vec![0x01]);
+            }
             "a" if ctrl => self.ws_mut().focus_next(),
             // Resize the focused pane.
             "=" | "+" => {
@@ -2493,6 +2486,9 @@ impl ConsoleView {
             }
             // Flip the palette (light ⇄ dark) — re-skins the whole console.
             "g" => toggle_theme(),
+            // The PTY is global chrome, not a pane: it rises over any operator
+            // surface and preserves its process when hidden.
+            "`" | "grave" => self.shell_open = !self.shell_open,
             // Maximize / restore the focused pane.
             "z" => {
                 let id = self.ws().focused();
@@ -2530,6 +2526,35 @@ impl ConsoleView {
                 if let Some(item) = launcher_items().into_iter().find(|n| n.key == other) {
                     self.ws_mut().swap_surface(surface_for_launcher_id(item.id));
                 }
+            }
+        }
+        cx.notify();
+    }
+
+    pub fn apply_shell_event(&mut self, event: ShellEvent) {
+        self.shell.apply(event);
+    }
+
+    fn handle_shell_key(
+        &mut self,
+        key: &str,
+        typed: Option<&str>,
+        modifiers: Modifiers,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(bytes) = terminal_key_bytes(
+            key,
+            typed,
+            modifiers.control,
+            modifiers.alt,
+            modifiers.platform,
+            modifiers.function,
+        ) {
+            if !self.shell.send(bytes) {
+                self.control_flash = Some(
+                    "CLI input could not reach the PTY; relaunch pd-console for a fresh shell."
+                        .into(),
+                );
             }
         }
         cx.notify();
@@ -3139,18 +3164,14 @@ impl ConsoleView {
                     .items_center()
                     .justify_center()
                     .gap(px((layout.gap + 2.0).min(12.0)))
-                    .rounded(px(14.0))
                     .border_1()
+                    .border_t_2()
                     .border_color(rgb(if is_current { tone } else { t.line }))
                     .bg(rgb(t.raised))
                     .cursor_pointer()
-                    // Hover "lift" (no transforms): brighter card, tone border, and a
-                    // wide tone-coloured bloom — the big apparent-motion cue.
                     .hover(move |s| {
                         let t = current_theme();
-                        s.bg(rgb(t.panel))
-                            .border_color(rgb(tone))
-                            .shadow(motion::glow(tone, 0.55, 32.0, 3.0))
+                        s.bg(rgb(t.panel)).border_color(rgb(tone))
                     })
                     // Icon sits in a big tone-washed chip so colour reads even at a glance.
                     .child(
@@ -3160,14 +3181,13 @@ impl ConsoleView {
                             .flex()
                             .items_center()
                             .justify_center()
-                            .rounded(px((layout.icon_box * 0.22).clamp(8.0, 16.0)))
-                            .bg(tone_wash(tone, 0x26))
+                            .bg(rgb(tone))
                             .child(
                                 svg()
                                     .path(item.icon)
                                     .w(px(layout.icon))
                                     .h(px(layout.icon))
-                                    .text_color(rgb(tone)),
+                                    .text_color(rgb(knockout_ink(tone))),
                             ),
                     )
                     .child(
@@ -3181,18 +3201,13 @@ impl ConsoleView {
                         div()
                             .px(px(7.0))
                             .py(px(2.0))
-                            .rounded(px(7.0))
-                            .bg(tone_wash(tone, 0x1c))
-                            .text_color(rgb(t.muted))
+                            .border_1()
+                            .border_color(rgb(tone))
+                            .text_color(rgb(tone))
                             .text_size(px(layout.key_size))
                             .font_weight(FontWeight::SEMIBOLD)
                             .child(format!("⌃A {}", item.key)),
                     )
-                    // Owns its glow only in the static cases; the breathing branch below
-                    // owns it via the animation (one motion owner per surface).
-                    .when(is_current && reduced, |s| {
-                        s.shadow(motion::glow(tone, 0.5, 22.0, 2.0))
-                    })
                     .on_click(cx.listener(move |this, _ev, _window, cx| {
                         this.ws_mut().swap_surface(surface_for_launcher_id(id));
                         this.launcher_open = false;
@@ -3200,29 +3215,8 @@ impl ConsoleView {
                         cx.notify();
                     }));
 
-                if reduced {
-                    // Reduced motion: no travel, but keep the current-tile glow (above)
-                    // for orientation. All tiles render at rest.
+                if reduced || is_current {
                     tile.into_any_element()
-                } else if is_current {
-                    // The pane you're on *breathes* a tone-coloured glow — a single
-                    // looping owner, scoped to this modal overlay (so it only runs
-                    // while the launcher is open). This is the "where am I" beacon.
-                    tile.with_animation(
-                        SharedString::from(format!("launch-breathe-{id}")),
-                        Animation::new(Duration::from_millis(2200))
-                            .repeat()
-                            .with_easing(pulsating_between(0.0, 1.0)),
-                        move |el, delta| {
-                            el.shadow(motion::glow(
-                                tone,
-                                0.30 + 0.40 * delta,
-                                16.0 + 16.0 * delta,
-                                1.0,
-                            ))
-                        },
-                    )
-                    .into_any_element()
                 } else {
                     // One-shot staggered entrance fade — the stagger lives in the
                     // opacity curve, so each tile stays its own single animation owner.
@@ -3296,11 +3290,9 @@ impl ConsoleView {
                     .p(px(layout.card_pad))
                     .w(px(layout.card_w))
                     .h(px(layout.card_h))
-                    .rounded(px(22.0))
                     .bg(rgb(t.panel))
                     .border_1()
                     .border_color(rgb(t.line))
-                    .shadow(motion::glow(t.accent, 0.28, 40.0, 1.0))
                     // Header: big title + a colour legend, so the hue-coding is
                     // self-explaining at a glance (ADHD-friendly navigation).
                     .child(
@@ -3356,7 +3348,7 @@ impl ConsoleView {
             .collect();
         self.control_flash = Some(match alert.level {
             AlertLevel::Error => format!("✕ {} — {head}", alert.title),
-            AlertLevel::Warn => format!("⚑ {} — {head}", alert.title),
+            AlertLevel::Warn => format!("WARN · {} — {head}", alert.title),
             AlertLevel::Info => format!("✓ {}", alert.title),
         });
         self.alerts.insert(0, alert);
@@ -3922,20 +3914,12 @@ impl ConsoleView {
         let gate_flash = self.control_flash.clone();
         let cond_flash = self.control_flash.clone();
         let fleet_flash = self.control_flash.clone();
-        let border = if is_focused {
-            current_theme().accent_ink
-        } else {
-            current_theme().line
-        };
-        let title_color = if is_focused {
-            current_theme().accent_ink
-        } else {
-            current_theme().muted
-        };
+        let panel_title = label.to_ascii_uppercase();
         let control_flash = self.control_flash.clone();
 
         div()
             .id(SharedString::from(format!("pane-{id}")))
+            .relative()
             // Hover group: the title-bar controls reveal only when this pane is
             // hovered (macOS window-control feel).
             .group("pane")
@@ -3944,61 +3928,65 @@ impl ConsoleView {
             .size_full()
             .overflow_hidden()
             .border_1()
-            .border_color(rgb(border))
+            .border_color(rgb(current_theme().line))
             .bg(rgb(current_theme().panel))
-            // Focus glow: a soft mustard halo proves "this pane has the wheel".
-            // Unfocused panes preview the warm border + faint glow on hover.
-            .when(is_focused, |s| s.shadow(motion::glow(current_theme().accent, 0.45, 16.0, 1.0)))
-            .when(!is_focused, |s| {
-                s.hover(|h| {
-                    h.border_color(rgb(current_theme().accent))
-                        .shadow(motion::glow(current_theme().accent, 0.18, 10.0, 0.0))
-                })
-            })
             .on_click(cx.listener(move |this, _ev, _window, cx| {
                 this.ws_mut().focus(id);
                 cx.notify();
             }))
-            // Title bar: focus dot · label · spacer · hover controls
+            // One knockout zone per pane, matching apps.html's panel headers.
             .child(
                 div()
+                    .h(px(42.0))
                     .flex()
                     .items_center()
-                    .gap(px(6.0))
-                    .px(px(10.0))
-                    .py(px(4.0))
-                    .bg(rgb(if is_focused { current_theme().raised } else { current_theme().panel }))
+                    .bg(rgb(current_theme().panel))
                     .border_b_1()
                     .border_color(rgb(current_theme().line))
-                    .child({
-                        // The focused pane's dot breathes (presence beacon, the mock's
-                        // @keyframes beacon) via a looping with_animation; idle panes are static.
-                        let dot = div()
-                            .text_color(rgb(if is_focused { current_theme().accent } else { current_theme().line }))
-                            .text_size(px(13.0))
-                            .child(if is_focused { "●" } else { "○" });
-                        if is_focused {
-                            dot.with_animation(
-                                SharedString::from(format!("dot-pulse-{id}")),
-                                Animation::new(Duration::from_millis(2400))
-                                    .repeat()
-                                    .with_easing(pulsating_between(0.55, 1.0)),
-                                |el, delta| el.opacity(delta),
-                            )
-                            .into_any_element()
-                        } else {
-                            dot.into_any_element()
-                        }
-                    })
                     .child(
                         div()
-                            .text_color(rgb(title_color))
-                            .text_size(px(14.0))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child(label),
+                            .h_full()
+                            .px(px(13.0))
+                            .flex()
+                            .items_center()
+                            .bg(rgb(if is_focused {
+                                current_theme().accent
+                            } else {
+                                current_theme().raised
+                            }))
+                            .text_color(rgb(if is_focused {
+                                0xfbf7ef
+                            } else {
+                                current_theme().ink2
+                            }))
+                            .font_family("IBM Plex Mono")
+                            .text_size(px(12.0))
+                            .font_weight(FontWeight::BOLD)
+                            .child(panel_title),
                     )
-                    // Spacer pushes the controls to the right edge.
                     .child(div().flex_1())
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(7.0))
+                            .mr(px(10.0))
+                            .font_family("IBM Plex Mono")
+                            .text_size(px(11.0))
+                            .text_color(rgb(current_theme().muted))
+                            .child(
+                                div()
+                                    .w(px(6.0))
+                                    .h(px(6.0))
+                                    .rounded(px(3.0))
+                                    .bg(rgb(if is_focused {
+                                        current_theme().landed
+                                    } else {
+                                        current_theme().resting
+                                    })),
+                            )
+                            .child(if is_focused { "live" } else { "idle" }),
+                    )
                     // Hover controls — invisible until the pane is hovered.
                     .child(
                         div()
@@ -4167,20 +4155,12 @@ impl ConsoleView {
                                 .id(SharedString::from(format!("message-{id}")))
                                 .px(px(12.0))
                                 .py(px(5.0))
-                                .rounded(px(6.0))
                                 .bg(rgb(current_theme().accent))
                                 .text_color(rgb(current_theme().bg))
                                 .text_size(px(14.0))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .cursor_pointer()
-                                .hover(|s| {
-                                    s.shadow(motion::glow(
-                                        current_theme().accent,
-                                        0.30,
-                                        10.0,
-                                        0.0,
-                                    ))
-                                })
+                                .hover(|s| s.bg(rgb(current_theme().accent_ink)))
                                 .child("Message")
                                 .on_click(cx.listener(|this, _ev, _window, cx| {
                                     this.command = Some(CommandLine::new(CmdKind::LaneMessage));
@@ -4194,7 +4174,6 @@ impl ConsoleView {
                                 .id(SharedString::from(format!("attach-file-{id}")))
                                 .px(px(10.0))
                                 .py(px(5.0))
-                                .rounded(px(6.0))
                                 .border_1()
                                 .border_color(rgb(current_theme().accent))
                                 .text_color(rgb(current_theme().accent_ink))
@@ -4218,7 +4197,6 @@ impl ConsoleView {
                                 .id(SharedString::from(format!("attach-photo-{id}")))
                                 .px(px(10.0))
                                 .py(px(5.0))
-                                .rounded(px(6.0))
                                 .border_1()
                                 .border_color(rgb(current_theme().accent))
                                 .text_color(rgb(current_theme().accent_ink))
@@ -4242,7 +4220,6 @@ impl ConsoleView {
                                 .id(SharedString::from(format!("invoke-skill-{id}")))
                                 .px(px(10.0))
                                 .py(px(5.0))
-                                .rounded(px(6.0))
                                 .border_1()
                                 .border_color(rgb(current_theme().engaged))
                                 .text_color(rgb(current_theme().engaged))
@@ -4266,7 +4243,6 @@ impl ConsoleView {
                                 .id(SharedString::from(format!("request-tool-{id}")))
                                 .px(px(10.0))
                                 .py(px(5.0))
-                                .rounded(px(6.0))
                                 .border_1()
                                 .border_color(rgb(current_theme().engaged))
                                 .text_color(rgb(current_theme().engaged))
@@ -4290,7 +4266,6 @@ impl ConsoleView {
                                 .id(SharedString::from(format!("interrupt-{id}")))
                                 .px(px(12.0))
                                 .py(px(5.0))
-                                .rounded(px(6.0))
                                 .border_1()
                                 .border_color(rgb(current_theme().gated))
                                 .text_color(rgb(current_theme().gated))
@@ -4345,7 +4320,7 @@ impl ConsoleView {
                                 .text_size(px(14.0))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .child(match &head {
-                                    Some(h) => format!("⚑ Review gate · {} awaiting", h.count),
+                                    Some(h) => format!("REVIEW GATE · {} awaiting", h.count),
                                     None => "Review gate · queue empty".to_string(),
                                 }),
                         )
@@ -4462,18 +4437,14 @@ impl ConsoleView {
                                 .id("conjure-render")
                                 .px(px(12.0))
                                 .py(px(5.0))
-                                .rounded(px(6.0))
                                 .border_1()
                                 .border_color(rgb(current_theme().accent))
                                 .text_color(rgb(current_theme().accent_ink))
                                 .text_size(px(14.0))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .cursor_pointer()
-                                .hover(|s| {
-                                    s.bg(rgb(current_theme().raised))
-                                        .shadow(motion::glow(current_theme().accent, 0.24, 8.0, 0.0))
-                                })
-                                .child("\u{25c8} Render graph")
+                                .hover(|s| s.bg(rgb(current_theme().raised)))
+                                .child("RENDER GRAPH")
                                 .on_click(cx.listener(|this, _ev, _window, cx| {
                                     this.render_conjure_graph();
                                     cx.notify();
@@ -4489,18 +4460,14 @@ impl ConsoleView {
                                     .id("conjure-dispatch")
                                     .px(px(12.0))
                                     .py(px(5.0))
-                                    .rounded(px(6.0))
                                     .border_1()
                                     .border_color(rgb(current_theme().accent))
                                     .text_color(rgb(current_theme().accent_ink))
                                     .text_size(px(14.0))
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .cursor_pointer()
-                                    .hover(|s| {
-                                        s.bg(rgb(current_theme().raised))
-                                            .shadow(motion::glow(current_theme().accent, 0.24, 8.0, 0.0))
-                                    })
-                                    .child(format!("\u{2693} Dispatch DAG ({conjure_dispatch_count})"))
+                                    .hover(|s| s.bg(rgb(current_theme().raised)))
+                                    .child(format!("DISPATCH DAG ({conjure_dispatch_count})"))
                                     .on_click(cx.listener(|this, _ev, _window, cx| {
                                         this.dispatch_conjure_dag();
                                         cx.notify();
@@ -4545,7 +4512,8 @@ impl ConsoleView {
                                 .text_color(rgb(current_theme().accent_ink))
                                 .text_size(px(14.0))
                                 .font_weight(FontWeight::SEMIBOLD)
-                                .child("\u{2693} Agent ops \u{2014} target by id"),
+                                .font_family("IBM Plex Mono")
+                                .child("AGENT OPS · TARGET BY ID"),
                         )
                         .child(
                             div()
@@ -4557,8 +4525,8 @@ impl ConsoleView {
                             div()
                                 .flex()
                                 .gap(px(8.0))
-                                .child(fleet_ops_btn("kill", "\u{2715} Kill agent\u{2026}", current_theme().conflict, cx))
-                                .child(fleet_ops_btn("interrupt", "\u{25fc} Interrupt\u{2026}", current_theme().gated, cx)),
+                                .child(fleet_ops_btn("kill", "KILL AGENT", current_theme().conflict, cx))
+                                .child(fleet_ops_btn("interrupt", "INTERRUPT", current_theme().gated, cx)),
                         )
                         .when_some(fleet_flash, |c, flash| {
                             c.child(
@@ -4569,6 +4537,13 @@ impl ConsoleView {
                             )
                         }),
                 )
+            })
+            // Paint focus ticks last so title and body backgrounds cannot cover
+            // them. Focus is a boundary, never a glow.
+            .children(if is_focused {
+                story_corner_ticks(format!("pane-{id}"), current_theme().ink)
+            } else {
+                Vec::new()
             })
             .into_any_element()
     }
@@ -4588,8 +4563,7 @@ struct ButtonOpts {
     leading: Option<(char, u32)>,
     /// Dimmed trailing text pushed to the right edge (a port, a shortcut hint).
     trailing: Option<String>,
-    /// Selected/active: a solid tone wash + a gated breathing halo (static under
-    /// reduced motion).
+    /// Selected/active: a solid tone wash plus a semantic color edge.
     selected: bool,
     /// Stretch to fill the row (a list item) instead of hugging its content.
     full_width: bool,
@@ -4597,12 +4571,9 @@ struct ButtonOpts {
 
 /// The console's one clickable-control primitive — reuse it for every operator
 /// button (daemon rows, future toolbar actions, gates) instead of hand-rolling a
-/// `div`. Motion is composed the gpui way, **no transforms**: hover lifts via a
-/// soft `glow` (free GPU-side `.hover` lane, no notify), press sinks via the
-/// `sunken` bg + a 1px `hard_offset`, and a `selected` button breathes a halo
-/// through a single `with_animation` owner (reduced-motion resolves it to a
-/// static glow — orientation kept, travel dropped). Colours read from theme
-/// roles so it survives the `Ctrl-A g` light⇄dark flip.
+/// `div`. The story-linework control language is flat: a hairline box, a
+/// semantic left edge for selection, and a quiet fill on hover/press. Colours
+/// read from theme roles so it survives the `Ctrl-A g` light/dark flip.
 fn console_button(
     id: impl Into<SharedString>,
     label: impl Into<String>,
@@ -4621,9 +4592,9 @@ fn console_button(
         .gap(px(tokens::SPACE_2))
         .px(px(tokens::SPACE_3))
         .py(px(tokens::SPACE_2))
-        .rounded(px(tokens::RADIUS_MD))
         .border_1()
         .border_color(rgb(if opts.selected { color } else { t.line }))
+        .when(opts.selected, |s| s.border_l_2())
         .cursor_pointer();
     if opts.full_width {
         row = row.w_full();
@@ -4643,7 +4614,6 @@ fn console_button(
                 .flex()
                 .items_center()
                 .justify_center()
-                .rounded(px(tokens::RADIUS_SM))
                 .bg(rgb(badge))
                 .text_color(rgb(knockout_ink(badge)))
                 .text_size(px(tokens::TEXT_EYEBROW))
@@ -4669,44 +4639,14 @@ fn console_button(
 
     // Cheap GPU-side interaction lane — restyles without a notify or re-render.
     row = row
-        .hover(move |s| {
-            s.bg(rgb(current_theme().raised))
-                .border_color(rgb(color))
-                .shadow(motion::glow(color, 0.22, 10.0, 0.0))
-        })
-        .active(move |s| {
-            s.bg(rgb(current_theme().sunken))
-                .shadow(motion::hard_offset(color, 0.0, 1.0))
-        })
+        .hover(move |s| s.bg(rgb(current_theme().raised)).border_color(rgb(color)))
+        .active(move |s| s.bg(tone_wash(color, 0x28)))
         .on_click(cx.listener(move |this, _ev, _window, cx| {
             on_click(this, cx);
             cx.notify();
         }));
 
-    // Selected → a breathing halo. One animation owner, id keyed per-button so
-    // siblings don't share a clock; reduced motion drops to a static glow.
-    if opts.selected && !reduced_motion() {
-        row.with_animation(
-            SharedString::from(format!("btn-pulse-{id}")),
-            Animation::new(Duration::from_millis(2000))
-                .repeat()
-                .with_easing(pulsating_between(0.5, 1.0)),
-            move |el, delta| {
-                el.shadow(motion::glow(
-                    color,
-                    0.10 + delta * 0.28,
-                    6.0 + delta * 8.0,
-                    0.0,
-                ))
-            },
-        )
-        .into_any_element()
-    } else if opts.selected {
-        row.shadow(motion::glow(color, 0.30, 10.0, 0.0))
-            .into_any_element()
-    } else {
-        row.into_any_element()
-    }
+    row.into_any_element()
 }
 
 /// A baked still of the living-harbor water shader as a bounded banner. The
@@ -4719,7 +4659,6 @@ fn harbor_banner() -> AnyElement {
         .h(px(132.0))
         .w_full()
         .flex_shrink_0()
-        .rounded(px(tokens::RADIUS_MD))
         .overflow_hidden()
         .border_1()
         .border_color(rgb(current_theme().line))
@@ -4754,18 +4693,13 @@ fn gate_btn(
         .id(id.into())
         .px(px(tokens::SPACE_3))
         .py(px(tokens::SPACE_1))
-        .rounded(px(tokens::RADIUS_MD))
         .border_1()
         .border_color(rgb(color))
         .text_color(rgb(color))
         .text_size(px(tokens::TEXT_BODY))
         .font_weight(FontWeight::SEMIBOLD)
         .cursor_pointer()
-        .child(label)
-        .hover(move |s| {
-            s.bg(rgb(current_theme().raised))
-                .shadow(motion::glow(color, 0.22, 8.0, 0.0))
-        })
+        .hover(move |s| s.bg(tone_wash(color, 0x22)))
         .active(|s| s.bg(rgb(current_theme().sunken)))
         .child(label)
         .on_click(cx.listener(move |this, _ev, _window, cx| {
@@ -4845,22 +4779,17 @@ fn trunc_chars(s: &str, max: usize) -> String {
     }
 }
 
-/// One live, interactive node card in the Conjure canvas. Themed to the same
-/// maritime palette as the Vello render: a commitment-colored border + rail, a
-/// vendor chip, a cost/time footer, an HITL gate marker, hover-lift, and — for
-/// COMMITTED nodes — a continuously BREATHING glow (the "presence beacon", a
-/// looping `with_animation`) so the graph is visibly alive, not a static image.
-/// Clicking the card selects it, opening the inspector drawer.
+/// One interactive node in the Conjure wave deck. Wave color owns the boundary;
+/// commitment and HITL remain explicit text so color never carries state alone.
 fn conjure_card(
     id: PaneId,
     node: &crate::conjure::PredictedNode,
+    wave_color: u32,
     is_selected: bool,
     cx: &mut Context<ConsoleView>,
 ) -> AnyElement {
     let theme = current_theme();
-    let accent = commitment_accent(&node.commitment_level);
-    let committed = node.commitment_level.eq_ignore_ascii_case("COMMITTED");
-    let tentative = node.commitment_level.eq_ignore_ascii_case("TENTATIVE");
+    let commitment_color = commitment_accent(&node.commitment_level);
     let vchip = vendor_accent(&node.model_tier);
     let nid = node.id.clone();
     let skill = trunc_chars(&node.skill_id, 30);
@@ -4881,36 +4810,39 @@ fn conjure_card(
         }
     );
     let gate = node.ask_user_before_proceeding;
-    let border = if is_selected { theme.accent } else { accent };
+    let border = if gate {
+        theme.gated
+    } else if is_selected {
+        theme.accent_ink
+    } else {
+        wave_color
+    };
     let bg = if is_selected {
         theme.raised
     } else {
         theme.panel
     };
 
-    let card = div()
+    div()
         .id(SharedString::from(format!("conjure-card-{id}-{nid}")))
         .flex()
         .flex_col()
-        .gap(px(6.0))
-        .w(px(248.0))
-        .p(px(12.0))
-        .rounded(px(12.0))
+        .gap(px(8.0))
+        .w_full()
+        .min_h(px(132.0))
+        .p(px(14.0))
         .border_1()
+        .border_t_2()
         .border_color(rgb(border))
         .bg(rgb(bg))
         .cursor_pointer()
-        .hover(move |s| {
-            s.bg(rgb(theme.raised))
-                .border_color(rgb(theme.accent))
-                .shadow(motion::glow(theme.accent, 0.34, 16.0, 1.0))
-        })
+        .hover(move |s| s.bg(rgb(theme.raised)).border_color(rgb(theme.accent_ink)))
         .on_click(cx.listener(move |this, _ev, _window, cx| {
             this.conjure_selected = Some(nid.clone());
             crate::audio::play(crate::audio::Cue::Tick);
             cx.notify();
         }))
-        // Header: a commitment-colored skill eyebrow + an optional HITL gate flag.
+        // Header: skill plus a textual lifecycle marker.
         .child(
             div()
                 .flex()
@@ -4920,19 +4852,28 @@ fn conjure_card(
                     div()
                         .flex_1()
                         .text_size(px(13.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(rgb(accent))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(rgb(theme.ink))
                         .child(skill),
                 )
-                .when(gate, |r| {
-                    r.child(
-                        div()
-                            .text_size(px(11.0))
-                            .font_weight(FontWeight::BOLD)
-                            .text_color(rgb(theme.gated))
-                            .child("\u{26d4} GATE"),
-                    )
-                }),
+                .child(
+                    div()
+                        .px(px(5.0))
+                        .py(px(2.0))
+                        .bg(rgb(if gate { theme.gated } else { commitment_color }))
+                        .text_color(rgb(knockout_ink(if gate {
+                            theme.gated
+                        } else {
+                            commitment_color
+                        })))
+                        .text_size(px(10.0))
+                        .font_weight(FontWeight::BOLD)
+                        .child(if gate {
+                            "GATE".to_string()
+                        } else {
+                            node.commitment_level.to_uppercase()
+                        }),
+                ),
         )
         // Role — what this agent does in context.
         .child(
@@ -4941,7 +4882,7 @@ fn conjure_card(
                 .text_color(rgb(theme.ink))
                 .child(role),
         )
-        // Footer: a vendor model-tier chip + a success-tinted cost/time line.
+        // Footer: solid provider knockout plus cost/time receipt.
         .child(
             div()
                 .flex()
@@ -4950,13 +4891,11 @@ fn conjure_card(
                 .child(
                     div()
                         .px(px(8.0))
-                        .py(px(2.0))
-                        .rounded_full()
-                        .border_1()
-                        .border_color(rgb(vchip))
+                        .py(px(3.0))
+                        .bg(rgb(vchip))
                         .text_size(px(12.0))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(rgb(vchip))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(rgb(knockout_ink(vchip)))
                         .child(model),
                 )
                 .child(
@@ -4965,23 +4904,8 @@ fn conjure_card(
                         .text_color(rgb(theme.landed))
                         .child(metrics),
                 ),
-        );
-
-    if committed {
-        // The breathing glow — a looping halo that proves the graph is live.
-        card.with_animation(
-            SharedString::from(format!("conjure-pulse-{id}-{}", node.id)),
-            Animation::new(Duration::from_millis(2200))
-                .repeat()
-                .with_easing(pulsating_between(0.0, 1.0)),
-            move |el, delta| el.shadow(motion::glow(accent, 0.16 + 0.30 * delta, 15.0, 0.0)),
         )
         .into_any_element()
-    } else {
-        let a = if tentative { 0.16 } else { 0.07 };
-        card.shadow(motion::glow(accent, a, 10.0, 0.0))
-            .into_any_element()
-    }
 }
 
 /// The LIVE, interactive Conjure node-graph rendered natively in gpui — the
@@ -5022,6 +4946,19 @@ fn conjure_canvas(
         .waves
         .iter()
         .map(|wave| {
+            let wave_color = if wave
+                .nodes
+                .iter()
+                .any(|node| node.ask_user_before_proceeding)
+            {
+                theme.gated
+            } else if wave.parallelizable {
+                theme.accent
+            } else if wave.wave_number == 1 {
+                theme.engaged
+            } else {
+                theme.landed
+            };
             let cap = format!(
                 "WAVE {}  {}",
                 wave.wave_number,
@@ -5034,9 +4971,13 @@ fn conjure_canvas(
             let cards: Vec<AnyElement> = wave
                 .nodes
                 .iter()
-                .map(|node| conjure_card(id, node, selected == Some(node.id.as_str()), cx))
+                .map(|node| {
+                    conjure_card(id, node, wave_color, selected == Some(node.id.as_str()), cx)
+                })
                 .collect();
             div()
+                .flex_1()
+                .min_w(px(250.0))
                 .flex()
                 .flex_col()
                 .gap(px(12.0))
@@ -5044,7 +4985,7 @@ fn conjure_canvas(
                     div()
                         .text_size(px(12.0))
                         .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(rgb(theme.muted))
+                        .text_color(rgb(wave_color))
                         .child(cap),
                 )
                 .children(cards)
@@ -5076,7 +5017,7 @@ fn conjure_canvas(
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(rgb(theme.accent_ink))
                 .child(SharedString::from(format!(
-                    "\u{2693} CONJURE \u{00b7} LIVE PREDICTED DAG \u{00b7} {}",
+                    "CONJURE \u{00b7} LIVE PREDICTED DAG \u{00b7} {}",
                     title.to_uppercase()
                 ))),
         )
@@ -5093,7 +5034,7 @@ fn conjure_canvas(
             div()
                 .id(SharedString::from(format!("conjure-cols-{id}")))
                 .flex()
-                .gap(px(30.0))
+                .gap(px(20.0))
                 .py(px(8.0))
                 .overflow_x_scroll()
                 .children(columns),
@@ -5134,11 +5075,10 @@ fn conjure_inspector(
     div()
         .mt(px(6.0))
         .p(px(14.0))
-        .rounded(px(12.0))
         .border_1()
+        .border_l_2()
         .border_color(rgb(accent))
         .bg(rgb(theme.raised))
-        .shadow(motion::glow(accent, 0.18, 14.0, 0.0))
         .flex()
         .flex_col()
         .gap(px(6.0))
@@ -5165,7 +5105,8 @@ fn conjure_inspector(
                         .id("conjure-inspector-close")
                         .px(px(8.0))
                         .py(px(2.0))
-                        .rounded(px(6.0))
+                        .border_l_1()
+                        .border_color(rgb(theme.line))
                         .cursor_pointer()
                         .text_size(px(13.0))
                         .text_color(rgb(theme.muted))
@@ -5178,7 +5119,9 @@ fn conjure_inspector(
                 ),
         )
         .child(row("role", node.role_description.clone()))
-        .when(!node.why.is_empty(), |c| c.child(row("why", node.why.clone())))
+        .when(!node.why.is_empty(), |c| {
+            c.child(row("why", node.why.clone()))
+        })
         .when(!node.input_contract.is_empty(), |c| {
             c.child(row("input contract", node.input_contract.clone()))
         })
@@ -5206,7 +5149,9 @@ fn conjure_inspector(
                     .text_size(px(13.0))
                     .font_weight(FontWeight::SEMIBOLD)
                     .text_color(rgb(theme.gated))
-                    .child("\u{26d4} HITL gate \u{2014} this node stops for your confirmation before it runs"),
+                    .child(
+                        "HITL GATE \u{2014} this node stops for your confirmation before it runs",
+                    ),
             )
         })
         .into_any_element()
@@ -5236,7 +5181,7 @@ fn conjure_graphic(id: PaneId, png: Option<std::path::PathBuf>, title: &str) -> 
         .text_size(px(12.0))
         .font_weight(FontWeight::SEMIBOLD)
         .child(SharedString::from(format!(
-            "\u{2693} PREDICTED DAG \u{00b7} {}",
+            "PREDICTED DAG \u{00b7} {}",
             title.to_uppercase()
         )));
 
@@ -5246,7 +5191,6 @@ fn conjure_graphic(id: PaneId, png: Option<std::path::PathBuf>, title: &str) -> 
             // read straight off disk (PathBuf ⇒ Resource::Path).
             div()
                 .w_full()
-                .rounded(px(10.0))
                 .border_1()
                 .border_color(rgb(current_theme().line))
                 .bg(rgb(current_theme().bg))
@@ -5256,8 +5200,7 @@ fn conjure_graphic(id: PaneId, png: Option<std::path::PathBuf>, title: &str) -> 
                         .w_full()
                         .max_w(px(900.0))
                         .h(px(360.0))
-                        .object_fit(ObjectFit::Contain)
-                        .rounded(px(10.0)),
+                        .object_fit(ObjectFit::Contain),
                 ),
         ),
         None => frame.child(eyebrow).child(
@@ -5267,7 +5210,6 @@ fn conjure_graphic(id: PaneId, png: Option<std::path::PathBuf>, title: &str) -> 
                 .w_full()
                 .h(px(360.0))
                 .max_w(px(900.0))
-                .rounded(px(10.0))
                 .border_1()
                 .border_color(rgb(current_theme().line))
                 .bg(rgb(current_theme().raised))
@@ -5305,19 +5247,21 @@ fn command_bar_btn(
     let accent = current_theme().accent;
     div()
         .id(SharedString::from(format!("cmdbar-{}", kind.prompt())))
-        .px(px(11.0))
-        .py(px(5.0))
-        .rounded(px(6.0))
-        .border_1()
+        .h_full()
+        .px(px(12.0))
+        .flex()
+        .items_center()
+        .border_l_1()
         .border_color(rgb(current_theme().line))
         .text_color(rgb(current_theme().ink2))
-        .text_size(px(13.0))
+        .font_family("IBM Plex Mono")
+        .text_size(px(12.0))
         .font_weight(FontWeight::SEMIBOLD)
         .cursor_pointer()
         .hover(move |s| {
-            s.border_color(rgb(accent))
+            s.bg(rgb(current_theme().raised))
+                .border_color(rgb(accent))
                 .text_color(rgb(current_theme().accent_ink))
-                .shadow(motion::glow(accent, 0.20, 8.0, 0.0))
         })
         .child(label)
         .on_click(cx.listener(move |this, _ev, _window, cx| {
@@ -5338,7 +5282,6 @@ fn theme_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
         .id("theme-toggle")
         .px(px(tokens::SPACE_2))
         .py(px(tokens::SPACE_1))
-        .rounded(px(tokens::RADIUS_MD))
         .border_1()
         .border_color(rgb(theme.line))
         .bg(rgb(theme.panel))
@@ -5354,7 +5297,6 @@ fn theme_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
             s.bg(rgb(t.raised))
                 .border_color(rgb(t.accent))
                 .text_color(rgb(t.accent_ink))
-                .shadow(motion::glow(t.accent, 0.24, 10.0, 0.0))
         })
         .child(div().text_size(px(tokens::TEXT_BODY)).child(icon))
         .child(label)
@@ -5367,11 +5309,8 @@ fn theme_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
 
 // ── Operator chat — bespoke bubbles + the rolled-own composer ─────────────────
 
-/// One chat bubble (bespoke, not a `Block`). Operator turns sit right-aligned in
-/// an accent-bordered raised card with a soft accent glow; agent replies sit
-/// left-aligned in a panel card with a cobalt left rail (mirrors `render_block`'s
-/// header rail). Each blooms in once (220ms swoosh fade) unless reduced-motion is
-/// set, in which case it renders static at full opacity.
+/// One chat turn in the shared linework grammar. Operator and agent alignment is
+/// retained; square boundaries and a cobalt rail carry identity without cards.
 fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
     let t = current_theme();
     let mine = msg.mine;
@@ -5401,11 +5340,9 @@ fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
             .gap(px(tokens::SPACE_1))
             .px(px(tokens::SPACE_3))
             .py(px(tokens::SPACE_2))
-            .rounded(px(tokens::RADIUS_LG))
             .border_1()
             .border_color(rgb(t.accent))
             .bg(rgb(t.raised))
-            .shadow(motion::glow(t.accent, 0.10, 8.0, 0.0))
             .child(eyebrow)
             .child(body)
     } else {
@@ -5415,7 +5352,6 @@ fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
             .max_w(px(560.0))
             .flex()
             .overflow_hidden()
-            .rounded(px(tokens::RADIUS_LG))
             .border_1()
             .border_color(rgb(t.line))
             .bg(rgb(t.panel))
@@ -5499,8 +5435,8 @@ fn chat_error_banner(reason: &str) -> AnyElement {
         .my(px(tokens::SPACE_1))
         .px(px(tokens::SPACE_3))
         .py(px(tokens::SPACE_2))
-        .rounded(px(tokens::RADIUS_MD))
         .border_1()
+        .border_l_2()
         .border_color(rgb(t.gated))
         .bg(tone_wash(t.gated, 0x1c))
         .child(
@@ -5558,7 +5494,6 @@ fn chat_composer(input: &str, reduced: bool, cx: &mut Context<ConsoleView>) -> A
                 .gap(px(4.0))
                 .px(px(tokens::SPACE_3))
                 .py(px(tokens::SPACE_2))
-                .rounded(px(tokens::RADIUS_LG))
                 .bg(rgb(t.sunken))
                 .border_1()
                 .border_color(rgb(t.line))
@@ -5592,13 +5527,12 @@ fn chat_composer(input: &str, reduced: bool, cx: &mut Context<ConsoleView>) -> A
                 .min_w(px(54.0))
                 .px(px(12.0))
                 .py(px(5.0))
-                .rounded(px(tokens::RADIUS_MD))
                 .bg(rgb(t.accent))
                 .text_color(rgb(t.bg))
                 .text_size(px(tokens::TEXT_CAPTION))
                 .font_weight(FontWeight::SEMIBOLD)
                 .cursor_pointer()
-                .hover(|s| s.shadow(motion::glow(t.accent, 0.30, 10.0, 0.0)))
+                .hover(|s| s.bg(rgb(t.accent_ink)))
                 .child("Send")
                 .on_click(cx.listener(|this, _ev, _window, cx| {
                     this.submit_chat();
@@ -5667,13 +5601,12 @@ fn render_open_command(
                 .id("cmd-send")
                 .px(px(12.0))
                 .py(px(4.0))
-                .rounded(px(6.0))
                 .bg(rgb(current_theme().accent))
                 .text_color(rgb(current_theme().bg))
                 .text_size(px(13.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .cursor_pointer()
-                .hover(|s| s.shadow(motion::glow(current_theme().accent, 0.30, 10.0, 0.0)))
+                .hover(|s| s.bg(rgb(current_theme().accent_ink)))
                 .child("Send")
                 .on_click(cx.listener(|this, _ev, _window, cx| {
                     if let Some(cmd) = this.command.take() {
@@ -5687,7 +5620,8 @@ fn render_open_command(
                 .id("cmd-cancel")
                 .px(px(8.0))
                 .py(px(4.0))
-                .rounded(px(6.0))
+                .border_l_1()
+                .border_color(rgb(current_theme().line))
                 .text_color(rgb(current_theme().muted))
                 .text_size(px(13.0))
                 .cursor_pointer()
@@ -5745,7 +5679,6 @@ fn render_spawn_picker(
                         .id(SharedString::from(format!("pick-b-{}", b.as_str())))
                         .px(px(9.0))
                         .py(px(4.0))
-                        .rounded(px(6.0))
                         .border_1()
                         .border_color(rgb(current_theme().line))
                         .text_color(rgb(current_theme().ink2))
@@ -5776,7 +5709,6 @@ fn render_spawn_picker(
                         .id(SharedString::from(format!("pick-t-{}", t.as_str())))
                         .px(px(9.0))
                         .py(px(4.0))
-                        .rounded(px(6.0))
                         .border_1()
                         .border_color(rgb(current_theme().line))
                         .text_color(rgb(current_theme().ink2))
@@ -5956,22 +5888,14 @@ fn pane_ctrl(
         .id(SharedString::from(format!("ctrl-{kind}-{id}")))
         .px(px(5.0))
         .py(px(1.0))
-        .rounded(px(4.0))
         .text_size(px(14.0))
         .text_color(rgb(color))
         .cursor_pointer()
-        // Hover pop: tint the glyph (crimson for close, ink otherwise), fill a
-        // raised chip, and snap a glow — the per-control "press" cue.
+        // Hover is a quiet fill and tint; pane focus remains the corner-tick cue.
         .hover(move |s| {
             let t = current_theme();
-            let (tint, glow) = if kind == "close" {
-                (t.gated, t.gated)
-            } else {
-                (t.ink, t.accent)
-            };
-            s.bg(rgb(t.raised))
-                .text_color(rgb(tint))
-                .shadow(motion::glow(glow, 0.22, 8.0, 0.0))
+            let tint = if kind == "close" { t.gated } else { t.ink };
+            s.bg(rgb(t.raised)).text_color(rgb(tint))
         })
         .child(glyph)
         .on_click(cx.listener(move |this, _ev, _window, cx| {
@@ -6042,13 +5966,10 @@ fn render_harbor_node_row(
         .my(px(2.0))
         .px(px(tokens::SPACE_3))
         .py(px(tokens::SPACE_2))
-        .rounded(px(tokens::RADIUS_MD))
         .border_1()
+        .when(selected, |s| s.border_l_2())
         .border_color(rgb(if selected { t.accent } else { t.line }))
         .bg(rgb(if selected { t.raised } else { t.panel }))
-        .when(selected, |s| {
-            s.shadow(motion::glow(t.accent, 0.25, 10.0, 0.0))
-        })
         .cursor_pointer()
         .hover(|s| {
             let t = current_theme();
@@ -6064,11 +5985,19 @@ fn render_harbor_node_row(
         )
         .child(
             div()
-                .text_color(rgb(row_tone))
-                .text_size(px(13.0))
-                .font_weight(FontWeight::BOLD)
+                .flex()
+                .items_center()
                 .flex_shrink_0()
-                .child(format!("⚑{flag}")),
+                .child(div().w(px(7.0)).h(px(10.0)).bg(rgb(row_tone)))
+                .child(div().w(px(7.0)).h(px(10.0)).bg(rgb(badge_color)))
+                .child(
+                    div()
+                        .ml(px(4.0))
+                        .text_color(rgb(row_tone))
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::BOLD)
+                        .child(flag.to_string()),
+                ),
         )
         .child(
             div()
@@ -6140,7 +6069,6 @@ fn render_harbor_control(
         .id(SharedString::from(format!("harbor-ctl-{id}-{verb}")))
         .px(px(tokens::SPACE_3))
         .py(px(4.0))
-        .rounded(px(tokens::RADIUS_MD))
         .border_1()
         .text_size(px(tokens::TEXT_BODY))
         .font_weight(FontWeight::SEMIBOLD)
@@ -6155,8 +6083,7 @@ fn render_harbor_control(
                 .cursor_pointer()
                 .hover(|s| {
                     let t = current_theme();
-                    s.border_color(rgb(t.accent))
-                        .shadow(motion::glow(t.accent, 0.2, 8.0, 0.0))
+                    s.bg(rgb(t.raised)).border_color(rgb(t.accent))
                 })
                 .on_click(cx.listener(move |this, _ev, _window, cx| {
                     if verb_for_click == "steer" {
@@ -6355,74 +6282,460 @@ fn split_divider(
         )
 }
 
-/// The always-visible NAV rail — the GUI replacement for `Ctrl-A <key>` surface
-/// switching. Click a surface name to swap the focused pane to it; the active
-/// surface is highlighted. Keyboard chords still work as unadvertised
-/// accelerators, but nothing here requires them. (#32 retired: the chord is made
-/// unnecessary, not consistent — the operator hates leader-key core movement.)
-fn render_nav_rail(active: Option<&str>, cx: &mut Context<ConsoleView>) -> impl IntoElement {
-    let active = active.map(|s| s.to_string());
+/// The apps.html navigation deck: stack layers read as colored rules before the
+/// operator reads a label. The full 27-surface launcher remains behind the
+/// trailing ellipsis, so the compact deck is hierarchy rather than omission.
+fn render_story_nav_button(
+    query: &'static str,
+    label: &'static str,
+    active: Option<&str>,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let is_active = active == Some(query)
+        || (query == "planner" && active == Some("roadmap"))
+        || (query == "ledger" && active == Some("cost"));
     div()
-        .id("nav-rail")
-        .flex()
-        .flex_col()
-        .flex_none()
-        .w(px(152.0))
+        .id(SharedString::from(format!("deck-nav-{query}-{label}")))
         .h_full()
-        .overflow_y_scroll()
-        .bg(rgb(current_theme().panel))
-        .border_r_1()
-        .border_color(rgb(current_theme().line))
-        .py(px(6.0))
-        // Eyebrow header — the allowed 12px exception (uppercase, weight ≥600).
+        .px(px(9.0))
+        .flex()
+        .items_center()
+        .flex_shrink_0()
+        .bg(rgb(if is_active {
+            current_theme().accent
+        } else {
+            current_theme().panel
+        }))
+        .text_color(rgb(if is_active {
+            0xfbf7ef
+        } else {
+            current_theme().muted
+        }))
+        .font_family("IBM Plex Mono")
+        .font_weight(FontWeight::SEMIBOLD)
+        .text_size(px(12.0))
+        .cursor_pointer()
+        .when(!is_active, |d| {
+            d.hover(|h| {
+                h.bg(rgb(current_theme().raised))
+                    .text_color(rgb(current_theme().ink))
+            })
+        })
+        .child(label)
+        .on_click(cx.listener(move |this, _event, _window, cx| {
+            if let Some(surface) = surface_for_query(query) {
+                this.ws_mut().swap_surface(surface);
+            }
+            cx.notify();
+        }))
+        .into_any_element()
+}
+
+fn render_story_nav_group(
+    layer: &'static str,
+    color: u32,
+    items: &'static [(&'static str, &'static str)],
+    active: Option<&str>,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    div()
+        .h_full()
+        .flex()
+        .flex_shrink_0()
+        .border_t_2()
+        .border_color(rgb(color))
         .child(
             div()
-                .px(px(12.0))
-                .pb(px(4.0))
-                .text_size(px(12.0))
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(rgb(current_theme().muted))
-                .child("NAVIGATE"),
+                .h_full()
+                .px(px(7.0))
+                .flex()
+                .items_center()
+                .font_family("IBM Plex Mono")
+                .text_size(px(11.0))
+                .text_color(rgb(current_theme().resting))
+                .child(layer),
         )
-        .children(NAV.iter().map(|item| {
-            let nav_id: &'static str = item.id;
-            let is_active = active.as_deref() == Some(nav_id);
-            let accent = current_theme().accent;
+        .children(
+            items
+                .iter()
+                .map(|(query, label)| render_story_nav_button(query, label, active, cx)),
+        )
+        .into_any_element()
+}
+
+fn render_story_nav_bar(active: Option<&str>, cx: &mut Context<ConsoleView>) -> AnyElement {
+    const L0: &[(&str, &str)] = &[("daemons", "daemon"), ("health", "health")];
+    const L1: &[(&str, &str)] = &[
+        ("fleet", "fleet"),
+        ("claims", "claims"),
+        ("parley", "parley"),
+        ("sessions", "sessions"),
+    ];
+    const L2: &[(&str, &str)] = &[
+        ("cockpit", "cockpit"),
+        ("conjure", "conjure"),
+        ("planner", "roadmap"),
+    ];
+    const L3: &[(&str, &str)] = &[("ledger", "ledger"), ("ledger", "cost")];
+    let t = current_theme();
+    div()
+        .id("story-nav-deck")
+        .h(px(42.0))
+        .w_full()
+        .flex()
+        .overflow_hidden()
+        .bg(rgb(t.panel))
+        .border_b_1()
+        .border_color(rgb(t.line))
+        .child(render_story_nav_group("L0", t.accent, L0, active, cx))
+        .child(render_story_nav_group("L1", t.landed, L1, active, cx))
+        .child(render_story_nav_group("L2", 0x3f8f87, L2, active, cx))
+        .child(render_story_nav_group("L3", t.engaged, L3, active, cx))
+        .child(div().flex_1())
+        .child(
             div()
-                .id(SharedString::from(format!("nav-{nav_id}")))
-                .mx(px(6.0))
-                .my(px(1.0))
+                .id("deck-nav-more")
+                .h_full()
                 .px(px(10.0))
-                .py(px(5.0))
-                .rounded(px(6.0))
+                .flex()
+                .items_center()
+                .font_family("IBM Plex Mono")
                 .text_size(px(14.0))
-                .font_weight(if is_active {
-                    FontWeight::SEMIBOLD
-                } else {
-                    FontWeight::MEDIUM
-                })
-                .text_color(rgb(if is_active {
-                    current_theme().accent_ink
-                } else {
-                    current_theme().ink2
-                }))
+                .text_color(rgb(t.muted))
                 .cursor_pointer()
-                .when(is_active, |s| {
-                    s.bg(rgb(current_theme().raised))
-                        .shadow(motion::glow(accent, 0.28, 10.0, 0.0))
+                .hover(|d| {
+                    d.bg(rgb(current_theme().raised))
+                        .text_color(rgb(current_theme().ink))
                 })
-                .when(!is_active, |s| {
-                    s.hover(move |h| {
-                        h.bg(rgb(current_theme().raised))
-                            .text_color(rgb(current_theme().accent_ink))
-                    })
-                })
-                .child(item.label)
-                .on_click(cx.listener(move |this, _ev, _window, cx| {
-                    this.ws_mut().swap_surface(surface_for_nav_id(nav_id));
+                .child("…")
+                .on_click(cx.listener(|this, _event, _window, cx| {
+                    this.launcher_open = true;
                     cx.notify();
+                })),
+        )
+        .into_any_element()
+}
+
+fn story_corner_ticks(prefix: impl Into<String>, color: u32) -> Vec<AnyElement> {
+    let prefix = prefix.into();
+    let corner = |suffix: &'static str, top: bool, left: bool| {
+        div()
+            .id(SharedString::from(format!("{prefix}-{suffix}")))
+            .absolute()
+            .when(top, |d| d.top_0())
+            .when(!top, |d| d.bottom_0())
+            .when(left, |d| d.left_0())
+            .when(!left, |d| d.right_0())
+            .w(px(20.0))
+            .h(px(20.0))
+            .child(
+                div()
+                    .absolute()
+                    .when(top, |d| d.top_0())
+                    .when(!top, |d| d.bottom_0())
+                    .when(left, |d| d.left_0())
+                    .when(!left, |d| d.right_0())
+                    .w(px(20.0))
+                    .h(px(2.0))
+                    .bg(rgb(color)),
+            )
+            .child(
+                div()
+                    .absolute()
+                    .when(top, |d| d.top_0())
+                    .when(!top, |d| d.bottom_0())
+                    .when(left, |d| d.left_0())
+                    .when(!left, |d| d.right_0())
+                    .w(px(2.0))
+                    .h(px(20.0))
+                    .bg(rgb(color)),
+            )
+            .into_any_element()
+    };
+    vec![
+        corner("tick-nw", true, true),
+        corner("tick-ne", true, false),
+        corner("tick-sw", false, true),
+        corner("tick-se", false, false),
+    ]
+}
+
+fn terminal_rgb(color: TerminalColor, default: u32) -> u32 {
+    const ANSI: [u32; 16] = [
+        0x17191d, 0xd95d69, 0x78c895, 0xd7b84b, 0x5f8ee4, 0xc27acb, 0x63c5c2, 0xd8d5cd, 0x6f7682,
+        0xff8290, 0x9bddae, 0xf1d86b, 0x82adff, 0xe49bed, 0x87e4df, 0xffffff,
+    ];
+    match color {
+        TerminalColor::Default => default,
+        TerminalColor::Rgb(red, green, blue) => {
+            (u32::from(red) << 16) | (u32::from(green) << 8) | u32::from(blue)
+        }
+        TerminalColor::Indexed(index) if index < 16 => ANSI[index as usize],
+        TerminalColor::Indexed(index) if index < 232 => {
+            let cube = index - 16;
+            let channel = |value: u8| if value == 0 { 0 } else { 55 + value * 40 };
+            let red = channel(cube / 36);
+            let green = channel((cube % 36) / 6);
+            let blue = channel(cube % 6);
+            (u32::from(red) << 16) | (u32::from(green) << 8) | u32::from(blue)
+        }
+        TerminalColor::Indexed(index) => {
+            let gray = 8 + (index - 232) * 10;
+            (u32::from(gray) << 16) | (u32::from(gray) << 8) | u32::from(gray)
+        }
+    }
+}
+
+fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> AnyElement {
+    let t = current_theme();
+    let (shell_rows, shell_cols) = view.shell.size();
+    let live = view.shell.is_live();
+    let status_color = match view.shell.status() {
+        ShellStatus::Starting => t.engaged,
+        ShellStatus::Running => t.landed,
+        ShellStatus::Exited(0) => t.resting,
+        ShellStatus::Exited(_) | ShellStatus::Failed(_) => t.gated,
+    };
+    let status_dot = div()
+        .id("cli-status-dot")
+        .w(px(7.0))
+        .h(px(7.0))
+        .rounded(px(4.0))
+        .bg(rgb(status_color));
+    let status_dot: AnyElement = if live && !reduced_motion() {
+        status_dot
+            .with_animation(
+                "cli-live-dot",
+                Animation::new(Duration::from_millis(1900))
+                    .repeat()
+                    .with_easing(pulsating_between(0.35, 1.0)),
+                move |dot, delta| {
+                    dot.opacity(0.55 + 0.45 * delta).shadow(motion::glow(
+                        status_color,
+                        0.15 + 0.25 * delta,
+                        5.0 + 6.0 * delta,
+                        0.0,
+                    ))
+                },
+            )
+            .into_any_element()
+    } else {
+        status_dot.into_any_element()
+    };
+
+    let lines = view.shell.styled_lines(15);
+    let output_rows = lines.into_iter().map(|line| {
+        let mut highlights: Vec<(std::ops::Range<usize>, HighlightStyle)> = line
+            .spans
+            .into_iter()
+            .filter(|span| !span.range.is_empty())
+            .map(|span| {
+                let background_color = match span.background {
+                    TerminalColor::Default => None,
+                    color => Some(rgb(terminal_rgb(color, t.sunken)).into()),
+                };
+                (
+                    span.range,
+                    HighlightStyle {
+                        color: Some(rgb(terminal_rgb(span.foreground, t.ink)).into()),
+                        background_color,
+                        font_weight: span.bold.then_some(FontWeight::BOLD),
+                        font_style: span.italic.then_some(FontStyle::Italic),
+                        ..Default::default()
+                    },
+                )
+            })
+            .collect();
+        if live {
+            if let Some(cursor) = line.cursor.filter(|range| !range.is_empty()) {
+                highlights.push((
+                    cursor,
+                    HighlightStyle {
+                        color: Some(rgb(t.sunken).into()),
+                        background_color: Some(rgb(t.accent_ink).into()),
+                        ..Default::default()
+                    },
+                ));
+            }
+        }
+        div()
+            .h(px(17.0))
+            .w_full()
+            .flex_shrink_0()
+            .pl(px(10.0))
+            .pr(px(8.0))
+            .overflow_hidden()
+            .whitespace_nowrap()
+            .text_size(px(13.0))
+            .text_color(rgb(t.ink))
+            .child(
+                StyledText::new(SharedString::new(if line.text.is_empty() {
+                    " ".to_string()
+                } else {
+                    line.text
                 }))
-        }))
+                .with_highlights(highlights),
+            )
+    });
+
+    let drawer = div()
+        .id("cli-drawer")
+        .absolute()
+        .left(px(16.0))
+        .right(px(16.0))
+        .bottom(px(64.0))
+        .h(px(326.0))
+        .occlude()
+        .flex()
+        .flex_col()
+        .bg(rgb(t.sunken))
+        .shadow(vec![BoxShadow {
+            color: rgba(0x00000088).into(),
+            offset: point(px(0.0), px(-10.0)),
+            blur_radius: px(28.0),
+            spread_radius: px(1.0),
+        }])
+        .children(story_corner_ticks("cli", t.accent_ink))
+        // One large color zone: command context. The rest of the terminal stays
+        // quiet enough that state stripes and actual ANSI output can speak.
+        .child(
+            div()
+                .h(px(34.0))
+                .w_full()
+                .flex_shrink_0()
+                .flex()
+                .items_center()
+                .bg(rgb(t.accent))
+                .text_color(rgb(0xffffff))
+                .child(
+                    div()
+                        .h_full()
+                        .w(px(5.0))
+                        .flex_shrink_0()
+                        .bg(rgb(status_color)),
+                )
+                .child(
+                    div()
+                        .ml(px(10.0))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(
+                            div()
+                                .flex()
+                                .child(div().w(px(9.0)).h(px(14.0)).bg(rgb(0xffffff)))
+                                .child(div().w(px(9.0)).h(px(14.0)).bg(rgb(t.engaged))),
+                        )
+                        .child(
+                            div()
+                                .font_family("IBM Plex Mono")
+                                .font_weight(FontWeight::BOLD)
+                                .text_size(px(13.0))
+                                .child("CLI · PORT DADDY"),
+                        ),
+                )
+                .child(div().flex_1())
+                .child(status_dot)
+                .child(
+                    div()
+                        .ml(px(7.0))
+                        .font_family("IBM Plex Mono")
+                        .text_size(px(12.0))
+                        .child(view.shell.status_label()),
+                )
+                .child(
+                    div()
+                        .id("close-cli-drawer")
+                        .ml(px(12.0))
+                        .mr(px(10.0))
+                        .w(px(22.0))
+                        .h(px(22.0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .cursor_pointer()
+                        .font_family("IBM Plex Mono")
+                        .text_size(px(15.0))
+                        .hover(|d| d.bg(rgba(0xffffff22)))
+                        .child("×")
+                        .on_click(cx.listener(|this, _event, _window, cx| {
+                            this.shell_open = false;
+                            cx.notify();
+                        })),
+                ),
+        )
+        .child(
+            div()
+                .flex_1()
+                .overflow_hidden()
+                .flex()
+                .bg(rgb(t.sunken))
+                .child(
+                    div()
+                        .w(px(3.0))
+                        .h_full()
+                        .flex_shrink_0()
+                        .bg(rgb(status_color)),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .overflow_hidden()
+                        .py(px(8.0))
+                        .font_family("JetBrainsMono Nerd Font Mono")
+                        .children(output_rows),
+                ),
+        )
+        .when_some(view.shell.error(), |drawer, error| {
+            drawer.child(
+                div()
+                    .mx(px(10.0))
+                    .mb(px(8.0))
+                    .px(px(9.0))
+                    .py(px(6.0))
+                    .border_l_2()
+                    .border_color(rgb(t.gated))
+                    .bg(tone_wash(t.gated, 0x20))
+                    .text_color(rgb(t.gated))
+                    .font_family("IBM Plex Mono")
+                    .text_size(px(12.0))
+                    .child(error.to_string()),
+            )
+        })
+        .child(
+            div()
+                .h(px(28.0))
+                .flex_shrink_0()
+                .flex()
+                .items_center()
+                .gap(px(9.0))
+                .px(px(10.0))
+                .border_t_1()
+                .border_color(rgb(t.line))
+                .bg(rgb(t.panel))
+                .font_family("JetBrainsMono Nerd Font Mono")
+                .text_size(px(11.0))
+                .text_color(rgb(t.muted))
+                .child(format!(
+                    "{} · {}",
+                    view.shell.shell(),
+                    view.shell.cwd().display()
+                ))
+                .child(div().flex_1())
+                .child(format!("PTY {shell_rows}×{shell_cols} · xterm-256color")),
+        );
+
+    if reduced_motion() {
+        drawer.into_any_element()
+    } else {
+        drawer
+            .with_animation(
+                "cli-drawer-rise",
+                Animation::new(tokens::MOTION_BASE).with_easing(ease_in_out),
+                move |drawer, delta| drawer.opacity(delta),
+            )
+            .into_any_element()
+    }
 }
 
 impl Render for ConsoleView {
@@ -6446,16 +6759,22 @@ impl Render for ConsoleView {
                 self.flag_motion.vx = (self.flag_motion.vx + dvw / 60.0).clamp(-1.6, 1.6);
                 self.kick_flag_motion(window, cx);
             }
+            // Keep the native PTY and vt100 model aligned with the drawer's
+            // measured text width. Resize is idempotent and only emits when the
+            // column count changes, so ordinary renders do not write to the PTY.
+            let shell_cols = ((vw - 52.0) / 7.8).floor().clamp(40.0, 220.0) as u16;
+            let _ = self.shell.resize(15, shell_cols);
         }
 
         let daemon_url = self.daemon_url.clone();
         let focused = self.ws().focused();
-        // Which NAV surface the focused pane is showing — drives the rail highlight.
-        let active_nav = nav_id_for_surface(self.ws().focused_surface()).map(|s| s.to_string());
+        // Compact deck identity, including non-NAV surfaces such as Conjure.
+        let active_nav = launcher_id_for_surface(self.ws().focused_surface());
         let armed = self.leader_armed;
         let command = self.command.clone();
         let lit = armed || command.is_some();
         let pane_count = self.ws().pane_count();
+        let daemon_connected = self.booted;
         let zoomed = self.zoomed();
         // Tab bar data (index, name, is-active).
         let tabs: Vec<(usize, String, bool)> = self
@@ -6479,6 +6798,11 @@ impl Render for ConsoleView {
         } else {
             None
         };
+        let shell_drawer = if self.shell_open {
+            Some(render_shell_drawer(self, cx))
+        } else {
+            None
+        };
         // The launch splash overlays everything until the first refresh lands.
         // Suppressed for the launcher screenshot hook and the PD_CONSOLE_NO_SPLASH
         // opt-out, so capture tooling / opted-out users never see the boot flash.
@@ -6493,6 +6817,7 @@ impl Render for ConsoleView {
             .track_focus(&self.focus_handle)
             .relative()
             .size_full()
+            .font_family("IBM Plex Mono")
             // Grab-the-rope: while a divider drag is live, map the global mouse
             // position to the split's weight fraction and resize that boundary.
             .on_mouse_move(cx.listener(|this, ev: &MouseMoveEvent, _window, cx| {
@@ -6634,6 +6959,15 @@ impl Render for ConsoleView {
                 } else if ctrl && key == "a" {
                     this.leader_armed = true;
                     cx.notify();
+                } else if this.shell_open {
+                    // The raised PTY owns ordinary keys. Global console control
+                    // remains reachable through the Ctrl-A leader handled above.
+                    this.handle_shell_key(
+                        key.as_str(),
+                        key_char.as_deref(),
+                        ev.keystroke.modifiers,
+                        cx,
+                    );
                 } else if this.focused_is_chat() {
                     // The focused chat pane captures printable keys into its composer
                     // (no native input widget) — the load-bearing "make it actually
@@ -6642,10 +6976,11 @@ impl Render for ConsoleView {
                     this.handle_chat_key(key.as_str(), key_char.as_deref(), shift, cx);
                 }
             }))
-            // ── Tab bar (named workspaces, like tmux windows) ──
+            // ── Flat title deck. Named workspaces remain here, but the app frame
+            // follows apps.html: square, quiet, mono, and bounded by hairlines. ──
             .child(
                 div()
-                    .h(px(28.0))
+                    .h(px(40.0))
                     // The window titlebar is transparent (traffic lights drawn at
                     // x≈12–64), so the tab strip must start clear of them or the
                     // first tab + "+" hide behind the OS controls. Inset the left
@@ -6654,7 +6989,7 @@ impl Render for ConsoleView {
                     .pr(px(6.0))
                     .flex()
                     .items_center()
-                    .gap(px(4.0))
+                    .gap(px(0.0))
                     .bg(rgb(current_theme().panel))
                     .border_b_1()
                     .border_color(rgb(current_theme().line))
@@ -6664,21 +6999,25 @@ impl Render for ConsoleView {
                         div()
                             .flex()
                             .items_center()
-                            .gap(px(7.0))
-                            .px(px(4.0))
+                            .gap(px(0.0))
+                            .px(px(0.0))
                             .child(
                                 svg()
                                     .path("icons/pd-mark-glyph.svg")
-                                    .w(px(18.0))
-                                    .h(px(18.0))
+                                    .w(px(0.0))
+                                    .h(px(0.0))
                                     .text_color(rgb(current_theme().accent_ink)),
                             )
                             .child(
                                 div()
-                                    .text_size(px(12.0))
+                                    .font_family("IBM Plex Mono")
+                                    .text_size(px(13.0))
                                     .font_weight(FontWeight::BOLD)
-                                    .text_color(rgb(current_theme().ink))
-                                    .child("PORT DADDY"),
+                                    .text_color(rgb(current_theme().muted))
+                                    .child(format!(
+                                        "pd-console — port-daddy · daemon {}",
+                                        env!("CARGO_PKG_VERSION")
+                                    )),
                             )
                             .child(
                                 div()
@@ -6692,21 +7031,20 @@ impl Render for ConsoleView {
                             .id(SharedString::from(format!("tab-{i}")))
                             .px(px(10.0))
                             .py(px(3.0))
-                            .rounded(px(5.0))
-                            .text_size(px(13.0))
+                            .font_family("IBM Plex Mono")
+                            .text_size(px(12.0))
                             .font_weight(FontWeight::MEDIUM)
                             .text_color(rgb(if active { current_theme().accent_ink } else { current_theme().muted }))
                             // Active tab: raised + a mustard glow. Inactive: lift on hover
                             // (a hard offset shadow stands in for the mock's translateY(-1px)).
                             .when(active, |s| {
-                                s.bg(rgb(current_theme().raised))
-                                    .shadow(motion::glow(current_theme().accent, 0.30, 12.0, 0.0))
+                                s.border_b_2().border_color(rgb(current_theme().accent))
                             })
                             .cursor_pointer()
                             .when(!active, |s| {
                                 s.hover(|h| {
                                     let t = current_theme();
-                                    h.bg(rgb(t.raised)).text_color(rgb(t.ink2)).shadow(motion::hard_offset(t.sunken, 0.0, 2.0))
+                                    h.bg(rgb(t.raised)).text_color(rgb(t.ink2))
                                 })
                             })
                             .child(name)
@@ -6720,13 +7058,12 @@ impl Render for ConsoleView {
                             .id("tab-new")
                             .px(px(8.0))
                             .py(px(3.0))
-                            .rounded(px(5.0))
                             .text_size(px(15.0))
                             .text_color(rgb(current_theme().muted))
                             .cursor_pointer()
                             .hover(|s| {
                                 let t = current_theme();
-                                s.bg(rgb(t.raised)).text_color(rgb(t.accent_ink)).shadow(motion::glow(t.accent, 0.30, 10.0, 0.0))
+                                s.bg(rgb(t.raised)).text_color(rgb(t.accent_ink))
                             })
                             .child("+")
                             .on_click(cx.listener(|this, _ev, _window, cx| {
@@ -6740,15 +7077,12 @@ impl Render for ConsoleView {
                             .id("open-launcher")
                             .px(px(8.0))
                             .py(px(3.0))
-                            .rounded(px(5.0))
                             .text_size(px(15.0))
                             .text_color(rgb(current_theme().muted))
                             .cursor_pointer()
                             .hover(|s| {
                                 let t = current_theme();
-                                s.bg(rgb(t.raised))
-                                    .text_color(rgb(t.accent_ink))
-                                    .shadow(motion::glow(t.accent, 0.30, 10.0, 0.0))
+                                s.bg(rgb(t.raised)).text_color(rgb(t.accent_ink))
                             })
                             .child("⊞")
                             .on_click(cx.listener(|this, _ev, _window, cx| {
@@ -6757,19 +7091,85 @@ impl Render for ConsoleView {
                             })),
                     )
                     .child(div().flex_1())
-                    .child(theme_toggle_btn(cx)),
+                    // The terminal is global operator chrome, not a pane. Its
+                    // two-block micro-flag and live dot stay visible everywhere.
+                    .child({
+                        let open = self.shell_open;
+                        let live = self.shell.is_live();
+                        let state = if live {
+                            current_theme().landed
+                        } else {
+                            current_theme().gated
+                        };
+                        div()
+                            .id("toggle-cli-drawer")
+                            .h(px(22.0))
+                            .px(px(7.0))
+                            .flex()
+                            .items_center()
+                            .gap(px(6.0))
+                            .cursor_pointer()
+                            .border_b_1()
+                            .border_color(rgb(if open {
+                                current_theme().accent_ink
+                            } else {
+                                current_theme().line
+                            }))
+                            .text_color(rgb(if open {
+                                current_theme().accent_ink
+                            } else {
+                                current_theme().ink2
+                            }))
+                            .hover(|d| {
+                                d.bg(rgb(current_theme().raised))
+                                    .text_color(rgb(current_theme().accent_ink))
+                            })
+                            .child(
+                                div()
+                                    .flex()
+                                    .child(
+                                        div()
+                                            .w(px(7.0))
+                                            .h(px(10.0))
+                                            .bg(rgb(current_theme().accent)),
+                                    )
+                                    .child(div().w(px(7.0)).h(px(10.0)).bg(rgb(state))),
+                            )
+                            .child(
+                                div()
+                                    .font_family("IBM Plex Mono")
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_size(px(12.0))
+                                    .child(">_ CLI"),
+                            )
+                            .on_click(cx.listener(|this, _event, _window, cx| {
+                                this.shell_open = !this.shell_open;
+                                cx.notify();
+                            }))
+                    })
+                    .child(
+                        div()
+                            .ml(px(10.0))
+                            .mr(px(8.0))
+                            .w(px(22.0))
+                            .h(px(15.0))
+                            .flex()
+                            .child(div().w(px(11.0)).h_full().bg(rgb(current_theme().engaged)))
+                            .child(div().w(px(11.0)).h_full().bg(rgb(current_theme().accent))),
+                    ),
             )
+            .child(render_story_nav_bar(active_nav.as_deref(), cx))
             // ── Body row: clickable NAV rail (the GUI replacement for the
             // Ctrl-A <key> surface switch the operator hates) + the pane tree.
             // Click a surface name to swap the focused pane — no leader key. ──
             .child(
                 div()
                     .flex_1()
-                    .overflow_hidden()
                     .flex()
-                    .flex_row()
-                    .child(render_nav_rail(active_nav.as_deref(), cx))
-                    .child(div().flex_1().overflow_hidden().child(body)),
+                    .overflow_hidden()
+                    .p(px(16.0))
+                    .bg(rgb(current_theme().sunken))
+                    .child(div().flex_1().h_full().overflow_hidden().child(body)),
             )
             // ── Operator toolbar: always-visible GUI affordances. No leader keys,
             // no memorized syntax — click a button, a placeholder-guided input
@@ -6777,16 +7177,20 @@ impl Render for ConsoleView {
             // surface instead of a CLI with hidden options. ──
             .child(
                 div()
-                    .h(px(36.0))
-                    .px(px(12.0))
+                    .h(px(34.0))
+                    .pl(px(16.0))
                     .flex()
                     .items_center()
-                    .gap(px(8.0))
+                    .gap(px(0.0))
                     .bg(rgb(current_theme().panel))
                     .border_t_1()
                     .border_color(rgb(current_theme().line))
                     .child(
                         div()
+                            .h_full()
+                            .px(px(10.0))
+                            .flex()
+                            .items_center()
                             .text_size(px(12.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .text_color(rgb(current_theme().muted))
@@ -6810,11 +7214,11 @@ impl Render for ConsoleView {
                         let n = self.alerts.len();
                         let has_err = self.alerts.iter().any(|a| a.level == AlertLevel::Error);
                         let label = if n == 0 {
-                            "Alerts".to_string()
+                            "ALERTS".to_string()
                         } else if has_err {
-                            format!("⚑ Alerts ({n})")
+                            format!("PAN-PAN ALERTS ({n})")
                         } else {
-                            format!("Alerts ({n})")
+                            format!("ALERTS ({n})")
                         };
                         let border = if has_err { current_theme().gated } else { current_theme().line };
                         let text = if n == 0 {
@@ -6826,18 +7230,20 @@ impl Render for ConsoleView {
                         };
                         div()
                             .id("act-alerts")
-                            .px(px(11.0))
-                            .py(px(5.0))
-                            .rounded(px(6.0))
-                            .border_1()
+                            .h_full()
+                            .px(px(12.0))
+                            .flex()
+                            .items_center()
+                            .border_l_1()
                             .border_color(rgb(border))
                             .text_color(rgb(text))
-                            .text_size(px(13.0))
+                            .font_family("IBM Plex Mono")
+                            .text_size(px(12.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .cursor_pointer()
-                            .when(has_err, |s| s.shadow(motion::glow(current_theme().gated, 0.25, 8.0, 0.0)))
                             .hover(|s| {
-                                s.text_color(rgb(current_theme().accent_ink))
+                                s.bg(rgb(current_theme().raised))
+                                    .text_color(rgb(current_theme().accent_ink))
                                     .border_color(rgb(current_theme().accent))
                             })
                             .child(label)
@@ -6858,8 +7264,6 @@ impl Render for ConsoleView {
                     .bg(rgb(if lit { current_theme().raised } else { current_theme().panel }))
                     .border_t_1()
                     .border_color(rgb(if lit { current_theme().accent_ink } else { current_theme().line }))
-                    // PREFIX / command mode glows unmistakably.
-                    .when(lit, |s| s.shadow(motion::glow(current_theme().accent, 0.25, 12.0, 0.0)))
                     .child(if let Some(cmd) = command.as_ref() {
                         // Open command line — chip picker (Spawn) or prompt + Send.
                         render_open_command(cmd, &self.catalog, cx)
@@ -6874,16 +7278,48 @@ impl Render for ConsoleView {
                             .into_any_element()
                     } else {
                         div()
-                            .text_color(rgb(current_theme().muted))
-                            .text_size(px(13.0))
+                            .w_full()
+                            .flex()
+                            .items_center()
+                            .gap(px(9.0))
+                            .text_size(px(12.0))
                             .font_family("IBM Plex Mono")
-                            .child(format!(
-                                "daemon {daemon_url}  ·  {pane_count} panes  ·  Ctrl-A → space launcher · n new-job · i insert-pane · | split  ·  {}",
-                                build_stamp()
-                            ))
+                            .child(div().text_color(rgb(current_theme().muted)).child("daemon"))
+                            .child(
+                                div()
+                                    .font_weight(FontWeight::BOLD)
+                                    .text_color(rgb(if daemon_connected {
+                                        current_theme().landed
+                                    } else {
+                                        current_theme().engaged
+                                    }))
+                                    .child(if daemon_connected { "connected" } else { "connecting" }),
+                            )
+                            .child(
+                                div()
+                                    .w(px(20.0))
+                                    .h(px(10.0))
+                                    .flex()
+                                    .child(div().w(px(10.0)).h_full().bg(rgb(current_theme().engaged)))
+                                    .child(div().w(px(10.0)).h_full().bg(rgb(if daemon_connected {
+                                        current_theme().landed
+                                    } else {
+                                        current_theme().gated
+                                    }))),
+                            )
+                            .child(div().text_color(rgb(current_theme().muted)).child(daemon_url.clone()))
+                            .child(div().text_color(rgb(current_theme().muted)).child(format!("{pane_count} panes")))
+                            .child(div().flex_1())
+                            .child(
+                                div()
+                                    .text_color(rgb(current_theme().muted))
+                                    .child(format!("hot bus · PTY event-driven · ^A space · {}", build_stamp())),
+                            )
                             .into_any_element()
                     }),
             )
+            // Global PTY drawer: above the pane tree, below modal launcher/splash.
+            .children(shell_drawer)
             // Pane launcher overlay — last child, paints over everything.
             .children(launcher)
             // Splash paints last so it sits above all chrome while booting.

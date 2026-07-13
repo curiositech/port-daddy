@@ -7,7 +7,7 @@
   Fleet — Ship Lifecycle ────────────────────────
   ships              4
   sailing            1
-  ⚓ dry-dock         1 — needs operator
+  dry-dock           1 — needs operator
 
   ⚑H port-daddy/simplifier  ·  sailing
     rig              mid · claude-cli · git:committed
