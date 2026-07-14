@@ -92,7 +92,11 @@ const dispatchesPlugin: FastifyPluginAsync<DispatchesRouteDeps> = async (
 
   function isProjectionValidationError(message: string): boolean {
     return message.includes('goal text') ||
-      message.includes('budgetUsd must be a positive number') ||
+      // BUG 1 (2026-07-14 halt-mandate): the budget message became
+      // "non-negative" when budgetUsd 0 was legalized. Match the stable
+      // "budgetUsd must be a" prefix so this classifier does not silently
+      // downgrade a validation error to a 500 on a future wording tweak.
+      message.includes('budgetUsd must be a') ||
       message.includes('timeoutMs must be a positive number') ||
       message.includes("merge_policy 'auto'");
   }
