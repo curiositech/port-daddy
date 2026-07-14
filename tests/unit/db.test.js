@@ -12,6 +12,8 @@ import {
   resolveDefaultDbRoot,
   durableDbHomePath,
   legacyDbPath,
+  legacyDbCandidates,
+  siblingKegDbPaths,
   isVersionVolatileDbPath,
   migrateLegacyRegistry,
   isPortAvailable,
@@ -147,6 +149,44 @@ describe('lib/db.ts', () => {
       const p = path.join(dir, 'same.db');
       makeLegacyDb(p);
       expect(migrateLegacyRegistry(p, p)).toBe(false);
+    });
+
+    it('rescues from a sibling brew keg when the primary legacy path is empty (post-upgrade)', () => {
+      // Simulate: new keg 3.25.0 (no registry, where the new binary resolves),
+      // old keg 3.24.1_1 still holding the data.
+      const cellar = path.join(dir, 'Cellar', 'port-daddy');
+      const newKegDb = path.join(cellar, '3.25.0', 'bin', 'port-registry.db');
+      const oldKegDb = path.join(cellar, '3.24.1_1', 'bin', 'port-registry.db');
+      const dest = path.join(dir, 'home', 'port-registry.db');
+      fs.mkdirSync(path.dirname(newKegDb), { recursive: true });
+      fs.mkdirSync(path.dirname(oldKegDb), { recursive: true });
+      makeLegacyDb(oldKegDb);
+
+      const execPath = path.join(cellar, '3.25.0', 'bin', 'port-daddy-daemon');
+      const candidates = legacyDbCandidates(newKegDb, execPath);
+      expect(candidates[0]).toBe(newKegDb); // primary first
+      expect(candidates).toContain(oldKegDb); // sibling keg discovered
+
+      expect(migrateLegacyRegistry(dest, candidates)).toBe(true);
+      const db = new Database(dest, { readonly: true });
+      expect(db.prepare('SELECT v FROM marker').get().v).toBe('legacy-truth');
+      db.close();
+    });
+
+    it('siblingKegDbPaths returns newest-first and [] outside a Cellar', () => {
+      const cellar = path.join(dir, 'Cellar', 'port-daddy');
+      const a = path.join(cellar, '3.23.0', 'bin', 'port-registry.db');
+      const b = path.join(cellar, '3.24.0', 'bin', 'port-registry.db');
+      fs.mkdirSync(path.dirname(a), { recursive: true });
+      fs.mkdirSync(path.dirname(b), { recursive: true });
+      makeLegacyDb(a);
+      makeLegacyDb(b);
+      const past = new Date(Date.now() - 60_000);
+      fs.utimesSync(a, past, past);
+
+      const found = siblingKegDbPaths(path.join(cellar, '3.25.0', 'bin', 'pd'));
+      expect(found).toEqual([b, a]);
+      expect(siblingKegDbPaths('/srv/port-daddy/bin/pd')).toEqual([]);
     });
   });
 
