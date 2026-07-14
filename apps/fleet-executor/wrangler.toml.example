@@ -103,7 +103,7 @@ DEFAULT_BRANCH = "main"
 # ONLY once you have a real sink URL, e.g. "https://your-tunnel/telemetry/cloud-app".
 PORT_DADDY_TELEMETRY_URL = ""
 
-# Human-facing run page (ADR-0098 Phase 0). When BOTH this and the
+# Human-facing run page (ADR-0101 Phase 0). When BOTH this and the
 # RUN_PAGE_SECRET secret are set, every 'Port Daddy Fleet' check run carries a
 # details_url pointing at the relay's HTML deliberation page for that run:
 #   <RUN_DETAILS_BASE_URL>/fleet/runs/<runId>?t=<hmac>

@@ -1,5 +1,5 @@
 /**
- * Capability-URL builder for the human-facing fleet run page (ADR-0098 Phase 0).
+ * Capability-URL builder for the human-facing fleet run page (ADR-0101 Phase 0).
  *
  * The relay serves GET /fleet/runs/:id as HTML, gated by an HMAC token derived
  * from the run id. GitHub's own repo ACL decides who ever *sees* the link (it
@@ -7,7 +7,7 @@
  * page unguessable even though run ids are deterministic (`run:<deliveryId>`).
  *
  * Both env values are optional: unset ⇒ no details_url on check runs (the
- * pre-ADR-0098 behavior). The secret MUST match the relay's RUN_PAGE_SECRET.
+ * pre-ADR-0101 behavior). The secret MUST match the relay's RUN_PAGE_SECRET.
  */
 
 export interface RunPageEnv {

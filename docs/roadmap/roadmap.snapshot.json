@@ -810,19 +810,19 @@
       "summaryMd": "Soft-delete tombstones for roadmap_items: deleted_at column, tombstone remove() preserving audit rows, read filtering, resurrection-on-upsert, reunify LWW propagation (zombie-resurrection fix for multi-replica union-merge)."
     },
     {
-      "slug": "adr-0098-fleet-run-pages",
+      "slug": "adr-0101-fleet-run-pages",
       "status": "now",
-      "summaryMd": "ADR-0098: user-account wedge \u2014 capability-URL fleet run pages (details_url, Phase 0 shipped), GitHub OAuth login + user/session schema (Phase 1), BYOK + Stripe-credit + anchor-macaroon fleet funding (Phases 2-3)."
+      "summaryMd": "ADR-0101: user-account wedge \u2014 capability-URL fleet run pages (details_url, Phase 0 shipped), GitHub OAuth login + user/session schema (Phase 1), BYOK + Stripe-credit + anchor-macaroon fleet funding (Phases 2-3)."
     },
     {
-      "slug": "adr-0098-phase-1-github-login",
+      "slug": "adr-0101-phase-1-github-login",
       "status": "backlog",
-      "summaryMd": "ADR-0098 Phase 1: GitHub OAuth login on the App + users/web_sessions/user_tokens D1 schema; repo-access authz on run pages; pd account login for FleetBar/pd-console."
+      "summaryMd": "ADR-0101 Phase 1: GitHub OAuth login on the App + users/web_sessions/user_tokens D1 schema; repo-access authz on run pages; pd account login for FleetBar/pd-console."
     },
     {
-      "slug": "adr-0098-phase-2-byok-funding",
+      "slug": "adr-0101-phase-2-byok-funding",
       "status": "backlog",
-      "summaryMd": "ADR-0098 Phase 2: BYOK fleet funding \u2014 envelope-encrypted per-user provider keys, fleet_run_spend attribution, OpenRouter-first routing, no silent operator-key fallback."
+      "summaryMd": "ADR-0101 Phase 2: BYOK fleet funding \u2014 envelope-encrypted per-user provider keys, fleet_run_spend attribution, OpenRouter-first routing, no silent operator-key fallback."
     }
   ]
 }
