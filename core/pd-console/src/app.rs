@@ -27,6 +27,7 @@ use crate::pane::{Alert, AlertLevel, Block, OperatorTurn, Pane, Tone};
 use crate::shell_drawer::{
     terminal_key_bytes, ShellEvent, ShellStatus, ShellTerminal, TerminalColor,
 };
+use crate::story_linework::{corner_ticks, micro_flag, state_stripe};
 use crate::tokens;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -192,6 +193,7 @@ pub enum ControlMsg {
 #[derive(Debug, Clone)]
 pub enum WorkUpdate {
     Receipt(crate::agent::WorkIntentReceipt),
+    Execution(crate::agent::WorkExecutionReceipt),
     Snapshot(crate::agent::WorkSnapshot),
     /// The path to the rendered Vello PNG for the current DAG — shown INLINE at the
     /// top of the Work surface (gpui `img(path)`).
@@ -652,6 +654,9 @@ fn launcher_legend_chip(label: &'static str, color: u32) -> impl IntoElement {
 // closures, which then re-read the live theme — with no borrow/lifetime threading.
 // 0 = light, 1 = dark (default = the shipped look).
 static THEME_MODE: AtomicU8 = AtomicU8::new(1);
+// 0 = full motion, 1 = reduced motion. The visible chrome control can change
+// this at runtime; the environment variable only seeds the starting value.
+static MOTION_MODE: AtomicU8 = AtomicU8::new(0);
 
 pub(crate) fn current_theme() -> Theme {
     let mode = if THEME_MODE.load(Ordering::Relaxed) == 0 {
@@ -673,14 +678,14 @@ fn toggle_theme() {
     crate::audio::play(crate::audio::Cue::Toggle);
 }
 
-/// Honour a reduced-motion preference (`PD_CONSOLE_REDUCED_MOTION=1`). gpui has
-/// no `@media (prefers-reduced-motion)`, so this is the native opt-out: when set,
-/// motion resolves to its final state instantly (orientation cues like the hover
-/// glow stay; only the travel is dropped).
 fn reduced_motion() -> bool {
-    std::env::var("PD_CONSOLE_REDUCED_MOTION")
-        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-        .unwrap_or(false)
+    MOTION_MODE.load(Ordering::Relaxed) == 1
+}
+
+fn toggle_motion() {
+    let next = if reduced_motion() { 0 } else { 1 };
+    MOTION_MODE.store(next, Ordering::Relaxed);
+    crate::audio::play(crate::audio::Cue::Toggle);
 }
 
 /// `PD_CONSOLE_NO_SPLASH` opt-out — suppresses the launch splash entirely.
@@ -842,6 +847,16 @@ pub fn init_theme_from_env() {
             THEME_MODE.store(1, Ordering::Relaxed);
         }
     }
+}
+
+/// Seed reduced motion from `PD_CONSOLE_REDUCED_MOTION`; the title deck exposes
+/// the same preference as a visible runtime control, so operators are not sent
+/// to an environment file for routine presentation settings.
+pub fn init_motion_from_env() {
+    let reduced = std::env::var("PD_CONSOLE_REDUCED_MOTION")
+        .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    MOTION_MODE.store(u8::from(reduced), Ordering::Relaxed);
 }
 
 fn tone_rgb(tone: &Tone) -> u32 {
@@ -1381,6 +1396,7 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                             div()
                                 .text_color(rgb(t.ink))
                                 .text_size(px(tokens::TEXT_BODY))
+                                .whitespace_normal()
                                 .child(body),
                         ),
                 );
@@ -1828,6 +1844,14 @@ pub struct ConsoleView {
     work_correlation_id: Option<String>,
     /// Recovery/progression instruction returned by the daemon.
     work_next_action: Option<String>,
+    /// Honest runtime state returned by WorkIntent.start. This is named as a
+    /// compatibility execution projection until AgentRun ledger materialization
+    /// lands; the GUI never upgrades it into a native AgentRun claim.
+    work_execution_state: String,
+    work_execution_id: Option<String>,
+    work_execution_projection: Option<String>,
+    work_execution_session: Option<String>,
+    work_execution_worktree: Option<String>,
     /// The node the operator clicked in the live Work canvas — drives the
     /// inspector drawer (full role/contracts/why/model/cost). `None` ⇒ no drawer.
     work_selected_node: Option<String>,
@@ -1837,6 +1861,10 @@ pub struct ConsoleView {
     /// True once the first pane refresh has landed. Until then the launch splash
     /// (the brand boot flash) covers the chrome.
     booted: bool,
+    /// Current `/health` reachability from the same refresh cycle that supplies
+    /// pane truth. Kept separate from `booted` so stale chrome cannot claim a
+    /// dead named daemon is connected.
+    daemon_connected: bool,
     /// Pole movement driving the waving flags — scroll feeds `vy`, viewport-width
     /// change feeds `vx`; both decay to rest each frame (see WavingFlag / pd-flag-proto).
     flag_motion: FlagMotion,
@@ -1975,6 +2003,13 @@ impl ConsoleView {
     /// `window.request_animation_frame()` which panics outside paint (it calls
     /// `current_view()`, whose entity stack is empty in an event handler).
     fn tick_flag_motion(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if reduced_motion() {
+            self.flag_motion.vx = 0.0;
+            self.flag_motion.vy = 0.0;
+            self.flag_ticking = false;
+            cx.notify();
+            return;
+        }
         let speed = (self.flag_motion.vx.powi(2) + self.flag_motion.vy.powi(2)).sqrt();
         self.flag_motion.phase += speed * 0.9;
         self.flag_motion.vx *= 0.86;
@@ -1993,7 +2028,7 @@ impl ConsoleView {
 
     /// Start the settle loop if it isn't already running (idempotent).
     fn kick_flag_motion(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.flag_ticking {
+        if !reduced_motion() && !self.flag_ticking {
             self.flag_ticking = true;
             cx.on_next_frame(window, |this, window, cx| this.tick_flag_motion(window, cx));
         }
@@ -2045,8 +2080,13 @@ impl ConsoleView {
             work_plan_state: "unplanned".into(),
             work_correlation_id: None,
             work_next_action: Some(
-                "Capture a WorkIntent; the daemon planner owns every later launch decision.".into(),
+                "Submit a WorkIntent; the daemon owns planning, runtime admission, and body selection.".into(),
             ),
+            work_execution_state: "not-started".into(),
+            work_execution_id: None,
+            work_execution_projection: None,
+            work_execution_session: None,
+            work_execution_worktree: None,
             work_selected_node: None,
             // Screenshot/demo hook (mirrors `--pane`): open the launcher on startup
             // so capture tooling can grab it without injecting a keystroke.
@@ -2055,6 +2095,7 @@ impl ConsoleView {
             // Splash suppression (screenshot hook + PD_CONSOLE_NO_SPLASH opt-out)
             // lives in render()'s gate, not here.
             booted: false,
+            daemon_connected: false,
             flag_motion: FlagMotion::default(),
             prev_viewport_w: 0.0,
             flag_ticking: false,
@@ -2428,7 +2469,7 @@ impl ConsoleView {
         ) {
             if !self.shell.send(bytes) {
                 self.control_flash = Some(
-                    "CLI input could not reach the PTY; relaunch pd-console for a fresh shell."
+                    "PTY_INPUT_CHANNEL_CLOSED · input did not reach the shell · next: relaunch pd-console"
                         .into(),
                 );
             }
@@ -3059,11 +3100,47 @@ impl ConsoleView {
                 self.work_plan_state = plan_state.clone();
                 self.work_correlation_id = Some(receipt.correlation_id.clone());
                 self.work_next_action = Some(receipt.next_action);
+                self.work_execution_state = "starting".into();
+                self.work_execution_id = None;
+                self.work_execution_projection = None;
+                self.work_execution_session = None;
+                self.work_execution_worktree = None;
                 self.ws_mut().swap_surface(SurfaceKind::Work);
                 self.control_flash = Some(format!(
                     "WorkIntent {status}: {intent_id} · plan {plan_state} · correlation {}{}",
                     receipt.correlation_id,
                     if duplicate {
+                        " · idempotent replay"
+                    } else {
+                        ""
+                    }
+                ));
+            }
+            WorkUpdate::Execution(receipt) => {
+                self.clear_work_projection_failure();
+                self.work_intent_id = Some(receipt.snapshot.intent_id().to_string());
+                self.work_plan_state = receipt.snapshot.plan_state().to_string();
+                self.work_plan_graph = crate::work_plan::from_work_snapshot(&receipt.snapshot);
+                self.work_correlation_id = Some(receipt.correlation_id.clone());
+                self.work_next_action = Some(receipt.next_action);
+                self.work_execution_state = receipt.state.clone();
+                self.work_execution_id = Some(receipt.dispatch_id.clone());
+                self.work_execution_projection = Some(receipt.projection.clone());
+                self.work_execution_session = receipt.session_id.clone();
+                self.work_execution_worktree = receipt.worktree_path.clone();
+                self.ws_mut()
+                    .swap_surface(SurfaceKind::AgentTranscript { agent_id: None });
+                self.control_flash = Some(format!(
+                    "WorkIntent runtime {}: {} · {}{}{}",
+                    receipt.status,
+                    receipt.state,
+                    receipt.dispatch_id,
+                    if receipt.launched_this_tick > 0 {
+                        format!(" · {} worker claim processed", receipt.launched_this_tick)
+                    } else {
+                        String::new()
+                    },
+                    if receipt.duplicate {
                         " · idempotent replay"
                     } else {
                         ""
@@ -3093,10 +3170,15 @@ impl ConsoleView {
         updates: Vec<(usize, Vec<Block>)>,
         dispatch_head: Option<DispatchHead>,
         galaxy: crate::galaxy_pane::GalaxySnapshot,
+        daemon_connected: bool,
     ) -> bool {
         // First refresh dismisses the launch splash (a real visual change).
         let mut changed = !self.booted;
         self.booted = true;
+        if self.daemon_connected != daemon_connected {
+            self.daemon_connected = daemon_connected;
+            changed = true;
+        }
         for (idx, blocks) in updates {
             if let Some(slot) = self.pane_blocks.get_mut(idx) {
                 if *slot != blocks {
@@ -3261,6 +3343,23 @@ impl ConsoleView {
                 } else {
                     json!({"ok": false, "error": "chat needs non-empty \"text\""})
                 }
+            }
+            ScriptRequest::Work { goal } => {
+                let control_plane = self.control_tx.is_some();
+                self.submit_command(CommandLine::with_buffer(CmdKind::Work, goal.clone()));
+                json!({
+                    "ok": control_plane,
+                    "work": {
+                        "submitted": control_plane,
+                        "goal": goal,
+                        "authority": "daemon-work-intent",
+                    },
+                    "error": if control_plane {
+                        serde_json::Value::Null
+                    } else {
+                        serde_json::Value::String("no control channel (view constructed without one)".into())
+                    },
+                })
             }
             ScriptRequest::Rebind { url } => match &self.control_tx {
                 Some(tx) => {
@@ -3600,6 +3699,11 @@ impl ConsoleView {
         let work_plan_state = self.work_plan_state.clone();
         let work_correlation_id = self.work_correlation_id.clone();
         let work_next_action = self.work_next_action.clone();
+        let work_execution_state = self.work_execution_state.clone();
+        let work_execution_id = self.work_execution_id.clone();
+        let work_execution_projection = self.work_execution_projection.clone();
+        let work_execution_session = self.work_execution_session.clone();
+        let work_execution_worktree = self.work_execution_worktree.clone();
         // The FileTree surface (P0 Harbor wiring): clickable rows — a file row
         // opens the Editor surface; a directory row descends (rebinds the root).
         let filetree: Option<(Option<String>, Vec<FileEntry>)> = match surface {
@@ -4172,9 +4276,43 @@ impl ConsoleView {
                                 .text_color(rgb(current_theme().muted))
                                 .text_size(px(13.0))
                                 .child(format!(
-                                    "{work_plan_state} \u{00b7} {work_intent_id} \u{00b7} {work_wave_count} daemon-authored wave(s)"
+                                    "{work_plan_state} \u{00b7} {work_intent_id} \u{00b7} runtime {work_execution_state} \u{00b7} {work_wave_count} daemon-authored wave(s)"
                                 )),
                         )
+                        .when_some(work_execution_id, |bar, execution_id| {
+                            bar.child(
+                                div()
+                                    .text_color(rgb(current_theme().engaged))
+                                    .text_size(px(12.0))
+                                    .child(format!("receipt {execution_id}")),
+                            )
+                        })
+                        .when_some(work_execution_projection, |bar, projection| {
+                            bar.child(
+                                div()
+                                    .text_color(rgb(current_theme().muted))
+                                    .text_size(px(12.0))
+                                    .child(projection),
+                            )
+                        })
+                        .when_some(work_execution_session, |bar, session| {
+                            bar.child(
+                                div()
+                                    .text_color(rgb(current_theme().muted))
+                                    .text_size(px(12.0))
+                                    .child(format!("session {session}")),
+                            )
+                        })
+                        .when_some(work_execution_worktree, |bar, worktree| {
+                            bar.child(
+                                div()
+                                    .flex_1()
+                                    .overflow_hidden()
+                                    .text_color(rgb(current_theme().muted))
+                                    .text_size(px(12.0))
+                                    .child(format!("worktree {worktree}")),
+                            )
+                        })
                         .when_some(work_correlation_id, |bar, correlation| {
                             bar.child(
                                 div()
@@ -4251,7 +4389,7 @@ impl ConsoleView {
             // Paint focus ticks last so title and body backgrounds cannot cover
             // them. Focus is a boundary, never a glow.
             .children(if is_focused {
-                story_corner_ticks(format!("pane-{id}"), current_theme().ink)
+                corner_ticks(format!("pane-{id}"), current_theme().ink)
             } else {
                 Vec::new()
             })
@@ -4984,9 +5122,9 @@ fn command_bar_btn(
 /// the theme a discoverable operator action in the chrome.
 fn theme_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
     let theme = current_theme();
-    let (icon, label) = match theme.mode {
-        ThemeMode::Dark => ("☀", "Light"),
-        ThemeMode::Light => ("◐", "Dark"),
+    let label = match theme.mode {
+        ThemeMode::Dark => "LIGHT",
+        ThemeMode::Light => "DARK",
     };
     div()
         .id("theme-toggle")
@@ -5001,18 +5139,60 @@ fn theme_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
         .cursor_pointer()
         .flex()
         .items_center()
-        .gap(px(tokens::SPACE_1))
         .hover(|s| {
             let t = current_theme();
             s.bg(rgb(t.raised))
                 .border_color(rgb(t.accent))
                 .text_color(rgb(t.accent_ink))
         })
-        .child(div().text_size(px(tokens::TEXT_BODY)).child(icon))
         .child(label)
         .on_click(cx.listener(|this, _ev, _window, cx| {
             toggle_theme();
             this.control_flash = Some(format!("theme → {}", current_theme().mode.label()));
+            cx.notify();
+        }))
+}
+
+/// Visible motion policy control. Reduced motion is a state-preserving mode:
+/// travel and pulses stop immediately while color, edge, and labels remain.
+fn motion_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
+    let reduced = reduced_motion();
+    let theme = current_theme();
+    div()
+        .id("motion-toggle")
+        .px(px(tokens::SPACE_2))
+        .py(px(tokens::SPACE_1))
+        .border_1()
+        .border_color(rgb(if reduced { theme.engaged } else { theme.line }))
+        .bg(rgb(theme.panel))
+        .text_color(rgb(if reduced { theme.engaged } else { theme.ink2 }))
+        .text_size(px(tokens::TEXT_CAPTION))
+        .font_weight(FontWeight::SEMIBOLD)
+        .cursor_pointer()
+        .hover(|style| {
+            let t = current_theme();
+            style
+                .bg(rgb(t.raised))
+                .border_color(rgb(t.accent))
+                .text_color(rgb(t.accent_ink))
+        })
+        .child(if reduced {
+            "MOTION REDUCED"
+        } else {
+            "MOTION ON"
+        })
+        .on_click(cx.listener(|this, _event, _window, cx| {
+            toggle_motion();
+            if reduced_motion() {
+                this.flag_motion.vx = 0.0;
+                this.flag_motion.vy = 0.0;
+                this.flag_ticking = false;
+            }
+            this.control_flash = Some(if reduced_motion() {
+                "motion reduced; state edges remain visible".into()
+            } else {
+                "motion enabled".into()
+            });
             cx.notify();
         }))
 }
@@ -6157,50 +6337,6 @@ fn story_sparse_poster(id: PaneId, surface: &SurfaceKind, status: &str) -> AnyEl
     poster.into_any_element()
 }
 
-fn story_corner_ticks(prefix: impl Into<String>, color: u32) -> Vec<AnyElement> {
-    let prefix = prefix.into();
-    let corner = |suffix: &'static str, top: bool, left: bool| {
-        div()
-            .id(SharedString::from(format!("{prefix}-{suffix}")))
-            .absolute()
-            .when(top, |d| d.top_0())
-            .when(!top, |d| d.bottom_0())
-            .when(left, |d| d.left_0())
-            .when(!left, |d| d.right_0())
-            .w(px(20.0))
-            .h(px(20.0))
-            .child(
-                div()
-                    .absolute()
-                    .when(top, |d| d.top_0())
-                    .when(!top, |d| d.bottom_0())
-                    .when(left, |d| d.left_0())
-                    .when(!left, |d| d.right_0())
-                    .w(px(20.0))
-                    .h(px(2.0))
-                    .bg(rgb(color)),
-            )
-            .child(
-                div()
-                    .absolute()
-                    .when(top, |d| d.top_0())
-                    .when(!top, |d| d.bottom_0())
-                    .when(left, |d| d.left_0())
-                    .when(!left, |d| d.right_0())
-                    .w(px(2.0))
-                    .h(px(20.0))
-                    .bg(rgb(color)),
-            )
-            .into_any_element()
-    };
-    vec![
-        corner("tick-nw", true, true),
-        corner("tick-ne", true, false),
-        corner("tick-sw", false, true),
-        corner("tick-se", false, false),
-    ]
-}
-
 fn terminal_rgb(color: TerminalColor, default: u32) -> u32 {
     const ANSI: [u32; 16] = [
         0x17191d, 0xd95d69, 0x78c895, 0xd7b84b, 0x5f8ee4, 0xc27acb, 0x63c5c2, 0xd8d5cd, 0x6f7682,
@@ -6227,6 +6363,46 @@ fn terminal_rgb(color: TerminalColor, default: u32) -> u32 {
     }
 }
 
+fn shell_failure_strip(
+    id: &'static str,
+    failure: &crate::shell_drawer::ShellFailure,
+    color: u32,
+) -> AnyElement {
+    let t = current_theme();
+    div()
+        .id(id)
+        .mx(px(10.0))
+        .mb(px(8.0))
+        .flex()
+        .bg(tone_wash(color, 0x20))
+        .child(state_stripe(format!("{id}-stripe"), color, 3.0, 52.0))
+        .child(
+            div()
+                .flex_1()
+                .px(px(9.0))
+                .py(px(6.0))
+                .font_family("IBM Plex Mono")
+                .text_size(px(12.0))
+                .child(
+                    div()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(rgb(color))
+                        .child(format!("{} · {}", failure.code(), failure.summary())),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(t.ink2))
+                        .child(failure.detail().to_string()),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(color))
+                        .child(format!("NEXT · {}", failure.next_action())),
+                ),
+        )
+        .into_any_element()
+}
+
 fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> AnyElement {
     let t = current_theme();
     let (shell_rows, shell_cols) = view.shell.size();
@@ -6244,6 +6420,10 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
         .rounded(px(4.0))
         .bg(rgb(status_color));
     let status_dot: AnyElement = status_dot.into_any_element();
+    let retention = view.shell.retention();
+    let previous_receipt = view.shell.previous_receipt().cloned();
+    let terminal_failure = view.shell.failure().cloned();
+    let recovery_failure = view.shell.recovery_failure().cloned();
 
     let lines = view.shell.styled_lines(15);
     let output_rows = lines.into_iter().map(|line| {
@@ -6306,7 +6486,7 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
         .left(px(16.0))
         .right(px(16.0))
         .bottom(px(64.0))
-        .h(px(326.0))
+        .h(px(360.0))
         .occlude()
         .flex()
         .flex_col()
@@ -6317,7 +6497,6 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
             blur_radius: px(28.0),
             spread_radius: px(1.0),
         }])
-        .children(story_corner_ticks("cli", t.accent_ink))
         // One large color zone: command context. The rest of the terminal stays
         // quiet enough that state stripes and actual ANSI output can speak.
         .child(
@@ -6329,25 +6508,14 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
                 .items_center()
                 .bg(rgb(t.accent))
                 .text_color(rgb(0xffffff))
-                .child(
-                    div()
-                        .h_full()
-                        .w(px(5.0))
-                        .flex_shrink_0()
-                        .bg(rgb(status_color)),
-                )
+                .child(state_stripe("cli-header-state", status_color, 5.0, 34.0))
                 .child(
                     div()
                         .ml(px(10.0))
                         .flex()
                         .items_center()
                         .gap(px(8.0))
-                        .child(
-                            div()
-                                .flex()
-                                .child(div().w(px(9.0)).h(px(14.0)).bg(rgb(0xffffff)))
-                                .child(div().w(px(9.0)).h(px(14.0)).bg(rgb(t.engaged))),
-                        )
+                        .child(micro_flag("cli-context-flag", 0xffffff, t.engaged, 9.0, 14.0))
                         .child(
                             div()
                                 .font_family("IBM Plex Mono")
@@ -6364,6 +6532,38 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
                         .font_family("IBM Plex Mono")
                         .text_size(px(12.0))
                         .child(view.shell.status_label()),
+                )
+                .child(
+                    div()
+                        .id("cycle-cli-receipt-retention")
+                        .ml(px(10.0))
+                        .px(px(7.0))
+                        .h(px(22.0))
+                        .flex()
+                        .items_center()
+                        .border_1()
+                        .border_color(rgba(0xffffff66))
+                        .cursor_pointer()
+                        .font_family("IBM Plex Mono")
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_size(px(11.0))
+                        .hover(|style| style.bg(rgba(0xffffff22)).border_color(rgb(0xffffff)))
+                        .child(format!("RECEIPT {}", retention.label().to_uppercase()))
+                        .on_click(cx.listener(|this, _event, _window, cx| {
+                            let retention = this.shell.cycle_retention();
+                            this.control_flash = Some(match retention {
+                                crate::shell_drawer::ShellRetention::Off => {
+                                    "shell receipt retention off".into()
+                                }
+                                crate::shell_drawer::ShellRetention::Metadata => {
+                                    "shell receipt stores launch metadata; environment and screen excluded".into()
+                                }
+                                crate::shell_drawer::ShellRetention::Screen => {
+                                    "shell receipt stores visible screen; environment excluded".into()
+                                }
+                            });
+                            cx.notify();
+                        })),
                 )
                 .child(
                     div()
@@ -6392,13 +6592,7 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
                 .overflow_hidden()
                 .flex()
                 .bg(rgb(t.sunken))
-                .child(
-                    div()
-                        .w(px(3.0))
-                        .h_full()
-                        .flex_shrink_0()
-                        .bg(rgb(status_color)),
-                )
+                .child(state_stripe("cli-output-state", status_color, 3.0, 256.0))
                 .child(
                     div()
                         .flex_1()
@@ -6408,20 +6602,83 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
                         .children(output_rows),
                 ),
         )
-        .when_some(view.shell.error(), |drawer, error| {
+        .when_some(terminal_failure, |drawer, failure| {
+            drawer.child(shell_failure_strip("cli-terminal-failure", &failure, t.gated))
+        })
+        .when_some(recovery_failure, |drawer, failure| {
+            drawer.child(shell_failure_strip("cli-recovery-failure", &failure, t.engaged))
+        })
+        .when_some(previous_receipt, |drawer, receipt| {
+            let preview = receipt.screen_preview_label();
+            let (rows, cols) = receipt.size();
             drawer.child(
                 div()
                     .mx(px(10.0))
                     .mb(px(8.0))
-                    .px(px(9.0))
-                    .py(px(6.0))
-                    .border_l_2()
-                    .border_color(rgb(t.gated))
-                    .bg(tone_wash(t.gated, 0x20))
-                    .text_color(rgb(t.gated))
-                    .font_family("IBM Plex Mono")
-                    .text_size(px(12.0))
-                    .child(error.to_string()),
+                    .flex()
+                    .border_t_1()
+                    .border_b_1()
+                    .border_color(rgb(t.line))
+                    .bg(rgb(t.panel))
+                    .child(state_stripe("cli-receipt-stripe", t.engaged, 3.0, 48.0))
+                    .child(
+                        div()
+                            .flex_1()
+                            .px(px(9.0))
+                            .py(px(5.0))
+                            .overflow_hidden()
+                            .font_family("IBM Plex Mono")
+                            .text_size(px(11.0))
+                            .child(
+                                div()
+                                    .font_weight(FontWeight::BOLD)
+                                    .text_color(rgb(t.engaged))
+                                    .child(format!(
+                                        "PREVIOUS SHELL RECEIPT · {} · {}",
+                                        receipt.age_label(),
+                                        receipt.honest_status()
+                                    )),
+                            )
+                            .child(
+                                div()
+                                    .text_color(rgb(t.muted))
+                                    .child(format!(
+                                        "{} · launch {} · PTY {rows}x{cols}",
+                                        receipt.shell_label(),
+                                        receipt.launch_cwd_label()
+                                    )),
+                            )
+                            .when_some(preview, |body, line| {
+                                body.child(
+                                    div()
+                                        .whitespace_nowrap()
+                                        .text_color(rgb(t.ink2))
+                                        .child(format!("SCREEN RETAINED · {line}")),
+                                )
+                            }),
+                    )
+                    .child(
+                        div()
+                            .id("clear-cli-recovery-receipt")
+                            .px(px(9.0))
+                            .flex()
+                            .items_center()
+                            .border_l_1()
+                            .border_color(rgb(t.line))
+                            .cursor_pointer()
+                            .text_color(rgb(t.muted))
+                            .font_family("IBM Plex Mono")
+                            .text_size(px(11.0))
+                            .hover(|style| {
+                                style.bg(rgb(current_theme().raised)).text_color(rgb(current_theme().ink))
+                            })
+                            .child("CLEAR")
+                            .on_click(cx.listener(|this, _event, _window, cx| {
+                                this.shell.clear_previous_receipt();
+                                this.control_flash = Some("previous shell receipt cleared".into());
+                                cx.notify();
+                            })),
+                    ),
             )
         })
         .child(
@@ -6439,13 +6696,16 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
                 .text_size(px(11.0))
                 .text_color(rgb(t.muted))
                 .child(format!(
-                    "{} · {}",
+                    "{} · launch {}",
                     view.shell.shell(),
-                    view.shell.cwd().display()
+                    view.shell.launch_cwd_label()
                 ))
                 .child(div().flex_1())
                 .child(format!("PTY {shell_rows}×{shell_cols} · xterm-256color")),
-        );
+        )
+        // Focus ticks paint last so the color-block header and terminal output
+        // cannot cover the boundary language.
+        .children(corner_ticks("cli", t.accent_ink));
 
     // The PTY repaints for every output chunk. Render-owned animations restart
     // on those updates and invalidate GPUI's absolute-layer cache, which can
@@ -6490,7 +6750,7 @@ impl Render for ConsoleView {
         let command = self.command.clone();
         let lit = armed || command.is_some();
         let pane_count = self.ws().pane_count();
-        let daemon_connected = self.booted;
+        let daemon_connected = self.daemon_connected;
         let zoomed = self.zoomed();
         // Tab bar data (index, name, is-active).
         let tabs: Vec<(usize, String, bool)> = self
@@ -6824,6 +7084,8 @@ impl Render for ConsoleView {
                             })),
                     )
                     .child(div().flex_1())
+                    .child(motion_toggle_btn(cx))
+                    .child(theme_toggle_btn(cx))
                     // The terminal is global operator chrome, not a pane. Its
                     // two-block micro-flag and live dot stay visible everywhere.
                     .child({
@@ -6857,17 +7119,13 @@ impl Render for ConsoleView {
                                 d.bg(rgb(current_theme().raised))
                                     .text_color(rgb(current_theme().accent_ink))
                             })
-                            .child(
-                                div()
-                                    .flex()
-                                    .child(
-                                        div()
-                                            .w(px(7.0))
-                                            .h(px(10.0))
-                                            .bg(rgb(current_theme().accent)),
-                                    )
-                                    .child(div().w(px(7.0)).h(px(10.0)).bg(rgb(state))),
-                            )
+                            .child(micro_flag(
+                                "cli-global-flag",
+                                current_theme().accent,
+                                state,
+                                7.0,
+                                10.0,
+                            ))
                             .child(
                                 div()
                                     .font_family("IBM Plex Mono")
@@ -6884,11 +7142,13 @@ impl Render for ConsoleView {
                         div()
                             .ml(px(10.0))
                             .mr(px(8.0))
-                            .w(px(22.0))
-                            .h(px(15.0))
-                            .flex()
-                            .child(div().w(px(11.0)).h_full().bg(rgb(current_theme().engaged)))
-                            .child(div().w(px(11.0)).h_full().bg(rgb(current_theme().accent))),
+                            .child(micro_flag(
+                                "title-deck-flag",
+                                current_theme().engaged,
+                                current_theme().accent,
+                                11.0,
+                                15.0,
+                            )),
                     ),
             )
             .child(render_story_nav_bar(active_nav.as_deref(), cx))

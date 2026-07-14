@@ -54,6 +54,7 @@ mod script;
 mod sessions_pane;
 mod shell_drawer;
 mod sortie_pane;
+mod story_linework;
 mod substrate_pane;
 mod suggest_pane;
 mod syntax;
@@ -100,6 +101,23 @@ use gpui::*;
 use std::borrow::Cow;
 use std::sync::mpsc;
 use std::time::Duration;
+
+/// Present one changed operator frame. GPUI 0.2.2 marks an inactive macOS
+/// window dirty but can leave its display link parked after the first frame.
+/// A sub-point native size toggle wakes that callback; alternating the offset
+/// keeps the window within a single logical pixel instead of allowing drift.
+fn present_changed_frame(
+    window: &mut Window,
+    cx: &mut Context<ConsoleView>,
+    size_nudged: &mut bool,
+) {
+    cx.notify();
+    window.refresh();
+    let mut present_size = window.viewport_size();
+    present_size.width += if *size_nudged { px(-0.5) } else { px(0.5) };
+    *size_nudged = !*size_nudged;
+    window.resize(present_size);
+}
 
 /// Resolve the `pd-conjure-proto` crate dir (the Vello renderer). Honors a
 /// `PD_CONJURE_PROTO_DIR` override (a packaged app can point at an installed
@@ -287,8 +305,9 @@ fn main() {
         }
     }
 
-    // Seed light/dark from PD_CONSOLE_THEME before the window opens (default dark).
+    // Seed operator presentation preferences before the window opens.
     app::init_theme_from_env();
+    app::init_motion_from_env();
 
     // Canonical daemon discovery: PORT_DADDY_URL env var → daemon.port file → default.
     // All fallback logic lives in DaemonClient::discover(); no literals here.
@@ -359,13 +378,16 @@ fn main() {
         let (shell, mut shell_rx) = match shell_drawer::ShellTerminal::spawn(shell_cwd.clone()) {
             Ok(session) => session,
             Err(error) => {
-                let message = format!(
-                    "Could not launch the CLI PTY: {error:#}. Set SHELL to a valid executable, then relaunch pd-console."
+                let failure = shell_drawer::ShellFailure::new(
+                    "PTY_LAUNCH_FAILED",
+                    "The CLI shell could not be launched.",
+                    format!("{error:#}"),
+                    "Choose a valid login shell, then relaunch pd-console.",
                 );
-                eprintln!("{message}");
+                eprintln!("{}", failure.operator_message());
                 let (_event_tx, event_rx) = tokio::sync::mpsc::unbounded_channel();
                 (
-                    shell_drawer::ShellTerminal::disconnected(shell_cwd, message),
+                    shell_drawer::ShellTerminal::disconnected_with_recovery(shell_cwd, failure),
                     event_rx,
                 )
             }
@@ -443,6 +465,7 @@ fn main() {
             Vec<(usize, Vec<pane::Block>)>,
             Option<dispatch_pane::DispatchHead>,
             galaxy_pane::GalaxySnapshot,
+            bool,
         )>();
         // Alert bus: the bg thread captures the daemon's REAL rejection from any
         // operator action and pushes it here instead of swallowing it (`let _ =`).
@@ -590,16 +613,33 @@ fn main() {
                                         let state = receipt.snapshot.plan_state().to_string();
                                         let correlation = receipt.correlation_id.clone();
                                         let duplicate = receipt.duplicate;
+                                        let snapshot = receipt.snapshot.clone();
                                         latest_work_projection =
                                             Some((intent_id.clone(), state.clone()));
                                         let _ = work_tx.send(app::WorkUpdate::Receipt(receipt));
-                                        let _ = alert_tx.send(pane::Alert::info(
-                                            format!("WorkIntent captured: {intent_id}"),
-                                            format!(
-                                                "plan {state} · trace {correlation}{} · no AgentRun started",
-                                                if duplicate { " · idempotent replay" } else { "" }
-                                            ),
-                                        ));
+                                        match client.start_work_intent(&snapshot).await {
+                                            Ok(execution) => {
+                                                let runtime_state = execution.state.clone();
+                                                let execution_id = execution.dispatch_id.clone();
+                                                let launched = execution.launched_this_tick;
+                                                let _ = work_tx.send(app::WorkUpdate::Execution(execution));
+                                                let _ = alert_tx.send(pane::Alert::info(
+                                                    format!("WorkIntent started: {intent_id}"),
+                                                    format!(
+                                                        "runtime {runtime_state} · receipt {execution_id} · trace {correlation} · {launched} worker claim processed{}",
+                                                        if duplicate { " · capture replay" } else { "" }
+                                                    ),
+                                                ));
+                                            }
+                                            Err(error) => {
+                                                let _ = alert_tx.send(pane::Alert::error(
+                                                    format!("WorkIntent captured; runtime start failed: {intent_id}"),
+                                                    format!(
+                                                        "{error} · retry uses the same idempotency key; inspect the Work receipt before assuming no body started"
+                                                    ),
+                                                ));
+                                            }
+                                        }
                                     }
                                     Err(error) => {
                                         let _ = alert_tx.send(pane::Alert::error(
@@ -633,25 +673,58 @@ fn main() {
                                     ));
                                 }
                             }
-                            // Until a daemon-owned conversation binding service exists,
-                            // chat captures intent and states that no responder exists.
-                            // It never quietly chooses a provider or creates a side-channel run.
                             app::ControlMsg::ChatSend { text } => {
-                                let goal = format!("Open an operator conversation: {text}");
+                                if lane.has_agent() {
+                                    if let Err(error) = lane
+                                        .mutate(
+                                            &client,
+                                            SurfaceAction::OperatorTurn {
+                                                turn: OperatorTurn::parse(text),
+                                            },
+                                        )
+                                        .await
+                                    {
+                                        let _ = chat_tx.send(chat::ChatUpdate::Error(format!(
+                                            "operator turn was not delivered: {error}"
+                                        )));
+                                    }
+                                    continue;
+                                }
+
+                                let goal = format!(
+                                    "Answer this operator message directly and briefly, then record any useful next action: {text}"
+                                );
                                 match client.capture_work_intent(&goal).await {
                                     Ok(receipt) => {
                                         let intent_id = receipt.snapshot.intent_id().to_string();
                                         let state = receipt.snapshot.plan_state().to_string();
-                                        latest_work_projection =
-                                            Some((intent_id.clone(), state.clone()));
+                                        let snapshot = receipt.snapshot.clone();
+                                        latest_work_projection = Some((intent_id.clone(), state));
                                         let _ = work_tx.send(app::WorkUpdate::Receipt(receipt));
-                                        let _ = chat_tx.send(chat::ChatUpdate::Error(format!(
-                                            "WorkIntent {intent_id} captured with plan state {state}; no AgentRun or chat responder is attached yet"
-                                        )));
+                                        match client.start_work_intent(&snapshot).await {
+                                            Ok(execution) => {
+                                                let runtime_state = execution.state.clone();
+                                                let execution_id = execution.dispatch_id.clone();
+                                                let _ = work_tx.send(app::WorkUpdate::Execution(execution));
+                                                let _ = chat_tx.send(chat::ChatUpdate::Reply(
+                                                    chat::ChatMsg::agent(
+                                                        "port-daddy",
+                                                        format!(
+                                                            "governed responder {runtime_state}; receipt {execution_id}. Live assistant turns will stream here."
+                                                        ),
+                                                    ),
+                                                ));
+                                            }
+                                            Err(error) => {
+                                                let _ = chat_tx.send(chat::ChatUpdate::Error(format!(
+                                                    "conversation WorkIntent {intent_id} is durable, but runtime start is unknown: {error}"
+                                                )));
+                                            }
+                                        }
                                     }
                                     Err(error) => {
                                         let _ = chat_tx.send(chat::ChatUpdate::Error(format!(
-                                            "conversation intent was not captured: {error}; no responder was started"
+                                            "conversation intent was not captured: {error}; no responder was requested"
                                         )));
                                     }
                                 }
@@ -1061,7 +1134,13 @@ fn main() {
                     // Drain whatever the live stream delivered since last loop.
                     if let Some((_, rx)) = lane_stream.as_mut() {
                         while let Ok(env) = rx.try_recv() {
+                            let speaker = env.agent_id.clone();
                             lane.on_stream(&env);
+                            for reply in lane.take_chat_replies() {
+                                let _ = chat_tx.send(chat::ChatUpdate::Reply(
+                                    chat::ChatMsg::agent(speaker.clone(), reply),
+                                ));
+                            }
                         }
                     }
 
@@ -1177,7 +1256,15 @@ fn main() {
                         (26, galaxy.view()),
                     ];
 
-                    if tx.send((all, dispatch.head(), galaxy.snapshot())).is_err() {
+                    if tx
+                        .send((
+                            all,
+                            dispatch.head(),
+                            galaxy.snapshot(),
+                            health.is_connected(),
+                        ))
+                        .is_err()
+                    {
                         break; // window closed
                     }
                 }
@@ -1189,51 +1276,59 @@ fn main() {
         let async_cx = cx.to_async();
         cx.foreground_executor()
             .spawn(async move {
+                let mut size_nudged = false;
                 loop {
                     bg.timer(Duration::from_millis(500)).await;
-                    while let Ok((panes, dispatch_head, galaxy_snapshot)) = rx.try_recv() {
+                    while let Ok((panes, dispatch_head, galaxy_snapshot, daemon_connected)) =
+                        rx.try_recv()
+                    {
                         let _ = async_cx.update(|app| {
-                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                            let _ = window.update(app, |view: &mut ConsoleView, window, cx| {
                                 // Notify ONLY when a pane actually changed — an
                                 // idle 2s refresh cycle schedules zero repaints.
                                 if view.update_panes(
                                     panes.clone(),
                                     dispatch_head.clone(),
                                     galaxy_snapshot.clone(),
+                                    daemon_connected,
                                 ) {
-                                    cx.notify();
+                                    present_changed_frame(window, cx, &mut size_nudged);
                                 }
                             });
                         });
+                        let _ = async_cx.refresh();
                     }
                     // Drain the alert bus: every captured action failure/outcome
                     // lands in the view (flash + accumulated HITL log).
                     while let Ok(alert) = alert_rx.try_recv() {
                         let _ = async_cx.update(|app| {
-                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                            let _ = window.update(app, |view: &mut ConsoleView, window, cx| {
                                 view.push_alert(alert.clone());
-                                cx.notify();
+                                present_changed_frame(window, cx, &mut size_nudged);
                             });
                         });
+                        let _ = async_cx.refresh();
                     }
                     // Drain durable Work truth and render artifacts derived from it.
                     while let Ok(update) = work_rx.try_recv() {
                         let _ = async_cx.update(|app| {
-                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                            let _ = window.update(app, |view: &mut ConsoleView, window, cx| {
                                 view.apply_work_update(update.clone());
-                                cx.notify();
+                                present_changed_frame(window, cx, &mut size_nudged);
                             });
                         });
+                        let _ = async_cx.refresh();
                     }
                     // Drain the chat bus: real replies down the tube (with the receive
                     // earcon) or a transport error, folded into the chat transcript.
                     while let Ok(update) = chat_rx.try_recv() {
                         let _ = async_cx.update(|app| {
-                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                            let _ = window.update(app, |view: &mut ConsoleView, window, cx| {
                                 view.apply_chat_update(update.clone());
-                                cx.notify();
+                                present_changed_frame(window, cx, &mut size_nudged);
                             });
                         });
+                        let _ = async_cx.refresh();
                     }
                     // Drain the Harbor Editor bus (P3 wire stage 2): the producer's live
                     // pane blocks — presence cursors, region claims, wedge conflict/gate
@@ -1251,11 +1346,12 @@ fn main() {
                     // (or the daemon's real failure) into the drawer state.
                     while let Ok(update) = galaxy_rx.try_recv() {
                         let _ = async_cx.update(|app| {
-                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                            let _ = window.update(app, |view: &mut ConsoleView, window, cx| {
                                 view.apply_galaxy_update(update.clone());
-                                cx.notify();
+                                present_changed_frame(window, cx, &mut size_nudged);
                             });
                         });
+                        let _ = async_cx.refresh();
                     }
                     // Drain the scripting bus: answer each control-socket
                     // command from the view, on the foreground, and post the
@@ -1263,12 +1359,13 @@ fn main() {
                     while let Ok(envelope) = script_rx.try_recv() {
                         let script::ScriptEnvelope { request, reply } = envelope;
                         let _ = async_cx.update(|app| {
-                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                            let _ = window.update(app, |view: &mut ConsoleView, window, cx| {
                                 let response = view.handle_script(request.clone());
                                 let _ = reply.send(response);
-                                cx.notify();
+                                present_changed_frame(window, cx, &mut size_nudged);
                             });
                         });
+                        let _ = async_cx.refresh();
                     }
                 }
             })

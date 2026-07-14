@@ -130,6 +130,11 @@ export interface CaptureDispatchResult extends CaptureResult {
   dispatch: Dispatch;
 }
 
+export interface StartWorkIntentResult extends WorkIntentSnapshot {
+  dispatch: Dispatch;
+  duplicate: boolean;
+}
+
 export interface EnsureDispatchIntentResult {
   intent: WorkIntentPayload;
   append: AppendResult | null;
@@ -154,6 +159,7 @@ export interface WorkIntentService {
   captureWithInitialPlan(input: CaptureWorkIntentInput): CaptureWithInitialPlanResult;
   get(intentId: string): WorkIntentSnapshot | null;
   list(limit?: number): WorkIntentSnapshot[];
+  start(intentId: string, queue: DispatchQueue): StartWorkIntentResult;
   captureDispatch(input: CaptureDispatchInput, queue: DispatchQueue): CaptureDispatchResult;
   ensureDispatchIntent(dispatch: Dispatch): EnsureDispatchIntentResult;
 }
@@ -173,7 +179,19 @@ function idSafe(value: string): string {
 }
 
 export function dispatchIdForWorkIntent(intentId: string): string {
-  return `dispatch_${idSafe(intentId.replace(/^work_intent_/, ''))}`;
+  // Dispatch's legacy worktree projection keys paths from the first eight
+  // alphanumerics of the id. A readable `dispatch_console_...` prefix therefore
+  // collapsed every console WorkIntent onto one worktree. Put entropy first and
+  // format the stable digest as a UUID-shaped id: retry-safe, readable in every
+  // existing dispatch surface, and distinct before the legacy truncation point.
+  const token = stableToken(`work-intent-dispatch:${intentId}`);
+  return [
+    token.slice(0, 8),
+    token.slice(8, 12),
+    token.slice(12, 16),
+    token.slice(16, 20),
+    token.slice(20, 32),
+  ].join('-');
 }
 
 export function planIdForWorkIntent(intentId: string): string {
@@ -307,18 +325,26 @@ function materializeDispatchProjectionFromIntent(
   queue: DispatchQueue,
 ): Dispatch {
   const projection = intent.compat?.dispatchProjection;
+  const constraints = intent.constraints ?? {};
+  const maxCostUsd = typeof constraints.maxCostUsd === 'number'
+    ? constraints.maxCostUsd
+    : undefined;
+  const deadlineMs = typeof constraints.deadlineMs === 'number'
+    ? constraints.deadlineMs
+    : undefined;
+  const reviewRequired = constraints.reviewRequired !== false;
   return queue.materializeProjection({
     id: intent.compat?.dispatchId ?? dispatchIdForWorkIntent(intent.intentId),
     goal: intent.goal.text,
-    tags: projection?.tags,
+    tags: projection?.tags ?? [`work-intent:${intent.intentId}`, `surface:${intent.source.surface ?? intent.source.kind}`],
     backend: projection?.backend,
-    budgetUsd: projection?.budgetUsd,
-    timeoutMs: projection?.timeoutMs,
-    baseBranch: projection?.baseBranch,
+    budgetUsd: projection?.budgetUsd ?? maxCostUsd,
+    timeoutMs: projection?.timeoutMs ?? deadlineMs,
+    baseBranch: projection?.baseBranch ?? intent.source.branch ?? 'main',
     autoClaim: projection?.autoClaim,
     targetActorId: projection?.targetActorId,
     reviewerActorId: projection?.reviewerActorId,
-    mergePolicy: projection?.mergePolicy,
+    mergePolicy: projection?.mergePolicy ?? (reviewRequired ? 'review' : 'never'),
     requestedBy: projection?.requestedBy ?? intent.operator,
     createdAt: millisFromIso(intent.createdAt),
   });
@@ -385,10 +411,26 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
     });
   }
 
+  function start(intentId: string, queue: DispatchQueue): StartWorkIntentResult {
+    const snapshot = get(intentId);
+    if (!snapshot) {
+      throw new Error(`WorkIntent ${intentId} not found`);
+    }
+    const dispatchId = snapshot.intent.compat?.dispatchId
+      ?? dispatchIdForWorkIntent(snapshot.intent.intentId);
+    const duplicate = queue.get(dispatchId) !== null;
+    const dispatch = materializeDispatchProjectionFromIntent(snapshot.intent, queue);
+    return { ...snapshot, dispatch, duplicate };
+  }
+
   function captureDispatch(input: CaptureDispatchInput, queue: DispatchQueue): CaptureDispatchResult {
     const token = input.idempotencyKey ? stableToken(input.idempotencyKey) : idSafe(uuid());
     const intentId = `work_intent_dispatch_${token}`;
-    const dispatchId = dispatchIdForWorkIntent(intentId);
+    // Preserve the reversible legacy id for intake that originated as `pd
+    // dispatch`; ensureDispatchIntent uses it as an O(1) event-ledger lookup.
+    // Native WorkIntent.start uses the entropy-first id above because it has no
+    // legacy dispatch id to preserve.
+    const dispatchId = `dispatch_${idSafe(intentId.replace(/^work_intent_/, ''))}`;
     const idempotencyKey = input.idempotencyKey ?? `compat:dispatch:${dispatchId}`;
     const captured = capture({
       intentId,
@@ -474,6 +516,7 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
     captureWithInitialPlan,
     get,
     list,
+    start,
     captureDispatch,
     ensureDispatchIntent,
   };

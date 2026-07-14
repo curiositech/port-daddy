@@ -62,10 +62,14 @@ import {
   validateSurfaceGatewayEnvelope,
 } from '../lib/agent-harbor/surface-gateway.js';
 import type { WorkIntentService } from '../lib/agent-harbor/work-intent-service.js';
+import type { DispatchQueue } from '../lib/dispatch/queue.js';
+import type { DispatchWorker } from '../lib/dispatch/worker.js';
 
 interface AgentHarborRouteDeps {
   db: DatabaseInstance;
   workIntentService?: WorkIntentService;
+  dispatchQueue?: DispatchQueue;
+  dispatchWorker?: DispatchWorker;
   daemonBerth?: DaemonBerthIdentity;
   metrics: { errors: number };
   logger: {
@@ -221,9 +225,10 @@ export const agentHarborPlugin: FastifyPluginAsync<AgentHarborPluginOpts> = asyn
   //
   // One ingress for native surface commands and queries. The daemon, not the
   // caller, binds the actual berth, projection freshness, and allow decision.
-  // This first runtime slice owns WorkIntent capture/query only. Every other
-  // noun fails closed until its daemon service exists; there are no hidden
-  // spawn/dispatch/sortie/conjure side effects behind this route.
+  // WorkIntent.start is the only executable surface command: it materializes
+  // the durable intent into the existing compatibility queue and nudges the
+  // Conductor-backed worker. The compatibility projection is returned in the
+  // receipt and never becomes a second frontend launch vocabulary.
   fastify.post('/agent-harbor/surface-gateway', async (request, reply) => {
     const raw = request.body;
     if (!isRecord(raw)) {
@@ -267,7 +272,7 @@ export const agentHarborPlugin: FastifyPluginAsync<AgentHarborPluginOpts> = asyn
                 decidedBy: 'daemon:local-surface-gateway',
                 leaseId: null,
               },
-              reason: 'A local operator surface may capture a WorkIntent on the addressed daemon berth.',
+              reason: 'A local operator surface may command a WorkIntent on the addressed daemon berth.',
               evidence: { berthTargetId: target.targetId },
               issuedAt: now.toISOString(),
               expiresAt: new Date(now.getTime() + 30_000).toISOString(),
@@ -330,7 +335,7 @@ export const agentHarborPlugin: FastifyPluginAsync<AgentHarborPluginOpts> = asyn
 
     if (
       validation.envelope.mode !== 'command'
-      || validation.envelope.operation !== 'work-intent.capture'
+      || !['work-intent.capture', 'work-intent.start'].includes(validation.envelope.operation)
     ) {
       reply.code(501);
       return {
@@ -340,6 +345,62 @@ export const agentHarborPlugin: FastifyPluginAsync<AgentHarborPluginOpts> = asyn
     }
 
     const payload = validation.envelope.payload as Record<string, unknown>;
+    if (validation.envelope.operation === 'work-intent.start') {
+      const intentId = typeof payload.intentId === 'string' ? payload.intentId.trim() : '';
+      if (!intentId) {
+        reply.code(400);
+        return {
+          code: 'WORK_INTENT_PAYLOAD_REJECTED',
+          error: 'WorkIntent start requires payload.intentId',
+        };
+      }
+      if (!opts.deps.dispatchQueue || !opts.deps.dispatchWorker) {
+        reply.code(503);
+        return {
+          code: 'WORK_INTENT_RUNTIME_UNAVAILABLE',
+          error: 'The addressed daemon has no governed WorkIntent runtime worker; no side effect was started',
+          correlationId: validation.envelope.correlationId ?? validation.envelope.envelopeId,
+        };
+      }
+      const snapshot = opts.deps.workIntentService.get(intentId);
+      if (!snapshot) {
+        reply.code(404);
+        return { code: 'WORK_INTENT_NOT_FOUND', error: `WorkIntent ${intentId} not found` };
+      }
+      try {
+        const started = opts.deps.workIntentService.start(intentId, opts.deps.dispatchQueue);
+        let launchedThisTick = 0;
+        if (started.dispatch.state === 'proposed') {
+          launchedThisTick = await opts.deps.dispatchWorker.poll();
+        }
+        const runtime = opts.deps.dispatchQueue.get(started.dispatch.id) ?? started.dispatch;
+        reply.code(started.duplicate ? 200 : 202);
+        return {
+          schema: 'pd.agent-harbor.surface-gateway.command-receipt.v0',
+          correlationId: validation.envelope.correlationId ?? validation.envelope.envelopeId,
+          status: started.duplicate ? 'confirmed' : 'accepted',
+          duplicate: started.duplicate,
+          intent: started.intent,
+          plan: started.plan,
+          execution: {
+            projection: 'dispatches-compatibility',
+            dispatchId: runtime.id,
+            state: runtime.state,
+            sessionId: runtime.sessionId,
+            worktreePath: runtime.worktreePath,
+            launchedThisTick,
+          },
+          nextAction: {
+            code: 'WORK_RUNTIME_STARTED',
+            message:
+              'The daemon accepted this WorkIntent for Conductor-governed execution. Watch the active-agent roster and transcript stream for its bound body.',
+          },
+        };
+      } catch (error) {
+        return fail(reply, 'surface_gateway_work_intent_start', error);
+      }
+    }
+
     if (
       !isRecord(payload.source)
       || !isRecord(payload.goal)

@@ -257,6 +257,21 @@ pub struct WorkIntentReceipt {
     pub next_action: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct WorkExecutionReceipt {
+    pub status: String,
+    pub duplicate: bool,
+    pub correlation_id: String,
+    pub snapshot: WorkSnapshot,
+    pub projection: String,
+    pub dispatch_id: String,
+    pub state: String,
+    pub session_id: Option<String>,
+    pub worktree_path: Option<String>,
+    pub launched_this_tick: usize,
+    pub next_action: String,
+}
+
 fn work_snapshot(value: &serde_json::Value) -> Result<WorkSnapshot> {
     let intent = value
         .get("intent")
@@ -287,6 +302,17 @@ fn build_work_intent_envelope(
             serde_json::Value::String(workdir.to_string()),
         );
     }
+    let mut source = serde_json::json!({
+        "kind": "console",
+        "surface": "pd-console",
+        "actorId": "operator:local"
+    });
+    if let (Some(workdir), Some(map)) = (workdir, source.as_object_mut()) {
+        map.insert(
+            "worktree".to_string(),
+            serde_json::Value::String(workdir.to_string()),
+        );
+    }
     serde_json::json!({
         "schema": "pd.agent-harbor.surface-gateway.v0",
         "envelopeId": format!("surface_gateway_console_{token}"),
@@ -303,12 +329,7 @@ fn build_work_intent_envelope(
             "schema": "pd.agent-harbor.work-intent.v0",
             "intentId": format!("work_intent_console_{token}"),
             "idempotencyKey": idempotency_key,
-            "source": {
-                "kind": "console",
-                "surface": "pd-console",
-                "actorId": "operator:local",
-                "worktree": workdir
-            },
+            "source": source,
             "goal": { "text": goal },
             "constraints": constraints,
             "startPolicy": "queued",
@@ -317,6 +338,28 @@ fn build_work_intent_envelope(
             "status": "captured",
             "createdAt": issued_at
         }
+    })
+}
+
+fn build_work_intent_start_envelope(
+    snapshot: &WorkSnapshot,
+    token: &str,
+    issued_at: &str,
+) -> serde_json::Value {
+    let intent_id = snapshot.intent_id();
+    serde_json::json!({
+        "schema": "pd.agent-harbor.surface-gateway.v0",
+        "envelopeId": format!("surface_gateway_console_start_{token}"),
+        "correlationId": format!("corr_console_start_{token}"),
+        "surface": "pd-console",
+        "direction": "surface-to-daemon",
+        "mode": "command",
+        "noun": "WorkIntent",
+        "operation": "work-intent.start",
+        "issuedBy": "pd-console:operator:local",
+        "issuedAt": issued_at,
+        "idempotencyKey": format!("pd-console:start:{intent_id}"),
+        "payload": snapshot.intent.clone()
     })
 }
 
@@ -473,6 +516,95 @@ impl DaemonClient {
                 .and_then(|v| v.get("message"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("Inspect the daemon-owned WorkPlan before continuing.")
+                .to_string(),
+            snapshot,
+        })
+    }
+
+    /// Start one already-durable WorkIntent through the daemon's governed
+    /// runtime. The GUI still chooses no provider, model, body, node, or legacy
+    /// launch verb. A timeout retry reuses the same WorkIntent command key, so
+    /// an unknown caller state cannot create a second execution projection.
+    pub async fn start_work_intent(&self, snapshot: &WorkSnapshot) -> Result<WorkExecutionReceipt> {
+        let token = work_token();
+        let body = build_work_intent_start_envelope(snapshot, &token, &now_iso8601());
+        let mut response = None;
+        for attempt in 0..2 {
+            match self
+                .http
+                .post(format!("{}/agent-harbor/surface-gateway", self.base))
+                .json(&body)
+                .send()
+                .await
+            {
+                Ok(value) => {
+                    response = Some(value);
+                    break;
+                }
+                Err(error) if attempt == 0 && error.is_timeout() => continue,
+                Err(error) => return Err(error).context("POST Surface Gateway WorkIntent start"),
+            }
+        }
+        let response =
+            response.ok_or_else(|| anyhow!("Surface Gateway start produced no response"))?;
+        let response = ensure_success(response, "start_work_intent").await?;
+        let value: serde_json::Value = response
+            .json()
+            .await
+            .context("Surface Gateway WorkIntent start receipt")?;
+        let execution = value
+            .get("execution")
+            .filter(|candidate| candidate.is_object())
+            .ok_or_else(|| anyhow!("Surface Gateway start receipt omitted execution truth"))?;
+        let snapshot = work_snapshot(&value)?;
+        Ok(WorkExecutionReceipt {
+            status: value
+                .get("status")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            duplicate: value
+                .get("duplicate")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
+            correlation_id: value
+                .get("correlationId")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown-correlation")
+                .to_string(),
+            projection: execution
+                .get("projection")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            dispatch_id: execution
+                .get("dispatchId")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow!("Surface Gateway start receipt omitted execution id"))?
+                .to_string(),
+            state: execution
+                .get("state")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            session_id: execution
+                .get("sessionId")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            worktree_path: execution
+                .get("worktreePath")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            launched_this_tick: execution
+                .get("launchedThisTick")
+                .and_then(|v| v.as_u64())
+                .and_then(|value| usize::try_from(value).ok())
+                .unwrap_or(0),
+            next_action: value
+                .get("nextAction")
+                .and_then(|v| v.get("message"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("Inspect the active-agent roster and transcript stream.")
                 .to_string(),
             snapshot,
         })
@@ -1215,6 +1347,10 @@ mod tests {
             Some("console")
         );
         assert_eq!(
+            payload.pointer("/source/worktree").and_then(|v| v.as_str()),
+            Some("/worktrees/receipt-repair")
+        );
+        assert_eq!(
             payload
                 .pointer("/constraints/maxCostUsd")
                 .and_then(|v| v.as_f64()),
@@ -1246,6 +1382,61 @@ mod tests {
                 .contains_key("body"),
             "pd-console must not author a Body"
         );
+    }
+
+    #[test]
+    fn work_intent_envelope_omits_unknown_worktree_instead_of_sending_null() {
+        let body = build_work_intent_envelope(
+            "Audit the roadmap",
+            "no-worktree-token",
+            "2026-07-13T00:00:00Z",
+            None,
+        );
+        let source = body
+            .pointer("/payload/source")
+            .and_then(serde_json::Value::as_object)
+            .expect("WorkIntent source");
+
+        assert!(!source.contains_key("worktree"), "source={source:?}");
+        assert!(!body
+            .pointer("/payload/constraints")
+            .and_then(serde_json::Value::as_object)
+            .expect("WorkIntent constraints")
+            .contains_key("workdir"));
+    }
+
+    #[test]
+    fn work_intent_start_envelope_reuses_durable_noun_without_provider_authority() {
+        let snapshot = WorkSnapshot {
+            intent: build_work_intent_envelope(
+                "Take the next roadmap slice",
+                "capture-token",
+                "2026-07-12T00:00:00Z",
+                Some("/worktrees/roadmap-slice"),
+            )["payload"]
+                .clone(),
+            plan: None,
+        };
+        let body =
+            build_work_intent_start_envelope(&snapshot, "start-token", "2026-07-12T00:00:05Z");
+
+        assert_eq!(body["noun"], "WorkIntent");
+        assert_eq!(body["operation"], "work-intent.start");
+        assert_eq!(
+            body["idempotencyKey"],
+            format!("pd-console:start:{}", snapshot.intent_id())
+        );
+        assert_eq!(body["payload"], snapshot.intent);
+        let wire = serde_json::to_string(&body).expect("serialize WorkIntent start");
+        for forbidden in [
+            "backend",
+            "provider",
+            "model",
+            "bodyPreference",
+            "legacyVerb",
+        ] {
+            assert!(!wire.contains(&format!("\"{forbidden}\"")), "{wire}");
+        }
     }
 
     #[test]

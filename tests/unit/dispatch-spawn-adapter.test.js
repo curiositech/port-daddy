@@ -19,7 +19,11 @@
 import { jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
-import { createSpawnAdapter, requireCli } from '../../lib/dispatch/spawn-adapter.js';
+import {
+  createSpawnAdapter,
+  gitWorktreeAdd,
+  requireCli,
+} from '../../lib/dispatch/spawn-adapter.js';
 import {
   planRunFor,
   runNext,
@@ -106,6 +110,80 @@ describe('requireCli', () => {
       expect(err.message).toMatch(/not on PATH/);
       expect(err.message).toMatch(/pd dispatch run --really-run/);
     }
+  });
+});
+
+// ── gitWorktreeAdd — repository config-lock contention ──────────────────────
+
+describe('gitWorktreeAdd', () => {
+  test('retries bounded repository config-lock contention with jitter', async () => {
+    const calls = [];
+    const sleeps = [];
+    let addAttempts = 0;
+    const configLock = Object.assign(
+      new Error('git worktree add failed'),
+      {
+        stderr:
+          'error: could not lock config file /repo/.git/config: File exists\n' +
+          'error: unable to write upstream branch configuration',
+      },
+    );
+
+    await gitWorktreeAdd('/repo/worktree', 'dispatch/test', 'origin/main', {
+      execFileFn: async (_file, args) => {
+        calls.push(args);
+        if (args[0] === 'worktree' && ++addAttempts === 1) throw configLock;
+        return { stdout: '', stderr: '' };
+      },
+      existsFn: () => false,
+      sleepFn: async (delayMs) => { sleeps.push(delayMs); },
+      randomFn: () => 0.5,
+    });
+
+    expect(calls.filter((args) => args[0] === 'worktree')).toHaveLength(2);
+    expect(calls.filter((args) => args[0] === 'worktree')[0]).toContain('--no-track');
+    expect(calls.filter((args) => args[0] === 'worktree')[1]).toEqual([
+      'worktree', 'add', '/repo/worktree', 'dispatch/test',
+    ]);
+    expect(sleeps).toEqual([50]);
+  });
+
+  test('accepts a worktree materialized before Git loses the config-lock race', async () => {
+    let pathChecks = 0;
+    let addAttempts = 0;
+    const configLock = Object.assign(
+      new Error('unable to write upstream branch configuration'),
+      { stderr: 'could not lock config file /repo/.git/config: File exists' },
+    );
+
+    await gitWorktreeAdd('/repo/worktree', 'dispatch/test', 'main', {
+      execFileFn: async (_file, args) => {
+        if (args[0] === 'worktree') {
+          addAttempts += 1;
+          throw configLock;
+        }
+        return { stdout: '', stderr: '' };
+      },
+      existsFn: () => ++pathChecks > 1,
+      sleepFn: async () => { throw new Error('must not sleep'); },
+    });
+
+    expect(addAttempts).toBe(1);
+  });
+
+  test('does not retry non-transient worktree failures', async () => {
+    let addAttempts = 0;
+
+    await expect(gitWorktreeAdd('/repo/worktree', 'dispatch/test', 'main', {
+      execFileFn: async (_file, args) => {
+        if (args[0] === 'worktree') addAttempts += 1;
+        throw new Error('fatal: invalid reference: main');
+      },
+      existsFn: () => false,
+      sleepFn: async () => { throw new Error('must not sleep'); },
+    })).rejects.toThrow(/invalid reference/);
+
+    expect(addAttempts).toBe(1);
   });
 });
 

@@ -302,7 +302,9 @@ Every entry below prints an impact-specific summary to stderr and prompts for co
 - `pd guard install` — writes git hooks; merges existing ones
 - `pd guard install-shim` / `uninstall-shim` — alters how `git` behaves system-wide
 - `pd guard enable` / `disable` — changes enforcement mode for the whole worktree
-- `pd dev down` / `pd dev stop` — SIGTERMs an isolated dev-berth daemon
+- `pd dev down` / `pd dev stop` — SIGTERMs an isolated dev berth while preserving
+  its durable ledger; `--purge` / `--reset` additionally deletes that state
+- `pd dev gc` — destructively removes dead/orphaned/idle dev-berth state
 - `pd daemon stop` / `restart` / `uninstall` (and top-level `pd stop` / `restart` / `uninstall`)
 - `pd down` — SIGTERMs the orchestrator and stops every service it manages
 
@@ -741,14 +743,20 @@ Run tiered daemons side by side — a stable daemon for real work, a dev daemon 
 
 ```bash
 pd dev up          # start an isolated feature-branch dev daemon
-pd dev gc          # smart-reap stale dev berths (24h TTL)
-pd dev down        # stop a berth
+pd dev up --fleet  # also arm its worker for governed WorkIntent launches
+pd dev down        # stop a berth; preserve its isolated ledger
+pd dev down --purge  # explicit destructive reset
+pd dev gc          # destructively reap dead/orphaned/idle berth state
 pd use <berth>     # emits a shell snippet for this shell/process (eval it)
 ```
 
 `pd use` is not a global daemon switch. It points the current shell or launched
 process at a berth; FleetBar, Control Center, and pd-console show the
-berth/codebase/dev lane they are actually connected to.
+berth/codebase/dev lane they are actually connected to. New berths retain stable
+board history but start with an empty executable dispatch queue, so an isolated
+worker cannot recover and duplicate stable-daemon work. After bootstrap, the
+named berth DB survives ordinary stop/restart and automatic process reaping;
+only `--purge`, `--reset`, or explicit `pd dev gc` deletes that cool-bus state.
 
 ### Backup & restore (ADR-0037)
 

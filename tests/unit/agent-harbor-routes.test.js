@@ -30,6 +30,7 @@ import { initDatabase, closeDatabase } from '../../lib/db.js';
 import { appendEvent, readEvents } from '../../lib/agent-harbor/event-ledger.js';
 import { projectPending } from '../../lib/agent-harbor/projections.js';
 import { createWorkIntentService } from '../../lib/agent-harbor/work-intent-service.js';
+import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 import { agentHarborPlugin } from '../../routes/agent-harbor.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -85,6 +86,21 @@ function seed(db) {
 
 function buildApp(db, sse = {}) {
   const app = Fastify();
+  const dispatchQueue = createDispatchQueue({ db });
+  const dispatchWorker = {
+    poll: jest.fn(async () => {
+      const proposed = dispatchQueue.list({ state: 'proposed', limit: 1 })[0];
+      if (!proposed) return 0;
+      dispatchQueue.claim({
+        id: proposed.id,
+        worktreePath: `/tmp/${proposed.id}`,
+        branch: `work/${proposed.slug}`,
+        sessionId: `session-${proposed.id}`,
+        workerActorId: 'daemon:test-worker',
+      });
+      return 1;
+    }),
+  };
   const deps = {
     db,
     workIntentService: createWorkIntentService({
@@ -92,6 +108,8 @@ function buildApp(db, sse = {}) {
       now: () => new Date('2026-07-12T18:00:00.000Z'),
       uuid: () => 'route-test-uuid',
     }),
+    dispatchQueue,
+    dispatchWorker,
     metrics: { errors: 0 },
     logger: { info: jest.fn(), error: jest.fn() },
   };
@@ -242,6 +260,54 @@ describe('agent-harbor routes', () => {
       expect(readEvents(db, { streamType: 'work-plan' })).toHaveLength(1);
       expect(readEvents(db, { streamType: 'agent-node' })).toHaveLength(1); // seeded fixture only
       expect(readEvents(db, { streamType: 'agent-run' })).toHaveLength(1); // seeded fixture only
+      expect(deps.dispatchQueue.list({ state: 'all' })).toHaveLength(0);
+      expect(deps.dispatchWorker.poll).not.toHaveBeenCalled();
+    });
+
+    test('starts a captured WorkIntent through the daemon worker and returns an idempotent runtime receipt', async () => {
+      await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/surface-gateway',
+        payload: gatewayEnvelope(),
+      });
+      const start = gatewayEnvelope({
+        envelopeId: 'surface_gateway_pd_console_start_1',
+        correlationId: 'corr_pd_console_start_1',
+        operation: 'work-intent.start',
+        idempotencyKey: 'pd-console:start:work_intent_pd_console_test_1',
+        payload: gatewayEnvelope().payload,
+      });
+
+      const first = await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/surface-gateway',
+        payload: start,
+      });
+      const retry = await app.inject({
+        method: 'POST',
+        url: '/agent-harbor/surface-gateway',
+        payload: start,
+      });
+
+      expect(first.statusCode).toBe(202);
+      expect(first.json()).toMatchObject({
+        status: 'accepted',
+        duplicate: false,
+        intent: { intentId: 'work_intent_pd_console_test_1' },
+        execution: {
+          projection: 'dispatches-compatibility',
+          state: 'claimed',
+          launchedThisTick: 1,
+        },
+        nextAction: { code: 'WORK_RUNTIME_STARTED' },
+      });
+      expect(retry.statusCode).toBe(200);
+      expect(retry.json()).toMatchObject({ status: 'confirmed', duplicate: true });
+      expect(retry.json().execution.dispatchId).toBe(first.json().execution.dispatchId);
+      expect(deps.dispatchQueue.list({ state: 'all' })).toHaveLength(1);
+      expect(deps.dispatchWorker.poll).toHaveBeenCalledTimes(1);
+      expect(readEvents(db, { streamType: 'work-intent' })).toHaveLength(1);
+      expect(readEvents(db, { streamType: 'work-plan' })).toHaveLength(1);
     });
 
     test('queries the durable snapshot through the same gateway', async () => {
