@@ -235,6 +235,31 @@ export function getBackendCatalogEntry(id: string): BackendCatalogEntry | undefi
 }
 
 /**
+ * True for backends whose marginal dollar cost to Port Daddy's wallet is
+ * $0 — the operator already pays a flat monthly fee (Claude Max, ChatGPT
+ * Pro, a Google/Groq/xAI account) regardless of how many spawns run.
+ *
+ * This is the SINGLE canonical predicate for "does this launch have a real
+ * dollar bond to reserve/accrue" — used by both the fleet Conductor's budget
+ * breaker (lib/fleet/conductor.ts effectiveBond: a subscription backend
+ * reserves $0 against the lineage/global breaker, so a burst of flat-rate
+ * dispatches can never exhaust a real-dollar ceiling) and the Agent Harbor
+ * cost-accrual ledger (lib/cost-tracker.ts: a subscription backend never
+ * appends a CostAccrualEvent — there is no real spend fact to record).
+ *
+ * 2026-07-14 incident: the Conductor reserved a nonzero bond floor against
+ * every `cli:claude-code`/`cli:codex` dispatch (flat-rate CLI subscriptions),
+ * which slowly exhausted the finite global dollar ceiling and permanently
+ * refused every subsequent dispatch with GLOBAL_BREAKER — a real-dollar gate
+ * governing a $0-marginal-cost backend. An unknown/uncatalogued backend id
+ * is treated as metered (fail toward tracking real spend, not toward a free
+ * pass on the budget gate).
+ */
+export function isSubscriptionBackend(id: string): boolean {
+  return getBackendCatalogEntry(id)?.costModel === 'subscription';
+}
+
+/**
  * The set of backend ids the catalog knows about. Used by route validators
  * to reject "unknown backend" requests before they hit readiness probes.
  */

@@ -9,6 +9,7 @@ import {
   diagnoseAgentRuntimeInstall,
   readPlistAsXml,
   assessSupervisionIntegrity,
+  isPidAlive,
   resolveBosunBinary,
   scanRegistryDbFiles,
   countBunCrashSignatures,
@@ -323,6 +324,31 @@ describe('assessSupervisionIntegrity', () => {
     });
     expect(a.severity).toBe('warn');
     expect(a.detail).toContain('2 supervisors');
+  });
+
+  // BUG 3 (2026-07-14 halt-mandate): the crux of the silent-death incident.
+  // `brew services`/`launchctl` claimed Running:true PID 69626 while /health
+  // returned nothing and no such process existed — and this exact case used to
+  // return 'ok', so `pd doctor` was ALL GREEN during a live outage. Liveness
+  // (a reachable /health) DOMINATES: a supervisor's "running" claim is a claim,
+  // not a fact.
+  test('BUG 3: one supervisor claims running BUT /health unreachable is CRITICAL (the brew lie)', () => {
+    const a = assessSupervisionIntegrity({
+      supervisors: [sup({ running: true, pid: 69626 })],
+      daemonReachable: false,
+      platform: 'darwin',
+    });
+    expect(a.severity).toBe('critical');
+    expect(a.detail).toMatch(/DEAD OR WEDGED|unreachable/);
+  });
+
+  test('BUG 3: one supervisor running AND /health reachable stays ok (no false alarm)', () => {
+    const a = assessSupervisionIntegrity({
+      supervisors: [sup({ running: true, pid: 42 })],
+      daemonReachable: true,
+      platform: 'darwin',
+    });
+    expect(a.severity).toBe('ok');
   });
 });
 
@@ -646,6 +672,22 @@ describe('resolveBosunBinary', () => {
     const r = resolveBosunBinary('/nonexistent/port-daddy-root');
     expect(r.exists).toBe(false);
     expect(r.binaryPath).toContain('pd-bosun');
+  });
+});
+
+// BUG 3 (2026-07-14 halt-mandate): a launchd-claimed PID must be re-verified —
+// `brew services` reported Running:true PID 69626 while no such process existed.
+describe('isPidAlive', () => {
+  test('the current process is alive', () => {
+    expect(isPidAlive(process.pid)).toBe(true);
+  });
+
+  test('a definitely-dead / invalid PID reads as dead', () => {
+    // PID 0 and negatives are not real processes to us; a huge PID is vanishingly
+    // unlikely to exist — both the exact failure the doctor must now catch.
+    expect(isPidAlive(0)).toBe(false);
+    expect(isPidAlive(-1)).toBe(false);
+    expect(isPidAlive(2 ** 30)).toBe(false);
   });
 });
 

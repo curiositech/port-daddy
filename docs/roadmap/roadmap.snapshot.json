@@ -2,7 +2,7 @@
   "generatedAt": 1784063377728,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 195,
+  "count": 196,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -978,6 +978,11 @@
       "slug": "workintent-dispatch-isolation",
       "status": "backlog",
       "summaryMd": "fix(dispatch): isolate WorkIntent worktrees"
+    },
+    {
+      "slug": "daemon-down-hard-stop-mandate",
+      "status": "now",
+      "summaryMd": "Daemon-down hard-stop mandate: flat-rate budget-breaker exemption + cost-accrual wiring + Bosun Phase C restart-on-death with loud alert; pd doctor CRITICAL-RED on unreachable /health."
     }
   ]
 }

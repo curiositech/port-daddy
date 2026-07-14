@@ -191,7 +191,7 @@ describe('WorkIntentService', () => {
       requestedBy: 'operator',
       budgetUsd: 10,
       idempotencyKey: 'bad-projection',
-    }, queue)).toThrow(/budgetUsd must be a positive number/);
+    }, queue)).toThrow(/budgetUsd must be a non-negative number/);
     expect(queue.list({ state: 'all' })).toHaveLength(0);
 
     const events = readEvents(db, { streamType: 'work-intent' });
