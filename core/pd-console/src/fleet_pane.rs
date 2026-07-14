@@ -211,7 +211,7 @@ impl Pane for FleetPane {
         if drydock > 0 {
             // Dry-dock means retries are exhausted — surface it as an escalation line.
             blocks.push(Block::KeyVal(
-                "⚓ dry-dock".into(),
+                "dry-dock".into(),
                 format!("{drydock} — needs operator"),
             ));
         }

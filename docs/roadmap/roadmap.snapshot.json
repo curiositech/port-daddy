@@ -2,7 +2,7 @@
   "generatedAt": 1783989442565,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 153,
+  "count": 154,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -668,6 +668,11 @@
       "slug": "parley-sugar-fanout-receipts",
       "status": "backlog",
       "summaryMd": "Parley usability: turns fan out to participants' inboxes (parley_turn via pd attention), per-party read receipts with unseen counts, and CLI sugar verbs (propose/critique/revise/agree/refuse/say) with identity inferred from the active session."
+    },
+    {
+      "slug": "pd-console-story-linework-shell",
+      "status": "now",
+      "summaryMd": "Rebuild pd-console around the story-linework operator shell: flat L0-L3 navigation, honest state framing, Conjure wave blocks, persistent native PTY, and motion/reduced-motion proof."
     },
     {
       "slug": "pd-safe-scan",

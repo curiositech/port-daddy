@@ -1402,6 +1402,7 @@
       "sdk": [],
       "routes": [
         "GET /agent-harbor/surface-gateway/capabilities",
+        "POST /agent-harbor/surface-gateway",
         "GET /agent-nodes",
         "GET /agent-nodes/:param",
         "GET /agent-nodes/:param/files",
@@ -1418,7 +1419,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "C1 shipped the CLI + library slice; the C-routes wave added the daemon read API (routes/agent-harbor.ts) serving C1's projections"
+      "_note": "C1 shipped the CLI + library slice; the C-routes wave added daemon projections plus the local Surface Gateway WorkIntent command/query ingress in routes/agent-harbor.ts"
     },
     "bonds": {
       "description": "Bond escrow state machine \u2014 daemon escrows money before spawn, refunds on clean exit, slashes on violation. Enforcement half of the cost-tracker/bonds split.",

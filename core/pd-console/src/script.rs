@@ -13,6 +13,7 @@
 //!   {"cmd":"focus","pane":"sextant"}
 //!   {"cmd":"state","pane":"sextant"}
 //!   {"cmd":"sextant","windowHours":720,"minTokens":64}
+//!   {"cmd":"work","goal":"Take the next roadmap slice"}
 //!   {"cmd":"chat","text":"Are you attached live?"}
 //!   {"cmd":"rebind","url":"http://127.0.0.1:9899"}
 //!   {"cmd":"alerts"}
@@ -52,6 +53,9 @@ pub enum ScriptRequest {
     },
     Chat {
         text: String,
+    },
+    Work {
+        goal: String,
     },
     Rebind {
         url: String,
@@ -104,6 +108,16 @@ pub fn parse_request(line: &str) -> Result<ScriptRequest, String> {
                 text: text.trim().to_string(),
             })
         }
+        "work" => {
+            let goal = v
+                .get("goal")
+                .and_then(Value::as_str)
+                .filter(|s| !s.trim().is_empty())
+                .ok_or_else(|| "work needs non-empty \"goal\"".to_string())?;
+            Ok(ScriptRequest::Work {
+                goal: goal.trim().to_string(),
+            })
+        }
         "sextant" => {
             let window_hours = optional_positive_u32(&v, "windowHours")?;
             let min_tokens = optional_positive_u32(&v, "minTokens")?;
@@ -129,7 +143,7 @@ pub fn parse_request(line: &str) -> Result<ScriptRequest, String> {
         }
         "alerts" => Ok(ScriptRequest::Alerts),
         other => Err(format!(
-            "unknown cmd \"{other}\" (try ping/panes/focus/state/chat/sextant/rebind/alerts)"
+            "unknown cmd \"{other}\" (try ping/panes/focus/state/work/chat/sextant/rebind/alerts)"
         )),
     }
 }
@@ -378,6 +392,12 @@ mod tests {
             })
         );
         assert_eq!(
+            parse_request(r#"{"cmd":"work","goal":"  Take the next roadmap slice  "}"#),
+            Ok(ScriptRequest::Work {
+                goal: "Take the next roadmap slice".into()
+            })
+        );
+        assert_eq!(
             parse_request(r#"{"cmd":"rebind","url":"http://127.0.0.1:9899"}"#),
             Ok(ScriptRequest::Rebind {
                 url: "http://127.0.0.1:9899".into()
@@ -406,6 +426,10 @@ mod tests {
         assert_eq!(
             parse_request(r#"{"cmd":"chat","text":"   "}"#).unwrap_err(),
             "chat needs non-empty \"text\""
+        );
+        assert_eq!(
+            parse_request(r#"{"cmd":"work","goal":"   "}"#).unwrap_err(),
+            "work needs non-empty \"goal\""
         );
         assert!(parse_request(r#"{"cmd":"warp"}"#)
             .unwrap_err()

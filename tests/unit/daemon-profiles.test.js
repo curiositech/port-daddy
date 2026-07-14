@@ -54,6 +54,7 @@ describe('daemon profiles', () => {
     const env = buildDaemonProfileEnv(profile, {
       baseEnv: {
         PD_URL: 'http://old.example',
+        PD_ACTIVE_DAEMON: 'old-berth',
         PORT_DADDY_URL: 'http://old.example',
         PORT_DADDY_DB: '/old/db.sqlite',
         PORT_DADDY_SOCK: '/old/daemon.sock',
@@ -65,7 +66,8 @@ describe('daemon profiles', () => {
     });
 
     expect(env.PD_URL).toBeUndefined();
-    expect(env.PORT_DADDY_URL).toBeUndefined();
+    expect(env.PD_ACTIVE_DAEMON).toBe('dogfood');
+    expect(env.PORT_DADDY_URL).toBe('http://127.0.0.1:9888');
     expect(env.PORT_DADDY_DB).toBeUndefined();
     expect(env.PORT_DADDY_SOCK).toBeUndefined();
     expect(env.PORT_DADDY_PORT_FILE).toBeUndefined();
