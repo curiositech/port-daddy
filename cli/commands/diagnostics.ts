@@ -24,7 +24,7 @@ import Database from '../../lib/sqlite-runtime.js';
 // SKIPPED ('No database file yet') against the real registry. resolveDbPath()
 // honours PORT_DADDY_DB and otherwise anchors on the distribution root, so it
 // finds <project-root>/port-registry.db under both dev and the binary.
-import { resolveDbPath } from '../../lib/db.js';
+import { resolveDbPath, durableDbHomePath, isVersionVolatileDbPath } from '../../lib/db.js';
 import { pdFetch, PORT_DADDY_URL, SOCK_PATH, getDaemonUrl } from '../utils/fetch.js';
 import { CLIOptions, isJson } from '../types.js';
 import { separator, tableHeader } from '../utils/output.js';
@@ -1585,6 +1585,26 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     }
   } catch (err: unknown) {
     check('Database', false, `Error: ${(err as Error).message}`, 'Check port-registry.db permissions');
+  }
+
+  // ---------------------------------------------------------------------------
+  // 3b. Database home durability: a registry inside a version-pinned install
+  // directory (Homebrew Cellar) is deleted on every upgrade — the root cause
+  // of repeated roadmap/notes data loss. Daemons must not own different truths.
+  // ---------------------------------------------------------------------------
+  try {
+    const dbPath: string = resolveDbPath();
+    if (isVersionVolatileDbPath(dbPath)) {
+      criticalFail(
+        'Database home',
+        `Registry lives in a version-pinned install dir: ${dbPath} (wiped on next upgrade)`,
+        `Restart the daemon without PORT_DADDY_DB (defaults to ${durableDbHomePath()}); boot migrates the legacy data automatically`,
+      );
+    } else {
+      check('Database home', true, `Registry path is durable: ${dbPath}`);
+    }
+  } catch (err: unknown) {
+    check('Database home', false, `Error: ${(err as Error).message}`);
   }
 
   // -------------------------------------------------------------------------

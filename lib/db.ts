@@ -12,9 +12,9 @@
  */
 
 import Database, { type DatabaseInstance } from './sqlite-runtime.js';
-import { chmodSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve as resolvePath, sep } from 'path';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { fileURLToPath } from 'url';
 import { resolveDistributionRoot } from '../shared/daemon-binary.js';
 import { CLAIM_FOREST_SCHEMA_SQL } from './claim-forest.js';
@@ -35,17 +35,94 @@ export function resolveDefaultDbRoot(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * The machine-durable home for the registry. Survives brew upgrades, repo
+ * checkouts, and worktrees — every daemon on this machine that does not
+ * explicitly isolate itself (PORT_DADDY_DB, instance profiles, test DBs)
+ * converges on this one file. Daemons must not own different truths.
+ */
+export function durableDbHomePath(): string {
+  return join(homedir(), '.port-daddy', 'port-registry.db');
+}
+
+/**
+ * Where the pre-durable-home default would have put the registry: next to the
+ * distribution root. For a Homebrew install that is the VERSIONED Cellar
+ * directory, which is deleted on every `brew upgrade` — the root cause of
+ * repeated registry data loss (roadmap items, notes, receipts). Kept only so
+ * boot can migrate data out of it.
+ */
+export function legacyDbPath(
+  moduleDir: string = MODULE_DIR,
+  env: NodeJS.ProcessEnv = process.env,
+  execPath: string = process.execPath,
+): string {
+  return join(resolveDefaultDbRoot(moduleDir, env, execPath), 'port-registry.db');
+}
+
+/**
  * Resolve the path to the SQLite database file.
  * Priority:
  *   1. Explicit override (parameter)
  *   2. PORT_DADDY_DB environment variable
- *   3. Default: <project-root>/port-registry.db
+ *   3. Default: ~/.port-daddy/port-registry.db (durable home)
+ *
+ * The default deliberately does NOT depend on the binary location or the
+ * current checkout: a version-pinned or checkout-relative default is how the
+ * registry kept dying (Cellar wipe on brew upgrade, one truth per worktree).
  */
 export function resolveDbPath(overridePath?: string): string {
   if (overridePath) return overridePath;
   if (process.env.PORT_DADDY_DB) return process.env.PORT_DADDY_DB;
-  // lib/ is one level below the project root
-  return join(resolveDefaultDbRoot(), 'port-registry.db');
+  return durableDbHomePath();
+}
+
+/** True when a path sits inside a version-volatile install location (deleted on upgrade). */
+export function isVersionVolatileDbPath(path: string): boolean {
+  const p = resolvePath(path);
+  return p.includes(`${sep}Cellar${sep}`) || p.includes(`${sep}homebrew${sep}Cellar${sep}`);
+}
+
+/**
+ * One-time rescue of a legacy registry into the durable home.
+ *
+ * Runs only when the destination does not exist yet and a legacy registry
+ * does. Uses `VACUUM INTO`, which produces a consistent snapshot even while
+ * an old daemon still holds the legacy DB open in WAL mode (a plain file
+ * copy of db+wal+shm would not be safe there). Best-effort: a failed
+ * migration logs loudly and boot continues with a fresh DB rather than
+ * crashing the daemon.
+ *
+ * @returns true when a migration was performed.
+ */
+export function migrateLegacyRegistry(
+  destPath: string = durableDbHomePath(),
+  sourcePath: string = legacyDbPath(),
+): boolean {
+  if (resolvePath(destPath) === resolvePath(sourcePath)) return false;
+  if (existsSync(destPath) || !existsSync(sourcePath)) return false;
+
+  try {
+    mkdirSync(dirname(destPath), { recursive: true });
+    const legacy = new Database(sourcePath, { readonly: true });
+    try {
+      legacy.exec(`VACUUM INTO '${destPath.replace(/'/g, "''")}'`);
+    } finally {
+      legacy.close();
+    }
+    console.warn(
+      `[port-daddy] Migrated registry from legacy location into the durable home:\n` +
+        `  from: ${sourcePath}\n` +
+        `  to:   ${destPath}\n` +
+        `The legacy file was left in place (read-only rescue); it is no longer used.`,
+    );
+    return true;
+  } catch (err) {
+    console.warn(
+      `[port-daddy] WARNING: could not migrate legacy registry from ${sourcePath}: ` +
+        `${(err as Error).message}. Starting with a fresh database at ${destPath}.`,
+    );
+    return false;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -361,6 +438,22 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
     isTest: isTestContext(),
     inMemory: options.inMemory,
   });
+
+  if (!options.inMemory) {
+    // Only the durable-home default gets the legacy rescue; explicit
+    // overrides (PORT_DADDY_DB, instance profiles, tests) mean isolation
+    // was chosen on purpose.
+    if (path === durableDbHomePath()) {
+      migrateLegacyRegistry(path);
+    } else if (isVersionVolatileDbPath(path)) {
+      console.warn(
+        `[port-daddy] WARNING: registry path ${path} sits inside a version-pinned ` +
+          `install directory and WILL BE DELETED on the next upgrade. ` +
+          `Point PORT_DADDY_DB at a durable location (default: ${durableDbHomePath()}).`,
+      );
+    }
+    mkdirSync(dirname(path), { recursive: true });
+  }
 
   const db = new Database(path);
 
