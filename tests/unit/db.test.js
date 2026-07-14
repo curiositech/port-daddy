@@ -6,7 +6,17 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { initDatabase, resolveDbPath, resolveDefaultDbRoot, isPortAvailable, CORE_SCHEMA_SQL } from '../../lib/db.js';
+import {
+  initDatabase,
+  resolveDbPath,
+  resolveDefaultDbRoot,
+  durableDbHomePath,
+  legacyDbPath,
+  isVersionVolatileDbPath,
+  migrateLegacyRegistry,
+  isPortAvailable,
+  CORE_SCHEMA_SQL,
+} from '../../lib/db.js';
 import { createServices } from '../../lib/services.js';
 import { createLocks } from '../../lib/locks.js';
 import { createSessions } from '../../lib/sessions.js';
@@ -38,17 +48,33 @@ describe('lib/db.ts', () => {
       }
     });
 
-    it('defaults to project root port-registry.db', () => {
+    it('defaults to the durable home ~/.port-daddy/port-registry.db, never a checkout- or binary-relative path', () => {
       const original = process.env.PORT_DADDY_DB;
       delete process.env.PORT_DADDY_DB;
       try {
         const result = resolveDbPath();
-        expect(result).toMatch(/port-registry\.db$/);
+        expect(result).toBe(path.join(os.homedir(), '.port-daddy', 'port-registry.db'));
+        expect(result).toBe(durableDbHomePath());
       } finally {
         if (original) {
           process.env.PORT_DADDY_DB = original;
         }
       }
+    });
+
+    it('flags version-volatile (Homebrew Cellar) paths', () => {
+      expect(isVersionVolatileDbPath('/opt/homebrew/Cellar/port-daddy/3.24.1_1/bin/port-registry.db')).toBe(true);
+      expect(isVersionVolatileDbPath(durableDbHomePath())).toBe(false);
+      expect(isVersionVolatileDbPath('/srv/port-daddy/port-registry.db')).toBe(false);
+    });
+
+    it('legacyDbPath anchors on the distribution root', () => {
+      const result = legacyDbPath(
+        '/$bunfs/root/lib',
+        {},
+        '/opt/port-daddy/dist/daemon/port-daddy-daemon',
+      );
+      expect(result).toBe('/opt/port-daddy/port-registry.db');
     });
 
     it('uses the distribution resource root when running from a compiled binary', () => {
@@ -69,6 +95,58 @@ describe('lib/db.ts', () => {
       );
 
       expect(result).toBe('/srv/port-daddy');
+    });
+  });
+
+  describe('migrateLegacyRegistry', () => {
+    let dir;
+
+    beforeEach(() => {
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pd-migrate-'));
+    });
+
+    afterEach(() => {
+      fs.rmSync(dir, { recursive: true, force: true });
+    });
+
+    function makeLegacyDb(dbPath) {
+      const db = new Database(dbPath);
+      db.exec('CREATE TABLE marker (v TEXT)');
+      db.prepare('INSERT INTO marker (v) VALUES (?)').run('legacy-truth');
+      db.close();
+    }
+
+    it('rescues a legacy registry into the durable home', () => {
+      const source = path.join(dir, 'cellar', 'port-registry.db');
+      const dest = path.join(dir, 'home', 'port-registry.db');
+      fs.mkdirSync(path.dirname(source), { recursive: true });
+      makeLegacyDb(source);
+
+      expect(migrateLegacyRegistry(dest, source)).toBe(true);
+      expect(fs.existsSync(dest)).toBe(true);
+      const db = new Database(dest, { readonly: true });
+      expect(db.prepare('SELECT v FROM marker').get().v).toBe('legacy-truth');
+      db.close();
+      // Legacy file is left in place (read-only rescue).
+      expect(fs.existsSync(source)).toBe(true);
+    });
+
+    it('is a no-op when the destination already exists', () => {
+      const source = path.join(dir, 'port-registry.db');
+      const dest = path.join(dir, 'existing.db');
+      makeLegacyDb(source);
+      fs.writeFileSync(dest, '');
+      expect(migrateLegacyRegistry(dest, source)).toBe(false);
+    });
+
+    it('is a no-op when there is no legacy registry', () => {
+      expect(migrateLegacyRegistry(path.join(dir, 'dest.db'), path.join(dir, 'missing.db'))).toBe(false);
+    });
+
+    it('is a no-op when source and destination are the same file', () => {
+      const p = path.join(dir, 'same.db');
+      makeLegacyDb(p);
+      expect(migrateLegacyRegistry(p, p)).toBe(false);
     });
   });
 
