@@ -63,6 +63,7 @@ import {
 import type { Proposal } from './proposals.js';
 import { decideShipGate, isDocsOnly } from './gates.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
+import { runDetailsUrl } from './run-page.js';
 
 const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 
@@ -445,6 +446,9 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // Deterministic run id from the delivery id so a retried delivery rewrites its
   // own audit row + transcript (INSERT OR REPLACE) instead of duplicating.
   const runId = `run:${deliveryId}`;
+  // Capability URL for the human-facing run page (ADR-0097 Phase 0). Null when
+  // RUN_DETAILS_BASE_URL / RUN_PAGE_SECRET are unconfigured; never throws.
+  const detailsUrl = await runDetailsUrl(env, runId);
   const startMs = Date.now();
   const transcript = new Transcript(env.DB, runId, (failure) =>
     emitTranscriptWriteFailureTelemetry(env, job, failure)
@@ -515,7 +519,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   );
   if (!checkRunId) {
     // No swallow: a createCheckRun failure must propagate so the job RETRIES.
-    checkRunId = await createCheckRun(owner, repo, CHECK_NAME, prCtx.headSha, token);
+    checkRunId = await createCheckRun(owner, repo, CHECK_NAME, prCtx.headSha, token, detailsUrl);
   }
   if (!checkRunId) {
     // Fail closed: never proceed (and never ack) when we could not establish the
@@ -562,7 +566,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         conclusion: 'neutral',
         pausedBeforeShip: ship.name,
       });
-      await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token);
+      await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
       await recordRunEnd(env, runId, 'neutral', startMs);
       return;
     }
@@ -609,7 +613,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     await createReview(owner, repo, prNumber, 'COMMENT', summary, reviewComments, prCtx.headSha, token);
   }
 
-  await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token);
+  await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token, detailsUrl);
 
   // --- Transcript: check completion + final run header (best-effort) --------
   await transcript.step('check-completed', null, `Check concluded: ${conclusion}`, {
