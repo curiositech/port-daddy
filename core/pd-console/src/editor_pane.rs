@@ -42,7 +42,10 @@ use crate::editor_wedge::{
     parse_predict_response, predict_request_body, ClaimKind, GatedRegion, GuardBand, GuardVerdict,
     PdNudge, SymbolClaim, WedgeProbe,
 };
-use crate::pane::{Block, CodeBand, CodeLine, Pane, Subscription, Tone};
+use crate::pane::{
+    Block, CodeBand, CodeLine, Pane, ReviewEvent, ReviewEvidence, ReviewSource, ReviewStateMachine,
+    Subscription, Tone,
+};
 use anyhow::Result;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -136,7 +139,11 @@ fn short_receipt(bytes: &[u8]) -> String {
     for b in bytes.iter().take(6) {
         out.push_str(&format!("{b:02x}"));
     }
-    if out.is_empty() { "empty".into() } else { out }
+    if out.is_empty() {
+        "empty".into()
+    } else {
+        out
+    }
 }
 
 /// The pre-tokenized render cache behind [`Block::CodeBuffer`]. Rebuilt ONLY
@@ -215,6 +222,11 @@ pub struct EditorPane {
     wedge_probe: WedgeProbe,
     wedge_inflight: Option<RegionClaim>,
     guard_band: Option<GuardBand>,
+    /// Explicit review truth. Every transition carries a path, Loro receipt,
+    /// snapshot blob id, or daemon conflict/claim id; the GPUI face only renders it.
+    review: ReviewStateMachine,
+    /// Real in-flight `/blob` recovery begun by a decoded `loro.snapshot` frame.
+    active_recovery: Option<(PeerId, String)>,
     /// Tokenized-line render cache (see [`CodeCache`]). `RefCell` because the
     /// buffer has interior mutability (remote ops land through `&HarborBuffer`),
     /// so the staleness check must run inside `view(&self)`; the cell is only
@@ -250,6 +262,16 @@ impl EditorPane {
         // buffer) so presence has a stable local PeerId even before a file loads —
         // the presence lane does not depend on the buffer being open.
         let local_peer = peer_id_for_identity(&identity);
+        let mut review = ReviewStateMachine::unknown(ReviewEvidence::new(
+            ReviewSource::Surface,
+            path.clone(),
+            "buffer has not been observed",
+        ));
+        review.transition(ReviewEvent::Pending(ReviewEvidence::new(
+            ReviewSource::Surface,
+            path.clone(),
+            "waiting for the local Loro buffer load",
+        )));
         Self {
             path,
             region,
@@ -271,6 +293,8 @@ impl EditorPane {
             wedge_probe: WedgeProbe::new(WEDGE_PROBE_INTERVAL_MS),
             wedge_inflight: None,
             guard_band: None,
+            review,
+            active_recovery: None,
             code: std::cell::RefCell::new(None),
         }
     }
@@ -287,11 +311,25 @@ impl EditorPane {
         self.code.replace(None);
         match HarborBuffer::open(&self.path, self.identity.clone()) {
             Ok(buf) => {
+                let receipt = short_receipt(&buf.change_stamp());
                 self.buffer = Some(buf);
                 self.error = None;
+                self.review
+                    .transition(ReviewEvent::Confirmed(ReviewEvidence::new(
+                        ReviewSource::Loro,
+                        format!("state:{receipt}"),
+                        format!("local buffer loaded for {}", self.path),
+                    )));
             }
             Err(e) => {
-                self.error = Some(format!("{e}"));
+                let detail = format!("{e}");
+                self.error = Some(detail.clone());
+                self.review
+                    .transition(ReviewEvent::Unknown(ReviewEvidence::new(
+                        ReviewSource::Surface,
+                        self.path.clone(),
+                        detail,
+                    )));
             }
         }
     }
@@ -337,7 +375,27 @@ impl EditorPane {
         if frame.peer == buffer.local_peer() {
             return false; // our own ops, echoed back — nothing to fold
         }
-        crate::editor_sync::apply_frame(buffer, &frame).is_ok()
+        match crate::editor_sync::apply_frame(buffer, &frame) {
+            Ok(()) => {
+                let receipt = short_receipt(&buffer.change_stamp());
+                self.review
+                    .transition(ReviewEvent::Confirmed(ReviewEvidence::new(
+                        ReviewSource::Loro,
+                        format!("state:{receipt}"),
+                        format!("remote ops from peer {} merged", frame.peer),
+                    )));
+                true
+            }
+            Err(error) => {
+                self.review
+                    .transition(ReviewEvent::Unknown(ReviewEvidence::new(
+                        ReviewSource::Loro,
+                        format!("peer:{}", frame.peer),
+                        format!("remote op import failed: {error}"),
+                    )));
+                false
+            }
+        }
     }
 
     // ── P2 slice 3: durability (snapshot ⇄ /blob) ─────────────────────────────
@@ -365,10 +423,76 @@ impl EditorPane {
         match buffer.apply_remote_ops(snapshot) {
             Ok(()) => {
                 self.error = None;
+                let receipt = short_receipt(&buffer.change_stamp());
+                let recovered = self.active_recovery.take();
+                let (evidence_id, detail) = recovered
+                    .map(|(peer, blob)| {
+                        (
+                            format!("blob:{blob}"),
+                            format!("snapshot from peer {peer} hydrated; Loro receipt {receipt}"),
+                        )
+                    })
+                    .unwrap_or_else(|| {
+                        (
+                            format!("state:{receipt}"),
+                            "snapshot bytes hydrated directly into Loro".into(),
+                        )
+                    });
+                self.review
+                    .transition(ReviewEvent::Confirmed(ReviewEvidence::new(
+                        ReviewSource::Loro,
+                        evidence_id,
+                        detail,
+                    )));
                 true
             }
-            Err(_) => false,
+            Err(error) => {
+                let recovered = self.active_recovery.take();
+                let evidence_id = recovered
+                    .map(|(_, blob)| format!("blob:{blob}"))
+                    .unwrap_or_else(|| "snapshot:unidentified".into());
+                self.review
+                    .transition(ReviewEvent::Unknown(ReviewEvidence::new(
+                        ReviewSource::Loro,
+                        evidence_id,
+                        format!("snapshot import failed: {error}"),
+                    )));
+                false
+            }
         }
+    }
+
+    /// Enter recovery only after the edit lane supplies a validated snapshot
+    /// reference. The blob id and publishing peer become visible provenance.
+    pub fn begin_snapshot_recovery(&mut self, peer: PeerId, blob_id: impl Into<String>) -> bool {
+        if peer == self.presence.local() {
+            return false;
+        }
+        let blob_id = blob_id.into();
+        self.active_recovery = Some((peer, blob_id.clone()));
+        self.review
+            .transition(ReviewEvent::Recovering(ReviewEvidence::new(
+                ReviewSource::Daemon,
+                format!("blob:{blob_id}"),
+                format!("fetching snapshot published by peer {peer}"),
+            )))
+    }
+
+    /// Close a real `/blob` recovery attempt that failed before Loro import.
+    pub fn fail_snapshot_recovery(&mut self, detail: impl Into<String>) -> bool {
+        let Some((peer, blob_id)) = self.active_recovery.take() else {
+            return false;
+        };
+        self.review
+            .transition(ReviewEvent::Unknown(ReviewEvidence::new(
+                ReviewSource::Daemon,
+                format!("blob:{blob_id}"),
+                format!("snapshot from peer {peer} unavailable: {}", detail.into()),
+            )))
+    }
+
+    pub fn review_state(&self) -> &ReviewStateMachine {
+        &self.review
     }
 
     // ── P2 slice 2: presence lane ─────────────────────────────────────────────
@@ -589,6 +713,7 @@ impl EditorPane {
     /// folds the response back through [`apply_conflict_report`](Self::apply_conflict_report).
     pub fn take_wedge_probe(&mut self, now_ms: i64) -> Option<serde_json::Value> {
         let intent = self.wedge_probe.take_due(now_ms)?;
+        let (lo, hi) = intent.line_span();
         let a = [SymbolClaim::from_region(
             &self.path,
             &intent,
@@ -602,6 +727,12 @@ impl EditorPane {
             .map(|(_, c)| SymbolClaim::from_region(&self.path, c, ClaimKind::Modify))
             .collect();
         let body = predict_request_body(&a, &b);
+        self.review
+            .transition(ReviewEvent::Pending(ReviewEvidence::new(
+                ReviewSource::Daemon,
+                format!("conflicts/predict:{}:{lo}-{hi}", intent.label),
+                "awaiting the daemon conflict verdict",
+            )));
         self.wedge_inflight = Some(intent);
         Some(body)
     }
@@ -617,6 +748,7 @@ impl EditorPane {
         let Some(intent) = self.wedge_inflight.take() else {
             return false;
         };
+        let (lo, hi) = intent.line_span();
         let report = parse_predict_response(resp);
         if report.is_blocking() {
             let region = intent.line_span();
@@ -634,10 +766,27 @@ impl EditorPane {
                 report,
                 now_ms,
             ));
+            self.review
+                .transition(ReviewEvent::Conflict(ReviewEvidence::new(
+                    ReviewSource::Daemon,
+                    format!("conflict:{}:{lo}-{hi}", intent.label),
+                    format!("daemon reported {} blocking conflict(s)", report.blocking),
+                )));
             true
         } else {
             let had = self.guard_band.is_some();
             self.guard_band = None;
+            let receipt = self
+                .buffer
+                .as_ref()
+                .map(|buffer| short_receipt(&buffer.change_stamp()))
+                .unwrap_or_else(|| "unloaded".into());
+            self.review
+                .transition(ReviewEvent::Confirmed(ReviewEvidence::new(
+                    ReviewSource::Daemon,
+                    format!("conflicts/predict:{}:{lo}-{hi}", intent.label),
+                    format!("daemon cleared the region; Loro receipt {receipt}"),
+                )));
             had
         }
     }
@@ -761,6 +910,33 @@ impl EditorPane {
         let c = slot.as_ref().expect("cache ensured above");
         (c.lines.clone(), c.gutter_cols, c.show_authors, c.total)
     }
+
+    /// Overlay a live claim gate on the stored transition state without mutating
+    /// during render. The claim ledger is itself daemon/coordination evidence.
+    fn review_for_view(&self) -> ReviewStateMachine {
+        let mut review = self.review.clone();
+        if let Some(band) = &self.guard_band {
+            let (lo, hi) = band.region;
+            review.transition(ReviewEvent::Conflict(ReviewEvidence::new(
+                ReviewSource::Daemon,
+                format!("conflict:{}:{lo}-{hi}", band.symbol),
+                format!(
+                    "daemon reports {} blocking conflict(s)",
+                    band.report.blocking
+                ),
+            )));
+        } else if let GuardVerdict::Gated(gated) =
+            self.guard_verdict_for_line(self.local_presence.cursor_line)
+        {
+            let (lo, hi) = gated.region;
+            review.transition(ReviewEvent::Conflict(ReviewEvidence::new(
+                ReviewSource::ClaimLedger,
+                format!("{}:{lo}-{hi}", gated.symbol),
+                format!("first-granted owner is {}", gated.owner_label),
+            )));
+        }
+        review
+    }
 }
 
 impl Pane for EditorPane {
@@ -780,6 +956,7 @@ impl Pane for EditorPane {
 
     fn view(&self) -> Vec<Block> {
         let mut blocks = vec![Block::Header(self.title())];
+        blocks.push(self.review_for_view().block("editor-state"));
 
         if let Some(err) = &self.error {
             blocks.push(Block::KeyVal("error".into(), err.clone()));
@@ -821,25 +998,12 @@ impl Pane for EditorPane {
             tone: Tone::Accent,
         });
         blocks.push(Block::Flag {
-            letter: 'F',
+            letter: 'H',
             label: format!(
-                "{voice} - caret owner you at L{local_line}:C{}; receipt {receipt}; remote edits merge through Loro, not a shell command",
+                "{voice} / claim-active caret you at L{local_line}:C{} / Loro receipt {receipt} / remote edits merge through Loro",
                 self.local_presence.cursor_col
             ),
-            tone: if self.guard_band.is_some() {
-                Tone::Conflicted
-            } else if gated_line {
-                Tone::Gated
-            } else {
-                Tone::Landed
-            },
-        });
-        blocks.push(Block::Flag {
-            letter: 'O',
-            label: format!(
-                "recovery tide-line - snapshot receipt {receipt}; cold successors hydrate the same authorship from /blob"
-            ),
-            tone: Tone::Resting,
+            tone: Tone::Landed,
         });
 
         // Legend: which tag is the operator vs an agent replica. Rendered as a
@@ -1014,14 +1178,28 @@ impl Pane for EditorPane {
                 .map_err(|e| anyhow::anyhow!("editor load task panicked: {e}"))?;
             match opened {
                 Ok(buf) => {
+                    let receipt = short_receipt(&buf.change_stamp());
                     self.buffer = Some(buf);
                     self.error = None;
                     self.truncated = false;
+                    self.review
+                        .transition(ReviewEvent::Confirmed(ReviewEvidence::new(
+                            ReviewSource::Loro,
+                            format!("state:{receipt}"),
+                            format!("local buffer refreshed for {}", self.path),
+                        )));
                 }
                 Err(e) => {
-                    self.error = Some(format!("{e}"));
+                    let detail = format!("{e}");
+                    self.error = Some(detail.clone());
                     self.buffer = None;
                     self.truncated = false;
+                    self.review
+                        .transition(ReviewEvent::Unknown(ReviewEvidence::new(
+                            ReviewSource::Surface,
+                            self.path.clone(),
+                            detail,
+                        )));
                 }
             }
             Ok(())
@@ -1159,7 +1337,7 @@ mod tests {
     }
 
     #[test]
-    fn mf_coop_header_renders_caret_receipt_and_recovery_state() {
+    fn mf_coop_header_renders_confirmed_state_caret_and_receipt() {
         let path = write_temp("mf-coop.txt", "alpha\nbravo\n");
         let mut pane = make_pane(&path, None);
         pane.set_local_presence(PresenceState::caret(2, 4, 1, 2));
@@ -1176,21 +1354,22 @@ mod tests {
         assert!(
             blocks.iter().any(|b| matches!(
                 b,
-                Block::Flag { letter: 'F', label, tone: Tone::Landed }
-                    if label.contains("caret owner you at L2:C4")
+                Block::Flag { letter: 'H', label, tone: Tone::Landed }
+                    if label.contains("claim-active caret you at L2:C4")
                         && label.contains("receipt")
                         && label.contains("remote edits merge through Loro")
             )),
-            "the Foxtrot strip must show caret ownership and the CRDT receipt"
+            "the Hotel strip must show caret ownership and the CRDT receipt"
         );
         assert!(
             blocks.iter().any(|b| matches!(
                 b,
-                Block::Flag { letter: 'O', label, .. }
-                    if label.contains("recovery tide-line")
-                        && label.contains("snapshot receipt")
+                Block::Flag { letter: 'H', label, tone: Tone::Landed }
+                    if label.contains("editor-state / confirmed")
+                        && label.contains("source loro")
+                        && label.contains("evidence state:")
             )),
-            "the recovery tide-line must stay visible"
+            "the explicit state rail must cite the confirmed Loro receipt"
         );
 
         let (_, bands, _) = code_buffer(&blocks).expect("a code buffer renders");
@@ -1524,6 +1703,20 @@ mod tests {
             !pane.ingest_frame("not a frame at all"),
             "garbage is ignored"
         );
+        let malformed_peer = peer_id_for_identity("port-daddy:editor:malformed-wire");
+        let malformed = crate::editor_sync::encode_frame(malformed_peer, &[0xff, 0x00, 0x7f]);
+        assert!(
+            !pane.ingest_frame(&malformed),
+            "a decoded frame with invalid Loro bytes must not land"
+        );
+        assert_eq!(
+            pane.review_state().state(),
+            crate::pane::ReviewState::Unknown
+        );
+        assert_eq!(
+            pane.review_state().evidence().evidence_id,
+            format!("peer:{malformed_peer}")
+        );
         assert_eq!(
             rows(&pane.view()).len(),
             2,
@@ -1790,9 +1983,27 @@ mod tests {
             cold.buffer().is_none(),
             "cold pane has no buffer before hydrate"
         );
+        let blob_id = "a".repeat(64);
+        assert!(cold.begin_snapshot_recovery(peer_id_for_identity(agent_id), &blob_id));
+        assert_eq!(
+            cold.review_state().state(),
+            crate::pane::ReviewState::Recovering
+        );
+        assert_eq!(
+            cold.review_state().evidence().evidence_id,
+            format!("blob:{blob_id}")
+        );
         assert!(
             cold.hydrate_from_snapshot(&snapshot),
             "the snapshot blob hydrates the cold pane"
+        );
+        assert_eq!(
+            cold.review_state().state(),
+            crate::pane::ReviewState::Confirmed
+        );
+        assert_eq!(
+            cold.review_state().evidence().evidence_id,
+            format!("blob:{blob_id}")
         );
 
         // It renders both lines, each attributed to its original author.
@@ -2066,6 +2277,10 @@ mod tests {
         let body = pane
             .take_wedge_probe(3_000)
             .expect("an acquire arms a due probe");
+        assert_eq!(
+            pane.review_state().state(),
+            crate::pane::ReviewState::Pending
+        );
         assert_eq!(body["claimsA"][0]["symbolPath"], "parse_header");
         assert_eq!(
             body["claimsA"][0]["type"], "modify",
@@ -2128,6 +2343,10 @@ mod tests {
             "a blocking report raises the band"
         );
         assert!(pane.guard_band().is_some());
+        assert_eq!(
+            pane.review_state().state(),
+            crate::pane::ReviewState::Conflict
+        );
 
         // A Tone::Conflicted band + a bypass-free nudge render.
         let blocks = pane.view();
@@ -2165,6 +2384,10 @@ mod tests {
         assert!(
             pane.guard_band().is_none(),
             "no band once the region is clear"
+        );
+        assert_eq!(
+            pane.review_state().state(),
+            crate::pane::ReviewState::Confirmed
         );
     }
 

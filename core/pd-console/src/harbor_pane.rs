@@ -21,7 +21,10 @@
 
 use crate::agent::{DaemonClient, StreamEnvelope, StreamKind};
 use crate::maritime::flag_for_state;
-use crate::pane::{Block, Pane, Subscription, SurfaceAction, Tone};
+use crate::pane::{
+    Block, Pane, ReviewEvent, ReviewEvidence, ReviewSource, ReviewStateMachine, Subscription,
+    SurfaceAction, Tone,
+};
 use crate::util::{arr, s, trunc};
 use anyhow::{anyhow, Result};
 use serde_json::{json, Value};
@@ -126,7 +129,11 @@ impl NodeRowData {
         // allows additionalProperties). Unknown stays "" and renders as "—".
         let display_name = {
             let d = s(v, "displayName");
-            if d.is_empty() { s(v, "identity") } else { d }
+            if d.is_empty() {
+                s(v, "identity")
+            } else {
+                d
+            }
         };
         // An embedded latest-probe projection, when the daemon supplies one.
         let witnessed_level = v
@@ -223,9 +230,11 @@ pub fn control_gate(verb: &str, node: &NodeRowData) -> std::result::Result<(), S
     // Observed imports can be watched, never governed (ch18 C2 gate:
     // "observed agents cannot receive C2+ controls").
     if node.authority == "observed" || node.official_mode == "observed" {
-        return Err("observed import — Port Daddy can watch but not govern this body; \
+        return Err(
+            "observed import — Port Daddy can watch but not govern this body; \
                     no controls (C2+ requires a governed adapter)"
-            .into());
+                .into(),
+        );
     }
     if node.status == "retired" {
         return Err("node is retired — historical evidence only".into());
@@ -234,7 +243,11 @@ pub fn control_gate(verb: &str, node: &NodeRowData) -> std::result::Result<(), S
         return Err(format!(
             "stale — last heartbeat {}; a stale projection never authorizes \
              a control (ADR-0095 §3). Refresh, then retry",
-            if node.last_heartbeat_at.is_empty() { "unknown" } else { node.last_heartbeat_at.as_str() }
+            if node.last_heartbeat_at.is_empty() {
+                "unknown"
+            } else {
+                node.last_heartbeat_at.as_str()
+            }
         ));
     }
     // A finished run has no live body to steer/pause/interrupt/checkpoint.
@@ -250,7 +263,11 @@ pub fn control_gate(verb: &str, node: &NodeRowData) -> std::result::Result<(), S
             "requires {} {} — node is {} {}",
             need,
             level_name(&need),
-            if effective == 0 { "C0".into() } else { format!("C{effective}") },
+            if effective == 0 {
+                "C0".into()
+            } else {
+                format!("C{effective}")
+            },
             level_name(&format!("C{effective}")),
         );
         if let Some(r) = cap_reason {
@@ -291,8 +308,8 @@ fn kind_meta(kind: &str) -> (&'static str, Tone) {
         "file_read" | "file_write" | "file_diff" | "file_touch" | "git_action"
         | "commit_created" | "pr_opened" => ("file", Tone::Engaged),
         "tool_denied" | "approval_request" | "budget_warning" => ("gated", Tone::Gated),
-        "budget_pause" | "budget_kill" | "adapter_error" | "provider_error"
-        | "transcript_gap" | "retention_failure" => ("error", Tone::Conflicted),
+        "budget_pause" | "budget_kill" | "adapter_error" | "provider_error" | "transcript_gap"
+        | "retention_failure" => ("error", Tone::Conflicted),
         "cost_accrued" => ("cost", Tone::Resting),
         "checkpoint" | "successor_created" | "receipt_completed" | "receipt_verified" => {
             ("landed", Tone::Landed)
@@ -383,8 +400,16 @@ pub fn fold_file_touches(events: &[Value], worktree: &str) -> Vec<FileTouch> {
         } else {
             format!(
                 "+{} −{}",
-                if additions.is_empty() { "0" } else { &additions },
-                if deletions.is_empty() { "0" } else { &deletions }
+                if additions.is_empty() {
+                    "0"
+                } else {
+                    &additions
+                },
+                if deletions.is_empty() {
+                    "0"
+                } else {
+                    &deletions
+                }
             )
         };
         let absolute = resolve_absolute(&path, worktree);
@@ -445,7 +470,10 @@ impl CostSummary {
             if !action.is_empty() && action != "none" {
                 out.budget_action = Some(action);
             }
-            if matches!(kind.as_str(), "budget_warning" | "budget_pause" | "budget_kill") {
+            if matches!(
+                kind.as_str(),
+                "budget_warning" | "budget_pause" | "budget_kill"
+            ) {
                 out.budget_action = Some(kind.trim_start_matches("budget_").to_string());
             }
         }
@@ -502,6 +530,7 @@ pub fn transcript_absence_cause(node: &NodeRowData, fetch_error: Option<&str>) -
 
 #[derive(Debug, Clone)]
 pub struct ControlRow {
+    pub command_id: String,
     pub kind: String,
     pub status: String,
     pub denial_reason: String,
@@ -511,6 +540,7 @@ pub struct ControlRow {
 impl ControlRow {
     pub fn from_value(v: &Value) -> Self {
         Self {
+            command_id: s(v, "commandId"),
             kind: s(v, "kind"),
             status: s(v, "status"),
             denial_reason: s(v, "denialReason"),
@@ -626,7 +656,7 @@ pub struct HarborPane {
     control_error: Option<String>,
     blackboard_error: Option<String>,
     /// Outcome flash of the last issued control (verb, message).
-    last_control: Option<(String, String)>,
+    last_control: Option<(String, String, String)>,
     /// Monotonic salt for idempotency keys.
     command_seq: u64,
 }
@@ -660,6 +690,150 @@ impl HarborPane {
 
     pub fn selected_node(&self) -> Option<&NodeRowData> {
         self.nodes.get(self.selected)
+    }
+
+    /// Fold daemon projections into the shared review state machine. Priority is
+    /// operator safety: a real pending human decision outranks stale-data recovery,
+    /// conflicts outrank ordinary pending controls, and missing IDs remain unknown.
+    fn review_state(&self) -> ReviewStateMachine {
+        let mut review = ReviewStateMachine::unknown(ReviewEvidence::new(
+            ReviewSource::Daemon,
+            "GET:/agent-nodes",
+            "no Agent Node projection has been confirmed",
+        ));
+
+        if let Some(card) = self
+            .blackboard
+            .iter()
+            .find(|card| card.status == "active" && card.kind == "pending-operator-decision")
+        {
+            review.transition(ReviewEvent::AwaitingHuman(ReviewEvidence::new(
+                ReviewSource::Blackboard,
+                card.item_id.clone(),
+                format!(
+                    "{} / {} citation(s) / asserted by {}",
+                    card.title, card.citations, card.asserted_by
+                ),
+            )));
+            return review;
+        }
+
+        if let Some(error) = &self.roster_error {
+            let event = ReviewEvidence::new(
+                ReviewSource::Daemon,
+                "GET:/agent-nodes",
+                if self.nodes.is_empty() {
+                    format!("roster unavailable with no prior projection: {error}")
+                } else {
+                    format!(
+                        "recovering while showing {} last-known node(s): {error}",
+                        self.nodes.len()
+                    )
+                },
+            );
+            review.transition(if self.nodes.is_empty() {
+                ReviewEvent::Unknown(event)
+            } else {
+                ReviewEvent::Recovering(event)
+            });
+            return review;
+        }
+
+        if let Some(control) = self
+            .controls
+            .iter()
+            .find(|control| matches!(control.status.as_str(), "failed" | "expired"))
+        {
+            review.transition(ReviewEvent::Conflict(ReviewEvidence::new(
+                ReviewSource::Daemon,
+                if control.command_id.is_empty() {
+                    format!("control:{}", control.kind)
+                } else {
+                    control.command_id.clone()
+                },
+                format!(
+                    "{} control is {}: {}",
+                    control.kind, control.status, control.denial_reason
+                ),
+            )));
+            return review;
+        }
+
+        if let Some(node) = self.selected_node() {
+            if matches!(node.status.as_str(), "blocked" | "stale") {
+                review.transition(ReviewEvent::Conflict(ReviewEvidence::new(
+                    ReviewSource::Daemon,
+                    node.agent_node_id.clone(),
+                    format!("daemon node status is {}", node.status),
+                )));
+                return review;
+            }
+            if let Some(control) = self
+                .controls
+                .iter()
+                .find(|control| matches!(control.status.as_str(), "queued" | "delivered"))
+            {
+                review.transition(ReviewEvent::Pending(ReviewEvidence::new(
+                    ReviewSource::Daemon,
+                    if control.command_id.is_empty() {
+                        format!("control:{}", control.kind)
+                    } else {
+                        control.command_id.clone()
+                    },
+                    format!("{} control is {}", control.kind, control.status),
+                )));
+                return review;
+            }
+            if self.transcript_error.is_some()
+                && (!self.transcript.is_empty() || !self.live_tail.is_empty())
+            {
+                review.transition(ReviewEvent::Recovering(ReviewEvidence::new(
+                    ReviewSource::Daemon,
+                    node.session_id
+                        .clone()
+                        .unwrap_or_else(|| node.agent_node_id.clone()),
+                    format!(
+                        "transcript refresh failed; retaining {} replay and {} live event(s)",
+                        self.transcript.len(),
+                        self.live_tail.len()
+                    ),
+                )));
+                return review;
+            }
+            if let Some((verb, _, command_id)) = &self.last_control {
+                review.transition(ReviewEvent::Pending(ReviewEvidence::new(
+                    ReviewSource::Daemon,
+                    if command_id.is_empty() {
+                        format!("node:{}", node.agent_node_id)
+                    } else {
+                        command_id.clone()
+                    },
+                    format!("{verb} was accepted; waiting for acknowledgement"),
+                )));
+                return review;
+            }
+            if let (Some(session), Some(body), Some(run)) =
+                (&node.session_id, &node.body_id, &node.run_id)
+            {
+                review.transition(ReviewEvent::Confirmed(ReviewEvidence::new(
+                    ReviewSource::Daemon,
+                    node.agent_node_id.clone(),
+                    format!("session {session} / body {body} / run {run}"),
+                )));
+            } else {
+                review.transition(ReviewEvent::Unknown(ReviewEvidence::new(
+                    ReviewSource::Daemon,
+                    node.agent_node_id.clone(),
+                    format!(
+                        "daemon projection is incomplete: session {} / body {} / run {}",
+                        node.session_id.as_deref().unwrap_or("unknown"),
+                        node.body_id.as_deref().unwrap_or("unknown"),
+                        node.run_id.as_deref().unwrap_or("unknown")
+                    ),
+                )));
+            }
+        }
+        review
     }
 
     /// Epoch-ms + per-pane counter: a fresh key is minted once per issued
@@ -735,12 +909,25 @@ impl HarborPane {
                 index: i,
                 selected: i == self.selected,
                 live,
-                flag: flag_for_state(if live { "engaged" } else { node.status.as_str() }).letter(),
+                flag: flag_for_state(if live {
+                    "engaged"
+                } else {
+                    node.status.as_str()
+                })
+                .letter(),
                 name: node.display_name.clone(),
                 badge,
-                badge_tone: if cap.is_some() { Tone::Gated } else { Tone::Accent },
+                badge_tone: if cap.is_some() {
+                    Tone::Gated
+                } else {
+                    Tone::Accent
+                },
                 meta: meta_parts.join(" · "),
-                age: if node.last_event_at.is_empty() { "—".into() } else { node.last_event_at.clone() },
+                age: if node.last_event_at.is_empty() {
+                    "—".into()
+                } else {
+                    node.last_event_at.clone()
+                },
                 tone,
             });
         }
@@ -782,8 +969,15 @@ impl HarborPane {
             format!(
                 "C{rank} {}{} · fidelity {}{}",
                 level_name(&format!("C{rank}")),
-                cap_reason.as_deref().map(|r| format!(" — {r}")).unwrap_or_default(),
-                if node.transcript_fidelity.is_empty() { "—" } else { node.transcript_fidelity.as_str() },
+                cap_reason
+                    .as_deref()
+                    .map(|r| format!(" — {r}"))
+                    .unwrap_or_default(),
+                if node.transcript_fidelity.is_empty() {
+                    "—"
+                } else {
+                    node.transcript_fidelity.as_str()
+                },
                 if node.official_mode.is_empty() || node.official_mode == "official" {
                     String::new()
                 } else {
@@ -795,9 +989,21 @@ impl HarborPane {
             "body".into(),
             format!(
                 "{} · tier {} · model {}",
-                if node.provider.is_empty() { "—" } else { node.provider.as_str() },
-                if node.model_tier.is_empty() { "—" } else { node.model_tier.as_str() },
-                if node.model_name.is_empty() { "—" } else { node.model_name.as_str() },
+                if node.provider.is_empty() {
+                    "—"
+                } else {
+                    node.provider.as_str()
+                },
+                if node.model_tier.is_empty() {
+                    "—"
+                } else {
+                    node.model_tier.as_str()
+                },
+                if node.model_name.is_empty() {
+                    "—"
+                } else {
+                    node.model_name.as_str()
+                },
             ),
         ));
         if !node.worktree.is_empty() {
@@ -806,7 +1012,11 @@ impl HarborPane {
                 format!(
                     "{}{}",
                     node.worktree,
-                    if node.branch.is_empty() { String::new() } else { format!(" @ {}", node.branch) }
+                    if node.branch.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" @ {}", node.branch)
+                    }
                 ),
             ));
         }
@@ -877,7 +1087,11 @@ impl HarborPane {
                     },
                     path: f.absolute.clone(),
                     preview: Some(f.display.clone()),
-                    tone: if f.op == "write" { Tone::Engaged } else { Tone::Default },
+                    tone: if f.op == "write" {
+                        Tone::Engaged
+                    } else {
+                        Tone::Default
+                    },
                 });
             }
         }
@@ -894,35 +1108,26 @@ impl HarborPane {
             if !c.denial_reason.is_empty() {
                 label.push_str(&format!(" ({})", c.denial_reason));
             }
-            blocks.push(Block::Chip { label, tone: c.tone() });
+            blocks.push(Block::Chip {
+                label,
+                tone: c.tone(),
+            });
         }
-        if let Some((verb, msg)) = &self.last_control {
+        if let Some((verb, msg, command_id)) = &self.last_control {
             blocks.push(Block::WrappedText {
-                text: format!("{verb}: {msg}"),
+                text: format!(
+                    "{verb}: {msg}{}",
+                    if command_id.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" / daemon command {command_id}")
+                    }
+                ),
                 tone: Tone::Landed,
             });
         }
 
         // ── click controls, compliance-gated at emit time ──
-        let gated_controls = CONTROL_VERBS
-            .iter()
-            .filter(|(verb, _, _)| control_gate(verb, node).is_err())
-            .count();
-        if gated_controls > 0 {
-            blocks.push(Block::Flag {
-                letter: 'F',
-                label: format!(
-                    "human gate - {gated_controls} control(s) disabled here with exact daemon/compliance reasons"
-                ),
-                tone: Tone::Gated,
-            });
-        } else {
-            blocks.push(Block::Flag {
-                letter: 'C',
-                label: "human gate clear - enabled controls still post ControlCommand for daemon authorization".into(),
-                tone: Tone::Landed,
-            });
-        }
         for (verb, _, _) in CONTROL_VERBS.iter() {
             let gate = control_gate(verb, node);
             blocks.push(Block::ControlButton {
@@ -955,7 +1160,11 @@ impl HarborPane {
                     "{}{}{}",
                     stamp,
                     row.text,
-                    if row.blob_refs > 0 { format!(" [{} blob(s)]", row.blob_refs) } else { String::new() }
+                    if row.blob_refs > 0 {
+                        format!(" [{} blob(s)]", row.blob_refs)
+                    } else {
+                        String::new()
+                    }
                 ),
                 tone: row.tone,
             },
@@ -965,7 +1174,11 @@ impl HarborPane {
                     stamp,
                     row.kind,
                     trunc(&row.text, 160),
-                    if row.blob_refs > 0 { format!(" [{} blob(s)]", row.blob_refs) } else { String::new() }
+                    if row.blob_refs > 0 {
+                        format!(" [{} blob(s)]", row.blob_refs)
+                    } else {
+                        String::new()
+                    }
                 ),
                 tone: row.tone,
             },
@@ -979,7 +1192,11 @@ impl HarborPane {
             Value::Array(a) => a.as_slice(),
             _ => {
                 let nodes = arr(data, "nodes");
-                if nodes.is_empty() { arr(data, "agentNodes") } else { nodes }
+                if nodes.is_empty() {
+                    arr(data, "agentNodes")
+                } else {
+                    nodes
+                }
             }
         };
         let previously = self.selected_node().map(|n| n.agent_node_id.clone());
@@ -1061,7 +1278,11 @@ impl HarborPane {
                     status,
                     stale,
                     card.citations,
-                    if card.asserted_by.is_empty() { "?" } else { card.asserted_by.as_str() },
+                    if card.asserted_by.is_empty() {
+                        "?"
+                    } else {
+                        card.asserted_by.as_str()
+                    },
                 ),
                 tone: card.tone(),
             });
@@ -1092,10 +1313,15 @@ impl HarborPane {
             Value::Array(a) => a.clone(),
             _ => arr(data, "events").to_vec(),
         };
-        let mut rows: Vec<TranscriptRow> =
-            list.iter().map(|e| TranscriptRow::from_value(e, false)).collect();
+        let mut rows: Vec<TranscriptRow> = list
+            .iter()
+            .map(|e| TranscriptRow::from_value(e, false))
+            .collect();
         rows.sort_by_key(|r| r.sequence);
-        let worktree = self.selected_node().map(|n| n.worktree.clone()).unwrap_or_default();
+        let worktree = self
+            .selected_node()
+            .map(|n| n.worktree.clone())
+            .unwrap_or_default();
         self.files = fold_file_touches(&list, &worktree);
         self.cost = CostSummary::fold(&list);
         self.transcript = rows;
@@ -1118,11 +1344,12 @@ impl Pane for HarborPane {
         let mut blocks = vec![
             Block::Header("M.F co-op Harbor - Agent Nodes".into()),
             Block::Flag {
-                letter: 'F',
-                label: "M.F co-op surface - full pd CLI drawer stays available in the shell; this pane reads daemon truth".into(),
+                letter: 'M',
+                label: "M.F co-op surface / full pd CLI drawer stays available / this pane reads daemon projections only".into(),
                 tone: Tone::Accent,
             },
         ];
+        blocks.push(self.review_state().block("harbor-state"));
 
         if let Some(err) = &self.roster_error {
             blocks.push(Block::WrappedText {
@@ -1274,7 +1501,11 @@ impl Pane for HarborPane {
 
             // 3. Control history: GET /agent-nodes/:id/control (queued controls
             //    are separate records that render into the timeline).
-            let url = format!("{}/agent-nodes/{}/control", daemon.base(), node.agent_node_id);
+            let url = format!(
+                "{}/agent-nodes/{}/control",
+                daemon.base(),
+                node.agent_node_id
+            );
             match daemon.http_client().get(&url).send().await {
                 Err(e) => self.control_error = Some(e.to_string()),
                 Ok(resp) => {
@@ -1290,8 +1521,7 @@ impl Pane for HarborPane {
                                     Value::Array(a) => a.clone(),
                                     other => arr(other, "commands").to_vec(),
                                 };
-                                self.controls =
-                                    list.iter().map(ControlRow::from_value).collect();
+                                self.controls = list.iter().map(ControlRow::from_value).collect();
                             }
                         }
                     }
@@ -1356,11 +1586,16 @@ impl Pane for HarborPane {
                         let text = resp.text().await.unwrap_or_default();
                         return Err(anyhow!(
                             "{verb} refused by daemon ({status}): {}",
-                            if text.is_empty() { "no detail".into() } else { text }
+                            if text.is_empty() {
+                                "no detail".into()
+                            } else {
+                                text
+                            }
                         ));
                     }
                     let outcome: Value = resp.json().await.unwrap_or(Value::Null);
                     let queued_status = s(&outcome, "status");
+                    let command_id = s(&outcome, "commandId");
                     self.last_control = Some((
                         verb,
                         if queued_status.is_empty() {
@@ -1368,6 +1603,7 @@ impl Pane for HarborPane {
                         } else {
                             format!("{queued_status} — watch for the acknowledgement event")
                         },
+                        command_id,
                     ));
                     Ok(())
                 }
@@ -1513,8 +1749,15 @@ mod tests {
         let cost = CostSummary::fold(&events);
         assert_eq!(cost.events, 1);
         // Unknown values stay None — never guessed.
-        if cost_payload.get("actualCostUsd").and_then(Value::as_f64).is_none() {
-            assert!(cost.actual_usd.is_none(), "absent actual cost must stay None");
+        if cost_payload
+            .get("actualCostUsd")
+            .and_then(Value::as_f64)
+            .is_none()
+        {
+            assert!(
+                cost.actual_usd.is_none(),
+                "absent actual cost must stay None"
+            );
         }
     }
 
@@ -1543,7 +1786,10 @@ mod tests {
         assert!(reason.unwrap().contains("self-reported"));
         // And every control gate closes with that exact cause.
         let err = control_gate("pause", &node).unwrap_err();
-        assert!(err.contains("self-reported"), "why-disabled must name the cause: {err}");
+        assert!(
+            err.contains("self-reported"),
+            "why-disabled must name the cause: {err}"
+        );
     }
 
     // ── per-verb compliance gating (C3 acceptance gate) ──
@@ -1552,7 +1798,10 @@ mod tests {
     fn c4_controllable_enables_pause_interrupt_checkpoint_retire_but_not_successor() {
         let node = c4_node();
         for verb in ["steer", "pause", "interrupt", "checkpoint", "retire"] {
-            assert!(control_gate(verb, &node).is_ok(), "{verb} should be enabled at C4");
+            assert!(
+                control_gate(verb, &node).is_ok(),
+                "{verb} should be enabled at C4"
+            );
         }
         let err = control_gate("successor", &node).unwrap_err();
         assert!(err.contains("C6"), "successor requires C6 Resumable: {err}");
@@ -1566,7 +1815,10 @@ mod tests {
         assert!(control_gate("steer", &node).is_ok());
         for verb in ["pause", "interrupt", "checkpoint", "retire", "successor"] {
             let err = control_gate(verb, &node).unwrap_err();
-            assert!(err.contains("requires"), "{verb} must be gated with the level named: {err}");
+            assert!(
+                err.contains("requires"),
+                "{verb} must be gated with the level named: {err}"
+            );
         }
     }
 
@@ -1596,10 +1848,16 @@ mod tests {
         node.compliance_level = "C6".into();
         node.witnessed_level = Some("C6".into());
         for verb in ["steer", "pause", "interrupt", "checkpoint"] {
-            assert!(control_gate(verb, &node).is_err(), "{verb} needs a live body");
+            assert!(
+                control_gate(verb, &node).is_err(),
+                "{verb} needs a live body"
+            );
         }
         assert!(control_gate("retire", &node).is_ok());
-        assert!(control_gate("successor", &node).is_ok(), "successor from a sealed run is the C6 path");
+        assert!(
+            control_gate("successor", &node).is_ok(),
+            "successor from a sealed run is the C6 path"
+        );
     }
 
     // ── missing transcript shows exact cause ──
@@ -1623,8 +1881,14 @@ mod tests {
         let cause = transcript_absence_cause(&node, None);
         assert!(cause.contains("C1 Transcripted"), "{cause}");
 
-        let cause = transcript_absence_cause(&c4_node(), Some("GET /sessions/sess-1/events → 404 — ledger route missing"));
-        assert!(cause.contains("404"), "fetch errors pass through verbatim: {cause}");
+        let cause = transcript_absence_cause(
+            &c4_node(),
+            Some("GET /sessions/sess-1/events → 404 — ledger route missing"),
+        );
+        assert!(
+            cause.contains("404"),
+            "fetch errors pass through verbatim: {cause}"
+        );
     }
 
     #[test]
@@ -1634,9 +1898,9 @@ mod tests {
         node.session_id = None;
         pane.nodes = vec![node];
         let blocks = pane.view();
-        let has_cause = blocks.iter().any(|b| {
-            matches!(b, Block::WrappedText { text, .. } if text.contains("no session bound"))
-        });
+        let has_cause = blocks.iter().any(
+            |b| matches!(b, Block::WrappedText { text, .. } if text.contains("no session bound")),
+        );
         assert!(has_cause, "missing transcript must render its exact cause");
     }
 
@@ -1663,11 +1927,14 @@ mod tests {
         assert_eq!(rows.len(), 2);
         assert!(rows[0].0, "active node renders live");
         assert!(!rows[1].0, "complete node renders historical");
-        assert_ne!(rows[0].1, rows[1].1, "live and historical must differ in tone");
+        assert_ne!(
+            rows[0].1, rows[1].1,
+            "live and historical must differ in tone"
+        );
     }
 
     #[test]
-    fn mf_harbor_renders_daemon_session_truth_and_human_gate() {
+    fn mf_harbor_renders_daemon_session_truth_and_only_real_human_gate() {
         let mut pane = HarborPane::new();
         let mut node = c4_node();
         node.compliance_level = "C4".into();
@@ -1694,11 +1961,71 @@ mod tests {
         assert!(
             blocks.iter().any(|b| matches!(
                 b,
-                Block::Flag { letter: 'F', label, tone: Tone::Gated }
-                    if label.contains("human gate")
-                        && label.contains("control(s) disabled")
+                Block::Flag { letter: 'H', label, tone: Tone::Landed }
+                    if label.contains("harbor-state / confirmed")
+                        && label.contains("evidence an-1")
+                        && label.contains("session sess-1 / body body-1 / run run-1")
             )),
-            "gated controls must be announced as a Foxtrot human gate"
+            "the selected node must cite confirmed daemon IDs"
+        );
+        assert!(
+            !blocks
+                .iter()
+                .any(|b| matches!(b, Block::Flag { letter: 'F', .. })),
+            "disabled controls alone must not fabricate a human decision"
+        );
+
+        pane.apply_blackboard(&json!({
+            "data": [{
+                "itemId": "gate-7",
+                "kind": "pending-operator-decision",
+                "title": "Approve destructive repair",
+                "status": "active",
+                "agentNodeId": "an-1",
+                "postedAt": "2026-07-14T00:00:00Z",
+                "assertedBy": { "kind": "daemon" },
+                "citations": [{ "kind": "event", "id": "ev-7" }],
+                "projection": { "stale": false }
+            }]
+        }));
+        let blocks = pane.view();
+        assert!(
+            blocks.iter().any(|b| matches!(
+                b,
+                Block::Flag { letter: 'F', label, tone: Tone::Gated }
+                    if label.contains("harbor-state / awaiting-human")
+                        && label.contains("source daemon-blackboard")
+                        && label.contains("evidence gate-7")
+            )),
+            "only the daemon blackboard decision becomes a Foxtrot gate"
+        );
+    }
+
+    #[test]
+    fn harbor_pending_and_recovering_states_keep_daemon_provenance() {
+        let mut pane = HarborPane::new();
+        pane.nodes = vec![c4_node()];
+        pane.controls = vec![ControlRow::from_value(&json!({
+            "commandId": "cmd-9",
+            "kind": "pause",
+            "status": "queued",
+            "createdAt": "2026-07-14T00:00:00Z"
+        }))];
+        assert_eq!(
+            pane.review_state().state(),
+            crate::pane::ReviewState::Pending
+        );
+        assert_eq!(pane.review_state().evidence().evidence_id, "cmd-9");
+
+        pane.controls.clear();
+        pane.roster_error = Some("connection reset".into());
+        assert_eq!(
+            pane.review_state().state(),
+            crate::pane::ReviewState::Recovering
+        );
+        assert_eq!(
+            pane.review_state().evidence().evidence_id,
+            "GET:/agent-nodes"
         );
     }
 
@@ -1745,9 +2072,15 @@ mod tests {
         node.last_heartbeat_at = String::new();
         node.last_event_at = String::new();
         assert!(node.session_id.is_some() && node.status == "active");
-        assert!(!node.is_live(), "active + session-only must not render LIVE");
+        assert!(
+            !node.is_live(),
+            "active + session-only must not render LIVE"
+        );
         node.last_heartbeat_at = "2026-07-05T00:00:00Z".into();
-        assert!(node.is_live(), "a heartbeat is daemon-proved liveness evidence");
+        assert!(
+            node.is_live(),
+            "a heartbeat is daemon-proved liveness evidence"
+        );
     }
 
     #[test]
@@ -1801,10 +2134,16 @@ mod tests {
         ];
         let touches = fold_file_touches(&events, "/Users/op/coding/port-daddy");
         assert_eq!(touches.len(), 2);
-        assert_eq!(touches[0].absolute, "/Users/op/coding/port-daddy/lib/symbol-index.ts");
+        assert_eq!(
+            touches[0].absolute,
+            "/Users/op/coding/port-daddy/lib/symbol-index.ts"
+        );
         assert_eq!(touches[0].op, "write");
         assert_eq!(touches[0].stats, "+118 −6");
-        assert_eq!(touches[1].absolute, "/abs/elsewhere/feedback.ts", "absolute stays as-is");
+        assert_eq!(
+            touches[1].absolute, "/abs/elsewhere/feedback.ts",
+            "absolute stays as-is"
+        );
     }
 
     #[test]
@@ -1838,7 +2177,10 @@ mod tests {
         let daemon = DaemonClient::new("http://127.0.0.1:1".into());
         block_on(pane.mutate(&daemon, SurfaceAction::SelectRow { index: 1 })).unwrap();
         assert_eq!(pane.selected, 1);
-        assert!(pane.transcript.is_empty(), "stale detail must not survive a reselect");
+        assert!(
+            pane.transcript.is_empty(),
+            "stale detail must not survive a reselect"
+        );
     }
 
     #[test]
@@ -1875,9 +2217,12 @@ mod tests {
         let buttons: Vec<_> = blocks
             .iter()
             .filter_map(|b| match b {
-                Block::ControlButton { verb, enabled, why_disabled, .. } => {
-                    Some((verb.clone(), *enabled, why_disabled.clone()))
-                }
+                Block::ControlButton {
+                    verb,
+                    enabled,
+                    why_disabled,
+                    ..
+                } => Some((verb.clone(), *enabled, why_disabled.clone())),
                 _ => None,
             })
             .collect();
@@ -1904,16 +2249,24 @@ mod tests {
         let daemon = DaemonClient::new("http://127.0.0.1:1".into());
         let err = block_on(pane.mutate(
             &daemon,
-            SurfaceAction::Control { verb: "interrupt".into(), argument: None },
+            SurfaceAction::Control {
+                verb: "interrupt".into(),
+                argument: None,
+            },
         ))
         .unwrap_err();
-        assert!(err.to_string().contains("observed"), "gate reason surfaces: {err}");
+        assert!(
+            err.to_string().contains("observed"),
+            "gate reason surfaces: {err}"
+        );
     }
 
     #[test]
     fn control_body_matches_the_frozen_wire_shape() {
         let mut pane = HarborPane::new();
-        let body = pane.build_control_body("steer", "an-1", Some("focus on routes")).unwrap();
+        let body = pane
+            .build_control_body("steer", "an-1", Some("focus on routes"))
+            .unwrap();
         assert_eq!(body["schema"], "pd.agent-harbor.control-command.v0");
         assert_eq!(body["kind"], "steer");
         assert_eq!(body["payload"]["message"], "focus on routes");
@@ -1935,7 +2288,10 @@ mod tests {
         let mut pane = HarborPane::new();
         pane.roster_error = Some("daemon unreachable: connection refused".into());
         let blocks = pane.view();
-        assert!(!blocks.is_empty(), "an error state is still a rendered state");
+        assert!(
+            !blocks.is_empty(),
+            "an error state is still a rendered state"
+        );
         assert!(blocks.iter().any(|b| matches!(
             b,
             Block::WrappedText { text, .. } if text.contains("connection refused")
@@ -1952,7 +2308,9 @@ mod tests {
             .build()
             .unwrap();
         rt.block_on(async {
-            pane.refresh(&daemon).await.expect("refresh records, never propagates");
+            pane.refresh(&daemon)
+                .await
+                .expect("refresh records, never propagates");
         });
         assert!(pane.roster_error.is_some());
         assert!(!pane.view().is_empty());
@@ -1967,7 +2325,10 @@ mod tests {
             Some(Subscription::Agent { agent_id }) if agent_id == "an-1"
         ));
         pane.nodes[0].status = "complete".into();
-        assert!(pane.subscription().is_none(), "historical nodes are never live-followed");
+        assert!(
+            pane.subscription().is_none(),
+            "historical nodes are never live-followed"
+        );
     }
 
     // ── Blackboard read query (M6, read-only — binder ch05; ADR-0097 §5) ──
@@ -1984,7 +2345,10 @@ mod tests {
         assert!(!card.posted_at.is_empty(), "postedAt must parse");
         assert!(!card.asserted_by.is_empty(), "assertedBy.kind must parse");
         // The frozen schema's citations minItems 1: the zoom path exists.
-        assert!(card.citations >= 1, "a card without citations is a loose chat, not a board");
+        assert!(
+            card.citations >= 1,
+            "a card without citations is a loose chat, not a board"
+        );
         assert!(!card.stale, "the fixture's projection is fresh");
     }
 
@@ -1998,7 +2362,10 @@ mod tests {
         card.severity = "warning".into();
         assert!(matches!(card.tone(), Tone::Gated));
         card.severity = "someFutureSeverity".into();
-        assert!(matches!(card.tone(), Tone::Default), "unknown severity renders calm");
+        assert!(
+            matches!(card.tone(), Tone::Default),
+            "unknown severity renders calm"
+        );
     }
 
     #[test]

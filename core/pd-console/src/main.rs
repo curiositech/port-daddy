@@ -1208,12 +1208,33 @@ fn main() {
                             // presence cursor / region claim triggers exactly one repaint.
                             while let Ok(msg) = edit_rx.try_recv() {
                                 // The edit-sync lane multiplexes durable Loro op
-                                // frames and lossy presence frames under distinct
-                                // frame kinds (`ingest_frame` / `ingest_presence`
-                                // are mutually exclusive); `||` short-circuits so a
-                                // frame folds through exactly one path.
-                                editor_dirty |=
-                                    ed.ingest_frame(&msg.text) || ed.ingest_presence(&msg.text);
+                                // frames, lossy presence, and content-addressed
+                                // snapshot refs under distinct frame kinds. A real
+                                // snapshot ref enters Recovering, fetches that exact
+                                // daemon `/blob` id, then transitions to Confirmed or
+                                // Unknown with the same provenance. Other frame folds
+                                // are mutually exclusive; `||` keeps one path per frame.
+                                if let Some(snapshot) =
+                                    editor_sync::decode_snapshot_frame(&msg.text)
+                                {
+                                    if ed.begin_snapshot_recovery(snapshot.peer, &snapshot.blob_id) {
+                                        // Publish the recovering orientation before
+                                        // the network await; the foreground drains
+                                        // this edge independently from completion.
+                                        let _ = editor_tx
+                                            .send((ed.path_str().to_string(), ed.view()));
+                                        match client.get_blob(&snapshot.blob_id).await {
+                                            Ok(bytes) => editor_dirty |= ed.hydrate_from_snapshot(&bytes),
+                                            Err(error) => {
+                                                editor_dirty |=
+                                                    ed.fail_snapshot_recovery(error.to_string())
+                                            }
+                                        }
+                                    }
+                                    continue;
+                                }
+                                editor_dirty |= ed.ingest_frame(&msg.text)
+                                    || ed.ingest_presence(&msg.text);
                             }
                             while let Ok(msg) = coord_rx.try_recv() {
                                 editor_dirty |= ed.ingest_claim(&msg.text);

@@ -43,6 +43,179 @@ impl Tone {
     }
 }
 
+/// Cross-surface review truth for state-bearing operator rails.
+///
+/// These are deliberately not "loading / success / error" aliases. Each state
+/// names what the operator can safely infer from the cited evidence. The daemon,
+/// Loro document, or claims ledger remains authoritative; a renderer may only
+/// present the state and its provenance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReviewState {
+    Pending,
+    Unknown,
+    Recovering,
+    Confirmed,
+    Conflict,
+    AwaitingHuman,
+}
+
+impl ReviewState {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Unknown => "unknown",
+            Self::Recovering => "recovering",
+            Self::Confirmed => "confirmed",
+            Self::Conflict => "conflict",
+            Self::AwaitingHuman => "awaiting-human",
+        }
+    }
+
+    /// Story-linework flag grammar. Foxtrot is reserved for a real human gate;
+    /// Victor is conflict, Oscar recovery, and Hotel an active confirmed claim.
+    pub fn flag(self) -> char {
+        match self {
+            Self::Pending => 'P',
+            Self::Unknown => 'Y',
+            Self::Recovering => 'O',
+            Self::Confirmed => 'H',
+            Self::Conflict => 'V',
+            Self::AwaitingHuman => 'F',
+        }
+    }
+
+    pub fn tone(self) -> Tone {
+        match self {
+            Self::Pending => Tone::Resting,
+            Self::Unknown => Tone::Gated,
+            Self::Recovering => Tone::Accent,
+            Self::Confirmed => Tone::Landed,
+            Self::Conflict => Tone::Conflicted,
+            Self::AwaitingHuman => Tone::Gated,
+        }
+    }
+}
+
+/// Authority that supplied one review-state observation. `Surface` is used only
+/// for an honest absence such as "file has not loaded yet"; it never authorizes
+/// a mutation or claims daemon truth.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReviewSource {
+    Surface,
+    Loro,
+    Daemon,
+    ClaimLedger,
+    Blackboard,
+}
+
+impl ReviewSource {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Surface => "surface-observation",
+            Self::Loro => "loro",
+            Self::Daemon => "daemon",
+            Self::ClaimLedger => "daemon-claim-ledger",
+            Self::Blackboard => "daemon-blackboard",
+        }
+    }
+}
+
+/// One inspectable observation behind a review state. `evidence_id` is always a
+/// real path, content receipt, daemon id, claim id, or blackboard item id.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReviewEvidence {
+    pub source: ReviewSource,
+    pub evidence_id: String,
+    pub detail: String,
+}
+
+impl ReviewEvidence {
+    pub fn new(
+        source: ReviewSource,
+        evidence_id: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> Self {
+        Self {
+            source,
+            evidence_id: evidence_id.into(),
+            detail: detail.into(),
+        }
+    }
+}
+
+/// Events accepted by the review state machine. Every transition carries fresh
+/// evidence, preventing a frontend-only boolean from becoming implied authority.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReviewEvent {
+    Pending(ReviewEvidence),
+    Unknown(ReviewEvidence),
+    Recovering(ReviewEvidence),
+    Confirmed(ReviewEvidence),
+    Conflict(ReviewEvidence),
+    AwaitingHuman(ReviewEvidence),
+}
+
+impl ReviewEvent {
+    fn into_parts(self) -> (ReviewState, ReviewEvidence) {
+        match self {
+            Self::Pending(e) => (ReviewState::Pending, e),
+            Self::Unknown(e) => (ReviewState::Unknown, e),
+            Self::Recovering(e) => (ReviewState::Recovering, e),
+            Self::Confirmed(e) => (ReviewState::Confirmed, e),
+            Self::Conflict(e) => (ReviewState::Conflict, e),
+            Self::AwaitingHuman(e) => (ReviewState::AwaitingHuman, e),
+        }
+    }
+}
+
+/// Small, reusable state machine shared by the Harbor editor and Agent Harbor.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReviewStateMachine {
+    state: ReviewState,
+    evidence: ReviewEvidence,
+}
+
+impl ReviewStateMachine {
+    pub fn unknown(evidence: ReviewEvidence) -> Self {
+        Self {
+            state: ReviewState::Unknown,
+            evidence,
+        }
+    }
+
+    pub fn transition(&mut self, event: ReviewEvent) -> bool {
+        let (state, evidence) = event.into_parts();
+        let changed = self.state != state || self.evidence != evidence;
+        self.state = state;
+        self.evidence = evidence;
+        changed
+    }
+
+    pub fn state(&self) -> ReviewState {
+        self.state
+    }
+
+    pub fn evidence(&self) -> &ReviewEvidence {
+        &self.evidence
+    }
+
+    /// Render-agnostic state rail. Both the REPL and GPUI face paint this Block,
+    /// so reduced motion never removes the operator's label or provenance.
+    pub fn block(&self, scope: &str) -> Block {
+        Block::Flag {
+            letter: self.state.flag(),
+            label: format!(
+                "{scope} / {} / source {} / evidence {} / {}",
+                self.state.label(),
+                self.evidence.source.label(),
+                self.evidence.evidence_id,
+                self.evidence.detail
+            ),
+            tone: self.state.tone(),
+        }
+    }
+}
+
 /// The render-agnostic primitives a pane emits. Both renderers paint these.
 /// The syntax class of one code-line run — the render-agnostic vocabulary the
 /// Harbor editor's tokenizer (`syntax.rs`) emits. Like [`Tone`], this is
@@ -767,6 +940,46 @@ mod tests {
         assert_eq!(AlertLevel::Info.tone(), Tone::Landed);
         assert_eq!(AlertLevel::Warn.tone(), Tone::Gated);
         assert_eq!(Alert::info("ok", "").level, AlertLevel::Info);
+    }
+
+    #[test]
+    fn review_state_machine_names_every_state_and_never_drops_provenance() {
+        let evidence = |id: &str| ReviewEvidence::new(ReviewSource::Daemon, id, "observed");
+        let mut machine = ReviewStateMachine::unknown(evidence("none"));
+        let events = [
+            ReviewEvent::Pending(evidence("request-1")),
+            ReviewEvent::Recovering(evidence("blob-1")),
+            ReviewEvent::Confirmed(evidence("receipt-1")),
+            ReviewEvent::Conflict(evidence("claim-1")),
+            ReviewEvent::AwaitingHuman(evidence("gate-1")),
+            ReviewEvent::Unknown(evidence("missing-1")),
+        ];
+        let expected = [
+            ReviewState::Pending,
+            ReviewState::Recovering,
+            ReviewState::Confirmed,
+            ReviewState::Conflict,
+            ReviewState::AwaitingHuman,
+            ReviewState::Unknown,
+        ];
+
+        for (event, state) in events.into_iter().zip(expected) {
+            assert!(machine.transition(event));
+            assert_eq!(machine.state(), state);
+            assert!(!machine.evidence().evidence_id.is_empty());
+            let Block::Flag {
+                letter,
+                label,
+                tone,
+            } = machine.block("review")
+            else {
+                panic!("state machine must emit a state-bearing flag")
+            };
+            assert_eq!(letter, state.flag());
+            assert_eq!(tone, state.tone());
+            assert!(label.contains(state.label()));
+            assert!(label.contains("source daemon"));
+        }
     }
 
     #[test]

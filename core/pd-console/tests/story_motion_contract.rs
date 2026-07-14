@@ -5,6 +5,8 @@ const MOTION_PLAN: &str =
     include_str!("../../../docs/design/pd-console-story-linework-motion-plan.json");
 const RUNG_PLAN: &str =
     include_str!("../../../docs/design/pd-console-story-linework-rung-plan.json");
+const STORY_LINEWORK_RS: &str = include_str!("../src/story_linework.rs");
+const APP_RS: &str = include_str!("../src/app.rs");
 
 #[test]
 fn every_motion_surface_has_one_owner_and_a_reduced_motion_state() {
@@ -31,7 +33,13 @@ fn every_motion_surface_has_one_owner_and_a_reduced_motion_state() {
         assert!(names.insert(name), "duplicate motion surface: {name}");
         assert_eq!(surface["owners"], 1, "{name} must have exactly one owner");
         assert!(
-            surface["stateBearingNeed"].as_str().is_some_and(|s| !s.is_empty()),
+            surface["durationMs"].as_u64().is_some_and(|ms| ms > 0),
+            "{name} must declare the duration consumed by GPUI"
+        );
+        assert!(
+            surface["stateBearingNeed"]
+                .as_str()
+                .is_some_and(|s| !s.is_empty()),
             "{name} must name the state it communicates"
         );
         assert_eq!(
@@ -66,6 +74,41 @@ fn every_motion_surface_has_one_owner_and_a_reduced_motion_state() {
     for name in required {
         assert!(names.contains(name), "motion plan is missing {name}");
     }
+}
+
+#[test]
+fn gpui_runtime_consumes_motion_plan_through_the_single_stripe_owner() {
+    assert!(
+        STORY_LINEWORK_RS.contains("pd-console-story-linework-motion-plan.json"),
+        "the production primitive must load the checked-in plan"
+    );
+    for runtime_hook in [
+        "motion_surface(name:",
+        "policy.duration_ms",
+        "policy.owners == 1",
+        "motion_state_stripe(",
+        "motion_orientation_cue(",
+    ] {
+        assert!(
+            STORY_LINEWORK_RS.contains(runtime_hook),
+            "production motion policy is missing {runtime_hook}"
+        );
+    }
+    for consumed_surface in [
+        "harbor-editor-caret-ownership",
+        "harbor-editor-claim-acquire-release",
+        "harbor-editor-blocked-gate",
+        "harbor-roster-live-session-tail",
+    ] {
+        assert!(
+            APP_RS.contains(consumed_surface),
+            "the actual GPUI renderer does not consume {consumed_surface}"
+        );
+    }
+    assert!(
+        APP_RS.contains("motion_state_stripe("),
+        "the runtime must route state rails through the one animation owner"
+    );
 }
 
 #[test]

@@ -27,7 +27,9 @@ use crate::pane::{Alert, AlertLevel, Block, OperatorTurn, Pane, Tone};
 use crate::shell_drawer::{
     terminal_key_bytes, ShellEvent, ShellStatus, ShellTerminal, TerminalColor,
 };
-use crate::story_linework::{corner_ticks, micro_flag, state_stripe};
+use crate::story_linework::{
+    corner_ticks, micro_flag, motion_orientation_cue, motion_state_stripe, state_stripe,
+};
 use crate::tokens;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -1118,10 +1120,18 @@ fn render_code_buffer(
     } else {
         t.landed
     };
-    let motion_note = if reduced_motion() {
-        "reduced motion - state edges held still"
+    let motion_surface = if has_wedge {
+        "harbor-editor-blocked-gate"
+    } else if claim_bands > 0 {
+        "harbor-editor-claim-acquire-release"
     } else {
-        "event-driven motion - idle is still"
+        "harbor-editor-caret-ownership"
+    };
+    let reduced = reduced_motion();
+    let motion_note = if reduced {
+        motion_orientation_cue(motion_surface)
+    } else {
+        "one state-rail motion owner - idle remains still"
     };
     let list = uniform_list(
         SharedString::from(format!("code-{pane_id}")),
@@ -1159,11 +1169,13 @@ fn render_code_buffer(
                 .border_b_1()
                 .border_color(rgb(t.line))
                 .bg(rgb(t.panel))
-                .child(state_stripe(
+                .child(motion_state_stripe(
                     format!("code-{pane_id}-state"),
+                    motion_surface,
                     status_color,
                     5.0,
                     20.0,
+                    reduced,
                 ))
                 .child(micro_flag(
                     format!("code-{pane_id}-mf"),
@@ -1259,7 +1271,12 @@ fn render_code_line(
             if matches!(b.tone, Tone::Conflicted) {
                 rail = rail.child(div().w(px(3.0)).h_full().bg(rgb(t.gated)));
             } else {
-                rail = rail.child(div().w(px(3.0)).h_full().bg(tone_wash(t.tone(&b.tone), 0x60)));
+                rail = rail.child(
+                    div()
+                        .w(px(3.0))
+                        .h_full()
+                        .bg(tone_wash(t.tone(&b.tone), 0x60)),
+                );
             }
         }
         rail
@@ -5815,11 +5832,13 @@ fn render_harbor_node_row(
         .when(live && !reduced_motion(), |s| {
             s.shadow(motion::glow(row_tone, 0.20, 8.0, 0.0))
         })
-        .child(state_stripe(
+        .child(motion_state_stripe(
             format!("harbor-row-{id}-{index}-state"),
+            "harbor-roster-live-session-tail",
             row_tone,
             4.0,
             40.0,
+            reduced_motion() || !live,
         ))
         // Live vs historical: filled breathing marker vs hollow static one.
         .child(
@@ -5881,12 +5900,12 @@ fn render_harbor_node_row(
             if selected { t.accent_ink } else { t.line2 },
         ));
     row.on_click(cx.listener(move |this, _ev, _window, cx| {
-            this.ws_mut().focus(id);
-            if let Some(tx) = &this.control_tx {
-                let _ = tx.send(ControlMsg::HarborSelect { index });
-            }
-            cx.notify();
-        }))
+        this.ws_mut().focus(id);
+        if let Some(tx) = &this.control_tx {
+            let _ = tx.send(ControlMsg::HarborSelect { index });
+        }
+        cx.notify();
+    }))
 }
 
 /// A compliance-gated Harbor control (steer/pause/interrupt/checkpoint/

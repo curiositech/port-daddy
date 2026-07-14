@@ -3,6 +3,7 @@
     {
       "name": "cli-drawer-reveal",
       "kind": "transition",
+      "durationMs": 180,
       "usesTransform": false,
       "animatesLayoutInHotRender": false,
       "owners": 1,
@@ -21,6 +22,7 @@
     {
       "name": "terminal-output-arrival",
       "kind": "micro",
+      "durationMs": 160,
       "usesTransform": false,
       "animatesLayoutInHotRender": false,
       "owners": 1,
@@ -39,6 +41,7 @@
     {
       "name": "active-state-dot",
       "kind": "micro",
+      "durationMs": 1100,
       "usesTransform": false,
       "animatesLayoutInHotRender": false,
       "owners": 1,
@@ -49,9 +52,7 @@
         "staticCue": "filled dot remains filled"
       },
       "repeat": {
-        "present": true,
-        "scopedToLeaf": true,
-        "pausesWhenIdle": true
+        "present": false
       },
       "easing": "pulsating_between",
       "interruptible": true
@@ -59,6 +60,7 @@
     {
       "name": "harbor-editor-caret-ownership",
       "kind": "micro",
+      "durationMs": 180,
       "usesTransform": false,
       "animatesLayoutInHotRender": false,
       "owners": 1,
@@ -77,6 +79,7 @@
     {
       "name": "harbor-editor-remote-edit-arrival",
       "kind": "micro",
+      "durationMs": 220,
       "usesTransform": false,
       "animatesLayoutInHotRender": false,
       "owners": 1,
@@ -95,6 +98,7 @@
     {
       "name": "harbor-editor-claim-acquire-release",
       "kind": "micro",
+      "durationMs": 220,
       "usesTransform": false,
       "animatesLayoutInHotRender": false,
       "owners": 1,
@@ -113,6 +117,7 @@
     {
       "name": "harbor-editor-blocked-gate",
       "kind": "micro",
+      "durationMs": 480,
       "usesTransform": false,
       "animatesLayoutInHotRender": false,
       "owners": 1,
@@ -131,6 +136,7 @@
     {
       "name": "harbor-editor-reconnect-recovery",
       "kind": "micro",
+      "durationMs": 240,
       "usesTransform": false,
       "animatesLayoutInHotRender": false,
       "owners": 1,
@@ -149,6 +155,7 @@
     {
       "name": "harbor-editor-save-receipt",
       "kind": "micro",
+      "durationMs": 180,
       "usesTransform": false,
       "animatesLayoutInHotRender": false,
       "owners": 1,
@@ -167,6 +174,7 @@
     {
       "name": "harbor-roster-live-session-tail",
       "kind": "micro",
+      "durationMs": 1400,
       "usesTransform": false,
       "animatesLayoutInHotRender": false,
       "owners": 1,
@@ -187,6 +195,7 @@
     {
       "name": "harbor-human-gate-control",
       "kind": "micro",
+      "durationMs": 220,
       "usesTransform": false,
       "animatesLayoutInHotRender": false,
       "owners": 1,
@@ -205,6 +214,7 @@
     {
       "name": "living-harbor-waterline",
       "kind": "bespoke",
+      "durationMs": 180,
       "usesTransform": false,
       "animatesLayoutInHotRender": false,
       "owners": 1,
