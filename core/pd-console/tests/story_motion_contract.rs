@@ -1,12 +1,13 @@
 use serde_json::Value;
 use std::collections::HashSet;
 
+#[path = "../src/story_motion.rs"]
+mod story_motion;
+
 const MOTION_PLAN: &str =
     include_str!("../../../docs/design/pd-console-story-linework-motion-plan.json");
 const RUNG_PLAN: &str =
     include_str!("../../../docs/design/pd-console-story-linework-rung-plan.json");
-const STORY_LINEWORK_RS: &str = include_str!("../src/story_linework.rs");
-const APP_RS: &str = include_str!("../src/app.rs");
 
 #[test]
 fn every_motion_surface_has_one_owner_and_a_reduced_motion_state() {
@@ -77,38 +78,46 @@ fn every_motion_surface_has_one_owner_and_a_reduced_motion_state() {
 }
 
 #[test]
-fn gpui_runtime_consumes_motion_plan_through_the_single_stripe_owner() {
-    assert!(
-        STORY_LINEWORK_RS.contains("pd-console-story-linework-motion-plan.json"),
-        "the production primitive must load the checked-in plan"
-    );
-    for runtime_hook in [
-        "motion_surface(name:",
-        "policy.duration_ms",
-        "policy.owners == 1",
-        "motion_state_stripe(",
-        "motion_orientation_cue(",
-    ] {
-        assert!(
-            STORY_LINEWORK_RS.contains(runtime_hook),
-            "production motion policy is missing {runtime_hook}"
-        );
-    }
+fn production_owner_decision_consumes_every_editor_and_harbor_policy() {
+    let runtime_surfaces = story_motion::motion_surfaces()
+        .expect("the production parser must load the checked-in motion plan");
+    assert!(!runtime_surfaces.is_empty());
+
     for consumed_surface in [
         "harbor-editor-caret-ownership",
+        "harbor-editor-remote-edit-arrival",
         "harbor-editor-claim-acquire-release",
         "harbor-editor-blocked-gate",
+        "harbor-editor-reconnect-recovery",
+        "harbor-editor-save-receipt",
         "harbor-roster-live-session-tail",
+        "harbor-human-gate-control",
     ] {
-        assert!(
-            APP_RS.contains(consumed_surface),
-            "the actual GPUI renderer does not consume {consumed_surface}"
+        let policy = story_motion::motion_surface(consumed_surface)
+            .unwrap_or_else(|| panic!("production parser did not load {consumed_surface}"));
+        let owner = policy
+            .owner_spec(false)
+            .unwrap_or_else(|| panic!("{consumed_surface} has no valid runtime owner"));
+        assert!(owner.duration_ms > 0, "{consumed_surface}");
+        assert!(!owner.easing.is_empty(), "{consumed_surface}");
+        assert_eq!(
+            policy.owner_spec(true),
+            None,
+            "reduced motion must consume the static branch for {consumed_surface}"
         );
+        assert!(
+            !story_motion::motion_orientation_cue(consumed_surface).is_empty(),
+            "{consumed_surface} must retain a static orientation cue"
+        );
+        assert_eq!(policy.name(), consumed_surface);
+        assert!(!policy.state_bearing_need().is_empty());
+        assert!(!policy.animates_layout());
     }
-    assert!(
-        APP_RS.contains("motion_state_stripe("),
-        "the runtime must route state rails through the one animation owner"
+    assert_eq!(
+        story_motion::motion_surface_for_flag('F'),
+        Some("harbor-human-gate-control")
     );
+    assert_eq!(story_motion::motion_surface_for_flag('H'), None);
 }
 
 #[test]

@@ -269,6 +269,32 @@ impl CodeBand {
     }
 }
 
+/// The latest real editor edge that owns the state-rail motion. The enum is
+/// render-agnostic; GPUI resolves its surface name through the checked-in motion
+/// policy while the REPL/headless faces preserve the same static geometry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EditorMotionCue {
+    CaretOwnership,
+    RemoteEditArrival,
+    ClaimChange,
+    BlockedGate,
+    ReconnectRecovery,
+    StateReceipt,
+}
+
+impl EditorMotionCue {
+    pub fn surface_name(self) -> &'static str {
+        match self {
+            Self::CaretOwnership => "harbor-editor-caret-ownership",
+            Self::RemoteEditArrival => "harbor-editor-remote-edit-arrival",
+            Self::ClaimChange => "harbor-editor-claim-acquire-release",
+            Self::BlockedGate => "harbor-editor-blocked-gate",
+            Self::ReconnectRecovery => "harbor-editor-reconnect-recovery",
+            Self::StateReceipt => "harbor-editor-save-receipt",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Block {
     Header(String),
@@ -383,6 +409,9 @@ pub enum Block {
         /// per-line authorship is the Harbor editor's point) — renderers use
         /// this as a legend hint (e.g. show the agent legend flag).
         show_authors: bool,
+        /// Structured event edge selecting the one state-bearing motion policy.
+        /// This is never inferred from rendered labels or free text.
+        motion: EditorMotionCue,
     },
 }
 

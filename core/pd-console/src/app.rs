@@ -23,12 +23,13 @@ use crate::chat::{chat_display_text, chat_error_display_text, ChatLog, ChatMsg, 
 use crate::dispatch_pane::DispatchHead;
 use crate::mux::{default_operator_workspace, Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::palette::{Theme, ThemeMode};
-use crate::pane::{Alert, AlertLevel, Block, OperatorTurn, Pane, Tone};
+use crate::pane::{Alert, AlertLevel, Block, EditorMotionCue, OperatorTurn, Pane, Tone};
 use crate::shell_drawer::{
     terminal_key_bytes, ShellEvent, ShellStatus, ShellTerminal, TerminalColor,
 };
 use crate::story_linework::{
-    corner_ticks, micro_flag, motion_orientation_cue, motion_state_stripe, state_stripe,
+    corner_ticks, micro_flag, motion_orientation_cue, motion_state_stripe, motion_surface_for_flag,
+    state_stripe,
 };
 use crate::tokens;
 use std::cell::RefCell;
@@ -1103,6 +1104,7 @@ fn render_code_buffer(
     lines: std::sync::Arc<[crate::pane::CodeLine]>,
     gutter_cols: u8,
     bands: Vec<crate::pane::CodeBand>,
+    motion_cue: EditorMotionCue,
     scroll: Option<UniformListScrollHandle>,
 ) -> AnyElement {
     let t = current_theme();
@@ -1120,13 +1122,7 @@ fn render_code_buffer(
     } else {
         t.landed
     };
-    let motion_surface = if has_wedge {
-        "harbor-editor-blocked-gate"
-    } else if claim_bands > 0 {
-        "harbor-editor-claim-acquire-release"
-    } else {
-        "harbor-editor-caret-ownership"
-    };
+    let motion_surface = motion_cue.surface_name();
     let reduced = reduced_motion();
     let motion_note = if reduced {
         motion_orientation_cue(motion_surface)
@@ -1734,6 +1730,11 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
             // The signal flag is now a waving cloth (WavingFlag, T2 paint) that
             // reacts to pane scroll/resize via `motion`; the letter rides it.
             let color = tone_rgb(&tone);
+            // ReviewState reserves Foxtrot for a daemon-backed human decision.
+            // Its policy-owned rail is the one timed animation; the flag itself
+            // only deforms in response to real pane movement and idles still.
+            let human_gate_surface = motion_surface_for_flag(letter);
+            let human_gate_id = format!("human-gate-{label}");
             let pair = match tone {
                 Tone::Engaged => t.accent,
                 Tone::Landed => t.engaged,
@@ -1753,6 +1754,16 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                 .hover(|s| {
                     let t = current_theme();
                     s.bg(rgb(t.raised))
+                })
+                .when_some(human_gate_surface, |row, surface| {
+                    row.child(motion_state_stripe(
+                        human_gate_id,
+                        surface,
+                        color,
+                        4.0,
+                        24.0,
+                        reduced_motion(),
+                    ))
                 })
                 .child(
                     div()
@@ -3991,12 +4002,13 @@ impl ConsoleView {
                                 // `show_authors` is a legend hint (the agent
                                 // flag in the head blocks) — the author column
                                 // itself always renders per line.
-                                Block::CodeBuffer { lines, gutter_cols, bands, .. } => {
+                                Block::CodeBuffer { lines, gutter_cols, bands, motion: motion_cue, .. } => {
                                     code = Some(render_code_buffer(
                                         id,
                                         lines,
                                         gutter_cols,
                                         bands,
+                                        motion_cue,
                                         editor_scroll.clone(),
                                     ));
                                 }

@@ -163,7 +163,7 @@
       "reducedMotion": {
         "handled": true,
         "preservesOrientation": true,
-        "staticCue": "receipt hash remains in the Foxtrot strip"
+        "staticCue": "Loro receipt hash and state rail remain"
       },
       "repeat": {
         "present": false

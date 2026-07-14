@@ -233,6 +233,7 @@ pub fn block_to_json(block: &Block) -> Value {
             gutter_cols,
             bands,
             show_authors,
+            ..
         } => json!({
             "type": "codeBuffer",
             "lineCount": lines.len(),

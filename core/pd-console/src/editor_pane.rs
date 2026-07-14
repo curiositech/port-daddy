@@ -43,8 +43,8 @@ use crate::editor_wedge::{
     PdNudge, SymbolClaim, WedgeProbe,
 };
 use crate::pane::{
-    Block, CodeBand, CodeLine, Pane, ReviewEvent, ReviewEvidence, ReviewSource, ReviewStateMachine,
-    Subscription, Tone,
+    Block, CodeBand, CodeLine, EditorMotionCue, Pane, ReviewEvent, ReviewEvidence, ReviewSource,
+    ReviewState, ReviewStateMachine, Subscription, Tone,
 };
 use anyhow::Result;
 use std::collections::BTreeMap;
@@ -225,6 +225,8 @@ pub struct EditorPane {
     /// Explicit review truth. Every transition carries a path, Loro receipt,
     /// snapshot blob id, or daemon conflict/claim id; the GPUI face only renders it.
     review: ReviewStateMachine,
+    /// Latest real state edge that owns the editor rail's one-shot motion.
+    motion_cue: EditorMotionCue,
     /// Real in-flight `/blob` recovery begun by a decoded `loro.snapshot` frame.
     active_recovery: Option<(PeerId, String)>,
     /// Tokenized-line render cache (see [`CodeCache`]). `RefCell` because the
@@ -294,6 +296,7 @@ impl EditorPane {
             wedge_inflight: None,
             guard_band: None,
             review,
+            motion_cue: EditorMotionCue::CaretOwnership,
             active_recovery: None,
             code: std::cell::RefCell::new(None),
         }
@@ -320,6 +323,7 @@ impl EditorPane {
                         format!("state:{receipt}"),
                         format!("local buffer loaded for {}", self.path),
                     )));
+                self.motion_cue = EditorMotionCue::StateReceipt;
             }
             Err(e) => {
                 let detail = format!("{e}");
@@ -384,6 +388,7 @@ impl EditorPane {
                         format!("state:{receipt}"),
                         format!("remote ops from peer {} merged", frame.peer),
                     )));
+                self.motion_cue = EditorMotionCue::RemoteEditArrival;
                 true
             }
             Err(error) => {
@@ -444,6 +449,7 @@ impl EditorPane {
                         evidence_id,
                         detail,
                     )));
+                self.motion_cue = EditorMotionCue::ReconnectRecovery;
                 true
             }
             Err(error) => {
@@ -470,6 +476,7 @@ impl EditorPane {
         }
         let blob_id = blob_id.into();
         self.active_recovery = Some((peer, blob_id.clone()));
+        self.motion_cue = EditorMotionCue::ReconnectRecovery;
         self.review
             .transition(ReviewEvent::Recovering(ReviewEvidence::new(
                 ReviewSource::Daemon,
@@ -512,6 +519,7 @@ impl EditorPane {
     pub fn set_local_presence(&mut self, state: PresenceState) {
         self.local_presence = state;
         self.presence_out.record(state);
+        self.motion_cue = EditorMotionCue::CaretOwnership;
     }
 
     /// The local caret's current presence (what a broadcast / region-claim reads).
@@ -624,6 +632,7 @@ impl EditorPane {
         self.wedge_probe.arm(claim.clone());
         self.claim_out.record(claim);
         self.claim_ledger = self.claims.ledger();
+        self.motion_cue = EditorMotionCue::ClaimChange;
         encode_claim_frame(self.claims.local(), &blob)
     }
 
@@ -653,6 +662,7 @@ impl EditorPane {
     pub fn release_region_claim(&mut self, id: ClaimId) -> String {
         let blob = self.claims.release(id);
         self.claim_ledger = self.claims.ledger();
+        self.motion_cue = EditorMotionCue::ClaimChange;
         encode_claim_frame(self.claims.local(), &blob)
     }
 
@@ -674,6 +684,7 @@ impl EditorPane {
         let next = self.claims.ledger();
         if next != self.claim_ledger {
             self.claim_ledger = next;
+            self.motion_cue = EditorMotionCue::ClaimChange;
             true
         } else {
             false
@@ -772,6 +783,7 @@ impl EditorPane {
                     format!("conflict:{}:{lo}-{hi}", intent.label),
                     format!("daemon reported {} blocking conflict(s)", report.blocking),
                 )));
+            self.motion_cue = EditorMotionCue::BlockedGate;
             true
         } else {
             let had = self.guard_band.is_some();
@@ -787,6 +799,7 @@ impl EditorPane {
                     format!("conflicts/predict:{}:{lo}-{hi}", intent.label),
                     format!("daemon cleared the region; Loro receipt {receipt}"),
                 )));
+            self.motion_cue = EditorMotionCue::ClaimChange;
             had
         }
     }
@@ -937,6 +950,15 @@ impl EditorPane {
         }
         review
     }
+
+    fn motion_cue_for_view(&self, review: &ReviewStateMachine) -> EditorMotionCue {
+        match review.state() {
+            ReviewState::Conflict | ReviewState::AwaitingHuman => EditorMotionCue::BlockedGate,
+            ReviewState::Recovering => EditorMotionCue::ReconnectRecovery,
+            _ if !self.claim_ledger.is_empty() => EditorMotionCue::ClaimChange,
+            _ => self.motion_cue,
+        }
+    }
 }
 
 impl Pane for EditorPane {
@@ -956,7 +978,9 @@ impl Pane for EditorPane {
 
     fn view(&self) -> Vec<Block> {
         let mut blocks = vec![Block::Header(self.title())];
-        blocks.push(self.review_for_view().block("editor-state"));
+        let review = self.review_for_view();
+        let motion = self.motion_cue_for_view(&review);
+        blocks.push(review.block("editor-state"));
 
         if let Some(err) = &self.error {
             blocks.push(Block::KeyVal("error".into(), err.clone()));
@@ -1147,6 +1171,7 @@ impl Pane for EditorPane {
             gutter_cols,
             bands,
             show_authors,
+            motion,
         });
 
         if total > MAX_LINES {
@@ -1188,6 +1213,7 @@ impl Pane for EditorPane {
                             format!("state:{receipt}"),
                             format!("local buffer refreshed for {}", self.path),
                         )));
+                    self.motion_cue = EditorMotionCue::StateReceipt;
                 }
                 Err(e) => {
                     let detail = format!("{e}");
@@ -1282,6 +1308,13 @@ mod tests {
         })
     }
 
+    fn code_motion(blocks: &[Block]) -> Option<EditorMotionCue> {
+        blocks.iter().find_map(|block| match block {
+            Block::CodeBuffer { motion, .. } => Some(*motion),
+            _ => None,
+        })
+    }
+
     /// The code lines of a view (empty when no CodeBuffer rendered).
     fn rows(blocks: &[Block]) -> Vec<CodeLine> {
         code_buffer(blocks)
@@ -1334,6 +1367,11 @@ mod tests {
             lines.iter().all(|l| matches!(l.author_tone, Tone::Resting)),
             "opener-authored lines tone Resting"
         );
+        assert_eq!(
+            code_motion(&blocks),
+            Some(EditorMotionCue::StateReceipt),
+            "a real Loro load receipt selects the receipt policy"
+        );
     }
 
     #[test]
@@ -1342,6 +1380,11 @@ mod tests {
         let mut pane = make_pane(&path, None);
         pane.set_local_presence(PresenceState::caret(2, 4, 1, 2));
         let blocks = pane.view();
+        assert_eq!(
+            code_motion(&blocks),
+            Some(EditorMotionCue::CaretOwnership),
+            "a real local caret edge selects the caret policy"
+        );
 
         assert!(
             blocks.iter().any(|b| matches!(
@@ -1509,7 +1552,13 @@ mod tests {
         let mut other = make_pane_as(&path, "port-daddy:console:human-B");
         let frame = other.acquire_region_claim(2, 4, "parse_header", 500);
         assert!(pane.ingest_claim(&frame));
-        let (_, bands, _) = code_buffer(&pane.view()).expect("code buffer");
+        let claimed_blocks = pane.view();
+        assert_eq!(
+            code_motion(&claimed_blocks),
+            Some(EditorMotionCue::ClaimChange),
+            "a real claim ledger edge selects the claim policy"
+        );
+        let (_, bands, _) = code_buffer(&claimed_blocks).expect("code buffer");
         assert!(
             bands.iter().any(|b| b.covers(3) && b.tone == Tone::Engaged),
             "a remote claim is an Engaged background band: {bands:?}"
@@ -1689,6 +1738,11 @@ mod tests {
                 Block::Flag { tone: Tone::Engaged, label, .. } if label.contains("agent")
             )),
             "the agent authorship legend flag renders once a remote op lands"
+        );
+        assert_eq!(
+            code_motion(&blocks),
+            Some(EditorMotionCue::RemoteEditArrival),
+            "a real merged op selects the remote-arrival policy"
         );
 
         // A frame authored by THIS replica (its own ops echoed back) is a no-op,
@@ -1996,6 +2050,11 @@ mod tests {
         assert!(
             cold.hydrate_from_snapshot(&snapshot),
             "the snapshot blob hydrates the cold pane"
+        );
+        assert_eq!(
+            code_motion(&cold.view()),
+            Some(EditorMotionCue::ReconnectRecovery),
+            "a real snapshot receipt keeps the recovery policy on the hydrated rail"
         );
         assert_eq!(
             cold.review_state().state(),
@@ -2350,6 +2409,11 @@ mod tests {
 
         // A Tone::Conflicted band + a bypass-free nudge render.
         let blocks = pane.view();
+        assert_eq!(
+            code_motion(&blocks),
+            Some(EditorMotionCue::BlockedGate),
+            "a daemon blocking verdict selects the blocked-gate policy"
+        );
         assert!(
             blocks.iter().any(|b| matches!(b, Block::WrappedText { tone: Tone::Conflicted, text } if text.contains("parse_header"))),
             "a Conflicted guard band renders in the view"

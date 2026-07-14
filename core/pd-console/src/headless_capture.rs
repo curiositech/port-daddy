@@ -31,7 +31,7 @@
 
 #![allow(dead_code)]
 
-use crate::pane::{Block, CodeBand, CodeLine, SyntaxKind, Tone};
+use crate::pane::{Block, CodeBand, CodeLine, EditorMotionCue, SyntaxKind, Tone};
 use crate::theme::{Oklch, Theme, DARK};
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -350,7 +350,11 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
                     x0 + 44,
                     y + 10,
                     1,
-                    &format!("M.F BUFFER / {} lines / {} claim bands", lines.len(), claim_bands),
+                    &format!(
+                        "M.F BUFFER / {} lines / {} claim bands",
+                        lines.len(),
+                        claim_bands
+                    ),
                     ink,
                 );
                 y += ROW_H;
@@ -937,6 +941,7 @@ pub fn sample_console_blocks() -> Vec<Block> {
                 },
             ],
             show_authors: true,
+            motion: EditorMotionCue::BlockedGate,
         },
         Block::ArtifactRef {
             label: "manifest".into(),
@@ -1107,6 +1112,7 @@ mod geom_tests {
                     },
                 ],
                 show_authors: true,
+                motion: EditorMotionCue::BlockedGate,
             }],
             &DARK,
             480,

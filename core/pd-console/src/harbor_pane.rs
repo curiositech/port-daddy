@@ -739,6 +739,27 @@ impl HarborPane {
             return review;
         }
 
+        if let Some(control) = self.controls.iter().find(|control| {
+            matches!(
+                control.status.as_str(),
+                "failed" | "expired" | "queued" | "delivered" | "accepted"
+            ) && control.command_id.trim().is_empty()
+        }) {
+            let route = self
+                .selected_node()
+                .map(|node| format!("GET:/agent-nodes/{}/controls", node.agent_node_id))
+                .unwrap_or_else(|| "GET:/agent-nodes/:id/controls".into());
+            review.transition(ReviewEvent::Unknown(ReviewEvidence::new(
+                ReviewSource::Daemon,
+                route,
+                format!(
+                    "{} control is {} but the daemon projection omitted commandId",
+                    control.kind, control.status
+                ),
+            )));
+            return review;
+        }
+
         if let Some(control) = self
             .controls
             .iter()
@@ -746,11 +767,7 @@ impl HarborPane {
         {
             review.transition(ReviewEvent::Conflict(ReviewEvidence::new(
                 ReviewSource::Daemon,
-                if control.command_id.is_empty() {
-                    format!("control:{}", control.kind)
-                } else {
-                    control.command_id.clone()
-                },
+                control.command_id.clone(),
                 format!(
                     "{} control is {}: {}",
                     control.kind, control.status, control.denial_reason
@@ -768,18 +785,12 @@ impl HarborPane {
                 )));
                 return review;
             }
-            if let Some(control) = self
-                .controls
-                .iter()
-                .find(|control| matches!(control.status.as_str(), "queued" | "delivered"))
-            {
+            if let Some(control) = self.controls.iter().find(|control| {
+                matches!(control.status.as_str(), "queued" | "delivered" | "accepted")
+            }) {
                 review.transition(ReviewEvent::Pending(ReviewEvidence::new(
                     ReviewSource::Daemon,
-                    if control.command_id.is_empty() {
-                        format!("control:{}", control.kind)
-                    } else {
-                        control.command_id.clone()
-                    },
+                    control.command_id.clone(),
                     format!("{} control is {}", control.kind, control.status),
                 )));
                 return review;
@@ -801,15 +812,19 @@ impl HarborPane {
                 return review;
             }
             if let Some((verb, _, command_id)) = &self.last_control {
-                review.transition(ReviewEvent::Pending(ReviewEvidence::new(
-                    ReviewSource::Daemon,
-                    if command_id.is_empty() {
-                        format!("node:{}", node.agent_node_id)
-                    } else {
-                        command_id.clone()
-                    },
-                    format!("{verb} was accepted; waiting for acknowledgement"),
-                )));
+                review.transition(if command_id.trim().is_empty() {
+                    ReviewEvent::Unknown(ReviewEvidence::new(
+                        ReviewSource::Daemon,
+                        format!("POST:/agent-nodes/{}/control", node.agent_node_id),
+                        format!("{verb} returned without a daemon commandId"),
+                    ))
+                } else {
+                    ReviewEvent::Pending(ReviewEvidence::new(
+                        ReviewSource::Daemon,
+                        command_id.clone(),
+                        format!("{verb} was accepted; waiting for acknowledgement"),
+                    ))
+                });
                 return review;
             }
             if let (Some(session), Some(body), Some(run)) =
@@ -872,6 +887,26 @@ impl HarborPane {
             "requestedBy": "pd-console:operator",
             "idempotencyKey": self.idempotency_key(verb, node_id),
         }))
+    }
+
+    fn record_control_outcome(&mut self, verb: String, outcome: &Value) -> Result<()> {
+        let command_id = s(outcome, "commandId");
+        if command_id.trim().is_empty() {
+            return Err(anyhow!(
+                "{verb} response omitted daemon commandId; control receipt is unprovable"
+            ));
+        }
+        let queued_status = s(outcome, "status");
+        self.last_control = Some((
+            verb,
+            if queued_status.is_empty() {
+                "accepted — watch for the acknowledgement event".into()
+            } else {
+                format!("{queued_status} — watch for the acknowledgement event")
+            },
+            command_id,
+        ));
+        Ok(())
     }
 
     /// Roster row blocks — one clickable NodeRow per node.
@@ -1594,18 +1629,7 @@ impl Pane for HarborPane {
                         ));
                     }
                     let outcome: Value = resp.json().await.unwrap_or(Value::Null);
-                    let queued_status = s(&outcome, "status");
-                    let command_id = s(&outcome, "commandId");
-                    self.last_control = Some((
-                        verb,
-                        if queued_status.is_empty() {
-                            "queued — watch for the acknowledgement event".into()
-                        } else {
-                            format!("{queued_status} — watch for the acknowledgement event")
-                        },
-                        command_id,
-                    ));
-                    Ok(())
+                    self.record_control_outcome(verb, &outcome)
                 }
                 _ => Ok(()),
             }
@@ -2027,6 +2051,43 @@ mod tests {
             pane.review_state().evidence().evidence_id,
             "GET:/agent-nodes"
         );
+    }
+
+    #[test]
+    fn control_state_requires_the_daemons_real_command_id() {
+        let mut pane = HarborPane::new();
+        pane.nodes = vec![c4_node()];
+        pane.controls = vec![ControlRow::from_value(&json!({
+            "kind": "pause",
+            "status": "queued",
+            "createdAt": "2026-07-14T00:00:00Z"
+        }))];
+        assert_eq!(
+            pane.review_state().state(),
+            crate::pane::ReviewState::Unknown
+        );
+        assert_eq!(
+            pane.review_state().evidence().evidence_id,
+            "GET:/agent-nodes/an-1/controls"
+        );
+
+        pane.controls.clear();
+        let error = pane
+            .record_control_outcome("pause".into(), &json!({ "status": "queued" }))
+            .expect_err("a success body without commandId is not a receipt");
+        assert!(error.to_string().contains("omitted daemon commandId"));
+        assert!(pane.last_control.is_none());
+
+        pane.record_control_outcome(
+            "pause".into(),
+            &json!({ "status": "queued", "commandId": "cmd-real-7" }),
+        )
+        .expect("a daemon commandId is accepted as provenance");
+        assert_eq!(
+            pane.review_state().state(),
+            crate::pane::ReviewState::Pending
+        );
+        assert_eq!(pane.review_state().evidence().evidence_id, "cmd-real-7");
     }
 
     #[test]

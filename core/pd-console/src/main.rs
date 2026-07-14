@@ -55,6 +55,7 @@ mod sessions_pane;
 mod shell_drawer;
 mod sortie_pane;
 mod story_linework;
+mod story_motion;
 mod substrate_pane;
 mod suggest_pane;
 mod syntax;
