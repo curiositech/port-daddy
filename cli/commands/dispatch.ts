@@ -112,15 +112,23 @@ function formatDispatchLine(d: Dispatch): string {
   return `${idShort}  ${state}  ${slug}  ${cost}${artifact}`;
 }
 
-function dispatchTone(state: string): ui.LineworkTone {
-  const normalized = state.toLowerCase();
-  if (normalized.includes('proposed') || normalized.includes('pending') || normalized.includes('queued')) return 'pending';
-  if (normalized.includes('claimed') || normalized.includes('running') || normalized.includes('started')) return 'running';
-  if (normalized.includes('produced') || normalized.includes('review') || normalized.includes('accepted') || normalized.includes('settled')) return 'confirmed';
-  if (normalized.includes('cancel') || normalized.includes('reject') || normalized.includes('fail') || normalized.includes('error')) return 'failed';
-  if (normalized.includes('salvage') || normalized.includes('recover')) return 'recovering';
-  if (normalized.includes('block')) return 'blocked';
-  return 'unknown';
+export function dispatchState(state: DispatchState): ui.LineworkState {
+  switch (state) {
+    case 'proposed': return 'pending';
+    case 'claimed': return 'active';
+    case 'in_progress': return 'active';
+    case 'produced': return 'pending';
+    case 'review_pending': return 'pending';
+    case 'accepted': return 'confirmed';
+    case 'rejected': return 'refused';
+    case 'settled': return 'confirmed';
+    case 'failed': return 'failed';
+    case 'salvage': return 'recovering';
+  }
+}
+
+function dispatchTone(state: DispatchState): ui.LineworkTone {
+  return ui.lineworkVisual(dispatchState(state)).tone;
 }
 
 function shouldRenderLinework(options?: CLIOptions): boolean {
@@ -142,8 +150,8 @@ function renderDispatchListLinework(dispatches: Dispatch[], title: string): stri
         ? 'blocked'
         : 'running',
     zone: 'dispatch queue',
-    rows: dispatches.slice(0, 16).map((d): ui.LineworkRow => ({
-      tone: dispatchTone(d.state),
+    rows: dispatches.map((d): ui.LineworkRow => ({
+      state: dispatchState(d.state),
       label: d.id.slice(0, 8),
       text: `${d.state} · ${d.slug} · ${d.costUsd != null ? `$${d.costUsd.toFixed(2)}` : 'no cost yet'}${d.resultArtifact ? ` · ${d.resultArtifact}` : ''}`,
     })),
@@ -184,29 +192,39 @@ function printDispatchDetail(d: Dispatch): void {
 
 function renderDispatchDetailLinework(d: Dispatch, worker?: Record<string, unknown> | null): string {
   const rows: ui.LineworkRow[] = [
-    { tone: dispatchTone(d.state), label: 'state', text: `${d.state} · ${describeState(d.state)}` },
-    { tone: 'pending', label: 'goal', text: d.goal, signal: 'P' },
-    { tone: 'running', label: 'base', text: `${d.baseBranch} · ${d.mergePolicy}`, signal: 'K' },
-    { tone: d.backend ? 'confirmed' : 'unknown', label: 'backend', text: d.backend ?? 'default at runtime', signal: d.backend ? 'C' : 'M' },
+    { state: dispatchState(d.state), label: 'state', text: `${d.state} · ${describeState(d.state)}` },
+    { state: 'pending', label: 'goal', text: d.goal },
+    { state: 'active', label: 'base', text: `${d.baseBranch} · ${d.mergePolicy}` },
+    { state: d.backend ? 'confirmed' : 'unknown', label: 'backend', text: d.backend ?? 'default at runtime' },
   ];
-  if (d.tags.length > 0) rows.push({ tone: 'info', label: 'tags', text: d.tags.join(', '), signal: 'K' });
-  if (d.budgetUsd != null) rows.push({ tone: 'pending', label: 'budget', text: `$${d.budgetUsd.toFixed(2)}`, signal: 'P' });
-  if (d.timeoutMs != null) rows.push({ tone: 'pending', label: 'timeout', text: `${Math.round(d.timeoutMs / 1000)}s`, signal: 'P' });
-  if (d.worktreePath) rows.push({ tone: 'running', label: 'worktree', text: d.worktreePath, signal: 'K' });
-  if (d.branch) rows.push({ tone: 'running', label: 'branch', text: d.branch, signal: 'K' });
-  if (d.sessionId) rows.push({ tone: 'running', label: 'session', text: d.sessionId, signal: 'K' });
-  if (d.resultArtifact) rows.push({ tone: 'confirmed', label: 'artifact', text: d.resultArtifact, signal: 'C' });
-  if (d.costUsd != null) rows.push({ tone: 'pending', label: 'cost', text: `$${d.costUsd.toFixed(2)}`, signal: 'P' });
-  if (d.rejectReason) rows.push({ tone: 'blocked', label: 'reject', text: d.rejectReason, signal: 'D' });
-  if (d.errorMessage) rows.push({ tone: 'failed', label: 'error', text: `${d.errorMessage} · next: inspect worker transcript or cancel to salvage`, signal: 'N' });
+  rows.push({ state: 'info', label: 'requested', text: d.requestedBy });
+  if (d.targetActorId) rows.push({ state: 'info', label: 'target', text: d.targetActorId });
+  if (d.workerActorId) rows.push({ state: 'active', label: 'worker', text: d.workerActorId });
+  rows.push({ state: d.reviewerActorId ? 'info' : 'unknown', label: 'reviewer', text: d.reviewerActorId ?? '(unset)' });
+  if (d.tags.length > 0) rows.push({ state: 'info', label: 'tags', text: d.tags.join(', ') });
+  if (d.budgetUsd != null) rows.push({ state: 'pending', label: 'budget', text: `$${d.budgetUsd.toFixed(2)}` });
+  if (d.timeoutMs != null) rows.push({ state: 'pending', label: 'timeout', text: `${Math.round(d.timeoutMs / 1000)}s` });
+  if (d.worktreePath) rows.push({ state: 'active', label: 'worktree', text: d.worktreePath });
+  if (d.branch) rows.push({ state: 'active', label: 'branch', text: d.branch });
+  if (d.sessionId) rows.push({ state: 'active', label: 'session', text: d.sessionId });
+  if (d.resultArtifact) rows.push({ state: 'confirmed', label: 'artifact', text: d.resultArtifact });
+  if (d.costUsd != null) rows.push({ state: 'pending', label: 'cost', text: `$${d.costUsd.toFixed(2)}` });
+  if (d.durationMs != null) rows.push({ state: 'info', label: 'duration', text: `${Math.round(d.durationMs / 1000)}s` });
+  if (d.rejectReason) rows.push({ state: 'refused', label: 'reject', text: d.rejectReason });
+  if (d.errorMessage) rows.push({ state: 'failed', label: 'error', text: `${d.errorMessage} · next: inspect worker transcript or cancel to salvage` });
   if (worker) {
     rows.push({
-      tone: worker.running ? 'running' : 'unknown',
+      state: worker.running ? 'active' : 'unknown',
       label: 'worker',
       text: `running=${worker.running} · inFlight=${worker.inFlight}/${worker.maxConcurrency}`,
-      signal: worker.running ? 'K' : 'M',
     });
   }
+  rows.push({ state: 'info', label: 'created', text: new Date(d.createdAt).toISOString() });
+  if (d.claimedAt) rows.push({ state: 'info', label: 'claimed', text: new Date(d.claimedAt).toISOString() });
+  if (d.startedAt) rows.push({ state: 'info', label: 'started', text: new Date(d.startedAt).toISOString() });
+  if (d.producedAt) rows.push({ state: 'info', label: 'produced', text: new Date(d.producedAt).toISOString() });
+  if (d.reviewedAt) rows.push({ state: 'info', label: 'reviewed', text: new Date(d.reviewedAt).toISOString() });
+  if (d.settledAt) rows.push({ state: 'info', label: 'settled', text: new Date(d.settledAt).toISOString() });
   return ui.renderLineworkPanel({
     title: 'Dispatch',
     subtitle: d.id,
@@ -243,20 +261,20 @@ async function runDispatchViaDaemon(id: string): Promise<Record<string, unknown>
   return payload;
 }
 
-function printDaemonRunResult(payload: Record<string, unknown>): void {
+function printDaemonRunResult(payload: Record<string, unknown>, options: CLIOptions): void {
   const launched = typeof payload.launchedThisTick === 'number'
     ? payload.launchedThisTick
     : 0;
-  if (shouldRenderLinework()) {
+  if (shouldRenderLinework(options)) {
     console.log(ui.renderLineworkPanel({
       title: 'Dispatch Run',
       subtitle: 'daemon-side execution',
       tone: launched > 0 ? 'running' : 'pending',
       zone: launched > 0 ? 'worker launched' : 'queued',
       rows: [
-        { tone: launched > 0 ? 'running' : 'pending', label: 'launched', text: String(launched), signal: launched > 0 ? 'K' : 'P' },
+        { state: launched > 0 ? 'spawning' : 'pending', label: 'launched', text: String(launched) },
         ...(typeof payload.message === 'string'
-          ? [{ tone: 'info' as ui.LineworkTone, label: 'message', text: payload.message, signal: 'K' as const }]
+          ? [{ state: 'info' as ui.LineworkState, label: 'message', text: payload.message }]
           : []),
       ],
       footer: 'daemon owns worker health from here',
@@ -506,7 +524,7 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
           if (isJson(options)) {
             console.log(JSON.stringify(result, null, 2));
           } else {
-            printDaemonRunResult(result);
+            printDaemonRunResult(result, options);
           }
           return;
         } catch (err) {
@@ -530,7 +548,7 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
         console.log(JSON.stringify({ plan: result.plan, result: result.result ?? null }, null, 2));
         return;
       }
-      printPlan(result.plan, dryRun);
+      printPlan(result.plan, dryRun, options);
       if (result.result) {
         console.log('');
         console.log(`Result: ${result.result.state}`);
@@ -557,7 +575,7 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
       console.log(JSON.stringify({ plan, dryRun }, null, 2));
       return;
     }
-    if (!isJson(options)) printPlan(plan, dryRun);
+    if (!isJson(options)) printPlan(plan, dryRun, options);
     if (!dryRun) {
       if (d.state !== 'proposed') {
         ui.error(`Dispatch ${id} is in state '${d.state}'; only 'proposed' dispatches can be run.`);
@@ -569,7 +587,7 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
           console.log(JSON.stringify({ plan, dryRun, daemon: result }, null, 2));
         } else {
           console.log('');
-          printDaemonRunResult(result);
+          printDaemonRunResult(result, options);
         }
       } catch (err) {
         ui.error(`Dispatch daemon run failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -583,18 +601,18 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
   usage();
 }
 
-function printPlan(plan: ReturnType<typeof planRunFor>, dryRun: boolean): void {
-  if (shouldRenderLinework()) {
+function printPlan(plan: ReturnType<typeof planRunFor>, dryRun: boolean, options: CLIOptions): void {
+  if (shouldRenderLinework(options)) {
     const rows: ui.LineworkRow[] = [
-      { tone: 'pending', label: 'goal', text: plan.dispatch.goal, signal: 'P' },
-      { tone: 'running', label: 'backend', text: plan.backend, signal: 'K' },
-      { tone: 'running', label: 'worktree', text: plan.worktreePath, signal: 'K' },
-      { tone: 'running', label: 'branch', text: plan.branch, signal: 'K' },
-      { tone: 'pending', label: 'base', text: `${plan.dispatch.baseBranch} · ${plan.baseRef}`, signal: 'P' },
-      { tone: 'pending', label: 'timeout', text: `${Math.round(plan.timeoutMs / 60000)} min`, signal: 'P' },
-      { tone: 'pending', label: 'budget', text: `$${plan.budgetUsd.toFixed(2)}`, signal: 'P' },
-      { tone: dryRun ? 'blocked' : 'running', label: 'next', text: dryRun ? 'pass --really-run to spawn after reading the plan' : 'daemon-side worker launch requested', signal: dryRun ? 'X' : 'K' },
-      ...plan.rationale.map((line): ui.LineworkRow => ({ tone: 'info', label: 'why', text: line, signal: 'K' })),
+      { state: 'pending', label: 'goal', text: plan.dispatch.goal },
+      { state: 'active', label: 'backend', text: plan.backend },
+      { state: 'active', label: 'worktree', text: plan.worktreePath },
+      { state: 'active', label: 'branch', text: plan.branch },
+      { state: 'pending', label: 'base', text: `${plan.dispatch.baseBranch} · ${plan.baseRef}` },
+      { state: 'pending', label: 'timeout', text: `${Math.round(plan.timeoutMs / 60000)} min` },
+      { state: 'pending', label: 'budget', text: `$${plan.budgetUsd.toFixed(2)}` },
+      { state: dryRun ? 'guard-blocked' : 'spawning', label: 'next', text: dryRun ? 'pass --really-run to spawn after reading the plan' : 'daemon-side worker launch requested' },
+      ...plan.rationale.map((line): ui.LineworkRow => ({ state: 'info', label: 'why', text: line })),
     ];
     console.log(ui.renderLineworkPanel({
       title: 'Dispatch Plan',

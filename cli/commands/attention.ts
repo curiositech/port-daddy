@@ -85,15 +85,16 @@ function renderContent(content: unknown, contentType: string): string {
   return String(content);
 }
 
-function attentionTone(item: AttentionItem): ui.LineworkTone {
+function attentionState(item: AttentionItem): ui.LineworkState {
   const type = (item.type || '').toLowerCase();
-  if (type.includes('parley') || type.includes('conflict')) return 'warning';
-  if (type.includes('block') || type.includes('hold')) return 'blocked';
+  if (type.includes('parley') || type.includes('conflict')) return 'conflict';
+  if (type.includes('hold') || type.includes('approval')) return 'awaiting-human';
+  if (type.includes('block') || type.includes('guard')) return 'guard-blocked';
   if (item.source === 'inbox') return 'pending';
-  return 'running';
+  return 'request';
 }
 
-function renderAttentionLinework(summary: AttentionSummary): string {
+export function renderAttentionLinework(summary: AttentionSummary): string {
   const items = summary.items || [];
   const counts = summary.counts || { total: 0, inbox: 0, channels: 0, inboxUnreadRemaining: 0 };
   const subs = summary.subscriptions || [];
@@ -107,32 +108,30 @@ function renderAttentionLinework(summary: AttentionSummary): string {
       zone: 'clear',
       rows: [
         {
-          tone: 'confirmed',
+          state: 'confirmed',
           label: 'inbox',
           text: counts.inboxUnreadRemaining > 0
             ? `${counts.inboxUnreadRemaining} remaining beyond fetch limit`
             : 'no unread direct messages',
-          signal: 'C',
         },
         {
-          tone: subs.length > 0 ? 'running' : 'unknown',
+          state: subs.length > 0 ? 'active' : 'idle',
           label: 'channels',
           text: subs.length > 0 ? subs.join(', ') : 'no subscriptions',
-          signal: subs.length > 0 ? 'K' : 'M',
         },
       ],
       footer: summary.peek ? 'peek only · nothing marked read' : 'attention clear',
     });
   }
 
-  const rows = items.slice(0, 12).map((item): ui.LineworkRow => {
+  const rows = items.map((item): ui.LineworkRow => {
     const age = formatRelative(item.receivedAt, now);
     const origin = item.source === 'inbox'
       ? `inbox from ${item.from || 'unknown'}`
       : `${item.channel || 'channel'}${item.from ? ` from ${item.from}` : ''}`;
     const body = renderContent(item.content, item.contentType).replace(/\s+/g, ' ').trim();
     return {
-      tone: attentionTone(item),
+      state: attentionState(item),
       label: age,
       text: `${origin}${item.type ? ` [${item.type}]` : ''}${body ? ` · ${body}` : ''}`,
     };

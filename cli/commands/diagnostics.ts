@@ -62,6 +62,8 @@ import { gatherHarborFacts } from '../utils/harbor-facts.js';
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 
 interface StatusCommandResponse {
+  status?: string;
+  severity?: Severity;
   version?: string;
   pid?: number;
   uptimeSeconds?: number;
@@ -70,6 +72,10 @@ interface StatusCommandResponse {
   daemon?: {
     version?: string;
     codeHash?: string;
+    berth?: {
+      plane?: string;
+      label?: string;
+    };
   };
   metrics?: {
     activePorts?: number;
@@ -93,6 +99,31 @@ interface StatusCommandResponse {
   history?: {
     lastActivityAt?: number;
   };
+  binaryDrift?: {
+    drifted?: boolean;
+    reason?: string;
+    runningPath?: string;
+    onDiskPath?: string;
+  };
+  healthProbe?: {
+    ok: boolean;
+    error?: string;
+  };
+}
+
+type StatusFailureCode =
+  | 'DAEMON_UNAVAILABLE'
+  | 'HTTP_ERROR'
+  | 'MALFORMED_RESPONSE'
+  | 'HEALTH_UNAVAILABLE'
+  | 'BINARY_DRIFT'
+  | 'HEALTH_DEGRADED'
+  | 'HEALTH_STATE_INVALID';
+
+interface StatusFailure {
+  code: StatusFailureCode;
+  message: string;
+  retryable: boolean;
 }
 
 function getLocalCodeHash(): string {
@@ -260,17 +291,32 @@ export async function handleDashboard(opts: { web?: boolean } = {}): Promise<voi
  */
 export function renderStatusPlain(data: StatusCommandResponse): string {
   const lines: string[] = [];
-  lines.push('Port Daddy is running');
+  const visualState = statusLineworkState(data);
+  lines.push(`Port Daddy is responsive (${visualState})`);
   const buildVersion = data.daemon?.version || data.version;
   const buildHash = data.daemon?.codeHash ? ` (${data.daemon.codeHash})` : '';
-  lines.push(`  Version: ${buildVersion}${buildHash}`);
-  lines.push(`  PID: ${data.pid}`);
-  lines.push(`  Uptime: ${data.uptimeHuman || `${Math.floor((data.uptimeSeconds as number) / 60)}m ${(data.uptimeSeconds as number) % 60}s`}`);
+  lines.push(`  Version: ${buildVersion || 'unknown'}${buildHash}`);
+  lines.push(`  PID: ${data.pid ?? 'unknown'}`);
+  const uptime = data.uptimeHuman || (typeof data.uptimeSeconds === 'number'
+    ? `${Math.floor(data.uptimeSeconds / 60)}m ${data.uptimeSeconds % 60}s`
+    : 'unknown');
+  lines.push(`  Uptime: ${uptime}`);
   lines.push(`  Active ports: ${data.metrics?.activePorts ?? data.active_ports ?? 0}`);
 
   if (data.runtime?.state) {
     const runtimeState = data.runtime.degraded ? `${data.runtime.state} (degraded)` : data.runtime.state;
     lines.push(`  Runtime: ${runtimeState}`);
+  }
+
+  if (data.severity) lines.push(`  Health: ${data.severity}`);
+  if (data.binaryDrift?.drifted) {
+    lines.push(`  WARN binary drift: ${binaryDriftText(data)}`);
+    lines.push(data.daemon?.berth?.plane?.startsWith('ephemeral:')
+      ? '    Feature berth is isolated; promote this binary only after review'
+      : '    Next: restart this daemon and retry pd status');
+  }
+  if (data.healthProbe?.ok === false) {
+    lines.push(`  UNKNOWN health probe: ${data.healthProbe.error || 'unavailable'}`);
   }
 
   if (data.fleet) {
@@ -306,7 +352,7 @@ export function renderStatusPlain(data: StatusCommandResponse): string {
   return lines.join('\n');
 }
 
-function runtimeTone(state: string | undefined, degraded?: boolean): ui.LineworkTone {
+function runtimeLineworkState(state: string | undefined, degraded?: boolean): ui.LineworkState {
   if (!state) return 'unknown';
   const normalized = state.toLowerCase();
   if (degraded) return 'warning';
@@ -315,7 +361,27 @@ function runtimeTone(state: string | undefined, degraded?: boolean): ui.Linework
   if (normalized.includes('unknown')) return 'unknown';
   if (normalized.includes('block')) return 'blocked';
   if (normalized.includes('fail') || normalized.includes('error')) return 'failed';
-  return 'healthy';
+  if (normalized === 'nominal' || normalized === 'ok' || normalized === 'healthy') return 'healthy';
+  if (normalized === 'active' || normalized === 'running') return 'active';
+  return 'unknown';
+}
+
+function statusLineworkState(data: StatusCommandResponse): ui.LineworkState {
+  if (data.severity === 'critical') return 'failed';
+  if (data.severity === 'warn' || data.runtime?.degraded || data.binaryDrift?.drifted || data.healthProbe?.ok === false) {
+    return 'warning';
+  }
+  if (data.status !== 'ok') return data.status === 'degraded' ? 'warning' : 'unknown';
+  return runtimeLineworkState(data.runtime?.state, data.runtime?.degraded);
+}
+
+function binaryDriftText(data: StatusCommandResponse): string {
+  if (data.daemon?.berth?.plane?.startsWith('ephemeral:')) {
+    const running = data.binaryDrift?.runningPath || 'feature binary';
+    const installed = data.binaryDrift?.onDiskPath || 'installed binary';
+    return `feature berth binary ${running} differs from ${installed}; isolated by design`;
+  }
+  return data.binaryDrift?.reason || 'running binary differs from expected on-disk binary';
 }
 
 export function renderStatusLinework(data: StatusCommandResponse, opts?: { width?: number; colorLevel?: import('../utils/output.js').CliColorLevel; styled?: boolean }): string {
@@ -331,26 +397,48 @@ export function renderStatusLinework(data: StatusCommandResponse, opts?: { width
   const launchText = typeof launchable === 'number' && totalAgents > 0
     ? `${launchable}/${totalAgents} launchable`
     : `${totalAgents} agent(s)`;
+  const daemonState = statusLineworkState(data);
   const rows: ui.LineworkRow[] = [
     {
-      tone: 'healthy',
+      state: daemonState,
       label: 'daemon',
       text: `pid ${data.pid ?? 'unknown'} · up ${data.uptimeHuman || `${Math.floor((data.uptimeSeconds as number) / 60)}m ${(data.uptimeSeconds as number) % 60}s`} · ${activePorts} ports`,
-      signal: 'Q',
     },
     {
-      tone: runtimeTone(data.runtime?.state, data.runtime?.degraded),
+      state: runtimeLineworkState(data.runtime?.state, data.runtime?.degraded),
       label: 'runtime',
       text: runtimeState,
     },
   ];
 
+  if (data.binaryDrift?.drifted) {
+    const driftAction = data.daemon?.berth?.plane?.startsWith('ephemeral:')
+      ? 'feature berth is isolated; promote only after review'
+      : 'next: restart this daemon';
+    rows.push({
+      state: 'warning',
+      label: 'binary',
+      text: `${binaryDriftText(data)} · ${driftAction}`,
+    });
+  }
+
+  if (data.healthProbe?.ok === false) {
+    rows.push({
+      state: 'unknown',
+      label: 'health',
+      text: `${data.healthProbe.error || 'health probe unavailable'} · next: retry pd status or inspect pd doctor`,
+    });
+  }
+
   if (data.fleet) {
     rows.push({
-      tone: typeof launchable === 'number' && launchable === 0 && totalAgents > 0 ? 'blocked' : 'running',
+      state: typeof launchable === 'number' && launchable === 0 && totalAgents > 0
+        ? 'blocked'
+        : totalAgents > 0
+          ? 'fleet-healthy'
+          : 'idle',
       label: 'fleet',
       text: `${projectCount} project(s) · ${launchText}`,
-      signal: typeof launchable === 'number' && launchable === 0 && totalAgents > 0 ? 'D' : 'K',
     });
   }
 
@@ -363,10 +451,15 @@ export function renderStatusLinework(data: StatusCommandResponse, opts?: { width
       ? ` · ${bosun.reason}`
       : '';
     rows.push({
-      tone: normalizedState?.includes('idle') || normalizedState?.includes('active') ? 'confirmed' : 'unknown',
+      state: normalizedState?.includes('active')
+        ? 'active'
+        : normalizedState?.includes('idle')
+          ? 'idle'
+          : normalizedState?.includes('not installed')
+            ? 'info'
+            : 'unknown',
       label: 'bosun',
       text: `${normalizedState}${reason}`,
-      signal: normalizedState?.includes('idle') || normalizedState?.includes('active') ? 'C' : 'M',
     });
   }
 
@@ -374,19 +467,25 @@ export function renderStatusLinework(data: StatusCommandResponse, opts?: { width
     const ageMs = Date.now() - Number(data.history.lastActivityAt);
     const ageSeconds = Math.max(0, Math.floor(ageMs / 1000));
     rows.push({
-      tone: 'info',
+      state: 'info',
       label: 'activity',
       text: `${ageSeconds}s ago`,
-      signal: 'K',
     });
   }
 
+  const zone = daemonState === 'healthy'
+    ? 'daemon confirmed'
+    : daemonState === 'warning'
+      ? 'daemon responsive · degraded'
+      : daemonState === 'failed'
+        ? 'daemon critical'
+        : 'daemon responsive · health unknown';
   return ui.renderLineworkPanel({
     title: 'Port Daddy',
     version: buildVersion,
     subtitle: `daemon · ${buildHash ? buildHash.trim() : 'live'}`,
-    tone: 'running',
-    zone: 'daemon confirmed',
+    tone: ui.lineworkVisual(daemonState).tone,
+    zone,
     rows,
     footer: `runtime ${runtimeState} · active ports ${activePorts}`,
     width: opts?.width,
@@ -395,16 +494,23 @@ export function renderStatusLinework(data: StatusCommandResponse, opts?: { width
   });
 }
 
-export function renderStatusFailureLinework(opts?: { width?: number; colorLevel?: import('../utils/output.js').CliColorLevel; styled?: boolean }): string {
+export function renderStatusFailureLinework(
+  opts?: { width?: number; colorLevel?: import('../utils/output.js').CliColorLevel; styled?: boolean },
+  failure: StatusFailure = {
+    code: 'DAEMON_UNAVAILABLE',
+    message: 'Port Daddy daemon is not accepting status requests',
+    retryable: true,
+  },
+): string {
   return ui.renderLineworkPanel({
     title: 'Port Daddy',
     subtitle: 'daemon unavailable',
     tone: 'failed',
     zone: 'failed with next action',
     rows: [
-      { tone: 'failed', label: 'daemon', text: 'not accepting status requests', signal: 'N' },
-      { tone: 'blocked', label: 'next', text: 'open FleetBar and restart the daemon, then retry pd status', signal: 'X' },
-      { tone: 'recovering', label: 'diagnose', text: 'run pd doctor if FleetBar cannot recover it', signal: 'Z' },
+      { state: 'failed', label: 'daemon', text: `${failure.code} · ${failure.message}` },
+      { state: 'guard-blocked', label: 'next', text: 'open FleetBar and restart the daemon, then retry pd status' },
+      { state: 'recovering', label: 'diagnose', text: 'run pd doctor if FleetBar cannot recover it' },
     ],
     footer: 'exit 1 · machine callers keep the same failure code',
     width: opts?.width,
@@ -413,27 +519,159 @@ export function renderStatusFailureLinework(opts?: { width?: number; colorLevel?
   });
 }
 
-export async function handleStatus(options: CLIOptions = {}): Promise<void> {
-  try {
-    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/status`);
-    const data = await res.json() as StatusCommandResponse;
-
-    if (ui.lineworkEnabled({ json: isJson(options), quiet: Boolean(options.quiet || options.q) })) {
-      console.log(renderStatusLinework(data));
-    } else {
-      console.log(renderStatusPlain(data));
-    }
-  } catch {
-    if (ui.lineworkEnabled({ json: isJson(options), quiet: Boolean(options.quiet || options.q) })) {
-      console.log(renderStatusFailureLinework());
-    } else {
-      console.log('Port Daddy is not running');
-      console.log('  Start with: port-daddy start');
-      console.log('  Or install: port-daddy install');
-      console.log('  Diagnose:   port-daddy doctor');
-    }
-    process.exit(1);
+export function renderStatusOutput(
+  data: StatusCommandResponse,
+  options: CLIOptions = {},
+  failure?: StatusFailure,
+): string {
+  if (isJson(options)) {
+    return JSON.stringify(failure
+      ? { success: false, error: failure, data }
+      : { success: true, ...data }, null, 2);
   }
+  if (ui.lineworkEnabled({ quiet: Boolean(options.quiet || options.q) })) {
+    return renderStatusLinework(data);
+  }
+  return renderStatusPlain(data);
+}
+
+export function renderStatusFailureOutput(
+  options: CLIOptions = {},
+  failure: StatusFailure = {
+    code: 'DAEMON_UNAVAILABLE',
+    message: 'Port Daddy daemon is not accepting status requests',
+    retryable: true,
+  },
+): string {
+  if (isJson(options)) {
+    return JSON.stringify({
+      success: false,
+      error: failure,
+      nextActions: [
+        'Open FleetBar and restart the daemon, then retry pd status',
+        'Run pd doctor if FleetBar cannot recover it',
+      ],
+    }, null, 2);
+  }
+  if (ui.lineworkEnabled({ quiet: Boolean(options.quiet || options.q) })) {
+    return renderStatusFailureLinework(undefined, failure);
+  }
+  return [
+    `Port Daddy status failed: ${failure.message}`,
+    '  Start with: port-daddy start',
+    '  Or install: port-daddy install',
+    '  Diagnose:   port-daddy doctor',
+  ].join('\n');
+}
+
+export async function runStatus(
+  options: CLIOptions = {},
+  deps: {
+    fetch?: typeof pdFetch;
+    write?: (text: string) => void;
+  } = {},
+): Promise<number> {
+  const fetchStatus = deps.fetch ?? pdFetch;
+  const write = deps.write ?? ((text: string) => console.log(text));
+  try {
+    const res: PdFetchResponse = await fetchStatus('/status');
+    if (!res.ok) {
+      const failure: StatusFailure = {
+        code: 'HTTP_ERROR',
+        message: `daemon returned HTTP ${res.status ?? 'unknown'} for /status`,
+        retryable: (res.status ?? 500) >= 500,
+      };
+      write(renderStatusFailureOutput(options, failure));
+      return 1;
+    }
+
+    let data: StatusCommandResponse;
+    try {
+      data = await res.json() as StatusCommandResponse;
+    } catch {
+      const failure: StatusFailure = {
+        code: 'MALFORMED_RESPONSE',
+        message: 'daemon returned malformed JSON for /status',
+        retryable: true,
+      };
+      write(renderStatusFailureOutput(options, failure));
+      return 1;
+    }
+
+    let healthRes: PdFetchResponse;
+    try {
+      healthRes = await fetchStatus('/health');
+    } catch (error) {
+      const failure: StatusFailure = {
+        code: 'HEALTH_UNAVAILABLE',
+        message: `daemon /health probe failed: ${error instanceof Error ? error.message : String(error)}`,
+        retryable: true,
+      };
+      write(renderStatusFailureOutput(options, failure));
+      return 1;
+    }
+    if (!healthRes.ok) {
+      const failure: StatusFailure = {
+        code: 'HEALTH_UNAVAILABLE',
+        message: `daemon returned HTTP ${healthRes.status ?? 'unknown'} for /health`,
+        retryable: (healthRes.status ?? 500) >= 500,
+      };
+      write(renderStatusFailureOutput(options, failure));
+      return 1;
+    }
+    let health: StatusCommandResponse;
+    try {
+      health = await healthRes.json() as StatusCommandResponse;
+    } catch {
+      const failure: StatusFailure = {
+        code: 'MALFORMED_RESPONSE',
+        message: 'daemon returned malformed JSON for /health',
+        retryable: true,
+      };
+      write(renderStatusFailureOutput(options, failure));
+      return 1;
+    }
+    data.status = health.status ?? data.status;
+    data.severity = health.severity ?? data.severity;
+    data.runtime = health.runtime ?? data.runtime;
+    data.binaryDrift = health.binaryDrift;
+
+    const visualState = statusLineworkState(data);
+    const failure: StatusFailure | undefined = data.binaryDrift?.drifted
+      ? {
+          code: 'BINARY_DRIFT',
+          message: binaryDriftText(data),
+          retryable: !data.daemon?.berth?.plane?.startsWith('ephemeral:'),
+        }
+      : visualState === 'warning' || visualState === 'failed'
+        ? {
+            code: 'HEALTH_DEGRADED',
+            message: `daemon health is ${data.severity || visualState}`,
+            retryable: true,
+          }
+        : visualState === 'unknown'
+          ? {
+              code: 'HEALTH_STATE_INVALID',
+              message: `daemon reported unrecognized runtime state ${data.runtime?.state || 'unknown'}`,
+              retryable: true,
+            }
+          : undefined;
+    write(renderStatusOutput(data, options, failure));
+    return failure ? 1 : 0;
+  } catch (error) {
+    const failure: StatusFailure = {
+      code: 'DAEMON_UNAVAILABLE',
+      message: error instanceof Error ? error.message : 'Port Daddy daemon is not accepting status requests',
+      retryable: true,
+    };
+    write(renderStatusFailureOutput(options, failure));
+    return 1;
+  }
+}
+
+export async function handleStatus(options: CLIOptions = {}): Promise<void> {
+  const exitCode = await runStatus(options);
+  if (exitCode !== 0) process.exitCode = exitCode;
 }
 
 /**

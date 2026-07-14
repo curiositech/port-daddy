@@ -25,13 +25,35 @@ function fdIsTTY(fd: number): boolean {
  * still reports `false`, so this never turns colour/prompts on for non-TTYs.
  */
 export const IS_TTY: boolean =
-  (process.env.NO_COLOR === undefined || process.env.NO_COLOR === '') &&
+  process.env.NO_COLOR === undefined &&
   ((process.stderr.isTTY ?? false) || fdIsTTY(2) || !!process.env.FORCE_COLOR);
 
 export type CliColorLevel = 'none' | '16' | '256' | 'truecolor';
 
-function forceColorLevel(): CliColorLevel | null {
-  const raw = process.env.FORCE_COLOR;
+export type TerminalCapabilityReason =
+  | 'enabled'
+  | 'no-color'
+  | 'force-color-disabled'
+  | 'dumb-terminal'
+  | 'not-tty';
+
+export interface TerminalCapabilities {
+  stream: 'stdout' | 'stderr';
+  isTTY: boolean;
+  colorLevel: CliColorLevel;
+  columns: number;
+  unicode: boolean;
+  reason: TerminalCapabilityReason;
+}
+
+export interface TerminalCapabilityOverrides {
+  env?: NodeJS.ProcessEnv;
+  isTTY?: boolean;
+  columns?: number;
+}
+
+function forceColorLevel(env: NodeJS.ProcessEnv): CliColorLevel | null {
+  const raw = env.FORCE_COLOR;
   if (raw === undefined || raw === '') return null;
   if (raw === '0' || raw.toLowerCase() === 'false') return 'none';
   if (raw === '3' || raw.toLowerCase() === 'truecolor') return 'truecolor';
@@ -46,20 +68,49 @@ function forceColorLevel(): CliColorLevel | null {
  * redirects because human tables often print to stdout. FORCE_COLOR remains an
  * explicit demo/test override, but ordinary piped output stays plain.
  */
-export function detectColorLevel(stream: 'stdout' | 'stderr' = 'stdout'): CliColorLevel {
-  const forced = forceColorLevel();
-  if (forced) return forced;
-  if (process.env.NO_COLOR !== undefined && process.env.NO_COLOR !== '') return 'none';
-  if ((process.env.TERM || '').toLowerCase() === 'dumb') return 'none';
-
+export function detectTerminalCapabilities(
+  stream: 'stdout' | 'stderr' = 'stdout',
+  overrides: TerminalCapabilityOverrides = {},
+): TerminalCapabilities {
+  const env = overrides.env ?? process.env;
   const fd = stream === 'stdout' ? 1 : 2;
   const writeStream = stream === 'stdout' ? process.stdout : process.stderr;
-  if (!((writeStream.isTTY ?? false) || fdIsTTY(fd))) return 'none';
+  const isTTY = overrides.isTTY ?? ((writeStream.isTTY ?? false) || fdIsTTY(fd));
+  const columns = Math.max(20, overrides.columns ?? writeStream.columns ?? 80);
 
-  const colorTerm = (process.env.COLORTERM || '').toLowerCase();
-  if (colorTerm === 'truecolor' || colorTerm === '24bit') return 'truecolor';
-  if ((process.env.TERM || '').includes('256color')) return '256';
-  return '16';
+  if (env.NO_COLOR !== undefined) {
+    return { stream, isTTY, colorLevel: 'none', columns, unicode: false, reason: 'no-color' };
+  }
+
+  const forced = forceColorLevel(env);
+  if (forced === 'none') {
+    return { stream, isTTY, colorLevel: 'none', columns, unicode: false, reason: 'force-color-disabled' };
+  }
+
+  if ((env.TERM || '').toLowerCase() === 'dumb') {
+    return { stream, isTTY, colorLevel: 'none', columns, unicode: false, reason: 'dumb-terminal' };
+  }
+
+  if (!isTTY && !forced) {
+    return { stream, isTTY, colorLevel: 'none', columns, unicode: false, reason: 'not-tty' };
+  }
+
+  const colorTerm = (env.COLORTERM || '').toLowerCase();
+  const colorLevel = forced
+    ?? (colorTerm === 'truecolor' || colorTerm === '24bit'
+      ? 'truecolor'
+      : (env.TERM || '').includes('256color')
+        ? '256'
+        : '16');
+
+  return { stream, isTTY, colorLevel, columns, unicode: true, reason: 'enabled' };
+}
+
+export function detectColorLevel(
+  stream: 'stdout' | 'stderr' = 'stdout',
+  overrides: TerminalCapabilityOverrides = {},
+): CliColorLevel {
+  return detectTerminalCapabilities(stream, overrides).colorLevel;
 }
 
 export function supportsStyledStdout(): boolean {

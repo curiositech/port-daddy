@@ -35,6 +35,15 @@ export function shouldCheckDaemonFreshness(command: string | undefined, args: st
   return !FRESHNESS_SKIP_COMMANDS.has(normalized);
 }
 
+export function hasExplicitDaemonTarget(env: NodeJS.ProcessEnv = process.env): boolean {
+  return Boolean(
+    env.PD_URL
+    || env.PORT_DADDY_URL
+    || env.PORT_DADDY_PROFILE
+    || env.PORT_DADDY_SKIP_FRESHNESS_CHECK,
+  );
+}
+
 export function shouldAutoRestartDaemonForFreshness(opts: {
   daemonInstallDir?: string | null;
   localInstallDir: string;
