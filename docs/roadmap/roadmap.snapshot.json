@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1783666005813,
+  "generatedAt": 1783989442565,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 152,
+  "count": 153,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -613,6 +613,11 @@
       "slug": "harbor-replicaid-agent-branch-clock",
       "status": "backlog",
       "summaryMd": "Adopt zed crates/text+clock ReplicaId model reserving LOCAL/REMOTE_SERVER/AGENT/LOCAL_BRANCH constants as Harbor's agent-as-peer OT/CRDT clock foundation. Surface: Harbor editor. Source: zed-industries/zed (2026-07-08 awesome-gpui survey)."
+    },
+    {
+      "slug": "ideas-trove-queryable-surface",
+      "status": "backlog",
+      "summaryMd": "[dispatch] Take roadmap slice ideas-trove-queryable-surface. Audit the ..."
     },
     {
       "slug": "io-wiring",

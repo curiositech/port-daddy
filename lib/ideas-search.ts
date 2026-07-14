@@ -11,6 +11,7 @@ import {
   type IdeaSource,
   type IdeaStatus,
 } from './ideas-trove.js';
+import { applyDistinctTokenCoverageBonus } from './search-coverage.js';
 
 export type IdeaSearchSource = 'trove' | 'raw' | 'notes' | 'tuples' | 'markdown';
 export type IdeaSearchKind = 'idea' | 'note' | 'tuple' | 'markdown';
@@ -139,7 +140,7 @@ function scoreFields(query: string, fields: Array<[string, string, number]>): Se
   const tokens = tokenize(query);
   const matches: string[] = [];
   let score = 0;
-  let tokenHits = 0;
+  let matchedTokenCount = 0;
 
   for (const token of tokens) {
     let matched = false;
@@ -154,7 +155,7 @@ function scoreFields(query: string, fields: Array<[string, string, number]>): Se
         matched = true;
       }
       if (matched) {
-        tokenHits += 1;
+        matchedTokenCount += 1;
         if (!matches.includes(label)) matches.push(label);
         break;
       }
@@ -170,8 +171,11 @@ function scoreFields(query: string, fields: Array<[string, string, number]>): Se
     }
   }
 
-  if (tokenHits === 0 && score === 0) return { score: 0, matches: [] };
-  return { score, matches };
+  if (matchedTokenCount === 0 && score === 0) return { score: 0, matches: [] };
+  return {
+    score: applyDistinctTokenCoverageBonus(score, matchedTokenCount, tokens.length),
+    matches,
+  };
 }
 
 function sourceRank(source: IdeaSearchSource): number {
