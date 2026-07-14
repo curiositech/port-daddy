@@ -315,3 +315,66 @@ New invariants:
   pattern for per-user secrets
 - Stripe usage-based billing + credit grants (2025); OpenRouter provisioning
   keys; Anthropic usage/cost APIs; AP2; x402; OpenAI/Stripe ACP; Virtuals ACP
+
+## Appendix — Tenancy boundary audit (local-first promise)
+
+Audited 2026-07-14 with the `local-first-tenancy-boundary` skill
+(`scripts/tenancy_boundary_audit.mjs`); spec committed at
+`docs/audits/tenancy-boundary.spec.json` so the audit is re-runnable whenever a
+feature crosses a scope tier. Verdict at design time: **fail, score 64** — the
+per-feature inventory passes (every identity-gated feature has a real
+local-only path; every tier crossing has an explicit consent moment), but
+three product-wide guarantees were missing. They are adopted here as **Phase 1
+acceptance criteria**: Phase 1 does not ship while any of them is open.
+
+### The scope ladder (single source of truth)
+
+Declared once, in order; every role and consent check derives from it:
+
+| Tier | Meaning in Port Daddy | Examples |
+|------|----------------------|----------|
+| `private` | On this machine, this OS user | daemon SQLite, sessions/notes/claims, Keychain secrets, local fleet transcripts |
+| `repo` | Everyone with read access to a GitHub repo | fleet PR review comments, run detail pages (capability URL ≙ repo ACL) |
+| `team` | The operator's cloud infrastructure | relay D1 (`fleet_runs`, future `users`), harbor channels, BYOK ciphertext, email in/out |
+| `public` | Anyone | committed roadmap snapshot, portdaddy.dev, published receipts (ADR-0039) |
+
+### Critical 1 — "local-only uploads nothing" must be runtime-testable
+
+There is no CI test proving the daemon in local-only operation makes zero
+outbound network calls; today that claim is only architectural. Acceptance
+criterion: an egress-assertion test (spawn the daemon with cloud features
+unconfigured, run a representative session lifecycle under a blocked-socket /
+egress-recording harness, assert zero non-loopback connections) wired into CI.
+Any future feature that phones home must fail this test until it is gated
+behind explicit configuration.
+
+### Critical 2 — export/delete per tier
+
+Delete exists in the design for `users` (soft + 30-day hard erasure) but
+export exists nowhere, and `fleet_runs`/`fleet_run_steps` retention is
+unbounded (Open Question 4). Acceptance criteria: an export/delete matrix
+covering every tier —
+
+| Tier | Export | Delete |
+|------|--------|--------|
+| private | file copy of the daemon DB (documented command) | user-owned files |
+| repo | run page + JSON API already export a run | run row + steps deletable by the installing admin (`DELETE /v1/fleet/runs/:id`, operator/owner gated) |
+| team | `GET /v1/account/export` (user row, tokens metadata, spend rows) | account erasure job (already specified) + `fleet_run_steps` retention aligned to `EVENT_RETENTION_DAYS` |
+| public | n/a (already public artifacts are git-versioned) | git history / site redeploy |
+
+### Critical 3 — the ladder was implicit
+
+Fixed by this appendix: the table above is the declaration. Phase 1 code must
+import/derive tier checks from one shared constant, not re-encode the ordering
+ad hoc per handler.
+
+### Re-running the audit
+
+```
+node <skill>/scripts/tenancy_boundary_audit.mjs \
+  --input docs/audits/tenancy-boundary.spec.json
+```
+
+Update the spec's three booleans only when the backing artifact exists (the CI
+egress test, the export/delete endpoints, the shared ladder constant) — never
+ahead of it.
