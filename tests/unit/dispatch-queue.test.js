@@ -203,6 +203,18 @@ describe('nextProposed (atomic pop)', () => {
     expect(queue.get(first.id).state).toBe('proposed');
   });
 
+  test('peekNextProposed scopes the oldest row to the requested base branch', () => {
+    queue.propose({ goal: 'main lane', baseBranch: 'main' });
+    advance(1000);
+    const release = queue.propose({ goal: 'release lane', baseBranch: 'release/2026.05' });
+
+    const peeked = queue.peekNextProposed('release/2026.05');
+
+    expect(peeked.id).toBe(release.id);
+    expect(peeked.baseBranch).toBe('release/2026.05');
+    expect(queue.get(release.id).state).toBe('proposed');
+  });
+
   test('picks oldest proposed and marks it claimed', () => {
     const first = queue.propose({ goal: 'first' });
     advance(1000);

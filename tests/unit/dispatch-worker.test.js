@@ -149,6 +149,31 @@ describe('DispatchWorker — autonomous drain', () => {
     }
   });
 
+  test('leaves a raced row proposed and reports the exact dispatch id', async () => {
+    const dispatch = queue.propose({ goal: 'race-safe lane' });
+    const logger = {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    };
+    jest.spyOn(queue, 'claim').mockImplementationOnce(() => {
+      throw new Error('claim: failed to claim dispatch');
+    });
+    const worker = createDispatchWorker({
+      queue,
+      logger,
+      spawnAdapter: settlingAdapter(),
+      reaper: async () => {},
+    });
+
+    expect(await worker.poll()).toBe(0);
+    expect(queue.get(dispatch.id).state).toBe('proposed');
+    expect(logger.info).toHaveBeenCalledWith('dispatch_worker_claim_raced', {
+      dispatchId: dispatch.id,
+      error: 'claim: failed to claim dispatch',
+    });
+  });
+
   test('a failing dispatch never strands a slot and never crashes the worker', async () => {
     queue.propose({ goal: 'will-throw' });
     const adapter = jest.fn(async () => { throw new Error('boom'); });

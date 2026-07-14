@@ -433,11 +433,10 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
   function captureDispatch(input: CaptureDispatchInput, queue: DispatchQueue): CaptureDispatchResult {
     const token = input.idempotencyKey ? stableToken(input.idempotencyKey) : idSafe(uuid());
     const intentId = `work_intent_dispatch_${token}`;
-    // Preserve the reversible legacy id for intake that originated as `pd
-    // dispatch`; ensureDispatchIntent uses it as an O(1) event-ledger lookup.
-    // Native WorkIntent.start uses the entropy-first id above because it has no
-    // legacy dispatch id to preserve.
-    const dispatchId = `dispatch_${idSafe(intentId.replace(/^work_intent_/, ''))}`;
+    // Compatibility intake uses the same entropy-first projection as native
+    // WorkIntent starts. The embedded token keeps reverse lookup O(1) without
+    // reintroducing the shared `dispatch_` worktree prefix.
+    const dispatchId = dispatchIdForWorkIntent(intentId);
     const idempotencyKey = input.idempotencyKey ?? `compat:dispatch:${dispatchId}`;
     const captured = capture({
       intentId,
