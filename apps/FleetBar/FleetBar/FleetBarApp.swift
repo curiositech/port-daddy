@@ -51,13 +51,24 @@ struct FleetBarApp: App {
     @StateObject private var dispatchStore = DispatchStore()
     @StateObject private var proposalStore = FleetProposalStore()
     @StateObject private var backendStore = BackendStore()
+    @StateObject private var approvalStore = SpawnApprovalStore()
 
     var body: some Scene {
         MenuBarExtra {
-            FleetPopover(store: store, costStore: costStore, secretsStore: secretsStore, backendStore: backendStore)
-                .frame(width: 440, height: 760)
+            FleetPopover(
+                store: store,
+                costStore: costStore,
+                secretsStore: secretsStore,
+                backendStore: backendStore,
+                approvalStore: approvalStore
+            )
+            .frame(width: 380, height: 760)
         } label: {
-            FleetMenuBarLabel(icon: store.menuBarIcon, color: store.menuBarColor)
+            FleetMenuBarLabel(
+                tone: store.menuBarTone,
+                pendingGateCount: approvalStore.approvals.count
+            )
+            .onAppear { approvalStore.start() }
         }
         .menuBarExtraStyle(.window)
 
@@ -91,8 +102,8 @@ struct FleetSettingsWindow: View {
 }
 
 struct FleetMenuBarLabel: View {
-    let icon: String
-    let color: Color
+    let tone: FleetMenuBarTone
+    let pendingGateCount: Int
     /// Set for non-production builds so a dev FleetBar is visibly distinct from the
     /// installed one. `nil` on the shipped app.
     var devBadge: String? = AppChannel.current.menuBarBadge
@@ -104,22 +115,22 @@ struct FleetMenuBarLabel: View {
     }
 
     var body: some View {
-        let tint = channelAccent ?? color
-        HStack(spacing: 3) {
-            Image(systemName: icon)
-                .symbolRenderingMode(.monochrome)
-                .foregroundStyle(tint)
-            if let devBadge {
-                // Uppercase, bold, tracked-out tag — reads larger than its point
-                // size, the only sanctioned small-label form.
-                Text(devBadge)
-                    .font(.system(size: 9, weight: .heavy))
-                    .tracking(0.5)
-                    .foregroundStyle(tint)
-                    .accessibilityLabel("development build \(devBadge)")
-            }
+        FleetMenuBarMark(
+            state: FleetVisualState(menuBarTone: tone),
+            pendingGateCount: pendingGateCount,
+            devBadge: devBadge
+        )
+        .foregroundStyle(channelAccent ?? tone.color)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        var label = pendingGateCount > 0
+            ? "FleetBar, \(pendingGateCount) human gate\(pendingGateCount == 1 ? "" : "s") waiting"
+            : "FleetBar, \(FleetVisualState(menuBarTone: tone).label.lowercased())"
+        if let devBadge {
+            label += ", development build \(devBadge)"
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(devBadge == nil ? "Fleet" : "Fleet — development build")
+        return label
     }
 }

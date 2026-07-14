@@ -11,6 +11,22 @@ struct BerthManagerView: View {
     @ObservedObject var berthStore: BerthStore
 
     private let appChannel = AppChannel.current
+    private struct BerthLane: Identifiable {
+        let id: String
+        let title: String
+        let berths: [Berth]
+    }
+
+    private var lanes: [BerthLane] {
+        let stable = berthStore.berths.filter(\.canonical)
+        let latest = berthStore.berths.filter { !$0.canonical && $0.tier == "dev-latest" }
+        let dev = berthStore.berths.filter { !$0.canonical && $0.tier != "dev-latest" }
+        return [
+            BerthLane(id: "stable", title: "Prod", berths: stable),
+            BerthLane(id: "latest", title: "Latest", berths: latest),
+            BerthLane(id: "dev", title: "Dev berths", berths: dev),
+        ].filter { !$0.berths.isEmpty }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Fleet.Space.s) {
@@ -22,20 +38,26 @@ struct BerthManagerView: View {
                     .font(.caption.weight(.medium))
                     .foregroundStyle(Fleet.Color.warning)
             }
-            ForEach(berthStore.berths) { berth in
-                BerthRow(
-                    berth: berth,
-                    isActive: berth.port == store.activePort,
-                    onUse: { switchTo(berth) },
-                    onStop: { Task { await berthStore.stop(berth) } }
-                )
+            ForEach(lanes) { lane in
+                VStack(alignment: .leading, spacing: Fleet.Space.xs) {
+                    Text(lane.title.uppercased())
+                        .font(.system(.caption2, design: .monospaced).weight(.bold))
+                        .foregroundStyle(Fleet.Chrome.tertiaryText)
+                    ForEach(lane.berths) { berth in
+                        BerthRow(
+                            berth: berth,
+                            isActive: berth.port == store.activePort,
+                            onUse: { switchTo(berth) }
+                        )
+                    }
+                }
             }
             if let message = berthStore.actionMessage {
                 Text(message)
                     .font(.caption)
                     .foregroundStyle(Fleet.Chrome.secondaryText)
             }
-            Text("Spin up a dev berth with `pd dev up`; switch a shell with `pd use`.")
+            Text("Daemon-reported berths. Pick one to bind this FleetBar session.")
                 .font(.caption)
                 .foregroundStyle(Fleet.Chrome.tertiaryText)
         }
@@ -50,8 +72,14 @@ struct BerthManagerView: View {
 
     private var header: some View {
         HStack(spacing: Fleet.Space.s) {
-            Text("Daemons")
-                .font(.headline)
+            SignalFlagGlyph(signal: .papa)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Berth lanes")
+                    .font(.caption.weight(.semibold))
+                Text("stable, latest, and feature daemons")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
             Spacer()
             if berthStore.isRefreshing {
                 ProgressView().controlSize(.small)
@@ -79,57 +107,26 @@ private struct BerthRow: View {
     let berth: Berth
     let isActive: Bool
     let onUse: () -> Void
-    let onStop: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: Fleet.Space.s) {
-            Circle()
-                .fill(berth.color)
-                .frame(width: 10, height: 10)
-                .opacity(berth.reachable ? 1 : 0.35)
-                .padding(.top, 3)
-
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: Fleet.Space.xs) {
-                    Text(berth.label)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                    tierTag
-                    Text(":\(berth.port)")
-                        .font(.caption.monospaced())
-                        .foregroundStyle(Fleet.Chrome.secondaryText)
-                }
-                Text(statusLine)
-                    .font(.caption)
-                    .foregroundStyle(Fleet.Chrome.tertiaryText)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+        StoryStateRow(
+            state: state,
+            title: "\(berth.label) · :\(berth.port)",
+            detail: statusLine,
+            time: isActive ? "ACTIVE" : (berth.reachable ? "USE" : "DOWN"),
+            signal: signal
+        ) {
+            if !isActive && berth.reachable {
+                Button("Use", action: onUse)
+                    .buttonStyle(.plain)
+                    .font(.system(.caption2, design: .monospaced).weight(.bold))
+                    .foregroundStyle(state.color)
+                    .padding(.horizontal, Fleet.Space.s)
+                    .padding(.vertical, 4)
+                    .background(state.color.opacity(0.10), in: Rectangle())
             }
-
-            Spacer(minLength: Fleet.Space.s)
-
-            trailingControls
         }
-        .padding(Fleet.Space.s)
-        .background(
-            RoundedRectangle(cornerRadius: Fleet.Radius.small)
-                .fill(isActive ? berth.color.opacity(0.12) : Color.clear)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: Fleet.Radius.small)
-                .stroke(isActive ? berth.color.opacity(0.5) : Fleet.Chrome.border,
-                        lineWidth: isActive ? 1.5 : 1)
-        )
-    }
-
-    private var tierTag: some View {
-        Text(berth.tier.uppercased())
-            .font(.system(size: 9, weight: .heavy))
-            .tracking(0.5)
-            .foregroundStyle(berth.color)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(Capsule().fill(berth.color.opacity(0.15)))
+        .background(isActive ? state.color.opacity(0.10) : Color.clear)
     }
 
     private var statusLine: String {
@@ -140,29 +137,18 @@ private struct BerthRow: View {
         return bits.joined(separator: " · ")
     }
 
-    @ViewBuilder
-    private var trailingControls: some View {
-        VStack(alignment: .trailing, spacing: Fleet.Space.xs) {
-            if isActive {
-                Label("Active", systemImage: "checkmark.circle.fill")
-                    .labelStyle(.titleAndIcon)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(berth.color)
-            } else if berth.reachable {
-                Button("Use", action: onUse)
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .tint(berth.color)
-            }
+    private var state: FleetVisualState {
+        if isActive { return .running }
+        if berth.reachable { return .ok }
+        return .warn
+    }
 
-            if !berth.canonical {
-                Button(role: .destructive, action: onStop) {
-                    Text("Stop")
-                }
-                .buttonStyle(.borderless)
-                .controlSize(.small)
-                .help("pd dev down \(berth.label)")
-            }
+    private var signal: FleetSignalFlag {
+        if berth.canonical { return .papa }
+        switch berth.tier {
+        case "dev-latest": return .quebec
+        case "codebase": return .delta
+        default: return .mike
         }
     }
 }

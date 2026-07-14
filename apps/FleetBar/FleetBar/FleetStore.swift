@@ -622,7 +622,7 @@ class FleetStore: ObservableObject {
         isStartingDaemon = true
 
         Task {
-            let started = startLaunchAgentDaemon() || startDaemonViaCLI()
+            let started = startLaunchAgentDaemon()
 
             if !started {
                 settingsMessage = "Could not start Port Daddy"
@@ -825,26 +825,19 @@ class FleetStore: ObservableObject {
 
     private func startLaunchAgentDaemon() -> Bool {
         let uid = String(getuid())
-        return runProcess(
-            executable: URL(fileURLWithPath: "/bin/launchctl"),
-            arguments: ["kickstart", "-k", "gui/\(uid)/com.portdaddy.daemon"]
-        ) == 0
-    }
-
-    private func startDaemonViaCLI() -> Bool {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let candidates = [
-            "/opt/homebrew/bin/pd",
-            "/usr/local/bin/pd",
-            "\(home)/.npm-global/bin/pd",
+        let labels = [
+            "homebrew.mxcl.port-daddy",
+            // Historical label kept as a compatibility probe for older installs.
+            "com.portdaddy.daemon",
         ]
-
-        for path in candidates where FileManager.default.isExecutableFile(atPath: path) {
-            if runProcess(executable: URL(fileURLWithPath: path), arguments: ["start"]) == 0 {
+        for label in labels {
+            if runProcess(
+                executable: URL(fileURLWithPath: "/bin/launchctl"),
+                arguments: ["kickstart", "-k", "gui/\(uid)/\(label)"]
+            ) == 0 {
                 return true
             }
         }
-
         return false
     }
 

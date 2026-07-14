@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 // MARK: - FleetBar Design Tokens
 //
@@ -31,11 +32,12 @@ enum Fleet {
     }
 
     enum Chrome {
-        static var popoverBackground: SwiftUI.Color { SwiftUI.Color(nsColor: .windowBackgroundColor).opacity(0.98) }
-        static var panel: SwiftUI.Color { SwiftUI.Color(nsColor: .controlBackgroundColor).opacity(0.96) }
-        static var panelRaised: SwiftUI.Color { SwiftUI.Color(nsColor: .underPageBackgroundColor).opacity(0.98) }
-        static var card: SwiftUI.Color { SwiftUI.Color(nsColor: .textBackgroundColor).opacity(0.98) }
-        static var border: SwiftUI.Color { SwiftUI.Color.primary.opacity(0.08) }
+        static var popoverBackground: SwiftUI.Color { Color.adaptive(light: "#F2EEE6", dark: "#101216") }
+        static var panel: SwiftUI.Color { Color.adaptive(light: "#F7F3EB", dark: "#181C22") }
+        static var panelRaised: SwiftUI.Color { Color.adaptive(light: "#E9E2D5", dark: "#222833") }
+        static var card: SwiftUI.Color { Color.adaptive(light: "#F7F3EB", dark: "#181C22") }
+        static var border: SwiftUI.Color { Color.adaptive(light: "#D5CABC", dark: "#2D3542") }
+        static var rule: SwiftUI.Color { Color.adaptive(light: "#C9BDAE", dark: "#3A4350").opacity(0.68) }
         static var secondaryText: SwiftUI.Color { SwiftUI.Color.secondary }
         static var tertiaryText: SwiftUI.Color { SwiftUI.Color.secondary.opacity(0.72) }
     }
@@ -46,23 +48,43 @@ enum Fleet {
     // Defined as computed properties so they resolve at render time.
 
     enum Color {
-        /// Healthy agents, live connection — muted teal-green, not traffic-light green
-        static let healthy = SwiftUI.Color(red: 0.29, green: 0.73, blue: 0.62)
+        static func adaptive(light: String, dark: String) -> SwiftUI.Color {
+            SwiftUI.Color(nsColor: NSColor(name: nil) { appearance in
+                let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                return nsColor(hex: isDark ? dark : light)
+            })
+        }
 
-        /// Active/running agents — warm blue, conveys motion without alarm
-        static let active  = SwiftUI.Color(red: 0.35, green: 0.58, blue: 0.85)
+        static func fixed(_ hex: String) -> SwiftUI.Color {
+            SwiftUI.Color(nsColor: nsColor(hex: hex))
+        }
+
+        /// Healthy agents, live connection — muted teal-green, not traffic-light green
+        static let healthy = adaptive(light: "#2E7D5B", dark: "#5FCE97")
+
+        /// Active/running agents — palette-v2 cobalt.
+        static let active = adaptive(light: "#003FB8", dark: "#7DB4FF")
+        static let activeSlab = fixed("#003FB8")
 
         /// Warning state — warm amber (brand status-warning)
-        static let warning = SwiftUI.Color(red: 0.88, green: 0.55, blue: 0.25)
+        static let warning = adaptive(light: "#B8801F", dark: "#F2BE51")
 
         /// Failure state — muted red, not screaming
-        static let failure = SwiftUI.Color(red: 0.78, green: 0.28, blue: 0.24)
+        static let failure = adaptive(light: "#B5392E", dark: "#FF7D7D")
+
+        /// Human gates and blocked work — palette-v2 violet/plum.
+        static let blocked = adaptive(light: "#6B3F8A", dark: "#E0A5ED")
+        static let violetSlab = fixed("#933FA5")
+
+        /// Economy/budget — palette-v2 solid gold.
+        static let gold = adaptive(light: "#666A00", dark: "#D8DD3C")
+        static let onGold = adaptive(light: "#FBF7EF", dark: "#121212")
 
         /// Idle/dormant — warm gray, not cold
-        static let dormant = SwiftUI.Color(red: 0.55, green: 0.53, blue: 0.50)
+        static let dormant = adaptive(light: "#98928A", dark: "#A59F93")
 
         /// Dead agents — faded version of failure
-        static let dead    = SwiftUI.Color(red: 0.78, green: 0.28, blue: 0.24).opacity(0.4)
+        static let dead = failure.opacity(0.45)
 
         /// Parse a `#RRGGBB` / `#RGB` hex string (as the daemon reports a berth
         /// colour, ADR-0084) into a Color. Returns nil on a malformed string so
@@ -76,6 +98,21 @@ enum Fleet {
                 red:   Double((v >> 16) & 0xFF) / 255.0,
                 green: Double((v >> 8) & 0xFF) / 255.0,
                 blue:  Double(v & 0xFF) / 255.0
+            )
+        }
+
+        private static func nsColor(hex raw: String) -> NSColor {
+            var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if s.hasPrefix("#") { s.removeFirst() }
+            if s.count == 3 { s = s.map { "\($0)\($0)" }.joined() }
+            guard s.count == 6, let v = UInt32(s, radix: 16) else {
+                return NSColor.labelColor
+            }
+            return NSColor(
+                calibratedRed: CGFloat((v >> 16) & 0xFF) / 255.0,
+                green: CGFloat((v >> 8) & 0xFF) / 255.0,
+                blue: CGFloat(v & 0xFF) / 255.0,
+                alpha: 1
             )
         }
     }

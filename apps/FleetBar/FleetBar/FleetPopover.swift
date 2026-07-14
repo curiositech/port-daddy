@@ -34,23 +34,31 @@ private func agentStatusColor(_ status: FleetAgent.AgentStatus) -> Color {
 struct FleetPopover: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var store: FleetStore
     @ObservedObject var costStore: CostStore
     @ObservedObject var secretsStore: SecretsStore
     @ObservedObject var backendStore: BackendStore
     @StateObject private var budgetStore = BudgetPauseStore()
-    @StateObject private var approvalStore = SpawnApprovalStore()
     @StateObject private var berthStore = BerthStore()
     @StateObject private var cloudFleetStore = CloudFleetStore()
+    @ObservedObject var approvalStore: SpawnApprovalStore
     @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
     @State private var appeared = false
     @State private var showingSettings = false
 
-    init(store: FleetStore, costStore: CostStore, secretsStore: SecretsStore = SecretsStore(autoStart: false), backendStore: BackendStore = BackendStore()) {
+    init(
+        store: FleetStore,
+        costStore: CostStore,
+        secretsStore: SecretsStore = SecretsStore(autoStart: false),
+        backendStore: BackendStore = BackendStore(),
+        approvalStore: SpawnApprovalStore = SpawnApprovalStore()
+    ) {
         self.store = store
         self.costStore = costStore
         self.secretsStore = secretsStore
         self.backendStore = backendStore
+        self.approvalStore = approvalStore
     }
 
     private var recentAgentHighlights: [RecentAgentHighlight] {
@@ -93,9 +101,19 @@ struct FleetPopover: View {
             footer
         }
         .background(Fleet.Chrome.popoverBackground)
+        .overlay {
+            if store.isDaemonRunning {
+                StoryCornerTicks(color: Fleet.Chrome.rule, length: 12, lineWidth: 1.25)
+                    .padding(1)
+            }
+        }
         .preferredColorScheme(selectedThemeRaw == "light" ? .light : .dark)
         .onAppear {
-            withAnimation(.smooth(duration: 0.4)) { appeared = true }
+            if reduceMotion {
+                appeared = true
+            } else {
+                withAnimation(.smooth(duration: 0.4)) { appeared = true }
+            }
             budgetStore.start()
             approvalStore.start()
         }
@@ -111,18 +129,37 @@ struct FleetPopover: View {
             // HITL first: spawns held by the trust gate lead everything else
             // in the dropdown (ADR-0093 — a pending human gate is unmissable).
             SpawnApprovalSection(store: approvalStore)
+            if let current = currentRunHighlight {
+                StoryLiveZone(
+                    title: "\(current.agent.name) · \(current.projectName)",
+                    detail: current.agent.lastSummary
+                        ?? current.agent.purpose
+                        ?? current.agent.statusReason
+                        ?? "Live daemon work in progress.",
+                    meta: relativeTimeString(current.agent.lastActivity),
+                    actionTitle: "OPEN",
+                    action: { openControlPlane(.activity, project: current.projectId, agent: current.agent.name) }
+                )
+                .padding(.horizontal, Fleet.Space.s)
+                .padding(.vertical, Fleet.Space.s)
+                StoryRule().padding(.horizontal, Fleet.Space.l)
+            }
             if store.versionSkew.needsAttention {
                 versionSkewBanner(store.versionSkew)
-                Divider().opacity(0.5)
+                StoryRule().padding(.horizontal, Fleet.Space.l)
             }
             if !budgetStore.pendingKills.isEmpty {
                 budgetPauseBanner
-                Divider().opacity(0.5)
+                StoryRule().padding(.horizontal, Fleet.Space.l)
+            }
+            if store.isDaemonRunning {
+                budgetLineworkSummary
+                StoryRule().padding(.horizontal, Fleet.Space.l)
             }
             // Berth switcher (ADR-0084): always available — switch to a live berth
             // even when the current connection is down.
             BerthManagerView(store: store, berthStore: berthStore)
-            Divider().opacity(0.5)
+            StoryRule().padding(.horizontal, Fleet.Space.l)
             // Tools: Fleet Control Center + a button per installed pd-console lane
             // (prod / latest / dev-NAME), each launchable against a chosen berth.
             ConsoleLauncherSection(
@@ -132,18 +169,18 @@ struct FleetPopover: View {
                 openCloudFleet: { openControlPlane(.cloudfleet) },
                 openVisualTask: { openControlPlane(.visual) }
             )
-            Divider().opacity(0.5)
+            StoryRule().padding(.horizontal, Fleet.Space.l)
             if store.isDaemonRunning {
                 BackendStatusRow(store: backendStore)
-                Divider().opacity(0.5)
+                StoryRule().padding(.horizontal, Fleet.Space.l)
             }
             if let daemonStatus = store.daemonStatus, store.isDaemonRunning {
                 daemonReportSection(status: daemonStatus)
-                Divider().opacity(0.5)
+                StoryRule().padding(.horizontal, Fleet.Space.l)
             }
             if store.isDaemonRunning && !recentAgentHighlights.isEmpty {
                 recentActivitySection
-                Divider().opacity(0.5)
+                StoryRule().padding(.horizontal, Fleet.Space.l)
             }
             if store.isDaemonRunning {
                 CloudFleetSection(
@@ -152,17 +189,17 @@ struct FleetPopover: View {
                     localDaemonURL: store.daemonURL,
                     compact: true
                 )
-                Divider().opacity(0.5)
+                StoryRule().padding(.horizontal, Fleet.Space.l)
                 consoleStatusSection
-                Divider().opacity(0.5)
+                StoryRule().padding(.horizontal, Fleet.Space.l)
                 CostDashboard(store: costStore)
-                Divider().opacity(0.5)
+                StoryRule().padding(.horizontal, Fleet.Space.l)
             }
             if showingSettings {
                 BackendPicker(store: backendStore)
-                Divider().opacity(0.5)
+                StoryRule().padding(.horizontal, Fleet.Space.l)
                 settingsPanel
-                Divider().opacity(0.5)
+                StoryRule().padding(.horizontal, Fleet.Space.l)
             }
             if store.projects.isEmpty {
                 emptyState
@@ -170,6 +207,77 @@ struct FleetPopover: View {
                 projectList
             }
         }
+    }
+
+    private var currentRunHighlight: RecentAgentHighlight? {
+        store.projects
+            .flatMap { project in
+                project.agents.compactMap { agent -> RecentAgentHighlight? in
+                    guard agent.status == .running || agent.status.isDeployed else { return nil }
+                    return RecentAgentHighlight(
+                        projectId: project.id,
+                        projectDir: project.projectDir,
+                        projectName: project.name,
+                        agent: agent
+                    )
+                }
+            }
+            .sorted {
+                ($0.agent.lastActivity ?? .distantPast) > ($1.agent.lastActivity ?? .distantPast)
+            }
+            .first
+    }
+
+    private var totalBudgetCap: Double? {
+        let total = costStore.liveProjects.compactMap(\.budgetUsdPerDay).reduce(0, +)
+        return total > 0 ? total : nil
+    }
+
+    private var budgetLineworkSummary: some View {
+        HStack(alignment: .center, spacing: Fleet.Space.m) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: Fleet.Space.s) {
+                    SignalFlagGlyph(signal: .bravo)
+                    Text("Budget")
+                        .font(.system(.caption2, design: .monospaced).weight(.bold))
+                        .textCase(.uppercase)
+                        .foregroundStyle(Fleet.Color.onGold.opacity(0.82))
+                }
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text(String(format: "$%.2f", costStore.todaySpend))
+                        .font(.system(size: 24, weight: .bold, design: .monospaced))
+                    Text(totalBudgetCap.map { String(format: "/ $%.2f", $0) } ?? "/ no cap")
+                        .font(.system(.caption, design: .monospaced).weight(.semibold))
+                        .opacity(0.78)
+                }
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(costStore.burnRateString)
+                    .font(.system(.caption, design: .monospaced).weight(.bold))
+                Text("\(costStore.exactCountToday) exact · \(costStore.estimatedCountToday) est.")
+                    .font(.caption2)
+                    .opacity(0.78)
+            }
+        }
+        .foregroundStyle(Fleet.Color.onGold)
+        .padding(.horizontal, Fleet.Space.m)
+        .padding(.vertical, Fleet.Space.s)
+        .background(Fleet.Color.gold)
+        .padding(.horizontal, Fleet.Space.s)
+        .padding(.vertical, Fleet.Space.s)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Budget, \(String(format: "$%.2f", costStore.todaySpend)) spent today")
+    }
+
+    private func relativeTimeString(_ date: Date?) -> String {
+        guard let date else { return "live" }
+        let seconds = max(0, Int(Date().timeIntervalSince(date)))
+        if seconds < 60 { return "\(seconds)s" }
+        let minutes = seconds / 60
+        if minutes < 60 { return "\(minutes)m" }
+        let hours = minutes / 60
+        return "\(hours)h"
     }
 
     private var defaultConsoleProject: String? {
@@ -547,15 +655,17 @@ struct FleetPopover: View {
         HStack {
             VStack(alignment: .leading, spacing: Fleet.Space.xs) {
                 HStack(spacing: Fleet.Space.s) {
-                    Text("Fleet")
-                        .font(.headline)
+                    HStack(spacing: 3) {
+                        SignalFlagGlyph(signal: .papa)
+                        SignalFlagGlyph(signal: .delta)
+                    }
+                    Text("port-daddy")
+                        .font(.headline.weight(.semibold))
 
                     // Subtle health dot in the title — the whole app's pulse
                     if store.isDaemonRunning && !store.projects.isEmpty {
-                        Circle()
-                            .fill(headerAccent)
-                            .frame(width: 6, height: 6)
-                            .opacity(store.totalActive > 0 ? 1 : 0.4)
+                        StoryStateDot(state: FleetVisualState(menuBarTone: store.menuBarTone), size: 6)
+                            .opacity(store.totalActive > 0 ? 1 : 0.72)
                     }
 
                     // Berth identity (ADR-0084): which daemon am I talking to —
@@ -962,7 +1072,7 @@ struct FleetPopover: View {
             Image(systemName: "sailboat")
                 .font(.system(size: 40, weight: .ultraLight))
                 .foregroundStyle(.quaternary)
-                .symbolEffect(.pulse.byLayer, options: .repeating.speed(0.5), isActive: !store.isDaemonRunning)
+                .symbolEffect(.pulse.byLayer, options: .repeating.speed(0.5), isActive: !store.isDaemonRunning && !reduceMotion)
 
             VStack(spacing: Fleet.Space.xs) {
                 if store.isDaemonRunning {
@@ -1071,7 +1181,7 @@ struct FleetPopover: View {
                   : "antenna.radiowaves.left.and.right.slash")
                 .font(.system(size: 9, weight: .medium))
                 .foregroundStyle(store.isConnected ? Fleet.Color.healthy : Fleet.Color.warning)
-                .symbolEffect(.variableColor.iterative, isActive: store.isConnected)
+                .symbolEffect(.variableColor.iterative, isActive: store.isConnected && !reduceMotion)
                 .contentTransition(.symbolEffect(.replace))
 
             Text(store.isConnected ? "Live" : "Polling")
@@ -1422,54 +1532,36 @@ struct AgentRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: Fleet.Space.s) {
-                Spacer().frame(width: Fleet.Space.xl + Fleet.Space.xs)
-
-                statusIndicator
-
-                Image(systemName: Fleet.agentIcon(for: agent.name))
-                    .font(.system(size: 10))
-                    .fontWeight(.regular)
-                    .foregroundStyle(agent.status == .failed ? Fleet.Color.failure : Fleet.Color.dormant)
-                    .frame(width: Fleet.Space.l)
-
-                Text(agent.name)
-                    .font(.system(.caption, design: .monospaced).weight(.medium))
-                    .foregroundStyle(agent.status == .failed ? Fleet.Color.failure.opacity(0.9) : .primary)
-
-                Spacer()
-
-                if agent.type == .scheduled {
-                    Text("job")
-                        .font(.system(.caption2, design: .rounded).weight(.semibold))
-                        .foregroundStyle(Fleet.Color.warning)
-                        .padding(.horizontal, Fleet.Space.xs + 1)
-                        .padding(.vertical, 2)
-                        .background(
-                            Fleet.Color.warning.opacity(0.08),
-                            in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
-                        )
-                }
-
-                if let lastEvent = agent.lastEvent {
-                    EventLabel(event: lastEvent)
-                }
-
-                if let lastActivity = agent.lastActivity {
-                    Text(lastActivity, style: .relative)
-                        .font(.caption2)
-                        .foregroundStyle(.quaternary)
-                        .frame(width: 52, alignment: .trailing)
-                }
+            StoryStateRow(
+                state: visualState,
+                title: agent.name,
+                detail: detailLine,
+                time: timeLabel
+            ) {
                 if agent.canControl {
-                    Button(agent.status == .paused ? "Resume" : "Pause", action: onPauseToggle)
-                        .buttonStyle(.borderless)
-                        .font(.caption2.weight(.semibold))
+                    HStack(spacing: Fleet.Space.xs) {
+                        Button {
+                            onPauseToggle()
+                        } label: {
+                            Image(systemName: agent.status == .paused ? "play.fill" : "pause.fill")
+                                .font(.caption2.weight(.bold))
+                                .frame(width: 20, height: 20)
+                        }
+                        .buttonStyle(.plain)
                         .foregroundStyle(agent.status == .paused ? Fleet.Color.healthy : Fleet.Color.warning)
-                    Button("Run", action: onRunAgent)
-                        .buttonStyle(.borderless)
-                        .font(.caption2.weight(.semibold))
+                        .help(agent.status == .paused ? "Resume" : "Pause")
+
+                        Button {
+                            onRunAgent()
+                        } label: {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.caption2.weight(.bold))
+                                .frame(width: 20, height: 20)
+                        }
+                        .buttonStyle(.plain)
                         .foregroundStyle(Fleet.Color.active)
+                        .help("Run")
+                    }
                 }
             }
             if let purpose = agent.purpose, !purpose.isEmpty {
@@ -1534,6 +1626,30 @@ struct AgentRow: View {
         .contentShape(Rectangle())
         .onTapGesture(perform: onInspect)
         .onChange(of: agent.status) { justChanged = true }
+    }
+
+    private var visualState: FleetVisualState {
+        FleetVisualState(agentStatus: agent.status)
+    }
+
+    private var detailLine: String {
+        let status = agent.status.rawValue.replacingOccurrences(of: "_", with: " ")
+        let type = agent.type.rawValue.replacingOccurrences(of: "_", with: " ")
+        let event = agent.lastEvent.map { EventLabel(event: $0).labelText } ?? status
+        let summary = agent.lastSummary ?? agent.statusReason ?? agent.purpose
+        if let summary, !summary.isEmpty {
+            return "\(event) · \(type) · \(summary)"
+        }
+        return "\(event) · \(type)"
+    }
+
+    private var timeLabel: String {
+        guard let lastActivity = agent.lastActivity else { return "—" }
+        let seconds = max(0, Int(Date().timeIntervalSince(lastActivity)))
+        if seconds < 60 { return "\(seconds)s" }
+        let minutes = seconds / 60
+        if minutes < 60 { return "\(minutes)m" }
+        return "\(minutes / 60)h"
     }
 
     private var recoveryHint: String? {
@@ -1657,7 +1773,7 @@ struct EventLabel: View {
     let event: String
 
     var body: some View {
-        Text(label)
+        Text(labelText)
             .font(.system(.caption2, design: .rounded).weight(.medium))
             .foregroundStyle(color)
             .padding(.horizontal, Fleet.Space.xs + 2)
@@ -1668,7 +1784,7 @@ struct EventLabel: View {
             )
     }
 
-    private var label: String {
+    var labelText: String {
         switch event {
         case "agent_started":     return "running"
         case "agent_completed":   return "done"

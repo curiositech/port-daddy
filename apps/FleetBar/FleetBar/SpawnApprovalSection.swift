@@ -13,17 +13,18 @@ struct SpawnApprovalSection: View {
         if !store.approvals.isEmpty {
             VStack(alignment: .leading, spacing: Fleet.Space.s) {
                 HStack(spacing: Fleet.Space.xs) {
-                    Image(systemName: "shield.lefthalf.filled.badge.checkmark")
-                        .foregroundStyle(Fleet.Color.warning)
-                    Text("Spawn approvals (\(store.approvals.count))")
-                        .font(.callout.weight(.semibold))
+                    SignalFlagGlyph(signal: .foxtrot)
+                    Text("Needs you · \(store.approvals.count) gate\(store.approvals.count == 1 ? "" : "s")")
+                        .font(.system(.caption, design: .monospaced).weight(.bold))
+                        .textCase(.uppercase)
+                        .foregroundStyle(Color.white.opacity(0.86))
                     Spacer()
                 }
 
                 if let error = store.lastError {
                     Text(error)
                         .font(.callout)
-                        .foregroundStyle(Fleet.Color.failure)
+                        .foregroundStyle(Color.white)
                 }
 
                 ForEach(store.approvals) { approval in
@@ -32,43 +33,53 @@ struct SpawnApprovalSection: View {
             }
             .padding(.horizontal, Fleet.Space.m)
             .padding(.vertical, Fleet.Space.s)
-            .background(Fleet.Color.warning.opacity(0.08))
-            Divider().opacity(0.5)
+            .foregroundStyle(Color.white)
+            .background(Fleet.Color.violetSlab)
+            .overlay(StoryCornerTicks(color: Color.white.opacity(0.58), length: 11, lineWidth: 1.25))
+            .padding(.horizontal, Fleet.Space.s)
+            .padding(.vertical, Fleet.Space.s)
+            .environment(\.colorScheme, .dark)
         }
     }
 
     @ViewBuilder
     private func approvalRow(_ approval: SpawnApproval) -> some View {
-        HStack(alignment: .center, spacing: Fleet.Space.s) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(approval.agent) ← \(approval.trigger)")
-                    .font(.callout.weight(.medium))
-                    .lineLimit(1)
-                Text("\(approval.tierLabel) · \(approval.project) · \(approval.age) ago · tools: \(approval.safeTools.joined(separator: ", "))")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: Fleet.Space.s)
+        StoryStateRow(
+            state: .blocked,
+            title: "\(approval.agent) ← \(approval.trigger)",
+            detail: "\(approval.tierLabel) · \(approval.project) · tools: \(approval.safeTools.joined(separator: ", "))",
+            time: approval.age,
+            signal: .foxtrot
+        ) {
             let deciding = store.decidingIds.contains(approval.id)
-            Button {
-                Task { await store.decide(approval.id, decision: "approve") }
-            } label: {
-                Label("Approve", systemImage: "checkmark")
-                    .font(.callout.weight(.semibold))
+            HStack(spacing: Fleet.Space.xs) {
+                Button {
+                    Task { await store.decide(approval.id, decision: "approve") }
+                } label: {
+                    Image(systemName: "checkmark")
+                        .font(.caption.weight(.bold))
+                        .frame(width: 22, height: 22)
+                }
+                .buttonStyle(.plain)
+                .background(Color.white, in: Rectangle())
+                .foregroundStyle(Fleet.Color.violetSlab)
+                .help("Approve")
+                .disabled(deciding)
+
+                Button {
+                    Task { await store.decide(approval.id, decision: "reject") }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption.weight(.bold))
+                        .frame(width: 22, height: 22)
+                }
+                .buttonStyle(.plain)
+                .background(Color.black.opacity(0.26), in: Rectangle())
+                .foregroundStyle(Color.white)
+                .help("Reject")
+                .disabled(deciding)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Fleet.Color.healthy)
-            .disabled(deciding)
-            Button {
-                Task { await store.decide(approval.id, decision: "reject") }
-            } label: {
-                Label("Reject", systemImage: "xmark")
-                    .font(.callout.weight(.semibold))
-            }
-            .buttonStyle(.bordered)
-            .tint(Fleet.Color.failure)
-            .disabled(deciding)
         }
+        .padding(.vertical, 2)
     }
 }

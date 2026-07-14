@@ -197,10 +197,13 @@ struct FleetControlCenter: View {
         VStack(spacing: Fleet.Space.xs) {
             HStack(spacing: Fleet.Space.m) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Fleet Control Center")
-                        .font(.system(size: 18, weight: .semibold))
+                    HStack(spacing: Fleet.Space.s) {
+                        SignalFlagGlyph(signal: .kilo)
+                        Text("Fleet Control Center")
+                            .font(.system(size: 18, weight: .semibold))
+                    }
                     HStack(spacing: 6) {
-                        Text("Native shell over the live control plane")
+                        Text("deeper operational surface · daemon-native routes")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -225,11 +228,7 @@ struct FleetControlCenter: View {
                         value: store.daemonLabel,
                         color: store.isDaemonRunning ? Fleet.Color.healthy : Fleet.Color.failure
                     )
-                    statusBadge(
-                        title: "Budget",
-                        value: budgetBadgeValue,
-                        color: budgetBadgeColor
-                    )
+                    budgetStatusBlock
                     statusBadge(
                         title: "Agents",
                         value: "\(store.totalActive)/\(store.totalAgents)",
@@ -260,6 +259,31 @@ struct FleetControlCenter: View {
         .sheet(isPresented: $showingAddProject) {
             FleetAddProjectSheet()
         }
+    }
+
+    private var budgetStatusBlock: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: Fleet.Space.xs) {
+                SignalFlagGlyph(signal: .bravo, showsLetter: false)
+                    .frame(width: 13, height: 9)
+                Text("Budget")
+                    .font(.caption2.weight(.semibold))
+                    .textCase(.uppercase)
+            }
+            Text(budgetBadgeValue)
+                .font(.system(.caption, design: .monospaced).weight(.bold))
+            Text(budgetBadgeDetail)
+                .font(.caption2)
+                .lineLimit(1)
+                .opacity(0.78)
+        }
+        .foregroundStyle(Fleet.Color.onGold)
+        .frame(minWidth: 156, alignment: .leading)
+        .padding(.horizontal, Fleet.Space.s)
+        .padding(.vertical, 6)
+        .background(Fleet.Color.gold)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Budget \(budgetBadgeValue), \(budgetBadgeDetail)")
     }
 
     private var commandControls: some View {
@@ -403,31 +427,19 @@ struct FleetControlCenter: View {
             }
         }
         .frame(height: 46)
+        .overlay(StoryCornerTicks(color: Fleet.Chrome.rule, length: 10, lineWidth: 1.2))
     }
 
     private func selectedProjectReadinessStrip(_ project: FleetProject) -> some View {
-        HStack(spacing: Fleet.Space.s) {
-            Image(systemName: project.statusIcon)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(project.statusColor)
-                .frame(width: 18)
+        let state = FleetVisualState(projectState: project.operatorState, needsBudget: project.needsBudget)
 
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: Fleet.Space.xs) {
-                    Text(project.statusLabel.uppercased())
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(project.statusColor)
-                    Text(project.operatorSummary)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                }
-                Text(project.operatorNextAction)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
+        return HStack(spacing: Fleet.Space.s) {
+            StoryStateRow(
+                state: state,
+                title: project.operatorSummary,
+                detail: project.operatorNextAction,
+                time: project.statusLabel.uppercased()
+            )
             Spacer(minLength: Fleet.Space.m)
 
             HStack(spacing: Fleet.Space.xs) {
@@ -453,14 +465,7 @@ struct FleetControlCenter: View {
         }
         .padding(.horizontal, Fleet.Space.m)
         .padding(.vertical, 7)
-        .background(
-            project.statusColor.opacity(0.08),
-            in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
-                .stroke(project.statusColor.opacity(0.16), lineWidth: 1)
-        )
+        .background(state.color.opacity(0.08))
     }
 
     private func statusMiniChip(icon: String, value: String, detail: String, color: Color) -> some View {
@@ -478,7 +483,7 @@ struct FleetControlCenter: View {
         .padding(.vertical, 4)
         .background(
             Color.primary.opacity(0.04),
-            in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
+            in: Rectangle()
         )
     }
 
@@ -510,7 +515,7 @@ struct FleetControlCenter: View {
         .padding(.horizontal, Fleet.Space.s)
         .background(
             Fleet.Chrome.card,
-            in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+            in: Rectangle()
         )
     }
 
@@ -522,14 +527,14 @@ struct FleetControlCenter: View {
                 } label: {
                     Label(surface.title, systemImage: surface.icon)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(selectedSurface == surface ? .primary : .secondary)
+                        .foregroundStyle(selectedSurface == surface ? Color.white : .secondary)
                         .padding(.horizontal, Fleet.Space.m)
                         .padding(.vertical, 7)
                         .background(
                             (selectedSurface == surface
-                                ? Fleet.Color.active.opacity(0.14)
+                                ? Fleet.Color.activeSlab
                                 : Color.primary.opacity(0.04)),
-                            in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+                            in: Rectangle()
                         )
                 }
                 .buttonStyle(.plain)
@@ -684,7 +689,7 @@ struct FleetControlCenter: View {
         .padding(.vertical, 6)
         .background(
             Color.primary.opacity(0.05),
-            in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+            in: Rectangle()
         )
     }
 
