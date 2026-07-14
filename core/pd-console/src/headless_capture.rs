@@ -1072,6 +1072,53 @@ mod geom_tests {
         }
     }
 
+    #[test]
+    fn code_buffer_paints_claim_and_conflict_state_rails() {
+        let lines: std::sync::Arc<[CodeLine]> = std::sync::Arc::from([
+            CodeLine {
+                number: 1,
+                author_tag: Some("op".into()),
+                author_tone: Tone::Resting,
+                text: "claimed".into(),
+                runs: vec![(7, SyntaxKind::Plain)],
+            },
+            CodeLine {
+                number: 2,
+                author_tag: Some("a7".into()),
+                author_tone: Tone::Engaged,
+                text: "conflicted".into(),
+                runs: vec![(10, SyntaxKind::Plain)],
+            },
+        ]);
+        let c = render_blocks(
+            &[Block::CodeBuffer {
+                lines,
+                gutter_cols: 1,
+                bands: vec![
+                    CodeBand {
+                        start: 1,
+                        end: 1,
+                        tone: Tone::Engaged,
+                    },
+                    CodeBand {
+                        start: 2,
+                        end: 2,
+                        tone: Tone::Conflicted,
+                    },
+                ],
+                show_authors: true,
+            }],
+            &DARK,
+            480,
+        );
+        let first_line_y = HEADER_H + PAD + ROW_H;
+        let second_line_y = first_line_y + ROW_H;
+
+        assert_eq!(c.pixel(PAD + 1, first_line_y + 4), to_rgb(DARK.engaged));
+        assert_eq!(c.pixel(PAD + 1, second_line_y + 4), to_rgb(DARK.conflicted));
+        assert_eq!(c.pixel(PAD + 6, second_line_y + 4), to_rgb(DARK.gated));
+    }
+
     /// Regression: the full sample renders every `Block` variant without panic and
     /// paints real, non-background pixels (a blank canvas would mean nothing drew).
     #[test]

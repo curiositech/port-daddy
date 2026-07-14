@@ -1,5 +1,6 @@
 {
   "decision": "gpui-default",
+  "chosenRung": 1,
   "chosenRenderer": "gpui-element-tree",
   "surfaceKind": "governed-coop-editor-and-harbor-roster",
   "reason": "The M.F surface needs state-bearing line rails, flags, receipts, and row chrome that GPUI already expresses with divs, uniform_list, shadows, and canvas flags.",

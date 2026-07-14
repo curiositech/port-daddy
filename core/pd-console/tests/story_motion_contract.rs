@@ -72,6 +72,7 @@ fn every_motion_surface_has_one_owner_and_a_reduced_motion_state() {
 fn rendering_rung_stays_gpui_until_a_state_bearing_need_earns_a_hatch() {
     let rung: Value = serde_json::from_str(RUNG_PLAN).expect("valid rung plan JSON");
     assert_eq!(rung["decision"], "gpui-default");
+    assert_eq!(rung["chosenRung"], 1);
     assert_eq!(rung["chosenRenderer"], "gpui-element-tree");
     assert_eq!(rung["glyphSource"], "gpui-glyph-atlas");
     assert_eq!(rung["velloParley"]["decision"], "not-used");
