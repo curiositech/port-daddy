@@ -262,13 +262,20 @@ export class DispatchWorker {
     // deriveBranchName is what planRunFor uses; mirror it here for the claim row.
     const branch = `dispatch/${peeked.slug}-${peeked.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'noid'}`;
     try {
-      return this.queue.claim({
+      const claimed = this.queue.claimProposed({
         id: peeked.id,
         worktreePath,
         branch,
         sessionId: `dispatch-worker-${peeked.id}`,
         workerActorId: 'daemon:dispatch-worker',
       });
+      if (!claimed) {
+        this.logger.info('dispatch_worker_claim_raced', {
+          dispatchId: peeked.id,
+          error: `claim: failed to claim dispatch ${peeked.id}`,
+        });
+      }
+      return claimed;
     } catch (err) {
       // Another worker may win between peek and claim. Claiming by id ensures
       // we never consume a different row with the losing row's metadata.

@@ -431,7 +431,7 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
   }
 
   function captureDispatch(input: CaptureDispatchInput, queue: DispatchQueue): CaptureDispatchResult {
-    const token = input.idempotencyKey ? stableToken(input.idempotencyKey) : idSafe(uuid());
+    const token = input.idempotencyKey ? stableToken(input.idempotencyKey) : stableToken(uuid());
     const intentId = `work_intent_dispatch_${token}`;
     // Compatibility intake uses the same entropy-first projection as native
     // WorkIntent starts. The embedded token keeps reverse lookup O(1) without

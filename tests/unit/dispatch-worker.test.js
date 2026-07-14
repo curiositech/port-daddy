@@ -149,15 +149,17 @@ describe('DispatchWorker — autonomous drain', () => {
     }
   });
 
-  test('leaves a raced row proposed and reports the exact dispatch id', async () => {
+  test('does not execute a row claimed by a competing worker', async () => {
     const dispatch = queue.propose({ goal: 'race-safe lane' });
     const logger = {
       info: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
     };
-    jest.spyOn(queue, 'claim').mockImplementationOnce(() => {
-      throw new Error('claim: failed to claim dispatch');
+    const claimProposed = queue.claimProposed.bind(queue);
+    jest.spyOn(queue, 'claimProposed').mockImplementationOnce((input) => {
+      claimProposed({ ...input, sessionId: 'competing-worker' });
+      return claimProposed(input);
     });
     const worker = createDispatchWorker({
       queue,
@@ -167,10 +169,10 @@ describe('DispatchWorker — autonomous drain', () => {
     });
 
     expect(await worker.poll()).toBe(0);
-    expect(queue.get(dispatch.id).state).toBe('proposed');
+    expect(queue.get(dispatch.id)).toMatchObject({ state: 'claimed', sessionId: 'competing-worker' });
     expect(logger.info).toHaveBeenCalledWith('dispatch_worker_claim_raced', {
       dispatchId: dispatch.id,
-      error: 'claim: failed to claim dispatch',
+      error: `claim: failed to claim dispatch ${dispatch.id}`,
     });
   });
 

@@ -176,6 +176,16 @@ describe('claim (proposed -> claimed)', () => {
     expect(reclaim.claimedAt).toBe(d.claimedAt); // not overwritten
   });
 
+  test('claimProposed reports only the worker that won the state transition', () => {
+    const d = queue.propose({ goal: 'single winner' });
+    const first = queue.claimProposed({ id: d.id, worktreePath: '/w1', branch: 'b1', sessionId: 's1' });
+    const second = queue.claimProposed({ id: d.id, worktreePath: '/w2', branch: 'b2', sessionId: 's2' });
+
+    expect(first?.state).toBe('claimed');
+    expect(second).toBeNull();
+    expect(queue.get(d.id)).toMatchObject({ worktreePath: '/w1', branch: 'b1', sessionId: 's1' });
+  });
+
   test('refuses to claim a terminal dispatch', () => {
     const d = queue.propose({ goal: 'foo', autoClaim: true });
     queue.settle({ id: d.id, state: 'settled' });
