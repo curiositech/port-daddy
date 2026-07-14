@@ -116,3 +116,96 @@ Phases 0–3 are verbatim ADR-0044's own implementation matrix (unblock, not red
 - `apps/relay/src/harbor-channel.ts` — DO per (harbor,channel), monotonic seq + from_seq replay
 - `lib/roadmap-items.ts` — table + status-events; snapshot source (Phase 6)
 - `lib/backup.ts` + `lib/backup-backends/` — VACUUM INTO; needs r2.ts (Phase 7)
+
+---
+
+## Amendment 1 — Daemon-to-Daemon Porting Under Schema Change (2026-07-14)
+
+**Status:** Proposed (operator-directed: "our DBs will change, our data will
+change, our schema will change — gracefully port data from daemon to daemon
+in migration conditions").
+
+The durable-home wave (#2067 rescue, #2083 sibling-keg scan, #2109 reunify,
+#2122 fail-closed probes, #2140 tombstones) built the one-time machinery.
+This amendment makes porting a *standing capability*: every future schema
+change, daemon upgrade, and file relocation follows one model instead of a
+bespoke migration each time.
+
+### A. Schema epoch: `PRAGMA user_version` + a migration table in code
+
+Replace the scattered warn-and-continue `PRAGMA`-guarded ALTER blocks in
+`initDatabase` with a single ordered registry:
+
+```ts
+const MIGRATIONS: Array<{ id: number; name: string;
+  up(db): void; verify(db): void }> = [ /* forward-only, append-only */ ];
+```
+
+Boot sequence: open → rescue-if-missing (existing) → read `user_version` →
+for each pending migration: `BEGIN` → `up` → `verify` (a real probe against
+sqlite_master/pragma_table_info, per the MIGRATION_NO_VERIFY gate) →
+`COMMIT` → `user_version = id`. Any failure aborts boot fail-closed — this
+generalizes `verifyCoreSchema` from a hand-maintained sentinel list into
+per-migration probes. The migrator stamps a `VACUUM INTO` backup before the
+first pending migration runs (rollback = restore stamp + `brew pin`).
+
+**Version-skew rule (the SQLite version of "old pods, new schema"):** the
+skew window here is not rolling pods — it is a feature-branch CLI in
+direct-DB mode opening the durable home. Contract: a binary that finds
+`user_version` GREATER than its known max refuses writes (read-only + loud
+warning); a binary that finds it LOWER migrates forward. Old binaries never
+"repair" downward.
+
+### B. The change ladder (SQLite-adapted expand/contract)
+
+| Change | Rule |
+|---|---|
+| Add nullable/defaulted column | One release. Column lands at END of table; all INSERTs name their columns explicitly (positional-binding discipline — `@named` silently binds NULL under bun:sqlite). Ships with a verify probe. |
+| Rename / split / type change | Expand → migrate → contract across ≥ 2 releases: add new column, dual-write in code, read-new-fallback-old, drop old only after a full release cycle in which no reader touches it. |
+| NOT NULL on populated table | Never directly. Add with DEFAULT; tighten later if ever. |
+| Drop column/table | Only in the release AFTER the last reader disappeared, with the pre-migration backup stamp as the archive. |
+| Anything requiring column reorder/constraint surgery | SQLite 12-step table rebuild, wrapped in one transaction inside a single migration entry. |
+
+### C. Porting modes — file-level vs row-level
+
+1. **Whole-file adopt** (destination missing): the shipped rescue —
+   `VACUUM INTO` from legacy candidates (distribution root, then sibling
+   kegs newest-first), post-verify, quarantine-on-failure. The boot
+   migrator then upgrades the adopted file, which is why migration order is
+   rescue-first-migrate-second.
+2. **Row-level fold-in** (destination exists): per-table merge policy =
+   this ADR's three replication classes, applied at port time:
+   LOCAL-ONLY tables never port (ports, locks, services); APPEND-ONLY
+   G-Set tables union with dedup keys (session_notes, status events);
+   LWW tables merge by their unique key with newest-`last_touched_at`
+   winning whole-row, tombstones included (`registry-reunify` is the
+   roadmap instance — generalize into a policy registry keyed by table).
+3. **Never a cross-file transaction.** The WS-2 tiered-memory crash-loop
+   proved WAL+WAL cross-file writes are non-atomic. Ports are always:
+   snapshot-read the source (readonly handle / `VACUUM INTO` copy),
+   transactional write into the destination, idempotent on re-run.
+4. **Schema-skew normalization.** A source shard may predate columns the
+   destination has (older keg) — missing fields normalize to the
+   destination's default/NULL (`deleted_at ?? null` is the shipped
+   pattern). A source may also carry columns the destination dropped —
+   those are discarded WITH A LOGGED COUNT, never silently.
+
+### D. Rehearsal gate
+
+CI keeps fixture DBs of the last three released schema epochs (plus a copy
+of the real reunified registry, scrubbed) and boots the migrator over each:
+counts-never-shrink, verify probes green, `user_version` lands at max.
+Release soak (PR #681 gate) runs the built binary against a copy of the
+live registry before publish — a migration that only ever ran on empty
+fixtures has not been rehearsed.
+
+### E. What this amendment does NOT change
+
+Phases 1–8 of this ADR stand. This amendment is the *schema-evolution
+spine* those phases run along: sync (phase 8) moves rows between daemons
+that may be on different epochs, so the sync envelope carries the sender's
+`user_version` and receivers apply the same skew rule as §A.
+
+Roadmap-Spawns: boot-migrator-schema-epoch
+Roadmap-Spawns: port-policy-registry
+Roadmap-Spawns: migration-fixture-rehearsal-ci

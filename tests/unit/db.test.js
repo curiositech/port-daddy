@@ -209,6 +209,45 @@ describe('lib/db.ts', () => {
       bare.close();
     });
 
+    it('verifyCoreSchema catches a missing deleted_at tombstone column specifically', () => {
+      const db = initDatabase({ inMemory: true });
+      db.exec('DROP INDEX idx_roadmap_items_live');
+      db.exec('ALTER TABLE roadmap_items DROP COLUMN deleted_at');
+      expect(() => verifyCoreSchema(db)).toThrow(/roadmap_items\.deleted_at/);
+      db.close();
+    });
+
+    it('initDatabase runs the PRAGMA-guarded ALTER on a legacy (pre-tombstone) DB file', () => {
+      // A DB created from the OLD schema — no deleted_at, no live index.
+      const legacyPath = path.join(dir, 'legacy-schema.db');
+      const legacy = new Database(legacyPath);
+      legacy.exec(`
+        CREATE TABLE roadmap_items (
+          id TEXT PRIMARY KEY, slug TEXT NOT NULL, summary_md TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'backlog',
+          promoted_from_feedback_id TEXT, promoted_by_agent_id TEXT, promoted_at INTEGER,
+          last_touched_at INTEGER NOT NULL, dependencies_json TEXT NOT NULL DEFAULT '[]',
+          notes_json TEXT NOT NULL DEFAULT '[]', harbor TEXT NOT NULL,
+          created_at INTEGER NOT NULL, UNIQUE(slug, harbor)
+        );
+      `);
+      legacy.prepare(
+        "INSERT INTO roadmap_items (id, slug, summary_md, last_touched_at, harbor, created_at) VALUES ('x', 's', 'm', 1, 'fleet', 1)",
+      ).run();
+      legacy.close();
+
+      const migrated = initDatabase({ dbPath: legacyPath });
+      const cols = migrated.prepare('PRAGMA table_info(roadmap_items)').all().map((c) => c.name);
+      expect(cols).toContain('deleted_at');
+      const idx = migrated
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_roadmap_items_live'")
+        .get();
+      expect(idx).toBeDefined();
+      // Pre-existing row survives with a NULL tombstone (still live).
+      expect(migrated.prepare("SELECT deleted_at FROM roadmap_items WHERE id = 'x'").get().deleted_at).toBeNull();
+      migrated.close();
+    });
+
     it('siblingKegDbPaths returns newest-first and [] outside a Cellar', () => {
       const cellar = path.join(dir, 'Cellar', 'port-daddy');
       const a = path.join(cellar, '3.23.0', 'bin', 'port-registry.db');

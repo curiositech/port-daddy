@@ -1,7 +1,7 @@
 {
   "name": "port-daddy",
   "version": "3.25.0",
-  "description": "Authoritative port management and service orchestration for multi-agent development — port-daddy up/down, atomic assignment, pub/sub messaging, distributed locks, agent registry, and project:stack:context semantic identities",
+  "description": "Authoritative port management and service orchestration for multi-agent development \u2014 port-daddy up/down, atomic assignment, pub/sub messaging, distributed locks, agent registry, and project:stack:context semantic identities",
   "main": "./dist/server.js",
   "type": "module",
   "types": "./dist/server.d.ts",
@@ -25,6 +25,7 @@
     "dev": "tsx bin/port-daddy-cli.ts dev",
     "install-daemon": "tsx install-daemon.ts",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:affected": "npm test -- --changedSince=origin/main",
     "test:watch": "npm test -- --watch",
     "test:coverage": "npm test -- --coverage",
     "test:ci": "npm test",

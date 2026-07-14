@@ -46,9 +46,11 @@ const ROADMAP_DDL = `
     notes_json TEXT NOT NULL DEFAULT '[]',
     harbor TEXT NOT NULL,
     created_at INTEGER NOT NULL,
+    deleted_at INTEGER,
     UNIQUE(slug, harbor)
   );
   CREATE INDEX idx_roadmap_items_harbor_status ON roadmap_items(harbor, status);
+  CREATE INDEX idx_roadmap_items_live ON roadmap_items(harbor, status) WHERE deleted_at IS NULL;
   CREATE INDEX idx_roadmap_items_last_touched ON roadmap_items(last_touched_at);
   CREATE TABLE roadmap_item_status_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
