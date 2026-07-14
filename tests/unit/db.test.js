@@ -16,6 +16,8 @@ import {
   siblingKegDbPaths,
   isVersionVolatileDbPath,
   migrateLegacyRegistry,
+  verifyRescuedRegistry,
+  verifyCoreSchema,
   isPortAvailable,
   CORE_SCHEMA_SQL,
 } from '../../lib/db.js';
@@ -171,6 +173,40 @@ describe('lib/db.ts', () => {
       const db = new Database(dest, { readonly: true });
       expect(db.prepare('SELECT v FROM marker').get().v).toBe('legacy-truth');
       db.close();
+    });
+
+    it('quarantines a rescue that fails post-apply verification', () => {
+      // A source that VACUUMs into a file with no tables cannot exist in
+      // practice, so exercise the probe directly plus the corrupt-source path.
+      const garbage = path.join(dir, 'garbage.db');
+      fs.writeFileSync(garbage, 'this is not a sqlite database, not even close');
+      const dest = path.join(dir, 'home', 'port-registry.db');
+      expect(migrateLegacyRegistry(dest, garbage)).toBe(false);
+      expect(fs.existsSync(dest)).toBe(false);
+    });
+
+    it('verifyRescuedRegistry accepts a real registry and rejects garbage', () => {
+      const good = path.join(dir, 'good.db');
+      makeLegacyDb(good);
+      expect(verifyRescuedRegistry(good)).toBe(true);
+
+      const garbage = path.join(dir, 'bad.db');
+      fs.writeFileSync(garbage, 'nope');
+      expect(verifyRescuedRegistry(garbage)).toBe(false);
+      expect(verifyRescuedRegistry(path.join(dir, 'missing.db'))).toBe(false);
+    });
+
+    it('verifyCoreSchema passes on a freshly initialized DB and throws on a gutted one', () => {
+      const db = initDatabase({ inMemory: true });
+      expect(() => verifyCoreSchema(db)).not.toThrow();
+      db.exec('DROP TABLE roadmap_item_status_events');
+      expect(() => verifyCoreSchema(db)).toThrow(/roadmap_item_status_events/);
+      db.close();
+
+      const bare = new Database(':memory:');
+      bare.exec('CREATE TABLE services (id TEXT); CREATE TABLE sessions (id TEXT)');
+      expect(() => verifyCoreSchema(bare)).toThrow(/Schema verification failed/);
+      bare.close();
     });
 
     it('siblingKegDbPaths returns newest-first and [] outside a Cellar', () => {

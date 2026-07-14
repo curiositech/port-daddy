@@ -12,7 +12,7 @@
  */
 
 import Database, { type DatabaseInstance } from './sqlite-runtime.js';
-import { chmodSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readdirSync, renameSync, statSync } from 'node:fs';
 import { dirname, join, resolve as resolvePath, sep } from 'path';
 import { homedir, tmpdir } from 'node:os';
 import { fileURLToPath } from 'url';
@@ -173,6 +173,18 @@ export function migrateLegacyRegistry(
     } finally {
       legacy.close();
     }
+    // Post-apply verification: a rescue that produced an unopenable or
+    // tableless file must not become the registry. Quarantine it (rename,
+    // never delete — it is evidence) and start fresh instead.
+    if (!verifyRescuedRegistry(destPath)) {
+      const quarantine = `${destPath}.failed-rescue-${Date.now()}`;
+      renameSync(destPath, quarantine);
+      console.warn(
+        `[port-daddy] WARNING: rescued registry from ${sourcePath} failed post-apply ` +
+          `verification; quarantined at ${quarantine}. Starting fresh at ${destPath}.`,
+      );
+      return false;
+    }
     console.warn(
       `[port-daddy] Migrated registry from legacy location into the durable home:\n` +
         `  from: ${sourcePath}\n` +
@@ -186,6 +198,69 @@ export function migrateLegacyRegistry(
         `${(err as Error).message}. Starting with a fresh database at ${destPath}.`,
     );
     return false;
+  }
+}
+
+/**
+ * Post-apply probe for a rescued registry file: it must open and contain at
+ * least one table. Probes the real schema object, never bookkeeping — a
+ * rescue is not "applied" because VACUUM INTO exited 0.
+ */
+export function verifyRescuedRegistry(path: string): boolean {
+  try {
+    const probe = new Database(path, { readonly: true });
+    try {
+      const row = probe
+        .prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table'")
+        .get() as { n: number };
+      return row.n > 0;
+    } finally {
+      probe.close();
+    }
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Post-apply verification of the boot migrations: probe the actual schema
+ * objects the daemon is about to serve from — never trust that CREATE/ALTER
+ * statements "ran" because no exception surfaced (the ALTER blocks above
+ * warn-and-continue by design).
+ *
+ * Throws with remediation on failure: a daemon serving on a broken schema
+ * silently corrupts coordination truth, which is worse than not starting.
+ */
+export function verifyCoreSchema(db: DatabaseInstance): void {
+  const requiredTables = [
+    'services',
+    'sessions',
+    'session_files',
+    'session_notes',
+    'roadmap_items',
+    'roadmap_item_status_events',
+  ];
+  const missing: string[] = [];
+  for (const table of requiredTables) {
+    const row = db
+      .prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name = ?")
+      .get(table) as { n: number };
+    if (row.n === 0) missing.push(table);
+  }
+  // Column sentinels: the ALTER blocks are warn-and-continue, so probe their
+  // target columns directly (ADR-0086 planner columns via `kind`; soft-delete
+  // tombstones via `deleted_at`).
+  if (!missing.includes('roadmap_items')) {
+    const cols = db.prepare('PRAGMA table_info(roadmap_items)').all() as Array<{ name: string }>;
+    if (!cols.some((c) => c.name === 'kind')) missing.push('roadmap_items.kind');
+    if (!cols.some((c) => c.name === 'deleted_at')) missing.push('roadmap_items.deleted_at');
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `[port-daddy] Schema verification failed after boot migrations — missing: ` +
+        `${missing.join(', ')}. The registry is not safe to serve from. ` +
+        `Run: pd doctor --repair (or restore a backup via pd restore).`,
+    );
   }
 }
 
@@ -679,6 +754,11 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
       `[port-daddy] WARNING: Could not migrate roadmap_items deleted_at tombstone column: ${(err as Error).message}`
     );
   }
+
+  // Post-apply verification: probe the real schema objects before handing the
+  // handle out. The migration blocks above warn-and-continue; this is the
+  // fail-closed gate that stops a daemon from serving a broken registry.
+  verifyCoreSchema(db);
 
   return db;
 }
