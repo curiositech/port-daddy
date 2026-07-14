@@ -40,7 +40,7 @@ import type Database from 'better-sqlite3';
 // is visible, not just its final answer.
 export type TranscriptRole = 'system' | 'user' | 'assistant' | 'tool' | 'thinking';
 export type OutputType = 'pr-comment' | 'issue' | 'draft-pr' | 'commit' | 'noop' | 'message' | 'other';
-export type TranscriptStatus = 'running' | 'completed' | 'failed' | 'killed';
+export type TranscriptStatus = 'running' | 'completed' | 'failed' | 'killed' | 'over_budget';
 
 export interface TranscriptMessage {
   role: TranscriptRole;
@@ -65,6 +65,11 @@ export interface TranscriptEntry {
   trigger: string;
   backend: string;
   model: string;
+  requested_backend?: string;
+  effective_backend?: string;
+  requested_model?: string;
+  effective_model?: string;
+  backend_override_source?: string;
   status: TranscriptStatus;
   started_at: number;
   ended_at?: number | null;
@@ -160,6 +165,11 @@ export interface TranscriptStartInput {
   trigger: string;
   backend: string;
   model: string;
+  requested_backend?: string | null;
+  effective_backend?: string | null;
+  requested_model?: string | null;
+  effective_model?: string | null;
+  backend_override_source?: string | null;
   started_at?: number;
   project?: string | null;
   identity?: string | null;
@@ -204,6 +214,11 @@ const SCHEMA_STATEMENTS = [
     trigger TEXT NOT NULL,
     backend TEXT NOT NULL,
     model TEXT NOT NULL,
+    requested_backend TEXT,
+    effective_backend TEXT,
+    requested_model TEXT,
+    effective_model TEXT,
+    backend_override_source TEXT NOT NULL DEFAULT 'none',
     status TEXT NOT NULL DEFAULT 'running',
     started_at INTEGER NOT NULL,
     ended_at INTEGER,
@@ -247,6 +262,14 @@ const SCHEMA_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_fleet_transcript_outputs_transcript
      ON fleet_transcript_outputs(transcript_id, seq)`,
+];
+
+const FLEET_TRANSCRIPT_RUNTIME_COLUMNS: Array<{ name: string; definition: string }> = [
+  { name: 'requested_backend', definition: 'TEXT' },
+  { name: 'effective_backend', definition: 'TEXT' },
+  { name: 'requested_model', definition: 'TEXT' },
+  { name: 'effective_model', definition: 'TEXT' },
+  { name: 'backend_override_source', definition: "TEXT NOT NULL DEFAULT 'none'" },
 ];
 
 // =============================================================================
@@ -356,21 +379,34 @@ export function createTranscripts(
   for (const stmt of SCHEMA_STATEMENTS) {
     db.prepare(stmt).run();
   }
+  const transcriptColumns = new Set(
+    (db.prepare('PRAGMA table_info(fleet_transcripts)').all() as Array<{ name: string }>)
+      .map((column) => column.name),
+  );
+  for (const column of FLEET_TRANSCRIPT_RUNTIME_COLUMNS) {
+    if (!transcriptColumns.has(column.name)) {
+      db.exec(`ALTER TABLE fleet_transcripts ADD COLUMN ${column.name} ${column.definition}`);
+    }
+  }
 
   const insertTranscriptStmt = db.prepare(`
     INSERT INTO fleet_transcripts (
       id, ship, session_id, spawned_agent_id, pr_number, issue_number,
-      trigger, backend, model, status, started_at, ended_at,
+      trigger, backend, model, requested_backend, effective_backend,
+      requested_model, effective_model, backend_override_source,
+      status, started_at, ended_at,
       cost_usd, tokens_in, tokens_out, error, project, identity
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const upsertTranscriptStmt = db.prepare(`
     INSERT INTO fleet_transcripts (
       id, ship, session_id, spawned_agent_id, pr_number, issue_number,
-      trigger, backend, model, status, started_at, ended_at,
+      trigger, backend, model, requested_backend, effective_backend,
+      requested_model, effective_model, backend_override_source,
+      status, started_at, ended_at,
       cost_usd, tokens_in, tokens_out, error, project, identity
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       ship = excluded.ship,
       session_id = excluded.session_id,
@@ -380,6 +416,11 @@ export function createTranscripts(
       trigger = excluded.trigger,
       backend = excluded.backend,
       model = excluded.model,
+      requested_backend = excluded.requested_backend,
+      effective_backend = excluded.effective_backend,
+      requested_model = excluded.requested_model,
+      effective_model = excluded.effective_model,
+      backend_override_source = excluded.backend_override_source,
       status = excluded.status,
       started_at = excluded.started_at,
       ended_at = excluded.ended_at,
@@ -449,6 +490,11 @@ export function createTranscripts(
       trigger: row.trigger as string,
       backend: row.backend as string,
       model: row.model as string,
+      requested_backend: (row.requested_backend as string | null) ?? (row.backend as string),
+      effective_backend: (row.effective_backend as string | null) ?? (row.backend as string),
+      requested_model: (row.requested_model as string | null) ?? (row.model as string),
+      effective_model: (row.effective_model as string | null) ?? (row.model as string),
+      backend_override_source: (row.backend_override_source as string | null) ?? 'none',
       status: row.status as TranscriptStatus,
       started_at: row.started_at as number,
       ended_at: (row.ended_at as number | null) ?? null,
@@ -509,6 +555,11 @@ export function createTranscripts(
       input.trigger,
       input.backend,
       input.model,
+      input.requested_backend ?? input.backend,
+      input.effective_backend ?? input.backend,
+      input.requested_model ?? input.model,
+      input.effective_model ?? input.model,
+      input.backend_override_source ?? 'none',
       'running',
       startedAt,
       null,
@@ -609,6 +660,11 @@ export function createTranscripts(
       entry.trigger,
       entry.backend,
       entry.model,
+      entry.requested_backend ?? entry.backend,
+      entry.effective_backend ?? entry.backend,
+      entry.requested_model ?? entry.model,
+      entry.effective_model ?? entry.model,
+      entry.backend_override_source ?? 'none',
       entry.status,
       entry.started_at,
       entry.ended_at ?? null,

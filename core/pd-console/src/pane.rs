@@ -10,6 +10,7 @@
 use crate::agent::DaemonClient;
 use crate::theme::Oklch;
 use anyhow::Result;
+use std::sync::Arc;
 
 /// Semantic tone — color = MEANING only (resolved to theme OKLCH by the renderer).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -43,7 +44,59 @@ impl Tone {
 }
 
 /// The render-agnostic primitives a pane emits. Both renderers paint these.
-#[derive(Debug, Clone)]
+/// The syntax class of one code-line run — the render-agnostic vocabulary the
+/// Harbor editor's tokenizer (`syntax.rs`) emits. Like [`Tone`], this is
+/// *meaning*: each face resolves it to a color in its own theme layer
+/// (`palette.rs` for GPUI, `theme.rs` for the REPL) — never inline hex.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SyntaxKind {
+    Plain,
+    Keyword,
+    Type,
+    Str,
+    Comment,
+    Number,
+}
+
+/// One pre-tokenized line of a [`Block::CodeBuffer`]. Built ONCE per buffer
+/// change (load / merged remote op), then shared by `Arc` — a render pass
+/// never re-clones or re-lexes line text.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CodeLine {
+    /// 1-based line number (always shown in the gutter).
+    pub number: u32,
+    /// Short author tag for the gutter's ALWAYS-VISIBLE author column
+    /// (operator ruling 2026-07-07: per-line authorship is the Harbor
+    /// editor's point). `Some` for every attributed line; `None` only when
+    /// the buffer has no authorship info for the line. Renderers tone it by
+    /// [`author_tone`](CodeLine::author_tone) — opener subtle, agent distinct.
+    pub author_tag: Option<Arc<str>>,
+    /// Tone for the author tag (opener = Resting, agent peer = Engaged).
+    pub author_tone: Tone,
+    /// The line's text (no trailing newline).
+    pub text: Arc<str>,
+    /// Consecutive `(byte_len, kind)` syntax runs exactly covering `text`.
+    pub runs: Vec<(u32, SyntaxKind)>,
+}
+
+/// A background highlight band behind a span of code lines (1-based,
+/// inclusive): claim regions, the conflict wedge, the bound region. Renderers
+/// paint it as a full-width wash BEHIND the text — never per-line card chrome.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CodeBand {
+    pub start: u32,
+    pub end: u32,
+    pub tone: Tone,
+}
+
+impl CodeBand {
+    /// Does this band cover 1-based line `n`?
+    pub fn covers(&self, n: u32) -> bool {
+        n >= self.start.min(self.end) && n <= self.start.max(self.end)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Block {
     Header(String),
     KeyVal(String, String),
@@ -139,6 +192,24 @@ pub enum Block {
         why_disabled: Option<String>,
         /// Paint as the primary action.
         primary: bool,
+    },
+    /// A code buffer rendered as ONE tight monospace surface: fixed line
+    /// height, a thin gutter column, per-run syntax color — never per-line
+    /// cards ([`Block::Row`] is table/control chrome; code must not ride it).
+    /// `lines` is `Arc`-shared so emitting this block per view() is a
+    /// refcount bump, not a buffer clone; the GPUI face virtualizes it with
+    /// `uniform_list` (only visible lines are painted).
+    CodeBuffer {
+        lines: std::sync::Arc<[CodeLine]>,
+        /// Digit width of the line-number column (max line count's digits).
+        gutter_cols: u8,
+        /// Background bands (claims / wedge / bound region), O(claims).
+        bands: Vec<CodeBand>,
+        /// `true` when a REAL second author exists in the buffer. The author
+        /// column itself is ALWAYS visible (operator ruling 2026-07-07:
+        /// per-line authorship is the Harbor editor's point) — renderers use
+        /// this as a legend hint (e.g. show the agent legend flag).
+        show_authors: bool,
     },
 }
 
@@ -468,7 +539,10 @@ pub enum Subscription {
     /// consumed in main.rs (which currently treats an `Editor` intent as "nothing to
     /// follow"); the editor surface will drive both subscriptions when the keystroke
     /// input layer lands.
-    Editor { channel: String, coord_channel: String },
+    Editor {
+        channel: String,
+        coord_channel: String,
+    },
 }
 
 /// What every pane implements. Object-safe (the registry holds `Box<dyn Pane>`):
@@ -515,6 +589,23 @@ pub trait Pane: Send {
     /// their view state. (Boxed-future-free: stream folding is cheap & sync.)
     fn on_stream(&mut self, env: &crate::agent::StreamEnvelope) {
         let _ = env;
+    }
+
+    /// Fold one raw message off the **edit-sync** channel of a
+    /// [`Subscription::Editor`] (the durable-op + lossy-presence lane). Default:
+    /// ignore — only the Harbor Editor surface consumes it. Sync, mirroring
+    /// [`on_stream`](Self::on_stream): the producer drains its `subscribe_channel`
+    /// receiver and hands each `TubeMsg::text` here on the producer thread, so
+    /// `view()` stays IO-free.
+    fn on_edit_frame(&mut self, text: &str) {
+        let _ = text;
+    }
+
+    /// Fold one raw message off the **coordination** channel of a
+    /// [`Subscription::Editor`] (the claims / guard / conflict-predict control
+    /// plane, deliberately isolated from the edit lane). Default: ignore.
+    fn on_coord_frame(&mut self, text: &str) {
+        let _ = text;
     }
 }
 

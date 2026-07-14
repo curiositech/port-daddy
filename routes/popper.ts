@@ -19,9 +19,9 @@ import type { PopperStatus, PoppedResult, RoadmapItemRow } from '../lib/roadmap-
 interface PopperRouteDeps {
   deps: {
     /** SQLite handle */
-    db: Database;
+    db?: Database;
     /** The popper instance (factory output from lib/roadmap-popper.ts) */
-    popper: {
+    popper?: {
       popNext: (harbor?: string) => Promise<PoppedResult | null>;
       nextCandidate: (harbor?: string) => RoadmapItemRow | null;
       status: (harbor?: string) => PopperStatus;
@@ -34,16 +34,39 @@ const popperPlugin: FastifyPluginAsync<PopperRouteDeps> = async (fastify, { deps
 
   fastify.get('/popper/status', async (req: FastifyRequest, reply: FastifyReply) => {
     const harbor = (req.query as Record<string, string | undefined>).harbor;
+    if (!popper) {
+      return reply.send({
+        ok: true,
+        available: false,
+        reason: 'roadmap popper is not configured in this daemon mode',
+        eligibleCount: 0,
+        poppedCount: 0,
+        nextCandidate: null,
+        pausedByFlag: true,
+      });
+    }
     return reply.send({ ok: true, ...popper.status(harbor) });
   });
 
   fastify.get('/popper/next', async (req: FastifyRequest, reply: FastifyReply) => {
+    if (!popper) {
+      return reply.code(503).send({
+        ok: false,
+        error: 'roadmap popper is not configured in this daemon mode',
+      });
+    }
     const harbor = (req.query as Record<string, string | undefined>).harbor;
     const candidate = popper.nextCandidate(harbor);
     return reply.send({ ok: true, candidate });
   });
 
   fastify.post('/popper/pop', async (req: FastifyRequest, reply: FastifyReply) => {
+    if (!popper) {
+      return reply.code(503).send({
+        ok: false,
+        error: 'roadmap popper is not configured in this daemon mode',
+      });
+    }
     const harbor = (req.query as Record<string, string | undefined>).harbor;
     try {
       const popped = await popper.popNext(harbor);
@@ -57,6 +80,12 @@ const popperPlugin: FastifyPluginAsync<PopperRouteDeps> = async (fastify, { deps
   });
 
   fastify.post('/popper/eligibility', async (req: FastifyRequest, reply: FastifyReply) => {
+      if (!db) {
+        return reply.code(503).send({
+          ok: false,
+          error: 'roadmap popper eligibility requires daemon db',
+        });
+      }
       const body = (req.body ?? {}) as { slug?: string; eligible?: boolean; harbor?: string };
       if (!body.slug || typeof body.slug !== 'string') {
         return reply.code(400).send({ ok: false, error: "missing 'slug'" });

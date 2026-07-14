@@ -16,19 +16,27 @@
 import { jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
-import { createDispatchWorker } from '../../lib/dispatch/worker.js';
+import { createDispatchWorker as createDispatchWorkerBase } from '../../lib/dispatch/worker.js';
+import { createWorkIntentService } from '../../lib/agent-harbor/work-intent-service.js';
+import { readEvents } from '../../lib/agent-harbor/event-ledger.js';
 
 let db;
 let queue;
+let workIntentService;
 
 beforeEach(() => {
   db = createTestDb();
   queue = createDispatchQueue({ db });
+  workIntentService = createWorkIntentService({ db });
 });
 
 afterEach(() => {
   db.close();
 });
+
+function createDispatchWorker(opts) {
+  return createDispatchWorkerBase({ workIntentService, ...opts });
+}
 
 /**
  * A fake spawn adapter that drives the FULL lifecycle the real adapter drives:
@@ -126,6 +134,30 @@ describe('DispatchWorker — autonomous drain', () => {
     const all = queue.list({ state: 'failed' });
     expect(all.length).toBe(1);
     expect(all[0].errorMessage).toMatch(/boom/);
+  });
+
+  test('imports legacy proposed rows to WorkIntent before claim and spawn', async () => {
+    const d = queue.propose({ goal: 'legacy without work intent', requestedBy: 'operator' });
+    const adapter = settlingAdapter();
+    const worker = createDispatchWorker({
+      queue,
+      maxConcurrency: 1,
+      spawnAdapter: adapter,
+      reaper: async () => {},
+    });
+
+    expect(readEvents(db, { streamType: 'work-intent' })).toHaveLength(0);
+    const launched = await worker.poll();
+    await new Promise((r) => setImmediate(r));
+
+    expect(launched).toBe(1);
+    expect(adapter).toHaveBeenCalledTimes(1);
+    const events = readEvents(db, { streamType: 'work-intent' });
+    expect(events).toHaveLength(1);
+    const intent = JSON.parse(events[0].payload_json);
+    expect(intent.compat.dispatchId).toBe(d.id);
+    expect(intent.attachExisting).toBe(true);
+    expect(queue.get(d.id).state).toBe('settled');
   });
 
   test('two workers never run the same dispatch (atomic claim)', async () => {

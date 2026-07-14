@@ -1,4 +1,7 @@
-import { describe, expect, test } from '@jest/globals';
+import { afterEach, describe, expect, test } from '@jest/globals';
+import { chmodSync, mkdtempSync, rmSync, existsSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   resolveDaemonBerthIdentity,
   resolveBerthTargetUrl,
@@ -6,6 +9,11 @@ import {
   classifyBerth,
   describeVerdict,
   shouldReap,
+  readDaemonBerthRegistry,
+  writeDaemonBerthRegistry,
+  pruneDaemonBerthRegistry,
+  registerDaemonBerth,
+  deregisterDaemonBerth,
   BERTH_IDLE_TTL_MS,
   BERTH_ENV,
   BERTH_COLORS,
@@ -158,5 +166,154 @@ describe('classifyBerth (GC decision)', () => {
     expect(shouldReap('live')).toBe(false);
     expect(shouldReap('reap-idle')).toBe(true);
     expect(describeVerdict('reap-orphaned')).toMatch(/worktree/i);
+  });
+});
+
+// Regression coverage for the self-registration fix: registration/deregistration
+// used to happen ONLY from the `pd dev up` CLI parent process, so any daemon
+// launched another way (raw binary invocation, a test harness) was invisible
+// to FleetBar's berth picker forever. registerDaemonBerth/deregisterDaemonBerth
+// let the daemon itself write/remove its own registry entry at boot/shutdown,
+// independent of how it was launched. All tests use an isolated `registryFile`
+// override — never the real `~/.port-daddy/dev-daemons.json`.
+describe('Daemon berth registry (self-registration)', () => {
+  const tempDirs = [];
+  const DEAD_PID = 999_999_999; // astronomically unlikely to be a real running pid
+
+  afterEach(() => {
+    while (tempDirs.length > 0) {
+      rmSync(tempDirs.pop(), { recursive: true, force: true });
+    }
+  });
+
+  function tempRegistryFile() {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-berth-registry-'));
+    tempDirs.push(dir);
+    return join(dir, 'dev-daemons.json');
+  }
+
+  function identity(overrides = {}) {
+    return {
+      tier: 'codebase',
+      label: 'test-berth',
+      color: '#A855F7',
+      sourceDir: '/repo/worktree',
+      gitBranch: 'feat/x',
+      gitRev: 'abc1234',
+      builtAt: '2026-07-08T00:00:00.000Z',
+      port: 19001,
+      canonical: false,
+      ...overrides,
+    };
+  }
+
+  test('readDaemonBerthRegistry returns [] when the file does not exist', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-berth-registry-'));
+    tempDirs.push(dir);
+    expect(readDaemonBerthRegistry(join(dir, 'missing.json'))).toEqual([]);
+  });
+
+  test('writeDaemonBerthRegistry + readDaemonBerthRegistry round-trip, mode 0600', () => {
+    const file = tempRegistryFile();
+    const records = [{ label: 'a', tier: 'codebase', port: 1, sourceDir: '/x', pid: process.pid, gitRev: null, color: '#000', startedAt: 'now' }];
+    writeDaemonBerthRegistry(records, file);
+    expect(readDaemonBerthRegistry(file)).toEqual(records);
+    expect(existsSync(file)).toBe(true);
+    if (process.platform !== 'win32') {
+      expect(statSync(file).mode & 0o777).toBe(0o600);
+      chmodSync(file, 0o644);
+      writeDaemonBerthRegistry(records, file);
+      expect(statSync(file).mode & 0o777).toBe(0o600);
+    }
+  });
+
+  test('registerDaemonBerth writes a live daemon self-registration', () => {
+    const file = tempRegistryFile();
+    registerDaemonBerth(identity(), process.pid, { registryFile: file });
+    const records = readDaemonBerthRegistry(file);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      label: 'test-berth', tier: 'codebase', port: 19001, pid: process.pid, sourceDir: '/repo/worktree',
+    });
+  });
+
+  test('registerDaemonBerth carries the state plane into the registry record (S1)', () => {
+    const file = tempRegistryFile();
+    registerDaemonBerth(identity({ plane: 'ephemeral:pd-feat-x' }), process.pid, { registryFile: file });
+    const records = readDaemonBerthRegistry(file);
+    expect(records).toHaveLength(1);
+    expect(records[0].plane).toBe('ephemeral:pd-feat-x');
+  });
+
+  test('registerDaemonBerth omits plane when the identity has none (legacy)', () => {
+    const file = tempRegistryFile();
+    registerDaemonBerth(identity(), process.pid, { registryFile: file });
+    expect(readDaemonBerthRegistry(file)[0].plane).toBeUndefined();
+  });
+
+  test('registerDaemonBerth is a no-op for the stable tier (never recorded)', () => {
+    const file = tempRegistryFile();
+    registerDaemonBerth(identity({ tier: 'stable', label: 'stable' }), process.pid, { registryFile: file });
+    expect(readDaemonBerthRegistry(file)).toEqual([]);
+  });
+
+  test('registerDaemonBerth replaces an existing record with the same label (restart under the same identity)', () => {
+    const file = tempRegistryFile();
+    registerDaemonBerth(identity(), 111, { registryFile: file });
+    registerDaemonBerth(identity(), 222, { registryFile: file });
+    const records = readDaemonBerthRegistry(file);
+    expect(records).toHaveLength(1);
+    expect(records[0].pid).toBe(222);
+  });
+
+  test('registerDaemonBerth prunes dead-pid records from other berths before appending', () => {
+    const file = tempRegistryFile();
+    writeDaemonBerthRegistry(
+      [{ label: 'stale', tier: 'codebase', port: 20000, sourceDir: '/x', pid: DEAD_PID, gitRev: null, color: '#000', startedAt: 'now' }],
+      file,
+    );
+    registerDaemonBerth(identity(), process.pid, { registryFile: file });
+    const records = readDaemonBerthRegistry(file);
+    expect(records.map((r) => r.label)).toEqual(['test-berth']);
+  });
+
+  test('deregisterDaemonBerth removes only the matching pid', () => {
+    const file = tempRegistryFile();
+    writeDaemonBerthRegistry(
+      [
+        { label: 'keep', tier: 'codebase', port: 1, sourceDir: '/x', pid: process.pid, gitRev: null, color: '#000', startedAt: 'now' },
+        { label: 'remove-me', tier: 'codebase', port: 2, sourceDir: '/x', pid: 555, gitRev: null, color: '#000', startedAt: 'now' },
+      ],
+      file,
+    );
+    deregisterDaemonBerth(555, { registryFile: file });
+    const records = readDaemonBerthRegistry(file);
+    expect(records.map((r) => r.label)).toEqual(['keep']);
+  });
+
+  test('pruneDaemonBerthRegistry drops dead pids and keeps live ones', () => {
+    const file = tempRegistryFile();
+    writeDaemonBerthRegistry(
+      [
+        { label: 'alive', tier: 'codebase', port: 1, sourceDir: '/x', pid: process.pid, gitRev: null, color: '#000', startedAt: 'now' },
+        { label: 'dead', tier: 'codebase', port: 2, sourceDir: '/x', pid: DEAD_PID, gitRev: null, color: '#000', startedAt: 'now' },
+      ],
+      file,
+    );
+    const live = pruneDaemonBerthRegistry(file);
+    expect(live.map((r) => r.label)).toEqual(['alive']);
+    expect(readDaemonBerthRegistry(file).map((r) => r.label)).toEqual(['alive']);
+  });
+
+  test('registerDaemonBerth is fail-soft: never throws, reports via onError', () => {
+    // A directory path (not a file) as the "registry file" makes the write fail.
+    const dir = mkdtempSync(join(tmpdir(), 'pd-berth-registry-'));
+    tempDirs.push(dir);
+    let captured = null;
+    expect(() => registerDaemonBerth(identity(), process.pid, {
+      registryFile: dir, // writeFileSync(dir, ...) throws EISDIR
+      onError: (e) => { captured = e; },
+    })).not.toThrow();
+    expect(captured).toBeTruthy();
   });
 });

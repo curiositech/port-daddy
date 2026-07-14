@@ -11,11 +11,18 @@ import { join } from 'path';
 import type { Arbiter } from '../lib/arbiter.js';
 import type { BosunHeartbeatStatus } from '../lib/bosun-heartbeat.js';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
+import type { Transcripts } from '../lib/transcripts.js';
 import { formatUptime } from '../shared/port-utils.js';
 import { detectDrift } from '../lib/binary-drift-detector.js';
 import { assessRouteHealth, registeredFromSet, type RouteHealth } from '../lib/route-health.js';
 import { daemonHealthSeverity, type Severity } from '../lib/health-severity.js';
 import type { DaemonBerthIdentity } from '../shared/daemon-berths.js';
+import {
+  assessTranscriptRun,
+  buildTranscriptComplianceReport,
+  findLatestTranscriptForAgent,
+  type TranscriptTrackedRun,
+} from '../lib/transcript-compliance.js';
 
 interface SystemPort {
   port: number;
@@ -81,6 +88,14 @@ interface InfoRouteDeps {
    * as the stable, canonical berth.
    */
   daemonBerth?: DaemonBerthIdentity;
+  /**
+   * State plane this daemon classified itself onto at boot (S1 —
+   * lib/state-plane.ts): 'prod' | 'dev-latest' | 'ephemeral:<label>'.
+   * Surfaced on `GET /version` and `GET /health` so CLIs and surfaces can
+   * warn before writing through a non-prod daemon. Optional so older route
+   * wirings stay compatible.
+   */
+  plane?: string;
   cleanupStale: () => unknown[];
   getSystemPorts: () => SystemPort[];
   fleetDaemon?: ReturnType<typeof createFleetDaemon>;
@@ -114,6 +129,10 @@ interface InfoRouteDeps {
   bosunHeartbeat?: {
     getStatus(): BosunHeartbeatStatus;
   };
+  transcripts?: Pick<Transcripts, 'listTranscripts' | 'getTranscript'>;
+  spawner?: {
+    list(): TranscriptTrackedRun[];
+  };
   /**
    * Registry of registered routes ("METHOD /url"), populated by a root-level
    * onRoute hook in server.ts. When present, /health and /status verify the
@@ -121,6 +140,31 @@ interface InfoRouteDeps {
    * and tests that don't wire it keep prior behavior.
    */
   routeRegistry?: Set<string>;
+}
+
+function buildTranscriptRuntimeSummary(deps: InfoRouteDeps) {
+  if (!deps.transcripts || !deps.spawner) return undefined;
+  const transcripts = deps.transcripts;
+
+  const runs = deps.spawner.list().map((run) =>
+    assessTranscriptRun(
+      run,
+      findLatestTranscriptForAgent(transcripts, run.agentId),
+      { now: Date.now() },
+    ),
+  );
+  const report = buildTranscriptComplianceReport(runs);
+  return {
+    state: report.state,
+    degraded: report.degraded,
+    hitlEmergency: report.hitlEmergency,
+    liveRuns: report.summary.flow.running,
+    supportedRuns: report.summary.flow.supported,
+    degradedRuns: report.summary.flow.degraded,
+    missingRuns: report.summary.flow.missing,
+    backendCoverage: report.summary.backendCoverage,
+    issues: report.issues,
+  };
 }
 
 function buildRuntimeSummary(deps: InfoRouteDeps, routeHealth?: RouteHealth | null) {
@@ -132,7 +176,18 @@ function buildRuntimeSummary(deps: InfoRouteDeps, routeHealth?: RouteHealth | nu
   const routeReasons = (routeHealth?.missing ?? []).map(
     (r) => `route_missing:${r.method} ${r.url}`,
   );
-  const degradedReasons = [...arbiterReasons, ...routeReasons];
+  const transcriptRuntime = buildTranscriptRuntimeSummary(deps);
+  const transcriptReasons = (transcriptRuntime?.issues ?? []).map((issue) => ({
+    code: issue.code,
+    component: 'transcripts',
+    severity: issue.severity,
+    requiresHitl: issue.requiresHitl,
+    agentId: issue.agentId,
+    backend: issue.backend,
+    transcriptId: issue.transcriptId,
+    message: issue.message,
+  }));
+  const degradedReasons = [...arbiterReasons, ...routeReasons, ...transcriptReasons];
 
   return {
     state: degradedReasons.length > 0 ? 'degraded' : 'nominal',
@@ -159,6 +214,7 @@ function buildRuntimeSummary(deps: InfoRouteDeps, routeHealth?: RouteHealth | nu
       totalWatchers: fleetStatus.totalWatchers,
       launchableAgents: fleetStatus.totalLaunchableAgents,
     } : undefined,
+    transcripts: transcriptRuntime,
   };
 }
 
@@ -326,7 +382,10 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
       node_version: process.version,
       pid: process.pid,
       uptime: Math.floor(process.uptime()),
-      installDir: __dirname
+      installDir: __dirname,
+      // State plane (S1): which state this daemon mutates — prod / dev-latest
+      // / ephemeral:<label>. Absent on legacy wirings.
+      plane: deps.plane ?? undefined,
     };
   });
 
@@ -397,6 +456,9 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
       // Berth self-identity (ADR-0084). Always present: defaults to the stable,
       // canonical berth when PD_DAEMON_* env is unset.
       daemon: deps.daemonBerth ?? undefined,
+      // State plane (S1): prod / dev-latest / ephemeral:<label>. Same value as
+      // /version.plane; duplicated here so a single /health poll carries it.
+      plane: deps.plane ?? undefined,
       binaryDrift: binaryDrift ? {
         drifted: binaryDrift.drifted,
         runningHash: binaryDrift.runningHash,

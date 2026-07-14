@@ -254,6 +254,9 @@ describe('agent-harbor event ledger', () => {
     });
 
     it('accepts every frozen fixture instance', () => {
+      expect(appendEvent(db, { streamType: 'work-intent', payload: fixture('work-intent') }).duplicate).toBe(false);
+      expect(appendEvent(db, { streamType: 'work-plan', payload: fixture('work-plan') }).duplicate).toBe(false);
+      expect(appendEvent(db, { streamType: 'control-command', payload: fixture('control-command') }).duplicate).toBe(false);
       expect(appendEvent(db, { streamType: 'transcript-event', payload: transcriptFixture() }).duplicate).toBe(false);
       expect(appendEvent(db, { streamType: 'cost-accrual-event', payload: fixture('cost-accrual-event') }).duplicate).toBe(false);
       expect(appendEvent(db, { streamType: 'compliance-probe-result', payload: fixture('compliance-probe-result') }).duplicate).toBe(false);

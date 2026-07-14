@@ -351,6 +351,57 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     };
   });
 
+  // GET /fleet/forecast — "how many LLM calls per hour, on which models, is
+  // this machine armed to make?" Deterministic side: cron-scheduled agents at
+  // the ENGINE's real cadence (interval parser, cooldown-damped, capped by
+  // max_spawns_per_hour), with the forced-CLI override applied to every
+  // agent's effective backend/model. Observed side: spawn.started counters —
+  // last hour and trailing 24h, grouped by model and backend — which is the
+  // only honest rate for event-triggered agents.
+  //
+  // Keep literal `/fleet/...` routes above `/fleet/:project`; otherwise
+  // Fastify treats `forecast` as a project id and FleetBar polls get 404s.
+  fastify.get('/fleet/forecast', async () => {
+    const status = fleetDaemon.getStatus();
+    const fleets = status.fleets
+      .map((f) => {
+        const config = loadFleetConfig(f.projectDir);
+        return config
+          ? { project: f.project, projectDir: f.projectDir, running: f.running, config }
+          : null;
+      })
+      .filter((f): f is ForecastInputFleet => f !== null);
+
+    const forecast = computeSpawnForecast(fleets, {
+      forcedCliBackend: detectForcedCliBackend(),
+    });
+
+    let observed: {
+      lastHour: number;
+      last24h: number;
+      last24hPerHour: number;
+      byModelLastHour: Array<{ value: string; count: number }>;
+      byBackendLastHour: Array<{ value: string; count: number }>;
+      byModelLast24h: Array<{ value: string; count: number }>;
+    } | null = null;
+    if (counters) {
+      const hourAgo = Date.now() - 3_600_000;
+      const dayAgo = Date.now() - 86_400_000;
+      const lastHour = counters.queryTotals(['spawn.started'], { since: hourAgo }).get('spawn.started') ?? 0;
+      const last24h = counters.queryTotals(['spawn.started'], { since: dayAgo }).get('spawn.started') ?? 0;
+      observed = {
+        lastHour,
+        last24h,
+        last24hPerHour: +(last24h / 24).toFixed(2),
+        byModelLastHour: counters.topN('spawn.started', 'model', 8, hourAgo),
+        byBackendLastHour: counters.topN('spawn.started', 'backend', 8, hourAgo),
+        byModelLast24h: counters.topN('spawn.started', 'model', 8, dayAgo),
+      };
+    }
+
+    return { success: true, ...forecast, observed };
+  });
+
   // GET /fleet/:project — Specific project status
   fastify.get('/fleet/:project', async (request: FastifyRequest, reply: FastifyReply) => {
     const { project } = request.params as { project: string };
@@ -787,54 +838,6 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
       pdUseCliBackend,
       backends,
     };
-  });
-
-  // GET /fleet/forecast — "how many LLM calls per hour, on which models, is
-  // this machine armed to make?" Deterministic side: cron-scheduled agents at
-  // the ENGINE's real cadence (interval parser, cooldown-damped, capped by
-  // max_spawns_per_hour), with the forced-CLI override applied to every
-  // agent's effective backend/model. Observed side: spawn.started counters —
-  // last hour and trailing 24h, grouped by model and backend — which is the
-  // only honest rate for event-triggered agents.
-  fastify.get('/fleet/forecast', async () => {
-    const status = fleetDaemon.getStatus();
-    const fleets = status.fleets
-      .map((f) => {
-        const config = loadFleetConfig(f.projectDir);
-        return config
-          ? { project: f.project, projectDir: f.projectDir, running: f.running, config }
-          : null;
-      })
-      .filter((f): f is ForecastInputFleet => f !== null);
-
-    const forecast = computeSpawnForecast(fleets, {
-      forcedCliBackend: detectForcedCliBackend(),
-    });
-
-    let observed: {
-      lastHour: number;
-      last24h: number;
-      last24hPerHour: number;
-      byModelLastHour: Array<{ value: string; count: number }>;
-      byBackendLastHour: Array<{ value: string; count: number }>;
-      byModelLast24h: Array<{ value: string; count: number }>;
-    } | null = null;
-    if (counters) {
-      const hourAgo = Date.now() - 3_600_000;
-      const dayAgo = Date.now() - 86_400_000;
-      const lastHour = counters.queryTotals(['spawn.started'], { since: hourAgo }).get('spawn.started') ?? 0;
-      const last24h = counters.queryTotals(['spawn.started'], { since: dayAgo }).get('spawn.started') ?? 0;
-      observed = {
-        lastHour,
-        last24h,
-        last24hPerHour: +(last24h / 24).toFixed(2),
-        byModelLastHour: counters.topN('spawn.started', 'model', 8, hourAgo),
-        byBackendLastHour: counters.topN('spawn.started', 'backend', 8, hourAgo),
-        byModelLast24h: counters.topN('spawn.started', 'model', 8, dayAgo),
-      };
-    }
-
-    return { success: true, ...forecast, observed };
   });
 
   // POST /fleet/backend-secrets - save provider credentials in encrypted local storage.

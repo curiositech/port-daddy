@@ -43,10 +43,12 @@ function response(ok, data) {
 describe('pd spawn budget enforcement', () => {
   const originalExit = process.exit;
   const originalError = console.error;
+  const originalLog = console.log;
 
   beforeEach(() => {
     jest.clearAllMocks();
     console.error = jest.fn();
+    console.log = jest.fn();
     process.exit = jest.fn((code) => { throw new Error(`exit:${code}`); });
     mockAutoIdentityFromPackageJson.mockReturnValue('port-daddy:repo:cli');
   });
@@ -54,6 +56,7 @@ describe('pd spawn budget enforcement', () => {
   afterAll(() => {
     process.exit = originalExit;
     console.error = originalError;
+    console.log = originalLog;
   });
 
   test('auto-detects identity and forwards budgetUsd on spawn', async () => {
@@ -124,6 +127,25 @@ describe('pd spawn budget enforcement', () => {
 
     const body = JSON.parse(mockPdFetch.mock.calls[0][1].body);
     expect(body.injectSquidHooks).toBe(true);
+  });
+
+  test.each(['over_budget', 'killed'])('exits nonzero when the daemon envelope reports success false for %s', async (status) => {
+    mockPdFetch.mockResolvedValueOnce(response(true, {
+      success: false,
+      status,
+      agentId: 'spawned-terminal',
+      backend: 'custom',
+      model: 'custom',
+      error: `${status} spawn did not complete`,
+    }));
+
+    await expect(handleSpawn(['review the diff'], {
+      backend: 'custom',
+      budget: '0.75',
+      json: true,
+    })).rejects.toThrow('exit:1');
+
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('"success": false'));
   });
 
   test('fails fast when budget is missing', async () => {

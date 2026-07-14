@@ -119,6 +119,81 @@ above. Cutting the stable release ("RC cut") is a deliberate manual act (a futur
    curls `/health`; it **fails on socket contention** if the live daemon still holds `:9876` — stop the
    supervisor first.
 
+## Release gates for a daemon build
+
+Port Daddy daemon releases must pass the runtime the operator will actually run,
+not only source-level tests. The minimum gate for a stable Homebrew cut is:
+
+```sh
+npm run check:version-drift
+npm run parity
+npm test -- --runTestsByPath \
+  tests/unit/diagnostics-doctor.test.js \
+  tests/unit/fleet-routes-projects.test.js \
+  tests/unit/harbormaster-routes.test.js
+npm run build:daemon:dist
+npm run build:bin
+node scripts/build-single-binary.mjs --outfile=dist/pd
+bash scripts/smoke-compiled-daemon.sh
+bash scripts/ci-doctor-gate.sh
+SOAK_SECONDS=180 SOAK_PORT=19876 bash scripts/soak-binary.sh dist/port-daddy
+```
+
+After the GitHub release updates `curiositech/homebrew-tap`, prove the installer
+path too:
+
+```sh
+brew update
+brew upgrade port-daddy
+brew services restart port-daddy
+/opt/homebrew/bin/pd --version
+/opt/homebrew/bin/pd doctor --json
+curl -fsS "$(cat ~/.port-daddy/daemon.url 2>/dev/null || echo http://127.0.0.1:9876)/health"
+launchctl print "gui/$(id -u)/homebrew.mxcl.port-daddy"
+```
+
+If `brew info --json=v2 port-daddy` says the tap stable is newer than the
+installed keg, the operator is not actually on the release. Do not call the
+daemon upgraded until the running `/health` version, `pd --version`, Homebrew
+installed version, and FleetBar/Fleet Control Center all agree.
+
+## Reliability patterns we intentionally copy
+
+The daemon is small, but it is still a production supervisor/queue/runtime. Use
+the patterns that established daemon and worker systems converge on:
+
+- **One supervisor owns resurrection.** launchd's `KeepAlive` is the canonical
+  macOS resurrection mechanism and `ThrottleInterval` governs respawn pressure;
+  do not create a second competing daemon LaunchAgent. Apple's launchd docs
+  describe `KeepAlive` as the always-running mode, and the launchd plist man page
+  documents restart throttling. See
+  [Apple launchd jobs](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html)
+  and [launchd.plist(5)](https://www.manpagez.com/man/5/launchd.plist/).
+- **Readiness and watchdogs are separate from process existence.** systemd's
+  `Type=notify`/`WatchdogSec` model is the reference: a service is not merely a
+  PID, it is a process that has reported readiness and continues to heartbeat.
+  Port Daddy's launchd/Bosun split should preserve that distinction. See
+  [systemd.service](https://www.freedesktop.org/software/systemd/man/systemd.service.html).
+- **Durable work requires persisted intent plus orphan recovery.** Temporal
+  persists execution state and resumes after crashes; BullMQ and Sidekiq surface
+  stalled/orphaned jobs so another worker can continue. Port Daddy dispatch,
+  popper, harbormaster, and agent launch state must be durable before side
+  effects and recoverable after an ungraceful daemon exit. See
+  [Temporal durable execution](https://docs.temporal.io/),
+  [BullMQ production guidance](https://docs.bullmq.io/guide/going-to-production),
+  and [Sidekiq reliability](https://github.com/sidekiq/sidekiq/wiki/Reliability).
+- **Retries need budgets and jitter.** Daemon reconnect loops, relay reconnects,
+  and remote harbor sync should use capped exponential backoff with jitter and a
+  retry budget so a damaged downstream does not become a thundering herd. See
+  [AWS exponential backoff and jitter](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/)
+  and [Google SRE on retry budgets](https://sre.google/sre-book/addressing-cascading-failures/).
+- **Cloud harbors are not shared SQLite.** Cloudflare Agents/Durable Objects use
+  per-object durable state plus WebSockets/scheduling; that is the right mental
+  model for planned remote harbors. Local daemons own local machine state, while
+  a remote harbor owns a durable event/lease/receipt ledger and sync protocol.
+  See [Cloudflare Agents](https://developers.cloudflare.com/agents/) and
+  [Durable Objects WebSockets](https://developers.cloudflare.com/durable-objects/best-practices/websockets/).
+
 ## Consolidation TODO (tracked; "stop running last-gen stuff")
 
 1. **One `pd` install** — decide brew-canonical vs repo-canonical; `pd install` must NOT create a

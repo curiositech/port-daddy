@@ -1,6 +1,6 @@
 [package]
 name = "pd-console"
-version = "3.24.1"
+version = "3.24.2"
 edition = "2021"
 description = "Port Daddy operator console — GPU-native standalone app (ADR-0046 Phase 1). GPUI shell over the engine; a headless TUI repl renders the same panes."
 
@@ -45,3 +45,6 @@ base64 = "0.22"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
+# P3.5 salvage foundation: property tests on Loro op-replay convergence
+# (tests/loro_replay_convergence.rs). Same pin as core/harbor-card-rs.
+proptest = "1.4"

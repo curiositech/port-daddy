@@ -1,0 +1,119 @@
+{
+  "ok": true,
+  "pane": "sextant",
+  "blocks": [
+    {
+      "type": "header",
+      "text": "Sextant"
+    },
+    {
+      "type": "keyval",
+      "key": "sessions",
+      "value": "5"
+    },
+    {
+      "type": "keyval",
+      "key": "clusters",
+      "value": "3"
+    },
+    {
+      "type": "keyval",
+      "key": "computed",
+      "value": "now"
+    },
+    {
+      "type": "gap"
+    },
+    {
+      "type": "chip",
+      "label": "drawer \u00b7 watch \u00b7 watch assistant \u2014 2 session(s)"
+    },
+    {
+      "type": "keyval",
+      "key": "  terms",
+      "value": "drawer \u00b7 watch \u00b7 watch assistant \u00b7 watch operator"
+    },
+    {
+      "type": "chip",
+      "label": "bar \u00b7 bar cluster \u00b7 cluster \u2014 2 session(s)"
+    },
+    {
+      "type": "keyval",
+      "key": "  terms",
+      "value": "bar \u00b7 bar cluster \u00b7 cluster \u00b7 cluster label \u00b7 duplicate parley"
+    },
+    {
+      "type": "chip",
+      "label": "cluster 2 \u2014 1 session(s)"
+    }
+  ],
+  "sextant": {
+    "computedAt": 1783554811117,
+    "error": null,
+    "points": [
+      {
+        "id": "tx-pr694-galaxy-twin-a",
+        "agentId": "pr694-galaxy-twin-a",
+        "x": 0.405210018157959,
+        "y": 0.916012167930603,
+        "cluster": 1,
+        "purpose": null
+      },
+      {
+        "id": "tx-pr694-galaxy-twin-b",
+        "agentId": "pr694-galaxy-twin-b",
+        "x": 0.0,
+        "y": 1.0,
+        "cluster": 1,
+        "purpose": null
+      },
+      {
+        "id": "tx-pr694-galaxy-harbor-cost",
+        "agentId": "pr694-galaxy-harbor-cost",
+        "x": 1.0,
+        "y": 0.29068174958229065,
+        "cluster": 2,
+        "purpose": null
+      },
+      {
+        "id": "tx-pr694-galaxy-ui-watch",
+        "agentId": "pr694-galaxy-ui-watch",
+        "x": 0.42453452944755554,
+        "y": 0.11738643795251846,
+        "cluster": 0,
+        "purpose": null
+      },
+      {
+        "id": "tx-pr694-galaxy-console-watch",
+        "agentId": "pr694-galaxy-console-watch",
+        "x": 0.03141992539167404,
+        "y": 0.0,
+        "cluster": 0,
+        "purpose": null
+      }
+    ],
+    "clusters": [
+      {
+        "id": 0,
+        "label": "drawer \u00b7 watch \u00b7 watch assistant",
+        "size": 2
+      },
+      {
+        "id": 1,
+        "label": "bar \u00b7 bar cluster \u00b7 cluster",
+        "size": 2
+      },
+      {
+        "id": 2,
+        "label": "cluster 2",
+        "size": 1
+      }
+    ],
+    "selected": [],
+    "viewport": {
+      "zoom": 1.0,
+      "panX": 0.0,
+      "panY": 0.0
+    }
+  }
+}

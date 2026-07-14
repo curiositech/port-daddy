@@ -16,6 +16,8 @@
 //!   :harbor control <verb> [arg]
 //!                             issue a compliance-gated control (steer/pause/
 //!                             interrupt/checkpoint/successor/retire)
+//!   :edit <path>              open the Harbor Editor on a file and drain its
+//!                             live edit-sync + coordination channels (P3)
 //!   <text>                    send a turn to the active agent (over tube)
 //!   :quit
 //!
@@ -60,16 +62,20 @@ mod conjure;
 #[path = "../dispatch_pane.rs"]
 mod dispatch_pane;
 #[allow(dead_code)]
+#[path = "../editor_claims.rs"]
+mod editor_claims;
+#[allow(dead_code)]
+#[path = "../editor_commit_gate.rs"]
+mod editor_commit_gate;
+#[allow(dead_code)]
 #[path = "../editor_pane.rs"]
 mod editor_pane;
 #[allow(dead_code)]
-#[path = "../editor_claims.rs"]  mod editor_claims;
+#[path = "../editor_sync.rs"]
+mod editor_sync;
 #[allow(dead_code)]
-#[path = "../editor_commit_gate.rs"] mod editor_commit_gate;
-#[allow(dead_code)]
-#[path = "../editor_sync.rs"]    mod editor_sync;
-#[allow(dead_code)]
-#[path = "../editor_wedge.rs"]   mod editor_wedge;
+#[path = "../editor_wedge.rs"]
+mod editor_wedge;
 // maritime's gpui FlagBadge is now #[cfg(feature = "gpui")]-gated, so the pure
 // Flag/flag_for_state compile here and the fleet pane renders in the REPL too.
 #[path = "../fleet_pane.rs"]
@@ -77,17 +83,23 @@ mod fleet_pane;
 // Session-galaxy engine (parsing + hit-testing + selection math) — gpui-free by
 // design; its #[cfg(test)] suite runs HERE, in the rust-console CI gate. The
 // geometry helpers are canvas-only at runtime, hence the dead_code allow.
-#[path = "../grid.rs"]           mod grid; // launcher-grid data + 1:1 invariant tests
-#[path = "../harbor_pane.rs"]    mod harbor_pane; // Agent Node roster+detail (ch18 C3)
-#[path = "../maritime.rs"]       mod maritime;
-#[path = "../health_pane.rs"]    mod health_pane;
-#[path = "../inbox_pane.rs"]     mod inbox_pane;
-#[path = "../lane_pane.rs"]      mod lane_pane;
 #[allow(dead_code)]
 #[path = "../galaxy_pane.rs"]
 mod galaxy_pane;
+#[path = "../grid.rs"]
+mod grid; // launcher-grid data + 1:1 invariant tests
+#[path = "../harbor_pane.rs"]
+mod harbor_pane; // Agent Node roster+detail (ch18 C3)
+#[path = "../health_pane.rs"]
+mod health_pane;
+#[path = "../inbox_pane.rs"]
+mod inbox_pane;
+#[path = "../lane_pane.rs"]
+mod lane_pane;
 #[path = "../lineage_pane.rs"]
 mod lineage_pane;
+#[path = "../maritime.rs"]
+mod maritime;
 #[allow(dead_code)]
 #[path = "../mux.rs"]
 mod mux;
@@ -114,6 +126,8 @@ mod sessions_pane;
 mod substrate_pane;
 #[path = "../suggest_pane.rs"]
 mod suggest_pane;
+#[path = "../syntax.rs"]
+mod syntax;
 #[path = "../term.rs"]
 mod term;
 #[path = "../theme.rs"]
@@ -122,7 +136,8 @@ mod theme;
 mod util;
 // Offscreen Block→PNG raster (agent-safe, no display/TCC/gpui). Included here so the
 // headless capture + its PNG-encoder tests run on the cheap non-gpui gate too.
-#[path = "../headless_capture.rs"] mod headless_capture;
+#[path = "../headless_capture.rs"]
+mod headless_capture;
 
 use active_agents_pane::ActiveAgentsPane;
 use agent::{AgentManager, Backend};
@@ -160,7 +175,7 @@ fn banner(style: &TermStyle, daemon_url: &str) {
         "{}  {}",
         rail("└"),
         style.paint(
-            ":harness <backend> <prompt> · :new <backend> <prompt> · :agents · :switch <n> · :lane · :lane-message <text> · :harbor · :quit",
+            ":harness <backend> <prompt> · :new <backend> <prompt> · :agents · :switch <n> · :lane · :lane-message <text> · :harbor · :edit <path> · :quit",
             Sem::Muted
         )
     );
@@ -168,26 +183,69 @@ fn banner(style: &TermStyle, daemon_url: &str) {
 }
 
 async fn drain_active_subscription(reg: &mut PaneRegistry, mgr: &AgentManager, window: Duration) {
-    let Some(Subscription::Agent { agent_id }) = reg.active().and_then(|p| p.subscription()) else {
-        return;
-    };
-
-    let active = reg.active;
-    let mut rx = mgr.daemon().subscribe_agent(&agent_id);
-    let deadline = tokio::time::Instant::now() + window;
-    loop {
-        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
-        if remaining.is_zero() {
-            break;
-        }
-        match tokio::time::timeout(remaining, rx.recv()).await {
-            Ok(Some(env)) => {
-                if let Some(p) = reg.panes.get_mut(active) {
-                    p.on_stream(&env);
+    match reg.active().and_then(|p| p.subscription()) {
+        Some(Subscription::Agent { agent_id }) => {
+            let active = reg.active;
+            let mut rx = mgr.daemon().subscribe_agent(&agent_id);
+            let deadline = tokio::time::Instant::now() + window;
+            loop {
+                let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+                if remaining.is_zero() {
+                    break;
+                }
+                match tokio::time::timeout(remaining, rx.recv()).await {
+                    Ok(Some(env)) => {
+                        if let Some(p) = reg.panes.get_mut(active) {
+                            p.on_stream(&env);
+                        }
+                    }
+                    Ok(None) | Err(_) => break,
                 }
             }
-            Ok(None) | Err(_) => break,
         }
+        // The Harbor Editor lane (P3 wire stage 1) — the headless twin of the gpui
+        // producer's editor drain. Follow the file's TWO isolated channels: the
+        // edit-sync lane (durable Loro ops + lossy presence → `on_edit_frame`) and the
+        // coordination lane (region claims → `on_coord_frame`). One `subscribe_channel`
+        // per channel is the isolation; a single `window` deadline bounds the drain, and
+        // either channel closing ends it — mirroring the Agent arm's `None => break`.
+        Some(Subscription::Editor { channel, coord_channel }) => {
+            let active = reg.active;
+            let mut edit_rx = mgr.daemon().subscribe_channel(&channel);
+            let mut coord_rx = mgr.daemon().subscribe_channel(&coord_channel);
+            let sleep = tokio::time::sleep(window);
+            tokio::pin!(sleep);
+            loop {
+                tokio::select! {
+                    _ = &mut sleep => break,
+                    m = edit_rx.recv() => match m {
+                        Some(msg) => {
+                            if let Some(p) = reg.panes.get_mut(active) {
+                                p.on_edit_frame(&msg.text);
+                            }
+                        }
+                        None => break,
+                    },
+                    m = coord_rx.recv() => match m {
+                        Some(msg) => {
+                            if let Some(p) = reg.panes.get_mut(active) {
+                                p.on_coord_frame(&msg.text);
+                            }
+                        }
+                        None => break,
+                    },
+                }
+            }
+        }
+        None => {}
+    }
+}
+
+fn retired_repl_command_guidance(line: &str) -> Option<&'static str> {
+    if line.trim() == ":galaxy" {
+        Some("Galaxy was renamed to Sextant; use :sextant.")
+    } else {
+        None
     }
 }
 
@@ -231,7 +289,9 @@ async fn main() -> Result<()> {
             continue;
         }
 
-        if line == ":quit" || line == ":q" {
+        if let Some(message) = retired_repl_command_guidance(&line) {
+            err(&style, message);
+        } else if line == ":quit" || line == ":q" {
             break;
         } else if line == ":dispatch" {
             // Refresh the dispatch pane then render it.
@@ -243,6 +303,42 @@ async fn main() -> Result<()> {
             if let Err(e) = reg.refresh_active(mgr.daemon()).await {
                 err(&style, &format!("refresh failed: {e}"));
             }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
+        } else if let Some(path) = line
+            .strip_prefix(":edit ")
+            .map(str::trim)
+            .filter(|p| !p.is_empty())
+        {
+            // The Harbor Editor surface (P3 wire stage 1). Bind a real EditorPane to the
+            // file, load its Loro buffer, then drain its live edit-sync + coordination
+            // channels exactly as `:lane` drains an agent stream — the headless proof
+            // that the editor lane is wired end to end (the same `drain_active_subscription`
+            // path the gpui producer runs). Reuse the single "editor" slot so repeated
+            // `:edit`s rebind rather than pile up panes. Key the local Loro replica to
+            // the operator's LIVE `pd whoami` identity (same as the GPUI producer's
+            // OpenEditor), so authorship + claims agree across the two faces — never the
+            // DEFAULT_IDENTITY fallback (Copilot #729).
+            let pane = editor_pane::EditorPane::new_with_identity(
+                path.to_string(),
+                None,
+                editor_pane::resolve_operator_identity(),
+            );
+            match reg.panes.iter().position(|p| p.id() == "editor") {
+                Some(pos) => {
+                    reg.panes[pos] = Box::new(pane);
+                    reg.active = pos;
+                }
+                None => {
+                    reg.register(Box::new(pane));
+                    reg.active = reg.panes.len() - 1;
+                }
+            }
+            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            drain_active_subscription(&mut reg, &mgr, Duration::from_millis(1_200)).await;
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
@@ -309,7 +405,11 @@ async fn main() -> Result<()> {
             // headless tick: refresh, optionally select a row / issue a
             // compliance-gated control, then render. The GPUI face makes rows
             // and controls clickable; this face proves the same pane headless.
-            reg.active = reg.panes.iter().position(|p| p.id() == "harbor").unwrap_or(0);
+            reg.active = reg
+                .panes
+                .iter()
+                .position(|p| p.id() == "harbor")
+                .unwrap_or(0);
             if let Err(e) = reg.refresh_active(mgr.daemon()).await {
                 err(&style, &format!("refresh failed: {e}"));
             }
@@ -334,12 +434,25 @@ async fn main() -> Result<()> {
             } else if let Some(rest) = line.strip_prefix(":harbor control ") {
                 let mut parts = rest.trim().splitn(2, ' ');
                 let verb = parts.next().unwrap_or("").to_string();
-                let argument = parts.next().map(str::trim).filter(|a| !a.is_empty()).map(String::from);
+                let argument = parts
+                    .next()
+                    .map(str::trim)
+                    .filter(|a| !a.is_empty())
+                    .map(String::from);
                 match reg
-                    .mutate_active(mgr.daemon(), SurfaceAction::Control { verb: verb.clone(), argument })
+                    .mutate_active(
+                        mgr.daemon(),
+                        SurfaceAction::Control {
+                            verb: verb.clone(),
+                            argument,
+                        },
+                    )
                     .await
                 {
-                    Ok(()) => ok(&style, &format!("{verb} queued — watch the control history")),
+                    Ok(()) => ok(
+                        &style,
+                        &format!("{verb} queued — watch the control history"),
+                    ),
                     Err(e) => err(&style, &format!("{verb} refused: {e}")),
                 }
             }
@@ -387,13 +500,13 @@ async fn main() -> Result<()> {
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
-        } else if line == ":galaxy" {
-            // Session galaxy — the daemon's embedding map of recent sessions,
+        } else if line == ":sextant" {
+            // Sextant — the daemon's embedding map of recent sessions,
             // rendered headlessly (session count + cluster chips/terms).
             reg.active = reg
                 .panes
                 .iter()
-                .position(|p| p.id() == "galaxy")
+                .position(|p| p.id() == "sextant")
                 .unwrap_or(0);
             if let Err(e) = reg.refresh_active(mgr.daemon()).await {
                 err(&style, &format!("refresh failed: {e}"));
@@ -611,4 +724,23 @@ async fn main() -> Result<()> {
     }
     println!("{}", style.paint("out.", Sem::Muted));
     Ok(())
+}
+
+#[cfg(test)]
+mod repl_migration_tests {
+    use super::*;
+
+    #[test]
+    fn retired_galaxy_command_points_to_sextant() {
+        assert_eq!(
+            retired_repl_command_guidance(":galaxy"),
+            Some("Galaxy was renamed to Sextant; use :sextant.")
+        );
+        assert_eq!(
+            retired_repl_command_guidance(" :galaxy "),
+            Some("Galaxy was renamed to Sextant; use :sextant.")
+        );
+        assert_eq!(retired_repl_command_guidance(":sextant"), None);
+        assert_eq!(retired_repl_command_guidance("galaxy"), None);
+    }
 }

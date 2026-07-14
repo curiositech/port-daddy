@@ -68,6 +68,7 @@ import { createConductor } from './lib/fleet/conductor.js';
 import { createDispatchQueue } from './lib/dispatch/queue.js';
 import { createDispatchWorker } from './lib/dispatch/worker.js';
 import { createConductorSpawnAdapter } from './lib/dispatch/conductor-adapter.js';
+import { createWorkIntentService } from './lib/agent-harbor/work-intent-service.js';
 import {
   gitWorktreeAdd,
   gitPushBranch,
@@ -80,6 +81,7 @@ import { createJsonlForensicsArchive } from './lib/forensics-archive.js';
 import { createSemanticIndex } from './lib/semantic-index.js';
 import { createTupleSpace } from './lib/tuples.js';
 import { createBlobStore } from './lib/blob.js';
+import { createBootyStore } from './lib/booty.js';
 import { createNoteEncryption } from './lib/note-encryption.js';
 import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 import { createIpcServer } from './lib/ipc-server.js';
@@ -125,7 +127,14 @@ import { registerAllRoutes } from './routes/index.js';
 // Shared utilities
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
 import { LOOPBACK_TCP_HOST, DEFAULT_DAEMON_PORT } from './shared/daemon-discovery.js';
-import { resolveDaemonBerthIdentity, type DaemonBerthIdentity } from './shared/daemon-berths.js';
+import {
+  resolveDaemonBerthIdentity,
+  registerDaemonBerth,
+  deregisterDaemonBerth,
+  BERTH_ENV,
+  type DaemonBerthIdentity,
+} from './shared/daemon-berths.js';
+import { classifyPlane, STATE_PLANE_ENV, type StatePlane } from './lib/state-plane.js';
 import { calculateRuntimeCodeHash } from './shared/code-hash.js';
 import { snapshotRunningBinary, detectDrift, type BinaryDriftSnapshot } from './lib/binary-drift-detector.js';
 import { resolveDistributionRoot } from './shared/daemon-binary.js';
@@ -180,7 +189,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.24.1';
+const EMBEDDED_PACKAGE_VERSION: string = '3.24.2';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -331,14 +340,31 @@ const IS_DEV_MODE: boolean = !!PREFIX;
 const DB_PATH: string = resolveDbPath(PREFIX ? join(PREFIX, 'port-daddy.db') : undefined);
 const PORT: number = parseInt(process.env.PORT_DADDY_PORT as string, 10) || (IS_DEV_MODE ? 9877 : config.service.port);
 
+// State plane (S1): classify once at boot which state this daemon mutates —
+// 'prod' | 'dev-latest' | 'ephemeral:<label>'. Pure inference from the same
+// signals used above (PORT_DADDY_PLANE override > canonical prefix > the
+// dev-latest lane > ephemeral). Surfaced on /version, /health, the berth
+// registry, and the Bosun heartbeat file.
+const DAEMON_PLANE: StatePlane = classifyPlane({
+  prefixPath: PREFIX,
+  port: PORT,
+  profileName: process.env[BERTH_ENV.label]?.trim() || null,
+  envOverride: process.env[STATE_PLANE_ENV],
+});
+
 // Berth identity (ADR-0084): self-report which berth this daemon is. Defaults
 // to the stable, canonical berth when PD_DAEMON_* env is unset, so the existing
 // brew daemon transparently reports as `stable` with no launch change.
-const DAEMON_BERTH: DaemonBerthIdentity = resolveDaemonBerthIdentity({
-  env: process.env,
-  port: PORT,
-  gitSnapshot: snapshotDaemonGit(process.env.PD_DAEMON_SOURCE_DIR?.trim() || null),
-});
+const DAEMON_BERTH: DaemonBerthIdentity = {
+  ...resolveDaemonBerthIdentity({
+    env: process.env,
+    port: PORT,
+    gitSnapshot: snapshotDaemonGit(process.env.PD_DAEMON_SOURCE_DIR?.trim() || null),
+  }),
+  // Plane rides with the berth identity so `registerDaemonBerth` records it
+  // (shared/ cannot import lib/, so classification happens here, not there).
+  plane: DAEMON_PLANE,
+};
 
 import { DEFAULT_SOCK, DEFAULT_IPC, DEFAULT_PID_FILE, DEFAULT_PORT_FILE } from './shared/paths.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || (PREFIX ? join(PREFIX, 'port-daddy.sock') : DEFAULT_SOCK);
@@ -437,6 +463,7 @@ const graphEdges = createGraphEdges(db);
 const symbolIndex = createSymbolIndex(db, { graphEdges });
 const tuples = createTupleSpace(db);
 const blobs = createBlobStore();
+const booty = createBootyStore(db);
 const counters = createCounters(db);
 const metricsRegistry = createMetricsRegistry();
 const semanticResolver = createSemanticResolver(db, {
@@ -522,7 +549,7 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const sugar = createSugar({ agents, sessions, activityLog });
+const sugar = createSugar({ agents, sessions, activityLog, roadmapItems });
 const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
@@ -747,6 +774,7 @@ if (FLEET_GLOBAL_CEILING_USD == null) {
 // (intentToSpawnSpec) and the spawner — wired with `tubeClient: messaging` above —
 // publishes the cli-tube exchange there, so `pd tube dispatch:<id>` still works.
 const dispatchQueue = createDispatchQueue({ db });
+const workIntentService = createWorkIntentService({ db });
 const DISPATCH_WORKER_ENABLED = process.env.PD_DISPATCH_WORKER !== 'false';
 const _dispatchConcurrency = parseInt(process.env.PD_DISPATCH_CONCURRENCY ?? '2', 10);
 const DISPATCH_CONCURRENCY = Number.isFinite(_dispatchConcurrency) && _dispatchConcurrency >= 1
@@ -764,6 +792,7 @@ const dispatchWorker = DISPATCH_WORKER_ENABLED
       logger,
       maxConcurrency: DISPATCH_CONCURRENCY,
       pollIntervalMs: DISPATCH_POLL_MS,
+      workIntentService,
       model: DISPATCH_MODEL,
       // THE INJECTION POINT: spawn every dispatch through the Conductor.
       spawnAdapter: createConductorSpawnAdapter(conductor),
@@ -805,7 +834,7 @@ const custodian = CUSTODIAN_ENABLED
       logger,
       episodicMemory: episodicMemory as any,
       messaging: messaging as any,
-      resurrection: resurrection as any,
+      resurrection,
       contextTracker: contextTracker as any,
       operatorPermissions,
       blobs: blobs as any,
@@ -827,6 +856,7 @@ const mergeQueue = createMergeQueue(db, {
 const bosunHeartbeat = createBosunHeartbeat({
   heartbeatPath: HEARTBEAT_FILE,
   version: VERSION,
+  plane: DAEMON_PLANE,
   codeHash: CODE_HASH,
   startedAt: STARTED_AT,
   installDir: __dirname,
@@ -1300,7 +1330,7 @@ await registerAllRoutes(
     routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
-    harbors, sorties, conductor, dispatchQueue, dispatchWorker, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
+    harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, booty, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, cloudAppTelemetry, counters, metricsRegistry,
     contextTracker,
     custodian, operatorPermissions,
@@ -1311,6 +1341,7 @@ await registerAllRoutes(
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,
     daemonBerth: DAEMON_BERTH,
+    plane: DAEMON_PLANE,
     cleanupStale, getSystemPorts,
     // Relay (ADR-0049) connection status. The daemon does not yet start the
     // outbound RelayConnectionManager (lib/relay-client.ts), so this honestly
@@ -1407,6 +1438,13 @@ setInterval(() => {
 
 function shutdown(signal: string): void {
   logger.info('shutdown_initiated', { signal });
+  // Remove this berth's own registry entry on a clean stop, so it doesn't
+  // linger as a stale record until the next prune pass notices the dead pid.
+  if (DAEMON_BERTH.tier !== 'stable') {
+    deregisterDaemonBerth(process.pid, {
+      onError: (error) => logger.warn('daemon_berth_deregister_failed', { error: error.message }),
+    });
+  }
   try {
     activityLog.log(ActivityType.DAEMON_STOP, {
       details: `Port Daddy stopped (${signal})`,
@@ -1640,6 +1678,16 @@ sockServer.listen(SOCK_PATH, async () => {
       tcpServer.on('listening', () => {
         try { writeFileSync(PORT_FILE, String(tryPort), { mode: 0o644 }); } catch {}
         logger.info('tcp_started', { port: tryPort, host: tcpHost, version: VERSION });
+        // Self-register this berth (ADR-0084) so FleetBar's berth picker can
+        // see it regardless of how this daemon was launched — registration
+        // no longer depends on going through `pd dev up`. A no-op for the
+        // stable tier (see registerDaemonBerth's own doc comment). tryPort is
+        // the port actually bound, which can differ from DAEMON_BERTH.port
+        // if the originally-requested port was busy and the retry loop above
+        // moved on — register the real one.
+        registerDaemonBerth({ ...DAEMON_BERTH, port: tryPort }, process.pid, {
+          onError: (err) => logger.warn('daemon_berth_registration_failed', { error: err.message }),
+        });
         // Surface binary drift on the boot path so an operator running
         // `tail -f port-daddy.log` after `brew upgrade` sees it immediately.
         // The check is cheap (one hash) and the snapshot is already taken.

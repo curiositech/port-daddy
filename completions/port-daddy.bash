@@ -141,6 +141,8 @@ _port_daddy() {
     tuple
     # Semantic graph + episodic memory
     graph memory ideas skill-graft skillgraft
+    # Artifact harvest provenance (slice S4a)
+    booty
     # Shared local embedder (ADR-0061)
     embed
     # Cartographer roadmap projection
@@ -1951,6 +1953,25 @@ _port_daddy() {
           ;;
         stats)
           _pd_opts '--dir --json --quiet'
+          ;;
+        *) _pd_opts '' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # booty  add|list  [options]  — artifact harvest provenance (slice S4a)
+    # -----------------------------------------------------------------------
+    booty)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "add list help" -- "$cur") )
+          ;;
+        add)
+          _pd_opts '--roadmap --note --json --quiet'
+          ;;
+        list)
+          _pd_opts '--branch --session --limit --json --quiet'
           ;;
         *) _pd_opts '' ;;
       esac

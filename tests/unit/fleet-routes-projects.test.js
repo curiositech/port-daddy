@@ -70,6 +70,47 @@ describe('fleet routes project resolution', () => {
     mockStatSync.mockReturnValue({ isDirectory: () => false });
   });
 
+  test('GET /fleet/forecast is not shadowed by GET /fleet/:project', async () => {
+    const getProject = jest.fn(() => null);
+    const app = Fastify();
+    await app.register(fleetPlugin, {
+      deps: {
+        fleetDaemon: {
+          getStatus() {
+            return {
+              running: true,
+              startedAt: Date.now(),
+              fleets: [],
+              totalAgents: 0,
+              totalWatchers: 0,
+            };
+          },
+        },
+        projects: {
+          get: getProject,
+          getByPath() {
+            return null;
+          },
+        },
+        messaging: {
+          subscribe() {
+            return null;
+          },
+        },
+      },
+    });
+
+    const res = await app.inject({ method: 'GET', url: '/fleet/forecast' });
+    const body = res.json();
+
+    expect(res.statusCode).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.observed).toBeNull();
+    expect(getProject).not.toHaveBeenCalledWith('forecast');
+
+    await app.close();
+  });
+
   test('GET /fleet/config/:project resolves a registered stopped project by id', async () => {
     mockFindFleetConfigPath.mockReturnValue('/repo/stopped/pd-fleet.yml');
     mockReadFileSync.mockReturnValue('name: stopped\nagents: []\nwatchers: []\nchannels: {}\n');

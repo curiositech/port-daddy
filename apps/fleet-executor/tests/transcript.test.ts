@@ -13,6 +13,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import handler from '../src/index.js';
+import { TRANSCRIPT_EMERGENCY_EVENT } from '../../../lib/transcript-emergency-constants.js';
 import { executeFleet } from '../src/execute.js';
 import {
   freshState,
@@ -298,7 +299,13 @@ describe('transcript is best-effort (never changes the gate)', () => {
 
     // Must NOT throw — a transcript-write failure cannot fail the job.
     await expect(
-      executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db })),
+      executeFleet(makeJob(), makeEnv({
+        FLEET_TOKENS: kv,
+        CONTROL_KV: kv,
+        AI: ai.ai,
+        DB: d1.db,
+        PORT_DADDY_TELEMETRY_URL: 'https://telemetry.example/ingest',
+      })),
     ).resolves.toBeUndefined();
 
     // The gate still concluded correctly (blocking BLOCK ⇒ failure).
@@ -308,6 +315,69 @@ describe('transcript is best-effort (never changes the gate)', () => {
     expect(d1.runCalls).toBeGreaterThan(0);
     expect(d1.runs).toHaveLength(0);
     expect(d1.steps).toHaveLength(0);
+    expect(state.records).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        method: 'POST',
+        url: 'https://telemetry.example/ingest',
+        body: expect.objectContaining({
+          source: 'fleet-executor',
+          event: TRANSCRIPT_EMERGENCY_EVENT.WRITE_FAILED,
+          status: 'error',
+          backend: 'cloudflare',
+          metadata: expect.objectContaining({
+            runId: 'run:delivery-abc',
+            error: expect.stringContaining('D1 unavailable'),
+          }),
+        }),
+      }),
+    ]));
+  });
+
+  it('D1 down ⇒ transcript failure telemetry cannot hold run completion open', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    const d1 = memoryD1();
+    d1.failAll = true;
+
+    const originalFetch = globalThis.fetch;
+    let telemetryCalls = 0;
+    const telemetryStarted = new Promise<void>((resolve) => {
+      vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === 'https://telemetry.example/ingest') {
+          const payload = typeof init?.body === 'string'
+            ? JSON.parse(init.body) as { event?: string }
+            : {};
+          if (payload.event === TRANSCRIPT_EMERGENCY_EVENT.WRITE_FAILED) {
+            telemetryCalls += 1;
+            resolve();
+            return new Promise<Response>(() => {});
+          }
+        }
+        return originalFetch(input, init);
+      }) as unknown as typeof fetch);
+    });
+
+    const run = executeFleet(makeJob(), makeEnv({
+      FLEET_TOKENS: kv,
+      CONTROL_KV: kv,
+      AI: ai.ai,
+      DB: d1.db,
+      PORT_DADDY_TELEMETRY_URL: 'https://telemetry.example/ingest',
+    }));
+
+    const result = await Promise.race([
+      run.then(() => 'completed' as const),
+      new Promise<'timed-out'>(resolve => setTimeout(() => resolve('timed-out'), 100)),
+    ]);
+
+    expect(result).toBe('completed');
+    await telemetryStarted;
+    expect(telemetryCalls).toBeGreaterThan(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('success');
   });
 
   it('queue acks a completed run even when every transcript D1 write fails', async () => {

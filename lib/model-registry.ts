@@ -68,6 +68,8 @@ const BACKEND_NAME_PLACEHOLDERS = new Set([
   'claude-code',
   'claude-cli',
   'codex',
+  'agy',
+  'agy-cli',
   'gemini',
   'groq',
   'grok',

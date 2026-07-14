@@ -32,6 +32,25 @@ import {
   assertNodeWitnessing,
 } from '../../schemas/agent-harbor/v0/compliance-invariants.mjs';
 
+const {
+  BODY_KINDS,
+  MODEL_TIERS,
+  LAUNCH_MODES,
+  SURFACE_GATEWAY_SURFACES,
+  SURFACE_GATEWAY_DIRECTIONS,
+  SURFACE_GATEWAY_MODES,
+  SURFACE_GATEWAY_NOUNS,
+  CAPABILITY_DECISIONS,
+  CAPABILITY_DECISION_DOMAINS,
+  CAPABILITY_DECISION_SURFACES,
+  CAPABILITY_NAMES,
+  BERTH_TARGET_TIERS,
+  BERTH_AUTHORITY_DOMAINS,
+  BERTH_AUTHORITY_GRANTS,
+  BERTH_RESOLUTION_STATES,
+  BERTH_RESOLUTION_SOURCES,
+} = await import('../../lib/agent-harbor/types.js');
+
 const here = dirname(fileURLToPath(import.meta.url));
 const schemaDir = join(here, '..', '..', 'schemas', 'agent-harbor', 'v0');
 const fixtureDir = join(schemaDir, 'fixtures');
@@ -41,8 +60,12 @@ const SCHEMA_NAMES = [
   'work-plan',
   'agent-node',
   'agent-run',
+  'body',
   'transcript-event',
   'control-command',
+  'capability-decision',
+  'berth-target',
+  'surface-gateway',
   'compliance-probe-result',
   'cost-accrual-event',
   'context-envelope',
@@ -193,7 +216,7 @@ function loadFixture(name) {
 // ---------------------------------------------------------------------------
 
 describe('agent-harbor v0 schema package', () => {
-  it('ships exactly the seventeen frozen contracts (plus fixtures) — eleven from F0, the ADR-0096 GuidanceEnvelope, and the five ADR-0097 M6 contracts', () => {
+  it('ships exactly the twenty-one frozen contracts (plus fixtures) — F0, Surface Gateway, the ADR-0096 GuidanceEnvelope, and the five ADR-0097 M6 contracts', () => {
     const files = readdirSync(schemaDir).filter((f) => f.endsWith('.schema.json')).sort();
     expect(files).toEqual(SCHEMA_NAMES.map((n) => `${n}.schema.json`).sort());
   });
@@ -266,6 +289,246 @@ describe('agent-harbor v0 schema package', () => {
     // The boolean-false form: undeclared keys are rejected even with no `properties` map.
     const closed = { type: 'object', additionalProperties: false };
     expect(validate(closed, { anything: 1 }).some((e) => e.includes('unexpected property'))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 1b. Shared native Surface Gateway contract.
+// ---------------------------------------------------------------------------
+
+describe('Agent Harbor native Surface Gateway contract', () => {
+  const gatewaySchema = loadSchema('surface-gateway');
+
+  function gateway(overrides) {
+    return {
+      ...loadFixture('surface-gateway'),
+      ...overrides,
+    };
+  }
+
+  function capabilityDecision(overrides) {
+    return {
+      ...loadFixture('surface-gateway').capabilityDecision,
+      ...overrides,
+    };
+  }
+
+  it('freezes the shared surface set for pd-console, FleetBar, Scout, CLI, and MCP', () => {
+    expect(gatewaySchema.properties.surface.enum).toEqual(['pd-console', 'fleetbar', 'scout', 'cli', 'mcp']);
+    expect([...SURFACE_GATEWAY_SURFACES]).toEqual(gatewaySchema.properties.surface.enum);
+  });
+
+  it('freezes command/query/event modes over the runtime nouns without legacy verbs', () => {
+    expect(gatewaySchema.properties.mode.enum).toEqual(['command', 'query', 'event']);
+    expect([...SURFACE_GATEWAY_DIRECTIONS]).toEqual(gatewaySchema.properties.direction.enum);
+    expect([...SURFACE_GATEWAY_MODES]).toEqual(gatewaySchema.properties.mode.enum);
+    expect(gatewaySchema.properties.noun.enum).toEqual([
+      'WorkIntent',
+      'WorkPlan',
+      'AgentNode',
+      'AgentRun',
+      'Body',
+      'ControlCommand',
+      'TranscriptEvent',
+      'CapabilityDecision',
+      'WorkReceipt',
+      'BerthTarget',
+    ]);
+    expect([...SURFACE_GATEWAY_NOUNS]).toEqual(gatewaySchema.properties.noun.enum);
+    for (const superseded of ['Spawn', 'Dispatch', 'Sortie', 'Nightshift']) {
+      expect(gatewaySchema.properties.noun.enum).not.toContain(superseded);
+    }
+  });
+
+  it('validates a command envelope from FleetBar to the daemon', () => {
+    const command = loadFixture('surface-gateway');
+    expect(command.mode).toBe('command');
+    expect(command.noun).toBe('ControlCommand');
+    expect(command.surface).toBe('fleetbar');
+    expect(validate(gatewaySchema, command)).toEqual([]);
+  });
+
+  it('validates a query envelope from pd-console without inventing runtime routing', () => {
+    const query = gateway({
+      envelopeId: 'surface_gateway_query_01JZFIX0001',
+      surface: 'pd-console',
+      direction: 'surface-to-daemon',
+      mode: 'query',
+      noun: 'AgentRun',
+      operation: 'agent-run.list',
+      issuedBy: 'pd-console:operator:erich',
+      idempotencyKey: null,
+      capabilityDecision: capabilityDecision({
+        decisionId: 'cap_decision_query_01JZFIX0001',
+        surface: 'pd-console',
+        operation: 'agent-run.list',
+        capability: 'agent-run',
+        reason: 'Query allowed against selected berth.',
+        evidence: {
+          berthTargetId: 'berth_target_stable',
+        },
+      }),
+      payload: {
+        filters: { status: 'running' },
+      },
+      projection: {
+        stale: false,
+        lastLedgerSeq: 42,
+        headSeq: 42,
+      },
+    });
+    expect(validate(gatewaySchema, query)).toEqual([]);
+  });
+
+  it('validates an event envelope from the daemon to Scout', () => {
+    const event = gateway({
+      envelopeId: 'surface_gateway_event_01JZFIX0001',
+      surface: 'scout',
+      direction: 'daemon-to-surface',
+      mode: 'event',
+      noun: 'TranscriptEvent',
+      operation: 'transcript-event.appended',
+      issuedBy: 'daemon:local',
+      idempotencyKey: null,
+      capabilityDecision: capabilityDecision({
+        decisionId: 'cap_decision_event_01JZFIX0001',
+        surface: 'scout',
+        operation: 'transcript-event.appended',
+        capability: 'transcript-event',
+        reason: 'Subscribed surface may receive transcript event projection.',
+        evidence: {
+          berthTargetId: 'berth_target_stable',
+          transcriptEventId: 'evt_01JZFIX0042',
+        },
+      }),
+      payload: {
+        eventId: 'evt_01JZFIX0042',
+        sessionId: 'session_01JZFIX0001',
+        agentNodeId: 'agent_node_01JZFIX0001',
+        sequence: 42,
+        occurredAt: '2026-07-05T12:04:01.000Z',
+        schemaVersion: 1,
+        kind: 'tool_result',
+      },
+      projection: {
+        stale: false,
+        lastLedgerSeq: 43,
+        headSeq: 43,
+      },
+    });
+    expect(validate(gatewaySchema, event)).toEqual([]);
+  });
+
+  it('requires target authority and freshness labeling on gateway envelopes', () => {
+    expect(gatewaySchema.required).toEqual(expect.arrayContaining(['berthTarget', 'payload', 'projection']));
+    expect(gatewaySchema.properties.berthTarget.required).toEqual(['targetId', 'tier', 'label', 'canonical', 'authority']);
+    expect(gatewaySchema.properties.berthTarget.properties.authority.required).toEqual([
+      'domain',
+      'canCommand',
+      'canQuery',
+      'canSubscribeEvents',
+    ]);
+    expect(gatewaySchema.properties.capabilityDecision.required).toEqual(expect.arrayContaining([
+      'schema',
+      'surface',
+      'operation',
+      'capability',
+      'authority',
+      'issuedAt',
+    ]));
+    expect(gatewaySchema.properties.projection.required).toContain('stale');
+
+    const missingTarget = { ...loadFixture('surface-gateway') };
+    delete missingTarget.berthTarget;
+    expect(validate(gatewaySchema, missingTarget).some((e) => e.includes('berthTarget'))).toBe(true);
+  });
+});
+
+describe('Body, CapabilityDecision, and BerthTarget contract semantics', () => {
+  it('Body is a first-class runtime noun and mirrors AgentRun.body adapter literals', () => {
+    const body = loadSchema('body');
+    const agentRunBody = loadSchema('agent-run').properties.body;
+
+    expect(body.properties.kind.enum).toEqual(agentRunBody.properties.kind.enum);
+    expect(body.properties.modelTier.enum).toEqual(agentRunBody.properties.modelTier.enum);
+    expect(body.properties.launchMode.enum).toEqual(agentRunBody.properties.launchMode.enum);
+    expect([...BODY_KINDS]).toEqual(body.properties.kind.enum);
+    expect([...MODEL_TIERS]).toEqual(body.properties.modelTier.enum);
+    expect([...LAUNCH_MODES]).toEqual(body.properties.launchMode.enum);
+    expect(body.required).toEqual(expect.arrayContaining(['bodyId', 'agentNodeId', 'kind', 'provider', 'modelTier', 'launchMode', 'status']));
+    expect(validate(body, loadFixture('body'))).toEqual([]);
+  });
+
+  it('CapabilityDecision requires a non-surface authority domain and an auditable reason', () => {
+    const schema = loadSchema('capability-decision');
+    const fixture = loadFixture('capability-decision');
+
+    expect(schema.required).toEqual(expect.arrayContaining(['authority', 'reason', 'issuedAt']));
+    expect(schema.properties.authority.required).toEqual(['domain', 'decidedBy']);
+    expect(schema.properties.authority.properties.domain.enum).toEqual([
+      'daemon-registry',
+      'operator-selection',
+      'policy',
+      'lease',
+      'read-only-import',
+    ]);
+    expect([...CAPABILITY_DECISION_SURFACES]).toEqual(schema.properties.surface.enum);
+    expect([...CAPABILITY_NAMES]).toEqual(schema.properties.capability.enum);
+    expect([...CAPABILITY_DECISIONS]).toEqual(schema.properties.decision.enum);
+    expect([...CAPABILITY_DECISION_DOMAINS]).toEqual(schema.properties.authority.properties.domain.enum);
+    expect(schema.properties.authority.properties.domain.enum).not.toContain('fleetbar');
+    expect(schema.properties.capability.enum).toContain('capability-decision');
+    expect(validate(schema, fixture)).toEqual([]);
+
+    const surfaceClaimedAuthority = { ...fixture, authority: { ...fixture.authority, domain: 'fleetbar' } };
+    expect(validate(schema, surfaceClaimedAuthority).some((e) => e.includes('authority.domain'))).toBe(true);
+  });
+
+  it('BerthTarget freezes canonical/dev/codebase/remote domain authority instead of letting a UI promote itself', () => {
+    const schema = loadSchema('berth-target');
+    const fixture = loadFixture('berth-target');
+
+    expect(schema.required).toEqual(expect.arrayContaining(['tier', 'canonical', 'resolution', 'authority']));
+    expect(schema.properties.tier.enum).toEqual(['stable', 'dev-latest', 'codebase', 'remote']);
+    expect([...BERTH_TARGET_TIERS]).toEqual(schema.properties.tier.enum);
+    expect([...BERTH_RESOLUTION_STATES]).toEqual(schema.properties.resolution.properties.state.enum);
+    expect([...BERTH_RESOLUTION_SOURCES]).toEqual(schema.properties.resolution.properties.source.enum);
+    expect(schema.properties.authority.properties.domain.enum).toEqual([
+      'canonical-local',
+      'dev-lane',
+      'worktree-lane',
+      'remote-harbor',
+      'read-only-import',
+    ]);
+    expect([...BERTH_AUTHORITY_DOMAINS]).toEqual(schema.properties.authority.properties.domain.enum);
+    expect([...BERTH_AUTHORITY_GRANTS]).toEqual(schema.properties.authority.properties.grantedBy.enum);
+    expect(schema.properties.authority.required).toEqual([
+      'domain',
+      'grantedBy',
+      'canCommand',
+      'canQuery',
+      'canSubscribeEvents',
+    ]);
+    expect(validate(schema, fixture)).toEqual([]);
+
+    const uiPromoted = { ...fixture, authority: { ...fixture.authority, domain: 'fleetbar' } };
+    expect(validate(schema, uiPromoted).some((e) => e.includes('authority.domain'))).toBe(true);
+
+    const readOnlyImport = {
+      ...fixture,
+      targetId: 'berth_target_imported',
+      tier: 'remote',
+      label: 'imported-run',
+      canonical: false,
+      authority: {
+        domain: 'read-only-import',
+        grantedBy: 'read-only-import',
+        canCommand: false,
+        canQuery: true,
+        canSubscribeEvents: true,
+      },
+    };
+    expect(validate(schema, readOnlyImport)).toEqual([]);
   });
 });
 

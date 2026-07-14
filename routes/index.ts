@@ -53,6 +53,7 @@ import { arbiterPlugin } from './arbiter.js';
 import { pheromonePlugin } from './pheromone.js';
 import { tuplesPlugin } from './tuples.js';
 import { blobPlugin } from './blob.js';
+import { bootyPlugin } from './booty.js';
 import { fleetPlugin } from './fleet.js';
 import { observabilityPlugin } from './observability.js';
 import { metricsPromPlugin } from './metrics-prom.js';
@@ -83,6 +84,7 @@ import { testHooksPlugin } from './test-hooks.js';
 import { cockpitPlugin } from './cockpit.js';
 import { popperPlugin } from './popper.js';
 import { dispatchesPlugin } from './dispatches.js';
+import { harbormasterPlugin } from './harbormaster.js';
 import { visualTasksPlugin } from './visual-tasks.js';
 import { fleetHitlProposalsPlugin } from './fleet-hitl-proposals.js';
 import { setupPlugin } from './setup.js';
@@ -219,6 +221,13 @@ export async function registerAllRoutes(
     await fastify.register(blobPlugin, { deps } as any);
   }
 
+  // Booty — artifact harvest provenance over the blob store (slice S4a).
+  // Requires both the provenance table (booty) and the blob store (blobs):
+  // a booty row must never point at bytes the store cannot produce.
+  if ((deps as any).booty && (deps as any).blobs) {
+    await fastify.register(bootyPlugin, { deps } as any);
+  }
+
   // Fleet daemon (always-on fleet management) — fleetDaemon, messaging, logger are in deps
   if ((deps as any).fleetDaemon) {
     await fastify.register(fleetPlugin, { deps } as any);
@@ -342,16 +351,20 @@ export async function registerAllRoutes(
   await fastify.register(cockpitPlugin, { deps } as any);
 
   // Roadmap popper HTTP surface — operator's pd popper CLI + FleetBar
-  // Nightshift status banner. Conditional on deps.popper being supplied.
-  if ((deps as { popper?: unknown }).popper) {
-    await fastify.register(popperPlugin, { deps } as any);
-  }
+  // Nightshift status banner. Self-degrades instead of 404ing when the
+  // popper body is not configured in a stripped daemon mode.
+  await fastify.register(popperPlugin, { deps } as any);
 
   // Dispatch queue HTTP surface — operator's POST /dispatches +
   // accept/reject/cancel buttons. Requires `dispatchQueue` in deps.
   if ((deps as { dispatchQueue?: unknown }).dispatchQueue) {
     await fastify.register(dispatchesPlugin, { deps } as any);
   }
+
+  // Harbormaster status HTTP surface — FleetBar polls this read-only view
+  // instead of shelling out to `pd harbormaster status`. Self-degrades when
+  // stripped daemon modes do not provide a DB.
+  await fastify.register(harbormasterPlugin, { deps } as any);
 
   // Fleet HITL proposals — cloud ships can propose work, but only these
   // operator-gated routes may turn a proposal into a dispatch.

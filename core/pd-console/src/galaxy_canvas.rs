@@ -1,4 +1,4 @@
-//! The Session Galaxy's interactive GPUI canvas — the RENDER half of the
+//! Sextant's interactive GPUI canvas — the RENDER half of the
 //! two-layer rule. Every coordinate the map paints was precomputed by the
 //! daemon and parsed/hit-tested in the gpui-free `galaxy_pane` engine (which
 //! the headless REPL bin gates in CI); this module only places absolute point
@@ -121,7 +121,7 @@ fn camera_toolbar(view: &ConsoleView, t: &Theme, cx: &mut Context<ConsoleView>) 
         .into_any_element()
 }
 
-/// Render the whole Galaxy surface body: eyebrow + meta, the interactive map,
+/// Render the whole Sextant surface body: eyebrow + meta, the interactive map,
 /// the hover readout strip, the selection/parley bar, and the detail drawer.
 pub(crate) fn render_galaxy(
     view: &ConsoleView,
@@ -164,7 +164,7 @@ pub(crate) fn render_galaxy(
                 .text_size(px(tokens::TEXT_EYEBROW))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(rgb(t.accent_ink))
-                .child("\u{2693} SESSION GALAXY \u{00b7} EMBEDDING MAP OF RECENT AGENT SESSIONS"),
+                .child("\u{2693} SEXTANT \u{00b7} SESSION ORIENTATION MAP"),
         )
         .child(meta_row(snapshot, &base_meta, &computed_meta, &t, cx));
 
@@ -248,13 +248,11 @@ pub(crate) fn render_galaxy(
     root.into_any_element()
 }
 
-/// The header's meta line: static session/cluster counts + two clickable
-/// chips — "window Nh" cycles the query window (24→72→168→720→24, the SAME
-/// `ControlMsg::GalaxyParams` path the control socket's `galaxy` command
-/// uses) and "clustering on/off" toggles daemon-side k-means (`cluster=false`
-/// on the wire). Both chips call NEW `pub(crate)` hooks on `ConsoleView`
-/// (`cycle_galaxy_window` / `toggle_galaxy_cluster`) — see this crate's
-/// gpui-rust-console skill graft notes for why the hook lives in app.rs.
+/// The header's meta line: static session/cluster counts + an inline window
+/// selector + clustering toggle. The window selector is deliberately not a
+/// dropdown: GPUI 0.2.2 paints this pane's scatter plot as an occluding relative
+/// surface, and a menu-shaped child here can visually disappear under the map.
+/// Inline choices keep the operator in the flow and avoid a fourth layer owner.
 fn meta_row(
     snapshot: &gp::GalaxySnapshot,
     base_meta: &str,
@@ -275,20 +273,7 @@ fn meta_row(
                 .text_color(rgb(t.muted))
                 .child("  \u{00b7}  ".to_string()),
         )
-        .child(
-            div()
-                .id("galaxy-window-chip")
-                .cursor_pointer()
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(rgb(t.accent_ink))
-                .hover(|s| s.text_color(rgb(current_theme().accent)))
-                .child(format!("window {}h \u{25be}", snapshot.window_hours))
-                .on_click(cx.listener(|this, _ev, _window, cx| {
-                    this.cycle_galaxy_window();
-                    crate::audio::play(crate::audio::Cue::Tick);
-                    cx.notify();
-                })),
-        )
+        .child(window_selector(snapshot.window_hours, t, cx))
         .child(
             div()
                 .text_color(rgb(t.muted))
@@ -318,6 +303,68 @@ fn meta_row(
                 .child(computed_meta.to_string()),
         )
         .into_any_element()
+}
+
+fn window_selector(active_hours: u32, t: &Theme, cx: &mut Context<ConsoleView>) -> AnyElement {
+    let mut row = div()
+        .id("sextant-window-choices")
+        .flex()
+        .items_center()
+        .gap(px(2.0))
+        .rounded(px(tokens::RADIUS_MD))
+        .border_1()
+        .border_color(rgb(t.line))
+        .bg(rgb(t.panel))
+        .p(px(2.0))
+        .child(
+            div()
+                .px(px(tokens::SPACE_1))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(rgb(t.muted))
+                .child("window"),
+        );
+
+    for (hours, label) in [(24_u32, "24h"), (72, "3d"), (168, "7d"), (720, "30d")] {
+        let selected = active_hours == hours;
+        row = row.child(
+            div()
+                .id(SharedString::from(format!("sextant-window-{hours}h")))
+                .min_w(px(32.0))
+                .h(px(24.0))
+                .px(px(tokens::SPACE_1))
+                .rounded(px(tokens::RADIUS_SM))
+                .flex()
+                .items_center()
+                .justify_center()
+                .text_size(px(tokens::TEXT_CAPTION))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(rgb(if selected { t.bg } else { t.ink2 }))
+                .bg(if selected {
+                    rgb(t.accent)
+                } else {
+                    rgba(0x00000000)
+                })
+                .cursor_pointer()
+                .hover(|s| {
+                    let t = current_theme();
+                    s.text_color(rgb(if selected { t.bg } else { t.accent_ink }))
+                        .bg(if selected {
+                            rgb(t.accent)
+                        } else {
+                            rgb(t.raised)
+                        })
+                })
+                .child(label)
+                .on_click(cx.listener(move |this, _ev, _window, cx| {
+                    this.set_galaxy_window(hours);
+                    crate::audio::play(crate::audio::Cue::Tick);
+                    cx.notify();
+                })),
+        );
+    }
+
+    row.into_any_element()
 }
 
 /// The scatter map itself: a relative container whose laid-out bounds a canvas

@@ -112,4 +112,35 @@ describe('ideas trove utilities', () => {
     expect(contextResults[0].slug).toBe('forensic-context-windows');
     expect(contextResults[0].matches).toContain('slug');
   });
+
+  test('search rewards multi-token coverage over one high-weight token coincidence', () => {
+    const entries = [
+      {
+        slug: 'query-router',
+        title: 'Query router',
+        status: 'backlog',
+        section: 'secondary',
+        source: 'trove',
+        summary: 'Only one query token matches this entry.',
+        details: [],
+        nextCut: [],
+        provenance: [],
+      },
+      {
+        slug: 'full-coverage',
+        title: 'Full coverage',
+        status: 'backlog',
+        section: 'secondary',
+        source: 'trove',
+        summary: 'Lower-weight detail fields should still win when they satisfy the whole ask.',
+        details: ['provider neutral query'],
+        nextCut: [],
+        provenance: [],
+      },
+    ];
+
+    const results = searchIdeas(entries, 'provider neutral query', { limit: 2 });
+    expect(results.map((entry) => entry.slug)).toEqual(['full-coverage', 'query-router']);
+    expect(results[0].score).toBeGreaterThan(results[1].score);
+  });
 });

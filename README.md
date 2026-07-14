@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.24.1)
+# ⚓ Port Daddy (v3.24.2)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
@@ -13,7 +13,7 @@
   <a href="https://npmjs.com/package/port-daddy"><img src="https://img.shields.io/npm/v/port-daddy.svg?logo=npm&color=3AADAD" alt="npm version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-FSL--1.1--MIT-blue?color=3AADAD" alt="license"></a>
   <a href="https://github.com/curiositech/port-daddy"><img src="https://img.shields.io/badge/tests-7,300%2B%20passing-brightgreen?logo=jest&color=3AADAD" alt="tests"></a>
-  <a href="skills/port-daddy-agent-skill"><img src="https://img.shields.io/badge/MCP%20tools-179-blueviolet?color=3AADAD" alt="MCP tools"></a>
+  <a href="skills/port-daddy-agent-skill"><img src="https://img.shields.io/badge/MCP%20tools-180-blueviolet?color=3AADAD" alt="MCP tools"></a>
 </p>
 
 ---
@@ -26,7 +26,7 @@ While individual agents are brilliant, **coordination** is the bottleneck. Port 
 
 ```bash
 # Start working (registers agent + claims port + starts session)
-pd begin "Building the auth layer" --identity myapp:api --lifecycle durable
+pd begin "Building the auth layer" --identity myapp:api --lifecycle durable --roadmap auth-layer
 
 # Log progress, coordinate with other agents
 pd note "JWT validation passing all tests"
@@ -171,7 +171,7 @@ Every unit of agent work is a **session**: begin, leave notes, claim files, fini
 ### `pd begin` requires an explicit lifecycle
 
 ```bash
-pd begin "Fix flaky auth tests" --identity myapp:api --lifecycle durable
+pd begin "Fix flaky auth tests" --identity myapp:api --lifecycle durable --sidequest "flaky-test triage"
 ```
 
 `--lifecycle` is **mandatory** and takes exactly two values:
@@ -181,10 +181,26 @@ pd begin "Fix flaky auth tests" --identity myapp:api --lifecycle durable
 
 The same requirement applies to `pd session start` and the MCP `begin_session` tool.
 
+### `pd begin` charges roadmap rent
+
+Every session must say where it sits on the roadmap — one line, at start, not at PR time. Pass exactly one of:
+
+```bash
+pd begin "…" --lifecycle durable --roadmap adr-0090-database-distribution   # link an existing item
+pd begin "…" --lifecycle durable --roadmap-new "Rent-at-claim gate"         # create a draft item and link it
+pd begin "…" --lifecycle durable --sidequest "one-off CI flake hunt"        # explicit opt-out (min 12 chars)
+```
+
+- `--roadmap <slug>` is validated against the daemon's roadmap; unknown slugs get a did-you-mean list of the nearest slugs by prefix.
+- `--roadmap-new "<title>"` creates a draft roadmap item (provenance note `genesis-at-begin`) via the roadmap service and links it. If the slug already exists, the session links to the existing item instead of overwriting it.
+- `--sidequest "<reason>"` records why the work is off-roadmap.
+
+Without one of the three, non-TTY runs fail with the three options above; a TTY prompts interactively. The link or reason lands on the session record and shows up in `pd whoami` and `pd sessions`. `pd roadmap pop --begin` passes the popped slug through automatically. The MCP `begin_session` tool enforces the same gate: exactly one of `roadmap`, `roadmap_new`, or `sidequest` is required (`ROADMAP_RENT_REQUIRED` otherwise); only the daemon's raw HTTP surface stays lenient in v1.
+
 ### The loop
 
 ```bash
-pd begin "…" --identity myapp:api --lifecycle durable
+pd begin "…" --identity myapp:api --lifecycle durable --roadmap <slug>
 pd note "Scope: lib/auth.ts. Assumptions: JWT lib stays. Validation: npm test"
 pd session files add lib/auth.ts        # advisory claim — announce edit intent
 pd add lib/auth.ts                      # claim-aware git add (refuses files held by others)
@@ -433,6 +449,17 @@ pd skill-graft "write tests for a flaky fleet trigger"    # preview the local sk
 
 Search across Port Daddy is **hybrid** — BM25 plus one shared local embedding model (`Xenova/all-MiniLM-L6-v2`, prefetched at install per ADR-0061). `pd memory tiers` prints the three-tier vocabulary overlay (Core/Recall/Archival) over the same SQLite substrate.
 
+### Artifact Harvest (Booty)
+
+Artifacts an agent produces (design workups, screenshots, HTML mocks, videos) are durable truth on any branch. `pd booty add` content-addresses files into the blob store and records a provenance row — branch and worktree from git, session and agent identity from the active pd session:
+
+```bash
+pd booty add designs/hero.png --roadmap state-plane --note "hero workup v2"
+pd booty list --branch claude/feature-x                    # what was harvested where, by whom
+```
+
+Re-depositing the same bytes on the same branch is idempotent; the same bytes on a different branch is a new provenance row. The daemon's blob store is authoritative for size and media type.
+
 ### The Arbiter (Runtime Invariant Enforcement)
 
 The Arbiter monitors every state transition against formally-derived invariants: PID squatting, capability escalation, note monotonicity, escrow positivity, lock-owner validity, heartbeat freshness.
@@ -511,7 +538,7 @@ Quiet mode (`-q`) prints raw output to stdout and exits non-zero on failure — 
 
 **Key flags:** `--backend`, `--model`, `--tier`, `--identity`, `--purpose`, `--budget`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`
 
-**Backends in source:** `claude` (SDK), `claude-cli`, `codex`, `gemini`, `cloudflare` (Workers AI), `ollama`, `aider`, `custom`. Operator-facing launches are **fail-closed on telemetry**: Port Daddy rejects a launch unless it can attach exact token counts, an exact nonzero rate, and a persisted exact cost record to the completed run. Today that means the Claude SDK backend with an exact-rate model entry is the live launchable path; treat other backends as blocked until they reach telemetry parity. `pd backend` switches the active provider/model configuration; `pd benchmark run` compares backends with real (paid) calls.
+**Backends in source:** `claude` (SDK), `claude-cli`, `codex`, `gemini`, `cloudflare` (Workers AI), `openai`, `groq`, `deepseek`, `xai`, `ollama`, `lmstudio`, `aider`, `custom`, and CLI-tube backends `cli:claude-code`, `cli:codex`, `cli:agy`, `cli:gemini`, `cli:groq`, `cli:grok`. Operator-facing launches are **fail-closed on telemetry**: metered API backends need exact token counts, an exact nonzero rate, and a persisted exact cost record. Spawn results and transcripts expose requested/effective backend+model provenance plus the override source when preflight or a forced CLI selection changes what actually ran. CLI-tube backends ride the operator's authenticated local CLI and record a flat session estimate; `cli:agy` captures the user prompt plus final stdout/stderr only until agy exposes a documented stream. `pd backend` switches the active provider/model configuration; `pd benchmark run` compares backends with real (paid) calls.
 
 ### 🛡️ The Coast Guard (ADR-0050) — confinement is the default
 
@@ -625,6 +652,8 @@ Port Daddy escrows virtual USD before each agent spawn and can stop live spawns 
 
 **Budget breach is pause-and-ask, not cliff SIGTERM** (the `budget_guard` feature). At 100% of daily budget, Port Daddy posts a *pending kill* with a 60-second grace window and broadcasts on `budget:pending`. The operator can `raise` (credit the wallet, agent keeps running), `kill` (SIGTERM now), or `grace` (extend, up to twice). The backstop SIGTERM fires at expiry. `pd wallet pending` lists; `pd wallet raise --agent <id> --usd 5` resolves.
 
+Per-launch positive finite `budgetUsd` on `pd spawn` / `POST /spawn` is stricter: once exact spawn telemetry is recorded, a run whose final `telemetry.costUsd` exceeds that cap is finalized as `over_budget` with the transcript and cost preserved for readback.
+
 **Fleet Conductor cost gates (ADR-0060).** Every sortie and reactive spawn routes through one `conductor.launch` chokepoint that reserves against a global ceiling and a per-subtree lineage ceiling *before* admission:
 
 | Env var | Default | Effect |
@@ -699,9 +728,12 @@ pd doctor    # Three-tier health check (see Installation)
 pd attest    # Invariant self-report
 pd diagnose  # Deeper diagnostics
 curl http://127.0.0.1:9876/status   # Full daemon report incl. recent activity and spend
+curl http://127.0.0.1:9876/transcripts/compliance  # Transcript backend matrix + live stalled/missing-run HITL issues
+curl http://127.0.0.1:9876/transcripts/emergency   # HITL transcript emergency summary across local + cloud writers
 ```
 
 `launchctl` is the canonical supervisor on macOS; Bosun is the optional non-agent watchdog fed by a filesystem heartbeat.
+`GET /status` and `GET /health` now fold transcript-flow health into `runtime.transcripts`, and surface critical live-run gaps (stalled live stream, missing final transcript) as HITL-tagged runtime reasons.
 
 ### Daemon berths (ADR-0084)
 
@@ -711,10 +743,12 @@ Run tiered daemons side by side — a stable daemon for real work, a dev daemon 
 pd dev up          # start an isolated feature-branch dev daemon
 pd dev gc          # smart-reap stale dev berths (24h TTL)
 pd dev down        # stop a berth
-pd use <berth>     # emits a shell snippet to point your shell at a berth (eval it)
+pd use <berth>     # emits a shell snippet for this shell/process (eval it)
 ```
 
-FleetBar shows which berth you're on (stable / dev-latest / codebase chip).
+`pd use` is not a global daemon switch. It points the current shell or launched
+process at a berth; FleetBar, Control Center, and pd-console show the
+berth/codebase/dev lane they are actually connected to.
 
 ### Backup & restore (ADR-0037)
 
@@ -767,13 +801,19 @@ Port Daddy ships exactly **three** sanctioned operator surfaces (the legacy web 
 2. **Control Center** — FleetBar's window. Fleet graph, agents view (configured fleet agents, live registry, spawned runs, salvage ghosts, inbox traffic, sessions/notes, channels, claims), fleet config editing with topology validation.
 3. **pd-console** (`core/pd-console/`) — the GPU-native (gpui) operator console. Sidebar panes for Fleet, Sorties, Dispatch, Sessions, Health, Parley, Conductor, Substrate; a headless TUI build for terminals/CI; three build lanes (prod/latest/dev) with distinct bundle IDs and icons. Build via `make` / `make install`; the Homebrew cask ships `pd-console-prod.app`.
 
+The Agent Harbor runtime-refactor target triad centers pd-console as the deep
+truth surface, FleetBar as ambient consent/status/re-entry, and Scout as
+evidence-backed intake. Those operator clients use the shared daemon contract /
+Surface Gateway path. CLI and MCP are automation adapters, not something the
+native surfaces shell out to internally.
+
 Visual feedback loop (the `visual_tasks` feature): FleetBar and the `apps/pd-scout-extension` Chrome extension can submit annotated screenshots (`POST /visual-tasks`); the daemon persists the evidence, publishes `visual-feedback`, routes to a local agent or cloud-fleet target, and opens a reviewable work item.
 
 ---
 
 ## 🤖 MCP Server & Agent Skill
 
-The MCP server exposes **179 tools** across the whole surface — session lifecycle (`begin_session` with the same required `lifecycle` enum, `end_session_full`), ports, notes, locks, messaging, salvage, actors, inboxes, webhooks, DNS, tunnels, sorties, tuples, pheromones, roadmap, commitments, parleys, symbols/conflict prediction, region-scoped editor claims (`claim_region`/`release_region`, agent-neutral), fleet control (bonds/wallets/panic), semantic graph/memory, and discovery (`pd_discover`) — plus **6 resources** (`port-daddy://skill`, `://services`, `://sessions`, `://agents`, `://locks`, `://tunnels`).
+The MCP server exposes **180 tools** across the whole surface — session lifecycle (`begin_session` with the same required `lifecycle` enum, `end_session_full`), ports, notes, locks, messaging, salvage, actors, inboxes, webhooks, DNS, tunnels, sorties, tuples, pheromones, roadmap, commitments, parleys, symbols/conflict prediction, region-scoped editor claims (`claim_region`/`release_region`, agent-neutral), fleet control (bonds/wallets/panic), semantic graph/memory, harbormaster status, and discovery (`pd_discover`) — plus **6 resources** (`port-daddy://skill`, `://services`, `://sessions`, `://agents`, `://locks`, `://tunnels`).
 
 ```bash
 pd mcp install          # auto-detect Claude Code, Claude Desktop, Cursor, Windsurf,

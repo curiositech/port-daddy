@@ -1,6 +1,8 @@
 import { describe, expect, test } from '@jest/globals';
 import Fastify from 'fastify';
 import { infoPlugin } from '../../routes/info.js';
+import { createTestDb } from '../setup-unit.js';
+import { createTranscripts } from '../../lib/transcripts.js';
 
 function buildDeps(overrides = {}) {
   return {
@@ -291,6 +293,65 @@ describe('info routes runtime summary', () => {
     await app.close();
   });
 
+  test('GET /health raises a transcript HITL issue when a live run stalls', async () => {
+    const db = createTestDb();
+    const transcripts = createTranscripts(db);
+    const startedAt = Date.now() - 120_000;
+    const id = transcripts.start({
+      ship: 'spawn:cli:codex',
+      spawned_agent_id: 'spawned-health-stalled',
+      trigger: 'manual',
+      backend: 'cli:codex',
+      model: 'codex-cli',
+      started_at: startedAt,
+    });
+    transcripts.appendMessage(id, {
+      role: 'assistant',
+      content: 'stale heartbeat proof',
+      timestamp: startedAt,
+    });
+
+    const app = Fastify();
+    await app.register(infoPlugin, {
+      deps: buildDeps({
+        transcripts,
+        spawner: {
+          list() {
+            return [{
+              agentId: 'spawned-health-stalled',
+              backend: 'cli:codex',
+              status: 'running',
+              startedAt,
+              completedAt: null,
+            }];
+          },
+        },
+      }),
+    });
+
+    const res = await app.inject({ method: 'GET', url: '/health' });
+    const body = res.json();
+
+    expect(res.statusCode).toBe(200);
+    expect(body.runtime.transcripts).toEqual(expect.objectContaining({
+      state: 'degraded',
+      hitlEmergency: true,
+      degradedRuns: 1,
+      liveRuns: 1,
+    }));
+    expect(body.runtime.reasons).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: 'transcript_flow_stalled',
+        component: 'transcripts',
+        requiresHitl: true,
+        agentId: 'spawned-health-stalled',
+      }),
+    ]));
+
+    await app.close();
+    db.close();
+  });
+
   test('GET /status exposes Bosun heartbeat without a Barnacle compatibility alias', async () => {
     const app = Fastify();
     await app.register(infoPlugin, {
@@ -331,6 +392,46 @@ describe('info routes runtime summary', () => {
     }));
     expect(body.guardians).not.toHaveProperty('barnacle');
 
+    await app.close();
+  });
+});
+
+describe('daemon state plane (S1 — plane identity)', () => {
+  test('GET /version carries the plane when wired', async () => {
+    const app = Fastify();
+    await app.register(infoPlugin, { deps: buildDeps({ plane: 'dev-latest' }) });
+    const res = await app.inject({ method: 'GET', url: '/version' });
+    const body = res.json();
+    expect(res.statusCode).toBe(200);
+    expect(body.version).toBe('9.9.9');
+    expect(body.plane).toBe('dev-latest');
+    await app.close();
+  });
+
+  test('GET /health carries the plane when wired', async () => {
+    const app = Fastify();
+    await app.register(infoPlugin, { deps: buildDeps({ plane: 'ephemeral:pd-feat-x' }) });
+    const res = await app.inject({ method: 'GET', url: '/health' });
+    const body = res.json();
+    expect(res.statusCode).toBe(200);
+    expect(body.status).toBe('ok');
+    expect(body.plane).toBe('ephemeral:pd-feat-x');
+    await app.close();
+  });
+
+  test('prod plane rides through verbatim on both routes', async () => {
+    const app = Fastify();
+    await app.register(infoPlugin, { deps: buildDeps({ plane: 'prod' }) });
+    expect((await app.inject({ method: 'GET', url: '/version' })).json().plane).toBe('prod');
+    expect((await app.inject({ method: 'GET', url: '/health' })).json().plane).toBe('prod');
+    await app.close();
+  });
+
+  test('plane is omitted when not wired (legacy daemon)', async () => {
+    const app = Fastify();
+    await app.register(infoPlugin, { deps: buildDeps() });
+    expect((await app.inject({ method: 'GET', url: '/version' })).json().plane).toBeUndefined();
+    expect((await app.inject({ method: 'GET', url: '/health' })).json().plane).toBeUndefined();
     await app.close();
   });
 });

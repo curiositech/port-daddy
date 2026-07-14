@@ -73,6 +73,11 @@ export interface BosunHeartbeatPayload {
   pidFile: string;
   portFile: string;
   hostname: string;
+  /**
+   * State plane the daemon classified itself onto at boot (S1 —
+   * lib/state-plane.ts). Absent when the daemon predates plane identity.
+   */
+  plane?: string;
 }
 
 export interface BosunHeartbeatStatus {
@@ -103,6 +108,8 @@ export interface BosunHeartbeatOptions {
   pidFile?: string;
   portFile?: string;
   pid?: number;
+  /** State plane to stamp into every heartbeat payload (S1). */
+  plane?: string;
   requirePidFileMatch?: boolean;
   now?: () => number;
   uptimeMs?: () => number;
@@ -263,6 +270,9 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
       pidFile,
       portFile,
       hostname: hostname(),
+      // State plane (S1) — spread conditionally so legacy heartbeat files keep
+      // their exact JSON shape when no plane was classified.
+      ...(options.plane ? { plane: options.plane } : {}),
     };
   }
 

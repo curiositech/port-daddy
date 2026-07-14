@@ -54,6 +54,8 @@ import {
   handleSalvage,
   // Changelog
   handleChangelog,
+  // Booty (artifact harvest)
+  handleBooty,
   // Inbox
   handleInbox,
   handleSent,
@@ -1375,7 +1377,7 @@ const ALL_COMMANDS: string[] = [
   'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update', 'upgrade',
   'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'benchmark', 'look', 'sitrep', 'roadmap',
   'advise', 'preflight', 'compass', 'guard', 'hooks',
-  'salvage', 'resurrection', 'changelog', 'tunnel',
+  'salvage', 'resurrection', 'changelog', 'booty', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'work', 'transcripts', 'transcript', 'relay',
@@ -2672,6 +2674,11 @@ export async function main(): Promise<void> {
       // Hierarchical changelog
       case 'changelog':
         await handleChangelog(positional[0], positional.slice(1), options);
+        break;
+
+      // Booty — artifact harvest into the blob store with provenance
+      case 'booty':
+        await handleBooty(positional[0], positional.slice(1), options);
         break;
 
       // Agent inbox (top-level shortcut)

@@ -1,0 +1,140 @@
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { initDatabase, closeDatabase } from '../../lib/db.js';
+import type { DatabaseInstance } from '../../lib/sqlite-runtime.js';
+import { readEvents } from '../../lib/agent-harbor/event-ledger.js';
+import {
+  WorkIntentMaterializationError,
+  createWorkIntentService,
+} from '../../lib/agent-harbor/work-intent-service.js';
+import { createDispatchQueue } from '../../lib/dispatch/queue.js';
+
+describe('WorkIntentService', () => {
+  let db: DatabaseInstance;
+
+  beforeEach(() => {
+    db = initDatabase({ inMemory: true });
+  });
+
+  afterEach(() => {
+    closeDatabase(db);
+  });
+
+  it('captures dispatch intake once and materializes one retry-safe dispatch projection', () => {
+    const service = createWorkIntentService({
+      db,
+      now: () => new Date('2026-07-09T02:30:00.000Z'),
+    });
+    const queue = createDispatchQueue({ db });
+
+    const first = service.captureDispatch({
+      goal: 'ship the WorkIntent dispatch intake',
+      requestedBy: 'operator',
+      baseBranch: 'main',
+      mergePolicy: 'review',
+      idempotencyKey: 'request-123',
+    }, queue);
+    const retry = service.captureDispatch({
+      goal: 'ship the WorkIntent dispatch intake',
+      requestedBy: 'operator',
+      baseBranch: 'main',
+      mergePolicy: 'review',
+      idempotencyKey: 'request-123',
+    }, queue);
+
+    expect(first.append.duplicate).toBe(false);
+    expect(retry.append.duplicate).toBe(true);
+    expect(retry.intent.intentId).toBe(first.intent.intentId);
+    expect(retry.dispatch.id).toBe(first.dispatch.id);
+    expect(queue.list({ state: 'all' })).toHaveLength(1);
+
+    const events = readEvents(db, { streamType: 'work-intent' });
+    expect(events).toHaveLength(1);
+    const payload = JSON.parse(events[0].payload_json);
+    expect(payload.source).toEqual(expect.objectContaining({ kind: 'compat', legacyVerb: 'dispatch' }));
+    expect(payload.startPolicy).toBe('queued');
+    expect(payload.compat.dispatchId).toBe(first.dispatch.id);
+  });
+
+  it('imports exactly one WorkIntent for a legacy dispatch before side effects', () => {
+    const service = createWorkIntentService({
+      db,
+      now: () => new Date('2026-07-09T02:31:00.000Z'),
+    });
+    const queue = createDispatchQueue({ db, now: () => 1_820_000_000_000 });
+    const legacy = queue.propose({
+      goal: 'legacy row without WorkIntent',
+      requestedBy: 'operator',
+      baseBranch: 'main',
+    });
+
+    const first = service.ensureDispatchIntent(legacy);
+    const retry = service.ensureDispatchIntent(legacy);
+
+    expect(first.imported).toBe(true);
+    expect(first.append?.duplicate).toBe(false);
+    expect(retry.imported).toBe(false);
+    expect(retry.append).toBeNull();
+    expect(readEvents(db, { streamType: 'work-intent' })).toHaveLength(1);
+    expect(retry.intent.compat?.dispatchId).toBe(legacy.id);
+  });
+
+  it('retries failed materialization from the persisted WorkIntent payload, not retry parameters', () => {
+    const service = createWorkIntentService({
+      db,
+      now: () => new Date('2026-07-09T02:32:00.000Z'),
+    });
+    const queue = createDispatchQueue({ db });
+
+    expect(() => service.captureDispatch({
+      goal: 'persisted failing projection',
+      requestedBy: 'operator',
+      budgetUsd: -1,
+      idempotencyKey: 'bad-projection',
+    }, queue)).toThrow(WorkIntentMaterializationError);
+    expect(queue.list({ state: 'all' })).toHaveLength(0);
+
+    expect(() => service.captureDispatch({
+      goal: 'retry tries to change the ledger fact',
+      requestedBy: 'operator',
+      budgetUsd: 10,
+      idempotencyKey: 'bad-projection',
+    }, queue)).toThrow(/budgetUsd must be a positive number/);
+    expect(queue.list({ state: 'all' })).toHaveLength(0);
+
+    const events = readEvents(db, { streamType: 'work-intent' });
+    expect(events).toHaveLength(1);
+    const payload = JSON.parse(events[0].payload_json);
+    expect(payload.goal.text).toBe('persisted failing projection');
+    expect(payload.compat.dispatchProjection.budgetUsd).toBe(-1);
+  });
+
+  it('uses the deterministic event-id fast path before falling back to a ledger scan', () => {
+    const noScanDb = new Proxy(db, {
+      get(target, prop, receiver) {
+        if (prop !== 'prepare') return Reflect.get(target, prop, receiver);
+        return (sql: string) => {
+          if (sql.includes("WHERE stream_type = 'work-intent' ORDER BY ledger_seq ASC")) {
+            throw new Error('full scan forbidden in this regression');
+          }
+          return target.prepare(sql);
+        };
+      },
+    }) as DatabaseInstance;
+    const service = createWorkIntentService({
+      db: noScanDb,
+      now: () => new Date('2026-07-09T02:33:00.000Z'),
+    });
+    const queue = createDispatchQueue({ db });
+
+    const captured = service.captureDispatch({
+      goal: 'fast lookup dispatch',
+      requestedBy: 'operator',
+      idempotencyKey: 'fast-path',
+    }, queue);
+    const ensured = service.ensureDispatchIntent(captured.dispatch);
+
+    expect(ensured.imported).toBe(false);
+    expect(ensured.intent.intentId).toBe(captured.intent.intentId);
+    expect(readEvents(db, { streamType: 'work-intent' })).toHaveLength(1);
+  });
+});

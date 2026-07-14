@@ -1,0 +1,27 @@
+{
+  "schema": "pd.agent-harbor.berth-target.v0",
+  "targetId": "berth_target_stable",
+  "tier": "stable",
+  "label": "stable",
+  "url": "http://127.0.0.1:9876",
+  "port": 9876,
+  "sourceDir": null,
+  "gitBranch": null,
+  "gitRev": null,
+  "canonical": true,
+  "resolution": {
+    "state": "resolved",
+    "source": "daemon-registry",
+    "resolvedAt": "2026-07-05T12:03:59.000Z",
+    "staleReason": null
+  },
+  "authority": {
+    "domain": "canonical-local",
+    "grantedBy": "daemon-registry",
+    "canCommand": true,
+    "canQuery": true,
+    "canSubscribeEvents": true,
+    "reason": "Stable local daemon is the canonical operator lane."
+  },
+  "createdAt": "2026-07-05T12:03:59.000Z"
+}

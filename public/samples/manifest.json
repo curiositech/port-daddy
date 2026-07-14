@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "packageVersion": "3.24.1",
+  "packageVersion": "3.24.2",
   "sources": [
     "examples",
     "templates"
@@ -190,8 +190,8 @@
     {
       "path": "examples/pd-tube/mission-control.html",
       "url": "/samples/files/examples/pd-tube/mission-control.html",
-      "bytes": 11120,
-      "sha256": "1e9bea8862cba40b431e68ac2c38d6787012d8d85610c2b0b33d601e8f781350"
+      "bytes": 11152,
+      "sha256": "ae66ecbb09be176d4f2c1d246fb8eb8cee589a68876503664e765d07e11f33ef"
     },
     {
       "path": "examples/pd-tube/README.md",

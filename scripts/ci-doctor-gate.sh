@@ -26,7 +26,9 @@ SCRATCH_BASE="${DOCTOR_GATE_SCRATCH_BASE:-$ROOT_DIR/.smoke-tmp}"
 mkdir -p "$SCRATCH_BASE"
 SCRATCH="$(mktemp -d "$SCRATCH_BASE/pd-doctor-gate.XXXXXX")"
 LOG="$SCRATCH/daemon.log"
+DIAGNOSTIC_REPORT_DIR="$SCRATCH/DiagnosticReports"
 DAEMON_PID=""
+mkdir -p "$DIAGNOSTIC_REPORT_DIR"
 
 cleanup() {
   if [ -n "$DAEMON_PID" ]; then kill "$DAEMON_PID" 2>/dev/null || true; fi
@@ -107,6 +109,8 @@ echo "OK: /health reports the shared severity=ok"
 #    a WARN — that must NOT fail the gate.
 export PORT_DADDY_URL="$BASE"
 export PORT_DADDY_PREFIX="$SCRATCH"
+export PORT_DADDY_DAEMON_LOG_PATHS="$LOG"
+export PORT_DADDY_DIAGNOSTIC_REPORT_DIR="$DIAGNOSTIC_REPORT_DIR"
 echo "Running: pd doctor --json"
 if ! DOCTOR_JSON="$("$CLI_BIN" doctor --json)"; then
   echo "FAIL: pd doctor --json exited non-zero (a CRITICAL health failure)" >&2

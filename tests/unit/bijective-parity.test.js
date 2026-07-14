@@ -332,6 +332,9 @@ describe('Test Group 3: API -> CLI Parity', () => {
     tuples: ['tuple'],
     cockpit: ['cockpit'],
     graph: ['graph'],
+    // booty: artifact harvest provenance over the blob store (slice S4a).
+    // routes/booty.ts (POST/GET /booty); `pd booty <add|list>` is its CLI surface.
+    booty: ['booty'],
     memory: ['memory'],
     cartographer: ['roadmap'],
     roadmap: ['roadmap'],
@@ -351,6 +354,9 @@ describe('Test Group 3: API -> CLI Parity', () => {
     // registered in routes/index.ts (popperPlugin), so it shows up as a route
     // category; `pd popper <status|next|pop|enable|disable>` is its CLI surface.
     popper: ['popper'],
+    // harbormaster: serialized merge-owner actor status API. `pd harbormaster`
+    // and `pd hm` are the CLI surfaces for status, queue, start, and stop.
+    harbormaster: ['harbormaster', 'hm'],
     // transcripts: ship-run records surface. routes/transcripts.ts is the
     // operator-facing read/delete API; `pd transcripts <list|show|cost|delete>`
     // is its CLI surface.

@@ -57,6 +57,9 @@ import type { DatabaseInstance } from '../sqlite-runtime.js';
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const STREAM_TYPES = [
+  'work-intent',
+  'work-plan',
+  'control-command',
   'transcript-event',
   'cost-accrual-event',
   'compliance-probe-result',
@@ -69,6 +72,9 @@ export type StreamType = (typeof STREAM_TYPES)[number];
 
 /** `schema` const discriminator each non-transcript stream must carry (ADR-0095 §6). */
 const SCHEMA_CONST: Record<Exclude<StreamType, 'transcript-event'>, string> = {
+  'work-intent': 'pd.agent-harbor.work-intent.v0',
+  'work-plan': 'pd.agent-harbor.work-plan.v0',
+  'control-command': 'pd.agent-harbor.control-command.v0',
   'cost-accrual-event': 'pd.agent-harbor.cost-accrual-event.v0',
   'compliance-probe-result': 'pd.agent-harbor.compliance-probe-result.v0',
   'work-receipt': 'pd.agent-harbor.work-receipt.v0',
@@ -78,6 +84,9 @@ const SCHEMA_CONST: Record<Exclude<StreamType, 'transcript-event'>, string> = {
 
 /** Required fields per stream type — mirrors the frozen schemas' `required` arrays. */
 const REQUIRED_FIELDS: Record<StreamType, string[]> = {
+  'work-intent': ['schema', 'intentId', 'idempotencyKey', 'source', 'goal', 'createdAt'],
+  'work-plan': ['schema', 'planId', 'intentId', 'shape', 'state', 'createdAt'],
+  'control-command': ['schema', 'commandId', 'agentNodeId', 'kind', 'requestedBy', 'status', 'createdAt'],
   'transcript-event': ['eventId', 'sessionId', 'agentNodeId', 'sequence', 'occurredAt', 'schemaVersion', 'kind'],
   'cost-accrual-event': ['schema', 'costEventId', 'agentNodeId', 'meter', 'phase', 'quantity', 'occurredAt'],
   'compliance-probe-result': ['schema', 'probeId', 'agentNodeId', 'probedAt', 'complianceLevel', 'witnessedLevel', 'transcriptFidelity', 'checks', 'negativeProbes'],
@@ -294,6 +303,42 @@ function validateRequired(streamType: StreamType, payload: HarborPayload): void 
 
 function extractFields(streamType: StreamType, payload: HarborPayload): ExtractedFields {
   switch (streamType) {
+    case 'work-intent':
+      return {
+        eventId: payload.intentId as string,
+        agentNodeId: null,
+        sessionId: null,
+        runId: null,
+        sequence: null,
+        kind: str(payload.startPolicy) ?? 'work-intent',
+        occurredAt: str(payload.createdAt),
+        idempotencyKey: str(payload.idempotencyKey),
+        schemaId: payload.schema as string,
+      };
+    case 'work-plan':
+      return {
+        eventId: payload.planId as string,
+        agentNodeId: null,
+        sessionId: null,
+        runId: null,
+        sequence: null,
+        kind: str(payload.state) ?? str(payload.shape) ?? 'work-plan',
+        occurredAt: str(payload.createdAt),
+        idempotencyKey: str(payload.idempotencyKey),
+        schemaId: payload.schema as string,
+      };
+    case 'control-command':
+      return {
+        eventId: payload.commandId as string,
+        agentNodeId: str(payload.agentNodeId),
+        sessionId: str(payload.sessionId),
+        runId: str(payload.runId),
+        sequence: null,
+        kind: str(payload.kind),
+        occurredAt: str(payload.createdAt),
+        idempotencyKey: str(payload.idempotencyKey),
+        schemaId: payload.schema as string,
+      };
     case 'transcript-event': {
       const source = (payload.source ?? {}) as Record<string, unknown>;
       return {

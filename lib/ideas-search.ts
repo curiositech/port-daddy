@@ -11,6 +11,7 @@ import {
   type IdeaSource,
   type IdeaStatus,
 } from './ideas-trove.js';
+import { applyDistinctTokenCoverageBonus } from './search-coverage.js';
 
 export type IdeaSearchSource = 'trove' | 'raw' | 'notes' | 'tuples' | 'markdown';
 export type IdeaSearchKind = 'idea' | 'note' | 'tuple' | 'markdown';
@@ -83,6 +84,20 @@ const MARKDOWN_IGNORE_DIRS = new Set([
   'public/fleet-ui',
   '.spark',
   '.spider',
+  // Nested git worktrees (`.claude/worktrees/<slug>/`, `.worktrees/<slug>/`) are
+  // each a FULL checkout of this repo — docs/, .cartographer/, everything.
+  // Never excluded here, `ideas search` walked every markdown file inside
+  // every one of them on every call: 269 nested worktrees observed in one
+  // checkout turned a sub-second scan into 90+ seconds (enough to blow the
+  // 30s CLI integration-test timeout in tests/integration/cli.test.js's
+  // "ideas search finds the ipc disconnect salvage family" test). `.claude`
+  // and `.worktrees` are excluded as whole directories (bare segment match
+  // via shouldIgnoreMarkdownDir, so any depth of nested worktree matches);
+  // `worktrees` alone is excluded too as a defensive catch-all for any other
+  // convention this repo or a future one uses.
+  '.claude',
+  '.worktrees',
+  'worktrees',
 ]);
 const MAX_MARKDOWN_BYTES = 256 * 1024;
 
@@ -125,7 +140,7 @@ function scoreFields(query: string, fields: Array<[string, string, number]>): Se
   const tokens = tokenize(query);
   const matches: string[] = [];
   let score = 0;
-  let tokenHits = 0;
+  let matchedTokenCount = 0;
 
   for (const token of tokens) {
     let matched = false;
@@ -140,7 +155,7 @@ function scoreFields(query: string, fields: Array<[string, string, number]>): Se
         matched = true;
       }
       if (matched) {
-        tokenHits += 1;
+        matchedTokenCount += 1;
         if (!matches.includes(label)) matches.push(label);
         break;
       }
@@ -156,8 +171,11 @@ function scoreFields(query: string, fields: Array<[string, string, number]>): Se
     }
   }
 
-  if (tokenHits === 0 && score === 0) return { score: 0, matches: [] };
-  return { score, matches };
+  if (matchedTokenCount === 0 && score === 0) return { score: 0, matches: [] };
+  return {
+    score: applyDistinctTokenCoverageBonus(score, matchedTokenCount, tokens.length),
+    matches,
+  };
 }
 
 function sourceRank(source: IdeaSearchSource): number {
