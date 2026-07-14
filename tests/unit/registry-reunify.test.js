@@ -219,6 +219,25 @@ describe('applyReunification', () => {
     expect(merged.summary_md).toBe('back');
   });
 
+  it('tombstone-vs-tombstone: both replicas deleted the row — newer deleted_at wins, no flapping', () => {
+    const first = planReunification(
+      [{ label: 'a', rows: [row({ slug: 's', deleted_at: 100, last_touched_at: 100 })], events: [] }],
+      [], 'port-daddy',
+    );
+    apply(first);
+    const second = planReunification(
+      [{ label: 'b', rows: [row({ slug: 's', deleted_at: 250, last_touched_at: 250 })], events: [] }],
+      [], 'port-daddy',
+    );
+    apply(second);
+
+    const merged = db.prepare("SELECT deleted_at, last_touched_at FROM roadmap_items WHERE slug = 's'").get();
+    expect(merged.deleted_at).toBe(250);
+    expect(merged.last_touched_at).toBe(250);
+    // Exactly one row, still dead — concurrent deletes converge.
+    expect(db.prepare('SELECT COUNT(*) AS n FROM roadmap_items').get().n).toBe(1);
+  });
+
   it('the snapshot floor never resurrects a tombstoned pair', () => {
     const plan = planReunification(
       [{ label: 'a', rows: [row({ slug: 's', deleted_at: 100, last_touched_at: 100 })], events: [] }],
