@@ -396,7 +396,7 @@ fn launcher_items() -> Vec<LauncherItem> {
 fn surface_for_launcher_id(id: &str) -> SurfaceKind {
     match id {
         "chat" => SurfaceKind::CartographerChat,
-        "files" => SurfaceKind::FileTree { root: None },
+        "files" => SurfaceKind::FileTree { root: None, nav: Default::default() },
         "alerts" => SurfaceKind::Hitl,
         "work" => SurfaceKind::Work,
         nav => surface_for_nav_id(nav),
@@ -438,7 +438,7 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
     }
     match q.as_str() {
         "cartographer" => return Some(SurfaceKind::CartographerChat),
-        "tree" | "filetree" => return Some(SurfaceKind::FileTree { root: None }),
+        "tree" | "filetree" => return Some(SurfaceKind::FileTree { root: None, nav: Default::default() }),
         "hitl" => return Some(SurfaceKind::Hitl),
         "work" | "plan" => return Some(SurfaceKind::Work),
         "roadmap" => return Some(SurfaceKind::Roadmap),
@@ -902,15 +902,7 @@ pub(crate) mod motion {
 
 // ── FileTree directory listing ───────────────────────────────────────────────
 
-/// One row in the FileTree surface: a child of the listed directory.
-#[derive(Debug, Clone)]
-struct FileEntry {
-    /// Display name (basename), with a trailing `/` for directories.
-    name: String,
-    /// Absolute path to open / descend into.
-    path: String,
-    is_dir: bool,
-}
+use crate::filetree::{human_size, list_dir, sort_entries, FileKind, FileMeta, FileSort, SortColumn};
 
 /// Resolve the FileTree root: an explicit `root`, else the current working
 /// directory (the operator's repo). Returns the canonical-ish path string.
@@ -923,41 +915,79 @@ fn filetree_root(root: Option<&str>) -> String {
     }
 }
 
-/// Read `root`'s immediate children: directories first (alpha), then files
-/// (alpha). Hidden dotfiles are kept (a repo's `.github` etc. matter). Errors and
-/// huge dirs are bounded so the surface can't wedge.
-fn filetree_entries(root: Option<&str>) -> std::result::Result<Vec<FileEntry>, String> {
+/// Read `root`'s immediate children (via the pure `filetree` module) and sort
+/// them by the surface's current `sort` selection. Hidden dotfiles are kept.
+fn filetree_listing(root: Option<&str>, sort: FileSort) -> std::result::Result<Vec<FileMeta>, String> {
     let dir = filetree_root(root);
-    let mut entries: Vec<FileEntry> = Vec::new();
-    let read = std::fs::read_dir(&dir).map_err(|e| format!("{dir}: {e}"))?;
-    for ent in read.flatten() {
-        let path = ent.path();
-        let is_dir = path.is_dir();
-        let name = ent.file_name().to_string_lossy().into_owned();
-        entries.push(FileEntry {
-            name: if is_dir { format!("{name}/") } else { name },
-            path: path.to_string_lossy().into_owned(),
-            is_dir,
-        });
-        if entries.len() >= 1000 {
-            break; // bound: never enumerate an absurd directory in the render path
-        }
-    }
-    entries.sort_by(|a, b| {
-        b.is_dir
-            .cmp(&a.is_dir)
-            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
-    });
+    let mut entries = list_dir(&dir)?;
+    sort_entries(&mut entries, sort);
     Ok(entries)
+}
+
+/// Display basename for an entry: directories get a trailing `/` marker.
+fn filetree_display_name(e: &FileMeta) -> String {
+    if e.is_dir() {
+        format!("{}/", e.name)
+    } else {
+        e.name.clone()
+    }
+}
+
+/// Size column text — files show a human-readable size; dirs show `--`.
+fn filetree_size_str(e: &FileMeta) -> String {
+    if e.is_dir() {
+        "--".into()
+    } else {
+        human_size(e.size)
+    }
+}
+
+/// Compact relative age for the modified column (dep-free; no chrono).
+fn short_age(mtime_secs: i64) -> String {
+    if mtime_secs <= 0 {
+        return "--".into();
+    }
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    let delta = now - mtime_secs;
+    if delta < 0 {
+        return "just now".into();
+    }
+    match delta {
+        d if d < 60 => "just now".into(),
+        d if d < 3600 => format!("{}m ago", d / 60),
+        d if d < 86_400 => format!("{}h ago", d / 3600),
+        d if d < 2_592_000 => format!("{}d ago", d / 86_400),
+        d => format!("{}mo ago", d / 2_592_000),
+    }
 }
 
 /// The FileTree surface as read-only `Block`s (the terminal face + the GPUI
 /// fallback when not specially rendered). The interactive, clickable GPUI version
-/// lives in `render_leaf`'s FileTree body.
-fn filetree_blocks(root: Option<&str>) -> Vec<Block> {
+/// lives in `render_leaf`'s FileTree body. Columns: name · type · size · modified.
+fn filetree_blocks(root: Option<&str>, sort: FileSort) -> Vec<Block> {
     let dir = filetree_root(root);
-    let mut blocks = vec![Block::Header(format!("files {dir}"))];
-    match filetree_entries(root) {
+    let arrow = sort.dir.arrow();
+    let col = |c: SortColumn, label: &str| -> String {
+        if sort.column == c {
+            format!("{label}{arrow}")
+        } else {
+            label.to_string()
+        }
+    };
+    let mut blocks = vec![
+        Block::Header(format!("files {dir}")),
+        Block::Row(vec![
+            " ".into(),
+            col(SortColumn::Name, "name"),
+            col(SortColumn::Type, "type"),
+            col(SortColumn::Size, "size"),
+            col(SortColumn::Mtime, "modified"),
+        ]),
+    ];
+    match filetree_listing(root, sort) {
         Err(e) => blocks.push(Block::KeyVal("error".into(), e)),
         Ok(entries) if entries.is_empty() => {
             blocks.push(Block::KeyVal("status".into(), "empty directory".into()));
@@ -965,8 +995,11 @@ fn filetree_blocks(root: Option<&str>) -> Vec<Block> {
         Ok(entries) => {
             for e in entries {
                 blocks.push(Block::Row(vec![
-                    if e.is_dir { "▸".into() } else { " ".into() },
-                    e.name,
+                    if e.is_dir() { "▸".into() } else { " ".into() },
+                    filetree_display_name(&e),
+                    e.kind.label().into(),
+                    filetree_size_str(&e),
+                    short_age(e.mtime),
                 ]));
             }
         }
@@ -2265,8 +2298,8 @@ impl ConsoleView {
         // clickable rows are built in `render_leaf` (Blocks are non-interactive);
         // here we emit the same listing as read-only Blocks so the terminal face
         // (`term.rs`) shows the tree too.
-        if let SurfaceKind::FileTree { root } = surface {
-            return filetree_blocks(root.as_deref());
+        if let SurfaceKind::FileTree { root, nav } = surface {
+            return filetree_blocks(root.as_deref(), nav.sort);
         }
         match nav_id_for_surface(surface) {
             Some(nav_id) => NAV
@@ -2516,6 +2549,67 @@ impl ConsoleView {
     /// gpui 0.2.2 has no native input, so the root focus handle does the capturing).
     fn focused_is_chat(&self) -> bool {
         matches!(self.ws().focused_surface(), SurfaceKind::CartographerChat)
+    }
+
+    fn focused_is_filetree(&self) -> bool {
+        matches!(self.ws().focused_surface(), SurfaceKind::FileTree { .. })
+    }
+
+    /// Keyboard navigation for the focused FileTree surface (the console is
+    /// keyboard-first). Arrows move the row cursor; Enter descends a directory or
+    /// opens a file; `u` goes up to the parent; `b` goes back in history;
+    /// `n`/`t`/`s`/`m` toggle the name/type/size/modified sort column.
+    /// Returns true if the key was consumed (so it doesn't fall through).
+    fn handle_filetree_key(&mut self, key: &str, cx: &mut Context<Self>) -> bool {
+        // Snapshot root + sort of the focused FileTree.
+        let (root, sort) = match self.ws().focused_surface() {
+            SurfaceKind::FileTree { root, nav } => (root.clone(), nav.sort),
+            _ => return false,
+        };
+        let dir = filetree_root(root.as_deref());
+        let entries = filetree_listing(root.as_deref(), sort).unwrap_or_default();
+        let len = entries.len();
+        match key {
+            "down" => {
+                self.ws_mut().filetree_move_cursor(1, len);
+            }
+            "up" => {
+                self.ws_mut().filetree_move_cursor(-1, len);
+            }
+            "enter" => {
+                let cursor = match self.ws().focused_filetree() {
+                    Some((_, nav)) => nav.cursor.min(len.saturating_sub(1)),
+                    None => return false,
+                };
+                if let Some(entry) = entries.get(cursor) {
+                    if entry.is_dir() {
+                        self.ws_mut().filetree_descend(dir.clone(), entry.path.clone());
+                    } else {
+                        let path = entry.path.clone();
+                        self.ws_mut().swap_surface(SurfaceKind::Editor {
+                            path: path.clone(),
+                            region: None,
+                        });
+                        if let Some(tx) = &self.control_tx {
+                            let _ = tx.send(ControlMsg::OpenEditor { path, region: None });
+                        }
+                    }
+                }
+            }
+            "u" => {
+                self.ws_mut().filetree_up(dir);
+            }
+            "b" => {
+                self.ws_mut().filetree_back();
+            }
+            "n" => self.ws_mut().filetree_sort(SortColumn::Name),
+            "t" => self.ws_mut().filetree_sort(SortColumn::Type),
+            "s" => self.ws_mut().filetree_sort(SortColumn::Size),
+            "m" => self.ws_mut().filetree_sort(SortColumn::Mtime),
+            _ => return false,
+        }
+        cx.notify();
+        true
     }
 
     /// Feed one keystroke into the chat composer. Mirrors `handle_command_key`'s
@@ -3706,10 +3800,11 @@ impl ConsoleView {
         let work_execution_worktree = self.work_execution_worktree.clone();
         // The FileTree surface (P0 Harbor wiring): clickable rows — a file row
         // opens the Editor surface; a directory row descends (rebinds the root).
-        let filetree: Option<(Option<String>, Vec<FileEntry>)> = match surface {
-            SurfaceKind::FileTree { root } => Some((
+        let filetree: Option<(Option<String>, crate::filetree::FileNav, Vec<FileMeta>)> = match surface {
+            SurfaceKind::FileTree { root, nav } => Some((
                 root.clone(),
-                filetree_entries(root.as_deref()).unwrap_or_default(),
+                nav.clone(),
+                filetree_listing(root.as_deref(), nav.sort).unwrap_or_default(),
             )),
             _ => None,
         };
@@ -3852,21 +3947,29 @@ impl ConsoleView {
                         })
                     });
                 match filetree {
-                    // FileTree: interactive clickable rows (open file / descend dir).
-                    Some((root, entries)) => {
+                    // FileTree: browser-style navigator — breadcrumb header with
+                    // Up/Back affordances, a clickable sort-column header, and
+                    // metadata rows (name · type · size · modified) with a
+                    // keyboard-cursor highlight.
+                    Some((root, nav, entries)) => {
                         let dir = filetree_root(root.as_deref());
-                        let mut b = body.child(
-                            div()
-                                .px(px(16.0))
-                                .pt(px(12.0))
-                                .pb(px(6.0))
-                                .text_color(rgb(current_theme().accent_ink))
-                                .text_size(px(15.0))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .child(format!("files {dir}")),
-                        );
-                        for entry in entries {
-                            b = b.child(render_filetree_row(id, entry, cx));
+                        let can_back = nav.history.can_back();
+                        let can_up = crate::filetree::parent_path(&dir).is_some();
+                        let cursor = nav.cursor.min(entries.len().saturating_sub(1));
+                        let count = entries.len();
+                        let mut b = body
+                            .child(filetree_toolbar(id, &dir, can_back, can_up, count, cx))
+                            .child(filetree_column_header(id, nav.sort, cx));
+                        for (i, entry) in entries.into_iter().enumerate() {
+                            let dir_for_row = dir.clone();
+                            b = b.child(render_filetree_row(
+                                id,
+                                entry,
+                                i,
+                                i == cursor,
+                                dir_for_row,
+                                cx,
+                            ));
                         }
                         b
                     }
@@ -5865,46 +5968,222 @@ fn render_harbor_control(
     }
 }
 
-fn render_filetree_row(
+/// The FileTree toolbar: the breadcrumb (which directory we're in — req #4) plus
+/// keyboard-mirrored Up and Back affordances. Disabled buttons render inert with
+/// a muted tone (honest affordance: no dead click at the filesystem root or an
+/// empty history).
+fn filetree_toolbar(
     id: PaneId,
-    entry: FileEntry,
+    dir: &str,
+    can_back: bool,
+    can_up: bool,
+    count: usize,
     cx: &mut Context<ConsoleView>,
 ) -> impl IntoElement {
-    let is_dir = entry.is_dir;
+    let t = current_theme();
+    let btn = |glyph: &str, key: &str, enabled: bool| {
+        let base = div()
+            .id(SharedString::from(format!("ft-{glyph}-{id}")))
+            .px(px(tokens::SPACE_2))
+            .py(px(2.0))
+            .rounded(px(tokens::RADIUS_MD))
+            .border_1()
+            .text_size(px(tokens::TEXT_CAPTION))
+            .font_weight(FontWeight::SEMIBOLD)
+            .flex_shrink_0()
+            .child(format!("{glyph}  {key}"));
+        if enabled {
+            base.border_color(rgb(t.line))
+                .bg(rgb(t.panel))
+                .text_color(rgb(t.ink))
+                .cursor_pointer()
+                .hover(|s| {
+                    let t = current_theme();
+                    s.border_color(rgb(t.accent)).bg(rgb(t.raised))
+                })
+        } else {
+            base.border_color(rgb(t.line))
+                .bg(rgb(t.panel))
+                .text_color(rgb(t.muted))
+                .opacity(0.5)
+        }
+    };
+    div()
+        .flex()
+        .items_center()
+        .gap(px(tokens::SPACE_2))
+        .px(px(16.0))
+        .pt(px(12.0))
+        .pb(px(6.0))
+        .child(
+            btn("Back", "b", can_back).when(can_back, |el| {
+                el.on_click(cx.listener(move |this, _ev, _window, cx| {
+                    this.ws_mut().focus(id);
+                    this.ws_mut().filetree_back();
+                    cx.notify();
+                }))
+            }),
+        )
+        .child({
+            let dir_up = dir.to_string();
+            btn("Up", "u", can_up).when(can_up, |el| {
+                el.on_click(cx.listener(move |this, _ev, _window, cx| {
+                    this.ws_mut().focus(id);
+                    this.ws_mut().filetree_up(dir_up.clone());
+                    cx.notify();
+                }))
+            })
+        })
+        // Breadcrumb: always show the enclosing folder (req #4).
+        .child(
+            div()
+                .flex_1()
+                .text_color(rgb(t.accent_ink))
+                .text_size(px(tokens::TEXT_BODY_LG))
+                .font_weight(FontWeight::SEMIBOLD)
+                .overflow_hidden()
+                .child(format!("files {dir}")),
+        )
+        .child(
+            div()
+                .flex_shrink_0()
+                .text_color(rgb(t.muted))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .child(format!("{count} items")),
+        )
+}
+
+/// The clickable sort-column header (req #6): each label toggles that column's
+/// sort; the active column carries the direction arrow. Columns line up with the
+/// metadata rows below.
+fn filetree_column_header(
+    id: PaneId,
+    sort: FileSort,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    let t = current_theme();
+    let head = |label: &'static str, column: SortColumn, width: f32, flex: bool| {
+        let active = sort.column == column;
+        let text = if active {
+            format!("{label} {}", sort.dir.arrow())
+        } else {
+            label.to_string()
+        };
+        let mut cell = div()
+            .id(SharedString::from(format!("ft-col-{label}-{id}")))
+            .text_size(px(tokens::TEXT_CAPTION))
+            .font_weight(FontWeight::SEMIBOLD)
+            .text_color(rgb(if active { t.accent_ink } else { t.muted }))
+            .cursor_pointer()
+            .hover(|s| s.text_color(rgb(current_theme().accent)))
+            .child(text)
+            .on_click(cx.listener(move |this, _ev, _window, cx| {
+                this.ws_mut().focus(id);
+                this.ws_mut().filetree_sort(column);
+                cx.notify();
+            }));
+        if flex {
+            cell = cell.flex_1();
+        } else {
+            cell = cell.w(px(width)).flex_shrink_0();
+        }
+        cell
+    };
+    div()
+        .flex()
+        .gap(px(10.0))
+        .px(px(16.0))
+        .py(px(4.0))
+        .border_b_1()
+        .border_color(rgb(t.line))
+        .child(div().w(px(12.0)).flex_shrink_0())
+        .child(head("name", SortColumn::Name, 0.0, true))
+        .child(head("type", SortColumn::Type, 52.0, false))
+        .child(head("size", SortColumn::Size, 84.0, false))
+        .child(head("modified", SortColumn::Mtime, 96.0, false))
+}
+
+fn render_filetree_row(
+    id: PaneId,
+    entry: FileMeta,
+    index: usize,
+    selected: bool,
+    current_dir: String,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    let t = current_theme();
+    let is_dir = entry.is_dir();
     let path = entry.path.clone();
     let marker = if is_dir { "▸" } else { " " };
+    let name_color = match entry.kind {
+        FileKind::Dir => t.accent_ink,
+        FileKind::Symlink => t.landed,
+        FileKind::File => t.ink,
+    };
+    let display_name = filetree_display_name(&entry);
+    let type_str = entry.kind.label().to_string();
+    let size_str = filetree_size_str(&entry);
+    let age_str = short_age(entry.mtime);
     div()
-        .id(SharedString::from(format!("ftrow-{id}-{}", entry.path)))
+        .id(SharedString::from(format!("ftrow-{id}-{index}")))
         .flex()
+        .items_center()
         .gap(px(10.0))
         .px(px(16.0))
         .py(px(3.0))
         .cursor_pointer()
+        // Keyboard-cursor selection highlight (arrows move it; Enter activates).
+        .when(selected, |s| s.bg(rgb(t.raised)))
         .hover(|s| s.bg(rgb(current_theme().raised)))
         .child(
             div()
                 .w(px(12.0))
                 .flex_shrink_0()
-                .text_color(rgb(current_theme().muted))
-                .text_size(px(14.0))
+                .text_color(rgb(t.muted))
+                .text_size(px(tokens::TEXT_BODY))
                 .child(marker),
         )
         .child(
             div()
-                .text_color(rgb(if is_dir {
-                    current_theme().accent_ink
-                } else {
-                    current_theme().ink
-                }))
-                .text_size(px(14.0))
+                .flex_1()
+                .text_color(rgb(name_color))
+                .text_size(px(tokens::TEXT_BODY))
                 .font_family("IBM Plex Mono")
-                .child(entry.name.clone()),
+                .overflow_hidden()
+                .child(display_name),
+        )
+        .child(
+            div()
+                .w(px(52.0))
+                .flex_shrink_0()
+                .text_color(rgb(t.muted))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .font_family("IBM Plex Mono")
+                .child(type_str),
+        )
+        .child(
+            div()
+                .w(px(84.0))
+                .flex_shrink_0()
+                .text_color(rgb(t.muted))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .font_family("IBM Plex Mono")
+                .child(size_str),
+        )
+        .child(
+            div()
+                .w(px(96.0))
+                .flex_shrink_0()
+                .text_color(rgb(t.muted))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .font_family("IBM Plex Mono")
+                .child(age_str),
         )
         .on_click(cx.listener(move |this, _ev, _window, cx| {
             this.ws_mut().focus(id);
             if is_dir {
-                // Descend: rebind the FileTree root to this directory.
-                this.ws_mut().bind_entity(Some(path.clone()));
+                // Descend: remember where we were (back stack) then rebind root.
+                this.ws_mut().filetree_descend(current_dir.clone(), path.clone());
             } else {
                 // Open the file in the Harbor Editor surface, and bind the producer's
                 // live editor lane to it (wire stage 1) so the buffer follows remote
@@ -6950,6 +7229,11 @@ impl Render for ConsoleView {
                     // type" path. Ctrl-A still arms the leader (checked above first).
                     let shift = ev.keystroke.modifiers.shift;
                     this.handle_chat_key(key.as_str(), key_char.as_deref(), shift, cx);
+                } else if this.focused_is_filetree() {
+                    // Keyboard-first file navigator: arrows move, Enter descends/
+                    // opens, u/b navigate up/back, n/t/s/m re-sort. Ctrl-A leader
+                    // is checked above, so it still wins.
+                    this.handle_filetree_key(key.as_str(), cx);
                 }
             }))
             // ── Flat title deck. Named workspaces remain here, but the app frame
@@ -7451,27 +7735,42 @@ mod add_pane_tests {
     }
 
     #[test]
-    fn filetree_entries_list_dirs_first_then_files() {
-        // The crate's own src/ has both files and (no) subdirs; assert the sort
-        // contract against a synthesized listing instead of the real FS shape.
+    fn filetree_listing_and_blocks_render_metadata_columns() {
+        use crate::filetree::{FileSort, SortColumn, SortDir};
         let dir = std::env::var("HOME")
             .map(|h| std::path::PathBuf::from(h).join("coding/tmp/pd-harbor-ft-test"))
             .unwrap_or_else(|_| {
                 std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/ft-test")
             });
+        let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("zsub")).unwrap();
         std::fs::write(dir.join("afile.txt"), "x").unwrap();
         std::fs::write(dir.join("bfile.txt"), "y").unwrap();
-        let entries = filetree_entries(Some(&dir.to_string_lossy())).expect("listing");
-        // Directory ("zsub/") sorts before files despite z > a/b alphabetically.
-        assert!(entries[0].is_dir);
-        assert_eq!(entries[0].name, "zsub/");
-        let files: Vec<&str> = entries
-            .iter()
-            .filter(|e| !e.is_dir)
-            .map(|e| e.name.as_str())
-            .collect();
-        assert_eq!(files, vec!["afile.txt", "bfile.txt"]);
+        let root = dir.to_string_lossy().into_owned();
+
+        // Type sort groups the directory ahead of files (dir rank < file rank).
+        let by_type = FileSort { column: SortColumn::Type, dir: SortDir::Asc };
+        let entries = filetree_listing(Some(&root), by_type).expect("listing");
+        assert!(entries[0].is_dir());
+        assert_eq!(entries[0].name, "zsub");
+
+        // Blocks carry a header, a clickable column-header row, and one row per
+        // entry with the four metadata columns (name/type/size/modified).
+        let blocks = filetree_blocks(Some(&root), by_type);
+        assert!(matches!(blocks.first(), Some(Block::Header(_))));
+        let has_col_header = blocks.iter().any(|b| matches!(
+            b, Block::Row(cols) if cols.iter().any(|c| c.starts_with("type"))
+        ));
+        assert!(has_col_header, "column header row present");
+        let file_row = blocks.iter().find_map(|b| match b {
+            Block::Row(cols) if cols.get(1).map(|s| s.as_str()) == Some("afile.txt") => Some(cols),
+            _ => None,
+        });
+        let cols = file_row.expect("afile.txt row present");
+        assert_eq!(cols.len(), 5, "marker + name + type + size + modified");
+        assert_eq!(cols[2], "file");
+        assert_eq!(cols[3], "1 B");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

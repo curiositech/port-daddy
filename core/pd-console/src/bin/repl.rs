@@ -61,6 +61,8 @@ mod editor_pane;
 #[allow(dead_code)]
 #[path = "../editor_sync.rs"]
 mod editor_sync;
+#[path = "../filetree.rs"]
+mod filetree;
 #[allow(dead_code)]
 #[path = "../editor_wedge.rs"]
 mod editor_wedge;

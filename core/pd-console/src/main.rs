@@ -28,6 +28,7 @@ mod editor_claims;
 mod editor_commit_gate;
 mod editor_pane;
 mod editor_sync;
+mod filetree;
 mod editor_wedge;
 mod fleet_pane;
 mod galaxy_canvas;

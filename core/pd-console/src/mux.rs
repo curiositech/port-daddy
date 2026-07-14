@@ -38,7 +38,10 @@ pub enum SurfaceKind {
     /// Conversation with the cartographer agent.
     CartographerChat,
     /// Filetree rooted at a repo/worktree path (`None` = the operator's repo).
-    FileTree { root: Option<String> },
+    /// `nav` carries the browser-style navigator state — back-history stack,
+    /// sticky sort selection, keyboard cursor — so the surface remembers where
+    /// it is across re-renders and pane switches (it is NOT reset each render).
+    FileTree { root: Option<String>, nav: crate::filetree::FileNav },
     /// Read-only editor surface hosting one file from local disk. The Harbor
     /// Editor's P0 walking skeleton: `path` is the file to host; `region` is an
     /// optional 1-based inclusive `(start, end)` line span to scroll to / mark
@@ -77,8 +80,8 @@ impl SurfaceKind {
             SurfaceKind::AgentTranscript { agent_id: None } => "agent (newest)".into(),
             SurfaceKind::Roadmap => "planner".into(),
             SurfaceKind::CartographerChat => "cartographer".into(),
-            SurfaceKind::FileTree { root: Some(r) } => format!("files {r}"),
-            SurfaceKind::FileTree { root: None } => "files".into(),
+            SurfaceKind::FileTree { root: Some(r), .. } => format!("files {r}"),
+            SurfaceKind::FileTree { root: None, .. } => "files".into(),
             SurfaceKind::Editor { path, .. } => {
                 let base = path
                     .rsplit(['/', '\\'])
@@ -302,7 +305,7 @@ impl Workspace {
         if let Some(s) = self.root.find_surface_mut(self.focused) {
             match s {
                 SurfaceKind::AgentTranscript { agent_id } => *agent_id = entity,
-                SurfaceKind::FileTree { root } => *root = entity,
+                SurfaceKind::FileTree { root, .. } => *root = entity,
                 // Rebind the Editor onto a different file. `None` clears the host
                 // (the pane keeps its kind but shows an empty/error face). Rebinding
                 // the path resets `region` — a different file's spans are unrelated.
@@ -312,6 +315,72 @@ impl Workspace {
                 }
                 _ => {}
             }
+        }
+    }
+
+    /// Borrow the focused FileTree surface's `(root, nav)`, if the focused pane
+    /// is a FileTree. Lets the renderer read history/sort/cursor state.
+    pub fn focused_filetree(&self) -> Option<(Option<&str>, &crate::filetree::FileNav)> {
+        match self.root.find_surface(self.focused) {
+            Some(SurfaceKind::FileTree { root, nav }) => Some((root.as_deref(), nav)),
+            _ => None,
+        }
+    }
+
+    /// Descend the focused FileTree into `child`, remembering `current_dir` on
+    /// the back stack. `current_dir` is the resolved absolute path currently
+    /// shown (the caller resolves `None` → cwd). No-op off a FileTree.
+    pub fn filetree_descend(&mut self, current_dir: String, child: String) {
+        if let Some(SurfaceKind::FileTree { root, nav }) = self.root.find_surface_mut(self.focused) {
+            nav.descend(current_dir);
+            *root = Some(child);
+        }
+    }
+
+    /// Back button: pop the history stack into the focused FileTree's root.
+    /// Returns true if it moved.
+    pub fn filetree_back(&mut self) -> bool {
+        if let Some(SurfaceKind::FileTree { root, nav }) = self.root.find_surface_mut(self.focused) {
+            if let Some(prev) = nav.back() {
+                *root = Some(prev);
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Up button: navigate the focused FileTree to `current_dir`'s parent,
+    /// recording the move on the back stack. Returns true if a parent existed.
+    pub fn filetree_up(&mut self, current_dir: String) -> bool {
+        if let Some(SurfaceKind::FileTree { root, nav }) = self.root.find_surface_mut(self.focused) {
+            if let Some(parent) = crate::filetree::parent_path(&current_dir) {
+                nav.descend(current_dir);
+                *root = Some(parent);
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Toggle the focused FileTree's sort by `column` (same column flips
+    /// direction; a new column selects it ascending). The choice sticks in nav.
+    pub fn filetree_sort(&mut self, column: crate::filetree::SortColumn) {
+        if let Some(SurfaceKind::FileTree { nav, .. }) = self.root.find_surface_mut(self.focused) {
+            nav.sort.toggle(column);
+        }
+    }
+
+    /// Move the focused FileTree's keyboard cursor by `delta` within `len` rows.
+    pub fn filetree_move_cursor(&mut self, delta: isize, len: usize) {
+        if let Some(SurfaceKind::FileTree { nav, .. }) = self.root.find_surface_mut(self.focused) {
+            nav.move_cursor(delta, len);
+        }
+    }
+
+    /// Clamp the focused FileTree cursor into `[0, len)` after a listing renders.
+    pub fn filetree_clamp_cursor(&mut self, len: usize) {
+        if let Some(SurfaceKind::FileTree { nav, .. }) = self.root.find_surface_mut(self.focused) {
+            nav.clamp_cursor(len);
         }
     }
 
