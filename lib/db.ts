@@ -12,7 +12,7 @@
  */
 
 import Database, { type DatabaseInstance } from './sqlite-runtime.js';
-import { chmodSync, existsSync, mkdirSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve as resolvePath, sep } from 'path';
 import { homedir, tmpdir } from 'node:os';
 import { fileURLToPath } from 'url';
@@ -83,23 +83,87 @@ export function isVersionVolatileDbPath(path: string): boolean {
 }
 
 /**
+ * Registries left behind in OTHER kegs of the same Homebrew formula.
+ *
+ * After `brew upgrade`, the running binary's own distribution root is the NEW
+ * (empty) keg — the previous version's data sits in the old keg until
+ * Homebrew's cleanup deletes it. Given any path inside a Cellar keg (the exec
+ * path or a legacy DB path), return existing sibling-keg registries, newest
+ * mtime first.
+ */
+export function siblingKegDbPaths(refPath: string): string[] {
+  const p = resolvePath(refPath);
+  const marker = `${sep}Cellar${sep}`;
+  const idx = p.indexOf(marker);
+  if (idx === -1) return [];
+  // .../Cellar/<formula>/<version>/...
+  const formula = p.slice(idx + marker.length).split(sep)[0];
+  if (!formula) return [];
+  const formulaDir = p.slice(0, idx + marker.length) + formula;
+  let versions: string[];
+  try {
+    versions = readdirSync(formulaDir);
+  } catch {
+    return [];
+  }
+  const withMtime: Array<{ path: string; mtime: number }> = [];
+  for (const v of versions) {
+    const candidate = join(formulaDir, v, 'bin', 'port-registry.db');
+    try {
+      withMtime.push({ path: candidate, mtime: statSync(candidate).mtimeMs });
+    } catch {
+      /* keg has no registry */
+    }
+  }
+  return withMtime.sort((a, b) => b.mtime - a.mtime).map((c) => c.path);
+}
+
+/**
+ * All places a legacy registry could be, best candidate first: the current
+ * distribution-root default, then sibling Homebrew kegs (newest first) —
+ * because after `brew upgrade` the data lives in the PREVIOUS keg, not the
+ * one the new binary resolves to.
+ */
+export function legacyDbCandidates(
+  primary: string = legacyDbPath(),
+  execPath: string = process.execPath,
+): string[] {
+  const candidates = [primary, ...siblingKegDbPaths(execPath), ...siblingKegDbPaths(primary)];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const c of candidates) {
+    const r = resolvePath(c);
+    if (!seen.has(r)) {
+      seen.add(r);
+      out.push(c);
+    }
+  }
+  return out;
+}
+
+/**
  * One-time rescue of a legacy registry into the durable home.
  *
  * Runs only when the destination does not exist yet and a legacy registry
- * does. Uses `VACUUM INTO`, which produces a consistent snapshot even while
- * an old daemon still holds the legacy DB open in WAL mode (a plain file
- * copy of db+wal+shm would not be safe there). Best-effort: a failed
- * migration logs loudly and boot continues with a fresh DB rather than
- * crashing the daemon.
+ * does; takes the first existing candidate (current distribution root, then
+ * sibling brew kegs newest-first). Uses `VACUUM INTO`, which produces a
+ * consistent snapshot even while an old daemon still holds the legacy DB
+ * open in WAL mode (a plain file copy of db+wal+shm would not be safe
+ * there). Best-effort: a failed migration logs loudly and boot continues
+ * with a fresh DB rather than crashing the daemon.
  *
  * @returns true when a migration was performed.
  */
 export function migrateLegacyRegistry(
   destPath: string = durableDbHomePath(),
-  sourcePath: string = legacyDbPath(),
+  sourcePaths: string | string[] = legacyDbCandidates(),
 ): boolean {
-  if (resolvePath(destPath) === resolvePath(sourcePath)) return false;
-  if (existsSync(destPath) || !existsSync(sourcePath)) return false;
+  if (existsSync(destPath)) return false;
+  const candidates = Array.isArray(sourcePaths) ? sourcePaths : [sourcePaths];
+  const sourcePath = candidates.find(
+    (c) => resolvePath(c) !== resolvePath(destPath) && existsSync(c),
+  );
+  if (!sourcePath) return false;
 
   try {
     mkdirSync(dirname(destPath), { recursive: true });
