@@ -216,9 +216,21 @@ jobs:
         # secret is present, the produced .app MUST carry a Developer ID signature.
         # Without this, a future regression silently reverts to an unsigned,
         # Gatekeeper-quarantined .app (the v3.21.0 state this PR fixes).
-        if: ${{ secrets.APPLE_CERT_P12_BASE64 != '' }}
+        #
+        # GATE IN BASH, NOT IN `if:`. A step-level `if: ${{ secrets.X != '' }}`
+        # is rejected by GitHub's workflow parser ("Unrecognized named-value:
+        # 'secrets'") — this exact line made the whole workflow invalid and
+        # silently killed the v3.25.0 release trigger (an invalid workflow
+        # produces NO run on release.published). Same env-gated pattern as
+        # the packaging step above.
+        env:
+          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
         run: |
           set -euo pipefail
+          if [ -z "${APPLE_CERT_P12_BASE64:-}" ]; then
+            echo "APPLE_CERT_P12_BASE64 unset — signature guard skipped (unsigned build path)."
+            exit 0
+          fi
           zip="$(ls dist/fleetbar/PortDaddy-FleetBar-macOS-*.zip | head -n1)"
           work="$RUNNER_TEMP/fleetbar-verify"; rm -rf "$work"; mkdir -p "$work"
           ditto -x -k "$zip" "$work"
