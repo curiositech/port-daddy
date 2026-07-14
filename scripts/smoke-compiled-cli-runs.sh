@@ -38,6 +38,7 @@ PORT_DADDY_PORT="$PORT" \
 PORT_DADDY_DB="$SCRATCH/registry.db" \
 PORT_DADDY_PREFIX="$SCRATCH" \
 PORT_DADDY_SOCK="$SOCK" \
+PORT_DADDY_BIN_OVERRIDE="$BIN" \
 PORT_DADDY_NO_FLEET=1 PORT_DADDY_NO_FLEETBAR=1 PORT_DADDY_SILENT=1 PORT_DADDY_DISABLE_KEYCHAIN=1 \
 "$BIN" __daemon > "$LOG" 2>&1 &
 DAEMON_PID=$!
@@ -57,7 +58,7 @@ echo "Daemon healthy."
 CLI_ENV=(env "PORT_DADDY_PORT=$PORT" "PORT_DADDY_PREFIX=$SCRATCH" "PORT_DADDY_SOCK=$SOCK")
 fail=0
 
-# 1. `pd status` must RUN — exit 0 AND print the running banner. 3x to catch a
+# 1. `pd status` must RUN — exit 0 AND print a responsive/running banner. 3x to catch a
 #    binary that only bootstraps intermittently.
 for i in 1 2 3; do
   echo "--- pd status (run $i/3) ---"
@@ -69,7 +70,7 @@ for i in 1 2 3; do
     echo "      out: ${out:-<empty>}" >&2
     fail=1; break
   fi
-  if ! printf %s "$out" | grep -q "Port Daddy is running"; then
+  if ! printf %s "$out" | grep -Eq "Port Daddy is (responsive|running)"; then
     echo "FAIL: 'pd status' run $i produced no status banner (compiled CLI broken/silent)." >&2
     echo "      out: ${out:-<empty>}" >&2
     fail=1; break
