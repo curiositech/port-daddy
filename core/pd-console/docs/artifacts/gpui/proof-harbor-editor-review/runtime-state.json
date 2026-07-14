@@ -1,60 +1,94 @@
 {
-  "verifiedAt": "2026-07-14T03:52:31-07:00",
+  "verifiedAt": "2026-07-14T04:21:53-07:00",
+  "launcher": {
+    "kind": "branch-local-bun-entrypoint",
+    "entrypoint": "/Users/erichowens/coding/tmp/port-daddy-dispatch-973699cb/bin/port-daddy-cli.ts",
+    "installedHomebrewPdUsed": false,
+    "stopCommand": "bun run bin/port-daddy-cli.ts daemon stop harbor-linework",
+    "stoppedPid": 87972,
+    "startCommand": "bun run bin/port-daddy-cli.ts dev up --from /Users/erichowens/coding/tmp/port-daddy-dispatch-973699cb --label harbor-linework --port 3182"
+  },
   "daemon": {
     "url": "http://127.0.0.1:3182",
     "profile": "harbor-linework",
-    "pid": 45055,
+    "pid": 64460,
     "version": "3.24.2",
     "tier": "codebase",
     "plane": "ephemeral:harbor-linework",
     "sourceDir": "/Users/erichowens/coding/tmp/port-daddy-dispatch-973699cb",
-    "gitRevision": "cadea4946",
+    "gitBranch": "dispatch/implement-and-open-a-stacked-draft-pr-that-reskins-the-real-973699cb",
+    "gitRevision": "33e1aef3c",
+    "builtAt": "2026-07-14T11:15:41.621Z",
+    "port": 3182,
     "canonical": false,
-    "binaryDrift": false,
     "requiredRoutes": {
       "checked": 11,
       "missing": []
+    },
+    "binaryDrift": {
+      "drifted": false,
+      "runningPath": "/Users/erichowens/coding/tmp/port-daddy-dispatch-973699cb/dist/daemon/port-daddy-daemon",
+      "onDiskPath": "/Users/erichowens/coding/tmp/port-daddy-dispatch-973699cb/dist/daemon/port-daddy-daemon",
+      "runningHash": "17637c41d89995542e47097717b1232d04c41c2497d48b5521323ee00ad96739",
+      "onDiskHash": "17637c41d89995542e47097717b1232d04c41c2497d48b5521323ee00ad96739"
     },
     "agentNodes": {
       "httpStatus": 200,
       "count": 0,
       "projection": "roster",
-      "stale": false
+      "stale": false,
+      "lastLedgerSeq": 5,
+      "headSeq": 5
     }
   },
   "nativeApp": {
-    "pid": 21683,
-    "windowId": 3223,
+    "finalLivePid": 78390,
+    "finalLiveWindowId": 3642,
     "binary": "core/target/debug/pd-console",
     "daemonUrl": "http://127.0.0.1:3182",
     "booted": true,
     "focused": "edit editor_pane.rs",
-    "controlSocket": "/tmp/pd-console-pr1960-motion.sock",
-    "displaySelector": 2
+    "controlSocket": "/tmp/pd-console-pr1960-final.sock",
+    "displaySelector": 2,
+    "reducedMotion": false
   },
   "capture": {
-    "timestamps": {
-      "normalEditor": "2026-07-14T03:40:30-07:00",
-      "normalHarbor": "2026-07-14T03:44:32-07:00",
-      "reducedMotionEditor": "2026-07-14T03:45:21-07:00",
-      "motionRecording": "2026-07-14T03:46:33-07:00"
-    },
-    "normalEditorProcessPid": 99754,
-    "reducedMotionProcessPid": 19630,
-    "motionAndFinalProcessPid": 21683,
-    "captureDaemonPid": 16656,
-    "captureDaemonRevision": "f400336e1",
-    "finalVerifiedDaemonPid": 45055,
-    "finalVerifiedDaemonRevision": "cadea4946",
+    "daemonPid": 64460,
+    "daemonRevision": "33e1aef3c",
+    "normalAndMotionProcessPid": 66501,
+    "normalAndMotionWindowId": 3593,
+    "reducedMotionProcessPid": 74117,
+    "reducedMotionWindowId": 3634,
     "seededFrontendAuthority": false,
     "seededCollaborators": false,
+    "timestamps": {
+      "normalEditor": "2026-07-14T04:17:35-07:00",
+      "normalHarbor": "2026-07-14T04:17:58-07:00",
+      "motionRecording": "2026-07-14T04:19:45-07:00",
+      "reducedMotionEditor": "2026-07-14T04:20:34-07:00"
+    },
     "motion": {
-      "format": "h264",
-      "width": 1208,
+      "codec": "h264",
+      "width": 1242,
       "height": 800,
-      "durationSeconds": 7.065,
-      "frames": 188,
-      "distinctFrames": 9
+      "durationSeconds": 8.023333,
+      "frames": 220,
+      "distinctFrameHashes": 199,
+      "controlSocketTransitions": [
+        "editor",
+        "harbor",
+        "editor",
+        "harbor",
+        "editor"
+      ]
+    },
+    "artifacts": {
+      "editor-normal.png": "4d54cfec5599e38d8c32e1aa355408d433de7413f702a0054900a78c3ecc8b84",
+      "harbor-normal.png": "2bad406609cec90a252eee33d2b2c0c6ed0ec1d9b5ab93e68c54f73c221ed696",
+      "editor-reduced-motion.png": "06faf55c12e23dcfef07d899928b3a11abe4337aef9f28c7a359602f1fcd4b65",
+      "editor-motion.mov": "963ed75b03b131d772934316db7752ac016606108db9f14e69c383e25c41652d",
+      "editor-motion.mp4": "08e419a075448e226574fffc3ab6359e9046394cbae616b2d1cee8cbb359c6b0",
+      "editor-motion.gif": "ea603e36a3ded0fb7dc2212f7a4bbaba7a08e966f200ac9a254df234f0a56b45"
     }
   }
 }
