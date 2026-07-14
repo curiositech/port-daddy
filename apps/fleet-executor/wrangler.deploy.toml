@@ -1,0 +1,93 @@
+# COMMITTED deploy config — used by CI (`wrangler deploy --config wrangler.deploy.toml`).
+# Contains ONLY non-credential values: Cloudflare resource ids (useless without
+# an API token), bindings, and plaintext vars. Runtime secrets are set via
+# `wrangler secret put` and survive deploys. This file IS the source of truth
+# for what CI ships; the gitignored wrangler.toml is for local hand-deploys.
+
+# Port Daddy Fleet Executor — Cloudflare Worker (TEMPLATE)
+#
+# Copy this file to `wrangler.toml` and replace every REPLACE_WITH_YOUR_* token
+# with the ids/values you get from the provisioning commands below. The real
+# `wrangler.toml` is gitignored (it carries the account-scoped KV id and the
+# GitHub App id); only this template is committed.
+#
+# Provisioning (run once, then paste the ids returned):
+#
+#   1. Create the installation-token KV namespace — copy id into [[kv_namespaces]]:
+#        wrangler kv namespace create FLEET_TOKENS
+#
+#   2. Create the queue + DLQ (consumer binding below):
+#        wrangler queues create fleet-runs
+#        wrangler queues create fleet-runs-dlq
+#
+#   3. Set the GitHub App id (var) and private key (secret):
+#        # Put your numeric App id into [vars].GITHUB_APP_ID below, OR set as a secret:
+#        echo "<app-id>" | wrangler secret put GITHUB_APP_ID
+#        cat app-key.pem  | wrangler secret put GITHUB_APP_PRIVATE_KEY
+#
+#   4. Deploy:
+#        wrangler deploy
+
+name = "fleet-executor"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ---------------------------------------------------------------------------
+# Workers AI — runs the analytical ships (code-reviewer, qa, red-team, …).
+[ai]
+binding = "AI"
+
+# ---------------------------------------------------------------------------
+# KV — installation-token cache. Keyed by `github_inst_<installationId>`,
+# value `{ token, expiresAt }`, TTL set to (expiresAt - 60s). Avoids re-minting
+# a GitHub App installation token for every ship in the same fleet run.
+[[kv_namespaces]]
+binding = "FLEET_TOKENS"
+id = "c5e329c764274a3380467e46fc0f965a"
+
+# CONTROL-PLANE KV: must be the SAME id the relay binds as "KV" (apps/relay
+# wrangler.toml). Carries the `fleet:paused` kill switch the relay toggles.
+[[kv_namespaces]]
+binding = "CONTROL_KV"
+id = "4dc3eaaefbf14b1b90c0d60621b610ae"
+
+# ---------------------------------------------------------------------------
+# D1 — shared relay database. The executor writes the fleet_runs audit header
+# (one row per GitHub delivery) and the append-only fleet_run_steps transcript.
+# Use the SAME database the relay reads from (/v1/fleet/activity|runs|health).
+# All executor writes are best-effort: a transcript-write failure never fails
+# the run or changes the merge gate. Provision once and paste the id:
+#   wrangler d1 create port-daddy-relay   # (or reuse the relay's existing id)
+[[d1_databases]]
+binding = "DB"
+database_name = "port-daddy-relay"
+database_id = "0907431b-9af0-48b5-b2b0-07e6b660bd41"
+
+# ---------------------------------------------------------------------------
+# Queue consumer — one message per GitHub delivery, enqueued by relay.
+# A blocking ship that never completes must never leave a green/pending gate,
+# so after `max_retries` exhausted the message lands in the DLQ where a
+# follow-up handler completes the check run as 'failure' (fail-closed).
+[[queues.consumers]]
+queue = "fleet-runs"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "fleet-runs-dlq"
+
+# ---------------------------------------------------------------------------
+# Plaintext vars. GITHUB_APP_PRIVATE_KEY is a *secret*, set out-of-band:
+#   echo "123456" | wrangler secret put GITHUB_APP_ID        # (or var, below)
+#   cat app-key.pem | wrangler secret put GITHUB_APP_PRIVATE_KEY
+# DEFAULT_BRANCH is the TRUSTED ref every config/contract file is read from.
+# It is NEVER pull_request.head — that is the zero-trust invariant.
+[vars]
+RUN_DETAILS_BASE_URL = "https://port-daddy-relay.erich-owens.workers.dev"
+GITHUB_APP_ID = "3810450"
+DEFAULT_BRANCH = "main"
+
+# ---------------------------------------------------------------------------
+# Secrets (documented; set via `wrangler secret put`, never committed):
+#   GITHUB_APP_PRIVATE_KEY   PEM-encoded GitHub App private key
+#   GITHUB_APP_ID            (may be a secret instead of a var if preferred)
