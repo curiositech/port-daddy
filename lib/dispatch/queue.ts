@@ -661,8 +661,14 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     if (goalText.length > 4000) {
       throw new Error('materializeProjection: goal text cannot exceed 4000 chars');
     }
-    if (input.budgetUsd !== undefined && (input.budgetUsd <= 0 || !Number.isFinite(input.budgetUsd))) {
-      throw new Error('materializeProjection: budgetUsd must be a positive number');
+    // 0 is a legitimate "flat-rate backend, no real-dollar bond" budget (BUG 1,
+    // 2026-07-14 halt-mandate) — only negative/non-finite is a caller error.
+    // clampBudget() (lib/dispatch/runner.ts) still treats 0 as "use the $5
+    // default" for display/lineage-ceiling purposes; the Conductor's
+    // effectiveBond() is what actually decides whether a real dollar bond is
+    // reserved, based on the dispatch's backend, not this stored number.
+    if (input.budgetUsd !== undefined && (input.budgetUsd < 0 || !Number.isFinite(input.budgetUsd))) {
+      throw new Error('materializeProjection: budgetUsd must be a non-negative number');
     }
     if (input.timeoutMs !== undefined && (input.timeoutMs <= 0 || !Number.isFinite(input.timeoutMs))) {
       throw new Error('materializeProjection: timeoutMs must be a positive number');

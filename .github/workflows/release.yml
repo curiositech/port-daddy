@@ -56,6 +56,33 @@ jobs:
       - name: Smoke dedicated daemon binary
         run: bash scripts/smoke-compiled-daemon.sh
 
+      # Bosun is the daemon's out-of-process supervisor (ADR-0036). It MUST ship
+      # in the same artifact as the daemon so `port-daddy install` can co-load a
+      # KeepAlive launchd/systemd job that restarts a dead daemon (2026-07-14
+      # halt-mandate). Before this step the release tar carried only pd +
+      # port-daddy, so a brew install had NO bosun binary — install-daemon.ts's
+      # BOSUN_BINARY_PATH resolved to a missing binary and the supervisor was
+      # silently skipped. The binary is tiny (~200kB, zero-dep Rust).
+      - name: Install Rust toolchain (for pd-bosun)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build + stage pd-bosun (daemon supervisor)
+        run: |
+          set -euo pipefail
+          cargo build --manifest-path core/pd-bosun/Cargo.toml --release -j 1
+          # `core/` is a Cargo WORKSPACE → the member build lands in the shared
+          # workspace target dir core/target/release, NOT core/pd-bosun/target.
+          # Stage FLAT as dist/pd-bosun (next to pd/port-daddy) — a collision-free
+          # install path that does NOT shadow the source-tree `core/pd-bosun/`
+          # DIRECTORY. install-daemon.ts resolves `<root>/pd-bosun` first.
+          cp core/target/release/pd-bosun dist/pd-bosun
+          chmod +x dist/pd-bosun
+          # Fail the release if the supervisor binary is missing/empty — a daemon
+          # that ships without its watchdog is exactly the silent-death regression
+          # this PR closes.
+          test -s dist/pd-bosun
+          ./dist/pd-bosun status || true  # smoke: the binary at least runs
+
       # Sign the macOS daemon + launcher with the Curiositech LLC (P5H9P59X2M)
       # Developer ID, reusing scripts/sign-and-notarize.mjs — the same proven path
       # FleetBar uses (ADR-0057 phase dist-ci-signing-secrets; closes ADR-0028's
@@ -138,7 +165,13 @@ jobs:
         run: bash scripts/soak-binary.sh dist/port-daddy
 
       - name: Package binary
-        run: cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json
+        # Ship pd-bosun (core/pd-bosun) inside the same tar as the daemon so a
+        # brew/tarball install lands the supervisor at <root>/core/pd-bosun,
+        # exactly where install-daemon.ts's BOSUN_BINARY_PATH looks (it prefers
+        # dist/core/pd-bosun, then core/pd-bosun/... — the extracted `core/`
+        # dir satisfies the daemon-relative fallback). Without this the tarball
+        # had no watchdog and the KeepAlive supervisor job was silently skipped.
+        run: cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json pd-bosun
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2

@@ -18,7 +18,7 @@ import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { homedir, platform } from 'os';
 import { getDaemonTcpUrl } from './shared/daemon-discovery.js';
-import { daemonBinaryName, resolveDaemonLaunchCommand, resolveDistributionRoot, type DaemonLaunchCommand } from './shared/daemon-binary.js';
+import { daemonBinaryName, resolveDaemonLaunchCommand, resolveDistributionRoot, resolveBosunBinaryPath, type DaemonLaunchCommand } from './shared/daemon-binary.js';
 
 const MODULE_DIR: string = dirname(fileURLToPath(import.meta.url));
 const __dirname: string = resolveDistributionRoot(MODULE_DIR);
@@ -26,9 +26,16 @@ const PLATFORM: string = platform();
 const NODE_PATH: string = process.execPath;
 const LOG_PATH: string = join(__dirname, 'port-daddy.log');
 const ERROR_LOG_PATH: string = join(__dirname, 'port-daddy-error.log');
-const BOSUN_DIST_BINARY: string = join(__dirname, 'dist', 'core', 'pd-bosun');
-const BOSUN_SOURCE_BINARY: string = join(__dirname, 'core', 'pd-bosun', 'target', 'release', 'pd-bosun');
-const BOSUN_BINARY_PATH: string = existsSync(BOSUN_DIST_BINARY) ? BOSUN_DIST_BINARY : BOSUN_SOURCE_BINARY;
+// Bosun binary resolution order (2026-07-14 halt-mandate). The CANONICAL
+// installed location is `<resource-root>/pd-bosun` — the flat path the release
+// tarball unpacks to (release.yml packages `pd-bosun` at the tar root, next to
+// `pd`/`port-daddy`). We prefer it FIRST so a real install supervises using the
+// shipped, co-located binary rather than a stale dev-checkout `dist/` copy (the
+// exact failure the mandate calls out: "a stale Bosun was watching from
+// ~/coding/port-daddy/dist, useless"). The `dist/core` and source-tree
+// `target/release` paths remain dev fallbacks only. `resolveBosunBinaryPath`
+// mirrors this order in shared code consumed by `pd doctor`.
+const BOSUN_BINARY_PATH: string = resolveBosunBinaryPath(__dirname);
 const BOSUN_LOG_PATH: string = join(__dirname, 'pd-bosun.log');
 const BOSUN_ERROR_LOG_PATH: string = join(__dirname, 'pd-bosun-error.log');
 const DARWIN_OPERATOR_TOOL_PATHS = [
@@ -433,8 +440,15 @@ function loadLaunchAgent(label: string, plistPath: string): boolean {
  */
 function installBosunMacOS(daemonLabel: string): boolean {
   if (!existsSync(BOSUN_BINARY_PATH)) {
-    console.log(`  Bosun not installed: pd-bosun binary missing at ${BOSUN_BINARY_PATH}`);
-    console.log('  Build it with: npm run build:bosun:dist');
+    // LOUD warning (2026-07-14 halt-mandate red-team): a daemon installed
+    // WITHOUT its supervisor is exactly the silent-death regression this PR
+    // closes. A source checkout legitimately may not have built the binary yet,
+    // so we do not hard-fail the whole install — but we must SCREAM, not log a
+    // quiet one-liner, so the operator knows the daemon is currently unguarded.
+    console.warn('  ⚠️  BOSUN SUPERVISOR NOT INSTALLED — the daemon will NOT be auto-restarted if it dies.');
+    console.warn(`      pd-bosun binary missing at ${BOSUN_BINARY_PATH}`);
+    console.warn('      A packaged (brew/tarball) install ships pd-bosun automatically; this checkout has not built it.');
+    console.warn('      Build + install it with: npm run build:bosun:dist && port-daddy install');
     return true;
   }
 
@@ -443,7 +457,7 @@ function installBosunMacOS(daemonLabel: string): boolean {
   }
 
   writeFileSync(BOSUN_PLIST_PATH, generateBosunPlist(daemonLabel));
-  console.log(`  Wrote ${BOSUN_PLIST_PATH} (watching ${daemonLabel})`);
+  console.log(`  Wrote ${BOSUN_PLIST_PATH} (KeepAlive supervisor → ${BOSUN_BINARY_PATH}, watching ${daemonLabel})`);
   return loadLaunchAgent(BOSUN_PLIST_LABEL, BOSUN_PLIST_PATH);
 }
 
