@@ -1105,6 +1105,24 @@ fn render_code_buffer(
 ) -> AnyElement {
     let t = current_theme();
     let count = lines.len();
+    let claim_bands = bands
+        .iter()
+        .filter(|b| matches!(b.tone, Tone::Engaged | Tone::Resting))
+        .count();
+    let has_wedge = bands.iter().any(|b| matches!(b.tone, Tone::Conflicted));
+    let has_caret = bands.iter().any(|b| matches!(b.tone, Tone::Landed));
+    let status_color = if has_wedge {
+        t.conflict
+    } else if claim_bands > 0 {
+        t.engaged
+    } else {
+        t.landed
+    };
+    let motion_note = if reduced_motion() {
+        "reduced motion - state edges held still"
+    } else {
+        "event-driven motion - idle is still"
+    };
     let list = uniform_list(
         SharedString::from(format!("code-{pane_id}")),
         count,
@@ -1121,11 +1139,77 @@ fn render_code_buffer(
     };
     div()
         .size_full()
+        .relative()
+        .flex()
+        .flex_col()
+        .overflow_hidden()
+        .border_t_1()
+        .border_color(rgb(t.line))
         .bg(rgb(t.sunken))
         .font_family("IBM Plex Mono")
         .text_size(px(tokens::TEXT_BODY))
         .text_color(rgb(t.ink2))
-        .child(list)
+        .child(
+            div()
+                .h(px(30.0))
+                .flex()
+                .items_center()
+                .gap(px(tokens::SPACE_2))
+                .px(px(tokens::SPACE_3))
+                .border_b_1()
+                .border_color(rgb(t.line))
+                .bg(rgb(t.panel))
+                .child(state_stripe(
+                    format!("code-{pane_id}-state"),
+                    status_color,
+                    5.0,
+                    20.0,
+                ))
+                .child(micro_flag(
+                    format!("code-{pane_id}-mf"),
+                    t.accent,
+                    t.engaged,
+                    9.0,
+                    14.0,
+                ))
+                .child(
+                    div()
+                        .text_color(rgb(t.ink))
+                        .text_size(px(tokens::TEXT_CAPTION))
+                        .font_weight(FontWeight::BOLD)
+                        .child(format!(
+                            "M.F BUFFER / {count} lines / {claim_bands} claims / caret {}",
+                            if has_caret { "owned" } else { "unknown" }
+                        )),
+                )
+                .child(div().flex_1())
+                .child(
+                    div()
+                        .text_color(rgb(t.muted))
+                        .text_size(px(tokens::TEXT_CAPTION))
+                        .child(motion_note),
+                ),
+        )
+        .child(div().flex_1().overflow_hidden().child(list))
+        .child(
+            div()
+                .h(px(20.0))
+                .flex()
+                .items_center()
+                .justify_end()
+                .px(px(tokens::SPACE_3))
+                .border_t_1()
+                .border_color(rgb(t.line))
+                .bg(tone_wash(status_color, 0x18))
+                .text_color(rgb(t.muted))
+                .text_size(px(10.0))
+                .child(if has_wedge {
+                    "LIVING HARBOR / wedge held - parley before edit"
+                } else {
+                    "LIVING HARBOR / receipt-ready still frame"
+                }),
+        )
+        .children(corner_ticks(format!("code-{pane_id}"), t.accent_ink))
         .into_any_element()
 }
 
@@ -1168,6 +1252,18 @@ fn render_code_line(
         }
     }
     let author_tag = line.author_tag.clone();
+    let band_rail = {
+        let mut rail = div().w(px(8.0)).h_full().flex_shrink_0().flex();
+        if let Some(b) = band {
+            rail = rail.child(div().w(px(5.0)).h_full().bg(rgb(t.tone(&b.tone))));
+            if matches!(b.tone, Tone::Conflicted) {
+                rail = rail.child(div().w(px(3.0)).h_full().bg(rgb(t.gated)));
+            } else {
+                rail = rail.child(div().w(px(3.0)).h_full().bg(tone_wash(t.tone(&b.tone), 0x60)));
+            }
+        }
+        rail
+    };
 
     div()
         .h(px(tokens::CODE_LINE_H))
@@ -1175,15 +1271,10 @@ fn render_code_line(
         .flex()
         .items_center()
         .when_some(band, |d, b| d.bg(tone_wash(t.tone(&b.tone), 0x2b)))
-        // 2px band rail — ALWAYS reserved so text never shifts when a band
-        // appears; colored only under a band.
-        .child(
-            div()
-                .w(px(2.0))
-                .h_full()
-                .flex_shrink_0()
-                .when_some(band, |d, b| d.bg(rgb(t.tone(&b.tone)))),
-        )
+        // 8px exact-range rail: state-bearing stripes for caret ownership,
+        // remote claims, and conflict wedges. The width is always reserved so
+        // text never shifts when claims acquire/release.
+        .child(band_rail)
         // Line number — always present, muted, right-aligned by mono padding.
         .child(
             div()
@@ -5701,14 +5792,16 @@ fn render_harbor_node_row(
     let t = current_theme();
     let row_tone = tone_rgb(&tone);
     let badge_color = tone_rgb(&badge_tone);
-    div()
+    let row = div()
         .id(SharedString::from(format!("harbor-row-{id}-{index}")))
+        .relative()
         .flex()
         .items_center()
         .gap(px(tokens::SPACE_2))
         .mx(px(tokens::SPACE_3))
         .my(px(2.0))
-        .px(px(tokens::SPACE_3))
+        .pl(px(tokens::SPACE_2))
+        .pr(px(tokens::SPACE_3))
         .py(px(tokens::SPACE_2))
         .border_1()
         .when(selected, |s| s.border_l_2())
@@ -5719,6 +5812,15 @@ fn render_harbor_node_row(
             let t = current_theme();
             s.bg(rgb(t.raised)).border_color(rgb(t.accent))
         })
+        .when(live && !reduced_motion(), |s| {
+            s.shadow(motion::glow(row_tone, 0.20, 8.0, 0.0))
+        })
+        .child(state_stripe(
+            format!("harbor-row-{id}-{index}-state"),
+            row_tone,
+            4.0,
+            40.0,
+        ))
         // Live vs historical: filled breathing marker vs hollow static one.
         .child(
             div()
@@ -5774,7 +5876,11 @@ fn render_harbor_node_row(
                 .flex_shrink_0()
                 .child(age),
         )
-        .on_click(cx.listener(move |this, _ev, _window, cx| {
+        .children(corner_ticks(
+            format!("harbor-row-{id}-{index}"),
+            if selected { t.accent_ink } else { t.line2 },
+        ));
+    row.on_click(cx.listener(move |this, _ev, _window, cx| {
             this.ws_mut().focus(id);
             if let Some(tx) = &this.control_tx {
                 let _ = tx.send(ControlMsg::HarborSelect { index });

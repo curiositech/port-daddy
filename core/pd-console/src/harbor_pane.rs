@@ -752,6 +752,9 @@ impl HarborPane {
     fn detail_blocks(&self, node: &NodeRowData) -> Vec<Block> {
         let mut blocks = Vec::new();
         let live = node.is_live();
+        let session = node.session_id.as_deref().unwrap_or("no-session");
+        let body = node.body_id.as_deref().unwrap_or("no-body");
+        let run = node.run_id.as_deref().unwrap_or("no-run");
 
         // ── facts line (mock: body/tier/worktree/context/cost) ──
         blocks.push(Block::Header(format!(
@@ -765,6 +768,14 @@ impl HarborPane {
                 node.status.as_str()
             }
         )));
+        blocks.push(Block::Flag {
+            letter: if live { 'H' } else { 'M' },
+            label: format!(
+                "daemon session truth - node {} · session {session} · body {body} · run {run}",
+                node.agent_node_id
+            ),
+            tone: if live { Tone::Engaged } else { Tone::Resting },
+        });
         let (rank, cap_reason) = node.effective_rank();
         blocks.push(Block::KeyVal(
             "compliance".into(),
@@ -826,12 +837,28 @@ impl HarborPane {
             }
             if !self.transcript.is_empty() {
                 blocks.push(Block::Header("historical transcript — replay".into()));
+                blocks.push(Block::Flag {
+                    letter: 'Q',
+                    label: format!(
+                        "transcript receipt - {} replay event(s) folded from daemon storage",
+                        self.transcript.len()
+                    ),
+                    tone: Tone::Landed,
+                });
                 for row in &self.transcript {
                     blocks.push(self.transcript_block(row));
                 }
             }
             if !self.live_tail.is_empty() {
                 blocks.push(Block::Header("● live — events arriving".into()));
+                blocks.push(Block::Flag {
+                    letter: 'E',
+                    label: format!(
+                        "remote edit/transcript motion - {} live event(s) tailing from the daemon",
+                        self.live_tail.len()
+                    ),
+                    tone: Tone::Engaged,
+                });
                 for row in &self.live_tail {
                     blocks.push(self.transcript_block(row));
                 }
@@ -877,6 +904,25 @@ impl HarborPane {
         }
 
         // ── click controls, compliance-gated at emit time ──
+        let gated_controls = CONTROL_VERBS
+            .iter()
+            .filter(|(verb, _, _)| control_gate(verb, node).is_err())
+            .count();
+        if gated_controls > 0 {
+            blocks.push(Block::Flag {
+                letter: 'F',
+                label: format!(
+                    "human gate - {gated_controls} control(s) disabled here with exact daemon/compliance reasons"
+                ),
+                tone: Tone::Gated,
+            });
+        } else {
+            blocks.push(Block::Flag {
+                letter: 'C',
+                label: "human gate clear - enabled controls still post ControlCommand for daemon authorization".into(),
+                tone: Tone::Landed,
+            });
+        }
         for (verb, _, _) in CONTROL_VERBS.iter() {
             let gate = control_gate(verb, node);
             blocks.push(Block::ControlButton {
@@ -1069,7 +1115,14 @@ impl Pane for HarborPane {
     fn view(&self) -> Vec<Block> {
         // Never blank: every branch below renders at least a header plus an
         // honest state (error / empty / populated).
-        let mut blocks = vec![Block::Header("Agent Nodes — Harbor".into())];
+        let mut blocks = vec![
+            Block::Header("M.F co-op Harbor - Agent Nodes".into()),
+            Block::Flag {
+                letter: 'F',
+                label: "M.F co-op surface - full pd CLI drawer stays available in the shell; this pane reads daemon truth".into(),
+                tone: Tone::Accent,
+            },
+        ];
 
         if let Some(err) = &self.roster_error {
             blocks.push(Block::WrappedText {
@@ -1611,6 +1664,42 @@ mod tests {
         assert!(rows[0].0, "active node renders live");
         assert!(!rows[1].0, "complete node renders historical");
         assert_ne!(rows[0].1, rows[1].1, "live and historical must differ in tone");
+    }
+
+    #[test]
+    fn mf_harbor_renders_daemon_session_truth_and_human_gate() {
+        let mut pane = HarborPane::new();
+        let mut node = c4_node();
+        node.compliance_level = "C4".into();
+        pane.nodes = vec![node];
+
+        let blocks = pane.view();
+        assert!(
+            blocks.iter().any(|b| matches!(
+                b,
+                Block::Header(h) if h.contains("M.F co-op Harbor")
+            )),
+            "Harbor must identify the M.F co-op surface"
+        );
+        assert!(
+            blocks.iter().any(|b| matches!(
+                b,
+                Block::Flag { letter: 'H', label, tone: Tone::Engaged }
+                    if label.contains("daemon session truth")
+                        && label.contains("session sess-1")
+                        && label.contains("body body-1")
+            )),
+            "selected live node must render daemon session/body/run truth"
+        );
+        assert!(
+            blocks.iter().any(|b| matches!(
+                b,
+                Block::Flag { letter: 'F', label, tone: Tone::Gated }
+                    if label.contains("human gate")
+                        && label.contains("control(s) disabled")
+            )),
+            "gated controls must be announced as a Foxtrot human gate"
+        );
     }
 
     #[test]

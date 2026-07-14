@@ -1,6 +1,19 @@
 {
-  "chosenRung": 1,
-  "surfaceKind": "2d-vector-text",
+  "decision": "gpui-default",
+  "chosenRenderer": "gpui-element-tree",
+  "surfaceKind": "governed-coop-editor-and-harbor-roster",
+  "reason": "The M.F surface needs state-bearing line rails, flags, receipts, and row chrome that GPUI already expresses with divs, uniform_list, shadows, and canvas flags.",
+  "velloParley": {
+    "decision": "not-used",
+    "stateBearingNeed": null,
+    "reason": "No bespoke vector/text viewport is needed; the editor text stays in GPUI's existing shaped text and virtualized CodeBuffer path."
+  },
+  "shader": {
+    "decision": "not-used",
+    "stateBearingNeed": null,
+    "reason": "The living harbor strip is a still, state-bearing GPUI band. There is no measured per-pixel need for water/noise/dither in this slice."
+  },
+  "metalPipelineRung": null,
   "namedConstraintForLowerRung": null,
   "measuredRung1Miss": false,
   "promotionFrameRateRequested": false,
@@ -8,7 +21,17 @@
   "idleRedrawPolicy": "event-driven",
   "motionPreferenceControl": "visible-runtime-toggle",
   "systemPreferenceAdapter": "not-yet-exposed-by-gpui-0.2.2",
-  "glyphSource": "parley",
+  "glyphSource": "gpui-glyph-atlas",
   "tripleBuffered": false,
-  "keptOutOfLinuxCI": true
+  "keptOutOfLinuxCI": true,
+  "stateBearingEffects": [
+    "caret-ownership-line-rail",
+    "remote-edit-author-gutter",
+    "claim-acquire-release-stripe",
+    "blocked-wedge-stripe",
+    "recovery-snapshot-receipt",
+    "save-state-vector-receipt",
+    "live-session-row-stripe",
+    "human-gate-foxtrot-flag"
+  ]
 }

@@ -271,7 +271,7 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
             Block::NodeRow { .. } => ROW_H + 8,
             Block::CodeBuffer { lines, .. } => {
                 let visible = lines.len().min(500);
-                (visible * ROW_H) + if lines.len() > visible { ROW_H } else { 0 }
+                (visible * ROW_H) + (ROW_H * 2) + if lines.len() > visible { ROW_H } else { 0 }
             }
             _ => ROW_H,
         };
@@ -329,6 +329,31 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
                 let visible = lines.len().min(500);
                 let gutter_w = (*gutter_cols as usize * GLYPH_ADV).max(GLYPH_ADV) + 14;
                 let author_w = GLYPH_ADV * 2 + 12;
+                let claim_bands = bands
+                    .iter()
+                    .filter(|b| matches!(b.tone, Tone::Engaged | Tone::Resting))
+                    .count();
+                let has_wedge = bands.iter().any(|b| matches!(b.tone, Tone::Conflicted));
+                let state = if has_wedge {
+                    to_rgb(t.conflicted)
+                } else if claim_bands > 0 {
+                    to_rgb(t.engaged)
+                } else {
+                    to_rgb(t.landed)
+                };
+                c.fill_rect(x0, y, inner, ROW_H, panel);
+                c.fill_rect(x0, y, 8, ROW_H, state);
+                c.fill_rect(x0 + 16, y + 7, 10, 14, accent);
+                c.fill_rect(x0 + 26, y + 7, 10, 14, to_rgb(t.engaged));
+                draw_text(
+                    &mut c,
+                    x0 + 44,
+                    y + 10,
+                    1,
+                    &format!("M.F BUFFER / {} lines / {} claim bands", lines.len(), claim_bands),
+                    ink,
+                );
+                y += ROW_H;
                 for line in lines.iter().take(visible) {
                     let band = bands.iter().rev().find(|b| b.covers(line.number));
                     let row_bg = band
@@ -339,16 +364,19 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
                     c.fill_rect(
                         x0,
                         y,
-                        4,
+                        8,
                         ROW_H,
                         band.map(|b| tone_rgb(b.tone, t)).unwrap_or(muted),
                     );
+                    if matches!(band.map(|b| b.tone), Some(Tone::Conflicted)) {
+                        c.fill_rect(x0 + 5, y, 3, ROW_H, to_rgb(t.gated));
+                    }
                     let num = format!("{:>width$}", line.number, width = *gutter_cols as usize);
-                    draw_text(&mut c, x0 + 10, y + 10, 1, &num, muted);
+                    draw_text(&mut c, x0 + 14, y + 10, 1, &num, muted);
                     if let Some(tag) = &line.author_tag {
                         draw_text(
                             &mut c,
-                            x0 + gutter_w,
+                            x0 + gutter_w + 4,
                             y + 10,
                             1,
                             tag,
@@ -357,7 +385,7 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
                     }
 
                     let mut at = 0usize;
-                    let mut tx = x0 + gutter_w + author_w;
+                    let mut tx = x0 + gutter_w + author_w + 4;
                     for (len, kind) in &line.runs {
                         let end = (at + *len as usize).min(line.text.len());
                         if at < end {
@@ -385,6 +413,20 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
                     );
                     y += ROW_H;
                 }
+                c.fill_rect(x0, y, inner, ROW_H, state);
+                draw_text(
+                    &mut c,
+                    x0 + 10,
+                    y + 10,
+                    1,
+                    if has_wedge {
+                        "LIVING HARBOR / wedge held - parley before edit"
+                    } else {
+                        "LIVING HARBOR / receipt-ready still frame"
+                    },
+                    bg,
+                );
+                y += ROW_H;
             }
             Block::Chip { label, tone } => {
                 let col = tone_rgb(*tone, t);

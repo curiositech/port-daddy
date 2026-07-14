@@ -6,9 +6,11 @@
       "usesTransform": false,
       "animatesLayoutInHotRender": false,
       "owners": 1,
+      "stateBearingNeed": "full pd CLI drawer remains a PTY shell surface",
       "reducedMotion": {
         "handled": true,
-        "preservesOrientation": true
+        "preservesOrientation": true,
+        "staticCue": "drawer edge and title stay visible"
       },
       "repeat": {
         "present": false
@@ -22,9 +24,11 @@
       "usesTransform": false,
       "animatesLayoutInHotRender": false,
       "owners": 1,
+      "stateBearingNeed": "new PTY output receipt",
       "reducedMotion": {
         "handled": true,
-        "preservesOrientation": true
+        "preservesOrientation": true,
+        "staticCue": "receipt stripe remains"
       },
       "repeat": {
         "present": false
@@ -38,9 +42,11 @@
       "usesTransform": false,
       "animatesLayoutInHotRender": false,
       "owners": 1,
+      "stateBearingNeed": "live daemon/session heartbeat",
       "reducedMotion": {
         "handled": true,
-        "preservesOrientation": true
+        "preservesOrientation": true,
+        "staticCue": "filled dot remains filled"
       },
       "repeat": {
         "present": true,
@@ -51,19 +57,165 @@
       "interruptible": true
     },
     {
-      "name": "living-harbor-waterline",
-      "kind": "bespoke",
+      "name": "harbor-editor-caret-ownership",
+      "kind": "micro",
       "usesTransform": false,
       "animatesLayoutInHotRender": false,
       "owners": 1,
+      "stateBearingNeed": "local caret ownership and exact line",
       "reducedMotion": {
         "handled": true,
-        "preservesOrientation": true
+        "preservesOrientation": true,
+        "staticCue": "Landed line rail stays on the caret line"
+      },
+      "repeat": {
+        "present": false
+      },
+      "easing": "ease_in_out",
+      "interruptible": true
+    },
+    {
+      "name": "harbor-editor-remote-edit-arrival",
+      "kind": "micro",
+      "usesTransform": false,
+      "animatesLayoutInHotRender": false,
+      "owners": 1,
+      "stateBearingNeed": "remote Loro ops and author gutter changes",
+      "reducedMotion": {
+        "handled": true,
+        "preservesOrientation": true,
+        "staticCue": "agent author tag and Engaged line rail remain"
+      },
+      "repeat": {
+        "present": false
+      },
+      "easing": "ease_in_out",
+      "interruptible": true
+    },
+    {
+      "name": "harbor-editor-claim-acquire-release",
+      "kind": "micro",
+      "usesTransform": false,
+      "animatesLayoutInHotRender": false,
+      "owners": 1,
+      "stateBearingNeed": "claim acquisition and release over exact line ranges",
+      "reducedMotion": {
+        "handled": true,
+        "preservesOrientation": true,
+        "staticCue": "8px line-range stripe stays in place"
+      },
+      "repeat": {
+        "present": false
+      },
+      "easing": "ease_in_out",
+      "interruptible": true
+    },
+    {
+      "name": "harbor-editor-blocked-gate",
+      "kind": "micro",
+      "usesTransform": false,
+      "animatesLayoutInHotRender": false,
+      "owners": 1,
+      "stateBearingNeed": "blocked conflict wedge or first-granted claim gate",
+      "reducedMotion": {
+        "handled": true,
+        "preservesOrientation": true,
+        "staticCue": "Conflicted wedge stripe and PAN-PAN flag remain"
+      },
+      "repeat": {
+        "present": false
+      },
+      "easing": "ease_in_out",
+      "interruptible": true
+    },
+    {
+      "name": "harbor-editor-reconnect-recovery",
+      "kind": "micro",
+      "usesTransform": false,
+      "animatesLayoutInHotRender": false,
+      "owners": 1,
+      "stateBearingNeed": "snapshot hydration and salvage receipt",
+      "reducedMotion": {
+        "handled": true,
+        "preservesOrientation": true,
+        "staticCue": "Oscar recovery flag and receipt text remain"
+      },
+      "repeat": {
+        "present": false
+      },
+      "easing": "ease_in_out",
+      "interruptible": true
+    },
+    {
+      "name": "harbor-editor-save-receipt",
+      "kind": "micro",
+      "usesTransform": false,
+      "animatesLayoutInHotRender": false,
+      "owners": 1,
+      "stateBearingNeed": "local CRDT state vector receipt",
+      "reducedMotion": {
+        "handled": true,
+        "preservesOrientation": true,
+        "staticCue": "receipt hash remains in the Foxtrot strip"
+      },
+      "repeat": {
+        "present": false
+      },
+      "easing": "ease_in_out",
+      "interruptible": true
+    },
+    {
+      "name": "harbor-roster-live-session-tail",
+      "kind": "micro",
+      "usesTransform": false,
+      "animatesLayoutInHotRender": false,
+      "owners": 1,
+      "stateBearingNeed": "daemon session/body/run truth and live transcript tail",
+      "reducedMotion": {
+        "handled": true,
+        "preservesOrientation": true,
+        "staticCue": "live row stripe and session truth flag remain"
       },
       "repeat": {
         "present": true,
         "scopedToLeaf": true,
         "pausesWhenIdle": true
+      },
+      "easing": "pulsating_between",
+      "interruptible": true
+    },
+    {
+      "name": "harbor-human-gate-control",
+      "kind": "micro",
+      "usesTransform": false,
+      "animatesLayoutInHotRender": false,
+      "owners": 1,
+      "stateBearingNeed": "human/compliance gate disabled states",
+      "reducedMotion": {
+        "handled": true,
+        "preservesOrientation": true,
+        "staticCue": "Foxtrot gate flag and disabled reason remain"
+      },
+      "repeat": {
+        "present": false
+      },
+      "easing": "ease_in_out",
+      "interruptible": true
+    },
+    {
+      "name": "living-harbor-waterline",
+      "kind": "bespoke",
+      "usesTransform": false,
+      "animatesLayoutInHotRender": false,
+      "owners": 1,
+      "stateBearingNeed": "still frame communicates receipt or wedge state",
+      "reducedMotion": {
+        "handled": true,
+        "preservesOrientation": true,
+        "staticCue": "static waterline label remains"
+      },
+      "repeat": {
+        "present": false
       },
       "easing": "linear",
       "interruptible": true

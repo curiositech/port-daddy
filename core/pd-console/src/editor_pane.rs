@@ -131,6 +131,14 @@ pub fn author_tone(author: Option<PeerId>, opener: PeerId) -> Tone {
     }
 }
 
+fn short_receipt(bytes: &[u8]) -> String {
+    let mut out = String::new();
+    for b in bytes.iter().take(6) {
+        out.push_str(&format!("{b:02x}"));
+    }
+    if out.is_empty() { "empty".into() } else { out }
+}
+
 /// The pre-tokenized render cache behind [`Block::CodeBuffer`]. Rebuilt ONLY
 /// when the buffer's CRDT [`HarborBuffer::change_stamp`] moves — a render pass
 /// on an unchanged buffer is an `Arc` refcount bump, never a re-lex or a
@@ -788,6 +796,51 @@ impl Pane for EditorPane {
         // The tokenized snapshot: an Arc clone on the unchanged path — the old
         // path re-cloned every line's String into a Block::Row per view().
         let (lines, gutter_cols, show_authors, total) = self.code_snapshot(buffer);
+        let remote_count = self.remote.len();
+        let claim_count = self.claim_ledger.len();
+        let receipt = short_receipt(&buffer.change_stamp());
+        let local_line = self.local_presence.cursor_line;
+        let gated_line = matches!(
+            self.guard_verdict_for_line(local_line),
+            GuardVerdict::Gated(_)
+        );
+        let voice = if self.guard_band.is_some() || gated_line {
+            "PAN-PAN"
+        } else {
+            "SECURITE"
+        };
+
+        blocks.push(Block::Flag {
+            letter: 'M',
+            label: format!(
+                "M.F co-op buffer - {} aboard (you + {remote_count}); {claim_count} live claim(s); edit lane {}; coord lane {}",
+                1 + remote_count,
+                self.channel,
+                self.coord_channel
+            ),
+            tone: Tone::Accent,
+        });
+        blocks.push(Block::Flag {
+            letter: 'F',
+            label: format!(
+                "{voice} - caret owner you at L{local_line}:C{}; receipt {receipt}; remote edits merge through Loro, not a shell command",
+                self.local_presence.cursor_col
+            ),
+            tone: if self.guard_band.is_some() {
+                Tone::Conflicted
+            } else if gated_line {
+                Tone::Gated
+            } else {
+                Tone::Landed
+            },
+        });
+        blocks.push(Block::Flag {
+            letter: 'O',
+            label: format!(
+                "recovery tide-line - snapshot receipt {receipt}; cold successors hydrate the same authorship from /blob"
+            ),
+            tone: Tone::Resting,
+        });
 
         // Legend: which tag is the operator vs an agent replica. Rendered as a
         // tone-bearing Flag so the authorship vocabulary is visible at a glance and
@@ -904,6 +957,11 @@ impl Pane for EditorPane {
                 tone: Tone::Accent,
             });
         }
+        bands.push(CodeBand {
+            start: local_line,
+            end: local_line,
+            tone: Tone::Landed,
+        });
         for (key, claim) in self.claim_ledger.iter() {
             let (start, end) = claim.line_span();
             bands.push(CodeBand {
@@ -1097,6 +1155,48 @@ mod tests {
         assert!(
             lines.iter().all(|l| matches!(l.author_tone, Tone::Resting)),
             "opener-authored lines tone Resting"
+        );
+    }
+
+    #[test]
+    fn mf_coop_header_renders_caret_receipt_and_recovery_state() {
+        let path = write_temp("mf-coop.txt", "alpha\nbravo\n");
+        let mut pane = make_pane(&path, None);
+        pane.set_local_presence(PresenceState::caret(2, 4, 1, 2));
+        let blocks = pane.view();
+
+        assert!(
+            blocks.iter().any(|b| matches!(
+                b,
+                Block::Flag { letter: 'M', label, tone: Tone::Accent }
+                    if label.contains("M.F co-op buffer")
+            )),
+            "the editor must identify the M.F co-op buffer"
+        );
+        assert!(
+            blocks.iter().any(|b| matches!(
+                b,
+                Block::Flag { letter: 'F', label, tone: Tone::Landed }
+                    if label.contains("caret owner you at L2:C4")
+                        && label.contains("receipt")
+                        && label.contains("remote edits merge through Loro")
+            )),
+            "the Foxtrot strip must show caret ownership and the CRDT receipt"
+        );
+        assert!(
+            blocks.iter().any(|b| matches!(
+                b,
+                Block::Flag { letter: 'O', label, .. }
+                    if label.contains("recovery tide-line")
+                        && label.contains("snapshot receipt")
+            )),
+            "the recovery tide-line must stay visible"
+        );
+
+        let (_, bands, _) = code_buffer(&blocks).expect("a code buffer renders");
+        assert!(
+            bands.iter().any(|b| b.tone == Tone::Landed && b.covers(2)),
+            "the local caret owns an exact line rail"
         );
     }
 
