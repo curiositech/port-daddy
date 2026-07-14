@@ -1,6 +1,8 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
+import { applyDistinctTokenCoverageBonus } from './search-coverage.js';
+
 export type IdeaStatus = 'now' | 'backlog' | 'parked' | 'merge' | 'local';
 export type IdeaSection = 'immediate' | 'secondary' | 'duplicate' | 'raw';
 export type IdeaSource = 'trove' | 'raw';
@@ -80,13 +82,6 @@ function tokenize(value: string): string[] {
     deduped.push(token);
   }
   return deduped;
-}
-
-function applyCoverageBonus(score: number, tokenHits: number, totalTokens: number): number {
-  if (tokenHits === 0 || totalTokens <= 1) return score;
-  const coverageBonus = Math.round((tokenHits / totalTokens) * 4);
-  const completeQueryBonus = tokenHits === totalTokens ? totalTokens * 4 : 0;
-  return score + coverageBonus + completeQueryBonus;
 }
 
 function collectIndentedBullets(lines: string[], startIndex: number): { items: string[]; nextIndex: number } {
@@ -355,7 +350,7 @@ function searchScore(entry: IdeaEntry, query: string): { score: number; matches:
   const tokens = tokenize(query);
   const matches: string[] = [];
   let score = 0;
-  let tokenHits = 0;
+  let matchedTokenCount = 0;
 
   const fields: Array<[string, string, number]> = [
     ['slug', normalizeText(entry.slug), 12],
@@ -377,7 +372,7 @@ function searchScore(entry: IdeaEntry, query: string): { score: number; matches:
         matched = true;
       }
       if (matched) {
-        tokenHits += 1;
+        matchedTokenCount += 1;
         if (!matches.includes(label)) matches.push(label);
         break;
       }
@@ -388,8 +383,11 @@ function searchScore(entry: IdeaEntry, query: string): { score: number; matches:
   if (queryNorm && normalizeText(entry.title).includes(queryNorm)) score += 14;
   if (queryNorm && normalizeText(entry.summary).includes(queryNorm)) score += 8;
 
-  if (tokenHits === 0) return { score: 0, matches: [] };
-  return { score: applyCoverageBonus(score, tokenHits, tokens.length), matches };
+  if (matchedTokenCount === 0) return { score: 0, matches: [] };
+  return {
+    score: applyDistinctTokenCoverageBonus(score, matchedTokenCount, tokens.length),
+    matches,
+  };
 }
 
 function statusRank(status: IdeaStatus): number {
