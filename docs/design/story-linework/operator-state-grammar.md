@@ -80,7 +80,7 @@ action as one coherent accessibility value.
 - ICOS meanings and Port Daddy mappings: `lib/maritime-signals.ts`
 - CLI state and two-block faces: `cli/utils/ui.ts`
 - Terminal policy: `cli/utils/output.ts`
-- SwiftUI components: `apps/FleetBar/FleetBar/StoryLinework.swift`
+- SwiftUI target, proposed in PR #1929: `apps/FleetBar/FleetBar/StoryLinework.swift`
 - GPUI primitives: `core/pd-console/src/story_linework.rs`
 
 `lib/maritime-signals.ts` is the referee. When a surface needs a new signal,
