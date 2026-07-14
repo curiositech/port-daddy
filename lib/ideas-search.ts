@@ -134,6 +134,13 @@ function tokenize(value: string): string[] {
   return deduped;
 }
 
+function applyCoverageBonus(score: number, tokenHits: number, totalTokens: number): number {
+  if (tokenHits === 0 || totalTokens <= 1) return score;
+  const coverageBonus = Math.round((tokenHits / totalTokens) * 4);
+  const completeQueryBonus = tokenHits === totalTokens ? totalTokens * 4 : 0;
+  return score + coverageBonus + completeQueryBonus;
+}
+
 function scoreFields(query: string, fields: Array<[string, string, number]>): SearchScore {
   const queryNorm = normalizeText(query);
   const tokens = tokenize(query);
@@ -171,7 +178,7 @@ function scoreFields(query: string, fields: Array<[string, string, number]>): Se
   }
 
   if (tokenHits === 0 && score === 0) return { score: 0, matches: [] };
-  return { score, matches };
+  return { score: applyCoverageBonus(score, tokenHits, tokens.length), matches };
 }
 
 function sourceRank(source: IdeaSearchSource): number {

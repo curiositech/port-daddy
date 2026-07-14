@@ -82,6 +82,13 @@ function tokenize(value: string): string[] {
   return deduped;
 }
 
+function applyCoverageBonus(score: number, tokenHits: number, totalTokens: number): number {
+  if (tokenHits === 0 || totalTokens <= 1) return score;
+  const coverageBonus = Math.round((tokenHits / totalTokens) * 4);
+  const completeQueryBonus = tokenHits === totalTokens ? totalTokens * 4 : 0;
+  return score + coverageBonus + completeQueryBonus;
+}
+
 function collectIndentedBullets(lines: string[], startIndex: number): { items: string[]; nextIndex: number } {
   const items: string[] = [];
   let index = startIndex;
@@ -382,7 +389,7 @@ function searchScore(entry: IdeaEntry, query: string): { score: number; matches:
   if (queryNorm && normalizeText(entry.summary).includes(queryNorm)) score += 8;
 
   if (tokenHits === 0) return { score: 0, matches: [] };
-  return { score, matches };
+  return { score: applyCoverageBonus(score, tokenHits, tokens.length), matches };
 }
 
 function statusRank(status: IdeaStatus): number {
