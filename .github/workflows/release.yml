@@ -150,6 +150,12 @@ jobs:
     runs-on: macos-latest
     permissions:
       contents: write
+    env:
+      # The `secrets` context is not a valid named-value in step-level `if`
+      # expressions — referencing it there makes the whole workflow file
+      # unparseable, so NO run is ever created (v3.25.0: the release event
+      # spawned nothing). Compute the flag here, test `env` in the step.
+      HAS_APPLE_CERT: ${{ secrets.APPLE_CERT_P12_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -216,7 +222,7 @@ jobs:
         # secret is present, the produced .app MUST carry a Developer ID signature.
         # Without this, a future regression silently reverts to an unsigned,
         # Gatekeeper-quarantined .app (the v3.21.0 state this PR fixes).
-        if: ${{ secrets.APPLE_CERT_P12_BASE64 != '' }}
+        if: ${{ env.HAS_APPLE_CERT == 'true' }}
         run: |
           set -euo pipefail
           zip="$(ls dist/fleetbar/PortDaddy-FleetBar-macOS-*.zip | head -n1)"
