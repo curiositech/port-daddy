@@ -729,13 +729,14 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     return rows.slice(0, limit).map(rowToDispatch);
   }
 
-  function claim(input: ClaimDispatchInput): Dispatch {
-    const existing = selectByIdStmt.get(input.id);
-    if (!existing) throw new Error(`claim: dispatch ${input.id} not found`);
-    if (existing.state === 'claimed') return rowToDispatch(existing);
-    if (existing.state !== 'proposed') {
-      throw new Error(`claim: cannot claim dispatch in state ${existing.state}`);
-    }
+  function peekNextProposed(baseBranch?: string): Dispatch | null {
+    const row = baseBranch
+      ? nextSelectByBaseStmt.get(baseBranch)
+      : nextSelectStmt.get();
+    return row ? rowToDispatch(row) : null;
+  }
+
+  function claimProposed(input: ClaimDispatchInput): Dispatch | null {
     const result = claimStmt.run(
       input.workerActorId ?? null,
       input.worktreePath,
@@ -744,12 +745,24 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
       now(),
       input.id,
     );
-    if (result.changes === 0) {
-      throw new Error(`claim: failed to claim dispatch ${input.id}`);
-    }
+    if (result.changes === 0) return null;
     const updated = selectByIdStmt.get(input.id);
     if (!updated) throw new Error(`claim: dispatch ${input.id} vanished`);
     return rowToDispatch(updated);
+  }
+
+  function claim(input: ClaimDispatchInput): Dispatch {
+    const existing = selectByIdStmt.get(input.id);
+    if (!existing) throw new Error(`claim: dispatch ${input.id} not found`);
+    if (existing.state === 'claimed') return rowToDispatch(existing);
+    if (existing.state !== 'proposed') {
+      throw new Error(`claim: cannot claim dispatch in state ${existing.state}`);
+    }
+    const updated = claimProposed(input);
+    if (!updated) {
+      throw new Error(`claim: failed to claim dispatch ${input.id}`);
+    }
+    return updated;
   }
 
   function nextProposed(
@@ -965,6 +978,8 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     materializeProjection,
     get,
     list,
+    peekNextProposed,
+    claimProposed,
     claim,
     nextProposed,
     start,

@@ -106,6 +106,48 @@ describe('WorkIntentService', () => {
     expect(deriveWorktreePath(second)).not.toBe(deriveWorktreePath(first));
   });
 
+  it('gives compatibility dispatches distinct worktrees while preserving fast intent lookup', () => {
+    const noScanDb = new Proxy(db, {
+      get(target, prop, receiver) {
+        if (prop !== 'prepare') return Reflect.get(target, prop, receiver);
+        return (sql: string) => {
+          if (sql.includes("WHERE stream_type = 'work-intent' ORDER BY ledger_seq ASC")) {
+            throw new Error('full scan forbidden in this regression');
+          }
+          return target.prepare.call(target, sql);
+        };
+      },
+    }) as DatabaseInstance;
+    const service = createWorkIntentService({ db: noScanDb });
+    const queue = createDispatchQueue({ db });
+
+    const first = service.captureDispatch({
+      goal: 'reskin FleetBar',
+      idempotencyKey: 'operator:story-linework:fleetbar',
+    }, queue);
+    const second = service.captureDispatch({
+      goal: 'reskin the CLI',
+      idempotencyKey: 'operator:story-linework:cli',
+    }, queue);
+    const unkeyed = service.captureDispatch({
+      goal: 'reskin the Harbor editor',
+    }, queue);
+
+    expect(first.dispatch.id).toMatch(/^[a-f0-9]{8}-[a-f0-9-]{27}$/);
+    expect(deriveWorktreePath(second.dispatch.id)).not.toBe(deriveWorktreePath(first.dispatch.id));
+    expect(service.ensureDispatchIntent(first.dispatch).intent.intentId).toBe(first.intent.intentId);
+    expect(service.ensureDispatchIntent(second.dispatch).intent.intentId).toBe(second.intent.intentId);
+    expect(unkeyed.intent.intentId).toMatch(/^work_intent_dispatch_[a-f0-9]{32}$/);
+    expect(service.ensureDispatchIntent(unkeyed.dispatch).intent.intentId).toBe(unkeyed.intent.intentId);
+  });
+
+  it('falls back to a stable UUID-shaped dispatch id for malformed compatibility ids', () => {
+    const malformed = dispatchIdForWorkIntent('work_intent_dispatch_not-a-token');
+
+    expect(malformed).toMatch(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/);
+    expect(dispatchIdForWorkIntent('work_intent_dispatch_not-a-token')).toBe(malformed);
+  });
+
   it('imports exactly one WorkIntent for a legacy dispatch before side effects', () => {
     const service = createWorkIntentService({
       db,
@@ -167,7 +209,7 @@ describe('WorkIntentService', () => {
           if (sql.includes("WHERE stream_type = 'work-intent' ORDER BY ledger_seq ASC")) {
             throw new Error('full scan forbidden in this regression');
           }
-          return target.prepare(sql);
+          return target.prepare.call(target, sql);
         };
       },
     }) as DatabaseInstance;

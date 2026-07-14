@@ -2,7 +2,7 @@
   "generatedAt": 1783989442565,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 154,
+  "count": 160,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -783,6 +783,11 @@
       "slug": "workintent-dispatch-intake",
       "status": "backlog",
       "summaryMd": "WorkIntent-first dispatch intake runtime blocker follow-up for PR #895"
+    },
+    {
+      "slug": "workintent-dispatch-isolation",
+      "status": "backlog",
+      "summaryMd": "fix(dispatch): isolate WorkIntent worktrees"
     },
     {
       "slug": "state-plane-s1-daemon-plane-identity",

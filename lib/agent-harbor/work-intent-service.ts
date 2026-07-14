@@ -178,13 +178,7 @@ function idSafe(value: string): string {
   return value.replace(/[^a-zA-Z0-9_:-]/g, '_');
 }
 
-export function dispatchIdForWorkIntent(intentId: string): string {
-  // Dispatch's legacy worktree projection keys paths from the first eight
-  // alphanumerics of the id. A readable `dispatch_console_...` prefix therefore
-  // collapsed every console WorkIntent onto one worktree. Put entropy first and
-  // format the stable digest as a UUID-shaped id: retry-safe, readable in every
-  // existing dispatch surface, and distinct before the legacy truncation point.
-  const token = stableToken(`work-intent-dispatch:${intentId}`);
+function uuidFromToken(token: string): string {
   return [
     token.slice(0, 8),
     token.slice(8, 12),
@@ -192,6 +186,15 @@ export function dispatchIdForWorkIntent(intentId: string): string {
     token.slice(16, 20),
     token.slice(20, 32),
   ].join('-');
+}
+
+export function dispatchIdForWorkIntent(intentId: string): string {
+  // The dispatch runner derives worktree identity from the first eight
+  // alphanumerics. Put stable entropy there instead of a shared readable prefix.
+  // Compatibility intake embeds its token in the intent id, which keeps the
+  // WorkIntent event id recoverable without scanning the ledger.
+  const compatibilityToken = /^work_intent_dispatch_([a-f0-9]{32})$/.exec(intentId)?.[1];
+  return uuidFromToken(compatibilityToken ?? stableToken(`work-intent-dispatch:${intentId}`));
 }
 
 export function planIdForWorkIntent(intentId: string): string {
@@ -294,6 +297,10 @@ function initialPlanForIntent(intent: WorkIntentPayload): WorkPlanPayload {
 
 function candidateIntentIdsForDispatchId(dispatchId: string): string[] {
   const ids = [legacyIntentIdForDispatch(dispatchId)];
+  const compactUuid = dispatchId.replace(/-/g, '');
+  if (/^[a-f0-9]{32}$/.test(compactUuid)) {
+    ids.unshift(`work_intent_dispatch_${compactUuid}`);
+  }
   if (dispatchId.startsWith('dispatch_')) {
     ids.unshift(`work_intent_${dispatchId.replace(/^dispatch_/, '')}`);
   }
@@ -424,13 +431,12 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
   }
 
   function captureDispatch(input: CaptureDispatchInput, queue: DispatchQueue): CaptureDispatchResult {
-    const token = input.idempotencyKey ? stableToken(input.idempotencyKey) : idSafe(uuid());
+    const token = input.idempotencyKey ? stableToken(input.idempotencyKey) : stableToken(uuid());
     const intentId = `work_intent_dispatch_${token}`;
-    // Preserve the reversible legacy id for intake that originated as `pd
-    // dispatch`; ensureDispatchIntent uses it as an O(1) event-ledger lookup.
-    // Native WorkIntent.start uses the entropy-first id above because it has no
-    // legacy dispatch id to preserve.
-    const dispatchId = `dispatch_${idSafe(intentId.replace(/^work_intent_/, ''))}`;
+    // Compatibility intake uses the same entropy-first projection as native
+    // WorkIntent starts. The embedded token keeps reverse lookup O(1) without
+    // reintroducing the shared `dispatch_` worktree prefix.
+    const dispatchId = dispatchIdForWorkIntent(intentId);
     const idempotencyKey = input.idempotencyKey ?? `compat:dispatch:${dispatchId}`;
     const captured = capture({
       intentId,
