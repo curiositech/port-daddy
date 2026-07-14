@@ -184,6 +184,54 @@ describe('applyReunification', () => {
     expect(db.prepare('SELECT COUNT(*) AS n FROM roadmap_items').get().n).toBe(2);
   });
 
+  it('ACCEPTANCE: a tombstone in replica A survives reunifying a stale live row from replica B', () => {
+    // Replica A deleted the item at t=200 (tombstone, newest write).
+    const planA = planReunification(
+      [{ label: 'replica-a', rows: [row({ slug: 's', deleted_at: 200, last_touched_at: 200 })], events: [] }],
+      [], 'port-daddy',
+    );
+    apply(planA);
+    // Replica B still carries the live row from t=100.
+    const planB = planReunification(
+      [{ label: 'replica-b', rows: [row({ slug: 's', deleted_at: null, last_touched_at: 100 })], events: [] }],
+      [], 'port-daddy',
+    );
+    apply(planB);
+
+    const merged = db.prepare("SELECT deleted_at FROM roadmap_items WHERE slug = 's'").get();
+    expect(merged.deleted_at).toBe(200); // deletion propagated; no zombie resurrection
+  });
+
+  it('a fresher live upsert beats an older tombstone (resurrection propagates too)', () => {
+    const dead = planReunification(
+      [{ label: 'a', rows: [row({ slug: 's', deleted_at: 100, last_touched_at: 100 })], events: [] }],
+      [], 'port-daddy',
+    );
+    apply(dead);
+    const revived = planReunification(
+      [{ label: 'b', rows: [row({ slug: 's', deleted_at: null, last_touched_at: 300, summary_md: 'back' })], events: [] }],
+      [], 'port-daddy',
+    );
+    apply(revived);
+
+    const merged = db.prepare("SELECT deleted_at, summary_md FROM roadmap_items WHERE slug = 's'").get();
+    expect(merged.deleted_at).toBeNull();
+    expect(merged.summary_md).toBe('back');
+  });
+
+  it('the snapshot floor never resurrects a tombstoned pair', () => {
+    const plan = planReunification(
+      [{ label: 'a', rows: [row({ slug: 's', deleted_at: 100, last_touched_at: 100 })], events: [] }],
+      [{ slug: 's', status: 'backlog', summaryMd: 'stale snapshot export' }],
+      'port-daddy',
+    );
+    // The tombstoned row is a live shard row for merge purposes, so the
+    // snapshot never sees the pair as missing.
+    expect(plan.snapshotOnly).toHaveLength(0);
+    apply(plan);
+    expect(db.prepare("SELECT deleted_at FROM roadmap_items WHERE slug = 's'").get().deleted_at).toBe(100);
+  });
+
   it('remaps event item_id to the winning row id', () => {
     const plan = planReunification(
       [{

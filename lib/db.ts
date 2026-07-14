@@ -453,10 +453,20 @@ export const CORE_SCHEMA_SQL = `
     started_at INTEGER,
     due_at INTEGER,
     estimate INTEGER,
+    -- Soft-delete tombstone. The registry is a multi-replica system reconciled
+    -- by union-merge (scripts/registry-reunify.ts); a hard DELETE in one
+    -- replica silently resurrects from any replica still carrying the row.
+    -- Deletion is an UPDATE that sets deleted_at and bumps last_touched_at, so
+    -- the tombstone wins last-write-wins merges. Existing DBs get the column
+    -- via the PRAGMA-guarded ALTER in initDatabase.
+    deleted_at INTEGER,
     UNIQUE(slug, harbor)
   );
   CREATE INDEX IF NOT EXISTS idx_roadmap_items_harbor_status
     ON roadmap_items(harbor, status);
+  -- idx_roadmap_items_live (partial, WHERE deleted_at IS NULL) is created in
+  -- initDatabase AFTER the PRAGMA-guarded ALTER adds deleted_at on legacy DBs —
+  -- creating it here would fail on a pre-tombstone database.
   CREATE INDEX IF NOT EXISTS idx_roadmap_items_last_touched
     ON roadmap_items(last_touched_at);
 
@@ -647,6 +657,26 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
   } catch (err) {
     console.warn(
       `[port-daddy] WARNING: Could not migrate roadmap_items planner columns: ${(err as Error).message}`
+    );
+  }
+
+  // Soft-delete tombstone (multi-replica union-merge cannot propagate hard
+  // deletes — a row deleted in one replica resurrects from a stale one).
+  // Idempotent, PRAGMA-guarded like the planner columns above; the partial
+  // index is created here (not in CORE_SCHEMA_SQL) so legacy DBs get the
+  // column first.
+  try {
+    const roadmapColumns = db.prepare("PRAGMA table_info(roadmap_items)").all() as Array<{ name: string }>;
+    const hasDeletedAt = roadmapColumns.some(column => column.name === 'deleted_at');
+    if (!hasDeletedAt) {
+      db.prepare('ALTER TABLE roadmap_items ADD COLUMN deleted_at INTEGER').run();
+    }
+    db.prepare(
+      'CREATE INDEX IF NOT EXISTS idx_roadmap_items_live ON roadmap_items(harbor, status) WHERE deleted_at IS NULL'
+    ).run();
+  } catch (err) {
+    console.warn(
+      `[port-daddy] WARNING: Could not migrate roadmap_items deleted_at tombstone column: ${(err as Error).message}`
     );
   }
 
