@@ -118,6 +118,7 @@ xcuserdata/
 # per-user state must never be committed. Provisioning ids/secrets live in
 # wrangler.toml — use the checked-in *.example templates instead.
 apps/*/wrangler.toml
+# (apps/*/wrangler.deploy.toml IS committed: id-only CI deploy configs, no secrets.)
 **/.swiftpm/xcode/package.xcworkspace/xcuserdata/
 **/*.xcuserstate
 
