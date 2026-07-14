@@ -27,7 +27,9 @@ export interface GitHubState {
   checkRunsCreated: number;
   /** existing check runs returned by the commit check-runs lookup. */
   existingCheckRuns: Array<{ id: number; name: string }>;
-  completed: Array<{ id: number; conclusion: string; summary: string }>;
+  completed: Array<{ id: number; conclusion: string; summary: string; detailsUrl?: string }>;
+  /** details_url values sent on check-run CREATE (undefined when omitted). */
+  createdDetailsUrls: Array<string | undefined>;
   /** GitHub Reviews created via POST /pulls/{n}/reviews (inline comments). */
   reviews: Array<{
     event: string;
@@ -59,6 +61,7 @@ export function freshState(): GitHubState {
     existingComments: [],
     checkRunsCreated: 0,
     existingCheckRuns: [],
+    createdDetailsUrls: [],
     completed: [],
     reviews: [],
     prDiff: undefined,
@@ -186,6 +189,7 @@ export function installGitHubFetch(state: GitHubState): void {
         return text('check-run create failed', 500);
       }
       state.checkRunsCreated += 1;
+      state.createdDetailsUrls.push((body as { details_url?: string })?.details_url);
       const id = ++CHECK_ID_SEQ;
       // Future lookups for this head SHA now find it.
       const headSha = (body as { head_sha?: string })?.head_sha ?? '';
@@ -201,6 +205,7 @@ export function installGitHubFetch(state: GitHubState): void {
         id: Number(completeMatch[1]),
         conclusion: (body as { conclusion?: string })?.conclusion ?? '',
         summary: (body as { output?: { summary?: string } })?.output?.summary ?? '',
+        detailsUrl: (body as { details_url?: string })?.details_url,
       });
       return json({ ok: true });
     }

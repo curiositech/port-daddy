@@ -34,6 +34,17 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   /** Workers AI binding. */
   AI: Ai;
   /**
+   * Public base URL of the relay serving the human-facing run page
+   * (ADR-0101 Phase 0), e.g. "https://port-daddy-relay.example.workers.dev".
+   * OPTIONAL: unset (with RUN_PAGE_SECRET) ⇒ check runs carry no details_url.
+   */
+  RUN_DETAILS_BASE_URL?: string;
+  /**
+   * Shared HMAC secret for the run-page capability token; MUST equal the
+   * relay's RUN_PAGE_SECRET. ≥32 chars or the details_url is not emitted.
+   */
+  RUN_PAGE_SECRET?: string;
+  /**
    * Shared relay D1 database (`port-daddy-relay`). The executor writes the
    * fleet_runs audit header + the append-only fleet_run_steps transcript here.
    * Optional at the type level so unit tests can omit it; all writes are

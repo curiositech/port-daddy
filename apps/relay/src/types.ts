@@ -24,6 +24,10 @@ export interface Env {
   RELAY_OPERATOR_TOKEN: string;
   RELAY_ED25519_PRIVATE_KEY_HEX: string;  // relay's own signing key for ServerHello
   GITHUB_WEBHOOK_SECRET: string;          // HMAC-SHA256 secret for GitHub webhook ingress
+  // HMAC secret (>=32 chars) gating the HTML fleet run page (ADR-0101 Phase 0).
+  // MUST equal the fleet-executor's RUN_PAGE_SECRET. Optional: unset ⇒ the page
+  // only opens with the operator token.
+  RUN_PAGE_SECRET?: string;
   // GitHub App credentials — fleet control-plane config read + save (PR) path.
   // GITHUB_APP_PRIVATE_KEY is a secret (PEM); the rest may be vars.
   GITHUB_APP_ID?: string;
