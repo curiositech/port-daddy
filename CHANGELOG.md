@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.25.0] - 2026-07-14
+
+### Fixed
+- **The registry now lives in a durable home and survives `brew upgrade` (#2067, #2083).** The default DB path was anchored on the distribution root — for Homebrew installs, the versioned Cellar directory that is deleted on every upgrade. That is how the machine repeatedly lost roadmap items, notes, sessions, and even the Harbor Card signing keys. `resolveDbPath()` now defaults to `~/.port-daddy/port-registry.db` (checkout- and binary-independent); first boot performs a one-time `VACUUM INTO` rescue of the legacy registry, scanning sibling Homebrew kegs newest-first because after an upgrade the data sits in the *previous* keg, not the one the new binary resolves to. Explicit `PORT_DADDY_DB` overrides (instance profiles, tests) keep their isolation semantics.
+- **Roadmap deletes no longer resurrect from stale replicas (#2140).** `pd roadmap delete` was a hard DELETE of the row and its audit trail; in a multi-replica registry reconciled by union-merge, a deletion in one replica silently came back from any replica still carrying the row. Deletion is now a soft-delete tombstone (`deleted_at`) that bumps `last_touched_at` past the live row so last-write-wins reconciliation propagates it; audit rows are preserved; every read surface filters tombstones; upserting the same slug/harbor resurrects.
+
+### Added
+- **`scripts/registry-reunify.ts` (#2109)** — union-merges scattered registry shards (instance daemons, old kegs, backups) plus the committed roadmap snapshot into one registry: merge key `(slug, harbor)`, newest-`last_touched_at` wins whole-row, snapshot acts as a floor that never overrides fresher live rows, provenance appended to `notes_json`, destination backed up via `VACUUM INTO` before any write, idempotent, `--dry-run` prints the full plan.
+- **Fail-closed schema verification at boot (#2122, #2140).** `verifyCoreSchema` probes the real schema objects (required tables + sentinel columns) after the boot migrations and refuses to serve from a broken registry; the legacy-rescue path post-verifies its output and quarantines (never deletes) a bad rescue.
+- **`pd doctor` "Database home" check (#2067)** — critical when the registry sits on a version-volatile path (Homebrew Cellar), with exact remediation.
+- **Weekly release-cadence workflow (#2067)** — files/refreshes a "Homebrew release overdue" issue when daemon surfaces on main sit unreleased past 7 days.
+- **Cutover + porting doctrine (#2129, #2156, #2164)** — `docs/recovery/V3.25.0-DURABLE-HOME-CUTOVER.md` (eight verified steps incl. signing-key continuity) and ADR-0090 Amendment 1 (schema epochs, version-skew rules, per-table port policies).
+- **`npm run test:affected` (#2174)** — local affected-only jest runs via `--changedSince=origin/main`.
+
 ## [3.24.2] - 2026-07-09
 
 ### Fixed
