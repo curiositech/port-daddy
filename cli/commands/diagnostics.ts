@@ -258,59 +258,180 @@ export async function handleDashboard(opts: { web?: boolean } = {}): Promise<voi
 /**
  * Handle `pd status` command
  */
-export async function handleStatus(): Promise<void> {
+export function renderStatusPlain(data: StatusCommandResponse): string {
+  const lines: string[] = [];
+  lines.push('Port Daddy is running');
+  const buildVersion = data.daemon?.version || data.version;
+  const buildHash = data.daemon?.codeHash ? ` (${data.daemon.codeHash})` : '';
+  lines.push(`  Version: ${buildVersion}${buildHash}`);
+  lines.push(`  PID: ${data.pid}`);
+  lines.push(`  Uptime: ${data.uptimeHuman || `${Math.floor((data.uptimeSeconds as number) / 60)}m ${(data.uptimeSeconds as number) % 60}s`}`);
+  lines.push(`  Active ports: ${data.metrics?.activePorts ?? data.active_ports ?? 0}`);
+
+  if (data.runtime?.state) {
+    const runtimeState = data.runtime.degraded ? `${data.runtime.state} (degraded)` : data.runtime.state;
+    lines.push(`  Runtime: ${runtimeState}`);
+  }
+
+  if (data.fleet) {
+    const projectCount = Array.isArray(data.fleet.projects) ? data.fleet.projects.length : 0;
+    const totalAgents = data.fleet.totalAgents ?? 0;
+    const launchable = data.fleet.totalLaunchableAgents ?? data.fleet.launchableAgents;
+    const launchSuffix =
+      typeof launchable === 'number' && totalAgents > 0
+        ? `, ${launchable}/${totalAgents} launchable`
+        : '';
+    lines.push(`  Fleet: ${projectCount} project(s), ${totalAgents} agent(s)${launchSuffix}`);
+    if (typeof launchable === 'number' && launchable === 0 && totalAgents > 0) {
+      lines.push('    WARN no launchable backend — fleet will arm but every spawn is policy-blocked');
+    }
+  }
+
+  const bosun = data.guardians?.bosun;
+  if (bosun) {
+    const normalizedState = bosun.state === 'disabled' && bosun.reason?.includes('missing')
+      ? 'not installed (optional)'
+      : bosun.state;
+    const reason = bosun.reason && !bosun.reason.includes('missing') && bosun.reason !== normalizedState
+      ? ` — ${bosun.reason}`
+      : '';
+    lines.push(`  Bosun: ${normalizedState}${reason}`);
+  }
+
+  if (data.history?.lastActivityAt) {
+    const ageMs = Date.now() - Number(data.history.lastActivityAt);
+    const ageSeconds = Math.max(0, Math.floor(ageMs / 1000));
+    lines.push(`  Last activity: ${ageSeconds}s ago`);
+  }
+  return lines.join('\n');
+}
+
+function runtimeTone(state: string | undefined, degraded?: boolean): ui.LineworkTone {
+  if (!state) return 'unknown';
+  const normalized = state.toLowerCase();
+  if (degraded) return 'warning';
+  if (normalized.includes('recover')) return 'recovering';
+  if (normalized.includes('pending') || normalized.includes('starting')) return 'pending';
+  if (normalized.includes('unknown')) return 'unknown';
+  if (normalized.includes('block')) return 'blocked';
+  if (normalized.includes('fail') || normalized.includes('error')) return 'failed';
+  return 'healthy';
+}
+
+export function renderStatusLinework(data: StatusCommandResponse, opts?: { width?: number; colorLevel?: import('../utils/output.js').CliColorLevel; styled?: boolean }): string {
+  const buildVersion = String(data.daemon?.version || data.version || 'unknown');
+  const buildHash = data.daemon?.codeHash ? ` (${data.daemon.codeHash})` : '';
+  const activePorts = data.metrics?.activePorts ?? data.active_ports ?? 0;
+  const runtimeState = data.runtime?.state
+    ? data.runtime.degraded ? `${data.runtime.state} degraded` : data.runtime.state
+    : 'unknown';
+  const projectCount = Array.isArray(data.fleet?.projects) ? data.fleet.projects.length : 0;
+  const totalAgents = data.fleet?.totalAgents ?? 0;
+  const launchable = data.fleet?.totalLaunchableAgents ?? data.fleet?.launchableAgents;
+  const launchText = typeof launchable === 'number' && totalAgents > 0
+    ? `${launchable}/${totalAgents} launchable`
+    : `${totalAgents} agent(s)`;
+  const rows: ui.LineworkRow[] = [
+    {
+      tone: 'healthy',
+      label: 'daemon',
+      text: `pid ${data.pid ?? 'unknown'} · up ${data.uptimeHuman || `${Math.floor((data.uptimeSeconds as number) / 60)}m ${(data.uptimeSeconds as number) % 60}s`} · ${activePorts} ports`,
+      signal: 'Q',
+    },
+    {
+      tone: runtimeTone(data.runtime?.state, data.runtime?.degraded),
+      label: 'runtime',
+      text: runtimeState,
+    },
+  ];
+
+  if (data.fleet) {
+    rows.push({
+      tone: typeof launchable === 'number' && launchable === 0 && totalAgents > 0 ? 'blocked' : 'running',
+      label: 'fleet',
+      text: `${projectCount} project(s) · ${launchText}`,
+      signal: typeof launchable === 'number' && launchable === 0 && totalAgents > 0 ? 'D' : 'K',
+    });
+  }
+
+  const bosun = data.guardians?.bosun;
+  if (bosun) {
+    const normalizedState = bosun.state === 'disabled' && bosun.reason?.includes('missing')
+      ? 'not installed optional'
+      : bosun.state;
+    const reason = bosun.reason && !bosun.reason.includes('missing') && bosun.reason !== normalizedState
+      ? ` · ${bosun.reason}`
+      : '';
+    rows.push({
+      tone: normalizedState?.includes('idle') || normalizedState?.includes('active') ? 'confirmed' : 'unknown',
+      label: 'bosun',
+      text: `${normalizedState}${reason}`,
+      signal: normalizedState?.includes('idle') || normalizedState?.includes('active') ? 'C' : 'M',
+    });
+  }
+
+  if (data.history?.lastActivityAt) {
+    const ageMs = Date.now() - Number(data.history.lastActivityAt);
+    const ageSeconds = Math.max(0, Math.floor(ageMs / 1000));
+    rows.push({
+      tone: 'info',
+      label: 'activity',
+      text: `${ageSeconds}s ago`,
+      signal: 'K',
+    });
+  }
+
+  return ui.renderLineworkPanel({
+    title: 'Port Daddy',
+    version: buildVersion,
+    subtitle: `daemon · ${buildHash ? buildHash.trim() : 'live'}`,
+    tone: 'running',
+    zone: 'daemon confirmed',
+    rows,
+    footer: `runtime ${runtimeState} · active ports ${activePorts}`,
+    width: opts?.width,
+    colorLevel: opts?.colorLevel,
+    styled: opts?.styled,
+  });
+}
+
+export function renderStatusFailureLinework(opts?: { width?: number; colorLevel?: import('../utils/output.js').CliColorLevel; styled?: boolean }): string {
+  return ui.renderLineworkPanel({
+    title: 'Port Daddy',
+    subtitle: 'daemon unavailable',
+    tone: 'failed',
+    zone: 'failed with next action',
+    rows: [
+      { tone: 'failed', label: 'daemon', text: 'not accepting status requests', signal: 'N' },
+      { tone: 'blocked', label: 'next', text: 'open FleetBar and restart the daemon, then retry pd status', signal: 'X' },
+      { tone: 'recovering', label: 'diagnose', text: 'run pd doctor if FleetBar cannot recover it', signal: 'Z' },
+    ],
+    footer: 'exit 1 · machine callers keep the same failure code',
+    width: opts?.width,
+    colorLevel: opts?.colorLevel,
+    styled: opts?.styled,
+  });
+}
+
+export async function handleStatus(options: CLIOptions = {}): Promise<void> {
   try {
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/status`);
     const data = await res.json() as StatusCommandResponse;
 
-    console.log(`Port Daddy is running`);
-    const buildVersion = data.daemon?.version || data.version;
-    const buildHash = data.daemon?.codeHash ? ` (${data.daemon.codeHash})` : '';
-    console.log(`  Version: ${buildVersion}${buildHash}`);
-    console.log(`  PID: ${data.pid}`);
-    console.log(`  Uptime: ${data.uptimeHuman || `${Math.floor((data.uptimeSeconds as number) / 60)}m ${(data.uptimeSeconds as number) % 60}s`}`);
-    console.log(`  Active ports: ${data.metrics?.activePorts ?? data.active_ports ?? 0}`);
-
-    if (data.runtime?.state) {
-      const runtimeState = data.runtime.degraded ? `${data.runtime.state} (degraded)` : data.runtime.state;
-      console.log(`  Runtime: ${runtimeState}`);
-    }
-
-    if (data.fleet) {
-      const projectCount = Array.isArray(data.fleet.projects) ? data.fleet.projects.length : 0;
-      const totalAgents = data.fleet.totalAgents ?? 0;
-      const launchable = data.fleet.totalLaunchableAgents ?? data.fleet.launchableAgents;
-      const launchSuffix =
-        typeof launchable === 'number' && totalAgents > 0
-          ? `, ${launchable}/${totalAgents} launchable`
-          : '';
-      console.log(`  Fleet: ${projectCount} project(s), ${totalAgents} agent(s)${launchSuffix}`);
-      if (typeof launchable === 'number' && launchable === 0 && totalAgents > 0) {
-        console.log(`    ⚠ no launchable backend — fleet will arm but every spawn is policy-blocked`);
-      }
-    }
-
-    const bosun = data.guardians?.bosun;
-    if (bosun) {
-      const normalizedState = bosun.state === 'disabled' && bosun.reason?.includes('missing')
-        ? 'not installed (optional)'
-        : bosun.state;
-      const reason = bosun.reason && !bosun.reason.includes('missing') && bosun.reason !== normalizedState
-        ? ` — ${bosun.reason}`
-        : '';
-      console.log(`  Bosun: ${normalizedState}${reason}`);
-    }
-
-    if (data.history?.lastActivityAt) {
-      const ageMs = Date.now() - Number(data.history.lastActivityAt);
-      const ageSeconds = Math.max(0, Math.floor(ageMs / 1000));
-      console.log(`  Last activity: ${ageSeconds}s ago`);
+    if (ui.lineworkEnabled({ json: isJson(options), quiet: Boolean(options.quiet || options.q) })) {
+      console.log(renderStatusLinework(data));
+    } else {
+      console.log(renderStatusPlain(data));
     }
   } catch {
-    console.log('Port Daddy is not running');
-    console.log('  Start with: port-daddy start');
-    console.log('  Or install: port-daddy install');
-    console.log('  Diagnose:   port-daddy doctor');
+    if (ui.lineworkEnabled({ json: isJson(options), quiet: Boolean(options.quiet || options.q) })) {
+      console.log(renderStatusFailureLinework());
+    } else {
+      console.log('Port Daddy is not running');
+      console.log('  Start with: port-daddy start');
+      console.log('  Or install: port-daddy install');
+      console.log('  Diagnose:   port-daddy doctor');
+    }
     process.exit(1);
   }
 }

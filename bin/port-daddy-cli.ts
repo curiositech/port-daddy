@@ -2755,7 +2755,7 @@ export async function main(): Promise<void> {
         break;
 
       case 'status':
-        await handleStatus();
+        await handleStatus(options);
         break;
 
       case 'install':

@@ -10,7 +10,228 @@
 
 import * as p from '@clack/prompts';
 import { ANSI, highlightChannel } from '../../lib/maritime.js';
-import { IS_TTY } from './output.js';
+import { detectColorLevel, IS_TTY, type CliColorLevel } from './output.js';
+
+export type LineworkTone =
+  | 'healthy'
+  | 'running'
+  | 'pending'
+  | 'unknown'
+  | 'recovering'
+  | 'confirmed'
+  | 'blocked'
+  | 'failed'
+  | 'warning'
+  | 'info'
+  | 'muted';
+
+export interface LineworkRow {
+  tone: LineworkTone;
+  label: string;
+  text: string;
+  signal?: keyof typeof LINEWORK_SIGNALS;
+}
+
+export interface LineworkPanelOptions {
+  title: string;
+  subtitle?: string;
+  version?: string;
+  tone?: LineworkTone;
+  zone?: string;
+  rows: LineworkRow[];
+  footer?: string;
+  width?: number;
+  colorLevel?: CliColorLevel;
+  styled?: boolean;
+}
+
+const RESET = '\x1b[0m';
+
+const TONE_COLOR: Record<LineworkTone, {
+  ansi16: number;
+  ansi256: number;
+  rgb: [number, number, number];
+}> = {
+  healthy: { ansi16: 32, ansi256: 78, rgb: [95, 206, 151] },
+  running: { ansi16: 34, ansi256: 111, rgb: [125, 180, 255] },
+  pending: { ansi16: 33, ansi256: 221, rgb: [242, 190, 81] },
+  unknown: { ansi16: 37, ansi256: 245, rgb: [165, 159, 147] },
+  recovering: { ansi16: 35, ansi256: 219, rgb: [224, 165, 237] },
+  confirmed: { ansi16: 32, ansi256: 78, rgb: [95, 206, 151] },
+  blocked: { ansi16: 35, ansi256: 219, rgb: [224, 165, 237] },
+  failed: { ansi16: 31, ansi256: 210, rgb: [255, 125, 125] },
+  warning: { ansi16: 33, ansi256: 221, rgb: [242, 190, 81] },
+  info: { ansi16: 36, ansi256: 116, rgb: [143, 208, 167] },
+  muted: { ansi16: 37, ansi256: 245, rgb: [165, 159, 147] },
+};
+
+export const LINEWORK_SIGNALS = {
+  K: { glyph: '▌▐', tone: 'running', meaning: 'I wish to communicate with you.' },
+  Q: { glyph: '▀▄', tone: 'healthy', meaning: "My vessel is healthy and I request free pratique." },
+  P: { glyph: '▟▙', tone: 'pending', meaning: 'In harbor: all persons should report on board as the vessel is about to proceed to sea.' },
+  M: { glyph: '▁▁', tone: 'unknown', meaning: 'My vessel is stopped and making no way through the water.' },
+  O: { glyph: '▖▗', tone: 'recovering', meaning: 'Man overboard.' },
+  C: { glyph: '██', tone: 'confirmed', meaning: 'Yes; affirmative.' },
+  D: { glyph: '▂▂', tone: 'blocked', meaning: 'Keep clear of me; I am maneuvering with difficulty.' },
+  N: { glyph: '▔▔', tone: 'failed', meaning: 'No; negative.' },
+  U: { glyph: '▚▚', tone: 'warning', meaning: 'You are running into danger.' },
+  X: { glyph: '▚▞', tone: 'blocked', meaning: 'Stop carrying out your intentions and watch for my signals.' },
+  F: { glyph: '▘▝', tone: 'unknown', meaning: 'I am disabled; communicate with me.' },
+  Z: { glyph: '▛▜', tone: 'recovering', meaning: 'I require a tug.' },
+} as const;
+
+function ansiForTone(tone: LineworkTone, level: CliColorLevel, background = false): string {
+  if (level === 'none') return '';
+  const color = TONE_COLOR[tone] || TONE_COLOR.info;
+  if (level === 'truecolor') {
+    const [r, g, b] = color.rgb;
+    return `\x1b[${background ? 48 : 38};2;${r};${g};${b}m`;
+  }
+  if (level === '256') return `\x1b[${background ? 48 : 38};5;${color.ansi256}m`;
+  return `\x1b[${background ? color.ansi16 + 10 : color.ansi16}m`;
+}
+
+function paint(value: string, tone: LineworkTone, level: CliColorLevel): string {
+  if (level === 'none') return value;
+  return `${ansiForTone(tone, level)}${value}${RESET}`;
+}
+
+function block(value: string, tone: LineworkTone, level: CliColorLevel): string {
+  if (level === 'none') return value;
+  const foreground = level === 'truecolor'
+    ? '\x1b[38;2;18;18;18m'
+    : level === '256'
+      ? '\x1b[38;5;233m'
+      : '\x1b[30m';
+  return `${ansiForTone(tone, level, true)}${foreground}\x1b[1m${value}${RESET}`;
+}
+
+function charWidth(char: string): number {
+  const code = char.codePointAt(0) || 0;
+  if (code === 0) return 0;
+  if (code < 32 || (code >= 0x7f && code < 0xa0)) return 0;
+  if (
+    (code >= 0x1100 && code <= 0x115f) ||
+    (code >= 0x2329 && code <= 0x232a) ||
+    (code >= 0x2e80 && code <= 0xa4cf) ||
+    (code >= 0xac00 && code <= 0xd7a3) ||
+    (code >= 0xf900 && code <= 0xfaff) ||
+    (code >= 0xfe10 && code <= 0xfe19) ||
+    (code >= 0xfe30 && code <= 0xfe6f) ||
+    (code >= 0xff00 && code <= 0xff60) ||
+    (code >= 0xffe0 && code <= 0xffe6)
+  ) {
+    return 2;
+  }
+  return 1;
+}
+
+export function visibleWidth(value: string): number {
+  return Array.from(stripAnsi(value)).reduce((sum, char) => sum + charWidth(char), 0);
+}
+
+function truncateVisible(value: string, width: number): string {
+  const clean = stripAnsi(value);
+  if (visibleWidth(clean) <= width) return value;
+  let out = '';
+  let used = 0;
+  for (const char of Array.from(clean)) {
+    const next = charWidth(char);
+    if (used + next > Math.max(0, width - 1)) break;
+    out += char;
+    used += next;
+  }
+  return `${out}…`;
+}
+
+function fitVisible(value: string, width: number): string {
+  const trimmed = truncateVisible(value, width);
+  const padding = Math.max(0, width - visibleWidth(trimmed));
+  return `${trimmed}${' '.repeat(padding)}`;
+}
+
+export function lineworkEnabled(opts?: {
+  json?: boolean;
+  quiet?: boolean;
+  stream?: 'stdout' | 'stderr';
+}): boolean {
+  if (opts?.json || opts?.quiet) return false;
+  return detectColorLevel(opts?.stream || 'stdout') !== 'none';
+}
+
+export function lineworkColorLevel(stream: 'stdout' | 'stderr' = 'stdout'): CliColorLevel {
+  return detectColorLevel(stream);
+}
+
+export function lineworkSignal(
+  signal: keyof typeof LINEWORK_SIGNALS,
+  opts?: { colorLevel?: CliColorLevel; styled?: boolean }
+): string {
+  const meta = LINEWORK_SIGNALS[signal];
+  const level = opts?.colorLevel ?? detectColorLevel('stdout');
+  if (opts?.styled === false || level === 'none') return `[${signal}]`;
+  return paint(meta.glyph, meta.tone as LineworkTone, level);
+}
+
+export function renderLineworkPanel(opts: LineworkPanelOptions): string {
+  const width = Math.max(40, Math.min(opts.width ?? process.stdout.columns ?? 88, 120));
+  const level = opts.styled === false ? 'none' : (opts.colorLevel ?? detectColorLevel('stdout'));
+  const styled = level !== 'none';
+
+  if (!styled) {
+    const lines = [`${opts.title}${opts.version ? ` ${opts.version}` : ''}${opts.subtitle ? `  ${opts.subtitle}` : ''}`];
+    if (opts.zone) lines.push(opts.zone);
+    for (const row of opts.rows) {
+      const signal = row.signal ? `${lineworkSignal(row.signal, { colorLevel: 'none', styled: false })} ` : '';
+      lines.push(`${signal}${row.label}: ${row.text}`);
+    }
+    if (opts.footer) lines.push(opts.footer);
+    return lines.join('\n');
+  }
+
+  const tone = opts.tone || 'running';
+  const titleBlock = block(` ${opts.title.toUpperCase()} `, tone, level);
+  const versionBlock = opts.version ? block(` ${opts.version} `, 'pending', level) : '';
+  const headText = [titleBlock, versionBlock, opts.subtitle || ''].filter(Boolean).join(' ');
+  const innerWidth = width - 2;
+  const lines = [
+    `${paint('┌', tone, level)}${fitVisible(headText, innerWidth)}${paint('┐', tone, level)}`,
+  ];
+
+  if (opts.zone) {
+    lines.push(fitVisible(block(` ${opts.zone.toUpperCase()} `, tone, level), width));
+  }
+
+  for (const row of opts.rows) {
+    const rowSignal = row.signal || toneSignal(row.tone);
+    const signal = rowSignal ? lineworkSignal(rowSignal, { colorLevel: level }) : '  ';
+    const stripe = paint('▌', row.tone, level);
+    const dot = paint('●', row.tone, level);
+    const label = fitVisible(row.label, 11);
+    lines.push(fitVisible(`${stripe} ${dot} ${signal} ${label} ${row.text}`, width));
+  }
+
+  if (opts.footer) {
+    lines.push(`${paint('╵', tone, level)}${fitVisible(` ${opts.footer} `, innerWidth)}${paint('╵', tone, level)}`);
+  }
+
+  return lines.join('\n');
+}
+
+function toneSignal(tone: LineworkTone): keyof typeof LINEWORK_SIGNALS | undefined {
+  switch (tone) {
+    case 'healthy': return 'Q';
+    case 'running': return 'K';
+    case 'pending': return 'P';
+    case 'unknown': return 'M';
+    case 'recovering': return 'O';
+    case 'confirmed': return 'C';
+    case 'blocked': return 'D';
+    case 'failed': return 'N';
+    case 'warning': return 'U';
+    default: return undefined;
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Intro / Outro

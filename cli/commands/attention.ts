@@ -85,10 +85,77 @@ function renderContent(content: unknown, contentType: string): string {
   return String(content);
 }
 
-function printPretty(summary: AttentionSummary): void {
+function attentionTone(item: AttentionItem): ui.LineworkTone {
+  const type = (item.type || '').toLowerCase();
+  if (type.includes('parley') || type.includes('conflict')) return 'warning';
+  if (type.includes('block') || type.includes('hold')) return 'blocked';
+  if (item.source === 'inbox') return 'pending';
+  return 'running';
+}
+
+function renderAttentionLinework(summary: AttentionSummary): string {
+  const items = summary.items || [];
+  const counts = summary.counts || { total: 0, inbox: 0, channels: 0, inboxUnreadRemaining: 0 };
+  const subs = summary.subscriptions || [];
+  const now = Date.now();
+
+  if (items.length === 0) {
+    return ui.renderLineworkPanel({
+      title: 'Attention',
+      subtitle: summary.agentId || 'agent',
+      tone: 'confirmed',
+      zone: 'clear',
+      rows: [
+        {
+          tone: 'confirmed',
+          label: 'inbox',
+          text: counts.inboxUnreadRemaining > 0
+            ? `${counts.inboxUnreadRemaining} remaining beyond fetch limit`
+            : 'no unread direct messages',
+          signal: 'C',
+        },
+        {
+          tone: subs.length > 0 ? 'running' : 'unknown',
+          label: 'channels',
+          text: subs.length > 0 ? subs.join(', ') : 'no subscriptions',
+          signal: subs.length > 0 ? 'K' : 'M',
+        },
+      ],
+      footer: summary.peek ? 'peek only · nothing marked read' : 'attention clear',
+    });
+  }
+
+  const rows = items.slice(0, 12).map((item): ui.LineworkRow => {
+    const age = formatRelative(item.receivedAt, now);
+    const origin = item.source === 'inbox'
+      ? `inbox from ${item.from || 'unknown'}`
+      : `${item.channel || 'channel'}${item.from ? ` from ${item.from}` : ''}`;
+    const body = renderContent(item.content, item.contentType).replace(/\s+/g, ' ').trim();
+    return {
+      tone: attentionTone(item),
+      label: age,
+      text: `${origin}${item.type ? ` [${item.type}]` : ''}${body ? ` · ${body}` : ''}`,
+    };
+  });
+
+  return ui.renderLineworkPanel({
+    title: 'Attention',
+    subtitle: summary.agentId || 'agent',
+    tone: summary.peek ? 'unknown' : 'pending',
+    zone: summary.peek ? `${counts.total} waiting · peek` : `${counts.total} item(s) marked read`,
+    rows,
+    footer: `inbox ${counts.inbox} · channels ${counts.channels}${counts.inboxUnreadRemaining > 0 ? ` · inbox remaining ${counts.inboxUnreadRemaining}` : ''}`,
+  });
+}
+
+function printPretty(summary: AttentionSummary, options: CLIOptions): void {
   if (!summary.success) {
     ui.error(summary.error || 'attention fetch failed');
     process.exit(1);
+  }
+  if (ui.lineworkEnabled({ json: isJson(options), quiet: isQuiet(options) })) {
+    console.log(renderAttentionLinework(summary));
+    return;
   }
   const items = summary.items || [];
   const counts = summary.counts || { total: 0, inbox: 0, channels: 0, inboxUnreadRemaining: 0 };
@@ -237,5 +304,5 @@ export async function handleAttention(options: CLIOptions): Promise<void> {
     console.log(JSON.stringify(data, null, 2));
     return;
   }
-  printPretty(data);
+  printPretty(data, options);
 }

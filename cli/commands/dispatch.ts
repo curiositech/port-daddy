@@ -112,6 +112,45 @@ function formatDispatchLine(d: Dispatch): string {
   return `${idShort}  ${state}  ${slug}  ${cost}${artifact}`;
 }
 
+function dispatchTone(state: string): ui.LineworkTone {
+  const normalized = state.toLowerCase();
+  if (normalized.includes('proposed') || normalized.includes('pending') || normalized.includes('queued')) return 'pending';
+  if (normalized.includes('claimed') || normalized.includes('running') || normalized.includes('started')) return 'running';
+  if (normalized.includes('produced') || normalized.includes('review') || normalized.includes('accepted') || normalized.includes('settled')) return 'confirmed';
+  if (normalized.includes('cancel') || normalized.includes('reject') || normalized.includes('fail') || normalized.includes('error')) return 'failed';
+  if (normalized.includes('salvage') || normalized.includes('recover')) return 'recovering';
+  if (normalized.includes('block')) return 'blocked';
+  return 'unknown';
+}
+
+function shouldRenderLinework(options?: CLIOptions): boolean {
+  return typeof ui.lineworkEnabled === 'function' &&
+    typeof ui.renderLineworkPanel === 'function' &&
+    ui.lineworkEnabled({
+      json: options ? isJson(options) : false,
+      quiet: options ? isQuiet(options) : false,
+    });
+}
+
+function renderDispatchListLinework(dispatches: Dispatch[], title: string): string {
+  return ui.renderLineworkPanel({
+    title,
+    subtitle: `${dispatches.length} dispatch(es)`,
+    tone: dispatches.some((d) => dispatchTone(d.state) === 'failed')
+      ? 'failed'
+      : dispatches.some((d) => dispatchTone(d.state) === 'blocked')
+        ? 'blocked'
+        : 'running',
+    zone: 'dispatch queue',
+    rows: dispatches.slice(0, 16).map((d): ui.LineworkRow => ({
+      tone: dispatchTone(d.state),
+      label: d.id.slice(0, 8),
+      text: `${d.state} · ${d.slug} · ${d.costUsd != null ? `$${d.costUsd.toFixed(2)}` : 'no cost yet'}${d.resultArtifact ? ` · ${d.resultArtifact}` : ''}`,
+    })),
+    footer: 'use pd dispatch show <id> for local row details',
+  });
+}
+
 function printDispatchDetail(d: Dispatch): void {
   console.log(`Dispatch ${d.id}`);
   console.log(`  slug:           ${d.slug}`);
@@ -141,6 +180,41 @@ function printDispatchDetail(d: Dispatch): void {
   if (d.producedAt) console.log(`  producedAt:     ${new Date(d.producedAt).toISOString()}`);
   if (d.reviewedAt) console.log(`  reviewedAt:     ${new Date(d.reviewedAt).toISOString()}`);
   if (d.settledAt) console.log(`  settledAt:      ${new Date(d.settledAt).toISOString()}`);
+}
+
+function renderDispatchDetailLinework(d: Dispatch, worker?: Record<string, unknown> | null): string {
+  const rows: ui.LineworkRow[] = [
+    { tone: dispatchTone(d.state), label: 'state', text: `${d.state} · ${describeState(d.state)}` },
+    { tone: 'pending', label: 'goal', text: d.goal, signal: 'P' },
+    { tone: 'running', label: 'base', text: `${d.baseBranch} · ${d.mergePolicy}`, signal: 'K' },
+    { tone: d.backend ? 'confirmed' : 'unknown', label: 'backend', text: d.backend ?? 'default at runtime', signal: d.backend ? 'C' : 'M' },
+  ];
+  if (d.tags.length > 0) rows.push({ tone: 'info', label: 'tags', text: d.tags.join(', '), signal: 'K' });
+  if (d.budgetUsd != null) rows.push({ tone: 'pending', label: 'budget', text: `$${d.budgetUsd.toFixed(2)}`, signal: 'P' });
+  if (d.timeoutMs != null) rows.push({ tone: 'pending', label: 'timeout', text: `${Math.round(d.timeoutMs / 1000)}s`, signal: 'P' });
+  if (d.worktreePath) rows.push({ tone: 'running', label: 'worktree', text: d.worktreePath, signal: 'K' });
+  if (d.branch) rows.push({ tone: 'running', label: 'branch', text: d.branch, signal: 'K' });
+  if (d.sessionId) rows.push({ tone: 'running', label: 'session', text: d.sessionId, signal: 'K' });
+  if (d.resultArtifact) rows.push({ tone: 'confirmed', label: 'artifact', text: d.resultArtifact, signal: 'C' });
+  if (d.costUsd != null) rows.push({ tone: 'pending', label: 'cost', text: `$${d.costUsd.toFixed(2)}`, signal: 'P' });
+  if (d.rejectReason) rows.push({ tone: 'blocked', label: 'reject', text: d.rejectReason, signal: 'D' });
+  if (d.errorMessage) rows.push({ tone: 'failed', label: 'error', text: `${d.errorMessage} · next: inspect worker transcript or cancel to salvage`, signal: 'N' });
+  if (worker) {
+    rows.push({
+      tone: worker.running ? 'running' : 'unknown',
+      label: 'worker',
+      text: `running=${worker.running} · inFlight=${worker.inFlight}/${worker.maxConcurrency}`,
+      signal: worker.running ? 'K' : 'M',
+    });
+  }
+  return ui.renderLineworkPanel({
+    title: 'Dispatch',
+    subtitle: d.id,
+    tone: dispatchTone(d.state),
+    zone: `${d.state} · ${d.slug}`,
+    rows,
+    footer: `created ${new Date(d.createdAt).toISOString()}`,
+  });
 }
 
 async function readResponseJson(res: Awaited<ReturnType<typeof pdFetch>>): Promise<Record<string, unknown>> {
@@ -173,6 +247,22 @@ function printDaemonRunResult(payload: Record<string, unknown>): void {
   const launched = typeof payload.launchedThisTick === 'number'
     ? payload.launchedThisTick
     : 0;
+  if (shouldRenderLinework()) {
+    console.log(ui.renderLineworkPanel({
+      title: 'Dispatch Run',
+      subtitle: 'daemon-side execution',
+      tone: launched > 0 ? 'running' : 'pending',
+      zone: launched > 0 ? 'worker launched' : 'queued',
+      rows: [
+        { tone: launched > 0 ? 'running' : 'pending', label: 'launched', text: String(launched), signal: launched > 0 ? 'K' : 'P' },
+        ...(typeof payload.message === 'string'
+          ? [{ tone: 'info' as ui.LineworkTone, label: 'message', text: payload.message, signal: 'K' as const }]
+          : []),
+      ],
+      footer: 'daemon owns worker health from here',
+    }));
+    return;
+  }
   ui.success('Dispatch queued for daemon-side execution.');
   console.log(`  launched_this_tick: ${launched}`);
   if (typeof payload.message === 'string') {
@@ -251,6 +341,10 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
       console.log('No proposed dispatches.');
       return;
     }
+    if (shouldRenderLinework(options)) {
+      console.log(renderDispatchListLinework(dispatches, 'Dispatch Queue'));
+      return;
+    }
     for (const d of dispatches) {
       console.log(formatDispatchLine(d));
     }
@@ -270,6 +364,10 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
     }
     if (dispatches.length === 0) {
       console.log('No dispatches.');
+      return;
+    }
+    if (shouldRenderLinework(options)) {
+      console.log(renderDispatchListLinework(dispatches, 'Dispatches'));
       return;
     }
     for (const d of dispatches) {
@@ -292,6 +390,10 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
     }
     if (isJson(options)) {
       console.log(JSON.stringify({ dispatch: d }, null, 2));
+      return;
+    }
+    if (shouldRenderLinework(options)) {
+      console.log(renderDispatchDetailLinework(d));
       return;
     }
     printDispatchDetail(d);
@@ -334,6 +436,10 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
     }
     if (isJson(options)) {
       console.log(JSON.stringify({ dispatch: d, worker }, null, 2));
+      return;
+    }
+    if (shouldRenderLinework(options)) {
+      console.log(renderDispatchDetailLinework(d, worker));
       return;
     }
     printDispatchDetail(d);
@@ -478,6 +584,28 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
 }
 
 function printPlan(plan: ReturnType<typeof planRunFor>, dryRun: boolean): void {
+  if (shouldRenderLinework()) {
+    const rows: ui.LineworkRow[] = [
+      { tone: 'pending', label: 'goal', text: plan.dispatch.goal, signal: 'P' },
+      { tone: 'running', label: 'backend', text: plan.backend, signal: 'K' },
+      { tone: 'running', label: 'worktree', text: plan.worktreePath, signal: 'K' },
+      { tone: 'running', label: 'branch', text: plan.branch, signal: 'K' },
+      { tone: 'pending', label: 'base', text: `${plan.dispatch.baseBranch} · ${plan.baseRef}`, signal: 'P' },
+      { tone: 'pending', label: 'timeout', text: `${Math.round(plan.timeoutMs / 60000)} min`, signal: 'P' },
+      { tone: 'pending', label: 'budget', text: `$${plan.budgetUsd.toFixed(2)}`, signal: 'P' },
+      { tone: dryRun ? 'blocked' : 'running', label: 'next', text: dryRun ? 'pass --really-run to spawn after reading the plan' : 'daemon-side worker launch requested', signal: dryRun ? 'X' : 'K' },
+      ...plan.rationale.map((line): ui.LineworkRow => ({ tone: 'info', label: 'why', text: line, signal: 'K' })),
+    ];
+    console.log(ui.renderLineworkPanel({
+      title: 'Dispatch Plan',
+      subtitle: `${plan.dispatch.slug} (${plan.dispatch.id.slice(0, 8)})`,
+      tone: dryRun ? 'pending' : 'running',
+      zone: dryRun ? 'dry run' : 'ready to run',
+      rows,
+      footer: `${plan.command} ${plan.args.join(' ')}`,
+    }));
+    return;
+  }
   ui.success(`Dispatch plan for ${plan.dispatch.slug} (${plan.dispatch.id.slice(0, 8)})`);
   console.log(`  goal:        ${plan.dispatch.goal}`);
   console.log(`  backend:     ${plan.backend}`);

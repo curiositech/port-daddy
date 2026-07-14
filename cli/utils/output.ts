@@ -8,9 +8,9 @@
 import * as tty from 'node:tty';
 
 /** Kernel-level fd check — robust where stream.isTTY lies under bun-compile. */
-function fd2IsTTY(): boolean {
+function fdIsTTY(fd: number): boolean {
   try {
-    return tty.isatty(2);
+    return tty.isatty(fd);
   } catch {
     return false;
   }
@@ -26,7 +26,45 @@ function fd2IsTTY(): boolean {
  */
 export const IS_TTY: boolean =
   (process.env.NO_COLOR === undefined || process.env.NO_COLOR === '') &&
-  ((process.stderr.isTTY ?? false) || fd2IsTTY() || !!process.env.FORCE_COLOR);
+  ((process.stderr.isTTY ?? false) || fdIsTTY(2) || !!process.env.FORCE_COLOR);
+
+export type CliColorLevel = 'none' | '16' | '256' | 'truecolor';
+
+function forceColorLevel(): CliColorLevel | null {
+  const raw = process.env.FORCE_COLOR;
+  if (raw === undefined || raw === '') return null;
+  if (raw === '0' || raw.toLowerCase() === 'false') return 'none';
+  if (raw === '3' || raw.toLowerCase() === 'truecolor') return 'truecolor';
+  if (raw === '2' || raw === '256') return '256';
+  return '16';
+}
+
+/**
+ * Detect color support for rendered human output.
+ *
+ * Unlike the legacy `IS_TTY` stderr check, stdout visuals must respect pipes and
+ * redirects because human tables often print to stdout. FORCE_COLOR remains an
+ * explicit demo/test override, but ordinary piped output stays plain.
+ */
+export function detectColorLevel(stream: 'stdout' | 'stderr' = 'stdout'): CliColorLevel {
+  const forced = forceColorLevel();
+  if (forced) return forced;
+  if (process.env.NO_COLOR !== undefined && process.env.NO_COLOR !== '') return 'none';
+  if ((process.env.TERM || '').toLowerCase() === 'dumb') return 'none';
+
+  const fd = stream === 'stdout' ? 1 : 2;
+  const writeStream = stream === 'stdout' ? process.stdout : process.stderr;
+  if (!((writeStream.isTTY ?? false) || fdIsTTY(fd))) return 'none';
+
+  const colorTerm = (process.env.COLORTERM || '').toLowerCase();
+  if (colorTerm === 'truecolor' || colorTerm === '24bit') return 'truecolor';
+  if ((process.env.TERM || '').includes('256color')) return '256';
+  return '16';
+}
+
+export function supportsStyledStdout(): boolean {
+  return detectColorLevel('stdout') !== 'none';
+}
 
 /** Print a Unicode separator line (only in TTY mode) */
 export function separator(width: number = 75): void {
