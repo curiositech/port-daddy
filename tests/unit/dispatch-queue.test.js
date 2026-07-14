@@ -192,6 +192,17 @@ describe('claim (proposed -> claimed)', () => {
 });
 
 describe('nextProposed (atomic pop)', () => {
+  test('peekNextProposed uses the same oldest-row ordering without claiming', () => {
+    const first = queue.propose({ goal: 'first' });
+    advance(1000);
+    queue.propose({ goal: 'second' });
+
+    const peeked = queue.peekNextProposed();
+    expect(peeked.id).toBe(first.id);
+    expect(peeked.state).toBe('proposed');
+    expect(queue.get(first.id).state).toBe('proposed');
+  });
+
   test('picks oldest proposed and marks it claimed', () => {
     const first = queue.propose({ goal: 'first' });
     advance(1000);

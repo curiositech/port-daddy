@@ -729,6 +729,13 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     return rows.slice(0, limit).map(rowToDispatch);
   }
 
+  function peekNextProposed(baseBranch?: string): Dispatch | null {
+    const row = baseBranch
+      ? nextSelectByBaseStmt.get(baseBranch)
+      : nextSelectStmt.get();
+    return row ? rowToDispatch(row) : null;
+  }
+
   function claim(input: ClaimDispatchInput): Dispatch {
     const existing = selectByIdStmt.get(input.id);
     if (!existing) throw new Error(`claim: dispatch ${input.id} not found`);
@@ -965,6 +972,7 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     materializeProjection,
     get,
     list,
+    peekNextProposed,
     claim,
     nextProposed,
     start,
