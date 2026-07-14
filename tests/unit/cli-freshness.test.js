@@ -16,6 +16,16 @@ describe('cli/utils/freshness', () => {
     expect(shouldCheckDaemonFreshness('find', ['find', 'api', '--direct'])).toBe(false);
   });
 
+  test('treats named profiles and explicit URLs as owned daemon targets', async () => {
+    const { hasExplicitDaemonTarget } = await import('../../cli/utils/freshness.js');
+
+    expect(hasExplicitDaemonTarget({ PORT_DADDY_PROFILE: 'cli-linework' })).toBe(true);
+    expect(hasExplicitDaemonTarget({ PORT_DADDY_URL: 'http://127.0.0.1:3180' })).toBe(true);
+    expect(hasExplicitDaemonTarget({ PD_URL: 'http://127.0.0.1:3180' })).toBe(true);
+    expect(hasExplicitDaemonTarget({ PORT_DADDY_SKIP_FRESHNESS_CHECK: '1' })).toBe(true);
+    expect(hasExplicitDaemonTarget({})).toBe(false);
+  });
+
   test('only allows auto-restart for interactive commands against the same install dir', async () => {
     const { shouldAutoRestartDaemonForFreshness } = await import('../../cli/utils/freshness.js');
 

@@ -355,6 +355,23 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
     console.log(JSON.stringify(data, null, 2));
   } else if (isQuiet(options)) {
     console.log(sessionId);
+  } else if (ui.lineworkEnabled({ json: isJson(options), quiet: isQuiet(options) })) {
+    const rows: ui.LineworkRow[] = [
+      { state: 'confirmed', label: 'session', text: sessionId },
+      { state: 'pending', label: 'purpose', text: purpose },
+      { state: lifecycle === 'durable' ? 'healthy' : 'info', label: 'lifecycle', text: lifecycle },
+    ];
+    if (files.length > 0) {
+      rows.push({ state: 'confirmed', label: 'files', text: `${files.length} claimed` });
+    }
+    console.log(ui.renderLineworkPanel({
+      title: 'Session Start',
+      subtitle: sessionId,
+      tone: 'healthy',
+      zone: 'session anchored',
+      rows,
+      footer: 'notes and file claims are now attached to this session',
+    }));
   } else {
     ui.success(`Started session: ${sessionId}`);
     console.log(`  Purpose: ${purpose}`);
@@ -961,6 +978,43 @@ export async function handleSessions(options: CLIOptions): Promise<void> {
   if (!isQuiet(options) && data.worktreeId && !showingAll) {
     console.log(`Showing sessions for worktree ${data.worktreeId} (use --all-worktrees for all)`);
     console.log('');
+  }
+  if (ui.lineworkEnabled({ json: isJson(options), quiet: isQuiet(options) })) {
+    const rows = sessions.map((s): ui.LineworkRow => {
+      const meta = s.metadata && typeof s.metadata === 'object' ? s.metadata : null;
+      const link = typeof meta?.roadmapLink === 'string' && meta.roadmapLink
+        ? `roadmap ${meta.roadmapLink}`
+        : typeof meta?.sidequestReason === 'string' && meta.sidequestReason
+          ? `sidequest ${meta.sidequestReason}`
+          : 'no link';
+      const status = s.status.toLowerCase();
+      const state: ui.LineworkState = status === 'active'
+        ? 'active'
+        : status === 'completed'
+          ? 'confirmed'
+          : status === 'abandoned'
+            ? 'recovering'
+            : status.includes('block')
+              ? 'blocked'
+              : 'unknown';
+      const age = formatAge(now - s.createdAt);
+      return {
+        state,
+        label: s.id.slice(0, 10),
+        text: `${s.purpose} · ${s.status} · files ${s.fileCount || 0} · notes ${s.noteCount || 0} · ${age} · ${link}`,
+      };
+    });
+    console.log(ui.renderLineworkPanel({
+      title: 'Sessions',
+      subtitle: showingAll ? 'all worktrees' : (data.worktreeId ? `worktree ${data.worktreeId}` : 'active'),
+      tone: rows.some((row) => row.state === 'blocked') ? 'blocked' : 'running',
+      zone: `${sessions.length} session(s)`,
+      rows,
+      footer: showingAll
+        ? `${sessions.length} session(s) shown across all worktrees`
+        : `${sessions.length} session(s) shown · use --all-worktrees for the full fleet`,
+    }));
+    return;
   }
   console.log('ID              PURPOSE                    STATUS    FILES  NOTES  AGE      LINK');
   console.log('─'.repeat(95));
