@@ -318,10 +318,10 @@ New invariants:
 
 ## Appendix — Tenancy boundary audit (local-first promise)
 
-Audited 2026-07-14 with the `local-first-tenancy-boundary` skill
-(`scripts/tenancy_boundary_audit.mjs`); spec committed at
-`docs/audits/tenancy-boundary.spec.json` so the audit is re-runnable whenever a
-feature crosses a scope tier. Verdict at design time: **fail, score 64** — the
+Audited 2026-07-14 with the `local-first-tenancy-boundary` skill; the audit
+script is vendored at `docs/audits/tenancy_boundary_audit.mjs` (stdlib-only)
+and the spec committed at `docs/audits/tenancy-boundary.spec.json`, so the
+audit is re-runnable in-repo whenever a feature crosses a scope tier. Verdict at design time: **fail, score 64** — the
 per-feature inventory passes (every identity-gated feature has a real
 local-only path; every tier crossing has an explicit consent moment), but
 three product-wide guarantees were missing. They are adopted here as **Phase 1
@@ -371,7 +371,7 @@ ad hoc per handler.
 ### Re-running the audit
 
 ```
-node <skill>/scripts/tenancy_boundary_audit.mjs \
+node docs/audits/tenancy_boundary_audit.mjs \
   --input docs/audits/tenancy-boundary.spec.json
 ```
 
