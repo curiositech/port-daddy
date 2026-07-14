@@ -395,6 +395,11 @@ fn main() {
         // executor) and pushes replies/errors back here for the foreground to fold
         // into the chat transcript. Real daemon traffic, never a fake.
         let (chat_tx, chat_rx) = mpsc::channel::<chat::ChatUpdate>();
+        // The Harbor Editor's LIVE blocks (P3 wire stage 2): the producer folds the
+        // edit-sync + coordination lanes into its persistent EditorPane, then pushes
+        // `(bound_path, view())` here on each fold edge for the foreground to surface on
+        // the Editor surface — the wedge finally shows in the RUNNING window.
+        let (editor_tx, editor_rx) = mpsc::channel::<(String, Vec<pane::Block>)>();
         // Sextant bus: the bg thread owns the GET /galaxy/session/:id round-trip
         // for a clicked point and streams the parsed detail (or the daemon's real
         // failure) back to the view's drawer. Mirrors the conjure bus: a small
@@ -481,6 +486,20 @@ fn main() {
                 // (re)opened whenever the selected live node changes; drained
                 // each loop into the pane's live tail.
                 let mut harbor_stream: Option<(String, tokio::sync::mpsc::Receiver<agent::StreamEnvelope>)> = None;
+
+                // The Harbor Editor's live lane (P3 wire stage 1). `editor` is the
+                // persistent pane bound to the operator's currently-open file (set by
+                // `ControlMsg::OpenEditor`); `editor_stream` holds its TWO isolated tube
+                // receivers — (edit_channel, edit-sync rx, coordination rx) — (re)opened
+                // whenever the bound file changes. Two independent `subscribe_channel`
+                // mpsc's IS the edit-lane ⇄ coordination-lane isolation (ref-03 §3).
+                // `None` until the operator opens an Editor surface.
+                let mut editor: Option<editor_pane::EditorPane> = None;
+                let mut editor_stream: Option<(
+                    String,
+                    tokio::sync::mpsc::Receiver<agent::TubeMsg>,
+                    tokio::sync::mpsc::Receiver<agent::TubeMsg>,
+                )> = None;
 
                 // Operator chat transport state: (channel, cursor). `None` until the
                 // first turn binds a responder on the stable `console-chat` channel.
@@ -895,6 +914,7 @@ fn main() {
                             app::ControlMsg::RebindDaemon { url } => {
                                 client = DaemonClient::new(url);
                                 lane_stream = None; // drop the old daemon's SSE stream
+                                editor_stream = None; // and the editor's edit/coord streams
                                 chat = None; // re-bind chat on the new daemon's channel
                             }
                             // Steer the Sextant pane's query; the next 2s refresh
@@ -1162,6 +1182,20 @@ fn main() {
                                     }
                                 }
                             }
+                            // Bind the live Harbor Editor lane to a file (wire stage 1):
+                            // build a persistent EditorPane on this path + operator
+                            // identity, load its Loro buffer, and force a (re)subscribe so
+                            // the drain block below follows its edit-sync + coordination
+                            // channels. A fresh pane drops any prior file's buffer/streams.
+                            app::ControlMsg::OpenEditor { path, region } => {
+                                let identity = editor_pane::resolve_operator_identity();
+                                let mut pane = editor_pane::EditorPane::new_with_identity(
+                                    path, region, identity,
+                                );
+                                pane.load();
+                                editor = Some(pane);
+                                editor_stream = None; // resubscribe to the new file's channels
+                            }
                         }
                     }
 
@@ -1238,6 +1272,64 @@ fn main() {
                     if let Some((_, rx)) = harbor_stream.as_mut() {
                         while let Ok(env) = rx.try_recv() {
                             harbor.on_stream(&env);
+                        }
+                    }
+
+                    // (Re)subscribe + drain the Harbor Editor's live lane (P3 wire stage
+                    // 1) — the same declare-intent/follow contract the Lane and Harbor use
+                    // for an agent stream, but an editor follows TWO isolated channels:
+                    // the edit-sync lane (durable Loro ops + lossy presence, folded via
+                    // `on_edit_frame`) and the coordination lane (region claims, folded via
+                    // `on_coord_frame`). We open one `subscribe_channel` per channel — two
+                    // independent mpsc receivers, which IS the isolation — whenever the
+                    // bound file changes, then drain both into the pane. `expire_presence`
+                    // each tick ages out a peer that went quiet. view() rendering is
+                    // unchanged here; surfacing these Blocks is wire stage 2.
+                    if let Some(ed) = editor.as_mut() {
+                        // Edge-triggered: `editor_dirty` becomes true only when the bound
+                        // file (re)binds or a real frame folds a change, so wire stage 2
+                        // pushes view() to the foreground on a paint EDGE — an idle editor
+                        // with live cursors sends nothing (the P2 discipline, carried here).
+                        let mut editor_dirty = false;
+                        match ed.subscription() {
+                            Some(pane::Subscription::Editor { channel, coord_channel }) => {
+                                let reopen = match &editor_stream {
+                                    Some((cur, _, _)) => cur != &channel,
+                                    None => true,
+                                };
+                                if reopen {
+                                    let edit_rx = client.subscribe_channel(&channel);
+                                    let coord_rx = client.subscribe_channel(&coord_channel);
+                                    editor_stream = Some((channel, edit_rx, coord_rx));
+                                    editor_dirty = true; // a freshly (re)bound file paints once
+                                }
+                            }
+                            // A not-yet-loaded / errored editor pane has no buffer to fold
+                            // remote frames into, so it follows nothing (poll-only).
+                            _ => editor_stream = None,
+                        }
+                        if let Some((_, edit_rx, coord_rx)) = editor_stream.as_mut() {
+                            // The bool-returning inherent folds report the change edge the
+                            // trait hooks discard; OR it into `editor_dirty` so a folded op /
+                            // presence cursor / region claim triggers exactly one repaint.
+                            while let Ok(msg) = edit_rx.try_recv() {
+                                // The edit-sync lane multiplexes durable Loro op
+                                // frames and lossy presence frames under distinct
+                                // frame kinds (`ingest_frame` / `ingest_presence`
+                                // are mutually exclusive); `||` short-circuits so a
+                                // frame folds through exactly one path.
+                                editor_dirty |=
+                                    ed.ingest_frame(&msg.text) || ed.ingest_presence(&msg.text);
+                            }
+                            while let Ok(msg) = coord_rx.try_recv() {
+                                editor_dirty |= ed.ingest_claim(&msg.text);
+                            }
+                        }
+                        editor_dirty |= ed.expire_presence();
+                        // Surface the folded pane on the edge — presence cursors, claim
+                        // bands, and the wedge conflict/gate Blocks now flow to the window.
+                        if editor_dirty {
+                            let _ = editor_tx.send((ed.path_str().to_string(), ed.view()));
                         }
                     }
 
@@ -1346,6 +1438,18 @@ fn main() {
                         let _ = async_cx.update(|app| {
                             let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
                                 view.apply_chat_update(update.clone());
+                                cx.notify();
+                            });
+                        });
+                    }
+                    // Drain the Harbor Editor bus (P3 wire stage 2): the producer's live
+                    // pane blocks — presence cursors, region claims, wedge conflict/gate
+                    // bands — folded into the Editor surface so the running window paints
+                    // the collaboration state, not a cold file re-read.
+                    while let Ok(editor_blocks) = editor_rx.try_recv() {
+                        let _ = async_cx.update(|app| {
+                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                                view.set_editor_blocks(editor_blocks.clone());
                                 cx.notify();
                             });
                         });

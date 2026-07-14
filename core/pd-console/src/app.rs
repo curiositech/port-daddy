@@ -205,6 +205,17 @@ pub enum ControlMsg {
         verb: String,
         argument: Option<String>,
     },
+    /// Bind the producer's live Harbor Editor lane to a file (P3 wire stage 1). Sent
+    /// when the operator opens an `Editor` surface (FileTree click / `:edit <path>`).
+    /// The producer constructs a persistent [`crate::editor_pane::EditorPane`] on this
+    /// path, loads its Loro buffer, and follows its [`Subscription::Editor`] — draining
+    /// doc-op + presence frames off the edit-sync channel and claim frames off the
+    /// coordination channel into the pane, the same way the Lane/Harbor lanes follow an
+    /// agent stream. `region` carries the optional highlighted line span.
+    OpenEditor {
+        path: String,
+        region: Option<(u32, u32)>,
+    },
 }
 
 /// A flattened, transport-ready spawn request for one Conjure node — the wire
@@ -1923,6 +1934,13 @@ pub struct ConsoleView {
     /// submits, Escape cancels.
     command: Option<CommandLine>,
     pane_blocks: Vec<Vec<Block>>,
+    /// The producer's LIVE Harbor Editor blocks (P3 wire stage 2): `(bound_path,
+    /// view())` folded from the background edit-sync + coordination lanes — presence
+    /// cursors, region claims, and the wedge conflict/gate bands. `None` until an editor
+    /// surface opens. `blocks_for_surface` prefers these (when the bound path matches)
+    /// over a cold synchronous load, so the running window shows the LIVE wedge — not a
+    /// static file re-read that never saw the collaboration lanes.
+    editor_blocks: Option<(String, Vec<Block>)>,
     daemon_url: String,
     /// Provider→tier→model map, loaded from config (not compiled-in), so the
     /// Spawn picker resolves models that can change without a rebuild.
@@ -2148,6 +2166,7 @@ impl ConsoleView {
             leader_armed: false,
             command: None,
             pane_blocks,
+            editor_blocks: None,
             daemon_url,
             catalog: ModelCatalog::load(),
             focus_handle: cx.focus_handle(),
@@ -2312,6 +2331,18 @@ impl ConsoleView {
         // — the old path built a fresh EditorPane (a `pd whoami` subprocess + a
         // full disk read + a Loro doc) inside EVERY render.
         if let SurfaceKind::Editor { path, region } = surface {
+            // WIRE STAGE 2 — prefer the producer's LIVE editor pane: the background lane
+            // folds presence cursors, region claims, and wedge conflict/gate bands into
+            // it, and pushes its `view()` here on each edge. Use it only when its bound
+            // path matches this surface (guards a mid-rebind race to another file). When
+            // no live snapshot has landed yet — or it's for a different file — fall back
+            // to the persistent `self.editors` state (opened once by
+            // `ensure_editor_states`) so the surface still renders honestly.
+            if let Some((live_path, blocks)) = &self.editor_blocks {
+                if live_path == path {
+                    return blocks.clone();
+                }
+            }
             return match self.editors.get(&editor_key(path, *region)) {
                 Some(state) => state.pane.view(),
                 // First frame before ensure_editor_states ran (shouldn't happen
@@ -2744,6 +2775,17 @@ impl ConsoleView {
         if cmd.kind == CmdKind::AddPane {
             match surface_for_query(&text) {
                 Some(surface) => {
+                    // Opening an Editor surface also binds the producer's live editor
+                    // lane to the file (wire stage 1) — read `path`/`region` before
+                    // `split` moves the surface.
+                    if let SurfaceKind::Editor { path, region } = &surface {
+                        if let Some(tx) = &self.control_tx {
+                            let _ = tx.send(ControlMsg::OpenEditor {
+                                path: path.clone(),
+                                region: *region,
+                            });
+                        }
+                    }
                     self.ws_mut().split(Dir::Row, surface);
                     self.control_flash = Some(format!("added pane: {text}"));
                 }
@@ -3677,6 +3719,13 @@ impl ConsoleView {
                     Some("no control plane — session detail is unavailable in this build".into());
             }
         }
+    }
+
+    /// Store the producer's latest LIVE editor blocks (P3 wire stage 2). The producer
+    /// sends only on a real fold edge (a bound-file change, a folded op/presence/claim,
+    /// or a cursor expiry), so the editor surface repaints on change, never on idle.
+    pub fn set_editor_blocks(&mut self, blocks: (String, Vec<Block>)) {
+        self.editor_blocks = Some(blocks);
     }
 
     /// The launch splash — a centered brand lockup (spinning radar mark + "Port Daddy") shown
@@ -6186,11 +6235,19 @@ fn render_filetree_row(
                 // Descend: rebind the FileTree root to this directory.
                 this.ws_mut().bind_entity(Some(path.clone()));
             } else {
-                // Open the file in the Harbor Editor surface.
+                // Open the file in the Harbor Editor surface, and bind the producer's
+                // live editor lane to it (wire stage 1) so the buffer follows remote
+                // ops / presence / claims.
                 this.ws_mut().swap_surface(SurfaceKind::Editor {
                     path: path.clone(),
                     region: None,
                 });
+                if let Some(tx) = &this.control_tx {
+                    let _ = tx.send(ControlMsg::OpenEditor {
+                        path: path.clone(),
+                        region: None,
+                    });
+                }
             }
             cx.notify();
         }))
