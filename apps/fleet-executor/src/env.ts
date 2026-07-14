@@ -35,7 +35,7 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   AI: Ai;
   /**
    * Public base URL of the relay serving the human-facing run page
-   * (ADR-0097 Phase 0), e.g. "https://port-daddy-relay.example.workers.dev".
+   * (ADR-0098 Phase 0), e.g. "https://port-daddy-relay.example.workers.dev".
    * OPTIONAL: unset (with RUN_PAGE_SECRET) ⇒ check runs carry no details_url.
    */
   RUN_DETAILS_BASE_URL?: string;

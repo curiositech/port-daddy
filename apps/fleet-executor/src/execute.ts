@@ -446,7 +446,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // Deterministic run id from the delivery id so a retried delivery rewrites its
   // own audit row + transcript (INSERT OR REPLACE) instead of duplicating.
   const runId = `run:${deliveryId}`;
-  // Capability URL for the human-facing run page (ADR-0097 Phase 0). Null when
+  // Capability URL for the human-facing run page (ADR-0098 Phase 0). Null when
   // RUN_DETAILS_BASE_URL / RUN_PAGE_SECRET are unconfigured; never throws.
   const detailsUrl = await runDetailsUrl(env, runId);
   const startMs = Date.now();

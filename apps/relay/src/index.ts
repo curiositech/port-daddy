@@ -17,7 +17,7 @@
  *   GET  /v1/fleet/health                      (operator; paused flag + last-run age)
  *   GET  /v1/fleet/runs/:id                    (operator; one run + transcript)
  *   GET  /fleet/runs/:id                        (HTML run page; HMAC capability
- *                                                token or operator; ADR-0097)
+ *                                                token or operator; ADR-0098)
  *   POST /v1/exchange                        (OIDC → PD card)
  *   POST /v1/revoke
  *   POST /v1/revoke-by-issuer               (operator; acceptance criterion #2)
@@ -146,7 +146,7 @@ export default {
       response = await handleFleetRun(request, env, runId);
     }
 
-    // ── Fleet run page (HTML; check-run details_url target, ADR-0097) ────────
+    // ── Fleet run page (HTML; check-run details_url target, ADR-0098) ────────
     else if (pathname.startsWith('/fleet/runs/') && method === 'GET') {
       const runId = decodeURIComponent(pathname.slice('/fleet/runs/'.length));
       response = await handleFleetRunPage(request, env, runId);
