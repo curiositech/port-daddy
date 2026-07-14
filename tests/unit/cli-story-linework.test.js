@@ -344,6 +344,22 @@ describe('pd status story-linework output', () => {
     expect(healthThrownCode).toBe(1);
     expect(JSON.parse(healthThrownOutput[0])).toMatchObject({ success: false, error: { code: 'HEALTH_UNAVAILABLE' } });
 
+    const degradedOutput = [];
+    const degradedCode = await runStatus({ json: true }, {
+      fetch: async () => response({
+        status: 'ok',
+        severity: 'warn',
+        runtime: { state: 'nominal', degraded: false },
+        binaryDrift: { drifted: false },
+      }),
+      write: (line) => degradedOutput.push(line),
+    });
+    expect(degradedCode).toBe(1);
+    expect(JSON.parse(degradedOutput[0])).toMatchObject({
+      success: false,
+      error: { code: 'HEALTH_DEGRADED' },
+    });
+
     const driftOutput = [];
     const driftCode = await runStatus({ json: true }, {
       fetch: async (path) => path === '/status'
