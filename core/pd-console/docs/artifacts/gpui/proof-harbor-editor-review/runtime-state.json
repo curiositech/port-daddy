@@ -1,0 +1,60 @@
+{
+  "verifiedAt": "2026-07-14T03:52:31-07:00",
+  "daemon": {
+    "url": "http://127.0.0.1:3182",
+    "profile": "harbor-linework",
+    "pid": 45055,
+    "version": "3.24.2",
+    "tier": "codebase",
+    "plane": "ephemeral:harbor-linework",
+    "sourceDir": "/Users/erichowens/coding/tmp/port-daddy-dispatch-973699cb",
+    "gitRevision": "cadea4946",
+    "canonical": false,
+    "binaryDrift": false,
+    "requiredRoutes": {
+      "checked": 11,
+      "missing": []
+    },
+    "agentNodes": {
+      "httpStatus": 200,
+      "count": 0,
+      "projection": "roster",
+      "stale": false
+    }
+  },
+  "nativeApp": {
+    "pid": 21683,
+    "windowId": 3223,
+    "binary": "core/target/debug/pd-console",
+    "daemonUrl": "http://127.0.0.1:3182",
+    "booted": true,
+    "focused": "edit editor_pane.rs",
+    "controlSocket": "/tmp/pd-console-pr1960-motion.sock",
+    "displaySelector": 2
+  },
+  "capture": {
+    "timestamps": {
+      "normalEditor": "2026-07-14T03:40:30-07:00",
+      "normalHarbor": "2026-07-14T03:44:32-07:00",
+      "reducedMotionEditor": "2026-07-14T03:45:21-07:00",
+      "motionRecording": "2026-07-14T03:46:33-07:00"
+    },
+    "normalEditorProcessPid": 99754,
+    "reducedMotionProcessPid": 19630,
+    "motionAndFinalProcessPid": 21683,
+    "captureDaemonPid": 16656,
+    "captureDaemonRevision": "f400336e1",
+    "finalVerifiedDaemonPid": 45055,
+    "finalVerifiedDaemonRevision": "cadea4946",
+    "seededFrontendAuthority": false,
+    "seededCollaborators": false,
+    "motion": {
+      "format": "h264",
+      "width": 1208,
+      "height": 800,
+      "durationSeconds": 7.065,
+      "frames": 188,
+      "distinctFrames": 9
+    }
+  }
+}
