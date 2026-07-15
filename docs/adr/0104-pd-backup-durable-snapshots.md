@@ -220,7 +220,7 @@ machine.
   value written, and the `--no-encryption` flag is silently the default.
   This keeps PR-α free of native deps (`age-encryption` is pure JS but
   keychain libs like `keytar` are native).
-- **PR-β**: `lib/backup-encryption.ts` adds age-based encryption-at-rest
+- **PR-β** (proposed): `lib/backup-encryption.ts` adds age-based encryption-at-rest
   via [`age-encryption`](https://www.npmjs.com/package/age-encryption) (pure
   JS, no native bind). `pd backup init` provisions a keypair. The age
   **private** key lives in `~/.port-daddy/backup-identity.txt` with
@@ -228,7 +228,7 @@ machine.
   approach is the lowest-friction default that still keeps encryption
   meaningfully on). After PR-β lands, `--no-encryption` flips from default
   to opt-in.
-- **PR-γ**: `lib/backup-backends/s3.ts` + `gs.ts` against the same
+- **PR-γ** (proposed): `lib/backup-backends/s3.ts` + `gs.ts` against the same
   interface. Credentials via standard env vars; no new config surface.
 - **PR-δ**: `pd-fleet.yml` `backup-keeper` agent + dashboard panel
   surfacing last-N backups + restore button (with double-confirm).

@@ -121,7 +121,7 @@ A single set of paths in the repo:
 - `docs/recipes/` — how-to docs that the dashboard embeds.
 - `public/` — dashboard HTML/CSS/JS plus generated assets (recordings, screenshots).
 - `schemas/` — JSON schemas for coordination notes, handoffs, validation reports.
-- `mcp/openapi.json` (planned) — generated OpenAPI spec for the daemon's HTTP surface.
+- `mcp/openapi.json` (planned, not yet shipped) — generated OpenAPI spec for the daemon's HTTP surface.
 
 These are checked into git, versioned alongside code, but published on a separate cadence.
 
@@ -212,7 +212,7 @@ When `PORT_DADDY_CONTENT_PROXY=cdn` is set, the daemon proxies `/content/*` requ
 - `~/port-daddy-stable/` worktree.
 - `npm link` from anywhere in the install story.
 - The "NEVER `npm link` from `~/coding/port-daddy`" footgun in CLAUDE.md.
-- `scripts/promote-stable.sh`'s "merge main → stable, npm install, npm link, restart daemon" dance. Test gate moves to CI; the artifact CI emits is a signed bottle (or per-platform package).
+- `scripts/promote-stable.sh`'s "merge main → stable, npm install, npm link, restart daemon" dance. Test gate moves to CI; the artifact CI emits is a signed bottle (or per-platform package). <!-- cite-exempt: local operator script, retired by this ADR — not a repo file -->
 - `better-sqlite3`'s ABI rebuild class of failures (after SQLite migration).
 - The 9-version drift between local (3.12.x) and npm (3.3.0) for the monolithic `port-daddy` package, by virtue of splitting it.
 - The "agents must read SKILL.md from a specific path on disk" coupling. After this ADR, any agent can fetch from `/content/skills/...` against any reachable daemon, or pull from the CDN, or import from npm — the daemon is no longer the only source.
@@ -287,7 +287,7 @@ CI secrets:
 
 1. **bun:sqlite adapter** (`lib/sqlite-runtime.ts`). Replace value imports of `better-sqlite3` in `lib/db.ts` and `lib/shipwright/skill-index.ts`. Keep type imports as-is. Verify `npm test` still passes under Node.
 2. **Winston log path fix** (`server.ts:147-164`). Resolve filenames against `$PORT_DADDY_PREFIX/logs/` with a per-OS runtime-writable fallback.
-3. **Content-root abstraction** (`lib/content-root.ts`). Resolves `skills/`, `examples/`, `public/`, `schemas/` paths to either the embedded snapshot or the configured CDN proxy. Daemon's static-serving plugins use this helper.
+3. **Content-root abstraction** (`lib/content-root.ts`, proposed). Resolves `skills/`, `examples/`, `public/`, `schemas/` paths to either the embedded snapshot or the configured CDN proxy. Daemon's static-serving plugins use this helper.
 4. **Compile + sign + notarize the daemon on macOS arm64.** Confirm it boots, hits `/health`, accepts CLI traffic, serves `/content/skills/...` from the embedded snapshot, registers as a brew service.
 5. **Brew formula update** (macOS arm64 + x64). Bottle the three Mach-Os; add the daemon as a `service` block; install content snapshot to `pkgshare`.
 6. **Linux build matrix.** `bun-linux-x64` and `bun-linux-arm64` compile; GitHub Release tarballs; systemd-user unit; brew-on-Linux formula entry.
@@ -295,7 +295,7 @@ CI secrets:
 8. **Content release pipeline** (`.github/workflows/content-release.yml`). Tarball → GitHub Release → npm `@port-daddy/skill` → R2 mirror → CDN invalidate. Set up `content.port-daddy.dev` Cloudflare Worker.
 9. **SDK split.** Extract `lib/client.ts` and types into `packages/client-js/`. Publish `@port-daddy/client@0.1.0`.
 10. **Deprecate the monolithic npm package.** `postinstall` prints migration message naming the right channel for the user's OS.
-11. **Kill `~/port-daddy-stable`** and `scripts/promote-stable.sh` (replaced by CI).
+11. **Kill `~/port-daddy-stable`** and `scripts/promote-stable.sh` (replaced by CI). <!-- cite-exempt: retired local script, not a repo file -->
 12. **Native SDKs** (Swift, Rust, Python) on demand — each is its own project once a real consumer exists.
 
 Steps 1–4 unlock the macOS daemon. Step 5 lands macOS distribution. Step 6 lands Linux (cheap — no signing infrastructure). Step 7 lands Windows (signed from day one). Step 8 lands the open content channel. Steps 9–11 retire legacy npm install. Step 12 is open-ended.
