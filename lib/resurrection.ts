@@ -71,6 +71,12 @@ interface ResurrectionDeps {
 interface QueueMetadata {
   lastHeartbeat?: number;
   notes?: unknown;
+  /**
+   * Self-salvage capsule persisted by the dying agent (`pd done --self-salvage`).
+   * ATTACKER-CONTROLLABLE: written by the agent itself, so it is respawn CONTEXT only
+   * and must NEVER be read as an authorization scope. See server.ts agent:dead handler.
+   */
+  salvageCapsule?: Record<string, unknown>;
 }
 
 export function createResurrection(db: Database.Database, deps: ResurrectionDeps = {}) {
@@ -156,6 +162,7 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       WHERE agent_id = ?
     `),
     remove: db.prepare(`DELETE FROM resurrection_queue WHERE agent_id = ?`),
+    setMetadata: db.prepare(`UPDATE resurrection_queue SET metadata = ? WHERE agent_id = ?`),
     cleanup: db.prepare(`DELETE FROM resurrection_queue WHERE detected_at < ?`),
     countByProject: db.prepare(`SELECT COUNT(*) as count FROM resurrection_queue WHERE status = 'pending' AND identity_project = ?`),
   };
@@ -429,6 +436,33 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
     dismiss(agentId: string) {
       stmts.remove.run(agentId);
       return { success: true };
+    },
+
+    /**
+     * Persist a self-salvage capsule for a queued agent by merging it into the row's
+     * metadata JSON. Additive: no existing metadata field is touched. The capsule is
+     * the dying agent's own payload (untrusted) — it is stored as respawn context and
+     * must never be treated as identity by the reader. Returns `false` when the agent
+     * is not in the queue (nothing to attach to).
+     */
+    attachSalvageCapsule(agentId: string, capsule: Record<string, unknown>): { success: boolean; error?: string } {
+      const row = stmts.get.get(agentId) as ResurrectionQueueRow | undefined;
+      if (!row) return { success: false, error: 'Agent not in resurrection queue' };
+      const metadata = parseMetadata(row.metadata);
+      const merged: QueueMetadata = { ...metadata, salvageCapsule: capsule };
+      stmts.setMetadata.run(JSON.stringify(merged), agentId);
+      return { success: true };
+    },
+
+    /**
+     * Read back a previously attached self-salvage capsule, or `undefined` if none.
+     * Corrupt metadata degrades to `undefined` (parseMetadata never throws).
+     */
+    getSalvageCapsule(agentId: string): Record<string, unknown> | undefined {
+      const row = stmts.get.get(agentId) as ResurrectionQueueRow | undefined;
+      if (!row) return undefined;
+      const capsule = parseMetadata(row.metadata).salvageCapsule;
+      return capsule && typeof capsule === 'object' ? capsule : undefined;
     },
 
     /**
