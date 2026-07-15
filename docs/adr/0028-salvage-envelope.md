@@ -116,6 +116,24 @@ Non-compliant entries are not abandoned — they go through `pd salvage triage` 
 - **no-evidence**: telos null AND no notes — inspect manually or archive
 - **archive-later**: ambiguous, queue behind compliant ones
 
+### Continuation handoff capsule (2026-07-15 amendment)
+
+Salvage resumes Port Daddy-owned work after a body disappears. Cross-harness continuation is the live counterpart: a Claude, Codex, Gemini, local-model, API, or remote agent may need to continue in another runtime while the source session still exists. That boundary does not replay a provider transcript. It carries a versioned, backend-neutral `pd.agent-harbor.handoff-capsule.v0` defined by `schemas/agent-harbor/v0/handoff-capsule.schema.json`.
+
+The capsule preserves:
+
+1. Source adapter, source session, agent/workflow provenance, and transcript pointer.
+2. Telos, project/harbor identity, cwd, repo root, branch, worktree, git head, and dirty-file paths.
+3. Every operator turn, explicit decision, and structured Port Daddy coordination note.
+4. Interesting artifact references and a bounded recent transcript tail.
+5. A deterministic token-budget receipt, redaction receipt, and SHA-256 integrity receipt.
+
+Budget reduction is ordered and fail-closed. Oldest transcript-tail items are removed first, then lowest-priority artifact summaries. Operator turns, decisions, coordination notes, telos, and workspace provenance are never silently removed. If that mandatory context cannot fit, the handoff is rejected with the minimum required estimate instead of producing a misleading partial continuation.
+
+`POST /memory/handoffs` is the ingress boundary. It reconstructs the canonical shape from allowlisted fields, recursively applies Port Daddy's structured credential redactor, scans the resulting JSON with the vendored Gitleaks rule corpus, and requires an external `gitleaks stdin` verdict. A missing scanner, scanner execution error, timeout, or residual finding quarantines the handoff before any memory write. Scanner errors expose finding counts only; raw matched values are never returned or logged. Homebrew installs the external scanner as a formula dependency; other distributions must provide `gitleaks` on `PATH` or set `PD_GITLEAKS_BIN`.
+
+After a clean verdict, the daemon upserts one `handoff` episode keyed by source agent and source session. The full sanitized capsule lives in episode metadata; its telos, operator turns, decisions, and coordination notes form the searchable episode summary. When the caller supplies a Port Daddy coordination session id, its append-only notes are harvested through the existing session-harvest path in the same request.
+
 ### CLI surface
 
 Building on `codex/salvage-triage`:

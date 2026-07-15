@@ -1,0 +1,492 @@
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { homedir } from 'node:os';
+import { scanContent } from './safe/secret-scanner.js';
+import { redactSecrets } from './transcripts.js';
+
+export const HANDOFF_CAPSULE_SCHEMA = 'pd.agent-harbor.handoff-capsule.v0' as const;
+
+const MAX_ITEMS = 5_000;
+const MAX_TOKEN_BUDGET = 200_000;
+const HASH_PLACEHOLDER = '0'.repeat(64);
+
+export interface HandoffTextItem {
+  id: string;
+  at: string | null;
+  text: string;
+}
+
+export interface HandoffDecision extends HandoffTextItem {
+  source: 'operator' | 'agent' | 'coordination';
+}
+
+export interface HandoffCoordinationItem extends HandoffTextItem {
+  kind: 'scope' | 'result' | 'blocker' | 'note';
+}
+
+export interface HandoffArtifact {
+  path: string;
+  kind: string | null;
+  summary: string | null;
+  sourceBlockId: string | null;
+}
+
+export interface HandoffTailItem extends HandoffTextItem {
+  role: 'operator' | 'assistant' | 'tool' | 'system';
+}
+
+export interface HandoffCapsuleV0 {
+  schema: typeof HANDOFF_CAPSULE_SCHEMA;
+  capsuleId: string;
+  capturedAt: string;
+  source: {
+    adapter: string;
+    sessionId: string;
+    agentId: string | null;
+    workflowId: string | null;
+    transcriptRef: string | null;
+  };
+  target: {
+    adapter: string | null;
+    agentId: string | null;
+  } | null;
+  identity: {
+    project: string | null;
+    projectDir: string | null;
+    harbor: string | null;
+  };
+  workspace: {
+    cwd: string | null;
+    repoRoot: string | null;
+    branch: string | null;
+    worktreeId: string | null;
+    gitHead: string | null;
+    dirtyFiles: string[];
+  };
+  telos: string;
+  operatorTurns: HandoffTextItem[];
+  decisions: HandoffDecision[];
+  coordination: HandoffCoordinationItem[];
+  artifacts: HandoffArtifact[];
+  tail: HandoffTailItem[];
+  budget: {
+    requestedTokens: number | null;
+    estimatedTokens: number;
+    omitted: {
+      tail: number;
+      artifacts: number;
+    };
+  };
+  safety: {
+    state: 'clean' | 'redacted';
+    allowlistedFieldsOnly: true;
+    redactedValues: number;
+    localScanner: 'port-daddy-gitleaks-rules';
+    externalScanner: 'gitleaks-stdin';
+    failClosed: true;
+  };
+  integrity: {
+    algorithm: 'sha256';
+    contentHash: string;
+  };
+}
+
+export interface HandoffScanFinding {
+  ruleId: string;
+  line: number | null;
+}
+
+export interface GitleaksScanResult {
+  findings: HandoffScanFinding[];
+}
+
+export type GitleaksRunner = (content: string) => GitleaksScanResult;
+
+export interface SanitizeHandoffOptions {
+  tokenBudget?: number;
+  home?: string;
+  gitleaksRunner?: GitleaksRunner;
+}
+
+export class HandoffValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'HandoffValidationError';
+  }
+}
+
+export class HandoffBudgetError extends Error {
+  readonly requestedTokens: number;
+  readonly minimumRequiredTokens: number;
+
+  constructor(requestedTokens: number, minimumRequiredTokens: number) {
+    super(`handoff token budget ${requestedTokens} is below the required ${minimumRequiredTokens}`);
+    this.name = 'HandoffBudgetError';
+    this.requestedTokens = requestedTokens;
+    this.minimumRequiredTokens = minimumRequiredTokens;
+  }
+}
+
+export class HandoffScannerUnavailableError extends Error {
+  constructor(message = 'gitleaks stdin scanner unavailable') {
+    super(message);
+    this.name = 'HandoffScannerUnavailableError';
+  }
+}
+
+export class HandoffSecretError extends Error {
+  readonly findingCount: number;
+
+  constructor(findingCount: number) {
+    super(`handoff capsule contains ${findingCount} unresolved secret finding(s)`);
+    this.name = 'HandoffSecretError';
+    this.findingCount = findingCount;
+  }
+}
+
+function record(value: unknown, field: string): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new HandoffValidationError(`${field} must be an object`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function requiredString(value: unknown, field: string): string {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new HandoffValidationError(`${field} must be a non-empty string`);
+  }
+  return value;
+}
+
+function optionalString(value: unknown, field: string): string | null {
+  if (value === undefined || value === null) return null;
+  return requiredString(value, field);
+}
+
+function isoString(value: unknown, field: string): string | null {
+  const text = optionalString(value, field);
+  if (text === null) return null;
+  if (!Number.isFinite(Date.parse(text))) {
+    throw new HandoffValidationError(`${field} must be an ISO timestamp`);
+  }
+  return text;
+}
+
+function array(value: unknown, field: string, required = false): unknown[] {
+  if (value === undefined && !required) return [];
+  if (!Array.isArray(value)) {
+    throw new HandoffValidationError(`${field} must be an array`);
+  }
+  if (value.length > MAX_ITEMS) {
+    throw new HandoffValidationError(`${field} exceeds ${MAX_ITEMS} items`);
+  }
+  return value;
+}
+
+function enumValue<T extends string>(
+  value: unknown,
+  field: string,
+  allowed: readonly T[],
+): T {
+  if (typeof value !== 'string' || !allowed.includes(value as T)) {
+    throw new HandoffValidationError(`${field} must be one of ${allowed.join(', ')}`);
+  }
+  return value as T;
+}
+
+function textItems(value: unknown, field: string, required = false): HandoffTextItem[] {
+  return array(value, field, required).map((item, index) => {
+    const row = record(item, `${field}[${index}]`);
+    return {
+      id: optionalString(row.id, `${field}[${index}].id`) ?? `${field}-${index + 1}`,
+      at: isoString(row.at, `${field}[${index}].at`),
+      text: requiredString(row.text, `${field}[${index}].text`),
+    };
+  });
+}
+
+function normalizeInput(input: unknown): HandoffCapsuleV0 {
+  const root = record(input, 'capsule');
+  if (root.schema !== undefined && root.schema !== HANDOFF_CAPSULE_SCHEMA) {
+    throw new HandoffValidationError(`schema must be ${HANDOFF_CAPSULE_SCHEMA}`);
+  }
+
+  const capturedAt = requiredString(root.capturedAt, 'capturedAt');
+  if (!Number.isFinite(Date.parse(capturedAt))) {
+    throw new HandoffValidationError('capturedAt must be an ISO timestamp');
+  }
+
+  const source = record(root.source, 'source');
+  const identity = root.identity === undefined ? {} : record(root.identity, 'identity');
+  const workspace = root.workspace === undefined ? {} : record(root.workspace, 'workspace');
+  const target = root.target === undefined || root.target === null
+    ? null
+    : record(root.target, 'target');
+
+  const dirtyFiles = array(workspace.dirtyFiles, 'workspace.dirtyFiles').map((item, index) =>
+    requiredString(item, `workspace.dirtyFiles[${index}]`),
+  );
+
+  const decisions = array(root.decisions, 'decisions').map((item, index) => {
+    const row = record(item, `decisions[${index}]`);
+    return {
+      id: optionalString(row.id, `decisions[${index}].id`) ?? `decision-${index + 1}`,
+      at: isoString(row.at, `decisions[${index}].at`),
+      text: requiredString(row.text, `decisions[${index}].text`),
+      source: enumValue(row.source ?? 'agent', `decisions[${index}].source`, [
+        'operator',
+        'agent',
+        'coordination',
+      ] as const),
+    };
+  });
+
+  const coordination = array(root.coordination, 'coordination').map((item, index) => {
+    const row = record(item, `coordination[${index}]`);
+    return {
+      id: optionalString(row.id, `coordination[${index}].id`) ?? `coordination-${index + 1}`,
+      at: isoString(row.at, `coordination[${index}].at`),
+      text: requiredString(row.text, `coordination[${index}].text`),
+      kind: enumValue(row.kind ?? 'note', `coordination[${index}].kind`, [
+        'scope',
+        'result',
+        'blocker',
+        'note',
+      ] as const),
+    };
+  });
+
+  const artifacts = array(root.artifacts, 'artifacts').map((item, index) => {
+    const row = record(item, `artifacts[${index}]`);
+    return {
+      path: requiredString(row.path, `artifacts[${index}].path`),
+      kind: optionalString(row.kind, `artifacts[${index}].kind`),
+      summary: optionalString(row.summary, `artifacts[${index}].summary`),
+      sourceBlockId: optionalString(row.sourceBlockId, `artifacts[${index}].sourceBlockId`),
+    };
+  });
+
+  const tail = array(root.tail, 'tail').map((item, index) => {
+    const row = record(item, `tail[${index}]`);
+    return {
+      id: optionalString(row.id, `tail[${index}].id`) ?? `tail-${index + 1}`,
+      at: isoString(row.at, `tail[${index}].at`),
+      text: requiredString(row.text, `tail[${index}].text`),
+      role: enumValue(row.role, `tail[${index}].role`, [
+        'operator',
+        'assistant',
+        'tool',
+        'system',
+      ] as const),
+    };
+  });
+
+  return {
+    schema: HANDOFF_CAPSULE_SCHEMA,
+    capsuleId: requiredString(root.capsuleId, 'capsuleId'),
+    capturedAt,
+    source: {
+      adapter: requiredString(source.adapter, 'source.adapter'),
+      sessionId: requiredString(source.sessionId, 'source.sessionId'),
+      agentId: optionalString(source.agentId, 'source.agentId'),
+      workflowId: optionalString(source.workflowId, 'source.workflowId'),
+      transcriptRef: optionalString(source.transcriptRef, 'source.transcriptRef'),
+    },
+    target: target
+      ? {
+          adapter: optionalString(target.adapter, 'target.adapter'),
+          agentId: optionalString(target.agentId, 'target.agentId'),
+        }
+      : null,
+    identity: {
+      project: optionalString(identity.project, 'identity.project'),
+      projectDir: optionalString(identity.projectDir, 'identity.projectDir'),
+      harbor: optionalString(identity.harbor, 'identity.harbor'),
+    },
+    workspace: {
+      cwd: optionalString(workspace.cwd, 'workspace.cwd'),
+      repoRoot: optionalString(workspace.repoRoot, 'workspace.repoRoot'),
+      branch: optionalString(workspace.branch, 'workspace.branch'),
+      worktreeId: optionalString(workspace.worktreeId, 'workspace.worktreeId'),
+      gitHead: optionalString(workspace.gitHead, 'workspace.gitHead'),
+      dirtyFiles,
+    },
+    telos: requiredString(root.telos, 'telos'),
+    operatorTurns: textItems(root.operatorTurns, 'operatorTurns', true),
+    decisions,
+    coordination,
+    artifacts,
+    tail,
+    budget: {
+      requestedTokens: null,
+      estimatedTokens: 0,
+      omitted: { tail: 0, artifacts: 0 },
+    },
+    safety: {
+      state: 'clean',
+      allowlistedFieldsOnly: true,
+      redactedValues: 0,
+      localScanner: 'port-daddy-gitleaks-rules',
+      externalScanner: 'gitleaks-stdin',
+      failClosed: true,
+    },
+    integrity: {
+      algorithm: 'sha256',
+      contentHash: HASH_PLACEHOLDER,
+    },
+  };
+}
+
+function redactValue(value: unknown, counter: { count: number }): unknown {
+  if (typeof value === 'string') {
+    const redacted = redactSecrets(value);
+    if (redacted !== value) counter.count++;
+    return redacted;
+  }
+  if (Array.isArray(value)) return value.map((item) => redactValue(item, counter));
+  if (value && typeof value === 'object') {
+    const output: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+      output[key] = redactValue(item, counter);
+    }
+    return output;
+  }
+  return value;
+}
+
+export function estimateHandoffTokens(value: unknown): number {
+  return Math.max(1, Math.ceil(Buffer.byteLength(JSON.stringify(value), 'utf8') / 4));
+}
+
+function settleEstimate(capsule: HandoffCapsuleV0): number {
+  let estimate = estimateHandoffTokens(capsule);
+  for (let iteration = 0; iteration < 4; iteration++) {
+    capsule.budget.estimatedTokens = estimate;
+    const next = estimateHandoffTokens(capsule);
+    if (next === estimate) break;
+    estimate = next;
+  }
+  capsule.budget.estimatedTokens = estimate;
+  return estimate;
+}
+
+function applyBudget(capsule: HandoffCapsuleV0, tokenBudget?: number): void {
+  if (tokenBudget === undefined) {
+    settleEstimate(capsule);
+    return;
+  }
+  if (!Number.isInteger(tokenBudget) || tokenBudget < 1 || tokenBudget > MAX_TOKEN_BUDGET) {
+    throw new HandoffValidationError(`tokenBudget must be an integer from 1 to ${MAX_TOKEN_BUDGET}`);
+  }
+  capsule.budget.requestedTokens = tokenBudget;
+
+  while (settleEstimate(capsule) > tokenBudget) {
+    if (capsule.tail.length > 0) {
+      capsule.tail.shift();
+      capsule.budget.omitted.tail++;
+      continue;
+    }
+    if (capsule.artifacts.length > 0) {
+      capsule.artifacts.pop();
+      capsule.budget.omitted.artifacts++;
+      continue;
+    }
+    throw new HandoffBudgetError(tokenBudget, settleEstimate(capsule));
+  }
+}
+
+function parseGitleaksReport(stdout: string): HandoffScanFinding[] {
+  if (!stdout.trim()) return [];
+  try {
+    const parsed = JSON.parse(stdout) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((item) => {
+      const row = item && typeof item === 'object' ? item as Record<string, unknown> : {};
+      const ruleId = typeof row.RuleID === 'string'
+        ? row.RuleID
+        : typeof row.ruleId === 'string'
+          ? row.ruleId
+          : 'gitleaks-detected';
+      const rawLine = row.StartLine ?? row.line;
+      return {
+        ruleId,
+        line: typeof rawLine === 'number' && Number.isFinite(rawLine) ? rawLine : null,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+export function runGitleaks(
+  content: string,
+  options: { binary?: string; timeoutMs?: number } = {},
+): GitleaksScanResult {
+  const binary = options.binary ?? process.env.PD_GITLEAKS_BIN ?? 'gitleaks';
+  const result = spawnSync(binary, [
+    'stdin',
+    '--report-format',
+    'json',
+    '--report-path',
+    '-',
+    '--redact=100',
+    '--no-banner',
+    '--no-color',
+    '--log-level',
+    'error',
+  ], {
+    input: content,
+    encoding: 'utf8',
+    maxBuffer: 4 * 1024 * 1024,
+    shell: false,
+    timeout: options.timeoutMs ?? 10_000,
+  });
+
+  if (result.error) {
+    throw new HandoffScannerUnavailableError('gitleaks stdin scanner could not start');
+  }
+  if (result.status === 0) return { findings: [] };
+  if (result.status === 1) {
+    const findings = parseGitleaksReport(result.stdout ?? '');
+    return {
+      findings: findings.length > 0
+        ? findings
+        : [{ ruleId: 'gitleaks-detected', line: null }],
+    };
+  }
+  throw new HandoffScannerUnavailableError('gitleaks stdin scanner failed before producing a verdict');
+}
+
+function computeIntegrity(capsule: HandoffCapsuleV0): string {
+  const canonical = JSON.stringify({
+    ...capsule,
+    integrity: {
+      algorithm: 'sha256',
+      contentHash: HASH_PLACEHOLDER,
+    },
+  });
+  return createHash('sha256').update(canonical).digest('hex');
+}
+
+export function sanitizeHandoffCapsule(
+  input: unknown,
+  options: SanitizeHandoffOptions = {},
+): HandoffCapsuleV0 {
+  const normalized = normalizeInput(input);
+  const counter = { count: 0 };
+  const capsule = redactValue(normalized, counter) as HandoffCapsuleV0;
+  capsule.safety.redactedValues = counter.count;
+  capsule.safety.state = counter.count > 0 ? 'redacted' : 'clean';
+
+  applyBudget(capsule, options.tokenBudget);
+  capsule.integrity.contentHash = computeIntegrity(capsule);
+  settleEstimate(capsule);
+
+  const content = JSON.stringify(capsule);
+  const localFindings = scanContent('handoff-capsule.json', content, options.home ?? homedir());
+  const external = (options.gitleaksRunner ?? runGitleaks)(content);
+  const findingCount = localFindings.length + external.findings.length;
+  if (findingCount > 0) throw new HandoffSecretError(findingCount);
+
+  return capsule;
+}

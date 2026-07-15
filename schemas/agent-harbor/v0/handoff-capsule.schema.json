@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/handoff-capsule.schema.json",
+  "title": "HandoffCapsuleV0",
+  "description": "Backend-neutral, allowlisted continuation context. Operator turns and durable decisions are mandatory context; transcript tail and artifact summaries are budget-degradable. Only a redacted capsule that passes the local structured scanner and external gitleaks stdin may cross the handoff boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.handoff-capsule.v0" },
+    "capsuleId": { "type": "string", "minLength": 1 },
+    "capturedAt": { "type": "string", "format": "date-time" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "adapter": { "type": "string", "minLength": 1 },
+        "sessionId": { "type": "string", "minLength": 1 },
+        "agentId": { "type": ["string", "null"] },
+        "workflowId": { "type": ["string", "null"] },
+        "transcriptRef": { "type": ["string", "null"] }
+      },
+      "required": ["adapter", "sessionId", "agentId", "workflowId", "transcriptRef"]
+    },
+    "target": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "adapter": { "type": ["string", "null"] },
+            "agentId": { "type": ["string", "null"] }
+          },
+          "required": ["adapter", "agentId"]
+        }
+      ]
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": { "type": ["string", "null"] },
+        "projectDir": { "type": ["string", "null"] },
+        "harbor": { "type": ["string", "null"] }
+      },
+      "required": ["project", "projectDir", "harbor"]
+    },
+    "workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cwd": { "type": ["string", "null"] },
+        "repoRoot": { "type": ["string", "null"] },
+        "branch": { "type": ["string", "null"] },
+        "worktreeId": { "type": ["string", "null"] },
+        "gitHead": { "type": ["string", "null"] },
+        "dirtyFiles": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      },
+      "required": ["cwd", "repoRoot", "branch", "worktreeId", "gitHead", "dirtyFiles"]
+    },
+    "telos": { "type": "string", "minLength": 1 },
+    "operatorTurns": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/textItem" }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "at": { "type": ["string", "null"] },
+          "text": { "type": "string", "minLength": 1 },
+          "source": { "enum": ["operator", "agent", "coordination"] }
+        },
+        "required": ["id", "at", "text", "source"]
+      }
+    },
+    "coordination": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "at": { "type": ["string", "null"] },
+          "text": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["scope", "result", "blocker", "note"] }
+        },
+        "required": ["id", "at", "text", "kind"]
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "kind": { "type": ["string", "null"] },
+          "summary": { "type": ["string", "null"] },
+          "sourceBlockId": { "type": ["string", "null"] }
+        },
+        "required": ["path", "kind", "summary", "sourceBlockId"]
+      }
+    },
+    "tail": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "at": { "type": ["string", "null"] },
+          "text": { "type": "string", "minLength": 1 },
+          "role": { "enum": ["operator", "assistant", "tool", "system"] }
+        },
+        "required": ["id", "at", "text", "role"]
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requestedTokens": { "type": ["integer", "null"], "minimum": 1 },
+        "estimatedTokens": { "type": "integer", "minimum": 1 },
+        "omitted": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tail": { "type": "integer", "minimum": 0 },
+            "artifacts": { "type": "integer", "minimum": 0 }
+          },
+          "required": ["tail", "artifacts"]
+        }
+      },
+      "required": ["requestedTokens", "estimatedTokens", "omitted"]
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "state": { "enum": ["clean", "redacted"] },
+        "allowlistedFieldsOnly": { "const": true },
+        "redactedValues": { "type": "integer", "minimum": 0 },
+        "localScanner": { "const": "port-daddy-gitleaks-rules" },
+        "externalScanner": { "const": "gitleaks-stdin" },
+        "failClosed": { "const": true }
+      },
+      "required": ["state", "allowlistedFieldsOnly", "redactedValues", "localScanner", "externalScanner", "failClosed"]
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "contentHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      },
+      "required": ["algorithm", "contentHash"]
+    }
+  },
+  "required": [
+    "schema",
+    "capsuleId",
+    "capturedAt",
+    "source",
+    "target",
+    "identity",
+    "workspace",
+    "telos",
+    "operatorTurns",
+    "decisions",
+    "coordination",
+    "artifacts",
+    "tail",
+    "budget",
+    "safety",
+    "integrity"
+  ],
+  "$defs": {
+    "textItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "at": { "type": ["string", "null"] },
+        "text": { "type": "string", "minLength": 1 }
+      },
+      "required": ["id", "at", "text"]
+    }
+  }
+}
