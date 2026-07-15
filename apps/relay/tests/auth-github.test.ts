@@ -25,7 +25,6 @@ import {
   resolveSession,
   userCanReadRepo,
 } from '../src/auth-github.js';
-import { hashHex } from '../src/crypto.js';
 import type { Env } from '../src/types.js';
 
 const WRAP_KEY = 'aa'.repeat(32); // 32-byte hex AES-GCM key

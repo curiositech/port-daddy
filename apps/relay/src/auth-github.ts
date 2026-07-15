@@ -24,7 +24,7 @@
  *   PUBLIC_BASE_URL         (var, the relay's public origin; redirect_uri base)
  */
 
-import { randomHex, hashHex, fromHex, toHex, base64UrlEncode, base64UrlDecode } from './crypto.js';
+import { randomHex, hashHex, fromHex, base64UrlEncode, base64UrlDecode } from './crypto.js';
 import {
   getWebSession,
   upsertUser,
