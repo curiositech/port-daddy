@@ -78,3 +78,8 @@ queue = "fleet-runs"
 
 [observability]
 enabled = true
+
+# Cron Trigger (ADR-0101): retention + session-reap + erasure hard-delete sweep
+# runs the scheduled() handler. Every 6 hours.
+[triggers]
+crons = ["0 */6 * * *"]
