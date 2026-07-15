@@ -57,8 +57,15 @@ import {
   handleFleetRun,
   handleFleetHealth,
   handleFleetPause,
+  handleDeleteFleetRun,
 } from './fleet-observability.js';
 import { handleFleetRunPage } from './fleet-run-page.js';
+import {
+  handleGithubLogin,
+  handleGithubCallback,
+  handleAuthMe,
+  handleLogout,
+} from './auth-github.js';
 
 // Re-export Durable Object class for wrangler to pick up
 export { HarborChannel };
@@ -145,11 +152,30 @@ export default {
       const runId = decodeURIComponent(pathname.slice('/v1/fleet/runs/'.length));
       response = await handleFleetRun(request, env, runId);
     }
+    // DELETE one run + transcript (ADR-0101 export/delete per-tier, repo tier).
+    else if (pathname.startsWith('/v1/fleet/runs/') && method === 'DELETE') {
+      const runId = decodeURIComponent(pathname.slice('/v1/fleet/runs/'.length));
+      response = await handleDeleteFleetRun(request, env, runId);
+    }
 
     // ── Fleet run page (HTML; check-run details_url target, ADR-0101) ────────
     else if (pathname.startsWith('/fleet/runs/') && method === 'GET') {
       const runId = decodeURIComponent(pathname.slice('/fleet/runs/'.length));
       response = await handleFleetRunPage(request, env, runId);
+    }
+
+    // ── GitHub login BFF (ADR-0101 Phase 1) ──────────────────────────────────
+    else if (pathname === '/auth/github/login' && method === 'GET') {
+      response = await handleGithubLogin(request, env);
+    }
+    else if (pathname === '/auth/github/callback' && method === 'GET') {
+      response = await handleGithubCallback(request, env);
+    }
+    else if (pathname === '/auth/me' && method === 'GET') {
+      response = await handleAuthMe(request, env);
+    }
+    else if (pathname === '/auth/logout' && method === 'POST') {
+      response = await handleLogout(request, env);
     }
 
     // ── OIDC exchange ────────────────────────────────────────────────────────

@@ -175,3 +175,37 @@ CREATE TABLE IF NOT EXISTS fleet_ideas (
 );
 -- Dedup scan reads only canonical rows (duplicate_of IS NULL); index that predicate.
 CREATE INDEX IF NOT EXISTS fleet_ideas_canonical_idx ON fleet_ideas (duplicate_of);
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- User accounts + web sessions (ADR-0101 Phase 1)
+--
+-- GitHub-login BFF: the relay is a confidential OAuth client. The browser only
+-- ever holds an opaque __Host-pd_session cookie; the GitHub user-to-server
+-- token is stored server-side, envelope-encrypted, and used only for repo-
+-- access checks that gate run-page visibility. Email is stored for login
+-- continuity + security notices; erasure soft-deletes then hard-deletes.
+-- These live in the TEAM tier of the scope ladder (operator infrastructure).
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS users (
+  id             TEXT    PRIMARY KEY,            -- 'u_' || randomHex(16)
+  github_user_id INTEGER NOT NULL UNIQUE,        -- durable; survives login renames
+  login          TEXT    NOT NULL,               -- display handle, refreshed each login
+  display_name   TEXT,
+  avatar_url     TEXT,
+  primary_email  TEXT,                            -- verified primary from /user/emails
+  email_verified INTEGER NOT NULL DEFAULT 0,
+  created_at     INTEGER NOT NULL,
+  last_login_at  INTEGER,
+  deleted_at     INTEGER                          -- soft delete; erasure job hard-deletes
+);
+
+CREATE TABLE IF NOT EXISTS web_sessions (
+  token_hash   TEXT    PRIMARY KEY,              -- SHA-256(cookie value); the value itself is NEVER stored
+  user_id      TEXT    NOT NULL REFERENCES users(id),
+  gh_token_enc TEXT,                              -- AES-GCM(user-to-server token); iv||ct, base64url; repo-access checks only
+  gh_token_iv  TEXT,                              -- AES-GCM iv (base64url)
+  created_at   INTEGER NOT NULL,
+  expires_at   INTEGER NOT NULL,
+  user_agent   TEXT
+);
+CREATE INDEX IF NOT EXISTS web_sessions_user_idx ON web_sessions (user_id);

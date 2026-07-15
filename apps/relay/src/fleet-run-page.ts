@@ -23,6 +23,7 @@
 
 import { timingSafeEqual } from './crypto.js';
 import { getFleetRunWithSteps, type FleetRunRow, type FleetRunStepRow } from './db.js';
+import { resolveSession, userCanReadRepo } from './auth-github.js';
 import type { Env } from './types.js';
 
 const RUN_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,160}$/;
@@ -43,20 +44,36 @@ export async function runPageToken(secret: string, runId: string): Promise<strin
   return Array.from(new Uint8Array(sig), b => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function isAuthorized(request: Request, env: Env, runId: string): Promise<boolean> {
-  // Operator bearer (same credential the JSON API takes).
+/**
+ * Verify a presented capability token against the current (and, during a
+ * rotation grace window, the previous) RUN_PAGE_SECRET. Accepts both the
+ * versioned `v1.<hmac>` form the executor emits post-ADR-0101 (Z1) and the
+ * legacy bare `<hmac>` form stamped on already-existing check runs. Fail-closed
+ * on a missing/short current secret.
+ */
+async function verifyRunToken(env: Env, runId: string, presented: string): Promise<boolean> {
+  const hmac = presented.startsWith('v1.') ? presented.slice(3) : presented;
+  if (!/^[0-9a-f]{64}$/.test(hmac)) return false;
+  const secrets = [env.RUN_PAGE_SECRET, env.RUN_PAGE_SECRET_PREV].filter(
+    (s): s is string => typeof s === 'string' && s.length >= 32,
+  );
+  if (secrets.length === 0) return false;
+  for (const secret of secrets) {
+    if (timingSafeEqual(hmac, await runPageToken(secret, runId))) return true;
+  }
+  return false;
+}
+
+/** Operator bearer OR a valid (versioned/legacy) capability token. */
+async function hasTokenAuth(request: Request, env: Env, runId: string): Promise<boolean> {
   const auth = request.headers.get('Authorization');
   if (auth && env.RELAY_OPERATOR_TOKEN && env.RELAY_OPERATOR_TOKEN.length >= 32) {
     const bearer = auth.replace(/^Bearer\s+/i, '');
     if (timingSafeEqual(bearer, env.RELAY_OPERATOR_TOKEN)) return true;
   }
-  // Capability token. Fail-closed on a missing/short secret.
-  const secret = env.RUN_PAGE_SECRET;
-  if (!secret || secret.length < 32) return false;
   const presented = new URL(request.url).searchParams.get('t') ?? '';
-  if (!/^[0-9a-f]{64}$/.test(presented)) return false;
-  const expected = await runPageToken(secret, runId);
-  return timingSafeEqual(presented, expected);
+  if (!presented) return false;
+  return verifyRunToken(env, runId, presented);
 }
 
 // ── HTML helpers ─────────────────────────────────────────────────────────────
@@ -289,12 +306,23 @@ export async function handleFleetRunPage(
   if (!runId || runId.trim() !== runId || !RUN_ID_RE.test(runId) || runId.includes('..')) {
     return notFoundPage();
   }
-  if (!(await isAuthorized(request, env, runId))) {
-    return notFoundPage();
-  }
   try {
+    // Fast path: operator bearer or capability token authorizes without a DB
+    // fetch or GitHub round-trip.
+    const tokenOk = await hasTokenAuth(request, env, runId);
     const found = await getFleetRunWithSteps(env.DB, runId);
     if (!found) return notFoundPage();
+
+    if (!tokenOk) {
+      // Login path (ADR-0101 Phase 1): a signed-in user may open the page iff
+      // GitHub says they can read the run's repo. Unauthorized ≙ unknown ≙ 404.
+      const session = await resolveSession(request, env);
+      if (!session) return notFoundPage();
+      const [owner, repo] = (found.run.repo_full_name ?? '').split('/');
+      if (!owner || !repo) return notFoundPage();
+      if (!(await userCanReadRepo(env, session, owner, repo))) return notFoundPage();
+    }
+
     return htmlResponse(renderRunPage(found.run, found.steps), 200);
   } catch {
     return htmlResponse(

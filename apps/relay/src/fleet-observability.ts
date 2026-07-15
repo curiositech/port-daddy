@@ -25,6 +25,7 @@ import {
   getFleetPaused,
   setFleetPaused,
   appendAudit,
+  deleteFleetRun,
   type FleetRunRow,
 } from './db.js';
 import type { Env } from './types.js';
@@ -199,6 +200,38 @@ export async function handleFleetPause(request: Request, env: Env): Promise<Resp
     return envelope(200, { code: 'OK', error: null, ok: true, paused: state.paused });
   } catch (e) {
     return fleetErr('INTERNAL_ERROR', `pause toggle failed: ${msg(e)}`, 500);
+  }
+}
+
+// ── DELETE /v1/fleet/runs/:id ─────────────────────────────────────────────────
+
+/**
+ * Delete one run + its transcript (ADR-0101 export/delete per-tier — the repo
+ * tier's delete control). Operator-gated; the JSON read side already serves the
+ * export (GET /v1/fleet/runs/:id). Idempotent: deleting an unknown id is a 404,
+ * a deleted one reports deleted:0.
+ */
+export async function handleDeleteFleetRun(
+  request: Request,
+  env: Env,
+  runId: string,
+): Promise<Response> {
+  const denied = operatorOnly(request, env);
+  if (denied) return denied;
+  if (!runId || !isSafeRunId(runId)) {
+    return fleetErr('BAD_REQUEST', 'run id required', 400);
+  }
+  try {
+    const removed = await deleteFleetRun(env.DB, runId);
+    if (removed === 0) return fleetErr('NOT_FOUND', `Run ${runId} not found`, 404);
+    await appendAudit(env.DB, { action: 'fleet_run_delete', target: runId, detail: 'operator delete' }).catch(
+      () => {
+        /* best-effort audit */
+      },
+    );
+    return envelope(200, { code: 'OK', error: null, deleted: removed });
+  } catch (e) {
+    return fleetErr('INTERNAL_ERROR', `run delete failed: ${msg(e)}`, 500);
   }
 }
 

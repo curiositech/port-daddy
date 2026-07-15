@@ -28,6 +28,15 @@ export interface Env {
   // MUST equal the fleet-executor's RUN_PAGE_SECRET. Optional: unset ⇒ the page
   // only opens with the operator token.
   RUN_PAGE_SECRET?: string;
+  // Previous run-page HMAC secret, accepted during a rotation grace window
+  // (ADR-0101 Z1). Optional; unset ⇒ single-key verification.
+  RUN_PAGE_SECRET_PREV?: string;
+  // GitHub login BFF (ADR-0101 Phase 1). Reuses the existing GitHub App's OAuth
+  // client. Login is DISABLED unless all four are set (page/API return 503).
+  GITHUB_OAUTH_CLIENT_ID?: string;      // var (the App's client id)
+  GITHUB_OAUTH_CLIENT_SECRET?: string;  // secret
+  USER_TOKEN_WRAPPING_KEY?: string;     // secret, 32-byte hex; AES-GCM wraps the gh token
+  PUBLIC_BASE_URL?: string;             // var, relay's public origin; redirect_uri base
   // GitHub App credentials — fleet control-plane config read + save (PR) path.
   // GITHUB_APP_PRIVATE_KEY is a secret (PEM); the rest may be vars.
   GITHUB_APP_ID?: string;
