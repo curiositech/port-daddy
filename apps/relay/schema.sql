@@ -209,3 +209,59 @@ CREATE TABLE IF NOT EXISTS web_sessions (
   user_agent   TEXT
 );
 CREATE INDEX IF NOT EXISTS web_sessions_user_idx ON web_sessions (user_id);
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- Fleet monetization — Stripe prepaid credits + spend metering (ADR-0116)
+--
+-- The relay is the billing authority: it holds STRIPE_SECRET_KEY, sells one-time
+-- credit packs via Stripe Checkout, and records every grant/refund as an
+-- append-only credit_ledger row. An installation's balance is the SUM of its
+-- delta_usd (positive grants from checkout, negative from refunds/spend). Fleet
+-- runs meter their token spend into fleet_run_spend, which a negative ledger
+-- entry mirrors when a run is billed. stripe_customers / subscriptions map an
+-- installation to its Stripe customer + (future) recurring plan.
+--
+-- credit_ledger is APPEND-ONLY: balance = SUM(delta_usd) WHERE installation_id=?.
+-- All amounts are USD (REAL); a "credit-cent" pack of $20 grants delta_usd=20.0.
+-- ──────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS credit_ledger (
+  id              TEXT    PRIMARY KEY,           -- 'cl_' || randomHex(16)
+  installation_id INTEGER NOT NULL,              -- GitHub App installation (the billed tenant)
+  delta_usd       REAL    NOT NULL,              -- +grant (checkout) / -debit (refund, spend)
+  reason          TEXT    NOT NULL,              -- 'stripe:checkout' | 'stripe:refund' | 'fleet:spend' | ...
+  stripe_ref      TEXT,                           -- Stripe session/charge id (idempotency + audit)
+  run_id          TEXT,                           -- fleet run this debit belongs to (spend entries)
+  created_at      INTEGER NOT NULL               -- unix seconds
+);
+CREATE INDEX IF NOT EXISTS credit_ledger_installation_idx ON credit_ledger (installation_id);
+
+-- Per-run token spend metering. cost_usd is what the run consumed; a matching
+-- negative credit_ledger row (reason='fleet:spend') decrements the balance.
+CREATE TABLE IF NOT EXISTS fleet_run_spend (
+  run_id          TEXT    NOT NULL,
+  ship            TEXT,
+  installation_id INTEGER,
+  model           TEXT,
+  input_tokens    INTEGER NOT NULL DEFAULT 0,
+  output_tokens   INTEGER NOT NULL DEFAULT 0,
+  cost_usd        REAL    NOT NULL DEFAULT 0,
+  created_at      INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS fleet_run_spend_installation_idx ON fleet_run_spend (installation_id, created_at);
+
+-- One Stripe customer per installation (created lazily at first checkout/portal).
+CREATE TABLE IF NOT EXISTS stripe_customers (
+  installation_id    INTEGER PRIMARY KEY,
+  stripe_customer_id TEXT    NOT NULL,
+  created_at         INTEGER NOT NULL
+);
+
+-- Future recurring plans (seats/tier). Prepaid credits work without a row here.
+CREATE TABLE IF NOT EXISTS subscriptions (
+  installation_id    INTEGER PRIMARY KEY,
+  stripe_sub_id      TEXT,
+  plan               TEXT,
+  status             TEXT,
+  seats              INTEGER,
+  current_period_end INTEGER
+);

@@ -18,6 +18,10 @@
  *   GET  /v1/fleet/runs/:id                    (operator; one run + transcript)
  *   GET  /fleet/runs/:id                        (HTML run page; HMAC capability
  *                                                token or operator; ADR-0101)
+ *   POST /billing/checkout                     (session; Stripe Checkout for a credit pack)
+ *   POST /billing/webhook                      (Stripe-Signature HMAC; credit ledger writes)
+ *   GET  /billing/balance/:installationId      (operator or session; prepaid balance)
+ *   POST /billing/portal                       (session; Stripe Billing Portal link)
  *   POST /v1/exchange                        (OIDC → PD card)
  *   POST /v1/revoke
  *   POST /v1/revoke-by-issuer               (operator; acceptance criterion #2)
@@ -69,6 +73,12 @@ import {
   handleAccountExport,
   handleAccountDelete,
 } from './auth-github.js';
+import {
+  handleCreateCheckout,
+  handleStripeWebhook,
+  handleBillingBalance,
+  handlePortalLink,
+} from './billing.js';
 
 // Re-export Durable Object class for wrangler to pick up
 export { HarborChannel };
@@ -186,6 +196,21 @@ export default {
     }
     else if (pathname === '/account/delete' && method === 'POST') {
       response = await handleAccountDelete(request, env);
+    }
+
+    // ── Stripe billing + prepaid credits (ADR-0116) ──────────────────────────
+    else if (pathname === '/billing/checkout' && method === 'POST') {
+      response = await handleCreateCheckout(request, env);
+    }
+    else if (pathname === '/billing/webhook' && method === 'POST') {
+      response = await handleStripeWebhook(request, env);
+    }
+    else if (pathname.startsWith('/billing/balance/') && method === 'GET') {
+      const installationId = decodeURIComponent(pathname.slice('/billing/balance/'.length));
+      response = await handleBillingBalance(request, env, installationId);
+    }
+    else if (pathname === '/billing/portal' && method === 'POST') {
+      response = await handlePortalLink(request, env);
     }
 
     // ── OIDC exchange ────────────────────────────────────────────────────────
