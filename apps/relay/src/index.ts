@@ -65,6 +65,8 @@ import {
   handleGithubCallback,
   handleAuthMe,
   handleLogout,
+  handleAccountExport,
+  handleAccountDelete,
 } from './auth-github.js';
 
 // Re-export Durable Object class for wrangler to pick up
@@ -176,6 +178,13 @@ export default {
     }
     else if (pathname === '/auth/logout' && method === 'POST') {
       response = await handleLogout(request, env);
+    }
+    // Self-service account export + erasure (ADR-0101 team-tier export/delete).
+    else if (pathname === '/account/export' && method === 'GET') {
+      response = await handleAccountExport(request, env);
+    }
+    else if (pathname === '/account/delete' && method === 'POST') {
+      response = await handleAccountDelete(request, env);
     }
 
     // ── OIDC exchange ────────────────────────────────────────────────────────

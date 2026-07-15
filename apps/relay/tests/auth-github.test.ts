@@ -20,6 +20,8 @@ import {
   handleGithubCallback,
   handleAuthMe,
   handleLogout,
+  handleAccountExport,
+  handleAccountDelete,
   resolveSession,
   userCanReadRepo,
 } from '../src/auth-github.js';
@@ -50,9 +52,14 @@ function makeDb() {
         if (sql.startsWith('SELECT user_id, gh_token_enc')) {
           return (sessions.get(bound[0]) ?? null) as T | null;
         }
+        if (sql.includes('COUNT(*) AS n FROM web_sessions')) {
+          const n = [...sessions.values()].filter((s) => s.user_id === bound[0]).length;
+          return { n } as T;
+        }
         return null;
       },
       async run() {
+        let changes = 1;
         if (sql.startsWith('INSERT INTO users')) {
           const [id, gh, login, dn, av, em, ev, ca, la] = bound;
           const existingId = usersByGh.get(gh);
@@ -65,10 +72,16 @@ function makeDb() {
         } else if (sql.startsWith('INSERT INTO web_sessions')) {
           const [th, uid, enc, iv, ca, exp, ua] = bound;
           sessions.set(th, { user_id: uid, gh_token_enc: enc, gh_token_iv: iv, expires_at: exp, created_at: ca, user_agent: ua });
+        } else if (sql.includes('DELETE FROM web_sessions WHERE user_id')) {
+          const before = sessions.size;
+          for (const [k, v] of sessions) if (v.user_id === bound[0]) sessions.delete(k);
+          changes = before - sessions.size;
         } else if (sql.startsWith('DELETE FROM web_sessions')) {
           sessions.delete(bound[0]);
+        } else if (sql.startsWith('UPDATE users SET deleted_at')) {
+          const u = users.get(bound[1]); if (u) { u.deleted_at = bound[0]; u.primary_email = null; u.avatar_url = null; }
         }
-        return { success: true, meta: { changes: 1 } };
+        return { success: true, meta: { changes } };
       },
     };
     return s as unknown as D1PreparedStatement;
@@ -228,5 +241,42 @@ describe('/auth/me, logout, and session resolution', () => {
     expect(await userCanReadRepo(env, session, 'me', 'allowed')).toBe(true); // cached, no 2nd fetch
     expect(calls).toBe(1);
     expect(await userCanReadRepo(env, session, 'someone', 'private')).toBe(false);
+  });
+});
+
+// ── account export + erasure (ADR-0101 team-tier export/delete gate) ───────────
+
+describe('self-service account export + erasure', () => {
+  it('export: 401 without a session; the account (never the gh token) with one', async () => {
+    const kv = makeKV();
+    const env = makeEnv({}, kv, makeDb().db);
+    expect((await handleAccountExport(new Request(`${BASE}/account/export`), env)).status).toBe(401);
+    const cookie = await loginAndGetCookie(env, kv);
+    const res = await handleAccountExport(new Request(`${BASE}/account/export`, { headers: { Cookie: cookie } }), env);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Disposition')).toContain('attachment');
+    const body = await res.text();
+    expect(body).toContain('octocat');
+    expect(body).toContain('cat@github.com');
+    expect(body).not.toContain('gho_'); // sealed token never exported
+  });
+
+  it('delete: erases the account, purges every session, clears the cookie, and logs out', async () => {
+    const kv = makeKV();
+    const { db, users, sessions } = makeDb();
+    const env = makeEnv({}, kv, db);
+    const cookie = await loginAndGetCookie(env, kv);
+    expect(sessions.size).toBe(1);
+    const res = await handleAccountDelete(new Request(`${BASE}/account/delete`, { method: 'POST', headers: { Cookie: cookie } }), env);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { erased: boolean; sessionsPurged: number };
+    expect(body.erased).toBe(true);
+    expect(body.sessionsPurged).toBe(1);
+    expect(res.headers.get('Set-Cookie')).toContain('Max-Age=0');
+    expect(sessions.size).toBe(0);                              // sessions purged
+    expect([...users.values()][0].deleted_at).not.toBeNull();  // soft-deleted
+    expect([...users.values()][0].primary_email).toBeNull();   // PII nulled now
+    // A subsequent request with the old cookie is unauthenticated.
+    expect((await handleAuthMe(new Request(`${BASE}/auth/me`, { headers: { Cookie: cookie } }), env)).status).toBe(401);
   });
 });

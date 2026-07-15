@@ -692,6 +692,30 @@ export async function deleteWebSession(db: D1Database, tokenHash: string): Promi
   await db.prepare('DELETE FROM web_sessions WHERE token_hash = ?').bind(tokenHash).run();
 }
 
+/** Count a user's live sessions (metadata for the self-service account export). */
+export async function countUserSessions(db: D1Database, userId: string): Promise<number> {
+  const r = await db
+    .prepare('SELECT COUNT(*) AS n FROM web_sessions WHERE user_id = ?')
+    .bind(userId)
+    .first<{ n: number }>();
+  return r?.n ?? 0;
+}
+
+/**
+ * Account erasure (ADR-0101 team-tier delete control): soft-delete the user row
+ * NOW and purge every session immediately (log the account out everywhere); a
+ * separate retention job hard-deletes soft-deleted rows within 30 days. Returns
+ * how many sessions were purged.
+ */
+export async function eraseUser(db: D1Database, userId: string, now: number): Promise<number> {
+  const sessions = await db.prepare('DELETE FROM web_sessions WHERE user_id = ?').bind(userId).run();
+  await db
+    .prepare('UPDATE users SET deleted_at = ?, primary_email = NULL, avatar_url = NULL WHERE id = ?')
+    .bind(now, userId)
+    .run();
+  return sessions.meta?.changes ?? 0;
+}
+
 /**
  * Delete one fleet run + its transcript (ADR-0101 export/delete per-tier gate,
  * repo tier). Returns how many run rows were removed (0 if unknown id).

@@ -25,7 +25,15 @@
  */
 
 import { randomHex, hashHex, fromHex, toHex, base64UrlEncode, base64UrlDecode } from './crypto.js';
-import { getWebSession, upsertUser, createWebSession, deleteWebSession, type UserRow } from './db.js';
+import {
+  getWebSession,
+  upsertUser,
+  createWebSession,
+  deleteWebSession,
+  countUserSessions,
+  eraseUser,
+  type UserRow,
+} from './db.js';
 import type { Env } from './types.js';
 
 const SESSION_COOKIE = '__Host-pd_session';
@@ -242,6 +250,60 @@ export async function handleLogout(request: Request, env: Env): Promise<Response
   const value = readSessionCookie(request);
   if (value) await deleteWebSession(env.DB, hashHex(value));
   return new Response(JSON.stringify({ code: 'OK', error: null }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', 'Set-Cookie': sessionSetCookie('', 0) },
+  });
+}
+
+// ── Self-service account export + erasure (ADR-0101 team-tier controls) ───────
+
+/**
+ * GET /account/export — the signed-in user downloads their own stored data
+ * (team tier). Returns the user row + session metadata; NEVER the sealed GitHub
+ * token or any other user's data. This is the export half of the tenancy
+ * export/delete gate for the team tier.
+ */
+export async function handleAccountExport(request: Request, env: Env): Promise<Response> {
+  const resolved = await resolveSession(request, env);
+  if (!resolved) return json(401, { code: 'UNAUTHENTICATED', error: 'no session' });
+  const { user } = resolved;
+  const sessionCount = await countUserSessions(env.DB, user.id);
+  const body = {
+    code: 'OK',
+    error: null,
+    exportedAt: Math.floor(Date.now() / 1000),
+    account: {
+      id: user.id,
+      githubUserId: user.github_user_id,
+      login: user.login,
+      displayName: user.display_name,
+      avatarUrl: user.avatar_url,
+      email: user.primary_email,
+      emailVerified: user.email_verified === 1,
+      createdAt: user.created_at,
+      lastLoginAt: user.last_login_at,
+    },
+    sessions: { active: sessionCount },
+  };
+  return new Response(JSON.stringify(body, null, 2), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Disposition': `attachment; filename="port-daddy-account-${user.id}.json"`,
+    },
+  });
+}
+
+/**
+ * POST /account/delete — the signed-in user erases their own account (team
+ * tier). Soft-deletes the row + nulls PII now, purges every session (logs out
+ * everywhere), clears this cookie; a retention job hard-deletes within 30 days.
+ */
+export async function handleAccountDelete(request: Request, env: Env): Promise<Response> {
+  const resolved = await resolveSession(request, env);
+  if (!resolved) return json(401, { code: 'UNAUTHENTICATED', error: 'no session' });
+  const purged = await eraseUser(env.DB, resolved.user.id, Math.floor(Date.now() / 1000));
+  return new Response(JSON.stringify({ code: 'OK', error: null, erased: true, sessionsPurged: purged }), {
     status: 200,
     headers: { 'Content-Type': 'application/json', 'Set-Cookie': sessionSetCookie('', 0) },
   });

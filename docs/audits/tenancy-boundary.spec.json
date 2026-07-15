@@ -1,40 +1,88 @@
 {
   "features": [
-    { "name": "local-coordination-sessions-notes-claims-ports",
-      "requiresIdentity": false, "hasLocalOnlyPath": true,
-      "scopeTier": "private", "crossesTierWithConsentScreen": false },
-    { "name": "cloud-fleet-pr-review-ships",
-      "requiresIdentity": false, "hasLocalOnlyPath": true,
-      "scopeTier": "repo", "crossesTierWithConsentScreen": true },
-    { "name": "fleet-run-detail-page-capability-url",
-      "requiresIdentity": false, "hasLocalOnlyPath": true,
-      "scopeTier": "repo", "crossesTierWithConsentScreen": true },
-    { "name": "run-page-login-access-phase1",
-      "requiresIdentity": true, "hasLocalOnlyPath": true,
-      "scopeTier": "repo", "crossesTierWithConsentScreen": true },
-    { "name": "user-account-email-storage-phase1",
-      "requiresIdentity": true, "hasLocalOnlyPath": true,
-      "scopeTier": "team", "crossesTierWithConsentScreen": true },
-    { "name": "byok-provider-key-upload-phase2",
-      "requiresIdentity": true, "hasLocalOnlyPath": true,
-      "scopeTier": "team", "crossesTierWithConsentScreen": true },
-    { "name": "prepaid-credits-stripe-phase3",
-      "requiresIdentity": true, "hasLocalOnlyPath": true,
-      "scopeTier": "team", "crossesTierWithConsentScreen": true },
-    { "name": "cloud-app-telemetry-ingest-to-daemon",
-      "requiresIdentity": false, "hasLocalOnlyPath": true,
-      "scopeTier": "private", "crossesTierWithConsentScreen": false },
-    { "name": "relay-harbor-channel-sync",
-      "requiresIdentity": false, "hasLocalOnlyPath": true,
-      "scopeTier": "team", "crossesTierWithConsentScreen": true },
-    { "name": "email-in-out-ingress-worker",
-      "requiresIdentity": false, "hasLocalOnlyPath": true,
-      "scopeTier": "team", "crossesTierWithConsentScreen": true },
-    { "name": "roadmap-snapshot-committed-to-public-repo",
-      "requiresIdentity": false, "hasLocalOnlyPath": true,
-      "scopeTier": "public", "crossesTierWithConsentScreen": true }
+    {
+      "name": "local-coordination-sessions-notes-claims-ports",
+      "requiresIdentity": false,
+      "hasLocalOnlyPath": true,
+      "scopeTier": "private",
+      "crossesTierWithConsentScreen": false
+    },
+    {
+      "name": "cloud-fleet-pr-review-ships",
+      "requiresIdentity": false,
+      "hasLocalOnlyPath": true,
+      "scopeTier": "repo",
+      "crossesTierWithConsentScreen": true
+    },
+    {
+      "name": "fleet-run-detail-page-capability-url",
+      "requiresIdentity": false,
+      "hasLocalOnlyPath": true,
+      "scopeTier": "repo",
+      "crossesTierWithConsentScreen": true
+    },
+    {
+      "name": "run-page-login-access-phase1",
+      "requiresIdentity": true,
+      "hasLocalOnlyPath": true,
+      "scopeTier": "repo",
+      "crossesTierWithConsentScreen": true
+    },
+    {
+      "name": "user-account-email-storage-phase1",
+      "requiresIdentity": true,
+      "hasLocalOnlyPath": true,
+      "scopeTier": "team",
+      "crossesTierWithConsentScreen": true
+    },
+    {
+      "name": "byok-provider-key-upload-phase2",
+      "requiresIdentity": true,
+      "hasLocalOnlyPath": true,
+      "scopeTier": "team",
+      "crossesTierWithConsentScreen": true
+    },
+    {
+      "name": "prepaid-credits-stripe-phase3",
+      "requiresIdentity": true,
+      "hasLocalOnlyPath": true,
+      "scopeTier": "team",
+      "crossesTierWithConsentScreen": true
+    },
+    {
+      "name": "cloud-app-telemetry-ingest-to-daemon",
+      "requiresIdentity": false,
+      "hasLocalOnlyPath": true,
+      "scopeTier": "private",
+      "crossesTierWithConsentScreen": false
+    },
+    {
+      "name": "relay-harbor-channel-sync",
+      "requiresIdentity": false,
+      "hasLocalOnlyPath": true,
+      "scopeTier": "team",
+      "crossesTierWithConsentScreen": true
+    },
+    {
+      "name": "email-in-out-ingress-worker",
+      "requiresIdentity": false,
+      "hasLocalOnlyPath": true,
+      "scopeTier": "team",
+      "crossesTierWithConsentScreen": true
+    },
+    {
+      "name": "roadmap-snapshot-committed-to-public-repo",
+      "requiresIdentity": false,
+      "hasLocalOnlyPath": true,
+      "scopeTier": "public",
+      "crossesTierWithConsentScreen": true
+    }
   ],
-  "localOnlyMode": { "uploadsNothingTestable": false },
-  "exportDelete": { "perTierSupported": false },
-  "scopeLadderOrdered": false
+  "localOnlyMode": {
+    "uploadsNothingTestable": false
+  },
+  "exportDelete": {
+    "perTierSupported": true
+  },
+  "scopeLadderOrdered": true
 }
