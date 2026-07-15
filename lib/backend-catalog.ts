@@ -198,6 +198,22 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     description: 'Legacy adapter that drives `codex` CLI in non-tube mode.',
     models: ['gpt-5.4-mini', 'gpt-5.3-codex', 'gpt-5.4'],
   },
+  {
+    id: 'deepseek',
+    name: 'DeepSeek',
+    costModel: 'metered',
+    framing: 'Metered API — pennies per spawn',
+    description: 'DeepSeek OpenAI-compatible API. Requires DEEPSEEK_API_KEY. deepseek-chat = V3 general/coder, deepseek-reasoner = R1 reasoning.',
+    models: ['deepseek-chat', 'deepseek-reasoner'],
+  },
+  {
+    id: 'xai',
+    name: 'xAI (Grok API)',
+    costModel: 'metered',
+    framing: 'Metered API — pennies per spawn',
+    description: 'xAI (Grok) OpenAI-compatible API. Requires XAI_API_KEY.',
+    models: ['grok-2-latest', 'grok-code-fast-1', 'grok-3'],
+  },
 
   // ──── Local / free ──────────────────────────────────────────────────────
   {
@@ -207,6 +223,14 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'FREE — runs on your machine',
     description: 'Local Ollama daemon. Free, but quality depends on your hardware.',
     models: [],
+  },
+  {
+    id: 'lmstudio',
+    name: 'LM Studio (local)',
+    costModel: 'local',
+    framing: 'FREE — runs on your machine',
+    description: 'Local LM Studio server. Serves whatever model is currently loaded in the app.',
+    models: ['local-model'],
   },
   {
     id: 'aider',

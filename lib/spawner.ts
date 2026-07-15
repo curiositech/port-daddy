@@ -103,6 +103,14 @@ function loadDotenvOnce(): Record<string, string> {
 
 export type BackendOverrideSource = 'none' | 'env' | 'persisted' | 'preflight';
 
+// This literal union MUST stay the same SET as lib/backend-catalog.ts's
+// KNOWN_BACKEND_IDS (the runtime single source of truth every VALID_BACKENDS
+// check now derives from — ADR-0057). It can't be derived from that array at
+// the type level without loosening BackendCatalogEntry.id to a literal union
+// (a wider refactor across cost-tracker/readiness — tracked, not done here).
+// DEFAULT_MODELS below is a `Record<SpawnSpec['backend'], string>`, so TS
+// itself fails the build if this union and that map's keys diverge; treat
+// that compile error as the drift signal.
 export interface SpawnSpec {
   backend: 'ollama' | 'lmstudio' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'deepseek' | 'xai' | 'cli:claude-code' | 'cli:codex' | 'cli:agy' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
   name?: string;        // human-readable display name
@@ -1163,8 +1171,15 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
 // =============================================================================
 
 const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
-  ollama: 'llama3.1:8b',  // local ollama model name, not an API id
-  lmstudio: DEFAULT_LMSTUDIO_MODEL,  // LM Studio serves whatever model is loaded
+  // Local ollama tag, not an API id — but still ONE canonical default (was
+  // 'llama3.1:8b' here vs a different literal in llm-backend-resolver.ts and
+  // a third in fleet-runtime.ts before ADR-0057 model-abstraction unification).
+  ollama: resolveModel({ backend: 'ollama', capability: 'balanced' }),
+  // LM Studio serves whatever model is loaded in the app; 'local-model' is the
+  // conventional placeholder. DEFAULT_LMSTUDIO_MODEL (lib/spawner/backends/
+  // lmstudio.ts) IS the registry value — kept as the named export because
+  // that adapter module also needs it directly for its own default wiring.
+  lmstudio: DEFAULT_LMSTUDIO_MODEL,
   claude: resolveModel({ backend: 'claude', capability: 'cheap' }),
   'claude-cli': 'claude-cli',  // claude CLI manages its own model
   gemini: resolveModel({ backend: 'gemini', capability: 'cheap' }),

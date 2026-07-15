@@ -12,6 +12,7 @@ import { assessSpawnPreflight } from '../lib/spawn-preflight.js';
 import type { CostTracker } from '../lib/cost-tracker.js';
 import { resolveFleetAgentRuntime, type FleetModelTier, type FleetRuntimeTarget } from '../lib/fleet-runtime.js';
 import { validateChannel } from '../shared/validators.js';
+import { KNOWN_BACKEND_IDS } from '../lib/backend-catalog.js';
 
 interface SpawnRouteDeps {
   spawner: Spawner;
@@ -23,7 +24,11 @@ interface SpawnRouteDeps {
   };
 }
 
-const VALID_BACKENDS = new Set(['ollama', 'lmstudio', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'openai', 'groq', 'deepseek', 'xai', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:agy', 'cli:gemini', 'cli:groq', 'cli:grok']);
+// The backend-id set is declared ONCE in lib/backend-catalog.ts
+// (BACKEND_CATALOG / KNOWN_BACKEND_IDS) — this used to be a hand-maintained
+// duplicate that drifted from routes/sorties.ts, cli/commands/spawn.ts, and
+// lib/spawner.ts's own list (ADR-0057 model-abstraction unification).
+const VALID_BACKENDS = KNOWN_BACKEND_IDS;
 
 function backendOverrideSourceFromPreflight(source: unknown, forced: boolean): BackendOverrideSource {
   if (!forced) return 'none';
