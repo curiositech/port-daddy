@@ -168,6 +168,27 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(out).toContain('pd-hook-prompt');
   });
 
+  test('fails open when the heartbeat is absent or neither stat probe can read it', () => {
+    const pdHome = join(SANDBOX, 'unreadable-heartbeat-home');
+    const binDir = join(pdHome, 'bin');
+    const fakeBin = join(pdHome, 'fake-bin');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    mkdirSync(fakeBin, { recursive: true });
+    stageTentacles(SRC, binDir);
+
+    const run = (path = process.env.PATH ?? ''): string => execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+      cwd: REPO,
+      env: { ...process.env, PD_HOME: pdHome, PATH: path },
+      input: '{}',
+      encoding: 'utf8',
+    });
+
+    expect(run()).toBe('');
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    writeFileSync(join(fakeBin, 'stat'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+    expect(run(`${fakeBin}:${process.env.PATH ?? ''}`)).toBe('');
+  });
+
   test('reports missing tentacles when the source lacks them', () => {
     const empty = join(SANDBOX, 'empty');
     mkdirSync(empty, { recursive: true });
@@ -230,6 +251,35 @@ describe('configureTarget — per-project scope, gate-pointed commands', () => {
     const after = readFileSync(codex.userConfigPath, 'utf-8');
     expect(after).not.toContain(CODEX_PD_MARKER);
     expect(after).toContain('/usr/local/bin/my-own-audit');
+  });
+
+  test('codex legacy migration preserves the first unrelated top-level table', () => {
+    const codex = buildTargets(HOME).find((t) => t.slug === 'codex')!;
+    mkdirSync(join(HOME, '.codex'), { recursive: true });
+    writeFileSync(codex.userConfigPath, [
+      'model = "o3"',
+      `# ${CODEX_PD_MARKER}.`,
+      '[[hooks.PostToolUse]]',
+      'matcher = "legacy-shell"',
+      '[[hooks.PostToolUse.hooks]]',
+      'type = "command"',
+      'command = "/old/pd-hook-post-tool"',
+      'async = true',
+      '',
+      '[mcp_servers.keep_me]',
+      'command = "keep-server"',
+      'args = ["--stdio"]',
+      '',
+    ].join('\n'));
+
+    configureTarget(codex, { scope: 'user' });
+    const toml = readFileSync(codex.userConfigPath, 'utf8');
+    expect(toml).toContain('[mcp_servers.keep_me]');
+    expect(toml).toContain('command = "keep-server"');
+    expect(toml).toContain('args = ["--stdio"]');
+    expect(toml).not.toContain('/old/pd-hook-post-tool');
+    expect(toml).not.toContain('async = true');
+    expect(toml.split(CODEX_PD_MARKER).length - 1).toBe(1);
   });
 });
 

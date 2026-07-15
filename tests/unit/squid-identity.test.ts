@@ -182,6 +182,18 @@ describe('pd-statusline script (the real sh, end-to-end)', () => {
     expect(isSquidDaemonHeartbeatFresh(heartbeat)).toBe(true);
     expect(runStatusline()).not.toContain('daemon down');
   });
+
+  test('missing or unreadable heartbeat stays fail-open and renders daemon down', () => {
+    const missing = join(FAKE_PD_HOME, 'missing-heartbeat');
+    expect(isSquidDaemonHeartbeatFresh(missing)).toBe(false);
+    expect(runStatusline()).toContain('daemon down');
+
+    const fakeBin = join(SANDBOX, 'broken-stat-bin');
+    mkdirSync(fakeBin, { recursive: true });
+    writeFileSync(join(fakeBin, 'stat'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+    writeHeartbeat();
+    expect(runStatusline({ PATH: `${fakeBin}:${process.env.PATH ?? ''}` })).toContain('daemon down');
+  });
 });
 
 describe('ensureSquidClaudeHome (clean bridged-session config)', () => {

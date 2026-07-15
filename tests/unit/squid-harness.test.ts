@@ -496,6 +496,42 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     const after = Object.keys(parseMatrix(raw)).filter((k) => k.startsWith('PD_PHEROMONE_')).length;
     expect(after).toBe(before + 8); // all 8 appends survived, none torn
   });
+
+  test('post-tool lock retry exhaustion fails open with exactly one append', () => {
+    const matrix = seed();
+    mkdirSync(`${matrix}.lock`);
+    const fakeBin = join(SCRATCH, 'no-flock-fast-sleep-bin');
+    mkdirSync(fakeBin, { recursive: true });
+    for (const name of ['cat', 'sed', 'head', 'grep', 'cut', 'tr', 'date', 'mkdir', 'find', 'rmdir']) {
+      symlinkSync(commandPath(name), join(fakeBin, name));
+    }
+    writeFileSync(join(fakeBin, 'sleep'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+
+    const event = {
+      tool_name: 'Edit',
+      tool_input: { file_path: '/repo/src/retry-exhausted.ts' },
+      cwd: '/repo',
+    };
+    const result = spawnSync(bin('pd-hook-post-tool'), [], {
+      input: JSON.stringify(event),
+      env: {
+        ...process.env,
+        PATH: fakeBin,
+        PD_MATRIX_FILE: matrix,
+        PD_HOME: dirname(matrix),
+        PD_ACTOR: 'retry_exhaustion_agent',
+      },
+      encoding: 'utf8',
+      timeout: 5000,
+    });
+    expect(result.status).toBe(0);
+
+    const rows = readFileSync(matrix, 'utf8')
+      .split('\n')
+      .filter((line) => line.includes('/repo/src/retry-exhausted.ts'));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toContain('actor:retry_exhaustion_agent');
+  });
 });
 
 describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
