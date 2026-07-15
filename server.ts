@@ -452,7 +452,10 @@ function isInSleepGracePeriod(): boolean {
   return Date.now() < sleepGraceUntil;
 }
 
-const db: DatabaseInstance = initDatabase({ dbPath: DB_PATH });
+// The daemon IS the write-boundary (the Door): it opens with owner semantics and
+// is the single legitimate writer of the registry. Non-daemon openers use
+// role:'client' and get a write-guarded handle.
+const db: DatabaseInstance = initDatabase({ dbPath: DB_PATH, role: 'daemon' });
 
 // =============================================================================
 // MODULE INITIALIZATION (identical to server.ts)
