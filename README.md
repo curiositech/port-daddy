@@ -125,6 +125,8 @@ pd bench 50        # Run performance benchmarks (target: <1ms latency)
 
 `pd start` and `pd install` are binary-first: they refuse to start a source-backed `tsx server.ts` daemon unless `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` is set for a local development session.
 
+`pd install-bosun` wires only the Bosun watchdog (ADR-0036) against a Homebrew-managed daemon (`homebrew.mxcl.port-daddy`), without touching the main daemon plist — it's what the `curiositech/homebrew-tap` formula's `post_install` calls, since the full `pd install` would otherwise race `brew services start port-daddy` for the daemon's own supervision. Not needed outside a brew install; `pd install` already wires Bosun for a self-installed LaunchAgent/systemd daemon.
+
 ### Staying current
 
 - `pd upgrade` checks the published `latest.json` release feed against your installed version and shows the verified daemon asset; `pd upgrade --apply` runs `brew upgrade port-daddy` for a Homebrew install (ADR-0057 phase 7).

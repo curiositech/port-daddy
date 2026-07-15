@@ -784,7 +784,7 @@ function install(): void {
 function installBosunOnly(): void {
   console.log('Installing Bosun watchdog (Homebrew-managed daemon)...');
   console.log(`  Platform: ${PLATFORM}`);
-  let ok = true;
+  let ok: boolean;
   if (PLATFORM === 'darwin') {
     ok = installBosunMacOS(BREW_DAEMON_LABEL) && installFreshnessMacOS();
   } else if (PLATFORM === 'linux') {
