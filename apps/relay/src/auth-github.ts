@@ -36,6 +36,25 @@ import {
 } from './db.js';
 import type { Env } from './types.js';
 
+// External GitHub JSON shapes (OAuth token endpoint + REST). These are boundary
+// types: fields are validated at use, not trusted from the type alone.
+interface GitHubTokenResponse {
+  access_token?: string;
+  error?: string;
+}
+interface GitHubUser {
+  id: number;
+  login: string;
+  name?: string | null;
+  avatar_url?: string | null;
+  email?: string | null;
+}
+interface GitHubEmail {
+  email: string;
+  primary: boolean;
+  verified: boolean;
+}
+
 const SESSION_COOKIE = '__Host-pd_session';
 const STATE_TTL_SECONDS = 600; // 10 min to complete the redirect round-trip
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
@@ -56,13 +75,21 @@ function ghHeaders(token: string): Record<string, string> {
   };
 }
 
-/** Redirect_uri is an EXACT registered value — never derived from the request. */
-function redirectUri(env: Env): string {
-  const base = (env.PUBLIC_BASE_URL ?? '').replace(/\/+$/, '');
-  return `${base}/auth/github/callback`;
-}
+/**
+ * An Env in which GitHub login is fully configured. `loginConfigured` narrows
+ * `Env` to this, so downstream code reads the four fields as `string` — no `as`
+ * casts, and adding a fifth required field is a compile error until every call
+ * site is updated.
+ */
+type ConfiguredLoginEnv = Env & {
+  GITHUB_OAUTH_CLIENT_ID: string;
+  GITHUB_OAUTH_CLIENT_SECRET: string;
+  USER_TOKEN_WRAPPING_KEY: string;
+  PUBLIC_BASE_URL: string;
+};
 
-function loginConfigured(env: Env): boolean {
+/** Type guard: narrows Env to ConfiguredLoginEnv when all four values are set. */
+function loginConfigured(env: Env): env is ConfiguredLoginEnv {
   return Boolean(
     env.GITHUB_OAUTH_CLIENT_ID &&
       env.GITHUB_OAUTH_CLIENT_SECRET &&
@@ -71,17 +98,23 @@ function loginConfigured(env: Env): boolean {
   );
 }
 
+/** Redirect_uri is an EXACT registered value — never derived from the request. */
+function redirectUri(env: ConfiguredLoginEnv): string {
+  const base = env.PUBLIC_BASE_URL.replace(/\/+$/, '');
+  return `${base}/auth/github/callback`;
+}
+
 // ── AES-GCM envelope for the GitHub user-to-server token ──────────────────────
 
-async function wrapKey(env: Env): Promise<CryptoKey> {
-  return crypto.subtle.importKey('raw', fromHex(env.USER_TOKEN_WRAPPING_KEY as string), 'AES-GCM', false, [
+async function wrapKey(wrappingKeyHex: string): Promise<CryptoKey> {
+  return crypto.subtle.importKey('raw', fromHex(wrappingKeyHex), 'AES-GCM', false, [
     'encrypt',
     'decrypt',
   ]);
 }
 
-async function sealToken(env: Env, token: string): Promise<{ enc: string; iv: string }> {
-  const key = await wrapKey(env);
+async function sealToken(env: ConfiguredLoginEnv, token: string): Promise<{ enc: string; iv: string }> {
+  const key = await wrapKey(env.USER_TOKEN_WRAPPING_KEY);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(
     await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(token)),
@@ -89,9 +122,9 @@ async function sealToken(env: Env, token: string): Promise<{ enc: string; iv: st
   return { enc: base64UrlEncode(ct), iv: base64UrlEncode(iv) };
 }
 
-async function openToken(env: Env, enc: string, iv: string): Promise<string | null> {
+async function openToken(wrappingKeyHex: string, enc: string, iv: string): Promise<string | null> {
   try {
-    const key = await wrapKey(env);
+    const key = await wrapKey(wrappingKeyHex);
     const pt = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv: base64UrlDecode(iv) },
       key,
@@ -133,7 +166,7 @@ export async function handleGithubLogin(request: Request, env: Env): Promise<Res
   await env.KV.put(`oauth_state:${state}`, '1', { expirationTtl: STATE_TTL_SECONDS });
 
   const url = new URL(GH_AUTHORIZE);
-  url.searchParams.set('client_id', env.GITHUB_OAUTH_CLIENT_ID as string);
+  url.searchParams.set('client_id', env.GITHUB_OAUTH_CLIENT_ID);
   url.searchParams.set('redirect_uri', redirectUri(env));
   url.searchParams.set('scope', 'read:user user:email');
   url.searchParams.set('state', state);
@@ -168,26 +201,27 @@ export async function handleGithubCallback(request: Request, env: Env): Promise<
     }),
   });
   if (!tokRes.ok) return json(502, { code: 'TOKEN_EXCHANGE_FAILED', error: 'GitHub token exchange failed' });
-  const tok = (await tokRes.json()) as { access_token?: string; error?: string };
+  // reason: external GitHub JSON boundary — shape asserted, then every field is
+  // defensively checked before use (access_token below, id/login later).
+  const tok = (await tokRes.json()) as GitHubTokenResponse;
   if (!tok.access_token) return json(502, { code: 'TOKEN_EXCHANGE_FAILED', error: tok.error ?? 'no access_token' });
 
   // Identity from GET /user (+ verified primary email). GitHub is OAuth2, not
   // OIDC: there is no id_token to validate.
   const userRes = await fetch(`${GH_API}/user`, { headers: ghHeaders(tok.access_token) });
   if (!userRes.ok) return json(502, { code: 'USERINFO_FAILED', error: 'GET /user failed' });
-  const ghUser = (await userRes.json()) as {
-    id: number;
-    login: string;
-    name?: string | null;
-    avatar_url?: string | null;
-    email?: string | null;
-  };
+  // reason: external GitHub JSON boundary (see above).
+  const ghUser = (await userRes.json()) as GitHubUser;
+  if (typeof ghUser.id !== 'number' || typeof ghUser.login !== 'string') {
+    return json(502, { code: 'USERINFO_FAILED', error: 'GET /user returned an unexpected shape' });
+  }
 
   let primaryEmail: string | null = ghUser.email ?? null;
   let emailVerified = false;
   const emailRes = await fetch(`${GH_API}/user/emails`, { headers: ghHeaders(tok.access_token) });
   if (emailRes.ok) {
-    const emails = (await emailRes.json()) as Array<{ email: string; primary: boolean; verified: boolean }>;
+    // reason: external GitHub JSON boundary (see above).
+    const emails = (await emailRes.json()) as GitHubEmail[];
     const chosen = emails.find((e) => e.primary && e.verified) ?? emails.find((e) => e.verified);
     if (chosen) {
       primaryEmail = chosen.email;
@@ -324,7 +358,12 @@ export async function resolveSession(request: Request, env: Env): Promise<Resolv
   const row = await getWebSession(env.DB, hashHex(value));
   if (!row) return null;
   if (row.expires_at <= Math.floor(Date.now() / 1000)) return null;
-  const ghToken = row.gh_token_enc && row.gh_token_iv ? await openToken(env, row.gh_token_enc, row.gh_token_iv) : null;
+  // The wrapping key is required to decrypt the gh token; without it (login
+  // unconfigured) there is no token to hand back, but the session still resolves.
+  const ghToken =
+    env.USER_TOKEN_WRAPPING_KEY && row.gh_token_enc && row.gh_token_iv
+      ? await openToken(env.USER_TOKEN_WRAPPING_KEY, row.gh_token_enc, row.gh_token_iv)
+      : null;
   return { user: row.user, ghToken };
 }
 

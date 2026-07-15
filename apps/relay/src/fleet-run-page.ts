@@ -212,6 +212,7 @@ function sumDetailField(steps: FleetRunStepRow[], field: string): number {
   for (const s of steps) {
     if (!s.detail) continue;
     try {
+      // reason: parsed JSON boundary — value is typeof-checked below before use.
       const d = JSON.parse(s.detail) as Record<string, unknown>;
       const v = d[field];
       if (typeof v === 'number' && Number.isFinite(v)) total += v;

@@ -645,7 +645,14 @@ export async function upsertUser(
       u.now,
     )
     .run();
-  return (await db.prepare('SELECT * FROM users WHERE github_user_id = ?').bind(u.githubUserId).first<UserRow>())!;
+  const row = await db
+    .prepare('SELECT * FROM users WHERE github_user_id = ?')
+    .bind(u.githubUserId)
+    .first<UserRow>();
+  // We just INSERT..ON CONFLICT'd this row; a null read means the write silently
+  // failed — surface it rather than returning a non-null lie via `!`.
+  if (!row) throw new Error(`upsertUser: user ${u.githubUserId} not found after upsert`);
+  return row;
 }
 
 export interface WebSessionRow {
