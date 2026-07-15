@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1784063377728,
+  "generatedAt": 1784079396380,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 197,
+  "count": 201,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -13,6 +13,11 @@
       "slug": "active-agent-roster",
       "status": "backlog",
       "summaryMd": "Add live active agent roster surfaces"
+    },
+    {
+      "slug": "actor-identity-minimal-slice",
+      "status": "backlog",
+      "summaryMd": "0040 minimal build \u2014 the SINGLE unbuilt dependency blocking FIVE subsystems (phonebook reputation, commitments, budget-ledger integrity, parley --as trust, Lookout continuity). Today identity is 100% forgeable: actor-roster.ts is a static alias table not a minting system, budget-guard keys on raw self-asserted agentId, commitments.ts self-admits the gap. Slice: daemon POST /actors/register mints a ULID bound to the actor-souls credential (ADR-0022) or a per-machine keypair; budget/commitments/parley key on the minted id; --as becomes a display alias over the minted id, never the identity. Owner: identity dispatch. Decision-type: empirical. Blocked-by: daemon-down-hard-stop-mandate (identity minting must itself refuse when the daemon door is not real). Acceptance: an agent cannot pay/commit/parley under an id it did not register; a reset produces a NEW id (Sybil is visible, not free)."
     },
     {
       "slug": "adr-0019-declarative-fleet-yaml",
@@ -405,6 +410,11 @@
       "summaryMd": "ADR-0101 Phase 2: BYOK fleet funding \u2014 envelope-encrypted per-user provider keys, fleet_run_spend attribution, OpenRouter-first routing, no silent operator-key fallback."
     },
     {
+      "slug": "adr-doc-reconciliation-sweep",
+      "status": "now",
+      "summaryMd": "Doc rot sweep from wf_74723755 (39 documentation lies + 9-collision numbering crisis). Concrete punch list: supersede-in-place 0030(whois)/0031(Spider)/0032(Lookout)/0038(claim_forest) with 'Superseded (implemented differently)' status + pointer to shipped mechanism; fix FALSE-GREEN attestations 0045:74 (identity check 'enabled' \u2014 does not exist) and 0053 (Relay 'verifies discharges/ProVerif' \u2014 zero macaroon wiring in apps/relay/src); flip 0037/0091 Proposed->Partial-Ship with shipped/gap tables; annotate 0090 phases 0-4 SUPERSEDED-by-durable-home-wave; correct 0086/0085 Implementation Matrix to ground truth (schema-only-shipped, edge-writers zero-callers); rename 0090-the-harbor->0097, pd-adr-090-hook-installer->next-free, 0091 roadmap slugs adr-0089->adr-0091; RECOVER orphaned ADR-0096 (signed-guidance, Accepted but trapped in ~20 worktrees); author a docs/adr/REGISTRY.md + pre-commit collision gate; binder reconciliation deltas ch02/05/06/09 (whois/claim_forest/squid/halt/durable-home all uncovered). Owner: doc-reconciliation dispatch. Decision-type: empirical (mechanical truth-fixes). Acceptance: every ADR status matches ground truth; zero number collisions; 0096 on main; binder covers the shipped substrate."
+    },
+    {
       "slug": "agent-harbor-c1-event-ledger",
       "status": "backlog",
       "summaryMd": "Agent Harbor C1 \u2014 event ledger and projections (binder ch18 Work Order C1)"
@@ -590,9 +600,19 @@
       "summaryMd": "Wave-2 owner of binder CR-1 + CR-2: wire the operator control verbs to a real contract. CURRENT STATE (audited 2026-07-14, control_contract_audit: FAIL 56/100): pd-console buttons POST a generic F0 ControlCommand with no control_commands table or daemon ingress (CR-1, zero hits on main), single collapsed 'control' verb, no terminal states, authorization from ui-state \u2014 plus the live interrupt route is lease-less fire-and-forget contradicting lib/agent-harbor/control-gate.ts doctrine (CR-2). TARGET CONTRACT (audited: PASS 100/100, spec at the session ledger): six distinct verbs (steer/interrupt/pause/kill/checkpoint/fork) each with queued/delivered/acknowledged/failed/expired/unsupported terminals; four backends honestly declared (local-process: all six; cloud-worker-body: steer/interrupt/kill; hook-only-session: steer/interrupt; observed-import: NONE \u2014 buttons render disabled with reason, never false affordances); authorization re-checks authoritative lease at delivery time per control-gate doctrine, never the roster projection. Acceptance: control_commands table + ingress exist; ch02 remote-interrupt race test passes; control_contract_audit on the SHIPPED spec passes; every unsupported verb x backend pair renders a disabled control with stated reason. Unblocks: roadmap-reconciler-agent unattended mode (dependency 2 of 3)."
     },
     {
+      "slug": "daemon-down-hard-stop-mandate",
+      "status": "now",
+      "summaryMd": "KEYSTONE (operator top mandate 2026-07-14: 'it is insane port-daddy does not grind to a halt when the daemon is down \u2014 it MUST, super loud'). Reconciliation confirms: every enforcement claim is theatrical while ~30 lib/*.ts modules open SQLite directly and only 4 command files call isDaemonRunning; guard.ts note-per-commit rent check FAILS OPEN (daemon/git failure => no rent owed); 6 quiet-degrade surfaces (dispatch.ts:270 silent direct-DB fallback, post-commit-hook curl discarded, MCP text-not-McpError server.ts:4995, FleetBar dot, brew Running:true lie with no watchdog). Build: (1) new ADR 'Daemon-Down Hard-Stop Mandate' generalizing guard structural-escalation to all write surfaces; (2) guard rent check fail CLOSED+loud; (3) a shared daemon-liveness precondition on direct-SQLite writes (loud refuse, not silent fallback); (4) supervision watchdog reconciling brew/launchd Running:true vs actual liveness. Owner: halt-mandate dispatch. Decision-type: HITL (the fail-closed policy is an operator call) + empirical (the wiring). Acceptance: with daemon killed, a pd write refuses loudly instead of hitting local SQLite; the rent check blocks; pd doctor is not the only thing that catches the brew lie."
+    },
+    {
       "slug": "daemon-reliability-release",
       "status": "backlog",
       "summaryMd": "Daemon reliability release hardens Homebrew launch defaults, crash diagnostics, compiled-daemon smoke and doctor gates, route self-degradation, and the documented Port Daddy daemon authority model."
+    },
+    {
+      "slug": "dev-berth-daemon-registration",
+      "status": "now",
+      "summaryMd": "WIP (operator flagged unfinished 2026-07-14): every daemon launched locally for a dev berth must self-register in ~/.port-daddy/dev-daemons.json so FleetBar/Control Center can see it \u2014 else dev daemons are invisible in the sanctioned shell (the show-me-runbook hard rule: dev-triple launches with PD_DAEMON_TIER/LABEL/SOURCE_DIR so the berth registers). Evidence tonight: lsof showed a dev-latest daemon on :9886 and multiple dispatch-worktree daemons that FleetBar has no view of. Finish: on daemon boot, if a non-prod tier/label is set, upsert the berth into dev-daemons.json (pid, port, tier, label, sourceDir, gitRev, health-url); prune dead berths on read; every dev-berth launch path (pd dev up, package-console --devbuild, dispatch worktree daemons, dev-triple) goes through it. Acceptance: launch a dev berth by any path and it appears in FleetBar's Daemons list with correct tier/label; killing it prunes it. Owner: dev-berth dispatch. Decision-type: empirical."
     },
     {
       "slug": "feat-backend-dropdown-spawn-forecast",
@@ -845,6 +865,11 @@
       "summaryMd": "Fully build out infrastructure for the provable action adjudicator (north-star Ledger RCP-9): a tamper-resistant reference monitor at the tool-call boundary that compiles natural-language policy into a Datalog/Souffle policy DAG (plus Lean 4 decide-proofs for arithmetic constraints, compiled offline, checked at ~us latency at runtime) and adjudicates every agent action Permit/Deny/Permit-with-Obligation before execution, recording verdicts into a provenance DAG. Builds on shipped substrate: ADR-0093 event-spawn trust gate, Agent Harbor gate+probes+ledger, Coordination Guard enforce mode. Production baselines now exist in the literature (FORGE arxiv:2602.16708, AgentSpec ICSE'26, AgentBC, Lean-Agent Protocol) and the skills/provable-action-adjudicator bundle documents the architecture. Ledger classifies RCP-9 as OPEN research feeding IMP-7/IMP-9 (machine-side containment); promote to a build lane once an ADR scopes the interception point (fleet-engine spawn path + MCP tool boundary) and the policy-compilation pipeline."
     },
     {
+      "slug": "release-safety-pipeline",
+      "status": "now",
+      "summaryMd": "Operator mandate 2026-07-14 ('I'm not doing shit with brew'): every Homebrew cut must be atomic, automated, self-healing, gated \u2014 and NO gate may ever report a failure as success. HONEST SCORECARD (verified tonight): (a) SHADOW TRAFFIC before promotion = NONE (soak-binary.sh is synthetic load only; no replay of mirrored real requests at the candidate). (b) AUTO LOCAL INSTALL = PARTIAL (release.yml builds+rolls tap; no automated post-release brew-upgrade+verify loop on the operator machine). (c) SOAK UNDER LOAD = YES (soak-binary.sh); TEST-DB POISON PROTECTION = YES (assertNotProdInTest fail-closed); TEST-TRAFFIC TELEMETRY ISOLATION = NONE (no test-context filter in cost-tracker/activity/counters \u2014 test requests would pollute prod cost/activity/event streams). (d) ATOMIC + SELF-HEALING = NONE (no promote-only-if-all-green; no auto-rollback via brew-pin-previous + restore durable-home backup stamp + scream when a promoted build misbehaves under a watch window). The kill-daemon acceptance test from #2381 (kill -> restart+alert+doctor-red) is the template for the daemon-liveness portion of the battery; tonight's wedged-alive daemon (fresh heartbeat, dead HTTP, held the socket so restarts refused) is the proof the battery must probe /health not heartbeat age. Owner: release-safety dispatch. Decision-type: HITL (promote/rollback policy) + empirical (harness). Acceptance: a candidate failing the live battery (shadow traffic + kill-daemon-recovers + soak) CANNOT promote; a promoted build misbehaving in the watch window auto-rolls-back and screams; test traffic never reaches prod telemetry; every gate verifies authoritative state and can never pass on an error."
+    },
+    {
       "slug": "rent-at-claim-begin-gate",
       "status": "now",
       "summaryMd": "S3 rent-at-claim: pd begin requires a roadmap link (--roadmap), draft genesis (--roadmap-new), or an explicit sidequest opt-out (--sidequest); persisted on the session record and surfaced in whoami/listings."
@@ -980,14 +1005,9 @@
       "summaryMd": "fix(dispatch): isolate WorkIntent worktrees"
     },
     {
-      "slug": "daemon-down-hard-stop-mandate",
-      "status": "now",
-      "summaryMd": "Daemon-down hard-stop mandate: flat-rate budget-breaker exemption + cost-accrual wiring + Bosun Phase C restart-on-death with loud alert; pd doctor CRITICAL-RED on unreachable /health."
-    },
-    {
-      "slug": "adr-0101-phase-3-credits-anchor",
+      "slug": "model-abstraction-audit",
       "status": "backlog",
-      "summaryMd": "ADR-0101 Phase 3: Stripe prepaid credits + anchor-protocol spend-cap caveats (macaroon/harbor-card); funding tenant = GitHub installation (MT2)."
+      "summaryMd": "ADR-0057: unify all model/backend selection to declarative (handle, tier) resolved once via lib/model-registry.ts resolveModel(). PR #2477 fixes the model-abstraction audit (wf_e15eef22) findings: collapsed anthropic/claude/claude-cli duplicate tables, ollama/lmstudio registry entries, single backend-id source, regenerated Rust console model-tiers.json, fixed Rust keyword-substring vendor-color classifiers, broadened the no-hardcoded-model-ids guard."
     }
   ]
 }
