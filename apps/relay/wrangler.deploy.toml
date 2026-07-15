@@ -18,6 +18,13 @@
 #   3. Set secrets:
 #        echo "<value>" | wrangler secret put RELAY_OPERATOR_TOKEN
 #        echo "<value>" | wrangler secret put RELAY_ED25519_PRIVATE_KEY_HEX
+#        # GitHub login (ADR-0101 Phase 1) — login stays DISABLED (503) until all
+#        # four of GITHUB_OAUTH_CLIENT_ID (var, below), PUBLIC_BASE_URL (var,
+#        # below), and these two secrets are present:
+#        cat client-secret.txt        | wrangler secret put GITHUB_OAUTH_CLIENT_SECRET
+#        openssl rand -hex 32         | wrangler secret put USER_TOKEN_WRAPPING_KEY
+#        # Also register the OAuth callback on the GitHub App:
+#        #   https://<relay-origin>/auth/github/callback
 #
 #   4. Deploy:
 #        wrangler deploy
@@ -38,6 +45,12 @@ JWKS_CACHE_TTL_SECONDS = "600"
 JWKS_FAIL_SOFT_SECONDS = "3600"
 REVOCATION_BROADCAST_TIMEOUT_MS = "5000"
 RATE_LIMIT_WINDOW_MS = "60000"
+# GitHub login BFF (ADR-0101 Phase 1). Public, non-secret values. The client id
+# is the existing GitHub App's OAuth client id (public); PUBLIC_BASE_URL is the
+# relay's own origin and is the exact base of the registered redirect_uri.
+# Login is disabled until the two matching secrets are also set (see header).
+GITHUB_OAUTH_CLIENT_ID = "Iv23liCLIENTIDPLACEHOLDER"
+PUBLIC_BASE_URL = "https://port-daddy-relay.erich-owens.workers.dev"
 
 [[d1_databases]]
 binding = "DB"

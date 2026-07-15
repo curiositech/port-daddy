@@ -41,7 +41,11 @@ export async function runDetailsUrl(env: RunPageEnv, runId: string): Promise<str
   if (!base || !secret || secret.length < 32) return null;
   try {
     const token = await runPageToken(secret, runId);
-    return `${base}/fleet/runs/${encodeURIComponent(runId)}?t=${token}`;
+    // Versioned token (ADR-0101 Z1): the `v1.` prefix lets the relay rotate the
+    // signing secret without breaking previously-stamped links. The relay
+    // accepts both `v1.<hmac>` and the legacy bare `<hmac>` during the grace
+    // window.
+    return `${base}/fleet/runs/${encodeURIComponent(runId)}?t=v1.${token}`;
   } catch {
     return null;
   }
