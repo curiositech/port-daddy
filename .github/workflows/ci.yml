@@ -285,6 +285,43 @@ jobs:
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects integration
         timeout-minutes: 10
 
+  egress-assertion:
+    # ADR-0101 Appendix — Critical 1 (Phase 1 acceptance gate #1). Proves the
+    # local-first promise is runtime-testable: boot the daemon in local-only
+    # mode (cloud credentials blanked, a clean HOME so no cached secret/model
+    # can help), preload a stdlib net.Socket.connect recorder into the daemon
+    # subprocess, drive a representative session lifecycle over the loopback
+    # unix socket, then assert ZERO non-loopback destinations were opened.
+    # See tests/integration/egress-local-only.integration.test.js.
+    #
+    # ADVISORY (continue-on-error) for now: this gate currently FAILS on a real
+    # discovered leak — the local semantic-search embedder
+    # (lib/semantic-resolver.ts sets env.allowRemoteModels = true) fetches
+    # `Xenova/all-MiniLM-L6-v2` from huggingface.co / cas-bridge.xethub.hf.co on
+    # first run when the model cache is empty. Remove continue-on-error to make
+    # this a blocking gate once that fetch is vendored or gated behind explicit
+    # configuration (ADR-0101: "Any future feature that phones home must fail
+    # this test until it is gated behind explicit configuration.").
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    needs: unit-tests
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Local-only egress assertion (ADR-0101 Critical 1)
+        run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects integration --runTestsByPath tests/integration/egress-local-only.integration.test.js
+        timeout-minutes: 10
+
   compiled-daemon-smoke:
     # Builds the `bun build --compile` daemon (bun:sqlite), boots it on a
     # scratch port + DB, and asserts hot read routes return HTTP 200.
