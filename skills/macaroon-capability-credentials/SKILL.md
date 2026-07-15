@@ -59,8 +59,11 @@ The third-party caveat's `vid` binds the discharge key into the chain. Two ways:
 Pick **HMAC commitment** when one trusted process mints, stores keys, and verifies — it's
 simpler and needs no AEAD. Pick **AEAD sealing** only when verifiers can't share a key
 store. **Never run both in two live verifiers of the same credential** — that's the
-dual-runtime divergence (Port Daddy's TS used AES-GCM, Rust uses HMAC commitment; the TS
-is being realigned to the Rust commitment to close it).
+dual-runtime divergence (Port Daddy's TS once used AES-GCM, Rust uses HMAC commitment).
+That divergence is now **CLOSED** (ADR-0054 Phase 6, verified 2026-07-14): `lib/macaroon/`
+is realigned to the Rust HMAC-commitment `vid` and is a deprecated byte-parity fallback,
+locked to the canonical impl by shared vectors in `tests/fixtures/macaroon-parity-vectors.json`
+(asserted by both the Rust `parity_vectors` test and `tests/unit/macaroon-parity.test.js`).
 
 ## Verification MUST be per-hop (the unsound shortcut)
 
