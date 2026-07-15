@@ -36,8 +36,11 @@ import {
 } from './db.js';
 import type { Env } from './types.js';
 
-// External GitHub JSON shapes (OAuth token endpoint + REST). These are boundary
-// types: fields are validated at use, not trusted from the type alone.
+// External GitHub JSON shapes (OAuth token endpoint + REST). These are a trust
+// boundary: rather than `as`-casting `unknown` JSON into a type and hoping,
+// each response is run through a parse-guard that validates every consumed
+// field and returns null (or []) on any mismatch — the same tri-state parse
+// idiom the executor uses for model output (parseShipFindings). Fail-closed.
 interface GitHubTokenResponse {
   access_token?: string;
   error?: string;
@@ -45,14 +48,45 @@ interface GitHubTokenResponse {
 interface GitHubUser {
   id: number;
   login: string;
-  name?: string | null;
-  avatar_url?: string | null;
-  email?: string | null;
+  name: string | null;
+  avatar_url: string | null;
+  email: string | null;
 }
 interface GitHubEmail {
   email: string;
   primary: boolean;
   verified: boolean;
+}
+
+function isRecord(x: unknown): x is Record<string, unknown> {
+  return typeof x === 'object' && x !== null;
+}
+const orNull = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+
+function parseGitHubToken(x: unknown): GitHubTokenResponse | null {
+  if (!isRecord(x)) return null;
+  if (x.access_token !== undefined && typeof x.access_token !== 'string') return null;
+  return {
+    access_token: typeof x.access_token === 'string' ? x.access_token : undefined,
+    error: typeof x.error === 'string' ? x.error : undefined,
+  };
+}
+
+function parseGitHubUser(x: unknown): GitHubUser | null {
+  if (!isRecord(x)) return null;
+  if (typeof x.id !== 'number' || typeof x.login !== 'string') return null;
+  return { id: x.id, login: x.login, name: orNull(x.name), avatar_url: orNull(x.avatar_url), email: orNull(x.email) };
+}
+
+function parseGitHubEmail(x: unknown): GitHubEmail | null {
+  if (!isRecord(x)) return null;
+  if (typeof x.email !== 'string' || typeof x.primary !== 'boolean' || typeof x.verified !== 'boolean') return null;
+  return { email: x.email, primary: x.primary, verified: x.verified };
+}
+
+function parseGitHubEmails(x: unknown): GitHubEmail[] {
+  if (!Array.isArray(x)) return [];
+  return x.map(parseGitHubEmail).filter((e): e is GitHubEmail => e !== null);
 }
 
 const SESSION_COOKIE = '__Host-pd_session';
@@ -201,27 +235,22 @@ export async function handleGithubCallback(request: Request, env: Env): Promise<
     }),
   });
   if (!tokRes.ok) return json(502, { code: 'TOKEN_EXCHANGE_FAILED', error: 'GitHub token exchange failed' });
-  // reason: external GitHub JSON boundary — shape asserted, then every field is
-  // defensively checked before use (access_token below, id/login later).
-  const tok = (await tokRes.json()) as GitHubTokenResponse;
-  if (!tok.access_token) return json(502, { code: 'TOKEN_EXCHANGE_FAILED', error: tok.error ?? 'no access_token' });
+  const tok = parseGitHubToken(await tokRes.json());
+  if (!tok?.access_token) return json(502, { code: 'TOKEN_EXCHANGE_FAILED', error: tok?.error ?? 'no access_token' });
+  const accessToken = tok.access_token;
 
   // Identity from GET /user (+ verified primary email). GitHub is OAuth2, not
   // OIDC: there is no id_token to validate.
-  const userRes = await fetch(`${GH_API}/user`, { headers: ghHeaders(tok.access_token) });
+  const userRes = await fetch(`${GH_API}/user`, { headers: ghHeaders(accessToken) });
   if (!userRes.ok) return json(502, { code: 'USERINFO_FAILED', error: 'GET /user failed' });
-  // reason: external GitHub JSON boundary (see above).
-  const ghUser = (await userRes.json()) as GitHubUser;
-  if (typeof ghUser.id !== 'number' || typeof ghUser.login !== 'string') {
-    return json(502, { code: 'USERINFO_FAILED', error: 'GET /user returned an unexpected shape' });
-  }
+  const ghUser = parseGitHubUser(await userRes.json());
+  if (!ghUser) return json(502, { code: 'USERINFO_FAILED', error: 'GET /user returned an unexpected shape' });
 
-  let primaryEmail: string | null = ghUser.email ?? null;
+  let primaryEmail: string | null = ghUser.email;
   let emailVerified = false;
-  const emailRes = await fetch(`${GH_API}/user/emails`, { headers: ghHeaders(tok.access_token) });
+  const emailRes = await fetch(`${GH_API}/user/emails`, { headers: ghHeaders(accessToken) });
   if (emailRes.ok) {
-    // reason: external GitHub JSON boundary (see above).
-    const emails = (await emailRes.json()) as GitHubEmail[];
+    const emails = parseGitHubEmails(await emailRes.json());
     const chosen = emails.find((e) => e.primary && e.verified) ?? emails.find((e) => e.verified);
     if (chosen) {
       primaryEmail = chosen.email;
@@ -242,7 +271,7 @@ export async function handleGithubCallback(request: Request, env: Env): Promise<
 
   // Opaque session id; only its SHA-256 is stored. The gh token is sealed.
   const sessionValue = randomHex(32);
-  const { enc, iv } = await sealToken(env, tok.access_token);
+  const { enc, iv } = await sealToken(env, accessToken);
   await createWebSession(env.DB, {
     tokenHash: hashHex(sessionValue),
     userId: user.id,

@@ -169,6 +169,22 @@ describe('GET /auth/github/callback', () => {
     expect(replay.status).toBe(400); // state was deleted after first use
   });
 
+  it('fails closed (502) when GET /user returns a malformed shape, storing no user', async () => {
+    const kv = makeKV();
+    const { db, users } = makeDb();
+    const env = makeEnv({}, kv, db);
+    kv.store.set('oauth_state:sm', '1');
+    vi.stubGlobal('fetch', vi.fn(async (input: any) => {
+      const url = String(input);
+      if (url.includes('login/oauth/access_token')) return new Response(JSON.stringify({ access_token: 'gho_x' }), { status: 200 });
+      if (url.endsWith('/user')) return new Response(JSON.stringify({ id: 'not-a-number', login: 42 }), { status: 200 }); // garbage
+      return new Response('[]', { status: 200 });
+    }));
+    const res = await handleGithubCallback(new Request(`${BASE}/auth/github/callback?code=c&state=sm`), env);
+    expect(res.status).toBe(502);
+    expect(users.size).toBe(0); // no corrupt row written from a bad upstream shape
+  });
+
   it('exchanges the code, upserts the user, and sets a __Host- HttpOnly session cookie', async () => {
     const kv = makeKV();
     const { db, users, sessions } = makeDb();
