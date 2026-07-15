@@ -16,8 +16,13 @@
         "claude_local": { "type": "string" },
         "claude_cloud": {
           "type": "object",
-          "required": ["id"],
+          "description": "Declare EITHER 'capability' (preferred — resolved via lib/model-registry.ts resolveModel({backend:'claude',capability}) at create-managed-agent.ts run time) OR an explicit 'id' pin (a real operator override, honored verbatim — matches resolveModel's own explicit-override precedence). At least one is required so a managed-agent create/update always has a model.",
+          "anyOf": [
+            { "required": ["capability"] },
+            { "required": ["id"] }
+          ],
           "properties": {
+            "capability": { "type": "string", "enum": ["cheap", "balanced", "high", "max-thinking", "code"] },
             "id": { "type": "string", "minLength": 1 },
             "speed": { "type": "string", "minLength": 1 }
           },

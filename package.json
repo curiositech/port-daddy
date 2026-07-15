@@ -31,6 +31,8 @@
     "test:ci": "npm test",
     "test:bun": "bun test tests/bun/",
     "typecheck": "tsc --noEmit",
+    "generate:console-model-tiers": "tsx scripts/generate-console-model-tiers.ts --write",
+    "check:console-model-tiers": "tsx scripts/generate-console-model-tiers.ts",
     "skills:sync": "tsx scripts/sync-skills.ts --scope project",
     "skills:sync:check": "tsx scripts/sync-skills.ts --scope project --check",
     "boundary:public": "tsx scripts/check-public-repo-boundary.ts",

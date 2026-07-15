@@ -77,16 +77,28 @@ fn lerp_color(a: Color, b: Color, t: f64) -> Color {
 /// VERBATIM, but the chip's accent reads the family so the operator can scan
 /// vendors at a glance: claude/opus/sonnet/haiku = canary, gemini = cobalt-green,
 /// codex = violet, groq = amber, everything else = a quiet ink chip.
+///
+/// DISPLAY-ONLY (mirrors pd-console's `vendor_accent` in app.rs — no backend
+/// or spawn decision reads this). EXACT-token match, not substring
+/// `contains()` (ADR-0057 model-abstraction unification — `contains()` is
+/// the keyword/substring-NLP pattern the house rule forbids, and it risks a
+/// false-positive chip color on any tier label that merely CONTAINS a vendor
+/// nickname as a substring of an unrelated word). Unrecognized tokens fall
+/// through to the neutral `INK_DIM` — never a vendor default.
 fn vendor_accent(tier: &str) -> Color {
     let t = tier.trim().to_ascii_lowercase();
-    let has = |needle: &str| t.contains(needle);
-    if has("opus") || has("sonnet") || has("haiku") || has("claude") {
+    let tokens: Vec<&str> = t
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|tok| !tok.is_empty())
+        .collect();
+    let has_any = |names: &[&str]| tokens.iter().any(|tok| names.contains(tok));
+    if has_any(&["opus", "sonnet", "haiku", "claude"]) {
         CANARY
-    } else if has("gemini") {
+    } else if has_any(&["gemini"]) {
         SUCCESS
-    } else if has("codex") || has("gpt") || has("o1") || has("o3") {
+    } else if has_any(&["codex", "gpt", "o1", "o3"]) {
         VIOLET
-    } else if has("groq") || has("llama") || has("mixtral") {
+    } else if has_any(&["groq", "llama", "mixtral"]) {
         AMBER
     } else {
         INK_DIM
