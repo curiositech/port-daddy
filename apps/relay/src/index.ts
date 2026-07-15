@@ -60,6 +60,7 @@ import {
   handleDeleteFleetRun,
 } from './fleet-observability.js';
 import { handleFleetRunPage } from './fleet-run-page.js';
+import { runRetentionSweep } from './retention-sweep.js';
 import {
   handleGithubLogin,
   handleGithubCallback,
@@ -251,5 +252,21 @@ export default {
     }
 
     return cors(response);
+  },
+
+  // Cron Trigger (ADR-0101; runtime-verification-for-agents). The Worker has no
+  // long-running Arbiter loop, so retention + session-reaping + erasure-
+  // completion run here on a schedule. Best-effort: the sweep never throws.
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(
+      runRetentionSweep(env, Math.floor(Date.now() / 1000)).then((r) => {
+        if (r.errors.length) console.error('[relay] retention sweep errors:', r.errors.join('; '));
+        else
+          console.log(
+            `[relay] retention sweep: pruned ${r.runStepsPruned} steps / ${r.runsPruned} runs / ` +
+              `${r.eventsPruned} events, reaped ${r.sessionsReaped} sessions, hard-deleted ${r.usersHardDeleted} users`,
+          );
+      }),
+    );
   },
 } satisfies ExportedHandler<Env>;
