@@ -6,6 +6,7 @@ class PortDaddy < Formula
   license "MIT"
 
   depends_on "node"
+  depends_on "gitleaks"
 
   def install
     system "npm", "install", *Language::Node.std_npm_install_args(libexec)
