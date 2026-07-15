@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.25.1] - 2026-07-15
+
+### Fixed
+- **Bosun actually ships and runs on a Homebrew install — the daemon can no longer go down quietly (roadmap: daemon-down-hard-stop-mandate).** PR #2381 taught `release.yml` to build `pd-bosun` (ADR-0036's out-of-process watchdog) into the release tarball, but the published v3.25.0 tarball predated that change and the `curiositech/homebrew-tap` formula only ran `bin.install "pd", "port-daddy"` — so every brew install shipped a daemon with no watchdog binary at all. This release: ships v3.25.1 binaries (built from the merged Bosun-Phase-C tarball), fixes the tap formula to install `pd-bosun` alongside `pd`/`port-daddy`, and adds `port-daddy install-bosun` — a new, non-destructive CLI subcommand the formula's `post_install` calls unconditionally to wire the Bosun launchd job against the brew-managed daemon label. `install-bosun` is deliberately narrower than the existing `port-daddy install`: the full install path only skips creating a competing standalone daemon LaunchAgent when it detects `homebrew.mxcl.port-daddy` already loaded, which isn't true yet at `post_install` time (before `brew services start` has run) — calling it there would have raced brew's own supervisor for `:9876`. Bosun has no such ordering hazard (it's a one-way heartbeat watcher that best-effort `launchctl kickstart`s the daemon label), so it's safe to wire at install time regardless of whether the brew service has started yet.
+
 ## [3.25.0] - 2026-07-14
 
 ### Fixed
