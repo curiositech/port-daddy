@@ -4949,7 +4949,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.25.1',
+    version: '3.25.2',
   },
   {
     capabilities: {
