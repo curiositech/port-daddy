@@ -1859,7 +1859,16 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   //     read from the daemon's guardians.bosun when reachable.
   // -------------------------------------------------------------------------
   try {
-    const bosun = resolveBosunBinary(libDir);
+    // `libDir` is a naive `join(__dirname, '..', '..')` — correct for a source
+    // checkout, but for a `bun build --compile` binary `__dirname` is a virtual
+    // bun:// path, so that join produces a string that never exists on disk.
+    // `resolveDistributionRoot` (already used by describeResourceDir() below
+    // for the same reason) resolves the REAL install root from process.execPath
+    // in that case and is a no-op passthrough for a source checkout. Without
+    // this, `pd doctor` always reported "pd-bosun binary not built" for every
+    // packaged/brew install even when Bosun was genuinely installed and
+    // healthy (found live during the v3.25.1/3.25.2 brew rollout).
+    const bosun = resolveBosunBinary(resolveDistributionRoot(libDir));
     let bosunRunning: boolean | null = null;
     let bosunReason: string | null = null;
     if (daemonRunning) {
