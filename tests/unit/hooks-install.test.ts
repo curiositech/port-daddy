@@ -9,7 +9,8 @@
  *
  * Sandbox lives under the repo's .scratch/ — NEVER /tmp.
  */
-import { existsSync, mkdirSync, writeFileSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, writeFileSync, readFileSync, rmSync, statSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   stageTentacles,
@@ -38,7 +39,9 @@ const REPO = join(SANDBOX, 'repo');
 
 function writeTentacleSources(): void {
   mkdirSync(SRC, { recursive: true });
-  for (const name of TENTACLES) writeFileSync(join(SRC, name), `#!/bin/sh\n# ${name}\nexit 0\n`);
+  for (const name of TENTACLES) {
+    writeFileSync(join(SRC, name), `#!/bin/sh\nprintf '%s\\n' '${name}'\nexit 0\n`);
+  }
 }
 
 beforeAll(() => {
@@ -60,7 +63,9 @@ describe('hook-shape (single source of truth) matches the squid adapter exactly'
     expect(AGY_TOOL_MATCHER).toBe(
       'Edit|Write|MultiEdit|write_to_file|replace_file_content|multi_replace_file_content|replace|write_file|edit|apply_patch',
     );
-    expect(CODEX_TOOL_MATCHER).toBe('apply_patch|edit|write|str_replace_editor|shell|run_shell_command');
+    expect(CODEX_TOOL_MATCHER).toContain('Bash');
+    expect(CODEX_TOOL_MATCHER).toContain('apply_patch');
+    expect(CODEX_TOOL_MATCHER).toContain('exec_command');
   });
 
   test('gemini uses native event names BeforeAgent/BeforeTool/AfterTool', () => {
@@ -78,13 +83,14 @@ describe('hook-shape (single source of truth) matches the squid adapter exactly'
     }
   });
 
-  test('codex TOML block: marker, matcher, and PostToolUse async (Pre/Prompt sync)', () => {
+  test('codex TOML block keeps every command hook synchronous', () => {
     const toml = codexHooksTomlBlock((n) => `/abs/${n}`);
     expect(toml).toContain(CODEX_PD_MARKER);
     expect(toml).toContain(`matcher = "${CODEX_TOOL_MATCHER}"`);
-    // PostToolUse is fire-and-forget; the gate-bearing Pre/Prompt are sync.
+    // Codex parses async handlers but skips them, so post-tool must be sync too.
     const post = toml.slice(toml.indexOf('[[hooks.PostToolUse]]'));
-    expect(post).toContain('async = true');
+    expect(post).toContain('async = false');
+    expect(toml).not.toContain('async = true');
     const pre = toml.slice(toml.indexOf('[[hooks.PreToolUse]]'), toml.indexOf('[[hooks.PostToolUse]]'));
     expect(pre).toContain('async = false');
   });
@@ -105,13 +111,61 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     }
   });
 
-  test('the gate wrapper checks the daemon pid and a .portdaddy project marker', () => {
+  test('the gate wrapper checks a fresh heartbeat and a .portdaddy project marker', () => {
     const wrapper = readFileSync(join(DEST, 'pd-hook-pre-tool'), 'utf-8');
-    expect(wrapper).toContain('daemon.pid');
-    expect(wrapper).toContain('kill -0');
+    expect(wrapper).toContain('heartbeat');
+    expect(wrapper).toContain('stat -f %m');
+    expect(wrapper).not.toContain('kill -0');
+    expect(wrapper).not.toContain('ps -p');
     expect(wrapper).toContain('.portdaddy');
     expect(wrapper).toContain('exec "$PD_HOME/bin/squid/${0##*/}"');
     expect(wrapper.trim().endsWith('exit 0')).toBe(true); // fail-open default
+  });
+
+  test('delegates with a fresh heartbeat and fails open when it becomes stale', () => {
+    const pdHome = join(SANDBOX, 'gate-home');
+    const binDir = join(pdHome, 'bin');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    const heartbeat = join(pdHome, 'heartbeat');
+    writeFileSync(heartbeat, '{}');
+
+    const run = (): string => execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+      cwd: REPO,
+      env: { ...process.env, PD_HOME: pdHome },
+      input: '{}',
+      encoding: 'utf8',
+    });
+
+    expect(run()).toContain('pd-hook-prompt');
+    const stale = new Date(Date.now() - 60_000);
+    utimesSync(heartbeat, stale, stale);
+    expect(run()).toBe('');
+  });
+
+  test('falls back to GNU stat when the BSD probe exits zero with nonnumeric output', () => {
+    const pdHome = join(SANDBOX, 'gnu-stat-home');
+    const binDir = join(pdHome, 'bin');
+    const fakeBin = join(pdHome, 'fake-bin');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    mkdirSync(fakeBin, { recursive: true });
+    stageTentacles(SRC, binDir);
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    writeFileSync(join(fakeBin, 'stat'), [
+      '#!/bin/sh',
+      'if [ "$1" = "-f" ]; then printf "not-a-number\\n"; exit 0; fi',
+      'if [ "$1" = "-c" ]; then date +%s; exit 0; fi',
+      'exit 1',
+      '',
+    ].join('\n'), { mode: 0o755 });
+
+    const out = execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+      cwd: REPO,
+      env: { ...process.env, PD_HOME: pdHome, PATH: `${fakeBin}:${process.env.PATH ?? ''}` },
+      input: '{}',
+      encoding: 'utf8',
+    });
+    expect(out).toContain('pd-hook-prompt');
   });
 
   test('reports missing tentacles when the source lacks them', () => {
