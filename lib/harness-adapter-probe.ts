@@ -11,7 +11,7 @@ import {
 import { resolveCliBinary, type CliBinaryResolution } from './cli-bin-dirs.js';
 
 export type HarnessProbeStatus =
-  | 'witnessed'
+  | 'discovered'
   | 'unavailable'
   | 'unverified'
   | 'not-supported';
@@ -34,6 +34,8 @@ export interface HarnessAdapterProbeResult {
 export interface HarnessAdapterProbeReport {
   probedAt: string;
   sideEffectFree: true;
+  evidenceLevel: 'discovery-only';
+  provesCapabilities: false;
   adapters: HarnessAdapterProbeResult[];
   counts: Record<HarnessProbeStatus, number>;
 }
@@ -93,8 +95,8 @@ function helpCheck(
     };
   }
   return {
-    status: 'witnessed',
-    detail: `help output contains ${evidence.join(', ')}`,
+    status: 'discovered',
+    detail: `help advertises ${evidence.join(', ')}; no spawn or model turn was executed`,
     command,
   };
 }
@@ -119,7 +121,7 @@ function transcriptCheck(
   if (!adapter.transcript.root) {
     return {
       status: 'unverified',
-      detail: `${adapter.transcript.owner}:${adapter.transcript.format} has no local root that this probe can witness`,
+      detail: `${adapter.transcript.owner}:${adapter.transcript.format} has no local root that this discovery probe can inspect`,
     };
   }
   const root = expandHome(adapter.transcript.root, homeDir);
@@ -130,8 +132,8 @@ function transcriptCheck(
     };
   }
   return {
-    status: 'witnessed',
-    detail: `transcript root exists: ${root}`,
+    status: 'discovered',
+    detail: `declared transcript root exists: ${root}; contents and format were not validated`,
   };
 }
 
@@ -154,9 +156,10 @@ function groupCatalog(
 }
 
 /**
- * Witness only local mechanics. API credentials, remote health, and an actual
+ * Discover local advertisements and declared paths only. API credentials,
+ * remote health, spawn/resume behavior, transcript semantics, and an actual
  * model turn belong to backend readiness/conformance probes and remain
- * explicitly unverified here.
+ * explicitly unverified here. A discovery result is never capability proof.
  */
 export function probeHarnessAdapters(
   catalog: readonly BackendCatalogEntry[] = BACKEND_CATALOG,
@@ -176,7 +179,7 @@ export function probeHarnessAdapters(
     if (!adapter.probe) {
       spawn = {
         status: 'unverified',
-        detail: `${adapter.spawn.transport} mechanics require a backend readiness or run witness`,
+        detail: `${adapter.spawn.transport} mechanics require a backend readiness or conformance run`,
       };
       resume = adapter.resume.native
         ? { status: 'unverified', detail: `native ${adapter.resume.scope} resume has no side-effect-free help probe` }
@@ -225,7 +228,7 @@ export function probeHarnessAdapters(
   }
 
   const counts: Record<HarnessProbeStatus, number> = {
-    witnessed: 0,
+    discovered: 0,
     unavailable: 0,
     unverified: 0,
     'not-supported': 0,
@@ -239,6 +242,8 @@ export function probeHarnessAdapters(
   return {
     probedAt: (options.now ?? (() => new Date()))().toISOString(),
     sideEffectFree: true,
+    evidenceLevel: 'discovery-only',
+    provesCapabilities: false,
     adapters,
     counts,
   };

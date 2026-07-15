@@ -74,20 +74,24 @@ renderer used by `pd backend adapters`.
 | custom-command | custom | custom-command | handoff-only | initial prompt | none | port-daddy:custom | custom | Capabilities are operator-declared and remain unverified until a concrete adapter probe exists. |
 <!-- END GENERATED HARNESS ADAPTER TABLE -->
 
-## Witnessing
+## Discovery Probe
 
 `pd backend adapters --probe` is deliberately side-effect-free. It may:
 
 1. resolve a declared executable using the same augmented CLI search path as
    backend readiness;
 2. invoke help commands with a five-second timeout;
-3. require declared spawn/resume evidence in help output; and
+3. locate declared spawn/resume flag advertisements in help output; and
 4. check whether an observed transcript root exists.
 
-It never sends a model prompt, tests credentials, or claims remote health.
-Results are `witnessed`, `unavailable`, `unverified`, or `not-supported`.
-Provider readiness and end-to-end continuation belong to higher conformance
-levels; static catalog claims alone never earn them.
+It never sends a model prompt, tests credentials, exercises spawn or resume,
+parses transcript contents, or claims remote health. Results are `discovered`,
+`unavailable`, `unverified`, or `not-supported`. `discovered` means only that a
+binary advertises expected help tokens or a declared path exists. The JSON
+report says `evidenceLevel: "discovery-only"` and `provesCapabilities: false` so
+consumers cannot mistake this inventory for conformance. Provider readiness and
+end-to-end continuation belong to higher conformance levels; help text and path
+presence never earn them.
 
 ## Security and Privacy
 

@@ -16,7 +16,7 @@
  *   pd backend use <name>            emit shell export for PD_USE_CLI_BACKEND
  *                                    (only meaningful for cli:claude-code / cli:codex)
  *   pd backend cost [--today|--week|--month]   spend rollup by backend
- *   pd backend adapters [--probe]    N:N portability contract + local witness
+ *   pd backend adapters [--probe]    N:N portability contract + local discovery
  *
  * `backend use` prints an `export PD_USE_CLI_BACKEND=<value>` line to stdout
  * intended to be evaluated by the shell. It also writes the value to
@@ -129,7 +129,7 @@ function offlineCatalogFallback(): FleetModelsResponse {
 
 function probeBadge(status: HarnessProbeStatus): string {
   switch (status) {
-    case 'witnessed': return '● witnessed';
+    case 'discovered': return '◐ discovered';
     case 'unavailable': return '○ unavailable';
     case 'not-supported': return '— handoff';
     case 'unverified': return '? unverified';
@@ -151,13 +151,13 @@ async function adaptersCommand(options: CLIOptions): Promise<void> {
 
   if (!probe) {
     console.log('');
-    ui.info('Run `pd backend adapters --probe` to witness local binaries, help surfaces, and transcript roots.');
+    ui.info('Run `pd backend adapters --probe` to discover local binaries, advertised flags, and declared transcript roots.');
     console.log('');
     return;
   }
 
   console.log('');
-  ui.info('Side-effect-free local witness — no model calls');
+  ui.info('Discovery only — this does not prove spawn, resume, or transcript conformance');
   console.log('');
   for (const adapter of probe.adapters) {
     console.log(`  ${adapter.family}`);
@@ -462,7 +462,7 @@ function printHelp(): void {
   console.log('  pd backend cost --since 12h    Custom window');
   console.log('');
   console.log('  pd backend adapters            Show the generated N:N harness contract');
-  console.log('  pd backend adapters --probe    Witness local mechanics without a model call');
+  console.log('  pd backend adapters --probe    Discover local adapter advertisements without a model call');
   console.log('  pd backend adapters --json     Machine-readable contract and probe report');
   console.log('');
   console.log('Activate a choice in your shell:');

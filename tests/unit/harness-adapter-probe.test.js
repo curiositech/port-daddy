@@ -31,7 +31,7 @@ function catalogEntry(adapter) {
   };
 }
 
-test('witnesses spawn, resume, and transcript mechanics through a real child process', () => {
+test('discovers advertised CLI flags and path presence without claiming conformance', () => {
   const home = tempDir();
   const transcriptRoot = join(home, 'sessions');
   const fixture = join(home, 'help-fixture.mjs');
@@ -80,15 +80,20 @@ test('witnesses spawn, resume, and transcript mechanics through a real child pro
   expect(report).toMatchObject({
     probedAt: '2026-07-15T00:00:00.000Z',
     sideEffectFree: true,
+    evidenceLevel: 'discovery-only',
+    provesCapabilities: false,
     adapters: [{
       family: 'fixture-cli',
       executablePath: process.execPath,
-      spawn: { status: 'witnessed' },
-      resume: { status: 'witnessed' },
-      transcript: { status: 'witnessed' },
+      spawn: { status: 'discovered' },
+      resume: { status: 'discovered' },
+      transcript: { status: 'discovered' },
     }],
   });
-  expect(report.counts.witnessed).toBe(3);
+  expect(report.counts.discovered).toBe(3);
+  expect(report.adapters[0].spawn.detail).toContain('no spawn or model turn was executed');
+  expect(report.adapters[0].transcript.detail).toContain('contents and format were not validated');
+  expect(JSON.stringify(report)).not.toContain('witnessed');
 });
 
 test('fails honestly when a declared executable is unavailable', () => {
