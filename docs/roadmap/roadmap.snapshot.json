@@ -2,7 +2,7 @@
   "generatedAt": 1784079396380,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 201,
+  "count": 213,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -1008,6 +1008,66 @@
       "slug": "model-abstraction-audit",
       "status": "backlog",
       "summaryMd": "ADR-0057: unify all model/backend selection to declarative (handle, tier) resolved once via lib/model-registry.ts resolveModel(). PR #2477 fixes the model-abstraction audit (wf_e15eef22) findings: collapsed anthropic/claude/claude-cli duplicate tables, ollama/lmstudio registry entries, single backend-id source, regenerated Rust console model-tiers.json, fixed Rust keyword-substring vendor-color classifiers, broadened the no-hardcoded-model-ids guard."
+    },
+    {
+      "slug": "adr-0116-fleet-monetization",
+      "status": "now",
+      "summaryMd": "ADR-0116 fleet monetization: managed-primary Stripe prepaid credits (positive float) + BYOK-secondary; usage/per-review pricing; complexity-escalation routing; transparency-moat positioning."
+    },
+    {
+      "slug": "adr-0117-fleet-v2-execution",
+      "status": "now",
+      "summaryMd": "ADR-0117 Fleet v2: AI Gateway cost observability + Cloudflare Sandbox execution ships + adversarial prosecutor test-writer (falsify PR objective) + remediation loop."
+    },
+    {
+      "slug": "fleet-ai-gateway-cost-observability",
+      "status": "now",
+      "summaryMd": "Route fleet inference through Cloudflare AI Gateway for per-request token/cost logging."
+    },
+    {
+      "slug": "fleet-run-spend-recording",
+      "status": "now",
+      "summaryMd": "Persist per-run/per-ship tokens+cost to fleet_run_spend."
+    },
+    {
+      "slug": "fleet-stripe-billing-layer",
+      "status": "now",
+      "summaryMd": "Relay Stripe prepaid-credits layer: credit_ledger + Checkout + signed webhook + balance/portal."
+    },
+    {
+      "slug": "fleet-spend-circuit-breaker",
+      "status": "now",
+      "summaryMd": "Per-installation pre-spend balance gate = abuse gate + billing draw-down; fail-open until billing configured."
+    },
+    {
+      "slug": "fleet-complexity-escalation-routing",
+      "status": "backlog",
+      "summaryMd": "Confidence/complexity model cascade: start cheap, escalate on low-confidence/high-risk/large-diff."
+    },
+    {
+      "slug": "fleet-v2-sandbox-threat-model",
+      "status": "backlog",
+      "summaryMd": "Threat-model sandboxed execution of untrusted PR code before any exec ship."
+    },
+    {
+      "slug": "fleet-v2-sandbox-execution",
+      "status": "backlog",
+      "summaryMd": "Cloudflare Sandbox SDK execution path for needsExecution ships (premium tier)."
+    },
+    {
+      "slug": "fleet-v2-adversarial-prosecutor",
+      "status": "backlog",
+      "summaryMd": "Prosecutor ship: write+run tests to falsify the PR's stated objective, post red evidence."
+    },
+    {
+      "slug": "fleet-v2-remediation-loop",
+      "status": "backlog",
+      "summaryMd": "Closed loop: falsify -> red -> refactor + logging -> return green."
+    },
+    {
+      "slug": "pd-roadmap-dependency-write-path",
+      "status": "backlog",
+      "summaryMd": "Add CLI/UI write path for roadmap dependencies[] + blocked status + the Track-B Vello Gantt (model supports them; CLI cannot set them)."
     }
   ]
 }
