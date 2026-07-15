@@ -128,6 +128,28 @@ describe('sanitizeHandoffCapsule', () => {
     expect(reduced.operatorTurns).toEqual(full.operatorTurns);
   });
 
+  test('budgets a dense transcript tail without discarding artifacts or operator turns', () => {
+    const input = capsule({
+      tail: Array.from({ length: 2_000 }, (_, index) => ({
+        id: `tail-${index}`,
+        at: null,
+        role: 'assistant',
+        text: `tail context ${index} ${'x'.repeat(96)}`,
+      })),
+    });
+    const full = sanitizeHandoffCapsule(input, { gitleaksRunner: cleanRunner });
+    const reduced = sanitizeHandoffCapsule(input, {
+      tokenBudget: full.budget.estimatedTokens - 5_000,
+      gitleaksRunner: cleanRunner,
+    });
+
+    expect(reduced.budget.estimatedTokens).toBeLessThanOrEqual(reduced.budget.requestedTokens);
+    expect(reduced.budget.omitted.tail).toBeGreaterThan(0);
+    expect(reduced.budget.omitted.artifacts).toBe(0);
+    expect(reduced.artifacts).toEqual(full.artifacts);
+    expect(reduced.operatorTurns).toEqual(full.operatorTurns);
+  });
+
   test('refuses an impossible budget instead of dropping operator context', () => {
     const input = capsule({
       operatorTurns: [{ id: 'op-long', at: null, text: 'operator truth '.repeat(1_000) }],
@@ -145,6 +167,25 @@ describe('sanitizeHandoffCapsule', () => {
     delete input.source.sessionId;
     expect(() => sanitizeHandoffCapsule(input, { gitleaksRunner: cleanRunner }))
       .toThrow(HandoffValidationError);
+  });
+
+  test('rejects oversized capsules before invoking either secret scanner', () => {
+    let scannerInvoked = false;
+    const input = capsule({ ignoredProviderPayload: 'x'.repeat(2 * 1024 * 1024) });
+
+    expect(() => sanitizeHandoffCapsule(input, {
+      gitleaksRunner: () => {
+        scannerInvoked = true;
+        return { findings: [] };
+      },
+    })).toThrow(HandoffValidationError);
+    expect(scannerInvoked).toBe(false);
+  });
+
+  test('enforces bounded durable summaries inside an otherwise small capsule', () => {
+    expect(() => sanitizeHandoffCapsule(capsule({ telos: 'x'.repeat(128 * 1024 + 1) }), {
+      gitleaksRunner: cleanRunner,
+    })).toThrow(HandoffValidationError);
   });
 });
 

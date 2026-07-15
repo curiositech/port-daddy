@@ -91,6 +91,7 @@ describe('POST /memory/handoffs', () => {
     expect(JSON.stringify(body)).not.toContain(secret);
     expect(body.harvest).toEqual({
       attempted: true,
+      success: true,
       episodeIds: [41],
       skipped: 1,
       promoted: 1,
@@ -113,6 +114,65 @@ describe('POST /memory/handoffs', () => {
     }));
     expect(JSON.stringify(episodes[0].metadata)).not.toContain(secret);
     expect(episodes[0].metadata.capsule.operatorTurns[0].text).toBe('Preserve this operator turn.');
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('persists the sanitized handoff when coordination harvest fails', async () => {
+    const state = await buildApp({
+      harvestSessionFn: jest.fn(async () => {
+        throw new Error('transient harvest failure');
+      }),
+    });
+    const response = await state.app.inject({
+      method: 'POST',
+      url: '/memory/handoffs',
+      payload: {
+        capsule: capsule(),
+        coordinationSessionId: 'pd-session-transient',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual(expect.objectContaining({
+      success: true,
+      harvest: {
+        attempted: true,
+        success: false,
+        error: 'session harvest unavailable',
+      },
+    }));
+    expect(state.episodicMemory.list({ episodeType: 'handoff' })).toHaveLength(1);
+    expect(state.metrics.errors).toBe(1);
+    expect(state.logger.error).toHaveBeenCalledWith(
+      'memory_handoff_harvest_failed',
+      { errorType: 'Error' },
+    );
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('persists the sanitized handoff when the harvest database is unavailable', async () => {
+    const state = await buildApp({ db: undefined });
+    const response = await state.app.inject({
+      method: 'POST',
+      url: '/memory/handoffs',
+      payload: {
+        capsule: capsule(),
+        coordinationSessionId: 'pd-session-no-db',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().harvest).toEqual({
+      attempted: true,
+      success: false,
+      error: 'session harvest unavailable',
+    });
+    expect(state.episodicMemory.list({ episodeType: 'handoff' })).toHaveLength(1);
+    expect(state.metrics.errors).toBe(1);
 
     await state.app.close();
     state.db.close();
@@ -245,6 +305,56 @@ describe('POST /memory/handoffs', () => {
     });
 
     expect(response.statusCode).toBe(400);
+    expect(state.gitleaksRunner).not.toHaveBeenCalled();
+    expect(state.episodicMemory.list()).toHaveLength(0);
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('rejects invalid coordination provenance before scanning or persistence', async () => {
+    const state = await buildApp();
+    const response = await state.app.inject({
+      method: 'POST',
+      url: '/memory/handoffs',
+      payload: { capsule: capsule(), coordinationSessionId: '   ' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(state.gitleaksRunner).not.toHaveBeenCalled();
+    expect(state.episodicMemory.list()).toHaveLength(0);
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('rejects oversized coordination ids before scanning or persistence', async () => {
+    const state = await buildApp();
+    const response = await state.app.inject({
+      method: 'POST',
+      url: '/memory/handoffs',
+      payload: { capsule: capsule(), coordinationSessionId: 'x'.repeat(1_025) },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(state.gitleaksRunner).not.toHaveBeenCalled();
+    expect(state.episodicMemory.list()).toHaveLength(0);
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('rejects request bodies above the two MiB boundary before scanning', async () => {
+    const state = await buildApp();
+    const response = await state.app.inject({
+      method: 'POST',
+      url: '/memory/handoffs',
+      payload: {
+        capsule: capsule({ ignoredProviderPayload: 'x'.repeat(2 * 1024 * 1024) }),
+      },
+    });
+
+    expect(response.statusCode).toBe(413);
     expect(state.gitleaksRunner).not.toHaveBeenCalled();
     expect(state.episodicMemory.list()).toHaveLength(0);
 

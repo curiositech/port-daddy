@@ -2,7 +2,8 @@
  * Agent Harbor v0 contract freeze tests — ADR-0095 (binder ch18 Work Order F0),
  * extended by the ADR-0096 M5 F0-delta (GuidanceEnvelope + forged-guidance) and
  * the ADR-0097 M6 F0-delta (CompactionPacket, MemoryEpisode,
- * TranscriptSearchQuery/Result, and the read-only BlackboardItem).
+ * TranscriptSearchQuery/Result, and the read-only BlackboardItem), and the
+ * ADR-0028 backend-neutral HandoffCapsule continuation boundary.
  *
  * Locks three things:
  *   1. Every schema in schemas/agent-harbor/v0/ parses and COMPILES — the
@@ -72,6 +73,7 @@ const SCHEMA_NAMES = [
   'skill-graft',
   'work-receipt',
   'guidance-envelope',
+  'handoff-capsule',
   'compaction-packet',
   'memory-episode',
   'transcript-search-query',
@@ -216,7 +218,7 @@ function loadFixture(name) {
 // ---------------------------------------------------------------------------
 
 describe('agent-harbor v0 schema package', () => {
-  it('ships exactly the twenty-one frozen contracts (plus fixtures) — F0, Surface Gateway, the ADR-0096 GuidanceEnvelope, and the five ADR-0097 M6 contracts', () => {
+  it('ships exactly the twenty-two frozen contracts plus fixtures', () => {
     const files = readdirSync(schemaDir).filter((f) => f.endsWith('.schema.json')).sort();
     expect(files).toEqual(SCHEMA_NAMES.map((n) => `${n}.schema.json`).sort());
   });
@@ -229,12 +231,16 @@ describe('agent-harbor v0 schema package', () => {
         expect(() => compile(schema)).not.toThrow();
       });
 
-      it('carries $id, $schema, title, and tolerant-reader posture', () => {
+      it('carries $id, $schema, title, and its declared reader posture', () => {
         expect(schema.$id).toBe(`https://portdaddy.dev/schemas/agent-harbor/v0/${name}.schema.json`);
         expect(schema.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
         expect(typeof schema.title).toBe('string');
-        // Tolerant reader (ADR-0095 §6): unknown fields must be tolerated.
-        expect(schema.additionalProperties).toBe(true);
+        if (name === 'handoff-capsule') {
+          expect(schema.additionalProperties).toBe(false);
+        } else {
+          // Tolerant reader (ADR-0095 §6): ordinary interop contracts accept future fields.
+          expect(schema.additionalProperties).toBe(true);
+        }
       });
 
       it('self-identifies its version', () => {
@@ -253,9 +259,13 @@ describe('agent-harbor v0 schema package', () => {
         expect(errors).toEqual([]);
       });
 
-      it('tolerates unknown extra fields on the fixture (tolerant reader)', () => {
+      it('enforces its declared unknown-field posture', () => {
         const extended = { ...loadFixture(name), xFutureField: { anything: true } };
-        expect(validate(schema, extended)).toEqual([]);
+        if (name === 'handoff-capsule') {
+          expect(validate(schema, extended).some((error) => error.includes('unexpected property'))).toBe(true);
+        } else {
+          expect(validate(schema, extended)).toEqual([]);
+        }
       });
 
       it('rejects a fixture missing a required field', () => {

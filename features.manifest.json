@@ -1742,14 +1742,15 @@
       }
     },
     "memory": {
-      "description": "Episodic memory entries and aggregate memory stats promoted from sessions and spawned runs",
+      "description": "Episodic memory entries, aggregate memory stats, and sanitized backend-neutral continuation handoffs",
       "cli": [
         "memory"
       ],
       "sdk": [],
       "routes": [
         "GET /memory/episodes",
-        "GET /memory/stats"
+        "GET /memory/stats",
+        "POST /memory/handoffs"
       ],
       "completions": [
         "memory"

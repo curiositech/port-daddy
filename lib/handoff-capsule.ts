@@ -8,6 +8,13 @@ export const HANDOFF_CAPSULE_SCHEMA = 'pd.agent-harbor.handoff-capsule.v0' as co
 
 const MAX_ITEMS = 5_000;
 const MAX_TOKEN_BUDGET = 200_000;
+const MAX_INPUT_BYTES = 2 * 1024 * 1024;
+const MAX_ID_BYTES = 1_024;
+const MAX_PATH_BYTES = 32 * 1024;
+const MAX_TEXT_BYTES = 1024 * 1024;
+const MAX_SUMMARY_BYTES = 128 * 1024;
+const MAX_TIMESTAMP_BYTES = 128;
+const MAX_KIND_BYTES = 128;
 const HASH_PLACEHOLDER = '0'.repeat(64);
 
 export interface HandoffTextItem {
@@ -151,20 +158,23 @@ function record(value: unknown, field: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function requiredString(value: unknown, field: string): string {
+function requiredString(value: unknown, field: string, maxBytes = MAX_TEXT_BYTES): string {
   if (typeof value !== 'string' || value.trim().length === 0) {
     throw new HandoffValidationError(`${field} must be a non-empty string`);
+  }
+  if (Buffer.byteLength(value, 'utf8') > maxBytes) {
+    throw new HandoffValidationError(`${field} exceeds ${maxBytes} bytes`);
   }
   return value;
 }
 
-function optionalString(value: unknown, field: string): string | null {
+function optionalString(value: unknown, field: string, maxBytes = MAX_TEXT_BYTES): string | null {
   if (value === undefined || value === null) return null;
-  return requiredString(value, field);
+  return requiredString(value, field, maxBytes);
 }
 
 function isoString(value: unknown, field: string): string | null {
-  const text = optionalString(value, field);
+  const text = optionalString(value, field, MAX_TIMESTAMP_BYTES);
   if (text === null) return null;
   if (!Number.isFinite(Date.parse(text))) {
     throw new HandoffValidationError(`${field} must be an ISO timestamp`);
@@ -198,20 +208,29 @@ function textItems(value: unknown, field: string, required = false): HandoffText
   return array(value, field, required).map((item, index) => {
     const row = record(item, `${field}[${index}]`);
     return {
-      id: optionalString(row.id, `${field}[${index}].id`) ?? `${field}-${index + 1}`,
+      id: optionalString(row.id, `${field}[${index}].id`, MAX_ID_BYTES) ?? `${field}-${index + 1}`,
       at: isoString(row.at, `${field}[${index}].at`),
-      text: requiredString(row.text, `${field}[${index}].text`),
+      text: requiredString(row.text, `${field}[${index}].text`, MAX_TEXT_BYTES),
     };
   });
 }
 
 function normalizeInput(input: unknown): HandoffCapsuleV0 {
   const root = record(input, 'capsule');
+  let inputBytes: number;
+  try {
+    inputBytes = Buffer.byteLength(JSON.stringify(root), 'utf8');
+  } catch {
+    throw new HandoffValidationError('capsule must be JSON-serializable');
+  }
+  if (inputBytes > MAX_INPUT_BYTES) {
+    throw new HandoffValidationError(`capsule exceeds ${MAX_INPUT_BYTES} bytes`);
+  }
   if (root.schema !== undefined && root.schema !== HANDOFF_CAPSULE_SCHEMA) {
     throw new HandoffValidationError(`schema must be ${HANDOFF_CAPSULE_SCHEMA}`);
   }
 
-  const capturedAt = requiredString(root.capturedAt, 'capturedAt');
+  const capturedAt = requiredString(root.capturedAt, 'capturedAt', MAX_TIMESTAMP_BYTES);
   if (!Number.isFinite(Date.parse(capturedAt))) {
     throw new HandoffValidationError('capturedAt must be an ISO timestamp');
   }
@@ -224,15 +243,15 @@ function normalizeInput(input: unknown): HandoffCapsuleV0 {
     : record(root.target, 'target');
 
   const dirtyFiles = array(workspace.dirtyFiles, 'workspace.dirtyFiles').map((item, index) =>
-    requiredString(item, `workspace.dirtyFiles[${index}]`),
+    requiredString(item, `workspace.dirtyFiles[${index}]`, MAX_PATH_BYTES),
   );
 
   const decisions = array(root.decisions, 'decisions').map((item, index) => {
     const row = record(item, `decisions[${index}]`);
     return {
-      id: optionalString(row.id, `decisions[${index}].id`) ?? `decision-${index + 1}`,
+      id: optionalString(row.id, `decisions[${index}].id`, MAX_ID_BYTES) ?? `decision-${index + 1}`,
       at: isoString(row.at, `decisions[${index}].at`),
-      text: requiredString(row.text, `decisions[${index}].text`),
+      text: requiredString(row.text, `decisions[${index}].text`, MAX_SUMMARY_BYTES),
       source: enumValue(row.source ?? 'agent', `decisions[${index}].source`, [
         'operator',
         'agent',
@@ -244,9 +263,9 @@ function normalizeInput(input: unknown): HandoffCapsuleV0 {
   const coordination = array(root.coordination, 'coordination').map((item, index) => {
     const row = record(item, `coordination[${index}]`);
     return {
-      id: optionalString(row.id, `coordination[${index}].id`) ?? `coordination-${index + 1}`,
+      id: optionalString(row.id, `coordination[${index}].id`, MAX_ID_BYTES) ?? `coordination-${index + 1}`,
       at: isoString(row.at, `coordination[${index}].at`),
-      text: requiredString(row.text, `coordination[${index}].text`),
+      text: requiredString(row.text, `coordination[${index}].text`, MAX_SUMMARY_BYTES),
       kind: enumValue(row.kind ?? 'note', `coordination[${index}].kind`, [
         'scope',
         'result',
@@ -259,19 +278,19 @@ function normalizeInput(input: unknown): HandoffCapsuleV0 {
   const artifacts = array(root.artifacts, 'artifacts').map((item, index) => {
     const row = record(item, `artifacts[${index}]`);
     return {
-      path: requiredString(row.path, `artifacts[${index}].path`),
-      kind: optionalString(row.kind, `artifacts[${index}].kind`),
-      summary: optionalString(row.summary, `artifacts[${index}].summary`),
-      sourceBlockId: optionalString(row.sourceBlockId, `artifacts[${index}].sourceBlockId`),
+      path: requiredString(row.path, `artifacts[${index}].path`, MAX_PATH_BYTES),
+      kind: optionalString(row.kind, `artifacts[${index}].kind`, MAX_KIND_BYTES),
+      summary: optionalString(row.summary, `artifacts[${index}].summary`, MAX_SUMMARY_BYTES),
+      sourceBlockId: optionalString(row.sourceBlockId, `artifacts[${index}].sourceBlockId`, MAX_ID_BYTES),
     };
   });
 
   const tail = array(root.tail, 'tail').map((item, index) => {
     const row = record(item, `tail[${index}]`);
     return {
-      id: optionalString(row.id, `tail[${index}].id`) ?? `tail-${index + 1}`,
+      id: optionalString(row.id, `tail[${index}].id`, MAX_ID_BYTES) ?? `tail-${index + 1}`,
       at: isoString(row.at, `tail[${index}].at`),
-      text: requiredString(row.text, `tail[${index}].text`),
+      text: requiredString(row.text, `tail[${index}].text`, MAX_TEXT_BYTES),
       role: enumValue(row.role, `tail[${index}].role`, [
         'operator',
         'assistant',
@@ -283,35 +302,35 @@ function normalizeInput(input: unknown): HandoffCapsuleV0 {
 
   return {
     schema: HANDOFF_CAPSULE_SCHEMA,
-    capsuleId: requiredString(root.capsuleId, 'capsuleId'),
+    capsuleId: requiredString(root.capsuleId, 'capsuleId', MAX_ID_BYTES),
     capturedAt,
     source: {
-      adapter: requiredString(source.adapter, 'source.adapter'),
-      sessionId: requiredString(source.sessionId, 'source.sessionId'),
-      agentId: optionalString(source.agentId, 'source.agentId'),
-      workflowId: optionalString(source.workflowId, 'source.workflowId'),
-      transcriptRef: optionalString(source.transcriptRef, 'source.transcriptRef'),
+      adapter: requiredString(source.adapter, 'source.adapter', MAX_ID_BYTES),
+      sessionId: requiredString(source.sessionId, 'source.sessionId', MAX_ID_BYTES),
+      agentId: optionalString(source.agentId, 'source.agentId', MAX_ID_BYTES),
+      workflowId: optionalString(source.workflowId, 'source.workflowId', MAX_ID_BYTES),
+      transcriptRef: optionalString(source.transcriptRef, 'source.transcriptRef', MAX_PATH_BYTES),
     },
     target: target
       ? {
-          adapter: optionalString(target.adapter, 'target.adapter'),
-          agentId: optionalString(target.agentId, 'target.agentId'),
+          adapter: optionalString(target.adapter, 'target.adapter', MAX_ID_BYTES),
+          agentId: optionalString(target.agentId, 'target.agentId', MAX_ID_BYTES),
         }
       : null,
     identity: {
-      project: optionalString(identity.project, 'identity.project'),
-      projectDir: optionalString(identity.projectDir, 'identity.projectDir'),
-      harbor: optionalString(identity.harbor, 'identity.harbor'),
+      project: optionalString(identity.project, 'identity.project', MAX_ID_BYTES),
+      projectDir: optionalString(identity.projectDir, 'identity.projectDir', MAX_PATH_BYTES),
+      harbor: optionalString(identity.harbor, 'identity.harbor', MAX_ID_BYTES),
     },
     workspace: {
-      cwd: optionalString(workspace.cwd, 'workspace.cwd'),
-      repoRoot: optionalString(workspace.repoRoot, 'workspace.repoRoot'),
-      branch: optionalString(workspace.branch, 'workspace.branch'),
-      worktreeId: optionalString(workspace.worktreeId, 'workspace.worktreeId'),
-      gitHead: optionalString(workspace.gitHead, 'workspace.gitHead'),
+      cwd: optionalString(workspace.cwd, 'workspace.cwd', MAX_PATH_BYTES),
+      repoRoot: optionalString(workspace.repoRoot, 'workspace.repoRoot', MAX_PATH_BYTES),
+      branch: optionalString(workspace.branch, 'workspace.branch', MAX_PATH_BYTES),
+      worktreeId: optionalString(workspace.worktreeId, 'workspace.worktreeId', MAX_ID_BYTES),
+      gitHead: optionalString(workspace.gitHead, 'workspace.gitHead', MAX_ID_BYTES),
       dirtyFiles,
     },
-    telos: requiredString(root.telos, 'telos'),
+    telos: requiredString(root.telos, 'telos', MAX_SUMMARY_BYTES),
     operatorTurns: textItems(root.operatorTurns, 'operatorTurns', true),
     decisions,
     coordination,
@@ -370,6 +389,70 @@ function settleEstimate(capsule: HandoffCapsuleV0): number {
   return estimate;
 }
 
+function trimTailToBudget(capsule: HandoffCapsuleV0, tokenBudget: number): boolean {
+  const original = capsule.tail;
+  const baseOmitted = capsule.budget.omitted.tail;
+  let low = 1;
+  let high = original.length;
+  let fittingOmission: number | null = null;
+
+  while (low <= high) {
+    const omitted = Math.floor((low + high) / 2);
+    capsule.tail = original.slice(omitted);
+    capsule.budget.omitted.tail = baseOmitted + omitted;
+    if (settleEstimate(capsule) <= tokenBudget) {
+      fittingOmission = omitted;
+      high = omitted - 1;
+    } else {
+      low = omitted + 1;
+    }
+  }
+
+  if (fittingOmission !== null) {
+    capsule.tail = original.slice(fittingOmission);
+    capsule.budget.omitted.tail = baseOmitted + fittingOmission;
+    settleEstimate(capsule);
+    return true;
+  }
+
+  capsule.tail = [];
+  capsule.budget.omitted.tail = baseOmitted + original.length;
+  settleEstimate(capsule);
+  return false;
+}
+
+function trimArtifactsToBudget(capsule: HandoffCapsuleV0, tokenBudget: number): boolean {
+  const original = capsule.artifacts;
+  const baseOmitted = capsule.budget.omitted.artifacts;
+  let low = 1;
+  let high = original.length;
+  let fittingOmission: number | null = null;
+
+  while (low <= high) {
+    const omitted = Math.floor((low + high) / 2);
+    capsule.artifacts = original.slice(0, original.length - omitted);
+    capsule.budget.omitted.artifacts = baseOmitted + omitted;
+    if (settleEstimate(capsule) <= tokenBudget) {
+      fittingOmission = omitted;
+      high = omitted - 1;
+    } else {
+      low = omitted + 1;
+    }
+  }
+
+  if (fittingOmission !== null) {
+    capsule.artifacts = original.slice(0, original.length - fittingOmission);
+    capsule.budget.omitted.artifacts = baseOmitted + fittingOmission;
+    settleEstimate(capsule);
+    return true;
+  }
+
+  capsule.artifacts = [];
+  capsule.budget.omitted.artifacts = baseOmitted + original.length;
+  settleEstimate(capsule);
+  return false;
+}
+
 function applyBudget(capsule: HandoffCapsuleV0, tokenBudget?: number): void {
   if (tokenBudget === undefined) {
     settleEstimate(capsule);
@@ -380,19 +463,10 @@ function applyBudget(capsule: HandoffCapsuleV0, tokenBudget?: number): void {
   }
   capsule.budget.requestedTokens = tokenBudget;
 
-  while (settleEstimate(capsule) > tokenBudget) {
-    if (capsule.tail.length > 0) {
-      capsule.tail.shift();
-      capsule.budget.omitted.tail++;
-      continue;
-    }
-    if (capsule.artifacts.length > 0) {
-      capsule.artifacts.pop();
-      capsule.budget.omitted.artifacts++;
-      continue;
-    }
-    throw new HandoffBudgetError(tokenBudget, settleEstimate(capsule));
-  }
+  if (settleEstimate(capsule) <= tokenBudget) return;
+  if (capsule.tail.length > 0 && trimTailToBudget(capsule, tokenBudget)) return;
+  if (capsule.artifacts.length > 0 && trimArtifactsToBudget(capsule, tokenBudget)) return;
+  throw new HandoffBudgetError(tokenBudget, settleEstimate(capsule));
 }
 
 function parseGitleaksReport(stdout: string): HandoffScanFinding[] {
