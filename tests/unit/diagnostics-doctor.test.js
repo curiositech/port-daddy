@@ -21,6 +21,7 @@ import {
   readRecentMacDiagnosticCrashReports,
   assessMacDiagnosticCrashReports,
 } from '../../cli/commands/diagnostics.js';
+import { resolveDistributionRoot } from '../../shared/daemon-binary.js';
 
 describe('plistTargetsLegacyDaemon', () => {
   // Why: existing installs from the tsx-server.ts era keep a stale plist
@@ -672,6 +673,44 @@ describe('resolveBosunBinary', () => {
     const r = resolveBosunBinary('/nonexistent/port-daddy-root');
     expect(r.exists).toBe(false);
     expect(r.binaryPath).toContain('pd-bosun');
+  });
+
+  // Regression (found live during the v3.25.1/3.25.2 brew rollout, 2026-07-15):
+  // `pd doctor`'s Bosun check fed resolveBosunBinary() a naive
+  // `join(__dirname, '..', '..')` libDir, which is a bun:// virtual path for a
+  // compiled binary and never exists on disk — so `pd doctor` always reported
+  // "pd-bosun binary not built" for every packaged/Homebrew install, even one
+  // where Bosun was genuinely installed, loaded, and healthy (confirmed via
+  // `pd-bosun status` and `launchctl list` on the operator's machine). The fix
+  // routes the same libDir through resolveDistributionRoot() first — exactly
+  // what describeResourceDir() already does for the identical reason.
+  test('resolveDistributionRoot recovers the real install root from a bun virtual moduleDir, so the binary is found', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'pd-bosun-doctor-'));
+    try {
+      writeFileSync(join(tmp, 'pd-bosun'), '#!/bin/sh\necho stub\n');
+      chmodSync(join(tmp, 'pd-bosun'), 0o755);
+
+      // Naive join(__dirname, '..', '..') on a bun:// virtual moduleDir —
+      // this is what the doctor check used to pass directly to
+      // resolveBosunBinary(), and it can never resolve to a real path.
+      const naiveLibDir = join('/$bunfs/root/cli/commands', '..', '..');
+      const naive = resolveBosunBinary(naiveLibDir);
+      expect(naive.exists).toBe(false);
+
+      // resolveDistributionRoot() recovers the real root from execPath for an
+      // "unconventional layout" binary (neither dist/daemon/ nor dist/) —
+      // exactly the shape of a Homebrew Cellar bin/ directory.
+      const resolvedRoot = resolveDistributionRoot(
+        '/$bunfs/root/cli/commands',
+        {},
+        join(tmp, 'port-daddy'),
+      );
+      const fixed = resolveBosunBinary(resolvedRoot);
+      expect(fixed.exists).toBe(true);
+      expect(fixed.binaryPath).toBe(join(tmp, 'pd-bosun'));
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });
 
