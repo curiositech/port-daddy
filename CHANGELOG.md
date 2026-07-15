@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.25.2] - 2026-07-15
+
+### Fixed
+- **`port-daddy install-bosun` actually succeeds when the Homebrew formula's `post_install` calls it (found live during the v3.25.1 rollout).** `install-bosun` (new in 3.25.1) was missing from `FRESHNESS_SKIP_COMMANDS` — unlike `install`/`uninstall`/`start`/`stop`/`restart`, which are already skip-listed for exactly this reason. The CLI's daemon-freshness probe ran for it, detected the still-live-but-stale-code daemon left over from the in-flight upgrade, and attempted its normal auto-restart-via-`tsx` recovery path — which doesn't exist in a packaged brew install — tripping the top-level "daemon unreachable" handler and making the whole `install-bosun` invocation report failure even though the actual (network-free) watchdog-wiring logic had already completed. `install-bosun` is now in the skip list alongside its daemon-lifecycle siblings, with a regression test (`tests/unit/cli-freshness.test.js`) locking it in.
+
 ## [3.25.1] - 2026-07-15
 
 ### Fixed
