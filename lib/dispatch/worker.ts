@@ -240,8 +240,10 @@ export class DispatchWorker {
    * the adapter starts. Returns null if nothing is claimable.
    */
   private claimOne(): Dispatch | null {
-    // Peek the next proposed to derive its worktree path/branch for the claim.
-    const peeked = this.queue.list({ state: 'proposed', limit: 1 })[0];
+    // Use the queue's canonical oldest-row selector, then atomically claim that
+    // exact id. Deriving paths from list() and calling nextProposed() could pair
+    // metadata from one row with another row when their ordering differed.
+    const peeked = this.queue.peekNextProposed();
     if (!peeked) return null;
     if (!this.workIntentService) {
       this.logger.error('dispatch_worker_missing_work_intent_service', { dispatchId: peeked.id });
@@ -259,15 +261,30 @@ export class DispatchWorker {
     const worktreePath = deriveWorktreePath(peeked.id);
     // deriveBranchName is what planRunFor uses; mirror it here for the claim row.
     const branch = `dispatch/${peeked.slug}-${peeked.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'noid'}`;
-    // nextProposed is the atomic gate: UPDATE…WHERE state='proposed'. If another
-    // claimer (or another daemon) grabbed it between peek and claim, this returns
-    // null and we simply try again next tick.
-    return this.queue.nextProposed({
-      worktreePath,
-      branch,
-      sessionId: `dispatch-worker-${peeked.id}`,
-      workerActorId: 'daemon:dispatch-worker',
-    });
+    try {
+      const claimed = this.queue.claimProposed({
+        id: peeked.id,
+        worktreePath,
+        branch,
+        sessionId: `dispatch-worker-${peeked.id}`,
+        workerActorId: 'daemon:dispatch-worker',
+      });
+      if (!claimed) {
+        this.logger.info('dispatch_worker_claim_raced', {
+          dispatchId: peeked.id,
+          error: `claim: failed to claim dispatch ${peeked.id}`,
+        });
+      }
+      return claimed;
+    } catch (err) {
+      // Another worker may win between peek and claim. Claiming by id ensures
+      // we never consume a different row with the losing row's metadata.
+      this.logger.info('dispatch_worker_claim_raced', {
+        dispatchId: peeked.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return null;
+    }
   }
 
   /**

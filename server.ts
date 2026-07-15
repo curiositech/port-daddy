@@ -189,7 +189,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.24.2';
+const EMBEDDED_PACKAGE_VERSION: string = '3.25.2';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -907,6 +907,12 @@ resurrection.on('agent:stale', (agent) => {
 
 resurrection.on('agent:dead', (agent) => {
   harbors.leaveAll(agent.id);
+
+  // Capture the agent's active session ids BEFORE abandoning them, so the custodian
+  // can harvest each session's notes into episodic memory while they remain queryable
+  // (Item 6 — on-death fast path; without it, notes wait up to a poll interval or are
+  // lost when the zombie protocol abandons the session first).
+  const abandonedSessionIds = sessions.activeSessionIdsByAgent(agent.id);
   const zombied = sessions.abandonByAgent(agent.id);
   if (zombied > 0) {
     logger.warn('zombie_sessions_abandoned', { agentId: agent.id, count: zombied });
@@ -928,6 +934,19 @@ resurrection.on('agent:dead', (agent) => {
     details: `Agent ${agent.name || agent.id} detected as dead, queued for resurrection`,
     metadata: { agentId: agent.id, staleSince: agent.staleSince }
   });
+
+  if (custodian) {
+    // Item 6 (on-death harvest): promote each abandoned session's notes immediately.
+    for (const sid of abandonedSessionIds) void custodian.onSessionEnd(sid);
+
+    // Items 1b + 2 (auto-resurrect): read the dying agent's self-salvage capsule as
+    // untrusted respawn CONTEXT, and hand the custodian the AUTHENTICATED scope from the
+    // verified StaleAgent record — never from the forgeable capsule. Passing scope as a
+    // distinct argument makes a forged `capsule.identityProject` structurally unable to
+    // influence the operator-permission check (ADR-0040 trust boundary).
+    const capsule = resurrection.getSalvageCapsule(agent.id);
+    void custodian.onAgentDead(agent.id, agent.identityProject ?? '', capsule);
+  }
 });
 
 resurrection.on('agent:resurrected', (oldAgentId, newAgentId) => {

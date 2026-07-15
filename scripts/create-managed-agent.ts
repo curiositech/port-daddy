@@ -25,6 +25,7 @@ import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadPilotSource } from '../lib/pilot-agent-render.js';
+import { resolveModel, type Capability } from '../lib/model-registry.js';
 
 const API_URL = 'https://api.anthropic.com/v1/agents';
 const BETA_HEADER = 'managed-agents-2026-04-01';
@@ -67,12 +68,30 @@ interface Manifest {
  * ships as a solo agent and the fan-out happens locally via Port Daddy's
  * spawn primitive. See docs/agents/port-daddy-pilot-multiagent.md.
  */
+/**
+ * Resolve the managed-agent's cloud model. `config.model.claude_cloud`
+ * declares INTENT — a `capability` (cheap/balanced/high/max-thinking/code)
+ * resolved through the same registry every other Port Daddy caller uses
+ * (lib/model-registry.ts resolveModel), or an explicit `id` pin honored
+ * verbatim (a real operator override, same precedence resolveModel itself
+ * gives an explicit id). Absent both (agent.config.json omits `model`
+ * entirely), default to the 'high' capability — the managed Pilot agent is
+ * a capable-reasoning persona, not a cheap/fast one. ADR-0057
+ * model-abstraction unification: this used to hardcode 'claude-opus-4-8' as
+ * the literal fallback, a second unsynced copy of the registry's own answer.
+ */
+function resolveCloudModel(claudeCloud: unknown): { id: string; speed?: string } {
+  const c = (claudeCloud ?? {}) as { id?: string; capability?: string; speed?: string };
+  const id = c.id?.trim() || resolveModel({ backend: 'claude', capability: (c.capability as Capability) || 'high' });
+  return c.speed ? { id, speed: c.speed } : { id };
+}
+
 export function buildCreatePayload(
   config: any,
   system: string,
   resolvedSubAgents: Record<string, string> = {},
 ) {
-  const cloudModel = config.model?.claude_cloud ?? { id: 'claude-opus-4-8' };
+  const cloudModel = resolveCloudModel(config.model?.claude_cloud);
   const customTools = (config.tools?.custom ?? []).map((t: any) => ({
     type: 'custom',
     name: t.name,

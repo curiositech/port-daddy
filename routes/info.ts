@@ -13,6 +13,7 @@ import type { BosunHeartbeatStatus } from '../lib/bosun-heartbeat.js';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import type { Transcripts } from '../lib/transcripts.js';
 import { formatUptime } from '../shared/port-utils.js';
+import { resolveBosunBinaryPath } from '../shared/daemon-binary.js';
 import { detectDrift } from '../lib/binary-drift-detector.js';
 import { assessRouteHealth, registeredFromSet, type RouteHealth } from '../lib/route-health.js';
 import { daemonHealthSeverity, type Severity } from '../lib/health-severity.js';
@@ -286,16 +287,17 @@ function buildRecentHistory(deps: InfoRouteDeps) {
  *
  * ```ts
  * resolveBosunBinaryStatus('/Users/me/port-daddy-stable')
- * // => { binaryPath: '/Users/me/port-daddy-stable/dist/core/pd-bosun', binaryExists: true }
+ * // => { binaryPath: '/Users/me/port-daddy-stable/pd-bosun', binaryExists: true }
  * ```
  *
- * `dist/core/pd-bosun` is the release artifact. The source-tree release binary
- * is only a local-development fallback for checkouts that have not built `dist/`.
+ * The flat `<root>/pd-bosun` is the shipped release artifact (release.yml packs
+ * it at the tar root). `dist/core/pd-bosun` and the source-tree release binary
+ * are local-development fallbacks. Delegates to the shared resolver so the
+ * daemon, `pd doctor`, and the installer never disagree about the canonical
+ * supervisor binary (2026-07-14 halt-mandate).
  */
 function resolveBosunBinaryStatus(rootDir: string) {
-  const distBinary = join(rootDir, 'dist', 'core', 'pd-bosun');
-  const sourceBinary = join(rootDir, 'core', 'pd-bosun', 'target', 'release', 'pd-bosun');
-  const binaryPath = existsSync(distBinary) ? distBinary : sourceBinary;
+  const binaryPath = resolveBosunBinaryPath(rootDir);
   return {
     binaryPath,
     binaryExists: existsSync(binaryPath),

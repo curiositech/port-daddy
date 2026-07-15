@@ -4600,17 +4600,35 @@ fn commitment_accent(level: &str) -> u32 {
 /// Vendor-distinct chip accent (mirrors the Vello scene's `vendor_accent`): the
 /// tier label renders verbatim, but the chip color reads the vendor family so the
 /// operator scans vendors at a glance.
+///
+/// This is a DISPLAY-ONLY lookup against the WorkPlan/predicted-DAG's own
+/// `model_tier` vocabulary (vendor nicknames — "opus"/"sonnet"/"haiku"/
+/// "gemini"/"codex"/"gpt"/"o1"/"o3"/"groq"/"llama"/"mixtral", see
+/// work_plan.rs's `PredictedNode::model_tier`) — it never selects a backend
+/// or spawns anything (per this crate's own doc comment: "the console has no
+/// backend/model selection or direct spawn... launch path", agent.rs:1-6).
+///
+/// EXACT-token match, not substring `contains()` (ADR-0057 model-abstraction
+/// unification — `contains()` is exactly the keyword/substring-NLP pattern
+/// the house rule forbids, and it risks a false-positive chip color on any
+/// tier label that merely CONTAINS a vendor nickname as a substring of an
+/// unrelated word). An unrecognized token falls through to the neutral
+/// `t.muted` — never a vendor default.
 fn vendor_accent(tier: &str) -> u32 {
     let t = current_theme();
     let s = tier.to_ascii_lowercase();
-    let has = |n: &str| s.contains(n);
-    if has("opus") || has("sonnet") || has("haiku") || has("claude") {
+    let tokens: Vec<&str> = s
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|tok| !tok.is_empty())
+        .collect();
+    let has_any = |names: &[&str]| tokens.iter().any(|tok| names.contains(tok));
+    if has_any(&["opus", "sonnet", "haiku", "claude"]) {
         t.accent
-    } else if has("gemini") {
+    } else if has_any(&["gemini"]) {
         t.landed
-    } else if has("codex") || has("gpt") || has("o1") || has("o3") {
+    } else if has_any(&["codex", "gpt", "o1", "o3"]) {
         0x_b6_9c_ff // violet — no palette role, matches the Vello codex chip
-    } else if has("groq") || has("llama") || has("mixtral") {
+    } else if has_any(&["groq", "llama", "mixtral"]) {
         t.engaged
     } else {
         t.muted

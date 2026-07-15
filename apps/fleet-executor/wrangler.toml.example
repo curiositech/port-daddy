@@ -95,6 +95,12 @@ max_retries = 1
 [vars]
 GITHUB_APP_ID = "REPLACE_WITH_YOUR_GITHUB_APP_ID"
 DEFAULT_BRANCH = "main"
+# AI_GATEWAY_ID (OPTIONAL, ADR-0116/0117): a Cloudflare AI Gateway id. When set,
+# every ship's env.AI.run(...) is routed through this gateway so token/cost/latency
+# is logged and cacheable in the AI Gateway dashboard. UNSET / empty ⇒ calls hit
+# Workers AI directly (exactly today's behavior). Create one with:
+#   wrangler ai-gateway create fleet-executor   # then paste its id below
+# AI_GATEWAY_ID = "fleet-executor"
 # Cloud telemetry sink — the daemon (or its public tunnel) that ingests per-ship
 # cost + failure events at POST /telemetry/cloud-app. This is what relights
 # FleetBar's cost panel and surfaces cloud ship failures. OPTIONAL and DISABLED
@@ -103,9 +109,20 @@ DEFAULT_BRANCH = "main"
 # ONLY once you have a real sink URL, e.g. "https://your-tunnel/telemetry/cloud-app".
 PORT_DADDY_TELEMETRY_URL = ""
 
+# Human-facing run page (ADR-0101 Phase 0). When BOTH this and the
+# RUN_PAGE_SECRET secret are set, every 'Port Daddy Fleet' check run carries a
+# details_url pointing at the relay's HTML deliberation page for that run:
+#   <RUN_DETAILS_BASE_URL>/fleet/runs/<runId>?t=<hmac>
+# OPTIONAL and DISABLED by default: empty ⇒ no details_url (prior behavior).
+RUN_DETAILS_BASE_URL = ""
+
 # ---------------------------------------------------------------------------
 # Secrets (documented; set via `wrangler secret put`, never committed):
 #   GITHUB_APP_PRIVATE_KEY     PEM-encoded GitHub App private key
 #   GITHUB_APP_ID              (may be a secret instead of a var if preferred)
 #   PORT_DADDY_TELEMETRY_TOKEN Bearer token for POST /telemetry/cloud-app
 #                              (matches the daemon's PD_CLOUD_APP_TELEMETRY_TOKEN)
+#   RUN_PAGE_SECRET            HMAC secret (>=32 chars) for run-page capability
+#                              tokens; MUST equal the relay's RUN_PAGE_SECRET
+#                              (openssl rand -hex 32, then wrangler secret put
+#                              RUN_PAGE_SECRET in BOTH workers)

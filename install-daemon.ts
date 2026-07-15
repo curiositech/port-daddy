@@ -18,7 +18,7 @@ import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { homedir, platform } from 'os';
 import { getDaemonTcpUrl } from './shared/daemon-discovery.js';
-import { daemonBinaryName, resolveDaemonLaunchCommand, resolveDistributionRoot, type DaemonLaunchCommand } from './shared/daemon-binary.js';
+import { daemonBinaryName, resolveDaemonLaunchCommand, resolveDistributionRoot, resolveBosunBinaryPath, type DaemonLaunchCommand } from './shared/daemon-binary.js';
 
 const MODULE_DIR: string = dirname(fileURLToPath(import.meta.url));
 const __dirname: string = resolveDistributionRoot(MODULE_DIR);
@@ -26,9 +26,16 @@ const PLATFORM: string = platform();
 const NODE_PATH: string = process.execPath;
 const LOG_PATH: string = join(__dirname, 'port-daddy.log');
 const ERROR_LOG_PATH: string = join(__dirname, 'port-daddy-error.log');
-const BOSUN_DIST_BINARY: string = join(__dirname, 'dist', 'core', 'pd-bosun');
-const BOSUN_SOURCE_BINARY: string = join(__dirname, 'core', 'pd-bosun', 'target', 'release', 'pd-bosun');
-const BOSUN_BINARY_PATH: string = existsSync(BOSUN_DIST_BINARY) ? BOSUN_DIST_BINARY : BOSUN_SOURCE_BINARY;
+// Bosun binary resolution order (2026-07-14 halt-mandate). The CANONICAL
+// installed location is `<resource-root>/pd-bosun` — the flat path the release
+// tarball unpacks to (release.yml packages `pd-bosun` at the tar root, next to
+// `pd`/`port-daddy`). We prefer it FIRST so a real install supervises using the
+// shipped, co-located binary rather than a stale dev-checkout `dist/` copy (the
+// exact failure the mandate calls out: "a stale Bosun was watching from
+// ~/coding/port-daddy/dist, useless"). The `dist/core` and source-tree
+// `target/release` paths remain dev fallbacks only. `resolveBosunBinaryPath`
+// mirrors this order in shared code consumed by `pd doctor`.
+const BOSUN_BINARY_PATH: string = resolveBosunBinaryPath(__dirname);
 const BOSUN_LOG_PATH: string = join(__dirname, 'pd-bosun.log');
 const BOSUN_ERROR_LOG_PATH: string = join(__dirname, 'pd-bosun-error.log');
 const DARWIN_OPERATOR_TOOL_PATHS = [
@@ -433,8 +440,15 @@ function loadLaunchAgent(label: string, plistPath: string): boolean {
  */
 function installBosunMacOS(daemonLabel: string): boolean {
   if (!existsSync(BOSUN_BINARY_PATH)) {
-    console.log(`  Bosun not installed: pd-bosun binary missing at ${BOSUN_BINARY_PATH}`);
-    console.log('  Build it with: npm run build:bosun:dist');
+    // LOUD warning (2026-07-14 halt-mandate red-team): a daemon installed
+    // WITHOUT its supervisor is exactly the silent-death regression this PR
+    // closes. A source checkout legitimately may not have built the binary yet,
+    // so we do not hard-fail the whole install — but we must SCREAM, not log a
+    // quiet one-liner, so the operator knows the daemon is currently unguarded.
+    console.warn('  ⚠️  BOSUN SUPERVISOR NOT INSTALLED — the daemon will NOT be auto-restarted if it dies.');
+    console.warn(`      pd-bosun binary missing at ${BOSUN_BINARY_PATH}`);
+    console.warn('      A packaged (brew/tarball) install ships pd-bosun automatically; this checkout has not built it.');
+    console.warn('      Build + install it with: npm run build:bosun:dist && port-daddy install');
     return true;
   }
 
@@ -443,7 +457,7 @@ function installBosunMacOS(daemonLabel: string): boolean {
   }
 
   writeFileSync(BOSUN_PLIST_PATH, generateBosunPlist(daemonLabel));
-  console.log(`  Wrote ${BOSUN_PLIST_PATH} (watching ${daemonLabel})`);
+  console.log(`  Wrote ${BOSUN_PLIST_PATH} (KeepAlive supervisor → ${BOSUN_BINARY_PATH}, watching ${daemonLabel})`);
   return loadLaunchAgent(BOSUN_PLIST_LABEL, BOSUN_PLIST_PATH);
 }
 
@@ -742,6 +756,49 @@ function install(): void {
   }
 }
 
+/**
+ * Wire ONLY the Bosun watchdog (+ freshness self-heal) for a Homebrew-managed
+ * install, without touching the main daemon plist at all.
+ *
+ * Why this exists separately from `install()`: the Homebrew formula's
+ * `post_install` runs during `brew install`/`brew upgrade`, BEFORE the
+ * operator (or brew's own post-upgrade service-restart) has necessarily
+ * started `homebrew.mxcl.port-daddy`. Calling the full `install()` at that
+ * moment would see `brewDaemonServiceLoaded() === false` and fall into the
+ * standalone-daemon branch — writing + loading a `com.portdaddy.daemon`
+ * LaunchAgent that binds :9876 directly. When the operator later runs
+ * `brew services start port-daddy`, THAT job would try to bind the same
+ * port too: two competing KeepAlive supervisors, the exact "daemon fighting
+ * itself" failure mode `installMacOS()`'s dedup guard exists to prevent in
+ * the other direction (brew-already-loaded before a manual `port-daddy
+ * install`).
+ *
+ * Bosun itself has no such ordering hazard — `pd-bosun watch` just polls a
+ * heartbeat file and, on staleness, `launchctl kickstart`s whatever label it
+ * was told to watch. Pointed at `BREW_DAEMON_LABEL`, it's safe to install at
+ * ANY point before or after brew's own service is running: if the brew job
+ * isn't loaded yet, a kickstart attempt just fails quietly and retries on the
+ * next tick once it is loaded. So this is the one operation `post_install`
+ * can call unconditionally.
+ */
+function installBosunOnly(): void {
+  console.log('Installing Bosun watchdog (Homebrew-managed daemon)...');
+  console.log(`  Platform: ${PLATFORM}`);
+  let ok: boolean;
+  if (PLATFORM === 'darwin') {
+    ok = installBosunMacOS(BREW_DAEMON_LABEL) && installFreshnessMacOS();
+  } else if (PLATFORM === 'linux') {
+    ok = installBosunLinux();
+  } else {
+    console.log(`  Platform "${PLATFORM}" has no Bosun watchdog integration.`);
+    return;
+  }
+  if (!ok) {
+    console.error('  Bosun watchdog install did not complete cleanly (see above).');
+    process.exitCode = 1;
+  }
+}
+
 function uninstall(): void {
   console.log('Uninstalling Port Daddy daemon...');
 
@@ -843,6 +900,9 @@ export function runInstallDaemonCli(command: string | undefined = process.argv[2
     case 'install':
       install();
       break;
+    case 'install-bosun':
+      installBosunOnly();
+      break;
     case 'uninstall':
       uninstall();
       break;
@@ -854,9 +914,10 @@ export function runInstallDaemonCli(command: string | undefined = process.argv[2
 Port Daddy Daemon Installer
 
 Usage:
-  node install-daemon.js install   - Install and start daemon
-  node install-daemon.js uninstall - Stop and uninstall daemon
-  node install-daemon.js status    - Check daemon status
+  node install-daemon.js install        - Install and start daemon
+  node install-daemon.js install-bosun  - Wire only the Bosun watchdog (brew-managed daemon)
+  node install-daemon.js uninstall      - Stop and uninstall daemon
+  node install-daemon.js status         - Check daemon status
 
 Supported platforms:
   macOS   - LaunchAgent (auto-start on login)
