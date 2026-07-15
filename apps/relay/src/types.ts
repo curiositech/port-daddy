@@ -44,6 +44,16 @@ export interface Env {
   GITHUB_OWNER?: string;                  // repo owner (e.g. 'port-daddy-dev')
   GITHUB_REPO?: string;                   // repo name (e.g. 'port-daddy')
   DEFAULT_BRANCH?: string;                // trusted ref the executor reads from
+  // Stripe billing + prepaid credits (ADR-0116). The relay is the billing
+  // authority. Billing endpoints return 503 (BILLING_UNCONFIGURED) unless both
+  // secrets are set, so the relay still deploys before Stripe is provisioned.
+  STRIPE_SECRET_KEY?: string;             // secret — Stripe REST Bearer token
+  STRIPE_WEBHOOK_SECRET?: string;         // secret — whsec_… HMAC for /billing/webhook
+  // Optional preconfigured Stripe Price ids per credit pack. When unset the
+  // checkout session builds an inline price_data at the pack's amount instead.
+  STRIPE_PRICE_STARTER?: string;
+  STRIPE_PRICE_PRO?: string;
+  STRIPE_PRICE_TEAM?: string;
   // Vars from wrangler.toml
   RELAY_VERSION: string;
   EVENT_RETENTION_DAYS: string;
