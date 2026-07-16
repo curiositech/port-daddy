@@ -14,6 +14,7 @@ import {
   renderHarnessAdapterMarkdown,
   resolveEffectiveSpawnBackend,
 } from '../../lib/backend-catalog.js';
+import { renderHarnessContinuationMatrix } from '../../lib/harness-conformance.js';
 
 describe('backend-catalog', () => {
   test('includes the cli-tube backends introduced in PR #109', () => {
@@ -106,6 +107,18 @@ describe('backend-catalog', () => {
     expect(end).toBeGreaterThan(begin);
     const checkedIn = adr.slice(begin + beginMarker.length, end).trim();
     expect(checkedIn).toBe(renderHarnessAdapterMarkdown().trim());
+  });
+
+  test('ADR-0118 generated N by N matrix matches executable continuation rules', () => {
+    const adr = readFileSync(new URL('../../docs/adr/0118-harness-adapter-contract.md', import.meta.url), 'utf8');
+    const beginMarker = '<!-- BEGIN GENERATED HARNESS CONTINUATION MATRIX -->';
+    const endMarker = '<!-- END GENERATED HARNESS CONTINUATION MATRIX -->';
+    const begin = adr.indexOf(beginMarker);
+    const end = adr.indexOf(endMarker);
+    expect(begin).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(begin);
+    const checkedIn = adr.slice(begin + beginMarker.length, end).trim();
+    expect(checkedIn).toBe(`\`\`\`text\n${renderHarnessContinuationMatrix().trim()}\n\`\`\``);
   });
 
   test('detectForcedCliBackend maps env values to catalog ids', () => {
