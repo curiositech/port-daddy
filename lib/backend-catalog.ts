@@ -177,7 +177,7 @@ const CLAUDE_CLI_ADAPTER: HarnessAdapterCapabilities = {
   },
   authModes: ['oauth-subscription', 'api-key'],
   limitations: [
-    'Native resume requires a Claude session id; another harness must enter through a sanitized handoff capsule.',
+    'Native resume requires a canonical UUID, an explicit Claude JSONL transcript reference, and daemon-witnessed session metadata bound to the canonical source workspace; another harness must enter through a sanitized handoff capsule.',
   ],
   probe: {
     executable: 'claude',
@@ -209,7 +209,7 @@ const CODEX_CLI_ADAPTER: HarnessAdapterCapabilities = {
   },
   authModes: ['oauth-subscription', 'api-key'],
   limitations: [
-    'Native resume requires a Codex session id; cross-harness continuation creates a successor from a handoff capsule.',
+    'Native resume requires a canonical UUID, an explicit Codex rollout reference, and daemon-witnessed session_meta bound to the canonical source workspace; cross-harness continuation creates a successor from a handoff capsule.',
   ],
   probe: {
     executable: 'codex',
@@ -235,7 +235,10 @@ const AGY_CLI_ADAPTER: HarnessAdapterCapabilities = {
   interactiveChannels: ['terminal'],
   transcript: { format: 'agy-log', owner: 'harness', stability: 'observed' },
   authModes: ['delegated-cli'],
-  limitations: ['Structured transcript streaming is not documented; Port Daddy currently captures prompt plus final output.'],
+  limitations: [
+    'Native resume requires a canonical UUID, the conversation-keyed brain transcript, and an exact workspace-to-conversation binding in Antigravity last_conversations metadata.',
+    'Structured transcript streaming is not documented; Port Daddy currently captures prompt plus final output.',
+  ],
   probe: {
     executable: 'agy',
     spawnHelpArgs: ['--help'],
@@ -265,7 +268,9 @@ const GEMINI_CLI_ADAPTER: HarnessAdapterCapabilities = {
     root: '~/.gemini',
   },
   authModes: ['oauth-subscription', 'api-key'],
-  limitations: ['Gemini session identifiers are project-scoped and must be resolved before native resume.'],
+  limitations: [
+    'Gemini UUID resume is project-scoped and requires an explicit chat reference; Port Daddy witnesses the canonical UUID, project hash, registry entry, chat file, and canonical workspace before launch.',
+  ],
   probe: {
     executable: 'gemini',
     spawnHelpArgs: ['--help'],

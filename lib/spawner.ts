@@ -42,9 +42,14 @@ import { coastGuardStatus } from './coast-guard.js';
 import { priceBond, classifyScope, scopeTierWritePolicy, pricedBondLogLines } from './bond-pricing.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
-import { detectForcedCliBackend, resolveEffectiveSpawnBackend } from './backend-catalog.js';
+import { detectForcedCliBackend, getBackendCatalogEntry, resolveEffectiveSpawnBackend } from './backend-catalog.js';
 import { cliBinarySearchPath, resolveCliBinary } from './cli-bin-dirs.js';
 import { resolveFleetAgentRuntime, type FleetModelTier } from './fleet-runtime.js';
+import { nativeHarnessSessionIdError } from './harness-session-id.js';
+import {
+  sameWorkspaceIdentity,
+  type WorkspaceIdentity,
+} from './workspace-identity.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
 // The daemon runs via launchd which has no shell env. Spawned agents need
@@ -102,6 +107,15 @@ function loadDotenvOnce(): Record<string, string> {
 // =============================================================================
 
 export type BackendOverrideSource = 'none' | 'env' | 'persisted' | 'preflight';
+
+export interface NativeResumeSpec {
+  /** Stable adapter family that owns the source harness session. */
+  adapterFamily: string;
+  /** Harness-owned session identifier. Never a Port Daddy transcript id. */
+  sessionId: string;
+  /** Canonical workspace device/inode witnessed immediately before this spawn. */
+  workspaceIdentity?: WorkspaceIdentity;
+}
 
 // This literal union MUST stay the same SET as lib/backend-catalog.ts's
 // KNOWN_BACKEND_IDS (the runtime single source of truth every VALID_BACKENDS
@@ -190,6 +204,12 @@ export interface SpawnSpec {
    * actor identity used by the lock gate comes from `spec.identity` / PD_ACTOR.
    */
   injectSquidHooks?: boolean;
+  /**
+   * Resume a harness-owned session instead of creating a fresh one. The
+   * spawner validates this against the EFFECTIVE backend after all operator
+   * overrides so a cross-family override can never receive a foreign id.
+   */
+  nativeResume?: NativeResumeSpec;
 }
 
 export interface SpawnResult {
@@ -210,6 +230,8 @@ export interface SpawnResult {
   completedAt: number | null;
   /** Coast Guard receipt (ADR-0050) for subprocess backends; null otherwise. */
   coastGuard?: CoastGuardReceipt | null;
+  /** Harness session preserved by a validated native-resume launch. */
+  harnessSessionId?: string;
 }
 
 export interface SpawnTelemetry {
@@ -508,6 +530,8 @@ async function runConfinedChild(
     dotenvKeys: Object.keys(loadDotenvOnce()),
   });
   try {
+    const nativeWorkspaceError = validateNativeResumeWorkspace(opts.spec);
+    if (nativeWorkspaceError) throw new Error(nativeWorkspaceError);
     const res = await runChild({
       cmd: cg.cmd,
       args: cg.args,
@@ -786,6 +810,8 @@ async function runCliTube(
     onChild: context?.onChildProcess,
     onStreamLine,
     permissionMode: spec.permissionMode,
+    resumeSessionId: spec.nativeResume?.sessionId,
+    workspaceIdentity: spec.nativeResume?.workspaceIdentity,
     // Live observability (ADR-0060): publish the exchange on the operator-
     // discoverable channel (dispatch:<id>) when both a channel and a tube client
     // are present. When `tubeChannel` is undefined, spawnViaCliTube falls back to
@@ -980,17 +1006,29 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
   for (const key of CODEX_DAEMON_CONTEXT_ENV_KEYS) {
     delete env[key];
   }
-  const args = [
-    'exec',
-    '--skip-git-repo-check',
-    '--full-auto',
-    '--sandbox', 'workspace-write',
-    '-C', workspace,
-    '--output-last-message', outputPath,
-    '--model', model,
-    '--json',
-    spec.task,
-  ];
+  const args = spec.nativeResume
+    ? [
+        'exec',
+        'resume',
+        '--skip-git-repo-check',
+        '--full-auto',
+        '--output-last-message', outputPath,
+        '--model', model,
+        '--json',
+        spec.nativeResume.sessionId,
+        spec.task,
+      ]
+    : [
+        'exec',
+        '--skip-git-repo-check',
+        '--full-auto',
+        '--sandbox', 'workspace-write',
+        '-C', workspace,
+        '--output-last-message', outputPath,
+        '--model', model,
+        '--json',
+        spec.task,
+      ];
 
   return runConfinedChild({
     spec,
@@ -1128,7 +1166,9 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
   // `--output-format json` makes the CLI report its own exact usage, which we
   // parse below. Without it the CLI prints plain prose and we get no token
   // counts — the gap that previously fail-closed every claude-cli launch.
-  const args = ['-p', '--output-format', 'json', spec.task];
+  const args = spec.nativeResume
+    ? ['--resume', spec.nativeResume.sessionId, '-p', '--output-format', 'json', spec.task]
+    : ['-p', '--output-format', 'json', spec.task];
   // `claude-cli` is the DEFAULT_MODELS sentinel for "the CLI manages its own
   // default model"; it is runtime provenance, not a concrete Claude model id.
   if (spec.model && spec.model !== 'claude-cli') {
@@ -1279,6 +1319,56 @@ export function resolveSpawnRuntime(spec: SpawnSpec): ResolvedSpawnRuntime {
     backendOverrideSource: spec.backendOverrideSource
       ?? backendOverrideSource(requestedBackend, effectiveBackend),
   };
+}
+
+export function validateNativeResumeAdapter(
+  spec: SpawnSpec,
+  runtime: ResolvedSpawnRuntime = resolveSpawnRuntime(spec),
+): string | null {
+  if (!spec.nativeResume) return null;
+
+  const adapterFamily = String(spec.nativeResume.adapterFamily ?? '').trim();
+  const sessionId = String(spec.nativeResume.sessionId ?? '');
+  if (!adapterFamily || Buffer.byteLength(adapterFamily, 'utf8') > 256 || /[\0\r\n]/.test(adapterFamily)) {
+    return 'Native resume blocked: adapterFamily must be a safe non-empty identifier.';
+  }
+  if (!sessionId.trim() || Buffer.byteLength(sessionId, 'utf8') > 1_024 || /[\0\r\n]/.test(sessionId)) {
+    return 'Native resume blocked: sessionId must be a safe non-empty harness identifier.';
+  }
+
+  const target = getBackendCatalogEntry(runtime.effectiveBackend);
+  if (!target) {
+    return `Native resume blocked: effective backend ${runtime.effectiveBackend} has no harness adapter contract.`;
+  }
+  if (target.adapter.family !== adapterFamily) {
+    return `Native resume blocked: source adapter ${adapterFamily} cannot resume through effective adapter ${target.adapter.family}.`;
+  }
+  if (!target.adapter.resume.native || target.adapter.resume.scope !== 'session') {
+    return `Native resume blocked: effective backend ${runtime.effectiveBackend} does not preserve native session identity.`;
+  }
+  const sessionIdError = nativeHarnessSessionIdError(adapterFamily, sessionId);
+  if (sessionIdError) {
+    return `Native resume blocked: ${sessionIdError}.`;
+  }
+  return null;
+}
+
+export function validateNativeResumeWorkspace(spec: SpawnSpec): string | null {
+  if (!spec.nativeResume) return null;
+  if (!spec.nativeResume.workspaceIdentity) {
+    return 'Native resume blocked: daemon-witnessed workspace identity is required.';
+  }
+  if (!spec.workdir || !sameWorkspaceIdentity(spec.workdir, spec.nativeResume.workspaceIdentity)) {
+    return 'Native resume blocked: canonical workspace identity changed before child launch.';
+  }
+  return null;
+}
+
+export function validateNativeResume(
+  spec: SpawnSpec,
+  runtime: ResolvedSpawnRuntime = resolveSpawnRuntime(spec),
+): string | null {
+  return validateNativeResumeAdapter(spec, runtime) ?? validateNativeResumeWorkspace(spec);
 }
 
 // =============================================================================
@@ -1618,6 +1708,11 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       startedAt: Date.now(),
       completedAt: Date.now(),
     });
+    const nativeResumeError = validateNativeResume(spec, runtime);
+    if (nativeResumeError) {
+      counters?.bump('spawn.blocked', dims);
+      return blockedResult(nativeResumeError);
+    }
     if (running >= MAX_CONCURRENT_RUNNING) {
       counters?.bump('spawn.blocked', dims);
       return blockedResult(`Spawn blocked: ${running} agents already running (limit: ${MAX_CONCURRENT_RUNNING}). Wait for one to finish.`);
@@ -1984,6 +2079,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         backend: runtime.effectiveBackend,
         model: runtime.effectiveModel,
       };
+      const finalNativeResumeError = validateNativeResume(executionSpec, runtime);
+      if (finalNativeResumeError) throw new Error(finalNativeResumeError);
       const override = runnerOverrides[runtime.effectiveBackend];
       let result: BackendRunResult;
 
@@ -2265,6 +2362,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       startedAt,
       completedAt,
       coastGuard: coastGuardReceipt,
+      ...(spec.nativeResume ? { harnessSessionId: spec.nativeResume.sessionId } : {}),
     };
   }
 

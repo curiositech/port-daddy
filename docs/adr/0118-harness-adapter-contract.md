@@ -55,10 +55,10 @@ renderer used by `pd backend adapters`.
 <!-- BEGIN GENERATED HARNESS ADAPTER TABLE -->
 | Adapter family | Backend routes | Spawn | Native resume | Handoff input | Live channel | Transcript | Auth | Known limitation |
 |---|---|---|---|---|---|---|---|---|
-| claude-code | cli:claude-code, claude-cli | `claude -p {prompt}` | session: `claude --resume {sessionId} -p {prompt}` | initial prompt | terminal, stream-json, remote-control | harness:claude-jsonl | oauth-subscription, api-key | Native resume requires a Claude session id; another harness must enter through a sanitized handoff capsule. |
-| codex-cli | cli:codex, codex | `codex exec --json {prompt}` | session: `codex exec resume {sessionId} {prompt}` | initial prompt | terminal, app-server | harness:codex-rollout-jsonl | oauth-subscription, api-key | Native resume requires a Codex session id; cross-harness continuation creates a successor from a handoff capsule. |
-| agy-cli | cli:agy | `agy --print {prompt}` | session: `agy --conversation {sessionId} --print {prompt}` | initial prompt | terminal | harness:agy-log | delegated-cli | Structured transcript streaming is not documented; Port Daddy currently captures prompt plus final output. |
-| gemini-cli | cli:gemini | `gemini --prompt {prompt}` | session: `gemini --resume {sessionId} --prompt {prompt}` | initial prompt | terminal, acp | harness:gemini-session-json | oauth-subscription, api-key | Gemini session identifiers are project-scoped and must be resolved before native resume. |
+| claude-code | cli:claude-code, claude-cli | `claude -p {prompt}` | session: `claude --resume {sessionId} -p {prompt}` | initial prompt | terminal, stream-json, remote-control | harness:claude-jsonl | oauth-subscription, api-key | Native resume requires a canonical UUID, an explicit Claude JSONL transcript reference, and daemon-witnessed session metadata bound to the canonical source workspace; another harness must enter through a sanitized handoff capsule. |
+| codex-cli | cli:codex, codex | `codex exec --json {prompt}` | session: `codex exec resume {sessionId} {prompt}` | initial prompt | terminal, app-server | harness:codex-rollout-jsonl | oauth-subscription, api-key | Native resume requires a canonical UUID, an explicit Codex rollout reference, and daemon-witnessed session_meta bound to the canonical source workspace; cross-harness continuation creates a successor from a handoff capsule. |
+| agy-cli | cli:agy | `agy --print {prompt}` | session: `agy --conversation {sessionId} --print {prompt}` | initial prompt | terminal | harness:agy-log | delegated-cli | Native resume requires a canonical UUID, the conversation-keyed brain transcript, and an exact workspace-to-conversation binding in Antigravity last_conversations metadata. Structured transcript streaming is not documented; Port Daddy currently captures prompt plus final output. |
+| gemini-cli | cli:gemini | `gemini --prompt {prompt}` | session: `gemini --resume {sessionId} --prompt {prompt}` | initial prompt | terminal, acp | harness:gemini-session-json | oauth-subscription, api-key | Gemini UUID resume is project-scoped and requires an explicit chat reference; Port Daddy witnesses the canonical UUID, project hash, registry entry, chat file, and canonical workspace before launch. |
 | groq-cli | cli:groq | `groq -p {prompt}` | handoff-only | initial prompt | terminal | none:none | delegated-cli, api-key | No stable session-id resume or structured transcript surface is documented for the installed Port Daddy integration. |
 | grok-claude-proxy | cli:grok | `grok -p {prompt}` | handoff-only | initial prompt | terminal | none:none | delegated-cli | The current grok command is a Claude proxy, not an independent durable harness. Resume ownership remains with the underlying Claude session and is not exposed by the wrapper. |
 | anthropic-api | claude | provider-sdk | handoff-only | initial prompt | http | port-daddy:port-daddy-jsonl | api-key | Provider calls have no native harness session identity; continuation is reconstructed from a handoff capsule. |
@@ -93,12 +93,63 @@ consumers cannot mistake this inventory for conformance. Provider readiness and
 end-to-end continuation belong to higher conformance levels; help text and path
 presence never earn them.
 
+## Native Continuation Execution
+
+`POST /memory/handoffs/:episodeId/continue` is the first executable conformance
+level above discovery. The daemon revalidates the stored capsule and sanitizes
+the operator prompt, resolves the effective backend after every persisted,
+environment, or preflight override, and then compares adapter families. A
+foreign family, history-only adapter, stateless provider, or malformed session
+identifier becomes a durable `unsupported` receipt without starting a child.
+
+The source session is not trusted merely because a capsule names it. Native
+session identifiers must have the UUID grammar exposed by these four harnesses,
+so option-shaped values never reach an argv parser. Claude, Codex, and Gemini
+require an explicit transcript reference rather than a harness-store scan.
+Immediately before spawn the daemon repeats the bounded evidence check and
+compares it with the stored witness. Claude and Codex bind JSONL metadata to the
+canonical workspace, agy requires both its conversation-keyed brain transcript
+and an exact `last_conversations` workspace binding, and Gemini binds the UUID
+to its project registry, project hash, explicit chat file, and canonical
+workspace. Evidence is opened once with no-follow semantics, read through that
+descriptor under fixed byte and entry caps, and bound to file and workspace
+device/inode identity. Paths outside harness roots, mismatched ids, stale
+witnesses, and unavailable bindings fail closed without discarding the sanitized
+handoff. The witnessed device/inode crosses the route boundary with the spawn
+spec and is checked again immediately before the CLI child process is created,
+closing the post-verification path-replacement window.
+
+Accepted work is written to the canonical SQLite database before spawn. Each
+receipt carries a daemon-generation owner and lease. Startup recovery orphans
+only expired work owned by a prior generation; a second live connection cannot
+take over an unexpired row. The `accepted` to `running` transition is a
+compare-and-swap that must succeed before the child starts, and success is
+returned only after the same owner durably advances the row to `completed`.
+An idempotent retry against `accepted` or `running` returns HTTP 202 with
+`success: false` and `pending: true`; it is never represented as completed work.
+The receipt stores idempotency keys and prompts as SHA-256 hashes only; the
+sanitized prompt still belongs to the ordinary governed spawn transcript.
+Receipts preserve source episode, capsule,
+session, agent, predecessor run, requested/effective backend and model, and the
+successor run/session lineage. Acceptance uses one conflict-safe SQLite insert,
+so concurrent callers with the same key recover the same receipt instead of
+surfacing a raw uniqueness error or starting a second child.
+
+The executable argv follows the catalog contract: Claude uses `--resume`, Codex
+uses `exec resume`, agy uses `--conversation`, and Gemini uses `--resume`.
+Codex resume does not inherit the fresh-spawn `--sandbox workspace-write` or
+`-C` flags because the installed resume subcommand rejects those options; the
+child process working directory remains the workspace boundary.
+
 ## Security and Privacy
 
 - Cross-harness continuation always uses a later sanitized handoff capsule,
   never a raw transcript copy.
 - Native resume is allowed only when source and target share an adapter family
-  and a valid harness-owned session identifier.
+  and adapter-specific local evidence witnesses the harness-owned session and
+  source workspace both at handoff ingestion and immediately before spawn.
+- Native continuation records acceptance before the child side effect. Its
+  receipt stores no raw operator prompt or idempotency key.
 - Adapter templates remain argv data and cannot introduce shell evaluation.
 - Auth modes describe ownership only. Credentials never enter the capability
   table, generated documentation, or probe report.

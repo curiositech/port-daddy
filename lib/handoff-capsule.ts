@@ -115,6 +115,12 @@ export interface SanitizeHandoffOptions {
   gitleaksRunner?: GitleaksRunner;
 }
 
+export interface SanitizeHandoffTextOptions {
+  home?: string;
+  gitleaksRunner?: GitleaksRunner;
+  maxBytes?: number;
+}
+
 export class HandoffValidationError extends Error {
   constructor(message: string) {
     super(message);
@@ -563,4 +569,26 @@ export function sanitizeHandoffCapsule(
   if (findingCount > 0) throw new HandoffSecretError(findingCount);
 
   return capsule;
+}
+
+/**
+ * Sanitize one operator-authored continuation prompt before it crosses a
+ * harness boundary. Raw text is never returned when either scanner cannot
+ * produce a clean verdict.
+ */
+export function sanitizeHandoffText(
+  input: unknown,
+  options: SanitizeHandoffTextOptions = {},
+): string {
+  const maxBytes = options.maxBytes ?? MAX_SUMMARY_BYTES;
+  if (!Number.isInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_TEXT_BYTES) {
+    throw new HandoffValidationError(`maxBytes must be an integer from 1 to ${MAX_TEXT_BYTES}`);
+  }
+  const text = requiredString(input, 'prompt', maxBytes);
+  const redacted = redactSecrets(text);
+  const localFindings = scanContent('handoff-prompt.txt', redacted, options.home ?? homedir());
+  const external = (options.gitleaksRunner ?? runGitleaks)(redacted);
+  const findingCount = localFindings.length + external.findings.length;
+  if (findingCount > 0) throw new HandoffSecretError(findingCount);
+  return redacted;
 }

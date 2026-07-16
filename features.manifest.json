@@ -1742,7 +1742,7 @@
       }
     },
     "memory": {
-      "description": "Episodic memory entries, aggregate memory stats, and sanitized backend-neutral continuation handoffs",
+      "description": "Episodic memory, sanitized handoff capsules, UUID- and workspace-bound native-session witnesses, and owner-leased same-harness continuation receipts",
       "cli": [
         "memory"
       ],
@@ -1750,7 +1750,10 @@
       "routes": [
         "GET /memory/episodes",
         "GET /memory/stats",
-        "POST /memory/handoffs"
+        "POST /memory/handoffs",
+        "POST /memory/handoffs/:episodeId/continue",
+        "GET /memory/continuations/:continuationId",
+        "GET /memory/continuations"
       ],
       "completions": [
         "memory"
