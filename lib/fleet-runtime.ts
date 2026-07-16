@@ -26,18 +26,27 @@ export interface ResolvedFleetAgentRuntime {
 
 const MODEL_TIERS = new Set<FleetModelTier>(['low', 'mid', 'high']);
 
-// API-backed backends derive their low/mid/high tiers from the declarative
-// registry (lib/model-registry-data.ts) via resolveModel. The map shape is
-// preserved for back-compat with routes/fleet.ts importers.
-const REGISTRY_TIER_BACKENDS = ['claude', 'codex', 'gemini', 'openai', 'groq', 'cloudflare', 'aider'] as const;
+// API-backed (and now local-tag-backed) backends derive their low/mid/high
+// tiers from the declarative registry (lib/model-registry-data.ts) via
+// resolveModel. The map shape is preserved for back-compat with
+// routes/fleet.ts importers. `ollama` moved here from SPECIAL_FORM_MODEL_TIERS
+// (ADR-0057 model-abstraction unification) — its tag names aren't API ids,
+// but they had THREE independently hand-picked defaults across this file,
+// lib/spawner.ts, and lib/llm-backend-resolver.ts before the registry grew
+// an `ollama` table; one source now, same as every other backend. `deepseek`,
+// `xai`, and `lmstudio` are added here too — they already had (or, for
+// lmstudio, now have) a registry table but were silently absent from fleet
+// tier resolution: a fleet agent declaring `backend: deepseek, modelTier:
+// high` used to resolve to nothing (a warning, no model) even though the
+// registry has always known deepseek's tiers.
+const REGISTRY_TIER_BACKENDS = ['claude', 'codex', 'gemini', 'openai', 'groq', 'cloudflare', 'aider', 'ollama', 'deepseek', 'xai', 'lmstudio'] as const;
 
 // Genuinely-special forms the registry does NOT govern: claude-cli takes the
-// CLI's short aliases (`--model sonnet`), ollama takes LOCAL model names, custom
-// is a placeholder triple. These are stable CLI/local identifiers, not churning
-// API model IDs, so they stay literal.
+// CLI's short aliases (`--model sonnet`), custom is a placeholder triple.
+// These are stable CLI/local identifiers, not churning API model IDs, so
+// they stay literal.
 const SPECIAL_FORM_MODEL_TIERS: Record<string, Record<FleetModelTier, string>> = {
   'claude-cli': { low: 'haiku', mid: 'sonnet', high: 'opus' },
-  ollama: { low: 'qwen2.5-coder:7b', mid: 'llama3.1:8b', high: 'qwen2.5-coder:14b' },
   custom: { low: 'custom-low', mid: 'custom-mid', high: 'custom-high' },
 };
 

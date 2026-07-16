@@ -24,7 +24,7 @@ import Database from '../../lib/sqlite-runtime.js';
 // SKIPPED ('No database file yet') against the real registry. resolveDbPath()
 // honours PORT_DADDY_DB and otherwise anchors on the distribution root, so it
 // finds <project-root>/port-registry.db under both dev and the binary.
-import { resolveDbPath } from '../../lib/db.js';
+import { resolveDbPath, durableDbHomePath, isVersionVolatileDbPath } from '../../lib/db.js';
 import { pdFetch, PORT_DADDY_URL, SOCK_PATH, getDaemonUrl } from '../utils/fetch.js';
 import { CLIOptions, isJson } from '../types.js';
 import { separator, tableHeader } from '../utils/output.js';
@@ -38,6 +38,7 @@ import {
   daemonBinaryPath,
   isBunVirtualPath,
   resolveDistributionRoot,
+  resolveBosunBinaryPath,
 } from '../../shared/daemon-binary.js';
 import {
   diagnoseSquidHookInstall,
@@ -62,6 +63,8 @@ import { gatherHarborFacts } from '../utils/harbor-facts.js';
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 
 interface StatusCommandResponse {
+  status?: string;
+  severity?: Severity;
   version?: string;
   pid?: number;
   uptimeSeconds?: number;
@@ -70,6 +73,10 @@ interface StatusCommandResponse {
   daemon?: {
     version?: string;
     codeHash?: string;
+    berth?: {
+      plane?: string;
+      label?: string;
+    };
   };
   metrics?: {
     activePorts?: number;
@@ -93,6 +100,31 @@ interface StatusCommandResponse {
   history?: {
     lastActivityAt?: number;
   };
+  binaryDrift?: {
+    drifted?: boolean;
+    reason?: string;
+    runningPath?: string;
+    onDiskPath?: string;
+  };
+  healthProbe?: {
+    ok: boolean;
+    error?: string;
+  };
+}
+
+type StatusFailureCode =
+  | 'DAEMON_UNAVAILABLE'
+  | 'HTTP_ERROR'
+  | 'MALFORMED_RESPONSE'
+  | 'HEALTH_UNAVAILABLE'
+  | 'BINARY_DRIFT'
+  | 'HEALTH_DEGRADED'
+  | 'HEALTH_STATE_INVALID';
+
+interface StatusFailure {
+  code: StatusFailureCode;
+  message: string;
+  retryable: boolean;
 }
 
 function getLocalCodeHash(): string {
@@ -258,61 +290,389 @@ export async function handleDashboard(opts: { web?: boolean } = {}): Promise<voi
 /**
  * Handle `pd status` command
  */
-export async function handleStatus(): Promise<void> {
-  try {
-    const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/status`);
-    const data = await res.json() as StatusCommandResponse;
+export function renderStatusPlain(data: StatusCommandResponse): string {
+  const lines: string[] = [];
+  const visualState = statusLineworkState(data);
+  lines.push(`Port Daddy is responsive (${visualState})`);
+  const buildVersion = data.daemon?.version || data.version;
+  const buildHash = data.daemon?.codeHash ? ` (${data.daemon.codeHash})` : '';
+  lines.push(`  Version: ${buildVersion || 'unknown'}${buildHash}`);
+  lines.push(`  PID: ${data.pid ?? 'unknown'}`);
+  const uptime = data.uptimeHuman || (typeof data.uptimeSeconds === 'number'
+    ? `${Math.floor(data.uptimeSeconds / 60)}m ${data.uptimeSeconds % 60}s`
+    : 'unknown');
+  lines.push(`  Uptime: ${uptime}`);
+  lines.push(`  Active ports: ${data.metrics?.activePorts ?? data.active_ports ?? 0}`);
 
-    console.log(`Port Daddy is running`);
-    const buildVersion = data.daemon?.version || data.version;
-    const buildHash = data.daemon?.codeHash ? ` (${data.daemon.codeHash})` : '';
-    console.log(`  Version: ${buildVersion}${buildHash}`);
-    console.log(`  PID: ${data.pid}`);
-    console.log(`  Uptime: ${data.uptimeHuman || `${Math.floor((data.uptimeSeconds as number) / 60)}m ${(data.uptimeSeconds as number) % 60}s`}`);
-    console.log(`  Active ports: ${data.metrics?.activePorts ?? data.active_ports ?? 0}`);
-
-    if (data.runtime?.state) {
-      const runtimeState = data.runtime.degraded ? `${data.runtime.state} (degraded)` : data.runtime.state;
-      console.log(`  Runtime: ${runtimeState}`);
-    }
-
-    if (data.fleet) {
-      const projectCount = Array.isArray(data.fleet.projects) ? data.fleet.projects.length : 0;
-      const totalAgents = data.fleet.totalAgents ?? 0;
-      const launchable = data.fleet.totalLaunchableAgents ?? data.fleet.launchableAgents;
-      const launchSuffix =
-        typeof launchable === 'number' && totalAgents > 0
-          ? `, ${launchable}/${totalAgents} launchable`
-          : '';
-      console.log(`  Fleet: ${projectCount} project(s), ${totalAgents} agent(s)${launchSuffix}`);
-      if (typeof launchable === 'number' && launchable === 0 && totalAgents > 0) {
-        console.log(`    ⚠ no launchable backend — fleet will arm but every spawn is policy-blocked`);
-      }
-    }
-
-    const bosun = data.guardians?.bosun;
-    if (bosun) {
-      const normalizedState = bosun.state === 'disabled' && bosun.reason?.includes('missing')
-        ? 'not installed (optional)'
-        : bosun.state;
-      const reason = bosun.reason && !bosun.reason.includes('missing') && bosun.reason !== normalizedState
-        ? ` — ${bosun.reason}`
-        : '';
-      console.log(`  Bosun: ${normalizedState}${reason}`);
-    }
-
-    if (data.history?.lastActivityAt) {
-      const ageMs = Date.now() - Number(data.history.lastActivityAt);
-      const ageSeconds = Math.max(0, Math.floor(ageMs / 1000));
-      console.log(`  Last activity: ${ageSeconds}s ago`);
-    }
-  } catch {
-    console.log('Port Daddy is not running');
-    console.log('  Start with: port-daddy start');
-    console.log('  Or install: port-daddy install');
-    console.log('  Diagnose:   port-daddy doctor');
-    process.exit(1);
+  if (data.runtime?.state) {
+    const runtimeState = data.runtime.degraded ? `${data.runtime.state} (degraded)` : data.runtime.state;
+    lines.push(`  Runtime: ${runtimeState}`);
   }
+
+  if (data.severity) lines.push(`  Health: ${data.severity}`);
+  if (data.binaryDrift?.drifted) {
+    lines.push(`  WARN binary drift: ${binaryDriftText(data)}`);
+    lines.push(data.daemon?.berth?.plane?.startsWith('ephemeral:')
+      ? '    Feature berth is isolated; promote this binary only after review'
+      : '    Next: restart this daemon and retry pd status');
+  }
+  if (data.healthProbe?.ok === false) {
+    lines.push(`  UNKNOWN health probe: ${data.healthProbe.error || 'unavailable'}`);
+  }
+
+  if (data.fleet) {
+    const projectCount = Array.isArray(data.fleet.projects) ? data.fleet.projects.length : 0;
+    const totalAgents = data.fleet.totalAgents ?? 0;
+    const launchable = data.fleet.totalLaunchableAgents ?? data.fleet.launchableAgents;
+    const launchSuffix =
+      typeof launchable === 'number' && totalAgents > 0
+        ? `, ${launchable}/${totalAgents} launchable`
+        : '';
+    lines.push(`  Fleet: ${projectCount} project(s), ${totalAgents} agent(s)${launchSuffix}`);
+    if (typeof launchable === 'number' && launchable === 0 && totalAgents > 0) {
+      lines.push('    WARN no launchable backend — fleet will arm but every spawn is policy-blocked');
+    }
+  }
+
+  const bosun = data.guardians?.bosun;
+  if (bosun) {
+    const normalizedState = bosun.state === 'disabled' && bosun.reason?.includes('missing')
+      ? 'not installed (optional)'
+      : bosun.state;
+    const reason = bosun.reason && !bosun.reason.includes('missing') && bosun.reason !== normalizedState
+      ? ` — ${bosun.reason}`
+      : '';
+    lines.push(`  Bosun: ${normalizedState}${reason}`);
+  }
+
+  if (data.history?.lastActivityAt) {
+    const ageMs = Date.now() - Number(data.history.lastActivityAt);
+    const ageSeconds = Math.max(0, Math.floor(ageMs / 1000));
+    lines.push(`  Last activity: ${ageSeconds}s ago`);
+  }
+  return lines.join('\n');
+}
+
+function runtimeLineworkState(state: string | undefined, degraded?: boolean): ui.LineworkState {
+  if (!state) return 'unknown';
+  const normalized = state.toLowerCase();
+  if (degraded) return 'warning';
+  if (normalized.includes('recover')) return 'recovering';
+  if (normalized.includes('pending') || normalized.includes('starting')) return 'pending';
+  if (normalized.includes('unknown')) return 'unknown';
+  if (normalized.includes('block')) return 'blocked';
+  if (normalized.includes('fail') || normalized.includes('error')) return 'failed';
+  if (normalized === 'nominal' || normalized === 'ok' || normalized === 'healthy') return 'healthy';
+  if (normalized === 'active' || normalized === 'running') return 'active';
+  return 'unknown';
+}
+
+function statusLineworkState(data: StatusCommandResponse): ui.LineworkState {
+  if (data.severity === 'critical') return 'failed';
+  if (data.severity === 'warn' || data.runtime?.degraded || data.binaryDrift?.drifted || data.healthProbe?.ok === false) {
+    return 'warning';
+  }
+  if (data.status !== 'ok') return data.status === 'degraded' ? 'warning' : 'unknown';
+  return runtimeLineworkState(data.runtime?.state, data.runtime?.degraded);
+}
+
+function binaryDriftText(data: StatusCommandResponse): string {
+  if (data.daemon?.berth?.plane?.startsWith('ephemeral:')) {
+    const running = data.binaryDrift?.runningPath || 'feature binary';
+    const installed = data.binaryDrift?.onDiskPath || 'installed binary';
+    return `feature berth binary ${running} differs from ${installed}; isolated by design`;
+  }
+  return data.binaryDrift?.reason || 'running binary differs from expected on-disk binary';
+}
+
+export function renderStatusLinework(data: StatusCommandResponse, opts?: { width?: number; colorLevel?: import('../utils/output.js').CliColorLevel; styled?: boolean }): string {
+  const buildVersion = String(data.daemon?.version || data.version || 'unknown');
+  const buildHash = data.daemon?.codeHash ? ` (${data.daemon.codeHash})` : '';
+  const activePorts = data.metrics?.activePorts ?? data.active_ports ?? 0;
+  const runtimeState = data.runtime?.state
+    ? data.runtime.degraded ? `${data.runtime.state} degraded` : data.runtime.state
+    : 'unknown';
+  const projectCount = Array.isArray(data.fleet?.projects) ? data.fleet.projects.length : 0;
+  const totalAgents = data.fleet?.totalAgents ?? 0;
+  const launchable = data.fleet?.totalLaunchableAgents ?? data.fleet?.launchableAgents;
+  const launchText = typeof launchable === 'number' && totalAgents > 0
+    ? `${launchable}/${totalAgents} launchable`
+    : `${totalAgents} agent(s)`;
+  const daemonState = statusLineworkState(data);
+  const rows: ui.LineworkRow[] = [
+    {
+      state: daemonState,
+      label: 'daemon',
+      text: `pid ${data.pid ?? 'unknown'} · up ${data.uptimeHuman || `${Math.floor((data.uptimeSeconds as number) / 60)}m ${(data.uptimeSeconds as number) % 60}s`} · ${activePorts} ports`,
+    },
+    {
+      state: runtimeLineworkState(data.runtime?.state, data.runtime?.degraded),
+      label: 'runtime',
+      text: runtimeState,
+    },
+  ];
+
+  if (data.binaryDrift?.drifted) {
+    const driftAction = data.daemon?.berth?.plane?.startsWith('ephemeral:')
+      ? 'feature berth is isolated; promote only after review'
+      : 'next: restart this daemon';
+    rows.push({
+      state: 'warning',
+      label: 'binary',
+      text: `${binaryDriftText(data)} · ${driftAction}`,
+    });
+  }
+
+  if (data.healthProbe?.ok === false) {
+    rows.push({
+      state: 'unknown',
+      label: 'health',
+      text: `${data.healthProbe.error || 'health probe unavailable'} · next: retry pd status or inspect pd doctor`,
+    });
+  }
+
+  if (data.fleet) {
+    rows.push({
+      state: typeof launchable === 'number' && launchable === 0 && totalAgents > 0
+        ? 'blocked'
+        : totalAgents > 0
+          ? 'fleet-healthy'
+          : 'idle',
+      label: 'fleet',
+      text: `${projectCount} project(s) · ${launchText}`,
+    });
+  }
+
+  const bosun = data.guardians?.bosun;
+  if (bosun) {
+    const normalizedState = bosun.state === 'disabled' && bosun.reason?.includes('missing')
+      ? 'not installed optional'
+      : bosun.state;
+    const reason = bosun.reason && !bosun.reason.includes('missing') && bosun.reason !== normalizedState
+      ? ` · ${bosun.reason}`
+      : '';
+    rows.push({
+      state: normalizedState?.includes('active')
+        ? 'active'
+        : normalizedState?.includes('idle')
+          ? 'idle'
+          : normalizedState?.includes('not installed')
+            ? 'info'
+            : 'unknown',
+      label: 'bosun',
+      text: `${normalizedState}${reason}`,
+    });
+  }
+
+  if (data.history?.lastActivityAt) {
+    const ageMs = Date.now() - Number(data.history.lastActivityAt);
+    const ageSeconds = Math.max(0, Math.floor(ageMs / 1000));
+    rows.push({
+      state: 'info',
+      label: 'activity',
+      text: `${ageSeconds}s ago`,
+    });
+  }
+
+  const zone = daemonState === 'healthy'
+    ? 'daemon confirmed'
+    : daemonState === 'warning'
+      ? 'daemon responsive · degraded'
+      : daemonState === 'failed'
+        ? 'daemon critical'
+        : 'daemon responsive · health unknown';
+  return ui.renderLineworkPanel({
+    title: 'Port Daddy',
+    version: buildVersion,
+    subtitle: `daemon · ${buildHash ? buildHash.trim() : 'live'}`,
+    tone: ui.lineworkVisual(daemonState).tone,
+    zone,
+    rows,
+    footer: `runtime ${runtimeState} · active ports ${activePorts}`,
+    width: opts?.width,
+    colorLevel: opts?.colorLevel,
+    styled: opts?.styled,
+  });
+}
+
+export function renderStatusFailureLinework(
+  opts?: { width?: number; colorLevel?: import('../utils/output.js').CliColorLevel; styled?: boolean },
+  failure: StatusFailure = {
+    code: 'DAEMON_UNAVAILABLE',
+    message: 'Port Daddy daemon is not accepting status requests',
+    retryable: true,
+  },
+): string {
+  return ui.renderLineworkPanel({
+    title: 'Port Daddy',
+    subtitle: 'daemon unavailable',
+    tone: 'failed',
+    zone: 'failed with next action',
+    rows: [
+      { state: 'failed', label: 'daemon', text: `${failure.code} · ${failure.message}` },
+      { state: 'guard-blocked', label: 'next', text: 'open FleetBar and restart the daemon, then retry pd status' },
+      { state: 'recovering', label: 'diagnose', text: 'run pd doctor if FleetBar cannot recover it' },
+    ],
+    footer: 'exit 1 · machine callers keep the same failure code',
+    width: opts?.width,
+    colorLevel: opts?.colorLevel,
+    styled: opts?.styled,
+  });
+}
+
+export function renderStatusOutput(
+  data: StatusCommandResponse,
+  options: CLIOptions = {},
+  failure?: StatusFailure,
+): string {
+  if (isJson(options)) {
+    return JSON.stringify(failure
+      ? { success: false, error: failure, data }
+      : { success: true, ...data }, null, 2);
+  }
+  if (ui.lineworkEnabled({ quiet: Boolean(options.quiet || options.q) })) {
+    return renderStatusLinework(data);
+  }
+  return renderStatusPlain(data);
+}
+
+export function renderStatusFailureOutput(
+  options: CLIOptions = {},
+  failure: StatusFailure = {
+    code: 'DAEMON_UNAVAILABLE',
+    message: 'Port Daddy daemon is not accepting status requests',
+    retryable: true,
+  },
+): string {
+  if (isJson(options)) {
+    return JSON.stringify({
+      success: false,
+      error: failure,
+      nextActions: [
+        'Open FleetBar and restart the daemon, then retry pd status',
+        'Run pd doctor if FleetBar cannot recover it',
+      ],
+    }, null, 2);
+  }
+  if (ui.lineworkEnabled({ quiet: Boolean(options.quiet || options.q) })) {
+    return renderStatusFailureLinework(undefined, failure);
+  }
+  return [
+    `Port Daddy status failed: ${failure.message}`,
+    '  Start with: port-daddy start',
+    '  Or install: port-daddy install',
+    '  Diagnose:   port-daddy doctor',
+  ].join('\n');
+}
+
+export async function runStatus(
+  options: CLIOptions = {},
+  deps: {
+    fetch?: typeof pdFetch;
+    write?: (text: string) => void;
+  } = {},
+): Promise<number> {
+  const fetchStatus = deps.fetch ?? pdFetch;
+  const write = deps.write ?? ((text: string) => console.log(text));
+  try {
+    const res: PdFetchResponse = await fetchStatus('/status');
+    if (!res.ok) {
+      const failure: StatusFailure = {
+        code: 'HTTP_ERROR',
+        message: `daemon returned HTTP ${res.status ?? 'unknown'} for /status`,
+        retryable: (res.status ?? 500) >= 500,
+      };
+      write(renderStatusFailureOutput(options, failure));
+      return 1;
+    }
+
+    let data: StatusCommandResponse;
+    try {
+      data = await res.json() as StatusCommandResponse;
+    } catch {
+      const failure: StatusFailure = {
+        code: 'MALFORMED_RESPONSE',
+        message: 'daemon returned malformed JSON for /status',
+        retryable: true,
+      };
+      write(renderStatusFailureOutput(options, failure));
+      return 1;
+    }
+
+    let healthRes: PdFetchResponse;
+    try {
+      healthRes = await fetchStatus('/health');
+    } catch (error) {
+      const failure: StatusFailure = {
+        code: 'HEALTH_UNAVAILABLE',
+        message: `daemon /health probe failed: ${error instanceof Error ? error.message : String(error)}`,
+        retryable: true,
+      };
+      write(renderStatusFailureOutput(options, failure));
+      return 1;
+    }
+    if (!healthRes.ok) {
+      const failure: StatusFailure = {
+        code: 'HEALTH_UNAVAILABLE',
+        message: `daemon returned HTTP ${healthRes.status ?? 'unknown'} for /health`,
+        retryable: (healthRes.status ?? 500) >= 500,
+      };
+      write(renderStatusFailureOutput(options, failure));
+      return 1;
+    }
+    let health: StatusCommandResponse;
+    try {
+      health = await healthRes.json() as StatusCommandResponse;
+    } catch {
+      const failure: StatusFailure = {
+        code: 'MALFORMED_RESPONSE',
+        message: 'daemon returned malformed JSON for /health',
+        retryable: true,
+      };
+      write(renderStatusFailureOutput(options, failure));
+      return 1;
+    }
+    data.status = health.status ?? data.status;
+    data.severity = health.severity ?? data.severity;
+    data.runtime = health.runtime ?? data.runtime;
+    data.binaryDrift = health.binaryDrift;
+
+    const visualState = statusLineworkState(data);
+    const failure: StatusFailure | undefined = data.binaryDrift?.drifted
+      ? {
+          code: 'BINARY_DRIFT',
+          message: binaryDriftText(data),
+          retryable: !data.daemon?.berth?.plane?.startsWith('ephemeral:'),
+        }
+      : visualState === 'warning' || visualState === 'failed'
+        ? {
+            code: 'HEALTH_DEGRADED',
+            message: `daemon health is ${data.severity || visualState}`,
+            retryable: true,
+          }
+        : visualState === 'unknown'
+          ? {
+              code: 'HEALTH_STATE_INVALID',
+              message: `daemon reported unrecognized runtime state ${data.runtime?.state || 'unknown'}`,
+              retryable: true,
+            }
+          : undefined;
+    write(renderStatusOutput(data, options, failure));
+    return failure ? 1 : 0;
+  } catch (error) {
+    const failure: StatusFailure = {
+      code: 'DAEMON_UNAVAILABLE',
+      message: error instanceof Error ? error.message : 'Port Daddy daemon is not accepting status requests',
+      retryable: true,
+    };
+    write(renderStatusFailureOutput(options, failure));
+    return 1;
+  }
+}
+
+export async function handleStatus(options: CLIOptions = {}): Promise<void> {
+  const exitCode = await runStatus(options);
+  if (exitCode !== 0) process.exitCode = exitCode;
 }
 
 /**
@@ -621,6 +981,28 @@ export function assessSupervisionIntegrity(input: {
   // Exactly one supervisor loaded.
   const one = loaded[0];
   if (running.length >= 1) {
+    // 2026-07-14 halt-mandate incident: `brew services` / `launchctl list`
+    // claimed Running:true with a live-looking PID while /health returned
+    // nothing and the process was actually gone — and this branch returned
+    // 'ok' unconditionally, so `pd doctor` reported ALL GREEN during a live
+    // outage. A supervisor claiming "running" is a CLAIM, not a fact; the
+    // daemon's own /health response is the fact. This also closes the
+    // "wedged-but-alive" hole: a process can be genuinely alive (the
+    // supervisor is telling the truth about the PID) while its HTTP request
+    // pipeline is deadlocked — the operator-visible symptom is identical
+    // (daemon unreachable) and must be equally CRITICAL, not silently OK
+    // because *some* process with that PID exists.
+    if (!input.daemonReachable) {
+      return {
+        severity: 'critical',
+        detail: `${one.label} claims PID ${one.pid} is running, but the daemon's /health is unreachable — the daemon is DEAD OR WEDGED despite the supervisor believing otherwise`,
+        hint: `Run: port-daddy restart   (or: launchctl kickstart -k gui/$(id -u)/${one.label})`,
+        repair: {
+          command: 'port-daddy restart',
+          description: 'Restarts the daemon; the supervisor\'s "running" claim did not match a reachable /health.',
+        },
+      };
+    }
     return { severity: 'ok', detail: `${one.label} is loaded and running (PID ${one.pid})` };
   }
   // Loaded but not running — the unsupervised-drift precursor.
@@ -644,12 +1026,37 @@ export function assessSupervisionIntegrity(input: {
 }
 
 /**
+ * Verify a PID actually names a live OS process — `kill(pid, 0)` sends no
+ * signal, only checks existence/permission. ESRCH ("no such process") means
+ * dead; a successful call OR EPERM (exists but we lack permission to signal
+ * it) both mean alive. This is the direct counterpart of `pid_is_alive` in
+ * core/pd-bosun/src/main.rs, applied here to launchctl's SELF-REPORTED PID —
+ * the 2026-07-14 incident was exactly launchctl/`brew services` claiming
+ * `Running:true` with a PID that no longer named a real process.
+ */
+export function isPidAlive(pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    return code === 'EPERM';
+  }
+}
+
+/**
  * Query launchd for each candidate supervisor label. macOS-only; on other
  * platforms returns an empty set (the assessor short-circuits to ok there).
  *
  * `launchctl list <label>` exits 0 and prints a `"PID" = N;` line when the job
  * is loaded AND running; exits 0 with no PID line when loaded-but-stopped; and
  * exits non-zero ("Could not find service") when the job is not loaded.
+ *
+ * launchctl's own PID claim is NOT trusted at face value: `running` is only
+ * true when the reported PID ALSO passes `isPidAlive` (2026-07-14 incident —
+ * `brew services`/`launchctl` reported Running:true PID 69626 while no such
+ * process existed and `pd doctor` believed it because it never re-verified).
  */
 export function gatherLaunchdSupervisors(
   labels: readonly string[] = DAEMON_SUPERVISOR_LABELS,
@@ -665,7 +1072,9 @@ export function gatherLaunchdSupervisors(
       if (res.status !== 0) return { label, loaded: false, running: false, pid: null };
       const m = /"PID"\s*=\s*(\d+)/.exec(res.stdout || '');
       const pid = m ? parseInt(m[1], 10) : null;
-      return { label, loaded: true, running: pid !== null && pid > 0, pid };
+      const claimsRunning = pid !== null && pid > 0;
+      const running = claimsRunning && isPidAlive(pid as number);
+      return { label, loaded: true, running, pid };
     } catch {
       return { label, loaded: false, running: false, pid: null };
     }
@@ -1063,9 +1472,10 @@ export function assessMacDiagnosticCrashReports(input: RecentMacDiagnosticCrashR
  * the daemon-side `resolveBosunBinaryStatus` in routes/info.ts.
  */
 export function resolveBosunBinary(rootDir: string): { binaryPath: string; exists: boolean } {
-  const distBinary = join(rootDir, 'dist', 'core', 'pd-bosun');
-  const sourceBinary = join(rootDir, 'core', 'pd-bosun', 'target', 'release', 'pd-bosun');
-  const binaryPath = existsSync(distBinary) ? distBinary : sourceBinary;
+  // Delegate to the shared resolver so `pd doctor` and `port-daddy install`
+  // agree on WHICH bosun binary is canonical (halt-mandate: no stale-dist
+  // split-brain). Prefers the flat installed `<root>/pd-bosun`.
+  const binaryPath = resolveBosunBinaryPath(rootDir);
   return { binaryPath, exists: existsSync(binaryPath) };
 }
 
@@ -1226,6 +1636,26 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     }
   } catch (err: unknown) {
     check('Database', false, `Error: ${(err as Error).message}`, 'Check port-registry.db permissions');
+  }
+
+  // ---------------------------------------------------------------------------
+  // 3b. Database home durability: a registry inside a version-pinned install
+  // directory (Homebrew Cellar) is deleted on every upgrade — the root cause
+  // of repeated roadmap/notes data loss. Daemons must not own different truths.
+  // ---------------------------------------------------------------------------
+  try {
+    const dbPath: string = resolveDbPath();
+    if (isVersionVolatileDbPath(dbPath)) {
+      criticalFail(
+        'Database home',
+        `Registry lives in a version-pinned install dir: ${dbPath} (wiped on next upgrade)`,
+        `Restart the daemon without PORT_DADDY_DB (defaults to ${durableDbHomePath()}); boot migrates the legacy data automatically`,
+      );
+    } else {
+      check('Database home', true, `Registry path is durable: ${dbPath}`);
+    }
+  } catch (err: unknown) {
+    check('Database home', false, `Error: ${(err as Error).message}`);
   }
 
   // -------------------------------------------------------------------------
@@ -1429,7 +1859,16 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   //     read from the daemon's guardians.bosun when reachable.
   // -------------------------------------------------------------------------
   try {
-    const bosun = resolveBosunBinary(libDir);
+    // `libDir` is a naive `join(__dirname, '..', '..')` — correct for a source
+    // checkout, but for a `bun build --compile` binary `__dirname` is a virtual
+    // bun:// path, so that join produces a string that never exists on disk.
+    // `resolveDistributionRoot` (already used by describeResourceDir() below
+    // for the same reason) resolves the REAL install root from process.execPath
+    // in that case and is a no-op passthrough for a source checkout. Without
+    // this, `pd doctor` always reported "pd-bosun binary not built" for every
+    // packaged/brew install even when Bosun was genuinely installed and
+    // healthy (found live during the v3.25.1/3.25.2 brew rollout).
+    const bosun = resolveBosunBinary(resolveDistributionRoot(libDir));
     let bosunRunning: boolean | null = null;
     let bosunReason: string | null = null;
     if (daemonRunning) {

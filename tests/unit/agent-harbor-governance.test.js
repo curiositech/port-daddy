@@ -77,6 +77,7 @@ const TOP_LEVEL_AGENT_HARBOR_SCHEMAS = [
   'control-command',
   'cost-accrual-event',
   'guidance-envelope',
+  'handoff-capsule',
   'memory-episode',
   'skill-graft',
   'surface-gateway',

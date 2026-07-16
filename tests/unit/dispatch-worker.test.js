@@ -17,6 +17,7 @@ import { jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 import { createDispatchWorker as createDispatchWorkerBase } from '../../lib/dispatch/worker.js';
+import { deriveWorktreePath } from '../../lib/dispatch/runner.js';
 import { createWorkIntentService } from '../../lib/agent-harbor/work-intent-service.js';
 import { readEvents } from '../../lib/agent-harbor/event-ledger.js';
 
@@ -115,6 +116,64 @@ describe('DispatchWorker — autonomous drain', () => {
     // Slots freed → next poll drains the rest (2 more, then 1 more).
     await worker.poll();
     await new Promise((r) => setImmediate(r));
+  });
+
+  test('derives execution identity from the exact row it atomically claims', async () => {
+    let now = 1_820_000_000_000;
+    queue = createDispatchQueue({ db, now: () => now });
+    const first = queue.propose({ goal: 'first lane' });
+    now += 1;
+    const second = queue.propose({ goal: 'second lane' });
+    const plans = [];
+    const adapter = jest.fn(async ({ plan, queue: q }) => {
+      plans.push(plan);
+      q.start(plan.dispatch.id);
+      q.produce({ id: plan.dispatch.id });
+      q.requestReview(plan.dispatch.id);
+      return { state: 'settled' };
+    });
+    const worker = createDispatchWorker({
+      queue,
+      maxConcurrency: 2,
+      spawnAdapter: adapter,
+      reaper: async () => {},
+    });
+
+    expect(await worker.poll()).toBe(2);
+    await new Promise((r) => setImmediate(r));
+
+    expect(plans.map((plan) => plan.dispatch.id)).toEqual([first.id, second.id]);
+    for (const plan of plans) {
+      expect(plan.worktreePath).toBe(deriveWorktreePath(plan.dispatch.id));
+      expect(plan.branch).toContain(plan.dispatch.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8));
+    }
+  });
+
+  test('does not execute a row claimed by a competing worker', async () => {
+    const dispatch = queue.propose({ goal: 'race-safe lane' });
+    const logger = {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    };
+    const claimProposed = queue.claimProposed.bind(queue);
+    jest.spyOn(queue, 'claimProposed').mockImplementationOnce((input) => {
+      claimProposed({ ...input, sessionId: 'competing-worker' });
+      return claimProposed(input);
+    });
+    const worker = createDispatchWorker({
+      queue,
+      logger,
+      spawnAdapter: settlingAdapter(),
+      reaper: async () => {},
+    });
+
+    expect(await worker.poll()).toBe(0);
+    expect(queue.get(dispatch.id)).toMatchObject({ state: 'claimed', sessionId: 'competing-worker' });
+    expect(logger.info).toHaveBeenCalledWith('dispatch_worker_claim_raced', {
+      dispatchId: dispatch.id,
+      error: `claim: failed to claim dispatch ${dispatch.id}`,
+    });
   });
 
   test('a failing dispatch never strands a slot and never crashes the worker', async () => {

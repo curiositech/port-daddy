@@ -402,6 +402,47 @@ export async function handleBegin(
   const agentLabel = agentName ? `${agentName} (${data.agentId as string})` : (data.agentId as string);
   const sessionName = data.sessionName as string | undefined;
   const sessionLabel = sessionName ? `${sessionName} (${data.sessionId as string})` : (data.sessionId as string);
+  const rentReceipt = formatRentReceipt({
+    roadmapLink: data.roadmapLink as string | undefined,
+    sidequestReason: data.sidequestReason as string | undefined,
+  });
+  if (ui.lineworkEnabled({ stream: 'stderr' })) {
+    const rows: ui.LineworkRow[] = [
+      { state: 'confirmed', label: 'agent', text: String(agentLabel) },
+      { state: 'active', label: 'session', text: String(sessionLabel) },
+      { state: 'pending', label: 'purpose', text: String(purpose) },
+      { state: lifecycle.lifecycle === 'durable' ? 'healthy' : 'info', label: 'lifecycle', text: lifecycle.lifecycle },
+    ];
+    if (identity) rows.push({ state: 'active', label: 'identity', text: identity });
+    if (data.roadmapLink) rows.push({ state: 'confirmed', label: 'roadmap', text: String(data.roadmapLink) });
+    if (data.sidequestReason) rows.push({ state: 'info', label: 'sidequest', text: String(data.sidequestReason) });
+    if (rentReceipt) rows.push({ state: 'confirmed', label: 'rent', text: rentReceipt });
+    if (data.worktree && typeof data.worktree === 'object') {
+      const worktree = data.worktree as { name?: string; branch?: string | null; id?: string };
+      const branch = worktree.branch ? `:${worktree.branch}` : '';
+      rows.push({ state: 'active', label: 'worktree', text: `${worktree.name || worktree.id || 'linked'}${branch}` });
+    }
+    if (data.fileClaims) {
+      const claims = data.fileClaims as string[];
+      rows.push({ state: 'confirmed', label: 'files', text: `${claims.length} claimed` });
+    }
+    if (data.fileConflicts) {
+      const conflicts = data.fileConflicts as Array<{ filePath: string; sessionId: string }>;
+      rows.push({ state: 'conflict', label: 'conflicts', text: `${conflicts.length} file(s) claimed by other sessions` });
+    }
+    if (data.salvageHint) rows.push({ state: 'recovering', label: 'salvage', text: String(data.salvageHint) });
+    if (data.approvalsHint) rows.push({ state: 'awaiting-human', label: 'approval', text: String(data.approvalsHint) });
+    console.error(ui.renderLineworkPanel({
+      title: 'Session Anchored',
+      subtitle: identity || String(data.agentId || 'agent'),
+      tone: 'healthy',
+      zone: 'agent ready',
+      rows,
+      footer: 'claim files next with pd session files add <path>',
+      colorLevel: ui.lineworkColorLevel('stderr'),
+    }));
+    return;
+  }
   ui.success(`Agent ${highlightChannel(agentLabel)} ready`);
   console.error(`  Session: ${sessionLabel}`);
   console.error(`  Purpose: ${purpose}`);
@@ -416,10 +457,6 @@ export async function handleBegin(
   }
   if (data.sidequestReason) console.error(`  Sidequest: ${data.sidequestReason}`);
   // Rent receipt — a wrong link is never sticky (anti-Goodhart valve).
-  const rentReceipt = formatRentReceipt({
-    roadmapLink: data.roadmapLink as string | undefined,
-    sidequestReason: data.sidequestReason as string | undefined,
-  });
   if (rentReceipt) console.error(`  ${rentReceipt}`);
   if (identity) console.error(`  Identity: ${identity}`);
   if (data.worktree && typeof data.worktree === 'object') {

@@ -282,6 +282,11 @@ export function createEpisodicMemory(db: Database.Database, options: EpisodicMem
       WHERE source_type = ? AND source_id = ? AND episode_type = ?
       LIMIT 1
     `),
+    getById: db.prepare(`
+      SELECT * FROM episodic_memory
+      WHERE id = ?
+      LIMIT 1
+    `),
     list: db.prepare(`
       SELECT * FROM episodic_memory
       WHERE (
@@ -480,6 +485,12 @@ export function createEpisodicMemory(db: Database.Database, options: EpisodicMem
     return rows.map(toEpisode);
   }
 
+  function get(id: number): Episode | null {
+    if (!Number.isInteger(id) || id < 1) return null;
+    const row = stmts.getById.get(id) as EpisodeRow | undefined;
+    return row ? toEpisode(row) : null;
+  }
+
   function stats(projectDir?: string, project?: string): {
     total: number;
     sourceTypes: number;
@@ -534,6 +545,7 @@ export function createEpisodicMemory(db: Database.Database, options: EpisodicMem
 
   return {
     remember,
+    get,
     list,
     stats,
     listExpired,

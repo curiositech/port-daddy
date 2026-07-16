@@ -11,6 +11,7 @@ import { createMessaging } from '../../lib/messaging.js';
 import { createAttention } from '../../lib/attention.js';
 import { createTupleSpace } from '../../lib/tuples.js';
 import { createParley } from '../../lib/parley.js';
+import { renderAttentionLinework } from '../../cli/commands/attention.js';
 
 function setup() {
   const db = createTestDb();
@@ -21,6 +22,32 @@ function setup() {
 }
 
 describe('attention.compose', () => {
+  test('linework renders every item that compose marks read', () => {
+    const now = Date.now();
+    const items = Array.from({ length: 50 }, (_, index) => ({
+      source: 'inbox',
+      id: `inbox:${index + 1}`,
+      agentId: 'agent-x',
+      from: 'agent-y',
+      channel: null,
+      type: 'note',
+      content: `message-${index + 1}`,
+      contentType: 'text',
+      receivedAt: now - index,
+    }));
+    const rendered = renderAttentionLinework({
+      success: true,
+      agentId: 'agent-x',
+      items,
+      counts: { total: 50, inbox: 50, channels: 0, inboxUnreadRemaining: 0 },
+    });
+
+    expect(rendered).toContain('message-1');
+    expect(rendered).toContain('message-13');
+    expect(rendered).toContain('message-50');
+    expect((rendered.match(/message-/g) || [])).toHaveLength(50);
+  });
+
   test('empty inbox + no subscriptions → zero items', () => {
     const { attention } = setup();
     const result = attention.compose('agent-x');

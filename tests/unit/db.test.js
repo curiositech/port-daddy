@@ -6,7 +6,21 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { initDatabase, resolveDbPath, resolveDefaultDbRoot, isPortAvailable, CORE_SCHEMA_SQL } from '../../lib/db.js';
+import {
+  initDatabase,
+  resolveDbPath,
+  resolveDefaultDbRoot,
+  durableDbHomePath,
+  legacyDbPath,
+  legacyDbCandidates,
+  siblingKegDbPaths,
+  isVersionVolatileDbPath,
+  migrateLegacyRegistry,
+  verifyRescuedRegistry,
+  verifyCoreSchema,
+  isPortAvailable,
+  CORE_SCHEMA_SQL,
+} from '../../lib/db.js';
 import { createServices } from '../../lib/services.js';
 import { createLocks } from '../../lib/locks.js';
 import { createSessions } from '../../lib/sessions.js';
@@ -38,17 +52,33 @@ describe('lib/db.ts', () => {
       }
     });
 
-    it('defaults to project root port-registry.db', () => {
+    it('defaults to the durable home ~/.port-daddy/port-registry.db, never a checkout- or binary-relative path', () => {
       const original = process.env.PORT_DADDY_DB;
       delete process.env.PORT_DADDY_DB;
       try {
         const result = resolveDbPath();
-        expect(result).toMatch(/port-registry\.db$/);
+        expect(result).toBe(path.join(os.homedir(), '.port-daddy', 'port-registry.db'));
+        expect(result).toBe(durableDbHomePath());
       } finally {
         if (original) {
           process.env.PORT_DADDY_DB = original;
         }
       }
+    });
+
+    it('flags version-volatile (Homebrew Cellar) paths', () => {
+      expect(isVersionVolatileDbPath('/opt/homebrew/Cellar/port-daddy/3.24.1_1/bin/port-registry.db')).toBe(true);
+      expect(isVersionVolatileDbPath(durableDbHomePath())).toBe(false);
+      expect(isVersionVolatileDbPath('/srv/port-daddy/port-registry.db')).toBe(false);
+    });
+
+    it('legacyDbPath anchors on the distribution root', () => {
+      const result = legacyDbPath(
+        '/$bunfs/root/lib',
+        {},
+        '/opt/port-daddy/dist/daemon/port-daddy-daemon',
+      );
+      expect(result).toBe('/opt/port-daddy/port-registry.db');
     });
 
     it('uses the distribution resource root when running from a compiled binary', () => {
@@ -69,6 +99,169 @@ describe('lib/db.ts', () => {
       );
 
       expect(result).toBe('/srv/port-daddy');
+    });
+  });
+
+  describe('migrateLegacyRegistry', () => {
+    let dir;
+
+    beforeEach(() => {
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pd-migrate-'));
+    });
+
+    afterEach(() => {
+      fs.rmSync(dir, { recursive: true, force: true });
+    });
+
+    function makeLegacyDb(dbPath) {
+      const db = new Database(dbPath);
+      db.exec('CREATE TABLE marker (v TEXT)');
+      db.prepare('INSERT INTO marker (v) VALUES (?)').run('legacy-truth');
+      db.close();
+    }
+
+    it('rescues a legacy registry into the durable home', () => {
+      const source = path.join(dir, 'cellar', 'port-registry.db');
+      const dest = path.join(dir, 'home', 'port-registry.db');
+      fs.mkdirSync(path.dirname(source), { recursive: true });
+      makeLegacyDb(source);
+
+      expect(migrateLegacyRegistry(dest, source)).toBe(true);
+      expect(fs.existsSync(dest)).toBe(true);
+      const db = new Database(dest, { readonly: true });
+      expect(db.prepare('SELECT v FROM marker').get().v).toBe('legacy-truth');
+      db.close();
+      // Legacy file is left in place (read-only rescue).
+      expect(fs.existsSync(source)).toBe(true);
+    });
+
+    it('is a no-op when the destination already exists', () => {
+      const source = path.join(dir, 'port-registry.db');
+      const dest = path.join(dir, 'existing.db');
+      makeLegacyDb(source);
+      fs.writeFileSync(dest, '');
+      expect(migrateLegacyRegistry(dest, source)).toBe(false);
+    });
+
+    it('is a no-op when there is no legacy registry', () => {
+      expect(migrateLegacyRegistry(path.join(dir, 'dest.db'), path.join(dir, 'missing.db'))).toBe(false);
+    });
+
+    it('is a no-op when source and destination are the same file', () => {
+      const p = path.join(dir, 'same.db');
+      makeLegacyDb(p);
+      expect(migrateLegacyRegistry(p, p)).toBe(false);
+    });
+
+    it('rescues from a sibling brew keg when the primary legacy path is empty (post-upgrade)', () => {
+      // Simulate: new keg 3.25.0 (no registry, where the new binary resolves),
+      // old keg 3.24.1_1 still holding the data.
+      const cellar = path.join(dir, 'Cellar', 'port-daddy');
+      const newKegDb = path.join(cellar, '3.25.0', 'bin', 'port-registry.db');
+      const oldKegDb = path.join(cellar, '3.24.1_1', 'bin', 'port-registry.db');
+      const dest = path.join(dir, 'home', 'port-registry.db');
+      fs.mkdirSync(path.dirname(newKegDb), { recursive: true });
+      fs.mkdirSync(path.dirname(oldKegDb), { recursive: true });
+      makeLegacyDb(oldKegDb);
+
+      const execPath = path.join(cellar, '3.25.0', 'bin', 'port-daddy-daemon');
+      const candidates = legacyDbCandidates(newKegDb, execPath);
+      expect(candidates[0]).toBe(newKegDb); // primary first
+      expect(candidates).toContain(oldKegDb); // sibling keg discovered
+
+      expect(migrateLegacyRegistry(dest, candidates)).toBe(true);
+      const db = new Database(dest, { readonly: true });
+      expect(db.prepare('SELECT v FROM marker').get().v).toBe('legacy-truth');
+      db.close();
+    });
+
+    it('quarantines a rescue that fails post-apply verification', () => {
+      // A source that VACUUMs into a file with no tables cannot exist in
+      // practice, so exercise the probe directly plus the corrupt-source path.
+      const garbage = path.join(dir, 'garbage.db');
+      fs.writeFileSync(garbage, 'this is not a sqlite database, not even close');
+      const dest = path.join(dir, 'home', 'port-registry.db');
+      expect(migrateLegacyRegistry(dest, garbage)).toBe(false);
+      expect(fs.existsSync(dest)).toBe(false);
+    });
+
+    it('verifyRescuedRegistry accepts a real registry and rejects garbage', () => {
+      const good = path.join(dir, 'good.db');
+      makeLegacyDb(good);
+      expect(verifyRescuedRegistry(good)).toBe(true);
+
+      const garbage = path.join(dir, 'bad.db');
+      fs.writeFileSync(garbage, 'nope');
+      expect(verifyRescuedRegistry(garbage)).toBe(false);
+      expect(verifyRescuedRegistry(path.join(dir, 'missing.db'))).toBe(false);
+    });
+
+    it('verifyCoreSchema passes on a freshly initialized DB and throws on a gutted one', () => {
+      const db = initDatabase({ inMemory: true });
+      expect(() => verifyCoreSchema(db)).not.toThrow();
+      db.exec('DROP TABLE roadmap_item_status_events');
+      expect(() => verifyCoreSchema(db)).toThrow(/roadmap_item_status_events/);
+      db.close();
+
+      const bare = new Database(':memory:');
+      bare.exec('CREATE TABLE services (id TEXT); CREATE TABLE sessions (id TEXT)');
+      expect(() => verifyCoreSchema(bare)).toThrow(/Schema verification failed/);
+      bare.close();
+    });
+
+    it('verifyCoreSchema catches a missing deleted_at tombstone column specifically', () => {
+      const db = initDatabase({ inMemory: true });
+      db.exec('DROP INDEX idx_roadmap_items_live');
+      db.exec('ALTER TABLE roadmap_items DROP COLUMN deleted_at');
+      expect(() => verifyCoreSchema(db)).toThrow(/roadmap_items\.deleted_at/);
+      db.close();
+    });
+
+    it('initDatabase runs the PRAGMA-guarded ALTER on a legacy (pre-tombstone) DB file', () => {
+      // A DB created from the OLD schema — no deleted_at, no live index.
+      const legacyPath = path.join(dir, 'legacy-schema.db');
+      const legacy = new Database(legacyPath);
+      legacy.exec(`
+        CREATE TABLE roadmap_items (
+          id TEXT PRIMARY KEY, slug TEXT NOT NULL, summary_md TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'backlog',
+          promoted_from_feedback_id TEXT, promoted_by_agent_id TEXT, promoted_at INTEGER,
+          last_touched_at INTEGER NOT NULL, dependencies_json TEXT NOT NULL DEFAULT '[]',
+          notes_json TEXT NOT NULL DEFAULT '[]', harbor TEXT NOT NULL,
+          created_at INTEGER NOT NULL, UNIQUE(slug, harbor)
+        );
+      `);
+      legacy.prepare(
+        "INSERT INTO roadmap_items (id, slug, summary_md, last_touched_at, harbor, created_at) VALUES ('x', 's', 'm', 1, 'fleet', 1)",
+      ).run();
+      legacy.close();
+
+      const migrated = initDatabase({ dbPath: legacyPath });
+      const cols = migrated.prepare('PRAGMA table_info(roadmap_items)').all().map((c) => c.name);
+      expect(cols).toContain('deleted_at');
+      const idx = migrated
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_roadmap_items_live'")
+        .get();
+      expect(idx).toBeDefined();
+      // Pre-existing row survives with a NULL tombstone (still live).
+      expect(migrated.prepare("SELECT deleted_at FROM roadmap_items WHERE id = 'x'").get().deleted_at).toBeNull();
+      migrated.close();
+    });
+
+    it('siblingKegDbPaths returns newest-first and [] outside a Cellar', () => {
+      const cellar = path.join(dir, 'Cellar', 'port-daddy');
+      const a = path.join(cellar, '3.23.0', 'bin', 'port-registry.db');
+      const b = path.join(cellar, '3.24.0', 'bin', 'port-registry.db');
+      fs.mkdirSync(path.dirname(a), { recursive: true });
+      fs.mkdirSync(path.dirname(b), { recursive: true });
+      makeLegacyDb(a);
+      makeLegacyDb(b);
+      const past = new Date(Date.now() - 60_000);
+      fs.utimesSync(a, past, past);
+
+      const found = siblingKegDbPaths(path.join(cellar, '3.25.0', 'bin', 'pd'));
+      expect(found).toEqual([b, a]);
+      expect(siblingKegDbPaths('/srv/port-daddy/bin/pd')).toEqual([]);
     });
   });
 

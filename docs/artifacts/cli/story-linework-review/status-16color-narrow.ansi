@@ -1,0 +1,9 @@
+[32m┌[0m[42m[30m[1m PORT DADDY [0m [43m[30m[1m 3.24.2 [0m daemon · (94a494e26484)           [32m┐[0m
+[42m[30m[1m DAEMON CONFIRMED [0m                                        
+[32m▌[0m [32m●[0m     daemon      pid 30119 · up 3m · 0 ports           
+[32m▌[0m [32m●[0m     runtime     nominal                               
+[37m▌[0m [37m●[0m [34m█[0m[37m█[0mM fleet       0 project(s) · 0 agent(s)             
+[37m▌[0m [37m●[0m [34m█[0m[37m█[0mM bosun       idle · daemon heartbeat writer active;
+  pd-bosun supervisor not installed (optional)            
+[36m▌[0m [36m●[0m [31m█[0m[33m█[0mR activity    202s ago                              
+[32m╵[0m runtime nominal · active ports 0                       [32m╵[0m
