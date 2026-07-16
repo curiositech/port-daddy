@@ -4,7 +4,8 @@
  * the ADR-0097 M6 F0-delta (CompactionPacket, MemoryEpisode,
  * TranscriptSearchQuery/Result, and the read-only BlackboardItem), and the
  * ADR-0028 backend-neutral HandoffCapsule continuation boundary, and the
- * ADR-0118 successor-brief and N:N harness evidence contracts.
+ * ADR-0118 successor-brief and N:N harness evidence contracts, and the
+ * ADR-0119 durable named-agent profile carried by AgentNode facts.
  *
  * Locks three things:
  *   1. Every schema in schemas/agent-harbor/v0/ parses and COMPILES — the
@@ -61,6 +62,7 @@ const SCHEMA_NAMES = [
   'work-intent',
   'work-plan',
   'agent-node',
+  'durable-agent-profile',
   'agent-run',
   'body',
   'transcript-event',
@@ -274,7 +276,7 @@ function loadFixture(name) {
 // ---------------------------------------------------------------------------
 
 describe('agent-harbor v0 schema package', () => {
-  it('ships exactly the twenty-four frozen contracts plus fixtures', () => {
+  it('ships exactly the twenty-five frozen contracts plus fixtures', () => {
     const files = readdirSync(schemaDir).filter((f) => f.endsWith('.schema.json')).sort();
     expect(files).toEqual(SCHEMA_NAMES.map((n) => `${n}.schema.json`).sort());
   });

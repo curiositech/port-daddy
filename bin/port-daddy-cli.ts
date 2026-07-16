@@ -50,7 +50,7 @@ import {
   // Sessions
   handleSession, handleSessions, handleNote, handleNotes,
   // Agents & Resurrection
-  handleAgent, handleAgents,
+  handleAgent, handleAgents, handleRoster,
   handleSalvage,
   // Changelog
   handleChangelog,
@@ -211,7 +211,7 @@ const TIER_1_COMMANDS: Set<string> = new Set([
 
 const TIER_2_COMMANDS: Set<string> = new Set([
   'pub', 'publish', 'sub', 'subscribe', 'wait', 'broadcast', 'listen', 'tube',
-  'agent', 'agents', 'actor', 'actors',
+  'agent', 'agents', 'actor', 'actors', 'roster',
   'up', 'down', 'watch', 'swarm', 'fleet',
   'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
   'advise', 'preflight', 'compass', 'guard',
@@ -1378,7 +1378,7 @@ const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'tube', 'wait', 'lock', 'unlock', 'locks',
   'up', 'down', 'setup', 'init', 'cut', 'scan', 's', 'projects', 'p',
-  'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'send', 'sent', 'log', 'activity',
+  'agent', 'agents', 'actor', 'actors', 'roster', 'swarm', 'inbox', 'send', 'sent', 'log', 'activity',
   'wallet', 'bond',
   'session', 'sessions', 'takeover', 'note', 'notes', 'say',
   'begin', 'done', 'whoami', 'account', 'attention', 'nudge', 'with-lock', 'learn',
@@ -2686,6 +2686,10 @@ export async function main(): Promise<void> {
 
       case 'actors':
         await handleActors([], options);
+        break;
+
+      case 'roster':
+        await handleRoster(positional[0], positional.slice(1), options);
         break;
 
       // Self-healing / resurrection

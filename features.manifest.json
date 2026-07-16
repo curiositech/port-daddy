@@ -213,6 +213,30 @@
         "sdk": true
       }
     },
+    "durable_agent_roster": {
+      "description": "Daemon-minted durable named AgentNode identities with append-only profiles, scoped aliases, session promotion, hybrid expertise retrieval, sanitized handoff memory, and backend-selectable continuation",
+      "cli": [
+        "roster"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /durable-agents",
+        "GET /durable-agents/search",
+        "GET /durable-agents/:id",
+        "POST /durable-agents",
+        "POST /durable-agents/promote",
+        "PATCH /durable-agents/:id",
+        "POST /durable-agents/:id/handoffs",
+        "POST /durable-agents/:id/retire"
+      ],
+      "completions": [
+        "roster"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
     "agent_cockpit": {
       "description": "Watch + Grab the Wheel (Phase 0) \u2014 additive console surface for one agent or spawned run. GET /agents/:id/stream is a single SSE feed merging that agent's lifecycle status, its steering-channel tube/control messages, and its ship-run transcript events into typed envelopes ({v,kind,agentId,body,ts}). POST /agents/:id/interrupt delivers a SOFT cancel/steer signal (a control.interrupt message on the agent's `agent:<id>` steering channel) that a cooperating agent loop can observe \u2014 pause/redirect, NOT the hard process kill of DELETE /spawn/:id.",
       "cli": [],

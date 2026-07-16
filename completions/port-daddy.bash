@@ -90,7 +90,7 @@ _port_daddy() {
     # Agent coordination
     pub publish broadcast sub subscribe listen tube wait lock unlock locks
     # Agent registry
-    agent agents actor actors swarm
+    agent agents actor actors roster swarm
     # Activity
     log activity
     # Sessions & Notes
@@ -691,6 +691,17 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     actor|actors)
       _pd_opts '--project --limit --message --from --type --wake --json --quiet'
+      ;;
+
+    roster)
+      case "$prev" in
+        roster) COMPREPLY=( $(compgen -W 'list show search create promote update attach continue retire help' -- "$cur") ) ;;
+        --scope) COMPREPLY=( $(compgen -W 'system repo' -- "$cur") ) ;;
+        --mode) COMPREPLY=( $(compgen -W 'auto native handoff' -- "$cur") ) ;;
+        --filesystem) COMPREPLY=( $(compgen -W 'inherit repo workspace read-only' -- "$cur") ) ;;
+        --network) COMPREPLY=( $(compgen -W 'inherit none restricted full' -- "$cur") ) ;;
+        *) _pd_opts '--repo --all --limit --slug --name --remit --instructions --scope --system --skills --tools --backend --model --episode --mode --prompt --timeout --lifecycle --filesystem --network --allow-tools --deny-tools --file --json --quiet' ;;
+      esac
       ;;
 
     # -----------------------------------------------------------------------
