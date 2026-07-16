@@ -4,6 +4,12 @@ import { createTestDb } from '../setup-unit.js';
 import { createEpisodicMemory } from '../../lib/episodic-memory.js';
 import { HandoffScannerUnavailableError } from '../../lib/handoff-capsule.js';
 import { memoryPlugin } from '../../routes/memory.js';
+import { captureWorkspaceIdentity } from '../../lib/workspace-identity.js';
+
+const SOURCE_SESSION_ID = '11111111-1111-4111-8111-111111111111';
+const WORKSPACE_IDENTITY = captureWorkspaceIdentity(process.cwd());
+if (!WORKSPACE_IDENTITY) throw new Error('test workspace identity unavailable');
+const CANONICAL_WORKSPACE = WORKSPACE_IDENTITY.canonicalPath;
 
 function capsule(overrides = {}) {
   return {
@@ -12,10 +18,10 @@ function capsule(overrides = {}) {
     capturedAt: '2026-07-15T20:00:00.000Z',
     source: {
       adapter: 'claude-code',
-      sessionId: 'claude-session-route-1',
+      sessionId: SOURCE_SESSION_ID,
       agentId: 'portdaddy-typography-expert',
       workflowId: 'wf-route-1',
-      transcriptRef: '/tmp/claude-session-route-1.jsonl',
+      transcriptRef: `/tmp/${SOURCE_SESSION_ID}.jsonl`,
     },
     identity: {
       project: 'port-daddy',
@@ -48,6 +54,46 @@ async function buildApp(overrides = {}) {
   const logger = { error: jest.fn() };
   const harvestSessionFn = jest.fn(async () => ({ episodeIds: [41], skipped: 1, promoted: 1 }));
   const gitleaksRunner = jest.fn(() => ({ findings: [] }));
+  const captureNativeSessionWitnessFn = jest.fn((_capsule, adapterFamily) => ({
+    verified: true,
+    witness: {
+      schema: 'pd.agent-harbor.native-session-witness.v0',
+      adapterFamily,
+      method: 'claude-jsonl-session-id',
+      sessionIdHash: 'a'.repeat(64),
+      evidenceHash: 'b'.repeat(64),
+      workspaceHash: 'c'.repeat(64),
+      witnessedAt: Date.now(),
+    },
+    reason: null,
+    canonicalWorkspace: CANONICAL_WORKSPACE,
+    workspaceIdentity: WORKSPACE_IDENTITY,
+  }));
+  const verifyNativeSessionWitnessFn = jest.fn((_capsule, _adapterFamily, witness) => ({
+    verified: Boolean(witness),
+    witness: witness ?? null,
+    reason: witness ? null : 'handoff has no valid daemon-witnessed native session evidence',
+    canonicalWorkspace: witness ? CANONICAL_WORKSPACE : null,
+    workspaceIdentity: witness ? WORKSPACE_IDENTITY : null,
+  }));
+  const spawner = {
+    spawn: jest.fn(async (spec) => ({
+      agentId: 'spawned-continuation-1',
+      backend: spec.backend,
+      model: spec.model ?? 'sonnet',
+      requestedBackend: spec.requestedBackend ?? spec.backend,
+      effectiveBackend: spec.backend,
+      requestedModel: spec.requestedModel ?? spec.model ?? 'sonnet',
+      effectiveModel: spec.model ?? 'sonnet',
+      status: 'completed',
+      output: 'continued',
+      error: null,
+      telemetry: null,
+      startedAt: Date.now(),
+      completedAt: Date.now(),
+      harnessSessionId: spec.nativeResume?.sessionId,
+    })),
+  };
 
   await app.register(memoryPlugin, {
     deps: {
@@ -57,11 +103,25 @@ async function buildApp(overrides = {}) {
       logger,
       harvestSessionFn,
       gitleaksRunner,
+      spawner,
+      captureNativeSessionWitnessFn,
+      verifyNativeSessionWitnessFn,
       ...overrides,
     },
   });
   await app.ready();
-  return { app, db, episodicMemory, metrics, logger, harvestSessionFn, gitleaksRunner };
+  return {
+    app,
+    db,
+    episodicMemory,
+    metrics,
+    logger,
+    harvestSessionFn,
+    gitleaksRunner,
+    spawner,
+    captureNativeSessionWitnessFn,
+    verifyNativeSessionWitnessFn,
+  };
 }
 
 describe('POST /memory/handoffs', () => {
@@ -86,6 +146,11 @@ describe('POST /memory/handoffs', () => {
     expect(response.statusCode).toBe(201);
     const body = response.json();
     expect(body.success).toBe(true);
+    expect(body.nativeResume).toEqual(expect.objectContaining({
+      verified: true,
+      adapterFamily: 'claude-code',
+      method: 'claude-jsonl-session-id',
+    }));
     expect(body.capsule.telos).toContain('[REDACTED:7890]');
     expect(body.capsule.rawTranscript).toBeUndefined();
     expect(JSON.stringify(body)).not.toContain(secret);
@@ -110,10 +175,14 @@ describe('POST /memory/handoffs', () => {
       project: 'port-daddy',
       agentId: 'portdaddy-typography-expert',
       sourceType: 'handoff-capsule',
-      sourceId: 'portdaddy-typography-expert:claude-session-route-1',
+      sourceId: `portdaddy-typography-expert:${SOURCE_SESSION_ID}`,
     }));
     expect(JSON.stringify(episodes[0].metadata)).not.toContain(secret);
     expect(episodes[0].metadata.capsule.operatorTurns[0].text).toBe('Preserve this operator turn.');
+    expect(episodes[0].metadata.nativeSessionWitness).toEqual(expect.objectContaining({
+      schema: 'pd.agent-harbor.native-session-witness.v0',
+      adapterFamily: 'claude-code',
+    }));
 
     await state.app.close();
     state.db.close();
@@ -357,6 +426,367 @@ describe('POST /memory/handoffs', () => {
     expect(response.statusCode).toBe(413);
     expect(state.gitleaksRunner).not.toHaveBeenCalled();
     expect(state.episodicMemory.list()).toHaveLength(0);
+
+    await state.app.close();
+    state.db.close();
+  });
+});
+
+describe('same-harness continuation routes', () => {
+  async function createHandoff(state, overrides = {}) {
+    const response = await state.app.inject({
+      method: 'POST',
+      url: '/memory/handoffs',
+      payload: { capsule: capsule(overrides) },
+    });
+    expect(response.statusCode).toBe(201);
+    return response.json().episode;
+  }
+
+  test('resumes the exact source session and returns a durable lineage receipt', async () => {
+    const state = await buildApp();
+    const episode = await createHandoff(state);
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:claude-code',
+        model: 'sonnet',
+        prompt: 'Continue the implementation.',
+        idempotencyKey: 'route-continuation-1',
+        durableAgentId: 'portdaddy-typography-expert',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual(expect.objectContaining({
+      success: true,
+      replayed: false,
+      receipt: expect.objectContaining({
+        status: 'completed',
+        mode: 'native',
+        sourceEpisodeId: episode.id,
+        sourceSessionId: SOURCE_SESSION_ID,
+        successorSessionId: SOURCE_SESSION_ID,
+        successorRunId: 'spawned-continuation-1',
+      }),
+    }));
+    expect(state.spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
+      backend: 'cli:claude-code',
+      task: 'Continue the implementation.',
+      nativeResume: expect.objectContaining({
+        adapterFamily: 'claude-code',
+        sessionId: SOURCE_SESSION_ID,
+        workspaceIdentity: WORKSPACE_IDENTITY,
+      }),
+      workdir: CANONICAL_WORKSPACE,
+    }));
+
+    const receiptId = response.json().receipt.id;
+    const read = await state.app.inject({ method: 'GET', url: `/memory/continuations/${receiptId}` });
+    expect(read.statusCode).toBe(200);
+    expect(read.json().receipt.id).toBe(receiptId);
+    const listed = await state.app.inject({
+      method: 'GET',
+      url: `/memory/continuations?sourceEpisodeId=${episode.id}`,
+    });
+    expect(listed.json()).toEqual(expect.objectContaining({ count: 1 }));
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('replays an identical idempotency request without spawning twice', async () => {
+    const state = await buildApp();
+    const episode = await createHandoff(state);
+    const payload = {
+      targetBackend: 'claude-cli',
+      prompt: 'Continue exactly once.',
+      idempotencyKey: 'route-continuation-replay',
+    };
+
+    const first = await state.app.inject({ method: 'POST', url: `/memory/handoffs/${episode.id}/continue`, payload });
+    const replay = await state.app.inject({ method: 'POST', url: `/memory/handoffs/${episode.id}/continue`, payload });
+
+    expect(first.statusCode).toBe(201);
+    expect(replay.statusCode).toBe(200);
+    expect(replay.json()).toEqual(expect.objectContaining({ replayed: true }));
+    expect(replay.json().receipt.id).toBe(first.json().receipt.id);
+    expect(state.spawner.spawn).toHaveBeenCalledTimes(1);
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('reports an in-flight idempotent replay as pending, never successful', async () => {
+    const state = await buildApp();
+    const episode = await createHandoff(state);
+    const defaultSpawn = state.spawner.spawn.getMockImplementation();
+    let releaseSpawn;
+    state.spawner.spawn.mockImplementation((spec) => new Promise((resolve) => {
+      releaseSpawn = async () => resolve(await defaultSpawn(spec));
+    }));
+    const payload = {
+      targetBackend: 'cli:claude-code',
+      prompt: 'Continue while a retry polls.',
+      idempotencyKey: 'route-continuation-pending-replay',
+    };
+
+    const firstPromise = state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload,
+    });
+    for (let attempt = 0; attempt < 20 && !releaseSpawn; attempt++) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    expect(releaseSpawn).toEqual(expect.any(Function));
+
+    const replay = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload,
+    });
+    expect(replay.statusCode).toBe(202);
+    expect(replay.json()).toEqual(expect.objectContaining({
+      success: false,
+      pending: true,
+      replayed: true,
+      receipt: expect.objectContaining({ status: 'running' }),
+    }));
+    expect(state.spawner.spawn).toHaveBeenCalledTimes(1);
+
+    await releaseSpawn();
+    const first = await firstPromise;
+    expect(first.statusCode).toBe(201);
+    expect(first.json().success).toBe(true);
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('persists unsupported cross-family attempts without invoking a child', async () => {
+    const state = await buildApp();
+    const episode = await createHandoff(state);
+    const payload = {
+      targetBackend: 'cli:codex',
+      prompt: 'Do not launch this as native resume.',
+      idempotencyKey: 'route-continuation-cross-family',
+    };
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload,
+    });
+    const replay = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload,
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json()).toEqual(expect.objectContaining({
+      success: false,
+      receipt: expect.objectContaining({ status: 'unsupported' }),
+    }));
+    expect(response.json().error).toMatch(/cannot resume through effective adapter codex-cli/);
+    expect(replay.statusCode).toBe(422);
+    expect(replay.json()).toEqual(expect.objectContaining({
+      success: false,
+      replayed: true,
+      receipt: expect.objectContaining({ id: response.json().receipt.id, status: 'unsupported' }),
+    }));
+    expect(state.spawner.spawn).not.toHaveBeenCalled();
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('persists an unsupported receipt when daemon-witnessed source evidence cannot be reverified', async () => {
+    const verifyNativeSessionWitnessFn = jest.fn(() => ({
+      verified: false,
+      witness: null,
+      reason: 'daemon-witnessed native session evidence no longer matches the handoff',
+    }));
+    const state = await buildApp({ verifyNativeSessionWitnessFn });
+    const episode = await createHandoff(state);
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:claude-code',
+        prompt: 'Do not launch an unverified session.',
+        idempotencyKey: 'route-continuation-unwitnessed',
+      },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json()).toEqual(expect.objectContaining({
+      success: false,
+      receipt: expect.objectContaining({ status: 'unsupported' }),
+    }));
+    expect(response.json().error).toMatch(/no longer matches/);
+    expect(verifyNativeSessionWitnessFn).toHaveBeenCalledWith(
+      expect.objectContaining({ source: expect.objectContaining({ sessionId: SOURCE_SESSION_ID }) }),
+      'claude-code',
+      expect.objectContaining({ schema: 'pd.agent-harbor.native-session-witness.v0' }),
+    );
+    expect(state.spawner.spawn).not.toHaveBeenCalled();
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('rejects option-shaped native identities before starting a child', async () => {
+    const state = await buildApp();
+    const episode = await createHandoff(state, {
+      source: {
+        ...capsule().source,
+        sessionId: '--last',
+      },
+    });
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:claude-code',
+        prompt: 'Do not parse this as an option.',
+        idempotencyKey: 'route-continuation-option-id',
+      },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json().error).toMatch(/canonical UUID/);
+    expect(response.json().receipt.status).toBe('unsupported');
+    expect(state.spawner.spawn).not.toHaveBeenCalled();
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('does not spawn when accepted-to-running lease ownership is lost', async () => {
+    const state = await buildApp();
+    const episode = await createHandoff(state);
+    state.verifyNativeSessionWitnessFn.mockImplementation((_capsule, _adapterFamily, witness) => {
+      state.db.prepare(`
+        UPDATE agent_continuations
+        SET status = 'orphaned', completed_at = updated_at
+        WHERE status = 'accepted'
+      `).run();
+      return {
+        verified: true,
+        witness,
+        reason: null,
+        canonicalWorkspace: CANONICAL_WORKSPACE,
+        workspaceIdentity: WORKSPACE_IDENTITY,
+      };
+    });
+
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:claude-code',
+        prompt: 'Do not launch after lease loss.',
+        idempotencyKey: 'route-continuation-running-cas',
+      },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual(expect.objectContaining({
+      success: false,
+      receipt: expect.objectContaining({ status: 'orphaned' }),
+    }));
+    expect(state.spawner.spawn).not.toHaveBeenCalled();
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('never reports success when terminal receipt ownership changes during spawn', async () => {
+    const state = await buildApp();
+    const episode = await createHandoff(state);
+    const defaultSpawn = state.spawner.spawn.getMockImplementation();
+    state.spawner.spawn.mockImplementation(async (spec) => {
+      state.db.prepare(`
+        UPDATE agent_continuations
+        SET status = 'orphaned', completed_at = updated_at
+        WHERE status = 'running'
+      `).run();
+      return defaultSpawn(spec);
+    });
+
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:claude-code',
+        prompt: 'Return only after durable completion.',
+        idempotencyKey: 'route-continuation-terminal-cas',
+      },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual(expect.objectContaining({
+      success: false,
+      receipt: expect.objectContaining({ status: 'orphaned' }),
+    }));
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('rejects idempotency drift and never stores raw prompt text', async () => {
+    const state = await buildApp();
+    const episode = await createHandoff(state);
+    const first = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:claude-code',
+        prompt: 'private continuation prompt marker',
+        idempotencyKey: 'route-continuation-conflict',
+      },
+    });
+    const conflict = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:claude-code',
+        prompt: 'different prompt',
+        idempotencyKey: 'route-continuation-conflict',
+      },
+    });
+
+    expect(first.statusCode).toBe(201);
+    expect(conflict.statusCode).toBe(409);
+    const row = state.db.prepare('SELECT * FROM agent_continuations WHERE id = ?').get(first.json().receipt.id);
+    expect(JSON.stringify(row)).not.toContain('private continuation prompt marker');
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('fails closed before acceptance when prompt scanning is unavailable', async () => {
+    const gitleaksRunner = jest.fn(() => ({ findings: [] }));
+    const state = await buildApp({ gitleaksRunner });
+    const episode = await createHandoff(state);
+    gitleaksRunner.mockImplementation(() => { throw new HandoffScannerUnavailableError(); });
+
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:claude-code',
+        prompt: 'continue',
+        idempotencyKey: 'route-continuation-scanner-down',
+      },
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toEqual(expect.objectContaining({ failClosed: true }));
+    expect(state.spawner.spawn).not.toHaveBeenCalled();
+    expect(state.db.prepare('SELECT COUNT(*) AS count FROM agent_continuations').get().count).toBe(0);
 
     await state.app.close();
     state.db.close();

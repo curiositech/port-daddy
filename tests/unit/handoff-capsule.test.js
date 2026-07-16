@@ -9,6 +9,7 @@ import {
   HandoffValidationError,
   runGitleaks,
   sanitizeHandoffCapsule,
+  sanitizeHandoffText,
 } from '../../lib/handoff-capsule.js';
 
 const cleanRunner = () => ({ findings: [] });
@@ -186,6 +187,24 @@ describe('sanitizeHandoffCapsule', () => {
     expect(() => sanitizeHandoffCapsule(capsule({ telos: 'x'.repeat(128 * 1024 + 1) }), {
       gitleaksRunner: cleanRunner,
     })).toThrow(HandoffValidationError);
+  });
+});
+
+describe('sanitizeHandoffText', () => {
+  test('redacts an operator prompt before returning it to a target harness', () => {
+    const secret = 'ghp_abcdefghijklmnopqrstuvwxyz1234567890';
+    const result = sanitizeHandoffText(`Continue safely with ${secret}`, { gitleaksRunner: cleanRunner });
+    expect(result).toContain('[REDACTED:7890]');
+    expect(result).not.toContain(secret);
+  });
+
+  test('fails closed on residual findings and unavailable external scanning', () => {
+    expect(() => sanitizeHandoffText('continue', {
+      gitleaksRunner: () => ({ findings: [{ ruleId: 'generic-secret', line: 1 }] }),
+    })).toThrow(HandoffSecretError);
+    expect(() => sanitizeHandoffText('continue', {
+      gitleaksRunner: () => { throw new HandoffScannerUnavailableError(); },
+    })).toThrow(HandoffScannerUnavailableError);
   });
 });
 

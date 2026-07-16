@@ -4863,7 +4863,14 @@ paths:
         request body is capped at 2 MiB. If a coordination session id is supplied,
         that session's notes are harvested after the durable write; harvest
         failures are returned as warnings and never discard a clean capsule.
-        Missing scanners and residual findings fail closed.
+        Missing scanners and residual findings fail closed. Native-resume
+        identifiers must be UUID-shaped. Claude, Codex, and Gemini require an
+        explicit transcript reference; agy additionally requires an exact
+        workspace mapping in its local last-conversations metadata. Evidence is
+        descriptor-read under fixed bounds and checked against canonical
+        workspace identity. An unavailable witness does not discard the
+        sanitized handoff but is reported in the response and blocks later
+        native resume.
       requestBody:
         required: true
         content:
@@ -4890,7 +4897,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [success, capsule, episode, harvest]
+                required: [success, capsule, episode, harvest, nativeResume]
                 properties:
                   success:
                     const: true
@@ -4900,6 +4907,19 @@ paths:
                     type: object
                   harvest:
                     type: object
+                  nativeResume:
+                    type: object
+                    additionalProperties: false
+                    required: [verified, adapterFamily, method, reason]
+                    properties:
+                      verified:
+                        type: boolean
+                      adapterFamily:
+                        type: string
+                      method:
+                        type: [string, 'null']
+                      reason:
+                        type: [string, 'null']
         '400':
           description: Malformed or incomplete capsule provenance
         '413':
@@ -4908,6 +4928,172 @@ paths:
           description: Capsule quarantined by secret scanning
         '503':
           description: Required external scanner unavailable
+
+  /memory/handoffs/{episodeId}/continue:
+    post:
+      tags: [memory]
+      summary: Resume the native harness session represented by a handoff episode
+      operationId: continueMemoryHandoff
+      description: >
+        Revalidates the stored sanitized capsule and outgoing operator prompt,
+        resolves the effective backend after overrides, writes an acceptance
+        receipt, reverifies adapter-specific local session evidence, and resumes
+        only when source and target share a session-scoped adapter family. A
+        daemon-generation lease and compare-and-swap gate the child side effect;
+        the witnessed workspace inode is rechecked at the final child-process
+        boundary, and success is returned only after durable completion by the
+        same owner. The receipt stores only prompt and idempotency hashes; the
+        sanitized prompt belongs to the ordinary governed spawn transcript.
+      parameters:
+        - name: episodeId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [targetBackend, idempotencyKey]
+              properties:
+                targetBackend:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                idempotencyKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 512
+                prompt:
+                  type: string
+                  minLength: 1
+                  maxLength: 131072
+                model:
+                  type: string
+                  minLength: 1
+                  maxLength: 512
+                durableAgentId:
+                  type: string
+                  minLength: 1
+                  maxLength: 1024
+                timeoutMs:
+                  type: integer
+                  minimum: 1000
+                  maximum: 21600000
+      responses:
+        '201':
+          description: Native continuation completed with a durable receipt
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, replayed, receipt]
+                properties:
+                  success:
+                    const: true
+                  replayed:
+                    const: false
+                  receipt:
+                    $ref: '#/components/schemas/ContinuationReceipt'
+        '200':
+          description: Idempotent replay of a completed request
+        '202':
+          description: Idempotent replay of an accepted or running request; never a completed success
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, pending, replayed, receipt]
+                properties:
+                  success:
+                    const: false
+                  pending:
+                    const: true
+                  replayed:
+                    const: true
+                  receipt:
+                    $ref: '#/components/schemas/ContinuationReceipt'
+        '400':
+          description: Invalid episode id, backend, prompt, or request boundary
+        '404':
+          description: Sanitized handoff episode not found
+        '409':
+          description: Idempotency drift, orphaned replay, or continuation lease ownership conflict
+        '422':
+          description: Secret quarantine, unsupported adapter pairing, or unavailable native-session witness
+        '502':
+          description: Target harness failed after durable acceptance
+        '503':
+          description: Continuation store, spawner, or required scanner unavailable
+
+  /memory/continuations:
+    get:
+      tags: [memory]
+      summary: List durable continuation receipts
+      operationId: listMemoryContinuations
+      parameters:
+        - name: sourceEpisodeId
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: durableAgentId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [accepted, running, completed, failed, unsupported, orphaned]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+      responses:
+        '200':
+          description: Matching continuation receipts
+        '400':
+          description: Invalid filter
+        '503':
+          description: Continuation store unavailable
+
+  /memory/continuations/{continuationId}:
+    get:
+      tags: [memory]
+      summary: Read one durable continuation receipt
+      operationId: getMemoryContinuation
+      parameters:
+        - name: continuationId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 1024
+      responses:
+        '200':
+          description: Continuation receipt
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, receipt]
+                properties:
+                  success:
+                    const: true
+                  receipt:
+                    $ref: '#/components/schemas/ContinuationReceipt'
+        '404':
+          description: Continuation receipt not found
+        '503':
+          description: Continuation store unavailable
 
 components:
   parameters:
@@ -4926,6 +5112,82 @@ components:
       description: Process ID of the calling process
 
   schemas:
+    ContinuationReceipt:
+      type: object
+      required:
+        - schema
+        - id
+        - sourceEpisodeId
+        - sourceCapsuleId
+        - mode
+        - sourceAdapter
+        - sourceSessionId
+        - targetAdapter
+        - requestedBackend
+        - status
+        - promptHash
+        - requestHash
+        - createdAt
+        - updatedAt
+        - leaseExpiresAt
+      properties:
+        schema:
+          const: pd.agent-harbor.continuation-receipt.v0
+        id:
+          type: string
+        sourceEpisodeId:
+          type: integer
+        sourceCapsuleId:
+          type: string
+        durableAgentId:
+          type: [string, 'null']
+        mode:
+          type: string
+          enum: [native, handoff]
+        sourceAdapter:
+          type: string
+        sourceSessionId:
+          type: string
+        sourceAgentId:
+          type: [string, 'null']
+        predecessorRunId:
+          type: [string, 'null']
+        targetAdapter:
+          type: string
+        requestedBackend:
+          type: string
+        effectiveBackend:
+          type: [string, 'null']
+        requestedModel:
+          type: [string, 'null']
+        effectiveModel:
+          type: [string, 'null']
+        successorRunId:
+          type: [string, 'null']
+        successorSessionId:
+          type: [string, 'null']
+        status:
+          type: string
+          enum: [accepted, running, completed, failed, unsupported, orphaned]
+        promptHash:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+        requestHash:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+        createdAt:
+          type: integer
+        updatedAt:
+          type: integer
+        startedAt:
+          type: [integer, 'null']
+        completedAt:
+          type: [integer, 'null']
+        leaseExpiresAt:
+          type: integer
+        error:
+          type: [string, 'null']
+
     Service:
       type: object
       properties:
