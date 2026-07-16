@@ -1,0 +1,1275 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="A source-verified atlas of Port Daddy agent compliance, runtime adapters, durable continuation, and the CLI agent cockpit.">
+  <title>Port Daddy Agent Conformance Atlas</title>
+  <style>
+    :root {
+      --paper: #f1eddf;
+      --paper-2: #e6e0cf;
+      --ink: #141414;
+      --muted: #625f56;
+      --rule: #191919;
+      --cobalt: #1746d1;
+      --signal: #dfff36;
+      --magenta: #c93479;
+      --sage: #176958;
+      --amber: #b65c13;
+      --danger: #b52c27;
+      --white: #fffdf7;
+      --space-1: .5rem;
+      --space-2: 1rem;
+      --space-3: 1.5rem;
+      --space-4: 2rem;
+      --space-5: 3rem;
+      --space-6: 4rem;
+      --page: min(100% - 2rem, 92rem);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 20rem;
+      overflow-x: clip;
+      background:
+        linear-gradient(90deg, transparent 0 49.8%, rgba(20,20,20,.025) 50%, transparent 50.2%),
+        var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 1rem;
+      line-height: 1.45;
+    }
+
+    a { color: inherit; text-underline-offset: .18em; }
+    a:hover { color: var(--cobalt); }
+    button, input { font: inherit; }
+    code, pre, .mono { font-family: var(--mono); }
+    svg { display: block; max-width: 100%; }
+
+    .skip-link {
+      position: fixed;
+      inset: .75rem auto auto .75rem;
+      z-index: 100;
+      transform: translateY(-160%);
+      background: var(--signal);
+      border: 2px solid var(--ink);
+      color: var(--ink);
+      padding: .65rem 1rem;
+      font-weight: 800;
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    .page { width: var(--page); margin-inline: auto; }
+    .masthead {
+      border-top: .7rem solid var(--ink);
+      border-bottom: 3px solid var(--ink);
+      padding: clamp(1.25rem, 3vw, 3rem) 0;
+    }
+    .mast-grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: var(--space-2);
+      align-items: end;
+    }
+    .kicker {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: .5rem 1rem;
+      font-family: var(--mono);
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    h1 {
+      grid-column: 1 / -1;
+      max-width: 14ch;
+      margin: 1rem 0 .5rem;
+      font-size: clamp(3.3rem, 10vw, 8.6rem);
+      line-height: .84;
+      letter-spacing: -.075em;
+      font-weight: 900;
+    }
+    .hero-copy {
+      grid-column: 1 / -1;
+      max-width: 60ch;
+      margin: .5rem 0 0;
+      font-size: clamp(1.05rem, 1rem + .35vw, 1.35rem);
+      font-weight: 620;
+    }
+    .hero-index {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border: 2px solid var(--ink);
+      margin-top: clamp(1rem, 4vw, 3rem);
+    }
+    .hero-stat {
+      min-height: 7rem;
+      padding: 1rem;
+      border-right: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+    }
+    .hero-stat:nth-child(2n) { border-right: 0; }
+    .hero-stat:nth-last-child(-n+2) { border-bottom: 0; }
+    .hero-stat strong {
+      display: block;
+      font-family: var(--mono);
+      font-size: clamp(2rem, 5vw, 4.2rem);
+      line-height: 1;
+      letter-spacing: -.06em;
+    }
+    .hero-stat span {
+      display: block;
+      margin-top: .55rem;
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .rail {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      border-bottom: 2px solid var(--ink);
+      background: color-mix(in srgb, var(--paper) 94%, transparent);
+      backdrop-filter: blur(8px);
+    }
+    .rail-inner {
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    .rail a {
+      flex: 0 0 auto;
+      min-height: 2.9rem;
+      display: inline-flex;
+      align-items: center;
+      padding: .7rem 1rem;
+      border-right: 1px solid var(--ink);
+      font-family: var(--mono);
+      font-size: .76rem;
+      font-weight: 800;
+      text-decoration: none;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+    .rail a:hover, .rail a[aria-current="true"] { background: var(--signal); color: var(--ink); }
+
+    main { counter-reset: section; }
+    .section {
+      counter-increment: section;
+      padding: clamp(3.5rem, 8vw, 7rem) 0;
+      border-bottom: 3px solid var(--ink);
+      scroll-margin-top: 3.5rem;
+    }
+    .section p, .section li, .constraint b { overflow-wrap: anywhere; }
+    .section-head {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: var(--space-2);
+      margin-bottom: clamp(2rem, 5vw, 4rem);
+    }
+    .section-no {
+      grid-column: 1 / -1;
+      font: 800 .78rem/1 var(--mono);
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+    .section-no::before { content: "0" counter(section) " / "; color: var(--cobalt); }
+    h2 {
+      grid-column: 1 / -1;
+      margin: 0;
+      max-width: 17ch;
+      font-size: clamp(2.4rem, 6vw, 5.5rem);
+      line-height: .93;
+      letter-spacing: -.055em;
+    }
+    .lede {
+      grid-column: 1 / -1;
+      max-width: 68ch;
+      margin: 0;
+      font-size: clamp(1rem, .95rem + .35vw, 1.25rem);
+    }
+    .eyebrow {
+      font: 800 .72rem/1.2 var(--mono);
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+    .muted { color: var(--muted); }
+    .accent { color: var(--cobalt); }
+
+    .trinity {
+      display: grid;
+      grid-template-columns: 1fr;
+      border: 2px solid var(--ink);
+    }
+    .trinity article {
+      padding: clamp(1.25rem, 3vw, 2rem);
+      border-bottom: 2px solid var(--ink);
+      min-height: 17rem;
+      display: flex;
+      flex-direction: column;
+    }
+    .trinity article:last-child { border-bottom: 0; }
+    .trinity h3, .panel h3 {
+      margin: .7rem 0 1rem;
+      font-size: clamp(1.45rem, 2.5vw, 2.1rem);
+      line-height: 1;
+      letter-spacing: -.035em;
+    }
+    .trinity p { margin: 0 0 1rem; }
+    .trinity .verdict { margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--ink); font-weight: 800; }
+    .skill-card { background: var(--white); }
+    .pilot-card { background: var(--cobalt); color: white; }
+    .audit-card { background: var(--signal); }
+
+    .equation {
+      display: grid;
+      grid-template-columns: 1fr;
+      margin-top: 1.5rem;
+      border: 2px solid var(--ink);
+      background: var(--ink);
+      color: var(--paper);
+    }
+    .equation > div { padding: 1rem; border-bottom: 1px solid var(--paper); }
+    .equation > div:last-child { border: 0; }
+    .equation b { color: var(--signal); }
+
+    .architecture {
+      border: 2px solid var(--ink);
+      background: var(--paper-2);
+    }
+    .arch-row {
+      display: grid;
+      grid-template-columns: 5.5rem 1fr;
+      min-height: 7rem;
+      border-bottom: 1px solid var(--ink);
+    }
+    .arch-row:last-child { border-bottom: 0; }
+    .arch-label {
+      display: grid;
+      place-items: center;
+      border-right: 2px solid var(--ink);
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      font: 800 .72rem/1 var(--mono);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .arch-nodes {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+      align-items: stretch;
+    }
+    .arch-node {
+      padding: 1rem;
+      border-right: 1px solid var(--ink);
+      position: relative;
+    }
+    .arch-node:last-child { border-right: 0; }
+    .arch-node strong { display: block; font-size: 1.1rem; }
+    .arch-node small { display: block; margin-top: .35rem; color: var(--muted); }
+    .arch-row[data-layer="operator"] { background: var(--white); }
+    .arch-row[data-layer="persona"] { background: color-mix(in srgb, var(--cobalt) 12%, var(--paper)); }
+    .arch-row[data-layer="authority"] { background: var(--ink); color: var(--paper); }
+    .arch-row[data-layer="authority"] small { color: #cbc6b8; }
+    .arch-row[data-layer="body"] { background: color-mix(in srgb, var(--magenta) 10%, var(--paper)); }
+    .arch-row[data-layer="evidence"] { background: color-mix(in srgb, var(--sage) 12%, var(--paper)); }
+
+    .callout {
+      border: 2px solid var(--ink);
+      padding: 1rem;
+      background: var(--signal);
+      margin-top: 1.5rem;
+      font-weight: 700;
+    }
+    .callout strong { font-family: var(--mono); text-transform: uppercase; }
+
+    details.diagram-source {
+      border-top: 2px solid var(--ink);
+      background: var(--white);
+    }
+    details.diagram-source summary {
+      min-height: 3rem;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      padding: .75rem 1rem;
+      font: 800 .78rem/1 var(--mono);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .source-wrap { position: relative; border-top: 1px solid var(--ink); }
+    .source-wrap pre {
+      margin: 0;
+      padding: 1rem;
+      overflow: auto;
+      font-size: .78rem;
+      line-height: 1.55;
+      background: #111;
+      color: #f5f1e6;
+    }
+    .copy-source {
+      position: absolute;
+      top: .65rem;
+      right: .65rem;
+      min-height: 2.75rem;
+      border: 1px solid white;
+      background: #111;
+      color: white;
+      padding: .5rem .75rem;
+      cursor: pointer;
+      font: 800 .7rem/1 var(--mono);
+      text-transform: uppercase;
+    }
+    .copy-source:focus-visible, button:focus-visible, input:focus-visible, a:focus-visible {
+      outline: 3px solid var(--magenta);
+      outline-offset: 3px;
+    }
+
+    .ladders {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+    .ladder { border: 2px solid var(--ink); background: var(--white); }
+    .ladder-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem;
+      border-bottom: 2px solid var(--ink);
+      align-items: end;
+    }
+    .ladder-head strong { font-size: 1.6rem; }
+    .rung {
+      display: grid;
+      grid-template-columns: 3.4rem 1fr;
+      border-bottom: 1px solid var(--ink);
+    }
+    .rung:last-child { border: 0; }
+    .rung-id {
+      display: grid;
+      place-items: center;
+      min-height: 5.3rem;
+      border-right: 1px solid var(--ink);
+      font: 900 1.15rem/1 var(--mono);
+    }
+    .rung-body { padding: .85rem 1rem; }
+    .rung-body strong { display: block; }
+    .rung-body span { display: block; color: var(--muted); font-size: .9rem; margin-top: .25rem; }
+    .rung[data-level="high"] .rung-id { background: var(--cobalt); color: white; }
+    .rung[data-level="top"] .rung-id { background: var(--signal); color: var(--ink); }
+
+    .lifecycle {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+      border: 2px solid var(--ink);
+    }
+    .life-step {
+      position: relative;
+      padding: 1rem;
+      min-height: 12rem;
+      border-right: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+    }
+    .life-step::after {
+      content: "→";
+      position: absolute;
+      right: -.75rem;
+      top: 1rem;
+      z-index: 2;
+      width: 1.5rem;
+      height: 1.5rem;
+      display: grid;
+      place-items: center;
+      background: var(--signal);
+      border: 1px solid var(--ink);
+      font-weight: 900;
+    }
+    .life-step:last-child::after { display: none; }
+    .life-step b { display: block; margin: .5rem 0; font-size: 1.2rem; }
+    .life-step p { margin: 0; color: var(--muted); font-size: .9rem; }
+
+    .constraint-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(17rem, 100%), 1fr));
+      border: 2px solid var(--ink);
+    }
+    .constraint {
+      min-height: 10rem;
+      padding: 1rem;
+      border-right: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+    }
+    .constraint b { display: block; margin: .5rem 0; font-size: 1.1rem; }
+    .constraint p { margin: 0; color: var(--muted); }
+
+    .runtime-deck {
+      border: 2px solid var(--ink);
+      background: var(--paper-2);
+    }
+    .runtime-summary {
+      display: grid;
+      grid-template-columns: 1fr;
+      border-bottom: 2px solid var(--ink);
+    }
+    .donut-cell {
+      min-height: 20rem;
+      display: grid;
+      place-items: center;
+      padding: 2rem;
+      border-bottom: 1px solid var(--ink);
+    }
+    .donut {
+      width: min(15rem, 70vw);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: conic-gradient(
+        var(--cobalt) 0 23.529%,
+        var(--magenta) 23.529% 29.411%,
+        var(--sage) 29.411% 100%
+      );
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--ink);
+      position: relative;
+    }
+    .donut::before {
+      content: "";
+      width: 57%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: var(--paper-2);
+      border: 2px solid var(--ink);
+    }
+    .donut-label {
+      position: absolute;
+      text-align: center;
+      font-family: var(--mono);
+      font-weight: 900;
+    }
+    .donut-label strong { display: block; font-size: 3.4rem; line-height: .9; }
+    .runtime-facts {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .runtime-fact {
+      padding: 1rem;
+      min-height: 9rem;
+      border-right: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+    }
+    .runtime-fact:nth-child(2n) { border-right: 0; }
+    .runtime-fact strong { display: block; font: 900 2rem/1 var(--mono); }
+    .runtime-fact span { display: block; margin-top: .5rem; font-size: .8rem; font-weight: 800; text-transform: uppercase; }
+
+    .runtime-controls {
+      display: grid;
+      gap: .75rem;
+      padding: 1rem;
+      border-bottom: 2px solid var(--ink);
+      background: var(--white);
+    }
+    .runtime-controls > *, .runtime-table-wrap, .diagram-canvas, .source-wrap, .source-wrap pre { min-width: 0; max-width: 100%; }
+    .runtime-controls label { font: 800 .72rem/1 var(--mono); text-transform: uppercase; letter-spacing: .07em; }
+    .search-box {
+      min-height: 3rem;
+      width: 100%;
+      border: 2px solid var(--ink);
+      border-radius: 0;
+      background: var(--paper);
+      color: var(--ink);
+      padding: .65rem .8rem;
+    }
+    .filter-row { display: flex; gap: .5rem; overflow-x: auto; padding-bottom: .25rem; }
+    .filter {
+      flex: 0 0 auto;
+      min-height: 2.75rem;
+      border: 1px solid var(--ink);
+      border-radius: 0;
+      background: transparent;
+      color: var(--ink);
+      padding: .55rem .8rem;
+      cursor: pointer;
+      font: 800 .72rem/1 var(--mono);
+      text-transform: uppercase;
+    }
+    .filter[aria-pressed="true"], .filter:hover { background: var(--signal); }
+
+    .runtime-table-wrap { overflow: auto; max-height: 66rem; }
+    .runtime-table { width: 100%; border-collapse: collapse; min-width: 78rem; background: var(--white); }
+    .runtime-table th, .runtime-table td {
+      padding: .8rem;
+      border-right: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+      text-align: left;
+      vertical-align: top;
+      font-size: .82rem;
+    }
+    .runtime-table th {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      background: var(--ink);
+      color: var(--paper);
+      font: 800 .7rem/1.2 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .runtime-table td:last-child, .runtime-table th:last-child { border-right: 0; }
+    .runtime-table tr[hidden] { display: none; }
+    .family-name { font-weight: 900; font-size: .95rem; }
+    .route-list { font-family: var(--mono); font-size: .74rem; }
+    .badge {
+      display: inline-block;
+      border: 1px solid currentColor;
+      padding: .25rem .42rem;
+      font: 800 .66rem/1 var(--mono);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .badge.native { color: var(--cobalt); }
+    .badge.history { color: var(--magenta); }
+    .badge.handoff { color: var(--sage); }
+    .badge.warn { color: var(--danger); }
+    .runtime-empty { padding: 1rem; font-weight: 800; display: none; }
+
+    .continuation-status {
+      display: grid;
+      grid-template-columns: 1fr;
+      border: 2px solid var(--ink);
+      margin-bottom: 1.5rem;
+    }
+    .status-block { padding: 1rem; border-bottom: 1px solid var(--ink); }
+    .status-block:last-child { border-bottom: 0; }
+    .status-block.shipped { background: color-mix(in srgb, var(--sage) 16%, var(--paper)); }
+    .status-block.inflight { background: color-mix(in srgb, var(--amber) 16%, var(--paper)); }
+    .status-block b { display: block; font-size: 1.15rem; }
+
+    .diagram-frame { border: 2px solid var(--ink); background: var(--white); }
+    .diagram-titlebar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: .5rem 1rem;
+      padding: .8rem 1rem;
+      border-bottom: 2px solid var(--ink);
+      font: 800 .74rem/1.2 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+    .diagram-canvas { padding: clamp(1rem, 3vw, 2rem); overflow-x: auto; }
+    .continuation-svg { min-width: 62rem; width: 100%; height: auto; }
+
+    .relay-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      border: 2px solid var(--ink);
+      margin-top: 1.5rem;
+    }
+    .relay-step { padding: 1rem; border-bottom: 1px solid var(--ink); min-height: 9rem; }
+    .relay-step:last-child { border-bottom: 0; }
+    .relay-step strong { display: block; margin: .4rem 0; font-size: 1.1rem; }
+    .relay-step p { margin: 0; color: var(--muted); }
+
+    .receipt-flow {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+      border: 2px solid var(--ink);
+      margin-top: 1.5rem;
+    }
+    .receipt-state {
+      padding: 1rem;
+      min-height: 7.5rem;
+      border-right: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+      position: relative;
+    }
+    .receipt-state strong { display: block; font-family: var(--mono); text-transform: uppercase; }
+    .receipt-state small { display: block; margin-top: .5rem; color: var(--muted); }
+    .receipt-state.ok { background: color-mix(in srgb, var(--sage) 12%, var(--paper)); }
+    .receipt-state.stop { background: color-mix(in srgb, var(--danger) 10%, var(--paper)); }
+
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr;
+      border: 2px solid var(--ink);
+    }
+    .compare-col { padding: clamp(1.2rem, 3vw, 2rem); border-bottom: 2px solid var(--ink); }
+    .compare-col:last-child { border-bottom: 0; }
+    .compare-col h3 { margin: .6rem 0 1.2rem; font-size: 2rem; line-height: 1; }
+    .compare-col ul { padding-left: 1.2rem; margin: 0; }
+    .compare-col li { margin: .65rem 0; }
+    .compare-col.claude { background: var(--white); }
+    .compare-col.pd { background: color-mix(in srgb, var(--cobalt) 10%, var(--paper)); }
+    .compare-col.gap { background: var(--signal); }
+
+    .parity-wrap { max-width: 100%; margin-top: 1.5rem; overflow-x: auto; }
+    .parity-table { width: 100%; min-width: 42rem; border-collapse: collapse; border: 2px solid var(--ink); }
+    .parity-table th, .parity-table td { padding: .75rem; border: 1px solid var(--ink); text-align: left; vertical-align: top; }
+    .parity-table th { background: var(--ink); color: var(--paper); font: 800 .72rem/1.2 var(--mono); text-transform: uppercase; }
+    .yes { color: var(--sage); font-weight: 900; }
+    .partial { color: var(--amber); font-weight: 900; }
+    .no { color: var(--danger); font-weight: 900; }
+
+    .source-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(22rem, 100%), 1fr));
+      border: 2px solid var(--ink);
+    }
+    .source-item { padding: 1rem; border-right: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
+    .source-item a { font-weight: 850; }
+    .source-item code { display: block; margin-top: .45rem; color: var(--muted); font-size: .78rem; overflow-wrap: anywhere; }
+
+    .footer {
+      padding: 2rem 0 4rem;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 1rem;
+      font: 700 .76rem/1.4 var(--mono);
+    }
+
+    @media (min-width: 44rem) {
+      .hero-index { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .hero-stat { border-bottom: 0; }
+      .hero-stat:nth-child(2n) { border-right: 1px solid var(--ink); }
+      .hero-stat:last-child { border-right: 0; }
+      .equation { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .equation > div { border-right: 1px solid var(--paper); border-bottom: 0; }
+      .equation > div:last-child { border-right: 0; }
+      .runtime-summary { grid-template-columns: minmax(20rem, .8fr) 1.2fr; }
+      .donut-cell { border-right: 2px solid var(--ink); border-bottom: 0; }
+      .continuation-status { grid-template-columns: 1fr 1fr; }
+      .status-block { border-right: 1px solid var(--ink); border-bottom: 0; }
+      .status-block:last-child { border-right: 0; }
+      .relay-grid { grid-template-columns: repeat(3, 1fr); }
+      .relay-step { border-right: 1px solid var(--ink); border-bottom: 0; }
+      .relay-step:last-child { border-right: 0; }
+    }
+
+    @media (min-width: 64rem) {
+      .kicker { grid-column: 1 / 13; }
+      h1 { grid-column: 1 / 10; }
+      .hero-copy { grid-column: 8 / 13; align-self: end; }
+      .hero-index { grid-column: 1 / 13; }
+      .section-no { grid-column: 1 / 3; }
+      h2 { grid-column: 3 / 9; }
+      .lede { grid-column: 9 / 13; align-self: end; }
+      .trinity { grid-template-columns: repeat(3, 1fr); }
+      .trinity article { border-right: 2px solid var(--ink); border-bottom: 0; }
+      .trinity article:last-child { border-right: 0; }
+      .ladders { grid-template-columns: 1fr 1fr; }
+      .comparison { grid-template-columns: repeat(3, 1fr); }
+      .compare-col { border-right: 2px solid var(--ink); border-bottom: 0; }
+      .compare-col:last-child { border-right: 0; }
+      .runtime-controls { grid-template-columns: minmax(18rem, .65fr) 1.35fr; align-items: end; }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --paper: #171816;
+        --paper-2: #22231f;
+        --ink: #f1eddf;
+        --muted: #b9b5a8;
+        --rule: #f1eddf;
+        --white: #0f100f;
+        --cobalt: #7fa4ff;
+        --signal: #c9ef3c;
+        --magenta: #f080b5;
+        --sage: #65c9ad;
+        --amber: #f1a65b;
+        --danger: #ff7e75;
+      }
+      .pilot-card { color: #0d1120; }
+      .audit-card, .callout, .filter[aria-pressed="true"], .filter:hover, .rail a:hover, .rail a[aria-current="true"] { color: #111; }
+      .source-wrap pre, .copy-source { background: #050505; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+
+    @media print {
+      :root { --paper: white; --paper-2: #f3f1e9; --ink: black; --muted: #444; --white: white; }
+      body { background: white; font-size: 10pt; }
+      .rail, .runtime-controls, .copy-source, .skip-link { display: none !important; }
+      .section { break-before: page; padding: 1.2rem 0; }
+      .masthead { min-height: 100vh; display: grid; align-items: center; }
+      details.diagram-source > * { display: block !important; }
+      details.diagram-source summary { display: none !important; }
+      .runtime-table-wrap { max-height: none; overflow: visible; }
+      .runtime-table { min-width: 0; font-size: 7pt; }
+      .runtime-table th { position: static; }
+      a { text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to atlas</a>
+
+  <header class="masthead page">
+    <div class="mast-grid">
+      <div class="kicker">
+        <span>Port Daddy / source-verified field atlas</span>
+        <span>Revision 2026.07.16 / main @ 69cda6760</span>
+      </div>
+      <h1>Agent conformance, without theater.</h1>
+      <p class="hero-copy">A compact architecture of what “fully Port Daddy–compliant” actually means, what the Pilot does, how 17 runtime families differ, and how one durable agent can cross bodies without pretending the transcript magically transfers.</p>
+      <div class="hero-index" aria-label="Atlas summary">
+        <div class="hero-stat"><strong>17</strong><span>Adapter families</span></div>
+        <div class="hero-stat"><strong>19</strong><span>Selectable routes</span></div>
+        <div class="hero-stat"><strong>C0–C6</strong><span>Governance ladder</span></div>
+        <div class="hero-stat"><strong>T0–T5</strong><span>Evidence ladder</span></div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="rail" aria-label="Atlas sections">
+    <div class="rail-inner page">
+      <a href="#answer">The answer</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#ladders">Ladders</a>
+      <a href="#lifecycle">Lifecycle</a>
+      <a href="#runtimes">17 runtimes</a>
+      <a href="#continuation">Continuation</a>
+      <a href="#agent-view">Agents view</a>
+      <a href="#sources">Sources</a>
+    </div>
+  </nav>
+
+  <main id="main">
+    <section class="section page" id="answer" data-nav="The answer">
+      <header class="section-head">
+        <div class="section-no">The short answer</div>
+        <h2>No single file makes an agent compliant.</h2>
+        <p class="lede">There is one canonical operating persona, one public field manual, and one conformance-audit skill. They solve different problems. The daemon—not the prompt—decides what has actually been witnessed.</p>
+      </header>
+
+      <div class="trinity">
+        <article class="skill-card">
+          <div class="eyebrow">01 / Doctrine</div>
+          <h3>port-daddy-agent-skill</h3>
+          <p>The field manual: session continuity, smallest-surface claims, live coordination, worktrees, notes, guard discipline, review, evidence, and closeout.</p>
+          <p class="mono muted">skills/port-daddy-agent-skill/SKILL.md</p>
+          <div class="verdict">Use it to know how to operate.</div>
+        </article>
+        <article class="pilot-card">
+          <div class="eyebrow">02 / Persona</div>
+          <h3>Port Daddy Pilot</h3>
+          <p>The canonical agent persona rendered into Claude, Codex, Gemini, Antigravity, generic AGENTS-aware tools, and a Claude managed agent.</p>
+          <p class="mono">agents/port-daddy-pilot/AGENT.md</p>
+          <div class="verdict">Use it to make compliant behavior the default.</div>
+        </article>
+        <article class="audit-card">
+          <div class="eyebrow">03 / Proof</div>
+          <h3>agent-compliance-conformance</h3>
+          <p>The meta-auditor: freezes C/T ladder definitions, demands hostile adapter probes, and rejects levels earned by self-report.</p>
+          <p class="mono">skills/agent-compliance-conformance/SKILL.md</p>
+          <div class="verdict">Use it to prove the badge is not lying.</div>
+        </article>
+      </div>
+
+      <div class="equation" aria-label="Full compliance equation">
+        <div><span class="eyebrow">Behavior</span><br><b>Pilot + field manual</b><br>What the body is instructed to do.</div>
+        <div><span class="eyebrow">Authority</span><br><b>Daemon + guard + sandbox</b><br>What the body is allowed to do.</div>
+        <div><span class="eyebrow">Evidence</span><br><b>Transcript + receipts + probes</b><br>What Port Daddy can prove happened.</div>
+      </div>
+
+      <div class="callout"><strong>Verdict:</strong> the Pilot is the ideal compliant persona, but selecting it does not grant C6. A body earns capabilities only when daemon-witnessed predicates and negative probes say so.</div>
+    </section>
+
+    <section class="section page" id="architecture" data-nav="Architecture">
+      <header class="section-head">
+        <div class="section-no">Architecture</div>
+        <h2>One durable person, many temporary bodies.</h2>
+        <p class="lede">Port Daddy separates operator intent, persona, authority, runtime body, and evidence. This is why an agent can survive a Claude process ending without pretending that Claude’s private session state is portable.</p>
+      </header>
+
+      <div class="architecture" role="img" aria-label="Layered Port Daddy compliant agent architecture">
+        <div class="arch-row" data-layer="operator">
+          <div class="arch-label">Operator</div>
+          <div class="arch-nodes">
+            <div class="arch-node"><strong>Telos + consent</strong><small>Purpose, roadmap rent, permission envelope.</small></div>
+            <div class="arch-node"><strong>FleetBar / pd-console</strong><small>Human surfaces for status, consent, re-entry, and deep truth.</small></div>
+            <div class="arch-node"><strong>Review boundary</strong><small>Approvals, merge policy, unresolved risk.</small></div>
+          </div>
+        </div>
+        <div class="arch-row" data-layer="persona">
+          <div class="arch-label">Persona</div>
+          <div class="arch-nodes">
+            <div class="arch-node"><strong>Port Daddy Pilot</strong><small>Canonical persona: coordinate, leave evidence, keep listening, tell truth.</small></div>
+            <div class="arch-node"><strong>Skill graft</strong><small>Port Daddy manual + task-specific expertise, selected before improvisation.</small></div>
+            <div class="arch-node"><strong>Runtime renderer</strong><small>Claude agent, Codex TOML, Gemini command, agy extension, universal markdown.</small></div>
+          </div>
+        </div>
+        <div class="arch-row" data-layer="authority">
+          <div class="arch-label">Authority</div>
+          <div class="arch-nodes">
+            <div class="arch-node"><strong>Canonical daemon</strong><small>Identity, sessions, claims, notes, receipts, liveness, routing.</small></div>
+            <div class="arch-node"><strong>Guard + Coast Guard</strong><small>Claim discipline, commit rent, worktree and process confinement.</small></div>
+            <div class="arch-node"><strong>Squid hooks + Arbiter</strong><small>Suggestion, preflight, tool gates, interrupts—only where adapters prove them.</small></div>
+          </div>
+        </div>
+        <div class="arch-row" data-layer="body">
+          <div class="arch-label">Body</div>
+          <div class="arch-nodes">
+            <div class="arch-node"><strong>Agent harness</strong><small>Claude Code, Codex, agy, Gemini, Aider.</small></div>
+            <div class="arch-node"><strong>Provider call</strong><small>Anthropic, OpenAI, Gemini, Groq, DeepSeek, xAI, Cloudflare.</small></div>
+            <div class="arch-node"><strong>Local model loop</strong><small>Ollama / LM Studio require Port Daddy to own tools and state.</small></div>
+          </div>
+        </div>
+        <div class="arch-row" data-layer="evidence">
+          <div class="arch-label">Evidence</div>
+          <div class="arch-nodes">
+            <div class="arch-node"><strong>T0–T5 transcript</strong><small>Inventory → chat → tool proof → verified archive → resumable packet.</small></div>
+            <div class="arch-node"><strong>Work receipt</strong><small>Commit, tests, artifacts, PR state, source labels, missing-state limits.</small></div>
+            <div class="arch-node"><strong>Memory + lineage</strong><small>Episode, capsule, predecessor, successor, rollback point, content hash.</small></div>
+          </div>
+        </div>
+      </div>
+
+      <details class="diagram-source">
+        <summary>Mermaid source / layered architecture</summary>
+        <div class="source-wrap">
+          <button class="copy-source" type="button">Copy Mermaid</button>
+          <pre><code>flowchart TB
+  O["Operator: telos · consent · review"]
+  P["Port Daddy Pilot + task skills"]
+  D["Daemon authority: identity · claims · guard · receipts"]
+  B{"Temporary runtime body"}
+  C["Claude / Codex / agy / Gemini / Aider"]
+  A["Provider APIs"]
+  L["Ollama / LM Studio / custom loop"]
+  E["Evidence: T0–T5 transcript · work receipt · lineage"]
+  O --> P --> D --> B
+  B --> C
+  B --> A
+  B --> L
+  C --> E
+  A --> E
+  L --> E
+  E -. "durable re-entry" .-> P</code></pre>
+        </div>
+      </details>
+    </section>
+
+    <section class="section page" id="ladders" data-nav="Ladders">
+      <header class="section-head">
+        <div class="section-no">Measured conformance</div>
+        <h2>Governance and evidence are separate axes.</h2>
+        <p class="lede">A richly recorded agent may still be uncontrollable. A tightly governed body may still have weak evidence. C and T must be shown together, and numeric badges must remain withheld while doc, schema, UI, and probes disagree.</p>
+      </header>
+
+      <div class="ladders">
+        <div class="ladder">
+          <div class="ladder-head"><div><span class="eyebrow">Governance</span><br><strong>C0–C6</strong></div><span class="badge warn">Capability, not vibes</span></div>
+          <div class="rung"><div class="rung-id">C0</div><div class="rung-body"><strong>Registered</strong><span>Node, body, and session identity exist. Nothing else is implied.</span></div></div>
+          <div class="rung"><div class="rung-id">C1</div><div class="rung-body"><strong>Transcripted</strong><span>A T4 verified transcript is active or replayable.</span></div></div>
+          <div class="rung"><div class="rung-id">C2</div><div class="rung-body"><strong>Governed</strong><span>Preflight, denial, approval, and destructive gates are daemon-witnessed.</span></div></div>
+          <div class="rung" data-level="high"><div class="rung-id">C3</div><div class="rung-body"><strong>Suggestible</strong><span>Skills, memory, inbox, updates, and parley suggestions carry visible provenance.</span></div></div>
+          <div class="rung" data-level="high"><div class="rung-id">C4</div><div class="rung-body"><strong>Controllable</strong><span>Steer, interrupt, pause, kill, and checkpoint are individually probed.</span></div></div>
+          <div class="rung" data-level="high"><div class="rung-id">C5</div><div class="rung-body"><strong>Cooperative</strong><span>Claims, worktree/sandbox, tube/parley, heat, and conflict signals are active.</span></div></div>
+          <div class="rung" data-level="top"><div class="rung-id">C6</div><div class="rung-body"><strong>Resumable</strong><span>A T5 packet launches a successor after daemon restart with explicit missing-state limits.</span></div></div>
+        </div>
+
+        <div class="ladder">
+          <div class="ladder-head"><div><span class="eyebrow">Evidence</span><br><strong>T0–T5</strong></div><span class="badge warn">Daemon-verifiable</span></div>
+          <div class="rung"><div class="rung-id">T0</div><div class="rung-body"><strong>Inventory only</strong><span>Agent/session exists; no transcript.</span></div></div>
+          <div class="rung"><div class="rung-id">T1</div><div class="rung-body"><strong>Run log</strong><span>Structured steps and status; no visible conversation.</span></div></div>
+          <div class="rung"><div class="rung-id">T2</div><div class="rung-body"><strong>Visible chat</strong><span>Operator and assistant messages; weak tool proof.</span></div></div>
+          <div class="rung" data-level="high"><div class="rung-id">T3</div><div class="rung-body"><strong>Tool-backed</strong><span>Calls, results, shell refs, touches, approvals, denials, and costs.</span></div></div>
+          <div class="rung" data-level="high"><div class="rung-id">T4</div><div class="rung-body"><strong>Verified transcript</strong><span>Identity joins, ordering, hash chain, redaction, retention, replay, JSONL archive.</span></div></div>
+          <div class="rung" data-level="top"><div class="rung-id">T5</div><div class="rung-body"><strong>Resumable transcript</strong><span>T4 plus checkpoint, compaction, citations, claims, commitments, successor, rollback.</span></div></div>
+        </div>
+      </div>
+
+      <div class="callout"><strong>Freeze rule:</strong> every non-base level needs the same id, order, name, and predicate set in doc + schema + UI + probe, plus five negative probes per adapter: forged level, direct MCP bypass, disabled hook, forged heartbeat, and observed-to-controlled escalation.</div>
+    </section>
+
+    <section class="section page" id="lifecycle" data-nav="Lifecycle">
+      <header class="section-head">
+        <div class="section-no">Operating contract</div>
+        <h2>The compliant loop is a state machine.</h2>
+        <p class="lede">Compliance is continuous, not a preamble. Every transition has a witness and a stop condition. If live truth disagrees with local plans, the agent re-anchors before proceeding.</p>
+      </header>
+
+      <div class="lifecycle">
+        <div class="life-step"><span class="eyebrow">01 / Resolve</span><b>Identity</b><p>Who am I? Which project, branch, worktree, session, roadmap item, and predecessor?</p></div>
+        <div class="life-step"><span class="eyebrow">02 / Listen</span><b>Attention</b><p>Read inbox, channels, live roster, notes, claims, and runtime health—bounded.</p></div>
+        <div class="life-step"><span class="eyebrow">03 / Declare</span><b>Scope note</b><p>Name exact surfaces, assumptions, validation, and why this slice exists.</p></div>
+        <div class="life-step"><span class="eyebrow">04 / Reserve</span><b>Claim</b><p>Take the smallest symbol/region/file surface. Lock only scarce non-mergeable state.</p></div>
+        <div class="life-step"><span class="eyebrow">05 / Execute</span><b>Guarded work</b><p>Edit only inside the claim; ports, subprocesses, secrets, and spend remain governed.</p></div>
+        <div class="life-step"><span class="eyebrow">06 / Witness</span><b>Evidence</b><p>Tests, transcript, visual proof, source label, artifact hash, and known missing state.</p></div>
+        <div class="life-step"><span class="eyebrow">07 / Reconcile</span><b>Remote truth</b><p>Fetch, rebase, re-read peers, guard staged changes, and resolve review findings.</p></div>
+        <div class="life-step"><span class="eyebrow">08 / Publish</span><b>Finish line</b><p>PR body, roadmap link, every review response, green checks, merge state, live runtime.</p></div>
+        <div class="life-step"><span class="eyebrow">09 / Preserve</span><b>Close or hand off</b><p>Result note, release claims, successor capsule if needed, then durable completion.</p></div>
+      </div>
+
+      <h3 style="margin-top:3rem;font-size:2rem;letter-spacing:-.035em">Non-negotiable constraints</h3>
+      <div class="constraint-grid">
+        <div class="constraint"><span class="eyebrow">Workspace</span><b>No operator main; no purge-prone temp worktrees.</b><p>Parallel edits live in linked, recoverable worktrees with branch lineage.</p></div>
+        <div class="constraint"><span class="eyebrow">Context</span><b>Bound every read.</b><p>Buffer large output, page it, search it, or delegate interpretation. Never inhale the fleet.</p></div>
+        <div class="constraint"><span class="eyebrow">Coordination</span><b>Chat is not durable state.</b><p>Scope, decisions, blockers, and results land in notes, inboxes, tuples, or channels.</p></div>
+        <div class="constraint"><span class="eyebrow">Authority</span><b>Self-report never grants capability.</b><p>Hooks, controls, transcript joins, liveness, and negative probes must be daemon-witnessed.</p></div>
+        <div class="constraint"><span class="eyebrow">Privacy</span><b>No raw transcript crossing.</b><p>Cross-family successors receive allowlisted, scanned, token-budgeted capsules—not copied secrets.</p></div>
+        <div class="constraint"><span class="eyebrow">Truth</span><b>Code, CI, merge, and live are different states.</b><p>Never collapse implementation, test, review, queue, merge, release, and runtime health.</p></div>
+        <div class="constraint"><span class="eyebrow">Operator</span><b>Routine repair belongs in the product.</b><p>The human uses FleetBar and pd-console. A required terminal ritual is a product gap.</p></div>
+        <div class="constraint"><span class="eyebrow">Search</span><b>No keyword-only classification.</b><p>Unstructured matching uses hybrid lexical + shared semantic embeddings, with explicit fallback.</p></div>
+      </div>
+    </section>
+
+    <section class="section page" id="runtimes" data-nav="17 runtimes">
+      <header class="section-head">
+        <div class="section-no">Adapter field</div>
+        <h2>17 runtime families. Nineteen routes.</h2>
+        <p class="lede">Claude and Codex each expose two catalog routes that share one harness family. The meaningful compatibility unit is the adapter family: spawn transport, native identity, transcript custody, controls, and auth.</p>
+      </header>
+
+      <div class="runtime-deck">
+        <div class="runtime-summary">
+          <div class="donut-cell">
+            <div class="donut" role="img" aria-label="Four native-session adapters, one history adapter, twelve handoff-only adapters">
+              <div class="donut-label"><strong>17</strong><span>families</span></div>
+            </div>
+          </div>
+          <div class="runtime-facts">
+            <div class="runtime-fact"><strong style="color:var(--cobalt)">4</strong><span>Native session resume</span><small>Claude, Codex, agy, Gemini CLI</small></div>
+            <div class="runtime-fact"><strong style="color:var(--magenta)">1</strong><span>History restoration</span><small>Aider; messages, not stable identity</small></div>
+            <div class="runtime-fact"><strong style="color:var(--sage)">12</strong><span>Handoff-only</span><small>New successor from a capsule</small></div>
+            <div class="runtime-fact"><strong>19</strong><span>Catalog routes</span><small>Billing aliases collapse to 17 families</small></div>
+            <div class="runtime-fact"><strong>7</strong><span>Agent CLI families</span><small>Harness owns some or all runtime state</small></div>
+            <div class="runtime-fact"><strong>7+2+1</strong><span>API + local + custom</span><small>Port Daddy owns the agent loop</small></div>
+          </div>
+        </div>
+
+        <div class="runtime-controls">
+          <div>
+            <label for="runtime-search">Search capabilities or limits</label>
+            <input class="search-box" id="runtime-search" type="search" placeholder="e.g. OAuth, local, transcript, ACP…" autocomplete="off">
+          </div>
+          <div>
+            <span class="eyebrow">Filter</span>
+            <div class="filter-row" role="group" aria-label="Runtime filters">
+              <button class="filter" type="button" data-filter="all" aria-pressed="true">All 17</button>
+              <button class="filter" type="button" data-filter="native" aria-pressed="false">Native 4</button>
+              <button class="filter" type="button" data-filter="history" aria-pressed="false">History 1</button>
+              <button class="filter" type="button" data-filter="handoff" aria-pressed="false">Handoff 12</button>
+              <button class="filter" type="button" data-filter="cli" aria-pressed="false">CLI 7</button>
+              <button class="filter" type="button" data-filter="api" aria-pressed="false">API 7</button>
+              <button class="filter" type="button" data-filter="local" aria-pressed="false">Local 2</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="runtime-table-wrap" tabindex="0" aria-label="Scrollable runtime matrix">
+          <table class="runtime-table">
+            <thead>
+              <tr><th>Family / routes</th><th>Body</th><th>Spawn</th><th>Continue</th><th>Channels</th><th>Transcript custody</th><th>Auth</th><th>Honest boundary</th></tr>
+            </thead>
+            <tbody id="runtime-body">
+              <tr data-tags="native cli oauth harness transcript claude remote-control"><td><span class="family-name">claude-code</span><br><span class="route-list">cli:claude-code · claude-cli</span></td><td>Agent CLI</td><td><code>claude -p</code></td><td><span class="badge native">Native session</span></td><td>terminal · stream-json · remote-control</td><td>Harness / observed Claude JSONL</td><td>OAuth subscription · API key</td><td>UUID + explicit JSONL + canonical workspace must be daemon-witnessed.</td></tr>
+              <tr data-tags="native cli oauth harness transcript codex app-server"><td><span class="family-name">codex-cli</span><br><span class="route-list">cli:codex · codex</span></td><td>Agent CLI</td><td><code>codex exec --json</code></td><td><span class="badge native">Native session</span></td><td>terminal · app-server</td><td>Harness / observed rollout JSONL</td><td>OAuth subscription · API key</td><td>UUID + rollout session_meta + canonical workspace must be witnessed.</td></tr>
+              <tr data-tags="native cli delegated harness transcript agy antigravity"><td><span class="family-name">agy-cli</span><br><span class="route-list">cli:agy</span></td><td>Agent CLI</td><td><code>agy --print</code></td><td><span class="badge native">Native session</span></td><td>terminal</td><td>Harness / observed agy log</td><td>Delegated CLI</td><td>Conversation brain + exact last_conversations workspace binding; stream format undocumented.</td></tr>
+              <tr data-tags="native cli oauth harness transcript gemini acp"><td><span class="family-name">gemini-cli</span><br><span class="route-list">cli:gemini</span></td><td>Agent CLI</td><td><code>gemini --prompt</code></td><td><span class="badge native">Native session</span></td><td>terminal · ACP</td><td>Harness / observed session JSON</td><td>OAuth subscription · API key</td><td>Project-scoped UUID + registry + project hash + chat file + workspace.</td></tr>
+              <tr data-tags="handoff cli groq delegated no transcript"><td><span class="family-name">groq-cli</span><br><span class="route-list">cli:groq</span></td><td>Agent CLI</td><td><code>groq -p</code></td><td><span class="badge handoff">Handoff only</span></td><td>terminal</td><td>None</td><td>Delegated CLI · API key</td><td>No documented stable session ID or structured transcript surface.</td></tr>
+              <tr data-tags="handoff cli grok proxy delegated claude"><td><span class="family-name">grok-claude-proxy</span><br><span class="route-list">cli:grok</span></td><td>Agent CLI proxy</td><td><code>grok -p</code></td><td><span class="badge handoff">Handoff only</span></td><td>terminal</td><td>None</td><td>Delegated CLI</td><td>Not an independent harness; underlying Claude resume identity is hidden.</td></tr>
+              <tr data-tags="history cli aider api key transcript documented"><td><span class="family-name">aider</span><br><span class="route-list">aider</span></td><td>Agent CLI</td><td><code>aider --message</code></td><td><span class="badge history">History</span></td><td>terminal</td><td>Harness / documented chat history</td><td>API key · delegated CLI</td><td>Restores messages, not a stable session identity.</td></tr>
+              <tr data-tags="handoff api anthropic claude provider sdk transcript"><td><span class="family-name">anthropic-api</span><br><span class="route-list">claude</span></td><td>Provider SDK</td><td>SDK argument</td><td><span class="badge handoff">Handoff only</span></td><td>HTTP</td><td>Port Daddy / internal JSONL</td><td>API key</td><td>No harness session identity; PD owns state, tools, and continuation.</td></tr>
+              <tr data-tags="handoff api gemini provider http transcript"><td><span class="family-name">gemini-api</span><br><span class="route-list">gemini</span></td><td>Provider HTTP</td><td>JSON body</td><td><span class="badge handoff">Handoff only</span></td><td>HTTP</td><td>Port Daddy / internal JSONL</td><td>API key</td><td>Stateless provider call; successor reconstructed from capsule.</td></tr>
+              <tr data-tags="handoff api cloudflare workers ai token provider http transcript"><td><span class="family-name">cloudflare-workers-ai</span><br><span class="route-list">cloudflare</span></td><td>Provider HTTP</td><td>JSON body</td><td><span class="badge handoff">Handoff only</span></td><td>HTTP</td><td>Port Daddy / internal JSONL</td><td>API token</td><td>Workers AI is stateless; Cloudflare Agents would require a separate adapter.</td></tr>
+              <tr data-tags="handoff api openai provider http transcript"><td><span class="family-name">openai-api</span><br><span class="route-list">openai</span></td><td>Provider HTTP</td><td>JSON body</td><td><span class="badge handoff">Handoff only</span></td><td>HTTP</td><td>Port Daddy / internal JSONL</td><td>API key</td><td>No native harness identity; PD owns the successor.</td></tr>
+              <tr data-tags="handoff api groq provider http transcript"><td><span class="family-name">groq-api</span><br><span class="route-list">groq</span></td><td>Provider HTTP</td><td>JSON body</td><td><span class="badge handoff">Handoff only</span></td><td>HTTP</td><td>Port Daddy / internal JSONL</td><td>API key</td><td>No native harness identity; PD owns the successor.</td></tr>
+              <tr data-tags="handoff api deepseek provider http transcript"><td><span class="family-name">deepseek-api</span><br><span class="route-list">deepseek</span></td><td>Provider HTTP</td><td>JSON body</td><td><span class="badge handoff">Handoff only</span></td><td>HTTP</td><td>Port Daddy / internal JSONL</td><td>API key</td><td>No native harness identity; PD owns the successor.</td></tr>
+              <tr data-tags="handoff api xai grok provider http transcript"><td><span class="family-name">xai-api</span><br><span class="route-list">xai</span></td><td>Provider HTTP</td><td>JSON body</td><td><span class="badge handoff">Handoff only</span></td><td>HTTP</td><td>Port Daddy / internal JSONL</td><td>API key</td><td>No native harness identity; PD owns the successor.</td></tr>
+              <tr data-tags="handoff local ollama model server http no auth transcript"><td><span class="family-name">ollama</span><br><span class="route-list">ollama</span></td><td>Local model server</td><td>HTTP</td><td><span class="badge handoff">Handoff only</span></td><td>HTTP</td><td>Port Daddy / internal JSONL</td><td>Local / none</td><td>A model server is not an agent; PD must supply tools, transcript, and state.</td></tr>
+              <tr data-tags="handoff local lmstudio model server http no auth transcript"><td><span class="family-name">lmstudio</span><br><span class="route-list">lmstudio</span></td><td>Local model server</td><td>HTTP</td><td><span class="badge handoff">Handoff only</span></td><td>HTTP</td><td>Port Daddy / internal JSONL</td><td>Local / none</td><td>A model server is not an agent; PD must supply tools, transcript, and state.</td></tr>
+              <tr data-tags="handoff custom command unverified operator declared"><td><span class="family-name">custom-command</span><br><span class="route-list">custom</span></td><td>Custom command</td><td>Operator template</td><td><span class="badge handoff">Handoff only</span></td><td>None declared</td><td>Port Daddy / custom</td><td>Custom</td><td>Capabilities are operator-declared and unverified until concrete probes exist.</td></tr>
+            </tbody>
+          </table>
+          <div class="runtime-empty" id="runtime-empty">No runtime matches this filter.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section page" id="continuation" data-nav="Continuation">
+      <header class="section-head">
+        <div class="section-no">N:N continuation</div>
+        <h2>Continuity is lineage, not body possession.</h2>
+        <p class="lede">Same-family resume may restore a harness-owned session after strict witness checks. Cross-family continuation creates a new successor from a sanitized brief. One source can fork into Codex and agy, but the branches remain distinct episodes.</p>
+      </header>
+
+      <div class="continuation-status">
+        <div class="status-block shipped"><span class="eyebrow">Shipped on main</span><b>Capsule ingestion + witnessed native resume</b><span>Claude, Codex, agy, and Gemini CLI can resume same-family sessions when local evidence and workspace identity survive revalidation.</span></div>
+        <div class="status-block inflight"><span class="eyebrow">Open PR #2945</span><b>Cross-family successor launch</b><span>Auto/native/handoff selection, successor brief, rescan, lineage, idempotency, and workspace binding are implemented but not merged. Fleet status is currently red.</span></div>
+      </div>
+
+      <div class="diagram-frame">
+        <div class="diagram-titlebar"><span>Fork: Claude source → Codex + Antigravity successors</span><span>Static SVG render / Mermaid source below</span></div>
+        <div class="diagram-canvas">
+          <svg class="continuation-svg" viewBox="0 0 1160 560" role="img" aria-labelledby="fork-title fork-desc">
+            <title id="fork-title">Cross-runtime continuation fork</title>
+            <desc id="fork-desc">A Claude source episode is harvested into a sanitized capsule and then creates separate continuation receipts and successors in Codex and Antigravity.</desc>
+            <defs>
+              <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="currentColor"/></marker>
+              <style>
+                .box{fill:var(--paper);stroke:var(--ink);stroke-width:3}.dark{fill:var(--ink)}.blue{fill:var(--cobalt)}.pink{fill:var(--magenta)}.lime{fill:var(--signal)}
+                .t{font:700 18px var(--sans);fill:var(--ink)}.tw{font:800 18px var(--sans);fill:white}.sm{font:600 13px var(--mono);fill:var(--muted)}.smw{font:600 13px var(--mono);fill:white}
+                .line{fill:none;stroke:var(--ink);stroke-width:3;marker-end:url(#arrow)}.dash{fill:none;stroke:var(--ink);stroke-width:2;stroke-dasharray:8 7;marker-end:url(#arrow)}
+              </style>
+            </defs>
+            <rect class="box" x="30" y="195" width="190" height="135"/>
+            <text class="t" x="50" y="230">Claude episode E0</text><text class="sm" x="50" y="260">session UUID + JSONL</text><text class="sm" x="50" y="284">worktree + operator turns</text><text class="sm" x="50" y="308">claims + artifacts + telos</text>
+            <path class="line" d="M220 262 H310"/>
+            <rect class="box lime" x="315" y="175" width="210" height="175"/>
+            <text class="t" x="337" y="215">Sanitized capsule H0</text><text class="sm" x="337" y="245">allowlisted fields</text><text class="sm" x="337" y="269">local + external scan</text><text class="sm" x="337" y="293">token budget + omissions</text><text class="sm" x="337" y="317">SHA-256 content hash</text>
+            <path class="line" d="M525 240 C610 240 600 120 690 120"/>
+            <path class="line" d="M525 285 C610 285 600 415 690 415"/>
+            <rect class="box" x="695" y="55" width="190" height="130"/>
+            <text class="t" x="715" y="90">Receipt R1</text><text class="sm" x="715" y="118">target: codex-cli</text><text class="sm" x="715" y="142">mode: handoff</text><text class="sm" x="715" y="164">idempotent + leased</text>
+            <rect class="box" x="695" y="350" width="190" height="130"/>
+            <text class="t" x="715" y="385">Receipt R2</text><text class="sm" x="715" y="413">target: agy-cli</text><text class="sm" x="715" y="437">mode: handoff</text><text class="sm" x="715" y="459">idempotent + leased</text>
+            <path class="line" d="M885 120 H955"/>
+            <path class="line" d="M885 415 H955"/>
+            <rect class="box blue" x="960" y="55" width="170" height="130"/>
+            <text class="tw" x="980" y="90">Codex E1</text><text class="smw" x="980" y="118">new session identity</text><text class="smw" x="980" y="142">same durable agent</text><text class="smw" x="980" y="164">own transcript branch</text>
+            <rect class="box pink" x="960" y="350" width="170" height="130"/>
+            <text class="tw" x="980" y="385">Antigravity E2</text><text class="smw" x="980" y="413">new conversation ID</text><text class="smw" x="980" y="437">same durable agent</text><text class="smw" x="980" y="459">own transcript branch</text>
+            <path class="dash" d="M1045 185 V270 H615"/><path class="dash" d="M1045 350 V290 H615"/>
+            <text class="sm" x="735" y="263">future merge requires a new explicit capsule</text>
+            <text class="sm" x="735" y="287">there is no magical shared context window</text>
+          </svg>
+        </div>
+      </div>
+
+      <details class="diagram-source">
+        <summary>Mermaid source / N:N fork</summary>
+        <div class="source-wrap">
+          <button class="copy-source" type="button">Copy Mermaid</button>
+          <pre><code>flowchart LR
+  C["Claude episode E0\nUUID · JSONL · workspace"] --> H["Sanitized capsule H0\nallowlist · scan · budget · hash"]
+  H --> R1["Receipt R1\ntarget codex-cli · handoff"]
+  H --> R2["Receipt R2\ntarget agy-cli · handoff"]
+  R1 --> X["Codex successor E1\nnew session · same durable agent"]
+  R2 --> A["Antigravity successor E2\nnew conversation · same durable agent"]
+  X -. "explicit new capsule only" .-> M["Optional future convergence"]
+  A -. "explicit new capsule only" .-> M</code></pre>
+        </div>
+      </details>
+
+      <div class="relay-grid" aria-label="Three continuation patterns">
+        <div class="relay-step"><span class="eyebrow">Pattern A</span><strong>Native resume</strong><p>Claude → Claude, Codex → Codex, agy → agy, Gemini → Gemini. Session identity survives only after bounded local evidence and workspace revalidation.</p></div>
+        <div class="relay-step"><span class="eyebrow">Pattern B</span><strong>Parallel fork</strong><p>Claude E0 → Codex E1 + agy E2. Both inherit the same sanitized predecessor brief, then diverge into separately accountable episodes.</p></div>
+        <div class="relay-step"><span class="eyebrow">Pattern C</span><strong>Sequential relay</strong><p>Claude E0 → Codex E1 → agy E2. Each boundary compacts again; later successors cite—not silently overwrite—earlier decisions and omissions.</p></div>
+      </div>
+
+      <div class="receipt-flow" aria-label="Continuation receipt state machine">
+        <div class="receipt-state"><strong>Accepted</strong><small>Request hash, prompt hash, source, target, owner, and lease are durable before spawn.</small></div>
+        <div class="receipt-state"><strong>Running</strong><small>Compare-and-swap grants one daemon generation the launch lease.</small></div>
+        <div class="receipt-state ok"><strong>Completed</strong><small>Successor run + session lineage are stored by the same owner.</small></div>
+        <div class="receipt-state stop"><strong>Unsupported</strong><small>Family, witness, workspace, or capability cannot be proven. No child starts.</small></div>
+        <div class="receipt-state stop"><strong>Failed</strong><small>Safe, rescanned error only. Raw provider failure text is quarantined.</small></div>
+        <div class="receipt-state stop"><strong>Orphaned</strong><small>Only an expired lease owned by an older daemon generation can be recovered.</small></div>
+      </div>
+
+      <details class="diagram-source">
+        <summary>Mermaid source / continuation sequence</summary>
+        <div class="source-wrap">
+          <button class="copy-source" type="button">Copy Mermaid</button>
+          <pre><code>sequenceDiagram
+  actor O as Operator
+  participant S as Source harness
+  participant D as Port Daddy daemon
+  participant M as Memory + receipt store
+  participant X as Codex successor
+  participant A as agy successor
+  O->>S: Work in Claude episode E0
+  S->>D: POST /memory/handoffs
+  D->>D: Allowlist + redact + token-budget + secret scan
+  D->>M: Persist capsule H0 + native witness
+  par Continue in Codex
+    O->>D: target=cli:codex, idempotency=K1
+    D->>M: accept receipt R1 before side effect
+    D->>D: resolve effective backend + bind workspace
+    D->>X: launch successor brief (not raw transcript)
+    X-->>D: successor run/session IDs
+    D->>M: complete R1 with lineage
+  and Continue in Antigravity
+    O->>D: target=cli:agy, idempotency=K2
+    D->>M: accept receipt R2 before side effect
+    D->>D: resolve effective backend + bind workspace
+    D->>A: launch successor brief (not raw transcript)
+    A-->>D: successor run/conversation IDs
+    D->>M: complete R2 with lineage
+  end</code></pre>
+        </div>
+      </details>
+    </section>
+
+    <section class="section page" id="agent-view" data-nav="Agents view">
+      <header class="section-head">
+        <div class="section-no">CLI cockpit audit</div>
+        <h2>Yes, the CLI has a roster. No, it is not yet Claude’s agents workspace.</h2>
+        <p class="lede"><code>pd agents --live</code> currently lists live harness lanes with purpose, identity, worktree, branch, claims, session takeover, stream, and soft interrupt controls. The missing piece is a composed interactive cockpit over those primitives.</p>
+      </header>
+
+      <div class="comparison">
+        <div class="compare-col claude">
+          <span class="eyebrow">Claude Code today</span>
+          <h3>Native child workspace</h3>
+          <ul>
+            <li>Parent/child agent list inside the active session.</li>
+            <li>Keyboard focus switch and per-agent activity state.</li>
+            <li>Task label, token/progress readout, queued turns.</li>
+            <li>One vendor owns process, transcript, and rendering.</li>
+          </ul>
+        </div>
+        <div class="compare-col pd">
+          <span class="eyebrow">Port Daddy today</span>
+          <h3>Cross-harness control plane</h3>
+          <ul>
+            <li><code>pd agents --live</code>: truthful roster across worktrees.</li>
+            <li><code>pd agent stream &lt;id&gt;</code>: merged status, tube, transcript SSE.</li>
+            <li><code>pd agent interrupt &lt;id&gt;</code>: cooperative typed steering message.</li>
+            <li>Session takeover, claims, branch, identity, and harness metadata.</li>
+          </ul>
+        </div>
+        <div class="compare-col gap">
+          <span class="eyebrow">What is missing</span>
+          <h3>Interactive composition</h3>
+          <ul>
+            <li>No tree of parent → children → reviewer → keeper.</li>
+            <li>No full-screen keyboard UI joining roster + streams + controls.</li>
+            <li>Soft interrupt is advisory unless that runtime cooperates.</li>
+            <li>Progress/token/transcript fidelity varies by adapter.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="parity-wrap" tabindex="0" aria-label="Scrollable agents-view parity matrix">
+      <table class="parity-table">
+        <thead><tr><th>Capability</th><th>Claude agents view</th><th>pd CLI</th><th>Why the gap exists</th></tr></thead>
+        <tbody>
+          <tr><td>Live roster</td><td class="yes">Yes</td><td class="yes">Yes</td><td>Shipped via daemon <code>/agent-roster</code>.</td></tr>
+          <tr><td>Per-agent stream</td><td class="yes">Yes</td><td class="yes">Yes</td><td>Shipped as merged SSE: status + tube + transcript.</td></tr>
+          <tr><td>Soft steering</td><td class="yes">Native</td><td class="partial">Cooperative</td><td>PD publishes <code>control.interrupt</code>; a heterogeneous body must observe it.</td></tr>
+          <tr><td>Hard process control</td><td class="yes">Vendor-owned</td><td class="partial">Adapter-dependent</td><td>Port Daddy cannot honestly promise pause/kill for bodies it did not launch or confine.</td></tr>
+          <tr><td>Parent/child tree</td><td class="yes">Yes</td><td class="no">Not rendered</td><td>Lineage exists across sessions/runs, but the CLI roster flattens it.</td></tr>
+          <tr><td>Integrated transcript pane</td><td class="yes">Yes</td><td class="partial">Raw stream</td><td>The SSE contract exists; a TUI composition layer does not.</td></tr>
+          <tr><td>Tokens / task progress</td><td class="yes">Yes</td><td class="partial">Coverage varies</td><td>Not every adapter exposes stable usage or structured progress.</td></tr>
+          <tr><td>Cross-runtime scope</td><td class="no">Claude only</td><td class="yes">17 families</td><td>PD chooses conservative common semantics over pretending all bodies are Claude.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="callout"><strong>Why not yet?</strong> The backend was built in the right order—roster, merged stream, and soft control first—but the CLI stops at line-oriented primitives. The next honest surface is a <code>pd agents --watch</code> or <code>pd cockpit</code> TUI with a lineage tree, capability badges, stream pane, and adapter-specific control affordances that disappear when unproven.</div>
+    </section>
+
+    <section class="section page" id="sources" data-nav="Sources">
+      <header class="section-head">
+        <div class="section-no">Evidence ledger</div>
+        <h2>Every claim has a local source.</h2>
+        <p class="lede">This artifact is a dated projection, not a new authority. Edit canonical sources first, regenerate or update this atlas second, and label in-flight PR truth separately from main.</p>
+      </header>
+
+      <div class="source-list">
+        <div class="source-item"><a href="../../../agents/port-daddy-pilot/AGENT.md">Port Daddy Pilot persona</a><code>agents/port-daddy-pilot/AGENT.md</code></div>
+        <div class="source-item"><a href="../../../agents/port-daddy-pilot/agent.config.json">Pilot render + tool matrix</a><code>agents/port-daddy-pilot/agent.config.json</code></div>
+        <div class="source-item"><a href="../../../skills/port-daddy-agent-skill/SKILL.md">Public operating manual</a><code>skills/port-daddy-agent-skill/SKILL.md</code></div>
+        <div class="source-item"><a href="../../../skills/agent-compliance-conformance/SKILL.md">Conformance auditor</a><code>skills/agent-compliance-conformance/SKILL.md</code></div>
+        <div class="source-item"><a href="../../../skills/agent-compliance-conformance/references/compliance-and-fidelity-ladders.md">C0–C6 / T0–T5 reference</a><code>skills/agent-compliance-conformance/references/compliance-and-fidelity-ladders.md</code></div>
+        <div class="source-item"><a href="../../adr/0118-harness-adapter-contract.md">Harness adapter contract</a><code>docs/adr/0118-harness-adapter-contract.md</code></div>
+        <div class="source-item"><a href="../../../lib/backend-catalog.ts">17-family catalog source</a><code>lib/backend-catalog.ts</code></div>
+        <div class="source-item"><a href="../../../schemas/agent-harbor/v0/handoff-capsule.schema.json">Handoff capsule schema</a><code>schemas/agent-harbor/v0/handoff-capsule.schema.json</code></div>
+        <div class="source-item"><a href="../../../lib/continuation-runtime.ts">Continuation receipts</a><code>lib/continuation-runtime.ts</code></div>
+        <div class="source-item"><a href="../../../routes/memory.ts">Handoff + continuation routes</a><code>routes/memory.ts</code></div>
+        <div class="source-item"><a href="../../../cli/commands/agents.ts">CLI roster + stream</a><code>cli/commands/agents.ts</code></div>
+        <div class="source-item"><a href="../../../routes/agent-cockpit.ts">Cockpit SSE + interrupt contract</a><code>routes/agent-cockpit.ts</code></div>
+        <div class="source-item"><a href="../../agents/port-daddy-pilot.md">Pilot installation matrix</a><code>docs/agents/port-daddy-pilot.md</code></div>
+        <div class="source-item"><a href="../../agents/port-daddy-pilot-multiagent.md">Pilot multi-agent topology</a><code>docs/agents/port-daddy-pilot-multiagent.md</code></div>
+        <div class="source-item"><a href="https://github.com/curiositech/port-daddy/pull/2945">Cross-harness continuation PR</a><code>PR #2945 · open / Fleet check failing at capture</code></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer page">
+    <span>PORT DADDY / AGENT CONFORMANCE ATLAS</span>
+    <span>Dependency-free · keyboard operable · print safe · reduced-motion aware</span>
+  </footer>
+
+  <script>
+    (() => {
+      const rows = Array.from(document.querySelectorAll('#runtime-body tr'));
+      const search = document.querySelector('#runtime-search');
+      const filters = Array.from(document.querySelectorAll('.filter'));
+      const empty = document.querySelector('#runtime-empty');
+      let activeFilter = 'all';
+
+      function matchesFilter(row) {
+        if (activeFilter === 'all') return true;
+        const tags = row.dataset.tags || '';
+        return tags.split(/\s+/).includes(activeFilter);
+      }
+
+      function updateRows() {
+        const query = (search.value || '').trim().toLowerCase();
+        let visible = 0;
+        rows.forEach((row) => {
+          const haystack = `${row.textContent} ${row.dataset.tags || ''}`.toLowerCase();
+          const match = matchesFilter(row) && (!query || haystack.includes(query));
+          row.hidden = !match;
+          if (match) visible += 1;
+        });
+        empty.style.display = visible ? 'none' : 'block';
+      }
+
+      filters.forEach((button) => {
+        button.addEventListener('click', () => {
+          activeFilter = button.dataset.filter;
+          filters.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+          updateRows();
+        });
+      });
+      search.addEventListener('input', updateRows);
+
+      document.querySelectorAll('.copy-source').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const source = button.parentElement.querySelector('code').textContent;
+          try {
+            await navigator.clipboard.writeText(source);
+            const prior = button.textContent;
+            button.textContent = 'Copied';
+            setTimeout(() => { button.textContent = prior; }, 1200);
+          } catch {
+            button.textContent = 'Select source';
+          }
+        });
+      });
+
+      const navLinks = Array.from(document.querySelectorAll('.rail a'));
+      const targets = navLinks.map((link) => document.querySelector(link.getAttribute('href'))).filter(Boolean);
+      if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+          const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+          if (!visible) return;
+          navLinks.forEach((link) => link.setAttribute('aria-current', String(link.getAttribute('href') === '#' + visible.target.id)));
+        }, { rootMargin: '-20% 0px -65% 0px', threshold: [0, .15, .4] });
+        targets.forEach((target) => observer.observe(target));
+      }
+    })();
+  </script>
+</body>
+</html>
