@@ -925,20 +925,15 @@ describe('handoff continuation routes', () => {
   test('does not spawn when accepted-to-running lease ownership is lost', async () => {
     const state = await buildApp();
     const episode = await createHandoff(state);
-    state.verifyNativeSessionWitnessFn.mockImplementation((_capsule, _adapterFamily, witness) => {
-      state.db.prepare(`
+    state.db.exec(`
+      CREATE TRIGGER orphan_continuation_after_insert
+      AFTER INSERT ON agent_continuations
+      BEGIN
         UPDATE agent_continuations
         SET status = 'orphaned', completed_at = updated_at
-        WHERE status = 'accepted'
-      `).run();
-      return {
-        verified: true,
-        witness,
-        reason: null,
-        canonicalWorkspace: CANONICAL_WORKSPACE,
-        workspaceIdentity: WORKSPACE_IDENTITY,
-      };
-    });
+        WHERE id = NEW.id;
+      END;
+    `);
 
     const response = await state.app.inject({
       method: 'POST',
@@ -1023,6 +1018,58 @@ describe('handoff continuation routes', () => {
 
     await state.app.close();
     state.db.close();
+  });
+
+  test('rejects idempotency replay when the daemon-authorized source workspace changes', async () => {
+    const firstWorkspace = mkdtempSync(join(tmpdir(), 'pd-continuation-source-a-'));
+    const secondWorkspace = mkdtempSync(join(tmpdir(), 'pd-continuation-source-b-'));
+    const firstIdentity = captureWorkspaceIdentity(firstWorkspace);
+    const secondIdentity = captureWorkspaceIdentity(secondWorkspace);
+    if (!firstIdentity || !secondIdentity) throw new Error('workspace identity unavailable');
+    const verifyNativeSessionWitnessFn = jest.fn()
+      .mockReturnValueOnce({
+        verified: true,
+        witness: { schema: 'pd.agent-harbor.native-session-witness.v0' },
+        reason: null,
+        canonicalWorkspace: firstWorkspace,
+        workspaceIdentity: firstIdentity,
+      })
+      .mockReturnValueOnce({
+        verified: true,
+        witness: { schema: 'pd.agent-harbor.native-session-witness.v0' },
+        reason: null,
+        canonicalWorkspace: secondWorkspace,
+        workspaceIdentity: secondIdentity,
+      });
+    const state = await buildApp({ verifyNativeSessionWitnessFn });
+    try {
+      const episode = await createHandoff(state);
+      const payload = {
+        targetBackend: 'cli:codex',
+        prompt: 'Continue in the daemon-authorized source workspace.',
+        idempotencyKey: 'route-continuation-source-workspace-drift',
+      };
+      const first = await state.app.inject({
+        method: 'POST',
+        url: `/memory/handoffs/${episode.id}/continue`,
+        payload,
+      });
+      const conflict = await state.app.inject({
+        method: 'POST',
+        url: `/memory/handoffs/${episode.id}/continue`,
+        payload,
+      });
+
+      expect(first.statusCode).toBe(201);
+      expect(conflict.statusCode).toBe(409);
+      expect(conflict.json().error).toMatch(/idempotency key was already used for a different continuation request/);
+      expect(state.spawner.spawn).toHaveBeenCalledTimes(1);
+    } finally {
+      await state.app.close();
+      state.db.close();
+      rmSync(firstWorkspace, { recursive: true, force: true });
+      rmSync(secondWorkspace, { recursive: true, force: true });
+    }
   });
 
   test('fails closed before acceptance when prompt scanning is unavailable', async () => {

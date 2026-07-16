@@ -117,6 +117,17 @@ function workspaceIdentityHash(identity: WorkspaceIdentity): string {
   return hashContinuationPrompt(`${identity.canonicalPath}\0${identity.device}:${identity.inode}`);
 }
 
+function continuationWorkspaceRequestHash(
+  requested: WorkspaceIdentity | null,
+  effective: WorkspaceIdentity | null,
+): string | null {
+  if (!requested && !effective) return null;
+  return hashContinuationPrompt(JSON.stringify({
+    requested: requested ? workspaceIdentityHash(requested) : null,
+    effective: effective ? workspaceIdentityHash(effective) : null,
+  }));
+}
+
 function continuationErrorMessage(error: unknown, gitleaksRunner?: GitleaksRunner): string {
   const raw = error instanceof Error ? error.message : String(error);
   try {
@@ -379,6 +390,26 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
         );
       }
 
+      let sourceWitness: NativeSessionWitnessResult;
+      try {
+        sourceWitness = (opts.deps.verifyNativeSessionWitnessFn ?? verifyNativeSessionWitness)(
+          capsule,
+          adapterFamily,
+          episode.metadata?.nativeSessionWitness,
+        );
+      } catch {
+        sourceWitness = unavailableNativeSessionWitness(
+          'daemon could not reverify the claimed native session in local harness storage',
+        );
+      }
+      const witnessedWorkspaceIdentity = sourceWitness.verified
+        && sourceWitness.canonicalWorkspace
+        && sourceWitness.workspaceIdentity
+        ? sourceWitness.workspaceIdentity
+        : null;
+      const effectiveWorkspaceIdentity = witnessedWorkspaceIdentity
+        ?? (mode === 'handoff' ? requestedWorkspaceIdentity : null);
+
       const accepted = continuationStore.accept({
         idempotencyKey,
         sourceEpisodeId: episode.id,
@@ -394,9 +425,10 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
         effectiveBackend: runtime.effectiveBackend,
         requestedModel: runtime.requestedModel,
         effectiveModel: runtime.effectiveModel,
-        workspaceIdentityHash: requestedWorkspaceIdentity
-          ? workspaceIdentityHash(requestedWorkspaceIdentity)
-          : null,
+        workspaceIdentityHash: continuationWorkspaceRequestHash(
+          requestedWorkspaceIdentity,
+          effectiveWorkspaceIdentity,
+        ),
         promptHash: hashContinuationPrompt(spawnSpec.task),
       });
       if (accepted.replayed) {
@@ -436,19 +468,6 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
         }
         reply.code(422);
         return { success: false, error, receipt };
-      }
-
-      let sourceWitness: NativeSessionWitnessResult;
-      try {
-        sourceWitness = (opts.deps.verifyNativeSessionWitnessFn ?? verifyNativeSessionWitness)(
-          capsule,
-          adapterFamily,
-          episode.metadata?.nativeSessionWitness,
-        );
-      } catch {
-        sourceWitness = unavailableNativeSessionWitness(
-          'daemon could not reverify the claimed native session in local harness storage',
-        );
       }
 
       let handoffWorkspaceIdentity: WorkspaceIdentity | null = null;
