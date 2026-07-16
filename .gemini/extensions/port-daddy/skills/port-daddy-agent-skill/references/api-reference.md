@@ -1729,3 +1729,10 @@ Always returns `200` — the report carries its own verdict (callers gate on `re
   }
 }
 ```
+
+---
+
+## Backend
+
+### GET /harness-adapters/continuation-matrix
+Read the honest N:N harness matrix. Returns catalog mechanics separately from fresh/stale daemon-witnessed spawn, live-control, native-resume, and handoff evidence; never a scalar compliance badge.

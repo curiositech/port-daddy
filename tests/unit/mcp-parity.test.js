@@ -110,6 +110,7 @@ const TOOL_FEATURE_MAP = {
   'agent_heartbeat': 'agents',
   'list_agents': 'agents',
   'active_agent_roster': 'agents',
+  'harness_continuation_matrix': 'backend',
 
   // Salvage
   'check_salvage': 'salvage',
