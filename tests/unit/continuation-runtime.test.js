@@ -25,6 +25,7 @@ function request(overrides = {}) {
     effectiveBackend: 'cli:claude-code',
     requestedModel: 'sonnet',
     effectiveModel: 'sonnet',
+    workspaceIdentityHash: 'd'.repeat(64),
     promptHash: hashContinuationPrompt('Continue without losing context.'),
     ...overrides,
   };
@@ -68,6 +69,8 @@ describe('continuation receipt store', () => {
     expect(replay.replayed).toBe(true);
     expect(replay.receipt.id).toBe(first.receipt.id);
     expect(() => store.accept(request({ requestedModel: 'opus' })))
+      .toThrow(ContinuationIdempotencyConflictError);
+    expect(() => store.accept(request({ workspaceIdentityHash: 'e'.repeat(64) })))
       .toThrow(ContinuationIdempotencyConflictError);
   });
 

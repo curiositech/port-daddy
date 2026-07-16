@@ -4932,18 +4932,24 @@ paths:
   /memory/handoffs/{episodeId}/continue:
     post:
       tags: [memory]
-      summary: Resume the native harness session represented by a handoff episode
+      summary: Continue a handoff episode natively or through a successor runtime
       operationId: continueMemoryHandoff
       description: >
         Revalidates the stored sanitized capsule and outgoing operator prompt,
-        resolves the effective backend after overrides, writes an acceptance
-        receipt, reverifies adapter-specific local session evidence, and resumes
-        only when source and target share a session-scoped adapter family. A
-        daemon-generation lease and compare-and-swap gate the child side effect;
-        the witnessed workspace inode is rechecked at the final child-process
-        boundary, and success is returned only after durable completion by the
-        same owner. The receipt stores only prompt and idempotency hashes; the
-        sanitized prompt belongs to the ordinary governed spawn transcript.
+        resolves the effective backend after overrides, and selects auto, native,
+        or handoff execution. Auto restores a daemon-witnessed native session
+        only for a matching session-scoped adapter family; otherwise it creates
+        a successor from a versioned sanitized brief containing durable identity,
+        lineage, operator turns, decisions, coordination evidence, workspace,
+        artifacts, and compact recent context. Explicit native mode never falls
+        back, while explicit handoff mode always starts a successor. A per-daemon
+        generation lease and compare-and-swap gate the child side effect, and
+        success is returned only after durable completion by the same owner. The
+        receipt stores only prompt and idempotency hashes; raw provider
+        transcripts never cross the runtime boundary. Historical capsule paths
+        never authorize the child cwd: handoff mode reuses a reverified source
+        workspace witness or requires an explicit current targetWorkdir, captures
+        its canonical device/inode identity, and checks it again before spawn.
       parameters:
         - name: episodeId
           in: path
@@ -4964,6 +4970,10 @@ paths:
                   type: string
                   minLength: 1
                   maxLength: 128
+                mode:
+                  type: string
+                  enum: [auto, native, handoff]
+                  default: auto
                 idempotencyKey:
                   type: string
                   minLength: 1
@@ -4980,13 +4990,22 @@ paths:
                   type: string
                   minLength: 1
                   maxLength: 1024
+                targetWorkdir:
+                  type: string
+                  minLength: 1
+                  maxLength: 32768
+                  description: >
+                    Current operator-selected user-owned absolute directory.
+                    Required for handoff successors when the source adapter has
+                    no daemon-witnessed local workspace. It may not conflict
+                    with an available source witness.
                 timeoutMs:
                   type: integer
                   minimum: 1000
                   maximum: 21600000
       responses:
         '201':
-          description: Native continuation completed with a durable receipt
+          description: Native restoration or handoff successor completed with a durable receipt
           content:
             application/json:
               schema:
@@ -5024,7 +5043,7 @@ paths:
         '409':
           description: Idempotency drift, orphaned replay, or continuation lease ownership conflict
         '422':
-          description: Secret quarantine, unsupported adapter pairing, or unavailable native-session witness
+          description: Secret quarantine, unsupported requested mode, target without handoff input, or unavailable native-session witness
         '502':
           description: Target harness failed after durable acceptance
         '503':

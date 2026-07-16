@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1784147230967,
+  "generatedAt": 1784177784166,
   "harbor": "port-daddy",
-  "source": "http://127.0.0.1:9876",
-  "count": 221,
+  "source": "http://127.0.0.1:9877",
+  "count": 226,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -600,6 +600,11 @@
       "summaryMd": "Fix daemon Claude CLI binary resolution"
     },
     {
+      "slug": "codex-durable-agent-cross-harness-20260715",
+      "status": "backlog",
+      "summaryMd": "feat(memory): add safe cross-harness continuation"
+    },
+    {
       "slug": "codex-effective-runtime-truth",
       "status": "backlog",
       "summaryMd": "fix(spawner): report effective runtime provenance"
@@ -640,13 +645,23 @@
       "summaryMd": "WIP (operator flagged unfinished 2026-07-14): every daemon launched locally for a dev berth must self-register in ~/.port-daddy/dev-daemons.json so FleetBar/Control Center can see it — else dev daemons are invisible in the sanctioned shell (the show-me-runbook hard rule: dev-triple launches with PD_DAEMON_TIER/LABEL/SOURCE_DIR so the berth registers). Evidence tonight: lsof showed a dev-latest daemon on :9886 and multiple dispatch-worktree daemons that FleetBar has no view of. Finish: on daemon boot, if a non-prod tier/label is set, upsert the berth into dev-daemons.json (pid, port, tier, label, sourceDir, gitRev, health-url); prune dead berths on read; every dev-berth launch path (pd dev up, package-console --devbuild, dispatch worktree daemons, dev-triple) goes through it. Acceptance: launch a dev berth by any path and it appears in FleetBar's Daemons list with correct tier/label; killing it prunes it. Owner: dev-berth dispatch. Decision-type: empirical."
     },
     {
+      "slug": "durable-agent-continuation-conformance-matrix",
+      "status": "backlog",
+      "summaryMd": "Probe and publish an honest N:N backend continuation matrix spanning discovery, spawn, live control, native resume, and handoff successor conformance."
+    },
+    {
+      "slug": "durable-agent-cross-harness-continuation",
+      "status": "now",
+      "summaryMd": "Runtime-selectable cross-harness continuation through a versioned sanitized successor brief with durable identity and predecessor lineage."
+    },
+    {
       "slug": "durable-agent-cross-harness-resumption",
       "status": "backlog",
       "summaryMd": "Resume a sanitized handoff capsule in a different harness or backend without replaying raw transcripts, with explicit capability loss and source-to-target lineage."
     },
     {
       "slug": "durable-agent-handoff-capsule",
-      "status": "backlog",
+      "status": "now",
       "summaryMd": "Build a compact, versioned, provenance-rich handoff capsule that preserves operator turns, decisions, repo and branch state, Port Daddy coordination notes, and artifacts while failing closed on secret egress."
     },
     {
@@ -660,9 +675,14 @@
       "summaryMd": "Make agent sessions portable across CLI, API, cloud, and local runtimes through one honest adapter contract per harness, generated capability evidence, and handoff-only fallback when native resume is unavailable."
     },
     {
-      "slug": "durable-agent-same-harness-continuation",
+      "slug": "durable-agent-roster",
       "status": "backlog",
-      "summaryMd": "Continue an agent through its native harness session or history identity while preserving named-agent continuity and recording the continuation lineage."
+      "summaryMd": "Build Beacon's durable named agent roster with system and repo scopes, promotable sessions, memory policy, backend preferences, permissions, triggers, and searchable expertise."
+    },
+    {
+      "slug": "durable-agent-same-harness-continuation",
+      "status": "now",
+      "summaryMd": "Daemon-witnessed same-harness session continuation with UUID and workspace-bound evidence, owner-leased receipts, and truthful native resume semantics."
     },
     {
       "slug": "feat-backend-dropdown-spawn-forecast",
@@ -1003,6 +1023,11 @@
       "slug": "roadmap-link-gate",
       "status": "now",
       "summaryMd": "Non-blocking CI gate: every PR declares its roadmap item (committed snapshot + label→human-approval fallback + loud-on-broken). Daemon is the only writer; CI reads the mirror."
+    },
+    {
+      "slug": "roadmap-linked-worktree-harbor-resolution",
+      "status": "now",
+      "summaryMd": "Keep roadmap receipts on the canonical project board from every linked worktree"
     },
     {
       "slug": "roadmap-reconciler-agent",

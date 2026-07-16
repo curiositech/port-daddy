@@ -1670,6 +1670,45 @@ describe('spawn — codex backend', () => {
     }
   });
 
+  test('rechecks a handoff workspace inode at the child-launch boundary', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'pd-handoff-workspace-swap-'));
+    const workspace = join(root, 'workspace');
+    const movedWorkspace = join(root, 'moved-workspace');
+    mkdirSync(workspace);
+    const workspaceIdentity = captureWorkspaceIdentity(workspace);
+    if (!workspaceIdentity) throw new Error('workspace identity unavailable');
+    let swapped = false;
+    mockFetch.mockImplementation(async () => {
+      if (!swapped) {
+        renameSync(workspace, movedWorkspace);
+        mkdirSync(workspace);
+        swapped = true;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+        text: async () => 'OK',
+      };
+    });
+
+    try {
+      const spawner = createSpawner();
+      const result = await spawner.spawn({
+        backend: 'codex',
+        task: 'Do not run a successor in a replaced workspace.',
+        workdir: workspaceIdentity.canonicalPath,
+        workspaceIdentity,
+      });
+
+      expect(result.status).toBe('failed');
+      expect(result.error).toMatch(/workspace identity changed before child launch/);
+      expect(cpSpawn).not.toHaveBeenCalled();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test('blocks cross-family and non-session native resume before starting a child', async () => {
     const spawner = createSpawner();
 

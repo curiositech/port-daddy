@@ -6,16 +6,18 @@ import {
   HandoffScannerUnavailableError,
   HandoffSecretError,
   HandoffValidationError,
+  renderHandoffSuccessorPrompt,
   sanitizeHandoffCapsule,
   sanitizeHandoffText,
   type GitleaksRunner,
   type HandoffCapsuleV0,
 } from '../lib/handoff-capsule.js';
-import { getBackendCatalogEntry } from '../lib/backend-catalog.js';
+import { getBackendCatalogEntry, type BackendCatalogEntry } from '../lib/backend-catalog.js';
 import {
   ContinuationIdempotencyConflictError,
   createContinuationStore,
   hashContinuationPrompt,
+  type ContinuationMode,
   type ContinuationReceipt,
   type ContinuationStatus,
 } from '../lib/continuation-runtime.js';
@@ -32,6 +34,11 @@ import {
   type NativeSessionWitnessResult,
 } from '../lib/native-session-witness.js';
 import { harvestSession, type HarvestResult } from '../lib/session-harvest.js';
+import {
+  captureWorkspaceIdentity,
+  sameWorkspaceIdentity,
+  type WorkspaceIdentity,
+} from '../lib/workspace-identity.js';
 
 interface MemoryRouteDeps {
   episodicMemory: EpisodicMemory;
@@ -58,12 +65,16 @@ interface HandoffRequestBody {
 
 interface ContinuationRequestBody {
   targetBackend?: unknown;
+  mode?: unknown;
   model?: unknown;
   prompt?: unknown;
   idempotencyKey?: unknown;
   durableAgentId?: unknown;
+  targetWorkdir?: unknown;
   timeoutMs?: unknown;
 }
+
+type RequestedContinuationMode = 'auto' | ContinuationMode;
 
 type HandoffHarvestStatus =
   | ({ attempted: true; success: true } & HarvestResult)
@@ -102,6 +113,21 @@ function optionalContinuationIdentifier(value: unknown, field: string, maxBytes 
   return value === undefined ? undefined : continuationIdentifier(value, field, maxBytes);
 }
 
+function workspaceIdentityHash(identity: WorkspaceIdentity): string {
+  return hashContinuationPrompt(`${identity.canonicalPath}\0${identity.device}:${identity.inode}`);
+}
+
+function continuationWorkspaceRequestHash(
+  requested: WorkspaceIdentity | null,
+  effective: WorkspaceIdentity | null,
+): string | null {
+  if (!requested && !effective) return null;
+  return hashContinuationPrompt(JSON.stringify({
+    requested: requested ? workspaceIdentityHash(requested) : null,
+    effective: effective ? workspaceIdentityHash(effective) : null,
+  }));
+}
+
 function continuationErrorMessage(error: unknown, gitleaksRunner?: GitleaksRunner): string {
   const raw = error instanceof Error ? error.message : String(error);
   try {
@@ -113,6 +139,25 @@ function continuationErrorMessage(error: unknown, gitleaksRunner?: GitleaksRunne
 
 function sourceAdapterFamily(adapter: string): string {
   return getBackendCatalogEntry(adapter)?.adapter.family ?? adapter;
+}
+
+function requestedContinuationMode(value: unknown): RequestedContinuationMode {
+  if (value === undefined) return 'auto';
+  if (value === 'auto' || value === 'native' || value === 'handoff') return value;
+  throw new HandoffValidationError('mode must be auto, native, or handoff');
+}
+
+function resolveContinuationMode(
+  requested: RequestedContinuationMode,
+  sourceAdapter: string,
+  targetEntry: BackendCatalogEntry,
+): ContinuationMode {
+  if (requested !== 'auto') return requested;
+  return sourceAdapter === targetEntry.adapter.family
+    && targetEntry.adapter.resume.native
+    && targetEntry.adapter.resume.scope === 'session'
+    ? 'native'
+    : 'handoff';
 }
 
 function unavailableNativeSessionWitness(reason: string): NativeSessionWitnessResult {
@@ -295,6 +340,13 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
       const idempotencyKey = continuationIdentifier(body.idempotencyKey, 'idempotencyKey', 512);
       const requestedModel = optionalContinuationIdentifier(body.model, 'model', 512);
       const durableAgentId = optionalContinuationIdentifier(body.durableAgentId, 'durableAgentId');
+      const targetWorkdir = optionalContinuationIdentifier(body.targetWorkdir, 'targetWorkdir', 32 * 1024);
+      const requestedWorkspaceIdentity = targetWorkdir
+        ? captureWorkspaceIdentity(targetWorkdir)
+        : null;
+      if (targetWorkdir && !requestedWorkspaceIdentity) {
+        throw new HandoffValidationError('targetWorkdir must resolve to a current user-owned absolute directory');
+      }
       let timeout: number | undefined;
       if (body.timeoutMs !== undefined) {
         if (typeof body.timeoutMs !== 'number' || !Number.isInteger(body.timeoutMs) || body.timeoutMs < 1_000 || body.timeoutMs > 6 * 60 * 60 * 1_000) {
@@ -303,34 +355,67 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
         timeout = body.timeoutMs;
       }
 
-      const prompt = sanitizeHandoffText(body.prompt ?? capsule.telos, {
+      const continuationRequest = sanitizeHandoffText(body.prompt ?? capsule.telos, {
         gitleaksRunner: opts.deps.gitleaksRunner,
       });
+      const requestedMode = requestedContinuationMode(body.mode);
       const adapterFamily = sourceAdapterFamily(capsule.source.adapter);
+      const durableIdentity = durableAgentId ?? capsule.target?.agentId ?? capsule.source.agentId ?? null;
       const spawnSpec: SpawnSpec = {
         backend: requestedBackend as SpawnSpec['backend'],
         requestedBackend: requestedBackend as SpawnSpec['backend'],
         ...(requestedModel ? { model: requestedModel, requestedModel } : {}),
-        task: prompt,
-        purpose: `Continue ${durableAgentId ?? capsule.source.agentId ?? adapterFamily}`,
-        identity: durableAgentId ?? capsule.source.agentId ?? undefined,
-        workdir: capsule.workspace.cwd ?? capsule.workspace.repoRoot ?? capsule.identity.projectDir ?? undefined,
+        task: continuationRequest,
+        purpose: `Continue ${durableIdentity ?? adapterFamily}`,
+        identity: durableIdentity ?? undefined,
         timeout,
-        nativeResume: {
-          adapterFamily,
-          sessionId: capsule.source.sessionId,
-        },
       };
       const runtime = resolveSpawnRuntime(spawnSpec);
       const targetEntry = getBackendCatalogEntry(runtime.effectiveBackend);
-      const targetAdapter = targetEntry?.adapter.family ?? runtime.effectiveBackend;
+      if (!targetEntry) throw new HandoffValidationError(`unknown effective targetBackend: ${runtime.effectiveBackend}`);
+      const targetAdapter = targetEntry.adapter.family;
+      const mode = resolveContinuationMode(requestedMode, adapterFamily, targetEntry);
+      if (mode === 'native') {
+        spawnSpec.nativeResume = {
+          adapterFamily,
+          sessionId: capsule.source.sessionId,
+        };
+      } else {
+        spawnSpec.task = sanitizeHandoffText(
+          renderHandoffSuccessorPrompt(capsule, continuationRequest, durableIdentity),
+          {
+            gitleaksRunner: opts.deps.gitleaksRunner,
+            maxBytes: 1024 * 1024,
+          },
+        );
+      }
+
+      let sourceWitness: NativeSessionWitnessResult;
+      try {
+        sourceWitness = (opts.deps.verifyNativeSessionWitnessFn ?? verifyNativeSessionWitness)(
+          capsule,
+          adapterFamily,
+          episode.metadata?.nativeSessionWitness,
+        );
+      } catch {
+        sourceWitness = unavailableNativeSessionWitness(
+          'daemon could not reverify the claimed native session in local harness storage',
+        );
+      }
+      const witnessedWorkspaceIdentity = sourceWitness.verified
+        && sourceWitness.canonicalWorkspace
+        && sourceWitness.workspaceIdentity
+        ? sourceWitness.workspaceIdentity
+        : null;
+      const effectiveWorkspaceIdentity = witnessedWorkspaceIdentity
+        ?? (mode === 'handoff' ? requestedWorkspaceIdentity : null);
 
       const accepted = continuationStore.accept({
         idempotencyKey,
         sourceEpisodeId: episode.id,
         sourceCapsuleId: capsule.capsuleId,
-        durableAgentId: durableAgentId ?? capsule.source.agentId ?? null,
-        mode: 'native',
+        durableAgentId: durableIdentity,
+        mode,
         sourceAdapter: adapterFamily,
         sourceSessionId: capsule.source.sessionId,
         sourceAgentId: capsule.source.agentId ?? null,
@@ -340,7 +425,11 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
         effectiveBackend: runtime.effectiveBackend,
         requestedModel: runtime.requestedModel,
         effectiveModel: runtime.effectiveModel,
-        promptHash: hashContinuationPrompt(prompt),
+        workspaceIdentityHash: continuationWorkspaceRequestHash(
+          requestedWorkspaceIdentity,
+          effectiveWorkspaceIdentity,
+        ),
+        promptHash: hashContinuationPrompt(spawnSpec.task),
       });
       if (accepted.replayed) {
         const replayStatus = accepted.receipt.status;
@@ -365,9 +454,9 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
         };
       }
 
-      const unsupported = validateNativeResumeAdapter(spawnSpec, runtime);
-      if (unsupported) {
-        const receipt = continuationStore.markUnsupported(accepted.receipt.id, unsupported);
+      if (mode === 'handoff' && !targetEntry.adapter.acceptsInitialPrompt) {
+        const error = `effective adapter ${targetAdapter} cannot accept a handoff successor prompt`;
+        const receipt = continuationStore.markUnsupported(accepted.receipt.id, error);
         if (!receipt || receipt.status !== 'unsupported') {
           const current = continuationStore.get(accepted.receipt.id) ?? accepted.receipt;
           reply.code(409);
@@ -378,63 +467,134 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
           };
         }
         reply.code(422);
-        return { success: false, error: unsupported, receipt };
+        return { success: false, error, receipt };
       }
 
-      let sourceWitness: NativeSessionWitnessResult;
-      try {
-        sourceWitness = (opts.deps.verifyNativeSessionWitnessFn ?? verifyNativeSessionWitness)(
-          capsule,
+      let handoffWorkspaceIdentity: WorkspaceIdentity | null = null;
+      if (mode === 'handoff') {
+        if (sourceWitness.verified && sourceWitness.canonicalWorkspace && sourceWitness.workspaceIdentity) {
+          if (targetWorkdir && !sameWorkspaceIdentity(targetWorkdir, sourceWitness.workspaceIdentity)) {
+            const error = 'targetWorkdir does not match the daemon-witnessed source workspace';
+            const receipt = continuationStore.markUnsupported(accepted.receipt.id, error);
+            if (!receipt || receipt.status !== 'unsupported') {
+              const current = continuationStore.get(accepted.receipt.id) ?? accepted.receipt;
+              reply.code(409);
+              return { success: false, error: 'continuation ownership changed before spawn', receipt: current };
+            }
+            reply.code(422);
+            return { success: false, error, receipt };
+          }
+          spawnSpec.workdir = sourceWitness.canonicalWorkspace;
+          spawnSpec.workspaceIdentity = sourceWitness.workspaceIdentity;
+          handoffWorkspaceIdentity = sourceWitness.workspaceIdentity;
+        } else if (requestedWorkspaceIdentity) {
+          spawnSpec.workdir = requestedWorkspaceIdentity.canonicalPath;
+          spawnSpec.workspaceIdentity = requestedWorkspaceIdentity;
+          handoffWorkspaceIdentity = requestedWorkspaceIdentity;
+        } else {
+          const witnessReason = sourceWitness.reason ?? 'source session evidence is unavailable';
+          const error = `handoff successor requires a daemon-witnessed source workspace or explicit targetWorkdir; ${witnessReason}`;
+          const receipt = continuationStore.markUnsupported(accepted.receipt.id, error);
+          if (!receipt || receipt.status !== 'unsupported') {
+            const current = continuationStore.get(accepted.receipt.id) ?? accepted.receipt;
+            reply.code(409);
+            return { success: false, error: 'continuation ownership changed before spawn', receipt: current };
+          }
+          reply.code(422);
+          return { success: false, error, receipt };
+        }
+      }
+
+      if (mode === 'native') {
+        const unsupported = validateNativeResumeAdapter(spawnSpec, runtime);
+        if (unsupported) {
+          const receipt = continuationStore.markUnsupported(accepted.receipt.id, unsupported);
+          if (!receipt || receipt.status !== 'unsupported') {
+            const current = continuationStore.get(accepted.receipt.id) ?? accepted.receipt;
+            reply.code(409);
+            return {
+              success: false,
+              error: 'continuation ownership changed before the unsupported result was recorded',
+              receipt: current,
+            };
+          }
+          reply.code(422);
+          return { success: false, error: unsupported, receipt };
+        }
+
+        if (!sourceWitness.verified) {
+          const error = sourceWitness.reason ?? 'native session evidence is unavailable';
+          const receipt = continuationStore.markUnsupported(accepted.receipt.id, error);
+          if (!receipt || receipt.status !== 'unsupported') {
+            const current = continuationStore.get(accepted.receipt.id) ?? accepted.receipt;
+            reply.code(409);
+            return {
+              success: false,
+              error: 'continuation ownership changed before the witness result was recorded',
+              receipt: current,
+            };
+          }
+          reply.code(422);
+          return { success: false, error, receipt };
+        }
+        if (!sourceWitness.canonicalWorkspace || !sourceWitness.workspaceIdentity) {
+          const error = 'native session witness did not provide a canonical workspace';
+          const receipt = continuationStore.markUnsupported(accepted.receipt.id, error);
+          if (!receipt || receipt.status !== 'unsupported') {
+            const current = continuationStore.get(accepted.receipt.id) ?? accepted.receipt;
+            reply.code(409);
+            return { success: false, error: 'continuation ownership changed before spawn', receipt: current };
+          }
+          reply.code(422);
+          return { success: false, error, receipt };
+        }
+        if (targetWorkdir && !sameWorkspaceIdentity(targetWorkdir, sourceWitness.workspaceIdentity)) {
+          const error = 'targetWorkdir does not match the daemon-witnessed source workspace';
+          const receipt = continuationStore.markUnsupported(accepted.receipt.id, error);
+          if (!receipt || receipt.status !== 'unsupported') {
+            const current = continuationStore.get(accepted.receipt.id) ?? accepted.receipt;
+            reply.code(409);
+            return { success: false, error: 'continuation ownership changed before spawn', receipt: current };
+          }
+          reply.code(422);
+          return { success: false, error, receipt };
+        }
+        spawnSpec.workdir = sourceWitness.canonicalWorkspace;
+        spawnSpec.nativeResume = {
           adapterFamily,
-          episode.metadata?.nativeSessionWitness,
-        );
-      } catch {
-        sourceWitness = unavailableNativeSessionWitness(
-          'daemon could not reverify the claimed native session in local harness storage',
-        );
-      }
-      if (!sourceWitness.verified) {
-        const error = sourceWitness.reason ?? 'native session evidence is unavailable';
-        const receipt = continuationStore.markUnsupported(accepted.receipt.id, error);
-        if (!receipt || receipt.status !== 'unsupported') {
-          const current = continuationStore.get(accepted.receipt.id) ?? accepted.receipt;
-          reply.code(409);
-          return {
-            success: false,
-            error: 'continuation ownership changed before the witness result was recorded',
-            receipt: current,
-          };
+          sessionId: capsule.source.sessionId,
+          workspaceIdentity: sourceWitness.workspaceIdentity,
+        };
+        const workspaceUnsupported = validateNativeResume(spawnSpec, runtime);
+        if (workspaceUnsupported) {
+          const receipt = continuationStore.markUnsupported(accepted.receipt.id, workspaceUnsupported);
+          if (!receipt || receipt.status !== 'unsupported') {
+            const current = continuationStore.get(accepted.receipt.id) ?? accepted.receipt;
+            reply.code(409);
+            return { success: false, error: 'continuation ownership changed before spawn', receipt: current };
+          }
+          reply.code(422);
+          return { success: false, error: workspaceUnsupported, receipt };
         }
-        reply.code(422);
-        return { success: false, error, receipt };
       }
-      if (!sourceWitness.canonicalWorkspace || !sourceWitness.workspaceIdentity) {
-        const error = 'native session witness did not provide a canonical workspace';
-        const receipt = continuationStore.markUnsupported(accepted.receipt.id, error);
-        if (!receipt || receipt.status !== 'unsupported') {
-          const current = continuationStore.get(accepted.receipt.id) ?? accepted.receipt;
-          reply.code(409);
-          return { success: false, error: 'continuation ownership changed before spawn', receipt: current };
-        }
-        reply.code(422);
-        return { success: false, error, receipt };
-      }
-      spawnSpec.workdir = sourceWitness.canonicalWorkspace;
-      spawnSpec.nativeResume = {
-        adapterFamily,
-        sessionId: capsule.source.sessionId,
-        workspaceIdentity: sourceWitness.workspaceIdentity,
-      };
-      const workspaceUnsupported = validateNativeResume(spawnSpec, runtime);
-      if (workspaceUnsupported) {
-        const receipt = continuationStore.markUnsupported(accepted.receipt.id, workspaceUnsupported);
-        if (!receipt || receipt.status !== 'unsupported') {
+
+      if (
+        mode === 'handoff'
+        && (
+          !handoffWorkspaceIdentity
+          || !spawnSpec.workdir
+          || !sameWorkspaceIdentity(spawnSpec.workdir, handoffWorkspaceIdentity)
+        )
+      ) {
+        const error = 'handoff successor blocked: canonical workspace identity changed before spawn';
+        const receipt = continuationStore.markFailed(accepted.receipt.id, { error });
+        if (!receipt || receipt.status !== 'failed') {
           const current = continuationStore.get(accepted.receipt.id) ?? accepted.receipt;
           reply.code(409);
           return { success: false, error: 'continuation ownership changed before spawn', receipt: current };
         }
-        reply.code(422);
-        return { success: false, error: workspaceUnsupported, receipt };
+        reply.code(409);
+        return { success: false, error, receipt };
       }
 
       const running = continuationStore.markRunning(
@@ -475,7 +635,7 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
           effectiveBackend: result.effectiveBackend ?? result.backend,
           effectiveModel: result.effectiveModel ?? result.model,
           successorRunId: result.agentId,
-          successorSessionId: result.harnessSessionId ?? capsule.source.sessionId,
+          successorSessionId: result.harnessSessionId ?? (mode === 'native' ? capsule.source.sessionId : null),
         });
         if (!completed || completed.status !== 'completed') {
           const current = continuationStore.get(accepted.receipt.id) ?? running;

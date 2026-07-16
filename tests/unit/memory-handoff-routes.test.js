@@ -1,5 +1,8 @@
 import { jest } from '@jest/globals';
 import Fastify from 'fastify';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createTestDb } from '../setup-unit.js';
 import { createEpisodicMemory } from '../../lib/episodic-memory.js';
 import { HandoffScannerUnavailableError } from '../../lib/handoff-capsule.js';
@@ -7,6 +10,7 @@ import { memoryPlugin } from '../../routes/memory.js';
 import { captureWorkspaceIdentity } from '../../lib/workspace-identity.js';
 
 const SOURCE_SESSION_ID = '11111111-1111-4111-8111-111111111111';
+const SUCCESSOR_SESSION_ID = '22222222-2222-4222-8222-222222222222';
 const WORKSPACE_IDENTITY = captureWorkspaceIdentity(process.cwd());
 if (!WORKSPACE_IDENTITY) throw new Error('test workspace identity unavailable');
 const CANONICAL_WORKSPACE = WORKSPACE_IDENTITY.canonicalPath;
@@ -91,7 +95,7 @@ async function buildApp(overrides = {}) {
       telemetry: null,
       startedAt: Date.now(),
       completedAt: Date.now(),
-      harnessSessionId: spec.nativeResume?.sessionId,
+      harnessSessionId: spec.nativeResume?.sessionId ?? SUCCESSOR_SESSION_ID,
     })),
   };
 
@@ -432,7 +436,7 @@ describe('POST /memory/handoffs', () => {
   });
 });
 
-describe('same-harness continuation routes', () => {
+describe('handoff continuation routes', () => {
   async function createHandoff(state, overrides = {}) {
     const response = await state.app.inject({
       method: 'POST',
@@ -565,11 +569,243 @@ describe('same-harness continuation routes', () => {
     state.db.close();
   });
 
-  test('persists unsupported cross-family attempts without invoking a child', async () => {
+  test('initializes a cross-family successor from the full sanitized capsule', async () => {
+    const state = await buildApp();
+    const episode = await createHandoff(state);
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:codex',
+        prompt: 'Finish the bounded cross-harness slice.',
+        idempotencyKey: 'route-continuation-cross-family-handoff',
+        durableAgentId: 'portdaddy-cross-runtime-expert',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual(expect.objectContaining({
+      success: true,
+      receipt: expect.objectContaining({
+        mode: 'handoff',
+        sourceAdapter: 'claude-code',
+        targetAdapter: 'codex-cli',
+        durableAgentId: 'portdaddy-cross-runtime-expert',
+        predecessorRunId: 'wf-route-1',
+        successorRunId: 'spawned-continuation-1',
+        successorSessionId: SUCCESSOR_SESSION_ID,
+      }),
+    }));
+    expect(state.spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
+      backend: 'cli:codex',
+      identity: 'portdaddy-cross-runtime-expert',
+      workdir: CANONICAL_WORKSPACE,
+      workspaceIdentity: WORKSPACE_IDENTITY,
+      task: expect.stringContaining('pd.agent-harbor.handoff-successor-brief.v0'),
+    }));
+    const [spawnSpec] = state.spawner.spawn.mock.calls[0];
+    expect(spawnSpec.nativeResume).toBeUndefined();
+    expect(spawnSpec.task).toContain('Finish the bounded cross-harness slice.');
+    expect(spawnSpec.task).toContain('"agentId": "portdaddy-cross-runtime-expert"');
+    expect(spawnSpec.task).toContain('Preserve this operator turn.');
+    expect(spawnSpec.task).toContain('Use fail-closed scanning.');
+    expect(spawnSpec.task).toContain('/repo/prototype.html');
+    expect(spawnSpec.task).toContain(SOURCE_SESSION_ID);
+    expect(state.verifyNativeSessionWitnessFn).toHaveBeenCalled();
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('allows an explicit handoff successor in the same adapter family', async () => {
+    const state = await buildApp();
+    const episode = await createHandoff(state);
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:claude-code',
+        mode: 'handoff',
+        prompt: 'Fork a compact successor instead of restoring native state.',
+        idempotencyKey: 'route-continuation-explicit-handoff',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().receipt).toEqual(expect.objectContaining({
+      mode: 'handoff',
+      sourceSessionId: SOURCE_SESSION_ID,
+      successorSessionId: SUCCESSOR_SESSION_ID,
+    }));
+    expect(state.spawner.spawn.mock.calls[0][0].nativeResume).toBeUndefined();
+    expect(state.verifyNativeSessionWitnessFn).toHaveBeenCalled();
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('selects handoff mode from the effective backend after an operator override', async () => {
+    const previous = process.env.PD_USE_CLI_BACKEND;
+    process.env.PD_USE_CLI_BACKEND = 'codex';
+    const state = await buildApp();
+    try {
+      const episode = await createHandoff(state);
+      const response = await state.app.inject({
+        method: 'POST',
+        url: `/memory/handoffs/${episode.id}/continue`,
+        payload: {
+          targetBackend: 'cli:claude-code',
+          prompt: 'Honor the effective runtime, not the requested label.',
+          idempotencyKey: 'route-continuation-effective-override',
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(response.json().receipt).toEqual(expect.objectContaining({
+        mode: 'handoff',
+        requestedBackend: 'cli:claude-code',
+        targetAdapter: 'codex-cli',
+      }));
+      expect(state.spawner.spawn.mock.calls[0][0].nativeResume).toBeUndefined();
+      expect(state.verifyNativeSessionWitnessFn).toHaveBeenCalled();
+    } finally {
+      await state.app.close();
+      state.db.close();
+      if (previous === undefined) delete process.env.PD_USE_CLI_BACKEND;
+      else process.env.PD_USE_CLI_BACKEND = previous;
+    }
+  });
+
+  test('uses an explicit current target workspace when the source has no native witness', async () => {
+    const verifyNativeSessionWitnessFn = jest.fn(() => ({
+      verified: false,
+      witness: null,
+      reason: 'stateless provider has no native session witness',
+      canonicalWorkspace: null,
+      workspaceIdentity: null,
+    }));
+    const state = await buildApp({ verifyNativeSessionWitnessFn });
+    const episode = await createHandoff(state, {
+      source: {
+        ...capsule().source,
+        adapter: 'cloudflare',
+      },
+    });
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:codex',
+        targetWorkdir: process.cwd(),
+        prompt: 'Continue a stateless provider run in this current workspace.',
+        idempotencyKey: 'route-continuation-explicit-target-workspace',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(state.spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
+      workdir: CANONICAL_WORKSPACE,
+      workspaceIdentity: WORKSPACE_IDENTITY,
+    }));
+    expect(state.spawner.spawn.mock.calls[0][0].nativeResume).toBeUndefined();
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('fails closed when neither source evidence nor a current target workspace binds the successor', async () => {
+    const state = await buildApp({
+      verifyNativeSessionWitnessFn: jest.fn(() => ({
+        verified: false,
+        witness: null,
+        reason: 'source workspace evidence is unavailable',
+        canonicalWorkspace: null,
+        workspaceIdentity: null,
+      })),
+    });
+    const episode = await createHandoff(state);
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:codex',
+        prompt: 'Do not trust the historical capsule path.',
+        idempotencyKey: 'route-continuation-unbound-handoff-workspace',
+      },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json()).toEqual(expect.objectContaining({
+      success: false,
+      error: expect.stringContaining('daemon-witnessed source workspace or explicit targetWorkdir'),
+      receipt: expect.objectContaining({ status: 'unsupported' }),
+    }));
+    expect(state.spawner.spawn).not.toHaveBeenCalled();
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('rejects an explicit target workspace that conflicts with the source witness', async () => {
+    const otherWorkspace = mkdtempSync(join(tmpdir(), 'pd-handoff-other-workspace-'));
+    const state = await buildApp();
+    try {
+      const episode = await createHandoff(state);
+      const response = await state.app.inject({
+        method: 'POST',
+        url: `/memory/handoffs/${episode.id}/continue`,
+        payload: {
+          targetBackend: 'cli:codex',
+          targetWorkdir: otherWorkspace,
+          prompt: 'Do not redirect this successor into another checkout.',
+          idempotencyKey: 'route-continuation-conflicting-target-workspace',
+        },
+      });
+
+      expect(response.statusCode).toBe(422);
+      expect(response.json().error).toMatch(/does not match the daemon-witnessed source workspace/);
+      expect(state.spawner.spawn).not.toHaveBeenCalled();
+    } finally {
+      await state.app.close();
+      state.db.close();
+      rmSync(otherWorkspace, { recursive: true, force: true });
+    }
+  });
+
+  test('fails closed before acceptance when the rendered successor brief cannot be scanned', async () => {
+    const gitleaksRunner = jest.fn((content) => {
+      if (content.includes('pd.agent-harbor.handoff-successor-brief.v0')) {
+        throw new HandoffScannerUnavailableError();
+      }
+      return { findings: [] };
+    });
+    const state = await buildApp({ gitleaksRunner });
+    const episode = await createHandoff(state);
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:codex',
+        prompt: 'Do not accept an unscanned successor brief.',
+        idempotencyKey: 'route-continuation-render-scan-down',
+      },
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toEqual(expect.objectContaining({ success: false, failClosed: true }));
+    expect(state.spawner.spawn).not.toHaveBeenCalled();
+    expect(state.db.prepare('SELECT COUNT(*) AS count FROM agent_continuations').get().count).toBe(0);
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('persists explicit unsupported cross-family native attempts without invoking a child', async () => {
     const state = await buildApp();
     const episode = await createHandoff(state);
     const payload = {
       targetBackend: 'cli:codex',
+      mode: 'native',
       prompt: 'Do not launch this as native resume.',
       idempotencyKey: 'route-continuation-cross-family',
     };
@@ -597,6 +833,28 @@ describe('same-harness continuation routes', () => {
       receipt: expect.objectContaining({ id: response.json().receipt.id, status: 'unsupported' }),
     }));
     expect(state.spawner.spawn).not.toHaveBeenCalled();
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('rejects an invalid continuation mode before accepting a receipt', async () => {
+    const state = await buildApp();
+    const episode = await createHandoff(state);
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:codex',
+        mode: 'teleport',
+        idempotencyKey: 'route-continuation-invalid-mode',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toMatch(/mode must be auto, native, or handoff/);
+    expect(state.spawner.spawn).not.toHaveBeenCalled();
+    expect(state.db.prepare('SELECT COUNT(*) AS count FROM agent_continuations').get().count).toBe(0);
 
     await state.app.close();
     state.db.close();
@@ -667,20 +925,15 @@ describe('same-harness continuation routes', () => {
   test('does not spawn when accepted-to-running lease ownership is lost', async () => {
     const state = await buildApp();
     const episode = await createHandoff(state);
-    state.verifyNativeSessionWitnessFn.mockImplementation((_capsule, _adapterFamily, witness) => {
-      state.db.prepare(`
+    state.db.exec(`
+      CREATE TRIGGER orphan_continuation_after_insert
+      AFTER INSERT ON agent_continuations
+      BEGIN
         UPDATE agent_continuations
         SET status = 'orphaned', completed_at = updated_at
-        WHERE status = 'accepted'
-      `).run();
-      return {
-        verified: true,
-        witness,
-        reason: null,
-        canonicalWorkspace: CANONICAL_WORKSPACE,
-        workspaceIdentity: WORKSPACE_IDENTITY,
-      };
-    });
+        WHERE id = NEW.id;
+      END;
+    `);
 
     const response = await state.app.inject({
       method: 'POST',
@@ -765,6 +1018,58 @@ describe('same-harness continuation routes', () => {
 
     await state.app.close();
     state.db.close();
+  });
+
+  test('rejects idempotency replay when the daemon-authorized source workspace changes', async () => {
+    const firstWorkspace = mkdtempSync(join(tmpdir(), 'pd-continuation-source-a-'));
+    const secondWorkspace = mkdtempSync(join(tmpdir(), 'pd-continuation-source-b-'));
+    const firstIdentity = captureWorkspaceIdentity(firstWorkspace);
+    const secondIdentity = captureWorkspaceIdentity(secondWorkspace);
+    if (!firstIdentity || !secondIdentity) throw new Error('workspace identity unavailable');
+    const verifyNativeSessionWitnessFn = jest.fn()
+      .mockReturnValueOnce({
+        verified: true,
+        witness: { schema: 'pd.agent-harbor.native-session-witness.v0' },
+        reason: null,
+        canonicalWorkspace: firstWorkspace,
+        workspaceIdentity: firstIdentity,
+      })
+      .mockReturnValueOnce({
+        verified: true,
+        witness: { schema: 'pd.agent-harbor.native-session-witness.v0' },
+        reason: null,
+        canonicalWorkspace: secondWorkspace,
+        workspaceIdentity: secondIdentity,
+      });
+    const state = await buildApp({ verifyNativeSessionWitnessFn });
+    try {
+      const episode = await createHandoff(state);
+      const payload = {
+        targetBackend: 'cli:codex',
+        prompt: 'Continue in the daemon-authorized source workspace.',
+        idempotencyKey: 'route-continuation-source-workspace-drift',
+      };
+      const first = await state.app.inject({
+        method: 'POST',
+        url: `/memory/handoffs/${episode.id}/continue`,
+        payload,
+      });
+      const conflict = await state.app.inject({
+        method: 'POST',
+        url: `/memory/handoffs/${episode.id}/continue`,
+        payload,
+      });
+
+      expect(first.statusCode).toBe(201);
+      expect(conflict.statusCode).toBe(409);
+      expect(conflict.json().error).toMatch(/idempotency key was already used for a different continuation request/);
+      expect(state.spawner.spawn).toHaveBeenCalledTimes(1);
+    } finally {
+      await state.app.close();
+      state.db.close();
+      rmSync(firstWorkspace, { recursive: true, force: true });
+      rmSync(secondWorkspace, { recursive: true, force: true });
+    }
   });
 
   test('fails closed before acceptance when prompt scanning is unavailable', async () => {
