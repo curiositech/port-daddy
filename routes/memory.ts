@@ -34,6 +34,11 @@ import {
   type NativeSessionWitnessResult,
 } from '../lib/native-session-witness.js';
 import { harvestSession, type HarvestResult } from '../lib/session-harvest.js';
+import {
+  captureWorkspaceIdentity,
+  sameWorkspaceIdentity,
+  type WorkspaceIdentity,
+} from '../lib/workspace-identity.js';
 
 interface MemoryRouteDeps {
   episodicMemory: EpisodicMemory;
@@ -65,6 +70,7 @@ interface ContinuationRequestBody {
   prompt?: unknown;
   idempotencyKey?: unknown;
   durableAgentId?: unknown;
+  targetWorkdir?: unknown;
   timeoutMs?: unknown;
 }
 
@@ -105,6 +111,10 @@ function continuationIdentifier(value: unknown, field: string, maxBytes = 1_024)
 
 function optionalContinuationIdentifier(value: unknown, field: string, maxBytes = 1_024): string | undefined {
   return value === undefined ? undefined : continuationIdentifier(value, field, maxBytes);
+}
+
+function workspaceIdentityHash(identity: WorkspaceIdentity): string {
+  return hashContinuationPrompt(`${identity.canonicalPath}\0${identity.device}:${identity.inode}`);
 }
 
 function continuationErrorMessage(error: unknown, gitleaksRunner?: GitleaksRunner): string {
@@ -319,6 +329,13 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
       const idempotencyKey = continuationIdentifier(body.idempotencyKey, 'idempotencyKey', 512);
       const requestedModel = optionalContinuationIdentifier(body.model, 'model', 512);
       const durableAgentId = optionalContinuationIdentifier(body.durableAgentId, 'durableAgentId');
+      const targetWorkdir = optionalContinuationIdentifier(body.targetWorkdir, 'targetWorkdir', 32 * 1024);
+      const requestedWorkspaceIdentity = targetWorkdir
+        ? captureWorkspaceIdentity(targetWorkdir)
+        : null;
+      if (targetWorkdir && !requestedWorkspaceIdentity) {
+        throw new HandoffValidationError('targetWorkdir must resolve to a current user-owned absolute directory');
+      }
       let timeout: number | undefined;
       if (body.timeoutMs !== undefined) {
         if (typeof body.timeoutMs !== 'number' || !Number.isInteger(body.timeoutMs) || body.timeoutMs < 1_000 || body.timeoutMs > 6 * 60 * 60 * 1_000) {
@@ -340,7 +357,6 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
         task: continuationRequest,
         purpose: `Continue ${durableIdentity ?? adapterFamily}`,
         identity: durableIdentity ?? undefined,
-        workdir: capsule.workspace.cwd ?? capsule.workspace.repoRoot ?? capsule.identity.projectDir ?? undefined,
         timeout,
       };
       const runtime = resolveSpawnRuntime(spawnSpec);
@@ -378,6 +394,9 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
         effectiveBackend: runtime.effectiveBackend,
         requestedModel: runtime.requestedModel,
         effectiveModel: runtime.effectiveModel,
+        workspaceIdentityHash: requestedWorkspaceIdentity
+          ? workspaceIdentityHash(requestedWorkspaceIdentity)
+          : null,
         promptHash: hashContinuationPrompt(spawnSpec.task),
       });
       if (accepted.replayed) {
@@ -419,6 +438,52 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
         return { success: false, error, receipt };
       }
 
+      let sourceWitness: NativeSessionWitnessResult;
+      try {
+        sourceWitness = (opts.deps.verifyNativeSessionWitnessFn ?? verifyNativeSessionWitness)(
+          capsule,
+          adapterFamily,
+          episode.metadata?.nativeSessionWitness,
+        );
+      } catch {
+        sourceWitness = unavailableNativeSessionWitness(
+          'daemon could not reverify the claimed native session in local harness storage',
+        );
+      }
+
+      let handoffWorkspaceIdentity: WorkspaceIdentity | null = null;
+      if (mode === 'handoff') {
+        if (sourceWitness.verified && sourceWitness.canonicalWorkspace && sourceWitness.workspaceIdentity) {
+          if (targetWorkdir && !sameWorkspaceIdentity(targetWorkdir, sourceWitness.workspaceIdentity)) {
+            const error = 'targetWorkdir does not match the daemon-witnessed source workspace';
+            const receipt = continuationStore.markUnsupported(accepted.receipt.id, error);
+            if (!receipt || receipt.status !== 'unsupported') {
+              const current = continuationStore.get(accepted.receipt.id) ?? accepted.receipt;
+              reply.code(409);
+              return { success: false, error: 'continuation ownership changed before spawn', receipt: current };
+            }
+            reply.code(422);
+            return { success: false, error, receipt };
+          }
+          spawnSpec.workdir = sourceWitness.canonicalWorkspace;
+          handoffWorkspaceIdentity = sourceWitness.workspaceIdentity;
+        } else if (requestedWorkspaceIdentity) {
+          spawnSpec.workdir = requestedWorkspaceIdentity.canonicalPath;
+          handoffWorkspaceIdentity = requestedWorkspaceIdentity;
+        } else {
+          const witnessReason = sourceWitness.reason ?? 'source session evidence is unavailable';
+          const error = `handoff successor requires a daemon-witnessed source workspace or explicit targetWorkdir; ${witnessReason}`;
+          const receipt = continuationStore.markUnsupported(accepted.receipt.id, error);
+          if (!receipt || receipt.status !== 'unsupported') {
+            const current = continuationStore.get(accepted.receipt.id) ?? accepted.receipt;
+            reply.code(409);
+            return { success: false, error: 'continuation ownership changed before spawn', receipt: current };
+          }
+          reply.code(422);
+          return { success: false, error, receipt };
+        }
+      }
+
       if (mode === 'native') {
         const unsupported = validateNativeResumeAdapter(spawnSpec, runtime);
         if (unsupported) {
@@ -436,18 +501,6 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
           return { success: false, error: unsupported, receipt };
         }
 
-        let sourceWitness: NativeSessionWitnessResult;
-        try {
-          sourceWitness = (opts.deps.verifyNativeSessionWitnessFn ?? verifyNativeSessionWitness)(
-            capsule,
-            adapterFamily,
-            episode.metadata?.nativeSessionWitness,
-          );
-        } catch {
-          sourceWitness = unavailableNativeSessionWitness(
-            'daemon could not reverify the claimed native session in local harness storage',
-          );
-        }
         if (!sourceWitness.verified) {
           const error = sourceWitness.reason ?? 'native session evidence is unavailable';
           const receipt = continuationStore.markUnsupported(accepted.receipt.id, error);
@@ -474,6 +527,17 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
           reply.code(422);
           return { success: false, error, receipt };
         }
+        if (targetWorkdir && !sameWorkspaceIdentity(targetWorkdir, sourceWitness.workspaceIdentity)) {
+          const error = 'targetWorkdir does not match the daemon-witnessed source workspace';
+          const receipt = continuationStore.markUnsupported(accepted.receipt.id, error);
+          if (!receipt || receipt.status !== 'unsupported') {
+            const current = continuationStore.get(accepted.receipt.id) ?? accepted.receipt;
+            reply.code(409);
+            return { success: false, error: 'continuation ownership changed before spawn', receipt: current };
+          }
+          reply.code(422);
+          return { success: false, error, receipt };
+        }
         spawnSpec.workdir = sourceWitness.canonicalWorkspace;
         spawnSpec.nativeResume = {
           adapterFamily,
@@ -491,6 +555,25 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
           reply.code(422);
           return { success: false, error: workspaceUnsupported, receipt };
         }
+      }
+
+      if (
+        mode === 'handoff'
+        && (
+          !handoffWorkspaceIdentity
+          || !spawnSpec.workdir
+          || !sameWorkspaceIdentity(spawnSpec.workdir, handoffWorkspaceIdentity)
+        )
+      ) {
+        const error = 'handoff successor blocked: canonical workspace identity changed before spawn';
+        const receipt = continuationStore.markFailed(accepted.receipt.id, { error });
+        if (!receipt || receipt.status !== 'failed') {
+          const current = continuationStore.get(accepted.receipt.id) ?? accepted.receipt;
+          reply.code(409);
+          return { success: false, error: 'continuation ownership changed before spawn', receipt: current };
+        }
+        reply.code(409);
+        return { success: false, error, receipt };
       }
 
       const running = continuationStore.markRunning(

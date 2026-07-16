@@ -27,6 +27,7 @@ export interface ContinuationAcceptInput {
   effectiveBackend?: string | null;
   requestedModel?: string | null;
   effectiveModel?: string | null;
+  workspaceIdentityHash?: string | null;
   promptHash: string;
 }
 
@@ -187,6 +188,7 @@ function requestHash(input: Omit<ContinuationAcceptInput, 'idempotencyKey'>): st
     effectiveBackend: input.effectiveBackend ?? null,
     requestedModel: input.requestedModel ?? null,
     effectiveModel: input.effectiveModel ?? null,
+    workspaceIdentityHash: input.workspaceIdentityHash ?? null,
     promptHash: input.promptHash,
   }));
 }
@@ -358,6 +360,7 @@ export function createContinuationStore(
       effectiveBackend: optional(input.effectiveBackend, 'effectiveBackend'),
       requestedModel: optional(input.requestedModel, 'requestedModel'),
       effectiveModel: optional(input.effectiveModel, 'effectiveModel'),
+      workspaceIdentityHash: optional(input.workspaceIdentityHash, 'workspaceIdentityHash'),
       promptHash: required(input.promptHash, 'promptHash', 128),
     };
     const normalizedRequestHash = requestHash(normalized);

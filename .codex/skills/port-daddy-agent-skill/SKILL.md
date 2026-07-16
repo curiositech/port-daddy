@@ -138,7 +138,10 @@ its current workspace-to-conversation cache binding. The witnessed workspace
 device/inode must still match at the final CLI child boundary. Missing or stale evidence
 is not a reason to replay a transcript; it means native resume is unavailable
 and cross-harness continuation must start a successor from the sanitized
-capsule. On `POST /memory/handoffs/:episodeId/continue`, choose the concrete
+capsule. Never trust the capsule's historical workspace path as execution cwd.
+Reuse its reverified source witness; for a history-only, API, or model-server
+source, pass an explicit current `targetWorkdir` that resolves to the intended
+user-owned checkout. On `POST /memory/handoffs/:episodeId/continue`, choose the concrete
 `targetBackend` and use `mode: auto` (default), `native`, or `handoff`. Auto
 restores only a matching session-scoped adapter family and otherwise sends the
 versioned sanitized successor brief to a new target session. Explicit native

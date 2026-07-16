@@ -113,6 +113,17 @@ and explicit omission counts. The envelope marks historical content as data,
 not new system or tool authority, and is scanned again before durable
 acceptance. Raw provider transcripts never cross the boundary.
 
+Workspace routing has a separate current-authority boundary. Paths inside the
+historical capsule remain context only and never select the child cwd. A
+handoff successor reuses the source's reverified canonical workspace when a
+native witness exists. History-only, API, and model-server sources instead
+require the caller to provide an explicit current `targetWorkdir`; the daemon
+accepts only a user-owned absolute directory, captures its canonical
+device/inode identity, hashes that binding into idempotency, and checks it again
+immediately before spawn. An explicit target that conflicts with an available
+source witness fails closed rather than redirecting the durable identity into a
+different checkout.
+
 Native mode remains conservative. A foreign family, history-only adapter,
 stateless provider, or malformed session identifier becomes a durable
 `unsupported` receipt without starting a child.
@@ -166,6 +177,9 @@ child process working directory remains the workspace boundary.
 - Native resume is allowed only when source and target share an adapter family
   and adapter-specific local evidence witnesses the harness-owned session and
   source workspace both at handoff ingestion and immediately before spawn.
+- Handoff successors never execute from a capsule-supplied path alone. They use
+  the reverified source workspace or an explicit current `targetWorkdir`, with
+  canonical device/inode revalidation before the child side effect.
 - Native continuation records acceptance before the child side effect. Its
   receipt stores no raw operator prompt or idempotency key.
 - Adapter templates remain argv data and cannot introduce shell evaluation.

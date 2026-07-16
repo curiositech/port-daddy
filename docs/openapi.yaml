@@ -4946,7 +4946,10 @@ paths:
         generation lease and compare-and-swap gate the child side effect, and
         success is returned only after durable completion by the same owner. The
         receipt stores only prompt and idempotency hashes; raw provider
-        transcripts never cross the runtime boundary.
+        transcripts never cross the runtime boundary. Historical capsule paths
+        never authorize the child cwd: handoff mode reuses a reverified source
+        workspace witness or requires an explicit current targetWorkdir, captures
+        its canonical device/inode identity, and checks it again before spawn.
       parameters:
         - name: episodeId
           in: path
@@ -4987,6 +4990,15 @@ paths:
                   type: string
                   minLength: 1
                   maxLength: 1024
+                targetWorkdir:
+                  type: string
+                  minLength: 1
+                  maxLength: 32768
+                  description: >
+                    Current operator-selected user-owned absolute directory.
+                    Required for handoff successors when the source adapter has
+                    no daemon-witnessed local workspace. It may not conflict
+                    with an available source witness.
                 timeoutMs:
                   type: integer
                   minimum: 1000
