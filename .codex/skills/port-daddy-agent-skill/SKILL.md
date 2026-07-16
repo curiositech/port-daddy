@@ -138,7 +138,13 @@ its current workspace-to-conversation cache binding. The witnessed workspace
 device/inode must still match at the final CLI child boundary. Missing or stale evidence
 is not a reason to replay a transcript; it means native resume is unavailable
 and cross-harness continuation must start a successor from the sanitized
-capsule. Use a stable idempotency key and trust the owner-leased continuation
+capsule. On `POST /memory/handoffs/:episodeId/continue`, choose the concrete
+`targetBackend` and use `mode: auto` (default), `native`, or `handoff`. Auto
+restores only a matching session-scoped adapter family and otherwise sends the
+versioned sanitized successor brief to a new target session. Explicit native
+must fail rather than silently changing identity semantics; explicit handoff
+always creates a successor, even inside one family. Use a stable idempotency key
+and trust the owner-leased continuation
 receipt, not a model's claim that it resumed. A backend override that changes
 adapter family, a lost accepted-to-running lease, or a failed terminal receipt
 transition must fail closed before Port Daddy reports success.

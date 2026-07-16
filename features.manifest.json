@@ -1742,7 +1742,7 @@
       }
     },
     "memory": {
-      "description": "Episodic memory, sanitized handoff capsules, UUID- and workspace-bound native-session witnesses, and owner-leased same-harness continuation receipts",
+      "description": "Episodic memory, sanitized handoff capsules, UUID- and workspace-bound native-session witnesses, and owner-leased native or cross-harness successor continuation receipts",
       "cli": [
         "memory"
       ],

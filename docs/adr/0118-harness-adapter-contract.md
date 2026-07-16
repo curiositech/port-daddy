@@ -93,14 +93,29 @@ consumers cannot mistake this inventory for conformance. Provider readiness and
 end-to-end continuation belong to higher conformance levels; help text and path
 presence never earn them.
 
-## Native Continuation Execution
+## Continuation Execution
 
 `POST /memory/handoffs/:episodeId/continue` is the first executable conformance
-level above discovery. The daemon revalidates the stored capsule and sanitizes
-the operator prompt, resolves the effective backend after every persisted,
-environment, or preflight override, and then compares adapter families. A
-foreign family, history-only adapter, stateless provider, or malformed session
-identifier becomes a durable `unsupported` receipt without starting a child.
+level above discovery. Callers choose a concrete target backend and may request
+`auto`, `native`, or `handoff` mode. `auto` restores the native session only when
+the source and effective target share a session-scoped adapter family; every
+other compatible target starts a successor from the sanitized capsule. An
+explicit `native` request never falls back silently, while explicit `handoff`
+always creates a successor even inside one adapter family.
+
+The daemon revalidates the stored capsule and sanitizes the operator prompt,
+resolves the effective backend after every persisted, environment, or preflight
+override, and determines the mode against that effective adapter. Handoff mode
+renders a versioned `pd.agent-harbor.handoff-successor-brief.v0` envelope with
+durable identity, lineage, objective, every preserved operator turn, decisions,
+coordination evidence, workspace state, artifacts, recent compacted context,
+and explicit omission counts. The envelope marks historical content as data,
+not new system or tool authority, and is scanned again before durable
+acceptance. Raw provider transcripts never cross the boundary.
+
+Native mode remains conservative. A foreign family, history-only adapter,
+stateless provider, or malformed session identifier becomes a durable
+`unsupported` receipt without starting a child.
 
 The source session is not trusted merely because a capsule names it. Native
 session identifiers must have the UUID grammar exposed by these four harnesses,
@@ -143,8 +158,11 @@ child process working directory remains the workspace boundary.
 
 ## Security and Privacy
 
-- Cross-harness continuation always uses a later sanitized handoff capsule,
+- Cross-harness continuation always uses a sanitized handoff capsule,
   never a raw transcript copy.
+- Runtime choice is explicit and receipt-backed: `auto` selects native only for
+  a compatible session-scoped family, `native` never degrades, and `handoff`
+  always initializes a successor through the target's ordinary governed spawn.
 - Native resume is allowed only when source and target share an adapter family
   and adapter-specific local evidence witnesses the harness-owned session and
   source workspace both at handoff ingestion and immediately before spawn.

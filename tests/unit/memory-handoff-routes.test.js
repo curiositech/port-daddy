@@ -7,6 +7,7 @@ import { memoryPlugin } from '../../routes/memory.js';
 import { captureWorkspaceIdentity } from '../../lib/workspace-identity.js';
 
 const SOURCE_SESSION_ID = '11111111-1111-4111-8111-111111111111';
+const SUCCESSOR_SESSION_ID = '22222222-2222-4222-8222-222222222222';
 const WORKSPACE_IDENTITY = captureWorkspaceIdentity(process.cwd());
 if (!WORKSPACE_IDENTITY) throw new Error('test workspace identity unavailable');
 const CANONICAL_WORKSPACE = WORKSPACE_IDENTITY.canonicalPath;
@@ -91,7 +92,7 @@ async function buildApp(overrides = {}) {
       telemetry: null,
       startedAt: Date.now(),
       completedAt: Date.now(),
-      harnessSessionId: spec.nativeResume?.sessionId,
+      harnessSessionId: spec.nativeResume?.sessionId ?? SUCCESSOR_SESSION_ID,
     })),
   };
 
@@ -432,7 +433,7 @@ describe('POST /memory/handoffs', () => {
   });
 });
 
-describe('same-harness continuation routes', () => {
+describe('handoff continuation routes', () => {
   async function createHandoff(state, overrides = {}) {
     const response = await state.app.inject({
       method: 'POST',
@@ -565,11 +566,145 @@ describe('same-harness continuation routes', () => {
     state.db.close();
   });
 
-  test('persists unsupported cross-family attempts without invoking a child', async () => {
+  test('initializes a cross-family successor from the full sanitized capsule', async () => {
+    const state = await buildApp();
+    const episode = await createHandoff(state);
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:codex',
+        prompt: 'Finish the bounded cross-harness slice.',
+        idempotencyKey: 'route-continuation-cross-family-handoff',
+        durableAgentId: 'portdaddy-cross-runtime-expert',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual(expect.objectContaining({
+      success: true,
+      receipt: expect.objectContaining({
+        mode: 'handoff',
+        sourceAdapter: 'claude-code',
+        targetAdapter: 'codex-cli',
+        durableAgentId: 'portdaddy-cross-runtime-expert',
+        predecessorRunId: 'wf-route-1',
+        successorRunId: 'spawned-continuation-1',
+        successorSessionId: SUCCESSOR_SESSION_ID,
+      }),
+    }));
+    expect(state.spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
+      backend: 'cli:codex',
+      identity: 'portdaddy-cross-runtime-expert',
+      task: expect.stringContaining('pd.agent-harbor.handoff-successor-brief.v0'),
+    }));
+    const [spawnSpec] = state.spawner.spawn.mock.calls[0];
+    expect(spawnSpec.nativeResume).toBeUndefined();
+    expect(spawnSpec.task).toContain('Finish the bounded cross-harness slice.');
+    expect(spawnSpec.task).toContain('"agentId": "portdaddy-cross-runtime-expert"');
+    expect(spawnSpec.task).toContain('Preserve this operator turn.');
+    expect(spawnSpec.task).toContain('Use fail-closed scanning.');
+    expect(spawnSpec.task).toContain('/repo/prototype.html');
+    expect(spawnSpec.task).toContain(SOURCE_SESSION_ID);
+    expect(state.verifyNativeSessionWitnessFn).not.toHaveBeenCalled();
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('allows an explicit handoff successor in the same adapter family', async () => {
+    const state = await buildApp();
+    const episode = await createHandoff(state);
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:claude-code',
+        mode: 'handoff',
+        prompt: 'Fork a compact successor instead of restoring native state.',
+        idempotencyKey: 'route-continuation-explicit-handoff',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().receipt).toEqual(expect.objectContaining({
+      mode: 'handoff',
+      sourceSessionId: SOURCE_SESSION_ID,
+      successorSessionId: SUCCESSOR_SESSION_ID,
+    }));
+    expect(state.spawner.spawn.mock.calls[0][0].nativeResume).toBeUndefined();
+    expect(state.verifyNativeSessionWitnessFn).not.toHaveBeenCalled();
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('selects handoff mode from the effective backend after an operator override', async () => {
+    const previous = process.env.PD_USE_CLI_BACKEND;
+    process.env.PD_USE_CLI_BACKEND = 'codex';
+    const state = await buildApp();
+    try {
+      const episode = await createHandoff(state);
+      const response = await state.app.inject({
+        method: 'POST',
+        url: `/memory/handoffs/${episode.id}/continue`,
+        payload: {
+          targetBackend: 'cli:claude-code',
+          prompt: 'Honor the effective runtime, not the requested label.',
+          idempotencyKey: 'route-continuation-effective-override',
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(response.json().receipt).toEqual(expect.objectContaining({
+        mode: 'handoff',
+        requestedBackend: 'cli:claude-code',
+        targetAdapter: 'codex-cli',
+      }));
+      expect(state.spawner.spawn.mock.calls[0][0].nativeResume).toBeUndefined();
+      expect(state.verifyNativeSessionWitnessFn).not.toHaveBeenCalled();
+    } finally {
+      await state.app.close();
+      state.db.close();
+      if (previous === undefined) delete process.env.PD_USE_CLI_BACKEND;
+      else process.env.PD_USE_CLI_BACKEND = previous;
+    }
+  });
+
+  test('fails closed before acceptance when the rendered successor brief cannot be scanned', async () => {
+    const gitleaksRunner = jest.fn((content) => {
+      if (content.includes('pd.agent-harbor.handoff-successor-brief.v0')) {
+        throw new HandoffScannerUnavailableError();
+      }
+      return { findings: [] };
+    });
+    const state = await buildApp({ gitleaksRunner });
+    const episode = await createHandoff(state);
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:codex',
+        prompt: 'Do not accept an unscanned successor brief.',
+        idempotencyKey: 'route-continuation-render-scan-down',
+      },
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toEqual(expect.objectContaining({ success: false, failClosed: true }));
+    expect(state.spawner.spawn).not.toHaveBeenCalled();
+    expect(state.db.prepare('SELECT COUNT(*) AS count FROM agent_continuations').get().count).toBe(0);
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('persists explicit unsupported cross-family native attempts without invoking a child', async () => {
     const state = await buildApp();
     const episode = await createHandoff(state);
     const payload = {
       targetBackend: 'cli:codex',
+      mode: 'native',
       prompt: 'Do not launch this as native resume.',
       idempotencyKey: 'route-continuation-cross-family',
     };
@@ -597,6 +732,28 @@ describe('same-harness continuation routes', () => {
       receipt: expect.objectContaining({ id: response.json().receipt.id, status: 'unsupported' }),
     }));
     expect(state.spawner.spawn).not.toHaveBeenCalled();
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('rejects an invalid continuation mode before accepting a receipt', async () => {
+    const state = await buildApp();
+    const episode = await createHandoff(state);
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:codex',
+        mode: 'teleport',
+        idempotencyKey: 'route-continuation-invalid-mode',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toMatch(/mode must be auto, native, or handoff/);
+    expect(state.spawner.spawn).not.toHaveBeenCalled();
+    expect(state.db.prepare('SELECT COUNT(*) AS count FROM agent_continuations').get().count).toBe(0);
 
     await state.app.close();
     state.db.close();
