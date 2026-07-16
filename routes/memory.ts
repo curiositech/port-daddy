@@ -466,9 +466,11 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
             return { success: false, error, receipt };
           }
           spawnSpec.workdir = sourceWitness.canonicalWorkspace;
+          spawnSpec.workspaceIdentity = sourceWitness.workspaceIdentity;
           handoffWorkspaceIdentity = sourceWitness.workspaceIdentity;
         } else if (requestedWorkspaceIdentity) {
           spawnSpec.workdir = requestedWorkspaceIdentity.canonicalPath;
+          spawnSpec.workspaceIdentity = requestedWorkspaceIdentity;
           handoffWorkspaceIdentity = requestedWorkspaceIdentity;
         } else {
           const witnessReason = sourceWitness.reason ?? 'source session evidence is unavailable';

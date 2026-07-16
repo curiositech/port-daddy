@@ -600,6 +600,7 @@ describe('handoff continuation routes', () => {
       backend: 'cli:codex',
       identity: 'portdaddy-cross-runtime-expert',
       workdir: CANONICAL_WORKSPACE,
+      workspaceIdentity: WORKSPACE_IDENTITY,
       task: expect.stringContaining('pd.agent-harbor.handoff-successor-brief.v0'),
     }));
     const [spawnSpec] = state.spawner.spawn.mock.calls[0];
@@ -704,6 +705,7 @@ describe('handoff continuation routes', () => {
     expect(response.statusCode).toBe(201);
     expect(state.spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
       workdir: CANONICAL_WORKSPACE,
+      workspaceIdentity: WORKSPACE_IDENTITY,
     }));
     expect(state.spawner.spawn.mock.calls[0][0].nativeResume).toBeUndefined();
 

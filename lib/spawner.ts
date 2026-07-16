@@ -144,6 +144,12 @@ export interface SpawnSpec {
   harborName?: string; // optional override for bond-admission harbor
   files?: string[];    // for aider backend
   workdir?: string;
+  /**
+   * Canonical workspace device/inode that must still own `workdir` at the
+   * child-launch boundary. Continuation routes use this for sanitized
+   * successors that do not carry `nativeResume` state.
+   */
+  workspaceIdentity?: WorkspaceIdentity;
   // Opt-in for agents that MUST run in a repo's main checkout (working-tree
   // observers like the gardener, or genuinely read-only agents). When unset,
   // the spawner refuses to launch into a main checkout — see assessSpawnIsolation.
@@ -1371,6 +1377,14 @@ export function validateNativeResume(
   return validateNativeResumeAdapter(spec, runtime) ?? validateNativeResumeWorkspace(spec);
 }
 
+export function validateSpawnWorkspace(spec: SpawnSpec): string | null {
+  if (!spec.workspaceIdentity) return null;
+  if (!spec.workdir || !sameWorkspaceIdentity(spec.workdir, spec.workspaceIdentity)) {
+    return 'Spawn blocked: canonical workspace identity changed before child launch.';
+  }
+  return null;
+}
+
 // =============================================================================
 // Worktree isolation guard (layer 2)
 // =============================================================================
@@ -1708,10 +1722,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       startedAt: Date.now(),
       completedAt: Date.now(),
     });
-    const nativeResumeError = validateNativeResume(spec, runtime);
-    if (nativeResumeError) {
+    const continuationWorkspaceError = validateNativeResume(spec, runtime) ?? validateSpawnWorkspace(spec);
+    if (continuationWorkspaceError) {
       counters?.bump('spawn.blocked', dims);
-      return blockedResult(nativeResumeError);
+      return blockedResult(continuationWorkspaceError);
     }
     if (running >= MAX_CONCURRENT_RUNNING) {
       counters?.bump('spawn.blocked', dims);
@@ -2079,8 +2093,9 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         backend: runtime.effectiveBackend,
         model: runtime.effectiveModel,
       };
-      const finalNativeResumeError = validateNativeResume(executionSpec, runtime);
-      if (finalNativeResumeError) throw new Error(finalNativeResumeError);
+      const finalContinuationWorkspaceError = validateNativeResume(executionSpec, runtime)
+        ?? validateSpawnWorkspace(executionSpec);
+      if (finalContinuationWorkspaceError) throw new Error(finalContinuationWorkspaceError);
       const override = runnerOverrides[runtime.effectiveBackend];
       let result: BackendRunResult;
 
