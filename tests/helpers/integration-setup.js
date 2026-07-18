@@ -231,6 +231,9 @@ export function runCli(args, options = {}) {
   // Ensure color-forcing variables are removed so NO_COLOR is respected without warnings
   delete testEnv.FORCE_COLOR;
   delete testEnv.COLORTERM;
+  delete testEnv.PD_AGENT_ID;
+  delete testEnv.PD_SESSION_ID;
+  delete testEnv.PD_ACTOR;
   
   const result = spawnSync(TSX_PATH, [cliPath, ...finalArgs], {
     encoding: 'utf-8',
@@ -283,6 +286,9 @@ export function runCliViaIpc(args, options = {}) {
 
   delete testEnv.FORCE_COLOR;
   delete testEnv.COLORTERM;
+  delete testEnv.PD_AGENT_ID;
+  delete testEnv.PD_SESSION_ID;
+  delete testEnv.PD_ACTOR;
 
   const result = spawnSync(TSX_PATH, [cliPath, ...args], {
     encoding: 'utf-8',

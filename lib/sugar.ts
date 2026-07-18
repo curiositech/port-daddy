@@ -780,14 +780,13 @@ export function createSugar(deps: SugarDeps) {
       if (!skipOriginCheck) {
         // 1) Note-sentinel check (cheap, do it first so operators get the most
         //    actionable error when they forget BOTH things).
-        let sentinel = checkResultNoteSentinel(effectiveNote);
+        const sentinel = checkResultNoteSentinel(effectiveNote);
         if (!sentinel.ok) {
           if (isSubtaskOrNoPr) {
             const standardSentinel = 'not-applicable: subtask code delivery';
             effectiveNote = effectiveNote && effectiveNote.trim()
               ? `${effectiveNote.trim()}\n\n${standardSentinel}`
               : standardSentinel;
-            sentinel = { ok: true, kind: 'not-applicable', match: standardSentinel };
           } else {
             return {
               success: false,

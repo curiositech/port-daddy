@@ -16,6 +16,8 @@ const CONTEXT_ENV_KEYS = [
   'PORT_DADDY_CONTEXT_SLOT',
   'CODEX_THREAD_ID',
   'TERM_SESSION_ID',
+  'PD_AGENT_ID',
+  'PD_SESSION_ID',
 ];
 
 function makeRepo() {

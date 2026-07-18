@@ -274,7 +274,7 @@ async function showHelpfulSuggestions(purpose: string, identity: string | undefi
 
   // 2. Roadmap items
   try {
-    const res = await pdFetch(`${PORT_DADDY_URL}/roadmap`);
+    const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/items`);
     if (res.ok) {
       const data = await res.json();
       const items = (Array.isArray(data) ? data : (data.items || [])) as any[];

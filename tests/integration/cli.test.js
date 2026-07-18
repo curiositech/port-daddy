@@ -589,7 +589,16 @@ describe('CLI Integration Tests', () => {
         '-q',
       ]).stdout.trim();
 
-      const result = runCli(['session', 'done', 'wrapped up', '--agent', agentId]);
+      const result = runCli([
+        'session',
+        'done',
+        'not-applicable: wrapped up',
+        '--agent',
+        agentId,
+        '--skip-origin-check',
+        '--reason',
+        'integration test count verification',
+      ]);
       expect(result.success).toBe(true);
       expect(result.stdout).toContain('Files released: 1');
 
