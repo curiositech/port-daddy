@@ -22,7 +22,9 @@ describe('Port Daddy skill authority', () => {
     // scoped second surface for website voice; the internal-dev skill is
     // the contributor-only manual for editing this repo (private, never
     // published downstream); the expository-writer skill (added by PR #148)
-    // is a scoped surface for long-form expository docs/blog authoring.
+    // is a scoped surface for long-form expository docs/blog authoring;
+    // the users skill is a persona catalog (24 named personas) consumed by
+    // ux-friction-analyzer/product-appeal-analyzer, not agent guidance.
     // Adding any other port-daddy-* skill should fail this assertion until
     // it's explicitly listed here.
     expect(portDaddySkills).toEqual([
@@ -31,6 +33,7 @@ describe('Port Daddy skill authority', () => {
       'port-daddy-internal-dev',
       'port-daddy-marketing-copy',
       'port-daddy-user-surrogate-pm-review',
+      'port-daddy-users',
     ]);
     expect(existsSync(join(skillsDir, 'port-daddy', 'SKILL.md'))).toBe(false);
     expect(existsSync(join(skillsDir, 'port-daddy-cli', 'SKILL.md'))).toBe(false);
