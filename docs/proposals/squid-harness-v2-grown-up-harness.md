@@ -3,6 +3,68 @@
 Status: **Proposed** (not an ADR yet — next free ADR slot is 0119; this stays a
 proposal until the operator picks a direction, per the fork below).
 
+## Correction & Reconciliation With Prior Art (added after first draft)
+
+The first draft of this proposal cited "ADR-0091 (The Giant Squid Harness)" as
+if it were the sole, settled doctrine behind squid. Three corrections, found
+after the operator pointed at two adjacent proposal documents:
+
+1. **ADR-0091 and ADR-0051 are two unreconciled ADRs describing the same
+   architecture.** Both exist as real files (`docs/adr/0091-giant-squid-harness.md`,
+   `docs/adr/0051-port-daddy-harness.md`), both Proposed, neither cites the
+   other correctly — ADR-0051 asserts "No ADR-0091 exists on disk" (stale;
+   it does), and ADR-0091's own "Composes with" list omits ADR-0051 entirely.
+   Filed as `squid-adr-0091-0051-unreconciled-duplicate`; this is an operator
+   architecture-governance decision, not something this proposal resolves.
+   **ADR-0051 is the materially more developed of the two** — it enumerates
+   eight concrete harness capabilities bound to the three hook events, an
+   unbuilt "Reconcile Loop" that would project durable daemon state (tube
+   messages, swarm conflicts, CI verdicts, parley invites, rent status) into
+   the Ink Cloud hot-cache, a per-capability vendor-portability matrix
+   (Claude verified, Codex/Gemini unverified), and a phased rollout with
+   roadmap slugs. This proposal's local-runtime findings (squid = hook-hijack,
+   Bash prompt/pre-tool/post-tool observer) hold either way — Phase A below
+   should be read as building on ADR-0051's capability model specifically,
+   not ADR-0091's thinner one.
+2. **A real, higher-priority local security gap exists that this proposal's
+   Phase A did not surface**: ADR-0051 documents that the `PreToolUse`
+   matcher is `Edit|Write|MultiEdit|NotebookEdit` only — **`Bash` is not
+   gated at all**. `rm -rf`, `git push --force`, and `cat .env.local` issued
+   through Bash currently pass the harness entirely unseen. ADR-0051 calls
+   widening the matcher to `Bash` "the single highest-leverage change in this
+   ADR" with "zero upstream dependencies" (its Phase 1). This proposal's
+   durability-layer work (plan-pointer, boundary-aware compaction) is real
+   but strictly lower-priority than closing this gap — sequencing corrected
+   below.
+3. **`docs/proposals/articles-of-agreement-harness-roadmap.md` (2026-06-27)
+   already specified this proposal's Phase B, in more detail and with a
+   better architectural shape.** Its "Sandboxes And Berths" sandbox tier 6
+   and its Phase 5 ("remote harbors") both describe **Cloudflare Agents as
+   first-class remote actors** in the same Articles-of-Agreement state
+   machine as local agents — each gets a Harbor Card identity and a
+   project/channel subscription, its durable state mirrors a Port Daddy
+   session id and capability lease, Workflows provide retry/checkpoint
+   semantics, and Relay carries events back to local Port Daddy (PR opened,
+   CI red, approval needed, budget threshold, task complete). This is a
+   better frame than this proposal's original Phase B ("generalize
+   ADR-0117's ship into a harness") — it says *make the cloud agent a harbor
+   citizen*, not *build a bespoke loop inside one Worker script*. Phase B is
+   revised below to build toward that shape, using ADR-0117's Sandbox+AI
+   Gateway substrate as the concrete near-term implementation, not the
+   architectural ceiling.
+4. **`docs/proposals/pd-export-trajectories.md` (companion to ADR-0052)
+   already specifies the durable event/checkpoint format this proposal
+   needed and didn't have**: the Episode schema's merged `steps` timeline
+   (note/claim/activity/sortie_event/inbox/message/commitment/lock/
+   guard_verdict/transcript, time-ordered with a monotonic `seq`) is
+   Port Daddy's real answer to "what does a durable agent checkpoint look
+   like." Phase B's "checkpointed to D1 after every tool call" should emit
+   in this shape (or a Cloudflare-side sibling of it) so a cloud harness run
+   is a first-class trajectory, not a bespoke log format. It's also the
+   formal version of the "live blackboard" the operator asked subagents to
+   keep — `pd note` during a run is the cheap, present-day instance of what
+   this spec would make queryable and reward-scoreable after the fact.
+
 ## Executive Summary
 
 The operator asked: *"Can we author a harness like Cloudflare's? What's our
@@ -121,7 +183,15 @@ Cloudflare's" is the right question to ask.
 
 Make squid's *surroundings* Think-grade without touching the loop itself.
 This is where the corrected research brief's still-open Opportunities #2 and
-#3 land, restated against squid's real hook points:
+#3 land, restated against squid's real hook points.
+
+**0. Sequencing correction: this is not the first thing to fix.** ADR-0051's
+   Phase 1 — widen the `PreToolUse` matcher to `Bash` and port the ADR-0037
+   deny-list into `pd-hook-pre-tool` — closes a live security gap (`rm -rf`,
+   force-push, secret-file reads currently pass unseen) with zero upstream
+   dependencies. It should land before or alongside items 1-3 below, not
+   after. Durability is real work; an unseen `rm -rf` is a worse failure mode
+   than a lost compaction boundary.
 
 1. **Give the handoff capsule a `planPointer`.** The capsule already carries
    `telos`, `operatorTurns`, `decisions`, `coordination` — add a pointer into
@@ -154,9 +224,17 @@ loop survive compaction and handoff the way Cloudflare's agents do.
 
 ## Phase B — Cloud: A Real Native Harness for Sandbox Execution
 
-Generalize ADR-0117's adversarial-test-writer ship into the seed of an actual
-harness, riding the substrate it already commits to (AI Gateway + Sandbox
-SDK), instead of writing it as a one-off pipeline:
+**Revised framing**: `articles-of-agreement-harness-roadmap.md`'s Phase 5
+already specifies the right shape — a Cloudflare Agent is a **remote harbor
+citizen**, not a bespoke loop bolted onto one Worker script. It gets a Harbor
+Card identity, a project/channel subscription, durable state mirroring a
+Port Daddy session id and capability lease, Workflows-provided retry/
+checkpoint semantics, and Relay carries events back to local Port Daddy (PR
+opened, CI red, approval needed, budget threshold, task complete). ADR-0117's
+Sandbox+AI-Gateway substrate is the concrete thing to build *first* — but
+build it as an instance of that harbor-citizen shape, not as its own
+parallel design, so a future second cloud ship doesn't repeat this same
+architecture question from scratch:
 
 1. **AI Gateway — already shipped.** ADR-0117's D1 (route every model call
    through Cloudflare AI Gateway for per-request token/cost logging, caching,
@@ -178,7 +256,12 @@ SDK), instead of writing it as a one-off pipeline:
    just at the end) so a Worker eviction mid-run resumes from the last
    completed step — this is Port Daddy's actual equivalent of a Cloudflare
    "fiber": a durable, checkpointed invocation, scoped to one bounded
-   execution ship rather than an always-on session.
+   execution ship rather than an always-on session. **Checkpoint in the
+   `pd-export-trajectories.md` Episode shape** (or a D1-side sibling of it) —
+   its merged `steps` timeline already models exactly this (time-ordered,
+   monotonic `seq`, typed kinds spanning note/claim/activity/tool events) —
+   so a cloud harness run is a first-class trajectory from day one, not a
+   bespoke log format that needs a second exporter written later.
 3. **Streaming back to Beacon.** The relay already carries outbound SSE from
    the daemon; extend the same per-harbor Durable Object channel
    (`HarborChannel`) to carry step-by-step ship progress, so a running
