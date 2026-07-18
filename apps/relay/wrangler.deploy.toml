@@ -49,7 +49,7 @@ RATE_LIMIT_WINDOW_MS = "60000"
 # is the existing GitHub App's OAuth client id (public); PUBLIC_BASE_URL is the
 # relay's own origin and is the exact base of the registered redirect_uri.
 # Login is disabled until the two matching secrets are also set (see header).
-GITHUB_OAUTH_CLIENT_ID = "Iv23liCLIENTIDPLACEHOLDER"
+GITHUB_OAUTH_CLIENT_ID = "Iv23litgGckMU4QVW4i8"
 PUBLIC_BASE_URL = "https://port-daddy-relay.erich-owens.workers.dev"
 
 [[d1_databases]]

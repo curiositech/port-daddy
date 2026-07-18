@@ -34,6 +34,14 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   /** Workers AI binding. */
   AI: Ai;
   /**
+   * Optional Cloudflare AI Gateway id. When set, every ship's `env.AI.run(...)`
+   * is routed through this gateway (`{ gateway: { id } }`) so token/cost/latency
+   * is logged and cacheable in the AI Gateway dashboard (ADR-0116/0117). UNSET ⇒
+   * the option is omitted ⇒ calls hit Workers AI directly (exactly today's
+   * behavior). A var, not a secret — a gateway id is not sensitive.
+   */
+  AI_GATEWAY_ID?: string;
+  /**
    * Public base URL of the relay serving the human-facing run page
    * (ADR-0101 Phase 0), e.g. "https://port-daddy-relay.example.workers.dev".
    * OPTIONAL: unset (with RUN_PAGE_SECRET) ⇒ check runs carry no details_url.

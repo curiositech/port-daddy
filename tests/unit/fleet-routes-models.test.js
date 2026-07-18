@@ -107,6 +107,10 @@ describe('fleet routes /fleet/models', () => {
         readinessStatus: 'ready',
         readinessSummary: 'codex summary',
         setupCommand: 'setup codex',
+        adapter: expect.objectContaining({
+          family: 'codex-cli',
+          resume: expect.objectContaining({ native: true, scope: 'session' }),
+        }),
       }),
       expect.objectContaining({
         id: 'claude',
@@ -134,6 +138,10 @@ describe('fleet routes /fleet/models', () => {
           high: '@cf/moonshotai/kimi-k2-instruct',
         },
         setupLinks: [expect.objectContaining({ label: 'Create pd-ai-stack token' })],
+        adapter: expect.objectContaining({
+          family: 'cloudflare-workers-ai',
+          resume: expect.objectContaining({ native: false, scope: 'none' }),
+        }),
       }),
       expect.objectContaining({
         id: 'ollama',
@@ -142,6 +150,10 @@ describe('fleet routes /fleet/models', () => {
         modelTiers: { low: 'qwen2.5-coder:7b', mid: 'llama3.1:8b', high: 'qwen2.5-coder:14b' },
         readinessStatus: 'ready',
         readinessSummary: 'ollama summary',
+        adapter: expect.objectContaining({
+          family: 'ollama',
+          spawn: expect.objectContaining({ transport: 'model-server-http' }),
+        }),
       }),
       expect.objectContaining({
         id: 'aider',

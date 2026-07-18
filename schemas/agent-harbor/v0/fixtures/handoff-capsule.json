@@ -1,0 +1,91 @@
+{
+  "schema": "pd.agent-harbor.handoff-capsule.v0",
+  "capsuleId": "handoff_capsule_01JZFIX0001",
+  "capturedAt": "2026-07-15T20:00:00.000Z",
+  "source": {
+    "adapter": "claude-code",
+    "sessionId": "claude-session-01JZFIX0001",
+    "agentId": "portdaddy-typography-expert",
+    "workflowId": "wf-01JZFIX0001",
+    "transcriptRef": "/repo/.sessions/claude-session-01JZFIX0001.jsonl"
+  },
+  "target": {
+    "adapter": "codex-oauth",
+    "agentId": "portdaddy-typography-expert"
+  },
+  "identity": {
+    "project": "port-daddy",
+    "projectDir": "/repo/port-daddy",
+    "harbor": "port-daddy"
+  },
+  "workspace": {
+    "cwd": "/repo/port-daddy",
+    "repoRoot": "/repo/port-daddy",
+    "branch": "feature/handoff-capsule",
+    "worktreeId": "wt-handoff-capsule",
+    "gitHead": "0123456789abcdef",
+    "dirtyFiles": [
+      "lib/handoff-capsule.ts"
+    ]
+  },
+  "telos": "Continue the durable-agent handoff implementation without replaying the raw provider transcript.",
+  "operatorTurns": [
+    {
+      "id": "operator-1",
+      "at": "2026-07-15T19:59:00.000Z",
+      "text": "Preserve every operator turn across the continuation boundary."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "decision-1",
+      "at": "2026-07-15T19:59:30.000Z",
+      "text": "Use one adapter contract per backend family rather than pairwise bridges.",
+      "source": "operator"
+    }
+  ],
+  "coordination": [
+    {
+      "id": "coordination-1",
+      "at": "2026-07-15T19:59:45.000Z",
+      "text": "The handoff capsule and memory ingress are the current scope.",
+      "kind": "scope"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "/repo/port-daddy/docs/prototype.html",
+      "kind": "html",
+      "summary": "Interactive continuation prototype",
+      "sourceBlockId": "block-7"
+    }
+  ],
+  "tail": [
+    {
+      "id": "tail-1",
+      "at": "2026-07-15T20:00:00.000Z",
+      "text": "The scanner and episodic-memory write are ready for verification.",
+      "role": "assistant"
+    }
+  ],
+  "budget": {
+    "requestedTokens": 4000,
+    "estimatedTokens": 612,
+    "omitted": {
+      "tail": 0,
+      "artifacts": 0
+    }
+  },
+  "safety": {
+    "state": "clean",
+    "allowlistedFieldsOnly": true,
+    "redactedValues": 0,
+    "localScanner": "port-daddy-gitleaks-rules",
+    "externalScanner": "gitleaks-stdin",
+    "failClosed": true
+  },
+  "integrity": {
+    "algorithm": "sha256",
+    "contentHash": "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}

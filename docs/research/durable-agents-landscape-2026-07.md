@@ -122,8 +122,7 @@ unsolved problem." Think is preview; Session API experimental; Agent Memory priv
 
 **Correction after first draft**: this brief's original framing — "wake = fresh OS-process spawn + capsule injection, not hibernation-resume" — was accurate for the daemon/fleet-engine spawn path but overclaimed for harness sessions. ADR-0118 (merged the same day this brief was written) draws exactly the distinction Cloudflare draws between hibernation-resume and reconstructed continuation, per adapter family: native resume when the harness owns the identifier, handoff-capsule reconstruction otherwise. That capsule is effectively Port Daddy's independently-arrived-at version of Cloudflare's "stashed continuation summary" — see Opportunities below, now reframed against it.
 
-Stale-doc note: `docs/architecture/PORT-DADDY-COARSENED-ARCHITECTURE.md` ("six planes")
-does not exist at that path; architecture-of-record is the agent-harbor technical binder.
+Pending-doc note: `docs/architecture/PORT-DADDY-COARSENED-ARCHITECTURE.md` ("six planes") is not yet shipped on `main` — it lives in open PR #2566 (`docs/coarsened-architecture`). Until it lands, the architecture-of-record here is the agent-harbor technical binder.
 
 ADR-numbering caveat: as of this writing, `docs/adr/0028-*.md` is a **triple-collision**
 (salvage-envelope, signed-binary-distribution, and actor-fleet-agent-session-three-layers

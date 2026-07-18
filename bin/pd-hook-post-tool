@@ -133,9 +133,11 @@ if command -v flock >/dev/null 2>&1; then
 else
   # Portable path (macOS): mkdir-atomic lock, retry briefly, break if stale.
   i=0
+  appended=0
   while [ "$i" -lt 200 ]; do
     if mkdir "$LOCKDIR" 2>/dev/null; then
       append_line
+      appended=1
       rmdir "$LOCKDIR" 2>/dev/null || true
       break
     fi
@@ -151,7 +153,9 @@ else
     sleep 0.01 2>/dev/null || :
   done
   # Fell through without the lock → append anyway (fail open; line is one write).
-  [ -d "$LOCKDIR" ] && append_line
+  # Do not infer failure from LOCKDIR existing here: after we release our lock,
+  # a successor may already own the same directory.
+  [ "$appended" -eq 0 ] && append_line
 fi
 
 exit 0

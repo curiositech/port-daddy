@@ -1,0 +1,72 @@
+{
+  "schema": "pd.agent-harbor.handoff-successor-brief.v0",
+  "continuationRequest": "Finish the bounded cross-harness continuation slice.",
+  "durableIdentity": {
+    "agentId": "portdaddy-typography-expert",
+    "project": "port-daddy",
+    "harbor": "port-daddy"
+  },
+  "lineage": {
+    "capsuleId": "handoff_capsule_01JZFIX0001",
+    "sourceAdapter": "claude-code",
+    "sourceSessionId": "claude-session-01JZFIX0001",
+    "sourceAgentId": "portdaddy-typography-expert",
+    "predecessorRunId": "wf-01JZFIX0001",
+    "capturedAt": "2026-07-15T20:00:00.000Z",
+    "contentHash": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "workspace": {
+    "cwd": "/repo/port-daddy",
+    "repoRoot": "/repo/port-daddy",
+    "branch": "feature/handoff-capsule",
+    "worktreeId": "wt-handoff-capsule",
+    "gitHead": "0123456789abcdef",
+    "dirtyFiles": [
+      "lib/handoff-capsule.ts"
+    ]
+  },
+  "objective": "Continue the durable-agent handoff implementation without replaying the raw provider transcript.",
+  "operatorTurns": [
+    {
+      "id": "operator-1",
+      "at": "2026-07-15T19:59:00.000Z",
+      "text": "Preserve every operator turn across the continuation boundary."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "decision-1",
+      "at": "2026-07-15T19:59:30.000Z",
+      "text": "Use one adapter contract per backend family rather than pairwise bridges.",
+      "source": "operator"
+    }
+  ],
+  "coordination": [
+    {
+      "id": "coordination-1",
+      "at": "2026-07-15T19:59:45.000Z",
+      "text": "The handoff capsule and memory ingress are the current scope.",
+      "kind": "scope"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "/repo/port-daddy/docs/prototype.html",
+      "kind": "html",
+      "summary": "Interactive continuation prototype",
+      "sourceBlockId": "block-7"
+    }
+  ],
+  "recentContext": [
+    {
+      "id": "tail-1",
+      "at": "2026-07-15T20:00:00.000Z",
+      "text": "The scanner and episodic-memory write are ready for verification.",
+      "role": "assistant"
+    }
+  ],
+  "omissions": {
+    "tail": 0,
+    "artifacts": 0
+  }
+}
