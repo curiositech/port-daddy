@@ -108,6 +108,7 @@ import { createFeedback } from './lib/feedback.js';
 import { createRoadmapItems } from './lib/roadmap-items.js';
 import { createCommitments } from './lib/commitments.js';
 import { createSuggestions } from './lib/suggestions.js';
+import { createWhois } from './lib/whois.js';
 import { createObligationMonitor } from './lib/obligation-monitor.js';
 import { createRoadmapPromote } from './lib/roadmap-promote.js';
 import { createRoadmapPop } from './lib/roadmap-pop.js';
@@ -494,6 +495,7 @@ const activityLog = createActivityLog(db);
 // no Arbiter/Rust FFI dependency, so it cannot silently degrade to a stub).
 const commitments = createCommitments(db);
 const suggestions = createSuggestions(db);
+const whois = createWhois(db, { resolver: semanticResolver, logger });
 const obligationMonitor = createObligationMonitor(db, { activityLog });
 const webhooks = createWebhooks(db);
 const projects = createProjects(db);
@@ -1354,7 +1356,7 @@ await registerAllRoutes(
     contextTracker,
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
-    commitments, obligationMonitor, suggestions,
+    commitments, obligationMonitor, suggestions, whois,
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
