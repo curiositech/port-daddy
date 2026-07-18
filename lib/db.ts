@@ -597,17 +597,28 @@ export class DaemonDoorError extends Error {
 }
 
 /**
- * Strip comments and string / quoted-identifier literals so we scan SQL
+ * Strip string / quoted-identifier literals and comments so we scan SQL
  * *keywords*, never data. This is a STRUCTURED strip of SQL we author — not
  * keyword-NLP over free text — so a `SELECT` whose literal happens to contain the
  * word DELETE is not misread as a mutation.
+ *
+ * ORDER MATTERS: literals are stripped BEFORE comments. A line-comment regex
+ * (`--` to end-of-line) can't tell a real `--` from one sitting inside a
+ * `'string'` — if comments strip first, a literal like `'--'` in
+ * `SELECT '--'; DELETE FROM foo;` gets misread as "the rest of the line is a
+ * comment" and the regex eats the trailing `DELETE FROM foo;` right along
+ * with the quote, hiding a real mutation from the scanner (a false NEGATIVE —
+ * the dangerous direction for a fail-closed boundary) even though `db.exec`
+ * would still literally execute it. Stripping balanced-quote literals first
+ * removes the `'--'` token as a unit before the comment regex ever runs, so
+ * it has nothing left to misfire on.
  */
 function stripSqlNoise(sql: string): string {
   return sql
-    .replace(/--[^\n]*/g, ' ') // line comments
-    .replace(/\/\*[\s\S]*?\*\//g, ' ') // block comments
     .replace(/'(?:''|[^'])*'/g, ' ') // 'string literals'
-    .replace(/"(?:""|[^"])*"/g, ' '); // "quoted identifiers"
+    .replace(/"(?:""|[^"])*"/g, ' ') // "quoted identifiers"
+    .replace(/--[^\n]*/g, ' ') // line comments
+    .replace(/\/\*[\s\S]*?\*\//g, ' '); // block comments
 }
 
 /**

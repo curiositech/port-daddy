@@ -57,7 +57,30 @@ describe('The Door — write-boundary interception', () => {
       'EXPLAIN QUERY PLAN SELECT 1',
       "SELECT * FROM x WHERE note = 'please DELETE this later'", // keyword only inside a literal
       'SELECT updated_at, created_at FROM x',                    // reserved words as substrings
+      "SELECT * FROM x WHERE note = 'a -- DELETE this too'",     // a literal containing '--' is still just a literal
+      '-- DELETE FROM x\nSELECT 1',                              // a REAL leading comment, not a mutation
     ]) expect(isMutatingSql(s)).toBe(false);
+  });
+
+  test('a string literal containing "--" cannot smuggle a real mutation past the scanner (order-of-strip regression)', () => {
+    // Strip order matters: if comments strip BEFORE string literals, the '--'
+    // inside this literal is misread as starting a line comment, and the
+    // regex eats everything after it on the line -- including the real
+    // `DELETE FROM foo;` that db.exec() would still actually execute. This
+    // must be classified as mutating (it is exec()'d as two real statements).
+    expect(isMutatingSql("SELECT '--'; DELETE FROM foo;")).toBe(true);
+    // Same trick via a block-comment-shaped literal.
+    expect(isMutatingSql("SELECT '/*'; DELETE FROM foo; /*' */")).toBe(true);
+    // And the guarded handle actually refuses to exec() it, not just isMutatingSql in isolation:
+    const dbPath = freshDbPath('reg');
+    const owner = initDatabase({ dbPath, role: 'daemon' });
+    owner.exec('CREATE TABLE IF NOT EXISTS t(a INTEGER)');
+    owner.prepare('INSERT INTO t(a) VALUES (1)').run();
+    owner.close();
+    const client = initDatabase({ dbPath, role: 'client' });
+    expect(() => client.exec("SELECT '--'; DELETE FROM t;")).toThrow(DaemonDoorError);
+    expect(client.prepare('SELECT count(*) c FROM t').get().c).toBe(1); // nothing actually deleted
+    client.close();
   });
 
   test('a client open (daemon down) refuses WRITES via run/get/all/exec but allows READS', () => {
@@ -87,6 +110,26 @@ describe('The Door — write-boundary interception', () => {
     // and nothing actually changed — no write reached SQLite:
     expect(client.prepare('SELECT count(*) c FROM t').get().c).toBe(1);
     expect(client.prepare('SELECT a FROM t').get().a).toBe(1);
+    client.close();
+  });
+
+  test('a mutating statement inside db.transaction(fn) is refused too — the wrapping targets prepare/exec, not the transaction call site', () => {
+    const dbPath = freshDbPath('reg');
+    const owner = initDatabase({ dbPath, role: 'daemon' });
+    owner.exec('CREATE TABLE IF NOT EXISTS t(a INTEGER)');
+    owner.prepare('INSERT INTO t(a) VALUES (1)').run();
+    owner.close();
+
+    const client = initDatabase({ dbPath, role: 'client' });
+    const insert = client.prepare('INSERT INTO t(a) VALUES (?)'); // prepared on the guarded handle
+    const insertMany = client.transaction((rows) => {
+      for (const r of rows) insert.run(r);
+    });
+    // better-sqlite3's transaction() drives BEGIN/COMMIT via this.prepare/this.exec
+    // on the SAME instance, so it resolves to our overridden methods too — the
+    // statement inside the closure throws before any row is written.
+    expect(() => insertMany([1, 2, 3])).toThrow(DaemonDoorError);
+    expect(client.prepare('SELECT count(*) c FROM t').get().c).toBe(1); // unchanged
     client.close();
   });
 
