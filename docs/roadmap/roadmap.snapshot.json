@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1784177784166,
+  "generatedAt": 1784407352800,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9877",
-  "count": 226,
+  "count": 229,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -585,6 +585,11 @@
       "summaryMd": "feat(booty): S4a artifact harvest — provenance over the blob store"
     },
     {
+      "slug": "claude-squid-mode-visual-20260716",
+      "status": "backlog",
+      "summaryMd": "fix(squid): honest pd squid on reporting + centralized capability tokens"
+    },
+    {
       "slug": "cloudflare-agent-telemetry-unified-reporting",
       "status": "now",
       "summaryMd": "Cloudflare/GitHub App remote agent telemetry appears in the same fleet, agent, and spend reports as local agents."
@@ -1000,6 +1005,11 @@
       "summaryMd": "S3 rent-at-claim: pd begin requires a roadmap link (--roadmap), draft genesis (--roadmap-new), or an explicit sidequest opt-out (--sidequest); persisted on the session record and surfaced in whoami/listings."
     },
     {
+      "slug": "research-durable-agents-landscape",
+      "status": "backlog",
+      "summaryMd": "docs(research): durable long-running agents landscape brief (2026-07)"
+    },
+    {
       "slug": "resume-flow-joins",
       "status": "backlog",
       "summaryMd": "Resume-story ground truth (2026-07-14, link-by-link with file:line evidence): the roadmap->agent->transcript->resume walk is ~60 percent substrate, zero percent wired — every gap is a JOIN or INVOCATION, not new storage. Bundle: (L1) roadmap_item_status_events is append-only + indexed but has NO read path (only INSERT and DELETE touch it) — add listStatusEvents(slug) + a roadmap history surface (~15 lines); (L2) fleet_transcripts records full conversations for daemon-spawned ships (indexed by spawned_agent_id) but nothing performs the item->agent->transcript walk, and interactive Claude-Code sessions are unlinked — add getTranscriptByAgentId join + capture the CC session id/jsonl path in the sessionstart hook; (L3) sessions.takeover() restores notes+claims but never attaches the predecessor's fleet_transcripts id (the link is available at :1293) — attach it so successors can load prior messages; wire the orphaned telos-salvage capsule (normalizeSelfSalvage has zero external callers); (L5) the advisor's context-integrity checks (ownership mismatch, salvage overlap, claim conflicts, symbol staleness) exist but are never invoked at resume — call advisor.evaluate inside takeover()/claim_salvage and return the advice: that IS the 'lookout briefs you on contradictions at reopen' the operator asked for. (L4 true execution checkpoints remain ABSENT — only WAL checkpoints + control-ladder capability labels; approximate belief-state = transcript pointer + last note + claims, which L3 provides.) Owner: resume-flow dispatch. Decision-type: empirical. Priority: high — this moves the operator's 'throw open any old session and continue' from Wave-3-blocked to Wave-1/2-buildable since the read-path joins need neither control-contract nor ADR-0040. Acceptance: pd roadmap history <slug> names agents/sessions; takeover response includes predecessor transcript id + advisor advice; an interactive CC session leaves a queryable transcript anchor."
@@ -1123,6 +1133,11 @@
       "slug": "visual-task-agent-intake",
       "status": "now",
       "summaryMd": "Port Daddy Scout visual task intake: Chrome extension and website install surface for screenshot/DOM-backed issues routed through the local daemon and spawn-first follow-up."
+    },
+    {
+      "slug": "wire-agent-nodes-control-route",
+      "status": "now",
+      "summaryMd": "Wire POST /agent-nodes/:id/control to authorizeControl/applyControlGate + fix compliance-probe.ts present-field bug + build LiveNodeProbeTarget (safe subset) + live pause/steer/cooperation/checkpoint exercises (queued explicitly, not deferred-and-forgotten). Blocked-by: none. Blocks: pd-console control buttons actually working end to end."
     },
     {
       "slug": "workintent-dispatch-intake",
