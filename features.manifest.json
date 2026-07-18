@@ -1742,14 +1742,18 @@
       }
     },
     "memory": {
-      "description": "Episodic memory entries and aggregate memory stats promoted from sessions and spawned runs",
+      "description": "Episodic memory, sanitized handoff capsules, UUID- and workspace-bound native-session witnesses, and owner-leased native or cross-harness successor continuation receipts",
       "cli": [
         "memory"
       ],
       "sdk": [],
       "routes": [
         "GET /memory/episodes",
-        "GET /memory/stats"
+        "GET /memory/stats",
+        "POST /memory/handoffs",
+        "POST /memory/handoffs/:episodeId/continue",
+        "GET /memory/continuations/:continuationId",
+        "GET /memory/continuations"
       ],
       "completions": [
         "memory"

@@ -127,6 +127,31 @@ disagree, call it a coordination bug. Leave the best durable evidence you can,
 fix the bounded bug if this slice can safely absorb it, or continue with a
 clear note about the degraded coordination path.
 
+Harness continuation is a separate identity boundary from Port Daddy session
+takeover. Never replay a raw Claude, Codex, Gemini, or agy transcript into a
+different runtime. Persist a sanitized handoff capsule first. Native resume is
+valid only when the source and effective target backend share the same catalog
+adapter family, the source id is a UUID rather than an option-shaped token, and
+the daemon can bind bounded local evidence to the canonical source workspace.
+Claude, Codex, and Gemini need an explicit transcript reference; agy also needs
+its current workspace-to-conversation cache binding. The witnessed workspace
+device/inode must still match at the final CLI child boundary. Missing or stale evidence
+is not a reason to replay a transcript; it means native resume is unavailable
+and cross-harness continuation must start a successor from the sanitized
+capsule. Never trust the capsule's historical workspace path as execution cwd.
+Reuse its reverified source witness; for a history-only, API, or model-server
+source, pass an explicit current `targetWorkdir` that resolves to the intended
+user-owned checkout. On `POST /memory/handoffs/:episodeId/continue`, choose the concrete
+`targetBackend` and use `mode: auto` (default), `native`, or `handoff`. Auto
+restores only a matching session-scoped adapter family and otherwise sends the
+versioned sanitized successor brief to a new target session. Explicit native
+must fail rather than silently changing identity semantics; explicit handoff
+always creates a successor, even inside one family. Use a stable idempotency key
+and trust the owner-leased continuation
+receipt, not a model's claim that it resumed. A backend override that changes
+adapter family, a lost accepted-to-running lease, or a failed terminal receipt
+transition must fail closed before Port Daddy reports success.
+
 ## Telos vs Purpose
 
 Every Port Daddy agent carries a **telos** alongside its **purpose**.
