@@ -260,7 +260,10 @@ export function planRunFor(dispatch: Dispatch, opts: RunnerOptions = {}): Runner
     rationale.push(`model = ${model}`);
   }
   if (dispatch.mergePolicy === 'auto') {
-    rationale.push('WARNING: merge_policy=auto requires harbormaster (PR #141) -- not yet wired');
+    rationale.push(
+      'merge_policy=auto: lib/dispatch/auto-merge.ts sweep merges the PR itself once ' +
+      'CI is green, mergeable, and 0 unresolved review threads (never draft, never force-push)',
+    );
   }
 
   return {

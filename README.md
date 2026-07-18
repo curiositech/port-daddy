@@ -571,11 +571,18 @@ The tube→spawner router also carries **delegation-chain loop detection** (five
 ```bash
 pd dispatch          # queue/run autonomous dev work across the fleet (formerly `pd nightshift`)
 pd morning           # read the overnight dispatch report
-pd review <id> --accept    # gate produced work into the tree
+pd review <id> --accept    # gate produced work into the tree (merge_policy=review, the default)
 pd review <id> --reject
+pd dispatch merge-sweep    # manually trigger the auto-merge check (see below)
 pd harbormaster      # the coordinating overseer surface (alias: pd hm)
 pd cockpit           # mission overview
 ```
+
+`pd dispatch propose --merge-policy <review|auto|never>` controls what happens once a dispatch produces a PR:
+
+- `review` (default) — the operator runs `pd review <id> --accept` and merges by hand.
+- `auto` — Port Daddy merges the PR itself once **all** hold: every required CI check is green, `gh` reports the PR `mergeable` (no conflicts), zero unresolved review threads, and the PR is not a draft. It never force-pushes, never uses `gh pr merge --admin`/`--auto`, and never touches a `review`/`never` dispatch. The daemon sweeps this on an interval (`PD_DISPATCH_AUTOMERGE_POLL_MS`, default 60s); `pd dispatch merge-sweep` and `pd done` also trigger an immediate check. See `lib/dispatch/auto-merge.ts` for the full gate. This is a separate, narrower mechanism from `pd harbormaster`'s operator-approval (`pd review --accept`) merge queue.
+- `never` — Port Daddy never merges; the PR sits for a manual close.
 
 ### Giant Squid — Claude-to-Codex bridge
 

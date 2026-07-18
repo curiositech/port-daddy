@@ -33,6 +33,7 @@ import {
 } from '../../lib/dispatch/runner.js';
 import { createWorkIntentService } from '../../lib/agent-harbor/work-intent-service.js';
 import { describeState, stateGlyph } from '../../lib/dispatch/state-machine.js';
+import { runAutoMergeSweep } from '../../lib/dispatch/auto-merge.js';
 
 import type { CLIOptions } from '../types.js';
 import { isJson, isQuiet } from '../types.js';
@@ -53,13 +54,23 @@ function usage(): never {
   console.error('  run --next              Run the next proposed dispatch (default --dry-run)');
   console.error('  review <id>             Alias for `pd review` (see `pd review --help`)');
   console.error('  cancel <id> [--reason]  Cancel a non-terminal dispatch');
+  console.error('  merge-sweep             Check auto merge_policy dispatches; merge PRs that are');
+  console.error('                          CI-green + mergeable + 0 unresolved threads (see below)');
   console.error('  help                    Show this help');
   console.error('');
   console.error('Options:');
   console.error('  --tags a,b,c              Comma-separated tags for propose');
   console.error('  --backend <name>          cli:claude-code | cli:codex (default: cli:codex)');
   console.error('  --base-branch <name>      Branch the worktree is carved from (default: main)');
-  console.error('  --merge-policy <p>        review | never (auto requires PR #141; rejected today)');
+  console.error('  --merge-policy <p>        review | auto | never (default: review)');
+  console.error('                              review = operator runs `pd review --accept` + merges by hand');
+  console.error('                              auto   = Port Daddy merges the PR itself once ALL hold:');
+  console.error('                                       CI required checks green, PR mergeable (no');
+  console.error('                                       conflicts), 0 unresolved review threads, not a');
+  console.error('                                       draft. Never force-pushes, never --admin. The');
+  console.error('                                       daemon sweeps this on an interval; `pd dispatch');
+  console.error('                                       merge-sweep` or `pd done` also trigger it.');
+  console.error('                              never  = Port Daddy never merges; PR sits for manual close');
   console.error('  --budget <usd>            Per-dispatch budget ceiling (default 5, max 25)');
   console.error('  --timeout <seconds>       Per-dispatch timeout (default 10800 = 3h, max 21600 = 6h)');
   console.error('  --to <actor>              Target actor (auto-routing not yet wired)');
@@ -499,6 +510,36 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
   // -- review (back-compat alias for `pd review`) -----------------------
   if (subcommand === 'review') {
     await handleReview(args.slice(1), options);
+    return;
+  }
+
+  // -- merge-sweep --------------------------------------------------------
+  // Manual/foreground trigger for the same auto-merge check the daemon runs
+  // on an interval (server.ts) and `pd done` runs as a confirmation point.
+  // Useful when the daemon's sweep hasn't ticked yet, or when running without
+  // a daemon at all. Never touches `review`/`never` policy dispatches.
+  if (subcommand === 'merge-sweep') {
+    const result = await runAutoMergeSweep(queue);
+    if (isJson(options)) {
+      console.log(JSON.stringify({ result }, null, 2));
+      return;
+    }
+    ui.success(`Auto-merge sweep: checked ${result.checked} 'auto' dispatch(es)`);
+    for (const m of result.merged) {
+      console.log(`  merged:      ${m.prUrl} (dispatch ${m.dispatchId.slice(0, 8)}${m.mergeCommit ? `, ${m.mergeCommit}` : ''})`);
+    }
+    for (const c of result.cleanedUp) {
+      console.log(`  cleaned up:  ${c.prUrl} (dispatch ${c.dispatchId.slice(0, 8)}, already merged)`);
+    }
+    for (const b of result.blocked) {
+      console.log(`  not ready:   ${b.prUrl} (dispatch ${b.dispatchId.slice(0, 8)}) — ${b.reasons.join('; ')}`);
+    }
+    for (const e of result.errors) {
+      console.log(`  error:       dispatch ${e.dispatchId.slice(0, 8)} — ${e.error}`);
+    }
+    if (result.merged.length === 0 && result.blocked.length === 0 && result.errors.length === 0 && result.cleanedUp.length === 0) {
+      console.log('  nothing to do');
+    }
     return;
   }
 
