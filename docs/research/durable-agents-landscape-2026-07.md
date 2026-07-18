@@ -118,10 +118,18 @@ unsolved problem." Think is preview; Session API experimental; Agent Memory priv
 | Wake/triggers | Shipped registry (file proven, webhook armed+HMAC); **email/sms/calendar stubbed**; tuple-wake + cron + respawn breaker live | `lib/fleet/triggers/`, `lib/fleet/io-dispatch.ts:19,62-70`, `lib/fleet-engine.ts:33-63` |
 | Trust gate on wakes | **Shipped + wired** — provenance-classified, fail-closed, tool-cap gating, L2 approval queue | ADR-0093, `lib/fleet/trust.ts`, `lib/fleet-engine.ts:845-852` |
 | Structured plans | **Shipped** — roadmap_items + atomic claims + planner DAG + tuples + commitments | ADR-0033/0086/0041, `lib/roadmap-pop.ts:10-11` |
-| Actor model | **Partial** — soul/body split (ADR-0022) directional; wake = fresh OS-process spawn + capsule injection, not hibernation-resume; shared DB, not per-agent | gap |
+| Actor model | **Partial, evolving fast** — soul/body split (ADR-0022) directional; ADR-0118 (Accepted, merged 2026-07-15 — same day as this brief) now defines genuine **native session resume** per harness adapter where the adapter owns the source identifier (`claude --resume {sessionId}`, `codex exec resume {sessionId}`, `agy --conversation {sessionId}`), falling back to a sanitized **handoff capsule** for cross-harness continuation; shared DB, not per-agent | ADR-0118, `lib/backend-catalog.ts` |
+
+**Correction after first draft**: this brief's original framing — "wake = fresh OS-process spawn + capsule injection, not hibernation-resume" — was accurate for the daemon/fleet-engine spawn path but overclaimed for harness sessions. ADR-0118 (merged the same day this brief was written) draws exactly the distinction Cloudflare draws between hibernation-resume and reconstructed continuation, per adapter family: native resume when the harness owns the identifier, handoff-capsule reconstruction otherwise. That capsule is effectively Port Daddy's independently-arrived-at version of Cloudflare's "stashed continuation summary" — see Opportunities below, now reframed against it.
 
 Stale-doc note: `docs/architecture/PORT-DADDY-COARSENED-ARCHITECTURE.md` ("six planes")
 does not exist at that path; architecture-of-record is the agent-harbor technical binder.
+
+ADR-numbering caveat: as of this writing, `docs/adr/0028-*.md` is a **triple-collision**
+(salvage-envelope, signed-binary-distribution, and actor-fleet-agent-session-three-layers
+all claim 0028) pending resolution in open PR #2594. Citations to "ADR-0028" in this brief
+mean the salvage-envelope draft specifically; verify the number still resolves to that file
+before citing it elsewhere once #2594 lands.
 
 ## Audiences (delta view for this brief)
 
@@ -150,13 +158,20 @@ does not exist at that path; architecture-of-record is the agent-harbor technica
 
 ## Port Daddy Opportunities (ranked)
 
+**Update**: opportunities #1, #2, and #5 turned out to already be active, Accepted-status
+work — not novel proposals. ADR-0118 (merged the same day as this brief) and four "now"
+roadmap items already cover the continuation-capsule and cross-harness-resume ground; a
+`fleet-spend-circuit-breaker` roadmap item already exists. Rows below are corrected to
+point at that authoritative work instead of duplicating it. #3 and #4 remain genuinely
+open gaps.
+
 | Rank | Opportunity | Why Port Daddy | Proof required | Risk |
 | --- | --- | --- | --- | --- |
-| 1 | **Continuation capsule v2** — finish ADR-0028: salvage envelope carries plan pointer (roadmap item + planner step), operator-instruction literal text, diff/stash refs, claimed files, next action. Cloudflare's "stashed continuation summary," made native. | Queue plumbing already shipped; 342 capsules prove demand and prove the current envelope is too thin | Kill an agent mid-task; resurrected agent resumes the correct planner step and cites the capsule; Beacon salvage brief renders it | Capsule quality depends on the dying agent's last write; needs a daemon-side fallback synthesizer |
-| 2 | **Plan-based recovery as the default** — every spawn/resume/compaction injects "you are on step N of M" from the planner DAG; post-compaction re-injection is mandatory. The roadmap plane *is* the durable plan; Cloudflare had to invent one. | roadmap_items + atomic claims + planner-board are shipped and already the coordination source of truth | An agent that compacts mid-epic continues the epic; #24686-class regression test passes | Plan drift: plan says step 3, disk says otherwise — needs a reconcile check against live state (the #43696 stale-context trap) |
-| 3 | **Boundary-aware overlay compaction in the custodian** — macro: summarize message *ranges* into non-destructive overlays, never splitting tool pairs, old summary in view when updating; micro: read-time truncation of aged tool outputs; harvest facts into episodic memory *at compaction time* (live sessions, not just dead ones) | Custodian + context-pressure ladder + episodic memory + harvest are shipped; the missing piece is wiring them to live context instead of advisory inbox nags | A 3-day session survives 5 compactions with zero orphaned tool pairs and searchable overlays in Beacon | PD sits outside the harness's message array for Claude-Code-backed agents; deepest integration lands on pd-native/SDK-driven agents first |
-| 4 | **Wake-source completion behind the trust gate** — un-stub email/calendar triggers, wire the GitHub app's webhooks into the fleet trigger registry with event dedup + TTL state, keep tuple-wake (which Cloudflare has no equivalent of) as the coordination-native differentiator | Trigger registry, HMAC webhook receiver, trust gate, and respawn breakers are shipped; io-wiring (#672) laid the rails | GitHub PR event → trust-gated spawn → plan-anchored run → receipt in Beacon, end to end, no custom scripts | Each new wake source widens the injection surface; ADR-0093 provenance rules must gate every one (content author, never transport auth) |
-| 5 | **Spend circuit breakers + wake receipts in Beacon** — per-agent ledger, hard budget caps, loop detection (N repeated tool signatures → trip), and a per-wake receipt (trigger, plan step, diff, cost). Nobody — including Cloudflare — ships a spend surface | cost-tracker + Beacon session spine + salvage briefs exist; the loudest social failure story is unowned | Simulated stuck-loop agent trips the breaker before $5; Beacon shows the receipt chain per wake | Loop detection must avoid keyword heuristics — use tool-call signature statistics, not text matching |
+| 1 | **~~Continuation capsule v2~~ → already in flight as `durable-agent-handoff-capsule`** (roadmap, status `now`): "a compact, versioned, provenance-rich handoff capsule that preserves operator turns, decisions, repo and branch state, Port Daddy coordination notes, and artifacts while failing closed on secret egress." Paired with `durable-agent-same-harness-continuation` and `durable-agent-cross-harness-continuation`. This brief's proposed fields (plan pointer, operator-instruction literal text, diff/stash refs) are a useful input to that capsule's schema, not a competing design. | ADR-0118 already Accepted; four roadmap items already `now` | Track via the existing roadmap items, not a new one | Don't let this brief's framing fork from the capsule schema ADR-0118 defines |
+| 2 | **Plan-based recovery as the default** — still open. Neither ADR-0118 nor the handoff-capsule items name the roadmap/planner DAG as the recovery context; every spawn/resume/compaction should inject "you are on step N of M." The roadmap plane *is* the durable plan; Cloudflare had to invent one, Port Daddy already has the primitive, just not wired to recovery. | roadmap_items + atomic claims + planner-board are shipped and already the coordination source of truth; complements the handoff-capsule work rather than duplicating it | An agent that compacts mid-epic continues the epic; #24686-class regression test passes | Plan drift: plan says step 3, disk says otherwise — needs a reconcile check against live state (the #43696 stale-context trap) |
+| 3 | **Boundary-aware overlay compaction in the custodian** — still open, and distinct from harness-resume work: this is about *in-session* context-window management (Cloudflare's micro/macro compaction), not cross-session portability. Macro: summarize message *ranges* into non-destructive overlays, never splitting tool pairs, old summary in view when updating; micro: read-time truncation of aged tool outputs; harvest facts into episodic memory *at compaction time* (live sessions, not just dead ones). | Custodian + context-pressure ladder + episodic memory + harvest are shipped; the missing piece is wiring them to live context instead of advisory inbox nags | A 3-day session survives 5 compactions with zero orphaned tool pairs and searchable overlays in Beacon | PD sits outside the harness's message array for Claude-Code-backed agents; deepest integration lands on pd-native/SDK-driven agents first |
+| 4 | **Wake-source completion behind the trust gate** — still open. Un-stub email/calendar triggers, wire the GitHub app's webhooks into the fleet trigger registry with event dedup + TTL state, keep tuple-wake (which Cloudflare has no equivalent of) as the coordination-native differentiator. | Trigger registry, HMAC webhook receiver, trust gate, and respawn breakers are shipped; io-wiring (#672) laid the rails | GitHub PR event → trust-gated spawn → plan-anchored run → receipt in Beacon, end to end, no custom scripts | Each new wake source widens the injection surface; ADR-0093 provenance rules must gate every one (content author, never transport auth). Open PR #2582 (door: fail-closed write-boundary for daemon-truth reads) is a parallel fail-closed effort worth reconciling with the trust gate's own fail-closed posture once it lands — same failure class, different surface. |
+| 5 | **~~Spend circuit breakers~~ → already tracked as `fleet-spend-circuit-breaker`** (roadmap, status `now`). This brief's addition: a per-wake receipt (trigger, plan step, diff, cost) rendered in Beacon, since the existing item's scope wasn't confirmed to include the receipt-surface half. | cost-tracker + Beacon session spine + salvage briefs exist; the loudest social failure story is already on the roadmap, just needs the Beacon receipt half checked | Simulated stuck-loop agent trips the breaker before $5; Beacon shows the receipt chain per wake | Loop detection must avoid keyword heuristics — use tool-call signature statistics, not text matching |
 
 ## Ties to Current Workstreams
 
@@ -187,3 +202,17 @@ does not exist at that path; architecture-of-record is the agent-harbor technica
   actively changing.
 - Vendor-agenda sources (Diagrid, Zep, Builder.io, Supermemory) used for framing pain,
   corroborated by first-party GitHub issues where possible.
+- **ADR-0028 (salvage envelope) is a live triple-collision number pending PR #2594**
+  (open, resolves 12 ADR-number collisions). Re-verify the number before citing it once
+  #2594 lands.
+- **ADR-0118 shipped the same day this brief was written** (PR #2776, merged
+  2026-07-15T20:50:16Z) and already corrects this brief's original "wake = fresh spawn,
+  not resume" claim — see the maturity-map correction above. Any future citation of this
+  brief's actor-model framing should defer to ADR-0118 as current.
+- PR #2582 ("door" lane, fail-closed write-boundary for daemon-truth reads) was open at
+  writing; if merged, check whether its fail-closed pattern should extend to the trust
+  gate's wake-time provenance checks (ADR-0093) for consistency, per pd-lookout's review
+  of this PR.
+- This brief's original opportunities #1/#2/#5 were written before checking the roadmap
+  for existing "now"-status items in the same territory; corrected in place above. Always
+  check `pd roadmap` for existing items before proposing new ones.
