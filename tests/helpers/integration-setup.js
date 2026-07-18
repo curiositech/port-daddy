@@ -221,6 +221,9 @@ export function runCli(args, options = {}) {
     // roadmap-link gate — opt out via the bounded env exemption. Tests that
     // cover the gate itself clear this via extraEnv.
     PD_RENT_EXEMPT: 'chore',
+    // Override comparable on-disk binary path to prevent binary drift checks
+    // from failing against host-installed versions of Port Daddy.
+    PORT_DADDY_BIN_OVERRIDE: process.execPath,
     NO_COLOR: '1',
     CI: '1'
   };
@@ -271,6 +274,9 @@ export function runCliViaIpc(args, options = {}) {
     PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',
     PORT_DADDY_ALLOW_MAIN_WORKTREE_SESSION: '1',
     PORT_DADDY_NON_INTERACTIVE: '1',
+    // Override comparable on-disk binary path to prevent binary drift checks
+    // from failing against host-installed versions of Port Daddy.
+    PORT_DADDY_BIN_OVERRIDE: process.execPath,
     NO_COLOR: '1',
     CI: '1'
   };
