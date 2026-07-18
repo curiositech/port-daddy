@@ -101,6 +101,7 @@ import { createCounters } from './lib/counters.js';
 import { createMetricsRegistry } from './lib/metrics-registry.js';
 import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
+import { createActorSouls } from './lib/actor-souls.js';
 import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
 import { createParley } from './lib/parley.js';
@@ -563,8 +564,17 @@ const bonds = createBonds(db, {
   harbors, noteEncryption,
   broadcast: (channel, event) => messaging.publish(channel, event),
 });
+// ADR-0040 keystone: daemon-minted, non-forgeable actor identity. The souls
+// store is the spend-choke input for budget-guard — it resolves each agentId
+// (minted id or display alias) to a soul + class, soul-sources the ceiling, and
+// meters newcomers against the SHARED per-project pool so minting fresh ids buys
+// no new budget. HONEST LIMIT: the anti-launder only fully bites once the `door`
+// lane makes the SQLite write-boundary real (a same-UID agent can otherwise
+// write a ledger/pool row directly). This is ADR-0040's explicit non-goal.
+const actorSouls = createActorSouls(db);
 const budgetGuard = createBudgetGuard(db, {}, {
   broadcast: (channel, event) => messaging.publish(channel, event),
+  souls: actorSouls,
 });
 
 // Late-binding spawner ref: cost-tracker needs to trigger spawner.kill() on
@@ -1355,7 +1365,7 @@ await registerAllRoutes(
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     commitments, obligationMonitor, suggestions,
-    bonds, budgetGuard, budgetPause,
+    bonds, budgetGuard, budgetPause, actorSouls,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,
