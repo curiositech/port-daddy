@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -212,6 +213,40 @@ describe('pd roadmap', () => {
     try {
       process.chdir(projectDir);
       expect(resolveRoadmapHarbor({})).toBe('standalone-project');
+    } finally {
+      process.chdir(previousCwd);
+      if (previousHarbor === undefined) {
+        delete process.env.PD_HARBOR;
+      } else {
+        process.env.PD_HARBOR = previousHarbor;
+      }
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('harbor resolution uses the canonical project name inside a linked worktree', () => {
+    const previousCwd = process.cwd();
+    const previousHarbor = process.env.PD_HARBOR;
+    const root = mkdtempSync(join(tmpdir(), 'pd-roadmap-linked-harbor-'));
+    const projectDir = join(root, 'canonical-harbor');
+    const linkedWorktree = join(root, 'linked-feature');
+    mkdirSync(projectDir);
+    delete process.env.PD_HARBOR;
+
+    try {
+      execFileSync('git', ['init'], { cwd: projectDir, stdio: 'ignore' });
+      execFileSync('git', [
+        '-c', 'user.name=Port Daddy Test',
+        '-c', 'user.email=port-daddy-test@example.invalid',
+        'commit', '--allow-empty', '-m', 'initial',
+      ], { cwd: projectDir, stdio: 'ignore' });
+      execFileSync('git', ['worktree', 'add', '-b', 'feature-roadmap', linkedWorktree], {
+        cwd: projectDir,
+        stdio: 'ignore',
+      });
+
+      process.chdir(linkedWorktree);
+      expect(resolveRoadmapHarbor({})).toBe('canonical-harbor');
     } finally {
       process.chdir(previousCwd);
       if (previousHarbor === undefined) {

@@ -495,6 +495,8 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   // backend: status/list are read-only; clear/off reset caller config
   'backend status': 'silent',
   'backend list': 'silent',
+  'backend adapters': 'silent',
+  'backend capabilities': 'silent',
   'backend clear': 'notify',
   'backend off': 'notify',
 

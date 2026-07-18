@@ -2,7 +2,9 @@
  * Agent Harbor v0 contract freeze tests — ADR-0095 (binder ch18 Work Order F0),
  * extended by the ADR-0096 M5 F0-delta (GuidanceEnvelope + forged-guidance) and
  * the ADR-0097 M6 F0-delta (CompactionPacket, MemoryEpisode,
- * TranscriptSearchQuery/Result, and the read-only BlackboardItem).
+ * TranscriptSearchQuery/Result, and the read-only BlackboardItem), and the
+ * ADR-0028 backend-neutral HandoffCapsule and successor-brief continuation
+ * boundaries.
  *
  * Locks three things:
  *   1. Every schema in schemas/agent-harbor/v0/ parses and COMPILES — the
@@ -72,6 +74,8 @@ const SCHEMA_NAMES = [
   'skill-graft',
   'work-receipt',
   'guidance-envelope',
+  'handoff-capsule',
+  'handoff-successor-brief',
   'compaction-packet',
   'memory-episode',
   'transcript-search-query',
@@ -79,19 +83,52 @@ const SCHEMA_NAMES = [
   'blackboard-item',
 ];
 
+const STRICT_SCHEMA_NAMES = new Set([
+  'handoff-capsule',
+  'handoff-successor-brief',
+]);
+
 // ---------------------------------------------------------------------------
 // Minimal fail-closed JSON Schema (draft 2020-12 subset) validator.
 // ---------------------------------------------------------------------------
 
 const ANNOTATION_KEYWORDS = new Set(['$schema', '$id', 'title', 'description', 'default', 'examples']);
 const VALIDATION_KEYWORDS = new Set([
+  '$ref',
   'type', 'properties', 'required', 'additionalProperties', 'items',
   'enum', 'const', 'minLength', 'maxLength', 'minimum', 'maximum',
   'minItems', 'maxItems', 'pattern',
 ]);
 
+function resolveLocalRef(ref) {
+  if (typeof ref !== 'string' || !ref) {
+    throw new Error('$ref must be a non-empty string');
+  }
+  const [file, fragment = ''] = ref.split('#', 2);
+  if (!file.endsWith('.schema.json') || file.includes('/') || file.includes('\\')) {
+    throw new Error(`unsupported $ref "${ref}" — only sibling schema files are allowed`);
+  }
+  let target = loadSchema(file.slice(0, -'.schema.json'.length));
+  if (fragment) {
+    if (!fragment.startsWith('/')) {
+      throw new Error(`unsupported $ref fragment "${fragment}"`);
+    }
+    for (const rawSegment of fragment.slice(1).split('/')) {
+      const segment = rawSegment.replace(/~1/g, '/').replace(/~0/g, '~');
+      if (!target || typeof target !== 'object' || !(segment in target)) {
+        throw new Error(`unresolved $ref "${ref}" at "${segment}"`);
+      }
+      target = target[segment];
+    }
+  }
+  if (!target || typeof target !== 'object' || Array.isArray(target)) {
+    throw new Error(`$ref "${ref}" does not resolve to a schema object`);
+  }
+  return target;
+}
+
 /** Throws if the schema uses any keyword this validator does not implement. */
-function compile(schema, path = '#') {
+function compile(schema, path = '#', resolving = new Set()) {
   if (typeof schema !== 'object' || schema === null || Array.isArray(schema)) {
     throw new Error(`${path}: schema must be an object`);
   }
@@ -99,12 +136,20 @@ function compile(schema, path = '#') {
     if (ANNOTATION_KEYWORDS.has(key) || VALIDATION_KEYWORDS.has(key)) continue;
     throw new Error(`${path}: unsupported keyword "${key}" — extend the validator or simplify the schema`);
   }
-  if (schema.properties) {
-    for (const [prop, sub] of Object.entries(schema.properties)) compile(sub, `${path}/properties/${prop}`);
+  if (schema.$ref !== undefined) {
+    if (resolving.has(schema.$ref)) {
+      throw new Error(`${path}: cyclic $ref "${schema.$ref}" is unsupported`);
+    }
+    resolving.add(schema.$ref);
+    compile(resolveLocalRef(schema.$ref), `${path}/$ref(${schema.$ref})`, resolving);
+    resolving.delete(schema.$ref);
   }
-  if (schema.items) compile(schema.items, `${path}/items`);
+  if (schema.properties) {
+    for (const [prop, sub] of Object.entries(schema.properties)) compile(sub, `${path}/properties/${prop}`, resolving);
+  }
+  if (schema.items) compile(schema.items, `${path}/items`, resolving);
   if (schema.additionalProperties !== undefined && typeof schema.additionalProperties !== 'boolean') {
-    compile(schema.additionalProperties, `${path}/additionalProperties`);
+    compile(schema.additionalProperties, `${path}/additionalProperties`, resolving);
   }
   return schema;
 }
@@ -127,8 +172,16 @@ function deepEqual(a, b) {
 }
 
 /** Returns an array of error strings; empty means valid. */
-function validate(schema, value, path = '$') {
+function validate(schema, value, path = '$', resolving = new Set()) {
   const errors = [];
+  if (schema.$ref !== undefined) {
+    if (resolving.has(schema.$ref)) {
+      throw new Error(`${path}: cyclic $ref "${schema.$ref}" is unsupported`);
+    }
+    resolving.add(schema.$ref);
+    errors.push(...validate(resolveLocalRef(schema.$ref), value, path, resolving));
+    resolving.delete(schema.$ref);
+  }
   if (schema.type !== undefined) {
     const declared = Array.isArray(schema.type) ? schema.type : [schema.type];
     const actual = typeOf(value);
@@ -170,7 +223,7 @@ function validate(schema, value, path = '$') {
       errors.push(`${path}: more than maxItems ${schema.maxItems}`);
     }
     if (schema.items) {
-      value.forEach((item, i) => errors.push(...validate(schema.items, item, `${path}[${i}]`)));
+      value.forEach((item, i) => errors.push(...validate(schema.items, item, `${path}[${i}]`, resolving)));
     }
   }
   if (typeOf(value) === 'object') {
@@ -181,7 +234,7 @@ function validate(schema, value, path = '$') {
     }
     if (schema.properties) {
       for (const [key, sub] of Object.entries(schema.properties)) {
-        if (key in value) errors.push(...validate(sub, value[key], `${path}.${key}`));
+        if (key in value) errors.push(...validate(sub, value[key], `${path}.${key}`, resolving));
       }
     }
     // `additionalProperties` — enforce BOTH forms compile() accepts: the
@@ -195,7 +248,7 @@ function validate(schema, value, path = '$') {
         if (schema.additionalProperties === false) {
           errors.push(`${path}: unexpected property "${key}"`);
         } else {
-          errors.push(...validate(schema.additionalProperties, value[key], `${path}.${key}`));
+          errors.push(...validate(schema.additionalProperties, value[key], `${path}.${key}`, resolving));
         }
       }
     }
@@ -216,7 +269,7 @@ function loadFixture(name) {
 // ---------------------------------------------------------------------------
 
 describe('agent-harbor v0 schema package', () => {
-  it('ships exactly the twenty-one frozen contracts (plus fixtures) — F0, Surface Gateway, the ADR-0096 GuidanceEnvelope, and the five ADR-0097 M6 contracts', () => {
+  it('ships exactly the twenty-three frozen contracts plus fixtures', () => {
     const files = readdirSync(schemaDir).filter((f) => f.endsWith('.schema.json')).sort();
     expect(files).toEqual(SCHEMA_NAMES.map((n) => `${n}.schema.json`).sort());
   });
@@ -229,12 +282,16 @@ describe('agent-harbor v0 schema package', () => {
         expect(() => compile(schema)).not.toThrow();
       });
 
-      it('carries $id, $schema, title, and tolerant-reader posture', () => {
+      it('carries $id, $schema, title, and its declared reader posture', () => {
         expect(schema.$id).toBe(`https://portdaddy.dev/schemas/agent-harbor/v0/${name}.schema.json`);
         expect(schema.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
         expect(typeof schema.title).toBe('string');
-        // Tolerant reader (ADR-0095 §6): unknown fields must be tolerated.
-        expect(schema.additionalProperties).toBe(true);
+        if (STRICT_SCHEMA_NAMES.has(name)) {
+          expect(schema.additionalProperties).toBe(false);
+        } else {
+          // Tolerant reader (ADR-0095 §6): ordinary interop contracts accept future fields.
+          expect(schema.additionalProperties).toBe(true);
+        }
       });
 
       it('self-identifies its version', () => {
@@ -253,9 +310,13 @@ describe('agent-harbor v0 schema package', () => {
         expect(errors).toEqual([]);
       });
 
-      it('tolerates unknown extra fields on the fixture (tolerant reader)', () => {
+      it('enforces its declared unknown-field posture', () => {
         const extended = { ...loadFixture(name), xFutureField: { anything: true } };
-        expect(validate(schema, extended)).toEqual([]);
+        if (STRICT_SCHEMA_NAMES.has(name)) {
+          expect(validate(schema, extended).some((error) => error.includes('unexpected property'))).toBe(true);
+        } else {
+          expect(validate(schema, extended)).toEqual([]);
+        }
       });
 
       it('rejects a fixture missing a required field', () => {

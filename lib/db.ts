@@ -12,9 +12,9 @@
  */
 
 import Database, { type DatabaseInstance } from './sqlite-runtime.js';
-import { chmodSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readdirSync, renameSync, statSync } from 'node:fs';
 import { dirname, join, resolve as resolvePath, sep } from 'path';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { fileURLToPath } from 'url';
 import { resolveDistributionRoot } from '../shared/daemon-binary.js';
 import { CLAIM_FOREST_SCHEMA_SQL } from './claim-forest.js';
@@ -35,17 +35,233 @@ export function resolveDefaultDbRoot(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * The machine-durable home for the registry. Survives brew upgrades, repo
+ * checkouts, and worktrees — every daemon on this machine that does not
+ * explicitly isolate itself (PORT_DADDY_DB, instance profiles, test DBs)
+ * converges on this one file. Daemons must not own different truths.
+ */
+export function durableDbHomePath(): string {
+  return join(homedir(), '.port-daddy', 'port-registry.db');
+}
+
+/**
+ * Where the pre-durable-home default would have put the registry: next to the
+ * distribution root. For a Homebrew install that is the VERSIONED Cellar
+ * directory, which is deleted on every `brew upgrade` — the root cause of
+ * repeated registry data loss (roadmap items, notes, receipts). Kept only so
+ * boot can migrate data out of it.
+ */
+export function legacyDbPath(
+  moduleDir: string = MODULE_DIR,
+  env: NodeJS.ProcessEnv = process.env,
+  execPath: string = process.execPath,
+): string {
+  return join(resolveDefaultDbRoot(moduleDir, env, execPath), 'port-registry.db');
+}
+
+/**
  * Resolve the path to the SQLite database file.
  * Priority:
  *   1. Explicit override (parameter)
  *   2. PORT_DADDY_DB environment variable
- *   3. Default: <project-root>/port-registry.db
+ *   3. Default: ~/.port-daddy/port-registry.db (durable home)
+ *
+ * The default deliberately does NOT depend on the binary location or the
+ * current checkout: a version-pinned or checkout-relative default is how the
+ * registry kept dying (Cellar wipe on brew upgrade, one truth per worktree).
  */
 export function resolveDbPath(overridePath?: string): string {
   if (overridePath) return overridePath;
   if (process.env.PORT_DADDY_DB) return process.env.PORT_DADDY_DB;
-  // lib/ is one level below the project root
-  return join(resolveDefaultDbRoot(), 'port-registry.db');
+  return durableDbHomePath();
+}
+
+/** True when a path sits inside a version-volatile install location (deleted on upgrade). */
+export function isVersionVolatileDbPath(path: string): boolean {
+  const p = resolvePath(path);
+  return p.includes(`${sep}Cellar${sep}`) || p.includes(`${sep}homebrew${sep}Cellar${sep}`);
+}
+
+/**
+ * Registries left behind in OTHER kegs of the same Homebrew formula.
+ *
+ * After `brew upgrade`, the running binary's own distribution root is the NEW
+ * (empty) keg — the previous version's data sits in the old keg until
+ * Homebrew's cleanup deletes it. Given any path inside a Cellar keg (the exec
+ * path or a legacy DB path), return existing sibling-keg registries, newest
+ * mtime first.
+ */
+export function siblingKegDbPaths(refPath: string): string[] {
+  const p = resolvePath(refPath);
+  const marker = `${sep}Cellar${sep}`;
+  const idx = p.indexOf(marker);
+  if (idx === -1) return [];
+  // .../Cellar/<formula>/<version>/...
+  const formula = p.slice(idx + marker.length).split(sep)[0];
+  if (!formula) return [];
+  const formulaDir = p.slice(0, idx + marker.length) + formula;
+  let versions: string[];
+  try {
+    versions = readdirSync(formulaDir);
+  } catch {
+    return [];
+  }
+  const withMtime: Array<{ path: string; mtime: number }> = [];
+  for (const v of versions) {
+    const candidate = join(formulaDir, v, 'bin', 'port-registry.db');
+    try {
+      withMtime.push({ path: candidate, mtime: statSync(candidate).mtimeMs });
+    } catch {
+      /* keg has no registry */
+    }
+  }
+  return withMtime.sort((a, b) => b.mtime - a.mtime).map((c) => c.path);
+}
+
+/**
+ * All places a legacy registry could be, best candidate first: the current
+ * distribution-root default, then sibling Homebrew kegs (newest first) —
+ * because after `brew upgrade` the data lives in the PREVIOUS keg, not the
+ * one the new binary resolves to.
+ */
+export function legacyDbCandidates(
+  primary: string = legacyDbPath(),
+  execPath: string = process.execPath,
+): string[] {
+  const candidates = [primary, ...siblingKegDbPaths(execPath), ...siblingKegDbPaths(primary)];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const c of candidates) {
+    const r = resolvePath(c);
+    if (!seen.has(r)) {
+      seen.add(r);
+      out.push(c);
+    }
+  }
+  return out;
+}
+
+/**
+ * One-time rescue of a legacy registry into the durable home.
+ *
+ * Runs only when the destination does not exist yet and a legacy registry
+ * does; takes the first existing candidate (current distribution root, then
+ * sibling brew kegs newest-first). Uses `VACUUM INTO`, which produces a
+ * consistent snapshot even while an old daemon still holds the legacy DB
+ * open in WAL mode (a plain file copy of db+wal+shm would not be safe
+ * there). Best-effort: a failed migration logs loudly and boot continues
+ * with a fresh DB rather than crashing the daemon.
+ *
+ * @returns true when a migration was performed.
+ */
+export function migrateLegacyRegistry(
+  destPath: string = durableDbHomePath(),
+  sourcePaths: string | string[] = legacyDbCandidates(),
+): boolean {
+  if (existsSync(destPath)) return false;
+  const candidates = Array.isArray(sourcePaths) ? sourcePaths : [sourcePaths];
+  const sourcePath = candidates.find(
+    (c) => resolvePath(c) !== resolvePath(destPath) && existsSync(c),
+  );
+  if (!sourcePath) return false;
+
+  try {
+    mkdirSync(dirname(destPath), { recursive: true });
+    const legacy = new Database(sourcePath, { readonly: true });
+    try {
+      legacy.exec(`VACUUM INTO '${destPath.replace(/'/g, "''")}'`);
+    } finally {
+      legacy.close();
+    }
+    // Post-apply verification: a rescue that produced an unopenable or
+    // tableless file must not become the registry. Quarantine it (rename,
+    // never delete — it is evidence) and start fresh instead.
+    if (!verifyRescuedRegistry(destPath)) {
+      const quarantine = `${destPath}.failed-rescue-${Date.now()}`;
+      renameSync(destPath, quarantine);
+      console.warn(
+        `[port-daddy] WARNING: rescued registry from ${sourcePath} failed post-apply ` +
+          `verification; quarantined at ${quarantine}. Starting fresh at ${destPath}.`,
+      );
+      return false;
+    }
+    console.warn(
+      `[port-daddy] Migrated registry from legacy location into the durable home:\n` +
+        `  from: ${sourcePath}\n` +
+        `  to:   ${destPath}\n` +
+        `The legacy file was left in place (read-only rescue); it is no longer used.`,
+    );
+    return true;
+  } catch (err) {
+    console.warn(
+      `[port-daddy] WARNING: could not migrate legacy registry from ${sourcePath}: ` +
+        `${(err as Error).message}. Starting with a fresh database at ${destPath}.`,
+    );
+    return false;
+  }
+}
+
+/**
+ * Post-apply probe for a rescued registry file: it must open and contain at
+ * least one table. Probes the real schema object, never bookkeeping — a
+ * rescue is not "applied" because VACUUM INTO exited 0.
+ */
+export function verifyRescuedRegistry(path: string): boolean {
+  try {
+    const probe = new Database(path, { readonly: true });
+    try {
+      const row = probe
+        .prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table'")
+        .get() as { n: number };
+      return row.n > 0;
+    } finally {
+      probe.close();
+    }
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Post-apply verification of the boot migrations: probe the actual schema
+ * objects the daemon is about to serve from — never trust that CREATE/ALTER
+ * statements "ran" because no exception surfaced (the ALTER blocks above
+ * warn-and-continue by design).
+ *
+ * Throws with remediation on failure: a daemon serving on a broken schema
+ * silently corrupts coordination truth, which is worse than not starting.
+ */
+export function verifyCoreSchema(db: DatabaseInstance): void {
+  const requiredTables = [
+    'services',
+    'sessions',
+    'session_files',
+    'session_notes',
+    'roadmap_items',
+    'roadmap_item_status_events',
+  ];
+  const missing: string[] = [];
+  for (const table of requiredTables) {
+    const row = db
+      .prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name = ?")
+      .get(table) as { n: number };
+    if (row.n === 0) missing.push(table);
+  }
+  // Column sentinels: the ALTER blocks are warn-and-continue, so probe their
+  // target columns directly (ADR-0086 planner columns via `kind`; soft-delete
+  // tombstones via `deleted_at`).
+  if (!missing.includes('roadmap_items')) {
+    const cols = db.prepare('PRAGMA table_info(roadmap_items)').all() as Array<{ name: string }>;
+    if (!cols.some((c) => c.name === 'kind')) missing.push('roadmap_items.kind');
+    if (!cols.some((c) => c.name === 'deleted_at')) missing.push('roadmap_items.deleted_at');
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `[port-daddy] Schema verification failed after boot migrations — missing: ` +
+        `${missing.join(', ')}. The registry is not safe to serve from. ` +
+        `Run: pd doctor --repair (or restore a backup via pd restore).`,
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -312,10 +528,20 @@ export const CORE_SCHEMA_SQL = `
     started_at INTEGER,
     due_at INTEGER,
     estimate INTEGER,
+    -- Soft-delete tombstone. The registry is a multi-replica system reconciled
+    -- by union-merge (scripts/registry-reunify.ts); a hard DELETE in one
+    -- replica silently resurrects from any replica still carrying the row.
+    -- Deletion is an UPDATE that sets deleted_at and bumps last_touched_at, so
+    -- the tombstone wins last-write-wins merges. Existing DBs get the column
+    -- via the PRAGMA-guarded ALTER in initDatabase.
+    deleted_at INTEGER,
     UNIQUE(slug, harbor)
   );
   CREATE INDEX IF NOT EXISTS idx_roadmap_items_harbor_status
     ON roadmap_items(harbor, status);
+  -- idx_roadmap_items_live (partial, WHERE deleted_at IS NULL) is created in
+  -- initDatabase AFTER the PRAGMA-guarded ALTER adds deleted_at on legacy DBs —
+  -- creating it here would fail on a pre-tombstone database.
   CREATE INDEX IF NOT EXISTS idx_roadmap_items_last_touched
     ON roadmap_items(last_touched_at);
 
@@ -361,6 +587,22 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
     isTest: isTestContext(),
     inMemory: options.inMemory,
   });
+
+  if (!options.inMemory) {
+    // Only the durable-home default gets the legacy rescue; explicit
+    // overrides (PORT_DADDY_DB, instance profiles, tests) mean isolation
+    // was chosen on purpose.
+    if (path === durableDbHomePath()) {
+      migrateLegacyRegistry(path);
+    } else if (isVersionVolatileDbPath(path)) {
+      console.warn(
+        `[port-daddy] WARNING: registry path ${path} sits inside a version-pinned ` +
+          `install directory and WILL BE DELETED on the next upgrade. ` +
+          `Point PORT_DADDY_DB at a durable location (default: ${durableDbHomePath()}).`,
+      );
+    }
+    mkdirSync(dirname(path), { recursive: true });
+  }
 
   const db = new Database(path);
 
@@ -492,6 +734,31 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
       `[port-daddy] WARNING: Could not migrate roadmap_items planner columns: ${(err as Error).message}`
     );
   }
+
+  // Soft-delete tombstone (multi-replica union-merge cannot propagate hard
+  // deletes — a row deleted in one replica resurrects from a stale one).
+  // Idempotent, PRAGMA-guarded like the planner columns above; the partial
+  // index is created here (not in CORE_SCHEMA_SQL) so legacy DBs get the
+  // column first.
+  try {
+    const roadmapColumns = db.prepare("PRAGMA table_info(roadmap_items)").all() as Array<{ name: string }>;
+    const hasDeletedAt = roadmapColumns.some(column => column.name === 'deleted_at');
+    if (!hasDeletedAt) {
+      db.prepare('ALTER TABLE roadmap_items ADD COLUMN deleted_at INTEGER').run();
+    }
+    db.prepare(
+      'CREATE INDEX IF NOT EXISTS idx_roadmap_items_live ON roadmap_items(harbor, status) WHERE deleted_at IS NULL'
+    ).run();
+  } catch (err) {
+    console.warn(
+      `[port-daddy] WARNING: Could not migrate roadmap_items deleted_at tombstone column: ${(err as Error).message}`
+    );
+  }
+
+  // Post-apply verification: probe the real schema objects before handing the
+  // handle out. The migration blocks above warn-and-continue; this is the
+  // fail-closed gate that stops a daemon from serving a broken registry.
+  verifyCoreSchema(db);
 
   return db;
 }

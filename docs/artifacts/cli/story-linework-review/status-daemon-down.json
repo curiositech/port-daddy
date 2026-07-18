@@ -1,0 +1,12 @@
+{
+  "success": false,
+  "error": {
+    "code": "DAEMON_UNAVAILABLE",
+    "message": "ECONNREFUSED",
+    "retryable": true
+  },
+  "nextActions": [
+    "Open FleetBar and restart the daemon, then retry pd status",
+    "Run pd doctor if FleetBar cannot recover it"
+  ]
+}

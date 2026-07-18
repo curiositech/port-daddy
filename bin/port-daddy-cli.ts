@@ -169,7 +169,11 @@ import { readDevDaemonRegistry } from '../cli/utils/berth-registry.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget, DEFAULT_DAEMON_PORT } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
-import { shouldAutoRestartDaemonForFreshness, shouldCheckDaemonFreshness } from '../cli/utils/freshness.js';
+import {
+  hasExplicitDaemonTarget,
+  shouldAutoRestartDaemonForFreshness,
+  shouldCheckDaemonFreshness,
+} from '../cli/utils/freshness.js';
 import { maybeNudgeStaleness } from '../cli/utils/staleness-nudge.js';
 import { readCurrentContext } from '../cli/utils/current-context.js';
 import {
@@ -512,9 +516,9 @@ function getLocalCodeHash(): string {
 
 // Check if daemon is running stale code
 // Returns true if daemon was restarted
-// Skip when PD_URL is explicitly set — the user chose which daemon to talk to
+// Skip when the user explicitly chose a daemon URL or named profile.
 async function checkDaemonFreshness(autoRestart: boolean = true, quiet: boolean = false): Promise<boolean> {
-  if (process.env.PD_URL || process.env.PORT_DADDY_URL || process.env.PORT_DADDY_SKIP_FRESHNESS_CHECK) return false;
+  if (hasExplicitDaemonTarget()) return false;
   try {
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/version`);
     if (!res.ok) return false;
@@ -1374,7 +1378,7 @@ const ALL_COMMANDS: string[] = [
   'begin', 'done', 'whoami', 'attention', 'nudge', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
-  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update', 'upgrade',
+  'start', 'stop', 'restart', 'status', 'install', 'install-bosun', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update', 'upgrade',
   'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'benchmark', 'look', 'sitrep', 'roadmap',
   'advise', 'preflight', 'compass', 'guard', 'hooks',
   'salvage', 'resurrection', 'changelog', 'booty', 'tunnel',
@@ -2282,6 +2286,20 @@ async function executeDirectMode(
   }
 }
 
+export function applyDaemonTarget(targetArg: string, command: string): void {
+  if (command === 'use' || command === 'dev') return;
+  const resolved = resolveBerthTargetUrl(targetArg, readDevDaemonRegistry());
+  if (!resolved) {
+    console.error(`--daemon: unknown target "${targetArg}". Known: stable, dev, dev-latest, a label from \`pd dev list\`, or a URL.`);
+    process.exit(1);
+  }
+  process.env.PORT_DADDY_URL = resolved.url;
+  delete process.env.PORT_DADDY_SOCK;
+  if (!resolved.url.includes(`:${DEFAULT_DAEMON_PORT}`)) {
+    process.env.PD_ACTIVE_DAEMON = resolved.label;
+  }
+}
+
 export async function main(): Promise<void> {
   maybeRelaunchShortBinary();
 
@@ -2380,6 +2398,10 @@ export async function main(): Promise<void> {
   }
 
   const isQuiet: boolean = args.includes('--quiet') || args.includes('-q') || args.includes('--json') || args.includes('-j');
+
+  // Target ownership must be installed before freshness probes. Otherwise a
+  // named feature-daemon command can inspect and restart the default daemon.
+  if (preDaemonTarget) applyDaemonTarget(preDaemonTarget, command);
   
   if (shouldCheckDaemonFreshness(command as string, args)) {
     await checkDaemonFreshness(true, isQuiet);
@@ -2490,19 +2512,8 @@ export async function main(): Promise<void> {
   // process env before dispatch. pdFetch reads PORT_DADDY_URL live (and clearing
   // PORT_DADDY_SOCK forces it off the canonical socket onto the chosen berth).
   // Precedence: --daemon flag wins over PORT_DADDY_URL / `pd use` env.
-  const daemonTarget = preDaemonTarget ?? (options.daemon ? String(options.daemon) : undefined);
-  if (daemonTarget && command !== 'use' && command !== 'dev') {
-    const targetArg = daemonTarget;
-    const resolved = resolveBerthTargetUrl(targetArg, readDevDaemonRegistry());
-    if (!resolved) {
-      console.error(`--daemon: unknown target "${targetArg}". Known: stable, dev, dev-latest, a label from \`pd dev list\`, or a URL.`);
-      process.exit(1);
-    }
-    process.env.PORT_DADDY_URL = resolved.url;
-    delete process.env.PORT_DADDY_SOCK;
-    if (!resolved.url.includes(`:${DEFAULT_DAEMON_PORT}`)) {
-      process.env.PD_ACTIVE_DAEMON = resolved.label;
-    }
+  if (!preDaemonTarget && options.daemon) {
+    applyDaemonTarget(String(options.daemon), command);
   }
 
   // --direct flag: skip daemon, go straight to direct-DB mode
@@ -2755,11 +2766,15 @@ export async function main(): Promise<void> {
         break;
 
       case 'status':
-        await handleStatus();
+        await handleStatus(options);
         break;
 
       case 'install':
         await handleDaemon('install', options);
+        break;
+
+      case 'install-bosun':
+        await handleDaemon('install-bosun', options);
         break;
 
       case 'uninstall':

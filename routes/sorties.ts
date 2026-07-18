@@ -17,6 +17,7 @@ import type { CostTracker } from '../lib/cost-tracker.js';
 import type { FleetModelTier } from '../lib/fleet-engine.js';
 import type { Conductor } from '../lib/fleet/conductor.js';
 import { validateProjectRoot } from '../lib/utils.js';
+import { KNOWN_BACKEND_IDS } from '../lib/backend-catalog.js';
 
 interface SortieRouteDeps {
   spawner: Spawner;
@@ -39,7 +40,11 @@ interface SortieRouteDeps {
   };
 }
 
-const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'openai', 'groq', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex']);
+// Single source of truth: lib/backend-catalog.ts (ADR-0057 model-abstraction
+// unification). This list used to be a hand-maintained subset that had
+// drifted from routes/spawn.ts's own copy (missing lmstudio/deepseek/xai/
+// cli:agy/cli:gemini/cli:groq/cli:grok for no documented reason).
+const VALID_BACKENDS = KNOWN_BACKEND_IDS;
 
 function buildSortieTask(body: Record<string, unknown>): string {
   if (typeof body.task === 'string' && body.task.trim()) return body.task.trim();
