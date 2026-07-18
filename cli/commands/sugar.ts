@@ -532,6 +532,9 @@ export async function handleDone(
     if (skipOriginCheckReason) body.skipOriginCheckReason = skipOriginCheckReason;
   }
 
+  const noPr = options.noPr === true || options['no-pr'] === true;
+  const subtask = options.subtask === true || options['subtask'] === true;
+
   const pd = new PortDaddy({ agentId: typeof body.agentId === 'string' ? body.agentId : undefined });
   const data = await pd.done(note, {
     agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
@@ -539,6 +542,8 @@ export async function handleDone(
     status: typeof body.status === 'string' ? body.status : undefined,
     skipOriginCheck: skipOriginCheck ? true : undefined,
     skipOriginCheckReason: skipOriginCheck ? skipOriginCheckReason : undefined,
+    noPr: noPr ? true : undefined,
+    subtask: subtask ? true : undefined,
   });
 
   if (!data?.success) {

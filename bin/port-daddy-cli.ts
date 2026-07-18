@@ -648,6 +648,7 @@ export const HELP_TOPIC_ALIASES: Record<string, string> = {
   sub: 'messaging', subscribe: 'messaging', listen: 'messaging',
   channels: 'messaging', wait: 'messaging',
   skillgraft: 'skill-graft',
+  done: 'sessions', begin: 'sessions',
 };
 
 /**
@@ -779,6 +780,8 @@ Commands:
     --allow-main-worktree    Explicitly allow an integration session in the main worktree
 
   session end [note]         End the active session (completed)
+    --no-pr                  Bypass mandatory PR URL check
+    --subtask                Bypass mandatory PR URL check (subtask code delivery)
   session done [note]        Alias for "session end"
   session abandon [note]     End active session (abandoned)
   session takeover <id> [note]  Create successor; preserve predecessor notes

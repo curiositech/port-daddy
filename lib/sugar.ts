@@ -140,6 +140,8 @@ interface DoneOptions {
    */
   skipOriginCheck?: boolean;
   skipOriginCheckReason?: string;
+  noPr?: boolean;
+  subtask?: boolean;
 }
 
 interface WhoamiOptions {
@@ -772,19 +774,28 @@ export function createSugar(deps: SugarDeps) {
     // those through without the push/PR-URL gate.
     // =========================================================================
     let effectiveNote = typeof note === 'string' ? note : undefined;
+    const isSubtaskOrNoPr = options.noPr === true || options.subtask === true;
 
     if (status === 'completed') {
       if (!skipOriginCheck) {
         // 1) Note-sentinel check (cheap, do it first so operators get the most
         //    actionable error when they forget BOTH things).
-        const sentinel = checkResultNoteSentinel(effectiveNote);
+        let sentinel = checkResultNoteSentinel(effectiveNote);
         if (!sentinel.ok) {
-          return {
-            success: false,
-            code: 'RESULT_NOTE_MISSING_SENTINEL',
-            error: 'pd done refused — ' + noteSentinelErrorMessage(),
-            hint: noteSentinelErrorMessage(),
-          };
+          if (isSubtaskOrNoPr) {
+            const standardSentinel = 'not-applicable: subtask code delivery';
+            effectiveNote = effectiveNote && effectiveNote.trim()
+              ? `${effectiveNote.trim()}\n\n${standardSentinel}`
+              : standardSentinel;
+            sentinel = { ok: true, kind: 'not-applicable', match: standardSentinel };
+          } else {
+            return {
+              success: false,
+              code: 'RESULT_NOTE_MISSING_SENTINEL',
+              error: 'pd done refused — ' + noteSentinelErrorMessage(),
+              hint: noteSentinelErrorMessage(),
+            };
+          }
         }
 
         // 2) Origin-push check. The cwd we run git in is the session's
@@ -885,6 +896,7 @@ export function createSugar(deps: SugarDeps) {
       agentUnregistered,
       notesCount: totalNotes,
       finalNote: !!effectiveNote,
+      releasedFiles: (sessionResult as any).releasedFiles,
     };
   }
 

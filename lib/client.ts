@@ -2720,6 +2720,8 @@ class PortDaddy {
     if (options.status) body.status = options.status;
     if (options.skipOriginCheck) body.skipOriginCheck = true;
     if (options.skipOriginCheckReason) body.skipOriginCheckReason = options.skipOriginCheckReason;
+    if (options.noPr) body.noPr = true;
+    if (options.subtask) body.subtask = true;
 
     const ipcResult = await this._requestViaIpc<DoneSugarResponse>(IpcAction.DONE, body, {
       agentId: options.agentId || this.agentId,
@@ -3769,6 +3771,8 @@ interface DoneSugarOptions {
    */
   skipOriginCheck?: boolean;
   skipOriginCheckReason?: string;
+  noPr?: boolean;
+  subtask?: boolean;
 }
 
 interface DoneSugarResponse {
@@ -3779,6 +3783,7 @@ interface DoneSugarResponse {
   agentUnregistered: boolean;
   notesCount: number;
   finalNote: boolean;
+  releasedFiles?: string[];
   error?: string;
 }
 

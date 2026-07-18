@@ -740,6 +740,35 @@ describe('pd done origin rule', () => {
     });
     expect(r3.success).toBe(true);
 
+    // Test that noPr / subtask bypasses the sentinel check.
+    const b_no_pr = sugar.begin({ lifecycle: 'ephemeral', purpose: 'no-pr flag case', agentId: 'no-pr-flag-agent' });
+    const r_no_pr = sugar.done({
+      agentId: 'no-pr-flag-agent',
+      sessionId: b_no_pr.sessionId,
+      note: 'Result: work completed without a PR',
+      noPr: true,
+    });
+    expect(r_no_pr.success).toBe(true);
+    // Note should have standard sentinel appended
+    const notes_no_pr = sessions.getNotes(b_no_pr.sessionId).notes;
+    const handoff_no_pr = notes_no_pr.find((n) => n.type === 'handoff');
+    expect(handoff_no_pr).toBeTruthy();
+    expect(handoff_no_pr.content).toContain('not-applicable: subtask code delivery');
+
+    const b_subtask = sugar.begin({ lifecycle: 'ephemeral', purpose: 'subtask flag case', agentId: 'subtask-flag-agent' });
+    const r_subtask = sugar.done({
+      agentId: 'subtask-flag-agent',
+      sessionId: b_subtask.sessionId,
+      note: 'Result: work completed as subtask',
+      subtask: true,
+    });
+    expect(r_subtask.success).toBe(true);
+    // Note should have standard sentinel appended
+    const notes_subtask = sessions.getNotes(b_subtask.sessionId).notes;
+    const handoff_subtask = notes_subtask.find((n) => n.type === 'handoff');
+    expect(handoff_subtask).toBeTruthy();
+    expect(handoff_subtask.content).toContain('not-applicable: subtask code delivery');
+
     // Session was completed.
     const sessionInfo = sessions.get(begin.sessionId);
     expect(sessionInfo.session.status).toBe('completed');

@@ -142,8 +142,10 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         status,
         skipOriginCheck,
         skipOriginCheckReason,
+        noPr,
+        subtask,
       } = request.body as any;
-
+ 
       const VALID_DONE_STATUSES = new Set(['completed', 'abandoned']);
       if (status && !VALID_DONE_STATUSES.has(status)) {
         reply.code(400);
@@ -153,7 +155,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
           code: 'VALIDATION_ERROR',
         };
       }
-
+ 
       const result = sugar.done({
         agentId,
         sessionId,
@@ -161,6 +163,8 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         status,
         skipOriginCheck,
         skipOriginCheckReason,
+        noPr,
+        subtask,
       });
 
       if (!result.success) {
