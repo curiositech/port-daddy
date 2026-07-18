@@ -195,3 +195,122 @@ ingress, and one conformance profile. Existing backends immediately gain an
 honest compatibility view through the CLI and `/fleet/models`. The matrix is
 intentionally conservative: missing evidence appears as unverified rather than
 being inferred from provider marketing or a successful one-off model call.
+
+## Addendum (2026-07-18): Harness-Owned Foreign Import and the Transfer Relay
+
+### Observed prior art: OpenAI's `/codex:transfer`
+
+OpenAI's Codex companion plugin for Claude Code (`openai-codex/codex`, v1.0.5)
+ships a working example of a continuation mode this ADR did not model when it
+was accepted. Its `/codex:transfer` command migrates the *current Claude Code
+session* into a resumable Codex thread — not by rendering a successor brief,
+but by handing the raw Claude JSONL transcript to the Codex harness itself and
+letting Codex own the format translation. The observed mechanics matter because
+they are a template for what a first-party import surface looks like:
+
+1. **Source discovery via session-lifecycle hook.** A `SessionStart` hook
+   exports the live session's own transcript path into the session environment
+   (`CODEX_COMPANION_TRANSCRIPT_PATH` appended to `$CLAUDE_ENV_FILE`), so the
+   transfer command can name "the current session" without operator input.
+   This is the same witness pattern our adapters use: the path is validated as
+   `.jsonl`, must exist, and must realpath-resolve inside `~/.claude/projects/`
+   before it is ever passed on.
+2. **A disposable, direct control channel.** The plugin spawns a throwaway
+   `codex app-server` child (JSON-RPC over stdio, broker explicitly bypassed)
+   rather than reusing any long-lived shared process. Import is a one-shot
+   request/response with no job state.
+3. **A first-party import RPC.** It sends `externalAgentConfig/import` with a
+   `migrationItems` payload of `itemType: "SESSIONS"` naming the source
+   transcript path and cwd, then waits (2-minute timeout) for an
+   `externalAgentConfig/import/completed` notification. An unknown-method
+   error (`-32601`) is surfaced as a version-upgrade instruction — capability
+   is negotiated by RPC support, not asserted.
+4. **A content-hash ledger as the receipt.** Codex records every import in
+   `$CODEX_HOME/external_agent_session_imports.json`. The plugin resolves the
+   resulting thread by matching the source file's canonical realpath *and*
+   SHA-256 content hash against ledger records and taking the last match's
+   `imported_thread_id`. The output is the durable artifact the operator
+   needs: `codex resume <thread-id>`.
+
+The result is a native Codex thread with visible turn history — fidelity that
+no sanitized capsule reproduces, because the target harness performed the
+translation from a format it chose to understand.
+
+### A third continuation mode: `import`
+
+This ADR's two modes bracket a fidelity/custody tradeoff: `native` preserves
+everything but only inside one adapter family; `handoff` crosses families but
+deliberately discards raw history. Harness-owned import is a distinct third
+point: **cross-family, full-fidelity, target-owned translation.** We adopt it
+into the contract as an optional adapter capability rather than a new pairwise
+bridge, preserving the N:N shape:
+
+- A backend row MAY declare `adapter.foreignImport` with: the control channel
+  and RPC (or CLI subcommand) that performs the import, the list of source
+  transcript formats it accepts (e.g. `harness:claude-jsonl`), the completion
+  signal, and the evidence ledger from which the resulting native session
+  identifier is recovered.
+- `POST /memory/handoffs/:episodeId/continue` gains mode `import`. It is legal
+  only when the *target* adapter declares `foreignImport` accepting the
+  *source* adapter's declared transcript format. Like `native`, an explicit
+  `import` request never falls back silently; `auto` prefers
+  `native` > `import` > `handoff` and records which rung it selected in the
+  receipt.
+- Import is the one sanctioned exception to "raw provider transcripts never
+  cross the boundary," and it is fenced accordingly. The transcript flows
+  directly from a witnessed harness-owned store into the target harness's
+  first-party import surface — the daemon brokers the exchange but never
+  embeds raw turns in a capsule, envelope, or its own database. The same
+  source-evidence discipline as native resume applies: UUID grammar, explicit
+  transcript reference, no-follow open, byte caps, device/inode binding
+  checked at ingestion and again immediately before the import RPC fires.
+  Because raw history includes tool output and file contents, `import` across
+  a privacy boundary (different operator, different tenancy tier, any remote
+  target) requires an explicit operator consent gate; within one operator's
+  local harnesses it is an ordinary receipted action.
+- The import receipt stores the source transcript's SHA-256 content hash and
+  the target-ledger-recovered native session id, binding lineage the same way
+  the codex ledger does. A completed import without a ledger-recoverable
+  session id is a failure, not a success with a missing field.
+
+### The transfer relay: claude → codex → antigravity → claude
+
+Multi-hop migrations across harnesses are now a routing problem over per-hop
+mode selection, with one invariant: **durable identity lives in Port Daddy's
+episode lineage, never in any single harness's session store.** Each hop
+produces a receipt chaining `(source session, mode, target session)`, so a
+chain like claude → codex → antigravity → claude remains one auditable
+lineage even though three vendors' stores are involved.
+
+Per-hop selection under `auto`:
+
+| Hop | Best available mode | Why |
+|---|---|---|
+| claude → codex | `import` | Codex advertises first-party ingestion of Claude JSONL (`externalAgentConfig/import`); full turn history survives. |
+| codex → antigravity | `handoff` | Agy declares no foreign-import surface; capsule successor brief is the honest ceiling. |
+| antigravity → claude | `handoff` | Claude Code exposes resume, not import; agy's brain transcript has no Claude-side ingester. |
+| claude → claude (round-trip close) | `native` | Same adapter family; ordinary witnessed `--resume`. |
+
+Three consequences of relay routing:
+
+- **Fidelity is monotonically non-increasing across a chain**, and the lineage
+  receipts say exactly where it stepped down. After a `handoff` hop, later
+  `import` hops can only carry the successor's history, not the original's.
+  When an operator plans a round trip, the daemon SHOULD surface the
+  lossiest hop up front rather than letting the operator discover it at the
+  end of the chain.
+- **The capsule still travels every hop, even on `import` hops.** Import
+  moves conversational fidelity; the capsule moves sanitized durable identity,
+  objective, decisions, and workspace state. A hop that imports without
+  updating lineage produces an orphan native thread — exactly the failure the
+  content-hash receipt exists to prevent.
+- **Capability, not vendor pairs, extends the relay.** When any harness ships
+  an import surface for another's format (the codex plugin proves vendors
+  will), one `foreignImport` declaration upgrades every affected hop from
+  `handoff` to `import` with no new bridge code — the same economics that
+  motivated the adapter contract in the first place.
+
+The generated capability matrix above does not yet carry a `foreignImport`
+column; adding it requires the catalog field, the generator, and the drift-gate
+renderer to move together, and belongs to the implementation roadmap item, not
+this document edit.
