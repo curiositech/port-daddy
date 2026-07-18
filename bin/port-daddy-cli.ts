@@ -1105,6 +1105,8 @@ Commands:
     --self-salvage         Queue unfinished-but-doable telos for salvage
     --why-stopped <text>   Explain why the telos was not fulfilled
     --next-plan <text>     Leave the next concrete continuation move
+    --no-pr                Bypass mandatory PR URL check
+    --subtask              Bypass mandatory PR URL check (subtask code delivery)
 
   whoami                   Show current agent/session context
                            Reads from .portdaddy/current.json

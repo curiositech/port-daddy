@@ -48,6 +48,7 @@ colliding*.
 **Open:**
 - `whoami` / `pd whoami` — resolve your identity. If none, `begin_session`
   (`pd begin --identity <project>:<task>`).
+  *(Note: If running as a subagent, the harness might inject a parent/stale `PD_SESSION_ID`/`PD_AGENT_ID`. Override them by prefixing commands with `PD_SESSION_ID="" PD_AGENT_ID=""` to force the CLI to read the active filesystem context).*
 - `catch_me_up` / `sitrep` — what is the daemon's state, who else is active,
   what was claimed, what notes are recent.
 - `pd salvage` (or check_salvage) — another agent may have died mid-task; pick up

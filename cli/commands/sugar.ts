@@ -4,10 +4,12 @@
  * Handles: begin, done, whoami, with-lock
  */
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, readdirSync } from 'node:fs';
+import { join, basename } from 'node:path';
 import { highlightChannel } from '../../lib/maritime.js';
 import PortDaddy from '../../lib/client.js';
-import { pdFetch } from '../utils/fetch.js';
+import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { IS_TTY, relativeTime } from '../utils/output.js';
 import { canPrompt, promptText, promptSelect, promptIdentity, promptConfirm, printRoger } from '../utils/prompt.js';
@@ -234,6 +236,122 @@ async function promptBeginRent(): Promise<BeginRentResolution> {
   return resolveBeginRent({ sidequest: reason || '' }, {}, false);
 }
 
+async function showHelpfulSuggestions(purpose: string, identity: string | undefined): Promise<void> {
+  const suggestions: string[] = [];
+
+  // 1. Salvageable sessions
+  try {
+    const res = await pdFetch(`${PORT_DADDY_URL}/salvage/pending`);
+    if (res.ok) {
+      const data = await res.json();
+      const agents = (data.agents || []) as any[];
+      const terms = purpose.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+      
+      const matched = agents.filter((a: any) => {
+        const p = (a.purpose || '').toLowerCase();
+        return terms.some(t => p.includes(t));
+      });
+
+      if (matched.length > 0) {
+        suggestions.push(
+          `♻️  ${ui.fmtCyan('Salvageable Sessions')}: Found ${matched.length} stale agent(s) with similar purpose:\n` +
+          matched.map((a: any) => `     - ${ui.fmtYellow(a.id)}: "${a.purpose}" (run \`pd salvage claim ${a.id}\`)`).join('\n')
+        );
+      }
+    }
+  } catch (err) {
+    // Fail silently
+  }
+
+  // 2. Roadmap items
+  try {
+    const res = await pdFetch(`${PORT_DADDY_URL}/roadmap`);
+    if (res.ok) {
+      const data = await res.json();
+      const items = (Array.isArray(data) ? data : (data.items || [])) as any[];
+      const terms = purpose.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+
+      const matched = items.filter((item: any) => {
+        const title = (item.title || '').toLowerCase();
+        const slug = (item.slug || '').toLowerCase();
+        const summary = (item.summary || '').toLowerCase();
+        return terms.some(t => title.includes(t) || slug.includes(t) || summary.includes(t));
+      });
+
+      if (matched.length > 0) {
+        suggestions.push(
+          `🗺️  ${ui.fmtCyan('Roadmap Items')}: Found matching items to link/take on:\n` +
+          matched.map((item: any) => `     - ${ui.fmtYellow(item.slug)}: "${item.title}"`).join('\n')
+        );
+      }
+    }
+  } catch (err) {
+    // Fail silently
+  }
+
+  // 3. Staged/modified files to claim
+  try {
+    const gitStatus = spawnSync('git', ['status', '--porcelain'], { encoding: 'utf-8' });
+    if (gitStatus.status === 0 && gitStatus.stdout) {
+      const lines = gitStatus.stdout.split('\n').filter(Boolean);
+      const files = lines.map(line => line.substring(3).trim());
+      const terms = purpose.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+
+      const matchedFiles = files.filter(f => {
+        const lower = f.toLowerCase();
+        return terms.some(t => lower.includes(t));
+      });
+
+      const filesToShow = matchedFiles.length > 0 ? matchedFiles : files.slice(0, 3);
+      if (filesToShow.length > 0) {
+        suggestions.push(
+          `📂  ${ui.fmtCyan('Suggested Files to Claim')}:\n` +
+          filesToShow.map(f => `     - ${f} (run \`pd session files add ${f}\`)`).join('\n')
+        );
+      }
+    }
+  } catch (err) {
+    // Fail silently
+  }
+
+  // 4. Docs and Skills to read
+  try {
+    const docFiles: string[] = [];
+    const scanDirs = ['docs', 'skills'];
+    for (const dir of scanDirs) {
+      if (existsSync(dir)) {
+        const list = readdirSync(dir, { recursive: true });
+        for (const entry of list) {
+          const entryStr = String(entry);
+          if (entryStr.endsWith('.md')) {
+            docFiles.push(join(dir, entryStr));
+          }
+        }
+      }
+    }
+
+    const terms = purpose.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    const matchedDocs = docFiles.filter(df => {
+      const lower = df.toLowerCase();
+      return terms.some(t => lower.includes(t));
+    }).slice(0, 3);
+
+    if (matchedDocs.length > 0) {
+      suggestions.push(
+        `📖  ${ui.fmtCyan('Recommended Docs/Skills to Read')}:\n` +
+        matchedDocs.map(df => `     - [${basename(df)}](${df})`).join('\n')
+      );
+    }
+  } catch (err) {
+    // Fail silently
+  }
+
+  if (suggestions.length > 0) {
+    console.error(`\n${ui.fmtCyan('💡 HELPFUL SUGGESTIONS FOR YOUR SESSION:')}`);
+    console.error(suggestions.join('\n\n') + '\n');
+  }
+}
+
 // =============================================================================
 // handleBegin — pd begin "purpose" --lifecycle durable|ephemeral [--identity X] [--files f1 f2...]
 // =============================================================================
@@ -441,6 +559,7 @@ export async function handleBegin(
       footer: 'claim files next with pd session files add <path>',
       colorLevel: ui.lineworkColorLevel('stderr'),
     }));
+    await showHelpfulSuggestions(purpose, identity);
     return;
   }
   ui.success(`Agent ${highlightChannel(agentLabel)} ready`);
@@ -480,6 +599,7 @@ export async function handleBegin(
     console.error('');
     ui.warn(String(data.approvalsHint));
   }
+  await showHelpfulSuggestions(purpose, identity);
 }
 
 // =============================================================================
