@@ -38,6 +38,7 @@ import {
   daemonBinaryPath,
   isBunVirtualPath,
   resolveDistributionRoot,
+  resolveBosunBinaryPath,
 } from '../../shared/daemon-binary.js';
 import {
   diagnoseSquidHookInstall,
@@ -980,6 +981,28 @@ export function assessSupervisionIntegrity(input: {
   // Exactly one supervisor loaded.
   const one = loaded[0];
   if (running.length >= 1) {
+    // 2026-07-14 halt-mandate incident: `brew services` / `launchctl list`
+    // claimed Running:true with a live-looking PID while /health returned
+    // nothing and the process was actually gone — and this branch returned
+    // 'ok' unconditionally, so `pd doctor` reported ALL GREEN during a live
+    // outage. A supervisor claiming "running" is a CLAIM, not a fact; the
+    // daemon's own /health response is the fact. This also closes the
+    // "wedged-but-alive" hole: a process can be genuinely alive (the
+    // supervisor is telling the truth about the PID) while its HTTP request
+    // pipeline is deadlocked — the operator-visible symptom is identical
+    // (daemon unreachable) and must be equally CRITICAL, not silently OK
+    // because *some* process with that PID exists.
+    if (!input.daemonReachable) {
+      return {
+        severity: 'critical',
+        detail: `${one.label} claims PID ${one.pid} is running, but the daemon's /health is unreachable — the daemon is DEAD OR WEDGED despite the supervisor believing otherwise`,
+        hint: `Run: port-daddy restart   (or: launchctl kickstart -k gui/$(id -u)/${one.label})`,
+        repair: {
+          command: 'port-daddy restart',
+          description: 'Restarts the daemon; the supervisor\'s "running" claim did not match a reachable /health.',
+        },
+      };
+    }
     return { severity: 'ok', detail: `${one.label} is loaded and running (PID ${one.pid})` };
   }
   // Loaded but not running — the unsupervised-drift precursor.
@@ -1003,12 +1026,37 @@ export function assessSupervisionIntegrity(input: {
 }
 
 /**
+ * Verify a PID actually names a live OS process — `kill(pid, 0)` sends no
+ * signal, only checks existence/permission. ESRCH ("no such process") means
+ * dead; a successful call OR EPERM (exists but we lack permission to signal
+ * it) both mean alive. This is the direct counterpart of `pid_is_alive` in
+ * core/pd-bosun/src/main.rs, applied here to launchctl's SELF-REPORTED PID —
+ * the 2026-07-14 incident was exactly launchctl/`brew services` claiming
+ * `Running:true` with a PID that no longer named a real process.
+ */
+export function isPidAlive(pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    return code === 'EPERM';
+  }
+}
+
+/**
  * Query launchd for each candidate supervisor label. macOS-only; on other
  * platforms returns an empty set (the assessor short-circuits to ok there).
  *
  * `launchctl list <label>` exits 0 and prints a `"PID" = N;` line when the job
  * is loaded AND running; exits 0 with no PID line when loaded-but-stopped; and
  * exits non-zero ("Could not find service") when the job is not loaded.
+ *
+ * launchctl's own PID claim is NOT trusted at face value: `running` is only
+ * true when the reported PID ALSO passes `isPidAlive` (2026-07-14 incident —
+ * `brew services`/`launchctl` reported Running:true PID 69626 while no such
+ * process existed and `pd doctor` believed it because it never re-verified).
  */
 export function gatherLaunchdSupervisors(
   labels: readonly string[] = DAEMON_SUPERVISOR_LABELS,
@@ -1024,7 +1072,9 @@ export function gatherLaunchdSupervisors(
       if (res.status !== 0) return { label, loaded: false, running: false, pid: null };
       const m = /"PID"\s*=\s*(\d+)/.exec(res.stdout || '');
       const pid = m ? parseInt(m[1], 10) : null;
-      return { label, loaded: true, running: pid !== null && pid > 0, pid };
+      const claimsRunning = pid !== null && pid > 0;
+      const running = claimsRunning && isPidAlive(pid as number);
+      return { label, loaded: true, running, pid };
     } catch {
       return { label, loaded: false, running: false, pid: null };
     }
@@ -1422,9 +1472,10 @@ export function assessMacDiagnosticCrashReports(input: RecentMacDiagnosticCrashR
  * the daemon-side `resolveBosunBinaryStatus` in routes/info.ts.
  */
 export function resolveBosunBinary(rootDir: string): { binaryPath: string; exists: boolean } {
-  const distBinary = join(rootDir, 'dist', 'core', 'pd-bosun');
-  const sourceBinary = join(rootDir, 'core', 'pd-bosun', 'target', 'release', 'pd-bosun');
-  const binaryPath = existsSync(distBinary) ? distBinary : sourceBinary;
+  // Delegate to the shared resolver so `pd doctor` and `port-daddy install`
+  // agree on WHICH bosun binary is canonical (halt-mandate: no stale-dist
+  // split-brain). Prefers the flat installed `<root>/pd-bosun`.
+  const binaryPath = resolveBosunBinaryPath(rootDir);
   return { binaryPath, exists: existsSync(binaryPath) };
 }
 
@@ -1808,7 +1859,16 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   //     read from the daemon's guardians.bosun when reachable.
   // -------------------------------------------------------------------------
   try {
-    const bosun = resolveBosunBinary(libDir);
+    // `libDir` is a naive `join(__dirname, '..', '..')` — correct for a source
+    // checkout, but for a `bun build --compile` binary `__dirname` is a virtual
+    // bun:// path, so that join produces a string that never exists on disk.
+    // `resolveDistributionRoot` (already used by describeResourceDir() below
+    // for the same reason) resolves the REAL install root from process.execPath
+    // in that case and is a no-op passthrough for a source checkout. Without
+    // this, `pd doctor` always reported "pd-bosun binary not built" for every
+    // packaged/brew install even when Bosun was genuinely installed and
+    // healthy (found live during the v3.25.1/3.25.2 brew rollout).
+    const bosun = resolveBosunBinary(resolveDistributionRoot(libDir));
     let bosunRunning: boolean | null = null;
     let bosunReason: string | null = null;
     if (daemonRunning) {

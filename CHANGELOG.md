@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.25.2] - 2026-07-15
+
+### Fixed
+- **`port-daddy install-bosun` actually succeeds when the Homebrew formula's `post_install` calls it (found live during the v3.25.1 rollout).** `install-bosun` (new in 3.25.1) was missing from `FRESHNESS_SKIP_COMMANDS` — unlike `install`/`uninstall`/`start`/`stop`/`restart`, which are already skip-listed for exactly this reason. The CLI's daemon-freshness probe ran for it, detected the still-live-but-stale-code daemon left over from the in-flight upgrade, and attempted its normal auto-restart-via-`tsx` recovery path — which doesn't exist in a packaged brew install — tripping the top-level "daemon unreachable" handler and making the whole `install-bosun` invocation report failure even though the actual (network-free) watchdog-wiring logic had already completed. `install-bosun` is now in the skip list alongside its daemon-lifecycle siblings, with a regression test (`tests/unit/cli-freshness.test.js`) locking it in.
+
+## [3.25.1] - 2026-07-15
+
+### Fixed
+- **Bosun actually ships and runs on a Homebrew install — the daemon can no longer go down quietly (roadmap: daemon-down-hard-stop-mandate).** PR #2381 taught `release.yml` to build `pd-bosun` (ADR-0036's out-of-process watchdog) into the release tarball, but the published v3.25.0 tarball predated that change and the `curiositech/homebrew-tap` formula only ran `bin.install "pd", "port-daddy"` — so every brew install shipped a daemon with no watchdog binary at all. This release: ships v3.25.1 binaries (built from the merged Bosun-Phase-C tarball), fixes the tap formula to install `pd-bosun` alongside `pd`/`port-daddy`, and adds `port-daddy install-bosun` — a new, non-destructive CLI subcommand the formula's `post_install` calls unconditionally to wire the Bosun launchd job against the brew-managed daemon label. `install-bosun` is deliberately narrower than the existing `port-daddy install`: the full install path only skips creating a competing standalone daemon LaunchAgent when it detects `homebrew.mxcl.port-daddy` already loaded, which isn't true yet at `post_install` time (before `brew services start` has run) — calling it there would have raced brew's own supervisor for `:9876`. Bosun has no such ordering hazard (it's a one-way heartbeat watcher that best-effort `launchctl kickstart`s the daemon label), so it's safe to wire at install time regardless of whether the brew service has started yet.
+
+## [3.25.0] - 2026-07-14
+
+### Fixed
+- **The registry now lives in a durable home and survives `brew upgrade` (#2067, #2083).** The default DB path was anchored on the distribution root — for Homebrew installs, the versioned Cellar directory that is deleted on every upgrade. That is how the machine repeatedly lost roadmap items, notes, sessions, and even the Harbor Card signing keys. `resolveDbPath()` now defaults to `~/.port-daddy/port-registry.db` (checkout- and binary-independent); first boot performs a one-time `VACUUM INTO` rescue of the legacy registry, scanning sibling Homebrew kegs newest-first because after an upgrade the data sits in the *previous* keg, not the one the new binary resolves to. Explicit `PORT_DADDY_DB` overrides (instance profiles, tests) keep their isolation semantics.
+- **Roadmap deletes no longer resurrect from stale replicas (#2140).** `pd roadmap delete` was a hard DELETE of the row and its audit trail; in a multi-replica registry reconciled by union-merge, a deletion in one replica silently came back from any replica still carrying the row. Deletion is now a soft-delete tombstone (`deleted_at`) that bumps `last_touched_at` past the live row so last-write-wins reconciliation propagates it; audit rows are preserved; every read surface filters tombstones; upserting the same slug/harbor resurrects.
+
+### Added
+- **`scripts/registry-reunify.ts` (#2109)** — union-merges scattered registry shards (instance daemons, old kegs, backups) plus the committed roadmap snapshot into one registry: merge key `(slug, harbor)`, newest-`last_touched_at` wins whole-row, snapshot acts as a floor that never overrides fresher live rows, provenance appended to `notes_json`, destination backed up via `VACUUM INTO` before any write, idempotent, `--dry-run` prints the full plan.
+- **Fail-closed schema verification at boot (#2122, #2140).** `verifyCoreSchema` probes the real schema objects (required tables + sentinel columns) after the boot migrations and refuses to serve from a broken registry; the legacy-rescue path post-verifies its output and quarantines (never deletes) a bad rescue.
+- **`pd doctor` "Database home" check (#2067)** — critical when the registry sits on a version-volatile path (Homebrew Cellar), with exact remediation.
+- **Weekly release-cadence workflow (#2067)** — files/refreshes a "Homebrew release overdue" issue when daemon surfaces on main sit unreleased past 7 days.
+- **Cutover + porting doctrine (#2129, #2156, #2164)** — `docs/recovery/V3.25.0-DURABLE-HOME-CUTOVER.md` (eight verified steps incl. signing-key continuity) and ADR-0090 Amendment 1 (schema epochs, version-skew rules, per-table port policies).
+- **`npm run test:affected` (#2174)** — local affected-only jest runs via `--changedSince=origin/main`.
+
 ## [3.24.2] - 2026-07-09
 
 ### Fixed

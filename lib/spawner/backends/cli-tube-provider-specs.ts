@@ -1,3 +1,5 @@
+import { normalizeNativeHarnessSessionId } from '../../harness-session-id.js';
+
 export type CliTubePermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions';
 
 export interface CliTubeBuildArgsInput {
@@ -7,6 +9,7 @@ export interface CliTubeBuildArgsInput {
   permissionMode?: CliTubePermissionMode;
   codexConfig?: string[];
   timeoutMs?: number;
+  resumeSessionId?: string;
 }
 
 export interface CliTubeBuildArgsResult {
@@ -188,32 +191,32 @@ function buildCliTubeArgsFromSpec(
   spec: CliTubeProviderSpec,
   input: CliTubeBuildArgsInput,
 ): CliTubeBuildArgsResult {
+  const resumeSessionId = normalizeResumeSessionId(spec.id, input.resumeSessionId);
   switch (spec.argStyle.kind) {
     case 'claude-stream-json': {
-      const args = ['-p', '--output-format', 'stream-json', '--verbose'];
+      const args = resumeSessionId
+        ? ['--resume', resumeSessionId, '-p', '--output-format', 'stream-json', '--verbose']
+        : ['-p', '--output-format', 'stream-json', '--verbose'];
       pushModelArg(args, spec, input.model);
       if (input.permissionMode) args.push('--permission-mode', input.permissionMode);
       args.push(input.prompt);
       return { args, stdin: null };
     }
     case 'codex-exec-json': {
-      const args = [
-        'exec',
-        '--skip-git-repo-check',
-        '--full-auto',
-        '--sandbox', 'workspace-write',
-        '--json',
-      ];
+      const args = resumeSessionId
+        ? ['exec', 'resume', '--skip-git-repo-check', '--full-auto', '--json']
+        : ['exec', '--skip-git-repo-check', '--full-auto', '--sandbox', 'workspace-write', '--json'];
       if (input.outputPath) args.push('--output-last-message', input.outputPath);
       pushModelArg(args, spec, input.model);
       for (const config of normalizeCodexConfigOverrides(input.codexConfig)) {
         args.push('-c', config);
       }
+      if (resumeSessionId) args.push(resumeSessionId);
       args.push(input.prompt);
       return { args, stdin: null };
     }
     case 'print': {
-      const args = ['--print'];
+      const args = resumeSessionId ? ['--conversation', resumeSessionId, '--print'] : ['--print'];
       pushModelArg(args, spec, input.model);
       if (input.timeoutMs && Number.isFinite(input.timeoutMs) && input.timeoutMs > 0) {
         args.push(spec.argStyle.timeoutFlag, `${Math.max(1, Math.ceil(input.timeoutMs / 1000))}s`);
@@ -222,7 +225,10 @@ function buildCliTubeArgsFromSpec(
       return { args, stdin: null };
     }
     case 'prompt-flag': {
-      const args = ['-p'];
+      if (resumeSessionId && spec.id !== 'gemini') {
+        throw new Error(`${spec.id} does not expose native session resume`);
+      }
+      const args = resumeSessionId ? ['--resume', resumeSessionId, '-p'] : ['-p'];
       pushModelArg(args, spec, input.model);
       args.push(input.prompt);
       return { args, stdin: null };
@@ -232,6 +238,25 @@ function buildCliTubeArgsFromSpec(
       throw new Error(`Unhandled CLI tube arg style ${JSON.stringify(exhaustive)}`);
     }
   }
+}
+
+function normalizeResumeSessionId(tool: string, value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  const sessionId = value;
+  if (!sessionId.trim() || Buffer.byteLength(sessionId, 'utf8') > 1_024 || /[\0\r\n]/.test(sessionId)) {
+    throw new Error('resumeSessionId must be a safe non-empty harness identifier');
+  }
+  const adapterFamily = tool === 'claude-code'
+    ? 'claude-code'
+    : tool === 'codex'
+      ? 'codex-cli'
+      : tool === 'agy'
+        ? 'agy-cli'
+        : tool === 'gemini'
+          ? 'gemini-cli'
+          : null;
+  if (adapterFamily) return normalizeNativeHarnessSessionId(adapterFamily, sessionId);
+  return sessionId.trim();
 }
 
 function pushModelArg(args: string[], spec: CliTubeProviderSpec, requestedModel: string | undefined): void {

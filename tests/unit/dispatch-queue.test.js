@@ -120,9 +120,14 @@ describe('propose', () => {
     expect(() => queue.propose({ goal: huge })).toThrow(/4000/);
   });
 
-  test('rejects non-positive budget', () => {
-    expect(() => queue.propose({ goal: 'foo', budgetUsd: 0 })).toThrow(/budget/);
+  test('rejects negative / non-finite budget but ACCEPTS 0 (flat-rate CLI, BUG 1)', () => {
+    // BUG 1 (2026-07-14 halt-mandate): budgetUsd 0 is a legitimate "flat-rate
+    // backend, no real-dollar bond" budget — the Conductor's effectiveBond()
+    // decides the actual reservation from the backend, not this number. Only
+    // negative / non-finite is a caller error now.
     expect(() => queue.propose({ goal: 'foo', budgetUsd: -5 })).toThrow(/budget/);
+    expect(() => queue.propose({ goal: 'foo', budgetUsd: Number.NaN })).toThrow(/budget/);
+    expect(() => queue.propose({ goal: 'foo', budgetUsd: 0 })).not.toThrow();
   });
 
   test('rejects non-positive timeout', () => {

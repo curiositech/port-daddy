@@ -59,6 +59,7 @@ import {
   type FleetCircuitBreaker,
   type BreakerScope,
 } from './circuit-breaker.js';
+import { isSubscriptionBackend } from '../backend-catalog.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -548,8 +549,23 @@ export function createConductor(deps: ConductorDeps) {
    * floor so the breaker reserves a non-zero amount on every launch (arming
    * I4/I5 on the live sortie/orchestrator paths). A 0 floor preserves the legacy
    * "reserve nothing, let the spawner price it" behavior.
+   *
+   * EXEMPTION (2026-07-14 halt-mandate, BUG 1): a `backend` classified as
+   * `costModel:'subscription'` in lib/backend-catalog.ts (cli:claude-code,
+   * cli:codex, and the other CLI-tube backends riding a flat-rate account) has
+   * ZERO marginal dollar cost to Port Daddy — the operator already pays the
+   * subscription regardless of spawn volume. Reserving a real-dollar bond
+   * against a $0 backend is a category error: it lets a burst of ordinary,
+   * free CLI dispatches exhaust a finite ceiling (lineage OR global) and
+   * permanently trip GLOBAL_BREAKER for every future launch, metered or not —
+   * exactly the 2026-07-14 daemon-death incident's root cause. This override
+   * is UNCONDITIONAL: it ignores both `intent.bondUsd` and `defaultBondUsd` for
+   * a subscription backend, because there is no "operator override" that makes
+   * a $0-marginal-cost backend cost real dollars. Metered backends (claude,
+   * gemini, cloudflare, openai, groq, …) are completely unaffected.
    */
   function effectiveBond(intent: LaunchIntent): number {
+    if (isSubscriptionBackend(intent.backend)) return 0;
     if (intent.bondUsd != null && Number.isFinite(intent.bondUsd) && intent.bondUsd > 0) {
       return intent.bondUsd;
     }

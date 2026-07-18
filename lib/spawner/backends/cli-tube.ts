@@ -42,6 +42,10 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { cliBinarySearchPath, resolveCliBinary } from '../../cli-bin-dirs.js';
 import {
+  sameWorkspaceIdentity,
+  type WorkspaceIdentity,
+} from '../../workspace-identity.js';
+import {
   buildCliTubeArgs,
   CLI_TUBE_PROVIDER_SPECS,
   CLI_TUBE_TOOLS,
@@ -121,6 +125,10 @@ export interface CliTubeOptions {
    * Ignored for CLIs that don't support the flag.
    */
   permissionMode?: CliTubePermissionMode;
+  /** Validated harness-owned session id for native resume. */
+  resumeSessionId?: string;
+  /** Canonical workspace identity rechecked immediately before child spawn. */
+  workspaceIdentity?: WorkspaceIdentity;
 }
 
 export interface CliTubeResult {
@@ -179,6 +187,7 @@ export function buildArgs(
   permissionMode?: CliTubePermissionMode,
   codexConfig?: string[],
   timeoutMs?: number,
+  resumeSessionId?: string,
 ): { args: string[]; stdin: string | null } {
   return buildCliTubeArgs(cli, {
     prompt,
@@ -187,6 +196,7 @@ export function buildArgs(
     permissionMode,
     codexConfig,
     timeoutMs,
+    resumeSessionId,
   });
 }
 
@@ -279,9 +289,29 @@ export async function spawnViaCliTube(
     permissionMode: opts.permissionMode,
     codexConfig: opts.codexConfig,
     timeoutMs,
+    resumeSessionId: opts.resumeSessionId,
   });
 
   const startedAt = Date.now();
+
+  if (
+    opts.resumeSessionId
+    && (
+      !opts.workspaceIdentity
+      || !opts.cwd
+      || !sameWorkspaceIdentity(opts.cwd, opts.workspaceIdentity)
+    )
+  ) {
+    if (tempDir) rmSync(tempDir, { recursive: true, force: true });
+    return {
+      output: '',
+      exitCode: 1,
+      error: 'Native resume blocked: canonical workspace identity changed before child launch.',
+      tube: tubeChannel,
+      durationMs: Date.now() - startedAt,
+      rawStdout: '',
+    };
+  }
 
   const child = spawnChild(binary, args, {
     cwd: opts.cwd || process.cwd(),
