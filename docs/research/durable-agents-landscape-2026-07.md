@@ -120,8 +120,7 @@ unsolved problem." Think is preview; Session API experimental; Agent Memory priv
 | Structured plans | **Shipped** — roadmap_items + atomic claims + planner DAG + tuples + commitments | ADR-0033/0086/0041, `lib/roadmap-pop.ts:10-11` |
 | Actor model | **Partial** — soul/body split (ADR-0022) directional; wake = fresh OS-process spawn + capsule injection, not hibernation-resume; shared DB, not per-agent | gap |
 
-Stale-doc note: `docs/architecture/PORT-DADDY-COARSENED-ARCHITECTURE.md` ("six planes")
-does not exist at that path; architecture-of-record is the agent-harbor technical binder.
+Pending-doc note: `docs/architecture/PORT-DADDY-COARSENED-ARCHITECTURE.md` ("six planes") is not yet shipped on `main` — it lives in open PR #2566 (`docs/coarsened-architecture`). Until it lands, the architecture-of-record here is the agent-harbor technical binder.
 
 ## Audiences (delta view for this brief)
 
