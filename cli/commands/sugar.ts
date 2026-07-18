@@ -236,6 +236,15 @@ async function promptBeginRent(): Promise<BeginRentResolution> {
   return resolveBeginRent({ sidequest: reason || '' }, {}, false);
 }
 
+function formatTimeAgo(timestamp: number | null): string {
+  if (!timestamp) return 'unknown';
+  const diff = Date.now() - timestamp;
+  if (diff < 60_000) return 'just now';
+  if (diff < 60_000 * 60) return Math.floor(diff / 60_000) + 'm ago';
+  if (diff < 60_000 * 60 * 24) return Math.floor(diff / (60_000 * 60)) + 'h ago';
+  return Math.floor(diff / (60_000 * 60 * 24)) + 'd ago';
+}
+
 async function showHelpfulSuggestions(purpose: string, identity: string | undefined): Promise<void> {
   const suggestions: string[] = [];
 
@@ -344,6 +353,59 @@ async function showHelpfulSuggestions(purpose: string, identity: string | undefi
     }
   } catch (err) {
     // Fail silently
+  }
+
+  // 5. Active/Skillful Agents to Talk To (from talent phonebook, falling back to active sessions)
+  let foundAgents = false;
+  try {
+    const params = new URLSearchParams();
+    params.set('q', purpose);
+    params.set('kind', 'any');
+    params.set('limit', '3');
+    const res = await pdFetch(`${PORT_DADDY_URL}/whois?${params.toString()}`);
+    if (res.ok) {
+      const data = await res.json();
+      const hits = (data.hits || []) as any[];
+      if (hits.length > 0) {
+        suggestions.push(
+          `💬  ${ui.fmtCyan('Active/Skillful Agents to Talk To')}:\n` +
+          hits.map((h: any) => {
+            const timeStr = h.lastHeartbeat ? `last active ${formatTimeAgo(h.lastHeartbeat)}` : 'active';
+            return `     - ${ui.fmtYellow(h.agentId)}: "${h.phrase}" (similarity: ${h.similarity.toFixed(2)}, ${timeStr})`;
+          }).join('\n')
+        );
+        foundAgents = true;
+      }
+    }
+  } catch (err) {
+    // Fail silently, fallback below
+  }
+
+  if (!foundAgents) {
+    try {
+      const res = await pdFetch(`${PORT_DADDY_URL}/sessions?status=active&all=true`);
+      if (res.ok) {
+        const data = await res.json();
+        const sessions = (Array.isArray(data) ? data : (data.sessions || [])) as any[];
+        const otherActive = sessions.filter((s: any) => s.status === 'active');
+        
+        if (otherActive.length > 0) {
+          const terms = purpose.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+          const matched = otherActive.filter((s: any) => {
+            const p = (s.purpose || '').toLowerCase();
+            return terms.some(t => p.includes(t));
+          });
+
+          const toShow = matched.length > 0 ? matched : otherActive.slice(0, 3);
+          suggestions.push(
+            `💬  ${ui.fmtCyan('Active Agents/Sessions to Talk To')}:\n` +
+            toShow.map((s: any) => `     - ${ui.fmtYellow(s.agent_id || s.id)}: "${s.purpose}" (active in worktree: ${s.worktree_id || 'default'})`).join('\n')
+          );
+        }
+      }
+    } catch (err) {
+      // Fail silently
+    }
   }
 
   if (suggestions.length > 0) {
