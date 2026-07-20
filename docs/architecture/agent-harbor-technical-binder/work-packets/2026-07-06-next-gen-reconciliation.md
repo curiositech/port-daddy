@@ -68,6 +68,13 @@ in the tree today. Meanwhile an **Accepted** (shipped) ADR points at a number
 reads as live and current; the `pd-adr-090` citation to "092" — `contradicted`,
 plainly wrong on current disk state and needs a direct fix, not a judgment call.
 
+**Resolution note (2026-07-20, appended without editing the register above):**
+the ADR-0051/ADR-0091 half of this finding is now fixed — ADR-0051 is Accepted
+and canonical, ADR-0091 is a superseded stub pointing at it, and every
+`lib/squid/*`/`bin/pd-hook-*`/test citation of `ADR-0091` now cites `ADR-0051`.
+The `pd-adr-090` → "092" citation is a **separate, still-open** defect this
+pass did not touch.
+
 ### 3. M6 completion: 4/5 vs 5/5 — timing note, not a hard contradiction
 
 The binder survey states M6 is not fully shipped: *"PR #720 (episodic memory) is
@@ -145,7 +152,7 @@ surprise the next reconciler.
 ## Prioritized Execution Backlog
 
 - Run the ADR renumbering sweep (12 numbers collide across 27 files, incl. the 0090 triple) — blocks unambiguous citation of any bare ADR-#, self-diagnosed twice in-repo and fixed zero times — depends on: an assigned owner, no code work required.
-- Fix Giant Squid Harness ADR cross-references (0051 still claims "no ADR-0091 exists"; pd-adr-090 cites a nonexistent "092") — three ADRs disagree on the harness's canonical number, confusing every future citation — depends on: doc-only edit; PR #545 (ADR-0091) already merged.
+- Fix Giant Squid Harness ADR cross-references (0051 still claims "no ADR-0091 exists"; pd-adr-090 cites a nonexistent "092") — three ADRs disagree on the harness's canonical number, confusing every future citation — depends on: doc-only edit; PR #545 (ADR-0091) already merged. **Partially done (2026-07-20):** the 0051/0091 half is fixed (0051 Accepted/canonical, 0091 a superseded stub, all citations repointed); the `pd-adr-090` → "092" citation remains open.
 - Reconcile roadmap-item counts (135 committed snapshot vs 37 live-DB vs 13 harbor-scoped, 53 scattered .db files found; figures from the 2026-07-06 roadmap ground-truth survey — live `pd doctor` plus direct SQLite reads of the active Cellar registry, point-in-time) — no roadmap total is trustworthy until this lands, undermining all prioritization — depends on: ADR-0090 database-distribution-and-sync plus ADR-0044 dark-launch resolver.
 - Fix `roadmap upsert`'s default harbor tag, which currently falls back to a per-worktree scratch harbor instead of canonical `port-daddy` — root cause of live-DB fragmentation across 24 harbor tags — depends on: the roadmap-count diagnosis above being accepted.
 - Fix the `parseCronInterval()` day-of-week/day-of-month gap — weekly ships (e.g. tenderfoot) silently degrade to ~10min/hourly polling, burning spawn budget unnoticed — depends on: new unit tests covering weekly/monthly cron shapes in fleet-engine.ts.

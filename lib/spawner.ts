@@ -202,7 +202,7 @@ export interface SpawnSpec {
    */
   tubeChannel?: string;
   /**
-   * Giant Squid Harness (ADR-0091) opt-in. When true, the `claude-cli` /
+   * Giant Squid Harness (ADR-0051) opt-in. When true, the `claude-cli` /
    * `cli:claude-code` launch first injects the pd-hook-* tentacles into the
    * workspace's `.claude/settings.json` (via lib/squid/adapter.ts) so the
    * UserPromptSubmit / PreToolUse / PostToolUse hooks fire inside Claude Code's
@@ -1157,7 +1157,7 @@ export function parseClaudeCliResult(raw: string, task: string): BackendRunResul
 }
 
 async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promise<BackendRunResult> {
-  // Giant Squid Harness (ADR-0091): optionally sink the pd-hook-* tentacles into
+  // Giant Squid Harness (ADR-0051): optionally sink the pd-hook-* tentacles into
   // this workspace's .claude/settings.json BEFORE the CLI boots, so the
   // UserPromptSubmit / PreToolUse / PostToolUse hooks fire inside Claude Code's
   // own loop. Single, opt-in, fail-open call site — never blocks the launch.

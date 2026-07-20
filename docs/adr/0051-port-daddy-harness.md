@@ -2,14 +2,36 @@
 
 ## Status
 
-Proposed
+Accepted — 2026-07-20. Canonical harness ADR. Supersedes
+[ADR-0091](0091-giant-squid-harness.md) ("The Giant Squid Harness"), the
+earlier draft of this same "hijack the vendor CLI loop via hooks" design that
+`lib/squid/*.ts` and `bin/pd-hook-*` originally cited; ADR-0091 is now a
+superseded stub pointing back here. This ADR is the more developed of the
+two — it enumerates eight concrete harness capabilities bound to the three
+hook events, specifies the unbuilt Reconcile Loop, carries a per-capability
+vendor-portability matrix, and has a phased rollout with roadmap slugs — and
+matches what is actually implemented in `lib/squid/*`.
+
+## Composes with
+
+- [ADR-0039](0039-suggestibility-layer.md) — the Attention Engine / suggestion
+  broker the Ink Cloud matrix and `pd-hook-prompt`'s injection ultimately
+  project from.
+- [ADR-0050](0050-coast-guard.md) — the Coast Guard egress/secret-read safety
+  boundary; this ADR's `PreToolUse` destructive-command gate (§8) is
+  cooperative-guidance *above* the Coast Guard's kernel-level floor, per the
+  Security considerations section below.
+- [ADR-0086](0086-parley-protocol.md) — the multi-party conversation protocol
+  §5 (Parley invitations) binds `PD_PARLEY_*` and turn-order injection to.
+- [ADR-0088](0088-host-safety-layer.md) — `pd safe`, the host-side detection
+  layer this harness's hook gates compose with, not replace.
 
 ## Context
 
 Port Daddy already ships the **Giant Squid Harness**: a thin adapter that sinks three shell "tentacles" into a vendor CLI's native hook surface so Port Daddy logic fires *inside the vendor's own agent loop* rather than wrapping it. The verified surfaces today are narrow and honest:
 
 - `lib/squid/adapter.ts` — `ClaudeCliSquidAdapter` (`verified = true`) injects `UserPromptSubmit`, `PreToolUse`, `PostToolUse` into `.claude/settings.json` (`injectHooks`) and spawns `claude -p` so they fire (`spawnVoyage`). `CodexSquidAdapter` and `GeminiSquidAdapter` are `verified = false` skeletons whose `spawnVoyage` **throws** — they write a *plausible* `config.toml` / `.gemini/settings.json` but refuse to claim a working harness.
-- `lib/squid/matrix.ts` — the **Ink Cloud**, a POSIX `KEY="value"` file at `~/.port-daddy/matrix.env`, mkdir-locked so K≥8 ephemeral agents append without torn lines. It carries `PD_LOCK_*`, `PD_PHEROMONE_*`, and `PD_ALERT_*`. **It is a hot cache, not a source of truth** — the daemon reconcile loop that drains it into `lib/attention.ts`/`lib/pheromone.ts` is an explicit unbuilt TODO.
+- `lib/squid/matrix.ts` — the **Ink Cloud**, a POSIX `KEY="value"` file at `~/.port-daddy/matrix.env`, mkdir-locked so K≥8 ephemeral agents (the *Jamie Madrox* pattern of highly parallelized, ephemeral agents) append without torn lines. It carries `PD_LOCK_*`, `PD_PHEROMONE_*`, and `PD_ALERT_*`. **It is a hot cache, not a source of truth** — the daemon reconcile loop that drains it into `lib/attention.ts`/`lib/pheromone.ts` is an explicit unbuilt TODO.
 - The tentacles: `bin/pd-hook-prompt` greps the matrix for `PD_ALERT_*`/`PD_PHEROMONE_*` relevant to `cwd` and prints them; the vendor **prepends hook stdout to the turn's context** — the "Suggestibility Envelope" (always `exit 0`, advisory). `bin/pd-hook-pre-tool` is the **one enforced gate**: it computes `PD_LOCK_<path>`, and if the target is locked by a *different* `PD_ACTOR` it `exit 2`, which the vendor treats as a hard block with stderr fed back as the denial reason. `bin/pd-hook-post-tool` appends a pheromone on file-mutating tools. Every tentacle **fails open** by design.
 
 Critically, the injected `PreToolUse`/`PostToolUse` matcher is `Edit|Write|MultiEdit|NotebookEdit` — **`Bash` is not gated**. So today the harness gates *file edits* against locks but does **not** see `rm -rf`, `git push --force`, or `cat .env.local` issued through `Bash`.
@@ -164,7 +186,13 @@ Per the 2026-06-25 research sweeps: **Gemini CLI** exposes `BeforeAgent`/`Before
 
 ## Note on ADR-0091 references
 
-The files under `lib/squid/*` and `bin/pd-hook-*` cite a non-existent **ADR-0091 ("Giant Squid Harness")**. No ADR-0091 exists on disk. This ADR-0051 **is** the harness ADR those files were gesturing at; a follow-up should reconcile the dangling `ADR-0091` citations to `ADR-0051`.
+`ADR-0091` ("The Giant Squid Harness") *does* exist on disk
+(`docs/adr/0091-giant-squid-harness.md`) — it was this ADR's own earlier
+draft, written before the eight-capability binding layer, Reconcile Loop,
+and vendor-portability matrix below were specified. ADR-0091 is now marked
+**Superseded by ADR-0051** and reduced to a stub pointing here. The
+`lib/squid/*` and `bin/pd-hook-*` citations of `ADR-0091` have been updated
+to cite `ADR-0051` directly.
 
 ## Critical files for implementation
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-# pd-hook-post-tool — PostToolUse tentacle (ADR-0091, Giant Squid Harness)
+# pd-hook-post-tool — PostToolUse tentacle (ADR-0051, Giant Squid Harness)
 # =============================================================================
 # Claude Code invokes this AFTER a tool runs, passing the PostToolUse event JSON
 # on stdin: { tool_name, tool_input, tool_response|tool_result, cwd, ... }.
@@ -111,7 +111,7 @@ append_line() {
     {
       echo '# ============================================================================'
       echo '# PORT DADDY STIGMERGIC ATTENTION MATRIX  (~/.port-daddy/matrix.env)'
-      echo '# The Ink Cloud (ADR-0091). Hot cache for pd-hook-* tentacles. POSIX-readable.'
+      echo '# The Ink Cloud (ADR-0051). Hot cache for pd-hook-* tentacles. POSIX-readable.'
       echo ''
     } > "$MATRIX"
   }

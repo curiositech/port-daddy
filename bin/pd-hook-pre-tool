@@ -1,5 +1,5 @@
 #!/bin/sh
-# pd-hook-pre-tool — PreToolUse tentacle (ADR-0091, Giant Squid Harness)
+# pd-hook-pre-tool — PreToolUse tentacle (ADR-0051, Giant Squid Harness)
 # =============================================================================
 # Multi-vendor PreToolUse gate. Invoked BEFORE a tool runs, with the event JSON
 # on stdin. This is the QUARTERMASTER (file locks) tentacle and the load-bearing
@@ -128,7 +128,7 @@ config_suggestibility_level() {
 EVENT_CWD="$(event_cwd)"
 SUGGESTIBILITY="$(normalize_suggestibility "${PD_SUGGESTIBILITY:-}")"
 [ -n "$SUGGESTIBILITY" ] || SUGGESTIBILITY="$(config_suggestibility_level)"
-# Preserve ADR-0091 behavior for repos that installed the hook before declaring
+# Preserve ADR-0051 behavior for repos that installed the hook before declaring
 # ADR-0092's dial: a real foreign lock remains a structural edit gate by default.
 [ -n "$SUGGESTIBILITY" ] || SUGGESTIBILITY="enforce"
 TARGET_BASE_CWD=""

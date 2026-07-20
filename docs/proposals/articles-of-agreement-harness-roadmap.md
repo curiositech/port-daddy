@@ -431,7 +431,10 @@ Phase 0: stabilize the harness floor.
   explicit.
 - Keep `PORT_DADDY_NO_FLEET=1` as a temporary live mitigation until the fixed
   daemon is promoted.
-- Reconcile dangling ADR-0091 references to ADR-0051.
+- ~~Reconcile dangling ADR-0091 references to ADR-0051.~~ **Done (2026-07-20):**
+  ADR-0051 is now Accepted/canonical; ADR-0091 is a superseded stub pointing
+  at it; every `lib/squid/*`, `bin/pd-hook-*`, and test citation now cites
+  `ADR-0051`.
 - Update `/harness` copy to mention Claude native, Codex bridge, vLLM/open-weight
   lane, and Cloudflare remote harbor.
 
@@ -485,7 +488,8 @@ Phase 5: remote harbors.
 - #569: backend spawning for Claude Code/Codex/Gemini-ish paths. Useful for
   harness breadth, but not the daemon issue.
 - #545: ADR-0091 Giant Squid Harness. Reconcile with ADR-0051 rather than
-  inventing another harness doctrine.
+  inventing another harness doctrine. (Reconciled 2026-07-20 — ADR-0091 is
+  now a superseded stub pointing at ADR-0051, the canonical/Accepted ADR.)
 - #462: per-agent stream. Relevant to transcript/event projection and memory.
 - #322: Fleet Tender/Shipwright/suggestibility data layer. Relevant to
   suggestibility and long-lived responsibility avatars.

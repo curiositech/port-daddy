@@ -1,5 +1,5 @@
 /**
- * The Ink Cloud — POSIX Stigmergic Attention Matrix (ADR-0091, Giant Squid Harness)
+ * The Ink Cloud — POSIX Stigmergic Attention Matrix (ADR-0051, Giant Squid Harness)
  * =================================================================================
  *
  * A flat, POSIX-readable `KEY="value"` environment matrix that lives at
@@ -198,7 +198,7 @@ export function parseMatrix(text: string): Record<string, string> {
 const MATRIX_BANNER = [
   '# ============================================================================',
   '# PORT DADDY STIGMERGIC ATTENTION MATRIX  (~/.port-daddy/matrix.env)',
-  '# The Ink Cloud (ADR-0091). Hot cache for pd-hook-* tentacles. POSIX-readable.',
+  '# The Ink Cloud (ADR-0051). Hot cache for pd-hook-* tentacles. POSIX-readable.',
   "# Lines are KEY=\"value\". Do not hand-edit while agents are voyaging.",
   '# ============================================================================',
   '',

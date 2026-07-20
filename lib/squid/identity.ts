@@ -1,5 +1,5 @@
 /**
- * lib/squid/identity.ts — the VISUAL identity of a harnessed session (ADR-0091).
+ * lib/squid/identity.ts — the VISUAL identity of a harnessed session (ADR-0051).
  *
  * The tentacles (hook-shape.ts + cli/commands/hooks-install.ts) make a session
  * coordinated; this module makes it IDENTIFIABLE. Three surfaces:

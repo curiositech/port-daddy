@@ -1,5 +1,5 @@
 /**
- * Giant Squid Harness — hooks-fire proof (ADR-0091).
+ * Giant Squid Harness — hooks-fire proof (ADR-0051).
  * ===================================================
  * This is the load-bearing test: it proves the pd-hook-* tentacles actually
  * fire with the documented exit-code semantics, against a real seeded Ink Cloud
@@ -673,7 +673,7 @@ describe('Giant Squid Harness — CodexSquidAdapter.injectHooks', () => {
     mkdirSync(dirname(cfgPath), { recursive: true });
     writeFileSync(cfgPath, [
       'model = "gpt-5.5"',
-      '# Port Daddy Giant Squid Harness tentacles (ADR-0091).',
+      '# Port Daddy Giant Squid Harness tentacles (ADR-0051).',
       '[[hooks.PostToolUse]]',
       'matcher = "shell"',
       '[[hooks.PostToolUse.hooks]]',

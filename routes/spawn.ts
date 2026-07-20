@@ -250,7 +250,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       if (permissionMode === 'default' || permissionMode === 'acceptEdits' || permissionMode === 'bypassPermissions') {
         spec.permissionMode = permissionMode;
       }
-      // Giant Squid Harness opt-in (ADR-0091). Default false → backward-compatible:
+      // Giant Squid Harness opt-in (ADR-0051). Default false → backward-compatible:
       // an absent/false flag leaves the spawn byte-for-byte unchanged. When true,
       // the spawner's runClaudeCli (lib/spawner.ts) FIRST injects the pd-hook-*
       // tentacles into the workspace's .claude/settings.json, so a conjure-

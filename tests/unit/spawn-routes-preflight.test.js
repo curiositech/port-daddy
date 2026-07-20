@@ -447,7 +447,7 @@ describe('spawn routes preflight', () => {
     await app.close();
   });
 
-  // Giant Squid Harness (ADR-0091): the conjure-dispatch posture. The console's
+  // Giant Squid Harness (ADR-0051): the conjure-dispatch posture. The console's
   // ConjureDispatch arm sends `injectSquidHooks: true`, which the route must
   // plumb onto the spawner spec so runClaudeCli injects the pd-hook tentacles —
   // running the vendor CLI under PD coordination (lock-gating + pheromones).

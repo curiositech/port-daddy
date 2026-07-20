@@ -5,6 +5,14 @@ proposal until the operator picks a direction, per the fork below).
 
 ## Correction & Reconciliation With Prior Art (added after first draft)
 
+> **Resolved (2026-07-20), historical text below left as-is:** the operator
+> architecture-governance decision item 1 called out was made — ADR-0051 is
+> now Accepted/canonical, ADR-0091 is a superseded stub pointing at it, and
+> the dangling `ADR-0091` citations across `lib/squid/*`, `bin/pd-hook-*`,
+> and tests were repointed to `ADR-0051`. The description below of the prior
+> (now-fixed) unreconciled state is kept verbatim as the record of what this
+> proposal found.
+
 The first draft of this proposal cited "ADR-0091 (The Giant Squid Harness)" as
 if it were the sole, settled doctrine behind squid. Three corrections, found
 after the operator pointed at two adjacent proposal documents:

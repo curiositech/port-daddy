@@ -1,5 +1,5 @@
 #!/bin/sh
-# pd-hook-prompt — UserPromptSubmit tentacle (ADR-0091, Giant Squid Harness)
+# pd-hook-prompt — UserPromptSubmit tentacle (ADR-0051, Giant Squid Harness)
 # =============================================================================
 # Claude Code (and parity-verified vendors) invoke this on UserPromptSubmit with
 # the prompt event JSON on stdin. We grep the Ink Cloud matrix for steering

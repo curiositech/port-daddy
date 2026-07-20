@@ -1,5 +1,5 @@
 /**
- * The Cephalopod Adapter (ADR-0091, Giant Squid Harness)
+ * The Cephalopod Adapter (ADR-0051, Giant Squid Harness)
  * ======================================================
  *
  * The Giant Squid does NOT run the agent loop — Anthropic / Google / OpenAI

@@ -1,5 +1,5 @@
 #!/bin/sh
-# scripts/squid-selftest.sh — Giant Squid Harness hooks-fire proof (ADR-0091)
+# scripts/squid-selftest.sh — Giant Squid Harness hooks-fire proof (ADR-0051)
 # =============================================================================
 # Dependency-free proof that the pd-hook-* tentacles fire with the documented
 # semantics. Requires NO node_modules — it invokes the real shell hook binaries
@@ -35,7 +35,7 @@ bad()  { FAIL=$((FAIL+1)); printf '  \033[31mFAIL\033[0m %s\n' "$1"; }
 # Lock /repo/src/auth.ts to agent_alpha; one steering alert; one pheromone.
 mkdir -p "$(dirname "$MATRIX")"
 cat > "$MATRIX" <<'EOF'
-# Port Daddy Stigmergic Attention Matrix (Ink Cloud, ADR-0091)
+# Port Daddy Stigmergic Attention Matrix (Ink Cloud, ADR-0051)
 PD_LOCK_REPO_SRC_AUTH_TS="agent_alpha"
 PD_ALERT_STEER_1="STEERING DM: stop and ack before any edit"
 PD_PHEROMONE_REPO_SRC_AUTH_TS_1700000000000="/repo/src/auth.ts | uses deprecated v1_hook | intensity:3 | actor:agent_alpha"
