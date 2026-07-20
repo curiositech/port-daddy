@@ -40,7 +40,7 @@ import {
   diagnoseSquidHookInstall,
   tentaclePath,
 } from '../../lib/squid/adapter.js';
-import { installSquidHooks } from '../../cli/commands/squid.js';
+import { installSquidHooks, summarizeSquidOn } from '../../cli/commands/squid.js';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dir, '..', '..');
@@ -1044,5 +1044,90 @@ describe('Giant Squid Harness — multi-vendor tentacle contracts', () => {
     const vals = Object.values(kv);
     expect(vals.some((v) => v.includes('mutated via replace') && v.includes('gemini_agent'))).toBe(true);
     expect(vals.some((v) => v.includes('mutated via apply_patch') && v.includes('codex_agent'))).toBe(true);
+  });
+});
+
+// ─── pd squid on — honesty regression (roadmap: squid-on-claude-code-not-wired) ─
+//
+// Confirmed bug: `pd squid on` printed "Giant Squid harness ARMED for this
+// project" immediately after warning that tentacle binaries were missing and
+// hooks were skipped — a false positive `pd squid status` then contradicted
+// (Claude Code: detected, not wired). summarizeSquidOn() is the pure decision
+// function handleSquidOn now defers to for both the ARMED/not-ARMED headline
+// and the per-surface lines, so it is tested directly here without touching
+// the real ~/.port-daddy home directory or the repo's shipped binaries.
+describe('Giant Squid Harness — pd squid on honesty (summarizeSquidOn)', () => {
+  test('tentacle binaries missing, statusline missing, steering script missing: NOT reported as ARMED', () => {
+    const summary = summarizeSquidOn({
+      stageMissing: ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool'],
+      hooks: null, // silentHooksInstall was never even called — hooks skipped
+      statusline: null, // stageStatusline() found no bin/pd-statusline on this build
+      sessionStart: { reason: 'hook script not found' },
+    });
+
+    expect(summary.fullyArmed).toBe(false);
+    expect(summary.failures).toEqual([
+      'tentacle hooks (missing on this build: pd-hook-prompt, pd-hook-pre-tool, pd-hook-post-tool)',
+      'statusline (script missing on this build)',
+      'steering hook (script missing on this build)',
+    ]);
+    // The exact false-positive from the bug report must not be producible.
+    expect(summary.hooksLine).not.toMatch(/ARMED/);
+    expect(summary.hooksLine).toMatch(/SKIPPED — tentacle binaries missing on this build/);
+    expect(summary.statuslineLine).toBe('SKIPPED — script missing on this build');
+  });
+
+  test('everything present: reports fullyArmed with no failures', () => {
+    const summary = summarizeSquidOn({
+      stageMissing: [],
+      hooks: { detected: ['claude', 'codex'] },
+      statusline: { reason: 'wired' },
+      sessionStart: { reason: 'registered new hook' },
+    });
+
+    expect(summary.fullyArmed).toBe(true);
+    expect(summary.failures).toEqual([]);
+    expect(summary.hooksLine).toBe('claude, codex (daemon-gated)');
+    expect(summary.statuslineLine).toBe('wired — ◆ PD badge in Claude Code');
+  });
+
+  test('no supported CLI detected is an environment fact, not a build-defect failure', () => {
+    // hooks is a real (non-null) result here — tentacles WERE staged, silentHooksInstall
+    // ran, it just found nothing to wire. This must not be conflated with the
+    // missing-binaries case above.
+    const summary = summarizeSquidOn({
+      stageMissing: [],
+      hooks: { detected: [] },
+      statusline: { reason: 'wired' },
+      sessionStart: { reason: 'registered new hook' },
+    });
+
+    expect(summary.fullyArmed).toBe(true);
+    expect(summary.failures).toEqual([]);
+    expect(summary.hooksLine).toBe('no agent CLIs detected (daemon-gated)');
+  });
+
+  test('a user-authored statusLine being left alone is not a failure', () => {
+    const summary = summarizeSquidOn({
+      stageMissing: [],
+      hooks: { detected: ['claude'] },
+      statusline: { reason: 'user statusLine present — not touching it' },
+      sessionStart: { reason: 'already registered' },
+    });
+
+    expect(summary.fullyArmed).toBe(true);
+    expect(summary.failures).toEqual([]);
+  });
+
+  test('partial failure: only the steering hook script is missing on this build', () => {
+    const summary = summarizeSquidOn({
+      stageMissing: [],
+      hooks: { detected: ['claude'] },
+      statusline: { reason: 'wired' },
+      sessionStart: { reason: 'hook script not found' },
+    });
+
+    expect(summary.fullyArmed).toBe(false);
+    expect(summary.failures).toEqual(['steering hook (script missing on this build)']);
   });
 });

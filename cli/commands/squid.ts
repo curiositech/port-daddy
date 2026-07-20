@@ -431,6 +431,53 @@ async function handleCodexBridge(clientPassthrough: string[], options: CLIOption
 
 // ─── Toggle + status (the harness arm switch) ────────────────────────────────
 
+export interface SquidOnSummaryInput {
+  stageMissing: string[];
+  hooks: { detected: string[] } | null;
+  statusline: { reason: string } | null;
+  sessionStart: { reason: string };
+}
+
+export interface SquidOnSummary {
+  /** True only when every surface that CAN be armed on this build actually was. */
+  fullyArmed: boolean;
+  /** Human-readable reasons a surface could not be armed — empty when fullyArmed. */
+  failures: string[];
+  hooksLine: string;
+  statuslineLine: string;
+}
+
+/**
+ * Decide whether `pd squid on` actually armed the harness, and how to report
+ * each surface. Pulled out as a pure function (no fs/process access) so the
+ * ARMED/not-ARMED decision is unit-testable without touching the real
+ * ~/.port-daddy home directory or the repo's shipped binaries.
+ *
+ * A surface counts as a FAILURE only when this build is missing the artifact
+ * it needs (tentacle binaries, the statusline script, the SessionStart hook
+ * script) — never when it simply has nothing to do (no supported CLI
+ * detected) or a user-authored file was deliberately left alone. The
+ * unqualified "ARMED" headline must never print while a build-defect failure
+ * sits right above it as a warning — that was the false-positive bug.
+ */
+export function summarizeSquidOn(input: SquidOnSummaryInput): SquidOnSummary {
+  const failures: string[] = [];
+  if (!input.hooks) failures.push(`tentacle hooks (missing on this build: ${input.stageMissing.join(', ')})`);
+  if (!input.statusline) failures.push('statusline (script missing on this build)');
+  if (input.sessionStart.reason === 'hook script not found') failures.push('steering hook (script missing on this build)');
+
+  return {
+    fullyArmed: failures.length === 0,
+    failures,
+    hooksLine: input.hooks
+      ? `${input.hooks.detected.length > 0 ? input.hooks.detected.join(', ') : 'no agent CLIs detected'} (daemon-gated)`
+      : 'SKIPPED — tentacle binaries missing on this build',
+    statuslineLine: input.statusline
+      ? `${input.statusline.reason} — ◆ PD badge in Claude Code`
+      : 'SKIPPED — script missing on this build',
+  };
+}
+
 /**
  * `pd squid on` — arm the FULL harness for this project in one shot:
  * tentacle hooks (all detected CLIs), the pd-statusline identity, the Pilot
@@ -451,18 +498,33 @@ async function handleSquidOn(options: CLIOptions): Promise<void> {
   const sessionStart = installPilotSessionStartHook({ projectDir: cwd, projectRoot: SQUID_PROJECT_ROOT });
   const slash = installSlashCommand(cwd);
 
-  ui.success('Giant Squid harness ARMED for this project');
-  console.log(`  workspace:   ${cwd}`);
-  if (hooks) {
-    console.log(`  hooks:       ${hooks.detected.length > 0 ? hooks.detected.join(', ') : 'no agent CLIs detected'} (daemon-gated)`);
+  const summary = summarizeSquidOn({ stageMissing: stage.missing, hooks, statusline, sessionStart });
+
+  if (summary.fullyArmed) {
+    ui.success('Giant Squid harness ARMED for this project');
+  } else {
+    ui.error(`Giant Squid harness PARTIALLY ARMED for this project — ${summary.failures.length} surface(s) failed to wire`);
   }
-  console.log(`  statusline:  ${statusline ? `${statusline.reason} — ◆ PD badge in Claude Code` : 'script missing on this build'}`);
+  console.log(`  workspace:   ${cwd}`);
+  console.log(`  hooks:       ${summary.hooksLine}`);
+  console.log(`  statusline:  ${summary.statuslineLine}`);
   console.log(`  steering:    SessionStart pilot hook ${sessionStart.reason}`);
   console.log(`  /squid:      slash command ${slash.reason}`);
   console.log('');
-  console.log('  New Claude Code sessions in this project are visibly Port-Daddy-harnessed.');
+  if (summary.fullyArmed) {
+    console.log('  New Claude Code sessions in this project are visibly Port-Daddy-harnessed.');
+  } else {
+    console.log(`  NOT fully armed: ${summary.failures.join('; ')}.`);
+    console.log('  This is a build defect, not a config choice — update/rebuild Port Daddy so');
+    console.log('  bin/pd-hook-*, bin/pd-statusline, and hooks/sessionstart-pilot.mjs ship, then');
+    console.log('  re-run: pd squid on');
+  }
   console.log('  Inspect the background machinery any time: pd squid status · pd squid tap');
   console.log('  Disarm: pd squid off');
+
+  if (!summary.fullyArmed) {
+    process.exitCode = 1;
+  }
 }
 
 /**
