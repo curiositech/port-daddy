@@ -27,6 +27,63 @@ pub enum Dir {
     Col,
 }
 
+/// Where a dragged pane lands relative to a drop-target pane. The four edges
+/// split the target's slot and move the dragged pane in on that side; `Center`
+/// swaps the two panes' surfaces in place (the layout is untouched).
+///
+/// This is the interaction-agnostic vocabulary the mouse-drag layer (BetterSnap
+/// / Windows-Snap feel) and any future keyboard "move pane" verb both target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DropEdge {
+    Left,
+    Right,
+    Top,
+    Bottom,
+    Center,
+}
+
+impl DropEdge {
+    /// The split orientation an edge drop induces. `Center` has none (it swaps).
+    pub fn orientation(self) -> Option<Dir> {
+        match self {
+            DropEdge::Left | DropEdge::Right => Some(Dir::Row),
+            DropEdge::Top | DropEdge::Bottom => Some(Dir::Col),
+            DropEdge::Center => None,
+        }
+    }
+
+    /// True when the dragged pane lands *before* the target in reading order
+    /// (left of / above it); false for after (right of / below).
+    pub fn before(self) -> bool {
+        matches!(self, DropEdge::Left | DropEdge::Top)
+    }
+}
+
+/// Why a [`Workspace::move_leaf`] was rejected. A small matchable enum (callers
+/// in the GPUI shell branch on the variant), never a bare `bool` or `anyhow`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MoveError {
+    /// `from` and `target` are the same pane — a move onto itself.
+    SamePane,
+    /// No leaf with the `from` id exists in the workspace.
+    FromNotFound,
+    /// No leaf with the `target` id exists in the workspace.
+    TargetNotFound,
+}
+
+impl fmt::Display for MoveError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let msg = match self {
+            MoveError::SamePane => "cannot move a pane onto itself",
+            MoveError::FromNotFound => "the dragged pane no longer exists",
+            MoveError::TargetNotFound => "the drop-target pane no longer exists",
+        };
+        f.write_str(msg)
+    }
+}
+
+impl std::error::Error for MoveError {}
+
 /// What a leaf pane shows, plus the entity it is bound to. "Hopping context"
 /// is just mutating this on the focused leaf — the layout never moves.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -329,6 +386,72 @@ impl Workspace {
     pub fn resize_pair(&mut self, path: &[usize], left: usize, target: f32) -> bool {
         resize_pair_in(&mut self.root, path, left, target)
     }
+
+    /// Reparent the leaf `from` relative to the leaf `target` — the keystone
+    /// "snap-drag" verb (also the future keyboard "move pane" verb). An `edge`
+    /// of Left/Right/Top/Bottom removes `from` from its parent (collapsing any
+    /// degenerate split it leaves behind, exactly like [`close`](Self::close)),
+    /// then re-inserts it beside `target` on that side, splitting the target's
+    /// slot in the induced orientation. `Center` swaps the two panes' surfaces
+    /// in place, leaving the layout untouched.
+    ///
+    /// The moved leaf keeps its [`PaneId`] (it is the *same* owned subtree,
+    /// relocated via [`std::mem::replace`], not a re-created leaf), and every
+    /// untouched leaf keeps its id. Incoherent moves are rejected with a
+    /// matchable [`MoveError`]; on success focus follows the dragged content.
+    ///
+    /// GPUI-free — unit-tested without a window. This runs once at mouse-release
+    /// (drop time), so it favors readable tree surgery over micro-optimization.
+    pub fn move_leaf(&mut self, from: PaneId, target: PaneId, edge: DropEdge) -> Result<(), MoveError> {
+        if from == target {
+            return Err(MoveError::SamePane);
+        }
+        let leaves = self.leaves();
+        if !leaves.contains(&from) {
+            return Err(MoveError::FromNotFound);
+        }
+        if !leaves.contains(&target) {
+            return Err(MoveError::TargetNotFound);
+        }
+
+        let dir = match edge.orientation() {
+            // Center: swap surfaces in place. Focus follows the dragged content
+            // to its new home (the `target` leaf now shows what `from` carried).
+            None => {
+                swap_surfaces(&mut self.root, from, target);
+                self.focused = target;
+                return Ok(());
+            }
+            Some(d) => d,
+        };
+
+        // Excise the dragged leaf as an owned subtree (preserving its PaneId),
+        // then let its former parent collapse so no empty/one-way split remains.
+        let moved = take_leaf(&mut self.root, from).expect("from validated as a leaf above");
+        collapse(&mut self.root);
+
+        let before = edge.before();
+
+        // The collapse may have left `target` as the lone root leaf — wrap it.
+        if matches!(&self.root, Node::Leaf { id, .. } if *id == target) {
+            let keep = std::mem::replace(&mut self.root, Node::leaf(0, SurfaceKind::Roadmap));
+            let moved_child = Child { weight: 1.0, node: moved };
+            let keep_child = Child { weight: 1.0, node: keep };
+            let children = if before {
+                vec![moved_child, keep_child]
+            } else {
+                vec![keep_child, moved_child]
+            };
+            self.root = Node::Split { dir, children };
+            self.focused = from;
+            return Ok(());
+        }
+
+        insert_beside(&mut self.root, target, dir, before, moved)
+            .expect("target validated to exist and survives the collapse");
+        self.focused = from;
+        Ok(())
+    }
 }
 
 /// The console's first-screen workspace. Deep-linked panes are user experiences,
@@ -495,6 +618,88 @@ fn resize_pair_in(node: &mut Node, path: &[usize], left: usize, target: f32) -> 
         }
     }
     false
+}
+
+/// Swap the surfaces of two existing leaves — the `Center` drop / pane swap.
+/// Two `&mut` into one tree is disallowed, so we read both (a drop-time clone of
+/// a small surface, never a hot path) then write them back crossed over.
+fn swap_surfaces(node: &mut Node, a: PaneId, b: PaneId) {
+    let sa = node.find_surface(a).cloned();
+    let sb = node.find_surface(b).cloned();
+    if let (Some(sa), Some(sb)) = (sa, sb) {
+        if let Some(s) = node.find_surface_mut(a) {
+            *s = sb;
+        }
+        if let Some(s) = node.find_surface_mut(b) {
+            *s = sa;
+        }
+    }
+}
+
+/// Remove and return the leaf `target` as an owned [`Node`] from wherever it
+/// lives (as a direct child of some split). `None` if not present in this
+/// subtree. Preserves the leaf's [`PaneId`] — it is the same node, detached.
+fn take_leaf(node: &mut Node, target: PaneId) -> Option<Node> {
+    if let Node::Split { children, .. } = node {
+        if let Some(pos) = children
+            .iter()
+            .position(|c| matches!(&c.node, Node::Leaf { id, .. } if *id == target))
+        {
+            return Some(children.remove(pos).node);
+        }
+        for c in children.iter_mut() {
+            if let Some(n) = take_leaf(&mut c.node, target) {
+                return Some(n);
+            }
+        }
+    }
+    None
+}
+
+/// Insert `moved` beside the leaf `target`, on the `before` side, in a split of
+/// orientation `dir`: appends into a same-orientation parent (an even sibling)
+/// or wraps the target child in a nested cross-orientation split. Mirrors
+/// [`split_in`]'s clean-layout rule. `Err(moved)` bubbles the owned node back up
+/// when `target` is not in this subtree, so no node is ever dropped on the way.
+fn insert_beside(
+    node: &mut Node,
+    target: PaneId,
+    dir: Dir,
+    before: bool,
+    mut moved: Node,
+) -> Result<(), Node> {
+    if let Node::Split { dir: sdir, children } = node {
+        if let Some(pos) = children
+            .iter()
+            .position(|c| matches!(&c.node, Node::Leaf { id, .. } if *id == target))
+        {
+            if *sdir == dir {
+                // Same orientation → append as an even sibling.
+                let avg = children.iter().map(|c| c.weight).sum::<f32>() / children.len() as f32;
+                let at = if before { pos } else { pos + 1 };
+                children.insert(at, Child { weight: avg, node: moved });
+            } else {
+                // Cross orientation → wrap the target child in a nested split.
+                let old = std::mem::replace(&mut children[pos].node, Node::leaf(0, SurfaceKind::Roadmap));
+                let moved_child = Child { weight: 1.0, node: moved };
+                let keep_child = Child { weight: 1.0, node: old };
+                let inner = if before {
+                    vec![moved_child, keep_child]
+                } else {
+                    vec![keep_child, moved_child]
+                };
+                children[pos].node = Node::Split { dir, children: inner };
+            }
+            return Ok(());
+        }
+        for c in children.iter_mut() {
+            match insert_beside(&mut c.node, target, dir, before, moved) {
+                Ok(()) => return Ok(()),
+                Err(m) => moved = m,
+            }
+        }
+    }
+    Err(moved)
 }
 
 impl fmt::Display for Workspace {
@@ -762,5 +967,251 @@ mod tests {
         }
         // Out-of-range boundary index is a no-op.
         assert!(!ws.resize_pair(&[], 5, 0.5));
+    }
+
+    // ── move_leaf (snap-drag reparent) ───────────────────────────────────────
+
+    /// Assert the tree is well-formed: no empty or one-way (degenerate) splits,
+    /// every split holds ≥ 2 children, and every leaf id is unique.
+    fn assert_valid_tree(ws: &Workspace) {
+        fn walk(node: &Node) {
+            if let Node::Split { children, .. } = node {
+                assert!(
+                    children.len() >= 2,
+                    "degenerate split with {} child(ren) — collapse missed it",
+                    children.len()
+                );
+                for c in children {
+                    assert!(c.weight > 0.0, "non-positive weight {}", c.weight);
+                    walk(&c.node);
+                }
+            }
+        }
+        walk(&ws.root);
+        let mut ids = ws.leaves();
+        let total = ids.len();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), total, "duplicate leaf ids: {:?}", ws.leaves());
+    }
+
+    /// Find the split orientation that directly parents a given leaf id.
+    fn parent_dir(node: &Node, target: PaneId) -> Option<Dir> {
+        if let Node::Split { dir, children } = node {
+            if children
+                .iter()
+                .any(|c| matches!(&c.node, Node::Leaf { id, .. } if *id == target))
+            {
+                return Some(*dir);
+            }
+            for c in children {
+                if let Some(d) = parent_dir(&c.node, target) {
+                    return Some(d);
+                }
+            }
+        }
+        None
+    }
+
+    #[test]
+    fn move_onto_self_is_rejected() {
+        let mut ws = Workspace::new(SurfaceKind::Roadmap);
+        let a1 = ws.split(Dir::Row, agent("a1"));
+        assert_eq!(ws.move_leaf(a1, a1, DropEdge::Left), Err(MoveError::SamePane));
+        assert_eq!(ws.pane_count(), 2);
+    }
+
+    #[test]
+    fn move_from_unknown_pane_is_rejected() {
+        let mut ws = Workspace::new(SurfaceKind::Roadmap);
+        let target = ws.split(Dir::Row, agent("a1"));
+        assert_eq!(
+            ws.move_leaf(999, target, DropEdge::Right),
+            Err(MoveError::FromNotFound)
+        );
+    }
+
+    #[test]
+    fn move_onto_unknown_target_is_rejected() {
+        let mut ws = Workspace::new(SurfaceKind::Roadmap);
+        let from = ws.split(Dir::Row, agent("a1"));
+        assert_eq!(
+            ws.move_leaf(from, 999, DropEdge::Right),
+            Err(MoveError::TargetNotFound)
+        );
+    }
+
+    #[test]
+    fn center_drop_swaps_surfaces_without_moving_layout() {
+        let mut ws = Workspace::new(SurfaceKind::Roadmap);
+        let a1 = ws.split(Dir::Row, agent("a1")); // ROW[roadmap, *a1]
+        let roadmap = ws.leaves()[0];
+        assert!(ws.move_leaf(a1, roadmap, DropEdge::Center).is_ok());
+        assert_eq!(ws.pane_count(), 2);
+        // Surfaces swapped: the roadmap slot now shows a1, the a1 slot roadmap.
+        assert_eq!(ws.surface_at(roadmap), Some(&agent("a1")));
+        assert_eq!(ws.surface_at(a1), Some(&SurfaceKind::Roadmap));
+        assert_eq!(ws.focused(), roadmap, "focus follows dragged content to target");
+        assert_valid_tree(&ws);
+    }
+
+    #[test]
+    fn move_left_places_dragged_before_target_in_a_row() {
+        let mut ws = Workspace::new(SurfaceKind::Roadmap);
+        let a1 = ws.split(Dir::Col, agent("a1")); // COL[roadmap, a1]
+        let roadmap = ws.leaves()[0];
+        // Drag a1 to the LEFT edge of roadmap → a Row with a1 before roadmap.
+        assert!(ws.move_leaf(a1, roadmap, DropEdge::Left).is_ok());
+        assert_eq!(ws.pane_count(), 2);
+        assert_eq!(ws.leaves(), vec![a1, roadmap], "a1 sits before roadmap");
+        assert_eq!(parent_dir(&ws.root, a1), Some(Dir::Row));
+        assert_eq!(ws.focused(), a1);
+        assert_valid_tree(&ws);
+    }
+
+    #[test]
+    fn move_right_places_dragged_after_target_in_a_row() {
+        let mut ws = Workspace::new(SurfaceKind::Roadmap);
+        let a1 = ws.split(Dir::Col, agent("a1")); // COL[roadmap, a1]
+        let roadmap = ws.leaves()[0];
+        assert!(ws.move_leaf(a1, roadmap, DropEdge::Right).is_ok());
+        assert_eq!(ws.leaves(), vec![roadmap, a1], "a1 sits after roadmap");
+        assert_eq!(parent_dir(&ws.root, a1), Some(Dir::Row));
+        assert_valid_tree(&ws);
+    }
+
+    #[test]
+    fn move_top_creates_a_column_with_dragged_above() {
+        let mut ws = Workspace::new(SurfaceKind::Roadmap);
+        let a1 = ws.split(Dir::Row, agent("a1")); // ROW[roadmap, a1]
+        let roadmap = ws.leaves()[0];
+        assert!(ws.move_leaf(a1, roadmap, DropEdge::Top).is_ok());
+        assert_eq!(ws.leaves(), vec![a1, roadmap], "a1 above roadmap");
+        assert_eq!(parent_dir(&ws.root, a1), Some(Dir::Col));
+        assert_valid_tree(&ws);
+    }
+
+    #[test]
+    fn move_bottom_creates_a_column_with_dragged_below() {
+        let mut ws = Workspace::new(SurfaceKind::Roadmap);
+        let a1 = ws.split(Dir::Row, agent("a1")); // ROW[roadmap, a1]
+        let roadmap = ws.leaves()[0];
+        assert!(ws.move_leaf(a1, roadmap, DropEdge::Bottom).is_ok());
+        assert_eq!(ws.leaves(), vec![roadmap, a1], "a1 below roadmap");
+        assert_eq!(parent_dir(&ws.root, a1), Some(Dir::Col));
+        assert_valid_tree(&ws);
+    }
+
+    #[test]
+    fn move_into_same_orientation_appends_as_flat_sibling() {
+        let mut ws = Workspace::new(SurfaceKind::Roadmap);
+        ws.split(Dir::Row, agent("a1"));
+        let a2 = ws.split(Dir::Row, agent("a2")); // flat ROW[roadmap, a1, a2]
+        let roadmap = ws.leaves()[0];
+        // Drop a2 to the RIGHT of roadmap → still one flat row, a2 after roadmap.
+        assert!(ws.move_leaf(a2, roadmap, DropEdge::Right).is_ok());
+        match &ws.root {
+            Node::Split { dir: Dir::Row, children } => {
+                assert_eq!(children.len(), 3, "stays a flat 3-way row, no nesting");
+            }
+            other => panic!("expected flat row, got {other:?}"),
+        }
+        assert_eq!(ws.leaves()[0], roadmap);
+        assert_eq!(ws.leaves()[1], a2, "a2 reinserted right after roadmap");
+        assert_valid_tree(&ws);
+    }
+
+    #[test]
+    fn move_cross_orientation_nests_a_split_at_the_target() {
+        let mut ws = Workspace::new(SurfaceKind::Roadmap);
+        ws.split(Dir::Row, agent("a1"));
+        let a2 = ws.split(Dir::Row, agent("a2")); // ROW[roadmap, a1, a2]
+        let a1 = ws.leaves()[1];
+        // Drop a2 onto the TOP of a1 → a1's slot becomes COL[a2, a1].
+        assert!(ws.move_leaf(a2, a1, DropEdge::Top).is_ok());
+        assert_eq!(ws.pane_count(), 3);
+        assert_eq!(parent_dir(&ws.root, a1), Some(Dir::Col));
+        assert_eq!(parent_dir(&ws.root, a2), Some(Dir::Col));
+        assert_valid_tree(&ws);
+    }
+
+    #[test]
+    fn moving_out_of_a_nested_split_collapses_the_remnant() {
+        let mut ws = Workspace::new(SurfaceKind::Fleet);
+        ws.split(Dir::Row, agent("a1")); // ROW[fleet, a1]
+        let a2 = ws.split(Dir::Col, agent("a2")); // a1's slot → COL[a1, a2]
+        let fleet = ws.leaves()[0];
+        // a2 lives in a nested COL. Move it out beside fleet; the COL had exactly
+        // two children, so removing a2 must collapse it back to a lone a1 leaf.
+        assert!(ws.move_leaf(a2, fleet, DropEdge::Left).is_ok());
+        assert_eq!(ws.pane_count(), 3);
+        // No degenerate split survived the move.
+        assert_valid_tree(&ws);
+    }
+
+    #[test]
+    fn move_preserves_pane_count_and_all_pane_ids() {
+        let mut ws = Workspace::new(SurfaceKind::Fleet);
+        ws.split(Dir::Row, agent("a1"));
+        ws.split(Dir::Col, agent("a2"));
+        let a3 = ws.split(Dir::Col, agent("a3"));
+        let before: std::collections::BTreeSet<PaneId> = ws.leaves().into_iter().collect();
+        let target = ws.leaves()[0];
+        assert!(ws.move_leaf(a3, target, DropEdge::Right).is_ok());
+        let after: std::collections::BTreeSet<PaneId> = ws.leaves().into_iter().collect();
+        assert_eq!(before, after, "every PaneId survives the move unchanged");
+        assert_eq!(ws.pane_count(), 4);
+        assert_valid_tree(&ws);
+    }
+
+    #[test]
+    fn moved_leaf_is_still_findable_by_its_original_id() {
+        let mut ws = Workspace::new(SurfaceKind::Roadmap);
+        let a1 = ws.split(Dir::Row, agent("a1"));
+        let roadmap = ws.leaves()[0];
+        assert!(ws.move_leaf(a1, roadmap, DropEdge::Bottom).is_ok());
+        // The moved pane keeps id `a1` AND its surface travelled with it.
+        assert_eq!(ws.surface_at(a1), Some(&agent("a1")));
+    }
+
+    #[test]
+    fn move_last_but_one_leaf_swapping_two_pane_order() {
+        let mut ws = Workspace::new(SurfaceKind::Roadmap);
+        let a1 = ws.split(Dir::Row, agent("a1")); // ROW[roadmap, a1]
+        let roadmap = ws.leaves()[0];
+        // Move a1 to the LEFT of roadmap: remove a1 (collapse to lone roadmap
+        // root leaf), then wrap the root re-inserting a1 before it.
+        assert!(ws.move_leaf(a1, roadmap, DropEdge::Left).is_ok());
+        assert_eq!(ws.leaves(), vec![a1, roadmap]);
+        assert_eq!(ws.pane_count(), 2);
+        assert_valid_tree(&ws);
+    }
+
+    #[test]
+    fn repeated_moves_keep_the_tree_valid() {
+        let mut ws = Workspace::new(SurfaceKind::Fleet);
+        ws.split(Dir::Row, agent("a1"));
+        ws.split(Dir::Col, agent("a2"));
+        ws.split(Dir::Row, agent("a3"));
+        let ids = ws.leaves();
+        // A little churn: move several panes around various edges.
+        assert!(ws.move_leaf(ids[3], ids[0], DropEdge::Bottom).is_ok());
+        assert_valid_tree(&ws);
+        assert!(ws.move_leaf(ids[1], ids[2], DropEdge::Center).is_ok());
+        assert_valid_tree(&ws);
+        assert!(ws.move_leaf(ids[0], ids[2], DropEdge::Right).is_ok());
+        assert_valid_tree(&ws);
+        assert_eq!(ws.pane_count(), 4, "churn never adds or drops a pane");
+    }
+
+    #[test]
+    fn dropedge_orientation_and_side_mapping() {
+        assert_eq!(DropEdge::Left.orientation(), Some(Dir::Row));
+        assert_eq!(DropEdge::Right.orientation(), Some(Dir::Row));
+        assert_eq!(DropEdge::Top.orientation(), Some(Dir::Col));
+        assert_eq!(DropEdge::Bottom.orientation(), Some(Dir::Col));
+        assert_eq!(DropEdge::Center.orientation(), None);
+        assert!(DropEdge::Left.before() && DropEdge::Top.before());
+        assert!(!DropEdge::Right.before() && !DropEdge::Bottom.before());
     }
 }

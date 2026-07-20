@@ -21,7 +21,7 @@ use gpui::*;
 pub use crate::chat::ChatUpdate;
 use crate::chat::{chat_display_text, chat_error_display_text, ChatLog, ChatMsg, ChatState};
 use crate::dispatch_pane::DispatchHead;
-use crate::mux::{default_operator_workspace, Dir, Node, PaneId, SurfaceKind, Workspace};
+use crate::mux::{default_operator_workspace, Dir, DropEdge, Node, PaneId, SurfaceKind, Workspace};
 use crate::palette::{Theme, ThemeMode};
 use crate::pane::{Alert, AlertLevel, Block, OperatorTurn, Pane, Tone};
 use crate::shell_drawer::{
@@ -29,7 +29,7 @@ use crate::shell_drawer::{
 };
 use crate::story_linework::{corner_ticks, micro_flag, state_stripe};
 use crate::tokens;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -568,6 +568,53 @@ struct DragState {
     path: Vec<usize>,
     left: usize,
     dir: Dir,
+}
+
+/// The pane a snap-drag is currently hovering, and which edge zone the cursor is
+/// in (the ghost-outline preview and the eventual [`Workspace::move_leaf`] both
+/// read this). All fields are `Copy` stable ids — never a cached tree path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct DropTarget {
+    target: PaneId,
+    edge: DropEdge,
+}
+
+/// The snap-drag state machine — a single enum so illegal combinations (e.g.
+/// "dragging but no source pane") cannot be represented. Modelled after
+/// BetterSnapTool: grab a pane by its title, and the hovered edge previews where
+/// it will land. `Copy`, so it lives in a `Cell` (single-threaded GPUI view).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PaneDrag {
+    Idle,
+    Dragging {
+        from: PaneId,
+        hover: Option<DropTarget>,
+    },
+}
+
+/// Classify a cursor position inside a pane (normalized `0.0..=1.0`) into a drop
+/// zone: the outer `EDGE_ZONE` band on each side snaps to that edge (split), the
+/// inner region is `Center` (swap). Ties resolve to the nearest border. Pure and
+/// allocation-free — safe to call on every mouse-move while dragging.
+fn drop_zone(rx: f32, ry: f32) -> DropEdge {
+    /// Fraction of the pane's width/height each edge band occupies.
+    const EDGE_ZONE: f32 = 0.25;
+    let left = rx;
+    let right = 1.0 - rx;
+    let top = ry;
+    let bottom = 1.0 - ry;
+    let nearest = left.min(right).min(top).min(bottom);
+    if nearest > EDGE_ZONE {
+        DropEdge::Center
+    } else if nearest == left {
+        DropEdge::Left
+    } else if nearest == right {
+        DropEdge::Right
+    } else if nearest == top {
+        DropEdge::Top
+    } else {
+        DropEdge::Bottom
+    }
 }
 
 /// One named tab — an independent pane tree, plus an optional zoomed (maximized)
@@ -1829,6 +1876,15 @@ pub struct ConsoleView {
     /// Laid-out bounds of each split container, keyed by tree path, captured via a
     /// canvas overlay so the drag handler can map a mouse position to a weight.
     split_bounds: Rc<RefCell<HashMap<Vec<usize>, Bounds<Pixels>>>>,
+    /// Laid-out screen bounds of each leaf pane, keyed by stable `PaneId`,
+    /// captured per frame via a canvas overlay. The snap-drag hit-test scans this
+    /// to find the hovered drop-target pane + edge. Keyed by id (not path) so the
+    /// drag never caches a positional path across frames.
+    leaf_bounds: Rc<RefCell<HashMap<PaneId, Bounds<Pixels>>>>,
+    /// The snap-drag state machine — grab a pane by its title bar, hover an edge
+    /// of another pane to preview the split, release to `move_leaf`. A `Cell`
+    /// because `PaneDrag` is `Copy` and the view is single-threaded.
+    pane_drag: Cell<PaneDrag>,
     /// Read-only visual projection of the daemon-owned WorkPlan. Empty daemon
     /// nodeSpecs stay empty; this state never manufactures a runnable plan.
     work_plan_graph: crate::work_plan::PredictedDag,
@@ -2074,6 +2130,8 @@ impl ConsoleView {
             reject_target: None,
             dragging: None,
             split_bounds: Rc::new(RefCell::new(HashMap::new())),
+            leaf_bounds: Rc::new(RefCell::new(HashMap::new())),
+            pane_drag: Cell::new(PaneDrag::Idle),
             work_plan_graph: crate::work_plan::empty_work_projection(),
             work_graph_png_path: None,
             work_intent_id: None,
@@ -2182,6 +2240,34 @@ impl ConsoleView {
     }
     fn zoomed(&self) -> Option<PaneId> {
         self.tabs[self.active_tab].zoomed
+    }
+
+    /// Snap-drag hit-test: which drop-target pane + edge is the cursor over?
+    /// A cheap read-only scan of the per-frame `leaf_bounds` (O(panes), no
+    /// allocation) — the source pane is skipped so a drag never targets itself.
+    /// Runs on every mouse-move while a drag is live, so it must stay lean.
+    fn hit_test_drop(&self, pos: Point<Pixels>, from: PaneId) -> Option<DropTarget> {
+        let x = f32::from(pos.x);
+        let y = f32::from(pos.y);
+        for (&id, b) in self.leaf_bounds.borrow().iter() {
+            if id == from {
+                continue;
+            }
+            let ox = f32::from(b.origin.x);
+            let oy = f32::from(b.origin.y);
+            let w = f32::from(b.size.width);
+            let h = f32::from(b.size.height);
+            if x < ox || x > ox + w || y < oy || y > oy + h {
+                continue;
+            }
+            let rx = (x - ox) / w.max(1.0);
+            let ry = (y - oy) / h.max(1.0);
+            return Some(DropTarget {
+                target: id,
+                edge: drop_zone(rx, ry),
+            });
+        }
+        None
     }
     /// Toggle maximize on a pane within the active tab.
     fn toggle_zoom(&mut self, id: PaneId) {
@@ -3730,6 +3816,18 @@ impl ConsoleView {
         };
         let control_flash = self.control_flash.clone();
 
+        // Snap-drag: a shared handle to publish this leaf's laid-out bounds (the
+        // drop-target hit-test geometry) and the ghost-outline zone to preview if
+        // this pane is the one currently being hovered by a drag.
+        let leaf_bounds = self.leaf_bounds.clone();
+        let ghost_edge = match self.pane_drag.get() {
+            PaneDrag::Dragging { from, hover: Some(dt) } if dt.target == id && dt.target != from => {
+                Some(dt.edge)
+            }
+            _ => None,
+        };
+        let ghost_accent = current_theme().accent;
+
         div()
             .id(SharedString::from(format!("pane-{id}")))
             .relative()
@@ -3746,6 +3844,44 @@ impl ConsoleView {
             .on_click(cx.listener(move |this, _ev, _window, cx| {
                 this.ws_mut().focus(id);
                 cx.notify();
+            }))
+            // Publish this leaf's screen bounds (keyed by stable PaneId) so a
+            // snap-drag can hit-test the cursor to a drop-target pane + edge.
+            // Paint-only canvas: it never intercepts the pane's own mouse events.
+            .child(
+                canvas(
+                    move |bounds: Bounds<Pixels>, _window, _cx| {
+                        leaf_bounds.borrow_mut().insert(id, bounds);
+                    },
+                    |_bounds, _prepaint, _window, _cx| {},
+                )
+                .absolute()
+                .size_full(),
+            )
+            // Ghost-outline preview: a static, absolutely-positioned overlay rect
+            // at the computed drop zone (left/right/top/bottom half, or the whole
+            // pane for a Center swap). Low-opacity Tone accent fill + solid accent
+            // border — NOT a moved or scaled element, no animation loop. Reduced-
+            // motion safe (it is a static orientation cue).
+            .children(ghost_edge.map(|edge| {
+                let (left, top, w, h) = match edge {
+                    DropEdge::Left => (0.0, 0.0, 0.5, 1.0),
+                    DropEdge::Right => (0.5, 0.0, 0.5, 1.0),
+                    DropEdge::Top => (0.0, 0.0, 1.0, 0.5),
+                    DropEdge::Bottom => (0.0, 0.5, 1.0, 0.5),
+                    DropEdge::Center => (0.0, 0.0, 1.0, 1.0),
+                };
+                // 0xRRGGBB accent → 0xRRGGBBAA at ~22% alpha for the fill.
+                let fill = (ghost_accent << 8) | 0x38;
+                div()
+                    .absolute()
+                    .left(relative(left))
+                    .top(relative(top))
+                    .w(relative(w))
+                    .h(relative(h))
+                    .bg(rgba(fill))
+                    .border_2()
+                    .border_color(rgb(ghost_accent))
             }))
             // One knockout zone per pane, matching apps.html's panel headers.
             .child(
@@ -3773,6 +3909,18 @@ impl ConsoleView {
                             .font_family("IBM Plex Mono")
                             .text_size(px(12.0))
                             .font_weight(FontWeight::BOLD)
+                            // Grab handle: press the pane's title to start a snap
+                            // drag. The root mouse-move handler tracks the hovered
+                            // drop zone; mouse-up commits the `move_leaf`.
+                            .on_mouse_down(
+                                MouseButton::Left,
+                                cx.listener(move |this, _ev: &MouseDownEvent, _window, cx| {
+                                    this.ws_mut().focus(id);
+                                    this.pane_drag
+                                        .set(PaneDrag::Dragging { from: id, hover: None });
+                                    cx.notify();
+                                }),
+                            )
                             .child(panel_title),
                     )
                     .child(div().flex_1())
@@ -6815,6 +6963,22 @@ impl Render for ConsoleView {
             // Grab-the-rope: while a divider drag is live, map the global mouse
             // position to the split's weight fraction and resize that boundary.
             .on_mouse_move(cx.listener(|this, ev: &MouseMoveEvent, _window, cx| {
+                // Snap-drag: while a pane is grabbed by its title, track which
+                // drop-target pane + edge the cursor is over (drives the ghost).
+                if let PaneDrag::Dragging { from, hover } = this.pane_drag.get() {
+                    // Bulletproof release: if Left is no longer held, cancel.
+                    if ev.pressed_button != Some(MouseButton::Left) {
+                        this.pane_drag.set(PaneDrag::Idle);
+                        cx.notify();
+                        return;
+                    }
+                    let next = this.hit_test_drop(ev.position, from);
+                    if next != hover {
+                        this.pane_drag.set(PaneDrag::Dragging { from, hover: next });
+                        cx.notify();
+                    }
+                    return;
+                }
                 if let Some(d) = this.dragging.clone() {
                     // The mooring line tracks the boundary, so the cursor sits over
                     // the occluding divider at release and the mouse-up can be
@@ -6868,6 +7032,16 @@ impl Render for ConsoleView {
             }))
             .on_mouse_up(MouseButton::Left, cx.listener(|this, _ev: &MouseUpEvent, _window, cx| {
                 if this.dragging.take().is_some() {
+                    cx.notify();
+                }
+                // Snap-drag release: commit the reparent at the hovered zone.
+                // Take the drag out of the Cell FIRST (drop any borrow) before
+                // mutating the workspace. Incoherent drops (onto itself / a
+                // vanished pane) are silently no-ops via move_leaf's Result.
+                if let PaneDrag::Dragging { from, hover } = this.pane_drag.replace(PaneDrag::Idle) {
+                    if let Some(dt) = hover {
+                        let _ = this.ws_mut().move_leaf(from, dt.target, dt.edge);
+                    }
                     cx.notify();
                 }
                 // Sextant marquee release: convert the pixel rect to normalized
