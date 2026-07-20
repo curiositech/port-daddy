@@ -212,7 +212,27 @@ pd done "Auth fixed; tests green"
 
 Every session progresses through **phases** for swarm visibility: `planning`, `in_progress`, `testing`, `reviewing`, `completed` / `abandoned`.
 
+### Plan and Checklist Enforcement
+
+Every active session requires planning. You can set, show, and check off todo list items:
+
+```bash
+pd plan set "- [ ] Implement tests\n- [ ] Update docs"
+pd plan show
+pd plan check 1        # Check off item 1
+pd plan check "docs"   # Check off item by substring matching
+```
+
+When completing a session with `pd done`, the daemon checks if there are any unchecked checklist items (`[ ]` or `[-]`) in your plan. If unchecked items exist, `pd done` fails closed with code `PLAN_UNCHECKED_ITEMS`.
+
+To bypass the check and complete a session with remaining incomplete tasks:
+```bash
+pd done "Complete session" --force-incomplete --reason "Deferred features to next ticket"
+```
+The reason must be at least 12 characters and will be stamped with `[OPERATOR-OVERRIDE force-incomplete]` in the handoff notes.
+
 ### Salvage, takeover & resurrection
+
 
 When an agent dies (crash, lost connection, context exhaustion) its sessions and notes are preserved. New agents in the same project are notified at registration:
 
@@ -272,7 +292,7 @@ Every `pd` command is classified by how much shared state it touches. The tier i
 | Tier | What it means | Examples |
 |---|---|---|
 | `silent` | Read-only. Safe to run anywhere. | `pd status`, `pd whoami`, `pd notes`, `pd briefing`, `pd sessions`, `pd actors`, `pd find`, `pd look`, `pd periscope`, `pd doctor` |
-| `notify` | Mutates your own state. Reversible. | `pd note`, `pd begin`, `pd done`, `pd claim`, `pd lock`, `pd takeover`, `pd backup`, `pd cut`, `pd backend` |
+| `notify` | Mutates your own state. Reversible. | `pd note`, `pd begin`, `pd done`, `pd claim`, `pd lock`, `pd takeover`, `pd backup`, `pd cut`, `pd backend`, `pd plan` |
 | `approval` | Affects other agents. No data loss. | `pd pub`, `pd spawn`, `pd sortie`, `pd up`, `pd dispatch`, `pd parley`, `pd squid`, `pd harbor create` |
 | `destructive` | Releases someone else's resources or removes records. Prompts. | `pd restore`, `pd salvage claim`, `pd fleet panic`, `pd unlock --force` (full list below) |
 

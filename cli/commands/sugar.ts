@@ -716,6 +716,8 @@ export async function handleDone(
 
   const noPr = options.noPr === true || options['no-pr'] === true;
   const subtask = options.subtask === true || options['subtask'] === true;
+  const forceIncomplete = options.forceIncomplete === true || options['force-incomplete'] === true;
+  const reason = (options.reason as string | undefined) || undefined;
 
   const pd = new PortDaddy({ agentId: typeof body.agentId === 'string' ? body.agentId : undefined });
   const data = await pd.done(note, {
@@ -726,6 +728,8 @@ export async function handleDone(
     skipOriginCheckReason: skipOriginCheck ? skipOriginCheckReason : undefined,
     noPr: noPr ? true : undefined,
     subtask: subtask ? true : undefined,
+    forceIncomplete: forceIncomplete ? true : undefined,
+    forceIncompleteReason: forceIncomplete ? reason : undefined,
   });
 
   if (!data?.success) {

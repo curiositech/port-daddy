@@ -34,6 +34,7 @@ import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
+import { readCurrentContext } from '../utils/current-context.js';
 
 interface ActivityEntry {
   timestamp?: string;
@@ -114,6 +115,74 @@ export async function handleSitrep(options: CLIOptions): Promise<void> {
     ui.error(data.error || 'Failed to fetch sitrep');
     process.exit(1);
   }
+
+  if (options.template) {
+    const current = readCurrentContext();
+    let agentId = 'unknown';
+    let sessionId = 'unknown';
+    let telos = 'unknown';
+    let purpose = 'unknown';
+    let compliance = 'C6';
+    let latestPlan = '';
+    let transcriptPath = '';
+
+    if (current?.sessionId) {
+      sessionId = current.sessionId;
+      agentId = current.agentId || 'unknown';
+      transcriptPath = `file:///Users/erichowens/.gemini/antigravity-cli/brain/${sessionId}/.system_generated/logs/transcript.jsonl`;
+
+      try {
+        const sRes = await pdFetch(`${PORT_DADDY_URL}/sessions/${sessionId}`);
+        if (sRes.ok) {
+          const sData = (await sRes.json()) as any;
+          if (sData.success && sData.session) {
+            telos = sData.session.telos || sData.session.purpose || 'unknown';
+            purpose = sData.session.purpose || 'unknown';
+            compliance = sData.session.metadata?.compliance || 'C6';
+          }
+        }
+      } catch {
+        // fail-silent
+      }
+
+      try {
+        const pRes = await pdFetch(`${PORT_DADDY_URL}/sessions/${sessionId}/notes?type=todo_list`);
+        if (pRes.ok) {
+          const pData = (await pRes.json()) as any;
+          if (pData.success && pData.notes && pData.notes.length > 0) {
+            latestPlan = pData.notes[pData.notes.length - 1].content || pData.notes[pData.notes.length - 1].note;
+          }
+        }
+      } catch {
+        // fail-silent
+      }
+    }
+
+    console.log(`
+# Session Sit-Rep: ${sessionId}
+
+## Metadata
+- **Agent ID:** ${agentId}
+- **Session ID:** ${sessionId}
+- **Telos:** ${telos}
+- **Purpose:** ${purpose}
+- **Compliance Level:** ${compliance}
+- **Transcript:** ${transcriptPath || '(No active session)'}
+
+## Plan & Todo List
+${latestPlan ? latestPlan : '- [ ] (No plan set yet; run "pd plan set" to define your checklist)'}
+
+## Ideas, Suggestions & Remediations
+| Idea / Suggestion / Remediation | Source (Agent/Operator) | Status | Related PR/Issue | Docs / Roadmap Link |
+| --- | --- | --- | --- | --- |
+| | | | | |
+
+## Recent Activity Summary
+${data.summary}
+`);
+    return;
+  }
+
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));

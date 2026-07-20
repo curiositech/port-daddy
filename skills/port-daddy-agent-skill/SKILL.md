@@ -67,17 +67,28 @@ agent loop for repo work on this machine.
 
 ```bash
 pd status
+pd sitrep --template
 pd briefing
 pd salvage --project <project> --limit 20
 pd begin "<bounded task>" --identity <project>:<agent> --lifecycle durable
 pd whoami
+pd plan set "- [ ] Setup X\n- [ ] Fix Y\n- [ ] Verify Z"
 pd advise <likely-path> --task "<plain-language task>"
 pd note "Scope: <files>. Assumptions: <truth>. Validation: <commands>."
 pd session files add <path>
-# work, validate, and keep notes current
+# work, validate, check off plan, and keep notes current
+pd plan check "Setup X"
 pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
 ```
+
+## Plan & Todo List Tracking
+
+Every agent must establish a versioned todo checklist using `pd plan set`.
+- **Set a plan**: Run `pd plan set` with markdown checklist items.
+- **View latest plan**: Run `pd plan show` or `pd plan`.
+- **Mark item completed**: Run `pd plan check <index>` (e.g., `pd plan check 1` or `pd plan check "step one"`).
+- **Close session gate**: `pd done` checks your active plan. If any unchecked `[ ]` items remain, the close operation fails closed. Bypass with `pd done --force-incomplete --reason "<why>"` if incomplete work is intentionally handshaked or deferred.
 
 ## Session Continuity
 

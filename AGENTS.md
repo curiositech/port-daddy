@@ -54,9 +54,11 @@ Lifecycle: `pd setup` offers the one-time ~27 MB download (cancellable); `pd doc
 - Start recovery, debugging, and parallel-work sessions with Port Daddy before doing local archaeology:
   - `pd attention` — **first command of every session.** Reads unread inbox + subscribed channels in one call, marks them seen. Without this, other agents can route messages, file conflicts, or coordination signals at your agent id and you will never see them. The Claude Code SessionStart hook in `.claude/settings.json` runs this automatically and pins the output into context; for other harnesses, run it manually.
   - `pd status`
+  - `pd sitrep --template` to synthesize the current state
   - `pd briefing`
   - `pd salvage` when crash residue or abandoned work might matter
   - `pd begin --identity <project>:<task>`
+  - `pd plan set "- [ ] My plan"` to define the steps required for the task. You must maintain this plan and use `pd plan check` as you make progress.
 - If you are going to edit files, coordinate through Port Daddy primitives, not only prose:
   - leave a `pd note` describing scope and intended files
   - prefer symbol/region claims for code edits when the symbol index knows the file; use whole-file claims only when the edit truly spans the file or no symbol/section identity exists
@@ -169,6 +171,8 @@ Documents`.
   files add` before editing → `pd done` at the end. Rent is real: every commit
   carries a `pd note` (the Coordination Guard's `requireNotePerCommit` /
   Coast Guard). A silent agent is a non-durable agent.
+- **Establish a Plan and check off milestones.** Every agent must plan. After calling `pd begin`, you must run `pd plan set "- [ ] Step 1\n- [ ] Step 2"` to register a todo list before touching files. Update the plan with `pd plan check <index>` as you work. The `pd done` command will refuse to close the session if there are unchecked checklist items, unless bypassed with `--force-incomplete` and a 12+ character `--reason`.
+- **Run `pd sitrep` when starting or resuming work.** Call `pd sitrep` at the beginning of each turn or session to catch up on what happened while you were away.
 - **Dogfood, and dogfood *novelly*.** Reach deep into the CLI, MCP, and SDK each
   slice; deliberately exercise a surface you have not used before instead of
   living on `claim`/`note`/`done`. File feature feedback as you go. When a

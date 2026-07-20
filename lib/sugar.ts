@@ -142,6 +142,8 @@ interface DoneOptions {
   skipOriginCheckReason?: string;
   noPr?: boolean;
   subtask?: boolean;
+  forceIncomplete?: boolean;
+  forceIncompleteReason?: string;
 }
 
 interface WhoamiOptions {
@@ -841,6 +843,46 @@ export function createSugar(deps: SugarDeps) {
         effectiveNote = effectiveNote && effectiveNote.length > 0
           ? `${overrideStamp}\n${effectiveNote}`
           : overrideStamp;
+      }
+    }
+
+    // 3) Plan checklist validation
+    if (status === 'completed') {
+      const planNotesResult = sessions.getNotes(sessionId, { type: 'todo_list', limit: 1 });
+      const planNotes = (planNotesResult.success && Array.isArray(planNotesResult.notes) ? planNotesResult.notes : []) as Array<{ content: string }>;
+      if (planNotes.length > 0) {
+        const latestPlan = planNotes[0].content;
+        const uncheckedRegex = /\[\s\]/;
+        if (uncheckedRegex.test(latestPlan)) {
+          const forceIncomplete = options.forceIncomplete === true;
+          const forceIncompleteReason = typeof options.forceIncompleteReason === 'string'
+            ? options.forceIncompleteReason.trim()
+            : '';
+
+          if (!forceIncomplete) {
+            return {
+              success: false,
+              code: 'PLAN_UNCHECKED_ITEMS',
+              error: 'pd done refused — your session plan still has unchecked todo items.',
+              hint: 'Complete the items, update your plan with "pd plan check <id>", or close with "pd done --force-incomplete --reason \\"<why>\\"".',
+            };
+          }
+
+          if (!forceIncompleteReason || forceIncompleteReason.length < 12) {
+            return {
+              success: false,
+              code: 'FORCE_INCOMPLETE_REASON_REQUIRED',
+              error: 'pd done --force-incomplete requires --reason "<reason>" (min 12 chars).',
+              hint: 'Provide a clear description of why the plan is incomplete (e.g., "features deferred to next ticket").',
+            };
+          }
+
+          // Prepend incomplete marker to final note
+          const overrideStamp = `[OPERATOR-OVERRIDE force-incomplete] reason: ${forceIncompleteReason}`;
+          effectiveNote = effectiveNote && effectiveNote.length > 0
+            ? `${overrideStamp}\n${effectiveNote}`
+            : overrideStamp;
+        }
       }
     }
 

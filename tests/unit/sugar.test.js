@@ -544,6 +544,77 @@ describe('sugar.done', () => {
     expect(result.error).toContain('No active session');
   });
 
+  test('refuses pd done when active plan has unchecked todo items', () => {
+    const { sugar, sessions } = setup();
+
+    const begin = sugar.begin({ lifecycle: 'ephemeral',
+      purpose: 'Checked items test',
+      agentId: 'plan-test-1',
+    });
+    expect(begin.success).toBe(true);
+
+    // Set a plan with unchecked items
+    sessions.addNote(begin.sessionId, '- [ ] todo one\n- [x] todo two', { type: 'todo_list' });
+
+    // Done should fail
+    const result = sugar.done({
+      agentId: 'plan-test-1',
+      sessionId: begin.sessionId,
+      note: VALID_RESULT_NOTE_WITH_PR,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('PLAN_UNCHECKED_ITEMS');
+  });
+
+  test('succeeds pd done with forceIncomplete and reason', () => {
+    const { sugar, sessions } = setup();
+
+    const begin = sugar.begin({ lifecycle: 'ephemeral',
+      purpose: 'Force checked items test',
+      agentId: 'plan-test-2',
+    });
+    expect(begin.success).toBe(true);
+
+    // Set a plan with unchecked items
+    sessions.addNote(begin.sessionId, '- [ ] todo one', { type: 'todo_list' });
+
+    // Done fails if forceIncompleteReason is too short or missing
+    const fail1 = sugar.done({
+      agentId: 'plan-test-2',
+      sessionId: begin.sessionId,
+      note: VALID_RESULT_NOTE_WITH_PR,
+      forceIncomplete: true,
+    });
+    expect(fail1.success).toBe(false);
+    expect(fail1.code).toBe('FORCE_INCOMPLETE_REASON_REQUIRED');
+
+    const fail2 = sugar.done({
+      agentId: 'plan-test-2',
+      sessionId: begin.sessionId,
+      note: VALID_RESULT_NOTE_WITH_PR,
+      forceIncomplete: true,
+      forceIncompleteReason: 'too short',
+    });
+    expect(fail2.success).toBe(false);
+    expect(fail2.code).toBe('FORCE_INCOMPLETE_REASON_REQUIRED');
+
+    // Done succeeds with a long reason
+    const ok = sugar.done({
+      agentId: 'plan-test-2',
+      sessionId: begin.sessionId,
+      note: VALID_RESULT_NOTE_WITH_PR,
+      forceIncomplete: true,
+      forceIncompleteReason: 'deferred features to next ticket',
+    });
+    expect(ok.success).toBe(true);
+
+    // Verify notes have override stamp
+    const notes = sessions.getNotes(begin.sessionId);
+    const handoffNotes = notes.notes.filter(n => n.type === 'handoff');
+    expect(handoffNotes[0].content).toContain('[OPERATOR-OVERRIDE force-incomplete]');
+  });
+
   test('returns note count', () => {
     const { sugar, sessions } = setup();
 

@@ -29,12 +29,13 @@ if command -v jq >/dev/null 2>&1 && [ -n "$EVENT" ]; then
   [ -n "$J" ] && CWD="$J"
 fi
 
-# Nothing to inject if there is no matrix yet — fail open, silent.
-[ -f "$MATRIX" ] || exit 0
-
-# Read the matrix once (cheap, single grep over a flat file).
-ALERTS="$(grep -E '^PD_ALERT_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
-PHER="$(grep -E '^PD_PHEROMONE_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+# Read the matrix once if it exists (cheap, single grep over a flat file).
+ALERTS=""
+PHER=""
+if [ -f "$MATRIX" ]; then
+  ALERTS="$(grep -E '^PD_ALERT_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+  PHER="$(grep -E '^PD_PHEROMONE_[A-Za-z0-9_]+=' "$MATRIX" 2>/dev/null || true)"
+fi
 
 # Relevance: a pheromone is relevant if its value mentions the cwd basename or
 # the cwd itself. Alerts are always relevant (operator steering is global).
@@ -46,8 +47,10 @@ emit_value() {
 }
 
 OUT=""
+OUT="${OUT}[PORT DADDY — STEERING ALERTS]\n"
+OUT="${OUT}- Agent must maintain an active pd plan and run pd sitrep to synthesize state.\n"
+
 if [ -n "$ALERTS" ]; then
-  OUT="${OUT}[PORT DADDY — STEERING ALERTS]\n"
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     OUT="${OUT}- $(emit_value "$line")\n"

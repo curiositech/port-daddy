@@ -144,6 +144,8 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         skipOriginCheckReason,
         noPr,
         subtask,
+        forceIncomplete,
+        forceIncompleteReason,
       } = request.body as any;
  
       const VALID_DONE_STATUSES = new Set(['completed', 'abandoned']);
@@ -165,6 +167,8 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         skipOriginCheckReason,
         noPr,
         subtask,
+        forceIncomplete,
+        forceIncompleteReason,
       });
 
       if (!result.success) {
@@ -175,6 +179,8 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
             : result.code === 'BRANCH_NOT_ON_ORIGIN'
               || result.code === 'RESULT_NOTE_MISSING_SENTINEL'
               || result.code === 'SKIP_ORIGIN_CHECK_REASON_REQUIRED'
+              || result.code === 'PLAN_UNCHECKED_ITEMS'
+              || result.code === 'FORCE_INCOMPLETE_REASON_REQUIRED'
               ? 400
               : 500;
         reply.code(httpStatus);

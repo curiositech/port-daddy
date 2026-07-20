@@ -120,7 +120,7 @@ import {
   handleParley,
   handleFeedback,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
-  handleSitrep, handleSay, handleLook, handlePheromone,
+  handleSitrep, handleSay, handleLook, handlePheromone, handlePlan,
   // Coordination advisor / suggestibility
   handleAdvisor,
   // Maritime actor directory
@@ -216,7 +216,7 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'advise', 'preflight', 'compass', 'guard',
   'metrics', 'health', 'dashboard',
   'bench', 'benchmark', 'demo', 'tuple', 'sortie', 'roadmap',
-  'secret', 'secrets', 'skill-graft'
+  'secret', 'secrets', 'skill-graft', 'plan'
 ]);
 
 /**
@@ -1404,6 +1404,7 @@ const ALL_COMMANDS: string[] = [
   'coast-guard', 'cg',
   'safe',
   'relay',
+  'plan',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2942,6 +2943,10 @@ export async function main(): Promise<void> {
 
       case 'sitrep':
         await handleSitrep(options);
+        break;
+
+      case 'plan':
+        await handlePlan(positional, options);
         break;
 
       case 'pheromone':

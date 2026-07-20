@@ -2722,6 +2722,8 @@ class PortDaddy {
     if (options.skipOriginCheckReason) body.skipOriginCheckReason = options.skipOriginCheckReason;
     if (options.noPr) body.noPr = true;
     if (options.subtask) body.subtask = true;
+    if (options.forceIncomplete) body.forceIncomplete = true;
+    if (options.forceIncompleteReason) body.forceIncompleteReason = options.forceIncompleteReason;
 
     const ipcResult = await this._requestViaIpc<DoneSugarResponse>(IpcAction.DONE, body, {
       agentId: options.agentId || this.agentId,
@@ -3773,6 +3775,8 @@ interface DoneSugarOptions {
   skipOriginCheckReason?: string;
   noPr?: boolean;
   subtask?: boolean;
+  forceIncomplete?: boolean;
+  forceIncompleteReason?: string;
 }
 
 interface DoneSugarResponse {
