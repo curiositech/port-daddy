@@ -64,7 +64,7 @@ The hardest rule, and the easiest to violate under deadline. **A broken observab
 sink must not be able to crash or stall the process it observes.**
 
 - **Every emit is wrapped.** A sink that throws (disk full, closed fd, serialization
-  bomb) is swallowed — the daemon keeps serving. `try { sink[level](...) } catch {}`.
+  bomb) is swallowed — the daemon keeps serving: wrap the sink call in `try { emit } catch {}`.
 - **Failure-logging is itself governed.** The log that reports "the retention sweep
   failed" must dedup, or a persistent failure re-creates the storm one level up. Every
   primitive in `lib/observability/` logs its *own* failures through the governor.
