@@ -414,6 +414,52 @@ async function showHelpfulSuggestions(purpose: string, identity: string | undefi
   }
 }
 
+async function fetchAndRenderWelcomeBriefing(harbor?: string): Promise<void> {
+  try {
+    const res = await pdFetch(`${PORT_DADDY_URL}/sugar/welcome?harbor=${encodeURIComponent(harbor || '')}`);
+    if (!res.ok) return;
+    const data = (await res.json()) as any;
+    if (!data || !data.success) return;
+
+    console.error(`\n👋 ${ui.fmtBold(ui.fmtCyan('WELCOME TO THE PORT DADDY HARBOR'))}`);
+    
+    // 1. Next roadmap item
+    if (data.nextRoadmap) {
+      console.error(`\n📌 ${ui.fmtBold('Next Roadmap Target:')}`);
+      console.error(`   ${ui.fmtGreen(data.nextRoadmap.slug)}: "${data.nextRoadmap.summaryMd}"`);
+    }
+
+    // 2. Ongoing projects
+    if (data.ongoing && data.ongoing.length > 0) {
+      console.error(`\n🚢 ${ui.fmtBold('Ongoing Fleet Missions:')}`);
+      for (const s of data.ongoing) {
+        const wt = s.worktree ? ` (worktree: ${s.worktree.name || s.worktree.id})` : '';
+        console.error(`   - ${ui.fmtYellow(s.agentName || s.agentId)}: "${s.purpose}"${wt}`);
+      }
+    }
+
+    // 3. High-priority bugs
+    if (data.highPriBugs && data.highPriBugs.length > 0) {
+      console.error(`\n🚨 ${ui.fmtBold('High-Priority Bugs Needing Attention:')}`);
+      for (const f of data.highPriBugs) {
+        const surf = f.surface ? ` in ${f.surface}` : '';
+        console.error(`   - [${ui.fmtRed(f.severity.toUpperCase())}] ${ui.fmtYellow(f.slug)}: "${f.summary}"${surf}`);
+      }
+    }
+
+    // 4. Dormant or engineering excellence opportunities
+    if (data.dormant && data.dormant.length > 0) {
+      console.error(`\n⚓ ${ui.fmtBold('Dormant Projects / Refactoring Opportunities:')}`);
+      for (const d of data.dormant) {
+        console.error(`   - Session ${ui.fmtYellow(d.sessionId)}: "${d.purpose}" (dormant for ${d.lastActiveAgoMinutes}m)`);
+      }
+    }
+    console.error('');
+  } catch (err) {
+    // Fail silently
+  }
+}
+
 // =============================================================================
 // handleBegin — pd begin "purpose" --lifecycle durable|ephemeral [--identity X] [--files f1 f2...]
 // =============================================================================
@@ -422,11 +468,14 @@ export async function handleBegin(
   purpose: string | undefined,
   rest: string[],
   options: CLIOptions,
-): Promise<void> {
+ ): Promise<void> {
   // Flag takes precedence over positional
   purpose = purpose || (options.purpose as string) || undefined;
 
   if (!purpose && canPrompt()) {
+    // Show welcome briefing first!
+    await fetchAndRenderWelcomeBriefing(options.harbor as string || undefined);
+
     // Interactive wizard
     purpose = await promptText({ label: 'What are you working on?', required: true }) || undefined;
     if (!purpose) {
@@ -462,6 +511,7 @@ export async function handleBegin(
       if (lifecycle) options.lifecycle = lifecycle;
     }
   } else if (!purpose) {
+    await fetchAndRenderWelcomeBriefing(options.harbor as string || undefined);
     printBeginUsage();
     process.exit(1);
   }

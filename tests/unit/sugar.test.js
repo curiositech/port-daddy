@@ -10,12 +10,15 @@ import { createAgents } from '../../lib/agents.js';
 import { createSessions } from '../../lib/sessions.js';
 import { createActivityLog } from '../../lib/activity.js';
 import { createSugar } from '../../lib/sugar.js';
+import { createFeedback } from '../../lib/feedback.js';
+import { createCommitments } from '../../lib/commitments.js';
+import { createTupleSpace } from '../../lib/tuples.js';
 
 /**
  * Default-pass git-origin stub for unit tests.
  *
  * The real pd done now enforces "branch must be on origin" before
- * marking a session completed. The pre-existing test corpus does not
+ * marking a session completed. The e-existing test corpus does not
  * care about that — it was written before the rule existed and runs in
  * an in-memory SQLite scratch environment that isn't a git worktree.
  *
@@ -35,13 +38,18 @@ function setup(overrides = {}) {
   const sessions = createSessions(db);
   const activityLog = createActivityLog(db);
   sessions.setActivityLog(activityLog);
+  const tuples = createTupleSpace(db);
+  const feedback = createFeedback({ tuples });
+  const commitments = createCommitments(db);
   const sugar = createSugar({
     agents,
     sessions,
     activityLog,
     gitOriginChecker: overrides.gitOriginChecker || passingChecker(),
+    feedback,
+    commitments,
   });
-  return { db, agents, sessions, activityLog, sugar };
+  return { db, agents, sessions, activityLog, tuples, feedback, commitments, sugar };
 }
 
 /**
@@ -1066,5 +1074,98 @@ describe('sugar lifecycle', () => {
     // Done agent 2
     const d2 = sugar.done({ agentId: 'a2', note: VALID_RESULT_NOTE_WITH_PR });
     expect(d2.success).toBe(true);
+  });
+
+  it('should auto-enroll and auto-close commitments during begin/done lifecycle', () => {
+    const { sugar, commitments } = setup();
+
+    const beginRes = sugar.begin({
+      purpose: 'Write tests for port-daddy commitments',
+      identity: 'port-daddy:test:commitments',
+      lifecycle: 'durable',
+      agentId: 'test-agent-commitments',
+    });
+
+    expect(beginRes.success).toBe(true);
+
+    // Verify a commitment was created
+    const activeCommitments = commitments.list({ ownerActorId: 'test-agent-commitments', state: 'open' });
+    expect(activeCommitments.length).toBe(1);
+    expect(activeCommitments[0].successCheck).toBe(`session:${beginRes.sessionId}:completed`);
+
+    // Done the session
+    const doneRes = sugar.done({
+      agentId: 'test-agent-commitments',
+      note: VALID_RESULT_NOTE_WITH_PR,
+    });
+    expect(doneRes.success).toBe(true);
+
+    // Verify commitment is now closed
+    const activeAfter = commitments.list({ ownerActorId: 'test-agent-commitments', state: 'open' });
+    expect(activeAfter.length).toBe(0);
+  });
+
+  it('should allow takeover/resumption of recently closed sessions', () => {
+    const { sugar, sessions } = setup();
+
+    const beginRes1 = sugar.begin({
+      purpose: 'Initial session purpose',
+      identity: 'port-daddy:test:takeover',
+      lifecycle: 'durable',
+      agentId: 'test-agent-takeover',
+    });
+    expect(beginRes1.success).toBe(true);
+
+    // Close the session
+    const doneRes = sugar.done({
+      agentId: 'test-agent-takeover',
+      note: VALID_RESULT_NOTE_WITH_PR,
+    });
+    expect(doneRes.success).toBe(true);
+
+    // Re-begin for the same identity without force should perform takeover
+    const beginRes2 = sugar.begin({
+      purpose: 'New successor session purpose',
+      identity: 'port-daddy:test:takeover',
+      lifecycle: 'durable',
+    });
+
+    expect(beginRes2.success).toBe(true);
+    expect(beginRes2.resumed).toBe(true);
+    expect(beginRes2.takeover).toBe(true);
+    expect(beginRes2.sessionId).not.toBe(beginRes1.sessionId);
+  });
+
+  it('should generate a welcome briefing with roadmap, ongoing, high-pri bugs, and dormant sessions', () => {
+    const { sugar, feedback, sessions } = setup();
+
+    // 1. Add some open high-pri feedback
+    feedback.list = () => [
+      {
+        feedbackId: 'fb-1',
+        slug: 'critical-bug',
+        summary: 'Daemon crash on boot',
+        severity: 'critical',
+        status: 'open',
+        droppedBy: 'operator',
+        surface: 'daemon',
+        at: Date.now(),
+      },
+    ];
+
+    // 2. Add an active session
+    sugar.begin({
+      purpose: 'Live ongoing feature work',
+      identity: 'port-daddy:test:welcome',
+      lifecycle: 'durable',
+      agentId: 'test-agent-welcome',
+    });
+
+    const welcome = sugar.getWelcomeBriefing('fleet');
+    expect(welcome.success).toBe(true);
+    expect(welcome.ongoing.length).toBe(1);
+    expect(welcome.ongoing[0].purpose).toBe('Live ongoing feature work');
+    expect(welcome.highPriBugs.length).toBe(1);
+    expect(welcome.highPriBugs[0].slug).toBe('critical-bug');
   });
 });

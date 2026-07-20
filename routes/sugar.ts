@@ -15,6 +15,7 @@ interface SugarRouteDeps {
     done(options: Record<string, unknown>): Record<string, unknown>;
     whoami(options: Record<string, unknown>): Record<string, unknown>;
     relink(options: Record<string, unknown>): Record<string, unknown>;
+    getWelcomeBriefing?(harbor?: string): Record<string, unknown>;
   };
   metrics: { errors: number };
   logger: {
@@ -253,6 +254,22 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
     } catch (error) {
       metrics.errors++;
       logger.error('sugar_whoami_error', { error: (error as Error).message });
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+
+  // GET /sugar/welcome
+  fastify.get('/sugar/welcome', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const harbor = typeof (request.query as any).harbor === 'string' ? (request.query as any).harbor : undefined;
+      if (sugar.getWelcomeBriefing) {
+        return sugar.getWelcomeBriefing(harbor);
+      }
+      return { success: false, error: 'Welcome briefing not supported by this sugar provider' };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('sugar_welcome_error', { error: (error as Error).message });
       reply.code(500);
       return { error: 'internal server error' };
     }
