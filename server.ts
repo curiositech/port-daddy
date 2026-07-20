@@ -115,6 +115,8 @@ import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
 import { createLocalEmbedder, createSemanticResolver, defaultTransformersCacheDir } from './lib/semantic-resolver.js';
+import { installGovernor } from './lib/observability/index.js';
+import { createObservabilityMaintenance } from './lib/observability/maintenance.js';
 import { createGalaxy } from './lib/galaxy.js';
 import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
@@ -330,6 +332,11 @@ if (!isSilent && process.env.NODE_ENV !== 'production') {
   }));
 }
 
+// Install the process-wide governed logger over winston. Loop/tick call sites log through this
+// (dedup + rate-limit + sampling + correlation) so a persistently-failing operation can never again
+// storm the logs the way `semantic_resolution_failed` did (7,182 lines → a 255 MB stdout capture).
+const governor = installGovernor(logger, { windowMs: 60_000, burst: 3 });
+
 // =============================================================================
 // DATABASE + PATHS (identical to server.ts)
 // =============================================================================
@@ -474,6 +481,7 @@ const semanticResolver = createSemanticResolver(db, {
   graphEdges,
   tuples,
   logger,
+  governor,
 });
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
 const quorum = createQuorum({ tuples });
@@ -488,6 +496,23 @@ const locks = createLocks(db);
 const health = createHealth(db, services as Parameters<typeof createHealth>[1]);
 const agents = createAgents(db, { semanticIndex });
 const activityLog = createActivityLog(db);
+
+// Observability maintenance: on each cleanup tick, prune the audit-identified unbounded tables
+// (harbor_issued_tokens, semantic_resolution_events), reclaim freed pages, and sample the daemon's
+// own DB/WAL/row footprint — raising a durable RESOURCE_ALARM before a runaway can reach 313 GB.
+const observabilityMaintenance = createObservabilityMaintenance({
+  db,
+  dbPath: DB_PATH,
+  governor,
+  onCritAlarm: (alarm) => {
+    try {
+      activityLog.log(ActivityType.RESOURCE_ALARM, {
+        details: `resource ceiling crossed: ${alarm.metric}`,
+        metadata: { metric: alarm.metric, value: alarm.value, threshold: alarm.threshold, severity: alarm.severity },
+      });
+    } catch { /* durable-audit best effort; the governed log already fired */ }
+  },
+});
 // Durable commitments + obligation monitor (ADR-0041 first slice). The
 // obligation half of accountability: resurrection watches heartbeats, this
 // watches promises. The monitor is a PURE runtime check over SQLite (Law 4 —
@@ -1088,6 +1113,10 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
   sessions.cleanup();
   agentInbox.cleanup();
   resurrection.cleanup();
+  // Unified retention sweep + page reclaim + self-footprint sample (see createObservabilityMaintenance).
+  try { observabilityMaintenance.tick(); } catch (err) {
+    governor.governed({ key: 'observability_maintenance_failed', level: 'error', message: 'observability_maintenance_failed', meta: { error: (err as Error).message } });
+  }
   db.pragma('wal_checkpoint(PASSIVE)');
   metrics.total_cleanups++;
   return serviceResult;
@@ -1477,6 +1506,8 @@ function shutdown(signal: string): void {
   }
   // Flush counters before closing DB (pending in-memory batches)
   try { counters.shutdown(); } catch {}
+  // Flush any pending log-suppression rollups so a governed tail isn't lost on exit.
+  try { governor.flushAll(); } catch {}
   try { tunnel.stopAll(); } catch {}
   try { tunnel.dispose?.(); } catch {}
   try { bosunHeartbeat.stop(); } catch {}
@@ -1502,6 +1533,27 @@ process.on('SIGHUP', () => {
   } catch (err) {
     logger.error('fleet_reload_failed', { error: (err as Error).message });
   }
+});
+
+// Global failure visibility — previously ABSENT (the audit's top dev-dogfooding gap). Without these,
+// an unhandled rejection crashed the daemon with a terse message (Node ≥15 terminates by default) and
+// a corrupting exception went unlogged. Governed so a flapping async fault can't itself become spam.
+process.on('unhandledRejection', (reason: unknown) => {
+  governor.governed({
+    key: 'unhandled_rejection',
+    level: 'error',
+    message: 'unhandled_rejection',
+    meta: {
+      error: reason instanceof Error ? reason.message : String(reason),
+      stack: reason instanceof Error ? reason.stack : undefined,
+    },
+  });
+});
+process.on('uncaughtException', (err: Error) => {
+  // Undefined state: log loudly (bypass dedup — this is fatal + singular), flush, and let the
+  // supervisor (launchd/brew KeepAlive) respawn cleanly rather than limp on in a corrupt state.
+  logger.error('uncaught_exception', { error: err.message, stack: err.stack });
+  shutdown('uncaughtException');
 });
 
 function onReady(): void {
