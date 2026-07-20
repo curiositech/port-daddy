@@ -974,7 +974,8 @@
         "with-lock",
         "n",
         "u",
-        "d"
+        "d",
+        "plan"
       ],
       "sdk": [
         "begin",
@@ -993,7 +994,8 @@
         "done",
         "whoami",
         "w",
-        "with-lock"
+        "with-lock",
+        "plan"
       ],
       "docs": {
         "readme": true,

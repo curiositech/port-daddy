@@ -1253,10 +1253,21 @@ _pd_cmd_done() {
     '(-a --agent)'{-a,--agent}'[agent ID]:agent ID:_pd_complete_agents' \
     '--session[session ID]:session ID:' \
     '(-s --status)'{-s,--status}'[session end status]:status:(completed abandoned)' \
+    '--force-incomplete[force end session with incomplete tasks]' \
+    '--reason[reason for force incomplete]:reason:' \
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]' \
     '1:note:'
+}
+
+_pd_cmd_plan() {
+  _arguments \
+    '--session[session ID]:session ID:' \
+    '--agent[agent ID]:agent ID:_pd_complete_agents' \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:action:(show set check)' \
+    '2:data:'
 }
 
 _pd_cmd_whoami() {
@@ -2270,6 +2281,7 @@ _port_daddy() {
     'begin:begin a work session (register agent + start session)'
     'b:begin a work session (alias for begin)'
     'done:end a work session (end session + unregister agent)'
+    'plan:manage session todo plans (show/set/check)'
     'whoami:show current agent/session context'
     'w:show current context (alias for whoami)'
     'attention:read inbox + subscribed channels in one call (run first thing every session)'
@@ -2493,6 +2505,7 @@ _port_daddy() {
         history)                _pd_cmd_history ;;
         begin|b)                _pd_cmd_begin ;;
         done)                   _pd_cmd_done ;;
+        plan)                   _pd_cmd_plan ;;
         whoami|w)               _pd_cmd_whoami ;;
         with-lock)              _pd_cmd_with_lock ;;
         n)                      _pd_cmd_note ;;
