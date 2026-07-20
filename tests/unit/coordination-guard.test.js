@@ -187,6 +187,97 @@ describe('Coordination Guard', () => {
     }));
   });
 
+  describe('advisory claims — stale-session downgrade (guard-claim-block-ignores-staleness)', () => {
+    const base = {
+      config: { ...DEFAULT_GUARD_CONFIG, enabled: true, mode: 'enforce' },
+      active: true,
+      agentId: 'agent-self',
+      sessionId: 'session-self',
+      files: ['src/shared.ts'],
+    };
+
+    test('a claim owned by a genuinely live other session still hard-blocks', () => {
+      const result = evaluateGuardFacts({
+        ...base,
+        ownersByFile: {
+          'src/shared.ts': [{ agentId: 'agent-other', sessionId: 'session-other-live' }],
+        },
+        // The salvage sweep has confirmed *other* sessions dead, but not this one —
+        // liveness must be checked per-owner, not just "some dead session exists".
+        deadSessionIds: ['session-some-unrelated-dead-session'],
+      });
+
+      expect(result.shouldBlock).toBe(true);
+      expect(result.violations[0]).toEqual(expect.objectContaining({
+        code: 'claimed-by-other-session',
+        severity: 'critical',
+        file: 'src/shared.ts',
+      }));
+    });
+
+    test('a claim owned only by sessions the salvage sweep already flagged dead warns instead of blocking', () => {
+      const result = evaluateGuardFacts({
+        ...base,
+        ownersByFile: {
+          'src/shared.ts': [{ agentId: 'agent-other', sessionId: 'session-other-dead' }],
+        },
+        deadSessionIds: new Set(['session-other-dead']),
+      });
+
+      expect(result.shouldBlock).toBe(false);
+      expect(result.passed).toBe(false); // still surfaced, just not blocking
+      expect(result.violations[0]).toEqual(expect.objectContaining({
+        code: 'claimed-by-other-session',
+        severity: 'warning',
+        file: 'src/shared.ts',
+      }));
+    });
+
+    test('a file already co-owned by the active session still passes cleanly regardless of deadSessionIds', () => {
+      const result = evaluateGuardFacts({
+        ...base,
+        ownersByFile: {
+          'src/shared.ts': [{ agentId: 'agent-self', sessionId: 'session-self' }],
+        },
+        deadSessionIds: new Set(['session-self']), // even if (implausibly) flagged dead, self-ownership wins
+      });
+
+      expect(result.passed).toBe(true);
+      expect(result.shouldBlock).toBe(false);
+      expect(result.violations).toEqual([]);
+    });
+
+    test('when multiple other owners exist, ANY live owner keeps the hard block (does not silently pass)', () => {
+      const result = evaluateGuardFacts({
+        ...base,
+        ownersByFile: {
+          'src/shared.ts': [
+            { agentId: 'agent-dead', sessionId: 'session-dead' },
+            { agentId: 'agent-live', sessionId: 'session-live' },
+          ],
+        },
+        deadSessionIds: new Set(['session-dead']),
+      });
+
+      expect(result.shouldBlock).toBe(true);
+      expect(result.violations[0].severity).toBe('critical');
+    });
+
+    test('warn mode never blocks even for a live-owner conflict (mode gate unchanged)', () => {
+      const result = evaluateGuardFacts({
+        ...base,
+        config: { ...base.config, mode: 'warn' },
+        ownersByFile: {
+          'src/shared.ts': [{ agentId: 'agent-other', sessionId: 'session-other-live' }],
+        },
+        deadSessionIds: new Set(),
+      });
+
+      expect(result.shouldBlock).toBe(false);
+      expect(result.violations[0].severity).toBe('critical');
+    });
+  });
+
   describe('the compulsion — no note, no commit (ADR-0050)', () => {
     const owned = {
       config: { ...DEFAULT_GUARD_CONFIG, enabled: true, mode: 'enforce' },
