@@ -42,7 +42,7 @@ mod chat;
 mod claims_pane;
 #[path = "../daemon_pane.rs"]
 mod daemon_pane; // daemon picker surface (tests)
-                 // cloud_fleet_pane is GPUI-free (no maritime/gpui), so it compiles in this bin.
+// cloud_fleet_pane is GPUI-free (no maritime/gpui), so it compiles in this bin.
 #[path = "../cloud_fleet_pane.rs"]
 mod cloud_fleet_pane;
 #[path = "../cockpit_pane.rs"]
@@ -123,6 +123,8 @@ mod syntax;
 mod term;
 #[path = "../theme.rs"]
 mod theme;
+#[path = "../transcripts_pane.rs"]
+mod transcripts_pane;
 #[path = "../util.rs"]
 mod util;
 // Offscreen Block→PNG raster (agent-safe, no display/TCC/gpui). Included here so the
@@ -145,6 +147,7 @@ use std::io::{self, Write};
 use std::time::Duration;
 use substrate_pane::SubstratePane;
 use term::{Sem, TermStyle};
+use transcripts_pane::TranscriptsPane;
 
 /// Left-rail banner (Clack idiom) in the locked theme. Plain mode degrades
 /// to the same layout without escapes — no width math, no broken boxes.
@@ -204,7 +207,10 @@ async fn drain_active_subscription(
         // coordination lane (region claims → `on_coord_frame`). One `subscribe_channel`
         // per channel is the isolation; a single `window` deadline bounds the drain, and
         // either channel closing ends it — mirroring the Agent arm's `None => break`.
-        Some(Subscription::Editor { channel, coord_channel }) => {
+        Some(Subscription::Editor {
+            channel,
+            coord_channel,
+        }) => {
             let active = reg.active;
             let mut edit_rx = daemon.subscribe_channel(&channel);
             let mut coord_rx = daemon.subscribe_channel(&coord_channel);
@@ -267,6 +273,7 @@ async fn main() -> Result<()> {
     reg.register(Box::new(ActiveAgentsPane::new()));
     reg.register(Box::new(HarborPane::new()));
     reg.register(Box::new(GalaxyPane::new()));
+    reg.register(Box::new(TranscriptsPane::new()));
 
     let ok = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✓", Sem::Landed));
     let err = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✗", Sem::Gated));

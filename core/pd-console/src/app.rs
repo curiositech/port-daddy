@@ -19,13 +19,15 @@ use gpui::prelude::*;
 use gpui::*;
 
 pub use crate::chat::ChatUpdate;
-use crate::chat::{chat_display_text, chat_error_display_text, ChatLog, ChatMsg, ChatState};
+use crate::chat::{
+    ChatLog, ChatMsg, ChatPart, ChatState, chat_display_text, chat_error_display_text,
+};
 use crate::dispatch_pane::DispatchHead;
-use crate::mux::{default_operator_workspace, Dir, Node, PaneId, SurfaceKind, Workspace};
+use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace, default_operator_workspace};
 use crate::palette::{Theme, ThemeMode};
 use crate::pane::{Alert, AlertLevel, Block, OperatorTurn, Pane, Tone};
 use crate::shell_drawer::{
-    terminal_key_bytes, ShellEvent, ShellStatus, ShellTerminal, TerminalColor,
+    ShellEvent, ShellStatus, ShellTerminal, TerminalColor, terminal_key_bytes,
 };
 use crate::story_linework::{corner_ticks, micro_flag, state_stripe};
 use crate::tokens;
@@ -399,6 +401,7 @@ fn surface_for_launcher_id(id: &str) -> SurfaceKind {
         "files" => SurfaceKind::FileTree { root: None },
         "alerts" => SurfaceKind::Hitl,
         "work" => SurfaceKind::Work,
+        "transcripts" => SurfaceKind::Transcripts,
         nav => surface_for_nav_id(nav),
     }
 }
@@ -441,6 +444,7 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
         "tree" | "filetree" => return Some(SurfaceKind::FileTree { root: None }),
         "hitl" => return Some(SurfaceKind::Hitl),
         "work" | "plan" => return Some(SurfaceKind::Work),
+        "transcript" | "transcripts" | "runs" => return Some(SurfaceKind::Transcripts),
         "roadmap" => return Some(SurfaceKind::Roadmap),
         "coast" => {
             return Some(SurfaceKind::Panel {
@@ -617,11 +621,7 @@ fn knockout_ink(color: u32) -> u32 {
     let g = ((color >> 8) & 0xff) as f32;
     let b = (color & 0xff) as f32;
     let luma = 0.299 * r + 0.587 * g + 0.114 * b;
-    if luma > 140.0 {
-        0x10_10_14
-    } else {
-        0xf5_f5_f7
-    }
+    if luma > 140.0 { 0x10_10_14 } else { 0xf5_f5_f7 }
 }
 
 /// One entry in the launcher's colour legend: a filled dot + a category label,
@@ -867,7 +867,7 @@ fn tone_rgb(tone: &Tone) -> u32 {
 // through hover color + box-shadow (instant, GPU-cheap) and with_animation
 // one-shot/looping timelines. Curves match the mock's bezier set. ≤500ms.
 pub(crate) mod motion {
-    use gpui::{point, px, BoxShadow, Hsla};
+    use gpui::{BoxShadow, Hsla, point, px};
 
     pub const RISE_MS: u64 = 500;
 
@@ -1879,6 +1879,9 @@ pub struct ConsoleView {
     /// so keydown pushes `key_char` here (case-preserving) the same way the command
     /// line does, and Enter submits a turn up the tube.
     chat_input: String,
+    /// Operator-controlled transcript projection. Rendered is the default;
+    /// raw preserves the exact provider-neutral Markdown payload for inspection.
+    chat_raw: bool,
     // ── Sextant state (rendered by `galaxy_canvas`; pub(crate) because
     // the bespoke canvas module reads them — the two-layer rule keeps all the
     // math in `galaxy_pane`, all the pixels there, and only state here). ──
@@ -2101,6 +2104,7 @@ impl ConsoleView {
             flag_ticking: false,
             chat: ChatLog::default(),
             chat_input: String::new(),
+            chat_raw: false,
             galaxy: crate::galaxy_pane::GalaxySnapshot::default(),
             galaxy_selected: HashSet::new(),
             galaxy_hover: None,
@@ -3222,7 +3226,7 @@ impl ConsoleView {
     /// the same channel every operator button uses, so scripting can never
     /// reach state the UI couldn't.
     pub fn handle_script(&mut self, req: crate::script::ScriptRequest) -> serde_json::Value {
-        use crate::script::{alert_to_json, block_to_json, ScriptRequest};
+        use crate::script::{ScriptRequest, alert_to_json, block_to_json};
         use serde_json::json;
         match req {
             ScriptRequest::Ping => json!({
@@ -3681,6 +3685,7 @@ impl ConsoleView {
         } else {
             String::new()
         };
+        let chat_raw = self.chat_raw;
         let chat_reduced = reduced_motion();
         let work_flash = self.control_flash.clone();
         // The rendered Vello PNG (if any) for the inline node-graph at the top of
@@ -3821,6 +3826,11 @@ impl ConsoleView {
                 let body = div()
                     .id(SharedString::from(format!("pane-body-{id}")))
                     .flex_1()
+                    // A scrolling flex child must be allowed to shrink below its
+                    // content height. Without min-height: 0, GPUI lays the chat
+                    // transcript out at its full intrinsic height, so the pane
+                    // clips it and wheel/touchpad input has no scroll range.
+                    .min_h(px(0.0))
                     .overflow_y_scroll()
                     // Scrolling the pane gives the flags their vertical pole velocity;
                     // they trail the motion and settle (render() drives the decay).
@@ -3924,7 +3934,7 @@ impl ConsoleView {
                             b = b.child(chat_error_banner(reason));
                         }
                         for (i, m) in chat_msgs.iter().enumerate() {
-                            b = b.child(chat_bubble(i, m, chat_reduced));
+                            b = b.child(chat_bubble(i, m, chat_reduced, chat_raw));
                         }
                         b
                     }
@@ -4120,7 +4130,12 @@ impl ConsoleView {
             // is the rolled-own text field: the root focus handle captures keys and
             // routes them to handle_chat_key when chat is focused (gpui has no native input).
             .when(is_chat && is_focused, |content| {
-                content.child(chat_composer(&chat_input, chat_reduced, cx))
+                content.child(chat_composer(
+                    &chat_input,
+                    chat_reduced,
+                    chat_raw,
+                    cx,
+                ))
             })
             // ── Dispatch review GATE (focused dispatch surface) — the operator's
             //    supervisor-worker veto: shows the head dispatch's intent + cost
@@ -5219,7 +5234,7 @@ fn motion_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
 
 /// One chat turn in the shared linework grammar. Operator and agent alignment is
 /// retained; square boundaries and a cobalt rail carry identity without cards.
-fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
+fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool, raw: bool) -> AnyElement {
     let t = current_theme();
     let mine = msg.mine;
     let sender_label = if mine {
@@ -5235,10 +5250,24 @@ fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
         .text_size(px(tokens::TEXT_CAPTION))
         .font_weight(FontWeight::SEMIBOLD)
         .child(sender_label);
-    let body = div()
+    let mut body = div()
+        .flex()
+        .flex_col()
+        .gap(px(tokens::SPACE_2))
         .text_color(rgb(if mine { t.accent_ink } else { t.ink }))
-        .text_size(px(tokens::TEXT_BODY))
-        .child(chat_display_text(&msg.text));
+        .text_size(px(tokens::TEXT_BODY));
+    if raw {
+        body = body.child(
+            div()
+                .font_family("IBM Plex Mono")
+                .text_size(px(tokens::TEXT_CAPTION))
+                .child(chat_display_text(&msg.text)),
+        );
+    } else {
+        for part in msg.parts() {
+            body = body.child(render_chat_part(part, mine));
+        }
+    }
 
     let bubble: Div = if mine {
         div()
@@ -5304,6 +5333,68 @@ fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
         row.child(bubble_el)
             .child(div().flex_1())
             .into_any_element()
+    }
+}
+
+fn render_chat_part(part: ChatPart, mine: bool) -> AnyElement {
+    let t = current_theme();
+    match part {
+        ChatPart::Markdown(text) => div()
+            .text_color(rgb(if mine { t.accent_ink } else { t.ink }))
+            .child(text)
+            .into_any_element(),
+        ChatPart::Thinking(text) => div()
+            .px(px(tokens::SPACE_2))
+            .py(px(tokens::SPACE_2))
+            .border_l_2()
+            .border_color(rgb(t.engaged))
+            .bg(tone_wash(t.engaged, 0x18))
+            .text_color(rgb(t.muted))
+            .child(format!("thinking\n{text}"))
+            .into_any_element(),
+        ChatPart::Tool { label, detail } => div()
+            .px(px(tokens::SPACE_2))
+            .py(px(tokens::SPACE_1))
+            .border_1()
+            .border_color(rgb(t.line))
+            .bg(rgb(t.sunken))
+            .font_family("IBM Plex Mono")
+            .text_size(px(tokens::TEXT_CAPTION))
+            .text_color(rgb(t.accent_ink))
+            .child(if detail.is_empty() {
+                format!("tool · {label}")
+            } else {
+                format!("tool · {label}\n{detail}")
+            })
+            .into_any_element(),
+        ChatPart::Code { language, source } => div()
+            .px(px(tokens::SPACE_2))
+            .py(px(tokens::SPACE_2))
+            .border_1()
+            .border_color(rgb(t.line))
+            .bg(rgb(t.sunken))
+            .font_family("IBM Plex Mono")
+            .text_size(px(tokens::TEXT_CAPTION))
+            .text_color(rgb(t.ink2))
+            .child(if language.is_empty() {
+                source
+            } else {
+                format!("{language}\n{source}")
+            })
+            .into_any_element(),
+        ChatPart::Mermaid(source) => div()
+            .px(px(tokens::SPACE_2))
+            .py(px(tokens::SPACE_2))
+            .border_1()
+            .border_color(rgb(t.cobalt))
+            .bg(tone_wash(t.cobalt, 0x16))
+            .font_family("IBM Plex Mono")
+            .text_size(px(tokens::TEXT_CAPTION))
+            .text_color(rgb(t.ink2))
+            // Honest fallback: the typed diagram block remains distinguishable
+            // and copyable until the native Vello Mermaid layout adapter lands.
+            .child(format!("MERMAID · source\n{source}"))
+            .into_any_element(),
     }
 }
 
@@ -5383,7 +5474,12 @@ fn chat_caret(reduced: bool) -> AnyElement {
 /// buffer (or a ghost placeholder) + the blinking caret, with a Send button. The
 /// load-bearing text input: gpui 0.2.2 has no native field, so keydown fills the
 /// buffer and this renders it.
-fn chat_composer(input: &str, reduced: bool, cx: &mut Context<ConsoleView>) -> AnyElement {
+fn chat_composer(
+    input: &str,
+    reduced: bool,
+    raw: bool,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
     let t = current_theme();
     div()
         .px(px(tokens::SPACE_3))
@@ -5393,6 +5489,25 @@ fn chat_composer(input: &str, reduced: bool, cx: &mut Context<ConsoleView>) -> A
         .flex()
         .items_center()
         .gap(px(tokens::SPACE_2))
+        .child(
+            div()
+                .id("chat-render-mode")
+                .flex_shrink_0()
+                .px(px(10.0))
+                .py(px(5.0))
+                .border_1()
+                .border_color(rgb(if raw { t.cobalt } else { t.line }))
+                .bg(rgb(if raw { t.raised } else { t.sunken }))
+                .text_color(rgb(if raw { t.cobalt } else { t.muted }))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .cursor_pointer()
+                .hover(|s| s.border_color(rgb(t.cobalt)))
+                .child(if raw { "Raw" } else { "Rendered" })
+                .on_click(cx.listener(|this, _ev, _window, cx| {
+                    this.chat_raw = !this.chat_raw;
+                    cx.notify();
+                })),
+        )
         .child(
             div()
                 .flex_1()
@@ -5952,6 +6067,7 @@ fn surface_for_nav_id(nav: &str) -> SurfaceKind {
         "fleet" => SurfaceKind::Fleet,
         "sessions" => SurfaceKind::Sessions,
         "dispatch" => SurfaceKind::Dispatch,
+        "transcripts" => SurfaceKind::Transcripts,
         other => SurfaceKind::Panel {
             nav: other.to_string(),
         },
@@ -5967,6 +6083,9 @@ fn nav_id_for_surface(surface: &SurfaceKind) -> Option<&str> {
         SurfaceKind::Fleet => Some("fleet"),
         SurfaceKind::Sessions => Some("sessions"),
         SurfaceKind::Dispatch => Some("dispatch"),
+        // Beacon-style recent-run discovery has its own daemon-backed transcript
+        // and compliance producer.
+        SurfaceKind::Transcripts => Some("transcripts"),
         SurfaceKind::Panel { nav } => Some(nav.as_str()),
         // HITL and Work are foreground projections, not generic NAV pane fetchers.
         SurfaceKind::CartographerChat
@@ -7388,6 +7507,15 @@ mod add_pane_tests {
             surface_for_query("alerts"),
             Some(SurfaceKind::Hitl)
         ));
+        assert!(matches!(
+            surface_for_query("transcripts"),
+            Some(SurfaceKind::Transcripts)
+        ));
+        assert_eq!(
+            nav_id_for_surface(&SurfaceKind::Transcripts),
+            Some("transcripts"),
+            "transcripts must use the daemon-backed transcript compliance producer"
+        );
     }
 
     #[test]
@@ -7410,7 +7538,7 @@ mod add_pane_tests {
             .into_iter()
             .map(|item| item.id)
             .collect::<Vec<_>>();
-        for id in ["chat", "files", "alerts", "work"] {
+        for id in ["chat", "files", "alerts", "work", "transcripts"] {
             assert!(ids.contains(&id), "launcher must expose {id}");
         }
         assert!(matches!(
@@ -7426,6 +7554,10 @@ mod add_pane_tests {
             SurfaceKind::Hitl
         ));
         assert!(matches!(surface_for_launcher_id("work"), SurfaceKind::Work));
+        assert!(matches!(
+            surface_for_launcher_id("transcripts"),
+            SurfaceKind::Transcripts
+        ));
     }
 
     #[test]

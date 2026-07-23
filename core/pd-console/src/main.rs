@@ -61,6 +61,7 @@ mod syntax;
 mod term;
 mod theme;
 mod tokens;
+mod transcripts_pane;
 mod util;
 mod work_plan;
 
@@ -95,6 +96,7 @@ use sessions_pane::SessionsPane;
 use sortie_pane::SortiePane;
 use substrate_pane::SubstratePane;
 use suggest_pane::SuggestPane;
+use transcripts_pane::TranscriptsPane;
 
 use cli_args::{parse_console_args, resolve_display_selector};
 use gpui::*;
@@ -165,7 +167,7 @@ fn augmented_tool_path() -> String {
 /// SIGKILLed in a sandbox). Returns the PNG path on success; an error carrying the
 /// captured stderr otherwise (surfaced as a HITL alert, never swallowed).
 fn render_work_graph_png(dag_json: &str) -> anyhow::Result<std::path::PathBuf> {
-    use anyhow::{bail, Context};
+    use anyhow::{Context, bail};
     let proto = work_graph_proto_dir();
     let script = proto.join("scripts").join("capture.sh");
     if !script.exists() {
@@ -294,7 +296,9 @@ fn main() {
                 .unwrap_or("headless-capture.png");
             match headless_capture::capture_to_path(out) {
                 Ok(bytes) => {
-                    println!("pd-console headless-capture -> {out} ({bytes} bytes, no window/display/TCC)");
+                    println!(
+                        "pd-console headless-capture -> {out} ({bytes} bytes, no window/display/TCC)"
+                    );
                     return;
                 }
                 Err(e) => {
@@ -540,6 +544,7 @@ fn main() {
                 let mut live_agents = ActiveAgentsPane::new();  // 24 — harness roster
                 let mut harbor     = HarborPane::new();         // 25 — Agent Node roster+detail (ch18 C3)
                 let mut galaxy      = GalaxyPane::new();        // 26 — Sextant embedding map
+                let mut transcripts = TranscriptsPane::new();   // 27 — recent LLM runs + conformance
 
                 // Pin the producer slots to the canonical grid map. If a pane is
                 // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
@@ -554,7 +559,7 @@ fn main() {
                         dispatch.id(), lane.id(), ledger.id(), lineage.id(), substrate.id(),
                         parley.id(), conductor.id(), daemons.id(), cloud_fleet.id(), live_agents.id(),
                         harbor.id(),
-                        galaxy.id(),
+                        galaxy.id(), transcripts.id(),
                     ],
                     grid::SLOT_PANE_IDS,
                     "producer slot order drifted from grid::SLOT_PANE_IDS",
@@ -1115,6 +1120,7 @@ fn main() {
                     let _ = live_agents.refresh(&client).await;
                     let _ = harbor.refresh(&client).await;
                     let _ = galaxy.refresh(&client).await;
+                    let _ = transcripts.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -1254,6 +1260,7 @@ fn main() {
                         (24, live_agents.view()),
                         (25, harbor.view()),
                         (26, galaxy.view()),
+                        (27, transcripts.view()),
                     ];
 
                     if tx

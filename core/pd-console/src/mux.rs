@@ -37,6 +37,10 @@ pub enum SurfaceKind {
     Roadmap,
     /// Conversation with the cartographer agent.
     CartographerChat,
+    /// Recent LLM runs projected through Agent Harbor. The backing pane is the
+    /// daemon-authored transcript/receipt surface; this variant only gives that
+    /// projection a first-class operator name in the multiplexer.
+    Transcripts,
     /// Filetree rooted at a repo/worktree path (`None` = the operator's repo).
     FileTree { root: Option<String> },
     /// Read-only editor surface hosting one file from local disk. The Harbor
@@ -77,6 +81,7 @@ impl SurfaceKind {
             SurfaceKind::AgentTranscript { agent_id: None } => "agent (newest)".into(),
             SurfaceKind::Roadmap => "planner".into(),
             SurfaceKind::CartographerChat => "cartographer".into(),
+            SurfaceKind::Transcripts => "transcripts".into(),
             SurfaceKind::FileTree { root: Some(r) } => format!("files {r}"),
             SurfaceKind::FileTree { root: None } => "files".into(),
             SurfaceKind::Editor { path, .. } => {
@@ -650,6 +655,11 @@ mod tests {
     }
 
     #[test]
+    fn transcripts_is_a_named_operator_surface() {
+        assert_eq!(SurfaceKind::Transcripts.label(), "transcripts");
+    }
+
+    #[test]
     fn bind_entity_repoints_transcript() {
         let mut ws = Workspace::new(agent("a1"));
         ws.bind_entity(Some("a2".into()));
@@ -735,7 +745,7 @@ mod tests {
     fn resize_pair_moves_the_boundary_and_clamps() {
         let mut ws = Workspace::new(SurfaceKind::Roadmap);
         ws.split(Dir::Row, agent("a1")); // ROW[roadmap, a1], weights 1,1 (total 2)
-                                         // Move the boundary to 0.25 of total → left weight 0.5, right 1.5.
+        // Move the boundary to 0.25 of total → left weight 0.5, right 1.5.
         assert!(ws.resize_pair(&[], 0, 0.25));
         if let Node::Split { children, .. } = &ws.root {
             assert!(

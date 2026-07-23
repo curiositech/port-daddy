@@ -28,6 +28,18 @@ pub struct ChatMsg {
     pub mine: bool,
 }
 
+/// A display block within one conversational turn. The transport may still
+/// deliver a single text delta, but the viewer never has to flatten code,
+/// thinking, tool activity, and Mermaid into indistinguishable prose.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ChatPart {
+    Markdown(String),
+    Thinking(String),
+    Tool { label: String, detail: String },
+    Code { language: String, source: String },
+    Mermaid(String),
+}
+
 impl ChatMsg {
     /// The operator's own turn (optimistically shown the instant Send fires).
     pub fn mine(text: impl Into<String>) -> Self {
@@ -45,6 +57,86 @@ impl ChatMsg {
             mine: false,
         }
     }
+
+    pub fn parts(&self) -> Vec<ChatPart> {
+        parse_chat_parts(&self.text)
+    }
+}
+
+/// Tolerant projection for provider-neutral streamed text. Structured adapters
+/// should retain their typed events; this parser is the honest fallback for
+/// transcript bodies that arrive as Markdown-compatible text.
+pub fn parse_chat_parts(raw: &str) -> Vec<ChatPart> {
+    let clean = chat_display_text(raw);
+    let mut parts = Vec::new();
+    let mut prose = Vec::new();
+    let mut lines = clean.lines().peekable();
+
+    let flush_prose = |parts: &mut Vec<ChatPart>, prose: &mut Vec<String>| {
+        if !prose.is_empty() {
+            let text = prose.join("\n").trim().to_string();
+            if !text.is_empty() {
+                parts.push(ChatPart::Markdown(text));
+            }
+            prose.clear();
+        }
+    };
+
+    while let Some(line) = lines.next() {
+        if let Some(info) = line.trim_start().strip_prefix("```") {
+            flush_prose(&mut parts, &mut prose);
+            let language = info.trim().to_ascii_lowercase();
+            let mut source = Vec::new();
+            for code_line in lines.by_ref() {
+                if code_line.trim_start().starts_with("```") {
+                    break;
+                }
+                source.push(code_line);
+            }
+            let source = source.join("\n");
+            if matches!(language.as_str(), "mermaid" | "mmd") {
+                parts.push(ChatPart::Mermaid(source));
+            } else {
+                parts.push(ChatPart::Code { language, source });
+            }
+            continue;
+        }
+
+        let trimmed = line.trim();
+        if let Some(body) = trimmed
+            .strip_prefix("<thinking>")
+            .and_then(|s| s.strip_suffix("</thinking>"))
+            .or_else(|| {
+                trimmed
+                    .strip_prefix("<analysis>")
+                    .and_then(|s| s.strip_suffix("</analysis>"))
+            })
+        {
+            flush_prose(&mut parts, &mut prose);
+            parts.push(ChatPart::Thinking(body.trim().to_string()));
+            continue;
+        }
+        if let Some(detail) = trimmed
+            .strip_prefix("tool:")
+            .or_else(|| trimmed.strip_prefix("tool_use:"))
+            .or_else(|| trimmed.strip_prefix("$ "))
+        {
+            flush_prose(&mut parts, &mut prose);
+            let (label, detail) = detail
+                .trim()
+                .split_once(' ')
+                .map(|(label, detail)| (label.to_string(), detail.to_string()))
+                .unwrap_or_else(|| (detail.trim().to_string(), String::new()));
+            parts.push(ChatPart::Tool { label, detail });
+            continue;
+        }
+        prose.push(line.to_string());
+    }
+    flush_prose(&mut parts, &mut prose);
+    if parts.is_empty() {
+        parts.push(ChatPart::Markdown(String::new()));
+    }
+    parts
 }
 
 /// Text that is safe to hand to the native GPUI text element and the shared
@@ -316,6 +408,31 @@ mod tests {
         assert!(
             !banner.contains('\u{1b}'),
             "error banner must neutralize controls: {banner:?}"
+        );
+    }
+
+    #[test]
+    fn rich_chat_parts_preserve_markdown_code_thinking_tools_and_mermaid() {
+        let text = "Hello **operator**\n\n<thinking>checking the ledger</thinking>\n\
+tool:rg transcript\n```rust\nlet answer = 42;\n```\n\
+```mermaid\nflowchart LR\nA-->B\n```";
+        let parts = parse_chat_parts(text);
+        assert!(matches!(&parts[0], ChatPart::Markdown(t) if t.contains("**operator**")));
+        assert!(
+            parts
+                .iter()
+                .any(|p| matches!(p, ChatPart::Thinking(t) if t == "checking the ledger"))
+        );
+        assert!(
+            parts
+                .iter()
+                .any(|p| matches!(p, ChatPart::Tool { label, .. } if label == "rg"))
+        );
+        assert!(parts.iter().any(|p| matches!(p, ChatPart::Code { language, source } if language == "rust" && source.contains("answer"))));
+        assert!(
+            parts
+                .iter()
+                .any(|p| matches!(p, ChatPart::Mermaid(source) if source.contains("A-->B")))
         );
     }
 }
