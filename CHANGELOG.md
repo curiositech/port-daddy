@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.26.1] - 2026-07-23
+
+### Fixed
+- **The Bosun watchdog is now correctly detected on a Homebrew install, and a genuinely-missing watchdog is a REQUIRED (critical) doctor failure, not a warning.** `resolveBosunBinaryPath` only looked for the supervisor flat at `<root>/pd-bosun` plus source/dist fallbacks — never `<root>/bin/pd-bosun`, which is exactly where brew installs it next to `pd`. So `pd doctor` reported "pd-bosun binary not built" on every brew install *even while the daemon's own `guardians.bosun` reported the binary present and the heartbeat healthy* (reproduced live on 3.26.0). Two fixes: (1) the resolver now also checks `<root>/bin/pd-bosun` and `<root>/libexec/bin/pd-bosun`; (2) the doctor check trusts the daemon's authoritative `guardians.bosun.binaryExists`/state over its own local path guess when the daemon is reachable, and escalates a truly-absent watchdog to CRITICAL so a supervisor-less build fails `pd doctor` (non-zero exit) instead of shipping with a silent warning. The CI release + smoke jobs now build `pd-bosun` before the doctor gate, so CI proves the watchdog actually ships.
+- **`pd doctor` can no longer report ✓ healthy for a check it never actually ran.** Three checks — DB fragmentation, Stuck lsof processes, and Shell-idiom `.env.local` — caught their own probe failure and reported `✓ "Could not check (skipped)"`, turning "I couldn't look" into "it's fine." They now surface as a WARN (unknown), never a green pass.
+- **`pd doctor` no longer calls a live process "stale".** Stale-services and PID-file checks used a bare `process.kill(pid,0)` that treats **EPERM** (a live process owned by another uid) as dead — advising deletion of a running daemon's pidfile. Both now reuse `isPidAlive`, which correctly treats EPERM as alive.
+- **A CI honesty gate (`scripts/ci-doctor-gate.sh`) now fails the build if `pd doctor` lies:** it runs the *compiled* `pd doctor --json` against a freshly-booted daemon and asserts no check reports OK while admitting it could not check, the Bosun watchdog is present (never the "not built" false-negative), and the report actually ran its full check set (no short-circuit to a tiny green report).
+
+## [3.26.0] - 2026-07-23
+
+### Added
+- **Unified observability layer (`lib/observability/`, #3142) — the shared primitives whose absence let a daemon write 313 GB and log the same error 7,182 times.** A four-front audit found the identical failure mode had recurred twice (`semantic_resolution_failed`, and earlier `bosun_heartbeat_write_failed`): error-level logging inside an unthrottled retry/poll loop, no dedup, feeding an unrotated sink. This release closes the *class*: a **log governor** (per-key dedup + rate-limit + sampling with honest suppression rollups — a loop can emit a few lines then `…and N more`, never the full storm), a **gated loader** (a circuit breaker around a load-once dependency that finally *wires* the previously dead-code `agent-resilience.ts` full-jitter backoff + breaker), a **retention registry** (one declared policy per table + `incremental_vacuum` reclaim + a fail-loud coverage guard), a **self-monitor** (alarms on the daemon's OWN db/wal/row footprint, not whole-disk %), and **correlation context** (`requestId`/`actorId`/`tenantId` threaded via `AsyncLocalStorage` for the multi-tenant horizon). 37 new unit tests.
+- **Global failure visibility.** `unhandledRejection`/`uncaughtException` handlers (previously absent — a long-lived daemon could die or corrupt silently) and a durable `RESOURCE_ALARM` activity type so a runaway footprint leaves an audit trail.
+- **Five skill-architect-validated skills** encoding the discipline: `responsible-logging`, `resilience-wiring-for-load-once-deps` (defers to the existing `circuit-breakers-and-retries` canon rather than duplicating it), `db-retention-and-compaction`, `self-monitoring-resource-alarms`, `observability-absences-audit`.
+
+### Fixed
+- **The semantic-resolver embedder no longer doom-loops on a broken native dependency (#3142).** `getEmbedder()` memoized the embedder promise and never reset it on failure, so a missing ONNX/transformers dylib became a permanently-rejected promise re-awaited on every fleet-agent tick — each awaiting, logging a full error, and writing a DB row. Loads now go through the gated loader: after a few failures the breaker OPENs and stops re-attempting the native load (no repeated `dlopen`, no per-tick spam), periodically re-probing so a genuinely transient failure still recovers. Regression-tested (40 ticks → ≤3 load attempts, ≤3 log lines).
+- **Two unbounded tables are now pruned, and pruning actually shrinks the file.** `harbor_issued_tokens` (a reaper index existed but the `DELETE` was never written — 101K expired-token rows) and `semantic_resolution_events` (no prune at all) are swept on the cleanup tick, and `auto_vacuum=INCREMENTAL` plus an `incremental_vacuum` reclaim step return freed pages to the OS — previously a pruned registry never shrank on disk.
+
 ## [3.25.2] - 2026-07-15
 
 ### Fixed
