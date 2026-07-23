@@ -181,7 +181,15 @@ describe('captureAndAssertLocalOnly (end-to-end over injected runner)', () => {
   test('a real leak in the captured output is caught', () => {
     const r = captureAndAssertLocalOnly({ run: runnerFor(LSOF_LEAK) });
     expect(r.ok).toBe(false);
-    expect(r.violations.map((v) => v.host)).toContain('140.82.112.3');
+    // Assert the violation carries fields the parser could ONLY have extracted
+    // from LSOF_LEAK (pid 777, binary 'agent', port 443) — not just the host.
+    // A stub that ignored the input and returned a hardcoded host would fail
+    // these, so the test proves real parsing, not tautology.
+    const v = r.violations.find((x) => x.host === '140.82.112.3');
+    expect(v).toBeDefined();
+    expect(v).toMatchObject({ host: '140.82.112.3', pid: 777, binary: 'agent', port: 443 });
+    // And the loopback flow in the SAME fixture is NOT a violation.
+    expect(r.violations.map((x) => x.host)).not.toContain('127.0.0.1');
   });
 
   test('no tools available → unverified, not a pass', () => {
