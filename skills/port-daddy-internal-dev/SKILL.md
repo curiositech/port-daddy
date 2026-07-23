@@ -322,9 +322,10 @@ work; never reset or clobber the main checkout.
 
 ### Shell gotchas (real and recurring)
 
-- **`git add -A` is refused by the pd-shim.** When you truly mean all (rare;
-  prefer explicit paths), use `PD_SHIM_OFF=1 git add` so the bypass is
-  deliberate.
+- **`git add -A` is refused by the pd-shim.** Stage explicit paths — ideally
+  `git add $(git diff --cached --name-only)` for exactly what your session
+  claims. There is no in-band escape (ADR-0102); the refusal wants a narrower,
+  claimed stage set, not a way around itself.
 - **The `~/.port-daddy/bin/git` shim sets `core.pager=delta` → `bat`.** If
   `bat` is absent, `git log` / `git show` / `git commit` emit `command not
   found: bat` and can swallow output. Use `git -c core.pager=cat …` or
@@ -366,8 +367,8 @@ The friction below costs every fresh session real time. Internalize it.
 - **A `git add -A` / `reset --hard` / `rebase` refused with "coordination
   guard … could not be verified"** (not the routine advisory refusal) means the
   daemon-side guard couldn't confirm your session. Re-run `pd begin`, then
-  retry; only fall back to `PD_SHIM_OFF=1` for a genuinely session-less isolated
-  worktree that holds nothing but your own commit.
+  retry. If the daemon is genuinely down, that is an operator escalation —
+  there is no agent-side flag that stands the guard down (ADR-0102).
 
 ## Distribution Mirror Sync
 
