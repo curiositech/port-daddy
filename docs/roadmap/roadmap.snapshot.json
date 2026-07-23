@@ -840,6 +840,11 @@
       "summaryMd": "Coordination Guard shim intercepts git stash PUSH but not POP/APPLY — live incident 2026-07-14: a session in worktree daemon-single-truth ran git stash pop, the shim let it through, and it partially applied ANOTHER session's stash (stash@{0}, codex-gpui-harness-mux 72 files) into the worktree: staged foreign changes + conflict markers across pd-console/skills/cli. The stash stack is shared mutable state across ALL worktrees (lives in .git), so pop/apply without an explicit stash ref is exactly as cross-session-dangerous as push. Fix: shim intercepts bare 'git stash pop/apply' (no ref) with the same refuse+bypass pattern as push; allow 'apply <sha>' / 'pop stash@{n}' with explicit refs; message points at the SHA-capture workflow already documented in the repo worktree guidance. Acceptance: bare pop in a worktree is refused with PD_SHIM_OFF bypass offered; explicit-ref apply passes."
     },
     {
+      "slug": "harbor-card-rs-ffi-hardening",
+      "status": "done",
+      "summaryMd": "core/harbor-card-rs (the FFI cdylib lib/arbiter.ts loads at runtime, shipped in every release via build-core.sh) was excluded from the core/ Cargo workspace and had zero CI coverage: no unit tests, and clippy -D warnings didn't even compile (missing catch_unwind at the extern C boundary, 2 needless-borrow lints). Fixed: catch_unwind on both FFI exports, unsafe extern C per clippy (verified symbol table unchanged via nm), 22 tests (unit + FFI-boundary + proptest), new rust-harbor-card CI job. PR #3304."
+    },
+    {
       "slug": "harbor-editor",
       "status": "now",
       "summaryMd": "Harbor Editor — cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
