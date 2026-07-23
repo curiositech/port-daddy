@@ -183,6 +183,33 @@ fi
 # <<< README Freshness Guard
 
 # ---------------------------------------------------------------------------
+# 8. ADR number-collision guard
+# ---------------------------------------------------------------------------
+# >>> ADR Collision Guard
+# docs/adr/ accreted twelve number collisions (two or three ADRs sharing one
+# NNNN) because nothing at commit time checked "is this number already taken?".
+# A collided number silently misroutes every link, `pd adr` lookup, and
+# downstream re-extraction. This gate FAILS CLOSED when any ADR number maps to
+# more than one live file (forwarding stubs — files carrying an
+# `ADR-RENUMBERED-TO:` marker — are excluded), and when the generated registry
+# docs/adr/adr-numbering-registry.json is stale. It only runs when a staged
+# path is under docs/adr/. Fix a collision: rename the squatter to the next free
+# number, leave a forwarding stub, then
+#   node scripts/adr-number-collision-guard.mjs --write-registry && git add docs/adr
+# One-time bulk-renumber pass only: PD_ADR_GUARD_OK=1 git commit … (logged).
+# Fail-open when node or the script is absent (old branches must not hard-fail).
+ADR_GUARD="$(git rev-parse --show-toplevel)/scripts/adr-number-collision-guard.mjs"
+if command -v node >/dev/null 2>&1 && [[ -f "$ADR_GUARD" ]]; then
+  node "$ADR_GUARD" --staged
+  ADR_GUARD_RC=$?
+  # exit 1 = collision or stale registry; exit 2 = could not determine (fail-open)
+  if (( ADR_GUARD_RC == 1 )); then
+    fail "ADR number collision or stale registry (see above)."
+  fi
+fi
+# <<< ADR Collision Guard
+
+# ---------------------------------------------------------------------------
 # Result
 # ---------------------------------------------------------------------------
 if (( ERRORS > 0 )); then
