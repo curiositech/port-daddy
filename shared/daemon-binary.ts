@@ -92,7 +92,13 @@ export function resolveDistributionRoot(
 ): string {
   const explicit = env.PORT_DADDY_RESOURCE_DIR?.trim();
   if (explicit) return explicit;
-  if (!isBunVirtualPath(moduleDir)) return moduleDir;
+  // A compiled `bun build --compile` binary reports `__dirname` as a bun-virtual path OR,
+  // on some builds, literally `/` — so `join(__dirname,'..','..')` collapses to `/`. Treating
+  // `/` as a real distribution root made everything resolve under the filesystem root
+  // (`resolvedRoot=/`, `expectedBinary=/dist/daemon/...` MISSING) — which reported a green
+  // "Resource directory" check AND broke `pd setup` (it looked for `/node_modules/.bin/tsx`).
+  // `/` is never a real Port Daddy root: fall through to execPath-based resolution.
+  if (moduleDir !== '/' && !isBunVirtualPath(moduleDir)) return moduleDir;
 
   const execDir = dirname(execPath);
   const parentDir = dirname(execDir);
@@ -169,6 +175,15 @@ function isRegularFile(path: string): boolean {
 export function resolveBosunBinaryPath(rootDir: string): string {
   const installed = join(rootDir, 'pd-bosun');
   if (isRegularFile(installed)) return installed;
+  // Homebrew (and any bin/-layout install) lands the watchdog next to `pd` at
+  // `<root>/bin/pd-bosun`, NOT flat at the distribution root. Without these two
+  // candidates a brew install's resolver returned a non-existent flat path, so
+  // `pd doctor` reported "pd-bosun binary not built" and `install-bosun` could
+  // not locate the supervisor to wire it — even though the binary shipped.
+  const binInstalled = join(rootDir, 'bin', 'pd-bosun');
+  if (isRegularFile(binInstalled)) return binInstalled;
+  const libexecInstalled = join(rootDir, 'libexec', 'bin', 'pd-bosun');
+  if (isRegularFile(libexecInstalled)) return libexecInstalled;
   const distBinary = join(rootDir, 'dist', 'core', 'pd-bosun');
   if (existsSync(distBinary)) return distBinary;
   const workspaceTarget = join(rootDir, 'core', 'target', 'release', 'pd-bosun');
