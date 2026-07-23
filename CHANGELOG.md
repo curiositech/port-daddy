@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.26.2] - 2026-07-23
+
+### Fixed
+- **`pd doctor` no longer exits 0 while the daemon is DOWN.** The biggest doctor lie: a failed check only ever emitted `warn`, never `critical`, so `pd doctor --ci`/`--json` returned exit 0 (a green build) over an unreachable or not-running daemon. Daemon-unreachable / invalid-health / not-running are now CRITICAL and gate the exit code. A CI honesty-gate assertion (`scripts/ci-doctor-gate.sh`) runs `pd doctor` against a dead port and fails the build if it exits 0.
+- **`pd setup` works from a Homebrew install instead of failing with a fake remediation, and the "Resource directory" check stops lying.** Root cause: for a compiled `pd` binary, `__dirname` collapses to `/`, so `resolveDistributionRoot` returned `/` — making everything resolve under the filesystem root (`resolvedRoot=/`, `expectedBinary=/dist/daemon/… MISSING`). That made `pd setup` run a non-existent `/node_modules/.bin/tsx install-daemon.ts` (→ "Daemon install failed" → the fake `pd daemon install` remediation, which is not a real subcommand), and made doctor's "Resource directory" check report a green ✓ while broken. `resolveDistributionRoot` now routes `/` through execPath resolution (like a bun-virtual path), `pd setup` detects a packaged build and gives a real remediation (`brew services restart port-daddy`), and the Resource-directory check reports "packaged install — the daemon is bundled in the compiled binary" instead of the source-only "run npm run build:daemon:dist".
+- **`pd doctor` stops overstating "the daemon is crash-looping".** The Bun-crash check scans the (possibly unrotated) daemon-log tail, so historical crash banners made it assert a present-tense crash-loop even on a stable daemon. It now says the daemon "has crashed repeatedly … check `pd status` uptime for the live state" — still CRITICAL when banners are present, but no longer a false present-tense claim.
+- **`pd doctor` version checks stop reading "CLI vunknown".** The compiled `pd` has no sibling `package.json`, so the CLI self-version fell back to `unknown` and then advised a pointless restart. It now reads a stamped `EMBEDDED_PACKAGE_VERSION` (synced every release by `scripts/sync-version.ts`, same mechanism as `server.ts`).
+
 ## [3.26.1] - 2026-07-23
 
 ### Fixed
