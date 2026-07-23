@@ -58,6 +58,26 @@ describe('handleDeviceStart', () => {
     const res = await handleDeviceStart(new Request(`${BASE}/auth/device/start`, { method: 'POST' }), env());
     expect(res.status).toBe(502);
   });
+  // Non-tautology: the handler TRANSFORMS GitHub's payload — it supplies its own
+  // defaults for interval/expires_in when GitHub omits them. A pass-through of
+  // the mock would return undefined for these, so this pins real logic.
+  it('supplies default interval/expires_in that GitHub did not send', async () => {
+    stubFetch(() => ({ body: { device_code: 'dc', user_code: 'AB-12', verification_uri: 'https://github.com/login/device' } }));
+    const b = await (await handleDeviceStart(new Request(`${BASE}/auth/device/start`, { method: 'POST' }), env())).json();
+    expect(b.interval).toBe(5); // handler default, not from the mock
+    expect(b.expires_in).toBe(900); // handler default, not from the mock
+  });
+  // Non-tautology: the request that reaches GitHub carries OUR client_id + scope,
+  // not something echoed from the response.
+  it('sends the configured client_id + device scope to GitHub', async () => {
+    let sentBody: unknown;
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
+      sentBody = JSON.parse(String(init?.body));
+      return new Response(JSON.stringify({ device_code: 'dc', user_code: 'AB-12', verification_uri: 'https://x' }));
+    }));
+    await handleDeviceStart(new Request(`${BASE}/auth/device/start`, { method: 'POST' }), env({ GITHUB_OAUTH_CLIENT_ID: 'Iv1.abc' }));
+    expect(sentBody).toMatchObject({ client_id: 'Iv1.abc', scope: 'read:user user:email' });
+  });
 });
 
 describe('handleDeviceToken', () => {
