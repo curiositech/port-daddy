@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1784417300739,
+  "generatedAt": 1784785768788,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 231,
+  "count": 235,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -365,6 +365,11 @@
       "summaryMd": "Second device: pair, R2 snapshot pull, replay since HLC, revocation <=5s"
     },
     {
+      "slug": "adr-0091-0051-reconcile",
+      "status": "now",
+      "summaryMd": "Reconcile ADR-0091 (Giant Squid Harness) into ADR-0051 (Port Daddy Harness): ADR-0051 made Accepted/canonical, ADR-0091 reduced to a Superseded stub, all lib/squid + bin/pd-hook-* + test citations repointed to ADR-0051. Branch: claude/reconcile-adr-0091-0051."
+    },
+    {
       "slug": "adr-0092-l2-local-edit-gate",
       "status": "now",
       "summaryMd": "ADR-0092 first local L2 slice: PreToolUse edit-moment suggestibility dial enforces coordinate-before-you-cut before cloud federation."
@@ -605,6 +610,11 @@
       "summaryMd": "fix(spawner): enforce hard backend budget caps"
     },
     {
+      "slug": "codex-cartographer-conversation-transcripts",
+      "status": "backlog",
+      "summaryMd": "Console: scrollable Cartographer chat and transcript conformance"
+    },
+    {
       "slug": "codex-daemon-claude-bin-resolution",
       "status": "backlog",
       "summaryMd": "Fix daemon Claude CLI binary resolution"
@@ -832,7 +842,7 @@
     {
       "slug": "guard-merge-blast-radius-fix",
       "status": "now",
-      "summaryMd": "Fix coordination-guard stagedFiles() misattributing a merge's pass-through files (from origin/main) to the merging session's blast radius, causing false claim-collision blocks on rebase-forward commits. Root cause: pre-commit diff against stale HEAD instead of MERGE_HEAD during an in-progress merge. Shipped as PR #3130."
+      "summaryMd": "Fix coordination-guard stagedFiles() misattributing a merge's pass-through files to the merging session's blast radius. Shipped as PR #3130 (this commit resolves a real content conflict with a concurrently-regenerated main roadmap snapshot)."
     },
     {
       "slug": "guard-stash-pop-interception",
@@ -995,9 +1005,19 @@
       "summaryMd": "Land the pd sortie CLI surface (one-shot multi-agent mission: run/list/status/logs) recovered from the April 2026 parked work; thin client over the existing daemon /sorties endpoints, aligned with ADR-0060 conductor consolidation."
     },
     {
+      "slug": "plan-and-sitrep-accountability",
+      "status": "now",
+      "summaryMd": "Implement pd plan command, versioned todo list history, and interactive done check + sitrep resumption UI"
+    },
+    {
       "slug": "port-policy-registry",
       "status": "backlog",
       "summaryMd": "Spawned by ADR-0090 Amendment 1 (PR #2156): Generalize registry-reunify into a per-table port-policy registry keyed by the ADR-0090 replication classes: LOCAL-ONLY never ports, G-Set unions with dedup keys, LWW merges by unique key with tombstones; schema-skew normalization (missing->dest default, dropped->discarded with logged count); never cross-file transactions. Acceptance: porting a mixed-epoch shard folds session_notes (G-Set) and roadmap_items (LWW) correctly in one run with a plan receipt."
+    },
+    {
+      "slug": "pr2596-qa-gap-fixes",
+      "status": "now",
+      "summaryMd": "Fix PR #2596 pd-qa gaps: onSessionEnd wiring test coverage + capsule validation at agent:dead call site"
     },
     {
       "slug": "provable-action-adjudicator",
