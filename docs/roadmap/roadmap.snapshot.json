@@ -2,7 +2,7 @@
   "generatedAt": 1784417300739,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 232,
+  "count": 233,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -968,6 +968,11 @@
       "slug": "pd-console-live-chat-attach-proof",
       "status": "backlog",
       "summaryMd": "Prove pd-console live chat/session attach with exact-window artifacts and a same-process control path."
+    },
+    {
+      "slug": "pd-console-pane-snap-drag",
+      "status": "now",
+      "summaryMd": "pd-console: pane move_leaf primitive + BetterSnapTool-style drag-to-edge ghost-outline snap — first roadmap item toward the Pane-App/Portolan composed-tabs vision."
     },
     {
       "slug": "pd-console-story-linework-shell",
