@@ -975,6 +975,11 @@
       "summaryMd": "Rebuild pd-console around the story-linework operator shell: flat L0-L3 navigation, honest state framing, Conjure wave blocks, persistent native PTY, and motion/reduced-motion proof."
     },
     {
+      "slug": "pd-console-pane-apps",
+      "status": "now",
+      "summaryMd": "pd-console Pane-App composition: snap-drag reparent within a tab (#3140) and cross-tab move by dropping a pane onto another tab's chip (#3198), building toward tabs-as-composed-apps."
+    },
+    {
       "slug": "pd-roadmap-dependency-write-path",
       "status": "backlog",
       "summaryMd": "Roadmap model HAS dependencies[]+blocked status but the CLI upsert can't SET them (only summary/status now|backlog|parked|merge|done). Add 'pd roadmap upsert --depends-on <slug> --status blocked' write path + the pd-console editable/Gantt surface (planner_pane Track-B Vello Gantt is designed, not shipped). Blocked-by: none. Blocks: honest dependency tracking."
