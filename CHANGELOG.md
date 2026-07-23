@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.26.1] - 2026-07-23
+
+### Fixed
+- **The Bosun watchdog is now correctly detected on a Homebrew install, and a genuinely-missing watchdog is a REQUIRED (critical) doctor failure, not a warning.** `resolveBosunBinaryPath` only looked for the supervisor flat at `<root>/pd-bosun` plus source/dist fallbacks — never `<root>/bin/pd-bosun`, which is exactly where brew installs it next to `pd`. So `pd doctor` reported "pd-bosun binary not built" on every brew install *even while the daemon's own `guardians.bosun` reported the binary present and the heartbeat healthy* (reproduced live on 3.26.0). Two fixes: (1) the resolver now also checks `<root>/bin/pd-bosun` and `<root>/libexec/bin/pd-bosun`; (2) the doctor check trusts the daemon's authoritative `guardians.bosun.binaryExists`/state over its own local path guess when the daemon is reachable, and escalates a truly-absent watchdog to CRITICAL so a supervisor-less build fails `pd doctor` (non-zero exit) instead of shipping with a silent warning.
+
 ## [3.26.0] - 2026-07-23
 
 ### Added

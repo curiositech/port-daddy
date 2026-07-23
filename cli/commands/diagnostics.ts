@@ -1869,31 +1869,47 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     // packaged/brew install even when Bosun was genuinely installed and
     // healthy (found live during the v3.25.1/3.25.2 brew rollout).
     const bosun = resolveBosunBinary(resolveDistributionRoot(libDir));
+    // The DAEMON is authoritative about its own watchdog: it resolves the binary
+    // from its real runtime root and reports live state. Trust it over the CLI's
+    // local resolver, which can guess a wrong distribution root under an unusual
+    // install layout. Only fall back to the local resolver when the daemon is
+    // unreachable.
+    let daemonBinaryExists: boolean | null = null;
+    let daemonBinaryPath: string | null = null;
     let bosunRunning: boolean | null = null;
     let bosunReason: string | null = null;
     if (daemonRunning) {
       try {
         const statusRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/status`);
         if (statusRes.ok) {
-          const statusData = await statusRes.json() as { guardians?: { bosun?: { state?: string; reason?: string } } };
+          const statusData = await statusRes.json() as {
+            guardians?: { bosun?: { state?: string; reason?: string; binaryExists?: boolean; binaryPath?: string } };
+          };
           const g = statusData?.guardians?.bosun;
           if (g) {
             bosunReason = g.reason ?? g.state ?? null;
             bosunRunning = g.state === 'healthy' || g.state === 'idle';
+            if (typeof g.binaryExists === 'boolean') daemonBinaryExists = g.binaryExists;
+            if (g.binaryPath) daemonBinaryPath = g.binaryPath;
           }
         }
-      } catch { /* daemon guardians unavailable — fall back to binary presence */ }
+      } catch { /* daemon guardians unavailable — fall back to local binary presence */ }
     }
-    if (!bosun.exists) {
-      warn('Bosun watchdog',
-        'pd-bosun binary not built — the daemon has no independent heartbeat/PID watchdog',
-        'Build it: (cd core/pd-bosun && cargo build --release)   or: npm run build');
+    const bosunPresent = daemonBinaryExists ?? bosun.exists;
+    const bosunPath = daemonBinaryPath ?? bosun.binaryPath;
+    if (!bosunPresent) {
+      // Required (halt-mandate): a brew/tarball install with NO watchdog binary
+      // leaves the daemon with no independent heartbeat/PID supervisor. This is a
+      // shipping defect, not a warning — fail the doctor so it can't reach users.
+      criticalFail('Bosun watchdog',
+        'pd-bosun watchdog binary is MISSING — the daemon has no independent heartbeat/PID supervisor',
+        'Reinstall so the supervisor ships: `brew reinstall port-daddy` (or `npm run build:bosun` in a source checkout)');
     } else if (bosunRunning === false) {
       warn('Bosun watchdog',
-        `pd-bosun binary present but not active${bosunReason ? ` (${bosunReason})` : ''}`,
-        'Heartbeat writer is the daemon-side fallback; install the supervisor for resurrection coverage');
+        `pd-bosun binary present at ${bosunPath} but not active${bosunReason ? ` (${bosunReason})` : ''}`,
+        'Heartbeat writer is the daemon-side fallback; run `port-daddy install-bosun` to wire the supervisor');
     } else {
-      check('Bosun watchdog', true, `pd-bosun present at ${bosun.binaryPath}${bosunReason ? ` (${bosunReason})` : ''}`);
+      check('Bosun watchdog', true, `pd-bosun present at ${bosunPath}${bosunReason ? ` (${bosunReason})` : ''}`);
     }
   } catch (err: unknown) {
     check('Bosun watchdog', false, `Error: ${(err as Error).message}`);

@@ -712,6 +712,26 @@ describe('resolveBosunBinary', () => {
       rmSync(tmp, { recursive: true, force: true });
     }
   });
+
+  // Regression (2026-07-23): Homebrew installs the watchdog at `<root>/bin/pd-bosun`
+  // (next to `pd`), NOT flat at `<root>/pd-bosun`. The resolver only checked the flat
+  // path + source/dist fallbacks, so when the distribution root resolved to the keg
+  // ROOT (rather than keg/bin) it reported "not built" while the binary was present.
+  // Now `<root>/bin/pd-bosun` and `<root>/libexec/bin/pd-bosun` are candidates.
+  test('finds the watchdog under the Homebrew bin/ layout (<root>/bin/pd-bosun)', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'pd-bosun-brew-'));
+    try {
+      mkdirSync(join(tmp, 'bin'), { recursive: true });
+      writeFileSync(join(tmp, 'bin', 'pd-bosun'), '#!/bin/sh\necho stub\n');
+      chmodSync(join(tmp, 'bin', 'pd-bosun'), 0o755);
+
+      const r = resolveBosunBinary(tmp);
+      expect(r.exists).toBe(true);
+      expect(r.binaryPath).toBe(join(tmp, 'bin', 'pd-bosun'));
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
 });
 
 // BUG 3 (2026-07-14 halt-mandate): a launchd-claimed PID must be re-verified —
