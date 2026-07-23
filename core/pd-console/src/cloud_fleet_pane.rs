@@ -281,7 +281,14 @@ pub struct CloudFleetPane {
     paused: bool,
     last_run_age_sec: Option<i64>,
     dlq_depth: Option<i64>,
-    last_error: Option<String>,
+    /// Per-section errors, tracked INDEPENDENTLY so one endpoint's failure never
+    /// masks the others. `health` is the PRIMARY signal (it drives the pause
+    /// toggle + top-line status); `activity` and `config` are secondary sections
+    /// that degrade in place (a 500 on `/v1/fleet/config` — e.g. the relay's
+    /// GitHub App creds are missing — must NOT hide the working reviewer control).
+    health_error: Option<String>,
+    activity_error: Option<String>,
+    config_error: Option<String>,
     proposal_error: Option<String>,
     activity_pager: Pager,
     proposals_pager: Pager,
@@ -299,7 +306,9 @@ impl Default for CloudFleetPane {
             paused: false,
             last_run_age_sec: None,
             dlq_depth: None,
-            last_error: None,
+            health_error: None,
+            activity_error: None,
+            config_error: None,
             proposal_error: None,
             activity_pager: Pager::new(DEFAULT_PAGE_SIZE),
             proposals_pager: Pager::new(DEFAULT_PAGE_SIZE),
@@ -433,7 +442,7 @@ impl CloudFleetPane {
 }
 
 /// Defensive GET → parsed JSON, returning a short error string on any failure so
-/// the pane can render `last_error` instead of hard-failing (mirrors the daemon
+/// the pane can record a per-section error instead of hard-failing (mirrors the daemon
 /// panes' tolerance of schema/transport drift).
 async fn fetch_json(
     daemon: &DaemonClient,
@@ -511,74 +520,91 @@ impl Pane for CloudFleetPane {
             return blocks;
         }
 
-        if let Some(err) = &self.last_error {
-            blocks.push(Block::KeyVal("error".into(), err.clone()));
+        // ── Health (PRIMARY signal) ────────────────────────────────────────────
+        // Rendered on its OWN success/failure — a secondary section's failure
+        // (activity, config) must never mask it. When health itself fails we can't
+        // know the reviewer's paused state, so the pause toggle is disabled with a
+        // reason; every other section still renders independently below.
+        let health_ok = self.health_error.is_none();
+        if let Some(err) = &self.health_error {
+            blocks.push(Block::KeyVal("health".into(), format!("unavailable — {err}")));
             blocks.push(Block::Chip {
-                label: "relay unreachable".into(),
+                label: "relay health unreachable".into(),
                 tone: Tone::Gated,
             });
-            self.push_pending_proposals(&mut blocks);
-            return blocks;
-        }
-
-        // ── Health ───────────────────────────────────────────────────────────
-        let alarmed = self.alarmed();
-        blocks.push(Block::Chip {
-            label: if self.paused {
-                "PAUSED — kill switch engaged".into()
-            } else {
-                "running".into()
-            },
-            tone: if alarmed {
-                Tone::Conflicted
-            } else {
-                Tone::Engaged
-            },
-        });
-        if let Some(age) = self.last_run_age_sec {
-            blocks.push(Block::KeyVal(
-                "last run".into(),
-                format!("{} ago", age_short(age * 1000)),
-            ));
         } else {
-            blocks.push(Block::KeyVal("last run".into(), "—".into()));
-        }
-        if let Some(dlq) = self.dlq_depth {
-            blocks.push(Block::KeyVal(
-                "dead-letter queue".into(),
-                if dlq > 0 {
-                    format!("{dlq} — needs operator")
+            let alarmed = self.alarmed();
+            blocks.push(Block::Chip {
+                label: if self.paused {
+                    "PAUSED — kill switch engaged".into()
                 } else {
-                    "0".into()
+                    "running".into()
                 },
-            ));
+                tone: if alarmed {
+                    Tone::Conflicted
+                } else {
+                    Tone::Engaged
+                },
+            });
+            if let Some(age) = self.last_run_age_sec {
+                blocks.push(Block::KeyVal(
+                    "last run".into(),
+                    format!("{} ago", age_short(age * 1000)),
+                ));
+            } else {
+                blocks.push(Block::KeyVal("last run".into(), "—".into()));
+            }
+            if let Some(dlq) = self.dlq_depth {
+                blocks.push(Block::KeyVal(
+                    "dead-letter queue".into(),
+                    if dlq > 0 {
+                        format!("{dlq} — needs operator")
+                    } else {
+                        "0".into()
+                    },
+                ));
+            }
         }
 
         // ── Operator kill switch: pause / resume the cloud reviewer ────────────
+        // Driven by health.paused (which works even when /v1/fleet/config 500s).
         // The label reflects live health: "Pause reviewer" while running,
         // "Resume reviewer" while paused. Clicking POSTs the OPPOSITE state.
-        let (verb, label) = if self.paused {
-            ("cloud-resume", "Resume reviewer")
+        // Disabled ONLY when health itself is unavailable (no confirmed state).
+        if health_ok {
+            let (verb, label) = if self.paused {
+                ("cloud-resume", "Resume reviewer")
+            } else {
+                ("cloud-pause", "Pause reviewer")
+            };
+            blocks.push(Block::ControlButton {
+                verb: verb.into(),
+                label: label.into(),
+                enabled: true,
+                why_disabled: None,
+                // Resuming a paused fleet is the primary call-to-action.
+                primary: self.paused,
+            });
         } else {
-            ("cloud-pause", "Pause reviewer")
-        };
-        blocks.push(Block::ControlButton {
-            verb: verb.into(),
-            label: label.into(),
-            enabled: true,
-            why_disabled: None,
-            // Resuming a paused fleet is the primary call-to-action.
-            primary: self.paused,
-        });
+            blocks.push(Block::ControlButton {
+                verb: "cloud-pause".into(),
+                label: "Pause reviewer".into(),
+                enabled: false,
+                why_disabled: Some("health unavailable — cannot confirm reviewer state".into()),
+                primary: false,
+            });
+        }
 
         // ── Local HITL proposals ──────────────────────────────────────────────
         self.push_pending_proposals(&mut blocks);
 
-        // ── Recent runs (transitions / exceptions), paged ──────────────────────
+        // ── Recent runs (transitions / exceptions), paged — OWN failure line ───
         blocks.push(Block::Gap);
         blocks.push(Block::Header("Recent Runs".into()));
         let total = self.activity.len();
-        if total == 0 {
+        if let Some(err) = &self.activity_error {
+            blocks.push(Block::KeyVal("status".into(), format!("activity unavailable — {err}")));
+        } else if total == 0 {
             blocks.push(Block::KeyVal("status".into(), "no PR reviews yet".into()));
         } else {
             for run in self.activity_pager.slice(&self.activity) {
@@ -609,10 +635,19 @@ impl Pane for CloudFleetPane {
             self.push_pager(&mut blocks, CloudFleetList::Activity, &self.activity_pager, total);
         }
 
-        // ── Ship prompts (read-only) ───────────────────────────────────────────
+        // ── Ship prompts (read-only, SECONDARY) — own optional failure line ────
+        // The relay's `/v1/fleet/config` can 500 independently (e.g. its GitHub
+        // App creds are missing) while health + activity are fine. That is a
+        // degraded nice-to-have, NOT a pane-wide outage: show a small line here
+        // and leave every other section rendered normally above.
         blocks.push(Block::Gap);
         blocks.push(Block::Header("Ships".into()));
-        if self.ships.is_empty() {
+        if let Some(err) = &self.config_error {
+            blocks.push(Block::KeyVal(
+                "status".into(),
+                format!("ship config unavailable ({err})"),
+            ));
+        } else if self.ships.is_empty() {
             blocks.push(Block::KeyVal(
                 "status".into(),
                 "no ships declared in relay config".into(),
@@ -664,7 +699,7 @@ impl Pane for CloudFleetPane {
             self.paused = paused;
             if let Ok(data) = fetch_json(daemon, &format!("{base}/v1/fleet/health"), &token).await {
                 self.apply_health(&data);
-                self.last_error = None;
+                self.health_error = None;
             }
             Ok(())
         })
@@ -709,23 +744,28 @@ impl Pane for CloudFleetPane {
             let base = self.relay_url.trim_end_matches('/').to_string();
             let token = self.relay_token.clone();
 
-            // Health.
+            // The three relay reads are fetched + folded INDEPENDENTLY: one
+            // endpoint's failure never clears or masks another's data. A 500 on
+            // `/v1/fleet/config` (missing GitHub App creds, an ops gap) must leave
+            // health + activity + the pause control fully working.
+
+            // Health (PRIMARY). On failure we record `health_error` and clear the
+            // stale readout, but we DO NOT return early — activity + config are
+            // still attempted below and render on their own success.
             match fetch_json(daemon, &format!("{base}/v1/fleet/health"), &token).await {
                 Err(e) => {
-                    self.last_error = Some(e);
-                    self.activity.clear();
-                    self.ships.clear();
-                    return Ok(());
+                    self.health_error = Some(e);
+                    self.last_run_age_sec = None;
+                    self.dlq_depth = None;
                 }
                 Ok(data) => {
-                    self.last_error = None;
+                    self.health_error = None;
                     self.apply_health(&data);
                 }
             }
 
-            // Recent activity (tolerated independently — a failure here keeps
-            // health). Fetch a large window once; the pane pages it client-side
-            // (the relay route takes only `limit`, no offset/cursor).
+            // Recent activity. Fetch a large window once; the pane pages it
+            // client-side (the relay route takes only `limit`, no offset/cursor).
             match fetch_json(
                 daemon,
                 &format!("{base}/v1/fleet/activity?limit={FETCH_WINDOW}"),
@@ -733,8 +773,12 @@ impl Pane for CloudFleetPane {
             )
             .await
             {
-                Err(e) => self.last_error = Some(e),
+                Err(e) => {
+                    self.activity_error = Some(e);
+                    self.activity.clear();
+                }
                 Ok(data) => {
+                    self.activity_error = None;
                     self.activity = arr(&data, "runs")
                         .iter()
                         .map(FleetRun::from_value)
@@ -743,11 +787,16 @@ impl Pane for CloudFleetPane {
             }
             self.activity_pager.clamp(self.activity.len());
 
-            // Ship config (read-only prompts/roles). Tolerate either {ships:[...]}
-            // or {config:{ships:[...]}} drift; pull name + role defensively.
+            // Ship config (read-only prompts/roles, SECONDARY). Tolerate either
+            // {ships:[...]} or {config:{ships:[...]}} drift; pull name + role
+            // defensively. A failure degrades ONLY this section.
             match fetch_json(daemon, &format!("{base}/v1/fleet/config"), &token).await {
-                Err(e) => self.last_error = Some(e),
+                Err(e) => {
+                    self.config_error = Some(e);
+                    self.ships.clear();
+                }
                 Ok(data) => {
+                    self.config_error = None;
                     let ships_val: &[Value] = if !arr(&data, "ships").is_empty() {
                         arr(&data, "ships")
                     } else if let Some(cfg) = data.get("config") {
@@ -840,19 +889,73 @@ mod tests {
     }
 
     #[test]
-    fn error_short_circuits() {
+    fn health_failure_flags_health_and_disables_pause() {
         let mut p = configured();
-        p.last_error = Some("relay unreachable: boom".into());
+        p.health_error = Some("GET .../health → 503 Service Unavailable".into());
         let blocks = p.view();
-        assert!(blocks
-            .iter()
-            .any(|b| matches!(b, Block::KeyVal(k, _) if k == "error")));
+        // The health section reports its own unavailability + a gated chip.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::KeyVal(k, v) if k == "health" && v.contains("unavailable")
+        )));
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::Chip { label, tone: Tone::Gated } if label.contains("health unreachable")
+        )));
+        // Without a confirmed state the pause toggle is disabled — with a reason.
         assert!(blocks.iter().any(|b| matches!(
             b,
-            Block::Chip {
-                tone: Tone::Gated,
-                ..
-            }
+            Block::ControlButton { verb, enabled: false, why_disabled: Some(_), .. }
+            if verb == "cloud-pause"
+        )));
+    }
+
+    #[test]
+    fn config_failure_does_not_mask_health_activity_or_pause() {
+        // The live-relay bug: /v1/fleet/config 500s (missing GitHub App creds)
+        // while health + activity return 200. Everything but ships must render.
+        let mut p = configured();
+        p.paused = false; // health OK
+        p.last_run_age_sec = Some(467);
+        p.activity = sample_runs(3); // activity OK
+        p.config_error = Some("GET .../config → 500 Internal Server Error".into());
+        let blocks = p.view();
+
+        // (a) Pause control present + ENABLED (driven by health, which works).
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::ControlButton { verb, enabled: true, .. } if verb == "cloud-pause"
+        )));
+        // (a) Top-line health chip reads "running", NOT a relay-unreachable banner.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::Chip { label, tone: Tone::Engaged } if label == "running"
+        )));
+        assert!(!blocks.iter().any(|b| matches!(
+            b, Block::Chip { label, .. } if label.contains("unreachable")
+        )));
+        // (b) Activity rows still render.
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::Row(cells) if cells[1] == "PR #0")));
+        // (c) Health readout (last run) still renders.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::KeyVal(k, _) if k == "last run"
+        )));
+        // Ships degrades in place with a small line naming the error.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::KeyVal(_, v) if v.contains("ship config unavailable") && v.contains("500")
+        )));
+    }
+
+    #[test]
+    fn activity_failure_shows_line_but_keeps_health_and_pause() {
+        let mut p = configured();
+        p.paused = false;
+        p.activity_error = Some("GET .../activity → 502 Bad Gateway".into());
+        let blocks = p.view();
+        // Pause stays live; activity degrades to a line.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::ControlButton { verb, enabled: true, .. } if verb == "cloud-pause"
+        )));
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::KeyVal(_, v) if v.contains("activity unavailable")
         )));
     }
 
