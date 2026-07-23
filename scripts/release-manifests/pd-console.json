@@ -1,0 +1,9 @@
+{
+  "dir": "dist/console",
+  "binaries": [
+    { "path": "pd-console.app/Contents/MacOS/pd-console", "minBytes": 10000, "executable": true },
+    { "path": "pd-console.app/Contents/Info.plist", "minBytes": 100 },
+    { "glob": "PortDaddy-Console-macOS-*.zip", "minBytes": 10000 },
+    { "glob": "PortDaddy-Console-macOS-*.zip.sha256", "minBytes": 40 }
+  ]
+}

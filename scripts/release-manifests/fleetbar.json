@@ -1,0 +1,8 @@
+{
+  "dir": "dist/fleetbar",
+  "binaries": [
+    { "glob": "PortDaddy-FleetBar-macOS-*.zip", "minBytes": 1000000 },
+    { "glob": "PortDaddy-FleetBar-macOS-*.zip.sha256", "minBytes": 40 },
+    { "path": "fleetbar-preview-manifest.json", "minBytes": 50 }
+  ]
+}

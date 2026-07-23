@@ -1,0 +1,13 @@
+{
+  "dir": "dist",
+  "binaries": [
+    { "path": "pd", "minBytes": 1000, "executable": true },
+    { "path": "port-daddy", "minBytes": 1000000, "executable": true },
+    { "path": "port-daddy-manifest.json", "minBytes": 2 },
+    { "path": "pd-bosun", "minBytes": 1000, "executable": true },
+    { "path": "bin/pd-hook-prompt", "minBytes": 10, "executable": true },
+    { "path": "bin/pd-hook-pre-tool", "minBytes": 10, "executable": true },
+    { "path": "bin/pd-hook-post-tool", "minBytes": 10, "executable": true },
+    { "path": "bin/pd-statusline", "minBytes": 10, "executable": true }
+  ]
+}
