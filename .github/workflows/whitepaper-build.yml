@@ -32,6 +32,11 @@ on:
       - 'whitepaper/**/*.tex'
       - 'scripts/build-whitepapers.sh'
       - '.github/workflows/whitepaper-build.yml'
+  # Merge queue: trigger so this workflow reports a check context on the queued
+  # group. The `build` job is SKIPPED on merge_group (see its `if:`), and a
+  # skipped job reports success — so this healing/advisory workflow can never
+  # hang the merge queue, and no 30-min TeXLive build runs inside the queue.
+  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -43,6 +48,12 @@ concurrency:
 
 jobs:
   build:
+    # Skip on merge_group — a skipped job reports success, keeping the merge
+    # queue from ever hanging on this workflow. This is a healing/advisory
+    # workflow (it commits regenerated PDFs on feature-branch push and is
+    # advisory on PRs), so it should not gate merges; skipping in the queue
+    # keeps it queue-safe even if it is ever added to required checks.
+    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     container:

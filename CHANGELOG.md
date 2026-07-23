@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.26.0] - 2026-07-23
+
+### Added
+- **Unified observability layer (`lib/observability/`, #3142) — the shared primitives whose absence let a daemon write 313 GB and log the same error 7,182 times.** A four-front audit found the identical failure mode had recurred twice (`semantic_resolution_failed`, and earlier `bosun_heartbeat_write_failed`): error-level logging inside an unthrottled retry/poll loop, no dedup, feeding an unrotated sink. This release closes the *class*: a **log governor** (per-key dedup + rate-limit + sampling with honest suppression rollups — a loop can emit a few lines then `…and N more`, never the full storm), a **gated loader** (a circuit breaker around a load-once dependency that finally *wires* the previously dead-code `agent-resilience.ts` full-jitter backoff + breaker), a **retention registry** (one declared policy per table + `incremental_vacuum` reclaim + a fail-loud coverage guard), a **self-monitor** (alarms on the daemon's OWN db/wal/row footprint, not whole-disk %), and **correlation context** (`requestId`/`actorId`/`tenantId` threaded via `AsyncLocalStorage` for the multi-tenant horizon). 37 new unit tests.
+- **Global failure visibility.** `unhandledRejection`/`uncaughtException` handlers (previously absent — a long-lived daemon could die or corrupt silently) and a durable `RESOURCE_ALARM` activity type so a runaway footprint leaves an audit trail.
+- **Five skill-architect-validated skills** encoding the discipline: `responsible-logging`, `resilience-wiring-for-load-once-deps` (defers to the existing `circuit-breakers-and-retries` canon rather than duplicating it), `db-retention-and-compaction`, `self-monitoring-resource-alarms`, `observability-absences-audit`.
+
+### Fixed
+- **The semantic-resolver embedder no longer doom-loops on a broken native dependency (#3142).** `getEmbedder()` memoized the embedder promise and never reset it on failure, so a missing ONNX/transformers dylib became a permanently-rejected promise re-awaited on every fleet-agent tick — each awaiting, logging a full error, and writing a DB row. Loads now go through the gated loader: after a few failures the breaker OPENs and stops re-attempting the native load (no repeated `dlopen`, no per-tick spam), periodically re-probing so a genuinely transient failure still recovers. Regression-tested (40 ticks → ≤3 load attempts, ≤3 log lines).
+- **Two unbounded tables are now pruned, and pruning actually shrinks the file.** `harbor_issued_tokens` (a reaper index existed but the `DELETE` was never written — 101K expired-token rows) and `semantic_resolution_events` (no prune at all) are swept on the cleanup tick, and `auto_vacuum=INCREMENTAL` plus an `incremental_vacuum` reclaim step return freed pages to the OS — previously a pruned registry never shrank on disk.
+
 ## [3.25.2] - 2026-07-15
 
 ### Fixed

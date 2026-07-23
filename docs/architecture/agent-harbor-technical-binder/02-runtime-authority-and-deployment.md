@@ -247,6 +247,43 @@ Remote sessions should support:
 - artifact retrieval;
 - cost reconciliation.
 
+Wake sources:
+  A remote or local Agent Node is woken by a bounded, enumerated set of
+  sources, not an open-ended callback surface. Cloudflare's actor model exposes
+  six — HTTP request, WebSocket connect, RPC or sub-agent return, scheduled
+  alarm, email, and external event — where the agent's name is the routing key.
+  Port Daddy's trigger registry (`lib/fleet/triggers/`) is the same shape with a
+  coordination-native twist. The wake sources live today are:
+
+  - file: a watched path changes;
+  - webhook: an HMAC-verified inbound HTTP delivery;
+  - cron/schedule: a time expression fires;
+  - tuple-mailbox match: a coordination tuple the agent is waiting on is
+    posted, which Cloudflare has no equivalent of;
+  - inbox message: a note, claim, or session event on a `pd:*` channel.
+
+  Email, SMS, and calendar sources are registered but stubbed — their
+  `available()` reports not-ready until they are wired. Every wake source is
+  provenance-classified and passed through the fail-closed trust gate before it
+  may spawn or wake an Agent Node: the content author is authenticated, never
+  the transport (ADR-0093). A wake source is an authorization question, not just
+  a delivery mechanism, and each new one widens the injection surface the gate
+  must cover.
+
+Hibernate versus resume:
+  Cloudflare hibernates a Durable Object to zero cost after roughly 70-140s of
+  idle and wakes it in place with its co-located SQLite state intact — the same
+  actor, the same memory, resumed. Port Daddy's daemon is a single always-on
+  process, so every wake through the fleet spawn path is a fresh OS-process
+  spawn plus context injection (handoff capsule and inbox), not an in-place
+  resume of a suspended actor. This is a deliberate difference, not a missing
+  feature: one always-on daemon on one operator's machine has no idle-cost
+  problem to solve, so there is nothing to hibernate to zero and nothing to
+  revive in place. The durability lives in the shared ledger and the injected
+  capsule, not in a frozen process image. Harness-native session resume
+  (`claude --resume`, `codex exec resume`) is a separate, adapter-owned
+  continuation path and does not change this daemon-level model — see ADR-0118.
+
 Remote interrupt race test:
   Start a remote Agent Node, issue a mobile interrupt, revoke the device before
   ack, and verify the command either fails with a recorded reason or is
