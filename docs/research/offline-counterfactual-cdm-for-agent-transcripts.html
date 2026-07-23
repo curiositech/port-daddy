@@ -418,7 +418,7 @@
 
   <div class="abstract">
     <h2>Abstract</h2>
-    <p>Every current method for turning an LLM agent's completed trajectory into reusable expertise (reflection, self-critique, workflow induction, skill-document optimization) extracts that expertise by asking the model to <em>narrate</em> why it acted as it did. This is the same move human-factors research spent forty years learning not to trust: post-hoc self-report is confabulation-prone in expert humans, and it is confabulation-prone in language models for a structurally similar reason. This memo proposes replacing narration with intervention: fork a completed agent session from its exact checkpointed state at a flagged decision point, perturb one hypothesized causal factor, and re-execute to observe whether behavior actually diverges. It is not a novel idea in the abstract. OpenAI's Codex CLI already ships a native <code>codex fork</code> verb, and two independent 2026 papers formalize the same mechanism from the mechanistic-interpretability side, but none of them close the specific gap this memo is written to close: a statistically disciplined protocol for establishing that a perturbation's effect exceeds the natural variance of stochastic sampling, built on validation principles (contrastive probing, single-source skepticism, falsifiability) that seventy years of expertise-elicitation research already worked out and that the machine-learning side has not yet imported. The checkpoint/resume primitive this technique needs is grounded here in this repo's own cross-runtime harness-adapter contract (Section 4). The memo also includes two small real experiments run against live data rather than described only in the abstract: a structural decision-point scan across 706 real transcripts, and a ten-replicate-per-arm Monte Carlo probe executed via live Haiku calls.</p>
+    <p>Every current method for turning an LLM agent's completed trajectory into reusable expertise (reflection, self-critique, workflow induction, skill-document optimization) extracts that expertise by asking the model to <em>narrate</em> why it acted as it did. This is the same move human-factors research spent forty years learning not to trust: post-hoc self-report is confabulation-prone in expert humans, and it is confabulation-prone in language models for a structurally similar reason. This memo proposes replacing narration with intervention: fork a completed agent session from its exact checkpointed state at a flagged decision point, perturb one hypothesized causal factor, and re-execute to observe whether behavior actually diverges. It is not a novel idea in the abstract. OpenAI's Codex CLI already ships a native <code>codex fork</code> verb, and two independent 2026 papers formalize the same mechanism from the mechanistic-interpretability side, but none of them close the specific gap this memo is written to close: a statistically disciplined protocol for establishing that a perturbation's effect exceeds the natural variance of stochastic sampling, built on validation principles (contrastive probing, single-source skepticism, falsifiability) that seventy years of expertise-elicitation research already worked out and that the machine-learning side has not yet imported. The checkpoint/resume primitive this technique needs is grounded here in this repo's own cross-runtime harness-adapter contract (Section 4). The memo also includes three small real experiments run against live data rather than described only in the abstract: a structural decision-point scan across 706 real transcripts, a full Fork/Perturb/Diff run against one real candidate from that scan, and a ten-replicate-per-arm Monte Carlo probe on a synthetic task for comparison. The real candidate produced a genuinely ambiguous, statistically clean result, model-matched to the session's original agent (Section 6.2): a masked diagnostic cue causally shifts the model from investigating first to blindly retrying, replicating across two different models, though neither reproduces the historical agent's exact original move.</p>
   </div>
 
   <nav class="toc">
@@ -686,8 +686,44 @@
   <p>The top tools by retry-after-error count were <code>Bash</code> (936), <code>Agent</code> (108), <code>Read</code> (105), and <code>Edit</code> (48), unsurprising since these are the highest-volume tools in this corpus, but worth stating rather than assuming: the Detect step is not hypothetical. It produces a real, non-trivial candidate list (194 sessions, one in two of all sessions scanned) at zero model-call cost on a corpus this size in a few seconds of wall-clock time.</p>
 
   <div class="callout gap">
-    <h4>What this pass does not yet establish</h4>
-    <p>A structural retry-after-error is a candidate decision point, not a confirmed one, and it is a narrower signal than Section 5's full Detect definition (which also names self-corrections and backtracks, both of which would require either richer structural signal than is currently logged, or a judgment call this design deliberately avoids delegating to prose-keyword matching). This pass demonstrates the cheap-filter half of the pipeline runs and returns a real, usable candidate list. It does not itself run the Fork/Perturb/Diff steps against any of the 1,219 candidates; that remains future work (Section 10).</p>
+    <h4>What the Detect pass alone does not establish</h4>
+    <p>A structural retry-after-error is a candidate decision point, not a confirmed one, and it is a narrower signal than Section 5's full Detect definition (which also names self-corrections and backtracks, both of which would require either richer structural signal than is currently logged, or a judgment call this design deliberately avoids delegating to prose-keyword matching). This pass demonstrates the cheap-filter half of the pipeline runs and returns a real, usable candidate list. Section 6.2 takes the next step and runs the full Fork/Perturb/Diff loop against one of these 1,219 candidates; running it at scale against the rest remains future work (Section 10).</p>
+  </div>
+
+  <h3>6.2 Running the loop against one real candidate</h3>
+  <p>One candidate was pulled from the 1,219 with its surrounding context: a real session had run <code>cd core/pd-console &amp;&amp; cargo check --bin pd-console --features gpui</code>, gotten back <code>(eval):cd:1: no such file or directory: core/pd-console</code>, and on the retry simply dropped the <code>cd</code> and ran <code>cargo check</code> directly from the current directory. That retry is a genuinely ambiguous decision: an agent could just as reasonably run <code>pwd</code>, <code>ls</code>, or <code>find</code> to locate the right directory first. Section 7.4's synthetic ticket never had this property; every replay in both arms landed on the same answer.</p>
+  <p>The historical session was generated by <code>claude-fable-5</code>, so the replays below run on <code>claude-fable-5</code> as well, matching the model to the transcript it was drawn from. The hypothesis under test: does the specific diagnostic detail, "no such file or directory: core/pd-console," causally drive dropping the <code>cd</code> and assuming the shell is already in the right place, the way the historical agent actually behaved? Twelve replays were run per arm. The <strong>factual</strong> arm saw the real error text verbatim; the <strong>counterfactual</strong> arm saw the same failing command but with the diagnostic masked down to "failed with a non-zero exit code, no further detail available."</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 460 232" width="100%" height="auto" role="img" aria-label="Bar chart: factual arm 75 percent investigate first (find), counterfactual arm 0 percent investigate first; counterfactual arm instead blindly retries the original command with more verbosity.">
+      <g font-family="Avenir Next, Helvetica Neue, sans-serif">
+        <line x1="60" y1="20" x2="60" y2="170" stroke="#ddd5c7" stroke-width="1"></line>
+        <line x1="60" y1="170" x2="420" y2="170" stroke="#1c1a17" stroke-width="1.5"></line>
+        <text x="52" y="24" font-size="11" fill="#4a4640" text-anchor="end">100%</text>
+        <line x1="55" y1="20" x2="60" y2="20" stroke="#4a4640"></line>
+        <text x="52" y="97" font-size="11" fill="#4a4640" text-anchor="end">50%</text>
+        <line x1="55" y1="95" x2="420" y2="95" stroke="#ddd5c7" stroke-dasharray="3,3"></line>
+        <text x="52" y="174" font-size="11" fill="#4a4640" text-anchor="end">0%</text>
+
+        <rect x="120" y="63" width="90" height="107" fill="#2c5f4a" rx="3"></rect>
+        <text x="165" y="55" font-size="14" font-weight="700" fill="#2c5f4a" text-anchor="middle">9/12</text>
+        <text x="165" y="192" font-size="13" fill="#1c1a17" text-anchor="middle" font-weight="600">Factual</text>
+        <text x="165" y="208" font-size="11" fill="#4a4640" text-anchor="middle">real error</text>
+        <text x="165" y="223" font-size="11" fill="#4a4640" text-anchor="middle">investigates first</text>
+
+        <rect x="270" y="169" width="90" height="1" fill="#8a3324" rx="3"></rect>
+        <text x="315" y="55" font-size="14" font-weight="700" fill="#8a3324" text-anchor="middle">0/12</text>
+        <text x="315" y="192" font-size="13" fill="#1c1a17" text-anchor="middle" font-weight="600">Counterfactual</text>
+        <text x="315" y="208" font-size="11" fill="#4a4640" text-anchor="middle">masked error</text>
+        <text x="315" y="223" font-size="11" fill="#4a4640" text-anchor="middle">blindly retries instead</text>
+      </g>
+    </svg>
+    <div class="diagram-cap">Real data, twelve <code>claude-fable-5</code> replays per arm (model-matched to the source transcript), seeded from a real extracted decision point. Fisher's exact one-sided p &asymp; 0.00017.</div>
+  </div>
+
+  <div class="callout confirmed">
+    <h4>The split replicates, and it is not the split originally guessed</h4>
+    <p>Nine of twelve factual replays investigated first (<code>find</code>, mostly) before touching the build command again; zero of twelve counterfactual replays investigated at all, and eleven of twelve instead re-ran a cd-and-build attempt, several adding more output capture as if more logging would explain a failure they had no detail about. That is the same qualitative split an earlier Haiku-model pass on this same candidate produced (11/12 vs 0/12, p &asymp; 0.000005) &mdash; the specific diagnostic detail drives investigation, its absence drives blind retry, on two different models. Neither arm, on either model, reproduced the historical agent's exact original move (drop the <code>cd</code>, run <code>cargo check</code> bare) at a rate above three in twelve; Fable's own factual-arm near-misses substituted a guessed absolute path for the failed relative one rather than dropping the <code>cd</code> outright. The cue tested is real and causally load-bearing for the investigate/retry split. It is not the whole explanation for the historical agent's specific move, which is the honest boundary of what a single reconstructed candidate can establish (Section 9).</p>
   </div>
 
   <div class="callout confirmed">
@@ -710,6 +746,12 @@
   </div>
 
   <h3>7.2 The Monte Carlo protocol</h3>
+
+  <figure class="illustration">
+    <img src="assets/two-armed-bandit.png" alt="Editorial illustration of a vintage two-armed slot machine, one arm still, the other mid-pull with a motion streak, on a dim casino floor.">
+    <figcaption>The name is not incidental. A two-armed bandit, not a one-armed one: baseline arm held still, treatment arm pulled.</figcaption>
+  </figure>
+
   <p>The design question is precise: at nonzero sampling temperature, how do we distinguish a real counterfactual effect from ordinary run-to-run variance? The answer is a self-baselined comparison: measure the model's own natural variance before asking whether a perturbation exceeds it.</p>
   <div class="figure">
     <p><strong>Baseline arm.</strong> Replay the <em>factual</em> prefix <code>K</code> times at the session's original temperature, with no perturbation. This produces a distribution of factual&ndash;factual divergence, the noise floor attributable to stochastic sampling alone, holding everything else fixed.</p>
@@ -784,58 +826,65 @@
   <h2><span class="num">8</span> Runbook</h2>
 
   <div class="diagram-wrap">
-    <svg viewBox="0 0 700 260" width="100%" height="auto" role="img" aria-label="Swimlane diagram: nightly batch job scans the corpus, detector flags candidates, forker replays factual and counterfactual arms, judge diffs and tests against baseline, and a promotion gate either files a skill or discards.">
+    <svg viewBox="0 0 760 300" width="100%" height="auto" role="img" aria-label="Swimlane diagram: nightly batch job scans the corpus, detector flags candidates, forker replays factual and counterfactual arms from the same forked checkpoint, and a promotion gate either files a skill or discards.">
+      <defs>
+        <marker id="rb-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#8a3324"></path>
+        </marker>
+      </defs>
       <g font-family="Avenir Next, Helvetica Neue, sans-serif" font-size="12">
-        <text x="10" y="20" fill="#4a4640" font-weight="700">Corpus</text>
-        <text x="10" y="70" fill="#4a4640" font-weight="700">Detector</text>
-        <text x="10" y="140" fill="#4a4640" font-weight="700">Forker</text>
-        <text x="10" y="210" fill="#4a4640" font-weight="700">Gate</text>
+        <text x="12" y="38" fill="#4a4640" font-weight="700">Corpus</text>
+        <text x="12" y="104" fill="#4a4640" font-weight="700">Detector</text>
+        <text x="12" y="185" fill="#4a4640" font-weight="700">Forker</text>
+        <text x="12" y="258" fill="#4a4640" font-weight="700">Gate</text>
 
-        <line x1="90" y1="10" x2="690" y2="10" stroke="#ddd5c7"></line>
-        <line x1="90" y1="55" x2="690" y2="55" stroke="#ddd5c7"></line>
-        <line x1="90" y1="120" x2="690" y2="120" stroke="#ddd5c7"></line>
-        <line x1="90" y1="185" x2="690" y2="185" stroke="#ddd5c7"></line>
-        <line x1="90" y1="245" x2="690" y2="245" stroke="#ddd5c7"></line>
+        <line x1="80" y1="8" x2="750" y2="8" stroke="#ddd5c7"></line>
+        <line x1="80" y1="60" x2="750" y2="60" stroke="#ddd5c7"></line>
+        <line x1="80" y1="140" x2="750" y2="140" stroke="#ddd5c7"></line>
+        <line x1="80" y1="222" x2="750" y2="222" stroke="#ddd5c7"></line>
+        <line x1="80" y1="286" x2="750" y2="286" stroke="#ddd5c7"></line>
 
-        <rect x="100" y="20" width="150" height="26" rx="5" fill="#efe9dc"></rect>
-        <text x="175" y="38" text-anchor="middle">Nightly batch, prior day's sessions</text>
+        <rect x="191" y="18" width="200" height="32" rx="5" fill="#efe9dc"></rect>
+        <text x="291" y="38" text-anchor="middle">Nightly batch, prior day's sessions</text>
+        <line x1="291" y1="50" x2="185" y2="68" stroke="#8a3324" stroke-width="1.5" marker-end="url(#rb-arrow)"></line>
 
-        <line x1="175" y1="46" x2="175" y2="65" stroke="#8a3324" stroke-width="1.5"></line>
-        <rect x="100" y="65" width="150" height="40" rx="5" fill="#1c1a17"></rect>
-        <text x="175" y="82" text-anchor="middle" fill="#faf7f1" font-weight="700">Structural scan</text>
-        <text x="175" y="98" text-anchor="middle" fill="#faf7f1" font-size="12">retry-after-error, no LLM call</text>
+        <rect x="90" y="68" width="190" height="50" rx="5" fill="#1c1a17"></rect>
+        <text x="185" y="88" text-anchor="middle" fill="#faf7f1" font-weight="700">Structural scan</text>
+        <text x="185" y="105" text-anchor="middle" fill="#faf7f1" font-size="11">retry-after-error, no LLM call</text>
 
-        <line x1="250" y1="85" x2="290" y2="85" stroke="#8a3324" stroke-width="1.5" marker-end="url(#arrow)"></line>
-        <rect x="292" y="65" width="140" height="40" rx="5" fill="#f8f0d8" stroke="#8a6d1f"></rect>
-        <text x="362" y="82" text-anchor="middle" fill="#8a6d1f" font-weight="700">Candidate DPs</text>
-        <text x="362" y="98" text-anchor="middle" fill="#8a6d1f" font-size="12">e.g. 1,219 / 706 files</text>
+        <line x1="280" y1="93" x2="308" y2="93" stroke="#8a3324" stroke-width="1.5" marker-end="url(#rb-arrow)"></line>
+        <rect x="312" y="68" width="180" height="50" rx="5" fill="#f8f0d8" stroke="#8a6d1f"></rect>
+        <text x="402" y="88" text-anchor="middle" fill="#8a6d1f" font-weight="700">Candidate DPs</text>
+        <text x="402" y="105" text-anchor="middle" fill="#8a6d1f" font-size="11">e.g. 1,219 / 706 files</text>
 
-        <line x1="362" y1="105" x2="362" y2="128" stroke="#8a3324" stroke-width="1.5"></line>
-        <rect x="150" y="128" width="130" height="46" rx="5" fill="#e3ede2" stroke="#2c5f4a"></rect>
-        <text x="215" y="146" text-anchor="middle" fill="#2c5f4a" font-weight="700" font-size="13">Fork + replay A</text>
-        <text x="215" y="162" text-anchor="middle" fill="#2c5f4a" font-size="12">K factual (baseline)</text>
+        <line x1="402" y1="118" x2="402" y2="132" stroke="#8a3324" stroke-width="1.5"></line>
+        <line x1="402" y1="132" x2="185" y2="150" stroke="#8a3324" stroke-width="1.5" marker-end="url(#rb-arrow)"></line>
+        <line x1="402" y1="132" x2="575" y2="150" stroke="#8a3324" stroke-width="1.5" marker-end="url(#rb-arrow)"></line>
 
-        <rect x="400" y="128" width="130" height="46" rx="5" fill="#f8f0d8" stroke="#8a6d1f"></rect>
-        <text x="465" y="146" text-anchor="middle" fill="#8a6d1f" font-weight="700" font-size="13">Fork + replay B</text>
-        <text x="465" y="162" text-anchor="middle" fill="#8a6d1f" font-size="12">K counterfactual (treatment)</text>
+        <rect x="80" y="150" width="210" height="50" rx="5" fill="#e3ede2" stroke="#2c5f4a"></rect>
+        <text x="185" y="172" text-anchor="middle" fill="#2c5f4a" font-weight="700" font-size="13">Fork + replay A</text>
+        <text x="185" y="190" text-anchor="middle" fill="#2c5f4a" font-size="11">K factual (baseline)</text>
 
-        <line x1="280" y1="151" x2="398" y2="151" stroke="#4a4640" stroke-dasharray="2,3"></line>
-        <line x1="215" y1="174" x2="330" y2="192" stroke="#8a3324" stroke-width="1.5"></line>
-        <line x1="465" y1="174" x2="350" y2="192" stroke="#8a3324" stroke-width="1.5"></line>
+        <rect x="470" y="150" width="210" height="50" rx="5" fill="#f8f0d8" stroke="#8a6d1f"></rect>
+        <text x="575" y="172" text-anchor="middle" fill="#8a6d1f" font-weight="700" font-size="13">Fork + replay B</text>
+        <text x="575" y="190" text-anchor="middle" fill="#8a6d1f" font-size="11">K counterfactual (treatment)</text>
 
-        <rect x="270" y="192" width="160" height="38" rx="19" fill="#1c1a17"></rect>
-        <text x="350" y="207" text-anchor="middle" fill="#faf7f1" font-weight="700" font-size="13">Diverges past baseline</text>
-        <text x="350" y="221" text-anchor="middle" fill="#faf7f1" font-size="12">AND recurs &ge;3 sessions?</text>
+        <line x1="185" y1="200" x2="376" y2="230" stroke="#8a3324" stroke-width="1.5" marker-end="url(#rb-arrow)"></line>
+        <line x1="575" y1="200" x2="384" y2="230" stroke="#8a3324" stroke-width="1.5" marker-end="url(#rb-arrow)"></line>
 
-        <line x1="430" y1="211" x2="520" y2="211" stroke="#2c5f4a" stroke-width="1.5" marker-end="url(#arrow)"></line>
-        <text x="475" y="205" fill="#2c5f4a" font-size="12" font-weight="700">yes</text>
-        <rect x="522" y="192" width="130" height="38" rx="5" fill="#e3ede2" stroke="#2c5f4a"></rect>
-        <text x="587" y="215" text-anchor="middle" fill="#2c5f4a" font-weight="700" font-size="13">File as skill</text>
+        <rect x="280" y="232" width="200" height="46" rx="23" fill="#1c1a17"></rect>
+        <text x="380" y="252" text-anchor="middle" fill="#faf7f1" font-weight="700" font-size="12">Diverges past baseline</text>
+        <text x="380" y="267" text-anchor="middle" fill="#faf7f1" font-size="11">AND recurs &ge;3 sessions?</text>
 
-        <line x1="270" y1="220" x2="200" y2="220" stroke="#a63b2a" stroke-width="1.5" marker-end="url(#arrow)"></line>
-        <text x="230" y="235" fill="#a63b2a" font-size="12" font-weight="700">no</text>
-        <rect x="80" y="200" width="120" height="38" rx="5" fill="#f8ece9" stroke="#a63b2a"></rect>
-        <text x="140" y="223" text-anchor="middle" fill="#a63b2a" font-weight="700" font-size="13">Discard</text>
+        <line x1="480" y1="255" x2="556" y2="255" stroke="#2c5f4a" stroke-width="1.5" marker-end="url(#rb-arrow)"></line>
+        <text x="518" y="248" text-anchor="middle" fill="#2c5f4a" font-size="11" font-weight="700">yes</text>
+        <rect x="560" y="234" width="150" height="42" rx="5" fill="#e3ede2" stroke="#2c5f4a"></rect>
+        <text x="635" y="259" text-anchor="middle" fill="#2c5f4a" font-weight="700" font-size="13">File as skill</text>
+
+        <line x1="280" y1="255" x2="244" y2="255" stroke="#a63b2a" stroke-width="1.5" marker-end="url(#rb-arrow)"></line>
+        <text x="262" y="248" text-anchor="middle" fill="#a63b2a" font-size="11" font-weight="700">no</text>
+        <rect x="110" y="234" width="130" height="42" rx="5" fill="#f8ece9" stroke="#a63b2a"></rect>
+        <text x="175" y="259" text-anchor="middle" fill="#a63b2a" font-weight="700" font-size="13">Discard</text>
       </g>
     </svg>
     <div class="diagram-cap">One nightly pass through the pipeline, corpus to gate. The Forker lane runs both replay arms from the same forked checkpoint; only divergences that clear the baseline-noise test <em>and</em> recur across sessions reach the Gate lane's "file as skill" outcome.</div>
@@ -865,7 +914,8 @@
     <li><strong>Cost.</strong> Fork-and-complete replay at full Monte Carlo <code>K</code> is not cheap. Applied naively to every one of the 1,219 candidate points found in Section 6.1's real scan, this is expensive enough to require the cheap-filter discipline in Section 8's budget row to be taken seriously, not treated as optional.</li>
     <li>If the model available at resumption time differs from the model that generated the original trajectory, the counterfactual is no longer testing "the same agent's reasoning." It is testing a different model re-deriving behavior from old context. This model drift is a real, distinct signal (Section 8's cross-model condition treats it as one), but conflating it with same-model replay would be a genuine validity error, and results should be labeled by which condition produced them.</li>
     <li>This design trades self-report confabulation for judge-scoring or embedding-distance noise in the diff step (Section 5, step 4), which reduces but does not eliminate the underlying problem. That is a better trade, since it produces an observed behavioral difference rather than a narrated one, but it is not a free one.</li>
-    <li><strong>No validated sample size.</strong> As stated in Section 7.2, no confirmed source supplies a minimum <code>K</code> for this exact design, and Section 7.4's worked example produced a clean 10-vs-0 separation with zero within-arm variance: a real result, but not a test of whether the paired/permutation design actually distinguishes signal from noise on a harder case.</li>
+    <li><strong>The replay model must match the transcript's recorded model, and this pipeline does not enforce that automatically.</strong> Section 6.2's candidate was replayed on <code>claude-fable-5</code> to match its source session, but only because that check was done by hand for one candidate. A pipeline that skips it by default will silently run replays on whatever model happens to be wired up, producing confident, clean-looking conclusions about the wrong model's causal structure. This belongs in the Detect/Fork step itself (Section 10), not left to manual review.</li>
+    <li><strong>No validated sample size.</strong> As stated in Section 7.2, no confirmed source supplies a minimum <code>K</code> for this exact design. Section 7.4's synthetic worked example produced a clean 10-vs-0 separation with zero within-arm variance, which did not exercise the paired/permutation design's actual job; Section 6.2's real, model-matched candidate did show within-arm diversity and a clean statistical separation (<code>K</code>=12 per arm), but that is one candidate, not a validated minimum sample size across the diversity of real decision points this pipeline would encounter at scale.</li>
     <li>Fork/resume existing at the CLI layer does not mean it is exposed everywhere a pipeline needs it, and a runtime can die mid-session and leave nothing coherent to fork at all. Section 3.1's Codex example generalizes: <code>codex fork</code> works from the interactive CLI, but Codex's own MCP server tool cannot resume a session once the server process restarts, even though the underlying rollout file survives on disk.<sup><a href="#ref-19" class="footnote-ref">19</a></sup> Separately, this project's own internal accountability research names a recurring failure mode, the "dead codex owner": a CLI-backed agent that silently exhausts its usage quota or crashes, leaving a stale, incomplete transcript that looks superficially like a healthy session from the outside.<sup><a href="#ref-20" class="footnote-ref">20</a></sup> A batch pipeline that doesn't account for both will silently fail to fork sessions it should be able to, or flag garbage candidates from sessions that simply stopped mid-turn.</li>
     <li><strong>A forked continuation is a new sample, not a re-run of the same hidden state, and every hop can only lose information.</strong> An internal research review of multi-agent coordination claims makes an argument, via the Data Processing Inequality, that every inter-agent handoff can only lose information relative to the original context, never add it.<sup><a href="#ref-20" class="footnote-ref">20</a></sup> A forked/perturbed replay is exactly this kind of handoff: fidelity to what the original agent would actually have done degrades as the perturbation's distance from the original trajectory grows, and a large observed divergence is evidence of a causal effect, not proof that it precisely reconstructs the original agent's counterfactual behavior.</li>
     <li>Both academic papers in Section 3 are unpublished preprints, six weeks old and unreplicated at the time of writing, validated only on synthetic structural causal models or mocked multi-agent environments. Neither has been tested against real, high-variance, temperature-sampled production agent traces at the scale this memo proposes, so their reported numbers should be treated as first-mover results, not settled science.</li>
@@ -877,7 +927,9 @@
   <h2><span class="num">10</span> Open questions</h2>
   <ol>
     <li>Does van der Aalst-school process mining, or software delta-debugging / <code>git bisect</code>-style causal isolation via re-execution, offer transferable methodology for decision-point detection or causal-responsibility testing over execution logs? (Unresearched gap, Section 9.)</li>
-    <li>Can a minimum viable <code>K</code> be empirically validated against a corpus with known ground-truth causal structure, rather than borrowed from an adjacent field's untransferred heuristic &mdash; and specifically, what would a deliberately ambiguous version of Section 7.4's toy task need to look like to actually exercise the noise-floor test?</li>
+    <li>Can a minimum viable <code>K</code> be empirically validated across a larger sample of the 1,219 real candidates found in Section 6.1, now that Section 6.2 shows a model-matched replay does exercise the noise-floor test cleanly? A dozen more candidates, run the same way, would start to answer whether <code>K</code>=12 is generally sufficient or was a lucky draw.</li>
+    <li>Neither arm in Section 6.2 reproduced the historical agent's exact original move. What context is missing from a text-reconstructed prefix that a true checkpoint-and-fork (Section 4) would carry forward, and is that gap systematic across candidates or specific to this one?</li>
+    <li>Should the Detect/Fork step include an automated check that the replay model matches the source transcript's recorded model before any arm runs, rather than relying on manual review to catch a mismatch?</li>
     <li>How should the promotion gate (Section 8) weight cross-model divergence (a factor holds for a different model) against same-model divergence (a factor holds for the original model but may be idiosyncratic) when they disagree?</li>
     <li>Does the interaction-term problem (Section 7.3) mean paired/multi-factor perturbation should be the <em>default</em> design rather than a secondary check &mdash; i.e., should single-factor perturbation be deprecated entirely once the paired protocol is validated?</li>
     <li>What is the right relationship between this technique's promotion gate and eureka-skill-mining's existing k-NN retrieval and labeling loop &mdash; does a confirmed counterfactual divergence relabel an existing ambiguous triple, or only gate new candidates?</li>
@@ -923,7 +975,7 @@
 </main>
 
 <footer class="colophon">
-  <p><strong>Provenance.</strong> This memo synthesizes three adversarially-verified deep-research passes (108, 94, and 106 subagents respectively, claims confirmed only after 2-of-3 independent verification votes), a full read-through of forty-three local expertise-elicitation skills, and two dedicated internal-corpus surveys (this project's own coordination/transcript research and its agent-accountability research), conducted in Port Daddy session 89a00647 ("agentic-transcript-skill-mining") on 2026-07-18. Two small experiments were run against real data rather than only described: a structural decision-point scan across 706 local transcripts (Section 6.1), and a ten-replicate-per-arm Monte Carlo probe via live Haiku calls (Section 7.4). Illustrations were generated for this document via Nano Banana. Refuted claims encountered during research are noted inline where they would otherwise be tempting to cite.</p>
+  <p><strong>Provenance.</strong> This memo synthesizes three adversarially-verified deep-research passes (108, 94, and 106 subagents respectively, claims confirmed only after 2-of-3 independent verification votes), a full read-through of forty-three local expertise-elicitation skills, and two dedicated internal-corpus surveys (this project's own coordination/transcript research and its agent-accountability research), conducted in Port Daddy session 89a00647 ("agentic-transcript-skill-mining") on 2026-07-18. Three small experiments were run against real data rather than only described: a structural decision-point scan across 706 local transcripts (Section 6.1), a model-matched Fork/Perturb/Diff run against one real candidate from that scan (Section 6.2, twelve <code>claude-fable-5</code> replays per arm, replicating an initial same-pattern result from a Haiku pass on the same candidate), and a ten-replicate-per-arm Monte Carlo probe on a synthetic task for comparison (Section 7.4). Illustrations were generated for this document via Nano Banana. Refuted claims encountered during research are noted inline where they would otherwise be tempting to cite.</p>
   <p><strong>Status.</strong> Design memo. No implementation exists yet. See Section 9 for what would need to happen before this becomes a shipped pipeline stage.</p>
 </footer>
 
