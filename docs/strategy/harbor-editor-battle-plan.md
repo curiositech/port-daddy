@@ -102,6 +102,20 @@ Agents reach all of this through agent-neutral MCP tools (`claim_region`, `relea
 
 ## 7. The first two weeks (what to build Monday)
 
+> **HISTORICAL — P0 through P3 described below are SHIPPED, not next-up.** This
+> section was written before the build started; read it as a record of intent,
+> not a to-do list. Confirmed merged on `origin/main`: P0 read-only editor
+> surface (#563), the editor perf rescue / virtualized `CodeBuffer` (#896), P2
+> LAN substrate — editor_sync/edit+coord channels/presence/blob (#727), P3
+> agents-as-peers + region claims + wedge + commit gate (#728), the wedge wired
+> into the live app stages 1+2 (#729), and the P3.5 salvage proptest
+> foundation (#1539). What is genuinely still open: P1 *interactive* human
+> keystroke editing (live text input/undo/tree-sitter reparse — unbuilt), the
+> P3.5 end-to-end salvage demo (unbuilt), the claim-validator 409 write-block
+> (#983, open), and P4 capability enforcement / P5 remote-harbor (both
+> unbuilt). #2237 (file navigator), #3140 (pane snap-drag), and #1960 (editor
+> reskin) are also open, unmerged follow-on work, not part of the plan below.
+
 **Worktree, branch, coordinate first** (`git worktree add ~/coding/tmp/harbor-editor-p0 -b harbor-editor-p0`; `pd begin --identity port-daddy:editor:p0`; claim `core/pd-console/src/mux.rs` + a new `editor.rs`).
 
 **Week 1 — P0 walking skeleton (reuse-only, zero buffer work):**
