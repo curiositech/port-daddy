@@ -1095,6 +1095,28 @@ fn main() {
                             app::ControlMsg::CloudFleetPage { list, forward } => {
                                 cloud_fleet.page(list, forward);
                             }
+                            // Open (fetch) or close a run's Shipwright detail. The
+                            // pane fetches `/v1/fleet/runs/:id`; a failure degrades
+                            // ONLY that run's detail (inline error), never the list
+                            // or the pause control. Surface a hard failure on the
+                            // alert bus so the operator sees the real cause.
+                            app::ControlMsg::CloudFleetOpenRun { run_id } => {
+                                let opening = run_id.is_some();
+                                cloud_fleet.open_run(&client, run_id).await;
+                                if opening {
+                                    if let Some(err) = cloud_fleet.run_detail_error_message() {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "run detail unavailable",
+                                            err,
+                                        ));
+                                    }
+                                }
+                            }
+                            // Expand/collapse a ship's transcript inside the open
+                            // run — local pane-state (the detail is already loaded).
+                            app::ControlMsg::CloudFleetExpandShip { ship } => {
+                                cloud_fleet.expand_ship(ship);
+                            }
                         }
                     }
 

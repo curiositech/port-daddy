@@ -28,7 +28,7 @@
 
 use crate::agent::DaemonClient;
 use crate::pane::{Block, Pane, SurfaceAction, Tone};
-use crate::util::{age_short, arr, b, n, s, trunc};
+use crate::util::{age_short, arr, b, fmt_duration_secs, n, s, trunc};
 use anyhow::Result;
 use serde_json::Value;
 
@@ -51,6 +51,9 @@ PD_CONSOLE_RELAY_TOKEN (env vars), or add them as KEY=VALUE lines to \
 pub enum CloudFleetList {
     Activity,
     Proposals,
+    /// The open run's detail — the expanded ship's transcript, or the per-ship
+    /// summary rows when a run has many ships.
+    RunDetail,
 }
 
 /// Pure pagination math over a list length — 0-based `page`, fixed `size`. No
@@ -133,6 +136,8 @@ impl Pager {
 /// One remote fleet run (a GitHub PR review the cloud executor performed).
 #[derive(Debug, Clone)]
 struct FleetRun {
+    /// Opaque run id (`run:<deliveryId>`) — the key for `GET /v1/fleet/runs/:id`.
+    id: String,
     pr_number: i64,
     repo: String,
     conclusion: String,
@@ -145,6 +150,7 @@ struct FleetRun {
 impl FleetRun {
     fn from_value(v: &Value) -> Self {
         Self {
+            id: s(v, "id"),
             pr_number: n(v, "prNumber"),
             repo: s(v, "repo"),
             conclusion: s(v, "conclusion"),
@@ -163,6 +169,314 @@ impl FleetRun {
 struct ShipPrompt {
     name: String,
     role: String,
+}
+
+// ── Run detail (Shipwright expandable view) ─────────────────────────────────────
+//
+// `GET /v1/fleet/runs/:id` returns `{ run, steps[], spend[] }`:
+//   run   — header (id, prNumber, repo, conclusion, elapsedMs, createdAt, ships[])
+//   steps — ordered transcript: {seq, kind, ship, title, detail(JSON), createdAt}
+//            kinds: map-chunk, reduce, ship-verdict|ship-finding|ship-skipped,
+//            review-posted, check-completed. `ship` is null on fleet-level steps.
+//   spend — one row per ship that ran: {ship, model, inputTokens, outputTokens,
+//            costUsd}. Best-effort on the relay; [] when billing isn't deployed.
+// The pane folds these into per-ship rows (verdict from the ship's last verdict
+// step; tokens/$ from its spend row) plus the full transcript for drill-down.
+
+/// Accumulated per-ship spend within one run (usually one row, summed if repeated).
+#[derive(Debug, Clone, Default)]
+struct ShipSpend {
+    input_tokens: i64,
+    output_tokens: i64,
+    cost_usd: f64,
+}
+
+/// One transcript step. `detail` is the step's JSON blob pretty-printed to text so
+/// the operator reads the ship's findings/output verbatim — never ellipsized at
+/// the source (long transcripts page, they don't truncate).
+#[derive(Debug, Clone)]
+struct RunStep {
+    seq: i64,
+    kind: String,
+    /// "" when the step is fleet-level (e.g. `check-completed`).
+    ship: String,
+    title: String,
+    detail: String,
+    created_at: i64,
+}
+
+impl RunStep {
+    fn from_value(v: &Value) -> Self {
+        Self {
+            seq: n(v, "seq"),
+            kind: s(v, "kind"),
+            ship: s(v, "ship"),
+            title: s(v, "title"),
+            detail: pretty_detail(v.get("detail")),
+            created_at: n(v, "createdAt"),
+        }
+    }
+}
+
+/// Per-ship rollup WITHIN one run: verdict + tokens + cost + a derived elapsed.
+/// Every field is REAL recorded data — an unpriced model shows $0 (tokens still
+/// real); a ship with no spend row shows cost "—" (`has_spend == false`).
+#[derive(Debug, Clone)]
+struct RunShip {
+    ship: String,
+    verdict: String,
+    input_tokens: i64,
+    output_tokens: i64,
+    cost_usd: f64,
+    has_spend: bool,
+    /// Per-ship elapsed (ms), derived from the span of its transcript timestamps
+    /// (seconds granularity). 0 when the ship has <2 timestamped steps or they
+    /// share a second — rendered "—", never a fabricated duration.
+    ms: i64,
+}
+
+/// Full detail for one expanded run.
+#[derive(Debug, Clone)]
+struct RunDetail {
+    id: String,
+    pr_number: i64,
+    repo: String,
+    conclusion: String,
+    elapsed_ms: i64,
+    created_at: i64,
+    ships: Vec<RunShip>,
+    steps: Vec<RunStep>,
+    total_cost_usd: f64,
+    has_any_spend: bool,
+}
+
+impl RunDetail {
+    fn from_value(v: &Value) -> Self {
+        use std::collections::{HashMap, HashSet};
+        let run = v.get("run").cloned().unwrap_or(Value::Null);
+        let steps: Vec<RunStep> = arr(v, "steps").iter().map(RunStep::from_value).collect();
+
+        // Fold spend rows into a per-ship accumulator (sum tokens + cost).
+        let mut spend: HashMap<String, ShipSpend> = HashMap::new();
+        for sp in arr(v, "spend") {
+            let ship = s(sp, "ship");
+            if ship.is_empty() {
+                continue;
+            }
+            let e = spend.entry(ship).or_default();
+            e.input_tokens += n(sp, "inputTokens");
+            e.output_tokens += n(sp, "outputTokens");
+            e.cost_usd += f64_field(sp, "costUsd");
+        }
+
+        // Ship membership + order: the run header's ships[] first, then any ship
+        // seen only in steps or spend, appended in first-seen order.
+        let mut order: Vec<String> = arr(&run, "ships")
+            .iter()
+            .filter_map(|x| x.as_str().map(String::from))
+            .collect();
+        let mut seen: HashSet<String> = order.iter().cloned().collect();
+        for st in &steps {
+            if !st.ship.is_empty() && seen.insert(st.ship.clone()) {
+                order.push(st.ship.clone());
+            }
+        }
+        for k in spend.keys() {
+            if seen.insert(k.clone()) {
+                order.push(k.clone());
+            }
+        }
+
+        let ships: Vec<RunShip> = order
+            .into_iter()
+            .map(|name| {
+                let sp = spend.get(&name);
+                RunShip {
+                    verdict: ship_verdict(&steps, &name),
+                    input_tokens: sp.map(|s| s.input_tokens).unwrap_or(0),
+                    output_tokens: sp.map(|s| s.output_tokens).unwrap_or(0),
+                    cost_usd: sp.map(|s| s.cost_usd).unwrap_or(0.0),
+                    has_spend: sp.is_some(),
+                    ms: ship_elapsed_ms(&steps, &name),
+                    ship: name,
+                }
+            })
+            .collect();
+
+        let total_cost_usd = spend.values().map(|s| s.cost_usd).sum();
+        let has_any_spend = !spend.is_empty();
+
+        Self {
+            id: s(&run, "id"),
+            pr_number: n(&run, "prNumber"),
+            repo: s(&run, "repo"),
+            conclusion: s(&run, "conclusion"),
+            elapsed_ms: n(&run, "elapsedMs"),
+            created_at: n(&run, "createdAt"),
+            ships,
+            steps,
+            total_cost_usd,
+            has_any_spend,
+        }
+    }
+
+    /// The transcript steps belonging to one ship (for the drill-down view).
+    fn steps_for<'a>(&'a self, ship: &str) -> Vec<&'a RunStep> {
+        self.steps.iter().filter(|st| st.ship == ship).collect()
+    }
+}
+
+/// A float field tolerant of number-or-numeric-string drift; 0.0 when missing.
+fn f64_field(v: &Value, key: &str) -> f64 {
+    match v.get(key) {
+        Some(Value::Number(x)) => x.as_f64().unwrap_or(0.0),
+        Some(Value::String(x)) => x.parse().unwrap_or(0.0),
+        _ => 0.0,
+    }
+}
+
+/// Pretty-print a step's `detail` blob to readable text (2-space indent for
+/// objects/arrays; a bare string passes through; null/missing → "").
+fn pretty_detail(v: Option<&Value>) -> String {
+    match v {
+        None | Some(Value::Null) => String::new(),
+        Some(Value::String(sx)) => sx.clone(),
+        Some(other) => serde_json::to_string_pretty(other).unwrap_or_else(|_| other.to_string()),
+    }
+}
+
+/// A ship's verdict: the LAST (highest-seq) verdict-bearing step for that ship,
+/// with the `pd-<ship>: ` prefix stripped. "—" when the ship logged none.
+fn ship_verdict(steps: &[RunStep], ship: &str) -> String {
+    const VERDICT_KINDS: [&str; 3] = ["ship-verdict", "ship-finding", "ship-skipped"];
+    steps
+        .iter()
+        .filter(|st| st.ship == ship && VERDICT_KINDS.contains(&st.kind.as_str()))
+        .max_by_key(|st| st.seq)
+        .map(|st| {
+            let prefix = format!("pd-{ship}: ");
+            st.title.strip_prefix(&prefix).unwrap_or(&st.title).to_string()
+        })
+        .unwrap_or_else(|| "—".into())
+}
+
+/// Per-ship elapsed (ms) from the span of its transcript timestamps (seconds).
+/// 0 when there are <2 distinct-second timestamps — the caller renders "—".
+fn ship_elapsed_ms(steps: &[RunStep], ship: &str) -> i64 {
+    let (mut lo, mut hi) = (i64::MAX, i64::MIN);
+    for st in steps.iter().filter(|st| st.ship == ship && st.created_at > 0) {
+        lo = lo.min(st.created_at);
+        hi = hi.max(st.created_at);
+    }
+    if hi > lo {
+        (hi - lo) * 1000
+    } else {
+        0
+    }
+}
+
+/// Per-ship aggregate across the loaded activity window, enriched with cost +
+/// per-ship verdict from any opened run details. Pure (no I/O) so the rollup math
+/// is unit-testable in isolation.
+#[derive(Debug, Clone, PartialEq)]
+struct ShipRollup {
+    ship: String,
+    runs: usize,
+    total_cost_usd: f64,
+    /// True once an opened run detail contributed spend for this ship — otherwise
+    /// cost is "—" (the activity list carries no per-ship cost).
+    has_cost: bool,
+    avg_ms: i64,
+    /// Newest per-ship verdict from an opened run detail, else the newest run's
+    /// (run-level) conclusion as a proxy.
+    last_verdict: String,
+}
+
+/// Aggregate `activity` (newest-first) into a per-ship rollup, overlaying cost +
+/// per-ship verdict from the `details` the operator has opened.
+fn ship_window_rollup(
+    activity: &[FleetRun],
+    details: &std::collections::HashMap<String, RunDetail>,
+) -> Vec<ShipRollup> {
+    use std::collections::{BTreeMap, HashMap};
+
+    // 1) Base pass over the activity window: runs count, ms sum, last conclusion.
+    //    BTreeMap → deterministic (alphabetical) ship order in the rollup.
+    struct Acc {
+        runs: usize,
+        ms_sum: i64,
+        last_verdict: String,
+    }
+    let mut acc: BTreeMap<String, Acc> = BTreeMap::new();
+    for run in activity {
+        for ship in &run.ships {
+            let e = acc.entry(ship.clone()).or_insert_with(|| Acc {
+                runs: 0,
+                ms_sum: 0,
+                last_verdict: String::new(),
+            });
+            // activity is newest-first, so the FIRST sighting sets last_verdict.
+            if e.last_verdict.is_empty() && !run.conclusion.is_empty() {
+                e.last_verdict = run.conclusion.clone();
+            }
+            e.runs += 1;
+            e.ms_sum += run.elapsed_ms;
+        }
+    }
+
+    // 2) Overlay opened details: sum per-ship cost, prefer the newest per-ship
+    //    verdict (keyed on the run's createdAt).
+    let mut cost: HashMap<String, f64> = HashMap::new();
+    let mut best_verdict: HashMap<String, (i64, String)> = HashMap::new();
+    for d in details.values() {
+        for rs in &d.ships {
+            if rs.has_spend {
+                *cost.entry(rs.ship.clone()).or_insert(0.0) += rs.cost_usd;
+            }
+            if rs.verdict != "—" {
+                let slot = best_verdict
+                    .entry(rs.ship.clone())
+                    .or_insert((i64::MIN, String::new()));
+                if d.created_at >= slot.0 {
+                    *slot = (d.created_at, rs.verdict.clone());
+                }
+            }
+        }
+    }
+
+    acc.into_iter()
+        .map(|(ship, a)| {
+            let has_cost = cost.contains_key(&ship);
+            let last_verdict = best_verdict
+                .get(&ship)
+                .map(|(_, v)| v.clone())
+                .unwrap_or(a.last_verdict);
+            ShipRollup {
+                total_cost_usd: cost.get(&ship).copied().unwrap_or(0.0),
+                has_cost,
+                avg_ms: if a.runs > 0 { a.ms_sum / a.runs as i64 } else { 0 },
+                last_verdict,
+                runs: a.runs,
+                ship,
+            }
+        })
+        .collect()
+}
+
+/// Percent-encode a run id for a URL path segment. Run ids are
+/// `run:<deliveryId>`; the `:` (and any other reserved byte) is encoded so the
+/// relay's `decodeURIComponent` round-trips it exactly.
+fn encode_run_id(id: &str) -> String {
+    let mut out = String::with_capacity(id.len());
+    for byte in id.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                out.push(byte as char)
+            }
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
 }
 
 /// One local HITL proposal packet awaiting operator approval.
@@ -292,6 +606,23 @@ pub struct CloudFleetPane {
     proposal_error: Option<String>,
     activity_pager: Pager,
     proposals_pager: Pager,
+    /// Run-detail (Shipwright expandable view) state. Selecting a Recent Run
+    /// fetches `GET /v1/fleet/runs/:id` into `run_detail`; a failure sets
+    /// `run_detail_error` and degrades ONLY this run's detail — the runs list,
+    /// pause control, and every other section are untouched fields. Opened
+    /// details are retained in `run_detail_cache` so the per-ship window rollup
+    /// aggregates cost across them without re-fetching.
+    selected_run: Option<String>,
+    run_detail: Option<RunDetail>,
+    run_detail_error: Option<String>,
+    run_detail_cache: std::collections::HashMap<String, RunDetail>,
+    /// Which ship's transcript is expanded inside the open run (None = the
+    /// per-ship summary rows). Reset whenever a different run is opened.
+    expanded_ship: Option<String>,
+    /// Pages the open run's long content — the expanded ship's transcript steps,
+    /// or the per-ship summary rows when a run has many ships. NO silent
+    /// truncation: long transcripts page here. Reset on open/expand.
+    run_detail_pager: Pager,
 }
 
 impl Default for CloudFleetPane {
@@ -312,6 +643,12 @@ impl Default for CloudFleetPane {
             proposal_error: None,
             activity_pager: Pager::new(DEFAULT_PAGE_SIZE),
             proposals_pager: Pager::new(DEFAULT_PAGE_SIZE),
+            selected_run: None,
+            run_detail: None,
+            run_detail_error: None,
+            run_detail_cache: std::collections::HashMap::new(),
+            expanded_ship: None,
+            run_detail_pager: Pager::new(DEFAULT_PAGE_SIZE),
         }
     }
 }
@@ -351,7 +688,80 @@ impl CloudFleetPane {
                     self.proposals_pager.prev();
                 }
             }
+            CloudFleetList::RunDetail => {
+                let total = self.run_detail_page_total();
+                if forward {
+                    self.run_detail_pager.next(total);
+                } else {
+                    self.run_detail_pager.prev();
+                }
+            }
         }
+    }
+
+    /// Total items the run-detail pager covers: the expanded ship's transcript
+    /// steps, or the per-ship summary rows when no ship is expanded.
+    fn run_detail_page_total(&self) -> usize {
+        match (&self.run_detail, &self.expanded_ship) {
+            (Some(d), Some(ship)) => d.steps_for(ship).len(),
+            (Some(d), None) => d.ships.len(),
+            _ => 0,
+        }
+    }
+
+    /// Open (fetch) or close a run's detail. `Some(id)` fetches
+    /// `GET /v1/fleet/runs/:id` (served from cache when already loaded); `None`
+    /// collapses back to the runs list. A fetch failure degrades ONLY this run
+    /// (records `run_detail_error`) — the runs list + pause toggle are untouched.
+    pub async fn open_run(&mut self, daemon: &DaemonClient, run_id: Option<String>) {
+        let Some(id) = run_id else {
+            self.selected_run = None;
+            self.run_detail = None;
+            self.run_detail_error = None;
+            self.expanded_ship = None;
+            return;
+        };
+        self.selected_run = Some(id.clone());
+        self.expanded_ship = None;
+        self.run_detail_pager = Pager::new(DEFAULT_PAGE_SIZE);
+        if let Some(cached) = self.run_detail_cache.get(&id) {
+            self.run_detail = Some(cached.clone());
+            self.run_detail_error = None;
+            return;
+        }
+        if !self.is_configured() {
+            self.run_detail = None;
+            self.run_detail_error = Some("relay not configured".into());
+            return;
+        }
+        let base = self.relay_url.trim_end_matches('/').to_string();
+        let token = self.relay_token.clone();
+        let url = format!("{base}/v1/fleet/runs/{}", encode_run_id(&id));
+        match fetch_json(daemon, &url, &token).await {
+            Ok(data) => {
+                let detail = RunDetail::from_value(&data);
+                self.run_detail_cache.insert(id, detail.clone());
+                self.run_detail = Some(detail);
+                self.run_detail_error = None;
+            }
+            Err(e) => {
+                self.run_detail = None;
+                self.run_detail_error = Some(e);
+            }
+        }
+    }
+
+    /// Expand/collapse a ship's transcript within the open run. Local state only —
+    /// the detail is already loaded; no daemon round-trip.
+    pub fn expand_ship(&mut self, ship: Option<String>) {
+        self.expanded_ship = ship;
+        self.run_detail_pager = Pager::new(DEFAULT_PAGE_SIZE);
+    }
+
+    /// The current run-detail fetch error, if the last `open_run` failed — so the
+    /// caller can surface it on the alert bus (the pane also shows it inline).
+    pub fn run_detail_error_message(&self) -> Option<String> {
+        self.run_detail_error.clone()
     }
 
     /// Emit the "showing N–M of T" indicator plus prev/next controls for a paged
@@ -374,6 +784,7 @@ impl CloudFleetPane {
         let (prev_verb, next_verb) = match list {
             CloudFleetList::Activity => ("cloud-activity-prev", "cloud-activity-next"),
             CloudFleetList::Proposals => ("cloud-proposals-prev", "cloud-proposals-next"),
+            CloudFleetList::RunDetail => ("cloud-run-detail-prev", "cloud-run-detail-next"),
         };
         blocks.push(Block::ControlButton {
             verb: prev_verb.into(),
@@ -431,6 +842,155 @@ impl CloudFleetPane {
             });
         }
         self.push_pager(blocks, CloudFleetList::Proposals, &self.proposals_pager, total);
+    }
+
+    /// Render the open run's Shipwright detail inline under its Recent Runs row.
+    /// A `runs/:id` failure degrades ONLY this block (an inline error line); the
+    /// runs list, pause control, and rollup above/below are untouched.
+    fn push_run_detail(&self, blocks: &mut Vec<Block>) {
+        if let Some(err) = &self.run_detail_error {
+            blocks.push(Block::KeyVal("run detail".into(), format!("unavailable — {err}")));
+            return;
+        }
+        let Some(d) = &self.run_detail else {
+            blocks.push(Block::KeyVal("run detail".into(), "loading…".into()));
+            return;
+        };
+
+        // Detail header: conclusion · elapsed · ships · total cost.
+        let total_cost = if d.has_any_spend {
+            format!("${:.4}", d.total_cost_usd)
+        } else {
+            "—".into()
+        };
+        blocks.push(Block::KeyVal(
+            format!("run {}", trunc(&d.id, 28)),
+            format!(
+                "{} PR #{} · {} · {}ms · {} ships · cost {}",
+                trunc(&d.repo, 24),
+                d.pr_number,
+                d.conclusion,
+                d.elapsed_ms,
+                d.ships.len(),
+                total_cost
+            ),
+        ));
+
+        match &self.expanded_ship {
+            // Per-ship summary rows: ship · verdict · tokens(in/out) · $cost · Nms.
+            None => {
+                if d.ships.is_empty() {
+                    blocks.push(Block::KeyVal(
+                        "ships".into(),
+                        "no per-ship steps recorded for this run".into(),
+                    ));
+                    return;
+                }
+                let total = d.ships.len();
+                for rs in self.run_detail_pager.slice(&d.ships) {
+                    let cost = if rs.has_spend {
+                        format!("${:.4}", rs.cost_usd)
+                    } else {
+                        "—".into()
+                    };
+                    let ms = if rs.ms > 0 {
+                        format!("{}ms", rs.ms)
+                    } else {
+                        "—".into()
+                    };
+                    blocks.push(Block::Row(vec![
+                        trunc(&rs.ship, 18),
+                        trunc(&rs.verdict, 22),
+                        format!("{}/{}", rs.input_tokens, rs.output_tokens),
+                        cost,
+                        ms,
+                    ]));
+                    blocks.push(Block::ControlButton {
+                        verb: format!("cloud-ship-expand:{}", rs.ship),
+                        label: format!("{} transcript ▸", trunc(&rs.ship, 16)),
+                        enabled: true,
+                        why_disabled: None,
+                        primary: false,
+                    });
+                }
+                // Page only when a run has more ships than one page (rare) — no
+                // silent truncation of an unusually wide fleet.
+                if total > self.run_detail_pager.size {
+                    self.push_pager(blocks, CloudFleetList::RunDetail, &self.run_detail_pager, total);
+                }
+            }
+            // Expanded ship transcript — full step text, paged (never truncated).
+            Some(ship) => {
+                blocks.push(Block::ControlButton {
+                    verb: "cloud-ship-collapse".into(),
+                    label: format!("‹ back — {} transcript", trunc(ship, 16)),
+                    enabled: true,
+                    why_disabled: None,
+                    primary: false,
+                });
+                let steps = d.steps_for(ship);
+                let total = steps.len();
+                if total == 0 {
+                    blocks.push(Block::KeyVal(
+                        "transcript".into(),
+                        "no transcript steps for this ship".into(),
+                    ));
+                    return;
+                }
+                for st in self.run_detail_pager.slice(&steps) {
+                    blocks.push(Block::KeyVal(
+                        format!("#{} {}", st.seq, trunc(&st.kind, 16)),
+                        trunc(&st.title, 60),
+                    ));
+                    if !st.detail.is_empty() {
+                        // WrappedText wraps + never ellipsizes — the operator reads
+                        // the ship's findings/output in full.
+                        blocks.push(Block::WrappedText {
+                            text: st.detail.clone(),
+                            tone: Tone::Resting,
+                        });
+                    }
+                }
+                self.push_pager(blocks, CloudFleetList::RunDetail, &self.run_detail_pager, total);
+            }
+        }
+    }
+
+    /// "Ships (this window)" — a per-ship rollup across the loaded activity window,
+    /// enriched with cost from any opened run details. Cost reads "—" until a run
+    /// is opened (the activity list carries no per-ship $).
+    fn push_ship_rollup(&self, blocks: &mut Vec<Block>) {
+        blocks.push(Block::Gap);
+        blocks.push(Block::Header("Ships (this window)".into()));
+        let rollup = ship_window_rollup(&self.activity, &self.run_detail_cache);
+        if rollup.is_empty() {
+            blocks.push(Block::KeyVal(
+                "status".into(),
+                "no ships in the loaded run window".into(),
+            ));
+            return;
+        }
+        let any_cost = rollup.iter().any(|r| r.has_cost);
+        for r in &rollup {
+            let cost = if r.has_cost {
+                format!("${:.4}", r.total_cost_usd)
+            } else {
+                "—".into()
+            };
+            blocks.push(Block::Row(vec![
+                trunc(&r.ship, 18),
+                format!("{} runs", r.runs),
+                cost,
+                format!("{}ms avg", r.avg_ms),
+                trunc(&r.last_verdict, 18),
+            ]));
+        }
+        if !any_cost {
+            blocks.push(Block::KeyVal(
+                "cost".into(),
+                "open a run to load per-ship $ (the activity list carries none)".into(),
+            ));
+        }
     }
 
     /// Fold a `/v1/fleet/health` body into the pane's health fields.
@@ -547,9 +1107,12 @@ impl Pane for CloudFleetPane {
                 },
             });
             if let Some(age) = self.last_run_age_sec {
+                // `lastRunAgeSec` is a DURATION (seconds since the last run), not a
+                // timestamp — format it directly. (The old `age_short(age*1000)`
+                // treated it as a 1970 epoch and printed "20657d ago".)
                 blocks.push(Block::KeyVal(
                     "last run".into(),
-                    format!("{} ago", age_short(age * 1000)),
+                    format!("{} ago", fmt_duration_secs(age)),
                 ));
             } else {
                 blocks.push(Block::KeyVal("last run".into(), "—".into()));
@@ -608,7 +1171,9 @@ impl Pane for CloudFleetPane {
             blocks.push(Block::KeyVal("status".into(), "no PR reviews yet".into()));
         } else {
             for run in self.activity_pager.slice(&self.activity) {
-                // age · PR # · repo · conclusion · elapsed.
+                // age · PR # · repo · conclusion · elapsed. (`created_at` is an
+                // absolute epoch, so `age_short` is correct here — unlike the
+                // health `lastRunAgeSec` duration handled above.)
                 blocks.push(Block::Row(vec![
                     age_short(run.created_at * 1000),
                     format!("PR #{}", run.pr_number),
@@ -631,9 +1196,35 @@ impl Pane for CloudFleetPane {
                     },
                     tone: conclusion_tone(&run.conclusion),
                 });
+                // Expand/collapse this run's Shipwright detail. A run with no id
+                // (schema drift) simply can't be opened — omit the control rather
+                // than show a dead affordance.
+                if run.id.is_empty() {
+                    // no run id → no detail endpoint key
+                } else if self.selected_run.as_deref() == Some(run.id.as_str()) {
+                    blocks.push(Block::ControlButton {
+                        verb: "cloud-run-close".into(),
+                        label: "Close ▾".into(),
+                        enabled: true,
+                        why_disabled: None,
+                        primary: false,
+                    });
+                    self.push_run_detail(&mut blocks);
+                } else {
+                    blocks.push(Block::ControlButton {
+                        verb: format!("cloud-run-open:{}", run.id),
+                        label: "Open ▸".into(),
+                        enabled: true,
+                        why_disabled: None,
+                        primary: false,
+                    });
+                }
             }
             self.push_pager(&mut blocks, CloudFleetList::Activity, &self.activity_pager, total);
         }
+
+        // ── Ships (this window): per-ship rollup across the loaded runs ─────────
+        self.push_ship_rollup(&mut blocks);
 
         // ── Ship prompts (read-only, SECONDARY) — own optional failure line ────
         // The relay's `/v1/fleet/config` can 500 independently (e.g. its GitHub
@@ -662,6 +1253,21 @@ impl Pane for CloudFleetPane {
                 blocks.push(Block::KeyVal(format!("• {}", trunc(&ship.name, 24)), role));
             }
         }
+
+        // TODO(shipwright-editor): the ship EDITOR (validate → smoke-test →
+        // optimize → save) is a FOLLOW-UP, intentionally NOT wired here. It needs
+        // `POST /v1/fleet/{validate,smoke-test,optimize-prompt,save}` +
+        // `GET /v1/fleet/config`, which currently 500 on the relay (the GitHub App
+        // creds are unset). Wiring an editor now would ship dead buttons. Until the
+        // relay serves config, show one honest, DISABLED affordance so the
+        // capability is discoverable without pretending it works.
+        blocks.push(Block::ControlButton {
+            verb: "cloud-ship-edit".into(),
+            label: "Edit ship prompt".into(),
+            enabled: false,
+            why_disabled: Some("ship editing coming — relay config unavailable".into()),
+            primary: false,
+        });
 
         blocks
     }
@@ -834,6 +1440,7 @@ mod tests {
     fn sample_runs(n: usize) -> Vec<FleetRun> {
         (0..n)
             .map(|i| FleetRun {
+                id: format!("run:{i}"),
                 pr_number: i as i64,
                 repo: "port-daddy/relay".into(),
                 conclusion: "success".into(),
@@ -842,6 +1449,33 @@ mod tests {
                 created_at: 1_719_432_000,
             })
             .collect()
+    }
+
+    /// A `/v1/fleet/runs/:id` response body with two ships, transcript, + spend.
+    fn sample_run_detail_json() -> Value {
+        json!({
+            "code": "OK",
+            "error": null,
+            "run": {
+                "id": "run:d1",
+                "prNumber": 202,
+                "repo": "curiositech/port-daddy",
+                "conclusion": "failure",
+                "ships": ["linter", "redteam"],
+                "elapsedMs": 45000,
+                "createdAt": 1_719_432_100i64
+            },
+            "steps": [
+                { "seq": 0, "kind": "map-chunk", "ship": "linter", "title": "MAP chunk 1/1", "detail": {"chunkIndex": 0}, "createdAt": 1_719_432_101i64 },
+                { "seq": 1, "kind": "ship-verdict", "ship": "linter", "title": "pd-linter: PASS", "detail": [], "createdAt": 1_719_432_103i64 },
+                { "seq": 2, "kind": "ship-verdict", "ship": "redteam", "title": "pd-redteam: BLOCK", "detail": [{"path":"a.ts","body":"unsafe"}], "createdAt": 1_719_432_108i64 },
+                { "seq": 3, "kind": "check-completed", "ship": null, "title": "Check concluded: failure", "detail": {"conclusion":"failure"}, "createdAt": 1_719_432_109i64 }
+            ],
+            "spend": [
+                { "ship": "linter", "model": "@cf/qwen/qwen3-30b-a3b-fp8", "inputTokens": 1200, "outputTokens": 340, "costUsd": 0.000175 },
+                { "ship": "redteam", "model": "@cf/openai/gpt-oss-120b", "inputTokens": 900, "outputTokens": 500, "costUsd": 0.00069 }
+            ]
+        })
     }
 
     #[test]
@@ -1027,6 +1661,7 @@ mod tests {
     fn view_populated_renders_runs_and_ships() {
         let mut p = configured();
         p.activity = vec![FleetRun {
+            id: "run:7".into(),
             pr_number: 7,
             repo: "port-daddy/relay".into(),
             conclusion: "failure".into(),
@@ -1215,5 +1850,303 @@ PD_CONSOLE_RELAY_URL=https://last.dev
         assert_eq!(m.get("EMPTY").unwrap(), "");
         // A blank key is dropped.
         assert!(!m.contains_key(""));
+    }
+
+    // ── Run detail parsing (Shipwright) ─────────────────────────────────────────
+
+    #[test]
+    fn run_detail_parses_ships_verdicts_spend_and_derived_ms() {
+        let d = RunDetail::from_value(&sample_run_detail_json());
+        assert_eq!(d.id, "run:d1");
+        assert_eq!(d.pr_number, 202);
+        assert_eq!(d.conclusion, "failure");
+        assert_eq!(d.elapsed_ms, 45000);
+        assert!(d.has_any_spend);
+        // Two ships, in run-header order.
+        assert_eq!(d.ships.iter().map(|s| s.ship.as_str()).collect::<Vec<_>>(), vec!["linter", "redteam"]);
+
+        let linter = &d.ships[0];
+        // Verdict from the ship's last verdict step, prefix stripped.
+        assert_eq!(linter.verdict, "PASS");
+        // Tokens + cost joined from spend[].
+        assert_eq!(linter.input_tokens, 1200);
+        assert_eq!(linter.output_tokens, 340);
+        assert!(linter.has_spend);
+        assert!((linter.cost_usd - 0.000175).abs() < 1e-9);
+        // linter steps at 101 & 103 → 2s span → 2000ms.
+        assert_eq!(linter.ms, 2000);
+
+        let redteam = &d.ships[1];
+        assert_eq!(redteam.verdict, "BLOCK");
+        assert!((redteam.cost_usd - 0.00069).abs() < 1e-9);
+        // redteam has a single step (108) → no span → 0 → rendered "—".
+        assert_eq!(redteam.ms, 0);
+
+        // Total cost sums both spend rows.
+        assert!((d.total_cost_usd - 0.000865).abs() < 1e-9);
+        // Transcript retained in full; steps_for filters by ship.
+        assert_eq!(d.steps.len(), 4);
+        assert_eq!(d.steps_for("linter").len(), 2);
+        assert_eq!(d.steps_for("redteam").len(), 1);
+    }
+
+    #[test]
+    fn run_detail_without_spend_shows_no_cost_but_keeps_verdicts() {
+        // The billing-not-deployed case: relay returns spend: [].
+        let mut body = sample_run_detail_json();
+        body["spend"] = json!([]);
+        let d = RunDetail::from_value(&body);
+        assert!(!d.has_any_spend);
+        assert!(d.ships.iter().all(|s| !s.has_spend));
+        assert_eq!(d.total_cost_usd, 0.0);
+        // Verdicts still resolve from the transcript.
+        assert_eq!(d.ships[0].verdict, "PASS");
+        assert_eq!(d.ships[1].verdict, "BLOCK");
+    }
+
+    #[test]
+    fn ship_verdict_picks_last_and_strips_prefix() {
+        let steps = vec![
+            RunStep { seq: 0, kind: "ship-verdict".into(), ship: "qa".into(), title: "pd-qa: PASS".into(), detail: String::new(), created_at: 1 },
+            RunStep { seq: 1, kind: "ship-verdict".into(), ship: "qa".into(), title: "pd-qa: BLOCK (errored)".into(), detail: String::new(), created_at: 2 },
+            RunStep { seq: 2, kind: "review-posted".into(), ship: "qa".into(), title: "Posted review for pd-qa".into(), detail: String::new(), created_at: 3 },
+        ];
+        // Last VERDICT-bearing step wins (review-posted is not a verdict kind).
+        assert_eq!(ship_verdict(&steps, "qa"), "BLOCK (errored)");
+        // A ship with no verdict step → "—".
+        assert_eq!(ship_verdict(&steps, "ghost"), "—");
+    }
+
+    #[test]
+    fn f64_field_tolerates_number_string_and_missing() {
+        let v = json!({ "a": 0.5, "b": "0.25", "c": null });
+        assert_eq!(f64_field(&v, "a"), 0.5);
+        assert_eq!(f64_field(&v, "b"), 0.25);
+        assert_eq!(f64_field(&v, "c"), 0.0);
+        assert_eq!(f64_field(&v, "zzz"), 0.0);
+    }
+
+    #[test]
+    fn pretty_detail_handles_object_string_and_null() {
+        assert_eq!(pretty_detail(None), "");
+        assert_eq!(pretty_detail(Some(&Value::Null)), "");
+        assert_eq!(pretty_detail(Some(&json!("raw text"))), "raw text");
+        let obj = pretty_detail(Some(&json!({ "k": 1 })));
+        assert!(obj.contains("\"k\""));
+    }
+
+    #[test]
+    fn encode_run_id_percent_encodes_the_colon() {
+        assert_eq!(encode_run_id("run:abc-123"), "run%3Aabc-123");
+        // Unreserved bytes pass through untouched.
+        assert_eq!(encode_run_id("run.v2_final~1"), "run.v2_final~1");
+    }
+
+    // ── Per-ship window rollup ──────────────────────────────────────────────────
+
+    #[test]
+    fn ship_rollup_counts_runs_avg_ms_and_last_verdict_from_activity() {
+        // Newest-first activity: two runs, linter in both, qa in the newer one.
+        let activity = vec![
+            FleetRun { id: "run:2".into(), pr_number: 2, repo: "r".into(), conclusion: "failure".into(), ships: vec!["linter".into(), "qa".into()], elapsed_ms: 100, created_at: 200 },
+            FleetRun { id: "run:1".into(), pr_number: 1, repo: "r".into(), conclusion: "success".into(), ships: vec!["linter".into()], elapsed_ms: 300, created_at: 100 },
+        ];
+        let rollup = ship_window_rollup(&activity, &std::collections::HashMap::new());
+        // BTreeMap → alphabetical: linter, qa.
+        assert_eq!(rollup.iter().map(|r| r.ship.as_str()).collect::<Vec<_>>(), vec!["linter", "qa"]);
+        let linter = &rollup[0];
+        assert_eq!(linter.runs, 2);
+        assert_eq!(linter.avg_ms, 200); // (100 + 300) / 2
+        // Newest run first → last_verdict is the newer run's conclusion.
+        assert_eq!(linter.last_verdict, "failure");
+        assert!(!linter.has_cost); // no opened details yet
+        let qa = &rollup[1];
+        assert_eq!(qa.runs, 1);
+        assert_eq!(qa.last_verdict, "failure");
+    }
+
+    #[test]
+    fn ship_rollup_overlays_cost_and_verdict_from_opened_details() {
+        let activity = vec![FleetRun {
+            id: "run:d1".into(),
+            pr_number: 202,
+            repo: "curiositech/port-daddy".into(),
+            conclusion: "failure".into(),
+            ships: vec!["linter".into(), "redteam".into()],
+            elapsed_ms: 45000,
+            created_at: 1_719_432_100,
+        }];
+        let mut details = std::collections::HashMap::new();
+        details.insert("run:d1".to_string(), RunDetail::from_value(&sample_run_detail_json()));
+        let rollup = ship_window_rollup(&activity, &details);
+        let linter = rollup.iter().find(|r| r.ship == "linter").unwrap();
+        // Cost overlaid from the opened detail's spend.
+        assert!(linter.has_cost);
+        assert!((linter.total_cost_usd - 0.000175).abs() < 1e-9);
+        // Per-ship verdict from the detail overrides the run-level conclusion.
+        assert_eq!(linter.last_verdict, "PASS");
+        let redteam = rollup.iter().find(|r| r.ship == "redteam").unwrap();
+        assert_eq!(redteam.last_verdict, "BLOCK");
+    }
+
+    // ── Run detail rendering + resilience ───────────────────────────────────────
+
+    fn run_detail_pane() -> CloudFleetPane {
+        let mut p = configured();
+        let d = RunDetail::from_value(&sample_run_detail_json());
+        p.activity = vec![FleetRun {
+            id: "run:d1".into(),
+            pr_number: 202,
+            repo: "curiositech/port-daddy".into(),
+            conclusion: "failure".into(),
+            ships: vec!["linter".into(), "redteam".into()],
+            elapsed_ms: 45000,
+            created_at: 1_719_432_100,
+        }];
+        p.selected_run = Some("run:d1".into());
+        p.run_detail = Some(d);
+        p
+    }
+
+    #[test]
+    fn recent_run_shows_open_control_when_collapsed() {
+        let mut p = configured();
+        p.activity = sample_runs(1);
+        let blocks = p.view();
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::ControlButton { verb, enabled: true, .. } if verb == "cloud-run-open:run:0"
+        )));
+    }
+
+    #[test]
+    fn open_run_renders_per_ship_rows_with_verdict_tokens_and_cost() {
+        let p = run_detail_pane();
+        let blocks = p.view();
+        // Close control replaces Open for the selected run.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::ControlButton { verb, .. } if verb == "cloud-run-close"
+        )));
+        // A per-ship row: ship · verdict · tokens · $cost · ms.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::Row(c) if c[0] == "linter" && c[1] == "PASS" && c[2] == "1200/340" && c[3] == "$0.0002" && c[4] == "2000ms"
+        )));
+        // redteam has no per-ship span → ms renders "—".
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::Row(c) if c[0] == "redteam" && c[1] == "BLOCK" && c[4] == "—"
+        )));
+        // Each ship offers a transcript drill-down control.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::ControlButton { verb, .. } if verb == "cloud-ship-expand:linter"
+        )));
+    }
+
+    #[test]
+    fn expanded_ship_renders_full_transcript_text() {
+        let mut p = run_detail_pane();
+        p.expand_ship(Some("redteam".into()));
+        let blocks = p.view();
+        // A collapse control back to the ships list.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::ControlButton { verb, .. } if verb == "cloud-ship-collapse"
+        )));
+        // The ship's step title + full (never-truncated) detail text.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::KeyVal(k, v) if k.contains("ship-verdict") && v.contains("BLOCK")
+        )));
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::WrappedText { text, .. } if text.contains("unsafe")
+        )));
+    }
+
+    #[test]
+    fn run_detail_error_degrades_only_that_run_not_the_list_or_pause() {
+        let mut p = run_detail_pane();
+        p.run_detail = None;
+        p.run_detail_error = Some("GET .../runs/run:d1 → 500 Internal Server Error".into());
+        let blocks = p.view();
+        // The detail line reports its own failure.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::KeyVal(k, v) if k == "run detail" && v.contains("unavailable") && v.contains("500")
+        )));
+        // The runs list still renders its row, and the pause control is still live.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::Row(c) if c[1] == "PR #202"
+        )));
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::ControlButton { verb, enabled: true, .. } if verb == "cloud-pause"
+        )));
+    }
+
+    #[test]
+    fn ship_rollup_section_renders_across_window() {
+        let p = run_detail_pane();
+        let blocks = p.view();
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::Header(h) if h == "Ships (this window)"
+        )));
+        // With the detail cached... actually not cached here (set directly), so
+        // cost is "—" but runs/verdict still render from activity.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::Row(c) if c[0] == "linter" && c[1] == "1 runs"
+        )));
+    }
+
+    #[test]
+    fn ship_editor_affordance_is_disabled_with_reason() {
+        let p = configured();
+        let blocks = p.view();
+        assert!(blocks.iter().any(|b| matches!(
+            b,
+            Block::ControlButton { verb, enabled: false, why_disabled: Some(w), .. }
+            if verb == "cloud-ship-edit" && w.contains("relay config unavailable")
+        )));
+    }
+
+    #[test]
+    fn many_ships_in_a_run_are_paged_not_truncated() {
+        let mut p = configured();
+        // Build a synthetic run with 60 ships so the per-ship rows exceed a page.
+        let ships: Vec<RunShip> = (0..60)
+            .map(|i| RunShip {
+                ship: format!("ship{i:02}"),
+                verdict: "PASS".into(),
+                input_tokens: 0,
+                output_tokens: 0,
+                cost_usd: 0.0,
+                has_spend: false,
+                ms: 0,
+            })
+            .collect();
+        p.activity = vec![FleetRun {
+            id: "run:big".into(),
+            pr_number: 1,
+            repo: "r".into(),
+            conclusion: "success".into(),
+            ships: vec![],
+            elapsed_ms: 1,
+            created_at: 1_719_432_000,
+        }];
+        p.selected_run = Some("run:big".into());
+        p.run_detail = Some(RunDetail {
+            id: "run:big".into(),
+            pr_number: 1,
+            repo: "r".into(),
+            conclusion: "success".into(),
+            elapsed_ms: 1,
+            created_at: 1_719_432_000,
+            ships,
+            steps: vec![],
+            total_cost_usd: 0.0,
+            has_any_spend: false,
+        });
+        let blocks = p.view();
+        // A run-detail pager appears with the full total, and only one page of
+        // ship rows renders (25), never all 60.
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::KeyVal(k, v) if k == "showing" && v.contains("of 60")
+        )));
+        assert!(blocks.iter().any(|b| matches!(
+            b, Block::ControlButton { verb, enabled: true, .. } if verb == "cloud-run-detail-next"
+        )));
     }
 }

@@ -405,6 +405,15 @@ export interface FleetRunStepRow {
   created_at: number;
 }
 
+/** One per-ship spend row (the executor writes one per ship that actually ran). */
+export interface FleetRunSpendRow {
+  ship: string | null;
+  model: string | null;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+}
+
 /**
  * Insert (or idempotently no-op on retry) the run header. delivery_id is the
  * UNIQUE GitHub idempotency key, so a queue retry that re-creates the row is
@@ -526,6 +535,25 @@ export async function getFleetRunWithSteps(
   `).bind(runId).all<FleetRunStepRow>();
 
   return { run, steps: steps.results };
+}
+
+/**
+ * Per-ship spend for one run (tokens + USD cost), ordered by insertion. Powers
+ * the Cloud Fleet pane's per-ship cost column. Missing table / read error is the
+ * caller's concern — this is a plain read so the run-detail handler can wrap it
+ * best-effort (spend is a nice-to-have; the transcript is the authoritative view).
+ */
+export async function getFleetRunSpend(
+  db: D1Database,
+  runId: string
+): Promise<FleetRunSpendRow[]> {
+  const rows = await db.prepare(`
+    SELECT ship, model, input_tokens, output_tokens, cost_usd
+    FROM fleet_run_spend
+    WHERE run_id = ?
+    ORDER BY created_at ASC
+  `).bind(runId).all<FleetRunSpendRow>();
+  return rows.results;
 }
 
 /** unix-seconds timestamp of the most recent run, or null when none exist. */

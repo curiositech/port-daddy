@@ -5,7 +5,7 @@
  * (D1 tables `fleet_runs` + `fleet_run_steps`) for the pd-console Cloud Fleet
  * pane.
  *   GET  /v1/fleet/activity?limit=N   recent runs, newest first
- *   GET  /v1/fleet/runs/:id           one run + its ordered transcript
+ *   GET  /v1/fleet/runs/:id           one run + its ordered transcript + per-ship spend
  *   GET  /v1/fleet/health             paused flag + last-run age + queue depth
  *
  * Control side: the kill switch.
@@ -21,6 +21,7 @@ import { operatorOnly } from './handlers.js';
 import {
   listFleetRuns,
   getFleetRunWithSteps,
+  getFleetRunSpend,
   lastFleetRunAt,
   getFleetPaused,
   setFleetPaused,
@@ -111,6 +112,11 @@ export async function handleFleetRun(
       return fleetErr('NOT_FOUND', `Run ${runId} not found`, 404);
     }
     const { run, steps } = found;
+    // Per-ship spend (tokens + USD). BEST-EFFORT: a missing fleet_run_spend table
+    // (billing not deployed) or a read error must NOT fail the transcript view —
+    // the run + steps are the authoritative detail; spend enriches it. Degrade to
+    // an empty array so the pane shows verdicts/transcript with cost as "—".
+    const spend = await getFleetRunSpend(env.DB, runId).catch(() => []);
     return envelope(200, {
       code: 'OK',
       error: null,
@@ -134,6 +140,13 @@ export async function handleFleetRun(
         title: s.title,
         detail: parseDetail(s.detail),
         createdAt: s.created_at,
+      })),
+      spend: spend.map((s) => ({
+        ship: s.ship,
+        model: s.model,
+        inputTokens: s.input_tokens,
+        outputTokens: s.output_tokens,
+        costUsd: s.cost_usd,
       })),
     });
   } catch (e) {

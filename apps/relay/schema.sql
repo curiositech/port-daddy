@@ -248,6 +248,8 @@ CREATE TABLE IF NOT EXISTS fleet_run_spend (
   created_at      INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS fleet_run_spend_installation_idx ON fleet_run_spend (installation_id, created_at);
+-- Per-run lookup: the Cloud Fleet pane's run-detail view joins spend to one run.
+CREATE INDEX IF NOT EXISTS fleet_run_spend_run_idx ON fleet_run_spend (run_id);
 
 -- One Stripe customer per installation (created lazily at first checkout/portal).
 CREATE TABLE IF NOT EXISTS stripe_customers (

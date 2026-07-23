@@ -211,7 +211,12 @@ describe('handleFleetRun', () => {
     { run_id: 'run-new', seq: 3, kind: 'check-completed', ship: null, title: 'Check concluded: success', detail: '{"conclusion":"success"}', created_at: 1719432104 },
   ];
 
-  it('returns the run + ordered transcript with re-hydrated detail JSON', async () => {
+  const SPEND = [
+    { ship: 'linter', model: '@cf/qwen/qwen3-30b-a3b-fp8', input_tokens: 1200, output_tokens: 340, cost_usd: 0.000175 },
+    { ship: 'qa', model: '@cf/openai/gpt-oss-120b', input_tokens: 900, output_tokens: 500, cost_usd: 0.000690 },
+  ];
+
+  it('returns the run + ordered transcript with re-hydrated detail JSON + per-ship spend', async () => {
     const db = makeMockD1({
       onFirst: (q, bound) => {
         expect(q).toContain('FROM fleet_runs WHERE id = ?');
@@ -219,9 +224,13 @@ describe('handleFleetRun', () => {
         return RUN_NEW;
       },
       onAll: (q, bound) => {
+        expect(bound[0]).toBe('run-new');
+        // Two independent .all() reads: the transcript steps, then per-ship spend.
+        if (q.includes('FROM fleet_run_spend')) {
+          return SPEND;
+        }
         expect(q).toContain('FROM fleet_run_steps');
         expect(q).toContain('ORDER BY seq ASC');
-        expect(bound[0]).toBe('run-new');
         return STEPS;
       },
     });
@@ -231,6 +240,7 @@ describe('handleFleetRun', () => {
       code: string;
       run: { id: string; prUrl: string; headSha: string; ships: string[] };
       steps: Array<{ seq: number; kind: string; ship: string | null; detail: unknown }>;
+      spend: Array<{ ship: string | null; model: string | null; inputTokens: number; outputTokens: number; costUsd: number }>;
     };
     expect(json.code).toBe('OK');
     expect(json.run.id).toBe('run-new');
@@ -240,6 +250,29 @@ describe('handleFleetRun', () => {
     expect(json.steps[0]!.detail).toEqual({ chunkIndex: 0, chunkCount: 2 });
     expect(json.steps[2]!.detail).toEqual([{ path: 'main.ts', line: 10, severity: 'HIGH', body: 'x' }]);
     expect(json.steps[3]!.ship).toBeNull();
+    // Per-ship spend projected to camelCase wire fields.
+    expect(json.spend).toEqual([
+      { ship: 'linter', model: '@cf/qwen/qwen3-30b-a3b-fp8', inputTokens: 1200, outputTokens: 340, costUsd: 0.000175 },
+      { ship: 'qa', model: '@cf/openai/gpt-oss-120b', inputTokens: 900, outputTokens: 500, costUsd: 0.000690 },
+    ]);
+  });
+
+  it('degrades spend to [] when fleet_run_spend read fails (billing not deployed)', async () => {
+    const db = makeMockD1({
+      onFirst: () => RUN_NEW,
+      onAll: (q) => {
+        if (q.includes('FROM fleet_run_spend')) {
+          throw new Error('no such table: fleet_run_spend');
+        }
+        return STEPS;
+      },
+    });
+    const res = await handleFleetRun(req('/v1/fleet/runs/run-new', 'GET', OPERATOR), makeEnv({ db }), 'run-new');
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { code: string; spend: unknown[]; steps: unknown[] };
+    expect(json.code).toBe('OK');
+    expect(json.spend).toEqual([]); // spend failure never masks the transcript
+    expect(json.steps.length).toBe(4);
   });
 
   it('returns 404 for an unknown run id', async () => {

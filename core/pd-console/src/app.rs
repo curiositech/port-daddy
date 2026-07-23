@@ -200,6 +200,17 @@ pub enum ControlMsg {
         list: crate::cloud_fleet_pane::CloudFleetList,
         forward: bool,
     },
+    /// Open (fetch) or close a Cloud Fleet run's Shipwright detail. `Some(id)`
+    /// fetches `GET /v1/fleet/runs/:id` into the pane; `None` collapses back to
+    /// the runs list. A fetch failure degrades ONLY that run's detail.
+    CloudFleetOpenRun {
+        run_id: Option<String>,
+    },
+    /// Expand/collapse a ship's transcript inside the open run. `None` returns to
+    /// the per-ship summary rows. Local pane-state only — the detail is loaded.
+    CloudFleetExpandShip {
+        ship: Option<String>,
+    },
 }
 
 /// A push from the daemon worker back to the Work surface. Runtime truth is a
@@ -5872,26 +5883,61 @@ fn render_harbor_control(
                         // activity/proposals lists.
                         if let Some(tx) = &this.control_tx {
                             use crate::cloud_fleet_pane::CloudFleetList;
-                            let msg = match verb_for_click.as_str() {
-                                "cloud-pause" => Some(ControlMsg::CloudFleetPause { paused: true }),
-                                "cloud-resume" => Some(ControlMsg::CloudFleetPause { paused: false }),
-                                "cloud-activity-prev" => Some(ControlMsg::CloudFleetPage {
-                                    list: CloudFleetList::Activity,
-                                    forward: false,
-                                }),
-                                "cloud-activity-next" => Some(ControlMsg::CloudFleetPage {
-                                    list: CloudFleetList::Activity,
-                                    forward: true,
-                                }),
-                                "cloud-proposals-prev" => Some(ControlMsg::CloudFleetPage {
-                                    list: CloudFleetList::Proposals,
-                                    forward: false,
-                                }),
-                                "cloud-proposals-next" => Some(ControlMsg::CloudFleetPage {
-                                    list: CloudFleetList::Proposals,
-                                    forward: true,
-                                }),
-                                _ => None,
+                            let v = verb_for_click.as_str();
+                            // Run-open / ship-expand carry a dynamic payload after
+                            // a ':' (the run id / ship name); match those prefixes
+                            // before the fixed-verb table.
+                            let msg = if let Some(id) = v.strip_prefix("cloud-run-open:") {
+                                Some(ControlMsg::CloudFleetOpenRun {
+                                    run_id: Some(id.to_string()),
+                                })
+                            } else if let Some(ship) = v.strip_prefix("cloud-ship-expand:") {
+                                Some(ControlMsg::CloudFleetExpandShip {
+                                    ship: Some(ship.to_string()),
+                                })
+                            } else {
+                                match v {
+                                    "cloud-pause" => {
+                                        Some(ControlMsg::CloudFleetPause { paused: true })
+                                    }
+                                    "cloud-resume" => {
+                                        Some(ControlMsg::CloudFleetPause { paused: false })
+                                    }
+                                    "cloud-run-close" => {
+                                        Some(ControlMsg::CloudFleetOpenRun { run_id: None })
+                                    }
+                                    "cloud-ship-collapse" => {
+                                        Some(ControlMsg::CloudFleetExpandShip { ship: None })
+                                    }
+                                    "cloud-activity-prev" => Some(ControlMsg::CloudFleetPage {
+                                        list: CloudFleetList::Activity,
+                                        forward: false,
+                                    }),
+                                    "cloud-activity-next" => Some(ControlMsg::CloudFleetPage {
+                                        list: CloudFleetList::Activity,
+                                        forward: true,
+                                    }),
+                                    "cloud-proposals-prev" => Some(ControlMsg::CloudFleetPage {
+                                        list: CloudFleetList::Proposals,
+                                        forward: false,
+                                    }),
+                                    "cloud-proposals-next" => Some(ControlMsg::CloudFleetPage {
+                                        list: CloudFleetList::Proposals,
+                                        forward: true,
+                                    }),
+                                    "cloud-run-detail-prev" => Some(ControlMsg::CloudFleetPage {
+                                        list: CloudFleetList::RunDetail,
+                                        forward: false,
+                                    }),
+                                    "cloud-run-detail-next" => Some(ControlMsg::CloudFleetPage {
+                                        list: CloudFleetList::RunDetail,
+                                        forward: true,
+                                    }),
+                                    // cloud-ship-edit is intentionally disabled (the
+                                    // relay config endpoint 500s); it never reaches
+                                    // here (enabled:false controls don't click).
+                                    _ => None,
+                                }
                             };
                             if let Some(msg) = msg {
                                 let _ = tx.send(msg);
