@@ -96,6 +96,7 @@ import { createCostTracker } from './lib/cost-tracker.js';
 import { createCloudAppTelemetry } from './lib/cloud-app-telemetry.js';
 import { createContextWindowTracker } from './lib/context-window-tracker.js';
 import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
+import { normalizeSelfSalvage } from './lib/telos-salvage.js';
 import { createOperatorPermissions } from './lib/operator-permissions.js';
 import { createCounters } from './lib/counters.js';
 import { createMetricsRegistry } from './lib/metrics-registry.js';
@@ -191,7 +192,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.25.2';
+const EMBEDDED_PACKAGE_VERSION: string = '3.26.0';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -459,7 +460,10 @@ function isInSleepGracePeriod(): boolean {
   return Date.now() < sleepGraceUntil;
 }
 
-const db: DatabaseInstance = initDatabase({ dbPath: DB_PATH });
+// The daemon IS the write-boundary (the Door): it opens with owner semantics and
+// is the single legitimate writer of the registry. Non-daemon openers use
+// role:'client' and get a write-guarded handle.
+const db: DatabaseInstance = initDatabase({ dbPath: DB_PATH, role: 'daemon' });
 
 // =============================================================================
 // MODULE INITIALIZATION (identical to server.ts)
@@ -969,8 +973,21 @@ resurrection.on('agent:dead', (agent) => {
     // verified StaleAgent record — never from the forgeable capsule. Passing scope as a
     // distinct argument makes a forged `capsule.identityProject` structurally unable to
     // influence the operator-permission check (ADR-0040 trust boundary).
-    const capsule = resurrection.getSalvageCapsule(agent.id);
-    void custodian.onAgentDead(agent.id, agent.identityProject ?? '', capsule);
+    //
+    // The raw capsule read back from resurrection.getSalvageCapsule() is only guaranteed
+    // to be *some* plain object (see resurrection.ts's getSalvageCapsule — it just checks
+    // `typeof === 'object'`), never that it matches SelfSalvageCapsule's shape. Run it
+    // through the same normalizeSelfSalvage() producer contract that governs the capsule
+    // elsewhere (telos-salvage.ts) before handing it to the custodian, so a malformed or
+    // corrupted capsule degrades to `undefined` respawn context instead of propagating an
+    // arbitrary shape into the resurrection_context inbox message / operator approval
+    // payload.
+    const rawCapsule = resurrection.getSalvageCapsule(agent.id);
+    const salvage = normalizeSelfSalvage(rawCapsule);
+    if (rawCapsule && !salvage.success) {
+      logger.warn('salvage_capsule_invalid', { agentId: agent.id, error: salvage.error });
+    }
+    void custodian.onAgentDead(agent.id, agent.identityProject ?? '', salvage.capsule as Record<string, unknown> | undefined);
   }
 });
 
