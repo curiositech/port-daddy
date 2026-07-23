@@ -159,6 +159,7 @@ import {
 // over the older semantic.ts export. See docs/adr/0035-three-tier-memory-vocabulary.md
 import { handleMemory } from '../cli/commands/memory.js';
 import { handleRelay } from '../cli/commands/relay.js';
+import { handleAccount } from '../cli/commands/account.js';
 import { handleWhois } from '../cli/commands/whois.js';
 // Daemon Berths (ADR-0084): `pd dev up/down/list` + `pd use` per-shell targeting.
 import { handleDevBerth, handleUse } from '../cli/commands/berths.js';
@@ -2606,6 +2607,11 @@ export async function main(): Promise<void> {
       // Relay v0 — zero-trust event fabric (ADR-0049): pd relay url|status|exchange
       case 'relay':
         await handleRelay(positional, options);
+        break;
+
+      // Account — GitHub device-flow login for the CLI (ADR-0101 Phase 1)
+      case 'account':
+        process.exitCode = await handleAccount(positional);
         break;
 
       case 'wait':

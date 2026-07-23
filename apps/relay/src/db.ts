@@ -699,6 +699,67 @@ export async function deleteWebSession(db: D1Database, tokenHash: string): Promi
   await db.prepare('DELETE FROM web_sessions WHERE token_hash = ?').bind(tokenHash).run();
 }
 
+// ── user_tokens: pdu_ personal access tokens (ADR-0101 Phase 1 device flow) ───
+
+export interface UserTokenRow {
+  token_hash: string;
+  user_id: string;
+  label: string;
+  created_at: number;
+  last_used_at: number | null;
+  expires_at: number | null;
+  revoked_at: number | null;
+}
+
+/** Store a minted pdu_ token (only its SHA-256). */
+export async function createUserToken(
+  db: D1Database,
+  row: { tokenHash: string; userId: string; label: string; createdAt: number; expiresAt: number | null },
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO user_tokens (token_hash, user_id, label, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+    .bind(row.tokenHash, row.userId, row.label, row.createdAt, row.expiresAt)
+    .run();
+}
+
+/**
+ * Resolve a pdu_ token hash to its live (non-revoked, unexpired) user, bumping
+ * last_used_at. Returns null for unknown/revoked/expired tokens or deleted users.
+ */
+export async function resolveUserToken(db: D1Database, tokenHash: string, now: number): Promise<UserRow | null> {
+  const t = await db
+    .prepare('SELECT user_id, expires_at, revoked_at FROM user_tokens WHERE token_hash = ?')
+    .bind(tokenHash)
+    .first<{ user_id: string; expires_at: number | null; revoked_at: number | null }>();
+  if (!t || t.revoked_at != null) return null;
+  if (t.expires_at != null && t.expires_at <= now) return null;
+  const user = await db.prepare('SELECT * FROM users WHERE id = ? AND deleted_at IS NULL').bind(t.user_id).first<UserRow>();
+  if (!user) return null;
+  await db.prepare('UPDATE user_tokens SET last_used_at = ? WHERE token_hash = ?').bind(now, tokenHash).run();
+  return user;
+}
+
+/** A user's tokens (metadata only — never the token). */
+export async function listUserTokens(db: D1Database, userId: string): Promise<UserTokenRow[]> {
+  const r = await db
+    .prepare('SELECT * FROM user_tokens WHERE user_id = ? AND revoked_at IS NULL ORDER BY created_at DESC')
+    .bind(userId)
+    .all<UserTokenRow>();
+  return r.results ?? [];
+}
+
+/** Revoke one of a user's tokens by hash (scoped to the user; idempotent). */
+export async function revokeUserToken(db: D1Database, userId: string, tokenHash: string, now: number): Promise<boolean> {
+  const r = await db
+    .prepare('UPDATE user_tokens SET revoked_at = ? WHERE token_hash = ? AND user_id = ? AND revoked_at IS NULL')
+    .bind(now, tokenHash, userId)
+    .run();
+  return (r.meta?.changes ?? 0) > 0;
+}
+
 /** Count a user's live sessions (metadata for the self-service account export). */
 export async function countUserSessions(db: D1Database, userId: string): Promise<number> {
   const r = await db
@@ -716,6 +777,8 @@ export async function countUserSessions(db: D1Database, userId: string): Promise
  */
 export async function eraseUser(db: D1Database, userId: string, now: number): Promise<number> {
   const sessions = await db.prepare('DELETE FROM web_sessions WHERE user_id = ?').bind(userId).run();
+  // Revoke every pdu_ device token too — erasure logs out browsers AND devices.
+  await db.prepare('UPDATE user_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').bind(now, userId).run();
   await db
     .prepare('UPDATE users SET deleted_at = ?, primary_email = NULL, avatar_url = NULL WHERE id = ?')
     .bind(now, userId)
