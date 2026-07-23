@@ -336,7 +336,7 @@ export function renderAccountPage(user: UserRow): string {
     </div>
 
     <section class="sect first" aria-labelledby="identity-h">
-      <div class="sect-head"><div><span class="eyebrow">Identity</span><h2 id="identity-h" class="sr-only">Identity</h2></div></div>
+      <div class="sect-head"><div><h2 id="identity-h" class="eyebrow" style="font-size:12px;margin:0">Identity</h2></div></div>
       <div class="identity-plate">
         ${avatar}
         <div>
