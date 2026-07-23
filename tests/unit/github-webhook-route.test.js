@@ -316,4 +316,107 @@ describe('POST /webhooks/github — inbound GitHub webhook → fleet channel', (
     expect(deps.published).toHaveLength(0);
     await app.close();
   });
+
+  // --- Retried-delivery dedup (X-GitHub-Delivery) ---------------------------
+  // GitHub retries a webhook delivery (same X-GitHub-Delivery id) on timeout
+  // or a non-2xx response. These pin that a retried delivery is recognized
+  // and not republished to the fleet bus a second time.
+
+  test('a first-seen delivery id publishes normally (204, one publish per channel)', async () => {
+    process.env.PD_GITHUB_WEBHOOK_ALLOW_UNAUTH = '1';
+    const deps = buildDeps();
+    const app = await buildApp(deps);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/webhooks/github',
+      payload: envelope({ delivery: 'dedup-delivery-001' }),
+    });
+
+    expect(res.statusCode).toBe(204);
+    expect(deps.published.length).toBeGreaterThan(0);
+    expect(deps.published.every((p) => p.payload.delivery === 'dedup-delivery-001')).toBe(true);
+    await app.close();
+  });
+
+  test('a repeated delivery id within the TTL window is deduped and does NOT republish', async () => {
+    process.env.PD_GITHUB_WEBHOOK_ALLOW_UNAUTH = '1';
+    const deps = buildDeps();
+    const app = await buildApp(deps);
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/webhooks/github',
+      payload: envelope({ delivery: 'dedup-delivery-002' }),
+    });
+    expect(first.statusCode).toBe(204);
+    const publishedAfterFirst = deps.published.length;
+    expect(publishedAfterFirst).toBeGreaterThan(0);
+
+    // GitHub retries the exact same delivery (e.g. our receiver timed out
+    // replying the first time). Same X-GitHub-Delivery id, same payload.
+    const retry = await app.inject({
+      method: 'POST',
+      url: '/webhooks/github',
+      payload: envelope({ delivery: 'dedup-delivery-002' }),
+    });
+    expect(retry.statusCode).toBe(204);
+    // No additional messages were published — the retry was deduped.
+    expect(deps.published.length).toBe(publishedAfterFirst);
+    await app.close();
+  });
+
+  test('two DIFFERENT delivery ids both publish (dedup is keyed, not blanket-suppressing)', async () => {
+    process.env.PD_GITHUB_WEBHOOK_ALLOW_UNAUTH = '1';
+    const deps = buildDeps();
+    const app = await buildApp(deps);
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/webhooks/github',
+      payload: envelope({ delivery: 'dedup-delivery-003' }),
+    });
+    expect(first.statusCode).toBe(204);
+    const publishedAfterFirst = deps.published.length;
+
+    const second = await app.inject({
+      method: 'POST',
+      url: '/webhooks/github',
+      payload: envelope({ delivery: 'dedup-delivery-004' }),
+    });
+    expect(second.statusCode).toBe(204);
+    expect(deps.published.length).toBeGreaterThan(publishedAfterFirst);
+    await app.close();
+  });
+
+  test('retried delivery on the direct-HMAC path (raw GitHub webhook) is also deduped', async () => {
+    process.env.PD_GITHUB_WEBHOOK_SECRET = 'hmac-secret';
+    const deps = buildDeps();
+    const app = await buildApp(deps);
+
+    const rawBody = JSON.stringify({
+      action: 'opened',
+      issue: { number: 3, title: 'Bug' },
+      repository: { full_name: 'curiositech/port-daddy' },
+      sender: { login: 'hubot' },
+    });
+    const sig = 'sha256=' + createHmac('sha256', 'hmac-secret').update(rawBody).digest('hex');
+    const headers = {
+      'content-type': 'application/json',
+      'x-github-event': 'issues',
+      'x-github-delivery': 'dedup-delivery-hmac-001',
+      'x-hub-signature-256': sig,
+    };
+
+    const first = await app.inject({ method: 'POST', url: '/webhooks/github', headers, payload: rawBody });
+    expect(first.statusCode).toBe(204);
+    const publishedAfterFirst = deps.published.length;
+    expect(publishedAfterFirst).toBeGreaterThan(0);
+
+    // GitHub's automatic retry: identical delivery id, identical bytes, identical signature.
+    const retry = await app.inject({ method: 'POST', url: '/webhooks/github', headers, payload: rawBody });
+    expect(retry.statusCode).toBe(204);
+    expect(deps.published.length).toBe(publishedAfterFirst);
+    await app.close();
+  });
 });

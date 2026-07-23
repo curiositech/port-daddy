@@ -33,8 +33,9 @@
  * If none are configured, every request is rejected with 401.
  */
 
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import { createDeliveryDedupeCache, type DeliveryDedupeCache } from '../lib/fleet/delivery-dedupe.js';
 
 /**
  * Minimal shape the route needs from lib/github-repo-registry.ts. Kept local
@@ -275,6 +276,17 @@ function channelsFor(hook: NormalizedWebhook, repoRegistry?: RepoRegistryLike): 
 export const githubWebhookPlugin: FastifyPluginAsync<{ deps: GithubWebhookRouteDeps }> = async (fastify, opts) => {
   const { logger, metrics, messaging, repoRegistry } = opts.deps;
 
+  // Delivery idempotency: GitHub retries a webhook delivery (same
+  // `X-GitHub-Delivery` id) on timeout or a non-2xx response. Without
+  // dedup, every retry republishes the event onto the fleet bus
+  // unconditionally, which can double-fire fleet ships / approval flows for
+  // a single logical GitHub event. Uses the same TTL/capacity/eviction
+  // pattern as the generic webhook trigger source
+  // (lib/fleet/triggers/webhook.ts), extracted to lib/fleet/delivery-dedupe.ts
+  // for reuse. Scoped to this plugin registration (one daemon-lifetime cache,
+  // not per-request).
+  const deliveryDedupe: DeliveryDedupeCache = createDeliveryDedupeCache();
+
   // Capture the raw body (encapsulated to this plugin) so HMAC verification
   // can hash the exact bytes GitHub signed, while still exposing parsed JSON.
   fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (req: RawBodyRequest, body, done) => {
@@ -340,6 +352,25 @@ export const githubWebhookPlugin: FastifyPluginAsync<{ deps: GithubWebhookRouteD
     if (!hook) {
       reply.code(400);
       return { error: 'could not determine GitHub event (set X-GitHub-Event header or envelope.event)' };
+    }
+
+    // Dedup retried deliveries. GitHub's own delivery id is authoritative
+    // when present (raw direct webhooks always carry X-GitHub-Delivery;
+    // envelopes from an origin-aware receiver carry it as `body.delivery`,
+    // see normalize() above). When neither is present, fall back to a hash
+    // of the raw bytes so we still dedupe byte-identical redeliveries rather
+    // than skip dedup entirely.
+    const rawBody = (request as RawBodyRequest).rawBody;
+    const deliveryKey = hook.delivery
+      ?? (rawBody ? `sha256:${createHash('sha256').update(rawBody).digest('hex')}` : null);
+    if (deliveryKey && deliveryDedupe.seen(deliveryKey)) {
+      logger.info('github_webhook_duplicate_delivery_deduped', {
+        event: hook.event,
+        action: hook.action,
+        delivery: hook.delivery,
+      });
+      reply.code(204);
+      return null;
     }
 
     const { channels, routedProjectDir } = channelsFor(hook, repoRegistry);
