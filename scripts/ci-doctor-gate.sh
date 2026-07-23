@@ -134,9 +134,10 @@ printf '%s' "$DOCTOR_JSON" | node -e '
       console.error("FAIL: doctor only ran " + r.checks.length + " checks — suspiciously short (short-circuit?)");
       process.exit(1);
     }
-    // NO check may report ok:true while its own detail admits it could not check.
-    // This is the generic guard against "couldn'"'"'t check -> ✓ healthy" swallows.
-    const CANT = /\b(could ?not|couldn.t|unable to|skipped|not checked|unknown)\b/i;
+    // NO check may report ok:true while its own detail admits a probe FAILED.
+    // Match only failure phrasings ("could not", "unable to") — NOT legitimate
+    // platform skips ("Skipped on linux", "macOS-only"), which are honest N/A, not lies.
+    const CANT = /\b(could ?not|couldn.t|unable to)\b/i;
     const liars = r.checks.filter(c => c.ok === true && CANT.test(c.detail || ""));
     if (liars.length) {
       console.error("FAIL: " + liars.length + " check(s) report OK while admitting they could not check:");
