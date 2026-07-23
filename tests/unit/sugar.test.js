@@ -1106,7 +1106,7 @@ describe('sugar lifecycle', () => {
   });
 
   it('should allow takeover/resumption of recently closed sessions', () => {
-    const { sugar, sessions } = setup();
+    const { sugar } = setup();
 
     const beginRes1 = sugar.begin({
       purpose: 'Initial session purpose',
@@ -1137,7 +1137,7 @@ describe('sugar lifecycle', () => {
   });
 
   it('should generate a welcome briefing with roadmap, ongoing, high-pri bugs, and dormant sessions', () => {
-    const { sugar, feedback, sessions } = setup();
+    const { sugar, feedback } = setup();
 
     // 1. Add some open high-pri feedback
     feedback.list = () => [

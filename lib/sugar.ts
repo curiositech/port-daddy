@@ -455,7 +455,7 @@ export function createSugar(deps: SugarDeps) {
     // Opt out with an explicit `agentId` or `force: true`.
     const resumeParsed = identity ? parseIdentity(identity) : null;
     const resumeProject = resumeParsed && resumeParsed.valid ? resumeParsed.project : null;
-    if (!force && resumeProject) {
+    if (!force && !options.agentId && resumeProject) {
       // Scope to the current worktree. When the policy resolved a worktree use
       // its id; otherwise let list() auto-detect via getWorktreeId() (same
       // default sessions.start() uses), so create + lookup agree.
@@ -553,9 +553,6 @@ export function createSugar(deps: SugarDeps) {
       }
 
       if (match && typeof match.id === 'string' && typeof match.agentId === 'string') {
-        const nowMs = Date.now();
-        const sinceBeat = typeof matchAgent?.timeSinceHeartbeat === 'number' ? matchAgent.timeSinceHeartbeat : null;
-
         if (match.status !== 'active' && sessions.takeover) {
           // Resumption / takeover of recently closed session
           const finalAgentId = options.agentId || match.agentId;
