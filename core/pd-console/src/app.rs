@@ -964,11 +964,25 @@ fn short_age(mtime_secs: i64) -> String {
     }
 }
 
+/// Whole Unix seconds now (for relative history ages); `0` if before the epoch.
+fn now_unix_secs() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
 /// The FileTree surface as read-only `Block`s (the terminal face + the GPUI
 /// fallback when not specially rendered). The interactive, clickable GPUI version
 /// lives in `render_leaf`'s FileTree body. Columns: name · type · size · modified.
-fn filetree_blocks(root: Option<&str>, sort: FileSort) -> Vec<Block> {
+///
+/// Drives entirely off `nav`: the sort selection colors the column header, the
+/// `show_parent` toggle prepends a parent-context line, and the back-history
+/// stack is rendered as a timestamped list (newest first) below the listing.
+/// This is also the shape the headless Block harness (`filetree_probe`) asserts.
+fn filetree_blocks(root: Option<&str>, nav: &crate::filetree::FileNav) -> Vec<Block> {
     let dir = filetree_root(root);
+    let sort = nav.sort;
     let arrow = sort.dir.arrow();
     let col = |c: SortColumn, label: &str| -> String {
         if sort.column == c {
@@ -977,16 +991,19 @@ fn filetree_blocks(root: Option<&str>, sort: FileSort) -> Vec<Block> {
             label.to_string()
         }
     };
-    let mut blocks = vec![
-        Block::Header(format!("files {dir}")),
-        Block::Row(vec![
-            " ".into(),
-            col(SortColumn::Name, "name"),
-            col(SortColumn::Type, "type"),
-            col(SortColumn::Size, "size"),
-            col(SortColumn::Mtime, "modified"),
-        ]),
-    ];
+    let mut blocks = vec![Block::Header(format!("files {dir}"))];
+    // Parent-context strip (the `p` toggle): show the enclosing directory.
+    if nav.show_parent {
+        let parent = crate::filetree::parent_path(&dir).unwrap_or_else(|| "(filesystem root)".into());
+        blocks.push(Block::KeyVal("parent".into(), parent));
+    }
+    blocks.push(Block::Row(vec![
+        " ".into(),
+        col(SortColumn::Name, "name"),
+        col(SortColumn::Type, "type"),
+        col(SortColumn::Size, "size"),
+        col(SortColumn::Mtime, "modified"),
+    ]));
     match filetree_listing(root, sort) {
         Err(e) => blocks.push(Block::KeyVal("error".into(), e)),
         Ok(entries) if entries.is_empty() => {
@@ -1002,6 +1019,27 @@ fn filetree_blocks(root: Option<&str>, sort: FileSort) -> Vec<Block> {
                     short_age(e.mtime),
                 ]));
             }
+        }
+    }
+    // History list — the back stack rendered newest-first as a timestamped,
+    // clickable list (req: jump to a previous directory). Each row is
+    // `[↩, age-or-step, path]`; the GPUI face makes these rows clickable
+    // (`filetree_jump`). Ages fall back to "N steps ago" when the capture had no
+    // clock (see `nav_age`).
+    let hist = nav.history.entries();
+    if !hist.is_empty() {
+        let now = now_unix_secs();
+        blocks.push(Block::Header("history".into()));
+        // Newest first: index len-1 is the next Back target.
+        for (i, ent) in hist.iter().enumerate().rev() {
+            let steps = hist.len() - i;
+            let age = crate::filetree::nav_age(now, ent.at_unix);
+            let when = if age == "--" {
+                format!("{steps} step{} ago", if steps == 1 { "" } else { "s" })
+            } else {
+                age
+            };
+            blocks.push(Block::Row(vec!["↩".into(), when, ent.path.clone()]));
         }
     }
     blocks
@@ -2299,7 +2337,7 @@ impl ConsoleView {
         // here we emit the same listing as read-only Blocks so the terminal face
         // (`term.rs`) shows the tree too.
         if let SurfaceKind::FileTree { root, nav } = surface {
-            return filetree_blocks(root.as_deref(), nav.sort);
+            return filetree_blocks(root.as_deref(), nav);
         }
         match nav_id_for_surface(surface) {
             Some(nav_id) => NAV
@@ -2558,6 +2596,7 @@ impl ConsoleView {
     /// Keyboard navigation for the focused FileTree surface (the console is
     /// keyboard-first). Arrows move the row cursor; Enter descends a directory or
     /// opens a file; `u` goes up to the parent; `b` goes back in history;
+    /// `g` jumps to the filesystem root; `p` toggles the parent-context strip;
     /// `n`/`t`/`s`/`m` toggle the name/type/size/modified sort column.
     /// Returns true if the key was consumed (so it doesn't fall through).
     fn handle_filetree_key(&mut self, key: &str, cx: &mut Context<Self>) -> bool {
@@ -2602,6 +2641,13 @@ impl ConsoleView {
             "b" => {
                 self.ws_mut().filetree_back();
             }
+            // Go to the filesystem root (`/`), recording the current dir on the
+            // back stack so Back returns here. A jump, not a walk.
+            "g" => {
+                self.ws_mut().filetree_goto(dir, "/".to_string());
+            }
+            // Toggle the parent/enclosing-directory context strip.
+            "p" => self.ws_mut().filetree_toggle_parent(),
             "n" => self.ws_mut().filetree_sort(SortColumn::Name),
             "t" => self.ws_mut().filetree_sort(SortColumn::Type),
             "s" => self.ws_mut().filetree_sort(SortColumn::Size),
@@ -3958,8 +4004,15 @@ impl ConsoleView {
                         let cursor = nav.cursor.min(entries.len().saturating_sub(1));
                         let count = entries.len();
                         let mut b = body
-                            .child(filetree_toolbar(id, &dir, can_back, can_up, count, cx))
-                            .child(filetree_column_header(id, nav.sort, cx));
+                            .child(filetree_toolbar(id, &dir, can_back, can_up, count, cx));
+                        // Parent-context strip (the `p` toggle): a muted line naming
+                        // the enclosing directory, above the column header.
+                        if nav.show_parent {
+                            let parent = crate::filetree::parent_path(&dir)
+                                .unwrap_or_else(|| "(filesystem root)".into());
+                            b = b.child(filetree_parent_strip(&parent));
+                        }
+                        b = b.child(filetree_column_header(id, nav.sort, cx));
                         for (i, entry) in entries.into_iter().enumerate() {
                             let dir_for_row = dir.clone();
                             b = b.child(render_filetree_row(
@@ -3970,6 +4023,11 @@ impl ConsoleView {
                                 dir_for_row,
                                 cx,
                             ));
+                        }
+                        // History list — the back stack as a clickable, timestamped
+                        // list (newest first). Selecting a row jumps there.
+                        if nav.history.can_back() {
+                            b = b.child(filetree_history_list(id, &nav, cx));
                         }
                         b
                     }
@@ -6121,6 +6179,106 @@ fn filetree_column_header(
         .child(head("modified", SortColumn::Mtime, 96.0, false))
 }
 
+/// The parent-context strip (the `p` toggle): a muted line naming the enclosing
+/// directory so the operator keeps their bearings without leaving the folder.
+fn filetree_parent_strip(parent: &str) -> impl IntoElement {
+    let t = current_theme();
+    div()
+        .flex()
+        .items_center()
+        .gap(px(tokens::SPACE_2))
+        .px(px(16.0))
+        .py(px(3.0))
+        .text_size(px(tokens::TEXT_CAPTION))
+        .text_color(rgb(t.muted))
+        .child(div().font_weight(FontWeight::SEMIBOLD).child("parent"))
+        .child(div().font_family("IBM Plex Mono").child(parent.to_string()))
+}
+
+/// The navigation-history list: the back stack rendered newest-first as a
+/// clickable, timestamped list. Selecting a row jumps the FileTree to that
+/// previous directory (`filetree_jump`). Ages fall back to "N steps ago" when a
+/// capture had no clock (see `nav_age`).
+fn filetree_history_list(
+    id: PaneId,
+    nav: &crate::filetree::FileNav,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    let t = current_theme();
+    let now = now_unix_secs();
+    let entries = nav.history.entries();
+    let mut list = div()
+        .flex()
+        .flex_col()
+        .mt(px(6.0))
+        .border_t_1()
+        .border_color(rgb(t.line))
+        .child(
+            div()
+                .px(px(16.0))
+                .py(px(4.0))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(rgb(t.muted))
+                .child(format!("history · {} step{}", entries.len(), if entries.len() == 1 { "" } else { "s" })),
+        );
+    // Newest first: the last-left dir (next Back target) sits on top.
+    for (i, ent) in entries.iter().enumerate().rev() {
+        let steps = entries.len() - i;
+        let age = crate::filetree::nav_age(now, ent.at_unix);
+        let when = if age == "--" {
+            format!("{steps} step{} ago", if steps == 1 { "" } else { "s" })
+        } else {
+            age
+        };
+        let path = ent.path.clone();
+        let index = i;
+        list = list.child(
+            div()
+                .id(SharedString::from(format!("ft-hist-{id}-{index}")))
+                .flex()
+                .items_center()
+                .gap(px(10.0))
+                .px(px(16.0))
+                .py(px(3.0))
+                .cursor_pointer()
+                .hover(|s| s.bg(rgb(current_theme().raised)))
+                .child(
+                    div()
+                        .w(px(12.0))
+                        .flex_shrink_0()
+                        .text_color(rgb(t.muted))
+                        .text_size(px(tokens::TEXT_BODY))
+                        .child("↩"),
+                )
+                .child(
+                    div()
+                        .w(px(96.0))
+                        .flex_shrink_0()
+                        .text_color(rgb(t.muted))
+                        .text_size(px(tokens::TEXT_CAPTION))
+                        .font_family("IBM Plex Mono")
+                        .child(when),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .overflow_hidden()
+                        .text_color(rgb(t.accent_ink))
+                        .text_size(px(tokens::TEXT_BODY))
+                        .font_family("IBM Plex Mono")
+                        .child(path),
+                )
+                .on_click(cx.listener(move |this, _ev, _window, cx| {
+                    this.ws_mut().focus(id);
+                    this.ws_mut().filetree_jump(index);
+                    cx.notify();
+                })),
+        );
+    }
+    list
+}
+
 fn render_filetree_row(
     id: PaneId,
     entry: FileMeta,
@@ -7774,7 +7932,8 @@ mod add_pane_tests {
 
         // Blocks carry a header, a clickable column-header row, and one row per
         // entry with the four metadata columns (name/type/size/modified).
-        let blocks = filetree_blocks(Some(&root), by_type);
+        let nav = crate::filetree::FileNav { sort: by_type, ..Default::default() };
+        let blocks = filetree_blocks(Some(&root), &nav);
         assert!(matches!(blocks.first(), Some(Block::Header(_))));
         let has_col_header = blocks.iter().any(|b| matches!(
             b, Block::Row(cols) if cols.iter().any(|c| c.starts_with("type"))
@@ -7789,6 +7948,123 @@ mod add_pane_tests {
         assert_eq!(cols[2], "file");
         assert_eq!(cols[3], "1 B");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ── Headless FileTree Block harness ─────────────────────────────────────
+    //
+    // A reusable helper that drives a `FileNav` against a real directory and
+    // asserts the *emitted Block tree* — breadcrumb, column header, rows, the
+    // parent-context strip, and the history list — WITHOUT constructing a GPUI
+    // window. macOS GPUI has no headless pixel readback (private MetalRenderer),
+    // so this deliberately does NOT capture pixels; it verifies the render-model
+    // the interactive face is built from (the same `filetree_blocks` the terminal
+    // face and the GPUI body both consume). Extends the pure-Block assertion
+    // pattern already used above.
+    struct FileTreeProbe {
+        root: String,
+        blocks: Vec<Block>,
+    }
+    impl FileTreeProbe {
+        /// Render `nav` against `root` into Blocks (no window, no GPUI).
+        fn render(root: &str, nav: &crate::filetree::FileNav) -> Self {
+            FileTreeProbe { root: root.to_string(), blocks: filetree_blocks(Some(root), nav) }
+        }
+        /// The breadcrumb header text (`files <dir>`), if present.
+        fn breadcrumb(&self) -> Option<&str> {
+            self.blocks.iter().find_map(|b| match b {
+                Block::Header(h) if h.starts_with("files ") => Some(h.as_str()),
+                _ => None,
+            })
+        }
+        /// The column-header row cells (the one carrying "name"/"type"…), if any.
+        fn column_header(&self) -> Option<&Vec<String>> {
+            self.blocks.iter().find_map(|b| match b {
+                Block::Row(cols) if cols.iter().any(|c| c.starts_with("name")) => Some(cols),
+                _ => None,
+            })
+        }
+        /// Listing row (marker+name+type+size+modified) for a given basename.
+        fn row(&self, name: &str) -> Option<&Vec<String>> {
+            self.blocks.iter().find_map(|b| match b {
+                Block::Row(cols)
+                    if cols.len() == 5
+                        && cols.get(1).map(|s| s.trim_end_matches('/')) == Some(name) =>
+                {
+                    Some(cols)
+                }
+                _ => None,
+            })
+        }
+        /// The value of a `KeyVal` block by key (e.g. "parent", "status").
+        fn keyval(&self, key: &str) -> Option<&str> {
+            self.blocks.iter().find_map(|b| match b {
+                Block::KeyVal(k, v) if k == key => Some(v.as_str()),
+                _ => None,
+            })
+        }
+        /// True if a "history" section header was emitted.
+        fn has_history_section(&self) -> bool {
+            self.blocks.iter().any(|b| matches!(b, Block::Header(h) if h == "history"))
+        }
+        /// The paths in the history list, in render order (newest first).
+        fn history_paths(&self) -> Vec<String> {
+            self.blocks
+                .iter()
+                .filter_map(|b| match b {
+                    Block::Row(cols) if cols.len() == 3 && cols[0] == "↩" => Some(cols[2].clone()),
+                    _ => None,
+                })
+                .collect()
+        }
+    }
+
+    #[test]
+    fn filetree_probe_asserts_full_block_tree_headlessly() {
+        use crate::filetree::{FileNav, FileSort, SortColumn, SortDir};
+        let scratch = std::env::var("HOME")
+            .map(|h| std::path::PathBuf::from(h).join("coding/tmp/pd-ft-probe-test"))
+            .unwrap_or_else(|_| {
+                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/ft-probe")
+            });
+        let _ = std::fs::remove_dir_all(&scratch);
+        std::fs::create_dir_all(scratch.join("kid")).unwrap();
+        std::fs::write(scratch.join("readme.md"), "hi").unwrap();
+        let root = scratch.to_string_lossy().into_owned();
+
+        // Build a nav with sticky sort, a parent strip toggled on, and a
+        // two-deep history — everything the interactive face renders.
+        let mut nav = FileNav {
+            sort: FileSort { column: SortColumn::Name, dir: SortDir::Asc },
+            ..Default::default()
+        };
+        nav.descend("/one", 1_000);
+        nav.descend("/one/two", 1_050);
+        nav.toggle_parent();
+
+        let probe = FileTreeProbe::render(&root, &nav);
+        // Breadcrumb names the current dir.
+        assert_eq!(probe.breadcrumb(), Some(format!("files {root}").as_str()));
+        // Column header carries the sort selection.
+        let header = probe.column_header().expect("column header row");
+        assert!(header.iter().any(|c| c.starts_with("name")));
+        // Parent strip is present (toggle on) and names the enclosing dir.
+        let parent = crate::filetree::parent_path(&probe.root).unwrap();
+        assert_eq!(probe.keyval("parent"), Some(parent.as_str()));
+        // Listing rows for both entries, with dir/file classification.
+        assert_eq!(probe.row("kid").expect("dir row")[2], "dir");
+        assert_eq!(probe.row("readme.md").expect("file row")[2], "file");
+        // History list: newest first, both dirs present.
+        assert!(probe.has_history_section());
+        assert_eq!(probe.history_paths(), vec!["/one/two".to_string(), "/one".to_string()]);
+
+        // Parent strip disappears when toggled off; history clears after jump.
+        nav.toggle_parent();
+        nav.jump(0);
+        let probe2 = FileTreeProbe::render(&root, &nav);
+        assert_eq!(probe2.keyval("parent"), None, "parent strip hidden when off");
+        assert!(!probe2.has_history_section(), "history empty after jump-to-root");
+
+        let _ = std::fs::remove_dir_all(&scratch);
     }
 
     #[test]

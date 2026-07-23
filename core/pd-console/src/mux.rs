@@ -16,6 +16,16 @@
 
 use std::fmt;
 
+/// Whole Unix seconds now, or `0` if the system clock is before the epoch.
+/// Stamps FileTree history entries at the moment the operator leaves a dir.
+/// Kept dependency-free (std only) so `mux` still builds on the Linux CI gate.
+fn now_unix() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
 /// Stable per-pane identifier. Never reused within a [`Workspace`].
 pub type PaneId = u64;
 
@@ -332,8 +342,41 @@ impl Workspace {
     /// shown (the caller resolves `None` → cwd). No-op off a FileTree.
     pub fn filetree_descend(&mut self, current_dir: String, child: String) {
         if let Some(SurfaceKind::FileTree { root, nav }) = self.root.find_surface_mut(self.focused) {
-            nav.descend(current_dir);
+            nav.descend(current_dir, now_unix());
             *root = Some(child);
+        }
+    }
+
+    /// Jump the focused FileTree to `target`, recording `current_dir` on the back
+    /// stack unless it is already the target (the `g` go-to-root shortcut). Returns
+    /// true if a FileTree was focused.
+    pub fn filetree_goto(&mut self, current_dir: String, target: String) -> bool {
+        if let Some(SurfaceKind::FileTree { root, nav }) = self.root.find_surface_mut(self.focused) {
+            if current_dir != target {
+                nav.descend(current_dir, now_unix());
+            }
+            *root = Some(target);
+            return true;
+        }
+        false
+    }
+
+    /// Jump the focused FileTree to history entry `index` (clicking the history
+    /// list). Returns true if it moved. No-op off a FileTree or out of range.
+    pub fn filetree_jump(&mut self, index: usize) -> bool {
+        if let Some(SurfaceKind::FileTree { root, nav }) = self.root.find_surface_mut(self.focused) {
+            if let Some(dir) = nav.jump(index) {
+                *root = Some(dir);
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Toggle the focused FileTree's parent-context strip (the `p` shortcut).
+    pub fn filetree_toggle_parent(&mut self) {
+        if let Some(SurfaceKind::FileTree { nav, .. }) = self.root.find_surface_mut(self.focused) {
+            nav.toggle_parent();
         }
     }
 
@@ -354,7 +397,7 @@ impl Workspace {
     pub fn filetree_up(&mut self, current_dir: String) -> bool {
         if let Some(SurfaceKind::FileTree { root, nav }) = self.root.find_surface_mut(self.focused) {
             if let Some(parent) = crate::filetree::parent_path(&current_dir) {
-                nav.descend(current_dir);
+                nav.descend(current_dir, now_unix());
                 *root = Some(parent);
                 return true;
             }
@@ -608,11 +651,49 @@ mod tests {
         }
     }
 
+    fn filetree() -> SurfaceKind {
+        SurfaceKind::FileTree { root: None, nav: crate::filetree::FileNav::default() }
+    }
+
     #[test]
     fn new_workspace_is_one_focused_leaf() {
         let ws = Workspace::new(SurfaceKind::Roadmap);
         assert_eq!(ws.pane_count(), 1);
         assert_eq!(ws.focused_surface(), &SurfaceKind::Roadmap);
+    }
+
+    #[test]
+    fn filetree_goto_jump_and_toggle_parent_drive_the_focused_surface() {
+        let mut ws = Workspace::new(filetree());
+        // go-to-root records where we were and rebinds the root.
+        assert!(ws.filetree_goto("/repo/src".into(), "/".into()));
+        match ws.focused_surface() {
+            SurfaceKind::FileTree { root, nav } => {
+                assert_eq!(root.as_deref(), Some("/"));
+                assert_eq!(nav.history.entries()[0].path, "/repo/src");
+            }
+            other => panic!("expected FileTree, got {other:?}"),
+        }
+        // descend deeper, then jump back to the oldest history entry.
+        ws.filetree_descend("/".into(), "/etc".into());
+        assert!(ws.filetree_jump(0), "jump to the first history entry moves");
+        match ws.focused_surface() {
+            SurfaceKind::FileTree { root, nav } => {
+                assert_eq!(root.as_deref(), Some("/repo/src"));
+                assert_eq!(nav.history.depth(), 0, "jump-to-oldest clears the stack");
+            }
+            other => panic!("expected FileTree, got {other:?}"),
+        }
+        // parent-context strip toggles.
+        ws.filetree_toggle_parent();
+        assert!(matches!(
+            ws.focused_surface(),
+            SurfaceKind::FileTree { nav, .. } if nav.show_parent
+        ));
+        // The FileTree ops are no-ops off a FileTree surface.
+        let mut other = Workspace::new(SurfaceKind::Roadmap);
+        assert!(!other.filetree_goto("/a".into(), "/".into()));
+        assert!(!other.filetree_jump(0));
     }
 
     #[test]

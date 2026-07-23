@@ -1,4 +1,9 @@
-#![recursion_limit = "1024"]
+// app.rs is a very large single module; the inline `#[test]` array (built into
+// one crate-wide static) pushes `#[test]` attribute-macro expansion past the
+// default when compiling the gpui **test** bin. 4096 keeps `cargo test --features
+// gpui --bin pd-console` compiling as app.rs grows (was 1024, hit the ceiling).
+// The shipped `cargo build --features gpui` build is unaffected by the value.
+#![recursion_limit = "4096"]
 //! pd-console — GPU-native standalone operator console (ADR-0046).
 //!
 //! Architecture: a std thread with a mini tokio runtime polls all 15 panes every
