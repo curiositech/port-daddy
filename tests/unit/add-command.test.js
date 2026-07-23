@@ -34,6 +34,11 @@ function makeRepo() {
 async function loadAddWithMock(ownersByPath) {
   jest.unstable_mockModule('../../cli/utils/fetch.js', () => ({
     PORT_DADDY_URL: 'http://localhost:9999',
+    // guard.js (imported transitively via cli/commands/add.js) imports
+    // isDaemonRunning from fetch.js; the mock must export it or the ESM link
+    // fails ("does not provide an export named 'isDaemonRunning'"). Reads in
+    // these tests go through pdFetch, so a reachable-daemon stub is inert here.
+    isDaemonRunning: jest.fn(async () => true),
     pdFetch: jest.fn(async (url) => {
       const u = String(url);
       const match = u.match(/path=([^&]+)/);
