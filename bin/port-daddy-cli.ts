@@ -1376,7 +1376,7 @@ const ALL_COMMANDS: string[] = [
   'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'send', 'sent', 'log', 'activity',
   'wallet', 'bond',
   'session', 'sessions', 'takeover', 'note', 'notes', 'say',
-  'begin', 'done', 'whoami', 'attention', 'nudge', 'with-lock', 'learn',
+  'begin', 'done', 'whoami', 'account', 'attention', 'nudge', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
   'start', 'stop', 'restart', 'status', 'install', 'install-bosun', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update', 'upgrade',
