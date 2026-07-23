@@ -282,7 +282,8 @@ export async function handleGithubCallback(request: Request, env: Env): Promise<
     userAgent: request.headers.get('User-Agent'),
   });
 
-  const dest = (env.PUBLIC_BASE_URL ?? '/').replace(/\/+$/, '') + '/';
+  // Land the freshly-signed-in user on their account page (not the bare root).
+  const dest = (env.PUBLIC_BASE_URL ?? '').replace(/\/+$/, '') + '/account';
   return new Response(null, {
     status: 302,
     headers: { Location: dest, 'Set-Cookie': sessionSetCookie(sessionValue, SESSION_TTL_SECONDS) },
@@ -308,8 +309,35 @@ export async function handleAuthMe(request: Request, env: Env): Promise<Response
   });
 }
 
+function safeOrigin(u: string | null | undefined): string | null {
+  if (!u) return null;
+  try {
+    return new URL(u).origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Defense-in-depth CSRF guard for state-changing POSTs, layered over the
+ * SameSite=Lax session cookie. Browsers always send `Origin` on POST, so a
+ * cross-site form/fetch fails this check even if the cookie policy ever loosens.
+ * A request with neither `Origin` nor `Referer` is a non-browser client (e.g.
+ * curl with an explicit cookie) and is allowed — the Lax cookie already blocks
+ * cross-site cookie delivery for browsers.
+ */
+export function isSameOrigin(request: Request, env: Env): boolean {
+  const expected = safeOrigin(env.PUBLIC_BASE_URL) ?? safeOrigin(request.url);
+  const origin = request.headers.get('Origin');
+  if (origin) return origin === expected;
+  const referer = request.headers.get('Referer');
+  if (referer) return safeOrigin(referer) === expected;
+  return true;
+}
+
 /** POST /auth/logout — delete the session and clear the cookie. */
 export async function handleLogout(request: Request, env: Env): Promise<Response> {
+  if (!isSameOrigin(request, env)) return json(403, { code: 'CROSS_ORIGIN', error: 'cross-origin request refused' });
   const value = readSessionCookie(request);
   if (value) await deleteWebSession(env.DB, hashHex(value));
   return new Response(JSON.stringify({ code: 'OK', error: null }), {
@@ -363,6 +391,7 @@ export async function handleAccountExport(request: Request, env: Env): Promise<R
  * everywhere), clears this cookie; a retention job hard-deletes within 30 days.
  */
 export async function handleAccountDelete(request: Request, env: Env): Promise<Response> {
+  if (!isSameOrigin(request, env)) return json(403, { code: 'CROSS_ORIGIN', error: 'cross-origin request refused' });
   const resolved = await resolveSession(request, env);
   if (!resolved) return json(401, { code: 'UNAUTHENTICATED', error: 'no session' });
   const purged = await eraseUser(env.DB, resolved.user.id, Math.floor(Date.now() / 1000));
