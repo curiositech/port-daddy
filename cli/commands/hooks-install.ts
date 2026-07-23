@@ -48,6 +48,7 @@ import {
   TENTACLES,
   type TentacleName,
   type TentacleResolver,
+  type PluginHookSpec,
   PD_HOOK_MARKER,
   CODEX_PD_MARKER,
   buildJsonHookMap,
@@ -55,6 +56,7 @@ import {
   upsertJsonHookMap,
   removeJsonHooks,
   stripCodexHooksTomlBlock,
+  discoverPluginHooks,
 } from '../../lib/squid/hook-shape.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -70,8 +72,8 @@ export function tentacleBinDir(): string {
 function realTentacleDir(): string {
   return join(PD_HOME, 'bin', 'squid');
 }
-/** The gate-wrapper path a hook config invokes for a given tentacle. */
-function gatePath(name: TentacleName): string {
+/** The gate-wrapper path a hook config invokes for a given tentacle (built-in or plugin). */
+function gatePath(name: string): string {
   return join(tentacleBinDir(), name);
 }
 
@@ -124,6 +126,8 @@ export interface StageResult {
   staged: string[];
   missing: TentacleName[];
   sourceDir: string;
+  /** Plugin tentacles auto-discovered in sourceDir and staged alongside the built-ins. */
+  plugins: PluginHookSpec[];
 }
 
 /**
@@ -131,6 +135,13 @@ export interface StageResult {
  * wrappers to ~/.port-daddy/bin/. The tentacles are owned by the squid program;
  * this installer only consumes them. If they are absent on this build, nothing
  * is staged and the caller surfaces guidance.
+ *
+ * Also auto-discovers PLUGIN tentacles in sourceDir (any `pd-hook-<name>` paired
+ * with a `pd-hook-<name>.hook.json` sidecar — see hook-shape.ts
+ * discoverPluginHooks) and stages them identically: real binary + a copy of its
+ * sidecar go to squid/, a gate wrapper + a copy of the sidecar go to the
+ * top-level bin/ dir so downstream discovery against the STAGED dir (which is
+ * what buildJsonHookMap/codexHooksTomlBlock's callers query) finds them.
  */
 export function stageTentacles(
   sourceDir = join(PROJECT_ROOT, 'bin'),
@@ -159,7 +170,23 @@ export function stageTentacles(
     chmodSync(wrapper, 0o755);
     staged.push(wrapper);
   }
-  return { staged, missing, sourceDir };
+
+  const plugins = discoverPluginHooks(sourceDir);
+  for (const plugin of plugins) {
+    const sidecarName = `${plugin.name}.hook.json`;
+    const realDst = join(realDir, plugin.name);
+    copyFileSync(join(sourceDir, plugin.name), realDst);
+    chmodSync(realDst, 0o755);
+    copyFileSync(join(sourceDir, sidecarName), join(realDir, sidecarName));
+
+    const wrapper = join(binDir, plugin.name);
+    writeFileSync(wrapper, gateWrapperScript(), { mode: 0o755 });
+    chmodSync(wrapper, 0o755);
+    copyFileSync(join(sourceDir, sidecarName), join(binDir, sidecarName));
+    staged.push(wrapper);
+  }
+
+  return { staged, missing, sourceDir, plugins };
 }
 
 // ─── Target definitions ──────────────────────────────────────────────────────
@@ -273,11 +300,16 @@ export function configureTarget(
     const existed = existsSync(configPath);
     mkdirSync(dirname(configPath), { recursive: true });
 
+    // Discovered against the STAGED dir (stageTentacles copies each plugin's
+    // sidecar there too), not the repo source — this is what's actually on
+    // disk for the gateResolver's paths to point at.
+    const plugins = discoverPluginHooks(tentacleBinDir());
+
     if (target.format === 'codex-toml') {
       const existing = existed ? readFileSync(configPath, 'utf-8') : '';
       const base = stripCodexHooksTomlBlock(existing).replace(/\s*$/, '');
       const sep = base.length ? '\n\n' : '';
-      writeFileSync(configPath, `${base}${sep}${codexHooksTomlBlock(gateResolver)}\n`);
+      writeFileSync(configPath, `${base}${sep}${codexHooksTomlBlock(gateResolver, {}, plugins)}\n`);
       return { success: true, created: !existed, path: configPath };
     }
 
@@ -286,7 +318,7 @@ export function configureTarget(
       const raw = readFileSync(configPath, 'utf-8').trim();
       if (raw) config = JSON.parse(raw) as Record<string, unknown>;
     }
-    upsertJsonHookMap(config, buildJsonHookMap(target.vendor!, gateResolver));
+    upsertJsonHookMap(config, buildJsonHookMap(target.vendor!, gateResolver, plugins));
     writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
     return { success: true, created: !existed, path: configPath };
   } catch (err) {

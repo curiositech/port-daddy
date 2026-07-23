@@ -45,6 +45,8 @@ import {
   CODEX_PD_MARKER,
   codexHooksTomlBlock,
   stripCodexHooksTomlBlock,
+  discoverPluginHooks,
+  type PluginHookSpec,
 } from './hook-shape.js';
 
 // ─── Interface (verbatim from ADR §3, plus a `verified` honesty flag) ─────────
@@ -132,13 +134,31 @@ export const SQUID_HOOK_METADATA: Record<SquidHookPurpose, SquidHookMetadata> = 
 
 const __adapter_dir = dirname(fileURLToPath(import.meta.url));
 
-/** Absolute path to a pd-hook-* tentacle binary shipped in `bin/`. */
-export function tentaclePath(name: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool'): string {
-  // lib/squid/adapter.ts → ../../bin/<name>
-  return resolve(__adapter_dir, '..', '..', 'bin', name);
+/**
+ * <install-root>/bin — where the 3 built-in tentacles AND any auto-discovered
+ * plugin tentacles live. Single resolution point tentaclePath() and plugin
+ * discovery both use, so they can never disagree about where "bin/" is.
+ */
+export function tentacleBinDir(): string {
+  // lib/squid/adapter.ts → ../../bin
+  return resolve(__adapter_dir, '..', '..', 'bin');
 }
 
-/** Assert the tentacles exist and are executable; throws a clear error if not. */
+/** Absolute path to a pd-hook-* tentacle binary shipped in `bin/`. */
+export function tentaclePath(name: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool'): string {
+  return join(tentacleBinDir(), name);
+}
+
+/**
+ * Auto-discover plugin tentacles staged alongside the built-ins (see
+ * discoverPluginHooks in hook-shape.ts for the `<name>.hook.json` sidecar
+ * contract). Returns [] when none are present — the default, unchanged case.
+ */
+export function discoverPlugins(): PluginHookSpec[] {
+  return discoverPluginHooks(tentacleBinDir());
+}
+
+/** Assert the tentacles (built-in + any discovered plugins) exist and are executable. */
 export function assertTentaclesPresent(): void {
   for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool'] as const) {
     const p = tentaclePath(name);
@@ -146,6 +166,19 @@ export function assertTentaclesPresent(): void {
       throw new Error(`[squid/adapter] missing tentacle binary: ${p}`);
     }
     // Best-effort: ensure +x (a fresh checkout may have lost the mode bit).
+    try {
+      chmodSync(p, 0o755);
+    } catch {
+      /* non-fatal */
+    }
+  }
+  for (const plugin of discoverPlugins()) {
+    const p = join(tentacleBinDir(), plugin.name);
+    if (!existsSync(p)) {
+      // discoverPlugins() already requires the binary to exist to be discovered
+      // at all, so this only fires on a TOCTOU race (deleted between calls).
+      throw new Error(`[squid/adapter] plugin tentacle ${plugin.name} declared but binary missing: ${p}`);
+    }
     try {
       chmodSync(p, 0o755);
     } catch {
@@ -399,24 +432,36 @@ export class ClaudeCliSquidAdapter implements GiantSquidAdapter {
     }
     settings.hooks ??= {};
 
-    const wanted: Record<string, ClaudeHookMatcher> = {
+    const CLAUDE_TOOL_MATCHER = 'Edit|Write|MultiEdit|NotebookEdit';
+    const wanted: Record<string, ClaudeHookMatcher[]> = {
       // UserPromptSubmit has no tool matcher — it always fires.
-      UserPromptSubmit: claudeHookEntry(tentaclePath('pd-hook-prompt'), 'prompt'),
+      UserPromptSubmit: [claudeHookEntry(tentaclePath('pd-hook-prompt'), 'prompt')],
       // PreToolUse / PostToolUse match the file-mutating tools we gate on.
-      PreToolUse: claudeHookEntry(tentaclePath('pd-hook-pre-tool'), 'preTool', 'Edit|Write|MultiEdit|NotebookEdit'),
-      PostToolUse: claudeHookEntry(tentaclePath('pd-hook-post-tool'), 'postTool', 'Edit|Write|MultiEdit|NotebookEdit'),
+      PreToolUse: [claudeHookEntry(tentaclePath('pd-hook-pre-tool'), 'preTool', CLAUDE_TOOL_MATCHER)],
+      PostToolUse: [claudeHookEntry(tentaclePath('pd-hook-post-tool'), 'postTool', CLAUDE_TOOL_MATCHER)],
     };
+    // Auto-discovered plugin tentacles (see hook-shape.ts discoverPluginHooks):
+    // additional matcher-group entries appended under whichever event their
+    // declared purpose maps to. No plugins present -> wanted is unchanged above.
+    for (const plugin of discoverPlugins()) {
+      const event = plugin.purpose === 'prompt' ? 'UserPromptSubmit' : plugin.purpose === 'preTool' ? 'PreToolUse' : 'PostToolUse';
+      const matcher = plugin.purpose === 'prompt' ? undefined : CLAUDE_TOOL_MATCHER;
+      wanted[event].push({
+        name: plugin.displayName,
+        description: plugin.description,
+        privacy: plugin.privacy,
+        ...(matcher ? { matcher } : {}),
+        hooks: [{ type: 'command', command: join(tentacleBinDir(), plugin.name) }],
+      });
+    }
 
-    for (const [event, entry] of Object.entries(wanted)) {
-      const cmd = entry.hooks[0].command;
+    for (const [event, entries] of Object.entries(wanted)) {
       const existing = settings.hooks[event] ?? [];
       // Drop any prior PD tentacle entry for this event (idempotent upsert).
       const pruned = existing.filter(
         (g) => !g.hooks?.some((h) => h.command?.includes('pd-hook-')),
       );
-      pruned.push(entry);
-      settings.hooks[event] = pruned;
-      void cmd;
+      settings.hooks[event] = [...pruned, ...entries];
     }
 
     writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', { mode: 0o644 });
@@ -527,18 +572,30 @@ export class GeminiSquidAdapter implements GiantSquidAdapter {
     }
 
     const hooks = (cfg['hooks'] as Record<string, ClaudeHookMatcher[]>) ?? {};
-    const wanted: Record<string, ClaudeHookMatcher> = {
-      [GEMINI_EVENT.prompt]: claudeHookEntry(tentaclePath('pd-hook-prompt'), 'prompt'),
-      [GEMINI_EVENT.preTool]: claudeHookEntry(tentaclePath('pd-hook-pre-tool'), 'preTool', GEMINI_TOOL_MATCHER),
-      [GEMINI_EVENT.postTool]: claudeHookEntry(tentaclePath('pd-hook-post-tool'), 'postTool', GEMINI_TOOL_MATCHER),
+    const wanted: Record<string, ClaudeHookMatcher[]> = {
+      [GEMINI_EVENT.prompt]: [claudeHookEntry(tentaclePath('pd-hook-prompt'), 'prompt')],
+      [GEMINI_EVENT.preTool]: [claudeHookEntry(tentaclePath('pd-hook-pre-tool'), 'preTool', GEMINI_TOOL_MATCHER)],
+      [GEMINI_EVENT.postTool]: [claudeHookEntry(tentaclePath('pd-hook-post-tool'), 'postTool', GEMINI_TOOL_MATCHER)],
     };
-    for (const [event, entry] of Object.entries(wanted)) {
+    // Auto-discovered plugin tentacles — see the Claude adapter above for the
+    // same pattern; no plugins present -> wanted is unchanged.
+    for (const plugin of discoverPlugins()) {
+      const event = GEMINI_EVENT[plugin.purpose];
+      const matcher = plugin.purpose === 'prompt' ? undefined : GEMINI_TOOL_MATCHER;
+      wanted[event].push({
+        name: plugin.displayName,
+        description: plugin.description,
+        privacy: plugin.privacy,
+        ...(matcher ? { matcher } : {}),
+        hooks: [{ type: 'command', command: join(tentacleBinDir(), plugin.name) }],
+      });
+    }
+    for (const [event, entries] of Object.entries(wanted)) {
       const existing = hooks[event] ?? [];
       const pruned = existing.filter(
         (g) => !g.hooks?.some((h) => h.command?.includes('pd-hook-')),
       );
-      pruned.push(entry);
-      hooks[event] = pruned;
+      hooks[event] = [...pruned, ...entries];
     }
     cfg['hooks'] = hooks;
 
@@ -625,14 +682,18 @@ export class CodexSquidAdapter implements GiantSquidAdapter {
     const cfgPath = join(workspaceRoot, '.codex', 'config.toml');
     mkdirSync(dirname(cfgPath), { recursive: true });
 
-    const block = codexHooksTomlBlock((name) => tentaclePath(name), {
-      comments: [
-        `Privacy: ${SQUID_HOOK_PRIVACY_NOTICE}`,
-        `${SQUID_HOOK_METADATA.prompt.displayName}: ${SQUID_HOOK_METADATA.prompt.description}`,
-        `${SQUID_HOOK_METADATA.preTool.displayName}: ${SQUID_HOOK_METADATA.preTool.description}`,
-        `${SQUID_HOOK_METADATA.postTool.displayName}: ${SQUID_HOOK_METADATA.postTool.description}`,
-      ],
-    });
+    const block = codexHooksTomlBlock(
+      (name) => join(tentacleBinDir(), name),
+      {
+        comments: [
+          `Privacy: ${SQUID_HOOK_PRIVACY_NOTICE}`,
+          `${SQUID_HOOK_METADATA.prompt.displayName}: ${SQUID_HOOK_METADATA.prompt.description}`,
+          `${SQUID_HOOK_METADATA.preTool.displayName}: ${SQUID_HOOK_METADATA.preTool.description}`,
+          `${SQUID_HOOK_METADATA.postTool.displayName}: ${SQUID_HOOK_METADATA.postTool.description}`,
+        ],
+      },
+      discoverPlugins(),
+    );
 
     const existing = existsSync(cfgPath) ? readFileSync(cfgPath, 'utf8') : '';
     const base = stripCodexHooksTomlBlock(existing).replace(/\s*$/, '');
@@ -781,16 +842,27 @@ export class AntigravitySquidAdapter implements GiantSquidAdapter {
     // PostToolUse/UserPromptSubmit), matched on its OWN tool names plus the
     // Claude/Gemini ones, so we cast a wide matcher.
     const matcher = 'Edit|Write|MultiEdit|write_to_file|replace_file_content|multi_replace_file_content|replace|write_file|edit|apply_patch';
-    const wanted: Record<string, ClaudeHookMatcher> = {
-      UserPromptSubmit: claudeHookEntry(tentaclePath('pd-hook-prompt'), 'prompt'),
-      PreToolUse: claudeHookEntry(tentaclePath('pd-hook-pre-tool'), 'preTool', matcher),
-      PostToolUse: claudeHookEntry(tentaclePath('pd-hook-post-tool'), 'postTool', matcher),
+    const wanted: Record<string, ClaudeHookMatcher[]> = {
+      UserPromptSubmit: [claudeHookEntry(tentaclePath('pd-hook-prompt'), 'prompt')],
+      PreToolUse: [claudeHookEntry(tentaclePath('pd-hook-pre-tool'), 'preTool', matcher)],
+      PostToolUse: [claudeHookEntry(tentaclePath('pd-hook-post-tool'), 'postTool', matcher)],
     };
-    for (const [event, entry] of Object.entries(wanted)) {
+    // Auto-discovered plugin tentacles — same pattern as the other adapters;
+    // no plugins present -> wanted is unchanged.
+    for (const plugin of discoverPlugins()) {
+      const pluginMatcher = plugin.purpose === 'prompt' ? undefined : matcher;
+      wanted[plugin.purpose === 'prompt' ? 'UserPromptSubmit' : plugin.purpose === 'preTool' ? 'PreToolUse' : 'PostToolUse'].push({
+        name: plugin.displayName,
+        description: plugin.description,
+        privacy: plugin.privacy,
+        ...(pluginMatcher ? { matcher: pluginMatcher } : {}),
+        hooks: [{ type: 'command', command: join(tentacleBinDir(), plugin.name) }],
+      });
+    }
+    for (const [event, entries] of Object.entries(wanted)) {
       const existing = hooks[event] ?? [];
       const pruned = existing.filter((g) => !g.hooks?.some((h) => h.command?.includes('pd-hook-')));
-      pruned.push(entry);
-      hooks[event] = pruned;
+      hooks[event] = [...pruned, ...entries];
     }
     cfg.hooks = hooks;
 

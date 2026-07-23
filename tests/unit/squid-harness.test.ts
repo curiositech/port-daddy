@@ -39,8 +39,11 @@ import {
   SQUID_HOOK_PRIVACY_NOTICE,
   diagnoseSquidHookInstall,
   tentaclePath,
+  tentacleBinDir,
 } from '../../lib/squid/adapter.js';
 import { installSquidHooks } from '../../cli/commands/squid.js';
+import { discoverPluginHooks, buildJsonHookMap, codexHooksTomlBlock } from '../../lib/squid/hook-shape.js';
+import { stageTentacles } from '../../cli/commands/hooks-install.js';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dir, '..', '..');
@@ -1044,5 +1047,163 @@ describe('Giant Squid Harness — multi-vendor tentacle contracts', () => {
     const vals = Object.values(kv);
     expect(vals.some((v) => v.includes('mutated via replace') && v.includes('gemini_agent'))).toBe(true);
     expect(vals.some((v) => v.includes('mutated via apply_patch') && v.includes('codex_agent'))).toBe(true);
+  });
+});
+
+describe('Giant Squid Harness — plugin tentacle auto-discovery', () => {
+  const PLUGIN_SCRATCH = join(SCRATCH, 'plugin-bin');
+
+  function writePlugin(
+    binDir: string,
+    name: string,
+    spec: { purpose: string; displayName?: string; description?: string; privacy?: string } | null,
+  ): void {
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(join(binDir, name), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    if (spec !== null) {
+      writeFileSync(join(binDir, `${name}.hook.json`), JSON.stringify(spec));
+    }
+  }
+
+  test('discovers a well-formed plugin sidecar next to its executable', () => {
+    writePlugin(PLUGIN_SCRATCH, 'pd-hook-lint-gate', {
+      purpose: 'postTool',
+      displayName: 'Lint gate',
+      description: 'Runs lint after a mutation.',
+      privacy: 'Local only.',
+    });
+    const found = discoverPluginHooks(PLUGIN_SCRATCH);
+    expect(found).toEqual([
+      { name: 'pd-hook-lint-gate', purpose: 'postTool', displayName: 'Lint gate', description: 'Runs lint after a mutation.', privacy: 'Local only.' },
+    ]);
+  });
+
+  test('fills in defaults for an undeclared displayName/description/privacy', () => {
+    writePlugin(PLUGIN_SCRATCH, 'pd-hook-bare', { purpose: 'prompt' });
+    const [found] = discoverPluginHooks(PLUGIN_SCRATCH);
+    expect(found.displayName).toContain('pd-hook-bare');
+    expect(found.description).toContain('pd-hook-bare');
+    expect(found.privacy).toMatch(/not declared/i);
+  });
+
+  test('excludes the 3 built-in tentacle names even if one grows a sidecar', () => {
+    writePlugin(PLUGIN_SCRATCH, 'pd-hook-prompt', { purpose: 'prompt' });
+    expect(discoverPluginHooks(PLUGIN_SCRATCH)).toEqual([]);
+  });
+
+  test('skips a sidecar with no matching binary', () => {
+    mkdirSync(PLUGIN_SCRATCH, { recursive: true });
+    writeFileSync(join(PLUGIN_SCRATCH, 'pd-hook-orphan.hook.json'), JSON.stringify({ purpose: 'preTool' }));
+    expect(discoverPluginHooks(PLUGIN_SCRATCH)).toEqual([]);
+  });
+
+  test('skips a sidecar with invalid JSON', () => {
+    writePlugin(PLUGIN_SCRATCH, 'pd-hook-broken', null);
+    writeFileSync(join(PLUGIN_SCRATCH, 'pd-hook-broken.hook.json'), '{not json');
+    expect(discoverPluginHooks(PLUGIN_SCRATCH)).toEqual([]);
+  });
+
+  test('skips a sidecar with a missing/invalid "purpose"', () => {
+    writePlugin(PLUGIN_SCRATCH, 'pd-hook-nopurpose', { purpose: 'onSomethingMadeUp' });
+    expect(discoverPluginHooks(PLUGIN_SCRATCH)).toEqual([]);
+  });
+
+  test('a directory with no sidecars at all discovers nothing (the default, unchanged case)', () => {
+    mkdirSync(PLUGIN_SCRATCH, { recursive: true });
+    expect(discoverPluginHooks(PLUGIN_SCRATCH)).toEqual([]);
+  });
+
+  test('an unreadable/missing bin dir returns [] rather than throwing', () => {
+    expect(discoverPluginHooks(join(PLUGIN_SCRATCH, 'does-not-exist'))).toEqual([]);
+  });
+
+  test('buildJsonHookMap appends a plugin entry under its declared event, builtins unchanged', () => {
+    const plugin = { name: 'pd-hook-lint-gate', purpose: 'postTool' as const, displayName: 'Lint gate', description: 'd', privacy: 'p' };
+    const withPlugin = buildJsonHookMap('claude', (n) => `/bin/${n}`, [plugin]);
+    const withoutPlugin = buildJsonHookMap('claude', (n) => `/bin/${n}`);
+
+    // Builtins byte-identical whether or not a plugin is passed.
+    expect(withPlugin.UserPromptSubmit).toEqual(withoutPlugin.UserPromptSubmit);
+    expect(withPlugin.PreToolUse).toEqual(withoutPlugin.PreToolUse);
+    // PostToolUse gained exactly one extra entry, for the plugin.
+    expect(withPlugin.PostToolUse.length).toBe(withoutPlugin.PostToolUse.length + 1);
+    const pluginEntry = withPlugin.PostToolUse[withPlugin.PostToolUse.length - 1];
+    expect(pluginEntry.hooks[0].command).toBe('/bin/pd-hook-lint-gate');
+    expect(pluginEntry.matcher).toBe('Edit|Write|MultiEdit|NotebookEdit');
+  });
+
+  test('buildJsonHookMap gives a prompt-purposed plugin no matcher, like the builtin prompt hook', () => {
+    const plugin = { name: 'pd-hook-briefing', purpose: 'prompt' as const, displayName: 'x', description: 'x', privacy: 'x' };
+    const map = buildJsonHookMap('gemini', (n) => `/bin/${n}`, [plugin]);
+    const pluginEntry = map.BeforeAgent[map.BeforeAgent.length - 1];
+    expect(pluginEntry.matcher).toBeUndefined();
+  });
+
+  test('codexHooksTomlBlock emits an extra [[hooks.<Event>]] block per plugin, builtins unchanged', () => {
+    const plugin = { name: 'pd-hook-lint-gate', purpose: 'postTool' as const, displayName: 'Lint gate', description: 'd', privacy: 'p' };
+    const withoutPlugin = codexHooksTomlBlock((n) => `/bin/${n}`);
+    const withPlugin = codexHooksTomlBlock((n) => `/bin/${n}`, {}, [plugin]);
+    expect(withPlugin).toContain('command = "/bin/pd-hook-lint-gate"');
+    expect(withPlugin).toContain('[[hooks.PostToolUse]]');
+    // The original 3-tentacle block is still present verbatim.
+    expect(withPlugin).toContain('command = "/bin/pd-hook-prompt"');
+    expect(withPlugin).toContain('command = "/bin/pd-hook-pre-tool"');
+    expect(withPlugin).toContain('command = "/bin/pd-hook-post-tool"');
+    // Still ends with the end-fence marker, after the plugin block.
+    expect(withPlugin.trimEnd().endsWith('# PD_SQUID_TENTACLES_END')).toBe(true);
+    void withoutPlugin;
+  });
+
+  test('stageTentacles discovers + stages a plugin alongside the 3 built-ins', () => {
+    const sourceDir = join(SCRATCH, 'stage-source');
+    const destDir = join(SCRATCH, 'stage-dest');
+    mkdirSync(sourceDir, { recursive: true });
+    for (const n of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool']) {
+      writeFileSync(join(sourceDir, n), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    }
+    writePlugin(sourceDir, 'pd-hook-lint-gate', { purpose: 'postTool', displayName: 'Lint gate' });
+
+    const result = stageTentacles(sourceDir, destDir);
+
+    expect(result.missing).toEqual([]);
+    expect(result.plugins.map((p) => p.name)).toEqual(['pd-hook-lint-gate']);
+    // Staged like a built-in: real binary + sidecar under squid/, gate wrapper
+    // + sidecar copy at the top level (so post-stage discovery finds it too).
+    expect(existsSync(join(destDir, 'squid', 'pd-hook-lint-gate'))).toBe(true);
+    expect(existsSync(join(destDir, 'squid', 'pd-hook-lint-gate.hook.json'))).toBe(true);
+    expect(existsSync(join(destDir, 'pd-hook-lint-gate'))).toBe(true);
+    expect(existsSync(join(destDir, 'pd-hook-lint-gate.hook.json'))).toBe(true);
+    expect(discoverPluginHooks(destDir).map((p) => p.name)).toEqual(['pd-hook-lint-gate']);
+  });
+
+  // End-to-end: a plugin dropped into the REAL bin/ (where tentacleBinDir()
+  // actually resolves) must get auto-wired by ClaudeCliSquidAdapter.injectHooks
+  // with zero code changes — this is the actual auto-discovery contract the
+  // Squid Hook Plugin System promises. Cleaned up in finally so a real repo
+  // directory is never left with a stray test fixture.
+  test('a plugin dropped into the real bin/ is auto-wired by injectHooks (no code changes)', async () => {
+    const realBinDir = tentacleBinDir();
+    const pluginName = 'pd-hook-e2e-test-plugin';
+    const pluginBin = join(realBinDir, pluginName);
+    const pluginSidecar = join(realBinDir, `${pluginName}.hook.json`);
+    try {
+      writeFileSync(pluginBin, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+      writeFileSync(
+        pluginSidecar,
+        JSON.stringify({ purpose: 'postTool', displayName: 'E2E test plugin', description: 'test', privacy: 'test' }),
+      );
+
+      const adapter = new ClaudeCliSquidAdapter();
+      await adapter.injectHooks(WORKSPACE);
+
+      const settings = JSON.parse(readFileSync(join(WORKSPACE, '.claude', 'settings.json'), 'utf8'));
+      const postToolGroups = settings.hooks.PostToolUse as { hooks: { command: string }[] }[];
+      expect(postToolGroups.some((g) => g.hooks.some((h) => h.command === pluginBin))).toBe(true);
+      // The built-in pd-hook-post-tool is still present too (additive, not replaced).
+      expect(postToolGroups.some((g) => g.hooks.some((h) => h.command === tentaclePath('pd-hook-post-tool')))).toBe(true);
+    } finally {
+      rmSync(pluginBin, { force: true });
+      rmSync(pluginSidecar, { force: true });
+    }
   });
 });

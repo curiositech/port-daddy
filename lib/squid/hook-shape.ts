@@ -16,6 +16,9 @@
  * `~/.port-daddy/bin/` gate wrappers) — so every builder takes a path resolver.
  */
 
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+
 // ─── Tentacle identity ────────────────────────────────────────────────────────
 
 export const TENTACLES = ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool'] as const;
@@ -24,8 +27,102 @@ export type TentacleName = (typeof TENTACLES)[number];
 /** Marker substring present in every command we write — used for idempotent dedupe. */
 export const PD_HOOK_MARKER = 'pd-hook-';
 
-/** A resolver mapping a tentacle name to the absolute command string to invoke. */
-export type TentacleResolver = (name: TentacleName) => string;
+/**
+ * A resolver mapping a tentacle (built-in OR plugin) name to the absolute
+ * command string to invoke. Widened to `string` (not just `TentacleName`) so
+ * the same resolver serves discovered plugin hooks — see PluginHookSpec below.
+ */
+export type TentacleResolver = (name: string) => string;
+
+// ─── Plugin hook discovery ─────────────────────────────────────────────────
+//
+// The 3 built-in tentacles above are wired by literal name everywhere (adapter
+// injectHooks bodies, stageTentacles, this file's builders) — that contract is
+// unchanged. This section is the EXTENSION point: any additional executable
+// dropped into the same bin/ directory as the built-ins, paired with a
+// `<name>.hook.json` sidecar declaring which lifecycle event it binds to, is
+// discovered here and folded into every builder below, without editing this
+// repo's source. See docs/architecture/squid-hook-plugin-system.md.
+
+export type HookPurpose = 'prompt' | 'preTool' | 'postTool';
+
+export interface PluginHookSpec {
+  /** File name in bin/, e.g. "pd-hook-lint-gate". Always starts with "pd-hook-". */
+  name: string;
+  /** Which lifecycle point this plugin binds to. */
+  purpose: HookPurpose;
+  displayName: string;
+  description: string;
+  privacy: string;
+}
+
+const PLUGIN_SIDECAR_SUFFIX = '.hook.json';
+
+function isBuiltinTentacle(name: string): boolean {
+  return (TENTACLES as readonly string[]).includes(name);
+}
+
+/**
+ * Scan `binDir` for plugin tentacles: a `<pd-hook-name>.hook.json` sidecar
+ * declaring `{ "purpose": "prompt"|"preTool"|"postTool", "displayName"?,
+ * "description"?, "privacy"? }` next to an executable `<pd-hook-name>` file in
+ * the same directory. The 3 built-in tentacles are excluded even if they grew
+ * a sidecar (they're wired by the fixed TENTACLES contract, not discovery).
+ *
+ * A sidecar with no matching binary, invalid JSON, or a missing/invalid
+ * "purpose" is skipped with a console warning rather than thrown — one broken
+ * plugin declaration must not take down the built-in tentacles or the other
+ * plugins. An unreadable binDir (fresh checkout, no bin/ yet) returns [].
+ */
+export function discoverPluginHooks(binDir: string): PluginHookSpec[] {
+  let entries: string[];
+  try {
+    entries = readdirSync(binDir);
+  } catch {
+    return [];
+  }
+  const discovered: PluginHookSpec[] = [];
+  for (const entry of entries) {
+    if (!entry.endsWith(PLUGIN_SIDECAR_SUFFIX)) continue;
+    const name = entry.slice(0, -PLUGIN_SIDECAR_SUFFIX.length);
+    if (!name.startsWith(PD_HOOK_MARKER) || isBuiltinTentacle(name)) continue;
+
+    const binPath = join(binDir, name);
+    if (!existsSync(binPath)) {
+      console.error(`[squid/hook-shape] ${entry} has no matching binary at ${binPath} — skipping`);
+      continue;
+    }
+
+    let raw: Record<string, unknown>;
+    try {
+      raw = JSON.parse(readFileSync(join(binDir, entry), 'utf8')) as Record<string, unknown>;
+    } catch (err) {
+      console.error(`[squid/hook-shape] ${entry} is not valid JSON — skipping (${(err as Error).message})`);
+      continue;
+    }
+
+    const purpose = raw.purpose;
+    if (purpose !== 'prompt' && purpose !== 'preTool' && purpose !== 'postTool') {
+      console.error(`[squid/hook-shape] ${entry} has no valid "purpose" (prompt|preTool|postTool) — skipping`);
+      continue;
+    }
+
+    discovered.push({
+      name,
+      purpose,
+      displayName: typeof raw.displayName === 'string' && raw.displayName ? raw.displayName : `Plugin hook: ${name}`,
+      description:
+        typeof raw.description === 'string' && raw.description
+          ? raw.description
+          : `Custom Giant Squid tentacle (${name}) — no description declared in ${entry}.`,
+      privacy:
+        typeof raw.privacy === 'string' && raw.privacy
+          ? raw.privacy
+          : 'Not declared in the plugin manifest — review the plugin source before trusting it with tool-call data.',
+    });
+  }
+  return discovered;
+}
 
 // ─── JSON hook shape (Claude Code / Gemini / agy all use this nesting) ────────
 
@@ -105,18 +202,31 @@ export const AGY_EVENTS = { prompt: 'UserPromptSubmit', preTool: 'PreToolUse', p
 export const AGY_TOOL_MATCHER =
   'Edit|Write|MultiEdit|write_to_file|replace_file_content|multi_replace_file_content|replace|write_file|edit|apply_patch';
 
-/** Build the JSON {event -> entries} hook map for a given vendor + path resolver. */
+/**
+ * Build the JSON {event -> entries} hook map for a given vendor + path
+ * resolver. `plugins` (from discoverPluginHooks) are appended as additional
+ * matcher-group entries under whichever event their declared purpose maps to
+ * — the 3 built-in entries are always present and unchanged, so this is
+ * purely additive and a no-plugins call produces the exact same map as before.
+ */
 export function buildJsonHookMap(
   vendor: 'claude' | 'gemini' | 'agy',
   resolve: TentacleResolver,
+  plugins: PluginHookSpec[] = [],
 ): Record<string, HookMatcher[]> {
   const ev = vendor === 'gemini' ? GEMINI_EVENTS : vendor === 'agy' ? AGY_EVENTS : CLAUDE_EVENTS;
   const matcher = vendor === 'gemini' ? GEMINI_TOOL_MATCHER : vendor === 'agy' ? AGY_TOOL_MATCHER : CLAUDE_TOOL_MATCHER;
-  return {
+  const map: Record<string, HookMatcher[]> = {
     [ev.prompt]: [hookEntry(resolve('pd-hook-prompt'))],
     [ev.preTool]: [hookEntry(resolve('pd-hook-pre-tool'), matcher)],
     [ev.postTool]: [hookEntry(resolve('pd-hook-post-tool'), matcher)],
   };
+  for (const plugin of plugins) {
+    const event = ev[plugin.purpose];
+    const pluginMatcher = plugin.purpose === 'prompt' ? undefined : matcher;
+    map[event] = [...(map[event] ?? []), hookEntry(resolve(plugin.name), pluginMatcher)];
+  }
+  return map;
 }
 
 // ─── Codex CLI (TOML, hand-emitted — no TOML lib) ─────────────────────────────
@@ -174,14 +284,24 @@ function tomlString(v: string): string {
   return '"' + v.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 }
 
+const CODEX_EVENT_TABLE: Record<HookPurpose, string> = {
+  prompt: 'UserPromptSubmit',
+  preTool: 'PreToolUse',
+  postTool: 'PostToolUse',
+};
+
 /**
  * Hand-emit Codex's `[hooks]` TOML block. All three handlers are synchronous:
  * current Codex parses `async = true` but skips that handler entirely. Shape
  * verified against Codex v0.144.4 and shared by both installation paths.
+ * `plugins` (from discoverPluginHooks) each get an additional `[[hooks.<Event>]]`
+ * block at their declared purpose's event — purely additive, so a no-plugins
+ * call emits byte-identical output to before.
  */
 export function codexHooksTomlBlock(
   resolve: TentacleResolver,
   options: CodexHooksTomlOptions = {},
+  plugins: PluginHookSpec[] = [],
 ): string {
   const L: string[] = [];
   L.push(`# ${CODEX_PD_MARKER}.`);
@@ -214,6 +334,20 @@ export function codexHooksTomlBlock(
   L.push(`command = ${tomlString(resolve('pd-hook-post-tool'))}`);
   L.push('timeout = 10');
   L.push('async = false');
+  for (const plugin of plugins) {
+    const event = CODEX_EVENT_TABLE[plugin.purpose];
+    L.push('');
+    L.push(`# Plugin tentacle: ${plugin.name} — ${plugin.displayName}`);
+    L.push(`[[hooks.${event}]]`);
+    if (plugin.purpose !== 'prompt') {
+      L.push(`matcher = ${tomlString(CODEX_TOOL_MATCHER)}`);
+    }
+    L.push(`[[hooks.${event}.hooks]]`);
+    L.push('type = "command"');
+    L.push(`command = ${tomlString(resolve(plugin.name))}`);
+    L.push('timeout = 10');
+    L.push('async = false');
+  }
   L.push(`# ${CODEX_PD_END_MARKER}`);
   L.push('');
   return L.join('\n');
