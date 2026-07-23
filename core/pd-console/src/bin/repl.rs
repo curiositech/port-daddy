@@ -113,6 +113,8 @@ mod roadmap_pane;
 mod script; // control-socket scripting (parse + serve tests)
 #[path = "../sessions_pane.rs"]
 mod sessions_pane;
+#[path = "../ship_grammar.rs"]
+mod ship_grammar; // deterministic boat avatars (pure core + tests)
 #[path = "../substrate_pane.rs"]
 mod substrate_pane;
 #[path = "../suggest_pane.rs"]

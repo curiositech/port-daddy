@@ -175,6 +175,14 @@ pub enum ControlMsg {
         verb: String,
         argument: Option<String>,
     },
+    /// An operator clicked an [`crate::ship_grammar::AgentChip`] — select the
+    /// agent by identity. The chip is the reusable "boat glyph + name" element
+    /// dropped anywhere an agent is named; this is its selection signal. Handling
+    /// is deliberately minimal for now (surface the pick) — the chip is not yet
+    /// wired to retarget other panes.
+    SelectAgent {
+        identity: String,
+    },
     /// Bind the producer's live Harbor Editor lane to a file (P3 wire stage 1). Sent
     /// when the operator opens an `Editor` surface (FileTree click / `:edit <path>`).
     /// The producer constructs a persistent [`crate::editor_pane::EditorPane`] on this
@@ -445,6 +453,14 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
         "coast" => {
             return Some(SurfaceKind::Panel {
                 nav: "coast-guard".to_string(),
+            });
+        }
+        // The Ship Grammar gallery — deterministic boat avatars. Summonable by
+        // the pane-jumper (not a NAV tile, so the launcher's 1:1 slot invariant
+        // stays intact); rendered bespoke in `render_leaf`.
+        "ships" | "boats" | "ship-grammar" | "shipgrammar" => {
+            return Some(SurfaceKind::Panel {
+                nav: "ship-grammar".to_string(),
             });
         }
         _ => {}
@@ -3644,6 +3660,9 @@ impl ConsoleView {
         // The Daemons surface renders interactive picker buttons instead of plain
         // text blocks (built here so the on_click listeners can borrow cx).
         let is_daemons = nav_id_for_surface(surface) == Some("daemons");
+        // The Ship Grammar gallery renders bespoke GPUI boats (canvas/paths), not
+        // the generic Block list — summoned via the pane-jumper ("ships"/"boats").
+        let is_ship_gallery = nav_id_for_surface(surface) == Some("ship-grammar");
         let daemon_rows = if is_daemons {
             self.daemon_button_rows(cx)
         } else {
@@ -3907,6 +3926,13 @@ impl ConsoleView {
                             })
                     }
                     None if is_daemons => body.children(daemon_rows),
+                    // Ship Grammar gallery: bespoke boat avatars (8 hulls, one
+                    // agent across 3 liveries, one boat in 8 states, chips).
+                    None if is_ship_gallery => body.child(crate::ship_grammar::ship_gallery(
+                        current_theme(),
+                        reduced_motion(),
+                        self.control_tx.clone(),
+                    )),
                     // Sextant: the interactive embedding map (points, marquee,
                     // hover readout, selection bar, detail drawer).
                     None if is_sextant => {

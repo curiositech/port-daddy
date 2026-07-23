@@ -52,6 +52,7 @@ mod prs_pane;
 mod roadmap_pane;
 mod script;
 mod sessions_pane;
+mod ship_grammar;
 mod shell_drawer;
 mod sortie_pane;
 mod story_linework;
@@ -1036,6 +1037,20 @@ fn main() {
                                         ));
                                     }
                                 }
+                            }
+                            // An AgentChip was clicked. The chip isn't yet wired
+                            // to retarget panes, so we surface the pick as an
+                            // info alert — honest feedback, no fake navigation.
+                            app::ControlMsg::SelectAgent { identity } => {
+                                let plan = ship_grammar::build_ship(&identity);
+                                let _ = alert_tx.send(pane::Alert::info(
+                                    format!("selected {}", plan.codename),
+                                    format!(
+                                        "{identity} — {} hull, fleet {}",
+                                        plan.hull.label(),
+                                        plan.fleet
+                                    ),
+                                ));
                             }
                             // Bind the live Harbor Editor lane to a file (wire stage 1):
                             // build a persistent EditorPane on this path + operator
