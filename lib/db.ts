@@ -653,6 +653,16 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
   // Keeps the WAL file from growing unbounded between periodic cleanups.
   db.pragma('wal_autocheckpoint = 200');
 
+  // Incremental auto-vacuum so pruned rows actually return pages to the OS. Without this, retention
+  // DELETEs free pages onto the freelist but the FILE never shrinks — the root cause of a 231 MB
+  // registry DB that stayed 231 MB after pruning. INCREMENTAL (not FULL) keeps checkpoints cheap;
+  // the RetentionRegistry.reclaim() step calls `PRAGMA incremental_vacuum` to hand pages back.
+  // CAVEAT: on an ALREADY-POPULATED DB created with auto_vacuum=NONE this pragma is a no-op until a
+  // one-time `VACUUM` rewrites the file — new per-instance DBs get it for free; existing DBs need
+  // that one-time VACUUM (see the retention migration note). Setting it before schema creation makes
+  // every fresh daemon DB incremental-vacuum-capable from birth.
+  db.pragma('auto_vacuum = INCREMENTAL');
+
   // Busy timeout: wait up to 5 seconds for locks instead of failing immediately
   // This is critical for concurrent CLI invocations sharing the same DB
   db.pragma('busy_timeout = 5000');
