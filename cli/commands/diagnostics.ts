@@ -1500,6 +1500,153 @@ export function scanRegistryDbFiles(dir: string): string[] {
   }
 }
 
+// =============================================================================
+// Roadmap snapshot freshness — the committed docs/roadmap/roadmap.snapshot.json
+// mirrors the LOCAL daemon's `roadmap_items` table into the repo. There is no
+// canonical/hosted Port Daddy daemon (shared/daemon-discovery.ts resolves
+// strictly to a loopback daemon; see the "Relay central / daemon local
+// topology" ruling — a daemon is ALWAYS local per-developer, never a server by
+// default). CI runners genuinely cannot reach any developer's daemon, so the
+// only place drift is actually *observable* is on the machine that owns live
+// roadmap state, at the moment someone runs `pd doctor` there.
+// `scripts/export-roadmap-snapshot.ts` regenerates the mirror, but nothing
+// runs it automatically — the file has been observed several days stale in
+// practice, which the CI gate's existing 21-day `staleAfterDays` (see
+// lib/roadmap-link-core.ts) is too loose to catch early. This check makes that
+// drift LOUD, locally, before a PR ever hits the gate.
+// =============================================================================
+
+/** Hours after which a stale roadmap snapshot should nag the operator. */
+export const ROADMAP_SNAPSHOT_STALE_HOURS_DEFAULT = 48;
+
+/** Minimal shape of the committed roadmap.snapshot.json this check reads. */
+export interface RoadmapSnapshotFacts {
+  /** Parsed docs/roadmap/roadmap.snapshot.json, or null if missing/unparseable. */
+  snapshot: { generatedAt?: number; items?: Array<{ slug: string }> } | null;
+  /**
+   * Live daemon roadmap slugs, captured when the local daemon was reachable at
+   * check time. `null` when the daemon was unreachable or the fetch failed —
+   * the check then falls back to a pure time-based signal.
+   */
+  liveSlugs: string[] | null;
+  /** Injectable "now" for tests. Default Date.now(). */
+  now?: number;
+  /** Injectable threshold for tests. Default {@link ROADMAP_SNAPSHOT_STALE_HOURS_DEFAULT}. */
+  staleAfterHours?: number;
+}
+
+export interface RoadmapSnapshotFreshnessAssessment {
+  /** Never 'critical' — this nags, it does not gate `pd doctor --ci`'s exit code. */
+  severity: 'ok' | 'warn';
+  detail: string;
+  hint?: string;
+}
+
+const ROADMAP_SNAPSHOT_REMEDIATION =
+  'npx tsx scripts/export-roadmap-snapshot.ts && git add docs/roadmap/roadmap.snapshot.json && git commit -m "chore(roadmap): refresh snapshot"';
+
+/**
+ * Pure severity judgment over the committed roadmap snapshot vs. (optionally)
+ * the live local daemon's roadmap items. Separated from the fetch/read so it
+ * is unit-testable without a running daemon or a real file.
+ *
+ * Two independent signals, checked in priority order:
+ *   1. Live parity (strongest, when the daemon was reachable): does the
+ *      snapshot contain every slug the live daemon currently has? This is the
+ *      exact failure mode that has caused real CI friction — a brand-new
+ *      roadmap item that a PR references but the committed mirror doesn't
+ *      know about yet, regardless of how "fresh" the file's timestamp is.
+ *   2. Wall-clock age (fallback, always available): `generatedAt` vs. now.
+ *
+ * ```ts
+ * assessRoadmapSnapshotFreshness({ snapshot: null, liveSlugs: null }).severity // => 'warn'
+ * assessRoadmapSnapshotFreshness({
+ *   snapshot: { generatedAt: Date.now(), items: [{ slug: 'a' }] },
+ *   liveSlugs: ['a', 'b'],
+ * }).severity // => 'warn' (missing 'b')
+ * ```
+ */
+export function assessRoadmapSnapshotFreshness(
+  input: RoadmapSnapshotFacts,
+): RoadmapSnapshotFreshnessAssessment {
+  const now = input.now ?? Date.now();
+  const staleAfterHours = input.staleAfterHours ?? ROADMAP_SNAPSHOT_STALE_HOURS_DEFAULT;
+
+  const snapshot = input.snapshot;
+  if (!snapshot || typeof snapshot.generatedAt !== 'number' || !Array.isArray(snapshot.items)) {
+    return {
+      severity: 'warn',
+      detail: 'docs/roadmap/roadmap.snapshot.json is missing or unreadable — the roadmap-link CI gate cannot verify any PR link against it',
+      hint: ROADMAP_SNAPSHOT_REMEDIATION,
+    };
+  }
+
+  const ageHours = (now - snapshot.generatedAt) / (60 * 60 * 1000);
+  const ageLabel = ageHours < 1 ? '<1h' : `${Math.round(ageHours)}h`;
+
+  if (input.liveSlugs) {
+    const snapshotSlugs = new Set(snapshot.items.map((i) => i.slug));
+    const missing = input.liveSlugs.filter((slug) => !snapshotSlugs.has(slug));
+    if (missing.length > 0) {
+      const shown = missing.slice(0, 5).join(', ');
+      const more = missing.length > 5 ? `, +${missing.length - 5} more` : '';
+      return {
+        severity: 'warn',
+        detail: `${missing.length} live roadmap item(s) are missing from the committed snapshot (${ageLabel} old): ${shown}${more} — a PR that links one of these will fail the roadmap-link gate`,
+        hint: ROADMAP_SNAPSHOT_REMEDIATION,
+      };
+    }
+    if (ageHours > staleAfterHours) {
+      return {
+        severity: 'warn',
+        detail: `roadmap.snapshot.json is ${ageLabel} old (>${staleAfterHours}h) — it currently matches the live daemon, but refresh it so it doesn't silently drift again`,
+        hint: ROADMAP_SNAPSHOT_REMEDIATION,
+      };
+    }
+    return {
+      severity: 'ok',
+      detail: `roadmap.snapshot.json is fresh (${ageLabel} old, ${snapshot.items.length} items) and matches the live daemon`,
+    };
+  }
+
+  // Daemon unreachable / not probed — the only signal left is wall-clock age.
+  if (ageHours > staleAfterHours) {
+    return {
+      severity: 'warn',
+      detail: `roadmap.snapshot.json is ${ageLabel} old (>${staleAfterHours}h threshold) — the daemon was not reachable to verify it still matches live roadmap items`,
+      hint: ROADMAP_SNAPSHOT_REMEDIATION,
+    };
+  }
+  return {
+    severity: 'ok',
+    detail: `roadmap.snapshot.json is ${ageLabel} old (daemon not reachable to verify live parity)`,
+  };
+}
+
+/**
+ * Locate docs/roadmap/roadmap.snapshot.json by walking up from `startDir`.
+ * `pd doctor` is a general daemon-health tool that can run from anywhere on
+ * the machine, so this check only fires when we're actually inside a
+ * port-daddy checkout — detected by finding the file, not by assuming cwd is
+ * the repo root. Pure given an injectable `exists` so it's testable without
+ * touching the real filesystem tree.
+ */
+export function findRoadmapSnapshotPath(
+  startDir: string = process.cwd(),
+  exists: (p: string) => boolean = existsSync,
+  maxLevels = 6,
+): string | null {
+  let dir = startDir;
+  for (let i = 0; i < maxLevels; i++) {
+    const candidate = join(dir, 'docs', 'roadmap', 'roadmap.snapshot.json');
+    if (exists(candidate)) return candidate;
+    const parent = join(dir, '..');
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
+
 export interface DoctorOptions {
   json?: boolean | string;
   /** CI/script mode: machine-readable, no interactive fix phase. */
@@ -2424,6 +2571,53 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     }
   } catch (err: unknown) {
     check('Harbor readiness', false, `Error: ${(err as Error).message}`, 'Run: pd setup');
+  }
+
+  // -------------------------------------------------------------------------
+  // 17. Roadmap snapshot freshness (port-daddy checkout only; skipped silently
+  //     everywhere else). See the module doc above `assessRoadmapSnapshotFreshness`
+  //     for why this lives in `pd doctor` and not a CI cron: no CI runner can
+  //     reach any developer's local daemon, so this is the one place the drift
+  //     between docs/roadmap/roadmap.snapshot.json and live roadmap_items is
+  //     actually observable.
+  // -------------------------------------------------------------------------
+  try {
+    const snapshotPath = findRoadmapSnapshotPath(process.cwd());
+    if (snapshotPath) {
+      let parsedSnapshot: { generatedAt?: number; items?: Array<{ slug: string }> } | null = null;
+      try {
+        parsedSnapshot = JSON.parse(readFileSync(snapshotPath, 'utf8'));
+      } catch {
+        parsedSnapshot = null;
+      }
+      let liveSlugs: string[] | null = null;
+      if (daemonRunning) {
+        try {
+          const harbor = process.env.PD_HARBOR ?? 'port-daddy';
+          const roadmapRes: PdFetchResponse = await pdFetch(
+            `${PORT_DADDY_URL}/roadmap/items?status=all&harbor=${encodeURIComponent(harbor)}`,
+          );
+          if (roadmapRes.ok) {
+            const roadmapData = await roadmapRes.json() as { success?: boolean; items?: Array<{ slug: string }> };
+            if (roadmapData.success && Array.isArray(roadmapData.items)) {
+              liveSlugs = roadmapData.items.map((i) => i.slug);
+            }
+          }
+        } catch {
+          liveSlugs = null; // Unreachable/errored — falls back to time-only staleness.
+        }
+      }
+      recordAssessment(
+        'Roadmap snapshot freshness',
+        assessRoadmapSnapshotFreshness({ snapshot: parsedSnapshot, liveSlugs }),
+      );
+    }
+    // No snapshot found up to maxLevels: this isn't a port-daddy checkout — skip silently.
+  } catch (err: unknown) {
+    recordAssessment('Roadmap snapshot freshness', {
+      severity: 'warn',
+      detail: `Could not check roadmap snapshot freshness: ${(err as Error).message}`,
+    });
   }
 
   // -------------------------------------------------------------------------

@@ -20,6 +20,9 @@ import {
   parseMacDiagnosticReport,
   readRecentMacDiagnosticCrashReports,
   assessMacDiagnosticCrashReports,
+  assessRoadmapSnapshotFreshness,
+  findRoadmapSnapshotPath,
+  ROADMAP_SNAPSHOT_STALE_HOURS_DEFAULT,
 } from '../../cli/commands/diagnostics.js';
 import { resolveDistributionRoot } from '../../shared/daemon-binary.js';
 
@@ -786,5 +789,128 @@ describe('scanRegistryDbFiles', () => {
 
   test('returns empty for a missing directory', () => {
     expect(scanRegistryDbFiles('/nonexistent/dir/xyz')).toEqual([]);
+  });
+});
+
+describe('assessRoadmapSnapshotFreshness', () => {
+  // There is no canonical/hosted Port Daddy daemon (shared/daemon-discovery.ts
+  // resolves strictly to a loopback daemon), so CI can never regenerate
+  // docs/roadmap/roadmap.snapshot.json itself. This is the local-machine
+  // detection mechanism instead: `pd doctor` reads the committed file and, when
+  // the local daemon is reachable, cross-checks it against live roadmap items —
+  // the exact drift that has caused real roadmap-link CI friction (a PR
+  // referencing a roadmap item that was just created live but never exported).
+
+  const FRESH_MS = Date.now();
+  const OLD_MS = Date.now() - 100 * 60 * 60 * 1000; // 100h ago — past the 48h default
+
+  test('missing snapshot warns with the export remediation', () => {
+    const a = assessRoadmapSnapshotFreshness({ snapshot: null, liveSlugs: null });
+    expect(a.severity).toBe('warn');
+    expect(a.detail).toMatch(/missing or unreadable/);
+    expect(a.hint).toMatch(/export-roadmap-snapshot\.ts/);
+  });
+
+  test('unparseable snapshot (no generatedAt/items) warns the same as missing', () => {
+    const a = assessRoadmapSnapshotFreshness({ snapshot: { oops: true }, liveSlugs: null });
+    expect(a.severity).toBe('warn');
+    expect(a.detail).toMatch(/missing or unreadable/);
+  });
+
+  test('fresh snapshot within the threshold and no daemon reachable is ok', () => {
+    const a = assessRoadmapSnapshotFreshness({
+      snapshot: { generatedAt: FRESH_MS, items: [{ slug: 'a' }] },
+      liveSlugs: null,
+    });
+    expect(a.severity).toBe('ok');
+    expect(a.detail).toMatch(/daemon not reachable/);
+  });
+
+  test('old snapshot past the default 48h threshold warns even without a reachable daemon', () => {
+    const a = assessRoadmapSnapshotFreshness({
+      snapshot: { generatedAt: OLD_MS, items: [{ slug: 'a' }] },
+      liveSlugs: null,
+    });
+    expect(a.severity).toBe('warn');
+    expect(a.detail).toMatch(/>48h threshold/);
+    expect(a.hint).toMatch(/export-roadmap-snapshot\.ts/);
+  });
+
+  test('respects a custom staleAfterHours threshold', () => {
+    const a = assessRoadmapSnapshotFreshness({
+      snapshot: { generatedAt: Date.now() - 2 * 60 * 60 * 1000, items: [{ slug: 'a' }] }, // 2h old
+      liveSlugs: null,
+      staleAfterHours: 1,
+    });
+    expect(a.severity).toBe('warn');
+  });
+
+  test('THE REAL FRICTION: fresh-by-time snapshot missing a live item still warns', () => {
+    // The bug this check exists for: the file can be minutes old and still be
+    // wrong, because a roadmap item was created on the live daemon moments ago
+    // and nothing exported it. Time-based staleness alone cannot catch this.
+    const a = assessRoadmapSnapshotFreshness({
+      snapshot: { generatedAt: FRESH_MS, items: [{ slug: 'existing-item' }] },
+      liveSlugs: ['existing-item', 'brand-new-item-just-created'],
+    });
+    expect(a.severity).toBe('warn');
+    expect(a.detail).toMatch(/brand-new-item-just-created/);
+    expect(a.detail).toMatch(/1 live roadmap item/);
+    expect(a.hint).toMatch(/export-roadmap-snapshot\.ts/);
+  });
+
+  test('live parity with items in sync (regardless of order) is ok when fresh', () => {
+    const a = assessRoadmapSnapshotFreshness({
+      snapshot: { generatedAt: FRESH_MS, items: [{ slug: 'b' }, { slug: 'a' }] },
+      liveSlugs: ['a', 'b'],
+    });
+    expect(a.severity).toBe('ok');
+    expect(a.detail).toMatch(/matches the live daemon/);
+  });
+
+  test('live parity but old file still nags to prevent re-drift', () => {
+    const a = assessRoadmapSnapshotFreshness({
+      snapshot: { generatedAt: OLD_MS, items: [{ slug: 'a' }] },
+      liveSlugs: ['a'],
+    });
+    expect(a.severity).toBe('warn');
+    expect(a.detail).toMatch(/currently matches the live daemon/);
+    expect(a.detail).toMatch(/>48h/);
+  });
+
+  test('truncates a long missing-slug list for readability', () => {
+    const missing = Array.from({ length: 8 }, (_, i) => `slug-${i}`);
+    const a = assessRoadmapSnapshotFreshness({
+      snapshot: { generatedAt: FRESH_MS, items: [] },
+      liveSlugs: missing,
+    });
+    expect(a.detail).toMatch(/\+3 more/);
+  });
+
+  test('default threshold constant is 48 hours', () => {
+    expect(ROADMAP_SNAPSHOT_STALE_HOURS_DEFAULT).toBe(48);
+  });
+});
+
+describe('findRoadmapSnapshotPath', () => {
+  test('finds the snapshot at the given directory', () => {
+    const exists = (p) => p === '/repo/docs/roadmap/roadmap.snapshot.json';
+    expect(findRoadmapSnapshotPath('/repo', exists)).toBe('/repo/docs/roadmap/roadmap.snapshot.json');
+  });
+
+  test('walks up parent directories looking for the snapshot', () => {
+    const exists = (p) => p === '/repo/docs/roadmap/roadmap.snapshot.json';
+    expect(findRoadmapSnapshotPath('/repo/cli/commands', exists)).toBe('/repo/docs/roadmap/roadmap.snapshot.json');
+  });
+
+  test('returns null when no snapshot is found within maxLevels (not a port-daddy checkout)', () => {
+    const exists = () => false;
+    expect(findRoadmapSnapshotPath('/some/other/project', exists)).toBeNull();
+  });
+
+  test('stops walking at the filesystem root without looping', () => {
+    const exists = () => false;
+    // Should terminate rather than hang even from a shallow start.
+    expect(findRoadmapSnapshotPath('/', exists)).toBeNull();
   });
 });
