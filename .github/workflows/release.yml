@@ -181,7 +181,14 @@ jobs:
         # dist/core/pd-bosun, then core/pd-bosun/... — the extracted `core/`
         # dir satisfies the daemon-relative fallback). Without this the tarball
         # had no watchdog and the KeepAlive supervisor job was silently skipped.
-        run: cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json pd-bosun
+        # Also ship the Giant Squid Harness tentacles (bin/pd-hook-*) next to
+        # `pd` so `pd squid`/`pd hooks` work from a compiled install — the
+        # adapter resolves them from dirname(process.execPath). They are portable
+        # POSIX shell scripts (no runtime), so a flat copy is enough.
+        run: |
+          cp bin/pd-hook-prompt bin/pd-hook-pre-tool bin/pd-hook-post-tool dist/
+          chmod +x dist/pd-hook-prompt dist/pd-hook-pre-tool dist/pd-hook-post-tool
+          cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json pd-bosun pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2
