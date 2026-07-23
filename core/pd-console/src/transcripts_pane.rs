@@ -242,7 +242,7 @@ mod tests {
     fn transcript_row_reads_daemon_shape() {
         let row = TranscriptRow::from_value(&json!({
             "id": "tr-1", "ship": "spawn:codex", "backend": "codex",
-            "model": "gpt-5", "status": "completed", "started_at": 42,
+            "model": "model-under-test", "status": "completed", "started_at": 42,
             "messages": [{ "role": "assistant" }], "outputs": []
         }));
         assert_eq!(row.backend, "codex");
