@@ -1,0 +1,104 @@
+diff --git a/core/pd-console/Cargo.toml b/core/pd-console/Cargo.toml
+index e96fd3da6..3ea2e6e3c 100644
+--- a/core/pd-console/Cargo.toml
++++ b/core/pd-console/Cargo.toml
+@@ -28,7 +28,7 @@ required-features = ["gpui"]
+ # Pulls in the GPU shell. Off by default so the lib + repl compile fast on Linux.
+ # `gpui` also pulls in `rodio` for the procedural UI sound layer (macOS CoreAudio),
+ # so the headless repl + Linux CI never compile an audio backend.
+-gpui = ["dep:gpui", "dep:rodio", "dep:portable-pty", "dep:vt100"]
++gpui = ["dep:gpui", "dep:gpui_platform", "dep:rodio", "dep:portable-pty", "dep:vt100"]
+ 
+ [dependencies]
+ tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util", "sync", "time"] }
+@@ -38,7 +38,10 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
+ dirs = "5"
+ anyhow = "1"
+ futures-util = { version = "0.3", default-features = false, features = ["std"] }
+-gpui = { version = "0.2.2", optional = true }
++gpui = { git = "https://github.com/zed-industries/zed", rev = "7cdf2ae6b62c699670d6dcb04b9c7ffd06a35f1a", optional = true, features = ["test-support"] }
++# GPUI's platform split ("GPUI on the web", 2026): the real-platform constructors
++# (`application()`, `current_platform`, `current_headless_renderer`) live here now.
++gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "7cdf2ae6b62c699670d6dcb04b9c7ffd06a35f1a", optional = true, features = ["test-support"] }
+ # Procedural UI sound — synthesized in-process (no audio assets shipped). Gated
+ # behind `gpui`; `default-features = false` drops the MP3/Vorbis/FLAC decoders we
+ # never use, keeping the build lean (we only synth raw f32 sample buffers).
+diff --git a/core/pd-console/src/app.rs b/core/pd-console/src/app.rs
+index 0ba90e6a4..dc8f6db23 100644
+--- a/core/pd-console/src/app.rs
++++ b/core/pd-console/src/app.rs
+@@ -885,6 +885,7 @@ pub(crate) mod motion {
+             offset: point(px(0.0), px(0.0)),
+             blur_radius: px(blur),
+             spread_radius: px(spread),
++            inset: false,
+         }]
+     }
+ 
+@@ -896,6 +897,7 @@ pub(crate) mod motion {
+             offset: point(px(dx), px(dy)),
+             blur_radius: px(0.0),
+             spread_radius: px(0.0),
++            inset: false,
+         }]
+     }
+ }
+@@ -1116,7 +1118,7 @@ fn render_code_buffer(
+     )
+     .size_full();
+     let list = match scroll {
+-        Some(handle) => list.track_scroll(handle),
++        Some(handle) => list.track_scroll(&handle),
+         None => list,
+     };
+     div()
+@@ -3600,8 +3602,8 @@ impl ConsoleView {
+                     container = container.child(
+                         div()
+                             .flex_basis(relative(frac))
+-                            .flex_grow()
+-                            .flex_shrink()
++                            .flex_grow(1.0)
++                            .flex_shrink(1.0)
+                             .overflow_hidden()
+                             .child(self.render_node(&child.node, focused, &child_path, cx)),
+                     );
+@@ -6514,6 +6516,7 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
+             offset: point(px(0.0), px(-10.0)),
+             blur_radius: px(28.0),
+             spread_radius: px(1.0),
++            inset: false,
+         }])
+         // One large color zone: command context. The rest of the terminal stays
+         // quiet enough that state stripes and actual ANSI output can speak.
+diff --git a/core/pd-console/src/main.rs b/core/pd-console/src/main.rs
+index e241f0be1..d72ae5d4c 100644
+--- a/core/pd-console/src/main.rs
++++ b/core/pd-console/src/main.rs
+@@ -328,7 +328,7 @@ fn main() {
+     let display_selector = cli_args.display_selector.clone();
+     let list_displays = cli_args.list_displays;
+ 
+-    Application::new()
++    gpui_platform::application()
+         .with_assets(FsAssets::locate())
+         .run(move |cx: &mut App| {
+         let daemon_url = daemon_url.clone();
+@@ -338,7 +338,7 @@ fn main() {
+         if list_displays {
+             println!("pd-console: {} display(s)", displays.len());
+             for (i, d) in displays.iter().enumerate() {
+-                let id: u32 = d.id().into();
++                let id: u64 = d.id().into();
+                 let uuid = d.uuid().map(|u| u.to_string()).unwrap_or_else(|_| "<none>".into());
+                 let b = d.bounds();
+                 println!(
+@@ -423,7 +423,7 @@ fn main() {
+                     // Focus the view so keyboard nav (1-9, s/m/p/h/c/d) works
+                     // immediately, without a click to grab focus first.
+                     let fh = view.read(cx).focus_handle(cx);
+-                    window.focus(&fh);
++                    window.focus(&fh, cx);
+                     view
+                 },
+             )

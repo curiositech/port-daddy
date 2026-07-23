@@ -1,0 +1,16 @@
+[package]
+name = "gpui-capture-probe"
+version = "0.0.0"
+edition = "2021"
+
+# Standalone: do NOT inherit any parent workspace under ~/coding.
+[workspace]
+
+[[bin]]
+name = "probe"
+path = "src/main.rs"
+
+[dependencies]
+# Pin both gpui and the split-out platform crate to the SAME zed main rev.
+gpui = { git = "https://github.com/zed-industries/zed", rev = "7cdf2ae6b62c699670d6dcb04b9c7ffd06a35f1a", features = ["test-support"] }
+gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "7cdf2ae6b62c699670d6dcb04b9c7ffd06a35f1a", features = ["test-support"] }
