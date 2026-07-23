@@ -72,7 +72,9 @@ keep the live Tier-A table as the store of record; port Tier B's
 ### W2 — Emit the ContextEnvelope (the keystone)
 
 Every compliant agent heartbeat must carry a schema-valid `ContextEnvelope`
-(schema frozen at `schemas/agent-harbor/v0/context-envelope.schema.json`):
+(schema frozen at `schemas/agent-harbor/v0/context-envelope.schema.json`; this
+freeze must be folded into ch. 26/N1's single `schemas/agent-harbor/v0` contract
+freeze, not a second uncoordinated freeze of the same package — see 27.11):
 window tokens, per-bucket budgets (system / operator / transcriptTail /
 toolResults / memories / skillGrafts / workingPlan / outputReserve), used
 tokens, computed `pressure`, and recommended `action`. Producer options:
@@ -111,7 +113,10 @@ queue status and returns `{sessionId, purpose, notes}`). We do not attempt a
 process/memory snapshot. Instead the **cited compaction packet is the checkpoint
 artifact.** `resumeFromPacket` wires into the spawn path so a successor boots
 from a validated, hash-checked packet (`SuccessorBootstrap`) rather than raw
-notes. This is the M6 gate: *force threshold -> packet built -> successor
+notes. This wiring targets the post-refactor creation path (`WorkIntent ->
+WorkPlan -> AgentNode -> AnodeAdapter`, ch. 25/26), not the legacy `spawn`
+surface those chapters dismantle; see 27.11. This is the M6 gate: *force
+threshold -> packet built -> successor
 resumes.* Downstream, M9 adds Loro op-replay to recover a dead agent's *edits*,
 and 02 adds checkpoint-export for remote sessions.
 
@@ -233,7 +238,9 @@ has zero callers in `lib/`/`cli/`.
 Target: a `WorkPlanner` that emits `NodeSpec[]` with **disjoint `scope.files`**
 from coupling analysis + live context-pressure bands; drives `evaluateSwarmFit`
 from *computed* inputs instead of flags; maps each `NodeSpec` -> `LaunchIntent`
-(Conductor already supports per-child worktrees and lineage). Gate every split on
+(Conductor already supports per-child worktrees and lineage; post-refactor each
+`NodeSpec` is created as an `AgentNode` through the WorkIntent path, not a raw
+`LaunchIntent` — see 27.11). Gate every split on
 the binder rule `split_cost + comm_cost + merge_cost < stay_cost` (04.231,
 node-shaping `:199`). Wire `windags_next_move` decomposer output as the
 decomposition source. Handoff transfers the minimum cited context, never the
@@ -429,6 +436,10 @@ flowchart TD
   W5 --> E2E
 ```
 
+These are **M6-scoped waves**, distinct from ch. 26's runtime-refactor waves
+(which are 0-indexed over `N`-nodes). When both are in play, qualify as "M6-Wave
+N" to avoid confusion (see 27.11).
+
 **Waves.** Wave 1: W1, W2, W9 (independent roots; W2 is the keystone, W9 is the
 independent skills track). Wave 2: W3, W6, W8. Wave 3: W4, W7, W10. Wave 4: W5
 + E2E, then M9/02 exports. Tooling (`pd doctor`/`setup`/inspection/panes) lands
@@ -446,3 +457,48 @@ alongside the wave that produces the data each surface reads.
   full first run is ~1,500 skills; it must be incremental and resumable.
 - **O4 — buffering default.** Is output-spill on-by-default for all agents or
   opt-in per compliance level (W8)?
+
+## 27.11 Relationship to chapters 25 and 26
+
+This chapter governs M6 (context/memory), but its runtime substrate — the agent
+contract, the spawn/creation path, the heartbeat bus, and the daemon that owns
+them — is being refactored in parallel by
+[25 Runtime Refactor Alignment](./25-agent-harbor-runtime-refactor-alignment.md)
+and [26 Runtime Refactor Agent DAG](./26-agent-harbor-runtime-refactor-agent-dag.md).
+The three DAGs use disjoint numbering (07 = `M`-milestones, 26 = `N`-nodes +
+0-indexed waves, 27 = `W`-items + 1-indexed waves) so there are no hard
+identifier collisions, but ch. 27 sits directly on surfaces 25/26 are renaming.
+The reconciliation:
+
+1. **Creation path (the one real conflict).** 25/26 make
+   `WorkIntent -> WorkPlan -> AgentNode -> AnodeAdapter.attach` the mandatory,
+   only creation path and migrate `spawn` / `dispatch` / `conjure` / raw
+   `LaunchIntent` into it (25 "Execution Order"; 26/N6). W5 (`resumeFromPacket`
+   into spawn) and W10 (`NodeSpec -> LaunchIntent` via `fleet/conductor.ts`)
+   therefore target the **post-refactor** shape: the packet is the payload a
+   successor `AgentNode` boots from, and a `NodeSpec` is realized as an
+   `AgentNode` through the WorkIntent path, not the legacy `spawn` surface. This
+   adds a hard **26/N6 -> 27/W5** and **26/N6 -> 27/W10** edge. If 26/N6 lands
+   first, W5/W10 build on it directly; if a W5/W10 prototype lands first against
+   the legacy surface, it must be migrated with the rest.
+2. **One `v0` contract freeze, not two.** 26/N1 freezes
+   `schemas/agent-harbor/v0` with drift-locks. W2's `ContextEnvelope` schema is
+   an **item inside that freeze**, not a second independent freeze of the same
+   package. Add the envelope to 26/N1's enumerated contract (or explicitly carve
+   it out there).
+3. **Heartbeat bus.** W2 stamps the envelope on the heartbeat and reads
+   `heartbeat` / `context_pressure` from the ledger. Which bus that crosses is
+   governed by 26/N7's hot/cool split and the 25 Surface Gateway; W2's producer
+   must emit onto the bus 26/N7 defines, not a private path.
+4. **One succession/continuity ledger.** W15's append-only
+   continuity/succession ledger and W14's Arbiter ledger are the **same durable
+   append-only event ledger** 26/N7 owns (the "cool bus"), scoped to
+   succession/verification events, not a parallel store. Reconcile schemas.
+5. **Terminology.** Standardize on the 25/26 canon: `WorkIntent` (not
+   `LaunchIntent`) for the creation intent, and the daemon's runtime-authority
+   role named consistently (25 "Local Runtime Kernel"). Where this chapter still
+   says `LaunchIntent` it means the legacy surface being migrated. Qualify wave
+   labels as "M6-Wave N" whenever ch. 26 waves are also in scope.
+
+Net: **minor drift, one latent conflict (the creation path), now cross-linked.**
+W13's decisions ledger tracks closure of items 1–4 here alongside O1–O4.

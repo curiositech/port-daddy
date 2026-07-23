@@ -241,6 +241,25 @@ failing run side by side.
 - If user wants CSS architecture advice → design-system-creator
 - If user needs WCAG compliance checklist → accessibility-expert
 
+## Layout QA gate (mechanical — run before shipping)
+
+Before calling any rendered page, artifact, dashboard, deck, or component done,
+run the mechanical overflow/collision checker. It renders the page headlessly and
+flags text-vs-text collisions, clipped/ellipsis-truncated elements, text escaping
+its container, and horizontal page scroll — the visual defects a screenshot hides
+and that only appear at a specific width or in one theme.
+
+```bash
+python3 ~/.claude/skills/layout-overflow-guard/scripts/check_layout.py <file-or-url> \
+  --widths 1280,1100,860,720,390 --themes light,dark
+```
+
+You do **not** need to read `check_layout.py` — invoke it with the Bash tool and
+act on its report and exit code (non-zero = a defect). The script's source never
+enters your context; only its findings do. Drive it to zero violations across
+every width and both themes before you ship. Full detail: the
+`layout-overflow-guard` skill.
+
 <!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
 
 ## Skill Bundle Index
