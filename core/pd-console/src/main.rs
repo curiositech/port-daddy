@@ -32,6 +32,7 @@ mod editor_wedge;
 mod fleet_pane;
 mod galaxy_canvas;
 mod galaxy_pane;
+mod board_pane;
 mod grid;
 mod harbor_pane;
 mod headless_capture;
@@ -74,6 +75,7 @@ use cloud_fleet_pane::CloudFleetPane;
 use cockpit_pane::CockpitPane;
 use conductor_pane::ConductorPane;
 use daemon_pane::DaemonPane;
+use board_pane::BoardPane;
 use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
 use galaxy_pane::GalaxyPane;
@@ -299,6 +301,35 @@ fn main() {
                 }
                 Err(e) => {
                     eprintln!("pd-console headless-capture failed: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+    }
+
+    // `--headless-capture-board <path>` — CPU Block-raster capture of BoardPane's
+    // real seeded content (agent-safe, offscreen, no window/display/TCC — the
+    // existing Block-raster third face, see docs/artifacts/gpui/HEADLESS-CAPTURE.md).
+    // Used this to actually iterate on BoardPane's layout: caught and fixed a real
+    // overflow (a KeyVal label too long for render_block's fixed 150px key column
+    // in app.rs — verified against the real render_block source, not just this
+    // preview, so it would have overflowed on-screen too).
+    {
+        let args: Vec<String> = std::env::args().collect();
+        if let Some(i) = args.iter().position(|a| a == "--headless-capture-board") {
+            let out = args
+                .get(i + 1)
+                .map(String::as_str)
+                .filter(|a| !a.starts_with('-'))
+                .unwrap_or("headless-capture-board.png");
+            let png = headless_capture::render_blocks(&board_pane::sample_board_blocks(), &theme::DARK, 960).to_png();
+            match std::fs::write(out, &png) {
+                Ok(()) => {
+                    println!("pd-console headless-capture-board -> {out} ({} bytes)", png.len());
+                    return;
+                }
+                Err(e) => {
+                    eprintln!("pd-console headless-capture-board failed: {e}");
                     std::process::exit(1);
                 }
             }
@@ -540,6 +571,7 @@ fn main() {
                 let mut live_agents = ActiveAgentsPane::new();  // 24 — harness roster
                 let mut harbor     = HarborPane::new();         // 25 — Agent Node roster+detail (ch18 C3)
                 let mut galaxy      = GalaxyPane::new();        // 26 — Sextant embedding map
+                let mut board       = BoardPane::new();         // 27 — roadmap Board (Jira-style columns)
 
                 // Pin the producer slots to the canonical grid map. If a pane is
                 // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
@@ -555,6 +587,7 @@ fn main() {
                         parley.id(), conductor.id(), daemons.id(), cloud_fleet.id(), live_agents.id(),
                         harbor.id(),
                         galaxy.id(),
+                        board.id(),
                     ],
                     grid::SLOT_PANE_IDS,
                     "producer slot order drifted from grid::SLOT_PANE_IDS",
@@ -1115,6 +1148,7 @@ fn main() {
                     let _ = live_agents.refresh(&client).await;
                     let _ = harbor.refresh(&client).await;
                     let _ = galaxy.refresh(&client).await;
+                    let _ = board.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -1254,6 +1288,7 @@ fn main() {
                         (24, live_agents.view()),
                         (25, harbor.view()),
                         (26, galaxy.view()),
+                        (27, board.view()),
                     ];
 
                     if tx

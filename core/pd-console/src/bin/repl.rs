@@ -30,6 +30,8 @@ mod agent;
 mod audio;
 #[path = "../berths.rs"]
 mod berths; // named daemon picker data (ADR-0084)
+#[path = "../board_pane.rs"]
+mod board_pane;
 #[allow(dead_code)]
 #[path = "../buffer.rs"]
 mod buffer;
