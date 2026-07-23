@@ -463,6 +463,10 @@ fn main() {
         // REAL map data instead of re-parsing display text (DispatchHead precedent).
         let (tx, rx) = mpsc::channel::<(
             Vec<(usize, Vec<pane::Block>)>,
+            // Cloud Fleet run-Details, keyed by run id — a foreground projection
+            // carried alongside the nav pane_blocks so a split CloudRunDetail pane
+            // renders the per-ship transcript for the opened run.
+            Vec<(String, Vec<pane::Block>)>,
             Option<dispatch_pane::DispatchHead>,
             galaxy_pane::GalaxySnapshot,
             bool,
@@ -1095,6 +1099,13 @@ fn main() {
                             app::ControlMsg::CloudFleetPage { list, forward } => {
                                 cloud_fleet.page(list, forward);
                             }
+                            // "open ▸" on a run: fetch its full detail into the
+                            // pane's cache. The view already split off a
+                            // CloudRunDetail pane at click time; the next frame's
+                            // detail_views() ships these blocks to it.
+                            app::ControlMsg::CloudRunOpen { run_id } => {
+                                cloud_fleet.open_run(&client, run_id).await;
+                            }
                         }
                     }
 
@@ -1303,6 +1314,7 @@ fn main() {
                     if tx
                         .send((
                             all,
+                            cloud_fleet.detail_views(),
                             dispatch.head(),
                             galaxy.snapshot(),
                             health.is_connected(),
@@ -1323,8 +1335,13 @@ fn main() {
                 let mut size_nudged = false;
                 loop {
                     bg.timer(Duration::from_millis(500)).await;
-                    while let Ok((panes, dispatch_head, galaxy_snapshot, daemon_connected)) =
-                        rx.try_recv()
+                    while let Ok((
+                        panes,
+                        cloud_run_details,
+                        dispatch_head,
+                        galaxy_snapshot,
+                        daemon_connected,
+                    )) = rx.try_recv()
                     {
                         let _ = async_cx.update(|app| {
                             let _ = window.update(app, |view: &mut ConsoleView, window, cx| {
@@ -1332,6 +1349,7 @@ fn main() {
                                 // idle 2s refresh cycle schedules zero repaints.
                                 if view.update_panes(
                                     panes.clone(),
+                                    cloud_run_details.clone(),
                                     dispatch_head.clone(),
                                     galaxy_snapshot.clone(),
                                     daemon_connected,

@@ -200,6 +200,14 @@ pub enum ControlMsg {
         list: crate::cloud_fleet_pane::CloudFleetList,
         forward: bool,
     },
+    /// Fetch ONE cloud run's full detail (`GET /v1/fleet/runs/:id`) into the
+    /// Cloud Fleet pane's detail cache, so the freshly-split `CloudRunDetail`
+    /// pane can render its per-ship transcript. Dispatched when the operator
+    /// clicks "open ▸" on a Recent Runs row; the split itself is a local view
+    /// mutation done at click time, this message drives the async fetch.
+    CloudRunOpen {
+        run_id: String,
+    },
 }
 
 /// A push from the daemon worker back to the Work surface. Runtime truth is a
@@ -1817,6 +1825,12 @@ pub struct ConsoleView {
     /// over a cold synchronous load, so the running window shows the LIVE wedge — not a
     /// static file re-read that never saw the collaboration lanes.
     editor_blocks: Option<(String, Vec<Block>)>,
+    /// Producer-fetched Cloud Fleet run details, keyed by `fleet_runs.id`. Filled
+    /// each frame from `CloudFleetPane::detail_views()`; read by
+    /// `blocks_for_cloud_run` when a split `CloudRunDetail` pane renders. A
+    /// foreground projection (like `alerts`/`work`), NOT a nav `pane_blocks` slot,
+    /// because the detail is parameterized by an unbounded run id.
+    cloud_run_details: std::collections::HashMap<String, Vec<Block>>,
     daemon_url: String,
     /// Provider→tier→model map, loaded from config (not compiled-in), so the
     /// Spawn picker resolves models that can change without a rebuild.
@@ -2079,6 +2093,7 @@ impl ConsoleView {
             command: None,
             pane_blocks,
             editor_blocks: None,
+            cloud_run_details: std::collections::HashMap::new(),
             daemon_url,
             focus_handle: cx.focus_handle(),
             control_tx,
@@ -2247,6 +2262,12 @@ impl ConsoleView {
         if matches!(surface, SurfaceKind::Work) {
             return crate::work_plan::blocks_for_work(&self.work_plan_graph);
         }
+        // A split Cloud Fleet run-Details pane: foreground projection keyed by
+        // run id, fed each frame from the producer's detail fetch. Renders the
+        // per-ship transcript in its own half-width pane instead of inline.
+        if let SurfaceKind::CloudRunDetail { run_id } = surface {
+            return self.blocks_for_cloud_run(run_id);
+        }
         // The Harbor Editor surface reads its PERSISTENT pane (buffer + claims
         // + wedge), created once by `ensure_editor_states`. view() on an
         // unchanged buffer is an Arc refcount bump (see EditorPane::code_snapshot)
@@ -2298,6 +2319,23 @@ impl ConsoleView {
     /// The HITL / Alerts surface: every captured action failure or outcome,
     /// newest-first, with FULL untruncated detail (the operator finally reads
     /// the whole daemon rejection). Each alert: a level chip + title + the
+    /// A split Cloud Fleet run-Details pane. Looks up the producer-fetched
+    /// detail blocks by run id; shows an honest "loading" placeholder until the
+    /// async fetch lands (the split happens instantly at click time, the fetch
+    /// is a frame or two behind).
+    fn blocks_for_cloud_run(&self, run_id: &str) -> Vec<Block> {
+        match self.cloud_run_details.get(run_id) {
+            Some(blocks) => blocks.clone(),
+            None => {
+                let short = &run_id[..run_id.len().min(8)];
+                vec![
+                    Block::Header(format!("Run {short} — Details")),
+                    Block::KeyVal("status".into(), "loading run detail…".into()),
+                ]
+            }
+        }
+    }
+
     /// never-ellipsized detail + a separator.
     fn blocks_for_hitl(&self) -> Vec<Block> {
         let mut blocks = vec![Block::Header("Alerts — HITL".into())];
@@ -3182,6 +3220,7 @@ impl ConsoleView {
     pub fn update_panes(
         &mut self,
         updates: Vec<(usize, Vec<Block>)>,
+        cloud_run_details: Vec<(String, Vec<Block>)>,
         dispatch_head: Option<DispatchHead>,
         galaxy: crate::galaxy_pane::GalaxySnapshot,
         daemon_connected: bool,
@@ -3197,6 +3236,18 @@ impl ConsoleView {
             if let Some(slot) = self.pane_blocks.get_mut(idx) {
                 if *slot != blocks {
                     *slot = blocks;
+                    changed = true;
+                }
+            }
+        }
+        // Fold the producer's Cloud Fleet run-detail cache. Overwrite-by-key so a
+        // re-opened run refreshes; only a genuine change flips `changed` (an idle
+        // console with an open Details pane must not repaint every 2s tick).
+        for (run_id, blocks) in cloud_run_details {
+            match self.cloud_run_details.get(&run_id) {
+                Some(existing) if *existing == blocks => {}
+                _ => {
+                    self.cloud_run_details.insert(run_id, blocks);
                     changed = true;
                 }
             }
@@ -5866,6 +5917,33 @@ fn render_harbor_control(
                         // Steer needs a message: open the entry line; submit
                         // sends ControlMsg::HarborControl with the text.
                         this.command = Some(CommandLine::new(CmdKind::HarborSteer));
+                    } else if let Some(run_id) =
+                        verb_for_click.strip_prefix("cloud-run-open:")
+                    {
+                        // "open ▸" on a Recent Runs row: SPLIT the current tab
+                        // left→right and bind a dedicated half-width Details pane
+                        // for this run — never cram the transcript inline under
+                        // the run list (the operator asked for a readable pane).
+                        // Cloud Fleet keeps its own full pane on the left; the
+                        // Details pane is the new focused leaf on the right. The
+                        // async fetch that fills it is kicked off below.
+                        let run_id = run_id.to_string();
+                        this.ws_mut().split(
+                            Dir::Row,
+                            SurfaceKind::CloudRunDetail {
+                                run_id: run_id.clone(),
+                            },
+                        );
+                        if let Some(tx) = &this.control_tx {
+                            let _ = tx.send(ControlMsg::CloudRunOpen {
+                                run_id: run_id.clone(),
+                            });
+                        }
+                        this.control_flash = Some(format!(
+                            "opened run {}",
+                            &run_id[..run_id.len().min(8)]
+                        ));
+                        cx.notify();
                     } else if verb_for_click.starts_with("cloud-") {
                         // Cloud Fleet controls route to the Cloud Fleet pane, NOT
                         // Harbor: pause/resume the remote reviewer, or page its
@@ -6015,11 +6093,13 @@ fn nav_id_for_surface(surface: &SurfaceKind) -> Option<&str> {
         SurfaceKind::Dispatch => Some("dispatch"),
         SurfaceKind::Panel { nav } => Some(nav.as_str()),
         // HITL and Work are foreground projections, not generic NAV pane fetchers.
+        // CloudRunDetail is one too: keyed by run id, fed via `cloud_run_details`.
         SurfaceKind::CartographerChat
         | SurfaceKind::FileTree { .. }
         | SurfaceKind::Editor { .. }
         | SurfaceKind::Hitl
-        | SurfaceKind::Work => None,
+        | SurfaceKind::Work
+        | SurfaceKind::CloudRunDetail { .. } => None,
     }
 }
 

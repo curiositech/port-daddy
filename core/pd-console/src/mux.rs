@@ -67,6 +67,14 @@ pub enum SurfaceKind {
     /// This is the bridge to the live data the shell already fetches: every
     /// pane the old static console had is summonable into any split.
     Panel { nav: String },
+    /// The full detail of ONE cloud fleet run — its per-ship transcript,
+    /// verdicts, and cost — opened as its own pane when the operator clicks
+    /// "open ▸" on a Recent Runs row in the Cloud Fleet pane. A foreground
+    /// projection (like `Hitl`/`Work`): the view renders it from
+    /// producer-fetched detail keyed by `run_id`, NOT from the nav
+    /// `pane_blocks` array. Splitting into a dedicated pane is what keeps the
+    /// detail readable instead of cramming it inline under the run list.
+    CloudRunDetail { run_id: String },
 }
 
 impl SurfaceKind {
@@ -94,6 +102,9 @@ impl SurfaceKind {
             SurfaceKind::Hitl => "alerts".into(),
             SurfaceKind::Work => "work".into(),
             SurfaceKind::Panel { nav } => nav.clone(),
+            SurfaceKind::CloudRunDetail { run_id } => {
+                format!("run {}", &run_id[..run_id.len().min(8)])
+            }
         }
     }
 }

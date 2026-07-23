@@ -133,6 +133,10 @@ impl Pager {
 /// One remote fleet run (a GitHub PR review the cloud executor performed).
 #[derive(Debug, Clone)]
 struct FleetRun {
+    /// Stable `fleet_runs.id` — the key for `GET /v1/fleet/runs/:id` when the
+    /// operator clicks "open ▸". May be empty on schema-drift (older activity
+    /// payloads); an empty id suppresses the open affordance.
+    id: String,
     pr_number: i64,
     repo: String,
     conclusion: String,
@@ -145,6 +149,7 @@ struct FleetRun {
 impl FleetRun {
     fn from_value(v: &Value) -> Self {
         Self {
+            id: s(v, "id"),
             pr_number: n(v, "prNumber"),
             repo: s(v, "repo"),
             conclusion: s(v, "conclusion"),
@@ -272,6 +277,143 @@ fn pause_request(base: &str, paused: bool) -> (String, Value) {
     )
 }
 
+/// Percent-encode a run id for use as a URL path segment. Ids are DB-generated
+/// and normally URL-safe, but we encode defensively (unreserved set per
+/// RFC 3986) so a stray character can never break the request or smuggle a path.
+fn encode_run_id(id: &str) -> String {
+    let mut out = String::with_capacity(id.len());
+    for byte in id.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(byte as char)
+            }
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
+}
+
+/// A short, display-friendly run id (first 12 chars) for pane titles/headers.
+fn short_run_id(id: &str) -> String {
+    id.chars().take(12).collect()
+}
+
+/// Flatten a transcript step's `detail` (arbitrary JSON — the relay's
+/// `parseDetail` yields a string or an object) into readable, never-truncated
+/// text for the Details pane's `WrappedText`.
+fn detail_to_text(v: Option<&Value>) -> String {
+    match v {
+        None | Some(Value::Null) => String::new(),
+        Some(Value::String(s)) => s.clone(),
+        Some(other) => serde_json::to_string_pretty(other).unwrap_or_default(),
+    }
+}
+
+/// Build the Details-pane block list for one run from the
+/// `GET /v1/fleet/runs/:id` response (`{run, steps[]}`): run metadata (repo, PR,
+/// head sha, conclusion, cost in Workers-AI neurons, elapsed) followed by the
+/// per-ship transcript, grouped by ship, each step's verdict shown in FULL
+/// (never ellipsized) — the readable payoff of opening a dedicated pane.
+fn run_detail_blocks(run_id: &str, data: &Value) -> Vec<Block> {
+    let run = data.get("run").cloned().unwrap_or(Value::Null);
+    let mut blocks = vec![Block::Header(format!("Run {} — Details", short_run_id(run_id)))];
+
+    // ── Run metadata ────────────────────────────────────────────────────────
+    let repo = s(&run, "repo");
+    if !repo.is_empty() {
+        blocks.push(Block::KeyVal("repo".into(), repo));
+    }
+    blocks.push(Block::KeyVal("PR".into(), format!("#{}", n(&run, "prNumber"))));
+    let pr_url = s(&run, "prUrl");
+    if !pr_url.is_empty() {
+        blocks.push(Block::KeyVal("url".into(), pr_url));
+    }
+    let sha = s(&run, "headSha");
+    if !sha.is_empty() {
+        blocks.push(Block::KeyVal("head".into(), sha));
+    }
+    let conclusion = s(&run, "conclusion");
+    if !conclusion.is_empty() {
+        blocks.push(Block::Chip {
+            label: format!("verdict: {conclusion}"),
+            tone: conclusion_tone(&conclusion),
+        });
+    }
+    let neurons = n(&run, "neurons");
+    blocks.push(Block::KeyVal(
+        "cost".into(),
+        if neurons > 0 {
+            format!("{neurons} neurons")
+        } else {
+            "—".into()
+        },
+    ));
+    let elapsed = n(&run, "elapsedMs");
+    if elapsed > 0 {
+        blocks.push(Block::KeyVal("elapsed".into(), format!("{elapsed}ms")));
+    }
+    let ships: Vec<String> = arr(&run, "ships")
+        .iter()
+        .filter_map(|x| x.as_str().map(String::from))
+        .collect();
+    if !ships.is_empty() {
+        blocks.push(Block::KeyVal("ships".into(), ships.join(", ")));
+    }
+
+    // ── Per-ship transcript ─────────────────────────────────────────────────
+    blocks.push(Block::Gap);
+    blocks.push(Block::Header("Transcript".into()));
+    let steps = arr(data, "steps");
+    if steps.is_empty() {
+        blocks.push(Block::KeyVal(
+            "status".into(),
+            "no transcript steps recorded for this run".into(),
+        ));
+        return blocks;
+    }
+    // Group steps by ship, preserving first-seen order (steps arrive seq-ordered).
+    let mut order: Vec<String> = Vec::new();
+    let mut by_ship: std::collections::HashMap<String, Vec<&Value>> =
+        std::collections::HashMap::new();
+    for step in steps {
+        let ship = s(step, "ship");
+        let key = if ship.is_empty() { "—".to_string() } else { ship };
+        if !by_ship.contains_key(&key) {
+            order.push(key.clone());
+        }
+        by_ship.entry(key).or_default().push(step);
+    }
+    for ship in order {
+        blocks.push(Block::Gap);
+        blocks.push(Block::Chip {
+            label: format!("⚓ {ship}"),
+            tone: Tone::Accent,
+        });
+        for step in by_ship.get(&ship).into_iter().flatten() {
+            let title = s(step, "title");
+            let kind = s(step, "kind");
+            let head = if kind.is_empty() {
+                title.clone()
+            } else if title.is_empty() {
+                kind.clone()
+            } else {
+                format!("{kind} · {title}")
+            };
+            if !head.trim().is_empty() {
+                blocks.push(Block::KeyVal("  ▸".into(), head));
+            }
+            let detail = detail_to_text(step.get("detail"));
+            if !detail.trim().is_empty() {
+                blocks.push(Block::WrappedText {
+                    text: detail,
+                    tone: Tone::Default,
+                });
+            }
+        }
+    }
+    blocks
+}
+
 pub struct CloudFleetPane {
     relay_url: String,
     relay_token: String,
@@ -292,6 +434,13 @@ pub struct CloudFleetPane {
     proposal_error: Option<String>,
     activity_pager: Pager,
     proposals_pager: Pager,
+    /// Run-detail cache, keyed by `fleet_runs.id`. Populated by [`open_run`] when
+    /// the operator clicks "open ▸"; each value is the fully-built Details-pane
+    /// block list (header + per-ship transcript + verdicts + cost). The producer
+    /// ships these to the view every frame via [`detail_views`] so the split
+    /// `CloudRunDetail` pane always renders the latest fetch. A failed fetch
+    /// stores an error block list here too, so the pane shows the real cause.
+    open_details: std::collections::HashMap<String, Vec<Block>>,
 }
 
 impl Default for CloudFleetPane {
@@ -312,6 +461,7 @@ impl Default for CloudFleetPane {
             proposal_error: None,
             activity_pager: Pager::new(DEFAULT_PAGE_SIZE),
             proposals_pager: Pager::new(DEFAULT_PAGE_SIZE),
+            open_details: std::collections::HashMap::new(),
         }
     }
 }
@@ -352,6 +502,57 @@ impl CloudFleetPane {
                 }
             }
         }
+    }
+
+    /// Fetch ONE run's full detail (`GET /v1/fleet/runs/:id`) and cache the
+    /// built Details-pane blocks under `run_id`. Called on the producer thread
+    /// when the operator clicks "open ▸"; the split `CloudRunDetail` pane reads
+    /// the result via [`detail_views`]. Never hard-fails: a transport error or
+    /// missing relay config caches an honest error block list instead, so the
+    /// Details pane shows the real cause rather than a blank pane.
+    pub async fn open_run(&mut self, daemon: &DaemonClient, run_id: String) {
+        if run_id.is_empty() {
+            return;
+        }
+        // Seed a "loading" placeholder immediately so the just-split pane isn't
+        // blank while the fetch is in flight.
+        self.open_details.entry(run_id.clone()).or_insert_with(|| {
+            vec![
+                Block::Header(format!("Run {}", short_run_id(&run_id))),
+                Block::KeyVal("status".into(), "loading run detail…".into()),
+            ]
+        });
+
+        if !self.is_configured() {
+            self.open_details.insert(
+                run_id.clone(),
+                vec![
+                    Block::Header(format!("Run {}", short_run_id(&run_id))),
+                    Block::KeyVal("status".into(), CONFIG_HINT.into()),
+                ],
+            );
+            return;
+        }
+        let base = self.relay_url.trim_end_matches('/').to_string();
+        let token = self.relay_token.clone();
+        let url = format!("{base}/v1/fleet/runs/{}", encode_run_id(&run_id));
+        let blocks = match fetch_json(daemon, &url, &token).await {
+            Err(e) => vec![
+                Block::Header(format!("Run {}", short_run_id(&run_id))),
+                Block::KeyVal("status".into(), format!("detail unavailable — {e}")),
+            ],
+            Ok(data) => run_detail_blocks(&run_id, &data),
+        };
+        self.open_details.insert(run_id, blocks);
+    }
+
+    /// Every cached run detail as `(run_id, blocks)` for the producer to ship to
+    /// the view each frame. The view keys its `CloudRunDetail` panes off these.
+    pub fn detail_views(&self) -> Vec<(String, Vec<Block>)> {
+        self.open_details
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect()
     }
 
     /// Emit the "showing N–M of T" indicator plus prev/next controls for a paged
@@ -631,6 +832,19 @@ impl Pane for CloudFleetPane {
                     },
                     tone: conclusion_tone(&run.conclusion),
                 });
+                // "open ▸" splits the console and opens this run's Details pane
+                // (per-ship transcript + verdicts + cost) at half width — the
+                // readable alternative to cramming detail inline. Suppressed
+                // when the activity row carried no id to fetch by.
+                if !run.id.is_empty() {
+                    blocks.push(Block::ControlButton {
+                        verb: format!("cloud-run-open:{}", run.id),
+                        label: format!("open ▸ PR #{}", run.pr_number),
+                        enabled: true,
+                        why_disabled: None,
+                        primary: false,
+                    });
+                }
             }
             self.push_pager(&mut blocks, CloudFleetList::Activity, &self.activity_pager, total);
         }
@@ -834,6 +1048,7 @@ mod tests {
     fn sample_runs(n: usize) -> Vec<FleetRun> {
         (0..n)
             .map(|i| FleetRun {
+                id: format!("run-{i}"),
                 pr_number: i as i64,
                 repo: "port-daddy/relay".into(),
                 conclusion: "success".into(),
@@ -1013,6 +1228,95 @@ mod tests {
         assert_eq!(r.conclusion, "success");
         assert_eq!(r.ships, vec!["linter".to_string(), "qa".to_string()]);
         assert_eq!(r.elapsed_ms, 45000);
+        assert_eq!(r.id, "uuid");
+    }
+
+    #[test]
+    fn run_from_value_missing_id_is_empty_suppresses_open() {
+        // Older activity payloads without `id` parse to an empty id, which the
+        // render suppresses the "open ▸" button for (can't fetch by no id).
+        let v = json!({ "prNumber": 1, "repo": "o/r", "conclusion": "success" });
+        assert!(FleetRun::from_value(&v).id.is_empty());
+    }
+
+    #[test]
+    fn configured_run_row_emits_open_button_with_run_id_verb() {
+        let mut p = configured();
+        p.activity = vec![FleetRun {
+            id: "run-xyz".into(),
+            pr_number: 42,
+            repo: "curiositech/port-daddy".into(),
+            conclusion: "success".into(),
+            ships: vec!["qa".into()],
+            elapsed_ms: 1000,
+            created_at: 1_719_432_000,
+        }];
+        let blocks = p.view();
+        let has_open = blocks.iter().any(|b| matches!(
+            b,
+            Block::ControlButton { verb, .. } if verb == "cloud-run-open:run-xyz"
+        ));
+        assert!(has_open, "each run row must carry a cloud-run-open:<id> button");
+    }
+
+    #[test]
+    fn run_detail_blocks_render_metadata_and_per_ship_transcript() {
+        // The relay's GET /v1/fleet/runs/:id envelope is flattened (run + steps
+        // at top level). The Details pane must show run metadata plus the FULL,
+        // untruncated per-ship verdict, grouped by ship.
+        let detail = json!({
+            "code": "OK", "error": null,
+            "run": {
+                "id": "run-abc123", "prNumber": 7, "repo": "curiositech/port-daddy",
+                "prUrl": "https://github.com/curiositech/port-daddy/pull/7",
+                "headSha": "deadbee", "conclusion": "failure",
+                "ships": ["qa", "spark"], "neurons": 4200, "elapsedMs": 61000,
+                "createdAt": 1_719_432_000i64
+            },
+            "steps": [
+                { "seq": 1, "kind": "verdict", "ship": "qa",
+                  "title": "PASS", "detail": "0 blocking issues; nits only" },
+                { "seq": 2, "kind": "ideation", "ship": "spark",
+                  "title": "proposal", "detail": "successor-brief generator" }
+            ]
+        });
+        let blocks = run_detail_blocks("run-abc123", &detail);
+        // Header names the run.
+        assert!(matches!(&blocks[0], Block::Header(h) if h.contains("run-abc123")));
+        // Run metadata present.
+        assert!(blocks.iter().any(|b| matches!(b, Block::KeyVal(k, v)
+            if k == "repo" && v == "curiositech/port-daddy")));
+        assert!(blocks.iter().any(|b| matches!(b, Block::KeyVal(k, v)
+            if k == "cost" && v == "4200 neurons")));
+        // Verdict chip carries the conclusion, colored.
+        assert!(blocks.iter().any(|b| matches!(b, Block::Chip { label, tone }
+            if label.contains("failure") && matches!(tone, Tone::Conflicted))));
+        // A per-ship section chip for each ship.
+        assert!(blocks.iter().any(|b| matches!(b, Block::Chip { label, .. }
+            if label == "⚓ qa")));
+        assert!(blocks.iter().any(|b| matches!(b, Block::Chip { label, .. }
+            if label == "⚓ spark")));
+        // The full verdict detail is present as never-truncated WrappedText.
+        assert!(blocks.iter().any(|b| matches!(b, Block::WrappedText { text, .. }
+            if text.contains("0 blocking issues"))));
+    }
+
+    #[test]
+    fn run_detail_blocks_group_by_ship_and_handle_empty_steps() {
+        // No transcript steps → honest status line, never a blank pane.
+        let detail = json!({
+            "run": { "id": "r1", "prNumber": 1, "repo": "o/r", "conclusion": "success" },
+            "steps": []
+        });
+        let blocks = run_detail_blocks("r1", &detail);
+        assert!(blocks.iter().any(|b| matches!(b, Block::KeyVal(_, v)
+            if v.contains("no transcript steps"))));
+    }
+
+    #[test]
+    fn encode_run_id_escapes_unsafe_path_bytes() {
+        assert_eq!(encode_run_id("run-abc_123.4~x"), "run-abc_123.4~x");
+        assert_eq!(encode_run_id("a/b c"), "a%2Fb%20c");
     }
 
     #[test]
@@ -1027,6 +1331,7 @@ mod tests {
     fn view_populated_renders_runs_and_ships() {
         let mut p = configured();
         p.activity = vec![FleetRun {
+            id: "run-7".into(),
             pr_number: 7,
             repo: "port-daddy/relay".into(),
             conclusion: "failure".into(),
