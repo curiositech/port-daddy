@@ -510,4 +510,54 @@ mod tests {
         assert!(!ptr.is_null());
         unsafe { pd_string_free(ptr) };
     }
+
+    // `pd_schedule_dag_json` had zero coverage through the actual C-ABI
+    // marshaling before this — `schedule.rs`'s own tests call the pure
+    // function directly, never crossing the FFI boundary this export exists
+    // to prove. These use `call_export` like the keystore tests above.
+    #[test]
+    fn ffi_schedule_linear_chain_matches_pure_function() {
+        let req = json!({
+            "nodes": [{"id":"a","estimate":2},{"id":"b","estimate":3},{"id":"c","estimate":1}],
+            "edges": [{"from":"a","to":"b"},{"from":"b","to":"c"}]
+        })
+        .to_string();
+        let resp: serde_json::Value =
+            serde_json::from_str(&call_export(pd_schedule_dag_json, &req)).unwrap();
+        assert_eq!(resp["ok"], true);
+        assert_eq!(resp["makespan"], 6);
+        assert_eq!(
+            resp["criticalPath"],
+            serde_json::json!(["a", "b", "c"])
+        );
+    }
+
+    #[test]
+    fn ffi_schedule_cycle_fails_closed_over_the_boundary() {
+        let req = json!({
+            "nodes": [{"id":"a","estimate":1},{"id":"b","estimate":1}],
+            "edges": [{"from":"a","to":"b"},{"from":"b","to":"a"}]
+        })
+        .to_string();
+        let resp: serde_json::Value =
+            serde_json::from_str(&call_export(pd_schedule_dag_json, &req)).unwrap();
+        assert_eq!(resp["ok"], false);
+        assert_eq!(resp["cyclic"], true);
+    }
+
+    #[test]
+    fn ffi_schedule_malformed_input_fails_closed_not_panics() {
+        for bad in ["", "not json", "{\"nodes\":1}"] {
+            let c = CString::new(bad).unwrap();
+            let ptr = unsafe { pd_schedule_dag_json(c.as_ptr(), bad.len()) };
+            assert!(!ptr.is_null(), "input {bad:?} should still yield a response, not null");
+            let out = unsafe { std::ffi::CStr::from_ptr(ptr) }.to_str().unwrap().to_string();
+            unsafe { pd_string_free(ptr) };
+            let resp: serde_json::Value = serde_json::from_str(&out).unwrap();
+            assert_eq!(resp["ok"], false, "input {bad:?} should fail closed");
+        }
+        let ptr = unsafe { pd_schedule_dag_json(std::ptr::null(), 0) };
+        assert!(!ptr.is_null());
+        unsafe { pd_string_free(ptr) };
+    }
 }

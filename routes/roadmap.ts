@@ -25,7 +25,7 @@ import type { RoadmapPromote, PromoteFromFeedbackInput } from '../lib/roadmap-pr
 import { renderNextCutsMarkdown, applyRoadmapMarkdown } from '../lib/roadmap-render.js';
 import { importMarkdownRoadmap } from '../lib/roadmap-import.js';
 import { derivePlan, type MigrationItem } from '../lib/planner-migrate.js';
-import { schedule } from '../lib/planner-schedule.js';
+import { scheduleDagPreferKernel as schedule } from '../lib/planner-schedule-ffi.js';
 import { renderBoard, type AdrMeta } from '../lib/planner-board.js';
 import { parseAdrIdentity } from '../lib/adr-matrix.js';
 import { renderMarkdown } from '../lib/mini-markdown.js';
