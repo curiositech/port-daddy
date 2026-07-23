@@ -35,7 +35,32 @@ const ERROR_LOG_PATH: string = join(__dirname, 'port-daddy-error.log');
 // ~/coding/port-daddy/dist, useless"). The `dist/core` and source-tree
 // `target/release` paths remain dev fallbacks only. `resolveBosunBinaryPath`
 // mirrors this order in shared code consumed by `pd doctor`.
-const BOSUN_BINARY_PATH: string = resolveBosunBinaryPath(__dirname);
+// Prefer the version-STABLE Homebrew symlink `<prefix>/bin/pd-bosun` over a versioned Cellar keg
+// path. `resolveBosunBinaryPath` resolves to the *current* keg (e.g. .../3.26.2_2/bin/pd-bosun),
+// which the NEXT `brew upgrade` deletes — leaving the launchd watchdog's ExecStart pointing at a
+// dead keg (spawn fails with EX_CONFIG, so a crashing daemon no longer auto-restarts) until
+// someone re-runs `install-bosun` by hand. The `<prefix>/bin/pd-bosun` symlink is repointed by
+// brew on every upgrade, so a plist that references it stays valid across upgrades. Derived from
+// process.execPath: the running `port-daddy` lives at `<prefix>/bin/port-daddy` (symlink) or
+// `<prefix>/Cellar/port-daddy/<ver>/bin/port-daddy` (keg, e.g. when brew's post_install invokes it).
+// Pure derivation (exported for tests): given the running binary's execPath, return the
+// version-stable `<prefix>/bin/pd-bosun` symlink path if it exists, else null. Injectable
+// `exists` keeps it filesystem-free to test both the brew-keg and brew-symlink invocations.
+export function stableBosunPathFromExec(execPath: string, exists: (p: string) => boolean): string | null {
+  const cellar: number = execPath.indexOf('/Cellar/port-daddy/');
+  const stable: string = cellar >= 0
+    ? join(execPath.slice(0, cellar), 'bin', 'pd-bosun') // <prefix>/Cellar/port-daddy/<ver>/bin/pd → <prefix>/bin/pd-bosun
+    : join(dirname(execPath), 'pd-bosun');               // <prefix>/bin/pd (symlink) → <prefix>/bin/pd-bosun
+  return exists(stable) ? stable : null;
+}
+function resolveStableBosunBinaryPath(): string {
+  try {
+    return stableBosunPathFromExec(process.execPath, existsSync) ?? resolveBosunBinaryPath(__dirname);
+  } catch {
+    return resolveBosunBinaryPath(__dirname);
+  }
+}
+const BOSUN_BINARY_PATH: string = resolveStableBosunBinaryPath();
 const BOSUN_LOG_PATH: string = join(__dirname, 'pd-bosun.log');
 const BOSUN_ERROR_LOG_PATH: string = join(__dirname, 'pd-bosun-error.log');
 const DARWIN_OPERATOR_TOOL_PATHS = [
