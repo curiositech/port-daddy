@@ -37,7 +37,7 @@ import { renderNextCutsMarkdown, applyRoadmapMarkdown } from '../lib/roadmap-ren
 import { importMarkdownRoadmap, chompRoadmap, type ChompEnrichOptions } from '../lib/roadmap-chomp.js';
 import { resolveLLMBackend } from '../lib/llm-backend-resolver.js';
 import { derivePlan, type MigrationItem } from '../lib/planner-migrate.js';
-import { schedule } from '../lib/planner-schedule.js';
+import { scheduleDagPreferKernel as schedule } from '../lib/planner-schedule-ffi.js';
 import { renderBoard, type AdrMeta } from '../lib/planner-board.js';
 import {
   writePlanEdges,

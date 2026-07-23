@@ -72,8 +72,81 @@ fn dur(n: &SchedNode) -> i64 {
     }
 }
 
-/// Critical Path Method over a dependency DAG. Pure and deterministic (id-ordered).
-/// Fails closed: duplicate ids, edges to unknown nodes, and cycles all return `ok:false`.
+/// Critical Path Method over a dependency DAG.
+///
+/// CPM is the classic project-scheduling algorithm: given a set of tasks with
+/// durations and a "must finish before" dependency graph, find (a) the
+/// earliest every task *could* start/finish, (b) the latest it *could*
+/// start/finish without delaying the whole project, and (c) which tasks have
+/// zero slack — the **critical path**, the chain that actually determines the
+/// project's total duration (the "makespan"). Slip a critical-path task and
+/// the whole project slips; slip a task with slack and nothing downstream
+/// notices.
+///
+/// The algorithm is two topological passes over the DAG:
+/// 1. **Forward pass** (earliest start/finish): walk tasks in dependency
+///    order; a task's earliest start is the latest of its predecessors'
+///    earliest finishes (it can't begin until everything it depends on is
+///    done). The makespan is the latest earliest-finish across all tasks.
+/// 2. **Backward pass** (latest start/finish): walk tasks in *reverse*
+///    dependency order, anchored at the makespan; a task's latest finish is
+///    the earliest of its successors' latest starts (it must finish in time
+///    for whatever depends on it). `slack = latestStart - earliestStart`; a
+///    task is critical iff `slack == 0`.
+///
+/// Pure and deterministic: every internal traversal is ordered by node id
+/// (`BTreeMap`/`BTreeSet`), so the same graph always produces byte-identical
+/// output — this is what lets `lib/planner-schedule.ts` (the TS byte-parity
+/// fallback) and this Rust implementation agree exactly, locked by
+/// `tests/parity_schedule.rs`.
+///
+/// **Fails closed**, never panics on bad input: a duplicate node id, an edge
+/// referencing an unknown node, or a cycle in the dependency graph all return
+/// `ScheduleResult { ok: false, .. }` with a human-readable `reason` — never
+/// a crash, never a wrong answer presented as a right one.
+///
+/// # Examples
+///
+/// A three-task linear chain — everything is on the critical path, since
+/// there's no parallelism to create slack:
+///
+/// ```
+/// use pd_anchor::schedule::{schedule, SchedNode, SchedEdge};
+///
+/// let nodes = vec![
+///     SchedNode { id: "design".into(), estimate: Some(2) },
+///     SchedNode { id: "build".into(), estimate: Some(3) },
+///     SchedNode { id: "ship".into(), estimate: Some(1) },
+/// ];
+/// let edges = vec![
+///     SchedEdge { from: "design".into(), to: "build".into() },
+///     SchedEdge { from: "build".into(), to: "ship".into() },
+/// ];
+///
+/// let result = schedule(&nodes, &edges);
+/// assert!(result.ok);
+/// assert_eq!(result.makespan, 6); // 2 + 3 + 1, no parallelism possible
+/// assert_eq!(result.critical_path, vec!["design", "build", "ship"]);
+/// ```
+///
+/// A cycle is rejected, not silently mis-scheduled:
+///
+/// ```
+/// use pd_anchor::schedule::{schedule, SchedNode, SchedEdge};
+///
+/// let nodes = vec![
+///     SchedNode { id: "a".into(), estimate: Some(1) },
+///     SchedNode { id: "b".into(), estimate: Some(1) },
+/// ];
+/// let edges = vec![
+///     SchedEdge { from: "a".into(), to: "b".into() },
+///     SchedEdge { from: "b".into(), to: "a".into() }, // cycle!
+/// ];
+///
+/// let result = schedule(&nodes, &edges);
+/// assert!(!result.ok);
+/// assert!(result.cyclic);
+/// ```
 pub fn schedule(nodes: &[SchedNode], edges: &[SchedEdge]) -> ScheduleResult {
     // Index nodes; reject duplicates.
     let mut by_id: BTreeMap<String, &SchedNode> = BTreeMap::new();
