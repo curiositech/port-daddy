@@ -1,0 +1,13 @@
+{
+  "artifact": "proof.png",
+  "sourceLabel": "real headless Vello render — Metal backend, no window, no compositor, no Screen-Recording (TCC) permission",
+  "capturedBy": "agent (this repo's harbor-editor-state-machine-viz-proto sortie)",
+  "captureCommand": "cargo run --release -- --png <out.png>  (PD_SMV_RENDER_PNG=<out.png> also works)",
+  "adapter": "Metal AdapterInfo { name: \"Apple M4 Max\", device_type: IntegratedGpu, backend: Metal }",
+  "renderDimensions": { "width": 2400, "height": 1000, "colorType": "RGBA8" },
+  "distinctColorsObserved": 2094,
+  "graphSource": "fixtures/runtime-state.sample.json (baked fixture — see honest-gap note below)",
+  "playheadFrac": 1.0,
+  "honestGap": "runtime-state.json is a fixture invented for this proto; no editor flow or daemon route emits this schema yet. The ReviewState machine itself (10 states, 21 transitions) is NOT invented — it is a 1:1 port of lib/dispatch/state-machine.ts + lib/dispatch/queue.ts's DispatchState union, which is what core/pd-console/src/dispatch_pane.rs and conductor_pane.rs already render as strings.",
+  "verification": "tests/self_capture.rs (`cargo test --release -- --ignored self_capture`) drives the compiled binary as a subprocess, renders the same fixture headlessly, and asserts the PNG exists, decodes to the expected dimensions, and has more than one distinct pixel color. Must be --release: fontique's CoreText font enumeration (objc2-foundation 0.2.2's Swift-bridged NSFastEnumeration shim) panics in debug builds with an ABI-width mismatch unrelated to this crate's own code — a genuine upstream quirk, documented in the test's doc comment."
+}

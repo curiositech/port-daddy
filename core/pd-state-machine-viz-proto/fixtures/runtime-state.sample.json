@@ -1,0 +1,13 @@
+{
+  "dispatchId": "d-9f2c1a-sample",
+  "goal": "harbor-editor-state-machine-viz: proto P0-P2",
+  "events": [
+    { "to": "proposed", "tMs": 0 },
+    { "from": "proposed", "to": "claimed", "tMs": 1200 },
+    { "from": "claimed", "to": "in_progress", "tMs": 1850 },
+    { "from": "in_progress", "to": "produced", "tMs": 41200 },
+    { "from": "produced", "to": "review_pending", "tMs": 41500 },
+    { "from": "review_pending", "to": "accepted", "tMs": 96300 },
+    { "from": "accepted", "to": "settled", "tMs": 97100 }
+  ]
+}

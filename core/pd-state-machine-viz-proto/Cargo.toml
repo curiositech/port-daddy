@@ -1,0 +1,50 @@
+# Empty [workspace] table makes this crate its OWN workspace root with its own
+# Cargo.lock, mirroring pd-timeline-proto (see core/Cargo.toml's `exclude` list
+# and that crate's Cargo.toml for the rationale): without it, cargo folds this
+# GPU-heavy crate into the parent `core/` workspace resolution and churns
+# core/Cargo.lock with ~520 wgpu/vello/winit packages on the Linux CI diff.
+[workspace]
+
+[package]
+name = "pd-state-machine-viz-proto"
+version = "0.1.0"
+edition = "2021"
+description = "harbor-editor-state-machine-viz P0-P2: a headless-self-capturing Vello/wgpu surface rendering the real dispatch review state machine (lib/dispatch/state-machine.ts). Pure model+layout are unit-tested with no GPU; render_png is a single-frame headless capture proving the surface actually draws. NOT wired into pd-console or the daemon."
+license = "MIT"
+publish = false
+
+# Intentionally EXCLUDED from the core/ workspace (see core/Cargo.toml) for the
+# same reason as pd-timeline-proto: heavy macOS-centric GPU deps (wgpu/Metal,
+# Vello, Parley) must stay out of the Linux `rust-console` CI job. Build it
+# explicitly:
+#   cd core/pd-state-machine-viz-proto && cargo test    # P0 model tests, no GPU
+#   cd core/pd-state-machine-viz-proto && cargo run --release -- --png out.png
+
+[lib]
+name = "pd_state_machine_viz_proto"
+path = "src/lib.rs"
+
+[[bin]]
+name = "pd-state-machine-viz-proto"
+path = "src/main.rs"
+
+[dependencies]
+# GPU vector renderer (compute-based path rendering on wgpu). Pinned to match
+# pd-timeline-proto exactly (version-lockstep — see vello-parley-rendering skill).
+vello = "0.3"
+wgpu = "22"
+parley = "0.2"
+peniko = "0.2"
+kurbo = "0.11"
+pollster = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+env_logger = "0.11"
+log = "0.4"
+# PNG encoding for the headless self-capture harness (P2) — replaces
+# pd-timeline-proto's ffmpeg pipe since this is a single still frame, not video.
+png = "0.17"
+
+[dev-dependencies]
+tempfile = "3"
