@@ -1965,11 +1965,9 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
         const svcList = (servicesData.services || []) as Array<{ pid?: number }>;
         for (const svc of svcList) {
           if (svc.pid) {
-            try {
-              process.kill(svc.pid, 0);
-            } catch {
-              staleCount++;
-            }
+            // Use isPidAlive (EPERM = alive-but-other-owner), not a bare process.kill —
+            // a live service owned by another uid must not be miscounted as "stale".
+            if (!isPidAlive(svc.pid)) staleCount++;
           }
         }
 
@@ -2043,7 +2041,10 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
         `Active registry is ${activeDb}; consolidate or remove the stale copies`);
     }
   } catch (err: unknown) {
-    check('DB fragmentation', true, `Could not check (skipped): ${(err as Error).message}`);
+    // "Could not check" is UNKNOWN, never healthy — a permissions failure on PD_HOME
+    // must not read as a green "no fragmentation".
+    warn('DB fragmentation', `Could not check registry fragmentation: ${(err as Error).message}`,
+      'Check read permissions on the Port Daddy home directory');
   }
 
   // -------------------------------------------------------------------------
@@ -2076,8 +2077,9 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
       if (isNaN(pid)) {
         check('PID file', false, `${pidFilePath} contains invalid PID: "${pidStr}"`, `Remove: rm ${pidFilePath}`);
       } else {
-        let processAlive = false;
-        try { process.kill(pid, 0); processAlive = true; } catch { /* not running */ }
+        // isPidAlive treats EPERM as alive — a live daemon PID owned by another uid must
+        // not be reported "stale" with advice to delete a running daemon's pidfile.
+        const processAlive = isPidAlive(pid);
         check('PID file', processAlive, processAlive ? `PID ${pid} is running` : `PID ${pid} is not running (stale)`,
           processAlive ? undefined : `Remove: rm ${pidFilePath}`);
       }
@@ -2103,8 +2105,10 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     } else {
       check('Stuck lsof processes', true, `${lsofCount} lsof process(es) running`);
     }
-  } catch {
-    check('Stuck lsof processes', true, 'Could not check (skipped)');
+  } catch (err: unknown) {
+    // A failed probe is unknown, not clean — don't report ✓ when we never looked.
+    warn('Stuck lsof processes', `Could not check for stuck lsof processes: ${(err as Error).message}`,
+      'The ps/grep probe failed; check manually with `ps aux | grep lsof`');
   }
 
   // -------------------------------------------------------------------------
@@ -2178,7 +2182,9 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
       );
     }
   } catch (err: unknown) {
-    check('Shell-idiom .env.local', true, `Could not check (skipped): ${(err as Error).message}`);
+    // Unknown, not clean — a read failure here must not read as "no mute-pd trap present".
+    warn('Shell-idiom .env.local', `Could not scan the current directory for a bun-crashing .env.local: ${(err as Error).message}`,
+      'Check read permissions on the current directory');
   }
 
   // -------------------------------------------------------------------------
