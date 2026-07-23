@@ -68,6 +68,7 @@ const TOKENS = `
   --hair:rgba(18,18,18,.14);--hair-strong:rgba(18,18,18,.34);--border-strong:#121212;
   --surface-card:#e9e2d5;--on-accent:#fbf7ef;}
 :root{--cobalt-slab:#003fb8;--gold-slab:#666a00;--lime:#cad900;--cream:#fbf7ef;--ink:#17191d;
+  --rust-slab:#7a4514;--flag-white:#fbf7ef;
   --lw-weight:1.5px;--lw-stripe:3px;}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --surface-base:#101216;--surface-raised:#181c22;--surface-strong:#222833;
@@ -108,10 +109,35 @@ ${TOKENS}
 .sh-status{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:500;color:var(--text-muted)}
 .sh-status b{color:var(--health);font-weight:700}
 .page{max-width:1240px;margin:0 auto;padding:0 40px}
-.split{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:56px;padding:36px 0 88px;align-items:start}
-.hero-eyebrow{color:var(--cobalt);margin-bottom:14px;display:block}
+.split{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:56px;padding:30px 0 88px;align-items:start}
+/* slug hoist — the route spelled in ICS signal flags, over the cobalt slab */
+.slug-hoist{display:flex;gap:7px;align-items:center;padding:22px 0 0;position:relative;z-index:1}
+.slug-hoist .route{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--flag-white);margin-right:8px}
+.fl{display:inline-block;width:26px;height:19px;border:1px solid var(--hair-strong);--fw:var(--flag-white);--c:var(--cobalt-slab);--r:var(--rust-slab);--y:var(--lime)}
+.fl-lima{background:conic-gradient(var(--ink) 0 25%,var(--y) 25% 50%,var(--ink) 50% 75%,var(--y) 75%)}
+.fl-oscar{background:linear-gradient(to top right,var(--r) 0 50%,var(--y) 50%)}
+.fl-golf{background:repeating-linear-gradient(to right,var(--y) 0 16.667%,var(--c) 16.667% 33.333%)}
+.fl-india{background:radial-gradient(circle at 50% 50%,var(--ink) 0 30%,transparent calc(30% + 0.5px)),var(--y)}
+.fl-november{background:repeating-conic-gradient(var(--c) 0 25%,var(--fw) 25% 50%) top left/50% 50%}
+/* the cobalt knockout slab (rule 4): a Vignelli block bleeds off the left edge
+   and passes through the headline; glyphs flip to cream at the block edge, and
+   the slab rises to sit behind the slug-hoist + eyebrow. */
+.ko{position:relative;z-index:0}
+.ko::before{content:"";position:absolute;z-index:-1;left:-100vw;right:calc(100% - var(--ko-r));top:calc(-1 * var(--ko-up,500px));bottom:calc(100% - var(--ko-b));background:var(--cobalt-slab)}
+.ko .ko-over{position:absolute;inset:0;color:var(--flag-white);pointer-events:none;clip-path:inset(calc(-1 * var(--ko-up,500px)) calc(100% - var(--ko-r)) calc(100% - var(--ko-b)) -100vw)}
+.ko .ko-over .accent{color:var(--flag-white)!important}
+.hero-eyebrow{position:relative;z-index:1;color:var(--flag-white);margin-bottom:14px;display:block}
 h1.hero{font-size:clamp(40px,5vw,64px);font-weight:700;line-height:1.02;letter-spacing:-.035em;max-width:15ch;margin-bottom:34px}
 h1.hero .accent{color:var(--cobalt)}
+/* QUEBEC — "I request free pratique": the big flag holding the pairing masthead */
+.pair{margin-top:22px;border:2px solid var(--border-strong)}
+.pair-mast{background:var(--lime);color:var(--ink);min-height:132px;padding:18px 22px 16px;display:flex;flex-direction:column;justify-content:flex-end;gap:8px}
+.pair-mast .flag-name{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--ink)}
+.pair-mast h3{font-size:20px;font-weight:700;letter-spacing:-.015em;line-height:1.15}
+.pair-body{padding:18px 22px 20px;background:var(--surface-card)}
+.pair-body .soon-label{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);border:1px solid var(--hair-strong);padding:3px 9px;margin-bottom:10px}
+.pair-body p{font-size:14px;color:var(--text-secondary);line-height:1.6}
+.pair-body .cmd{font-family:"IBM Plex Mono",monospace;font-size:13.5px;color:var(--teal);font-weight:600}
 .honesty{background:var(--surface-card);border:1px solid var(--hair);padding:20px 22px;max-width:40rem;box-shadow:inset 3px 0 0 var(--teal)}
 .honesty .h-label{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--teal);margin-bottom:8px}
 .honesty p{font-size:16.5px;line-height:1.62;color:var(--text-primary)}
@@ -158,8 +184,12 @@ export function renderLoginPage(): string {
 <main class="page">
   <section class="split">
     <div aria-labelledby="headline">
+      <div class="slug-hoist" aria-label="/login spelled in signal flags">
+        <span class="route">/login</span>
+        <i class="fl fl-lima" title="L" aria-hidden="true"></i><i class="fl fl-oscar" title="O" aria-hidden="true"></i><i class="fl fl-golf" title="G" aria-hidden="true"></i><i class="fl fl-india" title="I" aria-hidden="true"></i><i class="fl fl-november" title="N" aria-hidden="true"></i>
+      </div>
       <span class="eyebrow hero-eyebrow">Port Daddy / Accounts</span>
-      <h1 id="headline" class="hero">Sign in to the <span class="accent rec">control plane.</span></h1>
+      <h1 id="headline" class="hero ko" style="--ko-r:340px;--ko-b:100%;">Sign in to the <span class="accent rec">control plane.</span><span class="ko-over" aria-hidden="true">Sign in to the <span class="accent rec">control plane.</span></span></h1>
       <div class="honesty">
         <p class="h-label">Local-first</p>
         <p>Port Daddy works without an account. Your daemon, agents, and transcripts stay on your machine. An account adds what only a server can: <strong>signed downloads, device pairing, receipts you can share, team harbors.</strong></p>
@@ -177,9 +207,15 @@ export function renderLoginPage(): string {
         <div class="door-body">
           <a class="btn btn-primary" href="/auth/github/login">Continue with GitHub</a>
           <span class="sub-caption">OIDC — 1-hour session, httponly</span>
-          <div class="soon">
-            <span class="soon-label">Coming soon</span>
-            <p>Magic-link email and 4-digit browser↔daemon pairing (the code appears in FleetBar → <span class="cmd">Pair this device</span>, or <span class="cmd">pd account pair</span>). GitHub is the only live path today.</p>
+          <div class="pair">
+            <div class="pair-mast" title="Quebec — I request free pratique; permission to enter">
+              <span class="flag-name">Quebec — I request free pratique</span>
+              <h3>Pair this browser to a daemon</h3>
+            </div>
+            <div class="pair-body">
+              <span class="soon-label">Coming soon</span>
+              <p>A 4-digit code will appear on both screens — in FleetBar → <span class="cmd">Pair this device</span>, or <span class="cmd">pd account pair</span>. Magic-link email too. GitHub is the only live path today.</p>
+            </div>
           </div>
         </div>
         <div class="door-foot">
@@ -240,9 +276,18 @@ section.sect::before{content:"";position:absolute;top:0;left:0;right:0;height:va
 .empty .e-title{font-weight:700;font-size:16px}
 .empty p{font-size:14.5px;color:var(--text-secondary);line-height:1.6;margin-top:6px;max-width:64ch}
 .empty .cmd{font-family:"IBM Plex Mono",monospace;font-size:13.5px;color:var(--teal);font-weight:600}
-.zone-mast{margin-bottom:20px}
-.zone-mast h2{font-size:26px;font-weight:700;line-height:1.15;display:inline-block;background:var(--cobalt-slab);color:var(--cream);padding:6px 14px}
-.zone-mast .caption{display:block;margin-top:16px;max-width:62ch}
+/* KILO — "I wish to communicate with you": the Devices pairing flag (rule 7) */
+.flag-kilo{display:inline-block;width:28px;height:20px;flex:none;border:1px solid var(--hair-strong);align-self:center;background:linear-gradient(to right,var(--lime) 0 50%,var(--cobalt-slab) 50% 100%)}
+.flag-title{display:flex;align-items:center;gap:12px}
+.flag-mean{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted)}
+/* Receipts — the page's one color zone: a cobalt-slab masthead whose glyphs
+   flip to cream at the block edge (knockout). */
+.zone-mast{margin-bottom:24px}
+.zone-mast h2{font-size:26px;font-weight:700;line-height:1.15}
+.ko{position:relative;z-index:0;display:inline-block;--ko-r:64%}
+.ko::before{content:"";position:absolute;z-index:-1;left:-56px;right:calc(100% - var(--ko-r));top:-13px;bottom:-13px;background:var(--cobalt-slab)}
+.ko .ko-over{position:absolute;inset:0;color:var(--cream);pointer-events:none;clip-path:inset(-13px calc(100% - var(--ko-r)) -13px -56px)}
+.zone-mast .caption{display:block;margin-top:20px;max-width:62ch}
 .danger{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .btn-ghost{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:13.5px;font-weight:700;letter-spacing:.04em;padding:9px 17px;border:1px solid var(--hair-strong);color:var(--text-primary);background:transparent;text-decoration:none;cursor:pointer}
 .btn-ghost:hover{border-color:var(--border-strong)}
@@ -250,7 +295,7 @@ section.sect::before{content:"";position:absolute;top:0;left:0;right:0;height:va
 .btn-delete:hover{background:var(--error);color:var(--surface-base)}
 .danger .caption{flex-basis:100%;max-width:66ch}
 .inline-form{display:inline}
-@media (max-width:860px){.shell{grid-template-columns:1fr}.rail{position:static;min-height:0;border-right:none;border-bottom:2px solid var(--border-strong);padding-bottom:18px}.content{padding:28px 20px 64px}.identity-plate{flex-direction:column}}
+@media (max-width:860px){.shell{grid-template-columns:1fr}.rail{position:static;min-height:0;border-right:none;border-bottom:2px solid var(--border-strong);padding-bottom:18px}.content{padding:28px 20px 64px}.identity-plate{flex-direction:column}.ko::before{left:-20px}.ko .ko-over{clip-path:inset(-13px calc(100% - var(--ko-r)) -13px -20px)}}
 `;
 
 /** GET /account — the signed-in home. `user` is the resolved session's user. */
@@ -310,7 +355,13 @@ export function renderAccountPage(user: UserRow): string {
     </section>
 
     <section class="sect" id="devices" aria-labelledby="devices-h">
-      <div class="sect-head"><div><span class="eyebrow">Devices</span><h2 id="devices-h">Paired devices</h2></div></div>
+      <div class="sect-head">
+        <div class="flag-title">
+          <i class="flag-kilo" role="img" aria-label="Kilo signal flag: I wish to communicate with you"></i>
+          <div><span class="eyebrow">Devices</span><h2 id="devices-h">Paired devices</h2></div>
+        </div>
+        <span class="flag-mean">Kilo — I wish to communicate with you</span>
+      </div>
       <div class="empty">
         <div class="e-title">No devices paired yet.</div>
         <p>Pair FleetBar or pd-console to approve gates and see fleets from this account. Pairing shows the same 4-digit code on both screens — <span class="cmd">pd account pair</span> (device-flow login lands here next).</p>
@@ -318,7 +369,8 @@ export function renderAccountPage(user: UserRow): string {
     </section>
 
     <section class="sect" id="receipts" aria-labelledby="receipts-h">
-      <div class="zone-mast"><h2 id="receipts-h">Receipts — verifiable, not promised</h2>
+      <div class="zone-mast">
+        <h2 id="receipts-h" class="ko">Receipts — <span class="rec">verifiable</span>, not promised<span class="ko-over" aria-hidden="true">Receipts — <span class="rec">verifiable</span>, not promised</span></h2>
         <span class="caption">The Strava-map of code work: agents, commits, cost, duration — never your code. Anyone with the scoped link sees the proof.</span></div>
       <div class="empty">
         <div class="e-title">No receipts linked to your account yet.</div>

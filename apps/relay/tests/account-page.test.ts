@@ -52,6 +52,13 @@ describe('renderLoginPage', () => {
     expect(html).toContain('#003fb8'); // cobalt storefront accent
     expect(html).toContain('Local-first');
   });
+  it('keeps the signature color-blocking + signal flags', () => {
+    expect(html).toContain('hero ko'); // cobalt knockout slab on the headline
+    expect(html).toContain('ko-over'); // cream knockout overlay
+    expect(html).toContain('slug-hoist'); // /login spelled in flags
+    expect(html).toContain('fl-lima'); // ICS flag glyphs
+    expect(html).toContain('Quebec — I request free pratique'); // QUEBEC pairing masthead
+  });
 });
 
 describe('renderAccountPage', () => {
@@ -78,6 +85,13 @@ describe('renderAccountPage', () => {
     expect(html).not.toContain('MacBook Pro M4'); // mockup's fake device
     expect(html).not.toContain('01JZC8KQ4M'); // mockup's fake receipt id
     expect(html).toContain('No devices paired yet'); // empty-state teaches instead
+  });
+  it('keeps the signature color-blocking + Kilo flag', () => {
+    const html = renderAccountPage(baseUser);
+    expect(html).toContain('flag-kilo'); // KILO devices pairing flag
+    expect(html).toContain('Kilo — I wish to communicate with you');
+    expect(html).toContain('class="ko"'); // Receipts cobalt knockout slab
+    expect(html).toContain('ko-over');
   });
   it('HTML-escapes user data (XSS guard)', () => {
     const html = renderAccountPage({
