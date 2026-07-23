@@ -2,7 +2,7 @@
   "generatedAt": 1784417300739,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 232,
+  "count": 233,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -843,6 +843,11 @@
       "slug": "harbor-editor",
       "status": "now",
       "summaryMd": "Harbor Editor — cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
+    },
+    {
+      "slug": "harbor-editor-state-machine-viz",
+      "status": "now",
+      "summaryMd": "Harbor Editor state-machine-viz proto: standalone headless-self-capturing Vello/wgpu surface rendering the dispatch review state machine (10-state FSM ported 1:1 from lib/dispatch/state-machine.ts + queue.ts). P0 pure model + layout (TDD), P1 Vello scene (reuses pd-timeline-proto's glyph pipeline), P2 self-capture harness (render_png — surfaceless device, PNG encode, no winit/TCC). First agent-self-verifiable visual surface in the repo."
     },
     {
       "slug": "harbor-replicaid-agent-branch-clock",
