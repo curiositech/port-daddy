@@ -28,7 +28,7 @@ required-features = ["gpui"]
 # Pulls in the GPU shell. Off by default so the lib + repl compile fast on Linux.
 # `gpui` also pulls in `rodio` for the procedural UI sound layer (macOS CoreAudio),
 # so the headless repl + Linux CI never compile an audio backend.
-gpui = ["dep:gpui", "dep:rodio", "dep:portable-pty", "dep:vt100"]
+gpui = ["dep:gpui", "dep:gpui_platform", "dep:rodio", "dep:portable-pty", "dep:vt100"]
 
 [dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util", "sync", "time"] }
@@ -38,7 +38,10 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 dirs = "5"
 anyhow = "1"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
-gpui = { version = "0.2.2", optional = true }
+gpui = { git = "https://github.com/zed-industries/zed", rev = "7cdf2ae6b62c699670d6dcb04b9c7ffd06a35f1a", optional = true, features = ["test-support"] }
+# GPUI's platform split ("GPUI on the web", 2026): the real-platform constructors
+# (`application()`, `current_platform`, `current_headless_renderer`) live here now.
+gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "7cdf2ae6b62c699670d6dcb04b9c7ffd06a35f1a", optional = true, features = ["test-support"] }
 # Procedural UI sound — synthesized in-process (no audio assets shipped). Gated
 # behind `gpui`; `default-features = false` drops the MP3/Vorbis/FLAC decoders we
 # never use, keeping the build lean (we only synth raw f32 sample buffers).

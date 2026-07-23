@@ -359,7 +359,7 @@ fn main() {
     let display_selector = cli_args.display_selector.clone();
     let list_displays = cli_args.list_displays;
 
-    Application::new()
+    gpui_platform::application()
         .with_assets(FsAssets::locate())
         .run(move |cx: &mut App| {
         let daemon_url = daemon_url.clone();
@@ -369,7 +369,7 @@ fn main() {
         if list_displays {
             println!("pd-console: {} display(s)", displays.len());
             for (i, d) in displays.iter().enumerate() {
-                let id: u32 = d.id().into();
+                let id: u64 = d.id().into();
                 let uuid = d.uuid().map(|u| u.to_string()).unwrap_or_else(|_| "<none>".into());
                 let b = d.bounds();
                 println!(
@@ -454,7 +454,7 @@ fn main() {
                     // Focus the view so keyboard nav (1-9, s/m/p/h/c/d) works
                     // immediately, without a click to grab focus first.
                     let fh = view.read(cx).focus_handle(cx);
-                    window.focus(&fh);
+                    window.focus(&fh, cx);
                     view
                 },
             )

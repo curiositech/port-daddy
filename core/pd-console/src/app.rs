@@ -885,6 +885,7 @@ pub(crate) mod motion {
             offset: point(px(0.0), px(0.0)),
             blur_radius: px(blur),
             spread_radius: px(spread),
+            inset: false,
         }]
     }
 
@@ -896,6 +897,7 @@ pub(crate) mod motion {
             offset: point(px(dx), px(dy)),
             blur_radius: px(0.0),
             spread_radius: px(0.0),
+            inset: false,
         }]
     }
 }
@@ -1116,7 +1118,7 @@ fn render_code_buffer(
     )
     .size_full();
     let list = match scroll {
-        Some(handle) => list.track_scroll(handle),
+        Some(handle) => list.track_scroll(&handle),
         None => list,
     };
     div()
@@ -3600,8 +3602,8 @@ impl ConsoleView {
                     container = container.child(
                         div()
                             .flex_basis(relative(frac))
-                            .flex_grow()
-                            .flex_shrink()
+                            .flex_grow(1.0)
+                            .flex_shrink(1.0)
                             .overflow_hidden()
                             .child(self.render_node(&child.node, focused, &child_path, cx)),
                     );
@@ -6514,6 +6516,7 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
             offset: point(px(0.0), px(-10.0)),
             blur_radius: px(28.0),
             spread_radius: px(1.0),
+            inset: false,
         }])
         // One large color zone: command context. The rest of the terminal stays
         // quiet enough that state stripes and actual ANSI output can speak.
