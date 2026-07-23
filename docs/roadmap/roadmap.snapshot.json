@@ -2,7 +2,7 @@
   "generatedAt": 1784417300739,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 231,
+  "count": 232,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -1158,6 +1158,11 @@
       "slug": "workintent-dispatch-isolation",
       "status": "backlog",
       "summaryMd": "fix(dispatch): isolate WorkIntent worktrees"
+    },
+    {
+      "slug": "pr2596-qa-gap-fixes",
+      "status": "now",
+      "summaryMd": "fix(wiring): close PR #2596 pd-qa gaps — onSessionEnd wiring test + capsule validation. Adds a test proving Custodian.onSessionEnd is actually wired at the real call site, plus hardens normalizeSelfSalvage so a malformed/forged self-salvage capsule (undefined, wrong-typed fields, invalid enum, forged identityProject) never crashes onAgentDead and never reaches the resurrection queue unsanitized. Shipped as PR #3141."
     }
   ]
 }
