@@ -181,7 +181,16 @@ jobs:
         # dist/core/pd-bosun, then core/pd-bosun/... — the extracted `core/`
         # dir satisfies the daemon-relative fallback). Without this the tarball
         # had no watchdog and the KeepAlive supervisor job was silently skipped.
-        run: cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json pd-bosun
+        #
+        # Also ship native/ — scripts/build-single-binary.mjs packages
+        # onnxruntime-node's runtime library (libonnxruntime.*.dylib /
+        # libonnxruntime.so.1) there. bun build --compile extracts the .node
+        # N-API binding at runtime but not its @rpath-linked sibling library;
+        # lib/semantic-resolver.ts points DYLD_FALLBACK_LIBRARY_PATH /
+        # LD_LIBRARY_PATH at this directory before the embedding model loads.
+        # Without it every daemon boot fails semantic resolution with
+        # "Library not loaded: @rpath/libonnxruntime.*.dylib".
+        run: cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json pd-bosun native
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2

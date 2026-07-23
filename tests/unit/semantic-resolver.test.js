@@ -1,7 +1,10 @@
 import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createTestDb } from '../setup-unit.js';
 import { createGraphEdges } from '../../lib/graph-edges.js';
-import { createSemanticResolver } from '../../lib/semantic-resolver.js';
+import { createSemanticResolver, ensureOnnxRuntimeNativeLibFindable } from '../../lib/semantic-resolver.js';
 
 function unitVector(components) {
   const magnitude = Math.sqrt(components.reduce((total, value) => total + (value * value), 0));
@@ -209,5 +212,65 @@ describe('semantic resolver', () => {
     expect(stats.reviewBacklog).toBe(0);
     expect(stats.rejectedOverrides).toBeGreaterThanOrEqual(2);
     expect(tupleWrites.some((entry) => entry.fields[0] === 'semantic:review')).toBe(true);
+  });
+});
+
+describe('ensureOnnxRuntimeNativeLibFindable', () => {
+  const fallbackVar = process.platform === 'darwin' ? 'DYLD_FALLBACK_LIBRARY_PATH' : 'LD_LIBRARY_PATH';
+  let scratchDir;
+  let originalCwd;
+  let savedResourceDir;
+  let savedFallbackVar;
+
+  beforeEach(() => {
+    scratchDir = mkdtempSync(join(tmpdir(), 'pd-onnx-resource-dir-'));
+    // The real repo checkout has node_modules/onnxruntime-node on disk, which
+    // would satisfy the cwd-relative dev-install candidate and mask what
+    // these tests actually verify (PORT_DADDY_RESOURCE_DIR resolution).
+    // Run from an empty cwd so only the explicit candidate under test exists.
+    originalCwd = process.cwd();
+    process.chdir(scratchDir);
+    savedResourceDir = process.env.PORT_DADDY_RESOURCE_DIR;
+    savedFallbackVar = process.env[fallbackVar];
+    delete process.env[fallbackVar];
+  });
+
+  afterEach(() => {
+    process.chdir(originalCwd);
+    rmSync(scratchDir, { recursive: true, force: true });
+    if (savedResourceDir === undefined) delete process.env.PORT_DADDY_RESOURCE_DIR;
+    else process.env.PORT_DADDY_RESOURCE_DIR = savedResourceDir;
+    if (savedFallbackVar === undefined) delete process.env[fallbackVar];
+    else process.env[fallbackVar] = savedFallbackVar;
+  });
+
+  test('is a no-op when no packaged native dir exists anywhere', () => {
+    process.env.PORT_DADDY_RESOURCE_DIR = scratchDir;
+    ensureOnnxRuntimeNativeLibFindable();
+    expect(process.env[fallbackVar]).toBeUndefined();
+  });
+
+  test('points the dynamic-linker fallback path at PORT_DADDY_RESOURCE_DIR/dist/native/onnxruntime-node/<platform>-<arch> when present', () => {
+    const platformArch = `${process.platform}-${process.arch}`;
+    const nativeDir = join(scratchDir, 'dist', 'native', 'onnxruntime-node', platformArch);
+    mkdirSync(nativeDir, { recursive: true });
+    writeFileSync(join(nativeDir, 'libonnxruntime.fake.dylib'), 'not a real binary, just proving path resolution');
+    process.env.PORT_DADDY_RESOURCE_DIR = scratchDir;
+
+    ensureOnnxRuntimeNativeLibFindable();
+
+    expect(process.env[fallbackVar]).toBe(nativeDir);
+  });
+
+  test('prepends to an existing fallback path instead of clobbering it', () => {
+    const platformArch = `${process.platform}-${process.arch}`;
+    const nativeDir = join(scratchDir, 'dist', 'native', 'onnxruntime-node', platformArch);
+    mkdirSync(nativeDir, { recursive: true });
+    process.env.PORT_DADDY_RESOURCE_DIR = scratchDir;
+    process.env[fallbackVar] = '/some/pre-existing/path';
+
+    ensureOnnxRuntimeNativeLibFindable();
+
+    expect(process.env[fallbackVar]).toBe(`${nativeDir}:/some/pre-existing/path`);
   });
 });
