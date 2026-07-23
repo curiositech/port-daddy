@@ -86,6 +86,32 @@ echo "Paste the client secret below (input hidden):"
 put_secret "$RELAY_DIR" "$RELAY_CFG" GITHUB_OAUTH_CLIENT_SECRET
 echo "✓ GITHUB_OAUTH_CLIENT_SECRET set — GitHub login is now live (was 503)."
 
+# ── 3b. GitHub App private key (bot identity: checks + run-page details_url) ──
+# Distinct from the OAuth client secret above. This is the App's PEM private
+# key (GITHUB_APP_PRIVATE_KEY) used to mint installation tokens — it's what lets
+# the 'port-daddy-fleet' bot post check runs and stamp the run-page details_url.
+# Consumed by BOTH the relay (fleet-control.ts) and fleet-executor (execute.ts).
+# GITHUB_APP_ID is already a committed var (fleet-executor = 3810450).
+step "3b/4  GITHUB_APP_PRIVATE_KEY (the App's .pem — relay + fleet-executor)"
+DEFAULT_PEM="$(ls -t "$HOME"/coding/port-daddy*.private-key.pem 2>/dev/null | head -1 || true)"
+printf 'Path to the GitHub App private key .pem'
+[ -n "$DEFAULT_PEM" ] && printf ' [%s]' "$DEFAULT_PEM"
+printf ': '
+read -r PEM_PATH
+PEM_PATH="${PEM_PATH:-$DEFAULT_PEM}"
+if [ -n "$PEM_PATH" ] && [ -f "$PEM_PATH" ]; then
+  # BEGIN header is present on a real PEM; guards against pasting the wrong file.
+  if ! grep -q 'BEGIN.*PRIVATE KEY' "$PEM_PATH"; then
+    echo "⚠ $PEM_PATH is not a PEM private key — skipping (this is NOT the OAuth secret)." >&2
+  else
+    cat "$PEM_PATH" | put_secret "$RELAY_DIR"    "$RELAY_CFG"    GITHUB_APP_PRIVATE_KEY
+    cat "$PEM_PATH" | put_secret "$EXECUTOR_DIR" "$EXECUTOR_CFG" GITHUB_APP_PRIVATE_KEY
+    echo "✓ GITHUB_APP_PRIVATE_KEY set on relay + fleet-executor."
+  fi
+else
+  echo "• No .pem given — skipping (bot check-runs/run-pages need it later)."
+fi
+
 # ── 4. Stripe (Phase 3 managed credits) — optional ───────────────────────────
 if [ "$WANT_STRIPE" -eq 1 ]; then
   step "4/4  Stripe keys (obtained from the Stripe dashboard) — optional"
