@@ -2,7 +2,7 @@
   "generatedAt": 1784177784166,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9877",
-  "count": 226,
+  "count": 227,
   "items": [
     {
       "slug": "accountability-wedge-launch-assets",
@@ -1133,6 +1133,11 @@
       "slug": "workintent-dispatch-isolation",
       "status": "backlog",
       "summaryMd": "fix(dispatch): isolate WorkIntent worktrees"
+    },
+    {
+      "slug": "guard-merge-blast-radius-fix",
+      "status": "now",
+      "summaryMd": "Fix coordination-guard stagedFiles() misattributing a merge's pass-through files (from origin/main) to the merging session's blast radius, causing false claim-collision blocks on rebase-forward commits. Root cause: pre-commit diff against stale HEAD instead of MERGE_HEAD during an in-progress merge. Shipped as PR #3130."
     }
   ]
 }
