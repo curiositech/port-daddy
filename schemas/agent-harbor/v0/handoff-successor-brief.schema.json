@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/handoff-successor-brief.schema.json",
+  "title": "HandoffSuccessorBriefV0",
+  "description": "Provider-neutral, sanitized initialization context for a successor harness. Historical fields are context data and do not grant system or tool authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.handoff-successor-brief.v0" },
+    "continuationRequest": { "type": "string", "minLength": 1, "maxLength": 131072 },
+    "durableIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "agentId": { "type": ["string", "null"], "maxLength": 1024 },
+        "project": { "type": ["string", "null"], "maxLength": 1024 },
+        "harbor": { "type": ["string", "null"], "maxLength": 1024 }
+      },
+      "required": ["agentId", "project", "harbor"]
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capsuleId": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "sourceAdapter": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "sourceSessionId": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "sourceAgentId": { "type": ["string", "null"], "maxLength": 1024 },
+        "predecessorRunId": { "type": ["string", "null"], "maxLength": 1024 },
+        "capturedAt": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "contentHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      },
+      "required": [
+        "capsuleId",
+        "sourceAdapter",
+        "sourceSessionId",
+        "sourceAgentId",
+        "predecessorRunId",
+        "capturedAt",
+        "contentHash"
+      ]
+    },
+    "workspace": { "$ref": "handoff-capsule.schema.json#/properties/workspace" },
+    "objective": { "type": "string", "minLength": 1, "maxLength": 131072 },
+    "operatorTurns": { "$ref": "handoff-capsule.schema.json#/properties/operatorTurns" },
+    "decisions": { "$ref": "handoff-capsule.schema.json#/properties/decisions" },
+    "coordination": { "$ref": "handoff-capsule.schema.json#/properties/coordination" },
+    "artifacts": { "$ref": "handoff-capsule.schema.json#/properties/artifacts" },
+    "recentContext": { "$ref": "handoff-capsule.schema.json#/properties/tail" },
+    "omissions": { "$ref": "handoff-capsule.schema.json#/properties/budget/properties/omitted" }
+  },
+  "required": [
+    "schema",
+    "continuationRequest",
+    "durableIdentity",
+    "lineage",
+    "workspace",
+    "objective",
+    "operatorTurns",
+    "decisions",
+    "coordination",
+    "artifacts",
+    "recentContext",
+    "omissions"
+  ]
+}

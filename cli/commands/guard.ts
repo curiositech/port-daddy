@@ -2,7 +2,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFile
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import * as ui from '../utils/ui.js';
-import { pdFetch, PORT_DADDY_URL, type PdFetchResponse } from '../utils/fetch.js';
+import { pdFetch, PORT_DADDY_URL, isDaemonRunning, type PdFetchResponse } from '../utils/fetch.js';
 import { readCurrentContext } from '../utils/current-context.js';
 import { installGitShim, uninstallGitShim, SHIM_BIN_DIR } from '../utils/git-shim.js';
 import type { CLIOptions } from '../types.js';
@@ -231,8 +231,47 @@ function gitPath(path: string, cwd = process.cwd()): string | null {
   return resolved ? resolve(cwd, resolved) : null;
 }
 
-function stagedFiles(cwd = process.cwd()): string[] {
-  return gitOutput(['diff', '--cached', '--name-only', '--diff-filter=ACMRDTU'], cwd);
+/**
+ * The SHA of the other parent during an in-progress merge (`git merge` with
+ * a real conflict, mid-resolution), or null when not merging. `rev-parse`
+ * (not a raw `.git/MERGE_HEAD` read) so this resolves correctly across
+ * worktrees, where `--git-path` points at the per-worktree git dir.
+ */
+function mergeHeadSha(cwd = process.cwd()): string | null {
+  const result = spawnSync('git', ['rev-parse', '--verify', '-q', 'MERGE_HEAD'], { cwd, encoding: 'utf8' });
+  if (result.status !== 0) return null;
+  const sha = result.stdout.trim();
+  return sha || null;
+}
+
+/**
+ * Files staged for the next commit, scoped to what THIS commit actually
+ * authors — not what merely arrives via a merge.
+ *
+ * A plain `git diff --cached` against HEAD is correct for a normal commit,
+ * but during an in-progress merge (`.git/MERGE_HEAD` set) it compares the
+ * post-merge tree to the STALE pre-merge HEAD, so every file the other
+ * branch touched shows up as "staged" — even ones this session never edited
+ * and that arrived unchanged from the branch being merged in. On a
+ * rebase-forward of a stale PR branch onto origin/main, that swept in
+ * hundreds of main's files, each still under some OTHER live session's
+ * active claim, and the coordination guard correctly-but-wrongly refused the
+ * commit as if this session were overwriting their work.
+ *
+ * Fix: when merging, diff the staged tree against MERGE_HEAD (the tip being
+ * merged in) instead of HEAD. A file whose resolved content equals
+ * MERGE_HEAD's is a pure pass-through — not authored here, exempt from
+ * claim checks. A file that differs (an actual conflict resolution) still
+ * counts, correctly. `commitFiles()` below needs no equivalent fix: git's
+ * own default combined-diff for `git show <merge-commit>` already applies
+ * this exact rule post-commit.
+ */
+export function stagedFiles(cwd = process.cwd()): string[] {
+  const mergeHead = mergeHeadSha(cwd);
+  const diffArgs = mergeHead
+    ? ['diff', '--cached', '--name-only', '--diff-filter=ACMRDTU', mergeHead]
+    : ['diff', '--cached', '--name-only', '--diff-filter=ACMRDTU'];
+  return gitOutput(diffArgs, cwd);
 }
 
 /**
@@ -408,6 +447,11 @@ export function evaluateGuardFacts(input: {
    *  Supplied only at commit-time (staged/hook/post-commit). Drives the
    *  compulsion: no note, no commit (ADR-0050). */
   commitsSinceLastNote?: number;
+  /** Set at commit-time when the daemon's coordination truth could NOT be read
+   *  (daemon down / erroring). The note-per-commit invariant cannot be verified,
+   *  so in enforce mode this fails CLOSED with a critical `rent-unverifiable`
+   *  violation instead of silently allowing an un-noted commit. */
+  rentUnverifiable?: boolean;
   /** True for staged/hook/post-commit checks. Roadmap compulsion is a commit
    *  invariant; dirty-tree advisory checks should not demand a roadmap receipt. */
   atCommitTime?: boolean;
@@ -502,6 +546,21 @@ export function evaluateGuardFacts(input: {
     }
   }
 
+  // Fail CLOSED when the note-per-commit invariant could not even be checked
+  // because the daemon's coordination truth was unreadable at commit time. This
+  // is the partial-failure hole the old fail-open rent gatherer left: a daemon
+  // that is up-but-erroring (or down on the no-session path) must not wave an
+  // un-noted commit through just because the count came back empty.
+  if (input.config.requireNotePerCommit && input.active && input.rentUnverifiable) {
+    violations.push({
+      code: 'rent-unverifiable',
+      severity: 'critical',
+      message:
+        'Coordination truth could not be read from the Port Daddy daemon at commit time; ' +
+        'the note-per-commit invariant cannot be verified. Repair the daemon (pd doctor) and retry.',
+    });
+  }
+
   if (
     input.config.requireRoadmapForCoordinationChanges &&
     input.atCommitTime &&
@@ -553,7 +612,13 @@ async function loadActiveContext(cwd = process.cwd()): Promise<{
 }> {
   const context = readCurrentContext(cwd);
   if (!context?.agentId && !context?.sessionId) {
-    return { active: false, daemonReachable: true };
+    // No attached session — but OBSERVE daemon liveness rather than asserting it.
+    // Previously this returned daemonReachable:true unconditionally, so a dead
+    // daemon on the no-session path could never raise `daemon-unreachable`; the
+    // door was invisible. Probe /health so enforce-mode fails closed on a down
+    // daemon regardless of whether a session happens to be attached.
+    const daemonReachable = await isDaemonRunning();
+    return { active: false, daemonReachable };
   }
 
   const params = new URLSearchParams();
@@ -626,7 +691,10 @@ export function describeGuardBlock(
 ): GuardBlockNotice | null {
   if (!result.shouldBlock) return null;
   const codes = new Set(result.violations.map((v) => v.code));
-  const structural = codes.has('daemon-unreachable') || codes.has('no-active-session');
+  const structural =
+    codes.has('daemon-unreachable') ||
+    codes.has('no-active-session') ||
+    codes.has('rent-unverifiable');
   const conflict = codes.has('claimed-by-other-session');
   const severity: GuardBlockSeverity = structural ? 'structural' : conflict ? 'conflict' : 'requirement';
   const first = result.violations[0]?.message ?? 'coordination requirement unmet';
@@ -867,10 +935,19 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
   // attached; daemon/git failures degrade to "no rent owed" (fail-open here, so
   // a flaky daemon never wedges every commit — the claim discipline still bites).
   const atCommitTime = Boolean(options.staged || options.hook || postCommit);
-  const commitsSinceLastNote =
+  let commitsSinceLastNote: number | undefined;
+  let rentUnverifiable = false;
+  if (
     mode !== 'off' && atCommitTime && config.requireNotePerCommit && context.active && context.sessionId
-      ? await gatherCommitsSinceLastNote(context.sessionId, root)
-      : undefined;
+  ) {
+    const probe = await gatherCommitsSinceLastNote(context.sessionId, root);
+    if (probe.ok) {
+      commitsSinceLastNote = probe.commitsSinceLastNote;
+    } else {
+      // Daemon coordination truth unreadable during a commit → fail CLOSED.
+      rentUnverifiable = true;
+    }
+  }
   const roadmapReceipts =
     mode !== 'off' &&
     atCommitTime &&
@@ -890,6 +967,7 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
     sessionId: context.sessionId,
     ownersByFile,
     commitsSinceLastNote,
+    rentUnverifiable,
     atCommitTime,
     roadmapReceipts,
   });
