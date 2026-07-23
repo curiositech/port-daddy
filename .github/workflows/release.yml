@@ -181,14 +181,22 @@ jobs:
         # dist/core/pd-bosun, then core/pd-bosun/... — the extracted `core/`
         # dir satisfies the daemon-relative fallback). Without this the tarball
         # had no watchdog and the KeepAlive supervisor job was silently skipped.
-        # Also ship the Giant Squid Harness tentacles (bin/pd-hook-*) next to
+        #
+        # Also ship native/ — scripts/build-single-binary.mjs packages
+        # onnxruntime-node's runtime library (libonnxruntime.*.dylib /
+        # libonnxruntime.so.1) there (#3561). bun build --compile extracts the
+        # .node N-API binding at runtime but not its @rpath-linked sibling;
+        # lib/semantic-resolver.ts points DYLD_FALLBACK_LIBRARY_PATH /
+        # LD_LIBRARY_PATH at this directory before the embedding model loads.
+        #
+        # And ship the Giant Squid Harness tentacles (bin/pd-hook-*) next to
         # `pd` so `pd squid`/`pd hooks` work from a compiled install — the
-        # adapter resolves them from dirname(process.execPath). They are portable
-        # POSIX shell scripts (no runtime), so a flat copy is enough.
+        # adapter resolves them from dirname(process.execPath). Portable POSIX
+        # shell scripts (no runtime), so a flat copy is enough.
         run: |
           cp bin/pd-hook-prompt bin/pd-hook-pre-tool bin/pd-hook-post-tool dist/
           chmod +x dist/pd-hook-prompt dist/pd-hook-pre-tool dist/pd-hook-post-tool
-          cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json pd-bosun pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool
+          cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json pd-bosun native pd-hook-prompt pd-hook-pre-tool pd-hook-post-tool
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2
